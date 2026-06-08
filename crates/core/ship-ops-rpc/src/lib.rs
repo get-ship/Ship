@@ -31,6 +31,9 @@ pub use ship::ops::v1::*;
 pub mod policy;
 pub use policy::BlastRadius;
 
+pub mod catalog;
+pub use catalog::{OpDescriptor, ArgDescriptor, CommandDescriptor, COMMANDS, OPS};
+
 /// The compiled `FileDescriptorSet`, including the custom method options
 /// (`capability`, `blast_radius`, `op_sensitive`). The daemon gate reads policy
 /// from this at startup (buffa reflection) rather than from the generated Rust,

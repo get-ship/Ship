@@ -1,8 +1,5 @@
 //! `pipelines.run(slug)` — per-run detail page data.
-//!
-//! Joins the `PipelineRun` projection with the underlying event log
-//! (step.observed + job.* / process.* events) to produce the step
-//! observations table and the scrollable event timeline.
+//! Relocated from `shipd::services::pipelines::run_detail` (L2 → L1).
 
 use serde::Serialize;
 use std::path::Path;
@@ -86,11 +83,10 @@ fn event_summary(env: &ship_substrate::events::EventEnvelope) -> String {
 }
 
 pub fn build(slug: &str, ship_dir: &Path) -> Option<RunDetailCtx> {
-    let jobs = ship_pipeline_runtime::projections::pipeline_run::load_pipeline_runs_at(ship_dir).ok()?;
+    let jobs = crate::projections::pipeline_run::load_pipeline_runs_at(ship_dir).ok()?;
     let job = jobs.values().find(|j| j.slug == slug)?;
     let run = to_run_view(job, true);
-    // pipeline.step.* are Runtime-scoped → read the run's step events via the L1 API.
-    let events = ship_pipeline_runtime::projections::load_run_events_at(ship_dir, &job.pipeline_run_id, 500)
+    let events = crate::projections::load_run_events_at(ship_dir, &job.pipeline_run_id, 500)
         .unwrap_or_default();
 
     let mut observations: Vec<StepObservationRow> = events

@@ -3,24 +3,16 @@
 //! templates (`ship.<domain>.<op>`), `window.ship.*` codegen, and MCP
 //! tool auto-registration all read.
 //!
-//! Submodules:
-//! - `types`    — OpDescriptor, ArgDescriptor, CommandDescriptor structs
-//! - `commands` — COMMANDS const (the full mutation catalog)
+//! The catalog types and constants now live in `ship-ops-rpc::catalog` so CLI
+//! and gateway can reach them without depending on the daemon. This module
+//! re-exports them for backward-compat and hosts the thin HTTP handler.
 //!
 //! Served at `GET /api/v1/ship/schema`.
 
-pub mod types;
-mod commands;
-
-pub use types::{OpDescriptor, ArgDescriptor, CommandDescriptor};
-pub use commands::COMMANDS;
+pub use ship_ops_rpc::catalog::{OpDescriptor, ArgDescriptor, CommandDescriptor, COMMANDS, OPS};
 
 use axum::Json;
 use crate::wire::MeshResponse;
-
-/// Read-side op catalog. All domains have migrated to typed Connect RPCs;
-/// this slice is empty and kept only for xtask / SDK codegen compatibility.
-pub const OPS: &[OpDescriptor] = &[];
 
 /// `GET /api/v1/ship/schema` — catalog of every `ship.<domain>.<op>` the
 /// registry exposes. Consumers:

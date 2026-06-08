@@ -1,17 +1,5 @@
 //! Per-run git-level stats for the pipelines render layer.
-//!
-//! The runtime's `PipelineRun` projection does not surface per-step
-//! commit or dirty-file counts. What's cheap + honest today is a
-//! per-run (per-worktree) snapshot of commits-ahead-of-main and
-//! uncommitted-files counts — one `git rev-list --count` + one
-//! `git status --porcelain` per run. We shell out rather than pulling
-//! in libgit2 because worktree paths here are pipeline-owned and may
-//! be pruned or mid-clone; subprocess failures just become zero.
-//!
-//! Lives alongside the pipelines service state because it's the
-//! view-composition half of the same domain — keeping it as a sibling
-//! module (`state` + `view_state`) preserves the 300-line cap while
-//! honoring "one domain, one state home."
+//! Relocated from `shipd::services::pipelines::view_state` (L2 → L1).
 
 use std::path::Path;
 
@@ -28,10 +16,6 @@ fn run_git(root: &Path, args: &[&str]) -> Result<String, String> {
 }
 
 /// Branch-level git stats for a single pipeline run.
-///
-/// Both fields default to `0` when the worktree is missing, on `main`,
-/// or git returns an error — callers render `0` as "clean / up to date"
-/// rather than a failure.
 #[derive(serde::Serialize, Clone, Debug, Default)]
 pub struct BranchStats {
     pub commits_ahead: u32,
@@ -50,10 +34,7 @@ pub fn branch_stats(worktree_path: &Path) -> BranchStats {
         .ok()
         .map(|s| s.lines().filter(|l| !l.is_empty()).count() as u32)
         .unwrap_or(0);
-    BranchStats {
-        commits_ahead,
-        dirty_files,
-    }
+    BranchStats { commits_ahead, dirty_files }
 }
 
 #[cfg(test)]

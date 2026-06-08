@@ -1,17 +1,13 @@
 //! `pipelines.summaries` — data for the pipelines list view.
-//!
-//! One call returns everything `.ship/views/pipelines/index.html.j2`
-//! needs: definitions with aggregated stats, active + history runs
-//! (each pre-shaped as `RunView`), the status-pill row, the agents
-//! chip set, detected harnesses, and workspace id.
+//! Relocated from `shipd::services::pipelines::summaries` (L2 → L1).
 
 use serde::Serialize;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use ship_pipeline_runtime::projections::pipeline_run::PipelineRunStatus;
+use crate::projections::pipeline_run::PipelineRunStatus;
 
-use crate::views::state::{
+use super::state::{
     Filter, PipelineDef, aggregate_pipeline_stats, list_pipeline_defs, list_pipeline_runs,
     partition_runs, status_token,
 };
@@ -31,11 +27,8 @@ pub struct SummariesCtx {
     pub status_pills: Vec<StatusPill>,
     pub harnesses: Vec<String>,
     pub workspace_id: Option<String>,
-    /// Echo of the selected filter (for chip-state rendering).
     pub filter: Filter,
-    /// Current agent filter (convenience — `filter.agent` flattened).
     pub agent_filter: String,
-    /// Active tab — the list view defaults to "active".
     pub active_tab: String,
 }
 
@@ -58,8 +51,6 @@ pub fn build(
     active_tab: Option<String>,
 ) -> SummariesCtx {
     let mut defs = list_pipeline_defs(ship_dir);
-    // Unfiltered pass populates agent-chip row + aggregate stats;
-    // the active filter only narrows rendered runs, not chip options.
     let all_runs = list_pipeline_runs(ship_dir, &Filter::default());
     aggregate_pipeline_stats(&mut defs, all_runs.iter());
     let agents: Vec<String> = all_runs

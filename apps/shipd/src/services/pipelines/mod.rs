@@ -1,17 +1,12 @@
 //! Pipelines view-data helpers.
 //!
-//! These resolve the data shapes that the pipelines daemon-rendered
-//! views need (focus, history, run_detail, summaries, etc.). They sit
-//! between the registry dispatch (`registry/pipelines.rs`) and the
-//! `ship_pipeline_runtime::pipelines` trait surface — they call into
-//! the trait + projections to assemble per-render payloads.
-//!
-//! The pure `PipelinesService` trait + Impl + state + tests live in
-//! the `ship-pipeline-runtime` crate (P3 carve out of `ship-platform`).
-//! HTTP handlers are in `apps/shipd/src/routes/pipelines_api.rs`.
+//! The context builders and domain state live in `ship-pipeline-runtime::view`
+//! (L2 → L1 relocation). This module re-exports them so shipd call sites
+//! (`ops_rpc.rs`) continue working without path changes.
 
-pub mod history;
-pub mod run_detail;
-pub mod shape;
-pub mod summaries;
-pub mod view_state;
+pub use ship_pipeline_runtime::view::summaries;
+pub use ship_pipeline_runtime::view::run_detail;
+pub use ship_pipeline_runtime::view::history;
+pub use ship_pipeline_runtime::view::shape;
+pub use ship_pipeline_runtime::view::view_state;
+pub use ship_pipeline_runtime::view::state;

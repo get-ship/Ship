@@ -1,5 +1,9 @@
 //! Settings view state — ctx builder for the Settings view template.
-//! Called by the `settings.state` registry op; no HTTP handlers.
+//! Relocated from `shipd::services::settings::view_state` (L2 → L1).
+//! The view-rendering `SettingsCtx` here is distinct from
+//! `ship_config::SettingsCtx` (which is the service context with
+//! kernel/account_store/space/is_operator). This one is a serializable
+//! bag of display data for the Settings page.
 
 use serde::Serialize;
 
@@ -54,7 +58,7 @@ pub struct AboutInfo {
 }
 
 #[derive(Serialize)]
-pub struct SettingsCtx {
+pub struct SettingsViewCtx {
     pub harnesses: Vec<ProviderRow>,
     pub default_harness: String,
     pub default_model: String,
@@ -85,9 +89,6 @@ fn harness_meta(id: &str) -> (&'static str, &'static str) {
 }
 
 fn detect_harnesses(default_id: &str) -> Vec<ProviderRow> {
-    // Availability-only: `which <binary>` is sub-millisecond. Version
-    // detection spawns the binary and blocks the render — keep off the
-    // hot path.
     ship_agents::agent_domain::harnesses::HARNESSES
         .iter()
         .map(|d| {
@@ -107,7 +108,7 @@ fn detect_harnesses(default_id: &str) -> Vec<ProviderRow> {
 }
 
 fn setting_string(key: &str) -> String {
-    ship_platform::config::get_setting(key)
+    ship_config::settings::get_setting(key)
         .ok()
         .flatten()
         .and_then(|v| v.as_str().map(|s| s.to_string()))
@@ -147,8 +148,8 @@ fn build_about() -> AboutInfo {
     }
 }
 
-pub fn build_ctx() -> SettingsCtx {
-    let default_harness = ship_platform::config::get_setting("defaults.harness")
+pub fn build_ctx() -> SettingsViewCtx {
+    let default_harness = ship_config::settings::get_setting("defaults.harness")
         .ok()
         .flatten()
         .and_then(|v| v.as_str().map(|s| s.to_string()))
@@ -166,15 +167,15 @@ pub fn build_ctx() -> SettingsCtx {
     let harness_default = setting_string("harness.default");
     let harness_default_model = setting_string("harness.default_model");
     let agent_session_auto_resume =
-        ship_platform::config::resolve_bool("agent_session.auto_resume", None);
+        ship_config::settings::resolve_bool("agent_session.auto_resume", None);
     let watcher_debounce_ms =
-        ship_platform::config::get_setting_u64_or("watcher.debounce_ms", 200).to_string();
+        ship_config::settings::get_setting_u64_or("watcher.debounce_ms", 200).to_string();
     let git_log_limit =
-        ship_platform::config::get_setting_u64_or("git.log_limit", 50).to_string();
+        ship_config::settings::get_setting_u64_or("git.log_limit", 50).to_string();
     let hooks_max_depth =
-        (ship_platform::config::get_setting_u64_or("hooks.max_depth", 3) as u32).to_string();
+        (ship_config::settings::get_setting_u64_or("hooks.max_depth", 3) as u32).to_string();
 
-    SettingsCtx {
+    SettingsViewCtx {
         harnesses,
         default_harness,
         default_model,

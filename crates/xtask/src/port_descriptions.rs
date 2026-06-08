@@ -39,10 +39,10 @@ fn op_name(service: &str, method: &str) -> String {
 /// op name → one-line description, from the registry (both read + command tables).
 fn descriptions() -> HashMap<String, String> {
     let mut m = HashMap::new();
-    for op in shipd::services::schema::OPS.iter() {
+    for op in ship_ops_rpc::catalog::OPS.iter() {
         m.insert(op.name.to_string(), op.description.to_string());
     }
-    for cmd in shipd::services::schema::COMMANDS {
+    for cmd in ship_ops_rpc::catalog::COMMANDS {
         m.insert(cmd.name.to_string(), cmd.description.to_string());
     }
     m

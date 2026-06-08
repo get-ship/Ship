@@ -1,11 +1,7 @@
 //! Shared view-shape types + per-record derivations for the pipelines
-//! view surface. All pure — no I/O beyond the `branch_stats` subprocess
-//! call reused from the parent module.
-//!
-//! These types are serialized straight into the registry op payloads
-//! that `.ship/views/pipelines/*` templates consume.
+//! view surface. Relocated from `shipd::services::pipelines::shape` (L2 → L1).
 
-use ship_pipeline_runtime::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
+use crate::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
 use serde::Serialize;
 use std::path::PathBuf;
 
@@ -114,9 +110,6 @@ pub fn format_duration_between(
     format_duration(secs)
 }
 
-/// Derive per-step outcome segment tokens from what the projection
-/// exposes: `steps.len()`, `completed_steps`, overall `status`. No
-/// per-step verdict is required.
 pub fn derive_segments(job: &PipelineRun) -> Vec<&'static str> {
     let total = job
         .steps
@@ -152,8 +145,7 @@ pub fn derive_segments(job: &PipelineRun) -> Vec<&'static str> {
     out
 }
 
-/// Build a `RunView` for a single job record. When `include_stats`,
-/// shells out for per-worktree `BranchStats`; otherwise zero-defaults.
+/// Build a `RunView` for a single job record.
 pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
     let run_failed = matches!(job.status, PipelineRunStatus::Failed);
     let steps = job
@@ -212,8 +204,7 @@ pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
     }
 }
 
-/// Workspace id = current git branch at the project root the daemon
-/// is attached to. `None` when project isn't a git repo.
+/// Workspace id = current git branch at the project root.
 pub fn current_project_workspace_id() -> Option<String> {
     let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
     let root = project_ship.parent()?;
@@ -229,14 +220,11 @@ pub fn current_project_workspace_id() -> Option<String> {
     if branch.is_empty() { None } else { Some(branch) }
 }
 
-/// Locate a pipeline file on disk by walking up from CWD looking for
-/// `.ship/pipelines/<name>.jsonc`. JSONC only.
+/// Locate a pipeline file on disk by walking up from CWD.
 pub fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
     let mut walker = std::env::current_dir().ok()?;
     loop {
         let ship = ship_substrate::ShipHome::project_ship_dir(&walker);
-        // Composed overlay (local + dep pipelines) when the space has deps; raw
-        // `.ship/` otherwise — parity with pipeline_loader's load path.
         let dir = ship_store::compose::composed_root_for(&ship).join("pipelines");
         if dir.is_dir() {
             for ext in ["yaml", "yml", "jsonc", "json"] {

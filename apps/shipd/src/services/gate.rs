@@ -225,6 +225,63 @@ mod tests {
         assert!(matches!(decide(BlastRadius::C3Critical, "pipelines", &commander), Decision::Deny(_)));
     }
 
+    /// Where a command IS on a per-domain proto service, the proto-sourced
+    /// policy must match the hand-declared `COMMANDS` blast + capability —
+    /// proving the op-name lookup the gate uses reflects the catalog without
+    /// drift. Commands not yet on a proto service are gated by the
+    /// `COMMANDS.blast_radius` fallback; they're covered there, not here.
+    #[test]
+    fn reflected_policy_matches_declared_commands() {
+        use ship_ops_rpc::policy::policy_for;
+        let mut checked = 0;
+        for cmd in crate::services::schema::COMMANDS {
+            let Some(pol) = policy_for(cmd.name) else { continue };
+            assert_eq!(
+                pol.blast,
+                BlastRadius::from_descriptor(cmd.blast_radius),
+                "blast mismatch for `{}`",
+                cmd.name
+            );
+            assert_eq!(
+                pol.capability, cmd.permission,
+                "capability mismatch for `{}`",
+                cmd.name
+            );
+            checked += 1;
+        }
+        assert!(checked > 0, "expected at least some commands on proto services");
+    }
+
+    /// SECURITY (#314): every C2 command that DOES carry a proto policy resolves
+    /// to operator-authority through the op-name lookup the gate uses (never to a
+    /// lower tier or absent).
+    #[test]
+    fn proto_backed_c2_commands_resolve_to_operator_authority() {
+        use ship_ops_rpc::policy::policy_for;
+        for cmd in crate::services::schema::COMMANDS {
+            if BlastRadius::from_descriptor(cmd.blast_radius) != BlastRadius::C2Elevated {
+                continue;
+            }
+            if let Some(p) = policy_for(cmd.name) {
+                assert_eq!(
+                    p.blast,
+                    BlastRadius::C2Elevated,
+                    "C2 command `{}` resolved to {:?}",
+                    cmd.name,
+                    p.blast
+                );
+            }
+        }
+    }
+
+    /// The fail-closed contract: an unknown / unpoliced op has no proto policy.
+    #[test]
+    fn unknown_op_has_no_proto_policy() {
+        use ship_ops_rpc::policy::policy_for;
+        assert!(policy_for("permissions.not_a_real_op").is_none());
+        assert!(policy_for("nonsense.nope").is_none());
+    }
+
     #[test]
     fn every_c2_command_service_is_grantable() {
         // Service membership only *gates* C2 ops — C0/C1 are allowed regardless

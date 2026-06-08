@@ -1,15 +1,12 @@
-//! `pipelines.history(limit?, offset?, q?, pipeline?)` — paginated
-//! history rows for the dedicated history view.
+//! `pipelines.history(limit?, offset?, q?, pipeline?)` — paginated history rows.
+//! Relocated from `shipd::services::pipelines::history` (L2 → L1).
 
-use ship_pipeline_runtime::projections::pipeline_run::PipelineRun;
+use crate::projections::pipeline_run::PipelineRun;
 use serde::Serialize;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use crate::views::state::{
-    Filter, list_pipeline_runs, partition_runs, status_tone, pipeline_name_for_job_public,
-};
-
+use super::state::{Filter, list_pipeline_runs, partition_runs, status_tone, pipeline_name_for_job_public};
 use super::shape::{format_duration_between, run_state_token};
 
 #[derive(Serialize, Clone)]

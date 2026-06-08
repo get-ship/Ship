@@ -175,7 +175,7 @@ pub fn router(state: ApiState) -> axum::Router {
                 .extensions
                 .get::<crate::auth::AuthContext>()
                 .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-            let pol = crate::services::op_policy::policy_for(op)
+            let pol = ship_ops_rpc::policy::policy_for(op)
                 .ok_or_else(|| ConnectError::internal(format!("no policy for {op}")))?;
             let caller = crate::services::gate::caller_from_auth(auth);
             match crate::services::gate::decide(
