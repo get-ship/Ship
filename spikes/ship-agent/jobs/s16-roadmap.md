@@ -33,16 +33,34 @@ context-projection + durable agent turns — is proven before any trunk change.
 **Exit A:** the spike proves the full engine + code-mode-as-durable-program +
 context-projection, all green. The hard, novel work is done before the trunk.
 
-## Phase B — Verify the one risk (before touching the trunk)
-- **B1 · Connect in-process transport feasibility.** Prove `tower::oneshot` of the
-  Connect router works with the `connectrpc` crate: full interceptor stack (the
-  `GateFn` runs), in-process, no socket, `AuthContext` injected into request
-  extensions. This is the load-bearing assumption for RPC-as-IPC. Tiny harness
-  against a real shipd service. **If it doesn't hold cleanly:** fall back to
-  UDS-loopback for embedded, or a thin in-proc service adapter — same SSOT, the
-  transport differs. This gate protects us from building on a false assumption.
+## Phase B — Verify the one risk (before touching the trunk) — ✅ COMPLETE
+- **B1 · Connect in-process transport feasibility.** ✅ PROVEN. `tower::oneshot`
+  of the **real** `apps/shipd/src/ops_rpc.rs::router` runs the full interceptor
+  stack in-process, no socket, with the `AuthContext` read from request
+  extensions — the exact embedded path. Two layers of evidence:
+  - **Transport mechanism** (the connectrpc crate's own test,
+    `service.rs::extensions_flow_to_handler_context`): an extension stamped on
+    the `http::Request` survives unary dispatch and reaches
+    `RequestContext.extensions` verbatim (`service.rs:1468` moves
+    `parts.extensions` → `.with_extensions(...)`). That's the map the `GateFn`
+    reads (`ops_rpc.rs:176`).
+  - **Our gate enforces through it** (new behavioral test,
+    `ops_rpc::tests::in_process_router_enforces_the_gate_for_an_embedded_caller`):
+    for an embedded-style caller (`operator_cred=false`, scoped grants), the same
+    `mcp.create` (C2) request is **denied** (403 `permission_denied`) with no
+    grant and **clears the gate** with `grants=["mcp"]` — the grant is the only
+    variable. A C0 read by the same ungranted caller stays 200, ruling out a dead
+    transport / blanket-reject. Proves the in-proc oneshot traverses the SAME gate
+    the socket does. **No fallback needed** — UDS-loopback stays in the back pocket.
+- **Drift cleared to unblock the test target** (restored-worktree closeout): two
+  test files referenced the culled `Route::PostFeedback` shell (deleted in
+  `57873e69d`, logic now on `AgentsService` Connect ops) → repointed/removed; five
+  supervisor source-grep `include_str!`s pointed at `ship-platform`'s old
+  `process_registry.rs` (moved to `ship-substrate`) → repathed. `shipd` lib-test
+  target is green again (the gate + routes + supervisor modules all pass).
 
-**Exit B:** RPC-as-IPC proven, or the fallback chosen with eyes open.
+**Exit B:** RPC-as-IPC proven behaviorally. C–F are mechanical-ish on a proven
+core + a verified transport.
 
 ## Phase C — Workspace foundation (commits deno + the engine to the trunk)
 - **C1 · ship-js → deno.** Graduate the spike's `runtime`/`script_executor`/
@@ -110,9 +128,10 @@ A (engine, spike) ──► B (verify Connect-IPC) ──► C (deno+engine+IPC 
                                                                                       ship-code carve,
                                                                                       pipelines refactor) ──► F
 ```
-- **The only architectural risk is B** (Connect in-process transport). Everything
-  in A is greenfield and reversible; B gates the trunk work; C–F are mechanical-ish
-  on a proven core + a verified transport.
+- **The only architectural risk was B** (Connect in-process transport) — now
+  ✅ proven behaviorally. Everything in A is greenfield and reversible; B is the
+  gate to trunk work and it held; C–F are mechanical-ish on a proven core + a
+  verified transport.
 - **Reversibility:** Phase A lives entirely in the spike — nothing in the trunk
   changes until C, and the first trunk change (C1) is risk-free (no ship-js
   consumers). The heavy/irreversible commitment (deno in the workspace) is C1,
