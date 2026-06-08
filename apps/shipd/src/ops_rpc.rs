@@ -411,6 +411,18 @@ pub fn router(state: ApiState) -> axum::Router {
                 let ctx = history::build(pipelines_state_for_read.ship_dir(), q, pipeline, offset, limit);
                 serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
             }
+            "pipelines.focus" => {
+                use crate::services::pipelines::focus;
+                let name = args.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                // `null` when the pipeline file doesn't exist — the
+                // generated `PipelinesService::focus` impl below lifts that
+                // into `ConnectError::not_found`, which the SDK surfaces
+                // as an error envelope.
+                match focus::build(name, pipelines_state_for_read.ship_dir()) {
+                    Some(ctx) => serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null),
+                    None => serde_json::Value::Null,
+                }
+            }
             _ => serde_json::Value::Null,
         }
     });

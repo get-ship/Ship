@@ -10,6 +10,7 @@
 //! the `ship-pipeline-runtime` crate (P3 carve out of `ship-platform`).
 //! HTTP handlers are in `apps/shipd/src/routes/pipelines_api.rs`.
 
+pub mod focus;
 pub mod history;
 pub mod run_detail;
 pub mod shape;

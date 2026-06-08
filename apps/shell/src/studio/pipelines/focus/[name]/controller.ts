@@ -91,9 +91,13 @@ export default controller({
     // Requires the `/studio/pipelines/focus/:name` pattern registered via
     // defineRoutes at shell startup; absent that, name() is undefined → ''.
     const name = derived(() => String(route.params.name?.() ?? ''))
-    // Subscribe to the focus op by name via `liveExpr` — the shell SDK object
-    // exposes no `pipelines` surface, so the call form would throw. Re-subscribes
-    // when `name()` changes. `liveExpr` wraps the SSE channel as a LiveSource.
+    // Subscribe to the focus op by name via the typed SDK surface. The
+    // `pipelines.focus` LiveSource re-subscribes when `name()` changes.
+    // The wire is `ship.ops.v1.PipelinesService/FocusLive` (proto rpc),
+    // resolvable through the live-data multiplex + the `pipelines.focus`
+    // LiveResolver on the daemon side. Until TS codegen lands, the SDK
+    // falls back to the legacy expr-SSE path; either way, the payload
+    // flows through the same registry entry.
     const focusCtx = live(() => ship.pipelines.focus({ name: name() }) as LiveSource<FocusCtx>)
     const def = derived(() => decorateDef(read(focusCtx()).def))
     const relLastRun = derived(() => {

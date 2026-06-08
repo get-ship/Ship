@@ -105,6 +105,23 @@ pub fn build() -> LiveResolverRegistry {
     );
     reg.register(
         "pipelines",
+        "focus",
+        Arc::new(|state: &ApiState, args: &Value| {
+            use crate::services::pipelines::focus;
+            let name = args.get("name").and_then(|v| v.as_str()).unwrap_or("");
+            // The unary read returns `null` when no pipeline file resolves
+            // to `name` — the wire's `live_read_with` translates that into
+            // a `not_found` ConnectError. The live stream then yields a
+            // single null frame, which the SDK surfaces as an error
+            // envelope to the controller.
+            match focus::build(name, state.ship_dir()) {
+                Some(ctx) => serde_json::to_value(&ctx).unwrap_or(Value::Null),
+                None => Value::Null,
+            }
+        }),
+    );
+    reg.register(
+        "pipelines",
         "history",
         Arc::new(|state: &ApiState, args: &Value| {
             use crate::services::pipelines::history;
@@ -130,6 +147,7 @@ mod tests {
         assert!(reg.has("git", "overview"));
         assert!(reg.has("pipelines", "summaries"));
         assert!(reg.has("pipelines", "run"));
+        assert!(reg.has("pipelines", "focus"));
         assert!(!reg.has("nonsense", "void"), "unregistered op has no resolver");
         assert!(
             reg.resolve_fn("nonsense", "void", &Value::Null).is_none(),
@@ -138,6 +156,10 @@ mod tests {
         assert!(
             reg.resolve_fn("pipelines", "run", &serde_json::json!({"slug": "x"})).is_some(),
             "a registered parameterized op binds its args"
+        );
+        assert!(
+            reg.resolve_fn("pipelines", "focus", &serde_json::json!({"name": "smoke"})).is_some(),
+            "pipelines.focus binds its name arg"
         );
     }
 }

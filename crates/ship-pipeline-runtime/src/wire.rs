@@ -185,6 +185,34 @@ impl PipelinesServiceTrait for PipelinesWire {
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
 
+    async fn focus(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedPipelineFocusRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        // 404 (not_found) when no pipeline file resolves to `name` — the
+        // studio focus page renders that as an error envelope, never a
+        // null `ok` value (the wire yields a `null` json which the
+        // controller's `read()` envelope-guard rejects).
+        let value = (self.read_fn)("pipelines.focus", &json!({ "name": request.name }));
+        if value.is_null() {
+            return Err(ConnectError::not_found(format!(
+                "no pipeline named `{}`",
+                request.name
+            )));
+        }
+        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn focus_live(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedPipelineFocusRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        (self.live_read_fn)("pipelines.focus", json!({ "name": request.name })).await
+    }
+
     #[allow(refining_impl_trait)]
     async fn history_live(
         &self,
