@@ -298,6 +298,68 @@ pub fn aggregate(results: &[Result<Value, String>], min_ok: usize) -> AggregateD
     }
 }
 
+/// A `Gateway` decorator that turns any script into a durable program: it
+/// journals each op result and replays logged ones without re-executing — so a
+/// ship-js `run_module` script becomes replayable with **no change to the deno
+/// layer** (`op_ship_call` just calls whatever gateway it was handed). This is
+/// the bridge between code-mode and durable execution.
+///
+/// The journal lives behind interior mutability because `Gateway::call` is
+/// `&self`; ops within one program are sequential (the script `await`s each), so
+/// the cursor advances deterministically. (Concurrent sub-runs each get their
+/// own `JournalingGateway` — the context-compartmentalization story.)
+pub struct JournalingGateway {
+    inner: Arc<dyn Gateway>,
+    state: std::sync::Mutex<JournalCursor>,
+}
+
+struct JournalCursor {
+    journal: Journal,
+    cursor: usize,
+}
+
+impl JournalingGateway {
+    pub fn new(inner: Arc<dyn Gateway>, journal: Journal) -> Self {
+        Self { inner, state: std::sync::Mutex::new(JournalCursor { journal, cursor: 0 }) }
+    }
+
+    /// Recover the (advanced) journal to persist / replay.
+    pub fn into_journal(self) -> Journal {
+        self.state.into_inner().unwrap().journal
+    }
+}
+
+#[async_trait::async_trait]
+impl Gateway for JournalingGateway {
+    async fn call(
+        &self,
+        op: &str,
+        args: Value,
+        auth: &AuthContext,
+        kind: GatewayCallKind,
+    ) -> Result<Value, GatewayError> {
+        // Reserve this op's journal slot and peek it (lock dropped before await).
+        let replayed = {
+            let mut st = self.state.lock().unwrap();
+            let idx = st.cursor;
+            st.cursor += 1;
+            st.journal.get(idx).map(|e| e.record.clone())
+        };
+        if let Some(rec) = replayed {
+            return match rec {
+                OpRecord::Completed(v) => Ok(v),
+                OpRecord::Suspended { reason } => {
+                    Err(GatewayError::Dispatch(format!("suspended: {reason}")))
+                }
+            };
+        }
+        // Live frontier: execute through the inner door, journal the result.
+        let r = self.inner.call(op, args, auth, kind).await?;
+        self.state.lock().unwrap().journal.append(op, OpRecord::Completed(r.clone()));
+        Ok(r)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -512,5 +574,47 @@ mod tests {
 
         let (_s2, _) = execute(journal, gw, agent(&["collections"]), &RetryRead).await;
         assert_eq!(calls.load(Ordering::SeqCst), 3, "replay re-executes nothing — retries are not replayed");
+    }
+
+    // A4 — the thesis connector: a ship-js script IS a durable program. Its ops
+    // route through a JournalingGateway; replaying the same script against the
+    // journal re-executes NOTHING (the inner gateway is never called again).
+    #[tokio::test(flavor = "current_thread")]
+    async fn ship_js_script_is_a_durable_program() {
+        let calls = Arc::new(AtomicU32::new(0));
+        let inner: Arc<dyn Gateway> = Arc::new(CountingGateway {
+            inner: InProcessGateway::default(),
+            calls: calls.clone(),
+            seen: Arc::new(Mutex::new(Vec::new())),
+        });
+        let src = r#"
+            import { collections } from "ship";
+            const a = await collections.read({});
+            const b = await collections.get({});
+            Deno.core.ops.op_emit({ a, b });
+        "#
+        .to_string();
+
+        // Live run: the script's two ops execute through the inner gateway.
+        let jg = Arc::new(JournalingGateway::new(inner.clone(), Journal::new()));
+        let out1 = crate::runtime::run_module(
+            jg.clone(),
+            agent(&["collections"]),
+            vec!["collections".into()],
+            src.clone(),
+        )
+        .await
+        .expect("script runs");
+        assert_eq!(calls.load(Ordering::SeqCst), 2, "live run executes both ops");
+        let journal = Arc::try_unwrap(jg).ok().expect("sole owner").into_journal();
+        assert_eq!(journal.entries().len(), 2, "two ops journaled");
+
+        // Replay run: same script, seeded journal → ops memoized, inner NOT called.
+        let jg2 = Arc::new(JournalingGateway::new(inner, journal));
+        let out2 = crate::runtime::run_module(jg2, agent(&["collections"]), vec!["collections".into()], src)
+            .await
+            .expect("script replays");
+        assert_eq!(calls.load(Ordering::SeqCst), 2, "replay re-executes NOTHING — code-mode is a durable program");
+        assert_eq!(out1, out2, "replay reproduces the same emitted output");
     }
 }
