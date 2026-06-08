@@ -9,7 +9,6 @@ use axum::{
 use std::sync::Arc;
 
 use deck::config::DeckConfig;
-
 use crate::{
     auth, services, ship_runtime,
     sessions, views,
@@ -205,6 +204,20 @@ pub fn build_router(
             crate::ops_rpc::router(rt.clone())
                 .layer(axum::middleware::from_fn(auth::project_authority_middleware)),
         )
+        // Multiplex transport (deck-axum) — same auth-gated group as the
+        // Connect ops above: the live-data reads are gated behind
+        // `auth_middleware` (capability ship.events.read was enforced by the
+        // deleted proto's policy options; the Connect ops' own gate still
+        // applies for the typed wire paths, and the multiplex inherits the
+        // same bearer requirement here). The MultiplexState is folded into
+        // a single Extension: data_port + registry + change_source.
+        .merge(
+            deck::multiplex_router().layer(axum::Extension(deck::MultiplexState::new(
+                Arc::new(crate::data_port::ShipDataPort::new(rt.clone())),
+                Arc::new(deck_core::WindowSubscriptionRegistry::default()),
+                Arc::new(crate::data_port::ShipChangeSource::new(rt.clone())),
+            ))),
+        )
         // Dry-run view interceptor runs INSIDE auth (applied before the
         // auth layer here, which means outer->inner order wraps it with
         // auth) so requests must carry a valid bearer before short-circuit.
@@ -214,7 +227,6 @@ pub fn build_router(
 
     let mut root = Router::new()
         .merge(public_routes)
-        // deck's whole stateless serving surface as ONE mountable unit
         // (framework bundles, catalogs, pack assets, per-view
         // template/setup/css/payload + sub-path, `/_sui/view/{name}`,
         // and `/space/{id}` + `/space/_assets`). Mounted

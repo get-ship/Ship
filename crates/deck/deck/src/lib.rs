@@ -5,7 +5,6 @@
 //! `router`). This crate re-exports both so shipd's imports (`deck::*`)
 //! continue to resolve without changes.
 
-// axum handlers + adapter surface.
 pub use deck_axum::{
     into_axum, mode_from_ext, router, serve_bundle_hmr, serve_catalog_workspace,
     serve_shell, serve_shell_asset, serve_space, serve_space_asset,
@@ -15,6 +14,7 @@ pub use deck_axum::{
     serve_sui_view_setup, serve_view_host, serve_view_payload,
     serve_view_payload_subpath,
 };
+pub use deck_axum::multiplex::{MultiplexState, multiplex_router, HEARTBEAT_MS};
 
 // Contract types (transport-agnostic), surfaced for hosts that name them.
 pub use deck_core::{

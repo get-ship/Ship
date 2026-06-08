@@ -1,16 +1,15 @@
 //! Per-window live-data subscription registry — the server side of the
-//! live-data multiplex (ADR 0001). One webview opens ONE `Stream` and adds/
-//! removes logical reads via `Subscribe`/`Unsubscribe`; this registry keys the
-//! per-window state on `window_id` so the single stream fans out to N reads.
+//! live-data multiplex.
 //!
-//! This module owns the registry data structures + lifecycle (open / subscribe
-//! / unsubscribe / idle-reap). The `Stream` server-stream handler and the
-//! Connect RPC impls live in `window_subscription_rpc.rs`; they drive ONE kernel
-//! actor per window and call each `Subscription.resolve` on each kernel event,
-//! emitting `MultiplexEvent.data` tagged by `subscription_id` — the same
-//! resolve-on-event loop as `live_read::live_read_inner`, generalized from
-//! one-actor-per-op to one-actor-per-window (reusing the per-op `services::*`
-//! resolvers — see the resolver dispatch in the rpc module).
+//! One webview opens ONE stream and adds/removes logical reads via
+//! `Subscribe`/`Unsubscribe`; this registry keys the per-window state on
+//! `window_id` so the single stream fans out to N reads.
+//!
+//! The deck-axum streaming loop calls [`DataPort::resolve`](crate::data_port::DataPort::resolve)
+//! per sub per tick — the registry stores pure transport state (no closures,
+//! no host types). Ids are minted with the `ulid` crate (`win.<ulid>` /
+//! `sub.<ulid>`) and the idle reaper timeout is sized off the heartbeat
+//! constant in deck-axum.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -18,27 +17,29 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
+use ulid::Ulid;
 
-use crate::ship_runtime::ApiState;
-
+/// Opaque window id minted as `win.<ulid>`.
 pub type WindowId = String;
+/// Opaque subscription id minted as `sub.<ulid>`.
 pub type SubscriptionId = String;
 
-/// Resolve a subscription's current full value from runtime state. The same
-/// closure shape `live_read::live_read_with` takes; the multiplex reuses the
-/// per-op `services::*` builders to construct these (rpc module).
-pub type ResolveFn = Arc<dyn Fn(&ApiState) -> Value + Send + Sync>;
-
-/// One logical live read inside a window.
+/// One logical live read inside a window. Pure transport state — the deck
+/// streaming loop re-resolves `(domain, op, args)` via `DataPort::resolve`
+/// on every change tick; the registry never stores a resolver closure.
+#[derive(Clone)]
 pub struct Subscription {
     pub id: SubscriptionId,
     pub domain: String,
     pub op: String,
     pub args: Value,
-    pub resolve: ResolveFn,
 }
 
 impl Subscription {
+    /// Stable key for the subscription's `(domain, op, args)` triple — used
+    /// by tests + by callers that want a content-addressable view of the
+    /// bucket. Not used internally for dedup (the bucket is keyed on
+    /// `subscription_id`).
     pub fn key(&self) -> String {
         format!("{}|{}|{}", self.domain, self.op, self.args)
     }
@@ -97,14 +98,14 @@ impl WindowBucket {
         removed
     }
 
-    /// Snapshot the current subscriptions' (id, resolve) pairs for the stream
-    /// bridge to re-resolve on a kernel event. Clones the `ResolveFn` Arcs.
-    pub fn resolvers(&self) -> Vec<(SubscriptionId, ResolveFn)> {
+    /// Snapshot the current subscriptions for the stream bridge to re-resolve
+    /// on a kernel event.
+    pub fn subs(&self) -> Vec<Subscription> {
         self.subs
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .values()
-            .map(|s| (s.id.clone(), s.resolve.clone()))
+            .cloned()
             .collect()
     }
 }
@@ -117,7 +118,7 @@ pub struct WindowSubscriptionRegistry {
 
 impl Default for WindowSubscriptionRegistry {
     fn default() -> Self {
-        // 35s = the default 15s heartbeat × 2 + 5s slack (ADR §reaper).
+        // 35s = the default 15s heartbeat × 2 + 5s slack.
         Self::with_idle_timeout(35_000)
     }
 }
@@ -129,7 +130,7 @@ impl WindowSubscriptionRegistry {
 
     /// Mint a fresh `win.<ulid>` and create its bucket bound to `session_id`.
     pub fn open(&self, session_id: String) -> WindowId {
-        let window_id = format!("win.{}", ship_substrate::gen_ulid());
+        let window_id = format!("win.{}", Ulid::new());
         let bucket = Arc::new(WindowBucket::new(window_id.clone(), session_id));
         self.windows
             .lock()
@@ -154,11 +155,10 @@ impl WindowSubscriptionRegistry {
         domain: String,
         op: String,
         args: Value,
-        resolve: ResolveFn,
     ) -> Option<SubscriptionId> {
         let bucket = self.bucket(window_id)?;
-        let id = format!("sub.{}", ship_substrate::gen_ulid());
-        bucket.insert_sub(Subscription { id: id.clone(), domain, op, args, resolve });
+        let id = format!("sub.{}", Ulid::new());
+        bucket.insert_sub(Subscription { id: id.clone(), domain, op, args });
         Some(id)
     }
 
@@ -202,10 +202,6 @@ fn now_ms() -> u64 {
 mod tests {
     use super::*;
 
-    fn noop_resolve() -> ResolveFn {
-        Arc::new(|_: &ApiState| Value::Null)
-    }
-
     #[test]
     fn open_mints_unique_window_ids() {
         let reg = WindowSubscriptionRegistry::default();
@@ -222,7 +218,7 @@ mod tests {
         let reg = WindowSubscriptionRegistry::default();
         let w = reg.open("s".into());
         let sub = reg
-            .subscribe(&w, "agents".into(), "summaries".into(), Value::Null, noop_resolve())
+            .subscribe(&w, "agents".into(), "summaries".into(), Value::Null)
             .expect("subscribe to a known window");
         assert!(sub.starts_with("sub."), "sub id is sub.<ulid>; got {sub}");
         assert_eq!(reg.bucket(&w).unwrap().subscription_count(), 1);
@@ -235,8 +231,7 @@ mod tests {
     fn subscribe_to_unknown_window_is_none() {
         let reg = WindowSubscriptionRegistry::default();
         assert!(
-            reg.subscribe("win.nope", "x".into(), "y".into(), Value::Null, noop_resolve())
-                .is_none(),
+            reg.subscribe("win.nope", "x".into(), "y".into(), Value::Null).is_none(),
             "subscribe to an unopened window must return None"
         );
     }

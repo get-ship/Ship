@@ -17,6 +17,7 @@ fn install_test_platform_defaults() {
 }
 
 pub mod access;
+pub mod data_port;
 pub mod sessions;
 pub mod auth;
 pub mod wire;
@@ -50,9 +51,10 @@ pub mod search_context;
 pub mod search_rpc;
 pub mod live_read;
 pub mod live_resolvers;
-pub mod window_subscriptions;
-pub mod window_subscription_rpc;
-// (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
+// (former `window_subscriptions` + `window_subscription_rpc` modules
+// deleted in the multiplex transport move to deck-axum (#276); the per-window
+// registry now lives in `deck_core::window_registry` and the wire is mounted
+// in `apps/shipd/src/router.rs`.)
 pub mod views;
 pub mod ship_runtime;
 // Job + agent-session dispatch composition root — `ShipdPlatform`,

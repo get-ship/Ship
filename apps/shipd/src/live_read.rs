@@ -11,7 +11,7 @@ use ship_ops_rpc::JsonResponse;
 use ship_substrate::events::ActorConfig;
 
 use crate::ops_rpc::OpsImpl;
-use crate::window_subscriptions::ResolveFn;
+use crate::live_resolvers::ResolveFn;
 
 impl OpsImpl {
     /// Open a live read backed by a resolver from the live-resolver registry.

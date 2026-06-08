@@ -142,14 +142,11 @@ pub struct ShipRuntime {
     /// open until the client happens to disconnect (the ~10s SIGTERM→SIGKILL
     /// hang). Cleared/cancelled again in `shutdown()` as a belt-and-suspenders.
     pub(super) shutdown_token: std::sync::OnceLock<tokio_util::sync::CancellationToken>,
-    /// Per-window live-data subscription registry (ADR 0001). Backs the
-    /// `WindowSubscriptionService` multiplex: one `Stream` per webview fans out
-    /// to N logical reads keyed on `window_id`, collapsing the per-`<data live>`
-    /// connection fan-out that hit the browser's ~6/origin HTTP/1.1 ceiling.
-    pub(super) window_subscriptions:
-        std::sync::Arc<crate::window_subscriptions::WindowSubscriptionRegistry>,
     /// The live-read resolver registry — SSOT for `(domain, op) -> value` in the
     /// snapshot family. Both the per-op `<Op>Live` streams (via `live_read_with`)
     /// and the multiplex resolve through this one table.
+    /// (The per-window multiplex registry was deleted in the transport move to
+    /// deck-axum (#276); it now lives in `deck_core::window_registry` and is
+    /// constructed at router-mount time in `apps/shipd/src/router.rs`.)
     pub(super) live_resolvers: std::sync::Arc<crate::live_resolvers::LiveResolverRegistry>,
 }

@@ -79,9 +79,6 @@ impl ShipRuntime {
             bundler: std::sync::OnceLock::new(),
             worktree_resolver: default_worktree_resolver(),
             shutdown_token: std::sync::OnceLock::new(),
-            window_subscriptions: Arc::new(
-                crate::window_subscriptions::WindowSubscriptionRegistry::default(),
-            ),
             live_resolvers: Arc::new(crate::live_resolvers::build()),
         }
     }
@@ -158,9 +155,6 @@ impl ShipRuntime {
             bundler: std::sync::OnceLock::new(),
             worktree_resolver: default_worktree_resolver(),
             shutdown_token: std::sync::OnceLock::new(),
-            window_subscriptions: Arc::new(
-                crate::window_subscriptions::WindowSubscriptionRegistry::default(),
-            ),
             live_resolvers: Arc::new(crate::live_resolvers::build()),
         }
     }

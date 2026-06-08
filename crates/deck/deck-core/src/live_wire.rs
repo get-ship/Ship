@@ -144,6 +144,53 @@ pub fn format_keepalive() -> &'static str {
     ": ship-keepalive\n\n"
 }
 
+// ── multiplex (live-data subscription fan-out) ───────────────────────────────
+//
+// Sibling of the `format_patch_*` family above. The deck-axum multiplex
+// streaming handler calls these to emit per-subscription data frames + the
+// top-level heartbeat on a single SSE stream. The wire is deck-owned (not a
+// Ship proto envelope) so deck-core does not depend on ship-ops-rpc.
+
+/// Format one `mux-data` SSE frame for a single subscription's current value.
+///
+/// The frame is tagged by `sub_id` so the client demuxes ONE stream into N
+/// logical reads keyed on the subscription id the server minted in
+/// `Subscribe`. `version` is a monotonically-increasing per-stream counter
+/// (incremented on every re-resolve sweep) — clients use it to ignore stale
+/// frames that arrive after a newer one for the same subscription.
+pub fn format_mux_data(sub_id: &str, value: &serde_json::Value, version: u32) -> String {
+    let payload = serde_json::json!({
+        "sub": sub_id,
+        "value": value,
+        "version": version,
+    });
+    format!(
+        "event: mux-data\ndata: {}\n\n",
+        serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string())
+    )
+}
+
+/// Format one `mux-heartbeat` SSE frame — the top-level liveness tick on the
+/// multiplex stream. Empty `sub` field; clients ignore it for data but use
+/// it (and the keepalive below) to detect a dead stream.
+pub fn format_mux_heartbeat() -> &'static str {
+    "event: mux-heartbeat\ndata: {}\n\n"
+}
+
+/// Format one `mux-close` SSE frame — the stream is ending. `reason` is a
+/// short stable code (e.g. `"window_gone"`, `"policy_denied"`,
+/// `"internal_error"`); `message` is human-readable detail. Clients use
+/// this to surface a typed error rather than guess from a half-open stream.
+pub fn format_mux_close(reason: &str, message: &str) -> String {
+    let payload = serde_json::json!({
+        "reason": reason,
+        "message": message,
+    });
+    format!(
+        "event: mux-close\ndata: {}\n\n",
+        serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string())
+    )
+}
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

@@ -6,6 +6,8 @@
 //! translate `DeckResponse` onto their own response type — the
 //! ports-and-adapters seam.
 
+pub mod change_source;
+pub mod data_port;
 pub mod response;
 
 pub mod asset_graph;
@@ -22,6 +24,7 @@ pub mod routes;
 pub mod view;
 pub mod view_host;
 pub mod view_payload;
+pub mod window_registry;
 
 #[cfg(test)]
 mod view_payload_tests;
@@ -42,10 +45,15 @@ pub(crate) mod test_lock {
 }
 
 pub use response::{CachePolicy, DeckResponse, compute_etag};
-
+pub use change_source::{ChangeFeed, ChangeSource};
+pub use data_port::DataPort;
 pub use live_wire::{
     PatchElements, PatchElementsMode,
-    format_keepalive, format_patch_elements, format_patch_set, format_patch_signals,
+    format_keepalive, format_mux_close, format_mux_data, format_mux_heartbeat,
+    format_patch_elements, format_patch_set, format_patch_signals,
+};
+pub use window_registry::{
+    Subscription, SubscriptionId, WindowBucket, WindowId, WindowSubscriptionRegistry,
 };
 
 pub use assets::{

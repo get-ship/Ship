@@ -7,6 +7,7 @@
 //! one mountable unit.
 
 mod handlers;
+pub mod multiplex;
 pub mod render_helpers;
 
 pub use handlers::{

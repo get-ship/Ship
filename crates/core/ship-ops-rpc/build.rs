@@ -53,7 +53,6 @@ fn main() {
         .arg("ship/ops/v1/sui.proto")
         .arg("ship/ops/v1/search.proto")
         .arg("ship/ops/v1/reactive.proto")
-        .arg("ship/ops/v1/window_subscription.proto")
         .status()
         .expect("failed to spawn protoc");
     assert!(status.success(), "protoc descriptor compile failed");
@@ -89,7 +88,6 @@ fn main() {
             "ship/ops/v1/sui.proto",
             "ship/ops/v1/search.proto",
             "ship/ops/v1/reactive.proto",
-            "ship/ops/v1/window_subscription.proto",
         ])
         .compile()
         .expect("connectrpc-build codegen failed");

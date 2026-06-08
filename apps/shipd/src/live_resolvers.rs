@@ -20,8 +20,14 @@ use std::sync::Arc;
 use serde_json::Value;
 
 use crate::ship_runtime::ApiState;
-use crate::window_subscriptions::ResolveFn;
 
+/// Resolve a subscription's current full value from runtime state. The same
+/// closure shape `live_read::live_read_with` takes; both transports (per-op
+/// `<Op>Live` streams AND the live-data multiplex) feed off this one alias.
+/// Lives here — the producer of `resolve_fn` — so the multiplex's registry
+/// in `deck_core` can depend on the SHAPE only (`Arc<dyn Fn(&ApiState) -> Value>`)
+/// without owning the alias itself.
+pub type ResolveFn = Arc<dyn Fn(&ApiState) -> Value + Send + Sync>;
 /// Resolve `(state, args) -> full current value`. Args-aware so a single entry
 /// serves parameterized reads (e.g. `pipelines.run({slug})`).
 pub type LiveResolver = Arc<dyn Fn(&ApiState, &Value) -> Value + Send + Sync>;
