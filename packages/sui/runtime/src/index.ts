@@ -312,7 +312,6 @@ export type {
   ResolvedView,
   ViewListEntry,
   ViewManifest,
-  ViewSourceResponse,
   WriteDiagnostics,
   WriteManifestRequest,
   WriteResponse,

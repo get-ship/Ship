@@ -14,7 +14,7 @@
 //!
 //! Wire format: `event: patch-signals` with `data: {"name":"…","value":…}`,
 //! and `event: patch-elements` with `data: {"selector":…,"mode":…,"html":…}`.
-//! See `sui_patches.rs` for the encoding spec.
+//! See `deck_core::live_wire` for the encoding spec.
 
 use axum::{
     body::Body,
@@ -159,7 +159,7 @@ mod tests {
     use super::*;
 
     // Tests that don't require a running daemon verify the pure logic:
-    // format_patch_signals is the encoding, tested in sui_patches.rs. The
+    // format_patch_signals is the encoding, defined in `deck_core::live_wire`. The
     // per-source driver tests (signal-backed detection + the effect→mpsc
     // bridge) live alongside their code in `sui_sse_sources.rs`. Integration
     // tests (live round-trip) live in the Playwright probe.

@@ -34,7 +34,7 @@
 //! ```
 //!
 //! `mode` is one of `replace | append | prepend | before | after | morph`.
-//! `settle` is optional (ms). See `sui_patches::PatchElements`.
+//! `settle` is optional (ms). See `deck_core::live_wire::PatchElements`.
 //!
 //! # Responses
 //!
