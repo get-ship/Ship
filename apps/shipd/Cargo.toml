@@ -24,7 +24,6 @@ ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
 ship-files = { path = "../../crates/core/ship-platform/crates/ship-files" }
 ship-harnesses = { path = "../../crates/core/ship-platform/crates/ship-harnesses" }
-ship-kv = { path = "../../crates/core/ship-platform/crates/ship-kv" }
 ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }
 ship-views = { path = "../../crates/core/ship-platform/crates/ship-views" }

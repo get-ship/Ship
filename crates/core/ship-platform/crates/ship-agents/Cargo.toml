@@ -24,7 +24,7 @@ ship-config = { path = "../ship-config" }
 ship-harnesses = { path = "../ship-harnesses" }
 ship-files = { path = "../ship-files" }
 ship-store = { path = "../ship-store" }
-ship-kv = { path = "../ship-kv" }
+ship-skill-vars = { path = "crates/ship-skill-vars" }
 # Agent-run assembly deps (supervisor split — `runtime::executors`):
 #   ship-auth     — per-process scoped token mint/drop on the spawn path.
 #   ship-device   — isolation-execution sandbox dispatcher bookkeeping.

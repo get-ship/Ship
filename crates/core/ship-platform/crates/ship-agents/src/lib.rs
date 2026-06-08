@@ -31,6 +31,9 @@ pub use actor::{handle_agents_event, start_agents};
 pub use cancel::handle_agent_cancelled;
 pub use dispatch::handle_agent_session_started;
 pub use ports::AgentPorts;
+/// One-time legacy `platform.db` → `kv.db` skill-vars drain, re-exported for
+/// the daemon boot path so shipd needn't depend on the internal sub-crate.
+pub use ship_skill_vars::migrate_from_platform_db as migrate_skill_vars_from_platform_db;
 
 // Back-compat re-exports so existing callers via ship_agents::agents::* still work.
 pub use agent_domain as agents;

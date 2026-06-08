@@ -108,7 +108,7 @@ impl ShipRuntime {
             // is absent; the platform.db schema migration (which drops the
             // drained legacy tables) is gated on the same `.exists()` so a fresh
             // install never materializes a dead platform.db.
-            ship_kv::migrate_from_platform_db(&dir)
+            ship_agents::migrate_skill_vars_from_platform_db(&dir)
                 .context("kv migration from platform.db")?;
             if ship_substrate::db::platform_db_path(&dir).exists() {
                 ship_substrate::db::ensure_db_at(&dir)?;

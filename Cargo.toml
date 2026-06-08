@@ -33,7 +33,7 @@ members = [
     "crates/core/ship-platform/crates/ship-agents",
     "crates/core/ship-platform/crates/ship-harnesses",
     "crates/core/ship-platform/crates/ship-files",
-    "crates/core/ship-platform/crates/ship-kv",
+    "crates/core/ship-platform/crates/ship-agents/crates/ship-skill-vars",
     "crates/core/ship-platform/crates/ship-store",
     "crates/core/ship-platform/crates/ship-auth",
     "crates/core/ship-isolation",
