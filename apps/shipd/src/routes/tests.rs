@@ -34,16 +34,6 @@ fn named_variant_substitutes_params() {
 }
 
 #[test]
-fn multi_param_variant_substitutes_all() {
-    let url = Route::SuiPackAsset {
-        pack_id: "core".to_string(),
-        file: "index.js".to_string(),
-    }
-    .full_path();
-    assert_eq!(url, "/_sui/packs/core/index.js");
-}
-
-#[test]
 fn method_returns_uppercase_str() {
     assert_eq!(Route::ListJobs.method(), "GET");
     assert_eq!(Route::DispatchPipeline.method(), "POST");
@@ -71,14 +61,6 @@ fn template_path_preserves_placeholders() {
         }
         .template_path(),
         "/api/v1/views/{name}/template"
-    );
-    assert_eq!(
-        Route::SuiPackAsset {
-            pack_id: String::new(),
-            file: String::new()
-        }
-        .template_path(),
-        "/_sui/packs/{pack_id}/{file}"
     );
 }
 

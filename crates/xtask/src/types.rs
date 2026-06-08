@@ -148,7 +148,6 @@ pub fn collect_framework_types() -> TypeCollection {
     c.register::<shipd::views::ViewManifest>();
     c.register::<shipd::views::ViewListEntry>();
     c.register::<shipd::views::RailMeta>();
-    c.register::<shipd::views::source_api::ViewSourceResponse>();
     c.register::<shipd::views::write_api::WriteTemplateRequest>();
     c.register::<shipd::views::write_api::WriteManifestRequest>();
     c.register::<shipd::views::write_api::WriteResponse>();
