@@ -81,8 +81,6 @@ pub struct IndexEntry {
 }
 
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[cfg_attr(feature = "specta", specta(rename = "RawSkillDetail"))]
 pub struct SkillDetail {
     pub id: String,
     pub scope: ScopeTag,

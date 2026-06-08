@@ -7,14 +7,12 @@ use super::state::{IndexEntry, ScopeTag};
 
 /// Wire shape of `ship.rules.list()`.
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct RulesIndexResponse {
     pub items: Vec<IndexEntry>,
 }
 
 /// Wire shape of `ship.rules.get()` — raw rule body at a resolved scope.
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct RuleGetResponse {
     pub id: String,
     pub scope: ScopeTag,

@@ -27,13 +27,11 @@ use ship_substrate::gen_ulid;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use sui_signals;
 
 use crate::ship_runtime::ApiState;
-use super::sui_data_resolvers::{parse_expr, resolve as resolve_value, subscribe_namespaces};
+use super::sui_expr::{parse_expr, resolve as resolve_value, subscribe_namespaces};
 use super::sui_patch_channel;
 use super::sui_patches::format_patch_signals;
-use super::git_signal;
 use deck::render_helpers::{is_valid_view_name, render_view_source};
 
 /// Buffer for SSE events across all spawned data-source tasks.
@@ -118,13 +116,7 @@ pub async fn serve_sui_sse(
             let tx = tx.clone();
             let state = state.clone();
             tokio::spawn(async move {
-                // Signal-backed sources subscribe to the signal directly;
-                // namespace-event-driven sources use the existing path.
-                if is_signal_backed_expr(&expr_source) {
-                    run_signal_data_source(data_name, expr_source, state, tx).await;
-                } else {
-                    run_data_source(data_name, expr_source, state, tx).await;
-                }
+                run_data_source(data_name, expr_source, state, tx).await;
             });
         }
         // Keepalive task.
@@ -223,7 +215,7 @@ async fn run_data_source(
 /// Falls back to `{"kind":"loading"}` on error so the runtime never sees
 /// a transport-level failure for an authoring mistake.
 fn resolve_initial(
-    parsed: &super::sui_data_resolvers::ParsedExpr,
+    parsed: &super::sui_expr::ParsedExpr,
     state: &ApiState,
     expr: &str,
 ) -> serde_json::Value {
@@ -236,67 +228,6 @@ fn resolve_initial(
     }
 }
 
-/// Returns true when the expression maps to a signal-backed source.
-/// Signal-backed sources maintain a shared `Signal<T>` singleton updated by a
-/// single background task; SSE connections subscribe to the signal rather than
-/// spawning their own kernel actors.
-fn is_signal_backed_expr(expr: &str) -> bool {
-    // Strip "ship." prefix and "()" suffix to get the registry name.
-    expr.trim_start_matches("ship.")
-        .trim_end_matches("()")
-        .trim_end_matches(')')
-        .starts_with(git_signal::REGISTRY_NAME)
-}
-
-/// Drive a signal-backed live data source. Sends the initial value, then
-/// pushes a `patch-signals` frame whenever the underlying `Signal` changes.
-///
-/// Runs alongside `run_data_source` for non-converted sources; both emit
-/// identical `patch-signals` frames and the consumer cannot distinguish them.
-async fn run_signal_data_source(
-    data_name: String,
-    _expr_source: String,
-    state: ApiState,
-    tx: mpsc::Sender<Result<String, std::io::Error>>,
-) {
-    // Ensure the singleton background updater is alive.
-    git_signal::ensure_updater(state.clone()).await;
-
-    // Resolve the initial value and seed the signal.
-    git_signal::refresh(&state);
-
-    let sig = git_signal::git_overview_signal();
-    let initial = sig.peek();
-    let frame = format_patch_signals(&data_name, &serde_json::json!({"kind": "ok", "value": initial}));
-    if tx.send(Ok(frame)).await.is_err() {
-        return;
-    }
-
-    // Bridge signal updates to this async task via mpsc.
-    let (notify_tx, mut notify_rx) = tokio::sync::mpsc::channel::<()>(4);
-    let _disposer = sui_signals::effect({
-        let sig = sig.clone();
-        let notify_tx = notify_tx.clone();
-        move || {
-            let _ = sig.get(); // establishes tracking
-            let _ = notify_tx.try_send(());
-        }
-    });
-    // Drain the initial notification fired during effect construction.
-    let _ = notify_rx.try_recv();
-
-    loop {
-        let Some(()) = notify_rx.recv().await else { break };
-        // Coalesce rapid updates.
-        while notify_rx.try_recv().is_ok() {}
-
-        let value = sig.peek();
-        let frame = format_patch_signals(&data_name, &serde_json::json!({"kind": "ok", "value": value}));
-        if tx.send(Ok(frame)).await.is_err() {
-            break;
-        }
-    }
-}
 
 fn error_response(status: StatusCode, msg: &str) -> Response {
     Response::builder()
@@ -314,48 +245,6 @@ mod tests {
     // format_patch_signals is the encoding, tested in sui_patches.rs.
     // Integration tests (live round-trip) live in the Playwright probe.
 
-    // ── signal-backed source ─────────────────────────────────────────────────
-
-    #[test]
-    fn is_signal_backed_matches_git_overview() {
-        assert!(is_signal_backed_expr("ship.git.overview()"));
-        assert!(!is_signal_backed_expr("ship.git.log()"));
-        assert!(!is_signal_backed_expr("ship.agents.summaries()"));
-    }
-
-    /// Verify that writing to the git.overview signal propagates through the
-    /// effect → mpsc bridge, which is the mechanism run_signal_data_source
-    /// uses to push SSE frames.
-    #[tokio::test]
-    async fn signal_update_notifies_bridge() {
-        use sui_signals::{Signal, effect};
-        use tokio::sync::mpsc;
-
-        let sig: Signal<serde_json::Value> = Signal::new(serde_json::Value::Null);
-        let (notify_tx, mut notify_rx) = mpsc::channel::<()>(4);
-
-        let _disposer = effect({
-            let sig = sig.clone();
-            let tx = notify_tx.clone();
-            move || {
-                let _ = sig.get();
-                let _ = tx.try_send(());
-            }
-        });
-        // Drain initial notification from effect construction.
-        let _ = notify_rx.try_recv();
-
-        // Writing to the signal should trigger the bridge.
-        sig.set_unchecked(serde_json::json!({"branch": "main", "clean": true}));
-
-        let result = tokio::time::timeout(
-            std::time::Duration::from_millis(100),
-            notify_rx.recv(),
-        )
-        .await;
-
-        assert!(result.is_ok(), "signal update did not reach bridge within 100ms");
-    }
 
     #[test]
     fn is_valid_view_name_rejects_traversal() {

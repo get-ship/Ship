@@ -1,0 +1,307 @@
+// Triggers domain seed — realistic demo values for the ship-triggers-* component pack.
+// World: 'harbor' project on feat/checkout-flow, agents rust-lane + code-reviewer.
+// Generator strips full-line // comments and emits proto/fixtures/demo/triggers.json.
+// Field names follow HookDef / HookTrigger / HookAction / TriggerSourceDef in
+// crates/core/ship-platform/crates/ship-triggers/src/def.rs and the planned
+// TriggersService RPCs (List / Get / LoadErrors) in proto/ship/ops/v1/triggers.proto
+// (proto not yet authored — shapes here drive the proto design).
+{
+  "_meta": {
+    "domain": "triggers",
+    "description": "Demo data for the triggers rule inspector + ship-triggers-* pack. Five triggers spanning all source kinds (event, webhook, file, cron) and all action types (collection.insert, collection.update, event.emit, pipeline.trigger). Covers List (nominal + with-load-errors), Get (cron trigger, full def), LoadErrors (3 failures), and empty + error states."
+  },
+
+  // ── TriggersService.List ─────────────────────────────────────────────────────
+  // ListTriggersResponse { triggers: [TriggerSummary] }
+  // TriggerSummary: name, description?, source_kind, source_detail, action_count,
+  //                 action_kinds[], load_ok.
+  // Five rows — one per source kind (event appears twice to cover both action types
+  // that are event-driven). All load_ok=true in the nominal state.
+
+  "List.response": {
+    "triggers": [
+      {
+        "name": "on-pipeline-failed",
+        "description": "Trigger the repair pipeline when the implement step fails on feat/ branches.",
+        "source_kind": "event",
+        "source_detail": "pipeline.run.failed",
+        "action_count": 1,
+        "action_kinds": ["pipeline.trigger"],
+        "load_ok": true
+      },
+      {
+        "name": "on-checkout-item-created",
+        "description": null,
+        "source_kind": "event",
+        "source_detail": "collection.item.created",
+        "action_count": 1,
+        "action_kinds": ["collection.update"],
+        "load_ok": true
+      },
+      {
+        "name": "on-pr-webhook",
+        "description": null,
+        "source_kind": "webhook",
+        "source_detail": "/webhooks/github-pr",
+        "action_count": 2,
+        "action_kinds": ["collection.insert", "event.emit"],
+        "load_ok": true
+      },
+      {
+        "name": "on-src-change",
+        "description": null,
+        "source_kind": "file",
+        "source_detail": "crates/**/*.rs",
+        "action_count": 1,
+        "action_kinds": ["event.emit"],
+        "load_ok": true
+      },
+      {
+        "name": "daily-digest",
+        "description": null,
+        "source_kind": "cron",
+        "source_detail": "0 9 * * 1-5",
+        "action_count": 2,
+        "action_kinds": ["collection.insert", "collection.update"],
+        "load_ok": true
+      }
+    ]
+  },
+
+  // ── List (with load errors) ──────────────────────────────────────────────────
+  // Same 5 ok rows plus 3 failed-to-load rows (load_ok=false).
+  // The -list component renders these with an error badge; -error-list above shows
+  // the detailed reason for each failed file. The designer composes both surfaces
+  // from List.response_with_errors + LoadErrors.response.
+
+  "List.response_with_errors": {
+    "triggers": [
+      {
+        "name": "on-pipeline-failed",
+        "description": "Trigger the repair pipeline when the implement step fails on feat/ branches.",
+        "source_kind": "event",
+        "source_detail": "pipeline.run.failed",
+        "action_count": 1,
+        "action_kinds": ["pipeline.trigger"],
+        "load_ok": true
+      },
+      {
+        "name": "on-checkout-item-created",
+        "description": null,
+        "source_kind": "event",
+        "source_detail": "collection.item.created",
+        "action_count": 1,
+        "action_kinds": ["collection.update"],
+        "load_ok": true
+      },
+      {
+        "name": "on-pr-webhook",
+        "description": null,
+        "source_kind": "webhook",
+        "source_detail": "/webhooks/github-pr",
+        "action_count": 2,
+        "action_kinds": ["collection.insert", "event.emit"],
+        "load_ok": true
+      },
+      {
+        "name": "on-src-change",
+        "description": null,
+        "source_kind": "file",
+        "source_detail": "crates/**/*.rs",
+        "action_count": 1,
+        "action_kinds": ["event.emit"],
+        "load_ok": true
+      },
+      {
+        "name": "daily-digest",
+        "description": null,
+        "source_kind": "cron",
+        "source_detail": "0 9 * * 1-5",
+        "action_count": 2,
+        "action_kinds": ["collection.insert", "collection.update"],
+        "load_ok": true
+      },
+      {
+        "name": "on-deploy-hook",
+        "description": null,
+        "source_kind": "unknown",
+        "source_detail": null,
+        "action_count": 0,
+        "action_kinds": [],
+        "load_ok": false
+      },
+      {
+        "name": "on-session-start",
+        "description": null,
+        "source_kind": "unknown",
+        "source_detail": null,
+        "action_count": 0,
+        "action_kinds": [],
+        "load_ok": false
+      },
+      {
+        "name": "on-spec-complete",
+        "description": null,
+        "source_kind": "unknown",
+        "source_detail": null,
+        "action_count": 0,
+        "action_kinds": [],
+        "load_ok": false
+      }
+    ]
+  },
+
+  // ── TriggersService.Get ──────────────────────────────────────────────────────
+  // GetTriggerResponse — full HookDef for the detail pane.
+  // Using daily-digest: cron source, two actions, when conditional on second action.
+  // Demonstrates: CronSourceDef, CollectionInsert with template_file, CollectionUpdate
+  // with a when expression.
+
+  "Get.response": {
+    "name": "daily-digest",
+    "description": null,
+    "trigger": {
+      "source": {
+        "type": "cron",
+        "expression": "0 9 * * 1-5",
+        "timezone": "America/New_York"
+      },
+      "filter": null
+    },
+    "actions": [
+      {
+        "type": "collection.insert",
+        "collection": "notes",
+        "data": {},
+        "template_file": "templates/daily-digest.md",
+        "when": null
+      },
+      {
+        "type": "collection.update",
+        "collection": "tasks",
+        "filter": { "status": "todo" },
+        "data": { "flagged": true },
+        "when": "payload.overdue_count > 0"
+      }
+    ]
+  },
+
+  // ── Get.response — additional examples (for showcase variety) ───────────────
+
+  "Get.response_on_pipeline_failed": {
+    "name": "on-pipeline-failed",
+    "description": "Trigger the repair pipeline when the implement step fails on feat/ branches.",
+    "trigger": {
+      "event": "pipeline.run.failed",
+      "filter": { "step": "implement" },
+      "source": null
+    },
+    "actions": [
+      {
+        "type": "pipeline.trigger",
+        "pipeline": "repair-checkout",
+        "args": { "branch": "feat/checkout-flow" },
+        "when": null
+      }
+    ]
+  },
+
+  "Get.response_on_pr_webhook": {
+    "name": "on-pr-webhook",
+    "description": null,
+    "trigger": {
+      "event": null,
+      "filter": null,
+      "source": {
+        "type": "webhook",
+        "path": "/webhooks/github-pr",
+        "secret": "env:GITHUB_WEBHOOK_SECRET"
+      }
+    },
+    "actions": [
+      {
+        "type": "collection.insert",
+        "collection": "notes",
+        "data": { "title": "PR opened", "source": "github" },
+        "template_file": null,
+        "when": null
+      },
+      {
+        "type": "event.emit",
+        "event_type": "external.pr.opened",
+        "payload": { "source": "github" },
+        "when": null
+      }
+    ]
+  },
+
+  // ── TriggersService.LoadErrors ───────────────────────────────────────────────
+  // LoadErrorsResponse { errors: [LoadError] }
+  // LoadError: file, reason.
+  // Three failures: JSONC parse error, unknown event type, missing template_file.
+
+  "LoadErrors.response": {
+    "errors": [
+      {
+        "file": ".ship/triggers/on-deploy-hook.jsonc",
+        "reason": "parse failed: expected value at line 8 column 1: unterminated block comment"
+      },
+      {
+        "file": ".ship/triggers/on-session-start.jsonc",
+        "reason": "unknown event type 'agent.session.begin'"
+      },
+      {
+        "file": ".ship/triggers/on-spec-complete.jsonc",
+        "reason": "action[0] collection.insert: template_file not found: templates/spec-report.md"
+      }
+    ]
+  },
+
+  // ── Empty states ─────────────────────────────────────────────────────────────
+
+  "empty_states": {
+    "no_triggers": {
+      "surface": "List",
+      "title": "No triggers configured",
+      "body": "Add a .ship/triggers/*.jsonc file to get started.",
+      "cta": null
+    },
+    "no_errors": {
+      "surface": "LoadErrors",
+      "title": "All triggers loaded cleanly",
+      "body": null,
+      "cta": null
+    },
+    "empty_filtered": {
+      "surface": "List (filter applied)",
+      "title": "No triggers match",
+      "body": "5 triggers loaded — none match the selected source kind.",
+      "cta": "Clear filter"
+    }
+  },
+
+  // ── Error states (network / daemon unreachable) ───────────────────────────────
+  // Designer renders the retryable-error state for List and LoadErrors surfaces.
+  // No staleness shown — triggers has no streaming method.
+
+  "error_states": {
+    "list_unreachable": {
+      "rpc": "List",
+      "tone": "destructive",
+      "message": "Could not reach the Ship daemon. Check that shipd is running.",
+      "retryable": true
+    },
+    "load_errors_unreachable": {
+      "rpc": "LoadErrors",
+      "tone": "destructive",
+      "message": "Could not reach the Ship daemon. Check that shipd is running.",
+      "retryable": true
+    },
+    "get_not_found": {
+      "rpc": "Get",
+      "tone": "destructive",
+      "message": "Trigger 'on-deploy-hook' not found — it may have been deleted or failed to load.",
+      "retryable": false
+    }
+  }
+}

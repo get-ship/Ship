@@ -1,0 +1,239 @@
+{
+  "_meta": {
+    "generated_by": "cargo xtask gen-fixtures",
+    "source_seed": "proto/fixtures/seeds/space.jsonc",
+    "kind": "demo"
+  },
+  "List.response": {
+    "spaces": [
+      {
+        "id": "harbor",
+        "path": "/home/dev/harbor",
+        "name": "Harbor",
+        "created_at": "2026-01-01T00:00:00Z",
+        "last_seen_at": "2026-05-24T18:30:00Z"
+      },
+      {
+        "id": "atlas",
+        "path": "/home/dev/atlas",
+        "name": "Atlas",
+        "created_at": "2026-03-15T09:00:00Z",
+        "last_seen_at": "2026-05-24T09:15:00Z"
+      },
+      {
+        "id": "docs-site",
+        "path": "/home/dev/docs-site",
+        "name": "Docs Site",
+        "created_at": "2026-02-01T00:00:00Z",
+        "last_seen_at": "2026-05-17T14:00:00Z"
+      }
+    ],
+    "active_id": "harbor"
+  },
+  "Active.response": {
+    "active": {
+      "id": "harbor",
+      "path": "/home/dev/harbor",
+      "name": "Harbor",
+      "created_at": "2026-01-01T00:00:00Z",
+      "last_seen_at": "2026-05-24T18:30:00Z"
+    }
+  },
+  "Active.response_cold": {
+    "active": null
+  },
+  "Info.response": {
+    "space_id": "harbor",
+    "root": "/home/dev/harbor",
+    "name": "Harbor",
+    "settings_json": "{\"theme\":\"dark\",\"nav\":\"sidebar\",\"dock\":\"bottom\",\"auto_save\":true,\"model\":\"claude-opus-4-7\"}"
+  },
+  "Info.response_global_only": {
+    "space_id": null,
+    "root": null,
+    "name": null,
+    "settings_json": "{\"theme\":\"system\",\"nav\":\"sidebar\",\"auto_save\":true,\"model\":\"claude-opus-4-7\"}"
+  },
+  "Add.response": {
+    "id": "billing-api",
+    "path": "/home/dev/billing-api",
+    "name": "Billing API",
+    "created_at": "2026-05-24T19:00:00Z",
+    "last_seen_at": "2026-05-24T19:00:00Z"
+  },
+  "Activate.response": {
+    "active": {
+      "id": "atlas",
+      "path": "/home/dev/atlas",
+      "name": "Atlas",
+      "created_at": "2026-03-15T09:00:00Z",
+      "last_seen_at": "2026-05-24T09:15:00Z"
+    }
+  },
+  "SetSetting.response": {
+    "key": "dock",
+    "value_json": "\"left\""
+  },
+  "Watch.registry_stream": {
+    "frames": [
+      {
+        "seq": 1,
+        "kind": "snapshot",
+        "patches": [
+          {
+            "op": "PATCH_OP_SET",
+            "path": "",
+            "value": {
+              "spaces": [
+                {
+                  "id": "harbor",
+                  "path": "/home/dev/harbor",
+                  "name": "Harbor",
+                  "created_at": "2026-01-01T00:00:00Z",
+                  "last_seen_at": "2026-05-24T18:30:00Z"
+                },
+                {
+                  "id": "atlas",
+                  "path": "/home/dev/atlas",
+                  "name": "Atlas",
+                  "created_at": "2026-03-15T09:00:00Z",
+                  "last_seen_at": "2026-05-24T09:15:00Z"
+                },
+                {
+                  "id": "docs-site",
+                  "path": "/home/dev/docs-site",
+                  "name": "Docs Site",
+                  "created_at": "2026-02-01T00:00:00Z",
+                  "last_seen_at": "2026-05-17T14:00:00Z"
+                }
+              ],
+              "active_id": "harbor"
+            }
+          }
+        ]
+      },
+      {
+        "seq": 2,
+        "kind": "patch",
+        "_why": "Activate(id=atlas) called — active_id pointer flipped",
+        "patches": [
+          {
+            "op": "PATCH_OP_MERGE",
+            "path": "",
+            "value": {
+              "active_id": "atlas"
+            }
+          }
+        ]
+      },
+      {
+        "seq": 3,
+        "kind": "patch",
+        "_why": "Add(path=/home/dev/billing-api) — new space appended to registry",
+        "patches": [
+          {
+            "op": "PATCH_OP_APPEND",
+            "path": "spaces",
+            "value": {
+              "id": "billing-api",
+              "path": "/home/dev/billing-api",
+              "name": "Billing API",
+              "created_at": "2026-05-24T19:00:00Z",
+              "last_seen_at": "2026-05-24T19:00:00Z"
+            }
+          }
+        ]
+      },
+      {
+        "seq": 4,
+        "kind": "heartbeat",
+        "hb": {
+          "ts": "2026-05-24T19:05:00Z"
+        }
+      }
+    ]
+  },
+  "Watch.settings_stream": {
+    "frames": [
+      {
+        "seq": 1,
+        "kind": "snapshot",
+        "patches": [
+          {
+            "op": "PATCH_OP_SET",
+            "path": "",
+            "value": {
+              "theme": "dark",
+              "nav": "sidebar",
+              "dock": "bottom",
+              "auto_save": true,
+              "model": "claude-opus-4-7"
+            }
+          }
+        ]
+      },
+      {
+        "seq": 2,
+        "kind": "patch",
+        "_why": "SetSetting(key=dock) written — dock moves from bottom to left",
+        "patches": [
+          {
+            "op": "PATCH_OP_MERGE",
+            "path": "",
+            "value": {
+              "dock": "left"
+            }
+          }
+        ]
+      },
+      {
+        "seq": 3,
+        "kind": "heartbeat",
+        "hb": {
+          "ts": "2026-05-24T19:10:00Z"
+        }
+      }
+    ]
+  },
+  "empty_state": {
+    "spaces": [],
+    "active_id": null,
+    "_copy": {
+      "title": "No spaces registered",
+      "body": "Register a directory to get started. Each space is an independent Ship context.",
+      "cta": "Register a space"
+    }
+  },
+  "error_states": {
+    "info_not_found": {
+      "rpc": "Info",
+      "tone": "destructive",
+      "message": "Space 'staging-env' not found. It may have been unregistered or the path no longer exists.",
+      "retry": false
+    },
+    "activate_not_found": {
+      "rpc": "Activate",
+      "tone": "destructive",
+      "message": "Cannot activate space 'staging-env': not registered. Use Add to register it first.",
+      "retry": false
+    },
+    "add_bad_path": {
+      "rpc": "Add",
+      "tone": "destructive",
+      "message": "Path '/tmp/scratch' is not a directory. Provide an existing directory to register as a space.",
+      "retry": true
+    },
+    "add_already_registered": {
+      "rpc": "Add",
+      "tone": "warning",
+      "message": "Path '/home/dev/harbor' is already registered as space 'harbor'.",
+      "retry": false
+    },
+    "watch_stream_error": {
+      "rpc": "Watch",
+      "tone": "destructive",
+      "message": "Stream interrupted. Reconnecting...",
+      "retry": true
+    }
+  }
+}

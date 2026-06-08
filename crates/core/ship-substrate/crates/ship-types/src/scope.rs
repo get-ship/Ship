@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 /// - `Project`: project-local `.ship/<vector>/` at a given project root.
 /// - `User`: user-library `~/.ship/library/<vector>/`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "kebab-case")]
 pub enum Scope {
     Project,

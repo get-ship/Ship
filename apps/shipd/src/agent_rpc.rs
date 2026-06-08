@@ -57,7 +57,7 @@ mod tests {
     #[test]
     fn agents_create_requires_agents_grant_not_orchestration() {
         use crate::auth::AuthContext;
-        use crate::services::gate;
+        use crate::auth::gate;
 
         // A commander holds ship-orchestration — NOT ship-authoring (agents).
         // The singular/plural prefix split: orchestration does NOT clear agents.create.
@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn agent_grant_is_operator_only_c3() {
         use crate::auth::AuthContext;
-        use crate::services::gate;
+        use crate::auth::gate;
 
         // Non-operator (even with orchestration) cannot clear C3.
         let agent = AuthContext {

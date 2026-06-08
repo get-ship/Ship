@@ -6,12 +6,10 @@ use std::path::PathBuf;
 
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
-use specta::Type;
 
 use super::storage::{ensure_project_skills_storage, ensure_user_skills_storage};
 use super::types::{Skill, is_valid_skill_name};
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum SkillInstallScope {
     Project,

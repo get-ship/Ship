@@ -16,7 +16,6 @@ fn install_test_platform_defaults() {
     ship_pipeline_runtime::install_projections();
 }
 
-pub mod access;
 pub mod sessions;
 pub mod auth;
 pub mod wire;
@@ -24,14 +23,12 @@ pub mod transport;
 mod daemon;
 pub mod services;
 pub mod managers;
-pub mod project_api;
 pub mod routes;
 pub mod router;
 pub mod ops_rpc;
 // diag_rpc: deleted — diagnostics.snapshot op cut; DiagnosticRegistry apparatus removed.
 pub mod runtime_rpc;
 pub mod pipelines_rpc;
-pub mod git_rpc;
 // agent_rpc: policy + gate conformance tests for AgentsService.
 // The impl AgentsService for OpsImpl is deleted — AgentsWire (ship-agents) is now
 // the sole handler, mounted via AgentsServiceExt::register in ops_rpc.rs.
@@ -263,8 +260,10 @@ pub async fn run_network(
         rt.set_dispatch_handle(dh);
     }
     // diagnostics.snapshot op deleted — no DiagnosticRegistry to build.
-    // Start the abandoned session scanner.
-    rt.session_scanner().await;
+    // Start the abandoned session scanner. start() detaches its tasks
+    // (activity pump + health-supervised scan loop), so the returned
+    // handle wrapper drops immediately — nothing needs to hold it.
+    let _ = crate::managers::SessionScanner::start(rt.kernel().clone(), rt.health_registry());
     // Start the artifact GC loop (runs now then every hour).
     rt.start_artifact_gc();
     // Start the window-reaper loop (closes the log lifecycle of crashed

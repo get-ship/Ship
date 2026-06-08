@@ -10,29 +10,7 @@ use ship_substrate::events::EmitContext;
 use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
 
-use super::{ShipRuntime, RuntimeConfig, AppMetadata, WorktreeResolver};
-
-/// Production worktree resolver: branch name → worktree path via
-/// `git worktree list`, falling back to the current project root if the
-/// id matches the current branch. Replaces the legacy free function
-/// `crate::project_api::resolve_worktree` lookup; both share the
-/// `worktree_path_for_branch` + `current_branch_at` helpers in
-/// `project_api/mod.rs`.
-pub fn default_worktree_resolver() -> WorktreeResolver {
-    Arc::new(|id: &str| {
-        if let Some(path) = crate::project_api::worktree_path_for_branch(id) {
-            return Some(path);
-        }
-        if let Ok(project_ship) = ship_substrate::project::get_project_dir(None)
-            && let Some(root) = project_ship.parent()
-            && let Some(current_branch) = crate::project_api::current_branch_at(root)
-            && current_branch == id
-        {
-            return Some(root.to_path_buf());
-        }
-        None
-    })
-}
+use super::{ShipRuntime, RuntimeConfig, AppMetadata};
 
 impl ShipRuntime {
     /// Create a new runtime. Performs integrity check, DB init, and kernel init.
@@ -240,10 +218,7 @@ impl ShipRuntime {
                     None => home.daemon_dir(),
                 }
             },
-            mesh: tokio::sync::OnceCell::new(),
-            jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
-            session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             collection_ctx,
@@ -272,7 +247,6 @@ impl ShipRuntime {
             skills: ship_agents::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
             agents: ship_agents::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
             pipelines: ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
-            git: ship_platform::services::git::service::GitServiceImpl::arc(global_dir.clone()),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -280,7 +254,6 @@ impl ShipRuntime {
             agent_def_kernel: std::sync::OnceLock::new(),
             agent_reactive: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
-            worktree_resolver: default_worktree_resolver(),
         })
     }
 

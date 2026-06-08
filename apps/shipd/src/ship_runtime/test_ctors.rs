@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
 
-use super::{ShipRuntime, RuntimeConfig, SharedKernel, WorktreeResolver, default_worktree_resolver};
+use super::{ShipRuntime, RuntimeConfig, SharedKernel};
 
 impl ShipRuntime {
     /// Build a ShipRuntime for tests — synchronous, takes a pre-initialized
@@ -21,7 +21,6 @@ impl ShipRuntime {
         let agents = ship_agents::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
             ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
-        let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
         // Test fixture binds a concrete space (`test-space`) — there is no daemon
         // home space / `global` partition to fall back onto (S2). Production boot
         // leaves these `None` in space-less mode.
@@ -50,10 +49,7 @@ impl ShipRuntime {
             pty_connections: Arc::new(Mutex::new(HashMap::new())),
             ship_dir,
             daemon_dir,
-            mesh: tokio::sync::OnceCell::new(),
-            jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
-            session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             collection_ctx,
@@ -69,7 +65,6 @@ impl ShipRuntime {
             skills,
             agents,
             pipelines,
-            git,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -77,7 +72,6 @@ impl ShipRuntime {
             agent_def_kernel: std::sync::OnceLock::new(),
             agent_reactive: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
-            worktree_resolver: default_worktree_resolver(),
         }
     }
 
@@ -95,7 +89,6 @@ impl ShipRuntime {
         let agents = ship_agents::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
             ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
-        let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
         // Test fixture binds a concrete space (`test-space`) — there is no daemon
         // home space / `global` partition to fall back onto (S2). Production boot
         // leaves these `None` in space-less mode.
@@ -124,10 +117,7 @@ impl ShipRuntime {
             pty_connections: Arc::new(Mutex::new(HashMap::new())),
             ship_dir,
             daemon_dir,
-            mesh: tokio::sync::OnceCell::new(),
-            jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
-            session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             collection_ctx,
@@ -143,7 +133,6 @@ impl ShipRuntime {
             skills,
             agents,
             pipelines,
-            git,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -151,20 +140,6 @@ impl ShipRuntime {
             agent_def_kernel: std::sync::OnceLock::new(),
             agent_reactive: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
-            worktree_resolver: default_worktree_resolver(),
         }
-    }
-
-    /// Test ctor variant — accepts a custom `WorktreeResolver` so tests
-    /// can map workspace ids to their tempdir paths instead of consulting
-    /// the daemon's CWD via `git worktree list`. See `project_api/tests.rs`.
-    pub fn new_test_with_worktree_resolver(
-        ship_dir: std::path::PathBuf,
-        kernel: SharedKernel,
-        worktree_resolver: WorktreeResolver,
-    ) -> Self {
-        let mut rt = Self::new_test(ship_dir, kernel);
-        rt.worktree_resolver = worktree_resolver;
-        rt
     }
 }

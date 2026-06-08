@@ -32,7 +32,8 @@ use axum::response::{IntoResponse, Response};
 ///
 /// The `Cli` arm was removed (S6, #124): "requires the CLI transport" was an
 /// elevation shortcut. Operator-only routes now enforce in-handler
-/// (`Scope::Full` / `require_scope`) or run through the gate (`command::call`).
+/// (`Scope::Full` / `require_scope`) or run through the gate (the `GateFn`
+/// closure in `ops_rpc::router`).
 ///
 /// Missing `AuthContext` (the outer `auth_middleware` didn't run, or
 /// failed) returns 401. Insufficient privileges return 403 with the

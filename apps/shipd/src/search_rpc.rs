@@ -18,7 +18,7 @@ use std::sync::Arc;
 use connectrpc::{RequestContext, Response, ServiceResult};
 use ship_ops_rpc::{OwnedSearchRequestView, SearchResponse as ProtoSearchResponse};
 use ship_search::{
-    hit_to_proto, parse_request, run_global, SearchContext, SearchScope, SearchService,
+    hit_to_proto, parse_request, run_global, SearchScope, SearchService,
     SpaceTarget,
 };
 use ship_space::service::SpaceService;

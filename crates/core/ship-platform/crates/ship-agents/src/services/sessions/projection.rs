@@ -19,8 +19,6 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{Row, SqliteConnection};
-use specta::Type;
-
 use ship_substrate::db::block_on;
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::agent_session::{
@@ -31,8 +29,7 @@ use ship_substrate::projections::registry::Projection;
 /// Current status of an agent session, derived from its event
 /// sequence. Smaller than `PipelineRunStatus` — pipeline-specific states
 /// (`GatePending`, `Blocked`, `Merged`) live on the composition
-/// layer, not on individual sessions.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentSessionStatus {
     /// Initial state — payload accepted, harness not yet spawned.
@@ -88,8 +85,7 @@ impl AgentSessionStatus {
 }
 
 /// Materialized agent-session row. Read model only — never mutate
-/// directly; mutations come from applying events.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentSession {
     pub session_id: String,
     pub slug: String,

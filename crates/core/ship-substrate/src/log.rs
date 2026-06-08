@@ -13,9 +13,8 @@ fn project_log_store() -> Result<SqliteEventStore> {
     SqliteEventStore::new_for_scope(&crate::project::get_global_dir()?, EventScope::Runtime, None)
 }
 use serde::{Deserialize, Serialize};
-use specta::Type;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LogEntry {
     pub timestamp: String,
     pub actor: String,

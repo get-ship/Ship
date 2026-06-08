@@ -25,13 +25,10 @@ pub mod state;
 // Truly framework-level pieces (view_payload, view_host, asset bundles,
 // resolver, render_helpers, bundle, runtime asset) live in
 // crates/deck/.
-pub mod sui_data;
-pub mod sui_data_resolvers;
+pub mod sui_expr;
 pub mod sui_hmr;
-pub mod sui_mutation;
 pub mod sui_source;
 pub mod sui_sse;
-pub mod git_signal;
 pub mod sui_patches;
 pub mod sui_patch_channel;
 pub mod sui_view_edit_sse;

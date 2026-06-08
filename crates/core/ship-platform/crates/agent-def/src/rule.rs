@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use ship_substrate::events::EventEnvelope;
 use ship_types::event_types::{RULE_CHANGED, RULE_CREATED, RULE_DELETED, RULE_UPDATED};
 use ship_types::payload::{RuleChanged, RuleCreated, RuleDeleted, RuleUpdated};
-use specta::Type;
 use std::fs;
 use std::path::PathBuf;
 
@@ -60,7 +59,7 @@ fn emit_rule_event(event_type: &'static str, id: &str, payload: &impl serde::Ser
 // ─── Data types ───────────────────────────────────────────────────────────────
 
 /// A rule file from `rules/*.md`. Rules are always active for the agent.
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Rule {
     pub file_name: String,
     pub path: String,

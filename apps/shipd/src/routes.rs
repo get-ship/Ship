@@ -44,19 +44,20 @@ pub mod agent_sessions_attach;
 mod agent_sessions_attach_tests;
 pub mod mcp_registry;
 pub mod artifacts_api;
-pub mod git_api;
 pub mod hooks_api;
 pub mod human_webhook;
 pub mod sandbox_api;
 #[cfg(test)]
 mod sandbox_api_tests;
 pub mod logs_api;
+pub mod mesh_resp;
 // feedback_api and annotations_api removed (Batch A routes-cull):
 // domain logic relocated to ship-agents::services::agents::{feedback,annotation};
 // REST shells deleted; AgentsWire calls ship-agents directly.
 pub mod registry_api;
 pub mod rest_api;
 pub mod runtime_api;
+pub mod schema_api;
 pub mod sdk_manifest;
 #[cfg(test)]
 mod scope_enforcement_tests;
@@ -186,14 +187,6 @@ pub enum Route {
     /// @route GET "/_sui/dev/hmr"
     /// @auth public
     SuiDevHmr,
-
-    /// @route GET "/_sui/data"
-    /// @auth public
-    SuiData,
-
-    /// @route POST "/_sui/mutation/{name}"
-    /// @auth handler
-    SuiMutation { name: String },
 
     /// @route POST "/_sui/views/{name}/patch-elements"
     /// @auth scope Full
@@ -397,65 +390,6 @@ pub enum Route {
 
     // ── Supervisor ───────────────────────────────────────────────────────
 
-    // ── Project-scoped ───────────────────────────────────────────────────
-
-    /// @route GET "/api/v1/projects/{id}/session-files"
-    /// @auth scope ReadWorkspace
-    ListSessionFiles { id: String },
-
-    /// @route GET "/api/v1/projects/{id}/agents"
-    /// @auth scope ReadWorkspace
-    ListProjectAgents { id: String },
-
-    // ── GitService — canonical `/api/git/*` surface ──────────────────────
-
-    /// @route POST "/api/v1/git/stage"
-    /// @auth scope WriteWorkspace
-    GitStage,
-
-    /// @route POST "/api/v1/git/unstage"
-    /// @auth scope WriteWorkspace
-    GitUnstage,
-
-    /// @route POST "/api/v1/git/commit"
-    /// @auth scope WriteWorkspace
-    GitCommit,
-
-    /// @route POST "/api/v1/git/push"
-    /// @auth scope WriteWorkspace
-    GitPush,
-
-    /// @route POST "/api/v1/git/fetch"
-    /// @auth scope ReadWorkspace
-    GitFetch,
-
-    /// @route POST "/api/v1/git/pull"
-    /// @auth scope WriteWorkspace
-    GitPull,
-
-    /// @route POST "/api/v1/git/checkout"
-    /// @auth scope WriteWorkspace
-    GitCheckout,
-
-    /// @route POST "/api/v1/git/branch"
-    /// @auth scope WriteWorkspace
-    GitBranchCreate,
-
-    /// @route DELETE "/api/v1/git/branch"
-    /// @auth scope WriteWorkspace
-    GitBranchDelete,
-
-    /// @route POST "/api/v1/git/init"
-    /// @auth scope WriteWorkspace
-    GitInit,
-
-    /// @route GET "/api/v1/git/sse"
-    /// @auth scope ReadWorkspace
-    GitSse,
-
-    /// @route POST "/api/v1/events/emit"
-    /// @auth scope EmitEvents
-    EmitEvent,
 
     // Workspace-scoped artifact status/promote removed — callers get 404.
     // Use the unified /api/artifacts/* surface instead.

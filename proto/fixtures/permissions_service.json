@@ -18,6 +18,17 @@
     },
     "request": {}
   },
+  "Get": {
+    "response_ok": {
+      "id": "allow-bash-read",
+      "scope": "project",
+      "preset_json": "{\"default_mode\":\"ship-standard\",\"rules\":[{\"type\":\"allow\",\"tools\":[\"Bash(git *)\",\"Read\",\"Write\",\"Edit\"]}]}"
+    },
+    "request": {
+      "id": "test-id",
+      "scope": "test-scope"
+    }
+  },
   "ToolPatterns": {
     "response_ok": {
       "patterns": [

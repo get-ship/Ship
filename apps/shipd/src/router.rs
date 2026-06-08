@@ -10,15 +10,15 @@ use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    auth, project_api, services, ship_runtime,
+    auth, ship_runtime,
     sessions, views,
 };
 use crate::routes::{
     actor_api, actors_api,
-    artifacts_api, git_api,
+    artifacts_api,
     hooks_api, human_webhook, logs_api,
     registry_api, rest_api, runtime_api,
-    sandbox_api, sdk_manifest, settings_api, themes_api,
+    sandbox_api, schema_api, sdk_manifest, settings_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
 };
@@ -50,7 +50,6 @@ pub fn build_router(
         .route("/webhook/telegram", axum::routing::post(human_webhook::telegram_webhook))
         .with_state(rt.kernel().clone());
     let hook_routes = Router::new()
-        .route("/hooks/checkout", axum::routing::post(rest_api::hooks_checkout))
         .route("/hooks/session-start", axum::routing::post(hooks_api::hook_session_start))
         .route("/hooks/before-tool", axum::routing::post(hooks_api::hook_before_tool))
         .route("/hooks/after-tool", axum::routing::post(hooks_api::hook_after_tool))
@@ -140,14 +139,6 @@ pub fn build_router(
         // assembly below. deck-axum is the single source of truth for
         // those paths; shipd no longer hand-lists them here.
         .ship_public_route(Route::SuiViewSse_template(), views::sui_sse::serve_sui_sse)
-        .ship_public_route(Route::SuiData, views::sui_data::serve_data)
-        // NOTE: `SuiMutation` is intentionally NOT registered here — it is a
-        // C1/C2 write endpoint and routes through `services::command::call`
-        // (the ONE capability gate). The auth_middleware must run first to
-        // populate `AuthContext` in request extensions; a public
-        // registration left that extension unfulfilled and every mutation
-        // POST silently 500'd. It is registered in `build_ship_routes`
-        // (the authenticated group) below.
         .ship_public_route(Route::SuiSource_template(), views::sui_source::serve_sui_source)
         // The HMR route (SuiDevHmr) is NOT wired here — it stays
         // development-only and is merged into `root` inside the
@@ -336,10 +327,6 @@ async fn build_header_middleware(
 /// the canonical `Route` enum. Paths come from `routes.rs` — this function
 /// only binds handlers.
 ///
-/// Two preserved non-enum `.route()` paths:
-/// - `/api/v1/projects/{id}/session-files/{*path}` — glob param, specific to
-///   project_api's recursive file handler. Kept alongside the enum variant
-///   that exposes the non-glob listing endpoint.
 fn build_ship_routes(st: rest_api::ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     Router::new()
@@ -367,8 +354,8 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
         .ship_route(Route::EndJob, runtime_api::end_job)
         .ship_route(Route::CancelJob_template(), runtime_api::cancel_job)
-        .ship_route(Route::RunStatusUpdate_template(), project_api::update_job_status)
-        .ship_route(Route::StepDoneSignal_template(), project_api::step_done)
+        .ship_route(Route::RunStatusUpdate_template(), runtime_api::update_job_status)
+        .ship_route(Route::StepDoneSignal_template(), runtime_api::step_done)
         .ship_route(Route::StreamJobLog_template(), logs_api::stream_job_log)
         .ship_route(
             Route::AttachAgentSession_template(),
@@ -376,7 +363,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         )
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
         // Views — list + source now served by DiscoveryService (Connect, #139).
-        .ship_route(Route::ShipSchema, services::schema::serve_schema)
+        .ship_route(Route::ShipSchema, schema_api::serve_schema)
         .ship_route(Route::ListViewFiles_template(), views::files_api::list_view_files)
         .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
         .ship_route(Route::WriteViewManifestApi_template(), views::write_api::write_view_manifest)
@@ -396,16 +383,14 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ListSessionsAcrossProjects, runtime_api::list_sessions_across_projects)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
-        // `POST /_sui/mutation/{name}` — PE form submit. C1/C2 write
-        // endpoint; routes through `services::command::call` (the ONE
-        // capability gate). Authenticated (enforces via the gate, not
-        // scope — `@auth handler`); the rest of the `/_sui/*` surface is
-        // public and lives in `public_routes`. The handler takes the
-        // router state (`ApiState = Arc<ShipRuntime>`), so it composes
-        // cleanly into this stateful group.
-        .ship_route(
-            Route::SuiMutation_template(),
-            views::sui_mutation::serve_sui_mutation,
+        // `POST /_sui/mutation/{name}` — tombstoned PE form endpoint.
+        // The server-side string dispatch was removed; JS-attached mutations
+        // call the SDK directly. The SUI compiler still writes this URL as
+        // the form `action` attribute for PE fallback, so the route stays as
+        // a 410 Gone rather than being deleted outright.
+        .route(
+            "/_sui/mutation/{name}",
+            axum::routing::post(|| async { axum::http::StatusCode::GONE }),
         )
         // `POST /_sui/views/{name}/patch-elements` — agent-push DOM patches.
         // Authenticated (requires `Scope::Full`); the rest of the `/_sui/*`
@@ -450,31 +435,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
         // Settings
         .ship_route(Route::ListProviders, settings_api::list_harnesses)
-        // Project
-        .ship_route(Route::ListSessionFiles_template(), project_api::list_session_files)
-        .ship_route(Route::ListProjectAgents_template(), project_api::list_agents)
-        // GitService — canonical `/api/v1/git/*` surface. Consolidates the
-        // old workspace- and project-scoped git endpoints into one.
-        // Write handlers live in `ship_git::rest_handlers`; they take
-        // `State<Arc<dyn GitService>>` and are mounted via a state-scoped
-        // sub-router. The SSE handler is daemon-edge (ViewSse) and keeps
-        // `State<ApiState>`.
-        .merge(
-            Router::<std::sync::Arc<dyn ship_git::service::GitService>>::new()
-                .ship_route(Route::GitStage, git_api::stage_handler)
-                .ship_route(Route::GitUnstage, git_api::unstage_handler)
-                .ship_route(Route::GitCommit, git_api::commit_handler)
-                .ship_route(Route::GitPush, git_api::push_handler)
-                .ship_route(Route::GitFetch, git_api::fetch_handler)
-                .ship_route(Route::GitPull, git_api::pull_handler)
-                .ship_route(Route::GitCheckout, git_api::checkout_handler)
-                .ship_route(Route::GitBranchCreate, git_api::branch_create_handler)
-                .ship_route(Route::GitBranchDelete, git_api::branch_delete_handler)
-                .ship_route(Route::GitInit, git_api::init_handler)
-                .with_state(st.git_arc()),
-        )
-        .ship_route(Route::GitSse, git_api::sse_handler)
-        .ship_route(Route::EmitEvent, project_api::emit_event)
         // Artifacts platform (three-scope)
         .merge(
             Router::<rest_api::ApiState>::new()
@@ -502,14 +462,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             axum::routing::post(view_errors_api::post_error)
                 .get(view_errors_api::list_errors)
                 .delete(view_errors_api::clear_errors),
-        )
-        // Glob-param file handlers (not in enum — glob syntax is project_api
-        // internal; keep flat).
-        .route(
-            "/api/v1/projects/{id}/session-files/{*path}",
-            axum::routing::get(project_api::read_session_file)
-                .put(project_api::write_session_file)
-                .delete(project_api::delete_session_file),
         )
         .with_state(st)
 }
@@ -585,7 +537,6 @@ mod merge_tests {
         // `/_sui/views/{name}/` prefix with deck's catch-all.
         let kept: Router = Router::new()
             .route("/_sui/views/{name}/sse", get(noop))
-            .route("/_sui/data", get(noop))
             .route("/_sui/mutation/{name}", axum::routing::post(noop))
             .route("/_sui/source/{tag}", get(noop));
 

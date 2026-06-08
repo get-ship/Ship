@@ -1,0 +1,892 @@
+{
+  "_meta": {
+    "generated_by": "cargo xtask gen-fixtures",
+    "source_seed": "proto/fixtures/seeds/agents.jsonc",
+    "kind": "demo"
+  },
+  "List.response": {
+    "items": [
+      {
+        "id": "rust-lane",
+        "scope": "project"
+      },
+      {
+        "id": "code-reviewer",
+        "scope": "project"
+      },
+      {
+        "id": "ship-assistant",
+        "scope": "user"
+      }
+    ]
+  },
+  "Summaries.response": {
+    "items": [
+      {
+        "id": "rust-lane",
+        "name": "Rust Lane",
+        "description": "Full Rust implementation lane — compiler, runtime, MCP server.",
+        "skills_count": 3,
+        "mcp_count": 1,
+        "rules_count": 3,
+        "letter": "R",
+        "source": "project",
+        "tags": [
+          "implementation",
+          "backend"
+        ],
+        "active": true
+      },
+      {
+        "id": "code-reviewer",
+        "name": "Code Reviewer",
+        "description": "Reviews diffs for security, correctness, and architecture drift.",
+        "skills_count": 2,
+        "mcp_count": 1,
+        "rules_count": 2,
+        "letter": "C",
+        "source": "project",
+        "tags": [
+          "review",
+          "workflow"
+        ],
+        "active": false
+      },
+      {
+        "id": "ship-assistant",
+        "name": "Ship Assistant",
+        "description": "General-purpose assistant for research, docs, and lightweight ops.",
+        "skills_count": 2,
+        "mcp_count": 2,
+        "rules_count": 1,
+        "letter": "S",
+        "source": "user",
+        "tags": [
+          "assistant",
+          "general"
+        ],
+        "active": true
+      }
+    ]
+  },
+  "Detail.response": {
+    "id": "rust-lane",
+    "name": "Rust Lane",
+    "description": "Full Rust implementation lane — compiler, runtime, MCP server.",
+    "letter": "R",
+    "icon": "hammer",
+    "version": "1.0.0",
+    "tags": [
+      "implementation",
+      "backend"
+    ],
+    "skills": [
+      "run",
+      "verify",
+      "code-review"
+    ],
+    "mcp_servers": [
+      "ship"
+    ],
+    "rules": [
+      "no-placeholders",
+      "test-first",
+      "commit-style"
+    ],
+    "inline_rules": "Prefer minimal diffs. Test first. Commit types: feat, fix, refactor, test, docs, chore.",
+    "permissions_tier": "standard",
+    "permissions": {
+      "preset": "standard",
+      "tools_allow": [
+        "Bash(cargo *)",
+        "Bash(just *)",
+        "Read",
+        "Edit",
+        "Write"
+      ],
+      "tools_ask": [
+        "Bash(git push*)"
+      ],
+      "tools_deny": [
+        "Bash(rm -rf *)"
+      ]
+    },
+    "source": "project"
+  },
+  "Get.response": {
+    "id": "rust-lane",
+    "scope": "project",
+    "doc_json": "{\"agent\":{\"name\":\"Rust Lane\",\"description\":\"Full Rust implementation lane.\",\"letter\":\"R\",\"icon\":\"hammer\",\"version\":\"1.0.0\",\"tags\":[\"implementation\",\"backend\"]},\"skills\":{\"refs\":[\"run\",\"verify\",\"code-review\"]},\"mcp\":{\"refs\":[\"ship\"]},\"rules\":{\"refs\":[\"no-placeholders\",\"test-first\",\"commit-style\"],\"inline\":\"Prefer minimal diffs. Test first.\"},\"permissions\":{\"preset\":\"standard\",\"allow\":[\"Bash(cargo *)\",\"Bash(just *)\",\"Read\",\"Edit\",\"Write\"],\"ask\":[\"Bash(git push*)\"],\"deny\":[\"Bash(rm -rf *)\"]}}"
+  },
+  "Wire.response": {
+    "agent": {
+      "id": "rust-lane",
+      "name": "Rust Lane",
+      "description": "Full Rust implementation lane — compiler, runtime, MCP server.",
+      "letter": "R",
+      "icon": "hammer",
+      "version": "1.0.0",
+      "tags": [
+        "implementation",
+        "backend"
+      ],
+      "skills": [
+        "run",
+        "verify",
+        "code-review"
+      ],
+      "mcp_servers": [
+        "ship"
+      ],
+      "rules": [
+        "no-placeholders",
+        "test-first",
+        "commit-style"
+      ],
+      "inline_rules": "Prefer minimal diffs. Test first.",
+      "permissions_tier": "standard",
+      "permissions": {
+        "preset": "standard",
+        "tools_allow": [
+          "Bash(cargo *)",
+          "Bash(just *)",
+          "Read",
+          "Edit",
+          "Write"
+        ],
+        "tools_ask": [
+          "Bash(git push*)"
+        ],
+        "tools_deny": [
+          "Bash(rm -rf *)"
+        ]
+      },
+      "source": "project"
+    },
+    "nodes": [
+      {
+        "kind": "agent",
+        "id": "rust-lane",
+        "title": "Rust Lane",
+        "sub": "rust-lane · project",
+        "x": 420.0,
+        "y": 240.0,
+        "w": 220.0
+      },
+      {
+        "kind": "skill",
+        "id": "run",
+        "title": "run",
+        "sub": "project skill",
+        "x": 70.0,
+        "y": 60.0,
+        "w": 160.0
+      },
+      {
+        "kind": "skill",
+        "id": "verify",
+        "title": "verify",
+        "sub": "project skill",
+        "x": 70.0,
+        "y": 200.0,
+        "w": 160.0
+      },
+      {
+        "kind": "skill",
+        "id": "code-review",
+        "title": "code-review",
+        "sub": "project skill",
+        "x": 70.0,
+        "y": 340.0,
+        "w": 160.0
+      },
+      {
+        "kind": "mcp",
+        "id": "ship",
+        "title": "ship",
+        "sub": "MCP server",
+        "x": 720.0,
+        "y": 240.0,
+        "w": 160.0
+      }
+    ],
+    "edges": [
+      {
+        "kind": "skill",
+        "id": "run",
+        "path_d": "M420,280 C325,280 325,90 230,90",
+        "dashed": false
+      },
+      {
+        "kind": "skill",
+        "id": "verify",
+        "path_d": "M420,280 C325,280 325,230 230,230",
+        "dashed": false
+      },
+      {
+        "kind": "skill",
+        "id": "code-review",
+        "path_d": "M420,280 C325,280 325,370 230,370",
+        "dashed": false
+      },
+      {
+        "kind": "mcp",
+        "id": "ship",
+        "path_d": "M640,280 C682,280 682,270 720,270",
+        "dashed": true
+      }
+    ],
+    "catalogs": {
+      "skills": [
+        {
+          "id": "run",
+          "name": "run",
+          "description": "Launch and drive the app."
+        },
+        {
+          "id": "verify",
+          "name": "verify",
+          "description": "Verify a change works in the real app."
+        },
+        {
+          "id": "code-review",
+          "name": "code-review",
+          "description": "Review a unified diff for correctness, security, and architecture drift."
+        }
+      ],
+      "mcp": [
+        {
+          "id": "ship",
+          "name": "ship",
+          "description": "Ship project tools."
+        },
+        {
+          "id": "filesystem",
+          "name": "filesystem",
+          "description": "Local filesystem access."
+        },
+        {
+          "id": "postgres",
+          "name": "postgres",
+          "description": "Postgres database."
+        }
+      ],
+      "rules": [
+        {
+          "id": "no-placeholders",
+          "name": "no-placeholders",
+          "description": "No TODOs, no fake data."
+        },
+        {
+          "id": "test-first",
+          "name": "test-first",
+          "description": "Tests before implementation."
+        },
+        {
+          "id": "commit-style",
+          "name": "commit-style",
+          "description": "Conventional commit messages."
+        }
+      ],
+      "presets": [
+        {
+          "id": "standard",
+          "name": "standard",
+          "description": "Human confirms risky actions before they run."
+        },
+        {
+          "id": "readonly",
+          "name": "readonly",
+          "description": "Read access only — no writes."
+        },
+        {
+          "id": "elevated",
+          "name": "elevated",
+          "description": "Includes network and system calls."
+        }
+      ],
+      "tool_patterns": [
+        {
+          "pattern": "Bash(cargo *)",
+          "label": "cargo commands",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Bash(just *)",
+          "label": "just commands",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Read",
+          "label": "file reads",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Edit",
+          "label": "file edits",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Bash(git push*)",
+          "label": "git push",
+          "source": "builtin"
+        }
+      ]
+    }
+  },
+  "Settings.response": {
+    "agent": {
+      "id": "rust-lane",
+      "name": "Rust Lane",
+      "description": "Full Rust implementation lane — compiler, runtime, MCP server.",
+      "letter": "R",
+      "icon": "hammer",
+      "version": "1.0.0",
+      "tags": [
+        "implementation",
+        "backend"
+      ],
+      "skills": [
+        "run",
+        "verify",
+        "code-review"
+      ],
+      "mcp_servers": [
+        "ship"
+      ],
+      "rules": [
+        "no-placeholders",
+        "test-first",
+        "commit-style"
+      ],
+      "inline_rules": "Prefer minimal diffs. Test first.",
+      "permissions_tier": "standard",
+      "permissions": {
+        "preset": "standard",
+        "tools_allow": [
+          "Bash(cargo *)",
+          "Bash(just *)",
+          "Read",
+          "Edit",
+          "Write"
+        ],
+        "tools_ask": [
+          "Bash(git push*)"
+        ],
+        "tools_deny": [
+          "Bash(rm -rf *)"
+        ]
+      },
+      "source": "project"
+    },
+    "tiers": [
+      {
+        "id": "standard",
+        "label": "Standard",
+        "description": "Human confirms risky actions before they run.",
+        "selected": true
+      },
+      {
+        "id": "autonomous",
+        "label": "Autonomous",
+        "description": "Agent acts end-to-end; safety rails still apply.",
+        "selected": false
+      },
+      {
+        "id": "read-only",
+        "label": "Read Only",
+        "description": "Agent inspects and reports. No writes.",
+        "selected": false
+      }
+    ],
+    "catalogs": {
+      "skills": [
+        {
+          "id": "run",
+          "name": "run",
+          "description": "Launch and drive the app."
+        },
+        {
+          "id": "verify",
+          "name": "verify",
+          "description": "Verify a change works in the real app."
+        },
+        {
+          "id": "code-review",
+          "name": "code-review",
+          "description": "Review a unified diff for correctness, security, and architecture drift."
+        }
+      ],
+      "mcp": [
+        {
+          "id": "ship",
+          "name": "ship",
+          "description": "Ship project tools."
+        },
+        {
+          "id": "filesystem",
+          "name": "filesystem",
+          "description": "Local filesystem access."
+        },
+        {
+          "id": "postgres",
+          "name": "postgres",
+          "description": "Postgres database."
+        }
+      ],
+      "rules": [
+        {
+          "id": "no-placeholders",
+          "name": "no-placeholders",
+          "description": "No TODOs, no fake data."
+        },
+        {
+          "id": "test-first",
+          "name": "test-first",
+          "description": "Tests before implementation."
+        },
+        {
+          "id": "commit-style",
+          "name": "commit-style",
+          "description": "Conventional commit messages."
+        }
+      ],
+      "presets": [
+        {
+          "id": "standard",
+          "name": "standard",
+          "description": "Human confirms risky actions before they run."
+        },
+        {
+          "id": "readonly",
+          "name": "readonly",
+          "description": "Read access only — no writes."
+        },
+        {
+          "id": "elevated",
+          "name": "elevated",
+          "description": "Includes network and system calls."
+        }
+      ],
+      "tool_patterns": [
+        {
+          "pattern": "Bash(cargo *)",
+          "label": "cargo commands",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Bash(just *)",
+          "label": "just commands",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Read",
+          "label": "file reads",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Edit",
+          "label": "file edits",
+          "source": "builtin"
+        },
+        {
+          "pattern": "Bash(git push*)",
+          "label": "git push",
+          "source": "builtin"
+        }
+      ]
+    }
+  },
+  "Catalogs.response": {
+    "skills": [
+      {
+        "id": "run",
+        "name": "run",
+        "description": "Launch and drive the app."
+      },
+      {
+        "id": "verify",
+        "name": "verify",
+        "description": "Verify a change works in the real app."
+      },
+      {
+        "id": "code-review",
+        "name": "code-review",
+        "description": "Review a unified diff for correctness, security, and architecture drift."
+      }
+    ],
+    "mcp": [
+      {
+        "id": "ship",
+        "name": "ship",
+        "description": "Ship project tools."
+      },
+      {
+        "id": "filesystem",
+        "name": "filesystem",
+        "description": "Local filesystem access."
+      },
+      {
+        "id": "postgres",
+        "name": "postgres",
+        "description": "Postgres database."
+      }
+    ],
+    "rules": [
+      {
+        "id": "no-placeholders",
+        "name": "no-placeholders",
+        "description": "No TODOs, no fake data."
+      },
+      {
+        "id": "test-first",
+        "name": "test-first",
+        "description": "Tests before implementation."
+      },
+      {
+        "id": "commit-style",
+        "name": "commit-style",
+        "description": "Conventional commit messages."
+      }
+    ],
+    "presets": [
+      {
+        "id": "standard",
+        "name": "standard",
+        "description": "Human confirms risky actions before they run."
+      },
+      {
+        "id": "readonly",
+        "name": "readonly",
+        "description": "Read access only — no writes."
+      },
+      {
+        "id": "elevated",
+        "name": "elevated",
+        "description": "Includes network and system calls."
+      }
+    ],
+    "tool_patterns": [
+      {
+        "pattern": "Bash(cargo *)",
+        "label": "cargo commands",
+        "source": "builtin"
+      },
+      {
+        "pattern": "Bash(just *)",
+        "label": "just commands",
+        "source": "builtin"
+      },
+      {
+        "pattern": "Read",
+        "label": "file reads",
+        "source": "builtin"
+      },
+      {
+        "pattern": "Edit",
+        "label": "file edits",
+        "source": "builtin"
+      },
+      {
+        "pattern": "Bash(git push*)",
+        "label": "git push",
+        "source": "builtin"
+      }
+    ]
+  },
+  "Templates.response": {
+    "items": [
+      {
+        "id": "implementer",
+        "label": "Implementer",
+        "description": "Full implementation lane for a feature or fix. Ships tested code.",
+        "letter": "I",
+        "hue": "blue",
+        "skill_ids": [
+          "run",
+          "verify"
+        ],
+        "permission_preset": "standard"
+      },
+      {
+        "id": "reviewer",
+        "label": "Reviewer",
+        "description": "Reviews diffs and surfaces correctness, security, and architecture drift.",
+        "letter": "R",
+        "hue": "green",
+        "skill_ids": [
+          "code-review"
+        ],
+        "permission_preset": "readonly"
+      },
+      {
+        "id": "assistant",
+        "label": "Assistant",
+        "description": "General-purpose assistant for research, drafting, and lightweight ops.",
+        "letter": "A",
+        "hue": "violet",
+        "skill_ids": [
+          "run",
+          "deep-research"
+        ],
+        "permission_preset": "standard"
+      }
+    ]
+  },
+  "PermissionPresets.response": {
+    "items": [
+      {
+        "id": "readonly",
+        "label": "Read Only",
+        "description": "Read access only — no writes, no network, no shells."
+      },
+      {
+        "id": "standard",
+        "label": "Standard",
+        "description": "Read + write within the workspace. Human confirms risky actions before they run."
+      },
+      {
+        "id": "elevated",
+        "label": "Elevated",
+        "description": "Includes outbound network and system calls. Operator-approved only."
+      }
+    ]
+  },
+  "Harnesses.response": {
+    "items": [
+      "claude",
+      "claude-code",
+      "shell"
+    ]
+  },
+  "Sessions.response": {
+    "items": [
+      {
+        "id": "sess-rust-lane-2",
+        "kind": "agent",
+        "workspace_id": "harbor",
+        "agent_id": "rust-lane",
+        "harness": "claude",
+        "pid": 14922,
+        "status": "running",
+        "log_path": ".ship/logs/sess-rust-lane-2.log",
+        "spawned_at": "2026-06-07T09:15:00Z",
+        "last_activity": "2026-06-07T09:31:00Z",
+        "harness_session_id": "sess-rust-lane-2"
+      },
+      {
+        "id": "sess-rust-lane-1",
+        "kind": "agent",
+        "workspace_id": "harbor",
+        "agent_id": "rust-lane",
+        "harness": "claude",
+        "pid": 12345,
+        "status": "exited",
+        "log_path": ".ship/logs/sess-rust-lane-1.log",
+        "spawned_at": "2026-05-24T18:00:00Z",
+        "last_activity": "2026-05-24T18:30:00Z",
+        "exit_code": 0,
+        "harness_session_id": "sess-rust-lane-1"
+      }
+    ]
+  },
+  "Watch.stream": {
+    "frames": [
+      {
+        "seq": 1,
+        "kind": "snapshot",
+        "patches": [
+          {
+            "op": "set",
+            "path": "",
+            "value": {
+              "summaries": {
+                "items": [
+                  {
+                    "id": "rust-lane",
+                    "name": "Rust Lane",
+                    "active": true,
+                    "letter": "R",
+                    "source": "project",
+                    "skills_count": 3,
+                    "mcp_count": 1,
+                    "rules_count": 3,
+                    "tags": [
+                      "implementation",
+                      "backend"
+                    ]
+                  },
+                  {
+                    "id": "code-reviewer",
+                    "name": "Code Reviewer",
+                    "active": false,
+                    "letter": "C",
+                    "source": "project",
+                    "skills_count": 2,
+                    "mcp_count": 1,
+                    "rules_count": 2,
+                    "tags": [
+                      "review",
+                      "workflow"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "seq": 2,
+        "kind": "patch",
+        "_why": "code-reviewer dispatched; active flag toggled true",
+        "patches": [
+          {
+            "op": "merge",
+            "path": "summaries.items[1]",
+            "value": {
+              "active": true
+            }
+          }
+        ]
+      },
+      {
+        "seq": 3,
+        "kind": "patch",
+        "_why": "ship-assistant def created in user scope",
+        "patches": [
+          {
+            "op": "append",
+            "path": "summaries.items",
+            "value": {
+              "id": "ship-assistant",
+              "name": "Ship Assistant",
+              "active": false,
+              "letter": "S",
+              "source": "user",
+              "skills_count": 2,
+              "mcp_count": 2,
+              "rules_count": 1,
+              "tags": [
+                "assistant",
+                "general"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "seq": 4,
+        "kind": "heartbeat",
+        "ts": "2026-06-07T09:32:00Z"
+      }
+    ]
+  },
+  "Dispatch.response": {
+    "session_id": "01J9ZK3QF8N2W6X7Y8Z9A0B1C2",
+    "slug": "harbor-7f3a9c",
+    "branch": "job/harbor-7f3a9c",
+    "resume": false,
+    "studio_url": "http://127.0.0.1:4310/sessions/harbor-7f3a9c"
+  },
+  "Stop.response": {
+    "slug": "harbor-7f3a9c",
+    "stopped": true
+  },
+  "Steer.response": {
+    "slug": "harbor-7f3a9c",
+    "steered": true
+  },
+  "Grant.response": {
+    "agent": "rust-lane",
+    "grants": [
+      "ship.git"
+    ],
+    "provisioned": [
+      "ship.git",
+      "ship.runtime"
+    ],
+    "sessions_upgraded": 1
+  },
+  "mutations": {
+    "Create": {
+      "id": "perf-profiler",
+      "scope": "project"
+    },
+    "Put": {
+      "id": "rust-lane",
+      "scope": "project"
+    },
+    "Patch": {
+      "id": "rust-lane",
+      "scope": "project"
+    },
+    "Delete": {
+      "id": "perf-profiler",
+      "scope": "project"
+    },
+    "Rename": {
+      "id": "rust-lane-v2",
+      "scope": "project"
+    },
+    "Duplicate": {
+      "id": "rust-lane-copy",
+      "scope": "project"
+    },
+    "MoveScope": {
+      "id": "ship-assistant",
+      "scope": "project"
+    }
+  },
+  "PostFeedback.response": {
+    "id": "01J9Z3KQ8F7X2YB4MC6N0VTRWS"
+  },
+  "PostAnnotation.response": {
+    "id": "01J9Z3KR5A8E1D9HFG2P7QXY3M"
+  },
+  "errors": {
+    "rpc_transport": {
+      "rpc": "Summaries",
+      "tone": "destructive",
+      "message": "Connection to shipd lost. Retrying…",
+      "retryable": true
+    },
+    "gate_denied_c2": {
+      "rpc": "Create",
+      "tone": "warning",
+      "message": "ship.agents.write requires elevated capability. Request a grant from your operator."
+    },
+    "gate_denied_c3": {
+      "rpc": "Grant",
+      "tone": "destructive",
+      "message": "Grant is operator-only (C3). Confirm your identity to proceed."
+    },
+    "agent_not_found": {
+      "rpc": "Detail",
+      "tone": "destructive",
+      "message": "Agent 'perf-profiler' not found in project or user scope."
+    },
+    "dispatch_harness_missing": {
+      "rpc": "Dispatch",
+      "tone": "destructive",
+      "message": "Harness 'claude' binary not found. Install claude-code or add it to PATH."
+    }
+  },
+  "empty_states": {
+    "no_agents": {
+      "title": "No agents yet",
+      "body": "Create your first agent to start automating harbor.",
+      "cta": "New agent"
+    },
+    "empty_filtered": {
+      "title": "No matches",
+      "body": "3 agents defined, none match the active scope, harness, or tag filter.",
+      "cta": "Clear filters"
+    },
+    "no_sessions": {
+      "title": "No active sessions",
+      "body": "Dispatch an agent to start a session.",
+      "cta": "Dispatch"
+    }
+  }
+}

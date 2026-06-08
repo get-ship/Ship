@@ -57,6 +57,10 @@ pub mod config {
     // Space settings projection
     pub use ship_config::projection::SpaceSettingsProjection;
 
+    // Settings view-state helpers (display structs for the Settings page).
+    // Relocated from shipd::services::settings::view_state (L2 → L1).
+    pub mod settings_view;
+
     // Relocated from platform-internal crud/discover/watcher
     pub use ship_config::crud::{add_mcp_server, ensure_standard_dirs, list_mcp_servers, remove_mcp_server};
     pub use ship_agents::active_agent::get_active_agent;
@@ -84,34 +88,6 @@ pub mod services {
         };
     }
 
-    /// Process registry — moved to ship-substrate (SSOT).
-    pub mod process_registry {
-        pub use ship_substrate::services::process_registry::*;
-    }
-
-    /// Re-exported from `ship-git` for back-compat with downstream callers
-    /// that still import `ship_platform::services::git::*`.
-    pub use ship_git as git;
-
-    /// Aggregated `ship.<domain>.<op>` → example-JSON pairs across every
-    /// domain migrated to the typed-op single source. Drives
-    /// `cargo xtask gen-fixtures`. Behind the `fixtures` feature.
-    #[cfg(feature = "fixtures")]
-    pub fn data_op_examples() -> Vec<(&'static str, serde_json::Value)> {
-        let mut out: Vec<(&'static str, serde_json::Value)> = Vec::new();
-        out.extend(ship_agents::services::agents::fixtures::examples());
-        out.extend(ship_agents::services::rules::fixtures::examples());
-        out.extend(ship_agents::services::mcp::fixtures::examples());
-        out.extend(ship_agents::services::permissions::fixtures::examples());
-        // account.* — the AccountState enum lives in the `ship-account` crate;
-        // a fresh daemon is logged out.
-        out.push((
-            "account.state",
-            serde_json::to_value(ship_account::types::AccountState::LoggedOut)
-                .expect("AccountState serializes"),
-        ));
-        out
-    }
 }
 
 pub mod testutil;

@@ -44,49 +44,6 @@ impl ShipRuntime {
         Some(ship_substrate::project::project_slug_from_ship_dir(&project_ship))
     }
 
-    /// Lazily initialize and return the mesh manager.
-    pub async fn mesh(&self) -> &crate::managers::MeshManager {
-        self.mesh
-            .get_or_init(|| async {
-                crate::managers::MeshManager::new(self.mesh_registry.clone())
-            })
-            .await
-    }
-
-    /// Lazily initialize and return the job manager.
-    ///
-    /// On first call, subscribes to job events and reconciles orphaned
-    /// dispatched jobs from previous daemon runs.
-    pub async fn jobs(&self) -> &crate::managers::RunManager {
-        let hr = self.health_registry.clone();
-        let registry = self.session_registry.clone();
-        let daemon_url = self.daemon_origin();
-        self.jobs
-            .get_or_init(|| async {
-                crate::managers::RunManager::init(
-                    self.kernel.clone(),
-                    self.ship_dir.clone(),
-                    &hr,
-                    registry,
-                    daemon_url,
-                )
-                .await
-            })
-            .await
-    }
-
-    /// Lazily initialize and return the session scanner.
-    ///
-    /// On first call, starts a background task that scans for abandoned sessions.
-    pub async fn session_scanner(&self) -> &crate::managers::SessionScanner {
-        let hr = self.health_registry.clone();
-        self.session_scanner
-            .get_or_init(|| async {
-                crate::managers::SessionScanner::start(self.kernel.clone(), &hr)
-            })
-            .await
-    }
-
     /// Spawn the artifact GC loop. Runs immediately on startup then every hour.
     ///
     /// Best-effort: errors are logged but don't take down the daemon. No-op when
@@ -215,13 +172,6 @@ impl ShipRuntime {
             }
             Err(e) => tracing::warn!("hooks: failed to start engine: {e}"),
         }
-    }
-
-    /// The running hook engine, if started.
-    pub fn hook_engine(
-        &self,
-    ) -> Option<&std::sync::Arc<ship_triggers::engine::HookEngine>> {
-        self.hook_engine.get()
     }
 
     /// The webhook source for the public webhook route, if the engine is running.

@@ -52,6 +52,7 @@ libc = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 proptest = "1"
+ship-runner = { path = "crates/ship-runner" }
 
 [lints]
 workspace = true

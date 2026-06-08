@@ -16,7 +16,7 @@ use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::event_types;
 use serde::Deserialize;
 
-use crate::auth::{AuthContext};
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 // Re-exports so existing callers resolve without source changes.
@@ -221,10 +221,14 @@ pub(crate) fn default_cancel_reason() -> String {
 /// collapsed into the pure read surface in ship-substrate.
 pub async fn cancel_job(
     State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Path(slug): Path<String>,
     Json(req): Json<CancelJobRequest>,
 ) -> impl IntoResponse {
+    // ship.agents.write — cancel is a destructive control-plane write.
+    if let Err(e) = require_scope(&auth, Scope::ManageRuns) {
+        return e;
+    }
 
     // Pipeline runs live in the jobs projection; bare agent sessions
     // live in the agent_sessions projection. The agent-primitive
@@ -398,9 +402,13 @@ pub struct TurnEndRequest {
 /// `ship_pipeline_runtime::run_core::end_turn_core`.
 pub async fn end_job(
     State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<TurnEndRequest>,
 ) -> impl IntoResponse {
+    // ship.runtime.write (PipelinesService.EndTurn) — turn signals advance pipeline state.
+    if let Err(e) = require_scope(&auth, Scope::ManageRuns) {
+        return e;
+    }
     use ship_pipeline_runtime::run_core::{EndTurnCoreError, EndTurnRequest, end_turn_core};
     use crate::pipeline_ports::{PipelineDispatchAdapter, TurnSignalAdapter};
 

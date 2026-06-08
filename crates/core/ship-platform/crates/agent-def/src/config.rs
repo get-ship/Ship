@@ -1,5 +1,5 @@
-use ship_config::project::{McpServerConfig, get_config};
-#[derive(Serialize, Deserialize, Debug, Clone, Default, Type)]
+use ship_config::project::{get_config, McpServerConfig};
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct WorkspaceAgentSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
@@ -16,10 +16,8 @@ use crate::rule::{Rule, list_rules};
 use crate::skill::{Skill, list_effective_skills};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use specta::Type;
 use std::collections::HashSet;
 use std::path::Path;
-
 // ─── Resolved config ──────────────────────────────────────────────────────────
 
 /// Fully resolved, in-memory harness settings for the current branch/feature.
@@ -30,7 +28,7 @@ use std::path::Path;
 /// 3. Feature `[agent]` block (thin overrides)
 ///
 /// A snapshot of key IDs is stored in the Workspace SQLite record for the UI.
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProviderSettings {
     /// Active harness IDs (e.g. `["claude"]`). Inherited from project or overridden by feature.
     pub harnesses: Vec<String>,

@@ -1,0 +1,360 @@
+// Search domain seed — realistic demo values for the ship-search-* component pack.
+// World: 'harbor' project mid-feature on branch feat/checkout-flow; operator = Ada Lovelace.
+// Agents: rust-lane (active) + code-reviewer. Query anchor: "checkout".
+// Generator strips full-line // comments and emits proto/fixtures/demo/search.json.
+{
+  "_meta": {
+    "domain": "search",
+    "description": "Universal entity search across all seven kinds. Covers: mixed-kind ok result, COLLECTION_ITEM with collection_id, GLOBAL hits with space_id, paginated first/second page, kind-filtered result, empty-filtered state, error state."
+  },
+
+  // ── SearchService.Search — mixed kinds, THIS_SPACE, query "checkout" ──────────
+  // The canonical palette view: all seven EntityKind values in one ranked list.
+  // Scores are plausible BM25 + recency values the scorer might emit.
+
+  "Search.mixed_kinds": {
+    "hits": [
+      {
+        "kind": "ENTITY_KIND_COLLECTION_ITEM",
+        "id": "note-checkout-notes",
+        "label": "Checkout service notes",
+        "path": "/collections/notes/note-checkout-notes",
+        "icon": "file-text",
+        "snippet": "Auth via JWT; idempotency key on POST /checkout.",
+        "score": 0.95,
+        "collection_id": "notes",
+        "space_id": ""
+      },
+      {
+        "kind": "ENTITY_KIND_VIEW",
+        "id": "checkout-summary",
+        "label": "Checkout Summary",
+        "path": "/views/checkout-summary",
+        "icon": "layout",
+        "snippet": "Live summary of checkout service metrics and recent sessions.",
+        "score": 0.91,
+        "collection_id": "",
+        "space_id": ""
+      },
+      {
+        "kind": "ENTITY_KIND_COLLECTION",
+        "id": "notes",
+        "label": "Notes",
+        "path": "/collections/notes",
+        "icon": "database",
+        "snippet": "3 items — checkout notes, JWT auth, kysely spike.",
+        "score": 0.87,
+        "collection_id": "",
+        "space_id": ""
+      },
+      {
+        "kind": "ENTITY_KIND_AGENT",
+        "id": "rust-lane",
+        "label": "Rust Lane",
+        "path": "/.ship/agents/rust-lane.md",
+        "icon": "hammer",
+        "snippet": "Full Rust implementation lane — compiler, runtime, MCP server.",
+        "score": 0.82,
+        "collection_id": "",
+        "space_id": ""
+      },
+      {
+        "kind": "ENTITY_KIND_SKILL",
+        "id": "code-review",
+        "label": "code-review",
+        "path": "/.ship/skills/code-review/SKILL.md",
+        "icon": "git-pull-request",
+        "snippet": "Reviews diffs for security, correctness, and architecture drift.",
+        "score": 0.74,
+        "collection_id": "",
+        "space_id": ""
+      },
+      {
+        "kind": "ENTITY_KIND_SESSION",
+        "id": "sess-rust-lane-1",
+        "label": "rust-lane · feat/checkout-flow",
+        "path": "/sessions/sess-rust-lane-1",
+        "icon": "terminal",
+        "snippet": "Completed 30 min ago · 42 tool calls · exit 0.",
+        "score": 0.68,
+        "collection_id": "",
+        "space_id": ""
+      },
+      {
+        "kind": "ENTITY_KIND_ARTIFACT",
+        "id": "artifact-checkout-audit",
+        "label": "checkout-audit.md",
+        "path": "/artifacts/artifact-checkout-audit",
+        "icon": "paperclip",
+        "snippet": "Checkout service audit report produced by rust-lane.",
+        "score": 0.61,
+        "collection_id": "",
+        "space_id": ""
+      }
+    ],
+    "next_cursor": ""
+  },
+
+  // ── Search.paginated_first — first page, next_cursor non-empty ───────────────
+  // Query "service", limit 5. next_cursor signals a second page exists.
+  // Exercises the load-more affordance at the bottom of the palette list.
+
+  "Search.paginated_first": {
+    "hits": [
+      {
+        "kind": "ENTITY_KIND_VIEW",
+        "id": "checkout-summary",
+        "label": "Checkout Summary",
+        "path": "/views/checkout-summary",
+        "icon": "layout",
+        "snippet": "Live summary of checkout service metrics and recent sessions.",
+        "score": 0.93,
+        "collection_id": "",
+        "space_id": ""
+      },
+      {
+        "kind": "ENTITY_KIND_COLLECTION_ITEM",
+        "id": "note-checkout-notes",
+        "label": "Checkout service notes",
+        "path": "/collections/notes/note-checkout-notes",
+        "icon": "file-text",
+        "snippet": "Auth via JWT; idempotency key on POST /checkout.",
+        "score": 0.88,
+        "collection_id": "notes",
+        "space_id": ""
+      },
+      {
+        "kind": "ENTITY_KIND_AGENT",
+        "id": "rust-lane",
+        "label": "Rust Lane",
+        "path": "/.ship/agents/rust-lane.md",
+        "icon": "hammer",
+        "snippet": "Full Rust implementation lane — compiler, runtime, MCP server.",
+        "score": 0.81,
+        "collection_id": "",
+        "space_id": ""
+      },
+      {
+        "kind": "ENTITY_KIND_SKILL",
+        "id": "run",
+        "label": "run",
+        "path": "/.ship/skills/run/SKILL.md",
+        "icon": "play",
+        "snippet": "Launch and drive this project's app.",
+        "score": 0.73,
+        "collection_id": "",
+        "space_id": ""
+      },
+      {
+        "kind": "ENTITY_KIND_SESSION",
+        "id": "sess-code-reviewer-1",
+        "label": "code-reviewer · feat/checkout-flow",
+        "path": "/sessions/sess-code-reviewer-1",
+        "icon": "terminal",
+        "snippet": "Completed 2 h ago · 8 tool calls · exit 0.",
+        "score": 0.64,
+        "collection_id": "",
+        "space_id": ""
+      }
+    ],
+    "next_cursor": "Y2hlY2tvdXQtcGFnZS0y"
+  },
+
+  // ── Search.paginated_second — second page (cursor consumed) ──────────────────
+  // Remaining hits after the first page. next_cursor empty = end of results.
+
+  "Search.paginated_second": {
+    "hits": [
+      {
+        "kind": "ENTITY_KIND_ARTIFACT",
+        "id": "artifact-checkout-audit",
+        "label": "checkout-audit.md",
+        "path": "/artifacts/artifact-checkout-audit",
+        "icon": "paperclip",
+        "snippet": "Checkout service audit report produced by rust-lane.",
+        "score": 0.58,
+        "collection_id": "",
+        "space_id": ""
+      },
+      {
+        "kind": "ENTITY_KIND_COLLECTION",
+        "id": "feedback",
+        "label": "Feedback",
+        "path": "/collections/feedback",
+        "icon": "database",
+        "snippet": "System collection — agent feedback + annotations.",
+        "score": 0.51,
+        "collection_id": "",
+        "space_id": ""
+      }
+    ],
+    "next_cursor": ""
+  },
+
+  // ── Search.global_scope — GLOBAL reach, space_id populated ───────────────────
+  // Query "checkout" with scope=GLOBAL. Hits come from two distinct spaces:
+  // "harbor" (the active space) and "gateway-rs" (a second registered space).
+  // Client composes cross-space deeplink: ship://space/<space_id><path>.
+
+  "Search.global_scope": {
+    "hits": [
+      {
+        "kind": "ENTITY_KIND_COLLECTION_ITEM",
+        "id": "note-checkout-notes",
+        "label": "Checkout service notes",
+        "path": "/collections/notes/note-checkout-notes",
+        "icon": "file-text",
+        "snippet": "Auth via JWT; idempotency key on POST /checkout.",
+        "score": 0.95,
+        "collection_id": "notes",
+        "space_id": "harbor"
+      },
+      {
+        "kind": "ENTITY_KIND_VIEW",
+        "id": "checkout-summary",
+        "label": "Checkout Summary",
+        "path": "/views/checkout-summary",
+        "icon": "layout",
+        "snippet": "Live summary of checkout service metrics and recent sessions.",
+        "score": 0.91,
+        "collection_id": "",
+        "space_id": "harbor"
+      },
+      {
+        "kind": "ENTITY_KIND_COLLECTION_ITEM",
+        "id": "note-router-checkout",
+        "label": "Router — checkout handler",
+        "path": "/collections/notes/note-router-checkout",
+        "icon": "file-text",
+        "snippet": "POST /checkout wired in router.rs; JWT middleware applied.",
+        "score": 0.79,
+        "collection_id": "notes",
+        "space_id": "gateway-rs"
+      },
+      {
+        "kind": "ENTITY_KIND_AGENT",
+        "id": "rust-lane",
+        "label": "Rust Lane",
+        "path": "/.ship/agents/rust-lane.md",
+        "icon": "hammer",
+        "snippet": "Full Rust implementation lane — compiler, runtime, MCP server.",
+        "score": 0.76,
+        "collection_id": "",
+        "space_id": "harbor"
+      },
+      {
+        "kind": "ENTITY_KIND_SKILL",
+        "id": "verify",
+        "label": "verify",
+        "path": "/.ship/skills/verify/SKILL.md",
+        "icon": "check-circle",
+        "snippet": "Verify that a code change actually does what it's supposed to by running the app.",
+        "score": 0.63,
+        "collection_id": "",
+        "space_id": "gateway-rs"
+      }
+    ],
+    "next_cursor": ""
+  },
+
+  // ── Search.kind_filtered — AGENT kind only ───────────────────────────────────
+  // Query "lane", kinds=[ENTITY_KIND_AGENT]. The filter bar drives this.
+  // Exercises ship-search-filter-bar narrowing the palette to one kind.
+
+  "Search.kind_filtered_agents": {
+    "hits": [
+      {
+        "kind": "ENTITY_KIND_AGENT",
+        "id": "rust-lane",
+        "label": "Rust Lane",
+        "path": "/.ship/agents/rust-lane.md",
+        "icon": "hammer",
+        "snippet": "Full Rust implementation lane — compiler, runtime, MCP server.",
+        "score": 0.96,
+        "collection_id": "",
+        "space_id": ""
+      },
+      {
+        "kind": "ENTITY_KIND_AGENT",
+        "id": "code-reviewer",
+        "label": "Code Reviewer",
+        "path": "/.ship/agents/code-reviewer.md",
+        "icon": "shield",
+        "snippet": "Reviews diffs for security, correctness, and architecture drift.",
+        "score": 0.44,
+        "collection_id": "",
+        "space_id": ""
+      }
+    ],
+    "next_cursor": ""
+  },
+
+  // ── Search.kind_filtered — SKILL kind only ───────────────────────────────────
+  // Query "review", kinds=[ENTITY_KIND_SKILL].
+
+  "Search.kind_filtered_skills": {
+    "hits": [
+      {
+        "kind": "ENTITY_KIND_SKILL",
+        "id": "code-review",
+        "label": "code-review",
+        "path": "/.ship/skills/code-review/SKILL.md",
+        "icon": "git-pull-request",
+        "snippet": "Reviews diffs for security, correctness, and architecture drift.",
+        "score": 0.98,
+        "collection_id": "",
+        "space_id": ""
+      }
+    ],
+    "next_cursor": ""
+  },
+
+  // ── Search.empty — no hits, query had results possible but none match ─────────
+  // Exercises the empty-filtered state: "No results for <q>" copy + broaden hint.
+  // Triggered when hits=[] and next_cursor="".
+
+  "Search.empty_filtered": {
+    "hits": [],
+    "next_cursor": ""
+  },
+
+  // ── Error states ──────────────────────────────────────────────────────────────
+  // Not proto response messages — describe the UI error surface when Search fails.
+  // ship-search-palette renders these inline with a Retry action.
+
+  "errors": {
+    "network_timeout": {
+      "rpc": "Search",
+      "tone": "destructive",
+      "message": "Search timed out. Check your connection and try again.",
+      "retry": true
+    },
+    "daemon_unreachable": {
+      "rpc": "Search",
+      "tone": "destructive",
+      "message": "Couldn't reach the Ship daemon. Make sure shipd is running.",
+      "retry": true
+    },
+    "permission_denied": {
+      "rpc": "Search",
+      "tone": "warning",
+      "message": "You don't have permission to search this space.",
+      "retry": false
+    }
+  },
+
+  // ── Empty states ──────────────────────────────────────────────────────────────
+  // UI copy rendered by ship-search-palette for no-query and filtered-no-results states.
+
+  "empty_states": {
+    "idle": {
+      "title": "Jump to anything",
+      "body": "Type to search views, collections, agents, skills, sessions, and artifacts."
+    },
+    "empty_filtered": {
+      "title": "No results for \"checkout ui\"",
+      "body": "Try broadening the kind filter or searching across all spaces.",
+      "cta": "Search all spaces"
+    }
+  }
+}

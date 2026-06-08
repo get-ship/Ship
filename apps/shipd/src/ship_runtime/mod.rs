@@ -21,9 +21,8 @@ pub use types::{
     AuthMode, RuntimeConfig, AppMetadata,
     AppState, ApiState,
     SharedKernel, AgentMailboxes, PtyConnections,
-    WorktreeResolver, ActorGuard,
+    ActorGuard,
 };
-pub use init::default_worktree_resolver;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -34,7 +33,6 @@ use ship_substrate::task_health::HealthRegistry;
 use crate::dispatch::run_dispatch::DispatchHandle;
 
 /// Central runtime for shipd. Owns the kernel, mesh registry, and config.
-/// Managers (mesh, jobs) are lazily initialized on first access.
 pub struct ShipRuntime {
     pub(super) config: RuntimeConfig,
     pub(super) kernel: SharedKernel,
@@ -45,10 +43,7 @@ pub struct ShipRuntime {
     /// Daemon IPC directory — `<root>/machine/daemon/` or
     /// `<root>/machine/daemons/<hash>/` per devx-04.
     pub(super) daemon_dir: PathBuf,
-    pub(super) mesh: tokio::sync::OnceCell<crate::managers::MeshManager>,
-    pub(super) jobs: tokio::sync::OnceCell<crate::managers::RunManager>,
     pub(super) dispatch_handle: std::sync::OnceLock<DispatchHandle>,
-    pub(super) session_scanner: tokio::sync::OnceCell<crate::managers::SessionScanner>,
     /// Scoped session registry — maps session tokens to DaemonSession.
     pub(super) session_registry: SessionRegistry,
     /// Health registry for supervised background tasks.
@@ -127,11 +122,4 @@ pub struct ShipRuntime {
     /// `PipelinesService` impl — sixth mr-02 migration (definition CRUD only;
     /// dispatch / cancel / runs still flow through `runtime_api`).
     pub(super) pipelines: std::sync::Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService>,
-    /// `GitService` impl — seventh mr-02 migration. Project-bound; the
-    /// SSE handler in `git/mod.rs` stays separate.
-    pub(super) git: std::sync::Arc<dyn ship_platform::services::git::service::GitService>,
-    /// Worktree resolver — production uses `git worktree list`; tests
-    /// override with an in-memory map. See `resolve_worktree` method and
-    /// `new_test_with_worktree_resolver` test ctor.
-    pub(super) worktree_resolver: WorktreeResolver,
 }

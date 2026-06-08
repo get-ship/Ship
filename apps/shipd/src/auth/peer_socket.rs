@@ -4,7 +4,7 @@
 //! **no token**: identity is read from the connection's peer credentials
 //! (`SO_PEERCRED` via `ship-host`), mapped to the agent's process container, and
 //! resolved to the same [`AuthContext`] the token/session branches build. The
-//! request then flows through the identical `auth_middleware` → `services::gate`
+//! request then flows through the identical `auth_middleware` → `auth::gate`
 //! path — one gate, two auth sources. A process can't forge its PID to the
 //! kernel, so this is unspoofable in a way a presented secret never is.
 //!
