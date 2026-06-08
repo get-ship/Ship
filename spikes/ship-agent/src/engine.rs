@@ -16,6 +16,7 @@
 //!   network — is an op, hence journaled). This is the spike's existing
 //!   `Date.now`/`Math.random` ban, generalized.
 
+use std::future::Future;
 use std::sync::Arc;
 
 use serde_json::Value;
@@ -237,6 +238,29 @@ impl ExecCtx {
             }
         }
         Err(EngineError::Gateway { op: op.to_string(), reason: format!("exhausted retries: {last}") })
+    }
+
+    /// Journal a non-gateway, non-deterministic step — THE model call, a clock
+    /// read, a random draw. The determinism boundary made concrete: on the live
+    /// frontier it runs `compute` and logs the result; on replay it returns the
+    /// logged value WITHOUT running `compute` again. This is why a resumed agent
+    /// turn never re-calls the model — the model is just a journaled record.
+    pub async fn record<F, Fut>(&mut self, key: &str, compute: F) -> Result<Value, EngineError>
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = Value>,
+    {
+        let idx = self.cursor;
+        self.cursor += 1;
+        if let Some(entry) = self.journal.get(idx) {
+            return match &entry.record {
+                OpRecord::Completed(v) => Ok(v.clone()),
+                OpRecord::Suspended { .. } => Err(EngineError::Suspended),
+            };
+        }
+        let v = compute().await;
+        self.journal.append(key, OpRecord::Completed(v.clone()));
+        Ok(v)
     }
 }
 
@@ -616,5 +640,45 @@ mod tests {
             .expect("script replays");
         assert_eq!(calls.load(Ordering::SeqCst), 2, "replay re-executes NOTHING — code-mode is a durable program");
         assert_eq!(out1, out2, "replay reproduces the same emitted output");
+    }
+
+    // A6 — the agent loop is a durable program: the model call is a journaled
+    // `record`, so a turn that suspends mid-reasoning RESUMES WITHOUT re-calling
+    // the model. The no-token-re-burn guarantee, proven.
+    #[tokio::test]
+    async fn agent_turn_is_durable_model_not_recalled_on_resume() {
+        let model_calls = Arc::new(AtomicU32::new(0));
+        struct Turn {
+            model_calls: Arc<AtomicU32>,
+        }
+        #[async_trait]
+        impl Program for Turn {
+            async fn run(&self, ctx: &mut ExecCtx) -> Result<Value, EngineError> {
+                // The model decides the next action — a journaled record (NOT a
+                // gateway op; the model is reasoning, not an effect).
+                let mc = self.model_calls.clone();
+                let decision = ctx
+                    .record("model.turn", move || async move {
+                        mc.fetch_add(1, Ordering::SeqCst);
+                        json!({ "op": "collections.read" })
+                    })
+                    .await?;
+                let op = decision["op"].as_str().unwrap_or("collections.read").to_string();
+                ctx.op(&op, json!({})).await?; // act on the decision
+                ctx.suspend("approve the write?").await?; // human checkpoint mid-turn
+                ctx.op("collections.put", json!({})).await?;
+                Ok(json!("turn done"))
+            }
+        }
+        let gw = Arc::new(InProcessGateway::default());
+        let prog = Turn { model_calls: model_calls.clone() };
+
+        let (s1, journal) = execute(Journal::new(), gw.clone(), agent(&["collections"]), &prog).await;
+        assert!(matches!(s1, RunStatus::Suspended), "parks at the checkpoint");
+        assert_eq!(model_calls.load(Ordering::SeqCst), 1, "model called once on the live turn");
+
+        let (s2, _) = resume(journal, json!(true), gw, agent(&["collections"]), &prog).await;
+        assert!(matches!(s2, RunStatus::Completed(_)), "completes after approval");
+        assert_eq!(model_calls.load(Ordering::SeqCst), 1, "resume does NOT re-call the model — no token re-burn");
     }
 }
