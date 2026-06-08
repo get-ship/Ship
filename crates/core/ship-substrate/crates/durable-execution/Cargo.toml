@@ -1,0 +1,20 @@
+[package]
+name = "durable-execution"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L0: the durable-execution engine. Journals every op; suspends and resumes by replaying the journal — completed ops (incl. model calls) return logged results, so a recovered run never re-runs effects or re-burns tokens. The substrate agents and pipelines execute on."
+
+[lints]
+workspace = true
+
+[dependencies]
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+futures-util = { workspace = true }
+
+[dev-dependencies]
+# Only the tests need a runtime (`#[tokio::test]`); the engine itself is
+# runtime-agnostic — it awaits futures but spawns nothing.
+tokio = { workspace = true, features = ["rt", "macros"] }

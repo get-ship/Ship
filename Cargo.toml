@@ -12,6 +12,7 @@ members = [
     "crates/core/ship-substrate/crates/ship-runner",
     "crates/core/ship-substrate/crates/ship-pipelines",
     "crates/core/ship-substrate/crates/ship-js",
+    "crates/core/ship-substrate/crates/durable-execution",
     "crates/core/ship-platform",
     "crates/core/ship-git",
     "crates/core/ship-cloud",
