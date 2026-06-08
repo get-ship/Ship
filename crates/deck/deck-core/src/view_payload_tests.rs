@@ -40,9 +40,9 @@ fn payload_uses_precompiled_ssr_html() {
     let view_dir = tmp.path().join(".ship/views/ssr-payload-precompiled");
     let dist_dir = view_dir.join("dist");
     fs::create_dir_all(&dist_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), "<div><p>source</p></div>").unwrap();
+    fs::write(view_dir.join("page.sui"), "<div><p>source</p></div>").unwrap();
     let ssr_content = "<div><p data-ssr=\"1\">precompiled</p></div>";
-    fs::write(dist_dir.join("index.ssr.html"), ssr_content).unwrap();
+    fs::write(dist_dir.join("page.ssr.html"), ssr_content).unwrap();
 
     let resp = serve_view_payload(DaemonMode::Development, "ssr-payload-precompiled");
     assert_eq!(resp.status, 200);
@@ -63,7 +63,7 @@ fn payload_falls_back_to_runtime_render_without_ssr_file() {
 
     let view_dir = tmp.path().join(".ship/views/ssr-payload-fallback");
     fs::create_dir_all(&view_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), "<div><p>runtime</p></div>").unwrap();
+    fs::write(view_dir.join("page.sui"), "<div><p>runtime</p></div>").unwrap();
 
     let resp = serve_view_payload(DaemonMode::Development, "ssr-payload-fallback");
     assert_eq!(resp.status, 200);
@@ -85,9 +85,9 @@ fn view_host_splices_precompiled_ssr() {
     let view_dir = tmp.path().join(".ship/views/ssr-host-test-splice");
     let dist_dir = view_dir.join("dist");
     fs::create_dir_all(&dist_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
+    fs::write(view_dir.join("page.sui"), "<p>hi</p>").unwrap();
     let ssr_content = "<p data-test=\"ssr-splice\">spliced</p>";
-    fs::write(dist_dir.join("index.ssr.html"), ssr_content).unwrap();
+    fs::write(dist_dir.join("page.ssr.html"), ssr_content).unwrap();
 
     // Evict any stale cache entry from a previous run.
     evict_ssr_cache("ssr-host-test-splice");
@@ -114,7 +114,7 @@ fn view_host_without_ssr_live_emits_from_source() {
 
     let view_dir = tmp.path().join(".ship/views/ssr-host-test-empty");
     fs::create_dir_all(&view_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
+    fs::write(view_dir.join("page.sui"), "<p>hi</p>").unwrap();
 
     let resp = serve_view_host(DaemonMode::Development, "/_sui/view/ssr-host-test-empty");
     assert_eq!(resp.status, 200);
@@ -149,8 +149,8 @@ fn view_host_prod_ssr_cache_revalidates_on_mtime() {
     let view_dir = tmp.path().join(format!(".ship/views/{view_name}"));
     let dist_dir = view_dir.join("dist");
     fs::create_dir_all(&dist_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
-    let ssr_file = dist_dir.join("index.ssr.html");
+    fs::write(view_dir.join("page.sui"), "<p>hi</p>").unwrap();
+    let ssr_file = dist_dir.join("page.ssr.html");
     fs::write(&ssr_file, "content-v1").unwrap();
     evict_ssr_cache(view_name);
 
@@ -184,8 +184,8 @@ fn view_host_dev_bypasses_ssr_cache() {
     let view_dir = tmp.path().join(format!(".ship/views/{view_name}"));
     let dist_dir = view_dir.join("dist");
     fs::create_dir_all(&dist_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
-    let ssr_file = dist_dir.join("index.ssr.html");
+    fs::write(view_dir.join("page.sui"), "<p>hi</p>").unwrap();
+    let ssr_file = dist_dir.join("page.ssr.html");
     fs::write(&ssr_file, "dev-v1").unwrap();
 
     evict_ssr_cache(view_name);
@@ -207,7 +207,7 @@ fn view_payload_prod_cache_header_and_etag() {
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/prod-cache-check");
     fs::create_dir_all(&view_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), "<div><p>hello</p></div>").unwrap();
+    fs::write(view_dir.join("page.sui"), "<div><p>hello</p></div>").unwrap();
 
     let resp = serve_view_payload(DaemonMode::Production, "prod-cache-check");
     assert_eq!(resp.status, 200);
@@ -222,7 +222,7 @@ fn view_payload_dev_no_cache_no_etag() {
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/dev-cache-check");
     fs::create_dir_all(&view_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), "<div><p>hello</p></div>").unwrap();
+    fs::write(view_dir.join("page.sui"), "<div><p>hello</p></div>").unwrap();
 
     let resp = serve_view_payload(DaemonMode::Development, "dev-cache-check");
     assert_eq!(resp.status, 200);
@@ -237,7 +237,7 @@ fn view_payload_prod_compile_error_redacted() {
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/broken-prod");
     fs::create_dir_all(&view_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), "<div><span></div>").unwrap();
+    fs::write(view_dir.join("page.sui"), "<div><span></div>").unwrap();
 
     let resp = serve_view_payload(DaemonMode::Production, "broken-prod");
     assert_eq!(resp.status, 500);
@@ -255,7 +255,7 @@ fn view_payload_dev_compile_error_includes_detail() {
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/broken-dev");
     fs::create_dir_all(&view_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), "<div><span></div>").unwrap();
+    fs::write(view_dir.join("page.sui"), "<div><span></div>").unwrap();
 
     let resp = serve_view_payload(DaemonMode::Development, "broken-dev");
     assert_eq!(resp.status, 500);
@@ -277,7 +277,7 @@ fn payload_split_cache_revalidates_on_source_mtime() {
     let view_name = "split-cache-revalidate";
     let view_dir = tmp.path().join(format!(".ship/views/{view_name}"));
     fs::create_dir_all(&view_dir).unwrap();
-    let src = view_dir.join("index.sui");
+    let src = view_dir.join("page.sui");
     fs::write(&src, "<p>split-v1</p>").unwrap();
     crate::view_payload::evict_split_cache(view_name);
 

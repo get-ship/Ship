@@ -229,7 +229,7 @@ mod tests {
 
         let view_dir = tmp.path().join(".ship/views/some-view");
         std::fs::create_dir_all(&view_dir).unwrap();
-        std::fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
+        std::fs::write(view_dir.join("page.sui"), "<p>hi</p>").unwrap();
 
         let resp = serve_view_host(DaemonMode::Development, "/_sui/view/some-view/sub");
         let bare = serve_view_host(DaemonMode::Development, "/_sui/view/");
@@ -264,9 +264,9 @@ mod tests {
         let view_dir = tmp.path().join(".ship/views/ssr-host-splice");
         let dist_dir = view_dir.join("dist");
         std::fs::create_dir_all(&dist_dir).unwrap();
-        std::fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
+        std::fs::write(view_dir.join("page.sui"), "<p>hi</p>").unwrap();
         let ssr_content = "<p data-test=\"ssr\">pre-rendered</p>";
-        std::fs::write(dist_dir.join("index.ssr.html"), ssr_content).unwrap();
+        std::fs::write(dist_dir.join("page.ssr.html"), ssr_content).unwrap();
 
         // Evict cache entry in case a prior run cached an empty value.
         evict_ssr_cache("ssr-host-splice");
@@ -303,8 +303,8 @@ mod tests {
         let view_dir = tmp.path().join(".ship/views/ssr-cache-bust");
         let dist_dir = view_dir.join("dist");
         std::fs::create_dir_all(&dist_dir).unwrap();
-        std::fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
-        let ssr_path = dist_dir.join("index.ssr.html");
+        std::fs::write(view_dir.join("page.sui"), "<p>hi</p>").unwrap();
+        let ssr_path = dist_dir.join("page.ssr.html");
         std::fs::write(&ssr_path, "<p>v1-pre-rendered</p>").unwrap();
         evict_ssr_cache("ssr-cache-bust");
 
@@ -343,7 +343,7 @@ mod tests {
         let view_dir = tmp.path().join(".ship/views/ssr-late-artifact");
         let dist_dir = view_dir.join("dist");
         std::fs::create_dir_all(&dist_dir).unwrap();
-        std::fs::write(view_dir.join("index.sui"), "<p>hi</p>").unwrap();
+        std::fs::write(view_dir.join("page.sui"), "<p>hi</p>").unwrap();
         evict_ssr_cache("ssr-late-artifact");
 
         // No artifact yet → MISS, empty result, nothing cached.
@@ -351,7 +351,7 @@ mod tests {
 
         // The artifact lands afterwards — must be served, not shadowed by a
         // cached empty.
-        std::fs::write(dist_dir.join("index.ssr.html"), "<p>landed</p>").unwrap();
+        std::fs::write(dist_dir.join("page.ssr.html"), "<p>landed</p>").unwrap();
         let after = ssr_html_for_view("ssr-late-artifact");
         assert!(
             after.contains("landed"),

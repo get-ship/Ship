@@ -62,7 +62,7 @@ fn top_level_view_payload_shape() {
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/demo");
     fs::create_dir_all(&view_dir).unwrap();
-    fs::write(view_dir.join("index.sui"),
+    fs::write(view_dir.join("page.sui"),
         r#"<div><p>{count()}</p></div>"#).unwrap();
     fs::write(view_dir.join("index.controller.ts"),
         "import { controller, signal } from '@ship/sui-runtime'\nexport default controller({ scope: () => ({ count: signal(0) }) })\n").unwrap();
@@ -89,9 +89,9 @@ fn sub_path_payload_concatenates_css() {
     let view_dir = tmp.path().join(".ship/views/demo");
     let sub_dir = view_dir.join("[name]");
     fs::create_dir_all(&sub_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), r#"<div></div>"#).unwrap();
+    fs::write(view_dir.join("page.sui"), r#"<div></div>"#).unwrap();
     fs::write(view_dir.join("index.css"), ".parent {}").unwrap();
-    fs::write(sub_dir.join("index.sui"), r#"<span></span>"#).unwrap();
+    fs::write(sub_dir.join("page.sui"), r#"<span></span>"#).unwrap();
     fs::write(sub_dir.join("index.css"), ".child {}").unwrap();
 
     let resp = serve_view_payload_subpath(DaemonMode::Development, "demo", "anything");
@@ -130,7 +130,7 @@ fn host_unknown_view_serves_html_404_with_available_views() {
     for name in ["counter", "dashboard"] {
         let dir = tmp.path().join(format!(".ship/views/{name}"));
         fs::create_dir_all(&dir).unwrap();
-        fs::write(dir.join("index.sui"), "<p>hi</p>").unwrap();
+        fs::write(dir.join("page.sui"), "<p>hi</p>").unwrap();
     }
 
     let resp = serve_view_host(DaemonMode::Development, "/_sui/view/home");
@@ -167,7 +167,7 @@ fn compile_error_returns_500_with_position() {
     let _g = lock_with_dir(tmp.path());
     let view_dir = tmp.path().join(".ship/views/broken");
     fs::create_dir_all(&view_dir).unwrap();
-    fs::write(view_dir.join("index.sui"), "<div><span></div>").unwrap();
+    fs::write(view_dir.join("page.sui"), "<div><span></div>").unwrap();
 
     let resp = serve_view_payload(DaemonMode::Development, "broken");
     assert_eq!(resp.status, 500);

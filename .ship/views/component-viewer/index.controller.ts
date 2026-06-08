@@ -19,7 +19,7 @@
 
 import { controller, signal, derived } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
-import type { Scope } from './index.sui'
+import type { Scope } from './page.sui'
 import type { CompileFn } from '../../../packages/components/sui/viewer/src/wasm-bootstrap'
 
 // ── Register the viewing pack + every campaign tag into THIS view bundle ──

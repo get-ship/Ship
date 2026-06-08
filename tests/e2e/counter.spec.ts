@@ -4,9 +4,9 @@
  * `counter` was a tier-1 demo view (`views/counter/page.sui`). It no
  * longer exists as a registered view: the daemon's resolver
  * (`crates/deck/deck-host/src/resolver.rs`) serves a view only when a
- * `.sui` source is found under `<project>/views/<name>/page.sui` or
- * `<project>/.ship/views/<name>/index.sui`. There is no `counter`
- * source in either location, so `/_sui/views/counter` 404s with
+ * `.sui` source is found under `<project>/<view-dir>/<name>/page.sui`
+ * (the unified leaf; the historical `index.sui` for `.ship/views/` was
+ * retired in #254). There is no `counter`
  * `view_not_found`.
  *
  * What remains is residue, not registration:

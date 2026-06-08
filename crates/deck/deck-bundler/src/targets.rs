@@ -157,30 +157,35 @@ impl BundleLayout {
         }).collect()
     }
 
-    /// One bundle per discovered view. Four layouts under each source root:
-    /// - `<root>/views/<name>/page.sui` — top-level app views.
-    /// - `<root>/.ship/views/<name>/index.sui` — project-scoped views.
-    /// - `<root>/apps/shell/src/<name>/page.sui` — the shell's first-party
-    ///   fs-routed pages (home, activity, account, library, setup, settings,
-    ///   canvas). The shell's chrome lives at apps/shell/src/components/;
-    ///   its pages live at apps/shell/src/<name>/.
-    /// - `<root>/apps/shell/src/<name>/<sub>/page.sui` — the shell's nested
-    ///   pages (currently just `studio/<sub>/page.sui`, the studio sub-app).
-    /// First-seen wins (repo_root before workspace; views/ before
-    /// .ship/views/ before apps/shell/src).
+    /// One bundle per discovered view. The scan is fully config-driven
+    /// (#273 — deck hardcodes no path):
+    ///
+    /// - For each `source_root`, walk each `cfg.view_dirs` bucket
+    ///   (defaults to `["views", ".ship/views"]`) and look for a
+    ///   `<bucket>/<name>/<view_leaf>` artifact. The leaf is
+    ///   `cfg.view_leaf` (defaults to `page.sui`) — one convention for
+    ///   all buckets, fixing the #254 `index.sui` vs `page.sui` divergence.
+    /// - If `cfg.first_party_app` is set, its `root` is treated as a
+    ///   first-party view root too: `<root>/<name>/<view_leaf>`. The
+    ///   host (e.g. ship) declares its own first-party app layout in
+    ///   `deck.jsonc`; deck does not name the app.
+    ///
+    /// First-seen wins: earlier `view_dirs` entries (and earlier
+    /// `source_roots`) shadow later matches.
     fn discover_view_bundles(&self) -> Vec<BundleTarget> {
         let mut out = Vec::new();
         let mut seen = HashSet::new();
-        let mut candidates: Vec<(PathBuf, &str)> = Vec::new();
+        let leaf = self.cfg.view_leaf.as_deref().unwrap_or("page.sui");
+        let mut candidates: Vec<PathBuf> = Vec::new();
         for root in &self.source_roots {
-            // User-facing views (the standard convention).
-            candidates.push((root.join("views"), "page.sui"));
-            candidates.push((root.join(".ship").join("views"), "index.sui"));
-            // The shell's first-party fs-routed pages. Studio's nested
-            // sub-tree falls out of the recursive read_dir below.
-            candidates.push((root.join("apps").join("shell").join("src"), "page.sui"));
+            for bucket in &self.cfg.view_dirs {
+                candidates.push(root.join(bucket));
+            }
+            if let Some(fpa) = &self.cfg.first_party_app {
+                candidates.push(fpa.root.clone());
+            }
         }
-        for (dir, leaf) in candidates {
+        for dir in candidates {
             let Ok(entries) = std::fs::read_dir(&dir) else { continue };
             for e in entries.flatten() {
                 let name = e.file_name().to_string_lossy().into_owned();
