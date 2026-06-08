@@ -208,7 +208,7 @@ pub fn parse_skill(id: &str, raw: &str) -> Skill {
 /// project root (parent of `.ship/`).
 pub fn load_skills(ship_dir: &Path) -> Result<Vec<Skill>> {
     let project_root = ship_dir.parent().unwrap_or(ship_dir);
-    let skill_dirs = crate::agent_domain::skill_paths::read_skill_paths(ship_dir, project_root);
+    let skill_dirs = crate::skill_paths::read_skill_paths(ship_dir, project_root);
     let primary = skill_dirs.first().cloned();
 
     let mut skills = Vec::new();
@@ -268,7 +268,7 @@ fn load_skill_vars(
     state_key: &str,
     vars_path: &Path,
 ) -> Result<HashMap<String, serde_json::Value>> {
-    let state = crate::agent_domain::skill_vars::get_skill_vars(ship_dir, state_key)
+    let state = crate::skill_vars::get_skill_vars(ship_dir, state_key)
         .unwrap_or_default()
         .unwrap_or_default();
 

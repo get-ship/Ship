@@ -8,6 +8,7 @@
 //! (Floki carve D2a: relocation only — same types, new crate boundary. The
 //! schema unification into a single `Agent` + runtime discriminant is D2b.)
 
+pub mod compile;
 pub mod config;
 pub mod harnesses;
 pub mod import;
