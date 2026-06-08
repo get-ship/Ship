@@ -5,16 +5,12 @@
 //! Routes are mounted under `/api` in lib.rs.
 
 pub mod agents_skills;
-pub mod agents_skills_write;
 pub mod jobs_status;
 pub mod session_files;
 
 pub use jobs_status::{RunStatusReq, StepDoneReq, step_done, update_job_status};
 
-pub use agents_skills::{list_agents, list_skills};
-pub use agents_skills_write::{
-    SetVarReq, delete_skill_file, get_skill_vars, set_skill_var, write_skill_file,
-};
+pub use agents_skills::list_agents;
 pub use session_files::{
     delete_session_file, list_session_files, read_session_file, write_session_file,
 };
