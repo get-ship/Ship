@@ -57,10 +57,10 @@ export interface VirtualOptions<TScroll extends Element = HTMLElement> {
   getItemKey?: (index: number) => string | number
   lanes?: number
   /** Surface `range()` changes for `onReachEnd` wiring. */
-  onChange?: (v: Virtual<TScroll>) => void
+  onChange?: (v: Virtual) => void
 }
 
-export interface Virtual<TScroll extends Element = HTMLElement> {
+export interface Virtual {
   /** Visible slice + overscan. Stable identity on no-op frames; identity
    *  BREAKS on measure frames (key + start + size compared). */
   virtualItems: Derived<readonly VirtualItem[]>
@@ -104,7 +104,7 @@ const EMPTY_RANGE = { startIndex: 0, endIndex: 0 } as const
 
 export function createVirtualizer<TScroll extends Element = HTMLElement>(
   options: VirtualOptions<TScroll>,
-): Virtual<TScroll> {
+): Virtual {
   // (1) the single reactive source. Every core onChange bumps it.
   const tick = signal(0)
 
@@ -212,10 +212,10 @@ export function createVirtualizer<TScroll extends Element = HTMLElement>(
   const measureElement = (el: Element | null): void => {
     core.measureElement(el)
   }
-  const scrollToIndex: Virtual<TScroll>['scrollToIndex'] = (i, opts) => {
+  const scrollToIndex: Virtual['scrollToIndex'] = (i, opts) => {
     core.scrollToIndex(i, opts)
   }
-  const scrollToOffset: Virtual<TScroll>['scrollToOffset'] = (px, opts) => {
+  const scrollToOffset: Virtual['scrollToOffset'] = (px, opts) => {
     core.scrollToOffset(px, opts)
   }
   const measure = (): void => {
@@ -236,7 +236,7 @@ export function createVirtualizer<TScroll extends Element = HTMLElement>(
   }
   onCleanup(dispose)
 
-  const api: Virtual<TScroll> = {
+  const api: Virtual = {
     virtualItems,
     totalSize,
     range,

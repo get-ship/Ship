@@ -89,7 +89,7 @@ export default controller({
     let loadedFor: string | null = null
 
     async function refresh(): Promise<void> {
-      const name = state.view
+      const name = state.$signals.view()
       if (!name) { state.inView = []; return }
       if (loadedFor === name) return
       loadedFor = name
@@ -108,7 +108,7 @@ export default controller({
     }
 
     const stopEffect = effect(() => {
-      void state.view // track
+      void state.$signals.view() // track
       void refresh()
     })
 

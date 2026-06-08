@@ -20,8 +20,7 @@
 // Exit 2  = no first-party .sui files found (scope drift — fail loud).
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readdirSync } from 'node:fs';
 import { dirname, join, basename, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -96,9 +95,12 @@ if (files.length === 0) {
     process.exit(2);
 }
 
-// Emit sidecar artifacts into a throwaway dir so the gate never litters the
-// tree (.ship/sui-out is the default and would pollute a clean checkout).
-const outDir = mkdtempSync(join(tmpdir(), 'sui-compile-gate-'));
+// Emit sidecars to the compiler's canonical output (`.ship/sui-out`, the
+// out_layout default — gitignored, so it never touches tracked files). No
+// `--out` override: besides validating the compile, this populates the
+// `.sui.d.ts` the shell typecheck consumes via tsconfig `rootDirs`
+// (`.ship/sui-out/apps/shell/src`). The deck app build does NOT emit these
+// sidecars, so this step is the shell typecheck's prerequisite producer.
 const failures = [];
 
 console.log(`check-sui-compiles: ${files.length} first-party .sui file(s)\n`);
@@ -108,7 +110,7 @@ for (const file of files) {
         ? file.slice(repoRoot.length + 1)
         : file;
     const tag = componentTag(file);
-    const args = ['run', '-q', '-p', 'sui-compiler', '--', 'build', file, '--out', outDir];
+    const args = ['run', '-q', '-p', 'sui-compiler', '--', 'build', file];
     if (tag) args.push('--component-name', tag);
     const res = spawnSync('cargo', args, { cwd: repoRoot, encoding: 'utf8' });
     if (res.status === 0) {
@@ -119,8 +121,6 @@ for (const file of files) {
         failures.push({ rel, out });
     }
 }
-
-rmSync(outDir, { recursive: true, force: true });
 
 if (failures.length > 0) {
     console.error(`\ncheck-sui-compiles: ${failures.length} of ${files.length} file(s) FAILED to compile:\n`);

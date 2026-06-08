@@ -172,7 +172,7 @@ export default controller({
       await ops.collections.updateItem({
         collection: id,
         id: item.id,
-        dataJson: JSON.stringify({ ...(item.data ?? {}), status: next }),
+        dataJson: new TextEncoder().encode(JSON.stringify({ ...(item.data ?? {}), status: next })),
       }).catch(() => undefined)
     },
     openNewRow: (state) => {
@@ -190,8 +190,7 @@ export default controller({
       try {
         await ops.collections.createItem({
           collection: id,
-          dataJson: JSON.stringify(state.rowDraft),
-          id: '',
+          dataJson: new TextEncoder().encode(JSON.stringify(state.rowDraft)),
         })
       } catch (e) {
         state.drawerError = (e as Error).message ?? 'Request failed'
