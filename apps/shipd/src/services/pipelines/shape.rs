@@ -7,7 +7,7 @@
 
 use ship_pipeline_runtime::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::view_state::{BranchStats, branch_stats};
 
@@ -233,21 +233,43 @@ pub fn current_project_workspace_id() -> Option<String> {
     if branch.is_empty() { None } else { Some(branch) }
 }
 
-/// Locate a pipeline file on disk by walking up from CWD looking for
-/// `.ship/pipelines/<name>.jsonc`. JSONC only.
-pub fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
+/// Locate a pipeline file on disk. The optional `ship_dir` hint is
+/// preferred when the daemon has an explicit project root (e.g. tests
+/// that seed a temp `.ship/pipelines/`); falling back to walking up from
+/// CWD keeps the live read path working when the daemon was started
+/// against the user's worktree. JSONC / JSON / YAML — the loader walks
+/// extensions in the order the runtime parser prefers.
+pub fn find_pipeline_file(name: &str, ship_dir: Option<&Path>) -> Option<std::path::PathBuf> {
+    let probe = |root: &Path| -> Option<std::path::PathBuf> {
+        for ext in ["yaml", "yml", "jsonc", "json"] {
+            let cand = root.join(format!("{name}.{ext}"));
+            if cand.exists() {
+                return Some(cand);
+            }
+        }
+        None
+    };
+    if let Some(ship) = ship_dir {
+        let composed = ship_store::compose::composed_root_for(ship).join("pipelines");
+        if composed.is_dir() {
+            if let Some(found) = probe(&composed) {
+                return Some(found);
+            }
+        }
+        let raw = ship.join("pipelines");
+        if raw.is_dir() {
+            if let Some(found) = probe(&raw) {
+                return Some(found);
+            }
+        }
+    }
     let mut walker = std::env::current_dir().ok()?;
     loop {
         let ship = ship_substrate::ShipHome::project_ship_dir(&walker);
-        // Composed overlay (local + dep pipelines) when the space has deps; raw
-        // `.ship/` otherwise — parity with pipeline_loader's load path.
         let dir = ship_store::compose::composed_root_for(&ship).join("pipelines");
         if dir.is_dir() {
-            for ext in ["yaml", "yml", "jsonc", "json"] {
-                let cand = dir.join(format!("{name}.{ext}"));
-                if cand.exists() {
-                    return Some(cand);
-                }
+            if let Some(found) = probe(&dir) {
+                return Some(found);
             }
             return None;
         }

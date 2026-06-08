@@ -44,10 +44,18 @@ message GetPipelineRequest {
 }
 
 message GetPipelinesSummariesRequest {}
-
 message RunPipelineRequest {
   string slug = 1;
 }
+
+// `pipelines.focus(name)` — per-pipeline detail. Definition with aggregated
+// stats + the raw doc + active+other runs precomputed for the view. Returns
+// 404 when no pipeline file resolves to `name` (the studio focus page
+// surfaces that as an error envelope, never a null ok value).
+message PipelineFocusRequest {
+  string name = 1;
+}
+
 
 message DispatchPipelineReq {
   string pipeline = 1;
@@ -132,6 +140,19 @@ service PipelinesService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc HistoryLive(ListPipelinesHistoryRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  // `pipelines.focus(name)` — per-pipeline detail. Reads the pipeline file +
+  // aggregates run stats + partitions active/other runs for the studio view.
+  // `FocusLive` re-emits on every kernel `config` event (same shape as
+  // `SummariesLive` / `RunLive`).
+  rpc Focus(PipelineFocusRequest) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Per-pipeline detail with active + other runs precomputed.";
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc FocusLive(PipelineFocusRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
