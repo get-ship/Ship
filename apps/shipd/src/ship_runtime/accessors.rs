@@ -12,24 +12,6 @@ use super::{
 };
 
 impl ShipRuntime {
-    /// Resolve a workspace-id (branch name) to its worktree path.
-    /// Wraps the configured `worktree_resolver` with a 404 response on miss.
-    pub fn resolve_worktree(
-        &self,
-        id: &str,
-    ) -> Result<std::path::PathBuf, (axum::http::StatusCode, axum::Json<crate::wire::MeshResponse>)>
-    {
-        (self.worktree_resolver)(id).ok_or_else(|| {
-            (
-                axum::http::StatusCode::NOT_FOUND,
-                axum::Json(crate::wire::MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(format!("workspace '{id}' not found")),
-                }),
-            )
-        })
-    }
-
     /// Process uptime since the runtime was constructed.
     pub fn uptime(&self) -> std::time::Duration {
         self.started_at.elapsed()
@@ -63,25 +45,6 @@ impl ShipRuntime {
 
     pub fn daemon_dir(&self) -> &Path {
         &self.daemon_dir
-    }
-
-    /// `RulesService` accessor — pilot for the modular-runtime spec 02
-    /// service-layer pattern. HTTP handlers in `services::rules::*`
-    /// call through this rather than reaching into runtime state.
-    pub fn rules(&self) -> &dyn ship_agents::services::rules::service::RulesService {
-        &*self.rules
-    }
-
-    /// `PermissionsService` accessor — second mr-02 pilot.
-    pub fn permissions(
-        &self,
-    ) -> &dyn ship_agents::services::permissions::service::PermissionsService {
-        &*self.permissions
-    }
-
-    /// `McpService` accessor — third mr-02 pilot.
-    pub fn mcp(&self) -> &dyn ship_agents::services::mcp::service::McpService {
-        &*self.mcp
     }
 
     /// `SkillsService` accessor.
@@ -125,12 +88,6 @@ impl ShipRuntime {
         &self,
     ) -> std::sync::Arc<dyn ship_agents::services::agents::service::AgentsService> {
         self.agents.clone()
-    }
-
-    /// `PipelinesService` accessor — definition CRUD; dispatch / cancel /
-    /// runs still go through `runtime_api`.
-    pub fn pipelines(&self) -> &dyn ship_pipeline_runtime::pipelines::service::PipelinesService {
-        &*self.pipelines
     }
 
     /// `PipelinesService` as a cloned `Arc` — for diagnostic snapshot providers

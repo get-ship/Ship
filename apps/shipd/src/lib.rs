@@ -16,7 +16,6 @@ fn install_test_platform_defaults() {
     ship_pipeline_runtime::install_projections();
 }
 
-pub mod access;
 pub mod sessions;
 pub mod auth;
 pub mod wire;

@@ -217,13 +217,6 @@ impl ShipRuntime {
         }
     }
 
-    /// The running hook engine, if started.
-    pub fn hook_engine(
-        &self,
-    ) -> Option<&std::sync::Arc<ship_triggers::engine::HookEngine>> {
-        self.hook_engine.get()
-    }
-
     /// The webhook source for the public webhook route, if the engine is running.
     pub fn webhook_source(
         &self,

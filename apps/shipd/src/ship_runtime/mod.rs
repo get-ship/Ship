@@ -12,7 +12,6 @@ pub mod types;
 pub(crate) mod init;
 mod accessors;
 mod tasks;
-mod worktree;
 #[cfg(test)]
 mod test_ctors;
 
@@ -22,9 +21,8 @@ pub use types::{
     AuthMode, RuntimeConfig, AppMetadata,
     AppState, ApiState,
     SharedKernel, AgentMailboxes, PtyConnections,
-    WorktreeResolver, ActorGuard,
+    ActorGuard,
 };
-pub use init::default_worktree_resolver;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -128,8 +126,4 @@ pub struct ShipRuntime {
     /// `PipelinesService` impl — sixth mr-02 migration (definition CRUD only;
     /// dispatch / cancel / runs still flow through `runtime_api`).
     pub(super) pipelines: std::sync::Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService>,
-    /// Worktree resolver — production uses `git worktree list`; tests
-    /// override with an in-memory map. See `resolve_worktree` method and
-    /// `new_test_with_worktree_resolver` test ctor.
-    pub(super) worktree_resolver: WorktreeResolver,
 }

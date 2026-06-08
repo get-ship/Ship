@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    auth, services, ship_runtime,
+    auth, ship_runtime,
     sessions, views,
 };
 use crate::routes::{
@@ -18,7 +18,7 @@ use crate::routes::{
     artifacts_api,
     hooks_api, human_webhook, logs_api,
     registry_api, rest_api, runtime_api,
-    sandbox_api, sdk_manifest, settings_api, themes_api,
+    sandbox_api, schema_api, sdk_manifest, settings_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
 };
@@ -363,7 +363,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         )
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
         // Views — list + source now served by DiscoveryService (Connect, #139).
-        .ship_route(Route::ShipSchema, services::schema::serve_schema)
+        .ship_route(Route::ShipSchema, schema_api::serve_schema)
         .ship_route(Route::ListViewFiles_template(), views::files_api::list_view_files)
         .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
         .ship_route(Route::WriteViewManifestApi_template(), views::write_api::write_view_manifest)

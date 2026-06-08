@@ -57,6 +57,7 @@ pub mod mesh_resp;
 pub mod registry_api;
 pub mod rest_api;
 pub mod runtime_api;
+pub mod schema_api;
 pub mod sdk_manifest;
 #[cfg(test)]
 mod scope_enforcement_tests;

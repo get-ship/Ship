@@ -10,27 +10,7 @@ use ship_substrate::events::EmitContext;
 use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
 
-use super::{ShipRuntime, RuntimeConfig, AppMetadata, WorktreeResolver};
-
-/// Production worktree resolver: branch name → worktree path via
-/// `git worktree list`, falling back to the current project root if the
-/// id matches the current branch. Uses the `worktree_path_for_branch` +
-/// `current_branch_at` helpers in `super::worktree`.
-pub fn default_worktree_resolver() -> WorktreeResolver {
-    Arc::new(|id: &str| {
-        if let Some(path) = super::worktree::worktree_path_for_branch(id) {
-            return Some(path);
-        }
-        if let Ok(project_ship) = ship_substrate::project::get_project_dir(None)
-            && let Some(root) = project_ship.parent()
-            && let Some(current_branch) = super::worktree::current_branch_at(root)
-            && current_branch == id
-        {
-            return Some(root.to_path_buf());
-        }
-        None
-    })
-}
+use super::{ShipRuntime, RuntimeConfig, AppMetadata};
 
 impl ShipRuntime {
     /// Create a new runtime. Performs integrity check, DB init, and kernel init.
@@ -277,7 +257,6 @@ impl ShipRuntime {
             agent_def_kernel: std::sync::OnceLock::new(),
             agent_reactive: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
-            worktree_resolver: default_worktree_resolver(),
         })
     }
 

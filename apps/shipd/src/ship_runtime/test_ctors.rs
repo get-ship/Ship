@@ -7,7 +7,7 @@ use tokio::sync::Mutex;
 use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
 
-use super::{ShipRuntime, RuntimeConfig, SharedKernel, WorktreeResolver, default_worktree_resolver};
+use super::{ShipRuntime, RuntimeConfig, SharedKernel};
 
 impl ShipRuntime {
     /// Build a ShipRuntime for tests — synchronous, takes a pre-initialized
@@ -75,7 +75,6 @@ impl ShipRuntime {
             agent_def_kernel: std::sync::OnceLock::new(),
             agent_reactive: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
-            worktree_resolver: default_worktree_resolver(),
         }
     }
 
@@ -147,20 +146,6 @@ impl ShipRuntime {
             agent_def_kernel: std::sync::OnceLock::new(),
             agent_reactive: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
-            worktree_resolver: default_worktree_resolver(),
         }
-    }
-
-    /// Test ctor variant — accepts a custom `WorktreeResolver` so tests
-    /// can map workspace ids to their tempdir paths instead of consulting
-    /// the daemon's CWD via `git worktree list`.
-    pub fn new_test_with_worktree_resolver(
-        ship_dir: std::path::PathBuf,
-        kernel: SharedKernel,
-        worktree_resolver: WorktreeResolver,
-    ) -> Self {
-        let mut rt = Self::new_test(ship_dir, kernel);
-        rt.worktree_resolver = worktree_resolver;
-        rt
     }
 }
