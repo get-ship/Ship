@@ -12,7 +12,6 @@ use super::view_state::{AgentCatalogs, AgentDetail, list_agent_catalogs, load_ag
 /// A positioned node on the wire canvas. `kind` drives color/shape in
 /// the template.
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct WireNode {
     pub kind: &'static str, // agent | skill | mcp | rule | perm | prov
     pub id: String,
@@ -25,7 +24,6 @@ pub struct WireNode {
 
 /// A bezier edge between the center agent node and a peripheral.
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct WireEdge {
     pub kind: &'static str,
     pub id: String, // matches the peripheral node's id
@@ -34,7 +32,6 @@ pub struct WireEdge {
 }
 
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct AgentWireCtx {
     pub agent: AgentDetail,
     pub nodes: Vec<WireNode>,

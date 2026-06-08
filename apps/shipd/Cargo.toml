@@ -33,6 +33,12 @@ ship-host = { path = "../../crates/core/ship-substrate/crates/ship-host" }
 ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }
 ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
 ship-supervisor = { path = "../../crates/core/ship-substrate/crates/ship-supervisor" }
+# Dispatch composition root (supervisor split — `shipd::dispatch`):
+#   ship-runner      — process/executor lifecycle emit helpers used by
+#                      ShipdPlatform + orphan cleanup.
+#   ship-auth-types  — DaemonSession + session-token mint in ShipdPlatform.
+ship-runner = { path = "../../crates/core/ship-substrate/crates/ship-runner" }
+ship-auth-types = { path = "../../crates/core/ship-substrate/crates/ship-auth-types" }
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 ship-analytics = { path = "../../crates/core/ship-platform/crates/ship-analytics" }
 ship-search = { path = "../../crates/core/ship-platform/crates/ship-search" }
@@ -43,9 +49,9 @@ ship-space = { path = "../../crates/core/ship-platform/crates/ship-space" }
 ship-device = { path = "../../crates/core/ship-platform/crates/ship-device" }
 ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 ship-account = { path = "../../crates/core/ship-platform/crates/ship-account" }
-compiler = { path = "../../crates/core/ship-platform/crates/compiler" }
+compiler = { path = "../../crates/core/compiler" }
 build-info = { path = "../../crates/build-info" }
-ship-ops-rpc = { path = "../../crates/core/ship-platform/crates/ship-ops-rpc" }
+ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 ship-reactive = { path = "../../crates/core/ship-platform/crates/ship-reactive" }
 connectrpc = { version = "0.4", features = ["axum", "client"] }
 # Descriptor decode for the op-policy gate (reads proto custom options).
@@ -127,7 +133,7 @@ unstable = ["ship-platform/unstable"]
 # in the kernel router, so `soak` forwards to `unstable`.
 #   cargo test -p shipd --features soak --test rss_soak -- --nocapture
 soak = ["unstable"]
-specta = ["dep:specta", "deck/specta", "ship-artifacts/specta", "ship-pipeline-runtime/specta", "ship-git/specta"]
+specta = ["dep:specta", "deck/specta", "ship-pipeline-runtime/specta"]
 # Compile the `example()` fixture constructors for the daemon-side wire
 # shapes so `cargo xtask gen-fixtures` can serialize them to committed JSON.
 # Forwards to ship-platform/fixtures so shared builders (e.g.

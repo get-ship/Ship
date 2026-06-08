@@ -8,12 +8,14 @@ ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=1000
 
-# System deps
+# System build deps — shared single-source-of-truth with the host setup via
+# scripts/system-deps.txt (this is where cmake/pkg-config/libssl-dev for the
+# *-sys crates live) plus the container's own shell/TUI niceties.
+# protoc is vendored (protoc-bin-vendored), not installed.
+COPY scripts/system-deps.txt /tmp/system-deps.txt
 RUN apt-get update && apt-get install -y \
-    curl git sudo ca-certificates unzip xz-utils zsh \
-    build-essential gh \
-    tmux fzf ripgrep fd-find bat btop jq file xdg-utils \
-    locales \
+      $(grep -vE '^[[:space:]]*#|^[[:space:]]*$' /tmp/system-deps.txt) \
+      sudo zsh gh tmux fzf ripgrep fd-find bat btop jq file xdg-utils locales \
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen \
     && rm -rf /var/lib/apt/lists/*
 
@@ -35,7 +37,8 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable \
     && rustup target add wasm32-unknown-unknown \
     && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-# Node via fnm (still needed for vite + node test runners) + Bun
+# Bun is the one JS runtime. Node (via fnm) is required ONLY by the Playwright
+# e2e/visual suites — their workers fork node — so it's kept for CI/clean runs.
 RUN curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir $HOME/.local/bin \
     && $HOME/.local/bin/fnm install --lts
 RUN curl -fsSL https://bun.sh/install | bash

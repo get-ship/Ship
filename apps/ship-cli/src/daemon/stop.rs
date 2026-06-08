@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 
 use super::pidfile;
-use super::is_process_alive;
+use super::pid_io::is_process_alive;
 
 /// Deadline for waiting on the supervisor to exit after SIGTERM before
 /// escalating to SIGKILL. The supervisor installs a signal handler that

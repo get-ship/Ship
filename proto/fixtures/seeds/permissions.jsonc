@@ -1,0 +1,177 @@
+// Permissions domain seed — realistic demo values for the ship-permissions-* component pack.
+// World: 'harbor' project mid-feature on branch feat/checkout-flow; operator = Ada Lovelace.
+// Agents: rust-lane (preset: ship-standard) + code-reviewer (preset: ship-readonly).
+// Get responses: JsonResponse { json: string } — json field carries the serialized preset object.
+// Decoded shape inside json: { id, scope, entry: { description, tools: { allow, ask, deny } } }
+// Generator strips full-line // comments and emits proto/fixtures/demo/permissions.json.
+{
+  "_meta": {
+    "domain": "permissions",
+    "description": "PermissionsService List / Get / ToolPatterns / Create / Put / Patch / Delete. Four presets across both scopes (project: ship-standard, ship-readonly; user: power-user, deny-rm-rf). Covers full Get bodies with non-trivial allow/ask/deny lists, 10 ToolPatterns across four sources, all seven ScopedMutation write round-trips, four error states, and three empty-state variants."
+  },
+
+  // ── PermissionsService.List ───────────────────────────────────────────────────
+  // PermissionsIndexResponse { items: repeated IndexEntry { id, scope } }
+  // ship-permissions-list sorts project-first, then user within each scope group.
+
+  // All-scopes view: full library — two project presets, two user presets.
+  "List.all_scopes": {
+    "items": [
+      { "id": "ship-standard", "scope": "project" },
+      { "id": "ship-readonly", "scope": "project" },
+      { "id": "power-user",    "scope": "user" },
+      { "id": "deny-rm-rf",   "scope": "user" }
+    ]
+  },
+
+  // Scope-filtered: project presets only. Exercises the scope toggle in ship-permissions-list.
+  "List.project_scope": {
+    "items": [
+      { "id": "ship-standard", "scope": "project" },
+      { "id": "ship-readonly", "scope": "project" }
+    ]
+  },
+
+  // Scope-filtered: user presets only (Ada's personal presets).
+  "List.user_scope": {
+    "items": [
+      { "id": "power-user",  "scope": "user" },
+      { "id": "deny-rm-rf", "scope": "user" }
+    ]
+  },
+
+  // First-run empty state: user scope has no presets yet.
+  "List.empty_user_scope": {
+    "items": []
+  },
+
+  // ── PermissionsService.Get ────────────────────────────────────────────────────
+  // JsonResponse { json: string }
+  // json field = serialized preset: { id, scope, entry: { description, tools: { allow, ask, deny } } }
+  // ship-permissions-detail parses json and renders description + three classified chip lists.
+
+  // ship-standard (project): harbor project base safety profile used by rust-lane.
+  // allow: file ops + cargo/just + git read-only + ship MCP; ask: git push/commit; deny: rm -rf + sudo.
+  "Get.ship_standard": {
+    "json": "{\"id\":\"ship-standard\",\"scope\":\"project\",\"entry\":{\"description\":\"Standard safety profile for harbor agents. Human confirms risky writes before they run.\",\"tools\":{\"allow\":[\"Read\",\"Edit\",\"Write\",\"Bash(cargo *)\",\"Bash(just *)\",\"Bash(git diff*)\",\"Bash(git log*)\",\"Bash(git status*)\",\"mcp__ship__*\"],\"ask\":[\"Bash(git push*)\",\"Bash(git commit*)\"],\"deny\":[\"Bash(rm -rf *)\",\"Bash(sudo *)\"]}}}"
+  },
+
+  // ship-readonly (project): code-reviewer agent profile. Read + inspect only, no mutations.
+  // allow: read + inspection commands only; ask: none; deny: all write and commit ops.
+  "Get.ship_readonly": {
+    "json": "{\"id\":\"ship-readonly\",\"scope\":\"project\",\"entry\":{\"description\":\"Read-only profile for review-mode agents. May inspect but not write.\",\"tools\":{\"allow\":[\"Read\",\"Bash(git diff*)\",\"Bash(git log*)\",\"Bash(git status*)\",\"Bash(cargo check)\",\"Bash(cargo test --no-run)\"],\"ask\":[],\"deny\":[\"Edit\",\"Write\",\"Bash(git push*)\",\"Bash(git commit*)\",\"Bash(rm *)\"]}}}"
+  },
+
+  // power-user (user): Ada's personal elevated preset. Fewer confirmation gates than ship-standard.
+  // allow: full file ops + all git + curl + ship MCP + github MCP; ask: rm -rf; deny: sudo.
+  "Get.power_user": {
+    "json": "{\"id\":\"power-user\",\"scope\":\"user\",\"entry\":{\"description\":\"Ada's elevated personal profile. Fewer confirmations — operator accepts full responsibility.\",\"tools\":{\"allow\":[\"Read\",\"Edit\",\"Write\",\"Bash(cargo *)\",\"Bash(just *)\",\"Bash(git *)\",\"Bash(curl *)\",\"mcp__ship__*\",\"mcp__github__*\"],\"ask\":[\"Bash(rm -rf *)\"],\"deny\":[\"Bash(sudo *)\"]}}}"
+  },
+
+  // deny-rm-rf (user): targeted deny-list overlay. Blocks destructive remove patterns.
+  // allow: none (additive deny only); ask: none; deny: four destructive bash patterns.
+  "Get.deny_rm_rf": {
+    "json": "{\"id\":\"deny-rm-rf\",\"scope\":\"user\",\"entry\":{\"description\":\"Targeted deny list. Blocks destructive file removal patterns regardless of other grant layers.\",\"tools\":{\"allow\":[],\"ask\":[],\"deny\":[\"Bash(rm -rf *)\",\"Bash(rm -r *)\",\"Bash(find * -delete)\",\"Bash(git clean -fdx)\"]}}}"
+  },
+
+  // ── PermissionsService.ToolPatterns ──────────────────────────────────────────
+  // ToolPatternsResponse { patterns: repeated ToolPattern { pattern, label, source } }
+  // 10 patterns across four sources: builtin (named harness tools), bash (glob patterns),
+  // mcp-ship (Ship MCP catalog), mcp-github (GitHub MCP integration).
+
+  "ToolPatterns.catalog": {
+    "patterns": [
+      { "pattern": "Read",             "label": "Read file",              "source": "builtin" },
+      { "pattern": "Edit",             "label": "Edit file",              "source": "builtin" },
+      { "pattern": "Write",            "label": "Write file",             "source": "builtin" },
+      { "pattern": "Bash(cargo *)",    "label": "cargo commands",         "source": "bash" },
+      { "pattern": "Bash(just *)",     "label": "just commands",          "source": "bash" },
+      { "pattern": "Bash(git *)",      "label": "git (all subcommands)",  "source": "bash" },
+      { "pattern": "Bash(git push*)",  "label": "git push",               "source": "bash" },
+      { "pattern": "Bash(rm -rf *)",   "label": "rm -rf (destructive)",   "source": "bash" },
+      { "pattern": "mcp__ship__*",     "label": "Ship MCP (all tools)",   "source": "mcp-ship" },
+      { "pattern": "mcp__github__*",   "label": "GitHub MCP (all tools)", "source": "mcp-github" }
+    ]
+  },
+
+  // ── Write round-trips — ScopedMutation { id, scope } ─────────────────────────
+
+  // Create: net-new preset authored by Ada for the checkout-flow feature gate.
+  "Create.response": {
+    "id": "checkout-gates",
+    "scope": "project"
+  },
+
+  // Put: ship-standard replaced wholesale (full preset body swap by the operator).
+  "Put.response": {
+    "id": "ship-standard",
+    "scope": "project"
+  },
+
+  // Patch: RFC-6902 patch applied to ship-standard — e.g., appending Bash(npm *) to allow list.
+  "Patch.response": {
+    "id": "ship-standard",
+    "scope": "project"
+  },
+
+  // Delete: Ada removes her user-scope power-user preset.
+  "Delete.response": {
+    "id": "power-user",
+    "scope": "user"
+  },
+
+  // ── Error states ──────────────────────────────────────────────────────────────
+  // Not proto response messages — describe the inline error surface the UI renders.
+  // Operator-facing tone: factual, precise, no softening copy.
+
+  "error_states": {
+    "not_found": {
+      "rpc": "Get",
+      "request": { "id": "checkout-gates", "scope": "project" },
+      "tone": "destructive",
+      "message": "Permission preset 'checkout-gates' not found at project scope.",
+      "_note": "Shown in ship-permissions-detail after Get returns NOT_FOUND. The detail panel renders the error inline; the list re-fetches and the stale row is cleared."
+    },
+    "already_exists": {
+      "rpc": "Create",
+      "request": { "id": "ship-standard", "scope": "project" },
+      "tone": "warning",
+      "message": "A preset named 'ship-standard' already exists at project scope. Use Put to replace it, or choose a different id.",
+      "_note": "Field-level validation message — rendered inline below the id input in ship-permissions-editor. Editor keeps the draft so the operator can correct the id and retry."
+    },
+    "bad_id": {
+      "rpc": "Create",
+      "request": { "id": "_admin", "scope": "project" },
+      "tone": "destructive",
+      "message": "Invalid preset id '_admin': ids may not begin with an underscore.",
+      "_note": "Inline field error on the id input. Fired on blur before the Create RPC is called. ship-permissions-editor blocks submission until the id is corrected."
+    },
+    "parse_error": {
+      "rpc": "Create",
+      "tone": "destructive",
+      "message": "Preset body is not valid JSON. Check the tools object and retry.",
+      "_note": "Rare path — triggered when the editor emits malformed JSON (e.g., pasted raw TOML). The built-in JSON validator should surface this before the RPC is sent."
+    }
+  },
+
+  // ── Empty-state copy ──────────────────────────────────────────────────────────
+  // Designer-readable copy strings rendered by ship-permissions-list. Not a proto message.
+
+  "empty_states": {
+    "first_run": {
+      "title": "No permission presets",
+      "body": "Add a preset to define which tools agents in this space are allowed, asked about, or denied.",
+      "cta": "New preset"
+    },
+    "empty_user_scope": {
+      "title": "No user presets",
+      "body": "User presets override project defaults for your sessions only.",
+      "cta": "New user preset"
+    },
+    "empty_filtered": {
+      "title": "No presets match",
+      "body": "Clear the scope filter or search term to see all presets.",
+      "cta": "Clear filter"
+    }
+  }
+}

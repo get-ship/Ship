@@ -15,7 +15,8 @@ use ship_substrate::services::dispatch_ports::{
 };
 use ship_substrate::services::process_registry::ProcessRegistry;
 use ship_substrate::supervisor::{ActorKind, ActorProfile, TransportKind, spawn_actor};
-use ship_supervisor::{run_dispatch::DispatchHandle, pty_executor_handle_for_test};
+use crate::dispatch::run_dispatch::DispatchHandle;
+use ship_agents::runtime::pty_executor_handle_for_test;
 use tempfile::TempDir;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;

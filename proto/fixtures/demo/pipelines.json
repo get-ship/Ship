@@ -1,0 +1,605 @@
+{
+  "_meta": {
+    "generated_by": "cargo xtask gen-fixtures",
+    "source_seed": "proto/fixtures/seeds/pipelines.jsonc",
+    "kind": "demo"
+  },
+  "List.response": {
+    "items": [
+      {
+        "id": "ship-feature",
+        "scope": "project"
+      },
+      {
+        "id": "code-review",
+        "scope": "project"
+      },
+      {
+        "id": "ship-fix",
+        "scope": "user"
+      },
+      {
+        "id": "audit-cycle",
+        "scope": "user"
+      }
+    ]
+  },
+  "Summaries.response": {
+    "items": [
+      {
+        "id": "ship-feature",
+        "scope": "project",
+        "name": "ship-feature",
+        "description": "End-to-end feature lane: implement, review, gate.",
+        "step_count": 3,
+        "agents": [
+          "rust-lane",
+          "code-reviewer"
+        ],
+        "active_run": {
+          "id": "run-checkout-flow-a1b2c3",
+          "slug": "checkout-flow-a1b2c3",
+          "status": "running",
+          "current_step": "implement",
+          "started_at": "2026-05-24T18:00:00Z",
+          "agent": "rust-lane"
+        },
+        "last_completed_run": {
+          "id": "run-checkout-flow-prev",
+          "status": "completed",
+          "completed_at": "2026-05-24T16:00:00Z",
+          "duration_ms": 7200000
+        },
+        "run_count": 7,
+        "failed_count": 1
+      },
+      {
+        "id": "code-review",
+        "scope": "project",
+        "name": "code-review",
+        "description": "Review a diff for correctness, security, and architecture drift.",
+        "step_count": 2,
+        "agents": [
+          "code-reviewer"
+        ],
+        "active_run": null,
+        "last_completed_run": {
+          "id": "run-code-review-001",
+          "status": "completed",
+          "completed_at": "2026-05-24T16:05:00Z",
+          "duration_ms": 300000
+        },
+        "run_count": 4,
+        "failed_count": 0
+      },
+      {
+        "id": "ship-fix",
+        "scope": "user",
+        "name": "ship-fix",
+        "description": "Fast-path fix lane: diagnose, implement, verify.",
+        "step_count": 3,
+        "agents": [
+          "rust-lane"
+        ],
+        "active_run": null,
+        "last_completed_run": {
+          "id": "run-ship-fix-003",
+          "status": "failed",
+          "completed_at": "2026-05-23T14:20:00Z",
+          "duration_ms": 2880000
+        },
+        "run_count": 3,
+        "failed_count": 1
+      },
+      {
+        "id": "audit-cycle",
+        "scope": "user",
+        "name": "audit-cycle",
+        "description": "Periodic codebase audit: scan, report, triage.",
+        "step_count": 3,
+        "agents": [
+          "rust-lane"
+        ],
+        "active_run": null,
+        "last_completed_run": null,
+        "run_count": 0,
+        "failed_count": 0
+      }
+    ]
+  },
+  "SummariesLive.stream": {
+    "frames": [
+      {
+        "seq": 1,
+        "kind": "snapshot",
+        "_note": "same shape as Summaries.response; omitted here to avoid duplication",
+        "patches": [
+          {
+            "op": "set",
+            "path": "",
+            "value": "<see Summaries.response above>"
+          }
+        ]
+      },
+      {
+        "seq": 2,
+        "kind": "patch",
+        "_why": "rust-lane called StepDone on implement; code-reviewer starts review",
+        "patches": [
+          {
+            "op": "merge",
+            "path": "items[0].active_run",
+            "value": {
+              "current_step": "review",
+              "agent": "code-reviewer"
+            }
+          }
+        ]
+      },
+      {
+        "seq": 3,
+        "kind": "patch",
+        "_why": "run completed; active_run pill clears, last_completed_run updates",
+        "patches": [
+          {
+            "op": "merge",
+            "path": "items[0]",
+            "value": {
+              "active_run": null,
+              "last_completed_run": {
+                "id": "run-checkout-flow-a1b2c3",
+                "status": "completed",
+                "completed_at": "2026-05-24T18:58:00Z",
+                "duration_ms": 3480000
+              },
+              "run_count": 8
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "Run.response": {
+    "id": "run-checkout-flow-prev",
+    "pipeline": "ship-feature",
+    "slug": "checkout-flow-prev",
+    "status": "completed",
+    "worktree": "/home/dev/harbor/.ship/worktrees/checkout-flow-prev",
+    "spec": "checkout-flow",
+    "vars": {
+      "area": "platform"
+    },
+    "started_at": "2026-05-24T14:00:00Z",
+    "completed_at": "2026-05-24T16:00:00Z",
+    "duration_ms": 7200000,
+    "steps": [
+      {
+        "slug": "implement",
+        "status": "done",
+        "agent": "rust-lane",
+        "started_at": "2026-05-24T14:00:00Z",
+        "completed_at": "2026-05-24T15:20:00Z",
+        "summary": "Scaffolded CheckoutService with happy-path handler; 3 contract tests passing.",
+        "outputs": {
+          "files_changed": "3",
+          "tests_added": "3",
+          "branch": "feat/checkout-flow"
+        }
+      },
+      {
+        "slug": "review",
+        "status": "done",
+        "agent": "code-reviewer",
+        "started_at": "2026-05-24T15:21:00Z",
+        "completed_at": "2026-05-24T15:55:00Z",
+        "summary": "No blocking issues. Two minor style suggestions filed as annotations.",
+        "outputs": {
+          "annotations": "2",
+          "verdict": "approved"
+        }
+      },
+      {
+        "slug": "gate",
+        "status": "done",
+        "agent": "rust-lane",
+        "started_at": "2026-05-24T15:56:00Z",
+        "completed_at": "2026-05-24T16:00:00Z",
+        "summary": "Gate passed: tests green, review approved, diff within scope.",
+        "outputs": {
+          "gate": "passed",
+          "commit": "f4e5d6c"
+        }
+      }
+    ]
+  },
+  "RunLive.stream": {
+    "frames": [
+      {
+        "seq": 1,
+        "kind": "snapshot",
+        "_why": "initial poll; implement step is running, review + gate are pending",
+        "value": {
+          "id": "run-checkout-flow-a1b2c3",
+          "pipeline": "ship-feature",
+          "slug": "checkout-flow-a1b2c3",
+          "status": "running",
+          "worktree": "/home/dev/harbor/.ship/worktrees/checkout-flow-a1b2c3",
+          "spec": "checkout-flow",
+          "vars": {
+            "area": "platform"
+          },
+          "started_at": "2026-05-24T18:00:00Z",
+          "completed_at": null,
+          "steps": [
+            {
+              "slug": "implement",
+              "status": "running",
+              "agent": "rust-lane",
+              "started_at": "2026-05-24T18:00:00Z",
+              "completed_at": null,
+              "summary": null,
+              "outputs": {}
+            },
+            {
+              "slug": "review",
+              "status": "pending",
+              "agent": "code-reviewer",
+              "started_at": null,
+              "completed_at": null,
+              "summary": null,
+              "outputs": {}
+            },
+            {
+              "slug": "gate",
+              "status": "pending",
+              "agent": "rust-lane",
+              "started_at": null,
+              "completed_at": null,
+              "summary": null,
+              "outputs": {}
+            }
+          ]
+        }
+      },
+      {
+        "seq": 2,
+        "kind": "patch",
+        "_why": "rust-lane called StepDone; implement marked done",
+        "patches": [
+          {
+            "op": "merge",
+            "path": "steps[0]",
+            "value": {
+              "status": "done",
+              "completed_at": "2026-05-24T18:42:00Z",
+              "summary": "CheckoutService scaffolded; 3 tests passing. Diff staged on feat/checkout-flow.",
+              "outputs": {
+                "files_changed": "3",
+                "tests_added": "3",
+                "branch": "feat/checkout-flow"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "seq": 3,
+        "kind": "patch",
+        "_why": "review step started; code-reviewer agent spawned",
+        "patches": [
+          {
+            "op": "merge",
+            "path": "steps[1]",
+            "value": {
+              "status": "running",
+              "started_at": "2026-05-24T18:43:00Z"
+            }
+          }
+        ]
+      },
+      {
+        "seq": 4,
+        "kind": "patch",
+        "_why": "run completed: review done, gate done, run status updated",
+        "patches": [
+          {
+            "op": "merge",
+            "path": "steps[1]",
+            "value": {
+              "status": "done",
+              "completed_at": "2026-05-24T18:54:00Z",
+              "summary": "No blocking issues. One annotation filed.",
+              "outputs": {
+                "annotations": "1",
+                "verdict": "approved"
+              }
+            }
+          },
+          {
+            "op": "merge",
+            "path": "steps[2]",
+            "value": {
+              "status": "done",
+              "started_at": "2026-05-24T18:55:00Z",
+              "completed_at": "2026-05-24T18:58:00Z",
+              "summary": "Gate passed.",
+              "outputs": {
+                "gate": "passed",
+                "commit": "a1b2c3d"
+              }
+            }
+          },
+          {
+            "op": "merge",
+            "path": "",
+            "value": {
+              "status": "completed",
+              "completed_at": "2026-05-24T18:58:00Z"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "History.response": {
+    "items": [
+      {
+        "id": "run-checkout-flow-a1b2c3",
+        "pipeline": "ship-feature",
+        "slug": "checkout-flow-a1b2c3",
+        "status": "running",
+        "started_at": "2026-05-24T18:00:00Z",
+        "completed_at": null,
+        "duration_ms": null,
+        "spec": "checkout-flow"
+      },
+      {
+        "id": "run-checkout-flow-prev",
+        "pipeline": "ship-feature",
+        "slug": "checkout-flow-prev",
+        "status": "completed",
+        "started_at": "2026-05-24T14:00:00Z",
+        "completed_at": "2026-05-24T16:00:00Z",
+        "duration_ms": 7200000,
+        "spec": "checkout-flow"
+      },
+      {
+        "id": "run-code-review-001",
+        "pipeline": "code-review",
+        "slug": "code-review-001",
+        "status": "completed",
+        "started_at": "2026-05-24T15:21:00Z",
+        "completed_at": "2026-05-24T16:05:00Z",
+        "duration_ms": 2640000,
+        "spec": null
+      },
+      {
+        "id": "run-ship-fix-003",
+        "pipeline": "ship-fix",
+        "slug": "ship-fix-003",
+        "status": "failed",
+        "started_at": "2026-05-23T13:32:00Z",
+        "completed_at": "2026-05-23T14:20:00Z",
+        "duration_ms": 2880000,
+        "spec": null
+      },
+      {
+        "id": "run-ship-feature-002",
+        "pipeline": "ship-feature",
+        "slug": "ship-feature-002",
+        "status": "completed",
+        "started_at": "2026-05-22T10:00:00Z",
+        "completed_at": "2026-05-22T12:30:00Z",
+        "duration_ms": 9000000,
+        "spec": null
+      },
+      {
+        "id": "run-ship-feature-003",
+        "pipeline": "ship-feature",
+        "slug": "ship-feature-003",
+        "status": "failed",
+        "started_at": "2026-05-21T09:00:00Z",
+        "completed_at": "2026-05-21T09:45:00Z",
+        "duration_ms": 2700000,
+        "spec": null
+      },
+      {
+        "id": "run-code-review-002",
+        "pipeline": "code-review",
+        "slug": "code-review-002",
+        "status": "completed",
+        "started_at": "2026-05-20T14:00:00Z",
+        "completed_at": "2026-05-20T14:22:00Z",
+        "duration_ms": 1320000,
+        "spec": null
+      },
+      {
+        "id": "run-audit-cycle-001",
+        "pipeline": "audit-cycle",
+        "slug": "audit-cycle-001",
+        "status": "cancelled",
+        "started_at": "2026-05-19T08:00:00Z",
+        "completed_at": "2026-05-19T08:05:00Z",
+        "duration_ms": 300000,
+        "spec": null
+      }
+    ],
+    "total": 8,
+    "limit": 10,
+    "offset": 0,
+    "pipeline_options": [
+      "ship-feature",
+      "code-review",
+      "ship-fix",
+      "audit-cycle"
+    ]
+  },
+  "HistoryLive.stream": {
+    "frames": [
+      {
+        "seq": 1,
+        "kind": "snapshot",
+        "_note": "same shape as History.response above; omitted here to avoid duplication",
+        "patches": [
+          {
+            "op": "set",
+            "path": "",
+            "value": "<see History.response above>"
+          }
+        ]
+      },
+      {
+        "seq": 2,
+        "kind": "patch",
+        "_why": "operator dispatched ship-fix manually from the dispatch form",
+        "patches": [
+          {
+            "op": "prepend",
+            "path": "items",
+            "value": {
+              "id": "run-ship-fix-004",
+              "pipeline": "ship-fix",
+              "slug": "ship-fix-004",
+              "status": "running",
+              "started_at": "2026-05-24T19:05:00Z",
+              "completed_at": null,
+              "duration_ms": null,
+              "spec": null
+            }
+          },
+          {
+            "op": "merge",
+            "path": "",
+            "value": {
+              "total": 9
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "Dispatch.response": {
+    "run_id": "run-ship-feature-004",
+    "slug": "ship-feature-004",
+    "pipeline": "ship-feature",
+    "status": "running",
+    "worktree": "/home/dev/harbor/.ship/worktrees/ship-feature-004",
+    "started_at": "2026-05-24T19:00:00Z"
+  },
+  "StepDone.response": {
+    "ok": true,
+    "slug": "checkout-flow-a1b2c3",
+    "step": "implement",
+    "next_step": "review"
+  },
+  "EndTurn.response": {
+    "ok": true,
+    "slug": "checkout-flow-a1b2c3"
+  },
+  "Put.response": {
+    "project_scope": {
+      "id": "ship-feature",
+      "scope": "project"
+    },
+    "user_scope": {
+      "id": "ship-fix",
+      "scope": "user"
+    }
+  },
+  "Patch.response": {
+    "project_scope": {
+      "id": "ship-feature",
+      "scope": "project"
+    },
+    "user_scope": {
+      "id": "ship-fix",
+      "scope": "user"
+    }
+  },
+  "Delete.response": {
+    "project_scope": {
+      "id": "code-review",
+      "scope": "project"
+    },
+    "user_scope": {
+      "id": "audit-cycle",
+      "scope": "user"
+    }
+  },
+  "Get.response": {
+    "id": "ship-feature",
+    "scope": "project",
+    "doc": {
+      "name": "ship-feature",
+      "description": "End-to-end feature lane: implement, review, gate.",
+      "steps": [
+        {
+          "slug": "implement",
+          "agent": "rust-lane",
+          "harness": "claude"
+        },
+        {
+          "slug": "review",
+          "agent": "code-reviewer",
+          "harness": "claude"
+        },
+        {
+          "slug": "gate",
+          "agent": "rust-lane",
+          "harness": "claude"
+        }
+      ]
+    }
+  },
+  "error_states": {
+    "stream_disconnect": {
+      "rpc": "SummariesLive",
+      "tone": "warning",
+      "retryable": true,
+      "message": "Live connection dropped. Reconnecting...",
+      "_note": "ship-pipelines-watch-badge shows reconnecting spinner; catalog retains last-known state"
+    },
+    "run_live_interrupt": {
+      "rpc": "RunLive",
+      "tone": "warning",
+      "retryable": true,
+      "message": "Run stream interrupted. Retrying...",
+      "_note": "console keeps last known step state; watch-badge shows reconnecting"
+    },
+    "permission_denied": {
+      "rpc": "Dispatch",
+      "tone": "destructive",
+      "retryable": false,
+      "message": "Permission denied: ship.runtime.dispatch not granted.",
+      "_note": "dispatch button disabled; inline error below the form"
+    },
+    "pipeline_not_found": {
+      "rpc": "Get",
+      "tone": "destructive",
+      "retryable": false,
+      "message": "Pipeline 'audit-cycle' not found at project scope.",
+      "_note": "editor falls back to empty state with a New Pipeline CTA"
+    }
+  },
+  "empty_states": {
+    "no_definitions": {
+      "surface": "ship-pipelines-list",
+      "title": "No pipelines defined",
+      "body": "Create a pipeline to automate your agent workflows.",
+      "cta": "New pipeline"
+    },
+    "no_history": {
+      "surface": "ship-pipelines-history",
+      "title": "No runs yet",
+      "body": "Dispatch a pipeline to see its run history here.",
+      "cta": "Dispatch"
+    },
+    "filtered_empty": {
+      "surface": "ship-pipelines-history",
+      "title": "No runs match the filter",
+      "body": "8 runs stored; none match pipeline='audit-cycle' with q='checkout'.",
+      "cta": "Clear filters",
+      "_note": "triggered when History(pipeline, q) returns zero items"
+    }
+  }
+}

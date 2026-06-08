@@ -48,8 +48,6 @@ impl From<FileError> for Error {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[cfg_attr(feature = "specta", specta(rename = "RuleScopeTag"))]
 #[serde(rename_all = "lowercase")]
 pub enum ScopeTag { Project, User }
 
@@ -65,8 +63,6 @@ impl From<ScopeTag> for Scope {
 }
 
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[cfg_attr(feature = "specta", specta(rename = "RuleIndexEntry"))]
 pub struct IndexEntry {
     pub id: String,
     pub scope: ScopeTag,

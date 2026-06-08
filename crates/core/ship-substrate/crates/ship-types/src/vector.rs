@@ -13,7 +13,6 @@ use serde::{Deserialize, Serialize};
 
 /// One of the canonical directory-vectors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(rename_all = "kebab-case")]
 pub enum Vector {
     Agents,

@@ -1,0 +1,669 @@
+// Git domain seed — realistic demo values for the ship-git-* component pack.
+// World: 'harbor' project on feat/checkout-flow, agents rust-lane + code-reviewer.
+// Cross-references line up with fixture-seed.json (same SHAs, paths, authors).
+// Generator strips full-line // comments and emits proto/fixtures/demo/git.json.
+{
+  "_meta": {
+    "domain": "git",
+    "description": "GitService demo seed — StatusBuckets (dirty + clean), GitLogResponse (10 commits), GitBranchesResponse (active+upstream ahead/behind, 3 local-only, 1 no-divergence remote-tracking), GitOverviewResponse (one-call composite), GitDiffResponse WORKING (2 files, 3 hunks each, mixed add/del/ctx), GitDiffResponse commit sha (1 file, historical), Annotations (JsonResponse placeholder), OverviewLive + DiffLive stream frames, Push/Fetch/Pull success JsonResponses, pull-conflict + push-rejected errors, clean-tree empty state, and no-repo error."
+  },
+
+  // ── GitService.Status → StatusBuckets ───────────────────────────────────────
+  // Dirty working tree: 2 staged (tone=added), 3 modified (tone=modified),
+  // 2 untracked (tone=untracked). All three tone values exercised.
+
+  "Status.response": {
+    "clean": false,
+    "total": 7,
+    "staged": [
+      {
+        "path": "crates/core/ship-platform/src/services/checkout.rs",
+        "basename": "checkout.rs",
+        "status": "A",
+        "tone": "added",
+        "label": "new file"
+      },
+      {
+        "path": "crates/core/ship-platform/src/services/checkout/handler.rs",
+        "basename": "handler.rs",
+        "status": "A",
+        "tone": "added",
+        "label": "new file"
+      }
+    ],
+    "modified": [
+      {
+        "path": "apps/shipd/src/router.rs",
+        "basename": "router.rs",
+        "status": "M",
+        "tone": "modified",
+        "label": "modified"
+      },
+      {
+        "path": "apps/shipd/src/state.rs",
+        "basename": "state.rs",
+        "status": "M",
+        "tone": "modified",
+        "label": "modified"
+      },
+      {
+        "path": "crates/core/ship-platform/src/lib.rs",
+        "basename": "lib.rs",
+        "status": "M",
+        "tone": "modified",
+        "label": "modified"
+      }
+    ],
+    "untracked": [
+      {
+        "path": ".artifacts/checkout-notes.md",
+        "basename": "checkout-notes.md",
+        "status": "?",
+        "tone": "untracked",
+        "label": "untracked"
+      },
+      {
+        "path": ".artifacts/checkout-audit.md",
+        "basename": "checkout-audit.md",
+        "status": "?",
+        "tone": "untracked",
+        "label": "untracked"
+      }
+    ]
+  },
+
+  // ── GitService.Log → GitLogResponse ──────────────────────────────────────────
+  // 10 commits: 7 conventional (feat/fix/refactor/test/docs/chore) + 3 plain.
+  // Both agents appear as authors. additions/deletions populated on all.
+
+  "Log.response": {
+    "commits": [
+      {
+        "sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+        "short_sha": "a1b2c3d",
+        "author": "rust-lane",
+        "date": "2026-05-24T18:30:00Z",
+        "subject": "feat(checkout): scaffold the checkout service",
+        "additions": 142,
+        "deletions": 8
+      },
+      {
+        "sha": "f4e5d6c7b8a90123456789abcdef0123456789ab",
+        "short_sha": "f4e5d6c",
+        "author": "code-reviewer",
+        "date": "2026-05-24T16:05:00Z",
+        "subject": "test(checkout): lock the happy-path contract",
+        "additions": 67,
+        "deletions": 0
+      },
+      {
+        "sha": "b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6",
+        "short_sha": "b7c8d9e",
+        "author": "rust-lane",
+        "date": "2026-05-24T14:00:00Z",
+        "subject": "refactor(router): extract checkout mount point",
+        "additions": 18,
+        "deletions": 6
+      },
+      {
+        "sha": "c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8",
+        "short_sha": "c9d0e1f",
+        "author": "rust-lane",
+        "date": "2026-05-23T22:00:00Z",
+        "subject": "fix(auth): reject expired tokens at the gate",
+        "additions": 14,
+        "deletions": 3
+      },
+      {
+        "sha": "d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0",
+        "short_sha": "d1e2f3a",
+        "author": "code-reviewer",
+        "date": "2026-05-23T18:00:00Z",
+        "subject": "docs(checkout): add request/response examples to SKILL.md",
+        "additions": 48,
+        "deletions": 0
+      },
+      {
+        "sha": "e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1",
+        "short_sha": "e2f3a4b",
+        "author": "rust-lane",
+        "date": "2026-05-23T09:00:00Z",
+        "subject": "chore(deps): bump buffa to 0.5.3",
+        "additions": 4,
+        "deletions": 4
+      },
+      {
+        "sha": "f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2",
+        "short_sha": "f3a4b5c",
+        "author": "rust-lane",
+        "date": "2026-05-22T20:00:00Z",
+        "subject": "feat(ops): add GitDiff RPC to ship-ops service",
+        "additions": 86,
+        "deletions": 12
+      },
+      {
+        "sha": "a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3",
+        "short_sha": "a4b5c6d",
+        "author": "rust-lane",
+        "date": "2026-05-22T15:00:00Z",
+        "subject": "Initial checkout route scaffolding",
+        "additions": 55,
+        "deletions": 0
+      },
+      {
+        "sha": "b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4",
+        "short_sha": "b5c6d7e",
+        "author": "rust-lane",
+        "date": "2026-05-21T22:00:00Z",
+        "subject": "refactor(services): split platform service boundaries",
+        "additions": 203,
+        "deletions": 88
+      },
+      {
+        "sha": "c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5",
+        "short_sha": "c6d7e8f",
+        "author": "rust-lane",
+        "date": "2026-05-21T18:00:00Z",
+        "subject": "fix(tokens): C0 token scope enforced at mint site",
+        "additions": 31,
+        "deletions": 29
+      }
+    ]
+  },
+
+  // ── GitService.Branches → GitBranchesResponse ────────────────────────────────
+  // Active branch: feat/checkout-flow (ahead 2, behind 1 vs origin).
+  // 3 local-only branches (no upstream). 1 branch tracking remote with no divergence.
+  // Outer ahead/behind mirrors the active branch.
+
+  "Branches.response": {
+    "branches": [
+      {
+        "name": "feat/checkout-flow",
+        "active": true,
+        "upstream": "origin/feat/checkout-flow",
+        "ahead": 2,
+        "behind": 1
+      },
+      {
+        "name": "main",
+        "active": false,
+        "upstream": "origin/main",
+        "ahead": 0,
+        "behind": 0
+      },
+      {
+        "name": "job/harbor-7f3a9c",
+        "active": false,
+        "ahead": 0,
+        "behind": 0
+      },
+      {
+        "name": "refactor/services-boundary",
+        "active": false,
+        "ahead": 0,
+        "behind": 0
+      },
+      {
+        "name": "hotfix/token-scope",
+        "active": false,
+        "ahead": 0,
+        "behind": 0
+      }
+    ],
+    "ahead": 2,
+    "behind": 1
+  },
+
+  // ── GitService.Overview → GitOverviewResponse ────────────────────────────────
+  // One-call composite for the panel header + changes tab + history tab.
+  // Includes the full dirty status, 5 most recent commits, and all branches.
+
+  "Overview.response": {
+    "workspace_id": "harbor",
+    "branch": "feat/checkout-flow",
+    "head_short": "a1b2c3d",
+    "clean": false,
+    "total_changed": 7,
+    "staged": [
+      {
+        "path": "crates/core/ship-platform/src/services/checkout.rs",
+        "basename": "checkout.rs",
+        "status": "A",
+        "tone": "added",
+        "label": "new file"
+      },
+      {
+        "path": "crates/core/ship-platform/src/services/checkout/handler.rs",
+        "basename": "handler.rs",
+        "status": "A",
+        "tone": "added",
+        "label": "new file"
+      }
+    ],
+    "modified": [
+      {
+        "path": "apps/shipd/src/router.rs",
+        "basename": "router.rs",
+        "status": "M",
+        "tone": "modified",
+        "label": "modified"
+      },
+      {
+        "path": "apps/shipd/src/state.rs",
+        "basename": "state.rs",
+        "status": "M",
+        "tone": "modified",
+        "label": "modified"
+      },
+      {
+        "path": "crates/core/ship-platform/src/lib.rs",
+        "basename": "lib.rs",
+        "status": "M",
+        "tone": "modified",
+        "label": "modified"
+      }
+    ],
+    "untracked": [
+      {
+        "path": ".artifacts/checkout-notes.md",
+        "basename": "checkout-notes.md",
+        "status": "?",
+        "tone": "untracked",
+        "label": "untracked"
+      },
+      {
+        "path": ".artifacts/checkout-audit.md",
+        "basename": "checkout-audit.md",
+        "status": "?",
+        "tone": "untracked",
+        "label": "untracked"
+      }
+    ],
+    "commits": [
+      {
+        "sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+        "short_sha": "a1b2c3d",
+        "author": "rust-lane",
+        "date": "2026-05-24T18:30:00Z",
+        "subject": "feat(checkout): scaffold the checkout service",
+        "additions": 142,
+        "deletions": 8
+      },
+      {
+        "sha": "f4e5d6c7b8a90123456789abcdef0123456789ab",
+        "short_sha": "f4e5d6c",
+        "author": "code-reviewer",
+        "date": "2026-05-24T16:05:00Z",
+        "subject": "test(checkout): lock the happy-path contract",
+        "additions": 67,
+        "deletions": 0
+      },
+      {
+        "sha": "b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6",
+        "short_sha": "b7c8d9e",
+        "author": "rust-lane",
+        "date": "2026-05-24T14:00:00Z",
+        "subject": "refactor(router): extract checkout mount point",
+        "additions": 18,
+        "deletions": 6
+      },
+      {
+        "sha": "c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8",
+        "short_sha": "c9d0e1f",
+        "author": "rust-lane",
+        "date": "2026-05-23T22:00:00Z",
+        "subject": "fix(auth): reject expired tokens at the gate",
+        "additions": 14,
+        "deletions": 3
+      },
+      {
+        "sha": "d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0",
+        "short_sha": "d1e2f3a",
+        "author": "code-reviewer",
+        "date": "2026-05-23T18:00:00Z",
+        "subject": "docs(checkout): add request/response examples to SKILL.md",
+        "additions": 48,
+        "deletions": 0
+      }
+    ],
+    "branches": [
+      {
+        "name": "feat/checkout-flow",
+        "active": true,
+        "upstream": "origin/feat/checkout-flow",
+        "ahead": 2,
+        "behind": 1
+      },
+      {
+        "name": "main",
+        "active": false,
+        "upstream": "origin/main",
+        "ahead": 0,
+        "behind": 0
+      },
+      {
+        "name": "job/harbor-7f3a9c",
+        "active": false,
+        "ahead": 0,
+        "behind": 0
+      },
+      {
+        "name": "refactor/services-boundary",
+        "active": false,
+        "ahead": 0,
+        "behind": 0
+      },
+      {
+        "name": "hotfix/token-scope",
+        "active": false,
+        "ahead": 0,
+        "behind": 0
+      }
+    ],
+    "ahead": 2,
+    "behind": 1
+  },
+
+  // ── GitService.Diff (WORKING) → GitDiffResponse ──────────────────────────────
+  // is_working=true; commit="WORKING". Two files, 3 hunks each.
+  // File 1: apps/shipd/src/router.rs — import add, route add, config struct add.
+  // File 2: crates/core/ship-platform/src/lib.rs — mod decl, re-export, doc comment.
+  // Lines: mix of add/del/ctx with old_num + new_num populated.
+
+  "Diff.working": {
+    "sha": "WORKING",
+    "short_sha": "WORKING",
+    "is_working": true,
+    "diff_text": "diff --git a/apps/shipd/src/router.rs b/apps/shipd/src/router.rs\nindex b9c4d1e..f2a3b4c 100644\n--- a/apps/shipd/src/router.rs\n+++ b/apps/shipd/src/router.rs\n@@ -1,6 +1,8 @@\n use axum::Router;\n use crate::state::AppState;\n+use crate::routes::checkout;\n use std::sync::Arc;\n \n pub fn build_router(state: Arc<AppState>) -> Router {\n+    Router::new().merge(checkout::routes(state.clone()))\n }\n@@ -48,7 +50,9 @@ fn connect_service_routes(state: Arc<AppState>) -> Router {\n-    Router::new()\n-        .route(\"/ops/v1/*path\", post(handle_connect))\n+    Router::new()\n+        .route(\"/ops/v1/*path\", post(handle_connect))\n+        .route(\"/v1/checkout/*path\", post(handle_checkout))\n }\n@@ -86,5 +90,8 @@ pub struct RouterConfig {\n     pub port: u16,\n     pub space_id: String,\n+    pub checkout_enabled: bool,\n+    pub idempotency_ttl_secs: u64,\n+    pub max_line_items: usize,\n }\ndiff --git a/crates/core/ship-platform/src/lib.rs b/crates/core/ship-platform/src/lib.rs\nindex 3c1d2e4..7f4a9b1 100644\n--- a/crates/core/ship-platform/src/lib.rs\n+++ b/crates/core/ship-platform/src/lib.rs\n@@ -1,5 +1,7 @@\n pub mod agents;\n pub mod artifacts;\n+pub mod checkout;\n pub mod collections;\n pub mod config;\n+pub mod errors;\n@@ -18,6 +22,7 @@ pub use agents::AgentService;\n pub use artifacts::ArtifactStore;\n+pub use checkout::CheckoutService;\n pub use collections::CollectionStore;\n pub use config::ConfigService;\n@@ -34,6 +39,4 @@ pub use config::ConfigService;\n-// TODO: remove after platform boundary cleanup\n-#[deprecated]\n-pub use services::compile;\n+pub use services::checkout as checkout_svc;",
+    "parsed": {
+      "files": [
+        {
+          "path": "apps/shipd/src/router.rs",
+          "additions": 7,
+          "deletions": 2,
+          "hunks": [
+            {
+              "header": "@@ -1,6 +1,8 @@",
+              "lines": [
+                { "kind": "ctx", "content": "use axum::Router;",              "old_num": 1, "new_num": 1 },
+                { "kind": "ctx", "content": "use crate::state::AppState;",     "old_num": 2, "new_num": 2 },
+                { "kind": "add", "content": "use crate::routes::checkout;",                  "new_num": 3 },
+                { "kind": "ctx", "content": "use std::sync::Arc;",             "old_num": 3, "new_num": 4 },
+                { "kind": "ctx", "content": "",                                "old_num": 4, "new_num": 5 },
+                { "kind": "ctx", "content": "pub fn build_router(state: Arc<AppState>) -> Router {", "old_num": 5, "new_num": 6 },
+                { "kind": "add", "content": "    Router::new().merge(checkout::routes(state.clone()))",  "new_num": 7 },
+                { "kind": "ctx", "content": "}",                               "old_num": 6, "new_num": 8 }
+              ]
+            },
+            {
+              "header": "@@ -48,7 +50,9 @@",
+              "lines": [
+                { "kind": "ctx", "content": "fn connect_service_routes(state: Arc<AppState>) -> Router {", "old_num": 48, "new_num": 50 },
+                { "kind": "del", "content": "    Router::new()",                                          "old_num": 49              },
+                { "kind": "del", "content": "        .route(\"/ops/v1/*path\", post(handle_connect))",     "old_num": 50              },
+                { "kind": "add", "content": "    Router::new()",                                                        "new_num": 51 },
+                { "kind": "add", "content": "        .route(\"/ops/v1/*path\", post(handle_connect))",                  "new_num": 52 },
+                { "kind": "add", "content": "        .route(\"/v1/checkout/*path\", post(handle_checkout))",            "new_num": 53 },
+                { "kind": "ctx", "content": "}",                                                          "old_num": 51, "new_num": 54 }
+              ]
+            },
+            {
+              "header": "@@ -86,5 +90,8 @@",
+              "lines": [
+                { "kind": "ctx", "content": "pub struct RouterConfig {", "old_num": 86, "new_num": 90 },
+                { "kind": "ctx", "content": "    pub port: u16;",         "old_num": 87, "new_num": 91 },
+                { "kind": "ctx", "content": "    pub space_id: String;",  "old_num": 88, "new_num": 92 },
+                { "kind": "add", "content": "    pub checkout_enabled: bool;",             "new_num": 93 },
+                { "kind": "add", "content": "    pub idempotency_ttl_secs: u64;",          "new_num": 94 },
+                { "kind": "add", "content": "    pub max_line_items: usize;",               "new_num": 95 },
+                { "kind": "ctx", "content": "}",                          "old_num": 89, "new_num": 96 }
+              ]
+            }
+          ]
+        },
+        {
+          "path": "crates/core/ship-platform/src/lib.rs",
+          "additions": 5,
+          "deletions": 3,
+          "hunks": [
+            {
+              "header": "@@ -1,5 +1,7 @@",
+              "lines": [
+                { "kind": "ctx", "content": "pub mod agents;",      "old_num": 1, "new_num": 1 },
+                { "kind": "ctx", "content": "pub mod artifacts;",   "old_num": 2, "new_num": 2 },
+                { "kind": "add", "content": "pub mod checkout;",                  "new_num": 3 },
+                { "kind": "ctx", "content": "pub mod collections;", "old_num": 3, "new_num": 4 },
+                { "kind": "ctx", "content": "pub mod config;",      "old_num": 4, "new_num": 5 },
+                { "kind": "add", "content": "pub mod errors;",                    "new_num": 6 }
+              ]
+            },
+            {
+              "header": "@@ -18,6 +22,7 @@",
+              "lines": [
+                { "kind": "ctx", "content": "pub use agents::AgentService;",      "old_num": 18, "new_num": 22 },
+                { "kind": "ctx", "content": "pub use artifacts::ArtifactStore;",  "old_num": 19, "new_num": 23 },
+                { "kind": "add", "content": "pub use checkout::CheckoutService;",              "new_num": 24 },
+                { "kind": "ctx", "content": "pub use collections::CollectionStore;", "old_num": 20, "new_num": 25 },
+                { "kind": "ctx", "content": "pub use config::ConfigService;",     "old_num": 21, "new_num": 26 }
+              ]
+            },
+            {
+              "header": "@@ -34,6 +39,4 @@",
+              "lines": [
+                { "kind": "ctx", "content": "pub use config::ConfigService;",        "old_num": 34, "new_num": 39 },
+                { "kind": "del", "content": "// TODO: remove after platform boundary cleanup", "old_num": 35              },
+                { "kind": "del", "content": "#[deprecated]",                                   "old_num": 36              },
+                { "kind": "del", "content": "pub use services::compile;",                      "old_num": 37              },
+                { "kind": "add", "content": "pub use services::checkout as checkout_svc;",                "new_num": 40 }
+              ]
+            }
+          ]
+        }
+      ],
+      "total_additions": 12,
+      "total_deletions": 5
+    }
+  },
+
+  // ── GitService.Diff (commit sha) → GitDiffResponse ───────────────────────────
+  // is_working=false; sha matches the head commit (a1b2c3d).
+  // 1 file: crates/core/ship-platform/src/services/checkout.rs (all adds — new file).
+
+  "Diff.commit": {
+    "sha": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+    "short_sha": "a1b2c3d",
+    "is_working": false,
+    "diff_text": "diff --git a/crates/core/ship-platform/src/services/checkout.rs b/crates/core/ship-platform/src/services/checkout.rs\nnew file mode 100644\nindex 0000000..4a8f2c1\n--- /dev/null\n+++ b/crates/core/ship-platform/src/services/checkout.rs\n@@ -0,0 +1,38 @@\n+use crate::auth::Claims;\n+use crate::errors::PlatformError;\n+use serde::{Deserialize, Serialize};\n+\n+#[derive(Debug, Clone, Serialize, Deserialize)]\n+pub struct CheckoutRequest {\n+    pub space_id: String,\n+    pub idempotency_key: String,\n+    pub items: Vec<LineItem>,\n+}\n+\n+pub struct CheckoutService;\n+\n+impl CheckoutService {\n+    pub async fn process(\n+        &self,\n+        claims: &Claims,\n+        req: CheckoutRequest,\n+    ) -> Result<CheckoutResponse, PlatformError> {\n+        validate_items(&req.items)?;\n+        Ok(CheckoutResponse { order_id: ulid::Ulid::new().to_string(), status: CheckoutStatus::Confirmed })\n+    }\n+}\n+\n+fn validate_items(items: &[LineItem]) -> Result<(), PlatformError> {\n+    if items.is_empty() { return Err(PlatformError::EmptyCart); }\n+    Ok(())\n+}\n+\n+#[derive(Debug, Serialize, Deserialize)]\n+pub struct CheckoutResponse {\n+    pub order_id: String,\n+    pub status: CheckoutStatus,\n+}\n+\n+#[derive(Debug, Serialize, Deserialize)]\n+pub enum CheckoutStatus { Confirmed, Pending, Failed }\n+\n+pub struct LineItem { pub sku: String, pub qty: u32 }",
+    "parsed": {
+      "files": [
+        {
+          "path": "crates/core/ship-platform/src/services/checkout.rs",
+          "additions": 38,
+          "deletions": 0,
+          "hunks": [
+            {
+              "header": "@@ -0,0 +1,12 @@",
+              "lines": [
+                { "kind": "add", "content": "use crate::auth::Claims;",                       "new_num": 1  },
+                { "kind": "add", "content": "use crate::errors::PlatformError;",              "new_num": 2  },
+                { "kind": "add", "content": "use serde::{Deserialize, Serialize};",           "new_num": 3  },
+                { "kind": "add", "content": "",                                                "new_num": 4  },
+                { "kind": "add", "content": "#[derive(Debug, Clone, Serialize, Deserialize)]","new_num": 5  },
+                { "kind": "add", "content": "pub struct CheckoutRequest {",                   "new_num": 6  },
+                { "kind": "add", "content": "    pub space_id: String,",                      "new_num": 7  },
+                { "kind": "add", "content": "    pub idempotency_key: String,",               "new_num": 8  },
+                { "kind": "add", "content": "    pub items: Vec<LineItem>,",                  "new_num": 9  },
+                { "kind": "add", "content": "}",                                              "new_num": 10 },
+                { "kind": "add", "content": "",                                               "new_num": 11 },
+                { "kind": "add", "content": "pub struct CheckoutService;",                   "new_num": 12 }
+              ]
+            },
+            {
+              "header": "@@ -0,0 +14,13 @@",
+              "lines": [
+                { "kind": "add", "content": "impl CheckoutService {",                        "new_num": 14 },
+                { "kind": "add", "content": "    pub async fn process(",                     "new_num": 15 },
+                { "kind": "add", "content": "        &self,",                                "new_num": 16 },
+                { "kind": "add", "content": "        claims: &Claims,",                      "new_num": 17 },
+                { "kind": "add", "content": "        req: CheckoutRequest,",                 "new_num": 18 },
+                { "kind": "add", "content": "    ) -> Result<CheckoutResponse, PlatformError> {", "new_num": 19 },
+                { "kind": "add", "content": "        validate_items(&req.items)?;",          "new_num": 20 },
+                { "kind": "add", "content": "        Ok(CheckoutResponse { order_id: ulid::Ulid::new().to_string(), status: CheckoutStatus::Confirmed })", "new_num": 21 },
+                { "kind": "add", "content": "    }",                                         "new_num": 22 },
+                { "kind": "add", "content": "}",                                             "new_num": 23 },
+                { "kind": "add", "content": "",                                              "new_num": 24 },
+                { "kind": "add", "content": "fn validate_items(items: &[LineItem]) -> Result<(), PlatformError> {", "new_num": 25 },
+                { "kind": "add", "content": "    if items.is_empty() { return Err(PlatformError::EmptyCart); }", "new_num": 26 },
+                { "kind": "add", "content": "    Ok(())",                                    "new_num": 27 },
+                { "kind": "add", "content": "}",                                             "new_num": 28 }
+              ]
+            },
+            {
+              "header": "@@ -0,0 +30,10 @@",
+              "lines": [
+                { "kind": "add", "content": "#[derive(Debug, Serialize, Deserialize)]",      "new_num": 30 },
+                { "kind": "add", "content": "pub struct CheckoutResponse {",                 "new_num": 31 },
+                { "kind": "add", "content": "    pub order_id: String,",                     "new_num": 32 },
+                { "kind": "add", "content": "    pub status: CheckoutStatus,",               "new_num": 33 },
+                { "kind": "add", "content": "}",                                             "new_num": 34 },
+                { "kind": "add", "content": "",                                              "new_num": 35 },
+                { "kind": "add", "content": "#[derive(Debug, Serialize, Deserialize)]",      "new_num": 36 },
+                { "kind": "add", "content": "pub enum CheckoutStatus { Confirmed, Pending, Failed }", "new_num": 37 },
+                { "kind": "add", "content": "",                                              "new_num": 38 },
+                { "kind": "add", "content": "pub struct LineItem { pub sku: String, pub qty: u32 }", "new_num": 39 }
+              ]
+            }
+          ]
+        }
+      ],
+      "total_additions": 38,
+      "total_deletions": 0
+    }
+  },
+
+  // ── GitService.Annotations → JsonResponse ───────────────────────────────────
+  // Shape not yet locked in proto (returns JsonResponse); modelled as a plausible
+  // line-annotation object. The `json` field is the wire string; shown decoded here.
+
+  "Annotations.response": {
+    "json": "{\"file\":\"crates/core/ship-platform/src/services/checkout.rs\",\"commit\":\"a1b2c3d\",\"lines\":[{\"line\":1,\"sha\":\"a1b2c3d\",\"short_sha\":\"a1b2c3d\",\"author\":\"rust-lane\",\"date\":\"2026-05-24\",\"subject\":\"feat(checkout): scaffold the checkout service\"},{\"line\":2,\"sha\":\"a1b2c3d\",\"short_sha\":\"a1b2c3d\",\"author\":\"rust-lane\",\"date\":\"2026-05-24\",\"subject\":\"feat(checkout): scaffold the checkout service\"},{\"line\":5,\"sha\":\"f4e5d6c\",\"short_sha\":\"f4e5d6c\",\"author\":\"code-reviewer\",\"date\":\"2026-05-24\",\"subject\":\"test(checkout): lock the happy-path contract\"},{\"line\":14,\"sha\":\"a1b2c3d\",\"short_sha\":\"a1b2c3d\",\"author\":\"rust-lane\",\"date\":\"2026-05-24\",\"subject\":\"feat(checkout): scaffold the checkout service\"}]}"
+  },
+
+  // ── OverviewLive stream frames ───────────────────────────────────────────────
+  // Frame 1: initial snapshot (same shape as Overview.response).
+  // Frame 2: working-tree change detected — state.rs newly modified.
+
+  "OverviewLive.stream": {
+    "frames": [
+      {
+        "seq": 1,
+        "kind": "snapshot",
+        "json": "{\"workspace_id\":\"harbor\",\"branch\":\"feat/checkout-flow\",\"head_short\":\"a1b2c3d\",\"clean\":false,\"total_changed\":7,\"ahead\":2,\"behind\":1}"
+      },
+      {
+        "seq": 2,
+        "kind": "update",
+        "_why": "config kernel event fired — router.rs save detected",
+        "json": "{\"workspace_id\":\"harbor\",\"branch\":\"feat/checkout-flow\",\"head_short\":\"a1b2c3d\",\"clean\":false,\"total_changed\":8,\"ahead\":2,\"behind\":1}"
+      }
+    ]
+  },
+
+  // ── DiffLive stream frames ───────────────────────────────────────────────────
+  // Working-tree diff re-streams on every file save while the diff viewer is open.
+
+  "DiffLive.stream": {
+    "frames": [
+      {
+        "seq": 1,
+        "kind": "snapshot",
+        "_why": "initial diff frame for apps/shipd/src/router.rs",
+        "json": "{\"sha\":\"WORKING\",\"short_sha\":\"WORKING\",\"is_working\":true,\"diff_text\":\"...\"}"
+      },
+      {
+        "seq": 2,
+        "kind": "update",
+        "_why": "router.rs saved — one new line appended to hunk 3",
+        "json": "{\"sha\":\"WORKING\",\"short_sha\":\"WORKING\",\"is_working\":true,\"diff_text\":\"...\"}"
+      }
+    ]
+  },
+
+  // ── Write operations (JsonResponse) ─────────────────────────────────────────
+  // Push, Fetch, Pull success + two error paths.
+
+  "Push.success": {
+    "json": "{\"ok\":true,\"remote\":\"origin\",\"branch\":\"feat/checkout-flow\",\"commits_pushed\":2}"
+  },
+
+  "Fetch.success": {
+    "json": "{\"ok\":true,\"remote\":\"origin\",\"fetched\":true}"
+  },
+
+  "Pull.success": {
+    "json": "{\"ok\":true,\"remote\":\"origin\",\"fast_forward\":true,\"commits_pulled\":1}"
+  },
+
+  // ── Error states ─────────────────────────────────────────────────────────────
+
+  "errors": {
+    "pull_conflict": {
+      "rpc": "Pull",
+      "tone": "destructive",
+      "json": "{\"ok\":false,\"error\":\"CONFLICT\",\"message\":\"Merge conflict in apps/shipd/src/router.rs — pull aborted (ff-only). Resolve conflicts or rebase before pulling.\"}"
+    },
+    "push_rejected": {
+      "rpc": "Push",
+      "tone": "destructive",
+      "json": "{\"ok\":false,\"error\":\"REJECTED\",\"message\":\"Push rejected: remote has commits not in local history. Pull and rebase first.\"}"
+    },
+    "no_repo": {
+      "rpc": "Status",
+      "tone": "destructive",
+      "message": "Not a git repository: /home/dev/harbor. Use Init to initialise one."
+    },
+    "remote_auth": {
+      "rpc": "Push",
+      "tone": "destructive",
+      "message": "Authentication failed for origin (https://github.com/ship-dev/harbor.git). Check your credentials."
+    }
+  },
+
+  // ── Empty states ─────────────────────────────────────────────────────────────
+
+  "empty_states": {
+    "clean_tree": {
+      "_note": "StatusBuckets when working tree matches HEAD. Panel shows clean-tree hero.",
+      "status": {
+        "clean": true,
+        "total": 0,
+        "staged": [],
+        "modified": [],
+        "untracked": []
+      },
+      "title": "Working tree clean",
+      "body": "Nothing to stage. Last commit: feat(checkout): scaffold the checkout service (a1b2c3d).",
+      "cta": "View history"
+    },
+    "no_repo": {
+      "_note": "Returned when git operations run outside a repository. Triggers ship-git-init.",
+      "title": "Not a git repository",
+      "body": "Initialise a repository to track changes in this workspace.",
+      "cta": "Initialise"
+    },
+    "empty_log": {
+      "_note": "GitLogResponse for a brand-new repo with no commits yet.",
+      "commits": [],
+      "title": "No commits yet",
+      "body": "Stage files and commit to start tracking history.",
+      "cta": "Stage all"
+    },
+    "log_filter_no_results": {
+      "_note": "ship-git-log filter text yields zero matches.",
+      "title": "No matching commits",
+      "body": "No commits match the current filter. Clear it to see all history.",
+      "cta": "Clear filter"
+    }
+  }
+}

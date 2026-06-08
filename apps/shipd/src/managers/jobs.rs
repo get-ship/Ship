@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::supervisor::run_dispatch::{self, DispatchHandle};
+use crate::dispatch::run_dispatch::{self, DispatchHandle};
 
 /// Manages the job dispatch lifecycle.
 pub struct RunManager {

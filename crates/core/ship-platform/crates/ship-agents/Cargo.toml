@@ -7,7 +7,7 @@ description = "Agent domain (L1) — agent-session dispatch, agent-domain policy
 
 [dependencies]
 # RPC wire layer (ConnectRPC trait impls for rules/mcp/permissions/skills/agents)
-ship-ops-rpc = { path = "../ship-ops-rpc" }
+ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 ship-reactive = { path = "../ship-reactive" }
 connectrpc = { version = "0.4", features = ["axum"] }
 async-stream = "0.3"
@@ -25,8 +25,17 @@ ship-harnesses = { path = "../ship-harnesses" }
 ship-files = { path = "../ship-files" }
 ship-store = { path = "../ship-store" }
 ship-kv = { path = "../ship-kv" }
+# Agent-run assembly deps (supervisor split — `runtime::executors`):
+#   ship-auth     — per-process scoped token mint/drop on the spawn path.
+#   ship-device   — isolation-execution sandbox dispatcher bookkeeping.
+#   ship-isolation — isolation decision + sandbox backends (L0; default-off
+#                    keeps the youki/sidecar backends opt-in, matching the
+#                    daemon's feature wiring).
+ship-auth = { path = "../ship-auth" }
+ship-device = { path = "../ship-device" }
+ship-isolation = { path = "../../../ship-isolation", default-features = false }
 # compiler crate (the engine; services/compile is only the wrapper)
-compiler = { path = "../compiler", features = ["specta"] }
+compiler = { path = "../../../compiler", features = ["specta"] }
 jsonschema = { version = "0.46", default-features = false }
 
 ulid = "1"
@@ -56,6 +65,8 @@ semver = { workspace = true, features = ["serde"] }
 tempfile = { workspace = true }
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
 portable-pty = "0.9"
+# SIGTERM/SIGKILL on the headless ProcessExecutor stop path (unix only).
+libc = { workspace = true }
 include_dir = "0.7"
 # RFC 6902 JSON Patch
 json-patch = "4"

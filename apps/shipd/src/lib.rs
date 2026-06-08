@@ -24,7 +24,6 @@ pub mod transport;
 mod daemon;
 pub mod services;
 pub mod managers;
-pub mod project_api;
 pub mod routes;
 pub mod router;
 pub mod ops_rpc;
@@ -56,9 +55,15 @@ pub mod window_subscription_rpc;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
 pub mod ship_runtime;
-// Production supervisor code lives in the `ship-supervisor` crate. The
-// existing `crate::supervisor::*` import path across shipd resolves
-// through this re-export so call sites don't churn.
+// Job + agent-session dispatch composition root — `ShipdPlatform`,
+// `GitWorktreeIsolation`, `run_dispatch::subscribe_job_events`, and orphan
+// cleanup. Lifted out of `ship-supervisor` in the supervisor split: this
+// wiring depends on `ship-pipeline-runtime`, which depends on `ship-agents`,
+// so it lives at the daemon composition layer (not in either L1 crate).
+pub mod dispatch;
+// `ship-supervisor` (L0) now holds only OS-level process primitives
+// (terminal launcher, process-event emit, graceful_shutdown re-export). The
+// existing `crate::supervisor::*` import path resolves through this re-export.
 pub use ship_supervisor as supervisor;
 // Tests for supervisor + shipd-internal integration (use ApiState,
 // ShipRuntime, etc.) live under `apps/shipd/src/supervisor/`.

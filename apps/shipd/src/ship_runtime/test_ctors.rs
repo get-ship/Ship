@@ -167,7 +167,7 @@ impl ShipRuntime {
 
     /// Test ctor variant — accepts a custom `WorktreeResolver` so tests
     /// can map workspace ids to their tempdir paths instead of consulting
-    /// the daemon's CWD via `git worktree list`. See `project_api/tests.rs`.
+    /// the daemon's CWD via `git worktree list`.
     pub fn new_test_with_worktree_resolver(
         ship_dir: std::path::PathBuf,
         kernel: SharedKernel,

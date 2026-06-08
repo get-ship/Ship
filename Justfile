@@ -188,7 +188,7 @@ lint:
 # Visual QA against the daemon serving cwd. Discovers port automatically.
 [group('daily')]
 qa:
-    node tests/loops/run.mjs
+    bun tests/loops/run.mjs
 
 # Full smoke: build everything, restart the daemon, hit every baselined
 # view, run the Playwright visual suite. What CI will run — aim for green

@@ -14,7 +14,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
-use crate::auth::AuthContext;
+use crate::auth::{AuthContext, Scope, require_scope};
 use ship_views::view_authoring::{self, ViewEditModeAck};
 use ship_views::view_authoring::tool_dispatch::is_valid_view_name;
 
@@ -34,9 +34,13 @@ fn err(status: StatusCode, code: &str, message: &str) -> Response {
 
 pub async fn enter_edit_mode(
     Path(name): Path<String>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Json(body): Json<ViewEditModeEnterBody>,
 ) -> Response {
+    // ship.views.write (ViewService.EnterEditMode) — view-authoring write.
+    if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
+        return e.into_response();
+    }
     if !is_valid_view_name(&name) {
         return err(StatusCode::BAD_REQUEST, "invalid_view_name", "invalid view name");
     }
@@ -55,9 +59,13 @@ pub async fn enter_edit_mode(
 
 pub async fn exit_edit_mode(
     Path(name): Path<String>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Json(body): Json<ViewEditModeExitBody>,
 ) -> Response {
+    // ship.views.write (ViewService.ExitEditMode) — view-authoring write.
+    if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
+        return e.into_response();
+    }
     if !is_valid_view_name(&name) {
         return err(StatusCode::BAD_REQUEST, "invalid_view_name", "invalid view name");
     }

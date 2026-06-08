@@ -554,5 +554,21 @@
       "agent": "test-agent",
       "grants": []
     }
+  },
+  "PostFeedback": {
+    "response_ok": {
+      "id": "01J9Z3KQ8F7X2YB4MC6N0VTRWS"
+    },
+    "request": {
+      "event_json": "test-event_json"
+    }
+  },
+  "PostAnnotation": {
+    "response_ok": {
+      "id": "01J9Z3KR5A8E1D9HFG2P7QXY3M"
+    },
+    "request": {
+      "event_json": "test-event_json"
+    }
   }
 }

@@ -1,0 +1,23 @@
+# Ship build toolchain — system packages required to compile the Rust + JS
+# workspace. SINGLE SOURCE OF TRUTH: consumed by scripts/setup.sh (host) and
+# contrib/Containerfile (container). One package per line; # comments allowed.
+#
+# Why each is here:
+#   build-essential  gcc/g++/make — the C linker + toolchain Rust needs
+#   cmake            aws-lc-sys (rustls backend) builds with cmake
+#   pkg-config       resolves system libs for *-sys crates
+#   libssl-dev       openssl-sys headers (belt-and-suspenders for -sys crates)
+#   git curl         clone, fetch, installers
+#   ca-certificates  TLS for the above
+#   unzip xz-utils   bun installer + toolchain tarballs
+#
+# NOTE: protoc is intentionally ABSENT — it is vendored via protoc-bin-vendored.
+build-essential
+cmake
+pkg-config
+libssl-dev
+git
+curl
+ca-certificates
+unzip
+xz-utils

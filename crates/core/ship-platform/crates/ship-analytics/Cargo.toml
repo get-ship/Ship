@@ -8,7 +8,7 @@ description = "Analytics rollups over hook.* events — per-session duration, pe
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
-ship-ops-rpc = { path = "../ship-ops-rpc" }
+ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 connectrpc = { version = "0.4", features = ["axum"] }
 
 anyhow = { workspace = true }

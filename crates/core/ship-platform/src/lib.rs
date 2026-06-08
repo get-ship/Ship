@@ -57,6 +57,10 @@ pub mod config {
     // Space settings projection
     pub use ship_config::projection::SpaceSettingsProjection;
 
+    // Settings view-state helpers (display structs for the Settings page).
+    // Relocated from shipd::services::settings::view_state (L2 → L1).
+    pub mod settings_view;
+
     // Relocated from platform-internal crud/discover/watcher
     pub use ship_config::crud::{add_mcp_server, ensure_standard_dirs, list_mcp_servers, remove_mcp_server};
     pub use ship_agents::active_agent::get_active_agent;

@@ -5,8 +5,8 @@
   "description": "Standalone SUI demo — no daemon, no shell, no view-host. Plain HTML + esbuild + the SUI runtime + compiler. Sanity check for the framework.",
   "type": "module",
   "scripts": {
-    "build": "node scripts/precompile.mjs && esbuild src/main.ts --bundle --format=esm --target=es2020 --outfile=dist/main.js --sourcemap",
-    "start": "npm run build && python3 -m http.server --bind 127.0.0.1 8765"
+    "build": "bun scripts/precompile.mjs && esbuild src/main.ts --bundle --format=esm --target=es2020 --outfile=dist/main.js --sourcemap",
+    "start": "bun run build && python3 -m http.server --bind 127.0.0.1 8765"
   },
   "dependencies": {
     "@ship/sui-runtime": "file:../.."

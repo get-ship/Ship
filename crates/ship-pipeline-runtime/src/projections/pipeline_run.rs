@@ -701,6 +701,23 @@ fn load_pipeline_run_by_slug_on(
     row.as_ref().map(row_to_record).transpose()
 }
 
+/// Load recent events for a pipeline run from the Runtime partition.
+///
+/// Provides the L1 read API for per-run event queries so `shipd` view-handlers
+/// don't open `runtime.db` directly. Pipeline-run events are Runtime-scoped and
+/// are keyed by `pipeline_run_id` as the `entity_id`.
+pub fn load_run_events_at(
+    ship_dir: &std::path::Path,
+    pipeline_run_id: &str,
+    limit: usize,
+) -> Result<Vec<ship_substrate::events::EventEnvelope>> {
+    ship_substrate::db::events::query_recent_events_for_entity_at(
+        &ship_substrate::db::runtime_db_path(ship_dir),
+        pipeline_run_id,
+        limit,
+    )
+}
+
 // ── One-shot hydration ──────────────────────────────────────────────────────
 
 /// If the `jobs` table is empty AND there are job/step events in the log,

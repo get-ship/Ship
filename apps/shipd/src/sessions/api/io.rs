@@ -16,7 +16,7 @@ use std::time::Duration;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt as TokioStreamExt;
 
-use crate::auth::{AuthContext};
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::ApiState;
 
 use super::err;
@@ -30,10 +30,14 @@ pub struct InputBody {
 
 pub async fn session_input(
     State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(body): Json<InputBody>,
 ) -> axum::response::Response {
+    // ship.sessions.write — session input write.
+    if let Err(e) = require_scope(&auth, Scope::ManageRuns) {
+        return e.into_response();
+    }
     // Only sessions that own a live transport (shell + persistent agent
     // sessions on ActorRegistry) accept raw stdin. Per-turn agent
     // sessions on `pty_sessions` have no live writer; clients use

@@ -9,7 +9,7 @@ description = "Ship package registry — dependency resolver, content-addressed 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
 ship-collection = { path = "../ship-collection" }
-compiler = { path = "../compiler" }
+compiler = { path = "../../../compiler" }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

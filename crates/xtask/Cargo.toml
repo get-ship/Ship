@@ -10,7 +10,7 @@ name = "xtask"
 path = "src/main.rs"
 
 [dependencies]
-compiler = { path = "../core/ship-platform/crates/compiler", features = ["specta"] }
+compiler = { path = "../core/compiler", features = ["specta"] }
 ship-substrate = { path = "../core/ship-substrate" }
 # Collection schema parser SSOT — gen-collection-types reuses SchemaDoc/FieldKind
 # so the codegen never re-implements schema parsing.
@@ -26,7 +26,7 @@ deck = { path = "../deck/deck", features = ["specta"] }
 shipd = { path = "../../apps/shipd", features = ["specta"] }
 # Proto response types — gen-fixtures decodes the themed corpus into these to
 # validate fixtures against the wire SSOT.
-ship-ops-rpc = { path = "../core/ship-platform/crates/ship-ops-rpc" }
+ship-ops-rpc = { path = "../core/ship-ops-rpc" }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 specta-typescript = "0.0.9"
 serde = { workspace = true }

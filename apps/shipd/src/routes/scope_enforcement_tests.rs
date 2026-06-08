@@ -10,7 +10,7 @@
 //! 1. `route_scope_enforcement::enum_is_well_formed` — every variant
 //!    resolves a sensible `RequiredAuth`. Mutation methods (POST/PUT/
 //!    PATCH/DELETE) are not `Public` unless the path matches a small
-//!    intentional allowlist (`/_sui/mutation/{name}`,
+//!    intentional allowlist (currently empty;
 //!    `/_sui/views/{name}/patch-elements` is `Scope::Full` already).
 //! 2. `route_scope_enforcement::handler_tag_means_handler_enforces` —
 //!    every `RequiredAuth::Handler` route's handler module contains a
@@ -38,10 +38,10 @@ use ship_substrate::events::CallerKind;
 // Static invariants
 // ────────────────────────────────────────────────────────────────────────────
 
-/// Paths that are intentionally public + mutating. Both currently:
-/// - `POST /_sui/mutation/{name}` — view-bound mutation handler that
-///   delegates to per-view authorization (not scope-based).
-const PUBLIC_MUTATION_ALLOWLIST: &[&str] = &["/_sui/mutation/{name}"];
+/// Paths that are intentionally public + mutating.
+/// Currently empty — `/_sui/mutation/{name}` was removed from `Route::all()`
+/// (the route is kept as a flat 410 Gone outside the enum, not scope-enforced).
+const PUBLIC_MUTATION_ALLOWLIST: &[&str] = &[];
 
 #[test]
 fn enum_is_well_formed() {
@@ -249,12 +249,12 @@ async fn router_rejects_insufficient_scope() {
 fn ship_public_route_rejects_non_public_at_registration() {
     let result = std::panic::catch_unwind(|| {
         let _: axum::Router = axum::Router::new()
-            .ship_public_route(Route::IssueSession, dummy_handler);
+            .ship_public_route(Route::ListJobs, dummy_handler);
     });
     assert!(
         result.is_err(),
         "ship_public_route must panic when given a non-Public route \
-         (Route::IssueSession declares Scope(Full))"
+         (Route::ListJobs declares Scope(ReadRuns))"
     );
 }
 

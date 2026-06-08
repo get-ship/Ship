@@ -1,0 +1,323 @@
+// Analytics domain seed — realistic demo values for the ship-analytics-* component pack.
+// World: 'harbor' project on feat/checkout-flow, agents rust-lane + code-reviewer.
+// Generator strips full-line // comments and emits proto/fixtures/demo/analytics.json.
+// Field names follow AnalyticsSession / AnalyticsToolUsage / AnalyticsTurn in analytics.proto.
+{
+  "_meta": {
+    "domain": "analytics",
+    "description": "AnalyticsService demo — ListSessions (9 sessions: multiple actors, harnesses claude-code/cursor/null, models sonnet/opus/haiku/null; mix of completed + open; errors present), GetSession detail for sess-rust-lane-4, SessionTurns (5 turns varying reasoning + cache; one turn cost absent), ToolUsage all-time (8 tools incl. one with errors + one with avg_duration_ms absent), ToolUsage since-filtered (3 tools), empty states, retryable + argument error states."
+  },
+
+  // ── AnalyticsService.ListSessions ───────────────────────────────────────────
+  // AnalyticsSessionsResponse { repeated AnalyticsSession sessions }
+  // Ordered newest-first. 9 sessions: rust-lane (5), code-reviewer (3), shell (1).
+  // Harnesses: claude-code (6), cursor (1), claude (2), null (1).
+  // One open session (no ended_at / duration_ms / reason).
+  // At least two sessions with tool_error_count > 0.
+
+  "ListSessions.response": {
+    "sessions": [
+      {
+        "session_key": "sess-rust-lane-5",
+        "actor_id": "actor-rust-lane-harbor",
+        "harness": "claude-code",
+        "model": "claude-sonnet-4-6",
+        "started_at": "2026-06-07T07:48:00Z",
+        "ended_at": null,
+        "duration_ms": null,
+        "tool_use_count": 15,
+        "tool_error_count": 0,
+        "reason": null
+      },
+      {
+        "session_key": "sess-rust-lane-4",
+        "actor_id": "actor-rust-lane-harbor",
+        "harness": "claude-code",
+        "model": "claude-sonnet-4-6",
+        "started_at": "2026-06-07T05:10:00Z",
+        "ended_at": "2026-06-07T05:43:22Z",
+        "duration_ms": 2002000,
+        "tool_use_count": 58,
+        "tool_error_count": 4,
+        "reason": "completed"
+      },
+      {
+        "session_key": "sess-code-reviewer-3",
+        "actor_id": "actor-code-reviewer-harbor",
+        "harness": "claude-code",
+        "model": "claude-haiku-3-5",
+        "started_at": "2026-06-06T22:30:00Z",
+        "ended_at": "2026-06-06T22:35:48Z",
+        "duration_ms": 348000,
+        "tool_use_count": 11,
+        "tool_error_count": 0,
+        "reason": "completed"
+      },
+      {
+        "session_key": "sess-rust-lane-3",
+        "actor_id": "actor-rust-lane-harbor",
+        "harness": "cursor",
+        "model": null,
+        "started_at": "2026-06-05T19:00:00Z",
+        "ended_at": "2026-06-05T20:15:10Z",
+        "duration_ms": 4510000,
+        "tool_use_count": 83,
+        "tool_error_count": 6,
+        "reason": "completed"
+      },
+      {
+        "session_key": "sess-code-reviewer-2",
+        "actor_id": "actor-code-reviewer-harbor",
+        "harness": "claude-code",
+        "model": "claude-sonnet-4-6",
+        "started_at": "2026-06-04T11:20:00Z",
+        "ended_at": "2026-06-04T11:24:15Z",
+        "duration_ms": 255000,
+        "tool_use_count": 8,
+        "tool_error_count": 0,
+        "reason": "completed"
+      },
+      {
+        "session_key": "sess-rust-lane-2",
+        "actor_id": "actor-rust-lane-harbor",
+        "harness": "claude-code",
+        "model": "claude-opus-4-7",
+        "started_at": "2026-05-31T21:30:00Z",
+        "ended_at": "2026-05-31T22:05:10Z",
+        "duration_ms": 2110000,
+        "tool_use_count": 67,
+        "tool_error_count": 3,
+        "reason": "completed"
+      },
+      {
+        "session_key": "sess-rust-lane-1",
+        "actor_id": "actor-rust-lane-harbor",
+        "harness": "claude",
+        "model": "claude-opus-4-7",
+        "started_at": "2026-05-24T18:00:00Z",
+        "ended_at": "2026-05-24T18:30:00Z",
+        "duration_ms": 1800000,
+        "tool_use_count": 42,
+        "tool_error_count": 1,
+        "reason": "completed"
+      },
+      {
+        "session_key": "sess-code-reviewer-1",
+        "actor_id": "actor-code-reviewer-harbor",
+        "harness": "claude",
+        "model": "claude-opus-4-7",
+        "started_at": "2026-05-24T16:00:00Z",
+        "ended_at": "2026-05-24T16:05:00Z",
+        "duration_ms": 300000,
+        "tool_use_count": 8,
+        "tool_error_count": 0,
+        "reason": "completed"
+      },
+      {
+        "session_key": "sess-shell-1",
+        "actor_id": "actor-shell-harbor",
+        "harness": null,
+        "model": null,
+        "started_at": "2026-05-20T14:30:00Z",
+        "ended_at": "2026-05-20T14:31:05Z",
+        "duration_ms": 65000,
+        "tool_use_count": 3,
+        "tool_error_count": 1,
+        "reason": "error"
+      }
+    ]
+  },
+
+  // ── AnalyticsService.GetSession ──────────────────────────────────────────────
+  // AnalyticsSessionResponse { optional AnalyticsSession session }
+  // Detail for sess-rust-lane-4 — used by ship-analytics-session-detail header.
+
+  "GetSession.response": {
+    "session": {
+      "session_key": "sess-rust-lane-4",
+      "actor_id": "actor-rust-lane-harbor",
+      "harness": "claude-code",
+      "model": "claude-sonnet-4-6",
+      "started_at": "2026-06-07T05:10:00Z",
+      "ended_at": "2026-06-07T05:43:22Z",
+      "duration_ms": 2002000,
+      "tool_use_count": 58,
+      "tool_error_count": 4,
+      "reason": "completed"
+    }
+  },
+
+  // GetSession for a session_key that matched nothing — session field absent.
+  "GetSession.not_found": {
+    "session": null
+  },
+
+  // ── AnalyticsService.SessionTurns ───────────────────────────────────────────
+  // AnalyticsSessionTurnsResponse { repeated AnalyticsTurn turns }
+  // 5 turns for sess-rust-lane-4 (feat/checkout-flow token-auth implementation).
+  // Varying: reasoning_tokens (0/512/0/1024/0), cache_read_tokens (0→growing).
+  // Turn idx=3 has harness_reported_cost_usd absent — exercises "—" render.
+
+  "SessionTurns.response": {
+    "turns": [
+      {
+        "id": "turn-rl4-001",
+        "session_key": "sess-rust-lane-4",
+        "actor_id": "actor-rust-lane-harbor",
+        "turn_idx": 1,
+        "model": "claude-sonnet-4-6",
+        "input_tokens": 3847,
+        "output_tokens": 912,
+        "reasoning_tokens": 0,
+        "cache_creation_tokens": 3600,
+        "cache_read_tokens": 0,
+        "stop_reason": "tool_use",
+        "harness_reported_cost_usd": 0.0043,
+        "observed_at": "2026-06-07T05:10:22Z"
+      },
+      {
+        "id": "turn-rl4-002",
+        "session_key": "sess-rust-lane-4",
+        "actor_id": "actor-rust-lane-harbor",
+        "turn_idx": 2,
+        "model": "claude-sonnet-4-6",
+        "input_tokens": 6213,
+        "output_tokens": 1041,
+        "reasoning_tokens": 512,
+        "cache_creation_tokens": 0,
+        "cache_read_tokens": 3600,
+        "stop_reason": "tool_use",
+        "harness_reported_cost_usd": 0.0062,
+        "observed_at": "2026-06-07T05:17:55Z"
+      },
+      {
+        "id": "turn-rl4-003",
+        "session_key": "sess-rust-lane-4",
+        "actor_id": "actor-rust-lane-harbor",
+        "turn_idx": 3,
+        "model": "claude-sonnet-4-6",
+        "input_tokens": 7480,
+        "output_tokens": 688,
+        "reasoning_tokens": 0,
+        "cache_creation_tokens": 0,
+        "cache_read_tokens": 7200,
+        "stop_reason": "tool_use",
+        "harness_reported_cost_usd": null,
+        "observed_at": "2026-06-07T05:26:14Z"
+      },
+      {
+        "id": "turn-rl4-004",
+        "session_key": "sess-rust-lane-4",
+        "actor_id": "actor-rust-lane-harbor",
+        "turn_idx": 4,
+        "model": "claude-sonnet-4-6",
+        "input_tokens": 8120,
+        "output_tokens": 1320,
+        "reasoning_tokens": 1024,
+        "cache_creation_tokens": 880,
+        "cache_read_tokens": 7200,
+        "stop_reason": "tool_use",
+        "harness_reported_cost_usd": 0.0071,
+        "observed_at": "2026-06-07T05:33:50Z"
+      },
+      {
+        "id": "turn-rl4-005",
+        "session_key": "sess-rust-lane-4",
+        "actor_id": "actor-rust-lane-harbor",
+        "turn_idx": 5,
+        "model": "claude-sonnet-4-6",
+        "input_tokens": 8950,
+        "output_tokens": 574,
+        "reasoning_tokens": 0,
+        "cache_creation_tokens": 0,
+        "cache_read_tokens": 8080,
+        "stop_reason": "end_turn",
+        "harness_reported_cost_usd": 0.0021,
+        "observed_at": "2026-06-07T05:43:08Z"
+      }
+    ]
+  },
+
+  // ── AnalyticsService.ToolUsage (all time) ───────────────────────────────────
+  // AnalyticsToolUsageResponse { repeated AnalyticsToolUsage tools }
+  // 8 tools across all sessions. WebSearch has avg_duration_ms absent (null).
+  // Bash and mcp__ship__step_done carry errors.
+
+  "ToolUsage.all.response": {
+    "tools": [
+      { "tool": "Bash",                    "calls": 312, "errors": 14, "avg_duration_ms": 285 },
+      { "tool": "mcp__ship__log_progress", "calls": 143, "errors": 0,  "avg_duration_ms": 12  },
+      { "tool": "Read",                    "calls": 198, "errors": 0,  "avg_duration_ms": 22  },
+      { "tool": "Glob",                    "calls": 45,  "errors": 0,  "avg_duration_ms": 55  },
+      { "tool": "Edit",                    "calls": 87,  "errors": 0,  "avg_duration_ms": 48  },
+      { "tool": "Write",                   "calls": 31,  "errors": 0,  "avg_duration_ms": 35  },
+      { "tool": "mcp__ship__step_done",    "calls": 19,  "errors": 2,  "avg_duration_ms": 18  },
+      { "tool": "WebSearch",               "calls": 7,   "errors": 2,  "avg_duration_ms": null }
+    ]
+  },
+
+  // ToolUsage filtered to since=2026-06-07T00:00:00Z — today's two sessions only.
+  // Subset of the all-time list: 3 tools actually fired so far today.
+
+  "ToolUsage.since.response": {
+    "tools": [
+      { "tool": "Bash",                    "calls": 48, "errors": 4, "avg_duration_ms": 310 },
+      { "tool": "Read",                    "calls": 29, "errors": 0, "avg_duration_ms": 19  },
+      { "tool": "mcp__ship__log_progress", "calls": 22, "errors": 0, "avg_duration_ms": 11  }
+    ]
+  },
+
+  // ── Empty states ─────────────────────────────────────────────────────────────
+  // UI copy for the zero-data surfaces each component must handle.
+
+  "empty_states": {
+    "no_sessions": {
+      "rpc": "ListSessions",
+      "sessions": [],
+      "title": "No sessions recorded yet.",
+      "body": "Sessions appear here once an agent runs."
+    },
+    "no_sessions_filtered": {
+      "rpc": "ListSessions",
+      "sessions": [],
+      "title": "No sessions match the current filter.",
+      "cta": "Clear filter"
+    },
+    "no_tools": {
+      "rpc": "ToolUsage",
+      "tools": [],
+      "title": "No tool calls recorded yet.",
+      "body": "Tool usage aggregates here once agents start calling tools."
+    },
+    "no_tools_since": {
+      "rpc": "ToolUsage",
+      "tools": [],
+      "title": "No tool calls in this time window.",
+      "cta": "Clear date filter"
+    }
+  },
+
+  // ── Error states ─────────────────────────────────────────────────────────────
+  // Non-OK gRPC statuses the UI error banner must render with a retry affordance.
+
+  "errors": {
+    "projection_rebuilding": {
+      "rpc": "ListSessions",
+      "grpc_status": "UNAVAILABLE",
+      "tone": "retryable",
+      "message": "Analytics projection is rebuilding after a space restore. Retry in a moment."
+    },
+    "invalid_since_timestamp": {
+      "rpc": "ToolUsage",
+      "grpc_status": "INVALID_ARGUMENT",
+      "tone": "warning",
+      "message": "Invalid 'since' value: '2026-13-01T00:00:00Z' is not a valid RFC3339 timestamp."
+    },
+    "session_turns_not_found": {
+      "rpc": "SessionTurns",
+      "grpc_status": "NOT_FOUND",
+      "tone": "destructive",
+      "message": "Session 'sess-rust-lane-missing' not found."
+    }
+  }
+}

@@ -13,7 +13,6 @@ use std::path::{Path, PathBuf};
 // ── public types ─────────────────────────────────────────────────────────
 
 #[derive(Clone, Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct CommitSummary {
     pub sha: String,
     pub short_sha: String,
@@ -25,7 +24,6 @@ pub struct CommitSummary {
 }
 
 #[derive(Clone, Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct StatusFile {
     pub path: String,
     pub basename: String,
@@ -38,7 +36,6 @@ pub struct StatusFile {
 
 /// Working-tree status bucketed by the three categories the UI cares about.
 #[derive(Clone, Default, Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct StatusBuckets {
     pub clean: bool,
     pub total: usize,
@@ -48,7 +45,6 @@ pub struct StatusBuckets {
 }
 
 #[derive(Clone, Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct BranchSummary {
     pub name: String,
     /// This branch is HEAD.
@@ -60,7 +56,6 @@ pub struct BranchSummary {
 
 /// Repo overview payload returned by the `git.overview` registry op.
 #[derive(Clone, Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct GitOverview {
     pub workspace_id: Option<String>,
     pub branch: Option<String>,
@@ -78,7 +73,6 @@ pub struct GitOverview {
 
 /// Args for the `git.diff` registry op.
 #[derive(Clone, serde::Deserialize, Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct GitDiffArgs {
     /// Commit SHA, or `WORKING` for the working-tree diff.
     pub commit: String,
@@ -88,7 +82,6 @@ pub struct GitDiffArgs {
 
 /// Diff payload returned by the `git.diff` registry op.
 #[derive(Clone, Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct GitDiff {
     pub sha: String,
     pub short_sha: String,

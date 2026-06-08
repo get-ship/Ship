@@ -26,7 +26,7 @@ const RUNTIME_DIR: &str = "runtime";
 const RUNTIME_SUI_COMPILER: &str = "sui-compiler";
 
 /// Which SQLite database file under `machine/db/`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Db {
     /// `platform.db` — LEGACY. The former single event/runtime store, dead

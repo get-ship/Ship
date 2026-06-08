@@ -5,8 +5,6 @@
 //! consumes these via a `DaemonRecord` projection; this slice only emits.
 
 use serde::{Deserialize, Serialize};
-use specta::Type;
-
 pub mod event_types {
     pub use ship_types::event_types::{
         DAEMON_CRASHED, DAEMON_PIDFILE_ACQUIRED, DAEMON_PIDFILE_STALE_TAKEN,
@@ -14,7 +12,7 @@ pub mod event_types {
     };
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StartupCompletedPayload {
     pub pid: u32,
     pub port: u16,
@@ -25,7 +23,7 @@ pub struct StartupCompletedPayload {
     pub init_duration_ms: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShutdownCompletedPayload {
     pub pid: u32,
     pub uptime_secs: u64,
@@ -34,7 +32,7 @@ pub struct ShutdownCompletedPayload {
     pub trigger: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrashedPayload {
     pub pid: u32,
     pub uptime_secs: u64,
@@ -45,20 +43,20 @@ pub struct CrashedPayload {
     pub restart_will_be_attempted: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PortBindFailedPayload {
     pub port: u16,
     pub already_bound_by_pid: Option<u32>,
     pub error: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PidfileAcquiredPayload {
     pub pid: u32,
     pub pidfile_path: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PidfileStaleTakenPayload {
     pub new_pid: u32,
     pub prior_pid: u32,

@@ -23,7 +23,6 @@ const MAX_INLINE_BYTES: u64 = 100 * 1024;
 const ALLOWED_EXT: &[&str] = &["sui", "ts", "tsx", "css", "jsonc", "json", "yaml", "yml", "md"];
 
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ViewFile {
     /// Relative path from the view root (e.g. `page.sui`,
     /// `[id]/page.sui`, `controller.ts`). Forward slashes regardless
@@ -41,7 +40,6 @@ pub struct ViewFile {
 }
 
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ViewFilesResponse {
     pub view_name: String,
     pub view_dir: String,

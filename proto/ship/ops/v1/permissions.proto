@@ -8,14 +8,22 @@
 // generated commands.gen.proto/reads.gen.proto already declare
 // PermissionsCreateRequest et al. in this same package — two definitions would
 // collide. Return types are SHARED shapes from types.proto
-// (ScopedMutation / PermissionsIndexResponse / ToolPatternsResponse) and
-// JsonResponse from ops.proto, imported, not redeclared.
+// (ScopedMutation / PermissionsIndexResponse / ToolPatternsResponse), and
+// GetPermissionResponse is declared here (domain-local, like IsolationService's
+// response messages in isolation.proto).
+//
+// Per ADR `rpc-is-the-typed-contract`, Get returns a typed proto message
+// (GetPermissionResponse) rather than an opaque JsonResponse. The preset body
+// rides as `preset_json` (JSON string) — same open-payload convention as
+// RuleGetResponse.body and CollectionItem.data_json — keeping the proto stable
+// across the permission schema DSL. The wire layer in
+// `ship_agents::services::permissions::wire` maps the serde PermissionEntry
+// onto this message by hand, with a serde round-trip self-check.
 syntax = "proto3";
 
 package ship.ops.v1;
 
 import "ship/ops/v1/policy.proto";
-import "ship/ops/v1/ops.proto";
 import "ship/ops/v1/types.proto";
 
 message ListPermissionsRequest {}
@@ -53,6 +61,19 @@ message DeletePermissionRequest {
   string scope = 2;
 }
 
+// Typed response for permissions.get — raw preset at the resolved scope.
+// Mirrors `ship_agents::services::permissions::service::PermissionEntry`.
+// The preset body rides as JSON (`preset_json`) to keep the proto stable
+// across the permission schema DSL — same open-payload convention as
+// `RuleGetResponse.body` and `CollectionItem.data_json`.
+message GetPermissionResponse {
+  string id = 1;
+  // "project" | "user" — the scope where this preset was found.
+  string scope = 2;
+  // JSON-serialized preset object. Parse against the permission DSL.
+  string preset_json = 3;
+}
+
 // Permission-preset CRUD + autocomplete catalog.
 // Reads are C0 (edge-authenticated). Writes are C2_ELEVATED (operator-only):
 // these are the security policies that govern agents, so agents must never
@@ -64,8 +85,12 @@ service PermissionsService {
     option (ship.ops.v1.capability) = "ship.permissions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Get(GetPermissionRequest) returns (JsonResponse) {
-    option (ship.ops.v1.description) = "Raw permission preset at the requested scope.";
+  // Returns the permission preset body at the resolved scope.
+  // Per ADR `rpc-is-the-typed-contract` the response is typed; the preset
+  // body rides as `preset_json` (serialised JSON string) so the proto stays
+  // stable across permission DSL changes.
+  rpc Get(GetPermissionRequest) returns (GetPermissionResponse) {
+    option (ship.ops.v1.description) = "Permission preset at the requested scope — id, scope, and JSON body.";
     option (ship.ops.v1.capability) = "ship.permissions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

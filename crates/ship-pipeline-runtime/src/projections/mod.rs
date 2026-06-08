@@ -10,5 +10,5 @@ pub mod pipeline_run_transitions;
 pub use pipeline_run::{
     PipelineRun, PipelineRunProjection, PipelineRunStatus, load_pipeline_run_by_id,
     load_pipeline_run_by_id_at, load_pipeline_run_by_slug, load_pipeline_run_by_slug_at,
-    load_pipeline_runs, project as project_pipeline_runs,
+    load_pipeline_runs, load_run_events_at, project as project_pipeline_runs,
 };

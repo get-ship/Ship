@@ -51,6 +51,7 @@ pub mod sandbox_api;
 #[cfg(test)]
 mod sandbox_api_tests;
 pub mod logs_api;
+pub mod mesh_resp;
 // feedback_api and annotations_api removed (Batch A routes-cull):
 // domain logic relocated to ship-agents::services::agents::{feedback,annotation};
 // REST shells deleted; AgentsWire calls ship-agents directly.
@@ -166,14 +167,6 @@ pub enum Route {
     /// @route GET "/_sui/dev/hmr"
     /// @auth public
     SuiDevHmr,
-
-    /// @route GET "/_sui/data"
-    /// @auth public
-    SuiData,
-
-    /// @route POST "/_sui/mutation/{name}"
-    /// @auth handler
-    SuiMutation { name: String },
 
     /// @route POST "/_sui/views/{name}/patch-elements"
     /// @auth scope Full
@@ -377,16 +370,6 @@ pub enum Route {
 
     // ── Supervisor ───────────────────────────────────────────────────────
 
-    // ── Project-scoped ───────────────────────────────────────────────────
-
-    /// @route GET "/api/v1/projects/{id}/session-files"
-    /// @auth scope ReadWorkspace
-    ListSessionFiles { id: String },
-
-    /// @route GET "/api/v1/projects/{id}/agents"
-    /// @auth scope ReadWorkspace
-    ListProjectAgents { id: String },
-
     // ── GitService — canonical `/api/git/*` surface ──────────────────────
 
     /// @route POST "/api/v1/git/stage"
@@ -432,10 +415,6 @@ pub enum Route {
     /// @route GET "/api/v1/git/sse"
     /// @auth scope ReadWorkspace
     GitSse,
-
-    /// @route POST "/api/v1/events/emit"
-    /// @auth scope EmitEvents
-    EmitEvent,
 
     // Workspace-scoped artifact status/promote removed — callers get 404.
     // Use the unified /api/artifacts/* surface instead.

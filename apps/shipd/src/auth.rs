@@ -12,6 +12,10 @@
 // Pure auth primitives live in `ship_platform::auth`. These re-exports
 // preserve the `crate::auth::{attest,pairing}` paths the daemon uses.
 pub use ship_auth::{attest, pairing};
+/// The one capability gate — a pure `decide(blast, service, caller)` plus the
+/// thin `caller_from_auth` adapter onto [`AuthContext`]. shipd-local; invoked by
+/// the `GateFn` closure in `ops_rpc::router`.
+pub mod gate;
 pub mod identity;
 /// Host unix socket — per-agent peer-credential auth. Unix-only: relies on
 /// `SO_PEERCRED` and `UnixListener`. Windows uses a named-pipe path (future).

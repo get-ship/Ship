@@ -139,10 +139,10 @@ impl StreamService for OpsImpl {
 /// Wire paths: `/ship.ops.v1.OpsService/<Method>`.
 ///
 /// No transport-level gate: enforcement lives at the dispatch chokepoint
-/// (`services::gate::decide`, invoked by `services::command::call`), so commands
-/// are gated identically on every transport — REST and Connect — rather than
-/// once per surface. Reads are C0 (authenticated at the edge). This is the "one
-/// gate" of `.artifacts/auth-gate-synthesis.md`.
+/// (`auth::gate::decide`, invoked by the `GateFn` closure built in `router`
+/// below), so commands are gated identically on every transport — REST and
+/// Connect — rather than once per surface. Reads are C0 (authenticated at the
+/// edge). This is the "one gate" of `.artifacts/auth-gate-synthesis.md`.
 /// Extract the kernel-attested pid from a request context.
 /// `PeerPid` is inserted only over the Unix host socket (SO_PEERCRED); TCP and
 /// non-Unix builds always return `None`, which the device crate refuses at the
@@ -176,23 +176,23 @@ pub fn router(state: ApiState) -> axum::Router {
 
     // ── Gate closure shared by all four crate-owned wires ──────────────────────
     // Reads the blast from the proto descriptor (the ONE policy source) and runs
-    // gate::decide — the same enforcement that command::call did, now at the
-    // transport handler for crate-owned wires (#94).
+    // gate::decide — the one capability enforcement seam, now at the transport
+    // handler for crate-owned wires (#94).
     let gate: ship_agents::services::rules::wire::GateFn = Arc::new({
         move |ctx: &RequestContext, op: &str| {
             let auth = ctx
                 .extensions
                 .get::<crate::auth::AuthContext>()
                 .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-            let pol = crate::services::op_policy::policy_for(op)
+            let pol = ship_ops_rpc::policy::policy_for(op)
                 .ok_or_else(|| ConnectError::internal(format!("no policy for {op}")))?;
-            let caller = crate::services::gate::caller_from_auth(auth);
-            match crate::services::gate::decide(
+            let caller = crate::auth::gate::caller_from_auth(auth);
+            match crate::auth::gate::decide(
                 pol.blast,
-                crate::services::gate::service_of(op),
+                crate::auth::gate::service_of(op),
                 &caller,
             ) {
-                crate::services::gate::Decision::Deny(m) => {
+                crate::auth::gate::Decision::Deny(m) => {
                     Err(ConnectError::permission_denied(m.to_string()))
                 }
                 _ => Ok(()),
@@ -268,7 +268,7 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = ship_ops_rpc::DeviceServiceExt::register(device_wire, router);
     // git.* — crate-owned GitWire (ship-git).
     // Replaces impl GitService for OpsImpl in git_rpc.rs (deleted).
-    // C0 reads + C1 writes (via command::call write_dispatch closure).
+    // C0 reads + C1 writes (via the git `WriteFn` write-dispatch closure below).
     let git_kernel = Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone()));
     let git_state_for_write = state.clone();
     let git_write: ship_git::wire::WriteFn = Arc::new(move |op, args, ctx| {
@@ -522,8 +522,10 @@ pub fn router(state: ApiState) -> axum::Router {
                             })
                     }
                     "pipeline.update_status" => {
+                        use ship_pipeline_runtime::status_core::{RunStatusReq, StatusCoreError, update_job_status_core};
+                        use crate::pipeline_ports::PipelineDispatchAdapter;
                         let pipeline_run_id = args.get("pipeline_run_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                        let body = crate::project_api::RunStatusReq {
+                        let body = RunStatusReq {
                             status: args.get("status").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                             worktree: args.get("worktree").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string),
                             pid: args.get("pid").and_then(|v| v.as_u64()).map(|n| n as u32),
@@ -531,20 +533,18 @@ pub fn router(state: ApiState) -> axum::Router {
                             blocker: args.get("blocker").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string),
                             error: args.get("error").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string),
                         };
-                        crate::project_api::jobs_status::update_job_status_core(&st, &pipeline_run_id, body)
+                        let port = PipelineDispatchAdapter::new(st.clone());
+                        update_job_status_core(&port, &pipeline_run_id, body)
                             .await
-                            .map_err(|(status, msg)| {
-                                use axum::http::StatusCode;
-                                if status == StatusCode::NOT_FOUND {
-                                    ConnectError::not_found(msg)
-                                } else if status.is_client_error() {
-                                    ConnectError::invalid_argument(msg)
-                                } else {
-                                    ConnectError::internal(msg)
-                                }
+                            .map_err(|e| match e {
+                                StatusCoreError::NotFound(m) => ConnectError::not_found(m),
+                                StatusCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                                StatusCoreError::Internal(m) => ConnectError::internal(m),
                             })
                     }
                     "pipeline.step_done" => {
+                        use ship_pipeline_runtime::status_core::{StatusCoreError, StepDoneReq, step_done_core};
+                        use crate::pipeline_ports::PipelineDispatchAdapter;
                         let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
                         let outputs: std::collections::BTreeMap<String, String> =
                             args.get("outputs").and_then(|v| v.as_object())
@@ -554,21 +554,17 @@ pub fn router(state: ApiState) -> axum::Router {
                                         .collect()
                                 })
                                 .unwrap_or_default();
-                        let body = crate::project_api::StepDoneReq {
+                        let body = StepDoneReq {
                             summary: args.get("summary").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(str::to_string),
                             outputs,
                         };
-                        crate::project_api::jobs_status::step_done_core(&st, &slug, body)
+                        let port = PipelineDispatchAdapter::new(st.clone());
+                        step_done_core(&port, &slug, body)
                             .await
-                            .map_err(|(status, msg)| {
-                                use axum::http::StatusCode;
-                                if status == StatusCode::NOT_FOUND {
-                                    ConnectError::not_found(msg)
-                                } else if status.is_client_error() {
-                                    ConnectError::invalid_argument(msg)
-                                } else {
-                                    ConnectError::internal(msg)
-                                }
+                            .map_err(|e| match e {
+                                StatusCoreError::NotFound(m) => ConnectError::not_found(m),
+                                StatusCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                                StatusCoreError::Internal(m) => ConnectError::internal(m),
                             })
                     }
                     _ => Err(ConnectError::internal(format!("unknown pipelines write op: {op}"))),
@@ -1038,7 +1034,7 @@ async fn axum_response_to_value(
 
 // ── Policy introspection (not the enforcement path) ───────────────────────────
 //
-// Enforcement is `services::gate` via `command::call`. The map below reads the
+// Enforcement is `auth::gate` via the `GateFn` closure in `router`. The map below reads the
 // capability / blast-radius / sensitive method options that `gen-ops` projects
 // into the proto `FileDescriptorSet` — kept so the contract is visible to every
 // generated client (TS/docs/SDK) and conformance-tested here, NOT to gate calls.
@@ -1128,7 +1124,7 @@ mod tests {
         }
     }
 
-    // Gate enforcement moved to `services::gate` (invoked by `command::call`);
+    // Gate enforcement moved to `auth::gate` (invoked by the `GateFn` closure);
     // its decision is unit-tested there. This module keeps only the proto-policy
     // introspection + projection conformance above.
 
@@ -1166,8 +1162,10 @@ mod tests {
     // exercises that core (refactor preserved behavior + it's transport-neutral).
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn update_job_status_core_is_shared_and_emits() {
+        use ship_pipeline_runtime::status_core::{RunStatusReq, update_job_status_core};
+        use crate::pipeline_ports::PipelineDispatchAdapter;
         let harness = crate::test_harness::TestDaemon::new().await;
-        let body = crate::project_api::jobs_status::RunStatusReq {
+        let body = RunStatusReq {
             status: "gate_passed".to_string(),
             worktree: None,
             pid: None,
@@ -1175,13 +1173,10 @@ mod tests {
             blocker: None,
             error: None,
         };
-        let v = crate::project_api::jobs_status::update_job_status_core(
-            &harness.state,
-            "run-test",
-            body,
-        )
-        .await
-        .expect("gate_passed has no required fields");
+        let port = PipelineDispatchAdapter::new(harness.state.clone());
+        let v = update_job_status_core(&port, "run-test", body)
+            .await
+            .expect("gate_passed has no required fields");
         assert_eq!(v["pipeline_run_id"], "run-test");
         assert_eq!(v["status"], "gate_passed");
     }

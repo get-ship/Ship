@@ -9,7 +9,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 /// Serializable model info for Tauri/MCP.
-#[derive(Serialize, Deserialize, Debug, Clone, specta::Type)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ModelInfo {
     pub id: String,
     pub name: String,
@@ -132,7 +132,7 @@ pub fn get_harness(id: &str) -> Option<&'static HarnessDescriptor> {
 }
 
 /// Serializable projection of `HarnessDescriptor` for MCP tools and Tauri commands.
-#[derive(Serialize, Deserialize, Clone, specta::Type)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct HarnessInfo {
     pub id: String,
     pub name: String,

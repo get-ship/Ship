@@ -7,14 +7,12 @@ use super::state::{IndexEntry, ScopeTag};
 
 /// Wire shape of `ship.mcp.list()`.
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct McpIndexResponse {
     pub items: Vec<IndexEntry>,
 }
 
 /// Wire shape of `ship.mcp.get()` — raw MCP entry at a resolved scope.
 #[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct McpGetResponse {
     pub id: String,
     pub scope: ScopeTag,

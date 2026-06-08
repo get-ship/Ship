@@ -1,0 +1,169 @@
+// Rules domain seed — realistic demo values for the ship-rules-* component pack.
+// World: 'harbor' project on feat/checkout-flow; agents rust-lane + code-reviewer; operator = Ada Lovelace.
+// Five rules: three project-scoped (no-placeholders, test-first, code-altitude) + two user-scoped
+// (commit-style, agent-discipline) — all named in the agents.detail fixture for rust-lane.
+// Generator strips full-line // comments and emits proto/fixtures/demo/rules.json.
+{
+  "_meta": {
+    "domain": "rules",
+    "description": "RulesService List / Get / Create / Put / Delete. Covers the ship-rules-list scope groups (project x 3, user x 2), full markdown bodies for each rule (one multi-section body exercising editor scroll), all three ScopedMutation write responses, a project-only list variant for the empty-user-scope state, a zero-item list for the first-run empty state, and error states for duplicate-id Create and not-found Delete."
+  },
+
+  // ── RulesService.List — normal ok state ───────────────────────────────────────
+  // Five rules: project group first (3 rows), user group second (2 rows).
+  // ship-rules-scope-group renders each section header + count badge.
+
+  "List.response": {
+    "items": [
+      { "id": "no-placeholders", "scope": "project" },
+      { "id": "test-first",      "scope": "project" },
+      { "id": "code-altitude",   "scope": "project" },
+      { "id": "commit-style",    "scope": "user" },
+      { "id": "agent-discipline","scope": "user" }
+    ]
+  },
+
+  // ── RulesService.List — empty-user-scope variant ──────────────────────────────
+  // Has project rules but zero user rules.
+  // ship-rules-scope-group for the User section still renders its header with an
+  // inline "No user rules" message and a CTA to open the editor in user scope.
+
+  "List.response_project_only": {
+    "items": [
+      { "id": "no-placeholders", "scope": "project" },
+      { "id": "test-first",      "scope": "project" },
+      { "id": "code-altitude",   "scope": "project" }
+    ]
+  },
+
+  // ── RulesService.List — first-run empty state ─────────────────────────────────
+  // Zero items. ship-rules-list renders the empty state: "No rules" message + CTA.
+
+  "List.response_empty": {
+    "items": []
+  },
+
+  // ── RulesService.Get — no-placeholders (project) ─────────────────────────────
+  // Short rule — fits in the editor viewport without scrolling.
+  // This is the rule rust-lane and code-reviewer both inherit.
+
+  "Get.response_no_placeholders": {
+    "id": "no-placeholders",
+    "scope": "project",
+    "body": "# No placeholders\n\nNo TODOs, no fake data. If it's not finished, remove it.\nThe next agent treats your scaffold as architecture.\n\nDon't create something that looks better than it is.\n"
+  },
+
+  // ── RulesService.Get — test-first (project) ───────────────────────────────────
+  // Multi-section markdown body — long enough to require editor scroll.
+  // This is the rule that exercises sui-code-editor's scroll + syntax highlighting.
+
+  "Get.response_test_first": {
+    "id": "test-first",
+    "scope": "project",
+    "body": "# Test first\n\nCover behavior changes and meaningful failure paths before shipping.\n\n## What counts as a test\n\n- Unit tests for pure functions and domain logic.\n- Integration tests for service boundaries (DB, file, HTTP).\n- Contract tests for proto-defined RPCs (gen-fixtures + conformance suite).\n- Behavioral assertions for UI surfaces (not screenshot diffs).\n\n## What does not need a test\n\n- Trivial wrappers: a one-liner that delegates to a typed method.\n- Generated code: xtask output is tested by the generator itself.\n- Placeholder scaffolds: if it has no logic, it has no test surface.\n\n## Coverage expectations\n\nA PR that changes behavior without a test is not ready for review.\nA PR that adds a test without changing behavior needs a clear justification.\nThe audit pipeline flags files with zero test coverage on non-trivial logic.\n\n## On the checkout-flow branch\n\nAll new service methods in `crates/core/ship-platform/src/services/checkout.rs`\nmust be covered before the branch merges. See SHIP-201 for the acceptance list.\n\nThe integration test suite lives in `tests/services/checkout_integration.rs`.\nRun with: `just test checkout`\n"
+  },
+
+  // ── RulesService.Get — code-altitude (project) ───────────────────────────────
+  // Short rule — one screen of content, no scroll required.
+
+  "Get.response_code_altitude": {
+    "id": "code-altitude",
+    "scope": "project",
+    "body": "# Code altitude\n\nWrite logic at the right layer.\n\n- Runtime behavior lives in Rust crates. The CLI and MCP are thin transports.\n- L2 apps consume the SDK; they do not import from `crate::services::*` directly.\n- Web fetches originate from the daemon only — never from the browser or CLI.\n\nWhen a piece of logic appears in the wrong layer, move it; do not copy it.\nThe rule is one canonical home per behavior.\n"
+  },
+
+  // ── RulesService.Get — commit-style (user) ───────────────────────────────────
+  // Ada Lovelace's personal commit style preferences (user-scoped).
+  // Exercises the scope badge difference in the editor: User vs Project.
+
+  "Get.response_commit_style": {
+    "id": "commit-style",
+    "scope": "user",
+    "body": "# Commit style (Ada)\n\n## Types\n\nfeat, fix, refactor, test, docs, chore. No other types.\n\n## Format\n\n`<type>(<scope>): <imperative, lowercase, ≤72 chars>`\n\nGood:  `feat(checkout): add idempotency key validation`\nBad:   `Added idempotency key`, `WIP: stuff`, `fix: misc`\n\n## Body\n\nExplain *why*, not *what*. The diff shows what changed; the commit explains\nthe decision. Reference a task id when the change maps to one (SHIP-NNN).\n\n## Hard rules\n\n- No Co-Authored-By lines in agent commits.\n- No model or agent attribution in the commit message.\n- One logical change per commit. Squash fixups before opening a PR.\n"
+  },
+
+  // ── RulesService.Get — agent-discipline (user) ───────────────────────────────
+  // Ada Lovelace's personal agent-discipline rule (user-scoped).
+  // Exercises the editor in user scope with a medium-length behavioral contract.
+
+  "Get.response_agent_discipline": {
+    "id": "agent-discipline",
+    "scope": "user",
+    "body": "# Agent discipline (Ada)\n\nWhen you are dispatched, run the spec immediately. Do not ask for clarification\nunless the spec is genuinely ambiguous about the *goal*; ambiguity about\n*approach* is yours to resolve.\n\n## Signaling\n\n- Log progress via `log_progress`. Never exit silently.\n- Signal step completion via `step_done`, not `update_job`.\n- `update_job` is reserved for whole-job lifecycle transitions.\n\n## Artifacts\n\nTask artifacts go in `.artifacts/`, not `.ship/`. `.ship/` is configuration.\nDo not write summary or findings Markdown files — return findings as your\nfinal text output. The parent agent reads your text output, not files you create.\n"
+  },
+
+  // ── RulesService.Create ───────────────────────────────────────────────────────
+  // ScopedMutation returned after creating a new rule.
+  // This example: operator creates agent-discipline at user scope for the first time.
+
+  "Create.response": {
+    "id": "agent-discipline",
+    "scope": "user"
+  },
+
+  // ── RulesService.Put ──────────────────────────────────────────────────────────
+  // ScopedMutation returned after replacing a rule body.
+  // This example: rust-lane updated test-first to add the checkout-flow section.
+
+  "Put.response": {
+    "id": "test-first",
+    "scope": "project"
+  },
+
+  // ── RulesService.Delete ───────────────────────────────────────────────────────
+  // ScopedMutation returned after deleting a rule.
+  // This example: operator removed code-altitude from project scope.
+
+  "Delete.response": {
+    "id": "code-altitude",
+    "scope": "project"
+  },
+
+  // ── Error states ──────────────────────────────────────────────────────────────
+  // Not proto response messages — describe the UI error surface for each failure.
+  // Match repo tone semantics: validation errors → warning; hard failures → destructive.
+
+  "error_states": {
+    "create_duplicate_id": {
+      "rpc": "Create",
+      "request": { "id": "no-placeholders", "scope": "project" },
+      "tone": "warning",
+      "message": "A rule named 'no-placeholders' already exists at project scope. Use Put to replace its body, or choose a different id.",
+      "_note": "Field-level validation message — rendered inline below the id input in ship-rules-editor, not as a modal. The editor keeps the draft body so the user can correct the id and retry."
+    },
+    "delete_not_found": {
+      "rpc": "Delete",
+      "request": { "id": "pr-discipline", "scope": "user" },
+      "tone": "destructive",
+      "message": "Rule 'pr-discipline' not found at user scope. It may have already been deleted.",
+      "_note": "Shown in ship-rules-delete-confirm after the Delete RPC returns not-found. The confirm dialog dismisses and the list re-fetches — the rule is gone regardless."
+    },
+    "retryable_network": {
+      "rpc": "List",
+      "tone": "destructive",
+      "message": "Could not load rules — connection to daemon lost. Retrying...",
+      "_note": "Generic retryable error covering network/auth/5xx. ship-rules-list renders an inline error with a retry action; no stale content is shown. Tone reference: views/artifacts/ error states."
+    }
+  },
+
+  // ── Empty-state copy ──────────────────────────────────────────────────────────
+  // Designer-readable copy strings for the empty states. Not a proto message.
+
+  "empty_states": {
+    "no_rules": {
+      "title": "No rules yet",
+      "body": "Add your first rule to give agents a behavioral contract for this space.",
+      "cta": "New rule"
+    },
+    "no_project_rules": {
+      "title": "No project rules",
+      "body": "Project rules apply to all agents in this space.",
+      "cta": "Add project rule"
+    },
+    "no_user_rules": {
+      "title": "No user rules",
+      "body": "User rules layer personal preferences on top of the project rulebook.",
+      "cta": "Add user rule"
+    }
+  }
+}

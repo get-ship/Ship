@@ -8,7 +8,6 @@ macro_rules! scope_id {
     ($(#[$m:meta])* $name:ident) => {
         $(#[$m])*
         #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-        #[cfg_attr(feature = "specta", derive(specta::Type))]
         pub struct $name(pub String);
 
         impl $name {
