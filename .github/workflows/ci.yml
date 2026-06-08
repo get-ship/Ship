@@ -43,6 +43,15 @@ jobs:
         run: node scripts/check-sui-compiles.mjs
       - name: Build daemon asset bundles
         run: bun run build:bundles
+      # TS typecheck — the enforcement + sanity layer (not optional). The SDK is
+      # the typecheck SSOT: a call to a deleted/quarantined op (e.g. ops.discovery.*
+      # after the backend service was culled, or `(ship as any).foo`) is a COMPILE
+      # ERROR here, caught instantly — not a silent runtime 404 surfaced a week
+      # later. Runs after the .sui → .sui.d.ts bundle bake so view/controller
+      # imports resolve. If this is red, the frontend is calling a surface that
+      # does not exist; fix the caller (deleted stays deleted) — never silence it.
+      - name: Typecheck shell (dead-op / surface-drift gate)
+        run: bun run --cwd apps/shell typecheck
       - name: Check silent-error patterns
         run: bash scripts/lint/check-silent-errors.sh
       - name: Check migration discipline (naming + immutability)
