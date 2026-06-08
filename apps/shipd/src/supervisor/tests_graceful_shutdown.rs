@@ -6,7 +6,7 @@
 // ── Source helpers ───────────────────────────────────────────────────────────
 
 fn registry_src() -> String {
-    include_str!("../../../../crates/core/ship-platform/src/services/process_registry.rs").to_string()
+    include_str!("../../../../crates/core/ship-substrate/src/services/process_registry.rs").to_string()
 }
 
 fn process_executor_src() -> String {

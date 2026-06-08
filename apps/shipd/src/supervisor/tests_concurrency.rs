@@ -192,7 +192,7 @@ fn run_without_deps_is_immediately_dispatchable() {
 /// Graceful shutdown must emit a supervisor.shutting_down event.
 #[test]
 fn graceful_shutdown_emits_event() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/process_registry.rs");
+    let source = include_str!("../../../../crates/core/ship-substrate/src/services/process_registry.rs");
     assert!(
         source.contains("shutting_down"),
         "graceful_shutdown must emit supervisor.shutting_down event"
@@ -202,7 +202,7 @@ fn graceful_shutdown_emits_event() {
 /// Graceful shutdown must call shutdown_all on the registry.
 #[test]
 fn graceful_shutdown_drains_registry() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/process_registry.rs");
+    let source = include_str!("../../../../crates/core/ship-substrate/src/services/process_registry.rs");
     assert!(
         source.contains("shutdown_all"),
         "graceful_shutdown must drain the process registry"
@@ -212,7 +212,7 @@ fn graceful_shutdown_drains_registry() {
 /// shutdown_all must call executor.stop() for each handle.
 #[test]
 fn shutdown_all_stops_each_agent() {
-    let source = include_str!("../../../../crates/core/ship-platform/src/services/process_registry.rs");
+    let source = include_str!("../../../../crates/core/ship-substrate/src/services/process_registry.rs");
     assert!(
         source.contains("executor.stop"),
         "shutdown_all must call stop on each registered handle"
