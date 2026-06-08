@@ -8219,11 +8219,11 @@ dependencies = [
  "ship-harnesses",
  "ship-isolation",
  "ship-kernel",
- "ship-kv",
  "ship-ops-rpc",
  "ship-platform",
  "ship-reactive",
  "ship-runner",
+ "ship-skill-vars",
  "ship-store",
  "ship-substrate",
  "ship-types",
@@ -8343,11 +8343,11 @@ dependencies = [
  "sha2",
  "ship-agents",
  "ship-isolation",
- "ship-kv",
  "ship-ops-rpc",
  "ship-pipeline-runtime",
  "ship-pipelines",
  "ship-platform",
+ "ship-skill-vars",
  "ship-store",
  "ship-substrate",
  "ship-types",
@@ -8612,19 +8612,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-kv"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "serde",
- "serde_json",
- "ship-substrate",
- "sqlx",
- "tracing",
-]
-
-[[package]]
 name = "ship-ops-rpc"
 version = "0.1.0"
 dependencies = [
@@ -8734,7 +8721,6 @@ dependencies = [
  "ship-host",
  "ship-isolation",
  "ship-kernel",
- "ship-kv",
  "ship-pipelines",
  "ship-runner",
  "ship-store",
@@ -8859,6 +8845,19 @@ dependencies = [
  "http-body",
  "protoc-bin-vendored",
  "serde",
+]
+
+[[package]]
+name = "ship-skill-vars"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "sqlx",
+ "tracing",
 ]
 
 [[package]]
@@ -9073,7 +9072,6 @@ dependencies = [
  "ship-harnesses",
  "ship-host",
  "ship-isolation",
- "ship-kv",
  "ship-ops-rpc",
  "ship-pipeline-runtime",
  "ship-pipelines",

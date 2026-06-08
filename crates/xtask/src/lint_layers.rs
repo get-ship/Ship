@@ -5,8 +5,9 @@
 //!     `crates/`) plus the sibling L0 primitives under `crates/core/`
 //!     (ship-git, ship-isolation, ship-cloud, ship-ops-rpc,
 //!     ship-gateway-client, ship-sidecar-proto, compiler).
-//!   - L1 = `ship-platform`, every crate under `ship-platform/crates/`, and
-//!     `ship-pipeline-runtime`.
+//!   - L1 = `ship-platform`, every crate under `ship-platform/crates/` (plus
+//!     nested domain sub-crates one level deeper, e.g.
+//!     `ship-agents/crates/ship-skill-vars`), and `ship-pipeline-runtime`.
 //!
 //! Both sets are derived from the filesystem, so the check never drifts as
 //! crates are added or moved. Keying violations on the dependency *name* (the
@@ -86,6 +87,15 @@ pub fn run(repo_root: &Path) -> Result<(), String> {
     for m in child_manifests(&core.join("ship-platform/crates")) {
         if let Some(n) = crate_name(&m) {
             l1.insert(n);
+        }
+        // Nested domain sub-crates one level deeper, e.g.
+        // ship-agents/crates/ship-skill-vars.
+        if let Some(crate_dir) = m.parent() {
+            for sub in child_manifests(&crate_dir.join("crates")) {
+                if let Some(n) = crate_name(&sub) {
+                    l1.insert(n);
+                }
+            }
         }
     }
 

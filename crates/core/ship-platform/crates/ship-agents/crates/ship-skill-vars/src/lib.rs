@@ -1,7 +1,8 @@
-//! Key-value state store — namespaced, JSON values.
+//! `ship-skill-vars` — skill-variable persistence for ship-agents.
 //!
-//! Backed by `kv.db` (separate from `platform.db`). The physical split means
-//! KV writes never compete with the event log for WAL locks.
+//! Namespaced JSON values backed by `kv.db` (physically separate from the
+//! event log so writes never compete for WAL locks). Internal sub-crate of
+//! ship-agents; the namespace policy is skill-scoped (see `KvNamespace`).
 
 use anyhow::Result;
 use chrono::Utc;
