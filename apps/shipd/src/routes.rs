@@ -187,14 +187,6 @@ pub enum Route {
     /// @auth public
     SuiDevHmr,
 
-    /// @route GET "/_sui/data"
-    /// @auth public
-    SuiData,
-
-    /// @route POST "/_sui/mutation/{name}"
-    /// @auth handler
-    SuiMutation { name: String },
-
     /// @route POST "/_sui/views/{name}/patch-elements"
     /// @auth scope Full
     SuiPatchElements { name: String },

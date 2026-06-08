@@ -50,7 +50,6 @@ pub fn build_router(
         .route("/webhook/telegram", axum::routing::post(human_webhook::telegram_webhook))
         .with_state(rt.kernel().clone());
     let hook_routes = Router::new()
-        .route("/hooks/checkout", axum::routing::post(rest_api::hooks_checkout))
         .route("/hooks/session-start", axum::routing::post(hooks_api::hook_session_start))
         .route("/hooks/before-tool", axum::routing::post(hooks_api::hook_before_tool))
         .route("/hooks/after-tool", axum::routing::post(hooks_api::hook_after_tool))
@@ -140,14 +139,6 @@ pub fn build_router(
         // assembly below. deck-axum is the single source of truth for
         // those paths; shipd no longer hand-lists them here.
         .ship_public_route(Route::SuiViewSse_template(), views::sui_sse::serve_sui_sse)
-        .ship_public_route(Route::SuiData, views::sui_data::serve_data)
-        // NOTE: `SuiMutation` is intentionally NOT registered here — it is a
-        // C1/C2 write endpoint and routes through `services::command::call`
-        // (the ONE capability gate). The auth_middleware must run first to
-        // populate `AuthContext` in request extensions; a public
-        // registration left that extension unfulfilled and every mutation
-        // POST silently 500'd. It is registered in `build_ship_routes`
-        // (the authenticated group) below.
         .ship_public_route(Route::SuiSource_template(), views::sui_source::serve_sui_source)
         // The HMR route (SuiDevHmr) is NOT wired here — it stays
         // development-only and is merged into `root` inside the
@@ -396,16 +387,14 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ListSessionsAcrossProjects, runtime_api::list_sessions_across_projects)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
-        // `POST /_sui/mutation/{name}` — PE form submit. C1/C2 write
-        // endpoint; routes through `services::command::call` (the ONE
-        // capability gate). Authenticated (enforces via the gate, not
-        // scope — `@auth handler`); the rest of the `/_sui/*` surface is
-        // public and lives in `public_routes`. The handler takes the
-        // router state (`ApiState = Arc<ShipRuntime>`), so it composes
-        // cleanly into this stateful group.
-        .ship_route(
-            Route::SuiMutation_template(),
-            views::sui_mutation::serve_sui_mutation,
+        // `POST /_sui/mutation/{name}` — tombstoned PE form endpoint.
+        // The server-side string dispatch was removed; JS-attached mutations
+        // call the SDK directly. The SUI compiler still writes this URL as
+        // the form `action` attribute for PE fallback, so the route stays as
+        // a 410 Gone rather than being deleted outright.
+        .route(
+            "/_sui/mutation/{name}",
+            axum::routing::post(|| async { axum::http::StatusCode::GONE }),
         )
         // `POST /_sui/views/{name}/patch-elements` — agent-push DOM patches.
         // Authenticated (requires `Scope::Full`); the rest of the `/_sui/*`
@@ -585,7 +574,6 @@ mod merge_tests {
         // `/_sui/views/{name}/` prefix with deck's catch-all.
         let kept: Router = Router::new()
             .route("/_sui/views/{name}/sse", get(noop))
-            .route("/_sui/data", get(noop))
             .route("/_sui/mutation/{name}", axum::routing::post(noop))
             .route("/_sui/source/{tag}", get(noop));
 
