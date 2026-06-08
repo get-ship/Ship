@@ -14,7 +14,7 @@ use std::time::Duration;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use ship_pipeline_runtime::orchestrator::exit_handler;
+use ship_runner::exit_handler;
 
 use ship_substrate::services::process_registry::{ProcessRegistry, SharedRegistry};
 
@@ -197,7 +197,7 @@ async fn exit_handler_does_not_panic_for_failed_exit() {
 
 fn executor_source(filename: &str) -> String {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../crates/core/ship-supervisor/src/executors")
+        .join("crates/ship-supervisor/src/executors")
         .join(filename);
     std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("could not read {filename}: {e}"))
@@ -218,4 +218,3 @@ fn process_executor_source_uses_exit_tx_not_curl() {
         "process.rs must send on exit_tx to report process exit"
     );
 }
-

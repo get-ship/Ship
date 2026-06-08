@@ -12,5 +12,8 @@ ship-runner = { path = "../ship-runner" }
 
 tracing = { workspace = true }
 
+[dev-dependencies]
+ship-harnesses = { path = "../../../ship-platform/crates/ship-harnesses" }
+
 [lints]
 workspace = true

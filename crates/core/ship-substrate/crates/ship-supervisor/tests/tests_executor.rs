@@ -9,7 +9,7 @@ use ship_harnesses::harness_adapter::{adapter_for, adapter_for_or_default};
 
 fn executor_sources() -> String {
     let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../crates/core/ship-supervisor/src/executors");
+        .join("src/executors");
     let mut combined = String::new();
     for name in &["tmux.rs", "process.rs", "pty.rs", "routing.rs", "mod.rs"] {
         let path = base.join(name);
@@ -22,7 +22,7 @@ fn executor_sources() -> String {
 
 fn lifecycle_src() -> String {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../crates/core/ship-supervisor/src/agent_lifecycle.rs");
+        .join("src/agent_lifecycle.rs");
     std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("could not read agent_lifecycle.rs: {e}"))
 }
@@ -75,6 +75,9 @@ fn executors_exit_gracefully_via_adapter() {
 fn harness_launchers_module_does_not_exist() {
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let workspace_root = manifest.parent().and_then(|p| p.parent())
+        .and_then(|p| p.parent())
+        .and_then(|p| p.parent())
+        .and_then(|p| p.parent())
         .expect("could not resolve workspace root");
     let path = workspace_root.join("crates/core/runtime/src/services/harness_launchers.rs");
     assert!(

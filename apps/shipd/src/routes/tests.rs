@@ -144,7 +144,6 @@ fn api_v1_prefix_invariants() {
             ("DispatchPipeline", Route::DispatchPipeline.full_path()),
             ("Capabilities", Route::Capabilities.full_path()),
             ("EmitEvent", Route::EmitEvent.full_path()),
-            ("PostFeedback", Route::PostFeedback.full_path()),
         ]
     }
 

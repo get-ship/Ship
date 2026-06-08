@@ -249,12 +249,12 @@ async fn router_rejects_insufficient_scope() {
 fn ship_public_route_rejects_non_public_at_registration() {
     let result = std::panic::catch_unwind(|| {
         let _: axum::Router = axum::Router::new()
-            .ship_public_route(Route::PostFeedback, dummy_handler);
+            .ship_public_route(Route::ListJobs, dummy_handler);
     });
     assert!(
         result.is_err(),
         "ship_public_route must panic when given a non-Public route \
-         (Route::PostFeedback declares Scope(LogProgress))"
+         (Route::ListJobs declares Scope(ReadRuns))"
     );
 }
 
