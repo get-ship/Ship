@@ -4,9 +4,12 @@
 > the *how* for each, dependencies, and the one risk we verify before touching
 > the trunk. Greenfield-first (prove it in the spike), then graduate.
 
-## Phase A — Greenfield engine (in the spike, zero workspace risk) — IN PROGRESS
+## Phase A — Greenfield engine (in the spike, zero workspace risk) — ✅ COMPLETE
 The spike already has deno + the EventLog + the one-door Gateway, so the whole
 engine is buildable here, behind the existing ports, before any trunk commitment.
+**All six slices landed; 141 tests green (`4fb0856f2`..`9d0dea29e`).** The
+hardest, most novel work — durable execution + code-mode-as-durable-program +
+context-projection + durable agent turns — is proven before any trunk change.
 
 - **A1 · durable-execution core** — journal + replay + suspend/resume. ✅ DONE
   (`4fb0856f2`): replay re-executes nothing, suspend parks/resumes without
