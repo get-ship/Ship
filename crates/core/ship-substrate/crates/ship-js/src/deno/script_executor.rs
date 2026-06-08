@@ -15,7 +15,7 @@
 //! per thread at a time), not many isolates multiplexed on one thread. The pool
 //! is a Phase-D concern; this is one sequential VM thread.
 //!
-//! Auth-agnostic: each job carries its own [`HostDispatch`], which is where the
+//! Auth-agnostic: each job carries its own [`Dispatch`], which is where the
 //! host has captured whatever credential/gate it wants. The executor itself sees
 //! only opaque dispatch + source strings.
 
@@ -24,10 +24,10 @@ use std::sync::Arc;
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
 
-use super::seam::HostDispatch;
+use crate::dispatch::Dispatch;
 
 struct ScriptJob {
-    dispatch: Arc<dyn HostDispatch>,
+    dispatch: Arc<dyn Dispatch>,
     sdk_src: String,
     main_src: String,
     reply: oneshot::Sender<anyhow::Result<Vec<Value>>>,
@@ -79,7 +79,7 @@ impl ScriptExecutor {
     /// sources the deny-by-default loader serves.
     pub async fn run(
         &self,
-        dispatch: Arc<dyn HostDispatch>,
+        dispatch: Arc<dyn Dispatch>,
         sdk_src: String,
         main_src: String,
     ) -> anyhow::Result<Vec<Value>> {
@@ -95,13 +95,13 @@ impl ScriptExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::deno::seam::HostError;
+    use crate::dispatch::DispatchError;
     use serde_json::json;
 
     struct Echo;
     #[async_trait::async_trait]
-    impl HostDispatch for Echo {
-        async fn dispatch(&self, op: &str, args: Value) -> Result<Value, HostError> {
+    impl Dispatch for Echo {
+        async fn call(&self, op: &str, args: Value) -> Result<Value, DispatchError> {
             Ok(json!({ "op": op, "args": args }))
         }
     }

@@ -2,7 +2,7 @@
 //! host. This is the JS engine; no policy lives here.
 //!
 //! `op_ship_call(op, args)` is the single host function. It reads the run's
-//! [`HostDispatch`] from `OpState` and forwards `(op, args)`. A host failure is
+//! [`Dispatch`] from `OpState` and forwards `(op, args)`. A host failure is
 //! mapped to `{ error }` in the result `Value` — a denial is data the program
 //! handles, not a JS exception. There is exactly one door, host-side, and this
 //! op is the wire to it with no policy of its own.
@@ -22,11 +22,11 @@ use deno_core::{
 use serde_json::Value;
 
 use super::module_loader::{ShipModuleLoader, MAIN};
-use super::seam::HostDispatch;
+use crate::dispatch::Dispatch;
 
 /// Per-run environment in OpState: the one wire back to the host.
 struct HostEnv {
-    dispatch: Arc<dyn HostDispatch>,
+    dispatch: Arc<dyn Dispatch>,
 }
 
 /// Collects values the isolate emits via `op_emit`, so a headless run has an
@@ -35,7 +35,7 @@ struct HostEnv {
 struct Collector(Rc<RefCell<Vec<Value>>>);
 
 /// The single bound op: a wire from JS to the host. Infallible at the op layer —
-/// a host `Err(HostError)` is mapped uniformly to `{ error }` in the result.
+/// a host `Err(DispatchError)` is mapped uniformly to `{ error }` in the result.
 #[op2(async(lazy))]
 #[serde]
 async fn op_ship_call(
@@ -49,7 +49,7 @@ async fn op_ship_call(
         let s = state.borrow();
         s.borrow::<HostEnv>().dispatch.clone()
     };
-    match host.dispatch(&op, args).await {
+    match host.call(&op, args).await {
         Ok(v) => v,
         Err(e) => serde_json::json!({ "error": e.to_string() }),
     }
@@ -70,7 +70,7 @@ const BOOTSTRAP: &str =
 
 /// Build an isolate for one run and execute `script` to completion, returning
 /// its (awaited) top-level value. `ship_call(op, args)` is bound as a global.
-pub async fn run_script(dispatch: Arc<dyn HostDispatch>, script: String) -> anyhow::Result<Value> {
+pub async fn run_script(dispatch: Arc<dyn Dispatch>, script: String) -> anyhow::Result<Value> {
     let mut rt = JsRuntime::new(RuntimeOptions {
         extensions: vec![ship_ops::init()],
         ..Default::default()
@@ -104,9 +104,9 @@ pub async fn run_script(dispatch: Arc<dyn HostDispatch>, script: String) -> anyh
 /// contents — e.g. scoping it to grants); `main_src` is the entry module. The
 /// deny-by-default loader refuses every other import. The program's `op_emit`
 /// calls are collected and returned. Every op still routes through the host's
-/// `HostDispatch`, whether reached through the SDK or a raw `op_ship_call`.
+/// `Dispatch`, whether reached through the SDK or a raw `op_ship_call`.
 pub async fn run_module(
-    dispatch: Arc<dyn HostDispatch>,
+    dispatch: Arc<dyn Dispatch>,
     sdk_src: String,
     main_src: String,
 ) -> anyhow::Result<Vec<Value>> {
@@ -138,7 +138,7 @@ pub async fn run_module(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::deno::seam::HostError;
+    use crate::dispatch::DispatchError;
     use serde_json::json;
 
     /// A stub host: echoes the op + args back as data, so a test can prove the
@@ -146,8 +146,8 @@ mod tests {
     /// point of the seam is that ship-js needs nothing more than this to run.
     struct Echo;
     #[async_trait::async_trait]
-    impl HostDispatch for Echo {
-        async fn dispatch(&self, op: &str, args: Value) -> Result<Value, HostError> {
+    impl Dispatch for Echo {
+        async fn call(&self, op: &str, args: Value) -> Result<Value, DispatchError> {
             Ok(json!({ "op": op, "args": args, "ok": true }))
         }
     }
@@ -156,17 +156,17 @@ mod tests {
     /// "deny one ungranted op, allow the rest" — as the isolate observes it.
     struct DenyOp(&'static str);
     #[async_trait::async_trait]
-    impl HostDispatch for DenyOp {
-        async fn dispatch(&self, op: &str, args: Value) -> Result<Value, HostError> {
+    impl Dispatch for DenyOp {
+        async fn call(&self, op: &str, args: Value) -> Result<Value, DispatchError> {
             if op == self.0 {
-                Err(HostError::new(format!("denied: {op}")))
+                Err(DispatchError::Terminal(format!("denied: {op}")))
             } else {
                 Ok(json!({ "op": op, "args": args, "ok": true }))
             }
         }
     }
 
-    fn arc(d: impl HostDispatch + 'static) -> Arc<dyn HostDispatch> {
+    fn arc(d: impl Dispatch + 'static) -> Arc<dyn Dispatch> {
         Arc::new(d)
     }
 
