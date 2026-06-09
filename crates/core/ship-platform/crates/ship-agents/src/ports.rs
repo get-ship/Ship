@@ -19,7 +19,9 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use ship_substrate::events::agent_session::AgentSessionStartedPayload;
+#[cfg(feature = "harness-drivers")]
 use ship_code::runner::dedup::EventDedup;
+#[cfg(feature = "harness-drivers")]
 use ship_code::dispatch_ports::{
     AgentPlatform, IsolationStrategy, ProcessRegistryPort, ProjectionReader, SessionExecutor,
     SpawnPolicy,
@@ -39,6 +41,11 @@ pub type FlokiRunFn = Arc<
 
 /// Ports for agent-session orchestration. Cloneable (all `Arc`) so the actor
 /// can hand a snapshot to each detached dispatch task.
+///
+/// With `harness-drivers` OFF, only `floki_run_fn` is present — the entire
+/// harness-driver stack (executor/isolation/registry/etc.) is absent. Callers
+/// that construct `AgentPorts` must wrap every harness field in
+/// `#[cfg(feature = "harness-drivers")]` blocks.
 #[derive(Clone)]
 pub struct AgentPorts {
     /// Floki-harness dispatch closure. When `Some` and `payload.harness == "floki"`,
@@ -46,24 +53,31 @@ pub struct AgentPorts {
     /// Not behind any cfg gate — the floki path must always compile.
     pub floki_run_fn: Option<FlokiRunFn>,
     /// Prepares + tears down the per-session isolated worktree.
+    #[cfg(feature = "harness-drivers")]
     pub isolation: Arc<dyn IsolationStrategy>,
     /// Spawns / stops the harness process.
+    #[cfg(feature = "harness-drivers")]
     pub executor: Arc<dyn SessionExecutor>,
     /// Host platform ops (worktrees dir, cleanup, token mint).
+    #[cfg(feature = "harness-drivers")]
     pub platform: Arc<dyn AgentPlatform>,
     /// Live process-handle registry (register / take / tombstone).
+    #[cfg(feature = "harness-drivers")]
     pub registry: Arc<dyn ProcessRegistryPort>,
     /// Spawn/op-invocation policy. The agent dispatch hands a domain-free
     /// [`ship_types::Authority::Agent`] principal; the impl resolves the
     /// scoped spawn env (role + token mint). The concrete impl
     /// (`ConfigSpawnPolicy`) stays in L1 because it reads project config; this
     /// crate sees only the port.
+    #[cfg(feature = "harness-drivers")]
     pub spawn_policy: Arc<dyn SpawnPolicy>,
     /// Primitive projection reads for the L0 router gate's terminal-state
     /// guard. Agents never reads `crate::projections` directly.
+    #[cfg(feature = "harness-drivers")]
     pub projections: Arc<dyn ProjectionReader>,
     /// Event-id dedup at the actor entry. Prevents a replayed envelope
     /// (mailbox redelivery, startup replay race, test replay) from
     /// double-admitting a spawn.
+    #[cfg(feature = "harness-drivers")]
     pub event_dedup: Arc<EventDedup>,
 }

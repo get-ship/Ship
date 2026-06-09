@@ -124,7 +124,12 @@ specta = { workspace = true, features = ["chrono", "serde_json"], optional = tru
 default = ["ship-code"]
 # ship-code: harness-driver stack (dispatch, sessions, hooks, job routes).
 # Turn off with --no-default-features to get a harness-free shipd build.
-ship-code = ["dep:ship-code"]
+ship-code = ["dep:ship-code", "harness-drivers"]
+# harness-drivers: propagate down to ship-agents and ship-platform so their
+# cfg gates align with shipd's ship-code gate. When ship-code is ON, both
+# ship-agents and ship-platform get harness-drivers. With --no-default-features
+# all three compile flag-off (ship-code is absent, harness-driver stack gone).
+harness-drivers = ["ship-agents/harness-drivers", "ship-platform/harness-drivers"]
 unstable = ["ship-platform/unstable"]
 specta = ["dep:specta", "deck/specta", "ship-pipeline-runtime/specta"]
 # Compile the `example()` fixture constructors for the daemon-side wire

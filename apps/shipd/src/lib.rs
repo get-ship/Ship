@@ -36,6 +36,9 @@ pub mod floki_gateway;
 // AuthContext, ToolCtx (kernel-backed SessionEventSink), and ScriptExecutor,
 // then calls floki::run_step. Parallel entry point for floki-harness agents.
 pub mod floki_first_light;
+// local_paths: ungated path helpers (worktrees_dir without ship-code dep).
+// Used by agent_event_ports + pipeline_ports so they compile with flag-off.
+pub mod local_paths;
 // diag_rpc: deleted — diagnostics.snapshot op cut; DiagnosticRegistry apparatus removed.
 pub mod runtime_rpc;
 pub mod pipelines_rpc;
