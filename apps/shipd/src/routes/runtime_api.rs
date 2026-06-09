@@ -55,17 +55,13 @@ pub async fn list_sessions_across_projects(
 // parent re-exports the public handler symbols + helpers (used by
 // the test mod below) so existing call sites continue resolving.
 
-pub mod agents;
 pub mod daemon;
-pub mod dispatch;
 pub mod events;
 pub mod jobs;
 pub mod jobs_status;
 pub mod pipeline_run;
 
-pub use agents::{SteerAgentRequest, steer_agent, stop_agent};
 pub use daemon::{daemon_status, rebuild_projections};
-pub use dispatch::{DispatchRequest, dispatch_agent_session};
 pub use events::{EventsPollQuery, event_stream};
 pub use jobs::{
     CancelJobRequest, EventSummary, PipelineRunDetailResponse, TurnEndRequest,
@@ -132,16 +128,6 @@ mod tests {
         use http_body_util::BodyExt;
         let bytes = response.into_body().collect().await.unwrap().to_bytes();
         serde_json::from_slice(&bytes).unwrap()
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn stop_agent_no_dispatch_handle_returns_503() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        let response = stop_agent(State(state), Extension(full_auth()), Path("test-slug".to_string()))
-            .await
-            .into_response();
-        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -321,17 +307,6 @@ mod tests {
         .await
         .into_response();
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn steer_agent_no_dispatch_handle_returns_503() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        let req = SteerAgentRequest { message: "hello".to_string() };
-        let response = steer_agent(State(state), Extension(full_auth()), Path("test-slug".to_string()), Json(req))
-            .await
-            .into_response();
-        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     }
 
     // ---- Slice 6 endpoints ----

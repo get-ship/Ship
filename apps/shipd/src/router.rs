@@ -346,10 +346,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
         .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
         // Runtime
-        .ship_route(Route::StopAgent_template(), runtime_api::stop_agent)
-        .ship_route(Route::SteerAgent_template(), runtime_api::steer_agent)
         .ship_route(Route::ListJobs, runtime_api::list_jobs)
-        .ship_route(Route::DispatchPipeline, runtime_api::dispatch_agent_session)
         .ship_route(Route::PipelinesRun, runtime_api::run_pipeline)
         .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
         .ship_route(Route::EndJob, runtime_api::end_job)

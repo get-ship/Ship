@@ -314,25 +314,17 @@ pub enum Route {
     /// @auth scope ReadWorkspace
     SubscribeViewSession { id: String },
 
-    // ── Runtime listings ─────────────────────────────────────────────────
-
-    /// @route POST "/api/v1/agents/{slug}/stop"
-    /// @auth scope ManageRuns
-    StopAgent { slug: String },
-
-    /// @route POST "/api/v1/agents/{slug}/steer"
-    /// @auth scope ManageRuns
-    SteerAgent { slug: String },
-
     // ── Jobs ─────────────────────────────────────────────────────────────
+
+    // The agent-control REST surface (POST /api/v1/agents/{slug}/{stop,steer})
+    // was deleted; clients use the Connect AgentsService (ship.ops.v1).
+
+    // The single-agent dispatch REST surface (POST /api/v1/agent_sessions/dispatch)
+    // was deleted; clients use the Connect AgentsService.Dispatch / PipelinesService.Dispatch.
 
     /// @route GET "/api/v1/agent_sessions"
     /// @auth scope ReadRuns
     ListJobs,
-
-    /// @route POST "/api/v1/agent_sessions/dispatch"
-    /// @auth scope CreateRuns
-    DispatchPipeline,
 
     /// @route GET "/api/v1/agent_sessions/{pipeline_run_id}"
     /// @auth scope ReadRuns

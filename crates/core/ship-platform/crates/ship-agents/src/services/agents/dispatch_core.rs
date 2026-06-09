@@ -1,10 +1,10 @@
 //! Transport-neutral agent-session dispatch core.
 //!
-//! `dispatch_agent_session_core` is the shared logic behind both the REST
-//! `POST /api/v1/agent_sessions/dispatch` handler and the ConnectRPC
-//! `AgentsService.dispatch` wire method. It validates the request, resolves
-//! resume state, builds the `agent.session.started` event, persists it, and
-//! returns a structured result.
+//! `dispatch_agent_session_core` is the shared logic behind the Connect
+//! `AgentsService.Dispatch` wire method (and the now-removed REST
+//! `POST /api/v1/agent_sessions/dispatch` handler). It validates the
+//! request, resolves resume state, builds the `agent.session.started` event,
+//! persists it, and returns a structured result.
 //!
 //! Daemon-specific state (kernel, origin URL, worktrees path) is injected via
 //! [`AgentDispatchPort`] so shipd provides a concrete adapter while this module

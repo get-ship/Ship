@@ -3,7 +3,9 @@
 // Responsibilities:
 //   - Daemon API client (auth, JSON fetch, typed responses for the surfaces
 //     these tests use).
-//   - Dispatch primitive (POST /api/v1/agent_sessions/dispatch).
+//   - Connect RPC client (replaces the deleted
+//     POST /api/v1/agent_sessions/dispatch REST surface — the dispatch
+//     primitive now goes through AgentsService.Dispatch in ship.ops.v1).
 //   - Mesh / actor poll helpers — match the idiom from tests/loops/.
 //   - Cleanup drop-guard so leaked sessions don't survive panics.
 //   - PATH binary detection.
@@ -125,12 +127,51 @@ export function binaryOnPath(name: string): boolean {
   return false;
 }
 
+// ── Connect RPC primitive ────────────────────────────────────────────────
+// Replaces the deleted `POST /api/v1/agent_sessions/dispatch` REST surface.
+// Connect over HTTP+JSON is just `POST /<svc>/<method>` with the protocol
+// header; the body is the request message and the response is the result
+// message, both as plain JSON. The Connect server in `apps/shipd/src/ops_rpc.rs`
+// mounts the generated service paths; see `proto/ship/ops/v1/agents.proto`
+// for the request/response shapes.
+
+interface ConnectEnvelope<T> {
+  status: number;
+  body: T;
+}
+
+async function connectCall<TReq, TRes>(
+  method: string,
+  body: TReq,
+): Promise<ConnectEnvelope<TRes>> {
+  const token = await daemonToken();
+  const r = await fetch(`${await baseUrl()}/ship.ops.v1.AgentsService/${method}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "Connect-Protocol-Version": "1",
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await r.text();
+  let parsed: unknown = text;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    /* leave as string */
+  }
+  return { status: r.status, body: parsed as TRes };
+}
+
 // ── Dispatch ───────────────────────────────────────────────────────────────
+// Connects to `AgentsService.Dispatch` (proto/ship/ops/v1/agents.proto:457).
+// Replaces the deleted `POST /api/v1/agent_sessions/dispatch` REST handler.
 
 export type Invocation = "pty" | "print" | "stream";
 
 // The dispatch primitive replaced the old `auto: bool` with three
-// orthogonal axes (see runtime_api/dispatch.rs::DispatchRequest):
+// orthogonal axes (see runtime_api::dispatch_request validation):
 //   - open_tab:   does this open an attachable PTY surface? (UX)
 //   - invocation: how the harness is invoked — pty/print/stream
 //   - keepalive:  stay alive awaiting the next push after the turn?
@@ -150,18 +191,29 @@ export interface DispatchInput {
   keepalive?: boolean;
 }
 
-export interface DispatchResponse {
-  ok: boolean;
-  data:
-    | {
-        session_id: string;
-        slug: string;
-        branch: string;
-        resume: boolean;
-        studio_url?: string;
-        billing_warning?: string | null;
-      }
-    | string;
+// Wire shape — `DispatchAgentRequest` in agents.proto. Snake-case fields
+// mirror the proto exactly; Connect over HTTP+JSON uses JSON conventions.
+interface DispatchAgentWire {
+  agent: string;
+  harness: string;
+  prompt?: string;
+  spec?: string;
+  workspace?: string;
+  model?: string;
+  open_tab?: boolean;
+  invocation?: Invocation;
+  keepalive?: boolean;
+}
+
+// Wire shape — `DispatchResult` in agents.proto. All fields are strings
+// except `resume` (bool) and `billing_warning` (optional string).
+interface DispatchResultWire {
+  session_id: string;
+  slug: string;
+  branch: string;
+  resume?: boolean;
+  studio_url?: string;
+  billing_warning?: string;
 }
 
 export interface Dispatched {
@@ -172,33 +224,29 @@ export interface Dispatched {
 }
 
 export async function dispatch(input: DispatchInput): Promise<Dispatched> {
-  const { status, body } = await api<DispatchResponse>(
-    "/api/v1/agent_sessions/dispatch",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        agent: input.agent,
-        harness: input.harness,
-        prompt: input.prompt,
-        spec: input.spec,
-        workspace: input.workspace,
-        model: input.model,
-        open_tab: input.open_tab ?? false,
-        invocation: input.invocation ?? "pty",
-        keepalive: input.keepalive ?? false,
-      }),
-    },
+  const wire: DispatchAgentWire = {
+    agent: input.agent,
+    harness: input.harness,
+    prompt: input.prompt,
+    spec: input.spec,
+    workspace: input.workspace,
+    model: input.model,
+    open_tab: input.open_tab ?? false,
+    invocation: input.invocation ?? "pty",
+    keepalive: input.keepalive ?? false,
+  };
+  const { status, body } = await connectCall<DispatchAgentWire, DispatchResultWire>(
+    "Dispatch",
+    wire,
   );
-  if (status !== 200 || !body.ok || typeof body.data === "string") {
-    throw new Error(
-      `dispatch failed: status=${status} body=${JSON.stringify(body)}`,
-    );
+  if (status !== 200 || !body.session_id || !body.slug) {
+    throw new Error(`dispatch failed: status=${status} body=${JSON.stringify(body)}`);
   }
   return {
     status,
-    slug: body.data.slug,
-    sessionId: body.data.session_id,
-    branch: body.data.branch,
+    slug: body.slug,
+    sessionId: body.session_id,
+    branch: body.branch,
   };
 }
 

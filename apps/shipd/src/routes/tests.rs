@@ -46,7 +46,6 @@ fn multi_param_variant_substitutes_all() {
 #[test]
 fn method_returns_uppercase_str() {
     assert_eq!(Route::ListJobs.method(), "GET");
-    assert_eq!(Route::DispatchPipeline.method(), "POST");
     assert_eq!(
         Route::WriteViewTemplate {
             name: String::new()
@@ -141,7 +140,6 @@ fn api_v1_prefix_invariants() {
             ("AssetThemeCss", Route::AssetThemeCss.full_path()),
             ("ListThemes", Route::ListThemes.full_path()),
             ("ListJobs", Route::ListJobs.full_path()),
-            ("DispatchPipeline", Route::DispatchPipeline.full_path()),
             ("Capabilities", Route::Capabilities.full_path()),
         ]
     }
