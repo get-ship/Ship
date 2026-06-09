@@ -15,11 +15,11 @@ import {
 // Note: `applyPatch` / `Patch` are re-exported from the runtime barrel
 // (see packages/sui/runtime/src/index.ts). Importing from the bare
 // specifier — not the `@ship/sui-runtime/patch` subpath — keeps the
-// bundled `_sui/sdk-client.js` resolvable under the view-host importmap
+// bundled `_deck/sdk-client.js` resolvable under the view-host importmap
 // which only maps the bare specifier, not the subpath.
 
 /**
- * Wire one `_sui/data` SSE channel into a `LiveSource`. The first
+ * Wire one `_deck/data` SSE channel into a `LiveSource`. The first
  * `patch` event with `op === 'set'` flips the signal to ok; subsequent
  * events go through `applyPatch` against a façade.
  *
