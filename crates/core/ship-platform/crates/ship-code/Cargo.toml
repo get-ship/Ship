@@ -33,3 +33,11 @@ thiserror = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time", "test-util"] }
+
+[features]
+# harness-drivers: includes the full executor/harness driver machinery
+# (executors, process_registry, process_tree_probe, terminal_launcher).
+# Gate-off for library consumers that only need the port types + runner
+# orchestration helpers (dispatch_ports, runner::*).
+# Enabled by default at the composition root (shipd/ship-agents).
+harness-drivers = []

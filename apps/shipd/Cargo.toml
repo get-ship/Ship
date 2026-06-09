@@ -20,7 +20,7 @@ path = "src/main.rs"
 [dependencies]
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
-ship-code = { path = "../../crates/core/ship-platform/crates/ship-code" }
+ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", features = ["harness-drivers"] }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
 ship-files = { path = "../../crates/core/ship-platform/crates/ship-files" }
