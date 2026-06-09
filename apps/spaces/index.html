@@ -36,18 +36,13 @@
     }
   </script>
 
-  <!-- Component registry the space's views need (domain primitives). A space
-       loads only this umbrella by default; user/third-party chrome is loaded by
-       the scaffold at runtime, confined. -->
-  <script>
-    (function () {
-      var s = document.createElement('script')
-      s.type = 'module'
-      s.src = '/_deck/components.js'
-      document.head.appendChild(s)
-    })()
-  </script>
-
+  <!-- The /_deck/components.js umbrella is dead code (per ADR one-bundler-
+       entry-traced: no first-party app loads it; the per-tag resolver and
+       the view bundle itself cover primitives). Loading it was a 404
+       against /_deck/components.js — the umbrella is only published at
+       /api/assets/sui-components.js for the docs site. The space's
+       main.ts dynamically imports `/_deck/sui-components/<tag>.js` per
+       tag it mounts, same as the hub. -->
   <!-- Bootstrap the shared runtime onto window before main.ts (same pattern as
        the hub) so the bare specifier resolves to the one /_deck/runtime.js. -->
   <script>

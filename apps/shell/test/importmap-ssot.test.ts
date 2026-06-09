@@ -1,7 +1,7 @@
 // The `/_deck/*` URL scheme has ONE source of truth: the client `DECK_PREFIX`
 // constant exported from `@ship/sdk-client` (co-located with the rest of the
 // client surface; mirrors `deck_core::routes::DECK_PREFIX` on the Rust side).
-// The browser import maps (apps/shell/index.html,
+// The browser import maps (apps/shell/index.html, apps/spaces/index.html,
 // crates/deck/deck-core/assets/view-host.html) are ordering-sensitive and must
 // stay hand-authored, but they must never DRIFT from the SSOT. This test fails
 // if they do — turning the duplication into a gated mirror rather than an
@@ -39,8 +39,9 @@ const SSOT = {
 describe('/_deck import-map SSOT', () => {
   for (const htmlPath of [
     'apps/shell/index.html',
+    'apps/spaces/index.html',
     'crates/deck/deck-core/assets/view-host.html',
-  ]) {
+    ]) {
     it(`${htmlPath} import map matches the client DECK_PREFIX minter`, () => {
       const imports = importmapOf(htmlPath)
       for (const [spec, url] of Object.entries(SSOT)) {
