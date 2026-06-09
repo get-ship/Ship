@@ -248,7 +248,7 @@ pub fn build_router(
         // requirement, and the shutdown token is overkill for a
         // short-lived SSE stream anyway).
         let hmr_routes: Router<()> = Router::new()
-            .ship_public_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr);
+            .ship_public_route(Route::SuiDevHmr, deck::serve_bundle_hmr);
         root = root.merge(hmr_routes);
     }
     // Load deck.jsonc from the workspace root (same root the bundler uses).

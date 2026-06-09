@@ -337,63 +337,16 @@ pub async fn run_network(
         });
     }
 
-    // Start the in-process bundler. In dev mode, also forward module_changed
-    // events to the HMR SSE channel so browser clients get in-place updates.
-    // The forwarder task's JoinHandle is captured (#256) so shutdown can abort
-    // it instead of leaving it detached to hold the runtime alive past SIGTERM.
-    let bundler_forwarder: tokio::task::JoinHandle<()> = {
+    // Start the in-process bundler's file watcher. HMR SSE clients subscribe the
+    // bundler's broadcast directly via deck's `serve_bundle_hmr` handler, so the
+    // daemon no longer forwards events through a parallel channel. The watcher
+    // task's JoinHandle is captured (#256) so shutdown can abort it instead of
+    // leaving it detached to hold the runtime alive past SIGTERM.
+    let bundler_watcher: tokio::task::JoinHandle<()> = {
         let bundler = rt.bundler().clone();
-        let mut events = bundler.subscribe_events();
-        let mode = daemon_mode;
         tokio::spawn(async move {
             if let Err(e) = bundler.start_watching().await {
                 tracing::warn!("bundler: could not start file watching: {e}");
-            }
-            loop {
-                match events.recv().await {
-                    Ok(deck::bundler::BundlerEvent::ModuleChanged { target, out_path, bytes }) => {
-                        if mode == deck::DaemonMode::Development {
-                            views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
-                                kind: views::sui_hmr::BundleModuleEventKind::ModuleChanged,
-                                target,
-                                out_path: Some(out_path),
-                                bytes: Some(bytes),
-                                message: None,
-                                line: None,
-                                col: None,
-                                file: None,
-                            });
-                        }
-                    }
-                    Ok(deck::bundler::BundlerEvent::CompileError { target, message, line, col, file }) => {
-                        if mode == deck::DaemonMode::Development {
-                            views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
-                                kind: views::sui_hmr::BundleModuleEventKind::CompileError,
-                                target,
-                                out_path: None,
-                                bytes: None,
-                                message: Some(message),
-                                line,
-                                col,
-                                file,
-                            });
-                        }
-                    }
-                    // A broadcast receiver that falls behind a write storm gets
-                    // `Lagged(n)` — transient, recoverable: the channel dropped n
-                    // buffered events but is still open. Collapsing it with
-                    // `Closed` (the old `Err(_) => break`) permanently killed
-                    // HMR/compile forwarding on a single lag. Warn + CONTINUE on
-                    // a lag; break only when the sender is truly gone.
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                        tracing::warn!(
-                            dropped = n,
-                            "bundler-event forwarder lagged; resyncing (HMR/compile events dropped)"
-                        );
-                        continue;
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-                }
             }
         })
     };
@@ -608,7 +561,7 @@ pub async fn run_network(
     if let Err(e) = rt.bundler().shutdown().await {
         tracing::warn!("bundler: shutdown error: {e}");
     }
-    bundler_forwarder.abort();
+    bundler_watcher.abort();
 
     // Bound the agent drain so a stuck child can't hang shutdown forever (#256).
     // axum already drained connections; this cap protects the supervisor drain
