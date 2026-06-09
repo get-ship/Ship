@@ -27,20 +27,17 @@ pub use types::{
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ship_substrate::services::mesh::SharedMeshRegistry;
 use crate::auth::SessionRegistry;
 use ship_substrate::task_health::HealthRegistry;
 use crate::dispatch::run_dispatch::DispatchHandle;
 
-/// Central runtime for shipd. Owns the kernel, mesh registry, and config.
+/// Central runtime for shipd. Owns the kernel, registry, and config.
 pub struct ShipRuntime {
     pub(super) config: RuntimeConfig,
     pub(super) kernel: SharedKernel,
-    pub(super) mesh_registry: SharedMeshRegistry,
     pub(super) agent_mailboxes: AgentMailboxes,
     pub(super) pty_connections: PtyConnections,
     pub(super) ship_dir: PathBuf,
-    /// Daemon IPC directory — `<root>/machine/daemon/` or
     /// `<root>/machine/daemons/<hash>/` per devx-04.
     pub(super) daemon_dir: PathBuf,
     pub(super) dispatch_handle: std::sync::OnceLock<DispatchHandle>,

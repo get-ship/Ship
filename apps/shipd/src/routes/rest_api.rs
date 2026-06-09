@@ -1,9 +1,10 @@
 //! Plain REST API — non-mesh endpoints (capabilities).
 //!
-//! The mesh.* op surface (mesh_register, mesh_send, mesh_broadcast,
-//! mesh_discover, mesh_status_update, mesh_events) was removed with
-//! the mesh.*/actor.* op cut. The L0 kernel mesh mechanism lives in
-//! transport/connections.rs and is untouched.
+//! The `MeshResponse` envelope is the generic `(ok, data)` JSON shape
+//! used by every `/api/v1/*` handler; the name is historical. Real
+//! inter-agent messaging is now native: the kernel delivers directed
+//! events via `EventEnvelope.target_actor_id` to actor mailboxes; the
+//! mesh.* op surface is gone.
 //!
 //! The `hooks_checkout` no-op was removed: actors carry their cwd,
 //! sessions carry branch as a dimension, git is queried on demand —

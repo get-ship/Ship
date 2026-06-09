@@ -366,9 +366,12 @@ pub enum Route {
     /// @auth scope ReadWorkspace
     EventStream,
 
-    /// @route POST "/api/v1/rebuild-projections"
-    /// @auth scope AdminDaemon
-    RebuildProjections,
+    // POST /api/v1/rebuild-projections was removed: no caller
+    // (admin-only vestige) — the kernel can self-heal projections
+    // on demand via the existing event log. The rebuild primitive
+    // lives at `ship_substrate::db::rebuild::rebuild_projections`
+    // and is still wired into `ShipRuntime::init` for boot-time
+    // projection recovery.
 
     /// @route GET "/api/v1/projects/{id}/pty"
     /// @auth scope ManageRuns
@@ -385,8 +388,12 @@ pub enum Route {
 
     // Workspace-scoped artifact status/promote removed — callers get 404.
     // Use the unified /api/artifacts/* surface instead.
-
-    // ── Actor kernel reads (L0 — not the deprecated mesh.* op surface) ─────
+    // ── Actor kernel reads (L0 — kernel-directed mailbox delivery) ─────────
+    // GET /api/v1/mesh, GET /api/v1/actors/{actor_id}, and
+    // GET /api/v1/actors/{actor_id}/events were removed: they were the
+    // mesh.* op surface's introspection reads, and the spec culled them
+    // along with the mesh op surface itself. The actor/spawn + events/route
+    // writes (L0) are live callers (sui-canvas) and stay.
 
     /// @route POST "/api/v1/actor/spawn"
     /// @auth scope MeshSend
@@ -399,18 +406,6 @@ pub enum Route {
     /// @route GET "/api/v1/actors"
     /// @auth scope ReadWorkspace
     ListActors,
-
-    /// @route GET "/api/v1/mesh"
-    /// @auth scope ReadWorkspace
-    ListMesh,
-
-    /// @route GET "/api/v1/actors/{actor_id}"
-    /// @auth scope ReadWorkspace
-    GetActor { actor_id: String },
-
-    /// @route GET "/api/v1/actors/{actor_id}/events"
-    /// @auth scope ReadWorkspace
-    ActorEvents { actor_id: String },
 
     // ── Artifacts ────────────────────────────────────────────────────────
     // The list/upload/download/metadata/patch/delete handlers compute the
