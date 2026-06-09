@@ -57,6 +57,7 @@ pub use agent_def::{
     SessionStarted, SessionSuspended, TurnEnded, TurnStarted,
 };
 pub use agent_loop::{AgentOutput, Approver, Cancel, HeadlessApprover, Steer, ToolCtx, run_step};
+pub use ship_js::deno::ScriptExecutor;
 pub use approver::UserInput;
 pub use auth::AuthContext;
 pub use dispatch::GatewayDispatch;
