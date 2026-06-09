@@ -9,9 +9,22 @@
 //!   L0, L1, or L2. An unclassifiable crate forces the taxonomy decision.
 //!
 //! **R2 — L0 has no RPC/transport:** no L0 crate may declare a direct Cargo
-//!   dependency on `axum`, `connectrpc`, `http`, `tonic`, or `hyper`.
-//!   Allowlist: `ship-ops-rpc`, `ship-sidecar-proto` (generated proto crates
-//!   that legitimately exist to wrap these transport deps).
+//!   dependency on `axum`, `connectrpc`, `http`, `tonic`, or `hyper` in its
+//!   `[dependencies]` or `[build-dependencies]` sections. Three tiers:
+//!   1. ALLOWLIST — proto-codegen / protocol-boundary crates: `ship-ops-rpc`,
+//!      `ship-sidecar-proto`, `ship-gateway-client` (generated proto clients),
+//!      and `ship-sidecar` (application binary — in-sandbox daemon, effectively
+//!      L2; lives under the L0 tree for co-location but is NOT a library).
+//!   2. KNOWN-VIOLATIONS — emit WARN, non-blocking (TODO: ratchet to hard-fail
+//!      once the owning lane resolves): `ship-git` (axum+connectrpc — runs a
+//!      Connect server inside an L0 crate) and `ship-isolation`
+//!      (connectrpc+http — host-side sidecar driver). Both are on R15's
+//!      "not ours, leave" list; do not modify their deps here.
+//!   3. HARD-FAIL — any other L0 crate with a transport dep that is neither
+//!      allowlisted nor a known-violation; exits non-zero. This is the ratchet
+//!      that catches new violations.
+//!   Note: `[dev-dependencies]` are excluded from R2 scanning — a dev-dep
+//!   transport import is not an architectural violation.
 //!
 //! **R3 — Runtime seam:** `floki` must not depend on `ship-code`, and
 //!   `ship-code` must not depend on `floki`. Both may depend on `agent-def`;
@@ -34,7 +47,7 @@
 //! wires the wrong direction. Run via `cargo xtask lint-layers`; CI fails on
 //! any violation.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -81,9 +94,31 @@ const L0_SIBLINGS: &[&str] = &[
     "compiler",
 ];
 
-/// Crates in the RPC/transport allowlist — they wrap generated proto bindings
-/// and legitimately need axum/connectrpc/http as part of their public API.
-const RPC_ALLOWLIST: &[&str] = &["ship-ops-rpc", "ship-sidecar-proto"];
+/// R2 allowlist — legitimate proto-codegen / protocol-boundary crates that
+/// need axum/connectrpc/http as part of their generated or protocol surface:
+///   • ship-ops-rpc, ship-sidecar-proto, ship-gateway-client — generated
+///     Connect-RPC clients/servers; transport deps are unavoidable by design.
+///   • ship-sidecar — application binary (in-sandbox daemon). It lives under
+///     the L0 tree for co-location but is effectively L2; it is NOT a library
+///     consumed by other L0 crates. Transport deps are its core purpose.
+const RPC_ALLOWLIST: &[&str] = &[
+    "ship-ops-rpc",
+    "ship-sidecar-proto",
+    "ship-gateway-client",
+    "ship-sidecar", // application binary — effectively L2; see comment above
+];
+
+/// R2 known-violations — L0 crates that currently have transport deps but are
+/// on R15's "not ours, leave" list. A WARN is emitted for each but the lint
+/// does NOT fail on them. The owning lane must ratchet these to the allowlist
+/// or fix the architecture before removing them here.
+///
+/// TODO: once ship-git and ship-isolation are resolved by their owning lane,
+/// remove them here and let the tier-3 hard-fail rule catch any regressions.
+const R2_KNOWN_VIOLATIONS: &[&str] = &[
+    "ship-git",       // axum + connectrpc: runs a Connect server in an L0 crate
+    "ship-isolation", // connectrpc + http: host-side sidecar driver
+];
 
 /// Forbidden dep-key tokens for the L0-no-RPC/transport rule.
 const RPC_FORBIDDEN_DEPS: &[&str] = &["axum", "connectrpc", "http", "tonic", "hyper"];
@@ -128,6 +163,10 @@ fn is_l2_path(member: &str) -> bool {
 
 /// Parse the `[workspace] members = [...]` list from the root Cargo.toml.
 /// Returns workspace-relative path strings (the quoted values verbatim).
+///
+/// Note: glob patterns (e.g. `"crates/.../*"`) in the members list are NOT
+/// expanded; the function returns an error on the first glob it encounters
+/// rather than silently treating the literal string as a member path.
 fn workspace_members(root_manifest: &Path) -> Result<Vec<String>, String> {
     let toml = fs::read_to_string(root_manifest)
         .map_err(|e| format!("read {}: {e}", root_manifest.display()))?;
@@ -156,7 +195,19 @@ fn workspace_members(root_manifest: &Path) -> Result<Vec<String>, String> {
             while let Some(start) = rest.find('"') {
                 rest = &rest[start + 1..];
                 if let Some(end) = rest.find('"') {
-                    members.push(rest[..end].to_string());
+                    let entry = rest[..end].to_string();
+                    // Glob wildcards are not supported by this parser — fail
+                    // early rather than silently treating the literal glob
+                    // string as a member path (which would produce spurious
+                    // R1 orphan errors for every expanded crate).
+                    if entry.contains('*') || entry.contains("...") {
+                        return Err(format!(
+                            "workspace Cargo.toml: glob pattern `{entry}` in [workspace] \
+                             members is not supported by lint_layers — expand members \
+                             explicitly or update the parser to handle glob expansion"
+                        ));
+                    }
+                    members.push(entry);
                     rest = &rest[end + 1..];
                 }
             }
@@ -204,6 +255,7 @@ pub fn run(repo_root: &Path) -> Result<(), String> {
     }
 
     let mut errors: Vec<String> = Vec::new();
+    let mut warnings: Vec<String> = Vec::new();
 
     // ════════════════════════════════════════════════════════════════════════
     // R0 — Layer boundary: no L0 crate may depend on an L1 crate.
@@ -262,16 +314,34 @@ pub fn run(repo_root: &Path) -> Result<(), String> {
         }
     }
 
+    // Build a crate-name → manifest-path map from workspace members.
+    // Used by R3 to locate crates by name rather than hardcoded paths,
+    // so the rule automatically adapts if either crate is relocated within
+    // the workspace (the rule passes vacuously if the crate is absent).
+    let member_manifests: HashMap<String, PathBuf> = members
+        .iter()
+        .filter_map(|m| {
+            let path = repo_root.join(m).join("Cargo.toml");
+            crate_name(&path).map(|name| (name, path))
+        })
+        .collect();
+
     // ════════════════════════════════════════════════════════════════════════
     // R2 — L0 has no RPC/transport deps (axum/connectrpc/http/tonic/hyper).
-    //      Allowlist: ship-ops-rpc, ship-sidecar-proto.
+    //      Three tiers: ALLOWLIST (skip) → KNOWN-VIOLATION (warn, non-
+    //      blocking) → HARD-FAIL (any other L0 crate, exits non-zero).
+    //      [dev-dependencies] are excluded — a dev-dep transport import is
+    //      not an architectural violation.
     // ════════════════════════════════════════════════════════════════════════
     for manifest in &l0 {
         let self_name = crate_name(manifest).unwrap_or_default();
-        // Allowlisted proto-codegen crates may carry these deps.
+        // Tier 1 — allowlisted proto-codegen / application-binary crates:
+        // ship-ops-rpc, ship-sidecar-proto, ship-gateway-client,
+        // ship-sidecar (app binary, effectively L2).
         if RPC_ALLOWLIST.contains(&self_name.as_str()) {
             continue;
         }
+        let is_known_violation = R2_KNOWN_VIOLATIONS.contains(&self_name.as_str());
         let toml = fs::read_to_string(manifest)
             .map_err(|e| format!("read {}: {e}", manifest.display()))?;
         let rel = manifest.strip_prefix(repo_root).unwrap_or(manifest);
@@ -279,7 +349,10 @@ pub fn run(repo_root: &Path) -> Result<(), String> {
         for (lineno, line) in toml.lines().enumerate() {
             let t = line.trim_start();
             if t.starts_with('[') {
-                in_deps = t.contains("dependencies");
+                // Scan [dependencies] and [build-dependencies] only.
+                // [dev-dependencies] are intentionally excluded — a dev-dep
+                // transport import is not an architectural violation.
+                in_deps = t.contains("dependencies") && !t.contains("dev-");
                 continue;
             }
             if !in_deps || t.starts_with('#') {
@@ -290,17 +363,33 @@ pub fn run(repo_root: &Path) -> Result<(), String> {
             if key.is_empty() || key.contains(char::is_whitespace) {
                 continue;
             }
-            // Exact-match the dep key against the forbidden set.
             if RPC_FORBIDDEN_DEPS.contains(&key) {
-                errors.push(format!(
-                    "[R2] {} (line {}): L0 crate `{}` depends on RPC/transport crate `{}` — \
-                     L0 must not pull in axum/connectrpc/http/tonic/hyper; allowlist or move \
-                     this crate to L1",
-                    rel.display(),
-                    lineno + 1,
-                    self_name,
-                    key,
-                ));
+                if is_known_violation {
+                    // Tier 2 — known-violation: warn, non-blocking.
+                    // These crates are on R15's "not ours, leave" list;
+                    // the owning lane must ratchet them to hard-fail once
+                    // the architecture is resolved.
+                    warnings.push(format!(
+                        "[R2-KNOWN] {} (line {}): L0 crate `{}` has transport dep `{}` — \
+                         known violation (on R15 do-not-touch list); owning lane must ratchet \
+                         to hard-fail once resolved",
+                        rel.display(),
+                        lineno + 1,
+                        self_name,
+                        key,
+                    ));
+                } else {
+                    // Tier 3 — hard-fail: unexpected transport dep in L0.
+                    errors.push(format!(
+                        "[R2] {} (line {}): L0 crate `{}` depends on RPC/transport crate `{}` — \
+                         L0 must not pull in axum/connectrpc/http/tonic/hyper; add to the \
+                         allowlist, known-violations, or move this crate to a higher layer",
+                        rel.display(),
+                        lineno + 1,
+                        self_name,
+                        key,
+                    ));
+                }
             }
         }
     }
@@ -308,9 +397,17 @@ pub fn run(repo_root: &Path) -> Result<(), String> {
     // ════════════════════════════════════════════════════════════════════════
     // R3 — Runtime seam: floki ↔ ship-code must never cross-depend.
     //      Passes vacuously if either crate is absent (branch state).
+    //      Crate locations are resolved from the workspace member map so
+    //      the rule automatically adapts if either crate is relocated.
     // ════════════════════════════════════════════════════════════════════════
-    let floki_manifest = core.join("ship-platform/crates/floki/Cargo.toml");
-    let ship_code_manifest = core.join("ship-platform/crates/ship-code/Cargo.toml");
+    let floki_manifest = member_manifests
+        .get("floki")
+        .cloned()
+        .unwrap_or_else(|| core.join("ship-platform/crates/floki/Cargo.toml"));
+    let ship_code_manifest = member_manifests
+        .get("ship-code")
+        .cloned()
+        .unwrap_or_else(|| core.join("ship-platform/crates/ship-code/Cargo.toml"));
 
     if floki_manifest.is_file() {
         if let Ok(toml) = fs::read_to_string(&floki_manifest) {
@@ -367,12 +464,17 @@ pub fn run(repo_root: &Path) -> Result<(), String> {
     }
 
     // ── Report ────────────────────────────────────────────────────────────
+    for w in &warnings {
+        eprintln!("WARN {w}");
+    }
     if errors.is_empty() {
         println!(
-            "layer boundaries clean ({} L0 manifests checked against {} L1 crates; {} workspace members classified)",
+            "layer boundaries clean ({} L0 manifests checked against {} L1 crates; \
+             {} workspace members classified; {} known-violation warnings)",
             l0.len(),
             l1.len(),
             members.len(),
+            warnings.len(),
         );
         return Ok(());
     }
