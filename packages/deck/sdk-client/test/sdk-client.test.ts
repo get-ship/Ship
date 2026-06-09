@@ -528,23 +528,6 @@ describe('mutations via Connect', () => {
     expect(calls[0]!.init?.method).toBe('DELETE')
   })
 
-  it('skills.invoke POSTs to /api/v1/skills/{id}/invoke', async () => {
-    const calls: Array<{ url: string; init?: RequestInit }> = []
-    globalThis.fetch = async (url: any, init?: any) => {
-      calls.push({ url: String(url), init })
-      return new Response(
-        JSON.stringify({ ok: true, run_id: 'run-1', skill_id: 'foo', workspace_id: null }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      )
-    }
-    const ship = createClient({ EventSource: FakeEventSource as any })
-    const resp = await ship.skills.invoke({ id: 'foo', vars: { k: 'v' } })
-    expect(resp.run_id).toBe('run-1')
-    expect(resp.skill_id).toBe('foo')
-    expect(calls[0]!.url).toBe('/api/v1/skills/foo/invoke')
-    expect(JSON.parse(calls[0]!.init?.body as string)).toEqual({ vars: { k: 'v' } })
-  })
-
   it('mutation errors surface the daemon response body', async () => {
     globalThis.fetch = async () =>
       new Response('{"error":"agent_id required"}', {

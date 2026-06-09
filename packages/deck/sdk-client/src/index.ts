@@ -365,24 +365,6 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       list:        () => sse('skills', 'list'),
       summaries: (args) => sse('skills', 'summaries', args),
       detail:    (args) => sse('skills', 'detail', args),
-      invoke:    (args) =>
-        json<{
-          ok: true
-          run_id: string
-          skill_id: string
-          session_id: string
-          workspace_id: string | null
-          mode: 'library'
-          reused_session: boolean
-        }>(
-          'POST',
-          `/api/v1/skills/${encodeURIComponent(args.id)}/invoke`,
-          {
-            vars: args.vars,
-            workspace_id: args.workspace_id,
-            session_id: args.session_id,
-          },
-        ),
     },
     pipelines: {
       summaries: () => sse('pipelines', 'summaries'),

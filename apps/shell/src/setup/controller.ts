@@ -65,11 +65,11 @@ function readEntry(s: Record<string, unknown>): PersistedState {
 
 async function fetchInstalledProviders(): Promise<string[]> {
   try {
-    const res = await fetch('/api/v1/providers/installed', { credentials: 'same-origin' })
+    const res = await fetch('/api/v1/harnesses/installed', { credentials: 'same-origin' })
     if (!res.ok) return []
     const json = await res.json()
     const data = Array.isArray(json?.data) ? json.data : json
-    return Array.isArray(data?.providers) ? data.providers : []
+    return Array.isArray(data?.harnesses) ? data.harnesses : []
   } catch {
     return []
   }

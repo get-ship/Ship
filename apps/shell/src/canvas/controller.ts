@@ -125,26 +125,13 @@ export default controller({
       s.annThread = []
     },
     sendAnnotations: async (s) => {
-      const cid = s.canvasId
-      const agentId = s.pairedAgentId
       const layer = s.annLayerEl
       const staged = layer ? Array.from(layer.staged) : []
       if (staged.length === 0) { s.statusText = 'no annotations to send'; return }
-      const resp = await fetch('/api/v1/events/emit', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_type: 'canvas.annotation',
-          entity_id: cid,
-          actor_id: 'studio',
-          payload: { canvas_id: cid, agent_id: agentId, annotations: staged },
-        }),
-      })
-      if (!resp.ok) { s.statusText = 'send failed: ' + resp.status; return }
-      if (layer) layer.clear()
-      s.annThread = []
-      s.statusText = `sent ${staged.length} annotation${staged.length === 1 ? '' : 's'}`
+      // Annotation sending is disabled for launch — the events/emit endpoint
+      // was culled (no Connect replacement yet). Keep the staged annotations
+      // and surface the disabled state rather than POST to a dead route.
+      s.statusText = 'annotation sending is disabled in this build'
     },
     saveCanvas: async (s) => {
       const cid = s.canvasId
