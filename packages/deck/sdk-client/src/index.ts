@@ -20,9 +20,8 @@ import type {
 } from './generated'
 import type { ArtifactRecord, ShipSDK } from './ship-sdk'
 import { fetchBody, mutateForm, mutateJson } from './http'
-import { makeSseSource } from './sse'
-import { liveStream } from './live-stream'
 import { sharedSource } from './shared-source'
+import { MuxClient } from './mux-client'
 import { createShipConnectClient } from '@ship/sdk/connect'
 
 /// Single source of truth for the client-side serve-scheme URL prefix.
@@ -175,43 +174,22 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     id: (await p).id,
   })
 
-  // Live reads stream over the per-domain Connect `<Op>Live` rpcs (#138):
-  // `ship.<domain>.<op>()` opens `ops.<domain>.<op>Live` and flips the signal on
-  // each full-value frame — real typed RPC on the wire, no expr string, no SSE
-  // eval. The (domain, op) → client-method lookup is the one internal bridge;
-  // the `ShipSDK` interface keeps every caller fully typed. Snake_case args are
-  // camelCased to match the generated message fields.
-  type LiveMethod = (req: unknown, opts: { signal: AbortSignal }) => AsyncIterable<{ json: string }>
-  const camelKeys = (v: unknown): unknown => {
-    if (Array.isArray(v)) return v.map(camelKeys)
-    if (v && typeof v === 'object') {
-      return Object.fromEntries(
-        Object.entries(v as Record<string, unknown>).map(([k, val]) => [
-          k.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase()),
-          camelKeys(val),
-        ]),
-      )
-    }
-    return v
-  }
+  // Live reads flow through the multiplex transport (#214 fix). One MuxClient
+  // per createClient instance: lazily opens a window + SSE stream on first
+  // subscription; each (domain, op, args) tuple becomes a POST /mux/subscribe;
+  // full-value frames arrive over the shared EventSource and are routed to the
+  // matching LiveSignal. The sharedSource wrapper provides per-key dedup and
+  // refcounted teardown (#198) on top of the mux subscription.
+  const mux = new MuxClient(baseUrl, ESCtor)
+
   const sse = <T>(domain: string, op: string, args?: unknown): LiveSource<T> => {
     // Dedup key: identical (domain, op, args) reuse one upstream subscription
     // (#198). Multiple `live(() => ship.<d>.<o>(a))` callers fan out from a
-    // single stream, with refcounted teardown when the last subscriber leaves.
+    // single mux subscription with refcounted teardown.
     const key = `${domain}|${op}|${args === undefined ? '' : JSON.stringify(args)}`
-    return sharedSource<T>(key, () => {
-      const method = op.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase()) + 'Live'
-      const svc = (connect as unknown as Record<string, Record<string, LiveMethod>>)[domain]
-      const fn = svc?.[method]
-      // mesh + canvas have no per-domain Connect service yet (operational / canvas
-      // #99 in-flux) — those alone fall back to the legacy expr-SSE channel.
-      if (typeof fn !== 'function') {
-        const argsLit = args === undefined ? '' : JSON.stringify(args)
-        const expr = `ship.${domain}.${op}(${argsLit})`
-        return makeSseSource<T>(`${baseUrl}${DECK_PREFIX}/data?expr=${encodeURIComponent(expr)}`, ESCtor)
-      }
-      return liveStream<T>((signal) => fn(camelKeys(args ?? {}), { signal }))
-    })
+    return sharedSource<T>(key, () => ({
+      subscribe: (sig) => mux.subscribe<T>(domain, op, args, sig),
+    }))
   }
 
   // Curried HTTP helpers — bind baseUrl once so the per-op factories
