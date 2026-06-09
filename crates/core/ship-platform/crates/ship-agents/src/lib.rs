@@ -42,3 +42,26 @@ pub use agent_def::migrate_skill_vars_from_platform_db;
 
 // Back-compat re-exports so existing callers via ship_agents::agents::* still work.
 pub use agent_domain as agents;
+
+// ── Canonical sessions projection install seam ───────────────────────────────
+
+use std::sync::Once;
+
+static INSTALL_CANONICAL_SESSIONS: Once = Once::new();
+
+/// Register the canonical sessions projection with the substrate event bus.
+///
+/// Idempotent — safe to call multiple times; the `Once` guard ensures the
+/// factory is registered exactly once. Must be called before any
+/// `SqliteEventStore` is constructed (i.e. before `ensure_layout` / DB-open).
+///
+/// Mirror of `ship_pipeline_runtime::install_projections()`.
+pub fn install_canonical_session_projection() {
+    INSTALL_CANONICAL_SESSIONS.call_once(|| {
+        ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
+            vec![Box::new(
+                crate::services::sessions::CanonicalSessionProjection,
+            )]
+        }));
+    });
+}
