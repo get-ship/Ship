@@ -9,7 +9,7 @@
 use ship_substrate::db::events::list_recent_events_at;
 use ship_substrate::events::kernel_router::KernelRouter;
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::services::dispatch_ports::{ExitCause, ExitSignal};
+use ship_code::dispatch_ports::{ExitCause, ExitSignal};
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
@@ -17,7 +17,7 @@ use tokio::sync::Mutex;
 
 use ship_pipeline_runtime::orchestrator::exit_handler;
 
-use ship_substrate::services::process_registry::{ProcessRegistry, SharedRegistry};
+use ship_code::process_registry::{ProcessRegistry, SharedRegistry};
 
 fn setup() -> (TempDir, std::path::PathBuf, Arc<Mutex<KernelRouter>>) {
     let dir = TempDir::new().unwrap();
@@ -48,7 +48,7 @@ async fn drive_single_signal_until(
     terminal_type: Option<&str>,
 ) {
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
-    let port: Arc<dyn ship_substrate::services::dispatch_ports::ProcessRegistryPort> =
+    let port: Arc<dyn ship_code::dispatch_ports::ProcessRegistryPort> =
         Arc::new(SharedRegistry(registry));
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ExitSignal>();
     exit_handler::start(kernel, port, exit_handler::ExitVocabulary::PipelineRun, rx);
@@ -242,7 +242,7 @@ async fn agent_exited_unknown_code_emits_job_failed() {
 
 use async_trait::async_trait;
 use ship_substrate::events::executor::EXECUTOR_SESSION_DESTROYED;
-use ship_substrate::services::dispatch_ports::{
+use ship_code::dispatch_ports::{
     AgentPlatform, ExecutorHandle, SessionContext, SessionExecutor,
 };
 

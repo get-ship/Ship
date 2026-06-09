@@ -28,7 +28,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::process::{event_types as proc_events, ProcessKilledPayload};
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use ship_substrate::services::dispatch_ports::{
+use crate::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor, LaunchCommand, LaunchProfile,
 };
 use ship_runner::emit::persist_and_route;

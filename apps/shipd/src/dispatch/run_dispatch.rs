@@ -17,7 +17,7 @@
 //! daemon (shipd) — without closing a dependency cycle.
 
 use ship_agents::{start_agents, AgentPorts};
-use ship_substrate::services::dispatch_ports::{SessionExecutor, SpawnPolicy};
+use ship_code::dispatch_ports::{SessionExecutor, SpawnPolicy};
 use ship_pipeline_runtime::orchestrator::OrchestratorContext;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -26,8 +26,8 @@ use tokio::sync::Mutex;
 
 use super::adapters;
 use super::platform::ShipdPlatform;
-pub(crate) use ship_substrate::services::process_registry::ProcessRegistry;
-use ship_substrate::services::process_registry::SharedRegistry;
+pub(crate) use ship_code::process_registry::ProcessRegistry;
+use ship_code::process_registry::SharedRegistry;
 
 /// Handle returned by `subscribe_job_events` — gives the shutdown path
 /// access to the process registry and executor for graceful shutdown.
@@ -79,14 +79,14 @@ pub async fn subscribe_job_events(
     // pipeline orchestrator and the agent-session actor so role/token
     // resolution and the orphan/terminal projection reads are identical on
     // every dispatch path.
-    let isolation: Arc<dyn ship_substrate::services::dispatch_ports::IsolationStrategy> =
+    let isolation: Arc<dyn ship_code::dispatch_ports::IsolationStrategy> =
         Arc::new(adapters::GitWorktreeIsolation);
-    let registry_port: Arc<dyn ship_substrate::services::dispatch_ports::ProcessRegistryPort> =
+    let registry_port: Arc<dyn ship_code::dispatch_ports::ProcessRegistryPort> =
         Arc::new(SharedRegistry(registry.clone()));
     let spawn_policy: Arc<dyn SpawnPolicy> = Arc::new(
         ship_pipeline_runtime::orchestrator::spawn_policy::ConfigSpawnPolicy::new(platform.clone()),
     );
-    let projections: Arc<dyn ship_substrate::services::dispatch_ports::ProjectionReader> =
+    let projections: Arc<dyn ship_code::dispatch_ports::ProjectionReader> =
         Arc::new(ship_pipeline_runtime::orchestrator::projection_reader::ProjectionsReader);
 
     let octx = Arc::new(OrchestratorContext {
@@ -94,7 +94,7 @@ pub async fn subscribe_job_events(
         executor: executor.clone(),
         platform: platform.clone(),
         registry: registry_port.clone(),
-        probe: Arc::new(ship_substrate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_code::process_tree_probe::SysinfoProcessTreeProbe::new()),
         spawn_policy: spawn_policy.clone(),
         projections: projections.clone(),
         done_flags: Arc::new(Mutex::new(HashMap::new())),

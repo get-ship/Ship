@@ -10,10 +10,10 @@ use std::time::Duration;
 use async_trait::async_trait;
 use axum::{Router, routing::get};
 use futures_util::{SinkExt, StreamExt};
-use ship_substrate::services::dispatch_ports::{
+use ship_code::dispatch_ports::{
     ExecutorHandle, SessionContext, SessionExecutor,
 };
-use ship_substrate::services::process_registry::ProcessRegistry;
+use ship_code::process_registry::ProcessRegistry;
 use ship_substrate::supervisor::{ActorKind, ActorProfile, TransportKind, spawn_actor};
 use crate::dispatch::run_dispatch::DispatchHandle;
 use ship_agents::runtime::pty_executor_handle_for_test;

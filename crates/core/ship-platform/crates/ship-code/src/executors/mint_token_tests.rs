@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ship_auth::scopes::{self, Scope};
-use ship_substrate::services::dispatch_ports::{LaunchCommand, LaunchProfile, SessionContext};
+use crate::dispatch_ports::{LaunchCommand, LaunchProfile, SessionContext};
 
 use super::process::mint_scoped_token;
 
@@ -32,7 +32,7 @@ fn ctx_for(agent: &str) -> SessionContext {
         launch: LaunchProfile::default(),
         exit_tx: None,
         step: None,
-        invocation: ship_substrate::services::dispatch_ports::InvocationMode::Print,
+        invocation: crate::dispatch_ports::InvocationMode::Print,
         keepalive: false,
     }
 }

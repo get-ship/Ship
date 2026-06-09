@@ -17,13 +17,18 @@ ship-isolation = { path = "../../../ship-isolation", default-features = false }
 ship-device = { path = "../ship-device" }
 ship-files = { path = "../ship-files" }
 ship-config = { path = "../ship-config" }
+ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 libc = { workspace = true }
+futures-util = { workspace = true }
+sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "time", "macros", "process", "io-util"] }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

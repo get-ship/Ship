@@ -20,6 +20,9 @@ ship-pipelines = { path = "../core/ship-substrate/crates/ship-pipelines", featur
 ship-runner = { path = "../core/ship-substrate/crates/ship-runner" }
 # L0 types — Authority principal carried on dispatch events.
 ship-types = { path = "../core/ship-substrate/crates/ship-types" }
+# L1 platform code — dispatch_ports, process_registry, process_tree_probe,
+# runner orchestration helpers (dedup, exit_handler, router, etc.).
+ship-code = { path = "../core/ship-platform/crates/ship-code" }
 # L1 platform — `FilesService` (file-tree helper) and the live SQL-backed
 # `pipeline_run` / `agent_session` projections the runtime reads. This
 # crate is a DOWNSTREAM consumer of `ship-platform`; `ship-platform` does

@@ -23,7 +23,7 @@ use std::sync::Arc;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use ship_substrate::events::KernelRouter;
-use ship_substrate::services::dispatch_ports::{
+use crate::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor,
 };
 use ship_substrate::services::server_session::{ServerSession, SessionEvent};

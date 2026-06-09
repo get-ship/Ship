@@ -18,7 +18,7 @@ use ship_substrate::events::pipeline::{
 use ship_substrate::events::{EventEnvelope, EventSink};
 use ship_substrate::persistence::event_store::SqliteEventStore;
 use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
-use ship_substrate::services::dispatch_ports::{ExecutorHandle, ProcessRegistryPort};
+use ship_code::dispatch_ports::{ExecutorHandle, ProcessRegistryPort};
 use crate::orchestrator::{FanoutLaneRef, OrchestratorContext, StepActivity};
 
 // ── Mock ports ───────────────────────────────────────────────────────────────
@@ -32,16 +32,16 @@ impl ProcessRegistryPort for NoopRegistry {
 
 pub struct NoopIsolation;
 #[async_trait]
-impl ship_substrate::services::dispatch_ports::IsolationStrategy for NoopIsolation {
+impl ship_code::dispatch_ports::IsolationStrategy for NoopIsolation {
     async fn prepare(
         &self,
-        _job: &ship_substrate::services::dispatch_ports::SessionContext,
+        _job: &ship_code::dispatch_ports::SessionContext,
     ) -> anyhow::Result<std::path::PathBuf> {
         Ok(std::path::PathBuf::from("/tmp"))
     }
     async fn cleanup(
         &self,
-        _job: &ship_substrate::services::dispatch_ports::SessionContext,
+        _job: &ship_code::dispatch_ports::SessionContext,
     ) -> anyhow::Result<()> {
         Ok(())
     }
@@ -49,10 +49,10 @@ impl ship_substrate::services::dispatch_ports::IsolationStrategy for NoopIsolati
 
 pub struct NoopExecutor;
 #[async_trait]
-impl ship_substrate::services::dispatch_ports::SessionExecutor for NoopExecutor {
+impl ship_code::dispatch_ports::SessionExecutor for NoopExecutor {
     async fn spawn(
         &self,
-        _ctx: &ship_substrate::services::dispatch_ports::SessionContext,
+        _ctx: &ship_code::dispatch_ports::SessionContext,
     ) -> anyhow::Result<ExecutorHandle> {
         Err(anyhow::anyhow!("noop"))
     }
@@ -63,7 +63,7 @@ impl ship_substrate::services::dispatch_ports::SessionExecutor for NoopExecutor 
 
 pub struct NoopPlatform;
 #[async_trait]
-impl ship_substrate::services::dispatch_ports::AgentPlatform for NoopPlatform {
+impl ship_code::dispatch_ports::AgentPlatform for NoopPlatform {
     fn worktrees_dir(&self) -> std::path::PathBuf {
         std::path::PathBuf::from("/tmp/worktrees")
     }
@@ -91,7 +91,7 @@ pub fn make_octx() -> OrchestratorContext {
         executor: Arc::new(NoopExecutor),
         platform: Arc::new(NoopPlatform),
         registry: Arc::new(NoopRegistry),
-        probe: Arc::new(ship_substrate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_code::process_tree_probe::SysinfoProcessTreeProbe::new()),
         spawn_policy: Arc::new(crate::orchestrator::spawn_policy::NoopSpawnPolicy),
         projections: Arc::new(crate::orchestrator::projection_reader::ProjectionsReader),
         done_flags: Arc::new(Mutex::new(HashMap::new())),

@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use async_trait::async_trait;
 use tokio::sync::Mutex;
 
-use ship_substrate::services::dispatch_ports::{
+use ship_code::dispatch_ports::{
     ExecutorHandle, SessionContext, SessionExecutor, ProcessRegistryPort, ProcessTreeProbe, TreeSample,
 };
 

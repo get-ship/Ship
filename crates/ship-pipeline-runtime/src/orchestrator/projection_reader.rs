@@ -10,7 +10,7 @@ use async_trait::async_trait;
 
 use ship_agents::services::sessions::projection::load_sessions;
 use crate::projections::pipeline_run::{load_pipeline_run_by_id, load_pipeline_runs, PipelineRunStatus};
-use ship_substrate::services::dispatch_ports::ProjectionReader;
+use ship_code::dispatch_ports::ProjectionReader;
 use ship_substrate::projections::actor::active_actor_ids;
 
 /// Reads the live SQL-backed projections (`platform.db`). Stateless — each

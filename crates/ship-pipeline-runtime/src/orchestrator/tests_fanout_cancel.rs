@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
-use ship_substrate::services::dispatch_ports::{
+use ship_code::dispatch_ports::{
     AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
@@ -90,7 +90,7 @@ fn make_octx(
         executor,
         platform,
         registry,
-        probe: Arc::new(ship_substrate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_code::process_tree_probe::SysinfoProcessTreeProbe::new()),
         spawn_policy: Arc::new(crate::orchestrator::spawn_policy::NoopSpawnPolicy),
         projections: Arc::new(crate::orchestrator::projection_reader::ProjectionsReader),
         done_flags: Arc::new(Mutex::new(HashMap::new())),

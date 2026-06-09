@@ -15,7 +15,7 @@
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use ship_substrate::services::dispatch_ports::{
+use crate::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor,
 };
 use ship_harnesses::harness_adapter::adapter_for_or_default;

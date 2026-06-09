@@ -201,5 +201,5 @@ pub async fn dispatch_agent_session_core(
 fn resolve_project_head_sha() -> Option<String> {
     let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
-    ship_runner::observe::resolve_head_sha(project_root)
+    ship_code::runner::observe::resolve_head_sha(project_root)
 }

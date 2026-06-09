@@ -17,7 +17,7 @@ use ship_substrate::events::pipeline::{
     event_types as run_event_types, PipelineStepObservedPayload, StepTrigger, StepType,
 };
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
-use ship_substrate::services::dispatch_ports::{ExitSignal, ProcessTreeProbe};
+use ship_code::dispatch_ports::{ExitSignal, ProcessTreeProbe};
 use crate::orchestrator::step_monitor::{StepMonitor, start_step_monitor};
 use crate::orchestrator::StepActivity;
 
@@ -194,7 +194,7 @@ async fn active_subprocess_keeps_step_alive_past_idle_budget() {
             slug: "heartbeat-active".into(),
             pipeline_run_id: l.pipeline_run_id.clone(),
             exit_code: Some(0),
-            cause: ship_substrate::services::dispatch_ports::ExitCause::AgentExited,
+            cause: ship_code::dispatch_ports::ExitCause::AgentExited,
         })
         .unwrap();
     let observed = wait_observed(&l.pipeline_run_id, Duration::from_secs(6))

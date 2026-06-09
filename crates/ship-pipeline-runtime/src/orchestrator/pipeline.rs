@@ -6,7 +6,7 @@
 use ship_substrate::events::pipeline::StepType;
 use ship_substrate::events::EventEnvelope;
 use crate::projections::pipeline_run::load_pipeline_runs_at;
-use ship_substrate::services::dispatch_ports::{SessionContext, LaunchProfile};
+use ship_code::dispatch_ports::{SessionContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -293,7 +293,7 @@ async fn advance_pipeline_inner(
                     spec_path: job.spec_path.clone(),
                     spec_content: None,
                     work_dir: worktree_path.clone(),
-                    env: ship_runner::build_spawn_env(&slug, agent, octx.spawn_policy.as_ref()).await,
+                    env: ship_code::runner::build_spawn_env(&slug, agent, octx.spawn_policy.as_ref()).await,
                     exit_tx: Some(exit_tx),
                     launch: LaunchProfile {
                         harness: step.harness.clone(),
@@ -301,7 +301,7 @@ async fn advance_pipeline_inner(
                         persist_session: persist,
                         ..Default::default()
                     },
-                    step: Some(ship_substrate::services::dispatch_ports::StepInfo { index: step_idx, id: step.id.clone() }),
+                    step: Some(ship_code::dispatch_ports::StepInfo { index: step_idx, id: step.id.clone() }),
                     invocation: super::dispatch::resolve_step_invocation(
                         step.invocation.as_deref(),
                         job.headless,
