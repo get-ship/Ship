@@ -15,8 +15,3 @@
 
 pub mod process_events;
 pub mod terminal_launcher;
-
-/// Re-export the substrate's `graceful_shutdown` so callers can reach it
-/// through the supervisor namespace — that's where the responsibility for
-/// stopping spawned processes conceptually lives.
-pub use ship_substrate::services::process_registry::graceful_shutdown;
