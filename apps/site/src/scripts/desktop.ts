@@ -406,7 +406,7 @@ function wireSelect(w: HTMLElement, group: HTMLElement): void {
     if (out && value) out.textContent = value;
     // Repaint a demo: retone its tone-driven primitives live.
     if (demo && value) {
-      for (const el of demo.querySelectorAll('sui-bar-chart, sui-progress, sui-stat, sui-status-dot')) {
+      for (const el of demo.querySelectorAll('sui-bar-chart, sui-progress, sui-status-dot')) {
         el.setAttribute('tone', value);
       }
     }

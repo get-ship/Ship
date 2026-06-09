@@ -29,7 +29,7 @@ const packs: Pack[] = [
   {
     name: 'SUI primitives',
     kind: 'building blocks',
-    items: ['sui-card', 'sui-stat', 'sui-bar-chart', 'sui-button', 'sui-list-tile', 'sui-status-dot', 'sui-badge', 'sui-sparkline', 'sui-toolbar', 'sui-tabs'],
+    items: ['sui-card', 'sui-bar-chart', 'sui-button', 'sui-status-dot', 'sui-badge', 'sui-sparkline', 'sui-tabs'],
   },
   {
     name: 'Domain packs',
@@ -76,34 +76,34 @@ const packs: Pack[] = [
           </header>
           <div class="view-stage">
             <sui-card class="vm-card" variant="outline" padding="md">
-              <sui-toolbar justify="split" class="vm-bar">
+              <div class="vm-bar">
                 <span class="vm-title">Q3 overview</span>
                 <sui-badge variant="soft" size="sm">live</sui-badge>
-              </sui-toolbar>
+              </div>
               <div class="vm-row">
-                <sui-stat size="md" tone="success">
-                  <span slot="label">ARR</span>
+                <sui-card variant="soft" padding="sm" tone="success" class="vm-stat">
+                  <span slot="header">ARR</span>
                   $1.24M
-                  <span slot="trend">+18%</span>
-                </sui-stat>
-                <sui-stat size="md" tone="primary">
-                  <span slot="label">NPS</span>
+                  <span slot="footer">+18%</span>
+                </sui-card>
+                <sui-card variant="soft" padding="sm" tone="primary" class="vm-stat">
+                  <span slot="header">NPS</span>
                   72
-                  <span slot="trend">+9</span>
-                </sui-stat>
+                  <span slot="footer">+9</span>
+                </sui-card>
               </div>
               <sui-bar-chart class="vm-chart" data="22,28,34,42,48,52,58,62,68,74,82,88" tone="primary" height="56" label="throughput"></sui-bar-chart>
               <div class="vm-events">
-                <sui-list-tile density="compact">
-                  <sui-status-dot slot="leading" tone="success" size="sm"></sui-status-dot>
+                <div class="vm-ev">
+                  <sui-status-dot tone="success" size="sm"></sui-status-dot>
                   Inbox · drafted 5 replies
-                  <span slot="trailing" class="vm-ago">2s</span>
-                </sui-list-tile>
-                <sui-list-tile density="compact">
-                  <sui-status-dot slot="leading" tone="success" size="sm"></sui-status-dot>
+                  <span class="vm-ago">2s</span>
+                </div>
+                <div class="vm-ev">
+                  <sui-status-dot tone="success" size="sm"></sui-status-dot>
                   Repo · ran the test suite
-                  <span slot="trailing" class="vm-ago">40s</span>
-                </sui-list-tile>
+                  <span class="vm-ago">40s</span>
+                </div>
               </div>
             </sui-card>
             {pins.map((pin) => (
@@ -123,13 +123,13 @@ const packs: Pack[] = [
             <span class="mock-reload"><span class="reload-pulse"></span>hot reload</span>
           </header>
           <pre class="code"><code><span class="ln">1</span><span class="tg">&lt;sui-card</span> <span class="at">variant</span>=<span class="st">"outline"</span> <span class="at">padding</span>=<span class="st">"md"</span><span class="tg">&gt;</span>
-<span class="ln">2</span>  <span class="tg">&lt;sui-toolbar&gt;</span>
-<span class="ln">3</span>    <span class="tg">&lt;span&gt;</span><span class="hit hit-1">Q3 overview</span><span class="tg">&lt;/span&gt;</span>
-<span class="ln">4</span>  <span class="tg">&lt;/sui-toolbar&gt;</span>
-<span class="ln">5</span>  <span class="tg">&lt;sui-stat</span> <span class="at">tone</span>=<span class="st">"<span class="hit hit-2">success</span>"</span><span class="tg">&gt;</span>
-<span class="ln">6</span>    <span class="tg">&lt;span</span> <span class="at">slot</span>=<span class="st">"label"</span><span class="tg">&gt;</span>ARR<span class="tg">&lt;/span&gt;</span>
+<span class="ln">2</span>  <span class="tg">&lt;div</span> <span class="at">class</span>=<span class="st">"vm-bar"</span><span class="tg">&gt;</span>
+<span class="ln">3</span>    <span class="tg">&lt;span</span> <span class="at">class</span>=<span class="st">"vm-title"</span><span class="tg">&gt;</span><span class="hit hit-1">Q3 overview</span><span class="tg">&lt;/span&gt;</span>
+<span class="ln">4</span>  <span class="tg">&lt;/div&gt;</span>
+<span class="ln">5</span>  <span class="tg">&lt;sui-card</span> <span class="at">tone</span>=<span class="st">"<span class="hit hit-2">success</span>"</span> <span class="at">variant</span>=<span class="st">"soft"</span> <span class="at">padding</span>=<span class="st">"sm"</span><span class="tg">&gt;</span>
+<span class="ln">6</span>    <span class="tg">&lt;span</span> <span class="at">slot</span>=<span class="st">"header"</span><span class="tg">&gt;</span>ARR<span class="tg">&lt;/span&gt;</span>
 <span class="ln">7</span>    $1.24M
-<span class="ln">8</span>  <span class="tg">&lt;/sui-stat&gt;</span>
+<span class="ln">8</span>  <span class="tg">&lt;/sui-card&gt;</span>
 <span class="ln">9</span>  <span class="hit hit-3"><span class="tg">&lt;sui-bar-chart</span> <span class="at">data</span>=<span class="st">"…"</span> <span class="tg">/&gt;</span></span>
 <span class="ln">10</span> <span class="tg">&lt;/sui-card&gt;</span></code></pre>
           <footer class="studio-foot">

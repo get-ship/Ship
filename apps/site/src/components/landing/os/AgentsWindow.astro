@@ -59,10 +59,10 @@ const mcpOpts    = ['gmail', 'linear', 'slack', 'github', 'notion'];
 
 // Pinned annotations for the Visual section's right rail.
 const annotations = [
-  { id: 1, host: 'sui-stat (ARR)',     note: 'make this the hero',        when: '2m' },
+  { id: 1, host: 'sui-card (ARR)',     note: 'make this the hero',        when: '2m' },
   { id: 2, host: 'sui-sparkline',      note: 'use brand blue, not orange', when: '2m' },
   { id: 3, host: 'markdown · summary', note: 'tighten this copy',         when: '1m' },
-  { id: 4, host: 'sui-stat (P0s)',     note: 'cut — not needed yet',      when: 'now' },
+  { id: 4, host: 'sui-card (P0s)',     note: 'cut — not needed yet',      when: 'now' },
 ];
 
 const facets = [
@@ -106,27 +106,27 @@ const facets = [
                 <sui-badge variant="soft" size="sm">share</sui-badge>
               </div>
               <div class="v-row">
-                <sui-stat size="lg" tone="success" class="v-hot" data-inspect="sui-stat">
-                  <span slot="label">ARR</span>
+                <sui-card variant="soft" padding="sm" tone="success" class="v-hot" data-inspect="sui-card">
+                  <span slot="header">ARR</span>
                   $1.24M
-                  <span slot="trend">+18%</span>
-                </sui-stat>
+                  <span slot="footer">+18%</span>
+                </sui-card>
                 <div class="v-spark v-hot" data-inspect="sui-sparkline">
                   <sui-sparkline data="32,48,42,52,58,74,82" tone="primary" width="240" height="68" fill label="q3"></sui-sparkline>
                 </div>
               </div>
               <p class="v-copy v-hot" data-inspect="markdown"><b>What shipped</b><br/>Auth rewrite landed; mobile picker stable on iOS 18; 2 P0s closed.</p>
               <div class="v-row">
-                <sui-stat size="md" tone="primary" class="v-hot" data-inspect="sui-stat">
-                  <span slot="label">NPS</span>
+                <sui-card variant="soft" padding="sm" tone="primary" class="v-hot" data-inspect="sui-card">
+                  <span slot="header">NPS</span>
                   72
-                  <span slot="trend">+9</span>
-                </sui-stat>
-                <sui-stat size="md" tone="warning" class="v-hot" data-inspect="sui-stat">
-                  <span slot="label">P0s open</span>
+                  <span slot="footer">+9</span>
+                </sui-card>
+                <sui-card variant="soft" padding="sm" tone="warning" class="v-hot" data-inspect="sui-card">
+                  <span slot="header">P0s open</span>
                   0
-                  <span slot="trend">-2</span>
-                </sui-stat>
+                  <span slot="footer">-2</span>
+                </sui-card>
               </div>
             </div>
             <p class="v-hint">hover any element · click to pin</p>
@@ -329,16 +329,16 @@ const facets = [
         <div class="sec-body obs-body">
           <sui-card variant="soft" padding="md" class="o-kpi">
             <div class="o-kpi-row">
-              <sui-stat size="md" tone="primary">
-                <span slot="label">agents active</span>
+              <sui-card variant="soft" padding="sm" tone="primary">
+                <span slot="header">agents active</span>
                 5
-                <span slot="trend">live</span>
-              </sui-stat>
-              <sui-stat size="md" tone="success">
-                <span slot="label">events / min</span>
+                <span slot="footer">live</span>
+              </sui-card>
+              <sui-card variant="soft" padding="sm" tone="success">
+                <span slot="header">events / min</span>
                 234
-                <span slot="trend">+18%</span>
-              </sui-stat>
+                <span slot="footer">+18%</span>
+              </sui-card>
             </div>
             <div class="o-spark">
               <div class="o-spark-label">throughput · last 60s</div>
@@ -358,26 +358,26 @@ const facets = [
 
           <div class="o-events">
             <header class="o-events-h">Live feed</header>
-            <sui-list-tile density="compact" class="o-ev">
-              <sui-status-dot slot="leading" tone="success" size="sm"></sui-status-dot>
+            <div class="o-ev">
+              <sui-status-dot tone="success" size="sm"></sui-status-dot>
               Inbox · drafted 5 replies
-              <span slot="trailing" class="o-ago">2s</span>
-            </sui-list-tile>
-            <sui-list-tile density="compact" class="o-ev">
-              <sui-status-dot slot="leading" tone="success" size="sm"></sui-status-dot>
+              <span class="o-ago">2s</span>
+            </div>
+            <div class="o-ev">
+              <sui-status-dot tone="success" size="sm"></sui-status-dot>
               Repo · ran the test suite
-              <span slot="trailing" class="o-ago">40s</span>
-            </sui-list-tile>
-            <sui-list-tile density="compact" class="o-ev">
-              <sui-status-dot slot="leading" tone="warning" pulse size="sm"></sui-status-dot>
+              <span class="o-ago">40s</span>
+            </div>
+            <div class="o-ev">
+              <sui-status-dot tone="warning" pulse size="sm"></sui-status-dot>
               Launch · waiting on your review
-              <span slot="trailing" class="o-ago">now</span>
-            </sui-list-tile>
-            <sui-list-tile density="compact" class="o-ev">
-              <sui-status-dot slot="leading" tone="success" size="sm"></sui-status-dot>
+              <span class="o-ago">now</span>
+            </div>
+            <div class="o-ev">
+              <sui-status-dot tone="success" size="sm"></sui-status-dot>
               Recap · published Friday digest
-              <span slot="trailing" class="o-ago">3m</span>
-            </sui-list-tile>
+              <span class="o-ago">3m</span>
+            </div>
           </div>
         </div>
       </section>

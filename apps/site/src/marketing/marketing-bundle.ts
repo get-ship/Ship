@@ -17,12 +17,11 @@
 // `<sui-icon>` stays an inert HTMLUnknownElement — no glyph fetch, no render.
 //
 // NOTE (#221 Slice 2): the retired `MARKETING_SOURCES` Rust const also listed
-// `sui-stat`, `sui-toolbar`, and `sui-progress`, but those components have NO
-// `.sui` source anywhere in the repo (they were never committed). The old
-// virtual-aggregate build errored on the three missing paths and produced stale
-// output; they were never actually defined. They are intentionally NOT traced
-// here — a non-existent module cannot be a bundle member. If/when those
-// components land, add their imports below.
+// a few components that were never committed (no `.sui` source anywhere in
+// the repo), so the virtual-aggregate build errored on the missing paths
+// and produced stale output; those tags were never actually defined. They
+// are intentionally NOT traced here — a non-existent module cannot be a
+// bundle member. If/when those components land, add their imports below.
 
 // Primitives — packages/components/sui/primitives
 import '../../../../packages/components/sui/primitives/src/sui-icon/sui-icon.compiled.js'
@@ -31,6 +30,10 @@ import '../../../../packages/components/sui/primitives/src/sui-button/sui-button
 import '../../../../packages/components/sui/primitives/src/sui-separator/sui-separator.compiled.js'
 import '../../../../packages/components/sui/primitives/src/sui-status-dot/sui-status-dot.compiled.js'
 import '../../../../packages/components/sui/primitives/src/sui-table/sui-table.compiled.js'
+import '../../../../packages/components/sui/primitives/src/sui-card/sui-card.compiled.js'
+import '../../../../packages/components/sui/primitives/src/sui-diff/sui-diff.compiled.js'
+import '../../../../packages/components/sui/primitives/src/sui-tabs/sui-tabs.compiled.js'
+import '../../../../packages/components/sui/primitives/src/sui-tab-panel/sui-tab-panel.compiled.js'
 
 // Charts — packages/components/sui/charts
 import '../../../../packages/components/sui/charts/src/sui-bar-chart/sui-bar-chart.compiled.js'

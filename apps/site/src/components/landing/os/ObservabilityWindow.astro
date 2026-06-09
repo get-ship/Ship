@@ -37,7 +37,7 @@ const events: BusEvent[] = [
   { type: 'agent.decision',  source: 'inbox-triage',  detail: '12 high · 26 noise · 9 personal', tone: 'agent' },
   { type: 'pipeline.step',   source: 'friday-wrap-up', detail: 'collect-week → draft-recap', meta: '2/4',           tone: 'pipeline' },
   { type: 'gate.request',    source: 'review-gate',   detail: 'approve send to team@', meta: 'awaiting you',        tone: 'gate' },
-  { type: 'view.update',     source: 'overview.sui',  detail: 'NPS · sui-stat (72 → 73)', tone: 'view' },
+  { type: 'view.update',     source: 'overview.sui',  detail: 'NPS · sui-card (72 → 73)', tone: 'view' },
   { type: 'tool.call',       source: 'github.search', detail: 'q: is:pr is:merged this week', meta: '12 ms',         tone: 'tool' },
   { type: 'token.usage',     source: 'gpt-4-turbo',   detail: '802 in · 196 out',     meta: '$0.0064',              tone: 'token' },
 ];
