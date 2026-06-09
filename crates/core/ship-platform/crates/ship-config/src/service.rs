@@ -184,14 +184,21 @@ impl SettingsService {
 
     // ── internals ─────────────────────────────────────────────────────────────
 
-    /// The authority gate. SPACE = operator-only (agents cannot write space
-    /// settings). ACCOUNT/RUNTIME = operator/shell-cred. Restrictive default; the
-    /// finer role model is a flagged follow.
+    /// The authority gate. SPACE/ACCOUNT = operator-only (agents and
+    /// unauthenticated browser/dev sessions cannot write shared settings).
+    /// RUNTIME is the machine-local launch-defaults tier — terminal program,
+    /// send-key, and UI preferences like the active theme. It is not privileged,
+    /// so a non-operator (browser cookie, dev loopback) session may persist it;
+    /// the write lands in the local `daemon_settings` KV over `runtime.db`.
     fn authorize_write(&self, scope: SettingScope) -> Result<(), ConfigError> {
         if self.ctx.is_operator {
             return Ok(());
         }
-        let _ = scope; // all non-operator writes are rejected under the default.
+        // RUNTIME is local, non-privileged launch defaults — allow without
+        // operator authority. ACCOUNT/SPACE stay operator-only.
+        if matches!(scope, SettingScope::Runtime) {
+            return Ok(());
+        }
         Err(ConfigError::Forbidden(format!(
             "settings.write in {} scope requires operator authority",
             scope.as_str()

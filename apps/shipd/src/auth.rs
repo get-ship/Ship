@@ -307,36 +307,25 @@ pub async fn auth_middleware(
         .and_then(|h| h.strip_prefix("Bearer "))
         .map(|s| s.to_string());
 
-    // Query-param tokens are accepted ONLY for the iframe raw-serve flow
-    // (`/api/v1/view/*/raw`). Iframes cannot set Authorization headers or
-    // share cookies reliably across origins, so `?token=` is the only
-    // option there. Every other endpoint must use the
-    // `Authorization: Bearer` header or the `ship_session` cookie —
-    // otherwise the token leaks into access logs.
-    let path = req.uri().path();
-    let is_raw_iframe = req.method() == axum::http::Method::GET
-        && path.starts_with("/api/v1/view/")
-        && path.ends_with("/raw");
+    // Query-param tokens are never accepted: no live route needs them (the
+    // former iframe raw-serve flow `/api/v1/view/*/raw` was removed and nothing
+    // serves that path). Every endpoint authenticates via the
+    // `Authorization: Bearer` header or the `ship_session` cookie. A `?token=`
+    // is ignored — and warned, so a stale caller is visible — since it would
+    // otherwise leak the token into access logs.
     let query_has_token = req
         .uri()
         .query()
         .map(|q| q.split('&').any(|p| p.starts_with("token=")))
         .unwrap_or(false);
-    let query_token = if is_raw_iframe {
-        req.uri().query()
-            .and_then(|q| q.split('&').find_map(|p| p.strip_prefix("token=")))
-            .map(|s| s.to_string())
-    } else {
-        if query_has_token {
-            tracing::warn!(
-                "auth: rejected ?token= on non-raw path {} (use Authorization header or cookie)",
-                path
-            );
-        }
-        None
-    };
+    if query_has_token {
+        tracing::warn!(
+            "auth: ignored ?token= on {} (use Authorization header or cookie)",
+            req.uri().path()
+        );
+    }
 
-    let token_string = match header_token.or(query_token) {
+    let token_string = match header_token {
         Some(t) => t,
         None => {
             return (StatusCode::UNAUTHORIZED, "missing or malformed Authorization header")

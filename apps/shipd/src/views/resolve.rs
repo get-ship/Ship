@@ -7,12 +7,6 @@ use super::RailMeta;
 
 #[derive(Deserialize)]
 pub(crate) struct ManifestFile {
-    name: Option<String>,
-    #[serde(rename = "type")]
-    view_type: Option<String>,
-    element: Option<String>,
-    claims: Option<Vec<String>>,
-    entry: Option<String>,
     #[allow(dead_code)] // Deserialized but not yet read; kept for forward-compat manifests.
     pub data: Option<ManifestData>,
     #[allow(dead_code)]

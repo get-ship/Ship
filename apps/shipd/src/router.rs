@@ -4,7 +4,7 @@
 use axum::{
     Json, Router,
     body::Body,
-    response::Response,
+    response::{IntoResponse, Response},
 };
 use std::sync::Arc;
 
@@ -127,7 +127,7 @@ pub fn build_router(
         // OWN resolved project root — no Ship path resolution. Registered AFTER
         // Index/Setup so /setup and / keep their handlers; `/{file}` is the
         // catch-all single-segment path (axum prefers the literal routes).
-        .route("/{file}", axum::routing::get(deck::serve_public_asset))
+        .route("/{file}", axum::routing::get(spa_or_public_asset))
         // Bind the runtime state here so the resulting `Router<()>` merges
         // cleanly with the root assembly below.
         .with_state(rt.clone());
@@ -234,7 +234,13 @@ pub fn build_router(
         // straight into the stateless root. deck-axum owns these paths.
         .merge(deck::router())
         .merge(webhook_source_route)
-        .merge(authenticated_routes);
+        .merge(authenticated_routes)
+        // SPA fallback: a GET navigation to a client-side route (/git, /agents,
+        // /settings, /studio/themes, …) has no server route, so without this it
+        // 404s on direct-nav / refresh. Serve the shell scaffold's index.html so
+        // client-side routing takes over. Guarded to never shadow real backend
+        // paths or static assets — see `spa_fallback`.
+        .fallback(spa_fallback);
     // The HMR firehose is development-only; not registered in production. Its
     if daemon_mode == deck::DaemonMode::Development {
         // The HMR firehose is short-lived (SSE per client; closed by
@@ -295,6 +301,54 @@ pub fn build_router(
         ))
         // Catch handler panics → 500 instead of connection abort.
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
+}
+
+/// `GET /{file}` — a single-segment path. A dotted name (`favicon.ico`,
+/// `ship-logo.svg`) is a real public asset, served by deck's public-dir handler
+/// (which 404s if absent). A bare segment (`/git`, `/agents`, `/settings`) is a
+/// client-side route, so serve the shell scaffold and let client-side routing
+/// resolve it — the single-segment arm of the SPA fallback (the multi-segment
+/// arm is `spa_fallback` on the root router).
+async fn spa_or_public_asset(
+    axum::extract::Path(file): axum::extract::Path<String>,
+    mode: Option<axum::Extension<deck::DaemonMode>>,
+    cfg: Option<axum::Extension<Arc<DeckConfig>>>,
+) -> Response {
+    if file.contains('.') {
+        return deck::serve_public_asset(mode, cfg, axum::extract::Path(file)).await;
+    }
+    deck::serve_shell(mode, cfg).await
+}
+
+/// Router-level fallback for unmatched requests. For a GET navigation that is
+/// not a backend path (API / Connect-RPC / deck / hooks / auth / webhook /
+/// daemon / space / shell) and not a static asset (no `.` in the path), serve
+/// the shell scaffold's index.html so a direct-nav / refresh to a multi-segment
+/// client route (`/studio/themes`, …) loads the SPA instead of 404ing. Every
+/// other unmatched request keeps an honest 404 — the fallback never shadows a
+/// real route or asset.
+async fn spa_fallback(
+    method: axum::http::Method,
+    uri: axum::http::Uri,
+    mode: Option<axum::Extension<deck::DaemonMode>>,
+    cfg: Option<axum::Extension<Arc<DeckConfig>>>,
+) -> Response {
+    let path = uri.path();
+    let is_backend_or_asset = path.starts_with("/api")
+        || path.starts_with("/_deck")
+        || path.starts_with("/hooks")
+        || path.starts_with("/auth")
+        || path.starts_with("/webhook")
+        || path.starts_with("/daemon")
+        || path.starts_with("/space")
+        || path.starts_with("/shell")
+        // Connect-RPC paths are `/ship.ops.v1.*` and assets carry an extension —
+        // both contain a `.`, so this single check covers them.
+        || path.contains('.');
+    if method == axum::http::Method::GET && !is_backend_or_asset {
+        return deck::serve_shell(mode, cfg).await;
+    }
+    (axum::http::StatusCode::NOT_FOUND, "not found").into_response()
 }
 
 /// Stamp `X-Shipd-Build` on every response so clients can detect daemon

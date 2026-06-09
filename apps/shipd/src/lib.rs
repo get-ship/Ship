@@ -96,7 +96,7 @@ use ship_substrate::events::daemon::{
     PortBindFailedPayload, ShutdownCompletedPayload, StartupCompletedPayload,
     event_types as daemon_events,
 };
-use ship_substrate::events::{EventEnvelope, EventStore, SqliteEventStore};
+use ship_substrate::events::{EventEnvelope, SqliteEventStore};
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 

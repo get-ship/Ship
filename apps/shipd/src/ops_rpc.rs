@@ -375,7 +375,6 @@ pub fn router(state: ApiState) -> axum::Router {
         Arc::new(move |op: String, args: serde_json::Value, ctx: connectrpc::RequestContext| {
             let st = pipelines_state_for_write.clone();
             Box::pin(async move {
-                use axum::response::IntoResponse;
                 let auth = ctx
                     .extensions
                     .get::<crate::auth::AuthContext>()
