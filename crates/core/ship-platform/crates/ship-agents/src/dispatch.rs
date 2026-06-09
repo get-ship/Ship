@@ -50,6 +50,19 @@ pub async fn handle_agent_session_started(
         }
     };
 
+    // Floki-harness fast path: when harness == "floki" and the closure is wired,
+    // spawn it off the mailbox loop (same detach pattern as the harness path
+    // below) and return immediately. The harness-driver stack is skipped — no
+    // worktree prep, no executor spawn, no process registry.
+    if payload.harness.as_deref() == Some("floki") {
+        if let Some(ref run_fn) = ports.floki_run_fn {
+            let run_fn = run_fn.clone();
+            let payload = payload.clone();
+            tokio::spawn(run_fn(payload));
+            return;
+        }
+    }
+
     // Pipeline-composed sessions: the pipeline runner spawns the harness itself
     // (it has step-monitor concerns this handler doesn't cover — gates, retries,
     // output promotion, fanout). The agent.session.started emitted by the

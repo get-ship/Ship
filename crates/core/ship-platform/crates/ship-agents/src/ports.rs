@@ -14,18 +14,37 @@
 //! executor / isolation / platform) live in L1/host code and are injected here
 //! at the composition root — agents names only the ports.
 
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
+use ship_substrate::events::agent_session::AgentSessionStartedPayload;
 use ship_code::runner::dedup::EventDedup;
 use ship_code::dispatch_ports::{
     AgentPlatform, IsolationStrategy, ProcessRegistryPort, ProjectionReader, SessionExecutor,
     SpawnPolicy,
 };
 
+/// Async callback type for floki-harness dispatch.
+///
+/// Defined here (ungated) so `AgentPorts` carries it regardless of the
+/// `harness-drivers` feature. The closure captures its own floki + gateway
+/// state; `ship-agents` never imports floki directly. The `AgentSessionStartedPayload`
+/// type is L0 (`ship_substrate` only) — no harness crate enters this signature.
+pub type FlokiRunFn = Arc<
+    dyn Fn(AgentSessionStartedPayload) -> Pin<Box<dyn Future<Output = ()> + Send>>
+        + Send
+        + Sync,
+>;
+
 /// Ports for agent-session orchestration. Cloneable (all `Arc`) so the actor
 /// can hand a snapshot to each detached dispatch task.
 #[derive(Clone)]
 pub struct AgentPorts {
+    /// Floki-harness dispatch closure. When `Some` and `payload.harness == "floki"`,
+    /// dispatch routes here and skips the harness-driver stack entirely.
+    /// Not behind any cfg gate — the floki path must always compile.
+    pub floki_run_fn: Option<FlokiRunFn>,
     /// Prepares + tears down the per-session isolated worktree.
     pub isolation: Arc<dyn IsolationStrategy>,
     /// Spawns / stops the harness process.
