@@ -17,5 +17,10 @@ import '@sui-tag/sui-panel-dock'
 import '@sui-tag/sui-shell-bottom'
 import '@sui-tag/sui-edit-overlay'
 import '@sui-tag/sui-blank-canvas'
+// Stamped into index.html at first paint (`<sui-toast-container>`), and mounted
+// imperatively by `initHelpOverlay()` (`<sui-help-overlay>`) — neither is reached
+// by any view's tag graph, so register both here or they stay inert no-ops.
+import '@sui-tag/sui-toast-container'
+import '@sui-tag/sui-help-overlay'
 
 export { SLOT_COMPOSITIONS } from './picker-slot-compositions'

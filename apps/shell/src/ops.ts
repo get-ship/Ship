@@ -67,9 +67,19 @@ export const ship = createClient()
 const THEME_SETTING_KEY = 'shell.theme'
 setThemeTransport({
   save(id: ThemeId) {
-    void writeSetting(THEME_SETTING_KEY, id).catch(() => {
-      // Fire-and-forget; localStorage already mirrors the value, so a
-      // daemon hiccup just means a future re-sync, not a lost theme.
+    // Async so paint never blocks on the daemon, but NOT swallowed: localStorage
+    // (Tier-4 cache) already holds the value, yet a failed settings write means
+    // the choice won't survive on another machine/session. Surface it — console
+    // for diagnostics, a toast so the user knows the sync (not the apply) failed.
+    void writeSetting(THEME_SETTING_KEY, id).catch((err: unknown) => {
+      console.error('[theme] failed to persist theme to daemon settings', err)
+      document.dispatchEvent(new CustomEvent('sui:notify', {
+        detail: {
+          tone: 'warning',
+          title: 'Theme not synced',
+          description: 'Applied locally, but saving it to the daemon failed — it may not persist across sessions.',
+        },
+      }))
     })
   },
   async load(): Promise<string | null> {

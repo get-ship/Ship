@@ -20,6 +20,11 @@ interface TerminalEl extends HTMLElement {
   terminal?: { cols: number; rows: number } | null
 }
 
+// Register `<ship-terminal>` before `findTerminal()` queries for it — the dock
+// stamps the tag in static markup, so nothing in a view's tag graph pulls in its
+// definition; without this seed the element never upgrades and `el.write` is
+// undefined, silently dropping all PTY output.
+import '@sui-tag/ship-terminal'
 import { ops } from '../ops'
 
 let bridging: Promise<void> | null = null
