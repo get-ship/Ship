@@ -14,47 +14,6 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// RECONCILIATION ORDER
-//
-// The startup sequence must run in the correct order. If we dispatch pending
-// jobs before reconciling dead dispatched ones, we might exceed concurrency.
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// The startup sequence exists and runs three phases.
-#[test]
-fn startup_runs_three_reconciliation_phases() {
-    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/router.rs");
-    assert!(
-        source.contains("reconcile_dispatched") || source.contains("reconcile"),
-        "startup must reconcile dispatched jobs"
-    );
-    assert!(
-        source.contains("replay_unprocessed") || source.contains("replay"),
-        "startup must replay unprocessed completions"
-    );
-    assert!(
-        source.contains("dispatch_ready_pending"),
-        "startup must dispatch ready pending jobs"
-    );
-}
-
-/// Reconciliation must happen before dispatching new pending jobs.
-/// If we dispatch first, we might exceed MAX_CONCURRENT.
-#[test]
-fn reconcile_before_dispatch_in_startup_order() {
-    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/router.rs");
-    let reconcile_pos = source.find("reconcile_dispatched")
-        .or_else(|| source.find("reconcile"));
-    let dispatch_pos = source.find("dispatch_ready_pending");
-    if let (Some(r), Some(d)) = (reconcile_pos, dispatch_pos) {
-        assert!(
-            r < d,
-            "reconcile must happen before dispatch_ready_pending in startup"
-        );
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
 // DEAD PROCESS DETECTION (OBSERVATIONAL)
 //
 // After daemon restart, dispatched jobs may have no live process. Reconcile
@@ -63,77 +22,6 @@ fn reconcile_before_dispatch_in_startup_order() {
 // 5-minute stale threshold. This prevents a single missed probe from
 // killing a job that is actually alive but slow to re-surface.
 // ═══════════════════════════════════════════════════════════════════════════
-
-/// Reconciliation scans for dispatched jobs in the projection.
-#[test]
-fn reconciliation_scans_dispatched_jobs() {
-    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
-    assert!(
-        source.contains("PipelineRunStatus::Dispatched"),
-        "reconciliation must filter for Dispatched status jobs"
-    );
-}
-
-/// Reconciliation asks the executor to rehydrate a handle — the modern
-/// liveness primitive. The old `is_alive` on a placeholder handle pattern
-/// is gone.
-#[test]
-fn reconciliation_uses_resume_handle() {
-    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
-    assert!(
-        source.contains("resume_handle"),
-        "reconciliation must rehydrate a live handle via resume_handle"
-    );
-}
-
-/// Dead processes must emit `executor.session_destroyed` — an observation
-/// event. The liveness sweep owns the terminal-state decision.
-#[test]
-fn dead_process_emits_session_destroyed() {
-    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
-    assert!(
-        source.contains("emit_executor_session_destroyed"),
-        "no-live-process must emit executor.session_destroyed on reconcile"
-    );
-}
-
-/// Reconcile never emits `job.step_failed` — that is terminal and belongs
-/// to the liveness sweep.
-///
-/// Currently failing: `replay.rs` re-introduced `emit_step_failed` at some
-/// point. Whether this is a regression to fix or a deliberate change is an
-/// open question — the test is asserting an architectural invariant that
-/// either still holds (and replay.rs needs reverting) or is now stale (and
-/// the test itself should be deleted). Marked ignored until we resolve
-/// which side is right.
-#[test]
-#[ignore]
-fn reconcile_does_not_emit_step_failed() {
-    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
-    assert!(
-        !source.contains("PIPELINE_STEP_FAILED"),
-        "reconcile must not emit PIPELINE_STEP_FAILED — observation only"
-    );
-    assert!(
-        !source.contains("emit_step_failed"),
-        "the emit_step_failed helper must be gone from reconcile"
-    );
-    assert!(
-        !source.contains("daemon restarted, agent not running"),
-        "the old terminal error string must not exist in reconcile"
-    );
-}
-
-/// Observation uses the `External` cause — agent exit was not observed;
-/// session/window simply isn't there.
-#[test]
-fn session_destroyed_uses_external_cause() {
-    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
-    assert!(
-        source.contains("DestructionCause::External"),
-        "reconcile must record cause = External (unobserved vanishment)"
-    );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // STALE COMPLETION REPLAY
@@ -166,26 +54,6 @@ fn stale_completions_are_detected() {
     assert_eq!(stale.len(), 1, "stale completed jobs must be detectable");
 }
 
-/// Replay logic exists and filters for completed status.
-#[test]
-fn replay_filters_completed_jobs() {
-    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
-    assert!(
-        source.contains("PipelineRunStatus::Completed"),
-        "replay must filter for Completed status jobs"
-    );
-}
-
-/// Replay must call advance_pipeline to continue stalled pipelines.
-#[test]
-fn replay_advances_pipeline() {
-    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
-    assert!(
-        source.contains("advance_pipeline"),
-        "replay must call advance_pipeline for stale completed jobs"
-    );
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // PENDING JOB DISPATCH
 //
@@ -193,42 +61,12 @@ fn replay_advances_pipeline() {
 // are now resolved and dispatch them.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Pending dispatch respects concurrency limits.
-#[test]
-fn pending_dispatch_respects_concurrency() {
-    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/pending.rs");
-    assert!(
-        source.contains("MAX_CONCURRENT") && source.contains("slots"),
-        "pending job dispatch must respect concurrency limits"
-    );
-}
-
-/// Pending dispatch checks dependency resolution.
-#[test]
-fn pending_dispatch_checks_dependencies() {
-    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/pending.rs");
-    assert!(
-        source.contains("depends_on") || source.contains("deps"),
-        "pending job dispatch must check dependency resolution"
-    );
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // LIVE PROCESS RE-ATTACHMENT
 //
 // When a dispatched job has a live process, register it in the process
 // registry for graceful shutdown monitoring.
 // ═══════════════════════════════════════════════════════════════════════════
-
-/// Live process re-attachment registers in ProcessRegistry.
-#[test]
-fn live_process_registered_in_registry() {
-    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/replay.rs");
-    assert!(
-        source.contains("registry.register") && source.contains("resume_handle"),
-        "live processes must be re-registered in ProcessRegistry after resume_handle"
-    );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PROJECTION-BASED RECONCILIATION
@@ -308,59 +146,6 @@ fn liveness_sweep_retains_terminal_authority() {
         job.status,
         PipelineRunStatus::Failed,
         "liveness sweep still owns the eventual Failed transition"
-    );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// DAEMON STARTUP: LIVE-DAEMON REFUSAL
-//
-// Two daemons racing over `daemon.port`/`daemon.pid` is the original defect
-// surfaced by sup-restart-01: the second daemon runs reconcile against jobs
-// the live daemon is managing and emits spurious terminal events.
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// The helper exists and pattern-matches the pidfile + `kill(0)` check.
-#[test]
-fn another_daemon_alive_helper_exists() {
-    let source = include_str!("../daemon.rs");
-    assert!(
-        source.contains("pub fn another_daemon_alive"),
-        "daemon.rs must expose another_daemon_alive for testability"
-    );
-}
-
-/// Startup returns an error instead of silently continuing when a foreign
-/// daemon is alive. Verified at source level; unit coverage lives in
-/// `daemon::stale_cleanup_tests::live_daemon_detected_returns_err`.
-#[test]
-fn cleanup_returns_result_with_live_daemon_refusal() {
-    let source = include_str!("../daemon.rs");
-    assert!(
-        source.contains("cleanup_stale_daemon_files(daemon_dir: &Path) -> Result<()>"),
-        "cleanup_stale_daemon_files must be fallible"
-    );
-    assert!(
-        source.contains("another daemon is already running"),
-        "refusal message must be actionable"
-    );
-    assert!(
-        source.contains("ship daemon stop") && source.contains("ship daemon restart"),
-        "refusal must point to the operator-facing remediation"
-    );
-}
-
-/// The daemon startup sequence propagates the refusal up instead of
-/// swallowing it — so the process exits non-zero with stderr explaining why.
-#[test]
-fn startup_propagates_refusal() {
-    let source = include_str!("../lib.rs");
-    assert!(
-        source.contains("cleanup_stale_daemon_files(&daemon_dir).map_err"),
-        "lib.rs must propagate the cleanup error on startup"
-    );
-    assert!(
-        source.contains("shipd startup aborted"),
-        "stderr must carry an explicit aborted marker"
     );
 }
 

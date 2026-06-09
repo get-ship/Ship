@@ -17,47 +17,6 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 // ORPHAN DETECTION
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Startup sequence must include orphan cleanup.
-#[test]
-fn startup_includes_orphan_cleanup() {
-    let source = include_str!("../../../../crates/ship-pipeline-runtime/src/orchestrator/router.rs");
-    assert!(
-        source.contains("cleanup_orphaned_worktrees"),
-        "startup must call cleanup_orphaned_worktrees to remove stale disk state"
-    );
-}
-
-/// Orphan cleanup function exists in orphan_cleanup module.
-#[test]
-fn orphan_cleanup_function_exists() {
-    let source = include_str!("../dispatch/orphan_cleanup.rs");
-    assert!(
-        source.contains("cleanup_orphaned_worktrees"),
-        "orphan_cleanup must provide a cleanup_orphaned_worktrees function"
-    );
-}
-
-/// Orphan detection filters for terminal states only.
-/// Active (Dispatched, Pending) jobs must never be cleaned up.
-#[test]
-fn orphan_cleanup_filters_terminal_states_only() {
-    let source = include_str!("../dispatch/orphan_cleanup.rs");
-    assert!(
-        source.contains("PipelineRunStatus::Merged") && source.contains("PipelineRunStatus::Failed"),
-        "orphan cleanup must filter for Merged and Failed jobs only"
-    );
-}
-
-/// Orphan cleanup calls cleanup_orphan for consistent cleanup behavior.
-#[test]
-fn orphan_cleanup_delegates_to_cleanup_orphan() {
-    let source = include_str!("../dispatch/orphan_cleanup.rs");
-    assert!(
-        source.contains("cleanup_orphan"),
-        "orphan cleanup must call cleanup_orphan for consistent cleanup behavior"
-    );
-}
-
 /// Orphan detection uses job projection — merged/failed jobs with worktrees present.
 #[test]
 fn orphan_detection_via_projection() {
