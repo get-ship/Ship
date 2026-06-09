@@ -25,8 +25,20 @@
 //! - Code inside `#[cfg(test)]` blocks is exempt (test code may reach any layer).
 //! - Doc comments (`///` and `//!`) are never flagged.
 //! - Re-exports (`pub use`) obey the same rules as `use` — they are violations.
+//!
+//! ## De-rot
+//!
+//! Crates are configured by **name**, not by hardcoded `src` path. The actual
+//! `src` directory is resolved from `cargo metadata`, so a crate that is moved
+//! or renamed keeps its coverage automatically. A configured name that no longer
+//! exists in the workspace is a **hard error** — the old behavior silently
+//! skipped any configured path whose directory was missing, which let ~half the
+//! list rot (relocated crates went un-scanned and the rule "passed" checking
+//! nothing).
 
 use std::path::{Path, PathBuf};
+
+use crate::metadata;
 
 // ── Layer assignment ──────────────────────────────────────────────────────────
 
@@ -41,10 +53,12 @@ enum Layer {
     Shared,
 }
 
-/// A crate entry with its source root and layer classification.
+/// A crate entry: the crate's **name** (resolved to a `src/` dir via cargo
+/// metadata) and its layer classification.
 struct CrateEntry {
-    /// Path from repo root to the crate's `src/` directory.
-    src: &'static str,
+    /// Workspace crate name (e.g. `ship-kernel`). Resolved to its real `src/`
+    /// directory at runtime — a name absent from the workspace is a hard error.
+    name: &'static str,
     layer: Layer,
 }
 
@@ -75,29 +89,30 @@ const SHARED_FORBIDDEN: &[(&str, &str)] = &[
     ),
 ];
 
-/// All crates under scrutiny. Apps and xtask are omitted (Layer::Exempt means
-/// they are not walked at all). Add entries here when new crates are introduced.
+/// All crates under scrutiny, keyed by crate name. Apps and xtask are omitted
+/// (they sit at the top / are tooling). Add entries here when new crates are
+/// introduced. Names are validated against the workspace at runtime — a stale
+/// entry hard-errors rather than silently dropping its coverage.
 const CRATES: &[CrateEntry] = &[
     // ── L0 ───────────────────────────────────────────────────────────────────
-    CrateEntry { src: "crates/core/ship-substrate/src", layer: Layer::L0 },
-    CrateEntry { src: "crates/core/ship-kernel/src",    layer: Layer::L0 },
-    CrateEntry { src: "crates/core/ship-host/src",      layer: Layer::L0 },
+    CrateEntry { name: "ship-substrate", layer: Layer::L0 },
+    CrateEntry { name: "ship-kernel",    layer: Layer::L0 },
+    CrateEntry { name: "ship-host",      layer: Layer::L0 },
     // ── L1 ───────────────────────────────────────────────────────────────────
-    CrateEntry { src: "crates/core/ship-platform/src",  layer: Layer::L1 },
-    CrateEntry { src: "crates/core/compiler/src",       layer: Layer::L1 },
-    CrateEntry { src: "crates/core/ship-supervisor/src",layer: Layer::L1 },
-    CrateEntry { src: "crates/core/ship-analytics/src", layer: Layer::L1 },
+    CrateEntry { name: "ship-platform",  layer: Layer::L1 },
+    CrateEntry { name: "compiler",       layer: Layer::L1 },
+    CrateEntry { name: "ship-analytics", layer: Layer::L1 },
     // ── Shared leaf crates ────────────────────────────────────────────────────
-    CrateEntry { src: "crates/core/ship-types/src",     layer: Layer::Shared },
-    CrateEntry { src: "crates/core/ship-pipelines/src", layer: Layer::Shared },
-    CrateEntry { src: "crates/core/build-info/src",     layer: Layer::Shared },
-    CrateEntry { src: "crates/deck/deck/src",           layer: Layer::Shared },
-    CrateEntry { src: "crates/deck/deck-host/src",      layer: Layer::Shared },
-    CrateEntry { src: "crates/deck/deck-axum/src",      layer: Layer::Shared },
-    CrateEntry { src: "crates/deck/deck-core/src",      layer: Layer::Shared },
-    CrateEntry { src: "crates/sui/compiler/src",        layer: Layer::Shared },
-    CrateEntry { src: "crates/sui/signals/src",         layer: Layer::Shared },
-    CrateEntry { src: "crates/sui/lint/src",            layer: Layer::Shared },
+    CrateEntry { name: "ship-types",     layer: Layer::Shared },
+    CrateEntry { name: "ship-pipelines", layer: Layer::Shared },
+    CrateEntry { name: "build-info",     layer: Layer::Shared },
+    CrateEntry { name: "deck",           layer: Layer::Shared },
+    CrateEntry { name: "deck-host",      layer: Layer::Shared },
+    CrateEntry { name: "deck-axum",      layer: Layer::Shared },
+    CrateEntry { name: "deck-core",      layer: Layer::Shared },
+    CrateEntry { name: "sui-compiler",   layer: Layer::Shared },
+    CrateEntry { name: "sui-signals",    layer: Layer::Shared },
+    CrateEntry { name: "sui-lint",       layer: Layer::Shared },
 ];
 
 // ── File walker ───────────────────────────────────────────────────────────────
@@ -248,9 +263,31 @@ pub struct Report {
 }
 
 pub fn run(repo_root: &Path) -> Result<Report, String> {
+    let ws = metadata::load(repo_root)?;
     let mut all: Vec<Violation> = Vec::new();
 
     for entry in CRATES {
+        // De-rot: resolve the configured crate NAME to its real src dir. A name
+        // that is no longer a workspace member is a hard error so the rotted
+        // rule screams instead of silently skipping (the old skip-if-missing
+        // guard let relocated crates go un-scanned while the rule "passed").
+        let Some(member) = ws.member(entry.name) else {
+            return Err(format!(
+                "lint-imports: configured crate `{}` is not a workspace member — \
+                 the rule has rotted. Remove the stale entry or fix the name in CRATES.",
+                entry.name,
+            ));
+        };
+        let src_dir = &member.src_dir;
+        if !src_dir.is_dir() {
+            return Err(format!(
+                "lint-imports: crate `{}` resolved to `{}` which has no `src/` dir — \
+                 cannot scan; fix the crate layout or remove the entry.",
+                entry.name,
+                member.rel_dir,
+            ));
+        }
+
         let forbidden: &[(&str, &str)] = match entry.layer {
             Layer::L0 => L0_FORBIDDEN,
             Layer::Shared => SHARED_FORBIDDEN,
@@ -258,12 +295,7 @@ pub fn run(repo_root: &Path) -> Result<Report, String> {
             Layer::L1 => continue,
         };
 
-        let src_dir = repo_root.join(entry.src);
-        if !src_dir.exists() {
-            continue;
-        }
-
-        for path in walk_rs_files(&src_dir) {
+        for path in walk_rs_files(src_dir) {
             let violations = check_file(&path, forbidden);
             all.extend(violations);
         }

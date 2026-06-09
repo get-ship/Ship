@@ -17,8 +17,11 @@ mod gen_indexes;
 mod gen_indexes_substrate;
 mod gen_skills;
 mod gen_sdk;
+mod lint_anti_theater;
 mod lint_imports;
 mod lint_layers;
+mod lint_residue;
+mod metadata;
 mod port_descriptions;
 mod types;
 
