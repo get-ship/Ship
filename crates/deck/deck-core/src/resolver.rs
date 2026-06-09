@@ -67,9 +67,7 @@ pub use deck_host::resolver::{ResolvedView, ResolveError, render_resolved};
 ///
 /// 1. `DeckConfig.first_party_app.root` from `<project_root>/deck.jsonc`
 ///    (the canonical config-driven source — deck never names the app).
-/// 2. `DECK_FIRST_PARTY_VIEWS` env var (canonical, replaces the legacy
-///    `SHIP_FIRST_PARTY_VIEWS`).
-/// 3. `SHIP_FIRST_PARTY_VIEWS` env var (legacy fallback while hosts migrate).
+/// 2. `DECK_FIRST_PARTY_VIEWS` env var.
 ///
 /// When none of the above is set, the host is non-ship and there is no
 /// first-party bucket. See .artifacts/asset-architecture.md.
@@ -85,7 +83,6 @@ fn first_party_root() -> Option<PathBuf> {
         }
     }
     std::env::var("DECK_FIRST_PARTY_VIEWS")
-        .or_else(|_| std::env::var("SHIP_FIRST_PARTY_VIEWS"))
         .ok()
         .map(PathBuf::from)
 }

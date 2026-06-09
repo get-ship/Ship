@@ -1,11 +1,9 @@
 //! Resolver helpers — view dir lookup, manifest parsing, type detection.
 
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-use super::{RailMeta, ViewListEntry, ViewManifest};
+use super::RailMeta;
 
 #[derive(Deserialize)]
 pub(crate) struct ManifestFile {
@@ -87,36 +85,6 @@ pub(crate) enum ManifestCollections {
     List(Vec<String>),
 }
 
-pub(crate) fn is_valid_view_name(name: &str) -> bool {
-    !name.is_empty() && !name.contains("..") && !name.contains('/') && !name.contains('\\')
-}
-
-/// Resolve a view directory by name. Checks project then global dirs.
-///
-/// `global_override` lets callers (typically write-side handlers that
-/// carry runtime state) use the daemon's configured `ship_dir` instead
-/// of the process-wide `get_global_dir()` — keeps test isolation
-/// honest when the daemon runs in a tempdir.
-pub(crate) fn resolve_view_dir(
-    name: &str,
-    global_override: Option<&std::path::Path>,
-) -> Option<(PathBuf, &'static str)> {
-    if !is_valid_view_name(name) { return None; }
-    if let Ok(d) = ship_substrate::project::get_project_dir(None) {
-        let c = d.join("views").join(name);
-        if c.is_dir() { return Some((c, "project")); }
-    }
-    let global = match global_override {
-        Some(p) => Some(p.to_path_buf()),
-        None => ship_substrate::project::get_global_dir().ok(),
-    };
-    if let Some(d) = global {
-        let c = d.join("views").join(name);
-        if c.is_dir() { return Some((c, "global")); }
-    }
-    None
-}
-
 /// Read the raw manifest file (with data/events fields) for the SSE handler.
 ///
 /// Supports three formats, checked in order: `manifest.yaml`, `manifest.jsonc`
@@ -170,51 +138,5 @@ pub(crate) fn read_raw_manifest(dir: &std::path::Path) -> Option<ManifestFile> {
         }
     } else {
         None
-    }
-}
-
-pub(super) fn read_manifest_file(dir: &Path, name: &str) -> Option<ViewManifest> {
-    let raw: ManifestFile = read_raw_manifest(dir)?;
-
-    let vtype = raw.view_type.unwrap_or_else(|| "html".into());
-    let mname = raw.name.unwrap_or_else(|| name.into());
-    let (el, url) = if vtype == "component" {
-        (Some(raw.element.unwrap_or_else(|| format!("ship-{name}-view"))),
-         Some(format!("/api/v1/view/{name}/bundle")))
-    } else {
-        (raw.element, None)
-    };
-    Some(ViewManifest { name: mname, view_type: vtype, element_name: el, bundle_url: url, claims: raw.claims, entry: raw.entry })
-}
-
-fn detect_view_type(dir: &Path) -> Option<String> {
-    if (dir.join("manifest.yaml").exists()
-        || dir.join("manifest.jsonc").exists()
-        || dir.join("manifest.json").exists())
-        && let Some(m) = read_manifest_file(dir, "unknown") { return Some(m.view_type); }
-    if dir.join("index.html").exists() { return Some("html".into()); }
-    if dir.join("index.js").exists() { return Some("component".into()); }
-    None
-}
-
-pub(super) fn scan_views_dir(dir: &PathBuf, source: &'static str, out: &mut HashMap<String, ViewListEntry>) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
-    for entry in entries.flatten() {
-        if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) { continue; }
-        let name = entry.file_name().to_string_lossy().to_string();
-        if out.contains_key(&name) { continue; }
-        let path = entry.path();
-        if let Some(vtype) = detect_view_type(&path) {
-            // Read rail metadata from the manifest if present. User-authored
-            // views without a `rail:` block still land in the launcher (the
-            // shell fills in a fallback label/icon client-side).
-            let rail = read_raw_manifest(&path)
-                .and_then(|m| m.rail)
-                .map(|r| r.into_meta(&name));
-            out.insert(
-                name.clone(),
-                ViewListEntry { name, view_type: vtype, source: source.into(), rail },
-            );
-        }
     }
 }

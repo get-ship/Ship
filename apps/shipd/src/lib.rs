@@ -49,7 +49,6 @@ pub mod registry_rpc;
 pub mod sui_rpc;
 pub mod search_context;
 pub mod search_rpc;
-pub mod live_read;
 pub mod live_resolvers;
 // (former `window_subscriptions` + `window_subscription_rpc` modules
 // deleted in the multiplex transport move to deck-axum (#276); the per-window
@@ -175,14 +174,14 @@ pub async fn run_network(
         if fp_root.is_dir() {
             // SAFETY: set once at startup, before any request thread reads it.
             unsafe {
-                std::env::set_var("SHIP_FIRST_PARTY_VIEWS", &fp_root);
+                std::env::set_var("DECK_FIRST_PARTY_VIEWS", &fp_root);
             }
-            tracing::info!(path = %fp_root.display(), "shipd: SHIP_FIRST_PARTY_VIEWS set");
+            tracing::info!(path = %fp_root.display(), "shipd: DECK_FIRST_PARTY_VIEWS set");
         } else {
-            tracing::warn!(path = %fp_root.display(), "shipd: SHIP_FIRST_PARTY_VIEWS not set; first-party root missing");
+            tracing::warn!(path = %fp_root.display(), "shipd: DECK_FIRST_PARTY_VIEWS not set; first-party root missing");
         }
     } else {
-        tracing::warn!("shipd: worktree_root is None; SHIP_FIRST_PARTY_VIEWS not set");
+        tracing::warn!("shipd: worktree_root is None; DECK_FIRST_PARTY_VIEWS not set");
     }
 
     // One-time hint for the worktree footgun: if `ProjectRoot::discover`

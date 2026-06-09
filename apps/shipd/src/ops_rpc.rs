@@ -891,7 +891,7 @@ fn scaffold_view_sync(
     copy_scaffold_view(&src, &target, &title, name)
         .map_err(|e| { let _ = std::fs::remove_dir_all(&target); e })?;
 
-    let route = format!("/api/v1/v/{name}");
+    let route = format!("{}/view/{name}", deck_core::routes::DECK_PREFIX);
     let path = target.display().to_string();
     Ok((route, path))
 }
@@ -934,32 +934,6 @@ fn copy_scaffold_view(
         }
     }
     Ok(())
-}
-
-/// Map an Axum `Response` body to a `serde_json::Value`, converting HTTP errors
-/// to `ConnectError`. Used by the pipelines write closure (replaces the deleted
-/// `services::command::response_to_value` + `command_error_to_connect` pair).
-async fn axum_response_to_value(
-    resp: axum::response::Response,
-) -> Result<serde_json::Value, ConnectError> {
-    let status = resp.status();
-    let bytes = axum::body::to_bytes(resp.into_body(), 4 << 20)
-        .await
-        .map_err(|e| ConnectError::internal(e.to_string()))?;
-    if status.is_success() {
-        serde_json::from_slice(&bytes).map_err(|e| ConnectError::internal(e.to_string()))
-    } else {
-        let msg = String::from_utf8_lossy(&bytes).into_owned();
-        if status == axum::http::StatusCode::FORBIDDEN {
-            Err(ConnectError::permission_denied(msg))
-        } else if status == axum::http::StatusCode::UNAUTHORIZED {
-            Err(ConnectError::unauthenticated(msg))
-        } else if status.is_client_error() {
-            Err(ConnectError::invalid_argument(msg))
-        } else {
-            Err(ConnectError::internal(msg))
-        }
-    }
 }
 
 // ── Policy introspection (not the enforcement path) ───────────────────────────
