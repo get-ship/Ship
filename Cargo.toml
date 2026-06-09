@@ -5,7 +5,6 @@ members = [
     "crates/core/ship-substrate/crates/ship-host",
     "crates/core/ship-substrate/crates/ship-types",
     "crates/core/ship-substrate/crates/ship-auth-types",
-    "crates/core/ship-substrate/crates/ship-policy",
     "crates/core/ship-substrate/crates/ship-kernel",
     "crates/core/ship-substrate/crates/ship-events-macro",
     "crates/core/ship-substrate/crates/ship-runner",
