@@ -520,12 +520,15 @@ pub fn router(state: ApiState) -> axum::Router {
     // All 23 methods: profile reads (C0) + runtime reads (C0) + profile writes (C2)
     // + orchestration control (C2/C3) + Watch stream. agent.grant keeps its C3 gate.
     let agents_kernel = Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone()));
-    let agents_sessions_state = state.clone();
     // SessionsFn returns the raw items list as a Value — the wire wraps it in {"items": ...}.
+    // Reads from canonical_sessions (runtime.db) — canonical-only posture (Floki sessions
+    // only until #20 migrates ship-code emitters to canonical session.* events).
     let agents_sessions_fn: ship_agents::services::agents::rpc_wire::SessionsFn =
         Arc::new(move || {
-            let items = agents_sessions_state.pty_sessions().list();
-            serde_json::to_value(items).unwrap_or(serde_json::Value::Array(vec![]))
+            let sessions =
+                ship_agents::services::sessions::canonical_projection::load_sessions()
+                    .unwrap_or_default();
+            serde_json::to_value(sessions).unwrap_or(serde_json::Value::Array(vec![]))
         });
     let notify_saved_state = state.clone();
     let notify_saved_fn: ship_agents::services::agents::rpc_wire::NotifySavedFn =
