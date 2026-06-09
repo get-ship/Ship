@@ -209,6 +209,9 @@ pub enum Route {
     /// @auth handler
     ArtifactDownload { id: String },
 
+    /// @route HEAD "/api/v1/artifacts/{id}"
+    /// @auth handler
+    ArtifactHead { id: String },
 
     /// @route GET "/api/v1/artifacts/{id}/metadata"
     /// @auth handler

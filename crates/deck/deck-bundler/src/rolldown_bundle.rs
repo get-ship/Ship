@@ -166,7 +166,7 @@ mod tests {
         let body = std::fs::read_to_string(&m.out_path).unwrap();
         assert!(body.contains("@ship/sui-runtime"), "runtime kept external");
 
-        // The 10 traceable marketing components (sui-stat / sui-toolbar /
+        // The traceable marketing components (sui-stat / sui-toolbar /
         // sui-progress from the retired const have no `.sui` source and are not
         // members — see marketing-bundle.ts). Each registers via its
         // `component(\`<tag>\`, …)` call; the tag literal survives minification.
