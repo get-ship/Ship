@@ -14,13 +14,16 @@
 //! reads are C0 (no gate call).
 
 use std::future::Future;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::{Value, json};
 use ship_ops_rpc::{
-    JsonResponse, PipelinesIndexResponse, PipelinesService as PipelinesServiceTrait, ScopedMutation,
+    CancelRunResult, JsonResponse, ListPipelineRunsResponse, PipelineRunDetailResponse,
+    PipelineRunHistoryResponse, PipelineRunSummariesResponse, PipelinesIndexResponse,
+    PipelinesService as PipelinesServiceTrait, ResolveStepResult, ScopedMutation,
 };
 
 use crate::pipelines::service::PipelinesService;
@@ -33,12 +36,6 @@ use crate::pipelines::state;
 pub type GateFn = Arc<dyn Fn(&RequestContext, &str) -> Result<(), ConnectError> + Send + Sync>;
 
 type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
-
-/// Sync read resolver: (op_name, args) → JSON Value.
-/// Shipd wires this to its `services/pipelines` view helpers
-/// (`summaries::build`, `run_detail::build`, `history::build`) which need
-/// the daemon's `ship_dir` + projection layer.
-pub type ReadFn = Arc<dyn Fn(&str, &Value) -> Value + Send + Sync>;
 
 /// Async live-read opener: (op_name, args) → server-sent stream of JSON.
 /// Shipd wires this to `live_read::OpsImpl::live_read` (kernel subscriber
@@ -58,7 +55,10 @@ pub type WriteFn =
 pub struct PipelinesWire {
     svc:          Arc<dyn PipelinesService>,
     gate:         GateFn,
-    read_fn:      ReadFn,
+    /// Runtime ship dir — the typed run-level reads (Summaries/Run/History/
+    /// ListRuns) read the `pipeline_runs` + `pipeline_step_runs` projections
+    /// directly off this, via `crate::read_core` (no shipd closure).
+    ship_dir:     PathBuf,
     live_read_fn: LiveReadFn,
     write_fn:     WriteFn,
 }
@@ -67,11 +67,11 @@ impl PipelinesWire {
     pub fn new(
         svc:          Arc<dyn PipelinesService>,
         gate:         GateFn,
-        read_fn:      ReadFn,
+        ship_dir:     PathBuf,
         live_read_fn: LiveReadFn,
         write_fn:     WriteFn,
     ) -> Self {
-        Self { svc, gate, read_fn, live_read_fn, write_fn }
+        Self { svc, gate, ship_dir, live_read_fn, write_fn }
     }
 }
 
@@ -138,13 +138,15 @@ impl PipelinesServiceTrait for PipelinesWire {
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
     }
 
+    // Run-level domain projection (off pipeline_runs). TYPED (P0.3): reads the
+    // projection directly; the GUI index (pills/agents/defs) stays on the
+    // SummariesLive JsonResponse stream + the REST surface.
     async fn summaries(
         &self,
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedGetPipelinesSummariesRequestView,
-    ) -> ServiceResult<JsonResponse> {
-        let value = (self.read_fn)("pipelines.summaries", &json!({}));
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    ) -> ServiceResult<PipelineRunSummariesResponse> {
+        Ok(Response::new(crate::read_core::summaries(&self.ship_dir)))
     }
 
     #[allow(refining_impl_trait)]
@@ -165,28 +167,43 @@ impl PipelinesServiceTrait for PipelinesWire {
         (self.live_read_fn)("pipelines.run", json!({ "slug": request.slug })).await
     }
 
+    // Run detail — run row + step rows (off pipeline_runs + pipeline_step_runs).
     async fn run(
         &self,
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedRunPipelineRequestView,
-    ) -> ServiceResult<JsonResponse> {
-        let value = (self.read_fn)("pipelines.run", &json!({ "slug": request.slug }));
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    ) -> ServiceResult<PipelineRunDetailResponse> {
+        crate::read_core::run_detail(&self.ship_dir, request.slug)
+            .map(Response::new)
+            .ok_or_else(|| {
+                ConnectError::not_found(format!("no pipeline run with slug `{}`", request.slug))
+            })
     }
 
+    // Paginated run-level history (terminal runs), off pipeline_runs.
     async fn history(
         &self,
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedListPipelinesHistoryRequestView,
-    ) -> ServiceResult<JsonResponse> {
-        let args = json!({
-            "limit": request.limit,
-            "offset": request.offset,
-            "pipeline": request.pipeline,
-            "q": request.q,
-        });
-        let value = (self.read_fn)("pipelines.history", &args);
-        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    ) -> ServiceResult<PipelineRunHistoryResponse> {
+        let opt = |s: &str| (!s.is_empty()).then(|| s.to_string());
+        let resp = crate::read_core::history(
+            &self.ship_dir,
+            opt(request.q),
+            opt(request.pipeline),
+            request.offset.max(0) as usize,
+            request.limit.max(0) as usize,
+        );
+        Ok(Response::new(resp))
+    }
+
+    // Every run with its step rows — typed form of GET /api/v1/runtime/jobs.
+    async fn list_runs(
+        &self,
+        _ctx: RequestContext,
+        _request: ship_ops_rpc::OwnedListPipelineRunsRequestView,
+    ) -> ServiceResult<ListPipelineRunsResponse> {
+        Ok(Response::new(crate::read_core::list_runs(&self.ship_dir)))
     }
 
     #[allow(refining_impl_trait)]
@@ -281,6 +298,41 @@ impl PipelinesServiceTrait for PipelinesWire {
         });
         let value = (self.write_fn)("pipeline.step_done".to_string(), args, ctx).await?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
+    // Cancel a run by slug (typed; was REST-only). Routes through the write_fn
+    // (daemon-captured persist port) which calls `status_core::cancel_run_core`.
+    async fn cancel(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedCancelRunRequestView,
+    ) -> ServiceResult<CancelRunResult> {
+        (self.gate)(&ctx, "pipelines.cancel")?;
+        let args = json!({ "slug": request.slug, "reason": request.reason });
+        let value = (self.write_fn)("pipelines.cancel".to_string(), args, ctx).await?;
+        serde_json::from_value::<CancelRunResult>(value)
+            .map(Response::new)
+            .map_err(|e| ConnectError::internal(format!("decode pipelines.cancel: {e}")))
+    }
+
+    // ResolveStep — the typed resume verb (step-id-keyed). Maps onto the existing
+    // advance flow today; becomes engine resume(decision) at the dissolution.
+    async fn resolve_step(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedResolveStepRequestView,
+    ) -> ServiceResult<ResolveStepResult> {
+        (self.gate)(&ctx, "pipelines.resolve_step")?;
+        let args = json!({
+            "slug": request.slug,
+            "step_id": request.step_id,
+            "decision": request.decision,
+            "summary": request.summary,
+        });
+        let value = (self.write_fn)("pipelines.resolve_step".to_string(), args, ctx).await?;
+        serde_json::from_value::<ResolveStepResult>(value)
+            .map(Response::new)
+            .map_err(|e| ConnectError::internal(format!("decode pipelines.resolve_step: {e}")))
     }
 
     // ── config writes (C1, ship.pipelines.write) ──────────────────────────────

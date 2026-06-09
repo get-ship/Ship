@@ -24,6 +24,7 @@ pub mod orchestrator;
 pub mod pipeline_ports;
 pub mod pipelines;
 pub mod projections;
+pub mod read_core;
 pub mod run_core;
 pub mod status_core;
 pub mod view;
