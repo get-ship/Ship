@@ -1715,7 +1715,6 @@ dependencies = [
  "rolldown_common",
  "serde",
  "serde_json",
- "ship-substrate",
  "sui-compiler",
  "tempfile",
  "thiserror 2.0.18",
@@ -1730,7 +1729,6 @@ dependencies = [
  "anyhow",
  "clap",
  "deck-bundler",
- "ship-substrate",
  "tokio",
  "tracing-subscriber",
 ]

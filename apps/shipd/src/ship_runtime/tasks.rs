@@ -16,7 +16,6 @@ impl ShipRuntime {
     /// spawning that compiler in its Rolldown `load` hook.
     pub fn bundler(&self) -> &deck::bundler::Bundler {
         self.bundler.get_or_init(|| {
-            let home = ship_substrate::ShipHome::at(self.ship_dir.clone());
             // `repo_root` is the bundler's CWD + `SHIP_REPO_ROOT` — where
             // it looks for monorepo built-ins (`packages/`, contributor
             // `views/`). When the daemon has no attached project, fall
@@ -34,7 +33,7 @@ impl ShipRuntime {
             let cfg = deck::config::DeckConfig::load(&repo_root);
             // In-process Rolldown bundler (#163) — no worker script, no child
             // process. Bundles `repo_root`'s built-ins + the user `workspace`.
-            deck::bundler::Bundler::start(&home, repo_root, workspace, cfg)
+            deck::bundler::Bundler::start(repo_root, workspace, cfg)
         })
     }
 

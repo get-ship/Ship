@@ -21,7 +21,7 @@
 //!
 //! Decoupling gaps surfaced (see README): env config is still process-global
 //! (now `DECK_*`-named with a `SHIP_*` legacy fallback — Fix C);
-//! `Bundler::start` needs `ship_substrate::ShipHome`; `router()` carries no
+//! `Bundler::start` only needs a repo root + config; `router()` carries no
 //! bundler and no HMR (both host-wired); the bundler out-dir must equal the
 //! resolver's project root.
 
@@ -62,9 +62,8 @@ fn make_bundler(app_dir: &Path) -> Bundler {
     // the resolver reads it (`<root>/.deck`). Zero-config host: no
     // deck.jsonc — use defaults (no consumer targets, .deck output root).
     deck::resolver::set_project_root(app_dir.to_path_buf());
-    let home = ship_substrate::ShipHome::from_env();
     let cfg = deck::config::DeckConfig::load(app_dir);
-    Bundler::start(&home, app_dir.to_path_buf(), None, cfg)
+    Bundler::start(app_dir.to_path_buf(), None, cfg)
 }
 
 /// Design tokens + all six themes, concatenated — matches what shipd serves at
