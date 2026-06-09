@@ -1,8 +1,5 @@
 //! Actor spawning and event routing endpoints.
 //!
-//! These generalize mesh operations so the MCP process can delegate
-//! actor lifecycle and event routing to the daemon's shared kernel.
-//!
 //! `actor_spawn` is register-or-refine: if the kernel doesn't yet have
 //! an actor with this id, it's registered fresh (the historical path,
 //! for agents launched outside substrate). If the kernel already has
@@ -11,7 +8,10 @@
 //! The mailbox sender is preserved across refinement, so any Mailbox
 //! a caller holds (or that substrate stashed for SSE drain) stays
 //! valid.
-
+//!
+//! `event_route` is the kernel's directed-event emit surface: the
+//! caller supplies an `EventEnvelope` (optionally with `target_actor_id`
+//! set for directed delivery) and the kernel routes it.
 use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use ship_substrate::events::{EmitContext, EventEnvelope};
 use serde::Deserialize;
@@ -30,10 +30,10 @@ pub struct ActorSpawnReq {
     #[serde(default)]
     pub actor_id: Option<String>,
     pub config: ship_substrate::events::ActorConfig,
-    /// Optional mesh capabilities for auto-registration.
+    /// Optional capabilities stamped on the projected `actor.created`
+    /// event the daemon emits for non-substrate-spawned actors.
     pub capabilities: Option<Vec<String>>,
 }
-
 #[derive(Deserialize)]
 pub struct EventRouteReq {
     pub envelope: ship_substrate::events::EventEnvelope,
@@ -112,7 +112,7 @@ pub async fn actor_spawn(
     // substrate stashed for this actor into the SSE-drain map. This
     // covers the case where substrate pre-registered the agent and
     // dropped its Mailbox into the stash; the MCP child's eventual
-    // SSE connect on `/mesh/events/{actor_id}` consumes from there.
+    // SSE drain consumes from there.
     if let Some(mailbox) = ship_substrate::supervisor::take_pre_registered_mailbox(&actor_id) {
         state
             .agent_mailboxes()

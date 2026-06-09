@@ -3,7 +3,6 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
 use crate::dispatch::run_dispatch::DispatchHandle;
 
@@ -148,21 +147,10 @@ impl ShipRuntime {
     pub fn global_blob_dir(&self) -> &std::path::Path {
         &self.global_blob_dir
     }
-
-    pub fn mesh_registry(&self) -> &SharedMeshRegistry {
-        &self.mesh_registry
-    }
-
-    /// Replace the mesh registry (used after spawning MeshService).
-    pub fn set_mesh_registry(&mut self, registry: SharedMeshRegistry) {
-        self.mesh_registry = registry;
-    }
-
     /// Store the dispatch handle (set once after job manager init).
     pub fn set_dispatch_handle(&self, handle: DispatchHandle) {
         let _ = self.dispatch_handle.set(handle);
     }
-
     pub fn dispatch_handle(&self) -> Option<&DispatchHandle> {
         self.dispatch_handle.get()
     }

@@ -229,9 +229,7 @@ pub fn run_session_end() -> Result<()> {
     let body = normalize_stdin("", "session-end");
     try_daemon_or_local("session-end", &body, || {
         if let (Some(actor), Some(workspace)) = (agent_id(), workspace_id()) {
-            let event = handle_session_end(&actor, &workspace)?;
-            println!("{}", serde_json::to_string(&event)?);
-            broadcast_session_ended(&actor, &workspace);
+            handle_session_end(&actor, &workspace)?;
         }
         if let Ok(slug) = ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId) {
             signal_job_completed(&slug);
@@ -265,19 +263,6 @@ fn signal_job_completed(slug: &str) {
             client.end_turn(EndTurnReq { slug: slug.to_string(), ..Default::default() }),
         );
     }
-}
-
-/// Broadcast agent.session.ended via `ship mesh broadcast` CLI.
-/// Non-fatal — if ship is not available or mesh is down this is a no-op.
-fn broadcast_session_ended(actor_id: &str, workspace_id: &str) {
-    let payload = serde_json::json!({
-        "event_type": "agent.session.ended",
-        "from_agent_id": actor_id,
-        "payload": { "workspace_id": workspace_id }
-    });
-    let _ = std::process::Command::new("ship")
-        .args(["mesh", "broadcast", &payload.to_string()])
-        .status();
 }
 
 #[cfg(test)]

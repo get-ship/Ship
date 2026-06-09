@@ -61,7 +61,7 @@ pub mod jobs;
 pub mod jobs_status;
 pub mod pipeline_run;
 
-pub use daemon::{daemon_status, rebuild_projections};
+pub use daemon::daemon_status;
 pub use events::{EventsPollQuery, event_stream};
 pub use jobs::{
     CancelJobRequest, EventSummary, PipelineRunDetailResponse, TurnEndRequest,
@@ -74,7 +74,6 @@ pub use ship_pipeline_runtime::run_core::PipelineRunRequest;
 // Helpers re-exported for the in-file test mod below.
 #[cfg(test)]
 pub(crate) use jobs::drift_active_for_slug;
-
 
 #[cfg(test)]
 mod tests {

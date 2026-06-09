@@ -1,6 +1,8 @@
-//! Per-connection lifecycle: event relay, cleanup guard, and mesh service spawner.
+//! Per-connection lifecycle: event relay and cleanup guard. The
+//! in-shipd mesh.* op service was removed along with the mesh
+//! REST/CLI surface; the kernel mailbox primitive
+//! (`EventEnvelope.target_actor_id`) is the canonical inter-agent path.
 
-use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use rmcp::model::CustomNotification;
 use rmcp::{Peer, RoleServer, model::ServerNotification};
@@ -9,7 +11,6 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::warn;
-
 // ---- Inbox ----
 
 /// Shared inbox buffer for polling-based message retrieval.
@@ -180,68 +181,6 @@ impl Drop for ConnectionGuard {
             let _ = kernel.lock().await.stop_actor(&id_clone);
         });
     }
-}
-
-// ---- MeshService spawner ----
-
-static MESH_SPAWNED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
-
-/// Spawn the MeshService into the shared kernel once for the daemon lifetime.
-/// Returns the shared registry for the REST API to read.
-/// Idempotent — safe to call multiple times (returns new empty registry on re-call).
-pub async fn spawn_mesh_service(
-    kernel: &Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
-    health_registry: &ship_substrate::task_health::HealthRegistry,
-) -> Result<ship_substrate::services::mesh::SharedMeshRegistry> {
-    let registry: ship_substrate::services::mesh::SharedMeshRegistry =
-        Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
-
-    if MESH_SPAWNED.set(()).is_err() {
-        return Ok(registry);
-    }
-
-    let (outbox_tx, mut outbox_rx) =
-        tokio::sync::mpsc::unbounded_channel::<EventEnvelope>();
-
-    let mesh_config = ship_substrate::events::ActorConfig {
-        namespace: "service.mesh".to_string(),
-        write_namespaces: vec!["mesh.".to_string()],
-        read_namespaces: vec!["mesh.".to_string()],
-        subscribe_namespaces: vec!["mesh.".to_string()],
-        see_directed_events: false,
-    };
-    let handler: Box<dyn ship_substrate::services::ServiceHandler> = Box::new(
-        ship_substrate::services::mesh::MeshService::with_shared_registry(
-            outbox_tx,
-            registry.clone(),
-        ),
-    );
-
-    ship_substrate::services::spawn_service(
-        &mut *kernel.lock().await,
-        "service.mesh",
-        mesh_config,
-        handler,
-    )
-    .map_err(|e| anyhow!("failed to spawn MeshService: {e}"))?;
-
-    // Drain outbox → kernel (directed delivery to agent mailboxes)
-    let kr = kernel.clone();
-    ship_substrate::task_health::spawn_monitored(health_registry, "mesh-outbox", async move {
-        let ctx = ship_substrate::events::EmitContext {
-            caller_kind: ship_substrate::events::CallerKind::Mcp,
-            skill_id: None,
-            binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
-            session_id: None,
-        };
-        while let Some(event) = outbox_rx.recv().await {
-            if let Err(e) = kr.lock().await.emit(event, &ctx).await {
-                tracing::warn!("mesh outbox emit error: {e}");
-            }
-        }
-    });
-
-    Ok(registry)
 }
 
 #[cfg(test)]

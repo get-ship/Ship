@@ -237,15 +237,16 @@ pub async fn run_network(
         Some(root) => ship_substrate::home::worktree_port_for(root),
         None => 9315,
     });
-
     let meta = ship_runtime::AppMetadata {
         global_dir: global_dir.clone(),
         workspace_dir: workspace_dir.clone(),
     };
     let config = ship_runtime::RuntimeConfig { host: host.clone(), port: desired_port, ..Default::default() };
-    let mut runtime = ship_runtime::ShipRuntime::new(meta, config).await?;
-    let mesh_registry = transport::connections::spawn_mesh_service(runtime.kernel(), runtime.health_registry()).await?;
-    runtime.set_mesh_registry(mesh_registry);
+    let runtime = ship_runtime::ShipRuntime::new(meta, config).await?;
+    // The MeshService was the in-shipd mesh.* op surface; it was killed
+    // along with the REST routes and `ship mesh broadcast` CLI. Real
+    // inter-agent messaging is now native via the kernel's directed-event
+    // delivery (`EventEnvelope.target_actor_id`).
     let rt = Arc::new(runtime);
 
     let run_mgr = managers::RunManager::init(
@@ -280,7 +281,6 @@ pub async fn run_network(
     // def files at boot, then keep it live on `agent.def.updated`. Shares the
     // gated-write NOTIFY's `KernelLog` so op-writes re-index deterministically.
     rt.start_agent_def_index().await;
-
     // leak-193 diagnostics. When `SHIP_LEAK_DIAG=1`, log a periodic snapshot
     // of process RSS alongside every in-process container whose unbounded
     // growth could be the fanout RSS leak. Off by default — pure
@@ -289,7 +289,6 @@ pub async fn run_network(
         let diag_kernel = rt.kernel().clone();
         let diag_sessions = rt.actor_sessions().clone();
         let diag_per_turn = rt.session_registry().clone();
-        let diag_mesh = rt.mesh_registry().clone();
         tokio::spawn(async move {
             fn rss_mb() -> f64 {
                 let s = std::fs::read_to_string("/proc/self/statm").unwrap_or_default();
@@ -301,16 +300,14 @@ pub async fn run_network(
             loop {
                 tick.tick().await;
                 let kline = diag_kernel.lock().await.diag_line();
-                let mesh = diag_mesh.read().await.len();
                 let per_turn = diag_per_turn.lock().await.len();
                 tracing::info!(
                     target: "leak193",
-                    "DIAG rss={:.1}MB actor_sessions={} per_turn_sessions={} mesh_registry={} \
+                    "DIAG rss={:.1}MB actor_sessions={} per_turn_sessions={} \
                      pre_reg_mailboxes={} {kline}",
                     rss_mb(),
                     diag_sessions.len(),
                     per_turn,
-                    mesh,
                     ship_substrate::supervisor::pre_registered_mailbox_count(),
                 );
             }

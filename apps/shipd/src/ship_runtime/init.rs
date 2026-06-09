@@ -7,9 +7,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use ship_substrate::events::EmitContext;
-use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
-
 use super::{ShipRuntime, RuntimeConfig, AppMetadata};
 
 impl ShipRuntime {
@@ -131,13 +129,9 @@ impl ShipRuntime {
             Err(e) => tracing::warn!("trash auto-purge failed: {e}"),
         }
 
-        let mesh_registry: SharedMeshRegistry =
-            Arc::new(tokio::sync::RwLock::new(HashMap::new()));
-
         // End all previously-active sessions from prior daemon run.
         // Uses spawn_blocking because the DB layer uses block_in_place.
         let _ = tokio::task::spawn_blocking(cleanup_active_sessions_on_startup).await;
-
         // Build the collection + artifact `SpaceContext`s (when a space is active)
         // and the ONE shared schema registry, here (C-2 §3.1 / UD-7). The
         // `collections()`/`artifacts()` accessors construct stateless services
@@ -190,7 +184,6 @@ impl ShipRuntime {
         Ok(Self {
             config,
             kernel,
-            mesh_registry,
             agent_mailboxes: Arc::new(Mutex::new(HashMap::new())),
             pty_connections: Arc::new(Mutex::new(HashMap::new())),
             // Platform DB lives at ~/.ship/platform.db only. A workspace

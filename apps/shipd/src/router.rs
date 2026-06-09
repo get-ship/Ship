@@ -329,24 +329,25 @@ async fn build_header_middleware(
 ///
 fn build_ship_routes(st: rest_api::ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
+    // Actor writes (L0 kernel — kernel-directed mailbox delivery).
+    // The mesh.* op surface (and the mesh/actors/{id}/events introspection
+    // reads) was removed; the kernel mailbox primitive is now reached
+    // exclusively through actor_spawn + event_route + the kernel's own
+    // directed delivery via `EventEnvelope.target_actor_id`.
     Router::new()
-        // Actor reads (L0 kernel — not the deprecated mesh.* op surface)
-        .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
-        .ship_route(Route::EventRoute, actor_api::event_route)
-        .ship_route(Route::ListActors, actors_api::list_actors_handler)
-        .ship_route(Route::ListMesh, actors_api::list_mesh_handler)
-        .ship_route(Route::GetActor_template(), actors_api::get_actor_handler)
-        .ship_route(Route::ActorEvents_template(), actors_api::list_actor_events_handler)
-        // Capabilities (no state required; ok against a stateful router)
-        .ship_route(Route::Capabilities, rest_api::capabilities)
-        // Isolation reads are served by the proto IsolationService
-        // (ship.ops.v1) — the one op-surface path. The former
-        // /api/v1/isolation/* REST routes were removed to avoid a parallel
-        // path; init's gated-op migration lands at the connect cutover.
-        .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
-        .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
-        // Runtime
-        .ship_route(Route::ListJobs, runtime_api::list_jobs)
+    .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
+    .ship_route(Route::EventRoute, actor_api::event_route)
+    .ship_route(Route::ListActors, actors_api::list_actors_handler)
+    // Capabilities (no state required; ok against a stateful router)
+    .ship_route(Route::Capabilities, rest_api::capabilities)
+    // Isolation reads are served by the proto IsolationService
+    // (ship.ops.v1) — the one op-surface path. The former
+    // /api/v1/isolation/* REST routes were removed to avoid a parallel
+    // path; init's gated-op migration lands at the connect cutover.
+    .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
+    .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
+    // Runtime
+    .ship_route(Route::ListJobs, runtime_api::list_jobs)
         .ship_route(Route::PipelinesRun, runtime_api::run_pipeline)
         .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
         .ship_route(Route::EndJob, runtime_api::end_job)
@@ -425,12 +426,11 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // SkillService — service-shaped CRUD + file tree + vars. Replaces
         // the project-scoped skill endpoints that used to hang off
         // /api/v1/projects/{id}/skills/*.
-        // Specs REST
-        // Events / projections
+        // Events / projections — EventStream is the live surface.
+        // RebuildProjections was removed (no caller; the kernel self-heals
+        // projections from the event log on demand).
         .ship_route(Route::EventStream, runtime_api::event_stream)
-        .ship_route(Route::RebuildProjections, runtime_api::rebuild_projections)
         .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
-        // Settings
         .ship_route(Route::ListProviders, settings_api::list_harnesses)
         // Artifacts platform (three-scope)
         .merge(
