@@ -55,5 +55,18 @@
   "firstPartyApp": { "root": "apps/shell/src", "label": "app:shell" },
   // Root-relative public assets (favicons, logos) served by deck at /{file}
   // from <project_root>/apps/shell/public/<file>.
-  "publicDir": "apps/shell/public"
+  "publicDir": "apps/shell/public",
+  // Repo-root-relative search order for resolving `@ship/<name>` component
+  // imports to their package source (`<root>/<name>`). First existing wins.
+  // Ship's component reorg (#219) nests first-party packs under
+  // packages/components/{sui,ship}; deck bakes no layout — this list is the
+  // single source of that search order.
+  "componentSourceRoots": [
+    "packages",
+    "packages/sui",
+    "packages/deck",
+    "packages/components",
+    "packages/components/sui",
+    "packages/components/ship"
+  ]
 }

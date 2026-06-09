@@ -135,6 +135,15 @@ pub struct DeckConfig {
     /// deck resolves the project root via its own resolver — never a Ship path.
     #[serde(default)]
     pub public_dir: Option<PathBuf>,
+    /// Repo-root-relative directories searched, in order, to resolve a
+    /// `@ship/<name>` component import to its package source. The resolver
+    /// joins `<repo_root>/<root>/<name>` for each root and takes the first
+    /// that exists. Defaults to `["packages"]` — a generic, host-agnostic
+    /// layout. Hosts with a nested component layout (e.g. Ship's
+    /// `packages/components/{sui,ship}`) declare the full search order here;
+    /// deck no longer bakes any monorepo layout into its code.
+    #[serde(default)]
+    pub component_source_roots: Vec<PathBuf>,
 }
 
 impl Default for DeckConfig {
@@ -161,6 +170,10 @@ impl DeckConfig {
             // divergence. Both buckets look up `<name>/<view_leaf>`.
             view_leaf: Some("page.sui".into()),
             public_dir: None,
+            // Generic single-root layout — `<repo_root>/packages/<name>`.
+            // Hosts with a nested component layout override in deck.jsonc;
+            // deck's code bakes no monorepo-specific search order.
+            component_source_roots: vec![PathBuf::from("packages")],
         }
     }
 

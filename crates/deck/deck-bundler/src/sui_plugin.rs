@@ -86,6 +86,11 @@ pub(crate) struct SuiPlugin {
     /// of these tags, the resolver no-ops it AND warns the author (naming the
     /// pack to declare).
     pub(crate) shadowed_tags: Arc<HashMap<String, String>>,
+    /// Repo-root-relative directories searched, in order, to resolve a
+    /// `@ship/<name>` import to its package source (`<repo_root>/<root>/<name>`).
+    /// Comes from `DeckConfig::component_source_roots` — deck bakes no monorepo
+    /// layout; the host declares its search order in `deck.jsonc`.
+    pub(crate) component_source_roots: Arc<Vec<PathBuf>>,
 }
 
 /// The per-view resolver's lookup tables, built once per `(repo_root, packs)`.
@@ -211,26 +216,16 @@ impl Plugin for SuiPlugin {
                 vec![name.to_string()]
             };
             for d in &cands {
-                // The 3-bucket component reorg (#219) nests first-party
-                // The 2-bucket component reorg (#219) nests first-party
-                // component packages two levels deep under
-                // `packages/components/{sui,ship}/<pkg>`. The `sui/`
-                // bucket is for primitives; `ship/` is for domain packs.
-                // The per-tag resolver scans both. (There is no umbrella
+                // Component search roots come from config
+                // (`DeckConfig::component_source_roots`, declared in
+                // `deck.jsonc`). deck no longer bakes a monorepo layout —
+                // a host with nested component buckets (e.g. Ship's
+                // `packages/components/{sui,ship}`) lists the full search
+                // order there. Each root is joined repo-root-relative and
+                // the first existing package wins. (There is no umbrella
                 // bundle — chrome is per-tag tree-shaking only.)
-                for umbrella in [
-                    "",
-                    "sui",
-                    "deck",
-                    "components",
-                    "components/sui",
-                    "components/ship",
-                ] {
-                    let pkg = if umbrella.is_empty() {
-                        self.repo_root.join("packages").join(d)
-                    } else {
-                        self.repo_root.join("packages").join(umbrella).join(d)
-                    };
+                for root in self.component_source_roots.iter() {
+                    let pkg = self.repo_root.join(root).join(d);
                     if !pkg.join("src/index.ts").exists() {
                         continue
                     }

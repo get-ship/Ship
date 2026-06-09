@@ -124,6 +124,7 @@ pub async fn bundle_app(
     repo_root: &Path,
     first_party_app: Option<&deck_config::FirstPartyApp>,
     packs: &[String],
+    component_source_roots: &[PathBuf],
     shell_root: &Path,
     out_dir: &Path,
     minify: bool,
@@ -190,6 +191,7 @@ pub async fn bundle_app(
         emit_component_imports: true,
         component_index: resolver.index,
         shadowed_tags: resolver.shadowed,
+        component_source_roots: Arc::new(component_source_roots.to_vec()),
     };
     let mut bundler = BundlerBuilder::default()
         .with_options(options)

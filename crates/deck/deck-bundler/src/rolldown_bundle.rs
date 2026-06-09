@@ -89,6 +89,7 @@ pub async fn bundle_target(
         emit_component_imports,
         component_index: resolver.index,
         shadowed_tags: resolver.shadowed,
+        component_source_roots: Arc::new(layout.cfg.component_source_roots.clone()),
     };
     // The bundler + its oxc module graph live in `bundler` and are dropped at
     // the end of this scope. Earlier this called malloc_trim(0) via

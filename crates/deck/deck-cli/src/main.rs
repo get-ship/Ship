@@ -264,6 +264,7 @@ fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, mini
             &repo_root,
             cfg.first_party_app.as_ref(),
             &cfg.packs,
+            &cfg.component_source_roots,
             &shell_root,
             &out_dir,
             minify,
