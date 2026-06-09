@@ -5,6 +5,13 @@
 //! sessions, the spawn-env port wiring, and the agent-cancel decision
 //! (`handle_agent_cancelled`). All run against the public `ship-agents` surface
 //! with port test-doubles — no pipeline-DAG state, no `crate::projections`.
+//!
+//! Gated behind `harness-drivers`: these build ship_code harness port test-doubles
+//! (incl. proving a floki session SKIPS the harness executor). With the feature off
+//! there is no harness to test against, and `cargo test -p ship-agents` in isolation
+//! must compile without ship_code. The floki routing path itself is ungated code;
+//! the workspace `--all-targets` build (feature unified on via shipd) runs these.
+#![cfg(feature = "harness-drivers")]
 
 use async_trait::async_trait;
 use std::collections::HashMap;
