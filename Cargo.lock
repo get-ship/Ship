@@ -2596,8 +2596,10 @@ dependencies = [
  "serde",
  "serde_json",
  "ship-js",
+ "ship-kernel",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

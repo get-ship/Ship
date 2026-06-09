@@ -7,14 +7,16 @@
 //! re-asking until a flake lets a refused result through. So only `Execute` is
 //! retryable; the rest are terminal by construction.
 //!
-//! `run_resilient` wraps `spine::run` with that policy and narrates each retry
-//! (and an exhausted run) into the event log, so the resilience story is itself
-//! event-sourced — exactly what S16's graduation will point at the daemon's
-//! persistent `ship_subscriber` log.
+//! `run_resilient` wraps `spine::run` with that policy and emits the canonical
+//! `session.failed` event on exhausted retries via the [`SessionEventSink`], so
+//! the resilience story feeds the real kernel event stream. Per-attempt retry
+//! diagnostics are logged via `tracing::warn!` — they are internal loop state,
+//! not session lifecycle.
 
 use std::future::Future;
 
-use crate::events::{AgentEvent, EventSink};
+use agent_def::{SessionEventSink, SessionFailed};
+
 use crate::spine::{self, SpineError};
 
 /// How many times to attempt a transient operation before giving up.
@@ -37,14 +39,16 @@ fn is_transient(e: &SpineError) -> bool {
 }
 
 /// Run `make_execute` → verify through the spine, retrying ONLY transient
-/// `Execute` failures up to `policy.max_attempts`. Each retry emits a `Status`
-/// event into `sink`; an exhausted run emits `Error`. `Denied`/`Unverified`
-/// return immediately and are never retried.
+/// `Execute` failures up to `policy.max_attempts`. Each retry is logged via
+/// `tracing::warn!`; an exhausted run emits a `session.failed` canonical event
+/// into `session_sink`. `Denied`/`Unverified` return immediately and are never
+/// retried.
 ///
 /// `make_execute` is a thunk so each attempt gets a FRESH future (a future is
 /// single-use); `verify` is the same post-check the spine applies every time.
 pub async fn run_resilient<T, F, Fut>(
-    sink: &dyn EventSink,
+    session_id: &str,
+    session_sink: &SessionEventSink,
     label: &str,
     policy: RetryPolicy,
     mut make_execute: F,
@@ -58,44 +62,64 @@ where
     for attempt in 1..=policy.max_attempts {
         match spine::run(label, make_execute(), &verify).await {
             Ok(accepted) => return Ok(accepted),
-            // Transient: retry if attempts remain, recording the retry.
+            // Transient: retry if attempts remain, logging the retry via tracing.
             Err(e) if is_transient(&e) => {
                 last_err = Some(e);
                 if attempt < policy.max_attempts {
-                    sink.emit(&AgentEvent::Status {
-                        message: format!(
-                            "{label}: transient failure on attempt {attempt}/{}, retrying",
-                            policy.max_attempts
-                        ),
-                    });
+                    tracing::warn!(
+                        label,
+                        attempt,
+                        max = policy.max_attempts,
+                        "transient failure — retrying"
+                    );
                 }
             }
             // Terminal: a denial is data, an unverified result is a refusal.
-            // Surface immediately — retrying is wrong.
+            // Surface immediately — retrying is wrong, no event emitted.
             Err(terminal) => return Err(terminal),
         }
     }
     let err = last_err.unwrap_or_else(|| SpineError::Execute("no attempts made".into()));
-    sink.emit(&AgentEvent::Error {
-        message: format!("{label}: exhausted {} attempt(s): {err}", policy.max_attempts),
-    });
+    // Exhausted transient retries — emit the canonical session.failed event.
+    session_sink
+        .emit_session_failed(
+            session_id,
+            &SessionFailed {
+                session_id: session_id.to_string(),
+                reason: format!("{label}: exhausted {} attempt(s): {err}", policy.max_attempts),
+            },
+        )
+        .ok();
     Err(err)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::events::CollectingSink;
+    use std::sync::Arc;
     use std::sync::atomic::{AtomicU32, Ordering};
 
-    // A transient Execute failure that clears on a later attempt → Ok, and the
-    // log shows a retry Status before the success.
+    use agent_def::SessionEventSink;
+    use ship_kernel::testing::MockSink;
+
+    use super::*;
+
+    /// Build a fresh (MockSink, SessionEventSink) pair for a test.
+    fn fresh_sink() -> (Arc<MockSink>, SessionEventSink) {
+        let mock = Arc::new(MockSink::new());
+        let session_sink = SessionEventSink::new(mock.clone());
+        (mock, session_sink)
+    }
+
+    // A transient Execute failure that clears on a later attempt → Ok. Proof
+    // of retry is the call count (≥2); no session.failed is emitted for a
+    // run that ultimately succeeds.
     #[tokio::test]
     async fn transient_failure_is_retried_then_succeeds() {
-        let sink = CollectingSink::new();
+        let (mock, session_sink) = fresh_sink();
         let calls = AtomicU32::new(0);
         let r = run_resilient(
-            &sink,
+            "test-session",
+            &session_sink,
             "op",
             RetryPolicy::new(3),
             || {
@@ -112,20 +136,23 @@ mod tests {
         )
         .await;
         assert!(r.is_ok(), "should succeed on retry; got {r:?}");
-        let evs = sink.collected();
+        // Proof of retry: first attempt failed, second succeeded → two calls.
+        assert_eq!(calls.load(Ordering::SeqCst), 2, "must have retried once");
+        // No session.failed on a successful run.
         assert!(
-            evs.iter().any(|e| matches!(e, AgentEvent::Status { message } if message.contains("retry"))),
-            "a retry must be recorded in the log",
+            !mock.captured().iter().any(|e| e.event_type == "session.failed"),
+            "no session.failed must be emitted for a successful retried run",
         );
     }
 
-    // A Denied is terminal: returned immediately, NOT retried, no retry Status.
+    // A Denied is terminal: returned immediately, NOT retried, no session.failed.
     #[tokio::test]
     async fn denied_is_not_retried() {
-        let sink = CollectingSink::new();
+        let (mock, session_sink) = fresh_sink();
         let calls = AtomicU32::new(0);
         let r = run_resilient(
-            &sink,
+            "test-session",
+            &session_sink,
             "op",
             RetryPolicy::new(3),
             || {
@@ -137,19 +164,21 @@ mod tests {
         .await;
         assert!(matches!(r, Err(SpineError::Denied(_))));
         assert_eq!(calls.load(Ordering::SeqCst), 1, "a denial must not be retried");
+        // Terminal denial does NOT emit session.failed (not the same as session exhaustion).
         assert!(
-            !sink.collected().iter().any(|e| matches!(e, AgentEvent::Status { .. })),
-            "a terminal denial records no retry",
+            !mock.captured().iter().any(|e| e.event_type == "session.failed"),
+            "a terminal denial must not record session.failed",
         );
     }
 
     // An Unverified refusal is terminal too — the verifier said no.
     #[tokio::test]
     async fn unverified_is_not_retried() {
-        let sink = CollectingSink::new();
+        let (mock, session_sink) = fresh_sink();
         let calls = AtomicU32::new(0);
         let r = run_resilient(
-            &sink,
+            "test-session",
+            &session_sink,
             "op",
             RetryPolicy::new(3),
             || {
@@ -161,18 +190,22 @@ mod tests {
         .await;
         assert!(matches!(r, Err(SpineError::Unverified(_))));
         assert_eq!(calls.load(Ordering::SeqCst), 1, "an unverified result must not be retried");
+        assert!(
+            !mock.captured().iter().any(|e| e.event_type == "session.failed"),
+            "an unverified terminal must not record session.failed",
+        );
     }
 
     // A persistently-transient Execute exhausts retries, returns Err(Execute),
-    // and — crucially — actually RETRIED: both attempts ran and a retry Status
-    // was logged before the terminal Error. (Without this, the test would pass
-    // even if the retry loop were removed.)
+    // AND emits session.failed via the canonical builder. Proof of retry: both
+    // attempts of RetryPolicy::new(2) ran before the exhaustion.
     #[tokio::test]
-    async fn persistent_transient_exhausts_and_errors() {
-        let sink = CollectingSink::new();
+    async fn persistent_transient_exhausts_and_emits_session_failed() {
+        let (mock, session_sink) = fresh_sink();
         let calls = AtomicU32::new(0);
         let r = run_resilient(
-            &sink,
+            "test-session",
+            &session_sink,
             "op",
             RetryPolicy::new(2),
             || {
@@ -185,16 +218,17 @@ mod tests {
         assert!(matches!(r, Err(SpineError::Execute(_))));
         // Proof of retry: both attempts of RetryPolicy::new(2) executed.
         assert_eq!(calls.load(Ordering::SeqCst), 2, "both attempts must run before exhausting");
-        let evs = sink.collected();
-        // A retry Status (attempt 1 < 2) precedes the terminal Error.
+        // Canonical session.failed was emitted via the kernel-emit port.
+        let captured = mock.captured();
         assert!(
-            evs.iter()
-                .any(|e| matches!(e, AgentEvent::Status { message } if message.contains("retry") && message.contains("1/2"))),
-            "a retry on attempt 1/2 must be logged; got {evs:?}",
+            captured.iter().any(|e| e.event_type == "session.failed"),
+            "an exhausted run must emit session.failed; got: {captured:?}",
         );
-        assert!(
-            matches!(evs.last(), Some(AgentEvent::Error { .. })),
-            "an exhausted run ends with an Error event; got {evs:?}",
-        );
+        // The reason references the label and the attempt count.
+        let failed = captured.iter().find(|e| e.event_type == "session.failed").unwrap();
+        let payload: serde_json::Value = serde_json::from_str(&failed.payload_json).unwrap();
+        let reason = payload["reason"].as_str().unwrap_or("");
+        assert!(reason.contains("op"), "reason must reference the label: {reason}");
+        assert!(reason.contains("2"), "reason must reference the attempt count: {reason}");
     }
 }

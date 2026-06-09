@@ -25,13 +25,16 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::sync::mpsc;
 
-use agent_def::Agent;
+use agent_def::{
+    Agent, SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed,
+    SessionStarted, SessionSuspended, TurnEnded, TurnStarted,
+};
 use ship_js::Dispatch;
 use ship_js::deno::ScriptExecutor;
 
+use crate::approver::UserInput;
 use crate::auth::AuthContext;
 use crate::dispatch::GatewayDispatch;
-use crate::events::{AgentEvent, EventSink, UserInput};
 use crate::gateway::{Gateway, GatewayError};
 use crate::sdkgen;
 use crate::spine::SpineError;
@@ -48,11 +51,11 @@ pub struct AgentOutput {
 // ---------------------------------------------------------------------------
 //
 // The loop is otherwise headless (rig drives the model turn). The three
-// handles below are how a supervisor observes it (`sink`), injects a message
-// (`steer`), or stops it (`cancel`). The `Approver` is how a human-in-the-
-// loop `Ask`-stance effect is resolved.
+// handles below are how a supervisor observes it (`session_sink`), injects a
+// message (`steer`), or stops it (`cancel`). The `Approver` is how a
+// human-in-the-loop `Ask`-stance effect is resolved.
 //
-// All three go through the same event/translate surface; no side channel.
+// All three go through the canonical `SessionEventSink`; no side channel.
 // ---------------------------------------------------------------------------
 /// A steer message: a supervisor-injected user message that the model sees
 /// on the next turn. Producers push (`push`); the loop drains (`drain_all`)
@@ -154,27 +157,53 @@ impl Approver for ScriptedApprover {
         }
     }
 }
-/// Context threaded into every tool call. Lets a tool emit events, resolve
-/// approvals, honor steer/cancel — without coupling to the loop internals.
+/// Context threaded into every tool call. Carries the canonical
+/// [`SessionEventSink`] (the kernel-emit port) and the session identity
+/// fields that every emit call requires.
+///
+/// NOTE: `space_id` is threaded in at construction time by the embedder.
+/// This is the minimal sensible construction — a future design step will
+/// route space_id via the control-plane session context.
 #[derive(Clone)]
 pub struct ToolCtx {
-    pub sink: Arc<dyn EventSink>,
+    /// Canonical kernel-emit port. All session lifecycle events route here.
+    pub session_sink: SessionEventSink,
+    /// The ULID / stable id of the current session.
+    pub session_id: String,
+    /// The Space this session belongs to.
+    pub space_id: String,
     pub approver: Arc<dyn Approver>,
     pub steer: Steer,
     pub cancel: Cancel,
 }
 impl ToolCtx {
-    /// Emit an `ApprovalRequested` event when an `Ask` is surfaced.
-    pub fn emit_approval_requested(&self, op: &str, args: &Value, request_id: &str) {
-        self.sink.emit(&AgentEvent::ApprovalRequested {
-            op: op.to_string(),
-            args: args.clone(),
-            request_id: request_id.to_string(),
-        });
+    /// Emit `session.suspended` when an `Ask`-stance gate is awaiting a human
+    /// decision. The `checkpoint` encodes the approval request so a resume
+    /// can re-raise the gate at the right point.
+    pub fn emit_approval_requested(&self, op: &str, _args: &Value, request_id: &str) {
+        let checkpoint = format!("approval:{request_id}:{op}");
+        self.session_sink
+            .emit_session_suspended(
+                &self.session_id,
+                &SessionSuspended {
+                    session_id: self.session_id.clone(),
+                    checkpoint,
+                },
+            )
+            .ok();
     }
-    /// Emit a `Cancelled` event from a tool observing the flag.
+    /// Emit `session.cancelled` from a tool that observes the cooperative
+    /// cancel flag.
     pub fn emit_cancelled(&self, reason: &str) {
-        self.sink.emit(&AgentEvent::Cancelled { reason: reason.to_string() });
+        self.session_sink
+            .emit_session_cancelled(
+                &self.session_id,
+                &SessionCancelled {
+                    session_id: self.session_id.clone(),
+                    reason: Some(reason.to_string()),
+                },
+            )
+            .ok();
     }
 }
 // ---------------------------------------------------------------------------
@@ -223,7 +252,7 @@ impl Tool for ShipOpTool {
         // Cooperative cancel: safe point at the top of the call. If the
         // flag is set, we do NOT call the gateway — the effect is not
         // half-applied. Surface the cancellation as data the model can
-        // read (and as a `Cancelled` event for supervisors), then return.
+        // read (and as a `session.cancelled` event for supervisors), then return.
         if self.ctx.cancel.is_cancelled() {
             self.ctx.emit_cancelled("user-requested");
             return Ok(json!({ "cancelled": "user-requested" }).to_string());
@@ -247,7 +276,7 @@ impl Tool for ShipOpTool {
                 Ok(annotate_with_steer(&self.ctx, json!({ "denied": msg }).to_string()))
             }
             // Ask stance: the gate would allow, but a human must approve.
-            // Emit the event, await the decision, then re-dispatch on
+            // Emit session.suspended, await the decision, then re-dispatch on
             // Approve (the gate still runs) or surface as a denial
             // result on Deny. The op is NEVER dispatched before approval.
             Err(GatewayError::Ask { op, args, request_id }) => {
@@ -386,9 +415,16 @@ impl Tool for RunScriptTool {
 /// Run an agent to completion: rig drives the turn loop; our tools make every
 /// effect pass the gate + spine. `ship_op` is the atomic path; `run_script` is
 /// code-mode via the VM-thread bridge. `ctx` threads the supervisor's
-/// `sink`/`approver`/`steer`/`cancel` into every tool call. Headless; returns
-/// a structured result. Honors the cancel flag at the safe point before
+/// `session_sink`/`approver`/`steer`/`cancel` into every tool call. Headless;
+/// returns a structured result. Honors the cancel flag at the safe point before
 /// invoking rig.
+///
+/// Emits the canonical session lifecycle events:
+/// - `session.started`  at entry (unless already cancelled)
+/// - `session.turn.started` / `session.turn.ended` bracketing the rig prompt
+/// - `session.completed` on clean exit
+/// - `session.failed` on rig error
+/// - `session.cancelled` on cooperative cancel (via `ToolCtx::emit_cancelled`)
 pub async fn run_step<M>(
     model: M,
     agent: &Agent,
@@ -402,16 +438,41 @@ where
     M: CompletionModel + 'static,
 {
     // Cooperative cancel: safe point before the rig prompt. If the flag
-    // is already set, do NOT call rig; emit `Cancelled` and return a
+    // is already set, do NOT call rig; emit `session.cancelled` and return a
     // benign result. The rig future itself cannot be cancelled mid-
     // flight (that would be a dropped future mid-op); if a cancel fires
     // while rig is running, the next tool call inside rig observes the
     // flag and short-circuits, then the post-prompt check below sees
-    // it and emits `Cancelled`.
+    // it and emits `session.cancelled`.
     if ctx.cancel.is_cancelled() {
         ctx.emit_cancelled("user-requested");
         return Ok(AgentOutput { text: String::new(), json: None });
     }
+
+    // Emit session.started — the canonical session-open event.
+    ctx.session_sink
+        .emit_session_started(
+            &ctx.session_id,
+            &SessionStarted {
+                session_id: ctx.session_id.clone(),
+                agent_id: agent.identity.id.clone(),
+                harness: "floki".into(),
+                model: agent.disposition.model.clone(),
+                space_id: ctx.space_id.clone(),
+                input: Some(input.to_string()),
+                parent: None,
+            },
+        )
+        .ok();
+
+    // Emit turn.started — one turn per run_step invocation (rig drives
+    // internal model turns; we bracket the whole prompt call as turn 0).
+    ctx.session_sink
+        .emit_turn_started(
+            &ctx.session_id,
+            &TurnStarted { session_id: ctx.session_id.clone(), idx: 0 },
+        )
+        .ok();
 
     let preamble = if agent.disposition.rules.is_empty() {
         "You are a Ship agent. Use ship_op for a single gated op, or run_script for \
@@ -445,31 +506,69 @@ where
         })
         .build();
 
-    let text = runner
+    let result = runner
         .prompt(input)
         .max_turns(agent.disposition.max_turns.unwrap_or(10))
-        .await?;
+        .await;
 
     // Post-prompt cancel check: if cancel fired during the rig run, a
-    // tool call already emitted `Cancelled`; we surface the result and
+    // tool call already emitted `session.cancelled`; we surface the result and
     // let the caller decide. No effect is left half-applied because
     // every tool call checked the flag at its safe point.
     if ctx.cancel.is_cancelled() {
         ctx.emit_cancelled("user-requested");
     }
 
-    Ok(AgentOutput { text, json: None })
+    match result {
+        Ok(text) => {
+            // Emit turn.ended then session.completed.
+            ctx.session_sink
+                .emit_turn_ended(
+                    &ctx.session_id,
+                    &TurnEnded {
+                        session_id: ctx.session_id.clone(),
+                        idx: 0,
+                        stop_reason: Some("end_turn".into()),
+                    },
+                )
+                .ok();
+            ctx.session_sink
+                .emit_session_completed(
+                    &ctx.session_id,
+                    &SessionCompleted { session_id: ctx.session_id.clone() },
+                )
+                .ok();
+            Ok(AgentOutput { text, json: None })
+        }
+        Err(e) => {
+            // Emit session.failed for any rig-level error.
+            ctx.session_sink
+                .emit_session_failed(
+                    &ctx.session_id,
+                    &SessionFailed {
+                        session_id: ctx.session_id.clone(),
+                        reason: e.to_string(),
+                    },
+                )
+                .ok();
+            Err(e.into())
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::events::CollectingSink;
-    use crate::gateway::{GatewayCallKind, InProcessGateway};
-    use super::*;
-    use agent_def::{BlastRadius, Capability, Disposition, Harness, Identity};
+    use std::sync::Arc;
+    use std::sync::Mutex;
+
+    use agent_def::{BlastRadius, Capability, Disposition, Harness, Identity, SessionEventSink};
     use async_trait::async_trait;
     use rig::test_utils::{MockCompletionModel, MockTurn};
-    use std::sync::Mutex;
+    use ship_kernel::testing::MockSink;
+
+    use crate::approver::UserInput;
+    use crate::gateway::{GatewayCallKind, InProcessGateway};
+    use super::*;
 
     fn auth(grants: &[&str]) -> AuthContext {
         AuthContext::in_process("t", grants.iter().map(|s| s.to_string()).collect())
@@ -506,24 +605,27 @@ mod tests {
         }
     }
 
-    /// Build a `ToolCtx` wired to a `HeadlessApprover` and a fresh sink.
+    /// Build a `ToolCtx` wired to a `HeadlessApprover` and a fresh `MockSink`.
     /// Tests that need a scripted approver / a pre-set cancel / pending
     /// steers build their own.
-    fn test_ctx() -> (ToolCtx, Arc<CollectingSink>) {
-        let sink = Arc::new(CollectingSink::new());
+    fn test_ctx() -> (ToolCtx, Arc<MockSink>) {
+        let mock = Arc::new(MockSink::new());
+        let session_sink = SessionEventSink::new(mock.clone());
         let ctx = ToolCtx {
-            sink: sink.clone(),
+            session_sink,
+            session_id: "test-session".into(),
+            space_id: "test-space".into(),
             approver: Arc::new(HeadlessApprover),
             steer: Steer::new(),
             cancel: Cancel::new(),
         };
-        (ctx, sink)
+        (ctx, mock)
     }
 
     // ── tool-level behavior (deterministic, no model) ──────────────────────
     #[tokio::test]
     async fn tool_returns_result_for_granted_op() {
-        let (ctx, _sink) = test_ctx();
+        let (ctx, _mock) = test_ctx();
         let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["collections"]), ctx };
         let out = tool
             .call(OpArgs { op: "collections.read".into(), args: json!({}) })
@@ -534,7 +636,7 @@ mod tests {
 
     #[tokio::test]
     async fn tool_surfaces_denial_as_result_not_error() {
-        let (ctx, _sink) = test_ctx();
+        let (ctx, _mock) = test_ctx();
         let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["collections"]), ctx };
         // runtime is ungranted; the gate denies the C2 op. The tool returns it
         // as DATA (`{ denied }`), not a thrown error.
@@ -572,7 +674,7 @@ mod tests {
         ]);
         let agent = demo_agent("mock", &["collections"]);
         let exec = Arc::new(ScriptExecutor::spawn());
-        let (ctx, _sink) = test_ctx();
+        let (ctx, _mock) = test_ctx();
 
         let out = run_step(model, &agent, gw, auth(&["collections"]), exec, ctx, "read the leads")
             .await
@@ -592,7 +694,7 @@ mod tests {
     #[tokio::test]
     async fn run_script_tool_executes_js_through_gate_off_thread() {
         let exec = Arc::new(ScriptExecutor::spawn());
-        let (ctx, _sink) = test_ctx();
+        let (ctx, _mock) = test_ctx();
         let tool = RunScriptTool {
             executor: exec,
             gateway: Arc::new(InProcessGateway::default()),
@@ -632,7 +734,7 @@ mod tests {
             MockTurn::text("counted the leads"),
         ]);
         let agent = demo_agent("mock", &["collections"]);
-        let (ctx, _sink) = test_ctx();
+        let (ctx, _mock) = test_ctx();
         let out = run_step(
             model,
             &agent,
@@ -651,9 +753,12 @@ mod tests {
     #[tokio::test]
     async fn ask_with_approval_proceeds_through_the_gate() {
         let (tx, scripted) = ScriptedApprover::channel();
-        let sink = Arc::new(CollectingSink::new());
+        let mock = Arc::new(MockSink::new());
+        let session_sink = SessionEventSink::new(mock.clone());
         let ctx = ToolCtx {
-            sink: sink.clone(),
+            session_sink,
+            session_id: "test-session".into(),
+            space_id: "test-space".into(),
             approver: Arc::new(scripted),
             steer: Steer::new(),
             cancel: Cancel::new(),
@@ -671,9 +776,12 @@ mod tests {
         // Behavioral: the request was approved AND the op actually ran (no
         // `denied` in the output).
         assert!(!out.contains("denied"), "approved op must not surface as denied: {out}");
-        // And the supervisor saw the ApprovalRequested event.
-        let evs = sink.collected();
-        assert!(evs.iter().any(|e| matches!(e, AgentEvent::ApprovalRequested { op, .. } if op == "mcp.create")));
+        // The supervisor saw a session.suspended event (approval gate raised).
+        let evs = mock.captured();
+        assert!(
+            evs.iter().any(|e| e.event_type == "session.suspended"),
+            "approval gate must emit session.suspended; got: {evs:?}"
+        );
     }
 
     // Ask + Deny: the op is NEVER dispatched. The denial is surfaced as
@@ -693,11 +801,14 @@ mod tests {
         }
 
         let (tx, scripted) = ScriptedApprover::channel();
-        let sink = Arc::new(CollectingSink::new());
+        let mock = Arc::new(MockSink::new());
+        let session_sink = SessionEventSink::new(mock.clone());
         let calls = Arc::new(Mutex::new(Vec::new()));
         let gw = Arc::new(CountingGateway { inner: InProcessGateway::default(), calls: calls.clone() });
         let ctx = ToolCtx {
-            sink: sink.clone(),
+            session_sink,
+            session_id: "test-session".into(),
+            space_id: "test-space".into(),
             approver: Arc::new(scripted),
             steer: Steer::new(),
             cancel: Cancel::new(),
@@ -712,21 +823,21 @@ mod tests {
             .expect("denial is data, not a tool error");
         assert!(out.contains("denied"), "denied approval must surface as denied data: {out}");
         assert!(out.contains("not now"), "the human's reason should be visible: {out}");
-        // The gate's dispatch echo carries the op+args. With the args
-        // present, the Ask probe re-dispatches would also carry the
-        // args. But the COUNTS distinguish: probe = 1, re-dispatch on
-        // approve = 2. With deny, only the probe runs.
+        // With deny, only the probe runs (no re-dispatch).
         let seen = calls.lock().unwrap().clone();
         assert_eq!(seen.len(), 1, "denied ask must not re-dispatch: calls={seen:?}");
-        // The ApprovalRequested event WAS emitted before the denial.
-        assert!(sink.collected().iter().any(|e| matches!(e, AgentEvent::ApprovalRequested { .. })));
+        // The session.suspended event WAS emitted before the denial.
+        assert!(
+            mock.captured().iter().any(|e| e.event_type == "session.suspended"),
+            "approval gate must emit session.suspended even when denied"
+        );
     }
 
     // Headless approver: an `Ask` for an unattended run deterministically
     // denies, surfaces as data, and does not hang waiting for a human.
     #[tokio::test]
     async fn headless_ask_resolves_to_deny_deterministically() {
-        let (ctx, sink) = test_ctx();
+        let (ctx, mock) = test_ctx();
         let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["mcp"]), ctx };
         // No scripted approver; the test_ctx uses HeadlessApprover. A
         // headless run must NEVER block waiting for a human.
@@ -740,8 +851,11 @@ mod tests {
         assert!(out.contains("denied"));
         // The reason should be the headless sentinel so callers can tell.
         assert!(out.contains("no human in loop"));
-        // The ApprovalRequested event was emitted.
-        assert!(sink.collected().iter().any(|e| matches!(e, AgentEvent::ApprovalRequested { .. })));
+        // The session.suspended event was emitted.
+        assert!(
+            mock.captured().iter().any(|e| e.event_type == "session.suspended"),
+            "headless ask must still emit session.suspended"
+        );
     }
 
     // Steer: text pushed to the Steer handle is observed by the model on
@@ -749,10 +863,13 @@ mod tests {
     // test is structural: the tool result contains the steered text.
     #[tokio::test]
     async fn steered_text_is_visible_to_the_next_tool_result() {
-        let sink = Arc::new(CollectingSink::new());
+        let mock = Arc::new(MockSink::new());
+        let session_sink = SessionEventSink::new(mock.clone());
         let steer = Steer::new();
         let ctx = ToolCtx {
-            sink: sink.clone(),
+            session_sink,
+            session_id: "test-session".into(),
+            space_id: "test-space".into(),
             approver: Arc::new(HeadlessApprover),
             steer: steer.clone(),
             cancel: Cancel::new(),
@@ -780,7 +897,7 @@ mod tests {
     }
 
     // Cancel: a pre-set cancel flag short-circuits the tool at the safe
-    // point — the gateway is NEVER called, the `Cancelled` event is
+    // point — the gateway is NEVER called, the `session.cancelled` event is
     // emitted, and the tool returns data the model can read.
     #[tokio::test]
     async fn cancel_short_circuits_the_tool_at_the_safe_point() {
@@ -791,11 +908,14 @@ mod tests {
                 panic!("gateway must NOT be called after a cancel: op={op}");
             }
         }
-        let sink = Arc::new(CollectingSink::new());
+        let mock = Arc::new(MockSink::new());
+        let session_sink = SessionEventSink::new(mock.clone());
         let cancel = Cancel::new();
         cancel.cancel(); // pre-set
         let ctx = ToolCtx {
-            sink: sink.clone(),
+            session_sink,
+            session_id: "test-session".into(),
+            space_id: "test-space".into(),
             approver: Arc::new(HeadlessApprover),
             steer: Steer::new(),
             cancel,
@@ -807,21 +927,27 @@ mod tests {
             .await
             .expect("cancel surfaces as data, not a tool error");
         assert!(out.contains("cancelled"), "tool must surface cancellation as data: {out}");
-        // The Cancelled event was emitted.
-        assert!(sink.collected().iter().any(|e| matches!(e, AgentEvent::Cancelled { .. })));
+        // The session.cancelled event was emitted.
+        assert!(
+            mock.captured().iter().any(|e| e.event_type == "session.cancelled"),
+            "cancel must emit session.cancelled; got: {:?}", mock.captured()
+        );
     }
-    // run_step with a pre-cancelled run: emits Cancelled and returns
+    // run_step with a pre-cancelled run: emits session.cancelled and returns
     // without invoking the rig prompt (the model is never touched). The
     // mock is given a scripted turn; if rig were invoked, the turn
     // would be consumed and the model's request count would be > 0.
     #[tokio::test]
     async fn run_step_emits_cancelled_when_already_cancelled() {
         let model = MockCompletionModel::new([MockTurn::text("unseen")]);
-        let sink = Arc::new(CollectingSink::new());
+        let mock = Arc::new(MockSink::new());
+        let session_sink = SessionEventSink::new(mock.clone());
         let cancel = Cancel::new();
         cancel.cancel();
         let ctx = ToolCtx {
-            sink: sink.clone(),
+            session_sink,
+            session_id: "test-session".into(),
+            space_id: "test-space".into(),
             approver: Arc::new(HeadlessApprover),
             steer: Steer::new(),
             cancel,
@@ -839,10 +965,13 @@ mod tests {
         )
         .await
         .expect("cancelled run is a clean result, not an error");
-        // No model output; Cancelled event was emitted; rig was never called.
+        // No model output; session.cancelled event was emitted; rig was never called.
         assert!(out.text.is_empty());
         assert_eq!(model.request_count(), 0, "model must not be invoked when cancel is pre-set");
-        assert!(sink.collected().iter().any(|e| matches!(e, AgentEvent::Cancelled { .. })));
+        assert!(
+            mock.captured().iter().any(|e| e.event_type == "session.cancelled"),
+            "pre-cancelled run must emit session.cancelled; got: {:?}", mock.captured()
+        );
     }
 
     // Code-mode cannot run the interactive approval handshake, so an ask-stance
@@ -851,7 +980,7 @@ mod tests {
     #[tokio::test]
     async fn run_script_tool_ask_stance_surfaces_as_terminal_denial() {
         let exec = Arc::new(ScriptExecutor::spawn());
-        let (ctx, _sink) = test_ctx();
+        let (ctx, _mock) = test_ctx();
         let tool = RunScriptTool {
             executor: exec,
             gateway: Arc::new(InProcessGateway::default()),
@@ -895,7 +1024,7 @@ mod tests {
         ]);
         let agent = demo_agent("mock", &["collections"]);
         let exec = Arc::new(ScriptExecutor::spawn());
-        let (ctx, _sink) = test_ctx();
+        let (ctx, _mock) = test_ctx();
         let out = run_step(
             model,
             &agent,
