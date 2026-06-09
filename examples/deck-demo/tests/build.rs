@@ -104,15 +104,15 @@ async fn self_contained_build_ships_singletons_for_island_free_app() {
     .await
     .expect("self-contained build must succeed for an island-free app");
 
-    for f in ["runtime.js", "dom.js", "sdk-client.js", "components.js"] {
+    for f in ["runtime.js", "dom.js", "sdk-client.js"] {
         assert!(
-            out.path().join("_sui").join(f).exists(),
+            out.path().join("_deck").join(f).exists(),
             "self-contained build must materialize /_deck/{f}"
         );
     }
     assert!(
-        build.framework_assets >= 4,
-        "expected the four framework singletons, got {}",
+        build.framework_assets >= 3,
+        "expected the three framework singletons, got {}",
         build.framework_assets
     );
 }

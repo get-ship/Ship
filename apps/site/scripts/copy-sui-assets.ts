@@ -172,7 +172,7 @@ for (const { name, from } of SUI_BUNDLES) {
     }
   }
   if (blocks.length) {
-    const dst = join(PUBLIC_DIR, '_sui/syntax-tokens.css');
+    const dst = join(PUBLIC_DIR, '_deck/syntax-tokens.css');
     mkdirSync(dirname(dst), { recursive: true });
     writeFileSync(
       dst,

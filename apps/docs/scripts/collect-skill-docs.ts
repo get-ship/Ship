@@ -338,7 +338,7 @@ function run(): void {
   // `<sui-icon>` fetches each lucide icon from `/_deck/icons/<name>.svg`.
   // The docs site is a static deploy with no daemon — split the committed
   // JSON into one file per icon so the same per-icon URLs resolve here.
-  const sUiDir = join(PUBLIC_DIR, "_sui")
+  const sUiDir = join(PUBLIC_DIR, "_deck")
   mkdirSync(sUiDir, { recursive: true })
   const lucideSrc = join(SUI_ASSETS_DIR, "lucide-icons.json")
   if (existsSync(lucideSrc)) {

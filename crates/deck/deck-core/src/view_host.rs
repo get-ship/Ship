@@ -38,7 +38,7 @@ pub(crate) fn evict_ssr_cache(name: &str) {
 
 fn view_name_from_path(path: &str) -> Option<String> {
     // The view-host surface is at `/_deck/view/{name}[/{*sub_path}]`.
-    // Segment layout: ["_sui", "view", name, ...sub]
+    // Segment layout: ["_deck", "view", name, ...sub]
     // Name is at index 2 in the slash-split of the trimmed path.
     path.trim_start_matches('/')
         .split('/')

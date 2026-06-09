@@ -36,9 +36,9 @@ use rolldown_common::{ChunkFilenamesOutputOption, ResolvedExternal};
 /// set at `/_deck/icons/{name}.svg`. Static-only deploys without a daemon use
 /// `<sui-icon src=…>` (CDN escape hatch).
 const FRAMEWORK_ASSETS: [(&str, &str); 3] = [
-    ("sui-runtime.js", "_sui/runtime.js"),
-    ("sui-dom.js", "_sui/dom.js"),
-    ("sui-sdk-client.js", "_sui/sdk-client.js"),
+    ("sui-runtime.js", "_deck/runtime.js"),
+    ("sui-dom.js", "_deck/dom.js"),
+    ("sui-sdk-client.js", "_deck/sdk-client.js"),
 ];
 
 pub struct AppBuild {
@@ -235,7 +235,7 @@ pub async fn bundle_app(
     // 5. Self-contained build: materialize the /_deck/* code surface locally.
     let mut framework_assets = 0;
     if bundle_framework {
-        let sui_dir = out_dir.join("_sui");
+        let sui_dir = out_dir.join("_deck");
         std::fs::create_dir_all(&sui_dir)?;
         for (src, dist_rel) in FRAMEWORK_ASSETS {
             let from = framework_assets_dir.join(src);
