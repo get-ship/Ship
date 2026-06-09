@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 use ship_substrate::events::pipeline::{event_types, PipelineRunStartedPayload, PipelineStepSpawnFailedPayload};
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
-use ship_substrate::services::dispatch_ports::{
+use ship_code::dispatch_ports::{
     AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
@@ -141,7 +141,7 @@ fn octx(
         executor,
         platform: Arc::new(TestPlatform(worktrees)),
         registry: Arc::new(NoopRegistry),
-        probe: Arc::new(ship_substrate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_code::process_tree_probe::SysinfoProcessTreeProbe::new()),
         spawn_policy: Arc::new(crate::orchestrator::spawn_policy::NoopSpawnPolicy),
         projections: Arc::new(crate::orchestrator::projection_reader::ProjectionsReader),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),

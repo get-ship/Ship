@@ -13,11 +13,12 @@
 //! the orchestration logic testable without a real supervisor (tmux, git
 //! worktree, etc.).
 
-// Runner MECHANISM relocated to the L0 `ship-runner` crate (agents-arc S2).
+// Runner MECHANISM: emit (kernel-emit primitives) stays in L0 ship-runner;
+// dedup/exit_handler/router/observe/spawn_env moved to L1 ship_code::runner.
 // Re-exported at the historic `orchestrator::{dedup, emit, exit_handler}` paths
-// so the L1 policy below, shipd, and ship-supervisor resolve them unchanged
-// while the implementation lives in L0 and depends only on the runner ports.
-pub use ship_runner::{dedup, emit, exit_handler};
+// so the L1 policy below, shipd, and ship-supervisor resolve them unchanged.
+pub use ship_runner::emit;
+pub use ship_code::runner::{dedup, exit_handler};
 pub mod isolation;
 pub mod fanout;
 pub mod fanout_aggregate;
@@ -83,7 +84,7 @@ mod tests_review_retry;
 #[cfg(test)]
 mod tests_runner_ports;
 
-use ship_substrate::services::dispatch_ports::{
+use ship_code::dispatch_ports::{
     AgentPlatform, IsolationStrategy, ProcessRegistryPort, ProcessTreeProbe, ProjectionReader,
     SessionExecutor, SpawnPolicy,
 };

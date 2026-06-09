@@ -3,7 +3,7 @@
 //! This is the entry point for all `job.*` and `step.*` events flowing
 //! through the orchestrator.
 
-use ship_runner::router::{extract_slug, terminal_guard, Admit};
+use ship_code::runner::router::{extract_slug, terminal_guard, Admit};
 use ship_substrate::events::pipeline::{PipelineStepDoneDeclaredPayload, PipelineStepObservedPayload};
 use ship_substrate::events::EventEnvelope;
 use ship_types::event_types as et;

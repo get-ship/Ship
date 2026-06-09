@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex;
 
 use ship_agents::ports::AgentPorts;
-use ship_runner::dedup::EventDedup;
+use ship_code::runner::dedup::EventDedup;
 use ship_substrate::events::agent_session::{
     event_types as agent_event_types, AgentSessionStartedPayload, InvocationMode,
 };
@@ -22,7 +22,7 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::process::event_types as process_event_types;
 use ship_substrate::events::process::ProcessKilledPayload;
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::services::dispatch_ports::{
+use ship_code::dispatch_ports::{
     AgentPlatform, Authority, ExecutorHandle, IsolationStrategy, ProcessRegistryPort,
     ProjectionReader, SessionContext, SessionExecutor, SpawnPolicy,
 };

@@ -19,8 +19,13 @@
 //! would close a dependency cycle.
 
 pub mod agent_lifecycle;
+pub mod dispatch_ports;
 pub mod executors;
 pub mod helpers;
+pub mod process_registry;
+pub mod process_tree_probe;
+pub mod runner;
+pub mod terminal_launcher;
 
 pub use executors::{pty_actor_handle, pty_executor_handle_for_test};
 pub use helpers::worktrees_dir;

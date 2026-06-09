@@ -4,7 +4,7 @@
 //!
 //! The git/log/string scanning utilities that used to live here are pure L0
 //! mechanism and now live in [`ship_runner::observe`]; the kill-on-timeout
-//! teardown is the L0 [`ship_runner::stop_by_slug`] primitive. This module
+//! teardown is the L0 [`ship_code::runner::stop_by_slug`] primitive. This module
 //! keeps only the pipeline-domain `step.observed` emission.
 
 use std::sync::Arc;
@@ -13,9 +13,9 @@ use tokio::sync::Mutex;
 
 use ship_substrate::events::pipeline::{PipelineStepObservedPayload, StepTrigger, StepVerdict, event_types};
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use ship_substrate::services::dispatch_ports::{SessionExecutor, ProcessRegistryPort};
+use ship_code::dispatch_ports::{SessionExecutor, ProcessRegistryPort};
 
-use ship_runner::observe::scan_agent_log_tail;
+use ship_code::runner::observe::scan_agent_log_tail;
 
 use super::StepMonitor;
 
@@ -28,7 +28,7 @@ pub(super) async fn kill_spawned_process(
     executor: &Arc<dyn SessionExecutor>,
     slug: &str,
 ) {
-    ship_runner::stop_by_slug(kernel, registry, executor, slug, "step_timeout", "step_monitor").await;
+    ship_code::runner::stop_by_slug(kernel, registry, executor, slug, "step_timeout", "step_monitor").await;
 }
 
 /// Build the payload, emit `step.observed`, and unregister from the registry.

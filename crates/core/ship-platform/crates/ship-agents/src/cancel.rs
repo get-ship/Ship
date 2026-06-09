@@ -48,7 +48,7 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
     // Registry first (fast path), via the L0 slug-keyed teardown primitive. On a
     // registry miss, try the executor's resume path — best effort — and stop the
     // recovered handle through the same L0 teardown core.
-    let pid = if let Some(pid) = ship_runner::stop_by_slug(
+    let pid = if let Some(pid) = ship_code::runner::stop_by_slug(
         kernel,
         &ports.registry,
         &ports.executor,
@@ -60,7 +60,7 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
     {
         pid
     } else if let Some(handle) = ports.executor.resume_handle(&slug, None, None).await {
-        ship_runner::stop_handle(kernel, &ports.executor, &slug, handle, "cancellation", "operator")
+        ship_code::runner::stop_handle(kernel, &ports.executor, &slug, handle, "cancellation", "operator")
             .await
     } else {
         // No handle to stop — but a dispatch for this slug may be spawning right

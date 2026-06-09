@@ -13,16 +13,17 @@
 
 use std::sync::Arc;
 
-use ship_runner::build_spawn_env;
+use ship_code::runner::build_spawn_env;
 use ship_runner::emit::{emit_process_spawned, persist_and_route};
-use ship_runner::exit_handler::{self, ExitVocabulary};
-use ship_runner::router::DISPATCH_GATE;
+use ship_code::runner::exit_handler::{self, ExitVocabulary};
+use ship_code::runner::router::DISPATCH_GATE;
 use ship_substrate::events::agent_session::{
     event_types as agent_session_event_types, AgentSessionDispatchedPayload,
     AgentSessionFailedPayload, AgentSessionStartedPayload, InvocationMode,
 };
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::services::dispatch_ports::{LaunchProfile, SessionContext};
+use ship_code::dispatch_ports::SessionContext;
+use ship_substrate::services::dispatch_ports::LaunchProfile;
 use tokio::sync::Mutex;
 
 use crate::ports::AgentPorts;

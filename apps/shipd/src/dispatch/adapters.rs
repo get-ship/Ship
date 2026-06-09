@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use ship_substrate::services::dispatch_ports::{IsolationStrategy, SessionContext};
+use ship_code::dispatch_ports::{IsolationStrategy, SessionContext};
 use ship_pipeline_runtime::orchestrator::isolation::write_phase_spec_from_context;
 use std::path::PathBuf;
 

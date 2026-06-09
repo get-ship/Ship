@@ -20,7 +20,7 @@
 
 use std::sync::Arc;
 
-use ship_runner::router::{terminal_guard, Admit};
+use ship_code::runner::router::{terminal_guard, Admit};
 use ship_substrate::events::EventEnvelope;
 use tokio::sync::Mutex;
 

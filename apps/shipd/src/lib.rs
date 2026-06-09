@@ -600,7 +600,7 @@ pub async fn run_network(
     let agents_drained = if let Some(dh) = rt.dispatch_handle() {
         let mut registry = dh.registry.lock().await;
         let count = registry.len();
-        supervisor::graceful_shutdown(rt.kernel(), &mut registry, Arc::clone(&dh.executor)).await;
+        ship_code::process_registry::graceful_shutdown(rt.kernel(), &mut registry, Arc::clone(&dh.executor)).await;
         count
     } else {
         0

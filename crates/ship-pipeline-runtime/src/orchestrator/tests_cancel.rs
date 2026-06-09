@@ -14,7 +14,7 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::process::event_types as process_event_types;
 use ship_substrate::events::process::ProcessKilledPayload;
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::services::dispatch_ports::{
+use ship_code::dispatch_ports::{
     AgentPlatform, ExecutorHandle, SessionContext, SessionExecutor, ProcessRegistryPort,
 };
 use crate::orchestrator::router::handle_orchestrator_event;
@@ -134,7 +134,7 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
         executor: Arc::new(RecordingExecutor { stop_calls: stop_calls.clone() }),
         platform: Arc::new(RecordingPlatform { cleanup_calls: cleanup_calls.clone() }),
         registry: Arc::new(SeededRegistry::new(handle)),
-        probe: Arc::new(ship_substrate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_code::process_tree_probe::SysinfoProcessTreeProbe::new()),
         spawn_policy: Arc::new(crate::orchestrator::spawn_policy::NoopSpawnPolicy),
         projections: Arc::new(crate::orchestrator::projection_reader::ProjectionsReader),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -198,7 +198,7 @@ async fn cancel_without_registered_handle_still_cleans_and_emits() {
         executor: Arc::new(RecordingExecutor { stop_calls: stop_calls.clone() }),
         platform: Arc::new(RecordingPlatform { cleanup_calls: cleanup_calls.clone() }),
         registry: Arc::new(EmptyRegistry),
-        probe: Arc::new(ship_substrate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_code::process_tree_probe::SysinfoProcessTreeProbe::new()),
         spawn_policy: Arc::new(crate::orchestrator::spawn_policy::NoopSpawnPolicy),
         projections: Arc::new(crate::orchestrator::projection_reader::ProjectionsReader),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -233,7 +233,7 @@ async fn cancel_without_registered_handle_still_cleans_and_emits() {
 
 struct NoopIsolation;
 #[async_trait]
-impl ship_substrate::services::dispatch_ports::IsolationStrategy for NoopIsolation {
+impl ship_code::dispatch_ports::IsolationStrategy for NoopIsolation {
     async fn prepare(&self, _job: &SessionContext) -> anyhow::Result<PathBuf> {
         Ok(PathBuf::from("/tmp"))
     }

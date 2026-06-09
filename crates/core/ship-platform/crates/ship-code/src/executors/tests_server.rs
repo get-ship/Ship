@@ -17,7 +17,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use ship_substrate::services::dispatch_ports::{ExecutorHandle, SessionContext, SessionExecutor, LaunchProfile};
+use crate::dispatch_ports::{ExecutorHandle, SessionContext, SessionExecutor, LaunchProfile};
 use ship_harnesses::harness_adapter::capabilities;
 use ship_substrate::services::server_session::StubSession;
 
@@ -45,7 +45,7 @@ fn fresh_ctx(harness: Option<&str>) -> SessionContext {
         },
         exit_tx: None,
         step: None,
-        invocation: ship_substrate::services::dispatch_ports::InvocationMode::Print,
+        invocation: crate::dispatch_ports::InvocationMode::Print,
         keepalive: false,
     }
 }

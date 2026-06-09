@@ -16,8 +16,8 @@
 
 use std::sync::Arc;
 
-use ship_runner::dedup::EventDedup;
-use ship_substrate::services::dispatch_ports::{
+use ship_code::runner::dedup::EventDedup;
+use ship_code::dispatch_ports::{
     AgentPlatform, IsolationStrategy, ProcessRegistryPort, ProjectionReader, SessionExecutor,
     SpawnPolicy,
 };
