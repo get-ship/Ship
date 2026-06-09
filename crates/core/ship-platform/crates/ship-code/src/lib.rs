@@ -25,7 +25,6 @@ pub mod helpers;
 pub mod process_registry;
 pub mod process_tree_probe;
 pub mod runner;
-pub mod terminal_launcher;
 
 pub use executors::{pty_actor_handle, pty_executor_handle_for_test};
 pub use helpers::worktrees_dir;
