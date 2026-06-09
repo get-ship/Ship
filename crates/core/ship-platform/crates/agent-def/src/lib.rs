@@ -11,6 +11,7 @@
 pub mod agent;
 pub mod compile;
 pub mod config;
+pub mod emit;
 pub mod harnesses;
 pub mod import;
 pub mod permissions;
@@ -18,8 +19,8 @@ pub mod rule;
 pub mod skill;
 pub mod skill_paths;
 pub mod skill_vars;
-
 pub use agent::{Agent, BlastRadius, Capability, Disposition, Harness, Identity};
+pub use emit::SessionEventSink;
 
 /// One-time legacy `platform.db` → `kv.db` skill-vars drain, re-exported for the
 /// daemon boot path so shipd needn't depend on the internal sub-crate. The skill

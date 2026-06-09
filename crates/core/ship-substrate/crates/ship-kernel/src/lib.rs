@@ -14,6 +14,12 @@ pub use router::{ActorConfig, KernelRouter};
 pub use sink::EventSink;
 pub use validator::EventValidator;
 
+/// Public test utilities for downstream crates. The `MockSink` lets tests
+/// assert that a route/persist produced an `EventEnvelope` without standing
+/// up a SQLite store. Always compiled; downstream test code uses it via
+/// `ship_kernel::testing::MockSink`.
+pub mod testing;
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -34,37 +40,13 @@ pub enum KernelError {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
 
+    use crate::testing::MockSink;
     use crate::{
         ActorConfig, EventSink, KernelError, KernelRouter, Mailbox,
     };
     use ship_types::envelope::EventEnvelope;
-
-    // ── MockSink ─────────────────────────────────────────────────────────
-
-    struct MockSink {
-        events: Mutex<Vec<EventEnvelope>>,
-    }
-
-    impl MockSink {
-        fn new() -> Self {
-            Self {
-                events: Mutex::new(Vec::new()),
-            }
-        }
-
-        fn captured(&self) -> Vec<EventEnvelope> {
-            self.events.lock().unwrap().clone()
-        }
-    }
-
-    impl EventSink for MockSink {
-        fn persist(&self, event: &EventEnvelope) -> anyhow::Result<()> {
-            self.events.lock().unwrap().push(event.clone());
-            Ok(())
-        }
-    }
 
     fn ev(event_type: &str) -> EventEnvelope {
         EventEnvelope::new(event_type, "entity-1", &serde_json::json!({}))

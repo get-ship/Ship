@@ -6,6 +6,7 @@ publish = false
 
 [dependencies]
 ship-types = { path = "../ship-types" }
+parking_lot = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }

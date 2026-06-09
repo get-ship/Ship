@@ -117,6 +117,9 @@ getrandom = "0.2"
 # Platform
 libc = "0.2"
 
+# Locking
+parking_lot = "0.12"
+
 # Misc
 semver = "1.0"
 nanoid = "0.4"

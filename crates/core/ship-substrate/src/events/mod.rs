@@ -30,9 +30,12 @@ pub mod types {
             // (the deprecated chat read-projection event, sole consumer was chat)
             // → 113. Job `dead-events-cull` removes `project.changed` and
             // `skill.attached_to_session` (zero producers, no consumers) → 111.
+            // Job `canonical-session-events` adds the 6 canonical agent-session
+            // events (session.completed, session.failed, session.cancelled,
+            // session.suspended, session.turn.started, session.turn.ended) → 117.
             // The hard count is enforced here to catch accidental removals.
             // When adding events: update ALL in event_types.rs AND payload_registry.rs.
-            assert_eq!(ALL.len(), 111, "exactly 111 event type constants required (dead-events-cull removed project.changed + skill.attached_to_session)");
+            assert_eq!(ALL.len(), 117, "exactly 117 event type constants required (canonical-session-events added 6 canonical session events)");
         }
 
         #[test]
@@ -68,6 +71,7 @@ pub use crate::persistence::event_store as store;
 // Modules kept here (implement runtime-specific logic)
 pub mod agent_session;
 pub mod annotation;
+pub mod canonical_session;
 pub mod daemon;
 pub mod executor;
 pub mod hooks;

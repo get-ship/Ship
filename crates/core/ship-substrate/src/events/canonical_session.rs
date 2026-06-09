@@ -1,0 +1,195 @@
+//! Canonical ship-shaped agent-session event payloads — the L1 payloads home.
+//!
+//! The other module in this directory, `agent_session.rs`, is the
+//! **workbench** (driver-edge) family: its payloads carry `pid`, `branch`,
+//! `worktree`, `exit_code` — driver edges that drivers pull in. THIS
+//! module is the **canonical** family: payloads carry only the session-
+//! shaped primitives that the kernel, projections, and observers can
+//! consume without knowing which runtime produced them.
+//!
+//! Self-contained primitives only — no driver edges:
+//! - `SessionStarted`    — session_id, agent_id, harness, model, space_id, input, parent
+//! - `SessionCompleted`  — session_id
+//! - `SessionFailed`     — session_id, reason
+//! - `SessionCancelled`  — session_id, reason
+//! - `SessionSuspended`  — session_id, checkpoint
+//! - `TurnStarted`       — session_id, idx
+//! - `TurnEnded`         — session_id, idx, stop_reason
+//!
+//! NOTE: the canonical `SessionStarted` payload struct is defined here
+//! (matching the spec) but is NOT the type-name currently registered for
+//! `session.started` in `payload_registry.rs` — the workbench family still
+//! owns the active session-start emit (the substrate's `session_events`
+//! module depends on it at Runtime scope). The 6 newly-registered events
+//! in this slice (session.completed/failed/cancelled/suspended + turn.*)
+//! are wired to the canonical payloads below; the canonical `SessionStarted`
+//! is forward-compatible (ready for the day the workbench gets retired).
+//!
+//! Scope and retention (canonical axis, set at `register_event!`):
+//! - `session.*` (coarse)  — Space-scoped, Durable
+//! - `session.turn.*` (medium) — Runtime-scoped, Ephemeral
+//!
+//! See the `canonical-session-events` ADR / `.artifacts/agents-architecture.md`
+//! for the design rationale.
+//!
+//! Wire-shape note: the fields below are intentionally minimal so the
+//! payload round-trips cleanly through the kernel envelope
+//! (`payload_json` is a UTF-8 string of `serde_json::to_string(&payload)`).
+//! Both runtimes (Floki, ship-code) call the emit helpers in
+//! `agent_def::emit::*` to build the envelope; drivers don't author these
+//! payloads by hand.
+use serde::{Deserialize, Serialize};
+
+// Re-export the consts from ship-types so the L1 module and the type-names
+// passed to `register_event!` live next to the payloads they describe.
+pub use ship_types::event_types::canonical_session as event_types;
+
+// ── Session (coarse) — Space-scoped, Durable ───────────────────────────────
+
+/// Payload for `session.started`. The first event of a session.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionStarted {
+    /// ULID. Primary key; stable for the life of the session.
+    pub session_id: String,
+    /// The agent definition the session is running (e.g. "claude", "floki").
+    pub agent_id: String,
+    /// The runtime that produced the session (e.g. "floki", "claude",
+    /// "codex"). Distinct from `agent_id` because a single agent can run
+    /// on multiple harnesses.
+    pub harness: String,
+    /// Resolved model id (after default-chain resolution), when the
+    /// runtime exposes one. `None` for harnesses that don't surface it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    /// The Space this session belongs to. Stamped onto the envelope as
+    /// `(scope=Space, scope_key=space_id)` at emit.
+    pub space_id: String,
+    /// The initial input that started the session (free text). For
+    /// pipeline-composed sessions this is the step prompt; for
+    /// `ship use` it is the user prompt; for chat it is the first turn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input: Option<String>,
+    /// The originating session or pipeline-run id, when this session
+    /// was composed from another. `None` for top-level user invocations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
+}
+
+/// Payload for `session.completed`. Clean terminal.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionCompleted {
+    pub session_id: String,
+}
+
+/// Payload for `session.failed`. Abnormal terminal.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionFailed {
+    pub session_id: String,
+    /// Operator-readable cause. Examples: "harness exit code 1",
+    /// "process killed externally", "spawn failed: claude binary not
+    /// on PATH", "coherence sweep: process missing". Free text; not
+    /// an enum, so drivers don't have to round-trip every failure mode.
+    pub reason: String,
+}
+
+/// Payload for `session.cancelled`. Operator stop.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionCancelled {
+    pub session_id: String,
+    /// Optional operator-supplied reason. Free text; mostly for
+    /// dashboards rendering "why was this stopped".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// Payload for `session.suspended`. Paused for later resume.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionSuspended {
+    pub session_id: String,
+    /// Opaque checkpoint handle the runtime reloads to skip already-
+    /// completed work. Runtime-defined format; not parsed by the kernel.
+    pub checkpoint: String,
+}
+
+// ── Turn (medium) — Runtime-scoped, Ephemeral ──────────────────────────────
+
+/// Payload for `session.turn.started`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TurnStarted {
+    pub session_id: String,
+    /// 0-based turn index. Stable across the session.
+    pub idx: u32,
+}
+
+/// Payload for `session.turn.ended`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TurnEnded {
+    pub session_id: String,
+    pub idx: u32,
+    /// Optional harness-reported stop reason (e.g. "end_turn",
+    /// "max_tokens", "tool_use"). Free text; not an enum.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_reason: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Round-trip + invariant check. The new family must NOT carry any
+    /// driver-edge fields (pid, branch, worktree, exit_code) — that's
+    /// the whole point of being canonical.
+    #[test]
+    fn payloads_carry_no_driver_edges() {
+        let s = SessionStarted {
+            session_id: "s1".into(),
+            agent_id: "claude".into(),
+            harness: "claude".into(),
+            model: Some("sonnet".into()),
+            space_id: "sp".into(),
+            input: Some("hi".into()),
+            parent: None,
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        for forbidden in ["pid", "branch", "worktree", "exit_code"] {
+            assert!(
+                !json.contains(forbidden),
+                "SessionStarted must not carry {forbidden}: {json}"
+            );
+        }
+        let _: SessionStarted = serde_json::from_str(&json).unwrap();
+
+        let c = SessionCompleted { session_id: "s1".into() };
+        let json = serde_json::to_string(&c).unwrap();
+        for forbidden in ["pid", "branch", "worktree", "exit_code"] {
+            assert!(
+                !json.contains(forbidden),
+                "SessionCompleted must not carry {forbidden}: {json}"
+            );
+        }
+    }
+
+    #[test]
+    fn session_failed_has_reason() {
+        let f = SessionFailed {
+            session_id: "s1".into(),
+            reason: "harness exit 1".into(),
+        };
+        let json = serde_json::to_string(&f).unwrap();
+        let back: SessionFailed = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, f);
+    }
+
+    #[test]
+    fn turn_end_carries_index_and_optional_stop_reason() {
+        let t = TurnEnded {
+            session_id: "s1".into(),
+            idx: 3,
+            stop_reason: None,
+        };
+        let json = serde_json::to_string(&t).unwrap();
+        assert!(!json.contains("stop_reason")); // skipped when None
+        let back: TurnEnded = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, t);
+    }
+}
