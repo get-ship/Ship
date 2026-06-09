@@ -1,6 +1,7 @@
 import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-project-switcher.sui'
+import { openSpace } from '../../chrome/open-space'
 import { ops } from '../../ops'
 
 interface Project {
@@ -70,6 +71,16 @@ export default controller({
       }
     }
 
+    async function openProjectAsWindow(id: string): Promise<void> {
+      internals.menu?.hidePopover?.()
+      try {
+        await openSpace(id)
+      } catch {
+        // openSpace's own invoke rejection is best surfaced via the
+        // global notify; the popover's already closed.
+      }
+    }
+
     return {
       projects,
       activeId,
@@ -82,6 +93,7 @@ export default controller({
       menuEl,
       toggleMenu,
       pick,
+      openProjectAsWindow,
       loadProjects,
       _internals: internals,
     }

@@ -7,6 +7,7 @@
 // nodes <sui-portal> teleports out of shadow-DOM reach).
 
 import { chrome, effect, type Signal } from '@ship/sui-runtime'
+import { openSpace } from '../../chrome/open-space'
 import { ops } from '../../ops'
 
 export interface Project {
@@ -39,7 +40,8 @@ const POPOVER_STYLES = `
   letter-spacing: 0.5px;
 }
 .sui-rail-project-popover-row {
-  padding: 8px 12px;
+  position: relative;
+  padding: 8px 32px 8px 12px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -63,6 +65,33 @@ const POPOVER_STYLES = `
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.sui-rail-project-popover-open {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 4px;
+  margin: 0;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  border-radius: var(--radius-sm, 4px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--duration-fast, 100ms) var(--ease-out, ease-out), background-color var(--duration-fast, 100ms) var(--ease-out, ease-out), color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+}
+.sui-rail-project-popover-row:hover .sui-rail-project-popover-open,
+.sui-rail-project-popover-open:focus-visible {
+  opacity: 1;
+}
+.sui-rail-project-popover-open:hover {
+  background: color-mix(in oklch, var(--foreground) 8%, transparent);
+  color: var(--foreground);
 }
 .sui-rail-project-popover-sep {
   height: 1px;
@@ -186,11 +215,38 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
     pop.style.bottom = 'auto'
   }
 
+  // Open the project as its OWN native window (Tauri) or a new browser tab
+  // (dev). One seam — `openSpace` — knows the transport; the popover just
+  // fires the intent. The popover does NOT close on this branch: in the
+  // Tauri case a new Ship window opens (the hub stays put); in browser-dev
+  // a new tab opens. Switching the active project (the row's primary
+  // click) is unchanged — `ops.space.activate` swaps the hub content
+  // inline.
+  const openProjectAsWindow = async (id: string): Promise<void> => {
+    try {
+      await openSpace(id)
+    } catch (err) {
+      chrome.notify({
+        tone: 'destructive',
+        title: `Open failed: ${(err as Error).message ?? err}`,
+      })
+    }
+  }
+
   const onPopoverClick = (e: Event): void => {
     const target = e.target as HTMLElement | null
     if (!target) return
     if (target.closest('[data-rail-add]')) {
       void addProjectFlow()
+      return
+    }
+    // "Open in its own window" button — per-row affordance, beats the
+    // primary click which still swaps the active project inline. Check
+    // this BEFORE the row fallback so the button wins.
+    const openBtn = target.closest('[data-space-open]') as HTMLElement | null
+    if (openBtn?.dataset.spaceOpen) {
+      e.stopPropagation()
+      void openProjectAsWindow(openBtn.dataset.spaceOpen)
       return
     }
     const row = target.closest('[data-project-id]') as HTMLElement | null
