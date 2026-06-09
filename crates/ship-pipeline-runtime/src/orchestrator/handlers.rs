@@ -143,21 +143,13 @@ pub async fn handle_cancelled(
     };
 
     // Ensure tmux session + worktree are gone. Look up branch from the
-    // projection so delete_branch can run.
-    // Branch for cleanup: pipeline runs carry it on the jobs row; bare
-    // agent sessions carry it on the agent_sessions row. Try jobs first,
-    // fall back to the session projection (agent.session.cancelled).
+    // pipeline_run projection; if absent (bare agent session), derive from
+    // slug as `job/{slug}` — canonical sessions carry no separate branch field.
     let branch = crate::projections::pipeline_run::load_pipeline_run_by_slug(&slug)
         .ok()
         .flatten()
         .map(|j| j.branch)
-        .or_else(|| {
-            ship_agents::services::sessions::projection::load_session_by_slug(&slug)
-                .ok()
-                .flatten()
-                .map(|s| s.branch)
-        })
-        .unwrap_or_default();
+        .unwrap_or_else(|| format!("job/{slug}"));
     octx.platform.cleanup_job(&slug, &branch).await;
 
     // Emit process.killed for audit.
