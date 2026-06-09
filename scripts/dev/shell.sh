@@ -9,11 +9,11 @@
 # the shell with 404s and no error. Rebuilding it every launch removes that trap.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-
-echo "[1/3] rebuild hub scaffold (the daemon-served / )"
+echo "[1/3] rebuild hub + space scaffolds (the daemon-served / and /space/<id>)"
 cargo run -q -p deck-cli -- build \
     --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
-
+cargo run -q -p deck-cli -- build \
+    --shell-root apps/spaces --out .deck/space-scaffold
 echo "[2/3] ensure dev daemon (idempotent — reuses a live one)"
 scripts/dev/start.sh
 

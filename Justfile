@@ -47,6 +47,11 @@ bootstrap:
     # umbrella + islands + marketing/arcade in-process (rolldown). No per-pack
     # pre-compile step — components compile from source on demand.
     cargo run -p deck-cli --quiet -- build-assets
+    # Hub + space scaffolds: the daemon-served `/` and `/space/<id>` HTML apps.
+    # A fresh tree without these blanks the shell (no `/`) and any
+    # `--app=<id>` Tauri window (no `/space/<id>`).
+    cargo run -q -p deck-cli -- build --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
+    cargo run -q -p deck-cli -- build --shell-root apps/spaces --out .deck/space-scaffold
     just dev-runtime-install
     echo "bootstrap complete — 'just dev' to start the daemon"
 
@@ -74,9 +79,14 @@ gen-routes:
 # engine shipd runs, and the ONLY bundler. Framework singletons + the
 # sui-components umbrella + islands + views + marketing/arcade, all traced from
 # source. No per-pack build step: components compile from `.sui` on demand.
+# Also rebuilds the hub + space scaffolds (the daemon-served `/` and
+# `/space/<id>`) so a fresh tree or a stale `.deck/space-scaffold` doesn't
+# blank a Tauri `--app=<id>` window.
 [group('daily')]
 dev-build-all: _sui-compiler-lib gen-routes
     @cargo run -p deck-cli --quiet -- build-assets
+    @cargo run -q -p deck-cli -- build --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
+    @cargo run -q -p deck-cli -- build --shell-root apps/spaces --out .deck/space-scaffold
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
@@ -327,20 +337,23 @@ build: _sui-compiler-lib
     #!/usr/bin/env bash
     set -euo pipefail
     command -v bun >/dev/null || { echo "build: bun not on PATH" >&2; exit 1; }
-    echo "[1/6] gen-types"
+    echo "[1/8] gen-types"
     cargo run -p xtask --quiet -- gen-types
-    echo "[2/6] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bundler loads)"
-    # Steps 3-6 drive the SUI compiler over Bun FFI against this .so. Nothing
-    # in cargo's graph forces it to rebuild (the JS bundler consumes it
+    echo "[2/8] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bundler loads)"
+    # Steps 3-8 drive the SUI compiler over Bun FFI against this .so. Nothing
     # out-of-band), so without this step it silently goes stale and bundles
     # compile against an old token registry / lint set. Cheap no-op when fresh.
     cargo build -p sui-compiler
-    echo "[3/6] framework + sui-* bundles + islands + views + catalog (cargo run -p deck-cli --quiet -- build-assets — in-process Rolldown; the only bundler AND the only catalog producer, → .deck/catalogs/workspace.json)"
+    echo "[3/8] framework + sui-* bundles + islands + views + catalog (cargo run -p deck-cli --quiet -- build-assets — in-process Rolldown; the only bundler AND the only catalog producer, → .deck/catalogs/workspace.json)"
     cargo run -p deck-cli --quiet -- build-assets
-    echo "[4/6] catalog baked in [3/6] — the duplicate TS producer (@ship/sui-catalog) is retired; deck-bundler is the single source"
-    echo "[5/6] cargo build --release (ship-cli + shipd)"
+    echo "[4/8] catalog baked in [3/8] — the duplicate TS producer (@ship/sui-catalog) is retired; deck-bundler is the single source"
+    echo "[5/8] hub scaffold (the daemon-served / — bundled with framework assets so the dir is self-contained for installed builds)"
+    cargo run -q -p deck-cli -- build --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
+    echo "[6/8] space scaffold (the daemon-served /space/<id> — the thin per-space frontend a Tauri --app=<id> window loads; DECK_APP_ID is injected by the daemon at serve time)"
+    cargo run -q -p deck-cli -- build --shell-root apps/spaces --out .deck/space-scaffold
+    echo "[7/8] cargo build --release (ship-cli + shipd)"
     cargo build --release -p ship-cli -p shipd
-    echo "[6/6] verify outputs"
+    echo "[8/8] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
     for bin in ship shipd; do
@@ -351,8 +364,7 @@ build: _sui-compiler-lib
             echo "  ✓ $target_dir/release/$bin"
         fi
     done
-    for asset in .deck/framework/sui-runtime.js .deck/framework/sui-components.js .deck/sui-marketing.js .deck/sui-arcade.js .deck/catalogs/workspace.json; do
-        if [ ! -s "$asset" ]; then
+    for asset in .deck/framework/sui-runtime.js .deck/framework/sui-components.js .deck/sui-marketing.js .deck/sui-arcade.js .deck/catalogs/workspace.json .deck/hub-scaffold/index.html .deck/space-scaffold/index.html; do
             echo "  ✗ $asset missing or empty" >&2
             missing=1
         else
