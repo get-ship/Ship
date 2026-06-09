@@ -133,12 +133,7 @@ impl ShipRuntime {
 
         let mesh_registry: SharedMeshRegistry =
             Arc::new(tokio::sync::RwLock::new(HashMap::new()));
-
-        // End all previously-active sessions from prior daemon run.
-        // Uses spawn_blocking because the DB layer uses block_in_place.
-        let _ = tokio::task::spawn_blocking(cleanup_active_sessions_on_startup).await;
-
-        // Build the collection + artifact `SpaceContext`s (when a space is active)
+        // Build the collection + artifact `SpaceContext`s
         // and the ONE shared schema registry, here (C-2 §3.1 / UD-7). The
         // `collections()`/`artifacts()` accessors construct stateless services
         // over these per call; the collection wire is mounted with the SAME
@@ -305,46 +300,6 @@ impl ShipRuntime {
         // it don't need to re-handshake after a daemon restart.
         crate::daemon::remove_liveness_files(&self.daemon_dir);
         tracing::info!("shipd: shutdown complete");
-    }
-}
-
-/// End all previously-active sessions on daemon startup.
-///
-/// Handles the case where the daemon crashed and sessions were never ended.
-fn cleanup_active_sessions_on_startup() {
-    let sessions = match ship_substrate::db::session_drain::list_active_sessions() {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("startup cleanup: failed to list active sessions: {e}");
-            return;
-        }
-    };
-
-    if sessions.is_empty() {
-        return;
-    }
-
-    tracing::info!(
-        count = sessions.len(),
-        "startup cleanup: ending stale active sessions from previous run"
-    );
-
-    for session in &sessions {
-        match ship_substrate::db::session_drain::force_end_session(&session.id, "daemon_restart") {
-            Ok(()) => {
-                tracing::info!(
-                    session_id = %session.id,
-                    workspace = %session.branch,
-                    "startup cleanup: ended stale session"
-                );
-            }
-            Err(e) => {
-                tracing::warn!(
-                    session_id = %session.id,
-                    "startup cleanup: failed to end stale session: {e}"
-                );
-            }
-        }
     }
 }
 

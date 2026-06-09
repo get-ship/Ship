@@ -191,7 +191,7 @@ async fn route_delivers_to_multiple_subscribers() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn kernel_store_receives_system_events() {
     let (_tmp, router) = setup();
-    let event = ev("session.started");
+    let event = ev("workspace.created");
     // emit persists + delivers. route is delivery-only.
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 

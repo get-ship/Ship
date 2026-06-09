@@ -19,48 +19,6 @@ use super::types::{
     private::Inner, PtySession, SessionHandle, SessionId, SessionKind, SessionMeta,
     SessionStatus,
 };
-use ship_substrate::events::EventEnvelope;
-use ship_substrate::persistence::event_store::SqliteEventStore;
-use ship_types::event_types::{SESSION_STATUS_CHANGED, SESSION_TURN_FAILED};
-use ship_types::payload::{SessionStatusChanged, SessionTurnFailed};
-
-/// Best-effort emit. The session's in-memory state is the source of
-/// truth; the event log is audit/observability scaffolding.
-fn emit_session_event(event_type: &'static str, session_id: &str, payload: &impl serde::Serialize) {
-    let envelope = match EventEnvelope::new(event_type, session_id, payload) {
-        Ok(e) => e,
-        Err(e) => {
-            tracing::warn!("session event {event_type}: build envelope failed: {e}");
-            return;
-        }
-    };
-    // session.* is Runtime-scoped → write runtime.db (the session projection's db).
-    let store = match SqliteEventStore::new_for_scope(
-        &match ship_substrate::project::get_global_dir() {
-            Ok(d) => d,
-            Err(e) => {
-                tracing::warn!("session event {event_type}: resolve ship dir failed: {e}");
-                return;
-            }
-        },
-        ship_types::event_registry::EventScope::Runtime,
-        None,
-    ) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("session event {event_type}: open store failed: {e}");
-            return;
-        }
-    };
-    // Enforced write: session.* is Runtime-scoped with no space binding at this
-    // call site (the service task has no session-minted binding), so stamp +
-    // enforce from the daemon-internal binding before persist.
-    let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
-    if let Err(e) = store.append_enforced(&envelope, &binding) {
-        tracing::warn!("session event {event_type}: append failed: {e}");
-    }
-}
-
 fn status_str(s: SessionStatus) -> &'static str {
     match s {
         SessionStatus::Spawning => "spawning",
@@ -213,11 +171,6 @@ pub fn send_agent_message(
     ) {
         let session_id = session.0.meta.lock().unwrap().id.clone();
         tracing::error!(session = %session_id, error = %e, "headless turn spawn failed");
-        emit_session_event(
-            SESSION_TURN_FAILED,
-            &session_id,
-            &SessionTurnFailed { error: e.to_string() },
-        );
         let _ = session.0.event_tx.send(
             ship_harnesses::harness_adapter::HarnessEvent::Message {
                 text: format!("[ship] turn failed: {e}"),
@@ -296,16 +249,6 @@ fn set_status(inner: &SessionHandle, status: SessionStatus) {
         m.last_activity = Utc::now();
         (m.id.clone(), prior)
     };
-    if prior != status {
-        emit_session_event(
-            SESSION_STATUS_CHANGED,
-            &id,
-            &SessionStatusChanged {
-                from: status_str(prior).to_string(),
-                to: status_str(status).to_string(),
-            },
-        );
-    }
 }
 
 /// Idle-reaper: flips Thinking → Idle after a quiet window. Run this
@@ -324,17 +267,8 @@ pub fn sweep_idle(registry: &SessionRegistry) {
                 if matches!(m.status, SessionStatus::Thinking)
                     && (Utc::now() - m.last_activity).num_seconds() >= IDLE_AFTER_SECS
                 {
-                    let session_id = m.id.clone();
                     m.status = SessionStatus::Idle;
                     drop(m);
-                    emit_session_event(
-                        SESSION_STATUS_CHANGED,
-                        &session_id,
-                        &SessionStatusChanged {
-                            from: "thinking".to_string(),
-                            to: "idle".to_string(),
-                        },
-                    );
                 }
             }
     }

@@ -1,8 +1,6 @@
 //! Canonical ship-shaped agent-session event family — consts only.
 //!
-//! This is the **new** family (job: `canonical-session-events`) and lives
-//! next to the workbench `session.rs` without modifying it. Two tiers,
-//! scope follows granularity:
+//! Two tiers, scope follows granularity:
 //!
 //! - **Session (coarse)** — Space-scoped, Durable. The whole agent
 //!   invocation: one harness, one session_id, one Space, one end state.
@@ -12,15 +10,17 @@
 //! The fine-grained op.* tier is DEFERRED to analytics (it rides the hook
 //! stream); it does NOT live here.
 //!
-//! These names are NEW (no name overlap with the workbench family — the
-//! workbench keeps `session.started` and the rest of its lifecycle; the
-//! canonical family adds the post-start completion / failure / cancel /
-//! suspend terminals and the medium-granularity turn events). See the
-//! `canonical-session-events` ADR for the family-split rationale. The
-//! workbench consts and payload structs remain in place for backward
-//! compat.
+//! This family is the COMPLETE ship-shaped session vocabulary (job
+//! `canonical-session-events` + the `workbench-teardown` follow-up that
+//! adopted `session.started`). The legacy workbench `session.*` family is
+//! retired — see R6 / `.artifacts/agents-architecture.md`.
 
 // ── Session (coarse) — Space-scoped, Durable ───────────────────────────────
+
+/// A session was opened. The first event of a session; the only
+/// non-terminal coarse event. Space-scoped + Durable so the Space's
+/// full history has a row to pivot later terminals off of.
+pub const SESSION_STARTED: &str = "session.started";
 
 /// Session reached a normal terminal state (harness exited zero, operator
 /// stopped a keepalive cleanly, or completion was declared by the runtime).
@@ -55,6 +55,7 @@ pub const TURN_ENDED: &str = "session.turn.ended";
 /// consistency test and any consumer that needs a closed list of this
 /// family's events.
 pub const ALL_CANONICAL_SESSION: &[&str] = &[
+    SESSION_STARTED,
     SESSION_COMPLETED,
     SESSION_FAILED,
     SESSION_CANCELLED,

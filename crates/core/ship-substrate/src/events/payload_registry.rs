@@ -1,6 +1,7 @@
-// FILE_CAP_OVERRIDE: 123-event registry — all registrations must be co-located in one
-// compilation unit so inventory::collect! sees them. No logic present; only static
-// EventRegistration submissions. Split deferred until a second major event family lands.
+// FILE_CAP_OVERRIDE: the event registry is a single compilation unit so
+// `inventory::collect!` sees every `EventDef`. No logic present; only static
+// `EventRegistration` submissions. Split deferred until a second major
+// event family lands.
 
 //! Compile-time event registry population.
 //!
@@ -13,15 +14,16 @@
 //!    pipeline, process, supervisor, executor) which depend on `ship-pipelines` types
 //!    and therefore cannot live in the leaf `ship-types` crate.
 //!
-//! After this module compiles, `ship_types::event_registry::registry()` returns all
-//! 123 classified entries. `event_types::ALL` is derived from this registry.
+//! After this module compiles, `ship_types::event_registry::registry()` returns every
+//! classified entry. `event_types::ALL` is derived from this registry.
 //!
 //! A1 classification ground truth: `.artifacts/specs/space/event-classification.md`
 //! Fail-closed default (undetermined): runtime, durable.
 
+
 use ship_types::event_registry::{EventDef, EventRegistration, EventScope, Retention, Stability};
 
-// ── Macro-free registration helper ──────────────────────────────────────────
+// ── Macro-free registration helper ───────────────────────────────────────────────────────────────────
 // We don't use #[derive(EventPayload)] here because the generated code references
 // `::ship_types::event_registry::*` via absolute path, which works fine in ship-substrate
 // (a downstream crate). We use inventory::submit! directly for clarity and to avoid
@@ -227,14 +229,15 @@ register_event!("rule.created", [EventScope::Runtime], Retention::Durable, Stabi
 register_event!("rule.deleted", [EventScope::Runtime], Retention::Durable, Stability::Stable, "RuleDeleted");
 register_event!("rule.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "RuleUpdated");
 
-// ── canonical session.* / session.turn.* (job: canonical-session-events) ─────
-// The CANONICAL agent-session family (see `events::canonical_session`). Adds 6
-// new event_type names that didn't exist before: session.completed, session.failed,
-// session.cancelled, session.suspended, session.turn.started, session.turn.ended.
-// `session.started` is intentionally NOT re-scoped — the workbench family owns
-// it (Runtime/Durable); the canonical family adds the post-start lifecycle +
-// turn events. Scope rule: session.* (coarse) → Space/Durable, session.turn.*
-// (medium) → Runtime/Ephemeral.
+// ── session.* / session.turn.* (canonical — jobs: canonical-session-events +
+// workbench-teardown) ──────────────────────────────────────────────────
+// The CANONICAL agent-session family (see `events::canonical_session`).
+// The complete ship-shaped session vocabulary: 5 coarse-grain events
+// (session.started + 4 terminals) + 2 medium-grain turn events. Scope
+// rule: session.* (coarse) → Space/Durable, session.turn.* (medium) →
+// Runtime/Ephemeral. The workbench family is RETIRED (R6) — no
+// `SessionStarted` workbench payload struct, no `session.attached` etc.
+register_event!("session.started", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionStarted");
 register_event!("session.completed", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionCompleted");
 register_event!("session.failed", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionFailed");
 register_event!("session.cancelled", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionCancelled");
@@ -242,27 +245,11 @@ register_event!("session.suspended", [EventScope::Space], Retention::Durable, St
 register_event!("session.turn.started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnStarted");
 register_event!("session.turn.ended", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnEnded");
 
-// ── session.* (workbench — preserved) ─────────────────────────────────────────
-// The workbench `session.*` consts in `ship_types::event_types::session` stay
-// untouched. The canonical family adds the new names; the workbench `session.started`
-// remains the active session-start emit (the substrate's `session_events` module
-// depends on it at Runtime scope).
-register_event!("session.attached", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SessionAttached");
-register_event!("session.drain_aborted", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SessionDrainAborted");
-register_event!("session.drain_completed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SessionDrainCompleted");
-register_event!("session.drain_started", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SessionDrainStarted");
-register_event!("session.ended", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SessionEnded");
-register_event!("session.heartbeat", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SessionHeartbeat");
-register_event!("session.progress", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SessionProgress");
-register_event!("session.started", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SessionStarted");
-register_event!("session.status_changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SessionStatusChanged");
-register_event!("session.tool_count_incremented", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SessionToolCountIncremented");
-register_event!("session.turn_failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SessionTurnFailed");
-
-// ── skill.* ─────────────────────────────────────────────────────────────────
+// ── skill.* ───────────────────────────────────────────────────────────────────
 // Runtime audit emit: agent-file CRUD helpers take a ship_dir but no space_id
 // and have no read-back projection (Phase 4d §6.3) → daemon-wide runtime.db.
 register_event!("skill.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SkillChanged");
+
 register_event!("skill.created", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillCreated");
 register_event!("skill.deleted", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillDeleted");
 register_event!("skill.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillUpdated");

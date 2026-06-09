@@ -2,9 +2,15 @@
 //!
 //! Routes are mounted under `/api/v1/runtime` in lib.rs.
 //! All handlers are read-only and use the existing `ApiState`.
-
+//!
+//! The legacy `list_sessions_across_projects` workbench handler was
+//! removed with the workbench `session.*` family (job
+//! `workbench-teardown`); the canonical session family has no cross-
+//! project read yet — the workbench's runtime.db `sessions` table is
+//! gone, so a re-implementation would be a different projection over
+//! the canonical event log, deferred to a follow-up.
 use axum::{
-    Extension, Json,
+    Json,
     extract::State,
     http::StatusCode,
     response::IntoResponse,
@@ -15,41 +21,11 @@ use axum::extract::Path;
 use ship_substrate::events::EventEnvelope;
 #[cfg(test)]
 use ship_substrate::events::pipeline::event_types;
-
 use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 use crate::wire::MeshResponse;
 
-/// GET /api/v1/sessions/active-across-projects
-///
-/// Thin transport shell — delegates to
-/// `ship_substrate::runtime_reads::list_active_sessions_with_projects`.
-pub async fn list_sessions_across_projects(
-    State(_state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
-) -> impl IntoResponse {
-    match ship_substrate::runtime_reads::list_active_sessions_with_projects() {
-        Ok(data) => (
-            StatusCode::OK,
-            Json(MeshResponse {
-                ok: true,
-                data: serde_json::json!({ "sessions": data }),
-            }),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(e),
-            }),
-        )
-            .into_response(),
-    }
-}
-
-
-// ── mr-04 follow-up: per-handler submodules ──────────────────────────
+// ── mr-04 follow-up: per-handler submodules ─────────────────────────────────
 //
 // Each submodule owns one logical chunk of the runtime read API. The
 // parent re-exports the public handler symbols + helpers (used by

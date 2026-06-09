@@ -1,10 +1,17 @@
+//! Hook ingress — CLI/HTTP layer that emits `hook.*` and `skill.*` events
+//! for harness hook input. The workbench `handle_session_start` /
+//! `handle_session_end` helpers (which emitted `session.started` /
+//! `session.ended` workbench events) were retired with the workbench
+//! family (job `workbench-teardown`). The `hook.session_started` /
+//! `hook.session_ended` events emitted by the HTTP ingress in
+//! `http_ingress` are part of the canonical `hook.*` family and stay.
+
 use anyhow::{Result, anyhow};
+use serde::Deserialize;
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::types::{
-    SessionEnded, SessionStarted, SkillCompleted, SkillFailed, SkillStarted,
-    event_types,
+    SkillCompleted, SkillFailed, SkillStarted, event_types,
 };
-use serde::Deserialize;
 
 mod soft_delete;
 pub mod tool_gate;
@@ -27,8 +34,8 @@ pub fn extract_skill_id(tool_name: &str) -> Option<&str> {
 #[allow(dead_code)]
 #[derive(Deserialize)]
 struct ProviderHook {
-    tool_name: String,
-    hook_event_name: Option<String>,
+    hook_event_name: String,
+    tool_name: Option<String>,
     tool_input: Option<serde_json::Value>,
     tool_response: Option<serde_json::Value>,
     mcp_context: Option<serde_json::Value>,
@@ -52,15 +59,16 @@ pub fn handle_before_tool(
     let hook: ProviderHook = serde_json::from_str(stdin_json)
         .map_err(|e| anyhow!("invalid JSON in hook stdin: {e}"))?;
 
+    let tool_name = hook.tool_name.as_deref().unwrap_or("");
     // Best-effort soft-delete for destructive tool calls.
     // Errors are logged but never block tool execution.
     soft_delete::maybe_trash_before_tool(
-        &hook.tool_name,
+        tool_name,
         hook.tool_input.as_ref(),
         workspace_id,
     );
 
-    let skill_id = match extract_skill_id(&hook.tool_name) {
+    let skill_id = match extract_skill_id(tool_name) {
         Some(id) => id.to_string(),
         None => return Ok(None),
     };
@@ -86,7 +94,7 @@ pub fn handle_after_tool(
     }
     let hook: ProviderHook = serde_json::from_str(stdin_json)
         .map_err(|e| anyhow!("invalid JSON in hook stdin: {e}"))?;
-    let skill_id = match extract_skill_id(&hook.tool_name) {
+    let skill_id = match extract_skill_id(hook.tool_name.as_deref().unwrap_or("")) {
         Some(id) => id.to_string(),
         None => return Ok(None),
     };
@@ -104,39 +112,6 @@ pub fn handle_after_tool(
         )?
     };
     Ok(Some(event.with_actor_id(actor_id)))
-}
-
-/// Emits session.started for the current actor.
-/// No stdin parsing needed — session identity comes from env vars, not hook payload.
-pub fn handle_session_start(
-    actor_id: &str,
-    workspace_id: &str,
-) -> Result<EventEnvelope> {
-    let event = EventEnvelope::new(
-        event_types::SESSION_STARTED,
-        actor_id,
-        &SessionStarted {
-            workspace_id: workspace_id.to_string(),
-            ..Default::default()
-        },
-    )?
-    .with_actor_id(actor_id);
-    Ok(event)
-}
-
-/// Emits session.ended for the current actor.
-pub fn handle_session_end(
-    actor_id: &str,
-    // Runtime-owned event: workspace recorded by payload, not envelope scope.
-    _workspace_id: &str,
-) -> Result<EventEnvelope> {
-    let event = EventEnvelope::new(
-        event_types::SESSION_ENDED,
-        actor_id,
-        &SessionEnded::default(),
-    )?
-    .with_actor_id(actor_id);
-    Ok(event)
 }
 
 fn extract_error(response: &serde_json::Value) -> Option<String> {

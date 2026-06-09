@@ -20,7 +20,6 @@ pub mod types {
                 assert!(seen.insert(t), "duplicate event type constant: {t}");
             }
         }
-
         #[test]
         fn all_constants_have_expected_count() {
             // Spec 7a bumped from 88 → 111 by adding the 23 Spec-6 events to ALL.
@@ -33,13 +32,17 @@ pub mod types {
             // Job `canonical-session-events` adds the 6 canonical agent-session
             // events (session.completed, session.failed, session.cancelled,
             // session.suspended, session.turn.started, session.turn.ended) → 117.
+            // Job `workbench-teardown` retires the 11 workbench session.* events
+            // AND adds the canonical `session.started` (the workbench string the
+            // canonical family deferred on) → 117 - 11 + 1 = 107.
             // The hard count is enforced here to catch accidental removals.
             // When adding events: update ALL in event_types.rs AND payload_registry.rs.
-            assert_eq!(ALL.len(), 117, "exactly 117 event type constants required (canonical-session-events added 6 canonical session events)");
+            assert_eq!(ALL.len(), 107, "exactly 107 event type constants required (workbench-teardown: -11 workbench + 1 canonical session.started)");
         }
 
         #[test]
         fn all_entries_have_registry_entries() {
+
             use ship_types::event_registry;
             let registry_names: std::collections::HashSet<&str> =
                 event_registry::registry().map(|d| d.name).collect();

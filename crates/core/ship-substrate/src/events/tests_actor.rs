@@ -3,7 +3,8 @@ use ship_types::envelope::EventEnvelope;
 use crate::events::filter::EventFilter;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
-use crate::events::types::{SessionEnded, SessionProgress, SessionStarted, WorkspaceActivated};
+use crate::events::types::{WorkspaceActivated};
+use crate::events::canonical_session::{SessionStarted, SessionCompleted, TurnStarted};
 use crate::testutil::init_project_minimal as init_project;
 use tempfile::tempdir;
 
@@ -14,10 +15,22 @@ fn setup() -> (tempfile::TempDir, SqliteEventStore) {
     (tmp, store)
 }
 
+fn session_started(id: &str) -> SessionStarted {
+    SessionStarted {
+        session_id: id.into(),
+        agent_id: "agent-a".into(),
+        harness: "claude".into(),
+        model: None,
+        space_id: "ws-1".into(),
+        input: None,
+        parent: None,
+    }
+}
+
 #[test]
 fn test_actor_fields_round_trip() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
-    let ev = EventEnvelope::new(event_types::SESSION_STARTED, "ws-1", &SessionStarted { goal: None, ..Default::default() })?
+    let ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "ws-1", &session_started("ws-1"))?
         .with_actor_id("actor-ws-001")
         .with_parent_actor_id("actor-system-000")
         .elevate();
@@ -35,14 +48,12 @@ fn test_actor_fields_round_trip() -> anyhow::Result<()> {
 fn test_filter_by_actor_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
 
-    // actor A emits two events
-    for _ in 0..2 {
-        let ev = EventEnvelope::new(event_types::SESSION_PROGRESS, "entity-1", &SessionProgress { message: "tick".into(), escalation: None })?
+    for i in 0..2_u32 {
+        let ev = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "entity-1", &TurnStarted { session_id: "entity-1".into(), idx: i })?
             .with_actor_id("actor-a");
         store.append(&ev)?;
     }
-    // actor B emits one event
-    let ev_b = EventEnvelope::new(event_types::SESSION_PROGRESS, "entity-1", &SessionProgress { message: "tock".into(), escalation: None })?
+    let ev_b = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "entity-1", &TurnStarted { session_id: "entity-1".into(), idx: 2 })?
         .with_actor_id("actor-b");
     store.append(&ev_b)?;
 
@@ -60,16 +71,13 @@ fn test_elevated_filter() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let entity = "elevation-entity";
 
-    // session.progress — local only (not elevated)
-    for _ in 0..3 {
-        let ev = EventEnvelope::new(event_types::SESSION_PROGRESS, entity, &SessionProgress { message: "noise".into(), escalation: None })?;
+    for i in 0..3_u32 {
+        let ev = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, entity, &TurnStarted { session_id: entity.into(), idx: i })?;
         store.append(&ev)?;
     }
-    // session.ended — elevated (bubbles to workspace)
-    let ev_end = EventEnvelope::new(event_types::SESSION_ENDED, entity, &SessionEnded { summary: None, duration_secs: None, gate_result: None, ..Default::default() })?
+    let ev_end = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, entity, &SessionCompleted { session_id: entity.into() })?
         .elevate();
     store.append(&ev_end)?;
-    // workspace.activated — elevated
     let ev_ws = EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, entity, &WorkspaceActivated { agent_id: None, harnesses: vec![] })?
         .elevate();
     store.append(&ev_ws)?;
@@ -87,28 +95,24 @@ fn test_elevated_filter() -> anyhow::Result<()> {
 fn supervisor_queries_elevated_child_events_by_parent_actor_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
 
-    // Parent actor event (elevated, actor_id="supervisor-1") — should NOT appear
     let parent_ev = EventEnvelope::new(event_types::ACTOR_CREATED, "supervisor-1", &crate::events::types::ActorCreated { kind: "supervisor".into(), environment_type: "local".into(), workspace_id: None, parent_actor_id: None, restart_count: 0, ..Default::default() })?
         .with_actor_id("supervisor-1")
         .elevate();
     store.append(&parent_ev)?;
 
-    // Child 1 — elevated, parent_actor_id="supervisor-1"
-    let child1 = EventEnvelope::new(event_types::SESSION_STARTED, "child-entity-1", &SessionStarted { goal: None, ..Default::default() })?
+    let child1 = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "child-entity-1", &session_started("child-entity-1"))?
         .with_actor_id("child-actor-1")
         .with_parent_actor_id("supervisor-1")
         .elevate();
     store.append(&child1)?;
 
-    // Child 2 — elevated, parent_actor_id="supervisor-1"
-    let child2 = EventEnvelope::new(event_types::SESSION_ENDED, "child-entity-2", &crate::events::types::SessionEnded { summary: None, duration_secs: None, gate_result: None, ..Default::default() })?
+    let child2 = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, "child-entity-2", &SessionCompleted { session_id: "child-entity-2".into() })?
         .with_actor_id("child-actor-2")
         .with_parent_actor_id("supervisor-1")
         .elevate();
     store.append(&child2)?;
 
-    // Child 3 — NOT elevated, parent_actor_id="supervisor-1" — must be filtered out
-    let child3 = EventEnvelope::new(event_types::SESSION_PROGRESS, "child-entity-3", &SessionProgress { message: "noise".into(), escalation: None })?
+    let child3 = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "child-entity-3", &TurnStarted { session_id: "child-entity-3".into(), idx: 0 })?
         .with_actor_id("child-actor-3")
         .with_parent_actor_id("supervisor-1");
     store.append(&child3)?;
@@ -129,18 +133,15 @@ fn supervisor_queries_elevated_child_events_by_parent_actor_id() -> anyhow::Resu
 fn test_hierarchy_traversal_via_parent_actor_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
 
-    // Workspace actor emits an event
     let ws_ev = EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, "ws-entity", &WorkspaceActivated { agent_id: None, harnesses: vec![] })?
         .with_actor_id("actor-ws-1");
     store.append(&ws_ev)?;
 
-    // Session actor emits under workspace
-    let sess_ev = EventEnvelope::new(event_types::SESSION_STARTED, "sess-entity", &SessionStarted { goal: None, ..Default::default() })?
+    let sess_ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "sess-entity", &session_started("sess-entity"))?
         .with_actor_id("actor-sess-1")
         .with_parent_actor_id("actor-ws-1");
     store.append(&sess_ev)?;
 
-    // Query all events where parent is the workspace actor
     let children = store.query(&EventFilter {
         actor_id: Some("actor-sess-1".into()),
         ..Default::default()

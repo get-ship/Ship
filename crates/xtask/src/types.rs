@@ -122,11 +122,6 @@ pub fn collect_types() -> TypeCollection {
     // ship-collection crate (post-#81 specta removal from domain types); the
     // wire/proto types are the registered surface now (C-2 §3.8).
 
-    // workspace/types_session.rs (the workspace primitive retired; only
-    // session-shaped types remain)
-    c.register::<ship_agents::sessions::Session>();
-    c.register::<ship_agents::sessions::SessionStatus>();
-
     c
 }
 

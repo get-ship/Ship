@@ -48,6 +48,14 @@ fn ev(event_type: &str) -> EventEnvelope {
     EventEnvelope::new(event_type, "entity-cli", &serde_json::json!({})).unwrap()
 }
 
+fn session_ev() -> EventEnvelope {
+    use crate::events::canonical_session::TurnStarted;
+    EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "entity-cli", &TurnStarted {
+        session_id: "entity-cli".into(),
+        idx: 0,
+    }).unwrap()
+}
+
 // ── workspace event reaches kernel store ──────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -79,12 +87,12 @@ async fn session_event_delivered_to_subscribed_mailbox() {
 
     let (_store, mut mailbox) = router.spawn_actor("agent.mcp", agent_config()).unwrap();
 
-    let event = ev(event_types::SESSION_STARTED);
+    let event = session_ev();
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let received = mailbox.try_recv().expect("session event must reach subscribed actor mailbox");
     assert_eq!(received.id, event.id);
-    assert_eq!(received.event_type, event_types::SESSION_STARTED);
+    assert_eq!(received.event_type, event_types::canonical_session::TURN_STARTED);
 }
 
 // ── CLI-context event reaches kernel store ───────────────────
@@ -94,7 +102,7 @@ async fn cli_context_event_reaches_kernel_store() {
     let tmp = tempdir().unwrap();
     let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let event = ev(event_types::SESSION_STARTED);
+    let event = session_ev();
     // CallerKind::Cli is trusted — must not be rejected by validators.
     router.emit(event.clone(), &cli_ctx()).await.unwrap();
 
@@ -118,7 +126,7 @@ async fn cli_context_event_delivered_to_subscribed_mailbox() {
 
     let (_store, mut mailbox) = router.spawn_actor("agent.mcp", agent_config()).unwrap();
 
-    let event = ev(event_types::SESSION_STARTED);
+    let event = session_ev();
     router.emit(event.clone(), &cli_ctx()).await.unwrap();
 
     let received = mailbox.try_recv().expect("cli-context event must reach subscribed actor mailbox");
