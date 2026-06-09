@@ -8963,15 +8963,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-supervisor"
-version = "0.1.0"
-dependencies = [
- "ship-runner",
- "ship-substrate",
- "tracing",
-]
-
-[[package]]
 name = "ship-triggers"
 version = "0.1.0"
 dependencies = [
@@ -9099,7 +9090,6 @@ dependencies = [
  "ship-space",
  "ship-store",
  "ship-substrate",
- "ship-supervisor",
  "ship-triggers",
  "ship-types",
  "ship-views",

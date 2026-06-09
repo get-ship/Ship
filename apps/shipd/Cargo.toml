@@ -33,7 +33,6 @@ ship-isolation = { path = "../../crates/core/ship-isolation", default-features =
 ship-host = { path = "../../crates/core/ship-substrate/crates/ship-host" }
 ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }
 ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
-ship-supervisor = { path = "../../crates/core/ship-substrate/crates/ship-supervisor" }
 # Dispatch composition root (supervisor split — `shipd::dispatch`):
 #   ship-runner      — process/executor lifecycle emit helpers used by
 #                      ShipdPlatform + orphan cleanup.
