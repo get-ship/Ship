@@ -9,6 +9,7 @@ description = "L1: ship-code — drivers that adapt third-party agent harnesses 
 workspace = true
 
 [dependencies]
+agent-def = { path = "../agent-def" }
 ship-substrate = { path = "../../../ship-substrate" }
 ship-runner = { path = "../../../ship-substrate/crates/ship-runner" }
 ship-harnesses = { path = "../ship-harnesses" }

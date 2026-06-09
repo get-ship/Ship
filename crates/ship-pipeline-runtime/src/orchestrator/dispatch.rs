@@ -9,9 +9,9 @@
 //! comment below. This module is now the pipeline-composition half only;
 //! `handle_pipeline_run_started` is its entry point.
 
-use ship_substrate::events::agent_session::{
-    event_types as agent_session_event_types, AgentSessionCompletedPayload,
-    AgentSessionDispatchedPayload, AgentSessionFailedPayload, AgentSessionStartedPayload,
+use agent_def::canonical_session::{
+    SessionCompleted, SessionFailed, SessionStarted,
+    event_types as canonical_session_event_types,
 };
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::{PipelineRunStartedPayload, StepType};
@@ -357,44 +357,35 @@ pub(crate) async fn emit_composed_step_session(
     run: &ComposedRunCtx<'_>,
     step: &ship_substrate::events::pipeline::PipelineStep,
     agent: &str,
-    worktree: &str,
-    pid: Option<u32>,
+    _worktree: &str,
+    _pid: Option<u32>,
 ) {
     let step_session_id = ship_substrate::gen_ulid();
     let session_slug = format!("{}::{}", run.run_slug, step.id);
-    let invocation = resolve_step_invocation(step.invocation.as_deref(), run.run_headless);
-    let started = AgentSessionStartedPayload {
+
+    // Emit canonical session.started for the composed step. This feeds the
+    // canonical_sessions projection with parent = pipeline_run_id, enabling
+    // compose-terminal lookup and by-parent queries.
+    // space_id is not available at pipeline dispatch time (no workspace->space
+    // lookup); leave empty — composed sessions are not first-class space sessions.
+    let canonical_started = SessionStarted {
         session_id: step_session_id.clone(),
-        slug: session_slug.clone(),
-        agent: agent.to_string(),
-        harness: step.harness.clone(),
+        agent_id: agent.to_string(),
+        harness: step.harness.clone().unwrap_or_else(|| "claude".into()),
         model: step.model.clone(),
-        workspace: run.branch.to_string(),
-        branch: run.branch.to_string(),
-        source_spec_path: run.source_spec_path.map(str::to_string),
-        open_tab: !run.run_headless,
-        invocation,
-        keepalive: false,
-        prompt: None,
-        spec: None,
-        resume: false,
-        resume_session_id: None,
-        depends_on: None,
-        vars: run.vars.cloned(),
-        baseline_sha: run.baseline_sha.map(str::to_string),
-        parent_pipeline_run_id: Some(run.pipeline_run_id.to_string()),
+        space_id: String::new(), // composed sessions have no space context
+        slug: Some(session_slug.clone()),
+        input: None,
+        parent: Some(run.pipeline_run_id.to_string()),
     };
-    emit_agent_session_started_for_pipeline_step(kernel, &started).await;
-    emit_agent_session_dispatched(
-        kernel,
+    if let Ok(env) = EventEnvelope::new(
+        canonical_session_event_types::SESSION_STARTED,
         &step_session_id,
-        &session_slug,
-        worktree,
-        step.harness.as_deref().unwrap_or("claude"),
-        step.model.as_deref(),
-        pid,
-    )
-    .await;
+        &canonical_started,
+    ) {
+        let env = env.with_actor_id("service.pipeline-composer");
+        persist_and_route(kernel, env, &session_slug, None).await;
+    }
 }
 
 /// Emit the terminal event for a pipeline step's composed agent
@@ -414,109 +405,35 @@ pub(crate) async fn emit_composed_session_terminal(
     exit_code: Option<i32>,
 ) {
     let session_slug = format!("{run_slug}::{step_name}");
-    let session = match ship_agents::services::sessions::projection::load_session_by_slug(&session_slug) {
+    // Commit C: repointed from legacy load_session_by_slug to canonical.
+    let session = match ship_agents::services::sessions::load_canonical_session_by_slug(&session_slug) {
         Ok(Some(s)) => s,
         _ => return,
     };
     if is_failure {
-        emit_agent_session_failed(
-            kernel,
+        let reason = match exit_code {
+            Some(code) => format!("pipeline step did not advance (exit {code})"),
+            None => "pipeline step did not advance".to_string(),
+        };
+        let payload = SessionFailed { session_id: session.session_id.clone(), reason };
+        if let Ok(env) = EventEnvelope::new(
+            canonical_session_event_types::SESSION_FAILED,
             &session.session_id,
-            &session_slug,
-            "pipeline step did not advance",
-            exit_code,
-            "step_observed_fail",
-        )
-        .await;
+            &payload,
+        ) {
+            let env = env.with_actor_id("service.pipeline-composer");
+            persist_and_route(kernel, env, &session_slug, None).await;
+        }
     } else {
-        emit_agent_session_completed(kernel, &session.session_id, &session_slug, exit_code).await;
-    }
-}
-
-pub(crate) async fn emit_agent_session_started_for_pipeline_step(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    payload: &AgentSessionStartedPayload,
-) {
-    if let Ok(env) = EventEnvelope::new(
-        agent_session_event_types::AGENT_SESSION_STARTED,
-        &payload.session_id,
-        payload,
-    ) {
-        let env = env.with_actor_id("service.pipeline-composer");
-        persist_and_route(kernel, env, &payload.slug, None).await;
-    }
-}
-
-pub(crate) async fn emit_agent_session_dispatched(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    session_id: &str,
-    slug: &str,
-    worktree: &str,
-    harness: &str,
-    model: Option<&str>,
-    pid: Option<u32>,
-) {
-    let payload = AgentSessionDispatchedPayload {
-        session_id: session_id.to_string(),
-        slug: slug.to_string(),
-        worktree: worktree.to_string(),
-        harness: harness.to_string(),
-        model: model.map(str::to_string),
-        pid,
-    };
-    if let Ok(env) = EventEnvelope::new(
-        agent_session_event_types::AGENT_SESSION_DISPATCHED,
-        session_id,
-        &payload,
-    ) {
-        let env = env.with_actor_id("service.agent-session-dispatch");
-        persist_and_route(kernel, env, slug, None).await;
-    }
-}
-
-async fn emit_agent_session_completed(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    session_id: &str,
-    slug: &str,
-    exit_code: Option<i32>,
-) {
-    let payload = AgentSessionCompletedPayload {
-        session_id: session_id.to_string(),
-        slug: slug.to_string(),
-        exit_code,
-    };
-    if let Ok(env) = EventEnvelope::new(
-        agent_session_event_types::AGENT_SESSION_COMPLETED,
-        session_id,
-        &payload,
-    ) {
-        let env = env.with_actor_id("service.agent-session-dispatch");
-        persist_and_route(kernel, env, slug, None).await;
-    }
-}
-
-async fn emit_agent_session_failed(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    session_id: &str,
-    slug: &str,
-    error: &str,
-    exit_code: Option<i32>,
-    stage: &str,
-) {
-    let payload = AgentSessionFailedPayload {
-        session_id: session_id.to_string(),
-        slug: slug.to_string(),
-        error: error.to_string(),
-        exit_code,
-        stage: stage.to_string(),
-    };
-    if let Ok(env) = EventEnvelope::new(
-        agent_session_event_types::AGENT_SESSION_FAILED,
-        session_id,
-        &payload,
-    ) {
-        let env = env.with_actor_id("service.agent-session-dispatch");
-        persist_and_route(kernel, env, slug, None).await;
+        let payload = SessionCompleted { session_id: session.session_id.clone() };
+        if let Ok(env) = EventEnvelope::new(
+            canonical_session_event_types::SESSION_COMPLETED,
+            &session.session_id,
+            &payload,
+        ) {
+            let env = env.with_actor_id("service.pipeline-composer");
+            persist_and_route(kernel, env, &session_slug, None).await;
+        }
     }
 }
 

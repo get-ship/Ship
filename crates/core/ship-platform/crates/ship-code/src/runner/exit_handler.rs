@@ -4,9 +4,8 @@
 
 use std::sync::Arc;
 
-use ship_substrate::events::agent_session::{
-    event_types as agent_session_event_types, AgentSessionCompletedPayload,
-    AgentSessionFailedPayload,
+use agent_def::canonical_session::{
+    SessionCompleted, SessionFailed, event_types as canonical_session_event_types,
 };
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::pipeline::event_types as pipeline_event_types;
@@ -166,13 +165,10 @@ fn build_completed(vocab: &ExitVocabulary, signal: &ExitSignal) -> TerminalEvent
             actor_id: "service.exit-handler",
         },
         ExitVocabulary::AgentSession { session_id } => {
-            let payload = AgentSessionCompletedPayload {
-                session_id: session_id.clone(),
-                slug: signal.slug.clone(),
-                exit_code: signal.exit_code,
-            };
+            // Canonical: exit_code=0 → session.completed; no exit_code field in payload.
+            let payload = SessionCompleted { session_id: session_id.clone() };
             TerminalEvent {
-                event_type: agent_session_event_types::AGENT_SESSION_COMPLETED,
+                event_type: canonical_session_event_types::SESSION_COMPLETED,
                 entity_id: session_id.clone(),
                 payload: serde_json::to_value(&payload).unwrap_or_default(),
                 actor_id: "service.agent-session-dispatch",
@@ -186,7 +182,7 @@ fn build_failed(
     signal: &ExitSignal,
     error: &str,
     exit_code: Option<i32>,
-    stage: &str,
+    _stage: &str,
 ) -> TerminalEvent {
     match vocab {
         ExitVocabulary::PipelineRun => TerminalEvent {
@@ -199,15 +195,16 @@ fn build_failed(
             actor_id: "service.exit-handler",
         },
         ExitVocabulary::AgentSession { session_id } => {
-            let payload = AgentSessionFailedPayload {
-                session_id: session_id.clone(),
-                slug: signal.slug.clone(),
-                error: error.to_string(),
-                exit_code,
-                stage: stage.to_string(),
+            // Canonical: error + stage collapse into a single reason string;
+            // exit_code is not carried in the canonical payload.
+            let reason = if let Some(code) = exit_code {
+                format!("{error} (exit {code})")
+            } else {
+                error.to_string()
             };
+            let payload = SessionFailed { session_id: session_id.clone(), reason };
             TerminalEvent {
-                event_type: agent_session_event_types::AGENT_SESSION_FAILED,
+                event_type: canonical_session_event_types::SESSION_FAILED,
                 entity_id: session_id.clone(),
                 payload: serde_json::to_value(&payload).unwrap_or_default(),
                 actor_id: "service.agent-session-dispatch",

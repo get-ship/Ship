@@ -314,12 +314,10 @@ async fn cancel_agent_session(
     slug: &str,
     req: CancelJobRequest,
 ) -> (StatusCode, Json<MeshResponse>) {
-    use ship_agents::services::sessions::projection::load_session_by_slug_at;
-    use ship_substrate::events::agent_session::{
-        event_types as agent_event_types, AgentSessionCancelledPayload,
-    };
+    use agent_def::canonical_session::{SessionCancelled, event_types as canonical_event_types};
+    use ship_agents::services::sessions::load_canonical_session_by_slug_at;
 
-    let session = match load_session_by_slug_at(state.ship_dir(), slug) {
+    let session = match load_canonical_session_by_slug_at(state.ship_dir(), slug) {
         Ok(Some(s)) => s,
         Ok(None) => {
             return (
@@ -353,13 +351,12 @@ async fn cancel_agent_session(
         );
     }
 
-    let payload = AgentSessionCancelledPayload {
+    let payload = SessionCancelled {
         session_id: session.session_id.clone(),
-        slug: slug.to_string(),
         reason: Some(req.reason),
     };
     let envelope = match EventEnvelope::new(
-        agent_event_types::AGENT_SESSION_CANCELLED,
+        canonical_event_types::SESSION_CANCELLED,
         &session.session_id,
         &payload,
     )
