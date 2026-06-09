@@ -18,5 +18,5 @@ echo "[2/3] ensure dev daemon (idempotent — reuses a live one)"
 scripts/dev/start.sh
 
 echo "[3/3] build + launch native shell"
-cargo build -q -p ship-shell
-exec ./target/debug/ship-shell "$@"
+cargo build -q -p ship-host
+exec ./target/debug/ship-host "$@"

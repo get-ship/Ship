@@ -7962,7 +7962,7 @@ dependencies = [
  "getrandom 0.2.17",
  "serde",
  "serde_json",
- "ship-host",
+ "ship-substrate-host",
  "ship-types",
  "thiserror 2.0.18",
  "tokio",
@@ -8195,7 +8195,18 @@ dependencies = [
 name = "ship-host"
 version = "0.1.0"
 dependencies = [
- "libc",
+ "anyhow",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-updater",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]
@@ -8362,7 +8373,6 @@ dependencies = [
  "ship-gateway-client",
  "ship-git",
  "ship-harnesses",
- "ship-host",
  "ship-isolation",
  "ship-kernel",
  "ship-kv",
@@ -8370,6 +8380,7 @@ dependencies = [
  "ship-runner",
  "ship-store",
  "ship-substrate",
+ "ship-substrate-host",
  "ship-triggers",
  "ship-types",
  "ship-views",
@@ -8439,24 +8450,6 @@ dependencies = [
  "serde_json",
  "ship-ops-rpc",
  "tokio",
-]
-
-[[package]]
-name = "ship-shell"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "ship-substrate",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-updater",
- "tempfile",
- "tracing",
 ]
 
 [[package]]
@@ -8566,10 +8559,10 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "ship-events-macro",
- "ship-host",
  "ship-kernel",
  "ship-pipelines",
  "ship-runner",
+ "ship-substrate-host",
  "ship-types",
  "specta",
  "sqlx",
@@ -8580,6 +8573,13 @@ dependencies = [
  "tracing",
  "ulid",
  "walkdir",
+]
+
+[[package]]
+name = "ship-substrate-host"
+version = "0.1.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -8703,7 +8703,6 @@ dependencies = [
  "ship-files",
  "ship-git",
  "ship-harnesses",
- "ship-host",
  "ship-isolation",
  "ship-kv",
  "ship-ops-rpc",
@@ -8716,6 +8715,7 @@ dependencies = [
  "ship-space",
  "ship-store",
  "ship-substrate",
+ "ship-substrate-host",
  "ship-supervisor",
  "ship-triggers",
  "ship-types",

@@ -1,7 +1,7 @@
 # Layer L1 — Audit Shape
 
 L1 is the platform layer: `ship-platform` modules, `ship-ops-rpc`, `ship-analytics`,
-`ship-gateway-client`, `ship-host`, and similar platform primitives. L1 crates
+`ship-gateway-client`, and similar platform primitives. L1 crates
 consume L0 through `ship-substrate`'s re-exports and expose higher-level domain
 services (agents, sessions, rules, skills, pipelines, etc.). Audits at this
 layer are events-and-wire-centric — the core question is whether each capability

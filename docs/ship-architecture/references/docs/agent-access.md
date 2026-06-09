@@ -139,7 +139,7 @@ The identity chain, link by link:
 
 | Step | Where | What happens |
 |------|-------|--------------|
-| spawn | `spawn_actor` → `ship_host::containerize` | the agent process is placed in a `ship-agent-<id>` process container |
+| spawn | `spawn_actor` → `ship_substrate_host::containerize` | the agent process is placed in a `ship-agent-<id>` process container |
 | dial | `ship ops` (`apps/ship-cli/src/ops_cmd.rs`) | when `ship.sock` exists, dial it — **no token** — else TCP+token |
 | accept | `PeerCredInfo` (`apps/shipd/src/auth/peer_socket.rs`) | read `SO_PEERCRED` off the connection → kernel-verified peer **PID** |
 | resolve | `peer_identity::resolve(pid)` (ship-platform) | `process_container(pid)` → `ship-agent-<id>` → `PeerIdentity::Agent(id)` |
@@ -165,7 +165,7 @@ isolation later); the real trust boundary for untrusted work is Tier-2+ sandboxi
 
 ## 5. Per-OS compatibility matrix
 
-Everything OS-specific lives behind `ship_host::HostOs` — one adapter per
+Everything OS-specific lives behind `ship_substrate_host::HostOs` — one adapter per
 platform. Two primitives matter here: reading a connection's peer identity, and
 placing a spawn in a per-agent container.
 
@@ -230,7 +230,7 @@ fallback.
 
 | Concern | Location |
 |---------|----------|
-| OS adapters (peer-cred, process container, containerize) | `crates/core/ship-host/src/lib.rs` |
+| OS adapters (peer-cred, process container, containerize) | `crates/core/ship-substrate-host/src/lib.rs` |
 | Peer-identity resolver (`pid → PeerIdentity`) | `crates/core/ship-platform/src/auth/peer_identity.rs` |
 | Grant resolution + provisioning | `crates/core/ship-platform/src/auth/scopes.rs`, `…/projections/provisioned_grants.rs` |
 | Host socket bind + peer-cred middleware | `apps/shipd/src/auth/peer_socket.rs` |

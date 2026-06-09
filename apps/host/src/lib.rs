@@ -100,9 +100,9 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 // Both hub + space windows load DAEMON-served scaffolds —
                 // same-origin so `/_deck` + Connect resolve to the daemon with no
-                // proxy, dev == prod. The bundled `frontendDist` (apps/shell/src-tauri/
-                // bootstrap/) is a one-page "Connecting…" placeholder; the navigate
-                // below replaces it once the daemon is reachable.
+                // proxy, dev == prod. The bundled `frontendDist` (apps/host/
+                // bootstrap/) is a one-page "Connecting…" placeholder; the
+                // navigate below replaces it once the daemon is reachable.
                 if let Some(id) = &app_id {
                     let _ = window.set_title(&format!("Ship — {id}"));
                 }

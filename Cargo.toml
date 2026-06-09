@@ -2,7 +2,7 @@
 members = [
     "crates/build-info",
     "crates/core/ship-substrate",
-    "crates/core/ship-substrate/crates/ship-host",
+    "crates/core/ship-substrate/crates/ship-substrate-host",
     "crates/core/ship-substrate/crates/ship-types",
     "crates/core/ship-substrate/crates/ship-auth-types",
     "crates/core/ship-substrate/crates/ship-policy",
@@ -55,7 +55,7 @@ members = [
     "packages/sui/grammar",
     "apps/shipd",
     "apps/ship-cli",
-    "apps/shell/src-tauri",
+    "apps/host",
     "tests/contract",
     "examples/deck-demo",
 ]

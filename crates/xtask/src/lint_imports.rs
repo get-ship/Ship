@@ -14,7 +14,7 @@
 //! - `ship_kernel::*`    (L0)
 //! - `compiler::*`       (L1 — the `compiler` crate, not `sui_compiler`)
 //!
-//! L0 crates (`ship-substrate`, `ship-kernel`, `ship-host`) may NOT import:
+//! L0 crates (`ship-substrate`, `ship-kernel`, `ship-substrate-host`) may NOT import:
 //! - `ship_platform::*`  (L1)
 //!
 //! Apps and xtask/test code are exempt (apps sit at the top; xtask is tooling).
@@ -81,7 +81,7 @@ const CRATES: &[CrateEntry] = &[
     // ── L0 ───────────────────────────────────────────────────────────────────
     CrateEntry { src: "crates/core/ship-substrate/src", layer: Layer::L0 },
     CrateEntry { src: "crates/core/ship-kernel/src",    layer: Layer::L0 },
-    CrateEntry { src: "crates/core/ship-host/src",      layer: Layer::L0 },
+    CrateEntry { src: "crates/core/ship-substrate-host/src", layer: Layer::L0 },
     // ── L1 ───────────────────────────────────────────────────────────────────
     CrateEntry { src: "crates/core/ship-platform/src",  layer: Layer::L1 },
     CrateEntry { src: "crates/core/compiler/src",       layer: Layer::L1 },

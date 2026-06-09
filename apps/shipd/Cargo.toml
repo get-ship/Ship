@@ -29,7 +29,7 @@ ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }
 ship-views = { path = "../../crates/core/ship-platform/crates/ship-views" }
 ship-isolation = { path = "../../crates/core/ship-isolation", default-features = false }
-ship-host = { path = "../../crates/core/ship-substrate/crates/ship-host" }
+ship-substrate-host = { path = "../../crates/core/ship-substrate/crates/ship-substrate-host" }
 ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }
 ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
 ship-supervisor = { path = "../../crates/core/ship-substrate/crates/ship-supervisor" }

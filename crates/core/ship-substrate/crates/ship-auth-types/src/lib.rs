@@ -14,7 +14,7 @@
 //!   value types, the `SessionRegistry` handle, the role→scope and
 //!   role→grant tables, the kernel-attested `PeerIdentity` resolution,
 //!   and the session-token generators (cookie / opaque / browser).
-//!   The host-OS read (`pid → container`) lives in `ship-host`; this
+//!   The host-OS read (`pid → container`) lives in `ship-substrate-host`; this
 //!   crate composes the kernel-verified result with the resolution
 //!   policy.
 //! - **L1 (`ship-platform::auth`)**: reads projections

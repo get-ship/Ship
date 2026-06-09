@@ -68,12 +68,13 @@ jobs:
         run: cd apps/docs && AUDIENCE=internal bun run collect
       - name: Check skill-docs drift
         run: cd apps/docs && bun run docs:check-drift
-      # ship-shell (apps/shell/src-tauri) is the Tauri desktop shell — it needs
-      # webkit2gtk/libsoup that this runner doesn't provision (only release.yml's
-      # tauri-action does). Excluded from the framework clippy/test sweep; the
-      # desktop crate is built on the release runners.
+      # ship-host (apps/host) is Ship's single native host — Tauri webview
+      # wrapping a daemon-served scaffold. Needs webkit2gtk/libsoup that this
+      # runner doesn't provision (only release.yml's tauri-action does).
+      # Excluded from the framework clippy/test sweep; the host is built on
+      # the release runners.
       - name: Clippy
-        run: cargo clippy --workspace --exclude ship-shell --features unstable -- -D warnings
+        run: cargo clippy --workspace --exclude ship-host --features unstable -- -D warnings
       - name: Build (stable)
         run: cargo build -p ship-cli -p shipd
       - name: Build (unstable)
@@ -122,7 +123,7 @@ jobs:
       - name: Build ship-sidecar (the live cells drive it)
         run: cargo build -p ship-sidecar
       - name: Cargo test
-        run: cargo test --workspace --exclude ship-shell --features unstable
+        run: cargo test --workspace --exclude ship-host --features unstable
       # Resource symmetry: every checked-in view mounts + disposes in
       # jsdom with zero leaked EventSources / Observers / intervals.
       # See `tests/integration/resource-symmetry.test.ts`.

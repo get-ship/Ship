@@ -5,7 +5,7 @@
   "identifier": "com.micahcotton.ship",
   "build": {
     "beforeDevCommand": "",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "",
     "frontendDist": "bootstrap"
   },
   "app": {
@@ -29,8 +29,8 @@
     "active": true,
     "targets": "all",
     "category": "DeveloperTool",
-    "shortDescription": "Ship native shell",
-    "longDescription": "Ship — agent orchestration platform, native desktop shell."
+    "shortDescription": "Ship native host",
+    "longDescription": "Ship — agent orchestration platform, native host window."
   },
   "plugins": {
     "updater": {

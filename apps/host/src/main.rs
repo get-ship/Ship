@@ -3,5 +3,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    ship_shell_lib::run();
+    ship_host_lib::run();
 }

@@ -3,7 +3,7 @@
 // browser tab.
 //
 // Tauri (desktop shell): `invoke('open_space', { appId })` → Rust in
-// `apps/shell/src-tauri/src/launcher.rs::open_space` spawns the same binary
+// `apps/host/src/launcher.rs::open_space` spawns the same binary
 // with `--app=<id>` (its own PID, its own webview, branded for the space).
 // Browser-dev (vite at :PORT, no Tauri global): `window.open('/space/<id>')`
 // in a new tab → the daemon serves the same space scaffold at that path.

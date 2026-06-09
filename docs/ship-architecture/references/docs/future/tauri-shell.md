@@ -97,7 +97,7 @@ not settled here. See `.artifacts/discuss/third-party-code.md`.
 Tauri is Rust-core + webview. That maps onto the existing split:
 
 - **Rust core — ours.** Daemon lifecycle (spawn/supervise `shipd`), the native C3
-  step-up (password/2FA + elevated credential), the `ship-host` adapters (cgroup /
+  step-up (password/2FA + elevated credential), the `ship-substrate-host` adapters (cgroup /
   peer-cred / overlay), and the selective native IPC commands (escalation,
   lifecycle, updater).
 - **Webview — the frontend/other agent's lane.** The SUI views + the Connect-Web
@@ -117,7 +117,7 @@ Tauri is Rust-core + webview. That maps onto the existing split:
 │    • escalate_auth: password/2FA → C3 step-up (held    │
 │      by the core, never the webview)                   │
 │    • native IPC: updater / lifecycle                   │
-│    • ship-host adapters (cgroup/overlay)               │
+│    • ship-substrate-host adapters (cgroup/overlay)               │
 └────────────────────────────────────────────────────┬─┘
                                                        ▼
                                        shipd Connect over loopback
@@ -196,7 +196,7 @@ it; otherwise the shell is just a wrapper around the REST problem. Order:
    injection. The webview must be Connect-only first.
 4. **Bundling + capability-approval UX** — the install/grant flow, app packaging,
    the revived updater.
-5. **Overlay + isolation** surface through the same core (`ship-host`
+5. **Overlay + isolation** surface through the same core (`ship-substrate-host`
    provision_workspace from [agent workspaces](/reference/architecture/agent-workspaces/)).
 
 ## Open decisions (for the spike)
@@ -215,4 +215,4 @@ it; otherwise the shell is just a wrapper around the REST problem. Order:
   native `escalate_auth` IPC (#86); the elevated session is held by the core, never
   the webview.
 - **Per-OS.** Daemon-launch + loopback binding differ per OS behind the same
-  `ship-host` seam.
+  `ship-substrate-host` seam.

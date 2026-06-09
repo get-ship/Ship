@@ -32,7 +32,7 @@
 <body>
   <!--
     Tauri `frontendDist` payload for the Ship shell — a one-frame placeholder
-    shown while the native `setup` callback (apps/shell/src-tauri/src/lib.rs)
+    shown while the native `setup` callback (apps/host/src/lib.rs)
     discovers the daemon port and navigates the webview to the loopback host at
     `/` (hub) or `/space/<id>` for `--app=<id>` windows. The redirect fires
     before paint in the common case; this body is only seen while setup is
@@ -41,8 +41,8 @@
     On final failure setup navigates THIS document to `#error` (an in-bootstrap
     state) rather than hanging on "Connecting…" forever — the `:target` rule
     above reveals the error block, and "Retry" reloads to re-run discovery
-    once the daemon is up. Daemon lifecycle is the native shell's concern
-    (see apps/shell/src-tauri/src/daemon.rs).
+    once the daemon is up. Daemon lifecycle is the native host's concern
+    (see apps/host/src/daemon.rs).
   -->
   <div class="frame">
     <div class="msg">Connecting to daemon…</div>

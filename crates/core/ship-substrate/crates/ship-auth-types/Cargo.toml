@@ -7,7 +7,7 @@ description = "L0 auth primitives — session/registry types, role→scope table
 
 [dependencies]
 ship-types = { path = "../ship-types" }
-ship-host = { path = "../ship-host" }
+ship-substrate-host = { path = "../ship-substrate-host" }
 
 serde = { workspace = true }
 serde_json = { workspace = true }

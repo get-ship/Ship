@@ -188,8 +188,8 @@ mod tests {
 
     #[test]
     fn desktop_entry_invokes_shared_exe_with_app_id() {
-        let entry = desktop_entry(&spec(), Path::new("/opt/ship/ship-shell"));
-        assert!(entry.contains("Exec=/opt/ship/ship-shell --app=daily-digest"));
+        let entry = desktop_entry(&spec(), Path::new("/opt/ship/ship-host"));
+        assert!(entry.contains("Exec=/opt/ship/ship-host --app=daily-digest"));
         assert!(entry.contains("Name=Daily Digest"));
         assert!(entry.contains("Icon=/icons/digest.png"));
         assert!(entry.contains("X-Ship-App-Id=daily-digest"));
