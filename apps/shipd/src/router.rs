@@ -215,17 +215,17 @@ pub fn build_router(
         // straight into the stateless root. deck-axum owns these paths.
         .merge(deck::router())
         .merge(webhook_source_route)
-        .merge(authenticated_routes)
-        // The single root fallback: deck's SPA navigation handler. deck owns the
-        // handler; the host owns the one `.fallback` call. It must live HERE and
-        // nowhere else — `deck::router()` and the Connect-ops router each merge
-        // in, and axum panics if two merged routers both carry a fallback. The
-        // handler 404s any backend/asset path (it excludes `/api`, `/_deck`,
-        // Connect `/ship.*`, dotted assets) so it never shadows a real route.
-        .fallback(deck::spa_fallback);
-    // The dev-only HMR firehose and the root public-asset catch-all (`/{file}`)
-    // are owned by `deck::router()` now — shipd registers no frontend-serving
-    // routes; serving is deck's, the single fallback excepted.
+        .merge(authenticated_routes);
+    // No `.fallback(spa)` here — that would CLOBBER the data plane. The
+    // Connect-ops router (`ops_rpc::router().into_axum_service()`) dispatches the
+    // entire `/ship.ops.v1.*` surface from a `fallback_service`; merging it into
+    // `root` makes it root's fallback (carrying its auth layer). A
+    // `.fallback(spa_fallback)` would silently replace it and 404 every RPC. SPA
+    // deep-route navigation is instead handled by `spa_nav_middleware` (layered
+    // below), which short-circuits GET client-route paths to the shell and lets
+    // everything else — all RPC POSTs, unknown backend paths — flow through to
+    // the Connect fallback. The dev-only HMR firehose and the `/{file}` public-
+    // asset catch-all are owned by `deck::router()`; shipd serves no frontend.
     // Load deck.jsonc from the workspace root (same root the bundler uses).
     // Falls back to defaults when absent so a zero-config host works unchanged.
     let repo_root = rt.workspace_dir()
@@ -247,6 +247,12 @@ pub fn build_router(
     };
 
     root
+        // SPA-navigation shim. Layered INNER to the DaemonMode/DeckConfig
+        // extensions below (they run first on the way in, so this can read them)
+        // but it short-circuits before routing. Composes shell-navigation with
+        // the Connect fallback: GET client-routes serve the shell, everything
+        // else reaches the Connect dispatch. See the `root` comment above.
+        .layer(axum::middleware::from_fn(spa_nav_middleware))
         // Daemon-mode Extension — Sui handlers read it via
         // `Option<Extension<DaemonMode>>` without router-state plumbing.
         .layer(axum::Extension(daemon_mode))
@@ -276,6 +282,52 @@ pub fn build_router(
         ))
         // Catch handler panics → 500 instead of connection abort.
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
+}
+
+/// Pre-routing SPA-navigation shim. A GET to a client-route path — a bare in-app
+/// route like `/git` or `/studio/themes` with no real server handler — is served
+/// the shell scaffold so a deep-link refresh hydrates client-side. Everything
+/// else flows through to routing, crucially the Connect-ops `fallback_service`
+/// (`/ship.ops.v1.*`, the root fallback) which a `.fallback(spa)` handler would
+/// otherwise shadow into a dead data plane. Runs INNER to the DaemonMode/
+/// DeckConfig extension layers so it can read them for `serve_shell`.
+async fn spa_nav_middleware(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Response {
+    if req.method() == axum::http::Method::GET && is_client_nav(req.uri().path()) {
+        let mode = req
+            .extensions()
+            .get::<deck::DaemonMode>()
+            .cloned()
+            .map(axum::Extension);
+        let cfg = req
+            .extensions()
+            .get::<Arc<DeckConfig>>()
+            .cloned()
+            .map(axum::Extension);
+        return deck::serve_shell(mode, cfg).await;
+    }
+    next.run(req).await
+}
+
+/// Whether `path` is an in-app client route that should hydrate as the shell,
+/// as opposed to a real server route or asset. Excludes every backend prefix,
+/// the first-run handlers (`/`, `/setup`), and dotted asset/RPC paths
+/// (`/favicon.ico`, `/ship.ops.v1.*`). This runs BEFORE routing, so the
+/// exclusion set must cover every real GET route — a miss shadows it.
+fn is_client_nav(path: &str) -> bool {
+    if path == "/" || path == "/setup" {
+        return false;
+    }
+    const BACKEND: [&str; 8] = [
+        "/api", "/_deck", "/hooks", "/auth", "/webhook", "/daemon", "/space", "/shell",
+    ];
+    if BACKEND.iter().any(|p| path.starts_with(p)) {
+        return false;
+    }
+    // Dotted paths are assets (favicon.ico) or Connect RPC (`/ship.*`).
+    !path.contains('.')
 }
 
 /// Stamp `X-Shipd-Build` on every response so clients can detect daemon
