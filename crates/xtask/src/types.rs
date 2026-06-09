@@ -101,6 +101,12 @@ pub fn collect_types() -> TypeCollection {
     c.register::<ship_substrate::events::pipeline::PipelineStep>();
     c.register::<ship_substrate::events::pipeline::StepType>();
 
+    // definition.rs — the unified PipelineDefinition authoring contract (P0.2).
+    c.register::<ship_substrate::events::pipeline::PipelineDefinition>();
+    c.register::<ship_substrate::events::pipeline::PipelineStepDef>();
+    c.register::<ship_substrate::events::pipeline::ProviderOverride>();
+    c.register::<ship_substrate::events::pipeline::Invocation>();
+
     // events/feedback.rs
     c.register::<ship_substrate::events::feedback::FeedbackEvent>();
     c.register::<ship_substrate::events::feedback::FeedbackKind>();

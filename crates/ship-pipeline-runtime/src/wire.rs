@@ -80,6 +80,10 @@ impl PipelinesWire {
 fn pipelines_err(e: state::Error) -> ConnectError {
     match e {
         state::Error::NotFound(m) => ConnectError::not_found(m),
+        // Write-time validation / bad ids are caller errors, not server faults.
+        e @ (state::Error::Invalid(_) | state::Error::BadId(_)) => {
+            ConnectError::invalid_argument(e.to_string())
+        }
         other => ConnectError::internal(other.to_string()),
     }
 }
