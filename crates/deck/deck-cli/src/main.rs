@@ -277,7 +277,7 @@ fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, mini
     println!("  js  {}", b.js_href);
     println!("  css {}", b.css_href);
     if b.framework_assets > 0 {
-        println!("  _sui  {} files (self-contained)", b.framework_assets);
+        println!("  _deck  {} files (self-contained)", b.framework_assets);
     }
     Ok(())
 }
