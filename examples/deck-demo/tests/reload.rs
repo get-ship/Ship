@@ -25,9 +25,8 @@ async fn editing_a_view_fires_bounded_rebuilds_then_settles() {
     std::fs::create_dir_all(view.parent().unwrap()).unwrap();
     std::fs::write(&view, "<div>probe {1 + 1}</div>\n").unwrap();
 
-    let home = ship_substrate::ShipHome::from_env();
     let cfg = deck::config::DeckConfig::defaults();
-    let bundler = Bundler::start(&home, root.to_path_buf(), None, cfg);
+    let bundler = Bundler::start(root.to_path_buf(), None, cfg);
     // Subscribe BEFORE watching/editing — broadcast only delivers to live subs.
     let mut rx = bundler.subscribe_events();
     bundler.start_watching().await.expect("start watching");

@@ -6,6 +6,8 @@
 //! targets on filesystem change (via `notify`), emitting `BundlerEvent`s on a
 //! broadcast channel for HMR. Output lands in `assets_dir_for` (sui-out/dist).
 
+pub mod paths;
+
 pub mod app;
 mod asset_graph;
 pub mod catalog;
@@ -27,7 +29,6 @@ use std::time::Duration;
 use tokio::sync::{broadcast, Notify};
 use tracing::{error, info, warn};
 
-use ship_substrate::ShipHome;
 
 pub use proto::BundleManifest;
 use asset_graph::write_asset_graph;
@@ -81,7 +82,7 @@ impl Bundler {
     /// `deck.jsonc` (caller calls `DeckConfig::load(repo_root)` first).
     /// The compiler is the linked `sui-compiler` crate, compiled in-process
     /// (#255) — no binary to locate, no installed-vs-local drift.
-    pub fn start(_home: &ShipHome, repo_root: PathBuf, workspace: Option<PathBuf>, cfg: DeckConfig) -> Self {
+    pub fn start(repo_root: PathBuf, workspace: Option<PathBuf>, cfg: DeckConfig) -> Self {
         let (event_tx, _) = broadcast::channel(128);
         let staging = std::env::temp_dir().join(format!("ship-bundle-{}", std::process::id()));
         Self {

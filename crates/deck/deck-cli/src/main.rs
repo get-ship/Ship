@@ -145,9 +145,8 @@ fn build_assets() -> Result<()> {
     let cwd = std::env::current_dir().context("cwd")?;
     let repo_root = find_repo_root(&cwd)?;
 
-    let home = ship_substrate::ShipHome::from_env();
     let cfg = deck_bundler::DeckConfig::load(&repo_root);
-    let bundler = deck_bundler::Bundler::start(&home, repo_root.clone(), None, cfg.clone());
+    let bundler = deck_bundler::Bundler::start(repo_root.clone(), None, cfg.clone());
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -232,7 +231,7 @@ fn build_assets() -> Result<()> {
 /// `Cargo.toml` is the one canonical fact; any monorepo-specific marker
 /// surfaces later when bundle_app reads the framework assets dir.
 fn find_repo_root(start: &Path) -> Result<PathBuf> {
-    ship_substrate::locate::workspace_root_from(start).ok_or_else(|| {
+    deck_bundler::paths::topmost_cargo_root(start).ok_or_else(|| {
         anyhow!("deck build: no Cargo workspace root above {}", start.display())
     })
 }

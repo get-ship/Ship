@@ -64,7 +64,7 @@ fn title_case(name: &str) -> String {
 /// from any cwd inside the repo; the views/ + deck-core monorepo markers
 /// surface naturally when the scaffold tries to write into those paths.
 fn find_repo_root(start: &Path) -> Result<PathBuf> {
-    ship_substrate::locate::workspace_root_from(start).ok_or_else(|| {
+    deck_bundler::paths::topmost_cargo_root(start).ok_or_else(|| {
         anyhow!("no Cargo workspace root above {}", start.display())
     })
 }
