@@ -530,4 +530,36 @@ mod merge_tests {
         let merged = Router::new().merge(deck::router()).merge(kept);
         let _service = merged.into_make_service();
     }
+
+    /// Guards `is_client_nav` — the pre-routing classifier that decides whether
+    /// a GET serves the shell (in-app route) or flows through to real routing
+    /// (incl. the Connect `fallback_service`). A wrong answer here either
+    /// shadows a real route or 404s the data plane — the exact regression the
+    /// `spa_nav_middleware` exists to prevent.
+    #[test]
+    fn is_client_nav_routes_navigation_but_never_backend() {
+        use super::is_client_nav;
+        // In-app client routes → serve the shell.
+        for p in ["/git", "/agents", "/studio/themes", "/settings/general"] {
+            assert!(is_client_nav(p), "{p} should hydrate as the shell");
+        }
+        // Real server routes/prefixes → must reach their handlers, never shadowed.
+        for p in [
+            "/",                            // serve_index (first-run branch)
+            "/setup",                       // serve_setup
+            "/api/health",
+            "/api/assets/view-tokens.css",
+            "/_deck/views/git",
+            "/_deck/runtime.js",
+            "/shell/_assets/x.js",
+            "/space/abc",
+            "/auth/sessions",
+            "/hooks/session-start",
+            "/webhook/telegram",
+            "/favicon.ico",                 // dotted asset
+            "/ship.ops.v1.GitService/Overview", // Connect RPC (dotted)
+        ] {
+            assert!(!is_client_nav(p), "{p} must NOT be treated as client nav");
+        }
+    }
 }
