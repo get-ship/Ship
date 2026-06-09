@@ -114,39 +114,16 @@ export interface SlashCommand {
   handler_kind?: 'mode' | 'navigate' | 'endpoint' | 'local'
 }
 
-// Session-level cache for the slash registry. The bar refreshes when the
-// cached snapshot crosses MAX_AGE_MS at the moment the user opens cmdk —
-// no background polling. Falls back to the seeded constant on fetch error
-// so the palette is never empty.
+// Session-level cache for the slash registry. The registry is a static,
+// client-side list — the daemon exposes no commands endpoint — so the loader
+// resolves the seeded constant and stamps the cache. The cache/TTL surface is
+// kept so the open-effect's `slashCacheAge() > TTL` refresh guard works.
 const SLASH_CACHE_MAX_AGE_MS = 60_000
 let slashCache: { at: number; commands: SlashCommand[] } | null = null
-let slashInFlight: Promise<SlashCommand[]> | null = null
 
-export async function loadSlashCommands(force = false): Promise<SlashCommand[]> {
-  const now = performance.now()
-  if (!force && slashCache && now - slashCache.at < SLASH_CACHE_MAX_AGE_MS) {
-    return slashCache.commands
-  }
-  if (slashInFlight) return slashInFlight
-  slashInFlight = (async () => {
-    try {
-      const resp = await fetch('/api/v1/commands', { credentials: 'same-origin' })
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      const body = await resp.json() as { commands?: SlashCommand[] }
-      const commands = body.commands ?? []
-      slashCache = { at: performance.now(), commands }
-      return commands
-    } catch {
-      // Hold previous cache if any, else fall back to the seeded constant
-      // so the bar is usable when the daemon is unreachable.
-      if (slashCache) return slashCache.commands
-      slashCache = { at: performance.now(), commands: SLASH_COMMANDS }
-      return SLASH_COMMANDS
-    } finally {
-      slashInFlight = null
-    }
-  })()
-  return slashInFlight
+export async function loadSlashCommands(_force = false): Promise<SlashCommand[]> {
+  slashCache = { at: performance.now(), commands: SLASH_COMMANDS }
+  return slashCache.commands
 }
 
 export function cachedSlashCommands(): SlashCommand[] {
