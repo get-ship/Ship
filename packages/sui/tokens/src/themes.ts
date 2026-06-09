@@ -151,42 +151,51 @@ export function readStoredTheme(): ThemeId {
 }
 
 /**
- * Persist the current theme. localStorage is the tier-4 cache that
- * the pre-paint boot script reads (must be synchronous); `/api/settings`
- * is the tier-2 authoritative store so the choice is queryable by the
- * settings view and future cross-device sync. Write-through is
- * fire-and-forget — if the daemon is unreachable the local cache is
- * still correct and `syncThemeFromSettings()` reconciles on next load.
+ * Theme persistence transport — the host's authoritative settings store.
+ * sui/tokens is a framework package and names no daemon URL; the host
+ * (shell) wires this to its settings service. Omitted ⇒ persistence is
+ * localStorage-only.
+ */
+export interface ThemeTransport {
+  /** Write-through the chosen theme. Fire-and-forget; failures ignored. */
+  save: (id: ThemeId) => void | Promise<void>
+  /** Read the authoritative theme (null if absent/unreachable). */
+  load: () => Promise<string | null>
+}
+
+let themeTransport: ThemeTransport | null = null
+
+/** Register (or clear) the theme transport. Call once at host startup. */
+export function setThemeTransport(t: ThemeTransport | null): void {
+  themeTransport = t
+}
+
+/**
+ * Persist the current theme. localStorage is the tier-4 cache the
+ * pre-paint boot script reads (must be synchronous); the host transport
+ * (when registered) is the tier-2 authoritative store. Write-through is
+ * fire-and-forget — if the host is unreachable the local cache is still
+ * correct and `syncThemeFromSettings()` reconciles on next load.
  */
 export function persistTheme(id: ThemeId): void {
   if (typeof localStorage === 'undefined') return
   try {
     localStorage.setItem(THEME_STORAGE_KEY, id)
   } catch {}
-  // Tier-2 sync-through. Ignore failures — cache is source of next read.
-  try {
-    fetch('/api/settings', {
-      method: 'PUT',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: 'shell.theme', value: id }),
-    }).catch(() => {})
-  } catch {}
+  // Tier-2 write-through via the host transport. Fire-and-forget.
+  void themeTransport?.save(id)
 }
 
 /**
- * Fetch the authoritative theme from `/api/settings` and update the
+ * Read the authoritative theme from the host transport and update the
  * local cache to match. Call on shell mount so another device's change
- * propagates. If the daemon is unreachable, localStorage stays as-is.
+ * propagates. No transport registered (or unreachable) ⇒ localStorage
+ * stays as-is.
  */
 export async function syncThemeFromSettings(): Promise<ThemeId | null> {
+  if (!themeTransport) return null
   try {
-    const resp = await fetch('/api/settings', { credentials: 'same-origin' })
-    if (!resp.ok) return null
-    const body = (await resp.json()) as {
-      data?: Record<string, unknown>
-    }
-    const raw = body.data?.['shell.theme']
+    const raw = await themeTransport.load()
     if (!isValidTheme(raw)) return null
     try {
       localStorage.setItem(THEME_STORAGE_KEY, raw)
