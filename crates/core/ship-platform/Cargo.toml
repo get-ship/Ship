@@ -129,6 +129,10 @@ specta = ["ship-views/specta", "ship-agents/specta"]
 # generator (and the sandboxed designer's committed JSON) can be produced
 # from the real structs. Off by default; on under `cfg(test)` automatically.
 fixtures = ["ship-agents/fixtures"]
+# harness-drivers: enable ship-agents' harness-driver stack (ship-code).
+# Gate the cancel/runtime re-exports in services::agent_sessions. Enabled by
+# shipd when ship-code is ON; absent in flag-off builds.
+harness-drivers = ["ship-agents/harness-drivers"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

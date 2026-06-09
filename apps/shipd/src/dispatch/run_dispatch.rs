@@ -17,6 +17,7 @@
 //! daemon (shipd) — without closing a dependency cycle.
 
 use ship_agents::{start_agents, AgentPorts};
+use ship_agents::ports::FlokiRunFn;
 use ship_code::dispatch_ports::{SessionExecutor, SpawnPolicy};
 use ship_pipeline_runtime::orchestrator::OrchestratorContext;
 use std::collections::HashMap;
@@ -46,12 +47,19 @@ pub struct DispatchHandle {
 /// Creates the `OrchestratorContext` with shipd's concrete implementations,
 /// then starts the runtime orchestrator. Returns a `DispatchHandle` for
 /// graceful shutdown.
+///
+/// `floki_run_fn`: when `Some`, injected into `AgentPorts` so the
+/// `service.agents` actor routes floki-harness sessions to it instead of
+/// the harness-driver stack. `None` leaves the floki path unwired (floki
+/// sessions with no closure are silently skipped — the started event is
+/// already persisted, but no run fires).
 pub async fn subscribe_job_events(
     kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
     _ship_dir: PathBuf,
     health_registry: &ship_substrate::task_health::HealthRegistry,
     session_registry: ship_auth::scopes::SessionRegistry,
     daemon_url: String,
+    floki_run_fn: Option<FlokiRunFn>,
 ) -> Option<DispatchHandle> {
     // RoutingExecutor picks TmuxWindowExecutor (interactive-attach) or
     // ProcessExecutor (headless) per-job based on the `headless` flag set
@@ -112,6 +120,7 @@ pub async fn subscribe_job_events(
     // `agent.session.started` is acted on by `service.agents` ALONE (S3b), the
     // two instances never double-admit a spawn.
     let agent_ports = Arc::new(AgentPorts {
+        floki_run_fn,
         isolation,
         executor: executor.clone(),
         platform: platform.clone(),

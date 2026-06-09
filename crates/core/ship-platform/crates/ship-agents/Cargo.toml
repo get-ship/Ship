@@ -21,7 +21,7 @@ ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
 # L1 crates (carved siblings, no cycle)
 agent-def = { path = "../agent-def" }
-ship-code = { path = "../ship-code", features = ["harness-drivers"] }
+ship-code = { path = "../ship-code", features = ["harness-drivers"], optional = true }
 ship-config = { path = "../ship-config" }
 ship-harnesses = { path = "../ship-harnesses" }
 ship-files = { path = "../ship-files" }
@@ -81,6 +81,13 @@ ship-platform = { path = "../.." }
 [features]
 fixtures = []
 specta = []
+# harness-drivers: pull in ship-code (the third-party-harness driver stack).
+# With this feature ON:  cancel, terminal_guard, the harness dispatch path,
+#                        executor/isolation/registry/etc. ports, and the
+#                        `runtime` re-export are all compiled in.
+# With this feature OFF: only the floki path (FlokiRunFn + the floki branch
+#                        in dispatch.rs) is compiled; ship-code is absent.
+harness-drivers = ["dep:ship-code"]
 
 [lints]
 workspace = true

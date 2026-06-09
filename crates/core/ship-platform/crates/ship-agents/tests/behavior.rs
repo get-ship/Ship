@@ -228,6 +228,7 @@ fn ports_with(
     platform: Arc<dyn AgentPlatform>,
 ) -> AgentPorts {
     AgentPorts {
+        floki_run_fn: None,
         isolation,
         executor,
         platform,
@@ -496,4 +497,132 @@ async fn cancel_without_handle_still_cleans_and_emits() {
     assert_eq!(cleanup_calls.load(Ordering::SeqCst), 1, "cleanup still runs on a registry miss");
     let killed = find_process_killed(slug).expect("process.killed emitted");
     assert_eq!(killed.pid, None, "no handle → pid None in the audit event");
+}
+
+// ── Floki routing tests ─────────────────────────────────────────────────────
+
+/// SPEC: when `payload.harness == "floki"` and `floki_run_fn` is set,
+/// dispatch routes to the closure and skips the executor entirely.
+///
+/// The closure increments a counter so the test can assert it was called.
+/// `spawn_calls` remains zero because the harness-driver path (executor.spawn)
+/// is never entered.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
+    use ship_agents::ports::FlokiRunFn;
+    use std::sync::atomic::AtomicBool;
+
+    let tmp = tempfile::TempDir::new().unwrap();
+    let kernel = kernel_with_actor();
+
+    // Closure flag — set to true when the floki_run_fn fires.
+    let floki_called = Arc::new(AtomicBool::new(false));
+    let floki_called_inner = floki_called.clone();
+    let spawn_calls = Arc::new(AtomicUsize::new(0));
+
+    let floki_run_fn: FlokiRunFn = Arc::new(move |_payload| {
+        let flag = floki_called_inner.clone();
+        Box::pin(async move {
+            flag.store(true, Ordering::SeqCst);
+        })
+    });
+
+    let ports = AgentPorts {
+        floki_run_fn: Some(floki_run_fn),
+        isolation: Arc::new(OkIsolation(tmp.path().join("worktrees/fl-sess"))),
+        executor: Arc::new(RecordingExecutor {
+            captured: Arc::new(StdMutex::new(None)),
+            spawn_calls: spawn_calls.clone(),
+        }),
+        platform: Arc::new(TestPlatform {
+            worktrees: tmp.path().join("worktrees"),
+            cleanup_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+        registry: Arc::new(NoopRegistry),
+        spawn_policy: Arc::new(TokenSpawnPolicy),
+        projections: Arc::new(NeverTerminal),
+        event_dedup: Arc::new(EventDedup::new()),
+    };
+
+    // harness == "floki" is the routing key.
+    let payload = started_payload("s-floki-1", "fl-sess", Some("floki"), None, None);
+    let envelope = EventEnvelope::new(
+        agent_event_types::AGENT_SESSION_STARTED,
+        &payload.session_id,
+        &payload,
+    )
+    .unwrap()
+    .with_actor_id("test");
+
+    ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
+
+    // Poll: the floki_run_fn is spawned as a task; give it time to run.
+    for _ in 0..50 {
+        if floki_called.load(Ordering::SeqCst) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+
+    assert!(
+        floki_called.load(Ordering::SeqCst),
+        "floki_run_fn must be called when harness == 'floki'",
+    );
+    assert_eq!(
+        spawn_calls.load(Ordering::SeqCst),
+        0,
+        "executor.spawn must NOT be called when floki_run_fn routes the session",
+    );
+}
+
+/// SPEC: a floki-harness session with NO `floki_run_fn` wired falls through to
+/// the regular dispatch path (which calls the executor). This ensures the
+/// guard is `payload.harness == "floki" AND floki_run_fn.is_some()`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn floki_harness_without_closure_falls_through_to_executor() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let kernel = kernel_with_actor();
+    let spawn_calls = Arc::new(AtomicUsize::new(0));
+
+    // floki_run_fn = None — closure not wired.
+    let ports = AgentPorts {
+        floki_run_fn: None,
+        isolation: Arc::new(OkIsolation(tmp.path().join("worktrees/fl-no-fn"))),
+        executor: Arc::new(RecordingExecutor {
+            captured: Arc::new(StdMutex::new(None)),
+            spawn_calls: spawn_calls.clone(),
+        }),
+        platform: Arc::new(TestPlatform {
+            worktrees: tmp.path().join("worktrees"),
+            cleanup_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+        registry: Arc::new(NoopRegistry),
+        spawn_policy: Arc::new(TokenSpawnPolicy),
+        projections: Arc::new(NeverTerminal),
+        event_dedup: Arc::new(EventDedup::new()),
+    };
+
+    let payload = started_payload("s-floki-2", "fl-no-fn", Some("floki"), None, None);
+    let envelope = EventEnvelope::new(
+        agent_event_types::AGENT_SESSION_STARTED,
+        &payload.session_id,
+        &payload,
+    )
+    .unwrap()
+    .with_actor_id("test");
+
+    ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
+    // Give the dispatch task a moment.
+    for _ in 0..50 {
+        if spawn_calls.load(Ordering::SeqCst) > 0 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+
+    assert_eq!(
+        spawn_calls.load(Ordering::SeqCst),
+        1,
+        "with no floki_run_fn, harness='floki' falls through to executor.spawn",
+    );
 }

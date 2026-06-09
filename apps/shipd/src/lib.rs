@@ -36,6 +36,9 @@ pub mod floki_gateway;
 // AuthContext, ToolCtx (kernel-backed SessionEventSink), and ScriptExecutor,
 // then calls floki::run_step. Parallel entry point for floki-harness agents.
 pub mod floki_first_light;
+// local_paths: ungated path helpers (worktrees_dir without ship-code dep).
+// Used by agent_event_ports + pipeline_ports so they compile with flag-off.
+pub mod local_paths;
 // diag_rpc: deleted — diagnostics.snapshot op cut; DiagnosticRegistry apparatus removed.
 pub mod runtime_rpc;
 pub mod pipelines_rpc;
@@ -260,12 +263,29 @@ pub async fn run_network(
 
     #[cfg(feature = "ship-code")]
     {
+        // Build the floki-harness dispatch closure. Captures Arc<ShipdGateway>
+        // (the in-process ops router) + the kernel SharedKernel. Ungated type
+        // (FlokiRunFn uses only ship_substrate + std) — the closure captures L2
+        // types but the type alias itself is L1-clean.
+        let ops_router = ops_rpc::router(rt.clone());
+        let floki_gateway = std::sync::Arc::new(floki_gateway::ShipdGateway::new(ops_router));
+        let floki_kernel = rt.kernel().clone();
+        let floki_run_fn: ship_agents::ports::FlokiRunFn = {
+            let gateway = floki_gateway.clone();
+            std::sync::Arc::new(move |payload| {
+                let gateway = gateway.clone();
+                let kernel = floki_kernel.clone();
+                Box::pin(floki_first_light::dispatch_floki_session(payload, gateway, kernel))
+            })
+        };
+
         let run_mgr = managers::RunManager::init(
             rt.kernel().clone(),
             global_dir.clone(),
             rt.health_registry(),
             rt.session_registry().clone(),
             rt.daemon_origin(),
+            Some(floki_run_fn),
         )
         .await;
         if let Some(dh) = run_mgr.dispatch_handle {

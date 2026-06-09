@@ -83,9 +83,12 @@ pub mod services {
     /// Agent-session orchestration re-export (C8b fold).
     pub mod agent_sessions {
         pub use ship_agents::{
-            handle_agent_cancelled, handle_agent_session_started, handle_agents_event,
+            handle_agent_session_started, handle_agents_event,
             start_agents, AgentPorts,
         };
+        // cancel is gated on harness-drivers (ship-code dep required).
+        #[cfg(feature = "harness-drivers")]
+        pub use ship_agents::handle_agent_cancelled;
     }
 
 }
