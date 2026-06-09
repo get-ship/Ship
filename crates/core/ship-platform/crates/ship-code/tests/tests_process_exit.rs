@@ -1,22 +1,20 @@
 //! Process exit detection tests.
 //!
 //! Covers drain_dead, contains, live_slugs on ProcessRegistry, and the
-//! start_exit_handler liveness monitor. Tests 5–6 are source-level checks
-//! that verify the executor files wire up exit_tx rather than legacy curl.
+//! start_exit_handler liveness monitor. The driver stack lives in ship-code
+//! (Job B de-bucketing); KernelRouter/ShipHome stay in L0 ship-substrate.
 
 use async_trait::async_trait;
-use ship_substrate::events::kernel_router::KernelRouter;
-use ship_substrate::services::dispatch_ports::{
+use ship_code::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor,
 };
+use ship_code::process_registry::{ProcessRegistry, SharedRegistry};
+use ship_code::runner::exit_handler;
+use ship_substrate::events::kernel_router::KernelRouter;
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
-
-use ship_runner::exit_handler;
-
-use ship_substrate::services::process_registry::{ProcessRegistry, SharedRegistry};
 
 // ── Test executors ───────────────────────────────────────────────────────────
 
@@ -190,31 +188,5 @@ async fn exit_handler_does_not_panic_for_failed_exit() {
     assert!(
         !registry.lock().await.contains("failing-job"),
         "exit handler must unregister the slug after a failed exit"
-    );
-}
-
-// ── Source-level checks ──────────────────────────────────────────────────────
-
-fn executor_source(filename: &str) -> String {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("crates/ship-supervisor/src/executors")
-        .join(filename);
-    std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("could not read {filename}: {e}"))
-}
-
-/// process.rs must wire exit_tx into the spawned child watcher rather than
-/// shelling out to curl for signalling.
-#[test]
-#[ignore = "doomed: executor/harness-adapter rework (integration-tier #9/10/13) — fix AS an integration when that arc runs; see .artifacts/gate-triage-2.md cluster B"]
-fn process_executor_source_uses_exit_tx_not_curl() {
-    let src = executor_source("process.rs");
-    assert!(
-        !src.contains("curl"),
-        "process.rs must not use curl — signal exit via exit_tx"
-    );
-    assert!(
-        src.contains("exit_tx"),
-        "process.rs must send on exit_tx to report process exit"
     );
 }
