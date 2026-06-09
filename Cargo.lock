@@ -9046,6 +9046,7 @@ dependencies = [
  "ctor 0.2.9",
  "datastar",
  "deck",
+ "floki",
  "form_urlencoded",
  "futures",
  "futures-util",

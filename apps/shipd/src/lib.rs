@@ -28,6 +28,10 @@ pub mod managers;
 pub mod routes;
 pub mod router;
 pub mod ops_rpc;
+// floki_gateway: L2 seam — implements floki::Gateway for in-process dispatch
+// through the ops router. No reverse dependency (floki → shipd); the arrow is
+// shipd → floki only.
+pub mod floki_gateway;
 // diag_rpc: deleted — diagnostics.snapshot op cut; DiagnosticRegistry apparatus removed.
 pub mod runtime_rpc;
 pub mod pipelines_rpc;
