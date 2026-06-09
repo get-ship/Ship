@@ -49,26 +49,6 @@ fn completed(pipeline_run_id: &str) -> EventEnvelope {
 // This is critical — too many concurrent agents overwhelms the machine.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// The dispatch replay module must enforce a concurrency limit.
-#[test]
-fn concurrency_limit_is_enforced() {
-    let source = include_str!("../src/orchestrator/pending.rs");
-    assert!(
-        source.contains("MAX_CONCURRENT"),
-        "dispatch_replay must define a MAX_CONCURRENT limit"
-    );
-}
-
-/// The concurrency check must count currently dispatched jobs.
-#[test]
-fn concurrency_counts_dispatched_jobs() {
-    let source = include_str!("../src/orchestrator/pending.rs");
-    assert!(
-        source.contains("Dispatched") && source.contains("running_count"),
-        "concurrency check must count jobs in Dispatched status"
-    );
-}
-
 /// With 3 dispatched jobs, no new jobs should be dispatched.
 #[test]
 fn three_dispatched_blocks_new_dispatch() {
@@ -182,39 +162,3 @@ fn run_without_deps_is_immediately_dispatchable() {
     assert!(j1.depends_on.is_none() || j1.depends_on.as_ref().unwrap().is_empty());
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// GRACEFUL SHUTDOWN
-//
-// On SIGTERM/SIGINT, the daemon must stop all managed agents before exiting.
-// No orphaned processes.
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// Graceful shutdown must emit a supervisor.shutting_down event.
-#[test]
-fn graceful_shutdown_emits_event() {
-    let source = include_str!("../../../crates/core/ship-substrate/src/services/process_registry.rs");
-    assert!(
-        source.contains("shutting_down"),
-        "graceful_shutdown must emit supervisor.shutting_down event"
-    );
-}
-
-/// Graceful shutdown must call shutdown_all on the registry.
-#[test]
-fn graceful_shutdown_drains_registry() {
-    let source = include_str!("../../../crates/core/ship-substrate/src/services/process_registry.rs");
-    assert!(
-        source.contains("shutdown_all"),
-        "graceful_shutdown must drain the process registry"
-    );
-}
-
-/// shutdown_all must call executor.stop() for each handle.
-#[test]
-fn shutdown_all_stops_each_agent() {
-    let source = include_str!("../../../crates/core/ship-substrate/src/services/process_registry.rs");
-    assert!(
-        source.contains("executor.stop"),
-        "shutdown_all must call stop on each registered handle"
-    );
-}

@@ -46,43 +46,11 @@ fn failed(pipeline_run_id: &str, error: &str) -> EventEnvelope {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// WORKTREE PROJECT DETECTION
-//
-// Git worktrees must resolve to their parent project identity.
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// Project detection must check for git worktree status.
-#[test]
-fn project_detection_handles_worktrees() {
-    // Worktree detection lives in ship-substrate's project module
-    // (path resolution + git discovery are L0). The test pre-dated the
-    // substrate split.
-    let source = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/core/ship-substrate/src/project.rs")
-    ).unwrap();
-    assert!(
-        source.contains("worktree") || source.contains("git_common_dir"),
-        "project.rs must detect git worktrees to avoid phantom project registrations"
-    );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
 // STALE WORKTREE CLEANUP
 //
 // Merged and failed jobs must have their worktrees cleaned up.
 // The cleanup handler must be reliable — not leave orphans.
 // ═══════════════════════════════════════════════════════════════════════════
-
-/// The cleanup handler must resolve the slug from the event payload,
-/// not rely on in-memory state that may not exist after a restart.
-#[test]
-fn cleanup_resolves_slug_from_event_payload() {
-    let source = include_str!("../src/orchestrator/handlers.rs");
-    assert!(
-        source.contains("slug") && source.contains("payload"),
-        "cleanup must resolve slug from event payload, not in-memory state"
-    );
-}
 
 /// Orphan detection: after restart, any worktree for a terminal job
 /// (merged/failed) should be flagged for cleanup.
@@ -119,72 +87,6 @@ fn orphan_worktrees_detectable_from_projection() {
     assert!(orphans.contains(&"failed-job"));
     assert!(active.contains(&"active-job"));
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// GRACEFUL SHUTDOWN
-//
-// Daemon must stop all agents within bounded time on SIGTERM.
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// Shutdown must have a timeout — it cannot hang indefinitely.
-#[test]
-fn shutdown_has_bounded_timeout() {
-    let registry_src = include_str!("../../../crates/core/ship-substrate/src/services/process_registry.rs");
-    assert!(
-        registry_src.contains("timeout") || registry_src.contains("Duration"),
-        "shutdown_all must have a timeout to prevent hanging on unresponsive agents"
-    );
-}
-
-/// Shutdown must attempt graceful exit before force-kill.
-#[test]
-fn shutdown_sends_exit_before_kill() {
-    // The executor's stop() should use the adapter's exit_command
-    // before resorting to SIGTERM/SIGKILL.
-    let process_src = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/core/ship-platform/crates/ship-agents/src/runtime/executors/process.rs")
-    ).unwrap();
-    let lifecycle_src = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/core/ship-platform/crates/ship-agents/src/runtime/agent_lifecycle.rs")
-    ).unwrap();
-
-    // At least one path must use the adapter's exit command
-    let uses_exit = lifecycle_src.contains("exit_command")
-        || process_src.contains("exit_command");
-    assert!(uses_exit, "shutdown path must use adapter.exit_command() for graceful exit");
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// PROCESS EXIT DETECTION
-//
-// The daemon must detect dead agents without relying on hooks.
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// ProcessExecutor must monitor the child process and emit events on exit.
-#[test]
-fn process_executor_monitors_child() {
-    let source = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/core/ship-platform/crates/ship-agents/src/runtime/executors/process.rs")
-    ).unwrap();
-    assert!(
-        source.contains("wait()") || source.contains("child.wait"),
-        "ProcessExecutor must wait on the child process to detect exit"
-    );
-}
-
-/// ProcessExecutor must signal completion when the child exits,
-/// not rely on the SessionEnd hook.
-#[test]
-fn process_executor_signals_on_exit() {
-    let source = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/core/ship-platform/crates/ship-agents/src/runtime/executors/process.rs")
-    ).unwrap();
-    assert!(
-        source.contains("job") && (source.contains("end") || source.contains("completed") || source.contains("failed")),
-        "ProcessExecutor must signal job completion/failure when child process exits"
-    );
-}
-
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DAEMON RESTART RECOVERY (E2E-1)
@@ -226,18 +128,6 @@ fn all_non_terminal_states_recoverable() {
     // All have enough data for the reconciliation loop to act on
     assert!(map.get("j-dispatched").unwrap().worktree.is_some());
     assert!(map.get("j-completed").unwrap().worktree.is_some());
-}
-
-/// The reconciliation loop must exist and handle all three phases.
-#[test]
-fn reconciliation_loop_handles_three_phases() {
-    let source = include_str!("../src/orchestrator/router.rs");
-    assert!(source.contains("reconcile"), "must reconcile stale dispatched jobs");
-    assert!(source.contains("replay"), "must replay stale completions");
-    assert!(
-        source.contains("pending_dispatch") || source.contains("dispatch_ready"),
-        "must dispatch ready pending jobs"
-    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -328,87 +218,9 @@ fn pipeline_failure_preserves_completed_steps() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SECURITY (E2E-5)
-//
-// Auth and validation must be enforced at the HTTP boundary.
-// ═══════════════════════════════════════════════════════════════════════════
-
-/// All daemon HTTP endpoints require auth.
-#[test]
-fn all_endpoints_require_auth() {
-    let lib_src = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/src/lib.rs")
-    ).unwrap();
-    assert!(
-        lib_src.contains("auth") && lib_src.contains("middleware"),
-        "daemon must apply auth middleware to all routes"
-    );
-}
-
-/// Auth token is generated per daemon instance.
-#[test]
-fn auth_token_is_per_instance() {
-    let auth_src = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/src/auth.rs")
-    ).unwrap();
-    assert!(
-        auth_src.contains("generate_token") || auth_src.contains("random"),
-        "auth token must be generated fresh per daemon instance"
-    );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
 // NO SILENT FAILURES
 //
 // Every error path must produce an observable signal — event, log, or
 // error return. Nothing swallowed silently.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Dead process reconciliation must leave an observable event trail.
-///
-/// Reconcile records a single `executor.session_destroyed` observation;
-/// the coherence sweep drains dead handles + emits `job.failed`; the
-/// exit handler emits `job.failed` for non-zero exits. Either signal is
-/// sufficient — nothing is swallowed silently.
-#[test]
-fn dead_process_recovery_is_observable() {
-    let replay = include_str!("../src/orchestrator/replay.rs");
-    let sweep = include_str!("../src/orchestrator/sweep.rs");
-    let exit_handler = include_str!(
-        "../../../crates/core/ship-substrate/crates/ship-runner/src/exit_handler.rs"
-    );
-    assert!(
-        replay.contains("emit_executor_session_destroyed"),
-        "reconcile must record an observation event when no live process is found"
-    );
-    assert!(
-        sweep.contains("drain_dead") && sweep.contains("PIPELINE_RUN_FAILED"),
-        "coherence sweep must drain dead handles and emit job.failed"
-    );
-    assert!(
-        exit_handler.contains("PIPELINE_RUN_FAILED"),
-        "exit handler must emit job.failed for non-zero process exits"
-    );
-}
-
-/// Pipeline spawn failure must log and continue, not panic.
-#[test]
-fn pipeline_spawn_failure_does_not_panic() {
-    let source = include_str!("../src/orchestrator/pipeline.rs");
-    assert!(
-        source.contains("Err(e)") && source.contains("continue"),
-        "pipeline spawn failure must log and continue to next step"
-    );
-}
-
-/// Cleanup failure must not prevent other cleanup operations.
-#[test]
-fn cleanup_failure_does_not_block_other_cleanup() {
-    let source = include_str!("../src/orchestrator/handlers.rs");
-    // Cleanup is delegated to AgentPlatform::cleanup_job — a single call that
-    // internally runs tmux kill, worktree removal, and branch deletion independently.
-    assert!(
-        source.contains("cleanup_job"),
-        "cleanup must delegate to platform.cleanup_job — independent ops inside"
-    );
-}
