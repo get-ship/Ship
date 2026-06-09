@@ -23,6 +23,7 @@ dependencies = [
  "compiler",
  "home",
  "include_dir",
+ "inventory",
  "jsonschema",
  "serde",
  "serde_json",

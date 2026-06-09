@@ -4,9 +4,35 @@ use crate::events::filter::EventFilter;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
 use crate::events::types::{WorkspaceActivated};
-use crate::events::canonical_session::{SessionStarted, SessionCompleted, TurnStarted};
 use crate::testutil::init_project_minimal as init_project;
 use tempfile::tempdir;
+use serde::{Serialize, Deserialize};
+
+// Local test stand-ins for canonical session types (moved to agent-def)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct TestSession {
+    session_id: String,
+    agent_id: String,
+    harness: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    model: Option<String>,
+    space_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    input: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    parent: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct TestTurn {
+    session_id: String,
+    idx: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct TestCompleted {
+    session_id: String,
+}
 
 fn setup() -> (tempfile::TempDir, SqliteEventStore) {
     let tmp = tempdir().unwrap();
@@ -15,8 +41,8 @@ fn setup() -> (tempfile::TempDir, SqliteEventStore) {
     (tmp, store)
 }
 
-fn session_started(id: &str) -> SessionStarted {
-    SessionStarted {
+fn session_started(id: &str) -> TestSession {
+    TestSession {
         session_id: id.into(),
         agent_id: "agent-a".into(),
         harness: "claude".into(),
@@ -49,11 +75,11 @@ fn test_filter_by_actor_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
 
     for i in 0..2_u32 {
-        let ev = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "entity-1", &TurnStarted { session_id: "entity-1".into(), idx: i })?
+        let ev = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "entity-1", &TestTurn { session_id: "entity-1".into(), idx: i })?
             .with_actor_id("actor-a");
         store.append(&ev)?;
     }
-    let ev_b = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "entity-1", &TurnStarted { session_id: "entity-1".into(), idx: 2 })?
+    let ev_b = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "entity-1", &TestTurn { session_id: "entity-1".into(), idx: 2 })?
         .with_actor_id("actor-b");
     store.append(&ev_b)?;
 
@@ -72,10 +98,10 @@ fn test_elevated_filter() -> anyhow::Result<()> {
     let entity = "elevation-entity";
 
     for i in 0..3_u32 {
-        let ev = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, entity, &TurnStarted { session_id: entity.into(), idx: i })?;
+        let ev = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, entity, &TestTurn { session_id: entity.into(), idx: i })?;
         store.append(&ev)?;
     }
-    let ev_end = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, entity, &SessionCompleted { session_id: entity.into() })?
+    let ev_end = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, entity, &TestCompleted { session_id: entity.into() })?
         .elevate();
     store.append(&ev_end)?;
     let ev_ws = EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, entity, &WorkspaceActivated { agent_id: None, harnesses: vec![] })?
@@ -106,13 +132,13 @@ fn supervisor_queries_elevated_child_events_by_parent_actor_id() -> anyhow::Resu
         .elevate();
     store.append(&child1)?;
 
-    let child2 = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, "child-entity-2", &SessionCompleted { session_id: "child-entity-2".into() })?
+    let child2 = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, "child-entity-2", &TestCompleted { session_id: "child-entity-2".into() })?
         .with_actor_id("child-actor-2")
         .with_parent_actor_id("supervisor-1")
         .elevate();
     store.append(&child2)?;
 
-    let child3 = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "child-entity-3", &TurnStarted { session_id: "child-entity-3".into(), idx: 0 })?
+    let child3 = EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "child-entity-3", &TestTurn { session_id: "child-entity-3".into(), idx: 0 })?
         .with_actor_id("child-actor-3")
         .with_parent_actor_id("supervisor-1");
     store.append(&child3)?;

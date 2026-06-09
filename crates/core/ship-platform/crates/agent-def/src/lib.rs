@@ -9,6 +9,7 @@
 //! schema unification into a single `Agent` + runtime discriminant is D2b.)
 
 pub mod agent;
+pub mod canonical_session;
 pub mod compile;
 pub mod config;
 pub mod emit;
@@ -19,6 +20,7 @@ pub mod rule;
 pub mod skill;
 pub mod skill_paths;
 pub mod skill_vars;
+mod event_registrations;
 pub use agent::{Agent, BlastRadius, Capability, Disposition, Harness, Identity};
 pub use emit::{
     SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed,
