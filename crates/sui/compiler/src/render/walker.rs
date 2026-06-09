@@ -41,15 +41,13 @@ pub(crate) struct Walker<'r> {
     /// walker would have allocated a key. Used by `next_key` to assert
     /// the registry's `b<N>` matches.
     pub(super) reg_idx: usize,
-    /// View name — retained for diagnostics and future per-view SSR hooks.
-    pub(super) view_name: String,
 }
 
 impl<'r> Walker<'r> {
     pub(crate) fn new_named(
         scope: Scope,
         registry: &'r BindingRegistry,
-        view_name: String,
+        _view_name: String,
     ) -> Self {
         Self {
             out: Out::new(),
@@ -57,7 +55,6 @@ impl<'r> Walker<'r> {
             scope,
             registry,
             reg_idx: 0,
-            view_name,
         }
     }
 

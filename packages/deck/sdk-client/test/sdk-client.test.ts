@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { live, signal, type LiveSignal, type LiveState } from '@ship/sui-runtime'
-import { createClient, makeSseSource } from '../src/index'
+import { live, type LiveSignal, type LiveState } from '@ship/sui-runtime'
+import { createClient } from '../src/index'
 import { _resetSharedSourceCache } from '../src/shared-source'
 
 class FakeEventSource {
@@ -424,62 +424,6 @@ describe('mux live path', () => {
     const ship = createClient({ EventSource: undefined })
     ship.agents.summaries().subscribe(sig)
     expect(sig().kind).toBe('error')
-  })
-})
-
-// ── makeSseSource (retained utility — tested independently) ──────────────────
-
-describe('makeSseSource', () => {
-  it('first set-patch transitions to ok', () => {
-    FakeEventSource.instances = []
-    const source = makeSseSource<{ items: { id: string }[] }>(
-      'http://test/_deck/data?expr=x',
-      FakeEventSource as any,
-    )
-    const sig = live(() => source)
-    const es = FakeEventSource.instances[0]!
-    es.emitPatch({ op: 'set', value: { items: [{ id: 'a' }] } })
-    const v = sig()
-    expect(v.kind).toBe('ok')
-  })
-
-  it('subsequent patches mutate via applyPatch', () => {
-    FakeEventSource.instances = []
-    const source = makeSseSource<{ items: { id: string }[] }>(
-      'http://test/_deck/data?expr=x',
-      FakeEventSource as any,
-    )
-    const sig = live(() => source)
-    const es = FakeEventSource.instances[0]!
-    es.emitPatch({ op: 'set', value: { items: [{ id: 'a' }] } })
-    es.emitPatch({ op: 'append', path: 'items', value: { id: 'b' } })
-    const v = sig()
-    expect(v.kind).toBe('ok')
-    if (v.kind === 'ok') {
-      expect(v.value.items.map((x) => x.id)).toEqual(['a', 'b'])
-    }
-  })
-
-  it('connection errors before first frame surface as error state', () => {
-    FakeEventSource.instances = []
-    const source = makeSseSource('http://test', FakeEventSource as any)
-    const sig = live(() => source)
-    FakeEventSource.instances[0]!.emitError()
-    expect(sig().kind).toBe('error')
-  })
-
-  it('disposer closes the EventSource', () => {
-    FakeEventSource.instances = []
-    const source = makeSseSource('http://test', FakeEventSource as any)
-    let captured: (() => void) | undefined
-    source.subscribe = ((orig) => (sig) => {
-      captured = orig.call(source, sig)
-      return captured
-    })(source.subscribe)
-    live(() => source)
-    expect(FakeEventSource.instances).toHaveLength(1)
-    captured!()
-    expect(FakeEventSource.instances[0]!.closed).toBe(true)
   })
 })
 

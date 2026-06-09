@@ -269,7 +269,7 @@ The `kind === 'ok'` guard is **mandatory** before reading
 | `settings` | `state()` |
 | `sessions` | `list()` (live); `start({workspace_id, kind})` / `end({id})` (mutate) |
 | `workspaces` | `list()`, `active()` (live); `activate({id})` (mutate) |
-| `skills` | `list()`, `summaries({q?, kind?, tag?})`, `detail({id})`, `invoke({id, vars?, workspace_id?})` (mutate — **known gap:** the daemon route may return `not_implemented`; callers must handle that code as a first-class state, see the `skills.invoke` op in `packages/deck/sdk-client/src/index.ts`) |
+| `skills` | `list()`, `summaries({q?, kind?, tag?})`, `detail({id})` |
 
 **Adding a new live source** requires three coordinated edits — see
 `references/runtime-primitives.md` § Live SSE end-to-end loop. The
