@@ -121,10 +121,10 @@ fn install_defaults_inner() {
             Box::new(ship_auth::DaemonOwnerProjection),
             // Per-agent approved grant baseline the mint path reads.
             Box::new(ship_agents::services::permissions::ProvisionedGrantsProjection),
-            // Agent-session primitive — sibling of pipeline runs. Tracks
-            // single-agent dispatches (bare ship use, MCP dispatch,
-            // pipeline-step sessions).
-            Box::new(ship_agents::services::sessions::AgentSessionProjection),
+            // Canonical session projection — folds session.* events into
+            // canonical_sessions (runtime.db). Replaces the legacy
+            // AgentSessionProjection (retired by canonical-emitter-migration).
+            Box::new(ship_agents::services::sessions::CanonicalSessionProjection),
             // ship-analytics — folds hook.* into rollup tables. Lives
             // in its own crate (queries, cost, mining) so downstream
             // dashboard / billing / harness-mining work has a home

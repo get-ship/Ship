@@ -94,7 +94,6 @@ impl ShipRuntime {
         // any SqliteEventStore is constructed.
         ship_platform::install_defaults();
         ship_pipeline_runtime::install_projections();
-        ship_agents::install_canonical_session_projection();
 
         let dir = global_dir.clone();
         let kernel = tokio::task::spawn_blocking(move || {
