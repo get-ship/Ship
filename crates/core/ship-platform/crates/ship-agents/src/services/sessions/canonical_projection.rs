@@ -107,6 +107,9 @@ pub struct CanonicalSession {
     pub harness: String,
     pub model: Option<String>,
     pub status: CanonicalSessionStatus,
+    /// Human-readable, url-safe operational identifier. `None` for Floki
+    /// sessions and pre-migration rows that didn't carry a slug.
+    pub slug: Option<String>,
     pub input: Option<String>,
     pub parent: Option<String>,
     pub turn_count: u32,
@@ -206,6 +209,7 @@ pub fn project(
                     harness: p.harness,
                     model: p.model,
                     status: CanonicalSessionStatus::Active,
+                    slug: p.slug,
                     input: p.input,
                     parent: p.parent,
                     turn_count: 0,
@@ -272,8 +276,8 @@ impl Projection for CanonicalSessionProjection {
                 sqlx::query(
                     "INSERT INTO canonical_sessions \
                      (session_id, space_id, agent_id, harness, model, status, \
-                      input, parent, turn_count, started_at, ended_at, outcome, reason) \
-                     VALUES (?, ?, ?, ?, ?, 'active', ?, ?, 0, ?, NULL, NULL, NULL) \
+                      slug, input, parent, turn_count, started_at, ended_at, outcome, reason) \
+                     VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, 0, ?, NULL, NULL, NULL) \
                      ON CONFLICT(session_id) DO NOTHING",
                 )
                 .bind(&p.session_id)
@@ -281,6 +285,7 @@ impl Projection for CanonicalSessionProjection {
                 .bind(&p.agent_id)
                 .bind(&p.harness)
                 .bind(&p.model)
+                .bind(&p.slug)
                 .bind(&p.input)
                 .bind(&p.parent)
                 .bind(event.created_at.to_rfc3339())
@@ -426,6 +431,7 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<CanonicalSession> {
         harness: row.try_get("harness")?,
         model: row.try_get("model").ok().flatten(),
         status: CanonicalSessionStatus::from_db_str(&status),
+        slug: row.try_get("slug").ok().flatten(),
         input: row.try_get("input").ok().flatten(),
         parent: row.try_get("parent").ok().flatten(),
         turn_count: {
@@ -464,8 +470,9 @@ fn load_all_rows(conn: &mut SqliteConnection) -> Result<Vec<CanonicalSession>> {
     let rows = block_on(async {
         sqlx::query(
             "SELECT session_id, space_id, agent_id, harness, model, status, \
-             input, parent, turn_count, started_at, ended_at, outcome, reason \
+             slug, input, parent, turn_count, started_at, ended_at, outcome, reason \
              FROM canonical_sessions ORDER BY started_at ASC",
+
         )
         .fetch_all(conn)
         .await
@@ -486,7 +493,7 @@ fn load_row_by_id(
     let row = block_on(async {
         sqlx::query(
             "SELECT session_id, space_id, agent_id, harness, model, status, \
-             input, parent, turn_count, started_at, ended_at, outcome, reason \
+             slug, input, parent, turn_count, started_at, ended_at, outcome, reason \
              FROM canonical_sessions WHERE session_id = ?",
         )
         .bind(session_id)
@@ -511,7 +518,7 @@ pub fn load_latest_resumable_session(
     let row = block_on(async {
         sqlx::query(
             "SELECT session_id, space_id, agent_id, harness, model, status, \
-             input, parent, turn_count, started_at, ended_at, outcome, reason \
+             slug, input, parent, turn_count, started_at, ended_at, outcome, reason \
              FROM canonical_sessions \
              WHERE agent_id = ? \
                AND space_id = ? \
@@ -525,6 +532,60 @@ pub fn load_latest_resumable_session(
         .await
     })?;
     row.as_ref().map(row_to_record).transpose()
+}
+
+/// Load a canonical session by slug (default ship_dir).
+///
+/// Used by: cancel path (shipd/routes/runtime_api/jobs.rs),
+/// pipeline compose-terminal (dispatch.rs emit_composed_session_terminal).
+pub fn load_canonical_session_by_slug(slug: &str) -> Result<Option<CanonicalSession>> {
+    let mut conn = open_default_conn()?;
+    load_row_by_slug(slug, &mut conn)
+}
+
+/// Load a canonical session by slug from an explicit ship_dir (test / shipd helper).
+pub fn load_canonical_session_by_slug_at(
+    ship_dir: &std::path::Path,
+    slug: &str,
+) -> Result<Option<CanonicalSession>> {
+    let mut conn = ship_substrate::db::open_runtime_db(ship_dir)?;
+    load_row_by_slug(slug, &mut conn)
+}
+
+fn load_row_by_slug(slug: &str, conn: &mut SqliteConnection) -> Result<Option<CanonicalSession>> {
+    let row = block_on(async {
+        sqlx::query(
+            "SELECT session_id, space_id, agent_id, harness, model, status, \
+             slug, input, parent, turn_count, started_at, ended_at, outcome, reason \
+             FROM canonical_sessions WHERE slug = ?",
+        )
+        .bind(slug)
+        .fetch_optional(conn)
+        .await
+    })?;
+    row.as_ref().map(row_to_record).transpose()
+}
+
+/// Load all canonical sessions whose parent matches `parent_id`.
+///
+/// Forward-compatible infrastructure for pipeline-composed session queries.
+/// Not on the critical path for this migration but required by the
+/// canonical_emitter_migration plan.
+pub fn load_canonical_sessions_by_parent(
+    parent_id: &str,
+) -> Result<Vec<CanonicalSession>> {
+    let mut conn = open_default_conn()?;
+    let rows = block_on(async {
+        sqlx::query(
+            "SELECT session_id, space_id, agent_id, harness, model, status, \
+             slug, input, parent, turn_count, started_at, ended_at, outcome, reason \
+             FROM canonical_sessions WHERE parent = ? ORDER BY started_at ASC",
+        )
+        .bind(parent_id)
+        .fetch_all(&mut conn)
+        .await
+    })?;
+    rows.iter().map(row_to_record).collect()
 }
 
 // ── Unit tests ───────────────────────────────────────────────────────────────
@@ -844,5 +905,108 @@ mod tests {
 
         let rec = load_session_by_id(session).unwrap();
         assert!(rec.is_none(), "truncate must clear all rows");
+    }
+
+    // ── Slug + parent tests (canonical_emitter_migration) ────────────────────
+
+    /// Build a session.started event with an explicit slug and optional parent.
+    fn started_with_slug(session_id: &str, slug: &str, parent: Option<&str>) -> EventEnvelope {
+        let payload = match parent {
+            Some(p) => serde_json::json!({
+                "session_id": session_id,
+                "agent_id": "claude",
+                "harness": "claude",
+                "model": "claude-sonnet-4-6",
+                "space_id": "sp-test",
+                "slug": slug,
+                "input": "do the work",
+                "parent": p
+            }),
+            None => serde_json::json!({
+                "session_id": session_id,
+                "agent_id": "claude",
+                "harness": "claude",
+                "model": "claude-sonnet-4-6",
+                "space_id": "sp-test",
+                "slug": slug,
+                "input": "do the work"
+            }),
+        };
+        EventEnvelope::new(canonical_event_types::SESSION_STARTED, session_id, &payload).unwrap()
+    }
+
+    /// Pure fold: session.started with slug and parent folds correctly.
+    #[test]
+    fn fold_started_with_slug_and_parent() {
+        let session = "01SLUG-FOLD-A";
+        let pipeline_run_id = "01PIPELINE-RUN-X";
+        let events = vec![started_with_slug(session, "my-agent::step1", Some(pipeline_run_id))];
+        let map = project(&events);
+        let rec = map.get(session).expect("session must be in projection");
+
+        assert_eq!(rec.slug.as_deref(), Some("my-agent::step1"));
+        assert_eq!(rec.parent.as_deref(), Some(pipeline_run_id));
+        assert_eq!(rec.status, CanonicalSessionStatus::Active);
+    }
+
+    /// SQL: pipeline-composed session.started with parent folds into
+    /// canonical_sessions and is queryable by parent (canonical_emitter_migration
+    /// requirement: load_canonical_sessions_by_parent must return composed sessions).
+    #[test]
+    fn sql_pipeline_composed_session_folds_with_parent() {
+        let mut conn = fresh_conn();
+        let proj = CanonicalSessionProjection;
+        let session_id = "01SQL-PARENT-A";
+        let pipeline_run_id = "01PIPELINE-RUN-SQL-A";
+        let slug = "my-job::step1";
+
+        let _ = block_on(async {
+            sqlx::query("DELETE FROM canonical_sessions WHERE session_id = ?")
+                .bind(session_id)
+                .execute(&mut conn)
+                .await
+        });
+
+        // Emit session.started with parent = pipeline_run_id and a slug.
+        proj.apply(&started_with_slug(session_id, slug, Some(pipeline_run_id)), &mut conn)
+            .unwrap();
+
+        // Verify the row was inserted with slug and parent populated.
+        let rec = load_session_by_id(session_id).unwrap().expect("session must exist");
+        assert_eq!(rec.parent.as_deref(), Some(pipeline_run_id),
+            "parent must be stored in canonical_sessions");
+        assert_eq!(rec.slug.as_deref(), Some(slug),
+            "slug must be stored in canonical_sessions");
+        assert_eq!(rec.status, CanonicalSessionStatus::Active);
+
+        // Verify queryable by parent.
+        let by_parent = load_canonical_sessions_by_parent(pipeline_run_id).unwrap();
+        assert_eq!(by_parent.len(), 1, "must find exactly one session by parent");
+        assert_eq!(by_parent[0].session_id, session_id);
+
+        // Verify queryable by slug.
+        let by_slug = load_canonical_session_by_slug(slug).unwrap();
+        assert!(by_slug.is_some(), "must find session by slug");
+        assert_eq!(by_slug.unwrap().session_id, session_id);
+    }
+
+    /// SQL: session without slug has None in slug column (backward-compat).
+    #[test]
+    fn sql_session_without_slug_has_none() {
+        let mut conn = fresh_conn();
+        let proj = CanonicalSessionProjection;
+        let session = "01SQL-NO-SLUG";
+
+        let _ = block_on(async {
+            sqlx::query("DELETE FROM canonical_sessions WHERE session_id = ?")
+                .bind(session)
+                .execute(&mut conn)
+                .await
+        });
+
+        // started() helper has no slug field — exercises the None path.
+        proj.apply(&started(session), &mut conn).unwrap();
+        let rec = load_session_by_id(session).unwrap().expect("session must exist");
+        assert!(rec.slug.is_none(), "session without slug must have None slug");
     }
 }

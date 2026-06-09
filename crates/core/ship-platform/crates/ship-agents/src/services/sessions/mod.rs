@@ -40,6 +40,9 @@ pub use canonical_projection::{
     CanonicalSession, CanonicalSessionProjection, CanonicalSessionStatus,
     load_sessions as load_canonical_sessions,
     load_session_by_id as load_canonical_session_by_id,
+    load_canonical_session_by_slug,
+    load_canonical_session_by_slug_at,
+    load_canonical_sessions_by_parent,
     load_latest_resumable_session,
 };
 pub use actor_registry::{ActorEntry, ActorRegistry};

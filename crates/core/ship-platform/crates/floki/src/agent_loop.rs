@@ -450,6 +450,8 @@ where
     }
 
     // Emit session.started — the canonical session-open event.
+    // Floki sessions have no external slug identity (they are not addressable
+    // by the cancel or sweep paths the way harness-driver sessions are).
     ctx.session_sink
         .emit_session_started(
             &ctx.session_id,
@@ -459,6 +461,7 @@ where
                 harness: "floki".into(),
                 model: agent.disposition.model.clone(),
                 space_id: ctx.space_id.clone(),
+                slug: None,
                 input: Some(input.to_string()),
                 parent: None,
             },
