@@ -144,6 +144,9 @@ tokio = { workspace = true, features = ["full", "test-util"] }
 tokio-tungstenite = "0.28"
 futures-util = "0.3"
 serde_json = { workspace = true }
+# first-light smoke tests: mock model + mock event sink
+rig = { version = "0.38.1", package = "rig-core", features = ["test-utils"] }
+ship-kernel = { path = "../../crates/core/ship-substrate/crates/ship-kernel" }
 
 [lints]
 workspace = true

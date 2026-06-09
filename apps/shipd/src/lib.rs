@@ -32,6 +32,10 @@ pub mod ops_rpc;
 // through the ops router. No reverse dependency (floki → shipd); the arrow is
 // shipd → floki only.
 pub mod floki_gateway;
+// floki_first_light: FIRST-LIGHT composition root — assembles model, Gateway,
+// AuthContext, ToolCtx (kernel-backed SessionEventSink), and ScriptExecutor,
+// then calls floki::run_step. Parallel entry point for floki-harness agents.
+pub mod floki_first_light;
 // diag_rpc: deleted — diagnostics.snapshot op cut; DiagnosticRegistry apparatus removed.
 pub mod runtime_rpc;
 pub mod pipelines_rpc;
