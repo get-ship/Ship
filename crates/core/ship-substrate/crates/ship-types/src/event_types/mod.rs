@@ -1,3 +1,4 @@
+pub mod canonical_session;
 pub mod daemon;
 pub mod mesh;
 pub mod pipeline;
@@ -8,7 +9,6 @@ pub use mesh::*;
 
 // All lines are constant definitions; no logic present. The `ALL` slice is kept for
 // backward compat but is derived from `event_registry::registry()` via a consistency
-// test. New callers should use `event_registry::all_names()` or `event_registry::registry()`.
 pub const WORKSPACE_CREATED: &str = "workspace.created";
 pub const WORKSPACE_ACTIVATED: &str = "workspace.activated";
 pub const WORKSPACE_ARCHIVED: &str = "workspace.archived";
@@ -229,6 +229,17 @@ pub const SUPERVISOR_SWEEP_COMPLETED: &str = supervisor::SWEEP_COMPLETED;
 pub const SUPERVISOR_DRIFT_DETECTED: &str = supervisor::DRIFT_DETECTED;
 pub const SUPERVISOR_COHERENCE_RESTORED: &str = supervisor::COHERENCE_RESTORED;
 
+// Canonical ship-shaped agent-session family (job: canonical-session-events).
+// The workbench family (session.started, session.progress, etc.) is in
+// `session::*` above; this module adds the post-start lifecycle + turn
+// events. See `canonical_session` module for full docs.
+pub const SESSION_COMPLETED: &str = canonical_session::SESSION_COMPLETED;
+pub const SESSION_FAILED: &str = canonical_session::SESSION_FAILED;
+pub const SESSION_CANCELLED: &str = canonical_session::SESSION_CANCELLED;
+pub const SESSION_SUSPENDED: &str = canonical_session::SESSION_SUSPENDED;
+pub const TURN_STARTED: &str = canonical_session::TURN_STARTED;
+pub const TURN_ENDED: &str = canonical_session::TURN_ENDED;
+
 /// `ALL` — the canonical set of known event type strings.
 ///
 /// **Deprecated**: new callers should use `ship_types::event_registry::all_names()`
@@ -361,7 +372,14 @@ pub const ALL: &[&str] = &[
     SYNC_PUSH_FAILED,
     SYNC_STARTED,
     SYNC_STOPPED,
-];
+    // canonical agent-session family (job: canonical-session-events)
+    SESSION_COMPLETED,
+    SESSION_FAILED,
+    SESSION_CANCELLED,
+    SESSION_SUSPENDED,
+    TURN_STARTED,
+    TURN_ENDED,
+ ];
 
 #[cfg(test)]
 mod tests {

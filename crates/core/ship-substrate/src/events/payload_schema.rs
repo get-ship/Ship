@@ -156,6 +156,14 @@ fn schema_for_event_type(
         "permissions.updated" => Some(check::<PermissionsUpdated>),
         // capability provisioning
         "agent.grants.provisioned" => Some(check::<AgentGrantsProvisioned>),
+        // canonical agent-session family (job: canonical-session-events) — typed
+        // payloads in `crate::events::canonical_session`.
+        "session.completed" => Some(check::<crate::events::canonical_session::SessionCompleted>),
+        "session.failed" => Some(check::<crate::events::canonical_session::SessionFailed>),
+        "session.cancelled" => Some(check::<crate::events::canonical_session::SessionCancelled>),
+        "session.suspended" => Some(check::<crate::events::canonical_session::SessionSuspended>),
+        "session.turn.started" => Some(check::<crate::events::canonical_session::TurnStarted>),
+        "session.turn.ended" => Some(check::<crate::events::canonical_session::TurnEnded>),
         // session lifecycle additions (event-coverage/02 + Spec 7a)
         "session.status_changed" => Some(check::<SessionStatusChanged>),
         "session.turn_failed" => Some(check::<SessionTurnFailed>),
@@ -163,7 +171,6 @@ fn schema_for_event_type(
         // studio typed payloads (Spec 7a)
         "studio.chat_turn" => Some(check::<StudioChatTurn>),
         "studio.reply" => Some(check::<StudioReply>),
-        // process
         "process.killed" => Some(check::<crate::events::process::ProcessKilledPayload>),
         // Spec-6 / Spec-7a additions — all 23 classified events now have typed payloads
         "actor.mailbox_full" => Some(check::<ActorMailboxFull>),

@@ -30,6 +30,7 @@ dependencies = [
  "sha2",
  "ship-config",
  "ship-harnesses",
+ "ship-kernel",
  "ship-platform",
  "ship-skill-vars",
  "ship-store",
@@ -8604,6 +8605,7 @@ name = "ship-kernel"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "parking_lot",
  "serde_json",
  "ship-types",
  "thiserror 2.0.18",

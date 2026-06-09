@@ -227,7 +227,26 @@ register_event!("rule.created", [EventScope::Runtime], Retention::Durable, Stabi
 register_event!("rule.deleted", [EventScope::Runtime], Retention::Durable, Stability::Stable, "RuleDeleted");
 register_event!("rule.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "RuleUpdated");
 
-// ── session.* ───────────────────────────────────────────────────────────────
+// ── canonical session.* / session.turn.* (job: canonical-session-events) ─────
+// The CANONICAL agent-session family (see `events::canonical_session`). Adds 6
+// new event_type names that didn't exist before: session.completed, session.failed,
+// session.cancelled, session.suspended, session.turn.started, session.turn.ended.
+// `session.started` is intentionally NOT re-scoped — the workbench family owns
+// it (Runtime/Durable); the canonical family adds the post-start lifecycle +
+// turn events. Scope rule: session.* (coarse) → Space/Durable, session.turn.*
+// (medium) → Runtime/Ephemeral.
+register_event!("session.completed", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionCompleted");
+register_event!("session.failed", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionFailed");
+register_event!("session.cancelled", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionCancelled");
+register_event!("session.suspended", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionSuspended");
+register_event!("session.turn.started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnStarted");
+register_event!("session.turn.ended", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnEnded");
+
+// ── session.* (workbench — preserved) ─────────────────────────────────────────
+// The workbench `session.*` consts in `ship_types::event_types::session` stay
+// untouched. The canonical family adds the new names; the workbench `session.started`
+// remains the active session-start emit (the substrate's `session_events` module
+// depends on it at Runtime scope).
 register_event!("session.attached", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SessionAttached");
 register_event!("session.drain_aborted", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SessionDrainAborted");
 register_event!("session.drain_completed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SessionDrainCompleted");
