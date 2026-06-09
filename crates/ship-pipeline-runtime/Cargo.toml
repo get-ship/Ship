@@ -7,6 +7,8 @@ publish = false
 description = "L1 pipeline runtime — CRUD over the pipeline spec tree plus the job advancement / step dispatch / fanout / sweep / merge runtime. Sits above `ship-pipelines` (pure-logic types), `ship-runner` (L0 mechanism), and `ship-substrate` (ports + events). The orchestrator is NOT a service: it owns no orchestrator.* events, only pipeline.*."
 
 [dependencies]
+# L1 domain — canonical session event payloads and event-type constants.
+agent-def = { path = "../core/ship-platform/crates/agent-def" }
 # L0 — events, ports, projections registry, persistence, fs_util.
 ship-substrate = { path = "../core/ship-substrate" }
 # L0 git capability — git2-backed; single git implementation.

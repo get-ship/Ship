@@ -64,6 +64,13 @@ pub struct SessionStarted {
     /// The Space this session belongs to. Stamped onto the envelope as
     /// `(scope=Space, scope_key=space_id)` at emit.
     pub space_id: String,
+    /// Human-readable, url-safe operational identifier. Derived from
+    /// workspace + suffix at dispatch time. Used in cancel paths,
+    /// sweep orphan checks, and pipeline compose-terminal lookups.
+    /// `None` for Floki sessions and other runtime-internal sessions
+    /// that have no external slug identity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slug: Option<String>,
     /// The initial input that started the session (free text). For
     /// pipeline-composed sessions this is the step prompt; for
     /// `ship use` it is the user prompt; for chat it is the first turn.
@@ -165,6 +172,7 @@ mod tests {
                 harness: "claude".into(),
                 model: Some("sonnet".into()),
                 space_id: "sp".into(),
+                slug: Some("my-agent-abc12345".into()),
                 input: Some("hi".into()),
                 parent: None,
             },
@@ -177,6 +185,7 @@ mod tests {
                 harness: "claude".into(),
                 model: None,
                 space_id: "sp".into(),
+                slug: None,
                 input: None,
                 parent: None,
             })

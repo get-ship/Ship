@@ -6,8 +6,8 @@
 //! one side's event type, entity key, payload shape, or owning actor.
 
 use super::*;
+use agent_def::canonical_session::event_types as canonical_session_event_types;
 use crate::dispatch_ports::{ExitCause, ExitSignal};
-use ship_substrate::events::agent_session::event_types as agent_session_event_types;
 use ship_substrate::events::pipeline::event_types as pipeline_event_types;
 
 /// The completed-text differs by vocabulary; the failed-text per-cause too.
@@ -100,19 +100,23 @@ fn pipeline_failed_nonzero_keys_on_run_id() {
     assert!(t.payload.get("stage").is_none());
 }
 
-// ── Agent-session vocabulary ─────────────────────────────────────────────
+// ── Agent-session vocabulary (canonical) ────────────────────────────────────
+// After the canonical-emitter-migration, AgentSession terminal events are
+// session.completed / session.failed (no driver-edge fields).
 
 #[test]
 fn agent_session_completed_keys_on_session_id() {
     let vocab = ExitVocabulary::AgentSession { session_id: "sess-9".into() };
     let t = build_completed(&vocab, &session_signal(Some(0)));
-    assert_eq!(t.event_type, agent_session_event_types::AGENT_SESSION_COMPLETED);
+    // Now emits canonical session.completed (not legacy agent.session.completed).
+    assert_eq!(t.event_type, canonical_session_event_types::SESSION_COMPLETED);
     // Keyed on session_id, NOT the routing ulid in pipeline_run_id.
     assert_eq!(t.entity_id, "sess-9");
     assert_eq!(t.actor_id, "service.agent-session-dispatch");
     assert_eq!(t.payload["session_id"], "sess-9");
-    assert_eq!(t.payload["slug"], "demo");
-    assert_eq!(t.payload["exit_code"], 0);
+    // Canonical payload has no slug / exit_code driver-edge fields.
+    assert!(t.payload.get("slug").is_none(), "canonical completed must not carry slug");
+    assert!(t.payload.get("exit_code").is_none(), "canonical completed must not carry exit_code");
 }
 
 #[test]
@@ -120,12 +124,15 @@ fn agent_session_failed_nonzero_keys_on_session_id() {
     let vocab = ExitVocabulary::AgentSession { session_id: "sess-9".into() };
     let sig = session_signal(Some(2));
     let t = build_failed(&vocab, &sig, &failed_message(&vocab, 2), Some(2), "exit_nonzero");
-    assert_eq!(t.event_type, agent_session_event_types::AGENT_SESSION_FAILED);
+    // Now emits canonical session.failed.
+    assert_eq!(t.event_type, canonical_session_event_types::SESSION_FAILED);
     assert_eq!(t.entity_id, "sess-9");
     assert_eq!(t.actor_id, "service.agent-session-dispatch");
-    assert_eq!(t.payload["error"], "harness exited with code 2");
-    assert_eq!(t.payload["exit_code"], 2);
-    assert_eq!(t.payload["stage"], "exit_nonzero");
+    // Canonical: reason combines error + exit_code into a single string.
+    assert_eq!(t.payload["reason"], "harness exited with code 2 (exit 2)");
+    // No driver-edge fields.
+    assert!(t.payload.get("exit_code").is_none(), "canonical failed must not carry exit_code");
+    assert!(t.payload.get("stage").is_none(), "canonical failed must not carry stage");
 }
 
 #[test]
@@ -140,7 +147,7 @@ fn agent_session_no_code_is_failure_not_completion() {
         None,
         "exit_no_code",
     );
-    assert_eq!(t.event_type, agent_session_event_types::AGENT_SESSION_FAILED);
-    assert_eq!(t.payload["error"], "harness exited with no captured exit code");
-    assert_eq!(t.payload["stage"], "exit_no_code");
+    assert_eq!(t.event_type, canonical_session_event_types::SESSION_FAILED);
+    assert_eq!(t.payload["reason"], "harness exited with no captured exit code");
+    assert!(t.payload.get("stage").is_none(), "canonical failed must not carry stage");
 }

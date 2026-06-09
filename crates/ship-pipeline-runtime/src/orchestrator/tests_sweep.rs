@@ -605,14 +605,14 @@ async fn sweep_skips_jobs_with_no_current_step() {
     );
 }
 
-// ── Phase 6: is_known_dispatch consults agent_sessions ───────────────
+// ── Phase 6: is_known_dispatch consults canonical_sessions ──────────
 //
 // Check B's old rule ("kill registered processes whose job isn't
 // currently Dispatched|GatePending") false-flagged every bare agent
-// session — they don't have job rows at all, they live in
-// agent_sessions. These two tests pin the new rule: a process owned
-// by ANY known dispatch record (jobs OR agent_sessions) is not
-// stray-killed; true orphans (no record anywhere) still are.
+// session — they don't have job rows at all. These two tests pin the
+// new rule: a process owned by ANY known dispatch record (jobs OR
+// canonical_sessions) is not stray-killed; true orphans (no record
+// anywhere) still are.
 
 /// Registry that reports a registered slug as live. Used to drive
 /// Check B (the orphan check) — we need a live_slug to exist so the
@@ -629,15 +629,15 @@ impl ProcessRegistryPort for RegistryWithLiveSlug {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sweep_does_not_kill_process_with_bare_agent_session_record() {
-    // Seed an agent_session row (no pipeline-run/jobs row) and a live
+    // Seed a canonical_sessions row (no pipeline-run/jobs row) and a live
     // slug matching it. The OLD Check B would treat this as stray and
     // emit process.killed + supervisor.coherence_restored. The new
-    // rule recognizes agent_sessions as a valid dispatch record and
+    // rule recognizes canonical_sessions as a valid dispatch record and
     // leaves the process alone.
     //
-    // install_defaults() registers AgentSessionProjection — without it
-    // the seeded event would emit but never project into agent_sessions,
-    // and is_known_dispatch would erroneously return false.
+    // install_defaults() registers CanonicalSessionProjection so the
+    // seeded session.started event folds into canonical_sessions and
+    // is_known_dispatch returns true.
     ship_platform::install_defaults();
     let _tmp = tempfile::TempDir::new().unwrap();
     let kernel = make_kernel();
@@ -646,7 +646,7 @@ async fn sweep_does_not_kill_process_with_bare_agent_session_record() {
         Arc::new(RegistryWithLiveSlug("sweep-bare-session-1")),
     );
 
-    seed_dispatched_agent_session(
+    seed_canonical_session(
         &kernel,
         "01HV-SESSION-BARE-1",
         "sweep-bare-session-1",
@@ -662,14 +662,14 @@ async fn sweep_does_not_kill_process_with_bare_agent_session_record() {
             .collect();
     assert!(
         killed.is_empty(),
-        "sweep must not kill a process whose agent_sessions record exists; \
+        "sweep must not kill a process whose canonical_sessions record exists; \
          got killed events: {killed:?}"
     );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sweep_still_kills_true_orphan_process_with_no_dispatch_record() {
-    // No jobs row, no agent_sessions row — a live slug with nothing
+    // No jobs row, no canonical_sessions row — a live slug with nothing
     // backing it is the orphan-cleanup case the sweep was designed
     // for. Check B must still fire here so daemon-restart leftovers
     // and rogue spawns get reaped.
@@ -690,21 +690,19 @@ async fn sweep_still_kills_true_orphan_process_with_no_dispatch_record() {
             .collect();
     assert!(
         !killed.is_empty(),
-        "sweep must still reap true orphans (no jobs row, no agent_sessions row)"
+        "sweep must still reap true orphans (no jobs row, no canonical_sessions row)"
     );
 }
 
-/// Seed an agent_sessions row by emitting agent.session.started +
-/// agent.session.dispatched through the kernel.
-async fn seed_dispatched_agent_session(
+/// Seed a canonical_sessions row by emitting session.started through the kernel.
+/// install_defaults() must have been called so CanonicalSessionProjection is
+/// registered and folds the event into canonical_sessions.
+async fn seed_canonical_session(
     kernel: &Arc<Mutex<KernelRouter>>,
     session_id: &str,
     slug: &str,
 ) {
-    use ship_substrate::events::agent_session::{
-        event_types as agent_event_types, AgentSessionDispatchedPayload,
-        AgentSessionStartedPayload, InvocationMode,
-    };
+    use agent_def::canonical_session::{SessionStarted, event_types as canonical_event_types};
     use ship_substrate::events::{CallerKind, EmitContext};
 
     let ctx = EmitContext {
@@ -714,41 +712,17 @@ async fn seed_dispatched_agent_session(
         session_id: None,
     };
 
-    let started = AgentSessionStartedPayload {
+    let started = SessionStarted {
         session_id: session_id.to_string(),
-        slug: slug.to_string(),
-        agent: "test-agent".to_string(),
-        harness: Some("claude".to_string()),
-        model: None,
-        workspace: "test".to_string(),
-        branch: format!("job/{slug}"),
-        source_spec_path: None,
-        open_tab: false,
-        invocation: InvocationMode::Pty,
-        keepalive: true,
-        prompt: None,
-        spec: None,
-        resume: false,
-        resume_session_id: None,
-        depends_on: None,
-        vars: None,
-        baseline_sha: None,
-        parent_pipeline_run_id: None,
-    };
-    let env = EventEnvelope::new(agent_event_types::AGENT_SESSION_STARTED, session_id, &started)
-        .unwrap()
-        .with_actor_id("test");
-    kernel.lock().await.emit(env, &ctx).await.unwrap();
-
-    let dispatched = AgentSessionDispatchedPayload {
-        session_id: session_id.to_string(),
-        slug: slug.to_string(),
-        worktree: format!("/tmp/test-worktrees/{slug}"),
+        agent_id: "test-agent".to_string(),
         harness: "claude".to_string(),
         model: None,
-        pid: Some(99999),
+        space_id: String::new(),
+        slug: Some(slug.to_string()),
+        input: None,
+        parent: None,
     };
-    let env = EventEnvelope::new(agent_event_types::AGENT_SESSION_DISPATCHED, session_id, &dispatched)
+    let env = EventEnvelope::new(canonical_event_types::SESSION_STARTED, session_id, &started)
         .unwrap()
         .with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();

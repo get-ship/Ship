@@ -271,6 +271,7 @@ mod tests {
             harness: "claude".into(),
             model: Some("opus-4".into()),
             space_id: "ws-1".into(),
+            slug: None,
             input: Some("first turn".into()),
             parent: None,
         };
@@ -435,6 +436,7 @@ mod tests {
                     harness: "h".into(),
                     model: None,
                     space_id: "ws".into(),
+                    slug: None,
                     input: None,
                     parent: None,
                 })

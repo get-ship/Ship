@@ -22,10 +22,9 @@ use ship_runner::emit::emit_process_spawned;
 use ship_code::runner::exit_handler::{self, ExitVocabulary};
 #[cfg(feature = "harness-drivers")]
 use ship_code::runner::router::DISPATCH_GATE;
-use ship_substrate::events::agent_session::{
-    event_types as agent_session_event_types, AgentSessionDispatchedPayload,
-    AgentSessionFailedPayload, AgentSessionStartedPayload,
-};
+#[cfg(feature = "harness-drivers")]
+use agent_def::canonical_session::{SessionFailed, event_types as canonical_session_event_types};
+use ship_substrate::events::agent_session::AgentSessionStartedPayload;
 #[cfg(feature = "harness-drivers")]
 use ship_substrate::events::agent_session::InvocationMode;
 use ship_substrate::events::EventEnvelope;
@@ -185,13 +184,11 @@ async fn dispatch_agent_session_internal(
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug, "agent-session-dispatch: isolation prepare failed: {e}");
-            emit_agent_session_failed(
+            emit_session_failed(
                 kernel,
                 &payload.session_id,
                 slug,
                 &format!("isolation prepare failed: {e}"),
-                None,
-                "isolation_prepare",
             )
             .await;
             return;
@@ -209,13 +206,11 @@ async fn dispatch_agent_session_internal(
         Ok(h) => h,
         Err(e) => {
             tracing::error!(slug, "agent-session-dispatch: executor spawn failed: {e}");
-            emit_agent_session_failed(
+            emit_session_failed(
                 kernel,
                 &payload.session_id,
                 slug,
                 &format!("executor spawn failed: {e}"),
-                None,
-                "executor_spawn",
             )
             .await;
             return;
@@ -275,69 +270,32 @@ async fn dispatch_agent_session_internal(
         exit_rx,
     );
 
-    // Emit agent.session.dispatched — flips the projection's status to
-    // Dispatched and tells observers the harness is live.
-    emit_agent_session_dispatched(
-        kernel,
-        &payload.session_id,
-        slug,
-        &worktree_path.to_string_lossy(),
-        &resolved_harness,
-        payload.model.as_deref(),
-        pid,
-    )
-    .await;
+    // agent.session.dispatched has no canonical equivalent — the canonical
+    // model tracks active/awaiting_input/terminal only, not the intermediate
+    // "process spawned" signal. The legacy AgentSessionProjection wrote a
+    // Dispatched row here; after Commit D that projection is retired. No
+    // canonical emit needed for spawn-success.
+    let _ = (pid, resolved_harness); // suppress unused warnings
 }
 
-// ── Agent-session emit helpers ──────────────────────────────────────────────
+// ── Canonical session emit helpers ─────────────────────────────────────────
 //
-// All use only L0 types: the agent_session payloads + EventEnvelope +
-// the runner's persist_and_route. No pipeline / projection reach-up.
+// Canonical payloads (session.*) + EventEnvelope + persist_and_route.
+// No driver-edge fields (pid, worktree, exit_code, stage).
 
-pub(crate) async fn emit_agent_session_dispatched(
+#[cfg(feature = "harness-drivers")]
+pub(crate) async fn emit_session_failed(
     kernel: &Kernel,
     session_id: &str,
     slug: &str,
-    worktree: &str,
-    harness: &str,
-    model: Option<&str>,
-    pid: Option<u32>,
+    reason: &str,
 ) {
-    let payload = AgentSessionDispatchedPayload {
+    let payload = SessionFailed {
         session_id: session_id.to_string(),
-        slug: slug.to_string(),
-        worktree: worktree.to_string(),
-        harness: harness.to_string(),
-        model: model.map(str::to_string),
-        pid,
+        reason: reason.to_string(),
     };
     if let Ok(env) = EventEnvelope::new(
-        agent_session_event_types::AGENT_SESSION_DISPATCHED,
-        session_id,
-        &payload,
-    ) {
-        let env = env.with_actor_id("service.agent-session-dispatch");
-        persist_and_route(kernel, env, slug, None).await;
-    }
-}
-
-pub(crate) async fn emit_agent_session_failed(
-    kernel: &Kernel,
-    session_id: &str,
-    slug: &str,
-    error: &str,
-    exit_code: Option<i32>,
-    stage: &str,
-) {
-    let payload = AgentSessionFailedPayload {
-        session_id: session_id.to_string(),
-        slug: slug.to_string(),
-        error: error.to_string(),
-        exit_code,
-        stage: stage.to_string(),
-    };
-    if let Ok(env) = EventEnvelope::new(
-        agent_session_event_types::AGENT_SESSION_FAILED,
+        canonical_session_event_types::SESSION_FAILED,
         session_id,
         &payload,
     ) {

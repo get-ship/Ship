@@ -13,6 +13,7 @@
 use async_trait::async_trait;
 use connectrpc::RequestContext;
 
+use agent_def::canonical_session::{SessionStarted, event_types as canonical_session_event_types};
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::agent_session::{
     event_types as agent_session_event_types, AgentSessionStartedPayload,
@@ -176,6 +177,37 @@ pub async fn dispatch_agent_session_core(
     port.persist_and_route(&envelope)
         .await
         .map_err(|e| DispatchCoreError::Internal(e.to_string()))?;
+
+    // Canonical session.started — feeds the canonical_sessions projection.
+    // Emitted AFTER the legacy agent.session.started so the agents actor
+    // already has the spawn trigger in flight before the canonical row lands.
+    // space_id: resolve from workspace path via the projects projection;
+    // fall back to empty string if workspace is not yet registered (graceful
+    // degradation — canonical row is created with an empty space_id rather
+    // than failing the dispatch).
+    let space_id = ship_substrate::db::projects::find_by_path(&workspace_label)
+        .ok()
+        .flatten()
+        .map(|p| p.id)
+        .unwrap_or_default();
+    if let Ok(canonical_env) = EventEnvelope::new(
+        canonical_session_event_types::SESSION_STARTED,
+        &session_id,
+        &SessionStarted {
+            session_id: session_id.clone(),
+            agent_id: payload.agent.clone(),
+            harness: payload.harness.clone().unwrap_or_else(|| "claude".into()),
+            model: payload.model.clone(),
+            space_id,
+            slug: Some(slug.clone()),
+            input: payload.prompt.clone(),
+            parent: None,
+        },
+    ) {
+        let canonical_env = canonical_env.with_actor_id("studio");
+        // Best-effort: a canonical emit failure must not block the dispatch.
+        let _ = port.persist_and_route(&canonical_env).await;
+    }
 
     let studio_url = format!("{}/sessions/{}", port.daemon_origin(), slug);
     let billing_warning = billing_warning_for_axes(

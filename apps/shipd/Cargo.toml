@@ -18,6 +18,7 @@ name = "shipd"
 path = "src/main.rs"
 
 [dependencies]
+agent-def = { path = "../../crates/core/ship-platform/crates/agent-def" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
 ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", features = ["harness-drivers"], optional = true }
