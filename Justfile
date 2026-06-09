@@ -366,6 +366,7 @@ build: _sui-compiler-lib
         fi
     done
     for asset in .deck/framework/sui-runtime.js .deck/framework/sui-components.js .deck/sui-marketing.js .deck/sui-arcade.js .deck/catalogs/workspace.json .deck/hub-scaffold/index.html .deck/space-scaffold/index.html; do
+        if [ ! -s "$asset" ]; then
             echo "  ✗ $asset missing or empty" >&2
             missing=1
         else
@@ -538,8 +539,33 @@ check-raw:
     @scripts/lint/check-leaf-portability.sh
     @scripts/lint/check-runtime-access.sh
     @scripts/lint/check-module-dag.sh
+    @scripts/lint/check-sui-runtime-no-ship-api.sh
+    @scripts/lint/check-deck-package-names.sh
+    @just lint-justfile
     @just lint-vocab
     @just check-migrations
+
+# Syntax-check every bash-shebang recipe body with `bash -n`. `just` treats
+# recipe bodies as opaque text, so a bash typo (e.g. a dropped `if … then`)
+# parses fine at the just layer yet breaks `just build` at runtime. This catches
+# that class statically. Recipes taking interpolated args ({{…}}) are skipped —
+# their bodies aren't pure bash until just substitutes.
+[group('occasional')]
+lint-justfile:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    fail=0
+    for r in $(just --summary); do
+        body=$(just --show "$r" 2>/dev/null | sed -n 's/^    //p')
+        printf '%s\n' "$body" | grep -q '^#!/usr/bin/env bash' || continue
+        printf '%s\n' "$body" | grep -q '[{][{]' && continue
+        if ! printf '%s\n' "$body" | bash -n 2>/dev/null; then
+            echo "  ✗ recipe '$r' has a bash syntax error" >&2
+            fail=1
+        fi
+    done
+    [ "$fail" = "0" ] || { echo "lint-justfile: recipe shell syntax error(s)" >&2; exit 1; }
+    echo "lint-justfile: all bash recipe bodies parse"
 
 # Banned-vocabulary gate. Fails when a banned term (deleted concept) appears
 # in hand-authored source/proto/tests. Ban-list: .ship/lint/banned-vocab.txt

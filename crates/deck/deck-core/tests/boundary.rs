@@ -120,7 +120,9 @@ fn deck_crates_name_no_ship_app() {
         .to_path_buf();
 
     let mut files = Vec::new();
-    for crate_name in ["deck-core", "deck-axum", "deck-host", "deck-bundler", "deck-config"] {
+    for crate_name in [
+        "deck", "deck-cli", "deck-core", "deck-axum", "deck-host", "deck-bundler", "deck-config",
+    ] {
         let src = deck_dir.join(crate_name).join("src");
         collect_rs(&src, &mut files);
         // Also include build.rs at the crate root if present.
@@ -274,7 +276,9 @@ fn deck_crates_have_no_ship_prefixed_env_var_reads() {
         .to_path_buf();
 
     let mut files = Vec::new();
-    for crate_name in ["deck-core", "deck-axum", "deck-host", "deck-bundler", "deck-config"] {
+    for crate_name in [
+        "deck", "deck-cli", "deck-core", "deck-axum", "deck-host", "deck-bundler", "deck-config",
+    ] {
         let src = deck_dir.join(crate_name).join("src");
         collect_rs(&src, &mut files);
         let build_rs = deck_dir.join(crate_name).join("build.rs");

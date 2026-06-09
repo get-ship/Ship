@@ -22,6 +22,25 @@ jobs:
           bun-version: latest
       - name: Install JS deps
         run: bun install --frozen-lockfile
+      # sdk-*.json bootstrap cycle (mirrors Justfile `bootstrap`): ship-views
+      # `include_str!`s packages/deck/sdk/src/generated/sdk-*.json, and gen-sdk
+      # runs *through* shipd (via xtask) — so shipd can't compile until the
+      # files exist. Seed empty placeholders so the xtask build links, run
+      # gen-sdk to overwrite them with real content, then assert each exists and
+      # is non-empty. Without this, a cold-cache runner fails the first
+      # `cargo build -p shipd` on a missing include_str! target.
+      - name: Seed + generate SDK manifests (cold-cache include_str! unblock)
+        run: |
+          set -euo pipefail
+          mkdir -p packages/deck/sdk/src/generated
+          for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
+            [ -s "packages/deck/sdk/src/generated/$f.json" ] || echo '{}' > "packages/deck/sdk/src/generated/$f.json"
+          done
+          cargo run -p xtask --quiet -- gen-sdk
+          for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
+            test -s "packages/deck/sdk/src/generated/$f.json" \
+              || { echo "sdk manifest $f.json missing or empty after gen-sdk" >&2; exit 1; }
+          done
       # License audit: walk the resolved dep tree and fail on copyleft
       # (GPL/AGPL/LGPL/EPL/MPL/CDDL…). Replaces hand-copied vendor LICENSE
       # files now that third-party engines are declared deps inlined at build
@@ -60,6 +79,19 @@ jobs:
           bash scripts/lint/check-migration-discipline.sh
       - name: Check SUI layer-cut (no framework -> host imports)
         run: bash scripts/lint/check-sui-layer-cut.sh
+      # SUI/Deck boundary gates — these scripts existed but were never invoked.
+      # check-sui-runtime-no-ship-api: the SUI runtime must not name Ship APIs.
+      # check-deck-package-names: deck packages stay on the canonical names.
+      - name: Check SUI runtime names no Ship API
+        run: bash scripts/lint/check-sui-runtime-no-ship-api.sh
+      - name: Check deck package names
+        run: bash scripts/lint/check-deck-package-names.sh
+      # Justfile recipe shell-syntax smoke: `just` treats recipe bodies as opaque
+      # text, so a bash typo (e.g. a dropped `if … then`) parses fine at the just
+      # layer yet breaks `just build` at runtime. `bash -n` over each recipe body
+      # catches that class before it lands.
+      - name: Lint Justfile recipe shell syntax
+        run: just lint-justfile
       - name: Check SUI bundle sizes (within budget)
         run: bash scripts/lint/check-sui-bundle-size.sh
       - name: Check OpenAPI drift

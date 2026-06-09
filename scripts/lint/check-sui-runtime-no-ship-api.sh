@@ -13,11 +13,13 @@
 # *runtime* TS (the leak class that slips past boundary_invariants, which
 # only sees the deck bundler output, not the sui runtime source).
 #
-# Forbidden: an executable `fetch('/api` or `fetch('/api/v1' …)` call
-# inside packages/sui/** source. Doc comments and string examples in
-# `@example` blocks are allowed (and currently present in await.ts,
-# data.ts, signal.ts as type-/API-shape documentation) — we filter
-# them out via the line-prefix suppression below.
+# Forbidden: an executable transport call — `fetch(`, `new EventSource(`,
+# `new WebSocket(`, or a dynamic `import(` — whose first argument is a
+# string literal naming a daemon route (`/api`, `/_deck`, `/_sui`) inside
+# packages/sui/** source. Doc comments and string examples in `@example`
+# blocks are allowed (and currently present in await.ts, data.ts,
+# signal.ts as type-/API-shape documentation) — we filter them out via
+# the line-prefix suppression below.
 #
 # Run from repo root.
 
@@ -54,7 +56,14 @@ check_file() {
   #   - line is `*/` (block closer) or `/**`
   # In all other cases, look for the forbidden pattern.
   local hits
-  hits=$(grep -nE "fetch\(['\"\`]/api(/|v1|\?|\$)" "$file" 2>/dev/null \
+  # Match any executable transport call whose FIRST argument is a string
+  # literal naming a daemon route (`/api`, `/_deck`, `/_sui`):
+  #   - fetch(            — HTTP
+  #   - new EventSource(  — SSE
+  #   - new WebSocket(    — WS
+  #   - import(           — dynamic import of a route URL
+  # The route literal must open with `/api`, `/_deck`, or `/_sui`.
+  hits=$(grep -nE "(fetch|new[[:space:]]+EventSource|new[[:space:]]+WebSocket|import)[[:space:]]*\(['\"\`]/(api|_deck|_sui)" "$file" 2>/dev/null \
     | awk -F: '
         {
           # Reconstruct the line text from the remaining fields.
