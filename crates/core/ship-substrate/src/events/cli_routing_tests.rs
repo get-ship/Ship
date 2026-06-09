@@ -49,11 +49,10 @@ fn ev(event_type: &str) -> EventEnvelope {
 }
 
 fn session_ev() -> EventEnvelope {
-    use crate::events::canonical_session::TurnStarted;
-    EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "entity-cli", &TurnStarted {
-        session_id: "entity-cli".into(),
-        idx: 0,
-    }).unwrap()
+    EventEnvelope::new(event_types::canonical_session::TURN_STARTED, "entity-cli", &serde_json::json!({
+        "session_id": "entity-cli",
+        "idx": 0,
+    })).unwrap()
 }
 
 // ── workspace event reaches kernel store ──────────────────────────────────────

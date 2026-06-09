@@ -33,7 +33,7 @@ use ship_kernel::EventSink;
 // Re-export canonical payload types so downstream crates (e.g. floki) can
 // build session event payloads through agent-def without adding ship-substrate
 // as a direct runtime dependency.
-pub use ship_substrate::events::canonical_session::{
+pub use crate::canonical_session::{
     SessionCancelled, SessionCompleted, SessionFailed, SessionStarted,
     SessionSuspended, TurnEnded, TurnStarted,
 };
