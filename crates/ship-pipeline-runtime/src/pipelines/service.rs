@@ -33,6 +33,40 @@ pub struct PutArgs {
     pub scope: Option<Scope>,
 }
 
+/// Write-time validation for a pipeline document.
+///
+/// LENIENT-READ stays lenient: this only runs on `put`. A doc that declares
+/// `steps` must be a well-formed [`PipelineDefinition`] and pass every platform
+/// invariant (agent/produces/consumes/fanout). The legacy `command` wire key,
+/// the positional `step_specs` array, and a flat `provider` are all tolerated
+/// by the typed deserialize. The legacy short-form `agents:` authoring sugar is
+/// normalized through the runtime parser before its DAG is validated. Anything
+/// that declares neither `steps` nor `agents` is rejected as malformed.
+fn validate_put_doc(doc: &serde_json::Value) -> Result<(), state::Error> {
+    use ship_pipelines::PipelineDefinition;
+
+    if doc.get("steps").is_some() {
+        let def: PipelineDefinition = serde_json::from_value(doc.clone())
+            .map_err(|e| state::Error::Invalid(e.to_string()))?;
+        return def.validate().map_err(state::Error::Invalid);
+    }
+
+    if doc.get("agents").is_some() {
+        // Short-form sugar: normalize to the `{ steps: [...] }` shape, then
+        // validate the resulting DAG via the same invariant checks.
+        let text = doc.to_string();
+        let (normalized, _meta) =
+            ship_pipelines::normalize_pipeline(&text).map_err(state::Error::Invalid)?;
+        let pipeline: ship_pipelines::Pipeline = serde_json::from_value(normalized)
+            .map_err(|e| state::Error::Invalid(e.to_string()))?;
+        return ship_pipelines::validate_pipeline(&pipeline).map_err(state::Error::Invalid);
+    }
+
+    Err(state::Error::Invalid(
+        "pipeline must declare `steps` or `agents`".to_string(),
+    ))
+}
+
 pub trait PipelinesService: Send + Sync + 'static {
     fn list(&self) -> Vec<state::IndexEntry>;
     fn get(
@@ -103,6 +137,11 @@ impl PipelinesService for PipelinesServiceImpl {
     }
 
     fn put(&self, args: PutArgs) -> Result<Scope, state::Error> {
+        // STRICT-WRITE: validate before persisting. Lenient-read elsewhere
+        // (`load_doc` accepts any JSONC) keeps on-disk docs and the legacy
+        // `command` fixture parsing; `put` is the one place we reject malformed
+        // input rather than silently writing it.
+        validate_put_doc(&args.doc)?;
         let svc = self.files();
         let target = match args.scope {
             Some(s) => s,
@@ -171,6 +210,58 @@ mod tests {
         assert_eq!(svc.list().len(), 1);
         let got = svc.get("build-only", None).unwrap();
         assert_eq!(got.doc["steps"][0]["id"], "build");
+    }
+
+    #[test]
+    fn put_accepts_valid_definition() {
+        let (_tmp, svc) = fresh();
+        let valid = serde_json::json!({
+            "name": "ok",
+            "steps": [
+                { "id": "impl", "agent": "rust-lane", "provider": "claude" },
+                { "id": "verify", "run": "cargo check", "after": ["impl"] }
+            ]
+        });
+        svc.put(PutArgs { name: "ok".into(), doc: valid, scope: Some(Scope::Project) })
+            .expect("valid definition must be accepted");
+        assert_eq!(svc.list().len(), 1);
+    }
+
+    #[test]
+    fn put_rejects_agent_step_without_agent() {
+        let (_tmp, svc) = fresh();
+        let invalid = serde_json::json!({
+            "steps": [ { "id": "impl", "type": "agent" } ]
+        });
+        let err = svc
+            .put(PutArgs { name: "bad".into(), doc: invalid, scope: Some(Scope::Project) })
+            .expect_err("agent step without agent must be rejected");
+        assert!(matches!(err, state::Error::Invalid(_)), "got {err:?}");
+        assert!(err.to_string().contains("agent"), "error: {err}");
+        // Nothing was written.
+        assert!(svc.list().is_empty());
+    }
+
+    #[test]
+    fn put_rejects_doc_without_steps_or_agents() {
+        let (_tmp, svc) = fresh();
+        let invalid = serde_json::json!({ "name": "empty" });
+        let err = svc
+            .put(PutArgs { name: "empty".into(), doc: invalid, scope: Some(Scope::Project) })
+            .expect_err("doc with neither steps nor agents must be rejected");
+        assert!(matches!(err, state::Error::Invalid(_)), "got {err:?}");
+    }
+
+    #[test]
+    fn put_accepts_legacy_command_fixture() {
+        // LENIENT-READ: the legacy `command` wire key still parses on write.
+        let (_tmp, svc) = fresh();
+        svc.put(PutArgs {
+            name: "legacy".into(),
+            doc: doc_value(),
+            scope: Some(Scope::Project),
+        })
+        .expect("legacy command fixture must still be accepted");
     }
 
     #[test]

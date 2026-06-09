@@ -11,6 +11,9 @@
 
 // Pipeline DAG types moved to `ship-pipelines` per modular-runtime-01.
 // Re-exported here so existing callers keep compiling unchanged.
+pub use ship_pipelines::definition::{
+    Invocation, PipelineDefinition, PipelineStepDef, ProviderOverride,
+};
 pub use ship_pipelines::gate::{GateRule, GateSpec};
 pub use ship_pipelines::types::{
     FanoutJudge, FanoutLane, FanoutSpec, OutputScope, Pipeline, PipelinePhase, PipelineStep,
