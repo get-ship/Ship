@@ -50,22 +50,15 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                     std::process::exit(1);
                 }
                 Ok(report) => {
-                    let count = report.violations.len() / 2;
                     if report.violations.is_empty() {
                         println!("import layer boundaries clean");
                     } else {
+                        let count = report.violations.len() / 2;
                         for line in &report.violations {
                             eprintln!("{line}");
                         }
-                        if report.warn_only {
-                            eprintln!(
-                                "lint-imports: {count} violation(s) — WARN mode (>= 10 violations; \
-                                fix violations then set warn_only threshold to enforce)"
-                            );
-                        } else {
-                            eprintln!("lint-imports: {count} violation(s)");
-                            std::process::exit(1);
-                        }
+                        eprintln!("lint-imports: {count} violation(s)");
+                        std::process::exit(1);
                     }
                 }
             }

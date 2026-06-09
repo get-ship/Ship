@@ -136,37 +136,76 @@ pub struct TurnEnded {
 mod tests {
     use super::*;
 
-    /// Round-trip + invariant check. The new family must NOT carry any
+    /// Round-trip + invariant check. The canonical family must NOT carry any
     /// driver-edge fields (pid, branch, worktree, exit_code) — that's
-    /// the whole point of being canonical.
+    /// the whole point of being canonical.  Covers all 7 canonical structs.
     #[test]
     fn payloads_carry_no_driver_edges() {
-        let s = SessionStarted {
-            session_id: "s1".into(),
-            agent_id: "claude".into(),
-            harness: "claude".into(),
-            model: Some("sonnet".into()),
-            space_id: "sp".into(),
-            input: Some("hi".into()),
-            parent: None,
-        };
-        let json = serde_json::to_string(&s).unwrap();
-        for forbidden in ["pid", "branch", "worktree", "exit_code"] {
-            assert!(
-                !json.contains(forbidden),
-                "SessionStarted must not carry {forbidden}: {json}"
-            );
-        }
-        let _: SessionStarted = serde_json::from_str(&json).unwrap();
+        const FORBIDDEN: &[&str] = &["pid", "branch", "worktree", "exit_code"];
 
-        let c = SessionCompleted { session_id: "s1".into() };
-        let json = serde_json::to_string(&c).unwrap();
-        for forbidden in ["pid", "branch", "worktree", "exit_code"] {
-            assert!(
-                !json.contains(forbidden),
-                "SessionCompleted must not carry {forbidden}: {json}"
-            );
+        macro_rules! assert_no_driver_edges {
+            ($val:expr, $name:literal) => {{
+                let json = serde_json::to_string(&$val).unwrap();
+                for f in FORBIDDEN {
+                    assert!(
+                        !json.contains(f),
+                        "{} must not carry {}: {}",
+                        $name,
+                        f,
+                        json
+                    );
+                }
+            }};
         }
+
+        assert_no_driver_edges!(
+            SessionStarted {
+                session_id: "s1".into(),
+                agent_id: "claude".into(),
+                harness: "claude".into(),
+                model: Some("sonnet".into()),
+                space_id: "sp".into(),
+                input: Some("hi".into()),
+                parent: None,
+            },
+            "SessionStarted"
+        );
+        let _: SessionStarted =
+            serde_json::from_str(&serde_json::to_string(&SessionStarted {
+                session_id: "s1".into(),
+                agent_id: "claude".into(),
+                harness: "claude".into(),
+                model: None,
+                space_id: "sp".into(),
+                input: None,
+                parent: None,
+            })
+            .unwrap())
+            .unwrap();
+
+        assert_no_driver_edges!(SessionCompleted { session_id: "s1".into() }, "SessionCompleted");
+
+        assert_no_driver_edges!(
+            SessionFailed { session_id: "s1".into(), reason: "exit 1".into() },
+            "SessionFailed"
+        );
+
+        assert_no_driver_edges!(
+            SessionCancelled { session_id: "s1".into(), reason: None },
+            "SessionCancelled"
+        );
+
+        assert_no_driver_edges!(
+            SessionSuspended { session_id: "s1".into(), checkpoint: "ckpt-abc".into() },
+            "SessionSuspended"
+        );
+
+        assert_no_driver_edges!(TurnStarted { session_id: "s1".into(), idx: 0 }, "TurnStarted");
+
+        assert_no_driver_edges!(
+            TurnEnded { session_id: "s1".into(), idx: 0, stop_reason: None },
+            "TurnEnded"
+        );
     }
 
     #[test]

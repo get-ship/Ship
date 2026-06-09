@@ -245,7 +245,6 @@ fn check_file(path: &Path, forbidden: &[(&'static str, &'static str)]) -> Vec<Vi
 
 pub struct Report {
     pub violations: Vec<String>,
-    pub warn_only: bool,
 }
 
 pub fn run(repo_root: &Path) -> Result<Report, String> {
@@ -270,9 +269,6 @@ pub fn run(repo_root: &Path) -> Result<Report, String> {
         }
     }
 
-    // First-run policy: >= 10 violations → warn-only initially.
-    let warn_only = all.len() >= 10;
-
     let mut lines = Vec::new();
     for v in &all {
         let rel = v
@@ -290,8 +286,5 @@ pub fn run(repo_root: &Path) -> Result<Report, String> {
         ));
     }
 
-    Ok(Report {
-        violations: lines,
-        warn_only,
-    })
+    Ok(Report { violations: lines })
 }
