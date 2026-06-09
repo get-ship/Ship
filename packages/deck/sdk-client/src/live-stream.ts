@@ -3,7 +3,7 @@
 // The typed replacement for `makeSseSource`/`liveExpr` (#138). A per-op live
 // read is now a Connect server-streaming rpc (`ops.<domain>.<op>Live(req)`)
 // that yields the full value as a `JsonResponse` on the initial call and again
-// on every relevant kernel event — the same freshness the `/_sui/data?expr=`
+// on every relevant kernel event — the same freshness the `/_deck/data?expr=`
 // SSE ran, now typed and keyed by the rpc method instead of a parsed string.
 //
 // This adapter is host-agnostic: it consumes any `AsyncIterable<{ json }>` and

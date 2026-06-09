@@ -170,7 +170,7 @@ impl<'r> Walker<'r> {
                 let key = self.next_key();
                 self.push_marker("mutation", &key);
                 // Action/method are injected by the host (deck-core), not the
-                // compiler. The host owns the /_sui/ URL scheme.
+                // compiler. The host owns the /_deck/ URL scheme.
             }
             AttrInstr::Transition { .. } => {
                 // Transitions don't surface in SSR output. They register

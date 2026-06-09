@@ -73,7 +73,7 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> DeckResponse {
         }
     };
     // For a nested route (e.g. /studio/agents) the live-data SSE channel lives
-    // at /_sui/views/<name>/<sub>/sse, not /_sui/views/<name>/sse. Fold the sub
+    // at /_deck/views/<name>/<sub>/sse, not /_deck/views/<name>/sse. Fold the sub
     // into the resolved view_name so render_split emits the right __subscribe__
     // URL (mirrors the module_url ?sub= handling below) and the cache keys per
     // (name, sub).

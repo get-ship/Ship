@@ -1,6 +1,6 @@
 //! `cargo xtask gen-icons` — bake the lucide SVG set into
 //! `crates/deck/deck-core/assets/lucide-icons.json`, the embedded source the
-//! daemon reads to answer `/_sui/icons/{name}.svg` per-icon.
+//! daemon reads to answer `/_deck/icons/{name}.svg` per-icon.
 //!
 //! This replaces the retired `scripts/codegen/generate-lucide-registry.mjs`.
 //! It joins the `gen-*` family in this crate (gen-skills, gen-fixtures,
@@ -126,7 +126,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
 
     // Compact JSON — same shape `<sui-icon>` has always seen. The size
     // (~410KB) is the daemon's embed cost; clients fetch one icon at a time
-    // via `/_sui/icons/{name}.svg`, never the whole map.
+    // via `/_deck/icons/{name}.svg`, never the whole map.
     let json = serde_json::to_string(&out).context("serialize icons JSON")?;
     fs::write(&out_path, json).with_context(|| format!("write {}", out_path.display()))?;
 

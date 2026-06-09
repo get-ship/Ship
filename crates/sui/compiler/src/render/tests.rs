@@ -112,7 +112,7 @@ fn control_flow_kind_classifies_correctly() {
 
 #[test]
 fn live_data_sets_has_live_data_and_no_subscribe_url_in_compiler() {
-    // After 2c the compiler no longer bakes /_sui/ URLs. The host injects
+    // After 2c the compiler no longer bakes /_deck/ URLs. The host injects
     // __subscribe__ using has_live_data + its own route builders.
     use crate::bindings;
     use crate::parse::parse;
@@ -129,10 +129,10 @@ fn live_data_sets_has_live_data_and_no_subscribe_url_in_compiler() {
         "compiler must NOT emit __subscribe__ in init; got: {:?}",
         split.init
     );
-    // The SSR HTML must not contain any /_sui/ URL either.
+    // The SSR HTML must not contain any /_deck/ URL either.
     assert!(
-        !split.html.contains("/_sui/"),
-        "compiler SSR HTML must not contain /_sui/ URLs; got: {}",
+        !split.html.contains("/_deck/"),
+        "compiler SSR HTML must not contain /_deck/ URLs; got: {}",
         split.html
     );
 }

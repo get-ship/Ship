@@ -1,7 +1,7 @@
 // @ship/sdk-client — browser SDK shim for ship-set views.
 //
 // Each domain method returns either a `LiveSource` (read — opens an SSE
-// channel to `/_sui/data?expr=ship.<domain>.<op>(<args>)`) or a Promise
+// channel to `/_deck/data?expr=ship.<domain>.<op>(<args>)`) or a Promise
 // (write — POST/PUT/PATCH/DELETE against the daemon's REST surface).
 // The runtime's `live()` detects the source shape, calls `subscribe(sig)`
 // to open the patch stream, and the first SSE event flips the signal
@@ -11,7 +11,6 @@
 // HTTP plumbing lives in `./http.ts`; the SSE bridge in `./sse.ts`.
 // Keeping `index.ts` to the surface declaration only respects the 300-
 // line file cap and makes the SDK surface readable at a glance.
-
 import type { LiveSource } from '@ship/sui-runtime'
 import type {
   AgentsSummariesResponse,
@@ -25,6 +24,14 @@ import { makeSseSource } from './sse'
 import { liveStream } from './live-stream'
 import { sharedSource } from './shared-source'
 import { createShipConnectClient } from '@ship/sdk/connect'
+
+/// Single source of truth for the client-side serve-scheme URL prefix.
+/// Every TS literal that names `/_deck/...` (and the companion Rust
+/// `deck_core::routes::DECK_PREFIX`) routes through this constant so the
+/// prefix has ONE mint point on the client side. Renamed from `/_sui` in
+/// #277b — deck, the host, names the URL namespace; the framework (SUI)
+/// does not.
+export const DECK_PREFIX = '/_deck';
 
 // Bind the SUI runtime's host-agnostic `ShipHost` slot to the concrete
 // `ShipSDK` via declaration merging. The runtime types `ViewScope.ship` as
@@ -202,7 +209,7 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       if (typeof fn !== 'function') {
         const argsLit = args === undefined ? '' : JSON.stringify(args)
         const expr = `ship.${domain}.${op}(${argsLit})`
-        return makeSseSource<T>(`${baseUrl}/_sui/data?expr=${encodeURIComponent(expr)}`, ESCtor)
+        return makeSseSource<T>(`${baseUrl}${DECK_PREFIX}/data?expr=${encodeURIComponent(expr)}`, ESCtor)
       }
       return liveStream<T>((signal) => fn(camelKeys(args ?? {}), { signal }))
     })

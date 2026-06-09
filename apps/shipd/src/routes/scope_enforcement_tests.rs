@@ -11,7 +11,7 @@
 //!    resolves a sensible `RequiredAuth`. Mutation methods (POST/PUT/
 //!    PATCH/DELETE) are not `Public` unless the path matches a small
 //!    intentional allowlist (currently empty;
-//!    `/_sui/views/{name}/patch-elements` is `Scope::Full` already).
+//!    `/_deck/views/{name}/patch-elements` is `Scope::Full` already).
 //! 2. `route_scope_enforcement::handler_tag_means_handler_enforces` —
 //!    every `RequiredAuth::Handler` route's handler module contains a
 //!    `require_scope` or `can_*_artifacts` call in source. This is the
@@ -39,7 +39,7 @@ use ship_substrate::events::CallerKind;
 // ────────────────────────────────────────────────────────────────────────────
 
 /// Paths that are intentionally public + mutating.
-/// Currently empty — `/_sui/mutation/{name}` was removed from `Route::all()`
+/// Currently empty — `/_deck/mutation/{name}` was removed from `Route::all()`
 /// (the route is kept as a flat 410 Gone outside the enum, not scope-enforced).
 const PUBLIC_MUTATION_ALLOWLIST: &[&str] = &[];
 

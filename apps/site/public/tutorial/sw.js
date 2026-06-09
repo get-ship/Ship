@@ -1,10 +1,10 @@
 // SUI tutorial mock-daemon service worker.
 //
 // Intercepts iframe requests under /tutorial/ to:
-//   - Stream <data live> sources via SSE (`/_sui/data/<source>`)
-//   - Accept POST mutations (`/_sui/api/<path>`) and push the new
+//   - Stream <data live> sources via SSE (`/_deck/data/<source>`)
+//   - Accept POST mutations (`/_deck/api/<path>`) and push the new
 //     envelope to every active SSE subscriber of the matching source
-//   - Return static REST payloads (`GET /_sui/api/<path>`)
+//   - Return static REST payloads (`GET /_deck/api/<path>`)
 //
 // Tutorial scenarios are tiny JS modules the parent posts to the SW
 // after registration. Each scenario describes a per-source timeline
@@ -84,10 +84,10 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
-  if (!url.pathname.startsWith('/_sui/')) return
+  if (!url.pathname.startsWith('/_deck/')) return
 
-  if (url.pathname.startsWith('/_sui/data/')) {
-    const sourceUrl = url.pathname.replace(/^\/_sui\/data/, '')
+  if (url.pathname.startsWith('/_deck/data/')) {
+    const sourceUrl = url.pathname.replace(/^\/_deck\/data/, '')
     const timeline = scenarios.get(sourceUrl)
     if (!timeline) {
       event.respondWith(new Response(`no scenario for ${sourceUrl}`, { status: 404 }))
@@ -97,12 +97,12 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (url.pathname.startsWith('/_sui/api/')) {
+  if (url.pathname.startsWith('/_deck/api/')) {
     if (event.request.method === 'POST' || event.request.method === 'PUT') {
       event.respondWith(handleMutation(url.pathname, event.request))
     } else {
       // GET — static payload from scenario if declared as an `'api:/<path>'` key.
-      const apiKey = 'api:' + url.pathname.replace(/^\/_sui\/api/, '')
+      const apiKey = 'api:' + url.pathname.replace(/^\/_deck\/api/, '')
       const payload = scenarios.get(apiKey)
       if (payload != null) {
         event.respondWith(new Response(JSON.stringify(payload), {
@@ -116,11 +116,11 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Legacy morph push endpoint. v2 prefers POST /_sui/api/<path>
+  // Legacy morph push endpoint. v2 prefers POST /_deck/api/<path>
   // with a mutation handler, since that flows cleanly through the
   // existing SSE channel. Keep this responding 200 so old callers
   // (mcp__ship__patch_view shape) don't error.
-  if (url.pathname.startsWith('/_sui/morph/')) {
+  if (url.pathname.startsWith('/_deck/morph/')) {
     event.respondWith(new Response('{"ok":true}', {
       status: 200,
       headers: { 'content-type': 'application/json' },
@@ -182,16 +182,16 @@ function streamScenario(sourceUrl, timeline) {
 }
 
 /**
- * POST /_sui/api/<path> handler. Looks up `scenarios[<source>].mutations[<path>]`,
+ * POST /_deck/api/<path> handler. Looks up `scenarios[<source>].mutations[<path>]`,
  * runs it against the current liveState's `value` + the request body,
  * pushes the new envelope to every subscriber of the matching source.
  *
  * Lookup: find the scenario whose `mutations` map has a key matching
- * the request path (e.g. POST /_sui/api/users/add → look for a
+ * the request path (e.g. POST /_deck/api/users/add → look for a
  * scenario with mutations['/users/add']).
  */
 async function handleMutation(apiPath, request) {
-  const path = apiPath.replace(/^\/_sui\/api/, '')
+  const path = apiPath.replace(/^\/_deck\/api/, '')
   let body = null
   try {
     body = await request.json()

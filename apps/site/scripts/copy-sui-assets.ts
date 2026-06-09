@@ -62,7 +62,7 @@ for (const { name, from } of SUI_BUNDLES) {
   copied++;
 }
 
-// <sui-icon> fetches ONE icon at a time from `/_sui/icons/<name>.svg`
+// <sui-icon> fetches ONE icon at a time from `/_deck/icons/<name>.svg`
 // (deck-core::serve_sui_icon). The daemon serves those; on a static host
 // there is no daemon, so we pre-generate each icon as a standalone SVG using
 // the SAME wrapper the daemon emits (viewBox 0 0 24 24, stroke=currentColor).
@@ -74,7 +74,7 @@ for (const { name, from } of SUI_BUNDLES) {
   const src = join(REPO_ROOT, 'crates/deck/deck-core/assets', 'lucide-icons.json');
   if (existsSync(src)) {
     const catalog = JSON.parse(readFileSync(src, 'utf8')) as Record<string, string>;
-    const iconsDir = join(PUBLIC_DIR, '_sui/icons');
+    const iconsDir = join(PUBLIC_DIR, '_deck/icons');
     mkdirSync(iconsDir, { recursive: true });
     let n = 0;
     for (const [name, inner] of Object.entries(catalog)) {
@@ -87,7 +87,7 @@ for (const { name, from } of SUI_BUNDLES) {
       n++;
     }
     copied++;
-    console.log(`[copy-sui-assets] wrote ${n} per-icon SVGs to public/_sui/icons/`);
+    console.log(`[copy-sui-assets] wrote ${n} per-icon SVGs to public/_deck/icons/`);
   } else {
     console.log(`[copy-sui-assets] ${src} not found; <sui-icon> will render empty.`);
   }

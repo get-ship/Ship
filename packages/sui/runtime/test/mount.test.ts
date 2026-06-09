@@ -75,7 +75,7 @@ describe('mount()', () => {
       html: '<p>hello</p>',
       css: '',
       scope: {},
-      moduleUrl: '/_sui/views/demo/view.js',
+      moduleUrl: '/_deck/views/demo/view.js',
     }
     const handle = await mount(target, payload, { module: emptyModule() })
     expect(handle.element).toBe(target)
@@ -225,7 +225,7 @@ describe('mount()', () => {
       css: '',
       scope: {
         live1: { kind: 'loading' as const },
-        __subscribe__: '/_sui/views/demo/sse',
+        __subscribe__: '/_deck/views/demo/sse',
       } as unknown as Record<string, unknown>,
       moduleUrl: '/x',
     }
@@ -291,7 +291,7 @@ describe('mount()', () => {
 
   it('mount via name string resolves through the injected loader', async () => {
     // The runtime is host-agnostic: mounting by name delegates payload
-    // resolution to `opts.loader.fetchView`. The `/_sui/...` URL scheme lives
+    // resolution to `opts.loader.fetchView`. The `/_deck/...` URL scheme lives
     // in the host's loader (shell / deck view-host), not in mount().
     const payload: ViewPayload = {
       name: 'demo-fetch',
@@ -390,7 +390,7 @@ describe('openLiveChannel (via mount)', () => {
       css: '',
       scope: {
         items: { kind: 'loading' as const },
-        __subscribe__: '/_sui/views/live-test/sse',
+        __subscribe__: '/_deck/views/live-test/sse',
       } as unknown as Record<string, unknown>,
       moduleUrl: '/x',
     }
@@ -432,7 +432,7 @@ describe('openLiveChannel (via mount)', () => {
       css: '',
       scope: {
         items: { kind: 'loading' as const },
-        __subscribe__: '/_sui/views/live-test-filter/sse',
+        __subscribe__: '/_deck/views/live-test-filter/sse',
       } as unknown as Record<string, unknown>,
       moduleUrl: '/x',
     }

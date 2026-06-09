@@ -32,7 +32,7 @@ pub async fn serve_sui_sdk_client(mode: Option<Extension<DaemonMode>>) -> Respon
 }
 
 
-/// `GET /_sui/icons/{file}` — one lucide icon. `{file}` is captured whole
+/// `GET /_deck/icons/{file}` — one lucide icon. `{file}` is captured whole
 /// (e.g. `search.svg`) because axum 0.8 forbids mixing path-params with
 /// literal suffixes in the same segment; we strip `.svg` here.
 pub async fn serve_sui_icon(
@@ -193,16 +193,16 @@ pub async fn serve_view_payload_subpath(
     into_axum(deck_core::serve_view_payload_subpath(mode_from_ext(mode), &name, &sub_path))
 }
 
-// ── Meta handler (/_sui/meta) ─────────────────────────────────────────────────
+// ── Meta handler (/_deck/meta) ─────────────────────────────────────────────────
 
-/// `GET /_sui/meta` — wraps deck-core's plain JSON value in `axum::Json`.
+/// `GET /_deck/meta` — wraps deck-core's plain JSON value in `axum::Json`.
 pub async fn serve_meta(daemon: Option<Extension<DaemonBuildInfo>>) -> Json<Value> {
     Json(deck_core::serve_meta(daemon.map(|e| e.0)))
 }
 
 // ── HMR (dev) handler ─────────────────────────────────────────────────────────
 
-/// `GET /_sui/dev/hmr` — the bundler's event firehose as the SSE stream the
+/// `GET /_deck/dev/hmr` — the bundler's event firehose as the SSE stream the
 /// deck live-reload client subscribes to (`event: module-changed` /
 /// `compile-error`, JSON payload). This is the one HMR handler every deck host
 /// should mount — subscribing the bundler directly, with no per-host

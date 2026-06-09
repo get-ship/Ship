@@ -32,17 +32,17 @@
   <link rel="stylesheet" href="/src/chrome/layout.css" />
 
   <!-- Lucide icons are served per-icon by the daemon at
-       `/_sui/icons/<name>.svg`. The browser HTTP-caches each one; on
+       `/_deck/icons/<name>.svg`. The browser HTTP-caches each one; on
        first paint the shell mounts six rail icons (dashboard, pipelines,
        bot, git-branch, sparkles, palette, play) — small enough that the
        per-icon fetch races the bundle load. Prefetch the six explicitly
        so they're warm by the time <sui-icon> mounts. -->
-  <link rel="prefetch" href="/_sui/icons/layout-dashboard.svg" as="image" />
-  <link rel="prefetch" href="/_sui/icons/workflow.svg" as="image" />
-  <link rel="prefetch" href="/_sui/icons/bot.svg" as="image" />
-  <link rel="prefetch" href="/_sui/icons/git-branch.svg" as="image" />
-  <link rel="prefetch" href="/_sui/icons/sparkles.svg" as="image" />
-  <link rel="prefetch" href="/_sui/icons/palette.svg" as="image" />
+  <link rel="prefetch" href="/_deck/icons/layout-dashboard.svg" as="image" />
+  <link rel="prefetch" href="/_deck/icons/workflow.svg" as="image" />
+  <link rel="prefetch" href="/_deck/icons/bot.svg" as="image" />
+  <link rel="prefetch" href="/_deck/icons/git-branch.svg" as="image" />
+  <link rel="prefetch" href="/_deck/icons/sparkles.svg" as="image" />
+  <link rel="prefetch" href="/_deck/icons/palette.svg" as="image" />
 
   <!-- Pre-paint theme: read persisted theme before first paint to prevent FOUC. -->
   <script>
@@ -58,22 +58,22 @@
   <script type="importmap">
     {
       "imports": {
-        "@ship/sui-runtime":                "/_sui/runtime.js",
-        "@ship/sui-runtime/route":          "/_sui/runtime.js",
-        "@ship/sui-runtime/template-hooks": "/_sui/runtime.js",
-        "@ship/sui-runtime/patch":          "/_sui/runtime.js",
-        "@ship/sui-dom":                    "/_sui/dom.js",
-        "@ship/sdk-client":                 "/_sui/sdk-client.js"
+        "@ship/sui-runtime":                "/_deck/runtime.js",
+        "@ship/sui-runtime/route":          "/_deck/runtime.js",
+        "@ship/sui-runtime/template-hooks": "/_deck/runtime.js",
+        "@ship/sui-runtime/patch":          "/_deck/runtime.js",
+        "@ship/sui-dom":                    "/_deck/dom.js",
+        "@ship/sdk-client":                 "/_deck/sdk-client.js"
       }
     }
   </script>
 
   <!-- The shell registers every component it needs through the TRACED app
-       bundle — there is no eager /_sui/components.js umbrella. Chrome
+       bundle — there is no eager /_deck/components.js umbrella. Chrome
        components resolve their primitives per-tag from source (the per-view
        resolver); the heavy/edit-mode families load as code-split chunks via
        src/chrome/load-heavy-chrome.ts; each daemon-served view carries its
-       own per-view component registrations. The /_sui/components.js endpoint
+       own per-view component registrations. The /_deck/components.js endpoint
        still exists for apps/spaces + examples/deck-demo. -->
 
   <!-- main.ts imports @ship/sui-runtime directly via the importmap. The

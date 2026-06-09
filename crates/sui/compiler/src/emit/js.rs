@@ -64,7 +64,7 @@ pub fn emit_module(
 ) -> String {
     let mut w = Writer::new();
     // Leading `_compilerVersion` legal comment. Lets the shell compare
-    // its loaded view bundle against the daemon's `/_sui/meta` and
+    // its loaded view bundle against the daemon's `/_deck/meta` and
     // surface drift loudly instead of silently rendering against a
     // stale export surface (cf. the `fade` regression that prompted
     // this).

@@ -1,5 +1,5 @@
 //! Every artifact emitted by `compile()` must carry a `_compilerVersion`
-//! marker — the shell uses it (via `/_sui/meta`) to detect when its
+//! marker — the shell uses it (via `/_deck/meta`) to detect when its
 //! loaded bundle drifts from the daemon's compiled output. This test
 //! locks the contract per output kind (JS leading comment, CEM, schema,
 //! meta sidecar, dts comment).

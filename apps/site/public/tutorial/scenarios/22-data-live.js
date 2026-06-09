@@ -1,6 +1,6 @@
 // Scenario for tutorial step 22 — `<data live source="ship.users.list()">`.
 // The `ship.users.list()` proxy in host.html resolves to
-// `/_sui/data/users/list`, which the service worker plays back from
+// `/_deck/data/users/list`, which the service worker plays back from
 // this timeline.
 export default {
   '/users/list': {

@@ -1,6 +1,6 @@
 // Scenario for tutorial step 24 — mutations + server push.
 //
-// POST /_sui/api/users/add  → SW runs `mutations['/users/add']`
+// POST /_deck/api/users/add  → SW runs `mutations['/users/add']`
 // against the current /users/list value, then pushes the new
 // envelope on every active SSE controller subscribed to that source.
 

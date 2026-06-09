@@ -1,12 +1,12 @@
 //! Host-side form-action injection.
 //!
 //! The SUI compiler emits `mutation="bN"` markers on `<form>` elements but
-//! does NOT bake the `/_sui/mutation/…` URL into the SSR output — that is the
+//! does NOT bake the `/_deck/mutation/…` URL into the SSR output — that is the
 //! host's job, because only the host knows which daemon it is running.
 //!
 //! `inject_form_actions` scans SSR HTML for open `<form …>` tags that carry a
 //! `mutation="bN"` marker, and augments each one with
-//! `action="/_sui/mutation/<view>?form=bN" method="post"` — unless the author
+//! `action="/_deck/mutation/<view>?form=bN" method="post"` — unless the author
 //! already set an explicit `action=` attribute (idempotent: safe to call on
 //! HTML that was already injected or was produced by an older compiler that
 //! baked the URL itself).
@@ -147,7 +147,7 @@ mod tests {
         let html = r#"<form mutation="b0"><button type="submit">Go</button></form>"#;
         let out = inject_form_actions(html, "todos");
         assert!(
-            out.contains(r#"action="/_sui/mutation/todos?form=b0""#),
+            out.contains(r#"action="/_deck/mutation/todos?form=b0""#),
             "action must be injected; got: {out}"
         );
         assert!(out.contains(r#"method="post""#), "method must be injected; got: {out}");
@@ -163,7 +163,7 @@ mod tests {
             "author action must be preserved; got: {out}"
         );
         assert!(
-            !out.contains("/_sui/mutation"),
+            !out.contains("/_deck/mutation"),
             "must not inject when action is explicit; got: {out}"
         );
     }
@@ -177,10 +177,10 @@ mod tests {
 
     #[test]
     fn idempotent_on_already_injected_html() {
-        let html = r#"<form mutation="b0" action="/_sui/mutation/todos?form=b0" method="post"></form>"#;
+        let html = r#"<form mutation="b0" action="/_deck/mutation/todos?form=b0" method="post"></form>"#;
         let out = inject_form_actions(html, "todos");
         // The action is already present — must not double-inject.
-        let count = out.matches("/_sui/mutation/todos?form=b0").count();
+        let count = out.matches("/_deck/mutation/todos?form=b0").count();
         assert_eq!(count, 1, "must not double-inject; got: {out}");
     }
 
@@ -188,7 +188,7 @@ mod tests {
     fn handles_multiple_forms() {
         let html = r#"<form mutation="b0"></form><form mutation="b2"></form>"#;
         let out = inject_form_actions(html, "myview");
-        assert!(out.contains(r#"action="/_sui/mutation/myview?form=b0""#), "first form; got: {out}");
-        assert!(out.contains(r#"action="/_sui/mutation/myview?form=b2""#), "second form; got: {out}");
+        assert!(out.contains(r#"action="/_deck/mutation/myview?form=b0""#), "first form; got: {out}");
+        assert!(out.contains(r#"action="/_deck/mutation/myview?form=b2""#), "second form; got: {out}");
     }
 }

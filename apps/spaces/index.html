@@ -20,18 +20,18 @@
     } catch (_e) {}
   </script>
 
-  <!-- Importmap MUST precede any module script. Same /_sui scheme the hub uses:
-       ONE shared SUI runtime (the daemon's /_sui/runtime.js) so the scaffold and
+  <!-- Importmap MUST precede any module script. Same /_deck scheme the hub uses:
+       ONE shared SUI runtime (the daemon's /_deck/runtime.js) so the scaffold and
        the confined view bundles live in one runtime universe (#149). -->
   <script type="importmap">
     {
       "imports": {
-        "@ship/sui-runtime":                "/_sui/runtime.js",
-        "@ship/sui-runtime/route":          "/_sui/runtime.js",
-        "@ship/sui-runtime/template-hooks": "/_sui/runtime.js",
-        "@ship/sui-runtime/patch":          "/_sui/runtime.js",
-        "@ship/sui-dom":                    "/_sui/dom.js",
-        "@ship/sdk-client":                 "/_sui/sdk-client.js"
+        "@ship/sui-runtime":                "/_deck/runtime.js",
+        "@ship/sui-runtime/route":          "/_deck/runtime.js",
+        "@ship/sui-runtime/template-hooks": "/_deck/runtime.js",
+        "@ship/sui-runtime/patch":          "/_deck/runtime.js",
+        "@ship/sui-dom":                    "/_deck/dom.js",
+        "@ship/sdk-client":                 "/_deck/sdk-client.js"
       }
     }
   </script>
@@ -43,13 +43,13 @@
     (function () {
       var s = document.createElement('script')
       s.type = 'module'
-      s.src = '/_sui/components.js'
+      s.src = '/_deck/components.js'
       document.head.appendChild(s)
     })()
   </script>
 
   <!-- Bootstrap the shared runtime onto window before main.ts (same pattern as
-       the hub) so the bare specifier resolves to the one /_sui/runtime.js. -->
+       the hub) so the bare specifier resolves to the one /_deck/runtime.js. -->
   <script>
     (function () {
       window.__suiRuntimeReady = new Promise(function (res) {

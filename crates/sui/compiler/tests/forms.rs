@@ -40,10 +40,10 @@ fn form_mutation_renders_marker_only_no_url_in_ssr() {
         html.contains(r#"mutation="b0""#),
         "expected mutation marker; got: {html:?}"
     );
-    // The compiler must NOT bake /_sui/ URLs into SSR output.
+    // The compiler must NOT bake /_deck/ URLs into SSR output.
     assert!(
-        !html.contains("/_sui/"),
-        "compiler SSR must not contain /_sui/ URLs; got: {html:?}"
+        !html.contains("/_deck/"),
+        "compiler SSR must not contain /_deck/ URLs; got: {html:?}"
     );
     assert!(
         !html.contains(r#"method="post""#),
@@ -63,8 +63,8 @@ fn form_mutation_compiler_preserves_author_action_passthrough() {
         "author action must pass through; got: {html:?}"
     );
     assert!(
-        !html.contains("/_sui/mutation"),
-        "compiler must not inject /_sui/mutation; got: {html:?}"
+        !html.contains("/_deck/mutation"),
+        "compiler must not inject /_deck/mutation; got: {html:?}"
     );
 }
 

@@ -10,7 +10,7 @@
 //! This build script copies them into `crates/deck/deck-core/assets/` (the
 //! `include_str!` staging path) before the existence/empty guard runs.
 //! The lucide icon set is committed source (`assets/lucide-icons.json`) —
-//! the daemon embeds it and serves per-icon at `/_sui/icons/{name}.svg`;
+//! the daemon embeds it and serves per-icon at `/_deck/icons/{name}.svg`;
 //! regenerate after a lucide-static version bump via
 //! `cargo run -p xtask -- gen-icons`.
 //! The workspace catalog is emitted to `.deck/catalogs/workspace.json`

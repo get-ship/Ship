@@ -26,7 +26,7 @@ import { morph } from './morph'
 import type { ViewPayload as GeneratedViewPayload } from './generated'
 
 /**
- * Wire shape returned by `GET /_sui/views/<name>[/<sub>]`. The base type
+ * Wire shape returned by `GET /_deck/views/<name>[/<sub>]`. The base type
  * is generated from `crates/deck/deck-host/src/view_payload.rs::ViewPayload`
  * via `cargo xtask gen-types`. The local generic specializes `scope` —
  * Rust ships it as untyped JSON; per-view modules narrow it here.
@@ -37,7 +37,7 @@ export type ViewPayload<Scope = Record<string, unknown>> =
 /**
  * Host-provided loader. The runtime is host-agnostic — it does NOT know the
  * URL scheme for fetching view payloads or component bundles. The host (deck
- * view-host, shell) injects this adapter so the `/_sui/...` (or any) scheme
+ * view-host, shell) injects this adapter so the `/_deck/...` (or any) scheme
  * lives at the boundary, not in the framework.
  */
 export interface SuiLoader {
@@ -106,7 +106,7 @@ const LIFECYCLE_KEY = '__shipSetLifecycle'
  *               mount morph-patches it toward payload.html, preserving
  *               node identity. Otherwise children are built fresh.
  * @param payloadOrName  A fetched ViewPayload, or a `name[/sub]`
- *               string the runtime fetches from `/_sui/views/...`.
+ *               string the runtime fetches from `/_deck/views/...`.
  * @param opts   ship / route / navigate / restoreScope / cssScope.
  * @returns      MountHandle — call `dispose()` when done.
  */
@@ -566,7 +566,7 @@ function openLiveChannel(
 // ── patch-elements applier ────────────────────────────────────────────
 //
 // Out-of-band DOM patches pushed by the daemon's
-// `/_sui/views/<name>/patch-elements` endpoint. The trust boundary is the
+// `/_deck/views/<name>/patch-elements` endpoint. The trust boundary is the
 // SSE auth in shipd's `sui_agent_push.rs` — by the time a frame reaches
 // here it's already a trusted caller. The runtime's only job is to scope
 // the selector to the view root: `[data-sui-root][data-view="<name>"]`

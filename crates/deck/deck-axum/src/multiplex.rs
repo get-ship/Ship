@@ -75,7 +75,7 @@ struct OpenResponseBody {
     heartbeat_ms: u32,
 }
 
-/// `POST /_sui/mux/open` — mint a fresh `win.<ulid>` and bind a session.
+/// `POST /_deck/mux/open` — mint a fresh `win.<ulid>` and bind a session.
 async fn mux_open(Extension(state): Extension<MultiplexState>) -> Json<OpenResponseBody> {
     let session_id = format!("sess.{}", ulid::Ulid::new());
     let window_id = state.registry.open(session_id.clone());
@@ -106,7 +106,7 @@ fn err(status: StatusCode, msg: impl Into<String>) -> Response {
     (status, Json(ErrorBody { error: msg.into() })).into_response()
 }
 
-/// `POST /_sui/mux/subscribe` — register a `(domain, op, args)` live read
+/// `POST /_deck/mux/subscribe` — register a `(domain, op, args)` live read
 /// against an open window. Returns the initial resolved value + the
 /// `sub.<ulid>` id the client demuxes on. **Explicit errors only** — never
 /// a silent `null` initial value when the resolver is missing or the
@@ -149,7 +149,7 @@ struct UnsubscribeRequest {
     subscription_id: String,
 }
 
-/// `POST /_sui/mux/unsubscribe` — drop a subscription from a window.
+/// `POST /_deck/mux/unsubscribe` — drop a subscription from a window.
 async fn mux_unsubscribe(
     Extension(state): Extension<MultiplexState>,
     Json(req): Json<UnsubscribeRequest>,
@@ -177,7 +177,7 @@ impl Drop for WindowDropGuard {
     }
 }
 
-/// `GET /_sui/mux/stream/{window_id}` — the one per-window server-stream.
+/// `GET /_deck/mux/stream/{window_id}` — the one per-window server-stream.
 /// Carries the initial value for every sub in the window, then heartbeats,
 /// then re-emits every sub on every change tick from the host's
 /// `ChangeSource`. Demuxed by `subscription_id` on the client side.
@@ -316,8 +316,8 @@ async fn stream_producer(
 /// is a single `Extension` layer + `.merge(deck_axum::multiplex_router())`.
 pub fn multiplex_router() -> Router {
     Router::new()
-        .route("/_sui/mux/open", post(mux_open))
-        .route("/_sui/mux/subscribe", post(mux_subscribe))
-        .route("/_sui/mux/unsubscribe", post(mux_unsubscribe))
-        .route("/_sui/mux/stream/{window_id}", get(mux_stream))
+        .route("/_deck/mux/open", post(mux_open))
+        .route("/_deck/mux/subscribe", post(mux_subscribe))
+        .route("/_deck/mux/unsubscribe", post(mux_unsubscribe))
+        .route("/_deck/mux/stream/{window_id}", get(mux_stream))
 }

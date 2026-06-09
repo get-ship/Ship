@@ -25,14 +25,14 @@ const axePath = require_.resolve('axe-core')
 const axeSource = readFileSync(axePath, 'utf8')
 
 const VIEWS = [
-  '/_sui/view/counter',
-  '/_sui/view/sui-demo',
-  '/_sui/view/demos',
-  '/_sui/view/demos/conditional-render',
-  '/_sui/view/demos/iteration',
-  '/_sui/view/demos/signals-and-derived',
-  '/_sui/view/demos/lifecycle',
-  '/_sui/view/demos/match',
+  '/_deck/view/counter',
+  '/_deck/view/sui-demo',
+  '/_deck/view/demos',
+  '/_deck/view/demos/conditional-render',
+  '/_deck/view/demos/iteration',
+  '/_deck/view/demos/signals-and-derived',
+  '/_deck/view/demos/lifecycle',
+  '/_deck/view/demos/match',
 ]
 
 const browser = await engine.launch()

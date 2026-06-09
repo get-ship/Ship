@@ -8,14 +8,14 @@
 //! (`rolldown_bundle.rs`) — the exact resolve/load hooks the view/component
 //! build uses — so no on-disk `.compiled.js` pre-step is needed.
 //! `AppPlugin` runs alongside it to externalize the framework singletons
-//! (which resolve to `/_sui/*` via the document's importmap); it runs FIRST so
+//! (which resolve to `/_deck/*` via the document's importmap); it runs FIRST so
 //! importmap specifiers (incl. `@ship/sui-runtime/*` subpaths) stay external
 //! rather than being re-anchored to source by `SuiPlugin`.
 //!
 //! Steps mirror `buildShellApp`: bundle `src/main.ts` (split, hashed),
 //! copy + hash the chrome stylesheet (plain CSS — no bundler needed), copy
 //! `public/` verbatim, rewrite the two `/src/*` refs in `index.html`, and
-//! (optionally) materialize the `/_sui/*` framework surface for a
+//! (optionally) materialize the `/_deck/*` framework surface for a
 //! self-contained build.
 
 use std::borrow::Cow;
@@ -31,9 +31,9 @@ use rolldown::plugin::{
 use rolldown::{BundlerBuilder, BundlerOptions, InputItem, OutputFormat};
 use rolldown_common::{ChunkFilenamesOutputOption, ResolvedExternal};
 
-/// deck's baked framework bundles → their `/_sui/*` filename in the output.
+/// deck's baked framework bundles → their `/_deck/*` filename in the output.
 /// Lucide icons are NOT here — the daemon serves them per-icon from its embedded
-/// set at `/_sui/icons/{name}.svg`. Static-only deploys without a daemon use
+/// set at `/_deck/icons/{name}.svg`. Static-only deploys without a daemon use
 /// `<sui-icon src=…>` (CDN escape hatch).
 const FRAMEWORK_ASSETS: [(&str, &str); 3] = [
     ("sui-runtime.js", "_sui/runtime.js"),
@@ -50,7 +50,7 @@ pub struct AppBuild {
 
 /// Externalizes exactly the document's importmap specifiers, so the bundle
 /// leaves `@ship/sui-runtime` (etc.) as bare imports the browser resolves to
-/// `/_sui/*` — the single-runtime guarantee. `.sui` compilation is handled by
+/// `/_deck/*` — the single-runtime guarantee. `.sui` compilation is handled by
 /// the sibling `SuiPlugin` in the same bundle pass.
 #[derive(Debug)]
 struct AppPlugin {
@@ -83,7 +83,7 @@ impl Plugin for AppPlugin {
 }
 
 /// Parse the bare specifiers from `<script type="importmap">` — the SSOT for
-/// which imports resolve to daemon `/_sui/*` URLs at runtime, so the build
+/// which imports resolve to daemon `/_deck/*` URLs at runtime, so the build
 /// externalizes exactly those (never a hand-kept second list, #157).
 fn importmap_externals(html: &str) -> Result<HashSet<String>> {
     let start = html
@@ -119,7 +119,7 @@ fn content_hash(bytes: &[u8]) -> String {
 /// `first_party_app` comes from `deck.jsonc` (via `DeckConfig`) and enables the
 /// per-tag component resolver: chrome components resolve their primitive/domain
 /// tags from source via `@sui-tag/<tag>`, exactly as views do. The umbrella
-/// (`/_sui/components.js`) becomes redundant once this traced build is canonical.
+/// (`/_deck/components.js`) becomes redundant once this traced build is canonical.
 pub async fn bundle_app(
     repo_root: &Path,
     first_party_app: Option<&deck_config::FirstPartyApp>,
@@ -226,13 +226,13 @@ pub async fn bundle_app(
         }
     }
 
-    // 4. Rewrite the two /src refs; preserve importmap, /_sui IIFEs, public hrefs.
+    // 4. Rewrite the two /src refs; preserve importmap, /_deck IIFEs, public hrefs.
     let rewritten = html
         .replace("/src/main.ts", &js_href)
         .replace("/src/chrome/layout.css", &css_href);
     std::fs::write(out_dir.join("index.html"), rewritten)?;
 
-    // 5. Self-contained build: materialize the /_sui/* code surface locally.
+    // 5. Self-contained build: materialize the /_deck/* code surface locally.
     let mut framework_assets = 0;
     if bundle_framework {
         let sui_dir = out_dir.join("_sui");
@@ -317,7 +317,7 @@ mod tests {
         write(
             &r.join("index.html"),
             "<!doctype html><html><head>\
-             <script type=\"importmap\">{\"imports\":{\"@ship/sui-runtime\":\"/_sui/runtime.js\"}}</script>\
+             <script type=\"importmap\">{\"imports\":{\"@ship/sui-runtime\":\"/_deck/runtime.js\"}}</script>\
              <link rel=\"stylesheet\" href=\"/src/chrome/layout.css\">\
              <script type=\"module\" src=\"/src/main.ts\"></script>\
              </head><body></body></html>",
@@ -349,7 +349,7 @@ mod tests {
         // not stubbed) — the `w` class from `<div class=\"w\">` survives.
         assert!(js.contains("\"w\"") || js.contains("'w'"), "compiled .sui body inlined");
         // The compiled view pulls the runtime — it must stay EXTERNAL (resolved
-        // to /_sui/runtime.js at runtime), never a second inlined copy.
+        // to /_deck/runtime.js at runtime), never a second inlined copy.
         assert!(js.contains("@ship/sui-runtime"), "runtime kept external, single instance");
     }
 }

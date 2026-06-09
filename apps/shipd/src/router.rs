@@ -98,8 +98,8 @@ pub fn build_router(
         .route("/api/health", axum::routing::get(move || {
             health_check(health_rt)
         }))
-        // Drift-detection endpoint (/_sui/meta) — moved to deck::router()
-        // so deck owns the full /_sui/* namespace. The DaemonBuildInfo
+        // Drift-detection endpoint (/_deck/meta) — moved to deck::router()
+        // so deck owns the full /_deck/* namespace. The DaemonBuildInfo
         // extension is injected at the root layer below so every deck
         // handler that needs it (serve_meta) finds it via Option<Extension<…>>.
         .ship_public_route(Route::AssetViewTokensCss, views::serve_view_tokens)
@@ -111,7 +111,7 @@ pub fn build_router(
         // The STATELESS deck serving surface — framework bundles
         // (runtime/dom/sdk/components/live-reload), per-icon lucide,
         // workspace + published catalogs, pack assets, per-view template/setup/css/
-        // payload (+ sub-path), `/_sui/view/{name}` (view-host), and `/space`
+        // payload (+ sub-path), `/_deck/view/{name}` (view-host), and `/space`
         // — is mounted as ONE unit via `deck::router()` in the root
         // assembly below. deck-axum is the single source of truth for
         // those paths; shipd no longer hand-lists them here.
@@ -228,10 +228,10 @@ pub fn build_router(
     let mut root = Router::new()
         .merge(public_routes)
         // (framework bundles, catalogs, pack assets, per-view
-        // template/setup/css/payload + sub-path, `/_sui/view/{name}`,
+        // template/setup/css/payload + sub-path, `/_deck/view/{name}`,
         // and `/space/{id}` + `/space/_assets`). Mounted
         // OUTSIDE the auth layer — these are static, no user-specific data,
-        // same posture as the rest of `/_sui/*`. `Router<()>` (its handlers
+        // same posture as the rest of `/_deck/*`. `Router<()>` (its handlers
         // read `Option<Extension<DaemonMode>>`, not `State`), so it merges
         // straight into the stateless root. deck-axum owns these paths.
         .merge(deck::router())
@@ -260,7 +260,7 @@ pub fn build_router(
     let deck_cfg = Arc::new(DeckConfig::load(&repo_root));
 
     // Build the DaemonBuildInfo once here so deck's serve_meta handler
-    // (/_sui/meta) can read it via Option<Extension<DaemonBuildInfo>>.
+    // (/_deck/meta) can read it via Option<Extension<DaemonBuildInfo>>.
     let dbi = {
         let bi = build_info::build_info!();
         deck::DaemonBuildInfo {
@@ -275,7 +275,7 @@ pub fn build_router(
         // Daemon-mode Extension — Sui handlers read it via
         // `Option<Extension<DaemonMode>>` without router-state plumbing.
         .layer(axum::Extension(daemon_mode))
-        // DaemonBuildInfo Extension — deck's /_sui/meta handler reads this
+        // DaemonBuildInfo Extension — deck's /_deck/meta handler reads this
         // to report the daemon's own build identity alongside the compiler's.
         .layer(axum::Extension(dbi))
         // DeckConfig Extension — scaffold handlers (serve_shell, serve_space)
@@ -379,13 +379,13 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
         .ship_route(Route::InstalledProviders, sessions::api::installed_harnesses)
         .ship_route(Route::ListSessionsAcrossProjects, runtime_api::list_sessions_across_projects)
-        // `POST /_sui/mutation/{name}` — tombstoned PE form endpoint.
+        // `POST /_deck/mutation/{name}` — tombstoned PE form endpoint.
         // The server-side string dispatch was removed; JS-attached mutations
         // call the SDK directly. The SUI compiler still writes this URL as
         // the form `action` attribute for PE fallback, so the route stays as
         // a 410 Gone rather than being deleted outright.
         .route(
-            "/_sui/mutation/{name}",
+            "/_deck/mutation/{name}",
             axum::routing::post(|| async { axum::http::StatusCode::GONE }),
         )
         // AgentsService — generic CRUD + lifecycle. First-party and
@@ -473,8 +473,8 @@ mod merge_tests {
     //!
     //! axum performs route-conflict detection eagerly during construction
     //! and at `into_make_service()`. The risk in mounting deck's whole
-    //! surface is its catch-all `/_sui/views/{name}/{*sub_path}` coexisting
-    //! with the state-aware static `/_sui/views/{name}/sse` that shipd keeps
+    //! surface is its catch-all `/_deck/views/{name}/{*sub_path}` coexisting
+    //! with the state-aware static `/_deck/views/{name}/sse` that shipd keeps
     //! in `public_routes`. This reproduces that union (plus the new
     //! `/space/*` paths) and forces the conflict check — a panic here is the
     //! regression we'd otherwise only catch at daemon boot.
@@ -488,13 +488,13 @@ mod merge_tests {
     #[test]
     fn deck_router_merges_with_kept_static_sui_routes_without_conflict() {
         // The state-aware paths shipd keeps in `public_routes` that share the
-        // `/_sui/views/{name}/` prefix with deck's catch-all.
+        // `/_deck/views/{name}/` prefix with deck's catch-all.
         let kept: Router = Router::new()
-            .route("/_sui/views/{name}/sse", get(noop))
-            .route("/_sui/mutation/{name}", axum::routing::post(noop))
-            .route("/_sui/source/{tag}", get(noop));
+            .route("/_deck/views/{name}/sse", get(noop))
+            .route("/_deck/mutation/{name}", axum::routing::post(noop))
+            .route("/_deck/source/{tag}", get(noop));
 
-        // Merging deck's surface (catch-all + /space + /_sui/view/{name} + bundles)
+        // Merging deck's surface (catch-all + /space + /_deck/view/{name} + bundles)
         // with the kept routes must not panic, and the union must build into
         // a service.
         let merged = Router::new().merge(deck::router()).merge(kept);

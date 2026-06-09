@@ -1,7 +1,7 @@
 // Deck live-reload client — the one HMR consumer for every SUI host.
 //
 // This is Deck control-plane code: it owns the transport (an SSE
-// subscription to `/_sui/dev/hmr`), the `/_sui/` URL scheme, the
+// subscription to `/_deck/dev/hmr`), the `/_deck/` URL scheme, the
 // change-target classification, and the compile-error overlay. The SUI
 // runtime owns only the *mechanism* (`mount().reload(payload)`); the host
 // supplies how to apply a view reload via `onViewChanged`.
@@ -21,7 +21,7 @@
 //   - anything else (component / island / runtime bundle) → full reload:
 //     a `<sui-*>` custom element cannot be redefined in a live document.
 
-const HMR_ENDPOINT = '/_sui/dev/hmr'
+const HMR_ENDPOINT = '/_deck/dev/hmr'
 const OVERLAY_ID = '__sui_live_reload_overlay'
 
 /** True when the served HTML declares the daemon is in development mode. */

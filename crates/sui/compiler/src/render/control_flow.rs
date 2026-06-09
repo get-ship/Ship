@@ -8,7 +8,7 @@
 //! `<sui-{kind} key="bN" hidden></sui-{kind}>` placeholder so
 //! the attach-only client runtime takes over.
 //!
-//! Phase 2 deletes the `/_sui/render-fragment/` POST endpoint, so the
+//! Phase 2 deletes the `/_deck/render-fragment/` POST endpoint, so the
 //! `enter_target_if_match` / `exit_target` plumbing is gone — the
 //! walker only ever produces full first-paint HTML now. Client-side
 //! re-render kicks in via the compiler-emitted `__b<N>_attach`

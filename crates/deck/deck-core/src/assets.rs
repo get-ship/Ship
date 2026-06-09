@@ -263,9 +263,9 @@ pub fn serve_sui_sdk_client(mode: DaemonMode) -> DeckResponse {
     let js = read_framework_asset("sui-sdk-client.js").unwrap_or_else(|| SUI_SDK_CLIENT_JS.to_string());
     DeckResponse::js_asset(js, mode)
 }
-/// `GET /_sui/icons/{name}.svg` — one lucide icon, served standalone. Replaces
-/// `GET /_sui/icons/{name}.svg` — one lucide icon, served standalone. Replaces
-/// the retired whole-blob `/_sui/lucide-icons.json` endpoint (~410 KB fetched
+/// `GET /_deck/icons/{name}.svg` — one lucide icon, served standalone. Replaces
+/// `GET /_deck/icons/{name}.svg` — one lucide icon, served standalone. Replaces
+/// the retired whole-blob `/_deck/lucide-icons.json` endpoint (~410 KB fetched
 /// once on first mount). Per-icon serving hands the browser HTTP cache the
 /// granularity that matches usage: each `<sui-icon>` triggers one tiny GET
 /// (typically <1 KB), 304-cached on second mount.
@@ -308,7 +308,7 @@ pub fn serve_sui_icon(mode: DaemonMode, name: &str) -> DeckResponse {
     )
 }
 
-/// `GET /_sui/live-reload.js` — the one HMR client, shared by the view
+/// `GET /_deck/live-reload.js` — the one HMR client, shared by the view
 /// host and the shell. Served in every mode (it self-gates on the
 /// `ship-mode` meta tag); only subscribes when the daemon is in dev.
 pub fn serve_sui_live_reload(mode: DaemonMode) -> DeckResponse {
@@ -316,11 +316,11 @@ pub fn serve_sui_live_reload(mode: DaemonMode) -> DeckResponse {
     DeckResponse::js_asset(js, mode)
 }
 
-/// `GET /_sui/{file}` — a shared chunk emitted by the multi-entry view build
+/// `GET /_deck/{file}` — a shared chunk emitted by the multi-entry view build
 /// (#267): a deduped view bundle does `import "../../<chunk>.js"`, which the
-/// browser resolves to `/_sui/<chunk>.js`. Served content-addressed from the
+/// browser resolves to `/_deck/<chunk>.js`. Served content-addressed from the
 /// `.deck/` root. Single-segment `.js` only; the framework singletons
-/// (`/_sui/runtime.js` …) match their exact routes first, so this catches only
+/// (`/_deck/runtime.js` …) match their exact routes first, so this catches only
 /// the hashed shared chunks.
 pub fn serve_sui_chunk(mode: DaemonMode, file: &str) -> DeckResponse {
     if file.contains("..") || file.contains('/') || !file.ends_with(".js") {

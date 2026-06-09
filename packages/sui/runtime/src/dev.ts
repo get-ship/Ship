@@ -6,8 +6,8 @@
 // import from here when they want the leak detector wired in.
 //
 // HMR lives in Deck, not here: the live-reload client is served at
-// `/_sui/live-reload.js` and drives the runtime's `mount().reload()`
+// `/_deck/live-reload.js` and drives the runtime's `mount().reload()`
 // seam. The runtime owns the reload *mechanism*; Deck owns the
-// transport + the `/_sui/` URLs.
+// transport + the `/_deck/` URLs.
 
 export { enableLeakWarn, enableLeakWarnInScope } from './scope-resource-warn'

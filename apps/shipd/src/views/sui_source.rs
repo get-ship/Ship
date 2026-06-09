@@ -1,4 +1,4 @@
-//! `GET /_sui/source/{tag}` — render a simple HTML page showing the
+//! `GET /_deck/source/{tag}` — render a simple HTML page showing the
 //! `.sui` template and `.controller.ts` for a SUI component.
 //!
 //! Powers the "View source" deep-link in ship-ui-studio. The component
@@ -86,7 +86,7 @@ fn lookup_controller(tag: &str) -> Option<String> {
     None
 }
 
-/// GET /_sui/source/{tag}
+/// GET /_deck/source/{tag}
 pub async fn serve_sui_source(Path(tag): Path<String>) -> Response {
     if !is_valid_tag(&tag) {
         return (StatusCode::BAD_REQUEST, "invalid tag").into_response();

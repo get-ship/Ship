@@ -1,7 +1,7 @@
 <!--
   <sui-icon> — SUI port of <ship-icon> plus app glyph support.
   Canonical inline SVG icon. With `name`, fetches one lucide icon from
-  the daemon (`/_sui/icons/<name>.svg`). With `src`, fetches an arbitrary
+  the daemon (`/_deck/icons/<name>.svg`). With `src`, fetches an arbitrary
   SVG URL (CDN escape hatch, e.g. simpleicons.org for brand marks). Names
   that 404 fall through to the default slot — provide raw SVG there for
   one-off glyphs.

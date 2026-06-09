@@ -76,7 +76,7 @@ fn view_host_splices_precompiled_ssr() {
     // Evict any stale cache entry from a previous run.
     evict_ssr_cache("ssr-host-test-splice");
 
-    let resp = serve_view_host(DaemonMode::Development, "/_sui/view/ssr-host-test-splice");
+    let resp = serve_view_host(DaemonMode::Development, "/_deck/view/ssr-host-test-splice");
     assert_eq!(resp.status, 200);
     let body = body_str(&resp);
     assert!(
@@ -100,7 +100,7 @@ fn view_host_without_ssr_live_emits_from_source() {
     fs::create_dir_all(&view_dir).unwrap();
     fs::write(view_dir.join("page.sui"), "<p>hi</p>").unwrap();
 
-    let resp = serve_view_host(DaemonMode::Development, "/_sui/view/ssr-host-test-empty");
+    let resp = serve_view_host(DaemonMode::Development, "/_deck/view/ssr-host-test-empty");
     assert_eq!(resp.status, 200);
     let body = body_str(&resp);
     assert!(
@@ -139,7 +139,7 @@ fn view_host_prod_ssr_cache_revalidates_on_mtime() {
     evict_ssr_cache(view_name);
 
     // First request in prod — populates cache with v1.
-    let resp = serve_view_host(DaemonMode::Production, &format!("/_sui/view/{view_name}"));
+    let resp = serve_view_host(DaemonMode::Production, &format!("/_deck/view/{view_name}"));
     assert!(body_str(&resp).contains("content-v1"), "first prod request must read from disk");
 
     // Re-emit the artifact and advance its mtime — the prod cache MUST revalidate
@@ -149,7 +149,7 @@ fn view_host_prod_ssr_cache_revalidates_on_mtime() {
     let bumped = now + std::time::Duration::from_secs(5);
     filetime::set_file_mtime(&ssr_file, filetime::FileTime::from_system_time(bumped)).unwrap();
 
-    let resp = serve_view_host(DaemonMode::Production, &format!("/_sui/view/{view_name}"));
+    let resp = serve_view_host(DaemonMode::Production, &format!("/_deck/view/{view_name}"));
     let body = body_str(&resp);
     assert!(
         body.contains("content-v2"),
@@ -174,12 +174,12 @@ fn view_host_dev_bypasses_ssr_cache() {
 
     evict_ssr_cache(view_name);
 
-    let resp = serve_view_host(DaemonMode::Development, &format!("/_sui/view/{view_name}"));
+    let resp = serve_view_host(DaemonMode::Development, &format!("/_deck/view/{view_name}"));
     assert!(body_str(&resp).contains("dev-v1"), "dev first request reads from disk");
 
     fs::write(&ssr_file, "dev-v2").unwrap();
 
-    let resp = serve_view_host(DaemonMode::Development, &format!("/_sui/view/{view_name}"));
+    let resp = serve_view_host(DaemonMode::Development, &format!("/_deck/view/{view_name}"));
     let body = body_str(&resp);
     assert!(body.contains("dev-v2"), "dev must bypass cache and read fresh content");
 }

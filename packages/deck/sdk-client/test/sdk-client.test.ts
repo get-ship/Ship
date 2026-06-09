@@ -158,7 +158,7 @@ describe('createClient', () => {
   it('subsequent patches mutate via applyPatch', () => {
     FakeEventSource.instances = []
     const source = makeSseSource<{ items: { id: string }[] }>(
-      'http://test/_sui/data?expr=ship.agents.summaries%28%29',
+      'http://test/_deck/data?expr=ship.agents.summaries%28%29',
       FakeEventSource as any,
     )
     const sig = live(() => source)

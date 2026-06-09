@@ -9,7 +9,7 @@
     mode           ('modal'|'inline', 'inline', reflect) — render style
     open           (bool, false, reflect)                — modal visibility
     select-mode    ('single'|'multi', 'single', reflect) — interaction model
-    catalog-url    (string, '/_sui/catalog/workspace')
+    catalog-url    (string, '/_deck/catalog/workspace')
     placeholder    (string, 'Search components…')        — input placeholder
     category-filter(string, '')                          — restrict to CEM "category" tag
   ─────────────────────────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@
 <prop name="mode" values="modal|inline" default="inline" reflect />
 <prop name="open" type="bool" default="false" reflect />
 <prop name="select-mode" values="single|multi" default="single" reflect />
-<prop name="catalog-url" type="string" default="/_sui/catalog/workspace" />
+<prop name="catalog-url" type="string" default="/_deck/catalog/workspace" />
 <prop name="placeholder" type="string" default="Search components…" />
 <prop name="category-filter" type="string" default="" />
 

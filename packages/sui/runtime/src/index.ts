@@ -35,14 +35,14 @@
 // signals, effects, and the context/route registries are module-level state.
 // The hard guarantee is structural — the deck bundler externalizes
 // `@ship/sui-runtime` for every target so the importmap resolves them all to
-// one `/_sui/runtime.js`. This load-time counter is the belt-and-suspenders
+// one `/_deck/runtime.js`. This load-time counter is the belt-and-suspenders
 // heads-up: a second instance means signals/effects in one copy can't react to
 // the other's (split-brain).
 //
 // In a daemon-served (production) shell this should always be 1 — a 2 there is
 // a real bundler-externalization regression. Under the vite shell-dev server it
 // can legitimately be 2, because vite serves this module's SOURCE via `@fs`
-// alongside the daemon's bundled `/_sui/runtime.js`; that's a dev-server
+// alongside the daemon's bundled `/_deck/runtime.js`; that's a dev-server
 // artifact, not a bundler bug. Warn (don't throw) so it's visible without
 // crying wolf in dev.
 {
@@ -52,7 +52,7 @@
     console.warn(
       '[sui-runtime] loaded %d times. In production this means a bundle is not ' +
         'externalizing @ship/sui-runtime (split-brain signals); under vite ' +
-        'shell-dev it is the expected @fs-source + /_sui-bundle duplication.',
+        'shell-dev it is the expected @fs-source + /_deck-bundle duplication.',
       g.__suiRuntimeInstances,
     )
   }

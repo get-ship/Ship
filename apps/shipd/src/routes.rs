@@ -95,25 +95,17 @@ pub enum Route {
     /// @auth public
     ListThemes,
 
-    // ── SUI framework hosting (deck-axum handlers) ──
+    // SUI framework hosting (`runtime.js` / `dom.js` / `sdk-client.js` /
+    // `live-reload.js` / `components.js`) lives entirely in deck-axum's
+    // `deck::router()` — see `crates/deck/deck-core/src/routes.rs::DECK_PREFIX`.
+    // shipd only owns the two handler-style endpoints: HMR SSE + per-tag
+    // source viewer, both renamed `/_deck/*` → `/_deck/*` in #277b.
 
-    /// @route GET "/_sui/runtime.js"
-    /// @auth public
-    SuiRuntimeJs,
-
-    /// @route GET "/_sui/dom.js"
-    /// @auth public
-    SuiDomJs,
-
-    /// @route GET "/_sui/sdk-client.js"
-    /// @auth public
-    SuiSdkClientJs,
-
-    /// @route GET "/_sui/dev/hmr"
+    /// @route GET "/_deck/dev/hmr"
     /// @auth public
     SuiDevHmr,
 
-    /// @route GET "/_sui/source/{tag}"
+    /// @route GET "/_deck/source/{tag}"
     /// @auth public
     SuiSource { tag: String },
 

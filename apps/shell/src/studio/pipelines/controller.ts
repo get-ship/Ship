@@ -39,7 +39,7 @@ type SummariesCtx = {
 
 const EMPTY: SummariesCtx = { stats_subtitle: '', defs: [], active_runs: [], providers: [] }
 // `summaries` is a live signal the controller owns: subscribe directly to the
-// `/_sui/data?expr=ship.pipelines.summaries()` SSE channel via `liveExpr` (the
+// `/_deck/data?expr=ship.pipelines.summaries()` SSE channel via `liveExpr` (the
 // pattern views/events + the history view use). The shell SDK object has no
 // `pipelines` surface, so the call form would throw — `liveExpr` wires the
 // channel by name instead. `{#async summaries}` + derived args read the signal.

@@ -116,7 +116,7 @@ pub fn render_split(
     let html = state.into_html();
     let has_live_data = program.data.iter().any(|d| d.live);
     // `__subscribe__` is NOT injected here. The host (deck-core) reads
-    // `has_live_data` and injects the correct `/_sui/views/<name>/sse` URL
+    // `has_live_data` and injects the correct `/_deck/views/<name>/sse` URL
     // using its own route builders — the compiler must not bake a served URL.
     let init = initial.init;
     Ok(RenderSplit { html, init, has_live_data })

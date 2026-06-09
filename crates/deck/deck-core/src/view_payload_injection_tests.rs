@@ -40,7 +40,7 @@ fn payload_injects_mutation_action_into_html() {
 
     // The host must have injected action + method.
     assert!(
-        html.contains("/_sui/mutation/host-inject-form?form=b0"),
+        html.contains("/_deck/mutation/host-inject-form?form=b0"),
         "host must inject mutation action into payload html; got: {html}"
     );
     assert!(
@@ -77,7 +77,7 @@ fn payload_leaves_author_action_untouched() {
         "author action must be preserved; got: {html}"
     );
     assert!(
-        !html.contains("/_sui/mutation"),
+        !html.contains("/_deck/mutation"),
         "host must not inject when author action present; got: {html}"
     );
 }
@@ -105,7 +105,7 @@ fn payload_injects_subscribe_into_scope_for_live_view() {
     );
     let sub = scope["__subscribe__"].as_str().unwrap_or("");
     assert_eq!(
-        sub, "/_sui/views/host-inject-live/sse",
+        sub, "/_deck/views/host-inject-live/sse",
         "host must inject __subscribe__ for live view; got: {sub}"
     );
 }
@@ -130,7 +130,7 @@ fn payload_subpath_injects_subscribe_with_sub() {
     let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     let sub = v["scope"]["__subscribe__"].as_str().unwrap_or("");
     assert_eq!(
-        sub, "/_sui/views/host-inject-live-sub/42/sse",
+        sub, "/_deck/views/host-inject-live-sub/42/sse",
         "sub-path live view must use combined name/sub for __subscribe__; got: {sub}"
     );
 }
@@ -148,11 +148,11 @@ fn view_host_injects_mutation_action_into_ssr() {
     )
     .unwrap();
 
-    let resp = serve_view_host(DaemonMode::Development, "/_sui/view/host-host-inject-form");
+    let resp = serve_view_host(DaemonMode::Development, "/_deck/view/host-host-inject-form");
     assert_eq!(resp.status, 200);
     let body = body_str(&resp);
     assert!(
-        body.contains("/_sui/mutation/host-host-inject-form?form=b0"),
+        body.contains("/_deck/mutation/host-host-inject-form?form=b0"),
         "view-host must inject mutation action; got: {body}"
     );
     assert!(
@@ -178,11 +178,11 @@ fn view_host_injects_into_precompiled_ssr_html() {
     fs::write(dist_dir.join("page.ssr.html"), ssr_content).unwrap();
     evict_ssr_cache("host-host-precompiled-inject");
 
-    let resp = serve_view_host(DaemonMode::Development, "/_sui/view/host-host-precompiled-inject");
+    let resp = serve_view_host(DaemonMode::Development, "/_deck/view/host-host-precompiled-inject");
     assert_eq!(resp.status, 200);
     let body = body_str(&resp);
     assert!(
-        body.contains("/_sui/mutation/host-host-precompiled-inject?form=b0"),
+        body.contains("/_deck/mutation/host-host-precompiled-inject?form=b0"),
         "host must inject action into precompiled .ssr.html; got: {body}"
     );
 }

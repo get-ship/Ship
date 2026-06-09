@@ -43,7 +43,7 @@ enum Command {
         /// Output dir (default: <shell-root>/dist).
         #[arg(long)]
         out: Option<PathBuf>,
-        /// Materialize the /_sui/* framework surface into the output (self-contained).
+        /// Materialize the /_deck/* framework surface into the output (self-contained).
         #[arg(long)]
         bundle_framework: bool,
         /// Skip minification.

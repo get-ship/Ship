@@ -126,9 +126,9 @@ async fn one_stream_demuxes_two_subscriptions_by_id() {
     let h = serve(data_port.clone(), change_source).await;
     let client = reqwest::Client::new();
 
-    // POST /_sui/mux/open
+    // POST /_deck/mux/open
     let open: serde_json::Value = client
-        .post(format!("http://{}/_sui/mux/open", h.addr))
+        .post(format!("http://{}/_deck/mux/open", h.addr))
         .send()
         .await
         .unwrap()
@@ -138,9 +138,9 @@ async fn one_stream_demuxes_two_subscriptions_by_id() {
     let window_id = open["window_id"].as_str().unwrap().to_string();
     assert!(window_id.starts_with("win."), "win.<ulid> prefix; got {window_id}");
 
-    // POST /_sui/mux/subscribe × 2
+    // POST /_deck/mux/subscribe × 2
     let sub_a: serde_json::Value = client
-        .post(format!("http://{}/_sui/mux/subscribe", h.addr))
+        .post(format!("http://{}/_deck/mux/subscribe", h.addr))
         .json(&json!({
             "window_id": window_id, "domain": "agents", "op": "summaries",
         }))
@@ -151,7 +151,7 @@ async fn one_stream_demuxes_two_subscriptions_by_id() {
         .await
         .unwrap();
     let sub_b: serde_json::Value = client
-        .post(format!("http://{}/_sui/mux/subscribe", h.addr))
+        .post(format!("http://{}/_deck/mux/subscribe", h.addr))
         .json(&json!({
             "window_id": window_id, "domain": "git", "op": "overview",
         }))
@@ -166,9 +166,9 @@ async fn one_stream_demuxes_two_subscriptions_by_id() {
     assert_ne!(id_a, id_b, "two subs must mint distinct ids");
     assert!(id_a.starts_with("sub.") && id_b.starts_with("sub."), "sub.<ulid>");
 
-    // GET /_sui/mux/stream/{window_id}
+    // GET /_deck/mux/stream/{window_id}
     let resp = client
-        .get(format!("http://{}/_sui/mux/stream/{window_id}", h.addr))
+        .get(format!("http://{}/_deck/mux/stream/{window_id}", h.addr))
         .send()
         .await
         .unwrap();
@@ -232,7 +232,7 @@ async fn unknown_op_returns_explicit_error_not_silent_null() {
     let client = reqwest::Client::new();
 
     let open: serde_json::Value = client
-        .post(format!("http://{}/_sui/mux/open", h.addr))
+        .post(format!("http://{}/_deck/mux/open", h.addr))
         .send()
         .await
         .unwrap()
@@ -242,7 +242,7 @@ async fn unknown_op_returns_explicit_error_not_silent_null() {
     let window_id = open["window_id"].as_str().unwrap().to_string();
 
     let resp = client
-        .post(format!("http://{}/_sui/mux/subscribe", h.addr))
+        .post(format!("http://{}/_deck/mux/subscribe", h.addr))
         .json(&json!({"window_id": window_id, "domain": "nope", "op": "void"}))
         .send()
         .await
@@ -258,7 +258,7 @@ async fn subscribe_to_unknown_window_is_404() {
     let client = reqwest::Client::new();
 
     let resp = client
-        .post(format!("http://{}/_sui/mux/subscribe", h.addr))
+        .post(format!("http://{}/_deck/mux/subscribe", h.addr))
         .json(&json!({"window_id": "win.never_opened", "domain": "x", "op": "y"}))
         .send()
         .await

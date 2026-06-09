@@ -13,7 +13,7 @@
 //! ## Phase 2 — client-side control flow
 //!
 //! `{#if}` / `{#for}` / `{#match}` boundaries no longer round-trip
-//! through `/_sui/render-fragment/`. Each boundary emits two pieces:
+//! through `/_deck/render-fragment/`. Each boundary emits two pieces:
 //!
 //!   1. A hoisted `const __wireBoundary_b<N> = (anchor) => bindIf({...})`
 //!      defined inside `setup(ctx)`. Captures `$scope`. Used by

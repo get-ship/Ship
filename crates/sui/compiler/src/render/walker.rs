@@ -15,7 +15,7 @@
 //! every branch — but suppresses HTML output for the un-taken ones via
 //! the `Out` wrapper's silent mode.
 //!
-//! Phase 2 deleted the `/_sui/render-fragment/` POST endpoint, so the
+//! Phase 2 deleted the `/_deck/render-fragment/` POST endpoint, so the
 //! walker no longer carries the `FragmentState` plumbing for
 //! single-boundary fragment renders. Control-flow swap is now
 //! client-side; the SSR walker only emits the active-branch HTML at

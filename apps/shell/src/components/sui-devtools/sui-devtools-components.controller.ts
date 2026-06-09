@@ -1,12 +1,12 @@
+import { DECK_PREFIX } from '@ship/sdk-client'
 import { chrome, controller, signal, derived, ref } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-components.sui'
 
 // The dock's Components tab inspects the workspace SUI catalog —
-// `/_sui/catalog/workspace` returns every `<sui-*>` the monorepo
+// `/_deck/catalog/workspace` returns every `<sui-*>` the monorepo
 // knows about (packaged pack components + non-packaged shell/view
-// locals). Emitted by deck-bundler (deck build-assets).
-const SUI_CATALOG_URL = '/_sui/catalog/workspace'
+const SUI_CATALOG_URL = `${DECK_PREFIX}/catalog/workspace`
 
 interface CemAttr { name: string; description?: string; type?: { text?: string }; default?: string }
 interface CatalogEntryWire {

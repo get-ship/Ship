@@ -21,7 +21,7 @@
 //!
 //! `patch-signals` updates a named LiveSignal in the runtime scope.
 //! `patch-elements` is an out-of-band surgical DOM patch.
-//! `patch` (op: set) is the legacy `/_sui/data` single-expression channel.
+//! `patch` (op: set) is the legacy `/_deck/data` single-expression channel.
 //! The keepalive comment prevents idle proxies from closing SSE connections.
 
 use serde::{Deserialize, Serialize};
@@ -45,7 +45,7 @@ pub fn format_patch_signals(name: &str, value: &serde_json::Value) -> String {
 
 // ── patch (op: set) ───────────────────────────────────────────────────────────
 
-/// Format one `patch` SSE frame for the `/_sui/data` single-expression channel.
+/// Format one `patch` SSE frame for the `/_deck/data` single-expression channel.
 ///
 /// `value` is the resolved expression value; `expr` is included as `_expr` for
 /// client-side diagnostics. The `op: "set"` payload replaces the full value on

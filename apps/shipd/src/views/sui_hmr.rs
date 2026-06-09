@@ -1,6 +1,6 @@
 //! SUI bundle HMR channel.
 //!
-//! `GET /_sui/dev/hmr` forwards `module_changed` / `compile_error` events
+//! `GET /_deck/dev/hmr` forwards `module_changed` / `compile_error` events
 //! from the Bun bundler worker to browser clients as an SSE stream. The
 //! Deck host's live-reload client subscribes here to drive in-place view
 //! reloads (and full-page reloads for component/runtime bundles).
@@ -67,7 +67,7 @@ pub fn publish_bundle_event(event: BundleModuleEvent) {
     let _ = bundle_channel().tx.send(event);
 }
 
-/// `GET /_sui/dev/hmr` — SSE stream of bundler module-changed events.
+/// `GET /_deck/dev/hmr` — SSE stream of bundler module-changed events.
 ///
 /// The Deck host's live-reload client subscribes here. Events are
 /// `module-changed` and `compile-error` kinds with JSON payloads.
@@ -109,7 +109,7 @@ mod tests {
         use axum::routing;
         let mut r = axum::Router::new();
         if mode == deck::DaemonMode::Development {
-            r = r.route("/_sui/dev/hmr", routing::get(serve_bundle_hmr));
+            r = r.route("/_deck/dev/hmr", routing::get(serve_bundle_hmr));
         }
         r
     }
@@ -118,21 +118,21 @@ mod tests {
     async fn bundle_hmr_route_available_in_dev() {
         use tower::ServiceExt;
         let app = build_hmr_router(deck::DaemonMode::Development);
-        let req = axum::http::Request::get("/_sui/dev/hmr")
+        let req = axum::http::Request::get("/_deck/dev/hmr")
             .body(axum::body::Body::empty())
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::OK, "/_sui/dev/hmr must be 200 in dev mode");
+        assert_eq!(resp.status(), StatusCode::OK, "/_deck/dev/hmr must be 200 in dev mode");
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn bundle_hmr_route_absent_in_production() {
         use tower::ServiceExt;
         let app = build_hmr_router(deck::DaemonMode::Production);
-        let req = axum::http::Request::get("/_sui/dev/hmr")
+        let req = axum::http::Request::get("/_deck/dev/hmr")
             .body(axum::body::Body::empty())
             .unwrap();
         let resp = app.oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::NOT_FOUND, "/_sui/dev/hmr must be 404 in prod mode");
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND, "/_deck/dev/hmr must be 404 in prod mode");
     }
 }

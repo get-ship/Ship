@@ -1,3 +1,4 @@
+import { DECK_PREFIX } from '@ship/sdk-client'
 import { controller, signal, derived, ref } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-component-picker.sui'
@@ -66,8 +67,7 @@ function populatePreview(container: HTMLElement, tag: string): void {
   }
   container.appendChild(el)
 }
-
-const FALLBACK_CATALOG = '/_sui/catalog/workspace'
+const FALLBACK_CATALOG = `${DECK_PREFIX}/catalog/workspace`
 
 interface CatalogAttr { name: string; description?: string; type?: { text?: string }; default?: string }
 interface CatalogEntryWire {

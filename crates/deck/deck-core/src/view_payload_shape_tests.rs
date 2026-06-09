@@ -65,7 +65,7 @@ fn top_level_view_payload_shape() {
         "html must NOT include the script island — scope is a separate field");
     assert_eq!(v["css"], "p { color: red; }");
     assert!(v["scope"].is_object(), "scope should be a JSON object, got {}", v["scope"]);
-    assert_eq!(v["moduleUrl"], "/_sui/views/demo/view.js");
+    assert_eq!(v["moduleUrl"], "/_deck/views/demo/view.js");
 }
 
 #[test]
@@ -91,7 +91,7 @@ fn sub_path_payload_concatenates_css() {
         css.find(".parent").unwrap() < css.find(".child").unwrap(),
         "parent must precede child for cascade order"
     );
-    assert_eq!(v["moduleUrl"], "/_sui/views/demo/view.js?sub=anything");
+    assert_eq!(v["moduleUrl"], "/_deck/views/demo/view.js?sub=anything");
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn host_unknown_view_serves_html_404_with_available_views() {
         fs::write(dir.join("page.sui"), "<p>hi</p>").unwrap();
     }
 
-    let resp = serve_view_host(DaemonMode::Development, "/_sui/view/home");
+    let resp = serve_view_host(DaemonMode::Development, "/_deck/view/home");
     assert_eq!(resp.status, 404, "missing view must 404");
     assert!(
         resp.content_type.contains("text/html"),
@@ -131,8 +131,8 @@ fn host_unknown_view_serves_html_404_with_available_views() {
     assert!(body.contains("home"), "must name the requested view; got: {body}");
     assert!(body.contains("href=\"/\""), "must link back to the shell root; got: {body}");
     // Available-views list pulled from the resolver's roots.
-    assert!(body.contains("/_sui/view/counter"), "must list servable views; got: {body}");
-    assert!(body.contains("/_sui/view/dashboard"), "must list servable views; got: {body}");
+    assert!(body.contains("/_deck/view/counter"), "must list servable views; got: {body}");
+    assert!(body.contains("/_deck/view/dashboard"), "must list servable views; got: {body}");
     // The page must NOT leak the JSON error shape the payload endpoint uses.
     assert!(!body.contains("\"view_not_found\""), "must not dump raw JSON; got: {body}");
 }
@@ -182,5 +182,5 @@ fn first_party_view_payload_works() {
     assert_eq!(resp.status, 200);
     let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
     assert_eq!(v["name"], "studio");
-    assert_eq!(v["moduleUrl"], "/_sui/views/studio/view.js");
+    assert_eq!(v["moduleUrl"], "/_deck/views/studio/view.js");
 }

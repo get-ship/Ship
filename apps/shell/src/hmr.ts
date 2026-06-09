@@ -1,8 +1,8 @@
 // Shell HMR glue. Two reload paths, gated by daemon mode:
 //
 //   Dev (ship-mode=development): the Deck live-reload client (served at
-//     `/_sui/live-reload.js`) subscribes to the bundler firehose
-//     (`/_sui/dev/hmr`) and reloads on any target change. Always on, no
+//     `/_deck/live-reload.js`) subscribes to the bundler firehose
+//     (`/_deck/dev/hmr`) and reloads on any target change. Always on, no
 //     toggle — this is the Ship-team dev loop.
 //
 //   Prod: live-reload is coupled to *edit mode* (the product authoring
@@ -22,9 +22,12 @@
 // view.js and re-mount in place. Any other target → full reload (custom
 // elements can't be re-registered without one).
 
+import { DECK_PREFIX } from '@ship/sdk-client'
+
 interface MountModule {
   default: { setup: (...args: unknown[]) => unknown }
 }
+
 
 export interface HmrDeps {
   getCurrentView(): string | null
@@ -62,7 +65,7 @@ function isDevMode(): boolean {
 //   `URL.revokeObjectURL` is called. This is dev-only; the production
 //   `sui:view:compiled` path hits the same code and gets the same fix.
 async function remountView(deps: HmrDeps, view: string, bust: string): Promise<void> {
-  const url = `/_sui/views/${view}/view.js?v=${encodeURIComponent(bust)}`
+  const url = `${DECK_PREFIX}/views/${view}/view.js?v=${encodeURIComponent(bust)}`
   try {
     const res = await fetch(url, { credentials: 'same-origin' })
     if (!res.ok) throw new Error(`view bundle HTTP ${res.status}`)
@@ -109,7 +112,7 @@ export function initHmr(deps: HmrDeps): { close(): void } {
   void (async () => {
     // Runtime URL served by the daemon (Deck). Held in a variable so TS
     // treats it as a dynamic specifier rather than resolving it at build.
-    const clientUrl = '/_sui/live-reload.js'
+    const clientUrl = `${DECK_PREFIX}/live-reload.js`
     let mod: LiveReloadModule
     try {
       mod = (await import(/* @vite-ignore */ clientUrl)) as LiveReloadModule

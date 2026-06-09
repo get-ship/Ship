@@ -10,7 +10,7 @@
 // Per-request flow:
 //
 //   1. Read location.pathname → derive the current view name + sub.
-//   2. Fetch /_sui/views/<name>[/<sub>] → ViewPayload.
+//   2. Fetch /_deck/views/<name>[/<sub>] → ViewPayload.
 //   3. mount(content, payload) → MountHandle.
 //   4. On internal anchor clicks → history.pushState + re-mount.
 //   5. On popstate → re-mount.
@@ -18,7 +18,7 @@
 //      ⌘. navigates to /studio; ⌃` toggles the terminal panel;
 //      ⌘? opens help.
 
-import { createClient, setShipClient, type ShipSDK } from '@ship/sdk-client'
+import { createClient, DECK_PREFIX, setShipClient, type ShipSDK } from '@ship/sdk-client'
 import { ops } from './ops'
 // `import './components'` and `import { loadHeavyChrome } from
 // './chrome/load-heavy-chrome'` removed. Both source files were deleted in
@@ -84,7 +84,7 @@ import './components'
 
 
 // The daemon's base origin. Empty in a browser/vite context (same-origin; the
-// vite proxy forwards /api + /_sui + Connect to the daemon). In the proxy-less
+// vite proxy forwards /api + /_deck + Connect to the daemon). In the proxy-less
 // Tauri webview, the host plants `window.__SHIP_DAEMON_URL__` =
 // `http://127.0.0.1:<port>` so every daemon call targets the absolute loopback
 // origin directly (no proxy — the doc's Connect-over-loopback model).
@@ -119,11 +119,11 @@ const shipClient: ShipSDK = createClient({ baseUrl: daemonBase() })
 // not reach for the SDK and are unaffected.
 setShipClient(shipClient)
 
-// Host loader injected into every mount() — the `/_sui/` URL scheme lives
+// Host loader injected into every mount() — the `/_deck/` URL scheme lives
 // here at the app boundary, not inside the (host-agnostic) SUI runtime.
 const suiLoader: SuiLoader = {
   async fetchView(nameOrPath: string): Promise<ViewPayload> {
-    const rel = nameOrPath.startsWith('/_sui/views/') ? nameOrPath : `/_sui/views/${nameOrPath}`
+    const rel = nameOrPath.startsWith(`${DECK_PREFIX}/views/`) ? nameOrPath : `${DECK_PREFIX}/views/${nameOrPath}`
     const path = `${daemonBase()}${rel}`
     const res = await fetch(path, { credentials: 'same-origin' })
     if (!res.ok) {
@@ -138,7 +138,7 @@ const suiLoader: SuiLoader = {
 // `views/<name>/[id]/` use these to read `route.params.id()`. Views
 // can also register their own at controller-import time, but those
 // registrations land in the view-bundle's copy of @ship/sui-runtime
-// (served via `/_sui/runtime.js`) — a separate module instance from
+// (served via `/_deck/runtime.js`) — a separate module instance from
 // the shell's bundle of @ship/sui-runtime, so the shell's
 // `routeSignals` proxy never sees them. Registering here at the shell
 // layer means params get seeded against the SHAPES the shell knows.
@@ -335,7 +335,7 @@ const confinedCache = new Map<string, Promise<unknown>>()
 //
 // The runtime is imported as a namespace import here so the SES
 // endowments pass the SAME module instance that `mount` (line 42)
-// uses — the importmap resolves both to /_sui/runtime.js.
+// uses — the importmap resolves both to /_deck/runtime.js.
 import * as runtimeNs from '@ship/sui-runtime'
 const suiRuntime = runtimeNs as unknown as Record<string, unknown>
 
@@ -353,7 +353,7 @@ async function buildConfinedModule(viewName: string): Promise<unknown> {
       import('@ship/deck-host'),
       import('@ship/sui-dom'),
     ])
-    const res = await fetch(`${daemonBase()}/_sui/views/${viewName}/view.js`, { credentials: 'same-origin' })
+    const res = await fetch(`${daemonBase()}${DECK_PREFIX}/views/${viewName}/view.js`, { credentials: 'same-origin' })
     if (!res.ok) return undefined
     const source = await res.text()
     const endow = buildViewEndowments({
@@ -404,7 +404,7 @@ async function mountRoute(pathname: string, opts: { module?: unknown } = {}): Pr
   // Top-level route name (first path segment) for SES confinement and
   // body[data-view]. SES confinement is opt-in (localStorage), keyed
   // by the top-level name because each view's source lives at
-  // `/_sui/views/<name>/view.js`.
+  // `/_deck/views/<name>/view.js`.
   const viewName = viewTagOf(pathname)
 
   try {
@@ -433,7 +433,7 @@ async function mountRoute(pathname: string, opts: { module?: unknown } = {}): Pr
       // as views stuck on `Loading…` because the patch never lands.
       ship: shipClient,
       // Host loader — the runtime is host-agnostic and doesn't know
-      // the `/_sui/` URL scheme; this adapter supplies by-name or
+      // the `/_deck/` URL scheme; this adapter supplies by-name or
       // by-path payload fetch (the daemon's resolver handles the
       // [param] walk).
       loader: suiLoader,

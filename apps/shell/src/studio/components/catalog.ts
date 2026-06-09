@@ -1,6 +1,7 @@
 // Shared catalog loader for ship-ui-studio.
 // Fetches three sources: Lit CEM, SUI registry, daemon views.
 
+import { DECK_PREFIX } from '@ship/sdk-client'
 import type { ComponentExample } from '@ship/sui-runtime'
 
 export interface CatalogEntry {
@@ -107,7 +108,7 @@ export function categoryRank(category: string): number {
   return i === -1 ? CATEGORY_ORDER.length : i
 }
 
-// The SUI catalog (served at /_sui/catalog/workspace) is the single source
+// The SUI catalog (served at /_deck/catalog/workspace) is the single source
 // of truth for installed-pack components: tag, props, examples, and routing.
 // There is no Lit path and no per-tag hide list — the catalog already covers
 // shell-local chrome and view-local components via the sui-out walk.
@@ -161,7 +162,7 @@ interface SuiCatalogEntry {
 async function loadSuiCatalog(): Promise<Map<string, SuiCatalogEntry>> {
   const out = new Map<string, SuiCatalogEntry>()
   try {
-    const res = await fetch('/_sui/catalog/workspace', { credentials: 'same-origin' })
+    const res = await fetch(`${DECK_PREFIX}/catalog/workspace`, { credentials: 'same-origin' })
     if (!res.ok) return out
     const doc = await res.json() as { entries?: CatalogEntryWire[] }
     for (const e of doc.entries ?? []) {

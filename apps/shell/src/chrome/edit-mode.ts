@@ -16,6 +16,7 @@
 //   - Track `window.__suiCurrentViewId`-style view-name changes so
 //     each route mounts under the right (project, view) key.
 
+import { DECK_PREFIX } from '@ship/sdk-client'
 import {
   editModeForView,
   toggleEditMode,
@@ -211,7 +212,7 @@ function applyEditMode(on: boolean): void {
 
 // ── View-authoring SSE bridge ────────────────────────────────────────
 //
-// While edit mode is on, subscribe to /_sui/views/<name>/sse and
+// While edit mode is on, subscribe to /_deck/views/<name>/sse and
 // re-dispatch view-authoring events as document-level events so
 // sui-va-activity + sui-va-compile receive them via their existing
 // addEventListener calls. Closes on edit-mode exit.
@@ -224,7 +225,7 @@ function openViewSse(view: string): void {
   closeViewSse()
   viewSseView = view
   try {
-    viewSse = new EventSource(`/_sui/views/${encodeURIComponent(view)}/sse`)
+    viewSse = new EventSource(`${DECK_PREFIX}/views/${encodeURIComponent(view)}/sse`)
   } catch (err) {
     console.warn('[edit-mode] SSE open failed:', err)
     return

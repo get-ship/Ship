@@ -6,7 +6,7 @@
 //!   - hand-roll a scope Proxy inline (call a runtime helper instead — the
 //!     `$signals`-undefined regression #149 came from a bespoke inline proxy
 //!     that drifted from the runtime's),
-//!   - emit a `/_sui/...` URL or an `importmap` (serving is Deck's concern;
+//!   - emit a `/_deck/...` URL or an `importmap` (serving is Deck's concern;
 //!     SUI knows no URLs).
 //!
 //! These gates run on representative compiled output (view + component) so a
@@ -42,7 +42,7 @@ fn component_opts(setup: Option<&str>) -> CompileOpts {
 
 const FORBIDDEN: &[(&str, &str)] = &[
     ("new Proxy($scope", "hand-rolled scope proxy — call the runtime builder (componentMountState)"),
-    ("/_sui/", "a served URL — serving is Deck's concern, SUI emits no URLs"),
+    ("/_deck/", "a served URL — serving is Deck's concern, SUI emits no URLs"),
     ("importmap", "an import map — that's the host page's job, not compiler output"),
 ];
 
@@ -69,7 +69,7 @@ fn component_output_emits_no_behavior_or_urls() {
     assert_clean(&out.js, "component");
 }
 
-/// Gate: a `<form mutation=...>` view must produce SSR HTML with NO `/_sui/`
+/// Gate: a `<form mutation=...>` view must produce SSR HTML with NO `/_deck/`
 /// URL (action injection is the host's job, not the compiler's).
 #[test]
 fn form_mutation_ssr_contains_no_sui_urls() {
@@ -113,7 +113,7 @@ fn live_data_ssr_contains_no_sui_urls() {
     // has_live_data must be true — the host reads this.
     assert!(split.has_live_data, "has_live_data must be true");
 
-    // No /_sui/ in HTML.
+    // No /_deck/ in HTML.
     for (needle, why) in FORBIDDEN {
         assert!(
             !split.html.contains(needle),

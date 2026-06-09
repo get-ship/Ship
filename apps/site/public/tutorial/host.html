@@ -104,7 +104,7 @@
   </script>
 
   <script type="module">
-    // Mock-daemon service worker — intercepts /_sui/data/<source>
+    // Mock-daemon service worker — intercepts /_deck/data/<source>
     // SSE requests and serves them from per-step scenarios. Tutorial
     // steps that exercise <data live>, {#while-loading}, morphs, or
     // any other daemon-shape feature route through this SW.
@@ -138,7 +138,7 @@
     }
 
     // `ship` proxy — any `ship.<domain>.<op>(...)` call returns a
-    // LiveSource that subscribes via SSE against /_sui/data/<domain>/<op>.
+    // LiveSource that subscribes via SSE against /_deck/data/<domain>/<op>.
     // The SW intercepts those URLs and plays back scenario frames as
     // envelopes ({ kind: 'loading' | 'ok' | 'error', ... }).
     //
@@ -149,7 +149,7 @@
       get: (_t, domain) => new Proxy({}, {
         get: (_t2, op) => (..._args) => ({
           subscribe: (sig) => {
-            const url = `/_sui/data/${String(domain)}/${String(op)}`
+            const url = `/_deck/data/${String(domain)}/${String(op)}`
             const es = new EventSource(url)
             es.onmessage = (e) => {
               try { sig.set(JSON.parse(e.data)) } catch (err) {

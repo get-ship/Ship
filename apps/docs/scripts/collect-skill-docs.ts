@@ -335,7 +335,7 @@ function run(): void {
     if (existsSync(src)) copyFileSync(src, join(apiAssetsDir, name))
   }
 
-  // `<sui-icon>` fetches each lucide icon from `/_sui/icons/<name>.svg`.
+  // `<sui-icon>` fetches each lucide icon from `/_deck/icons/<name>.svg`.
   // The docs site is a static deploy with no daemon — split the committed
   // JSON into one file per icon so the same per-icon URLs resolve here.
   const sUiDir = join(PUBLIC_DIR, "_sui")
@@ -352,7 +352,7 @@ function run(): void {
     for (const [name, inner] of Object.entries(map)) {
       writeFileSync(join(iconsDir, `${name}.svg`), wrap(inner))
     }
-    console.log(`[collect-docs] Emitted ${Object.keys(map).length} icons under /_sui/icons/.`)
+    console.log(`[collect-docs] Emitted ${Object.keys(map).length} icons under /_deck/icons/.`)
   }
 
   // Lazy `<sui-*>` chunks live next to the umbrella bundle under

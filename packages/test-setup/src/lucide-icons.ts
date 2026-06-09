@@ -1,6 +1,6 @@
 // Lucide icon map loader for vitest setups. Reads the committed
 // `crates/deck/deck-core/assets/lucide-icons.json` (the SAME embed the daemon
-// serves at `/_sui/icons/{name}.svg`), wraps each fragment in the canonical
+// serves at `/_deck/icons/{name}.svg`), wraps each fragment in the canonical
 // `<svg>` envelope, and returns a `Map<name, full-svg-markup>` for the
 // caller to push into `@ship/sui-primitives`'s per-icon cache.
 //

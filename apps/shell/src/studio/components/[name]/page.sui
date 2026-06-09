@@ -30,7 +30,7 @@
             <div class="detail-actions">
               {#if entry().sourcePath}
                 <sui-button variant="outline" size="sm"
-                  attr:href={'/_sui/source/' + entry().tag}
+                  attr:href={'/_deck/source/' + entry().tag}
                   data-test="source-link">
                   <sui-icon slot="leading" name="file-code" size="xs"></sui-icon>
                   Open source
@@ -114,7 +114,7 @@
             {#if entry().kind === 'sui'}
               <pre class="detail-code" data-test="code-output">{snippet()}</pre>
             {:else}
-              <div class="detail-render-caption">Live view · <code>/_sui/view/{entry().id}</code></div>
+              <div class="detail-render-caption">Live view · <code>/_deck/view/{entry().id}</code></div>
             {/if}
           </section>
 

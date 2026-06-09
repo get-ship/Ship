@@ -80,7 +80,7 @@ describe('wasm-bootstrap init-once', () => {
     // circuits) keeps this discriminating regardless of run order.
     const urls = fetchSpy.mock.calls.map((c) => c[0])
     expect(urls.every((u) => u === injected)).toBe(true)
-    expect(urls).not.toContain('/_sui/sui_compiler_bg.wasm')
+    expect(urls).not.toContain('/_deck/sui_compiler_bg.wasm')
   })
 
   it('coalesces concurrent first callers (shared in-flight init, no double-run)', async () => {
@@ -158,7 +158,7 @@ describe('pack boundary purity (Slice 0 / behavioral spec #14)', () => {
     expect(inBootstrap?.code.match(/fetch\(/g)?.length).toBe(1)
   })
 
-  it('names no hardcoded daemon/api/_sui path in executable code', () => {
+  it('names no hardcoded daemon/api/_deck path in executable code', () => {
     for (const { file, code } of bodies) {
       expect(code, file).not.toMatch(/['"`][^'"`]*\/(api|_sui)\//)
     }

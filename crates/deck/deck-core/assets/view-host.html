@@ -16,11 +16,11 @@
   <script type="importmap">
     {
       "imports": {
-        "@ship/sui-runtime":                "/_sui/runtime.js",
-        "@ship/sui-runtime/route":          "/_sui/runtime.js",
-        "@ship/sui-runtime/template-hooks": "/_sui/runtime.js",
-        "@ship/sui-dom":                    "/_sui/dom.js",
-        "@ship/sdk-client":                 "/_sui/sdk-client.js"
+        "@ship/sui-runtime":                "/_deck/runtime.js",
+        "@ship/sui-runtime/route":          "/_deck/runtime.js",
+        "@ship/sui-runtime/template-hooks": "/_deck/runtime.js",
+        "@ship/sui-dom":                    "/_deck/dom.js",
+        "@ship/sdk-client":                 "/_deck/sdk-client.js"
       }
     }
   </script>
@@ -41,22 +41,22 @@
        patch-elements applier queries `[data-sui-root][data-view="<name>"]`
        so out-of-band DOM patches can't escape the hosted view, and the
        SSR markup advertises which view it is. The daemon fills the name
-       from the URL path (empty for the bare `/_sui/view` landing). -->
+       from the URL path (empty for the bare `/_deck/view` landing). -->
   <div id="sui-root" data-sui-root data-view="<!-- SUI_VIEW_NAME -->"><!-- SUI_SSR_CONTENT --></div>
 
   <!-- Mount script. The hosted view's name comes from the URL path
-       segments after the host prefix (e.g. `/_sui/view/ship-ui-studio/sui-button`
+       segments after the host prefix (e.g. `/_deck/view/ship-ui-studio/sui-button`
        → name = "ship-ui-studio/sui-button"). The runtime fetches
-       /_sui/views/<that> and mounts the payload here. -->
+       /_deck/views/<that> and mounts the payload here. -->
   <script type="module">
     import { mount } from '@ship/sui-runtime'
 
     function viewPathFromLocation() {
       const path = location.pathname
-      // Strip the host prefix `/_sui/view/` — the daemon mounts this shell at
-      // `/_sui/view/<name>[/<sub>]` (the single-view host route). The prefix is
+      // Strip the host prefix `/_deck/view/` — the daemon mounts this shell at
+      // `/_deck/view/<name>[/<sub>]` (the single-view host route). The prefix is
       // two segments, so match it explicitly rather than dropping one segment.
-      const m = path.match(/^\/_sui\/view\/(.*)$/)
+      const m = path.match(/^\/_deck\/view\/(.*)$/)
       return m ? m[1] : ''
     }
 
@@ -66,10 +66,10 @@
     if (!viewPath) {
       target.innerHTML =
         '<div class="view-host-error">No view in URL.\n\n' +
-        'Use /_sui/view/&lt;name&gt;[/&lt;sub&gt;] — e.g. /_sui/view/ship-ui-studio.</div>'
+        'Use /_deck/view/&lt;name&gt;[/&lt;sub&gt;] — e.g. /_deck/view/ship-ui-studio.</div>'
     } else {
       try {
-        const res = await fetch(`/_sui/views/${viewPath}`, { credentials: 'same-origin' })
+        const res = await fetch(`/_deck/views/${viewPath}`, { credentials: 'same-origin' })
         if (!res.ok) {
           // The daemon serves a styled HTML 404 for a missing top-level view
           // before this shell ever boots, so this branch only fires for
@@ -95,10 +95,10 @@
           }
           // Host loader: the SUI runtime is URL-scheme-agnostic, so the
           // view-host supplies how to fetch payloads.
-          // (Keeps `/_sui/...` at the host boundary, not in mount().)
+          // (Keeps `/_deck/...` at the host boundary, not in mount().)
           const loader = {
             fetchView: async (nameOrPath) => {
-              const path = nameOrPath.startsWith('/_sui/views/') ? nameOrPath : `/_sui/views/${nameOrPath}`
+              const path = nameOrPath.startsWith('/_deck/views/') ? nameOrPath : `/_deck/views/${nameOrPath}`
               const r = await fetch(path, { credentials: 'same-origin' })
               if (!r.ok) throw new Error(`fetch ${path} ${r.status}`)
               return r.json()
@@ -117,7 +117,7 @@
           // (self-gated on the ship-mode meta) re-fetches the payload and
           // re-mounts in place via the handle — signal state is preserved.
           try {
-            const { attachLiveReload } = await import('/_sui/live-reload.js')
+            const { attachLiveReload } = await import('/_deck/live-reload.js')
             const reloader = attachLiveReload({
               viewName: viewPath.split('/')[0],
               onViewChanged: async (e) => {

@@ -9,7 +9,7 @@
 //
 // PURITY SEAM (the whole reason this is a separate module):
 //   - `wasmUrl` is a PARAMETER. This module never hardcodes a path and never
-//     names a daemon / `/api` / `/_sui` URL. The host SPA shell resolves the
+//     names a daemon / `/api` / `/_deck` URL. The host SPA shell resolves the
 //     URL (deck `?url` asset or `FRAMEWORK_ASSETS` — see the pack build-spec,
 //     §WASM-in-browser path) and hands it in.
 //   - The single `fetch` below is the ONLY `fetch` permitted in the entire

@@ -1,7 +1,7 @@
 // Per-icon lucide loader for `<sui-icon>`.
 //
 // The daemon owns the icon set: it embeds `lucide-icons.json` and serves one
-// icon at a time from `/_sui/icons/<name>.svg` (deck-core::serve_sui_icon). A
+// icon at a time from `/_deck/icons/<name>.svg` (deck-core::serve_sui_icon). A
 // `<sui-icon name="search">` mount triggers a single tiny GET — typically
 // <1KB, browser-HTTP-cached on subsequent mounts. The retired model fetched
 // the whole ~410KB registry up-front on first mount, then resolved client-side
@@ -14,7 +14,9 @@
 // Tests prime the cache up-front from the committed JSON so the controller
 // reaches its render path synchronously — no jsdom fetch needed.
 
-const ICON_URL_PREFIX = '/_sui/icons/'
+import { DECK_PREFIX } from '@ship/sdk-client'
+
+const ICON_URL_PREFIX = `${DECK_PREFIX}/icons/`
 
 // Per-name cache keyed on the URL-bound name (after alias resolution if the
 // caller did it; aliases are also handled by the daemon, so an aliased miss

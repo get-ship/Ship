@@ -1,9 +1,9 @@
 //! Human-facing error pages for the view host.
 //!
-//! The browser-facing view route (`/_sui/view/<name>`) serves an HTML shell.
+//! The browser-facing view route (`/_deck/view/<name>`) serves an HTML shell.
 //! When the requested view can't be resolved, the daemon must return a
 //! *rendered* page — not the raw `{"error":{"view_not_found":…}}` JSON that
-//! the programmatic `/_sui/views/<name>` payload endpoint emits for API
+//! the programmatic `/_deck/views/<name>` payload endpoint emits for API
 //! callers. This module owns that page: it fills the baked
 //! `view-not-found.html` shell with the requested name and the views the
 //! daemon can actually serve, then returns a `404 text/html` `DeckResponse`.
@@ -42,7 +42,7 @@ pub fn view_not_found(mode: DaemonMode, name: &str) -> DeckResponse {
 }
 
 /// Build the "available views" block: a labelled list of links to
-/// `/_sui/view/<name>`. Empty input yields an empty string so the shell shows
+/// `/_deck/view/<name>`. Empty input yields an empty string so the shell shows
 /// no stray "available routes" heading over a blank list.
 fn routes_block(routes: &[String]) -> String {
     if routes.is_empty() {
@@ -52,7 +52,7 @@ fn routes_block(routes: &[String]) -> String {
     for r in routes {
         let safe = escape_html(r);
         items.push_str(&format!(
-            "<li><a href=\"/_sui/view/{safe}\">/_sui/view/{safe}</a></li>"
+            "<li><a href=\"/_deck/view/{safe}\">/_deck/view/{safe}</a></li>"
         ));
     }
     format!(
@@ -98,8 +98,8 @@ mod tests {
     #[test]
     fn routes_block_lists_links() {
         let block = routes_block(&["home".into(), "studio".into()]);
-        assert!(block.contains("href=\"/_sui/view/home\""));
-        assert!(block.contains("href=\"/_sui/view/studio\""));
+        assert!(block.contains("href=\"/_deck/view/home\""));
+        assert!(block.contains("href=\"/_deck/view/studio\""));
         assert!(block.contains("nf-routes-label"));
     }
 }

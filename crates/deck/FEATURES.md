@@ -20,10 +20,10 @@ each is guarded by a dedicated gate test:
 
 - **deck / sui seam** — SUI emits *structure*, never a serve location. Compiled
   output carries DOM wiring + bare-specifier imports only; it never bakes a
-  `/_sui/...` URL or an importmap (serving is Deck's concern; the compiler knows
+  `/_deck/...` URL or an importmap (serving is Deck's concern; the compiler knows
   no URLs). Gate: `crates/sui/compiler/tests/boundary_invariants.rs`
   (`view_output_emits_no_behavior_or_urls`, `form_mutation_ssr_contains_no_sui_urls`,
-  `live_data_ssr_contains_no_sui_urls`). Deck injects the `/_sui/...` URLs
+  `live_data_ssr_contains_no_sui_urls`). Deck injects the `/_deck/...` URLs
   host-side (form actions, the live-data `__subscribe__` URL).
 - **deck / server seam** — Deck's host + bundler crates (`deck-core`,
   `deck-axum`, `deck-host`, `deck-bundler`, `deck-config`) name no Ship app
@@ -61,26 +61,26 @@ Each handler logic lives in `deck-core` and returns a `DeckResponse`; the matchi
 
 | Feature | Route | Implementation | Description |
 | --- | --- | --- | --- |
-| View host shell | `GET /_sui/view/{name}[/{*sub}]` | `crates/deck/deck-core/src/view_host.rs::serve_view_host` | Serves the HTML shell with SSR content spliced in; live-emits SSR on cold miss, mtime-caches in prod, renders the styled 404 for an unresolvable name. |
-| View payload (JSON) | `GET /_sui/views/{name}` | `crates/deck/deck-core/src/view_payload.rs::serve_view_payload` | Returns the `ViewPayload` JSON (html, css, scope, moduleUrl, params) the runtime mounts. |
-| View payload (sub-route) | `GET /_sui/views/{name}/{*sub}` | `crates/deck/deck-core/src/view_payload.rs::serve_view_payload_subpath` | Same payload for a nested/parameterized route; folds the sub into the subscribe URL. |
-| Compiled view module | `GET /_sui/views/{name}/view.js` | `crates/deck/deck-core/src/view.rs::serve_sui_view_setup` | Serves the per-view ESM bundle; compiles on demand when no `.deck` artifact exists. |
-| sui-runtime bundle | `GET /_sui/runtime.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_runtime` | Deck's own baked runtime singleton. |
-| sui-dom bundle | `GET /_sui/dom.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_dom` | Deck's own baked DOM module. |
-| sdk-client bundle | `GET /_sui/sdk-client.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_sdk_client` | Deck's own baked SDK client. |
-| Per-icon SVG | `GET /_sui/icons/{name}.svg` | `crates/deck/deck-core/src/assets.rs::serve_sui_icon` | One lucide icon per request, alias-resolved server-side, from the embedded set. |
-| Shared chunk | `GET /_sui/{file}` | `crates/deck/deck-core/src/assets.rs::serve_sui_chunk` | Content-addressed shared chunk from the multi-entry view build, served from `.deck/`. |
+| View host shell | `GET /_deck/view/{name}[/{*sub}]` | `crates/deck/deck-core/src/view_host.rs::serve_view_host` | Serves the HTML shell with SSR content spliced in; live-emits SSR on cold miss, mtime-caches in prod, renders the styled 404 for an unresolvable name. |
+| View payload (JSON) | `GET /_deck/views/{name}` | `crates/deck/deck-core/src/view_payload.rs::serve_view_payload` | Returns the `ViewPayload` JSON (html, css, scope, moduleUrl, params) the runtime mounts. |
+| View payload (sub-route) | `GET /_deck/views/{name}/{*sub}` | `crates/deck/deck-core/src/view_payload.rs::serve_view_payload_subpath` | Same payload for a nested/parameterized route; folds the sub into the subscribe URL. |
+| Compiled view module | `GET /_deck/views/{name}/view.js` | `crates/deck/deck-core/src/view.rs::serve_sui_view_setup` | Serves the per-view ESM bundle; compiles on demand when no `.deck` artifact exists. |
+| sui-runtime bundle | `GET /_deck/runtime.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_runtime` | Deck's own baked runtime singleton. |
+| sui-dom bundle | `GET /_deck/dom.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_dom` | Deck's own baked DOM module. |
+| sdk-client bundle | `GET /_deck/sdk-client.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_sdk_client` | Deck's own baked SDK client. |
+| Per-icon SVG | `GET /_deck/icons/{name}.svg` | `crates/deck/deck-core/src/assets.rs::serve_sui_icon` | One lucide icon per request, alias-resolved server-side, from the embedded set. |
+| Shared chunk | `GET /_deck/{file}` | `crates/deck/deck-core/src/assets.rs::serve_sui_chunk` | Content-addressed shared chunk from the multi-entry view build, served from `.deck/`. |
 | Scaffold shell | `GET /` and `GET /space/{id}` | `crates/deck/deck-core/src/assets.rs::serve_scaffold` | Serves an HTML scaffold (shell/space), rewriting asset hrefs and injecting validated globals. |
 | Scaffold asset | `GET /{shell,space}/_assets/{file}` | `crates/deck/deck-core/src/assets.rs::serve_scaffold_asset` | Serves a scaffold's hashed static asset with path-traversal rejection. |
-| Meta / drift stamp | `GET /_sui/meta` | `crates/deck/deck-core/src/meta.rs::serve_meta` | Compiler + daemon build identity for the shell's version-drift check. |
-| Workspace catalog | `GET /_sui/catalog/workspace` | `crates/deck/deck-core/src/packs.rs::serve_catalog_workspace` | The baked component catalog (`.deck/catalogs/workspace.json`) for devtools. |
-| Live-reload client | `GET /_sui/live-reload.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_live_reload` | The single HMR client; self-gates on the `ship-mode` meta so it only subscribes in dev. |
+| Meta / drift stamp | `GET /_deck/meta` | `crates/deck/deck-core/src/meta.rs::serve_meta` | Compiler + daemon build identity for the shell's version-drift check. |
+| Workspace catalog | `GET /_deck/catalog/workspace` | `crates/deck/deck-core/src/packs.rs::serve_catalog_workspace` | The baked component catalog (`.deck/catalogs/workspace.json`) for devtools. |
+| Live-reload client | `GET /_deck/live-reload.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_live_reload` | The single HMR client; self-gates on the `ship-mode` meta so it only subscribes in dev. |
 | Styled 404 page | (host 404 body) | `crates/deck/deck-core/src/error_page.rs::view_not_found` | Rendered `text/html` not-found page (with servable-view list), not raw JSON. |
 | View resolution | (internal) | `crates/deck/deck-core/src/resolver.rs::resolve` | Host-agnostic project-root + first-party resolution feeding every view handler. |
 | Asset-graph read | (internal) | `crates/deck/deck-core/src/asset_graph.rs::lookup` | Reads the bundler's `.deck/asset-graph.json` SSOT so served paths match the build. |
-| Module URL builder | (internal) | `crates/deck/deck-core/src/routes.rs::view_module_url` | One source of truth for the view-module `/_sui/...` URL. |
-| Mutation URL builder | (internal) | `crates/deck/deck-core/src/routes.rs::mutation_action` | Builds the `POST /_sui/mutation/{name}` form-action URL. |
-| Subscribe URL builder | (internal) | `crates/deck/deck-core/src/routes.rs::subscribe_url` | Builds the `/_sui/views/{name}/sse` live-data URL. |
+| Module URL builder | (internal) | `crates/deck/deck-core/src/routes.rs::view_module_url` | One source of truth for the view-module `/_deck/...` URL. |
+| Mutation URL builder | (internal) | `crates/deck/deck-core/src/routes.rs::mutation_action` | Builds the `POST /_deck/mutation/{name}` form-action URL. |
+| Subscribe URL builder | (internal) | `crates/deck/deck-core/src/routes.rs::subscribe_url` | Builds the `/_deck/views/{name}/sse` live-data URL. |
 | Form action injection | (host-side SSR) | `crates/deck/deck-core/src/form_inject.rs::inject_form_actions` | Augments `<form mutation="bN">` SSR with the daemon-relative action URL (idempotent). |
 | Live-data SSE envelopes | (SSE wire) | `crates/deck/deck-core/src/live_wire.rs::format_patch_signals` | SSE frame encoders (`patch-signals`/`patch-elements`/`patch`/keepalive) for the live-data protocol. |
 | DeckResponse model | (transport port) | `crates/deck/deck-core/src/response.rs::DeckResponse` | The framework-agnostic response (status/headers/body) every handler returns. |
@@ -88,7 +88,7 @@ Each handler logic lives in `deck-core` and returns a `DeckResponse`; the matchi
 | Mode meta injection | (HTML rewrite) | `crates/deck/deck-core/src/mode_html.rs::inject_mode_meta` | Rewrites `<meta name="ship-mode">` so the live-reload client self-gates. |
 | axum router | (mount unit) | `crates/deck/deck-axum/src/lib.rs::router` | Registers Deck's whole hosting surface as one mountable axum `Router`. |
 | DeckResponse → axum | (adapter) | `crates/deck/deck-axum/src/lib.rs::into_axum` | Maps a `DeckResponse` 1:1 onto an axum `Response`. |
-| HMR stream | `GET /_sui/dev/hmr` | `crates/deck/deck-axum/src/handlers.rs::serve_bundle_hmr` | SSE firehose of bundler events for the live-reload client; cancel-token terminated for graceful drain. |
+| HMR stream | `GET /_deck/dev/hmr` | `crates/deck/deck-axum/src/handlers.rs::serve_bundle_hmr` | SSE firehose of bundler events for the live-reload client; cancel-token terminated for graceful drain. |
 
 ## Bundling (`deck-bundler`)
 

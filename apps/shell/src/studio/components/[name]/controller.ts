@@ -1,3 +1,4 @@
+import { DECK_PREFIX } from '@ship/sdk-client'
 import { controller, signal, effect, derived } from '@ship/sui-runtime'
 import { defineRoutes } from '@ship/sui-runtime/route'
 import type { ViewScope } from '@ship/sui-runtime'
@@ -33,10 +34,10 @@ function classifyKnob(p: PropEntry): Knob {
 }
 
 // Canonical access path is /studio/components/:name (the shell route) and
-// /_sui/view/studio/components/:name (view-host standalone, e.g. dev-panel popouts).
+// /_deck/view/studio/components/:name (view-host standalone, e.g. dev-panel popouts).
 defineRoutes([
   { pattern: '/studio/components/:name' },
-  { pattern: '/_sui/view/studio/components/:name' },
+  { pattern: `${DECK_PREFIX}/view/studio/components/:name` },
 ])
 
 // Shared across mounts: one iframe + one preview node at module scope. Holding
@@ -179,8 +180,8 @@ export default controller({
         slot.appendChild(sharedFrame)
       }
       sharedFrame.title = `${entry.id} preview`
-      const nextHref = new URL(`/_sui/view/${entry.id}`, location.href).href
-      if (sharedFrame.src !== nextHref) sharedFrame.src = `/_sui/view/${entry.id}`
+      const nextHref = new URL(`${DECK_PREFIX}/view/${entry.id}`, location.href).href
+      if (sharedFrame.src !== nextHref) sharedFrame.src = nextHref
       state._dispose = () => {}
       return
     }

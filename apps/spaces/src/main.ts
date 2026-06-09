@@ -5,7 +5,7 @@
 // trust line in a space — so confinement (deck-host SES) layers on here, not in
 // the hub.
 
-import { createClient, type ShipSDK } from '@ship/sdk-client'
+import { createClient, DECK_PREFIX, type ShipSDK } from '@ship/sdk-client'
 import type { SuiLoader, ViewPayload } from '@ship/sui-runtime'
 
 interface SuiRuntime {
@@ -42,13 +42,13 @@ const ship: ShipSDK = createClient({ baseUrl: daemonBase() })
 
 const loader: SuiLoader = {
   async fetchView(nameOrPath: string): Promise<ViewPayload> {
-    const rel = nameOrPath.startsWith('/_sui/views/') ? nameOrPath : `/_sui/views/${nameOrPath}`
+    const rel = nameOrPath.startsWith(`${DECK_PREFIX}/views/`) ? nameOrPath : `${DECK_PREFIX}/views/${nameOrPath}`
     const res = await fetch(`${daemonBase()}${rel}`, { credentials: 'same-origin' })
     if (!res.ok) throw new Error(`[space] fetch ${rel} → ${res.status}`)
     return (await res.json()) as ViewPayload
   },
   loadComponent: (tag: string): Promise<void> =>
-    import(/* @vite-ignore */ `${daemonBase()}/_sui/sui-components/${tag}.js`).then(() => undefined),
+    import(/* @vite-ignore */ `${daemonBase()}${DECK_PREFIX}/sui-components/${tag}.js`).then(() => undefined),
 }
 
 function placeholder(slot: HTMLElement, msg: string): void {
