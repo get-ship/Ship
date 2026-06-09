@@ -97,14 +97,6 @@ pub enum Route {
 
     // ── SUI framework hosting (deck-axum handlers) ──
 
-    /// @route GET "/_sui/catalog/workspace"
-    /// @auth public
-    SuiCatalogWorkspace,
-
-    /// @route GET "/_sui/meta"
-    /// @auth public
-    SuiMeta,
-
     /// @route GET "/_sui/runtime.js"
     /// @auth public
     SuiRuntimeJs,
@@ -116,30 +108,6 @@ pub enum Route {
     /// @route GET "/_sui/sdk-client.js"
     /// @auth public
     SuiSdkClientJs,
-
-    /// @route GET "/_sui/components.js"
-    /// @auth public
-    SuiComponentsJs,
-
-    /// @route GET "/_sui/icons/{file}"
-    /// @auth public
-    SuiIcon { file: String },
-
-    /// @route GET "/_sui/live-reload.js"
-    /// @auth public
-    SuiLiveReloadJs,
-
-    /// @route GET "/_sui/views/{name}/view.js"
-    /// @auth public
-    SuiViewSetup { name: String },
-
-    /// @route GET "/_sui/views/{name}"
-    /// @auth public
-    SuiViewPayload { name: String },
-
-    /// @route GET "/_sui/view/{name}"
-    /// @auth public
-    SuiViewHost { name: String },
 
     /// @route GET "/_sui/dev/hmr"
     /// @auth public
