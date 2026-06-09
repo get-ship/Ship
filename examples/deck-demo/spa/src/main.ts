@@ -1,7 +1,7 @@
 // SPA entry — deck's `next export` analog: the client renders everything, no
 // view-host, no SSR. A counter built on the real SUI runtime, which the build
-// leaves EXTERNAL (resolved to /_sui/runtime.js via the importmap) so there is
-// exactly one runtime instance whether a daemon serves /_sui/* or a static
+// leaves EXTERNAL (resolved to /_deck/runtime.js via the importmap) so there is
+// exactly one runtime instance whether a daemon serves /_deck/* or a static
 // deploy ships it.
 import { effect, signal } from '@ship/sui-runtime'
 

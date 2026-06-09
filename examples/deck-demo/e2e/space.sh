@@ -28,7 +28,7 @@ DECK_DEMO_ADDR="$ADDR" "$BIN" >/dev/null 2>&1 &
 SRV_PID=$!
 ready=""
 for _ in $(seq 1 50); do
-  if curl -sf "$BASE/_sui/runtime.js" >/dev/null 2>&1; then ready=1; break; fi
+  if curl -sf "$BASE/_deck/runtime.js" >/dev/null 2>&1; then ready=1; break; fi
   sleep 0.2
 done
 [ -n "$ready" ] || fail "server did not come up"

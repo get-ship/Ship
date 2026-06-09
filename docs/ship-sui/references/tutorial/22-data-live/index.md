@@ -51,7 +51,7 @@ Two things to know:
 
 This tutorial doesn't run a real Ship daemon. A **service worker**
 inside the iframe (`/tutorial/sw.js`) intercepts SSE requests under
-`/_sui/data/<domain>/<op>` and plays back a per-step scenario that
+`/_deck/data/<domain>/<op>` and plays back a per-step scenario that
 the parent loads before the view mounts. The runtime sees a
 "real" SSE stream; the playground decides the timing.
 

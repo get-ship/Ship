@@ -55,7 +55,7 @@ export async function injectStability(page: Page): Promise<void> {
 
 /**
  * Wait for the SUI runtime to mount the view payload. The host shell's
- * mount script fetches `/_sui/views/<name>` and writes the result into
+ * mount script fetches `/_deck/views/<name>` and writes the result into
  * `#sui-root`; we treat "first child appeared" as the attach signal.
  *
  * Falls back to networkidle if `#sui-root` is absent (e.g. a synthesized

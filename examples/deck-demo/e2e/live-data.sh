@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Slice 7 e2e — live-clock view, browser driven via playwright-cli.
 #
-# Boots the ship-free deck-demo server, loads /_sui/view/clock in a browser,
+# Boots the ship-free deck-demo server, loads /_deck/view/clock in a browser,
 # reads the tick value, waits ~1.5 s, reads again, asserts it advanced.
 # Proves the full loop: SSR -> hydrate -> SSE connect -> live tick -> DOM update.
 #
@@ -14,7 +14,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 BIN="$ROOT/target/debug/deck-demo"
 ADDR="127.0.0.1:7891"
-URL="http://$ADDR/_sui/view/clock"
+URL="http://$ADDR/_deck/view/clock"
 PW="playwright-cli -s=deck-demo-live"
 STAMP="$(date -u +%Y-%m-%dT%H-%M-%S)"
 ART="$ROOT/.artifacts/web-qa/deck-demo/live-data/$STAMP"
@@ -60,7 +60,7 @@ done
 # 2. Verify the SSE endpoint returns an event-stream immediately (no browser needed).
 SSE_CT=$(curl -s -o /dev/null -w '%{content_type}' \
   -H 'Accept: text/event-stream' \
-  "http://$ADDR/_sui/views/clock/sse")
+  "http://$ADDR/_deck/views/clock/sse")
 echo "$SSE_CT" | grep -q "text/event-stream" \
   || fail "SSE endpoint wrong Content-Type: $SSE_CT"
 echo "ok: SSE endpoint Content-Type = text/event-stream"

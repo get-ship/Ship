@@ -85,8 +85,8 @@ Components are decomposed into independent workspace packs under
 
 | Pack | Tags | Bundle |
 |---|---|---|
-| `@ship/primitives` | ~80 generic `<sui-*>` (button, input, dialog, popover, …) | `/_sui/packs/primitives/sui-primitives.js` |
-| `@ship/charts` | 8 chart components | `/_sui/packs/charts/sui-charts.js` |
+| `@ship/primitives` | ~80 generic `<sui-*>` (button, input, dialog, popover, …) | `/_deck/packs/primitives/sui-primitives.js` |
+| `@ship/charts` | 8 chart components | `/_deck/packs/charts/sui-charts.js` |
 
 Chrome + domain components (sui-code-editor, sui-terminal, picker,
 nav, devtools, …) stay in the `@ship/ui-components` umbrella and ship
@@ -102,7 +102,7 @@ The `@ship/sui-catalog` walker produces two projections under
 
 Each catalog entry gains a `pack` field so filters can target one
 pack (`entries.filter(e => e.pack === '@ship/primitives')`). The
-daemon serves per-pack bundles at `/_sui/packs/<pack>/<bundle>.js`.
+daemon serves per-pack bundles at `/_deck/packs/<pack>/<bundle>.js`.
 
 ---
 

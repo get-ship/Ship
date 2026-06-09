@@ -13,7 +13,7 @@ directory of `.sui` views with **no daemon, no ship domains, no
    perturb these tests.
 
 ```
-cargo run  -p deck-demo      # serve on http://127.0.0.1:7878 (try /_sui/view/hello)
+cargo run  -p deck-demo      # serve on http://127.0.0.1:7878 (try /_deck/view/hello)
 cargo test -p deck-demo      # run the harness
 ```
 
@@ -36,9 +36,9 @@ axum::serve(listener, app).await?;
 
 | Mode | What deck does | Slice |
 |---|---|---|
-| **SSR + hydrate** | Per-view: compile `.sui` → SSR HTML snapshot spliced into the host shell; client fetches `/_sui/views/{name}/view.js` and `mount()`s. Visit `/_sui/view/{name}` to load. | 1–3 |
+| **SSR + hydrate** | Per-view: compile `.sui` → SSR HTML snapshot spliced into the host shell; client fetches `/_deck/views/{name}/view.js` and `mount()`s. Visit `/_deck/view/{name}` to load. | 1–3 |
 | **SPA** | `deck build` bundles one app entry (split, hashed); framework external via importmap; client mounts everything. | 4 |
-| **Static** | `deck build --bundle_framework` — SPA + materialized `/_sui/*`, deployable with no daemon. | 4 |
+| **Static** | `deck build --bundle_framework` — SPA + materialized `/_deck/*`, deployable with no daemon. | 4 |
 
 Orthogonal: `DaemonMode::Development` (no-cache + reload) vs `Production`
 (ETag + immutable cache).
@@ -52,11 +52,11 @@ Orthogonal: `DaemonMode::Development` (no-cache + reload) vs `Production`
   `tests/bundling.rs` (2 tests). End-to-end (real browser): `e2e/counter.sh` —
   SSR → hydrate(0) → click → 1, proving the whole loop with no daemon/ship.
 - [x] **3 — Reload.** `deck_dev_server` runs the bundler's FS watcher and wires
-  the `/_sui/dev/hmr` SSE (bridging `subscribe_events()` → the live-reload
+  the `/_deck/dev/hmr` SSE (bridging `subscribe_events()` → the live-reload
   client; the route `router()` doesn't provide). `tests/reload.rs`: the **loop
   net** — one edit fires *bounded* rebuilds then *settles* (guards the watch.rs
   read/atime self-trigger fix) — plus the HMR endpoint is served as an SSE
-  stream. The e2e's `/_sui/dev/hmr` 404 is gone.
+  stream. The e2e's `/_deck/dev/hmr` 404 is gone.
 - [x] **4 — SPA + static.** `spa/` is a client-mounted entry (`index.html` +
   `src/main.ts` + `src/chrome/layout.css`). `tests/build.rs` asserts `deck
   build`'s dist output — hashed entry chunk + hashed CSS + rewritten HTML, with

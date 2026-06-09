@@ -1,6 +1,6 @@
 //! Slice 7 — live-data SSE (no browser, ship-free).
 //!
-//! Opens `/_sui/views/clock/sse` with a raw HTTP client (tower oneshot),
+//! Opens `/_deck/views/clock/sse` with a raw HTTP client (tower oneshot),
 //! reads SSE frames from the stream, and verifies:
 //! - The first frame is `event: patch-signals` with `{"kind":"ok"}`.
 //! - A second frame arrives within ~1.5 s with a strictly larger `now` value.
@@ -88,12 +88,12 @@ fn find_double_newline(buf: &[u8]) -> Option<usize> {
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
-/// First SSE frame from `/_sui/views/clock/sse` must be a `patch-signals` event
+/// First SSE frame from `/_deck/views/clock/sse` must be a `patch-signals` event
 /// with `{"kind":"ok","value":{"now":<n>}}`.
 #[tokio::test(flavor = "multi_thread")]
 async fn clock_sse_first_frame_is_ok_patch_signals() {
     let frames = live_data_frames(
-        "/_sui/views/clock/sse",
+        "/_deck/views/clock/sse",
         1,
         Duration::from_secs(5),
     )
@@ -118,7 +118,7 @@ async fn clock_sse_first_frame_is_ok_patch_signals() {
 #[tokio::test(flavor = "multi_thread")]
 async fn clock_sse_second_frame_has_advanced_now() {
     let frames = live_data_frames(
-        "/_sui/views/clock/sse",
+        "/_deck/views/clock/sse",
         2,
         Duration::from_millis(3000),
     )
@@ -141,14 +141,14 @@ async fn clock_sse_second_frame_has_advanced_now() {
     );
 }
 
-/// `/_sui/views/clock/sse` must respond with `Content-Type: text/event-stream`.
+/// `/_deck/views/clock/sse` must respond with `Content-Type: text/event-stream`.
 #[tokio::test(flavor = "multi_thread")]
 async fn clock_sse_content_type_is_event_stream() {
     let app = deck_app(default_app_dir());
     let resp = app
         .oneshot(
             Request::builder()
-                .uri("/_sui/views/clock/sse")
+                .uri("/_deck/views/clock/sse")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -173,7 +173,7 @@ async fn sse_unknown_view_is_404() {
     let resp = app
         .oneshot(
             Request::builder()
-                .uri("/_sui/views/no-such-view/sse")
+                .uri("/_deck/views/no-such-view/sse")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -215,7 +215,7 @@ async fn fresh_live_subscriber_sees_todo_after_mutation() {
         let mut s = tokio::net::TcpStream::connect(addr).await.unwrap();
         let body = "text=composed-gate";
         let req = format!(
-            "POST /_sui/mutation/todos?form={key} HTTP/1.1\r\nHost: x\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            "POST /_deck/mutation/todos?form={key} HTTP/1.1\r\nHost: x\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
             body.len()
         );
         s.write_all(req.as_bytes()).await.unwrap();
@@ -226,7 +226,7 @@ async fn fresh_live_subscriber_sees_todo_after_mutation() {
     // 2. Open a FRESH todos SSE; its first frame resolves the current store.
     let mut stream = tokio::net::TcpStream::connect(addr).await.unwrap();
     stream
-        .write_all(b"GET /_sui/views/todos/sse HTTP/1.1\r\nHost: x\r\nAccept: text/event-stream\r\nConnection: close\r\n\r\n")
+        .write_all(b"GET /_deck/views/todos/sse HTTP/1.1\r\nHost: x\r\nAccept: text/event-stream\r\nConnection: close\r\n\r\n")
         .await
         .unwrap();
 

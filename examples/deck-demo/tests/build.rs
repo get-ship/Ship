@@ -35,7 +35,7 @@ async fn spa_build_emits_hashed_bundle_and_rewrites_html() {
     let framework_assets = repo.join("crates/deck/deck-core/assets");
     let deck_out = repo.join(".deck");
 
-    // bundle_framework = false: the SPA mode where a host/daemon serves /_sui/*.
+    // bundle_framework = false: the SPA mode where a host/daemon serves /_deck/*.
     let build = bundle_app(
         &spa, // repo_root (cwd for module resolution; framework is external)
         None, // first_party_app — external island-free app, no first-party pack
@@ -107,7 +107,7 @@ async fn self_contained_build_ships_singletons_for_island_free_app() {
     for f in ["runtime.js", "dom.js", "sdk-client.js", "components.js"] {
         assert!(
             out.path().join("_sui").join(f).exists(),
-            "self-contained build must materialize /_sui/{f}"
+            "self-contained build must materialize /_deck/{f}"
         );
     }
     assert!(

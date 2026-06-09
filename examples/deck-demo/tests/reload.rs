@@ -81,7 +81,7 @@ mod hmr_route {
     use deck_demo::{deck_app, default_app_dir};
     use tower::ServiceExt;
 
-    /// The HMR SSE endpoint is now served (it was the e2e's `/_sui/dev/hmr`
+    /// The HMR SSE endpoint is now served (it was the e2e's `/_deck/dev/hmr`
     /// 404 — `router()` doesn't provide it; the host wires it). Assert status +
     /// content-type without reading the infinite stream body.
     #[tokio::test]
@@ -89,13 +89,13 @@ mod hmr_route {
         let resp = deck_app(default_app_dir())
             .oneshot(
                 Request::builder()
-                    .uri("/_sui/dev/hmr")
+                    .uri("/_deck/dev/hmr")
                     .body(Body::empty())
                     .unwrap(),
             )
             .await
             .expect("response");
-        assert_eq!(resp.status(), StatusCode::OK, "/_sui/dev/hmr must be served in dev");
+        assert_eq!(resp.status(), StatusCode::OK, "/_deck/dev/hmr must be served in dev");
         let ct = resp
             .headers()
             .get(header::CONTENT_TYPE)

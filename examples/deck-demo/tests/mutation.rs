@@ -3,7 +3,7 @@
 //! 1. Parses the real form binding key from `views/todos/page.sui` via
 //!    `sui_compiler::{parse, bindings}` — the same path the handler uses.
 //! 2. POSTs `application/x-www-form-urlencoded text=hi` to
-//!    `/_sui/mutation/todos?form=<key>` with a `Referer` header.
+//!    `/_deck/mutation/todos?form=<key>` with a `Referer` header.
 //! 3. Asserts HTTP 303 and `Location` == `Referer`.
 //! 4. Resolves `ship.demo.todos()` directly against the store and asserts
 //!    the new item appears.
@@ -41,9 +41,9 @@ async fn mutation_post_returns_303_to_referer() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/_sui/mutation/todos?form={key}"))
+                .uri(format!("/_deck/mutation/todos?form={key}"))
                 .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-                .header(header::REFERER, "http://localhost:7878/_sui/view/todos")
+                .header(header::REFERER, "http://localhost:7878/_deck/view/todos")
                 .body(Body::from("text=hi"))
                 .unwrap(),
         )
@@ -63,7 +63,7 @@ async fn mutation_post_returns_303_to_referer() {
         .expect("Location header");
     assert_eq!(
         location,
-        "http://localhost:7878/_sui/view/todos",
+        "http://localhost:7878/_deck/view/todos",
         "Location must equal Referer; got: {location}"
     );
 }
@@ -77,7 +77,7 @@ async fn mutation_post_no_referer_redirects_to_root() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/_sui/mutation/todos?form={key}"))
+                .uri(format!("/_deck/mutation/todos?form={key}"))
                 .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                 .body(Body::from("text=no-referer"))
                 .unwrap(),
@@ -101,7 +101,7 @@ async fn mutation_unknown_form_key_is_404() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/_sui/mutation/todos?form=b9999")
+                .uri("/_deck/mutation/todos?form=b9999")
                 .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                 .body(Body::from("text=x"))
                 .unwrap(),
@@ -123,7 +123,7 @@ async fn mutation_unknown_view_is_404() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/_sui/mutation/no-such-view?form=b0")
+                .uri("/_deck/mutation/no-such-view?form=b0")
                 .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                 .body(Body::from("text=x"))
                 .unwrap(),
@@ -191,7 +191,7 @@ async fn mutation_oversized_body_returns_413() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/_sui/mutation/todos?form=b0")
+                .uri("/_deck/mutation/todos?form=b0")
                 .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                 .body(Body::from(big_body))
                 .unwrap(),

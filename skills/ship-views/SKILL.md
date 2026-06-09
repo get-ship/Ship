@@ -254,7 +254,7 @@ piece lives, and how to confirm it locally.
   ↓ sui-compiler
 .js   $scope.git = live(() => ship.git.overview())
   ↓ @ship/sdk-client createClient()
-HTTP  GET /_sui/data?expr=ship.git.overview()    [text/event-stream]
+HTTP  GET /_deck/data?expr=ship.git.overview()    [text/event-stream]
   ↓ apps/shipd/src/views/sui_data.rs
 Rust  registry::call("git.overview", {}) → initial; subscribe `config` ns
   ↓ kernel event → re-resolve
@@ -330,7 +330,7 @@ just dev-restart            # rebuilds shipd + restarts the daemon
 PORT=$(cat $(./target/debug/ship daemon dir)/port)
 
 # 1. Confirm the SDK channel is live (Ctrl-C after a few `patch` events).
-curl -N "http://localhost:$PORT/_sui/data?expr=$(printf 'ship.git.overview()' | jq -sRr @uri)"
+curl -N "http://localhost:$PORT/_deck/data?expr=$(printf 'ship.git.overview()' | jq -sRr @uri)"
 
 # 2. Open the view, stage a file, watch the badge flip.
 xdg-open "http://localhost:$PORT/"            # or open in your browser
@@ -346,7 +346,7 @@ A new `ship.<domain>.<op>(...)` live source needs three things:
    the current value synchronously. The dispatcher in `registry.rs` and the
    schema row in `services/schema.rs` keep the catalog honest.
 2. **SDK method** — `packages/deck/sdk-client/src/index.ts` exposes the
-   method returning `makeSseSource(...)` against `/_sui/data?expr=…`.
+   method returning `makeSseSource(...)` against `/_deck/data?expr=…`.
 3. **(Optional) signal-backed source** — if the data has a tighter wake-up
    surface than the default `config` kernel namespace, mirror the pattern in
    `apps/shipd/src/views/git_signal.rs`: a `Signal<Value>` plus a singleton
@@ -683,7 +683,7 @@ In dev mode, `.sui` and `.controller.ts` edits trigger an in-place view
 re-mount without a full page reload. shell's boot calls
 `initHmr()` (apps/shell/src/hmr.ts), which uses
 `subscribeHmr` from `@ship/sui-runtime/dev` to listen on shipd's
-`/_sui/dev/hmr` SSE channel. When the Bun bundler emits
+`/_deck/dev/hmr` SSE channel. When the Bun bundler emits
 `module-changed` for `views/<name>/view` and `<name>` matches the
 current route, shell cache-busts the rebuilt `view.js` and re-mounts
 through the existing `mount()` lifecycle.

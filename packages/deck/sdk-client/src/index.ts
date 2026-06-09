@@ -28,9 +28,8 @@ import { createShipConnectClient } from '@ship/sdk/connect'
 /// Single source of truth for the client-side serve-scheme URL prefix.
 /// Every TS literal that names `/_deck/...` (and the companion Rust
 /// `deck_core::routes::DECK_PREFIX`) routes through this constant so the
-/// prefix has ONE mint point on the client side. Renamed from `/_sui` in
-/// #277b — deck, the host, names the URL namespace; the framework (SUI)
-/// does not.
+/// prefix has ONE mint point on the client side. deck, the host, names the
+/// URL namespace; the framework (SUI) does not.
 export const DECK_PREFIX = '/_deck';
 
 // Bind the SUI runtime's host-agnostic `ShipHost` slot to the concrete

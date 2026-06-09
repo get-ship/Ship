@@ -209,10 +209,10 @@
       <sui-log-stream url="" event="log"></sui-log-stream>
 
       <span class="gsp-variant-label">inactive · autoscroll prop set — no connection opened</span>
-      <sui-log-stream url="/_sui/streams/demo-run" event="log" autoscroll></sui-log-stream>
+      <sui-log-stream url="/_deck/streams/demo-run" event="log" autoscroll></sui-log-stream>
 
       <span class="gsp-variant-label">inactive · max-bytes=4096 — same placeholder</span>
-      <sui-log-stream url="/_sui/streams/demo-run" event="log" max-bytes="4096"></sui-log-stream>
+      <sui-log-stream url="/_deck/streams/demo-run" event="log" max-bytes="4096"></sui-log-stream>
     </div>
   </section>
 </div>

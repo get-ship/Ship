@@ -5,7 +5,7 @@
 # (no daemon, no deck, no ship), and prove the counter renders + increments in
 # a real browser. This is the "static" rendering mode.
 #
-# It hand-stages the 4 framework singletons into dist/_sui/ — exactly what
+# It hand-stages the 4 framework singletons into dist/_deck/ — exactly what
 # `deck build --bundle_framework` should do for an island-free app (today it
 # `bail`s without a built island dir; see README finding F-static). Everything
 # else is deck's real `deck build` output.
@@ -50,12 +50,12 @@ read_count() {
 [ -f "$DIST/index.html" ] || fail "no dist/index.html"
 echo "ok: deck build → $DIST"
 
-# 2. Stage the framework singletons a daemon would otherwise serve at /_sui/*.
-mkdir -p "$DIST/_sui"
-cp "$ASSETS/sui-runtime.js"    "$DIST/_sui/runtime.js"
-cp "$ASSETS/sui-dom.js"        "$DIST/_sui/dom.js"
-cp "$ASSETS/sui-sdk-client.js" "$DIST/_sui/sdk-client.js"
-cp "$ASSETS/sui-components.js" "$DIST/_sui/components.js"
+# 2. Stage the framework singletons a daemon would otherwise serve at /_deck/*.
+mkdir -p "$DIST/_deck"
+cp "$ASSETS/sui-runtime.js"    "$DIST/_deck/runtime.js"
+cp "$ASSETS/sui-dom.js"        "$DIST/_deck/dom.js"
+cp "$ASSETS/sui-sdk-client.js" "$DIST/_deck/sdk-client.js"
+cp "$ASSETS/sui-components.js" "$DIST/_deck/components.js"
 
 # 3. Serve statically — NO daemon.
 python3 "$SERVER" "$PORT" "$DIST" &

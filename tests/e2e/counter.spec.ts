@@ -24,7 +24,7 @@
  */
 import { test } from '@playwright/test'
 
-test.skip('counter view is retired — no .sui source, daemon 404s /_sui/views/counter', () => {
+test.skip('counter view is retired — no .sui source, daemon 404s /_deck/views/counter', () => {
   // Intentionally empty: see file header. Re-author views/counter/page.sui
   // and restore the SSR/attach/interaction coverage from git history if
   // the counter view comes back.

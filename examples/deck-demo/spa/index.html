@@ -8,13 +8,13 @@
     <title>deck-demo · SPA</title>
     <!-- The importmap is the SSOT for what stays EXTERNAL: the build leaves
          these bare specifiers untouched, and the browser resolves them to
-         /_sui/* (served by a host, or materialized into the static deploy). -->
+         /_deck/* (served by a host, or materialized into the static deploy). -->
     <script type="importmap">
       {
         "imports": {
-          "@ship/sui-runtime": "/_sui/runtime.js",
-          "@ship/sui-dom": "/_sui/dom.js",
-          "@ship/sdk-client": "/_sui/sdk-client.js"
+          "@ship/sui-runtime": "/_deck/runtime.js",
+          "@ship/sui-dom": "/_deck/dom.js",
+          "@ship/sdk-client": "/_deck/sdk-client.js"
         }
       }
     </script>

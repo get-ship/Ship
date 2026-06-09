@@ -10,8 +10,8 @@
 /// Single source of truth for the serve-scheme URL prefix. Every Rust literal
 /// that names `/_deck/...` (and the companion TS `DECK_PREFIX` export in
 /// `@ship/sdk-client`) routes through this constant so the prefix has ONE
-/// mint point on the server side. Renamed from `/_sui` in #277b — deck, the
-/// host, names the URL namespace; the framework (SUI) does not.
+/// mint point on the server side. deck, the host, names the URL namespace;
+/// the framework (SUI) does not.
 pub const DECK_PREFIX: &str = "/_deck";
 
 /// URL of a view's compiled ESM module. `sub` is the optional sub-route segment

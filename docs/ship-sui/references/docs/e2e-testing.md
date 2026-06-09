@@ -77,7 +77,7 @@ The daemon URL is auto-detected from `~/.ship/machine/daemons/<hash>/port` (devx
 
 **Attach tests fail with timeout on `__suiDispose`**: The boot script threw before `attach()` completed. Open the browser with `npx playwright test --headed` to see console errors.
 
-**SSE resolution tests fail (agents/git stuck on loading)**: The `/_sui/data` SSE channel opened but the boundary swap did not complete. This indicates a bug in the control-flow swap pipeline (`/_sui/render-fragment/<view>`). The failure is intentional — surfacing it is the point of the suite.
+**SSE resolution tests fail (agents/git stuck on loading)**: The `/_deck/data` SSE channel opened but the boundary swap did not complete. This indicates a bug in the control-flow swap pipeline (`/_deck/render-fragment/<view>`). The failure is intentional — surfacing it is the point of the suite.
 
 **Tab switching fails**: The `on:click` signal binding didn't wire up, or the signal update didn't re-render the panel. Check the `sui-dom` attach wire step.
 

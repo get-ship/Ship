@@ -2,8 +2,8 @@
 # Slice 7 e2e — production mode: immutable Cache-Control + ETag, curl-only.
 #
 # Boots the ship-free deck-demo server with DECK_DEMO_MODE=prod and verifies:
-#   1. GET /_sui/runtime.js → Cache-Control contains "immutable" + max-age
-#   2. GET /_sui/runtime.js → ETag header is present
+#   1. GET /_deck/runtime.js → Cache-Control contains "immutable" + max-age
+#   2. GET /_deck/runtime.js → ETag header is present
 #
 # No browser. No ~/.ship. curl-only.
 # Usage: examples/deck-demo/e2e/prod.sh   (needs `cargo build -p deck-demo`)
@@ -27,13 +27,13 @@ DECK_DEMO_ADDR="$ADDR" DECK_DEMO_MODE=prod "$BIN" >/dev/null 2>&1 &
 SRV_PID=$!
 ready=""
 for _ in $(seq 1 50); do
-  if curl -sf "$BASE/_sui/runtime.js" >/dev/null 2>&1; then ready=1; break; fi
+  if curl -sf "$BASE/_deck/runtime.js" >/dev/null 2>&1; then ready=1; break; fi
   sleep 0.2
 done
 [ -n "$ready" ] || fail "server did not come up"
 
 # 2. Fetch runtime.js headers.
-HEADERS=$(curl -sI "$BASE/_sui/runtime.js")
+HEADERS=$(curl -sI "$BASE/_deck/runtime.js")
 
 # 3. Cache-Control must contain "immutable" and "max-age".
 echo "$HEADERS" | grep -i 'cache-control' | grep -qi 'immutable' \

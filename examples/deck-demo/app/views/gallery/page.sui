@@ -25,13 +25,13 @@
   <nav class="gallery-nav">
     <h2>Pack sections</h2>
     <ul>
-      <li><a href="/_sui/view/counter">counter — signal basics (sui/*)</a></li>
-      <li><a href="/_sui/view/clock">clock — live data tick (ship/demo.*)</a></li>
-      <li><a href="/_sui/view/todos">todos — live list + mutation (ship/demo.*)</a></li>
-      <li><a href="/_sui/view/boom">boom — error boundary (ship/demo.*)</a></li>
-      <li><a href="/_sui/view/greet">greet — static SSR (sui/*)</a></li>
-      <li><a href="/_sui/view/hello">hello — constant folding (sui/*)</a></li>
-      <li><a href="/_sui/view/widgets">widgets — component composition (sui/*)</a></li>
+      <li><a href="/_deck/view/counter">counter — signal basics (sui/*)</a></li>
+      <li><a href="/_deck/view/clock">clock — live data tick (ship/demo.*)</a></li>
+      <li><a href="/_deck/view/todos">todos — live list + mutation (ship/demo.*)</a></li>
+      <li><a href="/_deck/view/boom">boom — error boundary (ship/demo.*)</a></li>
+      <li><a href="/_deck/view/greet">greet — static SSR (sui/*)</a></li>
+      <li><a href="/_deck/view/hello">hello — constant folding (sui/*)</a></li>
+      <li><a href="/_deck/view/widgets">widgets — component composition (sui/*)</a></li>
     </ul>
   </nav>
 </div>

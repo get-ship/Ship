@@ -255,7 +255,7 @@ Once a component is registered, `ship-ui-studio` is the fastest way to eyeball i
 
 - A **single live preview** plus a prop panel for ad-hoc tweaking.
 - A **state variant matrix** — when the component declares enum props, every cell in the cartesian product of `variant × tone` (or the single largest enum, if there's only one) is rendered side-by-side, independent of the prop panel. This is the Storybook-style sweep that catches "ghost tone-warning has wrong contrast" without clicking through 40 combinations one at a time.
-- A **View source** link in the header that opens `/_sui/source/<tag>` — a static HTML page showing the on-disk `.sui` template and `.controller.ts` for the component. Useful when reviewing how an existing primitive wires its scope before authoring a similar one.
+- A **View source** link in the header that opens `/_deck/source/<tag>` — a static HTML page showing the on-disk `.sui` template and `.controller.ts` for the component. Useful when reviewing how an existing primitive wires its scope before authoring a similar one.
 
 ## Platform features (shared with views)
 
@@ -336,7 +336,7 @@ Full treatment: `ship-views` § Routes.
 In dev mode, `.sui` and `.controller.ts` edits trigger an in-place re-mount.
 shell's boot calls `initHmr()` (`apps/shell/src/hmr.ts`), which uses
 `subscribeHmr` from `@ship/sui-runtime/dev` to listen on shipd's
-`/_sui/dev/hmr` SSE channel. Component-tag changes still need a full
+`/_deck/dev/hmr` SSE channel. Component-tag changes still need a full
 reload (custom-element re-registration isn't yet supported); compile
 errors surface in the browser console. Production builds inline
 `import.meta.env.DEV` to `false`, so HMR is a no-op.

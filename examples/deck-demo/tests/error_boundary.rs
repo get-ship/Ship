@@ -6,7 +6,7 @@
 //! blank — either the loading fallback or the error fallback is visible.
 //!
 //! This test proves the server-side contract:
-//!   1. `/_sui/view/boom` returns 200 — the view compiles + SSR-renders without
+//!   1. `/_deck/view/boom` returns 200 — the view compiles + SSR-renders without
 //!      crashing (no white-screen, no 500).
 //!   2. The SSR body is non-empty: the fallback infrastructure is present in the
 //!      served HTML.
@@ -44,7 +44,7 @@ async fn get(path: &str) -> (StatusCode, String) {
 /// prevents a white-screen even when the data source always errors.
 #[tokio::test]
 async fn boom_view_ssr_returns_200_non_empty() {
-    let (status, body) = get("/_sui/view/boom").await;
+    let (status, body) = get("/_deck/view/boom").await;
     assert_eq!(
         status,
         StatusCode::OK,
@@ -62,7 +62,7 @@ async fn boom_view_ssr_returns_200_non_empty() {
 /// This proves the view is non-blank on first load (the error-recovery path).
 #[tokio::test]
 async fn boom_view_ssr_renders_loading_fallback() {
-    let (_, body) = get("/_sui/view/boom").await;
+    let (_, body) = get("/_deck/view/boom").await;
     assert!(
         body.contains("Loading") || body.contains("boom-fallback"),
         "SSR must render the loading fallback for the boom view; got head:\n{}",
@@ -75,7 +75,7 @@ async fn boom_view_ssr_renders_loading_fallback() {
 /// The compiler emits `<sui-while-error` or `<template` (hidden) for inactive branches.
 #[tokio::test]
 async fn boom_view_ssr_contains_while_error_placeholder() {
-    let (_, body) = get("/_sui/view/boom").await;
+    let (_, body) = get("/_deck/view/boom").await;
     assert!(
         body.contains("sui-while-error") || body.contains("while-error"),
         "SSR must contain the while-error structural placeholder; got head:\n{}",
@@ -87,7 +87,7 @@ async fn boom_view_ssr_contains_while_error_placeholder() {
 /// itself renders beyond just the fallback structure.
 #[tokio::test]
 async fn boom_view_ssr_renders_view_heading() {
-    let (_, body) = get("/_sui/view/boom").await;
+    let (_, body) = get("/_deck/view/boom").await;
     assert!(
         body.contains("Error Boundary"),
         "SSR must render the boom view heading; got head:\n{}",

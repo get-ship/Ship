@@ -2,10 +2,10 @@
 # Slice 5 e2e — dynamic param sub-route, end-to-end, curl-only.
 #
 # Boots the ship-free deck-demo server and verifies:
-#   1. GET /_sui/views/greet/zelda → 200 JSON
+#   1. GET /_deck/views/greet/zelda → 200 JSON
 #   2. Payload params.id == "zelda"
 #   3. Payload html contains "Hello" (static scaffold from the template)
-#   4. GET /_sui/view/greet/zelda → 200 HTML (view-host resolves the view)
+#   4. GET /_deck/view/greet/zelda → 200 HTML (view-host resolves the view)
 #
 # No browser. No ~/.ship. curl-only.
 # Usage: examples/deck-demo/e2e/param.sh   (needs `cargo build -p deck-demo`)
@@ -29,15 +29,15 @@ DECK_DEMO_ADDR="$ADDR" "$BIN" >/dev/null 2>&1 &
 SRV_PID=$!
 ready=""
 for _ in $(seq 1 50); do
-  if curl -sf "$BASE/_sui/runtime.js" >/dev/null 2>&1; then ready=1; break; fi
+  if curl -sf "$BASE/_deck/runtime.js" >/dev/null 2>&1; then ready=1; break; fi
   sleep 0.2
 done
 [ -n "$ready" ] || fail "server did not come up"
 
 # 2. Payload endpoint resolves greet/zelda → 200 JSON.
-PAYLOAD=$(curl -sf "$BASE/_sui/views/greet/zelda") \
-  || fail "GET /_sui/views/greet/zelda returned non-2xx"
-echo "ok: /_sui/views/greet/zelda → 200 JSON"
+PAYLOAD=$(curl -sf "$BASE/_deck/views/greet/zelda") \
+  || fail "GET /_deck/views/greet/zelda returned non-2xx"
+echo "ok: /_deck/views/greet/zelda → 200 JSON"
 
 # 3. params.id == "zelda".
 ID=$(echo "$PAYLOAD" | python3 -c "import sys,json; print(json.load(sys.stdin)['params']['id'])" 2>/dev/null) \
@@ -51,8 +51,8 @@ echo "$PAYLOAD" | python3 -c "import sys,json; html=json.load(sys.stdin)['html']
 echo "ok: SSR html contains 'Hello'"
 
 # 5. View-host page returns 200 for the sub-path route.
-curl -sf "$BASE/_sui/view/greet/zelda" >/dev/null \
-  || fail "GET /_sui/view/greet/zelda returned non-2xx"
-echo "ok: /_sui/view/greet/zelda → 200 HTML"
+curl -sf "$BASE/_deck/view/greet/zelda" >/dev/null \
+  || fail "GET /_deck/view/greet/zelda returned non-2xx"
+echo "ok: /_deck/view/greet/zelda → 200 HTML"
 
 echo "E2E PASS: param sub-route resolver → capture → SSR verified (ship-free)"

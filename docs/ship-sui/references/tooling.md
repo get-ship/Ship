@@ -174,12 +174,12 @@ just dev                              # daemon (in-process Rolldown bundler)
 #  → the daemon's in-process bundler (notify watch) re-bundles via Rolldown,
 #    writing to crates/deck/deck-core/assets/... or .deck/...
 #  → emits BundlerEvent::ModuleChanged (broadcast) → sui_hmr
-#  → shipd republishes on /_sui/dev/hmr (SSE)
-#  → apps/shell/src/hmr.ts cache-busts /_sui/views/home/view.js
+#  → shipd republishes on /_deck/dev/hmr (SSE)
+#  → apps/shell/src/hmr.ts cache-busts /_deck/views/home/view.js
 #  → mount() re-runs in place; SSR snapshot stays, no full reload
 ```
 
-`just dev` starts only the daemon (`scripts/dev/start.sh`); bundling + watching happen IN-PROCESS (`crates/deck/deck-bundler/`, `Bundler::start_watching`) — no spawned worker. To hit the daemon through the outer shell, run `just shell-dev` in a second terminal — it proxies `/api`, `/_sui`, `^/sui/.*`, and `/view-host` to the daemon.
+`just dev` starts only the daemon (`scripts/dev/start.sh`); bundling + watching happen IN-PROCESS (`crates/deck/deck-bundler/`, `Bundler::start_watching`) — no spawned worker. To hit the daemon through the outer shell, run `just shell-dev` in a second terminal — it proxies `/api`, `/_deck`, `^/sui/.*`, and `/view-host` to the daemon.
 
 For a clean dev restart use `just dev-restart`. Visual regressions: `just visual` (Playwright vs committed PNGs; pass `--update-snapshots` to refresh after a deliberate change). Perf regressions: `just bench-check` (fails on >15% vs the latest committed baseline; override via `BENCH_REGRESSION_THRESHOLD`).
 
@@ -193,9 +193,9 @@ Shipd has two operating modes, selected via `--mode <development|production>` (o
 
 | Aspect | Development (default) | Production |
 |---|---|---|
-| Frontend serving | Vite dev server (`just shell-dev`) at 3200 +offset, proxying `/api`, `/_sui`, `/view-host` to the daemon | Daemon serves prebuilt shell HTML directly; no Vite, no proxy, no second port |
+| Frontend serving | Vite dev server (`just shell-dev`) at 3200 +offset, proxying `/api`, `/_deck`, `/view-host` to the daemon | Daemon serves prebuilt shell HTML directly; no Vite, no proxy, no second port |
 | Bundler | In-process Rolldown (`Bundler::start_watching`, notify) re-bundles on edit; no spawned worker | Pre-bundled by `just build`; daemon `include_str!`s the static output |
-| HMR | `/_sui/dev/hmr` SSE channel; `apps/shell/src/hmr.ts` cache-busts view modules and re-runs `mount()` in place | Disabled — HMR routes are not registered in production |
+| HMR | `/_deck/dev/hmr` SSE channel; `apps/shell/src/hmr.ts` cache-busts view modules and re-runs `mount()` in place | Disabled — HMR routes are not registered in production |
 | Cache headers | `Cache-Control: no-cache` on every asset and view artifact; no ETag | `Cache-Control: public, immutable, max-age=31536000` on framework bundles, `must-revalidate` on view artifacts; ETag on every response |
 | SSR cache | Bypassed every request (sources may have changed under us) | Memoized on first hit and reused until the daemon restarts |
 | Error detail | Full error bodies | Redacted; only the kind of failure leaks to the client |

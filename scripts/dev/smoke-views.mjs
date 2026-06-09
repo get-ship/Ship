@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // View smoke: read tests/e2e/visual/views.json and confirm every baselined
 // view returns HTTP 200 for both the SSR route (/sui/<name>) and the
-// compiled module route (/_sui/views/<name>). Exit 1 on any failure.
+// compiled module route (/_deck/views/<name>). Exit 1 on any failure.
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -38,7 +38,7 @@ const RESET = '\x1b[0m'
 
 let failed = 0
 for (const name of views) {
-    for (const route of [`/sui/${name}`, `/_sui/views/${name}`]) {
+    for (const route of [`/sui/${name}`, `/_deck/views/${name}`]) {
         const url = `${base}${route}`
         let status = 0
         let err = ''

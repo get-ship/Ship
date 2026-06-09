@@ -1,9 +1,9 @@
 //! Ship-free in-memory data port for the deck-demo live-data + mutation showcases.
 //!
-//! Provides the three `/_sui/` endpoints the SUI wire protocol requires:
-//! - `GET /_sui/views/{name}/sse`         — per-view live-data SSE channel
-//! - `POST /_sui/mutation/{name}?form=`   — progressive-enhancement mutation
-//! - `GET /_sui/data?expr=`               — single-expression SSE stream
+//! Provides the three `/_deck/` endpoints the SUI wire protocol requires:
+//! - `GET /_deck/views/{name}/sse`         — per-view live-data SSE channel
+//! - `POST /_deck/mutation/{name}?form=`   — progressive-enhancement mutation
+//! - `GET /_deck/data?expr=`               — single-expression SSE stream
 //!
 //! The host contract matches `apps/shipd/src/views/sui_*.rs` verbatim, with
 //! the kernel and registry removed. `resolve_demo` is the local registry.
@@ -192,7 +192,7 @@ async fn keepalive_loop(tx: mpsc::Sender<Result<String, std::io::Error>>, cancel
 
 // ── SSE per-view handler ──────────────────────────────────────────────────────
 
-/// `GET /_sui/views/{name}/sse`
+/// `GET /_deck/views/{name}/sse`
 /// Mirror: `apps/shipd/src/views/sui_sse.rs` (kernel removed).
 async fn serve_sse(
     Path(name): Path<String>,
@@ -331,7 +331,7 @@ struct MutationQuery {
 /// handler is invoked. 64 KB is well above any real HTML form.
 const MAX_MUTATION_BODY_BYTES: usize = 64 * 1024;
 
-/// `POST /_sui/mutation/{name}?form=<key>` — PE form submission.
+/// `POST /_deck/mutation/{name}?form=<key>` — PE form submission.
 /// Mirror: `apps/shipd/src/views/sui_mutation.rs` (kernel removed).
 async fn serve_mutation(
     Path(name): Path<String>,
@@ -419,7 +419,7 @@ struct DataQuery {
     expr: String,
 }
 
-/// `GET /_sui/data?expr=` — single-expression SSE stream.
+/// `GET /_deck/data?expr=` — single-expression SSE stream.
 /// Mirror: `apps/shipd/src/views/sui_data.rs` (kernel removed).
 async fn serve_data(
     Query(q): Query<DataQuery>,
@@ -506,9 +506,9 @@ fn is_valid_expr(expr: &str) -> bool {
 /// `Router::merge(data_port::router(store))`.
 pub fn router(store: Arc<DemoStore>) -> Router {
     Router::new()
-        .route("/_sui/views/{name}/sse", get(serve_sse))
-        .route("/_sui/mutation/{name}", post(serve_mutation))
-        .route("/_sui/data", get(serve_data))
+        .route("/_deck/views/{name}/sse", get(serve_sse))
+        .route("/_deck/mutation/{name}", post(serve_mutation))
+        .route("/_deck/data", get(serve_data))
         .with_state(store)
 }
 

@@ -9,7 +9,7 @@ page.sui + controller.ts     (authoring — what humans write)
     ↓ packages/sui/runtime/  (reactive primitives + DOM bindings + attach())
 runtime in the browser       (signals, control-flow, transitions, error-boundary)
     ↓ crates/deck/deck-core (daemon view-host — resolver + assets + SSR + SSE)
-HTTP /_sui/* + /view-host    (apps/shipd routes wire it together)
+HTTP /_deck/* + /view-host    (apps/shipd routes wire it together)
 ```
 
 ## Layer 1 — Compiler (`crates/sui/compiler/`)
@@ -88,17 +88,17 @@ Daemon-side route table (`apps/shipd/src/router.rs`) mounts the surface:
 
 | Route | Handler |
 |---|---|
-| `GET /_sui/runtime.js` / `dom.js` / `sdk-client.js` / `components.js` | `crates/deck/deck-core/src/assets.rs` |
-| `GET /_sui/icons/{name}.svg` | `crates/deck/deck-core/src/assets.rs` (per-icon lucide; daemon embeds the set) |
-| `GET /_sui/sui-components/{name}.js` | separate-bundle component |
-| `GET /_sui/views/{name}/view.sui` / `view.js` / `view.css` | `crates/deck/deck-core/src/view.rs` (route segment stems are `view.*` regardless of on-disk `page.sui`/`controller.ts`/`style.css`) |
-| `GET /_sui/views/{name}` | `crates/deck/deck-core/src/view_payload.rs` |
-| `GET /_sui/views/{name}/sse` | `apps/shipd/src/views/sui_patch_channel.rs` |
-| `GET /_sui/hmr` / `hmr-client.js` / `dev/hmr` | `apps/shipd/src/views/sui_hmr.rs` |
-| `GET /_sui/data` | `apps/shipd/src/views/sui_data.rs` (the `<data live>` SSE channel) |
-| `POST /_sui/mutation/{name}` | `apps/shipd/src/views/sui_mutation.rs` |
-| `POST /_sui/views/{name}/patch-elements` | `apps/shipd/src/views/sui_patches.rs` |
-| `GET /_sui/source/{tag}` | `apps/shipd/src/views/sui_source.rs` |
+| `GET /_deck/runtime.js` / `dom.js` / `sdk-client.js` / `components.js` | `crates/deck/deck-core/src/assets.rs` |
+| `GET /_deck/icons/{name}.svg` | `crates/deck/deck-core/src/assets.rs` (per-icon lucide; daemon embeds the set) |
+| `GET /_deck/sui-components/{name}.js` | separate-bundle component |
+| `GET /_deck/views/{name}/view.sui` / `view.js` / `view.css` | `crates/deck/deck-core/src/view.rs` (route segment stems are `view.*` regardless of on-disk `page.sui`/`controller.ts`/`style.css`) |
+| `GET /_deck/views/{name}` | `crates/deck/deck-core/src/view_payload.rs` |
+| `GET /_deck/views/{name}/sse` | `apps/shipd/src/views/sui_patch_channel.rs` |
+| `GET /_deck/hmr` / `hmr-client.js` / `dev/hmr` | `apps/shipd/src/views/sui_hmr.rs` |
+| `GET /_deck/data` | `apps/shipd/src/views/sui_data.rs` (the `<data live>` SSE channel) |
+| `POST /_deck/mutation/{name}` | `apps/shipd/src/views/sui_mutation.rs` |
+| `POST /_deck/views/{name}/patch-elements` | `apps/shipd/src/views/sui_patches.rs` |
+| `GET /_deck/source/{tag}` | `apps/shipd/src/views/sui_source.rs` |
 
 The router wiring is in `apps/shipd/src/router.rs`. Signal-backed sources (tighter wake-up than the default `config` kernel namespace) live under `apps/shipd/src/views/sui_data_resolvers/` and `apps/shipd/src/views/git_signal.rs`; `sui_sse.rs::is_signal_backed_expr` picks them up by registry name.
 
@@ -143,8 +143,8 @@ Every first-party view is on this shape — `views/agents/`, `views/git/`, `view
 A request for `/agents` resolves end-to-end:
 
 1. Browser hits `GET /agents` → daemon serves the view-host HTML shell (`serve_view_host`).
-2. Shell loads `/_sui/views/agents` → SSR payload (compiled HTML + manifest).
-3. Shell loads `/_sui/views/agents/view.js` → compiled ESM module.
-4. Module imports from `/_sui/runtime.js` (the SUI runtime barrel) and `/_sui/sdk-client.js`.
-5. `attach()` walks the SSR DOM, binds reactive identifiers from the module's controller, opens `<data live>` SSE channels to `/_sui/data?expr=…`.
-6. Edits in dev mode emit `module-changed` on `/_sui/dev/hmr`; `apps/shell/src/hmr.ts` cache-busts the rebuilt `view.js` and re-mounts in place.
+2. Shell loads `/_deck/views/agents` → SSR payload (compiled HTML + manifest).
+3. Shell loads `/_deck/views/agents/view.js` → compiled ESM module.
+4. Module imports from `/_deck/runtime.js` (the SUI runtime barrel) and `/_deck/sdk-client.js`.
+5. `attach()` walks the SSR DOM, binds reactive identifiers from the module's controller, opens `<data live>` SSE channels to `/_deck/data?expr=…`.
+6. Edits in dev mode emit `module-changed` on `/_deck/dev/hmr`; `apps/shell/src/hmr.ts` cache-busts the rebuilt `view.js` and re-mounts in place.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Slice 8 e2e — todos mutation, browser driven via playwright-cli.
 #
-# Boots the ship-free deck-demo server, loads /_sui/view/todos in a browser,
+# Boots the ship-free deck-demo server, loads /_deck/view/todos in a browser,
 # fills in the "New todo…" input, submits the form, follows the 303 redirect,
 # and asserts the new item appears in the rendered list.
 # Proves the full loop: SSR -> hydrate -> form submit -> PE mutation -> 303
@@ -16,7 +16,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 BIN="$ROOT/target/debug/deck-demo"
 ADDR="127.0.0.1:7892"
-URL="http://$ADDR/_sui/view/todos"
+URL="http://$ADDR/_deck/view/todos"
 PW="playwright-cli -s=deck-demo-mutation"
 STAMP="$(date -u +%Y-%m-%dT%H-%M-%S)"
 ART="$ROOT/.artifacts/web-qa/deck-demo/mutation/$STAMP"

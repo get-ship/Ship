@@ -6,8 +6,8 @@
 //! own (effectively the `deck serve` the CLI doesn't have yet).
 //!
 //! Run: `cargo run -p deck-demo`, then open:
-//!   - http://127.0.0.1:7878/_sui/view/hello    (SSR, no controller, no build step)
-//!   - http://127.0.0.1:7878/_sui/view/counter  (controller → bundled → hydrated)
+//!   - http://127.0.0.1:7878/_deck/view/hello    (SSR, no controller, no build step)
+//!   - http://127.0.0.1:7878/_deck/view/counter  (controller → bundled → hydrated)
 
 #[tokio::main]
 async fn main() {
@@ -20,6 +20,6 @@ async fn main() {
         .await
         .unwrap_or_else(|e| panic!("deck-demo: bind {addr}: {e}"));
     println!("deck-demo: serving {} on http://{addr}", app_dir.display());
-    println!("deck-demo: try /_sui/view/hello (SSR) or /_sui/view/counter (hydrated)");
+    println!("deck-demo: try /_deck/view/hello (SSR) or /_deck/view/counter (hydrated)");
     axum::serve(listener, app).await.expect("deck-demo: serve");
 }

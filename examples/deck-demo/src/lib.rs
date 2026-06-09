@@ -14,7 +14,7 @@
 //! 3. Layer the extensions deck's handlers read — `DaemonMode` and a
 //!    `Bundler` (so a controller view gets its Rolldown bundle on demand).
 //! 4. Add the HMR SSE route the view-host's live-reload client subscribes to.
-//!    `deck::router()` does NOT provide `/_sui/dev/hmr` — it's host-wired (the
+//!    `deck::router()` does NOT provide `/_deck/dev/hmr` — it's host-wired (the
 //!    e2e's 404). We bridge the bundler's event firehose to it directly.
 //! 5. Mount the data port (`data_port::router`) for live-data + mutation
 //!    endpoints backed by the in-memory [`DemoStore`].
@@ -100,7 +100,7 @@ fn build_router(
         // Deck has no /api/assets/* route; the deck-demo host wires it directly.
         .route("/api/assets/view-tokens.css", get(serve_view_tokens))
         // The canonical deck-axum HMR handler — no hand-rolled variant here.
-        .route("/_sui/dev/hmr", get(serve_bundle_hmr))
+        .route("/_deck/dev/hmr", get(serve_bundle_hmr))
         // Data port: live-data SSE + mutation + data endpoints (ship-free,
         // in-memory, mirrors shipd handlers with the kernel removed).
         .merge(data_port::router(store))

@@ -4,9 +4,9 @@
  * `<sui-rail>` reads its `<sui-rail-item>` light-DOM children as config
  * and each item upgrades into a custom element whose shadow root holds
  * the actual clickable `<a class="item">`. Both `sui-rail` and
- * `sui-rail-item` are defined by the `/_sui/sui-components/sui-rail.js`
+ * `sui-rail-item` are defined by the `/_deck/sui-components/sui-rail.js`
  * bundle — shell's `index.html` must load it explicitly (it is not in
- * `/_sui/components.js`). When that bundle is missing, `sui-rail-item`
+ * `/_deck/components.js`). When that bundle is missing, `sui-rail-item`
  * never upgrades, every item renders at height 0, and the rail shows
  * no navigation at all.
  *

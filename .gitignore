@@ -157,7 +157,7 @@ apps/shell/qa-evidence/
 crates/deck/deck-core/assets/*.js
 !crates/deck/deck-core/assets/live-reload.js
 # lucide-icons.json IS committed source — it's the embedded set the daemon
-# serves per-icon via `/_sui/icons/{name}.svg`. Regenerate after a
+# serves per-icon via `/_deck/icons/{name}.svg`. Regenerate after a
 # lucide-static version bump: `cargo run -p xtask -- gen-icons`.
 crates/deck/deck-core/assets/sui-custom-elements.json
 
@@ -250,8 +250,8 @@ apps/*/C:*
 
 # Site generated assets (produced by apps/site/scripts/copy-sui-assets.ts).
 # Source of truth is the SUI build; the site only re-publishes them.
-apps/site/public/_sui/icons/
-apps/site/public/_sui/syntax-tokens.css
+apps/site/public/_deck/icons/
+apps/site/public/_deck/syntax-tokens.css
 apps/site/public/sui-components/
 
 # sui-eval is a local dogfood harness. Its scripts are acceptable pipeline

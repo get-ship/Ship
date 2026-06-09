@@ -1,7 +1,7 @@
 //! Slice 5 — dynamic / param sub-route.
 //!
 //! Proves the resolver → params → render → hydrate chain for a `[id]` segment:
-//!   1. `GET /_sui/views/greet/zelda` resolves `views/greet/[id]/page.sui`,
+//!   1. `GET /_deck/views/greet/zelda` resolves `views/greet/[id]/page.sui`,
 //!      captures `params["id"] = "zelda"`, and returns 200 JSON.
 //!   2. The JSON payload's `params` map contains `"id" → "zelda"`.
 //!   3. The SSR `html` field contains the static scaffold of the template
@@ -32,11 +32,11 @@ async fn get(path: &str) -> (StatusCode, String) {
 /// The `[id]` resolver captures the dynamic segment: `greet/zelda` must
 /// resolve to `views/greet/[id]/page.sui` and capture `params["id"] == "zelda"`.
 ///
-/// Calls the payload endpoint (`/_sui/views/{name}/{sub}`) — this is the pure
+/// Calls the payload endpoint (`/_deck/views/{name}/{sub}`) — this is the pure
 /// deck-core path: resolver → params → compile → SSR.
 #[tokio::test]
 async fn param_id_captured_in_payload() {
-    let (status, body) = get("/_sui/views/greet/zelda").await;
+    let (status, body) = get("/_deck/views/greet/zelda").await;
     assert_eq!(status, StatusCode::OK, "greet/zelda must resolve; got head:\n{}", &body[..body.len().min(400)]);
 
     let v: serde_json::Value = serde_json::from_str(&body)
@@ -60,7 +60,7 @@ async fn param_id_captured_in_payload() {
 /// The greet index view serves the listing page (no params).
 #[tokio::test]
 async fn greet_index_has_no_params() {
-    let (status, body) = get("/_sui/views/greet").await;
+    let (status, body) = get("/_deck/views/greet").await;
     assert_eq!(status, StatusCode::OK);
 
     let v: serde_json::Value = serde_json::from_str(&body)
@@ -76,6 +76,6 @@ async fn greet_index_has_no_params() {
 /// A missing sub-route (not matching any static or [param] segment) is a 404.
 #[tokio::test]
 async fn missing_view_is_404() {
-    let (status, _body) = get("/_sui/views/does-not-exist").await;
+    let (status, _body) = get("/_deck/views/does-not-exist").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }

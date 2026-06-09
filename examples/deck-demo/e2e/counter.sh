@@ -14,7 +14,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 BIN="$ROOT/target/debug/deck-demo"
 ADDR="127.0.0.1:7899"
-URL="http://$ADDR/_sui/view/counter"
+URL="http://$ADDR/_deck/view/counter"
 PW="playwright-cli -s=deck-demo"
 STAMP="$(date -u +%Y-%m-%dT%H-%M-%S)"
 ART="$ROOT/.artifacts/web-qa/deck-demo/counter/$STAMP"

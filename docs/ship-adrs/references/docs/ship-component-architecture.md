@@ -38,7 +38,7 @@ must agree: the **package name** (`@ship/sui-*` = framework, `@ship/*` without
 primitives any third-party SUI app would reuse verbatim. The atomic units of
 composition. A pack is `sui` **only if it is all of**:
 
-1. **SDK-pure** — no `@ship/sdk-client`, no `ship.*`, no daemon/deck/`/_sui` coupling.
+1. **SDK-pure** — no `@ship/sdk-client`, no `ship.*`, no daemon/deck/`/_deck` coupling.
 2. **Atomic / single-concern** — one composable building block, not a bundle.
 3. **Generic / reusable** — useful outside Ship, in a stranger's app.
 4. **Our own engine** — does not *wrap* a heavyweight external engine (see below).

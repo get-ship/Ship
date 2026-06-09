@@ -24,11 +24,11 @@ async fn get(path: &str) -> (StatusCode, String) {
     (status, String::from_utf8_lossy(&bytes).into_owned())
 }
 
-/// `/_sui/view/hello` → 200, and the server-rendered view markup is in the host HTML.
+/// `/_deck/view/hello` → 200, and the server-rendered view markup is in the host HTML.
 #[tokio::test]
 async fn ssr_splices_rendered_view_into_host() {
-    let (status, body) = get("/_sui/view/hello").await;
-    assert_eq!(status, StatusCode::OK, "view-host should serve /_sui/view/hello");
+    let (status, body) = get("/_deck/view/hello").await;
+    assert_eq!(status, StatusCode::OK, "view-host should serve /_deck/view/hello");
     assert!(
         body.contains("Hello from deck"),
         "SSR snapshot must be spliced into the host HTML; got:\n{body}"
@@ -40,7 +40,7 @@ async fn ssr_splices_rendered_view_into_host() {
 /// node. The value proves server-side eval; the anchor proves hydratability.
 #[tokio::test]
 async fn ssr_evaluates_constant_and_emits_hydration_anchor() {
-    let (_status, body) = get("/_sui/view/hello").await;
+    let (_status, body) = get("/_deck/view/hello").await;
     let stripped = strip_html_comments(&body);
     assert!(
         stripped.contains("<strong>2</strong>"),
@@ -55,7 +55,7 @@ async fn ssr_evaluates_constant_and_emits_hydration_anchor() {
 /// Honesty: an unknown view is a real 404, never a dressed-up 200.
 #[tokio::test]
 async fn missing_view_is_404_not_200() {
-    let (status, _body) = get("/_sui/view/does-not-exist").await;
+    let (status, _body) = get("/_deck/view/does-not-exist").await;
     assert_eq!(status, StatusCode::NOT_FOUND, "missing view must 404");
 }
 

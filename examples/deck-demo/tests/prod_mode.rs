@@ -1,7 +1,7 @@
 //! Slice 7 — production mode: immutable cache headers, ETags, error redaction.
 //!
 //! With `DaemonMode::Production`:
-//!   - `/_sui/runtime.js` must carry `Cache-Control: immutable, max-age=…` AND
+//!   - `/_deck/runtime.js` must carry `Cache-Control: immutable, max-age=…` AND
 //!     an `ETag` header.
 //!   - A missing or broken view must return a 404/500 body that does NOT contain
 //!     source paths or compiler diagnostics (REDACTED), unlike dev mode which
@@ -36,11 +36,11 @@ async fn body_str(resp: Response) -> String {
     String::from_utf8_lossy(&bytes).into_owned()
 }
 
-/// In Production, `/_sui/runtime.js` must carry an immutable Cache-Control
+/// In Production, `/_deck/runtime.js` must carry an immutable Cache-Control
 /// header and an ETag, enabling the browser to cache it forever.
 #[tokio::test]
 async fn runtime_js_is_immutable_with_etag_in_prod() {
-    let resp = prod_get("/_sui/runtime.js").await;
+    let resp = prod_get("/_deck/runtime.js").await;
     assert_eq!(resp.status(), StatusCode::OK);
 
     let cc = hdr(&resp, header::CACHE_CONTROL).unwrap_or_default();
@@ -72,7 +72,7 @@ async fn runtime_js_is_not_cached_in_dev() {
     let resp = deck_app_with_mode(default_app_dir(), DaemonMode::Development)
         .oneshot(
             Request::builder()
-                .uri("/_sui/runtime.js")
+                .uri("/_deck/runtime.js")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -99,7 +99,7 @@ async fn runtime_js_is_not_cached_in_dev() {
 /// The body must NOT contain on-disk paths or resolver diagnostics.
 #[tokio::test]
 async fn missing_view_is_redacted_in_prod() {
-    let resp = prod_get("/_sui/views/this-view-does-not-exist-xyzzy").await;
+    let resp = prod_get("/_deck/views/this-view-does-not-exist-xyzzy").await;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 
     let body = body_str(resp).await;
@@ -121,7 +121,7 @@ async fn missing_view_includes_detail_in_dev() {
     let resp = deck_app_with_mode(default_app_dir(), DaemonMode::Development)
         .oneshot(
             Request::builder()
-                .uri("/_sui/views/this-view-does-not-exist-xyzzy")
+                .uri("/_deck/views/this-view-does-not-exist-xyzzy")
                 .body(Body::empty())
                 .unwrap(),
         )

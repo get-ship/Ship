@@ -89,14 +89,14 @@ function attachHarnessHtml(slug: string, theme: ThemeId): string {
   <script type="importmap">
   {
     "imports": {
-      "@ship/sui-runtime": "/_sui/runtime.js",
-      "@ship/sui-dom":     "/_sui/dom.js",
-      "@ship/sdk-client":  "/_sui/sdk-client.js"
+      "@ship/sui-runtime": "/_deck/runtime.js",
+      "@ship/sui-dom":     "/_deck/dom.js",
+      "@ship/sdk-client":  "/_deck/sdk-client.js"
     }
   }
   </script>
-  <script type="module" src="/_sui/sui-components/ship-terminal.js"></script>
-  <script type="module" src="/_sui/sui-components/sui-agent-attach.js"></script>
+  <script type="module" src="/_deck/sui-components/ship-terminal.js"></script>
+  <script type="module" src="/_deck/sui-components/sui-agent-attach.js"></script>
   <style>
     html, body { margin: 0; padding: 0; background: var(--background, #fff); color: var(--foreground, #111); font-family: var(--font-sans, system-ui, sans-serif); }
     #harness { padding: 24px; height: 100vh; box-sizing: border-box; }
@@ -151,8 +151,8 @@ async function gotoAttachHarness(page: Page, slug: string, theme: ThemeId): Prom
       body: fs.readFileSync(file, 'utf8'),
     })
   }
-  await page.route('**/_sui/sui-components/sui-agent-attach.js', serveBundle(ATTACH_BUNDLE))
-  await page.route('**/_sui/sui-components/ship-terminal.js', serveBundle(TERMINAL_BUNDLE))
+  await page.route('**/_deck/sui-components/sui-agent-attach.js', serveBundle(ATTACH_BUNDLE))
+  await page.route('**/_deck/sui-components/ship-terminal.js', serveBundle(TERMINAL_BUNDLE))
   await page.goto('/__attach_harness')
   await page.waitForFunction(
     () => (window as unknown as { __harnessReady?: boolean }).__harnessReady === true,

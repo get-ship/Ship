@@ -15,7 +15,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 DEMO="$ROOT/examples/deck-demo"
 ADDR="127.0.0.1:7921"
-URL_BOOM="http://$ADDR/_sui/view/boom"
+URL_BOOM="http://$ADDR/_deck/view/boom"
 WORK="$(mktemp -d)"
 PW="playwright-cli"
 

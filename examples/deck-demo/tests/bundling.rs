@@ -35,7 +35,7 @@ async fn get(path: &str) -> (StatusCode, String) {
 /// constant) — so we assert structure + the anchor, not the value.
 #[tokio::test]
 async fn ssr_renders_counter_structure() {
-    let (status, body) = get("/_sui/view/counter").await;
+    let (status, body) = get("/_deck/view/counter").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("Counter"), "SSR should render the counter heading");
     assert!(body.contains("increment"), "SSR should render the button");
@@ -54,7 +54,7 @@ async fn controller_view_builds_a_bundle_on_demand() {
     // Remove any prior artifact so we prove THIS request built it.
     let _ = std::fs::remove_file(&bundle);
 
-    let (status, body) = get("/_sui/views/counter/view.js").await;
+    let (status, body) = get("/_deck/views/counter/view.js").await;
     assert_eq!(
         status,
         StatusCode::OK,

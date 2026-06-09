@@ -132,17 +132,17 @@ DECK_DEMO_ADDR="$ADDR" "$BIN" >"$WORK/server.log" 2>&1 &
 SRV_PID=$!
 ready=""
 for _ in $(seq 1 50); do
-  if curl -sf "http://$ADDR/_sui/view/widgets" >/dev/null 2>&1; then ready=1; break; fi
+  if curl -sf "http://$ADDR/_deck/view/widgets" >/dev/null 2>&1; then ready=1; break; fi
   sleep 0.2
 done
 [ -n "$ready" ] || fail "demo server did not come up"
 
 $PW open >/dev/null
-$PW goto "http://$ADDR/_sui/view/widgets" >/dev/null
+$PW goto "http://$ADDR/_deck/view/widgets" >/dev/null
 chip_widgets=$($PW --raw eval "(()=>document.querySelector('demo-chip span.demo-chip-marker')?.tagName??'')()" 2>/dev/null | tr -d '"' || true)
 [ -n "$chip_widgets" ] && ok "<demo-chip> renders .demo-chip-marker in widgets" || echo "note: client hydration not complete yet"
 
-$PW goto "http://$ADDR/_sui/view/gallery" >/dev/null
+$PW goto "http://$ADDR/_deck/view/gallery" >/dev/null
 chip_gallery=$($PW --raw eval "(()=>document.querySelector('demo-chip span.demo-chip-marker')?.tagName??'')()" 2>/dev/null | tr -d '"' || true)
 [ -n "$chip_gallery" ] && ok "<demo-chip> renders .demo-chip-marker in gallery" || echo "note: client hydration not complete yet"
 

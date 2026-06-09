@@ -153,7 +153,7 @@ Sections, each one job:
 2. **Hand-wired (required for view-host mounts).** The daemon's
    `/sui/<name>` host does NOT inject `ship` into ctx, so the
    compiler-emitted `<data live>` form sticks on `loading`. Wire
-   `live()` directly to `/_sui/data?expr=…` instead. The canonical
+   `live()` directly to `/_deck/data?expr=…` instead. The canonical
    helper currently lives in `views/git/controller.ts` (`sseSource`,
    around line 14) — copy verbatim:
 
@@ -161,7 +161,7 @@ Sections, each one job:
 function sseSource<T>(expr: string): LiveSource<T> {
   return {
     subscribe(sig: LiveSignal<T>): () => void {
-      const es = new EventSource(`/_sui/data?expr=${encodeURIComponent(expr)}`)
+      const es = new EventSource(`/_deck/data?expr=${encodeURIComponent(expr)}`)
       const onPatch = (ev: MessageEvent): void => {
         try {
           const patch = JSON.parse(ev.data as string) as { op: string; value: T }
@@ -351,7 +351,7 @@ Two places, both required:
    inventory bugs).
 
 `icon` is a lucide-icons name. `<sui-icon>` fetches one icon at a time from
-`/_sui/icons/<name>.svg` (the daemon embeds the set + serves per-icon;
+`/_deck/icons/<name>.svg` (the daemon embeds the set + serves per-icon;
 browser HTTP-caches each one). Don't bundle the registry, don't hard-code SVG.
 For non-lucide art, use `<sui-icon src="…">` (CDN escape hatch).
 

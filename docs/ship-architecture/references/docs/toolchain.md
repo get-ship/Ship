@@ -47,7 +47,7 @@ is in-process:
 `.ts`/`.js` change it re-bundles the affected targets and emits a
 `BundlerEvent` (`ModuleChanged` / `CompileError`) on a broadcast channel. The
 daemon (`apps/shipd/src/lib.rs`) forwards these to `views::sui_hmr` →
-`/_sui/dev/hmr` SSE → the `live-reload.js` client baked into
+`/_deck/dev/hmr` SSE → the `live-reload.js` client baked into
 `crates/deck/deck-core/assets`. All Rust, no bun, no vite.
 
 (The shell SPA's *dev* server uses vite for its own HMR — `apps/shell` `bun run

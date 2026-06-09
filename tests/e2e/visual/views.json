@@ -121,31 +121,31 @@
     },
     {
       "tag": "sui-nav-top",
-      "slot": "<sui-nav-top project=\"Ship\" view=\"home\" style=\"width:100%\"><sui-command-bar slot=\"command-bar\"></sui-command-bar></sui-nav-top><script type=\"module\" src=\"/_sui/sui-components/sui-command-bar.js\"></script><script type=\"module\" src=\"/_sui/sui-components/sui-nav-top.js\"></script><script>Promise.all(['sui-nav-top','sui-command-bar','sui-theme-picker','sui-button','sui-icon'].map(t => customElements.whenDefined(t))).then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
+      "slot": "<sui-nav-top project=\"Ship\" view=\"home\" style=\"width:100%\"><sui-command-bar slot=\"command-bar\"></sui-command-bar></sui-nav-top><script type=\"module\" src=\"/_deck/sui-components/sui-command-bar.js\"></script><script type=\"module\" src=\"/_deck/sui-components/sui-nav-top.js\"></script><script>Promise.all(['sui-nav-top','sui-command-bar','sui-theme-picker','sui-button','sui-icon'].map(t => customElements.whenDefined(t))).then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
     },
     {
       "tag": "sui-panel-dock",
-      "slot": "<div style=\"display:flex;flex-direction:column;height:360px;border:1px solid var(--border);border-radius:6px;overflow:hidden\"><div style=\"flex:1;padding:16px;background:var(--background);color:var(--muted-foreground);font-size:12px\">View content above the dock</div><sui-panel-dock active-tab=\"terminal\" style=\"height:240px\"><div slot=\"terminal\" style=\"padding:12px;font-family:var(--mono-font);font-size:12px\">$ ship daemon status<br>running on port 8421<br>uptime 4h 22m</div><div slot=\"toolbar:terminal\"><span style=\"font-size:11px;color:var(--muted-foreground)\">pty:1</span></div></sui-panel-dock></div><script type=\"module\" src=\"/_sui/sui-components/sui-panel-dock.js\"></script><script>customElements.whenDefined('sui-panel-dock').then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
+      "slot": "<div style=\"display:flex;flex-direction:column;height:360px;border:1px solid var(--border);border-radius:6px;overflow:hidden\"><div style=\"flex:1;padding:16px;background:var(--background);color:var(--muted-foreground);font-size:12px\">View content above the dock</div><sui-panel-dock active-tab=\"terminal\" style=\"height:240px\"><div slot=\"terminal\" style=\"padding:12px;font-family:var(--mono-font);font-size:12px\">$ ship daemon status<br>running on port 8421<br>uptime 4h 22m</div><div slot=\"toolbar:terminal\"><span style=\"font-size:11px;color:var(--muted-foreground)\">pty:1</span></div></sui-panel-dock></div><script type=\"module\" src=\"/_deck/sui-components/sui-panel-dock.js\"></script><script>customElements.whenDefined('sui-panel-dock').then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
     },
     {
       "tag": "sui-devtools-source",
-      "slot": "<div style=\"height:320px;border:1px solid var(--border);border-radius:6px;overflow:hidden\"><sui-devtools-source style=\"height:100%\"></sui-devtools-source></div><script type=\"module\" src=\"/_sui/sui-components/sui-devtools.js\"></script><script>customElements.whenDefined('sui-devtools-source').then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
+      "slot": "<div style=\"height:320px;border:1px solid var(--border);border-radius:6px;overflow:hidden\"><sui-devtools-source style=\"height:100%\"></sui-devtools-source></div><script type=\"module\" src=\"/_deck/sui-components/sui-devtools.js\"></script><script>customElements.whenDefined('sui-devtools-source').then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
     },
     {
       "tag": "sui-devtools-signals",
-      "slot": "<div style=\"height:320px;border:1px solid var(--border);border-radius:6px;overflow:hidden\"><sui-devtools-signals style=\"height:100%\"></sui-devtools-signals></div><script type=\"module\" src=\"/_sui/sui-components/sui-devtools.js\"></script><script>customElements.whenDefined('sui-devtools-signals').then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
+      "slot": "<div style=\"height:320px;border:1px solid var(--border);border-radius:6px;overflow:hidden\"><sui-devtools-signals style=\"height:100%\"></sui-devtools-signals></div><script type=\"module\" src=\"/_deck/sui-components/sui-devtools.js\"></script><script>customElements.whenDefined('sui-devtools-signals').then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
     },
     {
       "tag": "sui-devtools-lint",
-      "slot": "<div style=\"height:320px;border:1px solid var(--border);border-radius:6px;overflow:hidden\"><sui-devtools-lint style=\"height:100%\"></sui-devtools-lint></div><script type=\"module\" src=\"/_sui/sui-components/sui-devtools.js\"></script><script>customElements.whenDefined('sui-devtools-lint').then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
+      "slot": "<div style=\"height:320px;border:1px solid var(--border);border-radius:6px;overflow:hidden\"><sui-devtools-lint style=\"height:100%\"></sui-devtools-lint></div><script type=\"module\" src=\"/_deck/sui-components/sui-devtools.js\"></script><script>customElements.whenDefined('sui-devtools-lint').then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
     },
     {
       "tag": "sui-devtools-schema",
-      "slot": "<div style=\"height:320px;border:1px solid var(--border);border-radius:6px;overflow:hidden\"><sui-devtools-schema style=\"height:100%\"></sui-devtools-schema></div><script type=\"module\" src=\"/_sui/sui-components/sui-devtools.js\"></script><script>customElements.whenDefined('sui-devtools-schema').then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
+      "slot": "<div style=\"height:320px;border:1px solid var(--border);border-radius:6px;overflow:hidden\"><sui-devtools-schema style=\"height:100%\"></sui-devtools-schema></div><script type=\"module\" src=\"/_deck/sui-components/sui-devtools.js\"></script><script>customElements.whenDefined('sui-devtools-schema').then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
     },
     {
       "tag": "sui-devtools-components",
-      "slot": "<div style=\"height:320px;border:1px solid var(--border);border-radius:6px;overflow:hidden\"><sui-devtools-components style=\"height:100%\"></sui-devtools-components></div><script type=\"module\" src=\"/_sui/sui-components/sui-devtools.js\"></script><script>customElements.whenDefined('sui-devtools-components').then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
+      "slot": "<div style=\"height:320px;border:1px solid var(--border);border-radius:6px;overflow:hidden\"><sui-devtools-components style=\"height:100%\"></sui-devtools-components></div><script type=\"module\" src=\"/_deck/sui-components/sui-devtools.js\"></script><script>customElements.whenDefined('sui-devtools-components').then(() => requestAnimationFrame(() => requestAnimationFrame(() => { window.__harnessReady = true; })));</script>"
     },
     {
       "tag": "sui-provider-blob",

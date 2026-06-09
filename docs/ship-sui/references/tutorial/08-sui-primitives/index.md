@@ -61,7 +61,7 @@ bundle, and `custom-elements.json`. Two projections:
 | `workspace.json` | Every pack in the repo (public + private) | Tooling, agents, picker, design-system audits |
 | `published.json` | Only `!private` packs | Library consumers, npm publishing |
 
-The daemon serves per-pack bundles at `/_sui/packs/<pack>/<bundle>.js`
+The daemon serves per-pack bundles at `/_deck/packs/<pack>/<bundle>.js`
 and the picker groups by pack origin instead of regex heuristics.
 
 For an authoring agent: read `ship://components` to get the merged
