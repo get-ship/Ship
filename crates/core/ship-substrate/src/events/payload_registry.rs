@@ -142,7 +142,16 @@ register_event!("executor.session_destroyed", [EventScope::Runtime], Retention::
 register_event!("executor.window_destroyed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ExecutorWindowDestroyedPayload");
 
 // ── hook.* ──────────────────────────────────────────────────────────────────
-register_event!("hook.permission_denied", [EventScope::Runtime], Retention::Durable, Stability::Stable, "HookPermissionDeniedPayload");
+// hook.permission_denied: downgraded Durable → Ephemeral (R2 hook conversion).
+// The denied-permission signal is a point-in-time runtime gate decision; there
+// is no projection that folds it and it must not survive compaction.
+//
+// FOLLOW-UP BLOCKER (op.* family): the op.tool_use_started / op.tool_use_completed
+// / op.tool_use_denied event family (#TODO: issue ref) carries the same ephemeral
+// semantics as hook.tool_use_* but is not yet registered here. Full R2 conversion
+// requires adding those op.* events with Retention::Ephemeral before any analytics
+// projection can fold them — deferred to a subsequent PR.
+register_event!("hook.permission_denied", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookPermissionDeniedPayload");
 register_event!("hook.session_ended", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookSessionEndedPayload");
 register_event!("hook.session_started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookSessionStartedPayload");
 register_event!("hook.tool_use_completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookToolUseCompletedPayload");
