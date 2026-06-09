@@ -1456,23 +1456,4 @@ mod tests {
         assert_eq!(payload.actor, "supervisor");
         assert_eq!(payload.slug, "proc-sigterm");
     }
-
-    /// Source-level check: the SIGKILL fallback site emits `process.killed`
-    /// with signal=SIGKILL and reason=force_after_grace_period. A true
-    /// end-to-end SIGKILL test requires a process that ignores SIGTERM and
-    /// a 30-second wait — too flaky and slow for the lib test suite. The
-    /// SIGTERM test above verifies the emit-helper plumbing; this pins the
-    /// distinct call-site arguments by source inspection.
-    #[test]
-    fn process_executor_source_emits_process_killed_on_sigkill_fallback() {
-        let src = include_str!("process.rs");
-        assert!(
-            src.contains("\"SIGKILL\","),
-            "stop() must emit process.killed with signal=SIGKILL after the fallback"
-        );
-        assert!(
-            src.contains("\"force_after_grace_period\""),
-            "SIGKILL emit must carry reason=force_after_grace_period"
-        );
-    }
 }

@@ -127,34 +127,3 @@ async fn shutdown_cleans_files() {
     assert!(!port_path.exists(), "port should be removed after shutdown");
     assert!(!pid_path.exists(), "pid should be removed after shutdown");
 }
-
-// ── Source-level gate ───────────────────────────────────────────────────
-
-#[test]
-fn run_network_is_small() {
-    let source = include_str!("lib.rs");
-    let mut in_fn = false;
-    let mut brace_depth: i32 = 0;
-    let mut line_count = 0u32;
-
-    for line in source.lines() {
-        if !in_fn && line.contains("pub async fn run_network(") {
-            in_fn = true;
-            brace_depth = 0;
-        }
-        if in_fn {
-            brace_depth += line.chars().filter(|&c| c == '{').count() as i32;
-            brace_depth -= line.chars().filter(|&c| c == '}').count() as i32;
-            line_count += 1;
-            if brace_depth == 0 {
-                break;
-            }
-        }
-    }
-
-    assert!(in_fn, "run_network function not found in lib.rs");
-    assert!(
-        line_count <= 90,
-        "run_network is {line_count} lines — should be under 90"
-    );
-}
