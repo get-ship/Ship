@@ -20,7 +20,10 @@ pub mod skill;
 pub mod skill_paths;
 pub mod skill_vars;
 pub use agent::{Agent, BlastRadius, Capability, Disposition, Harness, Identity};
-pub use emit::SessionEventSink;
+pub use emit::{
+    SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed,
+    SessionStarted, SessionSuspended, TurnEnded, TurnStarted,
+};
 
 /// One-time legacy `platform.db` → `kv.db` skill-vars drain, re-exported for the
 /// daemon boot path so shipd needn't depend on the internal sub-crate. The skill

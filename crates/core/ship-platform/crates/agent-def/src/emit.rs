@@ -29,8 +29,13 @@
 use std::sync::Arc;
 use serde::Serialize;
 use ship_kernel::EventSink;
-use ship_substrate::events::canonical_session::{
-    SessionCancelled, SessionCompleted, SessionFailed, SessionStarted, SessionSuspended, TurnEnded, TurnStarted,
+
+// Re-export canonical payload types so downstream crates (e.g. floki) can
+// build session event payloads through agent-def without adding ship-substrate
+// as a direct runtime dependency.
+pub use ship_substrate::events::canonical_session::{
+    SessionCancelled, SessionCompleted, SessionFailed, SessionStarted,
+    SessionSuspended, TurnEnded, TurnStarted,
 };
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_registry::EventScope;

@@ -31,11 +31,11 @@
 //! which captures `(gateway, auth)` so the credential never crosses the seam.
 
 pub mod agent_loop;
+pub mod approver;
 pub mod auth;
 pub mod dispatch;
 pub mod durable;
 pub mod dtsgen;
-pub mod events;
 pub mod gate;
 pub mod gateway;
 pub mod lsp;
@@ -52,12 +52,15 @@ pub mod spine;
 // Run", which belongs to the control-plane verb design (D5). Graduating the
 // test-shaped trait now would bake in an API D5 must immediately break.
 
-pub use agent_def::Agent;
+pub use agent_def::{
+    Agent, SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed,
+    SessionStarted, SessionSuspended, TurnEnded, TurnStarted,
+};
 pub use agent_loop::{AgentOutput, Approver, Cancel, HeadlessApprover, Steer, ToolCtx, run_step};
+pub use approver::UserInput;
 pub use auth::AuthContext;
 pub use dispatch::GatewayDispatch;
 pub use durable::run_durable_script;
-pub use events::{AgentEvent, EventSink, UserInput};
 pub use gateway::{Gateway, GatewayCallKind, GatewayError, InProcessGateway};
 pub use provider::{BuiltModel, Credential, Provider, build_model};
 pub use resilience::{RetryPolicy, run_resilient};

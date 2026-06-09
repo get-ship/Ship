@@ -22,10 +22,12 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt", "macros"] }
+tracing = { workspace = true }
 # The model-turn loop. Pinned to the version the spike proved (not yet a
 # workspace dependency — Floki introduces it).
 rig = { version = "0.38.1", package = "rig-core" }
 
 [dev-dependencies]
 rig = { version = "0.38.1", package = "rig-core", features = ["test-utils"] }
+ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "test-util"] }
