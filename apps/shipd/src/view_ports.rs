@@ -70,6 +70,9 @@ impl ViewToolPort for ViewToolAdapter {
     }
 
     fn resolve_theme_css(&self) -> String {
-        crate::views::themes::resolve_theme_css()
+        // Theme resolution now lives in deck-core (the single owner of the
+        // CSS/theme serving surface). shipd delegates — the non-serving
+        // consumer is `ship_views::view_authoring::tool_dispatch`.
+        deck_core::resolve_theme_css()
     }
 }

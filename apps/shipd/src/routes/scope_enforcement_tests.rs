@@ -252,18 +252,12 @@ fn ship_public_route_rejects_non_public_at_registration() {
     );
 }
 
-#[test]
-fn ship_route_rejects_public_at_registration() {
-    let result = std::panic::catch_unwind(|| {
-        let _: axum::Router = axum::Router::new()
-            .ship_route(Route::AssetThemeCss, dummy_handler);
-    });
-    assert!(
-        result.is_err(),
-        "ship_route must panic when given a Public route \
-         (Route::AssetThemeCss declares Public)"
-    );
-}
+// The companion `ship_route_rejects_public_at_registration` test was
+// removed: the shipd UI-purge dropped every `@auth public` variant from the
+// enum (the frontend-serving routes moved to `deck::router()`), so there is
+// no Public route left to feed `ship_route` to assert the inverse panic. The
+// `ship_public_route_rejects_non_public_at_registration` guard above still
+// covers the registration-time auth check from the other direction.
 
 // `Route` doesn't derive Clone (its variants own `String` fields). For
 // per-iteration test setup we rebuild each variant the same way `all()`

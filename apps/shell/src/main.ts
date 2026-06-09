@@ -123,7 +123,13 @@ setShipClient(shipClient)
 // here at the app boundary, not inside the (host-agnostic) SUI runtime.
 const suiLoader: SuiLoader = {
   async fetchView(nameOrPath: string): Promise<ViewPayload> {
-    const rel = nameOrPath.startsWith(`${DECK_PREFIX}/views/`) ? nameOrPath : `${DECK_PREFIX}/views/${nameOrPath}`
+    // Route pathnames arrive leading-slashed ("/git"); the view-payload route
+    // is `/_deck/views/{name}/...` so a raw concat yields a blank `{name}`
+    // segment (`/_deck/views//git` → 404). Normalize to the bare view name.
+    const seg = nameOrPath.replace(/^\/+/, '')
+    const rel = seg.startsWith(`${DECK_PREFIX.replace(/^\//, '')}/views/`) || nameOrPath.startsWith(`${DECK_PREFIX}/views/`)
+      ? nameOrPath
+      : `${DECK_PREFIX}/views/${seg}`
     const path = `${daemonBase()}${rel}`
     const res = await fetch(path, { credentials: 'same-origin' })
     if (!res.ok) {

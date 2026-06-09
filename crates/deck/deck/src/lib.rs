@@ -16,6 +16,11 @@ pub use deck_axum::{
 };
 pub use deck_axum::multiplex::{MultiplexState, multiplex_router, HEARTBEAT_MS};
 
+// The SPA navigation fallback. deck's `router()` deliberately sets NO fallback
+// (it merges alongside the Connect-ops router, which sets its own — two merged
+// fallbacks panic axum). The host sets this once on the fully-merged root.
+pub use deck_axum::pages::spa_fallback;
+
 // Contract types (transport-agnostic), surfaced for hosts that name them.
 pub use deck_core::{
     CachePolicy, DaemonBuildInfo, DaemonMode, DeckResponse, ViewSetupQuery, inject_mode_meta,

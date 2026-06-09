@@ -8,7 +8,9 @@
 
 mod handlers;
 pub mod multiplex;
+pub mod pages;
 pub mod render_helpers;
+pub mod sui_source;
 
 pub use handlers::{
     serve_bundle_hmr, serve_catalog_workspace, serve_public_asset, serve_shell, serve_shell_asset,
@@ -76,7 +78,24 @@ pub fn into_axum(resp: DeckResponse) -> Response {
 /// `/_deck/meta` is registered here; hosts that need to inject a
 /// `DaemonBuildInfo` extension (shipd) simply layer it before mounting.
 pub fn router() -> Router {
+    use pages::{
+        serve_index, serve_setup, serve_theme_css, serve_themes_list, serve_view_tokens,
+        spa_fallback, spa_or_public_asset,
+    };
     Router::new()
+        // Shared CSS / theme assets (unauthenticated) — paths are the
+        // canonical `Route` enum values (routes.rs is ground truth).
+        .route("/api/assets/view-tokens.css", get(serve_view_tokens))
+        .route("/api/assets/theme.css", get(serve_theme_css))
+        .route("/api/v1/themes", get(serve_themes_list))
+        // Per-tag component source viewer (dev studio deep-link).
+        .route("/_deck/source/{tag}", get(sui_source::serve_sui_source))
+        // First-run flow — both routes unauthenticated; decision via DataPort.
+        .route("/", get(serve_index))
+        .route("/setup", get(serve_setup))
+        // HMR firehose — always mounted; the handler self-gates (empty SSE
+        // when no bundler is wired), so no `if Development` guard is needed.
+        .route("/_deck/dev/hmr", get(serve_bundle_hmr))
         .route("/_deck/runtime.js", get(serve_sui_runtime))
         .route("/_deck/dom.js", get(serve_sui_dom))
         .route("/_deck/sdk-client.js", get(serve_sui_sdk_client))
@@ -100,6 +119,18 @@ pub fn router() -> Router {
         // "view" to avoid colliding with the plural "views" payload routes).
         .route("/_deck/view/{name}", get(serve_view_host))
         .route("/_deck/view/{name}/{*sub_path}", get(serve_view_host))
+        // Host public assets at single-segment root paths (/favicon.ico, …) or
+        // the shell for a bare client-route segment. Registered AFTER the
+        // literal `/`, `/setup`, and `/api/...` routes so those keep their
+        // handlers; `/{file}` is the single-segment catch-all (axum prefers the
+        // literal routes).
+        .route("/{file}", get(spa_or_public_asset))
+    // No `.fallback` here: deck's `router()` is MERGED into the host's root
+    // alongside the Connect-ops router, which sets its own fallback (unmatched
+    // RPC method → Unimplemented). axum panics if two merged routers both carry
+    // a fallback. The host owns the single root fallback — it calls
+    // `.fallback(deck::spa_fallback)` once on the fully-merged router. deck
+    // exports `spa_fallback` for exactly that.
 }
 
 #[cfg(test)]

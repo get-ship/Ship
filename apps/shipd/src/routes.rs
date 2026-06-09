@@ -61,15 +61,8 @@ include!(concat!(env!("OUT_DIR"), "/routes_generated.rs"));
 /// URL builders can substitute them. Variants without params are unit
 /// variants.
 pub enum Route {
-    // ── First-run / setup ────────────────────────────────────────────────
-
-    /// @route GET "/"
-    /// @auth public
-    Index,
-
-    /// @route GET "/setup"
-    /// @auth public
-    Setup,
+    // First-run `/` + `/setup` are owned by `deck::router()` now — shipd
+    // serves no frontend surface, so those route variants were removed.
 
     // ── Session / auth ───────────────────────────────────────────────────
 
@@ -81,33 +74,10 @@ pub enum Route {
     // Account ops are served by the typed Connect `AccountService`
     // (account.proto, `ship-account` crate) — there is no REST account surface.
 
-    // ── Shared assets (unauthenticated) ──────────────────────────────────
-
-    /// @route GET "/api/assets/view-tokens.css"
-    /// @auth public
-    AssetViewTokensCss,
-
-    /// @route GET "/api/assets/theme.css"
-    /// @auth public
-    AssetThemeCss,
-
-    /// @route GET "/api/v1/themes"
-    /// @auth public
-    ListThemes,
-
-    // SUI framework hosting (`runtime.js` / `dom.js` / `sdk-client.js` /
-    // `live-reload.js` / `components.js`) lives entirely in deck-axum's
-    // `deck::router()` — see `crates/deck/deck-core/src/routes.rs::DECK_PREFIX`.
-    // shipd only owns the two handler-style endpoints: HMR SSE + per-tag
-    // source viewer, both renamed `/_deck/*` → `/_deck/*` in #277b.
-
-    /// @route GET "/_deck/dev/hmr"
-    /// @auth public
-    SuiDevHmr,
-
-    /// @route GET "/_deck/source/{tag}"
-    /// @auth public
-    SuiSource { tag: String },
+    // Shared CSS/theme assets (`view-tokens.css`, `theme.css`, `/api/v1/themes`),
+    // the dev HMR firehose (`/_deck/dev/hmr`), and the per-tag source viewer
+    // (`/_deck/source/{tag}`) are all owned by `deck::router()` now — shipd
+    // serves no frontend surface, so those route variants were removed.
 
     // ── PipelineService — service-shaped CRUD + run ops ──
 

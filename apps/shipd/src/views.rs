@@ -21,24 +21,18 @@ pub mod state;
 // Truly framework-level pieces (view_payload, view_host, asset bundles,
 // resolver, render_helpers, bundle, runtime asset) live in
 // crates/deck/.
-pub mod sui_source;
 pub mod git_signal;
-pub mod setup;
 pub mod session;
 pub mod session_types;
 pub mod sanitize;
-pub mod assets;
 pub mod discovery;
 pub mod resolve;
-pub mod themes;
 
 #[cfg(test)]
 #[allow(unused_imports)]
 use std::path::PathBuf;
 
 use serde::Serialize;
-
-pub use assets::{serve_theme_css, serve_themes_list, serve_view_tokens};
 
 
 #[derive(Serialize, Clone)]

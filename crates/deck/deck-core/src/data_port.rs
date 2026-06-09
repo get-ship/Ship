@@ -23,4 +23,16 @@ pub trait DataPort: Send + Sync + 'static {
     /// Resolve `(domain, op, args)` to its current full value, or `None` when
     /// the host has no resolver registered for `(domain, op)`.
     fn resolve(&self, domain: &str, op: &str, args: &Value) -> Option<Value>;
+
+    /// Whether the host is provisioned (has at least one active workspace).
+    ///
+    /// Drives deck's first-run routing: `GET /` serves the shell when
+    /// provisioned and redirects to `/setup` otherwise; `GET /setup` redirects
+    /// to `/` once provisioned. The default (`false`) is the fresh-install
+    /// posture — a host with real workspace state overrides this. deck names
+    /// no Ship concept; the host binds its own provisioning check inside the
+    /// impl. (The shipd impl reads its active-project list.)
+    fn is_provisioned(&self) -> bool {
+        false
+    }
 }

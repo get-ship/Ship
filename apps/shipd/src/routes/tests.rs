@@ -5,10 +5,7 @@ use super::*;
 #[test]
 fn unit_variant_full_path_is_literal() {
     assert_eq!(Route::IssueSession.full_path(), "/api/v1/session");
-    assert_eq!(
-        Route::AssetViewTokensCss.full_path(),
-        "/api/assets/view-tokens.css"
-    );
+    assert_eq!(Route::DaemonStatus.full_path(), "/daemon/status");
 }
 
 #[test]
@@ -111,12 +108,7 @@ fn api_v1_prefix_invariants() {
         // which return an instance with empty-string fields — `full_path`
         // still reflects the template structure.
         vec![
-            ("Index", Route::Index.full_path()),
-            ("Setup", Route::Setup.full_path()),
             ("IssueSession", Route::IssueSession.full_path()),
-            ("AssetViewTokensCss", Route::AssetViewTokensCss.full_path()),
-            ("AssetThemeCss", Route::AssetThemeCss.full_path()),
-            ("ListThemes", Route::ListThemes.full_path()),
             ("Capabilities", Route::Capabilities.full_path()),
             ("SandboxList", Route::SandboxList.full_path()),
             ("DaemonStatus", Route::DaemonStatus.full_path()),

@@ -4,14 +4,14 @@
 use axum::{
     Json, Router,
     body::Body,
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use std::sync::Arc;
 
 use deck::config::DeckConfig;
 use crate::{
     auth, services, ship_runtime,
-    sessions, views,
+    sessions,
 };
 use crate::routes::{
     artifacts_api,
@@ -50,6 +50,12 @@ pub fn build_router(
     // Enumerated routes — one `ApiState`-typed router, registered via
     // `ship_route(Route::X, handler)` against the canonical full paths.
     let api_ship_routes = build_ship_routes(st);
+
+    // ONE ShipDataPort for the whole router: deck's serve_index / serve_setup
+    // read provisioning via `Extension<Arc<dyn DataPort>>` (injected at the
+    // root layer below), and the multiplex transport reuses the SAME Arc.
+    let data_port: Arc<dyn deck_core::DataPort> =
+        Arc::new(crate::data_port::ShipDataPort::new(rt.clone()));
 
     // Public webhook route — unauthenticated; each trigger carries its own secret.
     let webhook_kernel = rt.kernel().clone();
@@ -98,36 +104,11 @@ pub fn build_router(
         .route("/api/health", axum::routing::get(move || {
             health_check(health_rt)
         }))
-        // Drift-detection endpoint (/_deck/meta) — moved to deck::router()
-        // so deck owns the full /_deck/* namespace. The DaemonBuildInfo
-        // extension is injected at the root layer below so every deck
-        // handler that needs it (serve_meta) finds it via Option<Extension<…>>.
-        .ship_public_route(Route::AssetViewTokensCss, views::serve_view_tokens)
-        .ship_public_route(Route::AssetThemeCss, views::serve_theme_css)
-        .ship_public_route(Route::ListThemes, views::serve_themes_list)
-        // `State<ApiState>`, so they live HERE, behind the
-        // `with_state(rt.clone())` at the bottom of this builder.
-        //
-        // The STATELESS deck serving surface — framework bundles
-        // (runtime/dom/sdk/components/live-reload), per-icon lucide,
-        // workspace + published catalogs, pack assets, per-view template/setup/css/
-        // payload (+ sub-path), `/_deck/view/{name}` (view-host), and `/space`
-        // — is mounted as ONE unit via `deck::router()` in the root
-        // assembly below. deck-axum is the single source of truth for
-        // those paths; shipd no longer hand-lists them here.
-        .ship_public_route(Route::SuiSource_template(), views::sui_source::serve_sui_source)
-        // The HMR route (SuiDevHmr) is NOT wired here — it stays
-        // development-only and is merged into `root` inside the
-        // `daemon_mode == Development` block further below.
-        // First-run flow — both routes are unauthenticated so a fresh
-        .ship_public_route(Route::Index, views::setup::index_handler)
-        .ship_public_route(Route::Setup, views::setup::setup_handler)
-        // Host public assets at root paths (/ship-logo.svg, /favicon.ico, …),
-        // served by deck from `DeckConfig.public_dir` (deck.jsonc) under deck's
-        // OWN resolved project root — no Ship path resolution. Registered AFTER
-        // Index/Setup so /setup and / keep their handlers; `/{file}` is the
-        // catch-all single-segment path (axum prefers the literal routes).
-        .route("/{file}", axum::routing::get(spa_or_public_asset))
+        // Drift-detection endpoint (/_deck/meta), the shared CSS/theme assets,
+        // first-run `/` + `/setup`, the per-tag source viewer, and the root
+        // public-asset catch-all are all owned by `deck::router()` now —
+        // shipd serves none of the frontend surface. shipd keeps only RPC +
+        // daemon routes here.
         // Bind the runtime state here so the resulting `Router<()>` merges
         // cleanly with the root assembly below.
         .with_state(rt.clone());
@@ -211,7 +192,7 @@ pub fn build_router(
         // a single Extension: data_port + registry + change_source.
         .merge(
             deck::multiplex_router().layer(axum::Extension(deck::MultiplexState::new(
-                Arc::new(crate::data_port::ShipDataPort::new(rt.clone())),
+                data_port.clone(),
                 Arc::new(deck_core::WindowSubscriptionRegistry::default()),
                 Arc::new(crate::data_port::ShipChangeSource::new(rt.clone())),
             ))),
@@ -223,7 +204,7 @@ pub fn build_router(
             auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
         }));
 
-    let mut root = Router::new()
+    let root = Router::new()
         .merge(public_routes)
         // (framework bundles, catalogs, pack assets, per-view
         // template/setup/css/payload + sub-path, `/_deck/view/{name}`,
@@ -235,26 +216,16 @@ pub fn build_router(
         .merge(deck::router())
         .merge(webhook_source_route)
         .merge(authenticated_routes)
-        // SPA fallback: a GET navigation to a client-side route (/git, /agents,
-        // /settings, /studio/themes, …) has no server route, so without this it
-        // 404s on direct-nav / refresh. Serve the shell scaffold's index.html so
-        // client-side routing takes over. Guarded to never shadow real backend
-        // paths or static assets — see `spa_fallback`.
-        .fallback(spa_fallback);
-    // The HMR firehose is development-only; not registered in production. Its
-    if daemon_mode == deck::DaemonMode::Development {
-        // The HMR firehose is short-lived (SSE per client; closed by
-        // network when the daemon shuts down). Cut 5: drop the
-        // axum::Extension(shutdown_ct.child_token()) layer — the audit
-        // identified this as the line that crashed the dev daemon
-        // (3 historical panics at apps/shipd/src/router.rs:283 in the
-        // log; axum::Extension doesn't satisfy tower's layer
-        // requirement, and the shutdown token is overkill for a
-        // short-lived SSE stream anyway).
-        let hmr_routes: Router<()> = Router::new()
-            .ship_public_route(Route::SuiDevHmr, deck::serve_bundle_hmr);
-        root = root.merge(hmr_routes);
-    }
+        // The single root fallback: deck's SPA navigation handler. deck owns the
+        // handler; the host owns the one `.fallback` call. It must live HERE and
+        // nowhere else — `deck::router()` and the Connect-ops router each merge
+        // in, and axum panics if two merged routers both carry a fallback. The
+        // handler 404s any backend/asset path (it excludes `/api`, `/_deck`,
+        // Connect `/ship.*`, dotted assets) so it never shadows a real route.
+        .fallback(deck::spa_fallback);
+    // The dev-only HMR firehose and the root public-asset catch-all (`/{file}`)
+    // are owned by `deck::router()` now — shipd registers no frontend-serving
+    // routes; serving is deck's, the single fallback excepted.
     // Load deck.jsonc from the workspace root (same root the bundler uses).
     // Falls back to defaults when absent so a zero-config host works unchanged.
     let repo_root = rt.workspace_dir()
@@ -279,6 +250,10 @@ pub fn build_router(
         // Daemon-mode Extension — Sui handlers read it via
         // `Option<Extension<DaemonMode>>` without router-state plumbing.
         .layer(axum::Extension(daemon_mode))
+        // DataPort Extension — deck's serve_index / serve_setup read host
+        // provisioning via `Option<Extension<Arc<dyn DataPort>>>`. Same Arc the
+        // multiplex transport uses — ONE ShipDataPort for the whole router.
+        .layer(axum::Extension(data_port))
         // DaemonBuildInfo Extension — deck's /_deck/meta handler reads this
         // to report the daemon's own build identity alongside the compiler's.
         .layer(axum::Extension(dbi))
@@ -301,54 +276,6 @@ pub fn build_router(
         ))
         // Catch handler panics → 500 instead of connection abort.
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
-}
-
-/// `GET /{file}` — a single-segment path. A dotted name (`favicon.ico`,
-/// `ship-logo.svg`) is a real public asset, served by deck's public-dir handler
-/// (which 404s if absent). A bare segment (`/git`, `/agents`, `/settings`) is a
-/// client-side route, so serve the shell scaffold and let client-side routing
-/// resolve it — the single-segment arm of the SPA fallback (the multi-segment
-/// arm is `spa_fallback` on the root router).
-async fn spa_or_public_asset(
-    axum::extract::Path(file): axum::extract::Path<String>,
-    mode: Option<axum::Extension<deck::DaemonMode>>,
-    cfg: Option<axum::Extension<Arc<DeckConfig>>>,
-) -> Response {
-    if file.contains('.') {
-        return deck::serve_public_asset(mode, cfg, axum::extract::Path(file)).await;
-    }
-    deck::serve_shell(mode, cfg).await
-}
-
-/// Router-level fallback for unmatched requests. For a GET navigation that is
-/// not a backend path (API / Connect-RPC / deck / hooks / auth / webhook /
-/// daemon / space / shell) and not a static asset (no `.` in the path), serve
-/// the shell scaffold's index.html so a direct-nav / refresh to a multi-segment
-/// client route (`/studio/themes`, …) loads the SPA instead of 404ing. Every
-/// other unmatched request keeps an honest 404 — the fallback never shadows a
-/// real route or asset.
-async fn spa_fallback(
-    method: axum::http::Method,
-    uri: axum::http::Uri,
-    mode: Option<axum::Extension<deck::DaemonMode>>,
-    cfg: Option<axum::Extension<Arc<DeckConfig>>>,
-) -> Response {
-    let path = uri.path();
-    let is_backend_or_asset = path.starts_with("/api")
-        || path.starts_with("/_deck")
-        || path.starts_with("/hooks")
-        || path.starts_with("/auth")
-        || path.starts_with("/webhook")
-        || path.starts_with("/daemon")
-        || path.starts_with("/space")
-        || path.starts_with("/shell")
-        // Connect-RPC paths are `/ship.ops.v1.*` and assets carry an extension —
-        // both contain a `.`, so this single check covers them.
-        || path.contains('.');
-    if method == axum::http::Method::GET && !is_backend_or_asset {
-        return deck::serve_shell(mode, cfg).await;
-    }
-    (axum::http::StatusCode::NOT_FOUND, "not found").into_response()
 }
 
 /// Stamp `X-Shipd-Build` on every response so clients can detect daemon
@@ -543,8 +470,7 @@ mod merge_tests {
         // `/_deck/views/{name}/` prefix with deck's catch-all.
         let kept: Router = Router::new()
             .route("/_deck/views/{name}/sse", get(noop))
-            .route("/_deck/mutation/{name}", axum::routing::post(noop))
-            .route("/_deck/source/{tag}", get(noop));
+            .route("/_deck/mutation/{name}", axum::routing::post(noop));
 
         // Merging deck's surface (catch-all + /space + /_deck/view/{name} + bundles)
         // with the kept routes must not panic, and the union must build into
