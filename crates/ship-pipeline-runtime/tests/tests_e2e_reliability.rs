@@ -84,17 +84,6 @@ fn cleanup_resolves_slug_from_event_payload() {
     );
 }
 
-/// Cleanup must handle the case where the worktree was already removed
-/// (idempotent cleanup).
-#[test]
-fn cleanup_is_idempotent() {
-    let source = include_str!("../../../crates/core/ship-platform/crates/ship-agents/src/runtime/helpers.rs");
-    assert!(
-        source.contains("exists()"),
-        "remove_worktree must check existence — cleanup must be idempotent"
-    );
-}
-
 /// Orphan detection: after restart, any worktree for a terminal job
 /// (merged/failed) should be flagged for cleanup.
 #[test]

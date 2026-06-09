@@ -29,8 +29,7 @@ pub mod ports;
 // ship-pipeline-runtime) keeps resolving with zero churn — back-compat shim.
 pub use ship_code as runtime;
 pub mod services;
-// Runtime-scoped session records (agents-arc E4 fold).
-pub mod sessions;
+
 
 pub use actor::{handle_agents_event, start_agents};
 pub use cancel::handle_agent_cancelled;

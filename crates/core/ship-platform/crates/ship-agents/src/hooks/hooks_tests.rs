@@ -1,29 +1,5 @@
-use super::{handle_after_tool, handle_before_tool, handle_session_end, handle_session_start};
+use super::{handle_after_tool, handle_before_tool};
 use ship_substrate::events::types::event_types;
-
-#[test]
-fn session_start_emits_correct_event() {
-    let event = handle_session_start("actor-1", "ws-1").expect("handle_session_start failed");
-    assert_eq!(event.event_type, event_types::SESSION_STARTED);
-    assert_eq!(event.actor_id.as_deref(), Some("actor-1"));
-}
-
-#[test]
-fn session_start_records_workspace_in_runtime_payload() {
-    // session.started is Runtime-owned: it does NOT carry a Space scope; the
-    // workspace is a captured field on the payload.
-    let event = handle_session_start("actor-x", "ws-x").expect("handle_session_start failed");
-    assert_eq!(event.scope, ship_substrate::events::EventScope::Runtime);
-    assert_eq!(event.space_id(), None);
-    assert!(event.payload_json.contains("ws-x"), "workspace recorded in payload");
-}
-
-#[test]
-fn session_end_emits_correct_event() {
-    let event = handle_session_end("actor-1", "ws-1").unwrap();
-    assert_eq!(event.event_type, event_types::SESSION_ENDED);
-    assert_eq!(event.actor_id.as_deref(), Some("actor-1"));
-}
 
 #[test]
 fn before_tool_returns_none_for_non_ship_tool() {

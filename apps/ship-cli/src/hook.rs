@@ -1,9 +1,8 @@
 use anyhow::{Result, anyhow};
 use ship_agents::hooks::{
-    handle_after_tool, handle_before_tool, handle_session_end, handle_session_start, tool_gate,
+    handle_after_tool, handle_before_tool, tool_gate,
 };
 use std::io::Read;
-
 fn agent_id() -> Option<String> {
     ship_substrate::env::read_raw(ship_substrate::env::Var::AgentId).ok().filter(|s| !s.is_empty())
 }
@@ -158,10 +157,10 @@ fn try_daemon_or_local(
 pub fn run_session_start() -> Result<()> {
     let body = normalize_stdin("", "session-start");
     try_daemon_or_local("session-start", &body, || {
-        if let (Some(actor), Some(workspace)) = (agent_id(), workspace_id()) {
-            let event = handle_session_start(&actor, &workspace)?;
-            println!("{}", serde_json::to_string(&event)?);
-        }
+        // Workbench `session.started` is retired. With no daemon, there is
+        // no canonical `session.started` to emit locally; the HTTP hook
+        // endpoint (which the daemon side serves) emits `hook.session_started`
+        // (a hook.* event, not a session.* one), so the CLI just no-ops.
         Ok(())
     })
 }
@@ -228,9 +227,9 @@ pub fn run_after_tool() -> Result<()> {
 pub fn run_session_end() -> Result<()> {
     let body = normalize_stdin("", "session-end");
     try_daemon_or_local("session-end", &body, || {
-        if let (Some(actor), Some(workspace)) = (agent_id(), workspace_id()) {
-            handle_session_end(&actor, &workspace)?;
-        }
+        // Workbench `session.ended` is retired. With no daemon, no canonical
+        // `session.ended` to emit locally. Job completion still needs to
+        // signal so the pipeline can advance.
         if let Ok(slug) = ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId) {
             signal_job_completed(&slug);
         }
@@ -264,6 +263,7 @@ fn signal_job_completed(slug: &str) {
         );
     }
 }
+
 
 #[cfg(test)]
 mod tests {

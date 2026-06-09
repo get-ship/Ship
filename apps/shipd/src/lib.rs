@@ -261,10 +261,6 @@ pub async fn run_network(
         rt.set_dispatch_handle(dh);
     }
     // diagnostics.snapshot op deleted — no DiagnosticRegistry to build.
-    // Start the abandoned session scanner. start() detaches its tasks
-    // (activity pump + health-supervised scan loop), so the returned
-    // handle wrapper drops immediately — nothing needs to hold it.
-    let _ = crate::managers::SessionScanner::start(rt.kernel().clone(), rt.health_registry());
     // Start the artifact GC loop (runs now then every hour).
     rt.start_artifact_gc();
     // Start the window-reaper loop (closes the log lifecycle of crashed

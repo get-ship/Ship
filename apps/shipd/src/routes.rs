@@ -275,11 +275,7 @@ pub enum Route {
     /// @route GET "/api/v1/harnesses/installed"
     /// @auth scope ReadWorkspace
     InstalledProviders,
-
-    /// @route GET "/api/v1/sessions/active-across-projects"
-    /// @auth scope ReadWorkspace
-    ListSessionsAcrossProjects,
-
+    /// @route GET "/api/v1/view/{name}/manifest"
     /// @route GET "/api/v1/view/{name}/manifest"
     /// @auth scope ReadWorkspace
     ServeViewManifest { name: String },

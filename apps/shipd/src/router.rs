@@ -378,7 +378,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
         .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
         .ship_route(Route::InstalledProviders, sessions::api::installed_harnesses)
-        .ship_route(Route::ListSessionsAcrossProjects, runtime_api::list_sessions_across_projects)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         // `POST /_sui/mutation/{name}` — tombstoned PE form endpoint.

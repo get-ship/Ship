@@ -34,28 +34,13 @@ pub fn resolve_resume(
     requested_harness: Option<&str>,
     worktrees_root: &std::path::Path,
 ) -> Result<ResumeOutcome, ResumeResolveError> {
-    let sessions = ship_substrate::db::session::list_sessions_db(Some(workspace), 100)
-        .map_err(|e| ResumeResolveError::Status {
-            status: 500,
-            message: format!("resume lookup failed: {e}"),
-        })?;
-    let hit = sessions
-        .into_iter()
-        .find(|s| s.agent_id.as_deref() == Some(agent))
-        .ok_or_else(|| ResumeResolveError::Status {
-            status: 400,
-            message: format!(
-                "resume: no existing session for agent `{agent}` in workspace `{workspace}`"
-            ),
-        })?;
-
-    let work_dir = worktrees_root.join(&hit.id);
-    let session_file = load_and_validate_session_file(&work_dir, &hit.id, requested_harness)?;
-
-    Ok(ResumeOutcome {
-        slug: hit.id,
-        branch: hit.branch,
-        session: session_file,
+    // Workbench session DB is gone; canonical session projection does not yet
+    // expose a resume-lookup query. Resume is unavailable until the canonical
+    // read-model is wired — return 400 so callers fail fast rather than silently.
+    let _ = (agent, workspace, requested_harness, worktrees_root);
+    Err(ResumeResolveError::Status {
+        status: 400,
+        message: "resume: session lookup unavailable (workbench session DB removed)".to_string(),
     })
 }
 

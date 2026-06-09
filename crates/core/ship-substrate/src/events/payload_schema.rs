@@ -49,15 +49,8 @@ fn schema_for_event_type(
         "workspace.created" => Some(check::<WorkspaceCreated>),
         "workspace.activated" => Some(check::<WorkspaceActivated>),
         "workspace.archived" => Some(check::<WorkspaceArchived>),
-        // session
-        "session.started" => Some(check::<SessionStarted>),
-        "session.progress" => Some(check::<SessionProgress>),
-        "session.ended" => Some(check::<SessionEnded>),
-        "session.drain_started" => Some(check::<SessionDrainStarted>),
-        "session.drain_completed" => Some(check::<SessionDrainCompleted>),
-        "session.drain_aborted" => Some(check::<SessionDrainAborted>),
-        "session.tool_count_incremented" => Some(check::<SessionToolCountIncremented>),
-        "session.heartbeat" => Some(check::<SessionHeartbeat>),
+        // canonical session family
+        "session.started" => Some(check::<crate::events::canonical_session::SessionStarted>),
         // actor
         "actor.created" => Some(check::<ActorCreated>),
         "actor.woke" => Some(check::<ActorWoke>),
@@ -164,10 +157,6 @@ fn schema_for_event_type(
         "session.suspended" => Some(check::<crate::events::canonical_session::SessionSuspended>),
         "session.turn.started" => Some(check::<crate::events::canonical_session::TurnStarted>),
         "session.turn.ended" => Some(check::<crate::events::canonical_session::TurnEnded>),
-        // session lifecycle additions (event-coverage/02 + Spec 7a)
-        "session.status_changed" => Some(check::<SessionStatusChanged>),
-        "session.turn_failed" => Some(check::<SessionTurnFailed>),
-        "session.attached" => Some(check::<SessionAttached>),
         // studio typed payloads (Spec 7a)
         "studio.chat_turn" => Some(check::<StudioChatTurn>),
         "studio.reply" => Some(check::<StudioReply>),

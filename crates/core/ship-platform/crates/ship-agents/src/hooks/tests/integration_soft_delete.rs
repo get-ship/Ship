@@ -79,6 +79,7 @@ fn hooks_soft_delete_handle_before_tool_returns_none_for_non_ship_write_tool() {
 
     let json = serde_json::json!({
         "tool_name": "Write",
+        "hook_event_name": "PreToolUse",
         "tool_input": { "file_path": file.to_string_lossy() },
     })
     .to_string();

@@ -39,77 +39,9 @@ fn workspace_archived_v1_round_trips() {
     let _: WorkspaceArchived = parse("{}", "WorkspaceArchived");
 }
 
-// ── Session aggregate ────────────────────────────────────────────────────────
-
-#[test]
-fn session_started_v1_round_trips() {
-    let json = r#"{
-        "goal": "build the thing",
-        "workspace_id": "ws-1",
-        "branch": "feat/x",
-        "agent_id": "lead",
-        "primary_harness": "claude",
-        "project_id": "proj-1",
-        "kind": "direct_attach",
-        "pipeline_run_id": null,
-        "chat_thread_id": null
-    }"#;
-    let p: SessionStarted = parse(json, "SessionStarted");
-    assert_eq!(p.goal.as_deref(), Some("build the thing"));
-    assert_eq!(p.workspace_id, "ws-1");
-}
-
-#[test]
-fn session_progress_v1_round_trips() {
-    let json = r#"{"message": "step 1 done", "escalation": null}"#;
-    let p: SessionProgress = parse(json, "SessionProgress");
-    assert_eq!(p.message, "step 1 done");
-}
-
-#[test]
-fn session_ended_v1_round_trips() {
-    let json = r#"{
-        "summary": "done",
-        "duration_secs": 42,
-        "files_changed": 3,
-        "lines_added": 10,
-        "lines_removed": 2,
-        "tool_calls": 5,
-        "exit_reason": "success"
-    }"#;
-    let _: SessionEnded = parse(json, "SessionEnded");
-}
-
-#[test]
-fn session_attached_v1_round_trips() {
-    let json = r#"{"existing_session_id": "sess-1", "workspace_id": "ws-1", "branch": "main"}"#;
-    let _: SessionAttached = parse(json, "SessionAttached");
-}
-
-#[test]
-fn session_heartbeat_v1_round_trips() {
-    let _: SessionHeartbeat = parse(r#"{"last_activity_at": "2026-05-04T00:00:00Z"}"#, "SessionHeartbeat");
-}
-
-#[test]
-fn session_drain_started_v1_round_trips() {
-    let _: SessionDrainStarted = parse(r#"{"drained_at": "2026-05-04T00:00:00Z"}"#, "SessionDrainStarted");
-}
-
-#[test]
-fn session_drain_completed_v1_round_trips() {
-    let _: SessionDrainCompleted = parse(r#"{"ended_at": "2026-05-04T00:00:00Z"}"#, "SessionDrainCompleted");
-}
-
-#[test]
-fn session_drain_aborted_v1_round_trips() {
-    let _: SessionDrainAborted = parse(r#"{"resumed_at": "2026-05-04T00:00:00Z"}"#, "SessionDrainAborted");
-}
-
-#[test]
-fn session_tool_count_incremented_v1_round_trips() {
-    let _: SessionToolCountIncremented = parse(r#"{}"#, "SessionToolCountIncremented");
-}
+// Session aggregate types were deleted with the workbench family (R6).
+// Canonical session payload schema evolution tests live in ship-substrate
+// where the canonical_session types are defined.
 
 // ── Skill aggregate ──────────────────────────────────────────────────────────
 
@@ -344,22 +276,6 @@ fn rule_deleted_v1_round_trips() {
     assert_eq!(p.file_name, "0001-rust.md");
 }
 
-#[test]
-fn session_status_changed_v1_round_trips() {
-    let p: SessionStatusChanged =
-        parse(r#"{"from": "idle", "to": "thinking"}"#, "SessionStatusChanged");
-    assert_eq!(p.from, "idle");
-    assert_eq!(p.to, "thinking");
-}
-
-#[test]
-fn session_turn_failed_v1_round_trips() {
-    let p: SessionTurnFailed = parse(
-        r#"{"error": "claude binary not found on PATH"}"#,
-        "SessionTurnFailed",
-    );
-    assert!(p.error.contains("claude"));
-}
 
 #[test]
 fn permissions_updated_v1_round_trips() {

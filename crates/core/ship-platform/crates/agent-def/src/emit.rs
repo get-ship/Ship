@@ -17,30 +17,26 @@
 //!   events, `Runtime` for `session.turn.*`), then call
 //!   `sink.persist(&envelope)`.
 //!
-//! Scope of this slice (job `canonical-session-events`): the 5 NEW
-//! canonical event_types — `session.completed`, `session.failed`,
-//! `session.cancelled`, `session.suspended`, `session.turn.started`,
-//! `session.turn.ended`. `session.started` is intentionally NOT routed
-//! through this helper — the workbench family still owns the active
-//! session-start emit (the substrate's `session_events` module depends on
-//! it at Runtime scope); the canonical `SessionStarted` payload struct is
-//! defined in `ship_substrate::events::canonical_session` for forward
-//! compatibility when the workbench retires.
+//! Scope (jobs `canonical-session-events` + `workbench-teardown`): the
+//! COMPLETE canonical agent-session family — 5 coarse-grain events
+//! (`session.started`, `session.completed`, `session.failed`,
+//! `session.cancelled`, `session.suspended`) + 2 medium-grain turn events
+//! (`session.turn.started`, `session.turn.ended`). The workbench
+//! `session.*` family is RETIRED (R6); the canonical `session.started`
+//! adopted in `workbench-teardown` is now the only session-start emit.
 //!
 //! Spec: `.artifacts/agents-architecture.md` (R1–R11).
-
 use std::sync::Arc;
-
 use serde::Serialize;
 use ship_kernel::EventSink;
 use ship_substrate::events::canonical_session::{
-    SessionCancelled, SessionCompleted, SessionFailed, SessionSuspended, TurnEnded, TurnStarted,
+    SessionCancelled, SessionCompleted, SessionFailed, SessionStarted, SessionSuspended, TurnEnded, TurnStarted,
 };
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_registry::EventScope;
 use ship_types::event_types::canonical_session as event_types;
 
-/// Kernel-emit port for the canonical session family (5 events — see
+/// Kernel-emit port for the canonical session family (7 events — see
 /// module docs for the slice scope).
 ///
 /// Production: wrap a kernel-backed `Arc<dyn EventSink>` (e.g.
@@ -66,6 +62,21 @@ impl SessionEventSink {
     /// `ship_kernel::testing::MockSink` to read `captured()`.
     pub fn inner(&self) -> &Arc<dyn EventSink> {
         &self.inner
+    }
+    /// Build + emit a `session.started` envelope. Space-scoped, Durable.
+    /// Adopted in `workbench-teardown`: the canonical family is now
+    /// complete (started + 4 terminals + 2 turn).
+    pub fn emit_session_started(
+        &self,
+        session_id: &str,
+        payload: &SessionStarted,
+    ) -> Result<EventEnvelope, serde_json::Error> {
+        emit_with_space(
+            &self.inner,
+            event_types::SESSION_STARTED,
+            session_id,
+            payload,
+        )
     }
 
     /// Build + emit a `session.completed` envelope. Space-scoped, Durable.
@@ -247,6 +258,29 @@ mod tests {
     }
 
     #[test]
+    fn session_started_emits_space_scoped_durable_envelope() {
+        let (mock, sink) = fresh_sink();
+        let payload = SessionStarted {
+            session_id: "s1".into(),
+            agent_id: "claude".into(),
+            harness: "claude".into(),
+            model: Some("opus-4".into()),
+            space_id: "ws-1".into(),
+            input: Some("first turn".into()),
+            parent: None,
+        };
+        let env = sink
+            .emit_session_started("s1", &payload)
+            .expect("envelope builds");
+        assert_eq!(env.event_type, "session.started");
+        assert_eq!(env.scope, EventScope::Space);
+        assert_eq!(env.scope_key.as_deref(), Some("s1"));
+        let back: SessionStarted = serde_json::from_str(&env.payload_json).unwrap();
+        assert_eq!(back, payload);
+        assert_one_event(&mock, "session.started", EventScope::Space, Retention::Durable, "s1");
+    }
+
+    #[test]
     fn session_completed_emits_space_scoped_durable_envelope() {
         let (mock, sink) = fresh_sink();
         let payload = SessionCompleted { session_id: "s1".into() };
@@ -386,8 +420,21 @@ mod tests {
     #[test]
     fn session_payloads_carry_no_driver_edges() {
         // Acceptance criterion: payloads carry NO pid/branch/worktree/exit_code.
-        // Smoke-test all four coarse-session payloads + the two turn payloads.
+        // Smoke-test all FIVE coarse-session payloads + the two turn payloads.
         let cases: Vec<(String, serde_json::Value)> = vec![
+            (
+                "session.started".into(),
+                serde_json::to_value(SessionStarted {
+                    session_id: "s".into(),
+                    agent_id: "a".into(),
+                    harness: "h".into(),
+                    model: None,
+                    space_id: "ws".into(),
+                    input: None,
+                    parent: None,
+                })
+                .unwrap(),
+            ),
             (
                 "session.completed".into(),
                 serde_json::to_value(SessionCompleted { session_id: "s".into() }).unwrap(),

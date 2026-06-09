@@ -33,18 +33,12 @@ mod tests_envelope;
 #[cfg(test)]
 mod property_tests;
 pub mod rebuild;
-pub mod session;
-pub mod session_drain;
-pub mod session_events;
-pub mod session_events_testutil;
 pub mod types;
 
 #[cfg(test)]
 mod tests_integrity;
 #[cfg(test)]
 mod tests_rebuild;
-#[cfg(test)]
-mod tests_session_drain;
 
 use anyhow::{Context, Result, anyhow};
 use sqlx::sqlite::SqliteConnectOptions;

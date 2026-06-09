@@ -113,9 +113,6 @@ pub async fn handle_session_start(
     actor: &str,
     session: Option<&str>,
 ) {
-    if let Some(sid) = session {
-        let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
-    }
     let target = session.unwrap_or(actor);
     tracing::info!(target, "hook.session_started: about to emit");
     if target == "unknown" {
@@ -146,11 +143,7 @@ pub async fn handle_before_tool(
     session: Option<&str>,
 ) {
     let tool = event.tool_name.as_deref().unwrap_or("unknown");
-    if let Some(sid) = session {
-        let _ = ship_substrate::db::session_drain::increment_tool_count(sid);
-        let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
-        pty_broadcast.broadcast_tool_use(sid, tool, event.tool_input.as_ref());
-    }
+
     if actor == "unknown" {
         return;
     }
@@ -179,10 +172,6 @@ pub async fn handle_after_tool(
     session: Option<&str>,
 ) {
     let tool = event.tool_name.as_deref().unwrap_or("unknown");
-    if let Some(sid) = session {
-        let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
-        pty_broadcast.broadcast_tool_use(sid, tool, event.tool_response.as_ref());
-    }
     if actor == "unknown" {
         return;
     }
@@ -213,9 +202,6 @@ pub async fn handle_session_end(
     actor: &str,
     session: Option<&str>,
 ) {
-    if let Some(sid) = session {
-        let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
-    }
     let target = session.unwrap_or(actor);
     if target == "unknown" {
         return;

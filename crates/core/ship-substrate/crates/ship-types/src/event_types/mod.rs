@@ -2,7 +2,6 @@ pub mod canonical_session;
 pub mod daemon;
 pub mod mesh;
 pub mod pipeline;
-pub mod session;
 pub mod skill;
 pub mod supervisor;
 pub use mesh::*;
@@ -185,17 +184,7 @@ pub const SYNC_STARTED: &str = "sync.started";
 pub const SYNC_STOPPED: &str = "sync.stopped";
 
 // Aliases for backward compatibility (moved constants now come via pub use)
-pub const SESSION_STARTED: &str = session::STARTED;
-pub const SESSION_PROGRESS: &str = session::PROGRESS;
-pub const SESSION_ENDED: &str = session::ENDED;
-pub const SESSION_DRAIN_STARTED: &str = session::DRAIN_STARTED;
-pub const SESSION_DRAIN_COMPLETED: &str = session::DRAIN_COMPLETED;
-pub const SESSION_DRAIN_ABORTED: &str = session::DRAIN_ABORTED;
-pub const SESSION_TOOL_COUNT_INCREMENTED: &str = session::TOOL_COUNT_INCREMENTED;
-pub const SESSION_ATTACHED: &str = session::ATTACHED;
-pub const SESSION_HEARTBEAT: &str = session::HEARTBEAT;
-pub const SESSION_STATUS_CHANGED: &str = session::STATUS_CHANGED;
-pub const SESSION_TURN_FAILED: &str = session::TURN_FAILED;
+// Aliases for backward compatibility (moved constants now come via pub use)
 pub const PIPELINE_RUN_STARTED: &str = pipeline::RUN_STARTED;
 pub const PIPELINE_RUN_COMPLETED: &str = pipeline::RUN_COMPLETED;
 pub const PIPELINE_RUN_FAILED: &str = pipeline::RUN_FAILED;
@@ -229,10 +218,12 @@ pub const SUPERVISOR_SWEEP_COMPLETED: &str = supervisor::SWEEP_COMPLETED;
 pub const SUPERVISOR_DRIFT_DETECTED: &str = supervisor::DRIFT_DETECTED;
 pub const SUPERVISOR_COHERENCE_RESTORED: &str = supervisor::COHERENCE_RESTORED;
 
-// Canonical ship-shaped agent-session family (job: canonical-session-events).
-// The workbench family (session.started, session.progress, etc.) is in
-// `session::*` above; this module adds the post-start lifecycle + turn
-// events. See `canonical_session` module for full docs.
+// Canonical ship-shaped agent-session family (jobs: canonical-session-events,
+// workbench-teardown). The complete ship-shaped session vocabulary: 4
+// coarse-grain lifecycle events (started + 4 terminals) + 2 medium-grain
+// turn events. The workbench family is retired. See the `canonical_session`
+// module for full docs.
+pub const SESSION_STARTED: &str = canonical_session::SESSION_STARTED;
 pub const SESSION_COMPLETED: &str = canonical_session::SESSION_COMPLETED;
 pub const SESSION_FAILED: &str = canonical_session::SESSION_FAILED;
 pub const SESSION_CANCELLED: &str = canonical_session::SESSION_CANCELLED;
@@ -256,16 +247,8 @@ pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
     WORKSPACE_ACTIVATED,
     WORKSPACE_ARCHIVED,
-    SESSION_STARTED,
-    SESSION_PROGRESS,
-    SESSION_ENDED,
-    SESSION_DRAIN_STARTED,
-    SESSION_DRAIN_COMPLETED,
-    SESSION_DRAIN_ABORTED,
-    SESSION_TOOL_COUNT_INCREMENTED,
-    SESSION_ATTACHED,
-    SESSION_HEARTBEAT,
     ACTOR_CREATED,
+
     ACTOR_WOKE,
     ACTOR_SLEPT,
     ACTOR_STOPPED,
@@ -340,9 +323,8 @@ pub const ALL: &[&str] = &[
     RULE_DELETED,
     PERMISSIONS_UPDATED,
     AGENT_GRANTS_PROVISIONED,
-    SESSION_STATUS_CHANGED,
-    SESSION_TURN_FAILED,
     // actor
+
     ACTOR_MAILBOX_FULL,
     // agent
     AGENT_TASK_COMPLETE,
@@ -372,14 +354,17 @@ pub const ALL: &[&str] = &[
     SYNC_PUSH_FAILED,
     SYNC_STARTED,
     SYNC_STOPPED,
-    // canonical agent-session family (job: canonical-session-events)
+    // canonical agent-session family (jobs: canonical-session-events +
+    // workbench-teardown) — the complete ship-shaped session vocabulary.
+    SESSION_STARTED,
     SESSION_COMPLETED,
     SESSION_FAILED,
     SESSION_CANCELLED,
     SESSION_SUSPENDED,
     TURN_STARTED,
     TURN_ENDED,
- ];
+];
+
 
 #[cfg(test)]
 mod tests {

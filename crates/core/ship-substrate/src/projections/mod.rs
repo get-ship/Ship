@@ -14,15 +14,12 @@ pub mod collection;
 pub mod grants;
 pub mod process;
 pub mod registry;
-mod session;
 pub mod spawn;
 
 #[cfg(test)]
 mod tests_actor;
 #[cfg(test)]
 mod tests_daemon_events;
-#[cfg(test)]
-mod tests_session;
 
 pub use actor::ActorProjection;
 pub use artifact::ArtifactProjection;
@@ -34,7 +31,6 @@ pub use grants::{
 };
 pub use process::{ProcessRecord, ProcessStatus, load_processes};
 pub use registry::{EventBus, Projection};
-pub use session::SessionProjection;
 pub use spawn::{ProjectionHandle, spawn_with_failure_counter};
 
 use std::sync::Mutex;

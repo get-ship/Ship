@@ -20,54 +20,8 @@ CREATE TABLE IF NOT EXISTS kv_state (
 -- The workspace primitive retired. Worktrees are a git feature, queried
 -- on demand via `runtime::git`; the runtime stores no worktree state.
 
-CREATE TABLE IF NOT EXISTS sessions (
-  id                          TEXT PRIMARY KEY,
-  -- workspace_id is a session-grouping key (slug-derived from branch).
-  -- The "workspace" name is a vestige of the retired primitive and will
-  -- rename in a follow-up. Do NOT add a workspaces table for it.
-  workspace_id                TEXT NOT NULL,
-  branch                      TEXT NOT NULL,
-  space_id                  TEXT,
-  kind                        TEXT NOT NULL DEFAULT 'direct_attach',
-  pipeline_run_id             TEXT,
-  chat_thread_id              TEXT,
-  status                      TEXT NOT NULL DEFAULT 'active',
-  started_at                  TEXT NOT NULL,
-  ended_at                    TEXT,
-  agent_id                    TEXT,
-  primary_harness            TEXT,
-  goal                        TEXT,
-  summary                     TEXT,
-  updated_workspace_ids_json  TEXT NOT NULL DEFAULT '[]',
-  tool_call_count             INTEGER NOT NULL DEFAULT 0,
-  drained_at                  TEXT,
-  last_activity_at            TEXT,
-  -- End-of-session telemetry (set on session.ended; null while active).
-  duration_secs               INTEGER,
-  model                       TEXT,
-  files_changed               INTEGER,
-  lines_added                 INTEGER,
-  lines_removed               INTEGER,
-  tool_calls                  INTEGER,
-  gate_result                 TEXT,
-  exit_reason                 TEXT,
-  created_at                  TEXT NOT NULL,
-  updated_at                  TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS workspace_session_workspace_idx
-  ON sessions(workspace_id, started_at DESC);
-CREATE INDEX IF NOT EXISTS workspace_session_space_idx
-  ON sessions(space_id, started_at DESC);
-CREATE INDEX IF NOT EXISTS workspace_session_status_idx
-  ON sessions(status, started_at DESC);
-CREATE INDEX IF NOT EXISTS idx_ws_session_drain
-  ON sessions(status, workspace_id, agent_id);
-
--- Session telemetry lives on sessions itself (set at
--- session.ended). The earlier workspace_session_record table was a
--- duplicate write site; collapsed in slice 04 of workspace-retirement.
-
 CREATE TABLE IF NOT EXISTS events (
+
   id               TEXT PRIMARY KEY NOT NULL,
   event_type       TEXT NOT NULL,
   entity_id        TEXT NOT NULL,

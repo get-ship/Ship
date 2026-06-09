@@ -8,7 +8,7 @@ use crate::db::{block_on, open_db_at};
 use ship_types::envelope::EventEnvelope;
 use crate::events::EventFilter;
 use crate::projections::{
-    ActorProjection, ArtifactProjection, CollectionProjection, EventBus, SessionProjection,
+    ActorProjection, ArtifactProjection, CollectionProjection, EventBus,
 };
 use ship_kernel::EventSink;
 
@@ -19,14 +19,14 @@ pub trait EventStore: Send + Sync {
     fn query_aggregate(&self, entity_id: &str) -> Result<Vec<EventEnvelope>>;
 }
 
-/// Build the default projection bus (ActorProjection, SessionProjection,
-/// CompileStateProjection). Every `SqliteEventStore` carries this bus, and
-/// `append` dispatches matching events to it in the same transaction as the
-/// row insert.
+/// Build the default projection bus (ActorProjection, plus the
+/// event-sourced CollectionProjection / ArtifactProjection that the L0
+/// substrate ships with no domain coupling). Every `SqliteEventStore`
+/// carries this bus, and `append` dispatches matching events to it in the
+/// same transaction as the row insert.
 fn default_bus() -> Arc<EventBus> {
     let mut bus = EventBus::new();
     bus.register(Box::new(ActorProjection::new()));
-    bus.register(Box::new(SessionProjection::new()));
     // Collections are event-sourced (ADR D6/D7): emit-only writes, this
     // projection is the sole writer of the per-space `collection_<id>` tables.
     // It has no platform deps (only ship-types payloads + the DataStore layout),
