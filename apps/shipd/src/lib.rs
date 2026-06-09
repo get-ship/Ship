@@ -16,12 +16,14 @@ fn install_test_platform_defaults() {
     ship_pipeline_runtime::install_projections();
 }
 
+#[cfg(feature = "ship-code")]
 pub mod sessions;
 pub mod auth;
 pub mod wire;
 pub mod transport;
 mod daemon;
 pub mod services;
+#[cfg(feature = "ship-code")]
 pub mod managers;
 pub mod routes;
 pub mod router;
@@ -35,6 +37,10 @@ pub mod pipelines_rpc;
 pub mod agent_rpc;
 pub mod agent_event_ports;
 pub mod pipeline_ports;
+// dispatch: job+session dispatch composition root — gated because it
+// directly uses ship-code types (process_registry, dispatch_ports).
+#[cfg(feature = "ship-code")]
+pub mod dispatch;
 pub mod view_ports;
 pub mod space_rpc;
 pub mod settings_rpc;
@@ -50,19 +56,14 @@ pub mod live_read;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
 pub mod ship_runtime;
-// Job + agent-session dispatch composition root — `ShipdPlatform`,
-// `GitWorktreeIsolation`, `run_dispatch::subscribe_job_events`, and orphan
-// cleanup. Lifted out of `ship-supervisor` in the supervisor split: this
-// wiring depends on `ship-pipeline-runtime`, which depends on `ship-agents`,
-// so it lives at the daemon composition layer (not in either L1 crate).
-pub mod dispatch;
 // `ship-supervisor` (L0) now holds only OS-level process primitives
 // (terminal launcher, process-event emit, graceful_shutdown re-export). The
 // existing `crate::supervisor::*` import path resolves through this re-export.
 pub use ship_supervisor as supervisor;
 // Tests for supervisor + shipd-internal integration (use ApiState,
 // ShipRuntime, etc.) live under `apps/shipd/src/supervisor/`.
-#[cfg(test)]
+// Gated: these tests use ship-code types directly (dispatch_ports, process_registry).
+#[cfg(all(test, feature = "ship-code"))]
 #[path = "supervisor/mod.rs"]
 mod supervisor_tests;
 
@@ -249,16 +250,19 @@ pub async fn run_network(
     // delivery (`EventEnvelope.target_actor_id`).
     let rt = Arc::new(runtime);
 
-    let run_mgr = managers::RunManager::init(
-        rt.kernel().clone(),
-        global_dir.clone(),
-        rt.health_registry(),
-        rt.session_registry().clone(),
-        rt.daemon_origin(),
-    )
-    .await;
-    if let Some(dh) = run_mgr.dispatch_handle {
-        rt.set_dispatch_handle(dh);
+    #[cfg(feature = "ship-code")]
+    {
+        let run_mgr = managers::RunManager::init(
+            rt.kernel().clone(),
+            global_dir.clone(),
+            rt.health_registry(),
+            rt.session_registry().clone(),
+            rt.daemon_origin(),
+        )
+        .await;
+        if let Some(dh) = run_mgr.dispatch_handle {
+            rt.set_dispatch_handle(dh);
+        }
     }
     // diagnostics.snapshot op deleted — no DiagnosticRegistry to build.
     // Start the artifact GC loop (runs now then every hour).
@@ -597,6 +601,7 @@ pub async fn run_network(
         .with_graceful_shutdown(async move { ct.cancelled_owned().await })
         .await.map_err(|e| anyhow!("server error: {e}"))?;
 
+    #[cfg(feature = "ship-code")]
     let agents_drained = if let Some(dh) = rt.dispatch_handle() {
         let mut registry = dh.registry.lock().await;
         let count = registry.len();
@@ -605,6 +610,8 @@ pub async fn run_network(
     } else {
         0
     };
+    #[cfg(not(feature = "ship-code"))]
+    let agents_drained: usize = 0;
 
     // Reap all sandboxes so a clean restart doesn't orphan backend
     // containers. Each reap fires the SandboxOwner shutdown

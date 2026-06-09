@@ -47,6 +47,7 @@ impl ShipRuntime {
             pty_connections: Arc::new(Mutex::new(HashMap::new())),
             ship_dir,
             daemon_dir,
+            #[cfg(feature = "ship-code")]
             dispatch_handle: std::sync::OnceLock::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
@@ -55,8 +56,8 @@ impl ShipRuntime {
             schemas,
             global_blob_dir,
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
-            pty_sessions: crate::sessions::SessionRegistry::new(),
-            actor_sessions: crate::sessions::ActorRegistry::new(),
+            pty_sessions: ship_agents::services::sessions::SessionRegistry::new(),
+            actor_sessions: ship_agents::services::sessions::ActorRegistry::new(),
             rules,
             permissions,
             mcp,

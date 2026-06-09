@@ -37,17 +37,24 @@ impl PipelineDispatchPort for PipelineDispatchAdapter {
 }
 
 // ── TurnSignalPort ────────────────────────────────────────────────────────────
+//
+// With feature = "ship-code": signals the live orchestrator activity channel
+// via the dispatch handle.
+// Without: no-op (always returns false — no dispatch, nothing to signal).
 
+#[cfg(feature = "ship-code")]
 pub struct TurnSignalAdapter {
     state: ApiState,
 }
 
+#[cfg(feature = "ship-code")]
 impl TurnSignalAdapter {
     pub fn new(state: ApiState) -> Self {
         Self { state }
     }
 }
 
+#[cfg(feature = "ship-code")]
 #[async_trait]
 impl TurnSignalPort for TurnSignalAdapter {
     async fn signal_turn_ended(&self, slug: &str) -> bool {
@@ -61,6 +68,25 @@ impl TurnSignalPort for TurnSignalAdapter {
         } else {
             false
         }
+    }
+}
+
+// No-op stub when ship-code feature is off.
+#[cfg(not(feature = "ship-code"))]
+pub struct TurnSignalAdapter;
+
+#[cfg(not(feature = "ship-code"))]
+impl TurnSignalAdapter {
+    pub fn new(_state: ApiState) -> Self {
+        Self
+    }
+}
+
+#[cfg(not(feature = "ship-code"))]
+#[async_trait]
+impl TurnSignalPort for TurnSignalAdapter {
+    async fn signal_turn_ended(&self, _slug: &str) -> bool {
+        false
     }
 }
 

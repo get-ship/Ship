@@ -20,7 +20,7 @@ path = "src/main.rs"
 [dependencies]
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
-ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", features = ["harness-drivers"] }
+ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", features = ["harness-drivers"], optional = true }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
 ship-files = { path = "../../crates/core/ship-platform/crates/ship-files" }
@@ -117,6 +117,11 @@ regex = { workspace = true }
 specta = { workspace = true, features = ["chrono", "serde_json"], optional = true }
 
 [features]
+# Default feature set — normal daemon build with full harness machinery.
+default = ["ship-code"]
+# ship-code: harness-driver stack (dispatch, sessions, hooks, job routes).
+# Turn off with --no-default-features to get a harness-free shipd build.
+ship-code = ["dep:ship-code"]
 unstable = ["ship-platform/unstable"]
 specta = ["dep:specta", "deck/specta", "ship-pipeline-runtime/specta"]
 # Compile the `example()` fixture constructors for the daemon-side wire

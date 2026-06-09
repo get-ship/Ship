@@ -26,7 +26,7 @@ pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
 
     // Most recent sweep_completed and the drift count it recorded.
     let sweep_events =
-        super::jobs::load_recent_events_by_type(ship_dir, &["supervisor.sweep_completed"], 100)
+        ship_substrate::runtime_reads::load_recent_events_by_type(ship_dir, &["supervisor.sweep_completed"], 100)
             .unwrap_or_default();
     let last_sweep = sweep_events.iter().max_by_key(|e| e.created_at);
     let last_sweep_at = last_sweep.map(|e| e.created_at.to_rfc3339());

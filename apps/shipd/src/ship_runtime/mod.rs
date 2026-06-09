@@ -29,6 +29,7 @@ use std::sync::Arc;
 
 use crate::auth::SessionRegistry;
 use ship_substrate::task_health::HealthRegistry;
+#[cfg(feature = "ship-code")]
 use crate::dispatch::run_dispatch::DispatchHandle;
 
 /// Central runtime for shipd. Owns the kernel, registry, and config.
@@ -40,6 +41,7 @@ pub struct ShipRuntime {
     pub(super) ship_dir: PathBuf,
     /// `<root>/machine/daemons/<hash>/` per devx-04.
     pub(super) daemon_dir: PathBuf,
+    #[cfg(feature = "ship-code")]
     pub(super) dispatch_handle: std::sync::OnceLock<DispatchHandle>,
     /// Scoped session registry — maps session tokens to DaemonSession.
     pub(super) session_registry: SessionRegistry,
@@ -63,12 +65,12 @@ pub struct ShipRuntime {
     /// Agent-owned view sessions (Phase 1 canvas framework).
     pub(super) view_sessions: crate::views::session::SharedViewSessionRegistry,
     /// PTY session registry — chat, pipelines, dock terminal all go
-    /// through here. See `crate::sessions`.
-    pub(super) pty_sessions: crate::sessions::SessionRegistry,
+    /// through here. See `crate::sessions` (when feature = "ship-code").
+    pub(super) pty_sessions: ship_agents::services::sessions::SessionRegistry,
     /// Actor-backed session registry — destination of the supervisor-
     /// primitive migration. Shells live here today; agents and pipelines
     /// follow as 1.1.c / 1.1.d land.
-    pub(super) actor_sessions: crate::sessions::ActorRegistry,
+    pub(super) actor_sessions: ship_agents::services::sessions::ActorRegistry,
     /// Project workspace dir (e.g. `/path/to/repo`) when the daemon was
     /// started with `--workspace`. Drives project-scoped artifact storage.
     pub(super) workspace_dir: Option<PathBuf>,
