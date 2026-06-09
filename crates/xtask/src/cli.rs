@@ -149,7 +149,7 @@ fn print_help() {
     eprintln!("  gen-sdk               Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
     eprintln!("  gen-fixtures          Emit proto contract fixtures from proto/fixtures/fixture-seed.json");
     eprintln!("  gen-icons             Bake lucide-icons.json from node_modules/lucide-static");
-    eprintln!("  lint-layers           Verify substrate/platform/application boundaries (Cargo dep level)");
+    eprintln!("  lint-layers           Verify L0/L1/L2 boundaries from the resolved cargo-metadata graph (R0-R4)");
     eprintln!("  lint-imports          Verify layer-direction rules at the `use`-statement level");
     eprintln!("  gen-events            Generate tier-filtered proto + TS from the event registry");
     eprintln!("  gen-events --check    Verify generated files are up-to-date (CI)");

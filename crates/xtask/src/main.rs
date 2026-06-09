@@ -19,6 +19,7 @@ mod gen_skills;
 mod gen_sdk;
 mod lint_imports;
 mod lint_layers;
+mod metadata;
 mod port_descriptions;
 mod types;
 
