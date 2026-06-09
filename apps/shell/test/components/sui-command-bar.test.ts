@@ -9,29 +9,29 @@ import { createContainerRegistry, flush, mount } from '../test-utils'
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
-// Stub /api/v1/search + other GETs the bar fires on open so find mode
-// always has a deterministic result set. The find-mode UI is now async
-// (200ms debounce → fetch → render), so tests need a settled response
-// before asserting on item DOM.
+// Stub the unified search wire (Connect /ship.ops.v1.SearchService/Search)
+// + other GETs the bar fires on open so find mode always has a
+// deterministic result set. The find-mode UI is now async (200ms debounce
+// → fetch → render), so tests need a settled response before asserting
+// on item DOM. The Connect wire returns the typed `SearchResponse`
+// (`hits: SearchHit[]`, `nextCursor: string`); the legacy `{ ok, data }`
+// envelope is rebuilt in the SDK for backward-compat with the existing
+// palette grouping code path.
 const SEARCH_FIXTURE = {
-  ok: true,
-  data: {
-    hits: [
-      { kind: 'view',  id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'sparkles', score: 1000 },
-      { kind: 'view',  id: 'settings',  label: 'Settings',  path: '/settings',  icon: 'settings', score: 800 },
-      { kind: 'agent', id: 'writer',    label: 'Writer',    path: '/agents?id=writer', icon: 'bot', score: 500 },
-    ],
-    total: 3,
-  },
+  hits: [
+    { kind: 'view',  id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'sparkles', score: 1000 },
+    { kind: 'view',  id: 'settings',  label: 'Settings',  path: '/settings',  icon: 'settings', score: 800 },
+    { kind: 'agent', id: 'writer',    label: 'Writer',    path: '/agents?id=writer', icon: 'bot', score: 500 },
+  ],
 }
 let _originalFetch: typeof fetch | undefined
 beforeEach(() => {
   _originalFetch = globalThis.fetch
   // Always return a successful empty/stub for the endpoints the bar
-  // calls on open + the unified search call we drive in find mode.
+  // calls on open + the unified search wire call we drive in find mode.
   globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
-    if (url.startsWith('/api/v1/search')) {
+    if (url.includes('/ship.ops.v1.SearchService/Search') || url.startsWith('/api/v1/search')) {
       return new Response(JSON.stringify(SEARCH_FIXTURE), { status: 200, headers: { 'content-type': 'application/json' } })
     }
     if (url.startsWith('/api/v1/commands')) {

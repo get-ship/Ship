@@ -26,6 +26,22 @@ import { CollectionsService } from "./gen/ship/ops/v1/collections_pb.js";
 import { DashboardService } from "./gen/ship/ops/v1/dashboard_pb.js";
 import { EventsService } from "./gen/ship/ops/v1/events_pb.js";
 import { GitService } from "./gen/ship/ops/v1/git_pb.js";
+import { IsolationService } from "./gen/ship/ops/v1/isolation_pb.js";
+import {
+  type IsolationCapabilities,
+  type IsolationDecision,
+  type IsolationProfile,
+  type IsolationPreviewResponse,
+  type IsolationRecommendationsResponse,
+  type IsolationResolved,
+  type IsolationResolutionReason,
+  type IsolationStatusResponse,
+  type IsolationStrategyRow,
+  type IsolationTierRow,
+  type IsolationVerifyResponse,
+  type IsolationVerifyStep,
+} from "./gen/ship/ops/v1/isolation_pb.js";
+import { EntityKind, type SearchHit, type SearchResponse } from "./gen/ship/ops/v1/search_pb.js";
 import { McpService } from "./gen/ship/ops/v1/mcp_pb.js";
 import { PermissionsService } from "./gen/ship/ops/v1/permissions_pb.js";
 import { PipelinesService } from "./gen/ship/ops/v1/pipelines_pb.js";
@@ -36,6 +52,7 @@ import { SessionsService } from "./gen/ship/ops/v1/sessions_pb.js";
 import { SettingsService, SettingScope } from "./gen/ship/ops/v1/settings_pb.js";
 import type { Setting, SettingList } from "./gen/ship/ops/v1/settings_pb.js";
 import { SkillsService } from "./gen/ship/ops/v1/skills_pb.js";
+import { SearchService } from "./gen/ship/ops/v1/search_pb.js";
 import { SpaceService } from "./gen/ship/ops/v1/space_pb.js";
 import { SpecsService } from "./gen/ship/ops/v1/specs_pb.js";
 import { ViewService } from "./gen/ship/ops/v1/view_pb.js";
@@ -66,12 +83,14 @@ export interface ShipConnectClient {
   dashboard: Client<typeof DashboardService>;
   events: Client<typeof EventsService>;
   git: Client<typeof GitService>;
+  isolation: Client<typeof IsolationService>;
   mcp: Client<typeof McpService>;
   permissions: Client<typeof PermissionsService>;
   pipelines: Client<typeof PipelinesService>;
   project: Client<typeof ProjectService>;
   rules: Client<typeof RulesService>;
   runtime: Client<typeof RuntimeService>;
+  search: Client<typeof SearchService>;
   sessions: Client<typeof SessionsService>;
   settings: Client<typeof SettingsService>;
   skills: Client<typeof SkillsService>;
@@ -111,11 +130,13 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
     dashboard: createClient(DashboardService, transport),
     events: createClient(EventsService, transport),
     git: createClient(GitService, transport),
+    isolation: createClient(IsolationService, transport),
     mcp: createClient(McpService, transport),
     permissions: createClient(PermissionsService, transport),
     pipelines: createClient(PipelinesService, transport),
     project: createClient(ProjectService, transport),
     rules: createClient(RulesService, transport),
+    search: createClient(SearchService, transport),
     runtime: createClient(RuntimeService, transport),
     sessions: createClient(SessionsService, transport),
     settings: createClient(SettingsService, transport),
@@ -139,11 +160,13 @@ export {
   DashboardService,
   EventsService,
   GitService,
+  IsolationService,
   McpService,
   PermissionsService,
   PipelinesService,
   ProjectService,
   RulesService,
+  SearchService,
   RuntimeService,
   SessionsService,
   SettingsService,
@@ -155,4 +178,22 @@ export {
   WorkspacesService,
 };
 
-export type { Setting, SettingList };
+export {
+  EntityKind,
+  type IsolationCapabilities,
+  type IsolationDecision,
+  type IsolationProfile,
+  type IsolationPreviewResponse,
+  type IsolationRecommendationsResponse,
+  type IsolationResolved,
+  type IsolationResolutionReason,
+  type IsolationStatusResponse,
+  type IsolationStrategyRow,
+  type IsolationTierRow,
+  type IsolationVerifyResponse,
+  type IsolationVerifyStep,
+  type SearchHit,
+  type SearchResponse as SearchResponseProto,
+  type Setting,
+  type SettingList,
+};

@@ -107,20 +107,24 @@ describe('<sui-isolation-badge>', () => {
       expect(shadow(el).querySelector('.label')?.textContent?.trim()).toBe('…')
     })
   })
-
-  describe('auto-fetch from /api/v1/isolation/status', () => {
+  describe('auto-fetch from connect.isolation.status', () => {
     it('updates tier/strategy/downgraded from a successful fetch', async () => {
+      // The Connect wire's `IsolationStatusResponse` is the typed
+      // `IsolationDecision` envelope — `decision.resolved` carries the
+      // (tier, strategy, downgraded) tuple the badge needs. Connect
+      // POSTs the proto-encoded request to the wire path; the
+      // interceptor reads `globalThis.fetch` (the same transport the
+      // SUI runtime + the rest of the app use) and returns a
+      // `Response` whose body is the proto JSON.
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         new Response(
           JSON.stringify({
-            ok: true,
-            data: {
-              decision: {
-                resolved: {
-                  tier: 'container',
-                  strategy: 'docker',
-                  downgraded: false,
-                },
+            capabilities: {},
+            decision: {
+              resolved: {
+                strategy: 'docker',
+                tier: 'container',
+                downgraded: false,
               },
             },
           }),
@@ -128,7 +132,6 @@ describe('<sui-isolation-badge>', () => {
         )
       )
       const { el } = mount(reg, 'sui-isolation-badge')
-      // Default tier is 'unknown'; controller fetches on mount.
       await new Promise((r) => setTimeout(r, 30))
       await flush()
       expect(el.getAttribute('tier')).toBe('container')

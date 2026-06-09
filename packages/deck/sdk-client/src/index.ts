@@ -22,7 +22,8 @@ import type { ArtifactRecord, ShipSDK } from './ship-sdk'
 import { fetchBody, mutateForm, mutateJson } from './http'
 import { sharedSource } from './shared-source'
 import { MuxClient } from './mux-client'
-import { createShipConnectClient } from '@ship/sdk/connect'
+import { liveStream } from './live-stream'
+import { createShipConnectClient, SettingScope } from '@ship/sdk/connect'
 
 /// Single source of truth for the client-side serve-scheme URL prefix.
 /// Every TS literal that names `/_deck/...` (and the companion Rust
@@ -334,7 +335,17 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       snapshot: () => sse('mesh', 'snapshot'),
     },
     settings: {
-      state: () => sse('settings', 'state'),
+      // Typed server-stream: the wire's `SettingsService.Watch` is
+      // `server_streaming` and returns the shared `WatchEvent`
+      // (patches / err / heartbeat). The settings chrome treats the
+      // stream as a render trigger — re-emits on any frame, error
+      // surfaces cleanly via the existing `LiveSignal<error>` path.
+      // Scope is RUNTIME (shell preferences live in the daemon's
+      // RUNTIME settings table — see apps/shell/src/ops.ts).
+      state: () =>
+        liveStream((signal) =>
+          connect.settings.watch({ scope: SettingScope.RUNTIME }, { signal }),
+        ),
     },
     sessions: {
       list: () => sse('sessions', 'list'),

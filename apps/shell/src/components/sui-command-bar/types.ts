@@ -2,6 +2,8 @@
 
 import { chrome } from '@ship/sui-runtime'
 import type { Signal } from '@ship/sui-runtime'
+import { EntityKind, type SearchHit as ProtoSearchHit } from '@ship/sdk/connect'
+import { ops } from '../../ops'
 
 export type BarMode = 'ai' | 'command' | 'find' | 'mention' | 'create'
 
@@ -90,20 +92,78 @@ export async function searchEntities(
   q: string,
   opts: { limit?: number; types?: SearchEntityKind[]; cursor?: string; signal?: AbortSignal } = {},
 ): Promise<SearchResponse | null> {
-  const params = new URLSearchParams()
-  if (q) params.set('q', q)
-  if (opts.limit != null) params.set('limit', String(opts.limit))
-  if (opts.types?.length) params.set('types', opts.types.join(','))
-  if (opts.cursor) params.set('cursor', opts.cursor)
   try {
-    const resp = await fetch(`/api/v1/search?${params.toString()}`, {
-      credentials: 'same-origin',
-      signal: opts.signal ?? null,
-    })
-    if (!resp.ok) return null
-    return await resp.json() as SearchResponse
+    // Same-origin Connect: the daemon's auth middleware reads the
+    // session cookie, so no token plumbing. The wire returns a typed
+    // `SearchResponse { hits, nextCursor }`; we project onto the
+    // legacy `{ ok, data: { hits, total, cursor } }` shape the
+    // existing consumers (palette grouping, find-mode debouncer)
+    // already read, so the rewire is purely a transport swap.
+    const resp = await ops.search.search(
+      {
+        q,
+        limit: opts.limit ?? 0,
+        cursor: opts.cursor ?? '',
+        kinds: opts.types?.map(toEntityKind) ?? [],
+      },
+      opts.signal ? { signal: opts.signal } : {},
+    )
+    return {
+      ok: true,
+      data: {
+        hits: resp.hits.map(toSearchHit),
+        total: resp.hits.length,
+        ...(resp.nextCursor ? { cursor: resp.nextCursor } : {}),
+      },
+    }
   } catch {
     return null
+  }
+}
+
+/** View string → wire enum. UNSPECIFIED is treated as the legacy
+ *  "view" default (the SDK's string-shaped `SearchEntityKind`
+ *  predates the proto enum; we keep the wire enum out of the public
+ *  view layer). */
+function toEntityKind(kind: SearchEntityKind): EntityKind {
+  switch (kind) {
+    case 'view': return EntityKind.VIEW
+    case 'collection': return EntityKind.COLLECTION
+    case 'collection_item': return EntityKind.COLLECTION_ITEM
+    case 'agent': return EntityKind.AGENT
+    case 'skill': return EntityKind.SKILL
+    case 'session': return EntityKind.SESSION
+    case 'artifact': return EntityKind.ARTIFACT
+  }
+}
+
+/** Wire hit → view hit. The proto fields are always-present; the view
+ *  shape uses optional + snake_case for the collection_id only. */
+function toSearchHit(hit: ProtoSearchHit): SearchHit {
+  return {
+    kind: fromEntityKind(hit.kind),
+    id: hit.id,
+    label: hit.label,
+    path: hit.path,
+    score: hit.score,
+    ...(hit.icon ? { icon: hit.icon } : {}),
+    ...(hit.snippet ? { snippet: hit.snippet } : {}),
+    ...(hit.collectionId ? { collection_id: hit.collectionId } : {}),
+  }
+}
+
+/** Wire enum → view string. UNSPECIFIED is treated as the legacy
+ *  "view" default. */
+function fromEntityKind(kind: EntityKind): SearchEntityKind {
+  switch (kind) {
+    case EntityKind.VIEW: return 'view'
+    case EntityKind.COLLECTION: return 'collection'
+    case EntityKind.COLLECTION_ITEM: return 'collection_item'
+    case EntityKind.AGENT: return 'agent'
+    case EntityKind.SKILL: return 'skill'
+    case EntityKind.SESSION: return 'session'
+    case EntityKind.ARTIFACT: return 'artifact'
+    default: return 'view'
   }
 }
 

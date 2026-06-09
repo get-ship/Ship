@@ -1,4 +1,5 @@
 import { controller, effect } from '@ship/sui-runtime'
+import { createShipConnectClient } from '@ship/sdk/connect'
 import type { Scope } from './sui-isolation-badge.sui'
 
 const TIER_LABELS: Record<string, string> = {
@@ -54,17 +55,18 @@ interface IsolationStatusPayload {
 
 async function fetchIsolationStatus(): Promise<IsolationStatusPayload | null> {
   try {
-    const resp = await fetch('/api/v1/isolation/status', {
-      headers: { accept: 'application/json' },
-    })
-    if (!resp.ok) return null
-    const json = await resp.json()
-    const decision = json?.data?.decision?.resolved
-    if (!decision) return null
+    // Same-origin Connect: the daemon's auth middleware reads the
+    // session cookie, so no token plumbing. The wire returns the typed
+    // `IsolationStatusResponse` — `decision.resolved` is the resolved
+    // (strategy, tier, reason, downgraded) tuple the badge needs.
+    const connect = createShipConnectClient({ baseUrl: '' })
+    const resp = await connect.isolation.status({})
+    const resolved = resp.decision?.resolved
+    if (!resolved) return null
     return {
-      tier: String(decision.tier ?? 'unknown'),
-      strategy: String(decision.strategy ?? ''),
-      downgraded: Boolean(decision.downgraded),
+      tier: String(resolved.tier ?? 'unknown'),
+      strategy: String(resolved.strategy ?? ''),
+      downgraded: Boolean(resolved.downgraded),
     }
   } catch {
     return null

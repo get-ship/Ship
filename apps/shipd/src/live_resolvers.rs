@@ -18,6 +18,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde_json::Value;
+use ship_account::types::AccountToken;
+use ship_substrate::config_doc;
 
 use crate::ship_runtime::ApiState;
 
@@ -69,12 +71,15 @@ impl LiveResolverRegistry {
 /// Each entry calls the SAME builder its per-op `<Op>Live` stream calls — reuse,
 /// not a re-implemented copy.
 ///
-/// `account.state` is intentionally NOT registered: the wire's
-/// `AccountService::state` is async (a future `StateLive` rpc needs a sync
-/// facade first), and inventing a sync read here would be new resolution
-/// logic. `dashboard.state` / `mesh.snapshot` are ghost ops with no builder
-/// at all. See `.artifacts/live-data-coverage.md` for the full coverage
-/// table + GAP list.
+/// `account.state` was unregistered: the wire's `AccountService::state` is
+/// async (a future `StateLive` rpc needs a sync facade first), and inventing
+/// a sync read here would be new resolution logic. The sync facade landed
+/// in this pass — the resolver below reads the daemon-owned token file
+/// (`<daemon_dir>/account.jsonc`) the same way the wire does, projects the
+/// tagged `AccountState` enum, and lets the existing
+/// `sse('account', 'state')` TS call resolve. `dashboard.state` /
+/// `mesh.snapshot` remain ghost ops with no builder at all. See
+/// `.artifacts/live-data-coverage.md` for the full coverage table.
 pub fn build() -> LiveResolverRegistry {
     let mut reg = LiveResolverRegistry::default();
 
@@ -133,6 +138,37 @@ pub fn build() -> LiveResolverRegistry {
         }),
     );
 
+    // account.state — sync snapshot of the typed `AccountState` enum
+    // (mirrors `crates/core/ship-platform/crates/ship-account/src/types.rs`).
+    // The wire's `AccountService::state` is async; the live-data
+    // multiplex re-resolution loop runs sync, so we re-read the
+    // daemon-owned token file (`<daemon_dir>/account.jsonc`) directly
+    // via the substrate secret-doc seam. Same value the wire returns
+    // to Connect callers, just derived from the on-disk token. Pending
+    // is intentionally NOT tracked here — the in-memory pending-login
+    // registry lives only inside the wire's `AccountService` and
+    // disappears on daemon restart (per the service's contract); a
+    // restarted daemon reads logged_out until the CLI's `ship login`
+    // callback completes and a fresh token lands on disk.
+    reg.register(
+        "account",
+        "state",
+        Arc::new(|state: &ApiState, _args: &Value| {
+            let token_path = state.daemon_dir().join("account.jsonc");
+            let token: Option<AccountToken> = config_doc::read_doc(&token_path)
+                .ok()
+                .flatten();
+            match token {
+                None => serde_json::json!({ "state": "logged_out" }),
+                Some(t) if t.is_expired() => serde_json::json!({ "state": "logged_out" }),
+                Some(t) => serde_json::json!({
+                    "state": "logged_in",
+                    "user_id": t.user_id,
+                }),
+            }
+        }),
+    );
+
     reg
 }
 
@@ -146,6 +182,7 @@ mod tests {
         assert!(reg.has("git", "overview"));
         assert!(reg.has("agents", "summaries"), "agents.summaries registered (job/livedata-coverage)");
         assert!(reg.has("collections", "list"), "collections.list registered (job/livedata-coverage)");
+        assert!(reg.has("account", "state"), "account.state registered (job/phase3b-rewires)");
         assert!(!reg.has("pipelines", "summaries"), "pipelines live resolvers retired (job/livedata-collapse)");
         assert!(!reg.has("nonsense", "void"), "unregistered op has no resolver");
         assert!(

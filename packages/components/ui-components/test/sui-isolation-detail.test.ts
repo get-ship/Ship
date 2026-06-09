@@ -83,20 +83,20 @@ describe('<sui-isolation-detail>', () => {
     })
   })
 
-  describe('auto-fetch from /api/v1/isolation/status', () => {
+  describe('auto-fetch from connect.isolation.status', () => {
     it('populates fields from a successful status response', async () => {
+      // Connect wire's `IsolationStatusResponse` is a typed proto —
+      // the mock returns the JSON shape Connect actually parses.
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         new Response(
           JSON.stringify({
-            ok: true,
-            data: {
-              decision: {
-                resolved: {
-                  tier: 'container',
-                  strategy: 'docker',
-                  reason: { kind: 'user_default' },
-                  downgraded: false,
-                },
+            capabilities: {},
+            decision: {
+              resolved: {
+                strategy: 'docker',
+                tier: 'container',
+                reason: { case: 'userDefault', value: {} },
+                downgraded: false,
               },
             },
           }),
@@ -115,15 +115,13 @@ describe('<sui-isolation-detail>', () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         new Response(
           JSON.stringify({
-            ok: true,
-            data: {
-              decision: {
-                resolved: {
-                  tier: 'process',
-                  strategy: 'harness_native',
-                  reason: { kind: 'downgrade', from: 'container' },
-                  downgraded: true,
-                },
+            capabilities: {},
+            decision: {
+              resolved: {
+                strategy: 'harness_native',
+                tier: 'process',
+                reason: { case: 'downgrade', value: { from: 'container', why: '' } },
+                downgraded: true,
               },
             },
           }),

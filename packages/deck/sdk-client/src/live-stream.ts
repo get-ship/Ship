@@ -16,11 +16,12 @@ import { type LiveSignal, type LiveSource } from '@ship/sui-runtime'
 /**
  * Wrap a Connect server-stream into a `LiveSource`. `open` receives an
  * `AbortSignal` (wired to the subscription disposer) and returns the rpc's
- * `AsyncIterable` of `JsonResponse`-shaped frames. Each frame's `json` is the
- * full value (no deltas), so every frame flips the signal to `ok`.
+ * `AsyncIterable<T>`. Each frame flips the signal to `ok` with the
+ * value as-is (no `JSON.parse` — the wire produces typed proto values
+ * post-JSONResponse).
  */
 export function liveStream<T>(
-  open: (signal: AbortSignal) => AsyncIterable<{ json: string }>,
+  open: (signal: AbortSignal) => AsyncIterable<T>,
 ): LiveSource<T> {
   return {
     subscribe(sig: LiveSignal<T>): () => void {
@@ -28,11 +29,7 @@ export function liveStream<T>(
       void (async () => {
         try {
           for await (const frame of open(ctrl.signal)) {
-            try {
-              sig.set({ kind: 'ok', value: JSON.parse(frame.json) as T })
-            } catch (err) {
-              sig.set({ kind: 'error', error: toError(err) })
-            }
+            sig.set({ kind: 'ok', value: frame as T })
           }
         } catch (err) {
           // An abort is a normal teardown, not a surfaced error.

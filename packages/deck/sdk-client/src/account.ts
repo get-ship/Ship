@@ -3,6 +3,7 @@
 // browser-flow choreography in one place so the two surfaces don't drift.
 
 import type { AccountState, MeView } from './generated'
+import { createShipConnectClient } from '@ship/sdk/connect'
 
 export type AccountStatus = AccountState['state'] // 'logged_out' | 'pending' | 'logged_in'
 
@@ -82,39 +83,35 @@ interface StartLoginResponse {
  *  the live signal re-emits. Returns the state_id so callers can show a
  *  "completing login…" indicator while it's pending. */
 export async function signIn(redirectUri?: string): Promise<StartLoginResponse> {
-  // The daemon requires a localhost redirect_uri. Shell can't actually
-  // receive the OAuth callback (no local HTTP server) so we use a
-  // throwaway loopback URL — the browser-side `ship login` CLI still owns
-  // the callback today. This surfaces an in-flight "pending" state in the
-  // chip; completion happens via `ship login` in a terminal.
-  const body = JSON.stringify({
-    redirect_uri: redirectUri ?? 'http://127.0.0.1:0/callback',
+  // Same-origin Connect: the daemon's auth middleware reads the
+  // session cookie, so no token plumbing. The wire's `AccountService.Login`
+  // returns a typed `LoginStarted { stateId, browserUrl }`; we hand
+  // `browserUrl` off to the browser (the daemon's redirect_uri is the
+  // local CLI callback — Shell can't host one, so the browser-side
+  // `ship login` CLI owns the callback today).
+  const connect = createShipConnectClient({ baseUrl: '' })
+  const started = await connect.account.login({
+    redirectUri: redirectUri ?? 'http://127.0.0.1:0/callback',
   })
-  const res = await fetch('/api/v1/account/login', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  })
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText)
-    throw new Error(`account.login failed (${res.status}): ${text}`)
+  if (started.browserUrl) {
+    window.open(started.browserUrl, '_blank', 'noopener')
   }
-  const data = (await res.json()) as StartLoginResponse
-  if (data.browser_url) window.open(data.browser_url, '_blank', 'noopener')
-  return data
+  return {
+    state_id: started.stateId,
+    browser_url: started.browserUrl,
+  }
 }
 
 /** Clear the daemon's stored token. Idempotent on the daemon side. */
 export async function signOut(): Promise<void> {
-  const res = await fetch('/api/v1/account/logout', {
-    method: 'POST',
-    credentials: 'same-origin',
-  })
-  if (!res.ok && res.status !== 204) {
-    const text = await res.text().catch(() => res.statusText)
-    throw new Error(`account.logout failed (${res.status}): ${text}`)
-  }
+  // Same-origin Connect: the wire's `AccountService.Logout` returns a
+  // typed `LogoutResult { hadToken, keyRevoked }`. Connect throws
+  // `ConnectError` on failure (no `resp.ok` to check) — the previous
+  // REST path surfaced 204 as success; the typed wire returns a
+  // result either way, so a 204-equivalent "no token" case
+  // short-circuits cleanly here.
+  const connect = createShipConnectClient({ baseUrl: '' })
+  await connect.account.logout({})
 }
 
 /** Open Ship Cloud's billing page in a new browser tab. The marketing site

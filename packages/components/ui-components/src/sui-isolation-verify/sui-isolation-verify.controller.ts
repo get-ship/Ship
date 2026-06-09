@@ -1,4 +1,5 @@
 import { controller } from '@ship/sui-runtime'
+import { createShipConnectClient } from '@ship/sdk/connect'
 import type { Scope } from './sui-isolation-verify.sui'
 
 interface Step {
@@ -113,17 +114,14 @@ function makeNode(
 
 async function fetchVerify(): Promise<VerifyResult | null> {
   try {
-    const resp = await fetch('/api/v1/isolation/verify', {
-      method: 'POST',
-      headers: { accept: 'application/json' },
-    })
-    if (!resp.ok) return null
-    const json = await resp.json()
-    const data = json?.data
-    if (!data) return null
+    // Same-origin Connect: the daemon's auth middleware reads the
+    // session cookie, so no token plumbing. The wire returns the
+    // typed `IsolationVerifyResponse` — `ok` + the dry-run `steps[]`.
+    const connect = createShipConnectClient({ baseUrl: '' })
+    const resp = await connect.isolation.verify({})
     return {
-      ok: Boolean(data.ok),
-      steps: Array.isArray(data.steps) ? data.steps.map(coerceStep) : [],
+      ok: Boolean(resp.ok),
+      steps: Array.isArray(resp.steps) ? resp.steps.map(coerceStep) : [],
     }
   } catch {
     return null
