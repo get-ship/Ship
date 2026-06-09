@@ -11,7 +11,7 @@ pub mod multiplex;
 pub mod render_helpers;
 
 pub use handlers::{
-    serve_bundle_hmr, serve_catalog_workspace, serve_shell, serve_shell_asset,
+    serve_bundle_hmr, serve_catalog_workspace, serve_public_asset, serve_shell, serve_shell_asset,
     serve_meta,
     serve_sui_chunk, serve_sui_dom, serve_sui_icon,
     serve_sui_live_reload, serve_space, serve_space_asset, serve_sui_runtime,

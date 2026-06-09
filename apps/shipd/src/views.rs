@@ -29,7 +29,6 @@ pub mod session_types;
 pub mod sanitize;
 pub mod assets;
 pub mod discovery;
-pub mod static_assets;
 pub mod resolve;
 pub mod themes;
 

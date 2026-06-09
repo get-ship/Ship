@@ -176,6 +176,27 @@ pub async fn serve_shell_asset(
     };
     into_axum(deck_core::serve_scaffold_asset(mode_val, scaffold, &file))
 }
+/// `GET /{file}` — host public assets (favicons, logos) from the declared
+/// `public_dir`. 404 when no `public_dir` is configured.
+pub async fn serve_public_asset(
+    mode: Option<Extension<DaemonMode>>,
+    cfg: Option<Extension<Arc<DeckConfig>>>,
+    Path(file): Path<String>,
+) -> Response {
+    let mode_val = mode_from_ext(mode.clone());
+    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
+    let Some(public_dir) = cfg_ref.and_then(|c| c.public_dir.as_ref()) else {
+        return into_axum(deck_core::DeckResponse::not_found(
+            "no public_dir configured",
+            mode_val,
+        ));
+    };
+    into_axum(deck_core::serve_public_asset(
+        mode_val,
+        &public_dir.to_string_lossy(),
+        &file,
+    ))
+}
 
 // ── View-payload handlers ─────────────────────────────────────────────────────
 

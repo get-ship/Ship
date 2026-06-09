@@ -52,5 +52,8 @@
   "sourceRoots": ["."],
   "watch": ["packages", "apps/shell/src"],
   "hostAssetsRoot": ".deck",
-  "firstPartyApp": { "root": "apps/shell/src", "label": "app:shell" }
+  "firstPartyApp": { "root": "apps/shell/src", "label": "app:shell" },
+  // Root-relative public assets (favicons, logos) served by deck at /{file}
+  // from <project_root>/apps/shell/public/<file>.
+  "publicDir": "apps/shell/public"
 }

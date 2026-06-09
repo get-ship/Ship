@@ -122,14 +122,12 @@ pub fn build_router(
         // First-run flow — both routes are unauthenticated so a fresh
         .ship_public_route(Route::Index, views::setup::index_handler)
         .ship_public_route(Route::Setup, views::setup::setup_handler)
-        // Shell public assets at root paths: /ship-logo.svg, /favicon.ico, etc.
-        // The shell's index.html references these at the root, not under
-        // /shell/_assets/, so deck's scaffold asset handler doesn't catch them.
-        // serve_shell_static reads from apps/shell/public/<file> via a
-        // hard-coded allowlist (see apps/shipd/src/views/static_assets.rs).
-        // Registered AFTER Index/Setup so /setup and / keep their existing
-        // handlers — the {file} is the catch-all single-segment path.
-        .route("/{file}", axum::routing::get(views::static_assets::serve_shell_static))
+        // Host public assets at root paths (/ship-logo.svg, /favicon.ico, …),
+        // served by deck from `DeckConfig.public_dir` (deck.jsonc) under deck's
+        // OWN resolved project root — no Ship path resolution. Registered AFTER
+        // Index/Setup so /setup and / keep their handlers; `/{file}` is the
+        // catch-all single-segment path (axum prefers the literal routes).
+        .route("/{file}", axum::routing::get(deck::serve_public_asset))
         // Bind the runtime state here so the resulting `Router<()>` merges
         // cleanly with the root assembly below.
         .with_state(rt.clone());

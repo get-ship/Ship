@@ -129,6 +129,12 @@ pub struct DeckConfig {
     /// `index.sui`) that broke `.ship/views/<name>/index.sui` resolution.
     #[serde(default)]
     pub view_leaf: Option<String>,
+    /// Root-relative public-asset directory (e.g. `apps/shell/public`). When set,
+    /// deck serves single-segment root paths (`/favicon.ico`, `/ship-logo.svg`)
+    /// from `<project_root>/<public_dir>/<file>`. `None` = no public-asset server.
+    /// deck resolves the project root via its own resolver — never a Ship path.
+    #[serde(default)]
+    pub public_dir: Option<PathBuf>,
 }
 
 impl Default for DeckConfig {
@@ -154,6 +160,7 @@ impl DeckConfig {
             // Single leaf convention — fixes the #254 `index.sui`/`page.sui`
             // divergence. Both buckets look up `<name>/<view_leaf>`.
             view_leaf: Some("page.sui".into()),
+            public_dir: None,
         }
     }
 

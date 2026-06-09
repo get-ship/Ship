@@ -1,4 +1,4 @@
-use crate::{DaemonMode, DeckResponse};
+use crate::{CachePolicy, DaemonMode, DeckResponse};
 use deck_config::ScaffoldDecl;
 
 const ASSETS_DIR: &str = env!("CARGO_MANIFEST_DIR");
@@ -213,6 +213,51 @@ pub fn serve_scaffold_asset(mode: DaemonMode, scaffold: &ScaffoldDecl, file: &st
             format!("scaffold '{}' asset not found: {file}", scaffold.name),
             mode,
         ),
+    }
+}
+
+/// `GET /<file>` — serve a single-segment static asset from the host's declared
+/// public directory (`DeckConfig.public_dir`), resolved under deck's OWN project
+/// root (`resolver::resolve_project_root`, never a Ship path). Single-segment +
+/// traversal-guarded (the route is `/{file}`, but reject `..`/slashes/leading-dot
+/// belt-and-suspenders); content-type by extension; immutable long cache in
+/// Production. 404 when no public dir is configured or the file is absent.
+pub fn serve_public_asset(mode: DaemonMode, public_dir: &str, file: &str) -> DeckResponse {
+    if file.is_empty()
+        || file.contains("..")
+        || file.contains('/')
+        || file.contains('\\')
+        || file.starts_with('.')
+    {
+        return DeckResponse::not_found(format!("invalid public asset path: {file}"), mode);
+    }
+    let Some(root) = crate::resolver::resolve_project_root() else {
+        return DeckResponse::not_found("no project root for public assets", mode);
+    };
+    let path = root.join(public_dir).join(file);
+    let Ok(body) = std::fs::read(&path) else {
+        return DeckResponse::not_found(format!("public asset not found: {file}"), mode);
+    };
+    DeckResponse::new(200, public_asset_content_type(file), CachePolicy::Asset, mode, body)
+}
+
+/// Content-type for a public asset by file extension; unknown extensions get
+/// `application/octet-stream`.
+fn public_asset_content_type(file: &str) -> &'static str {
+    match file.rsplit('.').next() {
+        Some("svg") => "image/svg+xml; charset=utf-8",
+        Some("ico") => "image/x-icon",
+        Some("png") => "image/png",
+        Some("jpg" | "jpeg") => "image/jpeg",
+        Some("webp") => "image/webp",
+        Some("gif") => "image/gif",
+        Some("css") => "text/css; charset=utf-8",
+        Some("js" | "mjs") => "application/javascript; charset=utf-8",
+        Some("json") => "application/json; charset=utf-8",
+        Some("woff2") => "font/woff2",
+        Some("woff") => "font/woff",
+        Some("webmanifest") => "application/manifest+json; charset=utf-8",
+        _ => "application/octet-stream",
     }
 }
 
@@ -580,5 +625,35 @@ mod tests {
             body.contains("window.SAFE_KEY"),
             "valid inject_globals key must be injected; got: {body}"
         );
+    }
+
+    #[test]
+    fn public_asset_serves_from_dir_and_rejects_traversal() {
+        use std::io::Write;
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("public")).unwrap();
+        std::fs::File::create(tmp.path().join("public/logo.svg"))
+            .unwrap()
+            .write_all(b"<svg/>")
+            .unwrap();
+        crate::resolver::set_project_root(tmp.path().to_path_buf());
+
+        let ok = serve_public_asset(DaemonMode::Development, "public", "logo.svg");
+        assert_eq!(ok.status, 200, "present public asset serves 200");
+        assert!(ok.content_type.starts_with("image/svg+xml"), "svg content-type by extension");
+        assert_eq!(ok.body, b"<svg/>", "serves the file bytes");
+
+        assert_eq!(
+            serve_public_asset(DaemonMode::Development, "public", "../secret").status,
+            404,
+            "path traversal must 404"
+        );
+        assert_eq!(
+            serve_public_asset(DaemonMode::Development, "public", "nope.svg").status,
+            404,
+            "missing file must 404"
+        );
+
+        crate::resolver::reset_project_root_override_for_test();
     }
 }
