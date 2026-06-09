@@ -250,3 +250,89 @@ fn deck_core_source_has_no_deleted_resolver_helpers_or_project_dir_env() {
         violations.join("\n"),
     );
 }
+
+/// Boundary invariant I2 (extension) — deck crates name no Ship app env vars.
+///
+/// The previous slice renamed `SHIP_FIRST_PARTY_VIEWS` → `DECK_FIRST_PARTY_VIEWS`
+/// to make the deck→ship dependency direction explicit. Deck crates now have
+/// zero Ship-prefixed env vars; the boundary rule (deck names no Ship concept)
+/// forbids re-introducing any `std::env::var("SHIP_…")` read inside deck
+/// production source. Hosts that need Ship-app envs are wired them in via
+/// the env module, not directly in deck.
+///
+/// Scans every deck crate (`deck-core`, `deck-axum`, `deck-host`,
+/// `deck-bundler`, `deck-config`) for the `env::var("SHIP_…")` pattern.
+/// Test files (`*_tests.rs` + the boundary.rs itself) are skipped — the
+/// pattern is the literal phrase `env::var("SHIP` so a doc comment
+/// mentioning the gate's intent is fine, but a real read in production
+/// source is a violation.
+#[test]
+fn deck_crates_have_no_ship_prefixed_env_var_reads() {
+    let deck_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .to_path_buf();
+
+    let mut files = Vec::new();
+    for crate_name in ["deck-core", "deck-axum", "deck-host", "deck-bundler", "deck-config"] {
+        let src = deck_dir.join(crate_name).join("src");
+        collect_rs(&src, &mut files);
+        let build_rs = deck_dir.join(crate_name).join("build.rs");
+        if build_rs.is_file() {
+            files.push(build_rs);
+        }
+    }
+    assert!(!files.is_empty(), "found no deck crate source to scan ({deck_dir:?})");
+
+    let mut violations = Vec::new();
+    // We need a real shell boundary check: any line whose payload contains
+    // the executable form `env::var("SHIP` outside a comment fails. We
+    // reuse the same suppression machinery as the I2 scan: lines inside
+    // `mod tests` blocks, doc comments, and `*_tests.rs` files are
+    // excluded.
+    for f in &files {
+        let Ok(text) = fs::read_to_string(f) else { continue };
+        let mut brace_depth: i32 = 0;
+        let mut test_block_depth: Option<i32> = None;
+        for (n, line) in text.lines().enumerate() {
+            let trimmed = line.trim_start();
+            for ch in line.chars() {
+                match ch {
+                    '{' => brace_depth += 1,
+                    '}' => {
+                        brace_depth -= 1;
+                        if let Some(d) = test_block_depth {
+                            if brace_depth < d {
+                                test_block_depth = None;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if trimmed.starts_with("#[cfg(test)]") || trimmed.starts_with("mod tests") {
+                if test_block_depth.is_none() {
+                    test_block_depth = Some(brace_depth);
+                }
+            }
+            if test_block_depth.is_some() {
+                continue;
+            }
+            if trimmed.starts_with("//") {
+                continue;
+            }
+            // The exact pattern: `env::var("SHIP…` — any SHIP-prefixed env
+            // name. This is a real env read, not a placeholder.
+            if line.contains("env::var(\"SHIP") {
+                violations.push(format!("{}:{}: {}", f.display(), n + 1, trimmed));
+            }
+        }
+    }
+    assert!(
+        violations.is_empty(),
+        "I2 (SHIP_ env) violation: deck crates must not read Ship-prefixed \
+         env vars directly (deck names no Ship concept — wire the host's \
+         env accessor instead):\n\n{}",
+        violations.join("\n"),
+    );
+}

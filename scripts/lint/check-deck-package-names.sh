@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Boundary gate (c): every package under `packages/deck/` has a name
+# that starts with `@ship/deck` OR is on a small allow-list of legacy
+# names that predate the rename to the `@ship/deck` namespace.
+#
+# Boundary rule: deck owns its package namespace. A new package showing
+# up under `packages/deck/` with a non-deck name (e.g. `@ship/sui-foo`)
+# is a sign that a Ship-app concern is being smuggled into the deck
+# directory, or that someone forgot the namespace. This gate prevents
+# the drift by failing CI on any package.json name in `packages/deck/*`
+# that doesn't match `@ship/deck*` or one of the explicit legacy names.
+#
+# Allow-list rationale (the four non-`@ship/deck*` names that already
+# live under packages/deck/):
+#   - `@ship/sdk`           — the framework-agnostic Ship SDK; lives
+#                              under packages/deck/ because the deck
+#                              re-exports its types to the bundler.
+#   - `@ship/sdk-client`    — the browser SDK shim; depends on
+#                              `@ship/sdk` and `@ship/sui-runtime`.
+#   - `@ship/sui-eval`      — the SUI eval rig; lives under deck/ for
+#                              proximity to the framework it evaluates.
+#   - `@ship/sui-lsp-browser` — the browser LSP client; depends on
+#                              `@ship/sui-compiler-wasm` only.
+# Adding a new name to the allow-list is a deliberate, review-time
+# decision — re-introducing `@ship/sui-*` packages into deck/ that
+# aren't on this list is the failure mode the gate exists to catch.
+#
+# Run from repo root.
+
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+violations=0
+
+# Allow-list of legacy names that legitimately live under packages/deck/
+# but do NOT start with `@ship/deck`.
+ALLOW_LIST=(
+  "@ship/sdk"
+  "@ship/sdk-client"
+  "@ship/sui-eval"
+  "@ship/sui-lsp-browser"
+)
+
+# Iterate every package.json directly under packages/deck/* (one level).
+# A package at packages/deck/eval/package.json is "owned by deck".
+packages=()
+while IFS= read -r -d '' pkg; do
+  packages+=("$pkg")
+done < <(
+  find packages/deck -mindepth 2 -maxdepth 2 -name 'package.json' -print0
+)
+
+if [ ${#packages[@]} -eq 0 ]; then
+  echo "check-deck-package-names: no packages/deck/*/package.json found" >&2
+  exit 1
+fi
+
+for pkg in "${packages[@]}"; do
+  # Extract the top-level "name" field. Strip any optional quotes/whitespace.
+  name=$(grep -E '"name"\s*:' "$pkg" | head -1 | sed -E 's/.*"name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+  if [ -z "$name" ]; then
+    echo "FAIL: $pkg: could not parse a top-level \`name\`" >&2
+    violations=$((violations + 1))
+    continue
+  fi
+
+  if [[ "$name" == @ship/deck* ]]; then
+    continue
+  fi
+
+  allowed=0
+  for a in "${ALLOW_LIST[@]}"; do
+    if [ "$name" = "$a" ]; then
+      allowed=1
+      break
+    fi
+  done
+
+  if [ $allowed -eq 1 ]; then
+    continue
+  fi
+
+  echo "FAIL: $pkg: name \`$name\` is not \`@ship/deck*\` and is not on the allow-list" >&2
+  echo "      allow-list: ${ALLOW_LIST[*]}" >&2
+  violations=$((violations + 1))
+done
+
+if [ $violations -gt 0 ]; then
+  echo "" >&2
+  echo "deck-package-names gate: $violations violation(s) found." >&2
+  echo "Every packages/deck/* package must use the \`@ship/deck\` namespace," >&2
+  echo "or be explicitly allow-listed (it pre-dates the namespace rename)." >&2
+  exit 1
+fi
+
+echo "deck-package-names gate: clean (every packages/deck/* name is @ship/deck* or on the allow-list)."
