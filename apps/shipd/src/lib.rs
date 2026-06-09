@@ -67,10 +67,6 @@ pub mod live_read;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
 pub mod ship_runtime;
-// `ship-supervisor` (L0) now holds only OS-level process primitives
-// (terminal launcher, process-event emit, graceful_shutdown re-export). The
-// existing `crate::supervisor::*` import path resolves through this re-export.
-pub use ship_supervisor as supervisor;
 // Tests for supervisor + shipd-internal integration (use ApiState,
 // ShipRuntime, etc.) live under `apps/shipd/src/supervisor/`.
 // Gated: these tests use ship-code types directly (dispatch_ports, process_registry).

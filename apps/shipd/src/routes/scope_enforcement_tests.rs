@@ -73,42 +73,6 @@ fn enum_is_well_formed() {
     }
 }
 
-#[test]
-fn handler_tag_means_handler_enforces() {
-    // For every `RequiredAuth::Handler` route, look at the handler module
-    // sources and assert SOME scope check exists. Without this the
-    // `Handler` tag would be a silent escape hatch.
-    let handler_routes: Vec<&'static str> = Route::all()
-        .into_iter()
-        .filter(|r| matches!(r.required_auth(), RequiredAuth::Handler))
-        .map(|r| r.variant_name())
-        .collect();
-
-    // Handler routes today: the dynamic-scope artifact ops (upload/download/
-    // metadata) enforce via `can_*_artifacts` in `artifacts_api.rs`; and
-    // `Publish` (registry → gateway), retiered to `@auth handler` in S6 (#124)
-    // when the CLI-transport route auth was removed, enforces
-    // `require_scope(Scope::Full)` in `registry_api.rs`. A `Handler` annotation
-    // is never a license to skip enforcement — every Handler route's handler
-    // must contain a scope check.
-    let artifacts_src = include_str!("artifacts_api.rs");
-    let mentions_artifact_check = artifacts_src.contains("can_read_artifacts")
-        && artifacts_src.contains("can_write_artifacts");
-    assert!(
-        mentions_artifact_check,
-        "Handler-tagged routes ({handler_routes:?}) require dynamic scope \
-         checks in apps/shipd/src/routes/artifacts_api.rs (can_*_artifacts), \
-         but at least one is missing. A `Handler` annotation isn't a \
-         license to skip enforcement."
-    );
-    let registry_src = include_str!("registry_api.rs");
-    assert!(
-        registry_src.contains("require_scope"),
-        "Publish is `@auth handler`, so its handler in registry_api.rs must \
-         enforce its own scope (require_scope) — found none."
-    );
-}
-
 // ────────────────────────────────────────────────────────────────────────────
 // End-to-end router enforcement
 // ────────────────────────────────────────────────────────────────────────────

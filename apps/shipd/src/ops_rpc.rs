@@ -1166,6 +1166,71 @@ mod tests {
         assert_eq!(status, 200, "C0 reads stay open to any in-scope caller");
     }
 
+    /// **SECURITY (#124).** `registry.publish` is the C2_ELEVATED op that forwards
+    /// the operator's stored gateway key to the cloud registry. The audit flagged
+    /// it as the ONE ungated C2 op — its handler ignored the request context and
+    /// forwarded unconditionally. This mirrors
+    /// `in_process_router_enforces_the_gate_for_an_embedded_caller` for
+    /// `RegistryService/Publish`: an ungated caller is denied at the gate, before
+    /// the key is ever forwarded; the SAME request with the `registry` grant
+    /// clears the gate. The grant is the only variable, so this isolates the gate
+    /// from the gateway-forward handler.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn in_process_router_gates_registry_publish() {
+        use axum::body::Body;
+        use http::Request;
+        use http_body_util::BodyExt;
+        use tower::ServiceExt;
+
+        let harness = crate::test_harness::TestDaemon::new().await;
+        let app = router(harness.state.clone());
+
+        async fn call_op(
+            app: &axum::Router,
+            caller: AuthContext,
+            wire_path: &str,
+            body: serde_json::Value,
+        ) -> (u16, String) {
+            let req = Request::builder()
+                .method("POST")
+                .uri(format!("/{wire_path}"))
+                .header("content-type", "application/json")
+                .extension(caller)
+                .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                .unwrap();
+            let resp = app.clone().oneshot(req).await.unwrap();
+            let status = resp.status().as_u16();
+            let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+            let code = serde_json::from_slice::<serde_json::Value>(&bytes)
+                .ok()
+                .and_then(|v| v.get("code").and_then(|c| c.as_str()).map(str::to_string))
+                .unwrap_or_default();
+            (status, code)
+        }
+
+        const PUBLISH: &str = "ship.ops.v1.RegistryService/Publish";
+        let body = serde_json::json!({ "payloadJson": "{}" });
+
+        // An embedded agent: MCP-kind, NOT the operator, no elevated services —
+        // the ungated caller the audit flagged.
+        let bare = auth(CallerKind::Mcp, Some("agent-x"));
+        assert!(!bare.grants.contains(&"registry".to_string()) && !bare.operator_cred);
+
+        // C2 publish WITHOUT the grant → the gate denies, in-process, before the
+        // handler forwards the operator key to the gateway.
+        let (status, code) = call_op(&app, bare.clone(), PUBLISH, body.clone()).await;
+        assert_eq!(status, 403, "ungated registry.publish must be denied at the gate");
+        assert_eq!(code, "permission_denied");
+
+        // The SAME request WITH the `registry` grant → the gate clears. Whatever
+        // the gateway-forward then returns (no creds in the test home → an
+        // internal/unauthenticated error, never a 403), it is NOT a gate denial.
+        let granted = AuthContext { grants: vec!["registry".to_string()], ..bare };
+        let (status, code) = call_op(&app, granted, PUBLISH, body).await;
+        assert_ne!(status, 403, "granted registry.publish must clear the gate (got code {code:?})");
+        assert_ne!(code, "permission_denied", "granted registry.publish must clear the gate");
+    }
+
     // Full vertical: serve the real router (with test ApiState) on an ephemeral
     // port and call Meta through the generated client. Multi-thread flavor so
     // any block_in_place in ported ops is safe.
