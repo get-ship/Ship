@@ -24,7 +24,7 @@
                                               the shell + marketing site
                                               both use this
     persist (bool, true, reflect)             write-through to localStorage
-                                              + /api/settings via persistTheme
+                                              via the host theme transport
   ────────────────────────────────────────────────────────────────────────
   Events: sui-theme-change   { detail: { id, dark } }   bubbles, composed
   Slots: (none — fully self-contained)

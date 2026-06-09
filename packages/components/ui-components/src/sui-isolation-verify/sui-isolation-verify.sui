@@ -1,18 +1,18 @@
 <!--
   <sui-isolation-verify> — per-check probe result list.
 
-  Calls POST /api/v1/isolation/verify on mount and renders each step
-  the daemon reports as pass/fail with detail. Used in the
-  settings/isolation page and the init wizard to surface the same
-  data shipd's `init` endpoint runs through before accepting an
-  enforce flip.
+  Calls the isolation service's verify probe on mount (via Connect)
+  and renders each step the daemon reports as pass/fail with detail.
+  Used in the settings/isolation page and the init wizard to surface
+  the same data shipd's `init` endpoint runs through before accepting
+  an enforce flip.
 
   Props
   ─────────────────────────────────────────────────────────────────────
   auto-fetch (true|false, 'true')
-    When true (default), fires POST /api/v1/isolation/verify on
-    mount. Set to 'false' for views that already hold a verify
-    payload — pass it via the `steps` prop instead.
+    When true (default), fires the isolation verify probe on mount
+    via the isolation service. Set to 'false' for views that already
+    hold a verify payload — pass it via the `steps` prop instead.
   ok (true|false, 'false')
     Aggregate result. Reflected as a host attribute so a parent
     view can style based on it.

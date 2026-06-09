@@ -2,7 +2,7 @@
   <sui-isolation-badge> — compact tier label + status dot.
 
   Drops into any actor / agent view as a single chip. Reads from
-  /api/v1/isolation/status when no props are supplied, or accepts
+  the isolation service when no props are supplied, or accepts
   pre-resolved tier/strategy/downgraded via attributes for views
   that already have the data.
 
@@ -10,7 +10,7 @@
   ─────────────────────────────────────────────────────────────────────
   tier (none|process|container|vm|cloud|unknown, 'unknown')
     The resolved isolation tier. 'unknown' triggers an auto-fetch
-    on mount (controller calls /api/v1/isolation/status).
+    on mount (controller calls the isolation service via Connect).
   strategy (string, '')
     Resolved strategy id (noop, harness_native, srt, docker, ...).
     Surfaced in the tooltip; doesn't affect color.
