@@ -39,11 +39,13 @@ pub mod actor_api;
 #[cfg(test)]
 mod actor_api_tests;
 pub mod actors_api;
+#[cfg(feature = "ship-code")]
 pub mod agent_sessions_attach;
-#[cfg(test)]
+#[cfg(all(test, feature = "ship-code"))]
 mod agent_sessions_attach_tests;
 pub mod mcp_registry;
 pub mod artifacts_api;
+#[cfg(feature = "ship-code")]
 pub mod hooks_api;
 pub mod human_webhook;
 pub mod sandbox_api;

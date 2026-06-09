@@ -33,25 +33,31 @@ use crate::wire::MeshResponse;
 
 pub mod daemon;
 pub mod events;
+#[cfg(feature = "ship-code")]
 pub mod jobs;
+#[cfg(feature = "ship-code")]
 pub mod jobs_status;
+#[cfg(feature = "ship-code")]
 pub mod pipeline_run;
 
 pub use daemon::daemon_status;
 pub use events::{EventsPollQuery, event_stream};
+#[cfg(feature = "ship-code")]
 pub use jobs::{
     CancelJobRequest, EventSummary, PipelineRunDetailResponse, TurnEndRequest,
     cancel_job, end_job, get_job_detail, list_jobs,
 };
+#[cfg(feature = "ship-code")]
 pub use jobs_status::{step_done, update_job_status};
+#[cfg(feature = "ship-code")]
 pub use pipeline_run::run_pipeline;
 pub use ship_pipeline_runtime::run_core::PipelineRunRequest;
 
 // Helpers re-exported for the in-file test mod below.
-#[cfg(test)]
+#[cfg(all(test, feature = "ship-code"))]
 pub(crate) use jobs::drift_active_for_slug;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "ship-code"))]
 mod tests {
     use super::*;
     use axum::Extension;

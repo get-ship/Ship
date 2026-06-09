@@ -84,7 +84,7 @@ impl RuntimeService for OpsImpl {
             None => None,
         };
         let mut records =
-            crate::routes::runtime_api::jobs::list_processes_at(self.state().ship_dir(), request.slug)
+            ship_substrate::runtime_reads::list_processes_at(self.state().ship_dir(), request.slug)
                 .map_err(|e| ConnectError::internal(format!("procs: {e}")))?;
         if let Some(set) = kind_filter {
             records.retain(|r| set.contains(&r.executor_kind.as_str()));

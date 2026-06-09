@@ -10,18 +10,21 @@ use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    auth, ship_runtime,
-    sessions, views,
+    auth, ship_runtime, views,
 };
+#[cfg(feature = "ship-code")]
+use crate::sessions;
 use crate::routes::{
     actor_api, actors_api,
     artifacts_api,
-    hooks_api, human_webhook, logs_api,
+    human_webhook, logs_api,
     registry_api, rest_api, runtime_api,
     sandbox_api, schema_api, sdk_manifest, settings_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
 };
+#[cfg(feature = "ship-code")]
+use crate::routes::hooks_api;
 use crate::auth::{attest, pairing, session};
 use crate::transport::{cors, pty as pty_handler};
 use crate::routes::mcp_registry as mcp_registry;
@@ -49,6 +52,7 @@ pub fn build_router(
     let webhook_routes = Router::new()
         .route("/webhook/telegram", axum::routing::post(human_webhook::telegram_webhook))
         .with_state(rt.kernel().clone());
+    #[cfg(feature = "ship-code")]
     let hook_routes = Router::new()
         .route("/hooks/session-start", axum::routing::post(hooks_api::hook_session_start))
         .route("/hooks/before-tool", axum::routing::post(hooks_api::hook_before_tool))
@@ -219,7 +223,11 @@ pub fn build_router(
         // consumed by generated git-hook shell scripts that POST via curl and
         // can't speak Connect, so it's a permanent ingress holdout. Kept out of
         // `/api/v1` so that namespace can shrink to just the auth-bootstrap.
-        .merge(hook_routes)
+        // Gated: hooks_api uses ship-agents PTY session state (ship-code feature).
+        ;
+    #[cfg(feature = "ship-code")]
+    let authenticated_routes = authenticated_routes.merge(hook_routes);
+    let authenticated_routes = authenticated_routes
         .nest("/api", webhook_routes)
         // ConnectRPC op surface (ship.ops.v1) — additive, wrapped by
         // auth_middleware below so the gate sees AuthContext. See ops_rpc.
@@ -334,65 +342,35 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
     // reads) was removed; the kernel mailbox primitive is now reached
     // exclusively through actor_spawn + event_route + the kernel's own
     // directed delivery via `EventEnvelope.target_actor_id`.
-    Router::new()
-    .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
-    .ship_route(Route::EventRoute, actor_api::event_route)
-    .ship_route(Route::ListActors, actors_api::list_actors_handler)
-    // Capabilities (no state required; ok against a stateful router)
-    .ship_route(Route::Capabilities, rest_api::capabilities)
-    // Isolation reads are served by the proto IsolationService
-    // (ship.ops.v1) — the one op-surface path. The former
-    // /api/v1/isolation/* REST routes were removed to avoid a parallel
-    // path; init's gated-op migration lands at the connect cutover.
-    .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
-    .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
-    // Runtime
-    .ship_route(Route::ListJobs, runtime_api::list_jobs)
-        .ship_route(Route::PipelinesRun, runtime_api::run_pipeline)
-        .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
-        .ship_route(Route::EndJob, runtime_api::end_job)
-        .ship_route(Route::CancelJob_template(), runtime_api::cancel_job)
-        .ship_route(Route::RunStatusUpdate_template(), runtime_api::update_job_status)
-        .ship_route(Route::StepDoneSignal_template(), runtime_api::step_done)
+    // Base routes: always compiled regardless of feature flags.
+    let router = Router::new()
+        .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
+        .ship_route(Route::EventRoute, actor_api::event_route)
+        .ship_route(Route::ListActors, actors_api::list_actors_handler)
+        // Capabilities (no state required; ok against a stateful router)
+        .ship_route(Route::Capabilities, rest_api::capabilities)
+        // Isolation reads are served by the proto IsolationService
+        // (ship.ops.v1) — the one op-surface path.
+        .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
+        .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
+        // Runtime — daemon status is always available.
         .ship_route(Route::StreamJobLog_template(), logs_api::stream_job_log)
-        .ship_route(
-            Route::AttachAgentSession_template(),
-            crate::routes::agent_sessions_attach::attach_agent_session,
-        )
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
-        // Views — list + source now served by DiscoveryService (Connect, #139).
+        // Views
         .ship_route(Route::ShipSchema, schema_api::serve_schema)
         .ship_route(Route::ListViewFiles_template(), views::files_api::list_view_files)
         .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
         .ship_route(Route::WriteViewManifestApi_template(), views::write_api::write_view_manifest)
         .ship_route(Route::ForkView_template(), views::write_api::fork_view)
         .ship_route(Route::ThemeContrast, themes_api::theme_contrast)
-        .ship_route(Route::SpawnPtySession, sessions::api::spawn_session)
-        .ship_route(Route::ListPtySessions, sessions::api::list_pty_sessions)
-        .ship_route(Route::GetPtySession_template(), sessions::api::get_session)
-        .ship_route(Route::StopPtySession_template(), sessions::api::stop_session)
-        .ship_route(Route::PtySessionInput_template(), sessions::api::session_input)
-        .ship_route(Route::PtySessionResize_template(), sessions::api::session_resize)
-        .ship_route(Route::PtySessionMessage_template(), sessions::api::session_message)
-        .ship_route(Route::PtySessionReply_template(), sessions::api::session_reply)
-        .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
-        .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
-        .ship_route(Route::InstalledProviders, sessions::api::installed_harnesses)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         // `POST /_sui/mutation/{name}` — tombstoned PE form endpoint.
-        // The server-side string dispatch was removed; JS-attached mutations
-        // call the SDK directly. The SUI compiler still writes this URL as
-        // the form `action` attribute for PE fallback, so the route stays as
-        // a 410 Gone rather than being deleted outright.
         .route(
             "/_sui/mutation/{name}",
             axum::routing::post(|| async { axum::http::StatusCode::GONE }),
         )
         // `POST /_sui/views/{name}/patch-elements` — agent-push DOM patches.
-        // Authenticated (requires `Scope::Full`); the rest of the `/_sui/*`
-        // surface is public and lives in `public_routes`. The handler takes
-        // no router state, so it composes cleanly into this stateful group.
         .ship_route(
             Route::SuiPatchElements_template(),
             views::sui_agent_push::serve_patch_elements,
@@ -411,23 +389,11 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             Route::DispatchViewEditTool_template(),
             view_edit_tool_api::dispatch_tool,
         )
-        // Registry — gateway proxy. The daemon attaches the user's API key
-        // and forwards to the gateway. CLI never talks to the gateway.
+        // Registry — gateway proxy.
         .ship_route(Route::Publish, registry_api::publish)
-        // AgentsService — generic CRUD + lifecycle. First-party and
-        // third-party views use this surface equally.
-        // PipelineService — CRUD + run ops. Dispatch / cancel / log-stream
-        // wrap the existing kernel-backed handlers so the write paths stay
-        // single-sourced.
+        // PipelineService log stream (read-only, ungated).
         .ship_route(Route::PipelineRunLogStream_template(), logs_api::stream_job_log)
-        // RuleService — markdown rules.
-        // PermissionService — preset entries + composed tool-patterns.
-        // SkillService — service-shaped CRUD + file tree + vars. Replaces
-        // the project-scoped skill endpoints that used to hang off
-        // /api/v1/projects/{id}/skills/*.
         // Events / projections — EventStream is the live surface.
-        // RebuildProjections was removed (no caller; the kernel self-heals
-        // projections from the event log on demand).
         .ship_route(Route::EventStream, runtime_api::event_stream)
         .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
         .ship_route(Route::ListProviders, settings_api::list_harnesses)
@@ -449,17 +415,42 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ViewMeta_template(), sdk_manifest::get_view_meta)
         .ship_route(Route::SdkRoot, sdk_manifest::get_sdk_root)
         .ship_route(Route::SdkQuery, sdk_manifest::query_sdk_handler)
-        // Client-side view error capture — GET/POST/DELETE on one path,
-        // merged into a single MethodRouter (axum panics on duplicate paths
-        // across `.route()` calls). Canonical path comes from the Route enum
-        // so URL builders (TS, Jinja) stay consistent.
+        // Client-side view error capture
         .route(
             "/api/v1/view-errors",
             axum::routing::post(view_errors_api::post_error)
                 .get(view_errors_api::list_errors)
                 .delete(view_errors_api::clear_errors),
+        );
+
+    // Harness routes: job management, session spawn/control, agent attach.
+    // Only compiled when ship-code feature is enabled.
+    #[cfg(feature = "ship-code")]
+    let router = router
+        .ship_route(Route::ListJobs, runtime_api::list_jobs)
+        .ship_route(Route::PipelinesRun, runtime_api::run_pipeline)
+        .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
+        .ship_route(Route::EndJob, runtime_api::end_job)
+        .ship_route(Route::CancelJob_template(), runtime_api::cancel_job)
+        .ship_route(Route::RunStatusUpdate_template(), runtime_api::update_job_status)
+        .ship_route(Route::StepDoneSignal_template(), runtime_api::step_done)
+        .ship_route(
+            Route::AttachAgentSession_template(),
+            crate::routes::agent_sessions_attach::attach_agent_session,
         )
-        .with_state(st)
+        .ship_route(Route::SpawnPtySession, sessions::api::spawn_session)
+        .ship_route(Route::ListPtySessions, sessions::api::list_pty_sessions)
+        .ship_route(Route::GetPtySession_template(), sessions::api::get_session)
+        .ship_route(Route::StopPtySession_template(), sessions::api::stop_session)
+        .ship_route(Route::PtySessionInput_template(), sessions::api::session_input)
+        .ship_route(Route::PtySessionResize_template(), sessions::api::session_resize)
+        .ship_route(Route::PtySessionMessage_template(), sessions::api::session_message)
+        .ship_route(Route::PtySessionReply_template(), sessions::api::session_reply)
+        .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
+        .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
+        .ship_route(Route::InstalledProviders, sessions::api::installed_harnesses);
+
+    router.with_state(st)
 }
 
 /// Convert a handler panic into a structured 500 response instead of

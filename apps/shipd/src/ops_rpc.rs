@@ -561,8 +561,11 @@ pub fn router(state: ApiState) -> axum::Router {
         });
     let dispatch_port: std::sync::Arc<dyn ship_agents::services::agents::dispatch_core::AgentDispatchPort> =
         Arc::new(crate::agent_event_ports::AgentDispatchAdapter::new(state.clone()));
-    let stop_state = state.clone();
-    let stop_fn: ship_agents::services::agents::rpc_wire::StopFn =
+    // stop_fn: kill a running agent via the dispatch process registry.
+    // Gated: dispatch_handle() only exists when ship-code feature is on.
+    #[cfg(feature = "ship-code")]
+    let stop_fn: ship_agents::services::agents::rpc_wire::StopFn = {
+        let stop_state = state.clone();
         Arc::new(move |slug: String| {
             let st = stop_state.clone();
             Box::pin(async move {
@@ -581,9 +584,17 @@ pub fn router(state: ApiState) -> axum::Router {
                     .map_err(|e| ConnectError::internal(format!("failed to stop agent: {e}")))?;
                 Ok(serde_json::json!({ "slug": slug, "stopped": true }))
             })
-        });
-    let steer_state = state.clone();
-    let steer_fn: ship_agents::services::agents::rpc_wire::SteerFn =
+        })
+    };
+    #[cfg(not(feature = "ship-code"))]
+    let stop_fn: ship_agents::services::agents::rpc_wire::StopFn =
+        Arc::new(|_slug: String| Box::pin(async { Err(ConnectError::internal("dispatch not available")) }));
+
+    // steer_fn: send a message to a running agent via the dispatch process registry.
+    // Gated: dispatch_handle() only exists when ship-code feature is on.
+    #[cfg(feature = "ship-code")]
+    let steer_fn: ship_agents::services::agents::rpc_wire::SteerFn = {
+        let steer_state = state.clone();
         Arc::new(move |slug: String, message: String| {
             let st = steer_state.clone();
             Box::pin(async move {
@@ -599,7 +610,11 @@ pub fn router(state: ApiState) -> axum::Router {
                     .map_err(|e| ConnectError::internal(format!("failed to steer agent: {e}")))?;
                 Ok(serde_json::json!({ "slug": slug, "steered": true }))
             })
-        });
+        })
+    };
+    #[cfg(not(feature = "ship-code"))]
+    let steer_fn: ship_agents::services::agents::rpc_wire::SteerFn =
+        Arc::new(|_slug: String, _message: String| Box::pin(async { Err(ConnectError::internal("dispatch not available")) }));
     let grant_state = state.clone();
     let grant_fn: ship_agents::services::agents::rpc_wire::GrantFn =
         Arc::new(move |agent: String, new_grants: Vec<String>, ctx: connectrpc::RequestContext| {
