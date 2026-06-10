@@ -2198,6 +2198,7 @@ dependencies = [
  "async-trait",
  "deno_core",
  "deno_error",
+ "futures",
  "json5",
  "parking_lot",
  "rig-core",
