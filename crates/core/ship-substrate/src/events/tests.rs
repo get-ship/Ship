@@ -409,13 +409,9 @@ fn registry_vs_all_ratchet() {
         "agent.session.dispatched",
         "agent.session.failed",
         "agent.session.started",
-        // collection.* CRUD family — registered classification landed ahead of
-        // the emit/const wiring (no event_types consts yet).
-        "collection.created",
-        "collection.item_created",
-        "collection.item_deleted",
-        "collection.item_updated",
-        "collection.schema.changed",
+        // collection.* CRUD family moved to L1 (ship-collection keystone A,
+        // 2026-06-10): these 5 events are now registered by
+        // ship_collection::event_registrations — removed from this ratchet.
         // hook.* family — being converted to canonical op.* (#25b); consts were
         // never added to ALL and the family deregisters when the conversion lands.
         "hook.permission_denied",

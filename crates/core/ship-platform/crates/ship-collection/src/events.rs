@@ -1,9 +1,16 @@
-// -- Collection events -------------------------------------------------------
+// -- Collection event payloads -----------------------------------------------
+//
+// These structs moved here from `ship_types::payload::collection` as part of
+// the keystone-A de-bucket (2026-06-10): the COLLECTION domain now owns its
+// events + projections at L1. The rationale is that payload structs belong
+// with the domain that authors and interprets them; moving them out of the
+// shared L0 `ship-types` crate follows the same pattern as the `session.*`
+// family migration to `agent-def`.
 
 use serde::{Deserialize, Serialize};
 
 /// `collection.item_created` — projection-complete: carries the full validated
-/// item so `CollectionProjection` can materialize the row from the event alone
+/// item so `CollectionItemProjection` can materialize the row from the event alone
 /// (event-sourced, no read-back). `data` is the validated item object (schema
 /// fields only); `created_at`/`updated_at` are the row timestamps.
 #[derive(Debug, Serialize, Deserialize)]

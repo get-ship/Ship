@@ -25,56 +25,12 @@
 //! Fail-closed default (undetermined): runtime, durable.
 
 
-use ship_types::event_registry::{EventDef, EventRegistration, EventScope, Retention, Stability};
+use ship_types::event_registry::{EventScope, Retention, Stability};
 
-// ── Macro-free registration helper ───────────────────────────────────────────────────────────────────
-// We don't use #[derive(EventPayload)] here because the generated code references
-// `::ship_types::event_registry::*` via absolute path, which works fine in ship-substrate
-// (a downstream crate). We use inventory::submit! directly for clarity and to avoid
-// adding the proc-macro as a compile-time dependency on every struct.
-
-/// Register one event type with its **allowed-set** of scopes (Model C).
-///
-/// The scope argument is a square-bracketed list of one-or-more `EventScope`s.
-/// A size-1 set (the common case) is the single-scope model: the lone element
-/// is both the primary (stamped at `EventEnvelope::new`) and the only scope the
-/// emission may ride. Poly-scopic events list every scope they may ride; the
-/// emission's binding picks one and `enforce_scope` validates membership +
-/// authorization.
-macro_rules! register_event {
-    // The scopes are passed as a bracketed, comma-separated list of one-or-more
-    // `EventScope`s (the allowed-SET, Model C). Captured element-by-element so
-    // the array is rebuilt inside the macro — `&[ ... ]` then unsizes to the
-    // `&'static [EventScope]` field. A size-1 set is the single-scope model.
-    // The final argument is the payload TYPE PATH: the registration carries
-    // its own schema validator (Phase 4a — deserialize-into-the-declared-type),
-    // so registering an event without a real payload type is impossible. The
-    // string form ($type_name) stays as the stable identifier the fixture/
-    // codegen tools key on.
-    ($name:expr, [$($scope:expr),+ $(,)?], $retention:expr, $stability:expr, $type_name:expr, $payload:ty) => {
-        inventory::submit! {
-            EventRegistration {
-                def: || {
-                    fn validate(json: &str) -> Result<(), String> {
-                        serde_json::from_str::<$payload>(json)
-                            .map(|_| ())
-                            .map_err(|e| e.to_string())
-                    }
-                    static DEF: EventDef = EventDef {
-                        name: $name,
-                        allowed_scopes: &[$($scope),+],
-                        retention: $retention,
-                        stability: $stability,
-                        since_version: None,
-                        payload_type_name: $type_name,
-                        validate_payload: validate,
-                    };
-                    &DEF
-                },
-            }
-        }
-    };
-}
+// Use the hoisted register_event! macro from ship-types (event_registry module).
+// The macro is #[macro_export] from ship-types; importing it here brings it
+// into scope for all the register_event! calls below.
+use ship_types::register_event;
 
 // ── account.* ───────────────────────────────────────────────────────────────
 register_event!("account.key_refreshed", [EventScope::Account], Retention::Ephemeral, Stability::Stable, "AccountKeyRefreshed", crate::events::types::AccountKeyRefreshed);
@@ -125,11 +81,10 @@ register_event!("auth.session.revoked", [EventScope::Account], Retention::Durabl
 // `daemon_internal(space)`; a Space registration would hard-reject the
 // space-unbound user-library emit (`NoSpaceForSpaceEvent`).
 register_event!("collection.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ConfigChanged", crate::events::types::ConfigChanged);
-register_event!("collection.created", [EventScope::Space], Retention::Durable, Stability::Stable, "CollectionCreated", crate::events::types::CollectionCreated);
-register_event!("collection.item_created", [EventScope::Space], Retention::Durable, Stability::Stable, "CollectionItemCreated", crate::events::types::CollectionItemCreated);
-register_event!("collection.item_deleted", [EventScope::Space], Retention::Durable, Stability::Stable, "CollectionItemDeleted", crate::events::types::CollectionItemDeleted);
-register_event!("collection.item_updated", [EventScope::Space], Retention::Durable, Stability::Stable, "CollectionItemUpdated", crate::events::types::CollectionItemUpdated);
-register_event!("collection.schema.changed", [EventScope::Space], Retention::Durable, Stability::Stable, "CollectionSchemaChanged", crate::events::types::CollectionSchemaChanged);
+// collection.created / collection.item_* / collection.schema.changed — the 5
+// CRUD events are now registered at L1 by `ship-collection`'s own
+// `event_registrations` module (keystone-A de-bucket: collection domain owns
+// its events at L1). They are no longer registered here.
 
 // ── compile.* ───────────────────────────────────────────────────────────────
 register_event!("compile.completed", [EventScope::Space], Retention::Durable, Stability::Stable, "CompileCompleted", crate::events::types::CompileCompleted);

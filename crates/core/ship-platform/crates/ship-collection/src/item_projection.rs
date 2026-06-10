@@ -1,4 +1,4 @@
-//! `collection` projection — event-sourced collection items (ADR D6/D7).
+//! `CollectionItemProjection` — event-sourced collection items (ADR D6/D7).
 //!
 //! The collection write path is EMIT-ONLY: `ship_collection::CollectionService`
 //! validates an item and emits a `collection.*` event; it no longer writes the
@@ -11,24 +11,22 @@
 //! projection materializes that space's tables THERE: per-space isolation is
 //! automatic.
 //!
-//! Lives at L0 (substrate) because it consumes substrate events and writes the
-//! relational read-model through the same SQLite layout as
-//! [`crate::ports::SingleBackendDataStore`] (`id` PK, `space_id` NOT NULL, then
-//! schema columns), so the read path (`ctx.data()`, bound to the same per-scope
-//! db) queries exactly what this projection wrote. It depends only on the
-//! `ship_types::payload` collection structs + the shared `is_safe_ident`
-//! validator — no platform-layer types — so it ships in the default bus and is
-//! present for every per-scope store without a registration hop.
+//! Lives at L1 (ship-collection) because the COLLECTION domain owns its events
+//! + projections (keystone A, ratified 2026-06-10). It keeps identical same-TX
+//! semantics because the factory that registers it into the default bus runs
+//! inside the SAME SQLite transaction as the event append — no atomicity is lost
+//! by moving this projection from L0 to L1 via the factory seam.
 
 use anyhow::{anyhow, Result};
 use serde_json::Value;
 use sqlx::SqliteConnection;
 
-use crate::db::block_on;
-use crate::ports::{is_safe_ident, ColumnKind};
-use crate::projections::registry::Projection;
+use ship_substrate::db::block_on;
+use ship_substrate::ports::{is_safe_ident, ColumnKind};
+use ship_substrate::projections::Projection;
 use ship_types::envelope::EventEnvelope;
-use ship_types::payload::{
+
+use crate::events::{
     CollectionCreated, CollectionItemCreated, CollectionItemDeleted, CollectionItemUpdated,
     CollectionSchemaChanged,
 };
@@ -40,9 +38,9 @@ const ITEM_UPDATED: &str = "collection.item_updated";
 const ITEM_DELETED: &str = "collection.item_deleted";
 
 /// Materializes `collection_<id>` tables from `collection.*` events.
-pub struct CollectionProjection;
+pub struct CollectionItemProjection;
 
-impl Projection for CollectionProjection {
+impl Projection for CollectionItemProjection {
     fn name(&self) -> &str {
         "collection"
     }
@@ -308,7 +306,7 @@ fn check_ident(s: &str) -> Result<()> {
 
 /// Map a schema field definition's `type` to the storage `ColumnKind`. Mirrors
 /// `ship_collection::types::FieldKind::to_column_kind` (number → Real, boolean →
-/// Boolean, everything else → Text) without depending on that crate.
+/// Boolean, everything else → Text) without depending on ship_collection types.
 fn field_kind(def: &Value) -> ColumnKind {
     match def.get("type").and_then(|t| t.as_str()) {
         Some("number") => ColumnKind::Real,

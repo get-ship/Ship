@@ -4,52 +4,12 @@
 //! event registry using the `inventory::submit!` mechanism, making them
 //! available to downstream code that calls `event_registry::registry()`.
 //!
-//! The `register_event!` macro is copied from ship-substrate's payload_registry.rs
-//! because it is not exported; it must be re-defined locally here.
+//! Uses the hoisted `register_event!` macro from `ship_types` (formerly a
+//! local copy in both payload_registry.rs and here; de-duped in keystone-A
+//! de-bucket — collection domain owns its events at L1).
 
-use ship_types::event_registry::{EventDef, EventRegistration, EventScope, Retention, Stability};
-
-/// Register one event type with its **allowed-set** of scopes (Model C).
-///
-/// The scope argument is a square-bracketed list of one-or-more `EventScope`s.
-/// A size-1 set (the common case) is the single-scope model: the lone element
-/// is both the primary (stamped at `EventEnvelope::new`) and the only scope the
-/// emission may ride. Poly-scopic events list every scope they may ride; the
-/// emission's binding picks one and `enforce_scope` validates membership +
-/// authorization.
-macro_rules! register_event {
-    // The scopes are passed as a bracketed, comma-separated list of one-or-more
-    // `EventScope`s (the allowed-SET, Model C). Captured element-by-element so
-    // the array is rebuilt inside the macro — `&[ ... ]` then unsizes to the
-    // `&'static [EventScope]` field. A size-1 set is the single-scope model.
-    // The final argument is the payload TYPE PATH: the registration carries
-    // its own schema validator (Phase 4a — deserialize-into-the-declared-type).
-    // The string form ($type_name) stays as the stable identifier the
-    // fixture/codegen tools key on.
-    ($name:expr, [$($scope:expr),+ $(,)?], $retention:expr, $stability:expr, $type_name:expr, $payload:ty) => {
-        inventory::submit! {
-            EventRegistration {
-                def: || {
-                    fn validate(json: &str) -> Result<(), String> {
-                        serde_json::from_str::<$payload>(json)
-                            .map(|_| ())
-                            .map_err(|e| e.to_string())
-                    }
-                    static DEF: EventDef = EventDef {
-                        name: $name,
-                        allowed_scopes: &[$($scope),+],
-                        retention: $retention,
-                        stability: $stability,
-                        since_version: None,
-                        payload_type_name: $type_name,
-                        validate_payload: validate,
-                    };
-                    &DEF
-                },
-            }
-        }
-    };
-}
+use ship_types::event_registry::{EventScope, Retention, Stability};
+use ship_types::register_event;
 
 // ── session.* / session.turn.* (canonical — jobs: canonical-session-events +
 // workbench-teardown) ──────────────────────────────────────────────────

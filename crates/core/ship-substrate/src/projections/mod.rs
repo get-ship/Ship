@@ -13,7 +13,6 @@
 pub mod actor;
 pub mod artifact;
 pub mod async_projection;
-pub mod collection;
 pub mod grants;
 pub mod process;
 pub mod registry;
@@ -27,7 +26,9 @@ mod tests_daemon_events;
 pub use actor::ActorProjection;
 pub use artifact::ArtifactProjection;
 pub use async_projection::{AsyncProjection, spawn_projection};
-pub use collection::CollectionProjection;
+// CollectionProjection moved to ship-collection::item_projection (keystone A,
+// 2026-06-10). The COLLECTION domain owns its projections at L1; it is wired
+// into the bus via ship-platform's install_extra_projections_factory call.
 pub use grants::{
     ProvisionedGrantsProjection, ProvisionedGrantsRow, provisioned_grants_for,
     provisioned_grants_for_at, provisioned_row,

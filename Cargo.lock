@@ -8618,6 +8618,7 @@ dependencies = [
 name = "ship-collection"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-stream",
  "async-trait",
  "buffa",
@@ -8631,6 +8632,7 @@ dependencies = [
  "ship-reactive",
  "ship-substrate",
  "ship-types",
+ "sqlx",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",

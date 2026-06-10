@@ -12,7 +12,9 @@ mod account;
 mod actor;
 mod artifact;
 mod auth;
-mod collection;
+// collection payload structs moved to ship-collection/src/events.rs
+// (keystone-A de-bucket, 2026-06-10): the COLLECTION domain owns its events
+// at L1. No re-export shim — consumers import from ship_collection::events.
 mod compile;
 mod config;
 mod crud;
@@ -35,10 +37,8 @@ pub use actor::{
 };
 pub use artifact::{ArtifactCreated, ArtifactDeleted, ArtifactMoved, ArtifactUpdated};
 pub use auth::{AgentGrantsProvisioned, AuthSessionCreated, AuthSessionExpired, AuthSessionRevoked};
-pub use collection::{
-    CollectionCreated, CollectionItemCreated, CollectionItemDeleted, CollectionItemUpdated,
-    CollectionSchemaChanged,
-};
+// CollectionCreated / CollectionItem* / CollectionSchemaChanged moved to
+// ship-collection/src/events.rs — no re-export here.
 pub use compile::CompileCompleted;
 pub use config::{ConfigChanged, ConfigFileChanged, ProjectLog, SettingChanged, SpaceSettingChanged};
 pub use crud::{

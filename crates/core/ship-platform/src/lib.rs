@@ -125,6 +125,12 @@ fn install_defaults_inner() {
             // canonical_sessions (runtime.db). Replaces the legacy
             // AgentSessionProjection (retired by canonical-emitter-migration).
             Box::new(ship_agents::services::sessions::CanonicalSessionProjection),
+            // CollectionItemProjection — event-sourced collection rows (ADR
+            // D6/D7). Moved here from the L0 default bus (keystone A,
+            // 2026-06-10): the COLLECTION domain owns its projection at L1.
+            // Same-TX guarantee is preserved because this factory runs inside
+            // the same SQLite transaction as the event append.
+            Box::new(ship_collection::item_projection::CollectionItemProjection),
             // ship-analytics — folds hook.* into rollup tables. Lives
             // in its own crate (queries, cost, mining) so downstream
             // dashboard / billing / harness-mining work has a home
