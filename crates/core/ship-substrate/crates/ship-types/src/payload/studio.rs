@@ -1,33 +1,3 @@
-// -- Studio events (added in Spec 6) -----------------------------------------
-
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StudioAnnotationCreated {
-    pub annotation_id: String,
-    pub session_id: String,
-    pub text: String,
-    #[serde(default)]
-    pub artifact_id: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StudioFeedbackCreated {
-    pub feedback_id: String,
-    pub rating: Option<i32>,
-    pub comment: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StudioChatTurn {
-    pub session_id: String,
-    pub text: String,
-    #[serde(default)]
-    pub agent_id: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct StudioReply {
-    pub actor_id: String,
-    pub text: String,
-}
+// Studio payload structs moved to ship-agents/src/studio_events.rs
+// (keystone-A de-bucket, 2026-06-10): the STUDIO domain owns its events at L1.
+// No re-export shim — consumers import from ship_agents::studio_events.

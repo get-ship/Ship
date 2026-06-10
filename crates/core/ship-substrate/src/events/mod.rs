@@ -30,10 +30,10 @@ pub use crate::persistence::{
 pub use crate::persistence::event_store as store;
 // Modules kept here (implement runtime-specific logic)
 pub mod agent_session;
-pub mod annotation;
+// annotation.rs + feedback.rs moved to ship-agents (keystone-A de-bucket,
+// 2026-06-10): the STUDIO domain owns its payload types at L1.
 pub mod daemon;
 pub mod executor;
-pub mod feedback;
 pub mod filter;
 pub mod global_kernel_router;
 pub mod payload_registry;
@@ -43,10 +43,6 @@ pub mod kernel_lifecycle;
 pub mod kernel_router;
 pub mod payload_schema;
 pub mod validator;
-
-pub use feedback::{
-    AuthorKind, FeedbackEvent, FeedbackIntent, FeedbackKind, FeedbackTarget, Selection,
-};
 
 pub use filter::EventFilter;
 pub use kernel_router::KernelRouter;

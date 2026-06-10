@@ -187,10 +187,10 @@ register_event!("process.spawned", [EventScope::Runtime], Retention::Ephemeral, 
 // 2026-06-10): space.setting.changed — the SPACE domain owns it at L1.
 
 // ── studio.* ────────────────────────────────────────────────────────────────
-register_event!("studio.annotation.created", [EventScope::Space], Retention::Durable, Stability::Stable, "StudioAnnotationCreated", crate::events::types::StudioAnnotationCreated);
-register_event!("studio.chat_turn", [EventScope::Space], Retention::Durable, Stability::Stable, "StudioChatTurn", crate::events::types::StudioChatTurn);
-register_event!("studio.feedback.created", [EventScope::Space], Retention::Durable, Stability::Stable, "StudioFeedbackCreated", crate::events::types::StudioFeedbackCreated);
-register_event!("studio.reply", [EventScope::Space], Retention::Durable, Stability::Stable, "StudioReply", crate::events::types::StudioReply);
+// Moved to ship-agents/src/event_registrations.rs (keystone-A de-bucket,
+// 2026-06-10): studio.annotation.created / studio.chat_turn /
+// studio.feedback.created / studio.reply — the STUDIO domain owns its
+// events at L1 in ship-agents (the dominant emitter for 3 of 4 events).
 
 // ── supervisor.* ────────────────────────────────────────────────────────────
 // The 4 supervisor.sweep_*/drift/coherence registrations moved to

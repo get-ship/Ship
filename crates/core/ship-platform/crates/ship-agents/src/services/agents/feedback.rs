@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::feedback::{AuthorKind, FeedbackEvent, FeedbackKind};
+use crate::feedback::{AuthorKind, FeedbackEvent, FeedbackKind};
 use ship_substrate::events::validator::EmitContext;
 use ship_substrate::ports::KernelLog;
 use thiserror::Error;

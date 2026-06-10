@@ -827,7 +827,7 @@ impl AgentsServiceTrait for AgentsWire {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedPostFeedbackRequestView,
     ) -> ServiceResult<ship_ops_rpc::PostFeedbackResponse> {
-        let ev: ship_substrate::events::feedback::FeedbackEvent =
+        let ev: crate::feedback::FeedbackEvent =
             serde_json::from_str(&request.event_json)
                 .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
         let (agent_id, emit_ctx) = self.feedback_auth.extract(&ctx)?;
@@ -850,7 +850,7 @@ impl AgentsServiceTrait for AgentsWire {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedPostAnnotationRequestView,
     ) -> ServiceResult<ship_ops_rpc::PostAnnotationResponse> {
-        let ev: ship_substrate::events::annotation::AnnotationEvent =
+        let ev: crate::annotation::AnnotationEvent =
             serde_json::from_str(&request.event_json)
                 .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
         let (_agent_id, emit_ctx) = self.feedback_auth.extract(&ctx)?;

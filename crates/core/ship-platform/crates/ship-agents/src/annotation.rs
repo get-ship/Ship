@@ -1,7 +1,11 @@
-//! Phase 2 annotation payload — pinned in Phase 1 so agents can consume
+//! Annotation payload — pinned in Phase 1 so agents can consume
 //! `studio.annotation.created` from day one without a second wire-format
 //! migration. See `.artifacts/phase-1-agent-canvas-views-spec.md`
 //! §"Phase 2 integration contract".
+//!
+//! Moved from `ship_substrate::events::annotation` (keystone-A de-bucket,
+//! 2026-06-10): the STUDIO/annotation domain owns its events at L1 in
+//! `ship-agents`.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -10,8 +14,8 @@ use specta::Type;
 // `AuthorKind` and `Selection` are shared with `feedback.rs`. Re-export the
 // canonical definitions so the specta TS surface emits a single type name
 // per concept. External consumers can continue to import them via
-// `ship_substrate::events::annotation::{AuthorKind, Selection}`.
-pub use super::feedback::{AuthorKind, Selection};
+// `ship_agents::annotation::{AuthorKind, Selection}`.
+pub use crate::feedback::{AuthorKind, Selection};
 
 /// A single user- or agent-authored annotation on a live canvas, spec doc,
 /// or file.
