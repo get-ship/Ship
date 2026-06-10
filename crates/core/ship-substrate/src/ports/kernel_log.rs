@@ -30,15 +30,27 @@ pub struct KernelLog {
     router: Arc<Mutex<KernelRouter>>,
     tx: Arc<broadcast::Sender<EventEnvelope>>,
     cursor: Arc<std::sync::Mutex<Option<String>>>,
+    /// The router's immutable base dir, cached so [`Self::try_ship_dir`] never
+    /// races the router lock. Seeded at construction (the router is virtually
+    /// always uncontended then); self-seals on the first successful read
+    /// otherwise. Verifier-caught fix: a bare `try_lock()` here made
+    /// `activate()` transiently fail and `add()` emit duplicate registrations
+    /// whenever a concurrent `emit()` held the lock.
+    base_dir: Arc<std::sync::OnceLock<std::path::PathBuf>>,
 }
 
 impl KernelLog {
     pub fn new(router: Arc<Mutex<KernelRouter>>) -> Self {
         let (tx, _) = broadcast::channel(BROADCAST_CAPACITY);
+        let base_dir = Arc::new(std::sync::OnceLock::new());
+        if let Ok(r) = router.try_lock() {
+            let _ = base_dir.set(r.base_dir().to_path_buf());
+        }
         Self {
             router,
             tx: Arc::new(tx),
             cursor: Arc::new(std::sync::Mutex::new(None)),
+            base_dir,
         }
     }
 
@@ -108,18 +120,20 @@ impl KernelLog {
         self.tx.receiver_count()
     }
 
-    /// Return the ship-home directory this kernel is rooted at, if available
-    /// via a non-blocking try_lock on the router.
+    /// Return the ship-home directory this kernel is rooted at.
     ///
     /// Used by the space-registry dissolution so async registry reads can open
     /// the `projects` SQL table without exposing sqlx types into ship-space.
-    /// Returns `None` if the router lock is momentarily held (callers should
-    /// treat `None` as "no registered spaces yet").
+    /// Reads the construction-time cache; only if construction raced an emit
+    /// does it fall back to a try_lock (and then seals the cache so the race
+    /// can never recur). `None` is therefore vanishingly rare and transient.
     pub fn try_ship_dir(&self) -> Option<std::path::PathBuf> {
-        self.router
-            .try_lock()
-            .ok()
-            .map(|r| r.base_dir().to_path_buf())
+        if let Some(dir) = self.base_dir.get() {
+            return Some(dir.clone());
+        }
+        let dir = self.router.try_lock().ok().map(|r| r.base_dir().to_path_buf())?;
+        let _ = self.base_dir.set(dir.clone());
+        Some(dir)
     }
 
     /// Return the cursor at the current tail of this log (the id of the last

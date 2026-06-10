@@ -251,12 +251,19 @@ async fn activate_switches_pointer_and_emits_switched() {
     assert_eq!(active.id, r.id);
     assert_eq!(svc.active_id().await.unwrap().as_deref(), Some(r.id.as_str()));
 
-    // project.switched was emitted.
-    let event = tokio::time::timeout(Duration::from_secs(2), rx.recv())
+    // The dissolution made the former silent `touch` an EVENT: activate()
+    // emits project.seen (bumps last_seen_at via ProjectsProjection) and THEN
+    // project.switched. Pin the sequence.
+    let first = tokio::time::timeout(Duration::from_secs(2), rx.recv())
         .await
         .expect("timeout")
         .expect("closed");
-    assert_eq!(event.event_type, "project.switched");
+    assert_eq!(first.event_type, "project.seen");
+    let second = tokio::time::timeout(Duration::from_secs(2), rx.recv())
+        .await
+        .expect("timeout")
+        .expect("closed");
+    assert_eq!(second.event_type, "project.switched");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
