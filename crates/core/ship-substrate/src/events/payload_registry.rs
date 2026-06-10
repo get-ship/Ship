@@ -137,16 +137,16 @@ register_event!("kernel.actor.snapshot", [EventScope::Runtime], Retention::Durab
 register_event!("kernel.actor.suspended", [EventScope::Runtime], Retention::Durable, Stability::Stable, "KernelActorSuspended", crate::events::types::KernelActorSuspended);
 
 // ── mesh.* ──────────────────────────────────────────────────────────────────
-register_event!("mesh.broadcast", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "MeshBroadcast", crate::events::types::MeshBroadcast);
+// 7 mesh.* registrations DELETED (residue cull, 2026-06-10): they were the
+// vocabulary of the killed MeshService op surface (mesh.broadcast /
+// registered / deregistered / send / send.failed / status /
+// discover.response — zero live emitters; see shipd/lib.rs "MeshService was
+// killed"). The LIVE mesh mechanism is exactly: mesh.register +
+// mesh.deregister (actor connect/disconnect facts) + mesh.message (the
+// kernel directed-delivery vehicle).
 register_event!("mesh.deregister", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "MeshDeregister", crate::events::types::MeshDeregister);
-register_event!("mesh.deregistered", [EventScope::Runtime], Retention::Durable, Stability::Stable, "MeshDeregistered", crate::events::types::MeshDeregistered);
-register_event!("mesh.discover.response", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "MeshDiscoverResponse", crate::events::types::MeshDiscoverResponse);
 register_event!("mesh.message", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "MeshMessage", crate::events::types::MeshMessage);
 register_event!("mesh.register", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "MeshRegister", crate::events::types::MeshRegister);
-register_event!("mesh.registered", [EventScope::Runtime], Retention::Durable, Stability::Stable, "MeshRegistered", crate::events::types::MeshRegistered);
-register_event!("mesh.send", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "MeshSend", crate::events::types::MeshSend);
-register_event!("mesh.send.failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "MeshSendFailed", crate::events::types::MeshSendFailed);
-register_event!("mesh.status", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "MeshStatus", crate::events::types::MeshStatus);
 
 // ── permissions.* ───────────────────────────────────────────────────────────
 // Runtime audit emit: the agent-file CRUD helper takes a ship_dir but no

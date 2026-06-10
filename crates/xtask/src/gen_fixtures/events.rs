@@ -173,16 +173,9 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "KernelActorSuspended" => json!({ "actor_id": "test-actor", "reason": "idle-timeout" }),
 
         // ── Mesh events ──────────────────────────────────────────────────────
-        "MeshBroadcast" => json!({ "message_type": "test.broadcast" }),
         "MeshDeregister" => json!({ "actor_id": "test-actor" }),
-        "MeshDeregistered" => json!({ "actor_id": "test-actor" }),
-        "MeshDiscoverResponse" => json!({ "peers": ["peer-1", "peer-2"] }),
         "MeshMessage" => json!({ "from": "actor-a", "to": "actor-b", "message_type": "test.msg" }),
         "MeshRegister" => json!({ "actor_id": "test-actor", "namespace": "test-ns" }),
-        "MeshRegistered" => json!({ "actor_id": "test-actor", "namespace": "test-ns" }),
-        "MeshSend" => json!({ "from": "actor-a", "to": "actor-b" }),
-        "MeshSendFailed" => json!({ "from": "actor-a", "to": "actor-b", "error": "mailbox full" }),
-        "MeshStatus" => json!({ "actor_id": "test-actor", "status": "running" }),
 
         // ── Permission events ────────────────────────────────────────────────
         "PermissionsUpdated" => json!({

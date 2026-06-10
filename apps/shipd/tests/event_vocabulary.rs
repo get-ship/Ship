@@ -26,7 +26,7 @@ use ship_types::event_types::canonical_session::{ALL_CANONICAL_OP, ALL_CANONICAL
 fn full_registry_count_is_pinned() {
     let n = event_registry::all_names().len();
     assert_eq!(
-        n, 136,
+        n, 129,
         "the full event vocabulary changed size. Bump this pin with your \
          event addition/removal so vocabulary changes stay conscious."
     );
@@ -48,7 +48,7 @@ fn every_registered_validator_rejects_garbage() {
         );
         checked += 1;
     }
-    assert!(checked >= 130, "expected the full linked registry, got {checked}");
+    assert!(checked >= 120, "expected the full linked registry, got {checked}");
 }
 
 /// The domain-owned closed family lists are fully registered at full linkage.

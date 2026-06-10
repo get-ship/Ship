@@ -337,7 +337,9 @@ fn registry_has_entries() {
     // Floor lowered as keystone-A de-buckets domains to L1 crates. The exact
     // L0 count is pinned by `l0_registry_shrinks_under_keystone_a`; this
     // floor is just a smoke check that the binary isn't empty.
-    assert!(count >= 75, "registry must have at least 75 events; got {count}");
+    // Keep WELL below the pin so domain de-buckets never trip the smoke
+    // check — only an inventory/linker catastrophe should.
+    assert!(count >= 40, "registry must have at least 40 events; got {count}");
 }
 
 /// L0 registration ratchet — the successor of the retired `ALL`-mirror test.
@@ -358,7 +360,7 @@ fn registry_has_entries() {
 fn l0_registry_shrinks_under_keystone_a() {
     let n = ship_types::event_registry::all_names().len();
     assert_eq!(
-        n, 78,
+        n, 71,
         "L0-registered event count changed. This pin is a keystone-A RATCHET: \
          it should only move DOWN (a domain de-bucket) — update it with the \
          move. If it went UP, register the new events in their owning L1 \

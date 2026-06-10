@@ -52,10 +52,7 @@ pub use daemon::{
     SupervisorShuttingDown,
 };
 pub use kernel::{KernelActorRestored, KernelActorSnapshot, KernelActorSuspended};
-pub use mesh::{
-    MeshBroadcast, MeshDeregister, MeshDeregistered, MeshDiscoverResponse, MeshMessage,
-    MeshRegister, MeshRegistered, MeshSend, MeshSendFailed, MeshStatus,
-};
+pub use mesh::{MeshDeregister, MeshMessage, MeshRegister};
 pub use skill::{SkillCompleted, SkillFailed, SkillStarted};
 pub use spec6::{AgentTaskComplete, HumanResponse, PipelineStepRetry};
 pub use studio::{
