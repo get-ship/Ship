@@ -9229,7 +9229,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "connectrpc",
- "deck",
  "indexmap 2.14.0",
  "serde",
  "serde_json",

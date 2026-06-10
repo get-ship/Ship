@@ -71,13 +71,13 @@ pub async fn dispatch(
         };
     }
     match op.as_str() {
-        "read_source" => op_read_source(&view_name),
+        "read_source" => op_read_source(port, &view_name),
         "write_source" => op_write_source(port, &view_name, &session_id, args).await,
         "compile_check" => op_compile_check(port, &view_name).await,
         "collections_schema" => op_collections_schema(port, args).await,
         "list_siblings" => op_list_siblings(&view_name),
         "theme_tokens" => op_theme_tokens(port),
-        "preview_snapshot" => op_preview_snapshot(&view_name),
+        "preview_snapshot" => op_preview_snapshot(port, &view_name),
         "list_snapshots" => op_list_snapshots(port, &view_name, args).await,
         "restore_snapshot" => op_restore_snapshot(port, &view_name, &session_id, args).await,
         other => DispatchResult::BadRequest {
@@ -97,8 +97,8 @@ pub fn is_valid_view_name(name: &str) -> bool {
 
 // ── Op handlers ───────────────────────────────────────────────────────────────
 
-fn op_read_source(name: &str) -> DispatchResult {
-    match resolve_view_source(name) {
+fn op_read_source(port: &dyn ViewToolPort, name: &str) -> DispatchResult {
+    match resolve_view_source(port, name) {
         Ok((source, _path)) => {
             let content_hash = sha256_hex(source.as_bytes());
             ok_json(&ViewReadSourceResponse { source, content_hash })
@@ -140,7 +140,7 @@ async fn op_write_source(
         }
     };
 
-    let (prior_source, path) = match resolve_view_source(name) {
+    let (prior_source, path) = match resolve_view_source(port, name) {
         Ok(v) => v,
         Err(e) => return DispatchResult::NotFound { code: "view_not_found", message: e },
     };
@@ -292,22 +292,10 @@ fn op_theme_tokens(port: &dyn ViewToolPort) -> DispatchResult {
     ok_json(&ViewThemeTokensResponse { tokens })
 }
 
-fn op_preview_snapshot(name: &str) -> DispatchResult {
-    let resolved = match deck::resolver::resolve(name, None) {
-        Ok(r) => r,
-        Err(e) => {
-            return DispatchResult::NotFound {
-                code: "view_not_found",
-                message: e.message,
-            }
-        }
-    };
-    match deck::resolver::render_resolved(&resolved, name) {
-        Ok(rendered) => ok_json(&ViewPreviewSnapshotResponse {
-            html: rendered.html,
-            computed_styles: None,
-        }),
-        Err(msg) => DispatchResult::Internal { code: "render_failed", message: msg },
+fn op_preview_snapshot(port: &dyn ViewToolPort, name: &str) -> DispatchResult {
+    match port.preview_view_html(name) {
+        Ok(html) => ok_json(&ViewPreviewSnapshotResponse { html, computed_styles: None }),
+        Err(e) => DispatchResult::NotFound { code: "view_not_found", message: e },
     }
 }
 
@@ -398,14 +386,9 @@ fn ok_json<T: serde::Serialize>(v: &T) -> DispatchResult {
     }
 }
 
-/// Resolve a view by name to its (source, on-disk path). Uses `deck::resolver`.
-fn resolve_view_source(name: &str) -> Result<(String, std::path::PathBuf), String> {
-    let resolved =
-        deck::resolver::resolve(name, None).map_err(|e| e.message.clone())?;
-    let path = resolved
-        .source_path
-        .ok_or_else(|| "view has no on-disk source".to_string())?;
-    Ok((resolved.source, path))
+/// Resolve a view by name to its (source, on-disk path). Delegates to `ViewToolPort`.
+fn resolve_view_source(port: &dyn ViewToolPort, name: &str) -> Result<(String, std::path::PathBuf), String> {
+    port.resolve_view_source(name)
 }
 
 fn read_summary(manifest: &std::path::Path) -> Option<String> {

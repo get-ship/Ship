@@ -14,7 +14,6 @@ ship-artifacts = { path = "../ship-artifacts" }
 connectrpc = { version = "0.4", features = ["axum"] }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 
-deck = { path = "../../../../deck/deck" }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 anyhow = { workspace = true }

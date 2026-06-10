@@ -64,4 +64,11 @@ pub trait ViewToolPort: Send + Sync {
 
     /// Resolved active-theme CSS — parses custom properties for `theme_tokens`.
     fn resolve_theme_css(&self) -> String;
+
+    /// Resolve a view name to its (source content, on-disk path).
+    /// Used by read_source, write_source, and preview_snapshot ops.
+    fn resolve_view_source(&self, name: &str) -> Result<(String, std::path::PathBuf), String>;
+
+    /// Compile a view by name to HTML for the preview_snapshot op.
+    fn preview_view_html(&self, name: &str) -> Result<String, String>;
 }
