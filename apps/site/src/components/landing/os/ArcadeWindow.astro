@@ -449,11 +449,16 @@ const games: GameEntry[] = [
     const loadEngine = () => {
       if (loaded) return;
       loaded = true;
-      // Indirect through a variable so Rollup/Vite can't statically resolve the
-      // specifier at build time — `/sui-arcade.js` is a public-served bundle
-      // (copied from deck's `.deck/` output), not a module in the graph.
-      const bundleUrl = '/sui-arcade.js';
-      import(/* @vite-ignore */ bundleUrl);
+      // `/sui-arcade.js` is a public-served bundle (copied from deck's `.deck/`
+      // output), not a module in the vite graph — public files may only be
+      // referenced via HTML tags, and vite's dev server rejects even
+      // `@vite-ignore` dynamic imports of them. Inject a module <script> tag:
+      // the browser fetches it as-is, the page importmap resolves the runtime
+      // externals, and the bundle's side effects register <sui-stage>.
+      const s = document.createElement('script');
+      s.type = 'module';
+      s.src = '/sui-arcade.js';
+      document.head.appendChild(s);
     };
     if (arcadeWin?.classList.contains('open')) loadEngine();
     else if (arcadeWin) {
