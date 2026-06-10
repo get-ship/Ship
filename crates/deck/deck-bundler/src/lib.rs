@@ -11,6 +11,7 @@ pub mod paths;
 pub mod app;
 mod asset_graph;
 pub mod catalog;
+pub mod emit;
 pub mod routes;
 pub mod compile;
 pub mod proto;

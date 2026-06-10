@@ -51,6 +51,21 @@ enum Command {
         no_minify: bool,
     },
 
+    /// Emit already-baked target bundles (plus their lazy-chunk closure) into
+    /// a directory. A consumer (e.g. a static site build) names deck targets;
+    /// deck resolves their output paths and copies the closure. No consumer
+    /// ever hardcodes deck's internal output layout. Run after `build-assets`.
+    Emit {
+        /// Target name(s): framework singletons (sui-runtime, sui-dom,
+        /// sui-sdk-client) or consumer targets from deck.jsonc (sui-marketing,
+        /// sui-arcade, ship-code-editor, …). Repeatable.
+        #[arg(long = "target", required = true)]
+        targets: Vec<String>,
+        /// Destination directory (created if absent).
+        #[arg(long)]
+        out: PathBuf,
+    },
+
     /// Bake all framework + consumer bundles via the in-process Rolldown
     /// bundler. Reads deck.jsonc for consumer targets; framework singletons
     /// are hardcoded in deck-bundler. Honesty guards verify every framework
@@ -128,8 +143,22 @@ fn run() -> Result<()> {
         Command::Build { shell_root, out, bundle_framework, no_minify } => {
             build(shell_root, out, bundle_framework, !no_minify)
         }
+        Command::Emit { targets, out } => emit(targets, out),
         Command::BuildAssets => build_assets(),
     }
+}
+
+/// Resolve baked targets to a directory (deck owns the output layout + chunk
+/// closure — see `deck_bundler::emit`).
+fn emit(targets: Vec<String>, out: PathBuf) -> Result<()> {
+    let cwd = std::env::current_dir().context("cwd")?;
+    let out = if out.is_absolute() { out } else { cwd.join(out) };
+    let repo_root = find_repo_root(&cwd)?;
+    let cfg = deck_bundler::DeckConfig::load(&repo_root);
+    let layout = deck_bundler::targets::BundleLayout::with_config(repo_root, None, cfg);
+    let n = deck_bundler::emit::emit_targets(&layout, &targets, &out)?;
+    println!("deck emit → {} files into {}", n, out.display());
+    Ok(())
 }
 
 /// The framework bundles deck-core/build.rs bakes via `include_str!`. Verified
