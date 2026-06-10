@@ -9,6 +9,7 @@ description = "L0: the durable-execution engine. Journals every op; suspends and
 workspace = true
 
 [dependencies]
+serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }

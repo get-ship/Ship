@@ -2313,6 +2313,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures-util",
+ "serde",
  "serde_json",
  "ship-js",
  "thiserror 2.0.18",
