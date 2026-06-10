@@ -56,3 +56,14 @@ pub struct CollectionSchemaChanged {
     pub collection_id: String,
     pub schema_json: String,
 }
+
+/// Every collection.* CRUD event name in one slice — the domain-owned closed
+/// list (keystone A), mirroring agent-def's `ALL_CANONICAL_*` pattern. Used by
+/// the full-linkage vocabulary guard in shipd `tests/event_vocabulary.rs`.
+pub const ALL_COLLECTION: &[&str] = &[
+    "collection.created",
+    "collection.item_created",
+    "collection.item_deleted",
+    "collection.item_updated",
+    "collection.schema.changed",
+];

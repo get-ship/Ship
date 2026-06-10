@@ -8,7 +8,6 @@
 #[cfg(test)]
 mod tests {
     use ship_types::{
-        event_types::ALL,
         event_types::canonical_session::{ALL_CANONICAL_OP, ALL_CANONICAL_SESSION},
         event_registry,
         event_registry::{EventScope, Retention},
@@ -105,15 +104,15 @@ mod tests {
     /// Every name in `ALL_CANONICAL_SESSION` and `ALL_CANONICAL_OP`
     /// is registered. Pairs with `event_scope_discipline` — the
     /// const-set consistency test that catches dropped register
-    /// calls. Today the two are checked together (against the full
-    /// `ALL` slice); the explicit ALL_CANONICAL_* entries are
-    /// kept as a guard for follow-on slices that may need a
-    /// family-scoped check.
+    /// calls. The master `ALL` slice is retired
+    /// (the registry is the vocabulary SSOT); the domain-owned
+    /// ALL_CANONICAL_* family slices are the closed lists this
+    /// crate guarantees are registered.
     #[test]
     fn all_entries_have_registry_entries() {
         let registry_names: std::collections::HashSet<&str> =
             event_registry::registry().map(|d| d.name).collect();
-        for slice in [ALL, ALL_CANONICAL_SESSION, ALL_CANONICAL_OP] {
+        for slice in [ALL_CANONICAL_SESSION, ALL_CANONICAL_OP] {
             let missing: Vec<&str> = slice
                 .iter()
                 .copied()

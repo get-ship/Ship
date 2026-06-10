@@ -6,13 +6,16 @@ pub mod skill;
 pub mod supervisor;
 pub use mesh::*;
 
-// All lines below are constant definitions; no logic present. The `ALL` slice is
-// kept for backward compat (callers that need the `&'static [&str]` shape) and is
-// HAND-MAINTAINED: it is NOT auto-derived from `event_registry::registry()`. The
-// registry-vs-`ALL` consistency RATCHET lives in ship-substrate
-// (`events::tests::registry_vs_all_ratchet`): adding an event to the registry
-// without adding it here (or to that test's justified-absence list) fails there.
-// Keep `ALL` in sync with the registry by hand when adding or removing event types.
+// All lines below are constant definitions; no logic present. The constants are
+// NAME REFERENCES only — the vocabulary's source of truth is the inventory
+// registry (`event_registry::registry()`, collected at link time from every
+// crate's `register_event!` lines). There is deliberately NO master `ALL`
+// slice: a hand-maintained mirror of the registry drifts (it did), and under
+// keystone A each domain owns its events. Closed family lists live with their
+// domain (`canonical_session::ALL_CANONICAL_SESSION` / `ALL_CANONICAL_OP`,
+// `ship_collection::events::ALL_COLLECTION`). Full-linkage vocabulary guards
+// live in shipd (`tests/event_vocabulary.rs`): a pinned registry count plus a
+// live-validator sweep, with NO exception lists.
 pub const WORKSPACE_CREATED: &str = "workspace.created";
 pub const WORKSPACE_ACTIVATED: &str = "workspace.activated";
 pub const WORKSPACE_ARCHIVED: &str = "workspace.archived";
@@ -237,156 +240,20 @@ pub const SESSION_SUSPENDED: &str = canonical_session::SESSION_SUSPENDED;
 pub const TURN_STARTED: &str = canonical_session::TURN_STARTED;
 pub const TURN_ENDED: &str = canonical_session::TURN_ENDED;
 
-/// `ALL` — the canonical set of known event type strings.
-///
-/// **Deprecated**: new callers should use `ship_types::event_registry::all_names()`
-/// or `ship_types::event_registry::registry()` directly. This const is kept as a
-/// backward-compat shim for callers that require `&'static [&str]` shape
-/// (payload_schema.rs test, substrate tests). After Spec 7b all event-subscription
-/// validation goes through `event_registry::all_names()` via `triggers/loader.rs`.
-///
-/// Note: `event_registry::all_names()` returns the registry-derived name set
-/// (sorted; uniqueness guard-enforced by the `registry_names_are_unique` test).
-/// This const is a strict SUBSET of it: a hand-maintained list that omits many
-/// registered names — whole families (e.g. hook.*, op.*, agent.session.*,
-/// collection.*, pipeline.gate.*) and individual names (e.g.
-/// pipeline.run.blocked, pipeline.step.started, sync.push.completed).
-/// The only consistency guard is one-directional: every name in ALL must be
-/// registered (`all_entries_have_registry_entries` in agent-def's
-/// event_scope_discipline tests); nothing forces registry names to appear here.
-pub const ALL: &[&str] = &[
-    WORKSPACE_CREATED,
-    WORKSPACE_ACTIVATED,
-    WORKSPACE_ARCHIVED,
-    ACTOR_CREATED,
-
-    ACTOR_WOKE,
-    ACTOR_SLEPT,
-    ACTOR_STOPPED,
-    ACTOR_CRASHED,
-    PIPELINE_RUN_STARTED,
-    PIPELINE_RUN_COMPLETED,
-    PIPELINE_RUN_FAILED,
-    PIPELINE_RUN_DISPATCHED,
-    PIPELINE_RUN_UPDATED,
-    CONFIG_CHANGED,
-    CONFIG_FILE_CHANGED,
-    SPACE_SETTING_CHANGED,
-    SETTINGS_CHANGED,
-    AGENT_CHANGED,
-    AGENT_DEF_UPDATED,
-    SKILL_CHANGED,
-    VIEW_CHANGED,
-    PIPELINE_CHANGED,
-    RULE_CHANGED,
-    COLLECTION_CHANGED,
-    PROJECT_LOG,
-    SKILL_STARTED,
-    SKILL_COMPLETED,
-    SKILL_FAILED,
-    SUPERVISOR_SHUTTING_DOWN,
-    SUPERVISOR_SWEEP_STARTED,
-    SUPERVISOR_SWEEP_COMPLETED,
-    SUPERVISOR_DRIFT_DETECTED,
-    SUPERVISOR_COHERENCE_RESTORED,
-    PROCESS_SPAWNED,
-    PROCESS_EXITED,
-    PROCESS_SIGNAL_SENT,
-    PROCESS_ORPHANED,
-    PROCESS_KILLED,
-    EXECUTOR_SESSION_DESTROYED,
-    EXECUTOR_WINDOW_DESTROYED,
-    DAEMON_STARTUP_COMPLETED,
-    DAEMON_SHUTDOWN_COMPLETED,
-    DAEMON_CRASHED,
-    DAEMON_PORT_BIND_FAILED,
-    DAEMON_PIDFILE_ACQUIRED,
-    DAEMON_PIDFILE_STALE_TAKEN,
-    PIPELINE_STEP_COMPLETED,
-    PIPELINE_STEP_FAILED,
-    PIPELINE_RUN_CANCELLED,
-    PIPELINE_RUN_MERGED,
-    PIPELINE_STEP_SPAWN_FAILED,
-    ARTIFACT_CREATED,
-    ARTIFACT_UPDATED,
-    ARTIFACT_MOVED,
-    ARTIFACT_DELETED,
-    STUDIO_CHAT_TURN,
-    STUDIO_REPLY,
-    COMPILE_COMPLETED,
-    PROJECT_REGISTERED,
-    PROJECT_SEEN,
-    PROJECT_ARCHIVED,
-    PROJECT_SWITCHED,
-    AUTH_SESSION_CREATED,
-    AUTH_SESSION_REVOKED,
-    AUTH_SESSION_EXPIRED,
-    DAEMON_OWNER_BOUND,
-    DAEMON_OWNER_UNBOUND,
-    ACCOUNT_LOGIN_STARTED,
-    ACCOUNT_LOGIN_COMPLETED,
-    ACCOUNT_LOGOUT,
-    ACCOUNT_KEY_REFRESHED,
-    SKILL_CREATED,
-    SKILL_UPDATED,
-    SKILL_DELETED,
-    RULE_CREATED,
-    RULE_UPDATED,
-    RULE_DELETED,
-    PERMISSIONS_UPDATED,
-    AGENT_GRANTS_PROVISIONED,
-    // actor
-
-    ACTOR_MAILBOX_FULL,
-    // agent
-    AGENT_TASK_COMPLETE,
-    // human
-    HUMAN_RESPONSE,
-    // kernel
-    KERNEL_ACTOR_RESTORED,
-    KERNEL_ACTOR_SNAPSHOT,
-    KERNEL_ACTOR_SUSPENDED,
-    // mesh
-    MESH_BROADCAST,
-    MESH_DEREGISTER,
-    MESH_DEREGISTERED,
-    MESH_DISCOVER_RESPONSE,
-    MESH_MESSAGE,
-    MESH_REGISTER,
-    MESH_REGISTERED,
-    MESH_SEND,
-    MESH_SEND_FAILED,
-    MESH_STATUS,
-    // pipeline
-    PIPELINE_STEP_RETRY,
-    // studio
-    STUDIO_ANNOTATION_CREATED,
-    STUDIO_FEEDBACK_CREATED,
-    // sync
-    SYNC_PUSH_FAILED,
-    SYNC_STARTED,
-    SYNC_STOPPED,
-    // canonical agent-session family (jobs: canonical-session-events +
-    // workbench-teardown) — the complete ship-shaped session vocabulary.
-    SESSION_STARTED,
-    SESSION_COMPLETED,
-    SESSION_FAILED,
-    SESSION_CANCELLED,
-    SESSION_SUSPENDED,
-    TURN_STARTED,
-    TURN_ENDED,
-];
 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
+    /// Registered event names are unique. (The former const-level uniqueness
+    /// test iterated the retired hand-maintained `ALL` mirror; the registry
+    /// is the vocabulary SSOT, and at THIS crate's linkage the check also
+    /// runs in `event_registry::tests::registry_names_are_unique` — kept
+    /// here too so the invariant is asserted next to the name constants.)
     #[test]
-    fn event_type_constants_are_unique() {
+    fn registered_event_names_are_unique() {
         let mut seen = std::collections::HashSet::new();
-        for &t in ALL {
-            assert!(seen.insert(t), "duplicate event type constant: {t}");
+        for def in crate::event_registry::registry() {
+            assert!(seen.insert(def.name), "duplicate event registration: {}", def.name);
         }
     }
 }

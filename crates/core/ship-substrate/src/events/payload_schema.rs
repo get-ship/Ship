@@ -113,33 +113,11 @@ mod tests {
         assert!(v.validate(&event, &ctx).is_ok());
     }
 
-    #[test]
-    fn all_known_event_types_have_schemas() {
-        use crate::events::types::event_types::ALL;
-        // Names in ALL registered at L1 (agent-def) are not linked into this
-        // L0 test binary — their registrations (and carried validators) are
-        // asserted cross-layer by agent-def's `all_entries_have_registry_
-        // entries` + `canonical_payload_validators_are_live`. The list below
-        // mirrors `events::tests::registry_vs_all_ratchet` EXPECTED_ALL_ONLY
-        // and may only SHRINK.
-        let l1_registered = &[
-            "session.cancelled",
-            "session.completed",
-            "session.failed",
-            "session.started",
-            "session.suspended",
-            "session.turn.ended",
-            "session.turn.started",
-        ];
-        for &et in ALL {
-            if l1_registered.contains(&et) {
-                continue;
-            }
-            assert!(
-                schema_for_event_type(et).is_some(),
-                "event type '{et}' is in ALL but its linked registration carries no \
-                 validator — register it (the registration carries the schema)"
-            );
-        }
-    }
+    // The former `all_known_event_types_have_schemas` (every `ALL` name has a
+    // validator, modulo an L1-pending mirror list) is retired with `ALL`
+    // itself: Phase 4a made the validator a MANDATORY field of every
+    // registration (type-level guarantee), and shipd's full-linkage
+    // `tests/event_vocabulary.rs` behaviorally sweeps every registered
+    // validator with NO exception lists.
+
 }

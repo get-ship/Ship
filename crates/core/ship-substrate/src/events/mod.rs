@@ -9,42 +9,12 @@ pub mod types {
         pub use ship_types::event_types::*;
     }
 
-    #[cfg(test)]
-    mod tests {
-        use super::event_types::*;
-        use ship_types::event_registry::{self, EventScope, Retention};
+    // The former const-uniqueness/count tests over the hand-maintained `ALL`
+    // slice are gone with `ALL` itself: registry-name uniqueness is asserted in
+    // ship-types (`registry_names_are_unique`), the L0 registration count is
+    // ratcheted in `events::tests::l0_registry_shrinks_under_keystone_a`, and
+    // the full-linkage vocabulary pin lives in shipd `tests/event_vocabulary.rs`.
 
-        #[test]
-        fn event_type_constants_are_unique() {
-            let mut seen = std::collections::HashSet::new();
-            for &t in ALL {
-                assert!(seen.insert(t), "duplicate event type constant: {t}");
-            }
-        }
-
-        #[test]
-        fn all_constants_have_expected_count() {
-            // Spec 7a bumped from 88 → 111 by adding the 23 Spec-6 events to ALL.
-            // S3 adds `settings.changed` (the unified scope-discriminated keystone)
-            // → 113. S1 (agents-arc) adds `agent.def.updated` (the Format-2 def
-            // change notification) → 114. agents-arc E6 GUTS `studio.message`
-            // (the deprecated chat read-projection event, sole consumer was chat)
-            // → 113. Job `dead-events-cull` removes `project.changed` and
-            // `skill.attached_to_session` (zero producers, no consumers) → 111.
-            // Job `canonical-session-events` adds the 6 canonical agent-session
-            // events (session.completed, session.failed, session.cancelled,
-            // session.suspended, session.turn.started, session.turn.ended) → 117.
-            // Job `workbench-teardown` retires the 11 workbench session.* events
-            // AND adds the canonical `session.started` (the workbench string the
-            // canonical family deferred on) → 117 - 11 + 1 = 107.
-            // Wave-2 vocab-guards adds `collection.changed` to ALL (it was
-            // emitted + subscribed but unregistered — the missed sibling of the
-            // config-family `<domain>.changed` events) → 108.
-            // The hard count is enforced here to catch accidental removals.
-            // When adding events: update ALL in event_types.rs AND payload_registry.rs.
-            assert_eq!(ALL.len(), 108, "exactly 108 event type constants required (vocab-guards: +1 collection.changed)");
-        }
-    }
 }
 
 // Re-exports from ship-kernel

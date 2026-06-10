@@ -277,7 +277,8 @@ fn test_version_field() -> anyhow::Result<()> {
 fn test_property_event_ordering() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let entity = "prop-entity";
-    let types = event_types::ALL;
+    let names = ship_types::event_registry::all_names();
+    let types: &[&str] = &names;
     let n = 75;
     let mut expected_ids = Vec::with_capacity(n);
 
@@ -349,97 +350,67 @@ fn registry_has_entries() {
     assert!(count >= 100, "registry must have at least 100 events; got {count}");
 }
 
-/// The registry-vs-`ALL` consistency RATCHET — the guard `event_types/mod.rs`
-/// points at. Two directions, both pinned to explicit checked-in lists:
+/// L0 registration ratchet — the successor of the retired `ALL`-mirror test.
 ///
-/// (a) `ALL` minus registry: catches ORPHAN CONSTS — a name added to
-///     `event_types::ALL` with no `register_event!` entry fails here. The only
-///     justified absences are pinned in `EXPECTED_ALL_ONLY`.
-/// (b) registry minus `ALL`: catches REGISTRY-ONLY DRIFT — an event registered
-///     in `payload_registry.rs` without an `ALL` entry (or a justified-absence
-///     row below) fails here.
+/// The vocabulary's source of truth is the inventory registry; in THIS (L0)
+/// test binary `all_names()` sees exactly ship-substrate's own
+/// `payload_registry.rs` registrations. Under keystone A (domain-owned events
+/// at L1, ratified 2026-06-10) this set may only SHRINK: de-bucketing a domain
+/// moves its `register_event!` lines to the owning L1 crate (agents and
+/// collection are done). Bump the pin DOWN with the move that shrinks it;
+/// growing it means new domain events were registered at L0 — stop and put
+/// them in the owning domain crate instead (genuinely substrate-generic
+/// events are the rare sanctioned exception).
 ///
-/// BOTH lists are RATCHETS — they may only SHRINK. Never add a row without a
-/// one-line justification; never loosen this into a subset check.
-///
-/// NOTE on linkage: `all_names()` is inventory-collected at LINK time, so this
-/// test sees exactly the L0 registrations (`ship-substrate/payload_registry.rs`).
-/// L1 registrations (agent-def `event_registrations.rs`: canonical `session.*`,
-/// `op.*`) are NOT linked into this test binary — which is why the canonical
-/// session family appears in list (a) even though it IS registered at L1.
+/// Full-linkage vocabulary guards (every domain linked, NO exception lists)
+/// live in shipd `tests/event_vocabulary.rs`.
 #[test]
-fn registry_vs_all_ratchet() {
-    use std::collections::BTreeSet;
+fn l0_registry_shrinks_under_keystone_a() {
+    let n = ship_types::event_registry::all_names().len();
+    assert_eq!(
+        n, 121,
+        "L0-registered event count changed. This pin is a keystone-A RATCHET: \
+         it should only move DOWN (a domain de-bucket) — update it with the \
+         move. If it went UP, register the new events in their owning L1 \
+         domain crate, not in payload_registry.rs."
+    );
+}
 
+/// Legacy families pinned until their sanctioned severs land. Both lists may
+/// only SHRINK (to empty), at which point delete the corresponding block.
+#[test]
+fn legacy_families_pinned_until_sever() {
+    use std::collections::BTreeSet;
     let registry: BTreeSet<&str> =
         ship_types::event_registry::all_names().into_iter().collect();
-    let all: BTreeSet<&str> = ship_types::event_types::ALL.iter().copied().collect();
 
-    // (a) names in `ALL` with no registration linked into this (L0) binary.
-    // RATCHET — may only SHRINK.
-    const EXPECTED_ALL_ONLY: &[&str] = &[
-        // L1 canonical session.* family — registered in agent-def
-        // `event_registrations.rs` (not linked at L0); schema ownership pending
-        // the keystone schema-ownership decision (Phase 4a, task #32).
-        "session.cancelled",
-        "session.completed",
-        "session.failed",
-        "session.started",
-        "session.suspended",
-        "session.turn.ended",
-        "session.turn.started",
-    ];
-    let all_only: Vec<&str> = all.difference(&registry).copied().collect();
-    assert_eq!(
-        all_only, EXPECTED_ALL_ONLY,
-        "event_types::ALL vs registry drift: every const in ALL must have a \
-         register_event! entry (or a justified row in EXPECTED_ALL_ONLY — \
-         a RATCHET that may only shrink)"
-    );
-
-    // (b) names registered at L0 but absent from `event_types::ALL`.
-    // RATCHET — may only SHRINK: registering a new event without adding it to
-    // ALL (or here, with a reason) must fail this assert.
-    const EXPECTED_REGISTRY_ONLY: &[&str] = &[
-        // legacy agent.session.* dispatch family — dual-emit sever + family
-        // deletion pending the #26 spawn-intent design; intentionally kept out
-        // of ALL so no new subscriber surface grows around it.
-        "agent.session.cancelled",
-        "agent.session.completed",
-        "agent.session.dispatched",
-        "agent.session.failed",
-        "agent.session.started",
-        // collection.* CRUD family moved to L1 (ship-collection keystone A,
-        // 2026-06-10): these 5 events are now registered by
-        // ship_collection::event_registrations — removed from this ratchet.
-        // hook.* family — being converted to canonical op.* (#25b); consts were
-        // never added to ALL and the family deregisters when the conversion lands.
+    // hook.* — converts to canonical op.* under #25b (http_ingress AND the
+    // supervisor synth, with the analytics_turns no-regression matrix), then
+    // deregisters.
+    const HOOK_FAMILY: &[&str] = &[
         "hook.permission_denied",
         "hook.session_ended",
         "hook.session_started",
         "hook.tool_use_completed",
         "hook.tool_use_started",
         "hook.turn_observed",
-        // pipeline gate/step extensions — registered with typed payloads in the
-        // substrate `events::pipeline` submodule; no `event_types` consts were
-        // ever minted for them (pipelines reshape R13/#27 owns this surface).
-        "pipeline.gate.failed",
-        "pipeline.gate.passed",
-        "pipeline.gate.requested",
-        "pipeline.run.blocked",
-        "pipeline.step.done_declared",
-        "pipeline.step.observed",
-        "pipeline.step.output",
-        "pipeline.step.started",
-        // sync.push.completed — Ephemeral push-success ping; only the failure
-        // sibling was threaded into ALL.
-        "sync.push.completed",
     ];
-    let registry_only: Vec<&str> = registry.difference(&all).copied().collect();
-    assert_eq!(
-        registry_only, EXPECTED_REGISTRY_ONLY,
-        "registry vs event_types::ALL drift: every register_event! entry must \
-         be in ALL (or carry a justified row in EXPECTED_REGISTRY_ONLY — a \
-         RATCHET that may only shrink)"
-    );
+    // legacy agent.session.* dispatch family — dual-emit sever + deletion
+    // pending the #26 spawn-intent channel design.
+    const AGENT_SESSION_FAMILY: &[&str] = &[
+        "agent.session.cancelled",
+        "agent.session.completed",
+        "agent.session.dispatched",
+        "agent.session.failed",
+        "agent.session.started",
+    ];
+    for family in [HOOK_FAMILY, AGENT_SESSION_FAMILY] {
+        for name in family {
+            assert!(
+                registry.contains(name),
+                "`{name}` left the L0 registry — if its sever landed, shrink \
+                 this pin with it; if not, a registration was lost accidentally"
+            );
+        }
+    }
 }
