@@ -13,7 +13,7 @@
     "build": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "proto:generate": "cd ../../.. && apps/gateway/node_modules/.bin/buf generate --template buf.gen.sdk.yaml"
+    "proto:generate": "cd ../../.. && rm -rf packages/deck/sdk/src/gen && apps/gateway/node_modules/.bin/buf generate --template buf.gen.sdk.yaml"
   },
   "license": "MIT",
   "dependencies": {

@@ -243,9 +243,10 @@ export const RuleGetResponseSchema: GenMessage<RuleGetResponse> = /*@__PURE__*/
   messageDesc(file_ship_ops_v1_types, 5);
 
 /**
- * Wire shape of mcp.list / permissions.list (both → IndexEntry items). The
- * matching *.get reads return an embedded opaque config Value (entry), so they
- * stay JsonResponse — same open-payload line as the command surface.
+ * Wire shape of mcp.list / permissions.list (both → IndexEntry items).
+ * mcp.get stays JsonResponse (open server config); permissions.get returns
+ * GetPermissionResponse (declared in permissions.proto) where the preset
+ * body rides as `preset_json` — same open-payload convention as RuleGetResponse.body.
  *
  * @generated from message ship.ops.v1.McpIndexResponse
  */

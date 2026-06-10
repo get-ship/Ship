@@ -128,6 +128,16 @@ jobs:
           cargo run -p xtask --quiet -- gen-fixtures
           git diff --exit-code proto/fixtures/ \
             || { echo "proto/fixtures is stale — run 'cargo run -p xtask -- gen-fixtures' and commit"; exit 1; }
+      # @ship/sdk Connect gen is generated from proto/ship/ops/v1/*.proto by buf
+      # (buf.gen.sdk.yaml → protoc-gen-es). buf never cleans its output dir, so a
+      # deleted proto used to leave a zombie *_pb.ts behind. proto:generate now
+      # `rm -rf`s the gen dir first; regenerate and assert no diff so a stale or
+      # zombie generated module can't survive a proto deletion.
+      - name: Check @ship/sdk proto gen drift
+        run: |
+          bun run --cwd packages/deck/sdk proto:generate
+          git diff --exit-code packages/deck/sdk/src/gen \
+            || { echo "packages/deck/sdk/src/gen is stale — run 'bun run --cwd packages/deck/sdk proto:generate' and commit"; exit 1; }
       - name: Lint layer boundaries
         run: cargo run -p xtask --quiet -- lint-layers
       - name: Lint import-level layer direction
