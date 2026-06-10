@@ -163,6 +163,14 @@ function buildTopics(isInternal) {
         label: "Registry",
         autogenerate: { directory: "registry" },
       },
+      // Generated SDK op reference — one page per ConnectRPC op, harvested
+      // by collect-skill-docs.ts from skills/sdk/<skill>/references/docs/
+      // (emitted by `cargo xtask gen-skills`). Pages nest under ops/<domain>/
+      // so autogenerate builds a per-domain subgroup tree from one directory.
+      {
+        label: "SDK (Ops)",
+        autogenerate: { directory: "ops" },
+      },
       // Agent-facing reference — every MCP tool, LSP surface,
       // sui-eval entrypoint, and ship:// resource that powers
       // agent workflows. Single page link (not autogenerate)

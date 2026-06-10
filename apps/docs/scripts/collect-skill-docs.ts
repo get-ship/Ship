@@ -17,13 +17,27 @@
  */
 import {
   readFileSync, writeFileSync, mkdirSync, existsSync,
-  readdirSync, copyFileSync, watch, unlinkSync, rmdirSync,
+  readdirSync, copyFileSync, watch, rmSync,
 } from "fs"
 import { join, resolve, dirname, basename } from "path"
 
 const SCRIPT_DIR = dirname(new URL(import.meta.url).pathname)
 const REPO_ROOT = resolve(SCRIPT_DIR, "../../../")
 const SKILLS_DIR = join(REPO_ROOT, "docs")
+// Generated SDK reference: `cargo xtask gen-skills` emits one op page per op
+// under skills/sdk/<skill>/references/docs/*.mdoc, each stamped with a
+// `group: "Ops: <domain>"` frontmatter — the SAME doc-skill contract the
+// hand-authored docs/ tree uses. Harvesting both roots fulfils the
+// "one generator, two consumers" promise in crates/xtask/src/gen_skills.rs:
+// the agent's reference and the public API docs are the same source files.
+const SDK_SKILLS_DIR = join(REPO_ROOT, "skills/sdk")
+// Doc-skill roots, walked in order. `srcPrefix` is the repo-relative path
+// stamped into each generated file's AUTO-GENERATED banner so an integrator
+// who hits "View Source" is pointed back at the true source page.
+const SKILL_ROOTS: ReadonlyArray<{ dir: string; srcPrefix: string }> = [
+  { dir: SKILLS_DIR, srcPrefix: "docs" },
+  { dir: SDK_SKILLS_DIR, srcPrefix: "skills/sdk" },
+]
 const OUTPUT_DIR = join(SCRIPT_DIR, "../src/content/docs")
 // Output is treated as build artifact (gitignored). Override via
 // COLLECT_DOCS_OUT for the drift checker which collects into a tempdir.
@@ -51,22 +65,21 @@ const PUBLIC_DIR = join(SCRIPT_DIR, "../public")
 // under `/api/assets/` so the importmap in astro.config.mjs resolves the
 // same way against either the docs site or the daemon.
 const SUI_ASSETS_DIR = join(REPO_ROOT, "crates/deck/deck-core/assets")
+// The umbrella `sui-components.js` bundle is retired (per-view resolver,
+// #255/#267). The framework bundles below are what the deck bundler bakes
+// into crates/deck/deck-core/assets and what the importmap resolves against.
 const SUI_BUNDLES = [
   "sui-runtime.js",
   "sui-dom.js",
   "sui-sdk-client.js",
-  "sui-components.js",
 ] as const
-// Mirror the daemon's `/api/assets/view-tokens.css` concatenation so any
-// SUI primitive that links to that URL from its shadow root (notably
-// `<sui-theme-picker>`, which is on every docs page via the header)
-// resolves against the same canonical tokens the daemon serves at
-// runtime. The concat order must match apps/shipd/src/views/assets.rs.
-const VIEW_TOKENS_SOURCES = [
-  join(REPO_ROOT, "packages/sui/tokens/src/tokens.css"),
-  join(REPO_ROOT, "apps/shipd/assets/view-tokens.css"),
-  join(REPO_ROOT, "packages/sui/tokens/src/themes.css"),
-] as const
+// The daemon serves a single pre-concatenated `/api/assets/view-tokens.css`
+// (tokens + themes), baked by the deck bundler to
+// crates/deck/deck-core/assets/view-tokens.css. Any SUI primitive that links
+// to that URL from its shadow root (notably `<sui-theme-picker>`, on every
+// docs page via the header) resolves against the same canonical file the
+// daemon serves at runtime.
+const VIEW_TOKENS_SOURCE = join(SUI_ASSETS_DIR, "view-tokens.css")
 // `agent-only` files never ship to any site. `internal` files are hidden from
 // the public (user) build but rendered in internal mode so contributors can
 // view internal-audience docs locally.
@@ -170,29 +183,34 @@ function buildStarlightFrontmatter(meta: {
   return lines.join("\n")
 }
 
-function run(): void {
-  if (!existsSync(SKILLS_DIR)) {
-    console.log("[collect-docs] No skills directory, skipping.")
-    return
-  }
+/**
+ * Slug a `group:` value into a (possibly nested) output directory. Spaces
+ * become dashes; a `: ` segment separator becomes a path separator so the
+ * generated SDK pages (`group: "Ops: git"`) nest under `ops/git/` and a
+ * single Starlight `autogenerate: { directory: "ops" }` topic builds the
+ * per-domain subgroups. Flat groups ("CLI", "Smart Skills") are unaffected.
+ */
+function groupSlug(group: string): string {
+  return group
+    .toLowerCase()
+    .replace(/:\s*/g, "/")
+    .replace(/\s+/g, "-")
+}
 
-  const audience = process.env.AUDIENCE === "internal" ? "internal" : "user"
-  console.log(`[collect-docs] audience=${audience}`)
-
-  mkdirSync(GENERATED_DIR, { recursive: true })
-  // Track what we write this run. Files inside GENERATED_DIR that aren't in
-  // this set at the end get removed — lets us avoid a full rmSync that would
-  // race with Astro's file handles.
-  const written = new Set<string>()
-
-  const skillDirs = readdirSync(SKILLS_DIR, { withFileTypes: true })
+/**
+ * Walk one doc-skill root (`<root>/<skill>/references/docs/*.{md,mdoc}`),
+ * emit every page carrying a `group:` frontmatter into GENERATED_DIR under
+ * its group slug. Returns the page count. `srcPrefix` is the repo-relative
+ * prefix stamped into each file's AUTO-GENERATED banner.
+ */
+function collectSkillRoot(rootDir: string, srcPrefix: string, audience: string): number {
+  let count = 0
+  const skillDirs = readdirSync(rootDir, { withFileTypes: true })
     .filter((d) => d.isDirectory())
     .map((d) => d.name)
 
-  let total = 0
-
   for (const skillId of skillDirs) {
-    const docsDir = join(SKILLS_DIR, skillId, "references/docs")
+    const docsDir = join(rootDir, skillId, "references/docs")
     if (!existsSync(docsDir)) continue
 
     // Collect .md and .mdoc files that have a group: field (project docs)
@@ -209,12 +227,6 @@ function run(): void {
 
     if (docFiles.length === 0) continue
 
-    // Read SKILL.md for fallback metadata
-    const skillMdPath = join(SKILLS_DIR, skillId, "SKILL.md")
-    const skillMeta = existsSync(skillMdPath)
-      ? parseFrontmatter(readFileSync(skillMdPath, "utf8"))
-      : {}
-
     for (const file of docFiles) {
       const text = readFileSync(join(docsDir, file), "utf8")
       const meta = parseFrontmatter(text)
@@ -227,13 +239,10 @@ function run(): void {
       const isIndex = basename(file, ".mdoc") === "index"
       const label = isIndex ? null : (meta.title ?? null)
 
-      // Output path: <GENERATED_DIR>/<group>/<filename>.mdoc.
-      // In production GENERATED_DIR is `apps/docs/src/content/docs/reference`
-      // (the drift checker walks that path). The collector default
-      // `OUTPUT_DIR = apps/docs/src/content/docs` is the WRONG path —
-      // overridden via COLLECT_DOCS_OUT by the checker and by the
-      // OUTPUT_DIR-via-`reference/` resolution below.
-      const groupDir = join(GENERATED_DIR, group.toLowerCase().replace(/\s+/g, "-"))
+      // Output path: <GENERATED_DIR>/<group-slug>/<filename>.mdoc. GENERATED_DIR
+      // is apps/docs/src/content/docs (Starlight's fixed collection root) for a
+      // real run, or the drift checker's tempdir via COLLECT_DOCS_OUT.
+      const groupDir = join(GENERATED_DIR, groupSlug(group))
       mkdirSync(groupDir, { recursive: true })
 
       const body = applyAudienceBlocks(stripLeadingH1(stripFrontmatter(text)), audience)
@@ -245,13 +254,40 @@ function run(): void {
       })
 
       const outPath = join(groupDir, file)
-      const sourceRel = `docs/${skillId}/references/docs/${file}`
+      const sourceRel = `${srcPrefix}/${skillId}/references/docs/${file}`
       writeFileSync(outPath, fm + autoGenBanner(sourceRel) + body, "utf8")
-      written.add(outPath)
-      total++
+      count++
     }
 
-    console.log(`[collect-docs] ${skillId} → ${docFiles.length} page(s)`)
+    console.log(`[collect-docs] ${srcPrefix}/${skillId} → ${docFiles.length} page(s)`)
+  }
+  return count
+}
+
+function run(): void {
+  if (!existsSync(SKILLS_DIR)) {
+    console.log("[collect-docs] No skills directory, skipping.")
+    return
+  }
+
+  const audience = process.env.AUDIENCE === "internal" ? "internal" : "user"
+  console.log(`[collect-docs] audience=${audience}`)
+
+  // Delete-then-regen (idempotency): the entire GENERATED_DIR tree is a build
+  // artifact derived from `docs/<skill>/references/docs/` + content-source/.
+  // Wiping it first guarantees a clean run produces exactly the current source
+  // set — no stale orphans survive (e.g. a source that loses its `group:`
+  // frontmatter, or a renamed group dir). Hand-authored content is safe: it
+  // lives in src/content-source/ (outside GENERATED_DIR) and is copied back in
+  // below.
+  rmSync(GENERATED_DIR, { recursive: true, force: true })
+  mkdirSync(GENERATED_DIR, { recursive: true })
+
+  let total = 0
+
+  for (const root of SKILL_ROOTS) {
+    if (!existsSync(root.dir)) continue
+    total += collectSkillRoot(root.dir, root.srcPrefix, audience)
   }
 
   // Copy hand-authored content from src/content-source/ into the same
@@ -270,34 +306,9 @@ function run(): void {
       const { frontmatter, body } = splitFrontmatter(text)
       const sourceRel = `apps/docs/src/content-source/${name}`
       writeFileSync(dst, frontmatter + autoGenBanner(sourceRel) + body, "utf8")
-      written.add(dst)
       total++
     }
   }
-
-  // Sweep orphans: any file under GENERATED_DIR not written this run.
-  // The entire tree is generated — there are no hand-authored files in
-  // GENERATED_DIR to spare, since hand-authored content lives in
-  // src/content-source/ and is copied in above.
-  const sweep = (dir: string): boolean => {
-    if (!existsSync(dir)) return true
-    let isEmpty = true
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      const p = join(dir, e.name)
-      if (e.isDirectory()) {
-        if (!sweep(p)) isEmpty = false
-      } else if (written.has(p)) {
-        isEmpty = false
-      } else {
-        try { unlinkSync(p) } catch { /* handle in flight — retry next run */ }
-      }
-    }
-    if (isEmpty && dir !== GENERATED_DIR) {
-      try { rmdirSync(dir) } catch { /* non-empty due to race */ }
-    }
-    return isEmpty
-  }
-  sweep(GENERATED_DIR)
 
   console.log(`[collect-docs] Total: ${total} pages collected.`)
 
@@ -306,7 +317,7 @@ function run(): void {
   for (const name of SUI_BUNDLES) {
     const src = join(SUI_ASSETS_DIR, name)
     if (!existsSync(src)) {
-      console.log(`[collect-docs] ${name} not found at ${src}. Run 'cd packages/components/ui-components && bun run build' first.`)
+      console.log(`[collect-docs] ${name} not found at ${src}. Bake the framework bundles first: 'cargo run -p deck-cli -- build-assets'.`)
       continue
     }
     copyFileSync(src, join(PUBLIC_DIR, name))
@@ -316,19 +327,11 @@ function run(): void {
 
   const apiAssetsDir = join(PUBLIC_DIR, "api", "assets")
   mkdirSync(apiAssetsDir, { recursive: true })
-  const tokensParts: string[] = []
-  let missingTokens = false
-  for (const src of VIEW_TOKENS_SOURCES) {
-    if (!existsSync(src)) {
-      console.log(`[collect-docs] view-tokens source missing: ${src}`)
-      missingTokens = true
-      continue
-    }
-    tokensParts.push(readFileSync(src, "utf8"))
-  }
-  if (!missingTokens) {
-    writeFileSync(join(apiAssetsDir, "view-tokens.css"), tokensParts.join("\n"))
+  if (existsSync(VIEW_TOKENS_SOURCE)) {
+    copyFileSync(VIEW_TOKENS_SOURCE, join(apiAssetsDir, "view-tokens.css"))
     console.log(`[collect-docs] Emitted /api/assets/view-tokens.css.`)
+  } else {
+    console.log(`[collect-docs] view-tokens source missing: ${VIEW_TOKENS_SOURCE}`)
   }
   for (const name of SUI_BUNDLES) {
     const src = join(SUI_ASSETS_DIR, name)
@@ -353,27 +356,6 @@ function run(): void {
       writeFileSync(join(iconsDir, `${name}.svg`), wrap(inner))
     }
     console.log(`[collect-docs] Emitted ${Object.keys(map).length} icons under /_deck/icons/.`)
-  }
-
-  // Lazy `<sui-*>` chunks live next to the umbrella bundle under
-  // crates/deck/deck-core/assets/sui-components/. The tutorial
-  // playground side-loads ship-code-editor.js from there; copy the
-  // whole dir so any other chunk a future step needs is reachable.
-  const chunkSrcDir = join(SUI_ASSETS_DIR, "sui-components")
-  if (existsSync(chunkSrcDir)) {
-    const chunkOutDir = join(PUBLIC_DIR, "sui-components")
-    mkdirSync(chunkOutDir, { recursive: true })
-    // Tutorial needs the editor; the others are unused on the docs
-    // site but ~30-80KB each and don't hurt to ship as static.
-    const needs = new Set(["ship-code-editor.js", "sui-brand-mark.js"])
-    let chunkCount = 0
-    for (const entry of readdirSync(chunkSrcDir)) {
-      if (!needs.has(entry)) continue
-      const src = join(chunkSrcDir, entry)
-      copyFileSync(src, join(chunkOutDir, entry))
-      chunkCount++
-    }
-    if (chunkCount > 0) console.log(`[collect-docs] Copied ${chunkCount} lazy chunk(s) to public/sui-components/.`)
   }
 
 }
