@@ -145,10 +145,9 @@ pub enum Route {
     DaemonStatus,
 
     // ── Events / projections ─────────────────────────────────────────────
-
-    /// @route GET "/api/v1/events/stream"
-    /// @auth scope ReadWorkspace
-    EventStream,
+    // The SSE event stream (`GET /api/v1/events/stream`) was retired: the
+    // kernel event bus is served once, over Connect `StreamService.Events`
+    // (ship.ops.v1). Web + SDK consumers tail that stream.
 
     // POST /api/v1/rebuild-projections was removed: no caller
     // (admin-only vestige) — the kernel can self-heal projections

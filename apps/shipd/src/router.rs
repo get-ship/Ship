@@ -415,8 +415,8 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // URL via `deck_core::routes::mutation_action`), not an RPC route.
         // AgentsService / PipelineService / RuleService / PermissionService /
         // SkillService — all Connect wires (ship.ops.v1); no REST shells here.
-        // Events / projections
-        .ship_route(Route::EventStream, runtime_api::event_stream)
+        // Events / projections — the kernel event bus is served over Connect
+        // `StreamService.Events` (ship.ops.v1); the SSE route was retired.
         .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
 
         // Artifacts platform (three-scope)

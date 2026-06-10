@@ -45,15 +45,6 @@ impl TestDaemon {
             crate::ship_runtime::ShipRuntime::new_test(ship_dir.clone(), kernel.clone()),
         );
 
-        // Per production routing (apps/shipd/src/router.rs), these live
-        // directly at /api/v1/{projects,sessions,agents/active,events}.
-        let runtime_routes = Router::new()
-            .route(
-                "/events",
-                axum::routing::get(crate::routes::runtime_api::event_stream),
-            )
-            .with_state(api_state.clone());
-
         let artifacts_routes = Router::new()
             .route(
                 "/artifacts",
@@ -75,7 +66,6 @@ impl TestDaemon {
         let default_auth = Self::cli_auth();
         let router = Router::new()
             .nest("/api/v1", artifacts_routes)
-            .nest("/api/v1", runtime_routes)
             .layer(axum::Extension(default_auth));
 
         Self {

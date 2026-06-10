@@ -9,16 +9,6 @@
 //! project read yet — the workbench's runtime.db `sessions` table is
 //! gone, so a re-implementation would be a different projection over
 //! the canonical event log, deferred to a follow-up.
-use axum::{
-    Json,
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-};
-use crate::auth::AuthContext;
-use crate::ship_runtime::ApiState;
-use crate::wire::MeshResponse;
-
 // ── mr-04 follow-up: per-handler submodules ─────────────────────────────────
 //
 // Each submodule owns one logical chunk of the runtime read API. The
@@ -29,14 +19,14 @@ use crate::wire::MeshResponse;
 // `jobs_status`, `pipeline_run`) were cut when their REST handlers
 // moved to the typed Connect wires (AgentsService, PipelinesService,
 // agent.Dispatch). The KEEP set here covers the read-side residual:
-// `daemon_status` and the event stream.
+// `daemon_status` and the event poll (the SSE stream was retired in favor of
+// Connect `StreamService.Events`).
 
 pub mod daemon;
 pub mod events;
 
 pub use daemon::daemon_status;
 
-pub use events::{EventsPollQuery, event_stream};
 pub use ship_pipeline_runtime::run_core::PipelineRunRequest;
 
 
@@ -44,7 +34,9 @@ pub use ship_pipeline_runtime::run_core::PipelineRunRequest;
 mod tests {
     use super::*;
     use axum::extract::State;
+    use axum::http::StatusCode;
     use axum::response::IntoResponse;
+    use crate::ship_runtime::ApiState;
     use std::sync::Arc;
     use tempfile::TempDir;
     fn make_api_state(dir: &TempDir) -> ApiState {
