@@ -40,6 +40,15 @@ ship-artifacts = { path = "../core/ship-platform/crates/ship-artifacts" }
 # ConnectRPC wire layer (wire.rs) — implements PipelinesService for shipd mount.
 connectrpc = { version = "0.4", features = ["axum"] }
 ship-ops-rpc = { path = "../core/ship-ops-rpc" }
+# Reactive snapshot-diff resolver + ReactiveRegistry for the typed Watch verb
+# (P0.4) — same infra the agents Watch rides. No cycle: ship-reactive depends
+# only on ship-substrate + ship-types, both already upstream of this crate.
+ship-reactive = { path = "../core/ship-platform/crates/ship-reactive" }
+# Server-streaming bodies for the Watch RPC handler.
+async-stream = "0.3"
+# Generated proto enum wrapper (`EnumValue`) for the WatchEvent patch conversion.
+# Version tracks ship-ops-rpc's buffa.
+buffa = "0.5"
 
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

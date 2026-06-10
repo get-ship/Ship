@@ -70,6 +70,8 @@ impl ShipRuntime {
             config_watcher: std::sync::OnceLock::new(),
             agent_def_kernel: std::sync::OnceLock::new(),
             agent_reactive: std::sync::OnceLock::new(),
+            pipeline_reactive: std::sync::OnceLock::new(),
+            pipeline_watch_kernel: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
         }
     }

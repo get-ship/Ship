@@ -514,6 +514,7 @@ pub fn router(state: ApiState) -> axum::Router {
         state.ship_dir().to_path_buf(),
         pipelines_live_fn,
         pipelines_write_fn,
+        state.pipeline_reactive().cloned(),
     ));
     let router = ship_ops_rpc::PipelinesServiceExt::register(pipelines_wire, router);
     // agents.* + agent.* — crate-owned AgentsWire (ship-agents).
