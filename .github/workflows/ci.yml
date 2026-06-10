@@ -182,8 +182,50 @@ jobs:
       # `passWithNoTests:false` in the shared vitest defaults.
       - name: Check no test file collects zero tests
         run: node scripts/check-zero-collection.mjs
-      - name: JS tests (compiles SUI on demand via the vitest factory)
-        run: bun run --filter '@ship/ui-components' test
+      # Workspace JS suites — the SUI framework runtime + every component pack.
+      # The vitest factory compiles each `.sui` on demand (mirroring to .ship/sui-out),
+      # so this exercises the real compile -> register -> render path for every tag.
+      # Scope is built from POSITIVE path-glob filters only — bun's `!`-negation filters
+      # silently break path-scoping (they pull in apps/*, e.g. apps/gateway), so any
+      # exclusion is expressed by omission, never by `!`:
+      #   ./packages/sui/**   -> @ship/sui-runtime, @ship/sui-dom, tree-sitter-sui (grammar)
+      #   ./packages/deck/**  -> @ship/sdk, @ship/sdk-client, @ship/deck-host, @ship/sui-eval, @ship/sui-lsp-browser
+      #   every healthy component pack under packages/components/{sui,ship}/*
+      # Runs --sequential with VITEST_MAX_FORKS=2: parallel cross-package execution
+      # oversubscribes the runner and flakes timing-sensitive suites (the GC leak gate,
+      # the scroll-anchor test, compile-timeouts); sequential keeps them deterministically green.
+      # Deliberately EXCLUDED (live in-flight breakage owned by other lanes — re-add when green):
+      #   - apps/shell: 82 known environmental failures being fixed in another lane
+      #     (also not under packages/**, so it is out of this filter's scope regardless).
+      #   - @ship/sui-primitives (packages/components/sui/primitives): in-flight primitive-elevation
+      #     work leaves tree-view/timeline/toggle-group/radio-group/navigation-menu/toast unregistered.
+      #   - @ship/code (packages/components/ship/code): the just-landed views/git work leaves
+      #     ship-git-diff{,-file,-hunk} unregistered.
+      - name: JS tests — SUI framework + component packs (compiles SUI on demand via the vitest factory)
+        run: |
+          set -eo pipefail
+          VITEST_MAX_FORKS=2 bun run \
+            --filter './packages/sui/**' \
+            --filter './packages/deck/**' \
+            --filter './packages/components/sui/charts' \
+            --filter './packages/components/sui/chat-elements' \
+            --filter './packages/components/sui/media' \
+            --filter './packages/components/sui/viewer' \
+            --filter './packages/components/ship/agents' \
+            --filter './packages/components/ship/arcade' \
+            --filter './packages/components/ship/authority' \
+            --filter './packages/components/ship/canvas' \
+            --filter './packages/components/ship/chrome' \
+            --filter './packages/components/ship/markdown' \
+            --filter './packages/components/ship/pdf' \
+            --filter './packages/components/ship/pipelines' \
+            --filter './packages/components/ship/spaces' \
+            --filter './packages/components/ship/viewer' \
+            --sequential test 2>&1 | tee js-test.log
+          # bun exits 0 on "No packages matched the filter" — turn an empty match or a
+          # zero-suite run into a hard failure so this gate can never pass vacuously.
+          grep -q "No packages matched the filter" js-test.log && { echo "::error::JS test filter matched no packages"; exit 1; }
+          [ "$(grep -cE '^[^|]+:test +\|' js-test.log)" -gt 0 ] || { echo "::error::JS test step ran zero package suites"; exit 1; }
       - name: Bundle sui-runtime
         run: bun run --filter '@ship/sui-runtime' bundle
       # SUI rendering fuzz gate. Three targets, 60s each — keeps PR
