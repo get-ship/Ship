@@ -1,7 +1,8 @@
 // -- Artifact events -----------------------------------------------------------
 //
 // Artifact METADATA is event-sourced (ADR D6/D7): the write path is emit-only
-// and `ship_substrate::projections::ArtifactProjection` materializes the
+// and `crate::metadata_projection::ArtifactProjection` (L1, keystone-A
+// de-bucket 2026-06-10) materializes the
 // `collection_artifacts` table from these events. BLOBS stay on the
 // content-addressed blob plane (not event-sourced). These payloads are
 // projection-complete: every metadata column the read model needs rides the
@@ -72,3 +73,13 @@ pub struct ArtifactDeleted {
     #[serde(default)]
     pub run_id: Option<String>,
 }
+
+/// Every artifact.* event name in one slice — the domain-owned closed list
+/// (keystone A), mirroring `ALL_CANONICAL_*` / `ALL_COLLECTION`. Used by the
+/// full-linkage vocabulary guard in shipd `tests/event_vocabulary.rs`.
+pub const ALL_ARTIFACT: &[&str] = &[
+    "artifact.created",
+    "artifact.deleted",
+    "artifact.moved",
+    "artifact.updated",
+];

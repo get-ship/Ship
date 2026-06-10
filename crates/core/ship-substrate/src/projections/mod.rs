@@ -11,7 +11,6 @@
 //! rebuildable from the log.)
 
 pub mod actor;
-pub mod artifact;
 pub mod async_projection;
 pub mod grants;
 pub mod process;
@@ -24,7 +23,6 @@ mod tests_actor;
 mod tests_daemon_events;
 
 pub use actor::ActorProjection;
-pub use artifact::ArtifactProjection;
 pub use async_projection::{AsyncProjection, spawn_projection};
 // CollectionProjection moved to ship-collection::item_projection (keystone A,
 // 2026-06-10). The COLLECTION domain owns its projections at L1; it is wired

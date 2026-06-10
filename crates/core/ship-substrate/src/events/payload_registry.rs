@@ -62,10 +62,8 @@ register_event!("agent.session.failed", [EventScope::Runtime], Retention::Durabl
 register_event!("agent.session.started", [EventScope::Runtime], Retention::Durable, Stability::Stable, "AgentSessionStartedPayload", crate::events::agent_session::AgentSessionStartedPayload);
 
 // ── artifact.* ──────────────────────────────────────────────────────────────
-register_event!("artifact.created", [EventScope::Space], Retention::Durable, Stability::Stable, "ArtifactCreated", crate::events::types::ArtifactCreated);
-register_event!("artifact.deleted", [EventScope::Space], Retention::Durable, Stability::Stable, "ArtifactDeleted", crate::events::types::ArtifactDeleted);
-register_event!("artifact.moved", [EventScope::Space], Retention::Durable, Stability::Stable, "ArtifactMoved", crate::events::types::ArtifactMoved);
-register_event!("artifact.updated", [EventScope::Space], Retention::Durable, Stability::Stable, "ArtifactUpdated", crate::events::types::ArtifactUpdated);
+// Moved to ship-artifacts/src/event_registrations.rs (keystone-A de-bucket,
+// 2026-06-10): the ARTIFACT domain owns its events at L1.
 
 // ── auth.session.* ──────────────────────────────────────────────────────────
 register_event!("auth.session.created", [EventScope::Account], Retention::Durable, Stability::Stable, "AuthSessionCreated", crate::events::types::AuthSessionCreated);

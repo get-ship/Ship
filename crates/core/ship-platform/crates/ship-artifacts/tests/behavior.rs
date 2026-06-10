@@ -14,6 +14,21 @@ use ship_substrate::events::{new_isolated_for_test, EventFilter};
 use ship_substrate::home::ShipHome;
 use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
+/// The L0 default bus no longer carries ArtifactProjection (keystone-A
+/// de-bucket): the daemon installs it via the extra-projections factory.
+/// Tests register it the same way, once per process.
+fn install_artifact_projection() {
+    use std::sync::Once;
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
+            vec![Box::new(
+                ship_artifacts::metadata_projection::ArtifactProjection,
+            )]
+        }));
+    });
+}
+
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 //
 // Artifact METADATA is event-sourced (ADR D6/D7): `artifact.*` (Space-scoped)
@@ -26,6 +41,9 @@ use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, Spa
 const SCOPE_SPACE: &str = "proj1";
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
+    // Ensure ArtifactProjection is in the extra-projections factory before
+    // any SqliteEventStore (and its default_bus) is constructed.
+    install_artifact_projection();
     let ship_dir = ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let router = new_isolated_for_test(ship_dir).unwrap();

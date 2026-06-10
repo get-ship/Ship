@@ -12,9 +12,7 @@ use tokio::sync::Mutex;
 
 use ship_substrate::ports::SpaceContext;
 use ship_types::envelope::EventEnvelope;
-use ship_types::payload::{
-    ArtifactCreated, ArtifactDeleted, ArtifactMoved, ArtifactUpdated,
-};
+use crate::events::{ArtifactCreated, ArtifactDeleted, ArtifactMoved, ArtifactUpdated};
 
 use crate::backend::{BlobBackend, SubstrateBlobBackend};
 use crate::error::ArtifactError;

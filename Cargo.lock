@@ -8480,6 +8480,7 @@ dependencies = [
  "ship-reactive",
  "ship-substrate",
  "ship-types",
+ "sqlx",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",

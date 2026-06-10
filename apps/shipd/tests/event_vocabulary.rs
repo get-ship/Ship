@@ -61,6 +61,7 @@ fn domain_family_slices_are_fully_registered() {
         ("canonical session", ALL_CANONICAL_SESSION),
         ("canonical op", ALL_CANONICAL_OP),
         ("collection", ship_collection::events::ALL_COLLECTION),
+        ("artifact", ship_artifacts::events::ALL_ARTIFACT),
     ] {
         for name in names {
             assert!(

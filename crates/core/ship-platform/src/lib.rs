@@ -131,6 +131,10 @@ fn install_defaults_inner() {
             // Same-TX guarantee is preserved because this factory runs inside
             // the same SQLite transaction as the event append.
             Box::new(ship_collection::item_projection::CollectionItemProjection),
+            // ArtifactProjection — event-sourced artifact METADATA (ADR
+            // D6/D7), moved from the L0 default bus (keystone-A de-bucket,
+            // 2026-06-10). Blobs stay on the content-addressed blob plane.
+            Box::new(ship_artifacts::metadata_projection::ArtifactProjection),
             // ship-analytics — folds hook.* into rollup tables. Lives
             // in its own crate (queries, cost, mining) so downstream
             // dashboard / billing / harness-mining work has a home

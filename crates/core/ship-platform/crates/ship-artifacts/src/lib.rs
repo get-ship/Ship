@@ -6,10 +6,13 @@
 //!
 //! No sqlite/sqlx/rusqlite types anywhere in this crate.
 
+pub mod event_registrations;
+pub mod events;
 pub mod error;
 pub mod gc;
 pub(crate) mod backend;
 pub(crate) mod helpers;
+pub mod metadata_projection;
 pub mod patch;
 pub mod projection;
 pub mod service;
