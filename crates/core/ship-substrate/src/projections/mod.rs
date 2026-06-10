@@ -12,7 +12,6 @@
 
 pub mod actor;
 pub mod async_projection;
-pub mod grants;
 pub mod process;
 pub mod registry;
 pub mod spawn;
@@ -27,10 +26,10 @@ pub use async_projection::{AsyncProjection, spawn_projection};
 // CollectionProjection moved to ship-collection::item_projection (keystone A,
 // 2026-06-10). The COLLECTION domain owns its projections at L1; it is wired
 // into the bus via ship-platform's install_extra_projections_factory call.
-pub use grants::{
-    ProvisionedGrantsProjection, ProvisionedGrantsRow, provisioned_grants_for,
-    provisioned_grants_for_at, provisioned_row,
-};
+//
+// ProvisionedGrantsProjection moved to ship-auth::grants_projection (keystone-A
+// Phase A bundle 2, 2026-06-10). The AUTH domain owns its projection at L1;
+// it is wired via ship-platform's install_extra_projections_factory call.
 pub use process::{ProcessRecord, ProcessStatus, load_processes};
 pub use registry::{EventBus, Projection};
 pub use spawn::{ProjectionHandle, spawn_with_failure_counter};

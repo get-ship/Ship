@@ -33,10 +33,9 @@ use ship_types::event_registry::{EventScope, Retention, Stability};
 use ship_types::register_event;
 
 // ── account.* ───────────────────────────────────────────────────────────────
-register_event!("account.key_refreshed", [EventScope::Account], Retention::Ephemeral, Stability::Stable, "AccountKeyRefreshed", crate::events::types::AccountKeyRefreshed);
-register_event!("account.login_completed", [EventScope::Account], Retention::Durable, Stability::Stable, "AccountLoginCompleted", crate::events::types::AccountLoginCompleted);
-register_event!("account.login_started", [EventScope::Account], Retention::Durable, Stability::Stable, "AccountLoginStarted", crate::events::types::AccountLoginStarted);
-register_event!("account.logout", [EventScope::Account], Retention::Durable, Stability::Stable, "AccountLogout", crate::events::types::AccountLogout);
+// Moved to ship-auth/src/event_registrations.rs (keystone-A Phase A bundle 2,
+// 2026-06-10): account.key_refreshed / account.login_completed /
+// account.login_started / account.logout — the AUTH domain owns its events at L1.
 
 // ── actor.* ─────────────────────────────────────────────────────────────────
 register_event!("actor.crashed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ActorCrashed", crate::events::types::ActorCrashed);
@@ -50,7 +49,8 @@ register_event!("actor.woke", [EventScope::Runtime], Retention::Ephemeral, Stabi
 register_event!("agent.changed", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "AgentChanged", crate::events::types::ConfigChanged);
 // Format-2 def change notification — lives in a space's `.ship/agents`, so
 // Space-scoped; a Bucket-2 notification (content NOT carried), so Ephemeral.
-register_event!("agent.grants.provisioned", [EventScope::Account], Retention::Durable, Stability::Stable, "AgentGrantsProvisioned", crate::events::types::AgentGrantsProvisioned);
+// agent.grants.provisioned — moved to ship-auth/src/event_registrations.rs
+// (keystone-A Phase A bundle 2, 2026-06-10): AUTH domain owns its events at L1.
 
 // ── agent.session.* ─────────────────────────────────────────────────────────
 register_event!("agent.session.cancelled", [EventScope::Runtime], Retention::Durable, Stability::Stable, "AgentSessionCancelledPayload", crate::events::agent_session::AgentSessionCancelledPayload);
@@ -64,9 +64,9 @@ register_event!("agent.session.started", [EventScope::Runtime], Retention::Durab
 // 2026-06-10): the ARTIFACT domain owns its events at L1.
 
 // ── auth.session.* ──────────────────────────────────────────────────────────
-register_event!("auth.session.created", [EventScope::Account], Retention::Durable, Stability::Stable, "AuthSessionCreated", crate::events::types::AuthSessionCreated);
-register_event!("auth.session.expired", [EventScope::Account], Retention::Durable, Stability::Stable, "AuthSessionExpired", crate::events::types::AuthSessionExpired);
-register_event!("auth.session.revoked", [EventScope::Account], Retention::Durable, Stability::Stable, "AuthSessionRevoked", crate::events::types::AuthSessionRevoked);
+// Moved to ship-auth/src/event_registrations.rs (keystone-A Phase A bundle 2,
+// 2026-06-10): auth.session.created / auth.session.expired / auth.session.revoked
+// — the AUTH domain owns its events at L1.
 
 // ── collection.* ────────────────────────────────────────────────────────────
 // collection.changed: the coarse `<domain>.changed` watcher event for the

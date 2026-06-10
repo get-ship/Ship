@@ -18,7 +18,7 @@ pub fn init_auth(base_dir: impl AsRef<std::path::Path>) -> anyhow::Result<std::p
                 Box::new(crate::projection::AuthSessionsProjection)
                     as Box<dyn ship_substrate::projections::Projection>,
                 Box::new(crate::projection::DaemonOwnerProjection),
-                Box::new(ship_substrate::projections::ProvisionedGrantsProjection),
+                Box::new(crate::grants_projection::ProvisionedGrantsProjection),
             ]
         }));
     });

@@ -15,7 +15,9 @@
 //! - `grant_diff` — pending-grant diff helpers
 
 pub mod attest;
+pub mod event_registrations;
 pub mod grant_diff;
+pub mod grants_projection;
 pub mod pairing;
 pub mod peer_identity;
 pub mod projection;
@@ -32,6 +34,10 @@ mod tests;
 // Stable surface re-exports — callers that previously used
 // `ship_platform::auth::*` continue to work through ship-platform's
 // own re-export (`pub use ship_auth as auth`).
+pub use grants_projection::{
+    ProvisionedGrantsProjection, ProvisionedGrantsRow, provisioned_grants_for,
+    provisioned_grants_for_at, provisioned_row,
+};
 pub use projection::{
     AuthSessionRow, AuthSessionsProjection, DaemonOwnerProjection, DaemonOwnerRow,
     active_session, current_owner, list_active_sessions,

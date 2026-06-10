@@ -120,7 +120,9 @@ fn install_defaults_inner() {
             Box::new(ship_auth::AuthSessionsProjection),
             Box::new(ship_auth::DaemonOwnerProjection),
             // Per-agent approved grant baseline the mint path reads.
-            Box::new(ship_agents::services::permissions::ProvisionedGrantsProjection),
+            // ProvisionedGrantsProjection moved to ship-auth (keystone-A
+            // Phase A bundle 2, 2026-06-10): the AUTH domain owns it at L1.
+            Box::new(ship_auth::ProvisionedGrantsProjection),
             // Canonical session projection — folds session.* events into
             // canonical_sessions (runtime.db). Replaces the legacy
             // AgentSessionProjection (retired by canonical-emitter-migration).
