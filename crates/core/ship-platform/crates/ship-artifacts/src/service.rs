@@ -43,15 +43,6 @@ impl ArtifactService {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn with_backend(ctx: Arc<SpaceContext>, backend: Arc<dyn BlobBackend>) -> Self {
-        Self {
-            ctx,
-            backend,
-            scope_locks: StdMutex::new(HashMap::new()),
-        }
-    }
-
     fn scope_lock(&self, scope: &ArtifactScope) -> Arc<Mutex<()>> {
         let key = scope.lock_key();
         let mut map = self.scope_locks.lock().expect("scope_locks poisoned");
