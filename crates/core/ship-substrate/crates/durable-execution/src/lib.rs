@@ -20,6 +20,7 @@
 
 pub mod engine;
 pub mod projection;
+pub mod store;
 
 /// The op-execution contract, re-exported from `ship-js` — the engine and the JS
 /// runtime share ONE seam. The host implements it over its gateway + credential.
@@ -29,3 +30,4 @@ pub use engine::{
     JournalingDispatch, OpRecord, Program, RunStatus,
 };
 pub use projection::{ContextItem, ContextProjector, KeepRecent, Verbatim};
+pub use store::{InMemoryJournalStore, JournalStore, JournalStoreError};

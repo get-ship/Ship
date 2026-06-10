@@ -18,12 +18,13 @@
 use std::future::Future;
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use ship_js::{Dispatch, DispatchError};
 
 /// One recorded op outcome in the journal.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum OpRecord {
     /// The op ran (or replayed) to a value.
     Completed(Value),
@@ -33,7 +34,7 @@ pub enum OpRecord {
 }
 
 /// A single journal entry: the op name + its outcome, in execution order.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct JournalEntry {
     pub seq: u64,
     pub op: String,
@@ -41,9 +42,13 @@ pub struct JournalEntry {
 }
 
 /// The append-only, ordered op log — the durable truth a run replays from.
-/// (In production this graduates to the persisted event-log; here it is the
-/// in-memory core.)
-#[derive(Debug, Clone, Default)]
+///
+/// The journal is `Serialize`/`Deserialize` so a run's durable state can be
+/// persisted across a process boundary (a daemon restart, a hand-off to another
+/// worker) and rehydrated for resume — completed ops replay from the log without
+/// re-executing. A [`JournalStore`] is the seam that persists/loads it; the
+/// in-memory `Vec` here is the canonical replay structure the engine reads.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Journal {
     entries: Vec<JournalEntry>,
 }
@@ -564,6 +569,85 @@ mod tests {
         assert!(!journal2.is_suspended());
         // Order proves it: read, then put — the read once, the put once.
         assert_eq!(*seen.lock().unwrap(), vec!["collections.read", "collections.put"]);
+    }
+
+    // ── Journal persistence (the JournalStore seam) ──────────────────────────
+    // The durable property carried across a PROCESS boundary: a journal that is
+    // serialized and rehydrated replays identically — completed ops return their
+    // logged results and the dispatch is never called again.
+
+    use crate::store::{InMemoryJournalStore, JournalStore};
+
+    // Serializing a journal and reading it back yields a journal that replays
+    // with ZERO new dispatches — proving JournalEntry/OpRecord/Journal round-trip
+    // losslessly through serde (the prerequisite for any persisted backing).
+    #[tokio::test]
+    async fn journal_survives_serde_boundary_then_replays_without_re_dispatch() {
+        let (gw, calls, _) = counting();
+
+        let (s1, journal) = execute(Journal::new(), gw.clone(), &TwoReads).await;
+        assert_eq!(calls.load(Ordering::SeqCst), 2, "live run executes both ops");
+
+        // Cross the wire: serialize → bytes → deserialize (a daemon restart).
+        let bytes = serde_json::to_string(&journal).expect("journal serializes");
+        let rehydrated: Journal = serde_json::from_str(&bytes).expect("journal deserializes");
+        assert_eq!(rehydrated.entries(), journal.entries(), "round-trip is lossless");
+
+        // Replay the rehydrated journal: nothing re-executes, same result.
+        let (s2, _) = execute(rehydrated, gw, &TwoReads).await;
+        assert_eq!(calls.load(Ordering::SeqCst), 2, "rehydrated replay re-executes NOTHING");
+        assert_eq!(s1, s2, "rehydrated run reproduces the original result");
+    }
+
+    // The store seam end to end: save a completed run, load it back, replay — no
+    // re-dispatch. The InMemoryJournalStore round-trips through serde JSON, so
+    // this exercises the same path a persisted backend would.
+    #[tokio::test]
+    async fn journal_store_save_load_preserves_replay() {
+        let (gw, calls, _) = counting();
+        let store = InMemoryJournalStore::new();
+
+        let (s1, journal) = execute(Journal::new(), gw.clone(), &TwoReads).await;
+        store.save("run-1", &journal).await.expect("save");
+
+        let loaded = store.load("run-1").await.expect("load").expect("run-1 exists");
+        let (s2, _) = execute(loaded, gw, &TwoReads).await;
+        assert_eq!(calls.load(Ordering::SeqCst), 2, "loaded replay re-executes nothing");
+        assert_eq!(s1, s2);
+    }
+
+    // The headline P1.0 property: a run PARKED on a suspend survives a process
+    // boundary. Save the suspended journal, load it in a "fresh process", resume
+    // with the decision — the pre-suspend op is NOT re-run, the post-suspend op
+    // runs exactly once.
+    #[tokio::test]
+    async fn suspended_run_survives_the_store_and_resumes() {
+        let (gw, calls, seen) = counting();
+        let store = InMemoryJournalStore::new();
+
+        // Run to the checkpoint, then persist the parked run and drop it.
+        let (s1, journal) = execute(Journal::new(), gw.clone(), &ReadApproveWrite).await;
+        assert!(matches!(s1, RunStatus::Suspended));
+        assert_eq!(calls.load(Ordering::SeqCst), 1, "only the read ran before parking");
+        store.save("run-await", &journal).await.expect("save parked run");
+        drop(journal);
+
+        // "Restart": load the parked run from the store and resume it.
+        let reloaded = store.load("run-await").await.expect("load").expect("exists");
+        assert!(reloaded.is_suspended(), "the parked suspend survived persistence");
+        let (s2, journal2) = resume(reloaded, json!(true), gw, &ReadApproveWrite).await;
+        assert!(matches!(s2, RunStatus::Completed(_)), "completes after the reloaded resume");
+        assert_eq!(calls.load(Ordering::SeqCst), 2, "read NOT re-run across the restart; only the write executed");
+        assert!(!journal2.is_suspended());
+        assert_eq!(*seen.lock().unwrap(), vec!["collections.read", "collections.put"]);
+    }
+
+    // An unknown run id loads as None, not an error — the store distinguishes
+    // "never persisted" from "backend failed".
+    #[tokio::test]
+    async fn journal_store_unknown_run_loads_none() {
+        let store = InMemoryJournalStore::new();
+        assert!(store.load("never-started").await.expect("load ok").is_none());
     }
 
     // A terminal dispatch failure (a denial, as the engine sees it) surfaces as a
