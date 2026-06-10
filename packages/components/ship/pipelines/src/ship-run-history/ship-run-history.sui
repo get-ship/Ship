@@ -1,0 +1,54 @@
+<!--
+  <ship-run-history> — the run-history surface. Renders a JSON array of runs as
+  a hairline table: status dot · run id · trigger · duration (number + relative
+  bar) · started. Status maps to ship tone tokens (success · destructive ·
+  info). Prop-driven only — no SDK calls.
+
+  Props:  runs    — JSON array of { id, status?, trigger?, duration?, durationPct?, started? }
+          title   — header label (default "Recent runs")
+          meta    — header right-aligned context line
+  Events: ship-select { run } — a row was activated (click / Enter / Space)
+  Parts:  history · header
+-->
+<prop name="runs" type="string" default="[]" reflect />
+<prop name="title" type="string" default="Recent runs" />
+<prop name="meta" type="string" default="" />
+
+<style>
+  :host { display: block; }
+  :host([hidden]) { display: none; }
+  .rh { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-xs); overflow: hidden; }
+
+  .hd { display: flex; align-items: center; gap: 10px; padding: 12px var(--space-5); border-bottom: 1px solid var(--border-subtle); font-family: var(--font-mono); font-weight: 600; font-size: var(--text-sm); color: var(--foreground); }
+  .hd .cnt { margin-left: auto; font-weight: 400; font-size: 11px; color: var(--muted-foreground); }
+  .hd .cnt:empty { display: none; }
+
+  .colhd, .row { display: grid; grid-template-columns: 16px 120px 1fr 96px 104px; align-items: center; gap: 12px; padding: 9px var(--space-5); }
+  .colhd { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted-foreground); font-weight: 600; border-bottom: 1px solid var(--border); }
+
+  .row { border-bottom: 1px solid var(--border-subtle); font-size: var(--text-sm); color: var(--foreground); cursor: pointer; }
+  .row:last-child { border-bottom: 0; }
+  .row:hover { background: color-mix(in oklch, var(--foreground) 4%, transparent); }
+  .row:focus-visible { outline: var(--focus-ring); outline-offset: calc(-1 * var(--focus-ring-offset)); }
+
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted-foreground); }
+  .s-success { background: var(--success); }
+  .s-failed  { background: var(--destructive); }
+  .s-running { background: var(--info); }
+
+  .rid { font-family: var(--font-mono); font-weight: 600; }
+  .trig { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+  .dur { display: flex; flex-direction: column; gap: 3px; }
+  .dur .n { font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .dur .b { height: 3px; border-radius: 2px; background: var(--muted); overflow: hidden; }
+  .dur .b > i { display: block; height: 100%; background: var(--muted-foreground); }
+  .when { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); text-align: right; }
+
+  .empty { padding: 16px var(--space-5); font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); text-align: center; }
+</style>
+
+<div class="rh" part="history">
+  <div class="hd" part="header"><span>{title()}</span><span class="cnt">{meta()}</span></div>
+  <div class="colhd"><span></span><span>Run</span><span>Trigger</span><span>Duration</span><span>Started</span></div>
+  <div class="rows" bind:this={rowsEl}></div>
+</div>

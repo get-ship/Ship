@@ -1,0 +1,54 @@
+<!--
+  <ship-arcade> — the arcade LAUNCHER surface. Renders a JSON list of games as a
+  grid of tone-tinted tiles (art block + initial, title, meta line). Tile tone
+  maps to a ship tone token so themes re-skin the whole grid. Prop-driven only;
+  this is chrome over the sui-* arcade primitives — it does not touch the
+  PixiJS engine.
+
+  Props:  games   — JSON array of { id, title?, meta?, tone?, art? }
+          heading — grid heading (default "Arcade")
+          sub     — heading sub-line
+  Events: ship-select { game } — a tile was activated (click / Enter / Space)
+  Parts:  surface · grid
+-->
+<prop name="games" type="string" default="[]" reflect />
+<prop name="heading" type="string" default="Arcade" />
+<prop name="sub" type="string" default="" />
+
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  :host([hidden]) { display: none; }
+
+  .head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+  .head h3 { margin: 0; font-family: var(--heading-font); font-weight: var(--heading-weight); font-size: var(--text-2xl); color: var(--foreground); }
+  .head .sub { font-size: var(--text-sm); color: var(--muted-foreground); }
+  .head .sub:empty { display: none; }
+
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+  /* Hand-rolled tiles (rendered by the controller via bindHtml). */
+  .tile { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-xs); overflow: hidden; cursor: pointer; transition: border-color var(--duration-fast), box-shadow var(--duration-fast), transform var(--duration-fast); }
+  .tile:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .tile:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+
+  .art { aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-weight: 700; font-size: 28px; color: var(--muted-foreground); background: color-mix(in oklch, var(--muted-foreground) 12%, var(--card)); }
+  /* Tone ramp — game colors map to ship tone tokens so themes re-skin. */
+  .tile.t-success .art { color: var(--success); background: color-mix(in oklch, var(--success) 16%, var(--card)); }
+  .tile.t-info .art { color: var(--info); background: color-mix(in oklch, var(--info) 16%, var(--card)); }
+  .tile.t-warning .art { color: var(--warning); background: color-mix(in oklch, var(--warning) 16%, var(--card)); }
+  .tile.t-destructive .art { color: var(--destructive); background: color-mix(in oklch, var(--destructive) 16%, var(--card)); }
+  .tile.t-accent .art { color: var(--accent); background: color-mix(in oklch, var(--accent) 16%, var(--card)); }
+  .tile.t-primary .art { color: var(--primary); background: color-mix(in oklch, var(--primary) 16%, var(--card)); }
+
+  .meta { padding: 8px 10px; }
+  .meta .t { font-size: var(--text-sm); font-weight: var(--font-weight-medium, 500); color: var(--foreground); }
+  .meta .s { font-size: 11px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+  .meta .s:empty { display: none; }
+
+  .empty { grid-column: 1 / -1; padding: 24px; font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); text-align: center; }
+</style>
+
+<div class="surface" part="surface">
+  <div class="head"><h3>{heading()}</h3><span class="sub">{sub()}</span></div>
+  <div class="grid" part="grid" bind:this={gridEl}></div>
+</div>
