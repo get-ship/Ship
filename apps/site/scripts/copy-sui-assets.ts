@@ -23,7 +23,6 @@ const SITE_STYLES = join(SCRIPT_DIR, '../src/styles');
 //     the project's `.deck/` (deck's `.next`-equivalent).
 const SUI_ASSETS_DIR = join(REPO_ROOT, '.deck', 'framework');
 const DECK_OUT_DIR = join(REPO_ROOT, '.deck');
-const DECK_CHUNKS_DIR = join(DECK_OUT_DIR, 'sui-components');
 const DECK_ASSETS_DIR = join(REPO_ROOT, 'crates/deck/deck-core/assets');
 
 const SUI_BUNDLES: ReadonlyArray<{ name: string; from: string }> = [
@@ -46,6 +45,28 @@ const SUI_BUNDLES: ReadonlyArray<{ name: string; from: string }> = [
   { name: 'sui-arcade.js', from: DECK_OUT_DIR },
 ] as const;
 
+
+// Lazy-pack bundles code-split into content-hashed sibling chunks
+// (`import("./Geometry-XXXX.js")` etc.). A bundle copied to public/ needs
+// those siblings at the same root or its dynamic imports 404. Scan each
+// copied bundle for relative .js specifiers and copy them transitively.
+function copyChunkImports(bundlePath: string, seen = new Set<string>()): void {
+  const src = readFileSync(bundlePath, 'utf8');
+  for (const m of src.matchAll(/["']\.\/([\w][\w.-]*\.js)["']/g)) {
+    const name = m[1]!;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    const chunkSrc = join(DECK_OUT_DIR, name);
+    if (!existsSync(chunkSrc)) {
+      console.log(`[copy-sui-assets] chunk ${name} referenced by ${bundlePath} missing from .deck/`);
+      continue;
+    }
+    copyFileSync(chunkSrc, join(PUBLIC_DIR, name));
+    copied++;
+    copyChunkImports(chunkSrc, seen);
+  }
+}
+
 mkdirSync(PUBLIC_DIR, { recursive: true });
 
 let copied = 0;
@@ -60,6 +81,7 @@ for (const { name, from } of SUI_BUNDLES) {
   }
   copyFileSync(src, join(PUBLIC_DIR, name));
   copied++;
+  if (from === DECK_OUT_DIR) copyChunkImports(src);
 }
 
 // <sui-icon> fetches ONE icon at a time from `/_deck/icons/<name>.svg`
@@ -123,23 +145,22 @@ for (const { name, from } of SUI_BUNDLES) {
 // ── Tutorial playground editor ───────────────────────────────────────
 // The SUI tutorial (getship.dev/tutorial) is a live editor + sandboxed
 // preview. The editor element — `ship-code-editor.js` — is a CodeMirror-
-// based lazy chunk in deck's build output (`.deck/sui-components/`), NOT
+// based lazy chunk deck bakes to `.deck/ship-code-editor.js`, NOT
 // in the lean marketing bundle. The tutorial side-loads it on first use,
 // so we mirror it into public/ here.
 //
 // The sandbox host itself (public/tutorial/{host.html,sw.js,scenarios})
 // is committed static source under this app — not copied here.
 {
-  const editorSrc = join(DECK_CHUNKS_DIR, 'ship-code-editor.js');
+  const editorSrc = join(DECK_OUT_DIR, 'ship-code-editor.js');
   if (existsSync(editorSrc)) {
-    const editorDstDir = join(PUBLIC_DIR, 'sui-components');
-    mkdirSync(editorDstDir, { recursive: true });
-    copyFileSync(editorSrc, join(editorDstDir, 'ship-code-editor.js'));
+    copyFileSync(editorSrc, join(PUBLIC_DIR, 'ship-code-editor.js'));
+    copyChunkImports(editorSrc);
     copied++;
   } else {
     console.log(
       `[copy-sui-assets] ${editorSrc} not found; tutorial editor will not load. ` +
-      `Build the deck sui-components chunks first.`,
+      `Run 'deck build-assets' first (ship-code-editor target).`,
     );
   }
 }

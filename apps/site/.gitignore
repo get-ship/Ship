@@ -11,3 +11,9 @@ public/sui-sdk-client.js
 public/sui-components.js
 public/sui-marketing.js
 public/sui-arcade.js
+public/ship-code-editor.js
+# Content-hashed sibling chunks the lazy-pack bundles dynamic-import
+# (Geometry-XXXX.js etc.) — copied from .deck/ by copy-sui-assets.ts.
+# Committed source under public/ lives in subdirs (tutorial/), never
+# at the root, so a root-level hashed .js is always a generated copy.
+public/*-*.js

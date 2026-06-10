@@ -32,6 +32,15 @@
       "kind": "lazy-pack",
       "entry": "packages/components/ship/pdf/src/index.ts",
       "externals": ["@ship/sui-runtime", "@ship/sui-dom"]
+    },
+    {
+      // Code-editor lazy pack — CodeMirror 6 (<ship-code-editor> + the
+      // @ship/code tags). Side-loaded by the SUI tutorial on first use;
+      // not in the lean marketing bundle.
+      "name": "ship-code-editor",
+      "kind": "lazy-pack",
+      "entry": "packages/components/ship/code/src/index.ts",
+      "externals": ["@ship/sui-runtime", "@ship/sui-dom"]
     }
   ],
   "scaffolds": [
