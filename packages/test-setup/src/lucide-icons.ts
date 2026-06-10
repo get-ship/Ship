@@ -8,7 +8,35 @@
 // component-package cycles. Callers pass `primeIconCache` in or iterate
 // the map themselves.
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+/** Repo-relative location of the committed lucide registry. */
+const LUCIDE_REL = 'crates/deck/deck-core/assets/lucide-icons.json'
+
+/**
+ * Resolve the committed `lucide-icons.json` independent of `process.cwd()`.
+ *
+ * Every vitest setup used to hand-roll a `resolve(process.cwd(), '../../..')`
+ * hop whose depth depended on the package dir — so the same file ENOENT'd the
+ * moment a runner was invoked from a different cwd. Walk up from THIS module's
+ * own location (stable regardless of which package's tests are running) until
+ * the registry is found. Throws a clear error if the repo layout is missing it.
+ */
+export function defaultLucideIconsPath(): string {
+  let dir = dirname(fileURLToPath(import.meta.url))
+  for (let i = 0; i < 16; i++) {
+    const candidate = join(dir, LUCIDE_REL)
+    if (existsSync(candidate)) return candidate
+    const parent = dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  throw new Error(
+    `lucide-icons.json not found in any ancestor of ${fileURLToPath(import.meta.url)} (looked for ${LUCIDE_REL})`,
+  )
+}
 
 /** Aliases mirrored from `deck-core/src/assets.rs::ICON_ALIASES`. The daemon
  *  resolves these server-side; tests prime the cache identically so a
@@ -42,10 +70,12 @@ export function loadLucideIconMap(jsonPath: string): Map<string, string> {
   return out
 }
 
-/** Convenience: read the JSON + push every entry through `primer`. */
+/** Convenience: read the JSON + push every entry through `primer`. When no
+ *  path is given, resolves the committed registry via [`defaultLucideIconsPath`]
+ *  (cwd-independent) — the form every setup should use. */
 export function primeLucideIcons(
-  jsonPath: string,
   primer: (name: string, svg: string) => void,
+  jsonPath: string = defaultLucideIconsPath(),
 ): void {
   for (const [name, svg] of loadLucideIconMap(jsonPath)) primer(name, svg)
 }

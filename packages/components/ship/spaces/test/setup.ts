@@ -7,14 +7,10 @@
 // is no daemon, so we prime sui-primitives' per-icon cache from the same
 // committed lucide JSON the daemon serves — icons render synchronously and no
 // test makes a network call.
-import { resolve } from 'node:path'
 import { primeLucideIcons } from '@ship/test-setup'
 // Deep relative import: the registry's `primeIconCache` is package-internal
 // (sui-primitives only exports its barrel), so reach the file directly — vite's
 // FS guard is widened to the repo root by suiComponentVitestConfig.
 import { primeIconCache } from '../../../sui/primitives/src/sui-icon/registry'
 
-primeLucideIcons(
-  resolve(process.cwd(), '../../../../crates/deck/deck-core/assets/lucide-icons.json'),
-  primeIconCache,
-)
+primeLucideIcons(primeIconCache)
