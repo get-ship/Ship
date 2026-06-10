@@ -10,12 +10,15 @@
 //! The base global settings object is supplied by the caller (the daemon reads
 //! its `settings.state` snapshot and passes it in). This keeps the daemon thin —
 //! it marshals the global snapshot — while the *overlay* (the product logic)
-//! lives here. Identity reads come from the Runtime-scoped `registry_store`; the
-//! overlay reads come from the per-space `settings_store`.
+//! lives here.
+//!
+//! Identity reads come from the `projects` SQL table via `registry::get(kernel,
+//! id)` (dissolution of the `space_registry` DataStore table, 2026-06-10); the
+//! overlay reads come from the per-space `settings_store` (DataStore port).
 
 use serde_json::Value;
 
-use ship_substrate::ports::DataStore;
+use ship_substrate::ports::{DataStore, KernelLog};
 
 use crate::error::SpaceError;
 use crate::types::SpaceInfo;
@@ -28,18 +31,18 @@ use crate::{config, registry};
 /// no space resolved, so identity is empty and the settings pass through
 /// unoverlaid.
 ///
-/// `registry_store` is the Runtime-scoped store (resolves identity from the
-/// `projects` table); `settings_store` is the per-space store (resolves the
-/// `space_settings` overlay). When both are the same handle, the read still
-/// works — the tables are distinct.
+/// `kernel` provides the ship_dir for identity lookups (reads from `projects`
+/// SQL table via `registry::get`); `settings_store` is the per-space store
+/// (resolves the `space_settings` overlay). When both point at the same physical
+/// db, the read still works — the tables are distinct.
 pub async fn compose(
-    registry_store: &dyn DataStore,
+    kernel: &KernelLog,
     settings_store: &dyn DataStore,
     space_id: Option<&str>,
     global_settings: Value,
 ) -> Result<SpaceInfo, SpaceError> {
     let (root, name) = match space_id {
-        Some(id) => match registry::get(registry_store, id).await? {
+        Some(id) => match registry::get(kernel, id).await? {
             Some(rec) => (Some(rec.path), Some(rec.name)),
             None => (None, None),
         },
