@@ -8,44 +8,32 @@
 //! List returns both with a `scope` annotation per entry; project entries
 //! shadow user on id collision.
 
-use ship_files::files::{Error as FileError, FilesService, Scope};
+use ship_files::files::{FilesService, Scope};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
+use crate::services::errors::{ServiceEntity, ServiceError};
+
+/// Marker giving [`ServiceError`] its rule-flavored Display text and the
+/// rule-specific `FileError` mapping (Json/Patch → Io — rules carry no
+/// structured payload, so there is no parse/patch surface).
 #[derive(Debug)]
-pub enum Error {
-    NotFound(String),
-    AlreadyExists(String),
-    BadId(String),
-    Io(String),
-    ScopeUnavailable(Scope),
-}
+pub enum RuleEntity {}
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NotFound(s) => write!(f, "rule `{s}` not found"),
-            Self::AlreadyExists(s) => write!(f, "rule `{s}` already exists"),
-            Self::BadId(s) => write!(f, "bad id `{s}` — must match ^[a-z0-9-]+$"),
-            Self::Io(s) => write!(f, "io: {s}"),
-            Self::ScopeUnavailable(s) => write!(f, "scope {s:?} not configured"),
-        }
+impl ServiceEntity for RuleEntity {
+    const NOUN: &'static str = "rule";
+    const BAD_ID_HINT: &'static str = " — must match ^[a-z0-9-]+$";
+
+    fn map_json(s: String) -> ServiceError<Self> {
+        ServiceError::Io(s)
+    }
+
+    fn map_patch(s: String) -> ServiceError<Self> {
+        ServiceError::Io(s)
     }
 }
 
-impl From<FileError> for Error {
-    fn from(e: FileError) -> Self {
-        match e {
-            FileError::NotFound(p) => Self::NotFound(p.display().to_string()),
-            FileError::AlreadyExists(p) => Self::AlreadyExists(p.display().to_string()),
-            FileError::ScopeUnavailable(s) => Self::ScopeUnavailable(s),
-            FileError::Json(s) => Self::Io(s),
-            FileError::Patch(s) => Self::Io(s),
-            FileError::Io(e) => Self::Io(e.to_string()),
-            FileError::PathEscape(p) => Self::BadId(p.display().to_string()),
-        }
-    }
-}
+pub type Error = ServiceError<RuleEntity>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]

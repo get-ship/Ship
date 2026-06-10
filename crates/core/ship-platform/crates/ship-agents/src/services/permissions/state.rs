@@ -5,48 +5,21 @@
 //! as private and filtered from `list()` + rejected as ids. Non-object
 //! values (metadata like `default_mode`) are also filtered.
 
-use ship_files::files::{Error as FileError, FilesService, Scope};
+use ship_files::files::{FilesService, Scope};
 use serde::Serialize;
 use std::path::PathBuf;
 
+use crate::services::errors::{ServiceEntity, ServiceError};
+
+/// Marker giving [`ServiceError`] its permission-preset-flavored Display text.
 #[derive(Debug)]
-pub enum Error {
-    NotFound(String),
-    AlreadyExists(String),
-    BadId(String),
-    Parse(String),
-    Patch(String),
-    Io(String),
-    ScopeUnavailable(Scope),
+pub enum PermissionEntity {}
+
+impl ServiceEntity for PermissionEntity {
+    const NOUN: &'static str = "permission preset";
 }
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NotFound(s) => write!(f, "permission preset `{s}` not found"),
-            Self::AlreadyExists(s) => write!(f, "permission preset `{s}` already exists"),
-            Self::BadId(s) => write!(f, "bad id `{s}`"),
-            Self::Parse(s) => write!(f, "parse: {s}"),
-            Self::Patch(s) => write!(f, "patch: {s}"),
-            Self::Io(s) => write!(f, "io: {s}"),
-            Self::ScopeUnavailable(s) => write!(f, "scope {s:?} not configured"),
-        }
-    }
-}
-
-impl From<FileError> for Error {
-    fn from(e: FileError) -> Self {
-        match e {
-            FileError::NotFound(p) => Self::NotFound(p.display().to_string()),
-            FileError::AlreadyExists(p) => Self::AlreadyExists(p.display().to_string()),
-            FileError::ScopeUnavailable(s) => Self::ScopeUnavailable(s),
-            FileError::Json(s) => Self::Parse(s),
-            FileError::Patch(s) => Self::Patch(s),
-            FileError::Io(e) => Self::Io(e.to_string()),
-            FileError::PathEscape(p) => Self::BadId(p.display().to_string()),
-        }
-    }
-}
+pub type Error = ServiceError<PermissionEntity>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]

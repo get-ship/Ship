@@ -11,10 +11,12 @@
 //! (`ship_config::agents`). `FilesService` is used ONLY to resolve a `Scope` to
 //! its `.ship` dir — zero raw `std::fs` on agent-def paths in this module.
 
-use ship_files::files::{Error as FileError, FilesService, Scope};
+use ship_files::files::{FilesService, Scope};
 use ship_config::agents_write as door;
 use ship_substrate::ports::LocalFsBroker;
 use serde::Serialize;
+
+use crate::services::errors::{ServiceEntity, ServiceError};
 
 /// The gated disk door every def op rides. `LocalFsBroker` is stateless.
 fn fs() -> LocalFsBroker {
@@ -33,44 +35,16 @@ impl From<ship_config::error::ConfigError> for Error {
     }
 }
 
+/// Marker giving [`ServiceError`] its agent-flavored Display text.
 #[derive(Debug)]
-pub enum Error {
-    NotFound(String),
-    AlreadyExists(String),
-    BadId(String),
-    Parse(String),
-    Patch(String),
-    Io(String),
-    ScopeUnavailable(Scope),
+pub enum AgentEntity {}
+
+impl ServiceEntity for AgentEntity {
+    const NOUN: &'static str = "agent";
+    const BAD_ID_HINT: &'static str = " — must match ^[a-z0-9-]+$";
 }
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NotFound(s) => write!(f, "agent `{s}` not found"),
-            Self::AlreadyExists(s) => write!(f, "agent `{s}` already exists"),
-            Self::BadId(s) => write!(f, "bad id `{s}` — must match ^[a-z0-9-]+$"),
-            Self::Parse(s) => write!(f, "parse: {s}"),
-            Self::Patch(s) => write!(f, "patch: {s}"),
-            Self::Io(s) => write!(f, "io: {s}"),
-            Self::ScopeUnavailable(s) => write!(f, "scope {s:?} not configured"),
-        }
-    }
-}
-
-impl From<FileError> for Error {
-    fn from(e: FileError) -> Self {
-        match e {
-            FileError::NotFound(p) => Self::NotFound(p.display().to_string()),
-            FileError::AlreadyExists(p) => Self::AlreadyExists(p.display().to_string()),
-            FileError::ScopeUnavailable(s) => Self::ScopeUnavailable(s),
-            FileError::Json(s) => Self::Parse(s),
-            FileError::Patch(s) => Self::Patch(s),
-            FileError::Io(e) => Self::Io(e.to_string()),
-            FileError::PathEscape(p) => Self::BadId(p.display().to_string()),
-        }
-    }
-}
+pub type Error = ServiceError<AgentEntity>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
