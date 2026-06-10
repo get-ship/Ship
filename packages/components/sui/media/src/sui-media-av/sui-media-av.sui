@@ -49,6 +49,10 @@
     width: 100%;
     border-radius: var(--radius-md);
     background: var(--surface-1);
+    /* Framed surface — a hairline border + soft lift so the player reads
+       as a contained media card rather than a bare native element. */
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-xs);
   }
 
   canvas {

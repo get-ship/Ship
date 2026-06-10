@@ -38,6 +38,9 @@
 
   .frame {
     border: 1px solid var(--border);
+    /* State-colored left rail — instant at-a-glance scannability of the
+       invocation's status, echoing the status dot / status-text tint. */
+    border-left: 3px solid var(--status-color);
     border-radius: var(--radius-md, 8px);
     background: var(--card);
     overflow: hidden;

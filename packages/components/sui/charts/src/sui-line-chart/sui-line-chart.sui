@@ -88,7 +88,7 @@
         <line class="grid-line" part="grid" x1="0" x2={viewport.width()} y1={g.y} y2={g.y}></line>
       {/for}
       {#for s of seriesPaths() key={s.name}}
-        <path part="series" d={s.strokeD} fill="none" stroke={s.color} stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path part="series" d={s.strokeD} fill="none" stroke={s.color} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
         {#if points()}
           {#for p of s.pts key={p.id}}
             <circle cx={p.cx} cy={p.cy} r="2.5" fill={s.color}></circle>
