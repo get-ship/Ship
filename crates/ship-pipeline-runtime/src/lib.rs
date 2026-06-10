@@ -28,6 +28,7 @@ pub mod read_core;
 pub mod run_core;
 pub mod status_core;
 pub mod view;
+pub mod watch;
 pub mod wire;
 
 use std::sync::Once;

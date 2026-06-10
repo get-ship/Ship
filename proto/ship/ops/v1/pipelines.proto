@@ -15,6 +15,7 @@ package ship.ops.v1;
 import "ship/ops/v1/policy.proto";
 import "ship/ops/v1/ops.proto";
 import "ship/ops/v1/types.proto";
+import "ship/ops/v1/reactive.proto";
 
 // ── runtime writes (pipeline.*) ──────────────────────────────────────────────
 
@@ -187,6 +188,32 @@ message ResolveStepResult {
   bool advanced = 3;
 }
 
+// ── Watch request message (P0.4 — the ONE typed reactive surface) ───────────
+//
+// The single live watch over pipeline RUN state, the typed replacement for the
+// three untyped *Live JsonResponse streams (SummariesLive / RunLive /
+// HistoryLive — kept working, deprecated-pending-migration). It streams the
+// SAME P0.3 typed read messages (run row + step rows) as snapshot-diff
+// PatchFrames over the shared reactive.proto WatchEvent, fed by the pipeline.* +
+// session.* events the pipeline_runs + pipeline_step_runs projections fold.
+//
+// The local nullary `all` marker mirrors the agents.proto / space.proto Watch
+// precedent — the package has no shared google.protobuf.Empty and a second
+// local `message Empty {}` would collide.
+message PipelineWatchAllReq {}
+
+message PipelineWatchReq {
+  oneof scope {
+    // All runs — snapshots the run-level summary rows (PipelineRunSummariesResponse
+    // shape); wakes on any pipeline.* run-lifecycle event.
+    PipelineWatchAllReq all = 1;
+    // One run — snapshots that run's detail (run row + step rows,
+    // PipelineRunDetailResponse shape); wakes on the pipeline.* / session.*
+    // events carrying this pipeline_run_id.
+    string pipeline_run_id = 2;
+  }
+}
+
 // Pipeline config CRUD + runtime ops. Reads are C0; config writes and runtime
 // writes are C1, each gated through services::command::call (the one gate).
 // Two capabilities: ship.runtime.write for pipeline.* ops, ship.pipelines.write
@@ -211,7 +238,9 @@ service PipelinesService {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  // GUI reactive surface — stays JsonResponse (view-model with pills/tones).
+  // DEPRECATED-PENDING-WATCH-MIGRATION (P0.4): the typed `Watch` (all scope) is
+  // the structured replacement. Kept working — the GUI view-model stream
+  // (pills/tones) flows through this until consumers migrate to Watch.
   rpc SummariesLive(GetPipelinesSummariesRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
@@ -223,6 +252,8 @@ service PipelinesService {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  // DEPRECATED-PENDING-WATCH-MIGRATION (P0.4): the typed `Watch` (run scope) is
+  // the structured replacement. Kept working until GUI consumers migrate.
   rpc RunLive(RunPipelineRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
@@ -233,7 +264,20 @@ service PipelinesService {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  // DEPRECATED-PENDING-WATCH-MIGRATION (P0.4): the typed `Watch` carries the
+  // same run rows; History stays paginated/terminal-only. Kept working until
+  // GUI consumers migrate.
   rpc HistoryLive(ListPipelinesHistoryRequest) returns (stream JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  // Watch — the ONE typed reactive surface (P0.4), the typed replacement for the
+  // three *Live JsonResponse streams above. Streams the P0.3 typed read messages
+  // (run row + step rows) as snapshot-diff PatchFrames over the shared
+  // reactive.proto WatchEvent, deduped + fanned out through a ReactiveRegistry
+  // fed by pipeline.* / session.* events. Gated like the reads (C0, read cap).
+  rpc Watch(PipelineWatchReq) returns (stream WatchEvent) {
+    option (ship.ops.v1.description) = "Live typed run/step updates for a pipeline run (or all runs).";
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }

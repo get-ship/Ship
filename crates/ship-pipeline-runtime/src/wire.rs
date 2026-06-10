@@ -23,11 +23,14 @@ use serde_json::{Value, json};
 use ship_ops_rpc::{
     CancelRunResult, JsonResponse, ListPipelineRunsResponse, PipelineRunDetailResponse,
     PipelineRunHistoryResponse, PipelineRunSummariesResponse, PipelinesIndexResponse,
-    PipelinesService as PipelinesServiceTrait, ResolveStepResult, ScopedMutation,
+    PipelinesService as PipelinesServiceTrait, ResolveStepResult, ScopedMutation, WatchEvent,
 };
+use ship_reactive::{ReactiveRegistry, ResolverSpec, WatchKey};
+use ship_substrate::events::EventFilter;
 
 use crate::pipelines::service::PipelinesService;
 use crate::pipelines::state;
+use crate::watch as pipeline_watch;
 
 // ── Closure type aliases ──────────────────────────────────────────────────────
 
@@ -61,17 +64,23 @@ pub struct PipelinesWire {
     ship_dir:     PathBuf,
     live_read_fn: LiveReadFn,
     write_fn:     WriteFn,
+    /// Reactive registry for the typed `Watch` (P0.4) — N subscribers on one
+    /// `WatchKey` share one resolver + one kernel subscription. `None` in
+    /// space-less boot (the Watch RPC then errors cleanly), mirroring the
+    /// agents `agent_reactive` seam.
+    pipeline_reactive: Option<Arc<ReactiveRegistry>>,
 }
 
 impl PipelinesWire {
     pub fn new(
-        svc:          Arc<dyn PipelinesService>,
-        gate:         GateFn,
-        ship_dir:     PathBuf,
-        live_read_fn: LiveReadFn,
-        write_fn:     WriteFn,
+        svc:               Arc<dyn PipelinesService>,
+        gate:              GateFn,
+        ship_dir:          PathBuf,
+        live_read_fn:      LiveReadFn,
+        write_fn:          WriteFn,
+        pipeline_reactive: Option<Arc<ReactiveRegistry>>,
     ) -> Self {
-        Self { svc, gate, ship_dir, live_read_fn, write_fn }
+        Self { svc, gate, ship_dir, live_read_fn, write_fn, pipeline_reactive }
     }
 }
 
@@ -105,6 +114,52 @@ fn parse_scope(scope: &str) -> Result<Option<ship_files::files::Scope>, ConnectE
         other => Err(ConnectError::invalid_argument(format!(
             "scope must be 'project' or 'user', got `{other}`"
         ))),
+    }
+}
+
+// ── Watch proto conversion (PatchFrame → reactive.proto WatchEvent) ───────────
+// Mirrors the agents `AgentsWire` conversion (ship-platform/services/agents/
+// rpc_wire.rs) field-for-field — the shared reactive.proto wire types.
+
+fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ship_ops_rpc::PatchOp {
+    use ship_ops_rpc::PatchOp as P;
+    use ship_reactive::PatchOp::*;
+    match op {
+        Set => P::PATCH_OP_SET,
+        Merge => P::PATCH_OP_MERGE,
+        Append => P::PATCH_OP_APPEND,
+        Prepend => P::PATCH_OP_PREPEND,
+        Insert => P::PATCH_OP_INSERT,
+        Remove => P::PATCH_OP_REMOVE,
+        Move => P::PATCH_OP_MOVE,
+        Splice => P::PATCH_OP_SPLICE,
+        Inc => P::PATCH_OP_INC,
+    }
+}
+
+fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEvent {
+    use ship_ops_rpc::{Patch as ProtoPatch, PatchFrame as ProtoFrame};
+    let patches: Vec<ProtoPatch> = frame
+        .patches
+        .into_iter()
+        .map(|p| ProtoPatch {
+            op: buffa::EnumValue::from(patch_op_to_proto(&p.op)),
+            path: p.path,
+            value: p.value.map(|v| serde_json::to_vec(&v).unwrap_or_default()),
+            index: p.index.unwrap_or(0) as i32,
+            from: p.from.unwrap_or(0) as i32,
+            to: p.to.unwrap_or(0) as i32,
+            count: p.count.unwrap_or(0) as i32,
+            by: p.by.unwrap_or(0.0),
+            v: 1,
+            ..Default::default()
+        })
+        .collect();
+    WatchEvent {
+        body: Some(ship_ops_rpc::__buffa::oneof::watch_event::Body::Patches(Box::new(
+            ProtoFrame { patches, ..Default::default() },
+        ))),
+        ..Default::default()
     }
 }
 
@@ -149,6 +204,9 @@ impl PipelinesServiceTrait for PipelinesWire {
         Ok(Response::new(crate::read_core::summaries(&self.ship_dir)))
     }
 
+    // DEPRECATED-PENDING-WATCH-MIGRATION (P0.4): the typed `Watch` (all scope) is
+    // the structured replacement. Kept working — the GUI view-model stream
+    // (pills/tones/timeline) flows through this until consumers migrate to Watch.
     #[allow(refining_impl_trait)]
     async fn summaries_live(
         &self,
@@ -158,6 +216,8 @@ impl PipelinesServiceTrait for PipelinesWire {
         (self.live_read_fn)("pipelines.summaries", json!({})).await
     }
 
+    // DEPRECATED-PENDING-WATCH-MIGRATION (P0.4): the typed `Watch` (run scope) is
+    // the structured replacement. Kept working until GUI consumers migrate.
     #[allow(refining_impl_trait)]
     async fn run_live(
         &self,
@@ -206,6 +266,9 @@ impl PipelinesServiceTrait for PipelinesWire {
         Ok(Response::new(crate::read_core::list_runs(&self.ship_dir)))
     }
 
+    // DEPRECATED-PENDING-WATCH-MIGRATION (P0.4): the typed `Watch` carries the
+    // same run rows; History stays paginated/terminal-only. Kept working until
+    // GUI consumers migrate.
     #[allow(refining_impl_trait)]
     async fn history_live(
         &self,
@@ -217,6 +280,83 @@ impl PipelinesServiceTrait for PipelinesWire {
             "pipeline": request.pipeline, "q": request.q,
         });
         (self.live_read_fn)("pipelines.history", args).await
+    }
+
+    // ── Watch (P0.4) ──────────────────────────────────────────────────────────
+    //
+    // The ONE typed reactive surface — the typed replacement for the three *Live
+    // JsonResponse streams above (kept working, deprecated-pending-migration).
+    // Decodes the scope oneof, then sets up a snapshot-diff stream over the
+    // pipeline ReactiveRegistry. Streams the P0.3 typed read messages
+    // (PipelineRunSummariesResponse / PipelineRunDetailResponse) as PatchFrames.
+    #[allow(refining_impl_trait)]
+    async fn watch(
+        &self,
+        _ctx: RequestContext,
+        request: ship_ops_rpc::OwnedPipelineWatchReqView,
+    ) -> ServiceResult<ServiceStream<WatchEvent>> {
+        use ship_ops_rpc::__buffa::oneof::pipeline_watch_req::Scope;
+        let scope = match request.to_owned_message().scope {
+            Some(Scope::All(_)) => None,
+            Some(Scope::PipelineRunId(id)) => Some(id),
+            None => {
+                return Err(ConnectError::invalid_argument(
+                    "watch scope is required (all | pipeline_run_id)",
+                ));
+            }
+        };
+
+        let registry = self.pipeline_reactive.as_ref().cloned().ok_or_else(|| {
+            ConnectError::unavailable("pipeline watch unavailable: no active space")
+        })?;
+
+        // space_id partitions the WatchKey cache only; empty when auth context is
+        // not injected (mirrors the agents Watch handler).
+        let space_id = String::new();
+        let ship_dir = self.ship_dir.clone();
+
+        let (scope_key, spec): (String, ResolverSpec) = match scope {
+            None => {
+                let sd = ship_dir.clone();
+                let spec = ResolverSpec {
+                    prefilter: Box::new(pipeline_watch::all_scope_relevant),
+                    snapshot: Box::new(move || {
+                        let sd = sd.clone();
+                        Box::pin(async move { pipeline_watch::all_scope_snapshot(&sd) })
+                    }),
+                };
+                (pipeline_watch::SCOPE_ALL.to_string(), spec)
+            }
+            Some(run_id) => {
+                let sd = ship_dir.clone();
+                let id_for_filter = run_id.clone();
+                let id_for_snap = run_id.clone();
+                let spec = ResolverSpec {
+                    prefilter: Box::new(move |env| {
+                        pipeline_watch::run_scope_relevant(env, &id_for_filter)
+                    }),
+                    snapshot: Box::new(move || {
+                        let sd = sd.clone();
+                        let id = id_for_snap.clone();
+                        Box::pin(async move { pipeline_watch::run_scope_snapshot(&sd, &id) })
+                    }),
+                };
+                (pipeline_watch::scope_run(&run_id), spec)
+            }
+        };
+
+        let key = WatchKey { space_id, scope: scope_key, query_hash: 0 };
+        let mut rx = registry.watch(key, EventFilter::default(), spec);
+        let stream = async_stream::stream! {
+            loop {
+                match rx.recv().await {
+                    Ok(frame) => yield Ok(patch_frame_to_proto(frame)),
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        };
+        Ok(Response::new(Box::pin(stream)))
     }
 
     // ── dispatch + end_turn (shipd route cores via write_fn) ─────────────────

@@ -19,7 +19,8 @@ use ship_ops_rpc::{
 };
 
 use crate::projections::pipeline_run::{
-    PipelineRun, PipelineRunStatus, load_pipeline_run_by_slug_at, load_pipeline_runs_at,
+    PipelineRun, PipelineRunStatus, load_pipeline_run_by_id_at, load_pipeline_run_by_slug_at,
+    load_pipeline_runs_at,
 };
 use crate::projections::pipeline_step_run::{
     PipelineStepRun, StepRunStatus, load_step_runs_for_run_at,
@@ -93,6 +94,53 @@ pub fn step_row_of(step: &PipelineStepRun) -> PipelineStepRunRow {
     }
 }
 
+// ── pure folds (event slice → typed message; topology-invariant) ─────────────
+//
+// These fold an ordered event slice straight to the typed wire messages, with no
+// DB. They are the always-fresh form of the projection-backed verbs above — same
+// mappers, same shapes — and back the reactive Watch snapshot path, where each
+// re-resolve must reflect the latest emitted event without a live projection.
+
+/// `Run` detail by id, folded directly from an ordered event slice. `None` when
+/// no `pipeline.run.started` in the slice carries `run_id`.
+pub fn run_detail_from_events(
+    events: &[ship_substrate::events::EventEnvelope],
+    run_id: &str,
+) -> Option<PipelineRunDetailResponse> {
+    use crate::projections::pipeline_run::project as project_runs;
+    use crate::projections::pipeline_step_run::project as project_steps;
+
+    let runs = project_runs(events);
+    let run = runs.get(run_id)?;
+    let step_map = project_steps(events);
+    let mut steps: Vec<PipelineStepRunRow> = step_map
+        .iter()
+        .filter(|((r, _), _)| r == run_id)
+        .map(|(_, s)| step_row_of(s))
+        .collect();
+    steps.sort_by(|a, b| a.step_id.cmp(&b.step_id));
+    Some(PipelineRunDetailResponse { run: run_row_of(run).into(), steps, ..Default::default() })
+}
+
+/// `Summaries` (run-level rows, newest first) folded directly from an ordered
+/// event slice.
+pub fn summaries_from_events(
+    events: &[ship_substrate::events::EventEnvelope],
+) -> PipelineRunSummariesResponse {
+    use crate::projections::pipeline_run::project as project_runs;
+
+    let mut runs: Vec<PipelineRun> = project_runs(events).into_values().collect();
+    runs.sort_by(|a, b| {
+        b.created_at
+            .cmp(&a.created_at)
+            .then_with(|| a.pipeline_run_id.cmp(&b.pipeline_run_id))
+    });
+    PipelineRunSummariesResponse {
+        runs: runs.iter().map(run_row_of).collect(),
+        ..Default::default()
+    }
+}
+
 // ── shared loaders ───────────────────────────────────────────────────────────
 
 /// Every run, newest first by creation, stable tiebreak on id.
@@ -130,6 +178,20 @@ pub fn summaries(ship_dir: &Path) -> PipelineRunSummariesResponse {
 /// carries `slug`.
 pub fn run_detail(ship_dir: &Path, slug: &str) -> Option<PipelineRunDetailResponse> {
     let run = load_pipeline_run_by_slug_at(ship_dir, slug).ok().flatten()?;
+    let steps = step_rows_for(ship_dir, &run.pipeline_run_id);
+    Some(PipelineRunDetailResponse {
+        run: run_row_of(&run).into(),
+        steps,
+        ..Default::default()
+    })
+}
+
+/// `Run` keyed by `pipeline_run_id` — the same run detail as [`run_detail`] but
+/// looked up by id rather than slug. The Watch surface (P0.4) keys on the
+/// pipeline_run_id (events carry it; slug is not on every event), so the typed
+/// snapshot is built off the id. `None` when no run carries `run_id`.
+pub fn run_detail_by_id(ship_dir: &Path, run_id: &str) -> Option<PipelineRunDetailResponse> {
+    let run = load_pipeline_run_by_id_at(ship_dir, run_id).ok().flatten()?;
     let steps = step_rows_for(ship_dir, &run.pipeline_run_id);
     Some(PipelineRunDetailResponse {
         run: run_row_of(&run).into(),

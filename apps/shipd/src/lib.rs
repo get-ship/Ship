@@ -330,6 +330,10 @@ pub async fn run_network(
     // def files at boot, then keep it live on `agent.def.updated`. Shares the
     // gated-write NOTIFY's `KernelLog` so op-writes re-index deterministically.
     rt.start_agent_def_index().await;
+    // Typed pipeline `Watch` (pipelines P0.4): stand up the reactive registry +
+    // the bridge that taps the orchestrator's pipeline.* / session.* router
+    // events into the Watch log so run/step update streams wake.
+    rt.start_pipeline_reactive().await;
     // leak-193 diagnostics. When `SHIP_LEAK_DIAG=1`, log a periodic snapshot
     // of process RSS alongside every in-process container whose unbounded
     // growth could be the fanout RSS leak. Off by default — pure
