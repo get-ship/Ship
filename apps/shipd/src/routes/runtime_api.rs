@@ -29,7 +29,7 @@ use crate::wire::MeshResponse;
 // `jobs_status`, `pipeline_run`) were cut when their REST handlers
 // moved to the typed Connect wires (AgentsService, PipelinesService,
 // agent.Dispatch). The KEEP set here covers the read-side residual:
-// `daemon_status` / `rebuild_projections` and the event stream.
+// `daemon_status` and the event stream.
 
 pub mod daemon;
 pub mod events;

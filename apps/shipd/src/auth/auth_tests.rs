@@ -438,28 +438,9 @@ async fn query_token_rejected_on_non_raw_paths() {
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
-#[tokio::test]
-async fn query_token_accepted_on_raw_view_path() {
-    let token = Arc::new(VALID_DAEMON_TOKEN.to_string());
-    let registry: SessionRegistry = Arc::new(tokio::sync::Mutex::new(
-        std::collections::HashMap::new(),
-    ));
-    let router = Router::new()
-        .route(
-                "/api/v1/view/{name}/raw",
-            axum::routing::get(ok_handler),
-        )
-        .layer(middleware::from_fn({
-            let registry = registry.clone();
-            move |req, next| auth::auth_middleware(token.clone(), registry.clone(), req, next)
-        }));
-    let req = Request::builder()
-        .uri(format!("/api/v1/view/pipelines/raw?token={VALID_DAEMON_TOKEN}"))
-        .body(Body::empty())
-        .unwrap();
-    let (status, _) = send(router, req).await;
-    assert_eq!(status, StatusCode::OK);
-}
+// `query_token_accepted_on_raw_view_path` was deleted: the iframe raw-serve
+// flow (`/api/v1/view/*/raw`) is gone and the middleware now ignores `?token=`
+// on every path (see auth.rs) — the exception the test pinned no longer exists.
 
 #[tokio::test]
 async fn anomalous_token_format_fails_closed() {

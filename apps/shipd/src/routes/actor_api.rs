@@ -1,4 +1,4 @@
-//! Actor spawning and event routing endpoints.
+//! Actor spawning endpoint.
 //!
 //! `actor_spawn` is register-or-refine: if the kernel doesn't yet have
 //! an actor with this id, it's registered fresh (the historical path,
@@ -9,11 +9,10 @@
 //! a caller holds (or that substrate stashed for SSE drain) stays
 //! valid.
 //!
-//! `event_route` is the kernel's directed-event emit surface: the
-//! caller supplies an `EventEnvelope` (optionally with `target_actor_id`
-//! set for directed delivery) and the kernel routes it.
+//! The directed-event HTTP emit (`POST /api/v1/events/route`) was removed:
+//! zero consumers — events flow through the kernel's own emit paths.
 use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
-use ship_substrate::events::{EmitContext, EventEnvelope};
+use ship_substrate::events::EventEnvelope;
 use serde::Deserialize;
 
 use crate::auth::{AuthContext, Scope, require_scope};
@@ -33,12 +32,6 @@ pub struct ActorSpawnReq {
     /// Optional capabilities stamped on the projected `actor.created`
     /// event the daemon emits for non-substrate-spawned actors.
     pub capabilities: Option<Vec<String>>,
-}
-#[derive(Deserialize)]
-pub struct EventRouteReq {
-    pub envelope: ship_substrate::events::EventEnvelope,
-    pub workspace_id: Option<String>,
-    pub session_id: Option<String>,
 }
 
 pub async fn actor_spawn(
@@ -192,37 +185,4 @@ fn is_ulid_shape(s: &str) -> bool {
             b'P'..=b'T' | b'V'..=b'Z'
         )
     })
-}
-
-pub async fn event_route(
-    State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
-    Json(req): Json<EventRouteReq>,
-) -> impl IntoResponse {
-    // L0 kernel write — event routing. Requires EmitEvents (the same
-    // restrictive scope the route declares; no proto equivalent exists).
-    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
-        return e;
-    }
-    // MCP tools route through the daemon's HTTP API. The MCP server is a
-    // trusted Ship component — it validates caller permissions before emitting.
-    // Use the authenticated caller kind but allow CLI callers (default) to route
-    // system-namespace events (the bridge has already validated permissions).
-    // FLAG: stale workspace_id field — route through space_id (server-auth /
-    // space arc). This `EmitContext.space_id` is dead (kernel.emit ignores it;
-    // the request's own envelope is passed through), so the behavior-preserving
-    // move (mandatory fix #4) is a binding that carries the SAME key.
-    let ctx = EmitContext {
-        caller_kind: auth.caller_kind,
-        skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(
-            req.workspace_id.or(auth.workspace_id).map(ship_types::SpaceId::new),
-            ship_types::Authority::Sdk,
-        ),
-        session_id: req.session_id.or(auth.session_id),
-    };
-    match state.kernel().lock().await.emit(req.envelope, &ctx).await {
-        Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("emitted") })),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
-    }
 }

@@ -390,15 +390,12 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
     // Actor writes (L0 kernel — kernel-directed mailbox delivery).
     // The mesh.* op surface (and the mesh/actors/{id}/events introspection
     // reads) was removed; the kernel mailbox primitive is now reached
-    // exclusively through actor_spawn + event_route + the kernel's own
-    // directed delivery via `EventEnvelope.target_actor_id`.
+    // exclusively through actor_spawn + the kernel's own directed delivery
+    // via `EventEnvelope.target_actor_id`.
     // Base routes: always compiled regardless of feature flags.
     let router = Router::new()
         .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
-        .ship_route(Route::EventRoute, actor_api::event_route)
         .ship_route(Route::ListActors, actors_api::list_actors_handler)
-        // Capabilities (no state required; ok against a stateful router)
-        .ship_route(Route::Capabilities, rest_api::capabilities)
         // Isolation reads are served by the proto IsolationService
         // (ship.ops.v1) — the one op-surface path.
         .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
@@ -408,9 +405,10 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // pipeline run log stream all moved to typed Connect wires
         // (AgentsService / PipelinesService / agent.Dispatch).
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
-        // View schema (ship.*) — read-side, served from the ship-ops-rpc
-        // catalog. Manifest / bundle / file-list / write paths moved to
-        // DiscoveryService / Connect view-edit wire.
+        // Op schema (ship.*) — read-side, served from the ship-ops-rpc
+        // catalog (consumed by `ship ops call` in the CLI). View manifest /
+        // bundle serving is owned by deck; view writes are the Connect
+        // ViewService wire.
         .ship_route(Route::ShipSchema, schema_api::serve_schema)
         // The `/_deck/mutation/{name}` 410 tombstone moved to `deck::router()`
         // — it's a `/_deck/*` serving concern (deck composes that form `action`
@@ -562,7 +560,7 @@ mod merge_tests {
             "/hooks/session-start",
             "/webhook/telegram",
             "/favicon.ico",                 // dotted asset
-            "/ship.ops.v1.GitService/Overview", // Connect RPC (dotted)
+            "/ship.ops.v1.AgentsService/Summaries", // Connect RPC (dotted)
         ] {
             assert!(!is_client_nav(p), "{p} must NOT be treated as client nav");
         }

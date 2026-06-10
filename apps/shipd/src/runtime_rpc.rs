@@ -1,8 +1,8 @@
 //! `RuntimeService` handler — runtime introspection over the `process.*`
 //! projection, proto-as-SSOT (authored in `runtime.proto`). Thin glue: reads the
-//! projection via `routes::runtime_api::jobs::list_processes_at`, applies the
-//! same kind-filter/sort/cap the REST handler did, and maps records into the
-//! generated proto types. C0 read; gate reads `ship.runtime.read` from the FDS.
+//! projection via `ship_substrate::runtime_reads::list_processes_at`, applies the
+//! same kind-filter/sort/cap the retired REST handler did, and maps records into
+//! the generated proto types. C0 read; gate reads `ship.runtime.read` from the FDS.
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 
@@ -16,7 +16,6 @@ use crate::ops_rpc::OpsImpl;
 
 /// Session class → the `executor_kind` strings the orchestrator emits for it.
 /// `None` for an unrecognized kind (the handler returns invalid-argument).
-/// Mirrors `routes::runtime_api::procs::kind_to_executor_kinds`.
 fn kind_to_executor_kinds(kind: &str) -> Option<&'static [&'static str]> {
     match kind {
         "agent" => Some(&["pty", "tmux", "tmux_window"]),

@@ -68,10 +68,10 @@ async fn ship_route_registers_handler_end_to_end() {
 
     // ship_route wraps the handler in the per-route auth enforcement middleware
     // (see `scope_enforcement_tests.rs` for the full enforcement matrix).
-    // Route::Capabilities declares `@auth scope ReadWorkspace`, so the test
+    // Route::SandboxList declares `@auth scope ReadWorkspace`, so the test
     // injects an AuthContext with `Scope::Full` to clear the gate.
     let app: axum::Router = axum::Router::new()
-        .ship_route(Route::Capabilities, ok_handler)
+        .ship_route(Route::SandboxList, ok_handler)
         .layer(axum::Extension(crate::auth::AuthContext {
             caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: None,
@@ -80,13 +80,13 @@ async fn ship_route_registers_handler_end_to_end() {
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],
             grants: vec![],
-            // Capabilities is `@auth scope` (Scope::Full clears it) — not the
+            // SandboxList is `@auth scope` (Scope::Full clears it) — not the
             // gate's operator path, so no operator cred is needed here.
             operator_cred: false,
         }));
     let req = Request::builder()
         .method("GET")
-        .uri(Route::Capabilities.full_path())
+        .uri(Route::SandboxList.full_path())
         .body(Body::empty())
         .unwrap();
     let res = app.oneshot(req).await.unwrap();
@@ -109,7 +109,6 @@ fn api_v1_prefix_invariants() {
         // still reflects the template structure.
         vec![
             ("IssueSession", Route::IssueSession.full_path()),
-            ("Capabilities", Route::Capabilities.full_path()),
             ("SandboxList", Route::SandboxList.full_path()),
             ("DaemonStatus", Route::DaemonStatus.full_path()),
             ("ArtifactsUpload", Route::ArtifactsUpload.full_path()),

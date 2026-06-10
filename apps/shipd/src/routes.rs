@@ -39,10 +39,6 @@ pub mod actor_api;
 #[cfg(test)]
 mod actor_api_tests;
 pub mod actors_api;
-#[cfg(feature = "ship-code")]
-pub mod agent_sessions_attach;
-#[cfg(all(test, feature = "ship-code"))]
-mod agent_sessions_attach_tests;
 pub mod artifacts_api;
 #[cfg(feature = "ship-code")]
 pub mod hooks_api;
@@ -86,11 +82,10 @@ pub enum Route {
     // (`/_deck/source/{tag}`) are all owned by `deck::router()` now — shipd
     // serves no frontend surface, so those route variants were removed.
 
-    // ── PipelineService — service-shaped CRUD + run ops ──
-
-    /// @route POST "/api/v1/pipelines/run"
-    /// @auth scope CreateRuns
-    PipelinesRun,
+    // Pipeline dispatch moved to the typed Connect wire
+    // (`PipelinesService.Dispatch`, ship.ops.v1) — the REST `POST
+    // /api/v1/pipelines/run` route had no handler and only generated a dead
+    // TS surface. The CLI (`ship_run::dispatch_pipeline`) calls the wire.
 
     // ── Generic view serving ─────────────────────────────────────────────
 
@@ -171,16 +166,15 @@ pub enum Route {
 
     // ── Actor kernel (L0 — kernel-directed mailbox delivery) ─────────────
     // The mesh.* introspection reads (GET /api/v1/mesh, per-actor reads)
-    // were culled with the mesh op surface. The actor/spawn + events/route
-    // writes (L0) are live callers (sui-canvas) and stay.
+    // were culled with the mesh op surface, and POST /api/v1/events/route
+    // (the directed-event HTTP emit) was culled with zero consumers —
+    // events flow through the kernel's own emit paths. actor/spawn stays:
+    // it is the register-or-refine seam for externally-launched agents
+    // (SHIP_ACTOR_ID) and is exercised by tests/loops/daemon-minted-ids.
 
     /// @route POST "/api/v1/actor/spawn"
     /// @auth scope MeshSend
     ActorSpawn,
-
-    /// @route POST "/api/v1/events/route"
-    /// @auth scope EmitEvents
-    EventRoute,
 
     /// @route GET "/api/v1/actors"
     /// @auth scope ReadWorkspace
@@ -211,11 +205,9 @@ pub enum Route {
     /// @auth handler
     ArtifactMetadata { id: String },
 
-    // ── Capabilities ─────────────────────────────────────────────────────
-
-    /// @route GET "/api/v1/capabilities"
-    /// @auth scope ReadWorkspace
-    Capabilities,
+    // GET /api/v1/capabilities was removed: zero consumers (only shipd's own
+    // tests fetched it) and it served fabricated tier/feature data naming
+    // retired concepts (jobs, workspaces).
 
     // Isolation reads moved to the proto IsolationService (ship.ops.v1);
     // the REST routes were removed to avoid a parallel path.
