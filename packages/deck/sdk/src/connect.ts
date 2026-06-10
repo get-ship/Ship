@@ -18,14 +18,11 @@ import { OpsService } from "./gen/ship/ops/v1/ops_pb.js";
 import { StreamService } from "./gen/ship/ops/v1/stream_pb.js";
 // Per-domain proto-as-SSOT services (each its own service, not on ReadOps).
 import { AccountService } from "./gen/ship/ops/v1/account_pb.js";
-import { AgentService } from "./gen/ship/ops/v1/agent_pb.js";
 import { AgentsService } from "./gen/ship/ops/v1/agents_pb.js";
 import { AnalyticsService } from "./gen/ship/ops/v1/analytics_pb.js";
 import { ArtifactsService } from "./gen/ship/ops/v1/artifacts_pb.js";
 import { CollectionsService } from "./gen/ship/ops/v1/collections_pb.js";
-import { DashboardService } from "./gen/ship/ops/v1/dashboard_pb.js";
 import { EventsService } from "./gen/ship/ops/v1/events_pb.js";
-import { GitService } from "./gen/ship/ops/v1/git_pb.js";
 import { IsolationService } from "./gen/ship/ops/v1/isolation_pb.js";
 import {
   type IsolationCapabilities,
@@ -45,18 +42,14 @@ import { EntityKind, type SearchHit, type SearchResponse } from "./gen/ship/ops/
 import { McpService } from "./gen/ship/ops/v1/mcp_pb.js";
 import { PermissionsService } from "./gen/ship/ops/v1/permissions_pb.js";
 import { PipelinesService } from "./gen/ship/ops/v1/pipelines_pb.js";
-import { ProjectService } from "./gen/ship/ops/v1/project_pb.js";
 import { RulesService } from "./gen/ship/ops/v1/rules_pb.js";
 import { RuntimeService } from "./gen/ship/ops/v1/runtime_pb.js";
-import { SessionsService } from "./gen/ship/ops/v1/sessions_pb.js";
 import { SettingsService, SettingScope } from "./gen/ship/ops/v1/settings_pb.js";
 import type { Setting, SettingList } from "./gen/ship/ops/v1/settings_pb.js";
 import { SkillsService } from "./gen/ship/ops/v1/skills_pb.js";
 import { SearchService } from "./gen/ship/ops/v1/search_pb.js";
 import { SpaceService } from "./gen/ship/ops/v1/space_pb.js";
-import { SpecsService } from "./gen/ship/ops/v1/specs_pb.js";
 import { ViewService } from "./gen/ship/ops/v1/view_pb.js";
-import { WorkspacesService } from "./gen/ship/ops/v1/workspaces_pb.js";
 
 export interface ShipConnectOptions {
   /** Daemon base URL, e.g. `http://127.0.0.1:9315`. */
@@ -75,29 +68,22 @@ export interface ShipConnectClient {
   stream: Client<typeof StreamService>;
   // Per-domain clients — the flip target.
   account: Client<typeof AccountService>;
-  agent: Client<typeof AgentService>;
   agents: Client<typeof AgentsService>;
   analytics: Client<typeof AnalyticsService>;
   artifacts: Client<typeof ArtifactsService>;
   collections: Client<typeof CollectionsService>;
-  dashboard: Client<typeof DashboardService>;
   events: Client<typeof EventsService>;
-  git: Client<typeof GitService>;
   isolation: Client<typeof IsolationService>;
   mcp: Client<typeof McpService>;
   permissions: Client<typeof PermissionsService>;
   pipelines: Client<typeof PipelinesService>;
-  project: Client<typeof ProjectService>;
   rules: Client<typeof RulesService>;
   runtime: Client<typeof RuntimeService>;
   search: Client<typeof SearchService>;
-  sessions: Client<typeof SessionsService>;
   settings: Client<typeof SettingsService>;
   skills: Client<typeof SkillsService>;
   space: Client<typeof SpaceService>;
-  specs: Client<typeof SpecsService>;
   view: Client<typeof ViewService>;
-  workspaces: Client<typeof WorkspacesService>;
 }
 
 /** Attach `Authorization: Bearer <token>` to every request. */
@@ -122,29 +108,22 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
     meta: createClient(OpsService, transport),
     stream: createClient(StreamService, transport),
     account: createClient(AccountService, transport),
-    agent: createClient(AgentService, transport),
     agents: createClient(AgentsService, transport),
     analytics: createClient(AnalyticsService, transport),
     artifacts: createClient(ArtifactsService, transport),
     collections: createClient(CollectionsService, transport),
-    dashboard: createClient(DashboardService, transport),
     events: createClient(EventsService, transport),
-    git: createClient(GitService, transport),
     isolation: createClient(IsolationService, transport),
     mcp: createClient(McpService, transport),
     permissions: createClient(PermissionsService, transport),
     pipelines: createClient(PipelinesService, transport),
-    project: createClient(ProjectService, transport),
     rules: createClient(RulesService, transport),
     search: createClient(SearchService, transport),
     runtime: createClient(RuntimeService, transport),
-    sessions: createClient(SessionsService, transport),
     settings: createClient(SettingsService, transport),
     skills: createClient(SkillsService, transport),
     space: createClient(SpaceService, transport),
-    specs: createClient(SpecsService, transport),
     view: createClient(ViewService, transport),
-    workspaces: createClient(WorkspacesService, transport),
   };
 }
 
@@ -152,30 +131,23 @@ export {
   OpsService,
   StreamService,
   AccountService,
-  AgentService,
   AgentsService,
   AnalyticsService,
   ArtifactsService,
   CollectionsService,
-  DashboardService,
   EventsService,
-  GitService,
   IsolationService,
   McpService,
   PermissionsService,
   PipelinesService,
-  ProjectService,
   RulesService,
   SearchService,
   RuntimeService,
-  SessionsService,
   SettingsService,
   SettingScope,
   SkillsService,
   SpaceService,
-  SpecsService,
   ViewService,
-  WorkspacesService,
 };
 
 export {
