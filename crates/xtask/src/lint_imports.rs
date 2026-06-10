@@ -12,7 +12,7 @@
 //! - `ship_platform::*`  (L1)
 //! - `ship_substrate::*` (L0)
 //! - `ship_kernel::*`    (L0)
-//! - `compiler::*`       (L1 — the `compiler` crate, not `sui_compiler`)
+//! - `compiler::*`       (L0 — the `compiler` crate, not `sui_compiler`)
 //!
 //! L0 crates (`ship-substrate`, `ship-kernel`, `ship-host`) may NOT import:
 //! - `ship_platform::*`  (L1)
@@ -85,7 +85,7 @@ const SHARED_FORBIDDEN: &[(&str, &str)] = &[
     ),
     (
         "compiler",
-        "shared crates must not import compiler (L1) — use ship-types or inline the utility",
+        "shared crates must not import compiler (L0) — use ship-types or inline the utility",
     ),
 ];
 
@@ -98,9 +98,13 @@ const CRATES: &[CrateEntry] = &[
     CrateEntry { name: "ship-substrate", layer: Layer::L0 },
     CrateEntry { name: "ship-kernel",    layer: Layer::L0 },
     CrateEntry { name: "ship-host",      layer: Layer::L0 },
+    // `compiler` is a pure L0 leaf (zero ship deps) — canonical layer per
+    // metadata::classify (L0_SIBLINGS). Scanned with L0_FORBIDDEN; imports no
+    // ship_platform, so it passes. (The SHARED_FORBIDDEN `compiler` entry above
+    // is a separate check forbidding *shared* crates from importing it.)
+    CrateEntry { name: "compiler",       layer: Layer::L0 },
     // ── L1 ───────────────────────────────────────────────────────────────────
     CrateEntry { name: "ship-platform",  layer: Layer::L1 },
-    CrateEntry { name: "compiler",       layer: Layer::L1 },
     CrateEntry { name: "ship-analytics", layer: Layer::L1 },
     // ── Shared leaf crates ────────────────────────────────────────────────────
     CrateEntry { name: "ship-types",     layer: Layer::Shared },
