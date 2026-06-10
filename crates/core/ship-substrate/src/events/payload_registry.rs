@@ -15,7 +15,9 @@
 //!    and therefore cannot live in the leaf `ship-types` crate.
 //!
 //! After this module compiles, `ship_types::event_registry::registry()` returns every
-//! classified entry. `event_types::ALL` is derived from this registry.
+//! classified entry. NOTE: `event_types::ALL` is a separate, HAND-MAINTAINED list — it
+//! is NOT auto-derived from this registry, and no registry-vs-`ALL` consistency guard
+//! exists yet (wiring one is a TODO / separate slice).
 //!
 //! A1 classification ground truth: `.artifacts/specs/space/event-classification.md`
 //! Fail-closed default (undetermined): runtime, durable.
@@ -146,11 +148,13 @@ register_event!("executor.window_destroyed", [EventScope::Runtime], Retention::E
 // The denied-permission signal is a point-in-time runtime gate decision; there
 // is no projection that folds it and it must not survive compaction.
 //
-// FOLLOW-UP BLOCKER (op.* family): the op.tool_use_started / op.tool_use_completed
-// / op.tool_use_denied event family (#TODO: issue ref) carries the same ephemeral
-// semantics as hook.tool_use_* but is not yet registered here. Full R2 conversion
-// requires adding those op.* events with Retention::Ephemeral before any analytics
-// projection can fold them — deferred to a subsequent PR.
+// op.* family: the op.tool_use_started / op.tool_use_completed /
+// op.tool_use_denied events carry the same ephemeral semantics as
+// hook.tool_use_* and are NOW REGISTERED (Runtime/Ephemeral) at L1, in
+// `agent-def/src/event_registrations.rs` (job: op-canon) — NOT here, because
+// their payload structs (`op::OpToolUse*`) live in agent-def. The remaining
+// follow-up is the hook→op CONVERSION (re-point emitters + final hook.*
+// deregistration), tracked separately (#25b); it is not a registration blocker.
 register_event!("hook.permission_denied", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookPermissionDeniedPayload");
 register_event!("hook.session_ended", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookSessionEndedPayload");
 register_event!("hook.session_started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookSessionStartedPayload");

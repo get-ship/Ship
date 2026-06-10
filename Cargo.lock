@@ -8739,10 +8739,7 @@ name = "ship-git"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-stream",
- "axum",
  "chrono",
- "connectrpc",
  "git2",
  "serde",
  "serde_json",

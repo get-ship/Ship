@@ -6,8 +6,12 @@ pub mod skill;
 pub mod supervisor;
 pub use mesh::*;
 
-// All lines are constant definitions; no logic present. The `ALL` slice is kept for
-// backward compat but is derived from `event_registry::registry()` via a consistency
+// All lines below are constant definitions; no logic present. The `ALL` slice is
+// kept for backward compat (callers that need the `&'static [&str]` shape) and is
+// HAND-MAINTAINED: it is NOT auto-derived from `event_registry::registry()`, and no
+// registry-vs-`ALL` consistency guard exists yet. Wiring that consistency test is a
+// TODO (separate slice). Until then, keep `ALL` in sync with the registry by hand
+// when adding or removing event types.
 pub const WORKSPACE_CREATED: &str = "workspace.created";
 pub const WORKSPACE_ACTIVATED: &str = "workspace.activated";
 pub const WORKSPACE_ARCHIVED: &str = "workspace.archived";

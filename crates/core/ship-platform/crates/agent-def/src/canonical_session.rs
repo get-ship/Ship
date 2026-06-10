@@ -148,12 +148,12 @@ mod tests {
     /// the whole point of being canonical.  Covers all 7 canonical structs.
     #[test]
     fn payloads_carry_no_driver_edges() {
-        const FORBIDDEN: &[&str] = &["pid", "branch", "worktree", "exit_code"];
+        use crate::guards::DRIVER_EDGE_FIELDS;
 
         macro_rules! assert_no_driver_edges {
             ($val:expr, $name:literal) => {{
                 let json = serde_json::to_string(&$val).unwrap();
-                for f in FORBIDDEN {
+                for f in DRIVER_EDGE_FIELDS {
                     assert!(
                         !json.contains(f),
                         "{} must not carry {}: {}",

@@ -274,13 +274,11 @@ pub fn router(state: ApiState) -> axum::Router {
     // projections directly off `ship_dir` via `read_core` — no shipd read closure.
     // The GUI view-model (pills/tones/timeline) stays on the *Live streams below.
     let pipelines_state_for_live = state.clone();
-    let pipelines_svc_for_live = svc.clone();
     let pipelines_live_fn: ship_pipeline_runtime::wire::LiveReadFn = Arc::new(move |op, args| {
         let st = pipelines_state_for_live.clone();
-        let svc = pipelines_svc_for_live.clone();
         Box::pin(async move {
-            // Build a temporary OpsImpl-equivalent live_read using the kernel.
-            use connectrpc::{ConnectError, Response, ServiceResult, ServiceStream};
+            // Build a temporary OpsImpl-equivalent live read using the kernel.
+            use connectrpc::{ConnectError, Response, ServiceStream};
             use ship_substrate::events::ActorConfig;
             use ship_ops_rpc::JsonResponse;
             let resolve: Box<dyn Fn(&crate::ship_runtime::ApiState) -> serde_json::Value + Send + Sync> = match op {

@@ -41,8 +41,9 @@ pub type GateFn = Arc<dyn Fn(&RequestContext, &str) -> Result<(), ConnectError> 
 type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 
 /// Async live-read opener: (op_name, args) → server-sent stream of JSON.
-/// Shipd wires this to `live_read::OpsImpl::live_read` (kernel subscriber
-/// loop). The stream yields one snapshot + re-yields on every `config` event.
+/// Shipd wires this to the inline `pipelines_live_fn` closure in `ops_rpc`
+/// (kernel subscriber loop). The stream yields one snapshot + re-yields on
+/// every `config` event.
 pub type LiveReadFn =
     Arc<dyn Fn(&'static str, Value) -> BoxFuture<ServiceResult<ServiceStream<JsonResponse>>> + Send + Sync>;
 

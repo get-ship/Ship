@@ -31,9 +31,6 @@ const KNOWN_ORPHANS: &[&str] = &[];
 /// Known cross-crate duplicate stragglers (WARN). A dup group is "known" when
 /// every file in it matches one of these `rel_path` substrings.
 const KNOWN_DUPS: &[&str] = &[
-    // testutil copied between two agent crates (copy-not-move). De-dup by
-    // hoisting the shared helper into one crate and depending on it.
-    "crates/core/ship-platform/crates/ship-agents/src/testutil.rs",
     "crates/core/ship-platform/crates/agent-def/src/testutil.rs",
 ];
 
