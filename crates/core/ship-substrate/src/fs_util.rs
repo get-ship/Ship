@@ -111,6 +111,12 @@ pub fn write_atomic(path: &Path, content: impl AsRef<[u8]>) -> Result<()> {
 
         file.write_all(bytes)
             .with_context(|| format!("Failed to write temp file: {}", tmp_path.display()))?;
+        // Flush to stable storage BEFORE the rename: an atomic write that can
+        // surface an empty/partial file after a crash is not atomic in any
+        // useful sense. (The blob-store + broker paths relied on this fsync
+        // before they delegated here — SD-3 consolidation made it canonical.)
+        file.sync_all()
+            .with_context(|| format!("Failed to sync temp file: {}", tmp_path.display()))?;
         drop(file);
 
         fs::rename(&tmp_path, path)
