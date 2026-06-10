@@ -50,9 +50,7 @@ register_event!("actor.woke", [EventScope::Runtime], Retention::Ephemeral, Stabi
 register_event!("agent.changed", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "AgentChanged", crate::events::types::ConfigChanged);
 // Format-2 def change notification — lives in a space's `.ship/agents`, so
 // Space-scoped; a Bucket-2 notification (content NOT carried), so Ephemeral.
-register_event!("agent.def.updated", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "AgentDefUpdated", crate::events::types::AgentDefUpdated);
 register_event!("agent.grants.provisioned", [EventScope::Account], Retention::Durable, Stability::Stable, "AgentGrantsProvisioned", crate::events::types::AgentGrantsProvisioned);
-register_event!("agent.task.complete", [EventScope::Space], Retention::Durable, Stability::Stable, "AgentTaskComplete", crate::events::types::AgentTaskComplete);
 
 // ── agent.session.* ─────────────────────────────────────────────────────────
 register_event!("agent.session.cancelled", [EventScope::Runtime], Retention::Durable, Stability::Stable, "AgentSessionCancelledPayload", crate::events::agent_session::AgentSessionCancelledPayload);
@@ -85,7 +83,6 @@ register_event!("collection.changed", [EventScope::Runtime], Retention::Ephemera
 // its events at L1). They are no longer registered here.
 
 // ── compile.* ───────────────────────────────────────────────────────────────
-register_event!("compile.completed", [EventScope::Space], Retention::Durable, Stability::Stable, "CompileCompleted", crate::events::types::CompileCompleted);
 
 // ── config.* ────────────────────────────────────────────────────────────────
 // Machine/daemon runtime settings (daemon.port, terminal.program, watcher.*,
@@ -164,7 +161,6 @@ register_event!("mesh.status", [EventScope::Runtime], Retention::Ephemeral, Stab
 // Runtime audit emit: the agent-file CRUD helper takes a ship_dir but no
 // space_id and has no read-back projection (Phase 4d §6.3 resolution) → the
 // daemon-wide runtime.db, where the off-kernel write lands.
-register_event!("permissions.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PermissionsUpdated", crate::events::types::PermissionsUpdated);
 
 // ── pipeline.* ──────────────────────────────────────────────────────────────
 register_event!("pipeline.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "PipelineChanged", crate::events::types::ConfigChanged);
@@ -212,18 +208,19 @@ register_event!("project.switched", [EventScope::Space], Retention::Durable, Sta
 // Runtime audit emit: agent-file CRUD helpers take a ship_dir but no space_id
 // and have no read-back projection (Phase 4d §6.3) → daemon-wide runtime.db.
 register_event!("rule.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "RuleChanged", crate::events::types::ConfigChanged);
-register_event!("rule.created", [EventScope::Runtime], Retention::Durable, Stability::Stable, "RuleCreated", crate::events::types::RuleCreated);
-register_event!("rule.deleted", [EventScope::Runtime], Retention::Durable, Stability::Stable, "RuleDeleted", crate::events::types::RuleDeleted);
-register_event!("rule.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "RuleUpdated", crate::events::types::RuleUpdated);
 
-// ── skill.* ───────────────────────────────────────────────────────────────────
+// ── skill.* / rule.* / permissions / compile / agent-def facets ────────────
+// Moved to agent-def/src/event_registrations.rs (keystone-A Phase A,
+// 2026-06-10): the AGENTS domain owns its facet vocabulary at L1
+// (skill/rule/permissions CRUD+lifecycle, compile.completed,
+// agent.def.updated, agent.task.complete). The watcher `<domain>.changed`
+// pings (skill.changed, rule.changed, agent.changed, ...) are the
+// ship-config watcher family and move with it, not here.
+// ── skill.* (remaining) ───────────────────────────────────────────────────────────────────
 // Runtime audit emit: agent-file CRUD helpers take a ship_dir but no space_id
 // and have no read-back projection (Phase 4d §6.3) → daemon-wide runtime.db.
 register_event!("skill.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SkillChanged", crate::events::types::ConfigChanged);
 
-register_event!("skill.created", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillCreated", crate::events::types::SkillCreated);
-register_event!("skill.deleted", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillDeleted", crate::events::types::SkillDeleted);
-register_event!("skill.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillUpdated", crate::events::types::SkillUpdated);
 
 // ── space.setting.* ─────────────────────────────────────────────────────────
 register_event!("space.setting.changed", [EventScope::Space], Retention::Durable, Stability::Stable, "SpaceSettingChanged", crate::events::types::SpaceSettingChanged);
@@ -259,6 +256,3 @@ register_event!("daemon.pidfile_acquired", [EventScope::Runtime], Retention::Dur
 register_event!("daemon.pidfile_stale_taken", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonPidfileStaleTaken", crate::events::daemon::PidfileStaleTakenPayload);
 register_event!("pipeline.run.updated", [EventScope::Runtime], Retention::Ephemeral, Stability::Deprecated, "PipelineRunUpdatedPayload", crate::events::pipeline::PipelineRunUpdatedPayload);
 register_event!("process.orphaned", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "ProcessOrphaned", crate::events::process::ProcessOrphanedPayload);
-register_event!("skill.started", [EventScope::Runtime], Retention::Ephemeral, Stability::Deprecated, "SkillStarted", crate::events::types::SkillStarted);
-register_event!("skill.completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Deprecated, "SkillCompleted", crate::events::types::SkillCompleted);
-register_event!("skill.failed", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "SkillFailed", crate::events::types::SkillFailed);

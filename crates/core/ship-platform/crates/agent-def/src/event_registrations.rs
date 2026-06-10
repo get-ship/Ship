@@ -37,3 +37,23 @@ register_event!("session.turn.ended", [EventScope::Runtime], Retention::Ephemera
 register_event!("op.tool_use_started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseStarted", crate::op::OpToolUseStarted);
 register_event!("op.tool_use_completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseCompleted", crate::op::OpToolUseCompleted);
 register_event!("op.tool_use_denied", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseDenied", crate::op::OpToolUseDenied);
+
+// ── agents-domain facets (keystone-A Phase A, 2026-06-10) ──────────────────
+// Moved from ship-substrate payload_registry.rs: the AGENTS domain owns its
+// facet vocabulary (skills / rules / permissions / compile / def updates).
+// Payload structs remain in ship_types::payload (L0 leaf types crate, no
+// layering concern); the REGISTRATIONS — ownership of name, scope, retention
+// and the carried validator — live with the domain.
+register_event!("agent.def.updated", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "AgentDefUpdated", ship_types::payload::AgentDefUpdated);
+register_event!("agent.task.complete", [EventScope::Space], Retention::Durable, Stability::Stable, "AgentTaskComplete", ship_types::payload::AgentTaskComplete);
+register_event!("compile.completed", [EventScope::Space], Retention::Durable, Stability::Stable, "CompileCompleted", ship_types::payload::CompileCompleted);
+register_event!("permissions.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PermissionsUpdated", ship_types::payload::PermissionsUpdated);
+register_event!("rule.created", [EventScope::Runtime], Retention::Durable, Stability::Stable, "RuleCreated", ship_types::payload::RuleCreated);
+register_event!("rule.deleted", [EventScope::Runtime], Retention::Durable, Stability::Stable, "RuleDeleted", ship_types::payload::RuleDeleted);
+register_event!("rule.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "RuleUpdated", ship_types::payload::RuleUpdated);
+register_event!("skill.created", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillCreated", ship_types::payload::SkillCreated);
+register_event!("skill.deleted", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillDeleted", ship_types::payload::SkillDeleted);
+register_event!("skill.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SkillUpdated", ship_types::payload::SkillUpdated);
+register_event!("skill.started", [EventScope::Runtime], Retention::Ephemeral, Stability::Deprecated, "SkillStarted", ship_types::payload::SkillStarted);
+register_event!("skill.completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Deprecated, "SkillCompleted", ship_types::payload::SkillCompleted);
+register_event!("skill.failed", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "SkillFailed", ship_types::payload::SkillFailed);

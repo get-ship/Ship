@@ -318,22 +318,9 @@ fn registry_actor_created_is_runtime_ephemeral() {
     assert_eq!(def.retention, ship_types::event_registry::Retention::Ephemeral);
 }
 
-#[test]
-fn registry_agent_def_updated_is_space_ephemeral() {
-    let def = ship_types::event_registry::lookup("agent.def.updated")
-        .expect("agent.def.updated must be in registry");
-    assert_eq!(
-        def.allowed_scopes,
-        &[ship_types::event_registry::EventScope::Space],
-        "def change notification is Space-scoped (it lives in a space's .ship)"
-    );
-    assert_eq!(def.primary_scope(), ship_types::event_registry::EventScope::Space);
-    assert_eq!(
-        def.retention,
-        ship_types::event_registry::Retention::Ephemeral,
-        "Bucket-2 notification is ephemeral — the file is truth"
-    );
-}
+// `registry_agent_def_updated_is_space_ephemeral` moved to agent-def
+// tests/event_scope_discipline (keystone-A Phase A): the registration it
+// asserts on now lives there and is not linked into this L0 binary.
 
 #[test]
 fn registry_names_are_unique() {
@@ -368,7 +355,7 @@ fn registry_has_entries() {
 fn l0_registry_shrinks_under_keystone_a() {
     let n = ship_types::event_registry::all_names().len();
     assert_eq!(
-        n, 117,
+        n, 104,
         "L0-registered event count changed. This pin is a keystone-A RATCHET: \
          it should only move DOWN (a domain de-bucket) — update it with the \
          move. If it went UP, register the new events in their owning L1 \

@@ -186,4 +186,23 @@ mod tests {
             "a well-formed SessionStarted must pass the registration-carried validator"
         );
     }
+
+    /// `agent.def.updated` scope/retention pin — moved here from
+    /// ship-substrate when the registration moved (keystone-A Phase A).
+    #[test]
+    fn agent_def_updated_is_space_ephemeral() {
+        let def = event_registry::lookup("agent.def.updated")
+            .expect("agent.def.updated must be in registry");
+        assert_eq!(
+            def.allowed_scopes,
+            &[EventScope::Space],
+            "def change notification is Space-scoped (it lives in a space's .ship)"
+        );
+        assert_eq!(def.primary_scope(), EventScope::Space);
+        assert_eq!(
+            def.retention,
+            Retention::Ephemeral,
+            "Bucket-2 notification is ephemeral — the file is truth"
+        );
+    }
 }
