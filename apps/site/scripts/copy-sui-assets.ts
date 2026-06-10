@@ -8,7 +8,8 @@
  * collect-skill-docs.ts SUI copy step (without the markdoc collection).
  */
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,72 +17,44 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, '../../..');
 const PUBLIC_DIR = join(SCRIPT_DIR, '../public');
 const SITE_STYLES = join(SCRIPT_DIR, '../src/styles');
-// Two source roots, by layer:
-//   * deck's OWN runtime bundles (sui-runtime/dom/sdk-client) now live in
-//     .deck/framework/ — the canonical bake target (Recommendation B1).
-//   * the app-focused `sui-marketing.js` is deck *build output* and lives in
-//     the project's `.deck/` (deck's `.next`-equivalent).
-const SUI_ASSETS_DIR = join(REPO_ROOT, '.deck', 'framework');
-const DECK_OUT_DIR = join(REPO_ROOT, '.deck');
+// Daemon-emulation source roots for the static-host shims below (per-icon SVGs,
+// view-tokens.css, syntax tokens). These read deck's COMMITTED crate assets and
+// the canonical token sheets — not deck build output. The bundle copy itself is
+// delegated to `deck emit`, which owns deck's output layout + chunk closure.
 const DECK_ASSETS_DIR = join(REPO_ROOT, 'crates/deck/deck-core/assets');
 
-const SUI_BUNDLES: ReadonlyArray<{ name: string; from: string }> = [
-  { name: 'sui-runtime.js', from: SUI_ASSETS_DIR },
-  { name: 'sui-dom.js', from: SUI_ASSETS_DIR },
-  { name: 'sui-sdk-client.js', from: SUI_ASSETS_DIR },
-  // `sui-marketing.js` is the focused bundle for apps/site — registers
-  // only the ~12 `<sui-*>` tags marketing actually mounts (~140 KB).
-  // The full `sui-components.js` umbrella (~740 KB) was 5× larger and
-  // contained 80+ tags the marketing pages never instantiate. If a new
-  // tag is added to apps/site/src, add a side-effect import for it to
-  // the traced entry `apps/site/src/marketing/marketing-bundle.ts` —
-  // rolldown follows that import graph. It builds to `.deck/`.
-  { name: 'sui-marketing.js', from: DECK_OUT_DIR },
-  // `sui-arcade.js` is the heavy lazy chunk (pixi + arcade-engine, ~800 KB)
-  // for the landing page's `<sui-stage>` games. ArcadeWindow.astro dynamic-
-  // imports `/sui-arcade.js` the first time the Arcade window opens; the
-  // runtime singletons stay external (page importmap). Deck builds it to
-  // `.deck/` as the `sui-arcade` target.
-  { name: 'sui-arcade.js', from: DECK_OUT_DIR },
-] as const;
-
-
-// Lazy-pack bundles code-split into content-hashed sibling chunks
-// (`import("./Geometry-XXXX.js")` etc.). A bundle copied to public/ needs
-// those siblings at the same root or its dynamic imports 404. Scan each
-// copied bundle for relative .js specifiers and copy them transitively.
-function copyChunkImports(bundlePath: string, seen = new Set<string>()): void {
-  const src = readFileSync(bundlePath, 'utf8');
-  for (const m of src.matchAll(/["']\.\/([\w][\w.-]*\.js)["']/g)) {
-    const name = m[1]!;
-    if (seen.has(name)) continue;
-    seen.add(name);
-    const chunkSrc = join(DECK_OUT_DIR, name);
-    if (!existsSync(chunkSrc)) {
-      console.log(`[copy-sui-assets] chunk ${name} referenced by ${bundlePath} missing from .deck/`);
-      continue;
-    }
-    copyFileSync(chunkSrc, join(PUBLIC_DIR, name));
-    copied++;
-    copyChunkImports(chunkSrc, seen);
-  }
-}
+let copied = 0;
 
 mkdirSync(PUBLIC_DIR, { recursive: true });
 
-let copied = 0;
-for (const { name, from } of SUI_BUNDLES) {
-  const src = join(from, name);
-  if (!existsSync(src)) {
-    console.log(
-      `[copy-sui-assets] ${name} not found at ${src}. ` +
-      `Run 'deck build-assets' first.`,
+// ── SUI bundles + lazy-chunk closure → deck emit ─────────────────────
+// Deck owns where each baked target lands and how its code-split chunks are
+// named; a consumer names targets and deck copies the closure. This replaces
+// the old hardcoded `.deck/` walk + hand-rolled chunk chaser.
+//   * sui-runtime/dom/sdk-client — framework singletons (importmap externals).
+//   * sui-marketing — the ~140 KB focused `<sui-*>` pack for the landing page.
+//   * sui-arcade — heavy lazy pack (pixi) for the <sui-stage> games.
+//   * ship-code-editor — CodeMirror pack the tutorial side-loads on first use.
+{
+  const targets = [
+    'sui-runtime',
+    'sui-dom',
+    'sui-sdk-client',
+    'sui-marketing',
+    'sui-arcade',
+    'ship-code-editor',
+  ];
+  const args = ['run', '-q', '-p', 'deck-cli', '--', 'emit', '--out', PUBLIC_DIR];
+  for (const t of targets) args.push('--target', t);
+  const r = spawnSync('cargo', args, { cwd: REPO_ROOT, stdio: 'inherit' });
+  if (r.status !== 0) {
+    console.error(
+      `[copy-sui-assets] 'deck emit' failed (status ${r.status}). ` +
+      `Run 'deck build-assets' first to bake the targets.`,
     );
-    continue;
+    process.exit(1);
   }
-  copyFileSync(src, join(PUBLIC_DIR, name));
-  copied++;
-  if (from === DECK_OUT_DIR) copyChunkImports(src);
+  copied += targets.length;
 }
 
 // <sui-icon> fetches ONE icon at a time from `/_deck/icons/<name>.svg`
@@ -142,28 +115,10 @@ for (const { name, from } of SUI_BUNDLES) {
   }
 }
 
-// ── Tutorial playground editor ───────────────────────────────────────
-// The SUI tutorial (getship.dev/tutorial) is a live editor + sandboxed
-// preview. The editor element — `ship-code-editor.js` — is a CodeMirror-
-// based lazy chunk deck bakes to `.deck/ship-code-editor.js`, NOT
-// in the lean marketing bundle. The tutorial side-loads it on first use,
-// so we mirror it into public/ here.
-//
-// The sandbox host itself (public/tutorial/{host.html,sw.js,scenarios})
-// is committed static source under this app — not copied here.
-{
-  const editorSrc = join(DECK_OUT_DIR, 'ship-code-editor.js');
-  if (existsSync(editorSrc)) {
-    copyFileSync(editorSrc, join(PUBLIC_DIR, 'ship-code-editor.js'));
-    copyChunkImports(editorSrc);
-    copied++;
-  } else {
-    console.log(
-      `[copy-sui-assets] ${editorSrc} not found; tutorial editor will not load. ` +
-      `Run 'deck build-assets' first (ship-code-editor target).`,
-    );
-  }
-}
+// The tutorial playground editor (`ship-code-editor.js` + its CodeMirror chunk
+// closure) and the sandbox host (public/tutorial/{host.html,sw.js,scenarios},
+// committed static source) load from public/ — the editor bundle is emitted by
+// the `deck emit` step above as the `ship-code-editor` target.
 
 // ── Editor syntax-highlight tokens ───────────────────────────────────
 // <ship-code-editor> colours tokens via `--syntax-*` CSS custom properties
