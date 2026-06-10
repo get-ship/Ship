@@ -42,6 +42,7 @@ import {
   type IsolationVerifyStep,
 } from "./gen/ship/ops/v1/isolation_pb.js";
 import { EntityKind, type SearchHit, type SearchResponse } from "./gen/ship/ops/v1/search_pb.js";
+import type { AgentDetail } from "./gen/ship/ops/v1/types_pb.js";
 import { McpService } from "./gen/ship/ops/v1/mcp_pb.js";
 import { PermissionsService } from "./gen/ship/ops/v1/permissions_pb.js";
 import { PipelinesService } from "./gen/ship/ops/v1/pipelines_pb.js";
@@ -180,6 +181,7 @@ export {
 
 export {
   EntityKind,
+  type AgentDetail,
   type IsolationCapabilities,
   type IsolationDecision,
   type IsolationProfile,
