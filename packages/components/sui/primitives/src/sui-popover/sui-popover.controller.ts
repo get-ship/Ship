@@ -52,10 +52,23 @@ export default controller<Scope>({
       }
     })
 
+    // Track open state locally. `:popover-open` is the authoritative source in
+    // browsers, but some environments (and selector engines without that
+    // pseudo) throw on `matches(':popover-open')` — fall back to this mirror.
+    let popoverOpen = false
+    const isPopoverOpen = (): boolean => {
+      try {
+        return panelEl.matches?.(':popover-open') ?? popoverOpen
+      } catch {
+        return popoverOpen
+      }
+    }
+
     // ── Native toggle event → reflect into state.$signals.open + emit sui-toggle
     function onToggle(ev: Event) {
       const newState = (ev as ToggleEvent).newState
       const nowOpen = newState === 'open'
+      popoverOpen = nowOpen
       // Reflect attribute so consumer-observable state.$signals.open() flips.
       // Guard against feedback: we only act if the attribute disagrees.
       const hasAttr = host.hasAttribute('open')
@@ -82,7 +95,7 @@ export default controller<Scope>({
       toggle: () =>
         typeof panelEl.togglePopover === 'function'
           ? void panelEl.togglePopover()
-          : (panelEl.matches?.(':popover-open')
+          : (isPopoverOpen()
               ? panelEl.hidePopover?.()
               : panelEl.showPopover?.()),
     })
@@ -93,7 +106,7 @@ export default controller<Scope>({
     // values agree and no-ops. No feedback loop.
     const stopOpenSync = effect(() => {
       const wantOpen = state.$signals.open()
-      const isOpen = panelEl.matches?.(':popover-open') ?? false
+      const isOpen = isPopoverOpen()
       if (wantOpen && !isOpen) panelEl.showPopover?.()
       else if (!wantOpen && isOpen) panelEl.hidePopover?.()
     })

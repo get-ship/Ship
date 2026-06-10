@@ -214,7 +214,7 @@
       <slot>{body()}</slot>
     </div>
     <div class="code" part="code">{code()}</div>
-    <button class="details-toggle" bind:this={detailsToggleBtn} type="button"></button>
+    <button class="details-toggle" part="details-toggle" bind:this={detailsToggleBtn} type="button"></button>
     <div class="details" bind:this={detailsPanel}>
       <slot name="details" bind:this={detailsSlot}></slot>
     </div>

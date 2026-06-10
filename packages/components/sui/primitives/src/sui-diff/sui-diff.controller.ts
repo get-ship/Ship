@@ -49,7 +49,7 @@ function renderLines(lines: Line[]): string {
     .map((l) => {
       const sign = l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : l.kind === 'hunk' ? '@' : ' '
       const kindLabel = l.kind === 'add' ? 'added' : l.kind === 'del' ? 'removed' : l.kind === 'hunk' ? 'hunk' : 'context'
-      return `<div class="line ${l.kind}" part="line" role="listitem" aria-label="${kindLabel}: ${escape(l.text)}"><span class="sign" aria-hidden="true">${sign}</span><span>${escape(l.text)}</span></div>`
+      return `<div class="line ${l.kind}" part="line" data-line-kind="${l.kind}" role="listitem" aria-label="${kindLabel}: ${escape(l.text)}"><span class="sign" aria-hidden="true">${sign}</span><span>${escape(l.text)}</span></div>`
     })
     .join('')
 }
