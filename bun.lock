@@ -67,9 +67,7 @@
       "dependencies": {
         "@ship/agents": "workspace:*",
         "@ship/authority": "workspace:*",
-        "@ship/code": "workspace:*",
         "@ship/deck-host": "workspace:*",
-        "@ship/markdown": "workspace:*",
         "@ship/pipelines": "workspace:*",
         "@ship/sdk": "workspace:*",
         "@ship/sdk-client": "workspace:*",
