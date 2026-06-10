@@ -24,7 +24,7 @@ const SITE_STYLES = join(SCRIPT_DIR, '../src/styles');
 const SUI_ASSETS_DIR = join(REPO_ROOT, '.deck', 'framework');
 const DECK_OUT_DIR = join(REPO_ROOT, '.deck');
 const DECK_CHUNKS_DIR = join(DECK_OUT_DIR, 'sui-components');
-const SHIPD_ASSETS_DIR = join(REPO_ROOT, 'apps/shipd/assets');
+const DECK_ASSETS_DIR = join(REPO_ROOT, 'crates/deck/deck-core/assets');
 
 const SUI_BUNDLES: ReadonlyArray<{ name: string; from: string }> = [
   { name: 'sui-runtime.js', from: SUI_ASSETS_DIR },
@@ -97,13 +97,13 @@ for (const { name, from } of SUI_BUNDLES) {
 // its shadow root and expects the per-theme `[data-theme-preview="<id>"]`
 // rules to be present so its swatch cards each render in their own theme.
 // The daemon concatenates tokens.css + themes.css in front of the base
-// view-tokens.css at runtime (apps/shipd/src/views/assets.rs). On a static
+// view-tokens.css at runtime (deck-core view_tokens.rs). On a static
 // host there is no daemon, so we reproduce that concatenation here from the
 // site's own canonical token/theme sheets — otherwise every swatch falls
 // back to the active theme.
 {
   const dst = join(PUBLIC_DIR, 'api/assets/view-tokens.css');
-  const base = join(SHIPD_ASSETS_DIR, 'view-tokens.css');
+  const base = join(DECK_ASSETS_DIR, 'view-tokens.css');
   const parts = [
     join(SITE_STYLES, 'tokens.css'),
     join(SITE_STYLES, 'themes.css'),
