@@ -263,72 +263,18 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
           .deleteItem({ collection: args.collection, id: args.item_id })
           .then(() => {}),
     },
-    dashboard: {
-      state: () => sse('dashboard', 'state'),
-    },
     events: {
       list: (args) => sse('events', 'list', args),
     },
+    // git is parked: read-only. overview/diff/annotations route through the
+    // mux resolver (`git.overview` registry op); the write path went out with
+    // GitService.
     git: {
       overview:    (args?: { workspace_id?: string; limit?: number }) =>
         sse<GitOverview>('git', 'overview', args),
       diff:        (args: GitDiffArgs) => sse<GitDiff>('git', 'diff', args),
       annotations: (args: { file: string; workspace_id?: string }) =>
         sse('git', 'annotations', args),
-      stage:       (args) =>
-        okJson<{ ok: true; staged: number }>(
-          connect.git.stage({ workspaceId: args.workspace_id ?? '', paths: args.paths }),
-        ),
-      unstage:     (args) =>
-        okJson<{ ok: true; unstaged: number }>(
-          connect.git.unstage({ workspaceId: args.workspace_id ?? '', paths: args.paths }),
-        ),
-      commit:      (args) =>
-        okJson<{ ok: true; sha: string; branch: string | null }>(
-          connect.git.commit({
-            workspaceId: args.workspace_id ?? '',
-            message: args.message,
-            author: args.author ?? '',
-          }),
-        ),
-      push:        (args) =>
-        okJson<{ ok: true; remote: string; force: boolean }>(
-          connect.git.push({
-            workspaceId: args?.workspace_id ?? '',
-            remote: args?.remote ?? '',
-            force: args?.force ?? false,
-          }),
-        ),
-      fetch:       (args) =>
-        okJson<{ ok: true; remote: string }>(
-          connect.git.fetch({ workspaceId: args?.workspace_id ?? '', remote: args?.remote ?? '' }),
-        ),
-      pull:        (args) =>
-        okJson<{ ok: true; head: string }>(
-          connect.git.pull({ workspaceId: args?.workspace_id ?? '', remote: args?.remote ?? '' }),
-        ),
-      checkout:    (args) =>
-        okJson<{ ok: true; ref: string; resolved: string }>(
-          connect.git.checkout({ workspaceId: args.workspace_id ?? '', refname: args.ref }),
-        ),
-      branch_create: (args) =>
-        okJson<{ ok: true; name: string }>(
-          connect.git.branchCreate({
-            workspaceId: args.workspace_id ?? '',
-            name: args.name,
-            checkout: args.checkout ?? false,
-          }),
-        ),
-      branch_delete: (args) =>
-        okJson<{ ok: true; name: string }>(
-          connect.git.branchDelete({
-            workspaceId: args.workspace_id ?? '',
-            name: args.name,
-            force: args.force ?? false,
-          }),
-        ),
-      init:        (args) =>
-        okJson<{ ok: true }>(connect.git.init({ workspaceId: args?.workspace_id ?? '' })),
     },
     mesh: {
       snapshot: () => sse('mesh', 'snapshot'),

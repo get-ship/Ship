@@ -130,10 +130,6 @@ export interface ShipSDK {
     /** Delete an item. */
     delete_item(args: { collection: string; item_id: string }): Promise<void>
   }
-  dashboard: {
-    /** Aggregate stats + recent runs + events + agents + collections. */
-    state(): LiveSource<unknown>
-  }
   events: {
     /** Kernel events with filters, grouped by entity. */
     list(args?: {
@@ -145,65 +141,15 @@ export interface ShipSDK {
     }): LiveSource<unknown>
   }
   git: {
+    // Read-only: git is parked. The write path (stage/commit/push/…) went out
+    // with GitService — these reads route through the mux resolver
+    // (`git.overview`), not a Connect service.
     /** Repo overview — branch + head + status buckets + commits + branches. */
     overview(args?: { workspace_id?: string; limit?: number }): LiveSource<GitOverview>
     /** Unified diff for a commit (or `'WORKING'` for the working tree). */
     diff(args: GitDiffArgs): LiveSource<GitDiff>
     /** Per-file annotation overlays for a diff. */
     annotations(args: { file: string; workspace_id?: string }): LiveSource<unknown>
-    /** Stage one or more paths (file-level). */
-    stage(args: { paths: string[]; workspace_id?: string }): Promise<{
-      ok: true
-      staged: number
-    }>
-    /** Unstage one or more paths. */
-    unstage(args: { paths: string[]; workspace_id?: string }): Promise<{
-      ok: true
-      unstaged: number
-    }>
-    /** Commit the current index. `author` is `"Name <email>"` or omitted to
-     *  inherit from git config. */
-    commit(args: {
-      message: string
-      author?: string
-      workspace_id?: string
-    }): Promise<{ ok: true; sha: string; branch: string | null }>
-    /** Push current branch to `remote` (default `origin`). */
-    push(args?: {
-      remote?: string
-      force?: boolean
-      workspace_id?: string
-    }): Promise<{ ok: true; remote: string; force: boolean }>
-    /** Fetch refs from `remote` (default `origin`). */
-    fetch(args?: { remote?: string; workspace_id?: string }): Promise<{
-      ok: true
-      remote: string
-    }>
-    /** Fast-forward-only pull. Surfaces `non_ff` 409 on divergence. */
-    pull(args?: { remote?: string; workspace_id?: string }): Promise<{
-      ok: true
-      head: string
-    }>
-    /** Checkout a branch / tag / sha. */
-    checkout(args: { ref: string; workspace_id?: string }): Promise<{
-      ok: true
-      ref: string
-      resolved: string
-    }>
-    /** Create a local branch from HEAD. */
-    branch_create(args: {
-      name: string
-      checkout?: boolean
-      workspace_id?: string
-    }): Promise<{ ok: true; name: string }>
-    /** Delete a local branch (refuses current branch + unmerged unless `force`). */
-    branch_delete(args: {
-      name: string
-      force?: boolean
-      workspace_id?: string
-    }): Promise<{ ok: true; name: string }>
-    /** Initialize a git repository at the active workspace root. */
-    init(args?: { workspace_id?: string }): Promise<{ ok: true }>
   }
   mesh: {
     /** Live registry of mesh-connected agents. */
