@@ -8,6 +8,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use crate::error::PipelineError;
 use crate::types::{FanoutSpec, OutputScope, Pipeline, PipelineStep, StepType};
 
 /// Reserved output name emitted by the fanout aggregator when a lane fails.
@@ -25,14 +26,14 @@ pub fn parse_lane_scoped_ref(name: &str) -> Option<(&str, &str)> {
 /// Top-level validation: enforces every platform invariant on a resolved
 /// pipeline. Each step gets its agent + produces/consumes/promotes/fanout
 /// checked.
-pub fn validate_pipeline(pipeline: &Pipeline) -> Result<(), String> {
+pub fn validate_pipeline(pipeline: &Pipeline) -> Result<(), PipelineError> {
     for step in &pipeline.steps {
         let needs_agent = matches!(step.step_type, StepType::Agent | StepType::Review);
         if needs_agent && step.agent.as_deref().map(str::is_empty).unwrap_or(true) {
-            return Err(format!(
+            return Err(PipelineError::Validate(format!(
                 "pipeline step '{}' of type {:?} requires an agent but none was declared",
                 step.id, step.step_type
-            ));
+            )));
         }
     }
     validate_pipeline_io(pipeline)
@@ -44,36 +45,36 @@ pub fn validate_pipeline(pipeline: &Pipeline) -> Result<(), String> {
 /// Allowed: `[a-zA-Z0-9_.-]+`, 1–128 chars, no leading dot, no `..` anywhere.
 /// This is a load-time guard; runtime executors re-check at dispatch as
 /// defense-in-depth.
-pub fn validate_output_name(step_id: &str, name: &str, kind: &str) -> Result<(), String> {
+pub fn validate_output_name(step_id: &str, name: &str, kind: &str) -> Result<(), PipelineError> {
     if name.is_empty() || name.len() > 128 {
-        return Err(format!(
+        return Err(PipelineError::Validate(format!(
             "step '{step_id}' declares {kind} name '{name}' with invalid length \
              (must be 1–128 chars)"
-        ));
+        )));
     }
     if name.starts_with('.') {
-        return Err(format!(
+        return Err(PipelineError::Validate(format!(
             "step '{step_id}' declares {kind} name '{name}' which starts with '.' \
              (disallowed); allowed: [a-zA-Z0-9_.-]"
-        ));
+        )));
     }
     if name.contains("..") {
-        return Err(format!(
+        return Err(PipelineError::Validate(format!(
             "step '{step_id}' declares {kind} name '{name}' containing '..' \
              (path traversal disallowed); allowed: [a-zA-Z0-9_.-]"
-        ));
+        )));
     }
     if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == '-') {
-        return Err(format!(
+        return Err(PipelineError::Validate(format!(
             "step '{step_id}' declares {kind} name '{name}' which contains \
              disallowed characters; allowed: [a-zA-Z0-9_.-]"
-        ));
+        )));
     }
     Ok(())
 }
 
 /// Validate `produces`/`consumes`/`promotes` declarations across all steps.
-pub fn validate_pipeline_io(pipeline: &Pipeline) -> Result<(), String> {
+pub fn validate_pipeline_io(pipeline: &Pipeline) -> Result<(), PipelineError> {
     let mut producers: HashMap<&str, Vec<&str>> = HashMap::new();
     for step in &pipeline.steps {
         for output in &step.produces {
@@ -86,10 +87,10 @@ pub fn validate_pipeline_io(pipeline: &Pipeline) -> Result<(), String> {
     }
     for (name, owners) in &producers {
         if owners.len() > 1 {
-            return Err(format!(
+            return Err(PipelineError::Validate(format!(
                 "produces name '{name}' is declared by multiple steps: [{}]",
                 owners.join(", ")
-            ));
+            )));
         }
     }
     let producers: HashMap<&str, &str> = producers
@@ -113,14 +114,14 @@ pub fn validate_pipeline_io(pipeline: &Pipeline) -> Result<(), String> {
                 continue;
             }
             match producers.get(name.as_str()) {
-                None => return Err(format!(
+                None => return Err(PipelineError::Validate(format!(
                     "step '{}' consumes '{name}' but no step in the pipeline produces it",
                     step.id
-                )),
-                Some(&pid) if pid == step.id => return Err(format!(
+                ))),
+                Some(&pid) if pid == step.id => return Err(PipelineError::Validate(format!(
                     "step '{}' cannot consume its own output '{name}'",
                     step.id
-                )),
+                ))),
                 _ => {}
             }
         }
@@ -136,10 +137,10 @@ pub fn validate_pipeline_io(pipeline: &Pipeline) -> Result<(), String> {
                 } else if consumes_names.contains(promote.name.as_str()) {
                     &OutputScope::Run
                 } else if !produces_names.contains(promote.name.as_str()) {
-                    return Err(format!(
+                    return Err(PipelineError::Validate(format!(
                         "step '{}' promotes '{}' but this step neither produces nor consumes it",
                         step.id, promote.name
-                    ));
+                    )));
                 } else {
                     continue;
                 };
@@ -154,13 +155,13 @@ fn validate_scope_transition(
     to: &OutputScope,
     step_id: &str,
     name: &str,
-) -> Result<(), String> {
+) -> Result<(), PipelineError> {
     let valid = matches!((from, to), (OutputScope::Run, OutputScope::Project));
     if !valid {
-        return Err(format!(
+        return Err(PipelineError::Validate(format!(
             "step '{step_id}' promotes '{name}': invalid scope transition \
              (only Run→Project is supported) (requested: {from:?}→{to:?})"
-        ));
+        )));
     }
     Ok(())
 }
@@ -169,44 +170,44 @@ fn validate_fanout(
     pipeline: &Pipeline,
     step: &PipelineStep,
     fanout: &FanoutSpec,
-) -> Result<(), String> {
+) -> Result<(), PipelineError> {
     let judge = pipeline
         .steps
         .iter()
         .find(|s| s.id == fanout.judge.step)
-        .ok_or_else(|| format!(
+        .ok_or_else(|| PipelineError::Validate(format!(
             "fanout step '{}': judge.step '{}' not found in pipeline",
             step.id, fanout.judge.step
-        ))?;
+        )))?;
 
     if !judge.after.contains(&step.id) {
-        return Err(format!(
+        return Err(PipelineError::Validate(format!(
             "fanout step '{}': judge step '{}' must list '{}' in its `after`",
             step.id, judge.id, step.id
-        ));
+        )));
     }
 
     let mut seen = HashSet::new();
     for lane in &fanout.lanes {
         if !seen.insert(lane.id.as_str()) {
-            return Err(format!(
+            return Err(PipelineError::Validate(format!(
                 "fanout step '{}': duplicate lane id '{}'",
                 step.id, lane.id
-            ));
+            )));
         }
         if lane.agent.is_empty() {
-            return Err(format!(
+            return Err(PipelineError::Validate(format!(
                 "fanout step '{}' lane '{}': agent must be declared",
                 step.id, lane.id
-            ));
+            )));
         }
     }
 
     if fanout.min_successful_lanes == 0 {
-        return Err(format!(
+        return Err(PipelineError::Validate(format!(
             "fanout step '{}': min_successful_lanes must be at least 1",
             step.id
-        ));
+        )));
     }
 
     Ok(())
@@ -218,26 +219,26 @@ fn validate_lane_scoped_consume(
     full_name: &str,
     lane_id: &str,
     output_name: &str,
-) -> Result<(), String> {
+) -> Result<(), PipelineError> {
     let fanout_step = pipeline
         .steps
         .iter()
         .find(|s| s.fanout.as_ref().is_some_and(|f| f.lanes.iter().any(|l| l.id == lane_id)))
-        .ok_or_else(|| format!(
+        .ok_or_else(|| PipelineError::Validate(format!(
             "step '{consuming_step_id}' consumes '{full_name}': \
              no fanout step has lane '{lane_id}'"
-        ))?;
+        )))?;
 
     if output_name == FAILED_MARKER_NAME {
         return Ok(());
     }
 
     if !fanout_step.produces.iter().any(|o| o.name == output_name) {
-        return Err(format!(
+        return Err(PipelineError::Validate(format!(
             "step '{consuming_step_id}' consumes '{full_name}': \
              fanout step '{}' does not produce '{output_name}'",
             fanout_step.id
-        ));
+        )));
     }
 
     Ok(())

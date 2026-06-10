@@ -8,6 +8,7 @@ publish = false
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 globset = "0.4"
+thiserror = { workspace = true }
 specta = { workspace = true, optional = true }
 
 [features]

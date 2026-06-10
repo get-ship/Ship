@@ -173,5 +173,5 @@ fn validate_accepts_valid_rejects_missing_agent() {
     let json = r#"{ "steps": [ { "id": "x", "type": "agent" } ] }"#;
     let bad: PipelineDefinition = serde_json::from_str(json).unwrap();
     let err = bad.validate().expect_err("agent step without agent must fail");
-    assert!(err.contains("agent"), "error should mention agent: {err}");
+    assert!(err.to_string().contains("agent"), "error should mention agent: {err}");
 }

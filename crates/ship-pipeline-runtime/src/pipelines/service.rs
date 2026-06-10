@@ -48,7 +48,7 @@ fn validate_put_doc(doc: &serde_json::Value) -> Result<(), state::Error> {
     if doc.get("steps").is_some() {
         let def: PipelineDefinition = serde_json::from_value(doc.clone())
             .map_err(|e| state::Error::Invalid(e.to_string()))?;
-        return def.validate().map_err(state::Error::Invalid);
+        return def.validate().map_err(|e| state::Error::Invalid(e.to_string()));
     }
 
     if doc.get("agents").is_some() {
@@ -56,10 +56,10 @@ fn validate_put_doc(doc: &serde_json::Value) -> Result<(), state::Error> {
         // validate the resulting DAG via the same invariant checks.
         let text = doc.to_string();
         let (normalized, _meta) =
-            ship_pipelines::normalize_pipeline(&text).map_err(state::Error::Invalid)?;
+            ship_pipelines::normalize_pipeline(&text).map_err(|e| state::Error::Invalid(e.to_string()))?;
         let pipeline: ship_pipelines::Pipeline = serde_json::from_value(normalized)
             .map_err(|e| state::Error::Invalid(e.to_string()))?;
-        return ship_pipelines::validate_pipeline(&pipeline).map_err(state::Error::Invalid);
+        return ship_pipelines::validate_pipeline(&pipeline).map_err(|e| state::Error::Invalid(e.to_string()));
     }
 
     Err(state::Error::Invalid(

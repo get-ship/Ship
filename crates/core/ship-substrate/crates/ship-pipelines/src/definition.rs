@@ -229,7 +229,7 @@ impl PipelineDefinition {
     /// Validate every platform invariant on this definition by lowering to the
     /// runtime DAG and running the shared [`validate_pipeline`](crate::validate::validate_pipeline).
     /// Returns a clear, operator-readable error on the first violation.
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> Result<(), crate::error::PipelineError> {
         crate::validate::validate_pipeline(&self.to_pipeline())
     }
 }

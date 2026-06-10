@@ -12,6 +12,8 @@
 
 use serde_json::{Map, Value, json};
 
+use crate::error::PipelineError;
+
 /// Strip JSONC comments and trailing commas, returning valid JSON.
 ///
 /// Handles:
@@ -129,26 +131,26 @@ pub struct PipelineMeta {
 
 /// Parse a pipeline definition and normalize it into a JSON `{ steps: [...] }`
 /// shape the runtime can deserialize via `PipelineStep`.
-pub fn normalize_pipeline(input: &str) -> Result<(Value, PipelineMeta), String> {
+pub fn normalize_pipeline(input: &str) -> Result<(Value, PipelineMeta), PipelineError> {
     let json_str = strip_jsonc_comments(input);
     let val: Value = serde_json::from_str(&json_str)
-        .map_err(|e| format!("invalid pipeline JSONC: {e}"))?;
+        .map_err(|e| PipelineError::Parse(format!("invalid pipeline JSONC: {e}")))?;
 
     let meta = extract_meta(&val);
 
     // Short form: `agents: [...]` → sequential agent steps
     if let Some(agents) = val.get("agents").and_then(|v| v.as_array()) {
-        let steps = agents_to_steps(agents)?;
+        let steps = agents_to_steps(agents).map_err(PipelineError::Parse)?;
         return Ok((json!({ "steps": steps }), meta));
     }
 
     // Long form: `steps: [...]` with mixed types
     if let Some(steps_val) = val.get("steps").and_then(|v| v.as_array()) {
-        let steps = normalize_steps(steps_val)?;
+        let steps = normalize_steps(steps_val).map_err(PipelineError::Parse)?;
         return Ok((json!({ "steps": steps }), meta));
     }
 
-    Err("pipeline must have either `agents` or `steps`".to_string())
+    Err(PipelineError::Parse("pipeline must have either `agents` or `steps`".to_string()))
 }
 
 /// Extract pipeline-level metadata from the parsed value.
