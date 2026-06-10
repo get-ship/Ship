@@ -42,6 +42,7 @@
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
     overflow: hidden;
+    box-shadow: var(--shadow-xs);
   }
   :host([hidden]) { display: none; }
   .toolbar {
