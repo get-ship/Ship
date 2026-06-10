@@ -58,8 +58,9 @@
     --es-title-fs: var(--text-md, 16px);
     --es-desc-fs: var(--text-sm, 14px);
     --es-radius: var(--radius-lg);
-    --es-border: 1px dashed var(--border);
-    --es-bg: var(--card);
+    --es-border: 1px solid var(--border);
+    --es-bg: color-mix(in oklch, var(--muted) 30%, var(--card));
+    --es-shadow: var(--shadow-xs);
   }
   :host([hidden]) { display: none; }
 
@@ -84,6 +85,7 @@
     --es-border: 0;
     --es-bg: transparent;
     --es-radius: 0;
+    --es-shadow: none;
     --es-pad-y: var(--space-6, 24px);
   }
   :host([variant='inline']) {
@@ -106,6 +108,7 @@
     background: var(--es-bg);
     border: var(--es-border);
     border-radius: var(--es-radius);
+    box-shadow: var(--es-shadow, none);
   }
   :host([variant='inline']) .box {
     flex-direction: row;
@@ -121,10 +124,11 @@
     flex-shrink: 0;
     width: var(--es-tile);
     height: var(--es-tile);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-lg);
     background: color-mix(in oklch, var(--tone-fg) 18%, var(--muted));
     color: var(--tone-fg);
     line-height: 1;
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--tone-fg) 22%, transparent);
   }
   :host(:not([tone])) .icon,
   :host([tone='default']) .icon,
@@ -137,6 +141,7 @@
     width: var(--es-icon);
     height: var(--es-icon);
     background: transparent;
+    box-shadow: none;
   }
   ::slotted([slot='icon']) {
     display: inline-flex;

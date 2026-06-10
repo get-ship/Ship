@@ -176,6 +176,22 @@ export const SUI_TABLE_LIGHT_DOM_CSS = `
     cursor: pointer;
   }
 
+  sui-table .st {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  sui-table .st .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-full);
+    background: var(--muted-foreground);
+  }
+  sui-table .st .lbl { color: var(--foreground); }
+  sui-table .st.ok .dot { background: var(--success); box-shadow: 0 0 0 3px var(--tone-success-bg); }
+  sui-table .st.warn .dot { background: var(--warning); box-shadow: 0 0 0 3px var(--tone-warning-bg); }
+  sui-table .st.err .dot { background: var(--destructive); box-shadow: 0 0 0 3px var(--tone-destructive-bg); }
+
   @media (forced-colors: active) {
     sui-table th, sui-table td { border-bottom-color: CanvasText; }
   }

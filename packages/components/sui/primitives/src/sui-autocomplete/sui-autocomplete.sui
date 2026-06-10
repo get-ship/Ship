@@ -62,9 +62,10 @@
     width: 100%;
     min-height: var(--h);
     padding: 0 var(--px);
-    background: var(--background);
+    background: var(--card);
     border: 1px solid var(--tone-border);
     border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xs);
     transition:
       border-color var(--duration-fast) var(--ease-out),
       box-shadow var(--duration-fast) var(--ease-out);
@@ -77,6 +78,13 @@
     background: var(--muted);
     cursor: not-allowed;
     opacity: 0.65;
+  }
+
+  .search-icon {
+    flex: none;
+    width: 15px;
+    height: 15px;
+    color: var(--muted-foreground);
   }
 
   input.entry {
@@ -93,6 +101,13 @@
   }
   input.entry::placeholder { color: var(--muted-foreground); }
   input.entry:disabled { cursor: not-allowed; }
+  /* Per repo convention (sui-input/sui-combobox): the wrap carries a
+     :focus-within tint; the input itself consumes the canonical
+     --focus-ring token on :focus-visible. */
+  input.entry:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
 
   .listbox {
     position: absolute;
@@ -123,12 +138,31 @@
     cursor: pointer;
     user-select: none;
   }
+  .opt .opt-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .opt .opt-check {
+    flex: none;
+    width: 15px;
+    height: 15px;
+    color: var(--tone-ring);
+    opacity: 0;
+  }
   .opt.hl {
     background: color-mix(in oklch, var(--tone-ring) var(--selected-strength), transparent);
   }
+  .opt.hl .opt-check { opacity: 1; }
 </style>
 
 <div class="wrap" part="wrap">
+  <svg class="search-icon" part="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+    <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+  </svg>
   <input
     class="entry"
     part="input"
@@ -158,7 +192,10 @@
         role="option"
         id={s.id}
         data-value={s.value}
-      >{s.label}</li>
+        aria-selected={s.idx === highlight() ? 'true' : 'false'}
+      ><span class="opt-label">{s.label}</span><svg class="opt-check" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+          aria-hidden="true" focusable="false"><path d="M20 6L9 17l-5-5"/></svg></li>
     {/for}
   </ul>
 {/if}
