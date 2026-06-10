@@ -269,13 +269,11 @@ pub fn router(state: ApiState) -> axum::Router {
     // projections directly off `ship_dir` via `read_core` — no shipd read closure.
     // The GUI view-model (pills/tones/timeline) stays on the *Live streams below.
     let pipelines_state_for_live = state.clone();
-    let pipelines_svc_for_live = svc.clone();
     let pipelines_live_fn: ship_pipeline_runtime::wire::LiveReadFn = Arc::new(move |op, args| {
         let st = pipelines_state_for_live.clone();
-        let svc = pipelines_svc_for_live.clone();
         Box::pin(async move {
-            // Build a temporary OpsImpl-equivalent live_read using the kernel.
-            use connectrpc::{ConnectError, Response, ServiceResult, ServiceStream};
+            // Build a temporary OpsImpl-equivalent live read using the kernel.
+            use connectrpc::{ConnectError, Response, ServiceStream};
             use ship_substrate::events::ActorConfig;
             use ship_ops_rpc::JsonResponse;
             let resolve: Box<dyn Fn(&crate::ship_runtime::ApiState) -> serde_json::Value + Send + Sync> = match op {
@@ -350,7 +348,6 @@ pub fn router(state: ApiState) -> axum::Router {
         Arc::new(move |op: String, args: serde_json::Value, ctx: connectrpc::RequestContext| {
             let st = pipelines_state_for_write.clone();
             Box::pin(async move {
-                use axum::response::IntoResponse;
                 let auth = ctx
                     .extensions
                     .get::<crate::auth::AuthContext>()
@@ -960,32 +957,6 @@ fn copy_scaffold_view(
         }
     }
     Ok(())
-}
-
-/// Map an Axum `Response` body to a `serde_json::Value`, converting HTTP errors
-/// to `ConnectError`. Used by the pipelines write closure (replaces the deleted
-/// `services::command::response_to_value` + `command_error_to_connect` pair).
-async fn axum_response_to_value(
-    resp: axum::response::Response,
-) -> Result<serde_json::Value, ConnectError> {
-    let status = resp.status();
-    let bytes = axum::body::to_bytes(resp.into_body(), 4 << 20)
-        .await
-        .map_err(|e| ConnectError::internal(e.to_string()))?;
-    if status.is_success() {
-        serde_json::from_slice(&bytes).map_err(|e| ConnectError::internal(e.to_string()))
-    } else {
-        let msg = String::from_utf8_lossy(&bytes).into_owned();
-        if status == axum::http::StatusCode::FORBIDDEN {
-            Err(ConnectError::permission_denied(msg))
-        } else if status == axum::http::StatusCode::UNAUTHORIZED {
-            Err(ConnectError::unauthenticated(msg))
-        } else if status.is_client_error() {
-            Err(ConnectError::invalid_argument(msg))
-        } else {
-            Err(ConnectError::internal(msg))
-        }
-    }
 }
 
 // ── Policy introspection (not the enforcement path) ───────────────────────────

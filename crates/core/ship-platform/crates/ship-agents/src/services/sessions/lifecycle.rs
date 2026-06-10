@@ -19,14 +19,6 @@ use super::types::{
     private::Inner, PtySession, SessionHandle, SessionId, SessionKind, SessionMeta,
     SessionStatus,
 };
-fn status_str(s: SessionStatus) -> &'static str {
-    match s {
-        SessionStatus::Spawning => "spawning",
-        SessionStatus::Idle => "idle",
-        SessionStatus::Thinking => "thinking",
-        SessionStatus::Ended => "ended",
-    }
-}
 
 /// Broadcast channel capacity — 1024 chunks ≈ several screens of output
 /// at typical PTY burst rates. Lagging subscribers drop old frames.

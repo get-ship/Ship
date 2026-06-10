@@ -10,9 +10,6 @@
 //!
 //! ship-platform re-exports these namespaces for back-compat.
 
-#[cfg(test)]
-pub mod testutil;
-
 pub mod active_agent;
 pub mod actor;
 // The agent-definition domain moved to the `agent-def` crate (Floki carve D2a).
@@ -48,14 +45,3 @@ pub use agent_def::migrate_skill_vars_from_platform_db;
 
 // Back-compat re-exports so existing callers via ship_agents::agents::* still work.
 pub use agent_domain as agents;
-
-// ── Canonical sessions projection install seam ───────────────────────────────
-//
-// `CanonicalSessionProjection` is now registered as part of the default
-// projection set in `ship_platform::install_defaults()`. This function is
-// retained for API compatibility but is a deliberate no-op: callers that
-// previously called `install_canonical_session_projection()` can remove the
-// call — `ship_platform::install_defaults()` covers it.
-pub fn install_canonical_session_projection() {
-    // No-op: canonical sessions are installed by ship_platform::install_defaults().
-}
