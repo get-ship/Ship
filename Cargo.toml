@@ -35,6 +35,7 @@ members = [
     "crates/core/ship-platform/crates/ship-agents",
     "crates/core/ship-platform/crates/ship-harnesses",
     "crates/core/ship-platform/crates/ship-files",
+    "crates/core/ship-platform/crates/ship-messaging",
     "crates/core/ship-platform/crates/agent-def/crates/ship-skill-vars",
     "crates/core/ship-platform/crates/ship-store",
     "crates/core/ship-platform/crates/ship-auth",

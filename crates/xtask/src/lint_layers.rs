@@ -85,10 +85,11 @@ const OUTBOUND_ALLOWLIST: &[&str] = &[
 /// these to the allowlist or fixes the architecture before removing them.
 ///
 /// - `ship-isolation` — runs/drives a Connect server inside L0.
-/// - `ship-substrate` — `reqwest` pulled by `services/human_gateway.rs`; the fix
-///   is moving that human-gateway egress out of the substrate (de-bucket), not
-///   suppressing it here.
-const R2_KNOWN_VIOLATIONS: &[&str] = &["ship-isolation", "ship-substrate"];
+///
+/// (`ship-substrate` was here for the `reqwest` pulled by
+/// `services/human_gateway.rs`; that egress now lives in `ship-messaging` (L1)
+/// and the substrate is transport-clean — do NOT re-add it.)
+const R2_KNOWN_VIOLATIONS: &[&str] = &["ship-isolation"];
 
 // ── R4 — known L1→L2 / L0→L2 edges (WARN, non-blocking) ────────────────────────
 

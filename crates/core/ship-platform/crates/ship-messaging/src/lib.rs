@@ -4,6 +4,10 @@
 //! forwards the block reason to a human via the configured adapter (Telegram,
 //! Slack, etc.). Inbound replies arrive via webhook and are emitted as
 //! `human.response` events by the shipd webhook handler.
+//!
+//! Lives at L1 (`ship-messaging`) because the adapters make outbound HTTP
+//! calls — egress is forbidden in the L0 substrate. The generic
+//! [`ServiceHandler`] plumbing it implements stays in `ship-substrate`.
 
 use std::sync::Arc;
 
@@ -12,8 +16,8 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use tokio::sync::mpsc;
 
-use crate::events::{ActorStore, EventEnvelope};
-use crate::services::ServiceHandler;
+use ship_substrate::events::{ActorStore, EventEnvelope};
+use ship_substrate::services::ServiceHandler;
 
 // ── Adapter trait ─────────────────────────────────────────────────────────────
 
@@ -53,8 +57,8 @@ impl TelegramAdapter {
 
     /// Build from environment variables. Returns `None` if either var is absent.
     pub fn from_env() -> Option<Self> {
-        let token = crate::env::read(crate::env::Var::TelegramToken)?;
-        let chat_id = crate::env::read(crate::env::Var::TelegramChatId)?;
+        let token = ship_substrate::env::read(ship_substrate::env::Var::TelegramToken)?;
+        let chat_id = ship_substrate::env::read(ship_substrate::env::Var::TelegramChatId)?;
         Some(Self::new(token, chat_id))
     }
 }

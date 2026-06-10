@@ -8836,6 +8836,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-messaging"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ship-ops-rpc"
 version = "0.1.0"
 dependencies = [
@@ -9129,7 +9143,6 @@ dependencies = [
  "object_store",
  "portable-pty",
  "proptest",
- "reqwest 0.12.28",
  "rmp-serde",
  "sea-query",
  "serde",
@@ -9278,6 +9291,7 @@ dependencies = [
  "ship-harnesses",
  "ship-isolation",
  "ship-kernel",
+ "ship-messaging",
  "ship-ops-rpc",
  "ship-pipeline-runtime",
  "ship-pipelines",
