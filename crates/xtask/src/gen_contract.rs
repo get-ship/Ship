@@ -75,8 +75,9 @@ fn domain_catalog() -> Vec<DomainMeta> {
             key: "sessions",
             display: "Sessions",
             // session.* reads folded into AgentsService (agents-arc E4/E6); the
-            // session lifecycle + hook.* analytics rollup keep their event domain.
-            event_prefixes: vec!["hook."],
+            // analytics rollup now folds canonical op.* tool-use events (the
+            // hook.* family is retired, #25b).
+            event_prefixes: vec!["op."],
             services: vec![],
             description: "Session lifecycle analytics: start/end/list/progress rollup over actor activity (reads served by AgentsService).",
             coverage_audit_docs: vec![],
@@ -175,14 +176,6 @@ fn domain_catalog() -> Vec<DomainMeta> {
             event_prefixes: vec!["view."],
             services: vec!["DiscoveryService", "CreateService"],
             description: "View compile/edit/snapshot primitives: source read/write, compile-check, snapshot, sibling discovery.",
-            coverage_audit_docs: vec![],
-        },
-        DomainMeta {
-            key: "hooks",
-            display: "Hooks",
-            event_prefixes: vec!["hook."],
-            services: vec![],
-            description: "Hook trigger engine: lifecycle hooks (session start/end, tool use, turn) emitted by the harness adapters.",
             coverage_audit_docs: vec![],
         },
         DomainMeta {

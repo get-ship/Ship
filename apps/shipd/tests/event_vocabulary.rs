@@ -26,9 +26,10 @@ use ship_types::event_types::canonical_session::{ALL_CANONICAL_OP, ALL_CANONICAL
 fn full_registry_count_is_pinned() {
     let n = event_registry::all_names().len();
     assert_eq!(
-        n, 129,
+        n, 123,
         "the full event vocabulary changed size. Bump this pin with your \
-         event addition/removal so vocabulary changes stay conscious."
+         event addition/removal so vocabulary changes stay conscious. \
+         (#25b: -6 hook.* events deregistered 2026-06-10)"
     );
 }
 

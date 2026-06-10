@@ -532,6 +532,7 @@ where
                         session_id: ctx.session_id.clone(),
                         idx: 0,
                         stop_reason: Some("end_turn".into()),
+                        ..Default::default()
                     },
                 )
                 .ok();

@@ -1,24 +1,26 @@
-//! AnalyticsProjection tests — verify event-fold into rollup tables.
+//! AnalyticsProjection behavioral tests — verify event-fold into rollup tables.
+//!
+//! #25b: hook.* events replaced by canonical op.* (tool-use) and
+//! session.turn.ended (turns). Session lifecycle driven by actor.created/stopped.
+//! Two test shapes:
+//!   hook-POST path  — op.* emitted by the http_ingress (third-party harness config)
+//!   synth path      — op.tool_use_started + session.turn.ended from process.rs
+//!                     (opencode / cursor / harnesses without hooks)
 
 #[cfg(test)]
 mod analytics_tests {
+    use agent_def::canonical_session::TurnEnded;
+    use agent_def::op::{OpToolUseCompleted, OpToolUseStarted};
     use ship_substrate::db::{block_on, open_runtime_db};
     use ship_substrate::events::EventEnvelope;
-    use ship_substrate::events::hooks::{
-        event_types,
-        HookSessionEndedPayload, HookSessionStartedPayload, HookToolUseCompletedPayload,
-        HookToolUseStartedPayload, ToolStatus,
-    };
-    use ship_substrate::projections::EventBus; use crate::AnalyticsProjection;
+    use ship_substrate::projections::EventBus;
+    use ship_types::event_types::canonical_session as op_event_types;
+    use crate::AnalyticsProjection;
 
     fn setup() -> (std::path::PathBuf, sqlx::SqliteConnection) {
         let ship_dir = ship_substrate::project::get_global_dir().unwrap();
         let base = ship_dir.parent().unwrap().to_path_buf();
         ship_substrate::testutil::init_project_minimal(base).unwrap();
-        // AnalyticsProjection is Runtime-scoped (analytics_* tables); production
-        // reads via runtime.db. Open it directly so the test validates the real
-        // production read path, not a self-consistent platform.db. open_runtime_db
-        // ensures the events + projection schema itself.
         let conn = open_runtime_db(&ship_dir).unwrap();
         (ship_dir, conn)
     }
@@ -29,73 +31,102 @@ mod analytics_tests {
         bus
     }
 
-    fn session_started_event(
-        actor_id: &str,
-        session_id: Option<&str>,
-        harness: Option<&str>,
-        model: Option<&str>,
-        started_at: &str,
-    ) -> EventEnvelope {
-        let payload = HookSessionStartedPayload {
-            actor_id: actor_id.to_string(),
-            session_id: session_id.map(String::from),
-            harness: harness.map(String::from),
-            model: model.map(String::from),
-            started_at: started_at.to_string(),
-        };
-        EventEnvelope::new(event_types::HOOK_SESSION_STARTED, actor_id, &payload)
-            .unwrap()
-            .with_actor_id(actor_id)
-            .with_target(actor_id)
-    }
+    // ── op.* event helpers ───────────────────────────────────────────
 
-    fn session_ended_event(actor_id: &str, ended_at: &str, reason: Option<&str>) -> EventEnvelope {
-        let payload = HookSessionEndedPayload {
-            actor_id: actor_id.to_string(),
-            session_id: None,
-            ended_at: ended_at.to_string(),
-            reason: reason.map(String::from),
-        };
-        EventEnvelope::new(event_types::HOOK_SESSION_ENDED, actor_id, &payload)
-            .unwrap()
-            .with_actor_id(actor_id)
-            .with_target(actor_id)
-    }
-
-    fn tool_use_started_event(actor_id: &str, tool: &str, started_at: &str) -> EventEnvelope {
-        let payload = HookToolUseStartedPayload {
-            actor_id: actor_id.to_string(),
+    fn op_tool_use_started_event(actor_id: &str, tool: &str, started_at: &str) -> EventEnvelope {
+        let payload = OpToolUseStarted {
+            session_id: actor_id.to_string(),
+            harness_session_id: None,
             tool: tool.to_string(),
             input: Some(serde_json::json!({"command": "echo test"})),
-            input_preview: None,
+            blast: None,
             started_at: started_at.to_string(),
         };
-        EventEnvelope::new(event_types::HOOK_TOOL_USE_STARTED, actor_id, &payload)
+        EventEnvelope::new(op_event_types::OP_TOOL_USE_STARTED, actor_id, &payload)
             .unwrap()
             .with_actor_id(actor_id)
             .with_target(actor_id)
     }
 
-    fn tool_use_completed_event(
+    fn op_tool_use_completed_event(
         actor_id: &str,
         tool: &str,
-        status: ToolStatus,
+        status: &str,
         ended_at: &str,
     ) -> EventEnvelope {
-        let payload = HookToolUseCompletedPayload {
-            actor_id: actor_id.to_string(),
+        let payload = OpToolUseCompleted {
+            session_id: actor_id.to_string(),
+            harness_session_id: None,
             tool: tool.to_string(),
-            status,
+            status: status.to_string(),
             error: None,
             response: None,
-            response_preview: None,
             ended_at: ended_at.to_string(),
         };
-        EventEnvelope::new(event_types::HOOK_TOOL_USE_COMPLETED, actor_id, &payload)
+        EventEnvelope::new(op_event_types::OP_TOOL_USE_COMPLETED, actor_id, &payload)
             .unwrap()
             .with_actor_id(actor_id)
             .with_target(actor_id)
     }
+
+    fn turn_ended_event(
+        actor_id: &str,
+        model: Option<&str>,
+        input: u64,
+        output: u64,
+        cache_w: u64,
+        cache_r: u64,
+    ) -> EventEnvelope {
+        let payload = TurnEnded {
+            session_id: actor_id.to_string(),
+            idx: 0,
+            stop_reason: Some("end_turn".to_string()),
+            harness_session_id: None,
+            model: model.map(String::from),
+            input_tokens: Some(input),
+            output_tokens: Some(output),
+            reasoning_tokens: None,
+            cache_creation_tokens: if cache_w > 0 { Some(cache_w) } else { None },
+            cache_read_tokens: if cache_r > 0 { Some(cache_r) } else { None },
+            harness_reported_cost_usd: None,
+            observed_at: Some("2026-05-19T10:00:00+00:00".to_string()),
+        };
+        EventEnvelope::new(op_event_types::TURN_ENDED, actor_id, &payload)
+            .unwrap()
+            .with_actor_id(actor_id)
+    }
+
+    // ── actor.* event helpers ────────────────────────────────────────
+
+    fn actor_created_event(
+        actor_id: &str,
+        harness: Option<&str>,
+        model: Option<&str>,
+    ) -> EventEnvelope {
+        let payload = ship_types::payload::ActorCreated {
+            kind: "worker".to_string(),
+            environment_type: "cli".to_string(),
+            harness: harness.map(String::from),
+            model: model.map(String::from),
+            ..Default::default()
+        };
+        EventEnvelope::new(ship_types::event_types::ACTOR_CREATED, actor_id, &payload)
+            .unwrap()
+            .with_actor_id(actor_id)
+    }
+
+    fn actor_stopped_event(actor_id: &str, reason: &str) -> EventEnvelope {
+        let payload = ship_types::payload::ActorStopped {
+            reason: reason.to_string(),
+            exit_code: Some(0),
+            duration_ms: None,
+        };
+        EventEnvelope::new(ship_types::event_types::ACTOR_STOPPED, actor_id, &payload)
+            .unwrap()
+            .with_actor_id(actor_id)
+    }
+
+    // ── Row query helpers ────────────────────────────────────────────
 
     #[derive(Debug)]
     struct SessionRow {
@@ -170,107 +201,18 @@ mod analytics_tests {
             .collect()
     }
 
-    // ── Session lifecycle ────────────────────────────────────────────
+    // ── Hook-POST path tests (op.* emitted by http_ingress) ─────────
 
     #[test]
-    fn session_started_inserts_row() {
+    fn op_tool_use_started_inserts_open_row_and_bumps_session_count() {
         let (_dir, mut conn) = setup();
         let bus = bus();
         bus.dispatch(
-            &session_started_event(
-                "actor-sess-1",
-                Some("sess-uuid-1"),
-                Some("claude"),
-                Some("opus"),
-                "2026-05-18T10:00:00+00:00",
-            ),
-            &mut conn,
-        ).unwrap();
-        let r = query_session(&mut conn, "sess-uuid-1").expect("row exists");
-        assert_eq!(r.actor_id, "actor-sess-1");
-        assert_eq!(r.harness.as_deref(), Some("claude"));
-        assert_eq!(r.model.as_deref(), Some("opus"));
-        assert_eq!(r.started_at, "2026-05-18T10:00:00+00:00");
-        assert!(r.ended_at.is_none());
-        assert!(r.duration_ms.is_none());
-        assert_eq!(r.tool_use_count, 0);
-    }
-
-    #[test]
-    fn session_ended_computes_duration_and_records_reason() {
-        let (_dir, mut conn) = setup();
-        let bus = bus();
-        bus.dispatch(
-            &session_started_event(
-                "actor-sess-2",
-                Some("sess-uuid-2"),
-                Some("claude"),
-                None,
-                "2026-05-18T10:00:00+00:00",
-            ),
+            &actor_created_event("actor-tu-1", Some("claude"), None),
             &mut conn,
         ).unwrap();
         bus.dispatch(
-            &session_ended_event(
-                "actor-sess-2",
-                "2026-05-18T10:00:05.500+00:00",
-                Some("operator-cancelled"),
-            ),
-            &mut conn,
-        ).unwrap();
-        // session_ended carries no session_id in our event helper, so
-        // it keys on actor_id. The started event keyed on session_id.
-        // These DON'T match — verify both keys exist (or update fixture
-        // to match). For the test to be meaningful, recompose with
-        // matching keys.
-        let r = query_session(&mut conn, "actor-sess-2").expect("ended row exists by actor_id key");
-        assert_eq!(r.ended_at.as_deref(), Some("2026-05-18T10:00:05.500+00:00"));
-        assert_eq!(r.reason.as_deref(), Some("operator-cancelled"));
-    }
-
-    #[test]
-    fn session_started_then_ended_with_matching_session_id_pairs_correctly() {
-        let (_dir, mut conn) = setup();
-        let bus = bus();
-        let actor = "actor-pair";
-        let sid = "sess-pair";
-        // Both events carry session_id so they key to "sess-pair".
-        bus.dispatch(
-            &session_started_event(actor, Some(sid), None, None, "2026-05-18T10:00:00+00:00"),
-            &mut conn,
-        ).unwrap();
-        // End event with matching session_id (build manually).
-        let payload = HookSessionEndedPayload {
-            actor_id: actor.to_string(),
-            session_id: Some(sid.to_string()),
-            ended_at: "2026-05-18T10:00:02+00:00".to_string(),
-            reason: None,
-        };
-        let env = EventEnvelope::new(event_types::HOOK_SESSION_ENDED, actor, &payload).unwrap();
-        bus.dispatch(&env, &mut conn).unwrap();
-        let r = query_session(&mut conn, sid).expect("row");
-        assert_eq!(r.duration_ms, Some(2000));
-        assert!(r.ended_at.is_some());
-    }
-
-    // ── Tool-use lifecycle ───────────────────────────────────────────
-
-    #[test]
-    fn tool_use_started_inserts_open_row_and_bumps_session_count() {
-        let (_dir, mut conn) = setup();
-        let bus = bus();
-        bus.dispatch(
-            &session_started_event(
-                "actor-tu-1",
-                None,
-                Some("claude"),
-                None,
-                "2026-05-18T10:00:00+00:00",
-            ),
-            &mut conn,
-        ).unwrap();
-        bus.dispatch(
-            &tool_use_started_event("actor-tu-1", "Bash", "2026-05-18T10:00:01+00:00"),
+            &op_tool_use_started_event("actor-tu-1", "Bash", "2026-05-18T10:00:01+00:00"),
             &mut conn,
         ).unwrap();
         let s = query_session(&mut conn, "actor-tu-1").expect("session row");
@@ -283,20 +225,15 @@ mod analytics_tests {
     }
 
     #[test]
-    fn tool_use_completed_closes_matching_open_row_with_duration() {
+    fn op_tool_use_completed_closes_matching_open_row_with_duration() {
         let (_dir, mut conn) = setup();
         let bus = bus();
         bus.dispatch(
-            &tool_use_started_event("actor-tu-2", "Bash", "2026-05-18T10:00:01+00:00"),
+            &op_tool_use_started_event("actor-tu-2", "Bash", "2026-05-18T10:00:01+00:00"),
             &mut conn,
         ).unwrap();
         bus.dispatch(
-            &tool_use_completed_event(
-                "actor-tu-2",
-                "Bash",
-                ToolStatus::Ok,
-                "2026-05-18T10:00:01.750+00:00",
-            ),
+            &op_tool_use_completed_event("actor-tu-2", "Bash", "ok", "2026-05-18T10:00:01.750+00:00"),
             &mut conn,
         ).unwrap();
         let tu = query_tool_uses(&mut conn, "actor-tu-2");
@@ -306,30 +243,19 @@ mod analytics_tests {
     }
 
     #[test]
-    fn tool_use_error_increments_session_error_count() {
+    fn op_tool_use_error_increments_session_error_count() {
         let (_dir, mut conn) = setup();
         let bus = bus();
         bus.dispatch(
-            &session_started_event(
-                "actor-err",
-                None,
-                None,
-                None,
-                "2026-05-18T10:00:00+00:00",
-            ),
+            &actor_created_event("actor-err", None, None),
             &mut conn,
         ).unwrap();
         bus.dispatch(
-            &tool_use_started_event("actor-err", "Write", "2026-05-18T10:00:01+00:00"),
+            &op_tool_use_started_event("actor-err", "Write", "2026-05-18T10:00:01+00:00"),
             &mut conn,
         ).unwrap();
         bus.dispatch(
-            &tool_use_completed_event(
-                "actor-err",
-                "Write",
-                ToolStatus::Error,
-                "2026-05-18T10:00:01.100+00:00",
-            ),
+            &op_tool_use_completed_event("actor-err", "Write", "error", "2026-05-18T10:00:01.100+00:00"),
             &mut conn,
         ).unwrap();
         let s = query_session(&mut conn, "actor-err").expect("session row");
@@ -338,26 +264,21 @@ mod analytics_tests {
     }
 
     #[test]
-    fn pairing_uses_oldest_open_row_per_tool() {
+    fn op_pairing_uses_oldest_open_row_per_tool() {
         // Two concurrent Bash calls: complete closes the OLDER one
         // first. Mis-pairing is documented; this test pins the rule.
         let (_dir, mut conn) = setup();
         let bus = bus();
         bus.dispatch(
-            &tool_use_started_event("actor-pair-2", "Bash", "2026-05-18T10:00:01+00:00"),
+            &op_tool_use_started_event("actor-pair-2", "Bash", "2026-05-18T10:00:01+00:00"),
             &mut conn,
         ).unwrap();
         bus.dispatch(
-            &tool_use_started_event("actor-pair-2", "Bash", "2026-05-18T10:00:02+00:00"),
+            &op_tool_use_started_event("actor-pair-2", "Bash", "2026-05-18T10:00:02+00:00"),
             &mut conn,
         ).unwrap();
         bus.dispatch(
-            &tool_use_completed_event(
-                "actor-pair-2",
-                "Bash",
-                ToolStatus::Ok,
-                "2026-05-18T10:00:05+00:00",
-            ),
+            &op_tool_use_completed_event("actor-pair-2", "Bash", "ok", "2026-05-18T10:00:05+00:00"),
             &mut conn,
         ).unwrap();
         let tu = query_tool_uses(&mut conn, "actor-pair-2");
@@ -369,45 +290,47 @@ mod analytics_tests {
         assert!(tu[1].ended_at.is_none());
     }
 
+    // ── Synth-path tests (opencode/cursor — no hook config) ──────────
+
+    #[test]
+    fn synth_path_tool_use_and_turn_fold_correctly() {
+        // Simulates opencode: actor.created (no hook session-start),
+        // op.tool_use_started from the supervisor stream parser,
+        // session.turn.ended with token usage.
+        let (_dir, mut conn) = setup();
+        let bus = bus();
+        bus.dispatch(
+            &actor_created_event("actor-synth-1", Some("opencode"), Some("claude-3-5-sonnet")),
+            &mut conn,
+        ).unwrap();
+        bus.dispatch(
+            &op_tool_use_started_event("actor-synth-1", "Bash", "2026-05-18T10:00:01+00:00"),
+            &mut conn,
+        ).unwrap();
+        bus.dispatch(
+            &turn_ended_event("actor-synth-1", Some("claude-3-5-sonnet"), 250, 75, 10, 1000),
+            &mut conn,
+        ).unwrap();
+        // session row from actor.created
+        let s = query_session(&mut conn, "actor-synth-1").expect("session row from actor.created");
+        assert_eq!(s.harness.as_deref(), Some("opencode"));
+        assert_eq!(s.tool_use_count, 1);
+        // turn inserted
+        let summary = crate::queries::session_token_summary(&mut conn, "actor-synth-1")
+            .unwrap()
+            .expect("turn summary");
+        assert_eq!(summary.turn_count, 1);
+        assert_eq!(summary.input_tokens, 250);
+        assert_eq!(summary.output_tokens, 75);
+        assert_eq!(summary.cache_creation_tokens, 10);
+        assert_eq!(summary.cache_read_tokens, 1000);
+    }
+
     // ── Actor-lifecycle fallback ─────────────────────────────────────
-    //
-    // Closes the keepalive SessionStart-hook gap: even when the harness
-    // never fires hook.session_started (dispatched keepalive claude,
-    // cursor — no upstream event, opencode — plugin model), actor.created
-    // populates the session row so analytics stays complete.
-
-    fn actor_created_event(
-        actor_id: &str,
-        harness: Option<&str>,
-        model: Option<&str>,
-    ) -> EventEnvelope {
-        let payload = ship_types::payload::ActorCreated {
-            kind: "worker".to_string(),
-            environment_type: "cli".to_string(),
-            harness: harness.map(String::from),
-            model: model.map(String::from),
-            ..Default::default()
-        };
-        EventEnvelope::new(ship_types::event_types::ACTOR_CREATED, actor_id, &payload)
-            .unwrap()
-            .with_actor_id(actor_id)
-    }
-
-    fn actor_stopped_event(actor_id: &str, reason: &str) -> EventEnvelope {
-        let payload = ship_types::payload::ActorStopped {
-            reason: reason.to_string(),
-            exit_code: Some(0),
-            duration_ms: None,
-        };
-        EventEnvelope::new(ship_types::event_types::ACTOR_STOPPED, actor_id, &payload)
-            .unwrap()
-            .with_actor_id(actor_id)
-    }
 
     #[test]
     fn actor_created_populates_session_when_no_hook_fires() {
-        // Simulates dispatched keepalive claude: hook.session_started
-        // never arrives, but actor.created from the supervisor does.
+        // Simulates dispatched keepalive claude: no hook events arrive.
         let (_dir, mut conn) = setup();
         let bus = bus();
         bus.dispatch(
@@ -425,7 +348,6 @@ mod analytics_tests {
     #[test]
     fn actor_created_without_harness_is_ignored() {
         // Service actors (mesh, user-inbox, supervisor) have no harness.
-        // They aren't agent sessions and shouldn't populate analytics.
         let (_dir, mut conn) = setup();
         let bus = bus();
         bus.dispatch(&actor_created_event("service-mesh", None, None), &mut conn).unwrap();
@@ -447,97 +369,54 @@ mod analytics_tests {
     }
 
     #[test]
-    fn hook_session_started_takes_precedence_over_actor_created() {
-        // When the harness DOES fire SessionStart, its payload's harness
-        // wins. actor.created arriving later only fills in nulls.
+    fn actor_created_harness_not_overwritten_by_subsequent_op_insert() {
+        // When actor.created fires first (harness=claude), then op.tool_use_started
+        // triggers a stub session insert — the COALESCE must keep claude's value.
         let (_dir, mut conn) = setup();
         let bus = bus();
         bus.dispatch(
-            &session_started_event(
-                "actor-both",
-                None, // no session_id — keys on actor_id
-                Some("claude"),
-                Some("sonnet"),
-                "2026-05-18T10:00:00+00:00",
-            ),
+            &actor_created_event("actor-both", Some("claude"), Some("sonnet")),
             &mut conn,
         ).unwrap();
-        // actor.created arrives later with conflicting model — COALESCE
-        // preserves the hook-supplied value.
         bus.dispatch(
-            &actor_created_event("actor-both", Some("codex"), Some("gpt-5")),
+            &op_tool_use_started_event("actor-both", "Bash", "2026-05-18T10:00:01+00:00"),
             &mut conn,
         ).unwrap();
         let r = query_session(&mut conn, "actor-both").expect("row");
-        assert_eq!(r.harness.as_deref(), Some("claude"), "hook wins");
-        assert_eq!(r.model.as_deref(), Some("sonnet"), "hook wins");
+        assert_eq!(r.harness.as_deref(), Some("claude"), "actor.created harness preserved");
+        assert_eq!(r.model.as_deref(), Some("sonnet"), "actor.created model preserved");
     }
 
     #[test]
-    fn actor_stopped_skipped_when_hook_session_ended_already_recorded() {
+    fn actor_stopped_not_applied_after_session_already_closed() {
         let (_dir, mut conn) = setup();
         let bus = bus();
         bus.dispatch(
-            &session_started_event(
-                "actor-end-first",
-                None,
-                Some("claude"),
-                None,
-                "2026-05-18T10:00:00+00:00",
-            ),
+            &actor_created_event("actor-end-first", Some("claude"), None),
             &mut conn,
         ).unwrap();
         bus.dispatch(
-            &session_ended_event("actor-end-first", "2026-05-18T10:00:05+00:00", Some("normal")),
+            &actor_stopped_event("actor-end-first", "normal-exit"),
             &mut conn,
         ).unwrap();
-        // actor.stopped arrives after; should not overwrite the hook's
-        // ended_at (the WHERE clause filters ended_at IS NULL).
-        bus.dispatch(&actor_stopped_event("actor-end-first", "force-killed"), &mut conn).unwrap();
+        // A second actor.stopped should not re-update (ended_at IS NULL guard).
+        // Simulate by dispatching again — ended_at is already set, WHERE filters it.
+        bus.dispatch(
+            &actor_stopped_event("actor-end-first", "force-killed"),
+            &mut conn,
+        ).unwrap();
         let r = query_session(&mut conn, "actor-end-first").expect("row");
-        assert_eq!(r.ended_at.as_deref(), Some("2026-05-18T10:00:05+00:00"));
-        assert_eq!(r.reason.as_deref(), Some("normal"), "hook reason preserved");
+        assert_eq!(r.reason.as_deref(), Some("normal-exit"), "first stop reason preserved");
     }
 
     // ── Token-usage analytics_turns ─────────────────────────────────
 
-    fn turn_observed_event(
-        actor_id: &str,
-        model: Option<&str>,
-        input: u64,
-        output: u64,
-        cache_w: u64,
-        cache_r: u64,
-    ) -> EventEnvelope {
-        let payload = ship_substrate::events::hooks::HookTurnObservedPayload {
-            actor_id: actor_id.to_string(),
-            session_id: None,
-            turn_idx: None,
-            model: model.map(String::from),
-            input_tokens: input,
-            output_tokens: output,
-            reasoning_tokens: 0,
-            cache_creation_tokens: cache_w,
-            cache_read_tokens: cache_r,
-            stop_reason: Some("end_turn".to_string()),
-            harness_reported_cost_usd: None,
-            observed_at: "2026-05-19T10:00:00+00:00".to_string(),
-        };
-        EventEnvelope::new(
-            ship_substrate::events::hooks::event_types::HOOK_TURN_OBSERVED,
-            actor_id,
-            &payload,
-        )
-        .unwrap()
-        .with_actor_id(actor_id)
-    }
-
     #[test]
-    fn turn_observed_inserts_analytics_turns_row() {
+    fn turn_ended_inserts_analytics_turns_row() {
         let (_dir, mut conn) = setup();
         let bus = bus();
         bus.dispatch(
-            &turn_observed_event("actor-tu-tokens", Some("claude-opus"), 250, 75, 10, 1000),
+            &turn_ended_event("actor-tu-tokens", Some("claude-opus"), 250, 75, 10, 1000),
             &mut conn,
         ).unwrap();
         let summary =
@@ -552,11 +431,11 @@ mod analytics_tests {
     }
 
     #[test]
-    fn turn_observed_backfills_session_model_when_absent() {
+    fn turn_ended_backfills_session_model_when_absent() {
         let (_dir, mut conn) = setup();
         let bus = bus();
         bus.dispatch(
-            &turn_observed_event("actor-bf", Some("claude-sonnet"), 100, 50, 0, 0),
+            &turn_ended_event("actor-bf", Some("claude-sonnet"), 100, 50, 0, 0),
             &mut conn,
         ).unwrap();
         let row = query_session(&mut conn, "actor-bf").expect("session stub created");
@@ -564,25 +443,19 @@ mod analytics_tests {
     }
 
     #[test]
-    fn turn_observed_does_not_overwrite_existing_session_model() {
+    fn turn_ended_does_not_overwrite_existing_session_model() {
         let (_dir, mut conn) = setup();
         let bus = bus();
         bus.dispatch(
-            &session_started_event(
-                "actor-noov",
-                None,
-                Some("claude"),
-                Some("opus"),
-                "2026-05-19T09:00:00+00:00",
-            ),
+            &actor_created_event("actor-noov", Some("claude"), Some("opus")),
             &mut conn,
         ).unwrap();
         bus.dispatch(
-            &turn_observed_event("actor-noov", Some("sonnet"), 100, 50, 0, 0),
+            &turn_ended_event("actor-noov", Some("sonnet"), 100, 50, 0, 0),
             &mut conn,
         ).unwrap();
         let row = query_session(&mut conn, "actor-noov").expect("session row");
-        assert_eq!(row.model.as_deref(), Some("opus"), "hook model preserved");
+        assert_eq!(row.model.as_deref(), Some("opus"), "actor.created model preserved");
     }
 
     #[test]
@@ -590,21 +463,15 @@ mod analytics_tests {
         let (_dir, mut conn) = setup();
         let bus = bus();
         bus.dispatch(
-            &session_started_event(
-                "actor-trunc",
-                Some("trunc-1"),
-                None,
-                None,
-                "2026-05-18T10:00:00+00:00",
-            ),
+            &actor_created_event("actor-trunc", Some("claude"), None),
             &mut conn,
         ).unwrap();
         bus.dispatch(
-            &tool_use_started_event("actor-trunc", "Bash", "2026-05-18T10:00:01+00:00"),
+            &op_tool_use_started_event("actor-trunc", "Bash", "2026-05-18T10:00:01+00:00"),
             &mut conn,
         ).unwrap();
         bus.rebuild(&[], &mut conn).unwrap();
-        assert!(query_session(&mut conn, "trunc-1").is_none());
+        assert!(query_session(&mut conn, "actor-trunc").is_none());
         assert!(query_tool_uses(&mut conn, "actor-trunc").is_empty());
     }
 }

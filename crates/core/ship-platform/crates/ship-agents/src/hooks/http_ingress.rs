@@ -6,15 +6,19 @@
 //! The `PtyBroadcastPort` trait abstracts the shipd `SessionRegistry` so the
 //! handler logic has no compile-time shipd dependency. The shipd handlers become
 //! thin axum shims that delegate here.
+//!
+//! #25b conversion: hook.* emitters replaced by canonical op.* (op.tool_use_started,
+//! op.tool_use_completed, op.tool_use_denied). Session-start/end hooks are now
+//! no-ops at this layer — session lifecycle is sourced from actor.created /
+//! actor.stopped (unconditional supervisor emissions), which keeps analytics_sessions
+//! populated even when no hook fires. hook.tripped in ship-triggers is unrelated.
 
 use serde::{Deserialize, Serialize};
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::hooks::{
-    event_types as hook_event_types, HookPermissionDeniedPayload, HookSessionEndedPayload,
-    HookSessionStartedPayload, HookToolUseCompletedPayload, HookToolUseStartedPayload, ToolStatus,
-};
 use ship_substrate::events::validator::EmitContext;
 use ship_substrate::ports::KernelLog;
+use ship_types::event_types::canonical_session as op_event_types;
+use agent_def::op::{OpToolUseCompleted, OpToolUseDenied, OpToolUseStarted};
 
 // ── Port trait: pty session broadcast ────────────────────────────────────────
 
@@ -87,15 +91,6 @@ pub fn preview(v: &serde_json::Value) -> String {
     if s.len() > 400 { s.chars().take(400).collect() } else { s }
 }
 
-/// Parse the optional `tool_status` body field into the typed enum.
-pub fn parse_tool_status(s: Option<&str>) -> ToolStatus {
-    match s {
-        Some("ok") => ToolStatus::Ok,
-        Some("error") | Some("err") => ToolStatus::Error,
-        _ => ToolStatus::Unknown,
-    }
-}
-
 pub fn now_iso8601() -> String {
     chrono::Utc::now().to_rfc3339()
 }
@@ -106,38 +101,28 @@ pub fn now_iso8601() -> String {
 // The thin shipd handler does: auth check → resolve_actor/session → call here.
 
 /// Domain logic for POST /hooks/session-start.
+///
+/// #25b: session lifecycle is sourced from actor.created (unconditional),
+/// so this hook endpoint is a no-op for event emission. The endpoint still
+/// returns 200 OK so harnesses with a session-start hook config don't error.
 pub async fn handle_session_start(
-    kernel: &KernelLog,
-    emit_ctx: EmitContext,
-    event: &ShipHookEvent,
+    _kernel: &KernelLog,
+    _emit_ctx: EmitContext,
+    _event: &ShipHookEvent,
     actor: &str,
-    session: Option<&str>,
+    _session: Option<&str>,
 ) {
-    let target = session.unwrap_or(actor);
-    tracing::info!(target, "hook.session_started: about to emit");
-    if target == "unknown" {
-        return;
-    }
-    let payload = HookSessionStartedPayload {
-        actor_id: actor.to_string(),
-        session_id: session.map(str::to_string),
-        harness: event.harness.clone(),
-        model: event.model.clone(),
-        started_at: now_iso8601(),
-    };
-    if let Ok(env) = EventEnvelope::new(hook_event_types::HOOK_SESSION_STARTED, target, &payload) {
-        let env = env.with_target(target).with_actor_id(target);
-        if let Err(e) = kernel.emit(env, &emit_ctx).await {
-            tracing::warn!(target, "hook.session_started emit failed: {e}");
-        }
-    }
+    let target = actor;
+    tracing::info!(target, "hook/session-start received (no-op: session lifecycle sourced from actor.created)");
 }
 
 /// Domain logic for POST /hooks/before-tool.
+///
+/// #25b: emits canonical `op.tool_use_started` instead of `hook.tool_use_started`.
 pub async fn handle_before_tool(
     kernel: &KernelLog,
     emit_ctx: EmitContext,
-    pty_broadcast: &dyn PtyBroadcastPort,
+    _pty_broadcast: &dyn PtyBroadcastPort,
     event: &ShipHookEvent,
     actor: &str,
     session: Option<&str>,
@@ -147,26 +132,31 @@ pub async fn handle_before_tool(
     if actor == "unknown" {
         return;
     }
-    let payload = HookToolUseStartedPayload {
-        actor_id: actor.to_string(),
+    // session_id: use harness-native session when available, fall back to actor
+    let session_id = session.unwrap_or(actor).to_string();
+    let payload = OpToolUseStarted {
+        session_id,
+        harness_session_id: session.map(str::to_string),
         tool: tool.to_string(),
         input: event.tool_input.clone(),
-        input_preview: event.tool_input.as_ref().map(preview),
+        blast: None,
         started_at: now_iso8601(),
     };
-    if let Ok(env) = EventEnvelope::new(hook_event_types::HOOK_TOOL_USE_STARTED, actor, &payload) {
+    if let Ok(env) = EventEnvelope::new(op_event_types::OP_TOOL_USE_STARTED, actor, &payload) {
         let env = env.with_target(actor).with_actor_id(actor);
         if let Err(e) = kernel.emit(env, &emit_ctx).await {
-            tracing::warn!(actor, "hook.tool_use_started emit failed: {e}");
+            tracing::warn!(actor, "op.tool_use_started emit failed: {e}");
         }
     }
 }
 
 /// Domain logic for POST /hooks/after-tool.
+///
+/// #25b: emits canonical `op.tool_use_completed` instead of `hook.tool_use_completed`.
 pub async fn handle_after_tool(
     kernel: &KernelLog,
     emit_ctx: EmitContext,
-    pty_broadcast: &dyn PtyBroadcastPort,
+    _pty_broadcast: &dyn PtyBroadcastPort,
     event: &ShipHookEvent,
     actor: &str,
     session: Option<&str>,
@@ -175,52 +165,45 @@ pub async fn handle_after_tool(
     if actor == "unknown" {
         return;
     }
-    let payload = HookToolUseCompletedPayload {
-        actor_id: actor.to_string(),
+    let session_id = session.unwrap_or(actor).to_string();
+    let status = match event.tool_status.as_deref() {
+        Some("ok") => "ok".to_string(),
+        Some("error") | Some("err") => "error".to_string(),
+        _ => "unknown".to_string(),
+    };
+    let payload = OpToolUseCompleted {
+        session_id,
+        harness_session_id: session.map(str::to_string),
         tool: tool.to_string(),
-        status: parse_tool_status(event.tool_status.as_deref()),
+        status,
         error: event.tool_error.clone(),
         response: event.tool_response.clone(),
-        response_preview: event.tool_response.as_ref().map(preview),
         ended_at: now_iso8601(),
     };
-    if let Ok(env) =
-        EventEnvelope::new(hook_event_types::HOOK_TOOL_USE_COMPLETED, actor, &payload)
-    {
+    if let Ok(env) = EventEnvelope::new(op_event_types::OP_TOOL_USE_COMPLETED, actor, &payload) {
         let env = env.with_target(actor).with_actor_id(actor);
         if let Err(e) = kernel.emit(env, &emit_ctx).await {
-            tracing::warn!(actor, "hook.tool_use_completed emit failed: {e}");
+            tracing::warn!(actor, "op.tool_use_completed emit failed: {e}");
         }
     }
 }
 
 /// Domain logic for POST /hooks/session-end.
+///
+/// #25b: session lifecycle sourced from actor.stopped — no-op here.
 pub async fn handle_session_end(
-    kernel: &KernelLog,
-    emit_ctx: EmitContext,
-    event: &ShipHookEvent,
+    _kernel: &KernelLog,
+    _emit_ctx: EmitContext,
+    _event: &ShipHookEvent,
     actor: &str,
-    session: Option<&str>,
+    _session: Option<&str>,
 ) {
-    let target = session.unwrap_or(actor);
-    if target == "unknown" {
-        return;
-    }
-    let payload = HookSessionEndedPayload {
-        actor_id: actor.to_string(),
-        session_id: session.map(str::to_string),
-        ended_at: now_iso8601(),
-        reason: event.reason.clone(),
-    };
-    if let Ok(env) = EventEnvelope::new(hook_event_types::HOOK_SESSION_ENDED, target, &payload) {
-        let env = env.with_target(target).with_actor_id(target);
-        if let Err(e) = kernel.emit(env, &emit_ctx).await {
-            tracing::warn!(target, "hook.session_ended emit failed: {e}");
-        }
-    }
+    tracing::info!(actor, "hook/session-end received (no-op: session lifecycle sourced from actor.stopped)");
 }
 
 /// Domain logic for POST /hooks/permission-denied.
+///
+/// #25b: emits canonical `op.tool_use_denied` instead of `hook.permission_denied`.
 pub async fn handle_permission_denied(
     kernel: &KernelLog,
     emit_ctx: EmitContext,
@@ -236,23 +219,20 @@ pub async fn handle_permission_denied(
         .reason
         .clone()
         .unwrap_or_else(|| "denied (no reason)".to_string());
-    let payload = HookPermissionDeniedPayload {
-        actor_id: actor.to_string(),
-        session_id: session.map(str::to_string),
-        harness: event.harness.clone(),
+    let session_id = session.unwrap_or(actor).to_string();
+    let payload = OpToolUseDenied {
+        session_id,
+        harness_session_id: session.map(str::to_string),
         tool: tool.to_string(),
         input: event.tool_input.clone(),
-        input_preview: event.tool_input.as_ref().map(preview),
         reason,
         denied_by: event.denied_by.clone().unwrap_or_else(|| "ship-gate".to_string()),
         denied_at: now_iso8601(),
     };
-    if let Ok(env) =
-        EventEnvelope::new(hook_event_types::HOOK_PERMISSION_DENIED, actor, &payload)
-    {
+    if let Ok(env) = EventEnvelope::new(op_event_types::OP_TOOL_USE_DENIED, actor, &payload) {
         let env = env.with_target(actor).with_actor_id(actor);
         if let Err(e) = kernel.emit(env, &emit_ctx).await {
-            tracing::warn!(actor, "hook.permission_denied emit failed: {e}");
+            tracing::warn!(actor, "op.tool_use_denied emit failed: {e}");
         }
     }
 }

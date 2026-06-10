@@ -117,6 +117,7 @@ mod tests {
                     session_id: "s1".into(),
                     idx: 0,
                     stop_reason: Some("end_turn".into()),
+                    ..Default::default()
                 })
                 .unwrap(),
             ),

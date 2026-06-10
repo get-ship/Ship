@@ -381,6 +381,7 @@ mod tests {
             session_id: "s1".into(),
             idx: 2,
             stop_reason: Some("end_turn".into()),
+            ..Default::default()
         };
         let env = sink
             .emit_turn_ended("s1", &payload)
@@ -480,6 +481,7 @@ mod tests {
                     session_id: "s".into(),
                     idx: 0,
                     stop_reason: None,
+                    ..Default::default()
                 })
                 .unwrap(),
             ),
