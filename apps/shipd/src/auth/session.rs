@@ -1,4 +1,4 @@
-//! HTTP-coupled session bits — `POST /api/v1/runtime/session` issuance.
+//! HTTP-coupled session bits — `POST /api/v1/session` issuance (Route::IssueSession).
 //!
 //! Pure session helpers (generation/parsing/lookup/registry) moved to
 //! `ship_auth::session`. This file holds only the axum-typed
@@ -19,14 +19,14 @@ pub use ship_auth::session::{
 use crate::auth::AuthContext;
 use crate::auth::scopes::{SessionRegistry};
 
-/// Response body for `POST /api/v1/runtime/session`.
+/// Response body for `POST /api/v1/session`.
 #[derive(serde::Serialize)]
 pub struct SessionIssueResponse {
     pub ok: bool,
     pub expires_in: u64,
 }
 
-/// `POST /api/v1/runtime/session` handler. Requires the caller to already
+/// `POST /api/v1/session` handler. Requires the caller to already
 /// hold a daemon-token credential (the auth middleware enforces this).
 /// Issues a browser-session cookie scoped to `/api/v1/runtime` and
 /// returns `{ok, expires_in}`.
