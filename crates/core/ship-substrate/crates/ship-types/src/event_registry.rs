@@ -96,6 +96,15 @@ pub struct EventDef {
     pub since_version: Option<&'static str>,
     /// `std::any::type_name`-like string for the payload struct.
     pub payload_type_name: &'static str,
+    /// Payload schema validator CARRIED BY the registration (Phase 4a,
+    /// keystone A: each domain owns its events' validation; the substrate
+    /// validates whatever is registered in the linked binary). Deserializes
+    /// the JSON payload into the declared payload struct; `Err` is the
+    /// serde message. Mandatory — a registration without a real payload
+    /// type cannot exist, which is what retired the hand-maintained L0
+    /// `schema_for_event_type` match (it silently skipped 26 registered
+    /// events and could never see L1 payloads).
+    pub validate_payload: fn(&str) -> Result<(), String>,
 }
 
 impl EventDef {

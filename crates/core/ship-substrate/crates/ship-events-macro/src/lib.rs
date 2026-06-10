@@ -141,6 +141,14 @@ fn impl_event_payload(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStre
                         stability: #stability_variant,
                         since_version: #since_version_tokens,
                         payload_type_name: #struct_name_str,
+                        validate_payload: {
+                            fn validate(json: &str) -> ::core::result::Result<(), ::std::string::String> {
+                                ::serde_json::from_str::<#struct_name>(json)
+                                    .map(|_| ())
+                                    .map_err(|e| e.to_string())
+                            }
+                            validate
+                        },
                     };
                 &DEF
             }

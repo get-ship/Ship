@@ -22,10 +22,19 @@ macro_rules! register_event {
     // `EventScope`s (the allowed-SET, Model C). Captured element-by-element so
     // the array is rebuilt inside the macro — `&[ ... ]` then unsizes to the
     // `&'static [EventScope]` field. A size-1 set is the single-scope model.
-    ($name:expr, [$($scope:expr),+ $(,)?], $retention:expr, $stability:expr, $type_name:expr) => {
+    // The final argument is the payload TYPE PATH: the registration carries
+    // its own schema validator (Phase 4a — deserialize-into-the-declared-type).
+    // The string form ($type_name) stays as the stable identifier the
+    // fixture/codegen tools key on.
+    ($name:expr, [$($scope:expr),+ $(,)?], $retention:expr, $stability:expr, $type_name:expr, $payload:ty) => {
         inventory::submit! {
             EventRegistration {
                 def: || {
+                    fn validate(json: &str) -> Result<(), String> {
+                        serde_json::from_str::<$payload>(json)
+                            .map(|_| ())
+                            .map_err(|e| e.to_string())
+                    }
                     static DEF: EventDef = EventDef {
                         name: $name,
                         allowed_scopes: &[$($scope),+],
@@ -33,6 +42,7 @@ macro_rules! register_event {
                         stability: $stability,
                         since_version: None,
                         payload_type_name: $type_name,
+                        validate_payload: validate,
                     };
                     &DEF
                 },
@@ -49,13 +59,13 @@ macro_rules! register_event {
 // rule: session.* (coarse) → Space/Durable, session.turn.* (medium) →
 // Runtime/Ephemeral. The workbench family is RETIRED (R6) — no
 // `SessionStarted` workbench payload struct, no `session.attached` etc.
-register_event!("session.started", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionStarted");
-register_event!("session.completed", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionCompleted");
-register_event!("session.failed", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionFailed");
-register_event!("session.cancelled", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionCancelled");
-register_event!("session.suspended", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionSuspended");
-register_event!("session.turn.started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnStarted");
-register_event!("session.turn.ended", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnEnded");
+register_event!("session.started", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionStarted", crate::canonical_session::SessionStarted);
+register_event!("session.completed", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionCompleted", crate::canonical_session::SessionCompleted);
+register_event!("session.failed", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionFailed", crate::canonical_session::SessionFailed);
+register_event!("session.cancelled", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionCancelled", crate::canonical_session::SessionCancelled);
+register_event!("session.suspended", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionSuspended", crate::canonical_session::SessionSuspended);
+register_event!("session.turn.started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnStarted", crate::canonical_session::TurnStarted);
+register_event!("session.turn.ended", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnEnded", crate::canonical_session::TurnEnded);
 
 // ── op.* (fine-grained) — Runtime-scoped, Ephemeral ────────────────────────────
 // R2 hook conversion: the op.* family replaces the legacy
@@ -64,6 +74,6 @@ register_event!("session.turn.ended", [EventScope::Runtime], Retention::Ephemera
 // envelope, not a separate `hook.*` family. Fine-grained (per
 // tool-call) so Runtime + Ephemeral — same scope rule as
 // `session.turn.*`, just one more level of granularity.
-register_event!("op.tool_use_started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseStarted");
-register_event!("op.tool_use_completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseCompleted");
-register_event!("op.tool_use_denied", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseDenied");
+register_event!("op.tool_use_started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseStarted", crate::op::OpToolUseStarted);
+register_event!("op.tool_use_completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseCompleted", crate::op::OpToolUseCompleted);
+register_event!("op.tool_use_denied", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseDenied", crate::op::OpToolUseDenied);

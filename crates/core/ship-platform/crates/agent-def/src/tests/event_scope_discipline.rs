@@ -126,4 +126,65 @@ mod tests {
             );
         }
     }
+
+    /// ★ THE CROSS-LAYER SCHEMA GUARD (Phase 4a, keystone A) — this binary
+    /// links BOTH registration sources (L0 payload_registry + this crate's
+    /// event_registrations), so unlike ship-substrate's L0-scoped
+    /// `all_known_event_types_have_schemas` it can assert the FULL claim:
+    /// every event name in `ALL` has a registration, and every registration
+    /// carries a payload validator that is LIVE — the substrate's emit-time
+    /// `PayloadSchemaValidator` rejects malformed canonical `session.*` /
+    /// `op.*` payloads (which the old hand-written L0 match silently let
+    /// through, the long-standing RED).
+    #[test]
+    fn canonical_payload_validators_are_live() {
+        use ship_substrate::events::PayloadSchemaValidator;
+        use ship_substrate::events::validator::{CallerKind, EmitContext, EventValidator, ValidationError};
+
+        fn ctx() -> EmitContext {
+            EmitContext {
+                caller_kind: CallerKind::Runtime,
+                skill_id: None,
+                binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+                session_id: None,
+            }
+        }
+
+        // Malformed canonical payloads are REJECTED at emit time.
+        for event_type in ["session.started", "session.turn.ended", "op.tool_use_started"] {
+            let event = ship_substrate::events::EventEnvelope::new(
+                event_type,
+                "sess-1",
+                &serde_json::json!({ "definitely": "not the payload" }),
+            )
+            .unwrap();
+            let err = PayloadSchemaValidator.validate(&event, &ctx()).unwrap_err();
+            assert!(
+                matches!(err, ValidationError::SchemaViolation { .. }),
+                "{event_type}: expected SchemaViolation for a malformed payload, got {err:?}"
+            );
+        }
+
+        // A well-formed canonical payload passes.
+        let started = crate::canonical_session::SessionStarted {
+            session_id: "01HZX".into(),
+            agent_id: "claude".into(),
+            harness: "floki".into(),
+            model: None,
+            space_id: "space-1".into(),
+            slug: None,
+            input: None,
+            parent: None,
+        };
+        let event = ship_substrate::events::EventEnvelope::new(
+            "session.started",
+            "sess-1",
+            &started,
+        )
+        .unwrap();
+        assert!(
+            PayloadSchemaValidator.validate(&event, &ctx()).is_ok(),
+            "a well-formed SessionStarted must pass the registration-carried validator"
+        );
+    }
 }
