@@ -295,7 +295,15 @@ fn op_theme_tokens(port: &dyn ViewToolPort) -> DispatchResult {
 fn op_preview_snapshot(port: &dyn ViewToolPort, name: &str) -> DispatchResult {
     match port.preview_view_html(name) {
         Ok(html) => ok_json(&ViewPreviewSnapshotResponse { html, computed_styles: None }),
-        Err(e) => DispatchResult::NotFound { code: "view_not_found", message: e },
+        // The two error variants are observably different on the wire — a view
+        // that exists but fails to render is Internal, not NotFound (the
+        // pre-sever mapping, restored per the verifier's rejection).
+        Err(crate::view_ports::PreviewError::ViewNotFound(e)) => {
+            DispatchResult::NotFound { code: "view_not_found", message: e }
+        }
+        Err(crate::view_ports::PreviewError::RenderFailed(e)) => {
+            DispatchResult::Internal { code: "render_failed", message: e }
+        }
     }
 }
 

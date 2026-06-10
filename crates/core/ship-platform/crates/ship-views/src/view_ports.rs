@@ -20,6 +20,17 @@ use ship_substrate::ports::SpaceContext;
 
 // ── ViewToolPort ──────────────────────────────────────────────────────────────
 
+/// Why a view preview could not be produced. Two variants because the wire
+/// reports them differently — NotFound/view_not_found vs Internal/render_failed —
+/// and the port must not flatten that distinction (verifier-caught fix).
+#[derive(Debug, Clone)]
+pub enum PreviewError {
+    /// The view name resolved to nothing on disk.
+    ViewNotFound(String),
+    /// The view exists but rendering failed.
+    RenderFailed(String),
+}
+
 /// Errors returned by bundler compile operations via `ViewToolPort`.
 #[derive(Debug)]
 pub enum BundlerBuildError {
@@ -70,5 +81,5 @@ pub trait ViewToolPort: Send + Sync {
     fn resolve_view_source(&self, name: &str) -> Result<(String, std::path::PathBuf), String>;
 
     /// Compile a view by name to HTML for the preview_snapshot op.
-    fn preview_view_html(&self, name: &str) -> Result<String, String>;
+    fn preview_view_html(&self, name: &str) -> Result<String, PreviewError>;
 }

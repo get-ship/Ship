@@ -85,10 +85,12 @@ impl ViewToolPort for ViewToolAdapter {
         Ok((resolved.source, path))
     }
 
-    fn preview_view_html(&self, name: &str) -> Result<String, String> {
+    fn preview_view_html(&self, name: &str) -> Result<String, ship_views::view_ports::PreviewError> {
+        use ship_views::view_ports::PreviewError;
         let resolved = deck::resolver::resolve(name, None)
-            .map_err(|e| e.message.clone())?;
-        let rendered = deck::resolver::render_resolved(&resolved, name)?;
+            .map_err(|e| PreviewError::ViewNotFound(e.message.clone()))?;
+        let rendered = deck::resolver::render_resolved(&resolved, name)
+            .map_err(PreviewError::RenderFailed)?;
         Ok(rendered.html)
     }
 }
