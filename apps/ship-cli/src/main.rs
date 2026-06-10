@@ -23,6 +23,7 @@ mod init;
 mod install;
 mod isolation_cmd;
 mod procs;
+mod toolchain;
 mod runtime_cmd;
 mod tail;
 mod sui;

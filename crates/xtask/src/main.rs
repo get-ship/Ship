@@ -5,6 +5,7 @@
 //!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
 
 mod build_assets;
+mod check_topology;
 mod cli;
 mod coverage;
 mod gen_audit_readme;

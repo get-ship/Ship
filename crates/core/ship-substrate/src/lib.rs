@@ -23,7 +23,6 @@ pub mod task_health;
 pub mod home;
 pub mod isolation;
 pub mod locate;
-pub mod sui_compiler;
 pub mod log;
 pub mod persistence;
 pub mod project;
@@ -90,15 +89,9 @@ pub fn gen_slug_suffix() -> String {
     ulid[ulid.len() - 8..].to_lowercase()
 }
 
-pub fn gen_nanoid() -> String {
-    let alphabet: [char; 56] = [
-        '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K',
-        'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
-        'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm', 'n', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
-        'y', 'z',
-    ];
-    nanoid::format(nanoid::rngs::default, &alphabet, 8)
-}
+// SD-1: authoritative definition lives in `compiler`; delegate to it so there
+// is exactly one copy of the Ship 56-char alphabet.
+pub use compiler::gen_nanoid;
 
 #[cfg(test)]
 mod slug_suffix_tests {
