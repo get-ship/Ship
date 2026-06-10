@@ -243,7 +243,7 @@ pub struct AgentSessionTurnEndedPayload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub turn_idx: Option<u32>,
     /// Optional harness-reported stop reason.
-    /// Same vocabulary as `HookTurnObservedPayload::stop_reason`.
+    /// Same vocabulary as `agent_def::TurnEnded::stop_reason` (the hook.* family is retired, #25b).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_reason: Option<String>,
 }

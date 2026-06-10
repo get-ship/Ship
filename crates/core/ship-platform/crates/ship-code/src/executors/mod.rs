@@ -18,6 +18,7 @@
 pub(crate) mod process;
 pub(crate) mod routing;
 pub(crate) mod server;
+pub(crate) mod synth_emit;
 pub(crate) mod tmux_window;
 
 pub(crate) use process::ProcessExecutor;

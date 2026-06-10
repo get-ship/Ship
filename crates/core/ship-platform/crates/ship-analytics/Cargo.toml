@@ -6,6 +6,7 @@ publish = false
 description = "Analytics rollups over hook.* events — per-session duration, per-tool counts, cost. Lives downstream of ship-substrate's event log; will grow harness data-dir mining (~/.claude/, ~/.codex/, etc.) so Ship's GUI surface can render the same data the harnesses already write to disk."
 
 [dependencies]
+agent-def = { path = "../agent-def" }
 ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }

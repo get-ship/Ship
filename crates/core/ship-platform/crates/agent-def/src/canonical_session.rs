@@ -128,7 +128,13 @@ pub struct TurnStarted {
 }
 
 /// Payload for `session.turn.ended`.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+///
+/// Token-usage fields (model, input_tokens, …) are additive (all `Option<>`
+/// with `serde(default)` so old emitters that don't carry usage produce `None`).
+/// These fields are the canonical home for per-turn token telemetry (#25b):
+/// the supervisor synth path writes them here; the Floki emitter writes only
+/// the minimal `session_id / idx / stop_reason` slice.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct TurnEnded {
     pub session_id: String,
     pub idx: u32,
@@ -136,6 +142,37 @@ pub struct TurnEnded {
     /// "max_tokens", "tool_use"). Free text; not an enum.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_reason: Option<String>,
+    // ── Token-usage fields (canonical home for per-turn usage, #25b) ──────
+    /// Harness-native session id when available (claude's session UUID,
+    /// opencode's session, etc.). Carried for analytics joins.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harness_session_id: Option<String>,
+    /// Model used for this turn — may differ from the session's initial model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    /// Input tokens consumed this turn. `None` when the harness didn't surface it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_tokens: Option<u64>,
+    /// Output tokens produced this turn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_tokens: Option<u64>,
+    /// Reasoning/thinking tokens (Claude extended thinking). `None` for models without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_tokens: Option<u64>,
+    /// Cache-write tokens (Anthropic prompt-cache API).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_creation_tokens: Option<u64>,
+    /// Cache-read tokens.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_read_tokens: Option<u64>,
+    /// Cost in USD as reported by the harness. Captured verbatim, never
+    /// recomputed by Ship. `None` when the harness didn't surface it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harness_reported_cost_usd: Option<f64>,
+    /// ISO-8601 timestamp of the turn-end observation. `None` when the
+    /// emitter didn't stamp it (use the envelope's `created_at` instead).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_at: Option<String>,
 }
 
 #[cfg(test)]
@@ -211,7 +248,7 @@ mod tests {
         assert_no_driver_edges!(TurnStarted { session_id: "s1".into(), idx: 0 }, "TurnStarted");
 
         assert_no_driver_edges!(
-            TurnEnded { session_id: "s1".into(), idx: 0, stop_reason: None },
+            TurnEnded { session_id: "s1".into(), idx: 0, stop_reason: None, ..Default::default() },
             "TurnEnded"
         );
     }
@@ -233,6 +270,7 @@ mod tests {
             session_id: "s1".into(),
             idx: 3,
             stop_reason: None,
+            ..Default::default()
         };
         let json = serde_json::to_string(&t).unwrap();
         assert!(!json.contains("stop_reason")); // skipped when None

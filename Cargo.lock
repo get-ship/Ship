@@ -8450,6 +8450,7 @@ dependencies = [
 name = "ship-analytics"
 version = "0.1.0"
 dependencies = [
+ "agent-def",
  "anyhow",
  "chrono",
  "connectrpc",
@@ -8595,6 +8596,7 @@ dependencies = [
  "agent-def",
  "anyhow",
  "async-trait",
+ "chrono",
  "futures-util",
  "libc",
  "serde",

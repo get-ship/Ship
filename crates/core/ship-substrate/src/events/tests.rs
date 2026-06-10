@@ -360,33 +360,27 @@ fn registry_has_entries() {
 fn l0_registry_shrinks_under_keystone_a() {
     let n = ship_types::event_registry::all_names().len();
     assert_eq!(
-        n, 67,
+        n, 61,
         "L0-registered event count changed. This pin is a keystone-A RATCHET: \
          it should only move DOWN (a domain de-bucket) — update it with the \
          move. If it went UP, register the new events in their owning L1 \
-         domain crate, not in payload_registry.rs."
+         domain crate, not in payload_registry.rs. \
+         (#25b: -6 hook.* events deregistered 2026-06-10)"
     );
 }
 
-/// Legacy families pinned until their sanctioned severs land. Both lists may
-/// only SHRINK (to empty), at which point delete the corresponding block.
+/// Legacy families pinned until their sanctioned severs land. Lists may only
+/// SHRINK (to empty), at which point delete the corresponding block.
 #[test]
 fn legacy_families_pinned_until_sever() {
     use std::collections::BTreeSet;
     let registry: BTreeSet<&str> =
         ship_types::event_registry::all_names().into_iter().collect();
 
-    // hook.* — converts to canonical op.* under #25b (http_ingress AND the
-    // supervisor synth, with the analytics_turns no-regression matrix), then
-    // deregisters.
-    const HOOK_FAMILY: &[&str] = &[
-        "hook.permission_denied",
-        "hook.session_ended",
-        "hook.session_started",
-        "hook.tool_use_completed",
-        "hook.tool_use_started",
-        "hook.turn_observed",
-    ];
+    // hook.* — SEVERED (#25b, 2026-06-10): all 6 hook.* events deregistered.
+    // Emitters converted to op.* (tool-use) and session.turn.ended (turns).
+    // This block is intentionally empty; kept as a tombstone comment.
+
     // legacy agent.session.* dispatch family — dual-emit sever + deletion
     // pending the #26 spawn-intent channel design.
     const AGENT_SESSION_FAMILY: &[&str] = &[
@@ -396,13 +390,11 @@ fn legacy_families_pinned_until_sever() {
         "agent.session.failed",
         "agent.session.started",
     ];
-    for family in [HOOK_FAMILY, AGENT_SESSION_FAMILY] {
-        for name in family {
-            assert!(
-                registry.contains(name),
-                "`{name}` left the L0 registry — if its sever landed, shrink \
-                 this pin with it; if not, a registration was lost accidentally"
-            );
-        }
+    for name in AGENT_SESSION_FAMILY {
+        assert!(
+            registry.contains(name),
+            "`{name}` left the L0 registry — if its sever landed, shrink \
+             this pin with it; if not, a registration was lost accidentally"
+        );
     }
 }

@@ -109,23 +109,12 @@ register_event!("executor.session_destroyed", [EventScope::Runtime], Retention::
 register_event!("executor.window_destroyed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ExecutorWindowDestroyedPayload", crate::events::executor::ExecutorWindowDestroyedPayload);
 
 // ── hook.* ──────────────────────────────────────────────────────────────────
-// hook.permission_denied: downgraded Durable → Ephemeral (R2 hook conversion).
-// The denied-permission signal is a point-in-time runtime gate decision; there
-// is no projection that folds it and it must not survive compaction.
-//
-// op.* family: the op.tool_use_started / op.tool_use_completed /
-// op.tool_use_denied events carry the same ephemeral semantics as
-// hook.tool_use_* and are NOW REGISTERED (Runtime/Ephemeral) at L1, in
-// `agent-def/src/event_registrations.rs` (job: op-canon) — NOT here, because
-// their payload structs (`op::OpToolUse*`) live in agent-def. The remaining
-// follow-up is the hook→op CONVERSION (re-point emitters + final hook.*
-// deregistration), tracked separately (#25b); it is not a registration blocker.
-register_event!("hook.permission_denied", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookPermissionDeniedPayload", crate::events::hooks::HookPermissionDeniedPayload);
-register_event!("hook.session_ended", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookSessionEndedPayload", crate::events::hooks::HookSessionEndedPayload);
-register_event!("hook.session_started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookSessionStartedPayload", crate::events::hooks::HookSessionStartedPayload);
-register_event!("hook.tool_use_completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookToolUseCompletedPayload", crate::events::hooks::HookToolUseCompletedPayload);
-register_event!("hook.tool_use_started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookToolUseStartedPayload", crate::events::hooks::HookToolUseStartedPayload);
-register_event!("hook.turn_observed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookTurnObservedPayload", crate::events::hooks::HookTurnObservedPayload);
+// DEREGISTERED (#25b, 2026-06-10): all 6 hook.* events retired. Emitters
+// converted to op.* (tool-use) and session.turn.ended (turns). Session
+// lifecycle sourced from actor.created / actor.stopped. The op.* family
+// (op.tool_use_started / op.tool_use_completed / op.tool_use_denied) and
+// session.turn.ended are registered at L1 in agent-def/src/event_registrations.rs.
+// hook.tripped in ship-triggers is an unrelated dynamic trigger event — untouched.
 
 // ── human.* ─────────────────────────────────────────────────────────────────
 // Moved to ship-messaging/src/event_registrations.rs (keystone-A Phase A bundle 4b,

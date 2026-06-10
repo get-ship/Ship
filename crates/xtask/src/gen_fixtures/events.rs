@@ -267,13 +267,29 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         // ── Human events ─────────────────────────────────────────────────────
         "HumanResponse" => json!({ "conversation_id": "test-conversation", "text": "proceed with option A" }),
 
-        // ── Hook events ─────────────────────────────────────────────────────
-        "HookPermissionDeniedPayload" => json!({ "tool": "Bash", "pattern": "rm -rf", "session_id": "test-session" }),
-        "HookSessionEndedPayload" => json!({ "session_id": "test-session", "stop_hook_active": false }),
-        "HookSessionStartedPayload" => json!({ "session_id": "test-session" }),
-        "HookToolUseCompletedPayload" => json!({ "tool": "Read", "session_id": "test-session" }),
-        "HookToolUseStartedPayload" => json!({ "tool": "Bash", "session_id": "test-session" }),
-        "HookTurnObservedPayload" => json!({ "session_id": "test-session" }),
+        // ── Hook events — DEREGISTERED (#25b, 2026-06-10) ─────────────────
+        // hook.* family removed; op.* and session.turn.ended are the replacements.
+        // op.* fixtures are generated via their payload type names below.
+
+        // ── op.* events (canonical tool-use — Runtime/Ephemeral) ────────────
+        "op::OpToolUseStarted" => json!({
+            "session_id": "test-session-id",
+            "tool": "Bash",
+            "started_at": "2026-01-01T00:00:00Z"
+        }),
+        "op::OpToolUseCompleted" => json!({
+            "session_id": "test-session-id",
+            "tool": "Bash",
+            "status": "ok",
+            "ended_at": "2026-01-01T00:00:01Z"
+        }),
+        "op::OpToolUseDenied" => json!({
+            "session_id": "test-session-id",
+            "tool": "Bash",
+            "reason": "ship-gate: blocked destructive command",
+            "denied_by": "ship-gate",
+            "denied_at": "2026-01-01T00:00:00Z"
+        }),
 
         // ── Executor events ──────────────────────────────────────────────────
         "ExecutorSessionDestroyedPayload" => json!({ "session_id": "test-session", "reason": "timeout" }),

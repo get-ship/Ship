@@ -1046,12 +1046,10 @@ impl SessionExecutor for ProcessExecutor {
                                             session_written = true;
                                         }
                                         if synth_hooks_from_stream && !hooks_session_synthed {
-                                            let _ = ship_substrate::db::hook_events::emit_session_started_synth(
-                                                &synth_actor_id,
-                                                &synth_harness,
-                                                None,
-                                                Some(&session_id),
-                                            );
+                                            // session lifecycle: analytics_sessions is populated
+                                            // by actor.created (unconditional from supervisor),
+                                            // so we only mark the flag without emitting an
+                                            // explicit session-start event here (#25b lift).
                                             hooks_session_synthed = true;
                                         }
                                     }
@@ -1061,7 +1059,7 @@ impl SessionExecutor for ProcessExecutor {
                                         } else {
                                             Some(input_preview.as_str())
                                         };
-                                        let _ = ship_substrate::db::hook_events::emit_tool_use_started_synth(
+                                        let _ = super::synth_emit::emit_op_tool_use_started_synth(
                                             &synth_actor_id,
                                             &tool,
                                             preview,
@@ -1082,10 +1080,8 @@ impl SessionExecutor for ProcessExecutor {
                                         stop_reason,
                                         harness_reported_cost_usd,
                                     } => {
-                                        let _ = ship_substrate::db::hook_events::emit_turn_observed_synth(
+                                        let _ = super::synth_emit::emit_turn_ended_synth(
                                             &synth_actor_id,
-                                            None,
-                                            None,
                                             model.as_deref(),
                                             input_tokens,
                                             output_tokens,
@@ -1106,19 +1102,12 @@ impl SessionExecutor for ProcessExecutor {
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 }
             }
-            // Emit a synthesized session_ended for stream-synth harnesses
-            // so analytics_sessions.ended_at + duration_ms get populated
-            // even when no hook fired (opencode plugin bridge TBD). The
-            // actor.stopped fallback (in AnalyticsProjection) catches the
-            // case where this thread exits without ever seeing a session;
-            // this just makes the close more semantically precise when
-            // we DID see one.
-            if synth_hooks_from_stream && hooks_session_synthed {
-                let _ = ship_substrate::db::hook_events::emit_session_ended_synth(
-                    &synth_actor_id,
-                    "process-exit",
-                );
-            }
+            // session_ended: analytics_sessions.ended_at is now populated
+            // by actor.stopped (unconditional from the supervisor, #25b lift).
+            // The explicit synth session-end was only needed while hook.*
+            // was the session lifecycle source; op.* / canonical session.*
+            // don't need a separate synth close here.
+            let _ = synth_hooks_from_stream; // flag retained for future use
             // Reader exited; child should be reapable within a beat.
             let exit_code = (0..40).find_map(|_| {
                 if let Some(c) = handle_for_exit.try_exit() {

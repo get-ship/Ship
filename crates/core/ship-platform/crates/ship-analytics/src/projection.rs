@@ -1,40 +1,35 @@
-//! Analytics projection — folds `hook.*` events into rollup tables
-//! that the dashboard queries.
+//! Analytics projection — folds op.* + session.turn.ended + actor.* events
+//! into rollup tables that the dashboard queries.
+//!
+//! #25b conversion: hook.* replaced by canonical op.* (tool-use) and
+//! session.turn.ended (per-turn token usage). Session lifecycle comes from
+//! actor.created / actor.stopped (unconditional supervisor emissions).
 //!
 //! Tables (defined in ship-substrate/migrations/202605181930_analytics.sql
 //! and 202605190100_analytics_turns.sql):
 //!   - `analytics_sessions`: per-session lifecycle, harness, model,
 //!     duration, tool counts, error counts.
 //!   - `analytics_tool_uses`: per-tool-call timing + status. Each
-//!     row pairs a `hook.tool_use_started` with its corresponding
-//!     `hook.tool_use_completed`.
+//!     row pairs an `op.tool_use_started` with its corresponding
+//!     `op.tool_use_completed`.
 //!   - `analytics_turns`: per-turn token/model data folded from
-//!     `hook.turn_observed` events.
+//!     `session.turn.ended` events.
 //!
-//! Keying convention: `session_key` is either the harness's own
-//! `session_id` (when the hook payload carries it) or the
-//! envelope's `actor_id` (Ship-side fallback for harnesses that
-//! don't surface a session id). This keeps rows correlated when
-//! the harness uses a long-lived session and re-emits with the same
-//! id across resumes.
-//!
-//! Pairing tool start/end: the start event INSERTs a row with a
-//! ULID id; the end event finds the OLDEST open row for the same
-//! `(session_key, tool)` and updates it. Mis-pairing under heavy
-//! concurrent tool use is possible — the harness usually serialises
-//! tool calls per turn, so this is a reasonable v1 approximation.
+//! Keying convention: `session_key` is `OpToolUseStarted.session_id` (for
+//! op.* events) or `TurnEnded.session_id` (for turn events) — the canonical
+//! Ship-side session/actor id. Actor.created/stopped key on the envelope
+//! actor_id. When both hook-POST and synth-path ops arrive for the same actor,
+//! they key on the same actor_id / slug (which op.* carries as session_id).
 
 use anyhow::Result;
 use sqlx::SqliteConnection;
 
+use agent_def::canonical_session::TurnEnded;
+use agent_def::op::{OpToolUseCompleted, OpToolUseStarted};
 use ship_substrate::db::block_on;
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::hooks::{
-    event_types,
-    HookSessionEndedPayload, HookSessionStartedPayload, HookToolUseCompletedPayload,
-    HookToolUseStartedPayload, HookTurnObservedPayload, ToolStatus,
-};
 use ship_substrate::projections::Projection;
+use ship_types::event_types::canonical_session as op_event_types;
 use ship_types::event_types::{ACTOR_CREATED, ACTOR_STOPPED};
 use ship_types::payload::{ActorCreated, ActorStopped};
 
@@ -53,18 +48,12 @@ impl Default for AnalyticsProjection {
 }
 
 const HANDLED: &[&str] = &[
-    event_types::HOOK_SESSION_STARTED,
-    event_types::HOOK_SESSION_ENDED,
-    event_types::HOOK_TOOL_USE_STARTED,
-    event_types::HOOK_TOOL_USE_COMPLETED,
-    event_types::HOOK_TURN_OBSERVED,
-    // Actor lifecycle as a fallback session signal. Some harness/dispatch
-    // combinations don't fire SessionStart hooks (e.g. dispatched
-    // keepalive claude, cursor — which lacks a session-start event upstream
-    // — and opencode's plugin model). actor.created/actor.stopped from the
-    // supervisor are unconditional, so analytics_sessions stays populated
-    // even when hooks are absent. When both fire, the hook payload wins for
-    // harness/model/session_id; actor.* only fills in what hooks didn't.
+    op_event_types::OP_TOOL_USE_STARTED,
+    op_event_types::OP_TOOL_USE_COMPLETED,
+    op_event_types::TURN_ENDED,
+    // Actor lifecycle as the session signal. op.* events don't carry session
+    // lifecycle — actor.created/stopped from the supervisor are unconditional,
+    // so analytics_sessions stays populated for every harness path.
     ACTOR_CREATED,
     ACTOR_STOPPED,
 ];
@@ -80,13 +69,11 @@ impl Projection for AnalyticsProjection {
 
     fn apply(&self, event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
         match event.event_type.as_str() {
-            event_types::HOOK_SESSION_STARTED => apply_session_started(event, conn),
-            event_types::HOOK_SESSION_ENDED => apply_session_ended(event, conn),
-            event_types::HOOK_TOOL_USE_STARTED => apply_tool_use_started(event, conn),
-            event_types::HOOK_TOOL_USE_COMPLETED => apply_tool_use_completed(event, conn),
-            event_types::HOOK_TURN_OBSERVED => apply_turn_observed(event, conn),
-            ACTOR_CREATED => apply_actor_created(event, conn),
-            ACTOR_STOPPED => apply_actor_stopped(event, conn),
+            t if t == op_event_types::OP_TOOL_USE_STARTED => apply_op_tool_use_started(event, conn),
+            t if t == op_event_types::OP_TOOL_USE_COMPLETED => apply_op_tool_use_completed(event, conn),
+            t if t == op_event_types::TURN_ENDED => apply_turn_ended(event, conn),
+            t if t == ACTOR_CREATED => apply_actor_created(event, conn),
+            t if t == ACTOR_STOPPED => apply_actor_stopped(event, conn),
             _ => Ok(()),
         }
     }
@@ -101,90 +88,9 @@ impl Projection for AnalyticsProjection {
     }
 }
 
-fn session_key(actor_id: &str, payload_session_id: Option<&str>) -> String {
-    payload_session_id
-        .filter(|s| !s.is_empty())
-        .unwrap_or(actor_id)
-        .to_string()
-}
-
-fn apply_session_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
-    let p: HookSessionStartedPayload = serde_json::from_str(&event.payload_json)?;
-    let key = session_key(&p.actor_id, p.session_id.as_deref());
-    block_on(async {
-        // UPSERT: a duplicate session_started (resume / clear / compact
-        // matchers all fire SessionStart in Claude) refreshes started_at
-        // only when the row is brand-new. Existing rows keep their
-        // original start so duration_ms stays honest across re-fires.
-        sqlx::query(
-            "INSERT INTO analytics_sessions \
-               (session_key, actor_id, harness, model, started_at) \
-             VALUES (?, ?, ?, ?, ?) \
-             ON CONFLICT(session_key) DO UPDATE SET \
-               actor_id = excluded.actor_id, \
-               harness = COALESCE(analytics_sessions.harness, excluded.harness), \
-               model = COALESCE(analytics_sessions.model, excluded.model)",
-        )
-        .bind(&key)
-        .bind(&p.actor_id)
-        .bind(&p.harness)
-        .bind(&p.model)
-        .bind(&p.started_at)
-        .execute(&mut *conn)
-        .await?;
-        Ok(())
-    })
-}
-
-fn apply_session_ended(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
-    let p: HookSessionEndedPayload = serde_json::from_str(&event.payload_json)?;
-    let key = session_key(&p.actor_id, p.session_id.as_deref());
-    block_on(async {
-        // Look up started_at to compute duration. If no row exists
-        // (session ended without start — out-of-order, harness
-        // didn't emit start, or analytics projection started after
-        // start fired), insert a stub row so the end is still
-        // captured. duration_ms left null in that case.
-        let started: Option<(String,)> = sqlx::query_as(
-            "SELECT started_at FROM analytics_sessions WHERE session_key = ?",
-        )
-        .bind(&key)
-        .fetch_optional(&mut *conn)
-        .await?;
-        let duration_ms = started.as_ref().and_then(|(s,)| compute_duration_ms(s, &p.ended_at));
-        if started.is_some() {
-            sqlx::query(
-                "UPDATE analytics_sessions \
-                 SET ended_at = ?, duration_ms = ?, reason = ? \
-                 WHERE session_key = ?",
-            )
-            .bind(&p.ended_at)
-            .bind(duration_ms)
-            .bind(&p.reason)
-            .bind(&key)
-            .execute(&mut *conn)
-            .await?;
-        } else {
-            sqlx::query(
-                "INSERT INTO analytics_sessions \
-                   (session_key, actor_id, started_at, ended_at, reason) \
-                 VALUES (?, ?, ?, ?, ?)",
-            )
-            .bind(&key)
-            .bind(&p.actor_id)
-            .bind(&p.ended_at)
-            .bind(&p.ended_at)
-            .bind(&p.reason)
-            .execute(&mut *conn)
-            .await?;
-        }
-        Ok(())
-    })
-}
-
-fn apply_tool_use_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
-    let p: HookToolUseStartedPayload = serde_json::from_str(&event.payload_json)?;
-    let key = session_key(&p.actor_id, None);
+fn apply_op_tool_use_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
+    let p: OpToolUseStarted = serde_json::from_str(&event.payload_json)?;
+    let key = p.session_id.clone();
     block_on(async {
         sqlx::query(
             "INSERT INTO analytics_tool_uses \
@@ -193,7 +99,7 @@ fn apply_tool_use_started(event: &EventEnvelope, conn: &mut SqliteConnection) ->
         )
         .bind(&event.id)
         .bind(&key)
-        .bind(&p.actor_id)
+        .bind(&p.session_id)
         .bind(&p.tool)
         .bind(&p.started_at)
         .execute(&mut *conn)
@@ -208,7 +114,7 @@ fn apply_tool_use_started(event: &EventEnvelope, conn: &mut SqliteConnection) ->
                tool_use_count = analytics_sessions.tool_use_count + 1",
         )
         .bind(&key)
-        .bind(&p.actor_id)
+        .bind(&p.session_id)
         .bind(&p.started_at)
         .execute(&mut *conn)
         .await?;
@@ -216,10 +122,9 @@ fn apply_tool_use_started(event: &EventEnvelope, conn: &mut SqliteConnection) ->
     })
 }
 
-fn apply_tool_use_completed(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
-    let p: HookToolUseCompletedPayload = serde_json::from_str(&event.payload_json)?;
-    let key = session_key(&p.actor_id, None);
-    let status_str = tool_status_str(&p.status);
+fn apply_op_tool_use_completed(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
+    let p: OpToolUseCompleted = serde_json::from_str(&event.payload_json)?;
+    let key = p.session_id.clone();
     block_on(async {
         // Find the oldest open (ended_at IS NULL) tool_use row for
         // (session_key, tool). Update it with end + duration + status.
@@ -241,7 +146,7 @@ fn apply_tool_use_completed(event: &EventEnvelope, conn: &mut SqliteConnection) 
             )
             .bind(&p.ended_at)
             .bind(duration_ms)
-            .bind(status_str)
+            .bind(&p.status)
             .bind(&p.error)
             .bind(&id)
             .execute(&mut *conn)
@@ -256,9 +161,9 @@ fn apply_tool_use_completed(event: &EventEnvelope, conn: &mut SqliteConnection) 
             )
             .bind(&event.id)
             .bind(&key)
-            .bind(&p.actor_id)
+            .bind(&p.session_id)
             .bind(&p.tool)
-            .bind(status_str)
+            .bind(&p.status)
             .bind(&p.ended_at)
             .bind(&p.ended_at)
             .bind(&p.error)
@@ -266,7 +171,7 @@ fn apply_tool_use_completed(event: &EventEnvelope, conn: &mut SqliteConnection) 
             .await?;
         }
         // Bump session-level error count when this completion is an error.
-        if matches!(p.status, ToolStatus::Error) {
+        if p.status == "error" {
             sqlx::query(
                 "UPDATE analytics_sessions \
                  SET tool_error_count = tool_error_count + 1 \
@@ -280,9 +185,14 @@ fn apply_tool_use_completed(event: &EventEnvelope, conn: &mut SqliteConnection) 
     })
 }
 
-fn apply_turn_observed(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
-    let p: HookTurnObservedPayload = serde_json::from_str(&event.payload_json)?;
-    let key = session_key(&p.actor_id, p.session_id.as_deref());
+fn apply_turn_ended(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
+    let p: TurnEnded = serde_json::from_str(&event.payload_json)?;
+    let key = p.session_id.clone();
+    // Use observed_at from payload when present, else fall back to envelope created_at.
+    let observed_at = p
+        .observed_at
+        .clone()
+        .unwrap_or_else(|| event.created_at.to_rfc3339());
     block_on(async {
         // analytics_turns row per observation. id = event.id so re-applies
         // are idempotent (INSERT OR IGNORE).
@@ -296,22 +206,22 @@ fn apply_turn_observed(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
         )
         .bind(&event.id)
         .bind(&key)
-        .bind(&p.actor_id)
-        .bind(p.turn_idx.map(|n| n as i64))
+        .bind(&p.session_id)
+        .bind(p.idx as i64)
         .bind(&p.model)
-        .bind(p.input_tokens as i64)
-        .bind(p.output_tokens as i64)
-        .bind(p.reasoning_tokens as i64)
-        .bind(p.cache_creation_tokens as i64)
-        .bind(p.cache_read_tokens as i64)
+        .bind(p.input_tokens.unwrap_or(0) as i64)
+        .bind(p.output_tokens.unwrap_or(0) as i64)
+        .bind(p.reasoning_tokens.unwrap_or(0) as i64)
+        .bind(p.cache_creation_tokens.unwrap_or(0) as i64)
+        .bind(p.cache_read_tokens.unwrap_or(0) as i64)
         .bind(&p.stop_reason)
         .bind(p.harness_reported_cost_usd)
-        .bind(&p.observed_at)
+        .bind(&observed_at)
         .execute(&mut *conn)
         .await?;
         // Backfill session model when the row didn't have one and this
-        // turn carries it (e.g. claude in -p mode where SessionStart
-        // payload omitted model). Stub-insert if no session row exists.
+        // turn carries it (e.g. claude in -p mode where actor.created
+        // didn't surface the model). Stub-insert if no session row exists.
         if let Some(model) = p.model.as_deref() {
             sqlx::query(
                 "INSERT INTO analytics_sessions \
@@ -321,9 +231,9 @@ fn apply_turn_observed(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
                    model = COALESCE(analytics_sessions.model, excluded.model)",
             )
             .bind(&key)
-            .bind(&p.actor_id)
+            .bind(&p.session_id)
             .bind(model)
-            .bind(&p.observed_at)
+            .bind(&observed_at)
             .execute(&mut *conn)
             .await?;
         }
@@ -343,11 +253,11 @@ fn apply_actor_created(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
     };
     let started_at = event.created_at.to_rfc3339();
     block_on(async {
-        // Key by actor_id. Hook-derived rows (when they fire) use the
-        // same fallback when payload session_id is absent, so they
-        // collide on this row and merge via COALESCE. The hook
+        // Key by actor_id. Op-derived rows (when they fire) use the
+        // same key (op.* session_id = actor_id for the http_ingress path),
+        // so they collide on this row and merge via COALESCE. The op
         // payload's harness/model wins because INSERT goes first;
-        // actor.created only fills in NULLs left by prior hook events.
+        // actor.created only fills in NULLs left by prior op events.
         sqlx::query(
             "INSERT INTO analytics_sessions \
                (session_key, actor_id, harness, model, started_at) \
@@ -374,13 +284,10 @@ fn apply_actor_stopped(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
     };
     let ended_at = event.created_at.to_rfc3339();
     block_on(async {
-        // Update only when no end has been recorded yet — hook.session_ended
-        // is preferred when it fires (carries the harness's own reason
-        // string). When neither has fired before, UPDATE finds the row
-        // and sets ended_at + duration_ms + reason. When no session row
-        // exists at all (actor wasn't an agent / hook fallback never
-        // wrote one), this is a no-op rather than inserting a stub —
-        // analytics_sessions is meaningful only for agent actors.
+        // Update only when no end has been recorded yet — a hook-path or
+        // session.ended is preferred when it fires (carries the harness's own
+        // reason string). When no session row exists at all (actor wasn't an
+        // agent), this is a no-op rather than inserting a stub.
         let started: Option<(String,)> = sqlx::query_as(
             "SELECT started_at FROM analytics_sessions \
              WHERE session_key = ? AND ended_at IS NULL",
@@ -405,14 +312,6 @@ fn apply_actor_stopped(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
         }
         Ok(())
     })
-}
-
-fn tool_status_str(s: &ToolStatus) -> &'static str {
-    match s {
-        ToolStatus::Ok => "ok",
-        ToolStatus::Error => "error",
-        ToolStatus::Unknown => "unknown",
-    }
 }
 
 /// Compute duration in milliseconds between two RFC3339 timestamps.

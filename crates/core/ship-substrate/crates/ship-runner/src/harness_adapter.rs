@@ -40,7 +40,7 @@ pub enum HarnessEvent {
     TurnComplete { stop_reason: String },
     /// Per-turn token usage observation. All counts absolute for this
     /// turn (not cumulative). Synthesized by adapters from their
-    /// harness's structured stream — see HookTurnObservedPayload for
+    /// harness's structured stream — see agent_def::TurnEnded (token-usage fields) for
     /// the kernel-event shape this maps onto.
     TurnUsage {
         model: Option<String>,
