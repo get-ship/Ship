@@ -73,11 +73,15 @@ message LogoutResult {
 
 // Ship Cloud account ops (typed). ALL ops require user presence.
 service AccountService {
-  // Snapshot — logged_out / pending / logged_in. C0 read.
+  // Snapshot — logged_out / pending / logged_in. Declared C3 to match the
+  // wire enforcement: ship-account/src/wire.rs enforces require_operator (S6,
+  // #124) on State because account credentials are credential-dangerous. Proto
+  // was mistakenly declared C0 (FLAG-3 honesty fix — enforcement is NOT
+  // loosened, only the comment/classification corrected to reflect reality).
   rpc State(StateRequest) returns (AccountState) {
-    option (ship.ops.v1.description) = "Ship Cloud account snapshot — logged_out / pending / logged_in.";
+    option (ship.ops.v1.description) = "Ship Cloud account snapshot — logged_out / pending / logged_in. Operator-only (require_operator, S6, #124).";
     option (ship.ops.v1.capability) = "ship.account.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C3_CRITICAL;
   }
   // PKCE login start — CLI passes its local-callback redirect_uri; daemon
   // returns the browser URL + state_id.

@@ -8883,6 +8883,7 @@ dependencies = [
  "buffa",
  "chrono",
  "connectrpc",
+ "http",
  "json-patch 4.2.0",
  "minijinja",
  "serde",

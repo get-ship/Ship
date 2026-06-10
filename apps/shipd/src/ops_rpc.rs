@@ -387,12 +387,11 @@ pub fn router(state: ApiState) -> axum::Router {
                             auto: args.get("auto").and_then(|v| v.as_bool()).unwrap_or(false),
                             source_spec_path: opt("source_spec_path"),
                         };
-                        // Scope gate: require CreateRuns (same as the HTTP handler).
-                        use crate::auth::Scope;
-                        let _ = &auth; // scope check via auth fields
-                        if !auth.scopes.iter().any(|s| matches!(s, Scope::Full | Scope::CreateRuns)) {
-                            return Err(ConnectError::permission_denied("requires CreateRuns scope"));
-                        }
+                        // Gate enforcement is in the wire layer (PipelinesWire::dispatch
+                        // calls `(self.gate)(&ctx, "pipelines.dispatch")?`). The legacy
+                        // scope check was the prior enforcement axis and is now removed —
+                        // the gate uses the proto-declared blast class (C1_SPACE,
+                        // capability ship.runtime.dispatch) as the single policy source.
                         let port = PipelineDispatchAdapter::new(st.clone());
                         run_pipeline_core(&port, req).await
                             .map(|outcome| serde_json::json!({
@@ -1043,10 +1042,15 @@ mod tests {
         // account.state keeps its own proto policy on the canonical per-domain
         // service. The `ReadOpsService` umbrella was retired (#78) — per-domain
         // Connect is the SSOT, so the policy resolves via `AccountService/State`.
+        //
+        // FLAG-3 honesty fix: the wire enforces require_operator (operator-only,
+        // S6 #124) for ALL AccountService ops including State — proto was
+        // mistakenly declared C0. The blast class is now C3Critical to match
+        // the wire enforcement (no enforcement change — doc/classification only).
         let p = policy_for("ship.ops.v1.AccountService/State")
             .expect("AccountService/State policy must be present");
         assert_eq!(p.capability, "ship.account.read");
-        assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C0Read);
+        assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C3Critical);
     }
 
     fn auth(kind: CallerKind, agent: Option<&str>) -> AuthContext {

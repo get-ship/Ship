@@ -72,6 +72,8 @@ specta = { workspace = true, features = ["chrono", "serde_json"] }
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 ship-substrate = { path = "../core/ship-substrate" }
+# Gate tests construct RequestContext which takes http::HeaderMap.
+http = "1"
 
 [features]
 default = []
