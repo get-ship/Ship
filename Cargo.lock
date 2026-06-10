@@ -9141,6 +9141,7 @@ dependencies = [
  "bytes",
  "chrono",
  "compiler",
+ "durable-execution",
  "futures-util",
  "home",
  "indexmap 2.14.0",
