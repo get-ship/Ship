@@ -2,19 +2,31 @@
 //!
 //! The `projects` table + the `active_space` pointer are Runtime-scoped
 //! (runtime.db): the machine-wide record of known space paths, read daemon-wide
-//! with no space in hand (the source the space-id resolver itself consults). The
-//! crate is the sole writer — it persists rows through the [`DataStore`] port
-//! and emits the matching `project.*` events through [`KernelLog`] (the kernel
-//! routes them to runtime.db). No sqlite/sqlx here, and no raw fs except the
-//! legacy `projects.json` fallback reader below (std::fs::read_to_string in
-//! `load_legacy_entries`). The path → id mapping uses the substrate
-//! `path_hash` helper (a pure hash, not a filesystem touch).
+//! with no space in hand (the source the space-id resolver itself consults).
+//!
+//! ## Single-table design (keystone-A dual-read-model dissolution, 2026-06-10)
+//!
+//! The former `space_registry` DataStore table is **dissolved**. ONE table
+//! survives: the event-sourced `projects` SQL table (schema in
+//! `ship-substrate/migrations/0001_schema.sql`), materialized by
+//! `ProjectsProjection` (owned here). Record reads go through
+//! `ship_substrate::db::projects::*_at(ship_dir)` helpers; the kernel provides
+//! the `ship_dir` via `KernelLog::try_ship_dir()`. The DataStore port is kept
+//! only for the `space_active` single-row pointer.
+//!
+//! The write path emits events only; `ProjectsProjection` folds them into
+//! the `projects` SQL table inside the same kernel transaction (same-TX
+//! guarantee identical to the former direct-write path).
+//!
+//! The sync SQL READ HELPERS (`list_active` / `get` / `find_by_path`) STAY in
+//! `ship_substrate::db::projects` so the space-id resolver and `SpaceRegistry`
+//! impl can keep working unchanged without any async overhead.
 //!
 //! [`list`] also merges entries from the legacy `~/.ship/projects.json` file
 //! (kept from the old `workspaces.list` registry op) so that installs whose
 //! event-sourced projection is empty still return a populated list. Legacy
 //! entries use the `path_hash`-derived id scheme identical to the event-sourced
-//! keying, and are filtered if the path already appears in the DataStore table.
+//! keying, and are filtered if the path already appears in the `projects` table.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -33,6 +45,22 @@ use crate::helpers::{now_rfc3339, runtime_emit_ctx};
 use crate::projection;
 use crate::types::SpaceRecord;
 
+// ── Conversion from L0 read type ─────────────────────────────────────────────
+
+impl From<ship_substrate::db::projects::SpaceRecord> for SpaceRecord {
+    fn from(r: ship_substrate::db::projects::SpaceRecord) -> Self {
+        SpaceRecord {
+            id: r.id,
+            path: r.path,
+            name: r.name,
+            created_at: r.created_at,
+            last_seen_at: r.last_seen_at,
+        }
+    }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 /// Derive the human label from a path's final segment.
 fn derive_name(path: &Path) -> String {
     path.file_name()
@@ -41,15 +69,30 @@ fn derive_name(path: &Path) -> String {
         .to_string()
 }
 
+/// Obtain the ship_dir from the kernel's router. Returns `None` if the router
+/// is momentarily locked — callers degrade gracefully (empty list / not-found).
+fn ship_dir(kernel: &KernelLog) -> Option<PathBuf> {
+    kernel.try_ship_dir()
+}
+
+// ── Public registry API ───────────────────────────────────────────────────────
+
 /// List all live (non-archived) spaces, newest `last_seen_at` first.
 ///
 /// Also merges any `~/.ship/projects.json` entries whose path has not yet been
-/// materialised in the DataStore projection. Legacy entries receive a
+/// materialised in the `projects` SQL table. Legacy entries receive a
 /// `path_hash`-derived id (identical to the scheme used by [`add`]) so they
 /// are stable and comparable with event-sourced rows. Any path that IS already
-/// in the DataStore table is skipped.
-pub async fn list(store: &dyn DataStore) -> Result<Vec<SpaceRecord>, SpaceError> {
-    let mut records = projection::list_active(store).await?;
+/// in the SQL table is skipped.
+pub async fn list(kernel: &KernelLog) -> Result<Vec<SpaceRecord>, SpaceError> {
+    let mut records = match ship_dir(kernel) {
+        Some(dir) => ship_substrate::db::projects::list_active_at(&dir)
+            .map_err(|e| SpaceError::Internal(e.to_string()))?
+            .into_iter()
+            .map(SpaceRecord::from)
+            .collect::<Vec<_>>(),
+        None => Vec::new(),
+    };
     let seen_paths: HashSet<String> = records.iter().map(|r| r.path.clone()).collect();
     for entry in load_legacy_entries() {
         let path_str = entry.path.to_string_lossy().to_string();
@@ -116,18 +159,22 @@ fn load_legacy_entries() -> Vec<LegacyEntry> {
 
 /// The currently-active space record, or `None` on cold boot (or when the stored
 /// id no longer resolves to a live row).
-pub async fn active(store: &dyn DataStore) -> Result<Option<SpaceRecord>, SpaceError> {
+pub async fn active(store: &dyn DataStore, kernel: &KernelLog) -> Result<Option<SpaceRecord>, SpaceError> {
     let Some(id) = projection::get_active_id(store).await? else {
         return Ok(None);
     };
-    Ok(get(store, &id).await?)
+    Ok(get(kernel, &id).await?)
 }
 
-/// Look up a registry record by id.
-pub async fn get(store: &dyn DataStore, id: &str) -> Result<Option<SpaceRecord>, SpaceError> {
-    Ok(projection::get(store, id)
-        .await?
-        .map(|row| projection::row_to_record(&row)))
+/// Look up a registry record by id. Reads from the `projects` SQL table via
+/// the kernel's ship_dir.
+pub async fn get(kernel: &KernelLog, id: &str) -> Result<Option<SpaceRecord>, SpaceError> {
+    let Some(dir) = ship_dir(kernel) else {
+        return Ok(None);
+    };
+    ship_substrate::db::projects::get_at(&dir, id)
+        .map(|opt| opt.map(SpaceRecord::from))
+        .map_err(|e| SpaceError::Internal(e.to_string()))
 }
 
 /// Idempotent register. Re-adding a known path returns the SAME id with its
@@ -136,6 +183,10 @@ pub async fn get(store: &dyn DataStore, id: &str) -> Result<Option<SpaceRecord>,
 ///
 /// `path` is taken as the caller supplies it — canonicalization is a host
 /// concern the daemon performs before calling (the crate touches no fs).
+///
+/// The write path is event-only: `ProjectsProjection` folds the emitted event
+/// into the `projects` SQL table inside the kernel transaction. The DataStore
+/// port is no longer used for record writes.
 pub async fn add(
     store: &dyn DataStore,
     kernel: &KernelLog,
@@ -145,11 +196,20 @@ pub async fn add(
     let id = path_hash(path);
     let now = now_rfc3339();
 
-    if let Some(existing) = get(store, &id).await? {
+    // Check for an existing registration by path via the SQL table.
+    let existing = match ship_dir(kernel) {
+        Some(dir) => ship_substrate::db::projects::get_at(&dir, &id)
+            .map(|opt| opt.map(SpaceRecord::from))
+            .map_err(|e| SpaceError::Internal(e.to_string()))?,
+        None => None,
+    };
+
+    if let Some(existing) = existing {
         // Known path → cheap `project.seen` (bump last_seen_at, keep name).
-        projection::touch(store, &id, &now).await?;
-        let envelope = EventEnvelope::new(PROJECT_SEEN, &id, &ProjectSeen { seen_at: now.clone() })
-            .map_err(|e| SpaceError::Internal(e.to_string()))?;
+        // The fold writes to `projects` SQL; no DataStore write needed.
+        let envelope =
+            EventEnvelope::new(PROJECT_SEEN, &id, &ProjectSeen { seen_at: now.clone() })
+                .map_err(|e| SpaceError::Internal(e.to_string()))?;
         kernel.emit(envelope, &runtime_emit_ctx()).await?;
         return Ok(SpaceRecord { last_seen_at: now, ..existing });
     }
@@ -165,7 +225,6 @@ pub async fn add(
         created_at: now.clone(),
         last_seen_at: now.clone(),
     };
-    projection::upsert_record(store, &record).await?;
 
     let payload = ProjectRegistered {
         path: path_str,
@@ -176,6 +235,11 @@ pub async fn add(
     let envelope = EventEnvelope::new(PROJECT_REGISTERED, &id, &payload)
         .map_err(|e| SpaceError::Internal(e.to_string()))?;
     kernel.emit(envelope, &runtime_emit_ctx()).await?;
+
+    // The `_store` parameter is retained (but unused for records) to keep the
+    // caller signature stable; it is still used by `activate` for the active
+    // pointer.
+    let _ = store;
 
     Ok(record)
 }
@@ -188,14 +252,20 @@ pub async fn activate(
     kernel: &KernelLog,
     id: &str,
 ) -> Result<SpaceRecord, SpaceError> {
-    let record = get(store, id)
+    let record = get(kernel, id)
         .await?
         .ok_or_else(|| SpaceError::BadArgs(format!("space '{id}' not known")))?;
     let previous = projection::get_active_id(store).await?;
     let now = now_rfc3339();
 
     projection::set_active_id(store, &record.id, &now).await?;
-    let _ = projection::touch(store, &record.id, &now).await?;
+
+    // Emit `project.seen` to bump `last_seen_at` in the `projects` SQL table
+    // (previously done via `projection::touch`; now handled by ProjectsProjection).
+    let seen_env =
+        EventEnvelope::new(PROJECT_SEEN, &record.id, &ProjectSeen { seen_at: now.clone() })
+            .map_err(|e| SpaceError::Internal(e.to_string()))?;
+    kernel.emit(seen_env, &runtime_emit_ctx()).await?;
 
     let payload = ProjectSwitched {
         space_id: record.id.clone(),

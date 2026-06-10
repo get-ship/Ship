@@ -1,9 +1,10 @@
 //! Behavioral proofs for ship-space.
 //!
-//! All tests use temp-dir ports — no network, no real daemon. The crate is the
-//! sole writer of its tables via the `DataStore` port (greenfield: tables
-//! self-create), and emits the matching events through `KernelLog`; both reads
-//! and writes ride the SAME per-scope store so a write is read back here.
+//! All tests use temp-dir ports — no network, no real daemon. The `ProjectsProjection`
+//! is installed once per test-binary via the `install_projects_projection()` helper
+//! below; this ensures the event-fold writes to the `projects` SQL table so the
+//! async registry reads (which now read from SQL, not the dissolved `space_registry`
+//! DataStore) see each newly registered space.
 //!
 //! Ported from the retired `services/space/tests.rs` (non-window) + the
 //! `projects/mod.rs` + `projects/active.rs` proofs, re-expressed against the
@@ -22,9 +23,26 @@ use ship_substrate::events::new_isolated_for_test;
 use ship_substrate::home::ShipHome;
 use ship_substrate::ports::{DataStore, KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
+// ── Projection install ────────────────────────────────────────────────────────
+
+/// Install the `ProjectsProjection` into the global extra-projections factory
+/// once per test binary. Safe to call from each test: the `Once` guard makes
+/// subsequent calls no-ops. Without this the event-fold path (which populates
+/// the `projects` SQL table) does not run inside the isolated kernel, and all
+/// registry reads return empty / not-found.
+fn install_projects_projection() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
+            vec![Box::new(ship_space::ProjectsProjection)]
+        }));
+    });
+}
+
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
+    install_projects_projection();
     let ship_dir = ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let router = new_isolated_for_test(ship_dir).unwrap();
@@ -32,7 +50,7 @@ fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
 }
 
 /// A DataStore over a fresh per-scope db bound to `partition`. The registry
-/// tables (`projects` / `active_space`) are Runtime-scoped: bind the runtime
+/// active pointer (`space_active`) is Runtime-scoped: bind the runtime
 /// partition. Per-space settings bind the target space's partition.
 fn store_for(tmp: &tempfile::TempDir, db_name: &str, partition: &str) -> Arc<dyn DataStore> {
     let ship_dir = ShipHome::project_ship_dir(tmp.path());
@@ -41,8 +59,8 @@ fn store_for(tmp: &tempfile::TempDir, db_name: &str, partition: &str) -> Arc<dyn
     Arc::new(SingleBackendDataStore::new(svc, partition))
 }
 
-/// A `SpaceService` whose `ctx` binds the Runtime registry store (the registry +
-/// the kernel handle).
+/// A `SpaceService` whose `ctx` binds the Runtime registry store (the active
+/// pointer) and the kernel handle.
 fn registry_service(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> SpaceService {
     let store = store_for(tmp, "runtime", "runtime");
     let ctx = Arc::new(SpaceContext::new(SpaceId::new("runtime"), store, kernel));
@@ -117,14 +135,12 @@ async fn set_canonicalizes_echoes_and_emits_one_event() {
 async fn info_no_space_passes_settings_through_unoverlaid() {
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
-    let reg = store_for(&tmp, "runtime", "runtime");
     let settings = store_for(&tmp, "spaces/none/space", "none");
 
     let base = json!({ "theme": "light", "x": 1 });
-    let composed = info::compose(reg.as_ref(), settings.as_ref(), None, base.clone())
+    let composed = info::compose(&kernel, settings.as_ref(), None, base.clone())
         .await
         .unwrap();
-    let _ = kernel; // unused kernel keeps the fixture shape uniform.
     assert_eq!(composed.space_id, None);
     assert_eq!(composed.root, None);
     assert_eq!(composed.name, None);
@@ -134,12 +150,12 @@ async fn info_no_space_passes_settings_through_unoverlaid() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn info_unknown_space_leaves_base_unchanged() {
     let tmp = tempfile::tempdir().unwrap();
-    let reg = store_for(&tmp, "runtime", "runtime");
+    let kernel = make_kernel(&tmp);
     let settings = store_for(&tmp, "spaces/space-unknown/space", "space-unknown");
 
     let base = json!({ "theme": "light" });
     let composed =
-        info::compose(reg.as_ref(), settings.as_ref(), Some("space-unknown"), base.clone())
+        info::compose(&kernel, settings.as_ref(), Some("space-unknown"), base.clone())
             .await
             .unwrap();
     assert_eq!(composed.space_id.as_deref(), Some("space-unknown"));
@@ -298,4 +314,55 @@ async fn add_derives_name_from_path_when_unnamed() {
     std::fs::create_dir_all(&path).unwrap();
     let r = registry::add(store.as_ref(), &kernel, &path, None).await.unwrap();
     assert_eq!(r.name, "my-space", "name derived from final path segment");
+}
+
+// ── Behavioral proof: single table (dual-read-model dissolution) ─────────────
+//
+// Proves that a `project.registered` event folds into the `projects` SQL table
+// (via `ProjectsProjection`) and is visible to BOTH:
+//   1. The async registry read (ship_space::registry::get) — the L1 read path
+//   2. The sync SQL read (ship_substrate::db::projects::get_at) — the L0 read
+//      path used by the space-id resolver and `SpaceRegistry` impl.
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn project_registered_event_is_visible_in_both_async_registry_and_sync_sql() {
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel = make_kernel(&tmp);
+    let svc = registry_service(&tmp, kernel.clone());
+    let ship_dir = ShipHome::project_ship_dir(tmp.path());
+
+    let path = tmp.path().join("my-project");
+    std::fs::create_dir_all(&path).unwrap();
+
+    // Register the space — emits `project.registered`; ProjectsProjection folds
+    // it into the `projects` SQL table inside the kernel transaction.
+    let record = svc.add(&path, Some("MyProject")).await.unwrap();
+
+    // 1. Async registry read (L1 — reads from `projects` SQL via kernel.ship_dir).
+    let async_list = svc.list().await.unwrap();
+    assert!(
+        !async_list.is_empty(),
+        "async registry::list must see the registered space"
+    );
+    let async_record = async_list.iter().find(|r| r.id == record.id);
+    assert!(async_record.is_some(), "async registry::get must find the registered space by id");
+    assert_eq!(async_record.unwrap().name, "MyProject");
+
+    // 2. Sync SQL read (L0 — the path the space-id resolver and SpaceRegistry use).
+    let sync_by_id = ship_substrate::db::projects::get_at(&ship_dir, &record.id)
+        .expect("sync get_at should not fail");
+    assert!(
+        sync_by_id.is_some(),
+        "sync SQL read (get_at) must see the registered space"
+    );
+    assert_eq!(sync_by_id.unwrap().name, "MyProject");
+
+    let path_str = path.to_string_lossy().to_string();
+    let sync_by_path = ship_substrate::db::projects::find_by_path_at(&ship_dir, &path_str)
+        .expect("sync find_by_path_at should not fail");
+    assert!(
+        sync_by_path.is_some(),
+        "sync SQL read (find_by_path_at) must see the registered space"
+    );
+    assert_eq!(sync_by_path.unwrap().id, record.id);
 }

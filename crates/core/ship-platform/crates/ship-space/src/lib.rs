@@ -5,15 +5,13 @@
 //! in the ship-device topic — the carve split it out):
 //!
 //! - **registry** ([`registry`]) — list / active / add / activate. The
-//!   `projects` table is Runtime-scoped (read daemon-wide, no space in hand), so
-//!   the registry reads through a Runtime-bound `DataStore` and emits
-//!   `project.registered` / `project.seen` / `project.switched` through
-//!   `KernelLog` (the kernel routes them to runtime.db). The [`projection`]
-//!   module's DataStore helpers persist the crate-owned `space_registry` table +
-//!   the `space_active` pointer at write time; the legacy `projects` table is
-//!   materialized by `ship_space::projects_projection::ProjectsProjection`
-//!   (moved here from ship-substrate in keystone-A Phase A bundle 4, 2026-06-10)
-//!   in the append transaction.
+//!   `projects` table is Runtime-scoped (read daemon-wide, no space in hand).
+//!   The registry emits `project.registered` / `project.seen` /
+//!   `project.switched` through `KernelLog`; `ProjectsProjection` folds them
+//!   into the `projects` SQL table (the SOLE record-read source post-dissolution
+//!   — the `space_registry` DataStore table was retired in 2026-06-10 as part of
+//!   the keystone-A dual-read-model dissolution). The [`projection`] module now
+//!   only manages the `space_active` single-row pointer.
 //! - **config** ([`config`]) — the per-space settings overlay. Reads the
 //!   `space_settings` table (Space-scoped, per-space `space.db`); writes emit
 //!   `space.setting.changed` (the space rides the envelope, not the payload).

@@ -121,6 +121,13 @@ impl KernelRouter {
         self
     }
 
+    /// The ship-home directory this router is rooted at (`<ship_dir>/`).
+    /// Used by the `space_registry` dissolution to expose the ship_dir for
+    /// sync SQL reads without passing it through every function signature.
+    pub fn base_dir(&self) -> &Path {
+        &self.base_dir
+    }
+
     pub fn has_actor(&self, actor_id: &str) -> bool {
         self.inner.has_actor(actor_id)
     }

@@ -10,6 +10,10 @@
 //! (`space_settings`) is Space-scoped, so `info` + `set_setting` take an explicit
 //! per-space `&dyn DataStore` the caller (the daemon's wire) builds per request
 //! from the target space id.
+//!
+//! After the dual-read-model dissolution (2026-06-10), record reads go through
+//! `registry::list/get` which use `kernel.try_ship_dir()` to open the `projects`
+//! SQL table; only the active pointer still uses `ctx.data()`.
 
 use std::sync::Arc;
 
@@ -38,12 +42,12 @@ impl SpaceService {
 
     /// List all live (non-archived) spaces, newest first.
     pub async fn list(&self) -> Result<Vec<SpaceRecord>, SpaceError> {
-        registry::list(self.ctx.data()).await
+        registry::list(self.ctx.kernel()).await
     }
 
     /// The currently-active space, or `None` on cold boot.
     pub async fn active(&self) -> Result<Option<SpaceRecord>, SpaceError> {
-        registry::active(self.ctx.data()).await
+        registry::active(self.ctx.data(), self.ctx.kernel()).await
     }
 
     /// The active-space id, or `None` on cold boot (used by `list` to surface
@@ -84,14 +88,14 @@ impl SpaceService {
     // ── info (identity + overlay) ───────────────────────────────────────────
 
     /// Compose identity + effective (global ⟵ space) settings. Identity comes
-    /// from the Runtime registry store; the overlay from the per-space
-    /// `settings_store`. See [`info::compose`].
+    /// from the `projects` SQL table (via `kernel.try_ship_dir()`); the overlay
+    /// from the per-space `settings_store`. See [`info::compose`].
     pub async fn info(
         &self,
         settings_store: &dyn DataStore,
         space_id: Option<&str>,
         global_settings: Value,
     ) -> Result<SpaceInfo, SpaceError> {
-        info::compose(self.ctx.data(), settings_store, space_id, global_settings).await
+        info::compose(self.ctx.kernel(), settings_store, space_id, global_settings).await
     }
 }

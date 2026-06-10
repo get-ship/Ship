@@ -235,7 +235,7 @@ where
 /// the daemon's per-space store is resolved per request, not per watcher, so the
 /// reactive root carries the registry view; the FE re-fetches `Info` on a frame.
 async fn registry_snapshot(ctx: Arc<SpaceContext>) -> serde_json::Value {
-    let spaces = crate::registry::list(ctx.data()).await.unwrap_or_default();
+    let spaces = crate::registry::list(ctx.kernel()).await.unwrap_or_default();
     let active = crate::projection::get_active_id(ctx.data()).await.ok().flatten();
     serde_json::json!({
         "spaces": spaces.iter().map(|s| serde_json::json!({

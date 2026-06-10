@@ -108,6 +108,20 @@ impl KernelLog {
         self.tx.receiver_count()
     }
 
+    /// Return the ship-home directory this kernel is rooted at, if available
+    /// via a non-blocking try_lock on the router.
+    ///
+    /// Used by the space-registry dissolution so async registry reads can open
+    /// the `projects` SQL table without exposing sqlx types into ship-space.
+    /// Returns `None` if the router lock is momentarily held (callers should
+    /// treat `None` as "no registered spaces yet").
+    pub fn try_ship_dir(&self) -> Option<std::path::PathBuf> {
+        self.router
+            .try_lock()
+            .ok()
+            .map(|r| r.base_dir().to_path_buf())
+    }
+
     /// Return the cursor at the current tail of this log (the id of the last
     /// emitted event, or `None` if nothing has been emitted yet).
     pub fn cursor(&self) -> Cursor {
