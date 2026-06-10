@@ -106,9 +106,10 @@ mod tests {
             .await;
         let id = up.body["data"]["id"].as_str().unwrap().to_string();
 
-        // Walk the project-scoped artifacts dir and nuke any blob present.
-        let artifacts_root = ship_substrate::ShipHome::project_ship_dir(daemon.temp_dir.path()).join("artifacts");
-        remove_all_files(&artifacts_root);
+        // Nuke the space-keyed blob store (keystone-A layout:
+        // {ship_dir}/spaces/<space_id>/blobs/<hash[:2]>/<hash>).
+        let blob_root = ship_substrate::ShipHome::project_ship_dir(daemon.temp_dir.path()).join("spaces");
+        let _ = std::fs::remove_dir_all(&blob_root);
 
         let resp = daemon.get(&format!("/api/v1/artifacts/{id}")).await;
         assert_eq!(resp.status, 404);
@@ -120,21 +121,25 @@ mod tests {
 
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn blob_stored_under_project_slug() {
+    async fn blob_stored_under_space_dir() {
+        // Pins the keystone-A blob layout: {ship_dir}/spaces/<space_id>/blobs/…
+        // (the ARTIFACT de-bucket replaced the legacy project-slug layout;
+        // these assertions broke silently because no gate ran shipd --lib).
         let daemon = TestDaemon::new().await;
         let up = daemon
             .post_multipart("/api/v1/artifacts", &upload_parts("p.txt", "text/plain", b"p"))
             .await;
         assert_eq!(up.status, 201);
-        let artifacts_root = ship_substrate::ShipHome::project_ship_dir(daemon.temp_dir.path()).join("artifacts");
-        // Exactly one slug dir should exist.
-        let slugs: Vec<_> = std::fs::read_dir(&artifacts_root)
+        let spaces_root = ship_substrate::ShipHome::project_ship_dir(daemon.temp_dir.path()).join("spaces");
+        // Exactly one space dir should exist (the test fixture's bound space).
+        let spaces: Vec<_> = std::fs::read_dir(&spaces_root)
             .unwrap()
             .flatten()
             .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
             .collect();
-        assert_eq!(slugs.len(), 1, "expected one project slug dir");
-        assert!(slugs[0].path().join("blobs").is_dir());
+        assert_eq!(spaces.len(), 1, "expected exactly one space dir");
+        assert_eq!(spaces[0].file_name(), "test-space");
+        assert!(spaces[0].path().join("blobs").is_dir(), "blobs/ must live under the space dir");
     }
 
 }
