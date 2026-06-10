@@ -87,7 +87,12 @@ describe('<sui-toast-host>', () => {
     await flush()
     const stack = document.body.querySelector('[data-sui-toast-stack]')!
     const toast = stack.querySelector('sui-toast')!
-    expect(toast.innerHTML).toContain('id="upd-act"')
+    // The action markup lands as a real, live element inside the toast — assert
+    // the parsed button (id + label), not a raw HTML substring.
+    const action = toast.querySelector('button')!
+    expect(action).not.toBeNull()
+    expect(action.id).toBe('upd-act')
+    expect(action.textContent).toBe('Reload')
   })
 
   it('listens on the closest ship-shell ancestor when present', async () => {
