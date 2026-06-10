@@ -485,7 +485,7 @@ mod tests {
             ),
         ];
         for (name, v) in cases {
-            for forbidden in ["pid", "branch", "worktree", "exit_code"] {
+            for forbidden in crate::guards::DRIVER_EDGE_FIELDS {
                 assert!(
                     !v.to_string().contains(forbidden),
                     "{name} payload must not carry {forbidden}: {v}"
