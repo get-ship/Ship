@@ -15,6 +15,7 @@ pub mod config;
 pub mod emit;
 pub mod harnesses;
 pub mod import;
+pub mod op;
 pub mod permissions;
 pub mod rule;
 pub mod skill;
@@ -26,6 +27,7 @@ pub use emit::{
     SessionCancelled, SessionCompleted, SessionEventSink, SessionFailed,
     SessionStarted, SessionSuspended, TurnEnded, TurnStarted,
 };
+pub use op::{OpToolUseCompleted, OpToolUseDenied, OpToolUseStarted};
 
 /// One-time legacy `platform.db` → `kv.db` skill-vars drain, re-exported for the
 /// daemon boot path so shipd needn't depend on the internal sub-crate. The skill
