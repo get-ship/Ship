@@ -20,6 +20,7 @@
 //!   L1 `ship_code::runner` mechanism. Historic `services::orchestrator::*`
 //!   import paths keep working.
 
+pub mod sweep_events;
 pub mod log_stream;
 pub mod orchestrator;
 pub mod pipeline_ports;

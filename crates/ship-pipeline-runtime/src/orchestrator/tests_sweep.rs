@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
-use ship_substrate::events::supervisor::event_types as sup_events;
+use crate::sweep_events::event_types as sup_events;
 use ship_substrate::events::EventEnvelope;
 use ship_code::dispatch_ports::{
     AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
@@ -705,10 +705,17 @@ async fn seed_canonical_session(
     use agent_def::canonical_session::{SessionStarted, event_types as canonical_event_types};
     use ship_substrate::events::{CallerKind, EmitContext};
 
+    // session.started is Space-scoped: bind the space EXPLICITLY so the test
+    // is hermetic. (It used to rely on daemon_internal(None) + the global
+    // ~/.ship space-id resolver finding a registered project — which only
+    // held on polluted dev machines and made this test env-dependent.)
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(
+            Some(ship_types::SpaceId::new("test-space")),
+            ship_types::Authority::Sdk,
+        ),
         session_id: None,
     };
 
@@ -717,7 +724,7 @@ async fn seed_canonical_session(
         agent_id: "test-agent".to_string(),
         harness: "claude".to_string(),
         model: None,
-        space_id: String::new(),
+        space_id: "test-space".to_string(),
         slug: Some(slug.to_string()),
         input: None,
         parent: None,

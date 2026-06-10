@@ -3,7 +3,7 @@
 
 use ship_substrate::events::pipeline::{event_types as run_events, PipelineRunFailedPayload, StepType};
 use ship_substrate::events::process::{event_types as proc_events, ProcessKilledPayload};
-use ship_substrate::events::supervisor::{
+use crate::sweep_events::{
     event_types as sup_events, CoherenceRestoredPayload, DriftDetectedPayload,
     SweepCompletedPayload, SweepStartedPayload,
 };

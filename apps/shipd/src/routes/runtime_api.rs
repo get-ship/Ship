@@ -91,13 +91,13 @@ mod tests {
         pipeline_run_id
     }
     async fn emit_sweep_completed(state: &ApiState, drift_count: usize) {
-        let payload = ship_substrate::events::supervisor::SweepCompletedPayload {
+        let payload = ship_pipeline_runtime::sweep_events::SweepCompletedPayload {
             duration_ms: 12,
             drift_count,
             actions_taken: drift_count,
         };
         let env = ship_substrate::events::EventEnvelope::new(
-            ship_substrate::events::supervisor::event_types::SUPERVISOR_SWEEP_COMPLETED,
+            ship_pipeline_runtime::sweep_events::event_types::SUPERVISOR_SWEEP_COMPLETED,
             "supervisor",
             &payload,
         )
