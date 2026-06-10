@@ -410,15 +410,9 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
         .ship_route(Route::InstalledProviders, sessions::api::installed_harnesses)
         .ship_route(Route::ListSessionsAcrossProjects, runtime_api::list_sessions_across_projects)
-        // `POST /_deck/mutation/{name}` — tombstoned PE form endpoint.
-        // The server-side string dispatch was removed; JS-attached mutations
-        // call the SDK directly. The SUI compiler still writes this URL as
-        // the form `action` attribute for PE fallback, so the route stays as
-        // a 410 Gone rather than being deleted outright.
-        .route(
-            "/_deck/mutation/{name}",
-            axum::routing::post(|| async { axum::http::StatusCode::GONE }),
-        )
+        // The `/_deck/mutation/{name}` 410 tombstone moved to `deck::router()`
+        // — it's a `/_deck/*` serving concern (deck composes that form `action`
+        // URL via `deck_core::routes::mutation_action`), not an RPC route.
         // AgentsService — generic CRUD + lifecycle. First-party and
         // third-party views use this surface equally.
         // PipelineService — CRUD + run ops. Dispatch / cancel / log-stream
@@ -518,11 +512,12 @@ mod merge_tests {
 
     #[test]
     fn deck_router_merges_with_kept_static_sui_routes_without_conflict() {
-        // The state-aware paths shipd keeps in `public_routes` that share the
-        // `/_deck/views/{name}/` prefix with deck's catch-all.
+        // The state-aware path shipd keeps in `public_routes` that shares the
+        // `/_deck/views/{name}/` prefix with deck's catch-all. (The
+        // `/_deck/mutation/{name}` tombstone now lives in `deck::router()`, so
+        // it must NOT be re-declared here or the merge would conflict.)
         let kept: Router = Router::new()
-            .route("/_deck/views/{name}/sse", get(noop))
-            .route("/_deck/mutation/{name}", axum::routing::post(noop));
+            .route("/_deck/views/{name}/sse", get(noop));
 
         // Merging deck's surface (catch-all + /space + /_deck/view/{name} + bundles)
         // with the kept routes must not panic, and the union must build into

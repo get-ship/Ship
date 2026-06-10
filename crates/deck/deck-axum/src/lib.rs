@@ -119,6 +119,16 @@ pub fn router() -> Router {
         // "view" to avoid colliding with the plural "views" payload routes).
         .route("/_deck/view/{name}", get(serve_view_host))
         .route("/_deck/view/{name}/{*sub_path}", get(serve_view_host))
+        // `POST /_deck/mutation/{name}` — 410 tombstone. The progressive-
+        // enhancement form endpoint is gone; JS-attached mutations call the SDK
+        // directly. deck still composes this URL as the `<form mutation>`
+        // `action` (`deck_core::routes::mutation_action`) for the no-JS fallback,
+        // so the route answers 410 Gone rather than 404. A `/_deck/*` serving
+        // concern — lives here, not in the host's RPC surface.
+        .route(
+            "/_deck/mutation/{name}",
+            axum::routing::post(|| async { StatusCode::GONE }),
+        )
         // Host public assets at single-segment root paths (/favicon.ico, …) or
         // the shell for a bare client-route segment. Registered AFTER the
         // literal `/`, `/setup`, and `/api/...` routes so those keep their
@@ -126,11 +136,13 @@ pub fn router() -> Router {
         // literal routes).
         .route("/{file}", get(spa_or_public_asset))
     // No `.fallback` here: deck's `router()` is MERGED into the host's root
-    // alongside the Connect-ops router, which sets its own fallback (unmatched
-    // RPC method → Unimplemented). axum panics if two merged routers both carry
-    // a fallback. The host owns the single root fallback — it calls
-    // `.fallback(deck::spa_fallback)` once on the fully-merged router. deck
-    // exports `spa_fallback` for exactly that.
+    // alongside the Connect-ops router, whose entire RPC dispatch IS a
+    // `fallback_service`. axum panics if two merged routers both carry a
+    // fallback, and a host `.fallback` would shadow the RPC dispatch into a dead
+    // data plane. So deck sets none; the host keeps the Connect fallback and
+    // composes SPA navigation ahead of it (shipd uses a pre-routing nav shim
+    // that serves the shell for client-route GETs). deck still exports
+    // `spa_fallback` + `serve_shell` for hosts that want them.
 }
 
 #[cfg(test)]
