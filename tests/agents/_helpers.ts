@@ -471,11 +471,9 @@ export interface EventEnvelope {
 }
 
 /**
- * Poll `/api/v1/events/poll` for events matching `predicate`. Backed by
- * the persisted event log — sees EVERY persisted event including
- * directed events (events with `target_actor_id` set, which the SSE
- * stream filters away by kernel design — see `collectEvents` below for
- * the broadcast-only path).
+ * Poll the persisted event log (`EventsService.Poll`) for events
+ * matching `predicate`. Sees EVERY persisted event, including directed
+ * events (events with `target_actor_id` set).
  *
  * Returns when `stopAfter` matches fire or `timeoutMs` elapses.
  * Capture a `sinceId` BEFORE the action that should emit, then poll
@@ -565,135 +563,41 @@ async function eventsPoll(req: {
 }
 
 /**
- * Open an SSE subscription, collect every event matching `predicate`
- * until `untilMs` elapses or `stopAfter` matches fire. Returns the
- * collected envelopes.
- *
- * WARNING: SSE is broadcast-only. The kernel's `deliver()` short-circuits
- * directed events (`target_actor_id` set) to only reach that actor's
- * mailbox — broadcast subscribers (including this stream) never see
- * them. For directed events (studio.chat_turn, mesh.message, …) use
- * `pollForEvents` instead. See
- * `.artifacts/agents-arc/discussions/directed-events-invisible-to-sse.md`.
+ * Collect every event matching `predicate` that is persisted AFTER this
+ * call, until `windowMs` elapses or `stopAfter` matches fire. Backed by
+ * the `EventsService.Poll` log read, so directed events
+ * (`target_actor_id` set) are visible too.
  */
 export async function collectEvents(
   predicate: (e: EventEnvelope) => boolean,
   opts: { windowMs: number; stopAfter?: number } = { windowMs: 5_000 },
 ): Promise<EventEnvelope[]> {
-  const collected: EventEnvelope[] = [];
-  const token = await daemonToken();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), opts.windowMs);
-
-  try {
-    const r = await fetch(`${await baseUrl()}/api/v1/events/stream`, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: controller.signal,
-    });
-    if (!r.ok || !r.body) {
-      throw new Error(`event stream open failed: status=${r.status}`);
-    }
-    const reader = r.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      let idx: number;
-      while ((idx = buf.indexOf("\n\n")) !== -1) {
-        const frame = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        const dataLine = frame
-          .split("\n")
-          .find((l) => l.startsWith("data:"));
-        if (!dataLine) continue;
-        let envelope: EventEnvelope;
-        try {
-          envelope = JSON.parse(dataLine.slice(5).trim());
-        } catch {
-          continue;
-        }
-        if (predicate(envelope)) {
-          collected.push(envelope);
-          if (opts.stopAfter && collected.length >= opts.stopAfter) {
-            controller.abort();
-            return collected;
-          }
-        }
-      }
-    }
-  } catch (e) {
-    if (!(e instanceof Error && controller.signal.aborted)) throw e;
-  } finally {
-    clearTimeout(timer);
-  }
-  return collected;
+  const sinceId = await latestEventId();
+  return pollForEvents(predicate, {
+    sinceId,
+    timeoutMs: opts.windowMs,
+    stopAfter: opts.stopAfter,
+  });
 }
 
 /**
- * Subscribe to the SSE stream and resolve when an event matching
- * `predicate` arrives, or reject on timeout. Aborts the SSE connection
- * on resolution.
+ * Resolve with the first event matching `predicate` persisted AFTER this
+ * call, or reject on timeout. Backed by the `EventsService.Poll` log
+ * read, so directed events (`target_actor_id` set) are visible too.
  */
 export async function waitForEvent(
   predicate: (e: EventEnvelope) => boolean,
   opts: { timeoutMs?: number } = {},
 ): Promise<EventEnvelope> {
   const timeoutMs = opts.timeoutMs ?? 15_000;
-  const token = await daemonToken();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const r = await fetch(`${await baseUrl()}/api/v1/events/stream`, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: controller.signal,
-    });
-    if (!r.ok || !r.body) {
-      throw new Error(`event stream open failed: status=${r.status}`);
-    }
-
-    const reader = r.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) throw new Error("event stream closed before match");
-      buf += decoder.decode(value, { stream: true });
-
-      // SSE messages are separated by blank lines; each contains
-      // a `data:` line we parse as JSON.
-      let idx: number;
-      while ((idx = buf.indexOf("\n\n")) !== -1) {
-        const frame = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        const dataLine = frame
-          .split("\n")
-          .find((l) => l.startsWith("data:"));
-        if (!dataLine) continue;
-        let envelope: EventEnvelope;
-        try {
-          envelope = JSON.parse(dataLine.slice(5).trim());
-        } catch {
-          continue;
-        }
-        if (predicate(envelope)) {
-          controller.abort();
-          return envelope;
-        }
-      }
-    }
-  } catch (e) {
-    if (controller.signal.aborted) {
-      throw new Error(
-        `waitForEvent: no matching event within ${timeoutMs}ms`,
-      );
-    }
-    throw e;
-  } finally {
-    clearTimeout(timer);
+  const sinceId = await latestEventId();
+  const matches = await pollForEvents(predicate, {
+    sinceId,
+    timeoutMs,
+    stopAfter: 1,
+  });
+  if (matches.length === 0) {
+    throw new Error(`waitForEvent: no matching event within ${timeoutMs}ms`);
   }
+  return matches[0]!;
 }
