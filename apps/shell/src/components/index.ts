@@ -22,5 +22,3 @@ import '@sui-tag/sui-blank-canvas'
 // by any view's tag graph, so register both here or they stay inert no-ops.
 import '@sui-tag/sui-toast-container'
 import '@sui-tag/sui-help-overlay'
-
-export { SLOT_COMPOSITIONS } from './picker-slot-compositions'
