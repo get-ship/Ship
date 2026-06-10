@@ -62,7 +62,7 @@ Every Ship event is a trigger candidate. Pick from these namespaces:
 | Namespace | Events | Typical use |
 |---|---|---|
 | `workspace.*` | `created`, `deleted`, `compiled`, `started`, `branch_switched` | Snapshot state, warm caches |
-| `session.*` | `started`, `progress`, `ended`, `heartbeat` | Digest daily activity |
+| `session.*` | `started`, `completed`, `failed`, `cancelled`, `suspended` (+ `session.turn.*`) | Digest daily activity |
 | `actor.*` | `created`, `woke`, `slept`, `stopped`, `crashed` | Alert on agent crashes |
 | `job.*` | `created`, `claimed`, `completed`, `failed` | Triage on failure, archive completed |
 | `pipeline.*` | `started`, `step_completed`, `step_failed`, `blocked`, `completed` | Pipeline notifications |

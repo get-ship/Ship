@@ -1,4 +1,4 @@
-//! ship-analytics — derived rollups + queries over hook.* events.
+//! ship-analytics — derived rollups + queries over op.* events.
 //!
 //! Sits downstream of `ship-substrate`'s event log. Three concerns:
 //!

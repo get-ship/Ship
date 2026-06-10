@@ -81,7 +81,7 @@ Both must exit 0. sui-lint runs as a library inside `sui-compiler build` —
 the compile step IS the lint step. There is no `sui-lint` binary.
 
 When the view is registered, the structure is in place, and both verifications
-are green, commit cleanly and push the branch. (If you're a pipeline-step
+are green, commit cleanly — NEVER push (the operator owns remotes). (If you're a pipeline-step
 agent with `SHIP_ACTOR_ID` set, `ship ops call pipelines.step_done --json
 '{"slug":"'$SHIP_ACTOR_ID'","summary":"<one-liner>"}'` advances the step
 monitor.)

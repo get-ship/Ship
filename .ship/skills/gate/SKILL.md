@@ -66,7 +66,7 @@ git worktree remove ~/dev/ship-worktrees/<slug> --force
 git branch -d job/<slug>
 ```
 
-Target branch is the current integration branch (today `feat/window-actors`), not `main`. Record the verdict in the job's tracking doc.
+Target branch is the CURRENT integration branch (ask the operator or check the worktree you were dispatched from — do not assume), not `main`. Record the verdict in the job's tracking doc.
 
 ## Replacement discipline (cutover, not accretion)
 

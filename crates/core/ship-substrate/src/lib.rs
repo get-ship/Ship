@@ -2,11 +2,14 @@
 //!
 //! Contains the event bus, persistence, DB, actor model, projections,
 //! supervisor, sessions, mesh, home/project path resolution, and
-//! related low-level substrate. No L1 domain logic (agent defs, skill bodies,
-//! config schemas); it does carry type-only event payloads and generic
-//! projections for the collection.*, artifact.*, agent.session.*, and
-//! skill.* lifecycle families via ship-types, with no platform-layer
-//! dependencies.
+//! related low-level substrate. No L1 domain logic and — post keystone-A —
+//! no domain event registrations: domain families (collection.*, artifact.*,
+//! studio.*, skill.*, auth.*, session.*, op.*, dispatch.*) register in their
+//! owning L1 crates; this crate registers only runtime mechanics (actor.*,
+//! process.*, executor.*, daemon.*, kernel.actor.*, mesh.*, pipeline.*,
+//! supervisor.shutting_down, settings.changed, sync.*†). The retired
+//! agent.session.* module survives only as an unregistered deserialization
+//! shim (#26). †sync.* is queued to move to ship-cloud.
 
 pub mod access;
 pub mod config_doc;

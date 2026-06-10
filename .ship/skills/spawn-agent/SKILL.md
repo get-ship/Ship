@@ -36,6 +36,7 @@ bash .ship/skills/spawn-agent/scripts/dispatch.sh \
 | `--dry-run` | Show what would happen |
 | `--confirm` | Show spec and ask y/n before launching |
 | `--batch <name>` | Group this dispatch into a shared wt window `ship-batch-<name>`. First call opens the window; each subsequent call with the same name adds a split-pane. Lets you monitor 4-5 parallel agents in ONE wt window instead of N tabs. Lock expires after 24h. Currently honored on the `wt` terminal path. |
+| `--harness <cli>` | Override the provider binary launched in the worktree: `claude` (default), `omp`, `codex`, etc. The harness must be authenticated in the launching terminal's environment. |
 
 ### Environment variables
 
@@ -80,9 +81,9 @@ These are personal configuration — set in your shell profile, not in project f
 
 <specific instructions>
 
-## Architectural context
-- Active ADRs: <relevant ADRs or "none">
-- Key constraints: <from CLAUDE.md or "none">
+## Constraints
+- Key constraints the agent must honor: <hard rules: never weaken guards/tests, never push, gate commands — or "none">
+- (Charter 2026-06-11: ADR/architecture-decision content is operator material — do NOT inject it into agent payloads. Constraints travel; rationale doesn't.)
 
 ## Acceptance criteria
 
