@@ -1,0 +1,93 @@
+<!--
+  <ship-principal-list> — @ship/authority · the principals (agents / roles) and what
+  each is granted — the "who" of authority. Row = principal · harness · max-grant
+  chips · edit. Editing a principal opens the bespoke tier-picker (the host's
+  agent-editor); this list emits the intent.
+
+  COMPOSES <ship-blast-tag> for each granted-tier chip (correction: no inlined
+  blast-tier CSS); denials render as a muted lock chip.
+
+  Data-driven: the design's fixture rows become the `principals` prop (a JSON
+  array); the host binds it to ▸read principals + policy.
+
+  Props:  principals  JSON string —
+            [{ name, harness, initials, tone, grants:[{domain,tier}], denials:[label] }]
+            tone ∈ primary | accent | info | success | warning  (the avatar hue)
+  Part:   list
+  Event (bubble + composed):
+    ship-edit { detail: { name } }   — the row's "Edit grants" was pressed
+-->
+<prop name="principals" type="string" default="[]" />
+
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  .p {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--card);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--divider);
+  }
+  .row:last-child { border-bottom: 0; }
+  .who { display: inline-flex; align-items: center; gap: 9px; }
+  .tile { width: 28px; height: 28px; border-radius: var(--radius-sm); display: grid; place-items: center; font-family: var(--font-mono); font-weight: 700; font-size: 11px; }
+  .t-primary { background: color-mix(in oklch, var(--primary) 16%, var(--card)); color: color-mix(in oklch, var(--primary) 88%, var(--foreground)); }
+  .t-accent  { background: color-mix(in oklch, var(--accent) 16%, var(--card));  color: color-mix(in oklch, var(--accent) 88%, var(--foreground)); }
+  .t-info    { background: color-mix(in oklch, var(--info) 16%, var(--card));    color: color-mix(in oklch, var(--info) 88%, var(--foreground)); }
+  .t-success { background: color-mix(in oklch, var(--success) 16%, var(--card)); color: color-mix(in oklch, var(--success) 88%, var(--foreground)); }
+  .t-warning { background: color-mix(in oklch, var(--warning) 16%, var(--card)); color: color-mix(in oklch, var(--warning) 88%, var(--foreground)); }
+  .who .nm { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-sm); }
+  .who .h { font-family: var(--font-mono); font-size: 10px; padding: 1px 6px; border-radius: var(--radius-sm); color: var(--muted-foreground); background: var(--muted); }
+  .grants { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .grant { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 10px; }
+  .grant .dom { color: var(--foreground); }
+  .deny { font-family: var(--font-mono); font-size: 10px; padding: 2px 8px; border-radius: var(--radius-full); color: var(--muted-foreground); background: var(--muted); }
+  .edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--card);
+    color: var(--muted-foreground);
+    cursor: pointer;
+  }
+  .edit:hover { background: var(--hover-bg); color: var(--foreground); }
+  .edit:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+  .edit svg { width: 11px; height: 11px; }
+</style>
+
+<div class="p" part="list">
+  {#for pr of list() key={pr.name}}
+    <div class="row">
+      <span class="who">
+        <span class={pr.tileCls}>{pr.initials}</span>
+        <span class="nm">{pr.name}</span>
+        <span class="h">{pr.harness}</span>
+      </span>
+      <span class="grants">
+        {#for g of pr.grants key={g.domain}}
+          <span class="grant"><span class="dom">{g.domain}</span><ship-blast-tag tier={g.tier}></ship-blast-tag></span>
+        {/for}
+        {#for d of pr.denials key={d}}
+          <span class="deny">{d} ✕</span>
+        {/for}
+      </span>
+      <button class="edit" type="button" on:click={() => edit(pr.name)}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>Edit grants
+      </button>
+    </div>
+  {/for}
+</div>

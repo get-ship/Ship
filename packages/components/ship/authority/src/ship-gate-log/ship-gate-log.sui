@@ -1,0 +1,74 @@
+<!--
+  <ship-gate-log> — @ship/authority · the live stream of gate verdicts (audit /
+  observability). Row = time · session · op · blast-tier · gate-verdict. The honest
+  record beneath the rendered UI: every effect, every decision.
+
+  COMPOSES the pack atoms — <ship-blast-tag> for the tier and <ship-gate-badge> for
+  the verdict — so the vocabulary reads identically to op-card and capability-bar.
+
+  Data-driven: the design's fixture rows become the `entries` prop (a JSON array);
+  the host binds it to the live ▸stream of gate verdicts. Presentational (no
+  events) — the controller only parses the rows.
+
+  Props:  space    string — the surface label in the header
+          entries  JSON string — [{ time, session, op, blast, decision }]
+          live     bool — header pulses while the stream is live (default true)
+  Part:   log
+-->
+<prop name="space" type="string" default="" />
+<prop name="entries" type="string" default="[]" />
+<prop name="live" type="bool" default="true" reflect />
+
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  .log {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--card);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+  }
+  .lh {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 13px;
+    border-bottom: 1px solid var(--divider);
+    background: var(--surface-2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted-foreground);
+  }
+  .lh .live { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); }
+  .lh .live .d { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  :host([live]) .lh .live .d { animation: gl 1.1s ease-in-out infinite; }
+  @keyframes gl { 50% { opacity: 0.3; } }
+  .row {
+    display: grid;
+    grid-template-columns: 60px auto 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 13px;
+    border-bottom: 1px solid var(--divider);
+  }
+  .row:last-child { border-bottom: 0; }
+  .tm { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-foreground); }
+  .ses { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); }
+  .op { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (prefers-reduced-motion: reduce) { :host([live]) .lh .live .d { animation: none; } }
+</style>
+
+<div class="log" part="log">
+  <div class="lh">
+    {#if isLive()}<span class="live"><span class="d"></span>live</span><span>· gate verdicts{spaceLabel()}</span>{:else}<span>gate verdicts{spaceLabel()}</span>{/if}
+  </div>
+  {#for e of rows() key={e.id}}
+    <div class="row">
+      <span class="tm">{e.time}</span>
+      <span class="ses">{e.session}</span>
+      <span class="op">{e.op}</span>
+      <ship-blast-tag tier={e.blast}></ship-blast-tag>
+      <ship-gate-badge decision={e.decision}></ship-gate-badge>
+    </div>
+  {/for}
+</div>
