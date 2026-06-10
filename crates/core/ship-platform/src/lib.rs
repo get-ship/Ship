@@ -93,6 +93,7 @@ pub mod services {
 
 }
 
+#[cfg(any(test, feature = "testutil"))]
 pub mod testutil;
 
 /// Install the platform-level projection set and substrate hooks. Call

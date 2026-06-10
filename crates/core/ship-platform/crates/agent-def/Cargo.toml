@@ -44,7 +44,10 @@ home = { workspace = true }
 [dev-dependencies]
 # Test helper (`testutil::init_project`) installs platform defaults; this is a
 # dev-only edge (Cargo permits the dev-dependency cycle through ship-platform).
-ship-platform = { path = "../.." }
+# The `testutil` feature enables `ship_platform::testutil` (gated on that
+# feature + cfg(test) in lib.rs) so agent-def tests can re-export it without a
+# local copy.
+ship-platform = { path = "../..", features = ["testutil"] }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
 tempfile = { workspace = true }
 chrono = { workspace = true }

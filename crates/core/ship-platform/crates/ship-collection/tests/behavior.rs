@@ -16,23 +16,9 @@ use ship_substrate::events::CallerKind;
 use ship_substrate::home::ShipHome;
 use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
-// ── Test-process setup ────────────────────────────────────────────────────────
+mod common;
 
-/// Register `CollectionItemProjection` into the substrate's extra-projections
-/// factory ONCE per test process.  In production this is done by
-/// `ship_platform::install_defaults()`; the test harness can't depend on
-/// ship-platform (that would create a cycle), so we do it directly here.
-fn install_collection_projection() {
-    use std::sync::Once;
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| {
-        ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
-            vec![Box::new(
-                ship_collection::item_projection::CollectionItemProjection,
-            )]
-        }));
-    });
-}
+// ── Test-process setup ────────────────────────────────────────────────────────
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -43,7 +29,7 @@ fn runtime_ctx() -> EmitContext {
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
     // Ensure CollectionItemProjection is in the extra-projections factory
     // before any SqliteEventStore (and its default_bus) is constructed.
-    install_collection_projection();
+    common::install_collection_projection();
     let ship_dir = ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let router = new_isolated_for_test(ship_dir).unwrap();
