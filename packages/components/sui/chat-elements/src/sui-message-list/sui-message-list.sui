@@ -60,7 +60,7 @@
 </style>
 
 <div class="scroll" part="scroll" bind:this={scrollEl}>
-  <div class="spacer" style:height={`${totalSize()}px`}>
+  <div class="spacer" part="spacer" style:height={`${totalSize()}px`}>
     {#for w of windowItems() key={w.key}}
       <div class="row" part="row" style:transform={`translateY(${w.start}px)`}>
         <sui-message
