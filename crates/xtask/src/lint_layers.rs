@@ -79,21 +79,22 @@ const OUTBOUND_ALLOWLIST: &[&str] = &[
     "ship-sidecar-proto",
 ];
 
-/// R2 known-violations — L0 crates that currently carry transport deps but are
-/// on R15's "not ours, leave" list (or whose de-bucket is a separate slice).
-/// Each emits a WARN; the lint does NOT fail on them. The owning lane ratchets
-/// these to the allowlist or fixes the architecture before removing them.
+/// R2 known-violations — L0 crates that currently carry transport deps but
+/// have not yet been reclassified or de-bucketed.
 ///
-/// - `ship-isolation` — host-side ConnectRPC CLIENT transport for driving the
-///   in-sandbox sidecar's server (connectrpc client + http + tower/hyper-util for
-///   the Firecracker uds/vsock h2 connector); also provides the IsolationService
-///   wire layer that shipd mounts. No Connect server runs inside the crate itself,
-///   but the transport deps live in L0 until the host-driver seam is de-bucketed.
+/// **This list is intentionally empty** as of the ship-isolation → L1 move.
+/// Transport is legal at L1, so the honest fix was a physical move, not a
+/// suppression entry. The list MUST stay empty: any L0 crate with a transport
+/// dep now hard-fails with no suppression path. A new justified row here is an
+/// architecture regression and must be reviewed as such.
+///
+/// (`ship-isolation` was here while it lived at L0; it is now at L1 under
+/// `crates/core/ship-platform/crates/ship-isolation` — transport is legal there.)
 ///
 /// (`ship-substrate` was here for the `reqwest` pulled by
 /// `services/human_gateway.rs`; that egress now lives in `ship-messaging` (L1)
 /// and the substrate is transport-clean — do NOT re-add it.)
-const R2_KNOWN_VIOLATIONS: &[&str] = &["ship-isolation"];
+const R2_KNOWN_VIOLATIONS: &[&str] = &[];
 
 // ── R4 — known L1→L2 / L0→L2 edges (WARN, non-blocking) ────────────────────────
 

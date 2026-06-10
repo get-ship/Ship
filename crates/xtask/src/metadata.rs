@@ -51,7 +51,6 @@ impl Layer {
 /// L0 sibling primitives that live under `crates/core/` next to ship-substrate.
 const L0_SIBLINGS: &[&str] = &[
     "ship-git",
-    "ship-isolation",
     "ship-cloud",
     "ship-ops-rpc",
     "ship-gateway-client",

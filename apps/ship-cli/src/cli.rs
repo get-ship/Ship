@@ -201,7 +201,7 @@ pub enum Commands {
     },
 
     /// Inspect agent isolation: detected host capabilities + recommended
-    /// strategy + per-OS defaults. See `crates/core/ship-isolation/docs/`.
+    /// strategy + per-OS defaults. See `crates/core/ship-platform/crates/ship-isolation/docs/`.
     Isolation {
         #[command(subcommand)]
         action: IsolationCommands,

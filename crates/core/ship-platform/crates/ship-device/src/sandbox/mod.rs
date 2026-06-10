@@ -1,7 +1,7 @@
 //! Sandbox registry — the orchestrator's per-project sandbox bookkeeping.
 //!
 //! A *sandbox* is the isolation boundary that contains 1..N actors.
-//! See `crates/core/ship-isolation/docs/runtime-architecture.md` for
+//! See `crates/core/ship-platform/crates/ship-isolation/docs/runtime-architecture.md` for
 //! the canonical design. This module is the daemon-side state that
 //! tracks which sandboxes exist, their state machine, and their idle
 //! reap timers.

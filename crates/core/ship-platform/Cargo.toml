@@ -66,7 +66,7 @@ ship-git = { path = "../ship-git" }
 ship-cloud = { path = "../ship-cloud", optional = true }
 # Isolation types + recommender. Default-features off — youki and
 # sidecar backends stay opt-in (the daemon's feature flags layer them in).
-ship-isolation = { path = "../ship-isolation", default-features = false }
+ship-isolation = { path = "crates/ship-isolation", default-features = false }
 compiler = { path = "../compiler", features = ["specta"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

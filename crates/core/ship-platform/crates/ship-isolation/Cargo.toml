@@ -3,7 +3,7 @@ name = "ship-isolation"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Ship-specific isolation strategies. The Isolator trait + abstract policy types live in ship-substrate; this crate provides the concrete backends (Docker, Youki, SandboxRuntime, sidecar) plus the recommender + registry + settings layer. v1 proto bindings live in ship-sidecar-proto and are consumed via that crate."
+description = "Ship-specific isolation strategies (L1). The Isolator trait + abstract policy types live in ship-substrate; this crate provides the concrete backends (Docker, Youki, SandboxRuntime, sidecar) plus the recommender + registry + settings layer. v1 proto bindings live in ship-sidecar-proto and are consumed via that crate."
 
 [features]
 default = []
@@ -14,9 +14,9 @@ youki-backend = ["dep:libc"]
 sidecar-mode = ["dep:reqwest"]
 
 [dependencies]
-ship-substrate = { path = "../ship-substrate" }
-ship-sidecar-proto = { path = "../ship-sidecar-proto" }
-ship-ops-rpc = { path = "../ship-ops-rpc" }
+ship-substrate = { path = "../../../ship-substrate" }
+ship-sidecar-proto = { path = "../../../ship-sidecar-proto" }
+ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }

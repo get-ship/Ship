@@ -6,7 +6,7 @@
 #
 # Output: target/wsl/ship-substrate.tar (a WSL2 rootfs: busybox userland +
 # static-musl ship-sidecar + minimal /etc). Verified by the wsl_sidecar_live
-# POC recipe (see crates/core/ship-isolation/src/backends/wsl.rs).
+# POC recipe (see crates/core/ship-platform/crates/ship-isolation/src/backends/wsl.rs).
 #
 # Import on Windows (or via interop):
 #   wsl.exe --import ship-substrate C:\ship\substrate target\wsl\ship-substrate.tar --version 2

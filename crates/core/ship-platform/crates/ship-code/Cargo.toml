@@ -14,7 +14,7 @@ ship-substrate = { path = "../../../ship-substrate" }
 ship-runner = { path = "../../../ship-substrate/crates/ship-runner" }
 ship-harnesses = { path = "../ship-harnesses" }
 ship-auth = { path = "../ship-auth" }
-ship-isolation = { path = "../../../ship-isolation", default-features = false }
+ship-isolation = { path = "../ship-isolation", default-features = false }
 ship-device = { path = "../ship-device" }
 ship-files = { path = "../ship-files" }
 ship-config = { path = "../ship-config" }
