@@ -24,6 +24,7 @@ import { sharedSource } from './shared-source'
 import { MuxClient } from './mux-client'
 import { liveStream } from './live-stream'
 import { createShipConnectClient, SettingScope } from '@ship/sdk/connect'
+export type { AgentDetail } from '@ship/sdk/connect'
 
 /// Single source of truth for the client-side serve-scheme URL prefix.
 /// Every TS literal that names `/_deck/...` (and the companion Rust

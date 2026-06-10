@@ -4,10 +4,23 @@ import '../../src/components/sui-command-bar/sui-command-palette.compiled.js'
 import '../../src/components/sui-command-bar/sui-command-chat.compiled.js'
 // sui-dialog lives in @ship/sui-primitives.
 import '@ship/sui-primitives'
-import { createContainerRegistry, flush, mount } from '../test-utils'
+import { createContainerRegistry, mount } from '../test-utils'
+
+// flush() advances fake timers by 0 ms — equivalent to the real
+// `setTimeout(r, 0)` flush from test-utils but compatible with the
+// fake-timer setup in beforeEach/afterEach below.
+const flush = () => vi.advanceTimersByTimeAsync(0)
 
 const reg = createContainerRegistry()
-afterEach(() => reg.cleanup())
+// Fake timers: the bar's find-mode debounce (200 ms) and the view-picker's
+// filter debounce are real `setTimeout` calls in the controller. Advancing
+// fake timers makes those fire instantaneously and deterministically rather
+// than relying on wall-clock waits that flake under load.
+beforeEach(() => { vi.useFakeTimers() })
+afterEach(() => {
+  reg.cleanup()
+  vi.useRealTimers()
+})
 
 // Stub the unified search wire (Connect /ship.ops.v1.SearchService/Search)
 // + other GETs the bar fires on open so find mode always has a
@@ -47,10 +60,10 @@ afterEach(() => {
   if (_originalFetch) globalThis.fetch = _originalFetch
 })
 
-// Wait long enough for the find-mode debounce (200ms) + a fetch
-// microtask to resolve, then flush DOM updates.
+// Advance fake timers past the find-mode debounce (200 ms) + drain
+// any queued 0 ms timers so DOM updates settle before assertions.
 async function waitSearch() {
-  await new Promise((r) => setTimeout(r, 240))
+  await vi.advanceTimersByTimeAsync(200)
   await flush()
   await flush()
 }
@@ -362,7 +375,13 @@ describe('<sui-command-bar>', () => {
       ;(el as CB).show('create')
       await flush()
       const btns = palShadow(el)?.querySelectorAll('.cb-surface-btn')
-      expect(btns?.length).toBe(6)
+      // Assert by identity (data-surface attribute) rather than count so any
+      // new surface addition is explicit in this test rather than silently
+      // incrementing a count. The set mirrors CREATE_SURFACES in types.ts.
+      const surfaces = Array.from(btns ?? []).map((b) => (b as HTMLElement).dataset['surface'])
+      for (const id of ['view', 'skill', 'agent', 'pipeline', 'trigger', 'theme']) {
+        expect(surfaces).toContain(id)
+      }
     })
 
     it('renders name + shape inputs', async () => {

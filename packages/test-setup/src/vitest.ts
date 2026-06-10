@@ -11,11 +11,11 @@
 // anywhere under `packages/` and its tests keep working with zero edits.
 
 import { defineConfig } from 'vitest/config'
-import type { ViteUserConfig as VitestUserConfig } from 'vitest/config'
+import type { Plugin, ViteUserConfig as VitestUserConfig } from 'vitest/config'
 import { createRequire } from 'node:module'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve, dirname, basename, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 // @ts-expect-error — JS module, no .d.ts.
 import { spawnBoundedOrThrow } from './spawn-bounded.mjs'
 
@@ -116,6 +116,59 @@ function compileSui(suiPath: string, stem: string): void {
 
 function mirrorArtifactFor(sourceDir: string, stem: string): string {
   return resolve(mirrorRoot, relative(repoRoot, sourceDir), `${stem}.compiled.js`)
+}
+
+// ── Shared Vite plugin factories ────────────────────────────────────────────
+//
+// `pinImportMetaUrlPlugin` and `shadowForComponentCompilePlugin` were
+// previously copy-pasted into every component package that mounts
+// renderComponent-based tests (sui-media, sui-primitives, ship-viewer).
+// Export them here so each vitest.config.ts calls the factory instead.
+
+/**
+ * Pin `import.meta.url` in spec files to the literal `file://` URL of the
+ * test file, BEFORE Vite's `assetImportMetaUrl` plugin rewrites
+ * `new URL('<lit>', import.meta.url)` to `self.location` (an http URL under
+ * happy-dom, which `readFileSync` rejects).
+ *
+ * @param name - Component name used as the plugin name prefix (e.g. `'sui-media'`).
+ */
+export function pinImportMetaUrlPlugin(name: string): Plugin {
+  return {
+    name: `${name}:pin-import-meta-url`,
+    enforce: 'pre',
+    transform(code: string, id: string) {
+      const path = id.split('?', 1)[0] ?? id
+      if (!/\.test\.ts$/.test(path)) return null
+      if (!code.includes('import.meta.url')) return null
+      const literal = JSON.stringify(pathToFileURL(path).href)
+      return { code: code.split('import.meta.url').join(literal), map: null }
+    },
+  }
+}
+
+/**
+ * Inject `shadow: true` into the component-mode compile opts so an inline
+ * test compile matches the production shadow-DOM shape. The bin/FFI compiler
+ * that produces `.compiled.js` hardcodes `shadow:true`; the WASM/native
+ * default is `shadow:false`. Component mode only — view compiles are untouched.
+ *
+ * @param name - Component name used as the plugin name prefix (e.g. `'sui-media'`).
+ */
+export function shadowForComponentCompilePlugin(name: string): Plugin {
+  return {
+    name: `${name}:shadow-for-component-compile`,
+    enforce: 'pre',
+    transform(code: string, id: string) {
+      if (!/[\\/]test-utils[\\/]compile-sui\.ts$/.test(id)) return null
+      const needle = 'setupUrl: opts.setupMarker,'
+      if (!code.includes(needle)) return null
+      return {
+        code: code.replace(needle, `${needle}\n    shadow: opts.componentName != null,`),
+        map: null,
+      }
+    },
+  }
 }
 
 export interface SuiComponentVitestOptions {
