@@ -10,6 +10,19 @@
 //! Lives at L1 (`ship-messaging`) because the adapters make outbound HTTP
 //! calls — egress is forbidden in the L0 substrate. The generic
 //! [`ServiceHandler`] plumbing it implements stays in `ship-substrate`.
+//!
+//! # Topology exception
+//!
+//! `ship-messaging` is an **intended-extension-point** crate (documented
+//! operator exception to Rule C2 in `.artifacts/topology-proposal.md`).
+//! It currently has one intra-workspace consumer (`shipd`) but is deliberately
+//! kept as a standalone crate because new consumers are expected:
+//! - `ship-triggers` (event-triggered notifications)
+//! - future Slack adapter
+//! - future WhatsApp adapter
+//!
+//! Re-reviewed at the next topology audit; the exception lapses if no second
+//! consumer has arrived by then.
 
 pub mod event_registrations;
 

@@ -6,9 +6,9 @@ use specta::TypeCollection;
 use specta_typescript::{BigIntExportBehavior, Typescript};
 
 use crate::{
-    build_assets, coverage, gen_audit_readme, gen_collection_types, gen_contract, gen_events,
-    gen_fixtures, gen_icons, gen_indexes, gen_skills, gen_sdk, lint_anti_theater, lint_imports,
-    lint_layers, lint_residue, port_descriptions, types,
+    build_assets, check_topology, coverage, gen_audit_readme, gen_collection_types, gen_contract,
+    gen_events, gen_fixtures, gen_icons, gen_indexes, gen_skills, gen_sdk, lint_anti_theater,
+    lint_imports, lint_layers, lint_residue, port_descriptions, types,
 };
 
 pub fn repo_root() -> PathBuf {
@@ -34,6 +34,12 @@ pub fn dispatch(cmd: &str, args: &[String]) {
         "gen-sdk" => {
             if let Err(e) = gen_sdk::run(&repo_root()) {
                 eprintln!("gen-sdk failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
+        "check-topology" => {
+            if let Err(e) = check_topology::run(&repo_root()) {
+                eprintln!("check-topology failed: {e}");
                 std::process::exit(1);
             }
         }
@@ -161,6 +167,7 @@ fn print_help() {
     eprintln!("  gen-sdk               Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
     eprintln!("  gen-fixtures          Emit proto contract fixtures from proto/fixtures/fixture-seed.json");
     eprintln!("  gen-icons             Bake lucide-icons.json from node_modules/lucide-static");
+    eprintln!("  check-topology        Assert workspace topology invariants: nesting depth (N1) + single-consumer allowlist (C2)");
     eprintln!("  lint-layers           Verify L0/L1/L2 boundaries from the resolved cargo-metadata graph (R0-R4)");
     eprintln!("  lint-imports          Verify layer-direction rules at the `use`-statement level");
     eprintln!("  lint-anti-theater     Ban source-grep-in-tests (R18): include_str!/read_to_string of a .rs + .contains/.find");

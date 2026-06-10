@@ -14,7 +14,7 @@
 
 use std::path::PathBuf;
 
-use crate::home::ShipHome;
+use ship_substrate::ShipHome;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ToolchainError {
