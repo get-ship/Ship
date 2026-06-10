@@ -284,7 +284,7 @@ mod tests {
         write(&r.join("src/chrome/layout.css"), ".a{color:red}\n");
 
         let out = r.join("dist");
-        let build = bundle_app(r, None, &[], r, &out, false, false, r, r)
+        let build = bundle_app(r, None, &[], &[], r, &out, false, false, r, r)
             .await
             .expect("bundle_app");
 
@@ -332,7 +332,7 @@ mod tests {
         write(&r.join("src/chrome/layout.css"), ".a{color:red}\n");
 
         let out = r.join("dist");
-        let build = bundle_app(r, None, &[], r, &out, false, false, r, r)
+        let build = bundle_app(r, None, &[], &[], r, &out, false, false, r, r)
             .await
             .expect("bundle_app should compile the .sui entry in-process");
 
