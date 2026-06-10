@@ -15,11 +15,7 @@ export type {
   ShipEvent,
 } from './client'
 
-export {
-  DirectTransport,
-  InjectedTransport,
-  BridgeTransport,
-} from './transport'
+export { DirectTransport } from './transport'
 export type {
   Transport,
   TransportRequestInit,
@@ -34,8 +30,3 @@ export type * from './types'
 export * from './generated/routes'
 export { shipFetch, ShipApiError } from './fetch'
 
-// View-mount host + bundle loader — parked pending decision on
-// bundle-load views. See packages/sdk/src/view-mount/README.md (moved
-// from apps/web during the gateway migration).
-export { ViewMount } from './view-mount/ViewMount'
-export { ViewHost } from './view-mount/ViewHost'

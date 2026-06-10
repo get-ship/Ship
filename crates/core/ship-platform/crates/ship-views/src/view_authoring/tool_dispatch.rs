@@ -14,7 +14,7 @@ use ship_substrate::gen_ulid;
 use ship_types::sha256_hex;
 
 use crate::view_authoring::{
-    self, AnnotationKind, CompileError, SnapshotMeta, ViewAnnotateResponse,
+    self, CompileError, SnapshotMeta,
     ViewCompileCheckResponse, ViewListSiblingsResponse, ViewListSnapshotsResponse,
     ViewPreviewSnapshotResponse, ViewReadSourceResponse, ViewRestoreSnapshotResponse,
     ViewThemeTokensResponse, ViewWriteSourceResponse,
@@ -70,7 +70,6 @@ pub async fn dispatch(
             message: "calling session is not in view-edit mode for this view".into(),
         };
     }
-
     match op.as_str() {
         "read_source" => op_read_source(&view_name),
         "write_source" => op_write_source(port, &view_name, &session_id, args).await,
@@ -79,7 +78,6 @@ pub async fn dispatch(
         "list_siblings" => op_list_siblings(&view_name),
         "theme_tokens" => op_theme_tokens(port),
         "preview_snapshot" => op_preview_snapshot(&view_name),
-        "annotate" => op_annotate(port, &view_name, &session_id, args).await,
         "list_snapshots" => op_list_snapshots(port, &view_name, args).await,
         "restore_snapshot" => op_restore_snapshot(port, &view_name, &session_id, args).await,
         other => DispatchResult::BadRequest {
@@ -190,7 +188,6 @@ async fn op_write_source(
     match port.build_view(&target).await {
         Ok(_) => {
             let content_hash = snapshot_meta.content_hash.clone();
-            port.schedule_annotation_clear(name.to_string());
             ok_json(&ViewWriteSourceResponse {
                 snapshot_id: Some(snapshot_meta.snapshot_id),
                 content_hash,
@@ -312,39 +309,6 @@ fn op_preview_snapshot(name: &str) -> DispatchResult {
         }),
         Err(msg) => DispatchResult::Internal { code: "render_failed", message: msg },
     }
-}
-
-async fn op_annotate(
-    port: &dyn ViewToolPort,
-    name: &str,
-    agent_id: &str,
-    args: serde_json::Value,
-) -> DispatchResult {
-    #[derive(serde::Deserialize)]
-    struct A {
-        selector: String,
-        note: String,
-        #[serde(default)]
-        kind: Option<AnnotationKind>,
-        #[serde(default)]
-        turn_id: Option<String>,
-    }
-    let a: A = match serde_json::from_value(args) {
-        Ok(v) => v,
-        Err(e) => return DispatchResult::BadRequest { code: "bad_args", message: e.to_string() },
-    };
-    let annotation_id = gen_ulid();
-    let payload = serde_json::json!({
-        "annotation_id": annotation_id,
-        "view_name": name,
-        "selector": a.selector,
-        "note": a.note,
-        "kind": a.kind.map(|k| k.as_str().to_string()).unwrap_or_else(|| "info".into()),
-        "turn_id": a.turn_id.unwrap_or_else(|| agent_id.to_string()),
-        "timestamp": chrono::Utc::now().to_rfc3339(),
-    });
-    port.publish_annotation(name, payload).await;
-    ok_json(&ViewAnnotateResponse { annotation_id })
 }
 
 async fn op_list_snapshots(
@@ -523,7 +487,6 @@ mod tests {
             "list_siblings",
             "theme_tokens",
             "preview_snapshot",
-            "annotate",
             "list_snapshots",
             "restore_snapshot",
         ];

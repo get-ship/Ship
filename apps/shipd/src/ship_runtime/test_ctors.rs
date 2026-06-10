@@ -73,6 +73,9 @@ impl ShipRuntime {
             pipeline_reactive: std::sync::OnceLock::new(),
             pipeline_watch_kernel: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
+            shutdown_token: std::sync::OnceLock::new(),
+            live_resolvers: Arc::new(crate::live_resolvers::build()),
         }
     }
+
 }

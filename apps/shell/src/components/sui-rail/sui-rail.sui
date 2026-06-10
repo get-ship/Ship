@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-rail> — vertical chrome nav.
 
@@ -233,6 +232,15 @@
         >
           <span class="sui-rail-project-popover-row-name">{p.label || p.name}</span>
           <span class="sui-rail-project-popover-row-path">{p.path}</span>
+          <button
+            type="button"
+            class="sui-rail-project-popover-open"
+            data-space-open={p.id}
+            title="Open this project in its own window"
+            aria-label="Open in its own window"
+          >
+            <sui-icon name="external-link" size="sm"></sui-icon>
+          </button>
         </div>
       {/for}
       <div class="sui-rail-project-popover-sep"></div>

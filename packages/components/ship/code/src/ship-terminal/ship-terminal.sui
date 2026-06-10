@@ -1,0 +1,89 @@
+<!--
+  <ship-terminal> — SUI port of <ship-terminal>. First SUI component wrapping a
+  third-party imperative engine (xterm.js). Establishes the canonical pattern:
+    bind:this={ref} + controller(def).mount() + host.dispatchEvent bridge.
+
+  Prop / event / method parity vs <ship-terminal>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                       SUI                     Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  rows (Number, 24)         rows (number, 24)        ✓
+  cols (Number, 80)         cols (number, 80)        ✓
+  font-size (Number, 0)     font-size (number, 0)    ✓
+  readonly (Boolean, false) readonly (bool, reflect) ✓
+  theme (String, auto)      theme (union, reflect)   ✓
+  fit (Boolean, false)      fit (bool, reflect)      ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  write(data)               host.write(data)         ✓ imperative API on host
+  writeln(data)             host.writeln(data)       ✓
+  clear()                   host.clear()             ✓
+  focus()                   host.focus()             ✓
+  terminal (getter)         host.terminal            ✓ raw xterm.js instance
+  ─────────────────────────────────────────────────────────────────────────────
+  ship-data event           ship-terminal-data        ✓ renamed per SUI naming
+  ship-ready event          ship-terminal-ready       ✓
+  ship-key event            ship-terminal-key         ✓ (new; Lit omits key evt)
+  ─────────────────────────────────────────────────────────────────────────────
+  Search overlay            DEFERRED                 controller.on state
+                                                     mutation requires broader
+                                                     framework work; annotated
+                                                     in ship-terminal.ts.
+  SearchAddon               DEFERRED                 same reason
+  ─────────────────────────────────────────────────────────────────────────────
+  parts: wrap               part="wrap"              ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  canvas-fallback class     omitted                  WebGL is preferred; canvas
+                                                     row-clip workaround not
+                                                     ported until needed.
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="rows" type="number" default="24" />
+<prop name="cols" type="number" default="80" />
+<prop name="font-size" type="number" default="0" />
+<prop name="readonly" type="bool" default="false" reflect />
+<prop name="theme" values="light|dark|auto" default="auto" reflect />
+<prop name="fit" type="bool" default="false" reflect />
+
+<style>
+  :host {
+    display: block;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--background);
+  }
+  :host([hidden]) { display: none; }
+
+  .terminal-wrap {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .terminal-wrap .xterm {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .terminal-wrap .xterm-viewport {
+    overflow-y: auto;
+  }
+
+  @media (forced-colors: active) {
+    :host {
+      outline: 1px solid CanvasText;
+    }
+  }
+</style>
+
+<div
+  class="terminal-wrap"
+  part="wrap"
+  bind:this={termHost}
+  role={readonly() ? 'log' : 'terminal'}
+  aria-label={readonly() ? 'Log output' : 'Terminal'}
+  aria-readonly={readonly() ? 'true' : null}
+></div>

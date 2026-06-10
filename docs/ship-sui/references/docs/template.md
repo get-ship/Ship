@@ -72,7 +72,7 @@ The `source` expression is plain JS that runs inside `live()`'s tracked reactive
 <button disabled={disabled() || loading()}>{label()}</button>
 ```
 
-The file IS the component. `<prop>` appears at the top of a component `.sui` file alongside `<data>` — no wrapper element needed. There is no per-component config file: the compiler takes the tag name and shadow flag via `CompileOpts.component_meta` (driven by `sui-build` from the directory name / build config). Convention is the contract — directory name is the tag name. Views (top-level page surfaces) do not use `<prop>`.
+The file IS the component. `<prop>` appears at the top of a component `.sui` file alongside `<data>` — no wrapper element needed. There is no per-component config file: the compiler takes the tag name and shadow flag via `CompileOpts.component_meta` (driven by the deck bundler from the directory name). Convention is the contract — directory name is the tag name. Views (top-level page surfaces) do not use `<prop>`.
 
 Prop kinds: `string` (default), `bool`, `number`, `values="a|b|c"` (union). `reflect` mirrors the prop to the host element's attributes.
 
@@ -92,7 +92,7 @@ Prop kinds: `string` (default), `bool`, `number`, `values="a|b|c"` (union). `ref
 
 The `mutation` attribute is a `ship.*` SDK chain. `<form mutation>` is the write-side complement to `<data>`. The compiler wires it at compile time: on submit, the form is serialized as `FormData` and the SDK chain is called. `$mutation` is injected into view scope as a `Signal<LiveState<unknown>>` — the same `{ kind: 'loading' | 'ok' | 'error' }` envelope as `<data live>`.
 
-Progressive enhancement: when JS is absent the SSR walker injects `action="/_sui/mutation/{view}?form=bN"` and `method="post"` on the form. The daemon handles the POST and redirects back to `Referer`. See [data-subscriptions.md](data-subscriptions.md#mutations) for the full envelope shape and PE flow.
+Progressive enhancement: when JS is absent the SSR walker injects `action="/_deck/mutation/{view}?form=bN"` and `method="post"` on the form. The daemon handles the POST and redirects back to `Referer`. See [data-subscriptions.md](data-subscriptions.md#mutations) for the full envelope shape and PE flow.
 
 **Threshold rule.** A template with no paired `controller.ts` (tier-1) may not have multi-statement `on:event` handler bodies. The compiler enforces this at build time (`crates/sui/compiler/src/check/handler_complexity.rs`):
 

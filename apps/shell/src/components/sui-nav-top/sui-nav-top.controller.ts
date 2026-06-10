@@ -1,12 +1,6 @@
 import { chrome, controller, derived, signal } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
-import { ops } from '../../ops'
 import type { Scope } from './sui-nav-top.sui'
-
-interface ApiView {
-  name: string
-  rail?: { label: string; icon: string }
-}
 
 interface Crumb {
   href: string
@@ -30,16 +24,10 @@ function humanize(id: string): string {
 }
 
 async function fetchViewLabels(): Promise<Map<string, string>> {
-  try {
-    const body = JSON.parse((await ops.discovery.list({})).json) as { views?: ApiView[] }
-    const map = new Map<string, string>()
-    for (const v of body.views ?? []) {
-      if (v.rail?.label) map.set(v.name, v.rail.label)
-    }
-    return map
-  } catch {
-    return new Map()
-  }
+  // Views are client-side routes; the daemon discovery catalog was quarantined
+  // (06153c1a5). Cut the dead op — rail labels fall back to humanize() until the
+  // router→view-list integration lands.
+  return new Map<string, string>()
 }
 
 function navigateDoc(to: string): void {

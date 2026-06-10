@@ -3,8 +3,10 @@
 // single long-lived observe channel). The daemon streams every kernel event as
 // JSON (JsonResponse.json = the serialized EventEnvelope). C0: observe-only.
 //
-// Retires the `/api/v1/runtime/events` SSE route — SSE was just one stream
-// adapter; the deck consumes this Connect stream instead.
+// Intended to replace the SSE event stream (Route::EventStream, GET
+// /api/v1/events/stream) — SSE is one stream adapter over the same kernel
+// subscription and is STILL MOUNTED today; deck migration to this Connect
+// stream is pending.
 syntax = "proto3";
 
 package ship.ops.v1;

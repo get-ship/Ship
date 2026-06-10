@@ -156,7 +156,7 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-code': 'observability',
   'sui-copy-button': 'observability',
   'sui-diff': 'observability',
-  'sui-git-diff': 'observability',
+  'ship-git-diff': 'observability',
   'sui-history-row': 'observability',
   'sui-json-view': 'observability',
   'sui-log-stream': 'observability',
@@ -173,8 +173,6 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-auth-dialog': 'domain',
   'sui-pipeline-dag': 'domain',
   'sui-pipeline-step': 'domain',
-  'sui-pipeline-step-def': 'domain',
-  'sui-pipeline-definition': 'domain',
   'sui-pipeline-run': 'domain',
   'sui-graph-canvas': 'domain',
   'sui-harness-blob': 'domain',
@@ -213,16 +211,15 @@ function deriveCategory(tag: string): ComponentCategory {
 }
 
 /**
- * Tags that opt into their own bundle via the `<bundle separate />`
- * directive on their `.sui` source — bundled separately and loaded
- * on-demand by the shell (not in the main `sui-components.js` bundle
- * the docs site links from the layout).
+ * Tags that are bundled separately and loaded on-demand by the shell
+ * (not in the main `sui-components.js` bundle the docs site links from
+ * the layout).
  * Excluded from the per-component pages because their custom elements
  * are not registered at the URL these docs serve from, so any preview
  * would render an undefined-element husk.
  */
 const ISLAND_TAGS = new Set([
-  'sui-code-editor',
+  'ship-code-editor',
   'sui-command-bar',
   'sui-command-chat',
   'sui-devtools-components',
@@ -230,13 +227,13 @@ const ISLAND_TAGS = new Set([
   'sui-devtools-signals',
   'sui-devtools-source',
   'sui-launcher',
-  'sui-markdown-editor',
+  'ship-markdown-editor',
   'sui-nav-top',
   'sui-panel-dock',
   'sui-rail',
   'sui-rail-item',
   'sui-rail-section',
-  'sui-terminal',
+  'ship-terminal',
 ]);
 
 /**
@@ -257,11 +254,10 @@ const HIDDEN_TAGS = new Set([
   'sui-tree-item',
   'sui-accordion-item',
   'sui-navigation-item',
-  'sui-pipeline-step-def',
   'sui-timeline-item',
-  'sui-git-diff-file',
-  'sui-git-diff-hunk',
-  'sui-git-diff-line',
+  'ship-git-diff-file',
+  'ship-git-diff-hunk',
+  'ship-git-diff-line',
   'sui-toast-host',
   'sui-annotation-layer',
   'sui-annotation-marker',

@@ -16,6 +16,7 @@ fn install_test_platform_defaults() {
     ship_pipeline_runtime::install_projections();
 }
 
+pub mod data_port;
 #[cfg(feature = "ship-code")]
 pub mod sessions;
 pub mod auth;
@@ -63,7 +64,11 @@ pub mod registry_rpc;
 pub mod sui_rpc;
 pub mod search_context;
 pub mod search_rpc;
-// (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
+pub mod live_resolvers;
+// (former `window_subscriptions` + `window_subscription_rpc` modules
+// deleted in the multiplex transport move to deck-axum (#276); the per-window
+// registry now lives in `deck_core::window_registry` and the wire is mounted
+// in `apps/shipd/src/router.rs`.)
 pub mod views;
 pub mod ship_runtime;
 // Tests for supervisor + shipd-internal integration (use ApiState,
@@ -97,7 +102,7 @@ use ship_substrate::events::daemon::{
     PortBindFailedPayload, ShutdownCompletedPayload, StartupCompletedPayload,
     event_types as daemon_events,
 };
-use ship_substrate::events::{EventEnvelope, EventStore, SqliteEventStore};
+use ship_substrate::events::{EventEnvelope, SqliteEventStore};
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
@@ -175,9 +180,14 @@ pub async fn run_network(
         if fp_root.is_dir() {
             // SAFETY: set once at startup, before any request thread reads it.
             unsafe {
-                std::env::set_var("SHIP_FIRST_PARTY_VIEWS", &fp_root);
+                std::env::set_var("DECK_FIRST_PARTY_VIEWS", &fp_root);
             }
+            tracing::info!(path = %fp_root.display(), "shipd: DECK_FIRST_PARTY_VIEWS set");
+        } else {
+            tracing::warn!(path = %fp_root.display(), "shipd: DECK_FIRST_PARTY_VIEWS not set; first-party root missing");
         }
+    } else {
+        tracing::warn!("shipd: worktree_root is None; DECK_FIRST_PARTY_VIEWS not set");
     }
 
     // One-time hint for the worktree footgun: if `ProjectRoot::discover`
@@ -208,13 +218,13 @@ pub async fn run_network(
     })?;
     if let Some(ref w) = workspace_dir {
         tracing::info!(workspace = %w.display(), daemon_dir = %daemon_dir.display(), "shipd: project-scoped mode");
-        // Make `--workspace` authoritative for the SUI resolver chain
-        // (deck-core's resolver consults `SHIP_DEV_PROJECT_DIR`
-        // first; without this it falls back to CWD + worktree-aware
-        // resolution, which redirects into the parent checkout's
-        // `views/` when the workspace lives inside a git worktree).
-        // The explicit env var lets test fixtures and per-project
-        // daemons stay scoped to their own `views/` directory.
+        // Make `--workspace` authoritative for the SUI resolver chain.
+        // deck-core's resolver consults an in-process global set by
+        // `deck::resolver::set_project_root` (the SAFE path) — see the
+        // call below. The `Var::DevProjectDir` env var is kept for
+        // non-deck readers (apps/shipd/src/views/discovery.rs, ship-agents
+        // view_state.rs) that still key off it; deck-core no longer
+        // reads it.
         //
         // Leave any pre-existing value alone — callers that need a
         // different SUI resolver root than the daemon workspace
@@ -230,9 +240,19 @@ pub async fn run_network(
             // SAFETY: pre-async-runtime, no concurrent env access.
             unsafe { env::set(Var::DevProjectDir, w); }
         }
-    } else {
-        tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");
-    }
+        // Authoritative project-root override for deck-core's resolver. Same
+        // value the router reads at DeckConfig::load time (router.rs's
+        // `rt.workspace_dir()`/cwd fallback) so the resolver and the
+        // bundler agree on where `<root>/.deck` lives. Non-deck readers
+        // (apps/shipd/src/views/discovery.rs, ship-agents view_state.rs)
+        // still rely on the env var above.
+        let repo_root = Some(w.clone()).or_else(|| std::env::current_dir().ok());
+        if let Some(r) = repo_root {
+            deck::resolver::set_project_root(r);
+        }
+     } else {
+         tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");
+     }
 
     // Resolve the desired port. Caller-supplied --port wins; otherwise we
     // derive from the worktree root (path-hash + local.jsonc:worktrees.ports
@@ -366,94 +386,19 @@ pub async fn run_network(
         });
     }
 
-    // Start the Bun bundler worker. In dev mode, also forward module_changed
-    // events to the HMR SSE channel so browser clients get in-place updates.
-    {
+    // Start the in-process bundler's file watcher. HMR SSE clients subscribe the
+    // bundler's broadcast directly via deck's `serve_bundle_hmr` handler, so the
+    // daemon no longer forwards events through a parallel channel. The watcher
+    // task's JoinHandle is captured (#256) so shutdown can abort it instead of
+    // leaving it detached to hold the runtime alive past SIGTERM.
+    let bundler_watcher: tokio::task::JoinHandle<()> = {
         let bundler = rt.bundler().clone();
-        let mut events = bundler.subscribe_events();
-        let mode = daemon_mode;
         tokio::spawn(async move {
             if let Err(e) = bundler.start_watching().await {
                 tracing::warn!("bundler: could not start file watching: {e}");
             }
-            loop {
-                match events.recv().await {
-                    Ok(deck::bundler::BundlerEvent::ModuleChanged { target, out_path, bytes }) => {
-                        // Mirror view-targeted compiles onto the per-view
-                        // SSE channel so view-edit-mode UI can flash a
-                        // "saved" indicator without subscribing to /_sui/dev/hmr.
-                        if let Some(view_name) =
-                            views::sui_view_edit_sse::view_name_from_bundler_target(&target)
-                        {
-                            let payload = views::sui_view_edit_sse::CompileEventPayload {
-                                view_name: view_name.to_string(),
-                                timestamp: chrono::Utc::now().to_rfc3339(),
-                                message: None,
-                                line: None,
-                                col: None,
-                                file: None,
-                            };
-                            let view_name_owned = view_name.to_string();
-                            tokio::spawn(async move {
-                                views::sui_view_edit_sse::publish_compiled(
-                                    &view_name_owned,
-                                    &payload,
-                                )
-                                .await;
-                            });
-                        }
-                        if mode == deck::DaemonMode::Development {
-                            views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
-                                kind: views::sui_hmr::BundleModuleEventKind::ModuleChanged,
-                                target,
-                                out_path: Some(out_path),
-                                bytes: Some(bytes),
-                                message: None,
-                                line: None,
-                                col: None,
-                                file: None,
-                            });
-                        }
-                    }
-                    Ok(deck::bundler::BundlerEvent::CompileError { target, message, line, col, file }) => {
-                        if let Some(view_name) =
-                            views::sui_view_edit_sse::view_name_from_bundler_target(&target)
-                        {
-                            let payload = views::sui_view_edit_sse::CompileEventPayload {
-                                view_name: view_name.to_string(),
-                                timestamp: chrono::Utc::now().to_rfc3339(),
-                                message: Some(message.clone()),
-                                line,
-                                col,
-                                file: file.clone(),
-                            };
-                            let view_name_owned = view_name.to_string();
-                            tokio::spawn(async move {
-                                views::sui_view_edit_sse::publish_errored(
-                                    &view_name_owned,
-                                    &payload,
-                                )
-                                .await;
-                            });
-                        }
-                        if mode == deck::DaemonMode::Development {
-                            views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
-                                kind: views::sui_hmr::BundleModuleEventKind::CompileError,
-                                target,
-                                out_path: None,
-                                bytes: None,
-                                message: Some(message),
-                                line,
-                                col,
-                                file,
-                            });
-                        }
-                    }
-                    Err(_) => break,
-                }
-            }
-        });
-    }
+        })
+    };
 
     // Register the launch-time project (if any) into the space registry so the
     // launcher / shell sees it on first list. Idempotent — ship-space emits
@@ -505,6 +450,12 @@ pub async fn run_network(
     let ct = CancellationToken::new();
     let ct2 = ct.clone();
     tokio::spawn(async move { daemon::shutdown_signal().await; ct2.cancel(); });
+    // Hand the runtime a CHILD of the signal token (#256) so long-lived SSE
+    // keepalive/data loops can `select!` against cancellation. When the signal
+    // handler above cancels `ct`, the child fires and those streams close —
+    // letting axum's graceful-shutdown drain finish instead of hanging on a
+    // never-closing SSE connection until SIGKILL.
+    rt.set_shutdown_token(ct.child_token());
 
     let session_registry = rt.session_registry().clone();
     // Install the process-wide registry handle so the host-side spawn path
@@ -534,7 +485,6 @@ pub async fn run_network(
         session_registry,
         pairing_registry,
         attestation_verifier,
-        ct.child_token(),
         daemon_mode,
     );
     // Bind the listener with collision retry. On EADDRINUSE we increment
@@ -653,11 +603,30 @@ pub async fn run_network(
         .with_graceful_shutdown(async move { ct.cancelled_owned().await })
         .await.map_err(|e| anyhow!("server error: {e}"))?;
 
+    // Serve has returned (graceful shutdown drained the listener). Tear down the
+    // bundler's detached tasks (#256): flip its watch flag so `run_watch` exits,
+    // then abort the HMR event-forwarder so neither holds the runtime alive past
+    // SIGTERM. Both are idempotent and best-effort.
+    if let Err(e) = rt.bundler().shutdown().await {
+        tracing::warn!("bundler: shutdown error: {e}");
+    }
+    bundler_watcher.abort();
+
+    // Bound the agent drain so a stuck child can't hang shutdown forever (#256).
+    // axum already drained connections; this cap protects the registry drain
+    // (the SIGTERM→SIGKILL hang was an unbounded wait here + un-cancelled SSE).
     #[cfg(feature = "ship-code")]
     let agents_drained = if let Some(dh) = rt.dispatch_handle() {
+        const SHUTDOWN_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
         let mut registry = dh.registry.lock().await;
         let count = registry.len();
-        ship_code::process_registry::graceful_shutdown(rt.kernel(), &mut registry, Arc::clone(&dh.executor)).await;
+        let drain = ship_code::process_registry::graceful_shutdown(rt.kernel(), &mut registry, Arc::clone(&dh.executor));
+        if tokio::time::timeout(SHUTDOWN_DRAIN_TIMEOUT, drain).await.is_err() {
+            tracing::warn!(
+                timeout_secs = SHUTDOWN_DRAIN_TIMEOUT.as_secs(),
+                "shipd: agent drain timed out; proceeding with shutdown"
+            );
+        }
         count
     } else {
         0

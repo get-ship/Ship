@@ -27,6 +27,7 @@ type StepRun = { id: string; state: string; step_type: string; agent?: string }
 type StepRunWithFlag = StepRun & { isLast: boolean }
 type ObsRow = { step_name: string; trigger: string; duration_secs: number; exit_code?: number; commits: number; done_declared: boolean; succeeded: boolean; verdict: string; log_tail?: string }
 type TimelineEvent = { at: string; event_type: string; summary: string }
+type TimelineEventRow = TimelineEvent & { atLabel: string }
 type RunDetail = { slug: string; agent: string; branch?: string; provider?: string; model?: string; updated_at: string; tone: string; status_text: string; state: string; job_id: string; error?: string; steps?: StepRun[] }
 type RunCtx = { run: RunDetail; observations: ObsRow[]; timeline: TimelineEvent[] }
 
@@ -54,8 +55,14 @@ export default controller({
     const slug = derived(() => String(route.params.slug?.() ?? ''))
     const runCtx = live(() => ship.pipelines.run({ slug: slug() }) as LiveSource<RunCtx>)
     const run = derived(() => read(runCtx()).run)
+    const relUpdated = derived(() => {
+      const v = read(runCtx()).run
+      return v.updated_at ? formatRelative(v.updated_at) : ''
+    })
     const observations = derived(() => read(runCtx()).observations)
-    const timeline = derived(() => read(runCtx()).timeline)
+    const timeline = derived<TimelineEventRow[]>(() =>
+      read(runCtx()).timeline.map((ev) => ({ ...ev, atLabel: formatRelative(ev.at) })),
+    )
     const steps = derived<StepRunWithFlag[]>(() => {
       const list = read(runCtx()).run.steps ?? []
       const last = list.length - 1
@@ -67,7 +74,7 @@ export default controller({
       return nl >= 0 ? err.slice(0, nl) : err
     })
     const errorMultiline = derived(() => (read(runCtx()).run.error ?? '').includes('\n'))
-    return { runCtx, run, observations, timeline, steps, errorFirstLine, errorMultiline, formatRelative }
+    return { runCtx, run, relUpdated, observations, timeline, steps, errorFirstLine, errorMultiline }
   },
   on: {
     stopRun: async (_s, jobId: string) => {

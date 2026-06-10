@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-rail-section> — labeled section divider for <sui-rail>.
   Co-located with <sui-rail> in the same directory.

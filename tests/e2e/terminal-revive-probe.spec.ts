@@ -2,7 +2,7 @@
  * terminal-revive probe — end-to-end test for the dock terminal.
  *
  * Validates the full PTY round-trip on the SUI shell, exercising:
- *   - dock open → sui-terminal mount → /spawn → SSE bytes → render
+ *   - dock open → ship-terminal mount → /spawn → SSE bytes → render
  *   - keystroke → /input → daemon → SSE bytes back
  *   - container resize → xterm resize → /resize → PTY geometry update
  *   - dock close → /sessions/<id> DELETE → reopen spawns fresh prompt
@@ -38,14 +38,14 @@ async function openDockTerminal(page: import('@playwright/test').Page): Promise<
     dock?.activate?.('terminal')
   })
   await page.waitForFunction(() => {
-    const term = document.querySelector('sui-terminal[slot="terminal"]') as HTMLElement & { terminal?: unknown }
+    const term = document.querySelector('ship-terminal[slot="terminal"]') as HTMLElement & { terminal?: unknown }
     return Boolean(term?.terminal)
   }, null, { timeout: 10_000 })
 }
 
 async function readBuffer(page: import('@playwright/test').Page): Promise<string> {
   return page.evaluate(() => {
-    const term = document.querySelector('sui-terminal[slot="terminal"]') as (HTMLElement & {
+    const term = document.querySelector('ship-terminal[slot="terminal"]') as (HTMLElement & {
       terminal?: { buffer: { active: { length: number; getLine: (i: number) => { translateToString: (trim?: boolean) => string } | undefined } } }
     }) | null
     const buf = term?.terminal?.buffer.active
@@ -105,8 +105,8 @@ test.describe('terminal-revive: dock terminal round-trip', () => {
     // Type the round-trip command via xterm's input event so the bridge
     // POSTs to /input identically to a real keypress.
     await page.evaluate(() => {
-      const term = document.querySelector('sui-terminal[slot="terminal"]') as HTMLElement
-      const ev = new CustomEvent('sui-terminal-data', {
+      const term = document.querySelector('ship-terminal[slot="terminal"]') as HTMLElement
+      const ev = new CustomEvent('ship-terminal-data', {
         detail: { data: 'echo TERMINAL_OK\n' },
         bubbles: true,
         composed: true,
@@ -137,19 +137,19 @@ test.describe('terminal-revive: dock terminal round-trip', () => {
     await openDockTerminal(page)
 
     // Force a specific terminal size via xterm.js's resize API. The
-    // controller's `term.onResize` bridges it as `sui-terminal-resize`,
+    // controller's `term.onResize` bridges it as `ship-terminal-resize`,
     // and the bridge POSTs to /resize. tput cols inside the PTY should
     // then echo back the new width.
     await page.evaluate(() => {
-      const term = document.querySelector('sui-terminal[slot="terminal"]') as (HTMLElement & {
+      const term = document.querySelector('ship-terminal[slot="terminal"]') as (HTMLElement & {
         terminal?: { resize: (cols: number, rows: number) => void }
       })
       term.terminal?.resize(120, 32)
     })
     await page.waitForTimeout(300)
     await page.evaluate(() => {
-      const term = document.querySelector('sui-terminal[slot="terminal"]') as HTMLElement
-      term.dispatchEvent(new CustomEvent('sui-terminal-data', {
+      const term = document.querySelector('ship-terminal[slot="terminal"]') as HTMLElement
+      term.dispatchEvent(new CustomEvent('ship-terminal-data', {
         detail: { data: 'tput cols\n' },
         bubbles: true,
         composed: true,
@@ -172,13 +172,13 @@ test.describe('terminal-revive: dock terminal round-trip', () => {
     // Reopen.
     await page.evaluate(() => { document.body.classList.add('dock-open') })
     await page.waitForFunction(() => {
-      const term = document.querySelector('sui-terminal[slot="terminal"]') as HTMLElement & { terminal?: unknown }
+      const term = document.querySelector('ship-terminal[slot="terminal"]') as HTMLElement & { terminal?: unknown }
       return Boolean(term?.terminal)
     }, null, { timeout: 5_000 })
     // Echo into the new session — should still round-trip cleanly.
     await page.evaluate(() => {
-      const term = document.querySelector('sui-terminal[slot="terminal"]') as HTMLElement
-      term.dispatchEvent(new CustomEvent('sui-terminal-data', {
+      const term = document.querySelector('ship-terminal[slot="terminal"]') as HTMLElement
+      term.dispatchEvent(new CustomEvent('ship-terminal-data', {
         detail: { data: 'echo SECOND_OK\n' },
         bubbles: true,
         composed: true,
@@ -198,8 +198,8 @@ test.describe('terminal-revive: dock terminal round-trip', () => {
       }, theme)
       await page.waitForTimeout(200)
       await page.evaluate(() => {
-        const term = document.querySelector('sui-terminal[slot="terminal"]') as HTMLElement
-        term.dispatchEvent(new CustomEvent('sui-terminal-data', {
+        const term = document.querySelector('ship-terminal[slot="terminal"]') as HTMLElement
+        term.dispatchEvent(new CustomEvent('ship-terminal-data', {
           detail: { data: 'echo theme-check\n' },
           bubbles: true,
           composed: true,

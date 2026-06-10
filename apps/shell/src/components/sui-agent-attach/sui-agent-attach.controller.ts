@@ -1,7 +1,7 @@
 /**
  * Paired controller for <sui-agent-attach>.
  *
- * Mounts the WebSocket attach bridge against the embedded <sui-terminal>
+ * Mounts the WebSocket attach bridge against the embedded <ship-terminal>
  * once the ref resolves, and tears it down on unmount. Exposes
  * `host.connect()` / `host.disconnect()` for views that flip auto-connect
  * off and drive the lifecycle themselves.
@@ -94,14 +94,14 @@ export default controller({
       }
     }))
 
-    // <sui-terminal> calls fit() inside a single rAF after mount, which
+    // <ship-terminal> calls fit() inside a single rAF after mount, which
     // measures the container BEFORE our wrapper's layout (flex sizing in
     // a freshly-attached element) has settled. xterm sticks at a few
     // rows even though the container is full-size. Refit explicitly:
     //   • two rAFs after the term ref resolves (layout settles between
     //     the two frames in Chromium)
     //   • on every container resize via ResizeObserver
-    //   • on every term resize as well — the first fit() inside <sui-terminal>
+    //   • on every term resize as well — the first fit() inside <ship-terminal>
     //     might land mid-layout; observing the term element catches the
     //     follow-up size change once flex sizing kicks in.
     let observer: ResizeObserver | null = null

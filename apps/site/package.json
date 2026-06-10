@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "bun run -F @ship/arcade build && bun run scripts/copy-sui-assets.ts && bun scripts/build-og-image.mjs",
+    "predev": "bun run scripts/copy-sui-assets.ts && bun scripts/build-og-image.mjs",
     "dev": "astro dev",
-    "prebuild": "bun run -F @ship/arcade build && bun run scripts/copy-sui-assets.ts && bun scripts/build-og-image.mjs",
+    "prebuild": "bun run scripts/copy-sui-assets.ts && bun scripts/build-og-image.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "deploy": "astro build && wrangler deploy",

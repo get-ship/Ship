@@ -10,8 +10,8 @@ pub async fn spawn_human_gateway(
     kernel: &Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
     health_registry: &task_health::HealthRegistry,
 ) {
+    use ship_messaging::{HumanGatewayService, TelegramAdapter};
     use ship_substrate::events::ActorConfig;
-    use ship_substrate::services::human_gateway::{HumanGatewayService, TelegramAdapter};
     use ship_substrate::services::spawn_service;
     use std::sync::Arc as StdArc;
 

@@ -4,6 +4,11 @@
 //! relative-path>/`. Pass `--out <dir>` to override and emit every file to
 //! a single directory (legacy behaviour). Errors render with file path,
 //! line, and column.
+//
+// FILE_CAP_OVERRIDE: single cohesive CLI driver — arg parsing (clap), the
+// component-path guardrail, mirror-tree resolution, per-file emit, and the
+// fatal-diagnostics exit-code gate are one binary's responsibility. Splitting
+// would scatter the one entry point across modules for no clarity gain.
 
 use std::collections::HashSet;
 use std::fs;
@@ -16,7 +21,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand};
 
 use sui_compiler::out_layout::resolve_out_dir;
-use sui_compiler::{compile, CompileMode, ComponentMeta, CompileOpts};
+use sui_compiler::{check_all, compile, CompileMode, ComponentMeta, CompileOpts, DiagSeverity};
 
 /// Hard caps on virtual memory and wall-clock time. A bug in the
 /// compiler (or a pathological input) must never be able to OOM the
@@ -84,6 +89,12 @@ enum Command {
         /// Suppress emitting the `.ssr.html` static SSR file (e.g. for island bundles).
         #[arg(long)]
         no_ssr: bool,
+        /// Emit `import "@sui-tag/<tag>";` per used custom-element tag so the
+        /// bundler can tree-shake exactly the components a view uses (the
+        /// per-view resolver). The bundler resolves `@sui-tag/<tag>` to the
+        /// component source; default off leaves component loading to the host.
+        #[arg(long)]
+        emit_component_imports: bool,
         /// Path to a CSS file whose contents are prepended as a `<style>`
         /// block. Only valid for component sources (requires --component-name).
         /// Requires `input` to be a single file (not a directory).
@@ -118,9 +129,13 @@ fn main() -> Result<()> {
     install_resource_bounds();
     let cli = Cli::parse();
     match cli.cmd {
-        Command::Build { input, out, clean, mode, no_dts, styles, component_name, no_ssr } => {
-            build(input, out, clean, mode, no_dts, styles, component_name, no_ssr)
-        }
+        Command::Build {
+            input, out, clean, mode, no_dts, styles, component_name, no_ssr,
+            emit_component_imports,
+        } => build(
+            input, out, clean, mode, no_dts, styles, component_name, no_ssr,
+            emit_component_imports,
+        ),
     }
 }
 
@@ -133,6 +148,7 @@ fn build(
     styles: Option<PathBuf>,
     component_name: Option<String>,
     no_ssr: bool,
+    emit_component_imports: bool,
 ) -> Result<()> {
     let mut targets = Vec::new();
     if input.is_dir() {
@@ -223,7 +239,7 @@ fn build(
             (_, Some(name)) => Some(ComponentMeta { name, shadow: true }),
             _ => None,
         };
-        compile_one(&path, out.as_deref(), mode.clone(), no_dts, styles_text.as_deref(), component_meta, no_ssr)?;
+        compile_one(&path, out.as_deref(), mode.clone(), no_dts, styles_text.as_deref(), component_meta, no_ssr, emit_component_imports)?;
     }
     println!("compiled {count} file(s)");
     Ok(())
@@ -285,6 +301,7 @@ fn compile_one(
     styles: Option<&str>,
     component_meta: Option<ComponentMeta>,
     no_ssr: bool,
+    emit_component_imports: bool,
 ) -> Result<()> {
     let source = fs::read_to_string(path)
         .with_context(|| format!("read {}", path.display()))?;
@@ -315,11 +332,14 @@ fn compile_one(
         component_meta,
         emit_dts: !no_dts,
         emit_ssr: !no_ssr,
+        emit_component_imports,
     };
     let result = compile(&source, opts).map_err(|e| {
         let rendered = e.render(&source);
         anyhow!("{rendered}")
     })?;
+
+    fatal_diagnostics_gate(&source, path)?;
 
     let stem = path
         .file_name()
@@ -377,6 +397,38 @@ fn compile_one(
             .with_context(|| format!("write {}", ssr_path.display()))?;
     }
     Ok(())
+}
+
+/// Honest exit codes. `compile()` short-circuits on the first diagnostic its
+/// `check::run` pass gates (expr-subset, scope-bound, css-token,
+/// controller-purity, …) and returns `Err` — that path already exits non-zero.
+/// But the full `sui-lint` stream carries Error-severity rules `check::run`
+/// does NOT invoke (e.g. `sui-attr-bool-prop`, `sui-prop-value`,
+/// `sui-css-literal`, `sui-css-content-text`, `controller-*`). Without this
+/// gate those compile to `Ok`, the CLI prints "compiled N file(s)" and returns
+/// 0 while the LSP/agent show a hard error — the dishonest-exit-code bug
+/// (#255). Re-run the full diagnostic pass and treat any Error-severity finding
+/// as fatal so batch OK-checks (`sui-compiler build <dir> && …`) mean what they
+/// say.
+fn fatal_diagnostics_gate(source: &str, path: &Path) -> Result<()> {
+    let fatal: Vec<_> = check_all(source, Some(path))
+        .into_iter()
+        .filter(|d| d.severity == DiagSeverity::Error)
+        .collect();
+    if fatal.is_empty() {
+        return Ok(());
+    }
+    // `check_all` diagnostics are already self-describing — lint findings that
+    // flow through this path carry their `[rule]` tag inside the message, and
+    // structural check-pass errors carry a clear category. Render the message
+    // verbatim with just the file/line/col prefix; adding a separate `[rule]`
+    // tag here would double the one the message already embeds.
+    let rendered = fatal
+        .iter()
+        .map(|d| format!("{}: line {} col {}: {}", path.display(), d.line, d.col, d.message))
+        .collect::<Vec<_>>()
+        .join("\n");
+    Err(anyhow!("{rendered}"))
 }
 
 fn paired_setup(path: &Path, out_dir: &Path, mirror_mode: bool) -> Option<String> {

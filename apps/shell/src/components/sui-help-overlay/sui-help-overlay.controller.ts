@@ -42,13 +42,6 @@ const GROUPS: ShortcutGroup[] = [
   },
 ]
 
-/** `open`-bearing slice of the generated scope — the prop accessor plus
- *  the dialog ref the handlers and mount effect reach for. */
-interface HelpScope {
-  open: { (): boolean; set(v: boolean): void }
-  dialogEl: () => HTMLDialogElement | null
-}
-
 export default controller({
   scope: (state: ViewScope<Scope>, host?: Element) => {
     const hostEl = host as HTMLElement
@@ -64,16 +57,15 @@ export default controller({
   },
 
   mount(state, host) {
-    const s = state as unknown as HelpScope
-    const dialogEl = s.dialogEl()
+    const dialogEl = state.dialogEl
     if (!dialogEl) return
 
-    const close = (state as unknown as { onClose: () => void }).onClose
+    const close = state.onClose
 
     // The `open` signal is the source of truth; native showModal() drives
     // the top layer + ::backdrop, mirroring <sui-command-palette>.
     const stopOpenSync = effect(() => {
-      const wantOpen = s.open()
+      const wantOpen = state.open
       if (wantOpen && !dialogEl.open) {
         try { dialogEl.showModal() } catch { /* jsdom lacks showModal */ }
       } else if (!wantOpen && dialogEl.open) {
@@ -94,7 +86,7 @@ export default controller({
     dialogEl.addEventListener('click', onDialogClick)
 
     host.expose!({
-      show: () => s.open.set(true),
+      show: () => { state.open = true },
       hide: () => close(),
     })
 

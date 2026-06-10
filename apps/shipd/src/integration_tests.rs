@@ -5,6 +5,18 @@
 use crate::test_harness::TestDaemon;
 use ship_substrate::events::{ActorConfig, EventEnvelope};
 
+/// Standard mesh actor config used by actor/spawn registrations in tests —
+/// mirrors the namespaces the retired `mesh/register` shim applied.
+fn mesh_actor_config(id: &str) -> ActorConfig {
+    ActorConfig {
+        namespace: id.into(),
+        write_namespaces: vec!["mesh.".into()],
+        read_namespaces: vec!["mesh.".into()],
+        subscribe_namespaces: vec!["mesh.".into()],
+        see_directed_events: false,
+    }
+}
+
 // ── TestDaemon harness ──────────────────────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -184,26 +196,3 @@ async fn concurrent_actor_spawn_same_id() {
     );
 }
 
-// ── events/route endpoint ───────────────────────────────────────────────────
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn event_route_via_harness() {
-    let daemon = TestDaemon::new().await;
-
-    let envelope =
-        EventEnvelope::new("test.custom", "entity-1", &serde_json::json!({"key": "value"}))
-            .unwrap();
-
-    let resp = daemon
-        .post(
-            "/api/v1/events/route",
-            &serde_json::json!({
-                "envelope": envelope,
-                "workspace_id": null,
-                "session_id": null,
-            }),
-        )
-        .await;
-    assert_eq!(resp.status, 200);
-    assert_eq!(resp.body["ok"], true);
-}

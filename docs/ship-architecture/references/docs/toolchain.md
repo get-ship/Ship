@@ -47,7 +47,7 @@ is in-process:
 `.ts`/`.js` change it re-bundles the affected targets and emits a
 `BundlerEvent` (`ModuleChanged` / `CompileError`) on a broadcast channel. The
 daemon (`apps/shipd/src/lib.rs`) forwards these to `views::sui_hmr` →
-`/_sui/dev/hmr` SSE → the `live-reload.js` client baked into
+`/_deck/dev/hmr` SSE → the `live-reload.js` client baked into
 `crates/deck/deck-core/assets`. All Rust, no bun, no vite.
 
 (The shell SPA's *dev* server uses vite for its own HMR — `apps/shell` `bun run
@@ -77,15 +77,15 @@ Every `ship_platform::toolchain` error carries a recovery hint in `Display`:
 ## bun, today
 
 bun is **dev/build-time tooling only**, never shipped:
-- the `@ship/sui-build` CLI (`packages/deck/build`) — compiles `.sui` ahead of
-  an app build. The `apps/shell` dev server is vite (dev-only). The lucide
+- the `apps/shell` dev server is vite (dev-only); `.sui` compilation is in-process
+  via the deck bundler (`sui-build` was retired in #220). The lucide
   icon set is committed source at `crates/deck/deck-core/assets/lucide-icons.json`
   and regenerated only on a lucide-static version bump via
   `cargo run -p xtask -- gen-icons` (#172).
 
 The `apps/shell` / `apps/spaces` SPA prod build is **not** bun: `deck build`
-(`crates/deck/deck-cli`, #170) bundles the app via Rolldown — `sui-build && deck
-build`. One engine for framework + views + apps.
+(`crates/deck/deck-cli`, #170) bundles the app via Rolldown, compiling each `.sui`
+in-process — no separate pre-compile step. One engine for framework + views + apps.
 
 The framework-asset bake is **not** bun: `cargo xtask build-assets` drives the
 same in-process Rolldown `Bundler::build_all`, writing the framework bundles to

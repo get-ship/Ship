@@ -36,7 +36,7 @@ pub fn ensure_pipeline(mut payload: PipelineRunStartedPayload) -> Result<Pipelin
         payload.agent = agent.clone();
     }
     if let Some(pipeline) = &payload.steps {
-        ship_pipelines::validate::validate_pipeline(pipeline)?;
+        ship_pipelines::validate::validate_pipeline(pipeline).map_err(|e| e.to_string())?;
     }
     Ok(payload)
 }

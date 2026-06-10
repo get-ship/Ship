@@ -73,10 +73,6 @@ export interface ShipSDK {
     /** Available canvas documents. */
     list(): LiveSource<unknown>
   }
-  chat: {
-    /** Recent chat messages, optionally scoped to a workspace. */
-    state(args?: { workspace_id?: string }): LiveSource<unknown>
-  }
   collections: {
     /** Collections list + active schema + items. */
     state(args?: { active?: string }): LiveSource<unknown>

@@ -1,11 +1,10 @@
-//! The deno_core runtime — a V8 isolate whose ONLY bound effect is a wire to the
-//! host. This is the JS engine; no policy lives here.
+//! The deno_core runtime — a V8 isolate with two bound host ops and no policy.
 //!
-//! `op_ship_call(op, args)` is the single host function. It reads the run's
-//! [`Dispatch`] from `OpState` and forwards `(op, args)`. A host failure is
-//! mapped to `{ error }` in the result `Value` — a denial is data the program
-//! handles, not a JS exception. There is exactly one door, host-side, and this
-//! op is the wire to it with no policy of its own.
+//! `op_ship_call(op, args)` is the effect wire: it reads the run's [`Dispatch`]
+//! from `OpState` and forwards `(op, args)`. A host failure is mapped to
+//! `{ error }` in the result `Value` — a denial is data the program handles, not
+//! a JS exception. `op_emit(value)` is the headless result channel: the isolate
+//! emits values it wants surfaced (used by [`run_module`]).
 //!
 //! Two entry points: [`run_script`] runs an inline script to its top-level
 //! promise; [`run_module`] runs an ES module that may `import "ship"` (the
@@ -34,8 +33,9 @@ struct HostEnv {
 #[derive(Default, Clone)]
 struct Collector(Rc<RefCell<Vec<Value>>>);
 
-/// The single bound op: a wire from JS to the host. Infallible at the op layer —
-/// a host `Err(DispatchError)` is mapped uniformly to `{ error }` in the result.
+/// Effect wire: forwards JS `ship_call(op, args)` to the host's `Dispatch`.
+/// Infallible at the op layer — a host `Err(DispatchError)` is mapped uniformly
+/// to `{ error }` in the result.
 #[op2(async(lazy))]
 #[serde]
 async fn op_ship_call(

@@ -132,4 +132,21 @@ pub struct ShipRuntime {
     /// `PipelinesService` impl — sixth mr-02 migration (definition CRUD only;
     /// dispatch / cancel / runs still flow through `runtime_api`).
     pub(super) pipelines: std::sync::Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService>,
+    // The dedicated `git` service field is gone — git is an L0 git2 wrapper
+    // (`ship_git::{read,write,diff,state}`), not an RPC service. Views read
+    // git through the abstract registry op (`live_resolvers` `git.overview`).
+    /// Shutdown cancellation token (#256). A child of the daemon's signal
+    /// token, set once in `run_network` right after that token is created.
+    /// Long-lived SSE keepalive/data loops `select!` against this so a SIGTERM
+    /// closes them promptly instead of holding the axum graceful-shutdown drain
+    /// open until the client happens to disconnect (the ~10s SIGTERM→SIGKILL
+    /// hang). Cleared/cancelled again in `shutdown()` as a belt-and-suspenders.
+    pub(super) shutdown_token: std::sync::OnceLock<tokio_util::sync::CancellationToken>,
+    /// The live-read resolver registry — SSOT for `(domain, op) -> value` in the
+    /// snapshot family. Both the per-op `<Op>Live` streams (via `live_read_with`)
+    /// and the multiplex resolve through this one table.
+    /// (The per-window multiplex registry was deleted in the transport move to
+    /// deck-axum (#276); it now lives in `deck_core::window_registry` and is
+    /// constructed at router-mount time in `apps/shipd/src/router.rs`.)
+    pub(super) live_resolvers: std::sync::Arc<crate::live_resolvers::LiveResolverRegistry>,
 }

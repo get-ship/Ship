@@ -165,14 +165,14 @@ impl ActorHandle {
 /// actor event emitted. On error: no child process is left running,
 /// error returned.
 /// Rewrite an agent profile's `bin`/`args` to spawn inside the agent's process
-/// container (`ship_host::containerize`). No-op for non-agent profiles and on
+/// container (`ship_substrate_host::containerize`). No-op for non-agent profiles and on
 /// hosts without a container backend. Stdio/env/cwd are untouched — only the
 /// program and its leading args change (Linux: a `systemd-run --scope` prefix).
 fn containerize_agent(profile: ActorProfile) -> ActorProfile {
     let Some(agent_id) = profile.agent_id.clone() else {
         return profile;
     };
-    let (bin, args) = ship_host::host().containerize(&agent_id, &profile.bin, &profile.args);
+    let (bin, args) = ship_substrate_host::host().containerize(&agent_id, &profile.bin, &profile.args);
     if bin != profile.bin {
         tracing::info!(agent_id = %agent_id, "supervisor: spawning agent into its process container");
     }

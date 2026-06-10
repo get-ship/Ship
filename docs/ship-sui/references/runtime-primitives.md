@@ -82,7 +82,7 @@ unwrapOr(sig, fallback)  // T
   ↓ sui-compiler
 .js   $scope.git = live(() => ship.git.overview())
   ↓ @ship/sdk-client createClient()
-HTTP  GET /_sui/data?expr=ship.git.overview()    [text/event-stream]
+HTTP  GET /_deck/data?expr=ship.git.overview()    [text/event-stream]
   ↓ apps/shipd/src/views/sui_data.rs
 Rust  registry::call("git.overview", {}) → initial; subscribe `config` ns
   ↓ kernel event → re-resolve
@@ -100,7 +100,7 @@ just dev-restart                                # rebuilds shipd + restarts the 
 PORT=$(cat $(./target/debug/ship daemon dir)/port)
 
 # 1. Confirm the SDK channel is live (Ctrl-C after a few `patch` events).
-curl -N "http://localhost:$PORT/_sui/data?expr=$(printf 'ship.git.overview()' | jq -sRr @uri)"
+curl -N "http://localhost:$PORT/_deck/data?expr=$(printf 'ship.git.overview()' | jq -sRr @uri)"
 
 # 2. Open the view, stage a file, watch the badge flip.
 xdg-open "http://localhost:$PORT/"

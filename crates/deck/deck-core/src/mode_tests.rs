@@ -27,65 +27,25 @@ fn asset_dev_mode_no_etag() {
     assert!(resp.etag.is_none(), "dev asset must not have ETag");
 }
 
-#[test]
-fn island_prod_mode_immutable() {
-    let resp = crate::assets::serve_sui_island(DaemonMode::Production, "sui-terminal");
-    assert!(resp.cache_control.contains("immutable"), "prod island must be immutable; got: {}", resp.cache_control);
-}
+// ── Shared chunk serving (#267 per-view resolver, multi-entry build) ──────────
 
 #[test]
-fn island_dev_mode_no_cache() {
-    let resp = crate::assets::serve_sui_island(DaemonMode::Development, "sui-terminal");
-    assert_eq!(resp.cache_control, "no-cache");
+fn chunk_serves_from_deck_root_and_rejects_bad_input() {
+    use crate::test_lock::ProjectRootGuard;
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(tmp.path().join(".deck")).unwrap();
+    std::fs::write(tmp.path().join(".deck/shared-abc123.js"), "export const x=1\n").unwrap();
+    let _root = ProjectRootGuard::new(tmp.path());
+    let ok = crate::assets::serve_sui_chunk(DaemonMode::Production, "shared-abc123.js");
+    let traversal = crate::assets::serve_sui_chunk(DaemonMode::Production, "../etc/passwd");
+    let nested = crate::assets::serve_sui_chunk(DaemonMode::Production, "sub/x.js");
+    let nonjs = crate::assets::serve_sui_chunk(DaemonMode::Production, "evil.txt");
+    let missing = crate::assets::serve_sui_chunk(DaemonMode::Production, "nope.js");
+    assert_eq!(ok.status, 200, "a real shared chunk serves");
+    assert!(ok.cache_control.contains("immutable"), "content-addressed → immutable; got {}", ok.cache_control);
+    assert_eq!(traversal.status, 404, "path traversal rejected");
+    assert_eq!(nested.status, 404, "nested path rejected (single segment only)");
+    assert_eq!(nonjs.status, 404, "non-.js rejected");
+    assert_eq!(missing.status, 404, "missing chunk → 404");
 }
 
-// ── View template/setup cache headers ────────────────────────────────────────
-
-use std::path::PathBuf;
-use std::sync::OnceLock;
-
-fn repo_root() -> &'static std::path::Path {
-    static ROOT: OnceLock<PathBuf> = OnceLock::new();
-    ROOT.get_or_init(|| {
-        let mut cur = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        loop {
-            if cur.join("Cargo.toml").is_file()
-                && std::fs::read_to_string(cur.join("Cargo.toml"))
-                    .map(|s| s.contains("[workspace]"))
-                    .unwrap_or(false)
-            {
-                return cur;
-            }
-            if !cur.pop() { panic!("no workspace root"); }
-        }
-    });
-    ROOT.get().unwrap()
-}
-
-#[test]
-fn view_template_prod_must_revalidate_and_etag() {
-    let _lock = crate::test_lock::lock();
-    let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
-    unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", repo_root()); }
-    let resp = crate::view::serve_sui_view_template(DaemonMode::Production, "git");
-    match prev {
-        Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
-        None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
-    }
-    assert!(resp.cache_control.contains("must-revalidate"), "prod template must have must-revalidate; got: {}", resp.cache_control);
-    assert!(resp.etag.is_some(), "prod template must have ETag");
-}
-
-#[test]
-fn view_template_dev_no_cache_no_etag() {
-    let _lock = crate::test_lock::lock();
-    let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
-    unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", repo_root()); }
-    let resp = crate::view::serve_sui_view_template(DaemonMode::Development, "git");
-    match prev {
-        Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
-        None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
-    }
-    assert_eq!(resp.cache_control, "no-cache");
-    assert!(resp.etag.is_none());
-}

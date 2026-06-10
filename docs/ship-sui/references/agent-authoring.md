@@ -153,7 +153,7 @@ Sections, each one job:
 2. **Hand-wired (required for view-host mounts).** The daemon's
    `/sui/<name>` host does NOT inject `ship` into ctx, so the
    compiler-emitted `<data live>` form sticks on `loading`. Wire
-   `live()` directly to `/_sui/data?expr=…` instead. The canonical
+   `live()` directly to `/_deck/data?expr=…` instead. The canonical
    helper currently lives in `views/git/controller.ts` (`sseSource`,
    around line 14) — copy verbatim:
 
@@ -161,7 +161,7 @@ Sections, each one job:
 function sseSource<T>(expr: string): LiveSource<T> {
   return {
     subscribe(sig: LiveSignal<T>): () => void {
-      const es = new EventSource(`/_sui/data?expr=${encodeURIComponent(expr)}`)
+      const es = new EventSource(`/_deck/data?expr=${encodeURIComponent(expr)}`)
       const onPatch = (ev: MessageEvent): void => {
         try {
           const patch = JSON.parse(ev.data as string) as { op: string; value: T }
@@ -269,7 +269,7 @@ The `kind === 'ok'` guard is **mandatory** before reading
 | `settings` | `state()` |
 | `sessions` | `list()` (live); `start({workspace_id, kind})` / `end({id})` (mutate) |
 | `workspaces` | `list()`, `active()` (live); `activate({id})` (mutate) |
-| `skills` | `list()`, `summaries({q?, kind?, tag?})`, `detail({id})`, `invoke({id, vars?, workspace_id?})` (mutate — **known gap:** the daemon route may return `not_implemented`; callers must handle that code as a first-class state, see the `skills.invoke` op in `packages/deck/sdk-client/src/index.ts`) |
+| `skills` | `list()`, `summaries({q?, kind?, tag?})`, `detail({id})` |
 
 **Adding a new live source** requires three coordinated edits — see
 `references/runtime-primitives.md` § Live SSE end-to-end loop. The
@@ -351,7 +351,7 @@ Two places, both required:
    inventory bugs).
 
 `icon` is a lucide-icons name. `<sui-icon>` fetches one icon at a time from
-`/_sui/icons/<name>.svg` (the daemon embeds the set + serves per-icon;
+`/_deck/icons/<name>.svg` (the daemon embeds the set + serves per-icon;
 browser HTTP-caches each one). Don't bundle the registry, don't hard-code SVG.
 For non-lucide art, use `<sui-icon src="…">` (CDN escape hatch).
 
@@ -477,5 +477,5 @@ shell-routing bugs vs view-content bugs.
 | Runtime symbol I'm using doesn't exist | `references/runtime-primitives.md` |
 | Component vs view; what `<prop>` accepts | `references/authoring-patterns.md` |
 | Where the compiler lives, what `view-host` serves | `references/4-layer-overview.md` |
-| `sui-build` / LSP / per-edit lint loop | `references/tooling.md` |
+| deck bundler / LSP / per-edit lint loop | `references/tooling.md` |
 | Copy-paste-and-modify worked examples | `references/cookbook.md` |

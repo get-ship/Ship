@@ -16,6 +16,8 @@
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::{Deserialize, Serialize};
 
+use crate::error::PipelineError;
+
 /// Declarative diff-based gate attached to a step. Runtime evaluates
 /// after the step's commits are sealed, before the next step is dispatched.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -176,13 +178,14 @@ pub fn evaluate(
 
 /// Validate a gate at load time. Fails fast on unresolvable globs / negative
 /// `min` so pipeline authors see errors before dispatch.
-pub fn validate(gate: &GateSpec) -> Result<(), String> {
+pub fn validate(gate: &GateSpec) -> Result<(), PipelineError> {
     for r in gate.require_changed.iter().chain(gate.forbid_changed.iter()) {
         if r.match_patterns.is_empty() {
-            return Err("gate rule has no `match` pattern".to_string());
+            return Err(PipelineError::Validate("gate rule has no `match` pattern".to_string()));
         }
         for p in r.match_patterns.iter().chain(r.not_match.iter()) {
-            Glob::new(p).map_err(|e| format!("gate: invalid glob `{p}`: {e}"))?;
+            Glob::new(p)
+                .map_err(|e| PipelineError::Validate(format!("gate: invalid glob `{p}`: {e}")))?;
         }
     }
     Ok(())

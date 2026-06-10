@@ -1484,8 +1484,8 @@ body::after {
  * Daemon-view base styles.
  *
  * Design tokens themselves come from the single canonical source
- * `packages/components/ui-components/src/tokens/{tokens,themes}.css`, which
- * `apps/shipd/src/views/assets.rs` include_str!s and concatenates in front of
+ * `packages/sui/tokens/src/{tokens,themes}.css`, which
+ * `deck-core/src/view_tokens.rs` include_str!s and concatenates in front of
  * this file at compile time. Only view-container-scoped resets + defaults here.
  */
 

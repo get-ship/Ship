@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-va-compile> — Compile tab in the view-authoring dev panel.
   Lists current compile errors for the current view (subscribes to

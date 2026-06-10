@@ -98,6 +98,44 @@ fn one_dep_pipeline_namespaced_locals_untouched() {
 }
 
 #[test]
+fn one_dep_component_namespaced_resolvable_source() {
+    let tmp = TempDir::new().unwrap();
+    let ship_dir = tmp.path().join(".ship");
+    let cache_root = tmp.path().join("cache");
+
+    // A component pack dep exporting one component dir (`<tag>/<tag>.sui`).
+    let hex = "c0ffee01";
+    let obj = cache_root.join("objects").join(hex);
+    write_file(
+        &obj,
+        "ship.jsonc",
+        r#"{ "module": { "name": "github.com/acme/agents", "version": "1.0.0" },
+            "exports": { "components": ["components/ship-agent-card"] } }"#,
+    );
+    write_file(
+        &obj,
+        "components/ship-agent-card/ship-agent-card.sui",
+        "<article class=\"agent-card\"><slot></slot></article>\n",
+    );
+
+    std::fs::create_dir_all(&ship_dir).unwrap();
+    let lock = lock_with(vec![pkg("github.com/acme/agents", hex)]);
+    lock.write_atomic(&ship_dir.join("ship.lock")).unwrap();
+
+    let composed = materialize_space(&ship_dir, Some(&cache_root)).unwrap();
+
+    // The dep's component source lands under its package namespace, ready for
+    // the bundler's component discovery to scan + resolve `ship-agent-card`.
+    let src = composed
+        .join("components/github.com/acme/agents/ship-agent-card/ship-agent-card.sui");
+    assert!(
+        src.is_file(),
+        "dep component composed under package namespace at {}",
+        src.display()
+    );
+}
+
+#[test]
 fn determinism_same_inputs_reuse_cached_dir() {
     let tmp = TempDir::new().unwrap();
     let ship_dir = tmp.path().join(".ship");

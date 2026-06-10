@@ -1,6 +1,7 @@
-//! Job event router — dispatches kernel events to the appropriate handler.
+//! Pipeline event router — dispatches kernel events to the appropriate handler.
 //!
-//! This is the entry point for all `job.*` and `step.*` events flowing
+//! This is the entry point for the `pipeline.*` events (run + step lifecycle)
+//! and the composed-session `agent.session.completed/failed` terminals flowing
 //! through the orchestrator.
 
 use ship_code::runner::router::{extract_slug, terminal_guard, Admit};
@@ -89,9 +90,10 @@ pub async fn start_orchestrator(
     tracing::info!("job-dispatch: mailbox closed");
 }
 
-/// Handle a single job/step event.
+/// Handle a single pipeline or composed-session event.
 ///
-/// Called from the mailbox receive loop for each `job.*` or `step.*` event.
+/// Called from the mailbox receive loop for each `pipeline.*` or composed
+/// `agent.session.completed/failed` event.
 pub async fn handle_orchestrator_event(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     envelope: &EventEnvelope,

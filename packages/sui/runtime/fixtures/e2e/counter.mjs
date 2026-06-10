@@ -25,7 +25,7 @@ function check(cond, msg) {
   if (!cond) fails.push(msg)
 }
 
-await page.goto(BASE + '/view-host/counter', { waitUntil: 'networkidle' })
+await page.goto(BASE + '/_deck/view/counter', { waitUntil: 'networkidle' })
 const value = page.locator('[data-test="value"]')
 
 await value.waitFor()

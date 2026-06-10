@@ -4,14 +4,14 @@
 //! to a read model (SQL table). The [`EventBus`] dispatches events to registered
 //! projections after every append.
 //!
-//! Projections are the ONLY mutable state in the system. They can be truncated
-//! and rebuilt from the event log at any time via [`rebuild`].
+//! Projections are the only DERIVED state in the event system: they can be
+//! truncated and rebuilt from the event log via [`EventBus::rebuild`] /
+//! `db::rebuild`. (Non-derived mutable stores — daemon_settings, kv.db,
+//! DataStore-port tables, the blob plane — are not event-sourced and are not
+//! rebuildable from the log.)
 
 pub mod actor;
-pub mod artifact;
 pub mod async_projection;
-pub mod collection;
-pub mod grants;
 pub mod process;
 pub mod registry;
 pub mod spawn;
@@ -22,13 +22,14 @@ mod tests_actor;
 mod tests_daemon_events;
 
 pub use actor::ActorProjection;
-pub use artifact::ArtifactProjection;
 pub use async_projection::{AsyncProjection, spawn_projection};
-pub use collection::CollectionProjection;
-pub use grants::{
-    ProvisionedGrantsProjection, ProvisionedGrantsRow, provisioned_grants_for,
-    provisioned_grants_for_at, provisioned_row,
-};
+// CollectionProjection moved to ship-collection::item_projection (keystone A,
+// 2026-06-10). The COLLECTION domain owns its projections at L1; it is wired
+// into the bus via ship-platform's install_extra_projections_factory call.
+//
+// ProvisionedGrantsProjection moved to ship-auth::grants_projection (keystone-A
+// Phase A bundle 2, 2026-06-10). The AUTH domain owns its projection at L1;
+// it is wired via ship-platform's install_extra_projections_factory call.
 pub use process::{ProcessRecord, ProcessStatus, load_processes};
 pub use registry::{EventBus, Projection};
 pub use spawn::{ProjectionHandle, spawn_with_failure_counter};

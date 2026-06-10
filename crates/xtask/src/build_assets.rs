@@ -13,7 +13,6 @@ use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 use deck::bundler::Bundler;
-use ship_substrate::ShipHome;
 
 /// The framework bundles `deck-core/build.rs` bakes via `include_str!`. Verified
 /// non-empty after the bake so a silently-failed target can't ship empty bytes
@@ -26,8 +25,8 @@ const FRAMEWORK_BUNDLES: &[&str] = &[
 ];
 
 pub fn run(repo_root: &Path) -> Result<()> {
-    let home = ShipHome::from_env();
-    let bundler = Bundler::start(&home, repo_root.to_path_buf(), None);
+    let cfg = deck::config::DeckConfig::load(repo_root);
+    let bundler = Bundler::start(repo_root.to_path_buf(), None, cfg);
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()

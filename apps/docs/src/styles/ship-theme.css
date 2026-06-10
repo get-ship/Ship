@@ -114,13 +114,13 @@ nav.sidebar .top-level > li {
  *
  * Without this, `sui-popover` (the theme picker) flashes open on every
  * page load because its slot content renders as plain flow before the
- * custom element upgrades. Likewise, `sui-code-editor` flashes its raw
+ * custom element upgrades. Likewise, `ship-code-editor` flashes its raw
  * slotted source as plaintext. `:not(:defined)` matches only while the
  * element is unknown — once the registry upgrades it, the rule drops.
  * ------------------------------------------------------------------------- */
 sui-popover:not(:defined),
-sui-code-editor:not(:defined),
-sui-markdown-editor:not(:defined),
+ship-code-editor:not(:defined),
+ship-markdown-editor:not(:defined),
 sui-tabs:not(:defined),
 sui-tab-panel:not(:defined),
 sui-accordion:not(:defined),
@@ -141,8 +141,8 @@ sui-card:defined,
 sui-alert:defined,
 sui-button:defined,
 sui-popover:defined,
-sui-code-editor:defined,
-sui-markdown-editor:defined,
+ship-code-editor:defined,
+ship-markdown-editor:defined,
 sui-tabs:defined,
 sui-tab-panel:defined,
 sui-accordion:defined,

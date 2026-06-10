@@ -220,6 +220,6 @@ The `mutation` attribute is a `ship.*` SDK chain. On submit the compiler-wired `
 {/if}
 ```
 
-**Progressive enhancement path.** When JS is absent, the SSR walker injects `action="/_sui/mutation/{view}?form=bN"` and `method="post"` onto the `<form>` element. The daemon's `POST /_sui/mutation/{view}` endpoint resolves the SDK chain from the binding manifest, dispatches the call, and responds with an HTTP 303 redirect to `Referer` (success) or `Referer?_sui_error=<msg>` (error). Only SDK operations registered in the service registry are reachable via PE.
+**Progressive enhancement path.** When JS is absent, the SSR walker injects `action="/_deck/mutation/{view}?form=bN"` and `method="post"` onto the `<form>` element. The daemon's `POST /_deck/mutation/{view}` endpoint resolves the SDK chain from the binding manifest, dispatches the call, and responds with an HTTP 303 redirect to `Referer` (success) or `Referer?_sui_error=<msg>` (error). Only SDK operations registered in the service registry are reachable via PE.
 
 **One `$mutation` per form.** Each `<form mutation="…">` in a template gets its own `$mutation` signal. If a template has two forms, distinguish them via `on:success` / `on:error` handlers or by scoping the error display to the form's immediate context.

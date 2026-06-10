@@ -1,0 +1,34 @@
+<!--
+  <ship-git-diff-hunk> — SUI port of <ship-git-diff-hunk>.
+
+  Renders a single hunk header line (e.g. "@@ -10,7 +10,8 @@"). Purely
+  presentational — no controller. The daemon emits the header text into
+  the `header` attribute; the template renders it inside a mono pill.
+
+  Prop / event / slot parity vs <ship-git-diff-hunk>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  header (string, '')          header (string, '',      ✓ reflects
+                                  reflect)
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="header" type="string" default="" reflect />
+
+<style>
+  :host {
+    display: block;
+    padding: 2px var(--space-3);
+    background: var(--tone-info-bg);
+    border-top: 1px solid var(--tone-info-bg);
+    border-bottom: 1px solid var(--tone-info-bg);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--info);
+    user-select: none;
+  }
+  :host([hidden]) { display: none; }
+</style>
+
+{header()}

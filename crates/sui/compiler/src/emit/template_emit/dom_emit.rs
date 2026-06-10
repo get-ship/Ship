@@ -5,6 +5,7 @@
 // hook/modifier dispatch matrix; the modifier + kbd-shortcut helpers are its
 // leaves. Splitting by attr-kind fragments one mapping table.
 use super::super::expr_rewrite::rewrite_for_scope;
+use super::super::util::camel_of;
 use super::super::writer::{js_string, Writer};
 use super::TemplateEmitter;
 use crate::ir::*;
@@ -326,13 +327,20 @@ impl TemplateEmitter {
             AttrInstr::Prop { name, expr, .. } => {
                 let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
+                // `prop:` targets a JS PROPERTY on the element, camelCase as it
+                // appears on the object — but the template attribute name is
+                // HTML-lowercased, so a multi-word target arrives kebab/lower
+                // (`prop:prop-values`). camelCase it (the same `<prop>` → scope
+                // identifier rule, `camel_of`) so `prop:prop-values` writes the
+                // `propValues` property a component declares, not `prop-values`.
+                let prop_key = camel_of(name);
                 if self.is_static_row_expr(&expr.source) {
                     // D5: row-scope static prop — initial assignment.
                     // Also recorded for the for's `update()` callback
                     // so keyed-row reuse refreshes the prop.
                     let stmt = format!(
                         "{el_var}[{n}] = ({rw});",
-                        n = js_string(name)
+                        n = js_string(&prop_key)
                     );
                     w.line(&stmt);
                     let use_ = self.row_use_for_source(&expr.source);
@@ -341,7 +349,7 @@ impl TemplateEmitter {
                     let fv = self.for_version_comma(&expr.source);
                     w.line(&format!(
                         "{cleanups_var}.push(bindProp({el_var}, {n}, () => ({fv}{rw})));",
-                        n = js_string(name)
+                        n = js_string(&prop_key)
                     ));
                 }
                 if self.is_view && self.boundary_depth == 0 {
@@ -349,7 +357,7 @@ impl TemplateEmitter {
                     self.hydrate_calls.line(&format!(
                         "if (__m[{k}]) __cleanups.push(hydrateProp(__m[{k}], {n}, () => ({rw})));",
                         k = js_string(&key),
-                        n = js_string(name),
+                        n = js_string(&prop_key),
                     ));
                 }
             }

@@ -1,7 +1,8 @@
 //! The durable-execution engine.
 //!
-//! A *program* is a deterministic sequence of journaled op-calls (in production:
-//! a ship-js script or an agent turn; here: a [`Program`] impl). Every op result
+//! A *program* is a deterministic sequence of journaled op-calls (intended
+//! production shapes: a ship-js script or an agent turn — the live wiring is
+//! pending (floki Stage-2, pipelines P1.0b); here: a [`Program`] impl). Every op result
 //! is written to the **journal**. On resume the program **re-runs from the top**,
 //! and ops that already completed return their *logged* results instead of
 //! re-executing — so a recovered run never re-burns work (a model call is just a
@@ -320,9 +321,10 @@ impl ExecCtx {
     }
 }
 
-/// A program the engine can run and replay. Implemented by a ship-js script or an
-/// agent turn in production; by a concrete type in tests. MUST be deterministic
-/// given the journal (non-determinism goes through `ctx.op`/`ctx.record`).
+/// A program the engine can run and replay. Intended to be implemented by a
+/// ship-js script or an agent turn (live wiring pending); by a concrete type in
+/// tests. MUST be deterministic given the journal (non-determinism goes through
+/// `ctx.op`/`ctx.record`).
 #[async_trait::async_trait]
 pub trait Program: Send + Sync {
     async fn run(&self, ctx: &mut ExecCtx) -> Result<Value, EngineError>;

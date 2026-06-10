@@ -89,6 +89,33 @@ const INITIAL_BACKOFF: Duration = Duration::from_secs(1);
 /// Maximum backoff delay.
 const MAX_BACKOFF: Duration = Duration::from_secs(30);
 
+/// Restart policy for a supervised task: how many crashes are tolerated
+/// before the supervisor gives up, and the exponential backoff schedule
+/// between restarts (`initial_backoff` doubling up to `max_backoff`).
+///
+/// `Default` is the production policy (`MAX_RESTARTS` / `INITIAL_BACKOFF`
+/// / `MAX_BACKOFF`). Tests inject tighter values to exercise the give-up
+/// path deterministically without the real multi-minute backoff.
+#[derive(Debug, Clone, Copy)]
+pub struct RestartPolicy {
+    /// Maximum restarts before giving up.
+    pub max_restarts: u64,
+    /// Initial backoff delay after a panic.
+    pub initial_backoff: Duration,
+    /// Maximum backoff delay.
+    pub max_backoff: Duration,
+}
+
+impl Default for RestartPolicy {
+    fn default() -> Self {
+        Self {
+            max_restarts: MAX_RESTARTS,
+            initial_backoff: INITIAL_BACKOFF,
+            max_backoff: MAX_BACKOFF,
+        }
+    }
+}
+
 /// Spawn a monitored one-shot background task.
 ///
 /// Like `spawn_supervised` but does NOT restart on panic. Use for tasks
@@ -158,11 +185,28 @@ where
     F: Fn() -> Fut + Send + 'static,
     Fut: Future<Output = ()> + Send + 'static,
 {
+    spawn_supervised_with_policy(registry, name, RestartPolicy::default(), factory)
+}
+
+/// Like [`spawn_supervised`], but with an explicit [`RestartPolicy`].
+///
+/// This is the test seam for the stop-after-`max_restarts` invariant;
+/// production callers use [`spawn_supervised`] (the default policy).
+pub fn spawn_supervised_with_policy<F, Fut>(
+    registry: &HealthRegistry,
+    name: &'static str,
+    policy: RestartPolicy,
+    factory: F,
+) -> JoinHandle<()>
+where
+    F: Fn() -> Fut + Send + 'static,
+    Fut: Future<Output = ()> + Send + 'static,
+{
     let health = Arc::new(TaskHealth::new(name));
     registry.register(health.clone());
 
     tokio::spawn(async move {
-        let mut backoff = INITIAL_BACKOFF;
+        let mut backoff = policy.initial_backoff;
 
         loop {
             health.alive.store(true, Ordering::Relaxed);
@@ -205,10 +249,11 @@ where
                         );
                     }
 
-                    if count >= MAX_RESTARTS {
+                    if count >= policy.max_restarts {
+                        let max_restarts = policy.max_restarts;
                         tracing::error!(
                             task = name,
-                            "supervised task exceeded max restarts ({MAX_RESTARTS}), giving up"
+                            "supervised task exceeded max restarts ({max_restarts}), giving up"
                         );
                         return;
                     }
@@ -219,7 +264,7 @@ where
                         "restarting supervised task"
                     );
                     tokio::time::sleep(backoff).await;
-                    backoff = (backoff * 2).min(MAX_BACKOFF);
+                    backoff = (backoff * 2).min(policy.max_backoff);
                 }
             }
         }
@@ -269,10 +314,11 @@ mod tests {
     }
 
     // Ignored by default: with MAX_RESTARTS=50 and a 1s→30s exponential
-    // backoff, a deterministic run takes ~22 minutes. The test is correct
-    // but isn't suited to the regular unit-test sweep. Make MAX_RESTARTS
-    // injectable to re-enable; until then run with `--ignored` when
-    // changing supervised lifecycle code.
+    // backoff, a deterministic run takes ~22 minutes. It validates the
+    // REAL production policy end-to-end; run with `--ignored` when
+    // changing supervised lifecycle code. The fast CI guard for the same
+    // invariant is `max_restarts_stops_supervisor_fast` below, which
+    // injects a tight `RestartPolicy`.
     #[tokio::test]
     #[ignore]
     async fn max_restarts_stops_supervisor() {
@@ -285,5 +331,50 @@ mod tests {
         let snap = registry.snapshot();
         assert_eq!(snap[0].restart_count, MAX_RESTARTS);
         assert!(!snap[0].alive);
+    }
+
+    /// Fast, deterministic CI guard for the stop-after-`max_restarts`
+    /// invariant: with an injected policy (max_restarts=3, 1ms backoff),
+    /// an always-panicking task must be run exactly `max_restarts` times,
+    /// then the supervisor gives up — the loop terminates and the task is
+    /// left marked dead in the health registry.
+    #[tokio::test]
+    async fn max_restarts_stops_supervisor_fast() {
+        let registry = HealthRegistry::new();
+        let call_count = Arc::new(AtomicUsize::new(0));
+        let cc = call_count.clone();
+
+        let policy = RestartPolicy {
+            max_restarts: 3,
+            initial_backoff: Duration::from_millis(1),
+            max_backoff: Duration::from_millis(1),
+        };
+        let handle = spawn_supervised_with_policy(&registry, "test-max-fast", policy, move || {
+            let cc = cc.clone();
+            async move {
+                cc.fetch_add(1, Ordering::Relaxed);
+                panic!("always panic");
+            }
+        });
+
+        // If the supervisor never gave up, this would hang for the full
+        // backoff schedule (or forever) — bound it so a regression fails
+        // fast instead of wedging the suite.
+        tokio::time::timeout(Duration::from_secs(30), handle)
+            .await
+            .expect("supervisor must stop after max_restarts, not keep restarting")
+            .expect("supervisor loop must exit cleanly");
+
+        // The task ran exactly max_restarts times: the initial run plus
+        // restarts, with the final panic hitting the give-up branch.
+        assert_eq!(call_count.load(Ordering::Relaxed), 3);
+        let snap = registry.snapshot();
+        assert_eq!(snap[0].restart_count, 3);
+        assert!(!snap[0].alive, "terminal state: task surfaced as dead");
+
+        // And it STAYS stopped — no further factory invocations after the
+        // supervisor returned.
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert_eq!(call_count.load(Ordering::Relaxed), 3);
     }
 }

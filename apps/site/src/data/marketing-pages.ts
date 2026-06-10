@@ -192,7 +192,7 @@ The surface Ship shows you. Authored with SUI, the Ship framework optimised for 
 Inspect elements, drop annotations, pair them with an agent. Optional Ship Studio for source-level edits.
 
 ## Packs
-- **SUI primitives** — sui-stat, sui-sparkline, sui-list-tile, sui-card, sui-toolbar, …
+- **SUI primitives** — sui-card, sui-sparkline, sui-bar-chart, sui-button, …
 - **Domain packs** — ship-agent-card, ship-pipeline-step, …
 - **Vendored** — markdown editor, terminal, code editor
 
@@ -289,7 +289,7 @@ Three games built on \`@ship/arcade\`. Open primitives, one tiny engine, real cu
 
 ## Source
 - \`packages/arcade-engine\` — engine + vendored pixi
-- \`packages/components/arcade\` — sui-stage, sui-sprite, sui-emitter, sui-input, sui-hud
+- \`packages/components/ship/arcade\` — sui-stage, sui-sprite, sui-emitter, sui-input, sui-hud
 - \`apps/site/src/games\` — the games themselves
 `,
   },

@@ -43,32 +43,18 @@ pub mod actors_api;
 pub mod agent_sessions_attach;
 #[cfg(all(test, feature = "ship-code"))]
 mod agent_sessions_attach_tests;
-pub mod mcp_registry;
 pub mod artifacts_api;
 #[cfg(feature = "ship-code")]
 pub mod hooks_api;
 pub mod human_webhook;
+pub mod rest_api;
+pub mod runtime_api;
 pub mod sandbox_api;
 #[cfg(test)]
 mod sandbox_api_tests;
-pub mod logs_api;
-pub mod mesh_resp;
-// feedback_api and annotations_api removed (Batch A routes-cull):
-// domain logic relocated to ship-agents::services::agents::{feedback,annotation};
-// REST shells deleted; AgentsWire calls ship-agents directly.
-pub mod registry_api;
-pub mod rest_api;
-pub mod runtime_api;
 pub mod schema_api;
-pub mod sdk_manifest;
 #[cfg(test)]
 mod scope_enforcement_tests;
-pub mod settings_api;
-pub mod themes_api;
-pub mod view_edit_mode_api;
-pub mod view_edit_tool_api;
-pub mod view_errors_api;
-pub mod view_sessions_api;
 pub mod webhook_ext;
 
 // The build script writes generated impls into OUT_DIR. We include them here
@@ -82,15 +68,8 @@ include!(concat!(env!("OUT_DIR"), "/routes_generated.rs"));
 /// URL builders can substitute them. Variants without params are unit
 /// variants.
 pub enum Route {
-    // ── First-run / setup ────────────────────────────────────────────────
-
-    /// @route GET "/"
-    /// @auth public
-    Index,
-
-    /// @route GET "/setup"
-    /// @auth public
-    Setup,
+    // First-run `/` + `/setup` are owned by `deck::router()` now — shipd
+    // serves no frontend surface, so those route variants were removed.
 
     // ── Session / auth ───────────────────────────────────────────────────
 
@@ -102,101 +81,10 @@ pub enum Route {
     // Account ops are served by the typed Connect `AccountService`
     // (account.proto, `ship-account` crate) — there is no REST account surface.
 
-    // ── Shared assets (unauthenticated) ──────────────────────────────────
-
-    /// @route GET "/api/assets/view-tokens.css"
-    /// @auth public
-    AssetViewTokensCss,
-
-    /// @route GET "/api/assets/theme.css"
-    /// @auth public
-    AssetThemeCss,
-
-    /// @route GET "/api/v1/themes"
-    /// @auth public
-    ListThemes,
-
-    // ── SUI framework hosting (deck-axum handlers) ──
-
-    /// @route GET "/api/sui/catalog/workspace"
-    /// @auth public
-    SuiCatalogWorkspace,
-
-    /// @route GET "/api/sui/catalog/published"
-    /// @auth public
-    SuiCatalogPublished,
-
-    /// @route GET "/_sui/packs/{pack_id}/{file}"
-    /// @auth public
-    SuiPackAsset { pack_id: String, file: String },
-
-    /// @route GET "/_sui/runtime.js"
-    /// @auth public
-    SuiRuntimeJs,
-
-    /// @route GET "/_sui/dom.js"
-    /// @auth public
-    SuiDomJs,
-
-    /// @route GET "/_sui/sdk-client.js"
-    /// @auth public
-    SuiSdkClientJs,
-
-    /// @route GET "/_sui/components.js"
-    /// @auth public
-    SuiComponentsJs,
-
-    /// @route GET "/_sui/icons/{file}"
-    /// @auth public
-    SuiIcon { file: String },
-
-    /// @route GET "/_sui/live-reload.js"
-    /// @auth public
-    SuiLiveReloadJs,
-
-    /// @route GET "/_sui/sui-components/{file}"
-    /// @auth public
-    SuiComponentBundle { file: String },
-
-    /// @route GET "/_sui/views/{name}/view.sui"
-    /// @auth public
-    SuiViewTemplate { name: String },
-
-    /// @route GET "/_sui/views/{name}/view.js"
-    /// @auth public
-    SuiViewSetup { name: String },
-
-    /// @route GET "/_sui/views/{name}"
-    /// @auth public
-    SuiViewPayload { name: String },
-
-    /// @route GET "/_sui/views/{name}/view.css"
-    /// @auth public
-    SuiViewCss { name: String },
-
-    /// @route GET "/_sui/views/{name}/sse"
-    /// @auth public
-    SuiViewSse { name: String },
-
-    /// @route GET "/view-host"
-    /// @auth public
-    SuiViewHost,
-
-    /// @route GET "/sui/{name}"
-    /// @auth public
-    SuiViewHostForName { name: String },
-
-    /// @route GET "/_sui/dev/hmr"
-    /// @auth public
-    SuiDevHmr,
-
-    /// @route POST "/_sui/views/{name}/patch-elements"
-    /// @auth scope Full
-    SuiPatchElements { name: String },
-
-    /// @route GET "/_sui/source/{tag}"
-    /// @auth public
-    SuiSource { tag: String },
+    // Shared CSS/theme assets (`view-tokens.css`, `theme.css`, `/api/v1/themes`),
+    // the dev HMR firehose (`/_deck/dev/hmr`), and the per-tag source viewer
+    // (`/_deck/source/{tag}`) are all owned by `deck::router()` now — shipd
+    // serves no frontend surface, so those route variants were removed.
 
     // ── PipelineService — service-shaped CRUD + run ops ──
 
@@ -204,35 +92,11 @@ pub enum Route {
     /// @auth scope CreateRuns
     PipelinesRun,
 
-    /// @route GET "/api/v1/pipelines/runs/{slug}/log/stream"
-    /// @auth scope ReadRuns
-    PipelineRunLogStream { slug: String },
-
     // ── Generic view serving ─────────────────────────────────────────────
 
     /// @route GET "/api/v1/ship/schema"
     /// @auth scope ReadWorkspace
     ShipSchema,
-
-    /// @route GET "/api/v1/views/{name}/files"
-    /// @auth scope ReadWorkspace
-    ListViewFiles { name: String },
-
-    /// @route PUT "/api/v1/views/{name}/template"
-    /// @auth scope WriteWorkspace
-    WriteViewTemplate { name: String },
-
-    /// @route PUT "/api/v1/views/{name}/manifest"
-    /// @auth scope WriteWorkspace
-    WriteViewManifestApi { name: String },
-
-    /// @route POST "/api/v1/views/{name}/fork"
-    /// @auth scope WriteWorkspace
-    ForkView { name: String },
-
-    /// @route POST "/api/v1/themes/contrast"
-    /// @auth scope ReadWorkspace
-    ThemeContrast,
 
     /// @route POST "/api/v1/sessions/spawn"
     /// @auth scope ManageRuns
@@ -277,80 +141,7 @@ pub enum Route {
     /// @route GET "/api/v1/harnesses/installed"
     /// @auth scope ReadWorkspace
     InstalledProviders,
-    /// @route GET "/api/v1/view/{name}/manifest"
-    /// @route GET "/api/v1/view/{name}/manifest"
-    /// @auth scope ReadWorkspace
-    ServeViewManifest { name: String },
 
-    /// @route GET "/api/v1/view/{name}/bundle"
-    /// @auth scope ReadWorkspace
-    ServeViewBundle { name: String },
-
-    // ── Agent-owned view sessions (Phase 1 canvas framework) ─────────────
-
-    /// @route POST "/api/v1/view-sessions"
-    /// @auth scope ManageRuns
-    OpenViewSession,
-
-    /// @route POST "/api/v1/view-sessions/{id}/patch"
-    /// @auth scope ManageRuns
-    PatchViewSession { id: String },
-
-    /// @route POST "/api/v1/view-sessions/{id}/append"
-    /// @auth scope ManageRuns
-    AppendViewSession { id: String },
-
-    /// @route POST "/api/v1/view-sessions/{id}/signal"
-    /// @auth scope ManageRuns
-    SignalViewSession { id: String },
-
-    /// @route DELETE "/api/v1/view-sessions/{id}"
-    /// @auth scope ManageRuns
-    CloseViewSession { id: String },
-
-    /// @route GET "/api/v1/view-sessions/{id}"
-    /// @auth scope ReadWorkspace
-    SubscribeViewSession { id: String },
-
-    // ── Jobs ─────────────────────────────────────────────────────────────
-
-    // The agent-control REST surface (POST /api/v1/agents/{slug}/{stop,steer})
-    // was deleted; clients use the Connect AgentsService (ship.ops.v1).
-
-    // The single-agent dispatch REST surface (POST /api/v1/agent_sessions/dispatch)
-    // was deleted; clients use the Connect AgentsService.Dispatch / PipelinesService.Dispatch.
-
-    /// @route GET "/api/v1/agent_sessions"
-    /// @auth scope ReadRuns
-    ListJobs,
-
-    /// @route GET "/api/v1/agent_sessions/{pipeline_run_id}"
-    /// @auth scope ReadRuns
-    GetJob { pipeline_run_id: String },
-
-    /// @route POST "/api/v1/agent_sessions/end"
-    /// @auth scope ManageRuns
-    EndJob,
-
-    /// @route POST "/api/v1/agent_sessions/{slug}/cancel"
-    /// @auth scope ManageRuns
-    CancelJob { slug: String },
-
-    /// @route POST "/api/v1/agent_sessions/{pipeline_run_id}/status"
-    /// @auth scope EmitEvents
-    RunStatusUpdate { pipeline_run_id: String },
-
-    /// @route POST "/api/v1/agent_sessions/{slug}/step-done"
-    /// @auth scope EmitEvents
-    StepDoneSignal { slug: String },
-
-    /// @route GET "/api/v1/agent_sessions/{slug}/log/stream"
-    /// @auth scope ReadRuns
-    StreamJobLog { slug: String },
-
-    /// @route GET "/api/v1/agent_sessions/{slug}/attach"
-    /// @auth scope WriteWorkspace
-    AttachAgentSession { slug: String },
 
     // ── Process projection / events polling / daemon status (slice 6) ────
 
@@ -375,22 +166,12 @@ pub enum Route {
     /// @auth scope ManageRuns
     ProjectPty { id: String },
 
-    // ── Settings / harnesses ─────────────────────────────────────────────
-
-    /// @route GET "/api/v1/harnesses"
-    /// @auth scope ReadWorkspace
-    ListProviders,
-
-    // ── Supervisor ───────────────────────────────────────────────────────
-
-
     // Workspace-scoped artifact status/promote removed — callers get 404.
     // Use the unified /api/artifacts/* surface instead.
-    // ── Actor kernel reads (L0 — kernel-directed mailbox delivery) ─────────
-    // GET /api/v1/mesh, GET /api/v1/actors/{actor_id}, and
-    // GET /api/v1/actors/{actor_id}/events were removed: they were the
-    // mesh.* op surface's introspection reads, and the spec culled them
-    // along with the mesh op surface itself. The actor/spawn + events/route
+
+    // ── Actor kernel (L0 — kernel-directed mailbox delivery) ─────────────
+    // The mesh.* introspection reads (GET /api/v1/mesh, per-actor reads)
+    // were culled with the mesh op surface. The actor/spawn + events/route
     // writes (L0) are live callers (sui-canvas) and stay.
 
     /// @route POST "/api/v1/actor/spawn"
@@ -422,6 +203,9 @@ pub enum Route {
     /// @auth handler
     ArtifactDownload { id: String },
 
+    /// @route HEAD "/api/v1/artifacts/{id}"
+    /// @auth handler
+    ArtifactHead { id: String },
 
     /// @route GET "/api/v1/artifacts/{id}/metadata"
     /// @auth handler
@@ -443,65 +227,6 @@ pub enum Route {
     /// @route GET "/api/v1/sandboxes/{id}"
     /// @auth scope ReadWorkspace
     SandboxGet { id: String },
-
-    // ── SDK manifest (read-side; generated by `just gen-sdk`) ────────────
-
-    /// @route GET "/api/v1/views/{name}/meta"
-    /// @auth scope ReadWorkspace
-    ViewMeta { name: String },
-
-    /// @route GET "/api/v1/sdk"
-    /// @auth scope ReadWorkspace
-    SdkRoot,
-
-    /// @route GET "/api/v1/sdk/query"
-    /// @auth scope ReadWorkspace
-    SdkQuery,
-
-    // ── View client-error capture ────────────────────────────────────────
-
-    /// @route POST "/api/v1/view-errors"
-    /// @auth scope ReadWorkspace
-    PostViewError,
-
-    /// @route GET "/api/v1/view-errors"
-    /// @auth scope ReadWorkspace
-    ListViewErrors,
-
-    /// @route DELETE "/api/v1/view-errors"
-    /// @auth scope ReadWorkspace
-    ClearViewErrors,
-
-    // ── MCP registry proxy ────────────────────────────────────────────────
-
-    /// @route GET "/api/v1/mcp/servers"
-    /// @auth public
-    McpServers,
-
-    // ── View authoring (chrome edit-mode + agent tool dispatch) ──────────
-
-    /// @route POST "/api/v1/views/{name}/edit-mode/enter"
-    /// @auth scope WriteWorkspace
-    EnterViewEditMode { name: String },
-
-    /// @route POST "/api/v1/views/{name}/edit-mode/exit"
-    /// @auth scope WriteWorkspace
-    ExitViewEditMode { name: String },
-
-    /// @route POST "/api/v1/views/{name}/edit/tool"
-    /// @auth scope ManageRuns
-    DispatchViewEditTool { name: String },
-
-    // ── Registry (gateway-forwarded) ─────────────────────────────────────
-    //
-    // The daemon is the single hop to the gateway: CLI hits the daemon
-    // here, the daemon attaches the user's stored API key and forwards
-    // to `<cloud.base_url>/api/v1/registry/publish`. `ship publish` no
-    // longer talks to the gateway directly.
-
-    /// @route POST "/api/v1/registry/publish"
-    /// @auth handler
-    Publish,
 }
 
 #[cfg(test)]

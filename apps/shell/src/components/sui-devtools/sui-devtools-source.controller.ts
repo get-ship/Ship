@@ -42,16 +42,6 @@ const LANG_BY_KIND: Record<string, string> = {
   md: 'markdown',
 }
 
-function ensureCodeEditorLoaded(): void {
-  if (customElements.get('sui-code-editor')) return
-  if (document.querySelector('script[data-sui-code-editor]')) return
-  const s = document.createElement('script')
-  s.type = 'module'
-  s.src = '/_sui/sui-components/sui-code-editor.js'
-  s.dataset['suiCodeEditor'] = '1'
-  document.head.appendChild(s)
-}
-
 function viewNameFromRoute(path: string): string {
   const seg = path.split('/').filter(Boolean)[0]
   return seg ?? ''
@@ -236,31 +226,6 @@ export default controller({
   },
 
   mount(state, host) {
-    // sui-runtime mount-state proxy: writes are plain assignments
-    // (`s.<sig> = next`). Reads of the *value* still need `()` on the
-    // signal — for that we keep a parallel `readState` alias.
-    const s = state as unknown as {
-      viewName: string
-      files: ViewFile[]
-      selectedPath: string
-      drafts: Record<string, string>
-      loading: boolean
-      loadError: string | null
-      editorEl: () => CodeEditor | null
-      editorValue: () => string
-    }
-    const readState = state as unknown as {
-      viewName: ReturnType<typeof signal<string>>
-      files: ReturnType<typeof signal<ViewFile[]>>
-      selectedPath: ReturnType<typeof signal<string>>
-      drafts: ReturnType<typeof signal<Record<string, string>>>
-      loading: ReturnType<typeof signal<boolean>>
-      loadError: ReturnType<typeof signal<string | null>>
-      editorEl: () => CodeEditor | null
-      editorValue: () => string
-    }
-    ensureCodeEditorLoaded()
-
     let editorWired: CodeEditor | null = null
     let lastLoadedView: string | null = null
 
@@ -270,23 +235,23 @@ export default controller({
       // Shell-local surfaces (e.g. studio) have no daemon source — their
       // files are bundled into the shell. Skip the fetch so it doesn't 404.
       if (isShellLocalView(name)) {
-        s.files = []
-        s.selectedPath = ''
-        s.loadError = 'shell-local surface — source is bundled into the shell'
+        state.files = []
+        state.selectedPath = ''
+        state.loadError = 'shell-local surface — source is bundled into the shell'
         return
       }
-      s.loading = true
-      s.loadError = null
-      s.files = []
-      s.selectedPath = ''
-      s.drafts = {}
+      state.loading = true
+      state.loadError = null
+      state.files = []
+      state.selectedPath = ''
+      state.drafts = {}
       try {
         const resp = await fetch(
           `/api/v1/views/${encodeURIComponent(name)}/files`,
           { credentials: 'same-origin' },
         )
         if (!resp.ok) {
-          s.loadError = resp.status === 404 ? 'no source for this view' : `fetch failed (${resp.status})`
+          state.loadError = resp.status === 404 ? 'no source for this view' : `fetch failed (${resp.status})`
           return
         }
         const body = await resp.json() as FilesResponse
@@ -294,26 +259,26 @@ export default controller({
           const sub = subrouteOf(f.path)
           return sub ? { ...f, subroute: sub } : f
         })
-        s.files = enriched
+        state.files = enriched
         const def = enriched.find((f) => f.path === 'page.sui') ?? enriched[0]
-        if (def) s.selectedPath = def.path
+        if (def) state.selectedPath = def.path
       } catch (e) {
-        s.loadError = (e as Error).message
+        state.loadError = (e as Error).message
       } finally {
-        s.loading = false
+        state.loading = false
       }
     }
 
     function tryAssignEditorValue(): void {
-      const el = readState.editorEl()
+      const el = state.editorEl
       if (!el) return
-      const v = readState.editorValue()
+      const v = state.editorValue
       if (el.value !== v) el.value = v
       if (el !== editorWired) {
         editorWired = el
         // sui-change is hooked via on:sui-change in the template;
         // also bind sui-save here so Cmd/Ctrl+S triggers the save flow.
-        el.addEventListener('sui-save', () => { void (state as unknown as { onSave: () => Promise<void> }).onSave() })
+        el.addEventListener('sui-save', () => { void state.onSave() })
       }
     }
 
@@ -322,19 +287,20 @@ export default controller({
     // Before this, the prop setter exists but the editor's mount effect
     // hasn't run, so writes get lost.
     let editorUpgraded = false
-    void customElements.whenDefined('sui-code-editor').then(() => {
+    void customElements.whenDefined('ship-code-editor').then(() => {
       editorUpgraded = true
       tryAssignEditorValue()
     })
 
     const stopSync = effect(() => {
-      // Track every reactive read this effect cares about.
-      readState.editorEl()
-      readState.editorValue()
-      readState.selectedPath()
-      readState.files()
+      // Track every reactive read this effect cares about. Reading
+      // `state.x` calls the signal getter, which subscribes the effect.
+      void state.editorEl
+      void state.editorValue
+      void state.selectedPath
+      void state.files
       if (editorUpgraded) tryAssignEditorValue()
-      // The template can re-render the <sui-code-editor> after the
+      // The template can re-render the <ship-code-editor> after the
       // effect snapshot. Poll a few frames so the value lands once the
       // host element appears in the DOM.
       let attempts = 0
@@ -344,8 +310,8 @@ export default controller({
           if (attempts < 60) requestAnimationFrame(tick)
           return
         }
-        const el = readState.editorEl()
-        const want = readState.editorValue()
+        const el = state.editorEl
+        const want = state.editorValue
         if (el && el.value === want && want.length > 0) return
         tryAssignEditorValue()
         if (attempts < 60) requestAnimationFrame(tick)
@@ -358,8 +324,8 @@ export default controller({
       const pathname = current?.path ?? location.pathname
       const next = viewNameFromRoute(pathname)
       if (!next) return
-      if (next !== readState.viewName()) {
-        s.viewName = next
+      if (next !== state.viewName) {
+        state.viewName = next
         void loadFiles(next)
       }
     }
@@ -371,38 +337,36 @@ export default controller({
     // ── Compile feedback from per-view SSE bridge ────────────────
     const matchesView = (detail: unknown): boolean => {
       const d = detail as { view_name?: string; view?: string } | undefined
-      const name = (state as unknown as { viewName: () => string }).viewName()
+      const name = state.viewName
       const v = d?.view_name ?? d?.view
       return !v || v === name
     }
-    const compileStatusSig = (state as unknown as { compileStatus: { set(v: string): void; (): string } }).compileStatus
-    const compileErrorSig = (state as unknown as { compileError: { set(v: string | null): void; (): string | null } }).compileError
     // Push compile diagnostics into the CodeMirror gutter on the active
     // editor instance. The editor exposes setDiagnostics(diags[]) per
-    // its sui-code-editor.sui prop/method surface; we call it on every
+    // its ship-code-editor.sui prop/method surface; we call it on every
     // errored event (with the new diag) and clear on every compiled.
     function pushDiagnosticsToEditor(diags: SuiDiagnostic[]): void {
-      const el = readState.editorEl()
+      const el = state.editorEl
       if (!el?.setDiagnostics) return
       el.setDiagnostics(diags)
     }
     const onCompiled = (e: Event): void => {
       const d = (e as CustomEvent).detail
       if (!matchesView(d)) return
-      compileStatusSig.set('compiled')
-      compileErrorSig.set(null)
+      state.compileStatus = 'compiled'
+      state.compileError = null
       pushDiagnosticsToEditor([])
       // Auto-revert to idle so the saved chip doesn't linger forever.
       window.setTimeout(() => {
-        if (compileStatusSig() === 'compiled') compileStatusSig.set('idle')
+        if (state.compileStatus === 'compiled') state.compileStatus = 'idle'
       }, 2500)
     }
     const onErrored = (e: Event): void => {
       const d = (e as CustomEvent).detail as { message?: string; line?: number; col?: number; file?: string; severity?: 'error' | 'warning' | 'info' } | undefined
       if (!matchesView(d)) return
       const loc = d?.line ? `:${d.line}${d?.col ? `:${d.col}` : ''}` : ''
-      compileStatusSig.set('errored')
-      compileErrorSig.set(`${d?.file ?? 'view'}${loc} — ${d?.message ?? 'compile failed'}`)
+      state.compileStatus = 'errored'
+      state.compileError = `${d?.file ?? 'view'}${loc} — ${d?.message ?? 'compile failed'}`
       pushDiagnosticsToEditor([{
         line: d?.line ?? 1,
         ...(d?.col !== undefined ? { col: d.col } : {}),
@@ -416,7 +380,7 @@ export default controller({
 
     Object.defineProperty(host, 'refresh', {
       configurable: true,
-      value: () => { lastLoadedView = null; void loadFiles(readState.viewName()) },
+      value: () => { lastLoadedView = null; void loadFiles(state.viewName) },
     })
 
     return () => {

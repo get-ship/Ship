@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use ship_substrate::ports::{Predicate, Query, SpaceContext};
 use ship_types::envelope::EventEnvelope;
-use ship_types::payload::{
+use crate::events::{
     CollectionCreated, CollectionItemCreated, CollectionItemDeleted, CollectionItemUpdated,
     CollectionSchemaChanged,
 };

@@ -240,15 +240,11 @@ elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
       cp "$LAUNCH_REPO_ROOT"/apps/shipd/assets/ship-*.js "$WORKTREE_PATH/apps/shipd/assets/" 2>/dev/null || true
     fi
     # deck's OWN baked product — sui-runtime/dom/sdk-client + the primitives
-    # umbrella + lucide registry. Embedded by crates/deck/deck-core/src/assets.rs;
-    # build.rs panics if any are missing or empty.
-    if [[ -d "$LAUNCH_REPO_ROOT/crates/deck/deck-core/assets" ]]; then
-      mkdir -p "$WORKTREE_PATH/crates/deck/deck-core/assets"
-      cp "$LAUNCH_REPO_ROOT"/crates/deck/deck-core/assets/sui-*.js \
-         "$LAUNCH_REPO_ROOT"/crates/deck/deck-core/assets/sui-custom-elements.json \
-         "$LAUNCH_REPO_ROOT"/crates/deck/deck-core/assets/lucide-icons.json \
-         "$WORKTREE_PATH/crates/deck/deck-core/assets/" 2>/dev/null || true
-    fi
+    # umbrella. Canonical bake target is now .deck/framework/ (Recommendation B1).
+    # build.rs copies .deck/framework/sui-*.js → crates/deck/deck-core/assets/
+    # (the include_str! staging path) at compile time. We only need to ensure
+    # .deck/framework/ is populated, which the .deck/ copy below handles.
+    # No separate crate-assets copy needed — build.rs owns that step.
     # deck BUILD output (.deck/) — app/user view bundles + code-split chrome
     # islands, read at runtime by deck-core's read_deck_asset. Not baked, so
     # not required for `cargo build`, but copying it spares the fresh worktree a
@@ -276,17 +272,14 @@ elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
     echo "Copied generated artifacts from $LAUNCH_REPO_ROOT"
   fi
 
-  # Rebuild fallback: if any required artifact still missing, regenerate it
-  # locally so a fresh clone (no launch repo) still boots cleanly.
-  if [[ ! -s "$WORKTREE_PATH/crates/deck/deck-core/assets/sui-runtime.js" ]]; then
+  # Rebuild fallback: if .deck/framework/sui-runtime.js is still missing,
+  # regenerate via the canonical bundler (cargo run -p deck-cli -- build-assets).
+  # The .deck/ copy above handles the fast path; this is the cold-clone fallback.
+  if [[ ! -s "$WORKTREE_PATH/.deck/framework/sui-runtime.js" ]]; then
     echo "Regenerating SUI framework bundles (slow path; launch-repo copy was unavailable)"
     (cd "$WORKTREE_PATH" && \
-       bun run --filter '@ship/sui-runtime' bundle && \
-       bun run --filter '@ship/sui-dom' bundle && \
-       bun run --filter '@ship/sdk-client' bundle && \
-       bun run --filter '@ship/ui-components' build && \
-       bun run --filter '@ship/set' build && \
-       bun run --filter '@ship/set' icons) 2>&1 | tail -20
+       cargo build -p sui-compiler && \
+       cargo run -p deck-cli --quiet -- build-assets) 2>&1 | tail -20
   fi
   if [[ ! -s "$WORKTREE_PATH/packages/sui/grammar/src/parser.c" ]]; then
     echo "Regenerating tree-sitter parser.c"
@@ -298,6 +291,22 @@ elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
   if [[ ! -s "$WORKTREE_PATH/packages/deck/sdk/src/generated/sdk-urls.json" ]]; then
     echo "Regenerating SDK manifests (cargo run -p xtask -- gen-sdk)"
     (cd "$WORKTREE_PATH" && cargo run -p xtask --quiet -- gen-sdk) 2>&1 | tail -10
+  fi
+
+  # Build the SUI compiler binaries into this worktree's target/. Without this,
+  # the daemon + per-edit harness fall back to the stale installed
+  # ~/.ship/runtime/sui-compiler instead of the worktree's current source, so a
+  # fresh worktree silently lints/compiles against old language rules. Also warm
+  # the lib-only lint example (the CLI form agents call per edit). Robust by
+  # design: offline / locked-registry builds must not abort the dispatch — log
+  # and continue; the agent's own edit-loop will surface a missing binary.
+  echo "Building SUI compiler binaries (cargo build -p sui-compiler -p sui-compiler-napi)"
+  if ! (cd "$WORKTREE_PATH" && cargo build -p sui-compiler -p sui-compiler-napi 2>&1 | tail -15); then
+    echo "Warning: cargo build of sui-compiler/sui-compiler-napi failed (offline?); agent must build before its edit loop" >&2
+  fi
+  echo "Warming the sui-lint check example (cargo build -p sui-lint --example check)"
+  if ! (cd "$WORKTREE_PATH" && cargo build -p sui-lint --example check 2>&1 | tail -10); then
+    echo "Warning: building the sui-lint check example failed (offline?); agent must build before its edit loop" >&2
   fi
 fi
 

@@ -1,6 +1,6 @@
 //! ActorStore — scoped event handle for a single actor.
 //!
-//! Writes and queries delegate to the shared platform.db `events` table. The
+//! Writes and queries delegate to the shared Runtime-scope `runtime.db` `events` table. The
 //! `ActorStore` enforces namespace boundaries on writes and filters reads by
 //! the owning actor's `actor_id`. No per-actor SQLite files are created —
 //! the actor is a logical boundary over a shared log.
@@ -111,7 +111,7 @@ impl ActorStore {
 
     /// Query events owned by this actor.
     ///
-    /// All queries against platform.db are scoped to `actor_id = self.actor_id`
+    /// All queries against runtime.db are scoped to `actor_id = self.actor_id`
     /// — an ActorStore is a filter view over the shared log, not a private
     /// store. If `filter.event_type` is set it must be covered by
     /// `read_namespaces`.
@@ -160,10 +160,10 @@ impl ActorStore {
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 /// Write an event to a DB path without namespace enforcement.
-/// Used by `ActorStore::append` (after namespace check) and by
-/// `KernelRouter::route` for kernel-namespace events. In the single-event-log
-/// architecture the `db_path` is always platform.db; the parameter is kept
-/// so tests can target a temp DB.
+/// Used only by `ActorStore::append`/`append_enforced` (after the namespace
+/// check); the path is the actor's `runtime.db`, kept as a parameter so tests
+/// can target a temp DB. NOTE: bypasses the projection bus — kernel-routed
+/// events persist via the PartitionedSink instead.
 pub(crate) fn raw_append(db_path: &Path, event: &EventEnvelope) -> Result<()> {
     let mut conn = open_db_at(db_path)?;
     crate::db::envelope::insert_event_row(event, &mut conn)

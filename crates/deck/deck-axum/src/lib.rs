@@ -7,13 +7,17 @@
 //! one mountable unit.
 
 mod handlers;
+pub mod multiplex;
+pub mod pages;
 pub mod render_helpers;
+pub mod sui_source;
 
 pub use handlers::{
-    serve_catalog_published, serve_catalog_workspace, serve_hub, serve_hub_asset, serve_meta,
-    serve_pack_asset, serve_sui_components, serve_sui_dom, serve_sui_icon, serve_sui_island,
+    serve_bundle_hmr, serve_catalog_workspace, serve_public_asset, serve_shell, serve_shell_asset,
+    serve_meta,
+    serve_sui_chunk, serve_sui_dom, serve_sui_icon,
     serve_sui_live_reload, serve_space, serve_space_asset, serve_sui_runtime,
-    serve_sui_sdk_client, serve_sui_view_css, serve_sui_view_setup, serve_sui_view_template,
+    serve_sui_sdk_client, serve_sui_view_setup,
     serve_view_host, serve_view_payload, serve_view_payload_subpath,
 };
 
@@ -34,7 +38,7 @@ use axum::{
 };
 
 /// Extract the daemon mode from an optional axum `Extension`, defaulting to
-/// Development. The whole `/_sui/*` surface reads it this way so handlers
+/// Development. The whole `/_deck/*` surface reads it this way so handlers
 /// need no router-state plumbing.
 pub fn mode_from_ext(ext: Option<Extension<DaemonMode>>) -> DaemonMode {
     ext.map(|e| e.0).unwrap_or(DaemonMode::Development)
@@ -64,40 +68,81 @@ pub fn into_axum(resp: DeckResponse) -> Response {
 /// deck's whole hosting surface as one mountable `Router`.
 ///
 /// Registers: framework bundles (runtime/dom/sdk-client/components),
-/// per-icon lucide serving, per-tag island bundles, the workspace +
-/// published catalogs, pack assets,
-/// per-view template/setup/css, view-host (bare + sub-path), and
-/// view-payload (top-level + sub-path). Paths mirror shipd's canonical
-/// `Route` enum so a host can mount this in lieu of wiring each handler.
+/// per-icon lucide serving, the workspace catalog, per-view setup (compiled
+/// `view.js`), view-host (two paths under `/_deck/view/`), and view-payload
+/// (top-level + sub-path). Paths mirror shipd's canonical `Route` enum so a
+/// host can mount this in lieu of wiring each handler.
 ///
-/// `/api/_meta`, HMR, and the state-aware SUI endpoints (sse/data/mutation/
-/// patch) are NOT registered here — they need host-supplied extensions or
-/// router state.
+/// HMR and the state-aware SUI endpoints (sse/data/mutation/patch) are NOT
+/// registered here — they need host-supplied extensions or router state.
+/// `/_deck/meta` is registered here; hosts that need to inject a
+/// `DaemonBuildInfo` extension (shipd) simply layer it before mounting.
 pub fn router() -> Router {
+    use pages::{
+        serve_index, serve_setup, serve_theme_css, serve_themes_list, serve_view_tokens,
+        spa_fallback, spa_or_public_asset,
+    };
     Router::new()
-        .route("/_sui/runtime.js", get(serve_sui_runtime))
-        .route("/_sui/dom.js", get(serve_sui_dom))
-        .route("/_sui/sdk-client.js", get(serve_sui_sdk_client))
-        .route("/_sui/components.js", get(serve_sui_components))
-        .route("/_sui/icons/{file}", get(serve_sui_icon))
-        .route("/_sui/live-reload.js", get(serve_sui_live_reload))
-        .route("/_sui/sui-components/{file}", get(serve_sui_island))
-        .route("/api/sui/catalog/workspace", get(serve_catalog_workspace))
-        .route("/api/sui/catalog/published", get(serve_catalog_published))
-        .route("/_sui/packs/{pack_id}/{file}", get(serve_pack_asset))
-        .route("/_sui/views/{name}/view.sui", get(serve_sui_view_template))
-        .route("/_sui/views/{name}/view.js", get(serve_sui_view_setup))
-        .route("/_sui/views/{name}/view.css", get(serve_sui_view_css))
-        .route("/_sui/views/{name}", get(serve_view_payload))
-        .route("/_sui/views/{name}/{*sub_path}", get(serve_view_payload_subpath))
+        // Shared CSS / theme assets (unauthenticated) — paths are the
+        // canonical `Route` enum values (routes.rs is ground truth).
+        .route("/api/assets/view-tokens.css", get(serve_view_tokens))
+        .route("/api/assets/theme.css", get(serve_theme_css))
+        .route("/api/v1/themes", get(serve_themes_list))
+        // Per-tag component source viewer (dev studio deep-link).
+        .route("/_deck/source/{tag}", get(sui_source::serve_sui_source))
+        // First-run flow — both routes unauthenticated; decision via DataPort.
+        .route("/", get(serve_index))
+        .route("/setup", get(serve_setup))
+        // HMR firehose — always mounted; the handler self-gates (empty SSE
+        // when no bundler is wired), so no `if Development` guard is needed.
+        .route("/_deck/dev/hmr", get(serve_bundle_hmr))
+        .route("/_deck/runtime.js", get(serve_sui_runtime))
+        .route("/_deck/dom.js", get(serve_sui_dom))
+        .route("/_deck/sdk-client.js", get(serve_sui_sdk_client))
+        .route("/_deck/icons/{file}", get(serve_sui_icon))
+        .route("/_deck/live-reload.js", get(serve_sui_live_reload))
+
+        // Shared chunks from the multi-entry view build (#267), served
+        // content-addressed from `.deck/` root. The exact singleton routes
+        // above win for `/_deck/runtime.js` etc.; this catches hashed chunks.
+        .route("/_deck/{file}", get(serve_sui_chunk))
+        .route("/_deck/catalog/workspace", get(serve_catalog_workspace))
+        .route("/_deck/meta", get(serve_meta))
+        .route("/_deck/views/{name}/view.js", get(serve_sui_view_setup))
+        .route("/_deck/views/{name}", get(serve_view_payload))
+        .route("/_deck/views/{name}/{*sub_path}", get(serve_view_payload_subpath))
         .route("/space/_assets/{file}", get(serve_space_asset))
         .route("/space/{id}", get(serve_space))
-        .route("/hub/_assets/{file}", get(serve_hub_asset))
-        .route("/hub", get(serve_hub))
-        .route("/view-host", get(serve_view_host))
-        .route("/view-host/{*rest}", get(serve_view_host))
-        .route("/sui/{name}", get(serve_view_host))
-        .route("/sui/{name}/{*sub_path}", get(serve_view_host))
+        // Shell assets at /shell/_assets/{file} (symmetric with /space/_assets).
+        .route("/shell/_assets/{file}", get(serve_shell_asset))
+        // Single-view host surface under deck's /_deck/ namespace (singular
+        // "view" to avoid colliding with the plural "views" payload routes).
+        .route("/_deck/view/{name}", get(serve_view_host))
+        .route("/_deck/view/{name}/{*sub_path}", get(serve_view_host))
+        // `POST /_deck/mutation/{name}` — 410 tombstone. The progressive-
+        // enhancement form endpoint is gone; JS-attached mutations call the SDK
+        // directly. deck still composes this URL as the `<form mutation>`
+        // `action` (`deck_core::routes::mutation_action`) for the no-JS fallback,
+        // so the route answers 410 Gone rather than 404. A `/_deck/*` serving
+        // concern — lives here, not in the host's RPC surface.
+        .route(
+            "/_deck/mutation/{name}",
+            axum::routing::post(|| async { StatusCode::GONE }),
+        )
+        // Host public assets at single-segment root paths (/favicon.ico, …) or
+        // the shell for a bare client-route segment. Registered AFTER the
+        // literal `/`, `/setup`, and `/api/...` routes so those keep their
+        // handlers; `/{file}` is the single-segment catch-all (axum prefers the
+        // literal routes).
+        .route("/{file}", get(spa_or_public_asset))
+    // No `.fallback` here: deck's `router()` is MERGED into the host's root
+    // alongside the Connect-ops router, whose entire RPC dispatch IS a
+    // `fallback_service`. axum panics if two merged routers both carry a
+    // fallback, and a host `.fallback` would shadow the RPC dispatch into a dead
+    // data plane. So deck sets none; the host keeps the Connect fallback and
+    // composes SPA navigation ahead of it (shipd uses a pre-routing nav shim
+    // that serves the shell for client-route GETs). deck still exports
+    // `spa_fallback` + `serve_shell` for hosts that want them.
 }
 
 #[cfg(test)]
@@ -143,7 +188,62 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn into_axum_not_found_status() {
-        let resp = into_axum(DeckResponse::not_found("nope"));
+        let resp = into_axum(DeckResponse::not_found("nope", DaemonMode::Development));
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn router_builds_without_route_conflict() {
+        // The `/_deck/{file}` shared-chunk route is a param sibling of the exact
+        // `/_deck/runtime.js` etc.; matchit (axum 0.8) must accept the overlap.
+        // A conflict would otherwise only surface as a daemon-startup panic.
+        let _ = router();
+    }
+
+    /// serve_bundle_hmr with no bundler must return 200 (empty SSE body) and
+    /// not hang. This is a safety check for the no-bundler path.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn serve_bundle_hmr_no_bundler_returns_200() {
+        use crate::handlers::serve_bundle_hmr;
+
+        let resp = serve_bundle_hmr(None, None).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let ct = resp.headers().get(header::CONTENT_TYPE).unwrap().to_str().unwrap();
+        assert!(ct.contains("text/event-stream"), "must be SSE content-type; got {ct}");
+    }
+
+    /// serve_bundle_hmr with a CancellationToken that fires immediately must
+    /// not hang. Before this fix the BroadcastStream had no take_until and would
+    /// block the axum graceful-shutdown drain until every client disconnected.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn serve_bundle_hmr_terminates_on_cancel_token() {
+        use axum::body::to_bytes;
+        use crate::handlers::serve_bundle_hmr;
+        use tokio_util::sync::CancellationToken;
+
+        let token = CancellationToken::new();
+        // Fire the token immediately before the handler even starts reading.
+        token.cancel();
+
+        // serve_bundle_hmr without a bundler (empty stream) — the test gates
+        // that the handler accepts and honours the cancel extension without
+        // panicking.
+        let resp = serve_bundle_hmr(
+            None,
+            Some(Extension(token)),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Consuming the body must complete (not block forever).
+        let result = tokio::time::timeout(
+            std::time::Duration::from_millis(500),
+            to_bytes(resp.into_body(), usize::MAX),
+        )
+        .await;
+        assert!(
+            result.is_ok(),
+            "response body must drain within 500ms after cancel token fires"
+        );
     }
 }

@@ -142,7 +142,7 @@ const games: GameEntry[] = [
       </div>
 
       <footer class="picker-foot">
-        Source under <code>packages/arcade-engine</code> · <code>packages/components/arcade</code> · <code>apps/site/src/games</code>
+        Source under <code>packages/arcade-engine</code> · <code>packages/components/ship/arcade</code> · <code>apps/site/src/games</code>
       </footer>
     </div>
 
@@ -436,17 +436,29 @@ const games: GameEntry[] = [
    * under `arcade.hi.<slug>` ({ value, when } records).
    */
   // ── Lazy-load the arcade engine (pixi, ~800KB) ──────────────────────
-  // The games no longer statically import '@ship/arcade/bundle', so it stays
-  // off every marketing page. We pull it the first time the Arcade window
-  // opens; sui-stage upgrades on import and each game's `sui-stage:ready`
-  // listener fires. Covers both the dock-click open and the /arcade deep-link.
+  // The games no longer statically import the arcade pack, so it stays off
+  // every marketing page. We pull the deck-built `sui-arcade.js` bundle the
+  // first time the Arcade window opens; sui-stage upgrades on import and each
+  // game's `sui-stage:ready` listener fires. Covers both the dock-click open
+  // and the /arcade deep-link. The runtime singletons stay external — resolved
+  // by the page importmap (see BaseLayout.astro). `@vite-ignore` keeps Astro
+  // from resolving the public-served bundle at build time.
   {
     const arcadeWin = document.querySelector<HTMLElement>('[data-app-window="arcade"]');
     let loaded = false;
     const loadEngine = () => {
       if (loaded) return;
       loaded = true;
-      import('@ship/arcade/bundle');
+      // `/sui-arcade.js` is a public-served bundle (copied from deck's `.deck/`
+      // output), not a module in the vite graph — public files may only be
+      // referenced via HTML tags, and vite's dev server rejects even
+      // `@vite-ignore` dynamic imports of them. Inject a module <script> tag:
+      // the browser fetches it as-is, the page importmap resolves the runtime
+      // externals, and the bundle's side effects register <sui-stage>.
+      const s = document.createElement('script');
+      s.type = 'module';
+      s.src = '/sui-arcade.js';
+      document.head.appendChild(s);
     };
     if (arcadeWin?.classList.contains('open')) loadEngine();
     else if (arcadeWin) {

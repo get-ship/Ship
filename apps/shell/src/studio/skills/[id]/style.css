@@ -35,7 +35,7 @@
 .sk-save-msg { font-size: var(--text-xs); color: var(--success); }
 .sk-save-msg[data-ok='false'] { color: var(--destructive); }
 .sk-editor-body { flex: 1; min-height: 0; overflow: hidden; }
-.sk-editor-body sui-markdown-editor { display: block; height: 100%; }
+.sk-editor-body ship-markdown-editor { display: block; height: 100%; }
 .sk-editor-empty {
   display: flex;
   flex-direction: column;

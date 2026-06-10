@@ -7,9 +7,9 @@
   /settings/isolation, the wizard's "current state" panel, and any
   actor/agent detail view that wants the full picture.
 
-  Auto-fetches /api/v1/isolation/status when no props supplied; views
-  that already hold a decision pass it via attributes and skip the
-  round-trip.
+  Auto-fetches the isolation decision via the isolation service when
+  no props are supplied; views that already hold a decision pass it
+  via attributes and skip the round-trip.
 
   Props
   ─────────────────────────────────────────────────────────────────────

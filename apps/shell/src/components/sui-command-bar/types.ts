@@ -2,6 +2,8 @@
 
 import { chrome } from '@ship/sui-runtime'
 import type { Signal } from '@ship/sui-runtime'
+import { EntityKind, type SearchHit as ProtoSearchHit } from '@ship/sdk/connect'
+import { ops } from '../../ops'
 
 export type BarMode = 'ai' | 'command' | 'find' | 'mention' | 'create'
 
@@ -90,20 +92,78 @@ export async function searchEntities(
   q: string,
   opts: { limit?: number; types?: SearchEntityKind[]; cursor?: string; signal?: AbortSignal } = {},
 ): Promise<SearchResponse | null> {
-  const params = new URLSearchParams()
-  if (q) params.set('q', q)
-  if (opts.limit != null) params.set('limit', String(opts.limit))
-  if (opts.types?.length) params.set('types', opts.types.join(','))
-  if (opts.cursor) params.set('cursor', opts.cursor)
   try {
-    const resp = await fetch(`/api/v1/search?${params.toString()}`, {
-      credentials: 'same-origin',
-      signal: opts.signal ?? null,
-    })
-    if (!resp.ok) return null
-    return await resp.json() as SearchResponse
+    // Same-origin Connect: the daemon's auth middleware reads the
+    // session cookie, so no token plumbing. The wire returns a typed
+    // `SearchResponse { hits, nextCursor }`; we project onto the
+    // legacy `{ ok, data: { hits, total, cursor } }` shape the
+    // existing consumers (palette grouping, find-mode debouncer)
+    // already read, so the rewire is purely a transport swap.
+    const resp = await ops.search.search(
+      {
+        q,
+        limit: opts.limit ?? 0,
+        cursor: opts.cursor ?? '',
+        kinds: opts.types?.map(toEntityKind) ?? [],
+      },
+      opts.signal ? { signal: opts.signal } : {},
+    )
+    return {
+      ok: true,
+      data: {
+        hits: resp.hits.map(toSearchHit),
+        total: resp.hits.length,
+        ...(resp.nextCursor ? { cursor: resp.nextCursor } : {}),
+      },
+    }
   } catch {
     return null
+  }
+}
+
+/** View string → wire enum. UNSPECIFIED is treated as the legacy
+ *  "view" default (the SDK's string-shaped `SearchEntityKind`
+ *  predates the proto enum; we keep the wire enum out of the public
+ *  view layer). */
+function toEntityKind(kind: SearchEntityKind): EntityKind {
+  switch (kind) {
+    case 'view': return EntityKind.VIEW
+    case 'collection': return EntityKind.COLLECTION
+    case 'collection_item': return EntityKind.COLLECTION_ITEM
+    case 'agent': return EntityKind.AGENT
+    case 'skill': return EntityKind.SKILL
+    case 'session': return EntityKind.SESSION
+    case 'artifact': return EntityKind.ARTIFACT
+  }
+}
+
+/** Wire hit → view hit. The proto fields are always-present; the view
+ *  shape uses optional + snake_case for the collection_id only. */
+function toSearchHit(hit: ProtoSearchHit): SearchHit {
+  return {
+    kind: fromEntityKind(hit.kind),
+    id: hit.id,
+    label: hit.label,
+    path: hit.path,
+    score: hit.score,
+    ...(hit.icon ? { icon: hit.icon } : {}),
+    ...(hit.snippet ? { snippet: hit.snippet } : {}),
+    ...(hit.collectionId ? { collection_id: hit.collectionId } : {}),
+  }
+}
+
+/** Wire enum → view string. UNSPECIFIED is treated as the legacy
+ *  "view" default. */
+function fromEntityKind(kind: EntityKind): SearchEntityKind {
+  switch (kind) {
+    case EntityKind.VIEW: return 'view'
+    case EntityKind.COLLECTION: return 'collection'
+    case EntityKind.COLLECTION_ITEM: return 'collection_item'
+    case EntityKind.AGENT: return 'agent'
+    case EntityKind.SKILL: return 'skill'
+    case EntityKind.SESSION: return 'session'
+    case EntityKind.ARTIFACT: return 'artifact'
+    default: return 'view'
   }
 }
 
@@ -114,39 +174,16 @@ export interface SlashCommand {
   handler_kind?: 'mode' | 'navigate' | 'endpoint' | 'local'
 }
 
-// Session-level cache for the slash registry. The bar refreshes when the
-// cached snapshot crosses MAX_AGE_MS at the moment the user opens cmdk —
-// no background polling. Falls back to the seeded constant on fetch error
-// so the palette is never empty.
+// Session-level cache for the slash registry. The registry is a static,
+// client-side list — the daemon exposes no commands endpoint — so the loader
+// resolves the seeded constant and stamps the cache. The cache/TTL surface is
+// kept so the open-effect's `slashCacheAge() > TTL` refresh guard works.
 const SLASH_CACHE_MAX_AGE_MS = 60_000
 let slashCache: { at: number; commands: SlashCommand[] } | null = null
-let slashInFlight: Promise<SlashCommand[]> | null = null
 
-export async function loadSlashCommands(force = false): Promise<SlashCommand[]> {
-  const now = performance.now()
-  if (!force && slashCache && now - slashCache.at < SLASH_CACHE_MAX_AGE_MS) {
-    return slashCache.commands
-  }
-  if (slashInFlight) return slashInFlight
-  slashInFlight = (async () => {
-    try {
-      const resp = await fetch('/api/v1/commands', { credentials: 'same-origin' })
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      const body = await resp.json() as { commands?: SlashCommand[] }
-      const commands = body.commands ?? []
-      slashCache = { at: performance.now(), commands }
-      return commands
-    } catch {
-      // Hold previous cache if any, else fall back to the seeded constant
-      // so the bar is usable when the daemon is unreachable.
-      if (slashCache) return slashCache.commands
-      slashCache = { at: performance.now(), commands: SLASH_COMMANDS }
-      return SLASH_COMMANDS
-    } finally {
-      slashInFlight = null
-    }
-  })()
-  return slashInFlight
+export async function loadSlashCommands(_force = false): Promise<SlashCommand[]> {
+  slashCache = { at: performance.now(), commands: SLASH_COMMANDS }
+  return slashCache.commands
 }
 
 export function cachedSlashCommands(): SlashCommand[] {

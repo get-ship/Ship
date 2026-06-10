@@ -86,6 +86,12 @@ fn allowlisted_method_calls() {
     // JS. Used to reject; now admitted.
     ok("count.toFixed(2)");
     ok("price.toFixed(0)");
+    // `.has()` / `.get()` — read-only Set / Map accessors. `selectedSet().has(id)`
+    // is the natural canvas idiom (sui-board / sui-draw); used to reject as a
+    // bare `expr` CompileError (#263-B), now admitted alongside includes/keys/…
+    ok("selectedSet().has(n.id)");
+    ok("incidentSet().has(r.id)");
+    ok("byId.get(item.id)");
 }
 
 #[test]

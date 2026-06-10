@@ -1,0 +1,20 @@
+// Route metadata for the internal component-viewer surface.
+//
+// Project-local view (.ship/views/), NOT a first-party built-in (views/).
+// Browses the campaign's `<sui-*>` tags and mounts the selected one live in a
+// <sui-component-viewer> stage (component-mode: sui-render mode="tag").
+//
+// NOTE: the live SUI view-host (crates/deck/deck-host/resolver.rs) resolves
+// `.ship/views/<name>/index.sui` — NOT page.sui — so the template ships as
+// index.sui (+ index.controller.ts). See the gap log in the task report.
+{
+  "name": "component-viewer",
+  "path": "/component-viewer",
+  "title": "Components",
+  "layout": "default",
+  "auth": "user",
+  "rail": {
+    "label": "Components",
+    "icon": "layout-grid"
+  }
+}

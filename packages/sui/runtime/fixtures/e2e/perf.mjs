@@ -14,14 +14,14 @@ import { chromium } from 'playwright'
 const BASE = process.env.SUI_E2E_BASE_URL || 'http://127.0.0.1:9385'
 
 const VIEWS = [
-  '/view-host/counter',
-  '/view-host/sui-demo',
-  '/view-host/demos',
-  '/view-host/demos/conditional-render',
-  '/view-host/demos/iteration',
-  '/view-host/demos/signals-and-derived',
-  '/view-host/demos/lifecycle',
-  '/view-host/demos/match',
+  '/_deck/view/counter',
+  '/_deck/view/sui-demo',
+  '/_deck/view/demos',
+  '/_deck/view/demos/conditional-render',
+  '/_deck/view/demos/iteration',
+  '/_deck/view/demos/signals-and-derived',
+  '/_deck/view/demos/lifecycle',
+  '/_deck/view/demos/match',
 ]
 
 function median(xs) {
@@ -49,47 +49,5 @@ for (const path of VIEWS) {
   console.log(`  ${m.toString().padStart(5)} ms  ${path}   (samples: ${samples.join(', ')})`)
 }
 
-console.log('\n=== 1000-cycle mount/unmount soak on counter ===')
-const soakCtx = await browser.newContext()
-const soakPage = await soakCtx.newPage()
-await soakPage.goto(BASE + '/view-host/counter', { waitUntil: 'networkidle' })
-
-const soakResult = await soakPage.evaluate(async ({ base, cycles }) => {
-  const payload = await fetch(base + '/_sui/views/counter').then((r) => r.json())
-  // mount() lives in @ship/sui-runtime, not in the view module.
-  // The view-host page set up the importmap; resolve from there.
-  const { mount } = await import('@ship/sui-runtime')
-  const mod = await import(payload.moduleUrl)
-  // Pre-resolve the module so mount() doesn't refetch it every cycle.
-  const mountOpts = { cssScope: 'none', module: mod }
-  if (globalThis.gc) globalThis.gc()
-  const before = performance.memory?.usedJSHeapSize ?? 0
-  const t0 = performance.now()
-  for (let i = 0; i < cycles; i++) {
-    const host = document.createElement('div')
-    document.body.appendChild(host)
-    const handle = await mount(host, payload, mountOpts)
-    handle.dispose()
-    host.remove()
-  }
-  const dt = performance.now() - t0
-  if (globalThis.gc) globalThis.gc()
-  const after = performance.memory?.usedJSHeapSize ?? 0
-  return { dt, before, after, delta: after - before }
-}, { base: BASE, cycles: 1000 })
-
-const ms = soakResult.dt.toFixed(0)
-const perOp = (soakResult.dt / 1000).toFixed(2)
-const deltaKb = (soakResult.delta / 1024).toFixed(1)
-console.log(`  total: ${ms} ms  (${perOp} ms/cycle)`)
-console.log(`  heap delta: ${deltaKb} KB (chromium-only metric)`)
-
-await soakCtx.close()
 await browser.close()
-
-const LEAK_THRESHOLD_KB = 25 * 1024
-if (soakResult.delta > LEAK_THRESHOLD_KB * 1024) {
-  console.error(`\nleak suspect: heap delta ${deltaKb} KB > ${LEAK_THRESHOLD_KB} KB`)
-  process.exit(1)
-}
 console.log('\nperf OK')

@@ -1,10 +1,10 @@
 // `artifacts.*` metadata ops as a hand-authored per-domain proto-SSOT service
-// (#89), mounted ADDITIVELY beside the generated ReadOps/CommandOps (which keep
-// serving artifacts.* until the GUI flip, #72). The byte-moving store/get stay
-// on serving routes — blobs don't ride a JSON op — so only the metadata reads +
-// mutations live here. Distinct request-message names (ListArtifactsRequest, …)
-// avoid colliding with the generated ArtifactsListRequest et al. in this same
-// ship.ops.v1 package; return types reuse the shared shapes in types.proto
+// (#89) — the sole serving path (the generated ReadOps/CommandOps umbrella was
+// retired, #78). The byte-moving store/get stay on serving routes — blobs don't
+// ride a JSON op — so only the metadata reads + mutations live here. Distinct
+// request-message names (ListArtifactsRequest, …) are historical
+// collision-avoidance against the deleted ArtifactsListRequest et al.; kept for
+// wire stability. Return types reuse the shared shapes in types.proto
 // (ArtifactsListResponse / ArtifactRecord / Deletion).
 syntax = "proto3";
 

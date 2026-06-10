@@ -39,7 +39,7 @@ type SummariesCtx = {
 
 const EMPTY: SummariesCtx = { stats_subtitle: '', defs: [], active_runs: [], providers: [] }
 // `summaries` is a live signal the controller owns: subscribe directly to the
-// `/_sui/data?expr=ship.pipelines.summaries()` SSE channel via `liveExpr` (the
+// `/_deck/data?expr=ship.pipelines.summaries()` SSE channel via `liveExpr` (the
 // pattern views/events + the history view use). The shell SDK object has no
 // `pipelines` surface, so the call form would throw — `liveExpr` wires the
 // channel by name instead. `{#async summaries}` + derived args read the signal.
@@ -70,6 +70,7 @@ export default controller({
     const defs = derived(() => read(summaries).defs.map((d) => ({
       ...d,
       success_pct: Math.floor(d.success_rate * 100),
+      lastRunLabel: d.last_run_at ? formatRelative(d.last_run_at) : '',
       // Map run tone → the sui-pipeline-card state taxonomy (ok/running/awaiting/err/none).
       card_state: d.active_runs > 0
         ? 'running'
@@ -84,13 +85,14 @@ export default controller({
     const activeRuns = derived(() => read(summaries).active_runs.map((r) => ({
       ...r,
       state_attr: r.state.replace('-', ''),
+      updatedLabel: formatRelative(r.updated_at),
       steps: r.steps?.map((step, i, arr) => ({ ...step, isLast: i === arr.length - 1 })),
     })))
     const providers = derived(() => read(summaries).providers)
     const workspaceId = derived(() => read(summaries).workspace_id ?? null)
     const statsSubtitle = derived(() => read(summaries).stats_subtitle)
     return {
-      summaries, formatRelative,
+      summaries,
       q, agent, pipeline, status, tab,
       dispatchOpen, dispatchSpec, dispatchPipeline, dispatchProvider, dispatchHeadless,
       newPipeOpen, newPipeName, newPipeError, newPipeCreating,

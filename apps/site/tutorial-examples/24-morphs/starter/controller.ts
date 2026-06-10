@@ -9,7 +9,7 @@ export default controller<Scope>({
       add: async (label: string): Promise<void> => {
         const trimmed = label.trim()
         if (!trimmed) return
-        const res = await fetch('/_sui/api/users/add', {
+        const res = await fetch('/_deck/api/users/add', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ name: trimmed }),

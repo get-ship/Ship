@@ -1,52 +1,22 @@
 //! Bundle target resolution for the Rust bundler (#163).
 //!
-//! `TARGETS` + `discoverSeparateBundles` + `discoverViewBundles` +
-//! `assetsDirFor` for the bundler. A `BundleTarget` names what to build, where
-//! its entry is, what stays external, and where the output lands. The Rolldown
-//! build (`rolldown_bundle.rs`) iterates these; nothing here touches the
-//! filesystem beyond discovery reads.
+//! `TARGETS` + `discoverViewBundles` + `assetsDirFor` for the bundler. A
+//! `BundleTarget` names what to build, where its entry is, what stays external,
+//! and where the output lands. The Rolldown build (`rolldown_bundle.rs`)
+//! iterates these; nothing here touches the filesystem beyond discovery reads.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-/// `<bundle separate />` top-of-file directive opts a component dir into its own
-/// code-split bundle (vs living in its package umbrella aggregate).
-const BUNDLE_SEPARATE_NEEDLE: &str = "<bundle separate";
-
-/// Roots scanned for `<tag>/` dirs that may opt into separate bundles.
-const SEPARATE_BUNDLE_ROOTS: [&str; 2] = [
-    "packages/components/ui-components/src",
-    "apps/shell/src/components",
-];
+use deck_config::DeckConfig;
 
 /// Deck's OWN runtime bundles — baked into the deck-core crate (like Next
 /// shipping its own runtime). Everything else under `sui-`/`views/` is app/user
-/// content and goes to `.deck/`.
-const DECK_OWN_BUNDLES: [&str; 4] = ["sui-runtime", "sui-dom", "sui-sdk-client", "sui-components"];
-
-/// Marketing-essentials aggregate — exactly the `<sui-*>` tags apps/site mounts.
-/// Keep in sync with apps/site when adding tags. Repo-relative.
-///
-/// `sui-icon` is registered explicitly: the bundler only defines the custom
-/// elements whose `.sui` sources are listed here, and a `<sui-icon>` referenced
-/// inside another template (e.g. the theme-picker trigger) is NOT transitively
-/// pulled in. Without this entry `<sui-icon>` stays an inert HTMLUnknownElement
-/// — no controller, no `/_sui/icons/<name>.svg` fetch, no glyph.
-const MARKETING_SOURCES: [&str; 13] = [
-    "packages/components/primitives/src/sui-icon/sui-icon.sui",
-    "packages/components/primitives/src/sui-badge/sui-badge.sui",
-    "packages/components/primitives/src/sui-button/sui-button.sui",
-    "packages/components/primitives/src/sui-progress/sui-progress.sui",
-    "packages/components/primitives/src/sui-separator/sui-separator.sui",
-    "packages/components/primitives/src/sui-stat/sui-stat.sui",
-    "packages/components/primitives/src/sui-status-dot/sui-status-dot.sui",
-    "packages/components/primitives/src/sui-table/sui-table.sui",
-    "packages/components/primitives/src/sui-toolbar/sui-toolbar.sui",
-    "packages/components/charts/src/sui-bar-chart/sui-bar-chart.sui",
-    "packages/components/charts/src/sui-sparkline/sui-sparkline.sui",
-    "apps/shell/src/components/sui-brand-mark/sui-brand-mark.sui",
-    "apps/shell/src/components/sui-theme-picker/sui-theme-picker.sui",
-];
+/// content and goes to `.deck/`. Chrome components are NOT here — the
+/// per-tag tree-shaking resolver (the `sui-components/<name>` prefix in
+/// `assets_dir_for` + the `@sui-tag/<tag>` virtual import in `sui_plugin.rs`)
+/// is the canonical way chrome loads. There is no umbrella.
+const DECK_OWN_BUNDLES: [&str; 3] = ["sui-runtime", "sui-dom", "sui-sdk-client"];
 
 /// A target's entry: a real on-disk module, or a synthetic aggregate that
 /// imports each `source` by absolute path (the build phase generates the entry).
@@ -79,15 +49,33 @@ pub struct BundleLayout {
     /// redirect for tests / out-of-tree builds so output never clobbers
     /// committed assets.
     pub out_root: PathBuf,
+    /// Parsed `deck.jsonc` — consumer bundle targets + watch dirs + host assets
+    /// root. Defaults to `DeckConfig::defaults()` for zero-config hosts.
+    pub cfg: DeckConfig,
 }
 
 impl BundleLayout {
+    /// Construct loading `deck.jsonc` from `repo_root` (the normal default).
+    /// Falls back to [`DeckConfig::defaults`] when the file is absent, so
+    /// zero-config hosts (deck-demo, integration test tempdirs) work without
+    /// a manifest.
     pub fn new(repo_root: PathBuf, workspace_root: Option<PathBuf>) -> Self {
+        let cfg = DeckConfig::load(&repo_root);
+        Self::with_config(repo_root, workspace_root, cfg)
+    }
+
+    /// Construct with an explicit [`DeckConfig`] (the normal shipd/bake path —
+    /// caller already called `DeckConfig::load` once; avoids a double read).
+    pub fn with_config(
+        repo_root: PathBuf,
+        workspace_root: Option<PathBuf>,
+        cfg: DeckConfig,
+    ) -> Self {
         let source_roots = match &workspace_root {
             Some(ws) if *ws != repo_root => vec![repo_root.clone(), ws.clone()],
             _ => vec![repo_root.clone()],
         };
-        Self { out_root: repo_root.clone(), repo_root, source_roots }
+        Self { out_root: repo_root.clone(), repo_root, source_roots, cfg }
     }
 
     /// Redirect output under `out_root` (sources still resolve from `repo_root`).
@@ -96,40 +84,41 @@ impl BundleLayout {
         self
     }
 
-    fn deck_own_assets(&self) -> PathBuf {
-        self.out_root.join("crates/deck/deck-core/assets")
-    }
     fn deck_out(&self) -> PathBuf {
         self.out_root.join(".deck")
     }
-    fn lit_assets(&self) -> PathBuf {
-        self.out_root.join("apps/shipd/assets")
+    /// Host-owned assets root, derived from `cfg.host_assets_root`.
+    fn host_assets(&self) -> PathBuf {
+        self.out_root.join(&self.cfg.host_assets_root)
     }
 
-    /// Output dir for a target by name. Deck-own bundles → the crate's assets;
-    /// `sui-*`/`views/*` → `.deck/`; everything else → `apps/shipd/assets`.
+    /// Output dir for a target by name. Deck-own framework singletons →
+    /// `.deck/framework/` (the build-script staging path that `build.rs` copies
+    /// into `crates/deck/deck-core/assets/` for `include_str!`); `views/*` and
+    /// `sui-components/*` → `.deck/`; everything else → `cfg.host_assets_root`.
     pub fn assets_dir_for(&self, name: &str) -> PathBuf {
         if DECK_OWN_BUNDLES.contains(&name) {
-            return self.deck_own_assets();
+            return self.deck_out().join("framework");
         }
-        if name.starts_with("sui-") || name.starts_with("views/") {
+        if name.starts_with("views/") || name.starts_with("sui-components/") {
             return self.deck_out();
         }
-        self.lit_assets()
+        self.host_assets()
     }
 
-    /// All targets: the static framework + aggregates, plus discovered
-    /// separate-bundle islands and view bundles.
+    /// All targets: framework singletons + consumer targets from cfg + view bundles.
     pub fn all_targets(&self) -> Vec<BundleTarget> {
-        let mut out = self.static_targets();
-        out.extend(self.discover_separate_bundles());
+        let mut out = self.framework_singletons();
+        out.extend(self.consumer_targets());
         out.extend(self.discover_view_bundles());
         out
     }
 
-    fn static_targets(&self) -> Vec<BundleTarget> {
+    /// Deck's OWN framework singletons — always built, hardcoded, never in
+    /// deck.jsonc. These are the 4 runtime primitives deck ships with itself
+    /// (like Next.js shipping its own runtime).
+    fn framework_singletons(&self) -> Vec<BundleTarget> {
         let r = |rel: &str| self.repo_root.join(rel);
-        let marketing_sources = MARKETING_SOURCES.iter().map(|p| r(p)).collect();
         vec![
             BundleTarget {
                 name: "sui-runtime".into(),
@@ -149,80 +138,54 @@ impl BundleLayout {
                 externals: vec!["@ship/sui-runtime".into()],
                 out_file: "sui-sdk-client.js".into(),
             },
-            BundleTarget {
-                name: "sui-components".into(),
-                entry: TargetEntry::Real(r("packages/components/ui-components/src/index.ts")),
-                externals: vec!["@ship/sui-runtime".into()],
-                out_file: "sui-components.js".into(),
-            },
-            BundleTarget {
-                name: "sui-components/sui-chrome".into(),
-                entry: TargetEntry::Real(r("apps/shell/src/components/index.ts")),
-                externals: vec!["@ship/sui-runtime".into(), "@ship/sui-dom".into()],
-                out_file: "sui-components/sui-chrome.js".into(),
-            },
-            BundleTarget {
-                name: "sui-marketing".into(),
-                entry: TargetEntry::Virtual { sources: marketing_sources },
-                externals: vec!["@ship/sui-runtime".into(), "@ship/sui-dom".into()],
-                out_file: "sui-marketing.js".into(),
-            },
         ]
     }
 
-    /// Walk each separate-bundle root for `sui-*/` dirs whose `.sui` files carry
-    /// `<bundle separate />`; each becomes a virtual aggregate of its `.sui`s.
-    fn discover_separate_bundles(&self) -> Vec<BundleTarget> {
-        let mut out = Vec::new();
-        let mut seen = HashSet::new();
-        for rel in SEPARATE_BUNDLE_ROOTS {
-            let components_dir = self.repo_root.join(rel);
-            let Ok(entries) = std::fs::read_dir(&components_dir) else { continue };
-            for e in entries.flatten() {
-                let name = e.file_name().to_string_lossy().into_owned();
-                if !name.starts_with("sui-") || seen.contains(&name) {
-                    continue;
-                }
-                if !e.path().is_dir() {
-                    continue;
-                }
-                let mut sui_paths = sui_files_in(&e.path());
-                if sui_paths.is_empty() {
-                    continue;
-                }
-                sui_paths.sort();
-                let separate = sui_paths.iter().any(|p| {
-                    std::fs::read_to_string(p)
-                        .map(|s| s.contains(BUNDLE_SEPARATE_NEEDLE))
-                        .unwrap_or(false)
-                });
-                if !separate {
-                    continue;
-                }
-                seen.insert(name.clone());
-                out.push(BundleTarget {
-                    name: format!("sui-components/{name}"),
-                    entry: TargetEntry::Virtual { sources: sui_paths },
-                    externals: vec!["@ship/sui-runtime".into(), "@ship/sui-dom".into()],
-                    out_file: format!("sui-components/{name}.js"),
-                });
+    /// Consumer bundle targets from `deck.jsonc`. The logical name drives
+    /// `assets_dir_for` routing (e.g. `sui-components/*` → `.deck/`,
+    /// anything else → `host_assets_root`).
+    pub fn consumer_targets(&self) -> Vec<BundleTarget> {
+        self.cfg.targets.iter().map(|t| {
+            let entry = TargetEntry::Real(self.repo_root.join(&t.entry));
+            let out_file = t.out_file.clone().unwrap_or_else(|| format!("{}.js", t.name));
+            BundleTarget {
+                name: t.name.clone(),
+                entry,
+                externals: t.externals.clone(),
+                out_file,
             }
-        }
-        out
+        }).collect()
     }
 
-    /// One bundle per discovered view. Two layouts under each source root:
-    /// `views/<name>/page.sui` and `.ship/views/<name>/index.sui`. First-seen
-    /// wins (repo_root before workspace; `views/` before `.ship/views/`).
+    /// One bundle per discovered view. The scan is fully config-driven
+    /// (#273 — deck hardcodes no path):
+    ///
+    /// - For each `source_root`, walk each `cfg.view_dirs` bucket
+    ///   (defaults to `["views", ".ship/views"]`) and look for a
+    ///   `<bucket>/<name>/<view_leaf>` artifact. The leaf is
+    ///   `cfg.view_leaf` (defaults to `page.sui`) — one convention for
+    ///   all buckets, fixing the #254 `index.sui` vs `page.sui` divergence.
+    /// - If `cfg.first_party_app` is set, its `root` is treated as a
+    ///   first-party view root too: `<root>/<name>/<view_leaf>`. The
+    ///   host (e.g. ship) declares its own first-party app layout in
+    ///   `deck.jsonc`; deck does not name the app.
+    ///
+    /// First-seen wins: earlier `view_dirs` entries (and earlier
+    /// `source_roots`) shadow later matches.
     fn discover_view_bundles(&self) -> Vec<BundleTarget> {
         let mut out = Vec::new();
         let mut seen = HashSet::new();
-        let mut candidates: Vec<(PathBuf, &str)> = Vec::new();
+        let leaf = self.cfg.view_leaf.as_deref().unwrap_or("page.sui");
+        let mut candidates: Vec<PathBuf> = Vec::new();
         for root in &self.source_roots {
-            candidates.push((root.join("views"), "page.sui"));
-            candidates.push((root.join(".ship").join("views"), "index.sui"));
+            for bucket in &self.cfg.view_dirs {
+                candidates.push(root.join(bucket));
+            }
+            if let Some(fpa) = &self.cfg.first_party_app {
+                candidates.push(fpa.root.clone());
+            }
         }
-        for (dir, leaf) in candidates {
+        for dir in candidates {
             let Ok(entries) = std::fs::read_dir(&dir) else { continue };
             for e in entries.flatten() {
                 let name = e.file_name().to_string_lossy().into_owned();
@@ -270,14 +233,6 @@ impl BundleLayout {
     }
 }
 
-fn sui_files_in(dir: &Path) -> Vec<PathBuf> {
-    let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
-    entries
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.is_file() && p.extension().is_some_and(|x| x == "sui"))
-        .collect()
-}
 
 #[cfg(test)]
 mod tests {
@@ -291,28 +246,26 @@ mod tests {
 
     #[test]
     fn assets_dir_routes_by_name() {
+        // Framework singletons land in `.deck/framework/` (build-script staging).
         let l = BundleLayout::new(PathBuf::from("/repo"), None);
-        assert_eq!(l.assets_dir_for("sui-runtime"), PathBuf::from("/repo/crates/deck/deck-core/assets"));
+        assert_eq!(l.assets_dir_for("sui-runtime"), PathBuf::from("/repo/.deck/framework"));
+        assert_eq!(l.assets_dir_for("sui-dom"), PathBuf::from("/repo/.deck/framework"));
+        assert_eq!(l.assets_dir_for("sui-sdk-client"), PathBuf::from("/repo/.deck/framework"));
+        // Per-tag chrome (`sui-components/<name>`) lands in `.deck/`.
+        // (The umbrella `sui-components` target no longer exists — chrome
+        // is per-tag tree-shaking only.)
         assert_eq!(l.assets_dir_for("sui-components/sui-rail"), PathBuf::from("/repo/.deck"));
         assert_eq!(l.assets_dir_for("views/git/view"), PathBuf::from("/repo/.deck"));
-        assert_eq!(l.assets_dir_for("ship-something"), PathBuf::from("/repo/apps/shipd/assets"));
+        // Consumer targets (e.g. sui-marketing, sui-arcade) also land in `.deck/`.
+        assert_eq!(l.assets_dir_for("ship-something"), PathBuf::from("/repo/.deck"));
     }
 
     #[test]
-    fn discovers_views_and_separate_bundles() {
+    fn discovers_view_bundles() {
         let tmp = tempdir().unwrap();
         let root = tmp.path().to_path_buf();
         // A view.
         write(&root.join("views/git/page.sui"), "<div>git</div>\n");
-        // A separate-bundle component + a non-separate one.
-        write(
-            &root.join("packages/components/ui-components/src/sui-rail/sui-rail.sui"),
-            "<bundle separate />\n<div>rail</div>\n",
-        );
-        write(
-            &root.join("packages/components/ui-components/src/sui-plain/sui-plain.sui"),
-            "<div>plain</div>\n",
-        );
 
         let l = BundleLayout::new(root, None);
         let targets = l.all_targets();
@@ -320,10 +273,5 @@ mod tests {
 
         assert!(names.contains(&"sui-runtime"), "static framework target present");
         assert!(names.contains(&"views/git/view"), "discovered view");
-        assert!(names.contains(&"sui-components/sui-rail"), "separate-bundle island");
-        assert!(
-            !names.contains(&"sui-components/sui-plain"),
-            "non-separate component must NOT get its own bundle"
-        );
     }
 }

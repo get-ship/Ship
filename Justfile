@@ -43,47 +43,50 @@ bootstrap:
     # component bundles against.
     bun run wasm
     cargo build -p ship-cli
-    bun run --filter @ship/primitives build
-    bun run --filter @ship/charts build
-    bun run --filter @ship/ui-components build
-    bun run --filter @ship/sui-catalog build
-    bun packages/deck/catalog/src/cli.ts
+    # Deck is the only bundler: bake the framework singletons + sui-components
+    # umbrella + islands + marketing/arcade in-process (rolldown). No per-pack
+    # pre-compile step — components compile from source on demand.
+    cargo run -p deck-cli --quiet -- build-assets
+    # Hub + space scaffolds: the daemon-served `/` and `/space/<id>` HTML apps.
+    # A fresh tree without these blanks the shell (no `/`) and any
+    # `--app=<id>` Tauri window (no `/space/<id>`).
+    cargo run -q -p deck-cli -- build --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
+    cargo run -q -p deck-cli -- build --shell-root apps/spaces --out .deck/space-scaffold
     just dev-runtime-install
     echo "bootstrap complete — 'just dev' to start the daemon"
 
-# Build + stash + start the dev daemon for this worktree.
+# Build + stash + start the dev daemon for this worktree (headless / browser dev).
 [group('daily')]
 dev:
     @scripts/dev/start.sh
 
-# Frontend dev server for shell (vite). Proxies /api, /_sui, /sui, /view-host
-# to the daemon — `just dev` must already be running. vite.config.ts writes
-# its pid to <daemon_dir>/vite.pid so `just dev-stop` can reap it.
+# The whole desktop loop in ONE command: rebuild the hub scaffold, ensure the
+# dev daemon, build + launch the native shell window. Always rebuilds the
+# scaffold so a stale `.deck/hub-scaffold` can't silently blank the shell.
+# Pass `--app=<id>` to open a space window. Daemon-only loop: `just dev`.
 [group('daily')]
-shell-dev:
-    @bun run --filter shell dev
+shell *ARGS:
+    @scripts/dev/shell.sh {{ARGS}}
 
 # Force a one-shot rebuild of every asset bundle served by the daemon
-# (sui-runtime, sui-dom, sui-components, islands, ship-elements, views/*).
+# (sui-runtime, sui-dom, sui-components, islands, views/*).
 # Regenerate the typed dynamic-route table from the view file tree (SSOT).
 [group('daily')]
 gen-routes:
     @cargo run -q -p deck-cli -- routes --shell-root apps/shell
 
-# Build the standalone SUI component packs (primitives/charts/pipelines/
-# ui-components) → each package's `dist/`, served by the daemon at
-# `/_sui/packs/<id>/`. These are gitignored build outputs that the deck
-# bundler does NOT produce, so without this they go stale (and a stale pack
-# that inlines its own @ship/sui-runtime causes split-brain signals → blank
-# shell). Part of dev-build-all so the JS build is actually complete.
-build-packs: _sui-compiler-lib
-    @bun run --filter './packages/components/*' build
-
-# Bakes the framework bundles via the in-process Rolldown bundler (#163) — the
-# same engine shipd runs. No bun; spawns the `sui-compiler` binary built above.
+# Bakes every bundle via the in-process Rolldown bundler (#163) — the same
+# engine shipd runs, and the ONLY bundler. Framework singletons + the
+# sui-components umbrella + islands + views + marketing/arcade, all traced from
+# source. No per-pack build step: components compile from `.sui` on demand.
+# Also rebuilds the hub + space scaffolds (the daemon-served `/` and
+# `/space/<id>`) so a fresh tree or a stale `.deck/space-scaffold` doesn't
+# blank a Tauri `--app=<id>` window.
 [group('daily')]
-dev-build-all: _sui-compiler-lib gen-routes build-packs
-    @cargo xtask build-assets
+dev-build-all: _sui-compiler-lib gen-routes
+    @cargo run -p deck-cli --quiet -- build-assets
+    @cargo run -q -p deck-cli -- build --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
+    @cargo run -q -p deck-cli -- build --shell-root apps/spaces --out .deck/space-scaffold
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
@@ -141,10 +144,14 @@ dev-runtime-update:
 # Run all tests (Rust + loops). For a faster inner loop use test-fast.
 [group('daily')]
 test:
-    # ship-shell (apps/shell/src-tauri) is the desktop shell — needs webkit2gtk/
-    # libsoup; excluded from the framework test sweep. Build it via the Tauri
-    # toolchain (release.yml / `cargo build -p ship-shell` on a desktop box).
-    cargo test --workspace --exclude ship-shell --features unstable
+    # ship-host (apps/host) is Ship's single native host — Tauri webview wrapping
+    # a daemon-served scaffold. Needs webkit2gtk/libsoup; excluded from the
+    # framework test sweep. Build it via the Tauri toolchain (release.yml /
+    # `cargo build -p ship-host` on a desktop box).
+    # --no-fail-fast: run EVERY test binary. cargo's default stops at the first
+    # failing bin and masks the rest — the gate then lies green while later
+    # suites are red. Never drop this flag.
+    cargo test --workspace --exclude ship-host --features unstable --no-fail-fast
 
 # Visual baselines — Playwright screenshots vs committed PNGs.
 # Daemon must be running (`just dev`). Pass --update-snapshots to refresh
@@ -156,7 +163,7 @@ visual *ARGS:
 # Library tests only — skips integration suites for fast inner-loop feedback.
 [group('daily')]
 test-fast:
-    cargo test --workspace --exclude ship-shell --lib --features unstable
+    cargo test --workspace --exclude ship-host --lib --features unstable --no-fail-fast
 
 # Run tests for a single crate. Usage: just test-pkg runtime
 [group('daily')]
@@ -166,7 +173,7 @@ test-pkg pkg:
 # cargo check across the workspace — fastest sanity gate.
 [group('daily')]
 check:
-    cargo check --workspace --exclude ship-shell --all-targets --features unstable
+    cargo check --workspace --exclude ship-host --all-targets --features unstable
 
 # THE GATE. Every dispatched job runs this before commit; the operator skims the
 # diff for taste only — the objective bar is proven here, not claimed. Composes
@@ -179,14 +186,14 @@ gate:
     @just gen-contract-check
     @just gen-events-check
     @just gen-indexes-check
-    cargo test --workspace --exclude ship-shell --features unstable
+    cargo test --workspace --exclude ship-host --features unstable
     @echo "✓ gate green — objective bar met (taste review still required)"
 
 # Rust clippy + home-layout grep guards. Hard-fail on raw .ship/ joins
 # (devx-06 Tier 6).
 [group('daily')]
 lint:
-    cargo clippy --workspace --exclude ship-shell --features unstable -- -D warnings
+    cargo clippy --workspace --exclude ship-host --features unstable -- -D warnings
     @just check-raw
 
 # Visual QA against the daemon serving cwd. Discovers port automatically.
@@ -262,6 +269,15 @@ fmt-check:
 lint-views:
     cargo run --features unstable -p ship-cli --quiet -- lint views --format json
 
+# License audit gate — walks the resolved dependency tree (node_modules/.bun)
+# and fails on copyleft (GPL/AGPL/LGPL/EPL/MPL/CDDL…). Replaces hand-copied
+# vendor LICENSE files now that third-party engines are declared deps inlined
+# at build (see docs/ship-adrs/.../ship-component-architecture.md). Run after
+# `bun install`. Pre-approved build-time-only exceptions live in the script.
+[group('occasional')]
+license-check:
+    node scripts/check-licenses.mjs
+
 # Enforce layer-direction rules: substrate must not import platform; etc.
 [group('occasional')]
 lint-layers:
@@ -276,13 +292,6 @@ coverage:
 [group('occasional')]
 lint-imports:
     cargo run -p xtask --quiet -- lint-imports
-
-# Regenerate the aggregated SUI Custom Elements Manifest from per-component
-# CEMs under packages/components/ui-components/src/. Writes
-# crates/deck/deck-core/assets/sui-custom-elements.json which apps/shipd embeds.
-[group('occasional')]
-cem:
-    bun run --filter @ship/ui-components build
 
 # Build docs site (Astro static).
 [group('occasional')]
@@ -314,7 +323,7 @@ docs-regen:
 docs-check-drift:
     cd apps/docs && bun run docs:check-drift
 
-# The sui-compiler cdylib that sui-build/the bundler dlopen for FFI compilation.
+# The sui-compiler cdylib that the deck bundler dlopens for FFI compilation.
 # A real build-graph dependency, not a remembered step — so a compiler/lint
 # source change always reaches every consumer (build, dev-build-all). cargo
 # no-ops in ~2s when fresh, so it's effectively free.
@@ -329,28 +338,23 @@ build: _sui-compiler-lib
     #!/usr/bin/env bash
     set -euo pipefail
     command -v bun >/dev/null || { echo "build: bun not on PATH" >&2; exit 1; }
-    echo "[1/9] gen-types"
+    echo "[1/8] gen-types"
     cargo run -p xtask --quiet -- gen-types
-    echo "[2/9] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bun builds load)"
-    # Steps 3-6 drive the SUI compiler over Bun FFI against this .so. Nothing
-    # in cargo's graph forces it to rebuild (the JS bundler consumes it
+    echo "[2/8] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bundler loads)"
+    # Steps 3-8 drive the SUI compiler over Bun FFI against this .so. Nothing
     # out-of-band), so without this step it silently goes stale and bundles
     # compile against an old token registry / lint set. Cheap no-op when fresh.
     cargo build -p sui-compiler
-    echo "[3/9] primitives build (@ship/primitives → packages/components/primitives/dist/)"
-    bun run --filter @ship/primitives build
-    echo "[4/9] charts build (@ship/charts → packages/components/charts/dist/)"
-    bun run --filter @ship/charts build
-    echo "[5/9] ui-components build (sui-build → crates/deck/deck-core/assets/)"
-    bun run --filter @ship/ui-components build
-    echo "[6/9] view bundles + sui-* bundles (cargo xtask build-assets — in-process Rolldown)"
-    cargo xtask build-assets
-    echo "[7/9] sui-catalog walk (→ .deck/catalogs/{workspace,published}.json)"
-    bun run --filter @ship/sui-catalog build
-    bun packages/deck/catalog/src/cli.ts
-    echo "[8/9] cargo build --release (ship-cli + shipd)"
+    echo "[3/8] framework + sui-* bundles + islands + views + catalog (cargo run -p deck-cli --quiet -- build-assets — in-process Rolldown; the only bundler AND the only catalog producer, → .deck/catalogs/workspace.json)"
+    cargo run -p deck-cli --quiet -- build-assets
+    echo "[4/8] catalog baked in [3/8] — the duplicate TS producer (@ship/sui-catalog) is retired; deck-bundler is the single source"
+    echo "[5/8] hub scaffold (the daemon-served / — bundled with framework assets so the dir is self-contained for installed builds)"
+    cargo run -q -p deck-cli -- build --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
+    echo "[6/8] space scaffold (the daemon-served /space/<id> — the thin per-space frontend a Tauri --app=<id> window loads; DECK_APP_ID is injected by the daemon at serve time)"
+    cargo run -q -p deck-cli -- build --shell-root apps/spaces --out .deck/space-scaffold
+    echo "[7/8] cargo build --release (ship-cli + shipd)"
     cargo build --release -p ship-cli -p shipd
-    echo "[9/9] verify outputs"
+    echo "[8/8] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
     for bin in ship shipd; do
@@ -361,7 +365,7 @@ build: _sui-compiler-lib
             echo "  ✓ $target_dir/release/$bin"
         fi
     done
-    for asset in crates/deck/deck-core/assets/sui-runtime.js crates/deck/deck-core/assets/sui-components.js packages/components/primitives/dist/sui-primitives.js packages/components/charts/dist/sui-charts.js .deck/catalogs/workspace.json .deck/catalogs/published.json; do
+    for asset in .deck/framework/sui-runtime.js .deck/framework/sui-components.js .deck/sui-marketing.js .deck/sui-arcade.js .deck/catalogs/workspace.json .deck/hub-scaffold/index.html .deck/space-scaffold/index.html; do
         if [ ! -s "$asset" ]; then
             echo "  ✗ $asset missing or empty" >&2
             missing=1
@@ -413,6 +417,19 @@ install: build-release
 [group('occasional')]
 sui-wasm:
     wasm-pack build crates/sui/compiler --target web --out-dir ../../../packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm
+
+# Build the native Node-API addon the SUI test harness compiles through.
+# Unlike `sui-wasm`, this is rarely run by hand: the harness loads whatever
+# `cargo build` / `just build` already produced under `target/`, so a plain
+# build keeps it fresh. This recipe exists for an explicit, isolated rebuild
+# (e.g. after editing the compiler crate while iterating on tests) and is what
+# the drift guard in packages/sui/dom/src/test-utils/compile-sui.ts names. The
+# harness dlopen's the cdylib directly (it exports the N-API init symbol), so
+# there is no `.node` rename step. One cargo-current build feeds both the
+# daemon and the harness — the artifact-drift fix (#255).
+[group('occasional')]
+sui-napi:
+    cargo build -p sui-compiler-napi
 
 # Regenerate Specta types (Rust → generated TS bindings).
 [group('occasional')]
@@ -522,8 +539,33 @@ check-raw:
     @scripts/lint/check-leaf-portability.sh
     @scripts/lint/check-runtime-access.sh
     @scripts/lint/check-module-dag.sh
+    @scripts/lint/check-sui-runtime-no-ship-api.sh
+    @scripts/lint/check-deck-package-names.sh
+    @just lint-justfile
     @just lint-vocab
     @just check-migrations
+
+# Syntax-check every bash-shebang recipe body with `bash -n`. `just` treats
+# recipe bodies as opaque text, so a bash typo (e.g. a dropped `if … then`)
+# parses fine at the just layer yet breaks `just build` at runtime. This catches
+# that class statically. Recipes taking interpolated args ({{…}}) are skipped —
+# their bodies aren't pure bash until just substitutes.
+[group('occasional')]
+lint-justfile:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    fail=0
+    for r in $(just --summary); do
+        body=$(just --show "$r" 2>/dev/null | sed -n 's/^    //p')
+        printf '%s\n' "$body" | grep -q '^#!/usr/bin/env bash' || continue
+        printf '%s\n' "$body" | grep -q '[{][{]' && continue
+        if ! printf '%s\n' "$body" | bash -n 2>/dev/null; then
+            echo "  ✗ recipe '$r' has a bash syntax error" >&2
+            fail=1
+        fi
+    done
+    [ "$fail" = "0" ] || { echo "lint-justfile: recipe shell syntax error(s)" >&2; exit 1; }
+    echo "lint-justfile: all bash recipe bodies parse"
 
 # Banned-vocabulary gate. Fails when a banned term (deleted concept) appears
 # in hand-authored source/proto/tests. Ban-list: .ship/lint/banned-vocab.txt

@@ -56,7 +56,7 @@
       <sui-stack gap="3">
         {#for run of activeRuns() key={run.slug}}
           <sui-pipeline-run attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent}>
-            <time slot="actions" datetime={run.updated_at}>{formatRelative(run.updated_at)}</time>
+            <time slot="actions" datetime={run.updated_at}>{run.updatedLabel}</time>
             <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/studio/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
             </sui-button>
@@ -66,7 +66,7 @@
             <div class="ship-run-detail">
               {#if run.agent}<sui-avatar size="sm" shape="round" attr:identity-hue={run.agent} attr:name={run.agent}></sui-avatar>{/if}
               {#if run.branch}<code>{run.branch}</code>{/if}
-              {#if run.provider}<sui-provider-blob attr:provider={run.provider} size="sm" variant="glyph"></sui-provider-blob>{/if}
+              {#if run.provider}<sui-chip size="sm">{run.provider}</sui-chip>{/if}
               {#if run.model}<sui-chip size="sm">{run.model}</sui-chip>{/if}
             </div>
             {#if run.blocker}<sui-alert tone="warning" compact>Blocked: {run.blocker}</sui-alert>{/if}
@@ -101,7 +101,7 @@
             <span slot="steps">
               <sui-chip size="sm" tone="muted">{def.step_count} step{def.step_count !== 1 ? 's' : ''}</sui-chip>
               {#if def.total_runs > 0}<sui-chip size="sm" tone="muted">{def.total_runs} run{def.total_runs !== 1 ? 's' : ''} · {def.success_pct}%</sui-chip>{/if}
-              {#if def.last_run_at}<time datetime={def.last_run_at}>{formatRelative(def.last_run_at)}</time>{/if}
+              {#if def.last_run_at}<time datetime={def.last_run_at}>{def.lastRunLabel}</time>{/if}
             </span>
           </sui-pipeline-card>
         {/for}

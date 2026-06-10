@@ -13,6 +13,13 @@ import type { Signal } from '../src/signal'
 let tagCounter = 0
 const nextTag = () => `form-prop-${++tagCounter}`
 
+// jsdom's ElementInternals.setFormValue is partial — the spy/round-trip needs
+// the real webview tier (proof owed in #164). Gate the suite's setFormValue
+// assertions on it; do NOT silently early-return past the only assert.
+const setFormValueAbsent =
+  typeof (window as unknown as { ElementInternals?: { prototype: ElementInternals } })
+    .ElementInternals?.prototype?.setFormValue !== 'function'
+
 const mounted: HTMLElement[] = []
 afterEach(() => {
   while (mounted.length) mounted.pop()?.remove()
@@ -37,7 +44,7 @@ describe('component() with formValue + formDisabled', () => {
     expect(ctor.formAssociated).toBe(true)
   })
 
-  it('calls internals.setFormValue with the stringified signal value', () => {
+  it.skipIf(setFormValueAbsent)('calls internals.setFormValue with the stringified signal value', () => {
     const tag = nextTag()
     let signalRef: Signal<unknown> | undefined
     component(tag, {
@@ -59,11 +66,7 @@ describe('component() with formValue + formDisabled', () => {
     // Re-mount with a spy on ElementInternals.setFormValue. jsdom's
     // implementation exists but we can swap to a spy via a wrapper.
     el.remove()
-    const proto = (window as unknown as { ElementInternals?: { prototype: ElementInternals } }).ElementInternals?.prototype
-    if (!proto || typeof proto.setFormValue !== 'function') {
-      // jsdom may not implement setFormValue — skip rather than fail.
-      return
-    }
+    const proto = (window as unknown as { ElementInternals: { prototype: ElementInternals } }).ElementInternals.prototype
     const orig = proto.setFormValue
     proto.setFormValue = function (v: unknown) {
       calls.push(v as string | null)

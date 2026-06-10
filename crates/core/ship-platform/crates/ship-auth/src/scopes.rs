@@ -48,7 +48,7 @@ pub fn account_store(
 /// keeps un-provisioned agents (and dev-mode pairs) working exactly as before.
 /// The provisioned record, once present, fully replaces the role default.
 pub fn resolve_grants(agent_id: &str, role: Option<&str>) -> Vec<String> {
-    resolve_from(ship_substrate::projections::grants::provisioned_grants_for(agent_id), agent_id, role)
+    resolve_from(crate::grants_projection::provisioned_grants_for(agent_id), agent_id, role)
 }
 
 /// Test/`_at` variant of [`resolve_grants`] against a specific home dir.
@@ -58,7 +58,7 @@ pub fn resolve_grants_at(
     role: Option<&str>,
 ) -> Vec<String> {
     resolve_from(
-        ship_substrate::projections::grants::provisioned_grants_for_at(home, agent_id),
+        crate::grants_projection::provisioned_grants_for_at(home, agent_id),
         agent_id,
         role,
     )
@@ -263,8 +263,8 @@ mod tests {
 
     #[test]
     fn resolve_grants_provisioned_record_overrides_role() {
+        use crate::grants_projection::ProvisionedGrantsProjection;
         use ship_substrate::events::EventEnvelope;
-        use ship_substrate::projections::grants::ProvisionedGrantsProjection;
         use ship_substrate::projections::registry::Projection;
 
         let tmp = tempfile::tempdir().unwrap();

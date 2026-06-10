@@ -16,7 +16,6 @@ impl ShipRuntime {
     /// spawning that compiler in its Rolldown `load` hook.
     pub fn bundler(&self) -> &deck::bundler::Bundler {
         self.bundler.get_or_init(|| {
-            let home = ship_substrate::ShipHome::at(self.ship_dir.clone());
             // `repo_root` is the bundler's CWD + `SHIP_REPO_ROOT` — where
             // it looks for monorepo built-ins (`packages/`, contributor
             // `views/`). When the daemon has no attached project, fall
@@ -29,9 +28,12 @@ impl ShipRuntime {
                 .clone()
                 .or_else(|| std::env::current_dir().ok())
                 .unwrap_or_else(|| self.ship_dir.clone());
+            // Load deck.jsonc from the repo root — the single source of truth
+            // for consumer bundle targets, watch dirs, and host_assets_root.
+            let cfg = deck::config::DeckConfig::load(&repo_root);
             // In-process Rolldown bundler (#163) — no worker script, no child
             // process. Bundles `repo_root`'s built-ins + the user `workspace`.
-            deck::bundler::Bundler::start(&home, repo_root, workspace)
+            deck::bundler::Bundler::start(repo_root, workspace, cfg)
         })
     }
 
@@ -221,10 +223,19 @@ impl ShipRuntime {
             return;
         };
         let project_ship_dir = ship_substrate::ShipHome::project_ship_dir(&workspace);
-        let space_id = ship_substrate::home::path_hash(&workspace);
+        // Active-space identity = path-hash of the DISCOVERED project root — the
+        // same resolution collection/artifact contexts use (init.rs). Space-less
+        // workspace → no index; the daemon owns no home space to fall back on.
+        let Some(space_id) = ship_substrate::project::resolve_active_space(&workspace) else {
+            tracing::info!("agent-def index: workspace is space-less — skipping live mount");
+            return;
+        };
 
-        // The index read-model lives in the active space's per-scope db.
-        let space_db = ship_substrate::db::space_db_path(&project_ship_dir, &space_id);
+        // The index read-model lives in the active space's per-scope db under the
+        // GLOBAL ship-home (~/.ship | $XDG_DATA_DIR), NEVER the project tree
+        // (#279). `project_ship_dir` is for reading the def FILES (below), not
+        // the db; rooting the db there forks a per-space store into the repo.
+        let space_db = ship_substrate::db::space_db_path(self.ship_dir(), &space_id);
         let data_svc = match DataService::open_at(&space_db) {
             Ok(svc) => svc,
             Err(e) => {

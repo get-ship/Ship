@@ -29,7 +29,7 @@ const EMIT_ROOTS: &[&str] = &[
     "crates/core/ship-substrate/crates/ship-supervisor/src",
     "crates/core/ship-platform/src",
     "crates/core/ship-platform/crates/ship-analytics/src",
-    "crates/core/ship-substrate/crates/ship-host/src",
+    "crates/core/ship-substrate/crates/ship-substrate-host/src",
     "apps/shipd/src",
     "apps/ship-cli/src",
 ];
@@ -57,7 +57,7 @@ struct EmitSite {
     event_type: String,
     containing_fn: String,
     pattern: String,
-    in_all: bool,
+    registered: bool,
 }
 
 // ── Public entry point ────────────────────────────────────────────────────────
@@ -65,12 +65,13 @@ struct EmitSite {
 pub fn run(repo_root: &Path, check: bool) -> Result<()> {
     let event_types_src = repo_root
         .join("crates/core/ship-substrate/crates/ship-types/src/event_types/mod.rs");
-    let (const_map, all_set) = load_event_types(&event_types_src)?;
+    let const_map = load_event_types(&event_types_src)?;
+    let registered_set = load_registered_events(repo_root)?;
 
-    let emit_sites = collect_emit_sites(repo_root, &const_map, &all_set)?;
+    let emit_sites = collect_emit_sites(repo_root, &const_map, &registered_set)?;
     let substrate_fns = substrate::collect(repo_root)?;
 
-    let emit_md = render_emit_sites(&emit_sites, &all_set);
+    let emit_md = render_emit_sites(&emit_sites, &registered_set);
     let fns_md = substrate::render(&substrate_fns);
 
     if check {
@@ -89,35 +90,42 @@ pub fn run(repo_root: &Path, check: bool) -> Result<()> {
 
 // ── event_types.rs loader ─────────────────────────────────────────────────────
 
-fn load_event_types(path: &Path) -> Result<(BTreeMap<String, String>, BTreeSet<String>)> {
+fn load_event_types(path: &Path) -> Result<BTreeMap<String, String>> {
     let src = std::fs::read_to_string(path)
         .context(format!("read {}", path.display()))?;
 
     let const_re = Regex::new(r#"^pub const (\w+): &str = "([^"]+)";"#)?;
     let mut map: BTreeMap<String, String> = BTreeMap::new();
-    let mut in_all: BTreeSet<String> = BTreeSet::new();
-    let mut in_all_section = false;
-
     for line in src.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("pub const ALL:") {
-            in_all_section = true;
-        }
-        if in_all_section {
-            let name = trimmed.trim_end_matches(',').trim();
-            if let Some(val) = map.get(name) {
-                in_all.insert(val.clone());
-            }
-            if trimmed.starts_with("];") {
-                in_all_section = false;
-            }
-        }
-        if let Some(caps) = const_re.captures(trimmed) {
+        if let Some(caps) = const_re.captures(line.trim()) {
             map.insert(caps[1].to_string(), caps[2].to_string());
         }
     }
+    Ok(map)
+}
 
-    Ok((map, in_all))
+/// The registered-event set, parsed from every `register_event!` line in the
+/// workspace's registration files. This replaced the parse of the retired
+/// hand-maintained `event_types::ALL` slice — registration is the vocabulary
+/// SSOT (the live guards assert it via the inventory registry; this text
+/// parse only feeds the generated index annotations).
+fn load_registered_events(repo_root: &Path) -> Result<BTreeSet<String>> {
+    const REGISTRATION_FILES: &[&str] = &[
+        "crates/core/ship-substrate/src/events/payload_registry.rs",
+        "crates/core/ship-platform/crates/agent-def/src/event_registrations.rs",
+        "crates/core/ship-platform/crates/ship-collection/src/event_registrations.rs",
+    ];
+    let re = Regex::new(r#"register_event!\("([^"]+)""#)?;
+    let mut set = BTreeSet::new();
+    for rel in REGISTRATION_FILES {
+        let path = repo_root.join(rel);
+        let src = std::fs::read_to_string(&path)
+            .context(format!("read {}", path.display()))?;
+        for caps in re.captures_iter(&src) {
+            set.insert(caps[1].to_string());
+        }
+    }
+    Ok(set)
 }
 
 // ── Emit-site collection ──────────────────────────────────────────────────────
@@ -125,7 +133,7 @@ fn load_event_types(path: &Path) -> Result<(BTreeMap<String, String>, BTreeSet<S
 fn collect_emit_sites(
     repo_root: &Path,
     const_map: &BTreeMap<String, String>,
-    all_set: &BTreeSet<String>,
+    registered_set: &BTreeSet<String>,
 ) -> Result<Vec<EmitSite>> {
     let value_to_const: BTreeMap<&str, &str> = const_map
         .iter()
@@ -153,7 +161,7 @@ fn collect_emit_sites(
                 continue;
             }
 
-            let found = extract_emit_sites(&content, &rel_path, const_map, all_set, &value_to_const)?;
+            let found = extract_emit_sites(&content, &rel_path, const_map, registered_set, &value_to_const)?;
             sites.extend(found);
         }
     }
@@ -182,7 +190,7 @@ fn extract_emit_sites(
     content: &str,
     rel_path: &str,
     const_map: &BTreeMap<String, String>,
-    all_set: &BTreeSet<String>,
+    registered_set: &BTreeSet<String>,
     value_to_const: &BTreeMap<&str, &str>,
 ) -> Result<Vec<EmitSite>> {
     let mut sites = Vec::new();
@@ -238,7 +246,7 @@ fn extract_emit_sites(
                 .unwrap_or_else(|| "<dynamic>".to_string())
         };
 
-        let in_all = all_set.contains(event_type.as_str());
+        let registered = registered_set.contains(event_type.as_str());
 
         sites.push(EmitSite {
             rel_path: rel_path.to_string(),
@@ -246,7 +254,7 @@ fn extract_emit_sites(
             event_type,
             containing_fn: current_fn.clone(),
             pattern: (*pattern).to_string(),
-            in_all,
+            registered,
         });
     }
 
@@ -285,13 +293,13 @@ fn extract_any_event_type(
 
 // ── Emit-sites renderer ───────────────────────────────────────────────────────
 
-fn render_emit_sites(sites: &[EmitSite], all_set: &BTreeSet<String>) -> String {
+fn render_emit_sites(sites: &[EmitSite], registered_set: &BTreeSet<String>) -> String {
     let mut out = String::new();
 
     let distinct_types: BTreeSet<&str> = sites.iter().map(|s| s.event_type.as_str()).collect();
-    let not_in_all: Vec<&str> = distinct_types
+    let unregistered: Vec<&str> = distinct_types
         .iter()
-        .filter(|&&t| t != "<dynamic>" && !all_set.contains(t))
+        .filter(|&&t| t != "<dynamic>" && !registered_set.contains(t))
         .copied()
         .collect();
     let pattern_list = EMIT_PATTERNS.join("`, `");
@@ -301,16 +309,16 @@ fn render_emit_sites(sites: &[EmitSite], all_set: &BTreeSet<String>) -> String {
 Use this as the citation source for any downstream event-classification or registry work.\n\n");
     out.push_str(&format!("**Total emit-sites:** {}\n", sites.len()));
     out.push_str(&format!(
-        "**Total distinct event-types:** {} ({} in ALL · {} not-in-ALL · {} dynamic)\n",
+        "**Total distinct event-types:** {} ({} registered · {} unregistered · {} dynamic)\n",
         distinct_types.len(),
-        distinct_types.iter().filter(|&&t| all_set.contains(t)).count(),
-        not_in_all.len(),
+        distinct_types.iter().filter(|&&t| registered_set.contains(t)).count(),
+        unregistered.len(),
         distinct_types.iter().filter(|&&t| t == "<dynamic>").count(),
     ));
 
-    if !not_in_all.is_empty() {
-        out.push_str("\n**[incomplete-event-registry] — emitted but missing from `ALL`:**\n");
-        for t in &not_in_all {
+    if !unregistered.is_empty() {
+        out.push_str("\n**[incomplete-event-registry] — emitted but never registered:**\n");
+        for t in &unregistered {
             out.push_str(&format!("- `{t}`\n"));
         }
     }
@@ -331,10 +339,10 @@ Test files (`tests.rs`, `*_tests.rs`, `tests_*.rs`, `tests/`) and `#[cfg(test)]`
     for (etype, group) in &by_type {
         out.push_str(&format!("\n### `{etype}`\n"));
         for site in group.iter() {
-            let in_all_mark = if site.in_all { "" } else { " ⚠ not-in-ALL" };
+            let registered_mark = if site.registered { "" } else { " ⚠ unregistered" };
             out.push_str(&format!(
                 "- `{}:{}` in `fn {}` (`{}`){}\n",
-                site.rel_path, site.line, site.containing_fn, site.pattern, in_all_mark
+                site.rel_path, site.line, site.containing_fn, site.pattern, registered_mark
             ));
         }
     }

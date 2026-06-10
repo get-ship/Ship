@@ -1,7 +1,6 @@
-<bundle separate />
 <!--
   <sui-devtools-components> — SUI inventory browser.
-  Reads /api/sui/catalog/workspace (workspace catalog emitted by
+  Reads /_deck/catalog/workspace (workspace catalog emitted by
   @ship/sui-catalog: walks every workspace package's customElements
   manifest plus per-component CEMs under .ship/sui-out/) and renders
   an attribute/slot reference with a copy-to-clipboard snippet.
@@ -98,8 +97,8 @@
     <sui-empty-state>
       <sui-icon slot="icon" name="package"></sui-icon>
       <span slot="title">Loading sui-* components…</span>
-      Fetching the SUI inventory from /api/sui/catalog/workspace.
-      Empty after load means sui-build hasn't emitted a CEM yet — run `just build`.
+      Fetching the SUI inventory from /_deck/catalog/workspace.
+      Empty after load means the component CEMs haven't been baked yet — run `just build`.
     </sui-empty-state>
   {:else if shown().length === 0}
     <sui-empty-state>

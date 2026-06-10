@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ship</title>
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'" />
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%; width: 100%;
+      background: #0f1115; color: #c9d1d9;
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+    .frame {
+      height: 100%; display: flex; flex-direction: column; gap: 14px;
+      align-items: center; justify-content: center; text-align: center;
+      font-size: 13px; letter-spacing: 0.02em; padding: 0 24px;
+    }
+    .frame .msg { opacity: 0.72; }
+    .frame .err { color: #f0a0a0; max-width: 36rem; opacity: 0.9; }
+    /* The error block is hidden until setup navigates the hash to #error. */
+    .err-block { display: none; }
+    :target.err-block, .err-block:target { display: contents; }
+    button {
+      font: inherit; cursor: pointer; padding: 6px 16px; border-radius: 6px;
+      border: 1px solid #30363d; background: #1a1e26; color: #c9d1d9;
+    }
+    button:hover { background: #232833; }
+  </style>
+</head>
+<body>
+  <!--
+    Tauri `frontendDist` payload for the Ship shell — a one-frame placeholder
+    shown while the native `setup` callback (apps/host/src/lib.rs)
+    discovers the daemon port and navigates the webview to the loopback host at
+    `/` (hub) or `/space/<id>` for `--app=<id>` windows. The redirect fires
+    before paint in the common case; this body is only seen while setup is
+    starting/polling the daemon.
+
+    On final failure setup navigates THIS document to `#error` (an in-bootstrap
+    state) rather than hanging on "Connecting…" forever — the `:target` rule
+    above reveals the error block, and "Retry" reloads to re-run discovery
+    once the daemon is up. Daemon lifecycle is the native host's concern
+    (see apps/host/src/daemon.rs).
+  -->
+  <div class="frame">
+    <div class="msg">Connecting to daemon…</div>
+    <div id="error" class="err-block">
+      <div class="err">Could not reach the Ship daemon. It may have failed to
+        start. Check the daemon log, then retry.</div>
+      <button onclick="location.assign('index.html')">Retry</button>
+    </div>
+  </div>
+</body>
+</html>

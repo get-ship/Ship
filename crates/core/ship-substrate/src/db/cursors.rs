@@ -1,6 +1,6 @@
 //! Bookmarks — sync push/pull positions and per-projection rebuild cursors.
 //!
-//! Backed by the `cursors` table in `platform.db`. Names are opaque strings
+//! Backed by the `cursors` table in `runtime.db`. Names are opaque strings
 //! the caller chooses; the table has no opinion. Conventions used today:
 //! - `push:platform:{space_id}` — sync push cursor per project
 //! - `pull:platform:{space_id}` — sync pull cursor per project

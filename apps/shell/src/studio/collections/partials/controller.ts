@@ -20,7 +20,7 @@ export default controller({
       if (!id) { state.drawerError = 'Collection ID is required'; return }
       try {
         await ops.collections.createSchema({
-          schemaJson: JSON.stringify({ id, name: state.newColName.trim() || id, fields: {} }),
+          schemaJson: new TextEncoder().encode(JSON.stringify({ id, name: state.newColName.trim() || id, fields: {} })),
         })
       } catch (e) {
         state.drawerError = (e as Error).message ?? 'Request failed'

@@ -32,7 +32,7 @@ const SOURCES: Record<string, SuiCompletionSource> = {
       { label: 'blur', detail: 'event' },
       { label: 'mouseenter', detail: 'event' },
       { label: 'mouseleave', detail: 'event' },
-      { label: 'sui-change', detail: 'custom event (sui-code-editor, sui-input)' },
+      { label: 'sui-change', detail: 'custom event (ship-code-editor, sui-input)' },
       { label: 'sui-tab-change', detail: 'custom event (sui-tabs)' },
     ],
   },

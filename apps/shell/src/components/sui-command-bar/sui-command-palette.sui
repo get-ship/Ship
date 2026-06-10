@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-command-palette> — inner command palette panel.
   Consumed inside <sui-command-bar>. Accesses harness state via useShared.

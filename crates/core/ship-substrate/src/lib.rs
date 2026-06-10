@@ -2,8 +2,11 @@
 //!
 //! Contains the event bus, persistence, DB, actor model, projections,
 //! supervisor, sessions, mesh, home/project path resolution, and
-//! related low-level substrate. No knowledge of agents, skills, collections,
-//! config schemas, or any L1 primitives.
+//! related low-level substrate. No L1 domain logic (agent defs, skill bodies,
+//! config schemas); it does carry type-only event payloads and generic
+//! projections for the collection.*, artifact.*, agent.session.*, and
+//! skill.* lifecycle families via ship-types, with no platform-layer
+//! dependencies.
 
 pub mod access;
 pub mod config_doc;

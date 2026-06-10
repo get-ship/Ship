@@ -25,6 +25,7 @@ fn compile_sui(name: &str) -> String {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     };
     let out = compile(&source, opts).expect("compile morph fixture");
     out.js
@@ -68,6 +69,7 @@ fn morph_directive_ssr_includes_marker_attr() {
         mode: CompileMode::View,
         source_path: Some(path),
         emit_ssr: true,
+        emit_component_imports: false,
         ..CompileOpts::default()
     };
     let out = compile(&source, opts).expect("compile morph fixture for ssr");

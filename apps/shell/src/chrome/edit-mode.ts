@@ -16,6 +16,7 @@
 //   - Track `window.__suiCurrentViewId`-style view-name changes so
 //     each route mounts under the right (project, view) key.
 
+import { DECK_PREFIX } from '@ship/sdk-client'
 import {
   editModeForView,
   toggleEditMode,
@@ -27,9 +28,6 @@ import {
   type Signal,
 } from '@ship/sui-runtime'
 import { installViewMcp, viewMcp } from './view-mcp'
-
-const VA_ISLAND_URL = '/_sui/sui-components/sui-view-authoring.js'
-const PICKER_ISLAND_URL = '/_sui/sui-components/sui-component-picker.js'
 
 interface DockTabDef {
   id: string
@@ -79,7 +77,6 @@ const VA_TABS: DockTabDef[] = [
 const DEFAULT_TABS: DockTabDef[] = [
   { id: 'source',     label: 'Source',     icon: 'file-code' },
   { id: 'signals',    label: 'Signals',    icon: 'radio', live: true },
-  { id: 'schema',     label: 'Schema',     icon: 'network' },
   { id: 'terminal',   label: 'Terminal',   icon: 'terminal', live: true },
 ]
 
@@ -90,15 +87,6 @@ interface VaWindow extends Window {
 let currentView: string | null = null
 let activeStopEffect: (() => void) | null = null
 let lastApplied: boolean | null = null
-
-function ensureIslandLoaded(src: string, marker: string): void {
-  if (document.querySelector(`script[data-sui-island="${marker}"]`)) return
-  const s = document.createElement('script')
-  s.type = 'module'
-  s.src = src
-  s.dataset['suiIsland'] = marker
-  document.head.appendChild(s)
-}
 
 function getDock(): PanelDock | null {
   return document.getElementById('ship-panel-dock') as PanelDock | null
@@ -184,8 +172,6 @@ function applyEditMode(on: boolean): void {
   else pill.removeAttribute('view')
 
   if (on) {
-    ensureIslandLoaded(PICKER_ISLAND_URL, 'sui-component-picker')
-    ensureIslandLoaded(VA_ISLAND_URL, 'sui-view-authoring')
     ensureVaSlots(currentView ?? '')
     dock.setAttribute('edit-mode-on', '')
     dock.tabs = VA_TABS
@@ -226,7 +212,7 @@ function applyEditMode(on: boolean): void {
 
 // ── View-authoring SSE bridge ────────────────────────────────────────
 //
-// While edit mode is on, subscribe to /_sui/views/<name>/sse and
+// While edit mode is on, subscribe to /_deck/views/<name>/sse and
 // re-dispatch view-authoring events as document-level events so
 // sui-va-activity + sui-va-compile receive them via their existing
 // addEventListener calls. Closes on edit-mode exit.
@@ -239,7 +225,7 @@ function openViewSse(view: string): void {
   closeViewSse()
   viewSseView = view
   try {
-    viewSse = new EventSource(`/_sui/views/${encodeURIComponent(view)}/sse`)
+    viewSse = new EventSource(`${DECK_PREFIX}/views/${encodeURIComponent(view)}/sse`)
   } catch (err) {
     console.warn('[edit-mode] SSE open failed:', err)
     return

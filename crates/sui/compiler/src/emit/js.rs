@@ -46,7 +46,6 @@
 
 use super::writer::Writer;
 use crate::ir::*;
-use crate::islands::collect_islands;
 use crate::keys::BindingRegistry;
 use crate::lower::Lowered;
 use crate::{CompileMode, CompileOpts};
@@ -65,7 +64,7 @@ pub fn emit_module(
 ) -> String {
     let mut w = Writer::new();
     // Leading `_compilerVersion` legal comment. Lets the shell compare
-    // its loaded view bundle against the daemon's `/api/_meta` and
+    // its loaded view bundle against the daemon's `/_deck/meta` and
     // surface drift loudly instead of silently rendering against a
     // stale export surface (cf. the `fade` regression that prompted
     // this).
@@ -80,16 +79,6 @@ pub fn emit_module(
         cv.cargo, cv.git, cv.dirty, cv.built_at,
     );
     w.line(&format!("/*! _compilerVersion {stamp_json} */"));
-    let islands = collect_islands(&program.template);
-    if !islands.is_empty() {
-        let list = islands
-            .iter()
-            .map(|s| format!("\"{}\"", s))
-            .collect::<Vec<_>>()
-            .join(", ");
-        w.line(&format!("export const ISLANDS = [{list}];"));
-        w.nl();
-    }
     imports::emit_imports(&mut w, lowered, opts);
 
     let mut body = Writer::new();

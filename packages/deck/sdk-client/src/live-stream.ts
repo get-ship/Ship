@@ -3,7 +3,7 @@
 // The typed replacement for `makeSseSource`/`liveExpr` (#138). A per-op live
 // read is now a Connect server-streaming rpc (`ops.<domain>.<op>Live(req)`)
 // that yields the full value as a `JsonResponse` on the initial call and again
-// on every relevant kernel event — the same freshness the `/_sui/data?expr=`
+// on every relevant kernel event — the same freshness the `/_deck/data?expr=`
 // SSE ran, now typed and keyed by the rpc method instead of a parsed string.
 //
 // This adapter is host-agnostic: it consumes any `AsyncIterable<{ json }>` and
@@ -16,11 +16,12 @@ import { type LiveSignal, type LiveSource } from '@ship/sui-runtime'
 /**
  * Wrap a Connect server-stream into a `LiveSource`. `open` receives an
  * `AbortSignal` (wired to the subscription disposer) and returns the rpc's
- * `AsyncIterable` of `JsonResponse`-shaped frames. Each frame's `json` is the
- * full value (no deltas), so every frame flips the signal to `ok`.
+ * `AsyncIterable<T>`. Each frame flips the signal to `ok` with the
+ * value as-is (no `JSON.parse` — the wire produces typed proto values
+ * post-JSONResponse).
  */
 export function liveStream<T>(
-  open: (signal: AbortSignal) => AsyncIterable<{ json: string }>,
+  open: (signal: AbortSignal) => AsyncIterable<T>,
 ): LiveSource<T> {
   return {
     subscribe(sig: LiveSignal<T>): () => void {
@@ -28,11 +29,7 @@ export function liveStream<T>(
       void (async () => {
         try {
           for await (const frame of open(ctrl.signal)) {
-            try {
-              sig.set({ kind: 'ok', value: JSON.parse(frame.json) as T })
-            } catch (err) {
-              sig.set({ kind: 'error', error: toError(err) })
-            }
+            sig.set({ kind: 'ok', value: frame as T })
           }
         } catch (err) {
           // An abort is a normal teardown, not a surfaced error.

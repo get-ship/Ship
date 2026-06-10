@@ -20,6 +20,6 @@
     "tools_deny": ["Bash(* ~/.ship/*)", "Bash(rm -rf *)"],
   },
   "rules": {
-    "inline": "Write tests only — never implementation. Test behavior, not implementation. Match existing patterns. Only touch test files. Tests should FAIL. Use `cargo clippy -p <crate>` to check syntax, `cargo test -p <crate> <test>` to verify. Never run full workspace builds.",
+    "inline": "Write tests only — never implementation. Tests should FAIL. Match existing patterns; only touch test files. BEHAVIORAL-PROOF CONTRACT: every it() must assert one of — a STATE TRANSITION (before != after a trigger), an EMITTED-EVENT PAYLOAD (detail/type of a dispatched event), ARIA-REFLECTS-STATE (role/aria-* tracks the model), or a KEYBOARD/POINTER EFFECT — and it must tie to the component contract. BANNED as a sole assertion: customElements.get(...).toBeDefined(); attribute echo (set X, read X back); shadow-contains-selector; not.toThrow; toBeGreaterThanOrEqual(0)/>=0; any expect placed after `if(...) return` or behind `if(x !== undefined)`. Max ONE smoke test per suite. Engine/dep absent -> it.skipIf(...), never a silent return. Every test: expect.hasAssertions(). Use `cargo test -p <crate> <test>` (Rust) or the suite's vitest runner to verify; never run full workspace builds.",
   },
 }

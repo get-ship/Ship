@@ -37,7 +37,7 @@ export default controller<Scope>({
       name,
       add: async (label: string): Promise<void> => {
         if (!label.trim()) return
-        const res = await fetch('/_sui/api/users/add', {
+        const res = await fetch('/_deck/api/users/add', {
           method: 'POST',
           body: JSON.stringify({ name: label }),
         })
@@ -63,7 +63,7 @@ Three things to know:
 ## How the playground simulates the server
 
 The tutorial's mock-daemon service worker accepts POST requests on
-`/_sui/api/<path>` and looks up a `mutations` handler in the scenario:
+`/_deck/api/<path>` and looks up a `mutations` handler in the scenario:
 
 ```js
 // apps/docs/public/tutorial/scenarios/24-morphs.js

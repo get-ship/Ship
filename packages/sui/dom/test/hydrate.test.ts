@@ -194,12 +194,6 @@ describe('hydrate — ship-button (component + props + reflect)', () => {
 describe('hydrate — disposer fully tears down', () => {
   it('removes inserted nodes and unsubscribes signals', () => {
     const container = mkContainer()
-    const sharedCount = state(0) as Signal<number>
-    let probe = 0
-    // Use the runtime directly rather than the parser to inspect __subs.
-    void sharedCount
-    void signal
-    void probe
     const handle = hydrate(loadFixture('counter.sui'), counterSetup, {
       container,
     })

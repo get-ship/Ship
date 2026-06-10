@@ -1,6 +1,7 @@
 // Shared catalog loader for ship-ui-studio.
 // Fetches three sources: Lit CEM, SUI registry, daemon views.
 
+import { DECK_PREFIX } from '@ship/sdk-client'
 import type { ComponentExample } from '@ship/sui-runtime'
 
 export interface CatalogEntry {
@@ -14,7 +15,7 @@ export interface CatalogEntry {
   /** Declared default/named slots, read from the component's CEM declaration. */
   slots?: SlotEntry[]
   /** Origin package — drives the top-level filter pills (Primitives / Charts /
-   *  Pipelines). One of `@ship/primitives`, `@ship/charts`, `@ship/pipelines`. */
+   *  Pipelines). One of `@ship/sui-primitives`, `@ship/sui-charts`, `@ship/pipelines`. */
   pkg?: string
   /** Repo-relative authoring source, for the "Source" section link. */
   sourcePath?: string
@@ -75,7 +76,12 @@ const CATEGORY_BY_TAG: Record<string, string> = {
   'sui-table': 'Data', 'sui-tree-view': 'Data',
   'sui-json-view': 'Data', 'sui-diff': 'Data', 'sui-timeline': 'Data',
   'sui-history-row': 'Data', 'sui-list': 'Data', 'sui-data-grid': 'Data',
-  'sui-code-editor': 'Data', 'sui-markdown-editor': 'Data', 'sui-code-block': 'Data',
+  'ship-code-editor': 'Data', 'ship-markdown-editor': 'Data', 'sui-code-block': 'Data',
+  'ship-terminal': 'Data',
+  'ship-git-diff': 'Data', 'ship-git-diff-file': 'Data', 'ship-git-diff-hunk': 'Data',
+  'ship-git-diff-line': 'Data',
+  'ship-viewer': 'Data', 'sui-media-image': 'Data', 'sui-media-csv': 'Data',
+  'sui-media-av': 'Data',
   'sui-nav': 'Navigation',
 }
 
@@ -87,7 +93,7 @@ const CATEGORY_ORDER = [
 ]
 
 const PKG_CATEGORY: Record<string, string> = {
-  '@ship/charts': 'Charts',
+  '@ship/sui-charts': 'Charts',
   '@ship/pipelines': 'Pipelines',
 }
 
@@ -102,10 +108,10 @@ export function categoryRank(category: string): number {
   return i === -1 ? CATEGORY_ORDER.length : i
 }
 
-// The SUI catalog (`@ship/sui-catalog`, served at /api/sui/catalog/published)
-// is the single source of truth for installed-pack components: tag, props,
-// examples, and routing. There is no Lit path and no per-tag hide list — the
-// catalog already excludes shell-local chrome and view-local components.
+// The SUI catalog (served at /_deck/catalog/workspace) is the single source
+// of truth for installed-pack components: tag, props, examples, and routing.
+// There is no Lit path and no per-tag hide list — the catalog already covers
+// shell-local chrome and view-local components via the sui-out walk.
 async function loadSuiComponents(): Promise<CatalogEntry[]> {
   const byTag = await loadSuiCatalog()
   return [...byTag.keys()]
@@ -127,7 +133,7 @@ async function loadSuiComponents(): Promise<CatalogEntry[]> {
     })
 }
 
-// One wire entry from the published catalog. Carries the standard CEM fields
+// One wire entry from the workspace catalog. Carries the standard CEM fields
 // the studio needs plus the co-located `examples` (fun fixtures).
 interface CatalogEntryWire {
   tagName: string
@@ -156,7 +162,7 @@ interface SuiCatalogEntry {
 async function loadSuiCatalog(): Promise<Map<string, SuiCatalogEntry>> {
   const out = new Map<string, SuiCatalogEntry>()
   try {
-    const res = await fetch('/api/sui/catalog/published', { credentials: 'same-origin' })
+    const res = await fetch(`${DECK_PREFIX}/catalog/workspace`, { credentials: 'same-origin' })
     if (!res.ok) return out
     const doc = await res.json() as { entries?: CatalogEntryWire[] }
     for (const e of doc.entries ?? []) {

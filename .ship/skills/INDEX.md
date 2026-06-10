@@ -42,7 +42,7 @@ Active framework contracts agents use when writing first-party code.
 | [`no-slop`](no-slop/SKILL.md) | Ten commandments for building software with AI agents. Hard-won, opinionated, concise. |
 | [`ship-views`](../../skills/ship-views/SKILL.md) | (publish-ready) Author Ship views in SUI — `.sui` templates with optional paired `.controller.ts`, AOT-compiled, server-rendered first, hydrated by `attach()`. |
 | [`ship-components`](../../skills/ship-components/SKILL.md) | (publish-ready) Author Ship components in SUI — `<sui-*>` primitives compiled AOT from `.sui` source with optional paired `.controller.ts`. |
-| [`ship-design-system`](../../skills/ship-design-system/SKILL.md) | (publish-ready) Charter for Ship's design-system layer — tokens, themes, surfaces, tone ramps, motion, density. Read when editing `packages/components/ui-components/src/tokens/tokens.css`/`themes.css` or adding a theme. |
+| [`ship-design-system`](../../skills/ship-design-system/SKILL.md) | (publish-ready) Charter for Ship's design-system layer — tokens, themes, surfaces, tone ramps, motion, density. Read when editing `packages/sui/tokens/src/tokens.css`/`themes.css` or adding a theme. |
 | [`writing-docs`](writing-docs/SKILL.md) | Write reference docs for a doc skill (`docs/ship-*/references/docs/`). Covers Markdown + ship-elements, frontmatter, audience filtering, multi-page structure. |
 | [`ship-docs`](ship-docs/SKILL.md) | The documentation convention — comment density, what a per-crate README holds, and when to use README vs ADR vs memento vs nothing. |
 | [`trigger-authoring`](trigger-authoring/SKILL.md) | Author Ship triggers — JSONC files in `.ship/triggers/*.jsonc` that match a Ship event and run actions. Not yet launch-ready; lives here until the surface stabilises. |
@@ -59,6 +59,7 @@ gated.
 | [`configure-agent`](configure-agent/SKILL.md) | Pick the agent profile, permission preset, scope, and worktree path when standing up a workspace. |
 | [`setup-workspace`](setup-workspace/SKILL.md) | Configure a multi-agent terminal pod from `.artifacts/pod.md` — one tab per agent in its worktree. |
 | [`gate`](gate/SKILL.md) | Review a completed job branch against acceptance criteria — pass/fail with evidence. Now blocks on missing `web-qa` artifacts for any branch touching UI surfaces. |
+| [`sui-eval`](sui-eval/SKILL.md) | Run the SUI authoring eval — dispatch lane agents to build a view, poll until they commit, grade compile + lint + structure, record to `sui-eval-runs`. Off-daemon (dispatch.sh, not pipelines). |
 
 ## Review
 

@@ -115,6 +115,12 @@ fn build_scope(program: &Program, controller: Option<&ParsedController>) -> Scop
     for p in &program.props {
         names.insert(super::super::emit::util::camel_of(&p.name));
     }
+    // Declared `<client>` names are legal data-source roots — the per-view,
+    // implementor-named replacement for the hardcoded ambient `ship` (which
+    // stays in BUILTINS, grandfathered, until the migration removes it).
+    for client in &program.clients {
+        names.insert(client.name.clone());
+    }
     if let Some(c) = controller {
         for sec in &c.sections {
             match sec.name.as_str() {
@@ -402,6 +408,34 @@ fn visit_attr(attr: &AttrInstr, v: &mut Visitor) {
 #[cfg(test)]
 mod collect_tests {
     use super::{check, collect};
+
+    #[test]
+    fn declared_client_legalizes_its_source_root() {
+        // `<client name="feed">` makes `feed` a legal data-source root (the
+        // per-view, implementor-named replacement for the hardcoded `ship`).
+        let with = crate::parse::parse(
+            "<client name=\"feed\" />\n<data name=\"t\" source=\"feed.clock()\" live />\n<div>{t()}</div>",
+        )
+        .expect("parses");
+        assert!(check(&with, None).is_ok(), "declared <client> must legalize feed.*");
+
+        // Without the declaration the same root is an unknown identifier.
+        let without = crate::parse::parse(
+            "<data name=\"t\" source=\"feed.clock()\" live />\n<div>{t()}</div>",
+        )
+        .expect("parses");
+        assert!(
+            check(&without, None).is_err(),
+            "an undeclared client root must still be rejected (typo-safe)"
+        );
+
+        // `ship` stays grandfathered until the migration removes it.
+        let grandfathered = crate::parse::parse(
+            "<data name=\"t\" source=\"ship.git.overview()\" live />\n<div>{t()}</div>",
+        )
+        .expect("parses");
+        assert!(check(&grandfathered, None).is_ok(), "ship stays grandfathered for now");
+    }
 
     #[test]
     fn collect_reports_every_unbound_identifier() {

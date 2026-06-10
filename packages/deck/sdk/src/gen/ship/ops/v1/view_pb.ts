@@ -29,7 +29,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/ops/v1/view.proto.
  */
 export const file_ship_ops_v1_view: GenFile = /*@__PURE__*/
-  fileDesc("ChZzaGlwL29wcy92MS92aWV3LnByb3RvEgtzaGlwLm9wcy52MSI6CgxWaWV3UGF0Y2hSZXESCgoCaWQYASABKAkSEAoIc2VsZWN0b3IYAiABKAkSDAoEaHRtbBgDIAEoCSI7Cg1WaWV3QXBwZW5kUmVxEgoKAmlkGAEgASgJEhAKCHNlbGVjdG9yGAIgASgJEgwKBGh0bWwYAyABKAkiPQoNVmlld1NpZ25hbFJlcRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnZhbHVlX2pzb24YAyABKAkiMwoPVmlld0VkaXRNb2RlUmVxEgwKBHZpZXcYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCSJOCgtWaWV3VG9vbFJlcRIMCgR2aWV3GAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSCgoCb3AYAyABKAkSEQoJYXJnc19qc29uGAQgASgJMs8ECgtWaWV3U2VydmljZRJeCgxQYXRjaFNlc3Npb24SGS5zaGlwLm9wcy52MS5WaWV3UGF0Y2hSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGIq1GBBzaGlwLnZpZXdzLndyaXRlkLUYAhJgCg1BcHBlbmRTZXNzaW9uEhouc2hpcC5vcHMudjEuVmlld0FwcGVuZFJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAudmlld3Mud3JpdGWQtRgCEmAKDVNpZ25hbFNlc3Npb24SGi5zaGlwLm9wcy52MS5WaWV3U2lnbmFsUmVxGhkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhiKtRgQc2hpcC52aWV3cy53cml0ZZC1GAISYgoNRW50ZXJFZGl0TW9kZRIcLnNoaXAub3BzLnYxLlZpZXdFZGl0TW9kZVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAudmlld3Mud3JpdGWQtRgCEmEKDEV4aXRFZGl0TW9kZRIcLnNoaXAub3BzLnYxLlZpZXdFZGl0TW9kZVJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAudmlld3Mud3JpdGWQtRgCElUKBFRvb2wSGC5zaGlwLm9wcy52MS5WaWV3VG9vbFJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAudmlld3Mud3JpdGWQtRgCYgZwcm90bzM", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
+  fileDesc("ChZzaGlwL29wcy92MS92aWV3LnByb3RvEgtzaGlwLm9wcy52MSI6CgxWaWV3UGF0Y2hSZXESCgoCaWQYASABKAkSEAoIc2VsZWN0b3IYAiABKAkSDAoEaHRtbBgDIAEoCSI7Cg1WaWV3QXBwZW5kUmVxEgoKAmlkGAEgASgJEhAKCHNlbGVjdG9yGAIgASgJEgwKBGh0bWwYAyABKAkiPQoNVmlld1NpZ25hbFJlcRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnZhbHVlX2pzb24YAyABKAkiMwoPVmlld0VkaXRNb2RlUmVxEgwKBHZpZXcYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCSJOCgtWaWV3VG9vbFJlcRIMCgR2aWV3GAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSCgoCb3AYAyABKAkSEQoJYXJnc19qc29uGAQgASgJIj8KD1ZpZXdTY2FmZm9sZFJlcRIMCgRuYW1lGAEgASgJEg0KBXNoYXBlGAIgASgJEg8KB3B1cnBvc2UYAyABKAkiMwoUVmlld1NjYWZmb2xkUmVzcG9uc2USDQoFcm91dGUYASABKAkSDAoEcGF0aBgCIAEoCTL1BQoLVmlld1NlcnZpY2USXgoMUGF0Y2hTZXNzaW9uEhkuc2hpcC5vcHMudjEuVmlld1BhdGNoUmVxGhkuc2hpcC5vcHMudjEuSnNvblJlc3BvbnNlIhiKtRgQc2hpcC52aWV3cy53cml0ZZC1GAISYAoNQXBwZW5kU2Vzc2lvbhIaLnNoaXAub3BzLnYxLlZpZXdBcHBlbmRSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGIq1GBBzaGlwLnZpZXdzLndyaXRlkLUYAhJgCg1TaWduYWxTZXNzaW9uEhouc2hpcC5vcHMudjEuVmlld1NpZ25hbFJlcRoZLnNoaXAub3BzLnYxLkpzb25SZXNwb25zZSIYirUYEHNoaXAudmlld3Mud3JpdGWQtRgCEmIKDUVudGVyRWRpdE1vZGUSHC5zaGlwLm9wcy52MS5WaWV3RWRpdE1vZGVSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGIq1GBBzaGlwLnZpZXdzLndyaXRlkLUYAhJhCgxFeGl0RWRpdE1vZGUSHC5zaGlwLm9wcy52MS5WaWV3RWRpdE1vZGVSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGIq1GBBzaGlwLnZpZXdzLndyaXRlkLUYAhJVCgRUb29sEhguc2hpcC5vcHMudjEuVmlld1Rvb2xSZXEaGS5zaGlwLm9wcy52MS5Kc29uUmVzcG9uc2UiGIq1GBBzaGlwLnZpZXdzLndyaXRlkLUYAhKjAQoIU2NhZmZvbGQSHC5zaGlwLm9wcy52MS5WaWV3U2NhZmZvbGRSZXEaIS5zaGlwLm9wcy52MS5WaWV3U2NhZmZvbGRSZXNwb25zZSJWirUYEHNoaXAudmlld3Mud3JpdGWQtRgCorUYOlNjYWZmb2xkIGEgbmV3IHZpZXcgZGlyZWN0b3J5IGZyb20gYSBuYW1lZCBzaGFwZSB0ZW1wbGF0ZS5iBnByb3RvMw", [file_ship_ops_v1_policy, file_ship_ops_v1_ops]);
 
 /**
  * @generated from message ship.ops.v1.ViewPatchReq
@@ -169,8 +169,69 @@ export const ViewToolReqSchema: GenMessage<ViewToolReq> = /*@__PURE__*/
   messageDesc(file_ship_ops_v1_view, 4);
 
 /**
+ * Scaffold a new view from a named shape template.
+ *
+ * @generated from message ship.ops.v1.ViewScaffoldReq
+ */
+export type ViewScaffoldReq = Message<"ship.ops.v1.ViewScaffoldReq"> & {
+  /**
+   * Kebab-case id for the new view directory.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Shape template (e.g. "list" | "form" | "dashboard" | "blank").
+   *
+   * @generated from field: string shape = 2;
+   */
+  shape: string;
+
+  /**
+   * Optional one-line purpose written into the scaffold.
+   *
+   * @generated from field: string purpose = 3;
+   */
+  purpose: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.ViewScaffoldReq.
+ * Use `create(ViewScaffoldReqSchema)` to create a new message.
+ */
+export const ViewScaffoldReqSchema: GenMessage<ViewScaffoldReq> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_view, 5);
+
+/**
+ * @generated from message ship.ops.v1.ViewScaffoldResponse
+ */
+export type ViewScaffoldResponse = Message<"ship.ops.v1.ViewScaffoldResponse"> & {
+  /**
+   * Browsable route for the new view (e.g. "/api/v1/v/<name>").
+   *
+   * @generated from field: string route = 1;
+   */
+  route: string;
+
+  /**
+   * Absolute path to the scaffolded view directory.
+   *
+   * @generated from field: string path = 2;
+   */
+  path: string;
+};
+
+/**
+ * Describes the message ship.ops.v1.ViewScaffoldResponse.
+ * Use `create(ViewScaffoldResponseSchema)` to create a new message.
+ */
+export const ViewScaffoldResponseSchema: GenMessage<ViewScaffoldResponse> = /*@__PURE__*/
+  messageDesc(file_ship_ops_v1_view, 6);
+
+/**
  * View-authoring writes for an agent's own SUI session. Every rpc is a C1
- * workspace write gated on `ship.views.write`.
+ * workspace write gated on `ship.views.write`. Scaffold is C1 (workspace write).
  *
  * @generated from service ship.ops.v1.ViewService
  */
@@ -222,6 +283,17 @@ export const ViewService: GenService<{
     methodKind: "unary";
     input: typeof ViewToolReqSchema;
     output: typeof JsonResponseSchema;
+  },
+  /**
+   * Scaffold a new view from a shape template. Moves the create.surface/view
+   * route-core into the owning crate's wire.
+   *
+   * @generated from rpc ship.ops.v1.ViewService.Scaffold
+   */
+  scaffold: {
+    methodKind: "unary";
+    input: typeof ViewScaffoldReqSchema;
+    output: typeof ViewScaffoldResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_ship_ops_v1_view, 0);

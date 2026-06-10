@@ -41,6 +41,13 @@ use anyhow::Result;
 use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, McpCommands, WorkspaceCommands};
 use std::path::PathBuf;
 
+// #193 leak hunt: route every allocation through dhat's instrumented allocator
+// when built with `--features dhat-heap`. The profiler itself is started only in
+// the daemon-run process (see daemon::daemon_run) so CLI invocations stay clean.
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static DHAT_ALLOC: dhat::Alloc = dhat::Alloc;
+
 /// Initialize the global KernelRouter for CLI commands that emit events.
 /// Silently skips if the global dir is unavailable or the router fails to start.
 ///

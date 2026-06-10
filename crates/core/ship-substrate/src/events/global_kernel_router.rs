@@ -3,7 +3,8 @@
 //! Shared across all connections (MCP agents, Studio) so cross-actor routing
 //! works within a single process. CLI contexts that never call
 //! `init_kernel_router` get `None` from `kernel_router()` — routing is skipped
-//! and only platform.db persistence happens.
+//! and only off-kernel per-scope db persistence happens (runtime.db /
+//! account.db / spaces/<id>/space.db via `SqliteEventStore::append_enforced`).
 
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};

@@ -12,6 +12,13 @@ use std::sync::Arc;
 use ship_files::files::{FilesService, Scope};
 use super::state;
 
+/// Map a KV-vars failure into the one typed service error. Display of
+/// `Error::Vars` is the message verbatim, so transport-layer error text is
+/// byte-identical to the previous `anyhow::Error` pass-through.
+fn vars_err(e: anyhow::Error) -> state::Error {
+    state::Error::Vars(e.to_string())
+}
+
 /// Args for `SkillsService::create`. Optional initial frontmatter +
 /// body; defaults are filled from `id` when omitted.
 #[derive(Debug, Clone)]
@@ -85,15 +92,15 @@ pub trait SkillsService: Send + Sync + 'static {
     fn get_vars(
         &self,
         id: &str,
-    ) -> Result<Option<std::collections::HashMap<String, serde_json::Value>>, anyhow::Error>;
+    ) -> Result<Option<std::collections::HashMap<String, serde_json::Value>>, state::Error>;
     fn set_var(
         &self,
         id: &str,
         key: &str,
         value: serde_json::Value,
-    ) -> Result<(), anyhow::Error>;
+    ) -> Result<(), state::Error>;
     /// Returns `true` when the key was present before the delete.
-    fn delete_var(&self, id: &str, key: &str) -> Result<bool, anyhow::Error>;
+    fn delete_var(&self, id: &str, key: &str) -> Result<bool, state::Error>;
 }
 
 pub struct SkillsServiceImpl {
@@ -229,9 +236,10 @@ impl SkillsService for SkillsServiceImpl {
     fn get_vars(
         &self,
         id: &str,
-    ) -> Result<Option<std::collections::HashMap<String, serde_json::Value>>, anyhow::Error>
+    ) -> Result<Option<std::collections::HashMap<String, serde_json::Value>>, state::Error>
     {
         crate::agent_domain::skill_vars::get_skill_vars(&self.user_root, id)
+            .map_err(vars_err)
     }
 
     fn set_var(
@@ -239,12 +247,14 @@ impl SkillsService for SkillsServiceImpl {
         id: &str,
         key: &str,
         value: serde_json::Value,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), state::Error> {
         crate::agent_domain::skill_vars::set_skill_var(&self.user_root, id, key, value)
+            .map_err(vars_err)
     }
 
-    fn delete_var(&self, id: &str, key: &str) -> Result<bool, anyhow::Error> {
+    fn delete_var(&self, id: &str, key: &str) -> Result<bool, state::Error> {
         crate::agent_domain::skill_vars::delete_skill_var(&self.user_root, id, key)
+            .map_err(vars_err)
     }
 }
 

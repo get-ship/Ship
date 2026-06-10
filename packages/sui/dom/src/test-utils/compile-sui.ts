@@ -1,16 +1,22 @@
-// WASM-backed test helper. Compiles `.sui` source through the same
-// Rust compiler that production uses, then evaluates the emitted
-// module in-process so vitest tests assert against the production
-// emit shape rather than a parallel JS parser.
+// Native-backed test helper. Compiles `.sui` source through the SAME
+// `sui-compiler` crate the daemon compiles through (deck-core/src/view.rs),
+// loaded in-process as a Node-API `.node` addon, then evaluates the emitted
+// module so vitest tests assert against the production emit shape rather than
+// a parallel JS parser.
 //
-// The legacy `@ship/sui-dom/legacy` path is gone — every directive
-// must round-trip through Rust now. This helper is the only test-time
-// bridge between `.sui` source and a mounted DOM tree.
+// Why native, not the wasm pkg: one `cargo build` feeds both the daemon and
+// this harness, so there is no second artifact to go stale and no separate
+// build-identity stamp — the drift class #255 names is gone. The browser
+// playground (viewer/wasm-bootstrap.ts + lsp-browser) keeps the wasm surface;
+// this path is the Node test harness only.
+//
+// The legacy `@ship/sui-dom/legacy` path is gone — every directive must
+// round-trip through Rust now. This helper is the only test-time bridge
+// between `.sui` source and a mounted DOM tree.
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { initSync, compile as wasmCompile } from '@ship/sui-compiler-wasm'
 
 import * as suiRuntime from '@ship/sui-runtime'
 import * as suiDom from '@ship/sui-dom'
@@ -18,16 +24,102 @@ import * as suiRoute from '@ship/sui-runtime/route'
 import { route as makeRoute, type RouteSignals } from '@ship/sui-runtime/route'
 import '@ship/sui-runtime/template-hooks'
 
-/* ----------------------------- wasm init ----------------------------- */
+/* ----------------------- native addon load ----------------------- */
 
-let wasmReady = false
-function ensureWasm(): void {
-  if (wasmReady) return
-  const here = dirname(fileURLToPath(import.meta.url))
-  const wasmPath = resolve(here, '../../../compiler-wasm/pkg/sui_compiler_bg.wasm')
-  const bytes = readFileSync(wasmPath)
-  initSync({ module: bytes })
-  wasmReady = true
+const HERE = dirname(fileURLToPath(import.meta.url))
+// HERE = packages/sui/dom/src/test-utils; repo root is five dirs up
+// (test-utils → src → dom → sui → packages → repo root).
+const REPO_ROOT = resolve(HERE, '../../../../..')
+const COMPILER_SRC = resolve(REPO_ROOT, 'crates/sui/compiler/src')
+
+// Platform cdylib name `cargo build` produces for crates/sui/compiler-napi.
+// Node loads a napi cdylib directly via `process.dlopen` (it exports the
+// N-API init symbol), so there is no separate `.node` rename step — the
+// harness tracks `target/` exactly as `just build` leaves it.
+const ADDON_FILE =
+  process.platform === 'win32'
+    ? 'sui_compiler_napi.dll'
+    : process.platform === 'darwin'
+      ? 'libsui_compiler_napi.dylib'
+      : 'libsui_compiler_napi.so'
+
+type NativeCompile = (source: string, optsJson: string) => string
+
+let nativeCompile: NativeCompile | null = null
+
+function ensureNative(): NativeCompile {
+  if (nativeCompile) return nativeCompile
+  const addonPath = resolveAddonPath()
+  assertFresh(addonPath)
+  const mod = { exports: {} as { compile?: NativeCompile } }
+  // dlopen the cargo-built cdylib as a Node-API addon.
+  ;(process as unknown as { dlopen: (m: object, p: string) => void }).dlopen(mod, addonPath)
+  if (typeof mod.exports.compile !== 'function') {
+    throw new Error(`[sui-compiler-napi] addon at ${addonPath} has no compile() export`)
+  }
+  nativeCompile = mod.exports.compile
+  return nativeCompile
+}
+
+// Locate the cdylib `cargo build` produces. Honour SUI_COMPILER_ADDON for an
+// explicit override (CI artifact, cross-build); otherwise prefer release over
+// debug under the repo's own target dir — same precedence the bench harness
+// uses for the bin (scripts/precompile.mjs).
+function resolveAddonPath(): string {
+  const override = process.env.SUI_COMPILER_ADDON
+  if (override) {
+    if (!existsSync(override)) {
+      throw new Error(`[sui-compiler-napi] SUI_COMPILER_ADDON=${override} does not exist`)
+    }
+    return override
+  }
+  const release = resolve(REPO_ROOT, 'target/release', ADDON_FILE)
+  const debug = resolve(REPO_ROOT, 'target/debug', ADDON_FILE)
+  if (existsSync(release)) return release
+  if (existsSync(debug)) return debug
+  throw new Error(
+    `[sui-compiler-napi] addon not built. Run from the repo root:\n` +
+      `  cargo build -p sui-compiler-napi\n` +
+      `(or \`just sui-napi\`), or set SUI_COMPILER_ADDON to a built .node/.so.`,
+  )
+}
+
+// Drift guard (generalizes the old warnIfStale). With napi there is no second
+// artifact and no embedded registry — staleness is purely "addon older than
+// compiler source". If any file under crates/sui/compiler/src is newer than
+// the built addon, the harness would test an out-of-date compiler; warn loudly
+// to rebuild. Advisory (warn, not throw): a watch loop may race a rebuild, and
+// failing the whole suite on an mtime skew is worse than a visible warning.
+function assertFresh(addonPath: string): void {
+  try {
+    const addonMtime = statSync(addonPath).mtimeMs
+    const newest = newestMtime(COMPILER_SRC)
+    if (newest > addonMtime) {
+      const mins = Math.max(1, Math.round((newest - addonMtime) / 60_000))
+      console.warn(
+        `[sui-compiler-napi] STALE: crates/sui/compiler/src has changes newer ` +
+          `than the built addon (~${mins}m). The harness is testing an out-of-date ` +
+          `compiler. Run \`cargo build -p sui-compiler-napi\` (or \`just sui-napi\`) to rebuild.`,
+      )
+    }
+  } catch {
+    /* source tree not locatable (published layout) — skip the freshness check */
+  }
+}
+
+// Newest mtime of any file under `dir` (recursive). Bounded by the compiler
+// `src/` tree — a few hundred small files, walked once per worker.
+function newestMtime(dir: string): number {
+  let newest = 0
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const p = resolve(dir, entry.name)
+    if (entry.isDirectory()) {
+      newest = Math.max(newest, newestMtime(p))
+    } else {
+      newest = Math.max(newest, statSync(p).mtimeMs)
+    }
+  }
+  return newest
 }
 
 /* ----------------------------- compile API ----------------------------- */
@@ -38,6 +130,13 @@ export interface CompileOpts {
   /** Marker passed to the compiler as the setup_url; eval rewrites the
    *  resulting `import setup from "<marker>"` to the injected setup. */
   setupMarker?: string
+  /** On-disk path of the `.sui` source. Pass it when the test reads a
+   *  checked-in `.sui` off disk (e.g. `readFileSync(here('foo.sui'))`) so the
+   *  compiler can locate the paired `<stem>.controller.ts` and run the four
+   *  controller-aware passes (scope_bound, scope_member, bind_this_target,
+   *  on_callable) — the napi path then rejects exactly what the daemon + CLI
+   *  do (#263-A). Omit for synthetic in-memory sources. */
+  sourcePath?: string
 }
 
 export interface CompiledSui {
@@ -48,13 +147,17 @@ export interface CompiledSui {
 }
 
 export function compileSui(source: string, opts: CompileOpts = {}): CompiledSui {
-  ensureWasm()
+  const compile = ensureNative()
   const optsJson = JSON.stringify({
     mode: opts.mode ?? 'auto',
     componentName: opts.componentName,
     setupUrl: opts.setupMarker,
+    sourcePath: opts.sourcePath,
   })
-  const result = wasmCompile(source, optsJson) as
+  // The addon returns the WasmResult-shaped discriminated object as a JSON
+  // string (one parse here); the {kind:'ok'|'err',...} shape is byte-identical
+  // to the wasm surface, so the branch below is unchanged.
+  const result = JSON.parse(compile(source, optsJson)) as
     | { kind: 'ok'; js: string; css: string | null; dts: string | null; ssrHtml: string | null }
     | { kind: 'err'; message: string; line: number | null; col: number | null; category: string | null }
   if (result.kind === 'err') {

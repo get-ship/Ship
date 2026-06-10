@@ -66,12 +66,12 @@ pub struct RenderSplit {
     pub html: String,
     /// Initial scope values as a JSON object. Same shape that the
     /// `<script id="__set_init__">` island carries in `RenderOutput.html`.
-    /// For `<data live />` views this includes the `__subscribe__` key
-    /// pointing at `/_sui/views/<name>/sse`.
+    /// Does NOT contain `__subscribe__` — the host (deck-core) injects that
+    /// using `has_live_data` + its own route builders.
     pub init: serde_json::Value,
-    /// Whether `<data live />` was declared in the program. When true,
-    /// `init` carries the `__subscribe__` SSE URL and callers should
-    /// expect the client runtime to open that channel.
+    /// Whether `<data live />` was declared in the program. When true the
+    /// host must inject `__subscribe__` into the payload scope using its own
+    /// `routes::subscribe_url` builder.
     pub has_live_data: bool,
 }
 
@@ -115,20 +115,10 @@ pub fn render_split(
     state.walk_block(&program.template);
     let html = state.into_html();
     let has_live_data = program.data.iter().any(|d| d.live);
-    // A live-data view advertises its SSE channel through the initial
-    // scope: both the JSON-island seed (`render`) and the payload
-    // endpoint's `scope` field carry `__subscribe__` so the client
-    // runtime opens `/_sui/views/<name>/sse`. Injected here — the single
-    // owner of `init`'s shape — so every consumer sees it identically.
-    let mut init = initial.init;
-    if has_live_data
-        && let Some(obj) = init.as_object_mut()
-    {
-        obj.insert(
-            "__subscribe__".to_string(),
-            serde_json::Value::String(format!("/_sui/views/{}/sse", opts.view_name)),
-        );
-    }
+    // `__subscribe__` is NOT injected here. The host (deck-core) reads
+    // `has_live_data` and injects the correct `/_deck/views/<name>/sse` URL
+    // using its own route builders — the compiler must not bake a served URL.
+    let init = initial.init;
     Ok(RenderSplit { html, init, has_live_data })
 }
 

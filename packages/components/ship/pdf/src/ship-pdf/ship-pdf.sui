@@ -1,0 +1,89 @@
+<!--
+  <ship-pdf> — a PDF page renderer wrapping the pdf.js (pdfjs-dist) engine.
+
+  SHIP-tier (engine via the pdfjs-dist npm dep, not sui-media): the controller
+  drives a small load/render engine (`engine/pdf-engine.ts`) that calls pdf.js
+  `getDocument()` and paints the current page onto an engine-OWNED <canvas>
+  (`bind:this` — pdf.js draws into the 2d context; the controller never sets
+  innerHTML). `GlobalWorkerOptions` is pointed at the pack's same-origin
+  bundler-emitted worker (never a CDN).
+
+  Props
+  ─────────────────────────────────────────────────────────────────────────────
+  src    string  reflect  URL, `data:` URI, or blob: URL of the PDF to render.
+  page   number  1  reflect  1-based page to display. Driven externally or by
+                             the toolbar slot.
+  zoom   number  1          render scale (1 = 100%).
+  label  string            aria-label for the canvas (defaults to "PDF page").
+  ─────────────────────────────────────────────────────────────────────────────
+  Events
+    ship-pdf-load { pages }  — emitted once a document loads, with its page count.
+    ship-pdf-page { page }   — emitted when the rendered page changes.
+
+  Slots
+    toolbar — chrome above the page (prev/next/zoom). Empty by default; the
+              consumer drops controls in, or drives `page`/`zoom` as props.
+
+  Graceful: a load/render failure renders a VISIBLE error state (sui-error-state,
+  role=alert) — never a blank canvas or undefined element.
+-->
+
+<prop name="src" type="string" default="" reflect />
+<prop name="page" type="number" default="1" reflect />
+<prop name="zoom" type="number" default="1" />
+<prop name="label" type="string" default="PDF page" />
+
+<style>
+  :host {
+    display: block;
+    width: 100%;
+    color: var(--foreground);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  :host([hidden]) { display: none; }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border);
+    background: var(--muted);
+  }
+  .toolbar:empty { display: none; }
+
+  .stage {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: var(--space-4);
+    overflow: auto;
+    background: var(--muted);
+  }
+
+  canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    box-shadow: var(--shadow-md);
+    background: var(--background);
+  }
+</style>
+
+<div class="toolbar" part="toolbar"><slot name="toolbar"></slot></div>
+
+{#if errored()}
+  <sui-error-state
+    part="error"
+    title="Couldn't open PDF"
+    body={errorMessage()}
+    variant="inline">
+  </sui-error-state>
+{:else}
+  <div class="stage" part="stage">
+    <canvas bind:this={canvasEl} aria-label={label()} role="img"></canvas>
+  </div>
+{/if}

@@ -43,7 +43,7 @@ describe('scope-resource-warn', () => {
     const scope = createScope()
     withScope(scope, () => {
       // Allocate without registering cleanup — simulates the live() bug.
-      new globalThis.EventSource('/_sui/data?expr=fake')
+      new globalThis.EventSource('/_deck/data?expr=fake')
     })
     scope.dispose()
 
@@ -56,7 +56,7 @@ describe('scope-resource-warn', () => {
   it('does NOT warn when the EventSource is properly closed via cleanup', () => {
     const scope = createScope()
     withScope(scope, () => {
-      const es = new globalThis.EventSource('/_sui/data?expr=fake')
+      const es = new globalThis.EventSource('/_deck/data?expr=fake')
       onCleanup(() => es.close())
     })
     scope.dispose()

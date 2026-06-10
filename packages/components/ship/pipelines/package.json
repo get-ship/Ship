@@ -1,0 +1,24 @@
+{
+  "name": "@ship/pipelines",
+  "version": "0.1.0",
+  "description": "Ship Pipelines pack — sui-pipeline-* primitives (card · dag · step · run · history · trigger · output · definition).",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "customElements": "dist/custom-elements.json",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship/sui-dom": "workspace:*",
+    "@ship/sui-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@ship/test-setup": "workspace:*",
+    "vitest": "^4.1.5"
+  }
+}

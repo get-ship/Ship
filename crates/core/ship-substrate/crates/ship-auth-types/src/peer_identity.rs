@@ -2,7 +2,7 @@
 //! from a **kernel-verified** process attribute, never a self-declared string.
 //!
 //! Each dispatched agent is spawned into its own kernel-tracked process
-//! container (`ship-host` abstracts this per OS: Linux cgroup, macOS
+//! container (`ship-substrate-host` abstracts this per OS: Linux cgroup, macOS
 //! process-group, Windows job object). A connection's peer PID — reported by
 //! the kernel via the socket's peer credentials — maps to that container, and
 //! the container names the agent. The agent sends no identity claim; the kernel
@@ -10,7 +10,7 @@
 //! can't fake its PID to the kernel, nor join another agent's container without
 //! privilege.
 //!
-//! Layer split: the OS read (`pid → container`) is L0 (`ship-host`); this
+//! Layer split: the OS read (`pid → container`) is L0 (`ship-substrate-host`); this
 //! module is the L1 seam that parses Ship's `ship-agent-<id>` convention out of
 //! the container and composes `agent_id → resolve_grants` (#85).
 
@@ -31,7 +31,7 @@ pub enum PeerIdentity {
     /// the non-elevated peer context.
     Operator,
     /// The host backend can't report the peer's container (dead process, or a
-    /// platform whose `ship-host` backend isn't built yet). The gate MUST treat
+    /// platform whose `ship-substrate-host` backend isn't built yet). The gate MUST treat
     /// this as least-privilege — fail closed; never promote an unknown peer to
     /// operator.
     Unresolved,
@@ -39,14 +39,14 @@ pub enum PeerIdentity {
 
 /// Resolve the identity of the process at `peer_pid` (kernel-verified, taken
 /// from the connection's peer credentials). Reads the OS process container via
-/// `ship-host` and decides per [`decide`].
+/// `ship-substrate-host` and decides per [`decide`].
 pub fn resolve(peer_pid: u32, peer_uid: u32) -> PeerIdentity {
-    let host = ship_host::host();
+    let host = ship_substrate_host::host();
     decide(
         host.process_container(peer_pid).as_deref(),
         host.containers_supported(),
         peer_uid,
-        ship_host::current_uid(),
+        ship_substrate_host::current_uid(),
     )
 }
 
@@ -93,7 +93,7 @@ fn owner_or_unresolved(peer_uid: u32, host_uid: u32) -> PeerIdentity {
 /// each agent in a container whose leaf names it — `ship-agent-<id>` (with an
 /// optional `.scope`/`.slice` suffix). `None` = not a Ship agent container
 /// (operator or some other process). Pure — the unit-tested core; OS-agnostic
-/// (the OS read lives in `ship-host`).
+/// (the OS read lives in `ship-substrate-host`).
 fn agent_from_container(path: &str) -> Option<String> {
     path.split('/').find_map(|seg| {
         let seg = seg.strip_suffix(".scope").unwrap_or(seg);

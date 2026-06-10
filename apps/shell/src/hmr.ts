@@ -1,8 +1,8 @@
 // Shell HMR glue. Two reload paths, gated by daemon mode:
 //
 //   Dev (ship-mode=development): the Deck live-reload client (served at
-//     `/_sui/live-reload.js`) subscribes to the bundler firehose
-//     (`/_sui/dev/hmr`) and reloads on any target change. Always on, no
+//     `/_deck/live-reload.js`) subscribes to the bundler firehose
+//     (`/_deck/dev/hmr`) and reloads on any target change. Always on, no
 //     toggle — this is the Ship-team dev loop.
 //
 //   Prod: live-reload is coupled to *edit mode* (the product authoring
@@ -22,9 +22,12 @@
 // view.js and re-mount in place. Any other target → full reload (custom
 // elements can't be re-registered without one).
 
+import { DECK_PREFIX } from '@ship/sdk-client'
+
 interface MountModule {
   default: { setup: (...args: unknown[]) => unknown }
 }
+
 
 export interface HmrDeps {
   getCurrentView(): string | null
@@ -45,15 +48,37 @@ function isDevMode(): boolean {
   return document.querySelector('meta[name="ship-mode"]')?.getAttribute('content') === 'development'
 }
 
-// Cache-bust import the rebuilt view bundle and re-mount in place. `bust`
-// is the bundler byte count (dev) or the compile timestamp (prod) — either
-// changes per build, defeating the ESM import cache.
+// Re-evaluate the rebuilt view bundle in place. `bust` is the bundler byte
+// count (dev) or the compile timestamp (prod) — either changes per build,
+// so the cache-busting query string forces a fresh network fetch.
+//
+// Why fetch+Blob URL instead of `await import(url)`:
+//   dynamic `import(url)` registers the module in the host realm's ESM
+//   registry under the cache-busted URL. The bundler rewrites that
+//   importee's own bare specifier imports to relative paths, so it does
+//   NOT pull fresh @ship/sui-runtime with it — that part is OK. But the
+//   per-compile module graph still accumulates in the registry: every
+//   `rebuild` from the watcher creates a new entry that nothing ever
+//   evicts, so a runaway watcher (issue #129/#130) is GB-fast. fetch +
+//   Blob URL evaluates the same source as a one-off script and registers
+//   nothing — the URL vanishes with its blob the moment
+//   `URL.revokeObjectURL` is called. This is dev-only; the production
+//   `sui:view:compiled` path hits the same code and gets the same fix.
 async function remountView(deps: HmrDeps, view: string, bust: string): Promise<void> {
-  const url = `/_sui/views/${view}/view.js?v=${encodeURIComponent(bust)}`
+  const url = `${DECK_PREFIX}/views/${view}/view.js?v=${encodeURIComponent(bust)}`
   try {
-    const m = (await import(/* @vite-ignore */ url)) as MountModule
-    await deps.remount(m)
-    console.info(`[hmr] re-mounted ${view}`)
+    const res = await fetch(url, { credentials: 'same-origin' })
+    if (!res.ok) throw new Error(`view bundle HTTP ${res.status}`)
+    const src = await res.text()
+    const blob = new Blob([src], { type: 'text/javascript' })
+    const blobUrl = URL.createObjectURL(blob)
+    try {
+      const m = (await import(/* @vite-ignore */ blobUrl)) as MountModule
+      await deps.remount(m)
+      console.info(`[hmr] re-mounted ${view}`)
+    } finally {
+      URL.revokeObjectURL(blobUrl)
+    }
   } catch (err) {
     console.error(`[hmr] re-mount of ${view} failed; reloading`, err)
     window.location.reload()
@@ -87,7 +112,7 @@ export function initHmr(deps: HmrDeps): { close(): void } {
   void (async () => {
     // Runtime URL served by the daemon (Deck). Held in a variable so TS
     // treats it as a dynamic specifier rather than resolving it at build.
-    const clientUrl = '/_sui/live-reload.js'
+    const clientUrl = `${DECK_PREFIX}/live-reload.js`
     let mod: LiveReloadModule
     try {
       mod = (await import(/* @vite-ignore */ clientUrl)) as LiveReloadModule

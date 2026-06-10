@@ -44,7 +44,7 @@ async function readBrandPaint(page: import('@playwright/test').Page): Promise<Fi
 async function applyThemeOnPage(page: import('@playwright/test').Page, id: string): Promise<void> {
   // Drive the same DOM contract <sui-theme-picker> would: data-theme +
   // `.dark` class on <html> + a `ship:theme:change` event with { id, dark }.
-  // Mirrors @ship/set/themes#applyTheme so the brand-mark repaints (CSS
+  // Mirrors @ship/tokens/themes#applyTheme so the brand-mark repaints (CSS
   // vars cascade) and main.ts#initFavicon swaps the favicon href.
   await page.evaluate((themeId) => {
     const DARK = new Set(['ship-dark', 'console', 'contrast'])

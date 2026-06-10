@@ -34,7 +34,7 @@ ship-store = { path = "../ship-store" }
 #                    daemon's feature wiring).
 ship-auth = { path = "../ship-auth" }
 ship-device = { path = "../ship-device" }
-ship-isolation = { path = "../../../ship-isolation", default-features = false }
+ship-isolation = { path = "../ship-isolation", default-features = false }
 # compiler crate (the engine; services/compile is only the wrapper)
 compiler = { path = "../../../compiler", features = ["specta"] }
 jsonschema = { version = "0.46", default-features = false }

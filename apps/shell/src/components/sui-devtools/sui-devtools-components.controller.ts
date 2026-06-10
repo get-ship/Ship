@@ -1,12 +1,12 @@
+import { DECK_PREFIX } from '@ship/sdk-client'
 import { chrome, controller, signal, derived, ref } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-components.sui'
 
 // The dock's Components tab inspects the workspace SUI catalog —
-// `/api/sui/catalog/workspace` returns every `<sui-*>` the monorepo
+// `/_deck/catalog/workspace` returns every `<sui-*>` the monorepo
 // knows about (packaged pack components + non-packaged shell/view
-// locals). Emitted by `@ship/sui-catalog`.
-const SUI_CATALOG_URL = '/api/sui/catalog/workspace'
+const SUI_CATALOG_URL = `${DECK_PREFIX}/catalog/workspace`
 
 interface CemAttr { name: string; description?: string; type?: { text?: string }; default?: string }
 interface CatalogEntryWire {
@@ -70,7 +70,6 @@ export default controller({
   },
 
   mount(state, host) {
-    const s = state as unknown as Record<string, unknown>
     let loaded = false
 
     async function load(): Promise<void> {
@@ -80,13 +79,12 @@ export default controller({
         const resp = await fetch(SUI_CATALOG_URL, { credentials: 'same-origin' })
         if (!resp.ok) return
         const doc = await resp.json() as { entries?: CatalogEntryWire[] }
-        s['entries'] = flattenCatalog(doc.entries ?? [])
+        state.entries = flattenCatalog(doc.entries ?? [])
       } catch { /* best-effort */ }
     }
 
     // Copy click delegation — needs host for notify dispatch
-    const bodyRefFn = s['bodyEl']
-    const bodyEl = (typeof bodyRefFn === 'function' ? (bodyRefFn as () => HTMLElement | null)() : null)
+    const bodyEl = state.bodyEl
     if (bodyEl) {
       bodyEl.addEventListener('click', (e: MouseEvent) => {
         const btn = (e.target as Element).closest<HTMLButtonElement>('.copy[data-tag]')
@@ -94,7 +92,7 @@ export default controller({
         e.preventDefault()
         e.stopPropagation()
         const tag = btn.dataset.tag ?? ''
-        const entry = (s['entries'] as Entry[]).find(x => x.tag === tag)
+        const entry = state.entries.find(x => x.tag === tag)
         if (!entry) return
         void navigator.clipboard.writeText(entry.snippet).then(
           () => chrome.notify({ tone: 'success', title: 'Copied' }),
@@ -104,7 +102,7 @@ export default controller({
     }
 
     Object.defineProperty(host, 'refresh', {
-      value: () => { loaded = false; s['entries'] = []; void load() },
+      value: () => { loaded = false; state.entries = []; void load() },
       configurable: true,
     })
 

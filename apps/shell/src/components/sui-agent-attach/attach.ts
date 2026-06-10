@@ -1,9 +1,9 @@
-// chrome/agent-session-attach.ts — attaches a `<sui-terminal>` element to
+// chrome/agent-session-attach.ts — attaches a `<ship-terminal>` element to
 // a running PTY-backed agent session via the daemon's WebSocket bridge.
 //
 // Sibling of `terminal-bridge.ts` (shell PTY → dock terminal). Where that
 // module owns the dock's terminal tab end-to-end, this one is a transport
-// the caller drives — pass a `<sui-terminal>` and a slug, get back a
+// the caller drives — pass a `<ship-terminal>` and a slug, get back a
 // disposer. Higher-level surfaces (panel-dock tab, popout window, agent
 // detail page) decide WHEN to attach.
 //
@@ -45,8 +45,8 @@ export interface AgentSessionAttachment {
 }
 
 /// Connect `termEl` to `/api/v1/agent_sessions/{slug}/attach`. The xterm
-/// engine inside `<sui-terminal>` must be mounted before bytes start
-/// flowing — the helper buffers server frames until the `sui-terminal-ready`
+/// engine inside `<ship-terminal>` must be mounted before bytes start
+/// flowing — the helper buffers server frames until the `ship-terminal-ready`
 /// event fires (or until the engine is already mounted, signaled by the
 /// presence of `el.terminal`).
 export function attachAgentSession(
@@ -84,14 +84,14 @@ export function attachAgentSession(
     termReady = true
     flush()
   }
-  termEl.addEventListener('sui-terminal-ready', onReady, { once: true })
+  termEl.addEventListener('ship-terminal-ready', onReady, { once: true })
 
   const onData = (e: Event): void => {
     const d = (e as CustomEvent<{ data?: string }>).detail?.data
     if (typeof d !== 'string' || !ws || ws.readyState !== WebSocket.OPEN) return
     ws.send(new TextEncoder().encode(d))
   }
-  termEl.addEventListener('sui-terminal-data', onData)
+  termEl.addEventListener('ship-terminal-data', onData)
 
   ws.addEventListener('open', () => opts.onOpen?.())
   ws.addEventListener('message', (ev) => {
@@ -112,8 +112,8 @@ export function attachAgentSession(
 
   return {
     dispose: () => {
-      termEl.removeEventListener('sui-terminal-data', onData)
-      termEl.removeEventListener('sui-terminal-ready', onReady)
+      termEl.removeEventListener('ship-terminal-data', onData)
+      termEl.removeEventListener('ship-terminal-ready', onReady)
       if (ws) {
         const sock = ws
         ws = null

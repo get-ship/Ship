@@ -63,9 +63,9 @@ const SUI_BUNDLES = [
 // resolves against the same canonical tokens the daemon serves at
 // runtime. The concat order must match apps/shipd/src/views/assets.rs.
 const VIEW_TOKENS_SOURCES = [
-  join(REPO_ROOT, "packages/components/ui-components/src/tokens/tokens.css"),
+  join(REPO_ROOT, "packages/sui/tokens/src/tokens.css"),
   join(REPO_ROOT, "apps/shipd/assets/view-tokens.css"),
-  join(REPO_ROOT, "packages/components/ui-components/src/tokens/themes.css"),
+  join(REPO_ROOT, "packages/sui/tokens/src/themes.css"),
 ] as const
 // `agent-only` files never ship to any site. `internal` files are hidden from
 // the public (user) build but rendered in internal mode so contributors can
@@ -335,10 +335,10 @@ function run(): void {
     if (existsSync(src)) copyFileSync(src, join(apiAssetsDir, name))
   }
 
-  // `<sui-icon>` fetches each lucide icon from `/_sui/icons/<name>.svg`.
+  // `<sui-icon>` fetches each lucide icon from `/_deck/icons/<name>.svg`.
   // The docs site is a static deploy with no daemon — split the committed
   // JSON into one file per icon so the same per-icon URLs resolve here.
-  const sUiDir = join(PUBLIC_DIR, "_sui")
+  const sUiDir = join(PUBLIC_DIR, "_deck")
   mkdirSync(sUiDir, { recursive: true })
   const lucideSrc = join(SUI_ASSETS_DIR, "lucide-icons.json")
   if (existsSync(lucideSrc)) {
@@ -352,12 +352,12 @@ function run(): void {
     for (const [name, inner] of Object.entries(map)) {
       writeFileSync(join(iconsDir, `${name}.svg`), wrap(inner))
     }
-    console.log(`[collect-docs] Emitted ${Object.keys(map).length} icons under /_sui/icons/.`)
+    console.log(`[collect-docs] Emitted ${Object.keys(map).length} icons under /_deck/icons/.`)
   }
 
   // Lazy `<sui-*>` chunks live next to the umbrella bundle under
   // crates/deck/deck-core/assets/sui-components/. The tutorial
-  // playground side-loads sui-code-editor.js from there; copy the
+  // playground side-loads ship-code-editor.js from there; copy the
   // whole dir so any other chunk a future step needs is reachable.
   const chunkSrcDir = join(SUI_ASSETS_DIR, "sui-components")
   if (existsSync(chunkSrcDir)) {
@@ -365,7 +365,7 @@ function run(): void {
     mkdirSync(chunkOutDir, { recursive: true })
     // Tutorial needs the editor; the others are unused on the docs
     // site but ~30-80KB each and don't hurt to ship as static.
-    const needs = new Set(["sui-code-editor.js", "sui-brand-mark.js"])
+    const needs = new Set(["ship-code-editor.js", "sui-brand-mark.js"])
     let chunkCount = 0
     for (const entry of readdirSync(chunkSrcDir)) {
       if (!needs.has(entry)) continue
@@ -376,26 +376,6 @@ function run(): void {
     if (chunkCount > 0) console.log(`[collect-docs] Copied ${chunkCount} lazy chunk(s) to public/sui-components/.`)
   }
 
-  // Per-pack bundles at the daemon's serve path (/_sui/packs/<pack>/).
-  // Decomposed component packs (charts, primitives) ship their own
-  // bundles; docs site mirrors the URL convention for `<data
-  // live source="...">` resolution and for any tutorial step that
-  // demos pack consumption.
-  const PACKS = [
-    { name: "primitives", file: "sui-primitives.js" },
-    { name: "charts",     file: "sui-charts.js" },
-  ] as const
-  for (const pack of PACKS) {
-    const src = join(REPO_ROOT, "packages/components", pack.name, "dist", pack.file)
-    if (!existsSync(src)) {
-      console.log(`[collect-docs] ${pack.file} not built. Run 'bun run --filter @ship/${pack.name} build'.`)
-      continue
-    }
-    const dest = join(sUiDir, "packs", pack.name)
-    mkdirSync(dest, { recursive: true })
-    copyFileSync(src, join(dest, pack.file))
-    console.log(`[collect-docs] Emitted /_sui/packs/${pack.name}/${pack.file}.`)
-  }
 }
 
 run()

@@ -5,8 +5,10 @@
 //! with no space in hand (the source the space-id resolver itself consults). The
 //! crate is the sole writer — it persists rows through the [`DataStore`] port
 //! and emits the matching `project.*` events through [`KernelLog`] (the kernel
-//! routes them to runtime.db). No sqlite/sqlx and no raw fs here: path → id is
-//! the substrate `path_hash` helper (a pure hash, not a filesystem touch).
+//! routes them to runtime.db). No sqlite/sqlx here, and no raw fs except the
+//! legacy `projects.json` fallback reader below (std::fs::read_to_string in
+//! `load_legacy_entries`). The path → id mapping uses the substrate
+//! `path_hash` helper (a pure hash, not a filesystem touch).
 //!
 //! [`list`] also merges entries from the legacy `~/.ship/projects.json` file
 //! (kept from the old `workspaces.list` registry op) so that installs whose

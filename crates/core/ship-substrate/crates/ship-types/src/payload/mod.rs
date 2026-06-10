@@ -10,9 +10,13 @@
 
 mod account;
 mod actor;
-mod artifact;
+// artifact payload structs moved to ship-artifacts/src/events.rs
+// (keystone-A de-bucket, 2026-06-10): the ARTIFACT domain owns its events
+// at L1. No re-export shim — consumers import from ship_artifacts::events.
 mod auth;
-mod collection;
+// collection payload structs moved to ship-collection/src/events.rs
+// (keystone-A de-bucket, 2026-06-10): the COLLECTION domain owns its events
+// at L1. No re-export shim — consumers import from ship_collection::events.
 mod compile;
 mod config;
 mod crud;
@@ -33,12 +37,9 @@ pub use account::{AccountKeyRefreshed, AccountLoginCompleted, AccountLoginStarte
 pub use actor::{
     ActorCrashed, ActorCreated, ActorMailboxFull, ActorSlept, ActorStopped, ActorWoke,
 };
-pub use artifact::{ArtifactCreated, ArtifactDeleted, ArtifactMoved, ArtifactUpdated};
 pub use auth::{AgentGrantsProvisioned, AuthSessionCreated, AuthSessionExpired, AuthSessionRevoked};
-pub use collection::{
-    CollectionCreated, CollectionItemCreated, CollectionItemDeleted, CollectionItemUpdated,
-    CollectionSchemaChanged,
-};
+// CollectionCreated / CollectionItem* / CollectionSchemaChanged moved to
+// ship-collection/src/events.rs — no re-export here.
 pub use compile::CompileCompleted;
 pub use config::{ConfigChanged, ConfigFileChanged, ProjectLog, SettingChanged, SpaceSettingChanged};
 pub use crud::{
@@ -51,10 +52,7 @@ pub use daemon::{
     SupervisorShuttingDown,
 };
 pub use kernel::{KernelActorRestored, KernelActorSnapshot, KernelActorSuspended};
-pub use mesh::{
-    MeshBroadcast, MeshDeregister, MeshDeregistered, MeshDiscoverResponse, MeshMessage,
-    MeshRegister, MeshRegistered, MeshSend, MeshSendFailed, MeshStatus,
-};
+pub use mesh::{MeshDeregister, MeshMessage, MeshRegister};
 pub use skill::{SkillCompleted, SkillFailed, SkillStarted};
 pub use spec6::{AgentTaskComplete, HumanResponse, PipelineStepRetry};
 pub use studio::{

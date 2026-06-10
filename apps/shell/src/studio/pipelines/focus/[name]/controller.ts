@@ -56,24 +56,14 @@ const read = (envelope: unknown): FocusCtx => {
 
 type Ed = HTMLElement & { value: string; getAttribute(n: string): string | null; setDiagnostics?(d: unknown[]): void }
 
-// `sui-code-editor` ships as a lazy island bundle (`/_sui/sui-components/<tag>.js`).
-// The daemon eagerly injects islands it finds by static-scanning templates, but the
-// editor only renders inside the `editMode` branch — fetch it on demand so the
-// element upgrades when the user opens the editor.
 // The active beforeUnload listener for this view instance. Module-scoped
 // because the writable state proxy only accepts declared template-state keys.
 let beforeUnloadListener: ((e: BeforeUnloadEvent) => void) | null = null
-let editorIslandLoaded = false
-function ensureEditorIsland(): void {
-  if (editorIslandLoaded || customElements.get('sui-code-editor')) { editorIslandLoaded = true; return }
-  editorIslandLoaded = true
-  const tag = 'sui-code-editor'
-  import(/* @vite-ignore */ `/_sui/sui-components/${tag}.js`).catch(() => { editorIslandLoaded = false })
-}
 
 const decorateRun = (r: RunView) => ({
   ...r,
   state_attr: r.state.replace('-', ''),
+  updatedLabel: formatRelative(r.updated_at),
   steps: r.steps?.map((step, i, arr) => ({ ...step, isLast: i === arr.length - 1 })),
 })
 
@@ -101,11 +91,19 @@ export default controller({
     // Requires the `/studio/pipelines/focus/:name` pattern registered via
     // defineRoutes at shell startup; absent that, name() is undefined → ''.
     const name = derived(() => String(route.params.name?.() ?? ''))
-    // Subscribe to the focus op by name via `liveExpr` — the shell SDK object
-    // exposes no `pipelines` surface, so the call form would throw. Re-subscribes
-    // when `name()` changes. `liveExpr` wraps the SSE channel as a LiveSource.
+    // Subscribe to the focus op by name via the typed SDK surface. The
+    // `pipelines.focus` LiveSource re-subscribes when `name()` changes.
+    // The wire is `ship.ops.v1.PipelinesService/FocusLive` (proto rpc),
+    // resolvable through the live-data multiplex + the `pipelines.focus`
+    // LiveResolver on the daemon side. Until TS codegen lands, the SDK
+    // falls back to the legacy expr-SSE path; either way, the payload
+    // flows through the same registry entry.
     const focusCtx = live(() => ship.pipelines.focus({ name: name() }) as LiveSource<FocusCtx>)
     const def = derived(() => decorateDef(read(focusCtx()).def))
+    const relLastRun = derived(() => {
+      const v = read(focusCtx()).def.last_run_at
+      return v ? formatRelative(v) : ''
+    })
     const doc = derived(() => {
       const d = read(focusCtx()).doc
       return { ...d, steps: d.steps.map(decorateStep) }
@@ -130,13 +128,13 @@ export default controller({
     const deleteOpen = signal(false)
     const editorRef = ref<Ed>(null)
     return {
-      focusCtx, name, def, doc, raw, format, workspaceId, runs, activeForPipeline, opsMode, providers,
+      focusCtx, name, def, relLastRun, doc, raw, format, workspaceId, runs, activeForPipeline, opsMode, providers,
       editMode, editSaving, editError, editErrorLine, editErrorCol, editIssueCount,
-      dispatchOpen, dispatchSpec, dispatchProvider, dispatchHeadless, deleteOpen, editorRef, formatRelative,
+      dispatchOpen, dispatchSpec, dispatchProvider, dispatchHeadless, deleteOpen, editorRef,
     }
   },
   on: {
-    startEdit: (s) => { ensureEditorIsland(); s.editMode = true; s.editError = ''; s.editIssueCount = 0 },
+    startEdit: (s) => { s.editMode = true; s.editError = ''; s.editIssueCount = 0 },
     cancelEdit: (s) => {
       s.editMode = false; s.editError = ''; s.editIssueCount = 0
       const ed = s.editorRef
@@ -197,7 +195,7 @@ export default controller({
     },
   },
   mount: (s) => {
-    if (/[?&]edit=1(&|$)/.test(window.location.search)) { ensureEditorIsland(); s.editMode = true }
+    if (/[?&]edit=1(&|$)/.test(window.location.search)) { s.editMode = true }
     const beforeUnload = (e: BeforeUnloadEvent) => {
       if (!s.editMode) return
       const ed = s.editorRef

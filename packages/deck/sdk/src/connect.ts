@@ -21,16 +21,27 @@ import { AccountService } from "./gen/ship/ops/v1/account_pb.js";
 import { AgentService } from "./gen/ship/ops/v1/agent_pb.js";
 import { AgentsService } from "./gen/ship/ops/v1/agents_pb.js";
 import { AnalyticsService } from "./gen/ship/ops/v1/analytics_pb.js";
-import { AnnotationService } from "./gen/ship/ops/v1/annotation_pb.js";
 import { ArtifactsService } from "./gen/ship/ops/v1/artifacts_pb.js";
-import { ChatService } from "./gen/ship/ops/v1/chat_pb.js";
 import { CollectionsService } from "./gen/ship/ops/v1/collections_pb.js";
-import { CreateService } from "./gen/ship/ops/v1/create_pb.js";
 import { DashboardService } from "./gen/ship/ops/v1/dashboard_pb.js";
-import { DiscoveryService } from "./gen/ship/ops/v1/discovery_pb.js";
 import { EventsService } from "./gen/ship/ops/v1/events_pb.js";
-import { FeedbackService } from "./gen/ship/ops/v1/feedback_pb.js";
 import { GitService } from "./gen/ship/ops/v1/git_pb.js";
+import { IsolationService } from "./gen/ship/ops/v1/isolation_pb.js";
+import {
+  type IsolationCapabilities,
+  type IsolationDecision,
+  type IsolationProfile,
+  type IsolationPreviewResponse,
+  type IsolationRecommendationsResponse,
+  type IsolationResolved,
+  type IsolationResolutionReason,
+  type IsolationStatusResponse,
+  type IsolationStrategyRow,
+  type IsolationTierRow,
+  type IsolationVerifyResponse,
+  type IsolationVerifyStep,
+} from "./gen/ship/ops/v1/isolation_pb.js";
+import { EntityKind, type SearchHit, type SearchResponse } from "./gen/ship/ops/v1/search_pb.js";
 import { McpService } from "./gen/ship/ops/v1/mcp_pb.js";
 import { PermissionsService } from "./gen/ship/ops/v1/permissions_pb.js";
 import { PipelinesService } from "./gen/ship/ops/v1/pipelines_pb.js";
@@ -41,10 +52,10 @@ import { SessionsService } from "./gen/ship/ops/v1/sessions_pb.js";
 import { SettingsService, SettingScope } from "./gen/ship/ops/v1/settings_pb.js";
 import type { Setting, SettingList } from "./gen/ship/ops/v1/settings_pb.js";
 import { SkillsService } from "./gen/ship/ops/v1/skills_pb.js";
+import { SearchService } from "./gen/ship/ops/v1/search_pb.js";
 import { SpaceService } from "./gen/ship/ops/v1/space_pb.js";
 import { SpecsService } from "./gen/ship/ops/v1/specs_pb.js";
 import { ViewService } from "./gen/ship/ops/v1/view_pb.js";
-import { ViewErrorsService } from "./gen/ship/ops/v1/view_errors_pb.js";
 import { WorkspacesService } from "./gen/ship/ops/v1/workspaces_pb.js";
 
 export interface ShipConnectOptions {
@@ -67,29 +78,25 @@ export interface ShipConnectClient {
   agent: Client<typeof AgentService>;
   agents: Client<typeof AgentsService>;
   analytics: Client<typeof AnalyticsService>;
-  annotation: Client<typeof AnnotationService>;
   artifacts: Client<typeof ArtifactsService>;
-  chat: Client<typeof ChatService>;
   collections: Client<typeof CollectionsService>;
-  create: Client<typeof CreateService>;
   dashboard: Client<typeof DashboardService>;
-  discovery: Client<typeof DiscoveryService>;
   events: Client<typeof EventsService>;
-  feedback: Client<typeof FeedbackService>;
   git: Client<typeof GitService>;
+  isolation: Client<typeof IsolationService>;
   mcp: Client<typeof McpService>;
   permissions: Client<typeof PermissionsService>;
   pipelines: Client<typeof PipelinesService>;
   project: Client<typeof ProjectService>;
   rules: Client<typeof RulesService>;
   runtime: Client<typeof RuntimeService>;
+  search: Client<typeof SearchService>;
   sessions: Client<typeof SessionsService>;
   settings: Client<typeof SettingsService>;
   skills: Client<typeof SkillsService>;
   space: Client<typeof SpaceService>;
   specs: Client<typeof SpecsService>;
   view: Client<typeof ViewService>;
-  viewErrors: Client<typeof ViewErrorsService>;
   workspaces: Client<typeof WorkspacesService>;
 }
 
@@ -118,21 +125,18 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
     agent: createClient(AgentService, transport),
     agents: createClient(AgentsService, transport),
     analytics: createClient(AnalyticsService, transport),
-    annotation: createClient(AnnotationService, transport),
     artifacts: createClient(ArtifactsService, transport),
-    chat: createClient(ChatService, transport),
     collections: createClient(CollectionsService, transport),
-    create: createClient(CreateService, transport),
     dashboard: createClient(DashboardService, transport),
-    discovery: createClient(DiscoveryService, transport),
     events: createClient(EventsService, transport),
-    feedback: createClient(FeedbackService, transport),
     git: createClient(GitService, transport),
+    isolation: createClient(IsolationService, transport),
     mcp: createClient(McpService, transport),
     permissions: createClient(PermissionsService, transport),
     pipelines: createClient(PipelinesService, transport),
     project: createClient(ProjectService, transport),
     rules: createClient(RulesService, transport),
+    search: createClient(SearchService, transport),
     runtime: createClient(RuntimeService, transport),
     sessions: createClient(SessionsService, transport),
     settings: createClient(SettingsService, transport),
@@ -140,7 +144,6 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
     space: createClient(SpaceService, transport),
     specs: createClient(SpecsService, transport),
     view: createClient(ViewService, transport),
-    viewErrors: createClient(ViewErrorsService, transport),
     workspaces: createClient(WorkspacesService, transport),
   };
 }
@@ -152,21 +155,18 @@ export {
   AgentService,
   AgentsService,
   AnalyticsService,
-  AnnotationService,
   ArtifactsService,
-  ChatService,
   CollectionsService,
-  CreateService,
   DashboardService,
-  DiscoveryService,
   EventsService,
-  FeedbackService,
   GitService,
+  IsolationService,
   McpService,
   PermissionsService,
   PipelinesService,
   ProjectService,
   RulesService,
+  SearchService,
   RuntimeService,
   SessionsService,
   SettingsService,
@@ -175,8 +175,25 @@ export {
   SpaceService,
   SpecsService,
   ViewService,
-  ViewErrorsService,
   WorkspacesService,
 };
 
-export type { Setting, SettingList };
+export {
+  EntityKind,
+  type IsolationCapabilities,
+  type IsolationDecision,
+  type IsolationProfile,
+  type IsolationPreviewResponse,
+  type IsolationRecommendationsResponse,
+  type IsolationResolved,
+  type IsolationResolutionReason,
+  type IsolationStatusResponse,
+  type IsolationStrategyRow,
+  type IsolationTierRow,
+  type IsolationVerifyResponse,
+  type IsolationVerifyStep,
+  type SearchHit,
+  type SearchResponse as SearchResponseProto,
+  type Setting,
+  type SettingList,
+};

@@ -7,7 +7,6 @@ import {
   CREATE_SURFACES, SEARCH_KIND_LABELS,
   detectMode, isKebab, navigateTo,
 } from './types'
-import { ops } from '../../ops'
 
 export default controller({
   scope: (_ctx: ViewScope<Scope>, host?: Element) => {
@@ -248,26 +247,10 @@ export default controller({
     },
     submitCreate: async (s: any) => {
       if (!s.createNameValid() || s.bar.createSubmitting()) return
-      s.bar.createSubmitting.set(true)
-      s.bar.createError.set(null)
-      try {
-        const surface = s.bar.createSurface() as string
-        const body = JSON.parse((await ops.create.surface({
-          surface,
-          name: s.bar.createName(),
-          shape: s.bar.createShape(),
-          purpose: s.bar.createPurpose() || '',
-        })).json) as { data?: { route?: string | null; path?: string } }
-        s.bar.createName.set('')
-        s.bar.createPurpose.set('')
-        s.bar.open.set(false)
-        const route = body.data?.route
-        if (route) void navigateTo(route)
-      } catch (err) {
-        s.bar.createError.set(err instanceof Error ? err.message : 'Unknown error')
-      } finally {
-        s.bar.createSubmitting.set(false)
-      }
+      // The create-surface op was quarantined (06153c1a5) — scaffolding a
+      // view/skill/agent/theme has no daemon op yet. Surface that honestly
+      // instead of calling a dead RPC; the backend op is raised for build.
+      s.bar.createError.set('Create is not available yet — backend op pending.')
     },
   },
 })

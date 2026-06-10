@@ -4,8 +4,8 @@
 //! op cut. These tests exercise KernelRouter directly.
 
 use std::sync::Arc;
-use tempfile::TempDir;
 use tokio::sync::Mutex;
+use tempfile::TempDir;
 
 use ship_substrate::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope, KernelRouter};
 

@@ -47,7 +47,7 @@ pub fn setting_default(key: &str) -> Option<&'static str> {
         "git.log_limit" => Some("50"),
         // u32 — maximum hook recursion depth before the engine drops further events.
         "hooks.max_depth" => Some("3"),
-        // ─── Isolation (see crates/core/ship-isolation/docs/strategy.md) ───
+        // ─── Isolation (see crates/core/ship-platform/crates/ship-isolation/docs/strategy.md) ───
         "isolation.default_tier" => Some("auto"),
         "isolation.default_strategy" => Some("auto"),
         "isolation.allow_tier_0" => Some("true"),

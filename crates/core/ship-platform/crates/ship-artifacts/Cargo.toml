@@ -17,6 +17,7 @@ connectrpc = { version = "0.4", features = ["axum"] }
 buffa = { version = "0.5" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 futures-util = { workspace = true }

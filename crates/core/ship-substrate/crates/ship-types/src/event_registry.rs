@@ -1,8 +1,11 @@
-//! Event registry — compile-time-collected metadata for every annotated event payload.
+//! Event registry — compile-time-collected metadata for every registered event payload.
 //!
-//! Each payload struct annotated with `#[derive(EventPayload)] #[event(...)]` submits
-//! an `EventRegistration` via `inventory::submit!`. The `registry()` function assembles
-//! all registrations at runtime (no hand-maintained list; drift is impossible).
+//! Registrations are submitted via `inventory::submit!` — in practice through
+//! hand-written `register_event!` lists in `payload_registry.rs` and
+//! `agent-def`'s `event_registrations.rs` (the `#[derive(EventPayload)]` derive
+//! exists but currently has no users). `registry()` assembles all submissions at
+//! link time, so there is no central aggregation list — but registration entries
+//! themselves are hand-maintained and can drift from their payload structs.
 //!
 //! ## Naming
 //!
@@ -96,6 +99,15 @@ pub struct EventDef {
     pub since_version: Option<&'static str>,
     /// `std::any::type_name`-like string for the payload struct.
     pub payload_type_name: &'static str,
+    /// Payload schema validator CARRIED BY the registration (Phase 4a,
+    /// keystone A: each domain owns its events' validation; the substrate
+    /// validates whatever is registered in the linked binary). Deserializes
+    /// the JSON payload into the declared payload struct; `Err` is the
+    /// serde message. Mandatory — a registration without a real payload
+    /// type cannot exist, which is what retired the hand-maintained L0
+    /// `schema_for_event_type` match (it silently skipped 26 registered
+    /// events and could never see L1 payloads).
+    pub validate_payload: fn(&str) -> Result<(), String>,
 }
 
 impl EventDef {
@@ -121,6 +133,69 @@ pub struct EventRegistration {
 }
 
 inventory::collect!(EventRegistration);
+
+/// Register one event type with its **allowed-set** of scopes (Model C).
+///
+/// The scope argument is a square-bracketed list of one-or-more [`EventScope`]s.
+/// A size-1 set (the common case) is the single-scope model: the lone element
+/// is both the primary (stamped at `EventEnvelope::new`) and the only scope the
+/// emission may ride. Poly-scopic events list every scope they may ride; the
+/// emission's binding picks one and `enforce_scope` validates membership +
+/// authorization.
+///
+/// The final argument is the payload **TYPE PATH**: the registration carries its
+/// own schema validator (Phase 4a — deserialize-into-the-declared-type), so
+/// registering an event without a real payload type is impossible. The string form
+/// (`$type_name`) stays as the stable identifier the fixture/codegen tools key on.
+///
+/// # Usage
+///
+/// ```ignore
+/// // Single scope (common case):
+/// ship_types::register_event!(
+///     "my.event",
+///     [ship_types::event_registry::EventScope::Space],
+///     ship_types::event_registry::Retention::Durable,
+///     ship_types::event_registry::Stability::Stable,
+///     "MyPayload",
+///     my_crate::MyPayload
+/// );
+/// ```
+#[macro_export]
+macro_rules! register_event {
+    // The scopes are passed as a bracketed, comma-separated list of one-or-more
+    // `EventScope`s (the allowed-SET, Model C). Captured element-by-element so
+    // the array is rebuilt inside the macro — `&[ ... ]` then unsizes to the
+    // `&'static [EventScope]` field. A size-1 set is the single-scope model.
+    // The final argument is the payload TYPE PATH: the registration carries
+    // its own schema validator (Phase 4a — deserialize-into-the-declared-type),
+    // so registering an event without a real payload type is impossible. The
+    // string form ($type_name) stays as the stable identifier the fixture/
+    // codegen tools key on.
+    ($name:expr, [$($scope:expr),+ $(,)?], $retention:expr, $stability:expr, $type_name:expr, $payload:ty) => {
+        ::ship_types::inventory::submit! {
+            ::ship_types::event_registry::EventRegistration {
+                def: || {
+                    fn validate(json: &str) -> ::std::result::Result<(), ::std::string::String> {
+                        ::serde_json::from_str::<$payload>(json)
+                            .map(|_| ())
+                            .map_err(|e| e.to_string())
+                    }
+                    static DEF: ::ship_types::event_registry::EventDef = ::ship_types::event_registry::EventDef {
+                        name: $name,
+                        allowed_scopes: &[$($scope),+],
+                        retention: $retention,
+                        stability: $stability,
+                        since_version: ::std::option::Option::None,
+                        payload_type_name: $type_name,
+                        validate_payload: validate,
+                    };
+                    &DEF
+                },
+            }
+        }
+    };
+}
 
 /// Return all registered `EventDef`s, collected at link time from every crate
 /// that annotated a payload struct with `#[derive(EventPayload)]`.

@@ -1,7 +1,7 @@
 {
   "name": "@ship/sui-runtime",
   "version": "0.1.0",
-  "description": "SUI runtime — fine-grained signals, custom-element wrapper, patch protocol applicator. The reactive engine that templates and components share.",
+  "description": "SUI runtime \u2014 fine-grained signals, custom-element wrapper, patch protocol applicator. The reactive engine that templates and components share.",
   "type": "module",
   "license": "MIT",
   "main": "src/index.ts",
@@ -24,6 +24,8 @@
     "bench": "vitest bench --run"
   },
   "devDependencies": {
+    "@ship/test-setup": "workspace:*",
+    "@tanstack/virtual-core": "^3.16.1",
     "@vitest/browser": "^4.1.5",
     "axe-core": "^4.11.4",
     "jsdom": "^25.0.0",

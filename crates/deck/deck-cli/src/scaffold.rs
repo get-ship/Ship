@@ -6,7 +6,7 @@
 //! shape (manifest fields, paired-controller convention, the `.sui` +
 //! `.controller.ts` stem pair). The retired .mjs called into `node` and
 //! pointed at since-renamed paths (`packages/ui-components/src/`); the
-//! port writes to the current layout (`packages/components/primitives/`)
+//! port writes to the current layout (`packages/components/sui/primitives/`)
 //! and the next-steps text reflects today's toolchain.
 
 use std::fs;
@@ -64,7 +64,7 @@ fn title_case(name: &str) -> String {
 /// from any cwd inside the repo; the views/ + deck-core monorepo markers
 /// surface naturally when the scaffold tries to write into those paths.
 fn find_repo_root(start: &Path) -> Result<PathBuf> {
-    ship_substrate::locate::workspace_root_from(start).ok_or_else(|| {
+    deck_bundler::paths::topmost_cargo_root(start).ok_or_else(|| {
         anyhow!("no Cargo workspace root above {}", start.display())
     })
 }
@@ -104,7 +104,7 @@ pub fn run_view(name: String, route_path: Option<String>, component_tag: Option<
          }}\n"
     );
     let page = format!(
-        "<state name=\"ready\" value=\"true\" />\n\n<div class=\"{name}\">\n  \
+        "<div class=\"{name}\">\n  \
          <h1>{title}</h1>\n  <p>New view — replace this body.</p>\n</div>\n"
     );
     let controller = format!(
@@ -155,9 +155,9 @@ pub fn run_view(name: String, route_path: Option<String>, component_tag: Option<
 pub fn run_component(tag: String, want_controller: bool) -> Result<()> {
     validate_component_tag(&tag)?;
     let repo_root = find_repo_root(&std::env::current_dir().context("cwd")?)?;
-    // Primitives live under packages/components/primitives/src/ today — the
+    // Primitives live under packages/components/sui/primitives/src/ today — the
     // retired .mjs wrote to packages/ui-components/src/ which no longer exists.
-    let base = repo_root.join("packages/components/primitives/src").join(&tag);
+    let base = repo_root.join("packages/components/sui/primitives/src").join(&tag);
     if base.exists() {
         bail!("directory already exists: {}", base.display());
     }
@@ -198,13 +198,11 @@ pub fn run_component(tag: String, want_controller: bool) -> Result<()> {
         fs::write(base.join(format!("{tag}.controller.ts")), ts)?;
     }
 
-    println!("[scaffold] created packages/components/primitives/src/{tag}/");
+    println!("[scaffold] created packages/components/sui/primitives/src/{tag}/");
     println!("[scaffold] next steps:");
     println!("  1. Edit {tag}.sui — props, styles, template body, parity comment");
-    println!("  2. Run: bun run --filter @ship/primitives build");
-    println!("     (compiles the .sui via sui-build; emits dist/sui-primitives.js)");
-    println!("  3. Run: cargo run -p xtask -- build-assets");
-    println!("     (rebakes deck-core/assets/sui-components.js so the daemon serves it)");
+    println!("  2. Run: cargo run -p deck-cli -- build-assets");
+    println!("     (deck compiles the .sui in-process via the shared SuiPlugin)");
     Ok(())
 }
 
@@ -242,19 +240,14 @@ pub fn run_pack(name: String) -> Result<()> {
          \"type\": \"module\",\n  \
          \"main\": \"src/index.ts\",\n  \
          \"types\": \"src/index.ts\",\n  \
-         \"customElements\": \"dist/custom-elements.json\",\n  \
          \"exports\": {{\n    \
-         \".\": \"./src/index.ts\",\n    \
-         \"./bundle\": \"./dist/sui-{name}.js\"\n  \
+         \".\": \"./src/index.ts\"\n  \
          }},\n  \
          \"scripts\": {{\n    \
-         \"build\": \"sui-build\",\n    \
-         \"pretest\": \"sui-build\",\n    \
          \"test\": \"vitest run\",\n    \
          \"test:watch\": \"vitest\"\n  \
          }},\n  \
          \"dependencies\": {{\n    \
-         \"@ship/sui-build\": \"workspace:*\",\n    \
          \"@ship/sui-dom\": \"workspace:*\",\n    \
          \"@ship/sui-runtime\": \"workspace:*\"\n  \
          }},\n  \
@@ -264,26 +257,6 @@ pub fn run_pack(name: String) -> Result<()> {
          }}\n"
     );
     fs::write(base.join("package.json"), pkg_json)?;
-
-    let sui_config = format!(
-        "import type {{ SuiBuildConfig }} from '@ship/sui-build'\n\n\
-         // `@ship/{name}` — SUI components pack.\n\
-         //\n\
-         // One umbrella entry (`sui-{name}`) that side-effect-imports every\n\
-         // `<tag>/<tag>.compiled.js`; consumers do `import '@ship/{name}'`\n\
-         // (or `import '@ship/{name}/bundle'`) and every tag registers globally\n\
-         // before any view template instantiates them.\n\n\
-         const config: SuiBuildConfig = {{\n  \
-         entries: {{\n    \
-         'sui-{name}': 'src/index.ts',\n  \
-         }},\n  \
-         outdir: 'dist',\n  \
-         aggregateCemTo: 'dist/custom-elements.json',\n  \
-         aggregateCemSources: ['src'],\n\
-         }}\n\n\
-         export default config\n"
-    );
-    fs::write(base.join("sui.config.ts"), sui_config)?;
 
     let tsconfig = format!(
         "{{\n  \
@@ -358,12 +331,13 @@ pub fn run_pack(name: String) -> Result<()> {
     )?;
 
     println!("[scaffold] created packages/components/{name}/");
-    println!("[scaffold]   package.json  sui.config.ts  tsconfig.json");
+    println!("[scaffold]   package.json  tsconfig.json");
     println!("[scaffold]   src/index.ts  src/{name}-example/<.sui + .controller.ts>");
     println!("[scaffold] next steps:");
     println!("  1. bun install — wires the new workspace package.");
-    println!("  2. bun run --filter @ship/{name} build — first compile.");
-    println!("  3. Replace the {name}-example placeholder with the pack's first tag.");
-    println!("  4. (When ready to consume) Add `@ship/{name}: workspace:*` to apps/shell/package.json + `import '@ship/{name}/bundle'` to apps/shell/src/main.ts.");
+    println!("  2. Replace the {name}-example placeholder with the pack's first tag.");
+    println!("  3. (When ready to consume) Add `@ship/{name}: workspace:*` to the");
+    println!("     consuming app + `import '@ship/{name}'` where the tags are used —");
+    println!("     deck traces the tags into that entry's chunk (no separate build).");
     Ok(())
 }

@@ -29,6 +29,21 @@ use ship_substrate::events::new_isolated_for_test;
 use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 use ship_substrate::testutil::init_project_minimal;
 
+/// The L0 default bus no longer carries ArtifactProjection (keystone-A
+/// de-bucket): the daemon installs it via the extra-projections factory.
+/// Tests register it the same way, once per process.
+fn install_artifact_projection() {
+    use std::sync::Once;
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
+            vec![Box::new(
+                ship_artifacts::metadata_projection::ArtifactProjection,
+            )]
+        }));
+    });
+}
+
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
 /// Build an `ArtifactService` whose data store reads from the SAME per-scope
@@ -38,6 +53,9 @@ use ship_substrate::testutil::init_project_minimal;
 /// that exact file with its partition key set to the same space — so the read
 /// path queries exactly what the projection wrote.
 fn make_service(ship_dir: &std::path::Path, scope_space: &str) -> ArtifactService {
+    // Ensure ArtifactProjection is in the extra-projections factory before
+    // any SqliteEventStore (and its default_bus) is constructed.
+    install_artifact_projection();
     let router = new_isolated_for_test(ship_dir.to_path_buf()).unwrap();
     let kernel = Arc::new(KernelLog::new(router));
 

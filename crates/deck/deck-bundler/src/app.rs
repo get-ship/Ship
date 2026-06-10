@@ -3,16 +3,19 @@
 //!
 //! This is the deck-owned replacement for the retired `shell-app.ts`
 //! (`Bun.build`) — one bundler engine (Rolldown) for framework + views +
-//! apps. Driven by `deck build` (`crates/deck/deck-cli`). The app's `.sui`
-//! sources are
-//! pre-compiled to `.compiled.js` on disk by `sui-build` before this runs, so
-//! the graph is plain JS/TS; we only bundle + externalize the framework
-//! singletons (which resolve to `/_sui/*` via the document's importmap).
+//! apps. Driven by `deck build` (`crates/deck/deck-cli`). The app graph
+//! compiles its own `.sui` in-process via the shared `SuiPlugin`
+//! (`rolldown_bundle.rs`) — the exact resolve/load hooks the view/component
+//! build uses — so no on-disk `.compiled.js` pre-step is needed.
+//! `AppPlugin` runs alongside it to externalize the framework singletons
+//! (which resolve to `/_deck/*` via the document's importmap); it runs FIRST so
+//! importmap specifiers (incl. `@ship/sui-runtime/*` subpaths) stay external
+//! rather than being re-anchored to source by `SuiPlugin`.
 //!
 //! Steps mirror `buildShellApp`: bundle `src/main.ts` (split, hashed),
 //! copy + hash the chrome stylesheet (plain CSS — no bundler needed), copy
 //! `public/` verbatim, rewrite the two `/src/*` refs in `index.html`, and
-//! (optionally) materialize the `/_sui/*` framework surface for a
+//! (optionally) materialize the `/_deck/*` framework surface for a
 //! self-contained build.
 
 use std::borrow::Cow;
@@ -28,15 +31,14 @@ use rolldown::plugin::{
 use rolldown::{BundlerBuilder, BundlerOptions, InputItem, OutputFormat};
 use rolldown_common::{ChunkFilenamesOutputOption, ResolvedExternal};
 
-/// deck's baked framework bundles → their `/_sui/*` filename in the output.
+/// deck's baked framework bundles → their `/_deck/*` filename in the output.
 /// Lucide icons are NOT here — the daemon serves them per-icon from its embedded
-/// set at `/_sui/icons/{name}.svg`. Static-only deploys without a daemon use
+/// set at `/_deck/icons/{name}.svg`. Static-only deploys without a daemon use
 /// `<sui-icon src=…>` (CDN escape hatch).
-const FRAMEWORK_ASSETS: [(&str, &str); 4] = [
-    ("sui-runtime.js", "_sui/runtime.js"),
-    ("sui-dom.js", "_sui/dom.js"),
-    ("sui-sdk-client.js", "_sui/sdk-client.js"),
-    ("sui-components.js", "_sui/components.js"),
+const FRAMEWORK_ASSETS: [(&str, &str); 3] = [
+    ("sui-runtime.js", "_deck/runtime.js"),
+    ("sui-dom.js", "_deck/dom.js"),
+    ("sui-sdk-client.js", "_deck/sdk-client.js"),
 ];
 
 pub struct AppBuild {
@@ -48,8 +50,8 @@ pub struct AppBuild {
 
 /// Externalizes exactly the document's importmap specifiers, so the bundle
 /// leaves `@ship/sui-runtime` (etc.) as bare imports the browser resolves to
-/// `/_sui/*` — the single-runtime guarantee. No `.sui` compilation here (the
-/// app graph is pre-compiled by `sui-build`).
+/// `/_deck/*` — the single-runtime guarantee. `.sui` compilation is handled by
+/// the sibling `SuiPlugin` in the same bundle pass.
 #[derive(Debug)]
 struct AppPlugin {
     externals: HashSet<String>,
@@ -81,7 +83,7 @@ impl Plugin for AppPlugin {
 }
 
 /// Parse the bare specifiers from `<script type="importmap">` — the SSOT for
-/// which imports resolve to daemon `/_sui/*` URLs at runtime, so the build
+/// which imports resolve to daemon `/_deck/*` URLs at runtime, so the build
 /// externalizes exactly those (never a hand-kept second list, #157).
 fn importmap_externals(html: &str) -> Result<HashSet<String>> {
     let start = html
@@ -114,14 +116,21 @@ fn content_hash(bytes: &[u8]) -> String {
 
 /// Build a SUI SPA app to `out_dir`. `repo_root` is the workspace root (cwd for
 /// module resolution); `shell_root` holds `index.html`, `src/`, `public/`.
+/// `first_party_app` comes from `deck.jsonc` (via `DeckConfig`) and enables the
+/// per-tag component resolver: chrome components resolve their primitive/domain
+/// tags from source via `@sui-tag/<tag>`, exactly as views do. The umbrella
+/// (`/_deck/components.js`) becomes redundant once this traced build is canonical.
 pub async fn bundle_app(
     repo_root: &Path,
+    first_party_app: Option<&deck_config::FirstPartyApp>,
+    packs: &[String],
+    component_source_roots: &[PathBuf],
     shell_root: &Path,
     out_dir: &Path,
     minify: bool,
     bundle_framework: bool,
     framework_assets_dir: &Path,
-    deck_out_dir: &Path,
+    _deck_out_dir: &Path,
 ) -> Result<AppBuild> {
     // Typed route table first (#168): main.ts imports routes.gen.ts, so it must
     // be current before Rolldown reads the graph. No-op for apps with no studio.
@@ -166,10 +175,27 @@ pub async fn bundle_app(
         )),
         ..Default::default()
     };
-    let plugin = AppPlugin { externals };
+    // AppPlugin FIRST so importmap specifiers (incl. `@ship/sui-runtime/*`
+    // subpaths) win as externals; SuiPlugin then compiles `.sui` siblings and
+    // re-anchors the remaining `@ship/<pkg>` (e.g. sui-charts, pipelines) to
+    // workspace source so the app graph compiles them in-process.
+    let app_plugin = AppPlugin { externals };
+    // Chrome components resolve their primitive/domain tags from source via
+    // `@sui-tag/<tag>`, the same per-tag resolver the view build uses.
+    // `emit_component_imports: true` causes each compiled `.sui` to emit
+    // `@sui-tag/<tag>` registration imports; `component_index` maps every known
+    // workspace tag to its source `.sui` so those imports resolve correctly.
+    let resolver = crate::sui_plugin::component_index(repo_root, first_party_app, packs);
+    let sui_plugin = crate::sui_plugin::SuiPlugin {
+        repo_root: repo_root.to_path_buf(),
+        emit_component_imports: true,
+        component_index: resolver.index,
+        shadowed_tags: resolver.shadowed,
+        component_source_roots: Arc::new(component_source_roots.to_vec()),
+    };
     let mut bundler = BundlerBuilder::default()
         .with_options(options)
-        .with_plugins(vec![Arc::new(plugin)])
+        .with_plugins(vec![Arc::new(app_plugin), Arc::new(sui_plugin)])
         .build()
         .map_err(|e| anyhow!("rolldown build(app): {e:?}"))?;
     bundler
@@ -202,17 +228,17 @@ pub async fn bundle_app(
         }
     }
 
-    // 4. Rewrite the two /src refs; preserve importmap, /_sui IIFEs, public hrefs.
+    // 4. Rewrite the two /src refs; preserve importmap, /_deck IIFEs, public hrefs.
     let rewritten = html
         .replace("/src/main.ts", &js_href)
         .replace("/src/chrome/layout.css", &css_href);
     std::fs::write(out_dir.join("index.html"), rewritten)?;
 
-    // 5. Self-contained build: materialize the /_sui/* code surface locally.
+    // 5. Self-contained build: materialize the /_deck/* code surface locally.
     let mut framework_assets = 0;
     if bundle_framework {
-        let sui_dir = out_dir.join("_sui");
-        std::fs::create_dir_all(sui_dir.join("sui-components"))?;
+        let sui_dir = out_dir.join("_deck");
+        std::fs::create_dir_all(&sui_dir)?;
         for (src, dist_rel) in FRAMEWORK_ASSETS {
             let from = framework_assets_dir.join(src);
             if !from.exists() {
@@ -220,21 +246,6 @@ pub async fn bundle_app(
             }
             std::fs::copy(&from, out_dir.join(dist_rel))?;
             framework_assets += 1;
-        }
-        let islands = deck_out_dir.join("sui-components");
-        if !islands.exists() {
-            bail!(
-                "app build: bundle_framework: no {} (run the bundler / sui-build first)",
-                islands.display()
-            );
-        }
-        for entry in std::fs::read_dir(&islands)? {
-            let entry = entry?;
-            let name = entry.file_name();
-            if entry.file_type()?.is_file() && name.to_string_lossy().ends_with(".js") {
-                std::fs::copy(entry.path(), sui_dir.join("sui-components").join(&name))?;
-                framework_assets += 1;
-            }
         }
     }
 
@@ -273,7 +284,9 @@ mod tests {
         write(&r.join("src/chrome/layout.css"), ".a{color:red}\n");
 
         let out = r.join("dist");
-        let build = bundle_app(r, r, &out, false, false, r, r).await.expect("bundle_app");
+        let build = bundle_app(r, None, &[], &[], r, &out, false, false, r, r)
+            .await
+            .expect("bundle_app");
 
         // 1. Entry chunk emitted + HTML rewritten to its hashed href.
         assert!(build.js_href.starts_with("/assets/main-") && build.js_href.ends_with(".js"));
@@ -293,5 +306,52 @@ mod tests {
         // 3. CSS copied verbatim under a hashed name.
         let css = std::fs::read_to_string(out.join(build.css_href.trim_start_matches('/'))).unwrap();
         assert_eq!(css, ".a{color:red}\n");
+    }
+
+    /// The app build compiles a `.sui` referenced by the entry IN-PROCESS (via
+    /// the shared SuiPlugin) — no on-disk `.compiled.js` pre-step — while the
+    /// runtime stays external (single-runtime guarantee). This is the core of
+    /// Slice 4a: the shell no longer needs an on-disk pre-compile of its packs.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn app_build_compiles_sui_entry_in_process() {
+        let root = tempfile::tempdir().unwrap();
+        let r = root.path();
+        write(
+            &r.join("index.html"),
+            "<!doctype html><html><head>\
+             <script type=\"importmap\">{\"imports\":{\"@ship/sui-runtime\":\"/_deck/runtime.js\"}}</script>\
+             <link rel=\"stylesheet\" href=\"/src/chrome/layout.css\">\
+             <script type=\"module\" src=\"/src/main.ts\"></script>\
+             </head><body></body></html>",
+        );
+        // main.ts side-effect-imports a `.compiled.js` sibling — exactly the
+        // shape a pack's `src/index.ts` uses. No `.compiled.js` exists on disk;
+        // SuiPlugin must synthesize + compile the sibling `widget.sui`.
+        write(&r.join("src/main.ts"), "import './widget.compiled.js'\nexport const x = 1\n");
+        write(&r.join("src/widget.sui"), "<div class=\"w\">hi {1 + 1}</div>\n");
+        write(&r.join("src/chrome/layout.css"), ".a{color:red}\n");
+
+        let out = r.join("dist");
+        let build = bundle_app(r, None, &[], &[], r, &out, false, false, r, r)
+            .await
+            .expect("bundle_app should compile the .sui entry in-process");
+
+        let entry = out.join(build.js_href.trim_start_matches('/'));
+        let js = std::fs::read_to_string(&entry).unwrap();
+        // The synthetic `.compiled.js` specifier was resolved + inlined, not
+        // left as a live import (no on-disk module backs it). Rolldown's dev
+        // banners mention the source path in comments, so check for a real
+        // import/from statement rather than any substring occurrence.
+        assert!(
+            !js.contains("import './widget.compiled.js'")
+                && !js.contains("from './widget.compiled.js'"),
+            "synthetic .compiled.js inlined, not left as a bare import"
+        );
+        // The compiled view's body is present (proves the .sui was compiled in,
+        // not stubbed) — the `w` class from `<div class=\"w\">` survives.
+        assert!(js.contains("\"w\"") || js.contains("'w'"), "compiled .sui body inlined");
+        // The compiled view pulls the runtime — it must stay EXTERNAL (resolved
+        // to /_deck/runtime.js at runtime), never a second inlined copy.
+        assert!(js.contains("@ship/sui-runtime"), "runtime kept external, single instance");
     }
 }

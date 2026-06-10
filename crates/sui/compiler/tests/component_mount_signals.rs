@@ -22,6 +22,7 @@ fn component_opts(setup: Option<&str>) -> CompileOpts {
         }),
         emit_dts: false,
         emit_ssr: false,
+        emit_component_imports: false,
     }
 }
 

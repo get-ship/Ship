@@ -14,10 +14,10 @@
 //     /artifacts) would stick forever and re-open the dev panel on every
 //     visit. Per-tab UI state doesn't survive reload; the user re-enters
 //     edit mode explicitly when they want it.
-//   - Entering/exiting fires backend POSTs to
-//     `/api/v1/views/<name>/edit-mode/{enter,exit}`. The body includes
-//     the current session id (looked up from window.__shipSessionId,
-//     which kernel-bridge/setup-wizard writes at boot).
+//   - Entering/exiting calls the host's `editModeTransport` (HostContext)
+//     so the runtime names no daemon URL — the host wires it to its
+//     view-service enter/exit RPC, or omits it (the toggle still works
+//     locally). No `fetch`, no session-key, no /api/v1 from the runtime.
 //
 // The signals are memoized: calling `editModeForView('foo')` twice
 // returns the same Signal instance, so multiple consumers in the shell
@@ -30,29 +30,6 @@ const SIGNALS = new Map<string, Signal<boolean>>()
 
 function spaceId(): string {
   return hostContext().spaceId ?? 'default'
-}
-
-// Session id matches the key view-mcp.ts uses so both lifecycle producers
-// (this runtime helper and the shell's view-mcp) share one id per tab.
-// Falls back to a per-tab UUID when neither source has been primed —
-// avoids posting {session_id: null} which the daemon rejects with 422.
-const VIEW_MCP_SESSION_KEY = 'ship.chrome.view-mcp.session_id'
-
-function sessionId(): string {
-  if (typeof window === 'undefined') return 'no-window'
-  const fromHost = hostContext().sessionId
-  if (fromHost && fromHost.length > 0) return fromHost
-  try {
-    const stored = sessionStorage.getItem(VIEW_MCP_SESSION_KEY)
-    if (stored && stored.length > 0) return stored
-    const fresh = (typeof crypto !== 'undefined' && crypto.randomUUID)
-      ? crypto.randomUUID()
-      : `runtime-${Date.now()}-${Math.random().toString(36).slice(2)}`
-    sessionStorage.setItem(VIEW_MCP_SESSION_KEY, fresh)
-    return fresh
-  } catch {
-    return `runtime-fallback-${Date.now()}`
-  }
 }
 
 function signalKey(name: string): string {
@@ -79,17 +56,11 @@ function purgeLegacyPersistence(): void {
   } catch { /* best-effort */ }
 }
 
-async function postLifecycle(name: string, action: 'enter' | 'exit'): Promise<void> {
-  if (typeof fetch === 'undefined') return
-  const body = JSON.stringify({ session_id: sessionId() })
-  try {
-    await fetch(`/api/v1/views/${encodeURIComponent(name)}/edit-mode/${action}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      credentials: 'same-origin',
-      body,
-    })
-  } catch { /* best-effort — backend may not be up yet */ }
+function postLifecycle(name: string, action: 'enter' | 'exit'): void {
+  // The host owns the edit-mode lifecycle transport (its view-service
+  // enter/exit RPC). The runtime names no daemon URL — it calls the
+  // injected callback, or no-ops when no host registered one.
+  void hostContext().editModeTransport?.(name, action)
 }
 
 /** Return the (memoized) Signal<boolean> for whether edit-mode is on

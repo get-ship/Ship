@@ -35,7 +35,6 @@ pub mod analysis;
 pub mod check;
 pub mod diagnostics;
 pub mod emit;
-pub mod ffi;
 pub mod ir;
 pub mod islands;
 pub mod keys;
@@ -70,7 +69,7 @@ pub struct CompilerVersion {
 
 impl CompilerVersion {
     /// Serialise as the JSON shape consumers (JS comment, CEM,
-    /// schema, meta, `/api/_meta`) all share. Single source of truth.
+    /// schema, meta, `/_deck/meta`) all share. Single source of truth.
     pub fn to_json(&self) -> serde_json::Value {
         serde_json::json!({
             "cargo": self.cargo,
@@ -133,6 +132,14 @@ pub struct CompileOpts {
     /// (view mode only). Defaults to `true`. Pass `false` (via `--no-ssr`)
     /// to suppress, e.g. for island bundles that have no static skeleton.
     pub emit_ssr: bool,
+    /// Emit a side-effect `import "@sui-tag/<tag>";` for every custom-element
+    /// tag the template uses, so components enter the module's import graph and
+    /// the bundler can tree-shake exactly what a view needs — the per-view
+    /// resolver that replaces the umbrella/islands registry. Pure: the
+    /// specifier is a function of the tag; the bundler's `resolve_id` maps
+    /// `@sui-tag/<tag>` to the component source. Defaults to `false` — the
+    /// registry path is unaffected until the bundler opts in.
+    pub emit_component_imports: bool,
 }
 
 impl Default for CompileOpts {
@@ -145,6 +152,7 @@ impl Default for CompileOpts {
             component_meta: None,
             emit_dts: true,
             emit_ssr: true,
+            emit_component_imports: false,
         }
     }
 }
@@ -212,6 +220,13 @@ pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, Compile
 
     let program = parse::parse(effective_source).map_err(|e| attach_path(e, &opts))?;
     check::run(&program, effective_source, opts.source_path.as_deref())
+        .map_err(|e| attach_path(e, &opts))?;
+    // One contract per boundary (#255): the full Error-severity lint stream
+    // (sui-prop-value, sui-attr-bool-prop, sui-css-content-text, controller-*)
+    // gates `compile()` itself, so the daemon + napi harness reject exactly
+    // what the CLI does. The CLI's post-compile `fatal_diagnostics_gate` is now
+    // redundant-but-harmless.
+    check::gate(&program, effective_source, opts.source_path.as_deref())
         .map_err(|e| attach_path(e, &opts))?;
     let bindings = bindings::build(&program);
     let lowered = lower::lower(&program, mode);

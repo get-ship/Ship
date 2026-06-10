@@ -5,7 +5,7 @@
 
 import { resolve } from 'node:path'
 import { initJsdomPolyfills, primeLucideIcons } from '@ship/test-setup'
-import { primeIconCache } from '../../../packages/components/primitives/src/sui-icon/registry'
+import { primeIconCache } from '../../../packages/components/sui/primitives/src/sui-icon/registry'
 
 primeLucideIcons(
   resolve(process.cwd(), '../../crates/deck/deck-core/assets/lucide-icons.json'),

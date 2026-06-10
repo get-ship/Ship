@@ -80,9 +80,10 @@ pub async fn handle_agent_session_started(
         // Pipeline-composed sessions: the pipeline runner spawns the harness itself
         // (it has step-monitor concerns this handler doesn't cover — gates, retries,
         // output promotion, fanout). The agent.session.started emitted by the
-        // composer is purely for observability — it populates agent_sessions so bare
-        // and composed dispatches share one read model. Skip the spawn here to avoid
-        // double-spawn.
+        // composer is purely for observability/back-compat — the agent_sessions read
+        // model is retired (#20); the shared read model is the canonical_sessions
+        // projection, fed by the canonical session.* family. Skip the spawn here to
+        // avoid double-spawn.
         if payload.parent_pipeline_run_id.is_some() {
             tracing::debug!(
                 slug = payload.slug, session_id = payload.session_id,
@@ -95,10 +96,11 @@ pub async fn handle_agent_session_started(
         if let Some(deps) = &payload.depends_on
             && !deps.is_empty()
         {
-            // Dependencies are session slugs. Pending-dispatch (the equivalent of
-            // `dispatch_ready_pending_jobs` for sessions) will pick this up once
-            // parents complete. For now we just skip — the session record is in
-            // Pending status and the pending dispatcher surfaces it.
+            // Dependencies are session slugs. No session-level pending dispatcher
+            // exists yet: a session with depends_on is skipped here and is NOT
+            // currently re-dispatched when parents complete (known gap — the
+            // jobs-side dispatch_ready_pending_jobs has no session equivalent).
+            // The session record stays in Pending status.
             tracing::info!(
                 slug = payload.slug, session_id = payload.session_id,
                 deps = ?deps,

@@ -10,6 +10,8 @@
       "apps/gateway",
       "packages/*",
       "packages/components/*",
+      "packages/components/sui/*",
+      "packages/components/ship/*",
       "packages/deck/*",
       "packages/sui/*",
       "apps/workers/*"
@@ -35,14 +37,17 @@
     "workerd"
   ],
   "scripts": {
-    "build:bundles": "cargo xtask build-assets",
+    "build:bundles": "cargo run -p deck-cli -- build-assets",
+    "build:hub-scaffold": "bun run --filter shell build",
+    "build:space-scaffold": "bun run --filter spaces build",
+    "build:scaffolds": "bun run build:hub-scaffold && bun run build:space-scaffold",
+    "build": "bun run build:bundles && bun run build:scaffolds",
     "test:rust": "cargo test",
     "wasm": "wasm-pack build crates/sui/compiler --target web --out-dir ../../../packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm",
     "lint": "vp lint",
     "lint:fix": "vp lint --fix",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",
-    "test:e2e:visual": "node node_modules/@playwright/test/cli.js test --config tests/e2e/visual/playwright.config.ts",
-    "test:parity": "bun packages/sui/runtime/fixtures/e2e/parity.mjs"
+    "test:e2e:visual": "node node_modules/@playwright/test/cli.js test --config tests/e2e/visual/playwright.config.ts"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.25.1",

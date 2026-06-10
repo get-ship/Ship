@@ -45,17 +45,6 @@ impl TestDaemon {
             crate::ship_runtime::ShipRuntime::new_test(ship_dir.clone(), kernel.clone()),
         );
 
-        let api_routes = Router::new()
-            .route(
-                "/actor/spawn",
-                axum::routing::post(crate::routes::actor_api::actor_spawn),
-            )
-            .route(
-                "/events/route",
-                axum::routing::post(crate::routes::actor_api::event_route),
-            )
-            .with_state(api_state.clone());
-
         // Per production routing (apps/shipd/src/router.rs), these live
         // directly at /api/v1/{projects,sessions,agents/active,events}.
         let runtime_routes = Router::new()
@@ -90,7 +79,6 @@ impl TestDaemon {
         // collection_tests use /api/v1/* canonical URLs.
         let default_auth = Self::cli_auth();
         let router = Router::new()
-            .nest("/api/v1", api_routes)
             .nest("/api/v1", capabilities_routes)
             .nest("/api/v1", artifacts_routes)
             .nest("/api/v1", runtime_routes)

@@ -8,7 +8,6 @@
 #[cfg(test)]
 mod tests {
     use ship_types::{
-        event_types::ALL,
         event_types::canonical_session::{ALL_CANONICAL_OP, ALL_CANONICAL_SESSION},
         event_registry,
         event_registry::{EventScope, Retention},
@@ -105,15 +104,15 @@ mod tests {
     /// Every name in `ALL_CANONICAL_SESSION` and `ALL_CANONICAL_OP`
     /// is registered. Pairs with `event_scope_discipline` — the
     /// const-set consistency test that catches dropped register
-    /// calls. Today the two are checked together (against the full
-    /// `ALL` slice); the explicit ALL_CANONICAL_* entries are
-    /// kept as a guard for follow-on slices that may need a
-    /// family-scoped check.
+    /// calls. The master `ALL` slice is retired
+    /// (the registry is the vocabulary SSOT); the domain-owned
+    /// ALL_CANONICAL_* family slices are the closed lists this
+    /// crate guarantees are registered.
     #[test]
     fn all_entries_have_registry_entries() {
         let registry_names: std::collections::HashSet<&str> =
             event_registry::registry().map(|d| d.name).collect();
-        for slice in [ALL, ALL_CANONICAL_SESSION, ALL_CANONICAL_OP] {
+        for slice in [ALL_CANONICAL_SESSION, ALL_CANONICAL_OP] {
             let missing: Vec<&str> = slice
                 .iter()
                 .copied()
@@ -125,5 +124,85 @@ mod tests {
                  Add entries to agent-def::event_registrations or ship_substrate::events::payload_registry"
             );
         }
+    }
+
+    /// ★ THE CROSS-LAYER SCHEMA GUARD (Phase 4a, keystone A) — this binary
+    /// links BOTH registration sources (L0 payload_registry + this crate's
+    /// event_registrations), so unlike ship-substrate's L0-scoped
+    /// `all_known_event_types_have_schemas` it can assert the FULL claim:
+    /// every event name in `ALL` has a registration, and every registration
+    /// carries a payload validator that is LIVE — the substrate's emit-time
+    /// `PayloadSchemaValidator` rejects malformed canonical `session.*` /
+    /// `op.*` payloads (which the old hand-written L0 match silently let
+    /// through, the long-standing RED).
+    #[test]
+    fn canonical_payload_validators_are_live() {
+        use ship_substrate::events::PayloadSchemaValidator;
+        use ship_substrate::events::validator::{CallerKind, EmitContext, EventValidator, ValidationError};
+
+        fn ctx() -> EmitContext {
+            EmitContext {
+                caller_kind: CallerKind::Runtime,
+                skill_id: None,
+                binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+                session_id: None,
+            }
+        }
+
+        // Malformed canonical payloads are REJECTED at emit time.
+        for event_type in ["session.started", "session.turn.ended", "op.tool_use_started"] {
+            let event = ship_substrate::events::EventEnvelope::new(
+                event_type,
+                "sess-1",
+                &serde_json::json!({ "definitely": "not the payload" }),
+            )
+            .unwrap();
+            let err = PayloadSchemaValidator.validate(&event, &ctx()).unwrap_err();
+            assert!(
+                matches!(err, ValidationError::SchemaViolation { .. }),
+                "{event_type}: expected SchemaViolation for a malformed payload, got {err:?}"
+            );
+        }
+
+        // A well-formed canonical payload passes.
+        let started = crate::canonical_session::SessionStarted {
+            session_id: "01HZX".into(),
+            agent_id: "claude".into(),
+            harness: "floki".into(),
+            model: None,
+            space_id: "space-1".into(),
+            slug: None,
+            input: None,
+            parent: None,
+        };
+        let event = ship_substrate::events::EventEnvelope::new(
+            "session.started",
+            "sess-1",
+            &started,
+        )
+        .unwrap();
+        assert!(
+            PayloadSchemaValidator.validate(&event, &ctx()).is_ok(),
+            "a well-formed SessionStarted must pass the registration-carried validator"
+        );
+    }
+
+    /// `agent.def.updated` scope/retention pin — moved here from
+    /// ship-substrate when the registration moved (keystone-A Phase A).
+    #[test]
+    fn agent_def_updated_is_space_ephemeral() {
+        let def = event_registry::lookup("agent.def.updated")
+            .expect("agent.def.updated must be in registry");
+        assert_eq!(
+            def.allowed_scopes,
+            &[EventScope::Space],
+            "def change notification is Space-scoped (it lives in a space's .ship)"
+        );
+        assert_eq!(def.primary_scope(), EventScope::Space);
+        assert_eq!(
+            def.retention,
+            Retention::Ephemeral,
+            "Bucket-2 notification is ephemeral — the file is truth"
+        );
     }
 }

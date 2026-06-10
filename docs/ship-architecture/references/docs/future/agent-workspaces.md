@@ -11,7 +11,7 @@ status: design
 Design doc — not yet built. Decides how a dispatched agent gets its working
 directory, how its changes are isolated and **restorable** (including untracked
 files), and how that relates to the (unstarted) log-as-truth inversion. Sits on
-the `ship-host` adapter seam established by [agent access](/reference/architecture/agent-access/).
+the `ship-substrate-host` adapter seam established by [agent access](/reference/architecture/agent-access/).
 
 ## Today, and what's wrong with it
 
@@ -35,7 +35,7 @@ plain directory, or an app bundle identically.
 
 ## The primitive
 
-A new `ship-host` capability, per-OS like `process_container`/`peer_cred`:
+A new `ship-substrate-host` capability, per-OS like `process_container`/`peer_cred`:
 
 ```rust
 trait HostOs {

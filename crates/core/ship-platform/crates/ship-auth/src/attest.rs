@@ -281,9 +281,13 @@ mod tests {
         assert_eq!(cfg.jwks_url, "https://staging-api.getship.dev/api/jwks");
     }
 
-    #[test]
-    fn daemon_owner_roundtrip() {
-        set_daemon_owner("user-abc-123").unwrap();
-        assert_eq!(daemon_owner().as_deref(), Some("user-abc-123"));
-    }
+    // `daemon_owner_roundtrip` (a unit copy of the round-trip) was DELETED:
+    // it wrote to the GLOBAL account store and read back through the
+    // `daemon_owner` projection table, which only materializes when the
+    // extra-projections factory is installed — something no unit test here
+    // does. It passed only when another lib test (via testutil's factory
+    // install) happened to run first: order-dependent, non-hermetic. The
+    // behavior is covered hermetically by
+    // `tests/integration_attest.rs::auth_attest_set_daemon_owner_round_trips`
+    // (tempdir + init_auth).
 }

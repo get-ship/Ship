@@ -111,44 +111,63 @@ fn control_flow_kind_classifies_correctly() {
 }
 
 #[test]
-fn live_data_emits_subscribe_url_in_island() {
+fn live_data_sets_has_live_data_and_no_subscribe_url_in_compiler() {
+    // After 2c the compiler no longer bakes /_deck/ URLs. The host injects
+    // __subscribe__ using has_live_data + its own route builders.
+    use crate::bindings;
     use crate::parse::parse;
     let src = r#"<data name="overview" source="ship.git.overview()" live /><p>hello</p>"#;
     let program = parse(src).expect("parse");
+    let registry = bindings::build(&program);
     let opts = RenderOpts { view_name: "git".to_string() };
-    let out = render_default(&program, &opts).expect("render");
-    // The JSON island must contain the subscribe URL.
+    let split = render_split(&program, &registry, &opts).expect("render_split");
+    // has_live_data must be true — the host reads this to decide injection.
+    assert!(split.has_live_data, "has_live_data must be true for a <data live> view");
+    // The compiler must NOT bake __subscribe__ — that is the host's job.
     assert!(
-        out.init.get("__subscribe__").and_then(|v| v.as_str()) == Some("/_sui/views/git/sse"),
-        "expected __subscribe__ = /_sui/views/git/sse in init, got: {:?}",
-        out.init
+        split.init.get("__subscribe__").is_none(),
+        "compiler must NOT emit __subscribe__ in init; got: {:?}",
+        split.init
     );
-    assert!(out.html.contains("/_sui/views/git/sse"), "HTML island must contain subscribe URL");
+    // The SSR HTML must not contain any /_deck/ URL either.
+    assert!(
+        !split.html.contains("/_deck/"),
+        "compiler SSR HTML must not contain /_deck/ URLs; got: {}",
+        split.html
+    );
 }
 
 #[test]
-fn non_live_data_omits_subscribe_url() {
+fn non_live_data_has_live_data_false_and_no_subscribe_url() {
+    use crate::bindings;
     use crate::parse::parse;
     let src = r#"<data name="info" source="ship.git.overview()" /><p>hello</p>"#;
     let program = parse(src).expect("parse");
+    let registry = bindings::build(&program);
     let opts = RenderOpts { view_name: "git".to_string() };
-    let out = render_default(&program, &opts).expect("render");
+    let split = render_split(&program, &registry, &opts).expect("render_split");
+    assert!(!split.has_live_data, "non-live data must have has_live_data=false");
     assert!(
-        out.init.get("__subscribe__").is_none(),
+        split.init.get("__subscribe__").is_none(),
         "non-live data must not emit __subscribe__, got: {:?}",
-        out.init
+        split.init
     );
 }
 
 #[test]
-fn mixed_live_and_non_live_emits_subscribe_url() {
+fn mixed_live_and_non_live_sets_has_live_data() {
+    use crate::bindings;
     use crate::parse::parse;
     let src = r#"<data name="a" source="ship.git.overview()" live /><data name="b" source="ship.git.diff()" /><p>x</p>"#;
     let program = parse(src).expect("parse");
+    let registry = bindings::build(&program);
     let opts = RenderOpts { view_name: "myview".to_string() };
-    let out = render_default(&program, &opts).expect("render");
-    assert_eq!(
-        out.init.get("__subscribe__").and_then(|v| v.as_str()),
-        Some("/_sui/views/myview/sse"),
+    let split = render_split(&program, &registry, &opts).expect("render_split");
+    assert!(split.has_live_data, "has_live_data must be true when any data is live");
+    // Still no __subscribe__ from the compiler.
+    assert!(
+        split.init.get("__subscribe__").is_none(),
+        "compiler must not emit __subscribe__; got: {:?}",
+        split.init
     );
 }

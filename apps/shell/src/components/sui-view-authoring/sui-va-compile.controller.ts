@@ -26,17 +26,13 @@ export default controller({
   },
 
   mount(state) {
-    // sui-runtime mount-state proxy: write via plain assignment.
-    const s = state as unknown as {
-      errors: ErrorRow[]
-      view: () => string
-    }
-
+    // sui-runtime mount-state proxy: `state.view` reads the unwrapped signal
+    // value; `state.errors = …` writes through the set-trap.
     let counter = 0
     function id(): string { counter += 1; return `err-${counter}` }
 
     function matches(detailView: string | undefined): boolean {
-      const v = s.view()
+      const v = state.view
       if (!v) return true
       if (!detailView) return true
       return detailView === v
@@ -45,7 +41,7 @@ export default controller({
     function onErrored(e: Event): void {
       const d = (e as CustomEvent).detail as { view?: string; errors?: ErrIn[] } | undefined
       if (!d || !matches(d.view)) return
-      s.errors = (d.errors ?? []).map((er) => ({
+      state.errors = (d.errors ?? []).map((er) => ({
         id: id(),
         line: er.line ?? 1,
         col: er.col ?? 1,
@@ -57,7 +53,7 @@ export default controller({
       const d = (e as CustomEvent).detail as { view?: string } | undefined
       if (!matches(d?.view)) return
       // Successful compile clears the list.
-      s.errors = []
+      state.errors = []
     }
 
     document.addEventListener('sui:view:errored', onErrored)

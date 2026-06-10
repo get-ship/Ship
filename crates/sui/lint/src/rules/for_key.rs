@@ -9,14 +9,19 @@
 //!
 //! Acts on the literal block header. Doesn't reach into the iter
 //! expression — we only check that `key=` is present somewhere in the
-//! header before the closing `}`. False positives are possible if a
-//! comment inside the template contains the string `{#for`, but the
-//! same false positive class affects the parser; matching the parser's
-//! tolerance keeps the rule predictable.
+//! header before the closing `}`. HTML comments (`<!-- ... -->`) are
+//! skipped, so a `{#for` mentioned in a primitive's leading docblock is
+//! not a false hit — same comment-skipping `prop_value` does for its
+//! `<sui-*>` example tags. This matters at `Error` severity: a docblock
+//! `{#for}` must not hard-fail a compile.
 //!
 //! Suggest text points at the runtime warning that fires when keys
 //! collide — same diagnostic source. See
 //! `packages/sui/runtime/src/for.ts` for the runtime side.
+//!
+//! **Severity: Error.** Every real `{#for}` across the components/views
+//! tree carries a `key=` (verified by the repo-wide scan — the only
+//! pre-skip hits were docblock prose). Error hard-fails any regression.
 
 use std::path::Path;
 
@@ -40,6 +45,23 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
         let i = boundaries[bi];
         if i >= source.len() {
             break;
+        }
+        // Skip HTML comments wholesale — primitives quote `{#for}` in their
+        // leading docblock, and those are prose, not call sites. At Error
+        // severity a docblock mention must not hard-fail the compile.
+        if source[i..].starts_with("<!--") {
+            let after = i + 4;
+            match source[after..].find("-->") {
+                Some(rel) => {
+                    let comment_end = after + rel + 3;
+                    while bi < boundaries.len() && boundaries[bi] < comment_end {
+                        bi += 1;
+                    }
+                    continue;
+                }
+                // Unterminated comment — stop scanning rather than run to EOF.
+                None => break,
+            }
         }
         if !source[i..].starts_with("{#for") {
             bi += 1;
@@ -66,7 +88,7 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
                 line,
                 col,
                 rule: RULE_ID,
-                severity: Severity::Warn,
+                severity: Severity::Error,
                 message: "{#for} block has no `key=` — the reconciler will \
                      fall back to positional matching and DOM identity \
                      (focus, selection, in-place edits) will be lost on \
@@ -234,5 +256,31 @@ mod tests {
     fn malformed_for_block_does_not_panic() {
         let src = r#"{#for item of items"#;
         let _ = lint(src);
+    }
+
+    #[test]
+    fn for_in_html_comment_is_not_a_violation() {
+        // Primitives quote `{#for}` in their leading docblock — prose, not a
+        // call site. At Error severity this must NOT hard-fail compile.
+        let src = "<!--\n  a single `{#for}` over tabs()\n-->\n\
+                   <ul>{#for t of tabs() key={t.id}}<li>{t.label}</li>{/for}</ul>";
+        let findings = lint(src);
+        assert_eq!(findings.len(), 0, "{:?}", findings);
+    }
+
+    #[test]
+    fn real_for_after_comment_still_flagged() {
+        // The comment is skipped, but the real keyless block after it fires.
+        let src = "<!-- {#for x of xs} -->\n{#for y of ys}<li>{y}</li>{/for}";
+        let findings = lint(src);
+        assert_eq!(findings.len(), 1, "{:?}", findings);
+    }
+
+    #[test]
+    fn severity_is_error() {
+        let src = r#"{#for item of items}<li>x</li>{/for}"#;
+        let findings = lint(src);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].severity, Severity::Error);
     }
 }

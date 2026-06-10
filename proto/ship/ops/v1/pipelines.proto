@@ -1,13 +1,13 @@
-// `pipeline.*` + `pipelines.*` as a hand-authored per-domain proto-SSOT service
-// (#89), mounted ADDITIVELY beside the generated ReadOps/CommandOps (which keep
-// serving these ops until the GUI flip, #72). ONE service covers both prefixes:
-// pipeline.update_status / pipeline.step_done (runtime writes, ship.runtime.write)
-// and pipelines.put / pipelines.patch / pipelines.delete / pipelines.list / etc.
-// (config CRUD, ship.pipelines.read / ship.pipelines.write).
+// `pipeline.*` + `pipelines.*` — ONE hand-authored per-domain proto-SSOT service
+// covering both prefixes (#89) — the sole serving path (the generated
+// ReadOps/CommandOps umbrella was retired, #78). pipeline.update_status /
+// pipeline.step_done (runtime writes, ship.runtime.write) and pipelines.put /
+// pipelines.patch / pipelines.delete / pipelines.list / etc. (config CRUD,
+// ship.pipelines.read / ship.pipelines.write).
 //
-// Fresh request-message names avoid colliding with PipelineUpdateStatusRequest,
-// PipelinesListRequest, etc. already declared by the generated protos in this
-// same package. Return types reuse shared shapes from types.proto / ops.proto.
+// Fresh request-message names are historical collision-avoidance against the
+// deleted PipelineUpdateStatusRequest, PipelinesListRequest, etc.; kept for
+// wire stability. Return types reuse shared shapes from types.proto / ops.proto.
 syntax = "proto3";
 
 package ship.ops.v1;
@@ -217,7 +217,7 @@ message PipelineWatchReq {
 // Pipeline config CRUD + runtime ops. Reads are C0; config writes and runtime
 // writes are C1, each gated through services::command::call (the one gate).
 // Two capabilities: ship.runtime.write for pipeline.* ops, ship.pipelines.write
-// for pipelines.* ops — mirrors commands.gen.proto exactly.
+// for pipelines.* ops.
 service PipelinesService {
   // ── reads (C0) ────────────────────────────────────────────────────────────
   rpc List(ListPipelinesRequest) returns (PipelinesIndexResponse) {

@@ -1,0 +1,30 @@
+[package]
+name = "deck-demo"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Ship-free deck example + reliability harness — mounts deck on axum with no daemon, no ship domains, no @ship/primitives. The `deck serve` the CLI doesn't have yet, built feature-by-feature so each rendering mode (SSR/SPA/static) and each dev concern (build output, assets, bundling, reload) has a test that doubles as documentation."
+
+[[bin]]
+name = "deck-demo"
+path = "src/main.rs"
+
+[dependencies]
+deck = { path = "../../crates/deck/deck" }
+deck-core = { path = "../../crates/deck/deck-core" }
+sui-compiler = { path = "../../crates/sui/compiler" }
+ship-substrate = { path = "../../crates/core/ship-substrate" }
+axum = { workspace = true, features = ["http1", "tokio"] }
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true, features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+futures-util = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+form_urlencoded = "1"
+tracing = { workspace = true }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+tempfile = "3"
+serde_json = { workspace = true }

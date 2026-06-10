@@ -1,7 +1,6 @@
 // Components studio index — the canonical component explorer. Sources the
-// catalog from the daemon (the published SUI catalog at
-// /api/sui/catalog/published) via loadCatalog; the CEM feeds prop/slot
-// metadata and the per-component `examples` fixtures.
+// workspace catalog from the daemon (/_deck/catalog/workspace) via
+// loadCatalog; the CEM feeds prop/slot metadata and per-component `examples`.
 //
 // The index is grouped: a flat package filter (All / Primitives / Charts /
 // Pipelines) over a free-text search, rendering one section per semantic
@@ -17,8 +16,8 @@ import { loadCatalog, categoryRank, type CatalogEntry } from './catalog'
 type Filter = 'all' | 'primitives' | 'charts' | 'pipelines'
 
 const PKG_OF: Record<Exclude<Filter, 'all'>, string> = {
-  primitives: '@ship/primitives',
-  charts: '@ship/charts',
+  primitives: '@ship/sui-primitives',
+  charts: '@ship/sui-charts',
   pipelines: '@ship/pipelines',
 }
 
@@ -109,8 +108,8 @@ export default controller({
       const by = (pkg: string) => roots.filter((e) => e.pkg === pkg).length
       return {
         all: roots.length,
-        primitives: by('@ship/primitives'),
-        charts: by('@ship/charts'),
+        primitives: by('@ship/sui-primitives'),
+        charts: by('@ship/sui-charts'),
         pipelines: by('@ship/pipelines'),
       }
     })

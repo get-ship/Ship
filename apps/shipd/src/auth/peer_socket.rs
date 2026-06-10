@@ -2,14 +2,14 @@
 //!
 //! Agents reach the daemon over `<daemon_dir>/ship.sock`, not TCP. They present
 //! **no token**: identity is read from the connection's peer credentials
-//! (`SO_PEERCRED` via `ship-host`), mapped to the agent's process container, and
+//! (`SO_PEERCRED` via `ship-substrate-host`), mapped to the agent's process container, and
 //! resolved to the same [`AuthContext`] the token/session branches build. The
 //! request then flows through the identical `auth_middleware` → `auth::gate`
 //! path — one gate, two auth sources. A process can't forge its PID to the
 //! kernel, so this is unspoofable in a way a presented secret never is.
 //!
 //! This is the host default (Tier-0). The sandbox/sidecar transports layer on
-//! the same `ship-host` seam.
+//! the same `ship-substrate-host` seam.
 
 use std::path::Path;
 
@@ -41,7 +41,7 @@ pub struct PeerCredInfo {
 impl Connected<IncomingStream<'_, UnixListener>> for PeerCredInfo {
     fn connect_info(stream: IncomingStream<'_, UnixListener>) -> Self {
         use std::os::unix::io::AsRawFd;
-        match ship_host::peer_cred(stream.io().as_raw_fd()) {
+        match ship_substrate_host::peer_cred(stream.io().as_raw_fd()) {
             Some(c) => PeerCredInfo { pid: Some(c.pid), uid: Some(c.uid) },
             None => PeerCredInfo { pid: None, uid: None },
         }

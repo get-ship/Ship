@@ -10,7 +10,7 @@
 
 import initWasm, { analyze as wasmAnalyze } from '@ship/sui-compiler-wasm'
 
-/** Shape consumed by `<sui-code-editor>.setDiagnostics()`. */
+/** Shape consumed by `<ship-code-editor>.setDiagnostics()`. */
 export interface SuiDiagnostic {
   line: number
   column?: number
@@ -38,7 +38,7 @@ interface WasmAnalysis {
 // Lazy one-time WASM init — the worker is long-lived; init once, reuse.
 // Called with no argument so the wasm-bindgen shim self-resolves the wasm via
 // `new URL('sui_compiler_bg.wasm', import.meta.url)` — works under both Vite
-// (docs playground) and Bun.build (the shell's sui-code-editor bundle); a
+// (docs playground) and Bun.build (the shell's ship-code-editor bundle); a
 // Vite-only `?url` import broke the latter.
 let wasmReady: Promise<unknown> | null = null
 function ensureWasm(): Promise<unknown> {

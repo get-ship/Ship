@@ -21,6 +21,12 @@ use crate::ir::expr::Expr;
 /// the natural read-only collection helpers.
 const METHOD_ALLOWLIST: &[&str] = &[
     "slice", "map", "filter", "includes", "toString", "length", "keys", "values", "entries",
+    // Read-only Set / Map membership accessors — `selected.has(id)` /
+    // `map.get(id)`. Referentially transparent, no I/O, same shape as the
+    // already-allowlisted `includes` / `keys` / `values` / `entries`. Without
+    // these, the natural canvas idiom `selectedSet().has(n.id)` rejects as a
+    // bare `expr` CompileError with no rule-id (#263-B).
+    "has", "get",
     // Deterministic formatters — referentially transparent, no I/O, no eval-shaped
     // arguments. Real agent friction: writing `count.toFixed(2)` in a template is
     // the natural shape and used to reject; documenting the workaround in SKILL is

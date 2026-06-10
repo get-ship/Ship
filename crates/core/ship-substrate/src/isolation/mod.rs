@@ -6,7 +6,7 @@
 //! strategies (Docker, youki, srt, Fly, etc.) live in `ship-isolation`
 //! at L1, alongside the capability probe and recommender.
 //!
-//! See `crates/core/ship-isolation/docs/strategy.md` for the full design;
+//! See `crates/core/ship-platform/crates/ship-isolation/docs/strategy.md` for the full design;
 //! this module is just the abstraction surface that lets actor handles
 //! own a sandbox without depending on which one.
 

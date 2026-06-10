@@ -344,8 +344,8 @@ template.
 
 ## 6. Skeleton + empty + error states (canonical shape)
 
-Real chunk from `views/sessions/page.sui` (the `{#while-loading}` →
-`{#while-error}` → `{#if … 'ok'}` block, ~line 27 onward). Same outer wrapper
+Canonical skeleton → empty → error shape — the `{#while-loading}` →
+`{#while-error}` → `{#if … 'ok'}` block. Same outer wrapper
 across all three branches so the layout doesn't reflow when state
 transitions.
 

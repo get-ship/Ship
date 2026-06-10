@@ -247,6 +247,8 @@ impl ShipRuntime {
             pipeline_reactive: std::sync::OnceLock::new(),
             pipeline_watch_kernel: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
+            shutdown_token: std::sync::OnceLock::new(),
+            live_resolvers: Arc::new(crate::live_resolvers::build()),
         })
     }
 
@@ -255,6 +257,14 @@ impl ShipRuntime {
     /// Emits a `supervisor.shutting_down` event, then drains managers before
     /// removing daemon files.
     pub async fn shutdown(&self) {
+        // Cancel the shutdown token (#256) so any SSE keepalive/data loops still
+        // selecting on it exit promptly. The signal handler already cancels the
+        // parent token before `axum::serve` returns; this is the belt-and-
+        // suspenders for the post-serve teardown path.
+        if let Some(token) = self.shutdown_token.get() {
+            token.cancel();
+        }
+
         // Emit supervisor.shutting_down event before drain/cleanup.
         // Use spawn_blocking-style guard: route() may call block_in_place
         // which panics on single-threaded runtimes, so we catch that.

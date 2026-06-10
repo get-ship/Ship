@@ -1,12 +1,15 @@
 //! Analytics projection — folds `hook.*` events into rollup tables
 //! that the dashboard queries.
 //!
-//! Tables (defined in `migrations/0001_schema.sql`):
+//! Tables (defined in ship-substrate/migrations/202605181930_analytics.sql
+//! and 202605190100_analytics_turns.sql):
 //!   - `analytics_sessions`: per-session lifecycle, harness, model,
 //!     duration, tool counts, error counts.
 //!   - `analytics_tool_uses`: per-tool-call timing + status. Each
 //!     row pairs a `hook.tool_use_started` with its corresponding
 //!     `hook.tool_use_completed`.
+//!   - `analytics_turns`: per-turn token/model data folded from
+//!     `hook.turn_observed` events.
 //!
 //! Keying convention: `session_key` is either the harness's own
 //! `session_id` (when the hook payload carries it) or the

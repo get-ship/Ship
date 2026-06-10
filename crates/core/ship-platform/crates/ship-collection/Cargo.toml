@@ -11,6 +11,9 @@ ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-reactive = { path = "../ship-reactive" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
+anyhow = { workspace = true }
+
 async-trait = { workspace = true }
 async-stream = "0.3"
 connectrpc = { version = "0.4", features = ["axum"] }

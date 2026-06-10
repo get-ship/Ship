@@ -29,14 +29,10 @@ describe('<sui-isolation-verify>', () => {
       new Response(
         JSON.stringify({
           ok: true,
-          data: {
-            ok: true,
-            steps: [
-              { name: 'capabilities probe', ok: true, detail: 'docker found' },
-              { name: 'strategy resolves', ok: true, detail: '' },
-            ],
-            resolved: null,
-          },
+          steps: [
+            { name: 'capabilities probe', ok: true, detail: 'docker found' },
+            { name: 'strategy resolves', ok: true, detail: '' },
+          ],
         }),
         { status: 200, headers: { 'content-type': 'application/json' } }
       )
@@ -55,16 +51,12 @@ describe('<sui-isolation-verify>', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
-          ok: true,
-          data: {
-            ok: false,
-            steps: [
-              { name: 'capabilities probe', ok: true, detail: '' },
-              { name: 'available', ok: false, detail: 'docker daemon not running' },
-            ],
-          },
+          ok: false,
+          steps: [
+            { name: 'capabilities probe', ok: true, detail: '' },
+            { name: 'available', ok: false, detail: 'docker daemon not running' },
+          ],
         }),
-        { status: 200, headers: { 'content-type': 'application/json' } }
       )
     )
     const { el } = mount(reg, 'sui-isolation-verify')
@@ -83,14 +75,11 @@ describe('<sui-isolation-verify>', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
-          ok: true,
-          data: {
-            ok: false,
-            steps: [
-              { name: 'a', ok: true, detail: '' },
-              { name: 'b', ok: false, detail: '' },
-            ],
-          },
+          ok: false,
+          steps: [
+            { name: 'a', ok: true, detail: '' },
+            { name: 'b', ok: false, detail: '' },
+          ],
         }),
         { status: 200 }
       )

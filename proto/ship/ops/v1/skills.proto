@@ -1,12 +1,11 @@
-// `skills.*` as a hand-authored per-domain proto-SSOT service (#89), mounted
-// ADDITIVELY beside the generated ReadOps/CommandOps (which keep serving skills.*
-// until the GUI flip, #72). Request messages take fresh names (CreateSkillRequest,
-// …) because the generated commands.gen.proto/reads.gen.proto already declare
-// SkillsCreateRequest et al. in this same package — two definitions would collide.
-// Return types reuse the shared shapes in types.proto (SkillsIndexResponse /
-// SkillFileResponse / ScopedMutation) and ops.proto (JsonResponse) — no
-// redeclarations. Authoring a skill defines agent capability, so writes are
-// RESTRICTED at the gate (services::command::call), the same one gate.
+// `skills.*` — the sole skills.* serving path. The generated ReadOps/CommandOps
+// umbrella was retired (#78); fresh request names (CreateSkillRequest, …) are
+// historical (the deleted commands.gen.proto/reads.gen.proto declared
+// SkillsCreateRequest et al.); kept for wire stability. Return types reuse the
+// shared shapes in types.proto (SkillsIndexResponse / SkillFileResponse /
+// ScopedMutation) and ops.proto (JsonResponse) — no redeclarations. Authoring
+// a skill defines agent capability, so writes are RESTRICTED at the gate
+// (services::command::call), the same one gate.
 syntax = "proto3";
 
 package ship.ops.v1;
@@ -127,8 +126,8 @@ message SkillScaffoldResponse {
 }
 
 // Skill authoring CRUD. Reads are C0 (edge-authenticated); writes are C1
-// workspace mutations gated through services::command::call — the ONE gate —
-// exactly as the generated CommandOpsService does. Authoring a skill defines
+// workspace mutations gated through services::command::call — the ONE gate
+// (the same policy the retired CommandOpsService carried). Authoring a skill defines
 // agent capability, which is why writes carry the same blast radius as
 // rules.write (user's own workspace risk, not ship-cloud risk).
 service SkillsService {

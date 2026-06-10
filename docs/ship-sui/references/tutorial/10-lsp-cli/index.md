@@ -64,7 +64,7 @@ There is **one** source of truth — the Rust `sui_compiler` grammar — flowing
 through multiple surfaces:
 
 - **`sui-lint`** — fast per-edit binary for agents and CI
-- **`sui-compiler`** — full compile with emit, used by `sui-build` and the daemon
+- **`sui-compiler`** — full compile with emit, used by the deck bundler and the daemon
 - **`sui-lsp`** — LSP server for editors over stdio
 - **WASM compiler** (`packages/sui/compiler-wasm`) — in-browser diagnostics for the docs playground
 

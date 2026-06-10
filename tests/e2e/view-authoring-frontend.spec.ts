@@ -176,7 +176,7 @@ test.describe('view-authoring frontend', () => {
     await expect.poll(async () => {
       return page.evaluate(() => {
         const va = document.querySelector('sui-va-source')
-        const ce = va?.shadowRoot?.querySelector('sui-code-editor') as (HTMLElement & { value?: string }) | null
+        const ce = va?.shadowRoot?.querySelector('ship-code-editor') as (HTMLElement & { value?: string }) | null
         return ce?.value ?? ''
       })
     }, { timeout: 7000 }).toContain('sui-card')
@@ -184,7 +184,7 @@ test.describe('view-authoring frontend', () => {
     // Save via Cmd+S → invoke writeSource stub directly (mock returns ok).
     const wrote = await page.evaluate(async () => {
       const va = document.querySelector('sui-va-source') as (HTMLElement & { reload?: () => void }) | null
-      const ce = va?.shadowRoot?.querySelector('sui-code-editor') as (HTMLElement & { value?: string }) | null
+      const ce = va?.shadowRoot?.querySelector('ship-code-editor') as (HTMLElement & { value?: string }) | null
       if (!ce) return false
       ce.value = '<sui-card>edited</sui-card>'
       // Synthetic sui-save event — controller listens via on:sui-save.

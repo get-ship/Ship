@@ -91,29 +91,20 @@ function createBridge(): CanvasBridge {
     }
   }
 
-  async function emit(eventType: string, payload: Record<string, unknown>): Promise<Response> {
-    // No actor_id → daemon treats us as Cli/studio and exempts validate_domain.
-    return fetch('/api/v1/events/emit', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event_type: eventType,
-        entity_id: String(payload['canvas_id'] ?? ''),
-        actor_id: 'studio',
-        payload,
-      }),
-    })
+  // Canvas interaction/annotation emit is disabled for launch — the
+  // events/emit endpoint was culled (no Connect replacement yet). These
+  // stay no-ops so the canvas remains interactive without 404s; re-enable
+  // when EventsService.Emit lands.
+  async function postInteraction(_detail: CanvasEventDetail): Promise<void> {
+    /* disabled for launch — events/emit culled */
   }
 
-  async function postInteraction(detail: CanvasEventDetail): Promise<void> {
-    const resp = await emit('canvas.interaction', detail as Record<string, unknown>)
-    if (!resp.ok) throw new Error(`canvas.interaction emit failed: ${resp.status}`)
-  }
-
-  async function postAnnotations(canvasId: string, agentId: string, annotations: unknown[]): Promise<void> {
-    const resp = await emit('canvas.annotation', { canvas_id: canvasId, agent_id: agentId, annotations })
-    if (!resp.ok) throw new Error(`canvas.annotation emit failed: ${resp.status}`)
+  async function postAnnotations(
+    _canvasId: string,
+    _agentId: string,
+    _annotations: unknown[],
+  ): Promise<void> {
+    /* disabled for launch — events/emit culled */
   }
 
   async function postSave(canvasId: string, contentHtml: string): Promise<{ ok: boolean; id?: string }> {

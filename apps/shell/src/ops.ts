@@ -10,6 +10,7 @@
 
 import { createShipConnectClient, SettingScope } from '@ship/sdk/connect'
 import { createClient } from '@ship/sdk-client'
+import { setThemeTransport, type ThemeId } from '@ship/tokens/themes'
 
 /** Same-origin daemon op surface. Base URL '' → relative requests + cookies. */
 export const ops = createShipConnectClient({ baseUrl: '' })
@@ -52,3 +53,36 @@ export async function writeSetting(key: string, value: unknown): Promise<void> {
  * to the legacy expr-SSE channel internally.
  */
 export const ship = createClient()
+
+/**
+ * Theme transport (Phase 2 rewire). `@ship/sui-tokens` was made
+ * daemon-URL-free in `da75cf245` — the host plugs the settings-backed
+ * persistence in here. `setThemeTransport` is fire-and-forget: writes
+ * ride the RUNTIME settings table (machine-local launch defaults) so
+ * the theme survives a daemon restart but stays per-machine; `load`
+ * reads the same key on demand. Tier-4 localStorage is still the
+ * synchronous cache the boot script reads, so the connect round-trip
+ * never blocks paint.
+ */
+const THEME_SETTING_KEY = 'shell.theme'
+setThemeTransport({
+  save(id: ThemeId) {
+    // Async so paint never blocks on the daemon, but NOT swallowed: localStorage
+    // (Tier-4 cache) already holds the value, yet a failed settings write means
+    // the choice won't survive on another machine/session. Surface it — console
+    // for diagnostics, a toast so the user knows the sync (not the apply) failed.
+    void writeSetting(THEME_SETTING_KEY, id).catch((err: unknown) => {
+      console.error('[theme] failed to persist theme to daemon settings', err)
+      document.dispatchEvent(new CustomEvent('sui:notify', {
+        detail: {
+          tone: 'warning',
+          title: 'Theme not synced',
+          description: 'Applied locally, but saving it to the daemon failed — it may not persist across sessions.',
+        },
+      }))
+    })
+  },
+  async load(): Promise<string | null> {
+    return await readSetting<string>(THEME_SETTING_KEY)
+  },
+})

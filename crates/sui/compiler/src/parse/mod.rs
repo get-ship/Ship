@@ -30,6 +30,7 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
 
     let mut data: Vec<DataDecl> = Vec::new();
     let mut props: Vec<PropDecl> = Vec::new();
+    let mut clients: Vec<ClientDecl> = Vec::new();
     let mut style_parts: Vec<String> = Vec::new();
     let mut template_nodes: Vec<Node> = Vec::with_capacity(nodes.len());
     // Holds the most-recent JSDoc-style HTML comment so the next
@@ -53,6 +54,11 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
             Node::Element(el) => match el.tag.as_str() {
                 "data" => {
                     data.push(parse_data(el)?);
+                    pending_jsdoc = None;
+                    continue;
+                }
+                "client" => {
+                    clients.push(parse_client(el)?);
                     pending_jsdoc = None;
                     continue;
                 }
@@ -82,15 +88,6 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
                     pending_jsdoc = None;
                     continue;
                 }
-                // Top-level `<bundle separate />` is a bundler hint (read by
-                // the bundler's `discover_separate_bundles` in
-                // crates/deck/deck-bundler/src/targets.rs to opt the
-                // component into its own code-split bundle). The compiler lifts
-                // it out so it never reaches the template emit path.
-                "bundle" => {
-                    pending_jsdoc = None;
-                    continue;
-                }
                 _ => {}
             },
             _ => {}
@@ -105,6 +102,7 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
     Ok(Program {
         data,
         props,
+        clients,
         styles,
         template,
         source_len: source.len(),
@@ -153,6 +151,11 @@ fn parse_data(el: &html::Element) -> Result<DataDecl, CompileError> {
         live,
         span: el.span,
     })
+}
+
+fn parse_client(el: &html::Element) -> Result<ClientDecl, CompileError> {
+    let name = required_attr(el, "name", "<client>")?;
+    Ok(ClientDecl { name, span: el.span })
 }
 
 fn parse_prop(el: &html::Element) -> Result<PropDecl, CompileError> {

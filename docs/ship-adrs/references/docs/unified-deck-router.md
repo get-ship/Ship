@@ -93,4 +93,27 @@ views unchanged.
    `navigate()`; delete the side-channels.
 3. Codegen `routes.gen.ts` from the view tree + manifests; router matches against
    it; retire imperative `defineRoutes`.
-4. Lint raw `pushState` / SPA `window.location` in controllers → `navigate()`.
+## Status (2026-06-05)
+Step 1 (`RouterPort` seam) is shipped: the shell's `setRouterPort(...)` in
+`apps/shell/src/main.ts` registers a thin wrapper around `navigate()` →
+`mountRoute(location.pathname)`. Every entry point — runtime `navigate()`,
+the anchor-click delegate, `popstate`, keymap Esc — flows through one
+mount path. The `SAME_SHELL_VIEWS` no-remount hack, the manual `fetch +
+runtime.mount(payload)` injection, the `payloadUrl()`/`readRoute()`/
+`readRouteFromUrl()`/`notifySameShellRouteChange()` helpers, and the dead
+`/artifacts/:id` + `/workspaces/:id` registrations are all removed.
+Step 3 (codegen) is shipped: `crates/deck/deck-bundler/src/routes.rs`
+walks the shell's full `src/` tree (every `[param]` dir, not just the
+studio sub-tree) and emits a single `apps/shell/src/routes.gen.ts` with
+`DYNAMIC_ROUTE_PATTERNS: RouteShape[]` plus namespaced path builders
+(`routes.studioAgentsId({ id })`, etc.). The shell imports it and calls
+`defineRoutes(DYNAMIC_ROUTE_PATTERNS)` once at boot. Imperative
+`defineRoutes` from view controllers is gone (no longer supported by
+the studio controllers — they import the typed builders instead).
+Step 2 (migrate callers) is in progress. The shell's hand-rolled
+`sui-view-picker`-style router is removed; the lint that bans raw
+`pushState` from view controllers is a follow-up.
+Memory-leak (issue #129/#130): `apps/shell/src/hmr.ts` switched from
+`await import(url)` (which retains each compile in the ESM registry) to
+`fetch + Blob URL + import(blob) + URL.revokeObjectURL`. The dev loop
+no longer accumulates module-graph entries per rebuild.

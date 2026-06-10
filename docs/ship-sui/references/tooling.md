@@ -33,26 +33,19 @@ Flags (from `crates/sui/compiler/src/bin/sui-compiler.rs`):
 | `--styles <file>` | Prepend a CSS file as a `<style>` block. Component sources only. |
 | `--component-name <tag>` | Set the custom element tag name; implies component mode. |
 
-The binary is also exposed as a `cdylib` (`crate-type = ["lib", "cdylib"]` in `Cargo.toml`) so editor extensions and `@ship/sui-build` can call it without spawning a subprocess. The Rust release build is what the daemon ships at `~/.ship/runtime/sui-compiler` (see `docs/ship-architecture/references/docs/toolchain.md`).
+The binary is also exposed as a `cdylib` (`crate-type = ["lib", "cdylib"]` in `Cargo.toml`) so editor extensions and the deck bundler can call it without spawning a subprocess. The Rust release build is what the daemon ships at `~/.ship/runtime/sui-compiler` (see `docs/ship-architecture/references/docs/toolchain.md`).
 
-## `@ship/sui-build` — the package-level CI bundler
+## The deck bundler — the ONLY bundler
 
-The Node/Bun-driven build pipeline that wraps `sui-compiler` for one package at a time. Source: `packages/deck/build/`.
+There is one bundler: the in-process Rust Rolldown bundler in `crates/deck/deck-bundler/` (#163, #167, #220). The retired `@ship/sui-build` (esbuild, one package at a time) and the old `packages/deck/bundler/index.ts` Bun worker are both gone — components are no longer pre-compiled to on-disk `dist/` bundles per package.
 
-```sh
-sui-build                          # one-shot production build (cwd's sui.config.ts)
-sui-build --watch                  # rebuild on source changes
-sui-build --bundler bun            # force the Bun adapter
-sui-build --bundler esbuild        # force the esbuild adapter
-sui-build --config path/to/sui.config.ts
-sui-build --mode development       # passes through to compile flags + bundler env
-```
+**How it works.** A Rust Rolldown plugin (`SuiPlugin`) compiles each `.sui` via `sui-compiler` in its `load` hook — no bun worker, no subprocess, no `.compiled.js` pre-step. Membership is **traced**, not declared: each entry (a view, an app, a marketing/arcade page) is bundled by following its imports and template tags.
 
-Entry: `packages/deck/build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The runner (`src/runner.ts`) walks the configured source globs, invokes `sui-compiler` (preferring the in-repo FFI build of `libsui_compiler`, falling back to `target/debug/sui-compiler` or `cargo run --quiet -p sui-compiler`), and feeds the emitted JS / CSS / CEM through the chosen bundler adapter (`adapters/bun.ts`, `adapters/esbuild.ts`).
+**Two modes**, wired to `DaemonMode`:
+- **Development** — the daemon serves compiled `.sui` as un-bundled native ESM; HMR re-compiles only the edited component.
+- **Production** — Rolldown emits per-entry traced chunks with `sui-runtime`/`sui-dom` as the shared external, immutable-cached.
 
-Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/components/primitives/`, `packages/components/ui-components/`, `packages/components/charts/`, `packages/components/pipelines/` (all write to their own `dist/`; the daemon umbrella `sui-components.js` is baked into `crates/deck/deck-core/assets/` by `cargo xtask build-assets`).
-
-**Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. **The daemon bundles IN-PROCESS via Rolldown** (`crates/deck/deck-bundler/` — deck owns bundling per #167; a Rust Rolldown plugin compiles `.sui` via `sui-compiler` in its `load` hook; no bun worker, no subprocess). The former `packages/deck/bundler/index.ts` Bun worker the daemon spawned is retired. Both pipelines still target the same on-disk asset trees the release binary `include_str!`s. See `docs/ship-architecture/references/docs/toolchain.md`.
+**Baking.** `cargo xtask build-assets` (aliased `bun run build:bundles`) bakes the framework singletons + the `sui-components` umbrella + per-component islands (`<bundle separate />`) + per-view bundles + the site's `sui-marketing.js` / `sui-arcade.js` into `crates/deck/deck-core/assets/` and `.deck/` — the same on-disk asset trees the release binary `include_str!`s. It's what `smoke-deploy.sh` runs and what `just cem` invokes.
 
 ## `sui-lsp` — the language server
 
@@ -181,12 +174,12 @@ just dev                              # daemon (in-process Rolldown bundler)
 #  → the daemon's in-process bundler (notify watch) re-bundles via Rolldown,
 #    writing to crates/deck/deck-core/assets/... or .deck/...
 #  → emits BundlerEvent::ModuleChanged (broadcast) → sui_hmr
-#  → shipd republishes on /_sui/dev/hmr (SSE)
-#  → apps/shell/src/hmr.ts cache-busts /_sui/views/home/view.js
+#  → shipd republishes on /_deck/dev/hmr (SSE)
+#  → apps/shell/src/hmr.ts cache-busts /_deck/views/home/view.js
 #  → mount() re-runs in place; SSR snapshot stays, no full reload
 ```
 
-`just dev` starts only the daemon (`scripts/dev/start.sh`); bundling + watching happen IN-PROCESS (`crates/deck/deck-bundler/`, `Bundler::start_watching`) — no spawned worker. To hit the daemon through the outer shell, run `just shell-dev` in a second terminal — it proxies `/api`, `/_sui`, `^/sui/.*`, and `/view-host` to the daemon.
+`just dev` starts only the daemon (`scripts/dev/start.sh`); bundling + watching happen IN-PROCESS (`crates/deck/deck-bundler/`, `Bundler::start_watching`) — no spawned worker. To hit the daemon through the outer shell, run `just shell-dev` in a second terminal — it proxies `/api`, `/_deck`, `^/sui/.*`, and `/view-host` to the daemon.
 
 For a clean dev restart use `just dev-restart`. Visual regressions: `just visual` (Playwright vs committed PNGs; pass `--update-snapshots` to refresh after a deliberate change). Perf regressions: `just bench-check` (fails on >15% vs the latest committed baseline; override via `BENCH_REGRESSION_THRESHOLD`).
 
@@ -200,9 +193,9 @@ Shipd has two operating modes, selected via `--mode <development|production>` (o
 
 | Aspect | Development (default) | Production |
 |---|---|---|
-| Frontend serving | Vite dev server (`just shell-dev`) at 3200 +offset, proxying `/api`, `/_sui`, `/view-host` to the daemon | Daemon serves prebuilt shell HTML directly; no Vite, no proxy, no second port |
+| Frontend serving | Vite dev server (`just shell-dev`) at 3200 +offset, proxying `/api`, `/_deck`, `/view-host` to the daemon | Daemon serves prebuilt shell HTML directly; no Vite, no proxy, no second port |
 | Bundler | In-process Rolldown (`Bundler::start_watching`, notify) re-bundles on edit; no spawned worker | Pre-bundled by `just build`; daemon `include_str!`s the static output |
-| HMR | `/_sui/dev/hmr` SSE channel; `apps/shell/src/hmr.ts` cache-busts view modules and re-runs `mount()` in place | Disabled — HMR routes are not registered in production |
+| HMR | `/_deck/dev/hmr` SSE channel; `apps/shell/src/hmr.ts` cache-busts view modules and re-runs `mount()` in place | Disabled — HMR routes are not registered in production |
 | Cache headers | `Cache-Control: no-cache` on every asset and view artifact; no ETag | `Cache-Control: public, immutable, max-age=31536000` on framework bundles, `must-revalidate` on view artifacts; ETag on every response |
 | SSR cache | Bypassed every request (sources may have changed under us) | Memoized on first hit and reused until the daemon restarts |
 | Error detail | Full error bodies | Redacted; only the kind of failure leaks to the client |

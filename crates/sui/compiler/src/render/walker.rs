@@ -15,7 +15,7 @@
 //! every branch — but suppresses HTML output for the un-taken ones via
 //! the `Out` wrapper's silent mode.
 //!
-//! Phase 2 deleted the `/_sui/render-fragment/` POST endpoint, so the
+//! Phase 2 deleted the `/_deck/render-fragment/` POST endpoint, so the
 //! walker no longer carries the `FragmentState` plumbing for
 //! single-boundary fragment renders. Control-flow swap is now
 //! client-side; the SSR walker only emits the active-branch HTML at
@@ -41,19 +41,13 @@ pub(crate) struct Walker<'r> {
     /// walker would have allocated a key. Used by `next_key` to assert
     /// the registry's `b<N>` matches.
     pub(super) reg_idx: usize,
-    /// View name — used to build `/_sui/mutation/<view>?form=<key>` for
-    /// `<form mutation>` elements. Empty string when not in SSR context.
-    pub(super) view_name: String,
-    /// Action/method attrs staged by `emit_attr_marker` for a mutation
-    /// form and drained at the end of `emit_open_tag`.
-    pub(super) pending_form_inject: Vec<(String, String)>,
 }
 
 impl<'r> Walker<'r> {
     pub(crate) fn new_named(
         scope: Scope,
         registry: &'r BindingRegistry,
-        view_name: String,
+        _view_name: String,
     ) -> Self {
         Self {
             out: Out::new(),
@@ -61,8 +55,6 @@ impl<'r> Walker<'r> {
             scope,
             registry,
             reg_idx: 0,
-            view_name,
-            pending_form_inject: Vec::new(),
         }
     }
 

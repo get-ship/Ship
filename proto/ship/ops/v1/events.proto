@@ -1,8 +1,8 @@
-// `events.*` as a hand-authored per-domain proto-SSOT service (#89), mounted
-// ADDITIVELY beside the generated ReadOps (which keeps serving until #72).
-// Request uses `*Req` suffix to avoid collision with the generated
-// EventsListRequest in this same ship.ops.v1 package. Return type reuses
-// EventsListResponse from types.proto.
+// `events.*` as a hand-authored per-domain proto-SSOT service (#89). This is
+// the sole serving path — the generated ReadOps umbrella was retired (#78).
+// The `*Req` suffix is historical (it avoided collision with the umbrella's
+// EventsListRequest, since deleted); kept for wire stability. Return type
+// reuses EventsListResponse from types.proto.
 syntax = "proto3";
 
 package ship.ops.v1;

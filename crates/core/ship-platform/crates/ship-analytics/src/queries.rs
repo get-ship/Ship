@@ -2,7 +2,7 @@
 // into a typed struct is a separate cleanup. Allow locally for now.
 #![allow(clippy::type_complexity)]
 
-//! Typed SELECT helpers over `analytics_sessions` and `analytics_tool_uses`.
+//! Typed SELECT helpers over `analytics_sessions`, `analytics_tool_uses`, and `analytics_turns`.
 //!
 //! Dashboard / CLI / HTTP-endpoint code should call these instead of
 //! hand-rolling SQL. Keeping queries in one module lets us:

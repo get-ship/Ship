@@ -8,50 +8,32 @@
 //! `?scope=user` forces the user root. Vars are delegated to the runtime
 //! `skill_vars` module (KV-backed).
 
-use ship_files::files::{Error as FileError, FilesService, Scope};
+use ship_files::files::{FilesService, Scope};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
+use crate::services::errors::{ServiceEntity, ServiceError};
+
 // ── Errors ────────────────────────────────────────────────────────────
 
+/// Marker giving [`ServiceError`] its skill-flavored Display text and the
+/// skill-specific `FileError` mapping (Patch → Parse, PathEscape → BadPath).
 #[derive(Debug)]
-pub enum Error {
-    NotFound(String),
-    AlreadyExists(String),
-    BadId(String),
-    BadPath(String),
-    Parse(String),
-    Io(String),
-    ScopeUnavailable(Scope),
-}
+pub enum SkillEntity {}
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NotFound(s) => write!(f, "skill `{s}` not found"),
-            Self::AlreadyExists(s) => write!(f, "skill `{s}` already exists"),
-            Self::BadId(s) => write!(f, "bad id `{s}`"),
-            Self::BadPath(s) => write!(f, "bad path `{s}`"),
-            Self::Parse(s) => write!(f, "parse: {s}"),
-            Self::Io(s) => write!(f, "io: {s}"),
-            Self::ScopeUnavailable(s) => write!(f, "scope {s:?} not configured"),
-        }
+impl ServiceEntity for SkillEntity {
+    const NOUN: &'static str = "skill";
+
+    fn map_patch(s: String) -> ServiceError<Self> {
+        ServiceError::Parse(s)
+    }
+
+    fn map_path_escape(p: PathBuf) -> ServiceError<Self> {
+        ServiceError::BadPath(p.display().to_string())
     }
 }
 
-impl From<FileError> for Error {
-    fn from(e: FileError) -> Self {
-        match e {
-            FileError::NotFound(p) => Self::NotFound(p.display().to_string()),
-            FileError::AlreadyExists(p) => Self::AlreadyExists(p.display().to_string()),
-            FileError::ScopeUnavailable(s) => Self::ScopeUnavailable(s),
-            FileError::Json(s) => Self::Parse(s),
-            FileError::Patch(s) => Self::Parse(s),
-            FileError::Io(e) => Self::Io(e.to_string()),
-            FileError::PathEscape(p) => Self::BadPath(p.display().to_string()),
-        }
-    }
-}
+pub type Error = ServiceError<SkillEntity>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]

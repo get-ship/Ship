@@ -28,11 +28,11 @@ use crate::metadata;
 /// workspace currently has none; this guards the future.
 const KNOWN_ORPHANS: &[&str] = &[];
 
-/// Known cross-crate duplicate stragglers (WARN). A dup group is "known" when
-/// every file in it matches one of these `rel_path` substrings.
-const KNOWN_DUPS: &[&str] = &[
-    "crates/core/ship-platform/crates/agent-def/src/testutil.rs",
-];
+/// Known cross-crate duplicate stragglers (WARN). Empty — the duplicate that
+/// used to live at agent-def/src/testutil.rs was resolved (residue sweep); this
+/// guards the future. A dup group is "known" only when every file in it matches
+/// an entry.
+const KNOWN_DUPS: &[&str] = &[];
 
 /// Files this small are skipped by the dup check (empty / one-line `mod` stubs
 /// collide trivially and aren't copy-not-move signal).

@@ -6,10 +6,9 @@
 //! abstracts over their differences so `ServerExecutor` can delegate
 //! turns + cancellation without knowing the wire protocol.
 //!
-//! Per-harness implementations land in follow-on slices
-//! (`harness-codex-02`, `harness-opencode-02`). This module provides
-//! the trait, the event vocabulary, and a `StubSession` used for tests
-//! and as the placeholder until real sessions are bound.
+//! Per-harness implementations live in `ship-harnesses` (`CodexSession`,
+//! `OpenCodeSession`). This module provides the trait, the event vocabulary,
+//! and a `StubSession` used by tests.
 //!
 //! Events flow from harness -> `SessionEvent` -> (executor) -> ship's
 //! `process.*` / `executor.*` envelopes. Keeping the vocabulary

@@ -9,9 +9,9 @@
 //! (nothing accepted blindly). A gate denial comes back as a tool RESULT the
 //! model can read and adapt to — not an exception. Real failures error.
 //!
-//! Code-mode (`run_script` as a loop tool) is deferred: deno_core's JsRuntime is
-//! `!Send`, which collides with rig's `Send` tool-future bound, so it needs a
-//! dedicated current-thread executor + a Send result channel. That's S3.
+//! Code-mode (`run_script` as a loop tool, S3): deno_core's JsRuntime is
+//! `!Send`, so scripts execute on ship-js's dedicated VM thread (ScriptExecutor)
+//! bridged through GatewayDispatch — see RunScriptTool below.
 
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};

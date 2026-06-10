@@ -7,11 +7,11 @@
 //! over-socket is just transport — the invariant is "enter at the gateway with
 //! real auth, let the gate decide."
 //!
-//! `InProcessGateway` is the seam: it carries no policy beyond looking up the
-//! op's intrinsic (service, blast) and running the gate. The real impl wraps
-//! shipd's ops router reached in-process (RPC-as-IPC); this stub stands in while
-//! that wiring lands, and the agent runtime is written against the seam,
-//! unchanged. Every op resolves its intrinsic blast through `registry::blast_of`.
+//! `InProcessGateway` is the in-crate test/dev seam. The real impl is
+//! `ShipdGateway` (apps/shipd/src/floki_gateway.rs), which wraps shipd's ops
+//! router reached in-process (RPC-as-IPC); the agent runtime is written against
+//! the Gateway trait and runs unchanged over either. Every op resolves its
+//! intrinsic blast through `registry::blast_of`.
 
 use async_trait::async_trait;
 use serde_json::{Value, json};

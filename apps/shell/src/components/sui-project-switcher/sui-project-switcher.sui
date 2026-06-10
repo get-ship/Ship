@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-project-switcher> — active-project affordance for the chrome strip.
   Trigger shows the project's identity hue dot + name + caret; clicking opens a
@@ -95,12 +94,17 @@
     text-transform: uppercase;
     color: var(--muted-foreground);
   }
+  .row-wrap {
+    position: relative;
+    display: flex;
+  }
   .row {
     display: flex;
     align-items: center;
     gap: var(--space-2, 8px);
     width: 100%;
-    padding: var(--space-2, 8px) var(--space-3, 12px);
+    padding: var(--space-2, 8px) var(--space-3, 12px) var(--space-2, 8px);
+    padding-right: 36px;
     border: 0;
     background: transparent;
     color: inherit;
@@ -110,7 +114,7 @@
   }
   .row:hover { background: color-mix(in oklch, var(--foreground) 6%, transparent); }
   .row[data-active] { background: color-mix(in oklch, var(--primary) 12%, transparent); }
-  .row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
   .row-name {
     font-size: var(--text-base);
     font-weight: 500;
@@ -124,6 +128,33 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .row-open {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    appearance: none;
+    background: transparent;
+    border: none;
+    padding: 4px;
+    margin: 0;
+    cursor: pointer;
+    color: var(--muted-foreground);
+    border-radius: var(--radius-sm, 4px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity var(--duration-fast, 100ms) var(--ease-out, ease-out), background-color var(--duration-fast, 100ms) var(--ease-out, ease-out), color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+  }
+  .row-wrap:hover .row-open,
+  .row-open:focus-visible {
+    opacity: 1;
+  }
+  .row-open:hover {
+    background: color-mix(in oklch, var(--foreground) 8%, transparent);
+    color: var(--foreground);
   }
   .menu-empty {
     padding: var(--space-3, 12px);
@@ -149,16 +180,24 @@
 <div class="menu" part="menu" popover="auto" bind:this={menuEl} role="menu" aria-label="Switch project">
   <div class="menu-title">Switch project</div>
   {#for p of rows() key={p.id}}
-    <button class="row" type="button" role="menuitemradio"
-      attr:aria-checked={p.id === activeId() ? 'true' : 'false'}
-      attr:data-active={p.id === activeId()}
-      on:click={() => pick(p.id)}>
-      <span class="dot" attr:data-hue={p.hue}></span>
-      <span class="row-main">
-        <span class="row-name">{p.name}</span>
-        <span class="row-path">{p.path}</span>
-      </span>
-    </button>
+    <div class="row-wrap" role="presentation">
+      <button class="row" type="button" role="menuitemradio"
+        attr:aria-checked={p.id === activeId() ? 'true' : 'false'}
+        attr:data-active={p.id === activeId()}
+        on:click={() => pick(p.id)}>
+        <span class="dot" attr:data-hue={p.hue}></span>
+        <span class="row-main">
+          <span class="row-name">{p.name}</span>
+          <span class="row-path">{p.path}</span>
+        </span>
+      </button>
+      <button class="row-open" type="button"
+        title="Open this project in its own window"
+        aria-label="Open in its own window"
+        on:click={() => openProjectAsWindow(p.id)}>
+        <sui-icon name="external-link" size="sm"></sui-icon>
+      </button>
+    </div>
   {/for}
   {#if rows().length === 0}
     <div class="menu-empty">No projects found.</div>

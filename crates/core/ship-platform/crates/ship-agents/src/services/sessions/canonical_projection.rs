@@ -1,14 +1,15 @@
 //! Canonical sessions projection — derived state from `session.*` and
 //! `session.turn.*` events (the canonical L1 family defined in agent-def).
 //!
-//! # WARNING: Floki-first posture
+//! # Coverage
 //!
-//! The canonical `session.started` payload struct is defined in agent-def and
-//! registered for the `session.started` event type, but the workbench-family
-//! harnesses (ship-code / claude-code) still emit the OLD `agent.session.*`
-//! events today (#20 will migrate them). Until #20 lands, this projection
-//! only receives rows for Floki sessions. The legacy `AgentSessionProjection`
-//! continues to fold `agent.session.*` events during that transition.
+//! This projection receives rows for ALL sessions: Floki emits the canonical
+//! family directly; harness-driver dispatches dual-emit canonical
+//! `session.started` at dispatch (dispatch_core.rs) and canonical terminals
+//! from the exit handler (ship-code exit_handler.rs). The legacy
+//! `agent.session.*` family survives ONLY as the transitional spawn trigger,
+//! pending the spawn-intent channel (#26); the `agent_sessions` read model
+//! and `AgentSessionProjection` are retired (#20).
 //!
 //! # Read-model contract
 //!

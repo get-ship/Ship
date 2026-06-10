@@ -79,7 +79,7 @@ binary.
   compile step and the lucide icon-registry gen. vite is dev-only (shell HMR)
   and never ships.
 - **HMR** for daemon-served surfaces is all-Rust: in-process notify watch →
-  `BundlerEvent` → `sui_hmr` SSE (`/_sui/dev/hmr`) → `live-reload.js`.
+  `BundlerEvent` → `sui_hmr` SSE (`/_deck/dev/hmr`) → `live-reload.js`.
 - **No subprocess / protocol / supervisor** — a build is an async call.
 - **Toolchain obligation:** the workspace now requires Rust 1.95+. Future oxc
   bumps may move this floor.

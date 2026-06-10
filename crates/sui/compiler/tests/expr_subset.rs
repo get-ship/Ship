@@ -7,7 +7,7 @@
 use sui_compiler::{compile, CompileMode, CompileOpts};
 
 fn opts() -> CompileOpts {
-    CompileOpts { setup_url: None, mode: CompileMode::View, source_path: None, styles: None, component_meta: None, emit_dts: false, emit_ssr: false }
+    CompileOpts { setup_url: None, mode: CompileMode::View, source_path: None, styles: None, component_meta: None, emit_dts: false, emit_ssr: false, emit_component_imports: false }
 }
 
 fn compile_view(src: &str) -> sui_compiler::CompileError {

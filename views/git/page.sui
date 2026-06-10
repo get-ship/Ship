@@ -244,21 +244,21 @@
                 {/if}
                 <sui-scroll-area class="git-diff-scroll" data-test="diff-body">
                   {#for file of diffFiles() key={file.path}}
-                    <sui-git-diff files="1">
-                      <sui-git-diff-file path={file.path}
+                    <ship-git-diff files="1">
+                      <ship-git-diff-file path={file.path}
                         additions={file.additions + ''}
                         deletions={file.deletions + ''}>
                         {#for hunk of file.hunks key={hunk.header}}
-                          <sui-git-diff-hunk header={hunk.header}></sui-git-diff-hunk>
+                          <ship-git-diff-hunk header={hunk.header}></ship-git-diff-hunk>
                           {#for line of hunk.lines key={(line.old_num || 0) + ':' + (line.new_num || 0)}}
-                            <sui-git-diff-line
+                            <ship-git-diff-line
                               type={line.kind}
                               attr:old={line.old_num ? (line.old_num + '') : null}
-                              attr:new={line.new_num ? (line.new_num + '') : null}>{line.content}</sui-git-diff-line>
+                              attr:new={line.new_num ? (line.new_num + '') : null}>{line.content}</ship-git-diff-line>
                           {/for}
                         {/for}
-                      </sui-git-diff-file>
-                    </sui-git-diff>
+                      </ship-git-diff-file>
+                    </ship-git-diff>
                   {/for}
                 </sui-scroll-area>
               {/if}

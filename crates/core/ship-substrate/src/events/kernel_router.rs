@@ -179,7 +179,7 @@ impl KernelRouter {
     ///
     /// Every event is:
     ///   1. Validated (namespace checks, permission checks, EmitContext-aware)
-    ///   2. Persisted to platform.db via the inner router's sink
+    ///   2. Persisted to the event's per-scope db (runtime.db / account.db / spaces/<id>/space.db) via the inner router's PartitionedSink
     ///   3. Delivered to in-memory mailboxes (post-commit)
     ///
     /// If persistence fails, the event is not delivered and the caller gets

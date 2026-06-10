@@ -260,9 +260,13 @@ mod tests {
         .unwrap();
         // A space-scoped row (carries a key), an account row, and two runtime
         // rows (former system + device) — the last three keyless.
+        // Note: artifact.created, account.login_completed, project.switched are
+        // registered at L1 (ship-artifacts, ship-auth, ship-space respectively);
+        // use L0-registered counterparts so this test stays green in the L0-only
+        // binary (keystone-A Phase A).
         for (id, et, space) in [
-            ("e1", "artifact.created", Some("sp-1")),
-            ("e2", "account.login_completed", None),
+            ("e1", "studio.annotation.created", Some("sp-1")),
+            ("e2", "daemon.owner.bound", None),
             ("e3", "daemon.startup_completed", None),
             ("e4", "actor.created", None),
         ] {
@@ -294,7 +298,7 @@ mod tests {
         };
         assert_eq!(row("e1", &mut conn), ("space".into(), Some("sp-1".into())));
         assert_eq!(row("e2", &mut conn), ("account".into(), None));
-        // daemon.startup_completed + actor.created are both Runtime-owned now.
+        // daemon.startup_completed + actor.created are both Runtime-owned.
         assert_eq!(row("e3", &mut conn), ("runtime".into(), None));
         assert_eq!(row("e4", &mut conn), ("runtime".into(), None));
 

@@ -1,7 +1,7 @@
 import { controller, derived, effect, live, navigate, signal, unwrap } from '@ship/sui-runtime'
 import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
-import { studioRoutes } from '../../routes.gen'
+import { routes } from '../../../routes.gen'
 import { HUES, pickHue, pickInitials } from './hue'
 import { readSetting, writeSetting } from '../../../ops'
 
@@ -189,16 +189,16 @@ export default controller({
     }
   },
   on: {
-    goWire: (s) => navigate(studioRoutes.agentsIdWire({ id: s.agentId })),
-    goSettings: (s) => navigate(studioRoutes.agentsIdSettings({ id: s.agentId })),
+    goWire: (s) => navigate(routes.studioAgentsIdWire({ id: s.agentId })),
+    goSettings: (s) => navigate(routes.studioAgentsIdSettings({ id: s.agentId })),
     // Segmented tabs: the control swallows per-option clicks, so navigate off
     // its sui-change event instead. overview → detail root; else → sub-route.
     goTab: (s, value: string) => {
       const id = s.agentId
-      navigate(value === 'overview' ? studioRoutes.agentsId({ id }) : `/studio/agents/${id}/${value}`)
+      navigate(value === 'overview' ? routes.studioAgentsId({ id }) : `/studio/agents/${id}/${value}`)
     },
     goBack: () => navigate('/studio/agents'),
-    goSkill: (_s, id: string) => navigate(studioRoutes.skillsId({ id })),
+    goSkill: (_s, id: string) => navigate(routes.studioSkillsId({ id })),
 
     activate: async (s) => {
       if (s.activating) return

@@ -7,27 +7,25 @@ use axum::{
     response::Response,
 };
 use std::sync::Arc;
-use tokio_util::sync::CancellationToken;
 
+use deck::config::DeckConfig;
 use crate::{
-    auth, ship_runtime, views,
+    auth, ship_runtime,
 };
 #[cfg(feature = "ship-code")]
 use crate::sessions;
 use crate::routes::{
     actor_api, actors_api,
     artifacts_api,
-    human_webhook, logs_api,
-    registry_api, rest_api, runtime_api,
-    sandbox_api, schema_api, sdk_manifest, settings_api, themes_api,
-    view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
+    human_webhook,
+    rest_api, runtime_api,
+    sandbox_api, schema_api,
     webhook_ext,
 };
 #[cfg(feature = "ship-code")]
 use crate::routes::hooks_api;
 use crate::auth::{attest, pairing, session};
 use crate::transport::{cors, pty as pty_handler};
-use crate::routes::mcp_registry as mcp_registry;
 use axum::routing;
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -37,15 +35,9 @@ pub fn build_router(
     session_registry: auth::SessionRegistry,
     pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
-    _mcp_ct: CancellationToken,
     daemon_mode: deck::DaemonMode,
 ) -> Router {
     use crate::routes::{Route, ShipRouterExt};
-    // Internal MCP server retired (#75): agents use the ConnectRPC op surface
-    // via `ship ops` + capability-skills; external MCP clients use the
-    // standalone `apps/mcp` adapter. The registry browser (`mcp_registry`) and
-    // the `mcp.*` catalog reads stay.
-
     let st = rt.clone();
     // Non-enumerated third-party routes (telegram webhook + hooks) stay on
     // `.route()` — they predate the canonical `Route` enum. Leave flat.
@@ -63,6 +55,12 @@ pub fn build_router(
     // Enumerated routes — one `ApiState`-typed router, registered via
     // `ship_route(Route::X, handler)` against the canonical full paths.
     let api_ship_routes = build_ship_routes(st);
+
+    // ONE ShipDataPort for the whole router: deck's serve_index / serve_setup
+    // read provisioning via `Extension<Arc<dyn DataPort>>` (injected at the
+    // root layer below), and the multiplex transport reuses the SAME Arc.
+    let data_port: Arc<dyn deck_core::DataPort> =
+        Arc::new(crate::data_port::ShipDataPort::new(rt.clone()));
 
     // Public webhook route — unauthenticated; each trigger carries its own secret.
     let webhook_kernel = rt.kernel().clone();
@@ -111,50 +109,13 @@ pub fn build_router(
         .route("/api/health", axum::routing::get(move || {
             health_check(health_rt)
         }))
-        // Drift-detection endpoint — returns daemon + compiler build
-        // identity so the shell can compare its loaded `_compilerVersion`
-        // marker against what the daemon was built with. Unauthenticated
-        // for the same reason `/api/health` is: shell needs it before
-        // any session exists. Restored alongside the `/_sui/*` wiring the
-        // phase2-substrate-split merge dropped (originally from 0f679ca0).
-        .route("/api/_meta", axum::routing::get({
-            let bi = build_info::build_info!();
-            let dbi = deck::DaemonBuildInfo {
-                cargo: env!("CARGO_PKG_VERSION"),
-                git: bi.git_sha,
-                dirty: bi.git_dirty,
-                built_at: bi.timestamp,
-            };
-            move || deck::serve_meta(Some(axum::Extension(dbi)))
-        }))
-        // Shared static assets — no user-specific data, safe to serve unauth.
-        .ship_public_route(Route::AssetViewTokensCss, views::serve_view_tokens)
-        .ship_public_route(Route::AssetThemeCss, views::serve_theme_css)
-        .ship_public_route(Route::ListThemes, views::serve_themes_list)
-        // SUI state-aware endpoints (sse/data/mutation/source) extract
-        // `State<ApiState>`, so they live HERE, behind the
-        // `with_state(rt.clone())` at the bottom of this builder.
-        //
-        // The STATELESS deck serving surface — framework bundles
-        // (runtime/dom/sdk/components/live-reload), per-icon lucide,
-        // workspace + published catalogs, pack assets, per-view template/setup/css/
-        // payload (+ sub-path), `/view-host`, `/sui/{name}`, and `/space`
-        // — is mounted as ONE unit via `deck::router()` in the root
-        // assembly below. deck-axum is the single source of truth for
-        // those paths; shipd no longer hand-lists them here.
-        .ship_public_route(Route::SuiViewSse_template(), views::sui_sse::serve_sui_sse)
-        .ship_public_route(Route::SuiSource_template(), views::sui_source::serve_sui_source)
-        // The HMR route (SuiDevHmr) is NOT wired here — it stays
-        // development-only and is merged into `root` inside the
-        // `daemon_mode == Development` block further below.
-        // First-run flow — both routes are unauthenticated so a fresh
-        // install can reach the setup wizard before any browser is paired.
-        .ship_public_route(Route::Index, views::setup::index_handler)
-        .ship_public_route(Route::Setup, views::setup::setup_handler)
-        // SUI state-using handlers (sui_sse, sui_data, sui_mutation,
-        // sui_agent_push) extract `State<ApiState>`. Bind the state here
-        // so the resulting `Router<()>` merges cleanly with the root
-        // `Router::new()` at the bottom of this builder.
+        // Drift-detection endpoint (/_deck/meta), the shared CSS/theme assets,
+        // first-run `/` + `/setup`, the per-tag source viewer, and the root
+        // public-asset catch-all are all owned by `deck::router()` now —
+        // shipd serves none of the frontend surface. shipd keeps only RPC +
+        // daemon routes here.
+        // Bind the runtime state here so the resulting `Router<()>` merges
+        // cleanly with the root assembly below.
         .with_state(rt.clone());
 
     let auth_token = token;
@@ -206,15 +167,6 @@ pub fn build_router(
         async move { session::issue_session_handler(reg, auth.0).await }
     };
 
-    let registry_state = mcp_registry::McpRegistryState::new();
-
-    // MCP registry proxy is a public, read-only endpoint — match the
-    // original Cloudflare Worker handler's "no auth required" contract
-    // so the shell's agent builder can query it before pairing.
-    let mcp_registry_routes = Router::new()
-        .ship_public_route(Route::McpServers, mcp_registry::list_mcp_servers)
-        .layer(axum::Extension(registry_state));
-
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
         .ship_route(Route::IssueSession, session_issue_handler)
@@ -240,6 +192,20 @@ pub fn build_router(
             crate::ops_rpc::router(rt.clone())
                 .layer(axum::middleware::from_fn(auth::project_authority_middleware)),
         )
+        // Multiplex transport (deck-axum) — same auth-gated group as the
+        // Connect ops above: the live-data reads are gated behind
+        // `auth_middleware` (capability ship.events.read was enforced by the
+        // deleted proto's policy options; the Connect ops' own gate still
+        // applies for the typed wire paths, and the multiplex inherits the
+        // same bearer requirement here). The MultiplexState is folded into
+        // a single Extension: data_port + registry + change_source.
+        .merge(
+            deck::multiplex_router().layer(axum::Extension(deck::MultiplexState::new(
+                data_port.clone(),
+                Arc::new(deck_core::WindowSubscriptionRegistry::default()),
+                Arc::new(crate::data_port::ShipChangeSource::new(rt.clone())),
+            ))),
+        )
         // Dry-run view interceptor runs INSIDE auth (applied before the
         // auth layer here, which means outer->inner order wraps it with
         // auth) so requests must carry a valid bearer before short-circuit.
@@ -247,30 +213,68 @@ pub fn build_router(
             auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
         }));
 
-    let mut root = Router::new()
+    let root = Router::new()
         .merge(public_routes)
-        // deck's whole stateless serving surface as ONE mountable unit
         // (framework bundles, catalogs, pack assets, per-view
-        // template/setup/css/payload + sub-path, `/view-host`,
-        // `/sui/{name}`, and `/space/{id}` + `/space/_assets`). Mounted
+        // template/setup/css/payload + sub-path, `/_deck/view/{name}`,
+        // and `/space/{id}` + `/space/_assets`). Mounted
         // OUTSIDE the auth layer — these are static, no user-specific data,
-        // same posture as the rest of `/_sui/*`. `Router<()>` (its handlers
+        // same posture as the rest of `/_deck/*`. `Router<()>` (its handlers
         // read `Option<Extension<DaemonMode>>`, not `State`), so it merges
         // straight into the stateless root. deck-axum owns these paths.
         .merge(deck::router())
-        .merge(mcp_registry_routes)
         .merge(webhook_source_route)
         .merge(authenticated_routes);
-    // The HMR firehose is development-only; not registered in production.
-    if daemon_mode == deck::DaemonMode::Development {
-        let hmr_routes: Router<()> = Router::new()
-            .ship_public_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr);
-        root = root.merge(hmr_routes);
-    }
+    // No `.fallback(spa)` here — that would CLOBBER the data plane. The
+    // Connect-ops router (`ops_rpc::router().into_axum_service()`) dispatches the
+    // entire `/ship.ops.v1.*` surface from a `fallback_service`; merging it into
+    // `root` makes it root's fallback (carrying its auth layer). A
+    // `.fallback(spa_fallback)` would silently replace it and 404 every RPC. SPA
+    // deep-route navigation is instead handled by `spa_nav_middleware` (layered
+    // below), which short-circuits GET client-route paths to the shell and lets
+    // everything else — all RPC POSTs, unknown backend paths — flow through to
+    // the Connect fallback. The dev-only HMR firehose and the `/{file}` public-
+    // asset catch-all are owned by `deck::router()`; shipd serves no frontend.
+    // Load deck.jsonc from the workspace root (same root the bundler uses).
+    // Falls back to defaults when absent so a zero-config host works unchanged.
+    let repo_root = rt.workspace_dir()
+        .map(|p| p.to_path_buf())
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| rt.ship_dir().to_path_buf());
+    let deck_cfg = Arc::new(DeckConfig::load(&repo_root));
+
+    // Build the DaemonBuildInfo once here so deck's serve_meta handler
+    // (/_deck/meta) can read it via Option<Extension<DaemonBuildInfo>>.
+    let dbi = {
+        let bi = build_info::build_info!();
+        deck::DaemonBuildInfo {
+            cargo: env!("CARGO_PKG_VERSION"),
+            git: bi.git_sha,
+            dirty: bi.git_dirty,
+            built_at: bi.timestamp,
+        }
+    };
+
     root
+        // SPA-navigation shim. Layered INNER to the DaemonMode/DeckConfig
+        // extensions below (they run first on the way in, so this can read them)
+        // but it short-circuits before routing. Composes shell-navigation with
+        // the Connect fallback: GET client-routes serve the shell, everything
+        // else reaches the Connect dispatch. See the `root` comment above.
+        .layer(axum::middleware::from_fn(spa_nav_middleware))
         // Daemon-mode Extension — Sui handlers read it via
         // `Option<Extension<DaemonMode>>` without router-state plumbing.
         .layer(axum::Extension(daemon_mode))
+        // DataPort Extension — deck's serve_index / serve_setup read host
+        // provisioning via `Option<Extension<Arc<dyn DataPort>>>`. Same Arc the
+        // multiplex transport uses — ONE ShipDataPort for the whole router.
+        .layer(axum::Extension(data_port))
+        // DaemonBuildInfo Extension — deck's /_deck/meta handler reads this
+        // to report the daemon's own build identity alongside the compiler's.
+        .layer(axum::Extension(dbi))
+        // DeckConfig Extension — scaffold handlers (serve_shell, serve_space)
+        // read scaffold declarations + inject_globals from this.
+        .layer(axum::Extension(deck_cfg))
         // Bundler Extension (#167) — deck's view.js handler builds an unbuilt
         // view in-process via Rolldown on a cache miss (controller inlined, no
         // bun). The same instance the watcher drives.
@@ -287,6 +291,52 @@ pub fn build_router(
         ))
         // Catch handler panics → 500 instead of connection abort.
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
+}
+
+/// Pre-routing SPA-navigation shim. A GET to a client-route path — a bare in-app
+/// route like `/git` or `/studio/themes` with no real server handler — is served
+/// the shell scaffold so a deep-link refresh hydrates client-side. Everything
+/// else flows through to routing, crucially the Connect-ops `fallback_service`
+/// (`/ship.ops.v1.*`, the root fallback) which a `.fallback(spa)` handler would
+/// otherwise shadow into a dead data plane. Runs INNER to the DaemonMode/
+/// DeckConfig extension layers so it can read them for `serve_shell`.
+async fn spa_nav_middleware(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Response {
+    if req.method() == axum::http::Method::GET && is_client_nav(req.uri().path()) {
+        let mode = req
+            .extensions()
+            .get::<deck::DaemonMode>()
+            .cloned()
+            .map(axum::Extension);
+        let cfg = req
+            .extensions()
+            .get::<Arc<DeckConfig>>()
+            .cloned()
+            .map(axum::Extension);
+        return deck::serve_shell(mode, cfg).await;
+    }
+    next.run(req).await
+}
+
+/// Whether `path` is an in-app client route that should hydrate as the shell,
+/// as opposed to a real server route or asset. Excludes every backend prefix,
+/// the first-run handlers (`/`, `/setup`), and dotted asset/RPC paths
+/// (`/favicon.ico`, `/ship.ops.v1.*`). This runs BEFORE routing, so the
+/// exclusion set must cover every real GET route — a miss shadows it.
+fn is_client_nav(path: &str) -> bool {
+    if path == "/" || path == "/setup" {
+        return false;
+    }
+    const BACKEND: [&str; 8] = [
+        "/api", "/_deck", "/hooks", "/auth", "/webhook", "/daemon", "/space", "/shell",
+    ];
+    if BACKEND.iter().any(|p| path.starts_with(p)) {
+        return false;
+    }
+    // Dotted paths are assets (favicon.ico) or Connect RPC (`/ship.*`).
+    !path.contains('.')
 }
 
 /// Stamp `X-Shipd-Build` on every response so clients can detect daemon
@@ -353,50 +403,24 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // (ship.ops.v1) — the one op-surface path.
         .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
         .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
-        // Runtime — daemon status is always available.
-        .ship_route(Route::StreamJobLog_template(), logs_api::stream_job_log)
+        // Runtime — read-side only (daemon status, projections, event stream).
+        // Agent stop/steer, pipeline dispatch, job lifecycle, log stream, and
+        // pipeline run log stream all moved to typed Connect wires
+        // (AgentsService / PipelinesService / agent.Dispatch).
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
-        // Views
+        // View schema (ship.*) — read-side, served from the ship-ops-rpc
+        // catalog. Manifest / bundle / file-list / write paths moved to
+        // DiscoveryService / Connect view-edit wire.
         .ship_route(Route::ShipSchema, schema_api::serve_schema)
-        .ship_route(Route::ListViewFiles_template(), views::files_api::list_view_files)
-        .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
-        .ship_route(Route::WriteViewManifestApi_template(), views::write_api::write_view_manifest)
-        .ship_route(Route::ForkView_template(), views::write_api::fork_view)
-        .ship_route(Route::ThemeContrast, themes_api::theme_contrast)
-        .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
-        .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
-        // `POST /_sui/mutation/{name}` — tombstoned PE form endpoint.
-        .route(
-            "/_sui/mutation/{name}",
-            axum::routing::post(|| async { axum::http::StatusCode::GONE }),
-        )
-        // `POST /_sui/views/{name}/patch-elements` — agent-push DOM patches.
-        .ship_route(
-            Route::SuiPatchElements_template(),
-            views::sui_agent_push::serve_patch_elements,
-        )
-        // Agent-owned view sessions
-        .ship_route(Route::OpenViewSession, view_sessions_api::open_session)
-        .ship_route(Route::PatchViewSession_template(), view_sessions_api::patch_session)
-        .ship_route(Route::AppendViewSession_template(), view_sessions_api::append_session)
-        .ship_route(Route::SignalViewSession_template(), view_sessions_api::signal_session)
-        .ship_route(Route::CloseViewSession_template(), view_sessions_api::close_session)
-        .ship_route(Route::SubscribeViewSession_template(), view_sessions_api::subscribe_session)
-        // View authoring — chrome edit-mode handshake + agent tool dispatch.
-        .ship_route(Route::EnterViewEditMode_template(), view_edit_mode_api::enter_edit_mode)
-        .ship_route(Route::ExitViewEditMode_template(), view_edit_mode_api::exit_edit_mode)
-        .ship_route(
-            Route::DispatchViewEditTool_template(),
-            view_edit_tool_api::dispatch_tool,
-        )
-        // Registry — gateway proxy.
-        .ship_route(Route::Publish, registry_api::publish)
-        // PipelineService log stream (read-only, ungated).
-        .ship_route(Route::PipelineRunLogStream_template(), logs_api::stream_job_log)
-        // Events / projections — EventStream is the live surface.
+        // The `/_deck/mutation/{name}` 410 tombstone moved to `deck::router()`
+        // — it's a `/_deck/*` serving concern (deck composes that form `action`
+        // URL via `deck_core::routes::mutation_action`), not an RPC route.
+        // AgentsService / PipelineService / RuleService / PermissionService /
+        // SkillService — all Connect wires (ship.ops.v1); no REST shells here.
+        // Events / projections
         .ship_route(Route::EventStream, runtime_api::event_stream)
         .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
-        .ship_route(Route::ListProviders, settings_api::list_harnesses)
+
         // Artifacts platform (three-scope)
         .merge(
             Router::<rest_api::ApiState>::new()
@@ -411,33 +435,11 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             routing::head(artifacts_api::head_artifact),
         )
         .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
-        // SDK manifest (read-side)
-        .ship_route(Route::ViewMeta_template(), sdk_manifest::get_view_meta)
-        .ship_route(Route::SdkRoot, sdk_manifest::get_sdk_root)
-        .ship_route(Route::SdkQuery, sdk_manifest::query_sdk_handler)
-        // Client-side view error capture
-        .route(
-            "/api/v1/view-errors",
-            axum::routing::post(view_errors_api::post_error)
-                .get(view_errors_api::list_errors)
-                .delete(view_errors_api::clear_errors),
-        );
+;
 
-    // Harness routes: job management, session spawn/control, agent attach.
-    // Only compiled when ship-code feature is enabled.
+    // Sessions (PTY) — harness-driver stack; only compiled with ship-code.
     #[cfg(feature = "ship-code")]
     let router = router
-        .ship_route(Route::ListJobs, runtime_api::list_jobs)
-        .ship_route(Route::PipelinesRun, runtime_api::run_pipeline)
-        .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
-        .ship_route(Route::EndJob, runtime_api::end_job)
-        .ship_route(Route::CancelJob_template(), runtime_api::cancel_job)
-        .ship_route(Route::RunStatusUpdate_template(), runtime_api::update_job_status)
-        .ship_route(Route::StepDoneSignal_template(), runtime_api::step_done)
-        .ship_route(
-            Route::AttachAgentSession_template(),
-            crate::routes::agent_sessions_attach::attach_agent_session,
-        )
         .ship_route(Route::SpawnPtySession, sessions::api::spawn_session)
         .ship_route(Route::ListPtySessions, sessions::api::list_pty_sessions)
         .ship_route(Route::GetPtySession_template(), sessions::api::get_session)
@@ -506,8 +508,8 @@ mod merge_tests {
     //!
     //! axum performs route-conflict detection eagerly during construction
     //! and at `into_make_service()`. The risk in mounting deck's whole
-    //! surface is its catch-all `/_sui/views/{name}/{*sub_path}` coexisting
-    //! with the state-aware static `/_sui/views/{name}/sse` that shipd keeps
+    //! surface is its catch-all `/_deck/views/{name}/{*sub_path}` coexisting
+    //! with the state-aware static `/_deck/views/{name}/sse` that shipd keeps
     //! in `public_routes`. This reproduces that union (plus the new
     //! `/space/*` paths) and forces the conflict check — a panic here is the
     //! regression we'd otherwise only catch at daemon boot.
@@ -520,17 +522,49 @@ mod merge_tests {
 
     #[test]
     fn deck_router_merges_with_kept_static_sui_routes_without_conflict() {
-        // The state-aware paths shipd keeps in `public_routes` that share the
-        // `/_sui/views/{name}/` prefix with deck's catch-all.
+        // The state-aware path shipd keeps in `public_routes` that shares the
+        // `/_deck/views/{name}/` prefix with deck's catch-all. (The
+        // `/_deck/mutation/{name}` tombstone now lives in `deck::router()`, so
+        // it must NOT be re-declared here or the merge would conflict.)
         let kept: Router = Router::new()
-            .route("/_sui/views/{name}/sse", get(noop))
-            .route("/_sui/mutation/{name}", axum::routing::post(noop))
-            .route("/_sui/source/{tag}", get(noop));
+            .route("/_deck/views/{name}/sse", get(noop));
 
-        // Merging deck's surface (catch-all + /space + view-host + bundles)
+        // Merging deck's surface (catch-all + /space + /_deck/view/{name} + bundles)
         // with the kept routes must not panic, and the union must build into
         // a service.
         let merged = Router::new().merge(deck::router()).merge(kept);
         let _service = merged.into_make_service();
+    }
+
+    /// Guards `is_client_nav` — the pre-routing classifier that decides whether
+    /// a GET serves the shell (in-app route) or flows through to real routing
+    /// (incl. the Connect `fallback_service`). A wrong answer here either
+    /// shadows a real route or 404s the data plane — the exact regression the
+    /// `spa_nav_middleware` exists to prevent.
+    #[test]
+    fn is_client_nav_routes_navigation_but_never_backend() {
+        use super::is_client_nav;
+        // In-app client routes → serve the shell.
+        for p in ["/git", "/agents", "/studio/themes", "/settings/general"] {
+            assert!(is_client_nav(p), "{p} should hydrate as the shell");
+        }
+        // Real server routes/prefixes → must reach their handlers, never shadowed.
+        for p in [
+            "/",                            // serve_index (first-run branch)
+            "/setup",                       // serve_setup
+            "/api/health",
+            "/api/assets/view-tokens.css",
+            "/_deck/views/git",
+            "/_deck/runtime.js",
+            "/shell/_assets/x.js",
+            "/space/abc",
+            "/auth/sessions",
+            "/hooks/session-start",
+            "/webhook/telegram",
+            "/favicon.ico",                 // dotted asset
+            "/ship.ops.v1.GitService/Overview", // Connect RPC (dotted)
+        ] {
+            assert!(!is_client_nav(p), "{p} must NOT be treated as client nav");
+        }
     }
 }

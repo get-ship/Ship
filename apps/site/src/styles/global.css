@@ -259,12 +259,6 @@ sui-separator:not(:defined) {
   background: color-mix(in oklch, var(--border) 60%, transparent);
 }
 
-sui-toolbar:not(:defined) {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 sui-alert:not(:defined) {
   display: block;
   padding: 12px 14px;

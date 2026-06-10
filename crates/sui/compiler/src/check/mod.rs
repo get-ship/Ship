@@ -79,6 +79,61 @@ pub fn run(
     Ok(())
 }
 
+/// Gate compilation on the **full Error-severity diagnostic stream**, not just
+/// the structural passes [`run`] invokes. `run` covers the expr-subset /
+/// scope-bound / type-strengthening passes; it does NOT invoke the
+/// Error-severity `sui-lint` rules (`sui-prop-value`, `sui-attr-bool-prop`,
+/// `sui-css-content-text`, `controller-*`). Before #255 those rules rejected in
+/// the CLI bin's `fatal_diagnostics_gate` but passed silently through library
+/// `compile()` — which the daemon (`deck-core/src/view.rs`) and the napi test
+/// harness both call. One contract per boundary: a `Severity::Error` finding is
+/// a compile error in ALL three artifacts (CLI, daemon, harness).
+///
+/// Returns the first Error-severity diagnostic as a span-bearing
+/// [`CompileError`] (its line/col mapped back to a byte offset so the
+/// napi/wasm surface can render coordinates), or `Ok(())` when the stream is
+/// clean. Runs after [`run`] in [`crate::compile`], so the structural passes
+/// short-circuit first and this catches only the lint Error rules they skip.
+pub fn gate(
+    program: &Program,
+    source: &str,
+    source_path: Option<&Path>,
+) -> Result<(), CompileError> {
+    let fatal = collect(program, source, source_path)
+        .into_iter()
+        .find(|d| d.severity == DiagSeverity::Error);
+    let Some(d) = fatal else {
+        return Ok(());
+    };
+    let offset = offset_for_line_col(source, d.line, d.col);
+    let mut err = CompileError::new(d.message).with_span(crate::diagnostics::Span::point(offset));
+    if let Some(rule) = d.rule {
+        err = err.with_category(rule);
+    }
+    Err(err)
+}
+
+/// Map a 1-based (line, col) back to a byte offset into `source`. Inverse of
+/// [`crate::diagnostics::line_col`]; used by [`gate`] so a lint finding (which
+/// carries line/col, not a span) produces a [`CompileError`] whose span the
+/// napi/wasm surface can render. Clamps past-end positions to `source.len()`.
+fn offset_for_line_col(source: &str, line: usize, col: usize) -> usize {
+    let mut cur_line = 1usize;
+    let mut cur_col = 1usize;
+    for (i, ch) in source.char_indices() {
+        if cur_line == line && cur_col == col {
+            return i;
+        }
+        if ch == '\n' {
+            cur_line += 1;
+            cur_col = 1;
+        } else {
+            cur_col += 1;
+        }
+    }
+    source.len()
+}
+
 /// Run every post-parse check **collecting all diagnostics** instead of
 /// stopping at the first. This is the intelligence behind the LSP + agent
 /// tooling: a `.sui` author (or agent) sees every issue in one pass.
@@ -348,4 +403,51 @@ where
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod gate_tests {
+    use crate::diagnostics::line_col;
+    use crate::parse;
+
+    /// `gate` must turn an Error-severity lint rule that `run` does NOT invoke
+    /// (`sui-prop-value`) into a `CompileError` — the #255 contract. Returns a
+    /// clean `Ok` for valid sources.
+    #[test]
+    fn gate_rejects_lint_error_rule_run_skips() {
+        let src = r#"<sui-button variant="primary">x</sui-button>"#;
+        let program = parse::parse(src).unwrap();
+        let err = super::gate(&program, src, None).unwrap_err();
+        assert_eq!(err.category.as_deref(), Some("sui-prop-value"), "{err:?}");
+    }
+
+    #[test]
+    fn gate_passes_valid_source() {
+        let src = r#"<sui-button variant="solid">x</sui-button>"#;
+        let program = parse::parse(src).unwrap();
+        super::gate(&program, src, None).unwrap();
+    }
+
+    /// The gate's span must map back to the offending line/col so the
+    /// napi/wasm surface renders coordinates. `variant="primary"` sits on
+    /// line 1; the round-trip offset → line_col lands there.
+    #[test]
+    fn gate_error_span_round_trips_to_finding_location() {
+        let src = "<div>\n  <sui-button variant=\"primary\">x</sui-button>\n</div>";
+        let program = parse::parse(src).unwrap();
+        let err = super::gate(&program, src, None).unwrap_err();
+        let span = err.span.expect("gate error carries a span");
+        let (line, _col) = line_col(src, span.start);
+        assert_eq!(line, 2, "the bad variant is on line 2");
+    }
+
+    #[test]
+    fn offset_for_line_col_inverts_line_col() {
+        let src = "abc\ndef\nghi";
+        // Round-trip every offset through line_col → offset_for_line_col.
+        for off in 0..=src.len() {
+            let (l, c) = line_col(src, off);
+            assert_eq!(super::offset_for_line_col(src, l, c), off.min(src.len()));
+        }
+    }
 }

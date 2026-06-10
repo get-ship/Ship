@@ -49,7 +49,7 @@ impl OpsService for OpsImpl {
     }
 }
 
-// ── Streaming (the Connect-native event bus; retires the SSE event route) ─────
+// ── Streaming (the Connect-native event bus; intended to replace the SSE event route Route::EventStream, which is still mounted) ─────────
 // Mirrors runtime_api::event_stream: spawn a broadcast subscriber actor, then
 // stream every kernel event as JSON. SSE was just one adapter over this.
 impl StreamService for OpsImpl {
@@ -165,6 +165,11 @@ pub fn router(state: ApiState) -> axum::Router {
     let router = StreamServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::RuntimeServiceExt::register(svc.clone(), router);
 
+    // window.* — the live-data multiplex (ADR 0001). The Connect wire is
+    // deleted; the multiplex now lives in deck-axum (#276), mounted in
+    // `apps/shipd/src/router.rs` inside the auth-gated group with
+    // `MultiplexState` extension carrying `ShipDataPort` + registry +
+    // `ShipChangeSource` impls.
     // ── Gate closure shared by all four crate-owned wires ──────────────────────
     // Reads the blast from the proto descriptor (the ONE policy source) and runs
     // gate::decide — the one capability enforcement seam, now at the transport
@@ -280,7 +285,7 @@ pub fn router(state: ApiState) -> axum::Router {
                 "pipelines.summaries" => {
                     Box::new(move |st| {
                         use crate::services::pipelines::summaries;
-                        use crate::views::state::Filter;
+                        use crate::services::pipelines::state::Filter;
                         let ctx = summaries::build(st.ship_dir(), Filter::default(), None);
                         serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
                     })
@@ -740,33 +745,41 @@ pub fn router(state: ApiState) -> axum::Router {
                     .map_err(|e| ConnectError::internal(e.to_string()))
             })
         });
+    // `ViewService.Tool` — inlined from the now-cut
+    // `routes::view_edit_tool_api::dispatch_tool_core`. The handler body
+    // was a 3-line wrapper around
+    // `ship_views::view_authoring::tool_dispatch::dispatch(&adapter, …)`;
+    // with the REST shell gone, the Connect closure calls `dispatch`
+    // directly and maps `DispatchResult` to the Connect surface.
+    use ship_views::view_authoring::tool_dispatch::DispatchResult as DR;
     let view_state_for_tool = state.clone();
     let view_tool_fn: ship_views::wire::ToolFn =
         Arc::new(move |view, session_id, op, args| {
             let st = view_state_for_tool.clone();
             Box::pin(async move {
-                let body = crate::routes::view_edit_tool_api::ToolBody {
-                    session_id,
-                    op,
-                    args,
-                };
-                let resp = crate::routes::view_edit_tool_api::dispatch_tool_core(
-                    &st, view, body,
-                )
-                .await;
-                let status = resp.status();
-                let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20)
-                    .await
-                    .map_err(|e| ConnectError::internal(e.to_string()))?;
-                if status.is_success() {
-                    Ok(String::from_utf8_lossy(&bytes).into_owned())
-                } else {
-                    let msg = String::from_utf8_lossy(&bytes).into_owned();
-                    if status.is_client_error() {
-                        Err(ConnectError::invalid_argument(msg))
-                    } else {
-                        Err(ConnectError::internal(msg))
+                let adapter = crate::view_ports::ViewToolAdapter::new(st);
+                let result =
+                    ship_views::view_authoring::tool_dispatch::dispatch(
+                        &adapter, view, session_id, op, args,
+                    )
+                    .await;
+                match result {
+                    DR::Ok(v) => Ok(v.to_string()),
+                    DR::BadRequest { code, message }
+                    | DR::NotFound { code, message }
+                    | DR::Conflict { code, message } => {
+                        Err(ConnectError::invalid_argument(format!(
+                            "{code}: {message}"
+                        )))
                     }
+                    DR::Forbidden { code, message } => {
+                        Err(ConnectError::permission_denied(format!(
+                            "{code}: {message}"
+                        )))
+                    }
+                    DR::Internal { code, message } => Err(ConnectError::internal(format!(
+                        "{code}: {message}"
+                    ))),
                 }
             })
         });
@@ -914,7 +927,7 @@ fn scaffold_view_sync(
     copy_scaffold_view(&src, &target, &title, name)
         .map_err(|e| { let _ = std::fs::remove_dir_all(&target); e })?;
 
-    let route = format!("/api/v1/v/{name}");
+    let route = format!("{}/view/{name}", deck_core::routes::DECK_PREFIX);
     let path = target.display().to_string();
     Ok((route, path))
 }

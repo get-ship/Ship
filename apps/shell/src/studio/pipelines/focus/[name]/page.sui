@@ -59,7 +59,7 @@
       <div class="ship-focus-stack">
         {#for run of activeForPipeline() key={run.slug}}
           <sui-pipeline-run class="ship-live-run" attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent} on:ship-log-tick={(e) => pulseRun(e.currentTarget)}>
-            <time slot="actions" datetime={run.updated_at}>{formatRelative(run.updated_at)}</time>
+            <time slot="actions" datetime={run.updated_at}>{run.updatedLabel}</time>
             <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/studio/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
             </sui-button>
@@ -100,7 +100,7 @@
           <span class="ship-focus-stat-label">Last run</span>
           <span class="ship-focus-stat-value-row">
             {#if def().last_run_at}
-              <time datetime={def().last_run_at}>{formatRelative(def().last_run_at)}</time>
+              <time datetime={def().last_run_at}>{relLastRun()}</time>
               {#if def().last_run_status}<sui-badge size="sm" attr:tone={def().last_run_tone_safe}>{def().last_run_status}</sui-badge>{/if}
             {:else}—{/if}
           </span>
@@ -124,10 +124,10 @@
         {#if editIssueCount() > 1}<span slot="actions">+{editIssueCount() - 1} more — see inline markers</span>{/if}
       </sui-alert>
       {/if}
-      <sui-code-editor id="pipeline-editor" bind:this={editorRef}
+      <ship-code-editor id="pipeline-editor" bind:this={editorRef}
         attr:language={format() === 'jsonc' ? 'jsonc' : format() === 'json' ? 'json' : 'yaml'}
         attr:value={raw()} on:ship-save={savePipeline} on:ship-cancel={cancelEdit}
-        class="ship-focus-editor"></sui-code-editor>
+        class="ship-focus-editor"></ship-code-editor>
     </sui-card>
     {/if}
 
@@ -135,22 +135,27 @@
     <sui-card>
       <h3 slot="header" class="ship-focus-section-label">Steps</h3>
       {#if doc().steps && doc().steps.length > 0}
+        <div class="ship-focus-steps">
         {#for step of doc().steps key={step.id}}
-          <sui-pipeline-step-def
-            attr:index={step.index}
-            attr:name={step.id}
-            attr:step-type={step.step_type}
-            attr:agent={step.agent} attr:provider={step.provider}
-            attr:model={step.model} attr:after={step.after_joined}
-            attr:command={step.run}>
+          <div class="ship-focus-step">
+            <div class="ship-focus-step-head">
+              <span class="ship-focus-step-index">{step.index}</span>
+              <span class="ship-focus-step-name">{step.id}</span>
+              <sui-chip size="sm">{step.step_type}</sui-chip>
+              {#if step.agent}<sui-chip size="sm" tone="accent">{step.agent}</sui-chip>{/if}
+              {#if step.model}<sui-chip size="sm" tone="info">{step.model}</sui-chip>{/if}
+              {#if step.after_joined}<sui-chip size="sm" tone="muted">after: {step.after_joined}</sui-chip>{/if}
+            </div>
+            {#if step.run}<code class="ship-focus-step-cmd">{step.run}</code>{/if}
             {#if step.gate}
-            <div slot="gate">
+            <div class="ship-focus-step-gate">
               {#if step.gate.require_changed}<sui-chip size="sm" tone="info">require{step.gate.require_changed.match ? ' ' + step.gate.require_changed.match : ''}{step.gate.require_changed.min !== undefined ? ' ≥ ' + step.gate.require_changed.min : ''}</sui-chip>{/if}
               {#if step.gate.forbid_changed}<sui-chip size="sm" tone="warning">forbid{step.gate.forbid_changed.match ? ' ' + step.gate.forbid_changed.match : ''}{step.gate.forbid_changed.min !== undefined ? ' > ' + step.gate.forbid_changed.min : ''}</sui-chip>{/if}
             </div>
             {/if}
-          </sui-pipeline-step-def>
+          </div>
         {/for}
+        </div>
       {:else}
         <sui-empty-state icon="list" heading="No steps" description="This pipeline file doesn't declare any steps."></sui-empty-state>
       {/if}
@@ -164,7 +169,7 @@
         {#for run of runs() key={run.slug}}
           {#if !opsMode() || (run.state !== 'dispatched' && run.state !== 'pending' && run.state !== 'gate-pending')}
           <sui-pipeline-run attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent}>
-            <time slot="actions" datetime={run.updated_at}>{formatRelative(run.updated_at)}</time>
+            <time slot="actions" datetime={run.updated_at}>{run.updatedLabel}</time>
             <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/studio/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
             </sui-button>

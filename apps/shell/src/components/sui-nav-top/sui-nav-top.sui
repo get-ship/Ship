@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-nav-top> — SUI port of <ship-nav-top>.
   Top bar: brand link, breadcrumb trail, per-view action slot, command-bar

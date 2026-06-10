@@ -65,6 +65,8 @@ export function resolveController(
   const shape = normalize(def, ctx)
   const baseScope: Record<string, unknown> = {
     ship: ctx.ship,
+    clients: ctx.clients ?? {},
+    ...(ctx.clients ?? {}),
     route: ctx.route ?? {},
     navigate: ctx.navigate ?? ((_path: string) => {}),
     ...(ctx.scope ?? {}),
@@ -145,7 +147,7 @@ function normalize(
   ctx: ResolverContext,
 ): ControllerShape<object> {
   if (typeof def === 'function') {
-    return def({ ship: ctx.ship })
+    return def({ ship: ctx.ship, clients: ctx.clients ?? {} })
   }
   return def
 }

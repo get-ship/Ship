@@ -1,11 +1,12 @@
-//! `durable-execution` (L0) — the engine agents and pipelines run on.
+//! `durable-execution` (L0) — the journaling engine for durable program execution.
 //!
-//! It runs a *program* (a DAG of ops; an agent turn or a pipeline is one shape of
-//! program) and journals every op outcome. Because the journal is the source of
-//! truth, a program can **suspend** (a human checkpoint, an approval, an await)
-//! and later **resume** by *replaying* the journal: already-completed ops —
-//! including model calls — return their logged results instead of re-executing.
-//! Replay reconstructs state without re-running effects or re-burning tokens.
+//! Runs a *program* (a DAG of ops; an agent turn or a pipeline is the intended
+//! production shape — live wiring is pending (floki Stage-2, pipelines P1.0b))
+//! and journals every op outcome. Because the journal is the source of truth, a
+//! program can **suspend** (a human checkpoint, an approval, an await) and later
+//! **resume** by *replaying* the journal: already-completed ops — including model
+//! calls — return their logged results instead of re-executing. Replay
+//! reconstructs state without re-running effects or re-burning tokens.
 //!
 //! Three surfaces:
 //! - [`engine`] — the journal, [`engine::ExecCtx`] (op / suspend / parallel /

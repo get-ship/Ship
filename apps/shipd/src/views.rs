@@ -13,10 +13,6 @@
 //!   `PatchSignals` with an `mpsc`-backed SSE response.
 //! - [`state`] — read helpers that centralize runtime state access for views.
 
-pub mod mcp_apps_embed;
-pub mod files_api;
-pub mod source_api;
-pub mod write_api;
 pub mod stream;
 pub mod state;
 // Daemon-coupled SUI handlers — still here because they reach into
@@ -25,43 +21,18 @@ pub mod state;
 // Truly framework-level pieces (view_payload, view_host, asset bundles,
 // resolver, render_helpers, bundle, runtime asset) live in
 // crates/deck/.
-pub mod sui_expr;
-pub mod sui_hmr;
-pub mod sui_source;
-pub mod sui_sse;
-pub mod sui_patches;
-pub mod sui_patch_channel;
-pub mod sui_view_edit_sse;
-pub mod sui_agent_push;
-pub mod setup;
 pub mod session;
 pub mod session_types;
 pub mod sanitize;
-
-pub mod assets;
 pub mod discovery;
-pub mod handlers;
 pub mod resolve;
-
-#[cfg(test)]
-#[path = "views/views_tests.rs"]
-mod views_tests;
 
 #[cfg(test)]
 #[allow(unused_imports)]
 use std::path::PathBuf;
 
-use axum::{Json, http::StatusCode};
 use serde::Serialize;
 
-use crate::wire::MeshResponse;
-
-pub use assets::{serve_theme_css, serve_themes_list, serve_view_tokens};
-pub use handlers::{
-    list_views_catalog, serve_view_asset, serve_view_bundle, serve_view_manifest,
-};
-#[cfg(test)]
-pub(crate) use resolve::resolve_view_dir;
 
 #[derive(Serialize, Clone)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
@@ -103,15 +74,4 @@ pub struct RailMeta {
     pub icon: String,
 }
 
-pub(crate) type MeshResult = (StatusCode, Json<MeshResponse>);
 
-pub(crate) fn mesh_ok(data: serde_json::Value) -> MeshResult {
-    (StatusCode::OK, Json(MeshResponse { ok: true, data }))
-}
-
-pub(crate) fn mesh_err(status: StatusCode, msg: impl Into<String>) -> MeshResult {
-    (status, Json(MeshResponse { ok: false, data: serde_json::json!(msg.into()) }))
-}
-
-// views_tests handled at line 62 via the relocated path.
-pub mod themes;

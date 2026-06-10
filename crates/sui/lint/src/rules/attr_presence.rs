@@ -49,7 +49,7 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
                 line,
                 col,
                 rule: RULE_ID,
-                severity: Severity::Warn,
+                severity: Severity::Error,
                 message: "Attribute binding returns `''` from a `?` branch — an \
                      empty string is auto-omitted, so `bindAttr` removes the \
                      attribute and this never renders. For presence use the \

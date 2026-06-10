@@ -1,42 +1,26 @@
-// `sui-chrome` aggregate — non-separate chrome `<sui-*>` components for
-// the shell. Loaded eagerly via `/_sui/sui-chrome.js` so the surfaces
-// painted on first paint (rail, nav-top, dock, status-bar, brand-mark,
-// theme/view pickers, view-chrome, annotations, edit-overlay/pill) are
-// registered before mount runs. Heavy chrome (terminal, command-bar,
-// code-/markdown-editor, devtools, launcher, panel-dock, nav-top, rail,
-// component-picker, view-authoring) opts into its own separate bundle
-// via `<bundle separate />` in its `.sui` source — those load on demand
-// from `/_sui/sui-components/<tag>.js` and shouldn't be aggregated here.
+// First-paint chrome registration.
 //
-// Primitives register globally via the shell's `@ship/primitives/bundle`
-// import; chrome components instantiate primitive `<sui-*>` tags freely
-// without explicit per-component imports.
+// These `<sui-*>` chrome elements live in the shell's static `index.html`,
+// which is NOT a compiled `.sui` the per-tag resolver scans — so nothing in the
+// app graph references them, and without this seed they silently never register
+// (an unresolved tag is a no-op, so the shell renders a blank skeleton). Each
+// `@sui-tag/<tag>` below is resolved by the SAME per-tag resolver the view build
+// uses: it compiles the source `.sui` and registers the custom element. Chrome
+// stamped by a view's own `page.sui` (rail, desktop, …) is pulled in by that
+// view's tags when it mounts and does not belong here.
+//
+// Keep this list to the tags present in `apps/shell/index.html` at first paint.
+import '@sui-tag/sui-nav-top'
+import '@sui-tag/sui-command-bar'
+import '@sui-tag/sui-launcher'
+import '@sui-tag/sui-panel-dock'
+import '@sui-tag/sui-shell-bottom'
+import '@sui-tag/sui-edit-overlay'
+import '@sui-tag/sui-blank-canvas'
+// Stamped into index.html at first paint (`<sui-toast-container>`), and mounted
+// imperatively by `initHelpOverlay()` (`<sui-help-overlay>`) — neither is reached
+// by any view's tag graph, so register both here or they stay inert no-ops.
+import '@sui-tag/sui-toast-container'
+import '@sui-tag/sui-help-overlay'
 
-import './sui-view-picker/sui-view-picker.compiled.js'
-import './sui-theme-picker/sui-theme-picker.compiled.js'
-import './sui-status-bar/sui-status-bar.compiled.js'
-import './sui-edit-overlay/sui-edit-overlay.compiled.js'
-import './sui-edit-mode-pill/sui-edit-mode-pill.compiled.js'
-import './sui-annotation/sui-annotation-layer.compiled.js'
-import './sui-annotation/sui-annotation-marker.compiled.js'
-import './sui-annotation/sui-annotation-list.compiled.js'
-import './sui-view-chrome/sui-view-chrome.compiled.js'
-import './sui-brand-mark/sui-brand-mark.compiled.js'
-import './sui-shell-bottom/sui-shell-bottom.compiled.js'
-import './sui-blank-canvas/sui-blank-canvas.compiled.js'
-import './sui-home/sui-home.compiled.js'
-import './sui-activity/sui-activity.compiled.js'
-import './sui-account/sui-account.compiled.js'
-import './sui-library/sui-library.compiled.js'
-import './sui-setup/sui-setup.compiled.js'
-import './sui-settings/sui-settings.compiled.js'
-import './sui-canvas-app/sui-canvas-app.compiled.js'
-import './sui-help-overlay/sui-help-overlay.compiled.js'
-// Studio rail — reused by every studio deck route (views/studio/**). Eager
-// so on-demand-compiled nested leaves can drop the tag without importing it.
-import './sui-studio-rail/sui-studio-rail.compiled.js'
-
-// Single source of truth for slot compositions used by the component
-// picker. Exported so future shell-internal pickers (cmd-bar insert,
-// etc.) can share it without forking.
 export { SLOT_COMPOSITIONS } from './picker-slot-compositions'

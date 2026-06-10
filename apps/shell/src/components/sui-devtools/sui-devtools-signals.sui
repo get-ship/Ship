@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-devtools-signals> — Live tree of the mounted view's scope.
   Polls window.__suiCurrentScope every 500ms while the tab is active and

@@ -17,7 +17,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { getDaemonUrl } from './helpers/daemon'
 import { injectStability } from './helpers/render'
 
-/// Every theme registered in packages/components/ui-components/src/tokens/themes.css.
+/// Every theme registered in packages/sui/tokens/src/themes.css.
 /// Captured so the user can eyeball legibility per theme — most are light,
 /// ship-dark + console are dark, halo + glass are tinted.
 const THEMES = [
@@ -61,23 +61,23 @@ const ATTACH_BUNDLE = path.join(
   REPO_ROOT,
   '.deck/sui-components/sui-agent-attach.js',
 )
-// <sui-agent-attach> calls host.fit() on the inner <sui-terminal>, which
+// <sui-agent-attach> calls host.fit() on the inner <ship-terminal>, which
 // only exists on the freshly-built bundle. Serve that from disk too so a
 // daemon from another worktree doesn't shadow the new method with a
 // stale copy.
 const TERMINAL_BUNDLE = path.join(
   REPO_ROOT,
-  '.deck/sui-components/sui-terminal.js',
+  '.deck/sui-components/ship-terminal.js',
 )
 
-/// Synthesized harness that loads the sui-terminal + sui-agent-attach
+/// Synthesized harness that loads the ship-terminal + sui-agent-attach
 /// lazy bundles directly (components.js doesn't include either) and
 /// mounts a single <sui-agent-attach> with a known slug.
 function attachHarnessHtml(slug: string, theme: ThemeId): string {
   // The `.dark` class carries the dark palette (--background etc.);
   // `data-theme` only overrides theme-specific extras. Both must be on
   // the root element at parse time so the cascade is correct BEFORE the
-  // module scripts execute and <sui-terminal> reads tokens at mount.
+  // module scripts execute and <ship-terminal> reads tokens at mount.
   const cls = DARK_THEMES.has(theme) ? 'dark' : ''
   return `<!doctype html>
 <html lang="en" data-theme="${theme}" class="${cls}">
@@ -89,15 +89,14 @@ function attachHarnessHtml(slug: string, theme: ThemeId): string {
   <script type="importmap">
   {
     "imports": {
-      "@ship/sui-runtime": "/_sui/runtime.js",
-      "@ship/sui-dom":     "/_sui/dom.js",
-      "@ship/sdk-client":  "/_sui/sdk-client.js"
+      "@ship/sui-runtime": "/_deck/runtime.js",
+      "@ship/sui-dom":     "/_deck/dom.js",
+      "@ship/sdk-client":  "/_deck/sdk-client.js"
     }
   }
   </script>
-  <script type="module" src="/_sui/components.js"></script>
-  <script type="module" src="/_sui/sui-components/sui-terminal.js"></script>
-  <script type="module" src="/_sui/sui-components/sui-agent-attach.js"></script>
+  <script type="module" src="/_deck/sui-components/ship-terminal.js"></script>
+  <script type="module" src="/_deck/sui-components/sui-agent-attach.js"></script>
   <style>
     html, body { margin: 0; padding: 0; background: var(--background, #fff); color: var(--foreground, #111); font-family: var(--font-sans, system-ui, sans-serif); }
     #harness { padding: 24px; height: 100vh; box-sizing: border-box; }
@@ -113,7 +112,7 @@ function attachHarnessHtml(slug: string, theme: ThemeId): string {
       var deadline = Date.now() + 6000
       function tick () {
         var el = document.querySelector('sui-agent-attach')
-        var ready = el && customElements.get('sui-agent-attach') && customElements.get('sui-terminal')
+        var ready = el && customElements.get('sui-agent-attach') && customElements.get('ship-terminal')
         if (ready || Date.now() > deadline) {
           window.__harnessReady = true
           return
@@ -138,7 +137,7 @@ async function gotoAttachHarness(page: Page, slug: string, theme: ThemeId): Prom
   )
   // Serve the just-built sui-agent-attach.js from this worktree even when
   // the daemon under test is from a different workspace and doesn't have
-  // the bundle yet. The other bundles (components.js, sui-terminal.js,
+  // the bundle yet. The other bundles (components.js, ship-terminal.js,
   // runtime.js, ...) come from the daemon.
   const serveBundle = (file: string) => async (route: import('@playwright/test').Route) => {
     if (!fs.existsSync(file)) {
@@ -152,8 +151,8 @@ async function gotoAttachHarness(page: Page, slug: string, theme: ThemeId): Prom
       body: fs.readFileSync(file, 'utf8'),
     })
   }
-  await page.route('**/_sui/sui-components/sui-agent-attach.js', serveBundle(ATTACH_BUNDLE))
-  await page.route('**/_sui/sui-components/sui-terminal.js', serveBundle(TERMINAL_BUNDLE))
+  await page.route('**/_deck/sui-components/sui-agent-attach.js', serveBundle(ATTACH_BUNDLE))
+  await page.route('**/_deck/sui-components/ship-terminal.js', serveBundle(TERMINAL_BUNDLE))
   await page.goto('/__attach_harness')
   await page.waitForFunction(
     () => (window as unknown as { __harnessReady?: boolean }).__harnessReady === true,
@@ -163,14 +162,14 @@ async function gotoAttachHarness(page: Page, slug: string, theme: ThemeId): Prom
   await injectStability(page)
 }
 
-/// Drain the xterm.js buffer inside the inner <sui-terminal> into a flat
+/// Drain the xterm.js buffer inside the inner <ship-terminal> into a flat
 /// string so assertions can match what the user would visually see.
 async function readTerminalBuffer(page: Page): Promise<string> {
   return page.evaluate(() => {
     const attach = document.querySelector('sui-agent-attach') as HTMLElement | null
     if (!attach) return ''
     const shadow = attach.shadowRoot
-    const term = (shadow?.querySelector('sui-terminal') ?? null) as (HTMLElement & {
+    const term = (shadow?.querySelector('ship-terminal') ?? null) as (HTMLElement & {
       terminal?: { buffer: { active: { length: number; getLine: (i: number) => { translateToString: (trim?: boolean) => string } | undefined } } }
     }) | null
     const buf = term?.terminal?.buffer.active
@@ -222,7 +221,7 @@ test.describe('sui-agent-attach visual + WS round-trip', () => {
     // default 24×80) — this is the regression the e2e exists to catch.
     const dims = await page.evaluate(() => {
       const attach = document.querySelector('sui-agent-attach') as HTMLElement | null
-      const term = (attach?.shadowRoot?.querySelector('sui-terminal') ?? null) as (HTMLElement & {
+      const term = (attach?.shadowRoot?.querySelector('ship-terminal') ?? null) as (HTMLElement & {
         terminal?: { rows: number; cols: number } | null
       }) | null
       return {
@@ -274,7 +273,7 @@ test.describe('sui-agent-attach visual + WS round-trip', () => {
       await pollUntil(async () => {
         const rows = await page.evaluate(() => {
           const attach = document.querySelector('sui-agent-attach') as HTMLElement | null
-          const term = attach?.shadowRoot?.querySelector('sui-terminal') as (HTMLElement & {
+          const term = attach?.shadowRoot?.querySelector('ship-terminal') as (HTMLElement & {
             terminal?: { rows: number } | null
           }) | null
           return term?.terminal?.rows ?? 0
@@ -292,7 +291,7 @@ test.describe('sui-agent-attach visual + WS round-trip', () => {
 
       const xtermTheme = await page.evaluate(() => {
         const attach = document.querySelector('sui-agent-attach') as HTMLElement | null
-        const term = (attach?.shadowRoot?.querySelector('sui-terminal') ?? null) as (HTMLElement & {
+        const term = (attach?.shadowRoot?.querySelector('ship-terminal') ?? null) as (HTMLElement & {
           terminal?: { options?: { theme?: Record<string, string> } } | null
         }) | null
         const t = term?.terminal?.options?.theme ?? {}

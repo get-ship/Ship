@@ -1,7 +1,7 @@
 // @ship/sdk-client — browser SDK shim for ship-set views.
 //
 // Each domain method returns either a `LiveSource` (read — opens an SSE
-// channel to `/_sui/data?expr=ship.<domain>.<op>(<args>)`) or a Promise
+// channel to `/_deck/data?expr=ship.<domain>.<op>(<args>)`) or a Promise
 // (write — POST/PUT/PATCH/DELETE against the daemon's REST surface).
 // The runtime's `live()` detects the source shape, calls `subscribe(sig)`
 // to open the patch stream, and the first SSE event flips the signal
@@ -11,7 +11,6 @@
 // HTTP plumbing lives in `./http.ts`; the SSE bridge in `./sse.ts`.
 // Keeping `index.ts` to the surface declaration only respects the 300-
 // line file cap and makes the SDK surface readable at a glance.
-
 import type { LiveSource } from '@ship/sui-runtime'
 import type {
   AgentsSummariesResponse,
@@ -21,10 +20,17 @@ import type {
 } from './generated'
 import type { ArtifactRecord, ShipSDK } from './ship-sdk'
 import { fetchBody, mutateForm, mutateJson } from './http'
-import { makeSseSource } from './sse'
-import { liveStream } from './live-stream'
 import { sharedSource } from './shared-source'
-import { createShipConnectClient } from '@ship/sdk/connect'
+import { MuxClient } from './mux-client'
+import { liveStream } from './live-stream'
+import { createShipConnectClient, SettingScope } from '@ship/sdk/connect'
+
+/// Single source of truth for the client-side serve-scheme URL prefix.
+/// Every TS literal that names `/_deck/...` (and the companion Rust
+/// `deck_core::routes::DECK_PREFIX`) routes through this constant so the
+/// prefix has ONE mint point on the client side. deck, the host, names the
+/// URL namespace; the framework (SUI) does not.
+export const DECK_PREFIX = '/_deck';
 
 // Bind the SUI runtime's host-agnostic `ShipHost` slot to the concrete
 // `ShipSDK` via declaration merging. The runtime types `ViewScope.ship` as
@@ -37,7 +43,6 @@ declare module '@ship/sui-runtime' {
   interface ShipHost extends ShipSDK {}
 }
 
-export { makeSseSource } from './sse'
 export { liveStream } from './live-stream'
 export { sharedSource } from './shared-source'
 export {
@@ -169,43 +174,22 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     id: (await p).id,
   })
 
-  // Live reads stream over the per-domain Connect `<Op>Live` rpcs (#138):
-  // `ship.<domain>.<op>()` opens `ops.<domain>.<op>Live` and flips the signal on
-  // each full-value frame — real typed RPC on the wire, no expr string, no SSE
-  // eval. The (domain, op) → client-method lookup is the one internal bridge;
-  // the `ShipSDK` interface keeps every caller fully typed. Snake_case args are
-  // camelCased to match the generated message fields.
-  type LiveMethod = (req: unknown, opts: { signal: AbortSignal }) => AsyncIterable<{ json: string }>
-  const camelKeys = (v: unknown): unknown => {
-    if (Array.isArray(v)) return v.map(camelKeys)
-    if (v && typeof v === 'object') {
-      return Object.fromEntries(
-        Object.entries(v as Record<string, unknown>).map(([k, val]) => [
-          k.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase()),
-          camelKeys(val),
-        ]),
-      )
-    }
-    return v
-  }
+  // Live reads flow through the multiplex transport (#214 fix). One MuxClient
+  // per createClient instance: lazily opens a window + SSE stream on first
+  // subscription; each (domain, op, args) tuple becomes a POST /mux/subscribe;
+  // full-value frames arrive over the shared EventSource and are routed to the
+  // matching LiveSignal. The sharedSource wrapper provides per-key dedup and
+  // refcounted teardown (#198) on top of the mux subscription.
+  const mux = new MuxClient(baseUrl, ESCtor)
+
   const sse = <T>(domain: string, op: string, args?: unknown): LiveSource<T> => {
     // Dedup key: identical (domain, op, args) reuse one upstream subscription
     // (#198). Multiple `live(() => ship.<d>.<o>(a))` callers fan out from a
-    // single stream, with refcounted teardown when the last subscriber leaves.
+    // single mux subscription with refcounted teardown.
     const key = `${domain}|${op}|${args === undefined ? '' : JSON.stringify(args)}`
-    return sharedSource<T>(key, () => {
-      const method = op.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase()) + 'Live'
-      const svc = (connect as unknown as Record<string, Record<string, LiveMethod>>)[domain]
-      const fn = svc?.[method]
-      // mesh + canvas have no per-domain Connect service yet (operational / canvas
-      // #99 in-flux) — those alone fall back to the legacy expr-SSE channel.
-      if (typeof fn !== 'function') {
-        const argsLit = args === undefined ? '' : JSON.stringify(args)
-        const expr = `ship.${domain}.${op}(${argsLit})`
-        return makeSseSource<T>(`${baseUrl}/_sui/data?expr=${encodeURIComponent(expr)}`, ESCtor)
-      }
-      return liveStream<T>((signal) => fn(camelKeys(args ?? {}), { signal }))
-    })
+    return sharedSource<T>(key, () => ({
+      subscribe: (sig) => mux.subscribe<T>(domain, op, args, sig),
+    }))
   }
 
   // Curried HTTP helpers — bind baseUrl once so the per-op factories
@@ -235,9 +219,6 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     canvas: {
       doc:  (args) => sse('canvas', 'doc', args),
       list:    () => sse('canvas', 'list'),
-    },
-    chat: {
-      state: (args) => sse('chat', 'state', args),
     },
     collections: {
       state:  (args) => sse('collections', 'state', args),
@@ -353,7 +334,17 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       snapshot: () => sse('mesh', 'snapshot'),
     },
     settings: {
-      state: () => sse('settings', 'state'),
+      // Typed server-stream: the wire's `SettingsService.Watch` is
+      // `server_streaming` and returns the shared `WatchEvent`
+      // (patches / err / heartbeat). The settings chrome treats the
+      // stream as a render trigger — re-emits on any frame, error
+      // surfaces cleanly via the existing `LiveSignal<error>` path.
+      // Scope is RUNTIME (shell preferences live in the daemon's
+      // RUNTIME settings table — see apps/shell/src/ops.ts).
+      state: () =>
+        liveStream((signal) =>
+          connect.settings.watch({ scope: SettingScope.RUNTIME }, { signal }),
+        ),
     },
     sessions: {
       list: () => sse('sessions', 'list'),
@@ -384,24 +375,6 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       list:        () => sse('skills', 'list'),
       summaries: (args) => sse('skills', 'summaries', args),
       detail:    (args) => sse('skills', 'detail', args),
-      invoke:    (args) =>
-        json<{
-          ok: true
-          run_id: string
-          skill_id: string
-          session_id: string
-          workspace_id: string | null
-          mode: 'library'
-          reused_session: boolean
-        }>(
-          'POST',
-          `/api/v1/skills/${encodeURIComponent(args.id)}/invoke`,
-          {
-            vars: args.vars,
-            workspace_id: args.workspace_id,
-            session_id: args.session_id,
-          },
-        ),
     },
     pipelines: {
       summaries: () => sse('pipelines', 'summaries'),

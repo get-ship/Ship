@@ -1,8 +1,8 @@
 //! Initial pipeline-run dispatch — prepares isolation, spawns the first step.
 //!
 //! Also handles pipelines whose first step is `run:` (skips agent spawning),
-//! and emits the composed-step agent_session observability pair so pipeline
-//! steps share the agent_sessions read model with bare dispatches.
+//! and emits the composed-step canonical `session.started` so pipeline
+//! steps share the canonical_sessions read model with bare dispatches.
 //!
 //! The bare `agent.session` dispatch primitive (`handle_agent_session_started`)
 //! carved into the L1 `ship-agents` crate (agents-arc S3b) — see the marker
@@ -329,14 +329,13 @@ pub async fn dispatch_pipeline_run_internal(
 // (the `parent_pipeline_run_id` path below). The composed-session emit helpers
 // that the pipeline DAG still needs stay here.
 
-/// Emit the observability pair (started + dispatched) for a pipeline
-/// step's agent session. Composed sessions share the agent_sessions
-/// read model with bare dispatches; `parent_pipeline_run_id` ties the
-/// session to its pipeline run, and the composer (not the agents actor)
-/// owns the spawn — the agents actor's `handle_agent_session_started`
-/// skips events with that field set. The session slug is
-/// `<run_slug>::<step_id>` so it stays unique under the agent_sessions.slug
-/// constraint (the job slug is reused across all steps).
+/// Emit the canonical `session.started` for a pipeline step's composed session.
+/// Composed sessions share the canonical_sessions read model with bare dispatches;
+/// `parent_pipeline_run_id` ties the session to its pipeline run, and the composer
+/// (not the agents actor) owns the spawn — the agents actor's
+/// `handle_agent_session_started` skips events with that field set. The session
+/// slug is `<run_slug>::<step_id>` so the later slug lookup in canonical_sessions
+/// stays unique (the run slug is reused across all steps).
 /// Run-level context shared by every composed step of a pipeline.
 /// Built from a `PipelineRun` (advance_pipeline path) or directly from
 /// a `PipelineRunStartedPayload` (first-step dispatch path) — both
@@ -389,8 +388,8 @@ pub(crate) async fn emit_composed_step_session(
 }
 
 /// Emit the terminal event for a pipeline step's composed agent
-/// session, so it reaches a terminal status in the agent_sessions
-/// read model rather than sitting at Dispatched forever. Called by
+/// session, so it reaches a terminal status in the canonical_sessions
+/// read model rather than sitting open forever. Called by
 /// the StepMonitor when it emits `pipeline.step.observed`.
 ///
 /// The composed session slug is `<run_slug>::<step_name>` (set by

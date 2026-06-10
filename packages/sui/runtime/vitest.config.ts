@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config'
 import { resolve } from 'node:path'
-import { SHIP_VITEST_DEFAULTS } from '../../../vitest.shared'
+import { SHIP_VITEST_DEFAULTS } from '@ship/test-setup/vitest'
 
 export default defineConfig({
   resolve: {

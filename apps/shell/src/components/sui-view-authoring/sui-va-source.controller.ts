@@ -43,17 +43,9 @@ export default controller({
   },
 
   mount(state, host) {
-    // sui-runtime mount-state proxy: writes go through `s.<sig> = next`
-    // (proxied to signal.set). Bridged props (view) still need `()` to
-    // read.
-    const s = state as unknown as {
-      source: string
-      dirty: boolean
-      saved: boolean
-      editorEl: () => CodeEditor | null
-      view: () => string
-    }
-
+    // sui-runtime mount-state proxy: `state.<sig>` reads the unwrapped
+    // value (tracks inside effect), `state.<sig> = next` writes the
+    // signal, and `state.editorEl` is the bound element (ref unwrapped).
     let loadedFor: string | null = null
 
     async function loadSource(name: string): Promise<void> {
@@ -74,9 +66,9 @@ export default controller({
           await new Promise((r) => setTimeout(r, 200))
           res = await fetchOnce()
         }
-        s.source = res.source
-        s.dirty = false
-        s.saved = false
+        state.source = res.source
+        state.dirty = false
+        state.saved = false
       } catch {
         // Reset guard so a manual reload (or activation event) can
         // retry. Pre-fix the editor stayed blank with no recovery.
@@ -85,15 +77,18 @@ export default controller({
     }
 
     const stopLoadEffect = effect(() => {
-      const v = s.view()
+      // `state.$signals.view()` reads the prop signal's value (typed
+      // `string`) and tracks in this effect, same as `state.view` —
+      // used here because `loadSource` requires a `string` argument.
+      const v = state.$signals.view()
       if (v) void loadSource(v)
     })
 
     // Compile-error → editor diagnostics bridge.
     function onErrored(e: Event): void {
       const detail = (e as CustomEvent).detail as { view?: string; errors?: Array<{ line: number; message: string; severity?: 'error' | 'warning' }> } | undefined
-      if (!detail || detail.view !== s.view()) return
-      const ed = s.editorEl()
+      if (!detail || detail.view !== state.view) return
+      const ed = state.editorEl
       if (!ed?.setDiagnostics) return
       ed.setDiagnostics((detail.errors ?? []).map((e2) => ({
         line: e2.line, message: e2.message, severity: e2.severity ?? 'error',
@@ -104,7 +99,7 @@ export default controller({
     // Imperative API used by tab activation: re-load when activated.
     Object.defineProperty(host, 'reload', {
       configurable: true,
-      value: () => { loadedFor = null; return loadSource(s.view()) },
+      value: () => { loadedFor = null; return loadSource(state.$signals.view()) },
     })
 
     return () => {

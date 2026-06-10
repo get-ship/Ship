@@ -138,14 +138,16 @@ use ship_types::event_registry::allowed_scopes;
 /// A REGISTERED Space-singleton event: the chosen scope == primary == only
 /// allowed element → membership passes, key stamped. Behavior-preserving proof
 /// for the size-1 set.
+/// Uses `studio.annotation.created` — a Space-singleton that remains L0-registered
+/// (project.switched moved to ship-space in keystone-A Phase A bundle 4).
 #[test]
 fn allowed_set_chosen_in_set_and_authorized_passes() {
     assert_eq!(
-        allowed_scopes("artifact.created"),
+        allowed_scopes("studio.annotation.created"),
         &[EventScope::Space],
-        "artifact.created must be a Space singleton in Phase A"
+        "studio.annotation.created must be a Space singleton in Phase A"
     );
-    let mut e = EventEnvelope::new("artifact.created", "art-1", &serde_json::json!({}))
+    let mut e = EventEnvelope::new("studio.annotation.created", "proj-1", &serde_json::json!({}))
         .expect("envelope");
     // new() stamped scope=Space (the primary). Space-bound binding authorizes it.
     assert_eq!(e.scope, EventScope::Space);
@@ -154,17 +156,17 @@ fn allowed_set_chosen_in_set_and_authorized_passes() {
 }
 
 /// Chosen scope ∉ the type's allowed-set → `ScopeNotAllowed`, regardless of
-/// authorization. `artifact.created` only allows Space; choosing System rejects.
+/// authorization. `studio.annotation.created` only allows Space; choosing Runtime rejects.
 #[test]
 fn allowed_set_chosen_not_in_set_is_rejected() {
-    let mut e = EventEnvelope::new("artifact.created", "art-1", &serde_json::json!({}))
+    let mut e = EventEnvelope::new("studio.annotation.created", "proj-1", &serde_json::json!({}))
         .expect("envelope")
         .with_scope(EventScope::Runtime, None);
     let err = enforce_scope(&mut e, &space_binding("space-A")).unwrap_err();
     assert_eq!(
         err,
         ScopeViolation::ScopeNotAllowed {
-            event_type: "artifact.created".to_string(),
+            event_type: "studio.annotation.created".to_string(),
             chosen: EventScope::Runtime,
             allowed: vec![EventScope::Space],
         }
@@ -176,7 +178,7 @@ fn allowed_set_chosen_not_in_set_is_rejected() {
 /// space-unbound binding is `NoSpaceForSpaceEvent`.
 #[test]
 fn allowed_set_chosen_in_set_but_unauthorized_is_rejected() {
-    let mut e = EventEnvelope::new("artifact.created", "art-1", &serde_json::json!({}))
+    let mut e = EventEnvelope::new("studio.annotation.created", "proj-1", &serde_json::json!({}))
         .expect("envelope");
     assert_eq!(e.scope, EventScope::Space);
     let err = enforce_scope(&mut e, &spaceless_binding()).unwrap_err();

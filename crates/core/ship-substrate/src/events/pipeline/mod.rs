@@ -1,9 +1,10 @@
 //! Pipeline event payload types.
 //!
 //! Pipeline-run state is derived entirely from the event log. These payloads
-//! are the only things written to the `events` table under the `pipeline.`
-//! namespace (covering `pipeline.run.*`, `pipeline.step.*`, and
-//! `pipeline.gate.*` events).
+//! cover the `pipeline.run.*`, `pipeline.step.*`, and `pipeline.gate.*`
+//! lifecycle events. Two pipeline.* types carry ship-types payloads instead:
+//! `pipeline.changed` (ConfigChanged) and `pipeline.step.retry`
+//! (ship_types::payload::PipelineStepRetry).
 //!
 //! The module is split into cohesive submodules so each file stays under the
 //! 400-line cap. Public API and visibility are unchanged — every item

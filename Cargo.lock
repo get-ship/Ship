@@ -9,6 +9,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
 
 [[package]]
+name = "addr2line"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b5d307320b3181d6d7954e663bd7c774a838b8220fe0593c86d9fb09f498b4b"
+dependencies = [
+ "gimli",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -545,6 +554,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be5eb007b7cacc6c660343e96f650fedf4b5a77512399eb952ca6642cf8d13f7"
 
 [[package]]
+name = "backtrace"
+version = "0.3.76"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb531853791a215d7c62a30daf0dde835f381ab5de4589cfe7c649d2cbe92bd6"
+dependencies = [
+ "addr2line",
+ "cfg-if",
+ "libc",
+ "miniz_oxide",
+ "object",
+ "rustc-demangle",
+ "windows-link 0.2.1",
+]
+
+[[package]]
 name = "base-encode"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -602,7 +626,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "shlex",
  "syn 2.0.117",
 ]
@@ -1340,6 +1364,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "convert_case"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "affbf0190ed2caf063e3def54ff444b449371d55c58e513a95ab98eca50adb49"
+dependencies = [
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "cooked-waker"
 version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1676,6 +1709,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctor"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01334b89b69ff726750c5ce5073fc8bd860e99aa9a8fc5ca11b04730e3aee97a"
+
+[[package]]
 name = "ctor-proc-macro"
 version = "0.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1808,6 +1847,7 @@ version = "0.1.0"
 dependencies = [
  "deck-axum",
  "deck-bundler",
+ "deck-config",
  "deck-core",
  "deck-host",
  "specta",
@@ -1817,14 +1857,21 @@ dependencies = [
 name = "deck-axum"
 version = "0.1.0"
 dependencies = [
+ "async-stream",
  "axum",
  "deck-bundler",
+ "deck-config",
  "deck-core",
+ "futures-util",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "specta",
  "tempfile",
  "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "ulid",
 ]
 
 [[package]]
@@ -1832,12 +1879,14 @@ name = "deck-bundler"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "deck-config",
+ "libc",
  "notify",
  "rolldown",
  "rolldown_common",
  "serde",
  "serde_json",
- "ship-substrate",
+ "sui-compiler",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -1851,8 +1900,18 @@ dependencies = [
  "anyhow",
  "clap",
  "deck-bundler",
- "ship-substrate",
  "tokio",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "deck-config"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]
@@ -1860,17 +1919,40 @@ name = "deck-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "deck-bundler",
+ "deck-config",
  "deck-host",
  "filetime",
  "notify",
  "serde",
  "serde_json",
- "ship-substrate",
  "specta",
  "sui-compiler",
  "sui-signals",
  "tempfile",
  "tokio",
+ "tracing",
+ "ulid",
+]
+
+[[package]]
+name = "deck-demo"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "deck",
+ "deck-core",
+ "form_urlencoded",
+ "futures-util",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "sui-compiler",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tower",
  "tracing",
 ]
 
@@ -2084,12 +2166,28 @@ version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "799a97264921d8623a957f6c3b9011f3b5492f557bbb7a5a19b7fa6d06ba8dcb"
 dependencies = [
- "convert_case",
+ "convert_case 0.10.0",
  "proc-macro2",
  "quote",
  "rustc_version",
  "syn 2.0.117",
  "unicode-xid",
+]
+
+[[package]]
+name = "dhat"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98cd11d84628e233de0ce467de10b8633f4ddaecafadefc86e13b84b8739b827"
+dependencies = [
+ "backtrace",
+ "lazy_static",
+ "mintex",
+ "parking_lot",
+ "rustc-hash 1.1.0",
+ "serde",
+ "serde_json",
+ "thousands",
 ]
 
 [[package]]
@@ -2998,6 +3096,12 @@ dependencies = [
  "wasip2",
  "wasip3",
 ]
+
+[[package]]
+name = "gimli"
+version = "0.32.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e629b9b98ef3dd8afe6ca2bd0f89306cec16d43d907889945bc5d6687f2f13c7"
 
 [[package]]
 name = "gio"
@@ -4216,6 +4320,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "libloading"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
+dependencies = [
+ "cfg-if",
+ "windows-link 0.2.1",
+]
+
+[[package]]
 name = "libm"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4497,6 +4611,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "mintex"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c505b3e17ed6b70a7ed2e67fbb2c560ee327353556120d6e72f5232b6880d536"
+
+[[package]]
 name = "mio"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4553,6 +4673,63 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ffa00dec017b5b1a8b7cf5e2c008bfda1aa7e0697ac1508b491fdf2622fb4d8"
 dependencies = [
  "rand 0.8.6",
+]
+
+[[package]]
+name = "napi"
+version = "3.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad513ff22558f1830b595ea6eb4091da48145d09a222ce157e781896f78be0b9"
+dependencies = [
+ "bitflags 2.11.1",
+ "ctor 1.0.7",
+ "futures",
+ "napi-build",
+ "napi-sys",
+ "nohash-hasher",
+ "rustc-hash 2.1.2",
+]
+
+[[package]]
+name = "napi-build"
+version = "2.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9c366d2c8c60b86fa632df75f745509b52f9128f91a6bad4c796e44abb505e1"
+
+[[package]]
+name = "napi-derive"
+version = "3.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89b3f766e04667e6da0e181e2da4f85475d5a6513b7cf6a80bea184e224a5b42"
+dependencies = [
+ "convert_case 0.11.0",
+ "ctor 1.0.7",
+ "napi-derive-backend",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "napi-derive-backend"
+version = "5.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d5af30503edf933ce7377cf6d4c877a62b0f1107ea05585f1b5e430e88d5baf"
+dependencies = [
+ "convert_case 0.11.0",
+ "proc-macro2",
+ "quote",
+ "semver",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "napi-sys"
+version = "3.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f5bcdf71abd3a50d00b49c1c2c75251cb3c913777d6139cd37dabc093a5e400"
+dependencies = [
+ "libloading 0.9.0",
 ]
 
 [[package]]
@@ -4624,6 +4801,12 @@ name = "nodejs-built-in-modules"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5eb86a92577833b75522336f210c49d9ebd7dd55a44d80a92e68c668a75f27c"
+
+[[package]]
+name = "nohash-hasher"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
 name = "nom"
@@ -5046,6 +5229,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "object"
+version = "0.37.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff76201f031d8863c38aa7f905eca4f53abbfa15f609db4277d44cd8938f33fe"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "object_store"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5220,7 +5412,7 @@ checksum = "ed057e45c57a87f33e7942215417089e3c038ba6c5dd5e4a6b3ecaa09bbd58d8"
 dependencies = [
  "flate2",
  "postcard",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde",
  "thiserror 2.0.18",
 ]
@@ -5260,7 +5452,7 @@ dependencies = [
  "allocator-api2",
  "hashbrown 0.17.1",
  "oxc_data_structures 0.128.0",
- "rustc-hash",
+ "rustc-hash 2.1.2",
 ]
 
 [[package]]
@@ -5273,7 +5465,7 @@ dependencies = [
  "hashbrown 0.17.1",
  "oxc_data_structures 0.133.0",
  "oxc_estree 0.133.0",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde",
 ]
 
@@ -5372,7 +5564,7 @@ dependencies = [
  "oxc_index",
  "oxc_syntax 0.133.0",
  "petgraph",
- "rustc-hash",
+ "rustc-hash 2.1.2",
 ]
 
 [[package]]
@@ -5394,7 +5586,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
- "rustc-hash",
+ "rustc-hash 2.1.2",
 ]
 
 [[package]]
@@ -5406,7 +5598,7 @@ dependencies = [
  "cow-utils",
  "oxc-browserslist",
  "oxc_syntax 0.133.0",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde",
 ]
 
@@ -5522,7 +5714,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
- "rustc-hash",
+ "rustc-hash 2.1.2",
 ]
 
 [[package]]
@@ -5540,7 +5732,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
- "rustc-hash",
+ "rustc-hash 2.1.2",
 ]
 
 [[package]]
@@ -5566,7 +5758,7 @@ dependencies = [
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
  "oxc_traverse",
- "rustc-hash",
+ "rustc-hash 2.1.2",
 ]
 
 [[package]]
@@ -5589,7 +5781,7 @@ dependencies = [
  "oxc_span 0.128.0",
  "oxc_str 0.128.0",
  "oxc_syntax 0.128.0",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "seq-macro",
 ]
 
@@ -5613,7 +5805,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "seq-macro",
 ]
 
@@ -5630,7 +5822,7 @@ dependencies = [
  "oxc_span 0.128.0",
  "oxc_str 0.128.0",
  "phf 0.13.1",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "unicode-id-start",
 ]
 
@@ -5647,7 +5839,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "phf 0.13.1",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "unicode-id-start",
 ]
 
@@ -5667,7 +5859,7 @@ dependencies = [
  "papaya",
  "percent-encoding",
  "pnp",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "rustix 1.1.4",
  "self_cell",
  "serde",
@@ -5697,7 +5889,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "self_cell",
  "smallvec",
 ]
@@ -5710,7 +5902,7 @@ checksum = "6d378eb8bad20e89d66276aebab51f6a5408571092cac94abdd3eabb773713d6"
 dependencies = [
  "base64-simd",
  "json-escape-simd",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde",
  "serde_json",
 ]
@@ -5834,7 +6026,7 @@ dependencies = [
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
  "oxc_traverse",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde",
  "serde_json",
  "sha1 0.11.0",
@@ -5860,7 +6052,7 @@ dependencies = [
  "oxc_syntax 0.133.0",
  "oxc_transformer",
  "oxc_traverse",
- "rustc-hash",
+ "rustc-hash 2.1.2",
 ]
 
 [[package]]
@@ -5879,7 +6071,7 @@ dependencies = [
  "oxc_span 0.133.0",
  "oxc_str 0.133.0",
  "oxc_syntax 0.133.0",
- "rustc-hash",
+ "rustc-hash 2.1.2",
 ]
 
 [[package]]
@@ -6229,7 +6421,7 @@ dependencies = [
  "nodejs-built-in-modules",
  "pathdiff",
  "radix_trie",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -6526,7 +6718,7 @@ dependencies = [
  "pin-project-lite",
  "quinn-proto",
  "quinn-udp",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "rustls",
  "socket2",
  "thiserror 2.0.18",
@@ -6547,7 +6739,7 @@ dependencies = [
  "lru-slab",
  "rand 0.9.4",
  "ring",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "rustls",
  "rustls-pki-types",
  "slab",
@@ -7007,7 +7199,7 @@ version = "0.38.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9551846a623524ffddfab42cac15f03d0547b6d5f81a66549341126205e4b721"
 dependencies = [
- "convert_case",
+ "convert_case 0.10.0",
  "deluxe",
  "indoc",
  "proc-macro-crate 3.5.0",
@@ -7141,7 +7333,7 @@ dependencies = [
  "rolldown_std_utils",
  "rolldown_tracing",
  "rolldown_utils",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde",
  "serde_json",
  "string_wizard",
@@ -7186,7 +7378,7 @@ dependencies = [
  "rolldown_sourcemap",
  "rolldown_std_utils",
  "rolldown_utils",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde",
  "serde_json",
  "simdutf8",
@@ -7215,7 +7407,7 @@ checksum = "afec505c7cab83fd5cecb31c24f8e6676de3ec4b358f80dcdd48aa5dd21a2c42"
 dependencies = [
  "blake3",
  "rolldown_devtools_action",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde",
  "serde_json",
  "tracing",
@@ -7273,7 +7465,7 @@ dependencies = [
  "oxc_resolver",
  "rolldown-ariadne",
  "ropey",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "sugar_path",
 ]
 
@@ -7309,7 +7501,7 @@ dependencies = [
  "rolldown_resolver",
  "rolldown_sourcemap",
  "rolldown_utils",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde",
  "serde_json",
  "string_wizard",
@@ -7330,7 +7522,7 @@ dependencies = [
  "rolldown_common",
  "rolldown_plugin",
  "rolldown_utils",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "string_wizard",
  "sugar_path",
  "tokio",
@@ -7346,7 +7538,7 @@ dependencies = [
  "rolldown_common",
  "rolldown_plugin",
  "rolldown_utils",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde_json",
  "xxhash-rust",
 ]
@@ -7363,7 +7555,7 @@ dependencies = [
  "rolldown_common",
  "rolldown_plugin",
  "rolldown_utils",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "string_wizard",
  "sugar_path",
  "tokio",
@@ -7500,7 +7692,7 @@ dependencies = [
  "regress",
  "rolldown_error",
  "rolldown_std_utils",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde_json",
  "simdutf8",
  "sugar_path",
@@ -7538,6 +7730,18 @@ dependencies = [
  "subtle",
  "zeroize",
 ]
+
+[[package]]
+name = "rustc-demangle"
+version = "0.1.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b50b8869d9fc858ce7266cce0194bd74df58b9d0e3f6df3a9fc8eb470d95c09d"
+
+[[package]]
+name = "rustc-hash"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc-hash"
@@ -7841,7 +8045,7 @@ dependencies = [
  "phf 0.13.1",
  "phf_codegen 0.13.1",
  "precomputed-hash",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "servo_arc",
  "smallvec",
 ]
@@ -8276,6 +8480,7 @@ dependencies = [
  "ship-reactive",
  "ship-substrate",
  "ship-types",
+ "sqlx",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -8311,7 +8516,7 @@ dependencies = [
  "getrandom 0.2.17",
  "serde",
  "serde_json",
- "ship-host",
+ "ship-substrate-host",
  "ship-types",
  "thiserror 2.0.18",
  "tokio",
@@ -8331,6 +8536,7 @@ dependencies = [
  "compiler",
  "connectrpc",
  "crossterm",
+ "dhat",
  "getrandom 0.2.17",
  "home",
  "http",
@@ -8413,6 +8619,7 @@ dependencies = [
 name = "ship-collection"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-stream",
  "async-trait",
  "buffa",
@@ -8426,6 +8633,7 @@ dependencies = [
  "ship-reactive",
  "ship-substrate",
  "ship-types",
+ "sqlx",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -8567,7 +8775,18 @@ dependencies = [
 name = "ship-host"
 version = "0.1.0"
 dependencies = [
- "libc",
+ "anyhow",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-updater",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]
@@ -8617,6 +8836,21 @@ dependencies = [
  "ship-types",
  "thiserror 2.0.18",
  "tokio",
+]
+
+[[package]]
+name = "ship-messaging"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "ship-types",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -8682,6 +8916,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "specta",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -8731,13 +8966,14 @@ dependencies = [
  "ship-gateway-client",
  "ship-git",
  "ship-harnesses",
- "ship-host",
  "ship-isolation",
  "ship-kernel",
  "ship-pipelines",
  "ship-runner",
+ "ship-space",
  "ship-store",
  "ship-substrate",
+ "ship-substrate-host",
  "ship-triggers",
  "ship-types",
  "ship-views",
@@ -8802,24 +9038,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-shell"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "ship-substrate",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-updater",
- "tempfile",
- "tracing",
-]
-
-[[package]]
 name = "ship-sidecar"
 version = "0.1.0"
 dependencies = [
@@ -8869,6 +9087,7 @@ dependencies = [
 name = "ship-space"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-stream",
  "async-trait",
  "buffa",
@@ -8882,6 +9101,7 @@ dependencies = [
  "ship-reactive",
  "ship-substrate",
  "ship-types",
+ "sqlx",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -8931,7 +9151,6 @@ dependencies = [
  "object_store",
  "portable-pty",
  "proptest",
- "reqwest 0.12.28",
  "rmp-serde",
  "sea-query",
  "serde",
@@ -8939,10 +9158,10 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "ship-events-macro",
- "ship-host",
  "ship-kernel",
  "ship-pipelines",
  "ship-runner",
+ "ship-substrate-host",
  "ship-types",
  "specta",
  "sqlx",
@@ -8953,6 +9172,13 @@ dependencies = [
  "tracing",
  "ulid",
  "walkdir",
+]
+
+[[package]]
+name = "ship-substrate-host"
+version = "0.1.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -9034,6 +9260,7 @@ dependencies = [
  "ctor 0.2.9",
  "datastar",
  "deck",
+ "deck-core",
  "floki",
  "form_urlencoded",
  "futures",
@@ -9070,9 +9297,9 @@ dependencies = [
  "ship-files",
  "ship-git",
  "ship-harnesses",
- "ship-host",
  "ship-isolation",
  "ship-kernel",
+ "ship-messaging",
  "ship-ops-rpc",
  "ship-pipeline-runtime",
  "ship-pipelines",
@@ -9083,6 +9310,7 @@ dependencies = [
  "ship-space",
  "ship-store",
  "ship-substrate",
+ "ship-substrate-host",
  "ship-triggers",
  "ship-types",
  "ship-views",
@@ -9092,6 +9320,7 @@ dependencies = [
  "syn 2.0.117",
  "tempfile",
  "thiserror 2.0.18",
+ "tikv-jemallocator",
  "tokio",
  "tokio-stream",
  "tokio-tungstenite 0.28.0",
@@ -9293,7 +9522,7 @@ dependencies = [
  "data-encoding",
  "debugid",
  "if_chain",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde",
  "serde_json",
  "unicode-id-start",
@@ -9656,7 +9885,7 @@ dependencies = [
  "oxc_index",
  "oxc_sourcemap",
  "regex",
- "rustc-hash",
+ "rustc-hash 2.1.2",
  "serde",
 ]
 
@@ -9763,6 +9992,18 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "sui-compiler-napi"
+version = "0.1.0"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "serde",
+ "serde_json",
+ "sui-compiler",
 ]
 
 [[package]]
@@ -10481,12 +10722,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "thousands"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3bf63baf9f5039dadc247375c29eb13706706cfde997d0330d05aa63a77d8820"
+
+[[package]]
 name = "thread_local"
 version = "1.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f60246a4944f24f6e018aa17cdeffb7818b76356965d03b07d6a9886e8962185"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "tikv-jemalloc-sys"
+version = "0.6.1+5.3.0-1-ge13ca993e8ccb9ba9847cc330696e02839f328f7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd8aa5b2ab86a2cefa406d889139c162cbb230092f7d1d7cbc1716405d852a3b"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
+name = "tikv-jemallocator"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0359b4327f954e0567e69fb191cf1436617748813819c94b8cd4a431422d053a"
+dependencies = [
+ "libc",
+ "tikv-jemalloc-sys",
 ]
 
 [[package]]

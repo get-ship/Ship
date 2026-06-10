@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-va-annotation-pins> — Renders absolute-positioned numbered pins
   over the main view preview. Subscribes to per-view SSE events

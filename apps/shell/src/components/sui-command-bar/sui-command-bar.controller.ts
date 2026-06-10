@@ -11,13 +11,16 @@ import {
 import { ops, readSetting } from '../../ops'
 
 export default controller({
-  scope: (init: ViewScope<Scope>) => {
+  // `open`/`mode` are `<prop>`s the runtime injects onto the scope before
+  // this factory runs (component-factory: `$scope.open = props.open`). The
+  // compiler omits them from the generated `Scope` because their names
+  // collide with the `shared()` re-exports this factory returns, so declare
+  // their injected signal types on the `init` parameter — `Ctx` is inferred
+  // from this annotation, so the contract stays precise and cast-free.
+  scope: (init: ViewScope<Scope> & { open: Signal<boolean>; mode: Signal<BarMode> }) => {
     // Wrap prop signals as shared so consumers can access them.
-    // init.open / init.mode are typed as `unknown` in the generated Scope
-    // union — the compiler can't see through shared() to emit precise types,
-    // so cast to Signal<T> here to hand them to shared().
-    const open  = shared(init.open as Signal<boolean>)
-    const mode  = shared(init.mode as Signal<BarMode>)
+    const open  = shared(init.open)
+    const mode  = shared(init.mode)
 
     const value          = shared(signal(''))
     const session        = shared(signal<SessionSummary | null>(null))
@@ -305,12 +308,10 @@ export default controller({
     }
 
     async function loadViews(): Promise<void> {
-      try {
-        const body = JSON.parse((await ops.discovery.list({})).json) as {
-          views?: Array<{ name: string }>
-        }
-        views.set((body.views ?? []).map((v) => v.name).sort())
-      } catch { /* empty */ }
+      // Views are client-side routes; the daemon discovery catalog was quarantined
+      // (06153c1a5). Cut the dead op — the palette's view list stays empty until
+      // the router→view-list integration lands.
+      views.set([])
     }
 
     // ── Keyboard navigation helpers ────────────────────────────────

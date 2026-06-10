@@ -22,79 +22,114 @@ pub struct ResolvedView {
 pub struct ResolveError {
     pub message: String,
 }
+/// Hard ceiling on a single view artifact read+compiled per request (source
+/// `.sui` and any co-located CSS). Each request reads from disk and compiles in
+/// process with no size bound otherwise — a multi-MB file would let one request
+/// pin a worker on a large parse. 4 MiB is comfortably above any real view yet
+/// rejects pathological inputs. Exposed so deck-core's CSS reads share one
+/// ceiling (one source of truth).
+pub const MAX_VIEW_SOURCE_BYTES: u64 = 4 * 1024 * 1024;
+/// Config-driven view resolution layout (#273 — deck hardcodes no path).
+///
+/// `view_dirs` are the bucket names appended to the project root
+/// (e.g. `["views", ".ship/views"]`). For each `view_dirs[i]`, the
+/// resolver looks for `<root>/<view_dirs[i]>/<name>/<view_leaf>`. All
+/// buckets share one `view_leaf` (defaults to `page.sui`), which fixes
+/// the #254 `index.sui` vs `page.sui` divergence between the two
+/// buckets. `first_party_root`, when set, takes precedence over the
+/// `view_dirs` buckets — the host declares its own first-party app
+/// source root (e.g. `apps/shell/src`) and that bucket wins for any
+/// matching view name.
+#[derive(Debug, Clone)]
+pub struct ViewLayout {
+    pub view_dirs: Vec<String>,
+    pub view_leaf: String,
+    pub first_party_root: Option<PathBuf>,
+}
+impl ViewLayout {
+    /// Conventional defaults — the two view buckets and the
+    /// `page.sui` leaf. Matches the zero-config behaviour of the
+    /// previous hardcoded layout.
+    pub fn conventional() -> Self {
+        Self {
+            view_dirs: vec!["views".into(), ".ship/views".into()],
+            view_leaf: "page.sui".into(),
+            first_party_root: None,
+        }
+    }
+}
+
+/// Read a view artifact to a string, capped at [`MAX_VIEW_SOURCE_BYTES`].
+///
+/// Returns `None` when the file is absent, unreadable, or larger than the cap —
+/// the size is checked via a cheap `stat` before any bytes are read, so an
+/// oversized file is never slurped into memory. Callers treat `None` as "no
+/// such artifact" (the co-located CSS reads already chain on `Option`/`Result`).
+pub fn read_view_artifact(path: &Path) -> Option<String> {
+    let meta = std::fs::metadata(path).ok()?;
+    if meta.len() > MAX_VIEW_SOURCE_BYTES {
+        return None;
+    }
+    std::fs::read_to_string(path).ok()
+}
 
 pub fn resolve(
     project_root: &Path,
-    first_party_root: Option<&Path>,
+    layout: &ViewLayout,
     name: &str,
     sub_path: Option<&str>,
 ) -> Result<ResolvedView, ResolveError> {
     let segments: Vec<&str> = sub_path
         .unwrap_or("")
         .split('/')
-        .filter(|s| !s.is_empty())
+        .filter(|s| !s.is_empty() && *s != "..")
         .collect();
-
     let mut attempts: Vec<String> = Vec::new();
-
-    // First-party views: the HOST supplies their root (deck is app-agnostic and
-    // knows no app layout — see .artifacts/asset-architecture.md). When set,
-    // they take precedence over project `views/` (reference) and `.ship/views`
-    // (user). When unset (a non-ship host), there is no first-party bucket.
-    if let Some(fp_base) = first_party_root {
+    // First-party views: the HOST supplies their root (deck is app-agnostic
+    // and knows no app layout — see .artifacts/asset-architecture.md). When
+    // set, it takes precedence over the configured `view_dirs` buckets.
+    // When unset (a non-ship host), there is no first-party bucket.
+    if let Some(fp_base) = layout.first_party_root.as_deref() {
         let fp_root = fp_base.join(name);
         let mut fp_params: HashMap<String, String> = HashMap::new();
         let mut fp_tried: Vec<PathBuf> = Vec::new();
-        if let Some(found) =
-            walk_disk_with_leaf(&fp_root, &segments, "page.sui", &mut fp_params, &mut fp_tried)
-        {
-            return read_resolved(found, fp_params);
+        if let Some(found) = walk_disk_with_leaf(
+            &fp_root,
+            &segments,
+            &layout.view_leaf,
+            &mut fp_params,
+            &mut fp_tried,
+        ) {
+            return read_resolved(found, fp_base, fp_params);
         }
     }
-
-    let new_root = project_root.join("views").join(name);
-    let mut params: HashMap<String, String> = HashMap::new();
-    let mut tried: Vec<PathBuf> = Vec::new();
-    let leaf = walk_disk_with_leaf(&new_root, &segments, "page.sui", &mut params, &mut tried);
-    let new_views_root = project_root.join("views");
-    for p in &tried {
-        let rel = p
-            .strip_prefix(&new_views_root)
-            .map(|r| format!("views/{}", r.display()))
-            .unwrap_or_else(|_| p.display().to_string());
-        attempts.push(rel);
-    }
-
-    if leaf.is_none() {
-        params.clear();
-        tried.clear();
-        let views_dir = project_root.join(".ship").join("views");
-        let root = views_dir.join(name);
-        if let Some(found) =
-            walk_disk_with_leaf(&root, &segments, "index.sui", &mut params, &mut tried)
-        {
-            for p in &tried {
-                let rel = p
-                    .strip_prefix(&views_dir)
-                    .map(|r| format!(".ship/views/{}", r.display()))
-                    .unwrap_or_else(|_| p.display().to_string());
-                attempts.push(rel);
-            }
-            return read_resolved(found, params);
+    // Walk every configured view-dir bucket in order. First hit wins; the
+    // rest are reported as "tried" so a 404 names every bucket consulted.
+    // A single leaf convention (`layout.view_leaf`) replaces the old
+    // `page.sui` for `views/` and `index.sui` for `.ship/views/` divergence
+    // (#254).
+    for bucket in &layout.view_dirs {
+        let bucket_root = project_root.join(bucket);
+        let view_root = bucket_root.join(name);
+        let mut params: HashMap<String, String> = HashMap::new();
+        let mut tried: Vec<PathBuf> = Vec::new();
+        if let Some(found) = walk_disk_with_leaf(
+            &view_root,
+            &segments,
+            &layout.view_leaf,
+            &mut params,
+            &mut tried,
+        ) {
+            return read_resolved(found, &bucket_root, params);
         }
         for p in &tried {
             let rel = p
-                .strip_prefix(&views_dir)
-                .map(|r| format!(".ship/views/{}", r.display()))
+                .strip_prefix(&bucket_root)
+                .map(|r| format!("{bucket}/{}", r.display()))
                 .unwrap_or_else(|_| p.display().to_string());
             attempts.push(rel);
         }
     }
-
-    if let Some(leaf) = leaf {
-        return read_resolved(leaf, params);
-    }
-
     Err(ResolveError {
         message: format!(
             "view not found: {} — looked at: {}",
@@ -106,17 +141,53 @@ pub fn resolve(
 
 fn read_resolved(
     leaf: PathBuf,
+    allowed_root: &Path,
     params: HashMap<String, String>,
 ) -> Result<ResolvedView, ResolveError> {
-    let source = match std::fs::read_to_string(&leaf) {
+    // Containment guard against symlink escape: the leaf NAME is validated
+    // upstream, but a symlink *inside* the views bucket can still point its
+    // target outside the project. Canonicalize both the leaf and its bucket
+    // root, then assert the resolved leaf stays under the root. A leaf that
+    // resolves outside (or whose root can't be canonicalized) is rejected,
+    // surfacing as a 404 upstream.
+    let canonical = leaf.canonicalize().map_err(|e| ResolveError {
+        message: format!("failed to resolve {}: {e}", leaf.display()),
+    })?;
+    let canonical_root = allowed_root.canonicalize().map_err(|e| ResolveError {
+        message: format!("failed to resolve views root {}: {e}", allowed_root.display()),
+    })?;
+    if !canonical.starts_with(&canonical_root) {
+        return Err(ResolveError {
+            message: format!(
+                "view path escapes its root: {} is not under {}",
+                canonical.display(),
+                canonical_root.display(),
+            ),
+        });
+    }
+    // Size cap before read: each request reads + compiles the source in process
+    // with no other bound. Reject an oversized file up front (cheap stat) rather
+    // than slurping multiple MB into memory and parsing it.
+    if let Ok(meta) = std::fs::metadata(&canonical)
+        && meta.len() > MAX_VIEW_SOURCE_BYTES
+    {
+        return Err(ResolveError {
+            message: format!(
+                "view source too large: {} is {} bytes (max {})",
+                canonical.display(),
+                meta.len(),
+                MAX_VIEW_SOURCE_BYTES,
+            ),
+        });
+    }
+    let source = match std::fs::read_to_string(&canonical) {
         Ok(s) => s,
         Err(e) => {
             return Err(ResolveError {
-                message: format!("failed to read {}: {e}", leaf.display()),
+                message: format!("failed to read {}: {e}", canonical.display()),
             });
         }
     };
-    let canonical = leaf.canonicalize().unwrap_or(leaf);
     Ok(ResolvedView {
         source,
         params,
@@ -240,103 +311,5 @@ fn compile(source: &str, view_name: &str) -> Result<RenderOutput, String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-
-    fn with_tempdir<F: FnOnce(&Path)>(f: F) {
-        let tmp = tempfile::tempdir().expect("tempdir");
-        fs::create_dir_all(tmp.path().join(".ship")).unwrap();
-        f(tmp.path());
-    }
-
-    #[test]
-    fn on_disk_index_resolves() {
-        with_tempdir(|root| {
-            let view_dir = root.join(".ship/views/widget");
-            fs::create_dir_all(&view_dir).unwrap();
-            fs::write(
-                view_dir.join("index.sui"),
-                r#"<state name="x" value="1" /><p>{x()}</p>"#,
-            )
-            .unwrap();
-
-            let r = resolve(root, None, "widget", None).expect("on-disk widget resolves");
-            assert!(r.source.contains("name=\"x\""));
-            assert!(r.source_path.is_some());
-            assert!(r.params.is_empty());
-        });
-    }
-
-    #[test]
-    fn on_disk_param_segment_captures() {
-        with_tempdir(|root| {
-            let leaf = root.join(".ship/views/things/[id]");
-            fs::create_dir_all(&leaf).unwrap();
-            fs::write(
-                leaf.join("index.sui"),
-                r#"<state name="x" value="1" /><p>{x()}</p>"#,
-            )
-            .unwrap();
-
-            let r = resolve(root, None, "things", Some("42")).expect("param dir resolves");
-            assert_eq!(r.params.get("id").map(String::as_str), Some("42"));
-        });
-    }
-
-    #[test]
-    fn missing_view_returns_diagnostic() {
-        with_tempdir(|root| {
-            let err = resolve(root, None, "ghost", None).unwrap_err();
-            assert!(err.message.contains("ghost"));
-            assert!(err.message.contains(".ship/views"));
-        });
-    }
-
-    fn bump_mtime(path: &Path, secs_forward: u64) {
-        let now = std::fs::metadata(path).and_then(|m| m.modified()).unwrap();
-        let bumped = now + std::time::Duration::from_secs(secs_forward);
-        filetime::set_file_mtime(path, filetime::FileTime::from_system_time(bumped))
-            .expect("bump mtime");
-    }
-
-    #[test]
-    fn mtime_cache_reuses_render_until_source_touched() {
-        with_tempdir(|root| {
-            let view_dir = root.join(".ship/views/cachey");
-            fs::create_dir_all(&view_dir).unwrap();
-            let path = view_dir.join("index.sui");
-            fs::write(&path, r#"<p>first</p>"#).unwrap();
-
-            let r = resolve(root, None, "cachey", None).unwrap();
-            let first = render_resolved(&r, "cachey").unwrap();
-
-            let second = render_resolved(&r, "cachey").unwrap();
-            assert_eq!(first.html, second.html);
-
-            fs::write(&path, r#"<p>second</p>"#).unwrap();
-            bump_mtime(&path, 5);
-            let r2 = resolve(root, None, "cachey", None).unwrap();
-            let third = render_resolved(&r2, "cachey").unwrap();
-            assert_ne!(third.html, first.html);
-        });
-    }
-
-    #[test]
-    fn on_disk_page_sui_resolves() {
-        with_tempdir(|root| {
-            let view_dir = root.join("views/widget");
-            fs::create_dir_all(&view_dir).unwrap();
-            fs::write(
-                view_dir.join("page.sui"),
-                r#"<state name="x" value="1" /><p>{x()}</p>"#,
-            )
-            .unwrap();
-
-            let r = resolve(root, None, "widget", None).expect("on-disk widget resolves");
-            assert!(r.source.contains("name=\"x\""));
-            assert!(r.source_path.is_some());
-            assert!(r.params.is_empty());
-        });
-    }
-}
+#[path = "resolver_tests.rs"]
+mod tests;

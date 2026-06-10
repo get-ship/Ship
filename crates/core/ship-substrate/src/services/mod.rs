@@ -17,7 +17,7 @@
 //! Register with the kernel:
 //!
 //! ```rust,ignore
-//! kernel.spawn_service("my-svc", config, Box::new(MySvc))?;
+//! spawn_service(&mut kernel, "my-svc", config, Box::new(MySvc))?;
 //! ```
 
 use std::time::Duration;
@@ -29,11 +29,8 @@ use crate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::events::{ActorStore, EventEnvelope, Mailbox};
 
 pub mod mesh;
-pub mod human_gateway;
 pub mod dispatch_ports;
 pub mod server_session;
-#[cfg(test)]
-mod mesh_tests;
 
 /// Trait implemented by headless service actors.
 ///

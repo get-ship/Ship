@@ -3,7 +3,7 @@
 // `controller-resolver.ts` (which delegates to `resolveHook`) and
 // `controller-hook-resolver.ts` (which needs `ResolverContext`).
 
-import type { ShipHost } from './ship'
+import type { ShipHost, Clients } from './ship'
 import type { RouteSignals } from './route'
 
 /**
@@ -14,6 +14,10 @@ import type { RouteSignals } from './route'
  */
 export interface ResolverContext {
   ship: ShipHost
+  /** Host-injected named data/ops clients (the `<client>`-declared map).
+   *  Optional through the migration; spread into scope so bare `<name>.foo()`
+   *  resolves. */
+  clients?: Clients
   /**
    * Reactive URL proxy. Accepts `RouteSignals` (the new shape) or the
    * legacy `Record<string,string>` shape; the latter is retained as a

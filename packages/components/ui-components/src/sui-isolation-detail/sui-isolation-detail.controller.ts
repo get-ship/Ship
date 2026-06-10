@@ -1,4 +1,5 @@
 import { controller, effect } from '@ship/sui-runtime'
+import { createShipConnectClient } from '@ship/sdk/connect'
 import type { Scope } from './sui-isolation-detail.sui'
 
 interface StatusPayload {
@@ -10,12 +11,12 @@ interface StatusPayload {
 }
 
 const REASON_LABEL: Record<string, string> = {
-  run_override: 'pinned per-run via ship use --isolation',
-  agent_override: 'pinned in agent profile',
-  user_default: 'user default',
-  os_default: 'OS default',
+  runOverride: 'pinned per-run via ship use --isolation',
+  agentOverride: 'pinned in agent profile',
+  userDefault: 'user default',
+  osDefault: 'OS default',
   downgrade: 'preferred tier unavailable; fell back',
-  already_in_sandbox: 'already inside someone else’s sandbox — no double-wrap',
+  alreadyInSandbox: 'already inside someone else's sandbox — no double-wrap',
 }
 
 export default controller<Scope>({
@@ -56,20 +57,21 @@ export default controller<Scope>({
 
 async function fetchIsolationStatus(): Promise<StatusPayload | null> {
   try {
-    const resp = await fetch('/api/v1/isolation/status', {
-      headers: { accept: 'application/json' },
-    })
-    if (!resp.ok) return null
-    const json = await resp.json()
-    const decision = json?.data?.decision
-    if (!decision || decision.error) return null
-    const resolved = decision.resolved
+    // Same-origin Connect: the daemon's auth middleware reads the
+    // session cookie, so no token plumbing. The wire returns the typed
+    // `IsolationStatusResponse`; the detail view projects every
+    // status-relevant field — tier, strategy, reason (discriminant →
+    // label), downgraded, and the downgrade source when applicable.
+    const connect = createShipConnectClient({ baseUrl: '' })
+    const resp = await connect.isolation.status({})
+    const resolved = resp.decision?.resolved
     if (!resolved) return null
-    const reasonKind = resolved.reason?.kind ?? ''
-    const reasonLabel = REASON_LABEL[reasonKind] ?? reasonKind
+    const reasonCase = resolved.reason?.case
+    const reasonLabel = reasonCase ? (REASON_LABEL[reasonCase] ?? reasonCase) : ''
     let preferredTier = ''
-    if (reasonKind === 'downgrade') {
-      preferredTier = String(resolved.reason?.from ?? '')
+    if (reasonCase === 'downgrade') {
+      const down = resolved.reason?.value
+      preferredTier = down?.from ? String(down.from) : ''
     }
     return {
       tier: String(resolved.tier ?? 'unknown'),

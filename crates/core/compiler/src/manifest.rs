@@ -118,6 +118,12 @@ pub struct ManifestExports {
     /// schema collision across packages is an error (not silently merged).
     #[serde(default)]
     pub collections: Vec<String>,
+    /// Component directory paths relative to `.ship/` — each holds a
+    /// `<tag>/<tag>.sui` custom-element source. Composed under the package
+    /// namespace so a space resolves a dep'd component's `.sui` from its
+    /// composed root (not the monorepo workspace).
+    #[serde(default)]
+    pub components: Vec<String>,
 }
 
 // ── Raw manifest for deserialisation ──────────────────────────────────────────

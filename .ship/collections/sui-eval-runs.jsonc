@@ -1,5 +1,5 @@
 {
-  // Per-lane scores from .ship/pipelines/sui-eval.jsonc.
+  // Per-lane scores from .ship/skills/sui-eval.jsonc.
   //
   // One row per (run_id, lane_id). Lanes vary by model + harness; the same
   // task spec is dispatched across all of them. The grade step writes the

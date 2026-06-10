@@ -1,4 +1,3 @@
-<bundle separate />
 <!--
   <sui-va-activity> — Activity tab in the view-authoring dev panel.
   Renders an agent-turn log derived from per-view SSE events:

@@ -11,23 +11,23 @@ import { test, expect } from '@playwright/test'
 import { waitForAttach, screenshot } from './_helpers'
 
 test('live-data: SSR island contains __subscribe__ URL', async ({ request }) => {
-  // The `/_sui/render/{name}?format=json` endpoint was retired in d80493c5;
+  // The `/_deck/render/{name}?format=json` endpoint was retired in d80493c5;
   // the seed now ships as a `<script id="__set_init__">` island in the
   // page HTML. Parse it and assert the SSE URL is present.
   const body = await (await request.get('/sui/git')).text()
   const match = body.match(/<script[^>]*id="__set_init__"[^>]*>([^<]*)<\/script>/)
   expect(match, 'expected __set_init__ island in SSR HTML').not.toBeNull()
   const init = JSON.parse(match![1]) as Record<string, unknown>
-  expect(init.__subscribe__).toBe('/_sui/views/git/sse')
+  expect(init.__subscribe__).toBe('/_deck/views/git/sse')
 })
 
-test('live-data: /_sui/views/git/sse returns patch-signals event with ok value', async ({ page, baseURL }) => {
+test('live-data: /_deck/views/git/sse returns patch-signals event with ok value', async ({ page, baseURL }) => {
   // Navigate first so page.evaluate runs in a real browsing context.
   await page.goto('/sui/git')
 
   // Use page.evaluate + fetch with AbortController so we can cancel the
   // long-lived SSE connection once we've read the first event.
-  const url = `${baseURL}/_sui/views/git/sse`
+  const url = `${baseURL}/_deck/views/git/sse`
   const result = await page.evaluate(async (sseUrl: string) => {
     const controller = new AbortController()
     const resp = await fetch(sseUrl, {

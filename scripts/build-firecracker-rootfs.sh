@@ -5,7 +5,7 @@
 # *build* (KVM access is only needed to *boot*, i.e. to run the test).
 #
 # Output: target/fc/{release-*/firecracker-*, vmlinux, busybox, rootfs.ext4}.
-# Re-run after changing the sidecar. See crates/core/ship-isolation/docs/
+# Re-run after changing the sidecar. See crates/core/ship-platform/crates/ship-isolation/docs/
 # tier3-build.md for the design + the recipe this encodes.
 #
 # This is a DEV asset builder, not the shipped image path — Phase F bakes a

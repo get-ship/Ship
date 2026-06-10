@@ -26,11 +26,12 @@ ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
 ship-files = { path = "../../crates/core/ship-platform/crates/ship-files" }
 ship-harnesses = { path = "../../crates/core/ship-platform/crates/ship-harnesses" }
+ship-messaging = { path = "../../crates/core/ship-platform/crates/ship-messaging" }
 ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }
 ship-views = { path = "../../crates/core/ship-platform/crates/ship-views" }
-ship-isolation = { path = "../../crates/core/ship-isolation", default-features = false }
-ship-host = { path = "../../crates/core/ship-substrate/crates/ship-host" }
+ship-isolation = { path = "../../crates/core/ship-platform/crates/ship-isolation", default-features = false }
+ship-substrate-host = { path = "../../crates/core/ship-substrate/crates/ship-substrate-host" }
 ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }
 ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
 # Dispatch composition root (supervisor split — `shipd::dispatch`):
@@ -59,6 +60,7 @@ buffa = "0.5"
 buffa-descriptor = "0.5"
 http = "1"
 deck = { path = "../../crates/deck/deck" }
+deck-core = { path = "../../crates/deck/deck-core" }
 sui-compiler = { path = "../../crates/sui/compiler" }
 sui-signals = { path = "../../crates/sui/signals" }
 chrono = { workspace = true }
@@ -69,6 +71,12 @@ futures-util = { workspace = true }
 anyhow = { workspace = true }
 getrandom = { workspace = true }
 libc = { workspace = true }
+# jemalloc global allocator — replaces the glibc malloc_trim(0) FFI the
+# bundler was calling per build (crates/deck/deck-bundler/src/arena.rs,
+# deleted as part of cut 4). jemalloc returns freed arenas to the OS
+# by default; the trim-arenas workaround was a glibc-only band-aid
+# for the bundler's transient module-graph allocations.
+tikv-jemallocator = "0.6"
 serde = { workspace = true }
 base64 = { workspace = true }
 serde_yaml = { workspace = true }
@@ -131,6 +139,14 @@ ship-code = ["dep:ship-code", "harness-drivers"]
 # all three compile flag-off (ship-code is absent, harness-driver stack gone).
 harness-drivers = ["ship-agents/harness-drivers", "ship-platform/harness-drivers"]
 unstable = ["ship-platform/unstable"]
+# G2 daemon RSS-soak regression gate (.artifacts/sui-arc/integrity/report.md §4).
+# OFF by default so it never runs in `cargo test` / `just build`. The soak
+# harness (`tests/rss_soak.rs`) drives the leak-prone substrate churn
+# (actor_cursors / rate_counters / ReplayLog spawn-stop-emit cycles) and asserts
+# the post-warmup RSS slope is ~flat. Those paths are themselves `unstable`-gated
+# in the kernel router, so `soak` forwards to `unstable`.
+#   cargo test -p shipd --features soak --test rss_soak -- --nocapture
+soak = ["unstable"]
 specta = ["dep:specta", "deck/specta", "ship-pipeline-runtime/specta"]
 # Compile the `example()` fixture constructors for the daemon-side wire
 # shapes so `cargo xtask gen-fixtures` can serialize them to committed JSON.

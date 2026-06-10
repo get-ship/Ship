@@ -111,7 +111,9 @@ fn install_defaults_inner() {
             // separately from `ship-pipeline-runtime` (it depends on this
             // crate, so it can't be referenced from here).
             Box::new(ship_agents::services::compile::CompileStateProjection),
-            Box::new(ship_substrate::db::projects::ProjectsProjection),
+            // ProjectsProjection moved to ship-space (keystone-A Phase A bundle 4,
+            // 2026-06-10). The SQL read helpers stay in ship_substrate::db::projects.
+            Box::new(ship_space::ProjectsProjection),
             // Per-space settings overlay (event-sourced fold of
             // `space.setting.changed`). The live overlay read is owned by the
             // ship-space crate's own DataStore-backed table (`SpaceService.Info`);
@@ -120,11 +122,23 @@ fn install_defaults_inner() {
             Box::new(ship_auth::AuthSessionsProjection),
             Box::new(ship_auth::DaemonOwnerProjection),
             // Per-agent approved grant baseline the mint path reads.
-            Box::new(ship_agents::services::permissions::ProvisionedGrantsProjection),
+            // ProvisionedGrantsProjection moved to ship-auth (keystone-A
+            // Phase A bundle 2, 2026-06-10): the AUTH domain owns it at L1.
+            Box::new(ship_auth::ProvisionedGrantsProjection),
             // Canonical session projection — folds session.* events into
             // canonical_sessions (runtime.db). Replaces the legacy
             // AgentSessionProjection (retired by canonical-emitter-migration).
             Box::new(ship_agents::services::sessions::CanonicalSessionProjection),
+            // CollectionItemProjection — event-sourced collection rows (ADR
+            // D6/D7). Moved here from the L0 default bus (keystone A,
+            // 2026-06-10): the COLLECTION domain owns its projection at L1.
+            // Same-TX guarantee is preserved because this factory runs inside
+            // the same SQLite transaction as the event append.
+            Box::new(ship_collection::item_projection::CollectionItemProjection),
+            // ArtifactProjection — event-sourced artifact METADATA (ADR
+            // D6/D7), moved from the L0 default bus (keystone-A de-bucket,
+            // 2026-06-10). Blobs stay on the content-addressed blob plane.
+            Box::new(ship_artifacts::metadata_projection::ArtifactProjection),
             // ship-analytics — folds hook.* into rollup tables. Lives
             // in its own crate (queries, cost, mining) so downstream
             // dashboard / billing / harness-mining work has a home

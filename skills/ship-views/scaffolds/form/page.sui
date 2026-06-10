@@ -7,7 +7,7 @@
       <sui-input name="title" placeholder="Title" required></sui-input>
       <sui-textarea name="body" placeholder="Body" rows="4"></sui-textarea>
       <div class="actions">
-        <sui-button type="submit" variant="primary">Save</sui-button>
+        <sui-button type="submit" variant="solid">Save</sui-button>
         {#if submitted()}
           <sui-badge tone="success" variant="soft">Saved</sui-badge>
         {/if}

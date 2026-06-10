@@ -20,9 +20,9 @@ import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 // the rest are direct-route views without a rail entry.
 const VIEWS = [
   'home', 'agents', 'skills', 'collections', 'artifacts', 'workspaces',
-  'settings', 'sessions',
+  'settings',
   'chat', 'mesh', 'events', 'git', 'canvas', 'specs', 'pipelines',
-  'pipelines-board', 'theme-studio', 'setup',
+  'pipelines-board', 'setup',
 ] as const
 
 // Noise from third-party deps / browser internals that is not a shell

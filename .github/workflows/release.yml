@@ -51,7 +51,7 @@ jobs:
           key: ${{ matrix.target }}
 
       - name: Install frontend dependencies
-        working-directory: apps/shell
+        working-directory: apps/host
         run: bun install
 
       - name: Build and release
@@ -70,7 +70,7 @@ jobs:
           # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
-          projectPath: apps/shell
+          projectPath: apps/host
           tagName: ${{ github.ref_name }}
           releaseName: Shipwright ${{ github.ref_name }}
           releaseBody: |

@@ -164,9 +164,9 @@ packs:
 | Route | Purpose |
 |---|---|
 | `GET /sui/<name>` | Full-page SSR — complete HTML document with attach() boot script |
-| `GET /_sui/fragment/<name>[/<sub>]` | Shell-embeddable SSR fragment |
-| `GET /_sui/views/<name>/view.js` | Compiled ESM module for the view |
-| `GET /_sui/render/<name>` | Debug: SSR HTML + importmap |
+| `GET /_deck/fragment/<name>[/<sub>]` | Shell-embeddable SSR fragment |
+| `GET /_deck/views/<name>/view.js` | Compiled ESM module for the view |
+| `GET /_deck/render/<name>` | Debug: SSR HTML + importmap |
 
 Embedding into the shell from JS: `mountSuiView(slot, name, subPath?)` — fetches the fragment, runs attach, returns disposer. No wrapper custom element.
 

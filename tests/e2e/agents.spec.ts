@@ -3,7 +3,7 @@
  *
  * The agents view (`views/agents/view.sui`) uses a `<data live>` subscription
  * to `ship.agents.summaries()`. Server-side it renders with `agents.kind ===
- * 'loading'`; the client runtime opens an SSE channel to `/_sui/data`, the
+ * 'loading'`; the client runtime opens an SSE channel to `/_deck/data`, the
  * daemon resolves the expression, and a boundary swap replaces the loading
  * branch with either the agents grid or the empty state.
  *

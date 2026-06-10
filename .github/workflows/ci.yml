@@ -22,13 +22,55 @@ jobs:
           bun-version: latest
       - name: Install JS deps
         run: bun install --frozen-lockfile
-      # Build sui-compiler upfront so the asset bundle + the `sui-build`
-      # pretest hook find target/debug/sui-compiler instead of paying
-      # `cargo run` per `.sui` file.
+      # sdk-*.json bootstrap cycle (mirrors Justfile `bootstrap`): ship-views
+      # `include_str!`s packages/deck/sdk/src/generated/sdk-*.json, and gen-sdk
+      # runs *through* shipd (via xtask) — so shipd can't compile until the
+      # files exist. Seed empty placeholders so the xtask build links, run
+      # gen-sdk to overwrite them with real content, then assert each exists and
+      # is non-empty. Without this, a cold-cache runner fails the first
+      # `cargo build -p shipd` on a missing include_str! target.
+      - name: Seed + generate SDK manifests (cold-cache include_str! unblock)
+        run: |
+          set -euo pipefail
+          mkdir -p packages/deck/sdk/src/generated
+          for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
+            [ -s "packages/deck/sdk/src/generated/$f.json" ] || echo '{}' > "packages/deck/sdk/src/generated/$f.json"
+          done
+          cargo run -p xtask --quiet -- gen-sdk
+          for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
+            test -s "packages/deck/sdk/src/generated/$f.json" \
+              || { echo "sdk manifest $f.json missing or empty after gen-sdk" >&2; exit 1; }
+          done
+      # License audit: walk the resolved dep tree and fail on copyleft
+      # (GPL/AGPL/LGPL/EPL/MPL/CDDL…). Replaces hand-copied vendor LICENSE
+      # files now that third-party engines are declared deps inlined at build
+      # (see docs/ship-adrs/.../ship-component-architecture.md). Pre-approved
+      # build-time-only exceptions are documented in the script's ALLOW map.
+      - name: License audit (no copyleft)
+        run: node scripts/check-licenses.mjs
+      # Build sui-compiler upfront so the deck asset bake + the vitest
+      # on-demand `.sui` compile find target/debug/sui-compiler instead of
+      # paying `cargo run` per `.sui` file.
       - name: Build sui-compiler
         run: cargo build -p sui-compiler
+      # Production-compile gate: run the REAL native compiler over EVERY
+      # first-party `.sui` (packages/components, views, .ship/views). jsdom unit
+      # tests don't exercise the full `check_all` pass, so a `.sui` can be green
+      # in vitest yet fail the real compiler (#263). This catches that before it
+      # ships. Honest exit (#255): any Error-severity finding fails the gate.
+      - name: Check every first-party .sui compiles (production gate)
+        run: node scripts/check-sui-compiles.mjs
       - name: Build daemon asset bundles
         run: bun run build:bundles
+      # TS typecheck — the enforcement + sanity layer (not optional). The SDK is
+      # the typecheck SSOT: a call to a deleted/quarantined op (e.g. ops.discovery.*
+      # after the backend service was culled, or `(ship as any).foo`) is a COMPILE
+      # ERROR here, caught instantly — not a silent runtime 404 surfaced a week
+      # later. Runs after the .sui → .sui.d.ts bundle bake so view/controller
+      # imports resolve. If this is red, the frontend is calling a surface that
+      # does not exist; fix the caller (deleted stays deleted) — never silence it.
+      - name: Typecheck shell (dead-op / surface-drift gate)
+        run: bun run --cwd apps/shell typecheck
       - name: Check silent-error patterns
         run: bash scripts/lint/check-silent-errors.sh
       - name: Check migration discipline (naming + immutability)
@@ -37,6 +79,19 @@ jobs:
           bash scripts/lint/check-migration-discipline.sh
       - name: Check SUI layer-cut (no framework -> host imports)
         run: bash scripts/lint/check-sui-layer-cut.sh
+      # SUI/Deck boundary gates — these scripts existed but were never invoked.
+      # check-sui-runtime-no-ship-api: the SUI runtime must not name Ship APIs.
+      # check-deck-package-names: deck packages stay on the canonical names.
+      - name: Check SUI runtime names no Ship API
+        run: bash scripts/lint/check-sui-runtime-no-ship-api.sh
+      - name: Check deck package names
+        run: bash scripts/lint/check-deck-package-names.sh
+      # Justfile recipe shell-syntax smoke: `just` treats recipe bodies as opaque
+      # text, so a bash typo (e.g. a dropped `if … then`) parses fine at the just
+      # layer yet breaks `just build` at runtime. `bash -n` over each recipe body
+      # catches that class before it lands.
+      - name: Lint Justfile recipe shell syntax
+        run: just lint-justfile
       - name: Check SUI bundle sizes (within budget)
         run: bash scripts/lint/check-sui-bundle-size.sh
       - name: Check OpenAPI drift
@@ -45,12 +100,13 @@ jobs:
         run: cd apps/docs && AUDIENCE=internal bun run collect
       - name: Check skill-docs drift
         run: cd apps/docs && bun run docs:check-drift
-      # ship-shell (apps/shell/src-tauri) is the Tauri desktop shell — it needs
-      # webkit2gtk/libsoup that this runner doesn't provision (only release.yml's
-      # tauri-action does). Excluded from the framework clippy/test sweep; the
-      # desktop crate is built on the release runners.
+      # ship-host (apps/host) is Ship's single native host — Tauri webview
+      # wrapping a daemon-served scaffold. Needs webkit2gtk/libsoup that this
+      # runner doesn't provision (only release.yml's tauri-action does).
+      # Excluded from the framework clippy/test sweep; the host is built on
+      # the release runners.
       - name: Clippy
-        run: cargo clippy --workspace --exclude ship-shell --features unstable -- -D warnings
+        run: cargo clippy --workspace --exclude ship-host --features unstable -- -D warnings
       - name: Build (stable)
         run: cargo build -p ship-cli -p shipd
       - name: Build (unstable)
@@ -99,18 +155,24 @@ jobs:
       - name: Build ship-sidecar (the live cells drive it)
         run: cargo build -p ship-sidecar
       - name: Cargo test
-        run: cargo test --workspace --exclude ship-shell --features unstable
+        run: cargo test --workspace --exclude ship-host --features unstable
       # Resource symmetry: every checked-in view mounts + disposes in
       # jsdom with zero leaked EventSources / Observers / intervals.
       # See `tests/integration/resource-symmetry.test.ts`.
       - name: Integration test (resource symmetry)
         run: bunx vitest run --config tests/integration/vitest.config.ts
-      # Runs `pretest` first (the package's `sui-build` hook), which exercises
-      # every framework check baked into the sui-compiler pipeline:
-      # controller-purity, css-token, bind-this-ref, on-callable, and
-      # the rest of the type-strengthening passes. The earlier
+      # The vitest factory compiles each `.sui` on demand through the
+      # sui-compiler, exercising every framework check baked into the
+      # pipeline: controller-purity, css-token, bind-this-ref, on-callable,
+      # and the rest of the type-strengthening passes. The earlier
       # `bun run build:bundles` step covers the same checks for views/*.
-      - name: JS tests (precompiles SUI via pretest hook)
+      # Zero-collection guard: a `*.test.ts` that collects no tests passes
+      # vacuously (green while proving nothing). Static half — every test file
+      # must declare at least one it()/test(); the runtime half is
+      # `passWithNoTests:false` in the shared vitest defaults.
+      - name: Check no test file collects zero tests
+        run: node scripts/check-zero-collection.mjs
+      - name: JS tests (compiles SUI on demand via the vitest factory)
         run: bun run --filter '@ship/ui-components' test
       - name: Bundle sui-runtime
         run: bun run --filter '@ship/sui-runtime' bundle

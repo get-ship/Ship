@@ -1,7 +1,7 @@
+import { DECK_PREFIX } from '@ship/sdk-client'
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import '../../src/components/sui-devtools/sui-devtools-source.compiled.js'
 import '../../src/components/sui-devtools/sui-devtools-components.compiled.js'
-import '../../src/components/sui-devtools/sui-devtools-schema.compiled.js'
 import '../../src/components/sui-devtools/sui-devtools-signals.compiled.js'
 import { createContainerRegistry, flush, mount } from '../test-utils'
 
@@ -75,8 +75,6 @@ describe('<sui-devtools-components>', () => {
         package: '@ship/test',
         private: false,
         sourcePath: 'src/foo.sui',
-        bundleUrl: '/_sui/packs/test/foo.js',
-        manifestUrl: '/_sui/packs/test/custom-elements.json',
         description: 'A foo element',
         firstDesc: 'A foo element',
         attributes: [],
@@ -97,8 +95,8 @@ describe('<sui-devtools-components>', () => {
       schemaVersion: '1',
       count: 2,
       entries: [
-        { tagName: 'sui-button', package: '@ship/primitives', private: false, sourcePath: '', bundleUrl: '', manifestUrl: '', description: '', firstDesc: '', attributes: [], slots: [] },
-        { tagName: 'sui-input',  package: '@ship/primitives', private: false, sourcePath: '', bundleUrl: '', manifestUrl: '', description: '', firstDesc: '', attributes: [], slots: [] },
+        { tagName: 'sui-button', package: '@ship/sui-primitives', private: false, sourcePath: '', description: '', firstDesc: '', attributes: [], slots: [] },
+        { tagName: 'sui-input',  package: '@ship/sui-primitives', private: false, sourcePath: '', description: '', firstDesc: '', attributes: [], slots: [] },
       ],
     }
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(catalog) })
@@ -121,7 +119,7 @@ describe('<sui-devtools-components>', () => {
     expect(typeof (el as unknown as { refresh?: unknown }).refresh).toBe('function')
   })
 
-  it('fetches the workspace catalog from /api/sui/catalog/workspace', async () => {
+  it('fetches the workspace catalog from DECK_PREFIX/catalog/workspace', async () => {
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ schemaVersion: '1', count: 0, entries: [] }) })
     const origFetch = globalThis.fetch
     globalThis.fetch = fetchSpy
@@ -129,43 +127,9 @@ describe('<sui-devtools-components>', () => {
     await flush(); await flush()
     expect(fetchSpy).toHaveBeenCalled()
     const calledUrl = String(fetchSpy.mock.calls[0]?.[0] ?? '')
-    expect(calledUrl).toContain('/api/sui/catalog/workspace')
+    expect(calledUrl).toContain(`${DECK_PREFIX}/catalog/workspace`)
     expect(calledUrl).not.toContain('/api/assets/sui-custom-elements.json')
     globalThis.fetch = origFetch
-  })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-describe('<sui-devtools-schema>', () => {
-  it('registers as a custom element', () => {
-    expect(customElements.get('sui-devtools-schema')).toBeDefined()
-  })
-
-  it('renders toolbar and body containers in shadow DOM', () => {
-    const { el } = mount(reg, 'sui-devtools-schema')
-    expect(shadow(el).querySelector('.toolbar')).not.toBeNull()
-    expect(shadow(el).querySelector('.body')).not.toBeNull()
-  })
-
-  it('shows no-reference empty-state when source has no ship.* ops (with view path)', async () => {
-    const fetchSpy = vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ ok: true, data: { ops: [] } }) })
-      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ template: 'Hello world', manifest: null }) })
-    const origFetch = globalThis.fetch
-    const origShip = (window as unknown as { ship?: unknown }).ship
-    ;(window as unknown as { ship: unknown }).ship = { current: () => ({ path: '/api/v/myview' }) }
-    globalThis.fetch = fetchSpy
-    const { el } = mount(reg, 'sui-devtools-schema')
-    await flush(); await flush(); await flush(); await flush()
-    expect(body(el).innerHTML).toContain('sui-empty-state')
-    globalThis.fetch = origFetch
-    ;(window as unknown as { ship: unknown }).ship = origShip
-  })
-
-  it('refresh() method is exposed on host', async () => {
-    const { el } = mount(reg, 'sui-devtools-schema')
-    await flush()
-    expect(typeof (el as unknown as { refresh?: unknown }).refresh).toBe('function')
   })
 })
 

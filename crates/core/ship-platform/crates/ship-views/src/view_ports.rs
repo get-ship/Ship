@@ -64,14 +64,4 @@ pub trait ViewToolPort: Send + Sync {
 
     /// Resolved active-theme CSS — parses custom properties for `theme_tokens`.
     fn resolve_theme_css(&self) -> String;
-
-    /// Publish an annotation SSE frame to the per-view channel.
-    async fn publish_annotation(&self, view_name: &str, payload: serde_json::Value);
-
-    /// Publish an annotation-clear SSE frame.
-    async fn publish_annotation_clear(&self, view_name: &str, payload: serde_json::Value);
-
-    /// Schedule a deferred annotation-clear broadcast (fires after the compile
-    /// succeeds so agent UI pins don't linger past the edit they referenced).
-    fn schedule_annotation_clear(&self, view_name: String);
 }

@@ -277,7 +277,8 @@ fn test_version_field() -> anyhow::Result<()> {
 fn test_property_event_ordering() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let entity = "prop-entity";
-    let types = event_types::ALL;
+    let names = ship_types::event_registry::all_names();
+    let types: &[&str] = &names;
     let n = 75;
     let mut expected_ids = Vec::with_capacity(n);
 
@@ -317,22 +318,9 @@ fn registry_actor_created_is_runtime_ephemeral() {
     assert_eq!(def.retention, ship_types::event_registry::Retention::Ephemeral);
 }
 
-#[test]
-fn registry_agent_def_updated_is_space_ephemeral() {
-    let def = ship_types::event_registry::lookup("agent.def.updated")
-        .expect("agent.def.updated must be in registry");
-    assert_eq!(
-        def.allowed_scopes,
-        &[ship_types::event_registry::EventScope::Space],
-        "def change notification is Space-scoped (it lives in a space's .ship)"
-    );
-    assert_eq!(def.primary_scope(), ship_types::event_registry::EventScope::Space);
-    assert_eq!(
-        def.retention,
-        ship_types::event_registry::Retention::Ephemeral,
-        "Bucket-2 notification is ephemeral — the file is truth"
-    );
-}
+// `registry_agent_def_updated_is_space_ephemeral` moved to agent-def
+// tests/event_scope_discipline (keystone-A Phase A): the registration it
+// asserts on now lives there and is not linked into this L0 binary.
 
 #[test]
 fn registry_names_are_unique() {
@@ -346,5 +334,75 @@ fn registry_names_are_unique() {
 #[test]
 fn registry_has_entries() {
     let count = ship_types::event_registry::all_names().len();
-    assert!(count >= 100, "registry must have at least 100 events; got {count}");
+    // Floor lowered as keystone-A de-buckets domains to L1 crates. The exact
+    // L0 count is pinned by `l0_registry_shrinks_under_keystone_a`; this
+    // floor is just a smoke check that the binary isn't empty.
+    // Keep WELL below the pin so domain de-buckets never trip the smoke
+    // check — only an inventory/linker catastrophe should.
+    assert!(count >= 40, "registry must have at least 40 events; got {count}");
+}
+
+/// L0 registration ratchet — the successor of the retired `ALL`-mirror test.
+///
+/// The vocabulary's source of truth is the inventory registry; in THIS (L0)
+/// test binary `all_names()` sees exactly ship-substrate's own
+/// `payload_registry.rs` registrations. Under keystone A (domain-owned events
+/// at L1, ratified 2026-06-10) this set may only SHRINK: de-bucketing a domain
+/// moves its `register_event!` lines to the owning L1 crate (agents and
+/// collection are done). Bump the pin DOWN with the move that shrinks it;
+/// growing it means new domain events were registered at L0 — stop and put
+/// them in the owning domain crate instead (genuinely substrate-generic
+/// events are the rare sanctioned exception).
+///
+/// Full-linkage vocabulary guards (every domain linked, NO exception lists)
+/// live in shipd `tests/event_vocabulary.rs`.
+#[test]
+fn l0_registry_shrinks_under_keystone_a() {
+    let n = ship_types::event_registry::all_names().len();
+    assert_eq!(
+        n, 71,
+        "L0-registered event count changed. This pin is a keystone-A RATCHET: \
+         it should only move DOWN (a domain de-bucket) — update it with the \
+         move. If it went UP, register the new events in their owning L1 \
+         domain crate, not in payload_registry.rs."
+    );
+}
+
+/// Legacy families pinned until their sanctioned severs land. Both lists may
+/// only SHRINK (to empty), at which point delete the corresponding block.
+#[test]
+fn legacy_families_pinned_until_sever() {
+    use std::collections::BTreeSet;
+    let registry: BTreeSet<&str> =
+        ship_types::event_registry::all_names().into_iter().collect();
+
+    // hook.* — converts to canonical op.* under #25b (http_ingress AND the
+    // supervisor synth, with the analytics_turns no-regression matrix), then
+    // deregisters.
+    const HOOK_FAMILY: &[&str] = &[
+        "hook.permission_denied",
+        "hook.session_ended",
+        "hook.session_started",
+        "hook.tool_use_completed",
+        "hook.tool_use_started",
+        "hook.turn_observed",
+    ];
+    // legacy agent.session.* dispatch family — dual-emit sever + deletion
+    // pending the #26 spawn-intent channel design.
+    const AGENT_SESSION_FAMILY: &[&str] = &[
+        "agent.session.cancelled",
+        "agent.session.completed",
+        "agent.session.dispatched",
+        "agent.session.failed",
+        "agent.session.started",
+    ];
+    for family in [HOOK_FAMILY, AGENT_SESSION_FAMILY] {
+        for name in family {
+            assert!(
+                registry.contains(name),
+                "`{name}` left the L0 registry — if its sever landed, shrink \
+                 this pin with it; if not, a registration was lost accidentally"
+            );
+        }
+    }
 }

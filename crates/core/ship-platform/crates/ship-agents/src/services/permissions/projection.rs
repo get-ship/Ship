@@ -1,10 +1,10 @@
-//! Provisioned-grants projection — re-exported from ship-substrate.
+//! Provisioned-grants projection — re-exported from ship-auth.
 //!
-//! The implementation lives in `ship_substrate::projections::grants` because
-//! `ship-auth` depends on substrate (not platform), and we need a cycle-free
-//! path for both the projection and the read functions.
+//! The implementation moved from `ship_substrate::projections::grants` to
+//! `ship_auth::grants_projection` (keystone-A Phase A bundle 2, 2026-06-10):
+//! the AUTH domain owns its projection at L1.
 
-pub use ship_substrate::projections::grants::{
+pub use ship_auth::grants_projection::{
     ProvisionedGrantsProjection, ProvisionedGrantsRow, provisioned_grants_for,
     provisioned_grants_for_at, provisioned_row,
 };

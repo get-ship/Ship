@@ -20,7 +20,7 @@
 //   Esc            close any open <sui-dialog>/<sui-drawer>; else if a view
 //                  is mounted, return to the blank canvas
 
-import type { Route } from './routing-types'
+import type { CurrentViewName } from './routing-types'
 
 interface CommandBar extends HTMLElement {
   show(mode?: string, query?: string): void
@@ -34,8 +34,11 @@ interface CommandBar extends HTMLElement {
  *  back into these closures. */
 export interface KeymapContext {
   navigate(path: string): void
-  /** Current route, or `null` when on the blank canvas. */
-  currentRoute(): Route | null
+  /** Current top-level view name (first path segment), or `null`
+   *  on the blank canvas. Replaces the old `currentRoute()` getter
+   *  — the keymap only needs a stable view-name string to gate
+   *  per-view shortcuts, not a parsed Route object. */
+  getCurrentViewName(): CurrentViewName | null
   /** Toggle the per-view edit mode for a specific view name. */
   toggleEditMode(view: string): void
   /** Toggle annotation mode (sub-toggle inside edit mode). */
@@ -117,32 +120,28 @@ export function registerKeymap(ctx: KeymapContext): () => void {
       // dock tabs + projects the view-authoring surfaces. Alt+E replaced
       // the prior ⌘⇧E / Ctrl+Shift+E binding because of browser collisions
       // (Firefox tab search, Chrome devtools toggle).
-      const cur = ctx.currentRoute()
-      if (cur) ctx.toggleEditMode(cur.view)
+      const cur = ctx.getCurrentViewName()
+      if (cur) ctx.toggleEditMode(cur)
       return
     }
-
     if (e.altKey && e.shiftKey && !mod && key === 'e') {
       e.preventDefault()
       // Annotation mode (sub-toggle inside edit mode). No-op when edit mode
       // is off — the runtime guards this; the keyboard binding just relays.
-      const cur = ctx.currentRoute()
-      if (cur) ctx.toggleAnnotationMode(cur.view)
+      const cur = ctx.getCurrentViewName()
+      if (cur) ctx.toggleAnnotationMode(cur)
       return
     }
-
     if (mod && key === 'b') {
       e.preventDefault()
       document.dispatchEvent(new CustomEvent('sui:rail:toggle', { bubbles: true }))
       return
     }
-
     if (mod && key === 'n') {
       e.preventDefault()
       document.dispatchEvent(new CustomEvent('ship:create:open', { bubbles: true }))
       return
     }
-
     if (e.key === 'Escape') {
       // Native <dialog> handles Esc already. Backstop: close any open
       // sui-dialog or sui-drawer that may not be using the native dialog
@@ -157,10 +156,8 @@ export function registerKeymap(ctx: KeymapContext): () => void {
       // return to the blank canvas. The spec calls for Esc to clear the
       // active view's content from the canvas slot when no other modal
       // surface is consuming the key.
-      const cur = ctx.currentRoute()
-      if (!closedAny && cur) {
+      if (!closedAny && ctx.getCurrentViewName()) {
         e.preventDefault()
-        history.pushState({}, '', '/')
         const slot = document.getElementById('ship-content')
         if (slot) {
           ctx.disposeCurrentMount()

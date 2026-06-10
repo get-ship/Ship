@@ -21,6 +21,11 @@ export interface HostContext {
   spaceId?: string
   /** Per-tab session id, shared with the view-authoring handshake. */
   sessionId?: string
+  /** Edit-mode lifecycle transport. The host wires this to its view
+   *  service enter/exit RPC; the runtime calls it on toggle and names no
+   *  daemon URL. Omitted ⇒ the lifecycle notify is a no-op (the local
+   *  toggle still works). */
+  editModeTransport?: (name: string, action: 'enter' | 'exit') => void | Promise<void>
 }
 
 /** Register the host context. Call at host startup and whenever a value

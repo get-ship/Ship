@@ -26,7 +26,7 @@ import { morph } from './morph'
 import type { ViewPayload as GeneratedViewPayload } from './generated'
 
 /**
- * Wire shape returned by `GET /_sui/views/<name>[/<sub>]`. The base type
+ * Wire shape returned by `GET /_deck/views/<name>[/<sub>]`. The base type
  * is generated from `crates/deck/deck-host/src/view_payload.rs::ViewPayload`
  * via `cargo xtask gen-types`. The local generic specializes `scope` —
  * Rust ships it as untyped JSON; per-view modules narrow it here.
@@ -37,18 +37,20 @@ export type ViewPayload<Scope = Record<string, unknown>> =
 /**
  * Host-provided loader. The runtime is host-agnostic — it does NOT know the
  * URL scheme for fetching view payloads or component bundles. The host (deck
- * view-host, shell) injects this adapter so the `/_sui/...` (or any) scheme
+ * view-host, shell) injects this adapter so the `/_deck/...` (or any) scheme
  * lives at the boundary, not in the framework.
  */
 export interface SuiLoader {
   /** Resolve a view payload by `name[/sub]` (for the `mount(target, name)` form). */
   fetchView(nameOrPath: string): Promise<ViewPayload>
-  /** Load + register a component island bundle by its custom-element tag. */
-  loadComponent(tag: string): Promise<void>
 }
 
 export interface MountOptions {
   ship?: unknown
+  /** Host-injected named data/ops clients, spread into scope so a view's
+   *  `<data source="X.op()">` + handlers resolve bare `X` (the `<client>`-
+   *  declared map). The implementor-named replacement for the single `ship`. */
+  clients?: Record<string, unknown>
   route?: RouteSignals
   navigate?: (path: string) => void
   /** Host loader for by-name payload fetch + component-island loading. */
@@ -78,6 +80,7 @@ export interface MountHandle<Scope = Record<string, unknown>> {
 
 interface SetupContext {
   ship?: unknown
+  clients?: Record<string, unknown> | undefined
   route?: RouteSignals | undefined
   navigate?: ((path: string) => void) | undefined
   scope?: Record<string, unknown>
@@ -103,7 +106,7 @@ const LIFECYCLE_KEY = '__shipSetLifecycle'
  *               mount morph-patches it toward payload.html, preserving
  *               node identity. Otherwise children are built fresh.
  * @param payloadOrName  A fetched ViewPayload, or a `name[/sub]`
- *               string the runtime fetches from `/_sui/views/...`.
+ *               string the runtime fetches from `/_deck/views/...`.
  * @param opts   ship / route / navigate / restoreScope / cssScope.
  * @returns      MountHandle — call `dispose()` when done.
  */
@@ -125,13 +128,6 @@ export async function mount<Scope = Record<string, unknown>>(
   //     segment value without depending on client-side path matching.
   seedRouteParams(opts.route, payload.params)
 
-  // 0b. Load any islands this view declares but that aren't registered
-  //     yet. The compiler walks the template and lists every `<sui-*>`
-  //     island bundle in `payload.islands`; the host page only
-  //     bootstraps chrome islands, so view-owned islands (e.g.
-  //     sui-markdown-editor) are pulled here on demand.
-  await loadViewIslands(payload.islands, opts.loader)
-
   // 1. Adopt SSR markup if present (morph in place), else clean-mount.
   //    The view-host shell ships SSR content inside `target` before this
   //    runs; overwriting via `innerHTML = payload.html` would discard it
@@ -144,7 +140,6 @@ export async function mount<Scope = Record<string, unknown>>(
     tmpl.innerHTML = payload.html
     target.replaceChildren(...Array.from(tmpl.content.childNodes))
   }
-
   // 2. Inject CSS.
   const styleEl = injectCss(target, payload.css, opts.cssScope ?? 'adjacent')
 
@@ -167,12 +162,17 @@ export async function mount<Scope = Record<string, unknown>>(
   const navigate = opts.navigate ?? noop
   const baseScope: Record<string, unknown> = {
     ship: opts.ship,
+    clients: opts.clients,
+    // Spread each declared client by name so `<data source="X.op()">` resolves
+    // bare `X`. Before `...built.scope` so author scope still shadows.
+    ...(opts.clients ?? {}),
     route,
     navigate,
     ...built.scope,
   }
   const setupCtx: SetupContext = {
     ship: opts.ship,
+    clients: opts.clients,
     route,
     navigate,
     scope: { ...baseScope },
@@ -385,29 +385,6 @@ function seedRouteParams(
   }
 }
 
-async function loadViewIslands(
-  bundles: string[] | undefined,
-  loader: SuiLoader | undefined,
-): Promise<void> {
-  if (!bundles || bundles.length === 0) return
-  if (typeof customElements === 'undefined') return
-  const pending = bundles.filter((bundle) => !customElements.get(bundle))
-  if (pending.length === 0) return
-  if (!loader) {
-    throw new Error(
-      `[sui/mount] view declares component islands (${pending.join(', ')}) but no ` +
-        `opts.loader was provided — the host must supply a SuiLoader to load them.`,
-    )
-  }
-  await Promise.all(
-    pending.map((bundle) =>
-      loader.loadComponent(bundle).catch((err) => {
-        console.error(`[sui/mount] failed to load component bundle ${bundle}:`, err)
-      }),
-    ),
-  )
-}
-
 async function resolveView(
   nameOrPath: string,
   loader: SuiLoader | undefined,
@@ -589,7 +566,7 @@ function openLiveChannel(
 // ── patch-elements applier ────────────────────────────────────────────
 //
 // Out-of-band DOM patches pushed by the daemon's
-// `/_sui/views/<name>/patch-elements` endpoint. The trust boundary is the
+// `/_deck/views/<name>/patch-elements` endpoint. The trust boundary is the
 // SSE auth in shipd's `sui_agent_push.rs` — by the time a frame reaches
 // here it's already a trusted caller. The runtime's only job is to scope
 // the selector to the view root: `[data-sui-root][data-view="<name>"]`

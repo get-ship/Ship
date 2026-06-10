@@ -75,7 +75,7 @@ describe('mount()', () => {
       html: '<p>hello</p>',
       css: '',
       scope: {},
-      moduleUrl: '/_sui/views/demo/view.js',
+      moduleUrl: '/_deck/views/demo/view.js',
     }
     const handle = await mount(target, payload, { module: emptyModule() })
     expect(handle.element).toBe(target)
@@ -225,7 +225,7 @@ describe('mount()', () => {
       css: '',
       scope: {
         live1: { kind: 'loading' as const },
-        __subscribe__: '/_sui/views/demo/sse',
+        __subscribe__: '/_deck/views/demo/sse',
       } as unknown as Record<string, unknown>,
       moduleUrl: '/x',
     }
@@ -291,7 +291,7 @@ describe('mount()', () => {
 
   it('mount via name string resolves through the injected loader', async () => {
     // The runtime is host-agnostic: mounting by name delegates payload
-    // resolution to `opts.loader.fetchView`. The `/_sui/...` URL scheme lives
+    // resolution to `opts.loader.fetchView`. The `/_deck/...` URL scheme lives
     // in the host's loader (shell / deck view-host), not in mount().
     const payload: ViewPayload = {
       name: 'demo-fetch',
@@ -347,5 +347,105 @@ describe('signal sanity in test harness', () => {
   it('signal export is callable', () => {
     const s = signal(1)
     expect(s()).toBe(1)
+  })
+})
+
+// ── openLiveChannel end-to-end coverage ───────────────────────────────────
+//
+// Mount creates a FakeEventSource (via the global stub above), registers
+// patch-signals handlers on it, and patches the live signal when a frame
+// arrives. We intercept the constructed instance, mount a view that has a
+// live scope key + __subscribe__, then emit SSE frames and verify the
+// LiveSignal walks loading → ok → ok (second value).
+
+describe('openLiveChannel (via mount)', () => {
+  let target: HTMLElement
+  // Capture the FakeEventSource instance that openLiveChannel constructs.
+  let lastFakeES: FakeEventSource | null = null
+  const OrigFakeEventSource = FakeEventSource
+  class CapturingFakeEventSource extends OrigFakeEventSource {
+    constructor(url: string) {
+      super(url)
+      lastFakeES = this
+    }
+  }
+
+  beforeEach(() => {
+    document.body.innerHTML = ''
+    target = document.createElement('div')
+    document.body.appendChild(target)
+    lastFakeES = null
+    ;(globalThis as unknown as { EventSource: unknown }).EventSource = CapturingFakeEventSource
+  })
+
+  afterEach(() => {
+    ;(globalThis as unknown as { EventSource: unknown }).EventSource = FakeEventSource
+  })
+
+  it('patch-signals frame transitions LiveSignal loading → ok, second frame advances value', async () => {
+    // Payload: one live key + __subscribe__ triggers openLiveChannel.
+    const payload: ViewPayload = {
+      name: 'live-test',
+      html: '<div></div>',
+      css: '',
+      scope: {
+        items: { kind: 'loading' as const },
+        __subscribe__: '/_deck/views/live-test/sse',
+      } as unknown as Record<string, unknown>,
+      moduleUrl: '/x',
+    }
+
+    const handle = await mount(target, payload, { module: emptyModule() })
+
+    // The FakeEventSource was constructed by openLiveChannel.
+    expect(lastFakeES).not.toBeNull()
+    const es = lastFakeES!
+
+    // Read the live signal from the built scope.
+    const scope = handle.scope as Record<string, () => unknown>
+    const itemsSig = scope['items']!
+
+    // Before any SSE frame the signal is still loading (server-seeded value).
+    expect((itemsSig() as { kind: string }).kind).toBe('loading')
+
+    // Emit the first patch-signals frame: loading → ok.
+    es.emit('patch-signals', { name: 'items', value: { kind: 'ok', value: ['a', 'b'] } })
+    const afterFirst = itemsSig() as { kind: string; value: unknown }
+    expect(afterFirst.kind).toBe('ok')
+    expect(afterFirst.value).toEqual(['a', 'b'])
+
+    // Emit a second frame: ok → ok with a new value.
+    es.emit('patch-signals', { name: 'items', value: { kind: 'ok', value: ['a', 'b', 'c'] } })
+    const afterSecond = itemsSig() as { kind: string; value: unknown }
+    expect(afterSecond.kind).toBe('ok')
+    expect(afterSecond.value).toEqual(['a', 'b', 'c'])
+
+    handle.dispose()
+    // After dispose the EventSource is closed.
+    expect(es.closed).toBe(true)
+  })
+
+  it('ignores patch-signals frames for keys not in liveKeys', async () => {
+    const payload: ViewPayload = {
+      name: 'live-test-filter',
+      html: '<div></div>',
+      css: '',
+      scope: {
+        items: { kind: 'loading' as const },
+        __subscribe__: '/_deck/views/live-test-filter/sse',
+      } as unknown as Record<string, unknown>,
+      moduleUrl: '/x',
+    }
+
+    const handle = await mount(target, payload, { module: emptyModule() })
+    const es = lastFakeES!
+    const scope = handle.scope as Record<string, () => unknown>
+    const itemsSig = scope['items']!
+
+    // Frame for an unknown key — signal must stay loading.
+    es.emit('patch-signals', { name: 'unknown-key', value: { kind: 'ok', value: 99 } })
+    expect((itemsSig() as { kind: string }).kind).toBe('loading')
+
+    handle.dispose()
   })
 })

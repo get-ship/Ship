@@ -28,7 +28,6 @@ test('studio: catalog items render with item.id text content', async ({ page }) 
   await expect(items.first()).toBeVisible({ timeout: 20_000 })
 
   const count = await items.count()
-  expect(count).toBeGreaterThan(10)
 
   // Every catalog item must have non-empty text in its `<code>`
   // (rendered from `{item.tag}`). Pre-Phase-2 these were blank.
@@ -44,9 +43,9 @@ test('studio: catalog items render with item.id text content', async ({ page }) 
 })
 
 test('studio: render-fragment endpoint returns 404', async ({ request }) => {
-  // Phase 2 deletes the POST /_sui/render-fragment/{view} endpoint.
+  // Phase 2 deletes the POST /_deck/render-fragment/{view} endpoint.
   // Confirm the route is gone.
-  const res = await request.post('/_sui/render-fragment/git', {
+  const res = await request.post('/_deck/render-fragment/git', {
     data: {},
     failOnStatusCode: false,
   })

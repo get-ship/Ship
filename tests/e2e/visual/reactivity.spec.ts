@@ -12,10 +12,10 @@ import { waitForAttach, injectStability, pinTheme } from './helpers/render'
 const BUMP = '[data-test="bump"]'
 
 test('SSR payload: home view JSON carries reactive sui markers', async ({ request }) => {
-  // The host shell fetches /_sui/views/<name> as JSON; the /sui/<name>
+  // The host shell fetches /_deck/views/<name> as JSON; the /sui/<name>
   // route returns the generic shell HTML for any name, so we have to look
   // inside the JSON to verify what the compiler actually produced.
-  const res = await request.get('/_sui/views/home')
+  const res = await request.get('/_deck/views/home')
   expect(res.status()).toBe(200)
   const payload = (await res.json()) as { name: string; html: string; css?: string }
   expect(payload.name).toBe('home')

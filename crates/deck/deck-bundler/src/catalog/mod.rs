@@ -1,14 +1,11 @@
-//! Component catalog aggregation (#163 catalog port).
+//! Component catalog aggregation.
 //!
-//! Port of `@ship/sui-catalog`'s aggregator: walk per-component CEMs from
-//! published packages (each package's `customElements` manifest) AND from
-//! `.ship/sui-out/**/*.custom-elements.json` (non-packaged: shell-local,
-//! view-local), merge into the canonical workspace + published documents.
-//! Filesystem-only, deterministic (sort by tagName). Pass-through CEM arrays
-//! are kept as raw JSON so component metadata isn't lost to a typed schema.
-//!
-//! Matches the JS aggregator semantically (same entries/fields); exact byte
-//! output isn't required — consumers parse the JSON and nothing bakes it.
+//! Walk per-component CEMs from published packages (each package's
+//! `customElements` manifest) AND from `.ship/sui-out/**/*.custom-elements.json`
+//! (non-packaged: shell-local, view-local), merge into the canonical workspace
+//! catalog document. Filesystem-only, deterministic (sort by tagName).
+//! Pass-through CEM arrays are kept as raw JSON so component metadata isn't
+//! lost to a typed schema.
 
 mod workspace;
 
@@ -17,16 +14,17 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use serde_json::{Value, json};
 
-pub use workspace::{WorkspacePackage, discover_workspace_packages, pack_id_for_name};
-use workspace::read_json;
+pub use workspace::{
+    WorkspacePackage, composed_component_index, discover_workspace_packages,
+    discover_workspace_packages_scoped, pack_id_for_name,
+};
+use workspace::{read_json, source_tags_for_package};
 
 const SUI_OUT: &str = ".ship/sui-out";
 const CEM_SUFFIX: &str = ".custom-elements.json";
 const SKIP_DIRS: [&str; 4] = ["node_modules", "dist", "target", ".git"];
 
-/// One catalog entry. Field order mirrors the JS runtime object (base fields,
-/// then routing) so output stays close to the TS version. Pass-through CEM
-/// arrays are raw `Value`.
+/// One catalog entry. Pass-through CEM arrays are raw `Value`.
 #[derive(Debug, Clone, Serialize)]
 #[allow(non_snake_case)]
 pub struct CatalogEntry {
@@ -43,8 +41,6 @@ pub struct CatalogEntry {
     pub package: String,
     pub private: bool,
     pub sourcePath: String,
-    pub bundleUrl: String,
-    pub manifestUrl: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -59,10 +55,27 @@ pub fn stringify_catalog(doc: &CatalogDocument) -> String {
     serde_json::to_string_pretty(doc).unwrap_or_default() + "\n"
 }
 
-/// Build both projections for a repo. `workspace` = every component;
-/// `published` = only non-private.
-pub fn build_catalogs(repo_root: &Path) -> Result<(CatalogDocument, CatalogDocument), String> {
-    let packages = discover_workspace_packages(repo_root)?;
+/// Build the workspace catalog for a repo — every component, sorted by tagName.
+///
+/// `first_party_app` is the optional embedded host app (e.g. `apps/shell` →
+/// `app:shell` from `deck.jsonc`). When `None`, the shell-local CEM projection
+/// does not apply — suitable for zero-config hosts.
+pub fn build_catalog(
+    repo_root: &Path,
+    first_party_app: Option<&deck_config::FirstPartyApp>,
+) -> Result<CatalogDocument, String> {
+    build_catalog_scoped(repo_root, first_party_app, None)
+}
+
+/// Scoped variant of [`build_catalog`]. When `packs` is a non-empty declared
+/// set, only those packs' components are aggregated; `None`/empty preserves the
+/// global behavior.
+pub fn build_catalog_scoped(
+    repo_root: &Path,
+    first_party_app: Option<&deck_config::FirstPartyApp>,
+    packs: Option<&[String]>,
+) -> Result<CatalogDocument, String> {
+    let packages = discover_workspace_packages_scoped(repo_root, packs)?;
 
     let mut all: Vec<CatalogEntry> = Vec::new();
     for pkg in &packages {
@@ -70,25 +83,126 @@ pub fn build_catalogs(repo_root: &Path) -> Result<(CatalogDocument, CatalogDocum
             all.extend(entries_from_packaged_manifest(repo_root, pkg));
         }
     }
-    all.extend(entries_from_sui_out(repo_root, &packages));
+    all.extend(entries_from_sui_out(repo_root, &packages, first_party_app));
 
     all.sort_by(|a, b| a.tagName.cmp(&b.tagName));
     // Dedup by tagName, first wins (packaged entries precede sui-out ones).
     let mut seen = std::collections::HashSet::new();
     all.retain(|e| seen.insert(e.tagName.clone()));
 
-    let workspace = CatalogDocument {
+    Ok(CatalogDocument {
         schemaVersion: "1",
         count: all.len(),
-        entries: all.clone(),
-    };
-    let published_entries: Vec<CatalogEntry> = all.into_iter().filter(|e| !e.private).collect();
-    let published = CatalogDocument {
-        schemaVersion: "1",
-        count: published_entries.len(),
-        entries: published_entries,
-    };
-    Ok((workspace, published))
+        entries: all,
+    })
+}
+
+/// Map every workspace component tag → its source `.sui` path (absolute), for
+/// the per-view resolver: the bundler resolves `@sui-tag/<tag>` to this path so
+/// the component compiles into the view bundle.
+///
+/// SOURCE-MODE (primary): for every workspace package, recursively scan
+/// `<pkg>/src/` for `.sui` files whose stem contains a hyphen and is not
+/// "page" or "index" (the HTML custom-element tag-name rule). This is the
+/// authoritative component convention and requires no pre-built CEM. Views
+/// (`page.sui`, `index.sui`) are excluded by the guard and never leak into the
+/// resolver index.
+///
+/// CEM-MODE (secondary): for any tag NOT already found via source scan, fall
+/// back to the CEM-derived path from `build_catalog` (useful for packages that
+/// only ship a dist CEM with no `.sui` source in the repo). In practice,
+/// the monorepo always has `.sui` source, so CEM only adds anything if a
+/// package genuinely has no local source.
+///
+/// A tag whose source can't be located (neither source scan nor CEM) is absent;
+/// the resolver then falls back to external.
+pub fn tag_source_index(
+    repo_root: &Path,
+    first_party_app: Option<&deck_config::FirstPartyApp>,
+) -> std::collections::HashMap<String, PathBuf> {
+    tag_source_index_scoped(repo_root, first_party_app, None)
+}
+
+/// Scoped variant of [`tag_source_index`] — per-project component access control.
+///
+/// When `packs` declares a non-empty set, the index is built ONLY from those
+/// packs (both the source scan and the CEM fallback are scoped). A tag provided
+/// solely by an undeclared pack is therefore absent → the resolver emits a
+/// `@sui-tag` no-op for it (the component never bundles), and the bundler warns
+/// the author (see [`shadowed_tags`]). When `packs` is `None`/empty the behavior
+/// is identical to [`tag_source_index`] (global).
+pub fn tag_source_index_scoped(
+    repo_root: &Path,
+    first_party_app: Option<&deck_config::FirstPartyApp>,
+    packs: Option<&[String]>,
+) -> std::collections::HashMap<String, PathBuf> {
+    let mut out = std::collections::HashMap::new();
+
+    // ── primary: source scan of every (declared) workspace package ────────
+    if let Ok(packages) = discover_workspace_packages_scoped(repo_root, packs) {
+        for pkg in &packages {
+            for (tag, abs_path) in source_tags_for_package(&pkg.root) {
+                if abs_path.is_file() {
+                    out.entry(tag).or_insert(abs_path);
+                }
+            }
+        }
+    }
+
+    // ── secondary: CEM-derived paths for anything source scan missed ───────
+    if let Ok(workspace) = build_catalog_scoped(repo_root, first_party_app, packs) {
+        for e in workspace.entries {
+            if out.contains_key(&e.tagName) {
+                continue; // source-mode already resolved this tag
+            }
+            if !e.sourcePath.ends_with(".sui") {
+                continue;
+            }
+            let abs = repo_root.join(&e.sourcePath);
+            if abs.is_file() {
+                out.insert(e.tagName, abs);
+            }
+        }
+    }
+
+    out
+}
+
+/// Global map: every workspace component tag → its owning pack's `package.json`
+/// `name`. First pack to provide a tag wins (discovery is name-sorted, stable).
+/// Source-scan only — the authoritative component convention — so a tag's pack
+/// attribution matches exactly what a declared scope filters on.
+pub fn tag_pack_index(repo_root: &Path) -> std::collections::HashMap<String, String> {
+    let mut out = std::collections::HashMap::new();
+    if let Ok(packages) = discover_workspace_packages(repo_root) {
+        for pkg in &packages {
+            for (tag, _path) in source_tags_for_package(&pkg.root) {
+                out.entry(tag).or_insert_with(|| pkg.name.clone());
+            }
+        }
+    }
+    out
+}
+
+/// Tags a declared-`packs` scope EXCLUDES → `tag → owning-pack name`.
+///
+/// Every workspace component tag whose owning pack is not in the resolved scope.
+/// Empty when `packs` is empty (global scope excludes nothing). This powers the
+/// author diagnostic the bundler emits when a built view references a scoped-out
+/// tag: "`<tag>` is provided by `<pack>`, which you didn't declare."
+pub fn shadowed_tags(
+    repo_root: &Path,
+    first_party_app: Option<&deck_config::FirstPartyApp>,
+    packs: &[String],
+) -> std::collections::HashMap<String, String> {
+    if packs.is_empty() {
+        return std::collections::HashMap::new();
+    }
+    let scoped = tag_source_index_scoped(repo_root, first_party_app, Some(packs));
+    tag_pack_index(repo_root)
+        .into_iter()
+        .filter(|(tag, _)| !scoped.contains_key(tag))
+        .collect()
 }
 
 fn arr_or_empty(v: &Value) -> Value {
@@ -102,8 +216,6 @@ fn entry_from_decl(
     package: String,
     private: bool,
     source_path: String,
-    bundle_url: String,
-    manifest_url: String,
 ) -> Option<CatalogEntry> {
     let tag = decl["tagName"].as_str().filter(|s| !s.is_empty())?;
     if decl["customElement"].as_bool() != Some(true) {
@@ -125,8 +237,6 @@ fn entry_from_decl(
         package,
         private,
         sourcePath: source_path,
-        bundleUrl: bundle_url,
-        manifestUrl: manifest_url,
     })
 }
 
@@ -138,12 +248,6 @@ fn entries_from_packaged_manifest(repo_root: &Path, pkg: &WorkspacePackage) -> V
     }
     let Some(cem) = read_json(&manifest_abs) else { return vec![] };
     let Some(modules) = cem["modules"].as_array() else { return vec![] };
-    let pack_id = pack_id_for_name(&pkg.name);
-    let bundle_url = match first_js_in_dist(&pkg.root) {
-        Some(name) => format!("/_sui/packs/{pack_id}/{name}"),
-        None => format!("/_sui/packs/{pack_id}/index.js"),
-    };
-    let manifest_url = format!("/_sui/packs/{pack_id}/custom-elements.json");
     let pkg_rel_root = rel_unix(repo_root, &pkg.root);
 
     let mut out = Vec::new();
@@ -162,8 +266,6 @@ fn entries_from_packaged_manifest(repo_root: &Path, pkg: &WorkspacePackage) -> V
                     pkg.name.clone(),
                     pkg.private,
                     source_path.clone(),
-                    bundle_url.clone(),
-                    manifest_url.clone(),
                 ) {
                     out.push(e);
                 }
@@ -173,19 +275,11 @@ fn entries_from_packaged_manifest(repo_root: &Path, pkg: &WorkspacePackage) -> V
     out
 }
 
-fn first_js_in_dist(pkg_root: &Path) -> Option<String> {
-    let entries = std::fs::read_dir(pkg_root.join("dist")).ok()?;
-    let mut names: Vec<String> = entries
-        .flatten()
-        .filter(|e| e.path().is_file())
-        .map(|e| e.file_name().to_string_lossy().into_owned())
-        .filter(|n| n.ends_with(".js"))
-        .collect();
-    names.sort();
-    names.into_iter().next()
-}
-
-fn entries_from_sui_out(repo_root: &Path, packages: &[WorkspacePackage]) -> Vec<CatalogEntry> {
+fn entries_from_sui_out(
+    repo_root: &Path,
+    packages: &[WorkspacePackage],
+    first_party_app: Option<&deck_config::FirstPartyApp>,
+) -> Vec<CatalogEntry> {
     let root = repo_root.join(SUI_OUT);
     if !root.exists() {
         return vec![];
@@ -199,6 +293,15 @@ fn entries_from_sui_out(repo_root: &Path, packages: &[WorkspacePackage]) -> Vec<
         packages.iter().map(|p| (rel_unix(repo_root, &p.root), p)).collect();
     packaged_roots.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
 
+    // First-party app root prefix for the shell-local CEM projection. Derived
+    // from `deck.jsonc firstPartyApp.root`; absent in zero-config hosts so the
+    // projection simply doesn't apply (no host-app assumption here).
+    let fpa_root_prefix = first_party_app.as_ref().map(|fpa| {
+        let r = fpa.root.to_string_lossy().replace('\\', "/");
+        if r.ends_with('/') { r } else { format!("{r}/") }
+    });
+    let fpa_label = first_party_app.as_ref().map(|fpa| fpa.label.as_str());
+
     let mut out = Vec::new();
     for cem_abs in &cem_files {
         let source_path = source_path_for_cem(repo_root, cem_abs);
@@ -210,9 +313,13 @@ fn entries_from_sui_out(repo_root: &Path, packages: &[WorkspacePackage]) -> Vec<
         let Some(cem) = read_json(cem_abs) else { continue };
         let Some(modules) = cem["modules"].as_array() else { continue };
 
-        let is_shell_local = source_path.starts_with("apps/shell/");
-        let origin = if is_shell_local {
-            origin_for_non_packaged_source(&source_path)
+        // When the source lives under the configured first-party app root, use
+        // the configured label (e.g. `app:shell`) — no hardcoded path.
+        let is_first_party_local = fpa_root_prefix
+            .as_deref()
+            .is_some_and(|prefix| source_path.starts_with(prefix));
+        let origin = if is_first_party_local {
+            fpa_label.unwrap_or("app:unknown").to_string()
         } else {
             owning
                 .map(|(_, p)| p.name.clone())
@@ -223,15 +330,11 @@ fn entries_from_sui_out(repo_root: &Path, packages: &[WorkspacePackage]) -> Vec<
         for m in modules {
             if let Some(decls) = m["declarations"].as_array() {
                 for decl in decls {
-                    let tag = decl["tagName"].as_str().unwrap_or("");
-                    let bundle_url = format!("/_sui/sui-components/{tag}.js");
                     if let Some(e) = entry_from_decl(
                         decl,
                         origin.clone(),
                         is_private,
                         source_path.clone(),
-                        bundle_url,
-                        String::new(),
                     ) {
                         out.push(e);
                     }
@@ -280,12 +383,10 @@ fn source_path_for_cem(repo_root: &Path, cem_abs: &Path) -> String {
     format!("{dir}{stem}.sui")
 }
 
-/// Origin tag for a non-packaged source. `apps/shell/` → `app:shell`;
-/// `views/<name>/` → `view:<name>`; else `workspace:<first-seg>`.
+/// Origin tag for a non-packaged source. `views/<name>/` → `view:<name>`;
+/// else `workspace:<first-seg>`. First-party app labelling is done by the
+/// caller via the configured `firstPartyApp` — no path literal here.
 fn origin_for_non_packaged_source(norm: &str) -> String {
-    if norm.starts_with("apps/shell/") {
-        return "app:shell".to_string();
-    }
     if let Some(rest) = norm.strip_prefix("views/") {
         if let Some(name) = rest.split('/').next().filter(|s| !s.is_empty()) {
             return format!("view:{name}");
@@ -332,42 +433,321 @@ mod tests {
     }
 
     #[test]
-    fn aggregates_packaged_and_sui_out_with_private_projection() {
+    fn aggregates_packaged_and_sui_out() {
         let tmp = tempdir().unwrap();
         let root = tmp.path();
         write(&root.join("package.json"), r#"{"workspaces":["packages/*"]}"#);
-        // A published pack (not private) with a CEM manifest + a dist bundle.
+        // A public pack with a CEM manifest.
         write(
             &root.join("packages/charts/package.json"),
             r#"{"name":"@ship/charts","customElements":"dist/custom-elements.json"}"#,
         );
         write(&root.join("packages/charts/dist/custom-elements.json"), &cem("sui-bar"));
-        write(&root.join("packages/charts/dist/charts.js"), "//\n");
-        // A shell-local component in the sui-out mirror → app:shell, private.
+        // A shell-local component in the sui-out mirror → app:shell (via configured firstPartyApp).
         write(
             &root.join(".ship/sui-out/apps/shell/src/sui-x/sui-x.custom-elements.json"),
             &cem("sui-x"),
         );
 
-        let (workspace, published) = build_catalogs(root).unwrap();
+        // Configured first-party app: apps/shell → app:shell.
+        let fpa = deck_config::FirstPartyApp {
+            root: std::path::PathBuf::from("apps/shell"),
+            label: "app:shell".to_string(),
+        };
+        let workspace = build_catalog(root, Some(&fpa)).unwrap();
 
         let ws_tags: Vec<&str> = workspace.entries.iter().map(|e| e.tagName.as_str()).collect();
         assert_eq!(ws_tags, vec!["sui-bar", "sui-x"], "sorted, both present");
-        assert_eq!(workspace.count, 2);
 
         let bar = workspace.entries.iter().find(|e| e.tagName == "sui-bar").unwrap();
         assert_eq!(bar.package, "@ship/charts");
         assert!(!bar.private);
-        assert_eq!(bar.bundleUrl, "/_sui/packs/charts/charts.js");
 
         let x = workspace.entries.iter().find(|e| e.tagName == "sui-x").unwrap();
         assert_eq!(x.package, "app:shell");
         assert!(x.private);
-        assert_eq!(x.bundleUrl, "/_sui/sui-components/sui-x.js");
+    }
 
-        // Published drops the private shell-local entry.
-        let pub_tags: Vec<&str> = published.entries.iter().map(|e| e.tagName.as_str()).collect();
-        assert_eq!(pub_tags, vec!["sui-bar"]);
-        assert_eq!(published.count, 1);
+    #[test]
+    fn aggregates_sui_out_zero_config() {
+        // Without firstPartyApp, apps/shell components fall through to
+        // origin_for_non_packaged_source → workspace:apps (not app:shell).
+        let tmp = tempdir().unwrap();
+        let root = tmp.path();
+        write(&root.join("package.json"), r#"{"workspaces":[]}"#);
+        write(
+            &root.join(".ship/sui-out/apps/shell/src/sui-x/sui-x.custom-elements.json"),
+            &cem("sui-x"),
+        );
+        let workspace = build_catalog(root, None).unwrap();
+        let x = workspace.entries.iter().find(|e| e.tagName == "sui-x").unwrap();
+        // No firstPartyApp configured — origin falls back to workspace:<first-seg>.
+        assert_eq!(x.package, "workspace:apps");
+    }
+
+    #[test]
+    fn index_maps_tag_to_existing_source_and_omits_missing() {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path();
+        write(&root.join("package.json"), r#"{"workspaces":["packages/*"]}"#);
+        write(
+            &root.join("packages/charts/package.json"),
+            r#"{"name":"@ship/charts","customElements":"dist/custom-elements.json"}"#,
+        );
+        write(&root.join("packages/charts/dist/custom-elements.json"), &cem("sui-bar"));
+        // The CEM implies source packages/charts/src/sui-bar/sui-bar.sui — write it.
+        write(&root.join("packages/charts/src/sui-bar/sui-bar.sui"), "<div>bar</div>\n");
+
+        let idx = tag_source_index(root, None);
+        // Invariant: an indexed tag points at an EXISTING `.sui` source.
+        let src = idx.get("sui-bar").expect("a tag with a real source is indexed");
+        assert!(src.is_file());
+        assert_eq!(src.extension().and_then(|e| e.to_str()), Some("sui"));
+        assert!(src.ends_with("packages/charts/src/sui-bar/sui-bar.sui"));
+        // Invariant: an unknown tag is absent → the resolver falls back to external.
+        assert!(!idx.contains_key("sui-nonexistent"));
+    }
+
+    /// SOURCE-MODE gate: a workspace package that has a `<X>/<X>.sui` component
+    /// source but NO `customElements` CEM at all must still yield tag X in the
+    /// resolver index. This proves that the resolver does not require a pre-built
+    /// CEM artifact to function — the `.sui` source IS the truth.
+    #[test]
+    fn source_mode_resolves_tag_without_cem() {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path();
+        write(&root.join("package.json"), r#"{"workspaces":["packages/*"]}"#);
+        // Package has NO customElements field — no CEM at all.
+        write(
+            &root.join("packages/mycomp/package.json"),
+            r#"{"name":"@ship/mycomp","private":true}"#,
+        );
+        // Component source: stem "sui-foo" contains a hyphen → detected as Component.
+        write(
+            &root.join("packages/mycomp/src/sui-foo/sui-foo.sui"),
+            "<span class=\"sui-foo-marker\">foo</span>\n",
+        );
+        // A view alongside it must NOT appear (stem "page" has no hyphen).
+        write(
+            &root.join("packages/mycomp/src/myview/page.sui"),
+            "<div>view</div>\n",
+        );
+
+        let idx = tag_source_index(root, None);
+
+        // The component resolves from source.
+        let src = idx
+            .get("sui-foo")
+            .expect("source-mode: tag must resolve even without a CEM");
+        assert!(src.is_file(), "resolved path must be an existing file");
+        assert!(
+            src.ends_with("packages/mycomp/src/sui-foo/sui-foo.sui"),
+            "resolved path must be the component .sui source; got: {src:?}"
+        );
+
+        // The view (stem=page, no hyphen) must NOT be indexed.
+        assert!(
+            !idx.contains_key("page"),
+            "page.sui (view) must not leak into the resolver index"
+        );
+    }
+
+    /// GROUPED-DIRECTORY gate: a package with multiple components under one
+    /// parent dir (e.g. `sui-rail/sui-rail.sui`, `sui-rail/sui-rail-item.sui`)
+    /// must register ALL components, not just the stem==parent file.
+    #[test]
+    fn source_mode_grouped_dir_registers_all_components() {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path();
+        write(&root.join("package.json"), r#"{"workspaces":["packages/*"]}"#);
+        write(
+            &root.join("packages/chrome/package.json"),
+            r#"{"name":"@ship/chrome","private":true}"#,
+        );
+        // Three components grouped under one parent dir.
+        write(
+            &root.join("packages/chrome/src/sui-rail/sui-rail.sui"),
+            "<nav class=\"rail\"></nav>\n",
+        );
+        write(
+            &root.join("packages/chrome/src/sui-rail/sui-rail-item.sui"),
+            "<div class=\"rail-item\"></div>\n",
+        );
+        write(
+            &root.join("packages/chrome/src/sui-rail/sui-rail-section.sui"),
+            "<div class=\"rail-section\"></div>\n",
+        );
+        // A view in the same package must not appear.
+        write(
+            &root.join("packages/chrome/src/views/home/page.sui"),
+            "<div>home</div>\n",
+        );
+
+        let idx = tag_source_index(root, None);
+
+        assert!(idx.contains_key("sui-rail"), "sui-rail must be indexed");
+        assert!(idx.contains_key("sui-rail-item"), "sui-rail-item must be indexed");
+        assert!(idx.contains_key("sui-rail-section"), "sui-rail-section must be indexed");
+        assert!(!idx.contains_key("page"), "page.sui must not be indexed");
+    }
+
+    /// Three-pack fixture mirroring a real project shape:
+    ///   - `@ship/sui-primitives` exports `sui-button`
+    ///   - `deck-demo-app` exports `demo-chip` (the project's own component)
+    ///   - `@ship/agents` exports `ship-agent-card`
+    fn three_pack_fixture() -> tempfile::TempDir {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path();
+        write(&root.join("package.json"), r#"{"workspaces":["packages/*"]}"#);
+
+        write(
+            &root.join("packages/primitives/package.json"),
+            r#"{"name":"@ship/sui-primitives","private":false}"#,
+        );
+        write(
+            &root.join("packages/primitives/src/sui-button/sui-button.sui"),
+            "<button class=\"sui-button-marker\"><slot></slot></button>\n",
+        );
+
+        write(
+            &root.join("packages/demo/package.json"),
+            r#"{"name":"deck-demo-app","private":true}"#,
+        );
+        write(
+            &root.join("packages/demo/src/demo-chip/demo-chip.sui"),
+            "<span class=\"demo-chip-marker\"><slot></slot></span>\n",
+        );
+
+        write(
+            &root.join("packages/agents/package.json"),
+            r#"{"name":"@ship/agents","private":false}"#,
+        );
+        write(
+            &root.join("packages/agents/src/ship-agent-card/ship-agent-card.sui"),
+            "<article class=\"ship-agent-card-marker\"><slot></slot></article>\n",
+        );
+
+        tmp
+    }
+
+    /// Per-project component access control: a project that declares only the
+    /// primitives pack and its own components (NOT `@ship/agents`) gets:
+    ///   (a) declared-pack + own tags still resolve;
+    ///   (b) the undeclared-pack tag does NOT resolve → the resolver no-ops it;
+    ///   (c) global (no scope) resolves all three — before/after evidence.
+    #[test]
+    fn scoped_resolution_enforces_declared_pack_access() {
+        let tmp = three_pack_fixture();
+        let root = tmp.path();
+
+        // (c) BEFORE — global resolution: every workspace pack's tags resolve.
+        let global = tag_source_index(root, None);
+        let mut global_tags: Vec<&str> = global.keys().map(String::as_str).collect();
+        global_tags.sort_unstable();
+        assert_eq!(global_tags, vec!["demo-chip", "ship-agent-card", "sui-button"]);
+
+        // The project declares a PARTIAL pack set (deck.jsonc `packs`).
+        let declared: Vec<String> = vec!["@ship/sui-primitives".into(), "deck-demo-app".into()];
+        let scoped = tag_source_index_scoped(root, None, Some(&declared));
+
+        // (a) declared-pack tag resolves to a real .sui source; own tag resolves.
+        let btn = scoped
+            .get("sui-button")
+            .expect("declared primitives tag must resolve under scope");
+        assert!(btn.is_file());
+        assert!(btn.ends_with("packages/primitives/src/sui-button/sui-button.sui"));
+        assert!(scoped.contains_key("demo-chip"), "the project's own tag resolves");
+
+        // (b) undeclared-pack tag is ABSENT → resolver no-ops it (access denied).
+        assert!(
+            !scoped.contains_key("ship-agent-card"),
+            "undeclared @ship/agents tag must NOT resolve → @sui-tag no-op"
+        );
+
+        // (c) AFTER — scoped index is exactly the declared two.
+        let mut scoped_tags: Vec<&str> = scoped.keys().map(String::as_str).collect();
+        scoped_tags.sort_unstable();
+        assert_eq!(scoped_tags, vec!["demo-chip", "sui-button"]);
+    }
+
+    /// Additive guarantee: an empty declared set is treated as "no scope" →
+    /// identical to global, so existing zero-`packs` projects are unaffected.
+    #[test]
+    fn empty_packs_is_global() {
+        let tmp = three_pack_fixture();
+        let root = tmp.path();
+        let empty: Vec<String> = Vec::new();
+        let scoped = tag_source_index_scoped(root, None, Some(&empty));
+        let global = tag_source_index(root, None);
+        assert_eq!(scoped.len(), global.len(), "empty packs ⇒ identical to global");
+        assert!(scoped.contains_key("ship-agent-card"), "empty scope resolves all");
+    }
+
+    /// The author diagnostic's data: a scoped-out tag is attributed to the pack
+    /// that provides it, so the bundler can say "`<tag>` is from `<pack>`".
+    #[test]
+    fn shadowed_tags_attributes_excluded_tag_to_its_pack() {
+        let tmp = three_pack_fixture();
+        let root = tmp.path();
+        let declared: Vec<String> = vec!["@ship/sui-primitives".into(), "deck-demo-app".into()];
+
+        let shadowed = shadowed_tags(root, None, &declared);
+        // Only the undeclared pack's tag is shadowed — named with its pack.
+        assert_eq!(
+            shadowed.get("ship-agent-card").map(String::as_str),
+            Some("@ship/agents"),
+            "excluded tag must carry its providing pack for the diagnostic"
+        );
+        assert!(!shadowed.contains_key("sui-button"), "declared tag is not shadowed");
+        assert!(!shadowed.contains_key("demo-chip"), "own tag is not shadowed");
+
+        // Global scope shadows nothing (no diagnostic noise when unscoped).
+        assert!(shadowed_tags(root, None, &[]).is_empty(), "empty packs ⇒ nothing shadowed");
+    }
+
+    /// Monorepo-decoupled discovery: scan a registry-composed root's
+    /// `components/` tree (`components/<pkg.path>/<tag>/<tag>.sui`) — the shape
+    /// `compose::materialize_space` produces. The dep'd component resolves; a
+    /// view alongside it does not leak; a non-present tag is absent.
+    #[test]
+    fn composed_root_components_resolve_from_dep_namespace() {
+        let tmp = tempdir().unwrap();
+        let composed = tmp.path();
+        // Mirror compose output: components/<pkg.path>/<tag>/<tag>.sui
+        write(
+            &composed.join("components/github.com/acme/agents/ship-agent-card/ship-agent-card.sui"),
+            "<article><slot></slot></article>\n",
+        );
+        // A view that happens to sit in the tree must NOT be indexed (no hyphen).
+        write(&composed.join("components/github.com/acme/agents/page.sui"), "<div>v</div>\n");
+
+        let idx = composed_component_index(composed);
+        let src = idx
+            .get("ship-agent-card")
+            .expect("dep'd component resolves from the composed root");
+        assert!(src.is_file());
+        assert!(src.ends_with("ship-agent-card/ship-agent-card.sui"));
+        assert!(!idx.contains_key("page"), "view must not leak into the index");
+        assert!(!idx.contains_key("sui-nope"), "non-present tag is absent");
+    }
+
+    /// A composed root with no `components/` layer (depless space) → empty index,
+    /// no panic.
+    #[test]
+    fn composed_root_without_components_is_empty() {
+        let tmp = tempdir().unwrap();
+        assert!(composed_component_index(tmp.path()).is_empty());
+    }
+
+    /// Declaring a pack that doesn't exist in the workspace contributes no tags
+    /// (silently absent at the discovery layer). A view that then references a
+    /// real tag from an *undeclared* pack is what surfaces the author diagnostic.
+    #[test]
+    fn declaring_unknown_pack_yields_no_tags() {
+        let tmp = three_pack_fixture();
+        let root = tmp.path();
+        let declared: Vec<String> = vec!["@ship/does-not-exist".into()];
+        let scoped = tag_source_index_scoped(root, None, Some(&declared));
+        assert!(scoped.is_empty(), "unknown declared pack contributes nothing");
     }
 }

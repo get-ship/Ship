@@ -83,35 +83,32 @@ export default controller({
   },
 
   mount(state) {
-    // sui-runtime mount-state proxy: write via plain assignment.
-    const s = state as unknown as {
-      inView: ComponentRef[]
-      view: () => string
-    }
-
+    // sui-runtime mount-state proxy: `state.view` reads the unwrapped
+    // prop value (tracks inside effects); `state.inView = …` writes the
+    // signal via the proxy's set-trap.
     let loadedFor: string | null = null
 
     async function refresh(): Promise<void> {
-      const name = s.view()
-      if (!name) { s.inView = []; return }
+      const name = state.$signals.view()
+      if (!name) { state.inView = []; return }
       if (loadedFor === name) return
       loadedFor = name
       const mcp = window.__viewMcp
       if (!mcp) return
       try {
         const source = await readSourceWithRetry(mcp, name)
-        s.inView = scanComponents(source)
+        state.inView = scanComponents(source)
       } catch {
         // Reset the guard so a subsequent view switch (or a manual
         // re-mount of the tab) can re-attempt — otherwise an early
         // failure leaves the chips section permanently empty.
         loadedFor = null
-        s.inView = []
+        state.inView = []
       }
     }
 
     const stopEffect = effect(() => {
-      s.view() // track
+      void state.$signals.view() // track
       void refresh()
     })
 
