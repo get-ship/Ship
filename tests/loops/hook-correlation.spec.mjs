@@ -44,6 +44,25 @@ async function api(path, init = {}) {
   return { status: r.status, data };
 }
 
+// The per-actor REST event read (`GET /api/v1/actors/{id}/events`) was
+// culled with the actor.* op surface. The persisted event log is now
+// read over Connect — `EventsService.Poll` (proto/ship/ops/v1/events.proto)
+// — which filters by `slug` and returns `{ events: [...] }` (wrapped in a
+// JsonResponse whose `json` field is the stringified payload).
+async function pollActorEvents(slug, limit) {
+  const r = await fetch(`${BASE}/ship.ops.v1.EventsService/Poll`, {
+    method: "POST",
+    headers: { ...headers, "Connect-Protocol-Version": "1" },
+    body: JSON.stringify({ slug, limit }),
+  });
+  const text = await r.text();
+  let parsed = {};
+  try { parsed = JSON.parse(text); } catch {}
+  let inner = {};
+  try { inner = JSON.parse(parsed.json ?? "{}"); } catch {}
+  return inner.events ?? [];
+}
+
 function fail(reason, details = {}) {
   console.error(`FAIL: ${reason}`);
   for (const [k, v] of Object.entries(details)) {
@@ -69,12 +88,15 @@ async function main() {
   const actorId = spawnRes.data.session_id;
   console.log(`spawned actor: ${actorId}`);
 
-  // Wait for the actor to be on the mesh — confirms full registration.
+  // Wait for the actor to register in the live roster — confirms full
+  // registration. The mesh roster (`GET /api/v1/mesh`) was culled with the
+  // mesh op surface; `GET /api/v1/actors` is the surviving projection
+  // (rows keyed by `id`).
   const meshDeadline = Date.now() + 20_000;
   let onMesh = false;
   while (Date.now() < meshDeadline) {
-    const { data } = await api("/api/v1/mesh");
-    if ((data?.data?.actors ?? []).some((a) => a.actor_id === actorId)) {
+    const { data } = await api("/api/v1/actors");
+    if ((data?.data?.actors ?? []).some((a) => a.id === actorId)) {
       onMesh = true;
       break;
     }
@@ -88,14 +110,14 @@ async function main() {
   console.log("actor on mesh");
 
   // Snapshot existing events so we don't false-positive on history.
-  const before = await api(`/api/v1/actors/${actorId}/events?limit=100`);
   const baselineIds = new Set(
-    (before.data?.data?.events ?? []).map((e) => e.id),
+    (await pollActorEvents(actorId, 100)).map((e) => e.id),
   );
 
-  // Fire a synthetic hook with the actor_id we know.
+  // Fire a synthetic hook with the actor_id we know. Hook ingress lives
+  // at flat `/hooks/*` (off `/api/v1` — see apps/shipd/src/router.rs).
   const tool = "TestTool";
-  const hookRes = await api("/api/v1/hooks/before-tool", {
+  const hookRes = await api("/hooks/before-tool", {
     method: "POST",
     body: JSON.stringify({
       actor_id: actorId,
@@ -113,8 +135,8 @@ async function main() {
   const deadline = Date.now() + 10_000;
   let landed = null;
   while (Date.now() < deadline) {
-    const { data } = await api(`/api/v1/actors/${actorId}/events?limit=50`);
-    const fresh = (data?.data?.events ?? []).filter((e) => !baselineIds.has(e.id));
+    const events = await pollActorEvents(actorId, 50);
+    const fresh = events.filter((e) => !baselineIds.has(e.id));
     landed = fresh.find(
       (e) =>
         (e.event_type === "hook.tool_use_started"

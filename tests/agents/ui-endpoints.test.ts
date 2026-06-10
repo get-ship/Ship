@@ -99,12 +99,9 @@ describe("ui endpoints / actors", () => {
     expect(Array.isArray(res.body.data.actors)).toBe(true);
   });
 
-  test("GET /api/v1/mesh returns mesh roster", async () => {
-    const res = await api<Envelope<{ count: number; actors: unknown[] }>>(
-      "/api/v1/mesh",
-    );
-    expect(res.status).toBe(200);
-    expect(res.body.ok).toBe(true);
-    expect(typeof res.body.data.count).toBe("number");
-  });
+  // The mesh roster (`GET /api/v1/mesh`) was culled with the mesh op
+  // surface. `GET /api/v1/actors` (asserted directly above) is the
+  // surviving roster read — the kernel's live actor set is overlaid onto
+  // each row's `live` field — so the dropped mesh test was pure
+  // duplication of the actors test and is removed rather than repointed.
 });

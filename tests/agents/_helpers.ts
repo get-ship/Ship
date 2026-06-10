@@ -141,11 +141,13 @@ interface ConnectEnvelope<T> {
 }
 
 async function connectCall<TReq, TRes>(
-  method: string,
+  // Fully-qualified `ServiceName/Method` under the ship.ops.v1 package
+  // (e.g. "AgentsService/Dispatch", "EventsService/Poll").
+  rpc: string,
   body: TReq,
 ): Promise<ConnectEnvelope<TRes>> {
   const token = await daemonToken();
-  const r = await fetch(`${await baseUrl()}/ship.ops.v1.AgentsService/${method}`, {
+  const r = await fetch(`${await baseUrl()}/ship.ops.v1.${rpc}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -236,7 +238,7 @@ export async function dispatch(input: DispatchInput): Promise<Dispatched> {
     keepalive: input.keepalive ?? false,
   };
   const { status, body } = await connectCall<DispatchAgentWire, DispatchResultWire>(
-    "Dispatch",
+    "AgentsService/Dispatch",
     wire,
   );
   if (status !== 200 || !body.session_id || !body.slug) {
@@ -251,6 +253,13 @@ export async function dispatch(input: DispatchInput): Promise<Dispatched> {
 }
 
 // ── Mesh / actor polling ───────────────────────────────────────────────────
+//
+// The per-actor read (`GET /api/v1/actors/{slug}`) and the mesh roster
+// (`GET /api/v1/mesh`) were culled with the mesh op surface (see
+// apps/shipd/src/routes.rs). The surviving REST read is the list
+// projection `GET /api/v1/actors` — each row carries `id` (the actor id,
+// == dispatch slug), `live`, and the harness/transport/pid fields. Find
+// the row by `id === slug`; that IS "on the mesh + reachable."
 
 export interface MeshActor {
   actor_id: string;
@@ -258,8 +267,30 @@ export interface MeshActor {
   live?: boolean;
 }
 
+// Raw row shape from `GET /api/v1/actors` — mirrors
+// ship_substrate::projections::actor::ActorRow (only the fields the
+// agents suite reads are typed here).
+interface ActorListRow {
+  id: string;
+  kind?: string;
+  live?: boolean;
+  pid?: number | null;
+  harness?: string | null;
+  transport?: string | null;
+  last_event_at?: string | null;
+}
+
 const POLL_INTERVAL_MS = 250;
 const POLL_MAX_ATTEMPTS = 60; // 15s default
+
+/** Fetch the live actor projection and return the row for `slug`, or null. */
+async function findActor(slug: string): Promise<ActorListRow | null> {
+  const { status, body } = await api<{ data?: { actors?: ActorListRow[] } }>(
+    "/api/v1/actors",
+  );
+  if (status !== 200) return null;
+  return body.data?.actors?.find((a) => a.id === slug) ?? null;
+}
 
 export async function waitForMeshActor(
   slug: string,
@@ -267,11 +298,8 @@ export async function waitForMeshActor(
 ): Promise<MeshActor | null> {
   const max = opts.maxAttempts ?? POLL_MAX_ATTEMPTS;
   for (let i = 0; i < max; i++) {
-    const { body } = await api<{
-      data?: { actors?: MeshActor[] };
-    }>("/api/v1/mesh");
-    const hit = body.data?.actors?.find((a) => a.actor_id === slug);
-    if (hit) return hit;
+    const hit = await findActor(slug);
+    if (hit) return { actor_id: hit.id, kind: hit.kind, live: hit.live };
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }
   return null;
@@ -292,27 +320,8 @@ export async function waitForActorRow(
 ): Promise<ActorRow | null> {
   const max = opts.maxAttempts ?? POLL_MAX_ATTEMPTS;
   for (let i = 0; i < max; i++) {
-    const { status, body } = await api<{
-      data?: {
-        kind?: string;
-        live?: boolean;
-        pid?: number | null;
-        harness?: string | null;
-        transport?: string | null;
-        last_event_at?: string | null;
-      };
-    }>(`/api/v1/actors/${slug}`);
-    const a = body.data;
-    if (status === 200 && a?.kind) {
-      return {
-        kind: a.kind,
-        live: a.live ?? false,
-        pid: a.pid ?? null,
-        harness: a.harness ?? null,
-        transport: a.transport ?? null,
-        last_event_at: a.last_event_at ?? null,
-      };
-    }
+    const row = await getActorRow(slug);
+    if (row) return row;
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }
   return null;
@@ -347,20 +356,10 @@ export async function waitForActorField(
   return last;
 }
 
-/** Fetch the current actor row without polling (returns null on 404). */
+/** Fetch the current actor row without polling (returns null if absent). */
 export async function getActorRow(slug: string): Promise<ActorRow | null> {
-  const { status, body } = await api<{
-    data?: {
-      kind?: string;
-      live?: boolean;
-      pid?: number | null;
-      harness?: string | null;
-      transport?: string | null;
-      last_event_at?: string | null;
-    };
-  }>(`/api/v1/actors/${slug}`);
-  const a = body.data;
-  if (status !== 200 || !a?.kind) return null;
+  const a = await findActor(slug);
+  if (!a?.kind) return null;
   return {
     kind: a.kind,
     live: a.live ?? false,
@@ -398,10 +397,7 @@ export async function waitForMeshClear(
 ): Promise<boolean> {
   const max = opts.maxAttempts ?? 40; // 10s
   for (let i = 0; i < max; i++) {
-    const { body } = await api<{ data?: { actors?: MeshActor[] } }>(
-      "/api/v1/mesh",
-    );
-    const present = body.data?.actors?.some((a) => a.actor_id === slug);
+    const present = (await findActor(slug)) !== null;
     if (!present) return true;
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }
@@ -411,10 +407,11 @@ export async function waitForMeshClear(
 // ── Cleanup ────────────────────────────────────────────────────────────────
 
 export async function cancelSession(slug: string): Promise<void> {
-  await api(`/api/v1/agent_sessions/${slug}/cancel`, {
-    method: "POST",
-    body: JSON.stringify({ reason: "test-cleanup" }),
-  }).catch(() => {
+  // The REST `POST /api/v1/agent_sessions/{slug}/cancel` surface was
+  // removed; agent control now goes over Connect. `AgentsService.Stop`
+  // (proto/ship/ops/v1/agents.proto — "Stop a running agent by slug")
+  // is the replacement. Best-effort: cleanup must never throw.
+  await connectCall("AgentsService/Stop", { slug }).catch(() => {
     /* best-effort */
   });
 }
@@ -508,15 +505,12 @@ export async function pollForEvents(
   let cursor = opts.sinceId;
 
   while (Date.now() < deadline) {
-    const qs = new URLSearchParams();
-    if (cursor) qs.set("since_id", cursor);
-    if (opts.slug) qs.set("slug", opts.slug);
-    if (opts.namespace) qs.set("namespace", opts.namespace);
-    qs.set("limit", "200");
-    const { body } = await api<{ data?: { events?: EventEnvelope[] } }>(
-      `/api/v1/events/poll?${qs}`,
-    );
-    const events = body.data?.events ?? [];
+    const events = await eventsPoll({
+      since_id: cursor,
+      slug: opts.slug,
+      namespace: opts.namespace,
+      limit: 200,
+    });
     if (events.length > 0) {
       cursor = events[events.length - 1]!.id;
       for (const e of events) {
@@ -541,11 +535,33 @@ export async function pollForEvents(
  *  put the cursor 5000 events in the past — making tests miss newly
  *  emitted events on busy daemons. */
 export async function latestEventId(): Promise<string | undefined> {
-  const { body } = await api<{ data?: { events?: EventEnvelope[] } }>(
-    `/api/v1/events/poll?limit=5000`,
+  const evs = await eventsPoll({ limit: 5000 });
+  return evs.length > 0 ? evs[evs.length - 1]!.id : undefined;
+}
+
+/**
+ * Read the persisted event log over Connect. The REST `GET
+ * /api/v1/events/poll` surface was removed; `EventsService.Poll`
+ * (proto/ship/ops/v1/events.proto) is the surviving read. It filters by
+ * `since_id` / `slug` / `namespace` and returns `{ events: [...] }`
+ * wrapped in a JsonResponse whose `json` field is the stringified payload.
+ */
+async function eventsPoll(req: {
+  since_id?: string;
+  slug?: string;
+  namespace?: string;
+  limit: number;
+}): Promise<EventEnvelope[]> {
+  const { body } = await connectCall<typeof req, { json?: string }>(
+    "EventsService/Poll",
+    req,
   );
-  const evs = body.data?.events;
-  return evs && evs.length > 0 ? evs[evs.length - 1]!.id : undefined;
+  try {
+    const inner = JSON.parse(body.json ?? "{}") as { events?: EventEnvelope[] };
+    return inner.events ?? [];
+  } catch {
+    return [];
+  }
 }
 
 /**

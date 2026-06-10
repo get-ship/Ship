@@ -63,7 +63,7 @@ async function main() {
       workspace_id: "feat-view-dev-studio",
       kind: "agent",
       agent_id: "shipwright",
-      provider: "claude",
+      harness: "claude",
     }),
   });
   if (status !== 200 || !spawn.session_id) fail("spawn failed", { status, spawn });
@@ -73,21 +73,26 @@ async function main() {
   try {
     // Wait for mesh-register — confirms the kernel mailbox is live AND
     // claude has booted past the dev-channels confirmation menu.
+    // The mesh roster (`GET /api/v1/mesh`) was culled with the mesh op
+    // surface; `GET /api/v1/actors` is the surviving projection (rows
+    // keyed by `id`, `live` overlaid from the kernel registry).
     const meshDeadline = Date.now() + 25_000;
     let onMesh = false;
     while (Date.now() < meshDeadline) {
-      const { data } = await api("/api/v1/mesh");
-      if ((data?.data?.actors ?? []).some((a) => a.actor_id === actorId)) {
+      const { data } = await api("/api/v1/actors");
+      if ((data?.data?.actors ?? []).some((a) => a.id === actorId)) {
         onMesh = true;
         break;
       }
       await new Promise((r) => setTimeout(r, 1000));
     }
-    if (!onMesh) fail("actor never reached the mesh", { actorId });
+    if (!onMesh) fail("actor never reached the roster", { actorId });
     console.log("on mesh");
 
-    // Push a chat turn.
-    const inputRes = await api(`/api/v1/actors/${actorId}/input`, {
+    // Push a chat turn. The per-actor `/input` REST route was culled with
+    // the actor.* op surface; `POST /api/v1/sessions/{id}/message` is the
+    // surviving chat-turn push (emits studio.chat_turn).
+    const inputRes = await api(`/api/v1/sessions/${actorId}/message`, {
       method: "POST",
       body: JSON.stringify({ text: "ping (channel-roundtrip test)" }),
     });
