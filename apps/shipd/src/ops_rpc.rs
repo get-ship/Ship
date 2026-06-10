@@ -264,47 +264,10 @@ pub fn router(state: ApiState) -> axum::Router {
     // + runtime writes go through the write_fn closure (shipd route cores + gated
     // command calls). Live-read streams go through the live_read_fn closure (shipd
     // kernel subscriber loop).
-    let pipelines_state_for_read = state.clone();
-    let pipelines_read_fn: ship_pipeline_runtime::wire::ReadFn = Arc::new(move |op, args| {
-        match op {
-            "pipelines.summaries" => {
-                use crate::services::pipelines::summaries;
-                use crate::views::state::Filter;
-                let filter = Filter {
-                    agent: args.get("agent").and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty()).map(str::to_string),
-                    status: args.get("status").and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty()).map(str::to_string),
-                    pipeline: args.get("pipeline").and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty()).map(str::to_string),
-                    q: args.get("q").and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty()).map(str::to_string),
-                };
-                let active_tab = args.get("active_tab").and_then(|v| v.as_str())
-                    .filter(|s| !s.is_empty()).map(str::to_string);
-                let ctx = summaries::build(pipelines_state_for_read.ship_dir(), filter, active_tab);
-                serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
-            }
-            "pipelines.run" => {
-                use crate::services::pipelines::run_detail;
-                let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("");
-                let ctx = run_detail::build(slug, pipelines_state_for_read.ship_dir());
-                serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
-            }
-            "pipelines.history" => {
-                use crate::services::pipelines::history;
-                let q = args.get("q").and_then(|v| v.as_str())
-                    .filter(|s| !s.is_empty()).map(str::to_string);
-                let pipeline = args.get("pipeline").and_then(|v| v.as_str())
-                    .filter(|s| !s.is_empty()).map(str::to_string);
-                let offset = args.get("offset").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-                let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(50) as usize;
-                let ctx = history::build(pipelines_state_for_read.ship_dir(), q, pipeline, offset, limit);
-                serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
-            }
-            _ => serde_json::Value::Null,
-        }
-    });
+    // Non-live run-level reads (Summaries/Run/History/ListRuns) are TYPED (P0.3):
+    // the crate-owned wire reads the pipeline_runs + pipeline_step_runs
+    // projections directly off `ship_dir` via `read_core` — no shipd read closure.
+    // The GUI view-model (pills/tones/timeline) stays on the *Live streams below.
     let pipelines_state_for_live = state.clone();
     let pipelines_svc_for_live = svc.clone();
     let pipelines_live_fn: ship_pipeline_runtime::wire::LiveReadFn = Arc::new(move |op, args| {
@@ -503,6 +466,44 @@ pub fn router(state: ApiState) -> axum::Router {
                                 StatusCoreError::Internal(m) => ConnectError::internal(m),
                             })
                     }
+                    "pipelines.cancel" => {
+                        use ship_pipeline_runtime::status_core::{cancel_run_core, StatusCoreError};
+                        use crate::pipeline_ports::PipelineDispatchAdapter;
+                        use crate::auth::Scope;
+                        // Cancel is a destructive control-plane write (REST parity:
+                        // POST /jobs/{slug}/cancel requires ManageRuns).
+                        if !auth.scopes.iter().any(|s| matches!(s, Scope::Full | Scope::ManageRuns)) {
+                            return Err(ConnectError::permission_denied("requires ManageRuns scope"));
+                        }
+                        let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let reason = args.get("reason").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let port = PipelineDispatchAdapter::new(st.clone());
+                        cancel_run_core(&port, &slug, &reason)
+                            .await
+                            .map(|r| serde_json::to_value(&r).unwrap_or_default())
+                            .map_err(|e| match e {
+                                StatusCoreError::NotFound(m) => ConnectError::not_found(m),
+                                StatusCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                                StatusCoreError::Internal(m) => ConnectError::internal(m),
+                            })
+                    }
+                    "pipelines.resolve_step" => {
+                        use ship_pipeline_runtime::status_core::{resolve_step_core, StatusCoreError};
+                        use crate::pipeline_ports::PipelineDispatchAdapter;
+                        let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let step_id = args.get("step_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let summary = args.get("summary").and_then(|v| v.as_str())
+                            .filter(|s| !s.is_empty()).map(str::to_string);
+                        let port = PipelineDispatchAdapter::new(st.clone());
+                        resolve_step_core(&port, &slug, &step_id, summary)
+                            .await
+                            .map(|r| serde_json::to_value(&r).unwrap_or_default())
+                            .map_err(|e| match e {
+                                StatusCoreError::NotFound(m) => ConnectError::not_found(m),
+                                StatusCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                                StatusCoreError::Internal(m) => ConnectError::internal(m),
+                            })
+                    }
                     _ => Err(ConnectError::internal(format!("unknown pipelines write op: {op}"))),
                 }
             })
@@ -510,7 +511,7 @@ pub fn router(state: ApiState) -> axum::Router {
     let pipelines_wire = Arc::new(ship_pipeline_runtime::wire::PipelinesWire::new(
         state.pipelines_arc(),
         gate.clone(),
-        pipelines_read_fn,
+        state.ship_dir().to_path_buf(),
         pipelines_live_fn,
         pipelines_write_fn,
     ));
