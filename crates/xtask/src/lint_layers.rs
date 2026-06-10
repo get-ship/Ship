@@ -84,11 +84,11 @@ const OUTBOUND_ALLOWLIST: &[&str] = &[
 /// Each emits a WARN; the lint does NOT fail on them. The owning lane ratchets
 /// these to the allowlist or fixes the architecture before removing them.
 ///
-/// - `ship-git`, `ship-isolation` — run/drive Connect servers inside L0.
+/// - `ship-isolation` — runs/drives a Connect server inside L0.
 /// - `ship-substrate` — `reqwest` pulled by `services/human_gateway.rs`; the fix
 ///   is moving that human-gateway egress out of the substrate (de-bucket), not
 ///   suppressing it here.
-const R2_KNOWN_VIOLATIONS: &[&str] = &["ship-git", "ship-isolation", "ship-substrate"];
+const R2_KNOWN_VIOLATIONS: &[&str] = &["ship-isolation", "ship-substrate"];
 
 // ── R4 — known L1→L2 / L0→L2 edges (WARN, non-blocking) ────────────────────────
 
