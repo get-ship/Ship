@@ -46,7 +46,8 @@ register_event!("actor.stopped", [EventScope::Runtime], Retention::Ephemeral, St
 register_event!("actor.woke", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ActorWoke", crate::events::types::ActorWoke);
 
 // ── agent.* ─────────────────────────────────────────────────────────────────
-register_event!("agent.changed", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "AgentChanged", crate::events::types::ConfigChanged);
+// agent.changed — moved to ship-config/src/event_registrations.rs (keystone-A
+// Phase A bundle 3, 2026-06-10): watcher-ping family co-locates with its emitter.
 // Format-2 def change notification — lives in a space's `.ship/agents`, so
 // Space-scoped; a Bucket-2 notification (content NOT carried), so Ephemeral.
 // agent.grants.provisioned — moved to ship-auth/src/event_registrations.rs
@@ -69,14 +70,9 @@ register_event!("agent.session.started", [EventScope::Runtime], Retention::Durab
 // — the AUTH domain owns its events at L1.
 
 // ── collection.* ────────────────────────────────────────────────────────────
-// collection.changed: the coarse `<domain>.changed` watcher event for the
-// `.ship/collections/` domain (ship-config `author_change`, ConfigChanged
-// payload — same emit path as config/skill/pipeline/rule.changed). Registered
-// Runtime/Ephemeral to MATCH those siblings AND the live emit behavior: the
-// watcher emits both user-library (space=None) and project scope via
-// `daemon_internal(space)`; a Space registration would hard-reject the
-// space-unbound user-library emit (`NoSpaceForSpaceEvent`).
-register_event!("collection.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ConfigChanged", crate::events::types::ConfigChanged);
+// collection.changed: moved to ship-config/src/event_registrations.rs (keystone-A
+// Phase A bundle 3, 2026-06-10) — it is a watcher-ping event emitted by
+// ship-config's watcher, co-locating with the watcher family.
 // collection.created / collection.item_* / collection.schema.changed — the 5
 // CRUD events are now registered at L1 by `ship-collection`'s own
 // `event_registrations` module (keystone-A de-bucket: collection domain owns
@@ -85,11 +81,9 @@ register_event!("collection.changed", [EventScope::Runtime], Retention::Ephemera
 // ── compile.* ───────────────────────────────────────────────────────────────
 
 // ── config.* ────────────────────────────────────────────────────────────────
-// Machine/daemon runtime settings (daemon.port, terminal.program, watcher.*,
-// isolation tiers) — per-machine, never synced. `set_setting_and_emit` mints
-// daemon-internal with no space; Runtime is the correct partition.
-register_event!("config.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ConfigChanged", crate::events::types::ConfigChanged);
-register_event!("config.file_changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ConfigFileChanged", crate::events::types::ConfigFileChanged);
+// Moved to ship-config/src/event_registrations.rs (keystone-A Phase A bundle 3,
+// 2026-06-10): config.changed / config.file_changed — the CONFIG watcher owns
+// these events at L1 alongside the rest of the watcher-ping family.
 
 // ── settings.* ──────────────────────────────────────────────────────────────
 // The unified scope-discriminated settings keystone (SettingsService.Set).
@@ -163,7 +157,8 @@ register_event!("mesh.status", [EventScope::Runtime], Retention::Ephemeral, Stab
 // daemon-wide runtime.db, where the off-kernel write lands.
 
 // ── pipeline.* ──────────────────────────────────────────────────────────────
-register_event!("pipeline.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "PipelineChanged", crate::events::types::ConfigChanged);
+// pipeline.changed — moved to ship-config/src/event_registrations.rs (keystone-A
+// Phase A bundle 3, 2026-06-10): watcher-ping family co-locates with its emitter.
 register_event!("pipeline.gate.failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineGateFailedPayload", crate::events::pipeline::PipelineGateFailedPayload);
 register_event!("pipeline.gate.passed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineGatePassedPayload", crate::events::pipeline::PipelineGatePassedPayload);
 register_event!("pipeline.gate.requested", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineGateRequestedPayload", crate::events::pipeline::PipelineGateRequestedPayload);
@@ -204,22 +199,11 @@ register_event!("project.registered", [EventScope::Runtime], Retention::Durable,
 register_event!("project.seen", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProjectSeen", crate::events::types::ProjectSeen);
 register_event!("project.switched", [EventScope::Space], Retention::Durable, Stability::Stable, "ProjectSwitched", crate::events::types::ProjectSwitched);
 
-// ── rule.* ──────────────────────────────────────────────────────────────────
-// Runtime audit emit: agent-file CRUD helpers take a ship_dir but no space_id
-// and have no read-back projection (Phase 4d §6.3) → daemon-wide runtime.db.
-register_event!("rule.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "RuleChanged", crate::events::types::ConfigChanged);
-
-// ── skill.* / rule.* / permissions / compile / agent-def facets ────────────
-// Moved to agent-def/src/event_registrations.rs (keystone-A Phase A,
-// 2026-06-10): the AGENTS domain owns its facet vocabulary at L1
-// (skill/rule/permissions CRUD+lifecycle, compile.completed,
-// agent.def.updated, agent.task.complete). The watcher `<domain>.changed`
-// pings (skill.changed, rule.changed, agent.changed, ...) are the
-// ship-config watcher family and move with it, not here.
-// ── skill.* (remaining) ───────────────────────────────────────────────────────────────────
-// Runtime audit emit: agent-file CRUD helpers take a ship_dir but no space_id
-// and have no read-back projection (Phase 4d §6.3) → daemon-wide runtime.db.
-register_event!("skill.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SkillChanged", crate::events::types::ConfigChanged);
+// ── rule.* / skill.* watcher pings ──────────────────────────────────────────
+// rule.changed / skill.changed — moved to ship-config/src/event_registrations.rs
+// (keystone-A Phase A bundle 3, 2026-06-10): watcher-ping family co-locates with
+// its emitter in ship-config. The CRUD events (rule.created etc.) stay in
+// agent-def (bundle 1, 2026-06-10).
 
 
 // ── space.setting.* ─────────────────────────────────────────────────────────
@@ -245,7 +229,8 @@ register_event!("sync.started", [EventScope::Runtime], Retention::Durable, Stabi
 register_event!("sync.stopped", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SyncStopped", crate::events::types::SyncStopped);
 
 // ── view.* ──────────────────────────────────────────────────────────────────
-register_event!("view.changed", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "ViewChanged", crate::events::types::ConfigChanged);
+// view.changed — moved to ship-config/src/event_registrations.rs (keystone-A
+// Phase A bundle 3, 2026-06-10): watcher-ping family co-locates with its emitter.
 
 // ── legacy/deprecated (kept for backward compat, fail-closed classification) ─
 register_event!("workspace.created", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "WorkspaceCreated", crate::events::types::WorkspaceCreated);

@@ -37,6 +37,7 @@ pub mod agents_write;
 pub mod crud;
 pub mod discover;
 pub mod error;
+pub mod event_registrations;
 pub mod library;
 pub mod local;
 pub mod overlay;
