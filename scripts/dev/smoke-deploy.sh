@@ -25,10 +25,6 @@ step "bun install"
 bun install --frozen-lockfile || fail "bun install"
 pass "bun install"
 
-step "ui-components build"
-bun run --filter @ship/ui-components build || fail "ui-components build"
-pass "bun build"
-
 step "daemon restart"
 just dev-restart || fail "daemon restart"
 d=$(daemon_dir)
