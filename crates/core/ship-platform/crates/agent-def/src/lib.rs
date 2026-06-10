@@ -13,6 +13,7 @@ pub mod canonical_session;
 pub mod compile;
 pub mod config;
 pub mod emit;
+pub mod guards;
 pub mod harnesses;
 pub mod import;
 pub mod op;

@@ -181,7 +181,7 @@ mod tests {
     /// canonical envelopes.
     #[test]
     fn op_payloads_carry_no_driver_edges() {
-        const FORBIDDEN: &[&str] = &["pid", "worktree", "exit_code"];
+        use crate::guards::DRIVER_EDGE_FIELDS;
         for (name, json) in [
             (
                 "OpToolUseStarted",
@@ -223,7 +223,7 @@ mod tests {
             ),
         ] {
             let s = json.to_string();
-            for f in FORBIDDEN {
+            for f in DRIVER_EDGE_FIELDS {
                 assert!(
                     !s.contains(f),
                     "{name} must not carry {f}: {s}"
