@@ -194,13 +194,9 @@ jobs:
       # Runs --sequential with VITEST_MAX_FORKS=2: parallel cross-package execution
       # oversubscribes the runner and flakes timing-sensitive suites (the GC leak gate,
       # the scroll-anchor test, compile-timeouts); sequential keeps them deterministically green.
-      # Deliberately EXCLUDED (live in-flight breakage owned by other lanes — re-add when green):
-      #   - apps/shell: 82 known environmental failures being fixed in another lane
-      #     (also not under packages/**, so it is out of this filter's scope regardless).
-      #   - @ship/sui-primitives (packages/components/sui/primitives): in-flight primitive-elevation
-      #     work leaves tree-view/timeline/toggle-group/radio-group/navigation-menu/toast unregistered.
-      #   - @ship/code (packages/components/ship/code): the just-landed views/git work leaves
-      #     ship-git-diff{,-file,-hunk} unregistered.
+      # Deliberately EXCLUDED:
+      #   - apps/shell: not under packages/** (shell component suites run via their own
+      #     package scripts; wiring them into CI is tracked work).
       - name: JS tests — SUI framework + component packs (compiles SUI on demand via the vitest factory)
         run: |
           set -eo pipefail
@@ -210,12 +206,14 @@ jobs:
             --filter './packages/components/sui/charts' \
             --filter './packages/components/sui/chat-elements' \
             --filter './packages/components/sui/media' \
+            --filter './packages/components/sui/primitives' \
             --filter './packages/components/sui/viewer' \
             --filter './packages/components/ship/agents' \
             --filter './packages/components/ship/arcade' \
             --filter './packages/components/ship/authority' \
             --filter './packages/components/ship/canvas' \
             --filter './packages/components/ship/chrome' \
+            --filter './packages/components/ship/code' \
             --filter './packages/components/ship/markdown' \
             --filter './packages/components/ship/pdf' \
             --filter './packages/components/ship/pipelines' \

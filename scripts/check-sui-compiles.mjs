@@ -66,11 +66,15 @@ function walk(dir, acc) {
     }
 }
 
-// `<tag>/<tag>.sui` is the component convention — the parent dir name IS the
-// tag. The compiler refuses to compile such a path WITHOUT --component-name
-// (it would otherwise silently emit view-mode output that registers no custom
-// element, #176). Mirror that detection here so the gate passes the right
-// flag instead of tripping the guardrail on every component.
+// Mode detection mirrors the bundler's canonical rule
+// (deck_bundler::sui_plugin::detect_mode): a hyphenated stem that isn't
+// `page`/`index` IS a component named by its stem — custom-element tags
+// require a hyphen, and view entries are `page.sui`/`index.sui`. This covers
+// grouped-directory components (`sui-tabs/sui-tab.sui`,
+// `ship-git-diff/ship-git-diff-file.sui`); the old `stem == parent` heuristic
+// compiled those as views, emitting define-less artifacts into the
+// `.ship/sui-out` mirror that the vitest shim then resolved — components
+// "unregistered" in tests. One rule, both validators.
 function componentTag(file) {
     const name = basename(file);
     const stem = name.endsWith('.sui')
@@ -78,8 +82,7 @@ function componentTag(file) {
         : name.endsWith('.html.set')
           ? name.slice(0, -'.html.set'.length)
           : name;
-    const parent = basename(dirname(file));
-    return stem === parent ? stem : null;
+    return stem.includes('-') && stem !== 'page' && stem !== 'index' ? stem : null;
 }
 
 const files = [];
