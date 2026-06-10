@@ -1,0 +1,55 @@
+[package]
+name = "agent-def"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L1: the unified agent-definition domain — config / harnesses / rules / permissions / skills / imports. The ONE definition both Floki and ship-code read; the control plane + shipd depend on it for config CRUD without pulling a runtime. (Carved from ship-agents.)"
+
+[lints]
+workspace = true
+
+[dependencies]
+ship-substrate = { path = "../../../ship-substrate" }
+ship-types = { path = "../../../ship-substrate/crates/ship-types" }
+ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
+# L0 runner mechanism — provides `KernelEventSink` (an `EventSink` impl that
+# delegates to `persist_and_route`). Production callers of `SessionEventSink`
+# wire it to that impl; we depend on ship-kernel for the `EventSink` trait +
+# `testing::MockSink` (test seam), and let the caller pull ship-runner.
+ship-config = { path = "../ship-config" }
+ship-harnesses = { path = "../ship-harnesses" }
+# Skill-variable persistence — an agent-def-internal sub-crate (its KvNamespace is
+# skill-scoped; agent-def's skill_vars module is the sole consumer).
+ship-skill-vars = { path = "crates/ship-skill-vars" }
+ship-store = { path = "../ship-store" }
+# the compiler engine — services/compile is the wrapper
+compiler = { path = "../../../compiler", features = ["specta"] }
+inventory = { workspace = true }
+include_dir = "0.7"
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
+
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+specta = { workspace = true, features = ["chrono", "serde_json"] }
+jsonschema = { version = "0.46", default-features = false }
+tempfile = { workspace = true }
+tracing = { workspace = true }
+sha2 = { workspace = true }
+serde_yaml = { workspace = true }
+toml = { workspace = true, features = ["preserve_order"] }
+home = { workspace = true }
+
+[dev-dependencies]
+# Test helper (`testutil::init_project`) installs platform defaults; this is a
+# dev-only edge (Cargo permits the dev-dependency cycle through ship-platform).
+ship-platform = { path = "../.." }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
+tempfile = { workspace = true }
+chrono = { workspace = true }
+walkdir = "2.3"
+
+[features]
+fixtures = []
+specta = []

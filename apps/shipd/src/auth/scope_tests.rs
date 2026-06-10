@@ -19,7 +19,6 @@ async fn daemon_token_has_full_scope() {
     assert!(auth.has_scope(Scope::Full));
     assert!(auth.has_scope(Scope::CreateRuns));
     assert!(auth.has_scope(Scope::AdminDaemon));
-    assert!(auth.has_scope(Scope::MeshBroadcast));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -37,6 +36,5 @@ async fn unknown_role_gets_minimal_scopes() {
     assert!(Scope::ReadRuns.is_granted_by(&scopes));
     assert!(Scope::LogProgress.is_granted_by(&scopes));
     assert!(!Scope::CreateRuns.is_granted_by(&scopes));
-    assert!(!Scope::MeshSend.is_granted_by(&scopes));
     assert!(!Scope::WriteWorkspace.is_granted_by(&scopes));
 }

@@ -1,0 +1,33 @@
+[package]
+name = "floki"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L1: Floki — Ship's first-party embedded code-mode agent runtime. WE own the loop (per-op gate, durable journal, code-mode, suspend/resume). Runs on durable-execution + ship-js; reads the unified agent definition from agent-def."
+
+[lints]
+workspace = true
+
+[dependencies]
+# The L0 engines Floki runs on. durable-execution journals/resumes; ship-js
+# executes code-mode in a locked-down V8 isolate behind the `Dispatch` seam.
+durable-execution = { path = "../../../ship-substrate/crates/durable-execution" }
+ship-js = { path = "../../../ship-substrate/crates/ship-js", features = ["deno"] }
+# The ONE agent definition both runtimes read.
+agent-def = { path = "../agent-def" }
+
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt", "macros"] }
+tracing = { workspace = true }
+# The model-turn loop. Pinned to the version the spike proved (not yet a
+# workspace dependency — Floki introduces it).
+rig = { version = "0.38.1", package = "rig-core" }
+
+[dev-dependencies]
+rig = { version = "0.38.1", package = "rig-core", features = ["test-utils"] }
+ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "test-util"] }

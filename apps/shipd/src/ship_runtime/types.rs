@@ -55,10 +55,6 @@ pub type SharedKernel = Arc<Mutex<ship_substrate::events::KernelRouter>>;
 pub type AgentMailboxes = Arc<Mutex<HashMap<String, ship_substrate::events::Mailbox>>>;
 pub type PtyConnections = Arc<Mutex<HashMap<String, usize>>>;
 
-/// Resolves a workspace-id (branch name) to its filesystem worktree path.
-/// Returns None if the id doesn't match a known worktree.
-pub type WorktreeResolver = Arc<dyn Fn(&str) -> Option<PathBuf> + Send + Sync>;
-
 /// RAII guard that stops a kernel actor when dropped. Used by SSE
 /// handlers (`routes::runtime_api`, `views::*`) so disconnect/cancel
 /// cleans up the spawned actor without leaking mailbox state.

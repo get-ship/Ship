@@ -10,16 +10,20 @@ use std::sync::Arc;
 
 use deck::config::DeckConfig;
 use crate::{
-    auth, services, ship_runtime,
-    sessions,
+    auth, ship_runtime,
 };
+#[cfg(feature = "ship-code")]
+use crate::sessions;
 use crate::routes::{
+    actor_api, actors_api,
     artifacts_api,
-    hooks_api, human_webhook,
+    human_webhook,
     rest_api, runtime_api,
-    sandbox_api,
+    sandbox_api, schema_api,
     webhook_ext,
 };
+#[cfg(feature = "ship-code")]
+use crate::routes::hooks_api;
 use crate::auth::{attest, pairing, session};
 use crate::transport::{cors, pty as pty_handler};
 use axum::routing;
@@ -40,6 +44,7 @@ pub fn build_router(
     let webhook_routes = Router::new()
         .route("/webhook/telegram", axum::routing::post(human_webhook::telegram_webhook))
         .with_state(rt.kernel().clone());
+    #[cfg(feature = "ship-code")]
     let hook_routes = Router::new()
         .route("/hooks/session-start", axum::routing::post(hooks_api::hook_session_start))
         .route("/hooks/before-tool", axum::routing::post(hooks_api::hook_before_tool))
@@ -170,7 +175,11 @@ pub fn build_router(
         // consumed by generated git-hook shell scripts that POST via curl and
         // can't speak Connect, so it's a permanent ingress holdout. Kept out of
         // `/api/v1` so that namespace can shrink to just the auth-bootstrap.
-        .merge(hook_routes)
+        // Gated: hooks_api uses ship-agents PTY session state (ship-code feature).
+        ;
+    #[cfg(feature = "ship-code")]
+    let authenticated_routes = authenticated_routes.merge(hook_routes);
+    let authenticated_routes = authenticated_routes
         .nest("/api", webhook_routes)
         // ConnectRPC op surface (ship.ops.v1) — additive, wrapped by
         // auth_middleware below so the gate sees AuthContext. See ops_rpc.
@@ -378,13 +387,20 @@ async fn build_header_middleware(
 ///
 fn build_ship_routes(st: rest_api::ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
-    Router::new()
+    // Actor writes (L0 kernel — kernel-directed mailbox delivery).
+    // The mesh.* op surface (and the mesh/actors/{id}/events introspection
+    // reads) was removed; the kernel mailbox primitive is now reached
+    // exclusively through actor_spawn + event_route + the kernel's own
+    // directed delivery via `EventEnvelope.target_actor_id`.
+    // Base routes: always compiled regardless of feature flags.
+    let router = Router::new()
+        .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
+        .ship_route(Route::EventRoute, actor_api::event_route)
+        .ship_route(Route::ListActors, actors_api::list_actors_handler)
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
         // Isolation reads are served by the proto IsolationService
-        // (ship.ops.v1) — the one op-surface path. The former
-        // /api/v1/isolation/* REST routes were removed to avoid a parallel
-        // path; init's gated-op migration lands at the connect cutover.
+        // (ship.ops.v1) — the one op-surface path.
         .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
         .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
         // Runtime — read-side only (daemon status, projections, event stream).
@@ -392,42 +408,19 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // pipeline run log stream all moved to typed Connect wires
         // (AgentsService / PipelinesService / agent.Dispatch).
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
-        // View schema (ship.*) — read-side. Manifest / bundle / file-list /
-        // write paths moved to DiscoveryService / Connect view-edit wire
-        // (view-sessions via ViewService; edit-mode grants via
-        // ship_views::view_authoring).
-        .ship_route(Route::ShipSchema, services::schema::serve_schema)
-        // Sessions (PTY).
-        .ship_route(Route::SpawnPtySession, sessions::api::spawn_session)
-        .ship_route(Route::ListPtySessions, sessions::api::list_pty_sessions)
-        .ship_route(Route::GetPtySession_template(), sessions::api::get_session)
-        .ship_route(Route::StopPtySession_template(), sessions::api::stop_session)
-        .ship_route(Route::PtySessionInput_template(), sessions::api::session_input)
-        .ship_route(Route::PtySessionResize_template(), sessions::api::session_resize)
-        .ship_route(Route::PtySessionMessage_template(), sessions::api::session_message)
-        .ship_route(Route::PtySessionReply_template(), sessions::api::session_reply)
-        .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
-        .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
-        .ship_route(Route::InstalledProviders, sessions::api::installed_harnesses)
-        .ship_route(Route::ListSessionsAcrossProjects, runtime_api::list_sessions_across_projects)
+        // View schema (ship.*) — read-side, served from the ship-ops-rpc
+        // catalog. Manifest / bundle / file-list / write paths moved to
+        // DiscoveryService / Connect view-edit wire.
+        .ship_route(Route::ShipSchema, schema_api::serve_schema)
         // The `/_deck/mutation/{name}` 410 tombstone moved to `deck::router()`
         // — it's a `/_deck/*` serving concern (deck composes that form `action`
         // URL via `deck_core::routes::mutation_action`), not an RPC route.
-        // AgentsService — generic CRUD + lifecycle. First-party and
-        // third-party views use this surface equally.
-        // PipelineService — CRUD + run ops. Dispatch / cancel / log-stream
-        // wrap the existing kernel-backed handlers so the write paths stay
-        // single-sourced.
-        // RuleService — markdown rules.
-        // PermissionService — preset entries + composed tool-patterns.
-        // SkillService — service-shaped CRUD + file tree + vars. Replaces
-        // the project-scoped skill endpoints that used to hang off
-        // /api/v1/projects/{id}/skills/*.
-        // Specs REST
+        // AgentsService / PipelineService / RuleService / PermissionService /
+        // SkillService — all Connect wires (ship.ops.v1); no REST shells here.
         // Events / projections
         .ship_route(Route::EventStream, runtime_api::event_stream)
-        .ship_route(Route::RebuildProjections, runtime_api::rebuild_projections)
         .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
+
         // Artifacts platform (three-scope)
         .merge(
             Router::<rest_api::ApiState>::new()
@@ -442,7 +435,24 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             routing::head(artifacts_api::head_artifact),
         )
         .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
-        .with_state(st)
+;
+
+    // Sessions (PTY) — harness-driver stack; only compiled with ship-code.
+    #[cfg(feature = "ship-code")]
+    let router = router
+        .ship_route(Route::SpawnPtySession, sessions::api::spawn_session)
+        .ship_route(Route::ListPtySessions, sessions::api::list_pty_sessions)
+        .ship_route(Route::GetPtySession_template(), sessions::api::get_session)
+        .ship_route(Route::StopPtySession_template(), sessions::api::stop_session)
+        .ship_route(Route::PtySessionInput_template(), sessions::api::session_input)
+        .ship_route(Route::PtySessionResize_template(), sessions::api::session_resize)
+        .ship_route(Route::PtySessionMessage_template(), sessions::api::session_message)
+        .ship_route(Route::PtySessionReply_template(), sessions::api::session_reply)
+        .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
+        .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
+        .ship_route(Route::InstalledProviders, sessions::api::installed_harnesses);
+
+    router.with_state(st)
 }
 
 /// Convert a handler panic into a structured 500 response instead of

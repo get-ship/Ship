@@ -21,7 +21,6 @@ pub mod state;
 // Truly framework-level pieces (view_payload, view_host, asset bundles,
 // resolver, render_helpers, bundle, runtime asset) live in
 // crates/deck/.
-pub mod git_signal;
 pub mod session;
 pub mod session_types;
 pub mod sanitize;

@@ -15,6 +15,7 @@ fn make_profile(id: &str, name: &str) -> AgentProfile {
             active_tools: vec![],
             icon: None,
         },
+        capabilities: Vec::new(),
         skills: SkillRefs {
             refs: vec!["skill-a".to_string()],
         },

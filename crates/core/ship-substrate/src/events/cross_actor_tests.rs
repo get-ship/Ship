@@ -258,7 +258,7 @@ async fn kernel_store_records_system_events_for_audit() {
     let tmp = tempdir().unwrap();
     let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let event = ev("session.started");
+    let event = ev("workspace.created");
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let mut conn = open_db_at(&router.kernel_store_path()).unwrap();

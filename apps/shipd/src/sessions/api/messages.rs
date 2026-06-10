@@ -118,7 +118,7 @@ pub async fn session_message(
         let m = s.meta();
         (m.workspace_id, m.agent_id)
     } else {
-        // Dispatched sessions (POST /api/v1/agent_sessions/dispatch) land
+        // Sessions dispatched via `AgentsService.Dispatch` (Connect) land
         // in neither legacy registry — they live in the orchestrator's
         // ProcessRegistry and the actor projection. Read metadata from
         // the projection so studio.chat_turn carries the right context
@@ -212,7 +212,7 @@ pub async fn session_message(
         return (StatusCode::ACCEPTED, ()).into_response();
     }
 
-    // Dispatched sessions (POST /api/v1/agent_sessions/dispatch) live in
+    // Sessions dispatched via `AgentsService.Dispatch` (Connect) live in
     // the orchestrator's ProcessRegistry, NOT actor_sessions / pty_sessions.
     // Look them up via the dispatch handle — the same lookup the WS attach
     // endpoint uses — and route by the harness's push_mechanism.

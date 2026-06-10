@@ -3,8 +3,8 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
+#[cfg(feature = "ship-code")]
 use crate::dispatch::run_dispatch::DispatchHandle;
 
 use super::{
@@ -12,24 +12,6 @@ use super::{
 };
 
 impl ShipRuntime {
-    /// Resolve a workspace-id (branch name) to its worktree path.
-    /// Wraps the configured `worktree_resolver` with a 404 response on miss.
-    pub fn resolve_worktree(
-        &self,
-        id: &str,
-    ) -> Result<std::path::PathBuf, (axum::http::StatusCode, axum::Json<crate::wire::MeshResponse>)>
-    {
-        (self.worktree_resolver)(id).ok_or_else(|| {
-            (
-                axum::http::StatusCode::NOT_FOUND,
-                axum::Json(crate::wire::MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(format!("workspace '{id}' not found")),
-                }),
-            )
-        })
-    }
-
     /// Process uptime since the runtime was constructed.
     pub fn uptime(&self) -> std::time::Duration {
         self.started_at.elapsed()
@@ -83,25 +65,6 @@ impl ShipRuntime {
         &self.daemon_dir
     }
 
-    /// `RulesService` accessor — pilot for the modular-runtime spec 02
-    /// service-layer pattern. HTTP handlers in `services::rules::*`
-    /// call through this rather than reaching into runtime state.
-    pub fn rules(&self) -> &dyn ship_agents::services::rules::service::RulesService {
-        &*self.rules
-    }
-
-    /// `PermissionsService` accessor — second mr-02 pilot.
-    pub fn permissions(
-        &self,
-    ) -> &dyn ship_agents::services::permissions::service::PermissionsService {
-        &*self.permissions
-    }
-
-    /// `McpService` accessor — third mr-02 pilot.
-    pub fn mcp(&self) -> &dyn ship_agents::services::mcp::service::McpService {
-        &*self.mcp
-    }
-
     /// `SkillsService` accessor.
     pub fn skills(&self) -> &dyn ship_agents::services::skills::service::SkillsService {
         &*self.skills
@@ -145,29 +108,12 @@ impl ShipRuntime {
         self.agents.clone()
     }
 
-    /// `PipelinesService` accessor — definition CRUD; dispatch / cancel /
-    /// runs still go through `runtime_api`.
-    pub fn pipelines(&self) -> &dyn ship_pipeline_runtime::pipelines::service::PipelinesService {
-        &*self.pipelines
-    }
-
     /// `PipelinesService` as a cloned `Arc` — for diagnostic snapshot providers
     /// that need to hold the handle independently of the runtime borrow.
     pub fn pipelines_arc(
         &self,
     ) -> Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService> {
         self.pipelines.clone()
-    }
-
-    /// `GitService` accessor — every git op except SSE goes through this.
-    pub fn git(&self) -> &dyn ship_platform::services::git::service::GitService {
-        &*self.git
-    }
-
-    /// Arc clone of the `GitService` — for crate-owned wires that need to hold
-    /// the service independently of the runtime borrow.
-    pub fn git_arc(&self) -> std::sync::Arc<dyn ship_git::service::GitService> {
-        self.git.clone()
     }
 
     /// Build a `CollectionService` over the active-space `SpaceContext` + the
@@ -220,21 +166,12 @@ impl ShipRuntime {
     pub fn global_blob_dir(&self) -> &std::path::Path {
         &self.global_blob_dir
     }
-
-    pub fn mesh_registry(&self) -> &SharedMeshRegistry {
-        &self.mesh_registry
-    }
-
-    /// Replace the mesh registry (used after spawning MeshService).
-    pub fn set_mesh_registry(&mut self, registry: SharedMeshRegistry) {
-        self.mesh_registry = registry;
-    }
-
     /// Store the dispatch handle (set once after job manager init).
+    #[cfg(feature = "ship-code")]
     pub fn set_dispatch_handle(&self, handle: DispatchHandle) {
         let _ = self.dispatch_handle.set(handle);
     }
-
+    #[cfg(feature = "ship-code")]
     pub fn dispatch_handle(&self) -> Option<&DispatchHandle> {
         self.dispatch_handle.get()
     }
@@ -247,11 +184,11 @@ impl ShipRuntime {
         &self.pty_connections
     }
 
-    pub fn pty_sessions(&self) -> &crate::sessions::SessionRegistry {
+    pub fn pty_sessions(&self) -> &ship_agents::services::sessions::SessionRegistry {
         &self.pty_sessions
     }
 
-    pub fn actor_sessions(&self) -> &crate::sessions::ActorRegistry {
+    pub fn actor_sessions(&self) -> &ship_agents::services::sessions::ActorRegistry {
         &self.actor_sessions
     }
 

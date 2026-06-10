@@ -17,7 +17,8 @@
 //! daemon (shipd) — without closing a dependency cycle.
 
 use ship_agents::{start_agents, AgentPorts};
-use ship_substrate::services::dispatch_ports::{SessionExecutor, SpawnPolicy};
+use ship_agents::ports::FlokiRunFn;
+use ship_code::dispatch_ports::{SessionExecutor, SpawnPolicy};
 use ship_pipeline_runtime::orchestrator::OrchestratorContext;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -26,8 +27,8 @@ use tokio::sync::Mutex;
 
 use super::adapters;
 use super::platform::ShipdPlatform;
-pub(crate) use ship_substrate::services::process_registry::ProcessRegistry;
-use ship_substrate::services::process_registry::SharedRegistry;
+pub(crate) use ship_code::process_registry::ProcessRegistry;
+use ship_code::process_registry::SharedRegistry;
 
 /// Handle returned by `subscribe_job_events` — gives the shutdown path
 /// access to the process registry and executor for graceful shutdown.
@@ -46,12 +47,19 @@ pub struct DispatchHandle {
 /// Creates the `OrchestratorContext` with shipd's concrete implementations,
 /// then starts the runtime orchestrator. Returns a `DispatchHandle` for
 /// graceful shutdown.
+///
+/// `floki_run_fn`: when `Some`, injected into `AgentPorts` so the
+/// `service.agents` actor routes floki-harness sessions to it instead of
+/// the harness-driver stack. `None` leaves the floki path unwired (floki
+/// sessions with no closure are silently skipped — the started event is
+/// already persisted, but no run fires).
 pub async fn subscribe_job_events(
     kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
     _ship_dir: PathBuf,
     health_registry: &ship_substrate::task_health::HealthRegistry,
     session_registry: ship_auth::scopes::SessionRegistry,
     daemon_url: String,
+    floki_run_fn: Option<FlokiRunFn>,
 ) -> Option<DispatchHandle> {
     // RoutingExecutor picks TmuxWindowExecutor (interactive-attach) or
     // ProcessExecutor (headless) per-job based on the `headless` flag set
@@ -79,14 +87,14 @@ pub async fn subscribe_job_events(
     // pipeline orchestrator and the agent-session actor so role/token
     // resolution and the orphan/terminal projection reads are identical on
     // every dispatch path.
-    let isolation: Arc<dyn ship_substrate::services::dispatch_ports::IsolationStrategy> =
+    let isolation: Arc<dyn ship_code::dispatch_ports::IsolationStrategy> =
         Arc::new(adapters::GitWorktreeIsolation);
-    let registry_port: Arc<dyn ship_substrate::services::dispatch_ports::ProcessRegistryPort> =
+    let registry_port: Arc<dyn ship_code::dispatch_ports::ProcessRegistryPort> =
         Arc::new(SharedRegistry(registry.clone()));
     let spawn_policy: Arc<dyn SpawnPolicy> = Arc::new(
         ship_pipeline_runtime::orchestrator::spawn_policy::ConfigSpawnPolicy::new(platform.clone()),
     );
-    let projections: Arc<dyn ship_substrate::services::dispatch_ports::ProjectionReader> =
+    let projections: Arc<dyn ship_code::dispatch_ports::ProjectionReader> =
         Arc::new(ship_pipeline_runtime::orchestrator::projection_reader::ProjectionsReader);
 
     let octx = Arc::new(OrchestratorContext {
@@ -94,7 +102,7 @@ pub async fn subscribe_job_events(
         executor: executor.clone(),
         platform: platform.clone(),
         registry: registry_port.clone(),
-        probe: Arc::new(ship_substrate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_code::process_tree_probe::SysinfoProcessTreeProbe::new()),
         spawn_policy: spawn_policy.clone(),
         projections: projections.clone(),
         done_flags: Arc::new(Mutex::new(HashMap::new())),
@@ -112,6 +120,7 @@ pub async fn subscribe_job_events(
     // `agent.session.started` is acted on by `service.agents` ALONE (S3b), the
     // two instances never double-admit a spawn.
     let agent_ports = Arc::new(AgentPorts {
+        floki_run_fn,
         isolation,
         executor: executor.clone(),
         platform: platform.clone(),

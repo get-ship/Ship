@@ -35,10 +35,16 @@
 // Handler files live at `routes/<x>_api.rs`. Callers import them as
 // `crate::routes::<x>_api::*` (or `shipd::routes::<x>_api::*` externally).
 
-pub mod agent_sessions_attach;
+pub mod actor_api;
 #[cfg(test)]
+mod actor_api_tests;
+pub mod actors_api;
+#[cfg(feature = "ship-code")]
+pub mod agent_sessions_attach;
+#[cfg(all(test, feature = "ship-code"))]
 mod agent_sessions_attach_tests;
 pub mod artifacts_api;
+#[cfg(feature = "ship-code")]
 pub mod hooks_api;
 pub mod human_webhook;
 pub mod rest_api;
@@ -46,6 +52,7 @@ pub mod runtime_api;
 pub mod sandbox_api;
 #[cfg(test)]
 mod sandbox_api_tests;
+pub mod schema_api;
 #[cfg(test)]
 mod scope_enforcement_tests;
 pub mod webhook_ext;
@@ -135,9 +142,6 @@ pub enum Route {
     /// @auth scope ReadWorkspace
     InstalledProviders,
 
-    /// @route GET "/api/v1/sessions/active-across-projects"
-    /// @auth scope ReadWorkspace
-    ListSessionsAcrossProjects,
 
     // ── Process projection / events polling / daemon status (slice 6) ────
 
@@ -151,9 +155,12 @@ pub enum Route {
     /// @auth scope ReadWorkspace
     EventStream,
 
-    /// @route POST "/api/v1/rebuild-projections"
-    /// @auth scope AdminDaemon
-    RebuildProjections,
+    // POST /api/v1/rebuild-projections was removed: no caller
+    // (admin-only vestige) — the kernel can self-heal projections
+    // on demand via the existing event log. The rebuild primitive
+    // lives at `ship_substrate::db::rebuild::rebuild_projections`
+    // and is still wired into `ShipRuntime::init` for boot-time
+    // projection recovery.
 
     /// @route GET "/api/v1/projects/{id}/pty"
     /// @auth scope ManageRuns
@@ -161,6 +168,23 @@ pub enum Route {
 
     // Workspace-scoped artifact status/promote removed — callers get 404.
     // Use the unified /api/artifacts/* surface instead.
+
+    // ── Actor kernel (L0 — kernel-directed mailbox delivery) ─────────────
+    // The mesh.* introspection reads (GET /api/v1/mesh, per-actor reads)
+    // were culled with the mesh op surface. The actor/spawn + events/route
+    // writes (L0) are live callers (sui-canvas) and stay.
+
+    /// @route POST "/api/v1/actor/spawn"
+    /// @auth scope MeshSend
+    ActorSpawn,
+
+    /// @route POST "/api/v1/events/route"
+    /// @auth scope EmitEvents
+    EventRoute,
+
+    /// @route GET "/api/v1/actors"
+    /// @auth scope ReadWorkspace
+    ListActors,
 
     // ── Artifacts ────────────────────────────────────────────────────────
     // The list/upload/download/metadata/patch/delete handlers compute the

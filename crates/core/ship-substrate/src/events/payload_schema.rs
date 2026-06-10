@@ -49,15 +49,6 @@ fn schema_for_event_type(
         "workspace.created" => Some(check::<WorkspaceCreated>),
         "workspace.activated" => Some(check::<WorkspaceActivated>),
         "workspace.archived" => Some(check::<WorkspaceArchived>),
-        // session
-        "session.started" => Some(check::<SessionStarted>),
-        "session.progress" => Some(check::<SessionProgress>),
-        "session.ended" => Some(check::<SessionEnded>),
-        "session.drain_started" => Some(check::<SessionDrainStarted>),
-        "session.drain_completed" => Some(check::<SessionDrainCompleted>),
-        "session.drain_aborted" => Some(check::<SessionDrainAborted>),
-        "session.tool_count_incremented" => Some(check::<SessionToolCountIncremented>),
-        "session.heartbeat" => Some(check::<SessionHeartbeat>),
         // actor
         "actor.created" => Some(check::<ActorCreated>),
         "actor.woke" => Some(check::<ActorWoke>),
@@ -156,14 +147,10 @@ fn schema_for_event_type(
         "permissions.updated" => Some(check::<PermissionsUpdated>),
         // capability provisioning
         "agent.grants.provisioned" => Some(check::<AgentGrantsProvisioned>),
-        // session lifecycle additions (event-coverage/02 + Spec 7a)
-        "session.status_changed" => Some(check::<SessionStatusChanged>),
-        "session.turn_failed" => Some(check::<SessionTurnFailed>),
-        "session.attached" => Some(check::<SessionAttached>),
+        // session.* schema validation lives in agent-def (canonical_session types relocated there).
         // studio typed payloads (Spec 7a)
         "studio.chat_turn" => Some(check::<StudioChatTurn>),
         "studio.reply" => Some(check::<StudioReply>),
-        // process
         "process.killed" => Some(check::<crate::events::process::ProcessKilledPayload>),
         // Spec-6 / Spec-7a additions — all 23 classified events now have typed payloads
         "actor.mailbox_full" => Some(check::<ActorMailboxFull>),

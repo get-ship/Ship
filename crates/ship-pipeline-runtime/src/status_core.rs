@@ -203,6 +203,117 @@ pub async fn step_done_core(
     Ok(json!({ "slug": slug, "step_id": step_id }))
 }
 
+// ---- Cancel (operator-initiated run termination) ----
+
+/// Core of the run-cancel command — the typed Connect `Cancel` verb (was
+/// REST-only `POST /jobs/{slug}/cancel`). Resolves the run by slug via the
+/// `pipeline_runs` projection, rejects an already-terminal run (no event), else
+/// emits `PIPELINE_RUN_CANCELLED`. Returns the typed [`CancelRunResult`].
+pub async fn cancel_run_core(
+    port: &dyn PipelineDispatchPort,
+    slug: &str,
+    reason: &str,
+) -> Result<ship_ops_rpc::CancelRunResult, StatusCoreError> {
+    use ship_substrate::events::EventEnvelope;
+    use ship_substrate::events::pipeline::{PipelineRunCancelledPayload, event_types};
+
+    use crate::projections::pipeline_run::{PipelineRunStatus, load_pipeline_run_by_slug_at};
+
+    let run = load_pipeline_run_by_slug_at(port.ship_dir(), slug)
+        .map_err(|e| StatusCoreError::Internal(e.to_string()))?
+        .ok_or_else(|| StatusCoreError::NotFound(format!("no pipeline run with slug '{slug}'")))?;
+
+    // Idempotent: a terminal run is not cancellable — caller error, no event.
+    if matches!(
+        run.status,
+        PipelineRunStatus::Failed
+            | PipelineRunStatus::Merged
+            | PipelineRunStatus::Cancelled
+            | PipelineRunStatus::Completed
+    ) {
+        return Err(StatusCoreError::BadRequest(format!(
+            "run '{slug}' is already terminal ({})",
+            format!("{:?}", run.status).to_lowercase()
+        )));
+    }
+
+    let reason = if reason.trim().is_empty() {
+        "operator-cancelled".to_string()
+    } else {
+        reason.to_string()
+    };
+    let payload = PipelineRunCancelledPayload {
+        pipeline_run_id: run.pipeline_run_id.clone(),
+        slug: slug.to_string(),
+        reason,
+        requested_by: "operator".to_string(),
+    };
+    let envelope =
+        EventEnvelope::new(event_types::PIPELINE_RUN_CANCELLED, &run.pipeline_run_id, &payload)
+            .map(|e| e.with_actor_id("operator"))
+            .map_err(|e| StatusCoreError::BadRequest(e.to_string()))?;
+    port.persist_and_route(&envelope)
+        .await
+        .map_err(|e| StatusCoreError::Internal(e.to_string()))?;
+
+    Ok(ship_ops_rpc::CancelRunResult {
+        pipeline_run_id: run.pipeline_run_id,
+        slug: slug.to_string(),
+        status: "cancelling".to_string(),
+        ..Default::default()
+    })
+}
+
+// ---- ResolveStep (the typed resume verb, step-id-keyed) ----
+
+/// Core of the `ResolveStep` verb — the TYPED resume seam, keyed by step id.
+///
+/// FOR NOW it maps onto the EXISTING advance flow: it emits
+/// `PIPELINE_STEP_DONE_DECLARED` for the named step (the same signal `step_done`
+/// rides), so the orchestrator advances the run today. At the dissolution (P2.x)
+/// this becomes engine `resume(decision)` with retry/fail branches; `decision`
+/// is already on the wire so callers don't have to change shape then. Returns the
+/// typed [`ResolveStepResult`].
+pub async fn resolve_step_core(
+    port: &dyn PipelineDispatchPort,
+    slug: &str,
+    step_id: &str,
+    summary: Option<String>,
+) -> Result<ship_ops_rpc::ResolveStepResult, StatusCoreError> {
+    use ship_substrate::events::EventEnvelope;
+    use ship_substrate::events::pipeline::{PipelineStepDoneDeclaredPayload, event_types};
+
+    use crate::projections::pipeline_run::load_pipeline_run_by_slug_at;
+
+    if step_id.trim().is_empty() {
+        return Err(StatusCoreError::BadRequest("step_id is required".to_string()));
+    }
+    let run = load_pipeline_run_by_slug_at(port.ship_dir(), slug)
+        .map_err(|e| StatusCoreError::Internal(e.to_string()))?
+        .ok_or_else(|| StatusCoreError::NotFound(format!("no pipeline run with slug '{slug}'")))?;
+
+    let payload = PipelineStepDoneDeclaredPayload {
+        pipeline_run_id: run.pipeline_run_id.clone(),
+        slug: slug.to_string(),
+        step_id: step_id.to_string(),
+        summary,
+        outputs: Default::default(),
+    };
+    let envelope =
+        EventEnvelope::new(event_types::PIPELINE_STEP_DONE_DECLARED, &run.pipeline_run_id, &payload)
+            .map_err(|e| StatusCoreError::BadRequest(e.to_string()))?;
+    port.persist_and_route(&envelope)
+        .await
+        .map_err(|e| StatusCoreError::Internal(e.to_string()))?;
+
+    Ok(ship_ops_rpc::ResolveStepResult {
+        slug: slug.to_string(),
+        step_id: step_id.to_string(),
+        advanced: true,
+        ..Default::default()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -317,5 +428,98 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err, StatusCoreError::NotFound(_)));
+    }
+
+    // ── Cancel + ResolveStep (typed verbs, P0.3) ────────────────────────────
+
+    /// Seed a run row into the port's `runtime.db` by writing the raw run
+    /// events; the cores resolve it via `load_pipeline_run_by_slug_at`.
+    fn seed_run(ship_dir: &Path, run_id: &str, slug: &str, terminal: bool) {
+        use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
+        drop(ship_substrate::db::open_runtime_db(ship_dir).unwrap());
+        let store =
+            SqliteEventStore::new_at_db_path(&ship_substrate::db::runtime_db_path(ship_dir)).unwrap();
+        let started = EventEnvelope::new(
+            event_types::PIPELINE_RUN_STARTED,
+            run_id,
+            &serde_json::json!({
+                "pipeline_run_id": run_id, "slug": slug, "agent": "r",
+                "branch": "job/x", "spec_path": "s",
+                "steps": { "steps": [{ "id": "a", "type": "agent" }], "auto_merge": false }
+            }),
+        )
+        .unwrap();
+        store.append(&started).unwrap();
+        if terminal {
+            let m = EventEnvelope::new(
+                event_types::PIPELINE_RUN_MERGED,
+                run_id,
+                &serde_json::json!({ "pipeline_run_id": run_id, "slug": slug }),
+            )
+            .unwrap();
+            store.append(&m).unwrap();
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancel_run_emits_cancelled_and_returns_cancelling() {
+        let port = FakePort::new();
+        seed_run(port.ship_dir(), "run-c1", "doomed", false);
+
+        let result = cancel_run_core(&port, "doomed", "").await.unwrap();
+        assert_eq!(result.slug, "doomed");
+        assert_eq!(result.pipeline_run_id, "run-c1");
+        assert_eq!(result.status, "cancelling");
+
+        let emitted = port.emitted.lock().unwrap();
+        assert_eq!(emitted.len(), 1);
+        assert_eq!(emitted[0].0, event_types::PIPELINE_RUN_CANCELLED);
+        let payload: serde_json::Value = serde_json::from_str(&emitted[0].1).unwrap();
+        assert_eq!(payload["slug"], "doomed");
+        assert_eq!(payload["reason"], "operator-cancelled", "empty reason defaults");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancel_run_rejects_terminal_run() {
+        let port = FakePort::new();
+        seed_run(port.ship_dir(), "run-c2", "done", true); // merged → terminal
+        let err = cancel_run_core(&port, "done", "stop").await.unwrap_err();
+        assert!(matches!(err, StatusCoreError::BadRequest(_)));
+        assert!(port.emitted.lock().unwrap().is_empty(), "terminal cancel emits nothing");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancel_run_not_found_for_unknown_slug() {
+        let port = FakePort::new();
+        let err = cancel_run_core(&port, "ghost", "").await.unwrap_err();
+        assert!(matches!(err, StatusCoreError::NotFound(_)));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn resolve_step_emits_done_declared_and_advances() {
+        let port = FakePort::new();
+        seed_run(port.ship_dir(), "run-rs", "myrun", false);
+
+        let result = resolve_step_core(&port, "myrun", "a", Some("looks good".into()))
+            .await
+            .unwrap();
+        assert_eq!(result.slug, "myrun");
+        assert_eq!(result.step_id, "a");
+        assert!(result.advanced, "the step advanced");
+
+        let emitted = port.emitted.lock().unwrap();
+        assert_eq!(emitted.len(), 1);
+        assert_eq!(emitted[0].0, event_types::PIPELINE_STEP_DONE_DECLARED);
+        let payload: serde_json::Value = serde_json::from_str(&emitted[0].1).unwrap();
+        assert_eq!(payload["step_id"], "a");
+        assert_eq!(payload["summary"], "looks good");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn resolve_step_requires_step_id() {
+        let port = FakePort::new();
+        let err = resolve_step_core(&port, "myrun", "", None).await.unwrap_err();
+        assert!(matches!(err, StatusCoreError::BadRequest(_)));
+        assert!(port.emitted.lock().unwrap().is_empty());
     }
 }

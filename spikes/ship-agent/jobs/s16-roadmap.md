@@ -1,0 +1,158 @@
+# Ship Agent — S16 Execution Roadmap (the build sequence)
+
+> The design SSOT is `s16-architecture.md`. This is the **build order**: phases,
+> the *how* for each, dependencies, and the one risk we verify before touching
+> the trunk. Greenfield-first (prove it in the spike), then graduate.
+
+## Phase A — Greenfield engine (in the spike, zero workspace risk) — ✅ COMPLETE
+The spike already has deno + the EventLog + the one-door Gateway, so the whole
+engine is buildable here, behind the existing ports, before any trunk commitment.
+**All six slices landed; 141 tests green (`4fb0856f2`..`9d0dea29e`).** The
+hardest, most novel work — durable execution + code-mode-as-durable-program +
+context-projection + durable agent turns — is proven before any trunk change.
+
+- **A1 · durable-execution core** — journal + replay + suspend/resume. ✅ DONE
+  (`4fb0856f2`): replay re-executes nothing, suspend parks/resumes without
+  re-burn, denial-as-data. `src/engine.rs`.
+- **A2 · fan-out / parallel + aggregate** — `parallel` (deterministic journaling
+  of K ops) + the min-successful aggregate decision (fold `orchestration.rs`).
+- **A3 · retry** — per-op retry policy on the live frontier; only the final
+  result is journaled (replay never re-runs the retries). Fold `resilience.rs`.
+- **A4 · deno wiring — `script-as-Program` (THE thesis connector).** A ship-js
+  script becomes a durable program with **no deno change**: wrap the Gateway in a
+  `JournalingGateway` (cursor + journal: replay logged results, execute+append on
+  the frontier, return a suspend-signal that unwinds the script on a checkpoint).
+  `run_script` with a `JournalingGateway` = a replayable code-mode turn. Resume =
+  re-run the script; the gateway memoizes completed ops up to the resolved suspend.
+- **A5 · context-projection** — the runtime renders the model's context from the
+  journal (`project(journal, budget, strategy)`), swappable strategies, journal is
+  the lossless truth. Sub-run journals compartmentalize context.
+- **A6 · agent-loop ↔ engine** — a model turn IS a program; `agent()`/`parallel()`
+  are sub-runs (own journals). The rig loop drives the program frontier.
+
+**Exit A:** the spike proves the full engine + code-mode-as-durable-program +
+context-projection, all green. The hard, novel work is done before the trunk.
+
+## Phase B — Verify the one risk (before touching the trunk) — ✅ COMPLETE
+- **B1 · Connect in-process transport feasibility.** ✅ PROVEN. `tower::oneshot`
+  of the **real** `apps/shipd/src/ops_rpc.rs::router` runs the full interceptor
+  stack in-process, no socket, with the `AuthContext` read from request
+  extensions — the exact embedded path. Two layers of evidence:
+  - **Transport mechanism** (the connectrpc crate's own test,
+    `service.rs::extensions_flow_to_handler_context`): an extension stamped on
+    the `http::Request` survives unary dispatch and reaches
+    `RequestContext.extensions` verbatim (`service.rs:1468` moves
+    `parts.extensions` → `.with_extensions(...)`). That's the map the `GateFn`
+    reads (`ops_rpc.rs:176`).
+  - **Our gate enforces through it** (new behavioral test,
+    `ops_rpc::tests::in_process_router_enforces_the_gate_for_an_embedded_caller`):
+    for an embedded-style caller (`operator_cred=false`, scoped grants), the same
+    `mcp.create` (C2) request is **denied** (403 `permission_denied`) with no
+    grant and **clears the gate** with `grants=["mcp"]` — the grant is the only
+    variable. A C0 read by the same ungranted caller stays 200, ruling out a dead
+    transport / blanket-reject. Proves the in-proc oneshot traverses the SAME gate
+    the socket does. **No fallback needed** — UDS-loopback stays in the back pocket.
+- **Drift cleared to unblock the test target** (restored-worktree closeout): two
+  test files referenced the culled `Route::PostFeedback` shell (deleted in
+  `57873e69d`, logic now on `AgentsService` Connect ops) → repointed/removed; five
+  supervisor source-grep `include_str!`s pointed at `ship-platform`'s old
+  `process_registry.rs` (moved to `ship-substrate`) → repathed. `shipd` lib-test
+  target is green again (the gate + routes + supervisor modules all pass).
+
+**Exit B:** RPC-as-IPC proven behaviorally. C–F are mechanical-ish on a proven
+core + a verified transport.
+
+## Phase C — Workspace foundation (commits deno + the engine to the trunk)
+- **C1 · ship-js → deno.** ✅ DONE (`c85454aa4`,`dc7a36a70`). The spike's
+  `runtime`/`script_executor`/`module_loader` graduated into `ship-js/src/deno/`
+  behind a non-default **`deno` feature** — `cargo build --workspace` (default)
+  pays no V8; deno_core/V8 (~200 crates, +614 lock entries) compile only under
+  `--features deno`. The L0 coupling was severed by a ship-js-owned **`HostDispatch`
+  seam** (`dispatch(op,args) -> Result<Value,HostError>`): the agent's
+  Gateway/AuthContext/grants/sdkgen stay host-side, captured in the impl — ship-js
+  never imports an agent type. `run_module` takes a pre-generated `sdk_src` (host
+  resolves grants→SDK). rquickjs `eval` kept as the default lightweight surface
+  (untouched, 6 tests green); rquickjs retirement deferred to Phase D (when an
+  agent runtime consumes the deno path). 5 deno behavioral tests green. Two
+  deno_core realities resolved: op2 `#[serde]` needs the literal `serde_json::Value`;
+  isolates are thread-bound + not await-reentrant, so the executor runs jobs
+  **sequentially per VM thread** (many-agents = a *pool* of threads, Phase D — NOT
+  many isolates interleaved on one thread, which aborts V8). **Seam-vs-real-gateway
+  end-to-end proof + spike de-dup deferred to Phase D** (the agent runtime consuming
+  ship-js is D's job, not C1's).
+- **C2 · the engine → its home.** ✅ DONE (`9ef975411`). The Phase-A engine landed
+  as a new L0 crate **`durable-execution`** (`crates/core/ship-substrate/crates/`;
+  deps serde_json/thiserror/async-trait/futures-util — thin). Graduated
+  `engine.rs` + `projection.rs`; `orchestration.rs`/`resilience.rs` stay in the
+  spike (agent-altitude — they re-center onto this engine in E3, not L0). L0
+  coupling severed by the crate-owned **`OpDispatch`** seam (`call(op,args) ->
+  Result<Value, DispatchError>`, `DispatchError = Transient|Terminal`); the host
+  captures gateway+credential in the impl. `JournalingGateway` → `JournalingDispatch`.
+  12 behavioral tests green. The ship-js-script-is-durable integration test moves
+  to D (engine + ship-js wired against a real gateway). `ship-pipelines` types
+  un-pulled for now — folded in at E3 when pipelines re-center on the engine.
+- **C3 · RPC-as-IPC.** The in-process tower transport (per B's proven shape); the
+  scoped SDK as a **codegen'd Connect client**; `op_ship_call` → Connect-request
+  marshaller. One proto SSOT → services + gate policy + SDK + `.d.ts`.
+
+**Exit C:** engine + deno + RPC-as-IPC in the trunk, gated, default-off-heavy.
+
+## Phase D — The agent runtime (library + app)
+**Library-vs-app handling: ONE runtime crate, two skins.** The library is the
+default (embedded in shipd, **many agents per process** — the non-negotiable);
+the app is a thin binary wrapping the same crate (process isolation when wanted).
+The choice is a deployment detail, not a code fork.
+- **D1 · `ship-agent` runtime (library)** — loop + engine + scoped SDK +
+  context-projection, behind ports, no L1-service deps. Reaches ops via RPC-IPC.
+- **D2 · auth seam** — `embedded_principal(agent_id, role) -> AuthContext`,
+  `operator_cred=false` by construction, grants via `resolve_grants`, injected into
+  the Connect request extensions. The app skin needs no seam (peer-creds over the
+  socket like any agent).
+- **D3 · `apps/ship-agent` (app skin)** — the standalone binary; the same runtime,
+  a different transport.
+
+**Exit D:** the agent runs embedded (many-per-process) and stands up as its own
+process from the same crate.
+
+## Phase E — Integration + relocation (the trunk reshape)
+- **E1 · L1 control plane.** `ship-agents` exposes `Run` / `WatchSession` (typed
+  `AgentEvent`) / `Approve` (new) / reuse `Steer`/`Stop` over RPC, routing to
+  `dyn AgentRuntime` (in-proc impl embedded; RPC-client impl for the app). Knows
+  the methods, not the loop. **Agents is the prime name.** RPC-as-control-plane =
+  the studio/CLI drive live agents identically.
+- **E2 · ship-code relocation.** Boundary-map **Option C**: carve the
+  spawned-harness stack (`runtime::executors` + `actor`/`dispatch`/`cancel`/`ports`
+  + `dispatch_resume` + the spawn-half of `services/sessions`) into its own box,
+  with `ship-harnesses`/`ship-isolation`/`ship-supervisor`. `spawn-agent` becomes
+  **one op** the engine can call. (Dead orphans already deleted.)
+- **E3 · pipelines refactor.** Re-center the existing pipeline runtime onto the
+  durable-execution engine: the user-facing pipeline (scripts / zapier-esque /
+  human checkpoints) runs on the SAME engine; process-agent steps become the
+  `spawn-agent` op; the old process-orchestrator (`RunnerPorts`/executors/
+  `OrchestratorContext`) is demoted to the impl of that one op. Static `jsonc` and
+  dynamic code-mode are the two front-ends to one engine. Triggers (cron/webhook/
+  event) stay separate (`ship-triggers`) — they start runs, they aren't the engine.
+
+**Exit E:** one engine serves agents AND pipelines; ship-code parked; the trunk's
+process-orchestrator demoted to one op behind the gate.
+
+## Phase F — Graduate the rest
+- **S12-real** (tsgo + `crates/sui/lsp` behind the slice-4 seam) and **S14-real**
+  (orchestration on the unified engine — `agent()`/`parallel()` as sub-runs) land
+  on the proven substrate. **S17** e2e.
+
+## Dependency spine + risk
+```
+A (engine, spike) ──► B (verify Connect-IPC) ──► C (deno+engine+IPC in trunk)
+                                                      └─► D (runtime: lib+app) ──► E (control plane,
+                                                                                      ship-code carve,
+                                                                                      pipelines refactor) ──► F
+```
+- **The only architectural risk was B** (Connect in-process transport) — now
+  ✅ proven behaviorally. Everything in A is greenfield and reversible; B is the
+  gate to trunk work and it held; C–F are mechanical-ish on a proven core + a
+  verified transport.
+- **Reversibility:** Phase A lives entirely in the spike — nothing in the trunk
+  changes until C, and the first trunk change (C1) is risk-free (no ship-js
+  consumers). The heavy/irreversible commitment (deno in the workspace) is C1,
+  gated behind a feature.

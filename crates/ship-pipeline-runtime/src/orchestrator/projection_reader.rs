@@ -4,13 +4,13 @@
 //! results: the union of dispatch-owning slugs (for the coherence sweep's
 //! orphan check) and a terminal-status boolean (for the router's
 //! terminal-state guard). The domain projection structs (`PipelineRun`,
-//! `AgentSession`) never cross the port — only `Vec<String>` / `bool` do.
+//! `CanonicalSession`) never cross the port — only `Vec<String>` / `bool` do.
 
 use async_trait::async_trait;
 
-use ship_agents::services::sessions::projection::load_sessions;
+use ship_agents::services::sessions::canonical_projection::load_sessions;
 use crate::projections::pipeline_run::{load_pipeline_run_by_id, load_pipeline_runs, PipelineRunStatus};
-use ship_substrate::services::dispatch_ports::ProjectionReader;
+use ship_code::dispatch_ports::ProjectionReader;
 use ship_substrate::projections::actor::active_actor_ids;
 
 /// Reads the live SQL-backed projections (`platform.db`). Stateless — each
@@ -22,17 +22,17 @@ impl ProjectionReader for ProjectionsReader {
     async fn known_dispatch_slugs(&self) -> Vec<String> {
         // Three read models combine into the "known dispatch" set:
         //   - jobs (pipeline composition runs)
-        //   - agent_sessions (the dispatch primitive — bare ship use,
+        //   - canonical_sessions (the dispatch primitive — bare ship use,
         //     ship dispatch, MCP dispatch_agent, pipeline steps)
         //   - actor_state (every spawned actor, incl. fanout lanes / chat /
-        //     shell sessions, which have no jobs/agent_sessions row)
+        //     shell sessions, which have no jobs/canonical_sessions row)
         // A registered slug absent from this union is a true orphan.
         let mut slugs: Vec<String> = active_actor_ids().unwrap_or_default().into_iter().collect();
         if let Ok(jobs) = load_pipeline_runs() {
             slugs.extend(jobs.into_values().map(|j| j.slug));
         }
         if let Ok(sessions) = load_sessions() {
-            slugs.extend(sessions.into_values().map(|s| s.slug));
+            slugs.extend(sessions.into_iter().filter_map(|s| s.slug));
         }
         slugs.sort();
         slugs.dedup();

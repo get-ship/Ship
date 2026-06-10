@@ -61,6 +61,16 @@ impl KernelLog {
         Ok(Cursor(Some(id)))
     }
 
+    /// Broadcast an ALREADY-PERSISTED event to this log's `subscribe()` receivers
+    /// WITHOUT re-persisting or re-validating it. The bridge seam: a caller that
+    /// taps the kernel router's mailbox stream (events written through the raw
+    /// `KernelRouter`, e.g. the pipeline orchestrator) forwards them here so a
+    /// `ReactiveRegistry` built on this log wakes — mirroring how the agent-def
+    /// path emits through a shared `KernelLog`. No-op if there are no receivers.
+    pub fn broadcast(&self, envelope: EventEnvelope) {
+        let _ = self.tx.send(envelope);
+    }
+
     /// Subscribe to all events emitted through this log.
     pub fn subscribe(&self) -> broadcast::Receiver<EventEnvelope> {
         self.tx.subscribe()

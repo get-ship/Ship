@@ -47,7 +47,6 @@ pub use events::{
     EventEnvelope, list_events_since, query_events_since, read_events, read_recent_events,
 };
 pub use errors::{KernelError, WorkspaceError};
-pub use db::types::SessionDb;
 pub use log::{LogEntry, log_action, log_action_by, read_log, read_log_entries};
 pub use trash::{TrashEntry, list_trash, purge_old_trash, restore_file, trash_file};
 

@@ -22,7 +22,6 @@ ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
-ship-kv = { path = "../../crates/core/ship-platform/crates/ship-kv" }
 ship-isolation = { path = "../../crates/core/ship-isolation", default-features = false }
 ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 connectrpc = { version = "0.4", features = ["client"] }
@@ -124,6 +123,9 @@ set -eu
 # gets installed alongside the docs so admins can re-run it manually.
 
 [dev-dependencies]
+# Internal agent-def sub-crate — used only by tests/registry_e2e.rs (skill-vars
+# KV round-trip). That test should migrate into ship-skill-vars itself.
+ship-skill-vars = { path = "../../crates/core/ship-platform/crates/agent-def/crates/ship-skill-vars" }
 tempfile = { workspace = true }
 assert_cmd = "2"
 predicates = "3"

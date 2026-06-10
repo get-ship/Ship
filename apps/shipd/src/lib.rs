@@ -16,28 +16,43 @@ fn install_test_platform_defaults() {
     ship_pipeline_runtime::install_projections();
 }
 
-pub mod access;
 pub mod data_port;
+#[cfg(feature = "ship-code")]
 pub mod sessions;
 pub mod auth;
 pub mod wire;
 pub mod transport;
 mod daemon;
 pub mod services;
+#[cfg(feature = "ship-code")]
 pub mod managers;
 pub mod routes;
 pub mod router;
 pub mod ops_rpc;
+// floki_gateway: L2 seam — implements floki::Gateway for in-process dispatch
+// through the ops router. No reverse dependency (floki → shipd); the arrow is
+// shipd → floki only.
+pub mod floki_gateway;
+// floki_first_light: FIRST-LIGHT composition root — assembles model, Gateway,
+// AuthContext, ToolCtx (kernel-backed SessionEventSink), and ScriptExecutor,
+// then calls floki::run_step. Parallel entry point for floki-harness agents.
+pub mod floki_first_light;
+// local_paths: ungated path helpers (worktrees_dir without ship-code dep).
+// Used by agent_event_ports + pipeline_ports so they compile with flag-off.
+pub mod local_paths;
 // diag_rpc: deleted — diagnostics.snapshot op cut; DiagnosticRegistry apparatus removed.
 pub mod runtime_rpc;
 pub mod pipelines_rpc;
-pub mod git_rpc;
 // agent_rpc: policy + gate conformance tests for AgentsService.
 // The impl AgentsService for OpsImpl is deleted — AgentsWire (ship-agents) is now
 // the sole handler, mounted via AgentsServiceExt::register in ops_rpc.rs.
 pub mod agent_rpc;
 pub mod agent_event_ports;
 pub mod pipeline_ports;
+// dispatch: job+session dispatch composition root — gated because it
+// directly uses ship-code types (process_registry, dispatch_ports).
+#[cfg(feature = "ship-code")]
+pub mod dispatch;
 pub mod view_ports;
 pub mod space_rpc;
 pub mod settings_rpc;
@@ -56,19 +71,10 @@ pub mod live_resolvers;
 // in `apps/shipd/src/router.rs`.)
 pub mod views;
 pub mod ship_runtime;
-// Job + agent-session dispatch composition root — `ShipdPlatform`,
-// `GitWorktreeIsolation`, `run_dispatch::subscribe_job_events`, and orphan
-// cleanup. Lifted out of `ship-supervisor` in the supervisor split: this
-// wiring depends on `ship-pipeline-runtime`, which depends on `ship-agents`,
-// so it lives at the daemon composition layer (not in either L1 crate).
-pub mod dispatch;
-// `ship-supervisor` (L0) now holds only OS-level process primitives
-// (terminal launcher, process-event emit, graceful_shutdown re-export). The
-// existing `crate::supervisor::*` import path resolves through this re-export.
-pub use ship_supervisor as supervisor;
 // Tests for supervisor + shipd-internal integration (use ApiState,
 // ShipRuntime, etc.) live under `apps/shipd/src/supervisor/`.
-#[cfg(test)]
+// Gated: these tests use ship-code types directly (dispatch_ports, process_registry).
+#[cfg(all(test, feature = "ship-code"))]
 #[path = "supervisor/mod.rs"]
 mod supervisor_tests;
 
@@ -258,31 +264,75 @@ pub async fn run_network(
         Some(root) => ship_substrate::home::worktree_port_for(root),
         None => 9315,
     });
-
     let meta = ship_runtime::AppMetadata {
         global_dir: global_dir.clone(),
         workspace_dir: workspace_dir.clone(),
     };
     let config = ship_runtime::RuntimeConfig { host: host.clone(), port: desired_port, ..Default::default() };
-    let mut runtime = ship_runtime::ShipRuntime::new(meta, config).await?;
-    let mesh_registry = transport::connections::spawn_mesh_service(runtime.kernel(), runtime.health_registry()).await?;
-    runtime.set_mesh_registry(mesh_registry);
+    let runtime = ship_runtime::ShipRuntime::new(meta, config).await?;
+    // The MeshService was the in-shipd mesh.* op surface; it was killed
+    // along with the REST routes and `ship mesh broadcast` CLI. Real
+    // inter-agent messaging is now native via the kernel's directed-event
+    // delivery (`EventEnvelope.target_actor_id`).
     let rt = Arc::new(runtime);
 
-    let run_mgr = managers::RunManager::init(
-        rt.kernel().clone(),
-        global_dir.clone(),
-        rt.health_registry(),
-        rt.session_registry().clone(),
-        rt.daemon_origin(),
-    )
-    .await;
-    if let Some(dh) = run_mgr.dispatch_handle {
-        rt.set_dispatch_handle(dh);
+    // Build the floki-harness dispatch closure UNCONDITIONALLY. The closure
+    // body ([`floki_first_light::dispatch_floki_session`]) and the captured
+    // types ([`floki_gateway::ShipdGateway`], the kernel) are all floki- /
+    // L1-clean — no ship-code dep, so the closure is safe to build with
+    // `--no-default-features`. This is what keeps floki routable when the
+    // ship-code feature is off: the agent-sessions actor is alive and the
+    // floki branch in `handle_agent_session_started` dispatches to the
+    // closure exactly as in the harness-on build.
+    let ops_router = ops_rpc::router(rt.clone());
+    let floki_gateway = std::sync::Arc::new(floki_gateway::ShipdGateway::new(ops_router));
+    let floki_kernel = rt.kernel().clone();
+    let floki_run_fn: ship_agents::ports::FlokiRunFn = {
+        let gateway = floki_gateway.clone();
+        std::sync::Arc::new(move |payload| {
+            let gateway = gateway.clone();
+            let kernel = floki_kernel.clone();
+            Box::pin(floki_first_light::dispatch_floki_session(payload, gateway, kernel))
+        })
+    };
+
+    #[cfg(feature = "ship-code")]
+    {
+        // Harness-on: hand the floki closure to the full composition root
+        // (RunManager → subscribe_job_events). That path builds the full
+        // AgentPorts (with harness fields) AND starts the agent-sessions
+        // actor with them — the actor is the SAME one that would otherwise
+        // be started below, so we MUST NOT start it again here.
+        let run_mgr = managers::RunManager::init(
+            rt.kernel().clone(),
+            global_dir.clone(),
+            rt.health_registry(),
+            rt.session_registry().clone(),
+            rt.daemon_origin(),
+            Some(floki_run_fn),
+        )
+        .await;
+        if let Some(dh) = run_mgr.dispatch_handle {
+            rt.set_dispatch_handle(dh);
+        }
+    }
+    #[cfg(not(feature = "ship-code"))]
+    {
+        // Flag-off: skip the orchestrator entirely (its OrchestratorContext
+        // and all the harness ports are ship-code-typed), but still start
+        // the agent-sessions actor with a floki-only AgentPorts so floki
+        // sessions keep flowing through the kernel. Non-floki sessions
+        // become no-ops on this actor (the harness-driver stack is
+        // cfg-omitted from `handle_agent_session_started`).
+        use ship_substrate::task_health::spawn_monitored;
+        let ports = std::sync::Arc::new(ship_agents::AgentPorts::floki_only(Some(floki_run_fn)));
+        let kernel_actor = rt.kernel().clone();
+        let hr = rt.health_registry();
+        spawn_monitored(hr, "agent-sessions", async move {
+            ship_agents::start_agents(kernel_actor, ports).await;
+        });
     }
     // diagnostics.snapshot op deleted — no DiagnosticRegistry to build.
-    // Start the abandoned session scanner.
-    rt.session_scanner().await;
     // Start the artifact GC loop (runs now then every hour).
     rt.start_artifact_gc();
     // Start the window-reaper loop (closes the log lifecycle of crashed
@@ -299,7 +349,10 @@ pub async fn run_network(
     // def files at boot, then keep it live on `agent.def.updated`. Shares the
     // gated-write NOTIFY's `KernelLog` so op-writes re-index deterministically.
     rt.start_agent_def_index().await;
-
+    // Typed pipeline `Watch` (pipelines P0.4): stand up the reactive registry +
+    // the bridge that taps the orchestrator's pipeline.* / session.* router
+    // events into the Watch log so run/step update streams wake.
+    rt.start_pipeline_reactive().await;
     // leak-193 diagnostics. When `SHIP_LEAK_DIAG=1`, log a periodic snapshot
     // of process RSS alongside every in-process container whose unbounded
     // growth could be the fanout RSS leak. Off by default — pure
@@ -308,7 +361,6 @@ pub async fn run_network(
         let diag_kernel = rt.kernel().clone();
         let diag_sessions = rt.actor_sessions().clone();
         let diag_per_turn = rt.session_registry().clone();
-        let diag_mesh = rt.mesh_registry().clone();
         tokio::spawn(async move {
             fn rss_mb() -> f64 {
                 let s = std::fs::read_to_string("/proc/self/statm").unwrap_or_default();
@@ -320,16 +372,14 @@ pub async fn run_network(
             loop {
                 tick.tick().await;
                 let kline = diag_kernel.lock().await.diag_line();
-                let mesh = diag_mesh.read().await.len();
                 let per_turn = diag_per_turn.lock().await.len();
                 tracing::info!(
                     target: "leak193",
-                    "DIAG rss={:.1}MB actor_sessions={} per_turn_sessions={} mesh_registry={} \
+                    "DIAG rss={:.1}MB actor_sessions={} per_turn_sessions={} \
                      pre_reg_mailboxes={} {kline}",
                     rss_mb(),
                     diag_sessions.len(),
                     per_turn,
-                    mesh,
                     ship_substrate::supervisor::pre_registered_mailbox_count(),
                 );
             }
@@ -563,13 +613,14 @@ pub async fn run_network(
     bundler_watcher.abort();
 
     // Bound the agent drain so a stuck child can't hang shutdown forever (#256).
-    // axum already drained connections; this cap protects the supervisor drain
+    // axum already drained connections; this cap protects the registry drain
     // (the SIGTERM→SIGKILL hang was an unbounded wait here + un-cancelled SSE).
-    const SHUTDOWN_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
+    #[cfg(feature = "ship-code")]
     let agents_drained = if let Some(dh) = rt.dispatch_handle() {
+        const SHUTDOWN_DRAIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
         let mut registry = dh.registry.lock().await;
         let count = registry.len();
-        let drain = supervisor::graceful_shutdown(rt.kernel(), &mut registry, Arc::clone(&dh.executor));
+        let drain = ship_code::process_registry::graceful_shutdown(rt.kernel(), &mut registry, Arc::clone(&dh.executor));
         if tokio::time::timeout(SHUTDOWN_DRAIN_TIMEOUT, drain).await.is_err() {
             tracing::warn!(
                 timeout_secs = SHUTDOWN_DRAIN_TIMEOUT.as_secs(),
@@ -580,6 +631,8 @@ pub async fn run_network(
     } else {
         0
     };
+    #[cfg(not(feature = "ship-code"))]
+    let agents_drained: usize = 0;
 
     // Reap all sandboxes so a clean restart doesn't orphan backend
     // containers. Each reap fires the SandboxOwner shutdown

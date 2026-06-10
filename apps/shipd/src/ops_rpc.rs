@@ -262,114 +262,94 @@ pub fn router(state: ApiState) -> axum::Router {
         device_space_fn,
     ));
     let router = ship_ops_rpc::DeviceServiceExt::register(device_wire, router);
-    // git.* — crate-owned GitWire (ship-git).
-    // Replaces impl GitService for OpsImpl in git_rpc.rs (deleted).
-    // C0 reads + C1 writes (via the git `WriteFn` write-dispatch closure below).
-    let git_kernel = Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone()));
-    let git_state_for_write = state.clone();
-    let git_write: ship_git::wire::WriteFn = Arc::new(move |op, args, ctx| {
-        let git = git_state_for_write.git_arc();
-        Box::pin(async move {
-            let _auth = ctx
-                .extensions
-                .get::<crate::auth::AuthContext>()
-                .cloned()
-                .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
-            use ship_git::service::{CommitArgs, PushArgs, CheckoutArgs, BranchCreateArgs, BranchDeleteArgs};
-            fn opt_str(v: &serde_json::Value, k: &str) -> Option<String> {
-                v.get(k).and_then(|s| s.as_str()).filter(|s| !s.is_empty()).map(str::to_string)
-            }
-            fn str_list(v: &serde_json::Value, k: &str) -> Vec<String> {
-                v.get(k).and_then(|v| v.as_array())
-                    .map(|a| a.iter().filter_map(|s| s.as_str().map(str::to_string)).collect())
-                    .unwrap_or_default()
-            }
-            let ws = opt_str(&args, "workspace_id");
-            let result: Result<serde_json::Value, ship_git::state::GitError> = match op.as_str() {
-                "git.stage" => {
-                    let paths = str_list(&args, "paths");
-                    git.stage(ws.as_deref(), &paths).map(|n| serde_json::json!({ "staged": n }))
-                }
-                "git.unstage" => {
-                    let paths = str_list(&args, "paths");
-                    git.unstage(ws.as_deref(), &paths).map(|n| serde_json::json!({ "unstaged": n }))
-                }
-                "git.commit" => {
-                    let cargs = CommitArgs {
-                        workspace_id: ws,
-                        message: opt_str(&args, "message").unwrap_or_default(),
-                        author: opt_str(&args, "author"),
-                    };
-                    git.commit(cargs).map(|r| serde_json::json!({ "sha": r.sha, "branch": r.branch }))
-                }
-                "git.push" => {
-                    let pargs = PushArgs {
-                        workspace_id: ws,
-                        remote: opt_str(&args, "remote"),
-                        force: args.get("force").and_then(|v| v.as_bool()).unwrap_or(false),
-                    };
-                    git.push(pargs).map(|s| serde_json::json!({ "output": s }))
-                }
-                "git.fetch" => {
-                    git.fetch(ws.as_deref(), opt_str(&args, "remote").as_deref())
-                        .map(|s| serde_json::json!({ "output": s }))
-                }
-                "git.pull" => {
-                    git.pull(ws.as_deref(), opt_str(&args, "remote").as_deref())
-                        .map(|s| serde_json::json!({ "output": s }))
-                }
-                "git.checkout" => {
-                    let cargs = CheckoutArgs {
-                        workspace_id: ws,
-                        refname: opt_str(&args, "refname").unwrap_or_default(),
-                    };
-                    git.checkout(cargs).map(|s| serde_json::json!({ "output": s }))
-                }
-                "git.branch.create" => {
-                    let cargs = BranchCreateArgs {
-                        workspace_id: ws,
-                        name: opt_str(&args, "name").unwrap_or_default(),
-                        checkout: args.get("checkout").and_then(|v| v.as_bool()).unwrap_or(false),
-                    };
-                    git.branch_create(cargs).map(|s| serde_json::json!({ "output": s }))
-                }
-                "git.branch.delete" => {
-                    let dargs = BranchDeleteArgs {
-                        workspace_id: ws,
-                        name: opt_str(&args, "name").unwrap_or_default(),
-                        force: args.get("force").and_then(|v| v.as_bool()).unwrap_or(false),
-                    };
-                    git.branch_delete(dargs).map(|s| serde_json::json!({ "output": s }))
-                }
-                "git.init" => {
-                    git.init(ws.as_deref()).map(|_| serde_json::json!({ "initialized": true }))
-                }
-                other => return Err(ConnectError::internal(format!("unknown git write op: {other}"))),
-            };
-            result.map_err(|e| ConnectError::internal(e.to_string()))
-        })
-    });
-    let git_state_for_ann = state.clone();
-    let git_annotations: ship_git::wire::AnnotationsFn =
-        Arc::new(move |workspace_id: Option<&str>, file: &str| {
-            crate::git_rpc::git_annotations_value(&git_state_for_ann, workspace_id, file)
-        });
-    let git_wire = Arc::new(ship_git::wire::GitWire::new(
-        state.git_arc(),
-        gate.clone(),
-        git_kernel,
-        git_write,
-        git_annotations,
-    ));
-    let router = ship_ops_rpc::GitServiceExt::register(git_wire, router);
     // pipelines.* — crate-owned PipelinesWire (ship-pipeline-runtime).
     // Replaces `impl PipelinesService for OpsImpl` in pipelines_rpc.rs (deleted).
-    // The read_fn + live_read_fn closures that previously served the view-backed
-    // reads/live-reads were retired with the L1 view coupling (job/livedata-collapse).
-    // The wire's summaries/run/history/focus + their *_live twins now return
-    // `Unimplemented` — the pipelines DOMAIN service is being reworked elsewhere;
-    // do not rebuild a replacement here. Writes (C1) still go through the
-    // write_fn closure (shipd route cores + gated command calls).
+    // Reads (C0): list/get call the crate service directly; summaries/run/history
+    // go through the read_fn closure (shipd view helpers). Writes (C1): all config
+    // + runtime writes go through the write_fn closure (shipd route cores + gated
+    // command calls). Live-read streams go through the live_read_fn closure (shipd
+    // kernel subscriber loop).
+    // Non-live run-level reads (Summaries/Run/History/ListRuns) are TYPED (P0.3):
+    // the crate-owned wire reads the pipeline_runs + pipeline_step_runs
+    // projections directly off `ship_dir` via `read_core` — no shipd read closure.
+    // The GUI view-model (pills/tones/timeline) stays on the *Live streams below.
+    let pipelines_state_for_live = state.clone();
+    let pipelines_svc_for_live = svc.clone();
+    let pipelines_live_fn: ship_pipeline_runtime::wire::LiveReadFn = Arc::new(move |op, args| {
+        let st = pipelines_state_for_live.clone();
+        let svc = pipelines_svc_for_live.clone();
+        Box::pin(async move {
+            // Build a temporary OpsImpl-equivalent live_read using the kernel.
+            use connectrpc::{ConnectError, Response, ServiceResult, ServiceStream};
+            use ship_substrate::events::ActorConfig;
+            use ship_ops_rpc::JsonResponse;
+            let resolve: Box<dyn Fn(&crate::ship_runtime::ApiState) -> serde_json::Value + Send + Sync> = match op {
+                "pipelines.summaries" => {
+                    Box::new(move |st| {
+                        use crate::services::pipelines::summaries;
+                        use crate::services::pipelines::state::Filter;
+                        let ctx = summaries::build(st.ship_dir(), Filter::default(), None);
+                        serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
+                    })
+                }
+                "pipelines.run" => {
+                    let slug = args.get("slug").and_then(|v| v.as_str())
+                        .unwrap_or("").to_string();
+                    Box::new(move |st| {
+                        use crate::services::pipelines::run_detail;
+                        let ctx = run_detail::build(&slug, st.ship_dir());
+                        serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
+                    })
+                }
+                "pipelines.history" => {
+                    let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(50) as usize;
+                    let offset = args.get("offset").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                    let pipeline = args.get("pipeline").and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty()).map(str::to_string);
+                    let q = args.get("q").and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty()).map(str::to_string);
+                    Box::new(move |st| {
+                        use crate::services::pipelines::history;
+                        let ctx = history::build(st.ship_dir(), q.clone(), pipeline.clone(), offset, limit);
+                        serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
+                    })
+                }
+                _ => Box::new(|_| serde_json::Value::Null),
+            };
+            let initial = resolve(&st);
+            let actor_id = format!("live-read-{}", ship_substrate::gen_ulid());
+            let config = ActorConfig {
+                namespace: actor_id.clone(),
+                write_namespaces: vec![],
+                read_namespaces: vec![],
+                subscribe_namespaces: vec!["config".to_string()],
+                see_directed_events: false,
+            };
+            let mailbox = {
+                let mut kernel = st.kernel().lock().await;
+                kernel
+                    .spawn_actor(&actor_id, config)
+                    .map(|(_store, mb)| mb)
+                    .map_err(|e| ConnectError::internal(e.to_string()))?
+            };
+            let guard = crate::ship_runtime::ActorGuard { actor_id, kernel: st.kernel().clone() };
+            let stream = async_stream::stream! {
+                let _guard = guard;
+                let mut mb = mailbox;
+                if let Ok(json) = serde_json::to_string(&initial) {
+                    yield Ok::<JsonResponse, ConnectError>(JsonResponse { json, ..Default::default() });
+                }
+                while let Some(_ev) = mb.recv().await {
+                    while mb.try_recv().is_ok() {}
+                    let value = resolve(&st);
+                    if let Ok(json) = serde_json::to_string(&value) {
+                        yield Ok(JsonResponse { json, ..Default::default() });
+                    }
+                }
+            };
+            Ok(Response::new(Box::pin(stream) as ServiceStream<JsonResponse>))
+        })
+    });
     let pipelines_state_for_write = state.clone();
     let pipelines_write_fn: ship_pipeline_runtime::wire::WriteFn =
         Arc::new(move |op: String, args: serde_json::Value, ctx: connectrpc::RequestContext| {
@@ -490,6 +470,44 @@ pub fn router(state: ApiState) -> axum::Router {
                                 StatusCoreError::Internal(m) => ConnectError::internal(m),
                             })
                     }
+                    "pipelines.cancel" => {
+                        use ship_pipeline_runtime::status_core::{cancel_run_core, StatusCoreError};
+                        use crate::pipeline_ports::PipelineDispatchAdapter;
+                        use crate::auth::Scope;
+                        // Cancel is a destructive control-plane write (REST parity:
+                        // POST /jobs/{slug}/cancel requires ManageRuns).
+                        if !auth.scopes.iter().any(|s| matches!(s, Scope::Full | Scope::ManageRuns)) {
+                            return Err(ConnectError::permission_denied("requires ManageRuns scope"));
+                        }
+                        let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let reason = args.get("reason").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let port = PipelineDispatchAdapter::new(st.clone());
+                        cancel_run_core(&port, &slug, &reason)
+                            .await
+                            .map(|r| serde_json::to_value(&r).unwrap_or_default())
+                            .map_err(|e| match e {
+                                StatusCoreError::NotFound(m) => ConnectError::not_found(m),
+                                StatusCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                                StatusCoreError::Internal(m) => ConnectError::internal(m),
+                            })
+                    }
+                    "pipelines.resolve_step" => {
+                        use ship_pipeline_runtime::status_core::{resolve_step_core, StatusCoreError};
+                        use crate::pipeline_ports::PipelineDispatchAdapter;
+                        let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let step_id = args.get("step_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let summary = args.get("summary").and_then(|v| v.as_str())
+                            .filter(|s| !s.is_empty()).map(str::to_string);
+                        let port = PipelineDispatchAdapter::new(st.clone());
+                        resolve_step_core(&port, &slug, &step_id, summary)
+                            .await
+                            .map(|r| serde_json::to_value(&r).unwrap_or_default())
+                            .map_err(|e| match e {
+                                StatusCoreError::NotFound(m) => ConnectError::not_found(m),
+                                StatusCoreError::BadRequest(m) => ConnectError::invalid_argument(m),
+                                StatusCoreError::Internal(m) => ConnectError::internal(m),
+                            })
+                    }
                     _ => Err(ConnectError::internal(format!("unknown pipelines write op: {op}"))),
                 }
             })
@@ -497,7 +515,10 @@ pub fn router(state: ApiState) -> axum::Router {
     let pipelines_wire = Arc::new(ship_pipeline_runtime::wire::PipelinesWire::new(
         state.pipelines_arc(),
         gate.clone(),
+        state.ship_dir().to_path_buf(),
+        pipelines_live_fn,
         pipelines_write_fn,
+        state.pipeline_reactive().cloned(),
     ));
     let router = ship_ops_rpc::PipelinesServiceExt::register(pipelines_wire, router);
     // agents.* + agent.* — crate-owned AgentsWire (ship-agents).
@@ -505,12 +526,15 @@ pub fn router(state: ApiState) -> axum::Router {
     // All 23 methods: profile reads (C0) + runtime reads (C0) + profile writes (C2)
     // + orchestration control (C2/C3) + Watch stream. agent.grant keeps its C3 gate.
     let agents_kernel = Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone()));
-    let agents_sessions_state = state.clone();
     // SessionsFn returns the raw items list as a Value — the wire wraps it in {"items": ...}.
+    // Reads from canonical_sessions (runtime.db) — canonical-only posture (Floki sessions
+    // only until #20 migrates ship-code emitters to canonical session.* events).
     let agents_sessions_fn: ship_agents::services::agents::rpc_wire::SessionsFn =
         Arc::new(move || {
-            let items = agents_sessions_state.pty_sessions().list();
-            serde_json::to_value(items).unwrap_or(serde_json::Value::Array(vec![]))
+            let sessions =
+                ship_agents::services::sessions::canonical_projection::load_sessions()
+                    .unwrap_or_default();
+            serde_json::to_value(sessions).unwrap_or(serde_json::Value::Array(vec![]))
         });
     let notify_saved_state = state.clone();
     let notify_saved_fn: ship_agents::services::agents::rpc_wire::NotifySavedFn =
@@ -546,8 +570,11 @@ pub fn router(state: ApiState) -> axum::Router {
         });
     let dispatch_port: std::sync::Arc<dyn ship_agents::services::agents::dispatch_core::AgentDispatchPort> =
         Arc::new(crate::agent_event_ports::AgentDispatchAdapter::new(state.clone()));
-    let stop_state = state.clone();
-    let stop_fn: ship_agents::services::agents::rpc_wire::StopFn =
+    // stop_fn: kill a running agent via the dispatch process registry.
+    // Gated: dispatch_handle() only exists when ship-code feature is on.
+    #[cfg(feature = "ship-code")]
+    let stop_fn: ship_agents::services::agents::rpc_wire::StopFn = {
+        let stop_state = state.clone();
         Arc::new(move |slug: String| {
             let st = stop_state.clone();
             Box::pin(async move {
@@ -566,9 +593,17 @@ pub fn router(state: ApiState) -> axum::Router {
                     .map_err(|e| ConnectError::internal(format!("failed to stop agent: {e}")))?;
                 Ok(serde_json::json!({ "slug": slug, "stopped": true }))
             })
-        });
-    let steer_state = state.clone();
-    let steer_fn: ship_agents::services::agents::rpc_wire::SteerFn =
+        })
+    };
+    #[cfg(not(feature = "ship-code"))]
+    let stop_fn: ship_agents::services::agents::rpc_wire::StopFn =
+        Arc::new(|_slug: String| Box::pin(async { Err(ConnectError::internal("dispatch not available")) }));
+
+    // steer_fn: send a message to a running agent via the dispatch process registry.
+    // Gated: dispatch_handle() only exists when ship-code feature is on.
+    #[cfg(feature = "ship-code")]
+    let steer_fn: ship_agents::services::agents::rpc_wire::SteerFn = {
+        let steer_state = state.clone();
         Arc::new(move |slug: String, message: String| {
             let st = steer_state.clone();
             Box::pin(async move {
@@ -584,7 +619,11 @@ pub fn router(state: ApiState) -> axum::Router {
                     .map_err(|e| ConnectError::internal(format!("failed to steer agent: {e}")))?;
                 Ok(serde_json::json!({ "slug": slug, "steered": true }))
             })
-        });
+        })
+    };
+    #[cfg(not(feature = "ship-code"))]
+    let steer_fn: ship_agents::services::agents::rpc_wire::SteerFn =
+        Arc::new(|_slug: String, _message: String| Box::pin(async { Err(ConnectError::internal("dispatch not available")) }));
     let grant_state = state.clone();
     let grant_fn: ship_agents::services::agents::rpc_wire::GrantFn =
         Arc::new(move |agent: String, new_grants: Vec<String>, ctx: connectrpc::RequestContext| {
@@ -1030,6 +1069,155 @@ mod tests {
     // Gate enforcement moved to `auth::gate` (invoked by the `GateFn` closure);
     // its decision is unit-tested there. This module keeps only the proto-policy
     // introspection + projection conformance above.
+
+    /// **Phase-B verification — RPC-as-IPC carries the gate.** The embedded agent
+    /// reaches ops not over a socket but via `tower::oneshot` of this same Connect
+    /// router, in-process. The load-bearing assumption that gates all trunk work:
+    /// that in-process path runs the *identical* capability gate the socket path
+    /// does, reading the caller's `AuthContext` from the request extensions.
+    ///
+    /// This proves it behaviorally. We oneshot the real `router(state)` — no TCP,
+    /// no generated client — injecting an `AuthContext` into the request
+    /// extensions exactly as the daemon's `auth_middleware` stamps it in
+    /// production (and which connectrpc moves verbatim into
+    /// `RequestContext.extensions`, the map the `GateFn` reads). For an
+    /// embedded-style caller (`operator_cred = false`, scoped grants) we flip a
+    /// single variable — the grant — and watch the verdict on one C2 op flip with
+    /// it: ungranted `mcp.create` is denied; the *same* request with the `mcp`
+    /// service granted clears the gate. A C0 read by the same ungranted caller
+    /// stays open, so the denial is C2-and-grant-specific, not a dead transport.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn in_process_router_enforces_the_gate_for_an_embedded_caller() {
+        use axum::body::Body;
+        use http::Request;
+        use http_body_util::BodyExt;
+        use tower::ServiceExt;
+
+        let harness = crate::test_harness::TestDaemon::new().await;
+        let app = router(harness.state.clone());
+
+        // POST a Connect-JSON unary request through the in-process transport with
+        // `caller` injected into the request extensions (the production seam).
+        // Returns (http status, connect error code — "" on success).
+        async fn call_op(
+            app: &axum::Router,
+            caller: AuthContext,
+            wire_path: &str,
+            body: serde_json::Value,
+        ) -> (u16, String) {
+            let req = Request::builder()
+                .method("POST")
+                .uri(format!("/{wire_path}"))
+                .header("content-type", "application/json")
+                .extension(caller)
+                .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                .unwrap();
+            let resp = app.clone().oneshot(req).await.unwrap();
+            let status = resp.status().as_u16();
+            let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+            let code = serde_json::from_slice::<serde_json::Value>(&bytes)
+                .ok()
+                .and_then(|v| v.get("code").and_then(|c| c.as_str()).map(str::to_string))
+                .unwrap_or_default();
+            (status, code)
+        }
+
+        // An embedded agent: MCP-kind, NOT the operator, no elevated services.
+        let bare = auth(CallerKind::Mcp, Some("agent-x"));
+        assert!(!bare.grants.contains(&"mcp".to_string()) && !bare.operator_cred);
+        // The SAME caller, elevated in the `mcp` service — the C2 grant.
+        let granted = AuthContext { grants: vec!["mcp".to_string()], ..bare.clone() };
+
+        let create = serde_json::json!({
+            "id": "probe",
+            "serverJson": "{\"command\":\"echo\"}",
+            "scope": "project",
+        });
+        const MCP_CREATE: &str = "ship.ops.v1.McpService/Create";
+
+        // C2 write WITHOUT the grant → the gate denies, in-process, before the
+        // handler touches anything.
+        let (status, code) = call_op(&app, bare.clone(), MCP_CREATE, create.clone()).await;
+        assert_eq!(status, 403, "ungranted C2 must be denied through the in-proc router");
+        assert_eq!(code, "permission_denied");
+
+        // The SAME request WITH the `mcp` grant → the gate clears. Whatever the
+        // handler then returns, it is NOT a gate denial. The grant is the only
+        // thing that changed, so this isolates the gate from the handler.
+        let (status, code) = call_op(&app, granted, MCP_CREATE, create).await;
+        assert_ne!(status, 403, "granted C2 must clear the gate (got code {code:?})");
+        assert_ne!(code, "permission_denied", "granted C2 must clear the gate");
+
+        // Control: a C0 read by the SAME ungranted caller is allowed — proving the
+        // denial above is C2-and-grant-specific, not a blanket transport failure.
+        let (status, _) = call_op(&app, bare, "ship.ops.v1.McpService/List", serde_json::json!({})).await;
+        assert_eq!(status, 200, "C0 reads stay open to any in-scope caller");
+    }
+
+    /// **SECURITY (#124).** `registry.publish` is the C2_ELEVATED op that forwards
+    /// the operator's stored gateway key to the cloud registry. The audit flagged
+    /// it as the ONE ungated C2 op — its handler ignored the request context and
+    /// forwarded unconditionally. This mirrors
+    /// `in_process_router_enforces_the_gate_for_an_embedded_caller` for
+    /// `RegistryService/Publish`: an ungated caller is denied at the gate, before
+    /// the key is ever forwarded; the SAME request with the `registry` grant
+    /// clears the gate. The grant is the only variable, so this isolates the gate
+    /// from the gateway-forward handler.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn in_process_router_gates_registry_publish() {
+        use axum::body::Body;
+        use http::Request;
+        use http_body_util::BodyExt;
+        use tower::ServiceExt;
+
+        let harness = crate::test_harness::TestDaemon::new().await;
+        let app = router(harness.state.clone());
+
+        async fn call_op(
+            app: &axum::Router,
+            caller: AuthContext,
+            wire_path: &str,
+            body: serde_json::Value,
+        ) -> (u16, String) {
+            let req = Request::builder()
+                .method("POST")
+                .uri(format!("/{wire_path}"))
+                .header("content-type", "application/json")
+                .extension(caller)
+                .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                .unwrap();
+            let resp = app.clone().oneshot(req).await.unwrap();
+            let status = resp.status().as_u16();
+            let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+            let code = serde_json::from_slice::<serde_json::Value>(&bytes)
+                .ok()
+                .and_then(|v| v.get("code").and_then(|c| c.as_str()).map(str::to_string))
+                .unwrap_or_default();
+            (status, code)
+        }
+
+        const PUBLISH: &str = "ship.ops.v1.RegistryService/Publish";
+        let body = serde_json::json!({ "payloadJson": "{}" });
+
+        // An embedded agent: MCP-kind, NOT the operator, no elevated services —
+        // the ungated caller the audit flagged.
+        let bare = auth(CallerKind::Mcp, Some("agent-x"));
+        assert!(!bare.grants.contains(&"registry".to_string()) && !bare.operator_cred);
+
+        // C2 publish WITHOUT the grant → the gate denies, in-process, before the
+        // handler forwards the operator key to the gateway.
+        let (status, code) = call_op(&app, bare.clone(), PUBLISH, body.clone()).await;
+        assert_eq!(status, 403, "ungated registry.publish must be denied at the gate");
+        assert_eq!(code, "permission_denied");
+
+        // The SAME request WITH the `registry` grant → the gate clears. Whatever
+        // the gateway-forward then returns (no creds in the test home → an
+        // internal/unauthenticated error, never a 403), it is NOT a gate denial.
+        let granted = AuthContext { grants: vec!["registry".to_string()], ..bare };
+        let (status, code) = call_op(&app, granted, PUBLISH, body).await;
+        assert_ne!(status, 403, "granted registry.publish must clear the gate (got code {code:?})");
+        assert_ne!(code, "permission_denied", "granted registry.publish must clear the gate");
+    }
 
     // Full vertical: serve the real router (with test ApiState) on an ephemeral
     // port and call Meta through the generated client. Multi-thread flavor so

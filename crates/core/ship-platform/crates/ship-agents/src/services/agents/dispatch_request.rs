@@ -3,9 +3,11 @@
 use serde::Deserialize;
 use ship_substrate::events::agent_session::InvocationMode;
 
-/// Wire shape for `POST /api/v1/agent_sessions/dispatch`. Agent-centric —
-/// `agent` is required and there is no `pipeline` field; pipeline runs
-/// live at `POST /api/v1/pipelines/run`.
+/// Wire shape for the Connect `AgentsService.Dispatch` request
+/// (`DispatchAgentRequest` in `proto/ship/ops/v1/agents.proto`).
+/// Agent-centric — `agent` is required and there is no `pipeline` field;
+/// pipeline runs go through `PipelinesService.Dispatch` /
+/// `POST /api/v1/pipelines/run`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DispatchRequest {

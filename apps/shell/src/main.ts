@@ -612,16 +612,32 @@ if (shellBottom) {
 }
 document.dispatchEvent(new CustomEvent('ship:mode', { detail: { mode: shipMode } }))
 
+// Branch label: live from the abstract `git.overview` registry op over the
+// multiplex. Git is an L0 library behind the registry — there is no
+// GitService on the wire; the status bar shares the same subscription the
+// git view uses (deduped by the sdk-client's shared source).
+{
+  const gitSig = runtimeNs.signal<{ kind: string; value?: { branch?: string | null } }>({
+    kind: 'loading',
+  })
+  shipClient.git.overview().subscribe(gitSig as never)
+  runtimeNs.effect(() => {
+    const s = gitSig()
+    if (s.kind === 'ok' && shellBottom) {
+      shellBottom.setAttribute('branch', s.value?.branch ?? 'unknown')
+    }
+  })
+}
+
 async function updateStatus(): Promise<void> {
   if (!shellBottom) return
   shellBottom.setAttribute('theme', document.documentElement.dataset.theme ?? 'ship-light')
 
-  // Fetch the active project's actual git branch via GitService.Overview
-  // (Connect). Branch lives on the overview, not the status buckets.
+  // Online indicator: the daemon health check. (The branch label updates
+  // live via the git.overview subscription above, not this poll.)
   try {
-    const overview = await ops.git.overview({})
-    const branch = overview.branch ?? 'unknown'
-    shellBottom.setAttribute('branch', branch)
+    const res = await fetch(`${daemonBase()}/api/health`, { credentials: 'same-origin' })
+    if (!res.ok) throw new Error(String(res.status))
     if (!daemonOnline) {
       shellBottom.setAttribute('online', '')
       daemonOnline = true

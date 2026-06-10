@@ -6,6 +6,39 @@ use crate::events::types::*;
 use crate::events::types::event_types;
 use crate::testutil::init_project_minimal as init_project;
 use tempfile::tempdir;
+use serde::{Serialize, Deserialize};
+
+// Local test stand-ins for canonical session types (moved to agent-def)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct TestSession {
+    session_id: String,
+    agent_id: String,
+    harness: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    model: Option<String>,
+    space_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    input: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    parent: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct TestTurn {
+    session_id: String,
+    idx: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct TestCompleted {
+    session_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct TestFailed {
+    session_id: String,
+    reason: String,
+}
 
 fn setup() -> (tempfile::TempDir, SqliteEventStore) {
     let tmp = tempdir().unwrap();
@@ -14,13 +47,25 @@ fn setup() -> (tempfile::TempDir, SqliteEventStore) {
     (tmp, store)
 }
 
+fn session_started(session_id: &str) -> TestSession {
+    TestSession {
+        session_id: session_id.into(),
+        agent_id: "agent-a".into(),
+        harness: "claude".into(),
+        model: None,
+        space_id: "ws-1".into(),
+        input: None,
+        parent: None,
+    }
+}
+
 #[test]
 fn test_round_trip() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let ev = EventEnvelope::new(
-        event_types::SESSION_STARTED,
+        event_types::canonical_session::SESSION_STARTED,
         "entity-a",
-        &SessionStarted { goal: Some("build the thing".into()), ..Default::default() },
+        &session_started("entity-a"),
     )?
     .with_context(Some("ws-1"), Some("sess-1"));
 
@@ -43,8 +88,12 @@ fn test_round_trip() -> anyhow::Result<()> {
 fn test_ordering() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let entity = "ordering-entity";
-    for _ in 0..100 {
-        let ev = EventEnvelope::new(event_types::SESSION_PROGRESS, entity, &SessionProgress { message: "tick".into(), escalation: None })?;
+    for i in 0..100 {
+        let ev = EventEnvelope::new(
+            event_types::canonical_session::TURN_STARTED,
+            entity,
+            &TestTurn { session_id: entity.into(), idx: i },
+        )?;
         store.append(&ev)?;
     }
     let results = store.query_aggregate(entity)?;
@@ -59,8 +108,8 @@ fn test_ordering() -> anyhow::Result<()> {
 #[test]
 fn test_filter_by_entity_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
-    let ev_a = EventEnvelope::new(event_types::SESSION_STARTED, "entity-a", &SessionStarted { goal: None, ..Default::default() })?;
-    let ev_b = EventEnvelope::new(event_types::SESSION_STARTED, "entity-b", &SessionStarted { goal: None, ..Default::default() })?;
+    let ev_a = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "entity-a", &session_started("entity-a"))?;
+    let ev_b = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "entity-b", &session_started("entity-b"))?;
     store.append(&ev_a)?;
     store.append(&ev_b)?;
 
@@ -75,26 +124,26 @@ fn test_filter_by_event_type() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let entity = "filter-type-entity";
     store.append(&EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, entity, &WorkspaceActivated { agent_id: None, harnesses: vec![] })?)?;
-    store.append(&EventEnvelope::new(event_types::SESSION_STARTED, entity, &SessionStarted { goal: None, ..Default::default() })?)?;
+    store.append(&EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, entity, &session_started(entity))?)?;
     store.append(&EventEnvelope::new(event_types::WORKSPACE_ARCHIVED, entity, &WorkspaceArchived {})?)?;
 
     let ws = store.query(&EventFilter { entity_id: Some(entity.into()), event_type: Some(event_types::WORKSPACE_ACTIVATED.into()), ..Default::default() })?;
     assert_eq!(ws.len(), 1);
     assert_eq!(ws[0].event_type, event_types::WORKSPACE_ACTIVATED);
 
-    let sess = store.query(&EventFilter { entity_id: Some(entity.into()), event_type: Some(event_types::SESSION_STARTED.into()), ..Default::default() })?;
+    let sess = store.query(&EventFilter { entity_id: Some(entity.into()), event_type: Some(event_types::canonical_session::SESSION_STARTED.into()), ..Default::default() })?;
     assert_eq!(sess.len(), 1);
-    assert_eq!(sess[0].event_type, event_types::SESSION_STARTED);
+    assert_eq!(sess[0].event_type, event_types::canonical_session::SESSION_STARTED);
     Ok(())
 }
 
 #[test]
 fn test_filter_by_workspace_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
-    let ev = EventEnvelope::new(event_types::SESSION_STARTED, "e1", &SessionStarted { goal: None, ..Default::default() })?
+    let ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "e1", &session_started("e1"))?
         .with_context(Some("ws-scoped"), None);
     store.append(&ev)?;
-    store.append(&EventEnvelope::new(event_types::SESSION_STARTED, "e2", &SessionStarted { goal: None, ..Default::default() })?)?;
+    store.append(&EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "e2", &session_started("e2"))?)?;
 
     let results = store.query(&EventFilter { scope_key: Some("ws-scoped".into()), ..Default::default() })?;
     assert_eq!(results.len(), 1);
@@ -105,9 +154,9 @@ fn test_filter_by_workspace_id() -> anyhow::Result<()> {
 #[test]
 fn test_causation_chain() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
-    let ev_a = EventEnvelope::new(event_types::SESSION_STARTED, "cause-entity", &SessionStarted { goal: None, ..Default::default() })?;
+    let ev_a = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "cause-entity", &session_started("cause-entity"))?;
     store.append(&ev_a)?;
-    let ev_b = EventEnvelope::new(event_types::SESSION_ENDED, "cause-entity", &SessionEnded { summary: None, duration_secs: None, gate_result: None, ..Default::default() })?
+    let ev_b = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, "cause-entity", &TestCompleted { session_id: "cause-entity".into() })?
         .with_causation(&ev_a.id);
     store.append(&ev_b)?;
 
@@ -119,7 +168,7 @@ fn test_causation_chain() -> anyhow::Result<()> {
 #[test]
 fn test_immutability() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
-    let ev = EventEnvelope::new(event_types::SESSION_STARTED, "immut-entity", &SessionStarted { goal: None, ..Default::default() })?;
+    let ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "immut-entity", &session_started("immut-entity"))?;
     store.append(&ev)?;
 
     let db_p = store.db_path().to_path_buf();
@@ -149,9 +198,9 @@ fn test_payload_round_trip() -> anyhow::Result<()> {
 
     rt!(event_types::WORKSPACE_ACTIVATED,   WorkspaceActivated { agent_id: Some("a1".into()), harnesses: vec!["claude".into()] });
     rt!(event_types::WORKSPACE_ARCHIVED,    WorkspaceArchived {});
-    rt!(event_types::SESSION_STARTED,       SessionStarted { goal: Some("deploy".into()), ..Default::default() });
-    rt!(event_types::SESSION_PROGRESS,      SessionProgress { message: "halfway".into(), escalation: None });
-    rt!(event_types::SESSION_ENDED,         SessionEnded { summary: Some("done".into()), duration_secs: Some(120), gate_result: Some("pass".into()), ..Default::default() });
+    rt!(event_types::canonical_session::SESSION_STARTED, session_started("rt-entity"));
+    rt!(event_types::canonical_session::SESSION_COMPLETED, TestCompleted { session_id: "rt-entity".into() });
+    rt!(event_types::canonical_session::SESSION_FAILED, TestFailed { session_id: "rt-entity".into(), reason: "err".into() });
     rt!(event_types::ACTOR_CREATED,         ActorCreated { kind: "worker".into(), environment_type: "cli".into(), workspace_id: None, parent_actor_id: None, restart_count: 0, ..Default::default() });
     rt!(event_types::ACTOR_WOKE,            ActorWoke {});
     rt!(event_types::ACTOR_SLEPT,           ActorSlept { idle_secs: 45 });
@@ -170,14 +219,14 @@ fn test_concurrent_appends() -> anyhow::Result<()> {
     let entity = "concurrent-entity";
     let mut handles = Vec::new();
 
-    for _ in 0..10 {
+    for i in 0..10 {
         let store = Arc::clone(&store);
         let entity = entity.to_string();
         handles.push(std::thread::spawn(move || {
             let ev = EventEnvelope::new(
-                event_types::SESSION_STARTED,
+                event_types::canonical_session::TURN_STARTED,
                 &entity,
-                &SessionStarted { goal: None, ..Default::default() },
+                &TestTurn { session_id: entity.clone(), idx: i },
             )
             .expect("create envelope");
             store.append(&ev).expect("append");
@@ -210,15 +259,13 @@ fn test_empty_queries() -> anyhow::Result<()> {
 fn test_version_field() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
 
-    // Default version is 1
-    let ev = EventEnvelope::new(event_types::SESSION_STARTED, "ver-entity", &SessionStarted { goal: None, ..Default::default() })?;
+    let ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "ver-entity", &session_started("ver-entity"))?;
     assert_eq!(ev.version, 1);
     store.append(&ev)?;
     let got = store.get(&ev.id)?.unwrap();
     assert_eq!(got.version, 1);
 
-    // Explicit version
-    let mut ev2 = EventEnvelope::new(event_types::SESSION_ENDED, "ver-entity", &SessionEnded { summary: None, duration_secs: None, gate_result: None, ..Default::default() })?;
+    let mut ev2 = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, "ver-entity", &TestCompleted { session_id: "ver-entity".into() })?;
     ev2.version = 2;
     store.append(&ev2)?;
     let got2 = store.get(&ev2.id)?.unwrap();
@@ -236,23 +283,20 @@ fn test_property_event_ordering() -> anyhow::Result<()> {
 
     for i in 0..n {
         let etype = types[i % types.len()];
-        let ev = EventEnvelope::new(etype, entity, &SessionProgress { message: format!("step {i}"), escalation: None })?;
+        let ev = EventEnvelope::new(etype, entity, &TestTurn { session_id: entity.into(), idx: i as u32 })?;
         expected_ids.push(ev.id.clone());
         store.append(&ev)?;
     }
 
     let results = store.query_aggregate(entity)?;
 
-    // Count matches
     assert_eq!(results.len(), n, "all events must be stored");
 
-    // ULID ordering is monotonic
     let ids: Vec<&str> = results.iter().map(|e| e.id.as_str()).collect();
     let mut sorted = ids.clone();
     sorted.sort_unstable();
     assert_eq!(ids, sorted, "results must be in ULID order");
 
-    // No events missing or duplicated
     let result_set: std::collections::HashSet<_> = results.iter().map(|e| &e.id).collect();
     assert_eq!(result_set.len(), n, "no duplicate events");
     for id in &expected_ids {
@@ -265,8 +309,6 @@ fn test_property_event_ordering() -> anyhow::Result<()> {
 fn registry_actor_created_is_runtime_ephemeral() {
     let def = ship_types::event_registry::lookup("actor.created")
         .expect("actor.created must be in registry");
-    // Model C: a single-scope event has a size-1 allowed-set whose sole (primary)
-    // element is the home scope. actor.* is Runtime-owned.
     assert_eq!(
         def.allowed_scopes,
         &[ship_types::event_registry::EventScope::Runtime]
@@ -275,9 +317,6 @@ fn registry_actor_created_is_runtime_ephemeral() {
     assert_eq!(def.retention, ship_types::event_registry::Retention::Ephemeral);
 }
 
-// S1: `agent.def.updated` is the Format-2 def change notification. It lives in a
-// space's `.ship/agents` → Space-scoped. It is a notification (Bucket-2), so it
-// is Ephemeral, never durable: the file is truth, the index re-reads on the ping.
 #[test]
 fn registry_agent_def_updated_is_space_ephemeral() {
     let def = ship_types::event_registry::lookup("agent.def.updated")

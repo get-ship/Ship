@@ -12,6 +12,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentProfile {
     pub agent: ProfileMeta,
+    /// Authority grants for the ship-op control plane (`{domain, blast}` pairs).
+    /// Gate-enforced; replaces the dying `role`/`tools_preset`. C0/C1 are an
+    /// implicit baseline; C3 is operator-only and never agent-settable.
+    #[serde(default)]
+    pub capabilities: Vec<super::capability::Capability>,
     #[serde(default)]
     pub skills: SkillRefs,
     #[serde(default)]
@@ -153,6 +158,8 @@ impl AgentProfile {
             role: self.agent.role.clone(),
             tools_preset: self.agent.tools_preset.clone(),
             active_tools: self.agent.active_tools.clone(),
+            // Floki D2b: thread capabilities through — do NOT cement the loss.
+            capabilities: self.capabilities.clone(),
             mcp_servers: self.mcp.servers.clone(),
             skills: self.skills.refs.clone(),
             rules: Vec::new(),

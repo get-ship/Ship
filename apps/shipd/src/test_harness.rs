@@ -1,8 +1,8 @@
 //! Reusable test harness for daemon integration tests.
 //!
-//! `TestDaemon` spins up the full Axum router with a real kernel, mesh
-//! service, and temp directory. Requests go through tower::ServiceExt
-//! (no TCP listener needed).
+//! `TestDaemon` spins up the full Axum router with a real kernel and temp
+//! directory. Requests go through tower::ServiceExt (no TCP listener
+//! needed).
 
 use axum::{Router, body::Body, http::Request};
 use http_body_util::BodyExt;
@@ -41,18 +41,8 @@ impl TestDaemon {
             ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
         ));
 
-        // Create an isolated registry — do NOT use spawn_mesh_service which
-        // uses a process-global OnceLock and returns disconnected registries
-        // on second+ call.
-        let mesh_registry: ship_substrate::services::mesh::SharedMeshRegistry =
-            Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
-
         let api_state: ApiState = Arc::new(
-            crate::ship_runtime::ShipRuntime::new_test_with_registry(
-                ship_dir.clone(),
-                kernel.clone(),
-                mesh_registry.clone(),
-            ),
+            crate::ship_runtime::ShipRuntime::new_test(ship_dir.clone(), kernel.clone()),
         );
 
         // Per production routing (apps/shipd/src/router.rs), these live
@@ -64,11 +54,10 @@ impl TestDaemon {
             )
             .with_state(api_state.clone());
 
-        let capabilities_routes = Router::new()
-            .route(
-                "/capabilities",
-                axum::routing::get(crate::routes::rest_api::capabilities),
-            );
+        let capabilities_routes = Router::new().route(
+            "/capabilities",
+            axum::routing::get(crate::routes::rest_api::capabilities),
+        );
 
         let artifacts_routes = Router::new()
             .route(
@@ -83,7 +72,6 @@ impl TestDaemon {
                 crate::routes::artifacts_api::MAX_UPLOAD_BYTES,
             ))
             .with_state(api_state.clone());
-
 
         // Inject a default CLI AuthContext so handlers can extract it.
         // Mount under /api/v1 to match the production router (apps/shipd/
@@ -161,42 +149,28 @@ impl TestDaemon {
             .uri(path)
             .body(Body::empty())
             .unwrap();
-
-        let resp = self
-            .router
-            .clone()
-            .oneshot(req)
-            .await
-            .unwrap();
-
+        let resp = self.router.clone().oneshot(req).await.unwrap();
         let status = resp.status().as_u16();
-        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
-        let body: serde_json::Value =
-            serde_json::from_slice(&bytes).unwrap_or(serde_json::json!(null));
+        let body = resp.into_body().collect().await.unwrap().to_bytes();
+        let body: serde_json::Value = serde_json::from_slice(&body)
+            .unwrap_or(serde_json::Value::Null);
         TestResponse { status, body }
     }
 
     /// Send a POST request with a JSON body and parse the response.
     pub async fn post(&self, path: &str, body: &impl serde::Serialize) -> TestResponse {
-        let json = serde_json::to_vec(body).unwrap();
+        let body_bytes = serde_json::to_vec(body).unwrap();
         let req = Request::builder()
             .method("POST")
             .uri(path)
             .header("content-type", "application/json")
-            .body(Body::from(json))
+            .body(Body::from(body_bytes))
             .unwrap();
-
-        let resp = self
-            .router
-            .clone()
-            .oneshot(req)
-            .await
-            .unwrap();
-
+        let resp = self.router.clone().oneshot(req).await.unwrap();
         let status = resp.status().as_u16();
-        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
-        let body: serde_json::Value =
-            serde_json::from_slice(&bytes).unwrap_or(serde_json::json!(null));
+        let body = resp.into_body().collect().await.unwrap().to_bytes();
+        let body: serde_json::Value = serde_json::from_slice(&body)
+            .unwrap_or(serde_json::Value::Null);
         TestResponse { status, body }
     }
 
@@ -207,19 +181,18 @@ impl TestDaemon {
 
     /// Send a PUT request with a JSON body and parse the response.
     pub async fn put_json(&self, path: &str, body: &impl serde::Serialize) -> TestResponse {
-        let json = serde_json::to_vec(body).unwrap();
+        let body_bytes = serde_json::to_vec(body).unwrap();
         let req = Request::builder()
             .method("PUT")
             .uri(path)
             .header("content-type", "application/json")
-            .body(Body::from(json))
+            .body(Body::from(body_bytes))
             .unwrap();
-
         let resp = self.router.clone().oneshot(req).await.unwrap();
         let status = resp.status().as_u16();
-        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
-        let body: serde_json::Value =
-            serde_json::from_slice(&bytes).unwrap_or(serde_json::json!(null));
+        let body = resp.into_body().collect().await.unwrap().to_bytes();
+        let body: serde_json::Value = serde_json::from_slice(&body)
+            .unwrap_or(serde_json::Value::Null);
         TestResponse { status, body }
     }
 
@@ -230,12 +203,11 @@ impl TestDaemon {
             .uri(path)
             .body(Body::empty())
             .unwrap();
-
         let resp = self.router.clone().oneshot(req).await.unwrap();
         let status = resp.status().as_u16();
-        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
-        let body: serde_json::Value =
-            serde_json::from_slice(&bytes).unwrap_or(serde_json::json!(null));
+        let body = resp.into_body().collect().await.unwrap().to_bytes();
+        let body: serde_json::Value = serde_json::from_slice(&body)
+            .unwrap_or(serde_json::Value::Null);
         TestResponse { status, body }
     }
 
@@ -246,31 +218,30 @@ impl TestDaemon {
         path: &str,
         parts: &[(&str, &str, &str, &[u8])],
     ) -> TestResponse {
-        let boundary = "----shiptestboundary012345";
+        let boundary = "----testboundary";
         let mut body: Vec<u8> = Vec::new();
-        for (name, filename, mime, bytes) in parts {
+        for (name, filename, ctype, content) in parts {
             body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
-            if filename.is_empty() {
-                body.extend_from_slice(
-                    format!("Content-Disposition: form-data; name=\"{name}\"\r\n").as_bytes(),
-                );
-            } else {
+            if !filename.is_empty() {
                 body.extend_from_slice(
                     format!(
                         "Content-Disposition: form-data; name=\"{name}\"; filename=\"{filename}\"\r\n"
                     )
                     .as_bytes(),
                 );
+            } else {
+                body.extend_from_slice(
+                    format!("Content-Disposition: form-data; name=\"{name}\"\r\n").as_bytes(),
+                );
             }
-            if !mime.is_empty() {
-                body.extend_from_slice(format!("Content-Type: {mime}\r\n").as_bytes());
+            if !ctype.is_empty() {
+                body.extend_from_slice(format!("Content-Type: {ctype}\r\n").as_bytes());
             }
             body.extend_from_slice(b"\r\n");
-            body.extend_from_slice(bytes);
+            body.extend_from_slice(content);
             body.extend_from_slice(b"\r\n");
         }
         body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
-
         let req = Request::builder()
             .method("POST")
             .uri(path)
@@ -280,12 +251,11 @@ impl TestDaemon {
             )
             .body(Body::from(body))
             .unwrap();
-
         let resp = self.router.clone().oneshot(req).await.unwrap();
         let status = resp.status().as_u16();
-        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
-        let body: serde_json::Value =
-            serde_json::from_slice(&bytes).unwrap_or(serde_json::json!(null));
+        let body = resp.into_body().collect().await.unwrap().to_bytes();
+        let body: serde_json::Value = serde_json::from_slice(&body)
+            .unwrap_or(serde_json::Value::Null);
         TestResponse { status, body }
     }
 
@@ -296,8 +266,6 @@ impl TestDaemon {
             .uri(path)
             .body(Body::empty())
             .unwrap();
-
         self.router.clone().oneshot(req).await.unwrap()
     }
-
 }

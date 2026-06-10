@@ -27,6 +27,7 @@ use compiler::types::agent_profile::{
     AgentProfile, McpRefs, PluginRefs, ProfileApps, ProfileHooks, ProfileMeta,
     ProfilePermissions, ProfileRules, SkillRefs,
 };
+use compiler::types::capability::{BlastRadius, Capability};
 use serde_json::Value;
 use ship_isolation::{IsolationStrategy, IsolationTier};
 use ship_harnesses::harness_adapter::capabilities;
@@ -90,6 +91,7 @@ fn full_profile() -> AgentProfile {
             active_tools: vec!["Read".into()],
             icon: Some("test-tube".into()),
         },
+        capabilities: vec![Capability::new("collections", BlastRadius::C2Elevated)],
         skills: SkillRefs { refs: vec!["tdd".into()] },
         mcp: McpRefs { servers: vec!["github".into()] },
         plugins: PluginRefs {

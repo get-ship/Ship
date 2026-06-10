@@ -1,13 +1,7 @@
 //! Split off from runtime_api.rs (mr-04 follow-up).
 
-use axum::{
-    Extension, Json,
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-};
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 
-use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
@@ -71,36 +65,4 @@ pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
             }),
         }),
     )
-}
-
-/// POST /api/v1/runtime/rebuild-projections — rebuild all projections from events.
-pub async fn rebuild_projections(
-    State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
-) -> impl IntoResponse {
-    // Destructive admin op — requires AdminDaemon (the most restrictive
-    // operator/admin scope used for daemon-level maintenance ops in shipd).
-    if let Err(e) = require_scope(&auth, Scope::AdminDaemon) {
-        return e;
-    }
-    match ship_substrate::db::rebuild::rebuild_projections(state.ship_dir()) {
-        Ok(report) => (
-            StatusCode::OK,
-            Json(MeshResponse {
-                ok: true,
-                data: serde_json::json!({
-                    "events_replayed": report.events_replayed,
-                    "projections_rebuilt": report.projections_rebuilt,
-                    "duration_ms": report.duration_ms,
-                }),
-            }),
-        ),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(e.to_string()),
-            }),
-        ),
-    }
 }

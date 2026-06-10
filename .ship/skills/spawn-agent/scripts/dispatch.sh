@@ -39,6 +39,7 @@ SHIP_AGENT_MODEL="${SHIP_AGENT_MODEL:-}"
 SHIP_PROVIDER_CLI="${SHIP_PROVIDER_CLI:-}"
 EXTRA_SKILLS=()
 BATCH_NAME=""
+NOBOOTSTRAP=false
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -55,6 +56,7 @@ while [[ $# -gt 0 ]]; do
     --confirm)  CONFIRM=1; shift ;;
     --batch)    BATCH_NAME="$2"; shift 2 ;;
     --harness)  SHIP_PROVIDER_CLI="$2"; shift 2 ;;
+    --no-bootstrap) NOBOOTSTRAP=true; shift ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
@@ -67,6 +69,7 @@ if [[ -z "$SLUG" || -z "$AGENT" || -z "$SPEC_FILE" ]]; then
   echo "  --no-open         Print launch command instead of opening terminal" >&2
   echo "  --confirm         Show spec and ask y/n before launching" >&2
   echo "  --harness <cli>   Provider CLI to launch: claude (default) | omp | codex | ..." >&2
+  echo "  --no-bootstrap    Skip build-env provisioning (deps/bundles); for self-contained jobs" >&2
   echo "  --dry-run         Show what would happen" >&2
   exit 1
 fi
@@ -215,7 +218,9 @@ echo "MCP config verified: $MCP_JSON"
 # Fresh worktrees ship empty node_modules and missing generated assets. Pre-stage
 # them here so the agent doesn't hit `bun install` (which can rewrite the
 # lockfile if there's drift) or a Rust build that include_str!s missing bundles.
-if [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
+if [[ "$NOBOOTSTRAP" == true ]]; then
+  echo "Skipping build-env provisioning (--no-bootstrap)"
+elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
   echo "Installing dependencies (bun install --frozen-lockfile)"
   if ! (cd "$WORKTREE_PATH" && bun install --frozen-lockfile 2>&1 | tail -5); then
     echo "Warning: bun install --frozen-lockfile failed; agent may need to fix lockfile drift" >&2
@@ -330,28 +335,30 @@ fi
 # Runs in background — never blocks dispatch.
 auto_kickstart_tmux() {
   local session="$1"
+  local provider="${PROVIDER_CLI:-claude}"
   (
-    for i in $(seq 1 15); do
+    # Wait for the provider to be READY for input, THEN send the kickoff (split
+    # text → pause → Enter; a combined send collapses the CR into the buffer).
+    #   claude    → the channels-confirm prompt (accept with C-m, not Enter).
+    #   omp/other → the Pi CLI prompt box (the `π` glyph). omp shows NO channels
+    #               prompt and can take >15s to boot its TUI, so the old fixed
+    #               15s delay fired into a not-yet-ready input. Poll up to 60s.
+    for i in $(seq 1 60); do
       sleep 1
-      if tmux capture-pane -t "$session" -p 2>/dev/null | grep -q "I am using this for local development"; then
-        # C-m (literal CR), not Enter — claude's menu widget does not respond
-        # to the tmux Enter key name. Verified experimentally against a stuck
-        # session where `Enter` was a no-op and `C-m` advanced past the menu.
-        tmux send-keys -t "$session" C-m
-        sleep 1
-        # Send text and the submit key in SEPARATE send-keys invocations with
-        # a pause between. Combined into one call, Claude Code's paste handler
-        # collapses the trailing CR into the input buffer instead of firing
-        # submit — observed across multiple dispatches where the user had to
-        # press Enter manually. Splitting mimics human typing and submits.
-        tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously."
-        sleep 1
-        tmux send-keys -t "$session" Enter
-        exit 0
+      pane="$(tmux capture-pane -t "$session" -p 2>/dev/null)"
+      if [[ "$provider" == "claude" ]]; then
+        if grep -q "I am using this for local development" <<<"$pane"; then
+          tmux send-keys -t "$session" C-m   # advance past the channels menu
+          sleep 1
+          break
+        fi
+      else
+        if grep -qF 'π' <<<"$pane"; then      # Pi CLI prompt rendered ⇒ ready
+          break
+        fi
       fi
     done
-    # Prompt not found (non-claude provider or --dangerously-skip-permissions accepted it) —
-    # still send the autostart message (same split-send pattern).
+    # Best-effort even if readiness never showed: send the autostart message.
     tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously."
     sleep 1
     tmux send-keys -t "$session" Enter

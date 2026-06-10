@@ -47,23 +47,24 @@ pub struct AgentConfig {
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
-    /// Legacy role for tool gating defaults (`worker`, `lead`, `commander`).
-    /// Retained for back-compat with profiles that haven't migrated to
-    /// `tools_preset`. Mapping:
-    ///   worker → preset "worker"
-    ///   lead | commander → preset "orchestrator"
-    /// `tools_preset` takes precedence when both are set.
+    /// DEPRECATED (Floki D2b): superseded by `capabilities`. The gate enforces
+    /// capability, not role. Retained only so existing harness emitters / config
+    /// readers keep compiling during the carve; the unified `Agent` keystone does
+    /// not carry it. Legacy mapping (worker → "worker"; lead|commander →
+    /// "orchestrator") still honored by the local stdio gate until ripped out.
     #[serde(default)]
     pub role: Option<String>,
-    /// Tool preset name. Controls which platform-shipped tools this agent
-    /// sees before `active_tools` is applied. Known presets:
-    ///   "worker" → platform protocol tools only
-    ///   "orchestrator" → worker tools + mesh_* tools
-    /// Unset falls back to `role` mapping, then to "worker".
+    /// DEPRECATED (Floki D2b): superseded by `capabilities`. See `role`.
     #[serde(default)]
     pub tools_preset: Option<String>,
+    /// DEPRECATED (Floki D2b): superseded by `capabilities`. See `role`.
     #[serde(default)]
     pub active_tools: Vec<String>,
+    /// Authority grants for the ship-op control plane (`{domain, blast}` pairs).
+    /// Gate-enforced; replaces the dying `role`/`tools_preset` derivation. C0/C1
+    /// are an implicit baseline; C3 is operator-only and never agent-settable.
+    #[serde(default)]
+    pub capabilities: Vec<super::capability::Capability>,
     #[serde(default)]
     pub mcp_servers: Vec<String>,
     #[serde(default)]

@@ -83,13 +83,36 @@ impl LiveResolverRegistry {
 pub fn build() -> LiveResolverRegistry {
     let mut reg = LiveResolverRegistry::default();
 
-    // git.overview — reuses the git_signal resolver (GitWire under the hood).
+    // git.overview — the prototype for "domain data behind the abstract
+    // registry op". Git is an L0 git2 wrapper (`ship_git`), not an RPC
+    // service; the registry composes the `GitOverview` payload from its read
+    // fns directly. The view subscribes `git.overview` through the multiplex;
+    // there is no GitService on the wire.
     reg.register(
         "git",
         "overview",
         Arc::new(|state: &ApiState, _args: &Value| {
-            crate::views::git_signal::refresh(state);
-            crate::views::git_signal::git_overview_signal().peek()
+            let Some(root) = state.workspace_dir() else { return Value::Null };
+            let buckets = ship_git::read::load_status_buckets(root);
+            let branch = ship_git::read::load_branch(root);
+            let commits = ship_git::read::load_log(root, None, 20);
+            let branches = ship_git::read::load_branches(root);
+            let (ahead, behind) = ship_git::read::load_ahead_behind(root).unwrap_or((0, 0));
+            let overview = ship_git::state::GitOverview {
+                workspace_id: None,
+                branch,
+                head_short: ship_git::read::load_head_short(root),
+                clean: buckets.clean,
+                total_changed: buckets.total,
+                staged: buckets.staged,
+                modified: buckets.modified,
+                untracked: buckets.untracked,
+                commits,
+                branches,
+                ahead,
+                behind,
+            };
+            serde_json::to_value(&overview).unwrap_or(Value::Null)
         }),
     );
 

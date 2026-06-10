@@ -30,7 +30,7 @@
 //! spec bodies — see `pipeline_specs.rs`). `tee -a` means retry runs
 //! append instead of truncating.
 
-pub use ship_substrate::services::dispatch_ports::{SessionContext, SessionExecutor, StepInfo};
+pub use ship_code::dispatch_ports::{SessionContext, SessionExecutor, StepInfo};
 
 /// Relative log path for a given step in the pipeline log convention.
 ///

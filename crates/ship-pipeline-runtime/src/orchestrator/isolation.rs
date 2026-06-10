@@ -7,7 +7,7 @@
 use anyhow::Result;
 use std::path::Path;
 
-use ship_substrate::services::dispatch_ports::SessionContext;
+use ship_code::dispatch_ports::SessionContext;
 
 /// Materialize the job spec inside a prepared worktree.
 ///

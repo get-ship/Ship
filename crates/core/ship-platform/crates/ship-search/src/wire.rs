@@ -18,14 +18,12 @@
 //! parsing ([`parse_request`]) and hit→proto mapping ([`hit_to_proto`]) are
 //! shared by both wires so the boundary logic lives once.
 
-use connectrpc::{RequestContext, Response, ServiceResult};
-
 use ship_ops_rpc::{
     EntityKind as ProtoEntityKind, OwnedSearchRequestView, SearchHit as ProtoSearchHit,
-    SearchResponse as ProtoSearchResponse, SearchScope as ProtoSearchScope,
+    SearchScope as ProtoSearchScope,
 };
 
-use crate::service::{SearchContext, SearchService, sanitize_query};
+use crate::service::sanitize_query;
 use crate::types::{Cursor, EntityKind, EntityKindFilter, SearchOpts};
 
 /// Resolved search reach. `Unspecified` is normalized to `ThisSpace` here so
@@ -48,48 +46,8 @@ impl SearchScope {
     }
 }
 
-/// Wraps `SearchService` with a per-request context factory. Implements the
-/// generated `ship_ops_rpc::SearchService` trait so shipd can mount it via
-/// `SearchServiceExt::register`.
-pub struct SearchWire<F> {
-    service: SearchService,
-    make_ctx: F,
-}
-
-impl<F> SearchWire<F> {
-    pub fn new(make_ctx: F) -> Self {
-        Self { service: SearchService::new(), make_ctx }
-    }
-}
-
-#[allow(refining_impl_trait)]
-impl<F, C> ship_ops_rpc::SearchService for SearchWire<F>
-where
-    F: Fn(&RequestContext) -> C + Send + Sync + 'static,
-    C: SearchContext + Send + Sync + 'static,
-{
-    async fn search(
-        &self,
-        ctx: RequestContext,
-        request: OwnedSearchRequestView,
-    ) -> ServiceResult<ProtoSearchResponse> {
-        let search_ctx = (self.make_ctx)(&ctx);
-
-        let parsed = parse_request(&request);
-        // This wire is the single-context (this-space) path; it ignores
-        // `parsed.scope` (global fan-out needs the space registry, which lives
-        // in shipd). shipd selects this wire vs its global wire on scope.
-        let result = self.service.run(&search_ctx, &parsed.query, parsed.opts).await;
-
-        let hits = result.hits.into_iter().map(hit_to_proto).collect();
-        let next_cursor = result.cursor.unwrap_or_default();
-
-        Ok(Response::new(ProtoSearchResponse { hits, next_cursor, ..Default::default() }))
-    }
-}
-
-/// A `SearchRequest` decoded into the platform's domain shapes. Shared by the
-/// this-space wire here and shipd's global-fan-out wire so request parsing
+/// A `SearchRequest` decoded into the platform's domain shapes. Shared by
+/// shipd's global-fan-out wire so request parsing
 /// (sanitization, kind filtering, cursor decode, scope resolution) lives once.
 pub struct ParsedSearchRequest {
     pub query: String,

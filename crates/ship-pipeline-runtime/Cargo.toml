@@ -7,6 +7,8 @@ publish = false
 description = "L1 pipeline runtime — CRUD over the pipeline spec tree plus the job advancement / step dispatch / fanout / sweep / merge runtime. Sits above `ship-pipelines` (pure-logic types), `ship-runner` (L0 mechanism), and `ship-substrate` (ports + events). The orchestrator is NOT a service: it owns no orchestrator.* events, only pipeline.*."
 
 [dependencies]
+# L1 domain — canonical session event payloads and event-type constants.
+agent-def = { path = "../core/ship-platform/crates/agent-def" }
 # L0 — events, ports, projections registry, persistence, fs_util.
 ship-substrate = { path = "../core/ship-substrate" }
 # L0 git capability — git2-backed; single git implementation.
@@ -20,6 +22,9 @@ ship-pipelines = { path = "../core/ship-substrate/crates/ship-pipelines", featur
 ship-runner = { path = "../core/ship-substrate/crates/ship-runner" }
 # L0 types — Authority principal carried on dispatch events.
 ship-types = { path = "../core/ship-substrate/crates/ship-types" }
+# L1 platform code — dispatch_ports, process_registry, process_tree_probe,
+# runner orchestration helpers (dedup, exit_handler, router, etc.).
+ship-code = { path = "../core/ship-platform/crates/ship-code" }
 # L1 platform — `FilesService` (file-tree helper) and the live SQL-backed
 # `pipeline_run` / `agent_session` projections the runtime reads. This
 # crate is a DOWNSTREAM consumer of `ship-platform`; `ship-platform` does
@@ -35,6 +40,15 @@ ship-artifacts = { path = "../core/ship-platform/crates/ship-artifacts" }
 # ConnectRPC wire layer (wire.rs) — implements PipelinesService for shipd mount.
 connectrpc = { version = "0.4", features = ["axum"] }
 ship-ops-rpc = { path = "../core/ship-ops-rpc" }
+# Reactive snapshot-diff resolver + ReactiveRegistry for the typed Watch verb
+# (P0.4) — same infra the agents Watch rides. No cycle: ship-reactive depends
+# only on ship-substrate + ship-types, both already upstream of this crate.
+ship-reactive = { path = "../core/ship-platform/crates/ship-reactive" }
+# Server-streaming bodies for the Watch RPC handler.
+async-stream = "0.3"
+# Generated proto enum wrapper (`EnumValue`) for the WatchEvent patch conversion.
+# Version tracks ship-ops-rpc's buffa.
+buffa = "0.5"
 
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

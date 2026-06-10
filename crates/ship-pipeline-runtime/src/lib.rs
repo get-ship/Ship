@@ -24,8 +24,11 @@ pub mod orchestrator;
 pub mod pipeline_ports;
 pub mod pipelines;
 pub mod projections;
+pub mod read_core;
 pub mod run_core;
 pub mod status_core;
+pub mod view;
+pub mod watch;
 pub mod wire;
 
 use std::sync::Once;
@@ -39,7 +42,13 @@ static INSTALL_PROJECTIONS: Once = Once::new();
 pub fn install_projections() {
     INSTALL_PROJECTIONS.call_once(|| {
         ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
-            vec![Box::new(projections::PipelineRunProjection)]
+            vec![
+                Box::new(projections::PipelineRunProjection),
+                // P0.1 — the normalized per-step read model. Additive: the
+                // run-level projection above is untouched. Folds the durable
+                // step events + child-session terminals into pipeline_step_runs.
+                Box::new(projections::PipelineStepRunProjection),
+            ]
         }));
     });
 }

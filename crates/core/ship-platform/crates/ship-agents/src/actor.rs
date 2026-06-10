@@ -20,10 +20,12 @@
 
 use std::sync::Arc;
 
-use ship_runner::router::{terminal_guard, Admit};
+#[cfg(feature = "harness-drivers")]
+use ship_code::runner::router::{terminal_guard, Admit};
 use ship_substrate::events::EventEnvelope;
 use tokio::sync::Mutex;
 
+#[cfg(feature = "harness-drivers")]
 use crate::cancel::handle_agent_cancelled;
 use crate::dispatch::handle_agent_session_started;
 use crate::ports::AgentPorts;
@@ -67,11 +69,21 @@ pub async fn start_agents(kernel: Kernel, ports: Arc<AgentPorts>) {
 
 /// Handle a single `agent.session.*` event. Runs the L0 entry gate (event-id
 /// dedup + terminal-state guard) before the policy match.
+///
+/// With `harness-drivers` OFF, the terminal-state guard and the `cancelled`
+/// arm are absent (no process to kill, no dedup registry). The floki dispatch
+/// path in `handle_agent_session_started` remains active.
 pub async fn handle_agents_event(kernel: &Kernel, envelope: &EventEnvelope, ports: &AgentPorts) {
     // Runner-mechanism entry gate (L0 `ship_runner::router`): dedup by event id
     // AND the terminal-state guard. The terminal check goes through the
     // ProjectionReader port (primitive `bool`) so this crate never names the
     // projection status enum.
+    //
+    // Gate: terminal_guard + EventDedup are ship_code-backed; with
+    // harness-drivers OFF these are absent. A replayed floki session may
+    // double-fire — acceptable for flag-off (floki is idempotent by session_id;
+    // there is no process registry to protect). See risks in the design doc.
+    #[cfg(feature = "harness-drivers")]
     match terminal_guard(&ports.event_dedup, &*ports.projections, envelope).await {
         Admit::Proceed => {}
         Admit::Duplicate | Admit::Terminal => return,
@@ -84,6 +96,10 @@ pub async fn handle_agents_event(kernel: &Kernel, envelope: &EventEnvelope, port
         "agent.session.started" => {
             handle_agent_session_started(kernel, envelope, ports).await;
         }
+        // With harness-drivers OFF: no process to stop, no process.killed to
+        // emit — the cancelled arm is a no-op. Known gap: the session stays in
+        // Cancelled projection state without a process.killed audit event.
+        #[cfg(feature = "harness-drivers")]
         "agent.session.cancelled" => {
             handle_agent_cancelled(kernel, envelope, ports).await;
         }

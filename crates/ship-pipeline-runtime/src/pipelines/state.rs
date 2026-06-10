@@ -19,6 +19,9 @@ pub enum Error {
     Patch(String),
     Io(String),
     ScopeUnavailable(Scope),
+    /// Write-time validation rejected the pipeline definition. Carries an
+    /// operator-readable reason. Surfaces as `invalid_argument` on the wire.
+    Invalid(String),
 }
 
 impl std::fmt::Display for Error {
@@ -31,6 +34,7 @@ impl std::fmt::Display for Error {
             Self::Patch(s) => write!(f, "patch: {s}"),
             Self::Io(s) => write!(f, "io: {s}"),
             Self::ScopeUnavailable(s) => write!(f, "scope {s:?} not configured"),
+            Self::Invalid(s) => write!(f, "invalid pipeline definition: {s}"),
         }
     }
 }

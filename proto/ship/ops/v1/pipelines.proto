@@ -15,6 +15,7 @@ package ship.ops.v1;
 import "ship/ops/v1/policy.proto";
 import "ship/ops/v1/ops.proto";
 import "ship/ops/v1/types.proto";
+import "ship/ops/v1/reactive.proto";
 
 // ── runtime writes (pipeline.*) ──────────────────────────────────────────────
 
@@ -44,18 +45,10 @@ message GetPipelineRequest {
 }
 
 message GetPipelinesSummariesRequest {}
+
 message RunPipelineRequest {
   string slug = 1;
 }
-
-// `pipelines.focus(name)` — per-pipeline detail. Definition with aggregated
-// stats + the raw doc + active+other runs precomputed for the view. Returns
-// 404 when no pipeline file resolves to `name` (the studio focus page
-// surfaces that as an error envelope, never a null ok value).
-message PipelineFocusRequest {
-  string name = 1;
-}
-
 
 message DispatchPipelineReq {
   string pipeline = 1;
@@ -100,6 +93,127 @@ message DeletePipelineRequest {
   string scope = 2;
 }
 
+// ── Typed run-level read contract (P0.3) ────────────────────────────────────
+//
+// DOMAIN projection messages off `pipeline_runs` (run-level) + `pipeline_step_runs`
+// (step-level). TOPOLOGY-INVARIANT: these read the normalized projections, not the
+// orchestrator's live view-model, so they survive the R13 orchestrator dissolution
+// unchanged. They DELIBERATELY EXCLUDE GUI view-model tokens (tone / segments /
+// status_text / English timeline copy) and process_state — those are the GUI's
+// concern (still served by the dual REST + the *Live JsonResponse streams), not the
+// domain contract.
+
+// One run-level row off `pipeline_runs`.
+message PipelineRunRow {
+  string pipeline_run_id = 1;
+  string slug = 2;
+  // snake_case lifecycle status: pending | dispatched | gate_pending | blocked |
+  // completed | merged | failed | cancelled.
+  string status = 3;
+  // RFC3339 run creation time (the run's start).
+  string started_at = 4;
+  // RFC3339 last-update time, present only once the run reached a terminal status;
+  // absent while the run is still live.
+  optional string ended_at = 5;
+  // Terminal disposition (completed | merged | failed | cancelled) once terminal;
+  // absent while live.
+  optional string outcome = 6;
+}
+
+// One step-level row off `pipeline_step_runs`.
+message PipelineStepRunRow {
+  string step_id = 1;
+  // snake_case step status: pending | running | completed | failed.
+  string status = 2;
+  optional string started_at = 3;    // RFC3339
+  optional string completed_at = 4;  // RFC3339
+  // The DAG edge: ids of steps that must finish before this one. Empty for roots.
+  repeated string depends_on = 5;
+  string step_type = 6;  // agent | review | run
+  uint32 attempt = 7;
+}
+
+// Run detail: the run row + its step rows. Backs Run.
+message PipelineRunDetailResponse {
+  PipelineRunRow run = 1;
+  repeated PipelineStepRunRow steps = 2;
+}
+
+// Index of run-level rows (newest first). Backs Summaries.
+message PipelineRunSummariesResponse {
+  repeated PipelineRunRow runs = 1;
+}
+
+// Paginated run-level history rows. Backs History.
+message PipelineRunHistoryResponse {
+  repeated PipelineRunRow runs = 1;
+  uint64 total = 2;
+  uint64 offset = 3;
+  uint64 limit = 4;
+}
+
+// ── ListRuns (typed; was REST-only — GET /api/v1/runtime/jobs) ──────────────
+message ListPipelineRunsRequest {}
+// Every run with its step rows.
+message ListPipelineRunsResponse {
+  repeated PipelineRunDetailResponse runs = 1;
+}
+
+// ── Cancel (typed; was REST-only — POST /jobs/{slug}/cancel) ────────────────
+message CancelRunRequest {
+  string slug = 1;
+  // Defaults to "operator-cancelled" when empty.
+  string reason = 2;
+}
+message CancelRunResult {
+  string pipeline_run_id = 1;
+  string slug = 2;
+  // "cancelling" on success — the PIPELINE_RUN_CANCELLED event was emitted.
+  string status = 3;
+}
+
+// ── ResolveStep (typed resume verb; step-id-keyed) ─────────────────────────
+message ResolveStepRequest {
+  string slug = 1;
+  string step_id = 2;
+  // Operator decision. TODAY this maps onto the existing step-advance flow
+  // (emits PIPELINE_STEP_DONE_DECLARED). At the dissolution (P2.x) it becomes
+  // engine resume(decision) with retry/fail branches.
+  string decision = 3;
+  string summary = 4;
+}
+message ResolveStepResult {
+  string slug = 1;
+  string step_id = 2;
+  bool advanced = 3;
+}
+
+// ── Watch request message (P0.4 — the ONE typed reactive surface) ───────────
+//
+// The single live watch over pipeline RUN state, the typed replacement for the
+// three untyped *Live JsonResponse streams (SummariesLive / RunLive /
+// HistoryLive — kept working, deprecated-pending-migration). It streams the
+// SAME P0.3 typed read messages (run row + step rows) as snapshot-diff
+// PatchFrames over the shared reactive.proto WatchEvent, fed by the pipeline.* +
+// session.* events the pipeline_runs + pipeline_step_runs projections fold.
+//
+// The local nullary `all` marker mirrors the agents.proto / space.proto Watch
+// precedent — the package has no shared google.protobuf.Empty and a second
+// local `message Empty {}` would collide.
+message PipelineWatchAllReq {}
+
+message PipelineWatchReq {
+  oneof scope {
+    // All runs — snapshots the run-level summary rows (PipelineRunSummariesResponse
+    // shape); wakes on any pipeline.* run-lifecycle event.
+    PipelineWatchAllReq all = 1;
+    // One run — snapshots that run's detail (run row + step rows,
+    // PipelineRunDetailResponse shape); wakes on the pipeline.* / session.*
+    // events carrying this pipeline_run_id.
+    string pipeline_run_id = 2;
+  }
+}
+
 // Pipeline config CRUD + runtime ops. Reads are C0; config writes and runtime
 // writes are C1, each gated through services::command::call (the one gate).
 // Two capabilities: ship.runtime.write for pipeline.* ops, ship.pipelines.write
@@ -116,43 +230,61 @@ service PipelinesService {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Summaries(GetPipelinesSummariesRequest) returns (JsonResponse) {
-    option (ship.ops.v1.description) = "Index-view shape: defs + active/history + pills + agents.";
+  // Run-level domain projection (off pipeline_runs). TYPED (P0.3): replaced the
+  // untyped JsonResponse GUI index. GUI tokens (pills/agents/defs/tone) stay on
+  // the *Live JsonResponse stream + the REST surface.
+  rpc Summaries(GetPipelinesSummariesRequest) returns (PipelineRunSummariesResponse) {
+    option (ship.ops.v1.description) = "Run-level projection rows (id/slug/status/started/ended/outcome), newest first.";
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  // DEPRECATED-PENDING-WATCH-MIGRATION (P0.4): the typed `Watch` (all scope) is
+  // the structured replacement. Kept working — the GUI view-model stream
+  // (pills/tones) flows through this until consumers migrate to Watch.
   rpc SummariesLive(GetPipelinesSummariesRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc Run(RunPipelineRequest) returns (JsonResponse) {
-    option (ship.ops.v1.description) = "Run detail with steps + timeline.";
+  // Run detail — run row + step rows (off pipeline_runs + pipeline_step_runs).
+  // TYPED (P0.3): excludes the GUI timeline/observation copy.
+  rpc Run(RunPipelineRequest) returns (PipelineRunDetailResponse) {
+    option (ship.ops.v1.description) = "Run detail: the run row + its step rows.";
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  // DEPRECATED-PENDING-WATCH-MIGRATION (P0.4): the typed `Watch` (run scope) is
+  // the structured replacement. Kept working until GUI consumers migrate.
   rpc RunLive(RunPipelineRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc History(ListPipelinesHistoryRequest) returns (JsonResponse) {
-    option (ship.ops.v1.description) = "Paginated run history with pipeline filter options.";
+  // Paginated run-level history (terminal runs), off pipeline_runs. TYPED (P0.3).
+  rpc History(ListPipelinesHistoryRequest) returns (PipelineRunHistoryResponse) {
+    option (ship.ops.v1.description) = "Paginated run-level history rows with pipeline/q filters.";
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  // DEPRECATED-PENDING-WATCH-MIGRATION (P0.4): the typed `Watch` carries the
+  // same run rows; History stays paginated/terminal-only. Kept working until
+  // GUI consumers migrate.
   rpc HistoryLive(ListPipelinesHistoryRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  // `pipelines.focus(name)` — per-pipeline detail. Reads the pipeline file +
-  // aggregates run stats + partitions active/other runs for the studio view.
-  // `FocusLive` re-emits on every kernel `config` event (same shape as
-  // `SummariesLive` / `RunLive`).
-  rpc Focus(PipelineFocusRequest) returns (JsonResponse) {
-    option (ship.ops.v1.description) = "Per-pipeline detail with active + other runs precomputed.";
+  // Watch — the ONE typed reactive surface (P0.4), the typed replacement for the
+  // three *Live JsonResponse streams above. Streams the P0.3 typed read messages
+  // (run row + step rows) as snapshot-diff PatchFrames over the shared
+  // reactive.proto WatchEvent, deduped + fanned out through a ReactiveRegistry
+  // fed by pipeline.* / session.* events. Gated like the reads (C0, read cap).
+  rpc Watch(PipelineWatchReq) returns (stream WatchEvent) {
+    option (ship.ops.v1.description) = "Live typed run/step updates for a pipeline run (or all runs).";
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  rpc FocusLive(PipelineFocusRequest) returns (stream JsonResponse) {
+  // Every run with its step rows — the typed Connect form of GET
+  // /api/v1/runtime/jobs (was REST-only). Off pipeline_runs + pipeline_step_runs.
+  rpc ListRuns(ListPipelineRunsRequest) returns (ListPipelineRunsResponse) {
+    option (ship.ops.v1.description) = "All runs, each with its step rows.";
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -172,14 +304,33 @@ service PipelinesService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   // ── runtime writes (C1, ship.runtime.write) ───────────────────────────────
+  // DEPRECATED-PENDING-DISSOLUTION (P0.3): UpdateStatus is the TRANSITIONAL
+  // free-form lifecycle write. It stays working today; at the dissolution (P2.x)
+  // it is repointed to engine resume — callers move to the typed ResolveStep
+  // (step-keyed) verb below. Do not delete; do not extend.
   rpc UpdateStatus(UpdatePipelineStatusRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.write";
-    option (ship.ops.v1.description) = "Advance a pipeline run's lifecycle/gate state (the agent's own run).";
+    option (ship.ops.v1.description) = "DEPRECATED (P2.x→engine resume): advance a run's lifecycle/gate state.";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc StepDone(StepDoneRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.runtime.write";
     option (ship.ops.v1.description) = "Agent declares the current pipeline step complete.";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
+  }
+  // Cancel a run by slug (typed; was REST-only). Emits PIPELINE_RUN_CANCELLED.
+  // Idempotent: a run already terminal yields a caller error, no event.
+  rpc Cancel(CancelRunRequest) returns (CancelRunResult) {
+    option (ship.ops.v1.capability) = "ship.runtime.write";
+    option (ship.ops.v1.description) = "Cancel a pipeline run by slug.";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
+  }
+  // ResolveStep — the TYPED resume verb, step-id-keyed. For now it maps onto the
+  // EXISTING advance flow (emits PIPELINE_STEP_DONE_DECLARED for the step) so it
+  // works today; at the dissolution (P2.x) it becomes engine resume(decision).
+  rpc ResolveStep(ResolveStepRequest) returns (ResolveStepResult) {
+    option (ship.ops.v1.capability) = "ship.runtime.write";
+    option (ship.ops.v1.description) = "Resolve/advance a pipeline step by id (typed resume).";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   // ── config writes (C1, ship.pipelines.write) ─────────────────────────────

@@ -25,15 +25,19 @@
 pub mod actor_registry;
 pub mod agent_actor;
 pub mod lifecycle;
-pub mod projection;
 pub mod registry;
 pub mod shell_actor;
 pub mod types;
+pub mod canonical_projection;
 
-pub use projection::{
-    AgentSession, AgentSessionProjection, AgentSessionStatus, load_session_by_id,
-    load_session_by_id_at, load_session_by_slug, load_session_by_slug_at, load_sessions,
-    load_sessions_at, load_sessions_by_parent, project as project_agent_sessions,
+pub use canonical_projection::{
+    CanonicalSession, CanonicalSessionProjection, CanonicalSessionStatus,
+    load_sessions as load_canonical_sessions,
+    load_session_by_id as load_canonical_session_by_id,
+    load_canonical_session_by_slug,
+    load_canonical_session_by_slug_at,
+    load_canonical_sessions_by_parent,
+    load_latest_resumable_session,
 };
 pub use actor_registry::{ActorEntry, ActorRegistry};
 pub use registry::SessionRegistry;

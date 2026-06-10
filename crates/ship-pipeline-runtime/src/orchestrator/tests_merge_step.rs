@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 use ship_substrate::events::pipeline::{event_types, PipelineRunFailedPayload};
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 
-use ship_substrate::services::dispatch_ports::AgentPlatform;
+use ship_code::dispatch_ports::AgentPlatform;
 use crate::orchestrator::handlers::execute_merge_step;
 
 // ── Mocks ──────────────────────────────────────────────────────────────────

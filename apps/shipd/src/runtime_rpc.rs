@@ -83,14 +83,9 @@ impl RuntimeService for OpsImpl {
             },
             None => None,
         };
-        // `list_processes_at` lives in `ship_substrate::runtime_reads`
-        // (canonical). It was previously reached via the
-        // `routes::runtime_api::jobs` façade, which is now cut.
-        let mut records = ship_substrate::runtime_reads::list_processes_at(
-            self.state().ship_dir(),
-            request.slug,
-        )
-        .map_err(|e| ConnectError::internal(format!("procs: {e}")))?;
+        let mut records =
+            ship_substrate::runtime_reads::list_processes_at(self.state().ship_dir(), request.slug)
+                .map_err(|e| ConnectError::internal(format!("procs: {e}")))?;
         if let Some(set) = kind_filter {
             records.retain(|r| set.contains(&r.executor_kind.as_str()));
         }

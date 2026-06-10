@@ -12,17 +12,11 @@
 //! `#[cfg(test)]` is applied at the declaring site (`lib.rs`); no
 //! inner `#![cfg(test)]` needed.
 
-#[path = "tests_service_architecture.rs"]
-mod tests_service_architecture;
-
 #[path = "tests_daemon_startup.rs"]
 mod tests_daemon_startup;
 
 #[path = "tests_orphan_cleanup.rs"]
 mod tests_orphan_cleanup;
-
-#[path = "tests_graceful_shutdown.rs"]
-mod tests_graceful_shutdown;
 
 #[path = "tests_executor_events.rs"]
 mod tests_executor_events;

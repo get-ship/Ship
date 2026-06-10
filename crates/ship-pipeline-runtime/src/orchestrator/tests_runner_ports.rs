@@ -23,7 +23,7 @@ use ship_substrate::events::pipeline::{
 };
 use ship_substrate::events::EventEnvelope;
 
-use ship_substrate::services::dispatch_ports::{
+use ship_code::dispatch_ports::{
     AgentPlatform, Authority, ExecutorHandle, IsolationStrategy, ProcessRegistryPort,
     ProjectionReader, SessionContext, SessionExecutor, SpawnPolicy,
 };
@@ -212,7 +212,7 @@ fn octx(
         executor,
         platform,
         registry,
-        probe: Arc::new(ship_substrate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_code::process_tree_probe::SysinfoProcessTreeProbe::new()),
         spawn_policy,
         projections,
         done_flags: Arc::new(Mutex::new(HashMap::new())),

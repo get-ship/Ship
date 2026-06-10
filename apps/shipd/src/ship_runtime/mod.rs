@@ -12,7 +12,6 @@ pub mod types;
 pub(crate) mod init;
 mod accessors;
 mod tasks;
-mod worktree;
 #[cfg(test)]
 mod test_ctors;
 
@@ -22,34 +21,28 @@ pub use types::{
     AuthMode, RuntimeConfig, AppMetadata,
     AppState, ApiState,
     SharedKernel, AgentMailboxes, PtyConnections,
-    WorktreeResolver, ActorGuard,
+    ActorGuard,
 };
-pub use init::default_worktree_resolver;
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ship_substrate::services::mesh::SharedMeshRegistry;
 use crate::auth::SessionRegistry;
 use ship_substrate::task_health::HealthRegistry;
+#[cfg(feature = "ship-code")]
 use crate::dispatch::run_dispatch::DispatchHandle;
 
-/// Central runtime for shipd. Owns the kernel, mesh registry, and config.
-/// Managers (mesh, jobs) are lazily initialized on first access.
+/// Central runtime for shipd. Owns the kernel, registry, and config.
 pub struct ShipRuntime {
     pub(super) config: RuntimeConfig,
     pub(super) kernel: SharedKernel,
-    pub(super) mesh_registry: SharedMeshRegistry,
     pub(super) agent_mailboxes: AgentMailboxes,
     pub(super) pty_connections: PtyConnections,
     pub(super) ship_dir: PathBuf,
-    /// Daemon IPC directory — `<root>/machine/daemon/` or
     /// `<root>/machine/daemons/<hash>/` per devx-04.
     pub(super) daemon_dir: PathBuf,
-    pub(super) mesh: tokio::sync::OnceCell<crate::managers::MeshManager>,
-    pub(super) jobs: tokio::sync::OnceCell<crate::managers::RunManager>,
+    #[cfg(feature = "ship-code")]
     pub(super) dispatch_handle: std::sync::OnceLock<DispatchHandle>,
-    pub(super) session_scanner: tokio::sync::OnceCell<crate::managers::SessionScanner>,
     /// Scoped session registry — maps session tokens to DaemonSession.
     pub(super) session_registry: SessionRegistry,
     /// Health registry for supervised background tasks.
@@ -72,12 +65,12 @@ pub struct ShipRuntime {
     /// Agent-owned view sessions (Phase 1 canvas framework).
     pub(super) view_sessions: crate::views::session::SharedViewSessionRegistry,
     /// PTY session registry — chat, pipelines, dock terminal all go
-    /// through here. See `crate::sessions`.
-    pub(super) pty_sessions: crate::sessions::SessionRegistry,
+    /// through here. See `crate::sessions` (when feature = "ship-code").
+    pub(super) pty_sessions: ship_agents::services::sessions::SessionRegistry,
     /// Actor-backed session registry — destination of the supervisor-
     /// primitive migration. Shells live here today; agents and pipelines
     /// follow as 1.1.c / 1.1.d land.
-    pub(super) actor_sessions: crate::sessions::ActorRegistry,
+    pub(super) actor_sessions: ship_agents::services::sessions::ActorRegistry,
     /// Project workspace dir (e.g. `/path/to/repo`) when the daemon was
     /// started with `--workspace`. Drives project-scoped artifact storage.
     pub(super) workspace_dir: Option<PathBuf>,
@@ -104,6 +97,17 @@ pub struct ShipRuntime {
     /// parallel registry (one-way-to-do-things; mirrors collection/space).
     pub(super) agent_reactive:
         std::sync::OnceLock<std::sync::Arc<ship_reactive::ReactiveRegistry>>,
+    /// Reactive registry for the typed pipeline `Watch` (pipelines P0.4). Built
+    /// from a dedicated `KernelLog` fed by a bridge actor that taps the kernel
+    /// router's `pipeline.*` + `session.*` mailbox stream (the orchestrator emits
+    /// through the raw `KernelRouter`, not a shared log) — so the Watch resolvers
+    /// wake on run/step lifecycle. `None` until `start_pipeline_reactive` runs.
+    pub(super) pipeline_reactive:
+        std::sync::OnceLock<std::sync::Arc<ship_reactive::ReactiveRegistry>>,
+    /// The shared `KernelLog` the pipeline Watch registry rides — held so the
+    /// bridge task can `broadcast()` tapped router events into it.
+    pub(super) pipeline_watch_kernel:
+        std::sync::OnceLock<std::sync::Arc<ship_substrate::ports::KernelLog>>,
     /// In-process Rolldown bundler (#163) — owned here, lazily started on
     /// first access. `Bundler::start` is synchronous (it locates the
     /// `sui-compiler` binary and sets up channels, no child process), so
@@ -128,13 +132,9 @@ pub struct ShipRuntime {
     /// `PipelinesService` impl — sixth mr-02 migration (definition CRUD only;
     /// dispatch / cancel / runs still flow through `runtime_api`).
     pub(super) pipelines: std::sync::Arc<dyn ship_pipeline_runtime::pipelines::service::PipelinesService>,
-    /// `GitService` impl — seventh mr-02 migration. Project-bound; the
-    /// SSE handler in `git/mod.rs` stays separate.
-    pub(super) git: std::sync::Arc<dyn ship_platform::services::git::service::GitService>,
-    /// Worktree resolver — production uses `git worktree list`; tests
-    /// override with an in-memory map. See `resolve_worktree` method and
-    /// `new_test_with_worktree_resolver` test ctor.
-    pub(super) worktree_resolver: WorktreeResolver,
+    // The dedicated `git` service field is gone — git is an L0 git2 wrapper
+    // (`ship_git::{read,write,diff,state}`), not an RPC service. Views read
+    // git through the abstract registry op (`live_resolvers` `git.overview`).
     /// Shutdown cancellation token (#256). A child of the daemon's signal
     /// token, set once in `run_network` right after that token is created.
     /// Long-lived SSE keepalive/data loops `select!` against this so a SIGTERM

@@ -7,8 +7,8 @@ use specta_typescript::{BigIntExportBehavior, Typescript};
 
 use crate::{
     build_assets, coverage, gen_audit_readme, gen_collection_types, gen_contract, gen_events,
-    gen_fixtures, gen_icons, gen_indexes, gen_skills, gen_sdk, lint_imports, lint_layers,
-    port_descriptions, types,
+    gen_fixtures, gen_icons, gen_indexes, gen_skills, gen_sdk, lint_anti_theater, lint_imports,
+    lint_layers, lint_residue, port_descriptions, types,
 };
 
 pub fn repo_root() -> PathBuf {
@@ -50,24 +50,29 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                     std::process::exit(1);
                 }
                 Ok(report) => {
-                    let count = report.violations.len() / 2;
                     if report.violations.is_empty() {
                         println!("import layer boundaries clean");
                     } else {
+                        let count = report.violations.len() / 2;
                         for line in &report.violations {
                             eprintln!("{line}");
                         }
-                        if report.warn_only {
-                            eprintln!(
-                                "lint-imports: {count} violation(s) — WARN mode (>= 10 violations; \
-                                fix violations then set warn_only threshold to enforce)"
-                            );
-                        } else {
-                            eprintln!("lint-imports: {count} violation(s)");
-                            std::process::exit(1);
-                        }
+                        eprintln!("lint-imports: {count} violation(s)");
+                        std::process::exit(1);
                     }
                 }
+            }
+        }
+        "lint-anti-theater" => {
+            if let Err(e) = lint_anti_theater::run(&repo_root()) {
+                eprintln!("lint-anti-theater failed: {e}");
+                std::process::exit(1);
+            }
+        }
+        "lint-residue" => {
+            if let Err(e) = lint_residue::run(&repo_root()) {
+                eprintln!("lint-residue failed: {e}");
+                std::process::exit(1);
             }
         }
         "gen-fixtures" => {
@@ -156,8 +161,10 @@ fn print_help() {
     eprintln!("  gen-sdk               Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
     eprintln!("  gen-fixtures          Emit proto contract fixtures from proto/fixtures/fixture-seed.json");
     eprintln!("  gen-icons             Bake lucide-icons.json from node_modules/lucide-static");
-    eprintln!("  lint-layers           Verify substrate/platform/application boundaries (Cargo dep level)");
+    eprintln!("  lint-layers           Verify L0/L1/L2 boundaries from the resolved cargo-metadata graph (R0-R4)");
     eprintln!("  lint-imports          Verify layer-direction rules at the `use`-statement level");
+    eprintln!("  lint-anti-theater     Ban source-grep-in-tests (R18): include_str!/read_to_string of a .rs + .contains/.find");
+    eprintln!("  lint-residue          Catch orphan .rs files + byte-identical .rs copied across crates");
     eprintln!("  gen-events            Generate tier-filtered proto + TS from the event registry");
     eprintln!("  gen-events --check    Verify generated files are up-to-date (CI)");
     eprintln!("  gen-contract          Generate docs/contract/<domain>.md consumer guides");

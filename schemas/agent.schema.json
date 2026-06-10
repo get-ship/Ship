@@ -49,19 +49,43 @@
         },
         "role": {
           "type": "string",
-          "description": "Role for tool-gating defaults — 'worker', 'lead', 'commander', or 'designer'. Maps to a `tools_preset` when that field is unset (worker → 'worker'; lead/commander → 'orchestrator'). The daemon also resolves the role into capability scopes at MCP session-register (e.g. 'designer' → the SuiAuthoring tool-group). `tools_preset` takes precedence for the local stdio gate when both are set."
+          "deprecated": true,
+          "description": "DEPRECATED (Floki D2b): superseded by top-level `capabilities`. The gate enforces capability, not role. Legacy mapping (worker → 'worker'; lead/commander → 'orchestrator') is still honored by the local stdio gate until removed."
         },
         "tools_preset": {
           "type": "string",
-          "description": "Tool preset name controlling which platform-shipped tools this agent sees. Known values: 'worker', 'orchestrator'."
+          "deprecated": true,
+          "description": "DEPRECATED (Floki D2b): superseded by top-level `capabilities`. See `role`."
         },
         "active_tools": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Explicit tool IDs visible to this agent. When non-empty, replaces the preset's tool list (escape hatch for custom agents)."
+          "deprecated": true,
+          "description": "DEPRECATED (Floki D2b): superseded by top-level `capabilities`. See `role`."
         }
       },
       "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "Ship-op authority grants — gate-enforced. Each entry grants the agent ops in `domain` up to the `blast` ceiling. Replaces the deprecated `role`/`tools_preset` derivation. C0 (read) and C1 (workspace-write) are an implicit baseline every agent already has; C3 (critical) is operator-only and NEVER agent-settable (omit it). Mirrors ship_ops_rpc::BlastRadius.",
+      "items": {
+        "type": "object",
+        "required": ["domain"],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "description": "Ship-op service domain this grant covers (e.g. 'collections', 'runtime', 'mcp')."
+          },
+          "blast": {
+            "type": "string",
+            "enum": ["C0", "C1", "C2"],
+            "default": "C0",
+            "description": "Blast-radius ceiling for ops in `domain`. C0: read (anyone). C1: workspace-write (any agent). C2: elevated (granted agents). C3 (critical) is operator-only and rejected here. The proto descriptor aliases (C0_SAFE, C1_WORKSPACE, C2_ELEVATED) are also accepted by the parser."
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "skills": {
       "type": "object",

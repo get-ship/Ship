@@ -15,22 +15,47 @@ pub mod testutil;
 
 pub mod active_agent;
 pub mod actor;
-pub mod agent_domain;
+// The agent-definition domain moved to the `agent-def` crate (Floki carve D2a).
+// Re-exported here so every `crate::agent_domain::*` and `ship_agents::agent_domain::*`
+// caller keeps resolving with zero churn — a back-compat shim during the carve.
+pub use agent_def as agent_domain;
+// cancel module is 100% ship_code-dependent (uses runner::stop_by_slug / stop_handle
+// + the harness-driver port fields). Gate it entirely so flag-off compiles cleanly.
+#[cfg(feature = "harness-drivers")]
 pub mod cancel;
 pub mod dispatch;
 pub mod hooks;
 pub mod ports;
-// Agent-run assembly (executors, helpers, agent_lifecycle) — lifted out of the
-// L0 `ship-supervisor` crate in the supervisor split.
-pub mod runtime;
+// Agent-run assembly (executors, helpers, agent_lifecycle) moved to the `ship-code`
+// crate (Floki carve D3) — the third-party-harness driver box. Re-exported as
+// `runtime` so every `ship_agents::runtime::*` caller (shipd, ship-supervisor,
+// ship-pipeline-runtime) keeps resolving with zero churn — back-compat shim.
+// Gated: ship-code is optional; callers that use ::runtime must enable harness-drivers.
+#[cfg(feature = "harness-drivers")]
+pub use ship_code as runtime;
 pub mod services;
-// Runtime-scoped session records (agents-arc E4 fold).
-pub mod sessions;
+
 
 pub use actor::{handle_agents_event, start_agents};
+#[cfg(feature = "harness-drivers")]
 pub use cancel::handle_agent_cancelled;
 pub use dispatch::handle_agent_session_started;
 pub use ports::AgentPorts;
+/// One-time legacy `platform.db` → `kv.db` skill-vars drain. Sourced from
+/// agent-def (which owns the skill domain + its `ship-skill-vars` persistence);
+/// re-exported here only as a transitional shim for the daemon boot path.
+pub use agent_def::migrate_skill_vars_from_platform_db;
 
 // Back-compat re-exports so existing callers via ship_agents::agents::* still work.
 pub use agent_domain as agents;
+
+// ── Canonical sessions projection install seam ───────────────────────────────
+//
+// `CanonicalSessionProjection` is now registered as part of the default
+// projection set in `ship_platform::install_defaults()`. This function is
+// retained for API compatibility but is a deliberate no-op: callers that
+// previously called `install_canonical_session_projection()` can remove the
+// call — `ship_platform::install_defaults()` covers it.
+pub fn install_canonical_session_projection() {
+    // No-op: canonical sessions are installed by ship_platform::install_defaults().
+}

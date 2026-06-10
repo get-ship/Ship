@@ -21,8 +21,8 @@ mod kernel;
 mod mesh;
 mod process;
 mod project;
-mod session;
 mod skill;
+
 mod spec6;
 mod studio;
 mod sync;
@@ -55,22 +55,19 @@ pub use mesh::{
     MeshBroadcast, MeshDeregister, MeshDeregistered, MeshDiscoverResponse, MeshMessage,
     MeshRegister, MeshRegistered, MeshSend, MeshSendFailed, MeshStatus,
 };
-pub use process::ProcessOrphaned;
-pub use project::{ProjectArchived, ProjectRegistered, ProjectSeen, ProjectSwitched};
-pub use session::{
-    SessionAttached, SessionDrainAborted, SessionDrainCompleted, SessionDrainStarted, SessionEnded,
-    SessionHeartbeat, SessionProgress, SessionStarted, SessionStatusChanged, SessionToolCountIncremented,
-    SessionTurnFailed,
-};
 pub use skill::{SkillCompleted, SkillFailed, SkillStarted};
 pub use spec6::{AgentTaskComplete, HumanResponse, PipelineStepRetry};
 pub use studio::{
+
+
     StudioAnnotationCreated, StudioChatTurn, StudioFeedbackCreated, StudioReply,
 };
 pub use sync::{SyncPushCompleted, SyncPushFailed, SyncStarted, SyncStopped};
 pub use watcher::{
     AgentChanged, AgentDefUpdated, PipelineChanged, RuleChanged, SkillChanged, ViewChanged,
 };
+pub use project::{ProjectArchived, ProjectRegistered, ProjectSeen, ProjectSwitched};
+pub use process::ProcessOrphaned;
 pub use workspace::{WorkspaceActivated, WorkspaceArchived, WorkspaceCreated};
 
 #[cfg(test)]
@@ -88,10 +85,5 @@ mod tests {
         assert_eq!(decoded.workspace_id, "ws-1");
     }
 
-    #[test]
-    fn session_started_payload_has_defaults() {
-        let decoded: SessionStarted = serde_json::from_str(r#"{"goal": "test"}"#).unwrap();
-        assert_eq!(decoded.workspace_id, "");
-        assert!(decoded.agent_id.is_none());
-    }
 }
+

@@ -23,7 +23,6 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::access::RuntimeAccess;
 use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 use crate::auth::scopes::{can_read_artifacts, can_write_artifacts};
@@ -56,7 +55,6 @@ fn map_err(e: ArtifactsError) -> Response {
 /// space-less (no active space → no artifact store; no `global` fallback, S2).
 fn artifacts(state: &ApiState) -> Result<ArtifactService, Response> {
     state
-        .services()
         .artifacts()
         .map_err(|e| err_owned(StatusCode::CONFLICT, e.to_string()))
 }

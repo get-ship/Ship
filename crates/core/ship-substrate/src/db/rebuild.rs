@@ -17,7 +17,7 @@ use std::time::Instant;
 use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row};
 use crate::db::{block_on, ensure_events_db_at_path, open_db_at};
 use ship_types::envelope::EventEnvelope;
-use crate::projections::{ActorProjection, EventBus, SessionProjection};
+use crate::projections::{ActorProjection, EventBus};
 
 /// Report returned by a projection rebuild. Aggregates across every scope db
 /// that was rebuilt.
@@ -33,7 +33,6 @@ pub struct RebuildReport {
 /// the projections whose event types appear in its own log.
 fn full_bus() -> EventBus {
     let mut bus = EventBus::new();
-    bus.register(Box::new(SessionProjection::new()));
     bus.register(Box::new(ActorProjection::new()));
     for projection in crate::projections::extra_projections() {
         bus.register(projection);

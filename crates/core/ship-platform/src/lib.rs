@@ -83,39 +83,14 @@ pub mod services {
     /// Agent-session orchestration re-export (C8b fold).
     pub mod agent_sessions {
         pub use ship_agents::{
-            handle_agent_cancelled, handle_agent_session_started, handle_agents_event,
+            handle_agent_session_started, handle_agents_event,
             start_agents, AgentPorts,
         };
+        // cancel is gated on harness-drivers (ship-code dep required).
+        #[cfg(feature = "harness-drivers")]
+        pub use ship_agents::handle_agent_cancelled;
     }
 
-    /// Process registry — moved to ship-substrate (SSOT).
-    pub mod process_registry {
-        pub use ship_substrate::services::process_registry::*;
-    }
-
-    /// Re-exported from `ship-git` for back-compat with downstream callers
-    /// that still import `ship_platform::services::git::*`.
-    pub use ship_git as git;
-
-    /// Aggregated `ship.<domain>.<op>` → example-JSON pairs across every
-    /// domain migrated to the typed-op single source. Drives
-    /// `cargo xtask gen-fixtures`. Behind the `fixtures` feature.
-    #[cfg(feature = "fixtures")]
-    pub fn data_op_examples() -> Vec<(&'static str, serde_json::Value)> {
-        let mut out: Vec<(&'static str, serde_json::Value)> = Vec::new();
-        out.extend(ship_agents::services::agents::fixtures::examples());
-        out.extend(ship_agents::services::rules::fixtures::examples());
-        out.extend(ship_agents::services::mcp::fixtures::examples());
-        out.extend(ship_agents::services::permissions::fixtures::examples());
-        // account.* — the AccountState enum lives in the `ship-account` crate;
-        // a fresh daemon is logged out.
-        out.push((
-            "account.state",
-            serde_json::to_value(ship_account::types::AccountState::LoggedOut)
-                .expect("AccountState serializes"),
-        ));
-        out
-    }
 }
 
 pub mod testutil;
@@ -146,10 +121,10 @@ fn install_defaults_inner() {
             Box::new(ship_auth::DaemonOwnerProjection),
             // Per-agent approved grant baseline the mint path reads.
             Box::new(ship_agents::services::permissions::ProvisionedGrantsProjection),
-            // Agent-session primitive — sibling of pipeline runs. Tracks
-            // single-agent dispatches (bare ship use, MCP dispatch,
-            // pipeline-step sessions).
-            Box::new(ship_agents::services::sessions::AgentSessionProjection),
+            // Canonical session projection — folds session.* events into
+            // canonical_sessions (runtime.db). Replaces the legacy
+            // AgentSessionProjection (retired by canonical-emitter-migration).
+            Box::new(ship_agents::services::sessions::CanonicalSessionProjection),
             // ship-analytics — folds hook.* into rollup tables. Lives
             // in its own crate (queries, cost, mining) so downstream
             // dashboard / billing / harness-mining work has a home

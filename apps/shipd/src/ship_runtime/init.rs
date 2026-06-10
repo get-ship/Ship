@@ -7,30 +7,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use ship_substrate::events::EmitContext;
-use ship_substrate::services::mesh::SharedMeshRegistry;
 use ship_substrate::task_health::HealthRegistry;
-
-use super::{ShipRuntime, RuntimeConfig, AppMetadata, WorktreeResolver};
-
-/// Production worktree resolver: branch name → worktree path via
-/// `git worktree list`, falling back to the current project root if the
-/// id matches the current branch. Uses the `worktree_path_for_branch` +
-/// `current_branch_at` helpers in `super::worktree`.
-pub fn default_worktree_resolver() -> WorktreeResolver {
-    Arc::new(|id: &str| {
-        if let Some(path) = super::worktree::worktree_path_for_branch(id) {
-            return Some(path);
-        }
-        if let Ok(project_ship) = ship_substrate::project::get_project_dir(None)
-            && let Some(root) = project_ship.parent()
-            && let Some(current_branch) = super::worktree::current_branch_at(root)
-            && current_branch == id
-        {
-            return Some(root.to_path_buf());
-        }
-        None
-    })
-}
+use super::{ShipRuntime, RuntimeConfig, AppMetadata};
 
 impl ShipRuntime {
     /// Create a new runtime. Performs integrity check, DB init, and kernel init.
@@ -128,7 +106,7 @@ impl ShipRuntime {
             // is absent; the platform.db schema migration (which drops the
             // drained legacy tables) is gated on the same `.exists()` so a fresh
             // install never materializes a dead platform.db.
-            ship_kv::migrate_from_platform_db(&dir)
+            ship_agents::migrate_skill_vars_from_platform_db(&dir)
                 .context("kv migration from platform.db")?;
             if ship_substrate::db::platform_db_path(&dir).exists() {
                 ship_substrate::db::ensure_db_at(&dir)?;
@@ -151,14 +129,7 @@ impl ShipRuntime {
             Err(e) => tracing::warn!("trash auto-purge failed: {e}"),
         }
 
-        let mesh_registry: SharedMeshRegistry =
-            Arc::new(tokio::sync::RwLock::new(HashMap::new()));
-
-        // End all previously-active sessions from prior daemon run.
-        // Uses spawn_blocking because the DB layer uses block_in_place.
-        let _ = tokio::task::spawn_blocking(cleanup_active_sessions_on_startup).await;
-
-        // Build the collection + artifact `SpaceContext`s (when a space is active)
+        // Build the collection + artifact `SpaceContext`s
         // and the ONE shared schema registry, here (C-2 §3.1 / UD-7). The
         // `collections()`/`artifacts()` accessors construct stateless services
         // over these per call; the collection wire is mounted with the SAME
@@ -210,7 +181,6 @@ impl ShipRuntime {
         Ok(Self {
             config,
             kernel,
-            mesh_registry,
             agent_mailboxes: Arc::new(Mutex::new(HashMap::new())),
             pty_connections: Arc::new(Mutex::new(HashMap::new())),
             // Platform DB lives at ~/.ship/platform.db only. A workspace
@@ -238,10 +208,8 @@ impl ShipRuntime {
                     None => home.daemon_dir(),
                 }
             },
-            mesh: tokio::sync::OnceCell::new(),
-            jobs: tokio::sync::OnceCell::new(),
+            #[cfg(feature = "ship-code")]
             dispatch_handle: std::sync::OnceLock::new(),
-            session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             collection_ctx,
@@ -249,8 +217,8 @@ impl ShipRuntime {
             schemas,
             global_blob_dir,
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
-            pty_sessions: crate::sessions::SessionRegistry::new(),
-            actor_sessions: crate::sessions::ActorRegistry::new(),
+            pty_sessions: ship_agents::services::sessions::SessionRegistry::new(),
+            actor_sessions: ship_agents::services::sessions::ActorRegistry::new(),
             rules: ship_agents::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
             permissions: {
                 // PermissionsServiceImpl needs an Arc<dyn McpService> for
@@ -270,15 +238,15 @@ impl ShipRuntime {
             skills: ship_agents::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
             agents: ship_agents::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
             pipelines: ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
-            git: ship_platform::services::git::service::GitServiceImpl::arc(global_dir.clone()),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
             agent_def_kernel: std::sync::OnceLock::new(),
             agent_reactive: std::sync::OnceLock::new(),
+            pipeline_reactive: std::sync::OnceLock::new(),
+            pipeline_watch_kernel: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
-            worktree_resolver: default_worktree_resolver(),
             shutdown_token: std::sync::OnceLock::new(),
             live_resolvers: Arc::new(crate::live_resolvers::build()),
         })
@@ -340,46 +308,6 @@ impl ShipRuntime {
         // it don't need to re-handshake after a daemon restart.
         crate::daemon::remove_liveness_files(&self.daemon_dir);
         tracing::info!("shipd: shutdown complete");
-    }
-}
-
-/// End all previously-active sessions on daemon startup.
-///
-/// Handles the case where the daemon crashed and sessions were never ended.
-fn cleanup_active_sessions_on_startup() {
-    let sessions = match ship_substrate::db::session_drain::list_active_sessions() {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!("startup cleanup: failed to list active sessions: {e}");
-            return;
-        }
-    };
-
-    if sessions.is_empty() {
-        return;
-    }
-
-    tracing::info!(
-        count = sessions.len(),
-        "startup cleanup: ending stale active sessions from previous run"
-    );
-
-    for session in &sessions {
-        match ship_substrate::db::session_drain::force_end_session(&session.id, "daemon_restart") {
-            Ok(()) => {
-                tracing::info!(
-                    session_id = %session.id,
-                    workspace = %session.branch,
-                    "startup cleanup: ended stale session"
-                );
-            }
-            Err(e) => {
-                tracing::warn!(
-                    session_id = %session.id,
-                    "startup cleanup: failed to end stale session: {e}"
-                );
-            }
-        }
     }
 }
 

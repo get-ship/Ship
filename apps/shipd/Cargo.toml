@@ -18,13 +18,14 @@ name = "shipd"
 path = "src/main.rs"
 
 [dependencies]
+agent-def = { path = "../../crates/core/ship-platform/crates/agent-def" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
+ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", features = ["harness-drivers"], optional = true }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
 ship-files = { path = "../../crates/core/ship-platform/crates/ship-files" }
 ship-harnesses = { path = "../../crates/core/ship-platform/crates/ship-harnesses" }
-ship-kv = { path = "../../crates/core/ship-platform/crates/ship-kv" }
 ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }
 ship-views = { path = "../../crates/core/ship-platform/crates/ship-views" }
@@ -32,7 +33,6 @@ ship-isolation = { path = "../../crates/core/ship-isolation", default-features =
 ship-substrate-host = { path = "../../crates/core/ship-substrate/crates/ship-substrate-host" }
 ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }
 ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
-ship-supervisor = { path = "../../crates/core/ship-substrate/crates/ship-supervisor" }
 # Dispatch composition root (supervisor split — `shipd::dispatch`):
 #   ship-runner      — process/executor lifecycle emit helpers used by
 #                      ShipdPlatform + orphan cleanup.
@@ -93,7 +93,10 @@ async-trait = { workspace = true }
 async-stream = "0.3"
 futures = "0.3"
 notify = { workspace = true }
-tower = { version = "0.5", features = ["timeout"] }
+tower = { version = "0.5", features = ["timeout", "util"] }
+# L1 floki agent runtime — shipd (L2) implements floki::Gateway via ShipdGateway.
+# The floki crate gains no shipd dependency; this is the sole seam.
+floki = { path = "../../crates/core/ship-platform/crates/floki" }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }
 datastar = { version = "=0.3.1", features = ["axum"] }
 jsonwebtoken = "9"
@@ -124,6 +127,16 @@ regex = { workspace = true }
 specta = { workspace = true, features = ["chrono", "serde_json"], optional = true }
 
 [features]
+# Default feature set — normal daemon build with full harness machinery.
+default = ["ship-code"]
+# ship-code: harness-driver stack (dispatch, sessions, hooks, job routes).
+# Turn off with --no-default-features to get a harness-free shipd build.
+ship-code = ["dep:ship-code", "harness-drivers"]
+# harness-drivers: propagate down to ship-agents and ship-platform so their
+# cfg gates align with shipd's ship-code gate. When ship-code is ON, both
+# ship-agents and ship-platform get harness-drivers. With --no-default-features
+# all three compile flag-off (ship-code is absent, harness-driver stack gone).
+harness-drivers = ["ship-agents/harness-drivers", "ship-platform/harness-drivers"]
 unstable = ["ship-platform/unstable"]
 # G2 daemon RSS-soak regression gate (.artifacts/sui-arc/integrity/report.md §4).
 # OFF by default so it never runs in `cargo test` / `just build`. The soak
@@ -151,6 +164,9 @@ tokio = { workspace = true, features = ["full", "test-util"] }
 tokio-tungstenite = "0.28"
 futures-util = "0.3"
 serde_json = { workspace = true }
+# first-light smoke tests: mock model + mock event sink
+rig = { version = "0.38.1", package = "rig-core", features = ["test-utils"] }
+ship-kernel = { path = "../../crates/core/ship-substrate/crates/ship-kernel" }
 
 [lints]
 workspace = true

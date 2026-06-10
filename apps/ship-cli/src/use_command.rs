@@ -1,8 +1,8 @@
 //! `ship use --launch` — dispatch a single agent session.
 //!
 //! After the existing compile-and-activate flow runs in `main.rs::run_use`,
-//! this module forwards launch-bearing invocations to the daemon's
-//! `POST /api/v1/agent_sessions/dispatch` endpoint.
+//! this module forwards launch-bearing invocations to the daemon via
+//! the Connect `AgentsService.Dispatch` RPC (ship.ops.v1).
 
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
@@ -48,7 +48,7 @@ pub fn should_launch(opts: &LaunchOpts) -> bool {
         || opts.keepalive
 }
 
-/// Build the JSON body for `POST /api/v1/agent_sessions/dispatch`.
+/// Build the JSON body for `AgentsService.Dispatch` (ship.ops.v1).
 ///
 /// `effective_path` is the directory the user is launching into — used to
 /// derive the workspace label from its basename.

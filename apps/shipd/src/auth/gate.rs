@@ -235,7 +235,7 @@ mod tests {
     fn reflected_policy_matches_declared_commands() {
         use ship_ops_rpc::policy::policy_for;
         let mut checked = 0;
-        for cmd in crate::services::schema::COMMANDS {
+        for cmd in ship_ops_rpc::catalog::COMMANDS {
             let Some(pol) = policy_for(cmd.name) else { continue };
             assert_eq!(
                 pol.blast,
@@ -259,7 +259,7 @@ mod tests {
     #[test]
     fn proto_backed_c2_commands_resolve_to_operator_authority() {
         use ship_ops_rpc::policy::policy_for;
-        for cmd in crate::services::schema::COMMANDS {
+        for cmd in ship_ops_rpc::catalog::COMMANDS {
             if BlastRadius::from_descriptor(cmd.blast_radius) != BlastRadius::C2Elevated {
                 continue;
             }
@@ -299,7 +299,7 @@ mod tests {
         }
         // Operational domains (#95) are operator-surface, never agent-grantable.
         let operational = |s: &str| matches!(s, "meta" | "permissions");
-        for cmd in crate::services::schema::COMMANDS {
+        for cmd in ship_ops_rpc::catalog::COMMANDS {
             if BlastRadius::from_descriptor(cmd.blast_radius) != BlastRadius::C2Elevated {
                 continue;
             }

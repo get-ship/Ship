@@ -5,6 +5,7 @@
 //! Ship browser embed without daemon imports. Acceptance: `cargo
 //! check --target aarch64-linux-android -p ship-pipelines` succeeds.
 
+pub mod definition;
 pub mod fanout;
 pub mod gate;
 pub mod parse;
@@ -12,6 +13,7 @@ pub mod types;
 pub mod validate;
 pub mod variables;
 
+pub use definition::{Invocation, PipelineDefinition, PipelineStepDef, ProviderOverride};
 pub use fanout::{AggregateDecision, LaneOutcome, aggregate_lane_outcomes};
 pub use gate::{GateOutcome, GateRule, GateSpec};
 pub use parse::{PipelineMeta, normalize_pipeline};

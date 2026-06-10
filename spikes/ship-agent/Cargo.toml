@@ -1,0 +1,30 @@
+# Greenfield spike for the Ship Agents Framework runtime.
+# Declares its OWN workspace so the main Ship workspace (which excludes
+# .artifacts) does not pull it in. deno_core is added in a later step once the
+# pure-Rust bones (spec / auth / gate / gateway / spine) compile.
+[workspace]
+
+[package]
+name = "ship-agent-spike"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+thiserror = "2"
+async-trait = "0.1"
+futures = "0.3"
+deno_core = "0.403.0"
+parking_lot = "0.12"
+deno_error = "0.7"
+# Pinned to crates.io so the crate builds from any git worktree location,
+# including isolated subagent worktrees (the local eval checkout is gone).
+rig = { version = "0.38.1", package = "rig-core", features = ["test-utils"] }
+json5 = "1"
+
+[dev-dependencies]
+tempfile = "3"

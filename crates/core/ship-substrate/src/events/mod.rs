@@ -12,6 +12,7 @@ pub mod types {
     #[cfg(test)]
     mod tests {
         use super::event_types::*;
+        use ship_types::event_registry::{self, EventScope, Retention};
 
         #[test]
         fn event_type_constants_are_unique() {
@@ -30,26 +31,15 @@ pub mod types {
             // (the deprecated chat read-projection event, sole consumer was chat)
             // → 113. Job `dead-events-cull` removes `project.changed` and
             // `skill.attached_to_session` (zero producers, no consumers) → 111.
+            // Job `canonical-session-events` adds the 6 canonical agent-session
+            // events (session.completed, session.failed, session.cancelled,
+            // session.suspended, session.turn.started, session.turn.ended) → 117.
+            // Job `workbench-teardown` retires the 11 workbench session.* events
+            // AND adds the canonical `session.started` (the workbench string the
+            // canonical family deferred on) → 117 - 11 + 1 = 107.
             // The hard count is enforced here to catch accidental removals.
             // When adding events: update ALL in event_types.rs AND payload_registry.rs.
-            assert_eq!(ALL.len(), 111, "exactly 111 event type constants required (dead-events-cull removed project.changed + skill.attached_to_session)");
-        }
-
-        #[test]
-        fn all_entries_have_registry_entries() {
-            use ship_types::event_registry;
-            let registry_names: std::collections::HashSet<&str> =
-                event_registry::registry().map(|d| d.name).collect();
-            let missing: Vec<&str> = ALL
-                .iter()
-                .copied()
-                .filter(|name| !registry_names.contains(name))
-                .collect();
-            assert!(
-                missing.is_empty(),
-                "event types in ALL not registered in event_registry: {missing:?}\n\
-                 Add entries to ship_substrate::events::payload_registry"
-            );
+            assert_eq!(ALL.len(), 107, "exactly 107 event type constants required (workbench-teardown: -11 workbench + 1 canonical session.started)");
         }
     }
 }

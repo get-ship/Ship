@@ -26,7 +26,7 @@ pub use decompile::{
 pub use resolve::{ProjectLibrary, ResolvedConfig, WorkspaceOverrides, resolve, resolve_library};
 pub use schemas::{HARNESS_MANAGED_KEYS, HARNESS_SCHEMAS, managed_keys, schema_url};
 pub use types::{
-    AgentBundle, AgentLayerConfig, AgentLimits, AgentProfile, ArtifactType,
+    AgentBundle, AgentLayerConfig, AgentLimits, AgentProfile, ArtifactType, BlastRadius, Capability,
     CatalogCategory, CatalogEntry, CatalogKind, CommandPermissions, FsPermissions,
     HookConfig, HookTrigger, ListAgentsResponse, McpRefs, McpServerConfig, McpServerType,
     AgentConfig, NamespaceConfig, NetworkPermissions, NetworkPolicy, PermissionConfig, Permissions,

@@ -202,7 +202,7 @@ fn install_writes_lock_with_correct_package_entry() {
 
 #[test]
 fn workspace_state_active_profile_round_trip() {
-    use ship_kv as kv;
+    use ship_skill_vars as kv;
     use ship_substrate::db;
 
     let tmp = TempDir::new().unwrap();

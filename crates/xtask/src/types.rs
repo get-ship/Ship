@@ -101,6 +101,12 @@ pub fn collect_types() -> TypeCollection {
     c.register::<ship_substrate::events::pipeline::PipelineStep>();
     c.register::<ship_substrate::events::pipeline::StepType>();
 
+    // definition.rs — the unified PipelineDefinition authoring contract (P0.2).
+    c.register::<ship_substrate::events::pipeline::PipelineDefinition>();
+    c.register::<ship_substrate::events::pipeline::PipelineStepDef>();
+    c.register::<ship_substrate::events::pipeline::ProviderOverride>();
+    c.register::<ship_substrate::events::pipeline::Invocation>();
+
     // events/feedback.rs
     c.register::<ship_substrate::events::feedback::FeedbackEvent>();
     c.register::<ship_substrate::events::feedback::FeedbackKind>();
@@ -121,11 +127,6 @@ pub fn collect_types() -> TypeCollection {
     // collection field-definition types are NOT specta-exported in the new
     // ship-collection crate (post-#81 specta removal from domain types); the
     // wire/proto types are the registered surface now (C-2 §3.8).
-
-    // workspace/types_session.rs (the workspace primitive retired; only
-    // session-shaped types remain)
-    c.register::<ship_agents::sessions::Session>();
-    c.register::<ship_agents::sessions::SessionStatus>();
 
     c
 }

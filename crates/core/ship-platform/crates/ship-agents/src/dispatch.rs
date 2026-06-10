@@ -13,16 +13,25 @@
 
 use std::sync::Arc;
 
-use ship_runner::build_spawn_env;
-use ship_runner::emit::{emit_process_spawned, persist_and_route};
-use ship_runner::exit_handler::{self, ExitVocabulary};
-use ship_runner::router::DISPATCH_GATE;
-use ship_substrate::events::agent_session::{
-    event_types as agent_session_event_types, AgentSessionDispatchedPayload,
-    AgentSessionFailedPayload, AgentSessionStartedPayload, InvocationMode,
-};
+#[cfg(feature = "harness-drivers")]
+use ship_code::runner::build_spawn_env;
+use ship_runner::emit::persist_and_route;
+#[cfg(feature = "harness-drivers")]
+use ship_runner::emit::emit_process_spawned;
+#[cfg(feature = "harness-drivers")]
+use ship_code::runner::exit_handler::{self, ExitVocabulary};
+#[cfg(feature = "harness-drivers")]
+use ship_code::runner::router::DISPATCH_GATE;
+#[cfg(feature = "harness-drivers")]
+use agent_def::canonical_session::{SessionFailed, event_types as canonical_session_event_types};
+use ship_substrate::events::agent_session::AgentSessionStartedPayload;
+#[cfg(feature = "harness-drivers")]
+use ship_substrate::events::agent_session::InvocationMode;
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::services::dispatch_ports::{LaunchProfile, SessionContext};
+#[cfg(feature = "harness-drivers")]
+use ship_code::dispatch_ports::SessionContext;
+#[cfg(feature = "harness-drivers")]
+use ship_substrate::services::dispatch_ports::LaunchProfile;
 use tokio::sync::Mutex;
 
 use crate::ports::AgentPorts;
@@ -49,56 +58,77 @@ pub async fn handle_agent_session_started(
         }
     };
 
-    // Pipeline-composed sessions: the pipeline runner spawns the harness itself
-    // (it has step-monitor concerns this handler doesn't cover — gates, retries,
-    // output promotion, fanout). The agent.session.started emitted by the
-    // composer is purely for observability — it populates agent_sessions so bare
-    // and composed dispatches share one read model. Skip the spawn here to avoid
-    // double-spawn.
-    if payload.parent_pipeline_run_id.is_some() {
-        tracing::debug!(
-            slug = payload.slug, session_id = payload.session_id,
-            parent = ?payload.parent_pipeline_run_id,
-            "agent-session-dispatch: composed by pipeline — skip spawn (composer owns it)"
-        );
-        return;
+    // Floki-harness fast path: when harness == "floki" and the closure is wired,
+    // spawn it off the mailbox loop (same detach pattern as the harness path
+    // below) and return immediately. The harness-driver stack is skipped — no
+    // worktree prep, no executor spawn, no process registry.
+    if payload.harness.as_deref() == Some("floki") {
+        if let Some(ref run_fn) = ports.floki_run_fn {
+            let run_fn = run_fn.clone();
+            let payload = payload.clone();
+            tokio::spawn(run_fn(payload));
+            return;
+        }
     }
 
-    if let Some(deps) = &payload.depends_on
-        && !deps.is_empty()
+    // The rest of this function is harness-driver machinery. With flag-off,
+    // only the floki path above is reachable; non-floki sessions (and floki
+    // sessions with no closure wired) are silently no-op'd here — no process
+    // to spawn, no worktree to prep.
+    #[cfg(feature = "harness-drivers")]
     {
-        // Dependencies are session slugs. Pending-dispatch (the equivalent of
-        // `dispatch_ready_pending_jobs` for sessions) will pick this up once
-        // parents complete. For now we just skip — the session record is in
-        // Pending status and the pending dispatcher surfaces it.
-        tracing::info!(
-            slug = payload.slug, session_id = payload.session_id,
-            deps = ?deps,
-            "agent-session-dispatch: deferring until dependencies complete"
-        );
-        return;
-    }
+        // Pipeline-composed sessions: the pipeline runner spawns the harness itself
+        // (it has step-monitor concerns this handler doesn't cover — gates, retries,
+        // output promotion, fanout). The agent.session.started emitted by the
+        // composer is purely for observability — it populates agent_sessions so bare
+        // and composed dispatches share one read model. Skip the spawn here to avoid
+        // double-spawn.
+        if payload.parent_pipeline_run_id.is_some() {
+            tracing::debug!(
+                slug = payload.slug, session_id = payload.session_id,
+                parent = ?payload.parent_pipeline_run_id,
+                "agent-session-dispatch: composed by pipeline — skip spawn (composer owns it)"
+            );
+            return;
+        }
 
-    // Dispatch OFF the actor's mailbox loop. Sandbox prep for Tier 2+ runs
-    // synchronously inside `executor.spawn` (docker run + sidecar-up — seconds;
-    // minutes for VM boot), so awaiting it on the loop would stall EVERY other
-    // session event for the whole prep. We detach into a task: the mailbox
-    // returns immediately, and the session row stays in its post-`started`
-    // Pending state until this task emits `agent.session.dispatched` (or
-    // `.failed`) — exactly the observable "preparing sandbox" window we want,
-    // without a fake "running".
-    //
-    // Safe because (a) event dedup + the terminal-state guard already ran
-    // synchronously in the actor loop BEFORE this point, and (b) sessions are
-    // mutually independent (a sandbox is a per-project trust domain).
-    let kernel = kernel.clone();
-    let ports = ports.clone();
-    tokio::spawn(async move {
-        let _permit = DISPATCH_GATE.acquire().await;
-        dispatch_agent_session_internal(&kernel, &payload, &ports).await;
-    });
+        if let Some(deps) = &payload.depends_on
+            && !deps.is_empty()
+        {
+            // Dependencies are session slugs. Pending-dispatch (the equivalent of
+            // `dispatch_ready_pending_jobs` for sessions) will pick this up once
+            // parents complete. For now we just skip — the session record is in
+            // Pending status and the pending dispatcher surfaces it.
+            tracing::info!(
+                slug = payload.slug, session_id = payload.session_id,
+                deps = ?deps,
+                "agent-session-dispatch: deferring until dependencies complete"
+            );
+            return;
+        }
+
+        // Dispatch OFF the actor's mailbox loop. Sandbox prep for Tier 2+ runs
+        // synchronously inside `executor.spawn` (docker run + sidecar-up — seconds;
+        // minutes for VM boot), so awaiting it on the loop would stall EVERY other
+        // session event for the whole prep. We detach into a task: the mailbox
+        // returns immediately, and the session row stays in its post-`started`
+        // Pending state until this task emits `agent.session.dispatched` (or
+        // `.failed`) — exactly the observable "preparing sandbox" window we want,
+        // without a fake "running".
+        //
+        // Safe because (a) event dedup + the terminal-state guard already ran
+        // synchronously in the actor loop BEFORE this point, and (b) sessions are
+        // mutually independent (a sandbox is a per-project trust domain).
+        let kernel = kernel.clone();
+        let ports = ports.clone();
+        tokio::spawn(async move {
+            let _permit = DISPATCH_GATE.acquire().await;
+            dispatch_agent_session_internal(&kernel, &payload, &ports).await;
+        });
+    }
 }
 
+#[cfg(feature = "harness-drivers")]
 async fn dispatch_agent_session_internal(
     kernel: &Kernel,
     payload: &AgentSessionStartedPayload,
@@ -154,13 +184,11 @@ async fn dispatch_agent_session_internal(
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug, "agent-session-dispatch: isolation prepare failed: {e}");
-            emit_agent_session_failed(
+            emit_session_failed(
                 kernel,
                 &payload.session_id,
                 slug,
                 &format!("isolation prepare failed: {e}"),
-                None,
-                "isolation_prepare",
             )
             .await;
             return;
@@ -178,13 +206,11 @@ async fn dispatch_agent_session_internal(
         Ok(h) => h,
         Err(e) => {
             tracing::error!(slug, "agent-session-dispatch: executor spawn failed: {e}");
-            emit_agent_session_failed(
+            emit_session_failed(
                 kernel,
                 &payload.session_id,
                 slug,
                 &format!("executor spawn failed: {e}"),
-                None,
-                "executor_spawn",
             )
             .await;
             return;
@@ -244,69 +270,32 @@ async fn dispatch_agent_session_internal(
         exit_rx,
     );
 
-    // Emit agent.session.dispatched — flips the projection's status to
-    // Dispatched and tells observers the harness is live.
-    emit_agent_session_dispatched(
-        kernel,
-        &payload.session_id,
-        slug,
-        &worktree_path.to_string_lossy(),
-        &resolved_harness,
-        payload.model.as_deref(),
-        pid,
-    )
-    .await;
+    // agent.session.dispatched has no canonical equivalent — the canonical
+    // model tracks active/awaiting_input/terminal only, not the intermediate
+    // "process spawned" signal. The legacy AgentSessionProjection wrote a
+    // Dispatched row here; after Commit D that projection is retired. No
+    // canonical emit needed for spawn-success.
+    let _ = (pid, resolved_harness); // suppress unused warnings
 }
 
-// ── Agent-session emit helpers ──────────────────────────────────────────────
+// ── Canonical session emit helpers ─────────────────────────────────────────
 //
-// All use only L0 types: the agent_session payloads + EventEnvelope +
-// the runner's persist_and_route. No pipeline / projection reach-up.
+// Canonical payloads (session.*) + EventEnvelope + persist_and_route.
+// No driver-edge fields (pid, worktree, exit_code, stage).
 
-pub(crate) async fn emit_agent_session_dispatched(
+#[cfg(feature = "harness-drivers")]
+pub(crate) async fn emit_session_failed(
     kernel: &Kernel,
     session_id: &str,
     slug: &str,
-    worktree: &str,
-    harness: &str,
-    model: Option<&str>,
-    pid: Option<u32>,
+    reason: &str,
 ) {
-    let payload = AgentSessionDispatchedPayload {
+    let payload = SessionFailed {
         session_id: session_id.to_string(),
-        slug: slug.to_string(),
-        worktree: worktree.to_string(),
-        harness: harness.to_string(),
-        model: model.map(str::to_string),
-        pid,
+        reason: reason.to_string(),
     };
     if let Ok(env) = EventEnvelope::new(
-        agent_session_event_types::AGENT_SESSION_DISPATCHED,
-        session_id,
-        &payload,
-    ) {
-        let env = env.with_actor_id("service.agent-session-dispatch");
-        persist_and_route(kernel, env, slug, None).await;
-    }
-}
-
-pub(crate) async fn emit_agent_session_failed(
-    kernel: &Kernel,
-    session_id: &str,
-    slug: &str,
-    error: &str,
-    exit_code: Option<i32>,
-    stage: &str,
-) {
-    let payload = AgentSessionFailedPayload {
-        session_id: session_id.to_string(),
-        slug: slug.to_string(),
-        error: error.to_string(),
-        exit_code,
-        stage: stage.to_string(),
-    };
-    if let Ok(env) = EventEnvelope::new(
-        agent_session_event_types::AGENT_SESSION_FAILED,
+        canonical_session_event_types::SESSION_FAILED,
         session_id,
         &payload,
     ) {
