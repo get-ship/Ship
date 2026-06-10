@@ -1,19 +1,21 @@
 //! Canonical ship-shaped agent-session event family — consts only.
 //!
-//! Two tiers, scope follows granularity:
+//! Three tiers, scope follows granularity:
 //!
 //! - **Session (coarse)** — Space-scoped, Durable. The whole agent
 //!   invocation: one harness, one session_id, one Space, one end state.
 //! - **Turn (medium)** — Runtime-scoped, Ephemeral. A single back-and-forth
 //!   inside a keepalive session; churns too fast to be Durable.
+//! - **Op (fine-grained)** — Runtime-scoped, Ephemeral. Per-tool-call
+//!   observations; churns too fast to be Durable. R2 hook conversion moved
+//!   these from a `hook.*` family to the canonical `op.*` namespace so
+//!   floki + third-party harnesses share ONE vocabulary.
 //!
-//! The fine-grained op.* tier is DEFERRED to analytics (it rides the hook
-//! stream); it does NOT live here.
-//!
-//! This family is the COMPLETE ship-shaped session vocabulary (job
-//! `canonical-session-events` + the `workbench-teardown` follow-up that
-//! adopted `session.started`). The legacy workbench `session.*` family is
-//! retired — see R6 / `.artifacts/agents-architecture.md`.
+//! This family is the COMPLETE ship-shaped session vocabulary (jobs
+//! `canonical-session-events` + `workbench-teardown` + the `event-canon`
+//! R2 conversion). The legacy workbench `session.*` and
+//! third-party-harness `hook.*` families are retired — see
+//! `.artifacts/agents-architecture.md`.
 
 // ── Session (coarse) — Space-scoped, Durable ───────────────────────────────
 
@@ -51,6 +53,29 @@ pub const TURN_STARTED: &str = "session.turn.started";
 /// next turn. Runtime-scoped, Ephemeral.
 pub const TURN_ENDED: &str = "session.turn.ended";
 
+// ── Op (fine-grained) — Runtime-scoped, Ephemeral ──────────────────────────
+//
+// Tool-use op-card surface. R2 hook conversion: third-party-harness hook
+// data is converted into these canonical envelopes; harness /
+// provenance rides the envelope, not a `hook.*` family. The
+// analytics projection folds `op.*` into the per-session rollup
+// tables (same shape it previously read from `hook.*`).
+
+/// A tool invocation is about to start. Carries the structured
+/// arguments so analytics can count "all bash commands" or
+/// "all file edits to $WORKSPACE/auth" without re-parsing.
+pub const OP_TOOL_USE_STARTED: &str = "op.tool_use_started";
+
+/// A tool invocation has completed (ok / error / unknown). Pairs
+/// with `OP_TOOL_USE_STARTED` — the start event INSERTs a row,
+/// the completion UPDATEs the matching row by `(session_id, tool)`.
+pub const OP_TOOL_USE_COMPLETED: &str = "op.tool_use_completed";
+
+/// A tool call was REJECTED before invocation. Distinct from
+/// `OP_TOOL_USE_COMPLETED{status="error"}` because the call
+/// never produced a started/completed pair — the tool never ran.
+pub const OP_TOOL_USE_DENIED: &str = "op.tool_use_denied";
+
 /// Every canonical-session event name in one slice — for the const-set
 /// consistency test and any consumer that needs a closed list of this
 /// family's events.
@@ -62,4 +87,14 @@ pub const ALL_CANONICAL_SESSION: &[&str] = &[
     SESSION_SUSPENDED,
     TURN_STARTED,
     TURN_ENDED,
+];
+
+/// Every canonical op.* event name in one slice — for the const-set
+/// consistency test and any consumer that needs a closed list of this
+/// family's events. The op.* family is part of the same L1
+/// canonical family as session.* / session.turn.*.
+pub const ALL_CANONICAL_OP: &[&str] = &[
+    OP_TOOL_USE_STARTED,
+    OP_TOOL_USE_COMPLETED,
+    OP_TOOL_USE_DENIED,
 ];

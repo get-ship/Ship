@@ -56,3 +56,14 @@ register_event!("session.cancelled", [EventScope::Space], Retention::Durable, St
 register_event!("session.suspended", [EventScope::Space], Retention::Durable, Stability::Stable, "canonical_session::SessionSuspended");
 register_event!("session.turn.started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnStarted");
 register_event!("session.turn.ended", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnEnded");
+
+// ── op.* (fine-grained) — Runtime-scoped, Ephemeral ────────────────────────────
+// R2 hook conversion: the op.* family replaces the legacy
+// `hook.*` family. Third-party-harness hook data is converted into
+// these canonical envelopes; harness / provenance rides the
+// envelope, not a separate `hook.*` family. Fine-grained (per
+// tool-call) so Runtime + Ephemeral — same scope rule as
+// `session.turn.*`, just one more level of granularity.
+register_event!("op.tool_use_started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseStarted");
+register_event!("op.tool_use_completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseCompleted");
+register_event!("op.tool_use_denied", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseDenied");
