@@ -25,7 +25,7 @@ function esc(s: string): string {
 function tile(g: Game): string {
   const title = g.title ?? g.id
   const tone = TONES.has(g.tone ?? '') ? ` t-${g.tone}` : ''
-  const art = esc((g.art ?? title.charAt(0) || '?').slice(0, 2))
+  const art = esc((g.art ?? (title.charAt(0) || '?')).slice(0, 2))
   return `<div class="tile${tone}" data-game-id="${esc(g.id)}" tabindex="0" `
     + `role="button" aria-label="${esc(title)}">`
     + `<div class="art">${art}</div>`
