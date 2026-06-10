@@ -361,12 +361,16 @@ impl PipelinesServiceTrait for PipelinesWire {
     }
 
     // ── dispatch + end_turn (shipd route cores via write_fn) ─────────────────
+    // Both are C1 writes (ship.runtime.dispatch / ship.runtime.write). The gate
+    // is called first — same pattern as every other C1/C2 write on this wire.
 
     async fn dispatch(
         &self,
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedDispatchPipelineReqView,
     ) -> ServiceResult<JsonResponse> {
+        // C1 gate — MUST precede any side-effectful work (FLAG-1 fix, R18).
+        (self.gate)(&ctx, "pipelines.dispatch")?;
         let opt = |s: &str| {
             if s.is_empty() { Value::Null } else { Value::String(s.to_string()) }
         };
@@ -395,6 +399,10 @@ impl PipelinesServiceTrait for PipelinesWire {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedEndTurnReqView,
     ) -> ServiceResult<JsonResponse> {
+        // C1 gate — MUST precede any side-effectful work (FLAG-2 fix, R18).
+        // Blast class: C1_SPACE (matches UpdateStatus/StepDone/Cancel — all
+        // session-control writes declared ship.runtime.write in the proto).
+        (self.gate)(&ctx, "pipelines.end_turn")?;
         let args = json!({ "slug": request.slug });
         let value = (self.write_fn)("pipelines.end_turn".to_string(), args, ctx).await?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
@@ -521,5 +529,190 @@ impl PipelinesServiceTrait for PipelinesWire {
         let scope = parse_scope(request.scope)?;
         let resolved = self.svc.delete(request.name, scope).map_err(pipelines_err)?;
         Ok(Response::new(scoped(request.name, resolved)))
+    }
+}
+
+// ── R18: Gate enforcement behavioral tests ────────────────────────────────────
+// Each test builds a PipelinesWire with a controllable gate and a tracked
+// write_fn, then calls the op under test. Deny tests assert:
+//   (a) the call returns an error, AND
+//   (b) write_fn was NOT called — the side effect did not happen.
+// Allow tests assert that the gate clears (write_fn was reached).
+// The test double for PipelinesService panics on any method the ops-under-test
+// do NOT call (dispatch/end_turn only use `gate` + `write_fn`).
+#[cfg(test)]
+mod gate_tests {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use connectrpc::{ConnectError, RequestContext};
+    use ship_ops_rpc::PipelinesService as PipelinesServiceTrait;
+
+    use super::{GateFn, LiveReadFn, PipelinesWire, WriteFn};
+    use crate::pipelines::service::{PipelineDoc, PipelinesService, PutArgs};
+    use crate::pipelines::state;
+
+    // ── Minimal mock that satisfies the PipelinesService trait ────────────────
+    // dispatch and end_turn never call into self.svc, so all methods can panic.
+    struct NullPipelinesService;
+
+    impl PipelinesService for NullPipelinesService {
+        fn list(&self) -> Vec<state::IndexEntry> {
+            vec![]
+        }
+        fn get(&self, _: &str, _: Option<ship_files::files::Scope>) -> Result<PipelineDoc, state::Error> {
+            Err(state::Error::NotFound("null".to_string()))
+        }
+        fn put(&self, _: PutArgs) -> Result<ship_files::files::Scope, state::Error> {
+            panic!("NullPipelinesService::put should not be called in gate tests")
+        }
+        fn patch(
+            &self,
+            _: &str,
+            _: Option<ship_files::files::Scope>,
+            _: &json_patch::Patch,
+        ) -> Result<ship_files::files::Scope, state::Error> {
+            panic!("NullPipelinesService::patch should not be called in gate tests")
+        }
+        fn delete(
+            &self,
+            _: &str,
+            _: Option<ship_files::files::Scope>,
+        ) -> Result<ship_files::files::Scope, state::Error> {
+            panic!("NullPipelinesService::delete should not be called in gate tests")
+        }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    fn deny_gate() -> GateFn {
+        Arc::new(|_ctx, _op| Err(ConnectError::permission_denied("test: unauthorized")))
+    }
+
+    fn allow_gate() -> GateFn {
+        Arc::new(|_ctx, _op| Ok(()))
+    }
+
+    /// A write_fn that records whether it was ever invoked and returns a
+    /// minimal Ok value. The AtomicBool lets the test assert the side
+    /// effect did (or did not) happen without needing a full daemon state.
+    fn tracked_write_fn(called: Arc<AtomicBool>) -> WriteFn {
+        Arc::new(move |_op, _args, _ctx| {
+            called.store(true, Ordering::SeqCst);
+            Box::pin(async { Ok(serde_json::json!({"ok": true})) })
+        })
+    }
+
+    fn null_live_fn() -> LiveReadFn {
+        Arc::new(|_op, _args| {
+            Box::pin(async { Err(ConnectError::internal("not available in gate tests")) })
+        })
+    }
+
+    fn make_wire(gate: GateFn, write_fn: WriteFn) -> PipelinesWire {
+        PipelinesWire::new(
+            Arc::new(NullPipelinesService),
+            gate,
+            std::path::PathBuf::from("/tmp/gate-test"),
+            null_live_fn(),
+            write_fn,
+            None,
+        )
+    }
+
+    fn empty_ctx() -> RequestContext {
+        RequestContext::new(http::HeaderMap::new())
+    }
+
+    // ── FLAG-1: pipelines.dispatch ────────────────────────────────────────────
+
+    /// SECURITY (R18-dispatch-deny): an UNAUTHORIZED caller (gate → Deny) is
+    /// rejected before write_fn runs — the pipeline is NOT dispatched.
+    #[tokio::test]
+    async fn dispatch_gate_deny_does_not_execute() {
+        let called = Arc::new(AtomicBool::new(false));
+        let wire = make_wire(deny_gate(), tracked_write_fn(called.clone()));
+
+        let req = ship_ops_rpc::DispatchPipelineReq {
+            pipeline: "probe".to_string(),
+            ..Default::default()
+        };
+        let view = buffa::view::OwnedView::from_owned(&req).expect("encode test request");
+        let result = wire.dispatch(empty_ctx(), view).await;
+
+        assert!(result.is_err(), "gate denial must surface as an error");
+        // The critical behavioral assertion: the side effect (write_fn / pipeline
+        // dispatch) must NOT have happened.
+        assert!(
+            !called.load(Ordering::SeqCst),
+            "write_fn (pipeline dispatch) must NOT be called when the gate denies"
+        );
+    }
+
+    /// SECURITY (R18-dispatch-allow): an AUTHORIZED caller clears the gate and
+    /// reaches write_fn — the operation is not blocked.
+    #[tokio::test]
+    async fn dispatch_gate_allow_reaches_write_fn() {
+        let called = Arc::new(AtomicBool::new(false));
+        let wire = make_wire(allow_gate(), tracked_write_fn(called.clone()));
+
+        let req = ship_ops_rpc::DispatchPipelineReq {
+            pipeline: "probe".to_string(),
+            ..Default::default()
+        };
+        let view = buffa::view::OwnedView::from_owned(&req).expect("encode test request");
+        // Ignore the result — write_fn returns a stub; handler may error on the
+        // response parse, but the gate must have cleared.
+        let _ = wire.dispatch(empty_ctx(), view).await;
+
+        assert!(
+            called.load(Ordering::SeqCst),
+            "write_fn must be called when the gate allows (authorized dispatch)"
+        );
+    }
+
+    // ── FLAG-2: pipelines.end_turn ────────────────────────────────────────────
+
+    /// SECURITY (R18-end-turn-deny): an UNAUTHORIZED caller is rejected before
+    /// write_fn runs — the turn signal is NOT sent.
+    #[tokio::test]
+    async fn end_turn_gate_deny_does_not_execute() {
+        let called = Arc::new(AtomicBool::new(false));
+        let wire = make_wire(deny_gate(), tracked_write_fn(called.clone()));
+
+        let req = ship_ops_rpc::EndTurnReq {
+            slug: "run-probe".to_string(),
+            ..Default::default()
+        };
+        let view = buffa::view::OwnedView::from_owned(&req).expect("encode test request");
+        let result = wire.end_turn(empty_ctx(), view).await;
+
+        assert!(result.is_err(), "gate denial must surface as an error");
+        // The critical behavioral assertion: the turn signal must NOT have been
+        // sent (write_fn not invoked).
+        assert!(
+            !called.load(Ordering::SeqCst),
+            "write_fn (end_turn) must NOT be called when the gate denies"
+        );
+    }
+
+    /// SECURITY (R18-end-turn-allow): an AUTHORIZED caller clears the gate and
+    /// reaches write_fn — the operation is not blocked.
+    #[tokio::test]
+    async fn end_turn_gate_allow_reaches_write_fn() {
+        let called = Arc::new(AtomicBool::new(false));
+        let wire = make_wire(allow_gate(), tracked_write_fn(called.clone()));
+
+        let req = ship_ops_rpc::EndTurnReq {
+            slug: "run-probe".to_string(),
+            ..Default::default()
+        };
+        let view = buffa::view::OwnedView::from_owned(&req).expect("encode test request");
+        let _ = wire.end_turn(empty_ctx(), view).await;
+
+        assert!(
+            called.load(Ordering::SeqCst),
+            "write_fn must be called when the gate allows (authorized end_turn)"
+        );
     }
 }

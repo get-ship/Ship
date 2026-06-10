@@ -7,9 +7,11 @@
 //! hand-maintained name→type match anymore — the substrate validates
 //! whatever is registered in the linked binary, including L1 registrations
 //! (canonical `session.*` / `op.*` from agent-def) that the old L0 match
-//! could never see. If a known event type has a malformed payload, it is
-//! rejected before persistence. Unknown event types (custom skill events)
-//! pass through.
+//! could never see. On the kernel-routed emit path (the global KernelRouter
+//! validator chain) a known event type with a malformed payload is rejected
+//! before persistence. Off-kernel writes via `append_enforced` are NOT
+//! payload-schema-checked — they enforce scope/author only. Unknown event
+//! types (custom skill events) pass through.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
