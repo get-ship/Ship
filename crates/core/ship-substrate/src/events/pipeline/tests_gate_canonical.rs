@@ -15,7 +15,7 @@ require_changed:
 forbid_changed:
   - match: [".artifacts/**"]
     min: 0
-:"#;
+"#;
     let g: GateSpec = serde_yaml::from_str(yaml).expect("canonical shape parses");
     assert_eq!(g.require_changed.len(), 1);
     assert_eq!(g.require_changed[0].match_patterns,
@@ -31,7 +31,7 @@ fn legacy_single_object_rule_is_rejected_with_actionable_error() {
 require_changed:
   match: ["**/*.rs"]
   min: 1
-:"#;
+"#;
     let err = serde_yaml::from_str::<GateSpec>(yaml).unwrap_err().to_string();
     assert!(
         err.contains("array") && err.contains("contract freeze"),
@@ -45,7 +45,7 @@ fn legacy_pipe_separated_match_string_is_rejected() {
 require_changed:
   - match: "**/*.rs|**/*.toml"
     min: 1
-:"#;
+"#;
     let err = serde_yaml::from_str::<GateSpec>(yaml).unwrap_err().to_string();
     assert!(
         err.contains("list of glob strings") || err.contains("contract freeze"),
@@ -62,7 +62,7 @@ fn pipe_inside_list_entry_is_rejected() {
 require_changed:
   - match: ["**/*.rs|**/*.toml"]
     min: 1
-:"#;
+"#;
     let err = serde_yaml::from_str::<GateSpec>(yaml).unwrap_err().to_string();
     assert!(err.contains("contains '|'"), "pipe inside list entry must be flagged: {err}");
 }
