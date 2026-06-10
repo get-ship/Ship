@@ -1,8 +1,8 @@
-// Git view controller. Reads come over the SDK's `ship.git.*` live sources
-// (overview is signal-backed; diff is lazy on selectedCommit). Mutations
-// go through `ship.git.stage/unstage/commit/push/pull/checkout/branch_*/init`
-// and bump `refreshNonce` so the live overview re-subscribes and the
-// daemon re-runs the signal resolver.
+// Git view controller — read-only. Git is PARKED: the write path (stage /
+// commit / push / pull / checkout / branch_* / init) went out with GitService.
+// Reads come over the SDK's `ship.git.*` live sources, which route through the
+// daemon's mux resolver (`git.overview`), not a Connect service. Overview is
+// signal-backed; diff is lazy on the selected commit/file.
 
 import { controller, signal, live, derived, unwrapOr, useFilteredList } from '@ship/sui-runtime'
 import type { LiveSource, ViewScope } from '@ship/sui-runtime'
@@ -12,7 +12,6 @@ import type {
   GitDiff,
   GitFileEntry,
   GitOverview,
-  ShipSDK,
 } from '@ship/sdk-client'
 import type { Scope } from './page.sui'
 
@@ -38,12 +37,6 @@ const EMPTY_OVERVIEW: GitOverview = {
 // until a commit is actually selected.
 const NEVER: LiveSource<GitDiff> = { subscribe: () => () => {} }
 
-function errMessage(err: unknown): string {
-  if (err instanceof Error) return err.message
-  if (typeof err === 'string') return err
-  try { return JSON.stringify(err) } catch { return String(err) }
-}
-
 const SUBJECT_RE = /^([a-z]+(?:\([^)]+\))?!?):\s*(.+)$/
 
 /** A commit enriched with its presentation fields for the history row. */
@@ -60,50 +53,12 @@ function getAuthorInitial(author: string): string {
 
 export default controller({
   scope: ({ ship }: ViewScope<Scope>) => {
-    // Mutation closures captured here so `on:` handlers can fire daemon
-    // ops through the typed SDK surface. The runtime strips raw object
-    // refs from scope on serialization; only function values survive.
-    const stagePaths   = (paths: string[]) => ship.git.stage({ paths })
-    const unstagePaths = (paths: string[]) => ship.git.unstage({ paths })
-    const commitNow    = (message: string) => ship.git.commit({ message })
-    const pushNow      = () => ship.git.push({})
-    const pullNow      = () => ship.git.pull({})
-    const fetchNow     = () => ship.git.fetch({})
-    const checkoutRef  = (ref: string) => ship.git.checkout({ ref })
-    const createBranch = (name: string, checkout: boolean) =>
-      ship.git.branch_create({ name, checkout })
-    const deleteBranch = (name: string, force: boolean) =>
-      ship.git.branch_delete({ name, force })
-    const initNow      = () => ship.git.init()
-
     const tab = signal<GitTab>('changes')
     const selectedCommit = signal<string>('')
     const selectedFile = signal<string>('')
     const diffMode = signal<DiffMode>('unified')
     const activeBranchName = signal<string>('')
     const refreshNonce = signal<number>(0)
-
-    // Status banner — surfaces every op error as `<sui-alert>`. Cleared
-    // on the next successful op or by explicit dismiss.
-    const opError = signal<string>('')
-    const opInfo = signal<string>('')
-    const busy = signal<string>('') // op label while a mutation is in flight
-
-    // Commit dialog state.
-    const commitOpen = signal(false)
-    const commitSubject = signal<string>('')
-    const commitBody = signal<string>('')
-    const commitError = signal<string>('')
-
-    // Branch dialogs.
-    const branchCreateOpen = signal(false)
-    const branchCreateName = signal<string>('')
-    const branchCreateCheckout = signal(true)
-    const branchCreateError = signal<string>('')
-    const branchDeleteOpen = signal(false)
-    const branchDeleteTarget = signal<string>('')
-    const branchDeleteForce = signal(false)
-    const branchDeleteError = signal<string>('')
 
     const overview = live<GitOverview>(() => {
       refreshNonce()
@@ -130,12 +85,6 @@ export default controller({
     const branchesCount  = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).branches.length)
     const recentCommits  = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).commits.slice(0, 5))
     const recentBranches = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).branches.slice(0, 6))
-    const stagedCount    = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).staged.length)
-    const unstagedCount  = derived(() => {
-      const o = unwrapOr(overview, EMPTY_OVERVIEW)
-      return o.modified.length + o.untracked.length
-    })
-    const canCommit      = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).staged.length > 0)
     const fileGroups     = derived(() => {
       const o = unwrapOr(overview, EMPTY_OVERVIEW)
       return [
@@ -163,10 +112,6 @@ export default controller({
       const v = (diff as unknown as () => { kind: string; value?: GitDiff })()
       return v.kind === 'ok' && !!v.value?.is_working
     })
-    const overviewErrMsg = derived(() => {
-      const v = (overview as unknown as () => { kind: string; error?: { message?: string } })()
-      return v.kind === 'error' ? (v.error?.message ?? 'Unknown error') : ''
-    })
     const isNoRepo       = derived(() => {
       const v = (overview as unknown as () => { kind: string; error?: { message?: string } })()
       const msg = v.kind === 'error' ? (v.error?.message ?? '') : ''
@@ -175,18 +120,11 @@ export default controller({
     return {
       tab, selectedCommit, selectedFile, diffMode, activeBranchName,
       refreshNonce, overview, diff,
-      opError, opInfo, busy,
-      commitOpen, commitSubject, commitBody, commitError,
-      branchCreateOpen, branchCreateName, branchCreateCheckout, branchCreateError,
-      branchDeleteOpen, branchDeleteTarget, branchDeleteForce, branchDeleteError,
-      stagePaths, unstagePaths, commitNow, pushNow, pullNow, fetchNow,
-      checkoutRef, createBranch, deleteBranch, initNow,
       branch, headShort, clean, totalChanged, ahead, behind,
       staged, modified, untracked, commits, branches,
       commitsCount, branchesCount, recentCommits, recentBranches,
-      stagedCount, unstagedCount, canCommit, fileGroups,
-      activeBranch, diffFiles, diffReady, diffIsWorking,
-      overviewErrMsg, isNoRepo,
+      fileGroups, activeBranch, diffFiles, diffReady, diffIsWorking,
+      isNoRepo,
     }
   },
 
@@ -234,168 +172,7 @@ export default controller({
     },
     setDiffMode: (s, mode: DiffMode) => { s.diffMode = mode },
     selectBranch: (s, name: string) => { s.activeBranchName = name },
-    dismissError: (s) => { s.opError = ''; s.opInfo = '' },
-
-    // ── stage / unstage ───────────────────────────────────────────────
-    stageFile: async (s, file: GitFileEntry) => {
-      await runOp(s, 'stage', () => callFn(s, 'stagePaths', [file.path]))
-    },
-    unstageFile: async (s, file: GitFileEntry) => {
-      await runOp(s, 'unstage', () => callFn(s, 'unstagePaths', [file.path]))
-    },
-    stageAll: async (s) => {
-      const o = unwrapOv(s)
-      const paths = [...o.modified, ...o.untracked].map((f) => f.path)
-      if (paths.length === 0) return
-      await runOp(s, 'stage all', () => callFn(s, 'stagePaths', paths))
-    },
-    unstageAll: async (s) => {
-      const o = unwrapOv(s)
-      const paths = o.staged.map((f) => f.path)
-      if (paths.length === 0) return
-      await runOp(s, 'unstage all', () => callFn(s, 'unstagePaths', paths))
-    },
-
-    // ── commit dialog ─────────────────────────────────────────────────
-    openCommit: (s) => {
-      s.commitOpen = true
-      s.commitSubject = ''
-      s.commitBody = ''
-      s.commitError = ''
-    },
-    closeCommit: (s) => { s.commitOpen = false },
-    submitCommit: async (s) => {
-      const subject = String(s.commitSubject).trim()
-      if (!subject) { s.commitError = 'Subject is required.'; return }
-      const bodyText = String(s.commitBody).trim()
-      const message = bodyText ? `${subject}\n\n${bodyText}` : subject
-      s.commitError = ''
-      const ok = await runOp(s, 'commit', () => callFn(s, 'commitNow', message))
-      if (ok) {
-        s.commitOpen = false
-        s.opInfo = `Committed “${subject}”.`
-      } else {
-        s.commitError = String(s.opError)
-      }
-    },
-
-    // ── push / pull / fetch ───────────────────────────────────────────
-    pushCurrent: async (s) => {
-      await runOp(s, 'push', async () => {
-        const r = await callFn<{ remote: string }>(s, 'pushNow')
-        s.opInfo = `Pushed to ${r.remote}.`
-      })
-    },
-    pullCurrent: async (s) => {
-      await runOp(s, 'pull', async () => {
-        const r = await callFn<{ head: string }>(s, 'pullNow')
-        s.opInfo = `Pulled. HEAD is now ${r.head.slice(0, 7)}.`
-      })
-    },
-    fetchOrigin: async (s) => {
-      await runOp(s, 'fetch', async () => {
-        const r = await callFn<{ remote: string }>(s, 'fetchNow')
-        s.opInfo = `Fetched from ${r.remote}.`
-      })
-    },
-
-    // ── branches ──────────────────────────────────────────────────────
-    checkoutBranch: async (s, name: string) => {
-      await runOp(s, 'checkout', async () => {
-        await callFn(s, 'checkoutRef', name)
-        s.opInfo = `Switched to ${name}.`
-      })
-    },
-    openBranchCreate: (s) => {
-      s.branchCreateOpen = true
-      s.branchCreateName = ''
-      s.branchCreateError = ''
-    },
-    closeBranchCreate: (s) => { s.branchCreateOpen = false },
-    submitBranchCreate: async (s) => {
-      const name = String(s.branchCreateName).trim()
-      if (!/^[a-zA-Z0-9._/-]+$/.test(name)) {
-        s.branchCreateError = 'Branch name must be alphanumeric with -_./.'
-        return
-      }
-      const checkout = !!s.branchCreateCheckout
-      const ok = await runOp(s, 'branch create', () => callFn(s, 'createBranch', name, checkout))
-      if (ok) {
-        s.branchCreateOpen = false
-        s.opInfo = `Branch ${name} created${checkout ? ' and checked out' : ''}.`
-      } else {
-        s.branchCreateError = String(s.opError)
-      }
-    },
-    openBranchDelete: (s, name: string) => {
-      s.branchDeleteTarget = name
-      s.branchDeleteForce = false
-      s.branchDeleteError = ''
-      s.branchDeleteOpen = true
-    },
-    closeBranchDelete: (s) => { s.branchDeleteOpen = false },
-    submitBranchDelete: async (s) => {
-      const name = String(s.branchDeleteTarget)
-      const force = !!s.branchDeleteForce
-      const ok = await runOp(s, 'branch delete', () => callFn(s, 'deleteBranch', name, force))
-      if (ok) {
-        s.branchDeleteOpen = false
-        s.opInfo = `Branch ${name} deleted.`
-      } else {
-        s.branchDeleteError = String(s.opError)
-      }
-    },
-
-    // ── init ──────────────────────────────────────────────────────────
-    initRepo: async (s) => {
-      await runOp(s, 'init', async () => {
-        await callFn(s, 'initNow')
-        s.opInfo = 'Initialized git repository.'
-      })
-    },
   },
 })
-
-// Shared mutation runner — sets busy, surfaces errors as opError, and
-// bumps the refresh nonce on success so the overview re-subscribes.
-async function runOp(
-  s: Record<string, unknown>,
-  label: string,
-  fn: () => Promise<unknown>,
-): Promise<boolean> {
-  s.busy = label
-  s.opError = ''
-  s.opInfo = ''
-  try {
-    await fn()
-    const cur = s.refreshNonce as number
-    s.refreshNonce = (cur + 1)
-    return true
-  } catch (err) {
-    s.opError = `${label}: ${errMessage(err)}`
-    return false
-  } finally {
-    s.busy = ''
-  }
-}
-
-// Call a scope-captured closure by name. The runtime stores controller-
-// closures as plain function references on the scope; cast to call.
-function callFn<T = unknown>(
-  s: Record<string, unknown>,
-  name: string,
-  ...args: unknown[]
-): Promise<T> {
-  const fn = s[name] as (...a: unknown[]) => Promise<T>
-  if (typeof fn !== 'function') {
-    throw new Error(`controller closure ${name} is not a function`)
-  }
-  return fn(...args)
-}
-
-function unwrapOv(s: Record<string, unknown>): GitOverview {
-  const v = (s.overview as () => { kind: string; value?: GitOverview })()
-  return v.kind === 'ok' && v.value ? v.value : EMPTY_OVERVIEW
-}
 
 export type { GitBranch, GitCommit, GitDiff, GitFileEntry, GitOverview }
