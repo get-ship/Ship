@@ -90,10 +90,19 @@ async fn event_relay_forwards_to_inbox() {
 
     tx.send(test_event("relayed.event")).await.unwrap();
 
-    // Give the relay task time to process.
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    // Poll until the relay delivers the event (deadline: 2s).
+    let drained = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            let d = inbox.drain().await;
+            if !d.is_empty() {
+                return d;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("timeout: relay did not deliver event within 2s");
 
-    let drained = inbox.drain().await;
     assert_eq!(drained.len(), 1);
     assert_eq!(drained[0].event_type, "relayed.event");
 
@@ -138,9 +147,21 @@ async fn event_relay_forwards_multiple_events() {
         tx.send(test_event(&format!("event.{i}"))).await.unwrap();
     }
 
-    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    // Poll until all 5 events are delivered (deadline: 2s).
+    // Accumulate across multiple drains in case the relay delivers in batches.
+    let drained = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        let mut all = Vec::new();
+        loop {
+            all.extend(inbox.drain().await);
+            if all.len() >= 5 {
+                return all;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("timeout: relay did not deliver all 5 events within 2s");
 
-    let drained = inbox.drain().await;
     assert_eq!(drained.len(), 5);
 
     drop(tx);
@@ -181,9 +202,21 @@ async fn event_relay_adds_peer_and_forwards() {
     let handle = relay.spawn(mailbox);
 
     tx.send(test_event("peer.event")).await.unwrap();
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
-    let received = sink_events.lock().await;
+    // Poll until the peer sink receives the event (deadline: 2s).
+    let received = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            let r = sink_events.lock().await.clone();
+            if !r.is_empty() {
+                return r;
+            }
+            drop(r);
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("timeout: peer did not receive event within 2s");
+
     assert_eq!(received.len(), 1);
     assert_eq!(received[0], "peer.event");
 

@@ -84,9 +84,30 @@ impl ShipConfig {
         }
     }
 
+    /// Load settings from an explicit ship-home root (e.g. a test tempdir).
+    ///
+    /// Callers that pass a concrete path avoid reading `SHIP_HOME` from the
+    /// process environment, making each call hermetic by construction.
+    pub fn load_at(ship_home: &std::path::Path) -> Self {
+        let home = ship_substrate::ShipHome::at(ship_home.to_path_buf());
+        Self {
+            library: LibrarySettings::load_at(&LibrarySettings::path_at(&home)),
+            local: LocalSettings::load_at(&LocalSettings::path_at(&home)),
+        }
+    }
+
     pub fn save(&self) -> Result<()> {
         self.library.save()?;
         self.local.save()?;
+        Ok(())
+    }
+
+    /// Save settings to an explicit ship-home root.  Pair with `load_at` for
+    /// hermetic tests that do not mutate `SHIP_HOME`.
+    pub fn save_at(&self, ship_home: &std::path::Path) -> Result<()> {
+        let home = ship_substrate::ShipHome::at(ship_home.to_path_buf());
+        self.library.save_at(&LibrarySettings::path_at(&home))?;
+        self.local.save_at(&LocalSettings::path_at(&home))?;
         Ok(())
     }
 
@@ -224,24 +245,34 @@ impl ShipConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_env::{ShipHomeGuard, isolated_ship_home};
+    use crate::test_env::isolated_ship_home;
 
-    fn isolated_home() -> (tempfile::TempDir, ShipHomeGuard) {
+    /// Create a fresh tempdir and return it. No env-var mutation.
+    /// Used by JSONC-only tests that go through `load_at` / `save_at`.
+    fn fresh_home() -> tempfile::TempDir {
+        tempfile::tempdir().unwrap()
+    }
+
+    /// Create a tempdir and pin SHIP_HOME to it via the process-global lock.
+    /// Only needed by daemon-KV tests where `ship_substrate::db` reads the env.
+    fn isolated_home() -> (tempfile::TempDir, crate::test_env::ShipHomeGuard) {
         let tmp = tempfile::tempdir().unwrap();
         let guard = isolated_ship_home(tmp.path());
         (tmp, guard)
     }
 
+    // ── JSONC-only tests: hermetic via load_at / save_at ─────────────────────
+
     #[test]
     fn round_trips_library_keys() {
-        let (_tmp, _guard) = isolated_home();
+        let tmp = fresh_home();
         let mut cfg = ShipConfig::default();
         cfg.set("identity.name", "Alice").unwrap();
         cfg.set("defaults.harness", "claude").unwrap();
         cfg.set("cloud.base_url", "https://example.com").unwrap();
-        cfg.save().unwrap();
+        cfg.save_at(tmp.path()).unwrap();
 
-        let back = ShipConfig::load();
+        let back = ShipConfig::load_at(tmp.path());
         assert_eq!(back.get("identity.name"), Some("Alice".into()));
         assert_eq!(back.get("defaults.harness"), Some("claude".into()));
         assert_eq!(back.get("cloud.base_url"), Some("https://example.com".into()));
@@ -249,14 +280,14 @@ mod tests {
 
     #[test]
     fn round_trips_local_keys() {
-        let (_tmp, _guard) = isolated_home();
+        let tmp = fresh_home();
         let mut cfg = ShipConfig::default();
         cfg.set("worktrees.dir", "/opt/wt").unwrap();
         cfg.set("terminal.program", "tmux").unwrap();
         cfg.set("dispatch.confirm", "true").unwrap();
-        cfg.save().unwrap();
+        cfg.save_at(tmp.path()).unwrap();
 
-        let back = ShipConfig::load();
+        let back = ShipConfig::load_at(tmp.path());
         assert_eq!(back.get("worktrees.dir"), Some("/opt/wt".into()));
         assert_eq!(back.get("terminal.program"), Some("tmux".into()));
         assert_eq!(back.get("dispatch.confirm"), Some("true".into()));
@@ -264,29 +295,34 @@ mod tests {
 
     #[test]
     fn list_returns_only_set_values() {
-        let (_tmp, _guard) = isolated_home();
+        let tmp = fresh_home();
         let mut cfg = ShipConfig::default();
+        // list() for JSONC-only keys works on the in-memory struct.
         assert!(cfg.list().is_empty());
 
         cfg.set("terminal.program", "wt").unwrap();
         let entries = cfg.list();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0], ("terminal.program".into(), "wt".into()));
+        // Verify round-trip through disk.
+        cfg.save_at(tmp.path()).unwrap();
+        let back = ShipConfig::load_at(tmp.path());
+        assert_eq!(back.get("terminal.program"), Some("wt".into()));
     }
 
     #[test]
     fn rejects_invalid_terminal() {
-        let (_tmp, _guard) = isolated_home();
         let mut cfg = ShipConfig::default();
         assert!(cfg.set("terminal.program", "invalid").is_err());
     }
 
     #[test]
     fn rejects_unknown_key() {
-        let (_tmp, _guard) = isolated_home();
         let mut cfg = ShipConfig::default();
         assert!(cfg.set("nonexistent.key", "value").is_err());
     }
+
+    // ── Daemon-KV tests: still need SHIP_HOME_LOCK because db reads the env ──
 
     #[test]
     fn round_trips_harness_default_via_daemon_kv() {

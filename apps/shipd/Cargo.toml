@@ -160,6 +160,8 @@ ctor = "0.2"
 http-body-util = "0.1"
 tower = { version = "0.5", features = ["util"] }
 chrono = { workspace = true }
+# Structured Set-Cookie parsing in auth_tests (BT-08).
+cookie = "0.18"
 reqwest = { workspace = true, features = ["json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 tokio-tungstenite = "0.28"

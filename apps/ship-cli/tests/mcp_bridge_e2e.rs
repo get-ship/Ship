@@ -142,8 +142,21 @@ async fn start_mock_server(port: u16) -> CancellationToken {
             .unwrap();
     });
 
-    // Give the server a moment to bind.
-    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    // Probe until the server accepts a TCP connection (deadline: 2s).
+    // This is deterministic — we return only once the port is live.
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            if tokio::net::TcpStream::connect(format!("127.0.0.1:{port}"))
+                .await
+                .is_ok()
+            {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("mock MCP server did not become ready within 2s");
 
     ct
 }

@@ -1,7 +1,6 @@
-//! Tests that removed commands don't appear in help, and retained commands work.
+//! Tests that removed commands don't exist, and retained commands work.
 
 use assert_cmd::Command;
-use predicates::prelude::*;
 use tempfile::TempDir;
 
 fn ship() -> Command { Command::cargo_bin("ship").unwrap() }
@@ -12,31 +11,29 @@ fn ship_in(tmp: &TempDir) -> Command {
     cmd
 }
 
+/// Clap exits with code 2 for unrecognised subcommands.
 #[test]
-fn help_does_not_list_agents_subcommand() {
+fn agents_subcommand_does_not_exist() {
     ship()
-        .args(["--help"])
+        .args(["agents"])
         .assert()
-        .success()
-        .stdout(predicate::str::contains("agents").not());
+        .code(2);
 }
 
 #[test]
-fn help_does_not_list_skills_subcommand() {
+fn skills_subcommand_does_not_exist() {
     ship()
-        .args(["--help"])
+        .args(["skills"])
         .assert()
-        .success()
-        .stdout(predicate::str::contains("skills").not());
+        .code(2);
 }
 
 #[test]
-fn help_does_not_list_vars_subcommand() {
+fn vars_subcommand_does_not_exist() {
     ship()
-        .args(["--help"])
+        .args(["vars"])
         .assert()
-        .success()
-        .stdout(predicate::str::contains("vars").not());
+        .code(2);
 }
 
 #[test]

@@ -28,9 +28,9 @@ fn test_router(token: &str) -> Router {
 }
 
 async fn ok_handler(axum::Extension(auth): axum::Extension<AuthContext>) -> impl IntoResponse {
-    // Return the caller_kind as the body so tests can inspect it.
-    let kind = format!("{:?}", auth.caller_kind);
-    (StatusCode::OK, kind)
+    // Return the caller_kind as a stable snake_case string so tests assert on
+    // defined semantics rather than the Debug representation.
+    (StatusCode::OK, auth.caller_kind.as_str())
 }
 
 async fn send(router: Router, req: Request<Body>) -> (StatusCode, String) {
@@ -252,7 +252,7 @@ async fn caller_kind_ignores_header_when_daemon_token() {
     let (status, body) = send(router, req).await;
     assert_eq!(status, StatusCode::OK);
     // Daemon token = local CLI caller. The header claim of "mcp" must be ignored.
-    assert_eq!(body, "Cli", "daemon token must always resolve to CallerKind::Cli");
+    assert_eq!(body, "cli", "daemon token must always resolve to CallerKind::Cli");
 }
 
 #[tokio::test]
@@ -267,7 +267,7 @@ async fn runtime_caller_kind_never_accepted() {
 
     let (status, body) = send(router, req).await;
     assert_eq!(status, StatusCode::OK);
-    assert_ne!(body, "Runtime", "external callers must never get CallerKind::Runtime");
+    assert_ne!(body, "runtime", "external callers must never get CallerKind::Runtime");
 }
 
 // ── Dual token support ──────────────────────────────────────────────────
@@ -358,11 +358,25 @@ async fn session_endpoint_issues_cookie_with_valid_daemon_token() {
         .to_str()
         .unwrap()
         .to_string();
-    assert!(cookie.contains("ship_session="));
-    assert!(cookie.contains("HttpOnly"));
-    assert!(cookie.contains("SameSite=Strict"));
-    assert!(cookie.contains("Path=/api"));
-    assert!(cookie.contains("Max-Age=86400"));
+    // Parse the Set-Cookie header with the cookie crate for structured assertions.
+    let parsed = cookie::Cookie::parse(cookie.clone()).expect("parse Set-Cookie header");
+    assert_eq!(parsed.name(), session::COOKIE_NAME, "cookie name must be COOKIE_NAME");
+    assert_eq!(parsed.http_only(), Some(true), "cookie must be HttpOnly");
+    assert_eq!(
+        parsed.same_site(),
+        Some(cookie::SameSite::Strict),
+        "cookie must be SameSite=Strict"
+    );
+    assert!(
+        parsed.path().is_some_and(|p| p.starts_with("/api")),
+        "cookie path must be under /api, got: {:?}",
+        parsed.path()
+    );
+    assert_eq!(
+        parsed.max_age().map(|d| d.whole_seconds() as u64),
+        Some(session::BROWSER_SESSION_TTL_SECS),
+        "Max-Age must equal BROWSER_SESSION_TTL_SECS"
+    );
     let body = resp.into_body().collect().await.unwrap().to_bytes();
     let parsed: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(parsed["ok"], serde_json::json!(true));
@@ -392,7 +406,7 @@ async fn auth_middleware_accepts_valid_session_cookie() {
         .unwrap();
     let (status, body) = send(router, req).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body, "Cli");
+    assert_eq!(body, "cli");
 }
 
 #[tokio::test]
@@ -427,8 +441,8 @@ async fn auth_middleware_falls_through_to_bearer_when_cookie_missing() {
 
 #[tokio::test]
 async fn query_token_rejected_on_non_raw_paths() {
-    // `?token=` is only accepted for the iframe `/raw` flow. Everywhere
-    // else it must be ignored so tokens don't leak into access logs.
+    // `?token=` is never accepted — tokens must travel via Authorization header
+    // or the ship_session cookie so they don't leak into access logs.
     let (router, _reg) = router_with_session(VALID_DAEMON_TOKEN);
     let req = Request::builder()
         .uri(format!("/test?token={VALID_DAEMON_TOKEN}"))
@@ -439,7 +453,10 @@ async fn query_token_rejected_on_non_raw_paths() {
 }
 
 #[tokio::test]
-async fn query_token_accepted_on_raw_view_path() {
+async fn query_token_rejected_on_raw_view_path() {
+    // The former iframe raw-serve flow (`/api/v1/view/*/raw`) was removed.
+    // Query-param tokens are NEVER accepted — not even on the former raw path.
+    // Tokens must travel via Authorization header or cookie.
     let token = Arc::new(VALID_DAEMON_TOKEN.to_string());
     let registry: SessionRegistry = Arc::new(tokio::sync::Mutex::new(
         std::collections::HashMap::new(),
@@ -458,7 +475,11 @@ async fn query_token_accepted_on_raw_view_path() {
         .body(Body::empty())
         .unwrap();
     let (status, _) = send(router, req).await;
-    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "query-param token must be rejected even on former raw-view paths"
+    );
 }
 
 #[tokio::test]
