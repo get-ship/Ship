@@ -423,6 +423,14 @@ impl Projection for CanonicalSessionProjection {
 
 // ── Row I/O ─────────────────────────────────────────────────────────────────
 
+/// Column list shared by every SELECT on `canonical_sessions`.
+///
+/// All five read helpers use this constant so that adding a column requires
+/// one change rather than five.
+const COLS: &str =
+    "session_id, space_id, agent_id, harness, model, status, \
+     slug, input, parent, turn_count, started_at, ended_at, outcome, reason";
+
 fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<CanonicalSession> {
     let status: String = row.try_get("status")?;
     Ok(CanonicalSession {
@@ -469,14 +477,9 @@ pub fn load_sessions_at(ship_dir: &std::path::Path) -> Result<Vec<CanonicalSessi
 
 fn load_all_rows(conn: &mut SqliteConnection) -> Result<Vec<CanonicalSession>> {
     let rows = block_on(async {
-        sqlx::query(
-            "SELECT session_id, space_id, agent_id, harness, model, status, \
-             slug, input, parent, turn_count, started_at, ended_at, outcome, reason \
-             FROM canonical_sessions ORDER BY started_at ASC",
-
-        )
-        .fetch_all(conn)
-        .await
+        sqlx::query(&format!("SELECT {COLS} FROM canonical_sessions ORDER BY started_at ASC"))
+            .fetch_all(conn)
+            .await
     })?;
     rows.iter().map(row_to_record).collect()
 }
@@ -492,11 +495,9 @@ fn load_row_by_id(
     conn: &mut SqliteConnection,
 ) -> Result<Option<CanonicalSession>> {
     let row = block_on(async {
-        sqlx::query(
-            "SELECT session_id, space_id, agent_id, harness, model, status, \
-             slug, input, parent, turn_count, started_at, ended_at, outcome, reason \
-             FROM canonical_sessions WHERE session_id = ?",
-        )
+        sqlx::query(&format!(
+            "SELECT {COLS} FROM canonical_sessions WHERE session_id = ?"
+        ))
         .bind(session_id)
         .fetch_optional(conn)
         .await
@@ -517,16 +518,14 @@ pub fn load_latest_resumable_session(
 ) -> Result<Option<CanonicalSession>> {
     let mut conn = open_default_conn()?;
     let row = block_on(async {
-        sqlx::query(
-            "SELECT session_id, space_id, agent_id, harness, model, status, \
-             slug, input, parent, turn_count, started_at, ended_at, outcome, reason \
-             FROM canonical_sessions \
+        sqlx::query(&format!(
+            "SELECT {COLS} FROM canonical_sessions \
              WHERE agent_id = ? \
                AND space_id = ? \
                AND status NOT IN ('completed', 'failed', 'cancelled') \
              ORDER BY started_at DESC \
-             LIMIT 1",
-        )
+             LIMIT 1"
+        ))
         .bind(agent_id)
         .bind(space_id)
         .fetch_optional(&mut conn)
@@ -555,11 +554,9 @@ pub fn load_canonical_session_by_slug_at(
 
 fn load_row_by_slug(slug: &str, conn: &mut SqliteConnection) -> Result<Option<CanonicalSession>> {
     let row = block_on(async {
-        sqlx::query(
-            "SELECT session_id, space_id, agent_id, harness, model, status, \
-             slug, input, parent, turn_count, started_at, ended_at, outcome, reason \
-             FROM canonical_sessions WHERE slug = ?",
-        )
+        sqlx::query(&format!(
+            "SELECT {COLS} FROM canonical_sessions WHERE slug = ?"
+        ))
         .bind(slug)
         .fetch_optional(conn)
         .await
@@ -577,11 +574,9 @@ pub fn load_canonical_sessions_by_parent(
 ) -> Result<Vec<CanonicalSession>> {
     let mut conn = open_default_conn()?;
     let rows = block_on(async {
-        sqlx::query(
-            "SELECT session_id, space_id, agent_id, harness, model, status, \
-             slug, input, parent, turn_count, started_at, ended_at, outcome, reason \
-             FROM canonical_sessions WHERE parent = ? ORDER BY started_at ASC",
-        )
+        sqlx::query(&format!(
+            "SELECT {COLS} FROM canonical_sessions WHERE parent = ? ORDER BY started_at ASC"
+        ))
         .bind(parent_id)
         .fetch_all(&mut conn)
         .await

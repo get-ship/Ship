@@ -8,8 +8,7 @@
 //! The two-char fan-out keeps directory sizes bounded. Writes are atomic
 //! (temp file + rename); puts are idempotent (skip if the blob already exists).
 
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use async_trait::async_trait;
 
@@ -33,28 +32,9 @@ impl LocalFsBlobStore {
             .join(h)
     }
 
-    fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), BlobError> {
-        let dir = path.parent().unwrap_or_else(|| Path::new("."));
-        std::fs::create_dir_all(dir).map_err(|e| BlobError::Io(e.to_string()))?;
-        let tmp = dir.join(format!(
-            ".tmp-{}-{}",
-            std::process::id(),
-            path.file_name()
-                .map(|n| n.to_string_lossy())
-                .unwrap_or_default()
-        ));
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&tmp)
-            .map_err(|e| BlobError::Io(e.to_string()))?;
-        file.write_all(bytes)
-            .map_err(|e| BlobError::Io(e.to_string()))?;
-        file.sync_all().map_err(|e| BlobError::Io(e.to_string()))?;
-        drop(file);
-        std::fs::rename(&tmp, path).map_err(|e| BlobError::Io(e.to_string()))?;
-        Ok(())
+    fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> Result<(), BlobError> {
+        crate::fs_util::write_atomic(path, bytes)
+            .map_err(|e| BlobError::Io(e.to_string()))
     }
 }
 

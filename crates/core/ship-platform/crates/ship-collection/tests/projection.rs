@@ -25,29 +25,16 @@ use ship_substrate::ports::{
 };
 use ship_substrate::testutil::init_project_minimal;
 
-// ── Fixtures ────────────────────────────────────────────────────────────────
+mod common;
 
-/// Register `CollectionItemProjection` into the substrate's extra-projections
-/// factory once per test process (mirrors what ship_platform::install_defaults
-/// does in production; tests can't depend on ship-platform to avoid a cycle).
-fn install_collection_projection() {
-    use std::sync::Once;
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| {
-        ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
-            vec![Box::new(
-                ship_collection::item_projection::CollectionItemProjection,
-            )]
-        }));
-    });
-}
+// ── Fixtures ────────────────────────────────────────────────────────────────
 
 /// Build a `CollectionService` whose data store reads from the SAME per-scope
 /// `space.db` the projection writes into. The kernel router is rooted at the
 /// shared `ship_dir`, so `collection.*` (Space-scoped) events route to
 /// `spaces/<space_id>/space.db`, and the data store opens that exact file.
 fn make_service(ship_dir: &std::path::Path, space_id: &str) -> CollectionService {
-    install_collection_projection();
+    common::install_collection_projection();
     let router = new_isolated_for_test(ship_dir.to_path_buf()).unwrap();
     let kernel = Arc::new(KernelLog::new(router));
 

@@ -89,24 +89,8 @@ impl FsBroker for LocalFsBroker {
     fn write_atomic(&self, cap: &FsCap, rel: &str, bytes: &[u8]) -> Result<(), FsError> {
         Self::require_writable(cap)?;
         let path = Self::confine(cap, rel)?;
-        let dir = path.parent().unwrap_or_else(|| Path::new("."));
-        fs::create_dir_all(dir).map_err(Self::map_io)?;
-        let file_name = path
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        let tmp = dir.join(format!(".tmp-{}-{}", std::process::id(), file_name));
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&tmp)
-            .map_err(Self::map_io)?;
-        file.write_all(bytes).map_err(Self::map_io)?;
-        file.sync_all().map_err(Self::map_io)?;
-        drop(file);
-        fs::rename(&tmp, &path).map_err(Self::map_io)?;
-        Ok(())
+        crate::fs_util::write_atomic(&path, bytes)
+            .map_err(|e| FsError::Io(e.to_string()))
     }
 
     fn create_new(&self, cap: &FsCap, rel: &str, bytes: &[u8]) -> Result<(), FsError> {

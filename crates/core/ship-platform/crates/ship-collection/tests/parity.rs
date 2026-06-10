@@ -25,25 +25,12 @@ use ship_substrate::events::new_isolated_for_test;
 use ship_substrate::home::ShipHome;
 use ship_substrate::ports::{KernelLog, Query, SingleBackendDataStore, SpaceContext, SpaceId};
 
+mod common;
+
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
-/// Register `CollectionItemProjection` into the substrate's extra-projections
-/// factory once per test process (mirrors what ship_platform::install_defaults
-/// does in production; tests can't depend on ship-platform to avoid a cycle).
-fn install_collection_projection() {
-    use std::sync::Once;
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| {
-        ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
-            vec![Box::new(
-                ship_collection::item_projection::CollectionItemProjection,
-            )]
-        }));
-    });
-}
-
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
-    install_collection_projection();
+    common::install_collection_projection();
     let ship_dir = ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let router = new_isolated_for_test(ship_dir).unwrap();
