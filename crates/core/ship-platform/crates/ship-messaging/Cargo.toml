@@ -7,6 +7,7 @@ description = "Human-messaging egress — notification adapters (Telegram today;
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
+ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }

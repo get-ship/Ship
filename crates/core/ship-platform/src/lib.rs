@@ -111,7 +111,9 @@ fn install_defaults_inner() {
             // separately from `ship-pipeline-runtime` (it depends on this
             // crate, so it can't be referenced from here).
             Box::new(ship_agents::services::compile::CompileStateProjection),
-            Box::new(ship_substrate::db::projects::ProjectsProjection),
+            // ProjectsProjection moved to ship-space (keystone-A Phase A bundle 4,
+            // 2026-06-10). The SQL read helpers stay in ship_substrate::db::projects.
+            Box::new(ship_space::ProjectsProjection),
             // Per-space settings overlay (event-sourced fold of
             // `space.setting.changed`). The live overlay read is owned by the
             // ship-space crate's own DataStore-backed table (`SpaceService.Info`);

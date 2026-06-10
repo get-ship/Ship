@@ -8848,6 +8848,7 @@ dependencies = [
  "serde",
  "serde_json",
  "ship-substrate",
+ "ship-types",
  "tokio",
  "tracing",
 ]
@@ -8969,6 +8970,7 @@ dependencies = [
  "ship-kernel",
  "ship-pipelines",
  "ship-runner",
+ "ship-space",
  "ship-store",
  "ship-substrate",
  "ship-substrate-host",
@@ -9085,6 +9087,7 @@ dependencies = [
 name = "ship-space"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-stream",
  "async-trait",
  "buffa",
@@ -9098,6 +9101,7 @@ dependencies = [
  "ship-reactive",
  "ship-substrate",
  "ship-types",
+ "sqlx",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",

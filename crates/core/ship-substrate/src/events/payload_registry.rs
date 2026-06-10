@@ -128,11 +128,8 @@ register_event!("hook.tool_use_started", [EventScope::Runtime], Retention::Ephem
 register_event!("hook.turn_observed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "HookTurnObservedPayload", crate::events::hooks::HookTurnObservedPayload);
 
 // ── human.* ─────────────────────────────────────────────────────────────────
-// Poly-scopic (Model C): a human reply may unblock space work (Space), arrive at
-// the runtime ingress before its run is correlated (Runtime), or address the
-// account (Account). The webhook ingress emits under Runtime; downstream
-// correlation can re-emit under the resolved Space.
-register_event!("human.response", [EventScope::Space, EventScope::Runtime, EventScope::Account], Retention::Durable, Stability::Stable, "HumanResponse", crate::events::types::HumanResponse);
+// Moved to ship-messaging/src/event_registrations.rs (keystone-A Phase A bundle 4b,
+// 2026-06-10): human.response — the MESSAGING domain (human-gateway) owns it at L1.
 
 // ── kernel.actor.* ──────────────────────────────────────────────────────────
 register_event!("kernel.actor.restored", [EventScope::Runtime], Retention::Durable, Stability::Stable, "KernelActorRestored", crate::events::types::KernelActorRestored);
@@ -185,19 +182,9 @@ register_event!("process.signal_sent", [EventScope::Runtime], Retention::Ephemer
 register_event!("process.spawned", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProcessSpawnedPayload", crate::events::process::ProcessSpawnedPayload);
 
 // ── project.* ───────────────────────────────────────────────────────────────
-// The `projects` registry is the daemon's machine-wide record of known project
-// paths, read by id/path with no space in hand — and the source the space_id
-// resolver itself consults. So the registry events are Runtime-owned (Phase 4d
-// §6.1): a space-partitioned registry could not bootstrap space-id resolution,
-// and routing them to space.db while reading daemon-wide would force fan-out.
-// `project.log` is a daemon-wide audit stream (fixed "project" entity, no
-// space) → also Runtime. `project.switched` carries a space binding through
-// the kernel and stays Space.
-register_event!("project.archived", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ProjectArchived", crate::events::types::ProjectArchived);
-register_event!("project.log", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProjectLog", crate::events::types::ProjectLog);
-register_event!("project.registered", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ProjectRegistered", crate::events::types::ProjectRegistered);
-register_event!("project.seen", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProjectSeen", crate::events::types::ProjectSeen);
-register_event!("project.switched", [EventScope::Space], Retention::Durable, Stability::Stable, "ProjectSwitched", crate::events::types::ProjectSwitched);
+// Moved to ship-space/src/event_registrations.rs (keystone-A Phase A bundle 4,
+// 2026-06-10): project.archived / project.log / project.registered /
+// project.seen / project.switched — the SPACE domain owns its events at L1.
 
 // ── rule.* / skill.* watcher pings ──────────────────────────────────────────
 // rule.changed / skill.changed — moved to ship-config/src/event_registrations.rs
@@ -207,7 +194,8 @@ register_event!("project.switched", [EventScope::Space], Retention::Durable, Sta
 
 
 // ── space.setting.* ─────────────────────────────────────────────────────────
-register_event!("space.setting.changed", [EventScope::Space], Retention::Durable, Stability::Stable, "SpaceSettingChanged", crate::events::types::SpaceSettingChanged);
+// Moved to ship-space/src/event_registrations.rs (keystone-A Phase A bundle 4,
+// 2026-06-10): space.setting.changed — the SPACE domain owns it at L1.
 
 // ── studio.* ────────────────────────────────────────────────────────────────
 register_event!("studio.annotation.created", [EventScope::Space], Retention::Durable, Stability::Stable, "StudioAnnotationCreated", crate::events::types::StudioAnnotationCreated);
@@ -233,9 +221,8 @@ register_event!("sync.stopped", [EventScope::Runtime], Retention::Durable, Stabi
 // Phase A bundle 3, 2026-06-10): watcher-ping family co-locates with its emitter.
 
 // ── legacy/deprecated (kept for backward compat, fail-closed classification) ─
-register_event!("workspace.created", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "WorkspaceCreated", crate::events::types::WorkspaceCreated);
-register_event!("workspace.activated", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "WorkspaceActivated", crate::events::types::WorkspaceActivated);
-register_event!("workspace.archived", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "WorkspaceArchived", crate::events::types::WorkspaceArchived);
+// workspace.* moved to ship-space/src/event_registrations.rs (keystone-A Phase A
+// bundle 4, 2026-06-10) — the SPACE domain owns its deprecated legacy events.
 register_event!("daemon.crashed", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonCrashed", crate::events::daemon::CrashedPayload);
 register_event!("daemon.pidfile_acquired", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonPidfileAcquired", crate::events::daemon::PidfileAcquiredPayload);
 register_event!("daemon.pidfile_stale_taken", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonPidfileStaleTaken", crate::events::daemon::PidfileStaleTakenPayload);

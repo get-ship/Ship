@@ -11,7 +11,8 @@
 //!   `KernelLog` (the kernel routes them to runtime.db). The [`projection`]
 //!   module's DataStore helpers persist the crate-owned `space_registry` table +
 //!   the `space_active` pointer at write time; the legacy `projects` table is
-//!   materialized separately by `ship_substrate::db::projects::ProjectsProjection`
+//!   materialized by `ship_space::projects_projection::ProjectsProjection`
+//!   (moved here from ship-substrate in keystone-A Phase A bundle 4, 2026-06-10)
 //!   in the append transaction.
 //! - **config** ([`config`]) — the per-space settings overlay. Reads the
 //!   `space_settings` table (Space-scoped, per-space `space.db`); writes emit
@@ -27,12 +28,15 @@
 
 pub mod config;
 pub mod error;
+pub mod event_registrations;
 pub mod helpers;
 pub mod info;
 pub mod projection;
+pub mod projects_projection;
 pub mod registry;
 pub mod service;
 pub mod types;
 pub mod wire;
 
+pub use projects_projection::ProjectsProjection;
 pub use wire::SpaceWire;

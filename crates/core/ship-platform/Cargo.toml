@@ -22,6 +22,7 @@ ship-analytics = { path = "crates/ship-analytics" }
 ship-auth = { path = "crates/ship-auth" }
 ship-collection = { path = "crates/ship-collection" }
 ship-artifacts = { path = "crates/ship-artifacts" }
+ship-space = { path = "crates/ship-space" }
 ship-views = { path = "crates/ship-views" }
 ship-account = { path = "crates/ship-account" }
 # Unified settings keystone (S4). The RUNTIME-scope Rust settings API

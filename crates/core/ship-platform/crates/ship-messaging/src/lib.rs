@@ -1,5 +1,7 @@
 //! Human gateway service — puts a human on the mesh via pluggable adapters.
 //!
+//! Also owns the `human.response` event registration (keystone-A Phase A bundle 4b).
+//!
 //! When a `pipeline.run.blocked` event fires with `needs_human: true`, the gateway
 //! forwards the block reason to a human via the configured adapter (Telegram,
 //! Slack, etc.). Inbound replies arrive via webhook and are emitted as
@@ -8,6 +10,8 @@
 //! Lives at L1 (`ship-messaging`) because the adapters make outbound HTTP
 //! calls — egress is forbidden in the L0 substrate. The generic
 //! [`ServiceHandler`] plumbing it implements stays in `ship-substrate`.
+
+pub mod event_registrations;
 
 use std::sync::Arc;
 

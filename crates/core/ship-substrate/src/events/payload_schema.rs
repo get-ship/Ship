@@ -75,11 +75,13 @@ mod tests {
 
     #[test]
     fn valid_payload_passes() {
+        // Use actor.created — L0-registered (Runtime-scoped), remains in L0 after
+        // keystone-A Phase A bundle 4 (workspace.created moved to ship-space).
         let v = PayloadSchemaValidator;
         let event = EventEnvelope::new(
-            "workspace.created",
-            "ws-1",
-            &serde_json::json!({ "workspace_id": "ws-1" }),
+            "actor.created",
+            "actor-1",
+            &serde_json::json!({ "kind": "worker", "environment_type": "cli" }),
         )
         .unwrap();
         let ctx = caller_ctx(CallerKind::Runtime);
@@ -88,10 +90,11 @@ mod tests {
 
     #[test]
     fn malformed_payload_rejected() {
+        // Use actor.created — L0-registered; garbage payload missing required fields.
         let v = PayloadSchemaValidator;
         let event = EventEnvelope::new(
-            "workspace.created",
-            "ws-1",
+            "actor.created",
+            "actor-1",
             &serde_json::json!({ "garbage": true }),
         )
         .unwrap();

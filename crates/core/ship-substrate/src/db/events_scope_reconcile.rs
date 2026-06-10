@@ -260,11 +260,12 @@ mod tests {
         .unwrap();
         // A space-scoped row (carries a key), an account row, and two runtime
         // rows (former system + device) — the last three keyless.
-        // Note: artifact.created (L1, ship-artifacts) and account.login_completed
-        // (L1, ship-auth) are registered at L1; use L0-registered counterparts so
-        // this test stays green in the L0-only binary (keystone-A Phase A).
+        // Note: artifact.created, account.login_completed, project.switched are
+        // registered at L1 (ship-artifacts, ship-auth, ship-space respectively);
+        // use L0-registered counterparts so this test stays green in the L0-only
+        // binary (keystone-A Phase A).
         for (id, et, space) in [
-            ("e1", "project.switched", Some("sp-1")),
+            ("e1", "studio.annotation.created", Some("sp-1")),
             ("e2", "daemon.owner.bound", None),
             ("e3", "daemon.startup_completed", None),
             ("e4", "actor.created", None),
