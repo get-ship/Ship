@@ -238,7 +238,9 @@ service PipelinesService {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  // GUI reactive surface — stays JsonResponse (view-model with pills/tones).
+  // DEPRECATED-PENDING-WATCH-MIGRATION (P0.4): the typed `Watch` (all scope) is
+  // the structured replacement. Kept working — the GUI view-model stream
+  // (pills/tones) flows through this until consumers migrate to Watch.
   rpc SummariesLive(GetPipelinesSummariesRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
@@ -250,6 +252,8 @@ service PipelinesService {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  // DEPRECATED-PENDING-WATCH-MIGRATION (P0.4): the typed `Watch` (run scope) is
+  // the structured replacement. Kept working until GUI consumers migrate.
   rpc RunLive(RunPipelineRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
@@ -260,6 +264,9 @@ service PipelinesService {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  // DEPRECATED-PENDING-WATCH-MIGRATION (P0.4): the typed `Watch` carries the
+  // same run rows; History stays paginated/terminal-only. Kept working until
+  // GUI consumers migrate.
   rpc HistoryLive(ListPipelinesHistoryRequest) returns (stream JsonResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
