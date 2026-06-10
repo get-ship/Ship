@@ -2,23 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // sui-popover / sui-portal / sui-icon / sui-app-icon live in @ship/sui-primitives.
 import '@ship/sui-primitives'
 import '../../src/components/sui-view-picker/sui-view-picker.compiled.js'
-import { createContainerRegistry, mount } from '../test-utils'
+import { createContainerRegistry, flush, mount } from '../test-utils'
 
 // flush() advances fake timers by 0 ms — equivalent to the real
 // `setTimeout(r, 0)` flush from test-utils but compatible with the
 // fake-timer setup in beforeEach/afterEach below.
-const flush = () => vi.advanceTimersByTimeAsync(0)
+
 
 const reg = createContainerRegistry()
 // Fake timers: the view-picker's filter debounce (60 ms) is a real
 // `setTimeout` call in the controller. Advancing fake timers makes it
 // fire instantaneously and deterministically rather than relying on
 // wall-clock waits that flake under load.
-beforeEach(() => { vi.useFakeTimers() })
 afterEach(() => {
   reg.cleanup()
   vi.restoreAllMocks()
-  vi.useRealTimers()
 })
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
@@ -106,13 +104,14 @@ describe('<sui-view-picker>', () => {
     const input = shadow(el).querySelector<HTMLInputElement>('.vp-filter input')!
     input.value = 'skill'
     input.dispatchEvent(new Event('input', { bubbles: true }))
-    // Advance past the 60 ms filter debounce + drain queued 0 ms timers.
-    await vi.advanceTimersByTimeAsync(100)
-    await flush(); await flush()
-    const body = shadow(el).querySelector('[part~="body"]')!
-    const rows = Array.from(body.querySelectorAll<HTMLElement>('.vp-row'))
-    expect(rows.some((r) => r.dataset['view'] === 'skills')).toBe(true)
-    expect(rows.some((r) => r.dataset['view'] === 'agents')).toBe(false)
+    // Condition-poll past the 60 ms filter debounce — behavioral (waits for
+    // the OUTCOME, no fixed wait, no fake timers; this component's open/load
+    // lifecycle does not cooperate with mocked timers).
+    const rows = () => Array.from(
+      shadow(el).querySelector('[part~="body"]')!.querySelectorAll<HTMLElement>('.vp-row'),
+    )
+    await expect.poll(() => rows().some((r) => r.dataset['view'] === 'skills'), { timeout: 2000 }).toBe(true)
+    expect(rows().some((r) => r.dataset['view'] === 'agents')).toBe(false)
   })
 
   it('clicking a row dispatches sui:view-picker:navigate and closes', async () => {

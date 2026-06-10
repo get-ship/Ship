@@ -139,7 +139,11 @@ export function pinImportMetaUrlPlugin(name: string): Plugin {
     enforce: 'pre',
     transform(code: string, id: string) {
       const path = id.split('?', 1)[0] ?? id
-      if (!/\.test\.ts$/.test(path)) return null
+      // Narrow on purpose: only spec files directly under a test/ dir — the
+      // byte-identical behavior of the inline plugins this factory replaced
+      // (SD-7). A broad /\.test\.ts$/ would also rewrite engine/helper specs
+      // that never asked for the pin.
+      if (!/[\\/]test[\\/][^\\/]+\.test\.ts$/.test(path)) return null
       if (!code.includes('import.meta.url')) return null
       const literal = JSON.stringify(pathToFileURL(path).href)
       return { code: code.split('import.meta.url').join(literal), map: null }

@@ -4,7 +4,7 @@ import '../../src/components/sui-command-bar/sui-command-palette.compiled.js'
 import '../../src/components/sui-command-bar/sui-command-chat.compiled.js'
 // sui-dialog lives in @ship/sui-primitives.
 import '@ship/sui-primitives'
-import { createContainerRegistry, mount } from '../test-utils'
+import { createContainerRegistry, mount, flush as realFlush } from '../test-utils'
 
 // flush() advances fake timers by 0 ms — equivalent to the real
 // `setTimeout(r, 0)` flush from test-utils but compatible with the
@@ -263,38 +263,44 @@ describe('<sui-command-bar>', () => {
     })
 
     it('> prefix sets find mode', async () => {
+      // Real async path — these don't exercise the debounce; fake timers starve them.
+      vi.useRealTimers()
       const { el } = makeBar()
       ;(el as CB).show('ai')
-      await flush()
+      await realFlush()
       const input = searchInput(el)
       if (!input) return
       input.value = '>dash'
       input.dispatchEvent(new Event('input'))
-      await flush()
+      await realFlush()
       expect(el.getAttribute('mode')).toBe('find')
     })
 
     it('+ prefix sets create mode', async () => {
+      // Real async path — these don't exercise the debounce; fake timers starve them.
+      vi.useRealTimers()
       const { el } = makeBar()
       ;(el as CB).show('ai')
-      await flush()
+      await realFlush()
       const input = searchInput(el)
       if (!input) return
       input.value = '+view'
       input.dispatchEvent(new Event('input'))
-      await flush()
+      await realFlush()
       expect(el.getAttribute('mode')).toBe('create')
     })
 
     it('@token sets mention mode', async () => {
+      // Real async path — these don't exercise the debounce; fake timers starve them.
+      vi.useRealTimers()
       const { el } = makeBar()
       ;(el as CB).show('ai')
-      await flush()
+      await realFlush()
       const input = searchInput(el)
       if (!input) return
       input.value = '@agent'
       input.dispatchEvent(new Event('input'))
-      await flush()
+      await realFlush()
       expect(el.getAttribute('mode')).toBe('mention')
     })
   })
@@ -375,13 +381,18 @@ describe('<sui-command-bar>', () => {
       ;(el as CB).show('create')
       await flush()
       const btns = palShadow(el)?.querySelectorAll('.cb-surface-btn')
-      // Assert by identity (data-surface attribute) rather than count so any
-      // new surface addition is explicit in this test rather than silently
-      // incrementing a count. The set mirrors CREATE_SURFACES in types.ts.
+      // Assert by identity AND exact cardinality: the identity loop names every
+      // expected surface (a missing one fails with a readable id), and the
+      // length check makes the set CLOSED — a new surface must be added HERE
+      // explicitly or this fails. (Identity-only would let a 7th surface pass
+      // silently; count-only fails unreadably. Both directions are guarded.)
+      // The set mirrors CREATE_SURFACES in types.ts.
+      const expected = ['view', 'skill', 'agent', 'pipeline', 'trigger', 'theme']
       const surfaces = Array.from(btns ?? []).map((b) => (b as HTMLElement).dataset['surface'])
-      for (const id of ['view', 'skill', 'agent', 'pipeline', 'trigger', 'theme']) {
+      for (const id of expected) {
         expect(surfaces).toContain(id)
       }
+      expect(surfaces).toHaveLength(expected.length)
     })
 
     it('renders name + shape inputs', async () => {
@@ -444,6 +455,8 @@ describe('<sui-command-bar>', () => {
     // with the chosen path — without it, selecting a result updated the URL
     // silently and the page kept showing the old view.
     it('clicking a find item dispatches sui:navigate with detail.to', async () => {
+      // Real async path — these don't exercise the debounce; fake timers starve them.
+      vi.useRealTimers()
       const { el } = makeBar()
       ;(el as CB).show('find')
       await waitSearch()
@@ -457,7 +470,7 @@ describe('<sui-command-bar>', () => {
         const item = palShadow(el)?.querySelector('.cb-item[data-path]') as HTMLElement | null
         const expectedPath = item?.dataset['path']
         item?.click()
-        await flush()
+        await realFlush()
         expect(events.length).toBeGreaterThan(0)
         expect(events[0]!.detail.to).toBe(expectedPath)
       } finally {
@@ -466,6 +479,8 @@ describe('<sui-command-bar>', () => {
     })
 
     it('Enter on a find result dispatches sui:navigate with detail.to', async () => {
+      // Real async path — these don't exercise the debounce; fake timers starve them.
+      vi.useRealTimers()
       const { el } = makeBar()
       ;(el as CB).show('find')
       await waitSearch()
@@ -479,7 +494,7 @@ describe('<sui-command-bar>', () => {
         const expectedPath = (palShadow(el)?.querySelector('.cb-item[data-path]') as HTMLElement | null)
           ?.dataset['path']
         el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, composed: true }))
-        await flush()
+        await realFlush()
         expect(events.length).toBeGreaterThan(0)
         expect(events[0]!.detail.to).toBe(expectedPath)
       } finally {
