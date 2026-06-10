@@ -154,6 +154,13 @@ pub trait SpawnPolicy: Send + Sync {
 pub trait ProjectionReader: Send + Sync {
     async fn known_dispatch_slugs(&self) -> Vec<String>;
     async fn is_run_terminal(&self, entity_id: &str) -> bool;
+    /// Resolve the slug for a session given its session_id. Used by the
+    /// cancel handler to look up the process registry keyed by slug.
+    /// Returns `None` when the session is not found in the canonical sessions
+    /// projection (e.g. the session was never started or the projection is stale).
+    async fn slug_for_session_id(&self, _session_id: &str) -> Option<String> {
+        None
+    }
 }
 
 /// Core ports the runner mechanism needs to sequence and dispatch steps.

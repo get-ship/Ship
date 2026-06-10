@@ -1,8 +1,8 @@
 //! The agent-session dispatch primitive — prep / spawn / register /
 //! exit-handler-attach for bare single-agent sessions.
 //!
-//! `handle_agent_session_started` is the SOLE handler of `agent.session.started`
-//! (the orchestrator deleted its arm in S3b). It owns the spawn atom for bare
+//! `handle_dispatch_requested` is the SOLE handler of `dispatch.requested`
+//! (the spawn-intent channel, #26). It owns the spawn atom for bare
 //! `ship use` / `ship dispatch` / MCP `dispatch_agent` sessions. Pipeline-
 //! composed sessions (`parent_pipeline_run_id` set) are skipped here — the
 //! pipeline composer owns their spawn, and orchestrator advances them.
@@ -24,7 +24,7 @@ use ship_code::runner::exit_handler::{self, ExitVocabulary};
 use ship_code::runner::router::DISPATCH_GATE;
 #[cfg(feature = "harness-drivers")]
 use agent_def::canonical_session::{SessionFailed, event_types as canonical_session_event_types};
-use ship_substrate::events::agent_session::AgentSessionStartedPayload;
+use agent_def::dispatch_intent::DispatchRequestedPayload;
 #[cfg(feature = "harness-drivers")]
 use ship_substrate::events::agent_session::InvocationMode;
 use ship_substrate::events::EventEnvelope;
@@ -38,22 +38,22 @@ use crate::ports::AgentPorts;
 
 type Kernel = Arc<Mutex<ship_substrate::events::KernelRouter>>;
 
-/// Entry point for `agent.session.started` events. Resolves dependencies,
+/// Entry point for `dispatch.requested` events. Resolves dependencies,
 /// prepares the worktree, spawns the harness, registers the process, attaches
-/// the exit handler, and emits `agent.session.dispatched`.
+/// the exit handler, and emits `process.spawned`.
 ///
 /// The slow prep (git worktree add + harness spawn + sandbox-up) is detached
 /// off the caller's mailbox loop under the shared L0 [`DISPATCH_GATE`] so one
 /// slow dispatch doesn't stall every other event — see [`crate::actor`].
-pub async fn handle_agent_session_started(
+pub async fn handle_dispatch_requested(
     kernel: &Kernel,
     envelope: &EventEnvelope,
     ports: &AgentPorts,
 ) {
-    let payload: AgentSessionStartedPayload = match serde_json::from_str(&envelope.payload_json) {
+    let payload: DispatchRequestedPayload = match serde_json::from_str(&envelope.payload_json) {
         Ok(p) => p,
         Err(e) => {
-            tracing::warn!("agent-session-dispatch: malformed payload: {e}");
+            tracing::warn!("service.agents: malformed dispatch.requested payload: {e}");
             return;
         }
     };
@@ -79,16 +79,15 @@ pub async fn handle_agent_session_started(
     {
         // Pipeline-composed sessions: the pipeline runner spawns the harness itself
         // (it has step-monitor concerns this handler doesn't cover — gates, retries,
-        // output promotion, fanout). The agent.session.started emitted by the
-        // composer is purely for observability/back-compat — the agent_sessions read
-        // model is retired (#20); the shared read model is the canonical_sessions
-        // projection, fed by the canonical session.* family. Skip the spawn here to
-        // avoid double-spawn.
+        // output promotion, fanout). The dispatch.requested emitted by the
+        // composer is purely for observability/back-compat — the shared read model
+        // is the canonical_sessions projection, fed by the canonical session.* family.
+        // Skip the spawn here to avoid double-spawn.
         if payload.parent_pipeline_run_id.is_some() {
             tracing::debug!(
                 slug = payload.slug, session_id = payload.session_id,
                 parent = ?payload.parent_pipeline_run_id,
-                "agent-session-dispatch: composed by pipeline — skip spawn (composer owns it)"
+                "service.agents: composed by pipeline — skip spawn (composer owns it)"
             );
             return;
         }
@@ -98,13 +97,11 @@ pub async fn handle_agent_session_started(
         {
             // Dependencies are session slugs. No session-level pending dispatcher
             // exists yet: a session with depends_on is skipped here and is NOT
-            // currently re-dispatched when parents complete (known gap — the
-            // jobs-side dispatch_ready_pending_jobs has no session equivalent).
-            // The session record stays in Pending status.
+            // currently re-dispatched when parents complete (known gap).
             tracing::info!(
                 slug = payload.slug, session_id = payload.session_id,
                 deps = ?deps,
-                "agent-session-dispatch: deferring until dependencies complete"
+                "service.agents: deferring until dependencies complete"
             );
             return;
         }
@@ -112,15 +109,7 @@ pub async fn handle_agent_session_started(
         // Dispatch OFF the actor's mailbox loop. Sandbox prep for Tier 2+ runs
         // synchronously inside `executor.spawn` (docker run + sidecar-up — seconds;
         // minutes for VM boot), so awaiting it on the loop would stall EVERY other
-        // session event for the whole prep. We detach into a task: the mailbox
-        // returns immediately, and the session row stays in its post-`started`
-        // Pending state until this task emits `agent.session.dispatched` (or
-        // `.failed`) — exactly the observable "preparing sandbox" window we want,
-        // without a fake "running".
-        //
-        // Safe because (a) event dedup + the terminal-state guard already ran
-        // synchronously in the actor loop BEFORE this point, and (b) sessions are
-        // mutually independent (a sandbox is a per-project trust domain).
+        // session event for the whole prep. We detach into a task.
         let kernel = kernel.clone();
         let ports = ports.clone();
         tokio::spawn(async move {
@@ -133,42 +122,40 @@ pub async fn handle_agent_session_started(
 #[cfg(feature = "harness-drivers")]
 async fn dispatch_agent_session_internal(
     kernel: &Kernel,
-    payload: &AgentSessionStartedPayload,
+    payload: &DispatchRequestedPayload,
     ports: &AgentPorts,
 ) {
     let slug = &payload.slug;
     let branch = &payload.branch;
 
     tracing::info!(
-        slug, branch, agent = payload.agent, session_id = payload.session_id,
+        slug, branch, agent_id = payload.agent_id, session_id = payload.session_id,
         invocation = ?payload.invocation, keepalive = payload.keepalive,
-        "agent-session-dispatch: dispatching"
+        "service.agents: dispatching"
     );
 
     // A cancel processed before this dispatch ran leaves a tombstone (the cancel
     // found no handle to stop). Bail before spawning anything — the projection
     // has already marked the session cancelled.
     if ports.registry.take_if_cancelled(slug).await {
-        tracing::info!(slug, "agent-session-dispatch: session already cancelled — skipping spawn");
+        tracing::info!(slug, "service.agents: session already cancelled — skipping spawn");
         return;
     }
 
-    // The agent-session payload carries invocation directly — the source of
-    // truth for how the executor launches the harness. RoutingExecutor routes
-    // Pty → TmuxWindow/Process, Print → Process, Stream → Server. `keepalive`
-    // is orthogonal (forces Process + build_interactive).
+    // The dispatch payload carries invocation directly — the source of
+    // truth for how the executor launches the harness.
     let invocation = payload.invocation;
 
     let session_ctx = SessionContext {
         // routes use session_id as the pipeline_run_id-shape ulid
         pipeline_run_id: payload.session_id.clone(),
         slug: slug.clone(),
-        agent: payload.agent.clone(),
+        agent: payload.agent_id.clone(),
         branch: branch.clone(),
         spec_path: ".artifacts/job-spec.md".to_string(),
         spec_content: payload.spec.clone(),
         work_dir: ports.platform.worktrees_dir().join(slug),
-        env: build_spawn_env(slug, &payload.agent, ports.spawn_policy.as_ref()).await,
+        env: build_spawn_env(slug, &payload.agent_id, ports.spawn_policy.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
             harness: payload.harness.clone(),
@@ -185,7 +172,7 @@ async fn dispatch_agent_session_internal(
     let worktree_path = match ports.isolation.prepare(&session_ctx).await {
         Ok(p) => p,
         Err(e) => {
-            tracing::error!(slug, "agent-session-dispatch: isolation prepare failed: {e}");
+            tracing::error!(slug, "service.agents: isolation prepare failed: {e}");
             emit_session_failed(
                 kernel,
                 &payload.session_id,
@@ -207,7 +194,7 @@ async fn dispatch_agent_session_internal(
     let handle = match ports.executor.spawn(&session_ctx_with_dir).await {
         Ok(h) => h,
         Err(e) => {
-            tracing::error!(slug, "agent-session-dispatch: executor spawn failed: {e}");
+            tracing::error!(slug, "service.agents: executor spawn failed: {e}");
             emit_session_failed(
                 kernel,
                 &payload.session_id,
@@ -218,8 +205,7 @@ async fn dispatch_agent_session_internal(
             return;
         }
     };
-    // Capture PID before moving the handle into the registry so the dispatched
-    // event can carry it.
+    // Capture PID before moving the handle into the registry.
     let pid = handle.pid;
 
     let executor_kind = match invocation {
@@ -228,7 +214,6 @@ async fn dispatch_agent_session_internal(
         InvocationMode::Stream => "stream",
     };
     let cmd_label = payload.harness.as_deref().unwrap_or("claude");
-    let resolved_harness = cmd_label.to_string();
     emit_process_spawned(
         kernel,
         slug,
@@ -247,22 +232,19 @@ async fn dispatch_agent_session_internal(
 
     // Close the cancel-during-spawn window: if a cancel landed while we were
     // spawning (it found no handle and tombstoned the slug), tear the child down
-    // now instead of leaving it orphaned. register-then-check is race-free
-    // because the registry mutex serializes our register() against the cancel's
-    // take().
+    // now instead of leaving it orphaned.
     if ports.registry.take_if_cancelled(slug).await {
         if let Some(h) = ports.registry.take(slug).await {
-            tracing::info!(slug, "agent-session-dispatch: cancel raced the spawn — stopping just-spawned child");
+            tracing::info!(slug, "service.agents: cancel raced the spawn — stopping just-spawned child");
             if let Err(e) = ports.executor.stop(&h).await {
-                tracing::warn!(slug, "agent-session-dispatch: post-spawn cancel stop failed: {e}");
+                tracing::warn!(slug, "service.agents: post-spawn cancel stop failed: {e}");
             }
         }
         return;
     }
 
-    // Start the exit handler under the agent-session vocabulary — emits
-    // agent.session.{completed,failed} keyed on session_id. One L0 mechanism,
-    // two vocabularies (the pipeline runner uses ExitVocabulary::PipelineRun).
+    // Start the exit handler under the canonical session vocabulary — emits
+    // session.{completed,failed} keyed on session_id.
     exit_handler::start(
         kernel.clone(),
         ports.registry.clone(),
@@ -271,13 +253,6 @@ async fn dispatch_agent_session_internal(
         },
         exit_rx,
     );
-
-    // agent.session.dispatched has no canonical equivalent — the canonical
-    // model tracks active/awaiting_input/terminal only, not the intermediate
-    // "process spawned" signal. The legacy AgentSessionProjection wrote a
-    // Dispatched row here; after Commit D that projection is retired. No
-    // canonical emit needed for spawn-success.
-    let _ = (pid, resolved_harness); // suppress unused warnings
 }
 
 // ── Canonical session emit helpers ─────────────────────────────────────────
@@ -301,7 +276,7 @@ pub(crate) async fn emit_session_failed(
         session_id,
         &payload,
     ) {
-        let env = env.with_actor_id("service.agent-session-dispatch");
+        let env = env.with_actor_id("service.agents");
         persist_and_route(kernel, env, slug, None).await;
     }
 }

@@ -29,10 +29,11 @@ pub async fn spawn_human_gateway(
     let config = ActorConfig {
         namespace: "service.human-gateway".to_string(),
         write_namespaces: vec!["human.".to_string()],
-        // Pipeline-run + agent-session lifecycle. The pre-inversion "job."
-        // namespace is dead — events are now pipeline.run.* / agent.session.*.
-        read_namespaces: vec!["pipeline.".to_string(), "agent.session.".to_string()],
-        subscribe_namespaces: vec!["pipeline.".to_string(), "agent.session.".to_string()],
+        // Pipeline-run + canonical session lifecycle. The pre-inversion "job."
+        // namespace is dead; agent.session.* is retired (#26 spawn-intent).
+        // Events are now pipeline.run.* / session.* (canonical session family).
+        read_namespaces: vec!["pipeline.".to_string(), "session.".to_string()],
+        subscribe_namespaces: vec!["pipeline.".to_string(), "session.".to_string()],
         see_directed_events: false,
     };
 

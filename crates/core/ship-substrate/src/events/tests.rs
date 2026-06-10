@@ -360,13 +360,14 @@ fn registry_has_entries() {
 fn l0_registry_shrinks_under_keystone_a() {
     let n = ship_types::event_registry::all_names().len();
     assert_eq!(
-        n, 57,
+        n, 52,
         "L0-registered event count changed. This pin is a keystone-A RATCHET: \
          it should only move DOWN (a domain de-bucket) — update it with the \
          move. If it went UP, register the new events in their owning L1 \
          domain crate, not in payload_registry.rs. \
-         (#25b: -6 hook.* events deregistered 2026-06-10; \
-          studio de-bucket: -4 studio.* events moved to ship-agents 2026-06-10)"
+         (#25b: -6 hook.* deregistered; studio de-bucket: -4 studio.* moved \
+          to ship-agents; #26: -5 agent.session.* deregistered — all \
+          2026-06-10/11; dispatch.requested registered at L1, not counted here)"
     );
 }
 
@@ -382,20 +383,11 @@ fn legacy_families_pinned_until_sever() {
     // Emitters converted to op.* (tool-use) and session.turn.ended (turns).
     // This block is intentionally empty; kept as a tombstone comment.
 
-    // legacy agent.session.* dispatch family — dual-emit sever + deletion
-    // pending the #26 spawn-intent channel design.
-    const AGENT_SESSION_FAMILY: &[&str] = &[
-        "agent.session.cancelled",
-        "agent.session.completed",
-        "agent.session.dispatched",
-        "agent.session.failed",
-        "agent.session.started",
-    ];
-    for name in AGENT_SESSION_FAMILY {
-        assert!(
-            registry.contains(name),
-            "`{name}` left the L0 registry — if its sever landed, shrink \
-             this pin with it; if not, a registration was lost accidentally"
-        );
-    }
+    // agent.session.* — SEVERED (#26, 2026-06-10): all 5 agent.session.*
+    // events deregistered. Dispatch primitive is now `dispatch.requested`
+    // (Runtime/Ephemeral, registered at L1 in agent-def). The payload structs
+    // in `ship_substrate::events::agent_session` remain as a deserialization
+    // shim for historical replay only — NOT registered.
+    // This block is intentionally empty; kept as a tombstone comment.
+    let _ = &registry; // suppress unused-variable warning when all blocks are tombstones
 }

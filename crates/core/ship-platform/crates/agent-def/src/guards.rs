@@ -27,6 +27,12 @@
 /// The canonical families re-express session lifecycle without any of these so
 /// the kernel/projections/observers stay runtime-agnostic. This is the SSOT;
 /// do not copy the literals — reference this const.
+///
+/// **`dispatch.*` is the ONE sanctioned driver-edge carrier** (#26 spawn-intent
+/// channel). `DispatchRequestedPayload` intentionally carries `branch`,
+/// `source_spec_path`, and `baseline_sha`. It is EXEMPT from the
+/// `all_canonical_payloads_carry_no_driver_edges` guard — do NOT add it to that
+/// test. The guard covers `session.*` and `op.*` only.
 pub const DRIVER_EDGE_FIELDS: &[&str] = &["pid", "branch", "worktree", "exit_code"];
 
 #[cfg(test)]

@@ -26,7 +26,9 @@ const NEEDS_AUTHOR_PAYLOADS: &[&str] = &[
     "ArtifactUpdated",              // changed: serde_json::Value
     "PipelineRunStartedPayload",    // steps: Option<Pipeline>, pipeline: Option<Vec<PipelinePhase>>, vars: HashMap
     "PipelineRunDispatchedPayload", // harness_meta: Option<serde_json::Value>
-    "AgentSessionStartedPayload",   // vars: Option<HashMap<String,String>>, depends_on: Option<Vec<String>>
+    // AgentSessionStartedPayload removed (#26): agent.session.* family retired.
+    // dispatch.requested uses DispatchRequestedPayload; see dispatch_intent.rs.
+    "dispatch_intent::DispatchRequestedPayload", // vars + depends_on: not trivially defaultable
     "WorkspaceActivated",           // harnesses: Vec<String> — not trivially defaultable
 ];
 
@@ -80,29 +82,15 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "AgentChanged" => json!({ "path": ".ship/agents/test.jsonc", "content_hash": "sha256-test" }),
         "AgentTaskComplete" => json!({ "task_id": "test-task", "task_type": "code-review" }),
 
-        // ── Agent session events ─────────────────────────────────────────────
-        "AgentSessionDispatchedPayload" => json!({
-            "session_id": "test-session-id",
-            "slug": format!("test-{slug}"),
-            "worktree": "/home/user/.ship/worktrees/test",
-            "harness": "claude"
-        }),
-        "AgentSessionCompletedPayload" => json!({
-            "session_id": "test-session-id",
-            "slug": format!("test-{slug}"),
-            "exit_code": 0
-        }),
-        "AgentSessionFailedPayload" => json!({
-            "session_id": "test-session-id",
-            "slug": format!("test-{slug}"),
-            "error": "harness exit code 1",
-            "stage": "exit_nonzero"
-        }),
-        "AgentSessionCancelledPayload" => json!({
-            "session_id": "test-session-id",
-            "slug": format!("test-{slug}"),
-            "reason": "operator-requested"
-        }),
+        // ── Agent session events (RETIRED #26) ──────────────────────────────
+        // agent.session.* family is deregistered (#26 spawn-intent, 2026-06-10).
+        // The payload stubs below are kept for historical fixture generation
+        // only (replay of old events in DB rows); they are no longer registered.
+
+        // ── Dispatch events (#26 spawn-intent channel) ───────────────────────
+        // dispatch.requested is NEEDS_AUTHOR (vars + depends_on fields).
+        // These stubs are not needed for auto-generation — handled by the
+        // NEEDS_AUTHOR path above.
 
         // ── Artifact events ──────────────────────────────────────────────────
         // Metadata is event-sourced (ADR D6/D7): these payloads are

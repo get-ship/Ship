@@ -1,5 +1,5 @@
 //! The agent-cancel decision — `service.agents`' handling of
-//! `agent.session.cancelled`.
+//! `session.cancelled`.
 //!
 //! Stop the running harness, tear down its worktree/tmux, and emit
 //! `process.killed` for audit. The projection has already transitioned the
@@ -7,18 +7,21 @@
 //! stop the running work.
 //!
 //! The teardown MECHANISM is the L0 runner's slug-keyed primitive
-//! ([`ship_runner::stop_by_slug`] / [`ship_runner::stop_handle`]). The branch
-//! used for cleanup is derived as `job/<slug>` — the dispatch convention for
-//! bare agent sessions (worktrees + branch are slug-derived; the same fallback
-//! the orchestrator's `handle_cleanup` uses). That keeps this decision off
-//! `crate::projections`, so the crate depends on L0 alone.
+//! ([`ship_runner::stop_by_slug`] / [`ship_runner::stop_handle`]). The slug
+//! is resolved from the session_id via `ProjectionReader::slug_for_session_id`
+//! — keeps this decision off `crate::projections` directly.
 //!
 //! Distinct from the orchestrator's pipeline-run cancel (which additionally
 //! walks fanout lanes and reads the jobs projection for the branch). The agent
 //! cancel is slug-keyed and harness-agnostic.
+//!
+//! Note: the Stop RPC currently kills processes directly without emitting
+//! `session.cancelled`. This handler is wired for when that emit is added.
+//! See #26 spawn-intent channel design for the Stop RPC wiring TODO.
 
 use std::sync::Arc;
 
+use agent_def::canonical_session::SessionCancelled;
 use ship_runner::emit::persist_and_route;
 use ship_substrate::events::process::{event_types as process_event_types, ProcessKilledPayload};
 use ship_substrate::events::EventEnvelope;
@@ -28,18 +31,32 @@ use crate::ports::AgentPorts;
 
 type Kernel = Arc<Mutex<ship_substrate::events::KernelRouter>>;
 
-/// Handle `agent.session.cancelled`. Reads `slug` from the payload, stops the
+/// Handle `session.cancelled`. Reads `session_id` from the canonical payload,
+/// resolves the slug via `ProjectionReader::slug_for_session_id`, stops the
 /// process via the L0 teardown core, cleans up the worktree/tmux/branch, and
 /// emits `process.killed`.
 pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, ports: &AgentPorts) {
-    let payload: serde_json::Value =
-        serde_json::from_str(&envelope.payload_json).unwrap_or_default();
-    let slug = match payload["slug"].as_str() {
-        Some(s) if !s.is_empty() => s.to_string(),
-        _ => {
+    let payload: SessionCancelled = match serde_json::from_str(&envelope.payload_json) {
+        Ok(p) => p,
+        Err(e) => {
             tracing::warn!(
                 entity_id = %envelope.entity_id,
-                "agent-session-cancel: cancelled missing slug — skipping process kill"
+                "agent-session-cancel: malformed session.cancelled payload: {e}"
+            );
+            return;
+        }
+    };
+
+    let session_id = &payload.session_id;
+
+    // Resolve slug from session_id via the ProjectionReader port so this
+    // module stays off crate::projections directly.
+    let slug = match ports.projections.slug_for_session_id(session_id).await {
+        Some(s) if !s.is_empty() => s,
+        _ => {
+            tracing::warn!(
+                session_id = %session_id,
+                "agent-session-cancel: no slug found for session_id — skipping process kill"
             );
             return;
         }
@@ -66,8 +83,7 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
         // No handle to stop — but a dispatch for this slug may be spawning right
         // now (cancel raced the spawn). Drop a tombstone so the in-flight
         // dispatch tears the child down after it registers instead of leaking
-        // it. Also covers a cancel processed entirely before the dispatch
-        // handler runs.
+        // it.
         ports.registry.mark_cancelled(&slug).await;
         tracing::info!(slug, "agent-session-cancel: no live handle found; tombstoned for in-flight spawn, proceeding to cleanup");
         None
