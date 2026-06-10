@@ -1,0 +1,60 @@
+<!--
+  ship-status-bar.sui — @ship/chrome · the bottom strip. Glance-only AMBIENT system state
+  for an agentic OS — NOT a code editor. Deliberately NOT VSCode: no git branch, no
+  "problems", no Ln/Col. Ship-native segments: daemon health · live agent sessions ·
+  pending approvals (gate) · sync · the active space · a context string.
+  Subtle surface strip (not a bold accent bar). Attribute-driven, tokens only.
+  Props: daemon(ready|busy|offline) · sessions · approvals · sync(synced|syncing|offline)
+       · space · context · theme.
+  Controller emits ship-open-runs when the sessions / approvals segment is clicked.
+-->
+<prop name="daemon" values="ready|busy|offline" default="ready" reflect />
+<prop name="sessions" type="string" default="0" />
+<prop name="approvals" type="string" default="0" reflect />
+<prop name="sync" values="synced|syncing|offline" default="synced" reflect />
+<prop name="space" type="string" default="" />
+<prop name="context" type="string" default="" />
+<prop name="theme" type="string" default="Ship Light" />
+
+<style>
+  :host { display: flex; align-items: center; gap: 16px; padding: 0 14px; height: 28px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground);
+    background: var(--surface-2); border-top: 1px solid var(--border-subtle); }
+  .seg { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .seg b { color: var(--foreground); font-weight: 600; }
+  .seg sui-icon { opacity: .8; }
+  button.seg { border: 0; background: transparent; font: inherit; color: inherit; padding: 2px 4px; margin: -2px -4px; border-radius: var(--radius-sm); cursor: pointer; }
+  button.seg:hover { background: var(--hover-bg); }
+  button.seg:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+  .dot { width: 7px; height: 7px; border-radius: var(--radius-full); background: var(--muted-foreground); flex-shrink: 0; }
+
+  /* daemon health */
+  .daemon .dot { background: var(--muted-foreground); }
+  :host([daemon='ready']) .daemon .dot { background: var(--success); }
+  :host([daemon='busy'])  .daemon .dot { background: var(--warning); animation: sb-pulse 1s ease-in-out infinite; }
+  :host([daemon='offline']) .daemon { opacity: .55; }
+  @keyframes sb-pulse { 50% { opacity: .35; } }
+
+  /* live sessions — emphasized only when >0 (set via attr by host) */
+  .sessions b { color: var(--accent); }
+
+  /* approvals — a gate waiting; hidden at zero */
+  .approvals { color: var(--warning); }
+  :host([approvals='0']) .approvals { display: none; }
+
+  .r { margin-left: auto; display: inline-flex; align-items: center; gap: 16px; }
+
+  /* sync */
+  :host([sync='syncing']) .sync sui-icon { animation: sb-spin 1.4s linear infinite; }
+  :host([sync='offline']) .sync { opacity: .55; }
+  @keyframes sb-spin { to { transform: rotate(360deg); } }
+</style>
+
+<span class="seg daemon"><span class="dot"></span>daemon · <b>{daemon()}</b></span>
+<button class="seg sessions" type="button" on:click={openRuns}><sui-icon name="activity" size="sm"></sui-icon><b>{sessions()}</b> active</button>
+<button class="seg approvals" type="button" on:click={openRuns}><sui-icon name="shield" size="sm"></sui-icon><b>{approvals()}</b> to approve</button>
+<span class="r">
+  <span class="seg">{context()}</span>
+  <span class="seg space"><sui-icon name="box" size="sm"></sui-icon>{space()}</span>
+  <span class="seg sync"><sui-icon name="refresh-cw" size="sm"></sui-icon>{sync()}</span>
+</span>

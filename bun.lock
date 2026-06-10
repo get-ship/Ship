@@ -242,6 +242,20 @@
         "vitest": "^4.1.5",
       },
     },
+    "packages/components/ship/chrome": {
+      "name": "@ship/chrome",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-primitives": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "@ship/test-setup": "workspace:*",
+        "happy-dom": "^20.9.0",
+        "vitest": "^4.1.5",
+      },
+    },
     "packages/components/ship/code": {
       "name": "@ship/code",
       "version": "0.1.0",
@@ -1154,6 +1168,8 @@
     "@ship/assets": ["@ship/assets@workspace:packages/assets"],
 
     "@ship/authority": ["@ship/authority@workspace:packages/components/ship/authority"],
+
+    "@ship/chrome": ["@ship/chrome@workspace:packages/components/ship/chrome"],
 
     "@ship/code": ["@ship/code@workspace:packages/components/ship/code"],
 

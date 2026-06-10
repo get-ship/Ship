@@ -1,0 +1,31 @@
+<!--
+  ship-activity-bar.sui — @ship/chrome · the context switcher (vertical). Each item IS a
+  context — Agents · Views · Components · Pipelines · Themes — the configurable domains of a
+  space. NOT a generic "Explorer", and Library is NOT here (it's a separate surface).
+  Selecting a context drives what the navigator panel shows (tree or list). A settings cog
+  sits at the foot. Items are the baked set. Each exposes the `item` part for host styling.
+  Prop: active(agents|views|components|pipelines|themes|collections|artifacts|settings).
+  Controller emits ship-context-change {context} on item click.
+-->
+<prop name="active" values="agents|views|components|pipelines|themes|collections|artifacts|settings" default="views" reflect />
+
+<style>
+  :host { display: flex; flex-direction: column; align-items: center; padding: 8px 0; gap: 3px; background: var(--surface-2); border-right: 1px solid var(--border-subtle); font-family: var(--font-body); }
+  .act { width: 38px; height: 38px; border: 0; background: transparent; border-radius: var(--radius-md); display: grid; place-items: center; color: var(--muted-foreground); cursor: pointer; position: relative; }
+  .act:hover { color: var(--foreground); background: var(--hover-bg); }
+  .act:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+  .act .bar { position: absolute; left: -8px; top: 8px; bottom: 8px; width: 2.5px; border-radius: var(--radius-full); background: var(--primary); opacity: 0; }
+  :host([active='agents']) .a-agents, :host([active='views']) .a-views, :host([active='components']) .a-components, :host([active='pipelines']) .a-pipelines, :host([active='themes']) .a-themes, :host([active='collections']) .a-collections, :host([active='artifacts']) .a-artifacts, :host([active='settings']) .a-settings { color: var(--primary); }
+  :host([active='agents']) .a-agents .bar, :host([active='views']) .a-views .bar, :host([active='components']) .a-components .bar, :host([active='pipelines']) .a-pipelines .bar, :host([active='themes']) .a-themes .bar, :host([active='collections']) .a-collections .bar, :host([active='artifacts']) .a-artifacts .bar, :host([active='settings']) .a-settings .bar { opacity: 1; }
+  .spacer { flex: 1; }
+</style>
+
+<button class="act a-agents" part="item" type="button" title="Agents" data-ctx="agents" on:click={pick}><span class="bar"></span><sui-icon name="bot" size="md"></sui-icon></button>
+<button class="act a-views" part="item" type="button" title="Views" data-ctx="views" on:click={pick}><span class="bar"></span><sui-icon name="columns" size="md"></sui-icon></button>
+<button class="act a-components" part="item" type="button" title="Components" data-ctx="components" on:click={pick}><span class="bar"></span><sui-icon name="layout-grid" size="md"></sui-icon></button>
+<button class="act a-pipelines" part="item" type="button" title="Pipelines" data-ctx="pipelines" on:click={pick}><span class="bar"></span><sui-icon name="workflow" size="md"></sui-icon></button>
+<button class="act a-themes" part="item" type="button" title="Themes" data-ctx="themes" on:click={pick}><span class="bar"></span><sui-icon name="palette" size="md"></sui-icon></button>
+<button class="act a-collections" part="item" type="button" title="Collections" data-ctx="collections" on:click={pick}><span class="bar"></span><sui-icon name="database" size="md"></sui-icon></button>
+<button class="act a-artifacts" part="item" type="button" title="Artifacts" data-ctx="artifacts" on:click={pick}><span class="bar"></span><sui-icon name="box" size="md"></sui-icon></button>
+<span class="spacer"></span>
+<button class="act a-settings" part="item" type="button" title="Space settings" data-ctx="settings" on:click={pick}><span class="bar"></span><sui-icon name="sliders-horizontal" size="md"></sui-icon></button>
