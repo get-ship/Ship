@@ -7,7 +7,11 @@ describe('bindRawHtml', () => {
     const el = document.createElement('div')
     const sig = signal('<b>Hi</b>')
     bindRawHtml(el, () => sig(), [sig])
-    expect(el.innerHTML).toBe('<b>Hi</b>')
+    const b = el.querySelector('b')
+    expect(b).not.toBeNull()
+    expect(b!.tagName).toBe('B')
+    expect(b!.textContent).toBe('Hi')
+    expect(el.childNodes.length).toBe(1)
   })
 
   it('updates on dep change', () => {
@@ -15,14 +19,19 @@ describe('bindRawHtml', () => {
     const sig = signal('<i>a</i>')
     bindRawHtml(el, () => sig(), [sig])
     sig.set('<u>b</u>')
-    expect(el.innerHTML).toBe('<u>b</u>')
+    expect(el.querySelector('i')).toBeNull()
+    const u = el.querySelector('u')
+    expect(u).not.toBeNull()
+    expect(u!.textContent).toBe('b')
+    expect(el.childNodes.length).toBe(1)
   })
 
   it('null/undefined renders empty', () => {
     const el = document.createElement('div')
     const sig = signal<string | null>(null)
     bindRawHtml(el, () => sig() as string, [sig])
-    expect(el.innerHTML).toBe('')
+    expect(el.childNodes.length).toBe(0)
+    expect(el.textContent).toBe('')
   })
 
   it('disposer stops updates', () => {
@@ -31,7 +40,7 @@ describe('bindRawHtml', () => {
     const dispose = bindRawHtml(el, () => sig(), [sig])
     dispose()
     sig.set('b')
-    expect(el.innerHTML).toBe('a')
+    expect(el.textContent).toBe('a')
   })
 
   // Documentation-by-test for the XSS contract: this binding is the

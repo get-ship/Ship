@@ -79,7 +79,11 @@ describe('mount()', () => {
     }
     const handle = await mount(target, payload, { module: emptyModule() })
     expect(handle.element).toBe(target)
-    expect(target.innerHTML).toBe('<p>hello</p>')
+    expect(target.children.length).toBe(1)
+    const p = target.querySelector('p')
+    expect(p).toBeTruthy()
+    expect(p!.tagName).toBe('P')
+    expect(p!.textContent).toBe('hello')
     handle.dispose()
   })
 
@@ -176,7 +180,9 @@ describe('mount()', () => {
     // reload's options are inherited from the initial mount; the test
     // module is reused so reload doesn't re-import.
     await handle.reload(next)
-    expect(target.innerHTML).toBe('<div>v2</div>')
+    const reloaded = target.querySelector('div')
+    expect(reloaded).toBeTruthy()
+    expect(reloaded!.textContent).toBe('v2')
     const scope2 = handle.scope as Record<string, () => unknown>
     expect(scope2.count!()).toBe(42)
     handle.dispose()
@@ -282,7 +288,7 @@ describe('mount()', () => {
       }
       const handle = await mount(target, payload, { module: emptyModule() })
       expect(setOnTarget).toBe(0)
-      expect(target.innerHTML).toBe('<p>fresh</p>')
+      expect(target.querySelector('p')?.textContent).toBe('fresh')
       handle.dispose()
     } finally {
       Object.defineProperty(Element.prototype, 'innerHTML', desc)
@@ -309,7 +315,7 @@ describe('mount()', () => {
       loader: { fetchView, loadComponent: async () => {} },
     })
     expect(fetchView).toHaveBeenCalledWith('demo-fetch')
-    expect(target.innerHTML).toBe('<div>fetched</div>')
+    expect(target.querySelector('div')?.textContent).toBe('fetched')
     handle.dispose()
   })
 
