@@ -37,10 +37,9 @@
 //!   absent.
 //!
 //! **R4 — Downward-only into L2:** L1 must NOT depend on L2, and L0 must NOT
-//!   depend on L2. Currently flags the live edge `ship-views` (L1) → `deck` (L2)
-//!   as a known-violation (WARN, non-blocking — the real fix is de-bucketing the
-//!   SDK-manifest surface out of ship-views; until then every *new* L1→L2 /
-//!   L0→L2 edge hard-fails).
+//!   depend on L2. Every L1→L2 / L0→L2 edge hard-fails; `KNOWN_L2_EDGES` is
+//!   empty (the former `ship-views`→`deck` violation was severed by inverting
+//!   the dependency through `ViewToolPort`).
 //!
 //! Run via `cargo xtask lint-layers`. CI fails on any hard error; WARN lines
 //! (known-violations) are reported but non-blocking.
@@ -103,11 +102,7 @@ const R2_KNOWN_VIOLATIONS: &[&str] = &[];
 /// consequences don't independently turn the lint red) and reported as a single
 /// WARN. The list is the ratchet: a *new* L1→L2 / L0→L2 edge not listed here
 /// hard-fails.
-const KNOWN_L2_EDGES: &[(&str, &str)] = &[
-    // ship-views (L1) embeds deck (L2) for the SDK-manifest render surface.
-    // Fix = de-bucket that surface out of ship-views; until then, WARN.
-    ("ship-views", "deck"),
-];
+const KNOWN_L2_EDGES: &[(&str, &str)] = &[];
 
 pub fn run(repo_root: &Path) -> Result<(), String> {
     let ws = metadata::load(repo_root)?;

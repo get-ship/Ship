@@ -75,4 +75,20 @@ impl ViewToolPort for ViewToolAdapter {
         // consumer is `ship_views::view_authoring::tool_dispatch`.
         deck_core::resolve_theme_css()
     }
+
+    fn resolve_view_source(&self, name: &str) -> Result<(String, std::path::PathBuf), String> {
+        let resolved = deck::resolver::resolve(name, None)
+            .map_err(|e| e.message.clone())?;
+        let path = resolved
+            .source_path
+            .ok_or_else(|| "view has no on-disk source".to_string())?;
+        Ok((resolved.source, path))
+    }
+
+    fn preview_view_html(&self, name: &str) -> Result<String, String> {
+        let resolved = deck::resolver::resolve(name, None)
+            .map_err(|e| e.message.clone())?;
+        let rendered = deck::resolver::render_resolved(&resolved, name)?;
+        Ok(rendered.html)
+    }
 }
