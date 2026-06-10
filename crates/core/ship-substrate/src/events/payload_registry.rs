@@ -1,7 +1,8 @@
-// FILE_CAP_OVERRIDE: the event registry is a single compilation unit so
-// `inventory::collect!` sees every `EventDef`. No logic present; only static
-// `EventRegistration` submissions. Split deferred until a second major
-// event family lands.
+// FILE_CAP_OVERRIDE: No logic present; only static `EventRegistration`
+// submissions. This module registers the substrate-owned entries. Domain-owned
+// families (session.*, session.turn.*, op.*) are registered from agent-def's
+// event_registrations.rs; `registry()` returns every classified entry only
+// once all registering crates are linked into the binary.
 
 //! Compile-time event registry population.
 //!
@@ -14,8 +15,8 @@
 //!    pipeline, process, supervisor, executor) which depend on `ship-pipelines` types
 //!    and therefore cannot live in the leaf `ship-types` crate.
 //!
-//! After this module compiles, `ship_types::event_registry::registry()` returns every
-//! classified entry. NOTE: `event_types::ALL` is a separate, HAND-MAINTAINED list — it
+//! After all registering crates link, `ship_types::event_registry::registry()` returns
+//! every classified entry. NOTE: `event_types::ALL` is a separate, HAND-MAINTAINED list — it
 //! is NOT auto-derived from this registry. The registry-vs-`ALL` consistency RATCHET
 //! lives in `events::tests::registry_vs_all_ratchet`: a registration added here
 //! without an `ALL` entry (or a justified-absence row there) fails that test.

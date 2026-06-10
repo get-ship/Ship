@@ -5,9 +5,10 @@
 //! by `last_event_at` desc so the most recently active actors surface
 //! first.
 //!
-//! This projection maintains the `actors` table in per-workspace DBs as a read
-//! model. It handles every actor event type and applies the state change.
-//! On rebuild, the table is truncated and replayed from the event log.
+//! This projection maintains the `actors` table in the Runtime-scope `runtime.db`
+//! as a read model. It handles the actor lifecycle events (created/woke/slept/
+//! stopped/crashed) plus `process.spawned` for pid backfill; `actor.mailbox_full`
+//! is not folded. On rebuild, the table is truncated and replayed from the event log.
 
 use anyhow::Result;
 use sqlx::SqliteConnection;

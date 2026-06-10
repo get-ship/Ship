@@ -3,8 +3,9 @@
 //! Validates platform invariants on a resolved pipeline: agent declarations,
 //! produces/consumes/promotes consistency, scope transitions, fanout shapes,
 //! and lane-scoped reference resolution. The daemon's `pipeline_loader`
-//! calls this after parsing YAML; the cloud worker calls the same function
-//! over the same types.
+//! calls this after parsing the JSONC pipeline definition (`normalize_pipeline`);
+//! the crate is kept pure (no fs/process/network) so a future cloud worker can
+//! call the same function over the same types.
 
 use std::collections::{HashMap, HashSet};
 

@@ -7,8 +7,8 @@
 //! through `SessionExecutor` — a second trait would be a parallel system with no
 //! added power (see `CLAUDE.md`: "One way to do things.").
 //!
-//! The two concrete implementations live in `apps/shipd/src/supervisor/
-//! executors/`:
+//! The concrete implementations live in
+//! `crates/core/ship-platform/crates/ship-code/src/executors/`:
 //!
 //!   - `TmuxWindowExecutor` — tmux session `ship-<slug>`, one window per
 //!                            step, command teed to
@@ -20,8 +20,8 @@
 //!                            flag is set, when tmux is unavailable, or on
 //!                            Windows.
 //!
-//! The shipd-side `RoutingExecutor` selects between them per-job based on
-//! `SessionContext::headless`.
+//! The `RoutingExecutor` (ship-code executors/routing.rs) selects between
+//! them per-job based on `SessionContext::headless`.
 //!
 //! # Log path convention
 //!

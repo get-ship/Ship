@@ -1,6 +1,6 @@
-//! Process-lifecycle events. Distinct from `job.*` because a single
-//! job can spawn many processes (per step), and a process is an OS
-//! resource the supervisor must observe directly.
+//! Process-lifecycle events. Distinct from `pipeline.run.*`/`pipeline.step.*`
+//! because a single pipeline run can spawn many processes (per step), and a
+//! process is an OS resource the supervisor must observe directly.
 
 use serde::{Deserialize, Serialize};
 pub mod event_types {

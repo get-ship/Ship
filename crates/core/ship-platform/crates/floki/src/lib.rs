@@ -4,8 +4,10 @@
 //! point: because the loop is ours, every effect an agent causes enters at the
 //! one door (`gateway::Gateway`) where the gate runs; code-mode JS executes in a
 //! locked-down V8 isolate ([`ship_js`]) whose only effect is the same gated wire;
-//! and a run is journaled so it can suspend and resume by replay
-//! ([`durable_execution`]) without re-running effects or re-burning tokens. A
+//! and a code-mode op stream CAN be journaled and replayed without re-running
+//! effects ([`durable::run_durable_script`], Stage 1) — but the live loop is
+//! not yet journal-driven and the model turn is not durable (tokens re-burn on
+//! resume); that is Stage 2, tracked in floki-Stage-2 (#30). A
 //! third-party harness (claude, codex — `ship-code`'s territory) cannot offer
 //! any of that, because we don't own its loop.
 //!

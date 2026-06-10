@@ -245,12 +245,11 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
         format!("events author-columns reconcile failed on {}", path.display())
     })?;
 
-    // Tolerant migration pass — see `db::migrate`. It relaxes exactly one
-    // failure mode: a `_sqlx_migrations` log that is *ahead* of this binary
-    // (chronic across dev worktrees sharing one `platform.db`, impossible
-    // for a customer). Genuine corruption — a dirty migration or an edited
-    // applied one — still hard-errors. On failure, refuse to start; never
-    // delete user data.
+    // Tolerant migration pass — see `db::migrate`. It relaxes a `_sqlx_migrations`
+    // log that is ahead of this binary, and — while PRE_LAUNCH_REBASELINE is true
+    // — re-baselines an edited applied migration's checksum with a WARN. A dirty
+    // (partially-applied) migration still hard-errors. On failure, refuse to
+    // start; never delete user data.
     if let Err(e) = block_on_anyhow(migrate::run_tolerant(&mut conn)) {
         tracing::error!("platform.db migration failed on {}: {e}", path.display());
         return Err(anyhow!("migration failed on {}: {e}", path.display()));

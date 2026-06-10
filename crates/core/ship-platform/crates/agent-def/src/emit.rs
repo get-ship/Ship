@@ -12,7 +12,7 @@
 //!   which also implements `EventSink`. The port is the same in both — no
 //!   `if kernel else mock` branching at call sites.
 //! - The `emit_session_*` / `emit_turn_*` builders take the typed payload
-//!   from [`ship_substrate::events::canonical_session`], build an
+//!   from [`crate::canonical_session`], build an
 //!   `EventEnvelope`, stamp the scope (`Space` for `session.*` coarse
 //!   events, `Runtime` for `session.turn.*`), then call
 //!   `sink.persist(&envelope)`.

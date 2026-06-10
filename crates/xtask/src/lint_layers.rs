@@ -84,7 +84,11 @@ const OUTBOUND_ALLOWLIST: &[&str] = &[
 /// Each emits a WARN; the lint does NOT fail on them. The owning lane ratchets
 /// these to the allowlist or fixes the architecture before removing them.
 ///
-/// - `ship-isolation` — runs/drives a Connect server inside L0.
+/// - `ship-isolation` — host-side ConnectRPC CLIENT transport for driving the
+///   in-sandbox sidecar's server (connectrpc client + http + tower/hyper-util for
+///   the Firecracker uds/vsock h2 connector); also provides the IsolationService
+///   wire layer that shipd mounts. No Connect server runs inside the crate itself,
+///   but the transport deps live in L0 until the host-driver seam is de-bucketed.
 ///
 /// (`ship-substrate` was here for the `reqwest` pulled by
 /// `services/human_gateway.rs`; that egress now lives in `ship-messaging` (L1)

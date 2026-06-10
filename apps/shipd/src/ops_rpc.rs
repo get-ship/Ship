@@ -49,7 +49,7 @@ impl OpsService for OpsImpl {
     }
 }
 
-// ── Streaming (the Connect-native event bus; retires the SSE event route) ─────
+// ── Streaming (the Connect-native event bus; intended to replace the SSE event route Route::EventStream, which is still mounted) ─────────
 // Mirrors runtime_api::event_stream: spawn a broadcast subscriber actor, then
 // stream every kernel event as JSON. SSE was just one adapter over this.
 impl StreamService for OpsImpl {

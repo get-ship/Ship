@@ -3,8 +3,10 @@
 //! `handle_session_end` helpers (which emitted `session.started` /
 //! `session.ended` workbench events) were retired with the workbench
 //! family (job `workbench-teardown`). The `hook.session_started` /
-//! `hook.session_ended` events emitted by the HTTP ingress in
-//! `http_ingress` are part of the canonical `hook.*` family and stay.
+//! `hook.session_ended` events emitted by the HTTP ingress in `http_ingress`
+//! are part of the `hook.*` family, which currently coexists with the
+//! registered (but not yet emitted) `op.*` replacement family; conversion +
+//! hook.* deregistration is tracked in #25b.
 
 use anyhow::{Result, anyhow};
 use serde::Deserialize;

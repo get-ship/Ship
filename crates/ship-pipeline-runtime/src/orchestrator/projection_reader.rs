@@ -13,7 +13,7 @@ use crate::projections::pipeline_run::{load_pipeline_run_by_id, load_pipeline_ru
 use ship_code::dispatch_ports::ProjectionReader;
 use ship_substrate::projections::actor::active_actor_ids;
 
-/// Reads the live SQL-backed projections (`platform.db`). Stateless — each
+/// Reads the live SQL-backed projections (`runtime.db`). Stateless — each
 /// call hits the tables fresh so a stale snapshot can't mis-flag a sweep.
 pub struct ProjectionsReader;
 

@@ -2,9 +2,11 @@
 //!
 //! Sits downstream of `ship-substrate`'s event log. Three concerns:
 //!
-//! 1. **[projection]** — `AnalyticsProjection` folds `hook.session_*`
-//!    and `hook.tool_use_*` events into the `analytics_sessions` and
-//!    `analytics_tool_uses` tables. Registered with the substrate's
+//! 1. **[projection]** — `AnalyticsProjection` folds `hook.session_*`,
+//!    `hook.tool_use_*`, and `hook.turn_observed`, plus
+//!    `actor.created`/`actor.stopped` as a fallback session signal, into
+//!    the `analytics_sessions`, `analytics_tool_uses`, and
+//!    `analytics_turns` tables. Registered with the substrate's
 //!    EventBus at daemon startup via `install_extra_projections_factory`.
 //!
 //! 2. **[queries]** — typed SELECT helpers consumers (dashboard, CLI)
@@ -17,10 +19,10 @@
 //!    AND data for sessions launched outside Ship. Privacy-sensitive:
 //!    default local-only; explicit opt-in for cloud sync.
 //!
-//! The crate does NOT own the migration that defines its tables —
+//! The crate does NOT own the migrations that define its tables —
 //! schema lives in `ship-substrate/migrations/` so a single migration
-//! runner manages the platform.db. Adding a new analytics table = new
-//! file in that dir.
+//! runner manages the per-scope event DBs (analytics rollups land in
+//! `runtime.db`). Adding a new analytics table = new file in that dir.
 
 pub mod projection;
 pub mod queries;

@@ -6,11 +6,11 @@
 //! that was going to emit the fanout outcome is gone with it.
 //!
 //! This module scans the event store on startup for lane-scoped
-//! `job.step_dispatched` events that have no matching
-//! `step.done_declared` and takes one of two actions per lane:
+//! `pipeline.step.started` (step_type "fanout_lane") events that have no
+//! matching `step.done_declared` and takes one of two actions per lane:
 //!
-//! * parent job terminal → clean up the lane's worktree/tmux session
-//! * parent job live     → emit a synthetic `job.step_failed` for the
+//! * parent run terminal → clean up the lane's worktree/tmux session
+//! * parent run live     → emit a synthetic `pipeline.step.failed` for the
 //!   lane so the (fresh) aggregator can resolve through the normal
 //!   `min_successful_lanes` path
 //!
@@ -31,10 +31,11 @@ use crate::orchestrator::OrchestratorContext;
 use ship_runner::emit::persist_and_route;
 use crate::orchestrator::fanout_aggregate::emit_failed_marker;
 
-/// Emit a lane-scoped `job.step_dispatched` with the metadata the restart
-/// reconciler needs to find orphaned lanes after a daemon crash.
+/// Emit a lane-scoped `pipeline.step.started` (step_type "fanout_lane") with
+/// the metadata the restart reconciler needs to find orphaned lanes after a
+/// daemon crash.
 ///
-/// Payload fields beyond the standard step_dispatched shape:
+/// Payload fields beyond the standard step_started shape:
 /// `fanout_parent_step`, `lane_id`, `lane_slug`, and `step_type: "fanout_lane"`.
 pub async fn emit_fanout_lane_dispatched(
     kernel: &Arc<Mutex<KernelRouter>>,
@@ -64,8 +65,8 @@ pub async fn emit_fanout_lane_dispatched(
     persist_and_route(kernel, envelope, parent_slug, None).await;
 }
 
-/// Parsed lane dispatch record — the subset of a `job.step_dispatched`
-/// payload we care about for recovery.
+/// Parsed lane dispatch record — the subset of a `pipeline.step.started`
+/// (fanout_lane) payload we care about for recovery.
 #[derive(Debug, Clone)]
 pub(crate) struct LaneDispatchRecord {
     pub pipeline_run_id: String,
@@ -76,8 +77,8 @@ pub(crate) struct LaneDispatchRecord {
     pub lane_step_id: String,
 }
 
-/// Scan `events` for lane `job.step_dispatched` entries that have no
-/// matching `step.done_declared` (on the same lane_step_id). The result
+/// Scan `events` for lane `pipeline.step.started` (fanout_lane) entries that
+/// have no matching `step.done_declared` (on the same lane_step_id). The result
 /// is every lane that looked in-flight at the moment of the crash.
 pub(crate) fn find_orphan_lanes(events: &[EventEnvelope]) -> Vec<LaneDispatchRecord> {
     let mut dispatched: HashMap<String, LaneDispatchRecord> = HashMap::new();

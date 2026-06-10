@@ -1,8 +1,11 @@
-//! Event registry — compile-time-collected metadata for every annotated event payload.
+//! Event registry — compile-time-collected metadata for every registered event payload.
 //!
-//! Each payload struct annotated with `#[derive(EventPayload)] #[event(...)]` submits
-//! an `EventRegistration` via `inventory::submit!`. The `registry()` function assembles
-//! all registrations at runtime (no hand-maintained list; drift is impossible).
+//! Registrations are submitted via `inventory::submit!` — in practice through
+//! hand-written `register_event!` lists in `payload_registry.rs` and
+//! `agent-def`'s `event_registrations.rs` (the `#[derive(EventPayload)]` derive
+//! exists but currently has no users). `registry()` assembles all submissions at
+//! link time, so there is no central aggregation list — but registration entries
+//! themselves are hand-maintained and can drift from their payload structs.
 //!
 //! ## Naming
 //!

@@ -1,6 +1,5 @@
-// `view.*` view-authoring writes as a hand-authored per-domain proto-SSOT
-// service (#89), mounted ADDITIVELY beside the generated CommandOpsService
-// (which keeps serving `view.*` until the GUI flip, #72). Old path UNCHANGED.
+// `view.*` — the sole view.* serving path. The generated CommandOpsService
+// umbrella was retired (#78).
 //
 // These are the agent view-authoring protocol: session fragment edits
 // (patch/append/signal), edit-mode grant/revoke, and the authoring-tool
@@ -8,11 +7,10 @@
 // routes through the ONE gate (services::command::call), which enforces the
 // `ship.views.write` capability + the per-session edit-mode grant.
 //
-// Request messages take FRESH names (ViewPatchReq, …) to avoid colliding with
-// the ViewPatchSessionRequest et al. that the generated commands.gen.proto
-// still declares in this same ship.ops.v1 package. Returns mirror the
-// generated path exactly (opaque JsonResponse) so the GUI flip is a transport
-// swap, not a shape change.
+// Request messages take FRESH names (ViewPatchReq, …) — historical
+// collision-avoidance against the deleted commands.gen.proto (which declared
+// ViewPatchSessionRequest et al.); kept for wire stability. Returns are opaque
+// JsonResponse.
 syntax = "proto3";
 
 package ship.ops.v1;

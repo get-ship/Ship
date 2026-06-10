@@ -4,8 +4,8 @@
 //! command in the job's worktree directory, capturing output and emitting
 //! step lifecycle events to the kernel.
 //!
-//! On exit 0: emits `job.step_output` then `job.step_completed`.
-//! On non-zero exit: emits `job.step_output` then `job.step_failed`.
+//! On exit 0: emits `pipeline.step.output` then `pipeline.step.completed`.
+//! On non-zero exit: emits `pipeline.step.output` then `pipeline.step.failed`.
 
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
@@ -18,10 +18,10 @@ use super::emit::persist_and_route;
 
 /// Execute a shell command as a pipeline step.
 ///
-/// Emits `job.step_dispatched`, then runs the command via the `StepExecutor`
+/// Emits `pipeline.step.started`, then runs the command via the `StepExecutor`
 /// port (backed by `spawn_bounded` — 2 GB virtual-memory cap, 30 s timeout).
-/// On success: emits `job.step_output` + `job.step_completed`.
-/// On failure: emits `job.step_output` + `job.step_failed`.
+/// On success: emits `pipeline.step.output` + `pipeline.step.completed`.
+/// On failure: emits `pipeline.step.output` + `pipeline.step.failed`.
 pub async fn execute_run_step(
     pipeline_run_id: &str,
     slug: &str,

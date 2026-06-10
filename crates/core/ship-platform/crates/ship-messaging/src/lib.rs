@@ -1,6 +1,6 @@
 //! Human gateway service — puts a human on the mesh via pluggable adapters.
 //!
-//! When a `job.blocked` event fires with `needs_human: true`, the gateway
+//! When a `pipeline.run.blocked` event fires with `needs_human: true`, the gateway
 //! forwards the block reason to a human via the configured adapter (Telegram,
 //! Slack, etc.). Inbound replies arrive via webhook and are emitted as
 //! `human.response` events by the shipd webhook handler.
@@ -113,7 +113,7 @@ struct PipelineRunBlockedPayload {
 
 // ── HumanGatewayService ───────────────────────────────────────────────────────
 
-/// Headless service that listens for `job.blocked` events and notifies a human.
+/// Headless service that listens for `pipeline.run.blocked` events and notifies a human.
 pub struct HumanGatewayService {
     adapter: Arc<dyn NotificationAdapter>,
     /// Outbox for emitting events back onto the kernel (reserved for future use).

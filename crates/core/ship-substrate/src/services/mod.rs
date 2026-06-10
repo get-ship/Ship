@@ -17,7 +17,7 @@
 //! Register with the kernel:
 //!
 //! ```rust,ignore
-//! kernel.spawn_service("my-svc", config, Box::new(MySvc))?;
+//! spawn_service(&mut kernel, "my-svc", config, Box::new(MySvc))?;
 //! ```
 
 use std::time::Duration;

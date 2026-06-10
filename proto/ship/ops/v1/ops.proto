@@ -4,11 +4,12 @@
 // additively beside the existing axum REST/SSE — nothing else moves.
 //
 // This file is hand-authored and minimal: the base OpsService (Meta) + the
-// shared JsonResponse. The op surface is GENERATED from the registries:
-//   - reads    → ReadOpsService    (reads.gen.proto    from schema::OPS)
-//   - commands → CommandOpsService (commands.gen.proto from schema::COMMANDS)
-// Don't hand-add ops here — add a descriptor + a dispatch entry and re-run
-// `cargo xtask gen-ops`.
+// shared JsonResponse. The op surface lives in hand-authored per-domain protos
+// in this package (rules.proto, agents.proto, …), each implemented by a
+// crate-owned wire and mounted in apps/shipd/src/ops_rpc.rs::router(). (The
+// generated ReadOpsService/CommandOpsService umbrella and `cargo xtask gen-ops`
+// were retired by #78.) To add an op: add it to the domain proto + implement
+// it on the domain wire.
 syntax = "proto3";
 
 package ship.ops.v1;

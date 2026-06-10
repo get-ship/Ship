@@ -8,9 +8,11 @@
 //!   `projects` table is Runtime-scoped (read daemon-wide, no space in hand), so
 //!   the registry reads through a Runtime-bound `DataStore` and emits
 //!   `project.registered` / `project.seen` / `project.switched` through
-//!   `KernelLog` (the kernel routes them to runtime.db). The crate's
-//!   [`projection::SpaceProjection`] materializes the `projects` table + the
-//!   `active_space` pointer in the same append transaction.
+//!   `KernelLog` (the kernel routes them to runtime.db). The [`projection`]
+//!   module's DataStore helpers persist the crate-owned `space_registry` table +
+//!   the `space_active` pointer at write time; the legacy `projects` table is
+//!   materialized separately by `ship_substrate::db::projects::ProjectsProjection`
+//!   in the append transaction.
 //! - **config** ([`config`]) — the per-space settings overlay. Reads the
 //!   `space_settings` table (Space-scoped, per-space `space.db`); writes emit
 //!   `space.setting.changed` (the space rides the envelope, not the payload).
@@ -18,8 +20,10 @@
 //!   effective-settings overlay (global ⟵ space). The daemon supplies its global
 //!   settings snapshot; the overlay is here.
 //!
-//! No sqlite/sqlx/rusqlite types and no `std::fs`/`tokio::fs` anywhere in this
-//! crate. All storage/events go through the port types from ship-substrate.
+//! No sqlite/sqlx/rusqlite types in this crate. No raw fs except the tolerant
+//! legacy `~/.ship/projects.json` fallback reader in [`registry`]
+//! (std::fs::read_to_string); all other storage/events go through the port
+//! types from ship-substrate.
 
 pub mod config;
 pub mod error;

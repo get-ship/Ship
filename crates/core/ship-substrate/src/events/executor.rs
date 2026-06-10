@@ -9,8 +9,10 @@
 use serde::{Deserialize, Serialize};
 pub use ship_types::event_types::{EXECUTOR_SESSION_DESTROYED, EXECUTOR_WINDOW_DESTROYED};
 
-/// Why a session/window is gone. Drives the liveness handler's decision
-/// between `job.completed` and `job.failed`.
+/// Why a session/window is gone. Drives the exit handler's decision between
+/// the completed and failed terminals (`pipeline.run.completed`/
+/// `pipeline.run.failed` for pipeline runs, `session.completed`/
+/// `session.failed` for agent sessions).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DestructionCause {

@@ -224,7 +224,7 @@ pub async fn run_sweep(
     }
 
     // Check B: ORPHAN processes — registered but unknown to any
-    // dispatch record (neither jobs nor agent_sessions). Sweep is the
+    // dispatch record (not in pipeline runs, canonical_sessions, or actor_state). Sweep is the
     // safety net for true orphans (stale handles from a daemon
     // restart, registry entries from spawn paths that didn't emit a
     // dispatch event). It is NOT for cleaning up processes whose
@@ -262,7 +262,7 @@ pub async fn run_sweep(
                 expected_status: "none_or_terminal".to_string(),
                 actual_state: "stray_process".to_string(),
                 detail: "process registered but no dispatch record \
-                         (orphan: not in jobs or agent_sessions)"
+                         (orphan: not in pipeline runs, canonical_sessions, or actor_state)"
                     .to_string(),
             },
         )

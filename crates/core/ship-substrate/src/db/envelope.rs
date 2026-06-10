@@ -1,9 +1,10 @@
 //! Shared row → EventEnvelope deserialization.
 //!
-//! `platform.db` and actor DBs share the same 18-column `events` schema.
-//! The job projection uses a 13-column SELECT (omitting `target_actor_id` and
-//! the three author/signature columns — it stops before column 14).
-//! This module provides a single function for both cases.
+//! All per-scope event dbs (runtime.db / account.db / space.db) share the
+//! same 18-column `events` schema. Every production caller uses the full
+//! EVENT_COLS SELECT with `has_target_actor = true`. The `false` branch
+//! (a legacy 13-column SELECT that stopped before column 14) has no
+//! remaining callers. This module provides a single function for both cases.
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -64,9 +65,9 @@ pub(crate) fn insert_event_row(
 
 /// Deserialize a SQLite row into an `EventEnvelope`.
 ///
-/// `has_target_actor` controls whether column 13 (`target_actor_id`) is present.
-/// - `true` → 14-column SELECT (platform.db, actor DBs)
-/// - `false` → 13-column SELECT (job projection query)
+/// `has_target_actor` controls whether column 14 (`target_actor_id`) is present.
+/// - `true` → 18-column SELECT (all per-scope dbs; the only production path)
+/// - `false` → legacy 13-column SELECT (no remaining callers — column 13 is `created_at`)
 pub fn envelope_from_row(
     row: &sqlx::sqlite::SqliteRow,
     has_target_actor: bool,

@@ -8,7 +8,7 @@
 //!
 //! This module was designed when each actor had its own SQLite file. That
 //! architecture is gone. All actor events now live in the shared `events`
-//! table in `platform.db` with an `actor_id` column for logical isolation
+//! table in `runtime.db` with an `actor_id` column for logical isolation
 //! (see `persistence::actor_store`).
 //!
 //! Under shared-log architecture, `db_bytes` no longer has an obvious

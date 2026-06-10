@@ -11,12 +11,12 @@
 //!   C2 Elevated     -> Allow only if caller granted the op's SERVICE domain
 //!   C3 Critical     -> operator-only (human 2FA); an agent never clears it
 //!
-//! ⚠️ MIRROR-DRIFT (tracked): this hand-written `decide` MUST stay
-//! tier-for-tier identical to shipd's `auth::gate::decide`. The two are
-//! independent copies today; when the gateway routes to the real in-process gate
-//! (RPC-as-IPC, the Phase B seam), this mirror collapses into a thin client and
-//! the drift risk goes away. Until then, any change to shipd's decision policy
-//! must be reflected here (and vice-versa).
+//! ⚠️ MIRROR-DRIFT (tracked): production now routes through ShipdGateway
+//! (apps/shipd/src/floki_gateway.rs) to the real gate, so this mirror is
+//! exercised ONLY by InProcessGateway (tests/dev). It is still an independent
+//! hand-written copy: keep it tier-for-tier identical to shipd's
+//! `auth::gate::decide` until InProcessGateway is retired or thinned to a
+//! client.
 
 use crate::auth::AuthContext;
 

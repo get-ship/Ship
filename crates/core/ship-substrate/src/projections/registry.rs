@@ -143,7 +143,9 @@ pub struct RebuildReport {
 }
 
 /// Bump the cursor for a projection inside an existing connection. The
-/// `cursors` table lives in platform.db so this is a same-DB write.
+/// `cursors` table exists in every per-scope events db, and this write rides
+/// the same connection as the event-row insert, so it is a same-DB
+/// (same-transaction) write.
 fn bump_cursor_with_conn(
     conn: &mut SqliteConnection,
     projection_name: &str,

@@ -1,13 +1,12 @@
-// `permissions.*` as a hand-authored, per-domain proto-SSOT service — second
-// migrated domain (decision #89, following rules.proto as the worked exemplar).
-// Mounted ADDITIVELY beside the generated ReadOpsService/CommandOpsService, which
-// still serve permissions.* until the GUI flip (#72). Old descriptor tables and
-// dispatch stay untouched.
+// `permissions.*` as a hand-authored, per-domain proto-SSOT service — the sole
+// serving path (the generated ReadOpsService/CommandOpsService umbrella and its
+// descriptor tables were retired, #78). Second migrated domain (decision #89,
+// following rules.proto as the worked exemplar).
 //
-// Request messages take fresh names (CreatePermissionRequest, …) because the
-// generated commands.gen.proto/reads.gen.proto already declare
-// PermissionsCreateRequest et al. in this same package — two definitions would
-// collide. Return types are SHARED shapes from types.proto
+// Request messages take fresh names (CreatePermissionRequest, …) — historical
+// collision-avoidance against the deleted commands.gen.proto/reads.gen.proto
+// (which declared PermissionsCreateRequest et al.); kept for wire stability.
+// Return types are SHARED shapes from types.proto
 // (ScopedMutation / PermissionsIndexResponse / ToolPatternsResponse), and
 // GetPermissionResponse is declared here (domain-local, like IsolationService's
 // response messages in isolation.proto).

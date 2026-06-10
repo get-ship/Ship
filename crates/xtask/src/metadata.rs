@@ -9,8 +9,10 @@
 //! name screams (the consuming lint turns it into a hard error).
 //!
 //! Layer classification is path-based (workspace-relative crate directory) so
-//! it never drifts from the filesystem, and is computed once here so every
-//! lint agrees on the taxonomy.
+//! it never drifts from the filesystem. `lint_layers` derives its taxonomy from
+//! here; `lint_imports` still carries its own hand-maintained crate list and a
+//! separate L0/L1/Shared rule-classification (`lint_imports::CRATES`) that must
+//! be updated by hand when this table changes.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};

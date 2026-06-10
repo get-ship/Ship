@@ -187,7 +187,8 @@ pub async fn emit_spawn_failed(
     .await;
 }
 
-/// Emit a `pipeline.step.dispatched` event for a specific pipeline step.
+/// Emit a `pipeline.step.started` event for a specific pipeline step.
+/// (Function name retains the legacy 'dispatched' wording.)
 pub async fn emit_step_dispatched_event(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     pipeline_run_id: &str,

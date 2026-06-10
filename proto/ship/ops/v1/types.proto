@@ -1,14 +1,10 @@
-// Hand-authored typed response messages for the command surface.
+// Hand-authored typed response messages SHARED by the per-domain services in
+// this package. (The gen-ops/CommandDescriptor.response_type pipeline this
+// header described was retired with the umbrella, #78 — per-domain protos now
+// import and reference these messages directly.)
 //
-// The proto-canonical contract: commands that have settled on a stable return
-// shape name a message here via `CommandDescriptor.response_type`, and
-// `cargo xtask gen-ops` emits `returns (<Message>)` for that rpc instead of the
-// legacy `JsonResponse` blob. The impl maps the command's `serde_json::Value`
-// onto the message with `serde_json::from_value` — buffa messages derive serde
-// (camelCase rename + snake_case alias) and ignore unknown fields, so the
-// command's existing JSON return decodes without hand-mapping.
-//
-// Add a message here, set the descriptor's `response_type`, re-run gen-ops.
+// To add a shared response shape: add a message here and reference it from the
+// appropriate per-domain proto.
 syntax = "proto3";
 
 package ship.ops.v1;
@@ -117,7 +113,7 @@ message WorkspaceActiveResponse {
 
 // Result of the C3 `space.window.close` command — the window's pid-bound token
 // was revoked and its lifecycle closed. Shared shape (here, not space.proto)
-// so the generated commands.gen.proto can name it as the command response_type.
+// so any service in the package can reference it.
 message CloseWindowResponse {
   bool closed = 1;
   bool token_revoked = 2;

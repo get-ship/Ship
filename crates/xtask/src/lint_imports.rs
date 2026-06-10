@@ -14,7 +14,7 @@
 //! - `ship_kernel::*`    (L0)
 //! - `compiler::*`       (L0 — the `compiler` crate, not `sui_compiler`)
 //!
-//! L0 crates (`ship-substrate`, `ship-kernel`, `ship-substrate-host`) may NOT import:
+//! L0 crates (`ship-substrate`, `ship-kernel`, `ship-substrate-host`, `compiler`) may NOT import:
 //! - `ship_platform::*`  (L1)
 //!
 //! Apps and xtask/test code are exempt (apps sit at the top; xtask is tooling).
@@ -22,7 +22,9 @@
 //! ## Exemptions
 //!
 //! - Lines containing `// LAYER_EXCEPTION: <reason>` are explicitly acknowledged.
-//! - Code inside `#[cfg(test)]` blocks is exempt (test code may reach any layer).
+//! - Code inside `#[cfg(test)]` blocks is exempt (test code may reach any layer) —
+//!   and due to a known brace-counting bug, so is all code after the first test
+//!   block in a file (see the BUG comment in `scan_file`).
 //! - Doc comments (`///` and `//!`) are never flagged.
 //! - Re-exports (`pub use`) obey the same rules as `use` — they are violations.
 //!
@@ -89,10 +91,14 @@ const SHARED_FORBIDDEN: &[(&str, &str)] = &[
     ),
 ];
 
-/// All crates under scrutiny, keyed by crate name. Apps and xtask are omitted
-/// (they sit at the top / are tooling). Add entries here when new crates are
-/// introduced. Names are validated against the workspace at runtime — a stale
-/// entry hard-errors rather than silently dropping its coverage.
+/// ONLY the crates listed here are scanned — enforcement is this hand-maintained
+/// list, not the class description above. Apps and xtask are omitted deliberately;
+/// deck-bundler, deck-cli, sui-lsp, and the sui grammar crate are currently NOT
+/// listed (deck-bundler and deck-cli import ship_substrate today and would fail
+/// the shared rule if added — decide allowlist vs. listing them, tracked
+/// separately). Add entries when new crates are introduced; absence here means
+/// no import-level enforcement. Names are validated against the workspace at
+/// runtime — a stale entry hard-errors rather than silently dropping its coverage.
 const CRATES: &[CrateEntry] = &[
     // ── L0 ───────────────────────────────────────────────────────────────────
     CrateEntry { name: "ship-substrate", layer: Layer::L0 },
@@ -226,7 +232,10 @@ fn check_file(path: &Path, forbidden: &[(&'static str, &'static str)]) -> Vec<Vi
         }
         let open = line.chars().filter(|&c| c == '{').count() as i32;
         let close = line.chars().filter(|&c| c == '}').count() as i32;
-        // If we just opened the cfg_test block, the braces are already counted.
+        // BUG: the opening brace is counted twice here (pending_cfg_test was just
+        // cleared above on line 225), so depth never returns to 0 — everything
+        // after the first test block in a file is currently NOT scanned. Fix:
+        // make this branch `else if` like lint_anti_theater::scan_file.
         if cfg_test_depth > 0 && !pending_cfg_test {
             cfg_test_depth += open - close;
             if cfg_test_depth < 0 {

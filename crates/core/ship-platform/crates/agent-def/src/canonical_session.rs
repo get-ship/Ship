@@ -1,11 +1,13 @@
 //! Canonical ship-shaped agent-session event payloads — the L1 payloads home.
 //!
-//! The other module in this directory, `agent_session.rs`, is the
-//! **workbench** (driver-edge) family: its payloads carry `pid`, `branch`,
-//! `worktree`, `exit_code` — driver edges that drivers pull in. THIS
-//! module is the **canonical** family: payloads carry only the session-
-//! shaped primitives that the kernel, projections, and observers can
-//! consume without knowing which runtime produced them.
+//! The legacy driver-edge family lives in
+//! `ship-substrate/src/events/agent_session.rs` (the `agent.session.*`
+//! events, still dual-emitted transitionally pending the spawn-intent
+//! channel, #26): its payloads carry `pid`, `branch`, `worktree`,
+//! `exit_code` — driver edges that drivers pull in. THIS module is the
+//! **canonical** family: payloads carry only the session-shaped primitives
+//! that the kernel, projections, and observers can consume without knowing
+//! which runtime produced them.
 //!
 //! Self-contained primitives only — no driver edges:
 //! - `SessionStarted`    — session_id, agent_id, harness, model, space_id, input, parent
@@ -16,14 +18,11 @@
 //! - `TurnStarted`       — session_id, idx
 //! - `TurnEnded`         — session_id, idx, stop_reason
 //!
-//! NOTE: the canonical `SessionStarted` payload struct is defined here
-//! (matching the spec) but is NOT the type-name currently registered for
-//! `session.started` in `payload_registry.rs` — the workbench family still
-//! owns the active session-start emit (the substrate's `session_events`
-//! module depends on it at Runtime scope). The 6 newly-registered events
-//! in this slice (session.completed/failed/cancelled/suspended + turn.*)
-//! are wired to the canonical payloads below; the canonical `SessionStarted`
-//! is forward-compatible (ready for the day the workbench gets retired).
+//! The canonical `SessionStarted` defined here IS the registered payload for
+//! `session.started` (see `event_registrations.rs`) and, since workbench-teardown
+//! (R6), the only session-start emit. The legacy `agent.session.started`
+//! (ship-substrate `events/agent_session.rs`) is still dual-emitted as the
+//! spawn trigger, transitionally, pending the spawn-intent channel (#26).
 //!
 //! Scope and retention (canonical axis, set at `register_event!`):
 //! - `session.*` (coarse)  — Space-scoped, Durable

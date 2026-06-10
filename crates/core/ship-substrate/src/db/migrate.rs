@@ -13,8 +13,9 @@
 //! invariant is: **every migration the binary embeds is applied to the DB.**
 //!
 //! - embedded + applied, checksums match  -> skip
-//! - embedded + applied, checksums differ -> hard error (an applied
-//!   migration was edited — real corruption, not branch drift)
+//! - embedded + applied, checksums differ -> post-launch: hard error; TODAY
+//!   (PRE_LAUNCH_REBASELINE=true) the recorded checksum is re-baselined to
+//!   the embedded value with a loud WARN
 //! - embedded + not applied               -> apply, in version order
 //! - applied + not embedded               -> tolerated no-op, logged DEBUG
 //!
@@ -62,16 +63,15 @@ const PRE_LAUNCH_REBASELINE: bool = true;
 /// tolerating a database whose `_sqlx_migrations` log is *ahead* of this
 /// binary. See the module docs for the exact invariant.
 ///
-/// Errors only on genuine corruption: a dirty (partially-applied) migration,
-/// or an applied migration whose checksum no longer matches the embedded
-/// source.
+/// Errors only on a dirty (partially-applied) migration; checksum drift is
+/// currently re-baselined pre-launch — see PRE_LAUNCH_REBASELINE.
 pub async fn run_tolerant(conn: &mut SqliteConnection) -> Result<()> {
     // Owned, mutable copy of the compile-time migration set so we can flip
     // the one relax knob. `set_ignore_missing(true)` makes sqlx's runner
     // skip the "previously applied but missing" check — DB-log versions this
     // binary doesn't embed become inert instead of fatal. The checksum
-    // check inside the run loop is untouched, so an edited applied migration
-    // is still a hard `VersionMismatch`.
+    // checksum check: while PRE_LAUNCH_REBASELINE=true, drifted checksums are
+    // re-baselined with WARN by rebaseline_drifted_checksums before run().
     // Serialize the whole inspect-then-apply section: read-applied + run must be
     // atomic w.r.t. other connections in this process or they race the
     // `_sqlx_migrations` insert (see `MIGRATION_GATE`). Held across the awaits

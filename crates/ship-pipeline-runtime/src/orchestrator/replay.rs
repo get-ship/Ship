@@ -1,8 +1,10 @@
-//! Replay and reconciliation for job dispatch.
+//! Replay and reconciliation for pipeline-run dispatch.
 //!
 //! On daemon startup:
-//! 1. Replays stale `job.completed` events that arrived while daemon was down
-//! 2. Reconciles jobs stuck in `Dispatched` state after a daemon restart
+//! 1. Re-drives Completed runs with pending work by synthesizing fresh
+//!    `pipeline.run.completed` envelopes (stale completions that arrived
+//!    while the daemon was down)
+//! 2. Reconciles runs stuck in `Dispatched` state after a daemon restart
 
 use ship_substrate::events::EventEnvelope;
 use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRun, PipelineRunStatus};
@@ -69,7 +71,7 @@ pub(super) fn select_replay_targets(jobs: &HashMap<String, PipelineRun>) -> Vec<
     stale
 }
 
-/// Replay unprocessed `job.completed` events that arrived while the daemon was down.
+/// Re-drive Completed runs with pending work by synthesizing fresh `pipeline.run.completed` envelopes.
 pub async fn replay_unprocessed_completions(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     octx: &OrchestratorContext,
@@ -89,7 +91,7 @@ pub async fn replay_unprocessed_completions(
         return;
     }
 
-    tracing::info!(count = stale.len(), "job-dispatch: replaying stale job.completed events");
+    tracing::info!(count = stale.len(), "job-dispatch: replaying stale pipeline.run.completed events");
 
     for job in &stale {
         let payload = serde_json::json!({

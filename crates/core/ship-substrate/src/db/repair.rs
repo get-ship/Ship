@@ -9,8 +9,10 @@
 //! What remains is a pure diagnostic: [`migration_drift`] reports how the
 //! DB's `_sqlx_migrations` log relates to the migration set this binary
 //! embeds, changing nothing. It is the tool for *understanding* a startup
-//! migration error — the one drift the runner still rejects, an applied
-//! migration whose checksum no longer matches its embedded source.
+//! migration error — the drift the strict (post-launch) runner rejects.
+//! NOTE: while PRE_LAUNCH_REBASELINE is true, the runner re-baselines
+//! checksum drift with a WARN instead of rejecting — only dirty migrations
+//! hard-error today.
 
 use anyhow::{Context, Result};
 use sqlx::migrate::Migrator;
@@ -32,10 +34,12 @@ pub struct DriftReport {
     /// Versions in the DB log this binary does not embed. Tolerated by the
     /// migration runner (the DB is simply ahead) — informational only.
     pub db_ahead: Vec<i64>,
-    /// Versions applied to the DB AND embedded, but with a differing
-    /// checksum. This is the one drift the runner rejects: an applied
-    /// migration was edited. Recovery is to restore the original file
-    /// content (or, pre-launch, recreate the DB) — never to edit the log.
+    /// Versions applied to the DB AND embedded, but with a differing checksum.
+    /// This is the drift the strict (post-launch) runner rejects: an applied
+    /// migration was edited. NOTE: while PRE_LAUNCH_REBASELINE is true, the
+    /// runner re-baselines this drift with a WARN instead of rejecting — only
+    /// dirty migrations hard-error today. Recovery (post-launch) is to restore
+    /// the original file content — never to edit the log.
     pub checksum_mismatch: Vec<i64>,
 }
 

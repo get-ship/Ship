@@ -68,11 +68,11 @@ register_event!("session.turn.started", [EventScope::Runtime], Retention::Epheme
 register_event!("session.turn.ended", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnEnded", crate::canonical_session::TurnEnded);
 
 // ── op.* (fine-grained) — Runtime-scoped, Ephemeral ────────────────────────────
-// R2 hook conversion: the op.* family replaces the legacy
-// `hook.*` family. Third-party-harness hook data is converted into
-// these canonical envelopes; harness / provenance rides the
-// envelope, not a separate `hook.*` family. Fine-grained (per
-// tool-call) so Runtime + Ephemeral — same scope rule as
+// R2 hook conversion: the op.* family is the designated replacement for the
+// legacy `hook.*` family. The hook→op conversion and hook.* deregistration are
+// tracked in #25b and have NOT landed — these registrations are the additive
+// contract only; hook ingestion still emits hook.* and nothing emits op.* today.
+// Fine-grained (per tool-call) so Runtime + Ephemeral — same scope rule as
 // `session.turn.*`, just one more level of granularity.
 register_event!("op.tool_use_started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseStarted", crate::op::OpToolUseStarted);
 register_event!("op.tool_use_completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseCompleted", crate::op::OpToolUseCompleted);

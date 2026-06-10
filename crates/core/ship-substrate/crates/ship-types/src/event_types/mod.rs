@@ -224,10 +224,11 @@ pub const SUPERVISOR_DRIFT_DETECTED: &str = supervisor::DRIFT_DETECTED;
 pub const SUPERVISOR_COHERENCE_RESTORED: &str = supervisor::COHERENCE_RESTORED;
 
 // Canonical ship-shaped agent-session family (jobs: canonical-session-events,
-// workbench-teardown). The complete ship-shaped session vocabulary: 4
-// coarse-grain lifecycle events (started + 4 terminals) + 2 medium-grain
-// turn events. The workbench family is retired. See the `canonical_session`
-// module for full docs.
+// workbench-teardown). 5 coarse-grain lifecycle events (started + 4
+// terminals) + 2 medium-grain turn events. The workbench family is retired.
+// The family also has a fine-grained `op.*` tier (see
+// `canonical_session::ALL_CANONICAL_OP`), registered in the event registry
+// but not aliased here and not in `ALL`. See `canonical_session` for docs.
 pub const SESSION_STARTED: &str = canonical_session::SESSION_STARTED;
 pub const SESSION_COMPLETED: &str = canonical_session::SESSION_COMPLETED;
 pub const SESSION_FAILED: &str = canonical_session::SESSION_FAILED;
@@ -244,10 +245,15 @@ pub const TURN_ENDED: &str = canonical_session::TURN_ENDED;
 /// (payload_schema.rs test, substrate tests). After Spec 7b all event-subscription
 /// validation goes through `event_registry::all_names()` via `triggers/loader.rs`.
 ///
-/// Note: `event_registry::all_names()` returns the registry-derived set (sorted,
-/// deduplicated). This const includes the same names but with legacy aliases that
-/// predate the registry (workspace.*), which remain valid event types emitted
-/// by deprecated code paths.
+/// Note: `event_registry::all_names()` returns the registry-derived name set
+/// (sorted; uniqueness guard-enforced by the `registry_names_are_unique` test).
+/// This const is a strict SUBSET of it: a hand-maintained list that omits many
+/// registered names — whole families (e.g. hook.*, op.*, agent.session.*,
+/// collection.*, pipeline.gate.*) and individual names (e.g.
+/// pipeline.run.blocked, pipeline.step.started, sync.push.completed).
+/// The only consistency guard is one-directional: every name in ALL must be
+/// registered (`all_entries_have_registry_entries` in agent-def's
+/// event_scope_discipline tests); nothing forces registry names to appear here.
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
     WORKSPACE_ACTIVATED,

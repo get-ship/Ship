@@ -22,9 +22,12 @@
 //!
 //! The **legacy declarative file-tier** also lives here (unchanged): the
 //! `.ship/agents/` projection ([`agents`]) and the per-domain `.ship/<domain>/`
-//! change watcher ([`watcher`]). ALL disk goes through the
-//! [`ship_substrate::ports::FsBroker`] gated door — ZERO `std::fs`/`tokio::fs` in
-//! this crate. Storage + events go through the port types from `ship-substrate`.
+//! change watcher ([`watcher`]). The agent-def read/write paths ([`agents`],
+//! [`agents_write`]) and the watcher hash read go through the
+//! [`ship_substrate::ports::FsBroker`] gated door — zero raw fs there, enforced
+//! by check-agent-def-readers/-writers. The legacy crud/discover/project (MCP
+//! config) helpers and the watcher's dir bootstrap still use `std::fs` directly.
+//! Storage + events go through the port types from `ship-substrate`.
 //!
 //! [`KernelLog`]: ship_substrate::ports::KernelLog
 

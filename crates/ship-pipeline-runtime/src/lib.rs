@@ -10,14 +10,15 @@
 //! # Layout
 //!
 //! - [`pipelines`] — `PipelinesService` (CRUD over `<scope>/pipelines/*.jsonc`)
-//!   and the spec state core. Owns the file I/O via `ship_platform::FilesService`.
+//!   and the spec state core. Owns the file I/O via `ship_files::files::FilesService`.
 //! - [`orchestrator`] — the run runtime: handlers, router, run_step,
 //!   review_retry, sweep, fanout, replay, dispatch, pipeline_loader,
 //!   pipeline_specs, step_io, step_monitor, projection_reader, spawn_policy,
 //!   prompt_composer, gate_rules, git_helpers, pipeline.
-//! - [`orchestrator::emit`], [`orchestrator::dedup`], [`orchestrator::exit_handler`]
-//!   — re-exports of the L0 `ship-runner` mechanism so the historic
-//!   `services::orchestrator::emit::*` import paths keep working.
+//! - [`orchestrator::emit`] — re-export of the L0 `ship-runner` emit mechanism;
+//!   [`orchestrator::dedup`], [`orchestrator::exit_handler`] — re-exports of the
+//!   L1 `ship_code::runner` mechanism. Historic `services::orchestrator::*`
+//!   import paths keep working.
 
 pub mod log_stream;
 pub mod orchestrator;

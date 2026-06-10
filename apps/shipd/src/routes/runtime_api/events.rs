@@ -28,7 +28,7 @@ pub struct EventsPollQuery {
     pub limit: Option<usize>,
 }
 
-/// GET /api/v1/runtime/events — SSE stream of all kernel events.
+/// GET /api/v1/events/stream (Route::EventStream) — SSE stream of all kernel events.
 ///
 /// The SSE transport (kernel actor spawn, mailbox drain, ActorGuard cleanup)
 /// is genuine daemon infrastructure — kept here as a thin transport wrapper.

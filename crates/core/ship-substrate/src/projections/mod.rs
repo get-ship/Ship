@@ -4,8 +4,11 @@
 //! to a read model (SQL table). The [`EventBus`] dispatches events to registered
 //! projections after every append.
 //!
-//! Projections are the ONLY mutable state in the system. They can be truncated
-//! and rebuilt from the event log at any time via [`rebuild`].
+//! Projections are the only DERIVED state in the event system: they can be
+//! truncated and rebuilt from the event log via [`EventBus::rebuild`] /
+//! `db::rebuild`. (Non-derived mutable stores — daemon_settings, kv.db,
+//! DataStore-port tables, the blob plane — are not event-sourced and are not
+//! rebuildable from the log.)
 
 pub mod actor;
 pub mod artifact;

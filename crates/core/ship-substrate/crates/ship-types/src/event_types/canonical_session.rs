@@ -7,15 +7,17 @@
 //! - **Turn (medium)** — Runtime-scoped, Ephemeral. A single back-and-forth
 //!   inside a keepalive session; churns too fast to be Durable.
 //! - **Op (fine-grained)** — Runtime-scoped, Ephemeral. Per-tool-call
-//!   observations; churns too fast to be Durable. R2 hook conversion moved
-//!   these from a `hook.*` family to the canonical `op.*` namespace so
-//!   floki + third-party harnesses share ONE vocabulary.
+//!   observations; churns too fast to be Durable. The `op.*` namespace is the
+//!   canonical successor to the `hook.*` family; the contract (consts +
+//!   registration) is landed, but the hook→op emission conversion has NOT
+//!   happened yet — harness hook data is still emitted as `hook.*` (tracked
+//!   #25b).
 //!
-//! This family is the COMPLETE ship-shaped session vocabulary (jobs
-//! `canonical-session-events` + `workbench-teardown` + the `event-canon`
-//! R2 conversion). The legacy workbench `session.*` and
-//! third-party-harness `hook.*` families are retired — see
-//! `.artifacts/agents-architecture.md`.
+//! The legacy workbench `session.*` family is retired (jobs
+//! `canonical-session-events` + `workbench-teardown`). The
+//! third-party-harness `hook.*` family is NOT yet retired — it still
+//! coexists with `op.*`; the hook→op conversion and hook.* deregistration
+//! are tracked as #25b. See `.artifacts/agents-architecture.md`.
 
 // ── Session (coarse) — Space-scoped, Durable ───────────────────────────────
 
@@ -55,11 +57,10 @@ pub const TURN_ENDED: &str = "session.turn.ended";
 
 // ── Op (fine-grained) — Runtime-scoped, Ephemeral ──────────────────────────
 //
-// Tool-use op-card surface. R2 hook conversion: third-party-harness hook
-// data is converted into these canonical envelopes; harness /
-// provenance rides the envelope, not a `hook.*` family. The
-// analytics projection folds `op.*` into the per-session rollup
-// tables (same shape it previously read from `hook.*`).
+// Tool-use op-card surface. PLANNED R2 conversion (#25b): third-party-harness
+// hook data will be converted into these canonical envelopes, and the
+// analytics projection repointed from `hook.*` to `op.*`. Today the ingress
+// still emits `hook.*` and the analytics projection still reads `hook.*`.
 
 /// A tool invocation is about to start. Carries the structured
 /// arguments so analytics can count "all bash commands" or

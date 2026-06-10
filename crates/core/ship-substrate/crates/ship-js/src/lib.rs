@@ -1,8 +1,9 @@
 //! The Ship JS engine (L0) — **deno**.
 //!
-//! ship-js runs JavaScript in a locked-down deno_core/V8 isolate whose only
-//! effect is the [`dispatch::Dispatch`] wire: a deny-by-default module loader, a
-//! single host op, an `!Send` VM-thread bridge. It is the JS execution primitive
+//! ship-js runs JavaScript in a locked-down deno_core/V8 isolate with two bound
+//! host ops: `op_ship_call` (the [`dispatch::Dispatch`] wire — the one effect
+//! channel) and `op_emit` (headless result collection). Deny-by-default module
+//! loader, `!Send` VM-thread bridge. It is the JS execution primitive
 //! the agent runtime and durable code-mode build on.
 //!
 //! Two surfaces:

@@ -1,4 +1,4 @@
-//! Job state projection — derived state from `job.*` / `step.*` events.
+//! Pipeline-run state projection — derived state from `pipeline.run.*` / `pipeline.step.*` events.
 //!
 //! Two surfaces live here:
 //!
@@ -6,9 +6,10 @@
 //!    Used by tests and by the one-shot hydration path. Kept stable so existing
 //!    test fixtures don't churn when the storage layer changes.
 //! 2. **SQL-backed projection** ([`PipelineRunProjection`]) — implements the
-//!    `Projection` trait and maintains the `pipeline_runs` table in `platform.db`.
-//!    `apply()` UPDATEs the row inside the dispatch transaction; reads
-//!    ([`load_pipeline_runs`], [`load_pipeline_run_by_id`]) hit the table directly.
+//!    `Projection` trait and maintains the `pipeline_runs` table in `runtime.db`
+//!    (pipeline.* is Runtime-scoped). `apply()` UPDATEs the row inside the
+//!    dispatch transaction; reads ([`load_pipeline_runs`], [`load_pipeline_run_by_id`])
+//!    hit the table directly.
 //!
 //! The pure-fold path is the source of truth for status-transition semantics.
 //! `PipelineRunProjection::apply` loads the row, calls the pure `apply()` to mutate

@@ -1,9 +1,12 @@
 //! Canonical op.* event family — the L1 payloads home for the
 //! tool-use op-card surface.
 //!
-//! R2 hook conversion: third-party-harness hook data becomes canonical
-//! `op.*` events; harness/provenance rides the envelope, not a
-//! `hook.*` family. The op.* tier is the FINE-GRAINED complement to
+//! R2 hook conversion (pending #25b): third-party-harness hook data WILL be
+//! converted into canonical `op.*` events, with harness/provenance riding the
+//! envelope instead of a separate `hook.*` family. Today only the op.*
+//! contract is landed (payloads + registration); hook ingestion still emits
+//! `hook.*` and nothing emits `op.*` yet. The op.* tier is the FINE-GRAINED
+//! complement to
 //! the coarse session.* / medium session.turn.* tiers (see
 //! `crate::canonical_session`):
 //!
@@ -83,9 +86,10 @@ pub struct OpToolUseCompleted {
 /// `OpToolUseCompleted{status="error"}` because the call never
 /// produced a started/completed pair — the tool never ran.
 ///
-/// Today emitted from the Ship-integrity gate when its fail-closed
-/// checks reject a tool call; future operator-approval flows will
-/// emit the same event with `denied_by="operator"`.
+/// NOT yet emitted anywhere: the Ship-integrity gate's denials currently
+/// surface as `hook.permission_denied` (hooks/http_ingress.rs). Wiring
+/// `op.tool_use_denied` emission is part of the hook→op conversion (#25b);
+/// operator-approval flows would later emit it with `denied_by="operator"`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OpToolUseDenied {
     pub session_id: String,
