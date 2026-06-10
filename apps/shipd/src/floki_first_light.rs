@@ -24,7 +24,7 @@ use floki::{
     ScriptExecutor, SessionEventSink, Steer, ToolCtx, build_model, run_step,
 };
 use floki::provider::{Byok, CredentialSource};
-use ship_substrate::events::agent_session::AgentSessionStartedPayload;
+use agent_def::dispatch_intent::DispatchRequestedPayload;
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, EventSink};
 use ship_types::{Authority, ScopeBinding};
 
@@ -145,20 +145,19 @@ pub async fn run_floki_step(
 // ── Floki-harness dispatch entry point ────────────────────────────────────────
 
 /// Dispatch entry point invoked from the `service.agents` actor when
-/// `agent.session.started` arrives with `harness == "floki"`.
+/// `dispatch.requested` arrives with `harness == "floki"`.
 ///
 /// Assembles a minimal `floki::Agent` from the payload (first-light: the
 /// identity and model are resolved from the payload; capabilities are left
 /// empty — a follow-on slice loads the full profile from disk). Calls
-/// `run_floki_step` and logs any error (the `agent.session.started` event
-/// already recorded the intent; full session lifecycle events
+/// `run_floki_step` and logs any error (full session lifecycle events
 /// `session.started`/`session.completed` are emitted by `run_step` itself).
 ///
 /// FIRST-LIGHT SCOPE: minimal agent construction from payload fields only.
 /// Full agent loading from `.ship/agents/<id>.jsonc` + capability injection
 /// is a follow-on slice once the dispatch wiring is verified end-to-end.
 pub async fn dispatch_floki_session(
-    payload: AgentSessionStartedPayload,
+    payload: DispatchRequestedPayload,
     gateway: Arc<ShipdGateway>,
     kernel: SharedKernel,
 ) {
@@ -170,7 +169,7 @@ pub async fn dispatch_floki_session(
         .unwrap_or("(no input provided)");
 
     tracing::info!(
-        agent = %payload.agent,
+        agent_id = %payload.agent_id,
         slug = %payload.slug,
         session_id = %payload.session_id,
         "floki-dispatch: starting run_floki_step",
@@ -187,7 +186,7 @@ pub async fn dispatch_floki_session(
     .await
     {
         tracing::error!(
-            agent = %payload.agent,
+            agent_id = %payload.agent_id,
             slug = %payload.slug,
             session_id = %payload.session_id,
             "floki-dispatch: run_floki_step failed: {e:#}",
@@ -200,14 +199,14 @@ pub async fn dispatch_floki_session(
 /// Pulls `identity.id` and `disposition.model` from the payload; other fields
 /// use safe defaults. A follow-on slice will load the full profile from disk
 /// and inject the real capability set.
-fn build_agent_from_payload(payload: &AgentSessionStartedPayload) -> floki::Agent {
+fn build_agent_from_payload(payload: &DispatchRequestedPayload) -> floki::Agent {
     // agent_def types are re-exported by ship_agents under `agent_domain`.
     use ship_agents::agent_domain::{Capability, Disposition, Harness, Identity};
     floki::Agent {
         harness: Harness { id: "floki".into(), settings: Default::default() },
         identity: Identity {
-            id: payload.agent.clone(),
-            name: payload.agent.clone(),
+            id: payload.agent_id.clone(),
+            name: payload.agent_id.clone(),
             version: "0.1.0".into(),
             description: String::new(),
             tags: vec![],

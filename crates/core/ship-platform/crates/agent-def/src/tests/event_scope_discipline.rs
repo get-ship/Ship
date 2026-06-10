@@ -91,6 +91,27 @@ mod tests {
                     ));
                 }
             }
+
+            // dispatch.* → Runtime + Ephemeral
+            // The spawn-intent channel (#26). Runtime-scoped because it drives
+            // machine-local process spawn; Ephemeral because the intent is
+            // fulfilled immediately (the harness is up or the dispatch failed).
+            if name.starts_with("dispatch.") {
+                if primary != EventScope::Runtime {
+                    violations.push(format!(
+                        "event `{name}`: expected primary scope Runtime (got {:?}); \
+                         dispatch events drive machine-local harness spawning",
+                        primary
+                    ));
+                }
+                if retention != Retention::Ephemeral {
+                    violations.push(format!(
+                        "event `{name}`: expected retention Ephemeral (got {:?}); \
+                         dispatch intent is fulfilled immediately — no durable replay needed",
+                        retention
+                    ));
+                }
+            }
         }
 
         assert!(

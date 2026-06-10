@@ -36,7 +36,7 @@ pub mod services;
 pub use actor::{handle_agents_event, start_agents};
 #[cfg(feature = "harness-drivers")]
 pub use cancel::handle_agent_cancelled;
-pub use dispatch::handle_agent_session_started;
+pub use dispatch::handle_dispatch_requested;
 pub use ports::AgentPorts;
 /// One-time legacy `platform.db` → `kv.db` skill-vars drain. Sourced from
 /// agent-def (which owns the skill domain + its `ship-skill-vars` persistence);

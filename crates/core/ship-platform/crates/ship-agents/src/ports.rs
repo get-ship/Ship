@@ -18,7 +18,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use ship_substrate::events::agent_session::AgentSessionStartedPayload;
+use agent_def::dispatch_intent::DispatchRequestedPayload;
 #[cfg(feature = "harness-drivers")]
 use ship_code::runner::dedup::EventDedup;
 #[cfg(feature = "harness-drivers")]
@@ -31,10 +31,10 @@ use ship_code::dispatch_ports::{
 ///
 /// Defined here (ungated) so `AgentPorts` carries it regardless of the
 /// `harness-drivers` feature. The closure captures its own floki + gateway
-/// state; `ship-agents` never imports floki directly. The `AgentSessionStartedPayload`
-/// type is L0 (`ship_substrate` only) — no harness crate enters this signature.
+/// state; `ship-agents` never imports floki directly. The `DispatchRequestedPayload`
+/// type is L1 (`agent-def`) — the sanctioned driver-edge carrier.
 pub type FlokiRunFn = Arc<
-    dyn Fn(AgentSessionStartedPayload) -> Pin<Box<dyn Future<Output = ()> + Send>>
+    dyn Fn(DispatchRequestedPayload) -> Pin<Box<dyn Future<Output = ()> + Send>>
         + Send
         + Sync,
 >;
@@ -72,7 +72,8 @@ pub struct AgentPorts {
     #[cfg(feature = "harness-drivers")]
     pub spawn_policy: Arc<dyn SpawnPolicy>,
     /// Primitive projection reads for the L0 router gate's terminal-state
-    /// guard. Agents never reads `crate::projections` directly.
+    /// guard + slug_for_session_id lookup for the cancel handler. Agents never
+    /// reads `crate::projections` directly.
     #[cfg(feature = "harness-drivers")]
     pub projections: Arc<dyn ProjectionReader>,
     /// Event-id dedup at the actor entry. Prevents a replayed envelope
@@ -91,8 +92,8 @@ impl AgentPorts {
     ///
     /// Wiring the agent-sessions actor with this constructor is what keeps
     /// floki routable when shipd is built `--no-default-features`. The actor
-    /// is alive, `agent.session.started` is delivered, and the floki path in
-    /// [`crate::dispatch::handle_agent_session_started`] dispatches to the
+    /// is alive, `dispatch.requested` is delivered, and the floki path in
+    /// [`crate::dispatch::handle_dispatch_requested`] dispatches to the
     /// closure exactly as in the harness-on build.
     ///
     /// Available only when `harness-drivers` is OFF: with the feature on,
@@ -109,13 +110,8 @@ impl AgentPorts {
 mod tests {
     //! Tests for the flag-off `AgentPorts` shape. With `harness-drivers` off,
     //! only the floki path is reachable; these guard the constructor and the
-    //! ungated dispatch seam. (The full floki→executor-skip routing test
-    //! lives in `crates/core/ship-platform/crates/ship-agents/tests/behavior.rs`
-    //! under `cfg(feature = "harness-drivers")` — it asserts the harness path
-    //! is skipped, which the floki branch in `handle_agent_session_started`
-    //! does regardless of feature state.)
+    //! ungated dispatch seam.
     use super::*;
-    use ship_substrate::events::agent_session::AgentSessionStartedPayload;
     use std::sync::atomic::{AtomicBool, Ordering};
 
     /// SPEC: when the ship-code feature is off, the composition root needs a
@@ -127,7 +123,7 @@ mod tests {
     fn floki_only_round_trips_closure() {
         let called = Arc::new(AtomicBool::new(false));
         let called_inner = called.clone();
-        let run_fn: FlokiRunFn = Arc::new(move |_payload: AgentSessionStartedPayload| {
+        let run_fn: FlokiRunFn = Arc::new(move |_payload: DispatchRequestedPayload| {
             let called = called_inner.clone();
             Box::pin(async move {
                 called.store(true, Ordering::SeqCst);

@@ -3,7 +3,7 @@
 //! `dispatch_agent_session_core` is the shared logic behind the Connect
 //! `AgentsService.Dispatch` wire method (and the now-removed REST
 //! `POST /api/v1/agent_sessions/dispatch` handler). It validates the
-//! request, resolves resume state, builds the `agent.session.started` event,
+//! request, resolves resume state, builds the `dispatch.requested` event,
 //! persists it, and returns a structured result.
 //!
 //! Daemon-specific state (kernel, origin URL, worktrees path) is injected via
@@ -14,10 +14,8 @@ use async_trait::async_trait;
 use connectrpc::RequestContext;
 
 use agent_def::canonical_session::{SessionStarted, event_types as canonical_session_event_types};
+use agent_def::dispatch_intent::{DispatchRequestedPayload, event_types as dispatch_event_types};
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::agent_session::{
-    event_types as agent_session_event_types, AgentSessionStartedPayload,
-};
 
 use super::dispatch_request::{
     DispatchRequest, billing_warning_for_axes, validate_axes,
@@ -139,20 +137,25 @@ pub async fn dispatch_agent_session_core(
     let resume_session_id = resume_outcome.as_ref().map(|o| o.session.session_id.clone());
     let session_id = ship_substrate::gen_ulid();
 
-    // Build the agent-session primitive payload. Pipeline composition
-    // (multi-step) uses pipeline_run.rs which still emits
+    // Build the dispatch intent payload. This is the hard-failing spawn
+    // trigger that drives the `service.agents` actor. It carries all
+    // driver-edge fields (branch, source_spec_path, baseline_sha) that
+    // MUST NOT appear in canonical session.* payloads.
+    //
+    // Pipeline composition (multi-step) uses pipeline_run.rs which emits
     // PIPELINE_RUN_STARTED + sets parent_pipeline_run_id on each step's
-    // agent.session.started. This endpoint is for bare single-agent
-    // dispatch; parent_pipeline_run_id is always None here.
-    let payload = AgentSessionStartedPayload {
+    // dispatch.requested. This endpoint is for bare single-agent dispatch;
+    // parent_pipeline_run_id is always None here.
+    let dispatch_payload = DispatchRequestedPayload {
         session_id: session_id.clone(),
         slug: slug.clone(),
-        agent: req.agent.clone(),
+        agent_id: req.agent.clone(),
         harness: req.harness.or(resume_harness),
         model: req.model,
         workspace: workspace_label.clone(),
         branch: branch.clone(),
         source_spec_path: req.source_spec_path,
+        baseline_sha: resolve_project_head_sha(),
         open_tab: req.open_tab,
         invocation: req.invocation,
         keepalive: req.keepalive,
@@ -162,29 +165,29 @@ pub async fn dispatch_agent_session_core(
         resume_session_id,
         depends_on: req.depends_on,
         vars: req.vars,
-        baseline_sha: resolve_project_head_sha(),
         parent_pipeline_run_id: None,
     };
 
-    let envelope = EventEnvelope::new(
-        agent_session_event_types::AGENT_SESSION_STARTED,
+    // dispatch.requested: the hard-failing spawn trigger. The service.agents
+    // actor subscribes to this and owns the harness spawn atom.
+    let dispatch_env = EventEnvelope::new(
+        dispatch_event_types::DISPATCH_REQUESTED,
         &session_id,
-        &payload,
+        &dispatch_payload,
     )
     .map(|e| e.with_actor_id("studio"))
     .map_err(|e| DispatchCoreError::Internal(e.to_string()))?;
 
-    port.persist_and_route(&envelope)
+    port.persist_and_route(&dispatch_env)
         .await
         .map_err(|e| DispatchCoreError::Internal(e.to_string()))?;
 
     // Canonical session.started — feeds the canonical_sessions projection.
-    // Emitted AFTER the legacy agent.session.started so the agents actor
-    // already has the spawn trigger in flight before the canonical row lands.
+    // Best-effort: a canonical emit failure must NOT block the dispatch.
+    // The dispatch.requested above is already in-flight; the spawn trigger
+    // has been issued regardless of whether this audit row lands.
     // space_id: resolve from workspace path via the projects projection;
-    // fall back to empty string if workspace is not yet registered (graceful
-    // degradation — canonical row is created with an empty space_id rather
-    // than failing the dispatch).
+    // fall back to empty string if workspace is not yet registered.
     let space_id = ship_substrate::db::projects::find_by_path(&workspace_label)
         .ok()
         .flatten()
@@ -195,12 +198,12 @@ pub async fn dispatch_agent_session_core(
         &session_id,
         &SessionStarted {
             session_id: session_id.clone(),
-            agent_id: payload.agent.clone(),
-            harness: payload.harness.clone().unwrap_or_else(|| "claude".into()),
-            model: payload.model.clone(),
+            agent_id: dispatch_payload.agent_id.clone(),
+            harness: dispatch_payload.harness.clone().unwrap_or_else(|| "claude".into()),
+            model: dispatch_payload.model.clone(),
             space_id,
             slug: Some(slug.clone()),
-            input: payload.prompt.clone(),
+            input: dispatch_payload.prompt.clone(),
             parent: None,
         },
     ) {
@@ -211,8 +214,8 @@ pub async fn dispatch_agent_session_core(
 
     let studio_url = format!("{}/sessions/{}", port.daemon_origin(), slug);
     let billing_warning = billing_warning_for_axes(
-        payload.invocation,
-        payload.harness.as_deref(),
+        dispatch_payload.invocation,
+        dispatch_payload.harness.as_deref(),
     );
 
     Ok(DispatchOutcome {

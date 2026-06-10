@@ -54,11 +54,12 @@ register_event!("actor.woke", [EventScope::Runtime], Retention::Ephemeral, Stabi
 // (keystone-A Phase A bundle 2, 2026-06-10): AUTH domain owns its events at L1.
 
 // ── agent.session.* ─────────────────────────────────────────────────────────
-register_event!("agent.session.cancelled", [EventScope::Runtime], Retention::Durable, Stability::Stable, "AgentSessionCancelledPayload", crate::events::agent_session::AgentSessionCancelledPayload);
-register_event!("agent.session.completed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "AgentSessionCompletedPayload", crate::events::agent_session::AgentSessionCompletedPayload);
-register_event!("agent.session.dispatched", [EventScope::Runtime], Retention::Durable, Stability::Stable, "AgentSessionDispatchedPayload", crate::events::agent_session::AgentSessionDispatchedPayload);
-register_event!("agent.session.failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "AgentSessionFailedPayload", crate::events::agent_session::AgentSessionFailedPayload);
-register_event!("agent.session.started", [EventScope::Runtime], Retention::Durable, Stability::Stable, "AgentSessionStartedPayload", crate::events::agent_session::AgentSessionStartedPayload);
+// SEVERED (#26 spawn-intent, 2026-06-10): all 5 agent.session.* events
+// deregistered. The dispatch primitive is now `dispatch.requested` (Runtime/
+// Ephemeral, registered at L1 in agent-def/src/event_registrations.rs).
+// The payload structs remain in `crate::events::agent_session` as a
+// deserialization shim for historical replay only — NOT registered.
+// L0 count: 61→56 (-5); full count: 123→119 (-5+1 dispatch.requested).
 
 // ── artifact.* ──────────────────────────────────────────────────────────────
 // Moved to ship-artifacts/src/event_registrations.rs (keystone-A de-bucket,

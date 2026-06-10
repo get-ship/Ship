@@ -49,4 +49,12 @@ impl ProjectionReader for ProjectionsReader {
             )
         )
     }
+
+    async fn slug_for_session_id(&self, session_id: &str) -> Option<String> {
+        load_sessions()
+            .ok()?
+            .into_iter()
+            .find(|s| s.session_id == session_id)
+            .and_then(|s| s.slug)
+    }
 }

@@ -38,6 +38,13 @@ register_event!("op.tool_use_started", [EventScope::Runtime], Retention::Ephemer
 register_event!("op.tool_use_completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseCompleted", crate::op::OpToolUseCompleted);
 register_event!("op.tool_use_denied", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseDenied", crate::op::OpToolUseDenied);
 
+// ── dispatch.* (spawn-intent channel, #26) ─────────────────────────────────
+// Runtime-scoped, Ephemeral. The ONE sanctioned driver-edge carrier. Replaces
+// the legacy `agent.session.started` as the hard-failing spawn trigger.
+// The `service.agents` actor subscribes to this event and owns the spawn atom.
+// EXEMPT from the no-driver-edges guard in `crate::guards` — by design.
+register_event!("dispatch.requested", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "dispatch_intent::DispatchRequestedPayload", crate::dispatch_intent::DispatchRequestedPayload);
+
 // ── agents-domain facets (keystone-A Phase A, 2026-06-10) ──────────────────
 // Moved from ship-substrate payload_registry.rs: the AGENTS domain owns its
 // facet vocabulary (skills / rules / permissions / compile / def updates).

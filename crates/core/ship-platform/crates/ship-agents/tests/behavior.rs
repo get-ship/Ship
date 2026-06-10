@@ -1,7 +1,7 @@
 //! Behavior tests for the carved agent-session domain.
 //!
 //! These follow the units down from the orchestrator: the bare dispatch path
-//! (`handle_agent_session_started`), the no-double-spawn skip for composed
+//! (`handle_dispatch_requested`), the no-double-spawn skip for composed
 //! sessions, the spawn-env port wiring, and the agent-cancel decision
 //! (`handle_agent_cancelled`). All run against the public `ship-agents` surface
 //! with port test-doubles — no pipeline-DAG state, no `crate::projections`.
@@ -20,11 +20,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::Mutex;
 
+use agent_def::canonical_session::{SessionCancelled, event_types as canonical_session_event_types};
+use agent_def::dispatch_intent::{DispatchRequestedPayload, event_types as dispatch_event_types};
 use ship_agents::ports::AgentPorts;
 use ship_code::runner::dedup::EventDedup;
-use ship_substrate::events::agent_session::{
-    event_types as agent_event_types, AgentSessionStartedPayload, InvocationMode,
-};
+use ship_substrate::events::agent_session::InvocationMode;
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::process::event_types as process_event_types;
 use ship_substrate::events::process::ProcessKilledPayload;
@@ -50,7 +50,7 @@ impl IsolationStrategy for OkIsolation {
 }
 
 /// Records the SessionContext it was asked to spawn, then errors so dispatch
-/// skips post-spawn work (it still emits agent.session.failed, but the test
+/// skips post-spawn work (it still emits session.failed, but the test
 /// asserts on the captured ctx, not on the spawn succeeding).
 #[derive(Clone, Default)]
 struct Captured {
@@ -174,6 +174,7 @@ impl SpawnPolicy for TokenSpawnPolicy {
 }
 
 /// ProjectionReader double — nothing is terminal, so the gate always admits.
+/// slug_for_session_id returns None (default impl) — not valid for cancel tests.
 struct NeverTerminal;
 
 #[async_trait]
@@ -186,14 +187,33 @@ impl ProjectionReader for NeverTerminal {
     }
 }
 
+/// ProjectionReader double for cancel tests — always returns a fixed slug so
+/// the cancel handler can resolve slug from session_id without a real projection.
+struct FixedSlugProjection {
+    slug: String,
+}
+
+#[async_trait]
+impl ProjectionReader for FixedSlugProjection {
+    async fn known_dispatch_slugs(&self) -> Vec<String> {
+        vec![]
+    }
+    async fn is_run_terminal(&self, _: &str) -> bool {
+        false
+    }
+    async fn slug_for_session_id(&self, _session_id: &str) -> Option<String> {
+        Some(self.slug.clone())
+    }
+}
+
 // ── Harness ─────────────────────────────────────────────────────────────────
 
 fn agents_actor_config() -> ActorConfig {
     ActorConfig {
         namespace: "service.agents".to_string(),
-        write_namespaces: vec!["agent.session.".to_string(), "process.".to_string()],
+        write_namespaces: vec!["process.".to_string(), "session.".to_string()],
         read_namespaces: vec![],
-        subscribe_namespaces: vec!["agent.session.".to_string()],
+        subscribe_namespaces: vec!["dispatch.".to_string(), "session.".to_string()],
         see_directed_events: false,
     }
 }
@@ -204,16 +224,17 @@ fn started_payload(
     harness: Option<&str>,
     model: Option<&str>,
     parent: Option<&str>,
-) -> AgentSessionStartedPayload {
-    AgentSessionStartedPayload {
+) -> DispatchRequestedPayload {
+    DispatchRequestedPayload {
         session_id: session_id.into(),
         slug: slug.into(),
-        agent: "rust-lane".into(),
+        agent_id: "rust-lane".into(),
         harness: harness.map(str::to_string),
         model: model.map(str::to_string),
         workspace: slug.into(),
         branch: format!("job/{slug}"),
         source_spec_path: None,
+        baseline_sha: None,
         open_tab: false,
         invocation: InvocationMode::Print,
         keepalive: false,
@@ -223,7 +244,6 @@ fn started_payload(
         resume_session_id: None,
         depends_on: None,
         vars: None,
-        baseline_sha: None,
         parent_pipeline_run_id: parent.map(str::to_string),
     }
 }
@@ -246,6 +266,25 @@ fn ports_with(
     }
 }
 
+fn ports_with_projection(
+    isolation: Arc<dyn IsolationStrategy>,
+    executor: Arc<dyn SessionExecutor>,
+    registry: Arc<dyn ProcessRegistryPort>,
+    platform: Arc<dyn AgentPlatform>,
+    projections: Arc<dyn ProjectionReader>,
+) -> AgentPorts {
+    AgentPorts {
+        floki_run_fn: None,
+        isolation,
+        executor,
+        platform,
+        registry,
+        spawn_policy: Arc::new(TokenSpawnPolicy),
+        projections,
+        event_dedup: Arc::new(EventDedup::new()),
+    }
+}
+
 fn kernel_with_actor() -> Arc<Mutex<KernelRouter>> {
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base).unwrap();
@@ -255,13 +294,14 @@ fn kernel_with_actor() -> Arc<Mutex<KernelRouter>> {
     Arc::new(Mutex::new(router))
 }
 
-fn find_dispatched(session_id: &str) -> bool {
+/// Check for a `process.spawned` event keyed on slug (entity_id == slug).
+fn find_process_spawned(slug: &str) -> bool {
     ship_substrate::db::events::list_all_events()
         .ok()
         .map(|events| {
             events.iter().any(|e| {
-                e.entity_id == session_id
-                    && e.event_type == agent_event_types::AGENT_SESSION_DISPATCHED
+                e.entity_id == slug
+                    && e.event_type == process_event_types::PROCESS_SPAWNED
             })
         })
         .unwrap_or(false)
@@ -280,17 +320,17 @@ fn find_process_killed(slug: &str) -> Option<ProcessKilledPayload> {
         })
 }
 
-/// Run handle_agents_event on a started envelope and return the captured spawn
-/// context. handle_agent_session_started detaches the prep onto a task, so we
-/// give it a moment to run before reading the capture.
+/// Run handle_agents_event on a dispatch.requested envelope and return the
+/// captured spawn context. handle_dispatch_requested detaches the prep onto a
+/// task, so we give it a moment to run before reading the capture.
 async fn dispatch_and_capture(
     kernel: &Arc<Mutex<KernelRouter>>,
     ports: &AgentPorts,
     captured: &Arc<StdMutex<Option<Captured>>>,
-    payload: &AgentSessionStartedPayload,
+    payload: &DispatchRequestedPayload,
 ) -> Option<Captured> {
     let envelope =
-        EventEnvelope::new(agent_event_types::AGENT_SESSION_STARTED, &payload.session_id, payload)
+        EventEnvelope::new(dispatch_event_types::DISPATCH_REQUESTED, &payload.session_id, payload)
             .unwrap()
             .with_actor_id("test");
     ship_agents::handle_agents_event(kernel, &envelope, ports).await;
@@ -370,7 +410,7 @@ async fn composed_session_is_not_spawned_here() {
 
     let payload = started_payload("s-comp-1", "sess-2", None, None, Some("run-parent-1"));
     let envelope = EventEnvelope::new(
-        agent_event_types::AGENT_SESSION_STARTED,
+        dispatch_event_types::DISPATCH_REQUESTED,
         &payload.session_id,
         &payload,
     )
@@ -388,10 +428,10 @@ async fn composed_session_is_not_spawned_here() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn dispatch_emits_agent_session_dispatched_on_success() {
+async fn dispatch_emits_process_spawned_on_success() {
     let tmp = tempfile::TempDir::new().unwrap();
     let kernel = kernel_with_actor();
-    // Executor that returns a handle so the dispatch reaches the dispatched emit.
+    // Executor that returns a handle so the dispatch reaches the process.spawned emit.
     struct OkExecutor;
     #[async_trait]
     impl SessionExecutor for OkExecutor {
@@ -421,23 +461,23 @@ async fn dispatch_emits_agent_session_dispatched_on_success() {
 
     let payload = started_payload("s-disp-1", "sess-3", None, None, None);
     let envelope = EventEnvelope::new(
-        agent_event_types::AGENT_SESSION_STARTED,
+        dispatch_event_types::DISPATCH_REQUESTED,
         &payload.session_id,
         &payload,
     )
     .unwrap()
     .with_actor_id("test");
     ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
-    // Poll for the detached prep to emit dispatched.
+    // Poll for the detached prep to emit process.spawned.
     let mut ok = false;
     for _ in 0..50 {
-        if find_dispatched("s-disp-1") {
+        if find_process_spawned("sess-3") {
             ok = true;
             break;
         }
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
-    assert!(ok, "agent.session.dispatched emitted after a successful spawn");
+    assert!(ok, "process.spawned emitted (entity_id=slug) after a successful spawn");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -448,7 +488,7 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
     let registry = Arc::new(SeededRegistry {
         handle: Mutex::new(Some(ExecutorHandle { pid: Some(42), inner: Box::new(()) })),
     });
-    let ports = ports_with(
+    let ports = ports_with_projection(
         Arc::new(OkIsolation(PathBuf::from("/tmp"))),
         Arc::new(StoppingExecutor { stop_calls: stop_calls.clone() }),
         registry,
@@ -456,17 +496,21 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
             worktrees: PathBuf::from("/tmp/test-worktrees"),
             cleanup_calls: cleanup_calls.clone(),
         }),
+        Arc::new(FixedSlugProjection { slug: "cancel-1".into() }),
     );
 
     let slug = "cancel-1";
-    let payload = serde_json::json!({
-        "session_id": "s-cancel-1",
-        "slug": slug,
-        "reason": "operator test",
-    });
-    let envelope = EventEnvelope::new(agent_event_types::AGENT_SESSION_CANCELLED, "s-cancel-1", &payload)
-        .unwrap()
-        .with_actor_id("test");
+    let payload = SessionCancelled {
+        session_id: "s-cancel-1".into(),
+        reason: Some("operator test".into()),
+    };
+    let envelope = EventEnvelope::new(
+        canonical_session_event_types::SESSION_CANCELLED,
+        "s-cancel-1",
+        &payload,
+    )
+    .unwrap()
+    .with_actor_id("test");
 
     ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
 
@@ -483,7 +527,7 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
 async fn cancel_without_handle_still_cleans_and_emits() {
     let kernel = kernel_with_actor();
     let cleanup_calls = Arc::new(AtomicUsize::new(0));
-    let ports = ports_with(
+    let ports = ports_with_projection(
         Arc::new(OkIsolation(PathBuf::from("/tmp"))),
         Arc::new(StoppingExecutor { stop_calls: Arc::new(AtomicUsize::new(0)) }),
         Arc::new(NoopRegistry),
@@ -491,13 +535,21 @@ async fn cancel_without_handle_still_cleans_and_emits() {
             worktrees: PathBuf::from("/tmp/test-worktrees"),
             cleanup_calls: cleanup_calls.clone(),
         }),
+        Arc::new(FixedSlugProjection { slug: "cancel-2".into() }),
     );
 
     let slug = "cancel-2";
-    let payload = serde_json::json!({ "session_id": "s-cancel-2", "slug": slug });
-    let envelope = EventEnvelope::new(agent_event_types::AGENT_SESSION_CANCELLED, "s-cancel-2", &payload)
-        .unwrap()
-        .with_actor_id("test");
+    let payload = SessionCancelled {
+        session_id: "s-cancel-2".into(),
+        reason: None,
+    };
+    let envelope = EventEnvelope::new(
+        canonical_session_event_types::SESSION_CANCELLED,
+        "s-cancel-2",
+        &payload,
+    )
+    .unwrap()
+    .with_actor_id("test");
 
     ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
 
@@ -554,7 +606,7 @@ async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
     // harness == "floki" is the routing key.
     let payload = started_payload("s-floki-1", "fl-sess", Some("floki"), None, None);
     let envelope = EventEnvelope::new(
-        agent_event_types::AGENT_SESSION_STARTED,
+        dispatch_event_types::DISPATCH_REQUESTED,
         &payload.session_id,
         &payload,
     )
@@ -611,7 +663,7 @@ async fn floki_harness_without_closure_falls_through_to_executor() {
 
     let payload = started_payload("s-floki-2", "fl-no-fn", Some("floki"), None, None);
     let envelope = EventEnvelope::new(
-        agent_event_types::AGENT_SESSION_STARTED,
+        dispatch_event_types::DISPATCH_REQUESTED,
         &payload.session_id,
         &payload,
     )
