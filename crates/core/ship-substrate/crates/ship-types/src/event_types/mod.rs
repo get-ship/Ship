@@ -8,10 +8,11 @@ pub use mesh::*;
 
 // All lines below are constant definitions; no logic present. The `ALL` slice is
 // kept for backward compat (callers that need the `&'static [&str]` shape) and is
-// HAND-MAINTAINED: it is NOT auto-derived from `event_registry::registry()`, and no
-// registry-vs-`ALL` consistency guard exists yet. Wiring that consistency test is a
-// TODO (separate slice). Until then, keep `ALL` in sync with the registry by hand
-// when adding or removing event types.
+// HAND-MAINTAINED: it is NOT auto-derived from `event_registry::registry()`. The
+// registry-vs-`ALL` consistency RATCHET lives in ship-substrate
+// (`events::tests::registry_vs_all_ratchet`): adding an event to the registry
+// without adding it here (or to that test's justified-absence list) fails there.
+// Keep `ALL` in sync with the registry by hand when adding or removing event types.
 pub const WORKSPACE_CREATED: &str = "workspace.created";
 pub const WORKSPACE_ACTIVATED: &str = "workspace.activated";
 pub const WORKSPACE_ARCHIVED: &str = "workspace.archived";
@@ -272,6 +273,7 @@ pub const ALL: &[&str] = &[
     VIEW_CHANGED,
     PIPELINE_CHANGED,
     RULE_CHANGED,
+    COLLECTION_CHANGED,
     PROJECT_LOG,
     SKILL_STARTED,
     SKILL_COMPLETED,

@@ -16,8 +16,9 @@
 //!
 //! After this module compiles, `ship_types::event_registry::registry()` returns every
 //! classified entry. NOTE: `event_types::ALL` is a separate, HAND-MAINTAINED list — it
-//! is NOT auto-derived from this registry, and no registry-vs-`ALL` consistency guard
-//! exists yet (wiring one is a TODO / separate slice).
+//! is NOT auto-derived from this registry. The registry-vs-`ALL` consistency RATCHET
+//! lives in `events::tests::registry_vs_all_ratchet`: a registration added here
+//! without an `ALL` entry (or a justified-absence row there) fails that test.
 //!
 //! A1 classification ground truth: `.artifacts/specs/space/event-classification.md`
 //! Fail-closed default (undetermined): runtime, durable.
@@ -104,6 +105,14 @@ register_event!("auth.session.expired", [EventScope::Account], Retention::Durabl
 register_event!("auth.session.revoked", [EventScope::Account], Retention::Durable, Stability::Stable, "AuthSessionRevoked");
 
 // ── collection.* ────────────────────────────────────────────────────────────
+// collection.changed: the coarse `<domain>.changed` watcher event for the
+// `.ship/collections/` domain (ship-config `author_change`, ConfigChanged
+// payload — same emit path as config/skill/pipeline/rule.changed). Registered
+// Runtime/Ephemeral to MATCH those siblings AND the live emit behavior: the
+// watcher emits both user-library (space=None) and project scope via
+// `daemon_internal(space)`; a Space registration would hard-reject the
+// space-unbound user-library emit (`NoSpaceForSpaceEvent`).
+register_event!("collection.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ConfigChanged");
 register_event!("collection.created", [EventScope::Space], Retention::Durable, Stability::Stable, "CollectionCreated");
 register_event!("collection.item_created", [EventScope::Space], Retention::Durable, Stability::Stable, "CollectionItemCreated");
 register_event!("collection.item_deleted", [EventScope::Space], Retention::Durable, Stability::Stable, "CollectionItemDeleted");

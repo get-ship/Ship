@@ -77,6 +77,7 @@ fn schema_for_event_type(
         "view.changed" => Some(check::<ConfigChanged>),
         "pipeline.changed" => Some(check::<ConfigChanged>),
         "rule.changed" => Some(check::<ConfigChanged>),
+        "collection.changed" => Some(check::<ConfigChanged>),
         // project
         "project.log" => Some(check::<ProjectLog>),
         // skill
@@ -97,7 +98,10 @@ fn schema_for_event_type(
         "agent.session.completed" => Some(check::<crate::events::agent_session::AgentSessionCompletedPayload>),
         "agent.session.failed" => Some(check::<crate::events::agent_session::AgentSessionFailedPayload>),
         "agent.session.cancelled" => Some(check::<crate::events::agent_session::AgentSessionCancelledPayload>),
-        "agent.session.turn_ended" => Some(check::<crate::events::agent_session::AgentSessionTurnEndedPayload>),
+        // agent.session.turn_ended: NO arm — the event has no registration and no
+        // emit site anywhere (only the const + payload struct remain); the arm was
+        // unreachable dead code. The const/struct removal belongs to the legacy
+        // agent.session.* family sever, pending the #26 spawn-intent work.
         // supervisor
         "supervisor.shutting_down" => Some(check::<SupervisorShuttingDown>),
         "supervisor.sweep_started" => Some(check::<crate::events::supervisor::SweepStartedPayload>),

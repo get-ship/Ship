@@ -37,9 +37,12 @@ pub mod types {
             // Job `workbench-teardown` retires the 11 workbench session.* events
             // AND adds the canonical `session.started` (the workbench string the
             // canonical family deferred on) → 117 - 11 + 1 = 107.
+            // Wave-2 vocab-guards adds `collection.changed` to ALL (it was
+            // emitted + subscribed but unregistered — the missed sibling of the
+            // config-family `<domain>.changed` events) → 108.
             // The hard count is enforced here to catch accidental removals.
             // When adding events: update ALL in event_types.rs AND payload_registry.rs.
-            assert_eq!(ALL.len(), 107, "exactly 107 event type constants required (workbench-teardown: -11 workbench + 1 canonical session.started)");
+            assert_eq!(ALL.len(), 108, "exactly 108 event type constants required (vocab-guards: +1 collection.changed)");
         }
     }
 }
