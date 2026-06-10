@@ -108,13 +108,11 @@
     padding-right: calc(var(--toast-px) + 24px);
     min-width: var(--toast-min-w);
     max-width: var(--toast-max-w);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     border: 1px solid var(--tone-border);
     background: var(--card);
     color: var(--card-foreground);
-    box-shadow:
-      0 0 0 1px color-mix(in oklch, var(--foreground) 3%, transparent),
-      var(--shadow-md);
+    box-shadow: var(--shadow-lg);
     font-family: var(--font-body);
     font-size: var(--toast-fs);
     line-height: var(--leading-normal);
@@ -164,19 +162,20 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
+    width: 26px;
+    height: 26px;
     flex: 0 0 auto;
+    border-radius: var(--radius-md);
+    background: var(--tone-bg);
     color: var(--tone-fg);
-    margin-top: 1px;
   }
   :host(:not([tone])) .icon,
-  :host([tone='default']) .icon { color: var(--muted-foreground); }
-  .icon svg { width: 18px; height: 18px; display: block; }
-  :host([size='sm']) .icon,
-  :host([size='sm']) .icon svg { width: 16px; height: 16px; }
-  :host([size='lg']) .icon,
-  :host([size='lg']) .icon svg { width: 20px; height: 20px; }
+  :host([tone='default']) .icon { background: transparent; color: var(--muted-foreground); }
+  .icon svg { width: 15px; height: 15px; display: block; }
+  :host([size='sm']) .icon { width: 22px; height: 22px; }
+  :host([size='sm']) .icon svg { width: 13px; height: 13px; }
+  :host([size='lg']) .icon { width: 30px; height: 30px; }
+  :host([size='lg']) .icon svg { width: 17px; height: 17px; }
 
   :host([data-no-icon]) .toast { grid-template-columns: 1fr auto; }
   :host([data-no-icon]) .icon { display: none; }
@@ -234,6 +233,11 @@
       color var(--duration-fast) var(--ease-out);
   }
   .close:hover {
+    background: var(--tone-bg);
+    color: var(--tone-fg);
+  }
+  :host(:not([tone])) .close:hover,
+  :host([tone='default']) .close:hover {
     background: var(--active-bg);
     color: var(--foreground);
   }
@@ -251,6 +255,7 @@
     left: 0; right: 0; bottom: 0;
     height: 2px;
     background: var(--tone-fg);
+    border-top-right-radius: var(--radius-full);
     transform: scaleX(1);
     transform-origin: left center;
     animation: sui-toast-progress var(--toast-duration, 5000ms) linear forwards;

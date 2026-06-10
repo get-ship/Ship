@@ -57,25 +57,33 @@
 
   a {
     color: var(--link-fg);
-    text-decoration: none;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    text-decoration-color: color-mix(in oklch, var(--link-fg) 28%, transparent);
     display: inline;
     border-radius: var(--radius-sm);
     transition:
       color var(--duration-fast),
-      text-decoration-color var(--duration-fast);
+      text-decoration-color var(--duration-fast),
+      text-underline-offset var(--duration-fast);
   }
   a:hover {
-    text-decoration: underline;
-    text-underline-offset: 2px;
+    text-decoration-color: var(--link-fg);
+    text-underline-offset: 3px;
   }
   :host([variant='underline']) a {
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 2px;
-    text-decoration-color: color-mix(in oklch, var(--link-fg) 40%, transparent);
+    text-decoration-color: color-mix(in oklch, var(--link-fg) 50%, transparent);
+  }
+  :host([variant='underline']) a:hover {
+    text-decoration-color: var(--link-fg);
+  }
+  :host([variant='subtle']) a {
+    text-decoration-color: transparent;
   }
   :host([variant='subtle']) a:hover {
     color: color-mix(in oklch, var(--link-fg) 80%, var(--foreground));
+    text-decoration-color: color-mix(in oklch, var(--link-fg) 40%, transparent);
   }
   a:focus-visible {
     outline: var(--ring-width) solid var(--ring-color);
@@ -84,13 +92,13 @@
   .ext {
     display: inline-block;
     margin-inline-start: 2px;
-    font-size: 0.9em;
-    opacity: 0.8;
-    vertical-align: -0.1em;
+    font-size: 0.85em;
+    opacity: 0.65;
+    vertical-align: -0.05em;
   }
   .ext svg {
-    width: 0.9em;
-    height: 0.9em;
+    width: 0.85em;
+    height: 0.85em;
   }
   .sr-only {
     position: absolute;

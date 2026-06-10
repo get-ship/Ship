@@ -79,6 +79,18 @@
      sui-button soft variant + primary tone, set from the controller. */
   sui-button[aria-current='page'] { pointer-events: none; }
 
+  /* Ellipsis separator emitted by the controller between discontinuous page ranges */
+  .ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 30px;
+    color: var(--muted-foreground);
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+  }
+
   @media (forced-colors: active) {
     .range { color: CanvasText; }
   }

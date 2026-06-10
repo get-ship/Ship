@@ -59,6 +59,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    vertical-align: -0.125em;
     /* default tone; suiTonesSheet (adopted by compiler) overrides per [tone] */
     --tone-fg: var(--foreground);
     color: var(--tone-fg);
@@ -79,7 +80,7 @@
     flex: 0 0 auto;
   }
   :host([size='xs']) svg.sui-icon-svg { width: 10px; height: 10px; }
-  :host([size='sm']) svg.sui-icon-svg { width: 12px; height: 12px; }
+  :host([size='sm']) svg.sui-icon-svg { width: 14px; height: 14px; }
   :host([size='lg']) svg.sui-icon-svg { width: 20px; height: 20px; }
   :host([size='xl']) svg.sui-icon-svg { width: 24px; height: 24px; }
 

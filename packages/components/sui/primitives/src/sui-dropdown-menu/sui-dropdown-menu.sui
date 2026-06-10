@@ -29,21 +29,21 @@
   .panel {
     inset: auto;
     margin: 0;
-    min-width: 160px;
-    padding: 4px;
+    min-width: 210px;
+    padding: 5px;
     background: var(--popover);
     color: var(--popover-foreground);
     border: 1px solid var(--border);
-    border-radius: var(--radius, var(--radius-md, 6px));
-    box-shadow: var(--shadow-lg, 0 8px 24px color-mix(in oklch, var(--foreground) 12%, transparent));
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 color-mix(in oklch, var(--background) 40%, transparent);
     display: flex; flex-direction: column;
-    font-family: var(--font-body, system-ui);
-    font-size: var(--text-base, 14px);
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
     opacity: 0;
     transform: translateY(-4px) scale(0.97);
     transition:
-      opacity var(--duration-medium, 200ms) var(--ease-out, ease-out),
-      transform var(--duration-medium, 200ms) var(--ease-out, ease-out);
+      opacity var(--duration-medium) var(--ease-out, ease-out),
+      transform var(--duration-medium) var(--ease-out, ease-out);
   }
 
   /* CSS Anchor Positioning. Controller sets `--sui-dd-anchor` to a
@@ -70,19 +70,24 @@
   .panel::backdrop { background: transparent; }
 
   ::slotted(button), ::slotted([role='menuitem']) {
+    display: flex; align-items: center; gap: 10px;
     text-align: start;
     background: transparent; border: 0;
-    padding: 6px 10px;
-    border-radius: var(--radius-sm, 4px);
+    padding: 7px 9px;
+    border-radius: var(--radius-sm);
     color: inherit; font: inherit;
     cursor: pointer; width: 100%;
-    transition: background-color var(--duration-fast, 120ms) var(--ease-out, ease-out);
+    transition: background-color var(--duration-fast) var(--ease-out, ease-out), color var(--duration-fast) var(--ease-out, ease-out);
   }
   ::slotted(button:hover), ::slotted([role='menuitem']:hover),
   ::slotted(button:focus-visible), ::slotted([role='menuitem']:focus-visible) {
-    background: var(--accent);
+    background: var(--muted);
     outline: none;
   }
+  ::slotted(button[data-tone='destructive']) { color: var(--destructive); }
+  ::slotted(button[data-tone='destructive']:hover) { background: var(--tone-destructive-bg); }
+  ::slotted(hr) { height: 1px; border: 0; background: var(--border-subtle); margin: 5px 4px; }
+  ::slotted([data-section]) { font-size: var(--text-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); padding: 6px 9px 3px; }
 
   @media (prefers-reduced-motion: reduce) {
     .panel { transition: none; transform: none !important; }

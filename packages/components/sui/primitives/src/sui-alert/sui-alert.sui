@@ -34,86 +34,98 @@
 <style>
   :host {
     display: block;
-    /* Default tone — neutral "heads-up" banner. The runtime's adopted
-     * tones.css sets --tone / --tone-fg per [tone=...] selector; these
-     * fallbacks fire when no tone attr is present (the catalog's
-     * `default` value). */
     --tone: var(--foreground);
     --tone-fg: var(--foreground);
-    --alert-bg: color-mix(in oklch, var(--tone) 8%, var(--background));
-    --alert-border: color-mix(in oklch, var(--tone) 25%, transparent);
+    --tone-bg: color-mix(in oklch, var(--foreground) 10%, transparent);
   }
   :host([hidden]) { display: none; }
 
-  :host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info); }
-  :host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--success); }
-  :host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--warning); }
-  :host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive); }
-  :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); }
+  :host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info);             --tone-bg: var(--tone-info-bg); }
+  :host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--tone-success-fg);  --tone-bg: var(--tone-success-bg); }
+  :host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--tone-warning-fg);  --tone-bg: var(--tone-warning-bg); }
+  :host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive);      --tone-bg: var(--tone-destructive-bg); }
+  :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-bg: var(--muted); }
+  :host([tone='default'])     { --tone: var(--foreground);       --tone-fg: var(--foreground);       --tone-bg: color-mix(in oklch, var(--foreground) 10%, transparent); }
 
   .box {
+    position: relative;
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: start;
-    gap: 10px;
-    padding: 12px 14px;
+    gap: 11px;
+    padding: 12px 14px 12px 18px;
     border-radius: var(--radius);
-    border: 1px solid var(--alert-border);
-    background: var(--alert-bg);
-    color: var(--tone-fg);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--card);
     font-family: var(--font-body);
-    font-size: var(--text-sm);
+    font-size: 13px;
     line-height: 1.5;
+    box-shadow: var(--shadow-xs);
+  }
+  .box::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--tone);
+  }
+
+  .ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+    background: var(--tone-bg);
+    color: var(--tone-fg);
   }
 
   .content {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
     min-width: 0;
   }
 
-  /* Title + body both speak in tone — the surface carries one voice,
-   * not two. Prior split (title=tone-fg, body=foreground) read as
-   * mixed signal. Tone-fg defaults to foreground for the default tone,
-   * so the unset-tone case still looks neutral. */
-  .title { font-weight: 600; color: var(--tone-fg); }
-  .body { color: var(--tone-fg); }
+  .title { font-weight: 600; color: var(--foreground); }
+  .body { color: var(--muted-foreground); }
 
   .actions {
     display: flex;
-    gap: 6px;
-    margin-top: 6px;
+    gap: 8px;
+    margin-top: 8px;
   }
 
   .close {
     display: none;
     background: transparent;
     border: 0;
-    color: inherit;
+    color: var(--muted-foreground);
     cursor: pointer;
-    padding: 4px;
-    width: 24px;
-    height: 24px;
+    font-size: 15px;
+    width: 22px;
+    height: 22px;
     border-radius: var(--radius-sm);
     align-items: center;
     justify-content: center;
     line-height: 1;
-    flex-shrink: 0;
   }
-  .close svg { width: 100%; height: 100%; display: block; }
   :host([dismissible]) .close {
     display: inline-flex;
   }
   .close:hover {
-    background: color-mix(in oklch, var(--tone-fg) 12%, transparent);
+    background: var(--tone-bg);
+    color: var(--tone-fg);
   }
   .close:focus-visible {
     outline: var(--focus-ring);
     outline-offset: var(--focus-ring-offset);
   }
 
-  ::slotted([slot='icon']) { display: inline-flex; }
+  ::slotted([slot='icon']) { display: inline-flex; width: 15px; height: 15px; }
 </style>
 
 <div class="box"
@@ -121,7 +133,7 @@
      role={tone() === 'destructive' || tone() === 'warning' ? 'alert' : 'status'}
      aria-live={tone() === 'destructive' || tone() === 'warning' ? 'assertive' : 'polite'}
      aria-atomic="true">
-  <span><slot name="icon"></slot></span>
+  <span class="ico"><slot name="icon"></slot></span>
   <div class="content">
     <div class="title"><slot name="title"></slot></div>
     <div class="body"><slot></slot></div>

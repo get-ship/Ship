@@ -58,22 +58,24 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 1px;
-    background: var(--border);
+    width: 2px;
+    background: var(--border-subtle);
   }
   :host(:first-of-type) .gutter::before { top: 10px; }
   :host(:last-of-type) .gutter::before { bottom: calc(100% - 10px); }
 
   .dot {
     position: relative;
+    z-index: 1;
     width: 10px;
     height: 10px;
     border-radius: var(--radius-full);
     background: var(--tone-fg);
-    border: 2px solid var(--background);
     margin-top: 4px;
-    box-shadow: var(--shadow-xs);
     flex-shrink: 0;
+    box-shadow:
+      0 0 0 3px var(--card),
+      0 0 0 5px color-mix(in oklch, var(--tone-fg) 18%, transparent);
   }
 
   .body { min-width: 0; }
@@ -89,8 +91,10 @@
   }
 
   .at {
+    font-family: var(--font-mono);
     color: var(--muted-foreground);
-    font-size: var(--text-xs);
+    font-size: 10.5px;
+    letter-spacing: 0.02em;
     margin-inline-start: auto;
   }
 

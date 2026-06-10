@@ -37,17 +37,17 @@
   .row {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 3px 6px;
+    gap: 6px;
+    padding: 4px 7px;
     border-radius: var(--radius-sm);
     cursor: pointer;
     outline: none;
     color: var(--foreground);
     transition: background-color var(--duration-fast) var(--ease-out);
   }
-  .row:hover { background: var(--muted); }
+  .row:hover { background: color-mix(in oklch, var(--foreground) 5%, transparent); }
   :host([selected]) .row {
-    background: var(--tone-primary-bg);
+    background: color-mix(in oklch, var(--primary) 10%, transparent);
     color: var(--foreground);
     font-weight: var(--font-weight-medium);
   }
@@ -81,9 +81,9 @@
   .trailing { margin-inline-start: auto; color: var(--muted-foreground); font-size: var(--text-xs); }
 
   .children {
-    margin-inline-start: 16px;
-    border-left: 1px dashed var(--border);
-    padding-inline-start: 6px;
+    margin-inline-start: 9px;
+    border-left: 1px solid var(--border-subtle);
+    padding-inline-start: 12px;
   }
   :host(:not([expanded])) .children { display: none; }
 </style>

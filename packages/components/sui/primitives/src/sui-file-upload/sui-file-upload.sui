@@ -59,33 +59,48 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 24px 16px;
-    border: 2px dashed var(--border);
-    border-radius: var(--radius-md, 6px);
+    gap: 10px;
+    padding: var(--space-6) var(--space-4);
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-lg);
     background: transparent;
     cursor: pointer;
     transition:
-      border-color var(--duration-fast, 150ms) var(--ease-out, ease-out),
-      background-color var(--duration-fast, 150ms) var(--ease-out, ease-out);
+      border-color var(--duration-fast) var(--ease-out, ease-out),
+      background-color var(--duration-fast) var(--ease-out, ease-out);
     color: var(--muted-foreground);
     font-family: var(--font-body);
     font-size: var(--text-sm);
     user-select: none;
+    text-align: center;
   }
   .dropzone:focus-visible {
     outline: var(--focus-ring);
     outline-offset: var(--focus-ring-offset);
   }
   .dropzone.over {
-    border-style: solid;
+    border-style: dashed;
     border-color: var(--tone-ring);
     background: var(--tone-bg);
   }
 
   .icon {
-    font-size: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-lg);
+    background: var(--muted);
+    color: var(--muted-foreground);
+    font-size: 1.25rem;
     line-height: 1;
+    flex: none;
+    transition: background-color var(--duration-fast), color var(--duration-fast);
+  }
+  .dropzone.over .icon {
+    background: var(--selected-bg);
+    color: var(--tone-ring);
   }
 
   input[type='file'] {
@@ -102,25 +117,47 @@
   .file-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    border-radius: var(--radius-sm, 4px);
-    background: var(--muted);
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--card);
     font-family: var(--font-body);
     font-size: var(--text-sm);
     color: var(--foreground);
   }
 
-  .file-name {
+  .file-doc-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-md);
+    background: var(--tone-info-bg);
+    color: var(--tone-info-fg);
+    flex: none;
+  }
+
+  .file-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     flex: 1;
     min-width: 0;
+  }
+
+  .file-name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: var(--foreground);
   }
 
   .file-size {
     color: var(--muted-foreground);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
     flex-shrink: 0;
   }
 
@@ -132,13 +169,20 @@
     color: var(--muted-foreground);
     padding: 2px;
     line-height: 1;
-    border-radius: var(--radius-sm, 4px);
+    border-radius: var(--radius-sm);
     font-size: var(--text-lg);
     font-family: inherit;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    margin-left: auto;
   }
   .remove:hover {
     color: var(--foreground);
-    background: var(--border);
+    background: var(--muted);
   }
   .remove:focus-visible {
     outline: var(--focus-ring);
@@ -168,8 +212,10 @@
   aria-disabled={disabled() ? 'true' : 'false'}
   bind:this={dropzoneEl}
 >
-  <span class="icon" aria-hidden="true">📄</span>
-  <span>Drop files here or click to browse</span>
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+  </span>
+  <span>Drag &amp; drop or <span style="color:var(--primary);text-decoration:underline;text-underline-offset:2px">browse</span></span>
 </div>
 <input
   type="file"
@@ -187,8 +233,13 @@
   <div class="file-list" part="file-list" aria-live="polite" bind:this={fileListEl}>
     {#for f of displayFiles() key={f.key}}
       <div class="file-item" part="file-item">
-        <span class="file-name">{f.name}</span>
-        <span class="file-size">{f.sizeStr}</span>
+        <span class="file-doc-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        </span>
+        <span class="file-meta">
+          <span class="file-name">{f.name}</span>
+          <span class="file-size">{f.sizeStr}</span>
+        </span>
         <button
           class="remove"
           part="remove"

@@ -39,11 +39,11 @@
     background: var(--popover);
     color: var(--popover-foreground);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg, 8px);
-    box-shadow: var(--shadow-lg, 0 8px 24px color-mix(in oklch, var(--foreground) 12%, transparent));
-    font-family: var(--font-body, system-ui);
-    font-size: var(--text-base, 14px);
-    line-height: var(--leading-normal, 1.5);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 color-mix(in oklch, var(--background) 40%, transparent);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal, 1.55);
     opacity: 0;
     transform: translateY(-4px);
     transition:
