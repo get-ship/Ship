@@ -82,6 +82,11 @@
     display: block;
     --tone: var(--primary);
   }
+  :host([tone='info'])        { --tone: var(--info); }
+  :host([tone='success'])     { --tone: var(--success); }
+  :host([tone='warning'])     { --tone: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive); }
+  :host([tone='accent'])      { --tone: var(--accent); }
   :host([sticky]) { position: sticky; top: 0; z-index: 10; background: var(--background); }
 
   .strip {

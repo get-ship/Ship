@@ -121,11 +121,9 @@
 
   textarea:focus-visible,
   textarea:focus {
-    outline: none;
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
     border-color: color-mix(in oklch, var(--tone) 70%, var(--border));
-    box-shadow:
-      0 0 0 var(--ring-width, 2px)
-        color-mix(in oklch, var(--tone) var(--ring-opacity, 50%), transparent);
   }
 
   :host([invalid]) textarea {
@@ -137,9 +135,6 @@
   :host([invalid]) textarea:focus-visible,
   :host([invalid]) textarea:focus {
     border-color: var(--destructive);
-    box-shadow:
-      0 0 0 var(--ring-width, 2px)
-        color-mix(in oklch, var(--destructive) var(--ring-opacity, 50%), transparent);
   }
 
   textarea::placeholder {
@@ -157,7 +152,7 @@
   textarea:read-only { cursor: default; }
 
   :host([variant='code']) textarea {
-    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+    font-family: var(--mono-font);
     font-size: var(--text-base, 14px);
     line-height: 1.55;
     letter-spacing: 0;

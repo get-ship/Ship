@@ -92,6 +92,7 @@
     --h: 34px;
     --fs: 13px;
     --px: 10px;
+    --icon: 15px;
   }
 
   :host([tone='primary'])     { --tone-border: var(--primary);     --tone-ring: var(--primary); }
@@ -103,9 +104,9 @@
   :host([tone='accent'])      { --tone-border: var(--accent);       --tone-ring: var(--accent); }
   :host([tone='muted'])       { --tone-border: var(--muted-foreground); --tone-ring: var(--muted-foreground); }
 
-  :host([size='sm']) { --h: 28px; --fs: 12px; --px: 8px; }
-  :host([size='md']) { --h: 34px; --fs: 13px; --px: 10px; }
-  :host([size='lg']) { --h: 40px; --fs: 14px; --px: 12px; }
+  :host([size='sm']) { --h: 28px; --fs: 12px; --px: 8px;  --icon: 13px; }
+  :host([size='md']) { --h: 34px; --fs: 13px; --px: 10px; --icon: 15px; }
+  :host([size='lg']) { --h: 40px; --fs: 14px; --px: 12px; --icon: 17px; }
 
   .wrap {
     display: inline-flex;
@@ -125,6 +126,13 @@
   :host([variant='ghost']) .wrap {
     border-color: transparent;
     background: transparent;
+  }
+
+  /* Ghost gains a hover surface so it's discoverable before focus. */
+  :host([variant='ghost']:not([disabled])) .wrap:hover:not(:focus-within) {
+    background: color-mix(in oklch, var(--muted) 60%, transparent);
+    border-color: transparent;
+    box-shadow: none;
   }
 
   .wrap:focus-within {
@@ -170,15 +178,18 @@
   ::slotted([slot='trailing']) {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     flex: 0 0 auto;
+    width: var(--icon);
+    height: var(--icon);
     color: var(--muted-foreground);
   }
 
   .spinner {
     display: inline-block;
     flex: 0 0 auto;
-    width: 14px;
-    height: 14px;
+    width: var(--icon);
+    height: var(--icon);
     border: 2px solid color-mix(in oklch, var(--tone-ring) 30%, transparent);
     border-top-color: var(--tone-ring);
     border-radius: 50%;

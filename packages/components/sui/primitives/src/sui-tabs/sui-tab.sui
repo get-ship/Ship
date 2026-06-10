@@ -68,9 +68,9 @@
     color: var(--muted-foreground);
     background: transparent;
     border: 0;
-    border-bottom: 2px solid transparent;
+    border-bottom: 2.5px solid transparent;
     cursor: pointer;
-    border-radius: 0;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
     white-space: nowrap;
     transition:
       color var(--duration-fast) var(--ease-out),
@@ -78,12 +78,17 @@
       background-color var(--duration-fast) var(--ease-out);
   }
 
-  button:hover:not(:disabled) { color: var(--foreground); }
+  button:hover:not(:disabled) {
+    color: var(--foreground);
+    background: color-mix(in oklch, var(--foreground) 5%, transparent);
+  }
 
   :host([active]) button {
     color: var(--foreground);
+    font-weight: var(--font-weight-semibold, 600);
     border-bottom-color: var(--tone);
   }
+  :host([active]) button:hover:not(:disabled) { background: transparent; }
 
   button:disabled {
     cursor: not-allowed;
@@ -108,7 +113,7 @@
   }
   :host([active]) .count {
     color: var(--tone);
-    background: color-mix(in oklch, var(--tone) 12%, transparent);
+    background: color-mix(in oklch, var(--tone) 14%, transparent);
   }
 
   button:focus-visible {
@@ -122,10 +127,11 @@
     padding: 6px 12px;
   }
   :host([variant='pill'][active]) button {
-    background: var(--background);
-    box-shadow: var(--shadow-sm, 0 1px 2px 0 color-mix(in oklch, var(--foreground) 5%, transparent));
+    background: var(--card);
+    box-shadow: var(--shadow-xs), inset 0 0 0 1px var(--border-subtle);
     color: var(--foreground);
   }
+  :host([variant='pill'][active]) button:hover:not(:disabled) { background: var(--card); }
 
   :host([variant='enclosed']) button {
     border-bottom: 0;
@@ -133,12 +139,13 @@
     border: 1px solid transparent;
   }
   :host([variant='enclosed'][active]) button {
-    background: var(--background);
+    background: var(--card);
     border-color: var(--border) var(--border) transparent;
     color: var(--foreground);
     position: relative;
     bottom: -1px;
   }
+  :host([variant='enclosed'][active]) button:hover:not(:disabled) { background: var(--card); }
 </style>
 
 <button
