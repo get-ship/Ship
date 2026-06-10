@@ -342,6 +342,20 @@
         "vitest": "^4.1.5",
       },
     },
+    "packages/components/ship/spaces": {
+      "name": "@ship/spaces",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-primitives": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "@ship/test-setup": "workspace:*",
+        "happy-dom": "^20.9.0",
+        "vitest": "^4.1.5",
+      },
+    },
     "packages/components/ship/viewer": {
       "name": "@ship/viewer",
       "version": "0.1.0",
@@ -1192,6 +1206,8 @@
     "@ship/sdk-client": ["@ship/sdk-client@workspace:packages/deck/sdk-client"],
 
     "@ship/site": ["@ship/site@workspace:apps/site"],
+
+    "@ship/spaces": ["@ship/spaces@workspace:packages/components/ship/spaces"],
 
     "@ship/sui-canvas": ["@ship/sui-canvas@workspace:packages/components/ship/canvas"],
 
