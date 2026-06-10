@@ -27,10 +27,7 @@
 
 <style>
   :host {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2, 8px);
-    vertical-align: middle;
+    display: block;
     font-family: var(--font-body);
     font-size: var(--text-base);
     color: var(--foreground);
@@ -54,15 +51,29 @@
   :host([size='sm']) { --rd-size: 14px; --rd-dot: 6px; }
   :host([size='lg']) { --rd-size: 20px; --rd-dot: 10px; }
 
+  /* Selectable option card: bordered --card row with a custom dot. */
   label {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2, 8px);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3, 12px);
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--card);
+    box-shadow: var(--shadow-xs);
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
+    transition:
+      border-color var(--duration-fast, 150ms) var(--ease-out, ease-out),
+      background var(--duration-fast, 150ms) var(--ease-out, ease-out);
   }
   :host([disabled]) label { cursor: not-allowed; }
+  :host(:not([disabled]):not([checked])) label:hover { border-color: var(--border-strong); }
+  :host([checked]) label {
+    border-color: var(--selected-border);
+    background: var(--selected-bg);
+  }
 
   .circle {
     position: relative;
@@ -113,17 +124,16 @@
     -webkit-appearance: none;
   }
 
-  :host(:not([disabled])) label:has(input:focus-visible) .circle {
-    box-shadow:
-      0 0 0 var(--ring-offset, 2px) var(--background),
-      0 0 0 calc(var(--ring-offset, 2px) + var(--ring-width, 2px))
-        color-mix(in oklch, var(--tone) var(--ring-opacity, 50%), transparent);
+  /* Canonical focus convention on the option card. */
+  :host(:not([disabled])) label:has(input:focus-visible) {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
 
   @media (forced-colors: active) {
     .circle { border-color: CanvasText; }
     :host([checked]) .dot { background: Highlight; }
-    :host(:not([disabled])) label:has(input:focus-visible) .circle {
+    :host(:not([disabled])) label:has(input:focus-visible) {
       outline: 2px solid CanvasText;
       outline-offset: 2px;
     }

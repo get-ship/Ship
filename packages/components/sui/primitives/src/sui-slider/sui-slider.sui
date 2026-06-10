@@ -76,6 +76,8 @@
     background: var(--muted);
     border-radius: var(--radius-full, 9999px);
     overflow: hidden;
+    /* Hairline inset so the groove reads on light themes. */
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--border) 70%, transparent);
   }
 
   .fill {
@@ -85,6 +87,8 @@
     height: 100%;
     background: var(--tone);
     border-radius: inherit;
+    /* Soft top inset-highlight for depth. */
+    box-shadow: inset 0 1px 0 color-mix(in oklch, var(--card) 38%, transparent);
   }
 
   .thumb {
@@ -92,7 +96,7 @@
     top: 50%;
     width: var(--sl-thumb);
     height: var(--sl-thumb);
-    background: var(--background);
+    background: var(--card);
     border: 2px solid var(--tone);
     border-radius: 50%;
     box-shadow: var(--shadow-sm);
@@ -106,11 +110,11 @@
   .thumb:hover { box-shadow: var(--shadow-md); transform: translate(-50%, -50%) scale(1.05); }
   .thumb:active { transform: translate(-50%, -50%) scale(0.95); }
 
+  /* Canonical focus convention, tone-tinted via local --ring-color. */
   :host(:not([disabled])) .thumb:focus-visible {
-    box-shadow:
-      0 0 0 var(--ring-offset, 2px) var(--background),
-      0 0 0 calc(var(--ring-offset, 2px) + var(--ring-width, 2px))
-        color-mix(in oklch, var(--tone) var(--ring-opacity, 50%), transparent);
+    --ring-color: var(--tone);
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
 
   @media (forced-colors: active) {

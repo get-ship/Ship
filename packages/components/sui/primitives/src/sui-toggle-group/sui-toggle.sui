@@ -48,8 +48,8 @@
     font-weight: var(--font-weight-medium, 500);
     line-height: 1;
     color: var(--muted-foreground);
-    background: transparent;
-    border: 1px solid var(--border);
+    background: var(--card);
+    border: 1px solid var(--border-strong);
     border-radius: var(--radius, 6px);
     cursor: pointer;
     transition:
@@ -57,12 +57,19 @@
       color var(--duration-fast, 150ms) var(--ease-out, ease-out),
       border-color var(--duration-fast, 150ms) var(--ease-out, ease-out);
   }
-  :host([variant='ghost']) button { border-color: transparent; }
-  button:hover { background: var(--muted); color: var(--foreground); }
-  :host([pressed]) button {
-    background: var(--muted);
+  /* Ghost variant stays chromeless — no raised --card surface. */
+  :host([variant='ghost']) button { border-color: transparent; background: transparent; }
+  /* Faint --foreground wash so unpressed buttons read as interactive. */
+  button:not([aria-pressed='true']):hover {
+    background: color-mix(in oklch, var(--foreground) 6%, var(--card));
     color: var(--foreground);
-    border-color: var(--border);
+  }
+  /* Pressed matches selection across the pack. */
+  :host([pressed]) button {
+    background: var(--selected-bg);
+    color: var(--foreground);
+    border-color: var(--selected-border);
+    font-weight: var(--font-weight-semibold, 600);
   }
   :host([disabled]) button {
     cursor: not-allowed;
@@ -80,6 +87,7 @@
     border: 0;
     border-radius: var(--radius-sm, 4px);
     color: var(--muted-foreground);
+    background: transparent;
   }
   :host([variant='segmented']:not([size])) button,
   :host([variant='segmented'][size='md']) button {

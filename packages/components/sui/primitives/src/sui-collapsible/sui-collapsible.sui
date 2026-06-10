@@ -57,6 +57,16 @@
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
+    transition: background var(--duration-fast) var(--ease-out);
+  }
+  /* Hover wash on the disclosure header. */
+  ::slotted([slot='trigger']:hover) {
+    background: var(--hover-bg);
+  }
+  /* Canonical focus convention — replaces the design's box-shadow ring. */
+  ::slotted([slot='trigger']:focus-visible) {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
   :host([disabled]) ::slotted([slot='trigger']) {
     cursor: not-allowed;
