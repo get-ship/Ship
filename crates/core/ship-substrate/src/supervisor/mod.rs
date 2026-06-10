@@ -20,7 +20,8 @@
 //! supervisor's only job at runtime is owning OS-level child processes
 //! and translating their lifecycle into kernel events.
 
-pub mod process_stats;
+// process_stats DELETED (residue cull, 2026-06-10): /proc stat reader with
+// zero production consumers (the mesh snapshot endpoint it served is gone).
 pub mod profile;
 pub mod runtime;
 pub mod transport;

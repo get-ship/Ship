@@ -40,7 +40,6 @@ pub mod global_kernel_router;
 pub mod payload_registry;
 pub mod pipeline;
 pub mod process;
-pub mod supervisor;
 pub mod kernel_lifecycle;
 pub mod kernel_router;
 pub mod payload_schema;

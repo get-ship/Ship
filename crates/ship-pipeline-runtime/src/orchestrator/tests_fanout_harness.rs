@@ -77,6 +77,11 @@ impl ship_code::dispatch_ports::AgentPlatform for NoopPlatform {
 // ── Harness helpers ──────────────────────────────────────────────────────────
 
 pub fn fresh_ship_dir() -> std::path::PathBuf {
+    // The artifact/collection/auth projections moved off the L0 default bus
+    // to the platform factory (keystone-A): install the SAME production set
+    // before any SqliteEventStore is built, or lane artifacts never
+    // materialize rows. Idempotent.
+    ship_platform::install_defaults();
     let dir = ship_substrate::project::get_global_dir().expect("test ship dir");
     for name in ["platform.db", "data.db"] {
         let p = dir.join(name);

@@ -204,11 +204,11 @@ register_event!("studio.feedback.created", [EventScope::Space], Retention::Durab
 register_event!("studio.reply", [EventScope::Space], Retention::Durable, Stability::Stable, "StudioReply", crate::events::types::StudioReply);
 
 // ── supervisor.* ────────────────────────────────────────────────────────────
-register_event!("supervisor.coherence_restored", [EventScope::Runtime], Retention::Durable, Stability::Stable, "CoherenceRestoredPayload", crate::events::supervisor::CoherenceRestoredPayload);
-register_event!("supervisor.drift_detected", [EventScope::Runtime], Retention::Durable, Stability::Stable, "DriftDetectedPayload", crate::events::supervisor::DriftDetectedPayload);
+// The 4 supervisor.sweep_*/drift/coherence registrations moved to
+// ship-pipeline-runtime/src/sweep_events.rs (keystone-A, 2026-06-10) — the
+// coherence sweep is that crate's mechanism. supervisor.shutting_down stays:
+// it is daemon-lifecycle, emitted at L0/shipd shutdown.
 register_event!("supervisor.shutting_down", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SupervisorShuttingDown", crate::events::types::SupervisorShuttingDown);
-register_event!("supervisor.sweep_completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SweepCompletedPayload", crate::events::supervisor::SweepCompletedPayload);
-register_event!("supervisor.sweep_started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SweepStartedPayload", crate::events::supervisor::SweepStartedPayload);
 
 // ── sync.* ──────────────────────────────────────────────────────────────────
 register_event!("sync.push.completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SyncPushCompleted", crate::events::types::SyncPushCompleted);
