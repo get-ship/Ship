@@ -107,19 +107,19 @@ pub fn collect_types() -> TypeCollection {
     c.register::<ship_substrate::events::pipeline::ProviderOverride>();
     c.register::<ship_substrate::events::pipeline::Invocation>();
 
-    // events/feedback.rs
-    c.register::<ship_substrate::events::feedback::FeedbackEvent>();
-    c.register::<ship_substrate::events::feedback::FeedbackKind>();
-    c.register::<ship_substrate::events::feedback::FeedbackIntent>();
-    c.register::<ship_substrate::events::feedback::FeedbackTarget>();
-    c.register::<ship_substrate::events::feedback::Selection>();
-    c.register::<ship_substrate::events::feedback::AuthorKind>();
+    // ship-agents/src/feedback.rs (moved from ship-substrate, keystone-A de-bucket 2026-06-10)
+    c.register::<ship_agents::feedback::FeedbackEvent>();
+    c.register::<ship_agents::feedback::FeedbackKind>();
+    c.register::<ship_agents::feedback::FeedbackIntent>();
+    c.register::<ship_agents::feedback::FeedbackTarget>();
+    c.register::<ship_agents::feedback::Selection>();
+    c.register::<ship_agents::feedback::AuthorKind>();
 
-    // events/annotation.rs (AuthorKind/Selection shared with feedback.rs — registered above)
-    c.register::<ship_substrate::events::annotation::AnnotationEvent>();
-    c.register::<ship_substrate::events::annotation::AnnotationKind>();
-    c.register::<ship_substrate::events::annotation::AnnotationIntent>();
-    c.register::<ship_substrate::events::annotation::AnnotationTarget>();
+    // ship-agents/src/annotation.rs (AuthorKind/Selection shared with feedback.rs — registered above)
+    c.register::<ship_agents::annotation::AnnotationEvent>();
+    c.register::<ship_agents::annotation::AnnotationKind>();
+    c.register::<ship_agents::annotation::AnnotationIntent>();
+    c.register::<ship_agents::annotation::AnnotationTarget>();
 
     // events/filter.rs
     c.register::<ship_substrate::events::filter::EventFilter>();

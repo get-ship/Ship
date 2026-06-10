@@ -6,7 +6,7 @@
 
 use async_trait::async_trait;
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::annotation::AnnotationEvent;
+use crate::annotation::AnnotationEvent;
 use ship_substrate::events::validator::EmitContext;
 use ship_substrate::ports::KernelLog;
 use thiserror::Error;
@@ -81,8 +81,8 @@ pub async fn post_annotation(
         "payload": serde_json::to_string(&ev)
             .map_err(|e| AnnotationError::SerializeFailed(e.to_string()))?,
         "author_kind": match ev.author_kind {
-            ship_substrate::events::annotation::AuthorKind::Human => "human",
-            ship_substrate::events::annotation::AuthorKind::Agent => "agent",
+            crate::annotation::AuthorKind::Human => "human",
+            crate::annotation::AuthorKind::Agent => "agent",
         },
     });
 
@@ -109,7 +109,7 @@ pub async fn post_annotation(
 }
 
 fn annotation_kind_str(ev: &AnnotationEvent) -> &'static str {
-    use ship_substrate::events::annotation::AnnotationKind;
+    use crate::annotation::AnnotationKind;
     match ev.kind {
         AnnotationKind::Point => "point",
         AnnotationKind::Region => "region",
@@ -118,7 +118,7 @@ fn annotation_kind_str(ev: &AnnotationEvent) -> &'static str {
 }
 
 fn validate(ev: &AnnotationEvent) -> Result<(), AnnotationError> {
-    use ship_substrate::events::annotation::AnnotationKind;
+    use crate::annotation::AnnotationKind;
     match ev.kind {
         AnnotationKind::Point => {
             if ev.target.selector.is_none() {

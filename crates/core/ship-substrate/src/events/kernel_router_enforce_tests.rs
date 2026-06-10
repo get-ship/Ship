@@ -135,52 +135,62 @@ async fn emit_rejects_space_event_from_space_unbound_binding() {
 use ship_types::enforce_scope;
 use ship_types::event_registry::allowed_scopes;
 
-/// A REGISTERED Space-singleton event: the chosen scope == primary == only
+/// A REGISTERED Account-singleton event: the chosen scope == primary == only
 /// allowed element → membership passes, key stamped. Behavior-preserving proof
 /// for the size-1 set.
-/// Uses `studio.annotation.created` — a Space-singleton that remains L0-registered
-/// (project.switched moved to ship-space in keystone-A Phase A bundle 4).
+/// Uses `daemon.owner.bound` — an Account-singleton that is L0-registered.
+/// (studio.annotation.created, previously used here, moved to ship-agents L1
+/// in keystone-A de-bucket 2026-06-10; no Space-only events remain at L0.)
 #[test]
 fn allowed_set_chosen_in_set_and_authorized_passes() {
     assert_eq!(
-        allowed_scopes("studio.annotation.created"),
-        &[EventScope::Space],
-        "studio.annotation.created must be a Space singleton in Phase A"
+        allowed_scopes("daemon.owner.bound"),
+        &[EventScope::Account],
+        "daemon.owner.bound must be an Account singleton"
     );
-    let mut e = EventEnvelope::new("studio.annotation.created", "proj-1", &serde_json::json!({}))
+    let mut e = EventEnvelope::new("daemon.owner.bound", "dev-1", &serde_json::json!({}))
         .expect("envelope");
-    // new() stamped scope=Space (the primary). Space-bound binding authorizes it.
-    assert_eq!(e.scope, EventScope::Space);
-    enforce_scope(&mut e, &space_binding("space-A")).expect("chosen∈set + authorized");
-    assert_eq!(e.scope_key.as_deref(), Some("space-A"));
+    // new() stamped scope=Account (the primary). spaceless_binding carries
+    // account_id "acct-1" — sufficient for Account scope.
+    assert_eq!(e.scope, EventScope::Account);
+    enforce_scope(&mut e, &spaceless_binding()).expect("chosen∈set + authorized");
+    assert_eq!(e.scope_key.as_deref(), Some("acct-1"));
 }
 
 /// Chosen scope ∉ the type's allowed-set → `ScopeNotAllowed`, regardless of
-/// authorization. `studio.annotation.created` only allows Space; choosing Runtime rejects.
+/// authorization. `daemon.owner.bound` only allows Account; choosing Space rejects.
 #[test]
 fn allowed_set_chosen_not_in_set_is_rejected() {
-    let mut e = EventEnvelope::new("studio.annotation.created", "proj-1", &serde_json::json!({}))
+    let mut e = EventEnvelope::new("daemon.owner.bound", "dev-1", &serde_json::json!({}))
         .expect("envelope")
-        .with_scope(EventScope::Runtime, None);
+        .with_scope(EventScope::Space, None);
     let err = enforce_scope(&mut e, &space_binding("space-A")).unwrap_err();
     assert_eq!(
         err,
         ScopeViolation::ScopeNotAllowed {
-            event_type: "studio.annotation.created".to_string(),
-            chosen: EventScope::Runtime,
-            allowed: vec![EventScope::Space],
+            event_type: "daemon.owner.bound".to_string(),
+            chosen: EventScope::Space,
+            allowed: vec![EventScope::Account],
         }
     );
 }
 
 /// Chosen scope ∈ set but the binding is NOT authorized for it → the existing
-/// per-scope authorization still rejects. A Space-allowed event from a
-/// space-unbound binding is `NoSpaceForSpaceEvent`.
+/// per-scope authorization still rejects. `settings.changed` is poly-scoped
+/// (allows Runtime/Account/Space); choosing Space from a space-unbound binding
+/// is still `NoSpaceForSpaceEvent` — the allowed-set check passes, the binding
+/// authorization check fails. This proves Model C and per-scope auth are
+/// independent guards.
 #[test]
 fn allowed_set_chosen_in_set_but_unauthorized_is_rejected() {
-    let mut e = EventEnvelope::new("studio.annotation.created", "proj-1", &serde_json::json!({}))
-        .expect("envelope");
-    assert_eq!(e.scope, EventScope::Space);
+    // settings.changed allows [Runtime, Account, Space] — Space is in the set.
+    assert!(
+        allowed_scopes("settings.changed").contains(&EventScope::Space),
+        "settings.changed must allow Space scope"
+    );
+    let mut e = EventEnvelope::new("settings.changed", "proj-1", &serde_json::json!({}))
+        .expect("envelope")
+        .with_scope(EventScope::Space, None);
     let err = enforce_scope(&mut e, &spaceless_binding()).unwrap_err();
     assert_eq!(err, ScopeViolation::NoSpaceForSpaceEvent);
 }

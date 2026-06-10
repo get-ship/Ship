@@ -63,6 +63,7 @@ fn domain_family_slices_are_fully_registered() {
         ("canonical op", ALL_CANONICAL_OP),
         ("collection", ship_collection::events::ALL_COLLECTION),
         ("artifact", ship_artifacts::events::ALL_ARTIFACT),
+        ("studio", ship_agents::studio_events::ALL_STUDIO),
     ] {
         for name in names {
             assert!(

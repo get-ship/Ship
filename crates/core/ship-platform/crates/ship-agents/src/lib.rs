@@ -7,8 +7,17 @@
 //! - hook engine (carved from ship-platform/hooks/)
 //! - L1 service wrappers: agents, mcp, rules, permissions, skills, sessions, compile
 //!   (carved from ship-platform/services/{agents,mcp,rules,permissions,skills,sessions,compile}/)
+//! - studio.* event payloads and registrations (keystone-A de-bucket, 2026-06-10)
 //!
 //! ship-platform re-exports these namespaces for back-compat.
+
+// ── Studio domain events (keystone-A de-bucket, 2026-06-10) ─────────────────
+// Payload types (FeedbackEvent, AnnotationEvent) and the thin registry structs
+// (StudioAnnotationCreated etc.) move here from ship-substrate + ship-types.
+pub mod annotation;
+pub mod event_registrations;
+pub mod feedback;
+pub mod studio_events;
 
 pub mod active_agent;
 pub mod actor;

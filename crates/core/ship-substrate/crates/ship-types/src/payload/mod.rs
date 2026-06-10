@@ -28,7 +28,9 @@ mod project;
 mod skill;
 
 mod spec6;
-mod studio;
+// studio payload structs moved to ship-agents/src/studio_events.rs
+// (keystone-A de-bucket, 2026-06-10): the STUDIO domain owns its events at L1.
+// No re-export shim — consumers import from ship_agents::studio_events.
 mod sync;
 mod watcher;
 mod workspace;
@@ -55,11 +57,8 @@ pub use kernel::{KernelActorRestored, KernelActorSnapshot, KernelActorSuspended}
 pub use mesh::{MeshDeregister, MeshMessage, MeshRegister};
 pub use skill::{SkillCompleted, SkillFailed, SkillStarted};
 pub use spec6::{AgentTaskComplete, HumanResponse, PipelineStepRetry};
-pub use studio::{
-
-
-    StudioAnnotationCreated, StudioChatTurn, StudioFeedbackCreated, StudioReply,
-};
+// StudioAnnotationCreated / StudioChatTurn / StudioFeedbackCreated / StudioReply
+// moved to ship-agents/src/studio_events.rs — no re-export here.
 pub use sync::{SyncPushCompleted, SyncPushFailed, SyncStarted, SyncStopped};
 pub use watcher::{
     AgentChanged, AgentDefUpdated, PipelineChanged, RuleChanged, SkillChanged, ViewChanged,

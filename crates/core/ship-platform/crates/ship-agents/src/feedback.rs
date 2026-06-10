@@ -2,6 +2,10 @@
 //! views. Carries arbitrary agent-designed payloads (ratings, selections,
 //! comments, DOM markups) so any kind of human feedback can flow back to
 //! the agent through a single wire format.
+//!
+//! Moved from `ship_substrate::events::feedback` (keystone-A de-bucket,
+//! 2026-06-10): the STUDIO/feedback domain owns its events at L1 in
+//! `ship-agents`.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
