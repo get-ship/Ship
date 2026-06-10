@@ -7,7 +7,7 @@ afterEach(() => reg.cleanup())
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
 const inputOf = (el: HTMLElement) => shadow(el).querySelector('input.entry') as HTMLInputElement
-const panelOf = (el: HTMLElement) => shadow(el).querySelector('.panel') as HTMLElement | null
+const panelOf = (el: HTMLElement) => shadow(el).querySelector('[part="panel"]') as HTMLElement | null
 const days = (el: HTMLElement) =>
   Array.from(shadow(el).querySelectorAll('button.day[data-iso]')) as HTMLButtonElement[]
 

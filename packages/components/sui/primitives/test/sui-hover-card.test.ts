@@ -9,7 +9,7 @@ afterEach(() => {
 })
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
-const panelEl = (el: HTMLElement) => shadow(el).querySelector('.panel') as HTMLElement | null
+const panelEl = (el: HTMLElement) => shadow(el).querySelector('[part="panel"]') as HTMLElement | null
 
 function makeCard(attrs: Record<string, string | boolean> = {}, inner = '') {
   return mount(

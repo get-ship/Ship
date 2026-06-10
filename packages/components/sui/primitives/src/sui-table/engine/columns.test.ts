@@ -187,7 +187,9 @@ describe('one --col-<id>-size source feeds header + body', () => {
     // The header reads getSize(); the body reads the --col-b-size var. ONE source.
     expect(col.getSize()).toBe(200)
     expect(t.getColumnSizeVar('b')).toBe('--col-b-size')
-    expect(t.getColumnSizeVarValue('b')).toBe('200px')
+    // ONE source: the body var resolves to the SAME size the header reads —
+    // assert that invariant, not the px-formatted literal.
+    expect(parseFloat(t.getColumnSizeVarValue('b')!)).toBe(col.getSize())
   })
 })
 

@@ -43,7 +43,7 @@ describe('<sui-timeline-item>', () => {
   it('renders gutter dot and body in shadow root', () => {
     const { el } = mount(reg, 'sui-timeline-item')
     expect(shadow(el).querySelector('.gutter')).not.toBeNull()
-    expect(shadow(el).querySelector('.dot')).not.toBeNull()
+    expect(shadow(el).querySelector('[part="dot"]')).not.toBeNull()
     expect(shadow(el).querySelector('.body')).not.toBeNull()
   })
 

@@ -6,8 +6,9 @@ const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
-const box = (el: HTMLElement) => shadow(el).querySelector('.box') as HTMLElement | null
-const closeBtn = (el: HTMLElement) => shadow(el).querySelector('.close') as HTMLButtonElement | null
+// Anchor on the public part contract, not the styling classes (.box/.close).
+const box = (el: HTMLElement) => shadow(el).querySelector('[part="box"]') as HTMLElement | null
+const closeBtn = (el: HTMLElement) => shadow(el).querySelector('[part="close"]') as HTMLButtonElement | null
 
 describe('<sui-alert>', () => {
   it('registers the custom element', () => {

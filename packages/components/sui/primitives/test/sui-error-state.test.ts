@@ -14,12 +14,12 @@ describe('<sui-error-state>', () => {
 
   it('renders a shadow root with a box div', () => {
     const { el } = mount(reg, 'sui-error-state')
-    expect(shadow(el).querySelector('.box')).not.toBeNull()
+    expect(shadow(el).querySelector('[part~="box"]')).not.toBeNull()
   })
 
   it('box has role=alert', () => {
     const { el } = mount(reg, 'sui-error-state')
-    expect(shadow(el).querySelector('.box')!.getAttribute('role')).toBe('alert')
+    expect(shadow(el).querySelector('[part~="box"]')!.getAttribute('role')).toBe('alert')
   })
 
   it('box has part=box', () => {
@@ -30,13 +30,13 @@ describe('<sui-error-state>', () => {
   it('renders title attr text in .title', async () => {
     const { el } = mount(reg, 'sui-error-state', { title: 'Something broke' })
     await flush()
-    expect(shadow(el).querySelector('.title')!.textContent).toContain('Something broke')
+    expect(shadow(el).querySelector('[part~="title"]')!.textContent).toContain('Something broke')
   })
 
   it('falls back to "Something went wrong" when title is empty', async () => {
     const { el } = mount(reg, 'sui-error-state')
     await flush()
-    expect(shadow(el).querySelector('.title')!.textContent).toContain('Something went wrong')
+    expect(shadow(el).querySelector('[part~="title"]')!.textContent).toContain('Something went wrong')
   })
 
   it('size and variant reflect as attributes', () => {
@@ -48,7 +48,7 @@ describe('<sui-error-state>', () => {
   it('details toggle hidden by default (no slot content)', async () => {
     const { el } = mount(reg, 'sui-error-state', { title: 'Oops' })
     await flush()
-    const toggle = shadow(el).querySelector('.details-toggle') as HTMLElement | null
+    const toggle = shadow(el).querySelector('[part~="details-toggle"]') as HTMLElement | null
     expect(toggle).not.toBeNull()
     // Should be CSS-hidden via :host(:not([data-has-details]))
     expect(el.hasAttribute('data-has-details')).toBe(false)
@@ -73,7 +73,7 @@ describe('<sui-error-state>', () => {
       '<pre slot="details">stack trace</pre>',
     )
     await flush()
-    const toggle = shadow(el).querySelector('.details-toggle') as HTMLButtonElement
+    const toggle = shadow(el).querySelector('[part~="details-toggle"]') as HTMLButtonElement
     expect(el.hasAttribute('data-details-open')).toBe(false)
     toggle.click()
     await flush()
@@ -88,7 +88,7 @@ describe('<sui-error-state>', () => {
       '<pre slot="details">stack trace</pre>',
     )
     await flush()
-    const toggle = shadow(el).querySelector('.details-toggle') as HTMLButtonElement
+    const toggle = shadow(el).querySelector('[part~="details-toggle"]') as HTMLButtonElement
     toggle.click()
     await flush()
     toggle.click()
@@ -104,7 +104,7 @@ describe('<sui-error-state>', () => {
       '<pre slot="details">stack trace</pre>',
     )
     await flush()
-    const toggle = shadow(el).querySelector('.details-toggle') as HTMLButtonElement
+    const toggle = shadow(el).querySelector('[part~="details-toggle"]') as HTMLButtonElement
     expect(toggle.textContent).toBe('Show details')
     toggle.click()
     await flush()
@@ -119,7 +119,7 @@ describe('<sui-error-state>', () => {
       '<pre slot="details">error info</pre>',
     )
     await flush()
-    const toggle = shadow(el).querySelector('.details-toggle') as HTMLButtonElement
+    const toggle = shadow(el).querySelector('[part~="details-toggle"]') as HTMLButtonElement
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
     toggle.click()
     await flush()
@@ -128,6 +128,6 @@ describe('<sui-error-state>', () => {
 
   it('renders sui-icon in the icon part', () => {
     const { el } = mount(reg, 'sui-error-state', { icon: 'alert-circle' })
-    expect(shadow(el).querySelector('.icon sui-icon')).not.toBeNull()
+    expect(shadow(el).querySelector('[part~="icon"] sui-icon')).not.toBeNull()
   })
 })

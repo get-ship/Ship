@@ -6,7 +6,7 @@ const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
-const panelEl = (el: HTMLElement) => shadow(el).querySelector('.panel') as HTMLElement | null
+const panelEl = (el: HTMLElement) => shadow(el).querySelector('[part="panel"]') as HTMLElement | null
 const triggerWrap = (el: HTMLElement) => shadow(el).querySelector('.trigger-wrap') as HTMLElement | null
 
 function makeMenu(attrs: Record<string, string | boolean> = {}, items = '') {

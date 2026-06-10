@@ -252,16 +252,20 @@ describe('<sui-tree-grid> — column RESIZE via the reused engine', () => {
   it('resizing a column reflects its width through getColumnSizeVarValue', async () => {
     const { shadow, tree } = mountGrid(true)
     await flush()
-    tree.setColumnSizing({ size: 240 })
+    const before = parseFloat(tree.getColumnSizeVarValue('size')!)
+    tree.setColumnSizing({ size: before + 100 })
     await flush()
-    // The grid template sizes columns off the engine's resolved size var — the
-    // resized column's resolved value is the new px width, not the default.
-    expect(tree.getColumnSizeVarValue('size')).toBe('240px')
+    // Invariant (not the px literal): the resolved size var tracks the engine's
+    // committed size — header and body read the SAME source, and the resize
+    // delta is applied.
+    const resolved = tree.getColumnSizeVarValue('size')!
+    expect(parseFloat(resolved)).toBe(before + 100)
+    expect(parseFloat(resolved)).toBeGreaterThan(before)
     const head = shadow!.querySelector('[role="treegrid"]') as HTMLElement
-    // The grid reads --col-size-size (or equivalent) so the rendered column track
-    // widens; the var the template consumes carries the resized value.
+    // The grid template consumes the resolved var verbatim, so the rendered
+    // track carries whatever value the engine resolved.
     const tpl = head.getAttribute('style') ?? ''
-    expect(tpl).toContain('240px')
+    expect(tpl).toContain(resolved)
   })
 
   it('a pointer-drag on the resize handle pumps the engine (live onChange)', async () => {

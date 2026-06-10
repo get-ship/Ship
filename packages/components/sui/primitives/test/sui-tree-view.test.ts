@@ -50,7 +50,7 @@ describe('<sui-tree-view>', () => {
     expect(lvl1).not.toBeNull()
 
     // Expand level 1 to render level 2
-    const lvl1Row = lvl1.shadowRoot!.querySelector('.row') as HTMLElement
+    const lvl1Row = lvl1.shadowRoot!.querySelector('[part="row"]') as HTMLElement
     lvl1Row.click()
     await flush()
 
@@ -59,7 +59,7 @@ describe('<sui-tree-view>', () => {
     expect(lvl2).not.toBeNull()
 
     // Expand level 2 to render level 3
-    const lvl2Row = lvl2.shadowRoot!.querySelector('.row') as HTMLElement
+    const lvl2Row = lvl2.shadowRoot!.querySelector('[part="row"]') as HTMLElement
     lvl2Row.click()
     await flush()
 
@@ -94,10 +94,10 @@ describe('<sui-tree-item>', () => {
     expect(el.hasAttribute('leaf')).toBe(true)
   })
 
-  it('has .row in shadow DOM with tabindex=0', async () => {
+  it('exposes the row part in shadow DOM with tabindex=0', async () => {
     const { shadow } = mount(reg, 'sui-tree-item', { label: 'n' })
     await flush()
-    const row = shadow!.querySelector('.row') as HTMLElement
+    const row = shadow!.querySelector('[part="row"]') as HTMLElement
     expect(row).not.toBeNull()
     expect(row.getAttribute('tabindex')).toBe('0')
   })
@@ -105,7 +105,7 @@ describe('<sui-tree-item>', () => {
   it('row aria-expanded reflects expanded state', async () => {
     const { el, shadow } = mount(reg, 'sui-tree-item', { label: 'n' })
     await flush()
-    const row = shadow!.querySelector('.row') as HTMLElement
+    const row = shadow!.querySelector('[part="row"]') as HTMLElement
     expect(row.getAttribute('aria-expanded')).toBe('false')
     el.setAttribute('expanded', '')
     await flush()
@@ -115,14 +115,14 @@ describe('<sui-tree-item>', () => {
   it('leaf node has no aria-expanded on row', async () => {
     const { shadow } = mount(reg, 'sui-tree-item', { label: 'n', leaf: true })
     await flush()
-    const row = shadow!.querySelector('.row') as HTMLElement
+    const row = shadow!.querySelector('[part="row"]') as HTMLElement
     expect(row.hasAttribute('aria-expanded')).toBe(false)
   })
 
   it('row aria-selected reflects selected state', async () => {
     const { shadow } = mount(reg, 'sui-tree-item', { label: 'n', selected: true })
     await flush()
-    const row = shadow!.querySelector('.row') as HTMLElement
+    const row = shadow!.querySelector('[part="row"]') as HTMLElement
     expect(row.getAttribute('aria-selected')).toBe('true')
   })
 
@@ -131,7 +131,7 @@ describe('<sui-tree-item>', () => {
     await flush()
     const fn = vi.fn()
     el.addEventListener('sui-toggle', fn)
-    ;(shadow!.querySelector('.row') as HTMLElement).click()
+    ;(shadow!.querySelector('[part="row"]') as HTMLElement).click()
     await flush()
     expect(fn).toHaveBeenCalled()
     const detail = (fn.mock.calls[0][0] as CustomEvent).detail
@@ -144,7 +144,7 @@ describe('<sui-tree-item>', () => {
     await flush()
     const fn = vi.fn()
     el.addEventListener('sui-toggle', fn)
-    ;(shadow!.querySelector('.row') as HTMLElement).click()
+    ;(shadow!.querySelector('[part="row"]') as HTMLElement).click()
     await flush()
     expect(fn).not.toHaveBeenCalled()
   })
@@ -154,7 +154,7 @@ describe('<sui-tree-item>', () => {
     await flush()
     const fn = vi.fn()
     el.addEventListener('sui-select', fn)
-    ;(shadow!.querySelector('.row') as HTMLElement).click()
+    ;(shadow!.querySelector('[part="row"]') as HTMLElement).click()
     await flush()
     expect(fn).toHaveBeenCalled()
   })
@@ -162,7 +162,7 @@ describe('<sui-tree-item>', () => {
   it('ArrowRight expands a collapsed non-leaf node', async () => {
     const { el, shadow } = mount(reg, 'sui-tree-item', { label: 'n' })
     await flush()
-    const row = shadow!.querySelector('.row') as HTMLElement
+    const row = shadow!.querySelector('[part="row"]') as HTMLElement
     row.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
     await flush()
     expect(el.hasAttribute('expanded')).toBe(true)
@@ -171,7 +171,7 @@ describe('<sui-tree-item>', () => {
   it('ArrowLeft collapses an expanded node', async () => {
     const { el, shadow } = mount(reg, 'sui-tree-item', { label: 'n', expanded: true })
     await flush()
-    const row = shadow!.querySelector('.row') as HTMLElement
+    const row = shadow!.querySelector('[part="row"]') as HTMLElement
     row.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
     await flush()
     expect(el.hasAttribute('expanded')).toBe(false)
@@ -182,7 +182,7 @@ describe('<sui-tree-item>', () => {
     await flush()
     const fn = vi.fn()
     el.addEventListener('sui-select', fn)
-    const row = shadow!.querySelector('.row') as HTMLElement
+    const row = shadow!.querySelector('[part="row"]') as HTMLElement
     row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
     await flush()
     expect(fn).toHaveBeenCalled()

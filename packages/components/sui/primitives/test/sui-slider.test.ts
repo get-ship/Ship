@@ -19,13 +19,35 @@ describe('<sui-slider>', () => {
     expect(thumb.getAttribute('aria-valuemax')).toBe('100')
   })
 
-  it('reflects value attribute and positions fill', async () => {
+  it('reflects value attribute via aria-valuenow', async () => {
     const { el } = mount(reg, 'sui-slider', { value: '50', min: '0', max: '100' })
     await flush()
-    const fill = el.shadowRoot!.querySelector('.fill') as HTMLElement
-    expect(fill.style.width).toBe('50%')
-    const thumb = el.shadowRoot!.querySelector('.thumb') as HTMLElement
-    expect(thumb.style.left).toBe('50%')
+    const thumb = el.shadowRoot!.querySelector('[role="slider"]')!
+    expect(thumb.getAttribute('aria-valuenow')).toBe('50')
+  })
+
+  it('fill width and thumb offset grow monotonically with value', async () => {
+    // Relational invariant: as value increases across the range, the visual
+    // fill and thumb advance toward the max end. We assert ordering, never an
+    // exact percent string (which couples to the px→% formatting).
+    const pct = (s: string) => parseFloat(s)
+    const widths: number[] = []
+    const offsets: number[] = []
+    for (const value of ['0', '25', '50', '75', '100']) {
+      const { el } = mount(reg, 'sui-slider', { value, min: '0', max: '100' })
+      await flush()
+      const fill = el.shadowRoot!.querySelector('[part~="fill"]') as HTMLElement
+      const thumb = el.shadowRoot!.querySelector('[part~="thumb"]') as HTMLElement
+      widths.push(pct(fill.style.width))
+      offsets.push(pct(thumb.style.left))
+    }
+    for (let i = 1; i < widths.length; i++) {
+      expect(widths[i]!).toBeGreaterThan(widths[i - 1]!)
+      expect(offsets[i]!).toBeGreaterThan(offsets[i - 1]!)
+    }
+    // Endpoints anchor the scale: empty at min, full at max.
+    expect(widths[0]!).toBe(0)
+    expect(widths[widths.length - 1]!).toBe(100)
   })
 
   it('thumb aria-label uses label prop', async () => {

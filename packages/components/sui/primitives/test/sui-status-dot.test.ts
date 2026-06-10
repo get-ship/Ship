@@ -34,7 +34,7 @@ describe('<sui-status-dot>', () => {
     expect(style).not.toBeNull()
     expect(style!.textContent).toContain('.dot')
     // Rendered span lives in the shadow root.
-    const dot = el.shadowRoot!.querySelector('.dot')
+    const dot = el.shadowRoot!.querySelector('[part="dot"]')
     expect(dot).not.toBeNull()
   })
 
@@ -51,7 +51,7 @@ describe('<sui-status-dot>', () => {
     const container = mkContainer()
     container.innerHTML = '<sui-status-dot label="Online"></sui-status-dot>'
     const el = container.querySelector('sui-status-dot')!
-    const dot = el.shadowRoot!.querySelector('.dot')!
+    const dot = el.shadowRoot!.querySelector('[part="dot"]')!
     // Label set → role=img + aria-label=label, no aria-hidden.
     expect(dot.getAttribute('role')).toBe('img')
     expect(dot.getAttribute('aria-label')).toBe('Online')
@@ -60,7 +60,7 @@ describe('<sui-status-dot>', () => {
     // Default (no label) → aria-hidden=true.
     container.innerHTML = '<sui-status-dot></sui-status-dot>'
     const elBare = container.querySelector('sui-status-dot')!
-    const dotBare = elBare.shadowRoot!.querySelector('.dot')!
+    const dotBare = elBare.shadowRoot!.querySelector('[part="dot"]')!
     expect(dotBare.getAttribute('aria-hidden')).toBe('true')
     expect(dotBare.hasAttribute('role')).toBe(false)
   })
@@ -69,7 +69,7 @@ describe('<sui-status-dot>', () => {
     const container = mkContainer()
     container.innerHTML = '<sui-status-dot label="One"></sui-status-dot>'
     const el = container.querySelector('sui-status-dot')!
-    const dot = el.shadowRoot!.querySelector('.dot')!
+    const dot = el.shadowRoot!.querySelector('[part="dot"]')!
     expect(dot.getAttribute('aria-label')).toBe('One')
     el.setAttribute('label', 'Two')
     // Allow the attributeChangedCallback → signal-set tick.

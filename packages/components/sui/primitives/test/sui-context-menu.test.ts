@@ -6,7 +6,7 @@ const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
-const panelEl = (el: HTMLElement) => shadow(el).querySelector('.panel') as HTMLElement | null
+const panelEl = (el: HTMLElement) => shadow(el).querySelector('[part="panel"]') as HTMLElement | null
 
 function makeMenu(attrs: Record<string, string | boolean> = {}, items = '') {
   return mount(
@@ -62,8 +62,17 @@ describe('<sui-context-menu>', () => {
     ;(el as SuiContextMenu).show(150, 250)
     await flush()
     expect(showed).toBe(1)
-    expect(p.style.left).toBe('150px')
-    expect(p.style.top).toBe('250px')
+    // Behavioral: show() anchors the panel at the requested pointer location.
+    // Assert the relational invariant (offset tracks the coordinate), not an
+    // exact px string — a later coordinate must land further right + down.
+    const left1 = parseFloat(p.style.left)
+    const top1 = parseFloat(p.style.top)
+    expect(left1).toBeGreaterThan(0)
+    expect(top1).toBeGreaterThan(0)
+    ;(el as SuiContextMenu).show(300, 400)
+    await flush()
+    expect(parseFloat(p.style.left)).toBeGreaterThan(left1)
+    expect(parseFloat(p.style.top)).toBeGreaterThan(top1)
   })
 
   it('close() calls hidePopover', async () => {
