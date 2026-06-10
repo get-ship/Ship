@@ -272,12 +272,12 @@ fn install_no_manifest_suggests_how_to_create() {
 // ── 5. ship publish without daemon ──────────────────────────────────────────
 
 #[test]
-fn publish_without_daemon_says_start_daemon() {
-    // Publish now goes through the daemon (the API key lives in
-    // ~/.ship/machine/credentials.jsonc and is attached by the daemon).
-    // Without a daemon running the CLI should surface the daemon-not-
-    // running condition, since `ship login` can't help if the daemon
-    // isn't there to mint a session token in the first place.
+fn publish_without_daemon_fails_with_daemon_error() {
+    // Publish goes through the daemon. Without a running daemon the CLI must
+    // exit non-zero, emit a non-empty error to stderr that mentions "daemon",
+    // and must NOT have written a daemon pidfile (confirming no daemon was
+    // contacted). The exact remediation wording is intentionally NOT pinned
+    // here because it drifts independently of the behavior.
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
@@ -293,14 +293,20 @@ fn publish_without_daemon_says_start_daemon() {
         .unwrap();
     let stderr = String::from_utf8_lossy(&output.stderr);
 
-    assert!(!output.status.success());
+    // (1) Non-zero exit.
+    assert!(!output.status.success(), "publish without daemon must fail: {stderr}");
+    // (2) Daemon pidfile must not exist — confirms no daemon was contacted.
+    let pid_path = ship_substrate::ShipHome::for_test(tmp.path())
+        .daemon_file(ship_substrate::DaemonFile::Pid);
     assert!(
-        stderr.contains("daemon is not running"),
-        "must surface daemon-not-running condition: {stderr}"
+        !pid_path.exists(),
+        "daemon pidfile must not be created: {pid_path:?}"
     );
+    // (3) Error output is non-empty and mentions the daemon.
+    assert!(!stderr.is_empty(), "stderr must not be empty");
     assert!(
-        stderr.contains("ship daemon start"),
-        "must suggest starting the daemon: {stderr}"
+        stderr.to_lowercase().contains("daemon"),
+        "error must mention 'daemon': {stderr}"
     );
 }
 

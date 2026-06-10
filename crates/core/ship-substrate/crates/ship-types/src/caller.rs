@@ -14,6 +14,20 @@ pub enum CallerKind {
     Runtime,
 }
 
+impl CallerKind {
+    /// Returns a stable, snake_case string representation suitable for
+    /// protocol bodies and test assertions — independent of the Debug format.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            CallerKind::Cli => "cli",
+            CallerKind::Mcp => "mcp",
+            CallerKind::Sdk => "sdk",
+            CallerKind::CloudSync => "cloud_sync",
+            CallerKind::Runtime => "runtime",
+        }
+    }
+}
+
 /// Context provided alongside every emit call.
 ///
 /// Carries the authoritative [`ScopeBinding`] minted by the auth seam (sessions)

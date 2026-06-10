@@ -9257,6 +9257,7 @@ dependencies = [
  "chrono",
  "compiler",
  "connectrpc",
+ "cookie",
  "ctor 0.2.9",
  "datastar",
  "deck",
