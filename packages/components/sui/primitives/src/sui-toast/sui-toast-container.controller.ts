@@ -196,13 +196,10 @@ export default controller<Scope>({
       if (opts.actionHtml) {
         const wrap = doc.createElement('span')
         const html = opts.actionHtml
-        // bindHtml() morphs `wrap` against a fresh template span, and
-        // morphAttributes() strips any attribute the template lacks — so
-        // set slot="actions" *after* the (static, one-shot) morph, or the
-        // forwarded action loses its slot and falls back to the default
-        // slot, leaving the toast marked data-no-actions.
-        bindHtml(wrap, () => html)
         wrap.setAttribute('slot', 'actions')
+        // bindHtml reconciles children only — `wrap`'s own attributes
+        // (the slot assignment above) survive the morph.
+        bindHtml(wrap, () => html)
         t.appendChild(wrap)
       }
       if (stackEl) stackEl.appendChild(t)

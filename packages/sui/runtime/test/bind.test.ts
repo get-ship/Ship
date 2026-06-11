@@ -426,4 +426,22 @@ describe('bindHtml', () => {
     expect(path).not.toBeNull()
     expect(path?.namespaceURI).toBe(SVG_NS)
   })
+
+  it('keeps the bound element own attributes — children-only contract (#285)', () => {
+    const el = document.createElement('div')
+    el.setAttribute('class', 'dag')
+    el.setAttribute('part', 'dag')
+    el.setAttribute('slot', 'actions')
+    const $html = signal('<p>a</p>')
+    bindHtml(el, () => $html())
+    expect(el.getAttribute('class')).toBe('dag')
+    expect(el.getAttribute('part')).toBe('dag')
+    expect(el.getAttribute('slot')).toBe('actions')
+    // ...and across reactive updates, not just the first run.
+    $html.set('<span>b</span>')
+    expect(el.getAttribute('class')).toBe('dag')
+    expect(el.getAttribute('part')).toBe('dag')
+    expect(el.getAttribute('slot')).toBe('actions')
+    expect(el.querySelector('span')?.textContent).toBe('b')
+  })
 })

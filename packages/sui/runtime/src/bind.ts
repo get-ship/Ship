@@ -322,6 +322,10 @@ export function bindHtml(el: Element, get: () => string): Disposer {
       ? el.ownerDocument.createElementNS(SVG_NS, tag)
       : el.ownerDocument.createElement(tag)
     tmp.innerHTML = html
+    // Children-only contract: mirror the bound element's own attributes onto
+    // the template so morph's attribute pass is a no-op — a bare template
+    // element would otherwise strip authored class/part/slot from the host.
+    for (const a of el.attributes) tmp.setAttribute(a.name, a.value)
     morph(el, tmp)
   })
 }
