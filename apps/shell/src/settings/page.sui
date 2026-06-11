@@ -114,25 +114,6 @@
   flex-shrink: 0;
 }
 
-.s-provider-list { padding: var(--space-1) 0 var(--space-2); }
-.s-provider-label {
-  font-size: var(--text-xs); font-weight: var(--font-weight-semibold);
-  text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--muted-foreground);
-  padding: var(--space-2) var(--space-2) var(--space-1);
-}
-.s-prov-name {
-  font-size: var(--text-xs);
-  color: color-mix(in oklch, var(--foreground) 80%, transparent);
-  font-family: var(--font-mono);
-  font-weight: var(--font-weight-normal);
-}
-.s-prov-right {
-  display: inline-flex; align-items: center; gap: var(--space-2);
-  font-size: var(--text-xs); color: var(--muted-foreground);
-}
-.s-prov-right .mono { font-family: var(--font-mono); }
-
 .s-collapse-trigger {
   display: flex; align-items: center; justify-content: space-between;
   width: 100%; padding: var(--space-4) var(--space-5); cursor: pointer;
@@ -161,11 +142,32 @@
 }
 .s-status-text { font-size: var(--text-xs); color: var(--foreground); }
 
-sui-input { width: 160px; }
+/* Native inputs (NOT <sui-input>): the arcade pack also names a `sui-input`
+   tag and the per-tag resolver's first-wins collision serves the arcade stub
+   (display:none) to the shell, so the primitives input never renders here.
+   A native <input> participates in the <form mutation> natively and needs no
+   contested registration. */
+.s-input {
+  width: 160px;
+  min-height: 28px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  color: var(--foreground);
+}
+.s-input::placeholder { color: var(--muted-foreground); }
+.s-input:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
 
 @media (max-width: 640px) {
   .s-row-trailing { width: 100%; flex-wrap: wrap; }
-  sui-input { width: 100%; }
+  .s-input { width: 100%; }
 }
 
 .s-account-body { gap: 0; }
@@ -195,8 +197,10 @@ sui-input { width: 160px; }
 .s-row-label.muted { color: var(--muted-foreground); }
 </style>
 
-<!-- Live subscriptions live at the top per SUI hard rule #2 (subscriptions
-     Both signals are accessed via the auto-generated scope in the controller. -->
+<!-- Settings read shape (#298): the controller composes flat RUNTIME
+     SettingsService rows into one derived per rendered setting. This template
+     binds those deriveds — it never dereferences a nested settings document,
+     because the daemon does not serve one. -->
 
 <div class="ship-view ship-view-settings">
   <main class="settings-wrap">
@@ -360,79 +364,6 @@ sui-input { width: 160px; }
           </div>
         </sui-card>
 
-        <!-- Providers -->
-        <sui-card padding="none">
-          <div slot="header" class="s-section-head">
-            <h2 class="s-section-title">
-              <sui-icon name="cpu"></sui-icon>Providers
-            </h2>
-          </div>
-          <div class="s-section-body">
-            <div class="list-tile list-tile--compact">
-              <div class="list-tile-row">
-                <span class="list-tile-primary s-row-label" id="s-label-provider">Default provider</span>
-                <span class="s-row-trailing">
-                  <form mutation="ship.settings.update" on:success={() => flashSaved(savedProvider)}>
-                    <input type="hidden" name="key" value="defaults.provider" />
-                    <sui-badge tone="success" variant="soft" size="sm"
-                      class="s-save-badge" class:visible={savedProvider()}>
-                      <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
-                    </sui-badge>
-                    <sui-select name="value" size="sm" aria-labelledby="s-label-provider"
-                      prop:value={settings().value.default_provider}
-                      on:sui-change={(e) => e.target.closest('form')?.requestSubmit()}>
-                      {#for p of (settings().value.providers ?? []) key={p.id}}
-                        <option value={p.id}>{p.id}</option>
-                      {/for}
-                    </sui-select>
-                  </form>
-                </span>
-              </div>
-              <div class="list-tile-secondary">Used when no provider is specified</div>
-            </div>
-
-            <div class="list-tile list-tile--compact">
-              <div class="list-tile-row">
-                <span class="list-tile-primary s-row-label" id="s-label-model">Default model</span>
-                <span class="s-row-trailing">
-                  <form mutation="ship.settings.update" on:success={() => flashSaved(savedModel)}>
-                    <input type="hidden" name="key" value="defaults.model" />
-                    <sui-badge tone="success" variant="soft" size="sm"
-                      class="s-save-badge" class:visible={savedModel()}>
-                      <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
-                    </sui-badge>
-                    <sui-input name="value" size="sm" aria-labelledby="s-label-model"
-                      prop:value={settings().value.default_model}
-                      placeholder="e.g. sonnet"
-                      on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
-                  </form>
-                </span>
-              </div>
-              <div class="list-tile-secondary">Model name passed to the provider</div>
-            </div>
-
-            {#if (settings().value.providers ?? []).length > 0}
-              <div class="s-provider-list">
-                <div class="s-provider-label">Installed providers</div>
-                {#for p of (settings().value.providers ?? []) key={p.id}}
-                  <div class="list-tile list-tile--compact s-prov-tile">
-                    <div class="list-tile-row">
-                      <span class="list-tile-primary s-prov-name">{p.id}</span>
-                      <span class="s-prov-right">
-                        <span>{p.available ? 'installed' : 'not found'}</span>
-                        {#if p.version}
-                          <span class="mono">v{p.version}{p.label ? ' (' + p.label + ')' : ''}</span>
-                        {/if}
-                      </span>
-                    </div>
-                  </div>
-                {/for}
-              </div>
-            {/if}
-          </div>
-        </sui-card>
-
         <!-- Terminal -->
         <sui-card padding="none">
           <div slot="header" class="s-section-head">
@@ -451,13 +382,11 @@ sui-input { width: 160px; }
                       class="s-save-badge" class:visible={savedTerminal()}>
                       <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
                     </sui-badge>
-                    <sui-select name="value" size="sm" aria-labelledby="s-label-term"
-                      prop:value={settings().value.terminal.program}
-                      on:sui-change={(e) => e.target.closest('form')?.requestSubmit()}>
-                      {#for opt of (settings().value.terminal?.options ?? []) key={opt.value}}
-                        <option value={opt.value}>{opt.label}</option>
-                      {/for}
-                    </sui-select>
+                    <input class="s-input" type="text" name="value" aria-labelledby="s-label-term"
+                      prop:value={terminalProgram()}
+                      placeholder="tmux"
+                      on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
                   </form>
                 </span>
               </div>
@@ -474,11 +403,11 @@ sui-input { width: 160px; }
                       class="s-save-badge" class:visible={savedWorktree()}>
                       <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
                     </sui-badge>
-                    <sui-input name="value" size="sm" aria-labelledby="s-label-worktree"
-                      prop:value={settings().value.terminal.worktree_base}
+                    <input class="s-input" type="text" name="value" aria-labelledby="s-label-worktree"
+                      prop:value={worktreeBase()}
                       placeholder="/path/to/worktrees"
                       on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
                   </form>
                 </span>
               </div>
@@ -505,11 +434,11 @@ sui-input { width: 160px; }
                       class="s-save-badge" class:visible={savedHarnessDefault()}>
                       <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
                     </sui-badge>
-                    <sui-input name="value" size="sm" aria-labelledby="s-label-harness-default"
-                      prop:value={settings().value.harness_default}
+                    <input class="s-input" type="text" name="value" aria-labelledby="s-label-harness-default"
+                      prop:value={harnessDefault()}
                       placeholder="e.g. claude, codex, gemini"
                       on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
                   </form>
                 </span>
               </div>
@@ -526,11 +455,11 @@ sui-input { width: 160px; }
                       class="s-save-badge" class:visible={savedHarnessModel()}>
                       <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
                     </sui-badge>
-                    <sui-input name="value" size="sm" aria-labelledby="s-label-harness-default-model"
-                      prop:value={settings().value.harness_default_model}
+                    <input class="s-input" type="text" name="value" aria-labelledby="s-label-harness-default-model"
+                      prop:value={harnessDefaultModel()}
                       placeholder="e.g. sonnet, opus"
                       on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
                   </form>
                 </span>
               </div>
@@ -558,7 +487,7 @@ sui-input { width: 160px; }
                       <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
                     </sui-badge>
                     <sui-switch name="value" size="sm" aria-labelledby="s-label-auto-resume"
-                      prop:checked={settings().value.agent_session_auto_resume}
+                      prop:checked={autoResume()}
                       on:sui-change={(e) => e.target.closest('form')?.requestSubmit()}></sui-switch>
                   </form>
                 </span>
@@ -594,7 +523,7 @@ sui-input { width: 160px; }
                 <div class="list-tile list-tile--compact">
                   <div class="list-tile-row">
                     <span class="list-tile-primary s-row-label">Daemon endpoint</span>
-                    <span class="s-mono-val">{settings().value.daemon_endpoint}</span>
+                    <span class="s-mono-val">{daemonEndpoint()}</span>
                   </div>
                 </div>
                 <div class="list-tile list-tile--compact">
@@ -607,11 +536,11 @@ sui-input { width: 160px; }
                           class="s-save-badge" class:visible={savedRegistry()}>
                           <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
                         </sui-badge>
-                        <sui-input name="value" size="sm" aria-labelledby="s-label-registry"
-                          prop:value={settings().value.advanced_registry}
+                        <input class="s-input" type="text" name="value" aria-labelledby="s-label-registry"
+                          prop:value={registryEndpoint()}
                           placeholder="https://registry.getship.dev"
                           on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                          on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                          on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
                       </form>
                     </span>
                   </div>
@@ -627,11 +556,11 @@ sui-input { width: 160px; }
                           class="s-save-badge" class:visible={savedWatcherDebounce()}>
                           <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
                         </sui-badge>
-                        <sui-input type="number" name="value" size="sm" aria-labelledby="s-label-watcher-debounce"
-                          prop:value={settings().value.watcher_debounce_ms}
+                        <input class="s-input" type="number" name="value" aria-labelledby="s-label-watcher-debounce"
+                          prop:value={watcherDebounceMs()}
                           placeholder="200"
                           on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                          on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                          on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
                       </form>
                     </span>
                   </div>
@@ -647,11 +576,11 @@ sui-input { width: 160px; }
                           class="s-save-badge" class:visible={savedGitLogLimit()}>
                           <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
                         </sui-badge>
-                        <sui-input type="number" name="value" size="sm" aria-labelledby="s-label-git-log-limit"
-                          prop:value={settings().value.git_log_limit}
+                        <input class="s-input" type="number" name="value" aria-labelledby="s-label-git-log-limit"
+                          prop:value={gitLogLimit()}
                           placeholder="50"
                           on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                          on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                          on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
                       </form>
                     </span>
                   </div>
@@ -667,11 +596,11 @@ sui-input { width: 160px; }
                           class="s-save-badge" class:visible={savedHooksMaxDepth()}>
                           <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
                         </sui-badge>
-                        <sui-input type="number" name="value" size="sm" aria-labelledby="s-label-hooks-max-depth"
-                          prop:value={settings().value.hooks_max_depth}
+                        <input class="s-input" type="number" name="value" aria-labelledby="s-label-hooks-max-depth"
+                          prop:value={hooksMaxDepth()}
                           placeholder="3"
                           on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                          on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                          on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
                       </form>
                     </span>
                   </div>
@@ -693,13 +622,13 @@ sui-input { width: 160px; }
             <div class="list-tile list-tile--compact">
               <div class="list-tile-row">
                 <span class="list-tile-primary s-row-label">Documentation</span>
-                <sui-link prop:href={settings().value.about.docs} external>getship.dev/docs</sui-link>
+                <sui-link href="https://getship.dev/docs" external>getship.dev/docs</sui-link>
               </div>
             </div>
             <div class="list-tile list-tile--compact">
               <div class="list-tile-row">
                 <span class="list-tile-primary s-row-label">Source</span>
-                <sui-link prop:href={settings().value.about.source} external>GitHub</sui-link>
+                <sui-link href="https://github.com/madvib/Ship" external>GitHub</sui-link>
               </div>
             </div>
             <div class="list-tile list-tile--compact">
