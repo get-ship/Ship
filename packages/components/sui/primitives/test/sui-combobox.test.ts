@@ -62,3 +62,180 @@ describe('<sui-combobox>', () => {
     expect(el.getAttribute('value')).toBe('bar')
   })
 })
+
+const threeFruit =
+  '<option value="a">Apple</option><option value="b">Banana</option><option value="c">Cherry</option>'
+
+// NOTE: form-associated SUI components currently expose no JS `value`
+// accessor (the runtime's prop-accessor loop only covers the non-form class),
+// so committed values are asserted through DOM-observable truth: the input's
+// label text and aria-selected on reopen.
+type SuiCombobox = HTMLElement & { open(): void; close(): void }
+
+/** Reopen the listbox and read which option labels are aria-selected. */
+async function selectedOnReopen(el: HTMLElement): Promise<string[]> {
+  ;(el as SuiCombobox).open()
+  await flush()
+  return opts(el).map((o) => o.getAttribute('aria-selected')!)
+}
+
+const keyOn = (inp: HTMLInputElement, key: string) =>
+  inp.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
+
+describe('<sui-combobox> — open/close ARIA contract', () => {
+  it('focus opens the listbox: aria-expanded=true, data-open on host', async () => {
+    const { el } = mount(reg, 'sui-combobox', {}, threeFruit)
+    await flush()
+    const inp = inputOf(el)
+    inp.focus()
+    await flush()
+    expect(inp.getAttribute('aria-expanded')).toBe('true')
+    expect(el.hasAttribute('data-open')).toBe(true)
+    expect(listOf(el)).not.toBeNull()
+  })
+
+  it('input is wired to the listbox via aria-controls + aria-haspopup semantics', async () => {
+    const { el } = mount(reg, 'sui-combobox', {}, threeFruit)
+    await flush()
+    const inp = inputOf(el)
+    inp.focus()
+    await flush()
+    const list = listOf(el)!
+    expect(list.id).not.toBe('')
+    expect(inp.getAttribute('aria-controls')).toBe(list.id)
+  })
+
+  it('option matching the current value carries aria-selected=true', async () => {
+    const { el } = mount(reg, 'sui-combobox', { value: 'b' }, threeFruit)
+    await flush()
+    inputOf(el).focus()
+    await flush()
+    const selected = opts(el).map((o) => o.getAttribute('aria-selected'))
+    expect(selected).toEqual(['false', 'true', 'false'])
+  })
+
+  it('exposed open()/close() drive the listbox; open() is a no-op when disabled', async () => {
+    const { el } = mount(reg, 'sui-combobox', {}, threeFruit)
+    await flush()
+    ;(el as SuiCombobox).open()
+    await flush()
+    expect(inputOf(el).getAttribute('aria-expanded')).toBe('true')
+    ;(el as SuiCombobox).close()
+    await flush()
+    expect(inputOf(el).getAttribute('aria-expanded')).toBe('false')
+    expect(listOf(el)).toBeNull()
+
+    const { el: dis } = mount(reg, 'sui-combobox', { disabled: true }, threeFruit)
+    await flush()
+    ;(dis as SuiCombobox).open()
+    await flush()
+    expect(inputOf(dis).getAttribute('aria-expanded')).toBe('false')
+    expect(listOf(dis)).toBeNull()
+  })
+})
+
+describe('<sui-combobox> — keyboard contract', () => {
+  it('ArrowDown on a closed combobox opens the list', async () => {
+    const { el } = mount(reg, 'sui-combobox', {}, threeFruit)
+    await flush()
+    const inp = inputOf(el)
+    keyOn(inp, 'ArrowDown')
+    await flush()
+    expect(inp.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('ArrowDown/ArrowUp move aria-activedescendant through the options with wrap', async () => {
+    const { el } = mount(reg, 'sui-combobox', {}, threeFruit)
+    await flush()
+    const inp = inputOf(el)
+    inp.focus()
+    await flush()
+    const ids = opts(el).map((o) => o.id)
+    expect(inp.getAttribute('aria-activedescendant')).toBe(ids[0])
+    keyOn(inp, 'ArrowDown')
+    await flush()
+    expect(inp.getAttribute('aria-activedescendant')).toBe(ids[1])
+    keyOn(inp, 'ArrowUp')
+    await flush()
+    expect(inp.getAttribute('aria-activedescendant')).toBe(ids[0])
+    keyOn(inp, 'ArrowUp') // wraps from first to last
+    await flush()
+    expect(inp.getAttribute('aria-activedescendant')).toBe(ids[2])
+  })
+
+  it('Enter commits the highlighted option: value, label text, closed list', async () => {
+    const { el } = mount(reg, 'sui-combobox', {}, threeFruit)
+    await flush()
+    const inp = inputOf(el)
+    inp.focus()
+    await flush()
+    keyOn(inp, 'ArrowDown') // highlight Banana
+    await flush()
+    keyOn(inp, 'Enter')
+    await flush()
+    expect(inp.value).toBe('Banana')
+    expect(inp.getAttribute('aria-expanded')).toBe('false')
+    expect(listOf(el)).toBeNull()
+    expect(await selectedOnReopen(el)).toEqual(['false', 'true', 'false'])
+  })
+
+  it('Escape closes without changing the value and restores the selected label', async () => {
+    const { el } = mount(reg, 'sui-combobox', { value: 'c' }, threeFruit)
+    await flush()
+    const inp = inputOf(el)
+    inp.focus() // opening clears the filter text
+    await flush()
+    keyOn(inp, 'ArrowDown')
+    await flush()
+    keyOn(inp, 'Escape')
+    await flush()
+    expect(inp.value).toBe('Cherry')
+    expect(inp.getAttribute('aria-expanded')).toBe('false')
+    expect(await selectedOnReopen(el)).toEqual(['false', 'false', 'true'])
+  })
+
+  it('Tab closes the list, leaving the value untouched', async () => {
+    const { el } = mount(reg, 'sui-combobox', { value: 'a' }, threeFruit)
+    await flush()
+    const inp = inputOf(el)
+    inp.focus()
+    await flush()
+    expect(inp.getAttribute('aria-expanded')).toBe('true')
+    keyOn(inp, 'Tab')
+    await flush()
+    expect(inp.getAttribute('aria-expanded')).toBe('false')
+    expect(await selectedOnReopen(el)).toEqual(['true', 'false', 'false'])
+  })
+})
+
+describe('<sui-combobox> — event contract', () => {
+  it('sui-change: bubbles + composed with {value, label} payload on commit', async () => {
+    const { el, container } = mount(reg, 'sui-combobox', {}, threeFruit)
+    await flush()
+    let evt: CustomEvent | null = null
+    container.addEventListener('sui-change', (e) => { evt = e as CustomEvent })
+    const inp = inputOf(el)
+    inp.focus()
+    await flush()
+    keyOn(inp, 'Enter') // commits the first highlighted option (Apple)
+    await flush()
+    expect(evt).not.toBeNull()
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+    expect(evt!.detail).toEqual({ value: 'a', label: 'Apple' })
+  })
+
+  it('mousedown commit on a listbox row emits the same payload shape', async () => {
+    const { el } = mount(reg, 'sui-combobox', {}, threeFruit)
+    await flush()
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-change', (e) => { evt = e as CustomEvent })
+    inputOf(el).focus()
+    await flush()
+    const row = opts(el)[2] // Cherry
+    row.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true, cancelable: true }))
+    await flush()
+    expect(evt!.detail).toEqual({ value: 'c', label: 'Cherry' })
+    expect(inputOf(el).value).toBe('Cherry')
+  })
+})

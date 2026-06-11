@@ -84,6 +84,20 @@ describe('<sui-select>', () => {
     expect(outside).toBe(true)
   })
 
+  it('sui-change event contract: bubbles/composed flags + {value} payload shape', async () => {
+    const { el } = mount(reg, 'sui-select', { value: 'a' }, threeOpts)
+    await flush()
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-change', (e) => { evt = e as CustomEvent })
+    const sel = innerSelect(el)
+    sel.value = 'b'
+    sel.dispatchEvent(new Event('change', { bubbles: true }))
+    expect(evt).not.toBeNull()
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+    expect(evt!.detail).toEqual({ value: 'b' })
+  })
+
   it('value prop reflects to underlying select.value', async () => {
     const { el } = mount(reg, 'sui-select', { value: 'a' }, threeOpts)
     await flush()
