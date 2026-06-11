@@ -237,8 +237,20 @@ mod tests {
         // pipeline.run.updated is deprecated; uses PipelineRunUpdatedPayload which is not
         // re-exported through types::* (it's in the pipeline submodule). Schema validation
         // is not enforced for deprecated events that have no new callers.
+        //
+        // The canonical session.* family is excepted because its payload types
+        // relocated to agent-def (L1) — substrate cannot name them without a
+        // dependency inversion; emit-side type safety lives in
+        // agent_def::emit (see the session.* note in schema_for_event_type).
         let exceptions = &[
             "pipeline.run.updated",
+            "session.started",
+            "session.completed",
+            "session.failed",
+            "session.cancelled",
+            "session.suspended",
+            "session.turn.started",
+            "session.turn.ended",
         ];
         for &et in ALL {
             if exceptions.contains(&et) {
