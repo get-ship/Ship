@@ -720,20 +720,22 @@ pub fn router(state: ApiState) -> axum::Router {
     let view_broadcast = Arc::new(crate::agent_event_ports::ViewBroadcastAdapter::new(state.clone()));
     let collection = Arc::new(crate::agent_event_ports::CollectionPersistAdapter::new(state.clone()));
     let agents_wire = Arc::new(ship_agents::services::agents::AgentsWire::new(
-        state.agents_arc(),
-        state.ship_dir().to_path_buf(),
-        agents_kernel,
-        gate,
-        agents_sessions_fn,
-        notify_saved_fn,
-        dispatch_port,
-        stop_fn,
-        steer_fn,
-        grant_fn,
-        state.agent_reactive().cloned(),
-        feedback_auth,
-        view_broadcast,
-        collection,
+        ship_agents::services::agents::rpc_wire::AgentsWireConfig {
+            svc: state.agents_arc(),
+            ship_dir: state.ship_dir().to_path_buf(),
+            kernel: agents_kernel,
+            gate,
+            sessions_fn: agents_sessions_fn,
+            notify_saved: notify_saved_fn,
+            dispatch_port,
+            stop_fn,
+            steer_fn,
+            grant_fn,
+            agent_reactive: state.agent_reactive().cloned(),
+            feedback_auth,
+            view_broadcast,
+            collection,
+        },
     ));
     let router = ship_ops_rpc::AgentsServiceExt::register(agents_wire, router);
     // account.* — typed AccountService (account.proto), served by the

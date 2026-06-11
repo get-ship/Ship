@@ -118,51 +118,11 @@ fn parse_scope(scope: &str) -> Result<Option<ship_files::files::Scope>, ConnectE
     }
 }
 
-// ── Watch proto conversion (PatchFrame → reactive.proto WatchEvent) ───────────
-// Mirrors the agents `AgentsWire` conversion (ship-platform/services/agents/
-// rpc_wire.rs) field-for-field — the shared reactive.proto wire types.
-
-fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ship_ops_rpc::PatchOp {
-    use ship_ops_rpc::PatchOp as P;
-    use ship_reactive::PatchOp::*;
-    match op {
-        Set => P::PATCH_OP_SET,
-        Merge => P::PATCH_OP_MERGE,
-        Append => P::PATCH_OP_APPEND,
-        Prepend => P::PATCH_OP_PREPEND,
-        Insert => P::PATCH_OP_INSERT,
-        Remove => P::PATCH_OP_REMOVE,
-        Move => P::PATCH_OP_MOVE,
-        Splice => P::PATCH_OP_SPLICE,
-        Inc => P::PATCH_OP_INC,
-    }
-}
-
-fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEvent {
-    use ship_ops_rpc::{Patch as ProtoPatch, PatchFrame as ProtoFrame};
-    let patches: Vec<ProtoPatch> = frame
-        .patches
-        .into_iter()
-        .map(|p| ProtoPatch {
-            op: buffa::EnumValue::from(patch_op_to_proto(&p.op)),
-            path: p.path,
-            value: p.value.map(|v| serde_json::to_vec(&v).unwrap_or_default()),
-            index: p.index.unwrap_or(0) as i32,
-            from: p.from.unwrap_or(0) as i32,
-            to: p.to.unwrap_or(0) as i32,
-            count: p.count.unwrap_or(0) as i32,
-            by: p.by.unwrap_or(0.0),
-            v: 1,
-            ..Default::default()
-        })
-        .collect();
-    WatchEvent {
-        body: Some(ship_ops_rpc::__buffa::oneof::watch_event::Body::Patches(Box::new(
-            ProtoFrame { patches, ..Default::default() },
-        ))),
-        ..Default::default()
-    }
-}
+// ── Watch proto conversion ────────────────────────────────────────────────────
+// The ship_reactive ↔ reactive.proto bridge is canonical in
+// ship_agents::services::agents::rpc_wire — one copy, so a new PatchOp
+// variant breaks ONE site, not two drifting ones.
+use ship_agents::services::agents::rpc_wire::patch_frame_to_proto;
 
 // ── Trait implementation ──────────────────────────────────────────────────────
 

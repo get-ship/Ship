@@ -106,39 +106,37 @@ pub struct AgentsWire {
     collection:       Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
 }
 
+/// Named-field constructor input for [`AgentsWire`] — replaces the former
+/// 14-positional-argument `new` (every sibling wire takes a config or a
+/// handful of args; a positional list this long invited transposition bugs).
+pub struct AgentsWireConfig {
+    pub svc:              Arc<dyn AgentsService>,
+    pub ship_dir:         PathBuf,
+    pub kernel:           Arc<KernelLog>,
+    pub gate:             GateFn,
+    pub sessions_fn:      SessionsFn,
+    pub notify_saved:     NotifySavedFn,
+    pub dispatch_port:    Arc<dyn AgentDispatchPort>,
+    pub stop_fn:          StopFn,
+    pub steer_fn:         SteerFn,
+    pub grant_fn:         GrantFn,
+    pub agent_reactive:   Option<Arc<ReactiveRegistry>>,
+    pub feedback_auth:    Arc<dyn FeedbackAuthPort>,
+    pub view_broadcast:   Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
+    pub collection:       Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
+}
+
 impl AgentsWire {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        svc:              Arc<dyn AgentsService>,
-        ship_dir:         PathBuf,
-        kernel:           Arc<KernelLog>,
-        gate:             GateFn,
-        sessions_fn:      SessionsFn,
-        notify_saved:     NotifySavedFn,
-        dispatch_port:    Arc<dyn AgentDispatchPort>,
-        stop_fn:          StopFn,
-        steer_fn:         SteerFn,
-        grant_fn:         GrantFn,
-        agent_reactive:   Option<Arc<ReactiveRegistry>>,
-        feedback_auth:    Arc<dyn FeedbackAuthPort>,
-        view_broadcast:   Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
-        collection:       Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
-    ) -> Self {
+    pub fn new(config: AgentsWireConfig) -> Self {
+        let AgentsWireConfig {
+            svc, ship_dir, kernel, gate, sessions_fn, notify_saved,
+            dispatch_port, stop_fn, steer_fn, grant_fn, agent_reactive,
+            feedback_auth, view_broadcast, collection,
+        } = config;
         Self {
-            svc,
-            ship_dir,
-            kernel,
-            gate,
-            sessions_fn,
-            notify_saved,
-            dispatch_port,
-            stop_fn,
-            steer_fn,
-            grant_fn,
-            agent_reactive,
-            feedback_auth,
-            view_broadcast,
-            collection,
+            svc, ship_dir, kernel, gate, sessions_fn, notify_saved,
+            dispatch_port, stop_fn, steer_fn, grant_fn, agent_reactive,
+            feedback_auth, view_broadcast, collection,
         }
     }
 }
@@ -234,8 +232,10 @@ fn settings_value(ship_dir: &Path, id: &str) -> Value {
 }
 
 // ── Proto conversion ──────────────────────────────────────────────────────────
+// CANONICAL ship_reactive ↔ reactive.proto bridge — ship-pipeline-runtime's
+// wire delegates here instead of keeping a byte-identical copy.
 
-fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ship_ops_rpc::PatchOp {
+pub fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ship_ops_rpc::PatchOp {
     use ship_ops_rpc::PatchOp as P;
     use ship_reactive::PatchOp::*;
     match op {
@@ -251,7 +251,7 @@ fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ship_ops_rpc::PatchOp {
     }
 }
 
-fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEvent {
+pub fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEvent {
     use ship_ops_rpc::{Patch as ProtoPatch, PatchFrame as ProtoFrame};
     let patches: Vec<ProtoPatch> = frame
         .patches
