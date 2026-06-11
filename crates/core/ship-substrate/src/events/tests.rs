@@ -360,14 +360,15 @@ fn registry_has_entries() {
 fn l0_registry_shrinks_under_keystone_a() {
     let n = ship_types::event_registry::all_names().len();
     assert_eq!(
-        n, 52,
+        n, 48,
         "L0-registered event count changed. This pin is a keystone-A RATCHET: \
          it should only move DOWN (a domain de-bucket) — update it with the \
          move. If it went UP, register the new events in their owning L1 \
          domain crate, not in payload_registry.rs. \
          (#25b: -6 hook.* deregistered; studio de-bucket: -4 studio.* moved \
           to ship-agents; #26: -5 agent.session.* deregistered — all \
-          2026-06-10/11; dispatch.requested registered at L1, not counted here)"
+          2026-06-10/11; dispatch.requested registered at L1, not counted here; \
+          sync de-bucket: -4 sync.* moved to ship-cloud — 2026-06-11)"
     );
 }
 

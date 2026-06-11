@@ -48,6 +48,13 @@ pub trait EventValidator: Send + Sync {
 
 /// Namespaces routed through the kernel to actor mailboxes.
 /// Actors can subscribe to events in these namespaces.
+///
+/// NOTE: routing ≠ ownership. Several namespaces here are OWNED at L1 by a
+/// domain crate (their `register_event!` lines live there, not in
+/// `payload_registry.rs`), but they remain in this kernel-routing list
+/// because the kernel still routes those events to subscribed actors. The
+/// inline comments below mark L1-owned namespaces so this distinction stays
+/// explicit.
 pub const KERNEL_NAMESPACES: &[&str] = &[
     "actor.",
     "collection.",
@@ -59,10 +66,10 @@ pub const KERNEL_NAMESPACES: &[&str] = &[
     "runtime.",
     "session.",
     "settings.",
-    "studio.",
+    "studio.", // L1-owned: registrations in ship-agents/src/event_registrations.rs
     "supervisor.",
-    "sync.",
-    "workspace.",
+    "sync.",      // L1-owned: registrations in ship-cloud/src/event_registrations.rs
+    "workspace.", // L1-owned: registrations in ship-space/src/event_registrations.rs
 ];
 
 /// Platform-only namespaces: persisted in platform.db but NOT routed to actors.

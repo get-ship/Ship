@@ -59,12 +59,13 @@ ship-files = { path = "crates/ship-files" }
 ship-store = { path = "crates/ship-store" }
 ship-gateway-client = { path = "../ship-gateway-client" }
 # Cloud sync transport — `SyncClient` + `PushRequest`/`PushResponse`/`PullResponse`
-# live in the `ship-cloud` crate. The wrapping `services::sync::SyncServiceHandler`
-# stays here (it needs the platform-local `ServiceHandler` from substrate) but
-# its transport types are now the `ship_cloud` re-exports. unstable-gated to
-# match the service's own feature gate.
+# live in the `ship-cloud` crate. ship-cloud is a non-optional dep so its
+# event_registrations module (sync.* events) is always linked into the binary;
+# `ship-cloud/unstable` (the SyncServiceHandler actor) is gated behind the
+# `unstable` feature. ureq + ship-gateway-client are already direct deps here,
+# so this adds no new transitive HTTP-client footprint.
 ship-git = { path = "../ship-git" }
-ship-cloud = { path = "../ship-cloud", optional = true }
+ship-cloud = { path = "../ship-cloud" }
 # Isolation types + recommender. Default-features off — youki and
 # sidecar backends stay opt-in (the daemon's feature flags layer them in).
 ship-isolation = { path = "crates/ship-isolation", default-features = false }
@@ -121,7 +122,7 @@ libc = { workspace = true }
 [features]
 # Expose testutil module for integration tests and external test consumers.
 testutil = []
-unstable = ["ship-substrate/unstable", "dep:ship-cloud", "ship-cloud/unstable"]
+unstable = ["ship-substrate/unstable", "ship-cloud/unstable"]
 # Enable derive(Type) on public data structs in the migrated services
 # (rules/mcp/skills/agents/pipelines/permissions/...) so xtask can
 # emit TypeScript bindings via `cargo xtask gen-types`. Off by default.

@@ -3,6 +3,13 @@
 //! Exposes `run_network` for starting the HTTP/SSE MCP daemon and
 //! `network_status` / `network_stop` for CLI subcommands.
 
+// Force ship-cloud's event_registrations (sync.* family) into the linked
+// binary. ship-cloud has no runtime call-sites in shipd outside the sync
+// service (unstable), but its `inventory::submit!` registrations must be
+// present in the full-linkage event vocabulary (`tests/event_vocabulary.rs`).
+// `use … as _` is the idiomatic Rust force-link for inventory-only deps.
+use ship_cloud as _;
+
 /// Test-load initializer — runs once when the lib test binary loads.
 /// Registers ship-platform's default projection set + supervisor hook so
 /// any `SqliteEventStore` constructed inside a unit test sees the full
