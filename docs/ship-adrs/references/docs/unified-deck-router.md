@@ -1,3 +1,10 @@
+---
+group: ADR
+title: Unified Deck Router
+audience: internal
+status: accepted
+---
+
 # Unified Deck Router
 
 **Status:** accepted

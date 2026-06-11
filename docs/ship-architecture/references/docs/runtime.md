@@ -8,6 +8,8 @@ audience: internal
 
 # Runtime
 
+> ⚠ This page is stale (names crates that no longer exist) — rewrite pending an audience decision.
+
 The runtime owns all persistent state, and is split across three layered crates. **`crates/core/ship-substrate/`** (L0) owns persistence itself — the kernel wrapper, the event log, the platform database, home/env path resolution, and the data DB. **`crates/core/ship-platform/`** (L1) owns the domain services that sit on top of that state — config, collections, artifacts, registry, hooks, agents, the orchestrator, and sessions. **`crates/core/ship-application/`** (L2) owns the application layer — bundler, toolchain, project. The platform database lives at `~/.ship/machine/db/platform.db`. There are **no per-actor SQLite files** and **no separate kernel event store** — every actor shares the single `events` table in `platform.db`, with logical isolation by `actor_id`. No other layer touches the database directly — all access goes through the KernelRouter and ActorStore.
 
 ## Module Map

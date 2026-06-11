@@ -18,10 +18,10 @@ client-server loop against a mock daemon. From here:
 1. **`scaffold_view`** — the MCP tool that emits a fresh
    `views/<name>/` skeleton. Or `deck scaffold view <name>`
    from a shell.
-2. **`docs/ship-sui/references/agent-authoring.md`** — the do-now
+2. **`docs/ship-sui/references/docs/agent-authoring.md`** — the do-now
    checklist. File layout, the `<data>` directive's real shape,
    common failure modes, the verification ladder.
-3. **`docs/ship-sui/references/cookbook.md`** — ~30 recipes covering
+3. **`docs/ship-sui/references/docs/cookbook.md`** — ~30 recipes covering
    patterns you'll hit (form validation flows, optimistic UI,
    pagination, infinite scroll, error boundaries, theme switching).
 
