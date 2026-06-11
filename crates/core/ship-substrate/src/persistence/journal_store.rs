@@ -113,6 +113,26 @@ impl JournalStore for SqliteJournalStore {
             }
         }
     }
+
+    async fn load_all_incomplete(&self) -> Result<Vec<(String, Journal)>, JournalStoreError> {
+        // Suspension is a property of the deserialized journal, not a column —
+        // scan all rows and filter. Run counts are small (journals are pruned
+        // with their runs); revisit with a `suspended` column if that changes.
+        let rows: Vec<(String, String)> =
+            sqlx::query_as("SELECT run_id, journal_json FROM durable_journals ORDER BY run_id")
+                .fetch_all(&self.pool)
+                .await
+                .map_err(|e| JournalStoreError::Backend(e.to_string()))?;
+        let mut out = Vec::new();
+        for (run_id, json) in rows {
+            let journal: Journal = serde_json::from_str(&json)
+                .map_err(|e| JournalStoreError::Serde(e.to_string()))?;
+            if journal.is_suspended() {
+                out.push((run_id, journal));
+            }
+        }
+        Ok(out)
+    }
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────

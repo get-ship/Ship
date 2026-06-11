@@ -46,6 +46,11 @@ pub trait JournalStore: Send + Sync {
     /// Load the persisted journal for `run_id`, or `None` if the run is unknown
     /// to this store (never started, or pruned).
     async fn load(&self, run_id: &str) -> Result<Option<Journal>, JournalStoreError>;
+
+    /// Every persisted run whose journal is parked on a suspend — the startup
+    /// recovery sweep (pipeline C9, floki Stage-3 boot-scan). Returns
+    /// `(run_id, journal)` pairs; completed runs are excluded.
+    async fn load_all_incomplete(&self) -> Result<Vec<(String, Journal)>, JournalStoreError>;
 }
 
 /// In-memory [`JournalStore`] that round-trips through serde JSON — a faithful
@@ -86,5 +91,81 @@ impl JournalStore for InMemoryJournalStore {
                 Ok(Some(journal))
             }
         }
+    }
+
+    async fn load_all_incomplete(&self) -> Result<Vec<(String, Journal)>, JournalStoreError> {
+        let snapshot: Vec<(String, String)> = self
+            .runs
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        let mut out = Vec::new();
+        for (run_id, json) in snapshot {
+            let journal: Journal =
+                serde_json::from_str(&json).map_err(|e| JournalStoreError::Serde(e.to_string()))?;
+            if journal.is_suspended() {
+                out.push((run_id, journal));
+            }
+        }
+        out.sort_by(|a, b| a.0.cmp(&b.0));
+        Ok(out)
+    }
+}
+
+#[cfg(test)]
+mod incomplete_tests {
+    use super::*;
+    use crate::{Dispatch, DispatchError, EngineError, ExecCtx, Program, RunStatus, execute};
+    use async_trait::async_trait;
+    use serde_json::{Value, json};
+    use std::sync::Arc;
+
+    struct Echo;
+    #[async_trait]
+    impl Dispatch for Echo {
+        async fn call(&self, _op: &str, _args: Value) -> Result<Value, DispatchError> {
+            Ok(json!({}))
+        }
+    }
+
+    struct Parker;
+    #[async_trait]
+    impl Program for Parker {
+        async fn run(&self, ctx: &mut ExecCtx) -> Result<Value, EngineError> {
+            ctx.op("warmup", json!({})).await?;
+            ctx.suspend("waiting").await?;
+            Ok(json!("done"))
+        }
+    }
+
+    struct Finisher;
+    #[async_trait]
+    impl Program for Finisher {
+        async fn run(&self, ctx: &mut ExecCtx) -> Result<Value, EngineError> {
+            ctx.op("only", json!({})).await
+        }
+    }
+
+    /// The startup-recovery sweep contract: suspended runs are returned with
+    /// replayable journals; completed runs are excluded.
+    #[tokio::test]
+    async fn load_all_incomplete_returns_only_suspended_runs() {
+        let store = InMemoryJournalStore::new();
+        let dispatch: Arc<dyn Dispatch> = Arc::new(Echo);
+
+        let (status, parked) = execute(Journal::new(), dispatch.clone(), &Parker).await;
+        assert_eq!(status, RunStatus::Suspended);
+        store.save("run-parked", &parked).await.unwrap();
+
+        let (status, done) = execute(Journal::new(), dispatch, &Finisher).await;
+        assert!(matches!(status, RunStatus::Completed(_)));
+        store.save("run-done", &done).await.unwrap();
+
+        let incomplete = store.load_all_incomplete().await.unwrap();
+        assert_eq!(incomplete.len(), 1, "only the parked run is incomplete");
+        assert_eq!(incomplete[0].0, "run-parked");
+        assert!(incomplete[0].1.is_suspended());
     }
 }
