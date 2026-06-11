@@ -43,15 +43,19 @@ export default controller({
     const resizeHandle = ref<HTMLElement>(null)
     const hostEl = host as HTMLElement | null
 
+    // NB: `scope:` receives the RAW scope — prop entries are `Signal`s
+    // (read `state.x()`, write `state.x.set(v)`). The unwrapped
+    // `state.x = v` form exists only on the MutableState proxy that
+    // `on:` handlers and `mount`/`unmount` receive.
     const writeStored = (suffix: string, val: string): void => {
-      try { localStorage.setItem(`${state.storageKey}-${suffix}`, val) }
+      try { localStorage.setItem(`${state.storageKey()}-${suffix}`, val) }
       catch { /* best-effort */ }
     }
 
     function activate(id: string): void {
       if (!tabs().some((t) => t.id === id)) return
-      if (state.activeTab === id) return
-      state.activeTab = id
+      if (state.activeTab() === id) return
+      state.activeTab.set(id)
       writeStored('active', id)
       hostEl?.dispatchEvent(
         new CustomEvent('sui:dock:activate', {
@@ -64,7 +68,7 @@ export default controller({
       // can dock the source/signals/etc. alongside their editor. Each
       // tab declares its own URL via a known map; unknown tabs fall
       // back to a generic /sui/<tab> path.
-      const tab = state.activeTab
+      const tab = state.activeTab()
       const url = ({
         terminal: '/sui/terminal',
         source: '/studio/components',
@@ -88,8 +92,8 @@ export default controller({
       )
     }
     function onEditModeToggle(): void {
-      const next = !state.editModeOn
-      state.editModeOn = next
+      const next = !state.editModeOn()
+      state.editModeOn.set(next)
       hostEl?.dispatchEvent(
         new CustomEvent('sui:dock:edit-mode-toggle', {
           detail: { on: next }, bubbles: true, composed: true,

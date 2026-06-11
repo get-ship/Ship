@@ -124,6 +124,6 @@ describe('<sui-theme-picker>', () => {
 
   it('disconnect — no error', () => {
     const { container } = mount(reg, 'sui-theme-picker')
-    container.remove()
+    expect(() => container.remove()).not.toThrow()
   })
 })

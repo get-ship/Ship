@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setRouterPort } from '@ship/sui-runtime'
 import '../../src/components/sui-command-bar/sui-command-bar.compiled.js'
 import '../../src/components/sui-command-bar/sui-command-palette.compiled.js'
 import '../../src/components/sui-command-bar/sui-command-chat.compiled.js'
@@ -249,38 +250,41 @@ describe('<sui-command-bar>', () => {
       expect(el.getAttribute('mode')).toBe('command')
     })
 
+    // NB: these start from a palette-bearing mode (command/find). `ai`
+    // renders <sui-command-chat>, which has no `.cb-search` — the palette
+    // input is the surface that drives detectMode.
     it('> prefix sets find mode', async () => {
       const { el } = makeBar()
-      ;(el as CB).show('ai')
+      ;(el as CB).show('command')
       await flush()
       const input = searchInput(el)
-      if (!input) return
-      input.value = '>dash'
-      input.dispatchEvent(new Event('input'))
+      expect(input).not.toBeNull()
+      input!.value = '>dash'
+      input!.dispatchEvent(new Event('input'))
       await flush()
       expect(el.getAttribute('mode')).toBe('find')
     })
 
     it('+ prefix sets create mode', async () => {
       const { el } = makeBar()
-      ;(el as CB).show('ai')
+      ;(el as CB).show('find')
       await flush()
       const input = searchInput(el)
-      if (!input) return
-      input.value = '+view'
-      input.dispatchEvent(new Event('input'))
+      expect(input).not.toBeNull()
+      input!.value = '+view'
+      input!.dispatchEvent(new Event('input'))
       await flush()
       expect(el.getAttribute('mode')).toBe('create')
     })
 
     it('@token sets mention mode', async () => {
       const { el } = makeBar()
-      ;(el as CB).show('ai')
+      ;(el as CB).show('find')
       await flush()
       const input = searchInput(el)
-      if (!input) return
-      input.value = '@agent'
-      input.dispatchEvent(new Event('input'))
+      expect(input).not.toBeNull()
+      input!.value = '@agent'
+      input!.dispatchEvent(new Event('input'))
       await flush()
       expect(el.getAttribute('mode')).toBe('mention')
     })
@@ -419,52 +423,49 @@ describe('<sui-command-bar>', () => {
     })
   })
 
-  describe('navigation contract — shell listens for sui:navigate', () => {
-    // The shell (apps/shell/src/main.ts) wires the actual mountRoute call
-    // off sui:navigate-with-detail. The bar's job is to dispatch that event
-    // with the chosen path — without it, selecting a result updated the URL
-    // silently and the page kept showing the old view.
-    it('clicking a find item dispatches sui:navigate with detail.to', async () => {
+  describe('navigation contract — selection routes through the unified router', () => {
+    // Per ADR unified-deck-router, selecting a result calls the runtime
+    // `navigate()`, which delegates to the host RouterPort (the shell
+    // registers one via setRouterPort at boot and dispatches `sui:navigate`
+    // as a *notification* after mounting). The bar's contract is the
+    // RouterPort call with the chosen path.
+    it('clicking a find item navigates to the item path', async () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
       await waitSearch()
-      const events: CustomEvent[] = []
-      const onNav = (e: Event) => {
-        const ce = e as CustomEvent<{ to?: string }>
-        if (ce.detail?.to) events.push(ce)
-      }
-      document.addEventListener('sui:navigate', onNav)
+      const navigated: string[] = []
+      const prevPort = globalThis.__shipRouterPort
+      setRouterPort({ navigate: (to) => navigated.push(to), back: () => {} })
       try {
         const item = palShadow(el)?.querySelector('.cb-item[data-path]') as HTMLElement | null
-        const expectedPath = item?.dataset['path']
-        item?.click()
+        expect(item).not.toBeNull()
+        const expectedPath = item!.dataset['path']
+        item!.click()
         await flush()
-        expect(events.length).toBeGreaterThan(0)
-        expect(events[0]!.detail.to).toBe(expectedPath)
+        expect(navigated.length).toBeGreaterThan(0)
+        expect(navigated[0]).toBe(expectedPath)
       } finally {
-        document.removeEventListener('sui:navigate', onNav)
+        globalThis.__shipRouterPort = prevPort
       }
     })
 
-    it('Enter on a find result dispatches sui:navigate with detail.to', async () => {
+    it('Enter on a find result navigates to the result path', async () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
       await waitSearch()
-      const events: CustomEvent[] = []
-      const onNav = (e: Event) => {
-        const ce = e as CustomEvent<{ to?: string }>
-        if (ce.detail?.to) events.push(ce)
-      }
-      document.addEventListener('sui:navigate', onNav)
+      const navigated: string[] = []
+      const prevPort = globalThis.__shipRouterPort
+      setRouterPort({ navigate: (to) => navigated.push(to), back: () => {} })
       try {
-        const expectedPath = (palShadow(el)?.querySelector('.cb-item[data-path]') as HTMLElement | null)
-          ?.dataset['path']
+        const item = palShadow(el)?.querySelector('.cb-item[data-path]') as HTMLElement | null
+        expect(item).not.toBeNull()
+        const expectedPath = item!.dataset['path']
         el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, composed: true }))
         await flush()
-        expect(events.length).toBeGreaterThan(0)
-        expect(events[0]!.detail.to).toBe(expectedPath)
+        expect(navigated.length).toBeGreaterThan(0)
+        expect(navigated[0]).toBe(expectedPath)
       } finally {
-        document.removeEventListener('sui:navigate', onNav)
+        globalThis.__shipRouterPort = prevPort
       }
     })
   })

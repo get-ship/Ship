@@ -42,7 +42,8 @@ describe('<sui-help-overlay>', () => {
     const { el } = mount(reg, 'sui-help-overlay')
     await flush()
     const rows = [...shadow(el).querySelectorAll('.row')].map((r) => ({
-      keys: [...r.querySelectorAll('sui-kbd')].map((k) => k.textContent).join(''),
+      // Native <kbd class="kbd"> since d04fdd672 cut the sui-kbd primitive.
+      keys: [...r.querySelectorAll('kbd.kbd')].map((k) => k.textContent).join(''),
       desc: r.querySelector('.desc')!.textContent,
     }))
     expect(rows).toContainEqual({ keys: '⌘K', desc: 'Open command palette' })
@@ -56,7 +57,7 @@ describe('<sui-help-overlay>', () => {
     const chord = [...shadow(el).querySelectorAll('.row')].find(
       (r) => r.querySelector('.desc')!.textContent === 'Toggle annotation mode',
     )!
-    expect(chord.querySelectorAll('sui-kbd').length).toBe(3)
+    expect(chord.querySelectorAll('kbd.kbd').length).toBe(3)
     expect(chord.querySelectorAll('.plus').length).toBe(2)
   })
 

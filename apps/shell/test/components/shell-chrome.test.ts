@@ -4,6 +4,7 @@
 // the earlier <sui-shell-top> primitive was consolidated away.
 
 import { afterEach, describe, expect, it } from 'vitest'
+import { setRouterPort } from '@ship/sui-runtime'
 import '../../src/components/sui-shell-bottom/sui-shell-bottom.compiled.js'
 import '../../src/components/sui-blank-canvas/sui-blank-canvas.compiled.js'
 // sui-icon + sui-spinner are referenced by sui-blank-canvas's template.
@@ -99,15 +100,22 @@ describe('<sui-blank-canvas>', () => {
     expect(fired.length).toBe(1)
   })
 
-  it('studio hint click emits sui:navigate { to: "/studio" }', async () => {
+  it('studio hint navigates to /studio via the unified router', async () => {
+    // Per ADR unified-deck-router, components call the runtime `navigate()`
+    // (which delegates to the host RouterPort); `sui:navigate` is now a
+    // notification the SHELL dispatches after mounting, not a component event.
     const { el } = mount(reg, 'sui-blank-canvas')
-    const fired: CustomEvent[] = []
-    document.addEventListener('sui:navigate', (e) => fired.push(e as CustomEvent), { once: true })
-    const hint = shadow(el).querySelector('[data-hint="studio"]') as HTMLButtonElement
-    hint.click()
-    await flush()
-    expect(fired.length).toBe(1)
-    expect((fired[0]!.detail as { to: string }).to).toBe('/studio')
+    const navigated: string[] = []
+    const prevPort = globalThis.__shipRouterPort
+    setRouterPort({ navigate: (to) => navigated.push(to), back: () => {} })
+    try {
+      const hint = shadow(el).querySelector('[data-hint="studio"]') as HTMLButtonElement
+      hint.click()
+      await flush()
+      expect(navigated).toEqual(['/studio'])
+    } finally {
+      globalThis.__shipRouterPort = prevPort
+    }
   })
 
   it('terminal hint click emits sui-toggle-terminal', async () => {

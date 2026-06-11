@@ -50,7 +50,9 @@ export default controller({
 
     const close = () => {
       hostEl.dispatchEvent(new CustomEvent('sui-help-close', { bubbles: true, composed: true }))
-      if (state.open) state.open = false
+      // `scope:` receives the RAW scope — `open` is the prop Signal here,
+      // not the unwrapped MutableState view that `mount`/`on:` handlers get.
+      if (state.open()) state.open.set(false)
     }
 
     return { dialogEl, groups, onClose: () => close() }
