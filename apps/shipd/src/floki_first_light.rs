@@ -26,7 +26,8 @@ use floki::{
 use floki::dispatch::GatewayDispatch;
 use floki::provider::{Byok, CredentialSource};
 use agent_def::dispatch_intent::DispatchRequestedPayload;
-use durable_execution::{InMemoryJournalStore, Journal, JournalStore, execute};
+use durable_execution::{Journal, JournalStore, execute};
+use ship_substrate::persistence::SqliteJournalStore;
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, EventSink};
 use ship_types::{Authority, ScopeBinding};
 
@@ -114,6 +115,8 @@ pub async fn run_floki_step(
     );
 
     // ── Session event sink ────────────────────────────────────────────────────
+    // Resolve the ship dir BEFORE the kernel Arc moves into the sink.
+    let ship_dir = kernel.lock().await.base_dir().to_path_buf();
     let session_sink = SessionEventSink::new(Arc::new(ShipdKernelSink::new(kernel)));
 
     // ── ToolCtx ───────────────────────────────────────────────────────────────
@@ -153,8 +156,9 @@ pub async fn run_floki_step(
 /// Stage-2: assembles a `FlokiProgram` and drives it through the durable
 /// execution engine (`execute()`), so every rig exchange is journaled and
 /// a crashed/suspended session can resume without re-burning model tokens.
-/// The journal is saved via `InMemoryJournalStore` (no cross-restart
-/// persistence yet — Stage-3 wires `SqliteJournalStore`).
+/// The journal is saved via the persisted `SqliteJournalStore` (P1.0b) —
+/// a suspended session survives a daemon restart; Stage-3 adds the boot-scan
+/// that auto-resumes it.
 ///
 /// `run_floki_step` is preserved for backward compatibility with tests that
 /// call it directly; the production dispatch path now goes through
@@ -197,6 +201,8 @@ pub async fn dispatch_floki_session(
         }
     };
     let auth = FlokiAuth::in_process(&payload.agent_id, vec![]);
+    // Resolve the ship dir BEFORE the kernel Arc moves into the sink.
+    let ship_dir = kernel.lock().await.base_dir().to_path_buf();
     let session_sink = SessionEventSink::new(Arc::new(ShipdKernelSink::new(kernel)));
     let tool_ctx = ToolCtx {
         session_sink,
@@ -210,8 +216,18 @@ pub async fn dispatch_floki_session(
     let executor = Arc::new(ScriptExecutor::spawn());
     let gw: Arc<dyn floki::Gateway> = gateway;
 
-    // ── Journal store (Stage-2: in-memory; Stage-3: SqliteJournalStore) ──
-    let store = InMemoryJournalStore::new();
+    // ── Journal store: the PERSISTED store (P1.0b) so a suspended floki
+    // session survives a daemon restart. (Verifier+fresh-eyes caught the
+    // committed Stage-2 constructing InMemoryJournalStore per call — no
+    // cross-restart persistence despite the design.) The runtime db carries
+    // the durable_journals table via migration 202606100001.
+    let store = match SqliteJournalStore::open(&ship_substrate::db::runtime_db_path(&ship_dir)).await {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!(error = %e, "floki: cannot open the journal store; session will not be durable");
+            return;
+        }
+    };
     let journal = store
         .load(&payload.session_id)
         .await

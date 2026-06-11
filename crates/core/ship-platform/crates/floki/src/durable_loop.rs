@@ -230,25 +230,34 @@ where
     M: CompletionModel + Send + Sync + Clone + 'static,
 {
     async fn run(&self, ctx: &mut ExecCtx) -> Result<Value, EngineError> {
-        // Emit session.started at the top of the durable run. On replay this
-        // is a no-op (ctx.record returns the logged value without re-emitting).
-        // On the live frontier the event fires exactly once.
-        self.tool_ctx
-            .session_sink
-            .emit_session_started(
-                &self.tool_ctx.session_id,
+        // Emit session.started exactly once across execute()+resume(): the
+        // emission is itself a journaled op (ctx.record), so the live frontier
+        // fires it and every replay returns the logged marker WITHOUT
+        // re-emitting. (Verifier-caught: the previous code claimed this fence
+        // in a comment but called the sink unfenced — session.started
+        // double-emitted on every resume.)
+        let sink = &self.tool_ctx.session_sink;
+        let session_id = self.tool_ctx.session_id.clone();
+        let space_id = self.tool_ctx.space_id.clone();
+        let initial_input = self.initial_input.clone();
+        ctx.record("session.start", || async move {
+            sink.emit_session_started(
+                &session_id,
                 &SessionStarted {
-                    session_id: self.tool_ctx.session_id.clone(),
+                    session_id: session_id.clone(),
                     agent_id: String::new(), // resolved by caller if needed
                     harness: "floki".into(),
                     model: None,
-                    space_id: self.tool_ctx.space_id.clone(),
+                    space_id,
                     slug: None,
-                    input: Some(self.initial_input.clone()),
+                    input: Some(initial_input),
                     parent: None,
                 },
             )
             .ok();
+            serde_json::Value::Bool(true)
+        })
+        .await?;
 
         let mut chat_history: Vec<Message> = Vec::new();
         let mut final_text = String::new();
