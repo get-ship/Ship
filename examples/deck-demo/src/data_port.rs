@@ -1,13 +1,15 @@
-//! Ship-free in-memory data port for the deck-demo live-data + mutation showcases.
+//! Ship-free in-memory data port for the deck-demo live-data showcases.
 //!
-//! Provides the three `/_deck/` endpoints the SUI wire protocol requires:
+//! Provides the two live `/_deck/` endpoints the SUI wire protocol requires:
 //! - `GET /_deck/views/{name}/sse`         — per-view live-data SSE channel
-//! - `POST /_deck/mutation/{name}?form=`   — progressive-enhancement mutation
 //! - `GET /_deck/data?expr=`               — single-expression SSE stream
 //!
-//! The host contract matches `apps/shipd/src/views/sui_*.rs` verbatim, with
-//! the kernel and registry removed. `resolve_demo` is the local registry.
-//! All SSE encoding comes from `deck_core::live_wire` — no copies.
+//! (`POST /_deck/mutation/{name}` is NOT wired here: deck's own router
+//! tombstones it with 410 Gone — the progressive-enhancement form endpoint
+//! retired framework-wide; JS-attached mutations call the SDK directly.)
+//!
+//! `resolve_demo` is the local registry, mirroring shipd's with the kernel
+//! removed. All SSE encoding comes from `deck_core::live_wire` — no copies.
 //!
 //! The vocabulary is `ship.demo.*`. The SUI compiler bakes `ship.<ns>.<method>`
 //! into every form action and SSE subscription; using `ship.demo.*` here proves
@@ -21,11 +23,11 @@ use std::time::Duration;
 
 use axum::{
     Router,
-    body::{Body, Bytes},
+    body::Body,
     extract::{Path, Query, State},
     http::{StatusCode, header},
     response::Response,
-    routing::{get, post},
+    routing::get,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -37,7 +39,6 @@ use tokio_util::sync::CancellationToken;
 use deck_core::live_wire::{format_keepalive, format_patch_set, format_patch_signals};
 use deck_core::render_helpers::is_valid_view_name;
 use futures_util::StreamExt as _;
-use sui_compiler::{bindings, keys::BindingKind, parse};
 
 // ── store ─────────────────────────────────────────────────────────────────────
 
@@ -319,99 +320,6 @@ async fn run_live_source(
     }
 }
 
-// ── mutation handler ──────────────────────────────────────────────────────────
-
-#[derive(Debug, Deserialize)]
-struct MutationQuery {
-    form: String,
-}
-
-/// Maximum body size for a PE form submission (mirrors shipd's per-route limit).
-/// Without this guard, axum buffers arbitrarily large request bodies before the
-/// handler is invoked. 64 KB is well above any real HTML form.
-const MAX_MUTATION_BODY_BYTES: usize = 64 * 1024;
-
-/// `POST /_deck/mutation/{name}?form=<key>` — PE form submission.
-/// Mirror: `apps/shipd/src/views/sui_mutation.rs` (kernel removed).
-async fn serve_mutation(
-    Path(name): Path<String>,
-    Query(q): Query<MutationQuery>,
-    State(store): State<Arc<DemoStore>>,
-    headers: axum::http::HeaderMap,
-    body: Bytes,
-) -> Response {
-    if body.len() > MAX_MUTATION_BODY_BYTES {
-        return Response::builder()
-            .status(StatusCode::PAYLOAD_TOO_LARGE)
-            .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-            .body(Body::from("request body too large"))
-            .unwrap_or_else(|_| Response::new(Body::empty()));
-    }
-    if !is_valid_view_name(&name) {
-        return not_found(&format!("invalid view name: {name}"));
-    }
-    let source = match deck_core::render_helpers::render_view_source(&name) {
-        Some(s) => s,
-        None => return not_found(&format!("view not found: views/{name}/page.sui")),
-    };
-
-    // Resolve the mutation chain via the compiled binding registry.
-    let chain = match resolve_mutation_chain(&source, &q.form) {
-        Some(c) => c,
-        None => {
-            return not_found(&format!(
-                "form key `{}` not found in view `{name}`",
-                q.form
-            ));
-        }
-    };
-
-    // Strip `ship.` prefix, parse form body.
-    let registry_name = chain.strip_prefix("ship.").unwrap_or(&chain).to_string();
-    let args = parse_form_body(&body);
-    let referer = referer_url(&headers);
-
-    // Dispatch to local resolver and bump subscribers on success.
-    match resolve_demo(&registry_name, &args, &store).await {
-        Ok(_) => {
-            let _ = store.bump.send(());
-            redirect_303(&referer)
-        }
-        Err(e) => {
-            tracing::warn!(chain = %chain, error = %e, "data_port: mutation failed");
-            redirect_error(&referer, &e)
-        }
-    }
-}
-
-/// Walk the compiled binding registry for a `Mutation` with the given key.
-fn resolve_mutation_chain(source: &str, key: &str) -> Option<String> {
-    let program = parse::parse(source).ok()?;
-    let reg = bindings::build(&program);
-    reg.iter()
-        .find(|b| b.key == key && matches!(b.kind, BindingKind::Mutation))
-        .map(|b| b.expr.clone())
-}
-
-/// Convert URL-encoded form body to a JSON object.
-pub fn parse_form_body(body: &[u8]) -> Value {
-    let mut obj = serde_json::Map::new();
-    for (k, v) in form_urlencoded::parse(body) {
-        let val = Value::String(v.into_owned());
-        match obj.get_mut(k.as_ref()) {
-            Some(Value::Array(arr)) => arr.push(val),
-            Some(existing) => {
-                let prev = std::mem::replace(existing, Value::Null);
-                *existing = Value::Array(vec![prev, val]);
-            }
-            None => {
-                obj.insert(k.into_owned(), val);
-            }
-        }
-    }
-    Value::Object(obj)
-}
-
 // ── data endpoint ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
@@ -507,47 +415,11 @@ fn is_valid_expr(expr: &str) -> bool {
 pub fn router(store: Arc<DemoStore>) -> Router {
     Router::new()
         .route("/_deck/views/{name}/sse", get(serve_sse))
-        .route("/_deck/mutation/{name}", post(serve_mutation))
         .route("/_deck/data", get(serve_data))
         .with_state(store)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
-
-fn referer_url(headers: &axum::http::HeaderMap) -> String {
-    headers
-        .get(header::REFERER)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("/")
-        .to_string()
-}
-
-fn redirect_303(location: &str) -> Response {
-    Response::builder()
-        .status(StatusCode::SEE_OTHER)
-        .header(header::LOCATION, location)
-        .body(Body::empty())
-        .unwrap_or_else(|_| Response::new(Body::empty()))
-}
-
-fn redirect_error(referer: &str, msg: &str) -> Response {
-    let encoded = form_urlencoded::byte_serialize(msg.as_bytes()).collect::<String>();
-    let base = referer.split('?').next().unwrap_or(referer);
-    let location = format!("{base}?_sui_error={encoded}");
-    Response::builder()
-        .status(StatusCode::SEE_OTHER)
-        .header(header::LOCATION, location)
-        .body(Body::empty())
-        .unwrap_or_else(|_| Response::new(Body::empty()))
-}
-
-fn not_found(msg: &str) -> Response {
-    Response::builder()
-        .status(StatusCode::NOT_FOUND)
-        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-        .body(Body::from(msg.to_string()))
-        .unwrap_or_else(|_| Response::new(Body::from("not found")))
-}
 
 fn sse_error(status: StatusCode, msg: &str) -> Response {
     Response::builder()
@@ -651,36 +523,4 @@ mod tests {
         assert!(r.unwrap_err().contains("unknown_service"));
     }
 
-    #[test]
-    fn parse_form_body_basic() {
-        let v = parse_form_body(b"text=hello+world");
-        assert_eq!(v["text"], "hello world");
-    }
-
-    #[test]
-    fn parse_form_body_empty() {
-        let v = parse_form_body(b"");
-        assert!(v.as_object().unwrap().is_empty());
-    }
-
-    #[test]
-    fn resolve_mutation_chain_finds_key() {
-        let src = r#"<form mutation="ship.demo.addTodo"><input name="text"/></form>"#;
-        let program = parse::parse(src).unwrap();
-        let reg = bindings::build(&program);
-        let key = reg
-            .iter()
-            .find(|b| matches!(b.kind, BindingKind::Mutation))
-            .expect("mutation binding")
-            .key
-            .clone();
-        let chain = resolve_mutation_chain(src, &key).unwrap();
-        assert_eq!(chain, "ship.demo.addTodo");
-    }
-
-    #[test]
-    fn resolve_mutation_chain_missing_key_is_none() {
-        let src = r#"<form mutation="ship.demo.addTodo"></form>"#;
-        assert!(resolve_mutation_chain(src, "b9999").is_none());
-    }
 }

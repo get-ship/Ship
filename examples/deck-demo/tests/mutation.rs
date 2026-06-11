@@ -1,12 +1,15 @@
-//! Slice 8 — mutation endpoint (no browser, ship-free).
+//! Slice 8 — mutation vocabulary (no browser, ship-free).
 //!
-//! 1. Parses the real form binding key from `views/todos/page.sui` via
-//!    `sui_compiler::{parse, bindings}` — the same path the handler uses.
-//! 2. POSTs `application/x-www-form-urlencoded text=hi` to
-//!    `/_deck/mutation/todos?form=<key>` with a `Referer` header.
-//! 3. Asserts HTTP 303 and `Location` == `Referer`.
-//! 4. Resolves `ship.demo.todos()` directly against the store and asserts
-//!    the new item appears.
+//! The progressive-enhancement form endpoint (`POST /_deck/mutation/{name}`)
+//! retired framework-wide: deck's router answers it with a 410 tombstone and
+//! JS-attached mutations call the SDK directly. What this file still gates:
+//!
+//! 1. The wire vocabulary contract — `views/todos/page.sui` carries exactly
+//!    one mutation binding pointing at `ship.demo.addTodo`, parsed via
+//!    `sui_compiler::{parse, bindings}` (the same path a host uses).
+//! 2. Resolver semantics — `demo.addTodo` then `demo.todos` against the store.
+//! 3. The tombstone itself — a form POST receives 410 Gone, not a 404 (deck
+//!    still composes this URL as the no-JS `<form>` action).
 //!
 //! Run: `cargo test -p deck-demo --test mutation`
 
@@ -18,30 +21,17 @@ use serde_json::json;
 use sui_compiler::{bindings, keys::BindingKind, parse};
 use tower::ServiceExt;
 
-/// Read the mutation binding key from the todos view source.
-fn todos_form_key() -> String {
-    let app_dir = default_app_dir();
-    let source =
-        std::fs::read_to_string(app_dir.join("views/todos/page.sui")).expect("todos page.sui");
-    let program = parse::parse(&source).expect("parse todos");
-    let reg = bindings::build(&program);
-    reg.iter()
-        .find(|b| matches!(b.kind, BindingKind::Mutation))
-        .expect("mutation binding in todos view")
-        .key
-        .clone()
-}
-
-/// POST text=hi → 303 redirect back to Referer.
+/// The PE form endpoint is a deliberate 410 tombstone in deck's router —
+/// the URL is still composed as the no-JS `<form>` action, so it must answer
+/// Gone (the surface existed and was retired), never 404.
 #[tokio::test(flavor = "multi_thread")]
-async fn mutation_post_returns_303_to_referer() {
-    let key = todos_form_key();
+async fn mutation_post_is_tombstoned_410() {
     let app = deck_app(default_app_dir());
     let resp = app
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/_deck/mutation/todos?form={key}"))
+                .uri("/_deck/mutation/todos?form=b0")
                 .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                 .header(header::REFERER, "http://localhost:7878/_deck/view/todos")
                 .body(Body::from("text=hi"))
@@ -49,91 +39,10 @@ async fn mutation_post_returns_303_to_referer() {
         )
         .await
         .expect("response");
-
     assert_eq!(
         resp.status(),
-        StatusCode::SEE_OTHER,
-        "mutation must 303 redirect; got {}",
-        resp.status()
-    );
-    let location = resp
-        .headers()
-        .get(header::LOCATION)
-        .and_then(|v| v.to_str().ok())
-        .expect("Location header");
-    assert_eq!(
-        location,
-        "http://localhost:7878/_deck/view/todos",
-        "Location must equal Referer; got: {location}"
-    );
-}
-
-/// POST with no Referer → 303 redirect to `/`.
-#[tokio::test(flavor = "multi_thread")]
-async fn mutation_post_no_referer_redirects_to_root() {
-    let key = todos_form_key();
-    let app = deck_app(default_app_dir());
-    let resp = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri(format!("/_deck/mutation/todos?form={key}"))
-                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-                .body(Body::from("text=no-referer"))
-                .unwrap(),
-        )
-        .await
-        .expect("response");
-    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
-    let location = resp
-        .headers()
-        .get(header::LOCATION)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    assert_eq!(location, "/", "no Referer → redirect to /; got: {location}");
-}
-
-/// POST with unknown form key → 404.
-#[tokio::test(flavor = "multi_thread")]
-async fn mutation_unknown_form_key_is_404() {
-    let app = deck_app(default_app_dir());
-    let resp = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/_deck/mutation/todos?form=b9999")
-                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-                .body(Body::from("text=x"))
-                .unwrap(),
-        )
-        .await
-        .expect("response");
-    assert_eq!(
-        resp.status(),
-        StatusCode::NOT_FOUND,
-        "unknown form key must 404"
-    );
-}
-
-/// POST to unknown view → 404.
-#[tokio::test(flavor = "multi_thread")]
-async fn mutation_unknown_view_is_404() {
-    let app = deck_app(default_app_dir());
-    let resp = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/_deck/mutation/no-such-view?form=b0")
-                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-                .body(Body::from("text=x"))
-                .unwrap(),
-        )
-        .await
-        .expect("response");
-    assert_eq!(
-        resp.status(),
-        StatusCode::NOT_FOUND,
-        "unknown view must 404"
+        StatusCode::GONE,
+        "PE form mutations are retired; the tombstone must answer 410"
     );
 }
 
@@ -176,33 +85,6 @@ fn todos_view_has_mutation_binding_for_add_todo() {
         mutations[0].expr, "ship.demo.addTodo",
         "mutation must point at ship.demo.addTodo; got: {}",
         mutations[0].expr
-    );
-}
-
-/// POST with a body over 64 KB → 413 Payload Too Large.
-/// Without this guard axum buffers the full body before the handler is called;
-/// a sustained POST of moderate-sized bodies is a DoS against the parse loop.
-#[tokio::test(flavor = "multi_thread")]
-async fn mutation_oversized_body_returns_413() {
-    let app = deck_app(default_app_dir());
-    // 65 KB: one byte over the 64 KB limit.
-    let big_body = vec![b'a'; 65 * 1024];
-    let resp = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/_deck/mutation/todos?form=b0")
-                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-                .body(Body::from(big_body))
-                .unwrap(),
-        )
-        .await
-        .expect("response");
-    assert_eq!(
-        resp.status(),
-        StatusCode::PAYLOAD_TOO_LARGE,
-        "body over 64 KB must return 413; got {}",
-        resp.status()
     );
 }
 

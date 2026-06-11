@@ -17,7 +17,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use deck_demo::{deck_app, default_app_dir};
 use tower::ServiceExt as _;
-use sui_compiler::{bindings, keys::BindingKind, parse};
 
 /// Bind an ephemeral port, serve the demo app, connect with a raw TCP stream,
 /// parse SSE frames until we have `want` complete frames or the timeout fires.
@@ -182,46 +181,35 @@ async fn sse_unknown_view_is_404() {
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 }
 
-fn todos_form_key() -> String {
-    let src = std::fs::read_to_string(default_app_dir().join("views/todos/page.sui"))
-        .expect("todos page.sui");
-    let program = parse::parse(&src).expect("parse todos");
-    bindings::build(&program)
-        .iter()
-        .find(|b| matches!(b.kind, BindingKind::Mutation))
-        .expect("mutation binding")
-        .key
-        .clone()
-}
-
-/// THE definitive mutation→live-data gate — the exact browser 303-reload
-/// scenario playwright couldn't confirm under WSL2, proven ship-free at the
-/// Rust tier: after a form mutation, a FRESH live subscriber to the same
-/// server immediately sees the new todo. One server = one shared store; the
-/// mutation persists and the new SSE's first frame resolves it. Composes the
-/// two halves (mutation→store and store→SSE-push) into the end-to-end contract.
+/// THE definitive mutation→live-data gate, proven ship-free at the Rust tier:
+/// after a mutation, a FRESH live subscriber to the same server immediately
+/// sees the new todo. One server = one shared store; the mutation persists and
+/// the new SSE's first frame resolves it. The mutation dispatches to the
+/// registry op (`demo.addTodo`) directly — the PE form POST it used to travel
+/// through is a 410 tombstone in deck's router (JS-attached mutations call the
+/// SDK); the composed store→SSE contract is unchanged.
 #[tokio::test(flavor = "multi_thread")]
 async fn fresh_live_subscriber_sees_todo_after_mutation() {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    let app = deck_app(default_app_dir());
+    let store = deck_demo::DemoStore::new();
+    let app = deck_demo::deck_app_with_store(
+        default_app_dir(),
+        deck::DaemonMode::Development,
+        store.clone(),
+    );
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move { axum::serve(listener, app).await.expect("serve"); });
-    let key = todos_form_key();
 
-    // 1. POST the form mutation (shares the running server's store).
-    {
-        let mut s = tokio::net::TcpStream::connect(addr).await.unwrap();
-        let body = "text=composed-gate";
-        let req = format!(
-            "POST /_deck/mutation/todos?form={key} HTTP/1.1\r\nHost: x\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-            body.len()
-        );
-        s.write_all(req.as_bytes()).await.unwrap();
-        let mut tmp = [0u8; 1024];
-        let _ = tokio::time::timeout(Duration::from_secs(2), s.read(&mut tmp)).await;
-    }
+    // 1. Mutate the running server's store via the registry op.
+    deck_demo::data_port::resolve_demo(
+        "demo.addTodo",
+        &serde_json::json!({ "text": "composed-gate" }),
+        &store,
+    )
+    .await
+    .expect("addTodo mutation");
 
     // 2. Open a FRESH todos SSE; its first frame resolves the current store.
     let mut stream = tokio::net::TcpStream::connect(addr).await.unwrap();
