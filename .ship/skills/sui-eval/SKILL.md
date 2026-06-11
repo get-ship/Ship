@@ -1,6 +1,7 @@
 ---
 name: sui-eval
 stable-id: sui-eval
+audience: internal
 description: Run the SUI authoring eval. Dispatch lane agents to build a view from a spec, watch their tmux panes for idle (not commits), grade compile + lint + structure, record scores to the sui-eval-runs collection. Off-daemon — uses dispatch.sh, not pipelines.
 tags: [eval, sui, dispatch, grading]
 authors: [ship]
