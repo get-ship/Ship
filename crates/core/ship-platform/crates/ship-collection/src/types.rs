@@ -69,5 +69,5 @@ pub struct ItemRecord {
 
 /// Reserved collection IDs that may not be used for user-created schemas.
 pub const RESERVED_IDS: &[&str] = &[
-    "notes", "feedback", "annotations", "_schema_registry",
+    "notes", "feedback", "annotations", "decisions", "_schema_registry",
 ];
