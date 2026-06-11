@@ -78,6 +78,104 @@ fn multiple_clients_each_destructured() {
 }
 
 #[test]
+fn client_name_must_be_a_js_identifier() {
+    // A kebab name would emit `const { my-api } = ctx.clients` — a JS syntax
+    // error in every consumer. Reject at parse with a directive-shaped span.
+    let err = compile("<client name=\"my-api\" />\n<div>x</div>", CompileOpts::default())
+        .expect_err("kebab client name must be rejected");
+    assert!(
+        err.message.contains("must be a JS identifier"),
+        "got: {}",
+        err.message
+    );
+}
+
+#[test]
+fn reserved_setup_context_names_rejected() {
+    for reserved in ["route", "navigate", "ctx", "scope", "props", "derived"] {
+        let src = format!("<client name=\"{reserved}\" />\n<div>x</div>");
+        let err = compile(&src, CompileOpts::default())
+            .expect_err("reserved client name must be rejected");
+        assert!(
+            err.message.contains("reserved"),
+            "`{reserved}` should be reserved; got: {}",
+            err.message
+        );
+    }
+}
+
+#[test]
+fn duplicate_client_declaration_rejected() {
+    let err = compile(
+        "<client name=\"feed\" />\n<client name=\"feed\" />\n<div>x</div>",
+        CompileOpts::default(),
+    )
+    .expect_err("duplicate client must be rejected");
+    assert!(err.message.contains("more than once"), "got: {}", err.message);
+}
+
+#[test]
+fn default_export_carries_declared_client_list() {
+    // The mount contract: hosts/runtime introspect which client keys a view
+    // consumes from the default export, beside _compilerVersion.
+    let out = js(
+        "<client name=\"crm\" />\n\
+         <client name=\"analytics\" />\n\
+         <data name=\"a\" source=\"crm.leads()\" live />\n\
+         <div>{a().kind}</div>",
+    );
+    assert!(
+        out.contains("clients: [\"crm\", \"analytics\"]"),
+        "default export must carry the declared client list; got:\n{out}"
+    );
+}
+
+#[test]
+fn undeclared_view_exports_empty_client_list() {
+    let out = js("<div>hello</div>");
+    assert!(
+        out.contains("clients: []"),
+        "no-declaration views export an empty list (ambient-ship compatibility default); got:\n{out}"
+    );
+}
+
+#[test]
+fn meta_sidecar_carries_declared_client_list() {
+    let out = compile(
+        "<client name=\"feed\" />\n<data name=\"t\" source=\"feed.clock()\" live />\n<div>{t().kind}</div>",
+        CompileOpts::default(),
+    )
+    .expect("compile");
+    let meta = out.meta.expect("meta emitted");
+    assert_eq!(
+        meta["clients"],
+        serde_json::json!(["feed"]),
+        "meta sidecar must list declared clients; got: {meta}"
+    );
+}
+
+#[test]
+fn declared_ship_routes_through_ctx_clients_with_legacy_fallback() {
+    // `<client name="ship" />` is the migration affordance: the same key now
+    // flows through the keyed map, while `ctx.ship` stays a fallback for
+    // hosts that haven't switched their mount call yet.
+    let out = js(
+        "<client name=\"ship\" />\n\
+         <data name=\"t\" source=\"ship.git.overview()\" live />\n\
+         <div>{t().kind}</div>",
+    );
+    assert!(
+        out.contains("const ship = (ctx.clients ?? {}).ship ?? ctx.ship;"),
+        "declared ship resolves clients-first with ctx.ship fallback; got:\n{out}"
+    );
+    assert!(
+        !out.contains("const { ship"),
+        "declared ship must not also be destructured from ctx; got:\n{out}"
+    );
+    assert!(out.contains("clients: [\"ship\"]"), "export list includes ship");
+}
+
+#[test]
 fn ship_grandfathered_not_routed_through_ctx_clients() {
     // A `ship.*` view with no `<client>` still emits the hardcoded destructure
     // (existing views are untouched through the migration); it is NOT routed

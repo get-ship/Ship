@@ -16,6 +16,13 @@ pub(super) fn emit_setup_body(
     lowered: &Lowered,
 ) {
     let is_component = matches!(mode, CompileMode::Component);
+    // A view that DECLARES `<client name="ship" />` opts into the keyed
+    // injection surface: `ship` resolves from `ctx.clients.ship`, falling
+    // back to the legacy `ctx.ship` alias so hosts that only pass
+    // `opts.ship` keep working through the migration. Undeclared `ship`
+    // stays the grandfathered ambient default (plain ctx destructure).
+    let ship_via_clients =
+        !is_component && program.clients.iter().any(|c| c.name == "ship");
     if is_component {
         w.line("const { props, host } = ctx;");
         w.line("if (!ctx.cleanups) ctx.cleanups = [];");
@@ -24,9 +31,18 @@ pub(super) fn emit_setup_body(
         // Don't destructure `route` from ctx — the module-level
         // `__routeFactory` import (from `@ship/sui-runtime/route`) uses
         // the same name. Access `ctx.route` directly so there's no clash.
-        w.line("const { ship, navigate } = ctx;");
+        if ship_via_clients {
+            w.line("const { navigate } = ctx;");
+        } else {
+            w.line("const { ship, navigate } = ctx;");
+        }
+    } else if ship_via_clients {
+        w.line("const { route, navigate } = ctx;");
     } else {
         w.line("const { ship, route, navigate } = ctx;");
+    }
+    if ship_via_clients {
+        w.line("const ship = (ctx.clients ?? {}).ship ?? ctx.ship;");
     }
     w.line("const $scope = Object.create(null);");
     if is_component {
