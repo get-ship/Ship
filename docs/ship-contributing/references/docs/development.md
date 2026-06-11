@@ -109,13 +109,14 @@ just check-gates  # Verify both stable and unstable configurations compile
 ### Generated TS bindings (`cargo xtask gen-types`)
 
 The `xtask` crate (`crates/xtask/`) emits TypeScript types from Rust
-structs via [specta](https://docs.rs/specta). Three files are produced:
+structs via [specta](https://docs.rs/specta). Four files are produced:
 
-| Output | Source registration | Consumers |
-|--------|---------------------|-----------|
-| `packages/deck/sdk/src/generated.ts` | `collect_types()` | `@ship/ui-components/types`, `@ship/sdk` |
-| `packages/cloud-types/src/generated.ts` | `build_cloud_types()` | Cloudflare worker, cloud event router |
-| `packages/sui/runtime/src/generated.ts` | `collect_framework_types()` | `@ship/sui-runtime`, `@ship/sdk-client` |
+| Output | Source registration | Package |
+|--------|---------------------|---------|
+| `packages/deck/sdk/src/generated.ts` | `collect_types()` | `@ship/sdk` |
+| `packages/cloud-types/src/generated.ts` | `build_cloud_types()` | `@ship-cloud/types` (Cloudflare worker, cloud event router) |
+| `packages/sui/runtime/src/generated.ts` | `collect_framework_types()` | `@ship/sui-runtime` |
+| `packages/deck/sdk-client/src/generated.ts` | `collect_ship_data_types()` | `@ship/sdk-client` |
 
 **When you add a new Rust struct that crosses the daemon ↔ runtime
 boundary:**
@@ -128,8 +129,9 @@ boundary:**
    pub struct ViewSomething { /* … */ }
    ```
 
-2. Register it in `crates/xtask/src/main.rs` — `collect_framework_types()`
-   for daemon ↔ runtime data, `collect_types()` for project config.
+2. Register it in `crates/xtask/src/types.rs` — `collect_framework_types()`
+   for daemon ↔ runtime data, `collect_types()` for project config,
+   `collect_ship_data_types()` for daemon ↔ view data.
 3. Run `cargo xtask gen-types` and commit the regenerated `.ts` file.
 4. Import the generated type in TS via `@ship/sui-runtime` (re-exported
    from `packages/sui/runtime/src/index.ts`) — never hand-write a
