@@ -133,6 +133,15 @@ jobs:
         run: |
           cargo run -p xtask --quiet -- gen-tokens --check \
             || { echo "tokens.json is stale — run 'cargo run -p xtask -- gen-tokens' and commit"; exit 1; }
+      # gen-types emits the TS response types (packages/deck/sdk, sdk-client,
+      # sui/runtime, cloud-types) from the Rust specta registrations. The
+      # outputs are gitignored, so drift between a Rust type change and the
+      # generated TS is invisible without this check — retired registrations
+      # left consumers importing names that no longer generate (#265 fallout).
+      - name: Check gen-types drift
+        run: |
+          cargo run -p xtask --quiet -- gen-types --check \
+            || { echo "generated TS types are stale — run 'cargo run -p xtask -- gen-types' and fix consumers"; exit 1; }
       # The daemon HTTP route reference (skills/sdk/http-routes) is generated
       # from the @route annotations in apps/shipd/src/routes/mod.rs — the same
       # registry build.rs compiles into the router. Re-render + byte-compare so
