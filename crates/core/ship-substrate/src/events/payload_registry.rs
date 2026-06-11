@@ -201,10 +201,11 @@ register_event!("process.spawned", [EventScope::Runtime], Retention::Ephemeral, 
 register_event!("supervisor.shutting_down", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SupervisorShuttingDown", crate::events::types::SupervisorShuttingDown);
 
 // ── sync.* ──────────────────────────────────────────────────────────────────
-register_event!("sync.push.completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SyncPushCompleted", crate::events::types::SyncPushCompleted);
-register_event!("sync.push.failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SyncPushFailed", crate::events::types::SyncPushFailed);
-register_event!("sync.started", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SyncStarted", crate::events::types::SyncStarted);
-register_event!("sync.stopped", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SyncStopped", crate::events::types::SyncStopped);
+// Moved to ship-cloud/src/event_registrations.rs (substrate-cohesion
+// de-bucket, 2026-06-11): sync.push.completed / sync.push.failed /
+// sync.started / sync.stopped — the CLOUD/SYNC domain owns its events at L1
+// in ship-cloud (sole emitter: SyncServiceHandler). Payload structs remain
+// in ship_types::payload. L0 count: 52→48.
 
 // ── view.* ──────────────────────────────────────────────────────────────────
 // view.changed — moved to ship-config/src/event_registrations.rs (keystone-A

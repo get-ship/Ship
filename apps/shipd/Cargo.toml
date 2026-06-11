@@ -44,6 +44,7 @@ ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 ship-analytics = { path = "../../crates/core/ship-platform/crates/ship-analytics" }
 ship-search = { path = "../../crates/core/ship-platform/crates/ship-search" }
 ship-collection = { path = "../../crates/core/ship-platform/crates/ship-collection" }
+ship-cloud = { path = "../../crates/core/ship-cloud" }
 ship-git = { path = "../../crates/core/ship-git" }
 ship-artifacts = { path = "../../crates/core/ship-platform/crates/ship-artifacts" }
 ship-space = { path = "../../crates/core/ship-platform/crates/ship-space" }
@@ -138,7 +139,7 @@ ship-code = ["dep:ship-code", "harness-drivers"]
 # ship-agents and ship-platform get harness-drivers. With --no-default-features
 # all three compile flag-off (ship-code is absent, harness-driver stack gone).
 harness-drivers = ["ship-agents/harness-drivers", "ship-platform/harness-drivers"]
-unstable = ["ship-platform/unstable"]
+unstable = ["ship-platform/unstable", "ship-cloud/unstable"]
 # G2 daemon RSS-soak regression gate (.artifacts/sui-arc/integrity/report.md §4).
 # OFF by default so it never runs in `cargo test` / `just build`. The soak
 # harness (`tests/rss_soak.rs`) drives the leak-prone substrate churn

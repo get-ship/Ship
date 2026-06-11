@@ -9295,6 +9295,7 @@ dependencies = [
  "ship-artifacts",
  "ship-auth",
  "ship-auth-types",
+ "ship-cloud",
  "ship-code",
  "ship-collection",
  "ship-config",

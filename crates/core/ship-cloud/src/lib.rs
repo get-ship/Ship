@@ -14,6 +14,7 @@
 //! `ship-platform` L1 surface.
 
 pub mod client;
+pub mod event_registrations;
 pub mod types;
 #[cfg(feature = "unstable")]
 pub mod sync_service;
