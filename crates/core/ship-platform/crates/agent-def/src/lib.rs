@@ -17,6 +17,8 @@ pub mod emit;
 pub mod guards;
 pub mod harnesses;
 pub mod import;
+pub mod invocation;
+pub use invocation::InvocationMode;
 pub mod op;
 pub mod permissions;
 pub mod rule;

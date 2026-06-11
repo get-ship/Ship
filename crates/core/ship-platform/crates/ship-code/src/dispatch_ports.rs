@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 // Re-export the struct types that live in ship-substrate for harness_adapter compat.
 pub use ship_substrate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-pub use ship_substrate::events::agent_session::InvocationMode;
+pub use agent_def::InvocationMode;
 pub use ship_substrate::services::server_session::ServerSession;
 pub use ship_types::Authority;
 

@@ -387,8 +387,8 @@ fn legacy_families_pinned_until_sever() {
     // agent.session.* — SEVERED (#26, 2026-06-10): all 5 agent.session.*
     // events deregistered. Dispatch primitive is now `dispatch.requested`
     // (Runtime/Ephemeral, registered at L1 in agent-def). The payload structs
-    // in `ship_substrate::events::agent_session` remain as a deserialization
-    // shim for historical replay only — NOT registered.
+    // and the `events::agent_session` module are deleted (zero deserializer
+    // call sites); `InvocationMode` lives in agent-def (L1).
     // This block is intentionally empty; kept as a tombstone comment.
     let _ = &registry; // suppress unused-variable warning when all blocks are tombstones
 }

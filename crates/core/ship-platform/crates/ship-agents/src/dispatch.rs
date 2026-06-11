@@ -26,7 +26,7 @@ use ship_code::runner::router::DISPATCH_GATE;
 use agent_def::canonical_session::{SessionFailed, event_types as canonical_session_event_types};
 use agent_def::dispatch_intent::DispatchRequestedPayload;
 #[cfg(feature = "harness-drivers")]
-use ship_substrate::events::agent_session::InvocationMode;
+use agent_def::InvocationMode;
 use ship_substrate::events::EventEnvelope;
 #[cfg(feature = "harness-drivers")]
 use ship_code::dispatch_ports::SessionContext;

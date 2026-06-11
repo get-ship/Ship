@@ -1,7 +1,7 @@
 //! DispatchRequest wire type and validation helpers.
 
 use serde::Deserialize;
-use ship_substrate::events::agent_session::InvocationMode;
+use agent_def::InvocationMode;
 
 /// Wire shape for the Connect `AgentsService.Dispatch` request
 /// (`DispatchAgentRequest` in `proto/ship/ops/v1/agents.proto`).

@@ -626,7 +626,7 @@ impl AgentsServiceTrait for AgentsWire {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedDispatchAgentRequestView,
     ) -> ServiceResult<DispatchResult> {
-        use ship_substrate::events::agent_session::InvocationMode;
+        use agent_def::InvocationMode;
         (self.gate)(&ctx, "agent.dispatch")?;
 
         // Per-project workspace isolation: MCP session bound to project A cannot

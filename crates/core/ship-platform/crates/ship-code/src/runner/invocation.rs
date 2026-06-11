@@ -1,7 +1,7 @@
 //! Harness invocation-mode resolution.
 //! Moved from ship-runner (L0) to ship-code (L1).
 
-use ship_substrate::events::agent_session::InvocationMode;
+use agent_def::InvocationMode;
 
 pub fn resolve_step_invocation(
     step_invocation: Option<&str>,
@@ -19,7 +19,7 @@ pub fn resolve_step_invocation(
 #[cfg(test)]
 mod invocation_tests {
     use super::resolve_step_invocation;
-    use ship_substrate::events::agent_session::InvocationMode;
+    use agent_def::InvocationMode;
 
     #[test]
     fn orchestrator_dispatch_invocation_explicit_print() {

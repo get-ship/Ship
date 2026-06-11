@@ -18,7 +18,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use ship_substrate::events::agent_session::InvocationMode;
+use crate::invocation::InvocationMode;
 
 pub mod event_types {
     /// A new agent dispatch has been requested. Carries the full dispatch

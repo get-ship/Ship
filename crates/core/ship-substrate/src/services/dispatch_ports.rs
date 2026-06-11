@@ -10,7 +10,6 @@
 
 use std::collections::HashMap;
 
-pub use crate::events::agent_session::InvocationMode;
 
 /// CLI command built by a `HarnessLauncher`.
 #[derive(Debug, Clone)]

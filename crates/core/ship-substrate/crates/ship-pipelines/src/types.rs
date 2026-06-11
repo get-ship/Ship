@@ -172,9 +172,8 @@ pub struct PipelineStep {
     ///
     /// Wire shape is a lowercase string so JSONC pipelines stay
     /// human-editable without referencing the substrate enum.
-    /// `ship-platform::services::orchestrator` converts to
-    /// `ship_substrate::events::agent_session::InvocationMode` at
-    /// spawn time.
+    /// The orchestrator converts to `agent_def::InvocationMode`
+    /// at spawn time.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub invocation: Option<String>,
 }

@@ -57,8 +57,9 @@ register_event!("actor.woke", [EventScope::Runtime], Retention::Ephemeral, Stabi
 // SEVERED (#26 spawn-intent, 2026-06-10): all 5 agent.session.* events
 // deregistered. The dispatch primitive is now `dispatch.requested` (Runtime/
 // Ephemeral, registered at L1 in agent-def/src/event_registrations.rs).
-// The payload structs remain in `crate::events::agent_session` as a
-// deserialization shim for historical replay only — NOT registered.
+// The payload structs (and the whole `events::agent_session` module) are
+// DELETED — the claimed "deserialization shim for historical replay" had
+// zero call sites. `InvocationMode` moved to agent-def (L1).
 // L0 count: 61→56 (-5); full count: 123→119 (-5+1 dispatch.requested).
 
 // ── artifact.* ──────────────────────────────────────────────────────────────

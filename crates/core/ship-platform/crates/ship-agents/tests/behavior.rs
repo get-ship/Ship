@@ -29,7 +29,7 @@ use ship_substrate::projections::Projection;
 use ship_substrate::db::block_on;
 use ship_agents::ports::AgentPorts;
 use ship_code::runner::dedup::EventDedup;
-use ship_substrate::events::agent_session::InvocationMode;
+use agent_def::InvocationMode;
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::process::event_types as process_event_types;
 use ship_substrate::events::process::ProcessKilledPayload;

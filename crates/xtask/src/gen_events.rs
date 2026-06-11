@@ -326,7 +326,6 @@ fn load_structs(root: &PathBuf) -> Result<BTreeMap<String, Vec<StructField>>> {
     // without touching this list again.
     let source_dirs = &["crates/core/ship-substrate/crates/ship-types/src/payload"];
     let source_files = &[
-        "crates/core/ship-substrate/src/events/agent_session.rs",
         "crates/core/ship-substrate/src/events/pipeline/payloads.rs",
         "crates/core/ship-substrate/src/events/pipeline/observed.rs",
     ];
