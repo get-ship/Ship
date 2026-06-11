@@ -18,6 +18,7 @@ use ship_code::dispatch_ports::{
     AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
+use durable_execution::JournalStore;
 use crate::orchestrator::replay::reconcile_dispatched_jobs;
 use crate::orchestrator::OrchestratorContext;
 
@@ -58,6 +59,10 @@ impl ProcessRegistryPort for EmptyRegistry {
 }
 
 fn make_octx() -> Arc<OrchestratorContext> {
+    make_octx_with_store(Arc::new(durable_execution::InMemoryJournalStore::new()))
+}
+
+fn make_octx_with_store(journal_store: Arc<dyn JournalStore>) -> Arc<OrchestratorContext> {
     Arc::new(OrchestratorContext {
         isolation: Arc::new(NoopIsolation),
         executor: Arc::new(MissingExecutor),
@@ -72,7 +77,7 @@ fn make_octx() -> Arc<OrchestratorContext> {
         event_dedup: Arc::new(crate::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        journal_store: Arc::new(durable_execution::InMemoryJournalStore::new()),
+        journal_store,
     })
 }
 
@@ -170,6 +175,100 @@ async fn reconcile_dispatched_emits_session_destroyed_not_step_failed() {
         "orphaned job stays Dispatched; liveness sweep owns the terminal call"
     );
     assert!(job.error.is_none());
+}
+
+// ── T3 / T4: C3 journal-telemetry behavioral tests ───────────────────────────
+
+/// T3: a complete C2+ journal in the store does NOT short-circuit `resume_handle`.
+///
+/// C3 logs the journal presence as a telemetry signal only — the behavioral skip
+/// of `resume_handle` is deferred to C9 (P2.5). Whether a journal exists or not,
+/// the reconcile path must still call `resume_handle` and emit the same
+/// observational event (`executor.session_destroyed` when `resume_handle` → None).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_reconcile_with_complete_journal_still_checks_resume_handle() {
+    let store: Arc<dyn JournalStore> = Arc::new(durable_execution::InMemoryJournalStore::new());
+
+    // Pre-seed a complete 3-entry journal using the same shape the production
+    // shadow-journal block creates (ShadowDispatch + DispatchProgram).
+    let pipeline_run_id = "j-c3-journal";
+    {
+        use crate::orchestrator::coordinator_programs::{DispatchProgram, ShadowDispatch};
+        let shadow = ShadowDispatch::for_agent_spawn("/tmp/test-worktree", Some(42));
+        let (_, journal) = durable_execution::execute(
+            durable_execution::Journal::new(),
+            std::sync::Arc::new(shadow),
+            &DispatchProgram,
+        ).await;
+        store.save(pipeline_run_id, &journal).await.expect("store seed ok");
+    }
+
+    let kernel = make_kernel();
+    seed_dispatched_job(&kernel, pipeline_run_id, "c3-journal").await;
+    let octx = make_octx_with_store(store);
+
+    reconcile_dispatched_jobs(&kernel, &octx).await;
+
+    let all = ship_substrate::db::events::list_all_events().unwrap_or_default();
+
+    // resume_handle returned None (MissingExecutor) so session_destroyed is emitted.
+    let destroyed: Vec<_> = all
+        .iter()
+        .filter(|e| {
+            e.event_type == ship_substrate::events::executor::EXECUTOR_SESSION_DESTROYED
+                && e.entity_id == "c3-journal"
+        })
+        .collect();
+    assert_eq!(
+        destroyed.len(), 1,
+        "resume_handle must still be called even when journal is present; \
+         got {} session_destroyed events", destroyed.len()
+    );
+
+    // No terminal pipeline event.
+    let terminal = all
+        .iter()
+        .filter(|e| e.entity_id == pipeline_run_id)
+        .any(|e| e.event_type == "pipeline.step.failed" || e.event_type == "pipeline.run.failed");
+    assert!(!terminal, "reconcile must not emit any terminal job event");
+}
+
+/// T4: no journal (pre-C2 run) yields identical behavior to T3.
+///
+/// The "no journal" case uses the legacy resume_handle path and must emit the
+/// same observational event — no regression for runs dispatched before C2 landed.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_reconcile_without_journal_unchanged_behavior() {
+    let store: Arc<dyn JournalStore> = Arc::new(durable_execution::InMemoryJournalStore::new());
+    // Store is empty — simulates a pre-C2 run with no journal.
+
+    let pipeline_run_id = "j-c3-nojournal";
+    let kernel = make_kernel();
+    seed_dispatched_job(&kernel, pipeline_run_id, "c3-nojournal").await;
+    let octx = make_octx_with_store(store);
+
+    reconcile_dispatched_jobs(&kernel, &octx).await;
+
+    let all = ship_substrate::db::events::list_all_events().unwrap_or_default();
+
+    let destroyed: Vec<_> = all
+        .iter()
+        .filter(|e| {
+            e.event_type == ship_substrate::events::executor::EXECUTOR_SESSION_DESTROYED
+                && e.entity_id == "c3-nojournal"
+        })
+        .collect();
+    assert_eq!(
+        destroyed.len(), 1,
+        "pre-C2 run (no journal) must use legacy resume_handle path unchanged; \
+         got {} session_destroyed events", destroyed.len()
+    );
+
+    let terminal = all
+        .iter()
+        .filter(|e| e.entity_id == pipeline_run_id)
+        .any(|e| e.event_type == "pipeline.step.failed" || e.event_type == "pipeline.run.failed");
+    assert!(!terminal, "reconcile must not emit any terminal job event");
 }
 
 // ─────────────────────────────────────────────────────────────────────────
