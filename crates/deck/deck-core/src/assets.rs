@@ -629,6 +629,7 @@ mod tests {
 
     #[test]
     fn public_asset_serves_from_dir_and_rejects_traversal() {
+        use crate::test_lock::ProjectRootGuard;
         use std::io::Write;
         let tmp = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(tmp.path().join("public")).unwrap();
@@ -636,7 +637,7 @@ mod tests {
             .unwrap()
             .write_all(b"<svg/>")
             .unwrap();
-        crate::resolver::set_project_root(tmp.path().to_path_buf());
+        let _root = ProjectRootGuard::new(tmp.path());
 
         let ok = serve_public_asset(DaemonMode::Development, "public", "logo.svg");
         assert_eq!(ok.status, 200, "present public asset serves 200");
@@ -653,7 +654,5 @@ mod tests {
             404,
             "missing file must 404"
         );
-
-        crate::resolver::reset_project_root_override_for_test();
     }
 }
