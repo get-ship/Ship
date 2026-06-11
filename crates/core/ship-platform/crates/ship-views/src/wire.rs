@@ -6,8 +6,10 @@
 //!
 //! Three groups of handlers:
 //!   * Session writes (`patch_session`, `append_session`, `signal_session`) —
-//!     need the live `SharedViewSessionRegistry` which is shipd-internal.
-//!     Injected via typed async closures captured in shipd's `ops_rpc.rs`.
+//!     injected via typed async closures from shipd (`rpc/ops/view_wire.rs`).
+//!     The agent-canvas session registry behind them was deleted in shipd's
+//!     UI purge; the closures answer "not found" until these three ops are
+//!     removed from view.proto.
 //!   * Edit-mode grants (`enter_edit_mode`, `exit_edit_mode`) —
 //!     call `ship_views::view_authoring::{grant,revoke}` directly; no daemon
 //!     state required.
@@ -40,7 +42,6 @@ type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 pub type AgentFn = Arc<dyn Fn(&RequestContext) -> Result<String, ConnectError> + Send + Sync>;
 
 /// Async closure for `patch_session`: (id, agent, selector, html) → Result<()>.
-/// Captures `SharedViewSessionRegistry` from shipd.
 pub type PatchFn =
     Arc<dyn Fn(String, String, String, String) -> BoxFuture<Result<(), ConnectError>> + Send + Sync>;
 

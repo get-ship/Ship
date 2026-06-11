@@ -125,7 +125,8 @@ pub fn build() -> LiveResolverRegistry {
         "agents",
         "summaries",
         Arc::new(|state: &ApiState, _args: &Value| {
-            let items = crate::views::state::list_agents(state.ship_dir());
+            let items =
+                ship_agents::services::agents::view_state::list_agents(state.ship_dir());
             serde_json::to_value(serde_json::json!({ "items": items })).unwrap_or(Value::Null)
         }),
     );

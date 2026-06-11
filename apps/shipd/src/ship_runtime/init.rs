@@ -216,7 +216,6 @@ impl ShipRuntime {
             artifact_ctx,
             schemas,
             global_blob_dir,
-            view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: ship_agents::services::sessions::SessionRegistry::new(),
             actor_sessions: ship_agents::services::sessions::ActorRegistry::new(),
             rules: ship_agents::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),

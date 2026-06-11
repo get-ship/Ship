@@ -1,38 +1,21 @@
-//! View serving — resolves and serves view assets from project and global dirs.
+//! View discovery + manifest metadata.
 //!
-//! Supports HTML views (index.html) and web component views (JS bundles with
-//! optional manifests). Resolution checks project `.ship/views/` first, then
-//! falls back to global `~/.ship/views/`.
+//! What remains of the daemon's view layer after the UI purge (deck owns all
+//! serving): the search-dir walker (`discovery`) and manifest reader
+//! (`resolve`) that back the search index (`rpc::search_context`), plus the
+//! specta-typegen contract types below (registered by `crates/xtask/src/
+//! types.rs`, projected into `packages/sui/runtime/src/generated.ts`).
 //!
-//! ## SSE + state submodules
-//!
-//! The `stream` and `state` submodules carry the Datastar SSE plumbing
-//! used by SUI views and agent-canvas view sessions.
-//!
-//! - [`stream`] — `ViewStream` helper wrapping Datastar's `PatchElements` /
-//!   `PatchSignals` with an `mpsc`-backed SSE response.
-//! - [`state`] — read helpers that centralize runtime state access for views.
+//! Deleted as purge residue: the agent-canvas `ViewSessionRegistry`
+//! (`session`/`session_types`), its Datastar SSE plumbing (`stream`), the
+//! HTML sanitizer it fed (`sanitize`), and the `state` re-export shim — no
+//! surface could create or watch a session once `view.open` and the SSE
+//! subscribe route were cut.
 
-pub mod stream;
-pub mod state;
-// Daemon-coupled SUI handlers — still here because they reach into
-// ApiState, services::registry, auth, and scopes (all daemon-internal).
-// Moving them needs a `ship-runtime` extraction first; tracked separately.
-// Truly framework-level pieces (view_payload, view_host, asset bundles,
-// resolver, render_helpers, bundle, runtime asset) live in
-// crates/deck/.
-pub mod session;
-pub mod session_types;
-pub mod sanitize;
 pub mod discovery;
 pub mod resolve;
 
-#[cfg(test)]
-#[allow(unused_imports)]
-use std::path::PathBuf;
-
 use serde::Serialize;
-
 
 #[derive(Serialize, Clone)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
@@ -73,5 +56,3 @@ pub struct RailMeta {
     pub label: String,
     pub icon: String,
 }
-
-

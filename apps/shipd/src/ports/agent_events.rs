@@ -17,39 +17,24 @@ use ship_substrate::events::validator::EmitContext;
 
 use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
-use crate::views::session::SessionError;
 
 // ── ViewBroadcastPort ─────────────────────────────────────────────────────────
 
-pub struct ViewBroadcastAdapter {
-    state: ApiState,
-}
-
-impl ViewBroadcastAdapter {
-    pub fn new(state: ApiState) -> Self {
-        Self { state }
-    }
-}
+/// The agent-canvas `ViewSessionRegistry` was deleted with the UI purge — no
+/// surface can create or watch a view session, so the registry was permanently
+/// empty and every broadcast already answered `NotFound`. This adapter
+/// preserves that exact observable behavior for the ship-agents feedback /
+/// annotation ports until the L1 port itself is removed.
+pub struct ViewBroadcastAdapter;
 
 #[async_trait]
 impl ViewBroadcastPort for ViewBroadcastAdapter {
     async fn broadcast_feedback(
         &self,
         view_id: &str,
-        payload: &serde_json::Value,
+        _payload: &serde_json::Value,
     ) -> Result<(), ViewBroadcastError> {
-        self.state
-            .view_sessions()
-            .broadcast_feedback(view_id, payload)
-            .await
-            .map_err(|e| match e {
-                SessionError::NotFound { .. } => {
-                    ViewBroadcastError::NotFound(view_id.to_string())
-                }
-                other => ViewBroadcastError::Other(
-                    serde_json::to_string(&other).unwrap_or_default(),
-                ),
-            })
+        Err(ViewBroadcastError::NotFound(view_id.to_string()))
     }
 }
 

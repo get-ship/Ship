@@ -65,8 +65,10 @@ pub struct ShipRuntime {
     pub(super) schemas: Arc<ship_collection::projection::SchemaRegistry>,
     /// Blob root for artifacts (global ship dir).
     pub(super) global_blob_dir: std::path::PathBuf,
-    /// Agent-owned view sessions (Phase 1 canvas framework).
-    pub(super) view_sessions: crate::views::session::SharedViewSessionRegistry,
+    // (The agent-owned `view_sessions` canvas registry was deleted: the
+    // UI purge removed every surface that could create (`view.open`) or
+    // watch (SSE subscribe) a session, leaving a permanently-empty map.
+    // The ViewService Patch/Append/Signal ops answer "not found" directly.)
     /// PTY session registry — chat, pipelines, dock terminal all go
     /// through here. See `crate::sessions` (when feature = "ship-code").
     pub(super) pty_sessions: ship_agents::services::sessions::SessionRegistry,

@@ -1,7 +1,8 @@
 //! view.* mount — crate-owned ViewWire (ship-views).
 //!
 //! Replaces `impl ViewService for OpsImpl` in the old view_rpc.rs (deleted).
-//! Session writes (patch/append/signal) capture view_sessions; edit-mode
+//! Session writes (patch/append/signal) answer "not found" — the canvas
+//! registry they used to capture is gone (see `mount`); edit-mode
 //! grant/revoke call ship_views::view_authoring directly (no daemon state);
 //! tool dispatch captures ApiState via the tool_fn closure. The synchronous
 //! scaffold core (`ViewService::Scaffold`) also lives here.
@@ -13,35 +14,23 @@ use connectrpc::ConnectError;
 use crate::ship_runtime::ApiState;
 
 pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc::Router {
-    let view_sessions_for_patch = state.view_sessions().clone();
+    // Session writes (Patch/Append/Signal): the agent-canvas ViewSessionRegistry
+    // was deleted with the UI purge — no surface can create (`view.open` is gone)
+    // or watch (the SSE subscribe route is gone) a session, so the registry was
+    // permanently empty and every call already answered "not found". These
+    // closures preserve that exact observable behavior; removing the three ops
+    // from view.proto is the L1 follow-up cut.
     let view_patch_fn: ship_views::wire::PatchFn =
-        Arc::new(move |id, agent, selector, html| {
-            let vs = view_sessions_for_patch.clone();
-            Box::pin(async move {
-                vs.patch(&id, &agent, &selector, html)
-                    .await
-                    .map_err(|e| ConnectError::internal(e.to_string()))
-            })
+        Arc::new(move |id, _agent, _selector, _html| {
+            Box::pin(async move { Err(no_view_session(&id)) })
         });
-    let view_sessions_for_append = state.view_sessions().clone();
     let view_append_fn: ship_views::wire::AppendFn =
-        Arc::new(move |id, agent, selector, html| {
-            let vs = view_sessions_for_append.clone();
-            Box::pin(async move {
-                vs.append(&id, &agent, &selector, html)
-                    .await
-                    .map_err(|e| ConnectError::internal(e.to_string()))
-            })
+        Arc::new(move |id, _agent, _selector, _html| {
+            Box::pin(async move { Err(no_view_session(&id)) })
         });
-    let view_sessions_for_signal = state.view_sessions().clone();
     let view_signal_fn: ship_views::wire::SignalFn =
-        Arc::new(move |id, agent, name, value| {
-            let vs = view_sessions_for_signal.clone();
-            Box::pin(async move {
-                vs.signal(&id, &agent, &name, value)
-                    .await
-                    .map_err(|e| ConnectError::internal(e.to_string()))
-            })
+        Arc::new(move |id, _agent, _name, _value| {
+            Box::pin(async move { Err(no_view_session(&id)) })
         });
     // `ViewService.Tool` — inlined from the now-cut
     // `routes::view_edit_tool_api::dispatch_tool_core`. The handler body
@@ -111,6 +100,13 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
         view_scaffold_fn,
     ));
     ship_ops_rpc::ViewServiceExt::register(view_wire, router)
+}
+
+/// The error every session write answers with — identical to what the
+/// always-empty registry's `SessionError::NotFound` mapped to before the
+/// registry was deleted.
+fn no_view_session(id: &str) -> ConnectError {
+    ConnectError::internal(format!("view session '{id}' not found"))
 }
 
 // ── scaffold_view_sync ────────────────────────────────────────────────────────

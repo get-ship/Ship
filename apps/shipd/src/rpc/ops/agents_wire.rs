@@ -168,7 +168,7 @@ pub(super) fn mount(
             })
         });
     let feedback_auth = Arc::new(crate::ports::agent_events::FeedbackAuthAdapter);
-    let view_broadcast = Arc::new(crate::ports::agent_events::ViewBroadcastAdapter::new(state.clone()));
+    let view_broadcast = Arc::new(crate::ports::agent_events::ViewBroadcastAdapter);
     let collection = Arc::new(crate::ports::agent_events::CollectionPersistAdapter::new(state.clone()));
     let agents_wire = Arc::new(ship_agents::services::agents::AgentsWire::new(
         state.agents_arc(),

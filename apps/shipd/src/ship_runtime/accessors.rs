@@ -200,10 +200,6 @@ impl ShipRuntime {
         &self.health_registry
     }
 
-    pub fn view_sessions(&self) -> &crate::views::session::SharedViewSessionRegistry {
-        &self.view_sessions
-    }
-
     /// Attached project workspace, if the daemon was launched with one.
     pub fn workspace_dir(&self) -> Option<&Path> {
         self.workspace_dir.as_deref()
