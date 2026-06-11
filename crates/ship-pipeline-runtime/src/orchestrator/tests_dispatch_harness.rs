@@ -17,11 +17,11 @@ use ship_substrate::events::pipeline::{
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_code::dispatch_ports::{
     AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
-    ProcessRegistryPort,
 };
 use durable_execution::{InMemoryJournalStore, JournalStore};
 use crate::orchestrator::dispatch::dispatch_pipeline_run_internal;
 use crate::orchestrator::OrchestratorContext;
+use super::tests_fakes::NoopRegistry;
 
 /// Executor that succeeds every spawn with pid=42.
 struct SucceedingExecutor;
@@ -79,14 +79,6 @@ impl AgentPlatform for TestPlatform {
     async fn cleanup_job(&self, _: &str, _: &str) {}
     fn git_merge(&self, _: &str) -> anyhow::Result<bool> { Ok(true) }
     async fn cleanup_orphaned_worktrees(&self) {}
-}
-
-struct NoopRegistry;
-
-#[async_trait]
-impl ProcessRegistryPort for NoopRegistry {
-    async fn register(&self, _: &str, _: ExecutorHandle) {}
-    async fn unregister(&self, _: &str) {}
 }
 
 fn dispatch_config() -> ActorConfig {

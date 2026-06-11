@@ -22,6 +22,22 @@ mod opencode_tests;
 #[path = "roundtrip_tests.rs"]
 mod roundtrip_tests;
 
+#[cfg(test)]
+pub(crate) mod test_helpers {
+    // write_file moved here from three byte-identical copies (audit R-6c).
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    pub(crate) fn write_file(dir: &TempDir, path: &str, content: &str) {
+        let full = dir.path().join(path);
+        if let Some(parent) = full.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        let mut f = std::fs::File::create(&full).unwrap();
+        f.write_all(content.as_bytes()).unwrap();
+    }
+}
+
 use std::path::Path;
 
 use serde_json::Value as Json;

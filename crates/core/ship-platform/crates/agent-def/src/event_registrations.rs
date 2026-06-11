@@ -28,10 +28,8 @@ register_event!("session.turn.started", [EventScope::Runtime], Retention::Epheme
 register_event!("session.turn.ended", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "canonical_session::TurnEnded", crate::canonical_session::TurnEnded);
 
 // ── op.* (fine-grained) — Runtime-scoped, Ephemeral ────────────────────────────
-// R2 hook conversion: the op.* family is the designated replacement for the
-// legacy `hook.*` family. The hook→op conversion and hook.* deregistration are
-// tracked in #25b and have NOT landed — these registrations are the additive
-// contract only; hook ingestion still emits hook.* and nothing emits op.* today.
+// R2: op.* replaces the retired hook.* family (#25b, merged). Emitters:
+// http_ingress → op.* conversion; ship-code synth_emit.rs → op.tool_use_*.
 // Fine-grained (per tool-call) so Runtime + Ephemeral — same scope rule as
 // `session.turn.*`, just one more level of granularity.
 register_event!("op.tool_use_started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "op::OpToolUseStarted", crate::op::OpToolUseStarted);

@@ -15,19 +15,13 @@ use tokio::sync::Mutex;
 
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_code::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
+    AgentPlatform, ExecutorHandle, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use durable_execution::JournalStore;
 use crate::orchestrator::replay::reconcile_dispatched_jobs;
 use crate::orchestrator::OrchestratorContext;
-
-struct NoopIsolation;
-#[async_trait]
-impl IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, _: &SessionContext) -> anyhow::Result<PathBuf> { Ok(PathBuf::from("/tmp")) }
-    async fn cleanup(&self, _: &SessionContext) -> anyhow::Result<()> { Ok(()) }
-}
+use super::tests_fakes::NoopIsolation;
 
 struct NoopPlatform;
 #[async_trait]

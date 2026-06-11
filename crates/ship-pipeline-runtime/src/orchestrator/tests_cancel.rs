@@ -19,6 +19,7 @@ use ship_code::dispatch_ports::{
 };
 use crate::orchestrator::router::handle_orchestrator_event;
 use crate::orchestrator::OrchestratorContext;
+use super::tests_fakes::NoopIsolation;
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -231,13 +232,3 @@ async fn cancel_without_registered_handle_still_cleans_and_emits() {
     assert_eq!(killed.pid, None);
 }
 
-// ── Shared NoopIsolation ───────────────────────────────────────────────────
-
-struct NoopIsolation;
-#[async_trait]
-impl ship_code::dispatch_ports::IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, _job: &SessionContext) -> anyhow::Result<PathBuf> {
-        Ok(PathBuf::from("/tmp"))
-    }
-    async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> { Ok(()) }
-}

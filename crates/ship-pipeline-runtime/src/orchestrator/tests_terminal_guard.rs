@@ -17,10 +17,10 @@ use ship_substrate::events::EventEnvelope;
 use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 use ship_code::dispatch_ports::{
     AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
-    ProcessRegistryPort,
 };
 use crate::orchestrator::router::handle_orchestrator_event;
 use crate::orchestrator::OrchestratorContext;
+use super::tests_fakes::NoopRegistry;
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -80,14 +80,6 @@ impl AgentPlatform for TestPlatform {
         Ok(true)
     }
     async fn cleanup_orphaned_worktrees(&self) {}
-}
-
-struct NoopRegistry;
-
-#[async_trait]
-impl ProcessRegistryPort for NoopRegistry {
-    async fn register(&self, _slug: &str, _h: ExecutorHandle) {}
-    async fn unregister(&self, _slug: &str) {}
 }
 
 // ── Harness ────────────────────────────────────────────────────────────────

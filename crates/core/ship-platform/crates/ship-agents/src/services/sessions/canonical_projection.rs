@@ -6,10 +6,10 @@
 //! This projection receives rows for ALL sessions: Floki emits the canonical
 //! family directly; harness-driver dispatches dual-emit canonical
 //! `session.started` at dispatch (dispatch_core.rs) and canonical terminals
-//! from the exit handler (ship-code exit_handler.rs). The legacy
-//! `agent.session.*` family survives ONLY as the transitional spawn trigger,
-//! pending the spawn-intent channel (#26); the `agent_sessions` read model
-//! and `AgentSessionProjection` are retired (#20).
+//! from the exit handler (ship-code exit_handler.rs). The spawn trigger is
+//! `dispatch.requested` (#26); the legacy `agent.session.*` family, the
+//! `agent_sessions` read model, and `AgentSessionProjection` are all
+//! retired (#20/#26).
 //!
 //! # Read-model contract
 //!

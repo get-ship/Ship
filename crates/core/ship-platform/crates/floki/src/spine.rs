@@ -32,17 +32,17 @@ pub async fn run<T>(
     let out = match execute.await {
         Ok(o) => o,
         Err(e) => {
-            eprintln!("  spine[{label}] {e}");
+            tracing::warn!(label = %label, error = %e, "spine execute failed");
             return Err(e);
         }
     };
     match verify(&out) {
         Ok(accepted) => {
-            eprintln!("  spine[{label}] verify ok");
+            tracing::debug!(label = %label, "spine verify ok");
             Ok(accepted)
         }
         Err(e) => {
-            eprintln!("  spine[{label}] verify REFUSED: {e}");
+            tracing::warn!(label = %label, reason = %e, "spine verify REFUSED");
             Err(SpineError::Unverified(e))
         }
     }

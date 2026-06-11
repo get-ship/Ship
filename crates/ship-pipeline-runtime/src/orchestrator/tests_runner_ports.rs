@@ -27,6 +27,7 @@ use ship_code::dispatch_ports::{
     AgentPlatform, Authority, ExecutorHandle, IsolationStrategy, ProcessRegistryPort,
     ProjectionReader, SessionContext, SessionExecutor, SpawnPolicy,
 };
+use super::tests_fakes::NoopRegistry;
 use crate::orchestrator::dispatch::dispatch_pipeline_run_internal;
 use crate::orchestrator::sweep::run_sweep;
 use crate::orchestrator::OrchestratorContext;
@@ -142,13 +143,6 @@ impl AgentPlatform for TestPlatform {
         Ok(true)
     }
     async fn cleanup_orphaned_worktrees(&self) {}
-}
-
-struct NoopRegistry;
-#[async_trait]
-impl ProcessRegistryPort for NoopRegistry {
-    async fn register(&self, _: &str, _: ExecutorHandle) {}
-    async fn unregister(&self, _: &str) {}
 }
 
 /// Reports one live slug and yields a handle on take — drives the sweep's

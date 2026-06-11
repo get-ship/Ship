@@ -62,7 +62,7 @@ pub struct DispatchRequest {
 
     /// Does the harness stay alive after the current work, awaiting
     /// the next operator push? Default true (matches the chat/worker
-    /// expectation). Required for `POST /api/v1/agent_sessions/{slug}/push`.
+    /// expectation). Required for the `agent.Steer` Connect RPC push path.
     /// Mutually exclusive with `invocation = print` (print exits on
     /// completion).
     #[serde(default = "default_keepalive")]

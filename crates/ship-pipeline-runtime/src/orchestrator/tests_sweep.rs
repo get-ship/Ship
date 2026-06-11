@@ -11,24 +11,14 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::sweep_events::event_types as sup_events;
 use ship_substrate::events::EventEnvelope;
 use ship_code::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
+    AgentPlatform, ExecutorHandle, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use crate::orchestrator::sweep::run_sweep;
 use crate::orchestrator::OrchestratorContext;
+use super::tests_fakes::NoopIsolation;
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
-
-struct NoopIsolation;
-#[async_trait]
-impl IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, _job: &SessionContext) -> anyhow::Result<PathBuf> {
-        Ok(PathBuf::from("/tmp"))
-    }
-    async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> {
-        Ok(())
-    }
-}
 
 struct NoopPlatform;
 #[async_trait]

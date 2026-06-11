@@ -13,11 +13,11 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::{EventEnvelope, EventSink};
 use ship_substrate::persistence::event_store::SqliteEventStore;
 use ship_code::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
-    ProcessRegistryPort,
+    AgentPlatform, ExecutorHandle, SessionContext, SessionExecutor,
 };
 use crate::orchestrator::fanout_recover::reconcile_fanout_lanes;
 use crate::orchestrator::{OrchestratorContext, StepActivity};
+use super::tests_fakes::{NoopIsolation, NoopRegistry};
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -47,20 +47,6 @@ impl SessionExecutor for NoopExecutor {
     async fn is_alive(&self, _: &ExecutorHandle) -> bool { false }
     async fn stop(&self, _: &ExecutorHandle) -> anyhow::Result<()> { Ok(()) }
     async fn send(&self, _: &ExecutorHandle, _: &str) -> anyhow::Result<()> { Ok(()) }
-}
-
-struct NoopRegistry;
-#[async_trait]
-impl ProcessRegistryPort for NoopRegistry {
-    async fn register(&self, _: &str, _: ExecutorHandle) {}
-    async fn unregister(&self, _: &str) {}
-}
-
-struct NoopIsolation;
-#[async_trait]
-impl IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, _: &SessionContext) -> anyhow::Result<PathBuf> { Ok(PathBuf::from("/tmp")) }
-    async fn cleanup(&self, _: &SessionContext) -> anyhow::Result<()> { Ok(()) }
 }
 
 fn make_kernel() -> Arc<Mutex<KernelRouter>> {

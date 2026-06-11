@@ -1,10 +1,8 @@
-//! Test scaffolding for the supervisor crate.
-//!
-//! Production supervisor code lives in `crates/core/ship-supervisor/`. This
-//! module declares the integration tests that exercise the supervisor
-//! together with shipd internals (`ApiState`, `ShipRuntime`, test
-//! harness, etc.) — those tests can't move to the supervisor crate
-//! because they depend on shipd surface.
+//! Integration tests exercising shipd's dispatch and executor machinery
+//! (ship-code + ship-agents + ship-pipeline-runtime) together with shipd
+//! internals (`ApiState`, `ShipRuntime`, test harness, etc.) — they live
+//! here because they depend on shipd surface. (The historic ship-supervisor
+//! crate this doc once pointed at was deleted.)
 //!
 //! Tests that don't need shipd internals belong inside the supervisor
 //! crate itself (move them when added).

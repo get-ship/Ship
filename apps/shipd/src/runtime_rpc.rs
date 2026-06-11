@@ -16,7 +16,8 @@ use crate::ops_rpc::OpsImpl;
 
 /// Session class → the `executor_kind` strings the orchestrator emits for it.
 /// `None` for an unrecognized kind (the handler returns invalid-argument).
-/// Mirrors `routes::runtime_api::procs::kind_to_executor_kinds`.
+/// Canonical executor-kind filter map for the runtime RPC (the historic
+/// `routes::runtime_api::procs` REST twin was deleted).
 fn kind_to_executor_kinds(kind: &str) -> Option<&'static [&'static str]> {
     match kind {
         "agent" => Some(&["pty", "tmux", "tmux_window"]),

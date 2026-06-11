@@ -1,20 +1,10 @@
 //! OpenCode agent decompilation tests.
 
-use std::io::Write;
-
 use serde_json::json;
 use tempfile::TempDir;
 
 use super::opencode::decompile_opencode;
-
-fn write_file(dir: &TempDir, path: &str, content: &str) {
-    let full = dir.path().join(path);
-    if let Some(parent) = full.parent() {
-        std::fs::create_dir_all(parent).unwrap();
-    }
-    let mut f = std::fs::File::create(&full).unwrap();
-    f.write_all(content.as_bytes()).unwrap();
-}
+use super::test_helpers::write_file;
 
 // ── Agent with model, description, prompt ────────────────────────────────────
 

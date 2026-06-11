@@ -20,9 +20,9 @@
 //!
 //! The canonical `SessionStarted` defined here IS the registered payload for
 //! `session.started` (see `event_registrations.rs`) and, since workbench-teardown
-//! (R6), the only session-start emit. The legacy `agent.session.started`
-//! (ship-substrate `events/agent_session.rs`) is still dual-emitted as the
-//! spawn trigger, transitionally, pending the spawn-intent channel (#26).
+//! (R6), the only session-start emit. `dispatch.requested` is the sole
+//! spawn-intent carrier since #26 — the legacy `agent.session.*` family is
+//! fully retired.
 //!
 //! Scope and retention (canonical axis, set at `register_event!`):
 //! - `session.*` (coarse)  — Space-scoped, Durable

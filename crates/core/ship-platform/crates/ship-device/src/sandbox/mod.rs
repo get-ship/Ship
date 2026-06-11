@@ -17,8 +17,8 @@
 //!   `runtime_endpoint` field is `None` and stays that way until
 //!   Chunk C wires the per-sandbox supervisor.
 //! - It is not consulted by the orchestrator's spawn path yet. The
-//!   per-actor `SandboxOwner` path in `ship-supervisor::executors::
-//!   process` still runs as-is.
+//!   per-actor `SandboxOwner` path in `ship_code::executors::process`
+//!   still runs as-is.
 //!
 //! The point of landing this in isolation: get the abstraction
 //! reviewed and tested before the wiring chunk that depends on it.

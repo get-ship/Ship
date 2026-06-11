@@ -11,11 +11,12 @@ use tokio::sync::Mutex;
 
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_code::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
+    AgentPlatform, ExecutorHandle, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use crate::orchestrator::fanout_cancel::cancel_job_fanout_lanes;
 use crate::orchestrator::{FanoutLaneRef, LaneOutcome, OrchestratorContext, StepActivity};
+use super::tests_fakes::NoopIsolation;
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -61,13 +62,6 @@ impl ProcessRegistryPort for SeededRegistry {
     async fn take(&self, slug: &str) -> Option<ExecutorHandle> {
         self.handles.lock().await.remove(slug)
     }
-}
-
-struct NoopIsolation;
-#[async_trait]
-impl IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, _: &SessionContext) -> anyhow::Result<PathBuf> { Ok(PathBuf::from("/tmp")) }
-    async fn cleanup(&self, _: &SessionContext) -> anyhow::Result<()> { Ok(()) }
 }
 
 fn dispatch_actor_config() -> ActorConfig {

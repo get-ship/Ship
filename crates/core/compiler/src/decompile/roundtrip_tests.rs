@@ -3,28 +3,18 @@
 //! These tests verify that compiling a ProjectLibrary to harness-native configs
 //! and then decompiling back produces equivalent results for fields we support.
 
-use std::io::Write as _;
-
 use serde_json::json;
 use tempfile::TempDir;
 
 use crate::decompile::{
     decompile_claude, decompile_codex, decompile_cursor, decompile_opencode,
+    test_helpers::write_file,
 };
 use crate::resolve::ProjectLibrary;
 use crate::types::{
     HookConfig, HookTrigger, McpServerConfig, McpServerType, Permissions, Rule, ToolPermissions,
 };
 use crate::{compile, resolve_library};
-
-fn write_file(dir: &TempDir, path: &str, content: &str) {
-    let full = dir.path().join(path);
-    if let Some(parent) = full.parent() {
-        std::fs::create_dir_all(parent).unwrap();
-    }
-    let mut f = std::fs::File::create(&full).unwrap();
-    f.write_all(content.as_bytes()).unwrap();
-}
 
 fn test_library() -> ProjectLibrary {
     ProjectLibrary {

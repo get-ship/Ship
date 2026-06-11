@@ -50,6 +50,12 @@ pub trait AgentDispatchPort: Send + Sync {
         ctx: &RequestContext,
         claimed_workspace: Option<&str>,
     ) -> Option<String>;
+
+    /// Resolve a workspace label to its space id via the projects read model.
+    /// `None` when the workspace is not yet registered. Lives on the port so
+    /// dispatch_core (L1) never reaches into the L0 projects table directly —
+    /// the composition root owns the DB access.
+    fn space_id_for_workspace(&self, workspace_label: &str) -> Option<String>;
 }
 
 // ── Result type ───────────────────────────────────────────────────────────────
@@ -188,10 +194,8 @@ pub async fn dispatch_agent_session_core(
     // has been issued regardless of whether this audit row lands.
     // space_id: resolve from workspace path via the projects projection;
     // fall back to empty string if workspace is not yet registered.
-    let space_id = ship_substrate::db::projects::find_by_path(&workspace_label)
-        .ok()
-        .flatten()
-        .map(|p| p.id)
+    let space_id = port
+        .space_id_for_workspace(&workspace_label)
         .unwrap_or_default();
     if let Ok(canonical_env) = EventEnvelope::new(
         canonical_session_event_types::SESSION_STARTED,

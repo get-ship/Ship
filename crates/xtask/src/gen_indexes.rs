@@ -26,7 +26,6 @@ const EMIT_SITES_PATH: &str =
 const EMIT_ROOTS: &[&str] = &[
     "crates/core/ship-substrate/src",
     "crates/core/ship-substrate/crates/ship-kernel/src",
-    "crates/core/ship-substrate/crates/ship-supervisor/src",
     "crates/core/ship-platform/src",
     "crates/core/ship-platform/crates/ship-analytics/src",
     "crates/core/ship-substrate/crates/ship-substrate-host/src",

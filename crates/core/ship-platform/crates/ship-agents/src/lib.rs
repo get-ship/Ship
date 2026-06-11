@@ -34,7 +34,7 @@ pub mod hooks;
 pub mod ports;
 // Agent-run assembly (executors, helpers, agent_lifecycle) moved to the `ship-code`
 // crate (Floki carve D3) — the third-party-harness driver box. Re-exported as
-// `runtime` so every `ship_agents::runtime::*` caller (shipd, ship-supervisor,
+// `runtime` so every `ship_agents::runtime::*` caller (shipd,
 // ship-pipeline-runtime) keeps resolving with zero churn — back-compat shim.
 // Gated: ship-code is optional; callers that use ::runtime must enable harness-drivers.
 #[cfg(feature = "harness-drivers")]

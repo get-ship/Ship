@@ -23,13 +23,5 @@ pub fn init_auth(base_dir: impl AsRef<std::path::Path>) -> anyhow::Result<std::p
         }));
     });
 
-    let base_dir = base_dir.as_ref();
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(base_dir);
-    std::fs::create_dir_all(&ship_dir)?;
-    let id = ship_substrate::gen_nanoid();
-    std::fs::write(
-        ship_dir.join("ship.jsonc"),
-        format!("{{\"id\": \"{id}\"}}\n"),
-    )?;
-    Ok(ship_dir)
+    ship_substrate::testutil::init_project_minimal(base_dir)
 }

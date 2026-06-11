@@ -121,6 +121,13 @@ impl AgentDispatchPort for AgentDispatchAdapter {
         let auth = ctx.extensions.get::<AuthContext>()?;
         crate::auth::identity::mcp_workspace_violation(auth, claimed_workspace)
     }
+
+    fn space_id_for_workspace(&self, workspace_label: &str) -> Option<String> {
+        ship_substrate::db::projects::find_by_path(workspace_label)
+            .ok()
+            .flatten()
+            .map(|p| p.id)
+    }
 }
 
 // ── FeedbackAuthPort ──────────────────────────────────────────────────────────

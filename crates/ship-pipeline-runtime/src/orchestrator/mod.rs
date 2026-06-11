@@ -16,7 +16,7 @@
 // Runner MECHANISM: emit (kernel-emit primitives) stays in L0 ship-runner;
 // dedup/exit_handler/router/observe/spawn_env moved to L1 ship_code::runner.
 // Re-exported at the historic `orchestrator::{dedup, emit, exit_handler}` paths
-// so the L1 policy below, shipd, and ship-supervisor resolve them unchanged.
+// so the L1 policy below and shipd resolve them unchanged.
 pub use ship_runner::emit;
 pub use ship_code::runner::{dedup, exit_handler};
 pub mod coordinator_programs;
@@ -48,6 +48,8 @@ pub mod sweep;
 
 pub mod dispatch;
 
+#[cfg(test)]
+mod tests_fakes;
 #[cfg(test)]
 mod tests_cancel;
 #[cfg(test)]

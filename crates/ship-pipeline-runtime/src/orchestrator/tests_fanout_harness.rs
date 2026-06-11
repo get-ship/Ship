@@ -18,34 +18,13 @@ use ship_substrate::events::pipeline::{
 use ship_substrate::events::{EventEnvelope, EventSink};
 use ship_substrate::persistence::event_store::SqliteEventStore;
 use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
-use ship_code::dispatch_ports::{ExecutorHandle, ProcessRegistryPort};
+use ship_code::dispatch_ports::ExecutorHandle;
 use crate::orchestrator::{FanoutLaneRef, OrchestratorContext, StepActivity};
 
 // ── Mock ports ───────────────────────────────────────────────────────────────
 
-pub struct NoopRegistry;
-#[async_trait]
-impl ProcessRegistryPort for NoopRegistry {
-    async fn register(&self, _slug: &str, _h: ExecutorHandle) {}
-    async fn unregister(&self, _slug: &str) {}
-}
-
-pub struct NoopIsolation;
-#[async_trait]
-impl ship_code::dispatch_ports::IsolationStrategy for NoopIsolation {
-    async fn prepare(
-        &self,
-        _job: &ship_code::dispatch_ports::SessionContext,
-    ) -> anyhow::Result<std::path::PathBuf> {
-        Ok(std::path::PathBuf::from("/tmp"))
-    }
-    async fn cleanup(
-        &self,
-        _job: &ship_code::dispatch_ports::SessionContext,
-    ) -> anyhow::Result<()> {
-        Ok(())
-    }
-}
+pub use super::tests_fakes::NoopRegistry;
+pub use super::tests_fakes::NoopIsolation;
 
 pub struct NoopExecutor;
 #[async_trait]
