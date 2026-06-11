@@ -105,6 +105,93 @@ impl Agent {
         Ok(serde_json::from_str(s)?)
     }
 
+    /// Produce the `agent.schema.json`-conformant nested shape for writing to
+    /// `.ship/agents/<id>.jsonc`. The inverse of [`Agent::from_profile`] — this is
+    /// the single serializer all write paths call.
+    ///
+    /// Fields the unified `Agent` intentionally does not carry (`hooks`,
+    /// `plugins`, `permissions`, `apps`) are absent from the output. Callers
+    /// that must preserve those fields should merge this output into an existing
+    /// canonical doc rather than overwriting it verbatim.
+    ///
+    /// `harness_settings.<id>` is reconstructed from `harness.settings`. The
+    /// `disposition.model / temperature / max_turns` values are folded in when
+    /// the settings map does not already contain them — this ensures round-trip
+    /// correctness for Agents built programmatically without going through
+    /// `from_profile`.
+    pub fn to_nested_json(&self) -> serde_json::Value {
+        use serde_json::json;
+
+        // ── agent identity block ─────────────────────────────────────────────
+        let mut agent_block = serde_json::Map::new();
+        agent_block.insert("id".into(), json!(self.identity.id));
+        agent_block.insert("name".into(), json!(self.identity.name));
+        if self.identity.version != default_version() {
+            agent_block.insert("version".into(), json!(self.identity.version));
+        }
+        if !self.identity.description.is_empty() {
+            agent_block.insert("description".into(), json!(self.identity.description));
+        }
+        if !self.identity.tags.is_empty() {
+            agent_block.insert("tags".into(), json!(self.identity.tags));
+        }
+
+        let mut root = serde_json::Map::new();
+        root.insert("agent".into(), serde_json::Value::Object(agent_block));
+
+        // ── capabilities ─────────────────────────────────────────────────────
+        if !self.capabilities.is_empty() {
+            root.insert(
+                "capabilities".into(),
+                serde_json::to_value(&self.capabilities).unwrap_or(json!([])),
+            );
+        }
+
+        // ── skills → skills.refs ─────────────────────────────────────────────
+        if !self.skills.is_empty() {
+            root.insert("skills".into(), json!({ "refs": self.skills }));
+        }
+
+        // ── mcp → mcp.servers ────────────────────────────────────────────────
+        if !self.mcp.is_empty() {
+            root.insert("mcp".into(), json!({ "servers": self.mcp }));
+        }
+
+        // ── disposition.rules → rules.inline ─────────────────────────────────
+        if !self.disposition.rules.is_empty() {
+            root.insert("rules".into(), json!({ "inline": self.disposition.rules }));
+        }
+
+        // ── harness_settings.<id> ─────────────────────────────────────────────
+        // Reconstruct from harness.settings, folding in disposition scalar fields
+        // that aren't already present (round-trip safety for programmatic agents).
+        if !self.harness.id.is_empty() {
+            let mut settings = self.harness.settings.clone();
+            if let Some(ref model) = self.disposition.model {
+                settings
+                    .entry("model".to_string())
+                    .or_insert_with(|| json!(model));
+            }
+            if let Some(temp) = self.disposition.temperature {
+                settings
+                    .entry("temperature".to_string())
+                    .or_insert_with(|| json!(temp));
+            }
+            if let Some(max_turns) = self.disposition.max_turns {
+                settings
+                    .entry("max_turns".to_string())
+                    .or_insert_with(|| json!(max_turns));
+            }
+            if !settings.is_empty() {
+                let mut hs = serde_json::Map::new();
+                hs.insert(self.harness.id.clone(), serde_json::Value::Object(settings));
+                root.insert("harness_settings".into(), serde_json::Value::Object(hs));
+            }
+        }
+
+        serde_json::Value::Object(root)
+    }
+
     /// Reject any capability an agent author may not declare (C3/critical is
     /// operator-only). Returns the first offending grant's error.
     pub fn validate_capabilities(&self) -> Result<(), String> {
@@ -303,6 +390,101 @@ mod tests {
             agent.harness.settings.get("theme").and_then(|v| v.as_str()),
             Some("dark")
         );
+    }
+
+    // ── to_nested_json round-trip ─────────────────────────────────────────
+
+    #[test]
+    fn to_nested_json_round_trips_via_profile() {
+        // Build an Agent programmatically, emit canonical nested JSON, parse as
+        // compiler::AgentProfile, project back via from_profile — all fields
+        // carried by Agent must survive unchanged.
+        let mut hs = serde_json::Map::new();
+        hs.insert("model".into(), serde_json::json!("opus"));
+        hs.insert("temperature".into(), serde_json::json!(0.5_f64));
+        hs.insert("theme".into(), serde_json::json!("dark")); // pass-through extra
+
+        let agent = Agent {
+            harness: Harness { id: "claude".into(), settings: hs },
+            identity: Identity {
+                id: "rev".into(),
+                name: "Reviewer".into(),
+                version: "2.0.0".into(),
+                description: "Reviews code.".into(),
+                tags: vec!["review".into()],
+            },
+            disposition: Disposition {
+                rules: "be careful".into(),
+                model: Some("opus".into()),
+                temperature: Some(0.5),
+                max_turns: Some(15),
+            },
+            capabilities: vec![Capability::new("collections", BlastRadius::C2Elevated)],
+            skills: vec!["s1".into(), "s2".into()],
+            mcp: vec!["github".into()],
+        };
+
+        let json_val = agent.to_nested_json();
+        let json_str = serde_json::to_string(&json_val).expect("serialize");
+
+        // The canonical JSON must parse as compiler::AgentProfile (the file format).
+        let profile: compiler::AgentProfile =
+            serde_json::from_str(&json_str).expect("must parse as AgentProfile");
+
+        // Project back to Agent using the harness we emitted.
+        let again = Agent::from_profile(&profile, "claude");
+
+        assert_eq!(again.identity.id, agent.identity.id, "id");
+        assert_eq!(again.identity.name, agent.identity.name, "name");
+        assert_eq!(again.identity.version, agent.identity.version, "version");
+        assert_eq!(again.identity.description, agent.identity.description, "description");
+        assert_eq!(again.identity.tags, agent.identity.tags, "tags");
+        assert_eq!(again.disposition.rules, agent.disposition.rules, "rules");
+        assert_eq!(again.disposition.model, agent.disposition.model, "model");
+        assert_eq!(again.disposition.max_turns, agent.disposition.max_turns, "max_turns");
+        assert_eq!(again.skills, agent.skills, "skills");
+        assert_eq!(again.mcp, agent.mcp, "mcp");
+        assert_eq!(again.capabilities.len(), agent.capabilities.len(), "cap count");
+        assert_eq!(again.capabilities[0].domain, agent.capabilities[0].domain, "cap domain");
+        assert_eq!(again.capabilities[0].blast, agent.capabilities[0].blast, "cap blast");
+        // Pass-through harness key must survive (not erased by to_nested_json).
+        assert_eq!(
+            again.harness.settings.get("theme").and_then(|v| v.as_str()),
+            Some("dark"),
+            "extra harness setting survives"
+        );
+    }
+
+    #[test]
+    fn to_nested_json_minimal_agent() {
+        // A bare Agent with defaults should emit valid canonical JSON with only the
+        // required `agent:` block.
+        let agent = Agent {
+            harness: Harness { id: "floki".into(), settings: Default::default() },
+            identity: Identity {
+                id: "bare".into(),
+                name: "Bare".into(),
+                version: default_version(),
+                description: String::new(),
+                tags: vec![],
+            },
+            disposition: Disposition::default(),
+            capabilities: vec![],
+            skills: vec![],
+            mcp: vec![],
+        };
+        let val = agent.to_nested_json();
+        assert_eq!(val["agent"]["id"], "bare");
+        assert_eq!(val["agent"]["name"], "Bare");
+        // Default version is not emitted (clean output).
+        assert!(val["agent"].get("version").is_none(), "default version omitted");
+        // Empty lists / empty rules produce no keys at root.
+        assert!(val.get("skills").is_none(), "empty skills omitted");
+        assert!(val.get("mcp").is_none(), "empty mcp omitted");
+        assert!(val.get("capabilities").is_none(), "empty caps omitted");
+        assert!(val.get("rules").is_none(), "empty rules omitted");
+        // Empty harness settings → no harness_settings block.
+        assert!(val.get("harness_settings").is_none(), "empty harness_settings omitted");
     }
 
     #[test]

@@ -43,30 +43,63 @@ pub fn write_agent(ship_dir: &Path, agent: &AgentBundle) -> Result<()> {
     Ok(())
 }
 
-/// Build JSONC content for an agent profile.
+/// Build JSONC content for an agent profile in the canonical `agent.schema.json`
+/// nested shape. The previous flat emission (`id`, `skills: [...]` at root) was
+/// rejected by `to_profile` (which guards on `agent:` block presence), making
+/// `ship add --from` → `ship use <id>` silently broken. This function now emits
+/// the conformant nested shape that `to_profile` and `read_agent_profile_at` expect.
 pub fn build_agent_jsonc(agent: &AgentBundle) -> String {
-    let mut obj = serde_json::Map::new();
-    obj.insert("id".into(), serde_json::json!(agent.id));
-    if let Some(ref name) = agent.name {
-        obj.insert("name".into(), serde_json::json!(name));
-    }
+    // ── agent block ──────────────────────────────────────────────────────────
+    let name = agent.name.as_deref().unwrap_or(&agent.id);
+    let mut agent_block = serde_json::Map::new();
+    agent_block.insert("id".into(), serde_json::json!(agent.id));
+    agent_block.insert("name".into(), serde_json::json!(name));
     if let Some(ref desc) = agent.description {
-        obj.insert("description".into(), serde_json::json!(desc));
-    }
-    if let Some(ref model) = agent.model {
-        obj.insert("model".into(), serde_json::json!(model));
-    }
-    if !agent.skills.is_empty() {
-        obj.insert("skills".into(), serde_json::json!(agent.skills));
-    }
-    if !agent.rules.is_empty() {
-        obj.insert("rules".into(), serde_json::json!(agent.rules));
-    }
-    if !agent.mcp_servers.is_empty() {
-        obj.insert("mcp_servers".into(), serde_json::json!(agent.mcp_servers));
+        agent_block.insert("description".into(), serde_json::json!(desc));
     }
 
-    serde_json::to_string_pretty(&obj).unwrap_or_else(|_| "{}".into())
+    let mut root = serde_json::Map::new();
+    root.insert("agent".into(), serde_json::Value::Object(agent_block));
+
+    // ── skills → skills.refs ─────────────────────────────────────────────────
+    if !agent.skills.is_empty() {
+        root.insert("skills".into(), serde_json::json!({ "refs": agent.skills }));
+    }
+
+    // ── mcp_servers → mcp.servers ────────────────────────────────────────────
+    // The bundle's mcp_servers is a flexible Value (string or object with `id`).
+    let servers: Vec<String> = agent.mcp_servers.iter()
+        .filter_map(mcp_server_id)
+        .collect();
+    if !servers.is_empty() {
+        root.insert("mcp".into(), serde_json::json!({ "servers": servers }));
+    }
+
+    // ── rules Vec → rules.inline (joined) ────────────────────────────────────
+    if !agent.rules.is_empty() {
+        root.insert("rules".into(), serde_json::json!({ "inline": agent.rules.join("\n") }));
+    }
+
+    // ── model → harness_settings.floki.model ─────────────────────────────────
+    if let Some(ref model) = agent.model {
+        root.insert(
+            "harness_settings".into(),
+            serde_json::json!({ "floki": { "model": model } }),
+        );
+    }
+
+    serde_json::to_string_pretty(&serde_json::Value::Object(root))
+        .unwrap_or_else(|_| "{}".into())
+}
+
+/// Extract a string ID from an MCP server value that may be a bare string or
+/// an object with an `id` key. Returns `None` for any other shape.
+fn mcp_server_id(v: &serde_json::Value) -> Option<String> {
+    match v {
+        serde_json::Value::String(s) => Some(s.clone()),
+        serde_json::Value::Object(m) => m.get("id")?.as_str().map(str::to_string),
+        _ => None,
+    }
 }
 
 /// Write inline skill files to `.ship/skills/<id>/`.

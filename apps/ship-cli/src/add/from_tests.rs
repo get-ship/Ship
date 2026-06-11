@@ -37,9 +37,24 @@ fn build_agent_jsonc_output() {
     let bundle = make_bundle();
     let jsonc = build_agent_jsonc(&bundle.agent);
     let parsed: serde_json::Value = serde_json::from_str(&jsonc).unwrap();
-    assert_eq!(parsed["id"], "test-agent");
-    assert_eq!(parsed["skills"][0], "tdd");
-    assert_eq!(parsed["rules"][0], "always write tests");
+    // Must emit the canonical nested shape with agent: block (Gap A fix).
+    assert_eq!(parsed["agent"]["id"], "test-agent", "agent.id in nested block");
+    assert_eq!(parsed["agent"]["name"], "Test Agent", "agent.name in nested block");
+    assert_eq!(parsed["skills"]["refs"][0], "tdd", "skills in nested skills.refs");
+    assert!(
+        parsed["rules"]["inline"]
+            .as_str()
+            .unwrap_or("")
+            .contains("always write tests"),
+        "rules.inline must contain the rule text"
+    );
+    // model goes into harness_settings.floki, not the root.
+    assert_eq!(parsed["harness_settings"]["floki"]["model"], "sonnet", "model in harness_settings");
+    // Flat `id` key at root (old broken format) must not appear.
+    assert!(parsed.get("id").is_none(), "flat id must not appear at root");
+    // Must parse back as compiler::AgentProfile (validates schema conformance).
+    let _: compiler::AgentProfile = serde_json::from_str(&jsonc)
+        .expect("build_agent_jsonc must emit a compiler::AgentProfile-conformant doc");
 }
 
 #[test]

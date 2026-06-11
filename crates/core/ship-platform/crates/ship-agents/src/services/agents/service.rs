@@ -105,6 +105,22 @@ impl AgentsServiceImpl {
     }
 }
 
+/// Validate that `doc` is schema-conformant: it must parse as
+/// `compiler::AgentProfile` (which requires the canonical `agent:` block), and
+/// any declared capabilities must be agent-settable (no C3/critical). Returns a
+/// `Parse` error with a human-readable message on failure — the write is refused.
+///
+/// Called in `create` and `put` (not `patch` or `duplicate` — patch operates on
+/// an already-valid doc; duplicate copies a previously validated source).
+fn validate_agent_structure(doc: &serde_json::Value) -> Result<(), state::Error> {
+    let profile: compiler::AgentProfile = serde_json::from_value(doc.clone())
+        .map_err(|e| state::Error::Parse(format!("invalid agent schema: {e}")))?;
+    agent_def::Agent::from_profile(&profile, "")
+        .validate_capabilities()
+        .map_err(|e| state::Error::Parse(format!("invalid capability: {e}")))?;
+    Ok(())
+}
+
 /// Force the doc's `agent.id` field to match `id` so the slot can't drift
 /// from the filename. Mirrors the helper in mod.rs that the HTTP handler
 /// previously called inline.
@@ -147,6 +163,7 @@ impl AgentsService for AgentsServiceImpl {
                 None => Scope::Project,
             },
         };
+        validate_agent_structure(&args.doc)?;
         state::write_doc(&svc, &args.id, target, &args.doc, true)?;
         Ok(target)
     }
@@ -167,6 +184,7 @@ impl AgentsService for AgentsServiceImpl {
     fn create(&self, args: CreateArgs) -> Result<Scope, state::Error> {
         let target = args.scope.unwrap_or(Scope::Project);
         let doc = force_agent_id(args.doc, &args.id);
+        validate_agent_structure(&doc)?;
         state::write_doc(&self.files(), &args.id, target, &doc, false)?;
         Ok(target)
     }
@@ -287,5 +305,50 @@ mod tests {
         })
         .unwrap();
         assert_eq!(svc.delete("doomed", None).unwrap(), Scope::Project);
+    }
+
+    // ── Gap B: validation gate ────────────────────────────────────────────────
+
+    #[test]
+    fn create_rejects_c3_capability() {
+        let (_tmp, svc) = fresh();
+        let bad_cap = serde_json::json!({
+            "agent": { "id": "bad", "name": "Bad" },
+            "capabilities": [{ "domain": "account", "blast": "C3" }]
+        });
+        let err = svc
+            .create(CreateArgs {
+                id: "bad".into(),
+                doc: bad_cap,
+                scope: Some(Scope::Project),
+            })
+            .unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("C3") || msg.contains("capability") || msg.contains("invalid"),
+            "expected capability error, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn put_rejects_flat_doc_without_agent_block() {
+        let (_tmp, svc) = fresh();
+        // First create a valid doc.
+        svc.create(CreateArgs {
+            id: "alpha".into(),
+            doc: doc_value(),
+            scope: Some(Scope::Project),
+        })
+        .unwrap();
+        // Now PUT a flat replacement — must be rejected.
+        let flat = serde_json::json!({ "id": "alpha", "name": "Flat" });
+        let err = svc
+            .put(PutArgs { id: "alpha".into(), doc: flat, scope: None })
+            .unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("parse") || msg.contains("invalid"),
+            "expected parse error on PUT, got: {msg}"
+        );
     }
 }

@@ -7,6 +7,10 @@
 
 use serde::{Deserialize, Serialize};
 
+// Re-export Capability so callers that hold `AgentProfile` don't need to pull
+// in the compiler crate directly.
+pub use compiler::Capability;
+
 /// Flat runtime/UI view of an agent profile.
 ///
 /// The file-canonical nested type (`compiler::AgentProfile`) carries fields this
@@ -36,6 +40,11 @@ pub struct AgentProfile {
     /// Which harness targets to sync to (e.g. ["claude", "codex"]).
     #[serde(default)]
     pub target_agents: Vec<String>,
+    /// Ship-op authority grants. When non-empty, threaded into the canonical
+    /// file's top-level `capabilities` array by `save_agents_config`. C3
+    /// (critical) is operator-only and must never appear here.
+    #[serde(default)]
+    pub capabilities: Vec<Capability>,
 }
 
 /// Project-level overrides for the two identity-shaped launch keys.
