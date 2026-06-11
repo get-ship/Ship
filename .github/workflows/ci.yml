@@ -133,6 +133,16 @@ jobs:
         run: |
           cargo run -p xtask --quiet -- gen-tokens --check \
             || { echo "tokens.json is stale — run 'cargo run -p xtask -- gen-tokens' and commit"; exit 1; }
+      # The daemon HTTP route reference (skills/sdk/http-routes) is generated
+      # from the @route annotations in apps/shipd/src/routes/mod.rs — the same
+      # registry build.rs compiles into the router. Re-render + byte-compare so
+      # a route add/remove/auth change can't land without the reference page
+      # (which the docs site harvests into Reference → SDK (Ops) → http) being
+      # refreshed.
+      - name: Check route reference drift
+        run: |
+          cargo run -p xtask --quiet -- gen-routes-doc --check \
+            || { echo "skills/sdk/http-routes is stale — run 'cargo run -p xtask -- gen-routes-doc' and commit"; exit 1; }
       # Proto contract fixtures are generated from proto/fixtures/theme.json and
       # validated against the ship.ops.v1 proto types. Regenerate + assert no
       # diff so a proto shape change can't outrun its fixture (which the Rust +

@@ -7,8 +7,8 @@ use specta_typescript::{BigIntExportBehavior, Typescript};
 
 use crate::{
     build_assets, coverage, gen_audit_readme, gen_collection_types, gen_contract, gen_events,
-    gen_fixtures, gen_icons, gen_indexes, gen_skills, gen_sdk, gen_tokens, lint_anti_theater,
-    lint_imports, lint_layers, lint_residue, port_descriptions, types,
+    gen_fixtures, gen_icons, gen_indexes, gen_routes_doc, gen_skills, gen_sdk, gen_tokens,
+    lint_anti_theater, lint_imports, lint_layers, lint_residue, port_descriptions, types,
 };
 
 pub fn repo_root() -> PathBuf {
@@ -108,6 +108,13 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                 std::process::exit(1);
             }
         }
+        "gen-routes-doc" => {
+            let check = args.iter().any(|a| a == "--check");
+            if let Err(e) = gen_routes_doc::run(&repo_root(), check) {
+                eprintln!("gen-routes-doc failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
         "gen-contract" => {
             let check = args.iter().any(|a| a == "--check");
             if let Err(e) = gen_contract::run(&repo_root(), check) {
@@ -176,6 +183,8 @@ fn print_help() {
     eprintln!("  gen-events --check    Verify generated files are up-to-date (CI)");
     eprintln!("  gen-tokens            Regenerate crates/sui/compiler/tokens.json from the canonical CSS token files");
     eprintln!("  gen-tokens --check    Verify tokens.json matches the CSS (CI drift gate)");
+    eprintln!("  gen-routes-doc        Regenerate skills/sdk/http-routes from @route annotations in apps/shipd/src/routes/mod.rs");
+    eprintln!("  gen-routes-doc --check  Verify the route reference is up-to-date (CI drift gate)");
     eprintln!("  gen-contract          Generate docs/contract/<domain>.md consumer guides");
     eprintln!("  gen-contract --check  Verify generated contract docs are up-to-date (CI)");
     eprintln!("  gen-audit-readme      Regenerate .artifacts/specs/module-audits/README.md");
