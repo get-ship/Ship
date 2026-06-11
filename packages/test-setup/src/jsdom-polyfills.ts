@@ -76,6 +76,11 @@ function installToggleEvent(): void {
 
 function installPointerEvent(): void {
   if (typeof PointerEvent !== 'undefined') return
+  // No MouseEvent means no DOM at all (a `@vitest-environment node` file
+  // sharing a jsdom-suite setup) — nothing dispatches pointer events there,
+  // and subclassing would throw at setup. Skip, per this file's "safe to
+  // call from any runtime" contract.
+  if (typeof MouseEvent === 'undefined') return
   // JSDOM 25 ships MouseEvent but not PointerEvent. Anchor-position primitives
   // (sui-hover-card, sui-tooltip) dispatch synthetic pointerenter/leave; the
   // shape (button, clientX, …) inherits from MouseEvent so subclassing works
