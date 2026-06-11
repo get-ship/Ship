@@ -115,8 +115,6 @@ pub async fn run_floki_step(
     );
 
     // ── Session event sink ────────────────────────────────────────────────────
-    // Resolve the ship dir BEFORE the kernel Arc moves into the sink.
-    let ship_dir = kernel.lock().await.base_dir().to_path_buf();
     let session_sink = SessionEventSink::new(Arc::new(ShipdKernelSink::new(kernel)));
 
     // ── ToolCtx ───────────────────────────────────────────────────────────────

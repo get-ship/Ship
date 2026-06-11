@@ -4,8 +4,7 @@
 //! first op, `Meta` (C0), proves the proto → trait → mount pipeline end to end.
 //! See docs/ship-architecture/references/docs/op-surface.md.
 
-use std::collections::HashMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use ship_ops_rpc::{
@@ -284,8 +283,8 @@ pub fn router(state: ApiState) -> axum::Router {
             let resolve: Box<dyn Fn(&crate::ship_runtime::ApiState) -> serde_json::Value + Send + Sync> = match op {
                 "pipelines.summaries" => {
                     Box::new(move |st| {
-                        use crate::services::pipelines::summaries;
-                        use crate::services::pipelines::state::Filter;
+                        use ship_pipeline_runtime::view::summaries;
+                        use ship_pipeline_runtime::view::state::Filter;
                         let ctx = summaries::build(st.ship_dir(), Filter::default(), None);
                         serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
                     })
@@ -294,7 +293,7 @@ pub fn router(state: ApiState) -> axum::Router {
                     let slug = args.get("slug").and_then(|v| v.as_str())
                         .unwrap_or("").to_string();
                     Box::new(move |st| {
-                        use crate::services::pipelines::run_detail;
+                        use ship_pipeline_runtime::view::run_detail;
                         let ctx = run_detail::build(&slug, st.ship_dir());
                         serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
                     })
@@ -307,7 +306,7 @@ pub fn router(state: ApiState) -> axum::Router {
                     let q = args.get("q").and_then(|v| v.as_str())
                         .filter(|s| !s.is_empty()).map(str::to_string);
                     Box::new(move |st| {
-                        use crate::services::pipelines::history;
+                        use ship_pipeline_runtime::view::history;
                         let ctx = history::build(st.ship_dir(), q.clone(), pipeline.clone(), offset, limit);
                         serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
                     })
@@ -1016,87 +1015,11 @@ fn copy_scaffold_view(
     Ok(())
 }
 
-// ── Policy introspection (not the enforcement path) ───────────────────────────
-//
-// Enforcement is `auth::gate` via the `GateFn` closure in `router`. The map below reads the
-// capability / blast-radius / sensitive method options that `gen-ops` projects
-// into the proto `FileDescriptorSet` — kept so the contract is visible to every
-// generated client (TS/docs/SDK) and conformance-tested here, NOT to gate calls.
-//
-// Proto owns op policy (#67a): the capability / blast-radius / sensitive method
-// options are compiled into the FileDescriptorSet. We read them once at first
-// use rather than from generated Rust (the runtime drops custom options in
-// normal codegen). Keyed by the Connect wire-path body "<package>.<Svc>/<Method>".
-
-/// Policy for one op, extracted from its proto method options. `blast_radius` is
-/// the shared `ship_ops_rpc::BlastRadius` (one enum across the gate + this map).
-#[derive(Debug, Clone)]
-pub struct OpPolicy {
-    pub capability: String,
-    pub blast_radius: ship_ops_rpc::BlastRadius,
-    pub sensitive: bool,
-}
-
-/// Build the `wire-path → policy` map. Delegates to the single crate-level
-/// descriptor reader (`ship_ops_rpc::policy::read_policies`) — one decode of the
-/// FileDescriptorSet, shared with the gate's op-name-keyed lookup. Called once.
-fn build_policy_map() -> HashMap<String, OpPolicy> {
-    ship_ops_rpc::policy::read_policies()
-        .into_iter()
-        .map(|p| {
-            (
-                p.wire_path(),
-                OpPolicy {
-                    capability: p.capability,
-                    blast_radius: p.blast,
-                    sensitive: p.sensitive,
-                },
-            )
-        })
-        .collect()
-}
-
-/// The op-policy map, built once from the descriptor at first lookup.
-pub static OP_POLICY: LazyLock<HashMap<String, OpPolicy>> = LazyLock::new(build_policy_map);
-
-/// Look up policy by Connect wire-path, e.g. `ship.ops.v1.OpsService/Meta`
-/// (leading slash optional).
-pub fn policy_for(path: &str) -> Option<&'static OpPolicy> {
-    OP_POLICY.get(path.trim_start_matches('/'))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::auth::AuthContext;
     use ship_substrate::events::CallerKind;
-
-    #[test]
-    fn meta_op_policy_read_from_proto_descriptor() {
-        // Proves #67a end to end: the method options declared in ops.proto are
-        // compiled into the descriptor and recovered by the gate.
-        let p = policy_for("ship.ops.v1.OpsService/Meta")
-            .expect("Meta policy must be present in the descriptor");
-        assert_eq!(p.capability, "ship.meta.read");
-        assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C0Read);
-        assert!(!p.sensitive);
-    }
-
-    #[test]
-    fn ported_read_op_carries_its_policy() {
-        // account.state keeps its own proto policy on the canonical per-domain
-        // service. The `ReadOpsService` umbrella was retired (#78) — per-domain
-        // Connect is the SSOT, so the policy resolves via `AccountService/State`.
-        //
-        // FLAG-3 honesty fix: the wire enforces require_operator (operator-only,
-        // S6 #124) for ALL AccountService ops including State — proto was
-        // mistakenly declared C0. The blast class is now C3Critical to match
-        // the wire enforcement (no enforcement change — doc/classification only).
-        let p = policy_for("ship.ops.v1.AccountService/State")
-            .expect("AccountService/State policy must be present");
-        assert_eq!(p.capability, "ship.account.read");
-        assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C3Critical);
-    }
 
     fn auth(kind: CallerKind, agent: Option<&str>) -> AuthContext {
         AuthContext {

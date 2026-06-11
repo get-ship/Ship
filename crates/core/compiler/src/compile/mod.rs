@@ -60,7 +60,7 @@ pub use harness::{
 pub(super) fn ship_hook_command(endpoint: &str) -> String {
     format!(
         "if [ -n \"$SHIP_DAEMON_URL\" ]; then \
-curl -sS -X POST \"$SHIP_DAEMON_URL/api/v1/hooks/{endpoint}\" \
+curl -sS -X POST \"$SHIP_DAEMON_URL/hooks/{endpoint}\" \
 -H \"Authorization: Bearer $SHIP_TOKEN\" -H \"Content-Type: application/json\" \
 --data-binary @- >/dev/null 2>&1; \
 else ship hook {endpoint}; fi"

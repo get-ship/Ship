@@ -4,10 +4,6 @@
 //! `ship_auth::session`. This file holds only the axum-typed
 //! handler + its response shape.
 
-use axum::{
-    body::Body,
-    http::{HeaderValue, Response, StatusCode, header},
-    };
 // Re-export the platform's pure helpers so existing
 // `crate::auth::session::*` import paths continue to resolve.
 pub use ship_auth::session::{
@@ -16,6 +12,4 @@ pub use ship_auth::session::{
     parse_session_cookie,
 };
 
-use crate::auth::AuthContext;
-use crate::auth::scopes::{SessionRegistry};
 

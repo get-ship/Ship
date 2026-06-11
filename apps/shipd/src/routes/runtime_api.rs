@@ -9,15 +9,6 @@
 //! project read yet — the workbench's runtime.db `sessions` table is
 //! gone, so a re-implementation would be a different projection over
 //! the canonical event log, deferred to a follow-up.
-use axum::{
-    Json,
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-};
-use crate::auth::AuthContext;
-use crate::ship_runtime::ApiState;
-use crate::wire::MeshResponse;
 
 // ── mr-04 follow-up: per-handler submodules ─────────────────────────────────
 //
@@ -43,7 +34,9 @@ pub use ship_pipeline_runtime::run_core::PipelineRunRequest;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ship_runtime::ApiState;
     use axum::extract::State;
+    use axum::http::StatusCode;
     use axum::response::IntoResponse;
     use std::sync::Arc;
     use tempfile::TempDir;

@@ -10,11 +10,7 @@
 //! sessions carry branch as a dimension, git is queried on demand —
 //! nothing to reconcile on checkout.
 
-use axum::{Extension, Json, response::IntoResponse};
-use ship_substrate::events::CallerKind;
-use serde::Serialize;
 
-use crate::auth::AuthContext;
 
 /// Axum shared state — an Arc-wrapped ShipRuntime.
 pub use crate::ship_runtime::ApiState;

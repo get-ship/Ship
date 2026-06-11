@@ -20,7 +20,7 @@ fn codex_hooks_are_pod_and_host_hybrid() {
         .expect("PreToolUse hook")["hooks"][0]["command"]
         .as_str()
         .expect("command string");
-    assert!(cmd.contains("$SHIP_DAEMON_URL/api/v1/hooks/before-tool"), "got: {cmd}");
+    assert!(cmd.contains("$SHIP_DAEMON_URL/hooks/before-tool"), "got: {cmd}");
     assert!(cmd.contains("Authorization: Bearer $SHIP_TOKEN"), "got: {cmd}");
     assert!(cmd.contains("ship hook before-tool"), "host fallback: {cmd}");
 }

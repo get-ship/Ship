@@ -19,7 +19,7 @@ impl EventsService for OpsImpl {
             if s.is_empty() { None } else { Some(s) }
         }
         let limit = if request.limit <= 0 { 200 } else { request.limit as usize };
-        let data = crate::routes::runtime_api::events::poll_events_core(
+        let data = ship_substrate::runtime_reads::poll_events_core(
             self.state().ship_dir(),
             opt(request.since_id),
             opt(request.slug),

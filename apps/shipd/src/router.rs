@@ -23,7 +23,7 @@ use crate::routes::{
 };
 #[cfg(feature = "ship-code")]
 use crate::routes::hooks_api;
-use crate::auth::{attest, pairing, session};
+use crate::auth::{attest, pairing};
 use crate::transport::cors;
 use axum::routing;
 
@@ -36,7 +36,7 @@ pub fn build_router(
     attestation_verifier: attest::AttestationVerifier,
     daemon_mode: deck::DaemonMode,
 ) -> Router {
-    use crate::routes::{Route, ShipRouterExt};
+    
     let st = rt.clone();
     // Non-enumerated third-party routes (telegram webhook + hooks) stay on
     // `.route()` — they predate the canonical `Route` enum. Leave flat.

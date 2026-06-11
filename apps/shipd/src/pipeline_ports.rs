@@ -6,10 +6,10 @@
 
 use async_trait::async_trait;
 use ship_pipeline_runtime::pipeline_ports::{
-    PipelineDispatchPort, TurnSignalPort, WorktreesDirPort,
+    PipelineDispatchPort, TurnSignalPort,
 };
 use ship_substrate::events::EventEnvelope;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::ship_runtime::ApiState;
 

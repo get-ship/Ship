@@ -1,6 +1,5 @@
 //! Config types, type aliases, and small utility types for ShipRuntime.
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;

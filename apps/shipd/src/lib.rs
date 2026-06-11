@@ -30,9 +30,6 @@ pub mod auth;
 pub mod wire;
 pub mod transport;
 mod daemon;
-pub mod services;
-#[cfg(feature = "ship-code")]
-pub mod managers;
 pub mod routes;
 pub mod router;
 pub mod ops_rpc;
@@ -49,11 +46,10 @@ pub mod floki_first_light;
 pub mod local_paths;
 // diag_rpc: deleted — diagnostics.snapshot op cut; DiagnosticRegistry apparatus removed.
 pub mod runtime_rpc;
-pub mod pipelines_rpc;
-// agent_rpc: policy + gate conformance tests for AgentsService.
-// The impl AgentsService for OpsImpl is deleted — AgentsWire (ship-agents) is now
-// the sole handler, mounted via AgentsServiceExt::register in ops_rpc.rs.
-pub mod agent_rpc;
+// policy_conformance_tests: proto-policy + gate conformance for the mounted
+// wires (merged from the former agent_rpc/pipelines_rpc/view_rpc headstones).
+#[cfg(test)]
+mod policy_conformance_tests;
 pub mod agent_event_ports;
 pub mod pipeline_ports;
 // dispatch: job+session dispatch composition root — gated because it
@@ -66,7 +62,6 @@ pub mod settings_rpc;
 pub mod device_ports;
 pub mod account_rpc;
 pub mod events_rpc;
-pub mod view_rpc;
 pub mod registry_rpc;
 pub mod sui_rpc;
 pub mod search_context;
@@ -301,11 +296,11 @@ pub async fn run_network(
     #[cfg(feature = "ship-code")]
     {
         // Harness-on: hand the floki closure to the full composition root
-        // (RunManager → subscribe_job_events). That path builds the full
-        // AgentPorts (with harness fields) AND starts the agent-sessions
-        // actor with them — the actor is the SAME one that would otherwise
-        // be started below, so we MUST NOT start it again here.
-        let run_mgr = managers::RunManager::init(
+        // (subscribe_job_events). That path builds the full AgentPorts
+        // (with harness fields) AND starts the agent-sessions actor with
+        // them — the actor is the SAME one that would otherwise be started
+        // below, so we MUST NOT start it again here.
+        let dispatch_handle = dispatch::run_dispatch::subscribe_job_events(
             rt.kernel().clone(),
             global_dir.clone(),
             rt.health_registry(),
@@ -314,7 +309,7 @@ pub async fn run_network(
             Some(floki_run_fn),
         )
         .await;
-        if let Some(dh) = run_mgr.dispatch_handle {
+        if let Some(dh) = dispatch_handle {
             rt.set_dispatch_handle(dh);
         }
     }

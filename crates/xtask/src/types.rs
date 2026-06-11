@@ -145,12 +145,9 @@ pub fn collect_framework_types() -> TypeCollection {
     c.register::<deck::resolver::ResolvedView>();
     c.register::<deck::resolver::ResolveError>();
 
-    // shipd::views — view list / manifest / source. Write paths and lint
-    // moved to DiscoveryService / view-edit Connect wire; the REST
-    // surfaces here are read-only.
-    c.register::<shipd::views::ViewManifest>();
-    c.register::<shipd::views::ViewListEntry>();
-    c.register::<shipd::views::RailMeta>();
+    // shipd::views — manifest rail metadata read by search_context. The
+    // ViewManifest/ViewListEntry/RailMeta REST shapes were deleted with
+    // their zero-caller handlers (shipd deletion map 1.12).
     c.register::<shipd::views::resolve::ManifestRail>();
 
     // view-authoring — contract types shared with the chrome edit-mode UI.
