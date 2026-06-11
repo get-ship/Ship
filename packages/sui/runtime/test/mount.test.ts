@@ -6,7 +6,7 @@
 // idiomatic test seam (mirrors how `attach()` tests inject modules).
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { mount, signal } from '../src/index'
+import { live, mount, signal } from '../src/index'
 import type { ViewPayload } from '../src/index'
 
 // JSDOM doesn't implement EventSource — stub minimally for live-channel paths.
@@ -453,5 +453,176 @@ describe('openLiveChannel (via mount)', () => {
     expect((itemsSig() as { kind: string }).kind).toBe('loading')
 
     handle.dispose()
+  })
+})
+
+// ── keyed clients injection (the `<client>` directive's runtime half) ──
+//
+// `opts.clients` is THE injection surface: each key a view declares via
+// `<client name="X" />` resolves from `ctx.clients.X`. `ship` is just a
+// key — aliased both ways with the legacy `opts.ship` so hosts and views
+// on either side of the migration interoperate.
+describe('mount() keyed clients', () => {
+  let target: HTMLElement
+
+  beforeEach(() => {
+    document.body.innerHTML = ''
+    target = document.createElement('div')
+    document.body.appendChild(target)
+  })
+
+  const payload = (): ViewPayload => ({
+    name: 'clients-demo',
+    html: '<div></div>',
+    css: '',
+    scope: {},
+    moduleUrl: '/x',
+  })
+
+  type Ctx = {
+    ship?: unknown
+    clients?: Record<string, unknown>
+    scope?: Record<string, unknown>
+  }
+
+  it('a non-ship client key resolves a live data source end-to-end', async () => {
+    // Fake `api` client — what a non-Ship host injects. The module body
+    // mirrors compiled output for:
+    //   <client name="api" />
+    //   <data name="t" source="api.demo.clock()" live />
+    const api = {
+      demo: { clock: async () => ({ now: 42 }) },
+    }
+    let t: (() => { kind: string; value?: { now: number } }) | undefined
+    const mod = {
+      default: {
+        clients: ['api'],
+        setup: (ctx: unknown) => {
+          const { api } = (ctx as Ctx).clients as {
+            api: { demo: { clock: () => Promise<{ now: number }> } }
+          }
+          const $scope: Record<string, unknown> = {}
+          $scope['t'] = live(() => api.demo.clock())
+          t = $scope['t'] as typeof t
+          return Object.assign({}, $scope)
+        },
+      },
+    }
+    const handle = await mount(target, payload(), {
+      clients: { api },
+      module: mod as never,
+    })
+    // live() resolves the thunk's promise on a microtask.
+    await new Promise((r) => setTimeout(r, 0))
+    expect(t).toBeTypeOf('function')
+    expect(t!()).toEqual({ kind: 'ok', value: { now: 42 } })
+    handle.dispose()
+  })
+
+  it('clients are spread into setup scope so bare keys resolve', async () => {
+    const api = { ping: () => 'pong' }
+    let captured: Ctx = {}
+    const handle = await mount(target, payload(), {
+      clients: { api },
+      module: {
+        default: {
+          setup: (ctx: unknown) => {
+            captured = ctx as Ctx
+            return {}
+          },
+        },
+      } as never,
+    })
+    expect(captured.clients).toEqual({ api })
+    expect((captured.scope as Record<string, unknown>)['api']).toBe(api)
+    handle.dispose()
+  })
+
+  it('opts.ship is aliased into clients.ship (legacy host, new view)', async () => {
+    const ship = { id: 'sdk' }
+    let captured: Ctx = {}
+    const handle = await mount(target, payload(), {
+      ship,
+      module: {
+        default: {
+          setup: (ctx: unknown) => {
+            captured = ctx as Ctx
+            return {}
+          },
+        },
+      } as never,
+    })
+    expect(captured.clients).toEqual({ ship })
+    expect(captured.ship).toBe(ship)
+    handle.dispose()
+  })
+
+  it('clients.ship feeds the legacy ctx.ship alias (new host, old view)', async () => {
+    const ship = { id: 'sdk' }
+    let captured: Ctx = {}
+    const handle = await mount(target, payload(), {
+      clients: { ship },
+      module: {
+        default: {
+          setup: (ctx: unknown) => {
+            captured = ctx as Ctx
+            return {}
+          },
+        },
+      } as never,
+    })
+    expect(captured.ship).toBe(ship)
+    expect(captured.clients).toEqual({ ship })
+    handle.dispose()
+  })
+
+  it('an explicit clients.ship wins over opts.ship in the map', async () => {
+    const legacy = { id: 'legacy' }
+    const keyed = { id: 'keyed' }
+    let captured: Ctx = {}
+    const handle = await mount(target, payload(), {
+      ship: legacy,
+      clients: { ship: keyed },
+      module: {
+        default: {
+          setup: (ctx: unknown) => {
+            captured = ctx as Ctx
+            return {}
+          },
+        },
+      } as never,
+    })
+    expect((captured.clients as Record<string, unknown>)['ship']).toBe(keyed)
+    handle.dispose()
+  })
+
+  it('warns when the module declares a client the host did not supply', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const mod = {
+        default: {
+          clients: ['api'],
+          setup: () => ({}),
+        },
+      }
+      const handle = await mount(target, payload(), { module: mod as never })
+      expect(
+        warn.mock.calls.some((c) => String(c[0]).includes('<client name="api">')),
+      ).toBe(true)
+      handle.dispose()
+
+      // Supplying the key silences the warning.
+      warn.mockClear()
+      const handle2 = await mount(target, payload(), {
+        clients: { api: {} },
+        module: mod as never,
+      })
+      expect(
+        warn.mock.calls.some((c) => String(c[0]).includes('<client name="api">')),
+      ).toBe(false)
+      handle2.dispose()
+    } finally {
+      warn.mockRestore()
+    }
   })
 })
