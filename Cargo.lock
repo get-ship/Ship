@@ -8551,6 +8551,7 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "ship-agents",
+ "ship-analytics",
  "ship-isolation",
  "ship-ops-rpc",
  "ship-pipeline-runtime",

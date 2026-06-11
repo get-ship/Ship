@@ -24,13 +24,13 @@ pub struct WorkspaceRow {
 
 pub struct SessionRow {
     pub id_short: String,
-    pub branch: String,
+    pub agent: String,
     pub status: String,
     pub harness: String,
-    pub agent: String,
+    pub model: String,
     pub tool_calls: i64,
+    pub errors: i64,
     pub started: String,
-    pub goal: String,
 }
 
 pub struct EventRow {
@@ -83,18 +83,25 @@ fn refresh_workspaces(state: &mut TopState, _ship_dir: &Path) {
 
 fn refresh_sessions(state: &mut TopState) {
     state.sessions.clear();
-    match ship_substrate::db::session::list_sessions_db(None, 50) {
+    // The workbench session.* family retired; the canonical session record is
+    // the analytics rollup (`analytics_sessions`, folded from hook.* events).
+    match ship_analytics::service::list_recent_sessions(50) {
         Ok(sessions) => {
             for s in sessions {
+                let status = if s.ended_at.is_none() {
+                    "active".to_string()
+                } else {
+                    s.reason.unwrap_or_else(|| "ended".into())
+                };
                 state.sessions.push(SessionRow {
-                    id_short: s.id.chars().take(8).collect(),
-                    branch: s.branch,
-                    status: s.status,
-                    harness: s.primary_harness.unwrap_or_else(|| "—".into()),
-                    agent: s.agent_id.unwrap_or_else(|| "—".into()),
-                    tool_calls: s.tool_call_count,
+                    id_short: s.session_key.chars().take(8).collect(),
+                    agent: s.actor_id,
+                    status,
+                    harness: s.harness.unwrap_or_else(|| "—".into()),
+                    model: s.model.unwrap_or_else(|| "—".into()),
+                    tool_calls: s.tool_use_count,
+                    errors: s.tool_error_count,
                     started: format_time(&s.started_at),
-                    goal: s.goal.as_deref().unwrap_or("—").chars().take(40).collect(),
                 });
             }
         }

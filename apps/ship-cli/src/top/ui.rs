@@ -139,7 +139,7 @@ fn draw_agents(f: &mut Frame, area: Rect, state: &TopState, focused: bool, scrol
 }
 
 fn draw_sessions(f: &mut Frame, area: Rect, state: &TopState, focused: bool, scroll: usize) {
-    let header = Row::new(["ID", "Branch", "Status", "Harness", "Agent", "Tools", "Started", "Goal"])
+    let header = Row::new(["ID", "Agent", "Status", "Harness", "Model", "Tools", "Errors", "Started"])
         .style(HEADER);
     let rows: Vec<Row> = state
         .sessions
@@ -148,25 +148,25 @@ fn draw_sessions(f: &mut Frame, area: Rect, state: &TopState, focused: bool, scr
         .map(|s| {
             Row::new([
                 Cell::from(s.id_short.as_str()).style(DIM),
-                Cell::from(s.branch.as_str()),
+                Cell::from(s.agent.as_str()),
                 Cell::from(s.status.as_str()).style(session_color(&s.status)),
                 Cell::from(s.harness.as_str()),
-                Cell::from(s.agent.as_str()),
+                Cell::from(s.model.as_str()).style(DIM),
                 Cell::from(s.tool_calls.to_string()),
+                Cell::from(s.errors.to_string()),
                 Cell::from(s.started.as_str()).style(DIM),
-                Cell::from(s.goal.as_str()).style(DIM),
             ])
         })
         .collect();
     let widths = [
         Constraint::Length(9),
-        Constraint::Percentage(16),
+        Constraint::Percentage(20),
         Constraint::Length(9),
         Constraint::Percentage(12),
-        Constraint::Percentage(12),
-        Constraint::Length(6),
-        Constraint::Length(9),
         Constraint::Fill(1),
+        Constraint::Length(6),
+        Constraint::Length(7),
+        Constraint::Length(9),
     ];
     let table = Table::new(rows, widths)
         .header(header)
