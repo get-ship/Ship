@@ -9,7 +9,8 @@
 use std::collections::BTreeMap;
 
 /// Outcome from a single fanout lane after its step monitor fires.
-#[derive(Debug, Clone)]
+/// Serde: journaled by the durable-execution FanoutProgram (C6/P2.4).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LaneOutcome {
     pub lane_id: String,
     pub success: bool,
@@ -20,7 +21,7 @@ pub struct LaneOutcome {
 }
 
 /// Decision produced by the aggregator after every lane has reported.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum AggregateDecision {
     Advance { ok_count: usize },
     Fail { ok_count: usize, reason: String },

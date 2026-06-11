@@ -24,6 +24,7 @@ pub mod isolation;
 pub mod fanout;
 pub mod fanout_aggregate;
 pub mod fanout_cancel;
+pub mod fanout_driver;
 pub mod fanout_recover;
 pub mod git_helpers;
 pub mod review_retry;
@@ -76,6 +77,8 @@ mod tests_step_io;
 mod tests_pipeline_load;
 #[cfg(test)]
 mod tests_fanout;
+#[cfg(test)]
+mod tests_fanout_journal;
 #[cfg(test)]
 mod tests_fanout_harness;
 #[cfg(test)]

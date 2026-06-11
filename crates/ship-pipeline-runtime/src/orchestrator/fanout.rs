@@ -12,16 +12,13 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Mutex;
 
-use ship_substrate::events::pipeline::{
-    FanoutSpec, PipelineStep, PipelineStepObservedPayload, StepTrigger, StepType, StepVerdict, event_types,
-};
-use ship_substrate::events::{EventEnvelope, KernelRouter};
+use ship_substrate::events::pipeline::{FanoutSpec, PipelineStep, StepType};
+use ship_substrate::events::KernelRouter;
 use crate::projections::pipeline_run::PipelineRun;
 use ship_code::dispatch_ports::{SessionContext, LaunchProfile, StepInfo};
 use ship_runner::emit::{
-    emit_process_spawned, emit_step_dispatched_event, emit_step_failed, persist_and_route,
+    emit_process_spawned, emit_step_dispatched_event, emit_step_failed,
 };
-use crate::orchestrator::fanout_aggregate::{AggregateDecision, aggregate_lane_outcomes};
 use crate::orchestrator::step_monitor::{StepMonitor, start_step_monitor};
 use crate::orchestrator::{FanoutLaneRef, LaneOutcome, OrchestratorContext};
 
@@ -192,101 +189,39 @@ pub async fn dispatch_fanout_step(
         return 0;
     }
 
-    // Background aggregator: wait for all lane completions, then emit parent step outcome.
-    let kernel_clone = kernel.clone();
-    let pipeline_run_id = job.pipeline_run_id.clone();
-    let parent_slug = slug.clone();
-    let step_id = step.id.clone();
-    let min_ok = fanout.min_successful_lanes;
-    let total = fanout.lanes.len();
-    let start = Instant::now();
-
-    tokio::spawn(async move {
-        let mut outcomes: Vec<LaneOutcome> = Vec::with_capacity(lane_rxs.len());
-        for (_lane_id, rx) in lane_rxs {
-            match rx.await {
-                Ok(outcome) => outcomes.push(outcome),
-                Err(_) => {
-                    // Sender dropped (lane dispatch failed silently after
-                    // registering rx). Treat as a failed lane with no outputs.
-                }
-            }
-        }
-
-        // If every lane's sender was dropped without a value AND the
-        // parent job is already terminal (typically Cancelled), exit
-        // quietly. The terminal-state guard would drop any step.failed
-        // we emitted anyway, and emitting one would pollute the event
-        // log with a misleading "insufficient successful lanes" reason
-        // for an operator-initiated cancellation.
-        if outcomes.is_empty() && parent_job_is_terminal(&pipeline_run_id) {
-            tracing::info!(
-                pipeline_run_id, step_id,
-                "fanout: aggregator exiting — parent job is terminal (cancelled or failed)"
-            );
-            return;
-        }
-
-        let decision = aggregate_lane_outcomes(&outcomes, min_ok, total);
-        let duration_secs = start.elapsed().as_secs();
-
-        let ok_count = match decision {
-            AggregateDecision::Fail { ok_count, reason } => {
-                tracing::warn!(
-                    pipeline_run_id, step_id, ok_count, min_ok, total,
-                    "fanout: insufficient successful lanes — failing fanout step"
-                );
-                emit_step_failed(&kernel_clone, &pipeline_run_id, &parent_slug, &step_id, &reason).await;
-                return;
-            }
-            AggregateDecision::Advance { ok_count } => ok_count,
-        };
-
-        // Emit synthetic step.observed(Advance) for the parent fanout step.
-        let payload = PipelineStepObservedPayload {
-            pipeline_run_id: pipeline_run_id.clone(),
-            slug: parent_slug.clone(),
-            step_index: step_idx,
-            step_name: step_id.clone(),
-            trigger: StepTrigger::DoneDeclared,
-            done_declared: true,
-            done_result: Some(true),
-            exit_code: None,
-            commits_since_start: 0,
-            uncommitted_files: 0,
-            duration_secs,
-            reason: Some(format!("fanout: {ok_count}/{total} lanes succeeded")),
-            verdict: StepVerdict::Advance,
-            succeeded: true,
-            start_sha: None,
-            log_tail: None,
-        };
-        if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, &pipeline_run_id, &payload) {
-            let env = env.with_actor_id("service.orchestrator");
-            persist_and_route(&kernel_clone, env, &parent_slug, None).await;
-        }
+    // Journal-driven aggregation (C6/P2.4): the wait → aggregate → emit
+    // sequence runs as FanoutProgram through the durable-execution engine.
+    // Lane outcomes still resolve through the per-lane oneshots the router
+    // fills; the aggregate decision and the parent emission are journaled
+    // (exactly-once under replay). The hand-rolled aggregator task is gone.
+    let lane_ops: Vec<String> = lane_rxs
+        .iter()
+        .map(|(lane_id, _)| format!("fanout.lane.{lane_id}"))
+        .collect();
+    let dispatch = std::sync::Arc::new(super::fanout_driver::FanoutDispatch {
+        kernel: kernel.clone(),
+        pipeline_run_id: job.pipeline_run_id.clone(),
+        parent_slug: slug.clone(),
+        step_id: step.id.clone(),
+        step_idx,
+        total: fanout.lanes.len(),
+        started_at: Instant::now(),
+        lane_rxs: Mutex::new(
+            lane_rxs
+                .into_iter()
+                .map(|(lane_id, rx)| (format!("fanout.lane.{lane_id}"), rx))
+                .collect(),
+        ),
     });
+    super::fanout_driver::start_fanout_driver(
+        octx.journal_store.clone(),
+        dispatch,
+        lane_ops,
+        fanout.min_successful_lanes,
+    );
 
     // Emit step_dispatched for the fanout step so the projection sets current_step.
     emit_step_dispatched_event(kernel, &job.pipeline_run_id, &step.id, "fanout", slug, ship_dir_override).await;
 
     spawned
-}
-
-/// Peek at the projection to see whether `pipeline_run_id` is in a terminal state.
-/// Used by the fanout aggregator to suppress misleading `step.failed`
-/// emissions after operator cancellation (or any other path that drops
-/// every lane sender without reporting an outcome).
-///
-/// Returns `false` when the projection can't be loaded so we never
-/// swallow a genuine fanout failure.
-fn parent_job_is_terminal(pipeline_run_id: &str) -> bool {
-    use crate::projections::pipeline_run::{PipelineRunStatus, load_pipeline_run_by_id};
-    match load_pipeline_run_by_id(pipeline_run_id) {
-        Ok(Some(job)) => matches!(
-            job.status,
-            PipelineRunStatus::Cancelled | PipelineRunStatus::Failed | PipelineRunStatus::Merged
-        ),
-        _ => false,
-    }
 }

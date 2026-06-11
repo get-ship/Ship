@@ -144,6 +144,66 @@ impl Program for AgentStepProgram {
     }
 }
 
+/// Journaled fanout program (C6 / P2.4): K lanes as ONE `parallel` node →
+/// aggregate decision as a `record` → parent-outcome emission as an `op`.
+///
+/// What the journal buys at this stage: lane outcomes land deterministically
+/// (input order), the Advance/Fail decision is a durable journaled value, and
+/// the parent `step.observed`/`step.failed` emission is exactly-once under
+/// replay — a fanout whose journal is complete can be re-driven without
+/// double-emitting. Lane RESOLUTION stays in-process (the dispatch awaits the
+/// per-lane oneshot the router resolves); per-lane journaling and the
+/// channels' deletion arrive with the coordinator at C7-C9.
+///
+/// Each lane op returns `{"reported": bool, "outcome": LaneOutcome|null}` —
+/// `reported: false` means the lane's sender was dropped without a value
+/// (cancellation teardown), mirroring the old aggregator's "skip" behavior.
+///
+/// Op sequence is DETERMINISTIC per construction (lane_ops in spawn order) —
+/// must NOT change without migrating journals.
+pub(crate) struct FanoutProgram {
+    /// One op label per SPAWNED lane (`fanout.lane.<lane_id>`), spawn order.
+    pub lane_ops: Vec<String>,
+    pub min_ok: usize,
+    /// Total lanes in the SPEC (not just spawned) — failed spawns count
+    /// against `min_ok` exactly as the old aggregator counted them.
+    pub total: usize,
+}
+
+#[async_trait]
+impl Program for FanoutProgram {
+    async fn run(&self, ctx: &mut ExecCtx) -> Result<Value, EngineError> {
+        let calls = self
+            .lane_ops
+            .iter()
+            .map(|op| (op.clone(), json!({})))
+            .collect::<Vec<_>>();
+        let results = ctx.parallel(calls).await?;
+
+        let (min_ok, total) = (self.min_ok, self.total);
+        let res = results.clone();
+        let decision = ctx
+            .record("fanout.aggregate", move || async move {
+                let outcomes: Vec<ship_pipelines::fanout::LaneOutcome> = res
+                    .iter()
+                    .filter(|v| v["reported"].as_bool().unwrap_or(false))
+                    .filter_map(|v| serde_json::from_value(v["outcome"].clone()).ok())
+                    .collect();
+                let reported = outcomes.len();
+                let decision = ship_pipelines::fanout::aggregate_lane_outcomes(
+                    &outcomes, min_ok, total,
+                );
+                json!({
+                    "reported": reported,
+                    "decision": serde_json::to_value(decision).unwrap_or(Value::Null),
+                })
+            })
+            .await?;
+        ctx.op("fanout.emit_outcome", json!({ "aggregate": decision })).await?;
+        Ok(decision)
+    }
+}
+
 /// C2 SHADOW ONLY — oracle dispatch that returns pre-seeded results without
 /// calling any real ports.
 ///
