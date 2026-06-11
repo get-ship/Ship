@@ -1,6 +1,6 @@
 //! Thin transport for `ship-space`'s `SpaceService` (space.proto).
 //!
-//! Mirrors the `CollectionWire` mount in `ops_rpc.rs`: build the crate's
+//! Mirrors the `CollectionWire` mount in `rpc/ops`: build the crate's
 //! `SpaceWire` with per-request factories and register it as the SOLE
 //! `SpaceService` (the legacy SpaceService was retired in the space cutover).
 //! shipd does NO product logic here — it only resolves the per-request inputs
@@ -86,7 +86,7 @@ fn resolve_target(ctx: &connectrpc::RequestContext, state: &ApiState) -> TargetS
 }
 
 /// Construct the crate's `SpaceWire` for the given runtime. The returned wire is
-/// mounted by `ops_rpc::router` via `SpaceServiceExt::register`.
+/// mounted by `rpc::ops::router` via `SpaceServiceExt::register`.
 pub fn space_wire(
     state: ApiState,
 ) -> Arc<

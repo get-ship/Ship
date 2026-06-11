@@ -96,6 +96,6 @@ pub struct WorktreesDirAdapter;
 
 impl WorktreesDirPort for WorktreesDirAdapter {
     fn worktrees_dir(&self) -> PathBuf {
-        crate::local_paths::worktrees_dir()
+        crate::ports::local_paths::worktrees_dir()
     }
 }

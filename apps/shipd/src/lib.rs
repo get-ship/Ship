@@ -16,10 +16,12 @@ fn install_test_platform_defaults() {
     ship_pipeline_runtime::install_projections();
 }
 
-pub mod data_port;
 #[cfg(feature = "ship-code")]
 pub mod sessions;
 pub mod auth;
+// wire: shared response envelope types. Stays at the crate root — it is the
+// bottom of the module DAG (auth AND routes consume it; see
+// `scripts/lint/check-module-dag.sh`), so it has no single parent module.
 pub mod wire;
 pub mod transport;
 mod daemon;
@@ -28,7 +30,11 @@ pub mod services;
 pub mod managers;
 pub mod routes;
 pub mod router;
-pub mod ops_rpc;
+// rpc: per-domain Connect wire impls + the ops router composition root.
+pub mod rpc;
+// ports: shipd-side implementations of L1 crate ports (DataPort, view tools,
+// pipeline dispatch, device sessions, agent event adapters).
+pub mod ports;
 // floki_gateway: L2 seam — implements floki::Gateway for in-process dispatch
 // through the ops router. No reverse dependency (floki → shipd); the arrow is
 // shipd → floki only.
@@ -37,34 +43,10 @@ pub mod floki_gateway;
 // AuthContext, ToolCtx (kernel-backed SessionEventSink), and ScriptExecutor,
 // then calls floki::run_step. Parallel entry point for floki-harness agents.
 pub mod floki_first_light;
-// local_paths: ungated path helpers (worktrees_dir without ship-code dep).
-// Used by agent_event_ports + pipeline_ports so they compile with flag-off.
-pub mod local_paths;
-// diag_rpc: deleted — diagnostics.snapshot op cut; DiagnosticRegistry apparatus removed.
-pub mod runtime_rpc;
-pub mod pipelines_rpc;
-// agent_rpc: policy + gate conformance tests for AgentsService.
-// The impl AgentsService for OpsImpl is deleted — AgentsWire (ship-agents) is now
-// the sole handler, mounted via AgentsServiceExt::register in ops_rpc.rs.
-pub mod agent_rpc;
-pub mod agent_event_ports;
-pub mod pipeline_ports;
 // dispatch: job+session dispatch composition root — gated because it
 // directly uses ship-code types (process_registry, dispatch_ports).
 #[cfg(feature = "ship-code")]
 pub mod dispatch;
-pub mod view_ports;
-pub mod space_rpc;
-pub mod settings_rpc;
-pub mod device_ports;
-pub mod account_rpc;
-pub mod events_rpc;
-pub mod view_rpc;
-pub mod registry_rpc;
-pub mod sui_rpc;
-pub mod search_context;
-pub mod search_rpc;
-pub mod live_resolvers;
 // (former `window_subscriptions` + `window_subscription_rpc` modules
 // deleted in the multiplex transport move to deck-axum (#276); the per-window
 // registry now lives in `deck_core::window_registry` and the wire is mounted
@@ -284,7 +266,7 @@ pub async fn run_network(
     // ship-code feature is off: the agent-sessions actor is alive and the
     // floki branch in `handle_agent_session_started` dispatches to the
     // closure exactly as in the harness-on build.
-    let ops_router = ops_rpc::router(rt.clone());
+    let ops_router = rpc::ops::router(rt.clone());
     let floki_gateway = std::sync::Arc::new(floki_gateway::ShipdGateway::new(ops_router));
     let floki_kernel = rt.kernel().clone();
     let floki_run_fn: ship_agents::ports::FlokiRunFn = {

@@ -1,6 +1,6 @@
 //! Thin transport for `ship-config`'s unified `SettingsService` (settings.proto).
 //!
-//! Mirrors the `SpaceWire` / `CollectionWire` mounts in `ops_rpc.rs`: build the
+//! Mirrors the `SpaceWire` / `CollectionWire` mounts in `rpc/ops`: build the
 //! crate's `SettingsWire` with a per-request context factory and register it.
 //! shipd does NO product logic — it only resolves the per-request inputs the
 //! crate cannot own:
@@ -59,7 +59,7 @@ fn resolve_ctx(ctx: &connectrpc::RequestContext, state: &ApiState) -> SettingsCt
     }
 }
 
-/// Construct the crate's `SettingsWire`. Registered by `ops_rpc::router` via
+/// Construct the crate's `SettingsWire`. Registered by `rpc::ops::router` via
 /// `SettingsServiceExt::register`.
 pub fn settings_wire(
     state: ApiState,

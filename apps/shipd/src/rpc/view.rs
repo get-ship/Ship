@@ -2,7 +2,7 @@
 //!
 //! The `impl ViewService for OpsImpl` is deleted — `ViewWire` (ship-views)
 //! is now the sole handler, mounted via `ViewServiceExt::register` in
-//! `ops_rpc.rs`.
+//! `rpc/ops`.
 
 #[cfg(test)]
 mod tests {
@@ -20,7 +20,7 @@ mod tests {
             "Tool",
         ] {
             let path = format!("ship.ops.v1.ViewService/{method}");
-            let p = crate::ops_rpc::policy_for(&path)
+            let p = crate::rpc::ops::policy_for(&path)
                 .unwrap_or_else(|| panic!("{path} must carry a policy in the descriptor"));
             assert_eq!(p.capability, "ship.views.write");
             assert_eq!(p.blast_radius, ship_ops_rpc::BlastRadius::C1Space);

@@ -14,7 +14,7 @@
 pub use ship_auth::{attest, pairing};
 /// The one capability gate — a pure `decide(blast, service, caller)` plus the
 /// thin `caller_from_auth` adapter onto [`AuthContext`]. shipd-local; invoked by
-/// the `GateFn` closure in `ops_rpc::router`.
+/// the `GateFn` closure in `rpc::ops::router`.
 pub mod gate;
 pub mod identity;
 /// Host unix socket — per-agent peer-credential auth. Unix-only: relies on
@@ -29,7 +29,6 @@ mod auth_tests;
 #[cfg(test)]
 mod scope_tests;
 #[cfg(test)]
-#[path = "auth/pairing_integration_tests.rs"]
 mod pairing_integration_tests;
 
 use axum::{
@@ -448,7 +447,7 @@ fn header_string(req: &Request<Body>, name: &str) -> Option<String> {
 /// Project the authenticated caller's resolved [`Authority`] into the request
 /// extensions, so crate-owned Connect wires (e.g. `ship-account`) can gate on
 /// the shared `ship_types::Authority` without depending on shipd's
-/// `AuthContext`. Mirrors how `settings_rpc` passes `is_operator` into
+/// `AuthContext`. Mirrors how `rpc::settings` passes `is_operator` into
 /// `ship-config`: the authority is resolved in shipd (the SOLE minter) and
 /// handed across the crate boundary as the shared type. Runs INSIDE
 /// `auth_middleware` (which has already populated `AuthContext`); a request with

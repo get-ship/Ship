@@ -110,7 +110,7 @@ impl AgentDispatchPort for AgentDispatchAdapter {
     }
 
     fn worktrees_dir(&self) -> std::path::PathBuf {
-        crate::local_paths::worktrees_dir()
+        crate::ports::local_paths::worktrees_dir()
     }
 
     fn check_workspace_violation(

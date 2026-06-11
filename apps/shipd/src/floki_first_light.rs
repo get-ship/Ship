@@ -39,7 +39,7 @@ use crate::ship_runtime::SharedKernel;
 /// async context — rig's tool futures must be `Send`, and agent-def's sink is
 /// designed for sync callers. `ShipdKernelSink` bridges the gap by spawning a
 /// background task for each `KernelRouter::emit` call, matching shipd's other
-/// fire-and-forget emit paths (e.g. `pipeline_ports::persist_and_route`).
+/// fire-and-forget emit paths (e.g. `ports::pipeline::persist_and_route`).
 ///
 /// Failures are logged at WARN and never returned (mirrors the rest of shipd's
 /// emit paths which also use fire-and-forget semantics).
@@ -302,7 +302,7 @@ mod tests {
     async fn first_light_smoke_c0_read_session_events_and_gate_clear() {
         let harness = crate::test_harness::TestDaemon::new().await;
         let gw: Arc<dyn floki::Gateway> =
-            Arc::new(ShipdGateway::new(crate::ops_rpc::router(harness.state.clone())));
+            Arc::new(ShipdGateway::new(crate::rpc::ops::router(harness.state.clone())));
 
         // Script: call collections.read once (C0 — gate clears with no grant),
         // then produce text output.
@@ -358,7 +358,7 @@ mod tests {
     async fn first_light_smoke_denied_c2_gate_verdict_reaches_model_and_session_events() {
         let harness = crate::test_harness::TestDaemon::new().await;
         let gw: Arc<dyn floki::Gateway> =
-            Arc::new(ShipdGateway::new(crate::ops_rpc::router(harness.state.clone())));
+            Arc::new(ShipdGateway::new(crate::rpc::ops::router(harness.state.clone())));
 
         // No mcp grant — gate must deny mcp.create (C2 elevated).
         let model = MockCompletionModel::new([
@@ -411,7 +411,7 @@ mod tests {
     #[ignore = "requires ANTHROPIC_API_KEY + SHIP_MODEL in env; run manually"]
     async fn first_light_live_run_with_real_api_key() {
         let harness = crate::test_harness::TestDaemon::new().await;
-        let gw = Arc::new(ShipdGateway::new(crate::ops_rpc::router(harness.state.clone())));
+        let gw = Arc::new(ShipdGateway::new(crate::rpc::ops::router(harness.state.clone())));
         let agent = floki_agent(&["collections"]);
 
         let out = super::run_floki_step(

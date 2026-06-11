@@ -108,7 +108,7 @@ fn floki_auth_to_shipd(fa: &FlokiAuth) -> ShipdAuth {
 /// injected as a request extension, bypassing `auth_middleware` (which
 /// skips token validation when the context is already present).
 ///
-/// Construct once at composition time from `ops_rpc::router(state)`, then
+/// Construct once at composition time from `rpc::ops::router(state)`, then
 /// clone the `Arc<ShipdGateway>` into every floki session closure. The inner
 /// `axum::Router` is `Clone + Send + Sync`.
 pub struct ShipdGateway {
@@ -116,7 +116,7 @@ pub struct ShipdGateway {
 }
 
 impl ShipdGateway {
-    /// Wrap the router produced by `crate::ops_rpc::router(state)`. Cloning an
+    /// Wrap the router produced by `crate::rpc::ops::router(state)`. Cloning an
     /// `axum::Router` is cheap (Arc internals).
     pub fn new(router: axum::Router) -> Self {
         Self { router }
@@ -253,7 +253,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn ask_stance_granted_returns_ask() {
         let harness = crate::test_harness::TestDaemon::new().await;
-        let gw = ShipdGateway::new(crate::ops_rpc::router(harness.state.clone()));
+        let gw = ShipdGateway::new(crate::rpc::ops::router(harness.state.clone()));
 
         let r = gw
             .call(
@@ -274,7 +274,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn ask_stance_ungranted_returns_denied() {
         let harness = crate::test_harness::TestDaemon::new().await;
-        let gw = ShipdGateway::new(crate::ops_rpc::router(harness.state.clone()));
+        let gw = ShipdGateway::new(crate::rpc::ops::router(harness.state.clone()));
 
         let r = gw
             .call(
@@ -296,7 +296,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn c0_op_dispatches_ok_with_ok_true() {
         let harness = crate::test_harness::TestDaemon::new().await;
-        let gw = ShipdGateway::new(crate::ops_rpc::router(harness.state.clone()));
+        let gw = ShipdGateway::new(crate::rpc::ops::router(harness.state.clone()));
 
         let r = gw
             .call(
@@ -318,7 +318,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn unknown_op_returns_unknown_op() {
         let harness = crate::test_harness::TestDaemon::new().await;
-        let gw = ShipdGateway::new(crate::ops_rpc::router(harness.state.clone()));
+        let gw = ShipdGateway::new(crate::rpc::ops::router(harness.state.clone()));
 
         let r = gw
             .call("nope.nope", serde_json::json!({}), &agent(&[]), GatewayCallKind::First)

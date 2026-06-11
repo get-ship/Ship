@@ -24,7 +24,7 @@ use ship_search::{
 use ship_space::service::SpaceService;
 use ship_substrate::ports::{DataStore, KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
-use crate::search_context::ShipdSearchContext;
+use crate::rpc::search_context::ShipdSearchContext;
 use crate::ship_runtime::ApiState;
 
 /// The fixed partition key for the Runtime-scoped space registry store

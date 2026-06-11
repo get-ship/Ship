@@ -211,7 +211,7 @@ impl ShipRuntime {
 
     /// The live-read resolver registry — SSOT for snapshot `(domain, op)` reads,
     /// consumed by both the per-op `<Op>Live` streams and the multiplex.
-    pub fn live_resolvers(&self) -> &Arc<crate::live_resolvers::LiveResolverRegistry> {
+    pub fn live_resolvers(&self) -> &Arc<crate::ship_runtime::live_resolvers::LiveResolverRegistry> {
         &self.live_resolvers
     }
 }

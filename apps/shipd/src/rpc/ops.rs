@@ -245,9 +245,9 @@ pub fn router(state: ApiState) -> axum::Router {
     // C0 reads + C3 writes (operator-only); ports injected from shipd.
     let device_gate = gate.clone();
     let device_sessions: std::sync::Arc<dyn ship_device::WindowSessions> =
-        Arc::new(crate::device_ports::OwnedRegistryWindowSessions::new(state.session_registry().clone()));
+        Arc::new(crate::ports::device::OwnedRegistryWindowSessions::new(state.session_registry().clone()));
     let device_space_reg: std::sync::Arc<dyn ship_device::SpaceRegistry> =
-        Arc::new(crate::device_ports::ProjectsSpaceRegistry);
+        Arc::new(crate::ports::device::ProjectsSpaceRegistry);
     let device_pid: ship_device::wire::PidFn = Arc::new(pid_from_ctx);
     let device_space_fn: ship_device::wire::SpaceFn = Arc::new(|ctx: &connectrpc::RequestContext| {
         ctx.extensions
@@ -361,7 +361,7 @@ pub fn router(state: ApiState) -> axum::Router {
                 match op.as_str() {
                     "pipelines.dispatch" => {
                         use ship_pipeline_runtime::run_core::{PipelineRunRequest, RunPipelineCoreError, run_pipeline_core};
-                        use crate::pipeline_ports::PipelineDispatchAdapter;
+                        use crate::ports::pipeline::PipelineDispatchAdapter;
                         let opt = |k: &str| {
                             args.get(k).and_then(|v| v.as_str())
                                 .filter(|s| !s.is_empty())
@@ -409,7 +409,7 @@ pub fn router(state: ApiState) -> axum::Router {
                     }
                     "pipelines.end_turn" => {
                         use ship_pipeline_runtime::run_core::{EndTurnCoreError, EndTurnRequest, end_turn_core};
-                        use crate::pipeline_ports::{PipelineDispatchAdapter, TurnSignalAdapter};
+                        use crate::ports::pipeline::{PipelineDispatchAdapter, TurnSignalAdapter};
                         let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
                         let dispatch_port = PipelineDispatchAdapter::new(st.clone());
                         let signal_port = TurnSignalAdapter::new(st.clone());
@@ -424,7 +424,7 @@ pub fn router(state: ApiState) -> axum::Router {
                     }
                     "pipeline.update_status" => {
                         use ship_pipeline_runtime::status_core::{RunStatusReq, StatusCoreError, update_job_status_core};
-                        use crate::pipeline_ports::PipelineDispatchAdapter;
+                        use crate::ports::pipeline::PipelineDispatchAdapter;
                         let pipeline_run_id = args.get("pipeline_run_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
                         let body = RunStatusReq {
                             status: args.get("status").and_then(|v| v.as_str()).unwrap_or("").to_string(),
@@ -445,7 +445,7 @@ pub fn router(state: ApiState) -> axum::Router {
                     }
                     "pipeline.step_done" => {
                         use ship_pipeline_runtime::status_core::{StatusCoreError, StepDoneReq, step_done_core};
-                        use crate::pipeline_ports::PipelineDispatchAdapter;
+                        use crate::ports::pipeline::PipelineDispatchAdapter;
                         let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
                         let outputs: std::collections::BTreeMap<String, String> =
                             args.get("outputs").and_then(|v| v.as_object())
@@ -470,7 +470,7 @@ pub fn router(state: ApiState) -> axum::Router {
                     }
                     "pipelines.cancel" => {
                         use ship_pipeline_runtime::status_core::{cancel_run_core, StatusCoreError};
-                        use crate::pipeline_ports::PipelineDispatchAdapter;
+                        use crate::ports::pipeline::PipelineDispatchAdapter;
                         use crate::auth::Scope;
                         // Cancel is a destructive control-plane write (REST parity:
                         // POST /jobs/{slug}/cancel requires ManageRuns).
@@ -491,7 +491,7 @@ pub fn router(state: ApiState) -> axum::Router {
                     }
                     "pipelines.resolve_step" => {
                         use ship_pipeline_runtime::status_core::{resolve_step_core, StatusCoreError};
-                        use crate::pipeline_ports::PipelineDispatchAdapter;
+                        use crate::ports::pipeline::PipelineDispatchAdapter;
                         let slug = args.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
                         let step_id = args.get("step_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
                         let summary = args.get("summary").and_then(|v| v.as_str())
@@ -567,7 +567,7 @@ pub fn router(state: ApiState) -> axum::Router {
             })
         });
     let dispatch_port: std::sync::Arc<dyn ship_agents::services::agents::dispatch_core::AgentDispatchPort> =
-        Arc::new(crate::agent_event_ports::AgentDispatchAdapter::new(state.clone()));
+        Arc::new(crate::ports::agent_events::AgentDispatchAdapter::new(state.clone()));
     // stop_fn: kill a running agent via the dispatch process registry.
     // Gated: dispatch_handle() only exists when ship-code feature is on.
     #[cfg(feature = "ship-code")]
@@ -673,9 +673,9 @@ pub fn router(state: ApiState) -> axum::Router {
                 }))
             })
         });
-    let feedback_auth = Arc::new(crate::agent_event_ports::FeedbackAuthAdapter);
-    let view_broadcast = Arc::new(crate::agent_event_ports::ViewBroadcastAdapter::new(state.clone()));
-    let collection = Arc::new(crate::agent_event_ports::CollectionPersistAdapter::new(state.clone()));
+    let feedback_auth = Arc::new(crate::ports::agent_events::FeedbackAuthAdapter);
+    let view_broadcast = Arc::new(crate::ports::agent_events::ViewBroadcastAdapter::new(state.clone()));
+    let collection = Arc::new(crate::ports::agent_events::CollectionPersistAdapter::new(state.clone()));
     let agents_wire = Arc::new(ship_agents::services::agents::AgentsWire::new(
         state.agents_arc(),
         state.ship_dir().to_path_buf(),
@@ -699,7 +699,7 @@ pub fn router(state: ApiState) -> axum::Router {
     // audit ride a fresh `KernelLog` over the shared kernel (Account-scoped →
     // account.db). If the gateway client fails to build, the mount is skipped
     // and the four account RPCs return Unimplemented.
-    let router = match crate::account_rpc::build_account_wire(
+    let router = match crate::rpc::account::build_account_wire(
         std::sync::Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone())),
         state.daemon_dir().join("account.jsonc"),
         &std::env::var("SHIP_GATEWAY_URL").unwrap_or_else(|_| "https://api.getship.dev".to_string()),
@@ -757,7 +757,7 @@ pub fn router(state: ApiState) -> axum::Router {
         Arc::new(move |view, session_id, op, args| {
             let st = view_state_for_tool.clone();
             Box::pin(async move {
-                let adapter = crate::view_ports::ViewToolAdapter::new(st);
+                let adapter = crate::ports::view::ViewToolAdapter::new(st);
                 let result =
                     ship_views::view_authoring::tool_dispatch::dispatch(
                         &adapter, view, session_id, op, args,
@@ -821,7 +821,7 @@ pub fn router(state: ApiState) -> axum::Router {
     // ship_search::run_global. Composition + ranking + merge stay in the
     // scope-blind ship-search crate.
     let search_wire =
-        std::sync::Arc::new(crate::search_rpc::ShipdSearchWire::new(state.clone()));
+        std::sync::Arc::new(crate::rpc::search::ShipdSearchWire::new(state.clone()));
     let router = ship_ops_rpc::SearchServiceExt::register(search_wire, router);
     // collection.* / config.* / artifacts.* bind to the active space's per-scope
     // `space.db`. In space-less mode (no active space) there is no context to bind
@@ -854,7 +854,7 @@ pub fn router(state: ApiState) -> axum::Router {
     // SPACE ops error cleanly when no active space; ACCOUNT/RUNTIME always serve.
     // The legacy `SpaceService.SetSetting` stays mounted beside `Set(SPACE)`
     // until S4 repoints callers.
-    let settings_wire = crate::settings_rpc::settings_wire(state.clone());
+    let settings_wire = crate::rpc::settings::settings_wire(state.clone());
     let router = ship_ops_rpc::SettingsServiceExt::register(settings_wire, router);
     // artifacts.* v2 — ship-artifacts (DataStore + blob backend), overrides
     // OpsImpl's ArtifactsService registration for all 5 RPCs including Watch.
@@ -875,7 +875,7 @@ pub fn router(state: ApiState) -> axum::Router {
     // overlay + registry + Watch. The SOLE space service (the legacy SpaceService
     // — JsonResponse/ProjectRecord vestiges, *Live twins, window RPCs — was
     // retired in the space cutover; windows moved to DeviceService above).
-    let space_wire = crate::space_rpc::space_wire(state.clone());
+    let space_wire = crate::rpc::space::space_wire(state.clone());
     let router = ship_ops_rpc::SpaceServiceExt::register(space_wire, router);
     router.into_axum_router()
 }
@@ -1252,7 +1252,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn update_job_status_core_is_shared_and_emits() {
         use ship_pipeline_runtime::status_core::{RunStatusReq, update_job_status_core};
-        use crate::pipeline_ports::PipelineDispatchAdapter;
+        use crate::ports::pipeline::PipelineDispatchAdapter;
         let harness = crate::test_harness::TestDaemon::new().await;
         let body = RunStatusReq {
             status: "gate_passed".to_string(),

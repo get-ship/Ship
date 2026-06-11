@@ -12,7 +12,7 @@ use serde_json::json;
 
 use ship_ops_rpc::{JsonResponse, SuiService};
 
-use crate::ops_rpc::OpsImpl;
+use crate::rpc::ops::OpsImpl;
 
 /// Workspace root that workspace-relative file args resolve against:
 /// `SHIP_REPO_DIR` if it points at a `bun.lock` root, else walk up from CWD.

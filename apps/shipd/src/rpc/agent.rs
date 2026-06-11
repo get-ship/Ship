@@ -2,15 +2,15 @@
 //!
 //! `impl AgentsService for OpsImpl` is deleted — the handler now lives in
 //! `ship_agents::services::agents::AgentsWire`, mounted via
-//! `AgentsServiceExt::register` in `ops_rpc.rs`. Tests here verify the proto
+//! `AgentsServiceExt::register` in `rpc/ops`. Tests here verify the proto
 //! policy descriptor + gate decisions that the wire enforces at runtime.
 
 #[cfg(test)]
 mod tests {
     use ship_ops_rpc::BlastRadius;
 
-    fn policy(method: &str) -> &'static crate::ops_rpc::OpPolicy {
-        crate::ops_rpc::policy_for(&format!("ship.ops.v1.AgentsService/{method}"))
+    fn policy(method: &str) -> &'static crate::rpc::ops::OpPolicy {
+        crate::rpc::ops::policy_for(&format!("ship.ops.v1.AgentsService/{method}"))
             .unwrap_or_else(|| panic!("AgentsService/{method} must carry a policy in the descriptor"))
     }
 
@@ -130,7 +130,7 @@ mod tests {
 
     /// agent.grant: operator approval upgrades live sessions + persists baseline.
     /// Drives the ship_platform domain fn directly (the logic now lives in
-    /// `AgentsWire::grant_fn` closure in `ops_rpc.rs`, called after the gate clears).
+    /// `AgentsWire::grant_fn` closure in `rpc/ops`, called after the gate clears).
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn agent_grant_upgrades_live_session_and_persists_baseline() {
         use ship_auth::scopes::DaemonSession;

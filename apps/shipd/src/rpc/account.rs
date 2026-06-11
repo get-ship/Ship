@@ -2,7 +2,7 @@
 //!
 //! The wire surface lives in the `ship-account` crate (`ship_account::AccountWire`,
 //! the ship-artifacts / ship-collection precedent); this file is the thin shipd
-//! mount, built in `ops_rpc::router`. Account ops are credential-dangerous, so
+//! mount, built in `rpc::ops::router`. Account ops are credential-dangerous, so
 //! the wire gates on **operator authority** — granted SOLELY by a verified
 //! operator cred (S6, #124). The Connect router runs no per-route auth
 //! middleware; instead `auth::project_authority_middleware` (layered on the ops

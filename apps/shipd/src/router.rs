@@ -60,7 +60,7 @@ pub fn build_router(
     // read provisioning via `Extension<Arc<dyn DataPort>>` (injected at the
     // root layer below), and the multiplex transport reuses the SAME Arc.
     let data_port: Arc<dyn deck_core::DataPort> =
-        Arc::new(crate::data_port::ShipDataPort::new(rt.clone()));
+        Arc::new(crate::ports::data::ShipDataPort::new(rt.clone()));
 
     // Public webhook route — unauthenticated; each trigger carries its own secret.
     let webhook_kernel = rt.kernel().clone();
@@ -189,7 +189,7 @@ pub fn build_router(
         // crate-owned Connect wires (ship-account) gate on the shared authority
         // without coupling to shipd's AuthContext (S6 operator-cred gate).
         .merge(
-            crate::ops_rpc::router(rt.clone())
+            crate::rpc::ops::router(rt.clone())
                 .layer(axum::middleware::from_fn(auth::project_authority_middleware)),
         )
         // Multiplex transport (deck-axum) — same auth-gated group as the
@@ -203,7 +203,7 @@ pub fn build_router(
             deck::multiplex_router().layer(axum::Extension(deck::MultiplexState::new(
                 data_port.clone(),
                 Arc::new(deck_core::WindowSubscriptionRegistry::default()),
-                Arc::new(crate::data_port::ShipChangeSource::new(rt.clone())),
+                Arc::new(crate::ports::data::ShipChangeSource::new(rt.clone())),
             ))),
         )
         // Dry-run view interceptor runs INSIDE auth (applied before the
@@ -226,7 +226,7 @@ pub fn build_router(
         .merge(webhook_source_route)
         .merge(authenticated_routes);
     // No `.fallback(spa)` here — that would CLOBBER the data plane. The
-    // Connect-ops router (`ops_rpc::router().into_axum_service()`) dispatches the
+    // Connect-ops router (`rpc::ops::router().into_axum_service()`) dispatches the
     // entire `/ship.ops.v1.*` surface from a `fallback_service`; merging it into
     // `root` makes it root's fallback (carrying its auth layer). A
     // `.fallback(spa_fallback)` would silently replace it and 404 every RPC. SPA

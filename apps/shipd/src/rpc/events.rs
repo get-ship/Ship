@@ -6,7 +6,7 @@ use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 
 use ship_ops_rpc::{EventsService, JsonResponse};
 
-use crate::ops_rpc::OpsImpl;
+use crate::rpc::ops::OpsImpl;
 
 #[allow(refining_impl_trait)]
 impl EventsService for OpsImpl {

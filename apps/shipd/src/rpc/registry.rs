@@ -16,14 +16,14 @@ use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 
 use ship_ops_rpc::{JsonResponse, RegistryService};
 
-use crate::ops_rpc::OpsImpl;
+use crate::rpc::ops::OpsImpl;
 
 /// The canonical op name for `RegistryService.Publish`
 /// (`op_name(service, method)`), the key the proto policy is registered under.
 const PUBLISH_OP: &str = "registry.publish";
 
 /// Run `registry.publish` through the one capability gate (`auth::gate::decide`).
-/// Mirrors the `GateFn` closure built in `ops_rpc::router`: read the caller's
+/// Mirrors the `GateFn` closure built in `rpc::ops::router`: read the caller's
 /// `AuthContext` from the request extensions, look up the proto-declared blast
 /// (C2_ELEVATED) for `registry.publish`, and decide. `Deny` → permission_denied;
 /// a missing AuthContext → unauthenticated; no policy → fail closed (internal).

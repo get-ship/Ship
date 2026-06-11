@@ -2,13 +2,13 @@
 //!
 //! The `impl PipelinesService for OpsImpl` is deleted — `PipelinesWire`
 //! (ship-pipeline-runtime) is now the sole handler, mounted via
-//! `PipelinesServiceExt::register` in `ops_rpc.rs`.
+//! `PipelinesServiceExt::register` in `rpc/ops`.
 
 #[cfg(test)]
 mod tests {
     use ship_ops_rpc::BlastRadius;
 
-    use crate::ops_rpc::policy_for;
+    use crate::rpc::ops::policy_for;
 
     #[test]
     fn pipelines_list_is_c0_read() {

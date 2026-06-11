@@ -12,7 +12,7 @@ use ship_ops_rpc::{
     ListProcsRequest, ListProcsResponse, RuntimeProcess, RuntimeService, RuntimeSignalEntry,
 };
 
-use crate::ops_rpc::OpsImpl;
+use crate::rpc::ops::OpsImpl;
 
 /// Session class → the `executor_kind` strings the orchestrator emits for it.
 /// `None` for an unrecognized kind (the handler returns invalid-argument).

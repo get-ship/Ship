@@ -11,6 +11,9 @@
 pub mod types;
 pub(crate) mod init;
 mod accessors;
+// live_resolvers: the `(domain, op) -> live value` resolver table — built in
+// `init`, held on `ShipRuntime`, exposed via `accessors::live_resolvers`.
+pub mod live_resolvers;
 mod tasks;
 #[cfg(test)]
 mod test_ctors;
@@ -148,5 +151,5 @@ pub struct ShipRuntime {
     /// (The per-window multiplex registry was deleted in the transport move to
     /// deck-axum (#276); it now lives in `deck_core::window_registry` and is
     /// constructed at router-mount time in `apps/shipd/src/router.rs`.)
-    pub(super) live_resolvers: std::sync::Arc<crate::live_resolvers::LiveResolverRegistry>,
+    pub(super) live_resolvers: std::sync::Arc<crate::ship_runtime::live_resolvers::LiveResolverRegistry>,
 }

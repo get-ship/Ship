@@ -5,7 +5,7 @@
 //!
 //! The SSE event-stream transport that used to live here was retired: the
 //! kernel event bus is served once, over Connect `StreamService.Events`
-//! (`apps/shipd/src/ops_rpc.rs`). The poll read below is unrelated.
+//! (`apps/shipd/src/rpc/ops`). The poll read below is unrelated.
 
 // Re-export so `events_rpc.rs` and any existing callers continue to resolve.
 pub use ship_substrate::runtime_reads::poll_events_core;
