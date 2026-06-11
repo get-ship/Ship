@@ -26,7 +26,7 @@
 use anyhow::{Result, anyhow};
 use sqlx::SqliteConnection;
 use sqlx::migrate::{Migrate, MigrateError};
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 
 /// Process-wide serialization for the migration critical section.
 ///
@@ -37,7 +37,7 @@ use std::sync::Mutex;
 /// `.ship` and each opens + migrates the same `runtime.db` concurrently. In
 /// production each db is opened once at startup, so this lock is uncontended.
 /// Serializing `run_tolerant` makes concurrent same-process migrations safe.
-static MIGRATION_GATE: Mutex<()> = Mutex::new(());
+static MIGRATION_GATE: Mutex<()> = Mutex::const_new(());
 
 /// Pre-launch only. The base schema (`0001_schema.sql`) is still the *living*
 /// schema: renames and tweaks edit it in place rather than appending a forward
@@ -74,10 +74,9 @@ pub async fn run_tolerant(conn: &mut SqliteConnection) -> Result<()> {
     // is still a hard `VersionMismatch`.
     // Serialize the whole inspect-then-apply section: read-applied + run must be
     // atomic w.r.t. other connections in this process or they race the
-    // `_sqlx_migrations` insert (see `MIGRATION_GATE`). Held across the awaits
-    // below via `block_on` inside the caller — `run_tolerant` is itself driven by
-    // `block_on_anyhow`, so this guard spans the critical section on one thread.
-    let _gate = MIGRATION_GATE.lock().unwrap_or_else(|e| e.into_inner());
+    // `_sqlx_migrations` insert (see `MIGRATION_GATE`). The async-aware mutex
+    // is held across the awaits below by design — that is the critical section.
+    let _gate = MIGRATION_GATE.lock().await;
 
     let mut migrator = sqlx::migrate!("./migrations");
     migrator.set_ignore_missing(true);
