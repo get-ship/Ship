@@ -7,7 +7,7 @@ order: 3
 
 Local-first is the default, not a feature. The runtime, the database, and the app all run on your machine. Your projects, agents, skills, and data live where your code lives.
 
-This isn't "self-host if you want" — it's the architecture. There's no Ship server you depend on. The CLI, the daemon, and the browser app are all local. The CLI agents you use (Claude Code, Cursor, Gemini, Codex, OpenCode) talk to Ship over MCP on `localhost`.
+This isn't "self-host if you want" — it's the architecture. There's no Ship server you depend on. The runtime, the daemon, and the browser app are all local; the agent runs as a supervised actor in your active space, calling connectors over the local MCP socket.
 
 ## Cloud is optional
 

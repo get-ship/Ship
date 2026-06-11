@@ -16,7 +16,7 @@ Every state change in Ship is an event on a local log — every artifact written
 
 ## Supervises agents
 
-When you kick off a pipeline, Ship dispatches each step, watches its lifecycle, holds gates open for human approval, and routes completion signals downstream. Agents don't run in isolation; they run inside a system that knows what came before and what should come next.
+When you kick off a pipeline, Ship dispatches each step, watches its lifecycle, holds gates open for human approval, and routes completion signals downstream. Agents run as supervised actors, not detached subprocesses — the system knows what came before and what should come next.
 
 ## Observability without instrumentation
 

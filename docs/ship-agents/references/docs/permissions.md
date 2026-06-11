@@ -83,6 +83,18 @@ A few things are denied for every preset, even `ship-elevated`, and can't be tur
 
 Writes to `.ship/` itself always require confirmation, even in autonomous mode. The agent can't silently change its own configuration.
 
-## Why isolation matters more than permissions
+## Why scoping matters more than permissions
 
-Presets are a useful default, not a security boundary. Real safety comes from running specialist agents in separate git worktrees, then having a reviewer (in `ship-readonly` mode, or a human) gate the merge. Permission presets keep one agent honest within its workspace; worktree isolation plus gates keep mistakes contained.
+Presets are a useful default, not a safety boundary. Real safety
+comes from scoping the actor: each agent runs in its own space with
+its own `cwd`, its own connectors, and its own event log. Two
+specialist agents working in parallel on the same project never
+see each other's tools, files, or decision history unless they
+explicitly share a space. Permission presets keep one agent honest
+within its scope; per-actor scoping is what keeps mistakes from
+leaking across agents.
+
+A reviewer (in `ship-readonly` mode, or a human) gating the merge
+is the last layer, not the first. The runtime's supervisor, the
+actor's tool gate, and the per-space event partition are the layers
+that hold before any human review happens.

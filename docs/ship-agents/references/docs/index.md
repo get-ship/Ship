@@ -4,15 +4,15 @@ title: Agents
 order: 1
 ---
 
-An **agent** is a profile that tells an AI assistant how to behave in your project — which skills it knows, which tools it can reach for, what it's allowed to do. You author the profile once in `.ship/agents/<name>.jsonc`; Ship compiles it into the configuration each harness expects.
+An **agent** is a profile that tells Ship's first-party actor how to behave in your project — which skills it knows, which tools it can reach for, what it's allowed to do. You author the profile once in `.ship/agents/<name>.jsonc`; the runtime reads it as the actor's contract.
 
-Agent profiles are harness-agnostic at the baseline. The project's `harnesses` list (in `ship.jsonc`) decides which harnesses get compiled; every agent profile compiles for every harness in that list. To override a single setting (e.g. `model`) for one harness, use `harness_settings.<harness>.<key>` on the profile.
+Every agent profile is local to a project. The agent's reach is its actor scope (`cwd`, `space_id`, permissions, transport, MCP tool gate). The kernel supervises the actor alongside every other actor in your project. You don't compile to a third-party harness — the agent runs in Ship.
 
 ## What goes into an agent
 
 <sui-card padding="md">
 <strong slot="header">Identity</strong>
-A name and a description. One profile compiles for every harness the project enables.
+A name and a description. The agent is addressable by both; the runtime uses the name for routing and the description for surface-level summaries.
 </sui-card>
 
 <sui-card padding="md">
@@ -21,8 +21,8 @@ Instruction sets that teach the agent how to do specific things. Pick from your 
 </sui-card>
 
 <sui-card padding="md">
-<strong slot="header">MCP servers</strong>
-External tools the agent connects to via Model Context Protocol — your own services, GitHub, anything MCP-aware.
+<strong slot="header">Connectors</strong>
+External tools the agent connects to via MCP — your own services, GitHub, anything MCP-aware. Declared in `.ship/connectors/`, gated by the actor's tool gate.
 </sui-card>
 
 <sui-card padding="md">
@@ -47,41 +47,20 @@ A preset that controls what the agent can do without asking — read-only, inter
 }
 ```
 
-That's the minimum. Identity, skills, permissions. Save the file, run `ship use dev`, and Ship emits one configuration file per harness in the project's `harnesses` list.
+That's the minimum. Identity, skills, permissions. Save the file, run `ship use dev`, and the runtime boots the agent as a supervised actor in your active space.
 
 ## Where agents live
 
 - **Project agents** — `.ship/agents/` in your repo. Committed; shared with your team.
 - **Library agents** — `~/.ship/agents/` on your machine. Personal; not committed.
 
-## Compiling for several harnesses at once
+## External integrations
 
-Configure the project's `harnesses` list in `ship.jsonc` — Ship compiles every agent profile for every harness in that list on `ship use`:
+When the agent needs to reach for an external model or service, it does so through a connector. Connectors are declared in `.ship/connectors/` and gated by the same MCP tool gate that governs skills. The agent doesn't fork into another harness; the connector is the seam.
 
-```jsonc
-// ship.jsonc
-{
-  "harnesses": ["claude", "gemini", "codex"]
-}
-```
-
-Each harness gets its native format. The compiled files are gitignored build output — your `.ship/` profile is the source of truth.
-
-## Per-harness overrides
-
-When one harness needs a different setting (e.g. a specific `model`), declare it under `harness_settings`:
-
-```jsonc
-{
-  "agent": { "id": "dev", "name": "Dev" },
-  "harness_settings": {
-    "gemini": { "model": "gemini-2.5-pro" }
-  }
-}
-```
-
-This applies only to the matching harness file; other harnesses use the default.
+The connector surface is small by default — Ship ships with a handful of pre-vetted connectors (the model provider your machine is configured for, plus a few local services). Authoring a new connector is a one-page JSONC file. Reach for the [connectors reference](../../configuration/connectors) when you need one.
 
 ## Next
 
 - [Permissions](./permissions/) — the four built-in presets and how to layer your own rules.
+- [Configuration](./configuration/) — `ship.jsonc` fields, per-actor overrides, and connector declarations.
