@@ -24,11 +24,10 @@
  *      (html[data-theme] + .dark flip with no reload). Honest note: that
  *      immediate flip is the local-first apply; the daemon→UI push direction
  *      is what test 2 proves (git status streamed into the DOM).
- *
- * The settings-form mutation (`<form mutation="ship.settings.update">`) was the
- * original candidate surface and is `test.fixme` below with evidence — the
- * /settings page itself fails to hydrate against a fresh daemon (a real shell
- * wiring bug, out of this lane's scope).
+ *   4. FORM MUTATION (UI → daemon → UI) — the /settings page hydrates its
+ *      fields from the flat SettingsService rows (#298 fix), a
+ *      `<form mutation="ship.settings.update">` blur-submit lands in the
+ *      daemon's RUNTIME table, and the Saved badge flips on success.
  */
 import { spawnSync } from 'node:child_process'
 import os from 'node:os'
@@ -137,28 +136,14 @@ test.describe('full loop: hermetic daemon + deck-served shell', () => {
       .toBe('ship-dark')
   })
 
-  // ── settings-form mutation (blocked on a real shell wiring bug) ────────────
+  // ── settings-form mutation ──────────────────────────────────────────────
   //
-  // Evidence (reproduced 2026-06-11 against a fresh hermetic daemon): /settings
-  // renders its cards but ZERO of its <sui-input> fields hydrate, and the
-  // console carries
-  //   [sui] effect threw: TypeError: Cannot read properties of undefined
-  //     (reading 'program')        at /_deck/views/settings/view.js:1537
-  //   ... (reading 'worktree_base') at /_deck/views/settings/view.js:1596
-  //   ... (reading 'docs')          at /_deck/views/settings/view.js:2192
-  //   ... (reading 'source')        at /_deck/views/settings/view.js:2209
-  // Root cause: apps/shell/src/settings/controller.ts:39 feeds the template
-  // from `connect.settings.watch` (RUNTIME settings rows), but the template
-  // (apps/shell/src/settings/page.sui) dereferences the RICH settings.state
-  // shape — `settings().value.terminal.*`, `.about.*`, `.providers` — that the
-  // generated `ship.settings.state` source used to supply ("Harnesses,
-  // defaults, terminal, about — everything the settings view renders",
-  // packages/deck/sdk/src/generated/data.ts). Fresh daemon ⇒ those sub-objects
-  // are absent ⇒ the bound effects throw ⇒ the form fields never mount, so no
-  // mutation can be driven through this page. Fix belongs to the shell lane
-  // (apps/shell); the body below is the real round-trip so removing `.fixme`
-  // exercises it once the read is whole.
-  test.fixme(
+  // The /settings page hydrates from the flat SettingsService RUNTIME rows
+  // (#298 fix in apps/shell/src/settings/). The fields are native
+  // `<input class="s-input">` elements — NOT `<sui-input>`: the arcade pack
+  // also names a `sui-input` tag and the per-tag resolver's first-wins
+  // collision serves the arcade `display:none` stub to the shell.
+  test(
     'mutate: settings worktree.base_dir round-trips through the UI and reflects live',
     async ({ page }) => {
       // Seed a known prior value so the read shows seeded data, then change it.
@@ -166,8 +151,7 @@ test.describe('full loop: hermetic daemon + deck-served shell', () => {
       await setRuntimeSetting(d, 'worktree.base_dir', seeded)
 
       await page.goto(`${d.baseUrl}/settings`, { waitUntil: 'domcontentloaded' })
-      const field = page.locator('sui-input[aria-labelledby="s-label-worktree"]')
-      const inner = field.locator('input')
+      const inner = page.locator('input.s-input[aria-labelledby="s-label-worktree"]')
       await expect(inner).toBeVisible({ timeout: 20_000 })
 
       // Read path: the seeded value is what the field shows.
