@@ -17,14 +17,14 @@ function keyup(key: string) {
   window.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }))
 }
 
-describe('<sui-input> — maps keys to a logical action on the stage input bus', () => {
+describe('<sui-stage-input> — maps keys to a logical action on the stage input bus', () => {
   it('registers as a custom element', () => {
-    registerChild('sui-input')
-    expect(customElements.get('sui-input')).toBeDefined()
+    registerChild('sui-stage-input')
+    expect(customElements.get('sui-stage-input')).toBeDefined()
   })
 
   it('a dispatched keydown for a mapped key fires the action (start phase)', async () => {
-    await mountStage(`<sui-input map="ArrowLeft" action="moveLeft"></sui-input>`)
+    await mountStage(`<sui-stage-input map="ArrowLeft" action="moveLeft"></sui-stage-input>`)
     const { stage } = lastFakeStage()
     const phases: string[] = []
     stage.input.on('moveLeft', (p) => phases.push(p))
@@ -39,7 +39,7 @@ describe('<sui-input> — maps keys to a logical action on the stage input bus',
   })
 
   it('honors the Space convenience alias (maps to the " " key)', async () => {
-    await mountStage(`<sui-input map="Space" action="fire"></sui-input>`)
+    await mountStage(`<sui-stage-input map="Space" action="fire"></sui-stage-input>`)
     const { stage } = lastFakeStage()
     let started = false
     stage.input.on('fire', (p) => { if (p === 'start') started = true })
@@ -48,7 +48,7 @@ describe('<sui-input> — maps keys to a logical action on the stage input bus',
   })
 
   it('an unmapped key does NOT fire the action', async () => {
-    await mountStage(`<sui-input map="ArrowUp" action="jump"></sui-input>`)
+    await mountStage(`<sui-stage-input map="ArrowUp" action="jump"></sui-stage-input>`)
     const { stage } = lastFakeStage()
     let fired = false
     stage.input.on('jump', () => { fired = true })
@@ -57,7 +57,7 @@ describe('<sui-input> — maps keys to a logical action on the stage input bus',
   })
 
   it('maps multiple comma-separated keys to one action', async () => {
-    await mountStage(`<sui-input map="A,ArrowLeft" action="left"></sui-input>`)
+    await mountStage(`<sui-stage-input map="A,ArrowLeft" action="left"></sui-stage-input>`)
     const { stage } = lastFakeStage()
     let starts = 0
     stage.input.on('left', (p) => { if (p === 'start') starts++ })

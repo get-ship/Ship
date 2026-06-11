@@ -122,9 +122,9 @@ describe('<sui-stage> — registers light-DOM children via children.ts', () => {
     void host
   })
 
-  it('binds sui-input key maps + sui-sfx audio bindings into the stage buses', async () => {
+  it('binds sui-stage-input key maps + sui-sfx audio bindings into the stage buses', async () => {
     const { host } = await mountStage(`
-      <sui-input map="Space" action="jump"></sui-input>
+      <sui-stage-input map="Space" action="jump"></sui-stage-input>
       <sui-sfx src="/boom.wav" on="jump" volume="0.8" bus="sfx"></sui-sfx>
     `)
     const fake = lastFakeStage()

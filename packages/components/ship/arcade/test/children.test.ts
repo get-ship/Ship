@@ -13,16 +13,16 @@ function host(markup: string): HTMLElement {
 }
 
 describe('readChildSpecs — light-DOM parsing for the stage', () => {
-  it('parses sui-input: csv keys, action, repeat default true', () => {
-    const specs = readChildSpecs(host(`<sui-input map="A, ArrowLeft ,  " action="left"></sui-input>`))
+  it('parses sui-stage-input: csv keys, action, repeat default true', () => {
+    const specs = readChildSpecs(host(`<sui-stage-input map="A, ArrowLeft ,  " action="left"></sui-stage-input>`))
     expect(specs.inputs).toHaveLength(1)
     expect(specs.inputs[0]!.keys).toEqual(['A', 'ArrowLeft']) // trimmed, empties dropped
     expect(specs.inputs[0]!.action).toBe('left')
     expect(specs.inputs[0]!.repeat).toBe(true)
   })
 
-  it('parses sui-input repeat="false" as false', () => {
-    const specs = readChildSpecs(host(`<sui-input map="X" action="x" repeat="false"></sui-input>`))
+  it('parses sui-stage-input repeat="false" as false', () => {
+    const specs = readChildSpecs(host(`<sui-stage-input map="X" action="x" repeat="false"></sui-stage-input>`))
     expect(specs.inputs[0]!.repeat).toBe(false)
   })
 
@@ -106,11 +106,11 @@ describe('readChildSpecs — light-DOM parsing for the stage', () => {
     expect(e.collider).toBeNull()
   })
 
-  it('only reads DIRECT children (a nested sui-input is ignored)', () => {
-    // querySelectorAll(':scope > sui-input') must not match a grandchild input.
+  it('only reads DIRECT children (a nested sui-stage-input is ignored)', () => {
+    // querySelectorAll(':scope > sui-stage-input') must not match a grandchild input.
     const specs = readChildSpecs(host(`
-      <sui-input map="A" action="top"></sui-input>
-      <sui-shape kind="rect"><sui-input map="B" action="buried"></sui-input></sui-shape>
+      <sui-stage-input map="A" action="top"></sui-stage-input>
+      <sui-shape kind="rect"><sui-stage-input map="B" action="buried"></sui-stage-input></sui-shape>
     `))
     expect(specs.inputs.map((i) => i.action)).toEqual(['top'])
   })

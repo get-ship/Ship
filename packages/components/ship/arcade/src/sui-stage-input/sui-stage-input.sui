@@ -1,5 +1,5 @@
 <!--
-  <sui-input> — declarative key→action binding for the enclosing <sui-stage>.
+  <sui-stage-input> — declarative key→action binding for the enclosing <sui-stage>.
 
   Multiple inputs per stage; each maps a comma-separated set of keys to one
   logical action. The stage queries inputs on init and registers them with

@@ -7,7 +7,7 @@
   the static scene; the director script imperatively spawns dynamics.
 
   Recognized child elements (parsed once at init):
-    <sui-input>    — key→action bindings
+    <sui-stage-input> — key→action bindings
     <sui-sfx>      — audio bindings (preloaded, triggered by action)
     <sui-emitter>  — particle emitters (registered, optionally action-triggered)
     <sui-sprite>   — markup-declared sprite entities

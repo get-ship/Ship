@@ -193,7 +193,7 @@ function readEntity(el: Element, visual: 'sprite' | 'shape'): EntityChildSpec {
 
 export function readChildSpecs(host: Element): ChildSpecs {
   const out: ChildSpecs = { inputs: [], sfx: [], emitters: [], entities: [] }
-  for (const el of host.querySelectorAll(':scope > sui-input')) {
+  for (const el of host.querySelectorAll(':scope > sui-stage-input')) {
     out.inputs.push({
       keys: csv(str(el, 'map', '')),
       action: str(el, 'action', ''),
