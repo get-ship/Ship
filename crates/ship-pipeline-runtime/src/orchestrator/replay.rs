@@ -172,13 +172,38 @@ async fn reconcile_dispatched_inner(
     tracing::info!(count = stale.len(), "job-dispatch: reconciling stale dispatched jobs");
 
     for job in stale {
-        // Ask the executor to rehydrate a real handle from out-of-band
-        // state (tmux session names, window names, etc). `Some` means
-        // the agent survived the restart — re-attach. `None` means no
-        // live process was found on this pass — record an observation
-        // event and let the liveness sweep decide after the stale
-        // threshold. A single missed probe is not sufficient evidence
-        // to terminate the job.
+        // C3: journal-first telemetry — check whether a C2+ shadow journal
+        // exists for this run. Presence of a complete journal confirms the
+        // spawn happened (the pre-restart daemon succeeded in `executor.spawn`
+        // AND saved the journal). Absence means the run was dispatched before
+        // C2 journaling landed (pre-C2 run) — either path falls through to the
+        // same `resume_handle` check below, preserving pre-C3 behavior.
+        // The behavioral skip of `resume_handle` (using the journal as the sole
+        // signal) is deferred to C9 (P2.5) when the coordinator journal becomes
+        // the authoritative restart source.
+        let journal = octx.journal_store.load(&job.pipeline_run_id).await.ok().flatten();
+        let spawn_was_journaled = journal
+            .as_ref()
+            .is_some_and(|j| j.entries().len() == 3 && !j.is_suspended());
+
+        if spawn_was_journaled {
+            tracing::debug!(
+                slug = job.slug,
+                "job-dispatch: reconcile — journal confirms spawn, checking process liveness"
+            );
+        } else if journal.is_none() {
+            tracing::debug!(
+                slug = job.slug,
+                "job-dispatch: reconcile — no journal (pre-C2 run), using legacy resume_handle path"
+            );
+        }
+
+        // Both journal-present and journal-absent paths call resume_handle —
+        // the journal tells us spawn happened but not whether the process
+        // survived the restart. `Some` means the agent survived — re-attach.
+        // `None` means no live process found — record an observation event and
+        // let the liveness sweep decide. A single missed probe is not
+        // sufficient evidence to terminate the job.
         match octx
             .executor
             .resume_handle(
@@ -194,7 +219,6 @@ async fn reconcile_dispatched_inner(
                     "job-dispatch: reconcile — process still alive, re-attaching"
                 );
                 octx.registry.register(&job.slug, handle).await;
-                continue;
             }
             None => {
                 tracing::info!(

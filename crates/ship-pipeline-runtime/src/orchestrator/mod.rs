@@ -84,6 +84,7 @@ mod tests_review_retry;
 #[cfg(test)]
 mod tests_runner_ports;
 
+use durable_execution::JournalStore;
 use ship_code::dispatch_ports::{
     AgentPlatform, IsolationStrategy, ProcessRegistryPort, ProcessTreeProbe, ProjectionReader,
     SessionExecutor, SpawnPolicy,
@@ -162,4 +163,8 @@ pub struct OrchestratorContext {
     pub fanout_lane_txs: Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<LaneOutcome>>>>,
     /// Maps lane_slug → FanoutLaneRef so the router can identify fanout lanes.
     pub fanout_lane_refs: Arc<Mutex<HashMap<String, FanoutLaneRef>>>,
+    /// Durable-execution journal store for pipeline-run dispatch journaling.
+    /// Wired to SqliteJournalStore in production (shipd); InMemoryJournalStore in tests.
+    /// Used by C2+ to save post-hoc shadow journals; read by C3+ reconcile for restart confirmation.
+    pub journal_store: Arc<dyn JournalStore>,
 }

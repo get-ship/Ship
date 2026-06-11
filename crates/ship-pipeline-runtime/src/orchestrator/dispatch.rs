@@ -270,8 +270,6 @@ pub async fn dispatch_pipeline_run_internal(
             },
             root_step,
             agent,
-            &worktree_path.to_string_lossy(),
-            pid,
         )
         .await;
     }
@@ -312,6 +310,27 @@ pub async fn dispatch_pipeline_run_internal(
     }
 
     emit_pipeline_run_dispatched(kernel, &payload.pipeline_run_id, &worktree_path, slug).await;
+
+    // C2: post-hoc shadow journal — captures what just happened without re-executing.
+    // On replay (daemon restart), this journal tells reconcile the spawn succeeded.
+    // ShadowDispatch returns pre-seeded results only; no real port is ever called —
+    // no double-execution, no double-emission risk.
+    // Only runs on the agent-spawn path (run-step and fanout branches returned early above).
+    {
+        use crate::orchestrator::coordinator_programs::{DispatchProgram, ShadowDispatch};
+        let shadow = ShadowDispatch::for_agent_spawn(
+            &worktree_path.to_string_lossy(),
+            pid,
+        );
+        let (_, journal) = durable_execution::execute(
+            durable_execution::Journal::new(),
+            std::sync::Arc::new(shadow),
+            &DispatchProgram,
+        ).await;
+        if let Err(e) = octx.journal_store.save(&payload.pipeline_run_id, &journal).await {
+            tracing::warn!(slug, "dispatch: journal save failed (non-fatal): {e}");
+        }
+    }
 }
 
 // ── Agent-session dispatch primitive — CARVED to `ship-agents` (S3b) ─────────
@@ -356,8 +375,6 @@ pub(crate) async fn emit_composed_step_session(
     run: &ComposedRunCtx<'_>,
     step: &ship_substrate::events::pipeline::PipelineStep,
     agent: &str,
-    _worktree: &str,
-    _pid: Option<u32>,
 ) {
     let step_session_id = ship_substrate::gen_ulid();
     let session_slug = format!("{}::{}", run.run_slug, step.id);

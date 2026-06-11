@@ -332,7 +332,6 @@ async fn advance_pipeline_inner(
                                 run_slug: &job.slug,
                             },
                             step, agent,
-                            &worktree_path.to_string_lossy(), pid,
                         ).await;
 
                         octx.registry.register(slug, handle).await;
