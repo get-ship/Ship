@@ -40,6 +40,8 @@ pub mod actor_api;
 mod actor_api_tests;
 pub mod actors_api;
 pub mod artifacts_api;
+#[cfg(test)]
+mod artifacts_api_tests;
 #[cfg(feature = "ship-code")]
 pub mod hooks_api;
 pub mod human_webhook;

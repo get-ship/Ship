@@ -1,32 +1,28 @@
-//! Axum router assembly: public + authenticated route groups, enumerated ship routes,
-//! panic handler, and health check.
+//! Axum router assembly: public + authenticated route groups, enumerated ship
+//! routes, panic handler, and health check.
+//!
+//! Split (file-cap): `ship_routes` binds the enumerated `/api/v1/*` group,
+//! `middleware` carries the SPA-nav shim + build-skew header, `health` the
+//! health check + panic handler. This module owns the assembly.
 
-use axum::{
-    Json, Router,
-    body::Body,
-    response::Response,
-};
+mod health;
+mod middleware;
+mod ship_routes;
+
+use axum::Router;
 use std::sync::Arc;
 
 use deck::config::DeckConfig;
-use crate::{
-    auth, ship_runtime,
-};
-#[cfg(feature = "ship-code")]
-use crate::sessions;
-use crate::routes::{
-    actor_api, actors_api,
-    artifacts_api,
-    human_webhook,
-    rest_api, runtime_api,
-    sandbox_api, schema_api,
-    webhook_ext,
-};
+use crate::{auth, ship_runtime};
+use crate::routes::{human_webhook, webhook_ext};
 #[cfg(feature = "ship-code")]
 use crate::routes::hooks_api;
 use crate::auth::{attest, pairing, session};
-use crate::transport::{cors, pty as pty_handler};
-use axum::routing;
+use crate::transport::cors;
+
+use health::{handle_panic, health_check};
+use middleware::{build_header_middleware, spa_nav_middleware};
+use ship_routes::build_ship_routes;
 
 /// Build the full Axum router with all route groups, auth, and CORS.
 pub fn build_router(
@@ -182,7 +178,7 @@ pub fn build_router(
     let authenticated_routes = authenticated_routes
         .nest("/api", webhook_routes)
         // ConnectRPC op surface (ship.ops.v1) — additive, wrapped by
-        // auth_middleware below so the gate sees AuthContext. See ops_rpc.
+        // auth_middleware below so the gate sees AuthContext. See rpc::ops.
         // The authority-projection layer runs INSIDE auth_middleware (it's
         // applied here, so auth wraps it): it reads the populated AuthContext and
         // stamps the resolved `ship_types::Authority` into the request, so
@@ -293,213 +289,6 @@ pub fn build_router(
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
 }
 
-/// Pre-routing SPA-navigation shim. A GET to a client-route path — a bare in-app
-/// route like `/git` or `/studio/themes` with no real server handler — is served
-/// the shell scaffold so a deep-link refresh hydrates client-side. Everything
-/// else flows through to routing, crucially the Connect-ops `fallback_service`
-/// (`/ship.ops.v1.*`, the root fallback) which a `.fallback(spa)` handler would
-/// otherwise shadow into a dead data plane. Runs INNER to the DaemonMode/
-/// DeckConfig extension layers so it can read them for `serve_shell`.
-async fn spa_nav_middleware(
-    req: axum::extract::Request,
-    next: axum::middleware::Next,
-) -> Response {
-    if req.method() == axum::http::Method::GET && is_client_nav(req.uri().path()) {
-        let mode = req
-            .extensions()
-            .get::<deck::DaemonMode>()
-            .cloned()
-            .map(axum::Extension);
-        let cfg = req
-            .extensions()
-            .get::<Arc<DeckConfig>>()
-            .cloned()
-            .map(axum::Extension);
-        return deck::serve_shell(mode, cfg).await;
-    }
-    next.run(req).await
-}
-
-/// Whether `path` is an in-app client route that should hydrate as the shell,
-/// as opposed to a real server route or asset. Excludes every backend prefix,
-/// the first-run handlers (`/`, `/setup`), and dotted asset/RPC paths
-/// (`/favicon.ico`, `/ship.ops.v1.*`). This runs BEFORE routing, so the
-/// exclusion set must cover every real GET route — a miss shadows it.
-fn is_client_nav(path: &str) -> bool {
-    if path == "/" || path == "/setup" {
-        return false;
-    }
-    const BACKEND: [&str; 8] = [
-        "/api", "/_deck", "/hooks", "/auth", "/webhook", "/daemon", "/space", "/shell",
-    ];
-    if BACKEND.iter().any(|p| path.starts_with(p)) {
-        return false;
-    }
-    // Dotted paths are assets (favicon.ico) or Connect RPC (`/ship.*`).
-    !path.contains('.')
-}
-
-/// Stamp `X-Shipd-Build` on every response so clients can detect daemon
-/// version skew. On the way in, also log a one-time WARN per distinct
-/// `X-Shipd-Client-Build` value when the client's SHA diverges from
-/// ours — daemon-side proof that a stale CLI is talking to us.
-async fn build_header_middleware(
-    req: axum::extract::Request,
-    next: axum::middleware::Next,
-) -> axum::response::Response {
-    let bi = build_info::build_info!();
-
-    // Inbound: warn once per distinct client SHA on skew.
-    if let Some(client_value) = req
-        .headers()
-        .get("x-shipd-client-build")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string())
-    {
-        let server_short = bi.short();
-        let client_sha = client_value.split('+').next().unwrap_or("").to_string();
-        if client_value != server_short && client_sha != bi.git_sha {
-            static WARNED: std::sync::OnceLock<
-                std::sync::Mutex<std::collections::HashSet<String>>,
-            > = std::sync::OnceLock::new();
-            let warned = WARNED.get_or_init(|| std::sync::Mutex::new(Default::default()));
-            let mut set = warned.lock().unwrap();
-            if set.insert(client_value.clone()) {
-                tracing::warn!(
-                    client = %client_value,
-                    server = %server_short,
-                    "client build differs from daemon — restart the client to avoid API skew"
-                );
-            }
-        }
-    }
-
-    let mut response = next.run(req).await;
-    if let Ok(value) = axum::http::HeaderValue::from_str(&bi.short()) {
-        response.headers_mut().insert("X-Shipd-Build", value);
-    }
-    response
-}
-
-/// All enumerated routes, registered via `ShipRouterExt::ship_route` against
-/// the canonical `Route` enum. Paths come from `routes.rs` — this function
-/// only binds handlers.
-///
-fn build_ship_routes(st: rest_api::ApiState) -> Router {
-    use crate::routes::{Route, ShipRouterExt};
-    // Actor writes (L0 kernel — kernel-directed mailbox delivery).
-    // The mesh.* op surface (and the mesh/actors/{id}/events introspection
-    // reads) was removed; the kernel mailbox primitive is now reached
-    // exclusively through actor_spawn + the kernel's own directed delivery
-    // via `EventEnvelope.target_actor_id`.
-    // Base routes: always compiled regardless of feature flags.
-    let router = Router::new()
-        .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
-        .ship_route(Route::ListActors, actors_api::list_actors_handler)
-        // Isolation reads are served by the proto IsolationService
-        // (ship.ops.v1) — the one op-surface path.
-        .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
-        .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
-        // Runtime — read-side only (daemon status, projections, event stream).
-        // Agent stop/steer, pipeline dispatch, job lifecycle, log stream, and
-        // pipeline run log stream all moved to typed Connect wires
-        // (AgentsService / PipelinesService / agent.Dispatch).
-        .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
-        // Op schema (ship.*) — read-side, served from the ship-ops-rpc
-        // catalog (consumed by `ship ops call` in the CLI). View manifest /
-        // bundle serving is owned by deck; view writes are the Connect
-        // ViewService wire.
-        .ship_route(Route::ShipSchema, schema_api::serve_schema)
-        // The `/_deck/mutation/{name}` 410 tombstone moved to `deck::router()`
-        // — it's a `/_deck/*` serving concern (deck composes that form `action`
-        // URL via `deck_core::routes::mutation_action`), not an RPC route.
-        // AgentsService / PipelineService / RuleService / PermissionService /
-        // SkillService — all Connect wires (ship.ops.v1); no REST shells here.
-        // Events / projections — the kernel event bus is served over Connect
-        // `StreamService.Events` (ship.ops.v1); the SSE route was retired.
-        .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
-
-        // Artifacts platform (three-scope)
-        .merge(
-            Router::<rest_api::ApiState>::new()
-                .ship_route(Route::ArtifactsUpload, artifacts_api::upload_artifact)
-                .layer(axum::extract::DefaultBodyLimit::max(
-                    artifacts_api::MAX_UPLOAD_BYTES,
-                )),
-        )
-        .ship_route(Route::ArtifactDownload_template(), artifacts_api::download_artifact)
-        .route(
-            "/api/v1/artifacts/{id}",
-            routing::head(artifacts_api::head_artifact),
-        )
-        .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
-;
-
-    // Sessions (PTY) — harness-driver stack; only compiled with ship-code.
-    #[cfg(feature = "ship-code")]
-    let router = router
-        .ship_route(Route::SpawnPtySession, sessions::api::spawn_session)
-        .ship_route(Route::ListPtySessions, sessions::api::list_pty_sessions)
-        .ship_route(Route::GetPtySession_template(), sessions::api::get_session)
-        .ship_route(Route::StopPtySession_template(), sessions::api::stop_session)
-        .ship_route(Route::PtySessionInput_template(), sessions::api::session_input)
-        .ship_route(Route::PtySessionResize_template(), sessions::api::session_resize)
-        .ship_route(Route::PtySessionMessage_template(), sessions::api::session_message)
-        .ship_route(Route::PtySessionReply_template(), sessions::api::session_reply)
-        .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
-        .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
-        .ship_route(Route::InstalledProviders, sessions::api::installed_harnesses);
-
-    router.with_state(st)
-}
-
-/// Convert a handler panic into a structured 500 response instead of
-/// aborting the connection. Logs the panic for diagnostics.
-pub(crate) fn handle_panic(info: Box<dyn std::any::Any + Send + 'static>) -> Response {
-    let msg = if let Some(s) = info.downcast_ref::<&str>() {
-        (*s).to_string()
-    } else if let Some(s) = info.downcast_ref::<String>() {
-        s.clone()
-    } else {
-        "unknown panic".to_string()
-    };
-    tracing::error!(panic = %msg, "request handler panicked");
-    Response::builder()
-        .status(500)
-        .header("content-type", "application/json")
-        .body(Body::from(
-            serde_json::json!({"ok": false, "error": "internal server error"}).to_string(),
-        ))
-        .unwrap_or_else(|_| Response::new(Body::from("internal server error")))
-}
-
-/// GET /api/health — unauthenticated health check.
-///
-/// Returns daemon uptime, PID, and status of all supervised background tasks.
-/// Any dead task sets the top-level `healthy` flag to false.
-pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<serde_json::Value> {
-    let tasks = rt.health_registry().snapshot();
-    let all_healthy = tasks.iter().all(|t| t.alive);
-    // Resolved project dir: workspace if attached, else the global dir
-    // (which is what the runtime falls back to for global-only mode).
-    let ship_dir = rt
-        .workspace_dir()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|| rt.ship_dir().display().to_string());
-    let bi = build_info::build_info!();
-    Json(serde_json::json!({
-        "ok": all_healthy,
-        "healthy": all_healthy,
-        "version": env!("CARGO_PKG_VERSION"),
-        "commit": bi.short(),
-        "build": bi.full(),
-        "ship_dir": ship_dir,
-        "pid": std::process::id(),
-        "dev_mode": pairing::is_dev_mode(),
-        "tasks": tasks,
-    }))
-}
-
 #[cfg(test)]
 mod merge_tests {
     //! Guards the deck-axum router mount (`root.merge(deck::router())`).
@@ -541,7 +330,7 @@ mod merge_tests {
     /// `spa_nav_middleware` exists to prevent.
     #[test]
     fn is_client_nav_routes_navigation_but_never_backend() {
-        use super::is_client_nav;
+        use super::middleware::is_client_nav;
         // In-app client routes → serve the shell.
         for p in ["/git", "/agents", "/studio/themes", "/settings/general"] {
             assert!(is_client_nav(p), "{p} should hydrate as the shell");
