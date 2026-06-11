@@ -296,8 +296,15 @@ impl Bundler {
                 );
                 continue;
             }
+            // `production: true` — build_all IS the bake path (deck-cli /
+            // xtask build-assets), so emit minified bundles (#297: the
+            // framework singletons shipped 188KB raw because the bake left
+            // rolldown's `minify` off). Dev rebuilds (`build` single-flight,
+            // watch) stay unminified for debuggability. No source maps are
+            // emitted on either path (BundlerOptions leaves `sourcemap`
+            // unset), so minifying drops nothing that existed before.
             if let Err(e) =
-                rolldown_bundle::bundle_target(&layout, t, &self.staging, false).await
+                rolldown_bundle::bundle_target(&layout, t, &self.staging, true).await
             {
                 error!(target = %t.name, error = %e, "bundler: target failed");
                 failed.push(format!("{} ({e})", t.name));
@@ -308,7 +315,7 @@ impl Bundler {
         // View targets together (shared-chunk dedup). Atomic: one bad view fails
         // the whole view bundle — the bake must not ship a broken view.
         if !views.is_empty() {
-            match crate::views_bundle::bundle_views(&layout, &views, &self.staging, false).await {
+            match crate::views_bundle::bundle_views(&layout, &views, &self.staging, true).await {
                 Ok(()) => built.extend(views),
                 Err(e) => {
                     error!(error = %e, "bundler: multi-entry view bundle failed");
