@@ -1,3 +1,10 @@
+---
+group: Views
+order: 5
+title: SUI — Runtime Primitives
+description: The signal/bind/effect primitives the SUI runtime exposes.
+---
+
 # SUI — Runtime Primitives
 
 All symbols below are re-exported from `packages/sui/runtime/src/index.ts`. Anything not in that barrel is internal.

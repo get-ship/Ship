@@ -19,6 +19,7 @@
 // so the L1 policy below, shipd, and ship-supervisor resolve them unchanged.
 pub use ship_runner::emit;
 pub use ship_code::runner::{dedup, exit_handler};
+pub mod coordinator_programs;
 pub mod isolation;
 pub mod fanout;
 pub mod fanout_aggregate;

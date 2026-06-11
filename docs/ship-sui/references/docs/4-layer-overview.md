@@ -1,3 +1,10 @@
+---
+group: Views
+order: 2
+title: SUI — Four-Layer Overview
+description: The compile/runtime/host/chrome layering of a SUI view.
+---
+
 # SUI — Four-Layer Overview
 
 SUI splits cleanly into four layers. Each owns one concern and exposes a narrow contract to the next.

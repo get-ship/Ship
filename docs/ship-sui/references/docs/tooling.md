@@ -1,3 +1,10 @@
+---
+group: Views
+order: 6
+title: SUI — Tooling
+description: The toolchain from .sui source to a live hot-reloaded view.
+---
+
 # SUI — Tooling
 
 The chain from `.sui` source on disk to a live, hot-reloaded view in the browser passes through six tools. Each maps to one entry point.
@@ -33,7 +40,7 @@ Flags (from `crates/sui/compiler/src/bin/sui-compiler.rs`):
 | `--styles <file>` | Prepend a CSS file as a `<style>` block. Component sources only. |
 | `--component-name <tag>` | Set the custom element tag name; implies component mode. |
 
-The binary is also exposed as a `cdylib` (`crate-type = ["lib", "cdylib"]` in `Cargo.toml`) so editor extensions and the deck bundler can call it without spawning a subprocess. The Rust release build is what the daemon ships at `~/.ship/runtime/sui-compiler` (see `docs/ship-architecture/references/docs/toolchain.md`).
+The binary is also exposed as a `cdylib` (`crate-type = ["lib", "cdylib"]` in `Cargo.toml`) so editor extensions and the deck bundler can call it without spawning a subprocess. The Rust release build is what the daemon ships at `~/.ship/runtime/sui-compiler` (see `crates/deck/deck-bundler/README.md` — the toolchain doc moved next to its code per the docs charter).
 
 ## The deck bundler — the ONLY bundler
 

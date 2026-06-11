@@ -41,14 +41,14 @@ The `Bundler` is in-process:
 - **Engine:** Rolldown (oxc-based, Rust-native), embedded in `ship-platform`.
   Requires the pinned toolchain to be Rust **1.95+** (oxc uses `if let` guards,
   stabilised in 1.95) — see `rust-toolchain.toml`.
-- **SUI plugin** (`rolldown_bundle.rs`): a native Rust Rolldown `Plugin`.
+- **SUI plugin** (`sui_plugin.rs`): a native Rust Rolldown `Plugin`.
   `resolve_id` redirects `./X.compiled.js` siblings, externalises the framework
   singletons (`@ship/sui-runtime`/`-dom`/`sdk-client`), and re-anchors
   `@ship/<pkg>` to workspace `src/`. `load` spawns `sui-compiler` to compile
   `.sui` → JS. Rolldown handles TS transpile + node resolution natively.
 - **Output:** `assets_dir_for` — `crates/deck/deck-core/assets` for the baked
   framework bundles, `.deck/` for views/components/spaces. No source-tree writes.
-- **API** (`bundler/mod.rs`): `Bundler::start` → `build(target)` / `build_all`
+- **API** (`lib.rs`): `Bundler::start` → `build(target)` / `build_all`
   (+ catalog aggregation) / `start_watching` / `subscribe_events` / `shutdown`,
   all async, in-process.
 
@@ -59,11 +59,12 @@ The `Bundler` is in-process:
 | File | Owns |
 |---|---|
 | `src/lib.rs` | Public `Bundler` struct, `BundlerEvent` type |
-| `src/bundler/mod.rs` | `Bundler::start`, `build`, `build_all`, `start_watching`, `subscribe_events`, `shutdown` |
-| `src/rolldown_bundle.rs` | `SuiPlugin` — the Rolldown plugin; `resolve_id` + `load` hooks |
+| `src/lib.rs` | `Bundler::start`, `build`, `build_all`, `start_watching`, `subscribe_events`, `shutdown` |
+| `src/sui_plugin.rs` | `SuiPlugin` — the Rolldown plugin; `resolve_id` + `load` hooks |
+| `src/rolldown_bundle.rs` | `bundle_target` — drives a Rolldown build with `SuiPlugin` installed |
 | `src/targets.rs` | Bundle-target definitions (views, packs, framework assets, apps) |
 | `src/routes.rs` | Route-tree walk → `routes.gen.ts` codegen (typed route builders for the shell) |
-| `src/hmr.rs` | `notify` file watcher; emits `BundlerEvent::ModuleChanged` / `CompileError` on the broadcast channel |
+| `src/watch.rs` | `notify` file watcher; emits `BundlerEvent::ModuleChanged` / `CompileError` on the broadcast channel |
 
 ---
 

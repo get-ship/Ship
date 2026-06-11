@@ -66,7 +66,7 @@ const GENERATED_JS_KNOWN: &[(&str, &str)] = &[
         // Bundler preamble ("var __defProp"). Vendored playground spike —
         // operator decision to commit the bundle pending a proper gitignore
         // strategy for the docs playground.
-        "vendored spike, operator decision pending",
+        "vendored spike, operator decision pending (raised 2026-06-11; re-review at next topology audit)",
     ),
     (
         "packages/sui/runtime/fixtures/views/counter/view.js",

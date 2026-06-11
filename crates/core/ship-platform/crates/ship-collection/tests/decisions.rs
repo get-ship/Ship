@@ -289,12 +289,14 @@ async fn record_rejects_missing_title() {
 async fn supersede_creates_new_and_marks_old() {
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
-    let ctx = make_ctx(&tmp, kernel);
+    let ctx = make_ctx(&tmp, kernel.clone());
     let svc = make_decision_service(ctx);
 
     let r = svc.record(ri("correction", "Old rule")).await.unwrap();
     let old_id = match r { RecordResult::Created { id } => id, _ => panic!() };
 
+    // Events + rows together (verifier condition): subscribe pre-act.
+    let mut rx = kernel.subscribe();
     let result = svc
         .supersede(&old_id, ri("correction", "New rule"))
         .await
@@ -320,6 +322,21 @@ async fn supersede_creates_new_and_marks_old() {
         Some(old_id.as_str()),
         "new must have supersedes=old_id"
     );
+    // The supersede rode exactly the two collection events.
+    let mut got = (false, false);
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+    while tokio::time::Instant::now() < deadline && !(got.0 && got.1) {
+        match tokio::time::timeout(Duration::from_millis(200), rx.recv()).await {
+            Ok(Ok(e)) => {
+                if e.event_type == "collection.item_created" { got.0 = true; }
+                if e.event_type == "collection.item_updated" { got.1 = true; }
+            }
+            _ => break,
+        }
+    }
+    assert!(got.0, "supersede must emit collection.item_created");
+    assert!(got.1, "supersede must emit collection.item_updated");
+
 }
 
 /// Superseding an unknown id returns NotFound.
@@ -581,11 +598,12 @@ async fn supersede_emits_two_collection_events() {
     let r = svc.record(ri("operational", "Old decision")).await.unwrap();
     let old_id = match r { RecordResult::Created { id } => id, _ => panic!() };
 
-    // Drain events from the record call.
-    tokio::time::sleep(Duration::from_millis(30)).await;
+    // Subscribe immediately before the act: broadcast receivers never see
+    // events sent before subscription, so the record() events cannot leak in —
+    // deterministic, no timing-based drain (verifier condition).
     let mut rx = kernel.subscribe();
 
-    svc.supersede(&old_id, ri("operational", "New decision")).await.unwrap();
+    let result = svc.supersede(&old_id, ri("operational", "New decision")).await.unwrap();
 
     let mut got_created = false;
     let mut got_updated = false;
@@ -603,6 +621,15 @@ async fn supersede_emits_two_collection_events() {
 
     assert!(got_created, "supersede must emit collection.item_created");
     assert!(got_updated, "supersede must emit collection.item_updated");
+
+    // Rows + events together (verifier condition): the same operation's final
+    // state must match what the events claim happened.
+    let old_item = svc.get(&old_id).await.unwrap();
+    assert_eq!(old_item.data["status"].as_str(), Some("superseded"));
+    assert_eq!(old_item.data["superseded_by"].as_str(), Some(result.new_id.as_str()));
+    let new_item = svc.get(&result.new_id).await.unwrap();
+    assert_eq!(new_item.data["status"].as_str(), Some("active"));
+    assert_eq!(new_item.data["supersedes"].as_str(), Some(old_id.as_str()));
 }
 
 /// Items created in one service instance are readable from a new instance on the

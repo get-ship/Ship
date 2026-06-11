@@ -1,3 +1,10 @@
+---
+group: Views
+order: 3
+title: SUI — Authoring Patterns
+description: Canonical patterns for .sui view authoring.
+---
+
 # SUI — Authoring Patterns
 
 How to author a SUI view, a SUI component, and the controller that pairs with each.

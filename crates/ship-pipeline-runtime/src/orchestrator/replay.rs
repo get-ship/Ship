@@ -219,6 +219,10 @@ async fn reconcile_dispatched_inner(
                     "job-dispatch: reconcile — process still alive, re-attaching"
                 );
                 octx.registry.register(&job.slug, handle).await;
+                // Explicit: nothing below this match may run for a live handle.
+                // (P2.1 dropped a then-dead `continue`; restored as a guard against
+                // code later appended after the match silently running here.)
+                continue;
             }
             None => {
                 tracing::info!(

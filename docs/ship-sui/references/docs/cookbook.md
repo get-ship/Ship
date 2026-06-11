@@ -1,3 +1,10 @@
+---
+group: Views
+order: 4
+title: SUI — Cookbook
+description: Worked recipes for common SUI view tasks.
+---
+
 # SUI — Cookbook
 
 Copy-paste-and-modify worked examples for an agent authoring a SUI

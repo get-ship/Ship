@@ -1,3 +1,10 @@
+---
+group: Agents
+order: 2
+title: SUI — Agent Authoring
+description: How agents author .sui views end to end.
+---
+
 # SUI — Agent-Authoring Guide
 
 For an AI agent producing a Ship view in one shot. Read the parent
