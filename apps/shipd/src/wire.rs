@@ -20,17 +20,3 @@ pub struct MeshResponse {
     pub data: serde_json::Value,
 }
 
-/// Structured error body. Returned with non-2xx HTTP statuses; OpenAPI
-/// annotations on routes reference this for the schema.
-#[derive(Debug, Serialize)]
-pub struct ErrorResponse {
-    /// Machine-readable error code. Examples: `not_found`, `unauthorized`,
-    /// `bad_request`, `conflict`, `rate_limited`, `internal_error`.
-    pub error: String,
-    /// Human-readable error message. Safe to surface in UIs and logs.
-    pub message: String,
-    /// Optional structured details. Shape varies by endpoint — see the
-    /// individual operation for specifics.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub details: Option<serde_json::Value>,
-}

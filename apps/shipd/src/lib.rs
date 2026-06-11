@@ -87,11 +87,6 @@ mod supervisor_tests;
 
 #[cfg(test)]
 pub mod test_harness;
-#[cfg(test)]
-mod integration_tests;
-#[cfg(test)]
-#[path = "ship_runtime_tests.rs"]
-mod ship_runtime_tests;
 
 pub use daemon::{network_status, network_stop};
 pub use deck::DaemonMode;

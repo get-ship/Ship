@@ -7,19 +7,11 @@ use tokio::sync::Mutex;
 
 // ---- Config types ----
 
-/// How the daemon authenticates incoming requests.
-#[derive(Debug, Clone)]
-pub enum AuthMode {
-    /// Token-based auth for local daemon (default).
-    Local,
-}
-
 /// Runtime configuration — host, port, auth.
 #[derive(Debug, Clone)]
 pub struct RuntimeConfig {
     pub host: String,
     pub port: u16,
-    pub auth_mode: AuthMode,
 }
 
 impl Default for RuntimeConfig {
@@ -27,7 +19,6 @@ impl Default for RuntimeConfig {
         Self {
             host: "127.0.0.1".to_string(),
             port: 9315,
-            auth_mode: AuthMode::Local,
         }
     }
 }
@@ -43,11 +34,7 @@ pub struct AppMetadata {
     pub workspace_dir: Option<PathBuf>,
 }
 
-/// Type alias used as axum shared state.
-pub type AppState = Arc<super::ShipRuntime>;
-
-/// Canonical name for the axum shared state. Both `ApiState` and
-/// `AppState` refer to the same `Arc<ShipRuntime>` handle.
+/// Canonical name for the axum shared state.
 pub type ApiState = Arc<super::ShipRuntime>;
 
 // Re-export for backward compat in handlers.

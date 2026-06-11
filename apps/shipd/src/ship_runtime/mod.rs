@@ -18,8 +18,8 @@ mod test_ctors;
 // Re-export all public types from this module level so callers that use
 // `crate::ship_runtime::*` continue to resolve without path changes.
 pub use types::{
-    AuthMode, RuntimeConfig, AppMetadata,
-    AppState, ApiState,
+    RuntimeConfig, AppMetadata,
+    ApiState,
     SharedKernel,
     ActorGuard,
 };

@@ -4,7 +4,6 @@
 //! injects two transport-/runtime-owned capabilities as ports. The daemon
 //! supplies the concrete impls here:
 //!
-//!   - [`RegistryWindowSessions`] — mints / revokes the pid-bound C2 window
 //!     token against the daemon's in-memory `SessionRegistry`. The mint/revoke
 //!     mechanism the retired space-window seam used, now sole-owned here against
 //!     the device crate's `WindowSessions` trait.
@@ -18,31 +17,6 @@ use ship_device::ports::{SpaceRegistry, WindowSessions};
 
 use crate::auth::SessionRegistry;
 
-/// Session-registry-backed window token mint/revoke. Mints a pid-bound, C2
-/// session via `space_window_session` and inserts it; revokes by dropping every
-/// session matching `(space, pid)`.
-pub struct RegistryWindowSessions<'a> {
-    pub registry: &'a SessionRegistry,
-}
-
-#[async_trait]
-impl WindowSessions for RegistryWindowSessions<'_> {
-    async fn mint_window_session(&self, space_id: &str, pid: u32) -> Result<String> {
-        let token = ship_auth::scopes::generate_session_token()
-            .map_err(|e| anyhow!(e.to_string()))?;
-        let session =
-            ship_auth::scopes::space_window_session(space_id, pid, token.clone());
-        self.registry.lock().await.insert(token.clone(), session);
-        Ok(token)
-    }
-
-    async fn revoke_window_session(&self, space_id: &str, pid: u32) -> bool {
-        let mut reg = self.registry.lock().await;
-        let before = reg.len();
-        reg.retain(|_, s| !(s.space_id.as_deref() == Some(space_id) && s.pid == Some(pid)));
-        before != reg.len()
-    }
-}
 
 /// Owned (cloned) registry — use this when the sessions adapter needs to be
 /// stored in an `Arc` for a crate-owned wire (the borrowed variant can't be

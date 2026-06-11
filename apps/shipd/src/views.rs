@@ -34,44 +34,5 @@ use std::path::PathBuf;
 use serde::Serialize;
 
 
-#[derive(Serialize, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct ViewManifest {
-    pub name: String,
-    #[serde(rename = "type")]
-    pub view_type: String,
-    #[serde(rename = "elementName", skip_serializing_if = "Option::is_none")]
-    pub element_name: Option<String>,
-    #[serde(rename = "bundleUrl", skip_serializing_if = "Option::is_none")]
-    pub bundle_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub claims: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub entry: Option<String>,
-}
-
-#[derive(Serialize)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct ViewListEntry {
-    pub name: String,
-    #[serde(rename = "type")]
-    pub view_type: String,
-    pub source: String,
-    /// Optional shell display metadata — label, icon, default_pinned,
-    /// order. Populated from the view's manifest `rail:` block (or
-    /// equivalent). Absent = view has no pinned/launcher presence.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub rail: Option<RailMeta>,
-}
-
-/// Per-view shell display metadata. Maps to `<ship-rail>` /
-/// `<ship-launcher>`. Identity only — pin state and ordering are user
-/// settings (tier 2, daemon-persisted), not view config.
-#[derive(Serialize, Clone)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct RailMeta {
-    pub label: String,
-    pub icon: String,
-}
 
 

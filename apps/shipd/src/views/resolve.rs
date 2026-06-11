@@ -3,12 +3,8 @@
 
 use serde::Deserialize;
 
-use super::RailMeta;
-
 #[derive(Deserialize)]
 pub(crate) struct ManifestFile {
-    #[allow(dead_code)] // Deserialized but not yet read; kept for forward-compat manifests.
-    pub data: Option<ManifestData>,
     #[allow(dead_code)]
     pub events: Option<Vec<String>>,
     /// Optional list of bundle packs this view needs at load time.
@@ -35,49 +31,7 @@ pub struct ManifestRail {
     pub icon: Option<String>,
 }
 
-impl ManifestRail {
-    pub fn into_meta(self, view_name: &str) -> RailMeta {
-        RailMeta {
-            label: self.label.unwrap_or_else(|| humanize(view_name)),
-            icon: self.icon.unwrap_or_else(|| "app-window".into()),
-        }
-    }
-}
 
-fn humanize(id: &str) -> String {
-    id.replace('-', " ")
-        .split(' ')
-        .map(|w| {
-            let mut c = w.chars();
-            match c.next() {
-                Some(ch) => ch.to_uppercase().chain(c).collect::<String>(),
-                None => String::new(),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-/// Manifest `data:` declarations, consumed by
-/// `views::context::build_generic_context` for views still on the old
-/// injection pathway (canvas, setup, overview). File-routed views on
-/// the `ship.*` SDK ignore this block. Today only `collections` is
-/// read; older manifests with extra keys (`items`, `settings`,
-/// `agents`, …) still parse because `#[serde(deny_unknown_fields)]`
-/// is absent — they're silently ignored.
-#[derive(Deserialize, Clone)]
-pub(crate) struct ManifestData {
-    #[allow(dead_code)] // Deserialized but not yet read.
-    pub collections: Option<ManifestCollections>,
-}
-
-#[allow(dead_code)] // Deserialized into but only the variant tag matters.
-#[derive(Deserialize, Clone)]
-#[serde(untagged)]
-pub(crate) enum ManifestCollections {
-    All(String),
-    List(Vec<String>),
-}
 
 /// Read the raw manifest file (with data/events fields) for the SSE handler.
 ///
