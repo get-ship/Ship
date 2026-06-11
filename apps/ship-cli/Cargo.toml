@@ -124,9 +124,9 @@ set -eu
 # gets installed alongside the docs so admins can re-run it manually.
 
 [dev-dependencies]
-# Internal agent-def sub-crate — used only by tests/registry_e2e.rs (skill-vars
-# KV round-trip). That test should migrate into ship-skill-vars itself.
-ship-skill-vars = { path = "../../crates/core/ship-platform/crates/agent-def/crates/ship-skill-vars" }
+# Wave-1.1: ship-skill-vars dissolved into agent-def::skill_vars_store. The
+# skill-vars KV round-trip in tests/registry_e2e.rs now uses agent-def directly.
+agent-def = { path = "../../crates/core/ship-platform/crates/agent-def" }
 tempfile = { workspace = true }
 assert_cmd = "2"
 predicates = "3"

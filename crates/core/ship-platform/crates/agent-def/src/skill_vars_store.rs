@@ -1,8 +1,13 @@
-//! `ship-skill-vars` — skill-variable persistence for ship-agents.
+//! Skill-variable persistence for agent-def (inlined from the dissolved
+//! `ship-skill-vars` sub-crate — Wave-1.1 topology move).
 //!
 //! Namespaced JSON values backed by `kv.db` (physically separate from the
-//! event log so writes never compete for WAL locks). Internal sub-crate of
-//! ship-agents; the namespace policy is skill-scoped (see `KvNamespace`).
+//! event log so writes never compete for WAL locks). The namespace policy is
+//! skill-scoped (see `KvNamespace`).
+//!
+//! This module is private to `agent-def`; callers use the higher-level
+//! [`crate::skill_vars`] API which handles schema parsing, scope routing,
+//! and merge order.
 
 use anyhow::Result;
 use chrono::Utc;
@@ -26,9 +31,9 @@ pub enum KvNamespace {
 impl KvNamespace {
     fn as_str(&self) -> std::borrow::Cow<'_, str> {
         match self {
-            Self::SkillVarsGlobal(s)   => format!("skill_vars:{s}").into(),
-            Self::SkillVarsLocal(s)    => format!("skill_vars.local:{s}").into(),
-            Self::SkillVarsProject(s)  => format!("skill_vars.project:{s}").into(),
+            Self::SkillVarsGlobal(s)  => format!("skill_vars:{s}").into(),
+            Self::SkillVarsLocal(s)   => format!("skill_vars.local:{s}").into(),
+            Self::SkillVarsProject(s) => format!("skill_vars.project:{s}").into(),
         }
     }
 }

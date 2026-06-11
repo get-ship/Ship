@@ -48,7 +48,7 @@ pub use cancel::handle_agent_cancelled;
 pub use dispatch::handle_dispatch_requested;
 pub use ports::AgentPorts;
 /// One-time legacy `platform.db` → `kv.db` skill-vars drain. Sourced from
-/// agent-def (which owns the skill domain + its `ship-skill-vars` persistence);
+/// agent-def (which owns the skill domain + its `skill_vars_store` persistence);
 /// re-exported here only as a transitional shim for the daemon boot path.
 pub use agent_def::migrate_skill_vars_from_platform_db;
 

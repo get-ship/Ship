@@ -23,6 +23,7 @@ pub mod rule;
 pub mod skill;
 pub mod skill_paths;
 pub mod skill_vars;
+pub mod skill_vars_store;
 mod event_registrations;
 pub use agent::{Agent, BlastRadius, Capability, Disposition, Harness, Identity};
 pub use emit::{
@@ -32,9 +33,9 @@ pub use emit::{
 pub use op::{OpToolUseCompleted, OpToolUseDenied, OpToolUseStarted};
 
 /// One-time legacy `platform.db` → `kv.db` skill-vars drain, re-exported for the
-/// daemon boot path so shipd needn't depend on the internal sub-crate. The skill
-/// domain — including its variable persistence (`ship-skill-vars`) — lives here.
-pub use ship_skill_vars::migrate_from_platform_db as migrate_skill_vars_from_platform_db;
+/// daemon boot path so shipd needn't depend on the internal storage module. The
+/// skill domain — including its variable persistence (`skill_vars_store`) — lives here.
+pub use skill_vars_store::migrate_from_platform_db as migrate_skill_vars_from_platform_db;
 
 #[cfg(test)]
 mod testutil;

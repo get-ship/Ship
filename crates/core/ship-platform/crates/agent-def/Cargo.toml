@@ -18,9 +18,6 @@ ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
 # `testing::MockSink` (test seam), and let the caller pull ship-runner.
 ship-config = { path = "../ship-config" }
 ship-harnesses = { path = "../ship-harnesses" }
-# Skill-variable persistence — an agent-def-internal sub-crate (its KvNamespace is
-# skill-scoped; agent-def's skill_vars module is the sole consumer).
-ship-skill-vars = { path = "crates/ship-skill-vars" }
 ship-store = { path = "../ship-store" }
 # the compiler engine — services/compile is the wrapper
 compiler = { path = "../../../compiler", features = ["specta"] }
