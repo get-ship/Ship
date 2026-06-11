@@ -1,34 +1,79 @@
-//! Runtime read API — exposes live platform state for Studio.
+//! Runtime read API — the read-side residual after the Connect migration.
 //!
-//! Routes are mounted under `/api/v1/runtime` in lib.rs.
-//! All handlers are read-only and use the existing `ApiState`.
-//!
-//! The legacy `list_sessions_across_projects` workbench handler was
-//! removed with the workbench `session.*` family (job
-//! `workbench-teardown`); the canonical session family has no cross-
-//! project read yet — the workbench's runtime.db `sessions` table is
-//! gone, so a re-implementation would be a different projection over
-//! the canonical event log, deferred to a follow-up.
-// ── mr-04 follow-up: per-handler submodules ─────────────────────────────────
-//
-// Each submodule owns one logical chunk of the runtime read API. The
-// parent re-exports the public handler symbols + helpers so call sites
-// resolve through `crate::routes::runtime_api::*`.
-//
-// Note: several former submodules (`agents`, `dispatch`, `jobs`,
-// `jobs_status`, `pipeline_run`) were cut when their REST handlers
-// moved to the typed Connect wires (AgentsService, PipelinesService,
-// agent.Dispatch). The KEEP set here covers the read-side residual:
-// `daemon_status` and the event poll (the SSE stream was retired in favor of
-// Connect `StreamService.Events`).
+//! One handler remains: `daemon_status` (GET /daemon/status), consumed by
+//! `ship daemon status` (apps/ship-cli/src/daemon/status.rs). Everything
+//! else this module used to carry moved to typed Connect wires
+//! (AgentsService / PipelinesService / agent.Dispatch / StreamService.Events)
+//! or lives on the canonical read surface (`ship_substrate::runtime_reads`).
+//! The former `runtime_api/` submodule dir (daemon.rs + an events re-export
+//! shim) collapsed back into this single file.
 
-pub mod daemon;
-pub mod events;
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 
-pub use daemon::daemon_status;
+use crate::ship_runtime::ApiState;
+use crate::wire::MeshResponse;
 
-pub use ship_pipeline_runtime::run_core::PipelineRunRequest;
+pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
+    use ship_pipeline_runtime::projections::pipeline_run::PipelineRunStatus;
 
+    let ship_dir = state.ship_dir();
+    let jobs = ship_pipeline_runtime::projections::pipeline_run::load_pipeline_runs_at(ship_dir).unwrap_or_default();
+    let mut counts: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+    for j in jobs.values() {
+        let key = match j.status {
+            PipelineRunStatus::Pending => "pending",
+            PipelineRunStatus::Dispatched => "dispatched",
+            PipelineRunStatus::Completed => "completed",
+            PipelineRunStatus::GatePending => "gate_pending",
+            PipelineRunStatus::Blocked => "blocked",
+            PipelineRunStatus::Merged => "merged",
+            PipelineRunStatus::Failed => "failed",
+            PipelineRunStatus::Cancelled => "cancelled",
+        };
+        *counts.entry(key).or_insert(0) += 1;
+    }
+
+    // Most recent sweep_completed and the drift count it recorded.
+    // `load_recent_events_by_type` lives in `ship_substrate::runtime_reads`
+    // (the canonical read surface).
+    let sweep_events =
+        ship_substrate::runtime_reads::load_recent_events_by_type(
+            ship_dir,
+            &["supervisor.sweep_completed"],
+            100,
+        )
+        .unwrap_or_default();
+    let last_sweep = sweep_events.iter().max_by_key(|e| e.created_at);
+    let last_sweep_at = last_sweep.map(|e| e.created_at.to_rfc3339());
+    let last_sweep_drift = last_sweep
+        .and_then(|e| serde_json::from_str::<serde_json::Value>(&e.payload_json).ok())
+        .and_then(|p| p["drift_count"].as_u64())
+        .unwrap_or(0);
+
+    let port = state.config().port;
+    let host = state.config().host.clone();
+    let uptime_secs = state.uptime().as_secs();
+    let pid = std::process::id();
+
+    (
+        StatusCode::OK,
+        Json(MeshResponse {
+            ok: true,
+            data: serde_json::json!({
+                "pid": pid,
+                "version": env!("CARGO_PKG_VERSION"),
+                "host": host,
+                "port": port,
+                "uptime_secs": uptime_secs,
+                "jobs_total": jobs.len(),
+                "jobs_by_status": counts,
+                "last_sweep_at": last_sweep_at,
+                "last_sweep_drift": last_sweep_drift,
+                "tasks": state.health_registry().snapshot(),
+            }),
+        }),
+    )
+}
 
 #[cfg(test)]
 mod tests {
@@ -97,11 +142,6 @@ mod tests {
         .with_actor_id("test");
         state.persist_and_route(&env).await.unwrap();
     }
-    // The daemon_status handler is the sole KEEP handler in this module
-    // (read-side). The former `stop_agent`/`steer_agent`/`get_job_detail`/
-    // `cancel_job`/`list_jobs` REST handlers were cut when their typed
-    // Connect wires took over (AgentsService, PipelinesService,
-    // agent.Dispatch); their tests went with them.
 
     #[tokio::test(flavor = "multi_thread")]
     async fn daemon_status_returns_pid_and_uptime() {

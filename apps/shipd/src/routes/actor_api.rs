@@ -16,7 +16,8 @@ use ship_substrate::events::EventEnvelope;
 use serde::Deserialize;
 
 use crate::auth::{AuthContext, Scope, require_scope};
-use crate::routes::rest_api::{ApiState, MeshResponse};
+use crate::ship_runtime::ApiState;
+use crate::wire::MeshResponse;
 
 #[derive(Deserialize)]
 pub struct ActorSpawnReq {

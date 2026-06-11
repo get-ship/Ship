@@ -24,7 +24,8 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::auth::AuthContext;
-use crate::routes::rest_api::{ApiState, MeshResponse};
+use crate::ship_runtime::ApiState;
+use crate::wire::MeshResponse;
 
 #[derive(Deserialize)]
 pub struct ListQuery {

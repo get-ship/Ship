@@ -21,7 +21,7 @@ use ship_substrate::ports::KernelLog;
 use std::sync::Arc;
 
 use crate::auth::{AuthContext, Scope, enforce_mcp_identity, enforce_mcp_workspace, require_scope};
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 
 // ── PtyBroadcastPort implementation ──────────────────────────────────────────
 

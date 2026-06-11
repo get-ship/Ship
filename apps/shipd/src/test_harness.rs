@@ -11,7 +11,7 @@ use tempfile::TempDir;
 use tower::ServiceExt;
 
 use crate::auth::AuthContext;
-use crate::routes::rest_api::{ApiState, SharedKernel};
+use crate::ship_runtime::{ApiState, SharedKernel};
 
 /// Self-contained test daemon — temp dir, kernel, router, clean teardown.
 pub struct TestDaemon {

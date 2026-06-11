@@ -4,15 +4,14 @@ use axum::{Router, routing};
 
 #[cfg(feature = "ship-code")]
 use crate::sessions;
-use crate::routes::{
-    actor_api, actors_api, artifacts_api, rest_api, runtime_api, sandbox_api, schema_api,
-};
+use crate::routes::{actor_api, actors_api, artifacts_api, runtime_api, sandbox_api, schema_api};
+use crate::ship_runtime::ApiState;
 use crate::transport::pty as pty_handler;
 
 /// All enumerated routes, registered via `ShipRouterExt::ship_route` against
 /// the canonical `Route` enum. Paths come from `routes/mod.rs` — this function
 /// only binds handlers.
-pub(super) fn build_ship_routes(st: rest_api::ApiState) -> Router {
+pub(super) fn build_ship_routes(st: ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     // Actor writes (L0 kernel — kernel-directed mailbox delivery).
     // The mesh.* op surface (and the mesh/actors/{id}/events introspection
@@ -48,7 +47,7 @@ pub(super) fn build_ship_routes(st: rest_api::ApiState) -> Router {
 
         // Artifacts platform (three-scope)
         .merge(
-            Router::<rest_api::ApiState>::new()
+            Router::<ApiState>::new()
                 .ship_route(Route::ArtifactsUpload, artifacts_api::upload_artifact)
                 .layer(axum::extract::DefaultBodyLimit::max(
                     artifacts_api::MAX_UPLOAD_BYTES,

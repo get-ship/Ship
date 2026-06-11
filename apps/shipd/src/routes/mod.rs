@@ -45,7 +45,6 @@ mod artifacts_api_tests;
 #[cfg(feature = "ship-code")]
 pub mod hooks_api;
 pub mod human_webhook;
-pub mod rest_api;
 pub mod runtime_api;
 pub mod sandbox_api;
 #[cfg(test)]

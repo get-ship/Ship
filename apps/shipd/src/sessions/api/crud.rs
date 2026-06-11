@@ -9,7 +9,7 @@ use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::auth::{AuthContext, Scope, require_scope};
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 
 use super::super::lifecycle;
 use super::super::types::{SessionKind, SessionMeta};
