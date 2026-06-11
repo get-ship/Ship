@@ -45,8 +45,8 @@ pub struct SpaceWire<F, G> {
 
 impl<F, G> SpaceWire<F, G>
 where
-    F: Fn(&RequestContext) -> Arc<SpaceContext> + Send + Sync + 'static,
-    G: Fn(&RequestContext) -> TargetSpace + Send + Sync + 'static,
+    F: Fn(&RequestContext) -> Result<Arc<SpaceContext>, ConnectError> + Send + Sync + 'static,
+    G: Fn(&RequestContext) -> Result<TargetSpace, ConnectError> + Send + Sync + 'static,
 {
     pub fn new(kernel: Arc<KernelLog>, make_ctx: F, resolve_space: G) -> Self {
         Self {
@@ -56,8 +56,8 @@ where
         }
     }
 
-    fn make_svc(&self, rctx: &RequestContext) -> SpaceService {
-        SpaceService { ctx: (self.make_ctx)(rctx) }
+    fn make_svc(&self, rctx: &RequestContext) -> Result<SpaceService, ConnectError> {
+        Ok(SpaceService { ctx: (self.make_ctx)(rctx)? })
     }
 }
 
@@ -77,15 +77,15 @@ fn record_to_proto(r: SpaceRecord) -> Space {
 #[allow(refining_impl_trait)]
 impl<F, G> SpaceServiceTrait for SpaceWire<F, G>
 where
-    F: Fn(&RequestContext) -> Arc<SpaceContext> + Send + Sync + 'static,
-    G: Fn(&RequestContext) -> TargetSpace + Send + Sync + 'static,
+    F: Fn(&RequestContext) -> Result<Arc<SpaceContext>, ConnectError> + Send + Sync + 'static,
+    G: Fn(&RequestContext) -> Result<TargetSpace, ConnectError> + Send + Sync + 'static,
 {
     async fn list(
         &self,
         ctx: RequestContext,
         _request: ship_ops_rpc::OwnedSpaceListReqView,
     ) -> ServiceResult<SpaceList> {
-        let svc = self.make_svc(&ctx);
+        let svc = self.make_svc(&ctx)?;
         let spaces = svc.list().await.map_err(ConnectError::from)?;
         let active_id = svc.active_id().await.map_err(ConnectError::from)?;
         Ok(Response::new(SpaceList {
@@ -100,7 +100,7 @@ where
         ctx: RequestContext,
         _request: ship_ops_rpc::OwnedSpaceActiveReqView,
     ) -> ServiceResult<ActiveSpace> {
-        let svc = self.make_svc(&ctx);
+        let svc = self.make_svc(&ctx)?;
         let active = svc.active().await.map_err(ConnectError::from)?;
         Ok(Response::new(ActiveSpace {
             active: active.map(record_to_proto).into(),
@@ -113,8 +113,8 @@ where
         ctx: RequestContext,
         _request: ship_ops_rpc::OwnedSpaceInfoReqView,
     ) -> ServiceResult<SpaceInfo> {
-        let svc = self.make_svc(&ctx);
-        let target = (self.resolve_space)(&ctx);
+        let svc = self.make_svc(&ctx)?;
+        let target = (self.resolve_space)(&ctx)?;
         let composed = svc
             .info(
                 target.settings_store.as_ref(),
@@ -139,7 +139,7 @@ where
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedAddSpaceReqView,
     ) -> ServiceResult<Space> {
-        let svc = self.make_svc(&ctx);
+        let svc = self.make_svc(&ctx)?;
         let path = std::path::Path::new(request.path);
         let name = if request.name.is_empty() { None } else { Some(request.name) };
         let record = svc.add(path, name).await.map_err(ConnectError::from)?;
@@ -151,7 +151,7 @@ where
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedActivateSpaceReqView,
     ) -> ServiceResult<ActiveSpace> {
-        let svc = self.make_svc(&ctx);
+        let svc = self.make_svc(&ctx)?;
         let record = svc.activate(request.id).await.map_err(ConnectError::from)?;
         Ok(Response::new(ActiveSpace {
             active: Some(record_to_proto(record)).into(),
@@ -164,8 +164,8 @@ where
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedSetSpaceSettingReqView,
     ) -> ServiceResult<SpaceSettingValue> {
-        let svc = self.make_svc(&ctx);
-        let target = (self.resolve_space)(&ctx);
+        let svc = self.make_svc(&ctx)?;
+        let target = (self.resolve_space)(&ctx)?;
         let space_id = target.space_id.ok_or_else(|| {
             ConnectError::failed_precondition("no space bound for this connection")
         })?;
@@ -190,7 +190,7 @@ where
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedSpaceWatchReqView,
     ) -> ServiceResult<ServiceStream<WatchEvent>> {
-        let ctx_arc = self.make_svc(&ctx).ctx.clone();
+        let ctx_arc = self.make_svc(&ctx)?.ctx.clone();
         let space_id = ctx_arc.space_id().to_string();
         let owned = request.to_owned_message();
 

@@ -1,8 +1,8 @@
 //! Pipeline event router — dispatches kernel events to the appropriate handler.
 //!
-//! This is the entry point for the `pipeline.*` events (run + step lifecycle)
-//! and the composed-session `agent.session.completed/failed` terminals flowing
-//! through the orchestrator.
+//! This is the entry point for the `pipeline.*` events (run + step lifecycle).
+//! The `agent.session.*` subscription was retired in #26 — the orchestrator
+//! no longer subscribes to or acts on any `agent.session.*` events.
 
 use ship_code::runner::router::{extract_slug, terminal_guard, Admit};
 use ship_substrate::events::pipeline::{PipelineStepDoneDeclaredPayload, PipelineStepObservedPayload};
@@ -31,20 +31,16 @@ pub async fn start_orchestrator(
     octx: Arc<OrchestratorContext>,
 ) {
     let actor_id = "service.orchestrator".to_string();
-    // Subscribes to two namespaces:
-    //   - `pipeline.*` for composition lifecycle (multi-step pipeline runs)
-    //   - `agent.session.*` to advance COMPOSED pipeline sessions only — the
-    //     orchestrator reacts to `agent.session.completed/failed` keyed on the
-    //     `parent_pipeline_run_id` path. It NO LONGER spawns or cancels: the
-    //     bare `agent.session.started` / `agent.session.cancelled` handling
-    //     carved into the `service.agents` actor (agents-arc S3b), which is the
-    //     SOLE actor that acts on those two events (no-double-spawn invariant).
-    // The router below switches on the event type to pick the handler.
+    // Subscribes to `pipeline.*` for composition lifecycle (multi-step pipeline
+    // runs). `agent.session.*` subscriptions REMOVED (#26): the family is
+    // retired; the orchestrator no longer reacts to any agent.session.* event.
+    // Bare session spawning and composed-terminal lookup both moved to
+    // `service.agents` (S3b) and the canonical_sessions read model respectively.
     let config = ship_substrate::events::ActorConfig {
         namespace: actor_id.clone(),
-        write_namespaces: vec!["pipeline.".to_string(), "agent.session.".to_string()],
+        write_namespaces: vec!["pipeline.".to_string()],
         read_namespaces: vec![],
-        subscribe_namespaces: vec!["pipeline.".to_string(), "agent.session.".to_string()],
+        subscribe_namespaces: vec!["pipeline.".to_string()],
         see_directed_events: false,
     };
 
@@ -90,10 +86,9 @@ pub async fn start_orchestrator(
     tracing::info!("job-dispatch: mailbox closed");
 }
 
-/// Handle a single pipeline or composed-session event.
+/// Handle a single pipeline event.
 ///
-/// Called from the mailbox receive loop for each `pipeline.*` or composed
-/// `agent.session.completed/failed` event.
+/// Called from the mailbox receive loop for each `pipeline.*` event.
 pub async fn handle_orchestrator_event(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     envelope: &EventEnvelope,
@@ -112,10 +107,10 @@ pub async fn handle_orchestrator_event(
     }
 
     match envelope.event_type.as_str() {
-        // `agent.session.started` / `agent.session.cancelled` are owned solely
-        // by the `service.agents` actor (agents-arc S3b). The orchestrator no
-        // longer spawns or cancels — it keeps `agent.session.completed/failed`
-        // (below) only to advance COMPOSED pipeline sessions.
+        // All agent.session.* events are now owned solely by `service.agents`
+        // (S3b, retired in #26). The orchestrator no longer subscribes to or
+        // acts on any agent.session.* event; composed-terminal lookup uses the
+        // canonical_sessions read model instead.
         "pipeline.run.started" => handle_pipeline_run_started(kernel, envelope, octx).await,
         "pipeline.run.updated" => handle_pipeline_run_updated(kernel, envelope).await,
         et::PIPELINE_RUN_CANCELLED => handle_cancelled(kernel, envelope, octx).await,

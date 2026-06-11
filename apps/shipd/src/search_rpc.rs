@@ -59,7 +59,7 @@ impl ship_ops_rpc::SearchService for ShipdSearchWire {
                 self.service.run(&ctx, &parsed.query, parsed.opts).await.hits
             }
             SearchScope::Global => {
-                self.run_global_search(&parsed.query, parsed.opts).await
+                self.run_global_search(&parsed.query, parsed.opts).await?
             }
         };
 
@@ -78,8 +78,8 @@ impl ShipdSearchWire {
         &self,
         query: &str,
         opts: ship_search::SearchOpts,
-    ) -> Vec<ship_search::SearchHit> {
-        let spaces = self.list_spaces().await;
+    ) -> Result<Vec<ship_search::SearchHit>, connectrpc::ConnectError> {
+        let spaces = self.list_spaces().await?;
         let opted_out = self.opted_out_spaces(&spaces).await;
 
         let ship_dir = self.state.ship_dir().to_path_buf();
@@ -104,32 +104,44 @@ impl ShipdSearchWire {
             })
             .collect();
 
-        run_global(&self.service, targets, query, opts, |space_id| {
+        let hits = run_global(&self.service, targets, query, opts, |space_id| {
             !opted_out.contains(&space_id.to_string())
         })
-        .await
+        .await;
+        Ok(hits)
     }
 
     /// Live space ids from the Runtime-scoped registry (`SpaceService.List`).
-    async fn list_spaces(&self) -> Vec<String> {
-        let svc = SpaceService::new(self.runtime_ctx());
-        svc.list()
+    async fn list_spaces(
+        &self,
+    ) -> Result<Vec<String>, connectrpc::ConnectError> {
+        let svc = SpaceService::new(self.runtime_ctx()?);
+        Ok(svc
+            .list()
             .await
             .map(|records| records.into_iter().map(|r| r.id).collect())
-            .unwrap_or_default()
+            .unwrap_or_default())
     }
 
     /// Subset of `spaces` whose effective `search.global` setting is `false`.
     /// Default (unset) is included, so only an explicit `false` opts out.
+    /// Per-space db failures are non-fatal — a broken space is skipped (it
+    /// contributes nothing to the opt-out set rather than poisoning the merge).
     async fn opted_out_spaces(&self, spaces: &[String]) -> std::collections::HashSet<String> {
-        let svc = SpaceService::new(self.runtime_ctx());
+        let svc = match self.runtime_ctx() {
+            Ok(ctx) => SpaceService::new(ctx),
+            Err(_) => return std::collections::HashSet::new(),
+        };
         // settings.state op removed with the string-dispatch apparatus; the
         // settings overlay is read directly by the crate-owned SettingsWire.
         let global_settings = serde_json::Value::Null;
 
         let mut out = std::collections::HashSet::new();
         for space_id in spaces {
-            let store = self.space_store(space_id);
+            let store = match self.space_store(space_id) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
             let Ok(info) = svc
                 .info(&*store, Some(space_id), global_settings.clone())
                 .await
@@ -149,23 +161,25 @@ impl ShipdSearchWire {
     }
 
     /// Runtime-scoped `SpaceContext` (registry reads + kernel handle).
-    fn runtime_ctx(&self) -> Arc<SpaceContext> {
-        let store = self.runtime_store();
+    fn runtime_ctx(&self) -> Result<Arc<SpaceContext>, connectrpc::ConnectError> {
+        let store = self.runtime_store()?;
         let kernel = Arc::new(KernelLog::new(self.state.kernel().clone()));
-        Arc::new(SpaceContext::new(SpaceId::new(RUNTIME_PARTITION), store, kernel))
+        Ok(Arc::new(SpaceContext::new(SpaceId::new(RUNTIME_PARTITION), store, kernel)))
     }
 
-    fn runtime_store(&self) -> Arc<dyn DataStore> {
+    fn runtime_store(&self) -> Result<Arc<dyn DataStore>, connectrpc::ConnectError> {
         use ship_substrate::data::DataService;
         let runtime_db = ship_substrate::db::runtime_db_path(self.state.ship_dir());
-        let svc = DataService::open_at(&runtime_db).expect("data service over runtime.db");
-        Arc::new(SingleBackendDataStore::new(svc, RUNTIME_PARTITION))
+        let svc = DataService::open_at(&runtime_db)
+            .map_err(|e| connectrpc::ConnectError::internal(format!("data service over runtime.db: {e}")))?;
+        Ok(Arc::new(SingleBackendDataStore::new(svc, RUNTIME_PARTITION)))
     }
 
-    fn space_store(&self, space_id: &str) -> Arc<dyn DataStore> {
+    fn space_store(&self, space_id: &str) -> Result<Arc<dyn DataStore>, connectrpc::ConnectError> {
         use ship_substrate::data::DataService;
         let space_db = ship_substrate::db::space_db_path(self.state.ship_dir(), space_id);
-        let svc = DataService::open_at(&space_db).expect("data service over space.db");
-        Arc::new(SingleBackendDataStore::new(svc, space_id))
+        let svc = DataService::open_at(&space_db)
+            .map_err(|e| connectrpc::ConnectError::internal(format!("data service over space.db: {e}")))?;
+        Ok(Arc::new(SingleBackendDataStore::new(svc, space_id)))
     }
 }

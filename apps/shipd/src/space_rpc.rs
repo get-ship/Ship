@@ -18,6 +18,7 @@
 
 use std::sync::Arc;
 
+use connectrpc::ConnectError;
 use ship_space::wire::TargetSpace;
 use ship_substrate::ports::SpaceContext;
 
@@ -29,30 +30,35 @@ use crate::ship_runtime::ApiState;
 const RUNTIME_PARTITION: &str = "runtime";
 
 /// Build a `DataStore` over runtime.db bound to the Runtime partition.
-fn runtime_store(state: &ApiState) -> Arc<dyn ship_substrate::ports::DataStore> {
+fn runtime_store(state: &ApiState) -> Result<Arc<dyn ship_substrate::ports::DataStore>, ConnectError> {
     use ship_substrate::data::DataService;
     use ship_substrate::ports::SingleBackendDataStore;
     let runtime_db = ship_substrate::db::runtime_db_path(state.ship_dir());
-    let svc = DataService::open_at(&runtime_db).expect("data service over runtime.db");
-    Arc::new(SingleBackendDataStore::new(svc, RUNTIME_PARTITION))
+    let svc = DataService::open_at(&runtime_db)
+        .map_err(|e| ConnectError::internal(format!("data service over runtime.db: {e}")))?;
+    Ok(Arc::new(SingleBackendDataStore::new(svc, RUNTIME_PARTITION)))
 }
 
 /// Build a `DataStore` over the target space's `space.db` (the per-space overlay
 /// partition).
-fn space_store(state: &ApiState, space_id: &str) -> Arc<dyn ship_substrate::ports::DataStore> {
+fn space_store(
+    state: &ApiState,
+    space_id: &str,
+) -> Result<Arc<dyn ship_substrate::ports::DataStore>, ConnectError> {
     use ship_substrate::data::DataService;
     use ship_substrate::ports::SingleBackendDataStore;
     let space_db = ship_substrate::db::space_db_path(state.ship_dir(), space_id);
-    let svc = DataService::open_at(&space_db).expect("data service over space.db");
-    Arc::new(SingleBackendDataStore::new(svc, space_id))
+    let svc = DataService::open_at(&space_db)
+        .map_err(|e| ConnectError::internal(format!("data service over space.db: {e}")))?;
+    Ok(Arc::new(SingleBackendDataStore::new(svc, space_id)))
 }
 
 /// The runtime-scoped `SpaceContext` the crate uses for the registry + emits.
-fn runtime_ctx(state: &ApiState) -> Arc<SpaceContext> {
+fn runtime_ctx(state: &ApiState) -> Result<Arc<SpaceContext>, ConnectError> {
     use ship_substrate::ports::{KernelLog, SpaceId};
-    let store = runtime_store(state);
+    let store = runtime_store(state)?;
     let kernel = Arc::new(KernelLog::new(state.kernel().clone()));
-    Arc::new(SpaceContext::new(SpaceId::new(RUNTIME_PARTITION), store, kernel))
+    Ok(Arc::new(SpaceContext::new(SpaceId::new(RUNTIME_PARTITION), store, kernel)))
 }
 
 /// Resolve the per-request target space: the active space id (from the
@@ -66,7 +72,10 @@ fn runtime_ctx(state: &ApiState) -> Arc<SpaceContext> {
 /// compose from the global snapshot only (no overlay). The overlay store binds
 /// the resolved space when present, else the inert Runtime partition (never read
 /// for a space op once `space_id` is `None`).
-fn resolve_target(ctx: &connectrpc::RequestContext, state: &ApiState) -> TargetSpace {
+fn resolve_target(
+    ctx: &connectrpc::RequestContext,
+    state: &ApiState,
+) -> Result<TargetSpace, ConnectError> {
     let space_id = ctx
         .extensions
         .get::<crate::auth::AuthContext>()
@@ -75,14 +84,14 @@ fn resolve_target(ctx: &connectrpc::RequestContext, state: &ApiState) -> TargetS
     // settings overlay is read directly by the crate-owned SettingsWire.
     let global_settings = serde_json::Value::Null;
     let settings_store = match space_id.as_deref() {
-        Some(id) => space_store(state, id),
-        None => runtime_store(state),
+        Some(id) => space_store(state, id)?,
+        None => runtime_store(state)?,
     };
-    TargetSpace {
+    Ok(TargetSpace {
         space_id,
         settings_store,
         global_settings,
-    }
+    })
 }
 
 /// Construct the crate's `SpaceWire` for the given runtime. The returned wire is
@@ -91,8 +100,14 @@ pub fn space_wire(
     state: ApiState,
 ) -> Arc<
     ship_space::SpaceWire<
-        impl Fn(&connectrpc::RequestContext) -> Arc<SpaceContext> + Send + Sync + 'static,
-        impl Fn(&connectrpc::RequestContext) -> TargetSpace + Send + Sync + 'static,
+        impl Fn(&connectrpc::RequestContext) -> Result<Arc<SpaceContext>, ConnectError>
+            + Send
+            + Sync
+            + 'static,
+        impl Fn(&connectrpc::RequestContext) -> Result<TargetSpace, ConnectError>
+            + Send
+            + Sync
+            + 'static,
     >,
 > {
     let kernel = Arc::new(ship_substrate::ports::KernelLog::new(state.kernel().clone()));

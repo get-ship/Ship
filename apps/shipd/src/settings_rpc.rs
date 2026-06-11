@@ -16,6 +16,7 @@
 
 use std::sync::Arc;
 
+use connectrpc::ConnectError;
 use ship_config::SettingsCtx;
 use ship_substrate::data::DataService;
 use ship_substrate::ports::{DataStore, KernelLog, SingleBackendDataStore};
@@ -27,36 +28,43 @@ use crate::ship_runtime::ApiState;
 const ACCOUNT_PARTITION: &str = "account";
 
 /// Build a `DataStore` over `account.db` bound to the account partition.
-fn account_store(state: &ApiState) -> Arc<dyn DataStore> {
+fn account_store(state: &ApiState) -> Result<Arc<dyn DataStore>, ConnectError> {
     let account_db = ship_substrate::db::account_db_path(state.ship_dir());
-    let svc = DataService::open_at(&account_db).expect("data service over account.db");
-    Arc::new(SingleBackendDataStore::new(svc, ACCOUNT_PARTITION))
+    let svc = DataService::open_at(&account_db)
+        .map_err(|e| ConnectError::internal(format!("data service over account.db: {e}")))?;
+    Ok(Arc::new(SingleBackendDataStore::new(svc, ACCOUNT_PARTITION)))
 }
 
 /// Build a `DataStore` over the active space's `space.db` (the per-space overlay
 /// partition).
-fn space_store(state: &ApiState, space_id: &str) -> Arc<dyn DataStore> {
+fn space_store(state: &ApiState, space_id: &str) -> Result<Arc<dyn DataStore>, ConnectError> {
     let space_db = ship_substrate::db::space_db_path(state.ship_dir(), space_id);
-    let svc = DataService::open_at(&space_db).expect("data service over space.db");
-    Arc::new(SingleBackendDataStore::new(svc, space_id))
+    let svc = DataService::open_at(&space_db)
+        .map_err(|e| ConnectError::internal(format!("data service over space.db: {e}")))?;
+    Ok(Arc::new(SingleBackendDataStore::new(svc, space_id)))
 }
 
 /// Resolve the per-request `SettingsCtx` from the connection's `AuthContext`.
-fn resolve_ctx(ctx: &connectrpc::RequestContext, state: &ApiState) -> SettingsCtx {
+fn resolve_ctx(
+    ctx: &connectrpc::RequestContext,
+    state: &ApiState,
+) -> Result<SettingsCtx, ConnectError> {
     let auth = ctx.extensions.get::<crate::auth::AuthContext>();
     let space_id = auth.and_then(|a| a.space_id.clone());
     let is_operator = auth.map(|a| a.is_operator()).unwrap_or(false);
     let kernel = Arc::new(KernelLog::new(state.kernel().clone()));
-    let space = space_id.map(|id| {
-        let store = space_store(state, &id);
-        (id, store)
-    });
-    SettingsCtx {
+    let space = space_id
+        .map(|id| -> Result<_, ConnectError> {
+            let store = space_store(state, &id)?;
+            Ok((id, store))
+        })
+        .transpose()?;
+    Ok(SettingsCtx {
         kernel,
-        account_store: account_store(state),
+        account_store: account_store(state)?,
         space,
         is_operator,
-    }
+    })
 }
 
 /// Construct the crate's `SettingsWire`. Registered by `ops_rpc::router` via
@@ -65,7 +73,10 @@ pub fn settings_wire(
     state: ApiState,
 ) -> Arc<
     ship_config::SettingsWire<
-        impl Fn(&connectrpc::RequestContext) -> SettingsCtx + Send + Sync + 'static,
+        impl Fn(&connectrpc::RequestContext) -> Result<SettingsCtx, ConnectError>
+            + Send
+            + Sync
+            + 'static,
     >,
 > {
     let kernel = Arc::new(KernelLog::new(state.kernel().clone()));

@@ -26,8 +26,53 @@ use serde::{Deserialize, Serialize};
 /// so the offline/bundled-supplemental verify path has a stable `kid` to select
 /// against once the real key is baked in. It is an obviously-fake value and
 /// MUST be replaced before any first-party bundle is gated on it.
+///
+/// # Release gate
+///
+/// When building with `--features release` (required for official release cuts),
+/// a compile-time assertion fires if this constant still contains `"PLACEHOLDER"`.
+/// Dev builds (no feature) compile without restriction.
+///
+/// Replace this string with the real Ed25519 pubkey kid before enabling `release`.
 // TODO(release-eng): replace with the real first-party Ed25519 pubkey kid + x.
 pub const FIRST_PARTY_KID: &str = "ship-first-party-PLACEHOLDER-do-not-trust";
+
+/// Compile-time guard: fail if FIRST_PARTY_KID still carries the PLACEHOLDER
+/// stub when the `release` feature is enabled. The loop is a const-stable
+/// byte-level substring check (str::contains is not const).
+///
+/// To trigger: `cargo build -p ship-store --features release`
+/// To fix: replace FIRST_PARTY_KID with the real Ed25519 pubkey kid.
+#[cfg(feature = "release")]
+const _: () = {
+    const KID: &[u8] = FIRST_PARTY_KID.as_bytes();
+    const NEEDLE: &[u8] = b"PLACEHOLDER";
+    let mut i = 0usize;
+    let mut found = false;
+    while i + NEEDLE.len() <= KID.len() {
+        let mut j = 0usize;
+        let mut matched = true;
+        while j < NEEDLE.len() {
+            if KID[i + j] != NEEDLE[j] {
+                matched = false;
+                break;
+            }
+            j += 1;
+        }
+        if matched {
+            found = true;
+            break;
+        }
+        i += 1;
+    }
+    if found {
+        panic!(
+            "FIRST_PARTY_KID still contains PLACEHOLDER; \
+             replace with the real Ed25519 pubkey kid before cutting a release \
+             (see TODO(release-eng) in bundle_sig.rs)"
+        );
+    }
+};
 
 /// Verified claim carried by a bundle attestation JWT.
 ///

@@ -7,12 +7,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use tokio::sync::{RwLock, mpsc};
-
-use crate::events::{ActorStore, EventEnvelope};
+use tokio::sync::RwLock;
 
 /// Shared, read-optimized view of the mesh registry.
 pub type SharedMeshRegistry = Arc<RwLock<HashMap<String, MeshEntry>>>;
@@ -41,32 +38,7 @@ pub struct MeshEntry {
 // "Real inter-agent messaging is now native via the kernel's directed-event
 // delivery"). The registry TYPES above (SharedMeshRegistry / MeshEntry /
 // AgentStatus) are the live mailbox-registry mechanism and stay.
-
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-fn sender_from<'a>(event: &'a EventEnvelope, payload: &'a serde_json::Value) -> &'a str {
-    event
-        .actor_id
-        .as_deref()
-        .or_else(|| payload["from"].as_str())
-        .unwrap_or("unknown")
-}
-
-fn status_str(s: &AgentStatus) -> &'static str {
-    match s {
-        AgentStatus::Active => "active",
-        AgentStatus::Busy => "busy",
-        AgentStatus::Idle => "idle",
-    }
-}
-
-fn parse_status(s: Option<&str>) -> Result<AgentStatus> {
-    match s {
-        Some("active") => Ok(AgentStatus::Active),
-        Some("busy") => Ok(AgentStatus::Busy),
-        Some("idle") => Ok(AgentStatus::Idle),
-        Some(other) => Err(anyhow!("mesh.status: unknown status '{other}'")),
-        None => Err(anyhow!("mesh.status: missing status")),
-    }
-}
+//
+// sender_from / status_str / parse_status DELETED: post-MeshService residue.
+// These helpers were internal to MeshService methods that no longer exist.
+// No other code referenced them after the mesh.* op surface was retired.
