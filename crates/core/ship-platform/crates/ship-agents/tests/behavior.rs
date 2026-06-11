@@ -22,6 +22,11 @@ use tokio::sync::Mutex;
 
 use agent_def::canonical_session::{SessionCancelled, event_types as canonical_session_event_types};
 use agent_def::dispatch_intent::{DispatchRequestedPayload, event_types as dispatch_event_types};
+use ship_agents::services::sessions::{
+    CanonicalSessionProjection, CanonicalSessionStatus, load_canonical_session_by_id,
+};
+use ship_substrate::projections::Projection;
+use ship_substrate::db::block_on;
 use ship_agents::ports::AgentPorts;
 use ship_code::runner::dedup::EventDedup;
 use ship_substrate::events::agent_session::InvocationMode;
@@ -684,4 +689,131 @@ async fn floki_harness_without_closure_falls_through_to_executor() {
         1,
         "with no floki_run_fn, harness='floki' falls through to executor.spawn",
     );
+}
+
+/// SPEC: `session.cancelled` emitted by the Stop RPC is consumed by TWO
+/// components driven by the same event:
+///
+/// 1. The `service.agents` actor (`handle_agent_cancelled`) resolves the slug,
+///    tears down the process (executor.stop + cleanup_job), and emits
+///    `process.killed` for audit.
+/// 2. `CanonicalSessionProjection` transitions the read-model to
+///    status = Cancelled, outcome = "cancelled", ended_at set.
+///
+/// This test drives the full dual-consumer path to prove the #26 design:
+/// the Stop RPC is the emit seam — it emits one `session.cancelled` event
+/// (Space-scoped, canonical payload) which both the actor teardown logic AND
+/// the projection engine respond to independently.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn stop_rpc_session_cancelled_actor_tears_down_and_projection_shows_cancelled() {
+    const SESSION_ID: &str = "s-stop-3";
+    const SLUG: &str = "stop-3";
+
+    let ship_dir = ship_substrate::project::get_global_dir().unwrap();
+    let mut conn = ship_substrate::db::open_runtime_db(&ship_dir).unwrap();
+
+    // ── 1. Clean slate ─────────────────────────────────────────────────────
+    let _ = block_on(async {
+        sqlx::query("DELETE FROM canonical_sessions WHERE session_id = ?")
+            .bind(SESSION_ID)
+            .execute(&mut conn)
+            .await
+    });
+
+    // ── 2. Seed: session.started → CanonicalSessionProjection ─────────────
+    // Mimics what dispatch_core emits when a harness session is launched.
+    let started_env = EventEnvelope::new(
+        canonical_session_event_types::SESSION_STARTED,
+        SESSION_ID,
+        &serde_json::json!({
+            "session_id": SESSION_ID,
+            "agent_id":   "claude",
+            "harness":    "claude",
+            "model":      "claude-sonnet-4-6",
+            "space_id":   "sp-stop-3",
+            "slug":       SLUG,
+            "input":      "implement feature X"
+        }),
+    )
+    .unwrap();
+    let proj = CanonicalSessionProjection;
+    proj.apply(&started_env, &mut conn).unwrap();
+
+    // Precondition: session exists and is Active before cancellation.
+    let before = load_canonical_session_by_id(SESSION_ID)
+        .unwrap()
+        .expect("seeded session must exist");
+    assert_eq!(
+        before.status,
+        CanonicalSessionStatus::Active,
+        "precondition: session is Active before cancellation"
+    );
+    assert_eq!(before.slug.as_deref(), Some(SLUG), "precondition: slug populated");
+
+    // ── 3. Build session.cancelled envelope ───────────────────────────────
+    // Matches exactly what stop_fn in apps/shipd/src/ops_rpc.rs emits:
+    // canonical payload (session_id + reason), actor_id = "service.agents".
+    let cancel_payload = SessionCancelled {
+        session_id: SESSION_ID.into(),
+        reason: Some("operator stop".into()),
+    };
+    let cancel_env = EventEnvelope::new(
+        canonical_session_event_types::SESSION_CANCELLED,
+        SESSION_ID,
+        &cancel_payload,
+    )
+    .unwrap()
+    .with_actor_id("service.agents");
+
+    // ── 4. Actor: session.cancelled → process teardown ────────────────────
+    // handle_agents_event routes to handle_agent_cancelled.
+    let kernel = kernel_with_actor();
+    let stop_calls = Arc::new(AtomicUsize::new(0));
+    let cleanup_calls = Arc::new(AtomicUsize::new(0));
+    let registry = Arc::new(SeededRegistry {
+        handle: Mutex::new(Some(ExecutorHandle { pid: Some(99), inner: Box::new(()) })),
+    });
+    let ports = ports_with_projection(
+        Arc::new(OkIsolation(PathBuf::from("/tmp"))),
+        Arc::new(StoppingExecutor { stop_calls: stop_calls.clone() }),
+        registry,
+        Arc::new(TestPlatform {
+            worktrees: PathBuf::from("/tmp/test-worktrees"),
+            cleanup_calls: cleanup_calls.clone(),
+        }),
+        Arc::new(FixedSlugProjection { slug: SLUG.into() }),
+    );
+
+    ship_agents::handle_agents_event(&kernel, &cancel_env, &ports).await;
+
+    // Process torn down via L0.
+    assert_eq!(stop_calls.load(Ordering::SeqCst), 1, "executor.stop called once via actor teardown");
+    assert_eq!(cleanup_calls.load(Ordering::SeqCst), 1, "platform.cleanup_job called once");
+    let killed = find_process_killed(SLUG).expect("process.killed emitted for audit");
+    assert_eq!(killed.slug, SLUG, "process.killed keyed on slug");
+    assert_eq!(killed.pid, Some(99), "pid from registered handle threads into process.killed");
+    assert_eq!(killed.reason, "cancellation");
+    assert_eq!(killed.actor, "operator");
+
+    // ── 5. Projection: session.cancelled → Cancelled read-model ──────────
+    // Simulates the KernelRouter routing the same event through
+    // CanonicalSessionProjection (CanonicalSessionProjection::apply opens its
+    // own runtime.db connection internally; _conn is only a placeholder).
+    proj.apply(&cancel_env, &mut conn).unwrap();
+
+    let after = load_canonical_session_by_id(SESSION_ID)
+        .unwrap()
+        .expect("session must still exist in the read-model after cancellation");
+    assert_eq!(
+        after.status,
+        CanonicalSessionStatus::Cancelled,
+        "canonical projection must show Cancelled after session.cancelled applied"
+    );
+    assert_eq!(after.outcome.as_deref(), Some("cancelled"), "outcome = cancelled");
+    assert_eq!(
+        after.reason.as_deref(),
+        Some("operator stop"),
+        "reason threads from payload into the read-model"
+    );
+    assert!(after.ended_at.is_some(), "ended_at must be populated on cancellation");
 }
