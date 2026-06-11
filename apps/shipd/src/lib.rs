@@ -37,14 +37,11 @@ pub mod rpc;
 // ports: shipd-side implementations of L1 crate ports (DataPort, view tools,
 // pipeline dispatch, device sessions, agent event adapters).
 pub mod ports;
-// floki_gateway: L2 seam — implements floki::Gateway for in-process dispatch
-// through the ops router. No reverse dependency (floki → shipd); the arrow is
-// shipd → floki only.
-pub mod floki_gateway;
-// floki_first_light: FIRST-LIGHT composition root — assembles model, Gateway,
-// AuthContext, ToolCtx (kernel-backed SessionEventSink), and ScriptExecutor,
-// then calls floki::run_step. Parallel entry point for floki-harness agents.
-pub mod floki_first_light;
+// floki: the shipd ↔ floki seam — `gateway` (floki::Gateway over the
+// in-process ops router) + `first_light` (the floki-session composition
+// root dispatched from daemon::agent_stack). No reverse dependency
+// (floki → shipd); the arrow is shipd → floki only.
+pub mod floki;
 // dispatch: job+session dispatch composition root — gated because it
 // directly uses ship-code types (process_registry, dispatch_ports).
 #[cfg(feature = "ship-code")]

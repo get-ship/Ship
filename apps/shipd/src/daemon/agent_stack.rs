@@ -7,8 +7,8 @@ use crate::ship_runtime::ShipRuntime;
 
 /// Build the floki-harness dispatch closure UNCONDITIONALLY and start the
 /// agent-sessions actor. The closure body
-/// ([`crate::floki_first_light::dispatch_floki_session`]) and the captured
-/// types ([`crate::floki_gateway::ShipdGateway`], the kernel) are all floki- /
+/// ([`crate::floki::first_light::dispatch_floki_session`]) and the captured
+/// types ([`crate::floki::gateway::ShipdGateway`], the kernel) are all floki- /
 /// L1-clean — no ship-code dep, so the closure is safe to build with
 /// `--no-default-features`. This is what keeps floki routable when the
 /// ship-code feature is off: the agent-sessions actor is alive and the
@@ -16,14 +16,14 @@ use crate::ship_runtime::ShipRuntime;
 /// closure exactly as in the harness-on build.
 pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::path::Path) {
     let ops_router = crate::rpc::ops::router(rt.clone());
-    let floki_gateway = std::sync::Arc::new(crate::floki_gateway::ShipdGateway::new(ops_router));
+    let floki_gateway = std::sync::Arc::new(crate::floki::gateway::ShipdGateway::new(ops_router));
     let floki_kernel = rt.kernel().clone();
     let floki_run_fn: ship_agents::ports::FlokiRunFn = {
         let gateway = floki_gateway.clone();
         std::sync::Arc::new(move |payload| {
             let gateway = gateway.clone();
             let kernel = floki_kernel.clone();
-            Box::pin(crate::floki_first_light::dispatch_floki_session(payload, gateway, kernel))
+            Box::pin(crate::floki::first_light::dispatch_floki_session(payload, gateway, kernel))
         })
     };
 
