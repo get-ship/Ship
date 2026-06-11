@@ -67,7 +67,7 @@ const annotations = [
 
 const facets = [
   { id: 'visual',       title: 'Visual',       eyebrow: 'Visual',       headline: 'Chat, reimagined.',                kicker: 'An agent renders a real surface. Point at it, annotate it, replay it.' },
-  { id: 'universal',    title: 'Universal',    eyebrow: 'Universal',    headline: 'One config. Every model.',         kicker: "Same agent compiles to Claude Code, Codex, Cursor, OpenCode, pi — each provider's native format. No lock-in, no fork." },
+  { id: 'universal',    title: 'Universal',    eyebrow: 'Universal',    headline: 'One config. Every surface.',      kicker: 'Same agent profile powers the chat pane, the editor\'s inline agent, headless runs, and the CLI. One profile, every surface.' },
   { id: 'configurable', title: 'Configurable', eyebrow: 'Configurable', headline: 'Everything is a field.',           kicker: 'Skills, permissions, rules, MCP servers, model, space — every facet of your agent is a knob you turn in the GUI.' },
   { id: 'programmable', title: 'Programmable', eyebrow: 'Programmable', headline: 'Skills, pipelines, triggers.',     kicker: 'Skills give tools. Pipelines chain agents. Triggers fire them on real events.' },
   { id: 'observable',   title: 'Observable',   eyebrow: 'Observable',   headline: 'Watch every move.',                kicker: 'Every action lands on a live, event-sourced bus. Scrub back, replay, audit. Observability is a property of the runtime.' },
@@ -81,7 +81,7 @@ const facets = [
       <header class="hero">
         <div class="eyebrow">Agents</div>
         <h2 class="hl">Chatbots answer. <span class="hl-accent">Ship agents ship.</span></h2>
-        <p class="prompt">A Ship agent is a first-class actor — it runs on your machine, under permissions you set, in the harness you already use, and it builds real software you can watch and undo. Not a tab you rent. Something you own.</p>
+        <p class="prompt">A Ship agent is a first-class actor — it runs on your machine, under permissions you set, in your active space, and it builds real software you can watch and undo. Not a tab you rent. Something you own.</p>
         <nav class="facet-chips" aria-label="Facets">
           {facets.map((f) => (
             <a href={`#agent-${f.id}`} class="fc"><span class="fc-num">0{facets.indexOf(f) + 1}</span>{f.title}</a>

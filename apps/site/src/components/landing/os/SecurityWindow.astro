@@ -18,23 +18,23 @@ interface Layer { name: string; lede: string; body: string }
 const layers: Layer[] = [
   {
     name: 'Spaces',
-    lede: 'Spaces isolate each context.',
-    body: 'Different work, different keys, different tools — an agent in your <code>work</code> space can\'t reach your <code>personal</code> files or your <code>client-a</code> secrets. Ship picks the right isolation strategy for your OS so you don\'t have to.',
-  },
-  {
-    name: 'Harness controls',
-    lede: 'Bash. Edit. Read. Network.',
-    body: 'The tools the harness gives an agent are gated through Ship. Grant a scope once and Claude Code, Codex, Cursor, OpenCode, and pi inherit it — no per-harness reconciliation.',
+    lede: 'A context with its own identity, agents, and data.',
+    body: 'Switching spaces switches what your agent sees. Two spaces never share tools, files, or decision history unless they explicitly connect — but the boundary is the actor, not the space.',
   },
   {
     name: 'Sandboxed code',
-    lede: 'Code Ship runs is sandboxed code.',
-    body: 'Views run isolated in webviews. SUI components run with no ambient capabilities — no <code>fetch</code>, no escape hatches. Apps from the store are scoped to a single space. The runtime sandboxes what Ship runs; what you choose to run outside Ship is still yours to mind.',
+    lede: 'Every view ships as a webview.',
+    body: 'Views run isolated in webviews. SUI components run with no ambient capabilities — no <code>fetch</code>, no escape hatches. The runtime sandboxes what Ship runs; what you choose to run outside Ship is still yours to mind.',
   },
   {
-    name: 'Ship-native auth',
-    lede: 'Permissions for everything Ship does.',
-    body: 'Spawning agents, running pipelines, creating views and collections — all scoped. <b>Coming soon:</b> integrated services behind Ship\'s auth, so API keys stop living in <code>~/.config/</code>.',
+    name: 'SES on SUI',
+    lede: 'Renderable expressions are an allowlist.',
+    body: 'Method calls in view templates are restricted to <code>slice</code>, <code>map</code>, <code>filter</code>, <code>includes</code>, <code>has</code>, <code>get</code>, and a few more. A view that calls <code>window.eval</code> or constructs a regex literal is a compile error.',
+  },
+  {
+    name: 'Permissions + gates',
+    lede: 'Every tool call is checked against the actor's preset.',
+    body: 'A read-only agent cannot edit a file, full stop. Pipelines pause for human review at any step. The actor's tool gate reads the resolved permission preset on every call and rejects anything outside it.',
   },
 ];
 ---
@@ -50,7 +50,7 @@ const layers: Layer[] = [
         <h2 class="hl" data-reveal>
           Agents are powerful.<br/><span class="hl-accent">That's the problem.</span>
         </h2>
-        <p class="hero-sub" data-reveal>Drag to see.</p>
+        <p class="hero-sub" data-reveal>Drag to see what changes when Ship is in the loop.</p>
       </div>
     </section>
 
@@ -146,7 +146,7 @@ const layers: Layer[] = [
     <section class="layers">
       <header class="band-h" data-reveal>
         <span class="band-tag band-in">With Ship</span>
-        <h3 class="band-title">Four kinds of isolation. Stacked.</h3>
+        <h3 class="band-title">Four layers. Stacked.</h3>
       </header>
       <div class="layer-stack">
         {layers.map((l, i) => (

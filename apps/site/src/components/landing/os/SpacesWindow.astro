@@ -95,13 +95,13 @@ const VIEW_GLYPH: Record<Space['views'][number]['kind'], string> = {
   media:     '<rect x="2" y="3" width="12" height="10" rx="1.4"/><circle cx="6" cy="7" r="1.2"/><path d="M2 12l3.5-3.5 4 4 1.5-1.5 3 3"/>',
 };
 ---
-<Window app="spaces" title="Spaces" meta="isolation + collaboration" mark="□" accent="theme" open={open}>
+<Window app="spaces" title="Spaces" meta="context + identity" mark="□" accent="theme" open={open}>
   <div class="win-scroll spaces">
     <div class="stage">
       <header class="head">
-        <div class="eyebrow">Spaces · isolation + collaboration</div>
+        <div class="eyebrow">Spaces · context + identity</div>
         <h2 class="hl">A world for every <span class="hl-accent">context.</span></h2>
-        <p class="prompt">A space holds its own views, agents, and data — isolated and yours to shape. Share one with your team; every window is scoped to the space you're in.</p>
+        <p class="prompt">A space holds its own views, agents, and data — yours to shape. Share one with your team; every window is scoped to the space you're in.</p>
       </header>
 
       <!-- SCREENSHOT TODO: real Ship shell with Personal / Acme / Launch spaces switching — deferred until SUI ready -->

@@ -26,15 +26,18 @@ const PAGES: MarketingPage[] = [
     slug: 'agents',
     title: 'SHIP — Agents',
     description:
-      'A Ship agent is more than a chatbot. One config compiles to Claude Code, Codex, Cursor, OpenCode, and pi.',
+      "Ship's first-party agent runs in your active space. It reads your project, scaffolds a real view, queries your collections, writes artifacts.",
     body: `# Agents
 
-A Ship agent is more than a chatbot. Same config, every model.
+Ship's first-party agent is the actor. It runs in your active space,
+with its own scope (\`cwd\`, \`space_id\`, permissions, transport,
+MCP tool gate), supervised by the runtime alongside every other
+actor in your project.
 
 ## Five facets
 - **Visual** — agents render a real surface (stats, charts, copy) you point at and annotate. Markup beats paragraphs.
-- **Universal** — one agent profile compiles to each harness's native format (Claude Code, Codex, Cursor, OpenCode, pi). No fork.
-- **Configurable** — model, skills, permissions, MCP servers, rules, space — every facet is a field you tune in the GUI.
+- **Universal** — same agent profile powers the chat pane, the editor's inline agent, headless runs, and the CLI. One profile, every surface.
+- **Configurable** — model, skills, permissions, connectors, rules, space — every facet is a field you tune in the GUI.
 - **Programmable** — skills give tools; pipelines chain agents; triggers fire them on real events.
 - **Observable** — every prompt, tool call, decision, and token lands on a live event-sourced bus. Scrub backwards.
 
@@ -42,6 +45,7 @@ A Ship agent is more than a chatbot. Same config, every model.
 - /orchestration · pipelines + triggers
 - /observability · the event bus
 - /custom-views · the surface agents render
+- /security · the four layers
 `,
   },
   {
@@ -153,15 +157,18 @@ Per-space cards show active agents and recent throughput. Scrub backwards to rep
       'A space holds its own views, agents, and data. Switch spaces and the whole Ship reskins.',
     body: `# Spaces
 
-Isolation + collaboration. Same binary, separate worlds.
+A space is a context with its own identity, agents, and data. Switch
+spaces to switch what your agent sees.
 
 ## What a space is
-- Its own views, agents, and data — isolated and yours to shape
+- Its own views, agents, and data — yours to shape
 - An accent color and identity
-- Optional sync with teammates
+- A window of its own
 
 ## Switching
-Switch spaces → the whole Ship reskins around the new context. Personal stays on your machine; shared spaces sync across people.
+Switch spaces → the whole Ship reskins around the new context. The
+active space is a per-connection concern — multiple spaces can be
+open in parallel.
 
 ## Today
 - Personal (private, local)
@@ -169,18 +176,19 @@ Switch spaces → the whole Ship reskins around the new context. Personal stays 
 - Launch (focused, share-on-demand)
 
 ## See also
-- /security · per-space isolation strategy
 - /agents · agents scoped to a space
+- /security · what the actor's tool gate enforces
 `,
   },
   {
     slug: 'custom-views',
     title: 'SHIP — Custom Views',
     description:
-      'The surface Ship shows you. Built with SUI — Ship\'s framework for agent-friendly UI. Hot reload in edit mode.',
+      "The surface Ship shows you. Built with SUI — Ship's framework for agent-friendly UI. Hot reload in edit mode.",
     body: `# Custom Views
 
-The surface Ship shows you. Authored with SUI, the Ship framework optimised for agents.
+The surface Ship shows you. Authored with SUI, the Ship framework
+optimised for agents.
 
 ## SUI
 - Standards-based custom elements
@@ -189,43 +197,47 @@ The surface Ship shows you. Authored with SUI, the Ship framework optimised for 
 - Annotate any element to pair it with an agent
 
 ## Edit mode
-Inspect elements, drop annotations, pair them with an agent. Optional Ship Studio for source-level edits.
+Inspect elements, drop annotations, pair them with an agent. The
+code editor (ship-code-editor), terminal (ship-terminal), and
+markdown editor (ship-markdown-editor) are vendored primitives you
+can drop into any view.
 
 ## Packs
-- **SUI primitives** — sui-card, sui-sparkline, sui-bar-chart, sui-button, …
-- **Domain packs** — ship-agent-card, ship-pipeline-step, …
-- **Vendored** — markdown editor, terminal, code editor
+- **SUI primitives** — sui-card, sui-button, sui-sparkline, sui-bar-chart, sui-dialog, sui-tabs, …
+- **Domain packs** — ship-agent-card, ship-pipeline-stepper, ship-run-log, ship-space-switcher, ship-event-feed, ship-collection-grid, ship-secret-input
+- **Vendored** — ship-code-editor, ship-terminal, ship-markdown-editor, sui-command-bar, sui-launcher
 
 ## See also
 - /agents · the surface they render
-- /docs · SUI tutorial (coming)
+- /docs · the SUI tutorial
 `,
   },
   {
     slug: 'security',
     title: 'SHIP — Security',
     description:
-      'Without Ship: full filesystem, full shell. With Ship: layered isolation per space and per surface.',
+      'Four layers. Spaces, sandboxed code, the SUI renderable sandbox, and per-actor permissions.',
     body: `# Security
 
-Without Ship, an AI tool has the keys to your whole machine. With Ship, isolation is the default.
+Four layers. An agent has to clear all of them before it does
+anything risky.
 
 ## Layers (top to bottom)
-1. **Spaces** — per-space isolation strategy, chosen per OS
-2. **Sandboxed code** — view code in webviews, scripts in isolated runtimes, downloaded apps in single-space sandboxes
-3. **SES on SUI** — no fetch from view code, capability-scoped
-4. **Permissions + gates** — every privileged action waits for an approval
+1. **Spaces** — context, not a boundary. Two agents in two spaces never see each other's tools, files, or decision history unless they intentionally connect.
+2. **Sandboxed code** — every view ships as a webview. The view's reach is exactly the SDK calls the compiler emitted; raw \`fetch\` from view code is a compile error.
+3. **SES on SUI** — renderable expressions are an allowlist (slice, map, filter, includes, has, get, …). A view that calls \`window.eval\` or constructs a regex literal is a compile error.
+4. **Permissions + gates** — every tool call is checked against the actor's resolved permission preset. A read-only agent cannot edit a file, full stop.
 
 ## See also
 - /orchestration · gate steps in a pipeline
-- /spaces · per-space isolation
+- /spaces · what contexts the actor lives in
 `,
   },
   {
     slug: 'pricing',
     title: 'SHIP — Pricing',
     description:
-      'Free on your machine forever. Cloud-side features (sync, hosted spaces, compute) will be priced separately.',
+      'Local stays free. Cloud-side features (sync, hosted spaces, compute) get priced once we lock them down.',
     body: `# Pricing
 
 Local stays free. Cloud-side gets priced once we lock it down.
@@ -238,15 +250,14 @@ Local stays free. Cloud-side gets priced once we lock it down.
 
 ## Pro · cloud-side — coming soon
 Plans aren't locked yet. We'd rather wait than guess.
-- Sync your install across devices
-- Hosted spaces · share with a team
-- Cloud compute · optional
-- Pay only for what you actually use
+- **Device Sync** — your install follows you across machines (laptop, desktop, the spare in the closet).
+- **Team Space** — invite teammates to a hosted space; agent activity is shared, your local-first guarantees hold on the space's event log.
+- **Cloud compute** — optional; pay only for what you actually use.
 
 Your local Ship keeps working either way.
 
 ## See also
-- /download · install (lands with public beta)
+- /download · install (public beta)
 - /legal · terms
 `,
   },
@@ -254,20 +265,26 @@ Your local Ship keeps working either way.
     slug: 'docs',
     title: 'SHIP — Docs',
     description:
-      'How Ship works — agents, pipelines, SUI views, collections, MCP. Curated guides; full reference at /reference (soon).',
+      'How Ship works — agents, pipelines, SUI views, collections, MCP. Curated guides; full reference lives with the SDK.',
     body: `# Docs
 
 User-facing guides for Ship. Reference material lives separately.
 
-## Coming soon
-- Getting started · install + first agent in 5 minutes
-- Agent basics · the five facets in code
-- Pipelines · compose, trigger, replay
-- SUI tutorial · render a real surface
-- MCP integration · plugging in external tools
-- Collections + artifacts
+## Get started
+- [Getting started](https://getship.dev/docs/getting-started/) — install + first agent in 5 minutes.
+- [SUI tutorial](https://getship.dev/docs/ship-ui/tutorial/) — render a real surface, step by step.
 
-Full API reference will live at /reference once the public beta lands.
+## Concepts
+- [Agents](https://getship.dev/docs/agents/) — Ship's first-party agent and its actor contract.
+- [Spaces](https://getship.dev/docs/concepts/spaces/) — a space is a context, not a boundary.
+- [Security](https://getship.dev/docs/architecture/security/) — the four layers.
+- [Local-first](https://getship.dev/docs/concepts/local-first/) — runtime, daemon, and data on your machine.
+- [Runtime model](https://getship.dev/docs/architecture/runtime-model/) — events, projections, the four primitives.
+
+## Operations
+- [Pipelines](https://getship.dev/docs/agents/) — compose, trigger, replay.
+- [Collections + artifacts](https://getship.dev/docs/concepts/data/) — schemaful rows + content-addressed blobs.
+- [MCP integration](https://getship.dev/docs/agents/) — plug in external tools via connectors.
 
 ## See also
 - /agents · /orchestration · /custom-views · /data · /security
