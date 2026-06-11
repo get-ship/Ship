@@ -15,7 +15,7 @@ exercise SUI views or components. Three planes:
 | **`ship ops call`** | Live operations against an active project. Per-domain ConnectRPC ops (`apps/mcp/` was removed in #142-144). List with `ship ops list`. | `ship ops call <op-name> --json '{…}'` |
 | **CLI lint + compile loop** | Fast per-edit verification — the primary authoring path. | `cargo run -p sui-lint --example check -- <file>` (lint); `cargo run -p sui-compiler -- build <file>` (full compile) |
 | **`ship sui`** | SUI language intelligence (diagnostics, hover, dependencies) over ConnectRPC. The daemon answers in-process via the `sui_compiler` facade. | `ship sui diagnostics <file>`, `ship sui hover <file> <line> <col>`, `ship sui dependencies <file>` |
-| **`sui-lsp` binary** | Native Rust LSP over stdio for editors + Claude Code (`.lsp.json`). Same grammar as the build. | `crates/sui/lsp/` |
+| **`sui-lsp` binary** | Native Rust LSP over stdio for editors and the ship-agent's tooling. Same grammar as the build. | `crates/sui/lsp/` |
 | **`@ship/sui-lsp-browser`** | Browser-only structural analyser + completion sources. Web worker, no Node deps, no `typescript` package. Used by the docs playground; the shell editor can adopt it too. | `packages/deck/lsp-browser/src/` |
 | **`@ship/sui-eval`** | Regression-quality scoring of agent-produced SUI against a behavioural spec | `packages/deck/eval/src/index.ts` |
 
@@ -106,12 +106,13 @@ daemon serves per-pack bundles at `/_deck/packs/<pack>/<bundle>.js`.
 
 ---
 
-## 2. `sui-lsp` binary (editors + Claude Code)
+## 2. `sui-lsp` binary (editors + ship-agent tooling)
 
 The native Rust language server (`crates/sui/lsp`, on PATH after
-`just install-dev`). Speaks LSP over stdio — Claude Code launches it via the
-repo's `.lsp.json`, VS Code via `sui.serverPath`, any editor via the `sui`
-language id. Same `sui-compiler` grammar as the build.
+`just install-dev`). Speaks LSP over stdio — the ship-agent launches
+it via the repo's `.lsp.json`, VS Code via `sui.serverPath`, any
+editor via the `sui` language id. Same `sui-compiler` grammar as
+the build.
 
 The old one-shot TypeScript CLI (`packages/deck/lsp/src/cli.ts`) is gone. Agents
 without an editor use the binary loop: `cargo run -p sui-lint --example check -- <file>` for
