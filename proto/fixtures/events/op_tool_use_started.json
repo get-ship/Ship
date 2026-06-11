@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "op.tool_use_started",
+    "scope": "runtime",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "op::OpToolUseStarted",
+    "needs_author": false
+  },
+  "payload": {
+    "_note": "NEEDS_AUTHOR: op::OpToolUseStarted — auto-stub not possible; hand-author this fixture",
+    "_payload_type": "op::OpToolUseStarted"
+  }
+}
