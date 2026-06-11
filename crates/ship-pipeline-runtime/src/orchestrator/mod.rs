@@ -19,6 +19,7 @@
 // so the L1 policy below and shipd resolve them unchanged.
 pub use ship_runner::emit;
 pub use ship_code::runner::{dedup, exit_handler};
+pub mod coordinator;
 pub mod coordinator_programs;
 pub mod isolation;
 pub mod fanout;
@@ -51,6 +52,8 @@ pub mod dispatch;
 
 #[cfg(test)]
 mod tests_fakes;
+#[cfg(test)]
+mod tests_coordinator;
 #[cfg(test)]
 mod tests_cancel;
 #[cfg(test)]
