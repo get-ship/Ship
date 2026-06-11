@@ -1,15 +1,19 @@
-//! `sui-state-set-call` — controllers do not write through `state.<key>.set(…)`.
+//! `sui-state-set-call` — proxy contexts do not write through
+//! `state.<key>.set(…)`.
 //!
-//! After #179 (proxy unwrap unified — `state.x` is the value everywhere, not
-//! a callable signal), `state.x.set(…)` calls `.set` on the unwrapped value
-//! and errors at runtime. The canonical write form is the assignment-style
-//! `state.x = …` — the proxy's set-trap routes it through `signal.set(v)`.
+//! Controllers see TWO state shapes. `mount`/`unmount` bodies and `on:`
+//! handlers receive the MutableState proxy — there `state.x` is the
+//! unwrapped value, `state.x.set(…)` calls `.set` on the value and errors
+//! at runtime; the canonical write is the assignment form `state.x = …`
+//! (the set-trap routes it through `signal.set`). The `scope:`/`setup`
+//! factory and `derived` entries receive the RAW scope — there entries
+//! ARE `Signal`s and `state.x.set(v)` is the correct write. The lint
+//! therefore fires only inside proxy contexts.
 //!
-//! The escape hatch for the rare cases that genuinely need the signal
-//! (updater function, handing a `Signal<T>` to a callback) is
-//! `state.$signals.x.set(updater)`. The lint specifically allows that
-//! shape — only `state.<key>.set(...)` (one identifier between `state.`
-//! and `.set`) is flagged.
+//! The proxy-context escape hatch for updater-function writes is
+//! `state.$signals.x.set(updater)` — specifically allowed; only
+//! `state.<key>.set(...)` (one identifier between `state.` and `.set`)
+//! is flagged.
 
 use std::path::{Path, PathBuf};
 
@@ -35,6 +39,7 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
         source,
         file: path.to_path_buf(),
         findings: Vec::new(),
+        in_proxy_ctx: false,
     };
     visitor.visit_program(&ret.program);
     visitor.findings
@@ -44,6 +49,11 @@ struct SetCallVisitor<'src> {
     source: &'src str,
     file: PathBuf,
     findings: Vec<Finding>,
+    /// True while inside a controller section that receives the MutableState
+    /// proxy (`mount`/`unmount` bodies, `on:` handler maps). The
+    /// `scope:`/`setup` factory and `derived` entries receive the raw scope,
+    /// where `state.x.set(v)` is the correct write form.
+    in_proxy_ctx: bool,
 }
 
 impl<'src> SetCallVisitor<'src> {
@@ -69,9 +79,27 @@ impl<'src> SetCallVisitor<'src> {
 }
 
 impl<'a, 'src> Visit<'a> for SetCallVisitor<'src> {
+    fn visit_object_property(&mut self, prop: &ObjectProperty<'a>) {
+        let key = match &prop.key {
+            PropertyKey::StaticIdentifier(id) => Some(id.name.as_str()),
+            PropertyKey::StringLiteral(s) => Some(s.value.as_str()),
+            _ => None,
+        };
+        let prev = self.in_proxy_ctx;
+        match key {
+            Some("mount" | "unmount" | "on") => self.in_proxy_ctx = true,
+            Some("scope" | "setup" | "derived") => self.in_proxy_ctx = false,
+            _ => {}
+        }
+        self.visit_expression(&prop.value);
+        self.in_proxy_ctx = prev;
+    }
+
     fn visit_call_expression(&mut self, expr: &CallExpression<'a>) {
-        if let Some(key) = state_member_set_call(&expr.callee) {
-            self.report(expr.span, key);
+        if self.in_proxy_ctx {
+            if let Some(key) = state_member_set_call(&expr.callee) {
+                self.report(expr.span, key);
+            }
         }
         self.visit_expression(&expr.callee);
         for arg in &expr.arguments {
@@ -178,6 +206,29 @@ mod tests {
             })
         "#;
         assert_eq!(check(Path::new("foo.controller.ts"), src).len(), 0);
+    }
+
+    #[test]
+    fn does_not_flag_scope_factory_signal_writes() {
+        // The scope:/setup factory receives the RAW scope — entries are
+        // Signals there and `state.x.set(v)` is the correct write form.
+        let src = r#"
+            export default controller<Scope>({
+              scope: (state) => {
+                function activate(id) {
+                  state.activeTab.set(id)
+                }
+                return { activate }
+              },
+              mount(state, host) {
+                state.count.set(5)
+                return () => {}
+              },
+            })
+        "#;
+        let findings = check(Path::new("foo.controller.ts"), src);
+        assert_eq!(findings.len(), 1, "only the mount-context call is flagged");
+        assert!(findings[0].message.contains("count"));
     }
 
     #[test]
