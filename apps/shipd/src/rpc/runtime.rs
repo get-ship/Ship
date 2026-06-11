@@ -88,7 +88,7 @@ impl RuntimeService for OpsImpl {
         if let Some(set) = kind_filter {
             records.retain(|r| set.contains(&r.executor_kind.as_str()));
         }
-        records.sort_by(|a, b| b.spawned_at.cmp(&a.spawned_at));
+        records.sort_by_key(|r| std::cmp::Reverse(r.spawned_at));
         records.truncate(limit);
         Ok(Response::new(ListProcsResponse {
             processes: records.into_iter().map(proc_to_proto).collect(),

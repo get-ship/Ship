@@ -80,7 +80,7 @@ pub fn into_axum(resp: DeckResponse) -> Response {
 pub fn router() -> Router {
     use pages::{
         serve_index, serve_setup, serve_theme_css, serve_themes_list, serve_view_tokens,
-        spa_fallback, spa_or_public_asset,
+        spa_or_public_asset,
     };
     Router::new()
         // Shared CSS / theme assets (unauthenticated) — paths are the

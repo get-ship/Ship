@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ship_types::event_registry::{EventScope, Retention, registry};
@@ -320,7 +320,7 @@ fn render_ts(events: &[WireEvent]) -> String {
 
 // ── Source file parsing ───────────────────────────────────────────────────────
 
-fn load_structs(root: &PathBuf) -> Result<BTreeMap<String, Vec<StructField>>> {
+fn load_structs(root: &Path) -> Result<BTreeMap<String, Vec<StructField>>> {
     let sources = &[
         "crates/core/ship-substrate/crates/ship-types/src/payload.rs",
         "crates/core/ship-substrate/src/events/agent_session.rs",

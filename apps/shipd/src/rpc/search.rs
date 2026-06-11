@@ -105,7 +105,7 @@ impl ShipdSearchWire {
             .collect();
 
         run_global(&self.service, targets, query, opts, |space_id| {
-            !opted_out.contains(&space_id.to_string())
+            !opted_out.contains(space_id)
         })
         .await
     }

@@ -219,9 +219,7 @@ fn read_doc(
 /// `None` when the doc lacks the canonical top-level `agent` block (the
 /// loader's lenient "skip malformed" contract).
 fn to_profile(doc: &DefDoc) -> Option<compiler::AgentProfile> {
-    if doc.value.get("agent").is_none() {
-        return None;
-    }
+    doc.value.get("agent")?;
     serde_json::from_value(doc.value.clone()).ok()
 }
 

@@ -150,7 +150,7 @@ impl ViewServiceTrait for ViewWire {
         let value: Value = if request.value_json.is_empty() {
             Value::Null
         } else {
-            serde_json::from_str(&request.value_json)
+            serde_json::from_str(request.value_json)
                 .map_err(|e| ConnectError::invalid_argument(format!("value_json: {e}")))?
         };
         (self.signal_fn)(
@@ -206,7 +206,7 @@ impl ViewServiceTrait for ViewWire {
         let args_value: Value = if request.args_json.is_empty() {
             Value::Object(serde_json::Map::new())
         } else {
-            serde_json::from_str(&request.args_json)
+            serde_json::from_str(request.args_json)
                 .map_err(|e| ConnectError::invalid_argument(format!("args_json: {e}")))?
         };
         let json = (self.tool_fn)(

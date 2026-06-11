@@ -13,7 +13,7 @@
 //! (no timestamp — kept stable so the `git diff --exit-code proto/fixtures/` CI
 //! gate catches drift). No seeds yet ⇒ this is a graceful no-op (returns 0).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use serde_json::Value;
@@ -31,7 +31,7 @@ fn strip_jsonc(src: &str) -> String {
 /// Generate demo fixtures from every seed under `proto/fixtures/seeds/`.
 /// Returns the count written (0 if no seeds dir yet). In `check_mode` it
 /// byte-compares against the on-disk output and bails on drift.
-pub fn run(fixtures_dir: &PathBuf, check_mode: bool) -> Result<usize> {
+pub fn run(fixtures_dir: &Path, check_mode: bool) -> Result<usize> {
     let seeds_dir = fixtures_dir.join("seeds");
     let demo_dir = fixtures_dir.join("demo");
     if !seeds_dir.exists() {

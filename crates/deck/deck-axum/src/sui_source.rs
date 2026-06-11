@@ -51,10 +51,8 @@ fn lookup_file(tag: &str, suffix: &str) -> Option<String> {
         for entry in pkg_dir.flatten() {
             let src = entry.path().join("src").join(tag);
             let file = src.join(format!("{tag}{suffix}"));
-            if file.exists() {
-                if let Ok(body) = std::fs::read_to_string(&file) {
-                    return Some(body);
-                }
+            if let Ok(body) = std::fs::read_to_string(&file) {
+                return Some(body);
             }
         }
     }

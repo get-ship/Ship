@@ -227,7 +227,7 @@ pub fn aggregate_pipeline_stats<'a>(
 
     for def in defs.iter_mut() {
         let Some(runs) = by_name.get_mut(&def.name) else { continue };
-        runs.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        runs.sort_by_key(|r| std::cmp::Reverse(r.updated_at));
 
         def.total_runs = runs.len();
         def.active_runs = runs
@@ -328,7 +328,7 @@ pub fn list_pipeline_runs(ship_dir: &Path, filter: &Filter) -> Vec<PipelineRun> 
 
 pub fn filter_and_sort(jobs: HashMap<String, PipelineRun>, filter: &Filter) -> Vec<PipelineRun> {
     let mut out: Vec<PipelineRun> = jobs.into_values().filter(|j| filter.matches(j)).collect();
-    out.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+    out.sort_by_key(|r| std::cmp::Reverse(r.updated_at));
     out
 }
 

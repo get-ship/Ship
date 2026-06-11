@@ -841,7 +841,7 @@ impl AgentsServiceTrait for AgentsWire {
             ev,
         )
         .await
-        .map_err(|e| feedback_err_to_connect(e))?;
+        .map_err(feedback_err_to_connect)?;
         Ok(Response::new(ship_ops_rpc::PostFeedbackResponse { id, ..Default::default() }))
     }
 
@@ -862,7 +862,7 @@ impl AgentsServiceTrait for AgentsWire {
             ev,
         )
         .await
-        .map_err(|e| annotation_err_to_connect(e))?;
+        .map_err(annotation_err_to_connect)?;
         Ok(Response::new(ship_ops_rpc::PostAnnotationResponse { id, ..Default::default() }))
     }
 }

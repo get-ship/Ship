@@ -103,6 +103,10 @@ pub async fn ensure_view_snapshots_collection(ctx: &SpaceContext) -> Result<()> 
 /// 1. Stores the bytes as a project-scoped artifact.
 /// 2. Inserts a `view_snapshots` row pointing at that artifact.
 /// 3. Reads back the row's `created_at` to build the returned `SnapshotMeta`.
+// Eight args: each is a distinct, non-derivable snapshot field (`space_id` is
+// intentionally NOT ctx's space — see the scoping comment below), and a
+// params struct would churn 8 call sites for no clarity gain.
+#[allow(clippy::too_many_arguments)]
 pub async fn snapshot_view(
     ctx: Arc<SpaceContext>,
     artifacts: &ArtifactService,

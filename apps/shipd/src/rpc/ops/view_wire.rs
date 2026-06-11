@@ -154,7 +154,7 @@ fn scaffold_view_sync(
 
     let title = title_case_view(name);
     copy_scaffold_view(&src, &target, &title, name)
-        .map_err(|e| { let _ = std::fs::remove_dir_all(&target); e })?;
+        .inspect_err(|_e| { let _ = std::fs::remove_dir_all(&target); })?;
 
     let route = format!("{}/view/{name}", deck_core::routes::DECK_PREFIX);
     let path = target.display().to_string();

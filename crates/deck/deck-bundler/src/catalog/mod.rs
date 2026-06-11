@@ -291,7 +291,7 @@ fn entries_from_sui_out(
     // Owning-package lookup, longest rel path first so nested packages win.
     let mut packaged_roots: Vec<(String, &WorkspacePackage)> =
         packages.iter().map(|p| (rel_unix(repo_root, &p.root), p)).collect();
-    packaged_roots.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+    packaged_roots.sort_by_key(|(rel, _)| std::cmp::Reverse(rel.len()));
 
     // First-party app root prefix for the shell-local CEM projection. Derived
     // from `deck.jsonc firstPartyApp.root`; absent in zero-config hosts so the

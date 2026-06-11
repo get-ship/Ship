@@ -277,7 +277,7 @@ pub fn run_logout() -> Result<()> {
         println!("Not logged in.");
         return Ok(());
     }
-    let (port, daemon_token) = daemon_connect().map_err(|e| e)?;
+    let (port, daemon_token) = daemon_connect()?;
 
     use connectrpc::client::{ClientConfig, HttpClient};
     use ship_ops_rpc::{AccountServiceClient, LogoutRequest};

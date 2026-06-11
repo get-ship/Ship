@@ -313,7 +313,7 @@ fn load_event_names() -> Vec<String> {
 ///   1. token = "actor_created" — test name contains it
 ///   2. namespace alone if method is only one segment
 fn match_tests_for_event<'a>(event: &str, tests: &'a [TestResult]) -> Vec<&'a TestResult> {
-    let token = event.replace('.', "_").replace('-', "_");
+    let token = event.replace(['.', '-'], "_");
     tests
         .iter()
         .filter(|t| t.name.to_lowercase().contains(&token))
@@ -345,13 +345,13 @@ fn render_markdown(ops: &[OpCov], events: &[EventCov]) -> String {
     let op_pass = ops.iter().filter(|o| o.status == CovStatus::Covered).count();
     let op_fail = ops.iter().filter(|o| o.status == CovStatus::Failing).count();
     let op_missing = ops.iter().filter(|o| o.status == CovStatus::Untested).count();
-    let op_pct = if op_total > 0 { op_pass * 100 / op_total } else { 0 };
+    let op_pct = (op_pass * 100).checked_div(op_total).unwrap_or(0);
 
     let ev_total = events.len();
     let ev_pass = events.iter().filter(|e| e.status == CovStatus::Covered).count();
     let ev_fail = events.iter().filter(|e| e.status == CovStatus::Failing).count();
     let ev_missing = events.iter().filter(|e| e.status == CovStatus::Untested).count();
-    let ev_pct = if ev_total > 0 { ev_pass * 100 / ev_total } else { 0 };
+    let ev_pct = (ev_pass * 100).checked_div(ev_total).unwrap_or(0);
 
     out.push_str("## Workspace summary\n\n");
     out.push_str(&format!(

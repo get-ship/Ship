@@ -317,9 +317,7 @@ pub fn run(repo_root: &Path) -> Result<Report, String> {
             "{}:{}: [{}] {} — {}",
             rel, v.lineno, v.prefix, v.line.trim(), v.rule,
         ));
-        lines.push(format!(
-            "  hint: add `// LAYER_EXCEPTION: <reason>` to this line if intentional"
-        ));
+        lines.push("  hint: add `// LAYER_EXCEPTION: <reason>` to this line if intentional".to_string());
     }
 
     Ok(Report { violations: lines })

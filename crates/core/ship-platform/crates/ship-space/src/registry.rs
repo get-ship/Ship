@@ -118,7 +118,7 @@ pub async fn active(store: &dyn DataStore) -> Result<Option<SpaceRecord>, SpaceE
     let Some(id) = projection::get_active_id(store).await? else {
         return Ok(None);
     };
-    Ok(get(store, &id).await?)
+    get(store, &id).await
 }
 
 /// Look up a registry record by id.

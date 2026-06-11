@@ -217,7 +217,7 @@ pub fn field_to_ts(kind: FieldKind, values: Option<&[String]>) -> String {
 
 /// Convert a collection id (`snake-case`/`snake_case`/`dotted`) to PascalCase.
 fn to_pascal_case(id: &str) -> String {
-    id.split(|c| c == '_' || c == '-' || c == '.')
+    id.split(['_', '-', '.'])
         .filter(|s| !s.is_empty())
         .map(|word| {
             let mut chars = word.chars();

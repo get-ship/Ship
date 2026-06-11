@@ -8,7 +8,7 @@
 //! the R1 directory split. No logic has changed.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use serde_json::{json, Value};
@@ -113,7 +113,7 @@ pub fn scaffold_dup_count() -> usize {
 }
 
 /// Run response-fixture generation. Returns count of fixtures written.
-pub fn run(fixtures_dir: &PathBuf, check_mode: bool) -> Result<usize> {
+pub fn run(fixtures_dir: &Path, check_mode: bool) -> Result<usize> {
     let theme_path = fixtures_dir.join("fixture-seed.json");
     let theme: Value = serde_json::from_slice(
         &std::fs::read(&theme_path).with_context(|| format!("read {}", theme_path.display()))?,
@@ -196,7 +196,7 @@ pub fn run(fixtures_dir: &PathBuf, check_mode: bool) -> Result<usize> {
 }
 
 /// List all typed op methods and whether they have a fixture in fixture-seed.json.
-pub fn missing_fixtures(fixtures_dir: &PathBuf) -> Result<Vec<String>> {
+pub fn missing_fixtures(fixtures_dir: &Path) -> Result<Vec<String>> {
     let theme_path = fixtures_dir.join("fixture-seed.json");
     let theme: Value = serde_json::from_slice(&std::fs::read(&theme_path)?)?;
     let responses = theme
@@ -223,7 +223,7 @@ mod tests {
     use super::*;
 
     fn theme_responses() -> serde_json::Map<String, Value> {
-        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let theme: Value = serde_json::from_slice(
             &std::fs::read(root.join("proto/fixtures/fixture-seed.json")).unwrap(),
         )

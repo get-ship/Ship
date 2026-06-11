@@ -11,7 +11,7 @@
 //! Required context args (like `space_id`, `session_id`) get more realistic values.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use serde_json::{json, Value};
@@ -89,7 +89,7 @@ fn load_service_file(path: &std::path::Path) -> Result<serde_json::Map<String, V
 
 /// Run request-fixture generation — extends each service JSON with `"request"` keys.
 /// Returns count of request stubs generated.
-pub fn run(fixtures_dir: &PathBuf, check_mode: bool) -> Result<usize> {
+pub fn run(fixtures_dir: &Path, check_mode: bool) -> Result<usize> {
     let policies: Vec<MethodPolicy> = read_policies();
 
     // Group by service file (same as ops.rs groups response_ok entries).
@@ -131,7 +131,7 @@ pub fn run(fixtures_dir: &PathBuf, check_mode: bool) -> Result<usize> {
 }
 
 /// Return ops that have request args but currently only have a response fixture.
-pub fn missing_requests(fixtures_dir: &PathBuf) -> Result<Vec<String>> {
+pub fn missing_requests(fixtures_dir: &Path) -> Result<Vec<String>> {
     let policies = read_policies();
     let mut missing = Vec::new();
     for p in &policies {

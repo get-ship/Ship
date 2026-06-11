@@ -127,7 +127,6 @@ impl DeviceServiceTrait for DeviceWire {
         let connection_space = (self.space_from_ctx)(&ctx);
         let space_id = request
             .space_id
-            .as_deref()
             .map(str::to_string)
             .or(connection_space)
             .ok_or_else(|| {

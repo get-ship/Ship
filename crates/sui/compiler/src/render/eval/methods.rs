@@ -141,7 +141,7 @@ fn to_fixed(obj: &Value, digits: &Value) -> Result<Value, EvalError> {
             ".toFixed() digits must be finite".into(),
         ));
     }
-    let d = d.max(0.0).min(100.0) as usize;
+    let d = d.clamp(0.0, 100.0) as usize;
     if !n.is_finite() {
         return Ok(Value::String(if n.is_nan() {
             "NaN".into()
