@@ -35,6 +35,34 @@ impl Program for DispatchProgram {
     }
 }
 
+/// Journaled shell-step program (C4 / P2.2): the three ops that constitute a
+/// `type: run` pipeline step.
+///
+/// Unlike [`DispatchProgram`] (shadow-journaled in C2), this program runs LIVE —
+/// `RunStepDispatch` (orchestrator/run_step.rs) executes the real `StepExecutor`
+/// and emits the real `pipeline.step.*` events from inside the ops. On replay
+/// (daemon restart mid-step, or a re-dispatched step that already completed),
+/// completed ops return their logged results: the command is NOT re-executed
+/// and the step events are NOT re-emitted.
+///
+/// Op sequence is DETERMINISTIC — the contract enforced by the engine's
+/// replay-divergence guard. Must NOT be changed without migrating existing journals.
+///
+/// Executor failures (spawn error / timeout / memory cap) are ENCODED in the
+/// `run_step.execute` result value rather than surfaced as `DispatchError` — the
+/// terminal emission op must still run (and be journaled) on the failure path.
+pub(crate) struct RunStepProgram;
+
+#[async_trait]
+impl Program for RunStepProgram {
+    async fn run(&self, ctx: &mut ExecCtx) -> Result<Value, EngineError> {
+        let _started = ctx.op("run_step.emit_started", json!({})).await?;
+        let result = ctx.op("run_step.execute", json!({})).await?;
+        let _term = ctx.op("run_step.emit_terminal", json!({ "result": result })).await?;
+        Ok(result)
+    }
+}
+
 /// C2 SHADOW ONLY — oracle dispatch that returns pre-seeded results without
 /// calling any real ports.
 ///

@@ -587,5 +587,6 @@ async fn dispatch_first_run_step_inner(
     super::run_step::execute_run_step(
         &payload.pipeline_run_id, slug, step_id, command,
         &worktree_path, kernel, ship_dir,
+        &octx.journal_store,
     ).await;
 }

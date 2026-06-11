@@ -229,10 +229,12 @@ async fn advance_pipeline_inner(
                 let step_id = step.id.clone();
                 let work_dir = worktree_path.clone();
                 let ship_dir_owned = ship_dir_override.map(|p| p.to_path_buf());
+                let journal_store = octx.journal_store.clone();
                 tokio::spawn(async move {
                     super::run_step::execute_run_step(
                         &pipeline_run_id, &slug_clone, &step_id, &command,
                         &work_dir, &kernel_clone, ship_dir_owned.as_deref(),
+                        &journal_store,
                     ).await;
                 });
                 dispatched_any = true;
