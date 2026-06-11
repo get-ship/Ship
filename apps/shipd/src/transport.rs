@@ -4,6 +4,5 @@
 //! one umbrella. Routes consume these but do not reach into network
 //! internals; transport stays independent of services / routes.
 
-pub mod connections;
 pub mod cors;
 pub mod pty;
