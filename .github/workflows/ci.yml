@@ -122,6 +122,15 @@ jobs:
           cargo run -p xtask --quiet -- gen-skills
           git diff --exit-code skills/sdk/ \
             || { echo "skills/sdk is stale — run 'cargo run -p xtask -- gen-skills' and commit"; exit 1; }
+      # tokens.json is the registry the sui-css-token lint reads. It is generated
+      # from the canonical CSS token files (packages/sui/tokens/src/{tokens,
+      # themes}.css). Regenerate + assert no diff so a CSS token add/remove can't
+      # drift the lint registry (a zombie token it accepts, or a real token it's
+      # blind to).
+      - name: Check tokens.json drift
+        run: |
+          cargo run -p xtask --quiet -- gen-tokens --check \
+            || { echo "tokens.json is stale — run 'cargo run -p xtask -- gen-tokens' and commit"; exit 1; }
       # Proto contract fixtures are generated from proto/fixtures/theme.json and
       # validated against the ship.ops.v1 proto types. Regenerate + assert no
       # diff so a proto shape change can't outrun its fixture (which the Rust +

@@ -17,6 +17,7 @@ mod gen_indexes;
 mod gen_indexes_substrate;
 mod gen_skills;
 mod gen_sdk;
+mod gen_tokens;
 mod lint_anti_theater;
 mod lint_imports;
 mod lint_layers;
