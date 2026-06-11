@@ -705,10 +705,15 @@ async fn seed_canonical_session(
     use agent_def::canonical_session::{SessionStarted, event_types as canonical_event_types};
     use ship_substrate::events::{CallerKind, EmitContext};
 
+    // session.started is Space-scoped — a space-unbound binding is
+    // fail-closed by the kernel, so the seed must emit space-bound.
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        binding: ship_types::ScopeBinding::daemon_internal(
+            Some(ship_types::SpaceId::new("sweep-test-space".to_string())),
+            ship_types::Authority::Sdk,
+        ),
         session_id: None,
     };
 
