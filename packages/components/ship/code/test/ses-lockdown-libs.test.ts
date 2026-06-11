@@ -1,6 +1,8 @@
 // @vitest-environment node
 //
-// #133 slice 5 — do the shell's heavy 3rd-party libs survive SES lockdown()?
+// #133 slice 5 — do the code pack's heavy 3rd-party libs survive SES
+// lockdown()? The CodeMirror/xterm dependencies live in @ship/code, so
+// their lockdown-survival contract is pinned here.
 //
 // In the SES model the shell calls lockdownRealm() at boot (freezing
 // intrinsics), then lazy-loads editor/terminal libs AFTER. The classic SES
@@ -20,7 +22,7 @@
 // IS reachable in node: module evaluation + DOM-free core construction.
 
 import { beforeAll, describe, expect, it } from 'vitest'
-import { lockdownRealm } from '../../../packages/deck/host/src/confine.ts'
+import { lockdownRealm } from '../../../../deck/host/src/confine.ts'
 
 describe('SES lockdown vs the shell 3rd-party editor libs (module + core)', () => {
   beforeAll(() => lockdownRealm())
