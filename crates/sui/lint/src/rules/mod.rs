@@ -12,6 +12,7 @@ use crate::report::Finding;
 
 pub mod attr_bool_prop;
 pub mod attr_presence;
+pub mod client_directive;
 pub mod controller_context;
 pub mod controller_navigation;
 pub mod controller_no_ambient_authority;
@@ -64,4 +65,5 @@ pub const SUI_TEMPLATE_RULES: &[(&str, RuleFn)] = &[
     (space_literal::RULE_ID, space_literal::check),
     (layout_primitive::RULE_ID, layout_primitive::check),
     (dimension_literal::RULE_ID, dimension_literal::check),
+    (client_directive::RULE_ID, client_directive::check),
 ];

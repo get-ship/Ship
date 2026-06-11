@@ -1,3 +1,4 @@
+<client name="ship" />
 <data name="overview" source="ship.git.overview()" live />
 
 <use-kbd>
