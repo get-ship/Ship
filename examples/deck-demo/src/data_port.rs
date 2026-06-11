@@ -11,9 +11,11 @@
 //! `resolve_demo` is the local registry, mirroring shipd's with the kernel
 //! removed. All SSE encoding comes from `deck_core::live_wire` — no copies.
 //!
-//! The vocabulary is `ship.demo.*`. The SUI compiler bakes `ship.<ns>.<method>`
-//! into every form action and SSE subscription; using `ship.demo.*` here proves
-//! that vocabulary is a contract, not a Ship coupling.
+//! The data vocabulary is `<root>.demo.*` where `<root>` is the client key
+//! the view chose: `ship` for legacy (undeclared) views, `api` for the
+//! `<client name="api" />` exemplar (views/clock). The root is the view's
+//! alias into the host-supplied clients map — proving the wire vocabulary
+//! is a contract, not a Ship coupling.
 
 use std::sync::{
     Arc,
@@ -155,12 +157,18 @@ pub async fn resolve_demo(chain: &str, args: &Value, store: &DemoStore) -> Resul
     }
 }
 
-/// Strip the `ship.` prefix and parse args from a bare `demo.*()` expression.
-/// Returns `(chain_without_ship_prefix, args_json)`.
+/// Strip the leading client root and parse args from a `*.demo.*()`
+/// expression. Returns `(chain_without_root, args_json)`.
+///
+/// The root segment is the view's `<client name="…" />` alias for this
+/// host's data surface — `ship` for legacy (undeclared) views, `api` for
+/// the declared-client exemplar (views/clock). The server resolves the
+/// chain regardless of the alias: the name is the view's key into the
+/// host-supplied clients map, not part of the data vocabulary.
 fn parse_demo_expr(expr: &str) -> Option<(String, Value)> {
     let (head, tail) = expr.split_once('(')?;
     let raw_args = tail.strip_suffix(')')?;
-    let chain = head.strip_prefix("ship.")?;
+    let (_root, chain) = head.split_once('.')?;
     if !chain.starts_with("demo.") {
         return None;
     }
@@ -467,7 +475,15 @@ mod tests {
     }
 
     #[test]
-    fn parse_demo_expr_rejects_missing_ship_prefix() {
+    fn parse_demo_expr_accepts_declared_client_root() {
+        // views/clock declares `<client name="api" />` — the root is the
+        // view's alias for this host's data surface, not a fixed `ship`.
+        let (chain, _) = parse_demo_expr("api.demo.clock()").unwrap();
+        assert_eq!(chain, "demo.clock");
+    }
+
+    #[test]
+    fn parse_demo_expr_rejects_missing_root() {
         assert!(parse_demo_expr("demo.clock()").is_none());
     }
 

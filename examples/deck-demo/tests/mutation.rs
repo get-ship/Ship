@@ -88,14 +88,20 @@ fn todos_view_has_mutation_binding_for_add_todo() {
     );
 }
 
-/// The clock view has exactly one live data source pointing at
-/// `ship.demo.clock()`.
+/// The clock view declares its data client (`<client name="api" />` — the
+/// non-Ship-key exemplar for #265) and has exactly one live data source
+/// rooted at that declared key.
 #[test]
 fn clock_view_has_live_data_for_demo_clock() {
     let app_dir = default_app_dir();
     let source =
         std::fs::read_to_string(app_dir.join("views/clock/page.sui")).expect("clock page.sui");
     let program = parse::parse(&source).expect("parse");
+    assert_eq!(
+        program.clients.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(),
+        vec!["api"],
+        "clock view must declare its data client under a non-ship key"
+    );
     let live: Vec<_> = program
         .data
         .iter()
@@ -103,8 +109,8 @@ fn clock_view_has_live_data_for_demo_clock() {
         .collect();
     assert_eq!(live.len(), 1, "clock view must have exactly one live data source");
     assert_eq!(
-        live[0].source.source, "ship.demo.clock()",
-        "live source must be ship.demo.clock(); got: {}",
+        live[0].source.source, "api.demo.clock()",
+        "live source must be rooted at the declared client; got: {}",
         live[0].source.source
     );
     assert_eq!(live[0].name, "t");

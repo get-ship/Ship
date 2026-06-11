@@ -1,4 +1,5 @@
-<data name="t" source="ship.demo.clock()" live />
+<client name="api" />
+<data name="t" source="api.demo.clock()" live />
 
 <div class="clock-demo">
   <h1>Live Clock</h1>

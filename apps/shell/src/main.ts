@@ -438,6 +438,11 @@ async function mountRoute(pathname: string, opts: { module?: unknown } = {}): Pr
       // `ship` is undefined and the data lambda throws — visible
       // as views stuck on `Loading…` because the patch never lands.
       ship: shipClient,
+      // Keyed clients map — the shell's host identity is `ship`, so the
+      // SDK client is injected under that key for views that declare
+      // `<client name="ship" />`. (The legacy `ship` option above keeps
+      // undeclared views on the ambient compatibility default.)
+      clients: { ship: shipClient },
       // Host loader — the runtime is host-agnostic and doesn't know
       // the `/_deck/` URL scheme; this adapter supplies by-name or
       // by-path payload fetch (the daemon's resolver handles the
