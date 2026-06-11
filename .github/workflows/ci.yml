@@ -256,6 +256,20 @@ jobs:
           [ "$(grep -cE '^[^|]+:test +\|' shell-test.log)" -gt 0 ] || { echo "::error::shell test step ran zero suites"; exit 1; }
       - name: Bundle sui-runtime
         run: bun run --filter '@ship/sui-runtime' bundle
+      # Hermetic browser e2e (tests/e2e, `hermetic` project only). The
+      # full-loop spec boots its own debug `shipd` (built by the cargo steps
+      # above) against a temp SHIP_HOME and drives the deck-served shell in
+      # real chromium: hermeticity guard, daemon→UI live git read, theme
+      # mutation persisted over Connect, and the settings-form mutation
+      # round-trip (#298). The `dev-environment` project (every other spec)
+      # needs a `just dev` daemon or the shell vite server and is projected
+      # out — see tests/e2e/playwright.config.ts for the per-spec triage.
+      - name: Build hub scaffold (deck-served shell for the hermetic e2e)
+        run: bun run build:hub-scaffold
+      - name: Install Playwright chromium
+        run: bunx playwright install --with-deps chromium
+      - name: E2E — hermetic full loop (real browser against a hermetic shipd)
+        run: bunx playwright test --config tests/e2e/playwright.config.ts --project=hermetic
       # SUI rendering fuzz gate. Three targets, 60s each — keeps PR
       # wall-time small while catching the panic class that surfaced
       # six bugs in `crates/sui/compiler/src/{render/eval/lex,check/
