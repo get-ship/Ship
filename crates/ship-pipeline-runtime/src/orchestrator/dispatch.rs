@@ -267,16 +267,9 @@ pub async fn dispatch_pipeline_run_internal(
             &ComposedRunCtx {
                 pipeline_run_id: &payload.pipeline_run_id,
                 run_slug: &payload.slug,
-                branch: &payload.branch,
-                source_spec_path: payload.source_spec_path.as_deref(),
-                vars: payload.vars.as_ref(),
-                baseline_sha: payload.baseline_sha.as_deref(),
-                run_headless: payload.headless,
             },
             root_step,
             agent,
-            &worktree_path.to_string_lossy(),
-            pid,
         )
         .await;
     }
@@ -344,11 +337,6 @@ pub async fn dispatch_pipeline_run_internal(
 pub(crate) struct ComposedRunCtx<'a> {
     pub pipeline_run_id: &'a str,
     pub run_slug: &'a str,
-    pub branch: &'a str,
-    pub source_spec_path: Option<&'a str>,
-    pub vars: Option<&'a std::collections::HashMap<String, String>>,
-    pub baseline_sha: Option<&'a str>,
-    pub run_headless: bool,
 }
 
 pub(crate) async fn emit_composed_step_session(
@@ -356,8 +344,6 @@ pub(crate) async fn emit_composed_step_session(
     run: &ComposedRunCtx<'_>,
     step: &ship_substrate::events::pipeline::PipelineStep,
     agent: &str,
-    _worktree: &str,
-    _pid: Option<u32>,
 ) {
     let step_session_id = ship_substrate::gen_ulid();
     let session_slug = format!("{}::{}", run.run_slug, step.id);

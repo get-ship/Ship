@@ -330,14 +330,8 @@ async fn advance_pipeline_inner(
                             &super::dispatch::ComposedRunCtx {
                                 pipeline_run_id: &job.pipeline_run_id,
                                 run_slug: &job.slug,
-                                branch: &job.branch,
-                                source_spec_path: job.source_spec_path.as_deref(),
-                                vars: job.vars.as_ref(),
-                                baseline_sha: job.baseline_sha.as_deref(),
-                                run_headless: job.headless,
                             },
                             step, agent,
-                            &worktree_path.to_string_lossy(), pid,
                         ).await;
 
                         octx.registry.register(slug, handle).await;

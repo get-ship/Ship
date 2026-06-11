@@ -42,7 +42,7 @@ pub async fn start_orchestrator(
     // The router below switches on the event type to pick the handler.
     let config = ship_substrate::events::ActorConfig {
         namespace: actor_id.clone(),
-        write_namespaces: vec!["pipeline.".to_string(), "agent.session.".to_string()],
+        write_namespaces: vec!["pipeline.".to_string()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["pipeline.".to_string(), "agent.session.".to_string()],
         see_directed_events: false,
