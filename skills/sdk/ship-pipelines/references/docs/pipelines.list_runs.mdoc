@@ -34,3 +34,32 @@ ship ops call pipelines.list_runs --json '{}'
 
 Kind: read.
 
+## Example response
+
+```json
+{
+  "runs": [
+    {
+      "run": {
+        "pipeline_run_id": "job-checkout-flow-a1b2c3d",
+        "slug": "checkout-flow-a1b2c3d",
+        "status": "completed",
+        "started_at": "2026-05-24T18:00:00Z",
+        "ended_at": "2026-05-24T18:30:00Z",
+        "outcome": "completed"
+      },
+      "steps": [
+        {
+          "step_id": "implement",
+          "status": "completed",
+          "started_at": "2026-05-24T18:00:00Z",
+          "completed_at": "2026-05-24T18:30:00Z",
+          "depends_on": [],
+          "step_type": "agent",
+          "attempt": 1
+        }
+      ]
+    }
+  ]
+}
+```
