@@ -1,0 +1,97 @@
+name: Bench
+
+# Perf gate. NOT on pull_request: the js-framework-benchmark suite needs an
+# external bench checkout (see js-bench below) and shared 2-vCPU runners are too
+# noisy for a 15% PR-blocking gate — swap1k swings ±~3 ms (~25%), memory ±~0.6 MB
+# (~17%), first-paint 150–340% cross-framework on single runs
+# (.artifacts/sui-arc/perf-status.md, "Noise floor"). Runs nightly + on demand
+# so a regression surfaces within a day without false-failing PRs.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * *' # 05:00 UTC nightly
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # In-repo perf smoke. Runs today with no external setup: compiles and
+  # executes the sui-signals criterion benches so the reactivity hot path
+  # can't bitrot silently. Gross cliffs show in the printed times; for a hard
+  # gate, save a critcmp baseline as an artifact across runs (follow-on).
+  signals-bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run sui-signals criterion benches
+        run: cargo bench -p sui-signals --bench notify -- --warm-up-time 1 --measurement-time 3
+
+  # js-framework-benchmark gate (keyed/sui swap/run/remove/replace/memory).
+  # The SUI bench app (frameworks/keyed/sui) lives in an external
+  # js-framework-benchmark fork, NOT in this repo. Set the repo variable
+  # SUI_BENCH_REPO to that fork's clone URL (and optionally SUI_BENCH_REF to a
+  # pinned SHA) to enable this job. Until it's set the job no-ops with an
+  # explanation — it never reports a false green, because it never runs on PRs.
+  js-bench:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require bench fork to be configured
+        id: gate
+        env:
+          SUI_BENCH_REPO: ${{ vars.SUI_BENCH_REPO }}
+        run: |
+          if [ -z "$SUI_BENCH_REPO" ]; then
+            echo "SUI_BENCH_REPO repo variable is unset — the js-framework-benchmark"
+            echo "fork is not vendored in this repo and has no recorded URL."
+            echo "Set it (Settings > Variables) to enable the JS bench gate."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: Swatinem/rust-cache@v2
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install JS deps
+        if: steps.gate.outputs.enabled == 'true'
+        run: bun install --frozen-lockfile
+      - name: Build sui-compiler (precompile.mjs target)
+        if: steps.gate.outputs.enabled == 'true'
+        run: cargo build -p sui-compiler
+      - name: Install Playwright Chromium
+        if: steps.gate.outputs.enabled == 'true'
+        run: bunx playwright install --with-deps chromium
+      - name: Clone bench fork into BENCH_HOME
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          SUI_BENCH_REPO: ${{ vars.SUI_BENCH_REPO }}
+          SUI_BENCH_REF: ${{ vars.SUI_BENCH_REF }}
+        run: |
+          set -euo pipefail
+          git clone "$SUI_BENCH_REPO" "$HOME/dev/js-framework-benchmark"
+          if [ -n "${SUI_BENCH_REF:-}" ]; then
+            git -C "$HOME/dev/js-framework-benchmark" checkout "$SUI_BENCH_REF"
+          fi
+          ( cd "$HOME/dev/js-framework-benchmark" && npm ci )
+          ( cd "$HOME/dev/js-framework-benchmark/webdriver-ts" && npm ci && npm run build )
+      - name: bench-check (widened threshold for shared-runner noise)
+        if: steps.gate.outputs.enabled == 'true'
+        # 0.30, not 0.15: the documented noise floor on shared runners. Run
+        # twice; a clean second run clears a first-run flake (README "On
+        # regression"). Fails the job only if BOTH runs regress >30%.
+        env:
+          CHROME_BINARY: ''
+        run: |
+          set -uo pipefail
+          export CHROME_BINARY="$(find "$HOME/.cache/ms-playwright" -name chrome -path '*chromium*' -type f | head -1)"
+          BENCH_REGRESSION_THRESHOLD=0.30 just bench-check && exit 0
+          echo "first run regressed — rerunning once to clear flake"
+          BENCH_REGRESSION_THRESHOLD=0.30 just bench-check

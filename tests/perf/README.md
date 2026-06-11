@@ -7,9 +7,18 @@ active anchor that `just bench-check` reads.
 
 ## Current anchor
 
+`just bench-check` reads `latestBaseline()` = the **lexically-latest** matching
+filename, which is `2026-05-14-current.json` (swap1k 7.2 ms, SHA `747a5f17`) —
+not `post-d2-d4`. That anchor is **architecturally stale**: it was captured
+against the old cursor-based `bindFor` in the bundled runtime, before the
+LIS-based `packages/sui/runtime/src/for.ts` (`0c65c6568`) replaced it. Gating
+the current LIS runtime against it reports a spurious +56% `05_swap1k`
+regression that is an architecture-gap accounting artifact, not a code
+regression. Re-capture a contemporary `<date>-current.json` with `just bench`
+before trusting the gate. Full write-up: `.artifacts/sui-arc/perf-status.md`.
+
 - `2026-05-13-post-d2-d4.json` — post D2 (`bindFor` scratch reuse) + D4
   (bind\* short-circuit) merges. Captured at `2a951ef6` on 2026-05-13.
-  See `.artifacts/sui-arc/perf-status.md` for the delta write-up.
 - `2026-05-13-baseline.json` — preserved pre-perf-cycle reference
   (captured at `56bea690`). Do not overwrite.
 
@@ -46,6 +55,13 @@ just bench
 This rebuilds the SUI bench bundle, runs the benchmark against SUI plus
 comparison frameworks (solid, svelte, vue, vanillajs), and writes a fresh
 `<today>-baseline.json`. Commit it.
+
+The SUI bench app (`frameworks/keyed/sui`) and the comparison frameworks live
+in that external js-framework-benchmark checkout, **not in this repo**. The
+checkout's clone URL is not recorded in-tree — record it as the repo variable
+`SUI_BENCH_REPO` (and a pinned `SUI_BENCH_REF`) so the nightly CI gate
+(`.github/workflows/bench.yml`) can clone it. Until that variable is set the CI
+`js-bench` job no-ops with an explanation.
 
 Requires:
 - `~/dev/js-framework-benchmark/` checked out with comparison frameworks
