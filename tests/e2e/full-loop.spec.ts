@@ -72,8 +72,11 @@ test.describe('full loop: hermetic daemon + deck-served shell', () => {
   test('read: the shell bottom strip renders the daemon live git branch', async ({ page }) => {
     // Truth source: what git itself reports for this checkout. The daemon read
     // the same workspace, so the UI must match — proving real daemon data
-    // reached the DOM (not a static string baked into the shell).
-    const expectedBranch = git(['rev-parse', '--abbrev-ref', 'HEAD'])
+    // reached the DOM (not a static string baked into the shell). On a
+    // detached HEAD (CI checkouts, temp worktrees) the strip renders the
+    // 7-char short SHA instead of a branch name — derive the same.
+    const ref = git(['rev-parse', '--abbrev-ref', 'HEAD'])
+    const expectedBranch = ref === 'HEAD' ? git(['rev-parse', 'HEAD']).slice(0, 7) : ref
     expect(expectedBranch.length).toBeGreaterThan(0)
 
     // `domcontentloaded`, not `load`: the shell keeps slow/404 resources in
