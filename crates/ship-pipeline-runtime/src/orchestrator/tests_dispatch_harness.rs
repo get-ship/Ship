@@ -19,8 +19,22 @@ use ship_code::dispatch_ports::{
     AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
+use durable_execution::{InMemoryJournalStore, JournalStore};
 use crate::orchestrator::dispatch::dispatch_pipeline_run_internal;
 use crate::orchestrator::OrchestratorContext;
+
+/// Executor that succeeds every spawn with pid=42.
+struct SucceedingExecutor;
+
+#[async_trait]
+impl SessionExecutor for SucceedingExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
+        Ok(ExecutorHandle { pid: Some(42), inner: Box::new(()) })
+    }
+    async fn is_alive(&self, _: &ExecutorHandle) -> bool { false }
+    async fn stop(&self, _: &ExecutorHandle) -> anyhow::Result<()> { Ok(()) }
+    async fn send(&self, _: &ExecutorHandle, _: &str) -> anyhow::Result<()> { Ok(()) }
+}
 
 struct OkIsolation(PathBuf);
 
@@ -90,6 +104,20 @@ fn octx_with(
     executor: Arc<dyn SessionExecutor>,
     worktrees: PathBuf,
 ) -> OrchestratorContext {
+    octx_with_journal_store(
+        isolation,
+        executor,
+        worktrees,
+        Arc::new(durable_execution::InMemoryJournalStore::new()),
+    )
+}
+
+fn octx_with_journal_store(
+    isolation: Arc<dyn IsolationStrategy>,
+    executor: Arc<dyn SessionExecutor>,
+    worktrees: PathBuf,
+    journal_store: Arc<dyn JournalStore>,
+) -> OrchestratorContext {
     OrchestratorContext {
         isolation,
         executor,
@@ -104,7 +132,7 @@ fn octx_with(
         event_dedup: Arc::new(crate::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        journal_store: Arc::new(durable_execution::InMemoryJournalStore::new()),
+        journal_store,
     }
 }
 
@@ -248,5 +276,109 @@ async fn payload_harness_is_used_when_step_harness_none() {
         captured.0.as_deref(),
         Some("claude"),
         "payload.harness must be used when step.harness is absent",
+    );
+}
+
+// ── T1 / T2: shadow journal behavioral tests ─────────────────────────────────
+
+/// T1: a successful agent-spawn produces a three-entry journal and persists it.
+///
+/// The shadow-journal block (C2) calls `durable_execution::execute` with
+/// `ShadowDispatch` and `DispatchProgram`, then saves the resulting journal.
+/// The journal MUST have three entries (one per op in `DispatchProgram::run`)
+/// in deterministic order and MUST NOT be suspended.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_agent_spawn_creates_three_entry_journal() {
+    let tmp = TempDir::new().unwrap();
+    let store: Arc<dyn JournalStore> = Arc::new(InMemoryJournalStore::new());
+
+    let pipeline_run_id = "j-journal-t1";
+    let payload = payload_with_first_step(
+        pipeline_run_id, "journal-t1",
+        None, None, None, None,
+    );
+
+    let base = ship_substrate::project::get_global_dir().unwrap();
+    let mut router = ship_substrate::events::kernel_router::KernelRouter::new(base).unwrap();
+    router.spawn_actor("service.orchestrator", dispatch_config()).unwrap();
+    let kernel = Arc::new(Mutex::new(router));
+
+    let created = ship_substrate::events::EventEnvelope::new(
+        event_types::PIPELINE_RUN_STARTED, &payload.pipeline_run_id, &payload,
+    ).unwrap();
+    ship_runner::emit::persist_and_route(&kernel, created, &payload.slug, None).await;
+
+    let worktree = tmp.path().join(format!("worktrees/{}", payload.slug));
+    let ctx = octx_with_journal_store(
+        Arc::new(OkIsolation(worktree)),
+        Arc::new(SucceedingExecutor),
+        tmp.path().join("worktrees"),
+        store.clone(),
+    );
+
+    dispatch_pipeline_run_internal(&kernel, &payload, &ctx).await;
+
+    let journal = store.load(pipeline_run_id).await
+        .expect("store load ok")
+        .expect("journal must be present after successful agent spawn");
+
+    let entries = journal.entries();
+    assert_eq!(
+        entries.len(), 3,
+        "DispatchProgram produces exactly three ops; got {}: {:?}",
+        entries.len(),
+        entries.iter().map(|e| &e.op).collect::<Vec<_>>(),
+    );
+    assert_eq!(entries[0].op, "pipeline.prepare_isolation");
+    assert_eq!(entries[1].op, "pipeline.spawn_agent");
+    assert_eq!(entries[2].op, "pipeline.emit_dispatched");
+    assert!(
+        !journal.is_suspended(),
+        "journal must not be suspended after a complete agent-spawn"
+    );
+}
+
+/// T2: a failed spawn (executor returns Err) must not write anything to the store.
+///
+/// The shadow-journal block only runs after a successful `executor.spawn`. When
+/// the executor fails, `dispatch_pipeline_run_internal` returns early after
+/// emitting spawn_failed. The store must remain empty.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_failed_spawn_does_not_save_journal() {
+    let tmp = TempDir::new().unwrap();
+    let store: Arc<dyn JournalStore> = Arc::new(InMemoryJournalStore::new());
+
+    let pipeline_run_id = "j-journal-t2";
+    let payload = payload_with_first_step(
+        pipeline_run_id, "journal-t2",
+        None, None, None, None,
+    );
+
+    let base = ship_substrate::project::get_global_dir().unwrap();
+    let mut router = ship_substrate::events::kernel_router::KernelRouter::new(base).unwrap();
+    router.spawn_actor("service.orchestrator", dispatch_config()).unwrap();
+    let kernel = Arc::new(Mutex::new(router));
+
+    let created = ship_substrate::events::EventEnvelope::new(
+        event_types::PIPELINE_RUN_STARTED, &payload.pipeline_run_id, &payload,
+    ).unwrap();
+    ship_runner::emit::persist_and_route(&kernel, created, &payload.slug, None).await;
+
+    // RecordingExecutor always returns Err — simulates a failing spawn.
+    let captured = Arc::new(StdMutex::new(None));
+    let worktree = tmp.path().join(format!("worktrees/{}", payload.slug));
+    let ctx = octx_with_journal_store(
+        Arc::new(OkIsolation(worktree)),
+        Arc::new(RecordingExecutor { captured }),
+        tmp.path().join("worktrees"),
+        store.clone(),
+    );
+
+    dispatch_pipeline_run_internal(&kernel, &payload, &ctx).await;
+
+    let result = store.load(pipeline_run_id).await.expect("store load ok");
+    assert!(
+        result.is_none(),
+        "no journal must be saved when executor.spawn() fails"
     );
 }
