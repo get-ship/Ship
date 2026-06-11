@@ -99,8 +99,8 @@ enum Scaffold {
     },
 
     /// New first-party SUI component pack under `packages/components/<name>/`.
-    /// Generates package.json, sui.config.ts, tsconfig.json, the umbrella
-    /// `src/index.ts`, and a starter `<name>-example` component.
+    /// Generates package.json, tsconfig.json, the umbrella `src/index.ts`,
+    /// and a starter `<name>-example` component.
     Pack {
         /// Pack name (lowercase + hyphens). Becomes `@ship/<name>`.
         name: String,
