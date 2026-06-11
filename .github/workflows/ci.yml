@@ -208,9 +208,7 @@ jobs:
       # Runs --sequential with VITEST_MAX_FORKS=2: parallel cross-package execution
       # oversubscribes the runner and flakes timing-sensitive suites (the GC leak gate,
       # the scroll-anchor test, compile-timeouts); sequential keeps them deterministically green.
-      # Deliberately EXCLUDED:
-      #   - apps/shell: not under packages/** (shell component suites run via their own
-      #     package scripts; wiring them into CI is tracked work).
+      # apps/shell is not under packages/** so it gets its own step below.
       - name: JS tests — SUI framework + component packs (compiles SUI on demand via the vitest factory)
         run: |
           set -eo pipefail
@@ -238,6 +236,14 @@ jobs:
           # zero-suite run into a hard failure so this gate can never pass vacuously.
           grep -q "No packages matched the filter" js-test.log && { echo "::error::JS test filter matched no packages"; exit 1; }
           [ "$(grep -cE '^[^|]+:test +\|' js-test.log)" -gt 0 ] || { echo "::error::JS test step ran zero package suites"; exit 1; }
+      # The shell's component suites (19 files) live outside packages/**, so the
+      # path-glob step above never matches them. Same vacuous-pass guard applies.
+      - name: JS tests — apps/shell
+        run: |
+          set -eo pipefail
+          VITEST_MAX_FORKS=2 bun run --filter './apps/shell' test 2>&1 | tee shell-test.log
+          grep -q "No packages matched the filter" shell-test.log && { echo "::error::shell test filter matched no packages"; exit 1; }
+          [ "$(grep -cE '^[^|]+:test +\|' shell-test.log)" -gt 0 ] || { echo "::error::shell test step ran zero suites"; exit 1; }
       - name: Bundle sui-runtime
         run: bun run --filter '@ship/sui-runtime' bundle
       # SUI rendering fuzz gate. Three targets, 60s each — keeps PR
