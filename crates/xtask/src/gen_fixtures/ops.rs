@@ -48,6 +48,10 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(McpIndexResponse), v!(MetaResponse),
         v!(PermissionsIndexResponse), v!(GetPermissionResponse), v!(ToolPatternsResponse),
         v!(PipelinesIndexResponse),
+        // pipelines.* typed run-level reads (P0.3) + typed control results.
+        v!(PipelineRunSummariesResponse), v!(PipelineRunDetailResponse),
+        v!(PipelineRunHistoryResponse), v!(ListPipelineRunsResponse),
+        v!(CancelRunResult), v!(ResolveStepResult),
         v!(WorkspaceActiveResponse), v!(ProjectRecord),
         v!(RulesIndexResponse), v!(RuleGetResponse),
         v!(ListProcsResponse), v!(SessionsListResponse), v!(SettingValue),
