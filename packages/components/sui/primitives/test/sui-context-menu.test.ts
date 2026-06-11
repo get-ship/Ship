@@ -195,3 +195,110 @@ describe('<sui-context-menu>', () => {
     expect(container.isConnected).toBe(false)
   })
 })
+
+describe('<sui-context-menu> — keyboard activation + typeahead', () => {
+  it('Space activates the focused item — sui-select carries the value', async () => {
+    const { el } = makeMenuWithItems()
+    ;(el as SuiContextMenu).show(0, 0)
+    await flush()
+    const items = Array.from(el.querySelectorAll<HTMLElement>('button[data-value]'))
+    items[1].focus()
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-select', (e) => { evt = e as CustomEvent })
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }))
+    await flush()
+    expect(evt).not.toBeNull()
+    expect(evt!.detail).toEqual({ value: 'copy' })
+  })
+
+  it('roving tabindex tracks arrow navigation', async () => {
+    const { el } = makeMenuWithItems()
+    ;(el as SuiContextMenu).show(0, 0)
+    await flush()
+    const items = Array.from(el.querySelectorAll<HTMLElement>('button[data-value]'))
+    items[0].focus()
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    expect(items[1].getAttribute('tabindex')).toBe('0')
+    expect(items[0].getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('typeahead: printable key focuses the next matching item', async () => {
+    // Items: Cut, Copy, Paste.
+    const { el } = makeMenuWithItems()
+    ;(el as SuiContextMenu).show(0, 0)
+    await flush()
+    const items = Array.from(el.querySelectorAll<HTMLElement>('button[data-value]'))
+    items[0].focus() // Cut
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', bubbles: true }))
+    expect(document.activeElement).toBe(items[2]) // Paste
+  })
+
+  it('typeahead: buffered keys narrow the match within the window', async () => {
+    const { el } = makeMenuWithItems()
+    ;(el as SuiContextMenu).show(0, 0)
+    await flush()
+    const items = Array.from(el.querySelectorAll<HTMLElement>('button[data-value]'))
+    items[2].focus() // Paste — so 'c' wraps to Cut first
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', bubbles: true }))
+    expect(document.activeElement).toBe(items[0]) // Cut (first 'c' match after Paste)
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'o', bubbles: true }))
+    // Buffer is now 'co' within the same window — only Copy matches.
+    expect(document.activeElement).toBe(items[1])
+  })
+
+  it('Tab closes the menu', async () => {
+    const { el } = makeMenuWithItems()
+    ;(el as SuiContextMenu).show(0, 0)
+    await flush()
+    const p = panelEl(el)!
+    let hid = 0
+    const orig = p.hidePopover
+    p.hidePopover = () => { hid++; orig?.call(p) }
+    const items = Array.from(el.querySelectorAll<HTMLElement>('button[data-value]'))
+    items[0].focus()
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+    expect(hid).toBe(1)
+  })
+})
+
+describe('<sui-context-menu> — event contracts', () => {
+  it('sui-open: fires when the panel opens; bubbles + composed; no payload', async () => {
+    const { el } = makeMenuWithItems()
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-open', (e) => { evt = e as CustomEvent })
+    ;(el as SuiContextMenu).show(10, 10)
+    await flush()
+    expect(evt).not.toBeNull()
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+    expect(evt!.detail).toBeNull()
+  })
+
+  it('sui-close: fires when the panel closes; bubbles + composed; no payload', async () => {
+    const { el } = makeMenuWithItems()
+    ;(el as SuiContextMenu).show(10, 10)
+    await flush()
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-close', (e) => { evt = e as CustomEvent })
+    ;(el as SuiContextMenu).close()
+    await flush()
+    expect(evt).not.toBeNull()
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+    expect(evt!.detail).toBeNull()
+  })
+
+  it('sui-select: bubbles + composed with {value} payload', async () => {
+    const { el, container } = makeMenuWithItems()
+    ;(el as SuiContextMenu).show(0, 0)
+    await flush()
+    let evt: CustomEvent | null = null
+    container.addEventListener('sui-select', (e) => { evt = e as CustomEvent })
+    el.querySelector<HTMLButtonElement>('button[data-value="paste"]')!.click()
+    await flush()
+    expect(evt).not.toBeNull()
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+    expect(evt!.detail).toEqual({ value: 'paste' })
+  })
+})

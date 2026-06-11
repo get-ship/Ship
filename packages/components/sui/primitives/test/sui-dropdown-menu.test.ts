@@ -171,3 +171,97 @@ describe('<sui-dropdown-menu>', () => {
     expect(container.isConnected).toBe(false)
   })
 })
+
+describe('<sui-dropdown-menu> — aria-expanded follows open state', () => {
+  it('trigger click flips aria-expanded to true via the panel toggle', async () => {
+    const { el } = makeMenuWithItems()
+    await flush()
+    const trigger = el.querySelector('button[slot="trigger"]') as HTMLElement
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    ;(shadow(el).querySelector('.trigger-wrap') as HTMLElement).click()
+    await flush()
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    expect(el.getAttribute('data-state')).toBe('open')
+  })
+})
+
+describe('<sui-dropdown-menu> — keyboard activation + typeahead', () => {
+  it('Enter activates the focused item — sui-select carries the value', async () => {
+    const { el } = makeMenuWithItems({ open: true })
+    await flush()
+    const items = Array.from(el.querySelectorAll<HTMLElement>('button[data-value]'))
+    items[1].focus()
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-select', (e) => { evt = e as CustomEvent })
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    await flush()
+    expect(evt).not.toBeNull()
+    expect(evt!.detail).toEqual({ value: 'delete' })
+  })
+
+  it('Space activates the focused item — sui-select carries the value', async () => {
+    const { el } = makeMenuWithItems({ open: true })
+    await flush()
+    const items = Array.from(el.querySelectorAll<HTMLElement>('button[data-value]'))
+    items[2].focus()
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-select', (e) => { evt = e as CustomEvent })
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }))
+    await flush()
+    expect(evt!.detail).toEqual({ value: 'copy' })
+  })
+
+  it('roving tabindex tracks arrow navigation', async () => {
+    const { el } = makeMenuWithItems({ open: true })
+    await flush()
+    const items = Array.from(el.querySelectorAll<HTMLElement>('button[data-value]'))
+    items[0].focus()
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    expect(items[1].getAttribute('tabindex')).toBe('0')
+    expect(items[0].getAttribute('tabindex')).toBe('-1')
+    expect(items[2].getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('typeahead: printable key focuses the next item whose label matches', async () => {
+    // Items: Rename, Delete, Copy.
+    const { el } = makeMenuWithItems({ open: true })
+    await flush()
+    const items = Array.from(el.querySelectorAll<HTMLElement>('button[data-value]'))
+    items[0].focus()
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', bubbles: true }))
+    expect(document.activeElement).toBe(items[2]) // Copy
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', bubbles: true }))
+    // New buffer would be 'cd' (no match) — buffer keeps accumulating within
+    // the 350ms window, so focus stays where it was.
+    expect(document.activeElement).toBe(items[2])
+  })
+
+  it('Tab closes the panel (focus moves on naturally)', async () => {
+    const { el } = makeMenuWithItems({ open: true })
+    await flush()
+    const p = panelEl(el)!
+    let hid = 0
+    const orig = p.hidePopover
+    p.hidePopover = () => { hid++; orig?.call(p) }
+    const items = Array.from(el.querySelectorAll<HTMLElement>('button[data-value]'))
+    items[0].focus()
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+    expect(hid).toBe(1)
+  })
+})
+
+describe('<sui-dropdown-menu> — event contract', () => {
+  it('sui-select: bubbles + composed with {value} payload', async () => {
+    const { el, container } = makeMenuWithItems({ open: true })
+    await flush()
+    let evt: CustomEvent | null = null
+    // Listen on the container, not the host — proves bubbling for real.
+    container.addEventListener('sui-select', (e) => { evt = e as CustomEvent })
+    el.querySelector<HTMLButtonElement>('button[data-value="rename"]')!.click()
+    await flush()
+    expect(evt).not.toBeNull()
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+    expect(evt!.detail).toEqual({ value: 'rename' })
+  })
+})
