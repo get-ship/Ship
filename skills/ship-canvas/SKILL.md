@@ -143,7 +143,7 @@ etc.).
 ## What to make
 
 - **Mockups** — UI layouts, pages, components, design explorations
-- **Data visualizations** — use the `@ship/charts` primitives
+- **Data visualizations** — use the `@ship/sui-charts` primitives
 - **Diagrams** — architecture, relationships, flows
 - **Design reviews** — side-by-side options, ratings, pick-one
 - **Interactive reports** — "scroll through these findings, flag any that look wrong"

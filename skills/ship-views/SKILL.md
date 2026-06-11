@@ -49,7 +49,7 @@ views/<name>/                 # first-party view, baked into shipd
 
 Five rules:
 
-1. **`page.sui` is the route entry.** The filename stem says what the file IS — a page, not a reusable widget. Reusable widgets live under `packages/components/ui-components/src/sui-*/`.
+1. **`page.sui` is the route entry.** The filename stem says what the file IS — a page, not a reusable widget. Reusable widgets live under `packages/components/sui/primitives/src/sui-*/`.
 2. **`controller.ts`, no stem prefix.** The directory IS the view; pairing is unambiguous. Inside `_components/<tag>/`, the `<tag>.controller.ts` rule from `ship-components` applies.
 3. **`style.css` for page-scoped styles.** Linked automatically. Use `<style>` blocks inside `.sui` for component-scoped styles.
 4. **`manifest.jsonc` is required.** JSONC, not YAML. See "Manifest" below.
@@ -223,7 +223,7 @@ Component `.sui` files only — views don't participate in form submission. When
 
 The compiler emits `static formAssociated = true` and the runtime auto-wires `setFormValue`, `formResetCallback`, `formStateRestoreCallback`, and `formDisabledCallback`. Drop any hand-rolled `ElementInternals` plumbing — the runtime owns it. The setup ctx still surfaces `internals?: ElementInternals` for `setValidity()` / `checkValidity()` paths.
 
-Worked examples: `packages/components/ui-components/src/sui-input/sui-input.sui`, `packages/components/ui-components/src/sui-select/sui-select.sui`. Full contract and constraints: `references/form-association.md`.
+Worked examples: `packages/components/sui/primitives/src/sui-input/sui-input.sui`, `packages/components/sui/primitives/src/sui-select/sui-select.sui`. Full contract and constraints: `references/form-association.md`.
 
 ## Live data envelope
 
@@ -427,34 +427,27 @@ groupings + the LSP CLI + `@ship/sui-eval` scoring lives in
 | `ship sui diagnostics <file>` | First thing after writing. Returns `[{ line, col, severity, message, source }]`. Same analyser as the VS Code LSP. |
 | `ship sui hover <file> <line> <col>` | Type / directive / prop info at a cursor. Use when you're not sure what shape a binding wants. |
 | `ship sui dependencies <file>` | What tags / signals / routes this file reaches into. Read before edits to scope blast radius. |
-| `TODO(#207-followup): verify replacement for mcp__ship__view_compile_check` | Full lowering pipeline. Catches issues `sui_diagnostics` (parse + analyse only) misses. |
-| `TODO(#207-followup): verify replacement for mcp__ship__get_view_errors` | Runtime errors from a mounted view session (post-mount, not compile). |
+| `sui-compiler build <file>` | Full lowering pipeline. Catches issues `ship sui diagnostics` (parse + analyse only) misses. |
 
-### Source I/O + snapshots
+### Source I/O
 
 | Tool | When |
 |---|---|
 | Read tool on `views/<name>/` | Read one file or the full view dir. |
 | Edit/Write tools on `views/<name>/` | Write — triggers recompile + SSE notify. |
-| `TODO(#207-followup): verify replacement for mcp__ship__view_list_siblings` | Sibling `_components/<view>-<tag>/` widgets. |
-| `TODO(#207-followup): verify replacement for mcp__ship__view_list_snapshots` | Timeline — every save creates one. |
-| `TODO(#207-followup): verify replacement for mcp__ship__view_restore_snapshot` | Revert; non-destructive. |
 
 ### Live mount + poke
 
 | Tool | When |
 |---|---|
-| `TODO(#207-followup): verify replacement for mcp__ship__open_view` | Mount in the agent's session shell; returns a `session_id`. |
 | `ship ops call view.patch_session --json '{"selector":"...","html":"..."}'` | Morph an HTML subtree in place. |
 | `ship ops call view.signal_session --json '{"name":"...","value":...}'` | Set a reactive signal as if the user did via UI. |
-| `TODO(#207-followup): verify replacement for mcp__ship__view_preview_snapshot` | PNG + DOM dump — for evals, QA, before/after diffs. |
-| `TODO(#207-followup): verify replacement for mcp__ship__close_view` | Release. |
 
 ### Theme + collections
 
 | Tool | When |
 |---|---|
-| `TODO(#207-followup): verify replacement for mcp__ship__view_theme_tokens` | Active theme's tokens. Read before authoring CSS so you stay token-locked. |
+| `crates/sui/compiler/tokens.json` | The active theme's token registry. Read before authoring CSS so you stay token-locked. |
 | `ship ops call collections.list` | Schemas for project-defined `<data source="…">` collections. Use before writing a `<data>`. |
 | `ship ops call annotation.post --json '{"..."}'` | Pin a TODO/comment to a DOM node; surfaces in the dev panel. |
 
@@ -506,7 +499,7 @@ language server.
 
 ## Components
 
-Views compose `<sui-*>` components from `packages/components/ui-components/`. See the `ship-components` skill for the component contract.
+Views compose `<sui-*>` components from `packages/components/sui/primitives/`. See the `ship-components` skill for the component contract.
 
 ## Error handling
 

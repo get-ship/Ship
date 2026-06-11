@@ -86,11 +86,11 @@ export default controller<Scope>({
 
 ## Worked examples
 
-- `packages/components/ui-components/src/sui-input/sui-input.sui` — single value, basic case.
-- `packages/components/ui-components/src/sui-textarea/sui-textarea.sui` — same shape.
-- `packages/components/ui-components/src/sui-checkbox/sui-checkbox.sui` — `form-value` on `checked` (bool); submits `'true'` / `'false'`. Hosts wanting HTML-checkbox semantics (value present only when checked) call `internals.setFormValue` themselves.
-- `packages/components/ui-components/src/sui-switch/sui-switch.sui` — same pattern as checkbox.
-- `packages/components/ui-components/src/sui-select/sui-select.sui` — `form-value` on `value` plus light-DOM `<option>` sync.
+- `packages/components/sui/primitives/src/sui-input/sui-input.sui` — single value, basic case.
+- `packages/components/sui/primitives/src/sui-textarea/sui-textarea.sui` — same shape.
+- `packages/components/sui/primitives/src/sui-checkbox/sui-checkbox.sui` — `form-value` on `checked` (bool); submits `'true'` / `'false'`. Hosts wanting HTML-checkbox semantics (value present only when checked) call `internals.setFormValue` themselves.
+- `packages/components/sui/primitives/src/sui-switch/sui-switch.sui` — same pattern as checkbox.
+- `packages/components/sui/primitives/src/sui-select/sui-select.sui` — `form-value` on `value` plus light-DOM `<option>` sync.
 
 ## Implementation reference
 

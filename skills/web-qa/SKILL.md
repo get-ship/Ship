@@ -2,7 +2,7 @@
 name: web-qa
 audience: public
 stable-id: web-qa
-description: Systematic QA for a UI surface — every interactive element pressed, multi-theme, console + network captured, evidence written to .artifacts/web-qa/. Use before claiming any UI work "done". Gate-required when touching apps/shell, packages/components/ui-components, views, or crates/sui.
+description: Systematic QA for a UI surface — every interactive element pressed, multi-theme, console + network captured, evidence written to .artifacts/web-qa/. Use before claiming any UI work "done". Gate-required when touching apps/shell, packages/components/{sui,ship}, views, or crates/sui.
 tags: [qa, testing, browser, playwright, gate-required]
 authors: [ship]
 license: MIT
@@ -243,7 +243,7 @@ When this skill writes a report with `status: DONE` or `DONE_WITH_CONCERNS`,
 the gate will accept the touched surface for that commit window. The mapping:
 
 - `apps/shell/**` → surface name starts with `chrome/` or `shell/`
-- `packages/components/ui-components/src/sui-*/**` → surface name starts with `components/<tag>/`
+- `packages/components/sui/primitives/src/sui-*/**` → surface name starts with `components/<tag>/`
 - `views/<name>/**` → surface name starts with `views/<name>/`
 - `crates/sui/**` → surface name starts with `runtime/` or `compiler/`
 

@@ -21,7 +21,7 @@ views/space-editor/
 ```
 
 Keep everything scoped to this view; don't add primitives under
-`packages/ui-components/`.
+`packages/components/sui/primitives/`.
 
 ## Data — define-and-fake
 

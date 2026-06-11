@@ -2,6 +2,10 @@
 
 On start, check `.artifacts/job-spec.md`. If found, execute immediately unless `## Mode: interactive`.
 
-**Signal completion via `step_done`**, not `update_job`. `step_done` advances the pipeline to the next step and is the canonical signal every dispatched agent is expected to call when its step's work is verifiably complete. `update_job` is for the whole-job status and is reserved for the final step or explicit job lifecycle transitions.
+When invoked as a pipeline step (`SHIP_ACTOR_ID` set, inside `ship run`), signal step completion over the daemon RPC surface:
 
-Log progress via `log_progress`. Never exit silently.
+```
+ship ops call pipelines.step_done --json '{"slug":"<actor>","summary":"<one-liner>","outputs":{}}'
+```
+
+`pipelines.step_done` advances the run to the next step and is the canonical completion signal every dispatched agent is expected to call when its work is verifiably complete. There is no separate completion CLI — everything flows through `ship ops call`. Narrate progress and blockers in your output and commit messages. Never exit silently.

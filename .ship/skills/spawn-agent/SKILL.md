@@ -66,7 +66,6 @@ These are personal configuration — set in your shell profile, not in project f
 **Branch:** job/<slug>
 **Agent:** <agent>
 **Mode:** autonomous
-**Commander workspace:** <your workspace_id — gate uses this to signal you on completion>
 
 ## Goal
 
@@ -130,7 +129,7 @@ The test spec scopes to test files only. The impl spec references the test files
 Dispatch verifies before launching:
 1. `ship` CLI is on PATH
 2. `ship use <agent>` succeeds in the worktree
-3. `.mcp.json` exists with `ship mcp serve`
+3. `.mcp.json` exists and registers the `ship` MCP server (written by `ship use`)
 
 If any check fails, the agent is not launched.
 

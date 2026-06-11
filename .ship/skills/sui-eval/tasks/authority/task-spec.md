@@ -20,7 +20,7 @@ views/authority/
   _components/         # OPTIONAL view-private widgets; tag MUST start with `authority-`
 ```
 
-Don't add new primitives under `packages/ui-components/`. Keep everything scoped
+Don't add new primitives under `packages/components/sui/primitives/`. Keep everything scoped
 to this view.
 
 ## Data — define-and-fake

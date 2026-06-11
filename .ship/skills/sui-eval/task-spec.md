@@ -30,7 +30,7 @@ views/create-space/
 ```
 
 You MAY decompose pickers into private sub-components under `_components/` if
-that's cleaner. Don't reach into `packages/ui-components/` to add new built-in
+that's cleaner. Don't reach into `packages/components/sui/primitives/` to add new built-in
 primitives — keep everything you author scoped to this view.
 
 ## Behavior requirements

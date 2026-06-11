@@ -99,7 +99,7 @@ DOM events, `sui-*` and `ship-*` custom-event families, and `tag:event`-prefixed
 ## Controller (paired `view.controller.ts`, five sections)
 
 ```ts
-import { controller, unwrap, useFilteredList } from '@ship/ui-runtime'
+import { controller, unwrap, useFilteredList } from '@ship/sui-runtime'
 import type { Scope } from './view.sui'   // compiler-emitted .sui.d.ts
 
 export default controller<Scope>({
@@ -122,7 +122,7 @@ A multi-statement `on:event` handler in a tier-1 file (no `.controller.ts`) is a
 ## Controller hooks (compose via `use:`)
 
 ```ts
-import { useFilteredList, useSelection, useForm } from '@ship/ui-runtime'
+import { useFilteredList, useSelection, useForm } from '@ship/sui-runtime'
 ```
 
 Templates reference them namespaced: `list.filtered()`, `sel.selected()`, `form.values()`, `form.submit`.
@@ -175,7 +175,7 @@ Embedding into the shell from JS: `mountSuiView(slot, name, subPath?)` — fetch
 The `sui-compiler` Rust crate emits one ESM per `.sui`:
 
 ```js
-import { signal, on, bindText, view, … } from "@ship/ui-runtime"
+import { signal, on, bindText, view, … } from "@ship/sui-runtime"
 import setup from "./view.controller.ts"   // when paired
 export default view((ctx) => { /* scope + bindings */ })
 export const bindings = [ … ]               // manifest read by attach()

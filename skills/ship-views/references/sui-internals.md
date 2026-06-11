@@ -67,7 +67,7 @@ Skipping any step ships stale bytes.
 | Surface | Command |
 |---|---|
 | Compiler | `cargo test -p sui-compiler` |
-| Runtime | `bun run --filter @ship/ui-runtime test` |
+| Runtime | `bun run --filter @ship/sui-runtime test` |
 | DOM / attach | `bun run --filter @ship/ui-dom test` |
 | LSP | `bun run --filter @ship/ui-lsp test` |
 | Browser smoke | `node .artifacts/sui-counter-probe.mjs` (Playwright probe; daemon must be up) |
@@ -77,10 +77,10 @@ Skipping any step ships stale bytes.
 Don't commit. Don't be surprised by:
 
 - `views/<name>/dist/page.compiled.js` — view emit. The paired controller is `views/<name>/controller.ts`; legacy directories still use `view.sui` / `view.controller.ts` and emit `view.compiled.js`. Vitest resolves `.ts` first via `packages/ui-dom/vitest.config.ts::resolve.extensions`.
-- `packages/components/ui-components/src/<tag>/dist/<tag>.compiled.js` — component emit; `packages/components/ui-components/src/index.ts` side-effect-imports each one to register the custom element.
+- `packages/components/sui/primitives/src/<tag>/dist/<tag>.compiled.js` — component emit; `packages/components/sui/primitives/src/index.ts` side-effect-imports each one to register the custom element.
 - `**/dist/*.sui.d.ts` — type declarations the compiler emits alongside the JS module.
 
-## Adding a runtime export to `@ship/ui-runtime`
+## Adding a runtime export to `@ship/sui-runtime`
 
 Each public symbol gets its own file in `packages/ui-runtime/src/<name>.ts` (mirrors `signal.ts`, `state.ts`, `controller.ts`, `view.ts`). Re-export from `index.ts`. Don't bolt onto unrelated files like `controller-resolver.ts` — that's how parallel implementations get created.
 
@@ -97,7 +97,7 @@ When adding new form lifecycle hooks (custom validity, willValidate-aware behavi
 
 ## Compile shape contract — don't conflate
 
-- `view(setup)` from `@ship/ui-runtime`: the compiler emits `export default view((ctx) => {...})` for every `.sui` view module. Wraps a setup function as `{ setup }` so `attach()` can call `module.default.setup(ctx)`.
+- `view(setup)` from `@ship/sui-runtime`: the compiler emits `export default view((ctx) => {...})` for every `.sui` view module. Wraps a setup function as `{ setup }` so `attach()` can call `module.default.setup(ctx)`.
 - `controller(def)`: the paired `controller.ts` (or legacy `view.controller.ts`) exports `controller<Scope>({ scope, on, mount, unmount })` for tier-2 logic. Resolved by the compiled view's setup.
 - They coexist. `view` ≠ `controller`.
 

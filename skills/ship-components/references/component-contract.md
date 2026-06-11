@@ -4,7 +4,7 @@ Depth reference for `ship-components`. The contract lives in `../SKILL.md`.
 
 ## The distribution test
 
-An element earns a spot in `packages/components/ui-components/src/` only if at least one applies:
+An element earns a spot in `packages/components/sui/primitives/src/` only if at least one applies:
 
 1. **Semantic primitive** — `<sui-button>`, `<sui-input>`, `<sui-select>`, `<sui-dialog>`. Maps to a familiar HTML/ARIA concept; reusable across products.
 2. **Platform concept** — `<sui-rail>`, `<sui-nav-top>`, `<sui-panel-dock>`, `<sui-status-bar>`. Models a Ship-specific shell concept that multiple views share.
@@ -35,7 +35,7 @@ Everything else is view-local. View-local compositions live in the consuming vie
 
 ```ts
 // in <tag>.controller.ts
-import { controller } from '@ship/ui-runtime'
+import { controller } from '@ship/sui-runtime'
 import type { Scope } from './<tag>.sui'
 
 export default controller<Scope>({

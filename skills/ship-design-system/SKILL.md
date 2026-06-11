@@ -50,7 +50,7 @@ once and lift it everywhere.
 
 ## The theme catalog
 
-Ship ships six themes. Every one is a full aesthetic bundle — palette
+Ship ships seven themes. Every one is a full aesthetic bundle — palette
 + surfaces + radii + shadows + motion + typography + interaction.
 Comparable in scope to Material or Apple's HIG: a theme swap is a
 different *feel*, not a different hue. There is no `palette`-only
@@ -73,6 +73,10 @@ tier, and the picker is flat.
 - **`contrast`** — accessibility-hero. Near-black + fused amber
   primary/accent, pure white foreground, flat 1–2px border shadows,
   blocky tiny radii, bold weights, amped interaction (14/22/30%).
+- **`glass`** — frosted aero. A soft tinted gradient mesh on the page
+  with translucent `backdrop-filter` surfaces (cards at ~55% white),
+  larger soft radii, an inset top-highlight "glass edge" plus a cool
+  drop shadow for lift. Brand orange survives at lower chroma.
 
 **When authoring a new theme, self-audit:** does it bend at minimum
 the palette + one of (surfaces/motion/radii/shadows) + one of
@@ -319,13 +323,13 @@ minimal and unsurprising.
 
 ## Agent surfaces
 
-Three MCP surfaces are relevant when working with tokens / themes:
+Surfaces relevant when working with tokens / themes:
 
 | Tool | When |
 |---|---|
-| `TODO(#207-followup): verify replacement for mcp__ship__view_theme_tokens` | Read the **active** theme's resolved tokens. Use before you author CSS in a component so you stay token-locked instead of guessing. Returns `{ --background, --foreground, --card, --ring, --tone-*-bg, … }`. |
-| `ship sui diagnostics <file>` | After editing a `.sui` template that reads tokens via `var(--…)`, run diagnostics to confirm no broken refs. |
-| `ship://components` (resource) | Component catalog includes `cssProperties` per primitive — what CSS custom properties each component accepts as design-token override points. |
+| `crates/sui/compiler/tokens.json` | The canonical registry of every exposed `var(--…)`. Read it to stay token-locked instead of guessing names; values resolve from `packages/sui/tokens/src/{tokens,themes}.css`. |
+| `sui-compiler build <file>` / `ship sui diagnostics <file>` | After editing a `.sui` template that reads tokens via `var(--…)`, build/diagnose to confirm no broken refs — the `sui-css-token` lint flags any name not in the registry. |
+| `.deck/catalogs/workspace.json` | Component catalog includes `cssProperties` per primitive — what CSS custom properties each component accepts as design-token override points. |
 
 Full agent surface inventory: `docs/ship-sui/references/docs/agent-surfaces.md`.
 
@@ -342,7 +346,7 @@ Two skills, one boundary:
 If you're editing `tokens.css`, `themes.css`, `themes.ts`, or a
 consumer that applies a theme (shell theme picker, marketing site) →
 this skill. If you're editing
-`packages/components/ui-components/src/sui-*/**` → `ship-components`.
+`packages/components/sui/primitives/src/sui-*/**` → `ship-components`.
 
 ## Open gaps
 
@@ -352,7 +356,7 @@ surfaced here so no one re-invents a workaround:
 - **Motion is not themable at the curve level everywhere.** `--ease-out`
   is overridable, but individual components sometimes hardcode a
   specific cubic-bezier in their `css` templates. Grep for
-  `cubic-bezier` under `packages/components/ui-components/src/sui-*/` to
+  `cubic-bezier` under `packages/components/sui/primitives/src/sui-*/` to
   find the stragglers; they should all go through the role tokens.
 - **`--tone-bg-mix` / `--tone-border-mix` / `--tone-hover-mix` are
   legacy.** They're still exposed for `util.toneVars()` but new code
@@ -373,7 +377,7 @@ surfaced here so no one re-invents a workaround:
 - **No design-system linter.** The anti-smells above are enforced by
   review, not by a rule. A `stylelint` plugin that flags raw
   `rgba(`, `oklch(0 0 0 / `, and `cubic-bezier(` inside
-  `packages/components/ui-components/src/sui-*/**` would turn this section
+  `packages/components/sui/primitives/src/sui-*/**` would turn this section
   into a CI check.
 
 ## Token schema (planned)
