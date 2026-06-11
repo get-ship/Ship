@@ -323,16 +323,12 @@ fn router_with_session(token: &str) -> (Router, SessionRegistry) {
     let registry: SessionRegistry = Arc::new(tokio::sync::Mutex::new(
         std::collections::HashMap::new(),
     ));
-    let reg_for_endpoint = registry.clone();
+    // NOTE: the session-issue endpoint was deleted (zero consumers; its route
+    // namespace no longer exists). The factory now only provides the
+    // middleware-wrapped router; tests mint sessions directly via
+    // session::issue_browser_session — the surviving unit seam.
     let router = Router::new()
         .route("/test", axum::routing::get(ok_handler))
-        .route(
-                "/api/v1/session",
-            axum::routing::post(move |auth: axum::Extension<AuthContext>| {
-                let reg = reg_for_endpoint.clone();
-                async move { session::issue_session_handler(reg, auth.0).await }
-            }),
-        )
         .layer(middleware::from_fn({
             let registry = registry.clone();
             move |req, next| auth::auth_middleware(token.clone(), registry.clone(), req, next)
@@ -340,60 +336,7 @@ fn router_with_session(token: &str) -> (Router, SessionRegistry) {
     (router, registry)
 }
 
-#[tokio::test]
-async fn session_endpoint_issues_cookie_with_valid_daemon_token() {
-    let (router, _reg) = router_with_session(VALID_DAEMON_TOKEN);
-    let req = Request::builder()
-        .method("POST")
-        .uri("/api/v1/session")
-        .header("authorization", format!("Bearer {VALID_DAEMON_TOKEN}"))
-        .body(Body::empty())
-        .unwrap();
-    let resp = router.oneshot(req).await.unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-    let cookie = resp
-        .headers()
-        .get("set-cookie")
-        .expect("set-cookie header present")
-        .to_str()
-        .unwrap()
-        .to_string();
-    // Parse the Set-Cookie header with the cookie crate for structured assertions.
-    let parsed = cookie::Cookie::parse(cookie.clone()).expect("parse Set-Cookie header");
-    assert_eq!(parsed.name(), session::COOKIE_NAME, "cookie name must be COOKIE_NAME");
-    assert_eq!(parsed.http_only(), Some(true), "cookie must be HttpOnly");
-    assert_eq!(
-        parsed.same_site(),
-        Some(cookie::SameSite::Strict),
-        "cookie must be SameSite=Strict"
-    );
-    assert!(
-        parsed.path().is_some_and(|p| p.starts_with("/api")),
-        "cookie path must be under /api, got: {:?}",
-        parsed.path()
-    );
-    assert_eq!(
-        parsed.max_age().map(|d| d.whole_seconds() as u64),
-        Some(session::BROWSER_SESSION_TTL_SECS),
-        "Max-Age must equal BROWSER_SESSION_TTL_SECS"
-    );
-    let body = resp.into_body().collect().await.unwrap().to_bytes();
-    let parsed: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(parsed["ok"], serde_json::json!(true));
-    assert_eq!(parsed["expires_in"], serde_json::json!(86400));
-}
 
-#[tokio::test]
-async fn session_endpoint_rejects_missing_auth() {
-    let (router, _reg) = router_with_session(VALID_DAEMON_TOKEN);
-    let req = Request::builder()
-        .method("POST")
-        .uri("/api/v1/session")
-        .body(Body::empty())
-        .unwrap();
-    let resp = router.oneshot(req).await.unwrap();
-    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
-}
 
 #[tokio::test]
 async fn auth_middleware_accepts_valid_session_cookie() {

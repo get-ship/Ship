@@ -20,7 +20,7 @@ mod test_ctors;
 pub use types::{
     AuthMode, RuntimeConfig, AppMetadata,
     AppState, ApiState,
-    SharedKernel, AgentMailboxes, PtyConnections,
+    SharedKernel,
     ActorGuard,
 };
 
@@ -36,8 +36,6 @@ use crate::dispatch::run_dispatch::DispatchHandle;
 pub struct ShipRuntime {
     pub(super) config: RuntimeConfig,
     pub(super) kernel: SharedKernel,
-    pub(super) agent_mailboxes: AgentMailboxes,
-    pub(super) pty_connections: PtyConnections,
     pub(super) ship_dir: PathBuf,
     /// `<root>/machine/daemons/<hash>/` per devx-04.
     pub(super) daemon_dir: PathBuf,

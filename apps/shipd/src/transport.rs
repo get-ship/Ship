@@ -5,4 +5,3 @@
 //! internals; transport stays independent of services / routes.
 
 pub mod cors;
-pub mod pty;

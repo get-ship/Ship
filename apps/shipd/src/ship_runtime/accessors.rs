@@ -8,7 +8,7 @@ use ship_substrate::task_health::HealthRegistry;
 use crate::dispatch::run_dispatch::DispatchHandle;
 
 use super::{
-    ShipRuntime, RuntimeConfig, SharedKernel, AgentMailboxes, PtyConnections,
+    ShipRuntime, RuntimeConfig, SharedKernel,
 };
 
 impl ShipRuntime {
@@ -174,14 +174,6 @@ impl ShipRuntime {
     #[cfg(feature = "ship-code")]
     pub fn dispatch_handle(&self) -> Option<&DispatchHandle> {
         self.dispatch_handle.get()
-    }
-
-    pub fn agent_mailboxes(&self) -> &AgentMailboxes {
-        &self.agent_mailboxes
-    }
-
-    pub fn pty_connections(&self) -> &PtyConnections {
-        &self.pty_connections
     }
 
     pub fn pty_sessions(&self) -> &ship_agents::services::sessions::SessionRegistry {

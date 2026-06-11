@@ -54,11 +54,6 @@ impl TestDaemon {
             )
             .with_state(api_state.clone());
 
-        let capabilities_routes = Router::new().route(
-            "/capabilities",
-            axum::routing::get(crate::routes::rest_api::capabilities),
-        );
-
         let artifacts_routes = Router::new()
             .route(
                 "/artifacts",
@@ -79,7 +74,6 @@ impl TestDaemon {
         // collection_tests use /api/v1/* canonical URLs.
         let default_auth = Self::cli_auth();
         let router = Router::new()
-            .nest("/api/v1", capabilities_routes)
             .nest("/api/v1", artifacts_routes)
             .nest("/api/v1", runtime_routes)
             .layer(axum::Extension(default_auth));

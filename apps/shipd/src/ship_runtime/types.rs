@@ -52,8 +52,6 @@ pub type ApiState = Arc<super::ShipRuntime>;
 
 // Re-export for backward compat in handlers.
 pub type SharedKernel = Arc<Mutex<ship_substrate::events::KernelRouter>>;
-pub type AgentMailboxes = Arc<Mutex<HashMap<String, ship_substrate::events::Mailbox>>>;
-pub type PtyConnections = Arc<Mutex<HashMap<String, usize>>>;
 
 /// RAII guard that stops a kernel actor when dropped. Used by SSE
 /// handlers (`routes::runtime_api`, `views::*`) so disconnect/cancel

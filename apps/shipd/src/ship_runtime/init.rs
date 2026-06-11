@@ -181,8 +181,6 @@ impl ShipRuntime {
         Ok(Self {
             config,
             kernel,
-            agent_mailboxes: Arc::new(Mutex::new(HashMap::new())),
-            pty_connections: Arc::new(Mutex::new(HashMap::new())),
             // Platform DB lives at ~/.ship/platform.db only. A workspace
             // attachment does NOT fork a second db into <workspace>/.ship/.
             // See crates/core/runtime/src/db/mod.rs:77 ("Never inside a project directory").

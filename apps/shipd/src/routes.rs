@@ -35,10 +35,6 @@
 // Handler files live at `routes/<x>_api.rs`. Callers import them as
 // `crate::routes::<x>_api::*` (or `shipd::routes::<x>_api::*` externally).
 
-pub mod actor_api;
-#[cfg(test)]
-mod actor_api_tests;
-pub mod actors_api;
 pub mod artifacts_api;
 #[cfg(feature = "ship-code")]
 pub mod hooks_api;
@@ -69,11 +65,6 @@ pub enum Route {
 
     // ── Session / auth ───────────────────────────────────────────────────
 
-    /// @route POST "/api/v1/session"
-    /// @returns SessionIssueResponse
-    /// @auth scope Full
-    IssueSession,
-
     // Account ops are served by the typed Connect `AccountService`
     // (account.proto, `ship-account` crate) — there is no REST account surface.
 
@@ -81,12 +72,6 @@ pub enum Route {
     // the dev HMR firehose (`/_deck/dev/hmr`), and the per-tag source viewer
     // (`/_deck/source/{tag}`) are all owned by `deck::router()` now — shipd
     // serves no frontend surface, so those route variants were removed.
-
-    // ── PipelineService — service-shaped CRUD + run ops ──
-
-    /// @route POST "/api/v1/pipelines/run"
-    /// @auth scope CreateRuns
-    PipelinesRun,
 
     // ── Generic view serving ─────────────────────────────────────────────
 
@@ -158,29 +143,8 @@ pub enum Route {
     // and is still wired into `ShipRuntime::init` for boot-time
     // projection recovery.
 
-    /// @route GET "/api/v1/projects/{id}/pty"
-    /// @auth scope ManageRuns
-    ProjectPty { id: String },
-
     // Workspace-scoped artifact status/promote removed — callers get 404.
     // Use the unified /api/artifacts/* surface instead.
-
-    // ── Actor kernel (L0 — kernel-directed mailbox delivery) ─────────────
-    // The mesh.* introspection reads (GET /api/v1/mesh, per-actor reads)
-    // were culled with the mesh op surface. The actor/spawn + events/route
-    // writes (L0) are live callers (sui-canvas) and stay.
-
-    /// @route POST "/api/v1/actor/spawn"
-    /// @auth scope MeshSend
-    ActorSpawn,
-
-    /// @route POST "/api/v1/events/route"
-    /// @auth scope EmitEvents
-    EventRoute,
-
-    /// @route GET "/api/v1/actors"
-    /// @auth scope ReadWorkspace
-    ListActors,
 
     // ── Artifacts ────────────────────────────────────────────────────────
     // The list/upload/download/metadata/patch/delete handlers compute the
@@ -206,12 +170,6 @@ pub enum Route {
     /// @route GET "/api/v1/artifacts/{id}/metadata"
     /// @auth handler
     ArtifactMetadata { id: String },
-
-    // ── Capabilities ─────────────────────────────────────────────────────
-
-    /// @route GET "/api/v1/capabilities"
-    /// @auth scope ReadWorkspace
-    Capabilities,
 
     // Isolation reads moved to the proto IsolationService (ship.ops.v1);
     // the REST routes were removed to avoid a parallel path.

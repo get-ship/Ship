@@ -43,8 +43,6 @@ impl ShipRuntime {
         Self {
             config: RuntimeConfig::default(),
             kernel,
-            agent_mailboxes: Arc::new(Mutex::new(HashMap::new())),
-            pty_connections: Arc::new(Mutex::new(HashMap::new())),
             ship_dir,
             daemon_dir,
             #[cfg(feature = "ship-code")]

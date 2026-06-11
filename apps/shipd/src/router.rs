@@ -15,7 +15,6 @@ use crate::{
 #[cfg(feature = "ship-code")]
 use crate::sessions;
 use crate::routes::{
-    actor_api, actors_api,
     artifacts_api,
     human_webhook,
     rest_api, runtime_api,
@@ -25,7 +24,7 @@ use crate::routes::{
 #[cfg(feature = "ship-code")]
 use crate::routes::hooks_api;
 use crate::auth::{attest, pairing, session};
-use crate::transport::{cors, pty as pty_handler};
+use crate::transport::cors;
 use axum::routing;
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -161,15 +160,8 @@ pub fn build_router(
     // operator-only at the transport. The legacy `/api/space-window/register`
     // REST route + `auth::space_window` were removed in the space cutover.
 
-    let session_issue_registry = auth_registry.clone();
-    let session_issue_handler = move |auth: axum::Extension<auth::AuthContext>| {
-        let reg = session_issue_registry.clone();
-        async move { session::issue_session_handler(reg, auth.0).await }
-    };
-
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
-        .ship_route(Route::IssueSession, session_issue_handler)
         .merge(api_ship_routes)
         // Hook ingress lives at flat `/hooks/*` (authed, but OFF `/api/v1`):
         // consumed by generated git-hook shell scripts that POST via curl and
@@ -394,11 +386,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
     // directed delivery via `EventEnvelope.target_actor_id`.
     // Base routes: always compiled regardless of feature flags.
     let router = Router::new()
-        .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
-        .ship_route(Route::EventRoute, actor_api::event_route)
-        .ship_route(Route::ListActors, actors_api::list_actors_handler)
         // Capabilities (no state required; ok against a stateful router)
-        .ship_route(Route::Capabilities, rest_api::capabilities)
         // Isolation reads are served by the proto IsolationService
         // (ship.ops.v1) — the one op-surface path.
         .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
@@ -419,7 +407,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // SkillService — all Connect wires (ship.ops.v1); no REST shells here.
         // Events / projections
         .ship_route(Route::EventStream, runtime_api::event_stream)
-        .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
 
         // Artifacts platform (three-scope)
         .merge(
