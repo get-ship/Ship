@@ -188,12 +188,45 @@ async fn advance_pipeline_inner(
     for (step_idx, step) in pipeline.steps.iter().enumerate().filter_map(|(i, s)| {
         next_steps.iter().find(|ns| ns.id == s.id).map(|ns| (i, *ns))
     }) {
+        if dispatch_step(
+            kernel, &job, step, step_idx, &run_vars,
+            &worktree_path, ship_dir_override, octx,
+        )
+        .await
+        {
+            dispatched_any = true;
+        }
+    }
+
+    dispatched_any
+}
+
+/// Dispatch ONE pipeline step: interpolate `{{ var }}` references, then run
+/// the per-type dispatch (fanout / run / agent-review). Returns true when the
+/// step was dispatched.
+///
+/// Shared body: the event-driven advancement loop above calls it today; the
+/// coordinator's live step ops (C9 cutover) call the SAME function so the two
+/// mechanisms can never drift while they coexist.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn dispatch_step(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    job: &crate::projections::pipeline_run::PipelineRun,
+    raw_step: &ship_substrate::events::pipeline::PipelineStep,
+    step_idx: usize,
+    run_vars: &std::collections::HashMap<String, String>,
+    worktree_path: &std::path::Path,
+    ship_dir_override: Option<&std::path::Path>,
+    octx: &OrchestratorContext,
+) -> bool {
+    let slug = &job.slug;
+    let step = raw_step;
         // Interpolate {{ var }} references before dispatch.
         let step = match ship_pipelines::variables::interpolate_step(step, &run_vars, &Default::default()) {
             Ok(s) => s,
             Err(missing) => {
                 tracing::error!(slug, step_id = step.id, "pipeline: unresolved pipeline var: {missing} in step {}", step.id);
-                continue;
+                return false;
             }
         };
         let step = &step;
@@ -208,10 +241,10 @@ async fn advance_pipeline_inner(
                 kernel, &job, step, fanout, step_idx, ship_dir_override, octx,
             ).await;
             if spawned > 0 {
-                emit_pipeline_run_dispatched_with_meta(kernel, &job.pipeline_run_id, &worktree_path, slug, None, ship_dir_override).await;
-                dispatched_any = true;
+                emit_pipeline_run_dispatched_with_meta(kernel, &job.pipeline_run_id, worktree_path, slug, None, ship_dir_override).await;
+                return true;
             }
-            continue;
+            return false;
         }
 
         match step.step_type {
@@ -220,14 +253,14 @@ async fn advance_pipeline_inner(
                     Some(ref c) => c.clone(),
                     None => {
                         tracing::error!(slug, step_id = step.id, "pipeline: run step missing command");
-                        continue;
+                        return false;
                     }
                 };
                 let kernel_clone = kernel.clone();
                 let pipeline_run_id = job.pipeline_run_id.clone();
                 let slug_clone = slug.clone();
                 let step_id = step.id.clone();
-                let work_dir = worktree_path.clone();
+                let work_dir = worktree_path.to_path_buf();
                 let ship_dir_owned = ship_dir_override.map(|p| p.to_path_buf());
                 let journal_store = octx.journal_store.clone();
                 tokio::spawn(async move {
@@ -237,24 +270,24 @@ async fn advance_pipeline_inner(
                         &journal_store,
                     ).await;
                 });
-                dispatched_any = true;
+                return true;
             }
             StepType::Agent | StepType::Review => {
                 // Load-time validation guarantees an agent here; defensively skip
                 // on the impossible path rather than substituting a role name.
                 let Some(agent) = step.agent.as_deref().filter(|a| !a.is_empty()) else {
                     tracing::error!(slug, step_id = step.id, "pipeline: step missing agent");
-                    continue;
+                    return false;
                 };
 
                 if !worktree_path.exists() {
                     tracing::error!(slug, "pipeline: worktree missing");
-                    continue;
+                    return false;
                 }
 
                 // Resolve consumes before dispatch — fail fast if inputs are missing.
                 let resolved_inputs = if let Some(pipeline) = &job.steps {
-                    match resolve_consumes(kernel, step, pipeline, &job.pipeline_run_id, &worktree_path).await {
+                    match resolve_consumes(kernel, step, pipeline, &job.pipeline_run_id, worktree_path).await {
                         Ok(inputs) => inputs,
                         Err(e) => {
                             tracing::error!(
@@ -264,7 +297,7 @@ async fn advance_pipeline_inner(
                             emit_step_failed(
                                 kernel, &job.pipeline_run_id, slug, &step.id, &e,
                             ).await;
-                            continue;
+                            return false;
                         }
                     }
                 } else {
@@ -274,13 +307,13 @@ async fn advance_pipeline_inner(
                 octx.platform.graceful_agent_exit(slug, step.harness.as_deref()).await;
 
                 tracing::info!(slug, agent, step_id = step.id, "pipeline: compiling agent config");
-                if let Err(e) = octx.platform.compile_agent_config(&worktree_path, agent) {
+                if let Err(e) = octx.platform.compile_agent_config(worktree_path, agent) {
                     tracing::warn!(slug, agent, "pipeline: ship use failed (non-fatal): {e}");
                 }
 
                 if let Some(pipeline) = &job.steps {
                     super::pipeline_specs::prepare_step_for_dispatch(
-                        &worktree_path, slug, &job.pipeline_run_id,
+                        worktree_path, slug, &job.pipeline_run_id,
                         &job.spec_path, pipeline, step, &resolved_inputs,
                     );
                 }
@@ -294,7 +327,7 @@ async fn advance_pipeline_inner(
                     branch: job.branch.clone(),
                     spec_path: job.spec_path.clone(),
                     spec_content: None,
-                    work_dir: worktree_path.clone(),
+                    work_dir: worktree_path.to_path_buf(),
                     env: ship_code::runner::build_spawn_env(&slug, agent, octx.spawn_policy.as_ref()).await,
                     exit_tx: Some(exit_tx),
                     launch: LaunchProfile {
@@ -343,7 +376,7 @@ async fn advance_pipeline_inner(
                             slug.clone(),
                             step.id.clone(),
                             step.step_type.clone(),
-                            worktree_path.clone(),
+                            worktree_path.to_path_buf(),
                         );
                         let (activity_tx, activity_rx) = tokio::sync::mpsc::unbounded_channel();
                         octx.done_flags.lock().await.insert(
@@ -364,16 +397,13 @@ async fn advance_pipeline_inner(
                     }
                     Err(e) => {
                         tracing::error!(slug, step_id = step.id, "pipeline: spawn failed: {e}");
-                        continue;
+                        return false;
                     }
                 }
 
-                emit_pipeline_run_dispatched_with_meta(kernel, &job.pipeline_run_id, &worktree_path, slug, None, ship_dir_override).await;
+                emit_pipeline_run_dispatched_with_meta(kernel, &job.pipeline_run_id, worktree_path, slug, None, ship_dir_override).await;
                 emit_step_dispatched_event(kernel, &job.pipeline_run_id, &step.id, "agent", slug, ship_dir_override).await;
-                dispatched_any = true;
+                true
             }
         }
-    }
-
-    dispatched_any
 }
