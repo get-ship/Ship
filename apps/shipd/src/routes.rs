@@ -44,7 +44,6 @@ pub mod runtime_api;
 pub mod sandbox_api;
 #[cfg(test)]
 mod sandbox_api_tests;
-pub mod schema_api;
 #[cfg(test)]
 mod scope_enforcement_tests;
 pub mod webhook_ext;
@@ -74,10 +73,6 @@ pub enum Route {
     // serves no frontend surface, so those route variants were removed.
 
     // ── Generic view serving ─────────────────────────────────────────────
-
-    /// @route GET "/api/v1/ship/schema"
-    /// @auth scope ReadWorkspace
-    ShipSchema,
 
     /// @route POST "/api/v1/sessions/spawn"
     /// @auth scope ManageRuns
@@ -124,11 +119,7 @@ pub enum Route {
     InstalledProviders,
 
 
-    // ── Process projection / events polling / daemon status (slice 6) ────
-
-    /// @route GET "/daemon/status"
-    /// @auth scope ReadWorkspace
-    DaemonStatus,
+    // ── Events polling (slice 6) ──────────────────────────────────────────
 
     // ── Events / projections ─────────────────────────────────────────────
 

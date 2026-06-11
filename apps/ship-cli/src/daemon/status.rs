@@ -46,7 +46,9 @@ pub(super) fn print_supervision_only(s: &SupervisionStatus) {
 
 pub(super) fn print_live_status(port: u16, token: &str, supervision: &SupervisionStatus) -> Result<()> {
     let supervisor_pid = supervision.pid;
-    let url = format!("http://127.0.0.1:{port}/daemon/status");
+    // /api/health carries the full status payload (pid/version/uptime/jobs/
+    // sweep) — the former authenticated /daemon/status route folded into it.
+    let url = format!("http://127.0.0.1:{port}/api/health");
     let mut resp = ureq::get(&url)
         .header("Authorization", &format!("Bearer {token}"))
         .config()
@@ -59,13 +61,10 @@ pub(super) fn print_live_status(port: u16, token: &str, supervision: &Supervisio
         .read_json()
         .map_err(|e| anyhow::anyhow!("status: malformed response body: {e}"))?;
 
-    if !value["ok"].as_bool().unwrap_or(false) {
-        anyhow::bail!(
-            "daemon returned error: {}",
-            value["data"].as_str().unwrap_or("unknown")
-        );
-    }
-    let d = &value["data"];
+    // `healthy: false` means a supervised background task died — still a
+    // running daemon, so print the status plus a degraded marker.
+    let degraded = !value["healthy"].as_bool().unwrap_or(true);
+    let d = &value;
     let pid = d["pid"].as_u64().unwrap_or(0);
     let version = d["version"].as_str().unwrap_or("?");
     let uptime = format_uptime(d["uptime_secs"].as_u64().unwrap_or(0));
@@ -83,7 +82,11 @@ pub(super) fn print_live_status(port: u16, token: &str, supervision: &Supervisio
         .unwrap_or_else(|| "never".to_string());
     let drift = d["last_sweep_drift"].as_u64().unwrap_or(0);
 
-    println!("shipd running");
+    if degraded {
+        println!("shipd running (DEGRADED — a background task died; see /api/health tasks)");
+    } else {
+        println!("shipd running");
+    }
     println!("  supervised by:  {}", supervision.adapter.label());
     println!("  pid:            {pid}");
     if let Some(s) = supervisor_pid

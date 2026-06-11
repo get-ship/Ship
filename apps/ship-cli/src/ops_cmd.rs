@@ -118,21 +118,6 @@ fn op_post(path: &str, body: &str) -> Result<(u16, String)> {
     }
 }
 
-/// GET `path`, returning `(status, body)`.
-fn op_get(path: &str) -> Result<(u16, String)> {
-    match transport()? {
-        OpTransport::Injected { base, token } => token_http(&base, &token, "GET", path, None),
-        #[cfg(unix)]
-        OpTransport::Unix(sock) => {
-            let (s, b) = unix_http(&sock, "GET", path, None)?;
-            Ok((s, String::from_utf8_lossy(&b).into_owned()))
-        }
-        OpTransport::Tcp { port, token } => {
-            token_http(&format!("http://127.0.0.1:{port}"), &token, "GET", path, None)
-        }
-    }
-}
-
 /// Minimal blocking HTTP/1.1 over a unix socket. We control both ends (axum)
 /// and the bodies are small Connect-JSON, so `Connection: close` + read-to-EOF
 /// is sufficient; chunked is de-chunked defensively. No token — the daemon
@@ -212,15 +197,21 @@ fn dechunk(mut body: &[u8]) -> Vec<u8> {
     out
 }
 
-/// Fetch the op catalog (reads + commands) from the daemon.
+/// The op catalog (reads + commands), read in-process from the crate-owned
+/// constants — the same `ship_ops_rpc::catalog` the daemon serves. No daemon
+/// round-trip: the CLI links the crate, so the catalog can never be staler
+/// than the binary itself.
 fn catalog() -> Result<(Vec<Value>, Vec<Value>)> {
-    let (status, text) = op_get("/api/v1/ship/schema")?;
-    if !(200..300).contains(&status) {
-        anyhow::bail!("fetching op schema failed ({status}): {text}");
-    }
-    let resp: Value = serde_json::from_str(&text).context("parsing op schema")?;
-    let ops = resp["data"]["ops"].as_array().cloned().unwrap_or_default();
-    let cmds = resp["data"]["commands"].as_array().cloned().unwrap_or_default();
+    let ops = serde_json::to_value(ship_ops_rpc::catalog::OPS)
+        .context("serializing op catalog")?
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let cmds = serde_json::to_value(ship_ops_rpc::catalog::COMMANDS)
+        .context("serializing command catalog")?
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     Ok((ops, cmds))
 }
 

@@ -18,7 +18,7 @@ use crate::routes::{
     artifacts_api,
     human_webhook,
     rest_api, runtime_api,
-    sandbox_api, schema_api,
+    sandbox_api,
     webhook_ext,
 };
 #[cfg(feature = "ship-code")]
@@ -395,11 +395,9 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Agent stop/steer, pipeline dispatch, job lifecycle, log stream, and
         // pipeline run log stream all moved to typed Connect wires
         // (AgentsService / PipelinesService / agent.Dispatch).
-        .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
         // View schema (ship.*) — read-side, served from the ship-ops-rpc
         // catalog. Manifest / bundle / file-list / write paths moved to
         // DiscoveryService / Connect view-edit wire.
-        .ship_route(Route::ShipSchema, schema_api::serve_schema)
         // The `/_deck/mutation/{name}` 410 tombstone moved to `deck::router()`
         // — it's a `/_deck/*` serving concern (deck composes that form `action`
         // URL via `deck_core::routes::mutation_action`), not an RPC route.
@@ -464,9 +462,14 @@ pub(crate) fn handle_panic(info: Box<dyn std::any::Any + Send + 'static>) -> Res
 
 /// GET /api/health — unauthenticated health check.
 ///
-/// Returns daemon uptime, PID, and status of all supervised background tasks.
+/// Returns daemon uptime, PID, status of all supervised background tasks,
+/// and the aggregate job-status summary (`ship daemon status` reads this —
+/// the former authenticated `/daemon/status` route folded in here; the
+/// summary is counts only, no job identities).
 /// Any dead task sets the top-level `healthy` flag to false.
 pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<serde_json::Value> {
+    use ship_pipeline_runtime::projections::pipeline_run::PipelineRunStatus;
+
     let tasks = rt.health_registry().snapshot();
     let all_healthy = tasks.iter().all(|t| t.alive);
     // Resolved project dir: workspace if attached, else the global dir
@@ -475,6 +478,40 @@ pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<ser
         .workspace_dir()
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| rt.ship_dir().display().to_string());
+
+    let jobs = ship_pipeline_runtime::projections::pipeline_run::load_pipeline_runs_at(
+        rt.ship_dir(),
+    )
+    .unwrap_or_default();
+    let mut counts: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+    for j in jobs.values() {
+        let key = match j.status {
+            PipelineRunStatus::Pending => "pending",
+            PipelineRunStatus::Dispatched => "dispatched",
+            PipelineRunStatus::Completed => "completed",
+            PipelineRunStatus::GatePending => "gate_pending",
+            PipelineRunStatus::Blocked => "blocked",
+            PipelineRunStatus::Merged => "merged",
+            PipelineRunStatus::Failed => "failed",
+            PipelineRunStatus::Cancelled => "cancelled",
+        };
+        *counts.entry(key).or_insert(0) += 1;
+    }
+
+    // Most recent sweep_completed and the drift count it recorded.
+    let sweep_events = ship_substrate::runtime_reads::load_recent_events_by_type(
+        rt.ship_dir(),
+        &["supervisor.sweep_completed"],
+        100,
+    )
+    .unwrap_or_default();
+    let last_sweep = sweep_events.iter().max_by_key(|e| e.created_at);
+    let last_sweep_at = last_sweep.map(|e| e.created_at.to_rfc3339());
+    let last_sweep_drift = last_sweep
+        .and_then(|e| serde_json::from_str::<serde_json::Value>(&e.payload_json).ok())
+        .and_then(|p| p["drift_count"].as_u64())
+        .unwrap_or(0);
+
     let bi = build_info::build_info!();
     Json(serde_json::json!({
         "ok": all_healthy,
@@ -484,8 +521,14 @@ pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<ser
         "build": bi.full(),
         "ship_dir": ship_dir,
         "pid": std::process::id(),
+        "port": rt.config().port,
+        "uptime_secs": rt.uptime().as_secs(),
         "dev_mode": pairing::is_dev_mode(),
         "tasks": tasks,
+        "jobs_total": jobs.len(),
+        "jobs_by_status": counts,
+        "last_sweep_at": last_sweep_at,
+        "last_sweep_drift": last_sweep_drift,
     }))
 }
 

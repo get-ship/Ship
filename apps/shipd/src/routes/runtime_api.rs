@@ -17,15 +17,13 @@
 // resolve through `crate::routes::runtime_api::*`.
 //
 // Note: several former submodules (`agents`, `dispatch`, `jobs`,
-// `jobs_status`, `pipeline_run`) were cut when their REST handlers
-// moved to the typed Connect wires (AgentsService, PipelinesService,
-// agent.Dispatch). The KEEP set here covers the read-side residual:
-// `daemon_status` / `rebuild_projections` and the event stream.
+// `jobs_status`, `pipeline_run`, `daemon`) were cut when their REST
+// handlers moved to the typed Connect wires (AgentsService,
+// PipelinesService, agent.Dispatch) or folded into `/api/health`
+// (daemon_status). The KEEP set here is the SSE event stream, slated
+// to retire once the shell moves to `StreamService.Events`.
 
-pub mod daemon;
 pub mod events;
-
-pub use daemon::daemon_status;
 
 pub use events::{EventsPollQuery, event_stream};
 pub use ship_pipeline_runtime::run_core::PipelineRunRequest;
@@ -98,26 +96,24 @@ mod tests {
         .with_actor_id("test");
         state.persist_and_route(&env).await.unwrap();
     }
-    // The daemon_status handler is the sole KEEP handler in this module
-    // (read-side). The former `stop_agent`/`steer_agent`/`get_job_detail`/
-    // `cancel_job`/`list_jobs` REST handlers were cut when their typed
-    // Connect wires took over (AgentsService, PipelinesService,
-    // agent.Dispatch); their tests went with them.
+    // The former `stop_agent`/`steer_agent`/`get_job_detail`/`cancel_job`/
+    // `list_jobs` REST handlers were cut when their typed Connect wires took
+    // over (AgentsService, PipelinesService, agent.Dispatch); their tests
+    // went with them. `daemon_status` folded into `/api/health` — the
+    // job-status fields it carried are pinned here against that handler.
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn daemon_status_returns_pid_and_uptime() {
+    async fn health_check_reports_pid_and_job_status() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
         let _ = emit_pipeline_run_started(&state, "status-job").await;
         emit_sweep_completed(&state, 0).await;
-        let response = daemon_status(State(state)).await.into_response();
-        assert_eq!(response.status(), StatusCode::OK);
-        let val = collect_body(response).await;
-        let d = &val["data"];
-        assert!(d["pid"].as_u64().unwrap() > 0);
-        assert!(d["jobs_total"].as_u64().unwrap() >= 1);
-        assert_eq!(d["jobs_by_status"]["pending"], serde_json::json!(1));
-        assert!(d["last_sweep_at"].is_string());
-        assert_eq!(d["last_sweep_drift"], serde_json::json!(0));
+        let val = crate::router::health_check(state).await.0;
+        assert!(val["pid"].as_u64().unwrap() > 0);
+        assert!(val["uptime_secs"].is_u64());
+        assert!(val["jobs_total"].as_u64().unwrap() >= 1);
+        assert_eq!(val["jobs_by_status"]["pending"], serde_json::json!(1));
+        assert!(val["last_sweep_at"].is_string());
+        assert_eq!(val["last_sweep_drift"], serde_json::json!(0));
     }
 }
