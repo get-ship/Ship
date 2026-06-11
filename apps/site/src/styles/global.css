@@ -2,15 +2,15 @@
  * Ship marketing-site global styles.
  *
  * Loads canonical Ship tokens + Syne/DM Sans (matching Studio + docs).
- * Tokens and per-theme overrides live in `./tokens.css` + `./themes.css`,
- * mirrored from the docs site so the marketing surface ships its own
- * standalone copy.
+ * Per-theme overrides come from the canonical @ship/tokens package
+ * (de-vendored — the local themes.css copy diverged). Base tokens still
+ * load from the local ./tokens.css.
  */
 
 @import '@fontsource-variable/syne';
 @import '@fontsource-variable/dm-sans';
 @import './tokens.css';
-@import './themes.css';
+@import '@ship/tokens/themes.css';
 
 *,
 *::before,

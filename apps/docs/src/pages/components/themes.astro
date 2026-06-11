@@ -1,6 +1,6 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import { THEMES } from '../../lib/themes';
+import { THEMES } from '@ship/tokens/themes';
 ---
 
 <StarlightPage
@@ -69,7 +69,7 @@ import { THEMES } from '../../lib/themes';
     applyTheme,
     persistTheme,
     isValidTheme,
-  } from '../../lib/themes';
+  } from '@ship/tokens/themes';
 
   for (const btn of document.querySelectorAll<HTMLElement>('[data-apply-theme]')) {
     btn.addEventListener('click', () => {

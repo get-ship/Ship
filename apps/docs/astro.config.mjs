@@ -215,7 +215,10 @@ export default defineConfig({
       },
       customCss: [
         "./src/styles/tokens.css",
-        "./src/styles/themes.css",
+        // Canonical theme catalog (packages/sui/tokens). De-vendored: the
+        // local copy diverged from canonical (stale ship-* selectors, missing
+        // syntax-* tokens) — import the single source instead.
+        "@ship/tokens/themes.css",
         "./src/styles/ship-theme.css",
       ],
       components: {

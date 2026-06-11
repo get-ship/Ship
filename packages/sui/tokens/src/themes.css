@@ -248,7 +248,7 @@
 
 /* Pressed CTA collapses outset → inset, preserving shadow as the
  * tactile signal. Skip transform under reduced motion via :active. */
-:root[data-theme='halo'] ship-button[variant='solid']:active::part(button),
+:root[data-theme='halo'] sui-button[variant='solid']:active::part(button),
 :root[data-theme='halo'] button:active,
 :root[data-theme='halo'] .dash-link-btn:active {
   box-shadow: var(--shadow-inset-soft);
@@ -832,8 +832,8 @@
   --label-tracking: 0.14em;
   --label-weight: 500;
 }
-:root[data-theme='paper'] ship-card,
-:root[data-theme='paper'] .ship-card,
+:root[data-theme='paper'] sui-card,
+:root[data-theme='paper'] .sui-card,
 :root[data-theme='paper'] [class*='card'] {
   /* Soft paper-fold corner cue: extra warm inner shadow on the top-left
    * to hint at a leaf of paper sitting on the page. Skipped under
@@ -861,7 +861,7 @@
   background-attachment: fixed;
 }
 @media (prefers-reduced-motion: no-preference) {
-  :root[data-theme='halo'] ship-button:hover::part(button),
+  :root[data-theme='halo'] sui-button:hover::part(button),
   :root[data-theme='halo'] button:hover {
     box-shadow:
       -3px -3px 8px oklch(1 0 0 / 80%),
@@ -881,8 +881,8 @@
   0%   { background-position: 0% 0%, 100% 100%, 100% 0%; }
   100% { background-position: 8% 4%, 92% 96%, 96% 4%; }
 }
-:root[data-theme='glass'] ship-card,
-:root[data-theme='glass'] .ship-card {
+:root[data-theme='glass'] sui-card,
+:root[data-theme='glass'] .sui-card {
   border-image: linear-gradient(
     135deg,
     oklch(0.62 0.14 280 / 50%),
@@ -898,8 +898,8 @@
     0 1px 0 oklch(1 0 0 / 50%),
     0 0 12px oklch(0.62 0.14 280 / 14%);
 }
-:root[data-theme='glass'] ship-card:hover,
-:root[data-theme='glass'] .ship-card:hover {
+:root[data-theme='glass'] sui-card:hover,
+:root[data-theme='glass'] .sui-card:hover {
   --card-backdrop-filter: blur(32px) saturate(220%);
 }
 
