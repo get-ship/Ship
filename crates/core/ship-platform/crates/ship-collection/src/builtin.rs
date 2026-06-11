@@ -66,7 +66,24 @@ pub fn annotations_schema() -> SchemaDoc {
     SchemaDoc { id: "annotations".into(), title: Some("Annotations".into()), system: true, fields }
 }
 
+pub fn decisions_schema() -> SchemaDoc {
+    let mut fields = IndexMap::new();
+    fields.insert(
+        "kind".into(),
+        req_enum(&["correction", "operational", "mistake", "rejected", "tooling", "dependency", "product"]),
+    );
+    fields.insert("status".into(), req_enum(&["active", "superseded"]));
+    fields.insert("title".into(), required(FieldKind::String));
+    fields.insert("rationale".into(), field(FieldKind::Markdown));
+    fields.insert("conviction".into(), enum_field(&["low", "medium", "high"]));
+    fields.insert("tags".into(), field(FieldKind::Array));
+    fields.insert("confirmations".into(), field(FieldKind::Number));
+    fields.insert("supersedes".into(), field(FieldKind::String));
+    fields.insert("superseded_by".into(), field(FieldKind::String));
+    SchemaDoc { id: "decisions".into(), title: Some("Decisions".into()), system: true, fields }
+}
+
 /// All built-in schemas.
 pub fn all_builtin_schemas() -> Vec<SchemaDoc> {
-    vec![notes_schema(), feedback_schema(), annotations_schema()]
+    vec![notes_schema(), feedback_schema(), annotations_schema(), decisions_schema()]
 }

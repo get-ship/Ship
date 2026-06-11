@@ -13,6 +13,7 @@
 //! owns its events at L1 (keystone-A de-bucket, 2026-06-10).
 
 pub mod builtin;
+pub mod decisions;
 pub mod error;
 pub mod event_registrations;
 pub mod events;
