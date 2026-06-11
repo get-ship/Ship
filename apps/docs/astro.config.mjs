@@ -2,6 +2,25 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import markdoc from "@astrojs/markdoc";
 import starlightSidebarTopics from "starlight-sidebar-topics";
+import { existsSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+// Generated per-pack component reference. collect-component-docs.ts (run via
+// the collect-skill-docs.ts prebuild/predev pass) emits one page per public
+// pack component into src/content/docs/components/<family>/ from the packs'
+// CEM output. The CEM inputs are build artifacts (.ship/sui-out, gitignored):
+// on a checkout that hasn't compiled the packs the directory is absent, and a
+// sidebar group pointing at a missing directory fails the build — so include
+// each group only when it has pages, mirroring src/lib/components.ts's
+// render-empty-instead-of-fail stance for the catalog.
+function componentRefGroup(label, family) {
+  const dir = join(HERE, "src/content/docs/components", family);
+  if (!existsSync(dir) || readdirSync(dir).length === 0) return [];
+  return [{ label, autogenerate: { directory: `components/${family}` } }];
+}
 
 // Internals visibility:
 //   - dev (bun run dev): always on — contributors want access locally.
@@ -95,6 +114,10 @@ function buildTopics(isInternal) {
         label: "Playground",
         link: "/components/playground/",
       },
+      // Generated component reference (CEM-derived, one page per public pack
+      // component) — present only after the packs have been compiled.
+      ...componentRefGroup("SUI Components", "sui"),
+      ...componentRefGroup("Ship Components", "ship"),
     ],
   },
   {

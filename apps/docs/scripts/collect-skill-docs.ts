@@ -20,6 +20,7 @@ import {
   readdirSync, copyFileSync, watch, rmSync,
 } from "fs"
 import { join, resolve, dirname, basename } from "path"
+import { collectComponentDocs } from "./collect-component-docs"
 
 const SCRIPT_DIR = dirname(new URL(import.meta.url).pathname)
 const REPO_ROOT = resolve(SCRIPT_DIR, "../../../")
@@ -293,6 +294,11 @@ function run(): void {
     if (!existsSync(root.dir)) continue
     total += collectSkillRoot(root.dir, root.srcPrefix, audience)
   }
+
+  // Component reference — one page per public pack component, generated from
+  // the packs' CEM output into `components/<family>/` inside the same
+  // delete-then-regen tree (so the drift checker covers these pages too).
+  total += collectComponentDocs(GENERATED_DIR)
 
   // Copy hand-authored content from src/content-source/ into the same
   // generated tree so Starlight's content collection (which points only
