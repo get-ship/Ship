@@ -55,6 +55,6 @@ re-diagnoses until clean, then scores. If the score is too low, it
 rewrites — but the compile path is never the blocker.
 
 See `docs/ship-sui/references/docs/agent-surfaces.md` for the full tool
-inventory. See `docs/ship-sui/references/agent-authoring.md` for the
+inventory. See `docs/ship-sui/references/docs/agent-authoring.md` for the
 do-now checklist (filename rules, the `<data>` directive shape,
 the right places to put `<style>`).

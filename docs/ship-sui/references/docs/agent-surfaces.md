@@ -172,7 +172,7 @@ Two files own the agent-facing prose:
 | File | Audience | Use |
 |---|---|---|
 | `docs/ship-sui/SKILL.md` | Loaded automatically when the `ship-sui` skill activates | Architecture, hard rules, the four layers. |
-| `docs/ship-sui/references/agent-authoring.md` | The do-now checklist | Step-by-step view scaffold, common mistakes, the green-path workflow. |
+| `docs/ship-sui/references/docs/agent-authoring.md` | The do-now checklist | Step-by-step view scaffold, common mistakes, the green-path workflow. |
 
 Load the file directly or activate from the Ship agent configuration — there is no `set_skill_var` tool.
 
