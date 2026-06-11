@@ -183,6 +183,7 @@ check:
 gate:
     @just check
     @just lint
+    @just doc-check
     @just gen-contract-check
     @just gen-events-check
     @just gen-indexes-check
@@ -263,6 +264,13 @@ fmt:
 [group('occasional')]
 fmt-check:
     cargo fmt --check
+
+# Rustdoc link enforcement — fail on broken intra-doc links across the workspace.
+# Equivalent to CI's doc-check step. Run after `just bootstrap` so deck-core
+# build assets are present.
+[group('occasional')]
+doc-check:
+    RUSTDOCFLAGS="-D rustdoc::broken_intra_doc_links" cargo doc --workspace --exclude ship-host --no-deps
 
 # Lint Ship views (no inline <script>, style budget, undefined signals).
 [group('occasional')]
@@ -541,6 +549,7 @@ check-raw:
     @scripts/lint/check-module-dag.sh
     @scripts/lint/check-sui-runtime-no-ship-api.sh
     @scripts/lint/check-deck-package-names.sh
+    @scripts/lint/check-module-docs.sh
     @just lint-justfile
     @just lint-vocab
     @just check-migrations

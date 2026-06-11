@@ -1,3 +1,12 @@
+//! `ship-platform` (L1) — the domain-layer facade and projection assembly point.
+//!
+//! This crate re-exports the L1 domain sub-crates (`ship-config`, `ship-agents`,
+//! `ship-auth`, `ship-isolation`, etc.) at their legacy `ship_platform::*` paths
+//! and installs the domain projection set via [`install_defaults`].
+//!
+//! Most logic lives in the sub-crates; this file is the composition root and
+//! back-compat re-export surface.
+
 // ── L1 modules (agent/collection domain layer) ────────────────────────────────
 
 /// Platform config facade — thin re-export shim over `ship-config` (SSOT).
