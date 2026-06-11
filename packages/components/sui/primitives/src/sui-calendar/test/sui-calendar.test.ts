@@ -124,30 +124,32 @@ describe('<sui-calendar> — view switching + navigation (#2/#3)', () => {
     expect(shadow(v.el).querySelector('[part=title]')!.textContent).toContain('Jun')
   })
 
-  it('emits sui-view-change when the toolbar switches view', async () => {
+  it('emits sui-view-change {view} (bubbles + composed) when the toolbar switches view', async () => {
     const { v } = mountWith(EV)
     live.push(v)
-    let view: string | null = null
-    v.el.addEventListener('sui-view-change', (e) => {
-      view = (e as CustomEvent).detail.view
-    })
+    let evt: CustomEvent | null = null
+    v.el.addEventListener('sui-view-change', (e) => { evt = e as CustomEvent })
     await v.flush()
     clickShadow(v.el, '[data-view="week"]')
     await v.flush()
-    expect(view).toBe('week')
+    expect(evt).not.toBeNull()
+    expect(evt!.detail).toEqual({ view: 'week' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
-  it('emits sui-date-change on next/prev navigation', async () => {
+  it('emits sui-date-change {date} (bubbles + composed) on next/prev navigation', async () => {
     const { v } = mountWith(EV)
     live.push(v)
-    let date: string | null = null
-    v.el.addEventListener('sui-date-change', (e) => {
-      date = (e as CustomEvent).detail.date
-    })
+    let evt: CustomEvent | null = null
+    v.el.addEventListener('sui-date-change', (e) => { evt = e as CustomEvent })
     await v.flush()
     clickShadow(v.el, '[data-nav="next"]')
     await v.flush()
-    expect(date).toBe('2026-07-15')
+    expect(evt).not.toBeNull()
+    expect(evt!.detail).toEqual({ date: '2026-07-15' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 })
 
@@ -173,19 +175,27 @@ describe('<sui-calendar> — week/day grid', () => {
 })
 
 describe('<sui-calendar> — event selection (#8)', () => {
-  it('clicking a chip selects it and emits sui-event-select', async () => {
+  it('clicking a chip selects it and emits sui-event-select + sui-event-click', async () => {
     const { v } = mountWith(EV)
     live.push(v)
-    let detail: { id: string; selectedIds: string[] } | null = null
-    v.el.addEventListener('sui-event-select', (e) => {
-      detail = (e as CustomEvent).detail
-    })
+    let selectEvt: CustomEvent | null = null
+    let clickEvt: CustomEvent | null = null
+    v.el.addEventListener('sui-event-select', (e) => { selectEvt = e as CustomEvent })
+    v.el.addEventListener('sui-event-click', (e) => { clickEvt = e as CustomEvent })
     await v.flush()
     clickShadow(v.el, '[data-event-id="a"]')
     await v.flush()
-    expect(detail).not.toBeNull()
-    expect(detail!.id).toBe('a')
-    expect(detail!.selectedIds).toContain('a')
+    expect(selectEvt).not.toBeNull()
+    const detail = selectEvt!.detail as { id: string; selectedIds: string[] }
+    expect(detail.id).toBe('a')
+    expect(detail.selectedIds).toContain('a')
+    expect(selectEvt!.bubbles).toBe(true)
+    expect(selectEvt!.composed).toBe(true)
+    // The raw chip-click event fires alongside selection with just the id.
+    expect(clickEvt).not.toBeNull()
+    expect(clickEvt!.detail).toEqual({ id: 'a' })
+    expect(clickEvt!.bubbles).toBe(true)
+    expect(clickEvt!.composed).toBe(true)
     // aria-selected reflects engine selection.
     expect(shadow(v.el).querySelector('[data-event-id="a"]')!.getAttribute('aria-selected')).toBe(
       'true',

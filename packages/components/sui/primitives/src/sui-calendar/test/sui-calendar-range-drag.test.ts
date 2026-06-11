@@ -49,13 +49,11 @@ const TIMED: CalendarEvent[] = [
 ]
 
 describe('<sui-calendar> — month-grid range selection (range-mode=date)', () => {
-  it('click+drag across day cells sets the engine range and emits sui-range-change', async () => {
+  it('click+drag across day cells sets the engine range and emits sui-range-change (bubbles + composed)', async () => {
     const { v, calendar } = mountWith([], { rangeMode: 'date' })
     live.push(v)
-    let detail: { start: string; end: string } | null = null
-    v.el.addEventListener('sui-range-change', (e) => {
-      detail = (e as CustomEvent).detail
-    })
+    let evt: CustomEvent | null = null
+    v.el.addEventListener('sui-range-change', (e) => { evt = e as CustomEvent })
     await v.flush()
     const from = shadow(v.el).querySelector('[role=gridcell][data-iso="2026-06-15"]')!
     const to = shadow(v.el).querySelector('[role=gridcell][data-iso="2026-06-18"]')!
@@ -64,8 +62,10 @@ describe('<sui-calendar> — month-grid range selection (range-mode=date)', () =
     pointer(to, 'pointerup')
     await v.flush()
     expect(calendar.range()).toEqual({ start: '2026-06-15', end: '2026-06-18' })
-    expect(detail).not.toBeNull()
-    expect(detail!).toEqual({ start: '2026-06-15', end: '2026-06-18' })
+    expect(evt).not.toBeNull()
+    expect(evt!.detail).toEqual({ start: '2026-06-15', end: '2026-06-18' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('does NOT begin a range when range-mode is none', async () => {
@@ -110,13 +110,11 @@ describe('<sui-calendar> — month-grid range selection (range-mode=date)', () =
 })
 
 describe('<sui-calendar> — drag-to-create (timed, day view)', () => {
-  it('dragging across empty time slots emits sui-event-create-intent { start, end }', async () => {
+  it('dragging across empty time slots emits sui-event-create-intent { start, end } (bubbles + composed)', async () => {
     const { v } = mountWith([], { initialView: 'day', slotMinutes: 60, dayStartHour: 8, dayEndHour: 18 })
     live.push(v)
-    let intent: { start: string; end: string } | null = null
-    v.el.addEventListener('sui-event-create-intent', (e) => {
-      intent = (e as CustomEvent).detail
-    })
+    let evt: CustomEvent | null = null
+    v.el.addEventListener('sui-event-create-intent', (e) => { evt = e as CustomEvent })
     await v.flush()
     // The day column carries a background slot grid: data-iso + data-minutes per slot.
     const slots = shadow(v.el).querySelectorAll('[part=day-col] .slot-bg[data-minutes]')
@@ -127,9 +125,11 @@ describe('<sui-calendar> — drag-to-create (timed, day view)', () => {
     pointer(to, 'pointermove')
     pointer(to, 'pointerup')
     await v.flush()
-    expect(intent).not.toBeNull()
+    expect(evt).not.toBeNull()
     // create-intent end is the END of the slot the drag released on (11:00 slot → 12:00).
-    expect(intent!).toEqual({ start: '2026-06-15T09:00', end: '2026-06-15T12:00' })
+    expect(evt!.detail).toEqual({ start: '2026-06-15T09:00', end: '2026-06-15T12:00' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('a plain click on one empty slot creates a single-slot intent', async () => {
@@ -157,10 +157,8 @@ describe('<sui-calendar> — drag-to-move (timed, day view)', () => {
       dayEndHour: 18,
     })
     live.push(v)
-    let moved: { id: string; start: string; end: string } | null = null
-    v.el.addEventListener('sui-event-move', (e) => {
-      moved = (e as CustomEvent).detail
-    })
+    let evt: CustomEvent | null = null
+    v.el.addEventListener('sui-event-move', (e) => { evt = e as CustomEvent })
     await v.flush()
     const chip = shadow(v.el).querySelector('[part=day-col] .timed-chip[data-event-id="a"]')!
     const target = shadow(v.el).querySelector('[part=day-col] .slot-bg[data-minutes="660"]')! // 11:00
@@ -168,9 +166,11 @@ describe('<sui-calendar> — drag-to-move (timed, day view)', () => {
     pointer(target, 'pointermove')
     pointer(target, 'pointerup')
     await v.flush()
-    expect(moved).not.toBeNull()
+    expect(evt).not.toBeNull()
     // event was 09:00–10:00 (60 min); dropping its start on 11:00 preserves duration.
-    expect(moved!).toEqual({ id: 'a', start: '2026-06-15T11:00', end: '2026-06-15T12:00' })
+    expect(evt!.detail).toEqual({ id: 'a', start: '2026-06-15T11:00', end: '2026-06-15T12:00' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('a click on a chip (no move) selects it — does NOT emit sui-event-move', async () => {

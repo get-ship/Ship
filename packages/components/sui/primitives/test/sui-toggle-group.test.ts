@@ -28,17 +28,19 @@ describe('<sui-toggle>', () => {
     expect(el.shadowRoot!.querySelector('button')!.getAttribute('aria-pressed')).toBe('false')
   })
 
-  it('toggles pressed on click and emits sui-toggle', async () => {
+  it('toggles pressed on click and emits sui-toggle (bubbles + composed)', async () => {
     const container = reg.mk()
     container.innerHTML = '<sui-toggle value="bold">B</sui-toggle>'
     const el = container.querySelector('sui-toggle') as HTMLElement
     await flush()
-    let detail: { pressed: boolean; value: string } | null = null
-    el.addEventListener('sui-toggle', (e) => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-toggle', (e) => { evt = e as CustomEvent })
     el.shadowRoot!.querySelector('button')!.click()
     await flush()
     expect(el.hasAttribute('pressed')).toBe(true)
-    expect(detail).toEqual({ pressed: true, value: 'bold' })
+    expect(evt!.detail).toEqual({ pressed: true, value: 'bold' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('second click un-toggles pressed', async () => {
@@ -131,11 +133,18 @@ describe('<sui-toggle-group>', () => {
     await flush()
     const toggles = el.querySelectorAll('sui-toggle') as NodeListOf<HTMLElement>
     let lastValue = ''
-    el.addEventListener('sui-change', (e) => { lastValue = (e as CustomEvent).detail.value })
+    let lastEvt: CustomEvent | null = null
+    el.addEventListener('sui-change', (e) => {
+      lastEvt = e as CustomEvent
+      lastValue = (e as CustomEvent).detail.value
+    })
 
     toggles[0].shadowRoot!.querySelector('button')!.click()
     await flush()
     expect(lastValue).toBe('a')
+    expect(lastEvt!.detail).toEqual({ value: 'a' })
+    expect(lastEvt!.bubbles).toBe(true)
+    expect(lastEvt!.composed).toBe(true)
     expect(toggles[0].hasAttribute('pressed')).toBe(true)
     expect(toggles[1].hasAttribute('pressed')).toBe(false)
 

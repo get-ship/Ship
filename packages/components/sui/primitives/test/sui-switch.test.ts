@@ -59,14 +59,16 @@ describe('<sui-switch>', () => {
     expect(input(el).checked).toBe(true)
   })
 
-  it('fires sui-change with checked=true on toggle on', () => {
+  it('fires sui-change with checked=true on toggle on (bubbles + composed)', () => {
     const { el } = mount(reg, 'sui-switch')
-    let detail: { checked: boolean } | null = null
-    el.addEventListener('sui-change', (e) => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-change', (e) => { evt = e as CustomEvent })
     const inp = input(el)
     inp.checked = true
     inp.dispatchEvent(new Event('change', { bubbles: true }))
-    expect(detail).toEqual({ checked: true })
+    expect(evt!.detail).toEqual({ checked: true })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('fires sui-change with checked=false on toggle off', () => {

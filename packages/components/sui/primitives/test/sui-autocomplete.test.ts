@@ -42,10 +42,8 @@ describe('<sui-autocomplete>', () => {
   it('Enter commits the typed value when no suggestion is highlighted', async () => {
     const { el } = mount(reg, 'sui-autocomplete')
     await flush()
-    const changes: string[] = []
-    el.addEventListener('sui-change', (e) => {
-      changes.push((e as CustomEvent<{ value: string }>).detail.value)
-    })
+    const events: CustomEvent[] = []
+    el.addEventListener('sui-change', (e) => { events.push(e as CustomEvent) })
     const inp = inputOf(el)
     inp.focus()
     inp.value = 'freeform'
@@ -53,7 +51,10 @@ describe('<sui-autocomplete>', () => {
     await flush()
     inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
     await flush()
-    expect(changes.at(-1)).toBe('freeform')
+    const last = events.at(-1)!
+    expect(last.detail).toEqual({ value: 'freeform', label: 'freeform' })
+    expect(last.bubbles).toBe(true)
+    expect(last.composed).toBe(true)
     expect(inp.value).toBe('freeform')
   })
 

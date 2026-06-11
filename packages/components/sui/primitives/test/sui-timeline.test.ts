@@ -101,13 +101,17 @@ describe('<sui-timeline-item>', () => {
     expect(el.getAttribute('tabindex')).toBe('0')
   })
 
-  it('dispatches sui-select on click when interactive', async () => {
+  it('dispatches sui-select on click when interactive (bubbles + composed, empty detail)', async () => {
     const { el } = mount(reg, 'sui-timeline-item', { interactive: true })
     await flush()
     const fn = vi.fn()
     el.addEventListener('sui-select', fn)
     el.click()
     expect(fn).toHaveBeenCalledOnce()
+    const evt = fn.mock.calls[0]![0] as CustomEvent
+    expect(evt.detail).toEqual({})
+    expect(evt.bubbles).toBe(true)
+    expect(evt.composed).toBe(true)
   })
 
   it('does not dispatch sui-select on click when not interactive', async () => {

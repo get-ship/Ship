@@ -49,14 +49,16 @@ describe('<sui-radio>', () => {
     expect(input.disabled).toBe(true)
   })
 
-  it('click dispatches sui-radio-select bubbling event', async () => {
+  it('click dispatches sui-radio-select (bubbles + composed) with {value}', async () => {
     const { el } = mount(reg, 'sui-radio', { value: 'a' }, 'A')
     await flush()
-    let detail: { value: string } | null = null
-    el.addEventListener('sui-radio-select', (e) => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-radio-select', (e) => { evt = e as CustomEvent })
     const input = el.shadowRoot!.querySelector('input') as HTMLInputElement
     input.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }))
-    expect(detail).toEqual({ value: 'a' })
+    expect(evt!.detail).toEqual({ value: 'a' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('disabled radio does not dispatch sui-radio-select on click', async () => {
@@ -69,14 +71,16 @@ describe('<sui-radio>', () => {
     expect(fired).toBe(false)
   })
 
-  it('ArrowDown dispatches sui-radio-nav with direction=next', async () => {
+  it('ArrowDown dispatches sui-radio-nav with direction=next (bubbles + composed)', async () => {
     const { el } = mount(reg, 'sui-radio', { value: 'a', checked: true }, 'A')
     await flush()
-    let detail: { direction: string } | null = null
-    el.addEventListener('sui-radio-nav', (e) => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-radio-nav', (e) => { evt = e as CustomEvent })
     const input = el.shadowRoot!.querySelector('input') as HTMLInputElement
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, composed: true }))
-    expect(detail).toEqual({ direction: 'next' })
+    expect(evt!.detail).toEqual({ direction: 'next' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('ArrowUp dispatches sui-radio-nav with direction=prev', async () => {
@@ -132,11 +136,11 @@ describe('<sui-radio-group>', () => {
     expect((radios[1] as HTMLElement).hasAttribute('checked')).toBe(true)
   })
 
-  it('clicking a radio updates value and emits sui-change', async () => {
+  it('clicking a radio updates value and emits sui-change (bubbles + composed)', async () => {
     const el = mountGroup()
     await flush()
-    let detail: { value: string } | null = null
-    el.addEventListener('sui-change', (e) => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-change', (e) => { evt = e as CustomEvent })
 
     const radioA = el.querySelector('sui-radio[value="a"]') as HTMLElement
     const input = radioA.shadowRoot!.querySelector('input') as HTMLInputElement
@@ -145,7 +149,9 @@ describe('<sui-radio-group>', () => {
 
     expect(el.getAttribute('value')).toBe('a')
     expect(radioA.hasAttribute('checked')).toBe(true)
-    expect(detail).toEqual({ value: 'a' })
+    expect(evt!.detail).toEqual({ value: 'a' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('arrow key navigates to next radio and emits sui-change', async () => {

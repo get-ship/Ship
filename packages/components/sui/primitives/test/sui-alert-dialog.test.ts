@@ -74,25 +74,31 @@ describe('<sui-alert-dialog>', () => {
     expect(confirmBtn(el)!.getAttribute('tone')).toBe('destructive')
   })
 
-  it('confirm button fires sui-confirm and closes (open=false)', async () => {
+  it('confirm button fires sui-confirm (bubbles + composed, detail null) and closes', async () => {
     const { el } = makeAlert({ open: true })
     await flush()
-    let confirmed = 0
-    el.addEventListener('sui-confirm', () => confirmed++)
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-confirm', (e) => { evt = e as CustomEvent })
     confirmBtn(el)!.click()
     await flush()
-    expect(confirmed).toBe(1)
+    expect(evt).not.toBeNull()
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+    expect(evt!.detail).toBeNull()
     expect(el.hasAttribute('open')).toBe(false)
   })
 
-  it('cancel button fires sui-cancel and closes (open=false)', async () => {
+  it('cancel button fires sui-cancel (bubbles + composed, detail null) and closes', async () => {
     const { el } = makeAlert({ open: true })
     await flush()
-    let cancelled = 0
-    el.addEventListener('sui-cancel', () => cancelled++)
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-cancel', (e) => { evt = e as CustomEvent })
     cancelBtn(el)!.click()
     await flush()
-    expect(cancelled).toBe(1)
+    expect(evt).not.toBeNull()
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+    expect(evt!.detail).toBeNull()
     expect(el.hasAttribute('open')).toBe(false)
   })
 

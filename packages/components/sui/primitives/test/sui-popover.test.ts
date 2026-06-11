@@ -68,14 +68,18 @@ describe('<sui-popover>', () => {
     expect(trigger.getAttribute('aria-haspopup')).toBe('dialog')
   })
 
-  it('opening via the open prop emits sui-toggle{open:true} and flips aria-expanded', async () => {
+  it('opening via the open prop emits sui-toggle{open:true} (bubbles + composed) and flips aria-expanded', async () => {
     const { el } = makePopover()
     await flush()
-    const events: boolean[] = []
-    el.addEventListener('sui-toggle', (e) => events.push((e as CustomEvent).detail.open))
+    const events: CustomEvent[] = []
+    el.addEventListener('sui-toggle', (e) => events.push(e as CustomEvent))
     el.setAttribute('open', '')
     await flush()
-    expect(events).toContain(true)
+    const opened = events.find((e) => (e.detail as { open: boolean }).open === true)!
+    expect(opened).toBeDefined()
+    expect(opened.detail).toEqual({ open: true })
+    expect(opened.bubbles).toBe(true)
+    expect(opened.composed).toBe(true)
     expect(triggerOf(el).getAttribute('aria-expanded')).toBe('true')
   })
 

@@ -104,15 +104,18 @@ describe('<sui-tabs> — panel visibility follows selection', () => {
 })
 
 describe('<sui-tabs> — keyboard navigation (automatic activation)', () => {
-  it('ArrowRight activates + moves focus to the next tab and emits sui-tab-change', async () => {
+  it('ArrowRight activates + moves focus to the next tab and emits sui-tab-change (bubbles + composed)', async () => {
     const { tabs, tabEls, btnOf } = makeTabs('one')
     await flush()
-    const changes: string[] = []
-    tabs.addEventListener('sui-tab-change', (e) => changes.push((e as CustomEvent).detail.name))
+    const changes: CustomEvent[] = []
+    tabs.addEventListener('sui-tab-change', (e) => changes.push(e as CustomEvent))
     key(btnOf(tabEls[0]!), 'ArrowRight')
     await flush()
     expect(tabs.getAttribute('active')).toBe('two')
-    expect(changes).toEqual(['two'])
+    expect(changes).toHaveLength(1)
+    expect(changes[0]!.detail).toEqual({ name: 'two' })
+    expect(changes[0]!.bubbles).toBe(true)
+    expect(changes[0]!.composed).toBe(true)
     expect(tabEls[1]!.shadowRoot!.activeElement).toBe(btnOf(tabEls[1]!))
   })
 

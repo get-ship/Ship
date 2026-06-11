@@ -51,13 +51,15 @@ describe('<sui-collapsible>', () => {
     expect(el.hasAttribute('open')).toBe(false)
   })
 
-  it('toggle fires sui-toggle with {open: true}', async () => {
+  it('toggle fires sui-toggle with {open: true} (bubbles + composed)', async () => {
     const { el } = makeCollapsible()
-    let detail: { open: boolean } | null = null
-    el.addEventListener('sui-toggle', (e) => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-toggle', (e) => { evt = e as CustomEvent })
     el.querySelector('button[slot=trigger]')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flush()
-    expect(detail).toEqual({ open: true })
+    expect(evt!.detail).toEqual({ open: true })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('toggle fires sui-toggle with {open: false} on second click', async () => {

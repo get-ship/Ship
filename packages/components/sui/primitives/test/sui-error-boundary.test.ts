@@ -109,17 +109,19 @@ describe('<sui-error-boundary>', () => {
     expect(fallbackBox(el)).toBeNull()
   })
 
-  it('dispatches sui-error-boundary:caught with { error, source }', () => {
+  it('dispatches sui-error-boundary:caught with { error, source } (bubbles + composed)', () => {
     const { el } = mount(reg, 'sui-error-boundary', {}, '<span>x</span>')
-    let received: { error: Error; source: string } | null = null
+    let evt: CustomEvent<{ error: Error; source: string }> | null = null
     el.addEventListener('sui-error-boundary:caught', (ev) => {
-      received = (ev as CustomEvent<{ error: Error; source: string }>).detail
+      evt = ev as CustomEvent<{ error: Error; source: string }>
     })
     const handle = findNearestBoundary(el)!
     handle.catch(new Error('boom'), 'effect')
-    expect(received).not.toBeNull()
-    expect(received!.error.message).toBe('boom')
-    expect(received!.source).toBe('effect')
+    expect(evt).not.toBeNull()
+    expect(evt!.detail.error.message).toBe('boom')
+    expect(evt!.detail.source).toBe('effect')
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('inner boundary catches first when nested', () => {

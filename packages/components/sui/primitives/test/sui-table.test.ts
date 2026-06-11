@@ -257,9 +257,11 @@ describe('<sui-table>', () => {
     ;(el.querySelector('th[data-sort-key]') as HTMLTableCellElement).click()
     expect(caught).not.toBeNull()
     expect(caught!.detail).toEqual({ key: 'name', direction: 'ascending' })
+    expect(caught!.bubbles).toBe(true)
+    expect(caught!.composed).toBe(true)
   })
 
-  it('sui-row-click reports the row index in its detail', async () => {
+  it('sui-row-click reports the row id + index in its detail (bubbles + composed)', async () => {
     const { el } = mount(
       reg,
       'sui-table',
@@ -267,13 +269,16 @@ describe('<sui-table>', () => {
       '<table><tbody><tr data-row-id="abc"><td>Alpha</td></tr><tr data-row-id="def"><td>Beta</td></tr></tbody></table>',
     )
     await flush()
-    let detail: { id: string; index: number } | null = null
-    el.addEventListener('sui-row-click', (e) => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-row-click', (e) => { evt = e as CustomEvent })
     const cells = el.querySelectorAll('td')
     ;(cells[1] as HTMLTableCellElement).click()
-    expect(detail).not.toBeNull()
-    expect(detail!.id).toBe('def')
-    expect(typeof detail!.index).toBe('number')
+    expect(evt).not.toBeNull()
+    const detail = evt!.detail as { id: string; index: number }
+    expect(detail.id).toBe('def')
+    expect(typeof detail.index).toBe('number')
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('enhancement injects aria-sort/tabindex/role on a th added AFTER mount (MutationObserver)', async () => {
@@ -449,6 +454,9 @@ describe('<sui-table> data variant — engine-backed view', () => {
     ;(shadow!.querySelector('[data-sort-key="name"]') as HTMLElement).click()
     await flush()
     expect(caught).not.toBeNull()
+    expect((caught!.detail as { sorting: unknown[] }).sorting).toEqual([{ id: 'name', desc: false }])
+    expect(caught!.bubbles).toBe(true)
+    expect(caught!.composed).toBe(true)
   })
 
   it('toggling a gutter sui-checkbox sets [data-selected] + emits sui-row-select', async () => {
@@ -461,8 +469,8 @@ describe('<sui-table> data variant — engine-backed view', () => {
       { gutter: true, selectable: 'multi' },
     )
     await flush()
-    const detail: { id: string; selected: boolean; selectedIds: string[] }[] = []
-    el.addEventListener('sui-row-select', (e) => detail.push((e as CustomEvent).detail))
+    const events: CustomEvent[] = []
+    el.addEventListener('sui-row-select', (e) => events.push(e as CustomEvent))
 
     const firstRow = shadow!.querySelector('[data-row-id="1"]') as HTMLElement
     expect(firstRow.hasAttribute('data-selected')).toBe(false)
@@ -472,10 +480,14 @@ describe('<sui-table> data variant — engine-backed view', () => {
     await flush()
 
     expect(firstRow.hasAttribute('data-selected')).toBe(true)
-    expect(detail.length).toBeGreaterThan(0)
-    expect(detail.at(-1)!.id).toBe('1')
-    expect(detail.at(-1)!.selected).toBe(true)
-    expect(detail.at(-1)!.selectedIds).toContain('1')
+    expect(events.length).toBeGreaterThan(0)
+    const last = events.at(-1)!
+    const detail = last.detail as { id: string; selected: boolean; selectedIds: string[] }
+    expect(detail.id).toBe('1')
+    expect(detail.selected).toBe(true)
+    expect(detail.selectedIds).toContain('1')
+    expect(last.bubbles).toBe(true)
+    expect(last.composed).toBe(true)
   })
 
   it('header sui-checkbox shows indeterminate on partial selection', async () => {

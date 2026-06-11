@@ -51,14 +51,15 @@ describe('<sui-date-picker>', () => {
     await flush()
     inputOf(el).click()
     await flush()
-    const changes: string[] = []
-    el.addEventListener('sui-change', (e) => {
-      changes.push((e as CustomEvent<{ value: string }>).detail.value)
-    })
+    const events: CustomEvent[] = []
+    el.addEventListener('sui-change', (e) => { events.push(e as CustomEvent) })
     const target = days(el).find((d) => d.dataset.iso === '2026-05-20') as HTMLButtonElement
     target.click()
     await flush()
-    expect(changes.at(-1)).toBe('2026-05-20')
+    const last = events.at(-1)!
+    expect(last.detail).toEqual({ value: '2026-05-20' })
+    expect(last.bubbles).toBe(true)
+    expect(last.composed).toBe(true)
     expect(inputOf(el).value).toBe('2026-05-20')
   })
 

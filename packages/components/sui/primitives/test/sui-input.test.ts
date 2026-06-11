@@ -59,3 +59,33 @@ describe('<sui-input>', () => {
     expect(el.hasAttribute('disabled')).toBe(true)
   })
 })
+
+describe('<sui-input> — event contracts', () => {
+  it('typing fires sui-input with {value}; bubbles + composed', async () => {
+    const { el } = mount(reg, 'sui-input')
+    await flush()
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-input', (e) => { evt = e as CustomEvent })
+    const inp = input(el)
+    inp.value = 'hel'
+    inp.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(evt).not.toBeNull()
+    expect(evt!.detail).toEqual({ value: 'hel' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+  })
+
+  it('native change fires sui-input-change with {value}; bubbles + composed', async () => {
+    const { el } = mount(reg, 'sui-input')
+    await flush()
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-input-change', (e) => { evt = e as CustomEvent })
+    const inp = input(el)
+    inp.value = 'hello'
+    inp.dispatchEvent(new Event('change', { bubbles: true }))
+    expect(evt).not.toBeNull()
+    expect(evt!.detail).toEqual({ value: 'hello' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+  })
+})

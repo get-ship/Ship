@@ -100,12 +100,15 @@ describe('<sui-alert>', () => {
     expect(closeBtn(el)!.getAttribute('aria-label')).toBe('Dismiss')
   })
 
-  it('dismiss click fires sui-dismiss event', () => {
+  it('dismiss click fires sui-dismiss: bubbles + composed, no payload (detail null)', () => {
     const { el } = mount(reg, 'sui-alert', { dismissible: true }, 'msg')
-    let fired = 0
-    el.addEventListener('sui-dismiss', () => fired++)
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-dismiss', (e) => { evt = e as CustomEvent })
     closeBtn(el)!.click()
-    expect(fired).toBe(1)
+    expect(evt).not.toBeNull()
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+    expect(evt!.detail).toBeNull()
   })
 
   it('dismiss click removes host from DOM', () => {

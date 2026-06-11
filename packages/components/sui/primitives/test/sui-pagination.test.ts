@@ -125,16 +125,16 @@ describe('<sui-pagination>', () => {
   })
 
   // ── Emission: sui-page-change { page, pageSize } ──────────────────────────
-  it('emits sui-page-change { page, pageSize } when next is clicked', async () => {
+  it('emits sui-page-change { page, pageSize } when next is clicked (bubbles + composed)', async () => {
     const { el } = mount(reg, 'sui-pagination', { page: 1, total: 50, 'page-size': 10 })
     await flush()
-    let detail: { page: number; pageSize: number } | null = null
-    el.addEventListener('sui-page-change', (e) => {
-      detail = (e as CustomEvent).detail
-    })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-page-change', (e) => { evt = e as CustomEvent })
     action(el, 'next')!.click()
-    expect(detail).not.toBeNull()
-    expect(detail!).toEqual({ page: 2, pageSize: 10 })
+    expect(evt).not.toBeNull()
+    expect(evt!.detail).toEqual({ page: 2, pageSize: 10 })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('emits page 1 on first and the last page on last', async () => {

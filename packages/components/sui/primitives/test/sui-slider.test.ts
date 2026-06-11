@@ -57,16 +57,18 @@ describe('<sui-slider>', () => {
     expect(thumb.getAttribute('aria-label')).toBe('Volume')
   })
 
-  it('ArrowRight increments value by step and emits sui-change', async () => {
+  it('ArrowRight increments value by step and emits sui-change (bubbles + composed)', async () => {
     const { el } = mount(reg, 'sui-slider', { value: '10', step: '5' })
     await flush()
-    let detail: { value: number } | null = null
-    el.addEventListener('sui-change', (e) => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-change', (e) => { evt = e as CustomEvent })
     const thumb = el.shadowRoot!.querySelector('[role="slider"]') as HTMLElement
     thumb.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
     await flush()
     expect(el.getAttribute('value')).toBe('15')
-    expect(detail).toEqual({ value: 15 })
+    expect(evt!.detail).toEqual({ value: 15 })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('ArrowLeft decrements value', async () => {

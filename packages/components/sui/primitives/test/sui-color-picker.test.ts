@@ -56,15 +56,16 @@ describe('<sui-color-picker>', () => {
     await flush()
     inputOf(el).click()
     await flush()
-    const changes: string[] = []
-    el.addEventListener('sui-change', (e) => {
-      changes.push((e as CustomEvent<{ value: string }>).detail.value)
-    })
+    const events: CustomEvent[] = []
+    el.addEventListener('sui-change', (e) => { events.push(e as CustomEvent) })
     const sw = swatches(el)[0]!
     const hex = sw.dataset.hex!
     sw.click()
     await flush()
-    expect(changes.at(-1)).toBe(hex)
+    const last = events.at(-1)!
+    expect(last.detail).toEqual({ value: hex })
+    expect(last.bubbles).toBe(true)
+    expect(last.composed).toBe(true)
     expect(el.getAttribute('value')).toBe(hex)
   })
 })

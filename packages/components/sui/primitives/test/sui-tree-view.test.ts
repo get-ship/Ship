@@ -126,7 +126,7 @@ describe('<sui-tree-item>', () => {
     expect(row.getAttribute('aria-selected')).toBe('true')
   })
 
-  it('emits sui-toggle on row click (non-leaf)', async () => {
+  it('emits sui-toggle on row click (non-leaf) — bubbles + composed', async () => {
     const { el, shadow } = mount(reg, 'sui-tree-item', { label: 'n' })
     await flush()
     const fn = vi.fn()
@@ -134,8 +134,10 @@ describe('<sui-tree-item>', () => {
     ;(shadow!.querySelector('[part="row"]') as HTMLElement).click()
     await flush()
     expect(fn).toHaveBeenCalled()
-    const detail = (fn.mock.calls[0][0] as CustomEvent).detail
-    expect(detail.expanded).toBe(true)
+    const evt = fn.mock.calls[0][0] as CustomEvent
+    expect(evt.detail).toEqual({ expanded: true })
+    expect(evt.bubbles).toBe(true)
+    expect(evt.composed).toBe(true)
     expect(el.hasAttribute('expanded')).toBe(true)
   })
 
@@ -149,7 +151,7 @@ describe('<sui-tree-item>', () => {
     expect(fn).not.toHaveBeenCalled()
   })
 
-  it('emits sui-select on row click', async () => {
+  it('emits sui-select on row click — bubbles + composed, empty detail', async () => {
     const { el, shadow } = mount(reg, 'sui-tree-item', { label: 'n', leaf: true })
     await flush()
     const fn = vi.fn()
@@ -157,6 +159,10 @@ describe('<sui-tree-item>', () => {
     ;(shadow!.querySelector('[part="row"]') as HTMLElement).click()
     await flush()
     expect(fn).toHaveBeenCalled()
+    const evt = fn.mock.calls[0][0] as CustomEvent
+    expect(evt.detail).toEqual({})
+    expect(evt.bubbles).toBe(true)
+    expect(evt.composed).toBe(true)
   })
 
   it('ArrowRight expands a collapsed non-leaf node', async () => {

@@ -55,20 +55,23 @@ describe('<sui-textarea>', () => {
     expect(val).toBe('hello')
   })
 
-  it('sui-input event bubbles and is composed', () => {
+  it('sui-input event bubbles and is composed with {value} payload', () => {
     const { el, container } = mount(reg, 'sui-textarea')
-    let bubbled = false
-    container.addEventListener('sui-input', () => { bubbled = true })
+    let evt: CustomEvent | null = null
+    container.addEventListener('sui-input', (e) => { evt = e as CustomEvent })
     const t = ta(el)
     t.value = 'hi'
     t.dispatchEvent(new Event('input', { bubbles: true }))
-    expect(bubbled).toBe(true)
+    expect(evt).not.toBeNull()
+    expect(evt!.detail).toEqual({ value: 'hi' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
-  it('fires sui-change on blur if value changed', async () => {
+  it('fires sui-change on blur if value changed (bubbles + composed)', async () => {
     const { el } = mount(reg, 'sui-textarea')
-    let changeVal: string | undefined
-    el.addEventListener('sui-change', (e) => { changeVal = (e as CustomEvent).detail.value })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-change', (e) => { evt = e as CustomEvent })
     const t = ta(el)
     // Simulate typing
     t.value = 'typed text'
@@ -76,7 +79,9 @@ describe('<sui-textarea>', () => {
     await flush()
     // Simulate blur
     t.dispatchEvent(new Event('blur', { bubbles: true }))
-    expect(changeVal).toBe('typed text')
+    expect(evt!.detail).toEqual({ value: 'typed text' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('does not fire sui-change on blur if value unchanged', () => {

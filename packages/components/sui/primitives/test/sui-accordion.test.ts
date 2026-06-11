@@ -116,15 +116,17 @@ describe('<sui-accordion>', () => {
     expect(itemC.hasAttribute('open')).toBe(false)
   })
 
-  it('fires sui-change with correct value on toggle', async () => {
+  it('fires sui-change with correct value on toggle (bubbles + composed)', async () => {
     const el = mountAccordion()
     await flush()
-    let detail: { value: string } | null = null
-    el.addEventListener('sui-change', e => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-change', e => { evt = e as CustomEvent })
     const itemA = el.querySelector('sui-accordion-item[value="a"]') as HTMLElement
     shadow(itemA).querySelector('button')!.click()
     await flush()
-    expect(detail).toEqual({ value: 'a' })
+    expect(evt!.detail).toEqual({ value: 'a' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 })
 
@@ -195,14 +197,16 @@ describe('<sui-accordion-item>', () => {
     expect(shadow(el).querySelector('button')!.hasAttribute('disabled')).toBe(true)
   })
 
-  it('dispatches sui-accordion-item-toggle when trigger is clicked', async () => {
+  it('dispatches sui-accordion-item-toggle when trigger is clicked (bubbles + composed)', async () => {
     const { el } = mount(reg, 'sui-accordion-item', { value: 'abc' })
     await flush()
-    let detail: { value: string } | null = null
-    el.addEventListener('sui-accordion-item-toggle', e => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-accordion-item-toggle', e => { evt = e as CustomEvent })
     shadow(el).querySelector('button')!.click()
     await flush()
-    expect(detail).toEqual({ value: 'abc' })
+    expect(evt!.detail).toEqual({ value: 'abc' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('does not dispatch toggle when disabled', async () => {
@@ -219,17 +223,19 @@ describe('<sui-accordion-item>', () => {
 // ── integration ──────────────────────────────────────────────────────────────
 
 describe('<sui-accordion> + <sui-accordion-item> integration', () => {
-  it('ArrowDown on trigger dispatches sui-accordion-nav with next direction', async () => {
+  it('ArrowDown on trigger dispatches sui-accordion-nav with next direction (bubbles + composed)', async () => {
     const el = mountAccordion()
     await flush()
     const itemA = el.querySelector('sui-accordion-item[value="a"]') as HTMLElement
-    let detail: { direction: string } | null = null
-    el.addEventListener('sui-accordion-nav', e => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-accordion-nav', e => { evt = e as CustomEvent })
     shadow(itemA).querySelector('button')!.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
     )
     await flush()
-    expect(detail?.direction).toBe('next')
+    expect((evt!.detail as { direction: string }).direction).toBe('next')
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('Home key dispatches sui-accordion-nav with first direction', async () => {
