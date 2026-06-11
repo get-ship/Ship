@@ -94,6 +94,8 @@ jobs:
         run: just lint-justfile
       - name: Check SUI bundle sizes (within budget)
         run: bash scripts/lint/check-sui-bundle-size.sh
+      - name: Check landing custom-element bundle coverage (no inert tags)
+        run: node scripts/lint/check-landing-bundle-coverage.mjs
       - name: Collect skill docs
         run: cd apps/docs && AUDIENCE=internal bun run collect
       - name: Check skill-docs drift
