@@ -106,9 +106,11 @@ mod tests {
             .await;
         let id = up.body["data"]["id"].as_str().unwrap().to_string();
 
-        // Walk the project-scoped artifacts dir and nuke any blob present.
-        let artifacts_root = ship_substrate::ShipHome::project_ship_dir(daemon.temp_dir.path()).join("artifacts");
-        remove_all_files(&artifacts_root);
+        // Walk the active-space blob partition and nuke any blob present. Blobs
+        // land under `<ship_dir>/spaces/<space_id>/blobs/...` (the active-space
+        // partition the read ctx queries), not the old `artifacts/` layout.
+        let blob_root = ship_substrate::ShipHome::project_ship_dir(daemon.temp_dir.path()).join("spaces");
+        remove_all_files(&blob_root);
 
         let resp = daemon.get(&format!("/api/v1/artifacts/{id}")).await;
         assert_eq!(resp.status, 404);
@@ -120,21 +122,22 @@ mod tests {
 
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn blob_stored_under_project_slug() {
+    async fn blob_stored_under_active_space_partition() {
         let daemon = TestDaemon::new().await;
         let up = daemon
             .post_multipart("/api/v1/artifacts", &upload_parts("p.txt", "text/plain", b"p"))
             .await;
         assert_eq!(up.status, 201);
-        let artifacts_root = ship_substrate::ShipHome::project_ship_dir(daemon.temp_dir.path()).join("artifacts");
-        // Exactly one slug dir should exist.
-        let slugs: Vec<_> = std::fs::read_dir(&artifacts_root)
+        // Blobs land under `<ship_dir>/spaces/<space_id>/blobs/...` — one
+        // partition dir per active space (the test fixture binds `test-space`).
+        let spaces_root = ship_substrate::ShipHome::project_ship_dir(daemon.temp_dir.path()).join("spaces");
+        let spaces: Vec<_> = std::fs::read_dir(&spaces_root)
             .unwrap()
             .flatten()
             .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
             .collect();
-        assert_eq!(slugs.len(), 1, "expected one project slug dir");
-        assert!(slugs[0].path().join("blobs").is_dir());
+        assert_eq!(spaces.len(), 1, "expected one active-space partition dir");
+        assert!(spaces[0].path().join("blobs").is_dir());
     }
 
 }
