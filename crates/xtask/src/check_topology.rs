@@ -1,6 +1,6 @@
 //! `cargo xtask check-topology` — workspace topology invariants.
 //!
-//! Enforces the three checks ratified in `.artifacts/topology-proposal.md`:
+//! Enforces the checks ratified in `.artifacts/topology-proposal.md`:
 //!
 //! **(a) Nesting depth** — no workspace member may be nested 3+ crate-levels
 //! deep (i.e. have 3+ `/crates/` segments in its workspace-relative path) except
@@ -11,9 +11,13 @@
 //! Any new single-consumer crate that is not allowlisted hard-fails CI, forcing
 //! an explicit acknowledgment. The allowlist is seeded with the current legitimate
 //! set discovered at topology-charter time (2026-06-10); it may only shrink as
-//! pending moves (e.g. `ship-skill-vars`) complete.
+//! pending moves complete.
 //!
-//! **(c) PASS summary** — prints member count + check summary on success.
+//! **(c) E1 docs-charter** — entry-point crates (zero intra-workspace non-dev
+//! consumers) must have README.md OR ≥ 5 `//!` module-doc lines in `src/lib.rs`.
+//! Current violators are pinned in [`E1_VIOLATOR_ALLOWLIST`] (DOWN-ONLY ratchet).
+//!
+//! **(d) PASS summary** — prints member count + check summary on success.
 //!
 //! Run via `cargo xtask check-topology`. Exits 0 on clean, 1 on any violation.
 
@@ -55,15 +59,35 @@ const SINGLE_CONSUMER_ALLOWLIST: &[(&str, &str)] = &[
     // ship-sidecar-proto — proto codegen crate (C1 forcing function: build.rs).
     // Sole consumer is `ship-isolation`.
     ("ship-sidecar-proto", "C1(b): build.rs proto codegen; sole consumer ship-isolation is correct"),
-    // ship-skill-vars — PINNED pending Wave-1.1 move.
-    // 198 LOC, sole consumer agent-def, NO C1 forcing function.
-    // Should be dissolved into agent_def::skill_vars. Allowlist entry MAY ONLY
-    // SHRINK — remove this entry once the Wave-1.1 move completes.
-    ("ship-skill-vars", "Wave-1.1 PENDING: dissolve into agent_def::skill_vars module (3-level nesting violation; 198 LOC, no C1 forcing function)"),
     // sui-lint — linting rules for the sui-compiler, compiled as a separate
     // crate so linting passes can be loaded/tested independently.
     // Sole consumer: `sui-compiler`.
     ("sui-lint", "Independent linting pass crate for sui-compiler; sole consumer sui-compiler"),
+];
+
+// ── E1 docs-charter: entry-point violator pin list ────────────────────────────
+
+/// Entry-point crates that currently violate E1 (no README.md and < 5 `//!`
+/// module-doc lines in `src/lib.rs`). Seeded at topology Wave-1.1 / docs-charter
+/// wave-1 (2026-06-11).
+///
+/// This list is DOWN-ONLY — entries MUST only be removed, never added.
+/// Another lane (docs-charter) is writing the READMEs; the build does not fail
+/// on these pins yet. Remove an entry as soon as README.md or ≥5 `//!` lines
+/// land in that crate.
+const E1_VIOLATOR_ALLOWLIST: &[&str] = &[
+    // CLI app binary (main.rs only); no lib.rs, no README.
+    "ship-cli",
+    // Integration test harness; lib.rs has < 5 //! lines, no README.
+    "ship-contract-tests",
+    // In-sandbox sidecar binary (main.rs only); no lib.rs, no README.
+    "ship-sidecar",
+    // dev-tool binary (main.rs only); no lib.rs, no README.
+    "xtask",
+    // deck build-tool binary (main.rs only); no lib.rs, no README.
+    "deck-cli",
+    // Language Server binary (main.rs only); no lib.rs, no README.
+    "sui-lsp",
 ];
 
 // ── Depth check ───────────────────────────────────────────────────────────────
@@ -71,7 +95,7 @@ const SINGLE_CONSUMER_ALLOWLIST: &[(&str, &str)] = &[
 /// Count the number of `/crates/` directory segments in a workspace-relative
 /// path. A path like `crates/core/ship-platform/crates/agent-def` has 2
 /// segments and is at nesting depth 2 (one container per segment).
-/// `crates/core/ship-platform/crates/agent-def/crates/ship-skill-vars` has 3 —
+/// `crates/core/ship-platform/crates/agent-def/crates/some-crate` would have 3 —
 /// that is the 3-level violation Rule N1 prohibits.
 fn crates_segment_depth(rel_dir: &str) -> usize {
     // Normalise separators.
@@ -118,6 +142,26 @@ fn consumer_counts(ws: &metadata::Workspace) -> std::collections::HashMap<String
     counts
 }
 
+// ── E1 docs-charter check ─────────────────────────────────────────────────────
+
+/// Count `//!` module-doc lines in `src/lib.rs` of a crate directory.
+/// Returns 0 when lib.rs is absent (binary-only crate) or unreadable.
+fn count_lib_doc_lines(dir: &Path) -> usize {
+    let lib_rs = dir.join("src").join("lib.rs");
+    match std::fs::read_to_string(&lib_rs) {
+        Ok(content) => content
+            .lines()
+            .filter(|l| l.trim_start().starts_with("//!"))
+            .count(),
+        Err(_) => 0,
+    }
+}
+
+/// E1 pass predicate: README.md exists OR ≥5 `//!` lines in src/lib.rs.
+fn passes_e1(m: &metadata::Member) -> bool {
+    m.dir.join("README.md").exists() || count_lib_doc_lines(&m.dir) >= 5
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 pub fn run(repo_root: &Path) -> Result<(), String> {
@@ -131,25 +175,11 @@ pub fn run(repo_root: &Path) -> Result<(), String> {
     for m in &ws.members {
         let depth = crates_segment_depth(&m.rel_dir);
         if depth >= 3 && !is_bin_sub_crate(&m.rel_dir) {
-            // The allowlisted ship-skill-vars is a KNOWN 3-level violation that
-            // is pinned-pending-removal — emit a WARN rather than an error so
-            // the allowlist entry can serve as a ratchet.
-            let allowlisted = SINGLE_CONSUMER_ALLOWLIST
-                .iter()
-                .any(|(n, _)| *n == m.name.as_str());
-            if allowlisted {
-                warnings.push(format!(
-                    "[N1-KNOWN] `{}` ({}) is nested {depth} crate-level(s) deep — known violation \
-                     (allowlisted pending Wave-1.1 dissolution); remove when the move completes.",
-                    m.name, m.rel_dir,
-                ));
-            } else {
-                errors.push(format!(
-                    "[N1] `{}` ({}) is nested {depth} crate-level(s) deep — Rule N1 allows at most \
-                     2 levels (except bin/ sub-crates). Dissolve into a module or move up a layer.",
-                    m.name, m.rel_dir,
-                ));
-            }
+            errors.push(format!(
+                "[N1] `{}` ({}) is nested {depth} crate-level(s) deep — Rule N1 allows at most \
+                 2 levels (except bin/ sub-crates). Dissolve into a module or move up a layer.",
+                m.name, m.rel_dir,
+            ));
         }
     }
 
@@ -190,6 +220,55 @@ pub fn run(repo_root: &Path) -> Result<(), String> {
         }
     }
 
+    // ── (c) E1 docs-charter: entry-point crate doc coverage ──────────────────
+    //
+    // Rule E1 (docs-charter): entry-point crates (zero intra-workspace non-dev
+    // consumers) must have README.md OR ≥5 `//!` module-doc lines in lib.rs.
+    // Violators that existed when the rule was introduced (Wave-1.1 / 2026-06-11)
+    // are pinned in E1_VIOLATOR_ALLOWLIST — they emit a warning rather than an
+    // error while the docs-charter README lane is in flight.
+    let e1_allowlist: std::collections::HashSet<&str> =
+        E1_VIOLATOR_ALLOWLIST.iter().copied().collect();
+
+    for m in &ws.members {
+        let n = counts.get(&m.name).copied().unwrap_or(0);
+        if n == 0 && !passes_e1(m) {
+            if e1_allowlist.contains(m.name.as_str()) {
+                warnings.push(format!(
+                    "[E1-PINNED] `{}` ({}) is an entry-point crate with no README.md and \
+                     < 5 //! lines in lib.rs — pinned pending docs-charter README lane. \
+                     Remove this pin once README.md or ≥5 //! lines land.",
+                    m.name, m.rel_dir,
+                ));
+            } else {
+                errors.push(format!(
+                    "[E1] `{}` ({}) is an entry-point crate (0 ws consumers) with no README.md \
+                     and < 5 //! module-doc lines in src/lib.rs. Add README.md or at least 5 \
+                     //! lines to lib.rs (Rule E1, docs-charter).",
+                    m.name, m.rel_dir,
+                ));
+            }
+        }
+    }
+
+    // Warn about stale E1 allowlist entries (crate now passes E1 or was removed).
+    for name in E1_VIOLATOR_ALLOWLIST {
+        if let Some(m) = ws.member(name) {
+            let n = counts.get(*name).copied().unwrap_or(0);
+            if n == 0 && passes_e1(m) {
+                warnings.push(format!(
+                    "[E1-STALE] allowlist entry `{name}` now passes E1 (README.md exists or \
+                     ≥5 //! lines in lib.rs) — remove it from E1_VIOLATOR_ALLOWLIST.",
+                ));
+            }
+        } else {
+            warnings.push(format!(
+                "[E1-STALE] allowlist entry `{name}` no longer exists in the workspace — \
+                 remove it from E1_VIOLATOR_ALLOWLIST.",
+            ));
+        }
+    }
+
     // ── Report ───────────────────────────────────────────────────────────────
     for w in &warnings {
         eprintln!("WARN {w}");
@@ -202,10 +281,11 @@ pub fn run(repo_root: &Path) -> Result<(), String> {
             .count();
         println!(
             "check-topology PASS — {} workspace members; {} nesting-depth ok; \
-             {} single-consumer allowlist entries; {} warnings",
+             {} single-consumer allowlist entries; {} E1-pinned; {} warnings",
             ws.members.len(),
             depth_ok,
             SINGLE_CONSUMER_ALLOWLIST.len(),
+            E1_VIOLATOR_ALLOWLIST.len(),
             warnings.len(),
         );
         return Ok(());
@@ -214,10 +294,11 @@ pub fn run(repo_root: &Path) -> Result<(), String> {
         eprintln!("  {e}");
     }
     Err(format!(
-        "topology violations: {} (N1={}, C2={})",
+        "topology violations: {} (N1={}, C2={}, E1={})",
         errors.len(),
         errors.iter().filter(|e| e.starts_with("[N1]")).count(),
         errors.iter().filter(|e| e.starts_with("[C2]")).count(),
+        errors.iter().filter(|e| e.starts_with("[E1]")).count(),
     ))
 }
 
@@ -237,9 +318,9 @@ mod tests {
         assert_eq!(crates_segment_depth("crates/core/ship-substrate/crates/ship-types"), 2);
         // L1 sub-crate (under ship-platform): depth 2.
         assert_eq!(crates_segment_depth("crates/core/ship-platform/crates/ship-agents"), 2);
-        // 3-level violation: depth 3.
+        // Hypothetical 3-level nesting (Rule N1 violation).
         assert_eq!(
-            crates_segment_depth("crates/core/ship-platform/crates/agent-def/crates/ship-skill-vars"),
+            crates_segment_depth("crates/core/ship-platform/crates/agent-def/crates/example"),
             3
         );
     }
@@ -248,7 +329,7 @@ mod tests {
     fn bin_sub_crate_exception_matches() {
         assert!(is_bin_sub_crate("crates/core/ship-platform/crates/ship-isolation/bin/ship-sidecar"));
         assert!(!is_bin_sub_crate("crates/core/ship-substrate/crates/ship-types"));
-        assert!(!is_bin_sub_crate("crates/core/ship-platform/crates/agent-def/crates/ship-skill-vars"));
+        assert!(!is_bin_sub_crate("crates/core/ship-platform/crates/ship-isolation"));
     }
 
     #[test]
