@@ -6,6 +6,14 @@ license-file = "LICENSE"
 publish = false
 description = "Ship package registry — dependency resolver, content-addressed cache, compose, install, schema loaders. Depends on L0 only; no cycle back into ship-platform."
 
+[features]
+# Opt-in gate for release builds. Enable this feature when cutting a release
+# to fail compilation if FIRST_PARTY_KID still contains the PLACEHOLDER stub
+# (see crates/ship-store/src/bundle_sig.rs). Dev builds leave this unset so
+# normal `cargo build` / `cargo test` work without a real signing key.
+# Release-engineering sets: `cargo build -p ship-store --features release`
+release = []
+
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
 ship-collection = { path = "../ship-collection" }

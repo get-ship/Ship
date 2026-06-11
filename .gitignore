@@ -177,9 +177,10 @@ crates/deck/deck/assets/
 # un-updated runtime bundler never get committed again.
 crates/sui/ship-sui-server/
 
-# apps/shipd/assets/ now holds only committed source (view-tokens.css).
-# Consumer bundle outputs (.js) moved to .deck/ (deck.jsonc hostAssetsRoot).
-# The daemon's build cache is still local-only.
+# apps/shipd/assets/ holds committed source (view-tokens.css). Generated or
+# vendored *.js files that appear here (e.g. from build tooling) are ignored
+# so they are never accidentally committed. The build cache is also local-only.
+apps/shipd/assets/*.js
 apps/shipd/assets/.cache/
 
 # Legacy shell vendor dir — shell now loads bundles via /api/runtime/assets/*.

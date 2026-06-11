@@ -422,7 +422,8 @@ pub async fn run_network(
         use ship_substrate::data::DataService;
         let runtime_db = ship_substrate::db::runtime_db_path(&global_dir);
         let store = {
-            let svc = DataService::open_at(&runtime_db).expect("data service over runtime.db");
+            let svc = DataService::open_at(&runtime_db)
+                .map_err(|e| anyhow!("data service over runtime.db: {e}"))?;
             std::sync::Arc::new(SingleBackendDataStore::new(svc, "runtime"))
                 as std::sync::Arc<dyn ship_substrate::ports::DataStore>
         };

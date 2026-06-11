@@ -267,11 +267,6 @@ pub async fn dispatch_pipeline_run_internal(
             &ComposedRunCtx {
                 pipeline_run_id: &payload.pipeline_run_id,
                 run_slug: &payload.slug,
-                branch: &payload.branch,
-                source_spec_path: payload.source_spec_path.as_deref(),
-                vars: payload.vars.as_ref(),
-                baseline_sha: payload.baseline_sha.as_deref(),
-                run_headless: payload.headless,
             },
             root_step,
             agent,
@@ -341,14 +336,19 @@ pub async fn dispatch_pipeline_run_internal(
 /// a `PipelineRunStartedPayload` (first-step dispatch path) — both
 /// expose the same fields, so the emit helper takes this rather than
 /// either concrete type.
+///
+/// Fields removed (all unread by `emit_composed_step_session`):
+///   • `run_headless` — confirmed dead; composed steps are always headless.
+///   • `branch`, `source_spec_path`, `vars`, `baseline_sha` — driver-edge
+///     fields that DO NOT flow into the `dispatch.requested` channel here:
+///     composed steps bypass that channel entirely. The orchestrator
+///     dispatches them directly via the executor; only bare sessions go
+///     through `dispatch.requested`. The fields are preserved in the
+///     `PipelineRunStartedPayload` / `PipelineRun` structs for gate
+///     evaluation and the `step.observed` evidence path.
 pub(crate) struct ComposedRunCtx<'a> {
     pub pipeline_run_id: &'a str,
     pub run_slug: &'a str,
-    pub branch: &'a str,
-    pub source_spec_path: Option<&'a str>,
-    pub vars: Option<&'a std::collections::HashMap<String, String>>,
-    pub baseline_sha: Option<&'a str>,
-    pub run_headless: bool,
 }
 
 pub(crate) async fn emit_composed_step_session(

@@ -36,7 +36,7 @@ pub struct SettingsWire<F> {
 
 impl<F> SettingsWire<F>
 where
-    F: Fn(&RequestContext) -> SettingsCtx + Send + Sync + 'static,
+    F: Fn(&RequestContext) -> Result<SettingsCtx, ConnectError> + Send + Sync + 'static,
 {
     pub fn new(kernel: Arc<KernelLog>, make_ctx: F) -> Self {
         Self {
@@ -45,8 +45,8 @@ where
         }
     }
 
-    fn make_svc(&self, rctx: &RequestContext) -> SettingsService {
-        SettingsService::new((self.make_ctx)(rctx))
+    fn make_svc(&self, rctx: &RequestContext) -> Result<SettingsService, ConnectError> {
+        Ok(SettingsService::new((self.make_ctx)(rctx)?))
     }
 }
 
@@ -87,7 +87,7 @@ fn setting_to_proto(r: ResolvedSetting) -> Setting {
 #[allow(refining_impl_trait)]
 impl<F> SettingsServiceTrait for SettingsWire<F>
 where
-    F: Fn(&RequestContext) -> SettingsCtx + Send + Sync + 'static,
+    F: Fn(&RequestContext) -> Result<SettingsCtx, ConnectError> + Send + Sync + 'static,
 {
     async fn get(
         &self,
@@ -95,7 +95,7 @@ where
         request: ship_ops_rpc::OwnedGetSettingReqView,
     ) -> ServiceResult<Setting> {
         let scope = map_scope(request.scope)?;
-        let svc = self.make_svc(&ctx);
+        let svc = self.make_svc(&ctx)?;
         let resolved = svc.get(scope, request.key).await.map_err(ConnectError::from)?;
         Ok(Response::new(setting_to_proto(resolved)))
     }
@@ -106,7 +106,7 @@ where
         request: ship_ops_rpc::OwnedListSettingsReqView,
     ) -> ServiceResult<SettingList> {
         let scope = map_scope(request.scope)?;
-        let svc = self.make_svc(&ctx);
+        let svc = self.make_svc(&ctx)?;
         let settings: Vec<Setting> = svc
             .list(scope)
             .await
@@ -123,7 +123,7 @@ where
         request: ship_ops_rpc::OwnedSetSettingReqView,
     ) -> ServiceResult<Setting> {
         let scope = map_scope(request.scope)?;
-        let svc = self.make_svc(&ctx);
+        let svc = self.make_svc(&ctx)?;
         let value: serde_json::Value = serde_json::from_slice(request.value_json)
             .map_err(|e| ConnectError::invalid_argument(format!("invalid value JSON: {e}")))?;
         let resolved = svc
@@ -139,7 +139,7 @@ where
         request: ship_ops_rpc::OwnedWatchSettingsReqView,
     ) -> ServiceResult<ServiceStream<WatchEvent>> {
         let scope = map_scope(request.scope)?;
-        let svc = self.make_svc(&ctx);
+        let svc = self.make_svc(&ctx)?;
         // One watch slot per (space-or-scope, tier). The reactive key partitions
         // by the resolved space (Space scope) or the scope name (Account/Runtime).
         let space_id = svc

@@ -271,7 +271,7 @@ async fn watch_returns_a_live_stream_with_initial_snapshot() {
     let kernel = make_kernel();
     let kernel_for_ctx = kernel.clone();
     let wire = SettingsWire::new(kernel.clone(), move |_rctx: &RequestContext| {
-        ctx_no_space(kernel_for_ctx.clone(), true)
+        Ok(ctx_no_space(kernel_for_ctx.clone(), true))
     });
 
     let rctx = RequestContext::default();
