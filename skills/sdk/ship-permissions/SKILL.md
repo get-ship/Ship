@@ -1,7 +1,7 @@
 ---
 name: ship-permissions
-audience: public
 stable-id: ship-permissions
+audience: public
 description: >-
   The `permissions` capability (7 ops). Call any op over ConnectRPC with
   `ship ops call <name> --json '<args>'`. This file is a table of contents;
@@ -25,7 +25,7 @@ page for full args, return shape, capability, and an example.
 
 ## Reads
 
-- [`permissions.get`](references/docs/permissions.get.mdoc) — Raw permission preset at the requested scope.
+- [`permissions.get`](references/docs/permissions.get.mdoc) — Permission preset at the requested scope — id, scope, and JSON body.
 - [`permissions.list`](references/docs/permissions.list.mdoc) — List permission presets across scopes.
 - [`permissions.tool_patterns`](references/docs/permissions.tool_patterns.mdoc) — Enumerate tool-pattern capability names (for agent builders).
 

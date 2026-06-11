@@ -1,6 +1,6 @@
 ---
 title: permissions.get
-description: Raw permission preset at the requested scope.
+description: Permission preset at the requested scope — id, scope, and JSON body.
 audience: public
 group: "Ops: permissions"
 order: 2
@@ -10,7 +10,7 @@ order: 2
 
 # `permissions.get`
 
-Raw permission preset at the requested scope.
+Permission preset at the requested scope — id, scope, and JSON body.
 
 **Policy** — read (C0, safe). Capability `ship.permissions.read`.
 
@@ -23,11 +23,13 @@ Raw permission preset at the requested scope.
 
 ## Returns
 
-`JsonResponse` (JSON).
+`GetPermissionResponse` (JSON).
 
 | field | type |
 |-------|------|
-| `json` | `string` |
+| `id` | `string` |
+| `scope` | `string` |
+| `preset_json` | `string` |
 
 ## Invoke
 
@@ -37,3 +39,12 @@ ship ops call permissions.get --json '{ "id": "", "scope": "" }'
 
 Kind: read.
 
+## Example response
+
+```json
+{
+  "id": "allow-bash-read",
+  "scope": "project",
+  "preset_json": "{\"default_mode\":\"ship-standard\",\"rules\":[{\"type\":\"allow\",\"tools\":[\"Bash(git *)\",\"Read\",\"Write\",\"Edit\"]}]}"
+}
+```

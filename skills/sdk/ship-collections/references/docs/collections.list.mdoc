@@ -1,6 +1,6 @@
 ---
 title: collections.list
-description: Collection summaries with field records (id, name, fields[name,type,required]).
+description: All collections, including system ones (flagged system=true).
 audience: public
 group: "Ops: collections"
 order: 5
@@ -10,9 +10,9 @@ order: 5
 
 # `collections.list`
 
-Collection summaries with field records (id, name, fields[name,type,required]).
+All collections, including system ones (flagged system=true).
 
-**Policy** — read (C0, safe). Capability `ship.collections.read`.
+**Policy** — read (C0, safe). Capability `ship.collection.read`.
 
 ## Arguments
 
@@ -20,11 +20,11 @@ None.
 
 ## Returns
 
-`JsonResponse` (JSON).
+`CollectionList` (JSON).
 
 | field | type |
 |-------|------|
-| `json` | `string` |
+| `collections` | `map` |
 
 ## Invoke
 
@@ -34,3 +34,21 @@ ship ops call collections.list --json '{}'
 
 Kind: read.
 
+## Example response
+
+```json
+{
+  "collections": [
+    {
+      "id": "notes",
+      "title": "Notes",
+      "item_count": 3
+    },
+    {
+      "id": "feedback",
+      "title": "Feedback",
+      "system": true
+    }
+  ]
+}
+```

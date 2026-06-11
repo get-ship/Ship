@@ -1,9 +1,9 @@
 ---
 name: ship-skills
-audience: public
 stable-id: ship-skills
+audience: public
 description: >-
-  The `skills` capability (16 ops). Call any op over ConnectRPC with
+  The `skills` capability (20 ops). Call any op over ConnectRPC with
   `ship ops call <name> --json '<args>'`. This file is a table of contents;
   open `references/docs/<op>.mdoc` for an op's args, return shape, and policy.
 tags: [sdk, api, skills]
@@ -26,10 +26,13 @@ page for full args, return shape, capability, and an example.
 ## Reads
 
 - [`skills.detail`](references/docs/skills.detail.mdoc) — Full view-shaped skill detail — authors, variables, files.
+- [`skills.detail_live`](references/docs/skills.detail_live.mdoc) — 
 - [`skills.file`](references/docs/skills.file.mdoc) — HTML-escaped file content within a skill dir.
 - [`skills.get`](references/docs/skills.get.mdoc) — Raw skill detail at the requested scope.
 - [`skills.list`](references/docs/skills.list.mdoc) — List all skills as minimal IndexEntry rows.
+- [`skills.list_live`](references/docs/skills.list_live.mdoc) — 
 - [`skills.summaries`](references/docs/skills.summaries.mdoc) — Rail shape: filtered + grouped + kind counts + tags.
+- [`skills.summaries_live`](references/docs/skills.summaries_live.mdoc) — 
 
 ## Commands
 
@@ -40,6 +43,7 @@ page for full args, return shape, capability, and an example.
 - [`skills.duplicate`](references/docs/skills.duplicate.mdoc) `[C2_ELEVATED]` — Copy a skill to a new id.
 - [`skills.move_scope`](references/docs/skills.move_scope.mdoc) `[C2_ELEVATED]` — Move a skill between project and user scope.
 - [`skills.rename`](references/docs/skills.rename.mdoc) `[C2_ELEVATED]` — Rename a skill's id.
+- [`skills.scaffold`](references/docs/skills.scaffold.mdoc) `[C1_WORKSPACE]` — Scaffold a new skill directory from a named shape template.
 - [`skills.set_var`](references/docs/skills.set_var.mdoc) `[C2_ELEVATED]` — Set a KV variable (value_json) on a skill.
 - [`skills.write_body`](references/docs/skills.write_body.mdoc) `[C2_ELEVATED]` — Replace a skill's markdown body.
 - [`skills.write_file`](references/docs/skills.write_file.mdoc) `[C2_ELEVATED]` — Write a UTF-8 text file inside a skill dir.

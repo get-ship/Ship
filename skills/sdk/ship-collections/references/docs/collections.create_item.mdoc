@@ -1,6 +1,6 @@
 ---
 title: collections.create_item
-description: Create an item in a collection (id auto-generated if omitted).
+description: Create an item in a collection.
 audience: public
 group: "Ops: collections"
 order: 0
@@ -10,9 +10,9 @@ order: 0
 
 # `collections.create_item`
 
-Create an item in a collection (id auto-generated if omitted).
+Create an item in a collection.
 
-**Policy** — command `[C1_WORKSPACE]`. Capability `ship.collections.write`.
+**Policy** — command `[C1_WORKSPACE]`. Capability `ship.collection.write`.
 
 ## Arguments
 
@@ -20,25 +20,23 @@ Create an item in a collection (id auto-generated if omitted).
 |------|------|
 | `collection` | `string` |
 | `data_json` | `string` |
-| `id` | `string` |
 
 ## Returns
 
-`CollectionItem` (JSON).
+`Item` (JSON).
 
 | field | type |
 |-------|------|
 | `id` | `string` |
 | `collection` | `string` |
 | `data_json` | `string` |
-| `created_by` | `string` |
 | `created_at` | `string` |
 | `updated_at` | `string` |
 
 ## Invoke
 
 ```
-ship ops call collections.create_item --json '{ "collection": "", "data_json": "", "id": "" }'
+ship ops call collections.create_item --json '{ "collection": "", "data_json": "" }'
 ```
 
 Kind: command.
@@ -49,8 +47,7 @@ Kind: command.
 {
   "id": "note-checkout-notes",
   "collection": "notes",
-  "data_json": "{\"title\":\"Checkout service notes\",\"content\":\"Auth via JWT; idempotency key on POST /checkout.\",\"tags\":[\"engineering\"],\"category\":\"engineering\"}",
-  "created_by": "rust-lane",
+  "data_json": "eyJ0aXRsZSI6IkNoZWNrb3V0IG5vdGVzIiwiY29udGVudCI6IkF1dGggdmlhIEpXVC4ifQ==",
   "created_at": "2026-05-24T18:35:00Z",
   "updated_at": "2026-05-24T18:35:00Z"
 }

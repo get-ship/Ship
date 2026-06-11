@@ -20,11 +20,15 @@ None.
 
 ## Returns
 
-`JsonResponse` (JSON).
+`AgentCatalogsResponse` (JSON).
 
 | field | type |
 |-------|------|
-| `json` | `string` |
+| `skills` | `map` |
+| `mcp` | `map` |
+| `rules` | `map` |
+| `presets` | `map` |
+| `tool_patterns` | `map` |
 
 ## Invoke
 
@@ -34,3 +38,51 @@ ship ops call agents.catalogs --json '{}'
 
 Kind: read.
 
+## Example response
+
+```json
+{
+  "skills": [
+    {
+      "id": "run",
+      "name": "Run",
+      "description": "Launch and drive the app."
+    },
+    {
+      "id": "verify",
+      "name": "Verify"
+    }
+  ],
+  "mcp": [
+    {
+      "id": "ship",
+      "name": "Ship"
+    }
+  ],
+  "rules": [
+    {
+      "id": "no-placeholders",
+      "name": "no-placeholders"
+    }
+  ],
+  "presets": [
+    {
+      "id": "ship-standard",
+      "name": "ship-standard",
+      "description": "Human confirms risky actions before they run."
+    }
+  ],
+  "tool_patterns": [
+    {
+      "pattern": "Read",
+      "label": "Read",
+      "source": "harness"
+    },
+    {
+      "pattern": "Bash(cargo *)",
+      "label": "Bash cargo",
+      "source": "bash"
+    }
+  ]
+}
+```

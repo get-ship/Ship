@@ -1,6 +1,6 @@
 ---
 title: collections.update_schema
-description: Replace a collection's schema (nested CollectionSchema as schema_json).
+description: Replace a collection schema.
 audience: public
 group: "Ops: collections"
 order: 8
@@ -10,30 +10,41 @@ order: 8
 
 # `collections.update_schema`
 
-Replace a collection's schema (nested CollectionSchema as schema_json).
+Replace a collection schema.
 
-**Policy** — command `[C1_WORKSPACE]`. Capability `ship.collections.write`.
+**Policy** — command `[C1_WORKSPACE]`. Capability `ship.collection.write`.
 
 ## Arguments
 
 | name | type |
 |------|------|
-| `collection` | `string` |
+| `id` | `string` |
 | `schema_json` | `string` |
 
 ## Returns
 
-`JsonResponse` (JSON).
+`CollectionDetail` (JSON).
 
 | field | type |
 |-------|------|
-| `json` | `string` |
+| `id` | `string` |
+| `schema_json` | `string` |
+| `item_count` | `number` |
 
 ## Invoke
 
 ```
-ship ops call collections.update_schema --json '{ "collection": "", "schema_json": "" }'
+ship ops call collections.update_schema --json '{ "id": "", "schema_json": "" }'
 ```
 
 Kind: command.
 
+## Example response
+
+```json
+{
+  "id": "notes",
+  "schema_json": "eyJ0aXRsZSI6Ik5vdGVzIiwiZmllbGRzIjpbeyJuYW1lIjoidGl0bGUiLCJ0eXBlIjoic3RyaW5nIn1dfQ==",
+  "item_count": 3
+}
+```

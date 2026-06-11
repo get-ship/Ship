@@ -1,7 +1,7 @@
 ---
 name: ship-analytics
-audience: public
 stable-id: ship-analytics
+audience: public
 description: >-
   The `analytics` capability (4 ops). Call any op over ConnectRPC with
   `ship ops call <name> --json '<args>'`. This file is a table of contents;

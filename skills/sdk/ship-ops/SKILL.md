@@ -1,7 +1,7 @@
 ---
 name: ship-ops
-audience: public
 stable-id: ship-ops
+audience: public
 description: >-
   The `ops` capability (1 ops). Call any op over ConnectRPC with
   `ship ops call <name> --json '<args>'`. This file is a table of contents;

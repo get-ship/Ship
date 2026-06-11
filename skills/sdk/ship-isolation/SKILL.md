@@ -1,7 +1,7 @@
 ---
 name: ship-isolation
-audience: public
 stable-id: ship-isolation
+audience: public
 description: >-
   The `isolation` capability (4 ops). Call any op over ConnectRPC with
   `ship ops call <name> --json '<args>'`. This file is a table of contents;

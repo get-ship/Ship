@@ -1,6 +1,6 @@
 ---
 title: collections.update_item
-description: Replace a collection item's data by id.
+description: Replace a collection item's data.
 audience: public
 group: "Ops: collections"
 order: 7
@@ -10,9 +10,9 @@ order: 7
 
 # `collections.update_item`
 
-Replace a collection item's data by id.
+Replace a collection item's data.
 
-**Policy** — command `[C1_WORKSPACE]`. Capability `ship.collections.write`.
+**Policy** — command `[C1_WORKSPACE]`. Capability `ship.collection.write`.
 
 ## Arguments
 
@@ -24,14 +24,13 @@ Replace a collection item's data by id.
 
 ## Returns
 
-`CollectionItem` (JSON).
+`Item` (JSON).
 
 | field | type |
 |-------|------|
 | `id` | `string` |
 | `collection` | `string` |
 | `data_json` | `string` |
-| `created_by` | `string` |
 | `created_at` | `string` |
 | `updated_at` | `string` |
 
@@ -49,8 +48,7 @@ Kind: command.
 {
   "id": "note-checkout-notes",
   "collection": "notes",
-  "data_json": "{\"title\":\"Checkout service notes\",\"content\":\"Auth via JWT; idempotency key on POST /checkout. Also: rate-limit at gateway.\",\"tags\":[\"engineering\"],\"category\":\"engineering\"}",
-  "created_by": "rust-lane",
+  "data_json": "eyJ0aXRsZSI6IkNoZWNrb3V0IG5vdGVzIiwiY29udGVudCI6IkF1dGggdmlhIEpXVC4ifQ==",
   "created_at": "2026-05-24T18:35:00Z",
   "updated_at": "2026-05-24T19:00:00Z"
 }
