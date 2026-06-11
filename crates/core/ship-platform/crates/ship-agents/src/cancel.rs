@@ -15,9 +15,10 @@
 //! walks fanout lanes and reads the jobs projection for the branch). The agent
 //! cancel is slug-keyed and harness-agnostic.
 //!
-//! Note: the Stop RPC currently kills processes directly without emitting
-//! `session.cancelled`. This handler is wired for when that emit is added.
-//! See #26 spawn-intent channel design for the Stop RPC wiring TODO.
+//! The Stop RPC (`AgentsService::stop`) now emits `session.cancelled`
+//! (Space-scoped, Durable, canonical payload with slug populated) and returns
+//! optimistically; this handler performs the actual process teardown on receipt
+//! of that event. See apps/shipd/src/ops_rpc.rs stop_fn for the emit seam.
 
 use std::sync::Arc;
 

@@ -700,11 +700,11 @@ impl AgentsServiceTrait for AgentsWire {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedStopAgentRequestView,
     ) -> ServiceResult<StopResult> {
-        (self.gate)(&ctx, "agent.stop")?;
+        (self.gate)(&ctx, "agents.stop")?;
         let result = (self.stop_fn)(request.slug.to_string()).await?;
         serde_json::from_value::<StopResult>(result)
             .map(Response::new)
-            .map_err(|e| ConnectError::internal(format!("decode agent.stop response: {e}")))
+            .map_err(|e| ConnectError::internal(format!("decode agents.stop response: {e}")))
     }
 
     async fn steer(

@@ -567,16 +567,61 @@ pub fn router(state: ApiState) -> axum::Router {
         });
     let dispatch_port: std::sync::Arc<dyn ship_agents::services::agents::dispatch_core::AgentDispatchPort> =
         Arc::new(crate::agent_event_ports::AgentDispatchAdapter::new(state.clone()));
-    // stop_fn: kill a running agent via the dispatch process registry.
-    // Gated: dispatch_handle() only exists when ship-code feature is on.
+    // stop_fn: emit canonical session.cancelled (Space-scoped, Durable) for
+    // sessions that are tracked in the canonical_sessions projection, then
+    // return optimistically. The service.agents actor (handle_agent_cancelled)
+    // receives the event and performs the actual process teardown — this is the
+    // intended #26 design: Stop RPC is the emit seam, actor teardown does the kill.
+    //
+    // Fallback: if no canonical session exists for the slug (pre-migration or
+    // non-canonical session), fall through to the direct-kill path via the
+    // dispatch process registry (requires ship-code feature + dispatch_handle).
     #[cfg(feature = "ship-code")]
     let stop_fn: ship_agents::services::agents::rpc_wire::StopFn = {
         let stop_state = state.clone();
         Arc::new(move |slug: String| {
             let st = stop_state.clone();
             Box::pin(async move {
+                // Canonical path: look up the session by slug. If found and not
+                // yet terminal, emit session.cancelled and return optimistically.
+                // The actor tears down the process; the caller gets { stopped: true }
+                // immediately rather than blocking on the kill.
+                let canonical = ship_agents::services::sessions::canonical_projection::load_canonical_session_by_slug_at(
+                    st.ship_dir(),
+                    &slug,
+                )
+                .map_err(|e| ConnectError::internal(format!("session lookup: {e}")))?;
+
+                if let Some(session) = canonical {
+                    if !session.status.is_terminal() {
+                        // Build the canonical session.cancelled envelope.
+                        // Space-scoped, Durable — mirrors agent_def::emit::build_space_envelope.
+                        let sid = session.session_id.clone();
+                        let payload = agent_def::canonical_session::SessionCancelled {
+                            session_id: sid.clone(),
+                            reason: Some("operator stop".into()),
+                        };
+                        let mut env = ship_substrate::events::EventEnvelope::new(
+                            agent_def::canonical_session::event_types::SESSION_CANCELLED,
+                            &sid,
+                            &payload,
+                        )
+                        .map_err(|e| ConnectError::internal(format!("build session.cancelled: {e}")))?;
+                        // Stamp Space scope: scope_key = session_id (the Space partition key).
+                        env.scope = ship_substrate::events::EventScope::Space;
+                        env.scope_key = Some(sid.clone());
+                        env.session_id = Some(sid.clone());
+                        st.persist_and_route(&env)
+                            .await
+                            .map_err(|e| ConnectError::internal(format!("emit session.cancelled: {e}")))?;
+                        // Return optimistically — actor owns the teardown.
+                        return Ok(serde_json::json!({ "slug": slug, "stopped": true }));
+                    }
+                }
+
+                // Fallback: direct kill for non-canonical / pre-migration sessions.
                 let dh = st.dispatch_handle()
-                    .ok_or_else(|| ConnectError::internal("dispatch service not initialized"))?;
+                    .ok_or_else(|| ConnectError::not_found(format!("no running agent with slug '{slug}'")))?;
                 let handle = {
                     let mut reg = dh.registry.lock().await;
                     reg.take(&slug)
