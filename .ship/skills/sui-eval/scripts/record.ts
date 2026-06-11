@@ -22,6 +22,7 @@ interface LaneRow {
     cssTokenViolations: string[]
     viewFiles: string[]
   }
+  behavior?: { total: number; passed: number; score: number }
   composite: number
 }
 
@@ -60,6 +61,13 @@ for (const file of files) {
       view_files: row.structural.viewFiles,
       css_violations: row.structural.cssTokenViolations,
       missing_fragments: row.structural.requiredFragments.missing,
+      ...(row.behavior
+        ? {
+            behavior_passed: row.behavior.passed,
+            behavior_total: row.behavior.total,
+            behavior_score: Number(row.behavior.score.toFixed(4)),
+          }
+        : {}),
     }
     const payload = JSON.stringify({
       collection: 'sui-eval-runs',

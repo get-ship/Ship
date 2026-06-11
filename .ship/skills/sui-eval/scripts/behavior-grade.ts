@@ -80,8 +80,11 @@ test('behavior grade (measurement, never fails)', async () => {
 `
 
 writeFileSync(genFile, gen)
+// Repo-local vitest — npx could fetch a different major from the network.
+const vitestBin = join(REPO, 'node_modules/.bin/vitest')
+const runner = existsSync(vitestBin) ? JSON.stringify(vitestBin) : 'npx vitest'
 try {
-  execSync(`npx vitest run ${JSON.stringify(genFile)}`, {
+  execSync(`${runner} run ${JSON.stringify(genFile)}`, {
     cwd: join(REPO, 'packages/test-setup'),
     stdio: 'ignore',
   })
