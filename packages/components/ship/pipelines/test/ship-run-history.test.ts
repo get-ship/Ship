@@ -6,9 +6,9 @@ const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
-// The bind:this host (the rows container) is queried via its rendered
-// children; the compiler drops the authored class on bind:this elements.
-const rows = (el: HTMLElement) => shadow(el)
+// The rows container carries bind:this AND an authored class. Querying through
+// `.rows` pins #285: static attributes must survive alongside the ref binding.
+const rows = (el: HTMLElement) => shadow(el).querySelector('.rows')!
 const runsAttr = (runs: unknown) => JSON.stringify(runs)
 
 const FIXTURE = [
@@ -20,6 +20,12 @@ const FIXTURE = [
 describe('<ship-run-history>', () => {
   it('registers as a custom element', () => {
     expect(customElements.get('ship-run-history')).toBeDefined()
+  })
+
+  it('keeps the authored class on the bind:this host (#285)', async () => {
+    const { el } = mount(reg, 'ship-run-history', { runs: '[]' })
+    await flush()
+    expect(shadow(el).querySelector('.rows')).not.toBeNull()
   })
 
   it('renders the header from the title and meta props', async () => {

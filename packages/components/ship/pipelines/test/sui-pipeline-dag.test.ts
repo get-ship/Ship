@@ -6,9 +6,9 @@ const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
-// The dag host carries bind:this; the compiler drops its authored class/part,
-// so query the rendered svg/placeholder from the shadow root directly.
-const dag = (el: HTMLElement) => shadow(el)
+// The dag host carries bind:this AND an authored class/part. Querying through
+// `.dag` pins #285: static attributes must survive alongside the ref binding.
+const dag = (el: HTMLElement) => shadow(el).querySelector('.dag')!
 const stepsAttr = (steps: unknown) => JSON.stringify(steps)
 
 const FIXTURE = [
@@ -20,6 +20,14 @@ const FIXTURE = [
 describe('<sui-pipeline-dag>', () => {
   it('registers as a custom element', () => {
     expect(customElements.get('sui-pipeline-dag')).toBeDefined()
+  })
+
+  it('keeps the authored class and part on the bind:this host (#285)', async () => {
+    const { el } = mount(reg, 'sui-pipeline-dag', { steps: '[]' })
+    await flush()
+    const host = shadow(el).querySelector('.dag')
+    expect(host).not.toBeNull()
+    expect(host!.getAttribute('part')).toBe('dag')
   })
 
   it('renders an svg with one node group per step', async () => {

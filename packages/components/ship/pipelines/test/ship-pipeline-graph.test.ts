@@ -6,9 +6,9 @@ const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
-// The flow host carries bind:this; the compiler drops its authored class/part,
-// so query the rendered nodes from the shadow root directly.
-const flow = (el: HTMLElement) => shadow(el)
+// The flow host carries bind:this AND an authored class/part. Querying through
+// `.flow` pins #285: static attributes must survive alongside the ref binding.
+const flow = (el: HTMLElement) => shadow(el).querySelector('.flow')!
 const stepsAttr = (steps: unknown) => JSON.stringify(steps)
 
 const FIXTURE = [
@@ -20,6 +20,14 @@ const FIXTURE = [
 describe('<ship-pipeline-graph>', () => {
   it('registers as a custom element', () => {
     expect(customElements.get('ship-pipeline-graph')).toBeDefined()
+  })
+
+  it('keeps the authored class and part on the bind:this host (#285)', async () => {
+    const { el } = mount(reg, 'ship-pipeline-graph', { steps: '[]' })
+    await flush()
+    const host = shadow(el).querySelector('.flow')
+    expect(host).not.toBeNull()
+    expect(host!.getAttribute('part')).toBe('flow')
   })
 
   it('renders the header from the name, status and run props', async () => {
