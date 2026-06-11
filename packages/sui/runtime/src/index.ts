@@ -121,12 +121,13 @@ export {
 export { bindFor, bindForSignal } from './for'
 export type { BindForOptions, RenderedItem } from './for'
 
-// Backbone #2 — virtualization. `createVirtualizer()` is a reactive adapter
-// over the `@tanstack/virtual-core` windowing engine (a devDependency the
-// bundler inlines at build). Consumers bind to `Virtual<T>` — never to the
-// upstream core directly.
-export { createVirtualizer } from './virtual'
-export type { Virtual, VirtualOptions, VirtualItem } from './virtual'
+// Backbone #2 — virtualization — lives on the `@ship/sui-runtime/virtual`
+// subpath, NOT this barrel (#297): re-exporting it here dragged
+// `@tanstack/virtual-core` (~21KB minified, a third of the bundle) into the
+// always-loaded runtime singleton. Windowing consumers import
+// `createVirtualizer` / `Virtual` / `VirtualItem` from the subpath; their
+// bundles inline the adapter + engine while the reactive core stays the
+// external singleton (see src/virtual.ts).
 
 export { bindIf } from './if'
 export type { BindIfOptions, BranchRender } from './if'

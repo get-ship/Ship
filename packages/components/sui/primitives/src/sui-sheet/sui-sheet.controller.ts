@@ -1,5 +1,5 @@
 import { controller, derived, effect, ref, signal, type Derived } from '@ship/sui-runtime'
-import { createVirtualizer } from '@ship/sui-runtime'
+import { createVirtualizer } from '@ship/sui-runtime/virtual'
 import { createSheet, type Sheet } from './engine/create-sheet'
 import { colToLabel } from './engine/a1'
 import { parseJsonWorkbook } from './engine/decode'

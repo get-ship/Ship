@@ -24,7 +24,7 @@
 // Engine purity (Cardinal 4): imports ONLY @ship/sui-runtime.
 
 import { describe, expect, it } from 'vitest'
-import { createVirtualizer } from '@ship/sui-runtime'
+import { createVirtualizer } from '@ship/sui-runtime/virtual'
 // RED: greenfield module.
 import { createSheet } from './create-sheet'
 import type { WorkbookDef } from './contract'

@@ -153,6 +153,7 @@ export function suiComponentVitestConfig(opts: SuiComponentVitestOptions = {}) {
         '@ship/sui-dom/test-utils': require.resolve('@ship/sui-dom/test-utils'),
         '@ship/sui-runtime/template-hooks': require.resolve('@ship/sui-runtime/template-hooks'),
         '@ship/sui-runtime/route': require.resolve('@ship/sui-runtime/route'),
+        '@ship/sui-runtime/virtual': require.resolve('@ship/sui-runtime/virtual'),
         '@ship/sui-runtime': require.resolve('@ship/sui-runtime'),
         '@ship/sui-dom': require.resolve('@ship/sui-dom'),
         ...opts.alias,
