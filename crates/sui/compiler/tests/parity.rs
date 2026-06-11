@@ -145,11 +145,14 @@ fn for_iteration_emit_has_no_scope_tdz() {
     );
     // The IIFE shape must be present in both the for-render and the
     // while-error render hoists the agents fixture exercises.
+    // The agents fixture's key (`agent.id`) is scope-free, so the key
+    // fn emits flat — only the for-render and while-error render hoists
+    // carry the IIFE wrapper.
     let iife_count = js.matches("(($scope) =>").count();
     assert!(
-        iife_count >= 3,
-        "expected at least 3 `(($scope) => …)(__child…)` IIFE wrappers \
-         (key + render + while-error render); found {iife_count} in:\n{js}"
+        iife_count >= 2,
+        "expected at least 2 `(($scope) => …)(__child…)` IIFE wrappers \
+         (render + while-error render); found {iife_count} in:\n{js}"
     );
     // node --check confirms the wrapped emission is still valid JS.
     let p = write_mjs("agents-tdz-regression", &js);
