@@ -9,9 +9,10 @@ next: null
 chapter: "views"
 ---
 
-You've covered the SUI surface end-to-end. Twenty-four steps across
-six concept chapters and a Views chapter that ran the full
-client-server loop against a mock daemon. From here:
+You've covered the SUI surface end-to-end. Twenty-five steps across
+seven chapters — Reactivity, Templating, Components, Agents,
+Composition, Lifecycle, and Views — that ran the full client-server
+loop against a mock daemon. From here:
 
 ## Build something real
 

@@ -1,37 +1,34 @@
-// <use-title> — bind document.title to a signal.
+// <use-title> — set document.title at mount, restore on unmount.
 //
-// Reads `text` inside an `effect` so that when the underlying signal
-// changes, `document.title` updates automatically. Restores the
-// previous title on unmount.
+// `text` is a literal string attribute on the element; the compiler
+// emits it verbatim and the hook applies it on mount. The factory
+// captures the previous title in cleanup so unmount is non-leaking.
+//
+// For a reactive title (one that tracks a signal), use `effect` in
+// the controller — the hook is for lifecycle-bound side effects,
+// not live bindings.
 //
 // Example:
-//   <use-title bind:text={pageTitle} />
-//
-// `text` may be a plain string or a signal accessor; both work because
-// the effect call re-evaluates the accessor on each dependency change.
+//   <use-title text="SUI tutorial · step 19" />
 
 import type { TemplateHook, TemplateHookContext } from '../controller'
-import { effect } from '@ship/sui-runtime'
 
 interface TitleAttrs extends Record<string, unknown> {
-  /** Document title — plain string or a signal accessor `() => string`. */
-  text: string | (() => string)
+  /** Document title applied on mount. */
+  text: string
 }
 
 export const useTitleHook: TemplateHook<TitleAttrs, void> = {
   name: 'title',
-  attrs: { text: 'binding' },
+  attrs: { text: 'literal' },
   factory: (ctx: TemplateHookContext<TitleAttrs>) => {
     const { text } = ctx.attrs
     if (text === undefined || text === null) return
 
     const prev = document.title
-    const dispose = effect(() => {
-      document.title = typeof text === 'function' ? text() : text
-    })
+    document.title = text
 
     ctx.cleanup(() => {
-      dispose()
       document.title = prev
     })
   },
