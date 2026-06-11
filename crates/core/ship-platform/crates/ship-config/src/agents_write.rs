@@ -255,11 +255,16 @@ fn render_agent_file(existing: Option<&str>, flat: &AgentProfile) -> Result<Stri
     } else {
         let mut agent_block = serde_json::json!({ "id": flat.id, "name": flat.name });
         set_meta_fields(&mut agent_block, flat);
-        let canonical = serde_json::json!({
+        let mut canonical = serde_json::json!({
             "agent": agent_block,
             "skills": { "refs": flat.skills },
             "mcp": { "servers": flat.mcp_servers },
         });
+        // Thread capabilities when the flat view carries them (Gap C).
+        if !flat.capabilities.is_empty() {
+            canonical["capabilities"] = serde_json::to_value(&flat.capabilities)
+                .unwrap_or(serde_json::json!([]));
+        }
         let json = serde_json::to_string_pretty(&canonical)
             .map_err(|e| ConfigError::Internal(e.to_string()))?;
         Ok(format!("{json}\n"))
@@ -316,6 +321,14 @@ fn merge_flat_into_canonical(doc: &mut serde_json::Value, flat: &AgentProfile) {
         .or_insert_with(|| serde_json::json!({}));
     if let Some(m) = mcp_obj.as_object_mut() {
         m.insert("servers".into(), to_str_array(&flat.mcp_servers));
+    }
+
+    // capabilities — only written when the flat view carries them; absent means
+    // "no change" so hand-authored capabilities survive a re-save via this path.
+    if !flat.capabilities.is_empty() {
+        if let Ok(caps) = serde_json::to_value(&flat.capabilities) {
+            root.insert("capabilities".into(), caps);
+        }
     }
 }
 

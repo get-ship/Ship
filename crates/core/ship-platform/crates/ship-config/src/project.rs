@@ -401,6 +401,10 @@ fn to_config_write_profile(p: &AgentProfile) -> crate::types::AgentProfile {
         skills: p.skills.clone(),
         rules: p.rules.clone(),
         target_agents: p.target_agents.clone(),
+        // project::AgentProfile does not carry capabilities — the flat view
+        // is a config-page projection; capabilities survive via passthrough
+        // in merge_flat_into_canonical on re-save.
+        capabilities: vec![],
     }
 }
 
