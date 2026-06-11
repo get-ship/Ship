@@ -1,3 +1,14 @@
+//! `compiler` — agent-config compiler (L0 pure logic, no ship runtime deps).
+//!
+//! Resolves a project's agent library (`resolve`), compiles it into per-harness
+//! output files (`compile`), and decompiles existing harness configs back to
+//! Ship's format (`decompile`). Has no dependency on `ship-substrate` or any
+//! runtime — safe to use in CLI tools and the daemon alike.
+//!
+//! Key modules: `types` (all config types), `compile` (per-harness codegen),
+//! `decompile` (harness→ship reverse), `resolve` (library resolution),
+//! `schemas` (harness managed-key sets + schema URLs).
+
 pub mod compile;
 pub mod decompile;
 pub mod events;

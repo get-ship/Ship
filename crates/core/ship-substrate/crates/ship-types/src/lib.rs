@@ -1,3 +1,11 @@
+//! `ship-types` — foundational identity, event-envelope, and scope types (L0).
+//!
+//! The lowest crate in the stack: no runtime deps (the test in this crate
+//! asserts this). Defines `AccountId`, `DeviceId`, `SpaceId`, `ActorIdentity`,
+//! `EventEnvelope`, `ScopeBinding` (the sole-minter auth seam), `Decision`,
+//! `EventScope`, the event registry, and the `Vector` / `Scope` types used
+//! across all layers.
+
 pub mod binding;
 pub mod caller;
 pub mod decision;

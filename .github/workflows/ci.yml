@@ -107,6 +107,13 @@ jobs:
       # the release runners.
       - name: Clippy
         run: cargo clippy --workspace --exclude ship-host --features unstable -- -D warnings
+      # Rustdoc link enforcement — fail on broken intra-doc links. Run after the
+      # bundle bake so deck-core's build.rs assets are present.
+      - name: Check rustdoc links (broken intra-doc links)
+        run: RUSTDOCFLAGS="-D rustdoc::broken_intra_doc_links" cargo doc --workspace --exclude ship-host --no-deps
+      # Module-docs conformance — lib.rs >100 LOC must have //! module docs.
+      - name: Check module docs (lib.rs coverage)
+        run: bash scripts/lint/check-module-docs.sh
       - name: Build (stable)
         run: cargo build -p ship-cli -p shipd
       - name: Build (unstable)

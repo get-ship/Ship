@@ -54,7 +54,7 @@ pub struct Skill {
     /// Capability grants this skill confers (the `grants:` frontmatter block),
     /// e.g. `["ship-orchestration"]`. **Compiler-issued only** — appears on the
     /// generated capability-skills, never hand-authored (authored skills express
-    /// need via [`requires`]). The agent's grant set is the union of its resolved
+    /// need via `requires`). The agent's grant set is the union of its resolved
     /// skills' grants — the Decision-4 loop where a skill set IS a credential
     /// scope. See `.artifacts/auth-gate-synthesis.md` + `signed-grants-design.md`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
