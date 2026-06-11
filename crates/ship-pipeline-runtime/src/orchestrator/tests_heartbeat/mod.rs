@@ -35,13 +35,19 @@ fn dispatch_actor_config() -> ActorConfig {
     }
 }
 
-async fn fresh_kernel() -> Arc<Mutex<KernelRouter>> {
+/// Returns the kernel AND the events-db path it writes to. Readers must use
+/// the explicit path: the auto-isolated test global dir is THREAD-LOCAL
+/// (`project/global.rs::auto_test_global_dir`), so under the multi_thread
+/// runtime a reader resolving `get_global_dir()` on a stolen worker thread
+/// would silently read a different (empty) database.
+async fn fresh_kernel() -> (Arc<Mutex<KernelRouter>>, std::path::PathBuf) {
     let base = ship_substrate::project::get_global_dir().unwrap();
+    let db_path = ship_substrate::db::runtime_db_path(&base);
     let mut router = KernelRouter::new(base).unwrap();
     router
         .spawn_actor("service.orchestrator", dispatch_actor_config())
         .unwrap();
-    Arc::new(Mutex::new(router))
+    (Arc::new(Mutex::new(router)), db_path)
 }
 
 struct Cfg {
@@ -123,10 +129,14 @@ fn launch_with_store(
     Launch { pipeline_run_id, exit_tx, activity_tx, done }
 }
 
-async fn wait_observed(pipeline_run_id: &str, deadline: Duration) -> Option<PipelineStepObservedPayload> {
+async fn wait_observed(
+    db_path: &std::path::Path,
+    pipeline_run_id: &str,
+    deadline: Duration,
+) -> Option<PipelineStepObservedPayload> {
     let start = std::time::Instant::now();
     while start.elapsed() < deadline {
-        if let Some(p) = find_observed(pipeline_run_id) {
+        if let Some(p) = find_observed(db_path, pipeline_run_id) {
             return Some(p);
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
@@ -134,31 +144,22 @@ async fn wait_observed(pipeline_run_id: &str, deadline: Duration) -> Option<Pipe
     None
 }
 
-fn find_observed(pipeline_run_id: &str) -> Option<PipelineStepObservedPayload> {
-    ship_substrate::db::events::list_all_events()
-        .ok()?
-        .into_iter()
-        .rev()
-        .find_map(|e| {
-            if e.entity_id == pipeline_run_id && e.event_type == run_event_types::PIPELINE_STEP_OBSERVED {
-                serde_json::from_str(&e.payload_json).ok()
-            } else {
-                None
-            }
-        })
+fn find_observed(db_path: &std::path::Path, pipeline_run_id: &str) -> Option<PipelineStepObservedPayload> {
+    ship_substrate::db::events::query_events_by_entity_and_type_at(
+        db_path, pipeline_run_id, run_event_types::PIPELINE_STEP_OBSERVED,
+    )
+    .ok()?
+    .into_iter()
+    .next_back()
+    .and_then(|e| serde_json::from_str(&e.payload_json).ok())
 }
 
-fn count_observed(pipeline_run_id: &str) -> usize {
-    ship_substrate::db::events::list_all_events()
-        .map(|evs| {
-            evs.into_iter()
-                .filter(|e| {
-                    e.entity_id == pipeline_run_id
-                        && e.event_type == run_event_types::PIPELINE_STEP_OBSERVED
-                })
-                .count()
-        })
-        .unwrap_or(0)
+fn count_observed(db_path: &std::path::Path, pipeline_run_id: &str) -> usize {
+    ship_substrate::db::events::query_events_by_entity_and_type_at(
+        db_path, pipeline_run_id, run_event_types::PIPELINE_STEP_OBSERVED,
+    )
+    .map(|evs| evs.len())
+    .unwrap_or(0)
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -167,14 +168,14 @@ fn count_observed(pipeline_run_id: &str) -> usize {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn idle_subprocess_kills_with_idle_timeout_reason() {
     let tmp = TempDir::new().unwrap();
-    let kernel = fresh_kernel().await;
+    let (kernel, db) = fresh_kernel().await;
     let l = launch(
         kernel,
         tmp.path().to_path_buf(),
         Cfg::fast("heartbeat-idle"),
         Arc::new(IdleProbe),
     );
-    let observed = wait_observed(&l.pipeline_run_id, Duration::from_secs(3))
+    let observed = wait_observed(&db, &l.pipeline_run_id, Duration::from_secs(3))
         .await
         .expect("idle monitor must emit step.observed");
     assert_eq!(observed.trigger, StepTrigger::Timeout);
@@ -185,7 +186,7 @@ async fn idle_subprocess_kills_with_idle_timeout_reason() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn runaway_subprocess_kills_with_hard_cap_reason() {
     let tmp = TempDir::new().unwrap();
-    let kernel = fresh_kernel().await;
+    let (kernel, db) = fresh_kernel().await;
     let cfg = Cfg {
         slug: "heartbeat-runaway",
         idle_timeout: Duration::from_secs(30),
@@ -194,7 +195,7 @@ async fn runaway_subprocess_kills_with_hard_cap_reason() {
         settle_duration: Duration::from_millis(100),
     };
     let l = launch(kernel, tmp.path().to_path_buf(), cfg, Arc::new(AdvancingProbe::new()));
-    let observed = wait_observed(&l.pipeline_run_id, Duration::from_secs(3))
+    let observed = wait_observed(&db, &l.pipeline_run_id, Duration::from_secs(3))
         .await
         .expect("runaway monitor must emit step.observed");
     assert_eq!(observed.trigger, StepTrigger::Timeout);
@@ -206,7 +207,7 @@ async fn runaway_subprocess_kills_with_hard_cap_reason() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn active_subprocess_keeps_step_alive_past_idle_budget() {
     let tmp = TempDir::new().unwrap();
-    let kernel = fresh_kernel().await;
+    let (kernel, db) = fresh_kernel().await;
     let cfg = Cfg {
         slug: "heartbeat-active",
         idle_timeout: Duration::from_millis(200),
@@ -217,7 +218,7 @@ async fn active_subprocess_keeps_step_alive_past_idle_budget() {
 
     // 4x the idle budget — active CPU must have kept the monitor alive.
     tokio::time::sleep(Duration::from_millis(800)).await;
-    assert!(find_observed(&l.pipeline_run_id).is_none());
+    assert!(find_observed(&db, &l.pipeline_run_id).is_none());
 
     // Freeze (tree "died") and send exit; settle fires, emit ProcessExit.
     freeze.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -229,7 +230,7 @@ async fn active_subprocess_keeps_step_alive_past_idle_budget() {
             cause: ship_code::dispatch_ports::ExitCause::AgentExited,
         })
         .unwrap();
-    let observed = wait_observed(&l.pipeline_run_id, Duration::from_secs(6))
+    let observed = wait_observed(&db, &l.pipeline_run_id, Duration::from_secs(6))
         .await
         .expect("exit signal must produce a step.observed");
     assert_eq!(observed.trigger, StepTrigger::ProcessExit);
@@ -240,14 +241,14 @@ async fn active_subprocess_keeps_step_alive_past_idle_budget() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn probe_none_does_not_spuriously_reset_idle_timer() {
     let tmp = TempDir::new().unwrap();
-    let kernel = fresh_kernel().await;
+    let (kernel, db) = fresh_kernel().await;
     let l = launch(
         kernel,
         tmp.path().to_path_buf(),
         Cfg::fast("heartbeat-none"),
         Arc::new(NullProbe),
     );
-    let observed = wait_observed(&l.pipeline_run_id, Duration::from_secs(3))
+    let observed = wait_observed(&db, &l.pipeline_run_id, Duration::from_secs(3))
         .await
         .expect("null-probe path still falls through to idle timeout");
     assert_eq!(observed.trigger, StepTrigger::Timeout);
@@ -259,7 +260,7 @@ async fn probe_none_does_not_spuriously_reset_idle_timer() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn done_declared_resolves_with_done_trigger() {
     let tmp = TempDir::new().unwrap();
-    let kernel = fresh_kernel().await;
+    let (kernel, db) = fresh_kernel().await;
     let l = launch(
         kernel,
         tmp.path().to_path_buf(),
@@ -267,7 +268,7 @@ async fn done_declared_resolves_with_done_trigger() {
         Arc::new(IdleProbe),
     );
     l.done.store(true, std::sync::atomic::Ordering::Release);
-    let observed = wait_observed(&l.pipeline_run_id, Duration::from_secs(3))
+    let observed = wait_observed(&db, &l.pipeline_run_id, Duration::from_secs(3))
         .await
         .expect("done flag must produce a step.observed");
     assert_eq!(observed.trigger, StepTrigger::DoneDeclared);
@@ -281,7 +282,7 @@ async fn done_declared_resolves_with_done_trigger() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn completed_step_journal_blocks_reemission() {
     let tmp = TempDir::new().unwrap();
-    let kernel = fresh_kernel().await;
+    let (kernel, db) = fresh_kernel().await;
     let store: Arc<dyn durable_execution::JournalStore> =
         Arc::new(durable_execution::InMemoryJournalStore::new());
 
@@ -293,10 +294,30 @@ async fn completed_step_journal_blocks_reemission() {
         Arc::new(IdleProbe),
         store.clone(),
     );
-    wait_observed(&l.pipeline_run_id, Duration::from_secs(3))
+    wait_observed(&db, &l.pipeline_run_id, Duration::from_secs(3))
         .await
         .expect("first monitor must emit step.observed");
-    assert_eq!(count_observed(&l.pipeline_run_id), 1);
+    assert_eq!(count_observed(&db, &l.pipeline_run_id), 1);
+
+    // The observed event becomes visible BEFORE the resumed journal is saved
+    // (emit runs inside resume; the save follows). Wait for the completed
+    // journal so the relaunch models a restart AFTER the step settled — the
+    // emit-then-save window itself is an accepted at-least-once edge (a crash
+    // inside it re-emits once on recovery).
+    let key = format!("{}/agent-step/heartbeat-test", l.pipeline_run_id);
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    loop {
+        if let Ok(Some(j)) = store.load(&key).await
+            && !j.is_suspended()
+        {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "completed journal must be saved shortly after the observation"
+        );
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
 
     // Second life (same run id, step name, and store — a re-dispatch after
     // the observation already happened): the monitor must see the completed
@@ -312,7 +333,7 @@ async fn completed_step_journal_blocks_reemission() {
     // loop, the idle timeout would have re-emitted by now.
     tokio::time::sleep(Duration::from_millis(1200)).await;
     assert_eq!(
-        count_observed(&l.pipeline_run_id),
+        count_observed(&db, &l.pipeline_run_id),
         1,
         "a completed step journal must block re-emission"
     );
@@ -323,7 +344,7 @@ async fn completed_step_journal_blocks_reemission() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn turn_end_plus_active_cpu_extends_settle() {
     let tmp = TempDir::new().unwrap();
-    let kernel = fresh_kernel().await;
+    let (kernel, db) = fresh_kernel().await;
     let cfg = Cfg {
         slug: "heartbeat-settle",
         idle_timeout: Duration::from_secs(10),
@@ -337,7 +358,7 @@ async fn turn_end_plus_active_cpu_extends_settle() {
     // 4x the settle budget; CPU keeps climbing every 50ms → settle resets.
     tokio::time::sleep(Duration::from_millis(800)).await;
     assert!(
-        find_observed(&l.pipeline_run_id).is_none(),
+        find_observed(&db, &l.pipeline_run_id).is_none(),
         "settle must be extended while CPU is still climbing"
     );
 }

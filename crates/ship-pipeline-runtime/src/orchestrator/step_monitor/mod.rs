@@ -145,6 +145,10 @@ async fn resolve_with_evidence(
             return;
         }
     };
+    // NOTE (at-least-once edge): the observed emission happens INSIDE resume,
+    // the save AFTER it. A daemon crash between the two re-emits the
+    // observation once on recovery — accepted until C7 makes the coordinator
+    // own the emit/save ordering. Replay-dedup covers every other path.
     let (status, journal) =
         durable_execution::resume(journal, decision, dispatch, program).await;
     if let Err(e) = journal_store.save(key, &journal).await {

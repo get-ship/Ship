@@ -152,10 +152,11 @@ async fn reap_eligible_returns_idle_sandboxes_past_timeout() {
     dispatcher.register_actor(&id, "actor-1").await.unwrap();
     dispatcher.notify_actor_exit("actor-1").await.unwrap();
 
-    // Idle clock is set to "now"; advance test clock by sleeping >1s.
-    tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
-
-    let candidates = dispatcher.reap_candidates(Utc::now()).await;
+    // `reap_candidates` takes the probe time as a parameter — pass a time
+    // past the idle timeout instead of sleeping real wall-clock.
+    let candidates = dispatcher
+        .reap_candidates(Utc::now() + chrono::Duration::seconds(2))
+        .await;
     assert!(
         candidates.contains(&id),
         "sandbox idle past timeout must be reapable"

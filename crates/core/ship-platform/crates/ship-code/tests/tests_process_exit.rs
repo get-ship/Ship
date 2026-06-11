@@ -133,7 +133,7 @@ fn live_slugs_is_empty_for_fresh_registry() {
 /// unregister the slug from the registry (clean exit path).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn exit_handler_emits_job_completed_for_clean_exit() {
-    let (_dir, kernel) = setup_kernel();
+    let (dir, kernel) = setup_kernel();
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
 
     // Pre-register the job so the handler has something to remove.
@@ -151,13 +151,32 @@ async fn exit_handler_emits_job_completed_for_clean_exit() {
         })
         .expect("channel must accept the exit signal");
 
-    // Give the spawned task time to process the signal.
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
-    assert!(
-        !registry.lock().await.contains("test-job"),
-        "exit handler must unregister the slug after a clean exit"
+    // Bounded poll for BOTH effects the test name promises: the slug is
+    // unregistered AND pipeline_run.completed reaches the event log. (The
+    // old 50 ms sleep pinned only the registry side-effect — stripping the
+    // emit_terminal call left the test green despite its name.)
+    let db = ship_substrate::db::runtime_db_path(
+        &ship_substrate::ShipHome::project_ship_dir(dir.path()),
     );
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    loop {
+        let unregistered = !registry.lock().await.contains("test-job");
+        let completed = ship_substrate::db::events::query_events_by_entity_and_type_at(
+            &db,
+            "j-clean-1",
+            ship_substrate::events::pipeline::event_types::PIPELINE_RUN_COMPLETED,
+        )
+        .map(|v| !v.is_empty())
+        .unwrap_or(false);
+        if unregistered && completed {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "exit handler must unregister the slug AND emit pipeline_run.completed"
+        );
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
 }
 
 /// Receiving an ExitSignal with a non-zero exit code must not panic.
@@ -181,10 +200,17 @@ async fn exit_handler_does_not_panic_for_failed_exit() {
         })
         .expect("channel must accept the exit signal");
 
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
-    // The test passes if we reach here without a panic. Also verify the
-    // slug was unregistered so the registry does not leak the dead handle.
+    // Bounded poll instead of a fixed sleep. The test passes if we reach the
+    // unregistered state without a panic — the registry must not leak the
+    // dead handle.
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    while registry.lock().await.contains("failing-job") {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "exit handler must unregister the slug after a failed exit"
+        );
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
     assert!(
         !registry.lock().await.contains("failing-job"),
         "exit handler must unregister the slug after a failed exit"

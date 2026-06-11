@@ -205,10 +205,13 @@ async fn kernel_log_subscribe_filtered_excludes_nonmatching() {
     let wanted = EventEnvelope::new("test.wanted", "e2", &serde_json::json!({})).unwrap();
     log.emit(wanted.clone(), &runtime_ctx()).await.unwrap();
 
-    // Small sleep to let the relay task drain.
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-
-    let received = rx.try_recv().expect("filtered channel should have the wanted event");
+    // Await the relay rather than sleeping: the channel is FIFO, so the FIRST
+    // delivered event being `test.wanted` proves the earlier noise was
+    // filtered (an unfiltered relay would deliver noise first).
+    let received = tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv())
+        .await
+        .expect("relay must deliver within the timeout")
+        .expect("filtered channel should have the wanted event");
     assert_eq!(received.event_type, "test.wanted");
 
     // Channel must be empty now (noise was filtered).

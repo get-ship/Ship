@@ -115,12 +115,15 @@ mod tests {
     use std::sync::atomic::{AtomicBool, Ordering};
 
     /// SPEC: when the ship-code feature is off, the composition root needs a
-    /// way to construct `AgentPorts` carrying only the floki-harness closure.
-    /// `floki_only` is that constructor. The struct is otherwise empty (no
-    /// harness fields to set), but the closure must round-trip through the
-    /// port bundle untouched.
-    #[test]
-    fn floki_only_round_trips_closure() {
+    /// way to construct `AgentPorts` carrying only the floki-harness closure,
+    /// and the SAME closure must be invocable through the port bundle — the
+    /// dispatch seam calls `ports.floki_run_fn` to fire a floki session.
+    /// Asserting closure identity by INVOKING it through the seam (not just
+    /// `is_some()`, which a bare struct-literal constructor makes a
+    /// tautology) pins the regression a future refactor could introduce by
+    /// wrapping or swapping the closure.
+    #[tokio::test]
+    async fn floki_only_closure_is_invocable_through_the_port_bundle() {
         let called = Arc::new(AtomicBool::new(false));
         let called_inner = called.clone();
         let run_fn: FlokiRunFn = Arc::new(move |_payload: DispatchRequestedPayload| {
@@ -131,24 +134,26 @@ mod tests {
         });
 
         let ports = AgentPorts::floki_only(Some(run_fn));
-        assert!(
-            ports.floki_run_fn.is_some(),
-            "floki_only must preserve the closure",
-        );
-    }
+        let payload: DispatchRequestedPayload = serde_json::from_value(serde_json::json!({
+            "session_id": "s-1",
+            "slug": "floki-seam",
+            "agent_id": "dev",
+            "workspace": "w",
+            "branch": "job/floki-seam",
+            "open_tab": false,
+            "invocation": "print",
+            "keepalive": false,
+        }))
+        .expect("minimal dispatch payload");
 
-    /// SPEC: `floki_only(None)` produces a valid port bundle with NO floki
-    /// closure wired. With the harness stack absent, the agent-sessions
-    /// actor becomes a no-op for floki payloads (the dispatched event is
-    /// persisted, but no run fires). This is the documented "feature-off
-    /// floki no-op" mode that callers opting out of both feature and
-    /// floki wiring get.
-    #[test]
-    fn floki_only_none_is_noop() {
-        let ports = AgentPorts::floki_only(None);
+        ports
+            .floki_run_fn
+            .as_ref()
+            .expect("floki_only must preserve the closure")(payload)
+        .await;
         assert!(
-            ports.floki_run_fn.is_none(),
-            "floki_only(None) must produce a no-op port bundle",
+            called.load(Ordering::SeqCst),
+            "invoking the port-bundle closure must run the wired closure"
         );
     }
 }

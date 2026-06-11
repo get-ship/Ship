@@ -96,17 +96,9 @@ async fn ship_route_registers_handler_end_to_end() {
 /// integration regression.
 #[test]
 fn api_v1_prefix_invariants() {
-    fn all() -> Vec<(&'static str, String)> {
-        // Build a representative instance of every variant. For Named
-        // variants we use the build.rs-emitted `<Name>_template()` helpers,
-        // which return an instance with empty-string fields — `full_path`
-        // still reflects the template structure.
-        vec![
-            ("SandboxList", Route::SandboxList.full_path()),
-            ("ArtifactsUpload", Route::ArtifactsUpload.full_path()),
-        ]
-    }
-
+    // Walk the build.rs-generated exhaustive enumerator — the doc comment
+    // above always promised this, but the body was a hand-maintained
+    // 2-entry vec: any new variant with a bad prefix sailed past silently.
     fn is_exempt(path: &str) -> bool {
         path == "/"
             || path == "/setup"
@@ -116,16 +108,18 @@ fn api_v1_prefix_invariants() {
             || path.starts_with("/auth/")
     }
 
-    for (name, path) in all() {
+    for route in Route::all() {
+        let path = route.full_path();
+        let method = route.method();
         if is_exempt(&path) {
             assert!(
                 !path.contains("/api/v1/"),
-                "{name}: exempt path {path} must NOT carry /v1/"
+                "{method} {path}: exempt path must NOT carry /v1/"
             );
         } else if path.starts_with("/api/") {
             assert!(
                 path.starts_with("/api/v1/"),
-                "{name}: covered API path {path} must carry /v1/ prefix"
+                "{method} {path}: covered API path must carry /v1/ prefix"
             );
         }
     }

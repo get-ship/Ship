@@ -128,40 +128,20 @@ async fn responses_carry_x_shipd_build_header() {
     assert!(!value.is_empty(), "X-Shipd-Build value must not be empty");
 }
 
+// Auth smoke pair — anchored on /api/v1/sandboxes (GET + ReadWorkspace), a
+// surviving REST route. The original anchor /api/v1/capabilities was deleted
+// with the ghost-route batch; these two silently pinned a 404 until re-anchored.
 #[tokio::test]
-async fn capabilities_requires_auth() {
+async fn protected_route_requires_auth() {
     let d = TestDaemon::start().await;
-    let res = d.bare().get(d.url("/api/v1/capabilities")).send().await.unwrap();
+    let res = d.bare().get(d.url("/api/v1/sandboxes")).send().await.unwrap();
     assert_eq!(res.status(), 401);
 }
 
 #[tokio::test]
-async fn capabilities_with_valid_token() {
+async fn authed_request_reaches_protected_route() {
     let d = TestDaemon::start().await;
-    let res = d.authed().get(d.url("/api/v1/capabilities")).send().await.unwrap();
-    assert_eq!(res.status(), 200);
-    let body: serde_json::Value = res.json().await.unwrap();
-    assert_eq!(body["authenticated"], true);
-    assert!(body["mode"].is_string());
-    assert!(body["tier"].is_string());
-    assert!(body["features"].is_array());
-}
-
-#[tokio::test]
-#[ignore = "doomed: registry dispatch-by-string apparatus (census #5) is slated for deletion; registry stays red until the cut, not fixed. See .artifacts/gate-triage-2.md cluster A"]
-async fn openapi_spec_is_valid_json() {
-    let d = TestDaemon::start().await;
-    let res = d.bare().get(d.url("/api/openapi.json")).send().await.unwrap();
-    assert_eq!(res.status(), 200);
-    let body: serde_json::Value = res.json().await.unwrap();
-    assert!(body.get("openapi").is_some(), "missing 'openapi' key");
-    assert!(body.get("paths").is_some(), "missing 'paths' key");
-}
-
-#[tokio::test]
-async fn list_jobs_returns_ok() {
-    let d = TestDaemon::start().await;
-    let res = d.authed().get(d.url("/api/v1/agent_sessions")).send().await.unwrap();
+    let res = d.authed().get(d.url("/api/v1/sandboxes")).send().await.unwrap();
     assert_eq!(res.status(), 200);
     let body: serde_json::Value = res.json().await.unwrap();
     assert_eq!(body["ok"], true);
@@ -209,54 +189,6 @@ async fn unknown_route_returns_404() {
 }
 
 
-/// Library-skill invoke happy path. Creates a skill via the public API,
-/// invokes it, then checks the response carries the documented shape
-/// (`run_id`, `session_id`, `mode`, `reused_session`).
-#[tokio::test]
-#[ignore = "doomed: registry dispatch-by-string apparatus (census #5) is slated for deletion; registry stays red until the cut, not fixed. See .artifacts/gate-triage-2.md cluster A"]
-async fn invoke_library_skill_returns_run_and_session() {
-    let d = TestDaemon::start().await;
-    let client = d.authed();
-
-    // Create a real skill in the user scope (project scope requires a
-    // workspace; the test daemon launches without one).
-    let create = client
-        .post(d.url("/api/v1/skills?scope=user"))
-        .json(&serde_json::json!({
-            "id": "smoke-invoke",
-            "scope": "user",
-            "frontmatter": {
-                "name": "smoke-invoke",
-                "description": "smoke test skill",
-            },
-            "body": "# smoke-invoke\n\nattach me.",
-        }))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(create.status(), 201, "create: {:?}", create.text().await);
-
-    let res = client
-        .post(d.url("/api/v1/skills/smoke-invoke/invoke?scope=user"))
-        .json(&serde_json::json!({}))
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(res.status(), 200);
-    let body: serde_json::Value = res.json().await.unwrap();
-    assert_eq!(body["ok"], true);
-    assert_eq!(body["skill_id"], "smoke-invoke");
-    assert_eq!(body["mode"], "library");
-    // No active agent session => fall back to run_id as session_id.
-    assert_eq!(body["reused_session"], false);
-    let run_id = body["run_id"].as_str().expect("run_id string");
-    let session_id = body["session_id"].as_str().expect("session_id string");
-    assert!(!run_id.is_empty(), "run_id must be non-empty");
-    assert_eq!(session_id, run_id, "fallback session_id should mirror run_id");
-}
-
-/// 404 path — invoking a skill that doesn't exist must not emit any
-/// lifecycle events.
 #[tokio::test]
 async fn invoke_unknown_skill_404s() {
     let d = TestDaemon::start().await;
