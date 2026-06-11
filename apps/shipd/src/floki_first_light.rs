@@ -20,11 +20,13 @@
 use std::sync::Arc;
 
 use floki::{
-    AgentOutput, AuthContext as FlokiAuth, BuiltModel, Cancel, HeadlessApprover,
+    AgentOutput, AuthContext as FlokiAuth, BuiltModel, Cancel, FlokiProgram, HeadlessApprover,
     ScriptExecutor, SessionEventSink, Steer, ToolCtx, build_model, run_step,
 };
+use floki::dispatch::GatewayDispatch;
 use floki::provider::{Byok, CredentialSource};
 use agent_def::dispatch_intent::DispatchRequestedPayload;
+use durable_execution::{InMemoryJournalStore, Journal, JournalStore, execute};
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, EventSink};
 use ship_types::{Authority, ScopeBinding};
 
@@ -122,6 +124,7 @@ pub async fn run_floki_step(
         approver: Arc::new(HeadlessApprover),
         steer: Steer::new(),
         cancel: Cancel::new(),
+        journal_mode: false,
     };
 
     // ── ScriptExecutor ────────────────────────────────────────────────────────
@@ -147,11 +150,18 @@ pub async fn run_floki_step(
 /// Dispatch entry point invoked from the `service.agents` actor when
 /// `dispatch.requested` arrives with `harness == "floki"`.
 ///
-/// Assembles a minimal `floki::Agent` from the payload (first-light: the
-/// identity and model are resolved from the payload; capabilities are left
-/// empty — a follow-on slice loads the full profile from disk). Calls
-/// `run_floki_step` and logs any error (full session lifecycle events
-/// `session.started`/`session.completed` are emitted by `run_step` itself).
+/// Stage-2: assembles a `FlokiProgram` and drives it through the durable
+/// execution engine (`execute()`), so every rig exchange is journaled and
+/// a crashed/suspended session can resume without re-burning model tokens.
+/// The journal is saved via `InMemoryJournalStore` (no cross-restart
+/// persistence yet — Stage-3 wires `SqliteJournalStore`).
+///
+/// `run_floki_step` is preserved for backward compatibility with tests that
+/// call it directly; the production dispatch path now goes through
+/// `dispatch_floki_session`.
+///
+/// Session lifecycle events (`session.started`, `session.completed`) are
+/// emitted by `FlokiProgram::run`, not this function.
 ///
 /// FIRST-LIGHT SCOPE: minimal agent construction from payload fields only.
 /// Full agent loading from `.ship/agents/<id>.jsonc` + capability injection
@@ -161,37 +171,113 @@ pub async fn dispatch_floki_session(
     gateway: Arc<ShipdGateway>,
     kernel: SharedKernel,
 ) {
-    let agent = build_agent_from_payload(&payload);
     let input = payload
         .prompt
         .as_deref()
         .or(payload.spec.as_deref())
-        .unwrap_or("(no input provided)");
+        .unwrap_or("(no input provided)")
+        .to_string();
 
     tracing::info!(
         agent_id = %payload.agent_id,
         slug = %payload.slug,
         session_id = %payload.session_id,
-        "floki-dispatch: starting run_floki_step",
+        "floki-dispatch: starting FlokiProgram execute",
     );
 
-    if let Err(e) = run_floki_step(
-        &agent,
-        gateway,
-        payload.session_id.clone(),
-        payload.workspace.clone(),
-        kernel,
-        input,
-    )
-    .await
-    {
-        tracing::error!(
-            agent_id = %payload.agent_id,
-            slug = %payload.slug,
+    // ── Credentials + model ───────────────────────────────────────────────
+    let cred = match Byok::from_env().resolve() {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::error!(
+                session_id = %payload.session_id,
+                "floki-dispatch: credential resolution failed: {e:#}",
+            );
+            return;
+        }
+    };
+    let auth = FlokiAuth::in_process(&payload.agent_id, vec![]);
+    let session_sink = SessionEventSink::new(Arc::new(ShipdKernelSink::new(kernel)));
+    let tool_ctx = ToolCtx {
+        session_sink,
+        session_id: payload.session_id.clone(),
+        space_id: payload.workspace.clone(),
+        approver: Arc::new(HeadlessApprover),
+        steer: Steer::new(),
+        cancel: Cancel::new(),
+        journal_mode: true,
+    };
+    let executor = Arc::new(ScriptExecutor::spawn());
+    let gw: Arc<dyn floki::Gateway> = gateway;
+
+    // ── Journal store (Stage-2: in-memory; Stage-3: SqliteJournalStore) ──
+    let store = InMemoryJournalStore::new();
+    let journal = store
+        .load(&payload.session_id)
+        .await
+        .unwrap_or(None)
+        .unwrap_or_else(Journal::new);
+
+    // ── Execute ───────────────────────────────────────────────────────────
+    let run = |journal: Journal| async {
+        match build_model(&cred) {
+            Ok(BuiltModel::Anthropic(m)) => {
+                let program = FlokiProgram {
+                    model: m,
+                    preamble: String::new(),
+                    initial_input: input.clone(),
+                    max_turns: 10,
+                    gateway: gw.clone(),
+                    auth: auth.clone(),
+                    executor: executor.clone(),
+                    grants: vec![],
+                    tool_ctx: tool_ctx.clone(),
+                };
+                let dispatch = Arc::new(GatewayDispatch::new(gw.clone(), auth.clone()));
+                execute(journal, dispatch, &program).await
+            }
+            Ok(BuiltModel::OpenAiCompat(m)) => {
+                let program = FlokiProgram {
+                    model: m,
+                    preamble: String::new(),
+                    initial_input: input.clone(),
+                    max_turns: 10,
+                    gateway: gw.clone(),
+                    auth: auth.clone(),
+                    executor: executor.clone(),
+                    grants: vec![],
+                    tool_ctx: tool_ctx.clone(),
+                };
+                let dispatch = Arc::new(GatewayDispatch::new(gw.clone(), auth.clone()));
+                execute(journal, dispatch, &program).await
+            }
+            Err(e) => {
+                tracing::error!(
+                    session_id = %payload.session_id,
+                    "floki-dispatch: build_model failed: {e:#}",
+                );
+                // Return a Failed status so the session is logged but no panic.
+                (durable_execution::RunStatus::Failed(e.to_string()), Journal::new())
+            }
+        }
+    };
+
+    let (status, advanced_journal) = run(journal).await;
+
+    // ── Persist journal (terminal boundary) ──────────────────────────────
+    // Save unconditionally: partial progress is durable, Failed state is useful
+    // for post-mortem. A warning on save failure is acceptable (fire-and-forget).
+    if let Err(e) = store.save(&payload.session_id, &advanced_journal).await {
+        tracing::warn!(
             session_id = %payload.session_id,
-            "floki-dispatch: run_floki_step failed: {e:#}",
+            "floki-dispatch: journal save failed: {e}",
         );
     }
+
+    tracing::info!(
+        session_id = %payload.session_id,
+        "floki-dispatch: session finished with status: {status:?}",
+    );
 }
 
 /// Build a minimal `floki::Agent` from the dispatch payload.
@@ -278,6 +364,7 @@ mod tests {
             approver: Arc::new(HeadlessApprover),
             steer: Steer::new(),
             cancel: Cancel::new(),
+            journal_mode: false,
         };
         (ctx, mock)
     }

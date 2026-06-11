@@ -175,6 +175,13 @@ pub struct ToolCtx {
     pub approver: Arc<dyn Approver>,
     pub steer: Steer,
     pub cancel: Cancel,
+    /// When `true`, `Ask`-stance ops return `{"suspended": checkpoint}` instead of
+    /// blocking on `approver.request()`. The outer [`crate::durable_loop::FlokiProgram`]
+    /// detects this marker and calls `ctx.suspend()`, writing a `Suspended` entry to
+    /// the durable-execution journal. This is the Stage-2 journal-driven approval path.
+    ///
+    /// Default: `false` (interactive/headless path unchanged).
+    pub journal_mode: bool,
 }
 impl ToolCtx {
     /// Emit `session.suspended` when an `Ask`-stance gate is awaiting a human
@@ -281,6 +288,17 @@ impl Tool for ShipOpTool {
             // result on Deny. The op is NEVER dispatched before approval.
             Err(GatewayError::Ask { op, args, request_id }) => {
                 self.ctx.emit_approval_requested(&op, &args, &request_id);
+                // Journal-driven path (Stage 2): instead of blocking on the approver,
+                // return a structured suspension marker so the outer FlokiProgram can
+                // call ctx.suspend() and write a Suspended entry to the journal. The
+                // marker is visible to the model as a tool result it can read.
+                if self.ctx.journal_mode {
+                    let checkpoint = format!("approval:{request_id}:{op}");
+                    return Ok(annotate_with_steer(
+                        &self.ctx,
+                        json!({ "suspended": checkpoint }).to_string(),
+                    ));
+                }
                 let decision = self.ctx.approver.request(&op, &args, &request_id).await;
                 // Correlation guard: the decision MUST be about the request we
                 // raised. A response carrying a different id (a buggy/hostile
@@ -622,6 +640,7 @@ mod tests {
             approver: Arc::new(HeadlessApprover),
             steer: Steer::new(),
             cancel: Cancel::new(),
+            journal_mode: false,
         };
         (ctx, mock)
     }
@@ -766,6 +785,7 @@ mod tests {
             approver: Arc::new(scripted),
             steer: Steer::new(),
             cancel: Cancel::new(),
+            journal_mode: false,
         };
         // mcp.create is ask-stance; the agent must have the mcp grant.
         let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["mcp"]), ctx };
@@ -816,6 +836,7 @@ mod tests {
             approver: Arc::new(scripted),
             steer: Steer::new(),
             cancel: Cancel::new(),
+            journal_mode: false,
         };
         let tool = ShipOpTool { gateway: gw, auth: auth(&["mcp"]), ctx };
 
@@ -862,6 +883,48 @@ mod tests {
         );
     }
 
+    // Journal-mode Ask: when `journal_mode = true`, an Ask-stance op returns a
+    // `{"suspended": "approval:<request_id>:<op>"}` marker immediately without
+    // blocking on the approver. The outer FlokiProgram detects this and parks
+    // the journal run via `ctx.suspend()`. The approver is never called.
+    #[tokio::test]
+    async fn ask_in_journal_mode_returns_suspension_marker() {
+        struct PanicApprover; // must never be invoked in journal mode.
+        #[async_trait]
+        impl Approver for PanicApprover {
+            async fn request(&self, op: &str, _args: &Value, _id: &str) -> UserInput {
+                panic!("approver must NOT be called in journal_mode; op={op}");
+            }
+        }
+        let mock = Arc::new(MockSink::new());
+        let session_sink = SessionEventSink::new(mock.clone());
+        let ctx = ToolCtx {
+            session_sink,
+            session_id: "test-session".into(),
+            space_id: "test-space".into(),
+            approver: Arc::new(PanicApprover),
+            steer: Steer::new(),
+            cancel: Cancel::new(),
+            journal_mode: true,
+        };
+        let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["mcp"]), ctx };
+
+        let out = tool
+            .call(OpArgs { op: "mcp.create".into(), args: json!({}) })
+            .await
+            .expect("journal-mode ask must return data, not an error");
+
+        // Must contain the suspension marker, not a denial or error.
+        assert!(out.contains("\"suspended\""), "journal-mode ask must return suspension marker: {out}");
+        assert!(out.contains("approval:"), "suspension marker must include approval: prefix: {out}");
+        assert!(out.contains("mcp.create"), "suspension marker must name the op: {out}");
+        // session.suspended event must still be emitted.
+        assert!(
+            mock.captured().iter().any(|e| e.event_type == "session.suspended"),
+            "journal-mode ask must still emit session.suspended; got: {:?}", mock.captured()
+        );
+    }
+
     // Steer: text pushed to the Steer handle is observed by the model on
     // the next tool result (and thus on the next rig turn). The acceptance
     // test is structural: the tool result contains the steered text.
@@ -877,6 +940,7 @@ mod tests {
             approver: Arc::new(HeadlessApprover),
             steer: steer.clone(),
             cancel: Cancel::new(),
+            journal_mode: false,
         };
         let tool = ShipOpTool { gateway: Arc::new(InProcessGateway::default()), auth: auth(&["collections"]), ctx };
 
@@ -923,6 +987,7 @@ mod tests {
             approver: Arc::new(HeadlessApprover),
             steer: Steer::new(),
             cancel,
+            journal_mode: false,
         };
         let tool = ShipOpTool { gateway: Arc::new(PanicOnCall), auth: auth(&["collections"]), ctx };
 
@@ -955,6 +1020,7 @@ mod tests {
             approver: Arc::new(HeadlessApprover),
             steer: Steer::new(),
             cancel,
+            journal_mode: false,
         };
         let agent = demo_agent("mock", &["collections"]);
         let exec = Arc::new(ScriptExecutor::spawn());

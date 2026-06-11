@@ -37,6 +37,7 @@ pub mod approver;
 pub mod auth;
 pub mod dispatch;
 pub mod durable;
+pub mod durable_loop;
 pub mod dtsgen;
 pub mod gate;
 pub mod gateway;
@@ -59,6 +60,7 @@ pub use agent_def::{
     SessionStarted, SessionSuspended, TurnEnded, TurnStarted,
 };
 pub use agent_loop::{AgentOutput, Approver, Cancel, HeadlessApprover, Steer, ToolCtx, run_step};
+pub use durable_loop::{FlokiProgram, RigTurnOutcome};
 pub use ship_js::deno::ScriptExecutor;
 pub use approver::UserInput;
 pub use auth::AuthContext;
