@@ -1,6 +1,6 @@
 //! Residue lint — catches dead / copied source that rots silently.
 //!
-//! Two checks:
+//! Three checks:
 //!   (a) **Orphan `.rs`** — a source file under a crate's `src/` that no module
 //!       in that crate references by name (no `mod <stem>;`, no
 //!       `#[path = "…<file>"]`, no `include!("…<file>")`). Such a file compiles
@@ -8,6 +8,13 @@
 //!   (b) **Byte-identical `.rs` across crates** — the same file content living in
 //!       two crates. That's a copy-not-move: a fix to one silently misses the
 //!       other.
+//!   (c) **Generated `.js` committed to git** — a tracked `.js` file that
+//!       contains a bundler preamble (`var __defProp` in the first 5 lines) or
+//!       an `AUTO-GENERATED` marker (first 3 lines). Generated JS belongs in
+//!       `.gitignore`, not the index; committed bundles bloat history and create
+//!       a stale-output hazard. Allowlisted dirs (fixtures, scenarios, migrations,
+//!       bindings) and a DOWN-ONLY pinned exception list cover the current
+//!       legitimate cases.
 //!
 //! The orphan check is deliberately conservative (referenced-by-name, not full
 //! module-path resolution) so it never false-positives a legitimately-wired file
@@ -37,6 +44,38 @@ const KNOWN_DUPS: &[&str] = &[];
 /// Files this small are skipped by the dup check (empty / one-line `mod` stubs
 /// collide trivially and aren't copy-not-move signal).
 const MIN_DUP_BYTES: usize = 40;
+
+// ── (c) constants ──────────────────────────────────────────────────────────────
+
+/// Dir-path segments that unconditionally skip a tracked `.js` file from the
+/// generated-JS check. Files under these dirs are intentionally generated output
+/// (compiler test golden fixtures, tutorial scenario scripts, Cloudflare D1
+/// migration driver shims, or tree-sitter language-binding harnesses) and must
+/// not be confused with accidentally committed build artefacts.
+const GENERATED_JS_SKIP_DIRS: &[&str] = &["tests/fixtures", "scenarios", "migrations", "bindings"];
+
+/// Pinned legitimate exceptions (DOWN-ONLY): tracked `.js` files that carry
+/// generation signatures but are committed by explicit operator decision.
+/// Entries may only be removed (when the file is deleted or gitignored); new
+/// entries require a code-change with a stated rationale update.
+///
+/// Format: `(repo-relative path substring, rationale)`
+const GENERATED_JS_KNOWN: &[(&str, &str)] = &[
+    (
+        "apps/docs/public/playground/example.js",
+        // Bundler preamble ("var __defProp"). Vendored playground spike —
+        // operator decision to commit the bundle pending a proper gitignore
+        // strategy for the docs playground.
+        "vendored spike, operator decision pending",
+    ),
+    (
+        "packages/sui/runtime/fixtures/views/counter/view.js",
+        // AUTO-GENERATED marker. Compiler golden fixture for the runtime
+        // integration test — intentionally tracked so regressions in the
+        // compiler output surface as unexpected diffs.
+        "golden fixture",
+    ),
+];
 
 fn walk_rs(dir: &Path, out: &mut Vec<PathBuf>) {
     let Ok(rd) = std::fs::read_dir(dir) else {
@@ -174,6 +213,58 @@ fn hash_bytes(b: &[u8]) -> u64 {
     h.finish()
 }
 
+// ── (c) generated-JS detection ────────────────────────────────────────────────
+
+/// Returns repo-relative paths of every git-tracked `.js` file that:
+/// - is **not** under an allowlisted directory segment, AND
+/// - contains a generation signature: `var __defProp` in the first 5 lines
+///   (bundler preamble) OR `AUTO-GENERATED` anywhere in the first 3 lines.
+fn check_generated_js(repo_root: &Path) -> Result<Vec<String>, String> {
+    let output = std::process::Command::new("git")
+        .arg("ls-files")
+        .arg("*.js")
+        .current_dir(repo_root)
+        .output()
+        .map_err(|e| format!("failed to spawn `git ls-files`: {e}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "`git ls-files` failed ({}): {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr),
+        ));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut violations = Vec::new();
+
+    for rel in stdout.lines() {
+        let rel = rel.trim();
+        if rel.is_empty() {
+            continue;
+        }
+        // Skip allowlisted directory families (fixtures, scenarios, migrations,
+        // bindings): they intentionally host generated or framework-provided JS.
+        if GENERATED_JS_SKIP_DIRS.iter().any(|seg| rel.contains(seg)) {
+            continue;
+        }
+        let abs = repo_root.join(rel);
+        let Ok(content) = std::fs::read_to_string(&abs) else {
+            continue;
+        };
+        let lines: Vec<&str> = content.lines().collect();
+        // Bundler preamble — esbuild/Rolldown emit `var __defProp` in line 1–5.
+        let has_bundler_preamble = lines.iter().take(5).any(|l| l.contains("var __defProp"));
+        // Auto-generated header — sui-compiler and similar tools write
+        // "AUTO-GENERATED" in a comment at the very top.
+        let has_autogen_marker = lines.iter().take(3).any(|l| l.contains("AUTO-GENERATED"));
+        if has_bundler_preamble || has_autogen_marker {
+            violations.push(rel.to_string());
+        }
+    }
+
+    Ok(violations)
+}
+
 pub fn run(repo_root: &Path) -> Result<(), String> {
     let ws = metadata::load(repo_root)?;
 
@@ -265,13 +356,34 @@ pub fn run(repo_root: &Path) -> Result<(), String> {
         }
     }
 
+    // ── (c) generated-JS guard ──────────────────────────────────────────────
+    let mut gen_js = check_generated_js(&ws.root)
+        .map_err(|e| format!("generated-js check: {e}"))?;
+    gen_js.sort();
+
+    for rel in &gen_js {
+        if GENERATED_JS_KNOWN.iter().any(|(s, _)| rel.contains(s)) {
+            warns += 1;
+            eprintln!(
+                "WARN [RESIDUE-GENERATED-JS-KNOWN] {rel}: generated JS committed — known exception"
+            );
+        } else {
+            errors += 1;
+            eprintln!(
+                "  [RESIDUE-GENERATED-JS] {rel}: generated JS must be gitignored, not committed \
+                 (bundler preamble `var __defProp` or `AUTO-GENERATED` marker detected in first lines)"
+            );
+        }
+    }
+
     if errors > 0 {
         return Err(format!(
-            "residue: {errors} new residue violation(s) (orphan/dup); {warns} known stragglers"
+            "residue: {errors} new residue violation(s) (orphan/dup/generated-js); {warns} known stragglers"
         ));
     }
     println!(
-        "residue clean: no new orphan/dup .rs ({} members scanned; {warns} known-straggler warnings)",
+        "residue clean: no new orphan/dup .rs, no unallowlisted generated-js \
+         ({} members scanned; {warns} known-straggler warnings)",
         ws.members.len(),
     );
     Ok(())
