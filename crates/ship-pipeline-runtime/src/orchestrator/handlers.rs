@@ -9,18 +9,6 @@ use crate::orchestrator::OrchestratorContext;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-/// `pipeline.run.updated` — deprecated event; the mesh.send forward path was
-/// removed with the mesh.* op surface cut. Log and discard.
-pub async fn handle_pipeline_run_updated(
-    _kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    envelope: &EventEnvelope,
-) {
-    tracing::debug!(
-        entity_id = %envelope.entity_id,
-        "job-dispatch: pipeline.run.updated received (deprecated — no-op)"
-    );
-}
-
 /// Clean up worktree, tmux session, and branch for a completed/merged job.
 pub async fn handle_cleanup(
     envelope: &EventEnvelope,

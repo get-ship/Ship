@@ -83,9 +83,7 @@ pub async fn terminal_guard(
 }
 
 pub fn is_operator_event(event_type: &str) -> bool {
-    event_type == "pipeline.run.started"
-        || event_type == "pipeline.run.updated"
-        || event_type == et::PIPELINE_RUN_CANCELLED
+    event_type == "pipeline.run.started" || event_type == et::PIPELINE_RUN_CANCELLED
 }
 
 pub fn extract_slug(envelope: &EventEnvelope) -> Option<String> {

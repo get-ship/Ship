@@ -16,7 +16,7 @@ use super::dispatch::handle_pipeline_run_started;
 use super::emit::emit_step_failed;
 use super::review_retry::{emit_pipeline_run_failed_for_review, try_review_retry};
 use super::handlers::{
-    finalize_pipeline_if_done, handle_cancelled, handle_cleanup, handle_pipeline_run_updated,
+    finalize_pipeline_if_done, handle_cancelled, handle_cleanup,
 };
 use super::pipeline::advance_pipeline;
 use super::step_io::{check_required_outputs, run_step_promotes};
@@ -112,7 +112,6 @@ pub async fn handle_orchestrator_event(
         // acts on any agent.session.* event; composed-terminal lookup uses the
         // canonical_sessions read model instead.
         "pipeline.run.started" => handle_pipeline_run_started(kernel, envelope, octx).await,
-        "pipeline.run.updated" => handle_pipeline_run_updated(kernel, envelope).await,
         et::PIPELINE_RUN_CANCELLED => handle_cancelled(kernel, envelope, octx).await,
         "pipeline.run.completed" => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.completed");

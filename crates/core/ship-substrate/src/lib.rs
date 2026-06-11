@@ -16,7 +16,6 @@ pub mod config_doc;
 pub mod data;
 pub mod ports;
 pub mod db;
-pub mod diagnostics;
 pub mod env;
 pub mod errors;
 pub mod events;

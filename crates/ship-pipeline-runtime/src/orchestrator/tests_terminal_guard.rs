@@ -269,29 +269,43 @@ async fn step_observed_ignored_when_job_cancelled() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn operator_events_bypass_terminal_guard() {
-    // A job.update for a Failed job must still pass the guard and reach
-    // handle_pipeline_run_updated. We check "passed the guard" indirectly: the
-    // function completes without panicking and the projection remains
-    // Failed (job.update doesn't transition status in the projection).
+    // Pin the guard CONTRACT directly: an operator event (cancel) on a
+    // terminal job is admitted (Proceed), while a non-operator late event on
+    // the same terminal job is rejected (Terminal). The old version of this
+    // test drove the deprecated `pipeline.run.updated` no-op through the full
+    // router and asserted only that the status didn't change — an assertion
+    // that holds whether the guard admits OR swallows. This asserts the
+    // Admit decision itself.
+    use ship_code::runner::router::{Admit, terminal_guard};
+
     let tmp = TempDir::new().unwrap();
     let executor = Arc::new(TrackingExecutor::default());
     let ctx = octx(executor.clone(), tmp.path().into());
 
     let pipeline_run_id = "j-guard-operator";
-    let kernel = seed_terminal(pipeline_run_id, "guard-operator", event_types::PIPELINE_RUN_FAILED).await;
+    let _kernel = seed_terminal(pipeline_run_id, "guard-operator", event_types::PIPELINE_RUN_FAILED).await;
 
-    let update_payload = serde_json::json!({
-        "pipeline_run_id": pipeline_run_id,
-        "slug": "guard-operator",
-        "status": "failed",
-        "note": "operator commented after failure",
-    });
-    let env = EventEnvelope::new(event_types::PIPELINE_RUN_UPDATED, pipeline_run_id, &update_payload).unwrap();
-    handle_orchestrator_event(&kernel, &env, &ctx).await;
-
-    // The guard must not swallow operator events; the job stays Failed.
+    let cancel = EventEnvelope::new(
+        event_types::PIPELINE_RUN_CANCELLED,
+        pipeline_run_id,
+        &serde_json::json!({ "pipeline_run_id": pipeline_run_id, "slug": "guard-operator" }),
+    )
+    .unwrap();
     assert_eq!(
-        load_pipeline_runs().unwrap().get(pipeline_run_id).unwrap().status,
-        PipelineRunStatus::Failed
+        terminal_guard(&ctx.event_dedup, &*ctx.projections, &cancel).await,
+        Admit::Proceed,
+        "operator cancel on a terminal job must bypass the guard"
+    );
+
+    let late = EventEnvelope::new(
+        "pipeline.run.completed",
+        pipeline_run_id,
+        &serde_json::json!({ "pipeline_run_id": pipeline_run_id, "slug": "guard-operator" }),
+    )
+    .unwrap();
+    assert_eq!(
+        terminal_guard(&ctx.event_dedup, &*ctx.projections, &late).await,
+        Admit::Terminal,
+        "a late non-operator event on a terminal job must be rejected"
     );
 }

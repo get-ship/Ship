@@ -357,50 +357,6 @@ impl KernelRouter {
     }
 }
 
-/// Thin diagnostic view over a live `KernelRouter`.
-///
-/// Holds an `Arc<tokio::sync::Mutex<KernelRouter>>` (the same handle the runtime
-/// passes around as `SharedKernel`) so each `snapshot()` call reads current
-/// state without cloning the router itself.
-pub struct KernelRouterDiag {
-    router: Arc<tokio::sync::Mutex<KernelRouter>>,
-}
-
-impl KernelRouterDiag {
-    pub fn new(router: Arc<tokio::sync::Mutex<KernelRouter>>) -> Self {
-        Self { router }
-    }
-}
-
-impl crate::diagnostics::DiagnosticSnapshot for KernelRouterDiag {
-    fn name(&self) -> &'static str { "kernel_router" }
-
-    fn snapshot(&self) -> serde_json::Value {
-        // block_in_place allows blocking on the async tokio Mutex from a
-        // sync context (the DiagnosticSnapshot trait is sync).
-        let (actor_count, total_rate) = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let guard = self.router.lock().await;
-                let actors = guard.list_actors();
-                let actor_count = actors.len();
-                let total_rate: u32 = actors
-                    .iter()
-                    .map(|(id, _)| guard.msg_rate(id))
-                    .sum();
-                (actor_count, total_rate)
-            })
-        });
-        // Estimated bytes: each actor config is small (a few strings); use
-        // a flat per-actor estimate plus the rate-counter map.
-        let bytes_estimated = actor_count * 256 + actor_count * std::mem::size_of::<RateCounter>();
-        serde_json::json!({
-            "bytes_estimated": bytes_estimated,
-            "count_actors": actor_count,
-            "total_events_per_minute": total_rate,
-        })
-    }
-}
-
 pub(crate) fn flush_wal(db_path: &Path) -> Result<()> {
     use crate::db::open_db_at;
     let mut conn = open_db_at(db_path)?;

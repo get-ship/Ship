@@ -87,21 +87,6 @@ pub mod isolation_ops {
     pub use ship_isolation::decision_ops::*;
 }
 
-/// Service infrastructure — in-process registry + git re-export + fixtures.
-pub mod services {
-    /// Agent-session orchestration re-export (C8b fold).
-    pub mod agent_sessions {
-        pub use ship_agents::{
-            handle_dispatch_requested, handle_agents_event,
-            start_agents, AgentPorts,
-        };
-        // cancel is gated on harness-drivers (ship-code dep required).
-        #[cfg(feature = "harness-drivers")]
-        pub use ship_agents::handle_agent_cancelled;
-    }
-
-}
-
 #[cfg(any(test, feature = "testutil"))]
 pub mod testutil;
 

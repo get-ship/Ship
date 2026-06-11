@@ -135,6 +135,15 @@ jobs:
           cargo run -p xtask --quiet -- gen-fixtures
           git diff --exit-code proto/fixtures/ \
             || { echo "proto/fixtures is stale — run 'cargo run -p xtask -- gen-fixtures' and commit"; exit 1; }
+      # Wire-tier event union (cloud-types) is generated from the event
+      # registry. This gate did not exist while gen-events itself was broken
+      # (stale source path) — the committed events.ts drifted a full retired
+      # event family behind the registry before anyone noticed.
+      - name: Check wire-event types drift
+        run: |
+          cargo run -p xtask --quiet -- gen-events
+          git diff --exit-code packages/cloud-types/src/events.ts \
+            || { echo "cloud-types events.ts is stale — run 'cargo run -p xtask -- gen-events' and commit"; exit 1; }
       - name: Lint layer boundaries
         run: cargo run -p xtask --quiet -- lint-layers
       - name: Lint import-level layer direction

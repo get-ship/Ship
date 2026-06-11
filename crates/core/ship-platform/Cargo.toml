@@ -132,12 +132,17 @@ specta = ["ship-views/specta", "ship-agents/specta"]
 # from the real structs. Off by default; on under `cfg(test)` automatically.
 fixtures = ["ship-agents/fixtures"]
 # harness-drivers: enable ship-agents' harness-driver stack (ship-code).
-# Gate the cancel/runtime re-exports in services::agent_sessions. Enabled by
-# shipd when ship-code is ON; absent in flag-off builds.
+# Enabled by shipd when ship-code is ON; absent in flag-off builds.
 harness-drivers = ["ship-agents/harness-drivers"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
+# Self-dep so integration tests (tests/) see the `testutil` module. cfg(test)
+# does not apply to the lib when building integration-test targets, so without
+# this the testutil-importing tests only compiled when workspace feature
+# unification happened to enable the flag — i.e. never under
+# `cargo test -p ship-platform` (the test target silently never ran).
+ship-platform = { path = ".", features = ["testutil"] }
 
 [lints]
 workspace = true
