@@ -40,6 +40,7 @@ async fn spa_build_emits_hashed_bundle_and_rewrites_html() {
         &spa, // repo_root (cwd for module resolution; framework is external)
         None, // first_party_app — external island-free app, no first-party pack
         &[],  // packs — no declared scope → global component resolution
+        &[],  // component_source_roots — island-free app, none
         &spa, // shell_root (index.html + src/)
         out.path(),
         false, // minify
@@ -94,6 +95,7 @@ async fn self_contained_build_ships_singletons_for_island_free_app() {
         &spa,
         None, // first_party_app
         &[],  // packs — no declared scope → global component resolution
+        &[],  // component_source_roots — island-free app, none
         &spa,
         out.path(),
         false, // minify
