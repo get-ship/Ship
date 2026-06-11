@@ -16,6 +16,8 @@ interface LaneRow {
   compile_label: string
   lint_errors: number
   lint_warnings: number
+  /** "passed/total" when the run had a behavior spec, else an em dash. */
+  behavior_label: string
 }
 
 interface RunGroup {
@@ -33,16 +35,20 @@ export default controller<Scope>({
     const runs = live<CollectionItemsResponse>(() =>
       ship.collections.items({ collection: 'sui-eval-runs', limit: 200 }) as unknown as LiveSource<CollectionItemsResponse>
     )
-    return { runs }
-  },
-  derived: {
-    groups: ({ runs }): RunGroup[] => {
+
+    // Deriveds live in the scope factory — the resolver only merges what this
+    // factory returns. (This view used the retired top-level `derived:`
+    // section and silently rendered no rows; caught by page.behavior.jsonc.)
+    const groups = derived((): RunGroup[] => {
       const items = unwrap(runs)?.items ?? []
       const byRun = new Map<string, LaneRow[]>()
       for (const item of items) {
         const data = (item.data ?? {}) as Partial<LaneRow>
         if (!data.run_id || !data.lane_id) continue
         const compile_passed = data.compile_passed === true
+        const raw = (item.data ?? {}) as Record<string, unknown>
+        const behaviorTotal = typeof raw.behavior_total === 'number' ? raw.behavior_total : 0
+        const behaviorPassed = typeof raw.behavior_passed === 'number' ? raw.behavior_passed : 0
         const lane: LaneRow = {
           run_id: data.run_id,
           lane_id: data.lane_id,
@@ -52,6 +58,7 @@ export default controller<Scope>({
           compile_label: compile_passed ? 'pass' : 'fail',
           lint_errors: typeof data.lint_errors === 'number' ? data.lint_errors : 0,
           lint_warnings: typeof data.lint_warnings === 'number' ? data.lint_warnings : 0,
+          behavior_label: behaviorTotal > 0 ? `${behaviorPassed}/${behaviorTotal}` : '—',
         }
         const arr = byRun.get(lane.run_id) ?? []
         arr.push(lane)
@@ -63,6 +70,8 @@ export default controller<Scope>({
           lanes: lanes.sort((a, b) => a.lane_id.localeCompare(b.lane_id)),
         }))
         .sort((a, b) => b.runId.localeCompare(a.runId))
-    },
+    })
+
+    return { runs, groups }
   },
 })
