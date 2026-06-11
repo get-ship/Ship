@@ -474,3 +474,53 @@ Component-side `<prop>` syntax (full table in
 Then consume from a view: `<my-widget tone="primary"
 prop:rows={rowsSignal}>…</my-widget>`. The compiler emits the
 `customElements.define('my-widget', …)` call — never hand-write it.
+
+---
+
+## 8. Declared clients — a view on a non-Ship host
+
+A view names the data clients it consumes with `<client>`; the host
+supplies a keyed map at mount. `ship` is just the key Ship hosts use —
+here a deck host injects its own client as `api`. Worked exemplar in
+the repo: `examples/deck-demo/app/views/clock/page.sui`.
+
+`app/views/clock/page.sui`:
+
+```html
+<client name="api" />
+<data name="t" source="api.demo.clock()" live />
+
+<div class="clock-demo">
+  {#while-loading of t}<p>Loading…</p>{/while-loading}
+  {#while-error err of t}<p>Error: {err.message}</p>{/while-error}
+  {#if t().kind === 'ok'}
+    <p>Tick: <strong>{t().value.now}</strong></p>
+  {/if}
+</div>
+```
+
+The host's mount call (the deck view-host does this from the payload's
+declared-clients list; a hand-rolled host writes it directly):
+
+```ts
+import { mount } from '@ship/sui-runtime'
+
+const handle = await mount(target, payload, {
+  clients: { api: myDataClient },
+})
+```
+
+Typing — the provider augments its own key on the runtime's `Clients`
+interface, so `api.demo.clock()` and the `t` signal are fully typed:
+
+```ts
+declare module '@ship/sui-runtime' {
+  interface Clients { api: MyDataClient }
+}
+```
+
+Declared names are checked: an undeclared root in a `<data source>` is
+a compile error, and the generated `.sui.d.ts` types each data signal
+from the client method's return. Views that declare nothing still get
+the ambient `ship` (compatibility default); the `sui-client-directive`
+lint (Warn) nudges those toward an explicit `<client name="ship" />`.
