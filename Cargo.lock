@@ -42,7 +42,6 @@ dependencies = [
  "ship-harnesses",
  "ship-kernel",
  "ship-platform",
- "ship-skill-vars",
  "ship-store",
  "ship-substrate",
  "ship-types",
@@ -8527,6 +8526,7 @@ dependencies = [
 name = "ship-cli"
 version = "0.2.0"
 dependencies = [
+ "agent-def",
  "anyhow",
  "assert_cmd",
  "axum",
@@ -8558,7 +8558,6 @@ dependencies = [
  "ship-pipeline-runtime",
  "ship-pipelines",
  "ship-platform",
- "ship-skill-vars",
  "ship-store",
  "ship-substrate",
  "ship-types",
@@ -8883,6 +8882,7 @@ dependencies = [
  "buffa",
  "chrono",
  "connectrpc",
+ "durable-execution",
  "http",
  "json-patch 4.2.0",
  "minijinja",
@@ -9072,19 +9072,6 @@ dependencies = [
  "http-body",
  "protoc-bin-vendored",
  "serde",
-]
-
-[[package]]
-name = "ship-skill-vars"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "serde",
- "serde_json",
- "ship-substrate",
- "sqlx",
- "tracing",
 ]
 
 [[package]]
