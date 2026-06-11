@@ -7,10 +7,8 @@
     "collect": "bun scripts/collect-skill-docs.ts",
     "collect:watch": "AUDIENCE=internal bun scripts/collect-skill-docs.ts --watch",
     "dev": "env AUDIENCE=internal sh -c 'bun scripts/collect-skill-docs.ts --watch & astro dev --host; kill 0'",
-    "openapi:generate": "bun scripts/generate-openapi.ts",
-    "openapi:check-drift": "bun scripts/check-openapi-drift.ts",
     "docs:check-drift": "bun scripts/check-skill-docs-drift.ts",
-    "prebuild": "bun run collect && bun ../../packages/deck/catalog/src/cli.ts --root ../..",
+    "prebuild": "bun run collect",
     "build": "astro build",
     "preview": "astro preview",
     "visual": "playwright test --config tests/visual/playwright.config.ts",
@@ -22,7 +20,6 @@
     "@fontsource-variable/syne": "^5.2.7",
     "astro": "^6.1.1",
     "sharp": "^0.33.0",
-    "starlight-openapi": "^0.24.0",
     "starlight-sidebar-topics": "^0.7.1"
   },
   "devDependencies": {

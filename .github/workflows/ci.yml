@@ -94,12 +94,15 @@ jobs:
         run: just lint-justfile
       - name: Check SUI bundle sizes (within budget)
         run: bash scripts/lint/check-sui-bundle-size.sh
-      - name: Check OpenAPI drift
-        run: cd apps/docs && bun run openapi:check-drift
       - name: Collect skill docs
         run: cd apps/docs && AUDIENCE=internal bun run collect
       - name: Check skill-docs drift
         run: cd apps/docs && bun run docs:check-drift
+      # Build the Astro site so a red docs build can never ship. Runs after the
+      # collect/drift gates: the build's own prebuild re-runs the collector, so
+      # a sourceless sidebar section or a broken page fails here loudly.
+      - name: Build docs site (astro build)
+        run: bun run --filter @ship/docs build
       # ship-host (apps/host) is Ship's single native host — Tauri webview
       # wrapping a daemon-served scaffold. Needs webkit2gtk/libsoup that this
       # runner doesn't provision (only release.yml's tauri-action does).

@@ -303,16 +303,6 @@ docs:
 docs-dev:
     cd apps/docs && bun run dev --port 4321 --host
 
-# Regenerate the committed OpenAPI snapshot.
-[group('occasional')]
-openapi-regen:
-    cd apps/docs && bun run openapi:generate
-
-# Fail if the committed openapi.json disagrees with the live spec.
-[group('occasional')]
-openapi-check:
-    cd apps/docs && bun run openapi:check-drift
-
 # Regenerate the Astro reference tree from docs/<skill>/references/docs/.
 [group('occasional')]
 docs-regen:

@@ -218,11 +218,15 @@ function collectSkillRoot(rootDir: string, srcPrefix: string, audience: string):
       .filter((e) => e.isFile() && /\.(md|mdoc)$/.test(e.name))
       .map((e) => e.name)
 
-    // Only include files with group: frontmatter — that's the doc-skill signal
+    // Only include files with a `group:` frontmatter field — that's the
+    // doc-skill signal. `parseFrontmatter` yields `null` for a present-but-
+    // empty `group:` and `undefined` when the file has no frontmatter at all
+    // (e.g. a plain `# Title` ADR); `!= null` excludes both so frontmatterless
+    // pages never leak into a `<skillId>/` orphan dir.
     const docFiles = allFiles.filter((file) => {
       const text = readFileSync(join(docsDir, file), "utf8")
       const fm = parseFrontmatter(text)
-      return fm.group !== null
+      return fm.group != null
     })
 
     if (docFiles.length === 0) continue

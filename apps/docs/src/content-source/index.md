@@ -14,7 +14,7 @@ description: Ship is the runtime for agent workflows. Agents write code, run pip
     </p>
     <div class="idx-cta-row">
       <a class="idx-cta idx-cta-primary" href="https://getship.dev/docs/ship-ui/tutorial/01-hello-signal/">Try the SUI tutorial →</a>
-      <a class="idx-cta idx-cta-secondary" href="/getting-started/">60-second install</a>
+      <a class="idx-cta idx-cta-secondary" href="#60-second-install">60-second install</a>
       <a class="idx-cta idx-cta-ghost" href="/components/">Browse components →</a>
     </div>
     <div class="idx-pill-row">
@@ -29,9 +29,9 @@ description: Ship is the runtime for agent workflows. Agents write code, run pip
   <a class="idx-three-card idx-card-primary" href="/agents/">
     <div class="idx-three-icon" aria-hidden="true">⌘</div>
     <div class="idx-three-title">Write code</div>
-    <p class="idx-three-body">Agents read + write your tree under typed skills, permissions, and job/session primitives. Compiles to every major harness format.</p>
+    <p class="idx-three-body">Agents read + write your tree under typed skills, permissions, and rules. Compiles to every major harness format.</p>
   </a>
-  <a class="idx-three-card idx-card-info" href="/pipelines/">
+  <a class="idx-three-card idx-card-info" href="/concepts/">
     <div class="idx-three-icon" aria-hidden="true">⇢</div>
     <div class="idx-three-title">Run pipelines</div>
     <p class="idx-three-body">JSONC DAGs of agent steps with gates, retries, and worktree isolation. Resumable across kernel restarts.</p>

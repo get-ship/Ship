@@ -2,8 +2,8 @@
 /**
  * Skill-docs drift check.
  *
- * Exits non-zero when the on-disk Astro reference tree
- * (`apps/docs/src/content/docs/reference/`) disagrees with what
+ * Exits non-zero when the on-disk Astro content tree
+ * (`apps/docs/src/content/docs/`) disagrees with what
  * `collect-skill-docs.ts` would produce from the source tree
  * (`docs/<skill>/references/docs/`).
  *
@@ -30,7 +30,7 @@ const REPO_ROOT = resolve(SCRIPT_DIR, "..", "..", "..")
 const COLLECTOR = resolve(SCRIPT_DIR, "collect-skill-docs.ts")
 const ACTUAL_DIR = resolve(
   REPO_ROOT,
-  "apps/docs/src/content/docs/reference",
+  "apps/docs/src/content/docs",
 )
 
 function fatal(msg: string): never {
