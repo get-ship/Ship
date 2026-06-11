@@ -21,14 +21,16 @@
 import type {
   AccountState,
   AgentsSummariesResponse,
+  SkillIndexEntry,
+} from './generated'
+import type {
   ArtifactRecord,
   CollectionFieldRecord,
   CollectionSummary,
   GitDiff,
   GitDiffArgs,
   GitOverview,
-  SkillIndexEntry,
-} from './generated'
+} from './ship-data'
 import type { LiveSource } from '@ship/sui-runtime'
 
 export type { AccountState, ArtifactRecord, CollectionFieldRecord, CollectionSummary, SkillIndexEntry }
@@ -215,29 +217,9 @@ export interface ShipSDK {
     }): LiveSource<unknown>
     /** Single skill detail (frontmatter + body + vars). */
     detail(args: { id: string }): LiveSource<unknown>
-    /** Invoke a library skill — attach its reference content to a
-     *  session and emit lifecycle events on the kernel bus.
-     *
-     *  Resolves the skill, mints a `run_id`, picks a `session_id`
-     *  (explicit > active-agent-for-workspace > synthetic = run_id),
-     *  and emits `skill.started` → `skill.attached_to_session` →
-     *  `skill.completed`. Operator + mode skill types are not yet
-     *  wired through this surface — see
-     *  `.artifacts/sui-arc/skills-invoke-real.md`. */
-    invoke(args: {
-      id: string
-      vars?: Record<string, unknown>
-      workspace_id?: string
-      session_id?: string
-    }): Promise<{
-      ok: true
-      run_id: string
-      skill_id: string
-      session_id: string
-      workspace_id: string | null
-      mode: 'library'
-      reused_session: boolean
-    }>
+    // skills.invoke was dropped with its culled REST route (zero real
+    // callers — Phase 3a, af1200c07); the implementation removed it but
+    // this interface lagged. Deleted stays deleted.
   }
   pipelines: {
     /** Pipeline summaries for the studio list. Live SSE. */

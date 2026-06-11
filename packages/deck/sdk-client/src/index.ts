@@ -12,12 +12,8 @@
 // Keeping `index.ts` to the surface declaration only respects the 300-
 // line file cap and makes the SDK surface readable at a glance.
 import type { LiveSource } from '@ship/sui-runtime'
-import type {
-  AgentsSummariesResponse,
-  GitDiff,
-  GitDiffArgs,
-  GitOverview,
-} from './generated'
+import type { AgentsSummariesResponse } from './generated'
+import type { GitDiff, GitDiffArgs, GitOverview } from './ship-data'
 import type { ArtifactRecord, ShipSDK } from './ship-sdk'
 import { fetchBody, mutateForm, mutateJson } from './http'
 import { sharedSource } from './shared-source'
@@ -62,13 +58,17 @@ export {
 export type {
   AgentSummary,
   AgentsSummariesResponse,
+} from './generated'
+// Hand-owned SSE/mux payload shapes — their Rust structs left the specta
+// surface when the registered wire moved to proto (see ship-data.ts).
+export type {
   BranchSummary as GitBranch,
   CommitSummary as GitCommit,
   GitDiff,
   GitDiffArgs,
   GitOverview,
   StatusFile as GitFileEntry,
-} from './generated'
+} from './ship-data'
 // The Ship SDK surface + its hand-authored data types — owned here, not the framework.
 export type {
   AccountState,

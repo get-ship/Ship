@@ -305,16 +305,14 @@ export type { Patch, PatchOp, PathToken } from './patch'
 // gen-types` from Rust source; do not edit `generated.ts` by hand.
 // View-system contract types only — Ship daemon-domain data (git/agents/
 // account) lives in @ship/sdk-client, never the framework.
+// (LintFinding + the Write* request/response types left this surface when
+// the write paths + lint moved to the view-edit Connect wire — their specta
+// registrations were retired; see crates/xtask/src/types.rs.)
 export type {
-  LintFinding,
   ManifestRail,
   RailMeta,
   ResolveError,
   ResolvedView,
   ViewListEntry,
   ViewManifest,
-  WriteDiagnostics,
-  WriteManifestRequest,
-  WriteResponse,
-  WriteTemplateRequest,
 } from './generated'
