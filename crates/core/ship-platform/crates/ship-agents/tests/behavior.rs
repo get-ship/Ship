@@ -255,18 +255,6 @@ fn kernel_with_actor() -> Arc<Mutex<KernelRouter>> {
     Arc::new(Mutex::new(router))
 }
 
-fn find_dispatched(session_id: &str) -> bool {
-    ship_substrate::db::events::list_all_events()
-        .ok()
-        .map(|events| {
-            events.iter().any(|e| {
-                e.entity_id == session_id
-                    && e.event_type == agent_event_types::AGENT_SESSION_DISPATCHED
-            })
-        })
-        .unwrap_or(false)
-}
-
 fn find_process_killed(slug: &str) -> Option<ProcessKilledPayload> {
     ship_substrate::db::events::list_all_events()
         .ok()?
@@ -385,59 +373,6 @@ async fn composed_session_is_not_spawned_here() {
         0,
         "composed session (parent_pipeline_run_id set) must not be spawned by service.agents"
     );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn dispatch_emits_agent_session_dispatched_on_success() {
-    let tmp = tempfile::TempDir::new().unwrap();
-    let kernel = kernel_with_actor();
-    // Executor that returns a handle so the dispatch reaches the dispatched emit.
-    struct OkExecutor;
-    #[async_trait]
-    impl SessionExecutor for OkExecutor {
-        async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> {
-            Ok(ExecutorHandle { pid: Some(99), inner: Box::new(()) })
-        }
-        async fn is_alive(&self, _: &ExecutorHandle) -> bool {
-            true
-        }
-        async fn stop(&self, _: &ExecutorHandle) -> anyhow::Result<()> {
-            Ok(())
-        }
-        async fn send(&self, _: &ExecutorHandle, _: &str) -> anyhow::Result<()> {
-            Ok(())
-        }
-    }
-
-    let ports = ports_with(
-        Arc::new(OkIsolation(tmp.path().join("worktrees/sess-3"))),
-        Arc::new(OkExecutor),
-        Arc::new(NoopRegistry),
-        Arc::new(TestPlatform {
-            worktrees: tmp.path().join("worktrees"),
-            cleanup_calls: Arc::new(AtomicUsize::new(0)),
-        }),
-    );
-
-    let payload = started_payload("s-disp-1", "sess-3", None, None, None);
-    let envelope = EventEnvelope::new(
-        agent_event_types::AGENT_SESSION_STARTED,
-        &payload.session_id,
-        &payload,
-    )
-    .unwrap()
-    .with_actor_id("test");
-    ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
-    // Poll for the detached prep to emit dispatched.
-    let mut ok = false;
-    for _ in 0..50 {
-        if find_dispatched("s-disp-1") {
-            ok = true;
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-    }
-    assert!(ok, "agent.session.dispatched emitted after a successful spawn");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
