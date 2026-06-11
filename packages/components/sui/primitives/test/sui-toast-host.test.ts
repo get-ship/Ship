@@ -93,6 +93,18 @@ describe('<sui-toast-host>', () => {
     expect(action).not.toBeNull()
     expect(action.id).toBe('upd-act')
     expect(action.textContent).toBe('Reload')
+    // …and it must reach the *actions* slot, not the default-slot fallback.
+    // A forwarded action that lost its slot="actions" would still satisfy the
+    // querySelector above but render in the body and leave the toast marked
+    // data-no-actions. Assert the live slot assignment instead.
+    const actionsSlot = toast.shadowRoot!.querySelector(
+      'slot[name="actions"]',
+    ) as HTMLSlotElement
+    const assigned = actionsSlot.assignedElements()
+    expect(assigned.some((node) => node === action || node.contains(action))).toBe(
+      true,
+    )
+    expect(toast.hasAttribute('data-no-actions')).toBe(false)
   })
 
   it('listens on the closest ship-shell ancestor when present', async () => {

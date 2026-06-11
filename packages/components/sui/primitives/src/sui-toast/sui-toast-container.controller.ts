@@ -195,9 +195,14 @@ export default controller<Scope>({
       }
       if (opts.actionHtml) {
         const wrap = doc.createElement('span')
-        wrap.setAttribute('slot', 'actions')
         const html = opts.actionHtml
+        // bindHtml() morphs `wrap` against a fresh template span, and
+        // morphAttributes() strips any attribute the template lacks — so
+        // set slot="actions" *after* the (static, one-shot) morph, or the
+        // forwarded action loses its slot and falls back to the default
+        // slot, leaving the toast marked data-no-actions.
         bindHtml(wrap, () => html)
+        wrap.setAttribute('slot', 'actions')
         t.appendChild(wrap)
       }
       if (stackEl) stackEl.appendChild(t)
