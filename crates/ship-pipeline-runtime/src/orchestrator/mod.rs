@@ -57,6 +57,8 @@ mod tests_dispatch_harness;
 #[cfg(test)]
 mod tests_run_step_journal;
 #[cfg(test)]
+mod tests_agent_step_journal;
+#[cfg(test)]
 mod tests_spawn_failed;
 #[cfg(test)]
 mod tests_replay;

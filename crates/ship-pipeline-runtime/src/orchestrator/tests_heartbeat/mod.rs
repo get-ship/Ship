@@ -68,6 +68,7 @@ struct Launch {
     pipeline_run_id: String,
     exit_tx: mpsc::UnboundedSender<ExitSignal>,
     activity_tx: mpsc::UnboundedSender<StepActivity>,
+    done: Arc<std::sync::atomic::AtomicBool>,
 }
 
 fn launch(
@@ -75,6 +76,22 @@ fn launch(
     work_dir: std::path::PathBuf,
     cfg: Cfg,
     probe: Arc<dyn ProcessTreeProbe>,
+) -> Launch {
+    launch_with_store(
+        kernel,
+        work_dir,
+        cfg,
+        probe,
+        Arc::new(durable_execution::InMemoryJournalStore::new()),
+    )
+}
+
+fn launch_with_store(
+    kernel: Arc<Mutex<KernelRouter>>,
+    work_dir: std::path::PathBuf,
+    cfg: Cfg,
+    probe: Arc<dyn ProcessTreeProbe>,
+    journal_store: Arc<dyn durable_execution::JournalStore>,
 ) -> Launch {
     let mut monitor = StepMonitor::new(
         format!("j-{}", cfg.slug),
@@ -89,6 +106,7 @@ fn launch(
     monitor.probe_interval = cfg.probe_interval;
     monitor.settle_duration = cfg.settle_duration;
     let pipeline_run_id = monitor.pipeline_run_id.clone();
+    let done = monitor.done_flag();
 
     let (exit_tx, exit_rx) = mpsc::unbounded_channel::<ExitSignal>();
     let (activity_tx, activity_rx) = mpsc::unbounded_channel::<StepActivity>();
@@ -100,8 +118,9 @@ fn launch(
         probe,
         exit_rx,
         activity_rx,
+        journal_store,
     );
-    Launch { pipeline_run_id, exit_tx, activity_tx }
+    Launch { pipeline_run_id, exit_tx, activity_tx, done }
 }
 
 async fn wait_observed(pipeline_run_id: &str, deadline: Duration) -> Option<PipelineStepObservedPayload> {
@@ -127,6 +146,19 @@ fn find_observed(pipeline_run_id: &str) -> Option<PipelineStepObservedPayload> {
                 None
             }
         })
+}
+
+fn count_observed(pipeline_run_id: &str) -> usize {
+    ship_substrate::db::events::list_all_events()
+        .map(|evs| {
+            evs.into_iter()
+                .filter(|e| {
+                    e.entity_id == pipeline_run_id
+                        && e.event_type == run_event_types::PIPELINE_STEP_OBSERVED
+                })
+                .count()
+        })
+        .unwrap_or(0)
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -220,6 +252,70 @@ async fn probe_none_does_not_spuriously_reset_idle_timer() {
         .expect("null-probe path still falls through to idle timeout");
     assert_eq!(observed.trigger, StepTrigger::Timeout);
     assert_eq!(observed.reason.as_deref(), Some("idle_timeout"));
+}
+
+/// `step_done` declared → the monitor resolves the suspend with
+/// `DoneDeclared` evidence and the program's verdict ladder advances.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn done_declared_resolves_with_done_trigger() {
+    let tmp = TempDir::new().unwrap();
+    let kernel = fresh_kernel().await;
+    let l = launch(
+        kernel,
+        tmp.path().to_path_buf(),
+        Cfg::fast("heartbeat-done"),
+        Arc::new(IdleProbe),
+    );
+    l.done.store(true, std::sync::atomic::Ordering::Release);
+    let observed = wait_observed(&l.pipeline_run_id, Duration::from_secs(3))
+        .await
+        .expect("done flag must produce a step.observed");
+    assert_eq!(observed.trigger, StepTrigger::DoneDeclared);
+    assert!(observed.done_declared);
+    assert!(observed.succeeded, "done_declared(true) must advance");
+}
+
+/// C5 restart-dedup: a second monitor for the same step over the SAME journal
+/// store finds the completed journal and exits without re-emitting — the
+/// `step.observed` count for the run stays at one.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn completed_step_journal_blocks_reemission() {
+    let tmp = TempDir::new().unwrap();
+    let kernel = fresh_kernel().await;
+    let store: Arc<dyn durable_execution::JournalStore> =
+        Arc::new(durable_execution::InMemoryJournalStore::new());
+
+    // First life: idle timeout drives the step to its observation.
+    let l = launch_with_store(
+        kernel.clone(),
+        tmp.path().to_path_buf(),
+        Cfg::fast("heartbeat-dedup"),
+        Arc::new(IdleProbe),
+        store.clone(),
+    );
+    wait_observed(&l.pipeline_run_id, Duration::from_secs(3))
+        .await
+        .expect("first monitor must emit step.observed");
+    assert_eq!(count_observed(&l.pipeline_run_id), 1);
+
+    // Second life (same run id, step name, and store — a re-dispatch after
+    // the observation already happened): the monitor must see the completed
+    // journal and stand down.
+    let _l2 = launch_with_store(
+        kernel,
+        tmp.path().to_path_buf(),
+        Cfg::fast("heartbeat-dedup"),
+        Arc::new(IdleProbe),
+        store,
+    );
+    // Give the second monitor 3x its idle budget — if it (wrongly) ran the
+    // loop, the idle timeout would have re-emitted by now.
+    tokio::time::sleep(Duration::from_millis(1200)).await;
+    assert_eq!(
+        count_observed(&l.pipeline_run_id),
+        1,
+        "a completed step journal must block re-emission"
+    );
 }
 
 /// Turn-ended opens settle, but active CPU keeps extending it. Guards

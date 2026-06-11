@@ -299,6 +299,7 @@ pub async fn dispatch_pipeline_run_internal(
             octx.probe.clone(),
             exit_rx,
             activity_rx,
+            octx.journal_store.clone(),
         );
     } else {
         super::exit_handler::start(

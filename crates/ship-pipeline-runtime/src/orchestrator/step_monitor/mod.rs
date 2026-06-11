@@ -11,9 +11,22 @@
 //! The monitor accumulates evidence across signals. It does not advance
 //! the pipeline on a single event — it waits for activity to settle and
 //! checks outputs (git commits, step_done) before deciding.
+//!
+//! **Journaled (C5 / P2.3):** the step's lifecycle runs as `AgentStepProgram`
+//! through the durable-execution engine. At monitor start the program parks
+//! on the `agent.running` suspend (journal saved under
+//! `<pipeline_run_id>/agent-step/<step_name>`); the monitor is now the
+//! EVIDENCE FEEDER — when its timing machinery decides the step is over, it
+//! resolves the suspend with a [`StepEvidence`] and the program's
+//! `agent.verdict` record + `agent.emit_observed` op produce the verdict and
+//! the `pipeline.step.observed` emission, exactly once under replay. A step
+//! whose journal is already complete (re-dispatch after the observation)
+//! exits without re-emitting. The timers themselves move to the coordinator
+//! at C7/P2.5, deleting this loop.
 
 mod evidence;
 
+use durable_execution::{Dispatch, Journal, JournalStore, RunStatus};
 use ship_substrate::events::pipeline::{StepTrigger, StepType};
 use ship_substrate::events::KernelRouter;
 use ship_code::dispatch_ports::{
@@ -27,8 +40,9 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::Mutex;
 
 use super::StepActivity;
+use super::coordinator_programs::{AgentStepProgram, StepEvidence};
 
-use evidence::{emit_and_finish, kill_spawned_process};
+use evidence::{AgentStepDispatch, kill_spawned_process};
 use ship_code::runner::observe::{resolve_head_sha, scan_git_evidence};
 
 /// Primary kill signal: no subprocess CPU progress for this long → stuck.
@@ -104,11 +118,49 @@ impl StepMonitor {
     }
 }
 
+/// The journal key for one agent step of one run. Distinct namespaces:
+/// the bare `pipeline_run_id` is the `DispatchProgram` journal and
+/// `<run_id>/step/<id>` is the `RunStepProgram` journal — different op
+/// sequences must never share a key (replay-divergence guard).
+fn agent_step_journal_key(pipeline_run_id: &str, step_name: &str) -> String {
+    format!("{pipeline_run_id}/agent-step/{step_name}")
+}
+
+/// Resolve the parked `agent.running` suspend with the monitor's evidence —
+/// the program then records the verdict and emits `pipeline.step.observed`
+/// through its journaled ops.
+async fn resolve_with_evidence(
+    journal_store: &Arc<dyn JournalStore>,
+    key: &str,
+    journal: Journal,
+    dispatch: Arc<dyn Dispatch>,
+    program: &AgentStepProgram,
+    evidence: StepEvidence,
+    slug: &str,
+) {
+    let decision = match serde_json::to_value(&evidence) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!(slug, "step-monitor: evidence serialization failed: {e}");
+            return;
+        }
+    };
+    let (status, journal) =
+        durable_execution::resume(journal, decision, dispatch, program).await;
+    if let Err(e) = journal_store.save(key, &journal).await {
+        tracing::warn!(slug, "step-monitor: journal save failed (non-fatal): {e}");
+    }
+    if let RunStatus::Failed(e) = status {
+        tracing::error!(slug, "step-monitor: engine failure resolving step: {e}");
+    }
+}
+
 /// Spawn the step monitor task.
 ///
 /// Listens on four inputs simultaneously: `exit_rx` (process death),
 /// `activity_rx` (turn-ended), the subprocess-tree heartbeat probe, and
 /// a combined (idle, hard-cap) deadline.
+#[allow(clippy::too_many_arguments)]
 pub fn start_step_monitor(
     monitor: StepMonitor,
     kernel: Arc<Mutex<KernelRouter>>,
@@ -117,8 +169,63 @@ pub fn start_step_monitor(
     probe: Arc<dyn ProcessTreeProbe>,
     mut exit_rx: UnboundedReceiver<ExitSignal>,
     mut activity_rx: UnboundedReceiver<StepActivity>,
+    journal_store: Arc<dyn JournalStore>,
 ) {
     tokio::spawn(async move {
+        // ── Open the step's program journal ──────────────────────────────
+        // Fresh step: runs the (bridge-echo) spawn op and parks on the
+        // `agent.running` suspend. Already-observed step (re-dispatch after a
+        // restart): the journal replays to Completed — exit WITHOUT starting
+        // the loop, so the observation is never emitted twice.
+        let program = AgentStepProgram { step_type: monitor.step_type.clone() };
+        let dispatch: Arc<dyn Dispatch> = Arc::new(AgentStepDispatch {
+            kernel: kernel.clone(),
+            registry: registry.clone(),
+            pipeline_run_id: monitor.pipeline_run_id.clone(),
+            slug: monitor.slug.clone(),
+            step_index: monitor.step_index,
+            step_name: monitor.step_name.clone(),
+            work_dir: monitor.work_dir.clone(),
+            started_at: monitor.started_at,
+            start_sha: monitor.start_sha.clone(),
+        });
+        let key = agent_step_journal_key(&monitor.pipeline_run_id, &monitor.step_name);
+        let journal = match journal_store.load(&key).await {
+            Ok(Some(j)) => j,
+            Ok(None) => Journal::new(),
+            Err(e) => {
+                tracing::warn!(
+                    slug = monitor.slug,
+                    "step-monitor: journal load failed, starting fresh: {e}"
+                );
+                Journal::new()
+            }
+        };
+        let (status, journal) =
+            durable_execution::execute(journal, dispatch.clone(), &program).await;
+        if let Err(e) = journal_store.save(&key, &journal).await {
+            tracing::warn!(slug = monitor.slug, "step-monitor: journal save failed (non-fatal): {e}");
+        }
+        match status {
+            RunStatus::Suspended => {} // parked at agent.running — the normal path
+            RunStatus::Completed(_) => {
+                tracing::info!(
+                    slug = monitor.slug, step = monitor.step_name,
+                    "step-monitor: step already observed (journal complete) — monitor not started"
+                );
+                return;
+            }
+            RunStatus::Failed(e) => {
+                tracing::error!(
+                    slug = monitor.slug,
+                    "step-monitor: engine failure opening step journal: {e}"
+                );
+                return;
+            }
+        }
+        let mut journal = Some(journal);
+
+        // ── Timing machinery (the C5 bridge's remaining job) ──────────────
         let hard_deadline = tokio::time::Instant::from_std(monitor.started_at) + monitor.hard_cap;
         let mut probe_ticker = tokio::time::interval(monitor.probe_interval);
         probe_ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -135,9 +242,15 @@ pub fn start_step_monitor(
             if monitor.done_declared.load(Ordering::Acquire) {
                 let (commits, uncommitted) =
                     scan_git_evidence(&monitor.work_dir, monitor.start_sha.as_deref());
-                emit_and_finish(
-                    &monitor, &kernel, &registry, StepTrigger::DoneDeclared, None,
-                    true, None, commits, uncommitted, turns,
+                resolve_with_evidence(
+                    &journal_store, &key, journal.take().expect("journal present"),
+                    dispatch.clone(), &program,
+                    StepEvidence {
+                        trigger: StepTrigger::DoneDeclared, exit_code: None,
+                        done_declared: true, reason: None,
+                        commits, uncommitted, turns,
+                    },
+                    &monitor.slug,
                 ).await;
                 return;
             }
@@ -153,9 +266,14 @@ pub fn start_step_monitor(
                     StepTrigger::TurnSettled
                 };
                 let exit_code = exit_signal.as_ref().and_then(|s| s.exit_code);
-                emit_and_finish(
-                    &monitor, &kernel, &registry, trigger, exit_code,
-                    false, None, commits, uncommitted, turns,
+                resolve_with_evidence(
+                    &journal_store, &key, journal.take().expect("journal present"),
+                    dispatch.clone(), &program,
+                    StepEvidence {
+                        trigger, exit_code, done_declared: false, reason: None,
+                        commits, uncommitted, turns,
+                    },
+                    &monitor.slug,
                 ).await;
                 return;
             }
@@ -182,10 +300,16 @@ pub fn start_step_monitor(
                         None => {
                             let (commits, uncommitted) =
                                 scan_git_evidence(&monitor.work_dir, monitor.start_sha.as_deref());
-                            emit_and_finish(
-                                &monitor, &kernel, &registry, StepTrigger::ChannelClosed,
-                                None, false, Some("exit channel closed".into()),
-                                commits, uncommitted, turns,
+                            resolve_with_evidence(
+                                &journal_store, &key, journal.take().expect("journal present"),
+                                dispatch.clone(), &program,
+                                StepEvidence {
+                                    trigger: StepTrigger::ChannelClosed, exit_code: None,
+                                    done_declared: false,
+                                    reason: Some("exit channel closed".into()),
+                                    commits, uncommitted, turns,
+                                },
+                                &monitor.slug,
                             ).await;
                             return;
                         }
@@ -239,10 +363,15 @@ pub fn start_step_monitor(
                         let (commits, uncommitted) =
                             scan_git_evidence(&monitor.work_dir, monitor.start_sha.as_deref());
                         kill_spawned_process(&kernel, &registry, &executor, &monitor.slug).await;
-                        emit_and_finish(
-                            &monitor, &kernel, &registry, StepTrigger::Timeout, None,
-                            false, Some(reason.to_string()),
-                            commits, uncommitted, turns,
+                        resolve_with_evidence(
+                            &journal_store, &key, journal.take().expect("journal present"),
+                            dispatch.clone(), &program,
+                            StepEvidence {
+                                trigger: StepTrigger::Timeout, exit_code: None,
+                                done_declared: false, reason: Some(reason.to_string()),
+                                commits, uncommitted, turns,
+                            },
+                            &monitor.slug,
                         ).await;
                         return;
                     }

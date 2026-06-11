@@ -359,6 +359,7 @@ async fn advance_pipeline_inner(
                             octx.probe.clone(),
                             exit_rx,
                             activity_rx,
+                            octx.journal_store.clone(),
                         );
                     }
                     Err(e) => {

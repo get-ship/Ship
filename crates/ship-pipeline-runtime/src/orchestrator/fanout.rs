@@ -172,6 +172,7 @@ pub async fn dispatch_fanout_step(
             octx.probe.clone(),
             exit_rx,
             activity_rx,
+            octx.journal_store.clone(),
         );
 
         // Persist a lane-scoped step.dispatched with `fanout_parent_step`

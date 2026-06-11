@@ -11,6 +11,9 @@
 
 use durable_execution::{EngineError, ExecCtx, Program};
 use serde_json::{json, Value};
+use ship_substrate::events::pipeline::{
+    PipelineStepObservedPayload, StepTrigger, StepType, StepVerdict,
+};
 use std::collections::HashMap;
 use async_trait::async_trait;
 use durable_execution::{Dispatch, DispatchError};
@@ -60,6 +63,84 @@ impl Program for RunStepProgram {
         let result = ctx.op("run_step.execute", json!({})).await?;
         let _term = ctx.op("run_step.emit_terminal", json!({ "result": result })).await?;
         Ok(result)
+    }
+}
+
+/// The evidence the step monitor (C5 bridge) / coordinator (C7+) resolves the
+/// `agent.running` suspend with. Serialized as the suspend decision, so the
+/// journal carries the durable record of WHY the step finished.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub(crate) struct StepEvidence {
+    pub trigger: StepTrigger,
+    pub exit_code: Option<i32>,
+    pub done_declared: bool,
+    pub reason: Option<String>,
+    pub commits: u32,
+    pub uncommitted: u32,
+    pub turns: u32,
+}
+
+/// Journaled agent-step program (C5 / P2.3): spawn → park while the agent
+/// runs → verdict → observed emission.
+///
+/// The suspend is the architectural heart: "the agent is running" is a parked
+/// journal state, not an in-memory select-loop. In the C5 bridge the
+/// `StepMonitor` still owns the timing machinery (idle/hard-cap/settle) and
+/// acts as the EVIDENCE FEEDER — it resolves the suspend with a
+/// [`StepEvidence`] instead of emitting `pipeline.step.observed` itself. At
+/// C7/P2.5 the coordinator takes over the timers and the monitor dissolves.
+///
+/// `agent.spawn` is an echo op in the bridge (the imperative dispatch path
+/// already spawned the agent); it becomes the real spawn at C7.
+///
+/// The verdict is a `record` (pure computation on the journaled evidence —
+/// `compute_verdict` is the existing ladder, unchanged); the emission is an
+/// `op` (effectful, exactly-once under replay).
+///
+/// Op sequence is DETERMINISTIC — must NOT change without migrating journals.
+pub(crate) struct AgentStepProgram {
+    pub step_type: StepType,
+}
+
+#[async_trait]
+impl Program for AgentStepProgram {
+    async fn run(&self, ctx: &mut ExecCtx) -> Result<Value, EngineError> {
+        let _spawn = ctx.op("agent.spawn", json!({})).await?;
+        let evidence = ctx.suspend("agent.running").await?;
+        let step_type = self.step_type.clone();
+        let ev = evidence.clone();
+        let verdict = ctx
+            .record("agent.verdict", move || async move {
+                match serde_json::from_value::<StepEvidence>(ev) {
+                    Ok(e) => {
+                        let done_result = if e.done_declared { Some(true) } else { None };
+                        let v = PipelineStepObservedPayload::compute_verdict(
+                            &step_type,
+                            e.done_declared,
+                            done_result,
+                            e.exit_code,
+                            e.commits,
+                            e.uncommitted,
+                            &e.trigger,
+                        );
+                        serde_json::to_value(v).unwrap_or(Value::Null)
+                    }
+                    Err(err) => {
+                        // Malformed evidence is a programming bug (we serialize
+                        // it ourselves) — degrade to Inconclusive so the
+                        // pipeline surfaces it to a human instead of stalling.
+                        tracing::error!("agent-step: malformed evidence, verdict inconclusive: {err}");
+                        serde_json::to_value(StepVerdict::Inconclusive).unwrap_or(Value::Null)
+                    }
+                }
+            })
+            .await?;
+        ctx.op(
+            "agent.emit_observed",
+            json!({ "evidence": evidence, "verdict": verdict }),
+        )
+        .await?;
+        Ok(verdict)
     }
 }
 
