@@ -55,7 +55,7 @@ pub struct DispatchHandle {
 /// already persisted, but no run fires).
 pub async fn subscribe_job_events(
     kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    _ship_dir: PathBuf,
+    ship_dir: PathBuf,
     health_registry: &ship_substrate::task_health::HealthRegistry,
     session_registry: ship_auth::scopes::SessionRegistry,
     daemon_url: String,
@@ -97,6 +97,12 @@ pub async fn subscribe_job_events(
     let projections: Arc<dyn ship_code::dispatch_ports::ProjectionReader> =
         Arc::new(ship_pipeline_runtime::orchestrator::projection_reader::ProjectionsReader);
 
+    let journal_store = ship_substrate::persistence::SqliteJournalStore::open(
+        &ship_dir.join("runtime.db"),
+    )
+    .await
+    .expect("pipeline journal store");
+
     let octx = Arc::new(OrchestratorContext {
         isolation: isolation.clone(),
         executor: executor.clone(),
@@ -111,6 +117,7 @@ pub async fn subscribe_job_events(
         event_dedup: Arc::new(ship_pipeline_runtime::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
+        journal_store: Arc::new(journal_store),
     });
 
     // The agent-session actor's ports — the SAME concrete impls + the SAME

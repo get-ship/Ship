@@ -104,6 +104,7 @@ fn octx_with(
         event_dedup: Arc::new(crate::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        journal_store: Arc::new(durable_execution::InMemoryJournalStore::new()),
     }
 }
 
