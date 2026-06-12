@@ -108,6 +108,14 @@ pub async fn bundle_target(
             .map_err(|e| anyhow!("rolldown write({}): {e:?}", target.name))?;
     }
 
+    // Post-bundle tag-collision check (#308). Walks every emitted
+    // chunk and errors on a tag defined by more than one file. Runs
+    // unconditionally so a regression to the chunking config (e.g.
+    // `manual_code_splitting.min_share_count`) fails the build
+    // rather than silently re-introducing the `customElements.define
+    // called twice` runtime warning + first-write-wins hijack.
+    crate::tag_check::verify_no_duplicate_tag_defines(&out_dir)
+        .map_err(|e| anyhow!("{} tag-collision check failed: {e}", target.name))?;
     let out_path = out_dir.join(&target.out_file);
     let bytes = std::fs::metadata(&out_path).map(|m| m.len() as usize).unwrap_or(0);
     Ok(BundleManifest {

@@ -7,6 +7,7 @@
 //! broadcast channel for HMR. Output lands in `assets_dir_for` (sui-out/dist).
 
 pub mod paths;
+pub mod tag_check;
 
 pub mod app;
 mod asset_graph;
