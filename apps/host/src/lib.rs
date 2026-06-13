@@ -18,21 +18,29 @@ use std::time::Duration;
 
 use tauri::Manager;
 
+/// Pure parser — given a slice of argv, return the `--app=<id>` or `--app <id>`
+/// value if present. `parse_app_id` is the thin shim that calls this with
+/// `std::env::args().skip(1)`; the split exists so the parsing logic is
+/// unit-testable without spawning a process.
+fn parse_app_id_from(args: &[String]) -> Option<String> {
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        if let Some(id) = arg.strip_prefix("--app=") {
+            return Some(id.to_string());
+        }
+        if arg == "--app" {
+            return iter.next().cloned();
+        }
+    }
+    None
+}
+
 /// The space/app this runtime instance was launched for, from `--app=<id>` (or
 /// `--app <id>`). A per-app OS launcher (see `launcher`) passes this so the same
 /// installed binary opens the right space and brands its window. `None` is the
 /// hub ("Ship" itself — the config / marketplace / settings app).
 fn parse_app_id() -> Option<String> {
-    let mut args = std::env::args().skip(1);
-    while let Some(arg) = args.next() {
-        if let Some(id) = arg.strip_prefix("--app=") {
-            return Some(id.to_string());
-        }
-        if arg == "--app" {
-            return args.next();
-        }
-    }
-    None
+    parse_app_id_from(&std::env::args().skip(1).collect::<Vec<_>>())
 }
 
 /// Resolve the loopback port the webview should target, starting the daemon if
@@ -61,15 +69,24 @@ fn resolve_daemon_port() -> Option<u16> {
 
 /// The path the webview lands on: a `--app=<id>` window opens its space; the hub
 /// window opens `/` (or `SHIP_SHELL_TARGET` for dev — point straight at an
-/// internal view while the hub's default route is still being wired).
-fn target_path(app_id: &Option<String>) -> String {
+/// internal view while the hub's default route is still being wired). The
+/// env-override is taken as an argument (not read directly from the
+/// environment) so the function is unit-testable without env mutation.
+fn target_path_with(app_id: &Option<String>, shell_target: Option<&str>) -> String {
     match app_id {
         Some(id) => format!("/space/{id}"),
-        None => std::env::var("SHIP_SHELL_TARGET")
-            .ok()
+        None => shell_target
             .filter(|s| s.starts_with('/'))
+            .map(str::to_string)
             .unwrap_or_else(|| "/".to_string()),
     }
+}
+
+/// Read the dev-override env, then route. The thin shim that closes over
+/// `std::env::var("SHIP_SHELL_TARGET")`; the routing logic lives in
+/// `target_path_with` so tests can pass the override directly.
+fn target_path(app_id: &Option<String>) -> String {
+    target_path_with(app_id, std::env::var("SHIP_SHELL_TARGET").ok().as_deref())
 }
 
 /// The loopback URL to navigate to once the daemon is reachable — actively
@@ -154,3 +171,11 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running Ship shell");
 }
+
+// Unit tests for the arg-parser / target-path / connect-url surface.
+// Split into a separate file so the lib's own test names don't shadow
+// `lib.rs::tests::*` and so this crate can grow more lib-side tests without
+// bloating lib.rs.
+#[cfg(test)]
+#[path = "lib_tests.rs"]
+mod lib_tests;
