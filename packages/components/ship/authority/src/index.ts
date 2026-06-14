@@ -10,6 +10,7 @@
 // @ship/sui-primitives (sui-badge, sui-button, sui-dialog), a declared
 // dependency the host registers via `import '@ship/sui-primitives'`.
 import './ship-approval-card/ship-approval-card.compiled.js'
+import './ship-approval-prompt/ship-approval-prompt.compiled.js'
 import './ship-capability-request/ship-capability-request.compiled.js'
 import './sui-auth-dialog/sui-auth-dialog.compiled.js'
 
