@@ -158,7 +158,7 @@ export type OnSection<Scope> = Record<
  * `ControllerHook`). Results are namespaced by key in the resolved
  * view scope.
  */
-export type UseSection = Record<string, ControllerHook>
+export type UseSection = Record<string, ControllerHook<any, any>>
 
 /**
  * `mount` lifecycle. Runs once after the rendered DOM is attached and

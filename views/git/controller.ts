@@ -44,7 +44,7 @@ type HistoryRow = GitCommit & { scopePrefix: string; subjectRest: string; initia
 
 function parseCommitSubject(subject: string): { prefix: string; rest: string } {
   const m = subject.match(SUBJECT_RE)
-  return m ? { prefix: `${m[1]}:`, rest: m[2] } : { prefix: '', rest: subject }
+  return m ? { prefix: `${m[1]}:`, rest: m[2] ?? subject } : { prefix: '', rest: subject }
 }
 
 function getAuthorInitial(author: string): string {
@@ -68,7 +68,7 @@ export default controller({
       refreshNonce()
       const sha = selectedCommit()
       if (!sha) return NEVER
-      return ship.git.diff({ commit: sha })
+      return ship.git.diff({ commit: sha, workspace_id: null })
     })
     const branch         = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).branch ?? '')
     const headShort      = derived(() => unwrapOr(overview, EMPTY_OVERVIEW).head_short ?? '')

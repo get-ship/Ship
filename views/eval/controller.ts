@@ -33,7 +33,7 @@ export default controller<Scope>({
   scope: (ctx: ViewScope<Scope>) => {
     const { ship } = ctx
     const runs = live<CollectionItemsResponse>(() =>
-      ship.collections.items({ collection: 'sui-eval-runs', limit: 200 }) as unknown as LiveSource<CollectionItemsResponse>
+      ship.collections.items({ collection: 'sui-eval-runs' }) as unknown as LiveSource<CollectionItemsResponse>
     )
 
     // Deriveds live in the scope factory — the resolver only merges what this
@@ -49,17 +49,12 @@ export default controller<Scope>({
         const raw = (item.data ?? {}) as Record<string, unknown>
         const behaviorTotal = typeof raw.behavior_total === 'number' ? raw.behavior_total : 0
         const behaviorPassed = typeof raw.behavior_passed === 'number' ? raw.behavior_passed : 0
-        const lane: LaneRow = {
-          run_id: data.run_id,
-          lane_id: data.lane_id,
-          model: data.model,
-          composite: typeof data.composite === 'number' ? data.composite : 0,
-          compile_passed,
-          compile_label: compile_passed ? 'pass' : 'fail',
-          lint_errors: typeof data.lint_errors === 'number' ? data.lint_errors : 0,
-          lint_warnings: typeof data.lint_warnings === 'number' ? data.lint_warnings : 0,
-          behavior_label: behaviorTotal > 0 ? `${behaviorPassed}/${behaviorTotal}` : '—',
-        }
+        // exactOptionalPropertyTypes: omit `model` when the row doesn't
+        // supply one (the interface declares `model?: string`, not
+        // `model?: string | undefined`).
+        const lane: LaneRow = data.model !== undefined
+          ? { run_id: data.run_id, lane_id: data.lane_id, model: data.model, composite: typeof data.composite === 'number' ? data.composite : 0, compile_passed, compile_label: compile_passed ? 'pass' : 'fail', lint_errors: typeof data.lint_errors === 'number' ? data.lint_errors : 0, lint_warnings: typeof data.lint_warnings === 'number' ? data.lint_warnings : 0, behavior_label: behaviorTotal > 0 ? `${behaviorPassed}/${behaviorTotal}` : '—' }
+          : { run_id: data.run_id, lane_id: data.lane_id, composite: typeof data.composite === 'number' ? data.composite : 0, compile_passed, compile_label: compile_passed ? 'pass' : 'fail', lint_errors: typeof data.lint_errors === 'number' ? data.lint_errors : 0, lint_warnings: typeof data.lint_warnings === 'number' ? data.lint_warnings : 0, behavior_label: behaviorTotal > 0 ? `${behaviorPassed}/${behaviorTotal}` : '—' }
         const arr = byRun.get(lane.run_id) ?? []
         arr.push(lane)
         byRun.set(lane.run_id, arr)
