@@ -150,6 +150,16 @@ export function defineComponent(
       private cleanup: Disposer | undefined
       private scope: EffectScope | undefined
       private propSignals: Record<string, Signal<unknown>> = {}
+      /** Prop values set via JS property before `connectedCallback` populated
+       *  `propSignals` — buffered by the prop accessors, flushed on connect.
+       *  Mirrors the non-form class below so `el.value = 'x'` from a parent's
+       *  `prop:value={…}` binding (which fires before the child's
+       *  connectedCallback runs) survives into the prop signal instead of
+       *  being silently dropped. Without this, a `<sui-pagination page-size="25">`
+       *  sets `value="25"` on its inner `<sui-select>` but the value arrives
+       *  before the select's setup runs, so the prop signal stays at its
+       *  default `""` and the host's `el.value` is empty. */
+      private pendingProps: Record<string, unknown> | undefined
       private internals: ElementInternals
 
       constructor() {
@@ -172,6 +182,15 @@ export function defineComponent(
           } else {
             console.error(`[ship-set:${tag}] setup threw:`, err)
           }
+        }
+        // Flush any prop values set via JS property BEFORE the factory
+        // populated propSignals. The prop accessors' setter writes to
+        // pendingProps when no signal exists yet; without this flush
+        // the value is lost (this is the #P0.2 sui-pagination form-value
+        // bug). Same pattern as the non-form class below.
+        if (this.pendingProps) {
+          for (const k in this.pendingProps) this.propSignals[k]?.set(this.pendingProps[k])
+          this.pendingProps = undefined
         }
       }
 
