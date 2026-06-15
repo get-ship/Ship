@@ -48,7 +48,7 @@ afterEach(() => {
 })
 
 /** Mount the calendar with a live engine fed through the prop:calendar identity. */
-function mountWith(events: CalendarEvent[], opts?: Parameters<typeof createCalendar>[0]) {
+function mountWith(events: CalendarEvent[], opts: Omit<Parameters<typeof createCalendar>[0], 'events' | 'initialDate'> = {}) {
   const calendar = createCalendar({ events, initialDate: '2026-06-15', ...opts })
   const v = renderComponent(SOURCE, 'sui-calendar', { controller: calendarController })
   ;(v.el as unknown as { calendar: Calendar }).calendar = calendar

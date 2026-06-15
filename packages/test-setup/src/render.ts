@@ -23,11 +23,14 @@
 
 import { compileSui, evalCompiledJs } from '@ship/sui-dom/test-utils'
 import { route as makeRoute } from '@ship/sui-runtime/route'
+import type { ControllerExport } from '@ship/sui-runtime'
 
-/** A controller's default export (`controller({...})`, which carries a
- *  `.setup`) or a bare setup function. */
+/** A controller's default export (the `controller({...})` shape, which carries
+ *  a `.setup`), a `ControllerExport<Scope>` with a typed setup, or a bare
+ *  setup function. */
 export type ControllerInput =
   | { setup: (ctx: unknown) => unknown }
+  | ControllerExport<any>
   | ((ctx: unknown) => Record<string, unknown> | void)
 
 export interface RenderOpts {
