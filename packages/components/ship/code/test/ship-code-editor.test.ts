@@ -85,10 +85,13 @@ describe('<ship-code-editor>', () => {
     expect(el.getAttribute('placeholder')).toBe('Type here...')
   })
 
-  it('reflects size attribute', async () => {
-    const el = await mount('<ship-code-editor size="sm"></ship-code-editor>')
-    expect(el.getAttribute('size')).toBe('sm')
-  })
+  // P1.3: `reflects size attribute` deleted — the test mounted the element
+  // with `size="sm"` and asserted the attribute is set on the host. That's
+  // testing the browser's native attribute reflection on a prop that has
+  // `reflect` in the .sui file. The same round-trip is exercised
+  // generically by packages/sui/runtime/test/component.test.ts for any
+  // `reflect` prop. Kept: the other 3 "reflects X" tests that gate
+  // user-visible defaults the test name promises explicitly.
 
   it('reflects theme attribute default auto', async () => {
     const el = await mount('<ship-code-editor></ship-code-editor>')

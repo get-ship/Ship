@@ -55,10 +55,13 @@ describe('<sui-table>', () => {
     expect(el.hasAttribute('sticky-first-col')).toBe(true)
   })
 
-  it('reflects gutter attribute', () => {
-    const { el } = mount(reg, 'sui-table', { gutter: true })
-    expect(el.hasAttribute('gutter')).toBe(true)
-  })
+  // P1.3: `reflects gutter attribute` deleted — boolean-attribute round-trip
+  // is a sub-case of the runtime's generic `reflect` test in
+  // packages/sui/runtime/test/component.test.ts. The test was a
+  // mount-with-prop + read-attribute round-trip with no assertion
+  // about the rendered grid layout. Kept: `sticky-first-col` (the
+  // prominent user-facing feature) and `hoverable defaults true` (a
+  // default behavior assertion).
 
   // DELETED: `reflects density attribute`. The `density` prop is REMOVED
   // alongside `dense` (build-spec REPLACE §"BOTH density props"). See the

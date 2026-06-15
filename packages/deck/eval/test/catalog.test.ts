@@ -1,23 +1,36 @@
 import { describe, expect, it } from 'vitest'
 import { loadCatalog, parseCatalog } from '../src/catalog'
 import { mockCatalog } from '../src/mock-catalog'
+import { renderCatalog } from '../src/prompt'
 
-describe('mockCatalog', () => {
-  it('covers the five required primitives', () => {
-    const tags = mockCatalog.primitives.map((p) => p.tag).sort()
-    expect(tags).toEqual([
-      'ship-button',
-      'ship-empty-state',
-      'ship-input',
-      'ship-list-tile',
-      'ship-spinner',
-    ])
+// P1.5: the `covers the five required primitives` describe block tested
+// `mockCatalog.primitives.map((p) => p.tag).sort()` — asserting on a
+// private fixture against itself. The behavior the test was guarding
+// (every primitive a user of the `sui-eval` CLI sees) is what
+// `renderCatalog(catalog)` emits into the prompt. Rewrote to assert
+// on the rendered CLI output: a model that reads the prompt sees
+// every primitive tag + its props + its slots.
+describe('renderCatalog (CLI-visible primitive surface)', () => {
+  it('emits a <tag> header for every primitive in the catalog', () => {
+    const rendered = renderCatalog(mockCatalog)
+    for (const p of mockCatalog.primitives) {
+      expect(rendered, `tag ${p.tag} should appear in CLI output`).toContain(`<${p.tag}>`)
+    }
   })
 
-  it('marks ship-input.value as bindable', () => {
-    const input = mockCatalog.primitives.find((p) => p.tag === 'ship-input')!
-    const value = input.props.find((p) => p.name === 'value')!
-    expect(value.bindable).toBe(true)
+  it('lists ship-input.value as a string-typed prop in the rendered output', () => {
+    const rendered = renderCatalog(mockCatalog)
+    // The model sees `props:` followed by `name:type` for each prop.
+    // ship-input has a `value` prop of type 'string' (the bindable
+    // marker is an internal annotation; the CLI surface shows type).
+    const inputSection = rendered.split('<ship-input>')[1]?.split('<')[0] ?? ''
+    expect(inputSection).toMatch(/value\s*:\s*string/)
+  })
+
+  it('marks ship-button.disabled as bool-typed (not string-typed) in the rendered output', () => {
+    const rendered = renderCatalog(mockCatalog)
+    const buttonSection = rendered.split('<ship-button>')[1]?.split('<')[0] ?? ''
+    expect(buttonSection).toMatch(/disabled\s*:\s*bool/)
   })
 })
 
