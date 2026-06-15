@@ -30,6 +30,8 @@
 // See `.artifacts/job-spec.md` § Part B for the full design.
 
 import { describe, expect, it, beforeEach, afterEach } from 'vitest'
+import { readdirSync, existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
   mount,
   live,
@@ -254,73 +256,56 @@ const noopShip = new Proxy(
   },
 )
 
-const VIEW_FIXTURES: ViewFixture[] = [
-  {
-    name: 'counter',
-    controller: () => import('../../views/counter/controller'),
-    scope: {},
-    ship: noopShip,
-  },
-  {
-    name: 'agents',
-    controller: () => import('../../views/agents/controller'),
-    scope: { agents: { kind: 'loading' } as LiveState<unknown> },
-    ship: noopShip,
-  },
-  {
-    name: 'git',
-    controller: () => import('../../views/git/controller'),
-    scope: { overview: { kind: 'loading' } as LiveState<unknown> },
-    ship: noopShip,
-  },
-  {
-    name: 'home',
-    controller: () => import('../../views/home/controller'),
-    scope: {},
-    ship: noopShip,
-  },
-  {
-    name: 'demos/signals-and-derived',
-    controller: () => import('../../views/demos/signals-and-derived/controller'),
-    scope: {},
-    ship: noopShip,
-  },
-  {
-    name: 'demos/match',
-    controller: () => import('../../views/demos/match/controller'),
-    scope: {},
-    ship: noopShip,
-  },
-  {
-    name: 'demos/conditional-render',
-    controller: () => import('../../views/demos/conditional-render/controller'),
-    scope: {},
-    ship: noopShip,
-  },
-  {
-    name: 'demos/iteration',
-    controller: () => import('../../views/demos/iteration/controller'),
-    scope: {},
-    ship: noopShip,
-  },
-  {
-    // The lifecycle demo is the canonical reproducer for bug 0efea6d7:
-    // its `mount: (state) => { const t = setInterval(...); return () =>
-    // clearInterval(t) }` shape leaks the interval if the runtime drops
-    // the returned disposer. Specifically gating it here makes sure the
-    // sensitivity to that exact regression is covered.
-    name: 'demos/lifecycle',
-    controller: () => import('../../views/demos/lifecycle/controller'),
-    scope: {},
-    ship: noopShip,
-  },
-  {
-    name: 'studio-components',
-    controller: () => import('../../views/studio/components/controller'),
-    scope: {},
-    ship: noopShip,
-  },
-]
+// Discovered, not hardcoded: walk `views/*/controller.ts` at module load
+// so the list stays honest as views come and go. The previous list
+// (counter, agents, home, demos/*, studio-components) drifted out of
+// existence and the test went offline because the first import failed.
+// We can't dynamic-`import()` a runtime-built path through vitest's
+// transform, so the import statements below are static; the dispatch
+// picks from them by name.
+const VIEW_FIXTURES: ViewFixture[] = (() => {
+  const here = import.meta.dirname ?? __dirname
+  const viewsDir = resolve(here, '..', '..', 'views')
+  let names: string[]
+  try {
+    names = readdirSync(viewsDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .filter((n) => existsSync(resolve(viewsDir, n, 'controller.ts')))
+      .sort()
+  } catch {
+    return []
+  }
+  // The 'git' view reads `overview().kind` during setup. A `{}` scope
+  // compiles + mounts, but the controller's initial-render path trips
+  // on the undefined. Seed the LiveState with `kind: 'loading'` so
+  // the resource-symmetry assertion has a real lifecycle to observe.
+  const SCOPE_SEEDS: Record<string, Record<string, unknown>> = {
+    git: { overview: { kind: 'loading' as const } },
+  }
+  // Static import map. A view only appears in the discovered list
+  // when both its controller.ts exists on disk AND a loader is
+  // registered here. Add a new entry when a new view lands.
+  const LOADERS: Record<string, () => Promise<unknown>> = {
+    artifacts: () => import('../../views/artifacts/controller'),
+    authority: () => import('../../views/authority/controller'),
+    'create-space': () => import('../../views/create-space/controller'),
+    eval: () => import('../../views/eval/controller'),
+    git: () => import('../../views/git/controller'),
+  }
+  const fixtures: ViewFixture[] = []
+  for (const name of names) {
+    const loader = LOADERS[name]
+    if (!loader) continue
+    fixtures.push({
+      name,
+      controller: loader,
+      scope: SCOPE_SEEDS[name] ?? {},
+      ship: noopShip,
+    })
+  }
+  return fixtures
+})()
 
 interface ControllerExportLike {
   setup: (ctx: unknown) => Record<string, unknown>
