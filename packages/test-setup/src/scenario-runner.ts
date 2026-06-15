@@ -59,7 +59,7 @@ interface Target {
 
 function parseTarget(s: string): Target {
   const m = s.match(/^role:(\S+)\s+name:(.+)$/)
-  if (m) return { role: m[1], name: m[2]!.trim() }
+  if (m) return { role: m[1]!, name: m[2]!.trim() }
   return { name: s }
 }
 
@@ -185,11 +185,13 @@ export async function runScenarios(
 ): Promise<ScenarioResult[]> {
   const results: ScenarioResult[] = []
   for (const scenario of spec.scenarios) {
-    const v = renderView(source, {
-      controller,
-      ship: buildShip(scenario.given?.ship),
-      url: scenario.given?.url,
-    })
+    // Build the RenderOpts object conditionally so undefined
+    // controller / url / ship don't trip exactOptionalPropertyTypes.
+    const opts: { controller?: ControllerInput; ship?: unknown; url?: string } = {}
+    if (controller !== undefined) opts.controller = controller
+    opts.ship = buildShip(scenario.given?.ship)
+    if (scenario.given?.url !== undefined) opts.url = scenario.given.url
+    const v = renderView(source, opts)
     let result: ScenarioResult = { name: scenario.name, passed: true }
     let i = 0
     try {

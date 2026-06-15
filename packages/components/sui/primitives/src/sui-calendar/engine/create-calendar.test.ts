@@ -117,7 +117,7 @@ describe('createCalendar — selection (survives re-sort)', () => {
     cal.selectEvent('b', { additive: true })
     expect(cal.selectedEventIds().sort()).toEqual(['a', 'b'])
     // re-sort the source — selection persists by id.
-    src.set([src()[1], src()[0]])
+    src.set([src()[1]!, src()[0]!])
     expect(cal.selectedEventIds().sort()).toEqual(['a', 'b'])
     cal.clearSelection()
     expect(cal.selectedEventIds()).toEqual([])

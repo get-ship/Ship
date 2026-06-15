@@ -28,7 +28,6 @@ export function initJsdomPolyfills(opts: JsdomPolyfillOpts = {}): void {
 
 function installResizeObserver(): void {
   if (typeof ResizeObserver !== 'undefined') return
-  // @ts-expect-error — JSDOM stub only; the callback never fires (no layout engine).
   global.ResizeObserver = class ResizeObserver {
     observe(): void {}
     unobserve(): void {}
@@ -62,7 +61,6 @@ function installCanvasGetContext(): void {
 
 function installToggleEvent(): void {
   if (typeof ToggleEvent !== 'undefined') return
-  // @ts-expect-error — JSDOM stub
   globalThis.ToggleEvent = class ToggleEvent extends Event {
     newState: string
     oldState: string
@@ -85,8 +83,7 @@ function installPointerEvent(): void {
   // (sui-hover-card, sui-tooltip) dispatch synthetic pointerenter/leave; the
   // shape (button, clientX, …) inherits from MouseEvent so subclassing works
   // without a real pointer-device emulation.
-  // @ts-expect-error — JSDOM stub
-  globalThis.PointerEvent = class PointerEvent extends MouseEvent {
+  ;(globalThis as { PointerEvent: unknown }).PointerEvent = class PointerEvent extends MouseEvent {
     pointerId: number
     pointerType: string
     constructor(type: string, init: PointerEventInit = {}) {

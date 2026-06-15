@@ -143,7 +143,7 @@ export function windowRows<T>(
       const row = center[it.index]
       if (!row) continue
       out.push({
-        key: it.key,
+        key: it.key as string | number,
         index: it.index,
         start: it.start,
         size: it.size,

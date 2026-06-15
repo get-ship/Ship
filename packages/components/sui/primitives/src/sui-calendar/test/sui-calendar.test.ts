@@ -103,7 +103,7 @@ describe('<sui-calendar> — month grid (#1)', () => {
 
   it("today's cell carries aria-current=date (#3)", async () => {
     const today = createCalendar({ events: [] }).focusDate() // engine seeds today
-    const { v } = mountWith([], { initialDate: today })
+    const { v } = mountWith([])
     live.push(v)
     await v.flush()
     const cur = shadow(v.el).querySelector('[aria-current="date"]')

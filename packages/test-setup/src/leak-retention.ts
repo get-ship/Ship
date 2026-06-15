@@ -84,7 +84,7 @@ export async function forceGc(passes = 5): Promise<void> {
 function normalizeRetentionCycle(out: unknown): { teardown: () => void; probe?: object } {
   if (typeof out === 'function') return { teardown: out as () => void }
   const o = out as { teardown: () => void; probe?: object }
-  return { teardown: o.teardown, probe: o.probe }
+  return o.probe !== undefined ? { teardown: o.teardown, probe: o.probe } : { teardown: o.teardown }
 }
 
 /**
