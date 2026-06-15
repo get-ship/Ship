@@ -47,8 +47,10 @@ const loader: SuiLoader = {
     if (!res.ok) throw new Error(`[space] fetch ${rel} → ${res.status}`)
     return (await res.json()) as ViewPayload
   },
-  loadComponent: (tag: string): Promise<void> =>
-    import(/* @vite-ignore */ `${daemonBase()}${DECK_PREFIX}/sui-components/${tag}.js`).then(() => undefined),
+  // (loadComponent was a planned dynamic-import hook for component
+  // bundles; the runtime never calls it and the SuiLoader interface does
+  // not declare it. Removed for pre-launch; reintroduce when the
+  // dynamic-component surface ships.)
 }
 
 function placeholder(slot: HTMLElement, msg: string): void {
