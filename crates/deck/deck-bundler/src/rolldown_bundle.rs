@@ -226,7 +226,7 @@ mod tests {
             "arcade keeps the runtime singleton external"
         );
         // Each arcade tag registers via its `component(\`<tag>\`, …)` call.
-        for tag in ["sui-stage", "sui-sprite", "sui-emitter", "sui-input", "sui-hud"] {
+        for tag in ["sui-stage", "sui-sprite", "sui-emitter", "sui-stage-input", "sui-hud"] {
             assert!(
                 body.contains(&format!("`{tag}`")),
                 "arcade bundle must register {tag}"
