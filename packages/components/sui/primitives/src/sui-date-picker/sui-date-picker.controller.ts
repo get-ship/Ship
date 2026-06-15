@@ -247,7 +247,7 @@ export default controller({
     }
 
     host.shadowRoot?.addEventListener('click', onShadowClick)
-    host.shadowRoot?.addEventListener('keydown', onShadowKeydown)
+    host.shadowRoot?.addEventListener('keydown', onShadowKeydown as EventListener)
     document.addEventListener('pointerdown', onDocPointer)
 
     host.expose!({
@@ -263,7 +263,7 @@ export default controller({
       inputEl.removeEventListener('change', onInputChange)
       inputEl.removeEventListener('keydown', onInputKeydown)
       host.shadowRoot?.removeEventListener('click', onShadowClick)
-      host.shadowRoot?.removeEventListener('keydown', onShadowKeydown)
+      host.shadowRoot?.removeEventListener('keydown', onShadowKeydown as EventListener)
       document.removeEventListener('pointerdown', onDocPointer)
     }
   },

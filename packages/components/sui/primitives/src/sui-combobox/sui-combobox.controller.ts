@@ -199,7 +199,7 @@ export default controller({
       const list = state.visibleOptions as VisibleOption[]
       commit(list.find((o) => o.value === value))
     }
-    host.shadowRoot?.addEventListener('mousedown', onShadowMousedown)
+    host.shadowRoot?.addEventListener('mousedown', onShadowMousedown as EventListener)
 
     host.expose!({
       focus: () => inputEl.focus(),
@@ -217,7 +217,7 @@ export default controller({
       inputEl.removeEventListener('input', onInput)
       inputEl.removeEventListener('keydown', onKeydown)
       inputEl.removeEventListener('blur', onBlur)
-      host.shadowRoot?.removeEventListener('mousedown', onShadowMousedown)
+      host.shadowRoot?.removeEventListener('mousedown', onShadowMousedown as EventListener)
     }
   },
 })
