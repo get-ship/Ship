@@ -105,7 +105,7 @@ function installPopoverApi(): void {
     value(this: HTMLElement) {
       if (_openPopovers.has(this)) return
       _openPopovers.add(this)
-      const ev = new (globalThis as Record<string, typeof ToggleEvent>).ToggleEvent(
+      const ev = new (globalThis as unknown as Record<string, typeof ToggleEvent>)['ToggleEvent']!(
         'toggle', { newState: 'open', oldState: 'closed', bubbles: false },
       )
       this.dispatchEvent(ev)
@@ -117,7 +117,7 @@ function installPopoverApi(): void {
     value(this: HTMLElement) {
       if (!_openPopovers.has(this)) return
       _openPopovers.delete(this)
-      const ev = new (globalThis as Record<string, typeof ToggleEvent>).ToggleEvent(
+      const ev = new (globalThis as unknown as Record<string, typeof ToggleEvent>)['ToggleEvent']!(
         'toggle', { newState: 'closed', oldState: 'open', bubbles: false },
       )
       this.dispatchEvent(ev)

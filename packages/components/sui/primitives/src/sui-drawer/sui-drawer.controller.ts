@@ -84,11 +84,11 @@ export default controller<Scope>({
 
     const onSentinelStartFocus = () => {
       const items = collectFocusables()
-      if (items.length) items[items.length - 1].focus()
+      if (items.length) items[items.length - 1]!.focus()
     }
     const onSentinelEndFocus = () => {
       const items = collectFocusables()
-      if (items.length) items[0].focus()
+      if (items.length) items[0]!.focus()
     }
 
     dialogEl.addEventListener('close', onNativeClose)

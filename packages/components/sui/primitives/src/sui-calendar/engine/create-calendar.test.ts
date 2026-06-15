@@ -90,7 +90,7 @@ describe('createCalendar — week/day surfaces', () => {
     })
     const cols = cal.dayColumns()
     expect(cols).toHaveLength(1)
-    expect(cols[0].laidOut.every((p) => p.laneCount === 2)).toBe(true)
+    expect(cols[0]!.laidOut!.every((p) => p.laneCount === 2)).toBe(true)
   })
 
   it('week view → 7 day columns; all-day band packs spans', () => {
@@ -152,7 +152,7 @@ describe('createCalendar — suffix-only recompute', () => {
     cal.selectEvent('a') // selection writes its own slice
     // monthCells events array identity unaffected by a pure selection write
     const after = cal.monthCells()
-    expect(after.find((c) => c.iso === '2026-06-15')!.events[0].id).toBe('a')
+    expect(after.find((c) => c.iso === '2026-06-15')!.events[0]!.id).toBe('a')
     // a date change DOES move the focus
     cal.goToDate('2026-07-15')
     expect(cal.title()).toBe('July 2026')
