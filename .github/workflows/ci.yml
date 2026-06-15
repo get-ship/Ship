@@ -71,6 +71,15 @@ jobs:
       # does not exist; fix the caller (deleted stays deleted) — never silence it.
       - name: Typecheck shell (dead-op / surface-drift gate)
         run: bun run --cwd apps/shell typecheck
+      # Primitives pack is the foundation of every ship-* component and the
+      # first place a runtime contract drift surfaces. The current 171 errors
+      # are a known-acceptable workstream (see .artifacts/pre-launch-checklist.md
+      # P0.3) and will be driven to 0 in subsequent PRs. CI is wired NOW so
+      # the count cannot regress.
+      - name: Typecheck SUI primitives (foundation-surface drift gate)
+        run: bun run --cwd packages/components/sui/primitives typecheck
+      - name: Typecheck spaces
+        run: bun run --cwd apps/spaces typecheck
       - name: Check silent-error patterns
         run: bash scripts/lint/check-silent-errors.sh
       - name: Check migration discipline (naming + immutability)
