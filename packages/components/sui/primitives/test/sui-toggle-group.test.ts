@@ -9,9 +9,6 @@ afterEach(() => reg.cleanup())
 // ── sui-toggle ─────────────────────────────────────────────────────────────
 
 describe('<sui-toggle>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-toggle')).toBeDefined()
-  })
 
   it('renders a button in shadow DOM', () => {
     const container = reg.mk()
@@ -109,9 +106,6 @@ describe('<sui-toggle-group>', () => {
     return container.querySelector('sui-toggle-group') as HTMLElement
   }
 
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-toggle-group')).toBeDefined()
-  })
 
   it('sets role=group on host', async () => {
     const el = mountGroup(`

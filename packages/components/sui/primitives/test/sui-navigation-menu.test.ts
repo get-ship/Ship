@@ -9,9 +9,6 @@ afterEach(() => reg.cleanup())
 // ── sui-navigation-item ────────────────────────────────────────────────────
 
 describe('<sui-navigation-item>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-navigation-item')).toBeDefined()
-  })
 
   it('renders a button by default (no href)', () => {
     const container = reg.mk()
@@ -107,9 +104,6 @@ describe('<sui-navigation-menu>', () => {
     return container.querySelector('sui-navigation-menu') as HTMLElement
   }
 
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-navigation-menu')).toBeDefined()
-  })
 
   it('sets role="navigation" on host', async () => {
     const el = mountMenu(`

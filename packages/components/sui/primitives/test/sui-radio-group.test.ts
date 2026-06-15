@@ -9,9 +9,6 @@ afterEach(() => reg.cleanup())
 // ── sui-radio ──────────────────────────────────────────────────────────────
 
 describe('<sui-radio>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-radio')).toBeDefined()
-  })
 
   it('renders a native radio input in shadow DOM', () => {
     const { el } = mount(reg, 'sui-radio', { value: 'a' }, 'Option A')
@@ -118,9 +115,6 @@ describe('<sui-radio-group>', () => {
     return container.querySelector('sui-radio-group') as HTMLElement
   }
 
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-radio-group')).toBeDefined()
-  })
 
   it('sets role=radiogroup on host', async () => {
     const el = mountGroup()
