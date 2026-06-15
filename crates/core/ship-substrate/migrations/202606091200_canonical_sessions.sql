@@ -16,7 +16,8 @@
 --
 -- See the canonical-session-events ADR / .artifacts/agents-architecture.md.
 
-CREATE TABLE IF NOT EXISTS canonical_sessions (
+DROP TABLE IF EXISTS canonical_sessions;
+CREATE TABLE canonical_sessions (
   session_id   TEXT PRIMARY KEY NOT NULL,
   space_id     TEXT NOT NULL,
   agent_id     TEXT NOT NULL,
@@ -31,7 +32,9 @@ CREATE TABLE IF NOT EXISTS canonical_sessions (
   outcome      TEXT,                   -- completed|failed|cancelled|suspended; NULL while active
   reason       TEXT                    -- failure reason or suspend checkpoint; NULL otherwise
 );
-
-CREATE INDEX IF NOT EXISTS idx_canonical_sessions_space   ON canonical_sessions(space_id);
-CREATE INDEX IF NOT EXISTS idx_canonical_sessions_agent   ON canonical_sessions(agent_id);
-CREATE INDEX IF NOT EXISTS idx_canonical_sessions_status  ON canonical_sessions(status);
+DROP INDEX IF EXISTS idx_canonical_sessions_space;
+DROP INDEX IF EXISTS idx_canonical_sessions_agent;
+DROP INDEX IF EXISTS idx_canonical_sessions_status;
+CREATE INDEX idx_canonical_sessions_space   ON canonical_sessions(space_id);
+CREATE INDEX idx_canonical_sessions_agent   ON canonical_sessions(agent_id);
+CREATE INDEX idx_canonical_sessions_status  ON canonical_sessions(status);

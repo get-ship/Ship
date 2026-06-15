@@ -25,7 +25,8 @@
 -- created in every scoped db at migration time; only runtime.db receives
 -- writes from PipelineStepRunProjection::apply().
 
-CREATE TABLE IF NOT EXISTS pipeline_step_runs (
+DROP TABLE IF EXISTS pipeline_step_runs;
+CREATE TABLE pipeline_step_runs (
   run_id          TEXT NOT NULL,
   step_id         TEXT NOT NULL,
   step_type       TEXT NOT NULL DEFAULT 'agent',   -- agent|review|run
@@ -39,7 +40,9 @@ CREATE TABLE IF NOT EXISTS pipeline_step_runs (
   updated_at      TEXT NOT NULL,                    -- ISO-8601; last event that touched the row
   PRIMARY KEY (run_id, step_id)
 );
-
-CREATE INDEX IF NOT EXISTS idx_pipeline_step_runs_run     ON pipeline_step_runs(run_id);
-CREATE INDEX IF NOT EXISTS idx_pipeline_step_runs_status  ON pipeline_step_runs(status);
-CREATE INDEX IF NOT EXISTS idx_pipeline_step_runs_session ON pipeline_step_runs(session_id);
+DROP INDEX IF EXISTS idx_pipeline_step_runs_run;
+DROP INDEX IF EXISTS idx_pipeline_step_runs_status;
+DROP INDEX IF EXISTS idx_pipeline_step_runs_session;
+CREATE INDEX idx_pipeline_step_runs_run     ON pipeline_step_runs(run_id);
+CREATE INDEX idx_pipeline_step_runs_status  ON pipeline_step_runs(status);
+CREATE INDEX idx_pipeline_step_runs_session ON pipeline_step_runs(session_id);

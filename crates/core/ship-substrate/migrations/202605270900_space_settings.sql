@@ -6,7 +6,8 @@
 --
 -- See .artifacts/specs/space/129-per-space-settings.md.
 
-CREATE TABLE IF NOT EXISTS space_settings (
+DROP TABLE IF EXISTS space_settings;
+CREATE TABLE space_settings (
   space_id    TEXT NOT NULL,
   key         TEXT NOT NULL,
   value_json  TEXT NOT NULL,
