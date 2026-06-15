@@ -16,7 +16,11 @@ type Placement =
   | 'left' | 'left-end'
   | 'right' | 'right-end'
 
-interface PopoverEl extends HTMLElement {
+// Popover method surface (showPopover / hidePopover / togglePopover) is
+// available on HTMLElement in the Popover-API-aware DOM. Cast at the
+// call sites (`as PopoverApi`) where the controller invokes them,
+// since the existence is feature-detected via `typeof el.showPopover`.
+interface PopoverApi {
   showPopover?: () => void
   hidePopover?: () => void
   togglePopover?: () => boolean
@@ -31,7 +35,7 @@ export default controller<Scope>({
     host.style.setProperty('--sui-popover-anchor', anchorName)
 
     const triggerSlot = state.$signals.triggerSlot()
-    const panelEl = state.$signals.panelEl() as PopoverEl | null
+    const panelEl = state.$signals.panelEl() as (HTMLElement & PopoverApi) | null
     if (!panelEl) return
 
     panelEl.id = panelId

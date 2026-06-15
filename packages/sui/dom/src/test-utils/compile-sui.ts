@@ -269,8 +269,8 @@ export function compileAndMount(source: string, setup: UserSetup, opts: MountOpt
 
   const def = evalCompiledJs(compiled.js, setup)
   const ctx = {
-    ship: (opts.ship ?? {}) as suiRuntime.ShipSDK,
-    route: opts.route ?? makeRoute(new URL('http://localhost/')),
+    ship: (opts.ship ?? {}) as suiRuntime.ShipHost,
+    route: opts.route ?? makeRoute({ url: new URL('http://localhost/') }),
     navigate: opts.navigate ?? (() => {}),
   }
   const scope = def.setup(ctx)

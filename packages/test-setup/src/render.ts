@@ -87,7 +87,7 @@ export function renderView(source: string, opts: RenderOpts = {}): Rendered {
   const ctx = {
     ship: opts.ship ?? {},
     // Base the URL so relative paths ("/authority") from given.url resolve.
-    route: makeRoute(new URL(opts.url ?? '/', 'http://localhost')),
+    route: makeRoute({ url: new URL(opts.url ?? '/', 'http://localhost') }),
     navigate: opts.navigate ?? (() => {}),
   }
   const scope = def.setup(ctx) as Record<string, unknown> & {
