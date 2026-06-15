@@ -95,11 +95,11 @@ export default controller({
     // onInput below).
     const stopValueSync = effect(() => {
       const v = state.value
-      if (!state.open) state.filterText = labelFor(v)
+      if (!state.open) state.filterText = labelFor(v as string)
     })
 
     // Initial sync of input element after first paint.
-    state.filterText = labelFor(state.value)
+    state.filterText = labelFor(state.value as string)
 
     // Reflect open state to a host attribute so the chevron CSS can flip.
     const stopOpenAttr = effect(() => {
@@ -123,7 +123,7 @@ export default controller({
     const closeList = (commitLabelFromValue = true) => {
       if (!state.open) return
       state.open = false
-      if (commitLabelFromValue) state.filterText = labelFor(state.value)
+      if (commitLabelFromValue) state.filterText = labelFor(state.value as string)
     }
 
     const commit = (rec: OptionRecord | undefined) => {

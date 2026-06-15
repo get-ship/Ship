@@ -38,7 +38,7 @@ export default controller({
 
   mount(state, host) {
     const matchesAccept = (file: File): boolean => {
-      const tokens = state.accept
+      const tokens = (state.accept as string)
         .split(',')
         .map((t: string) => t.trim().toLowerCase())
         .filter(Boolean)
@@ -66,8 +66,8 @@ export default controller({
       state.errorMsg = ''
       const valid: File[] = []
       for (const f of incoming) {
-        if (f.size > state.maxSize) {
-          state.errorMsg = `"${f.name}" exceeds max size (${fmtSize(state.maxSize)}).`
+        if (f.size > (state.maxSize as number)) {
+          state.errorMsg = `\"${f.name}\" exceeds max size (${fmtSize(state.maxSize as number)}).`
           continue
         }
         if (state.accept && !matchesAccept(f)) {

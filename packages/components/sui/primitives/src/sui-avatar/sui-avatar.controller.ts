@@ -18,7 +18,7 @@ export default controller({
     // gets another shot at loading.
     let lastSrc = ''
     const stopSrcReset = effect(() => {
-      const src = state.iconSlug || state.src
+      const src = (state.iconSlug || state.src) as string
       if (src !== lastSrc) {
         lastSrc = src
         state.errored = false

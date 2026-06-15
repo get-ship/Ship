@@ -209,7 +209,7 @@ export default controller({
       else if (e.key === 'Escape') { e.preventDefault(); closePanel(); inputEl.focus(); return }
       if (next != null) {
         e.preventDefault()
-        const clamped = clampIso(next, state.min, state.max)
+        const clamped = clampIso(next, state.min as string, state.max as string)
         state.focused = clamped
         const parts = parseIso(clamped)
         if (parts) {

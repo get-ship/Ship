@@ -31,7 +31,7 @@ export default controller({
 
     function scheduleDismiss() {
       clearTimer()
-      const dur = state.duration
+      const dur = state.duration as number
       if (dur > 0) {
         remaining = dur
         startedAt = Date.now()
@@ -80,7 +80,7 @@ export default controller({
     }
 
     const onResume = () => {
-      if (removed || state.duration <= 0) return
+      if (removed || (state.duration as number) <= 0) return
       if (remaining <= 0) return
       host.toggleAttribute('data-paused', false)
       startedAt = Date.now()
@@ -135,7 +135,7 @@ export default controller({
     const stopIconAttrEffect = effect(() => {
       const tone = state.tone
       const slotted = state.hasSlottedIcon
-      const hasAuto = TONES_WITH_AUTO_ICON.has(tone)
+      const hasAuto = TONES_WITH_AUTO_ICON.has(tone as string)
       host.toggleAttribute('data-no-icon', !hasAuto && !slotted)
     })
 

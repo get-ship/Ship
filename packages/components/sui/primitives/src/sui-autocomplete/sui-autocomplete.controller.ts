@@ -144,7 +144,7 @@ export default controller({
           const sel = list[state.highlight]
           if (sel) { commit(sel.value, sel.label); return }
         }
-        commit(state.value)
+        commit(state.value as string)
       } else if (e.key === 'Escape') {
         if (!state.open) return
         e.preventDefault()
