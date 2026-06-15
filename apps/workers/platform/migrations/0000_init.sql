@@ -6,7 +6,7 @@ CREATE TABLE `events` (
   `payload_json` text NOT NULL,
   `version` integer NOT NULL,
   `causation_id` text,
-  `project_id` text,
+  `space_id` text,
   `session_id` text,
   `actor_id` text,
   `parent_actor_id` text,
@@ -16,7 +16,7 @@ CREATE TABLE `events` (
   `cursor` integer NOT NULL
 );
 
-CREATE TABLE `workspaces` (
+CREATE TABLE `projects` (
   `id` text PRIMARY KEY NOT NULL,
   `name` text,
   `status` text NOT NULL DEFAULT 'created',
