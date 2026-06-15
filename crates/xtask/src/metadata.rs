@@ -81,12 +81,13 @@ pub fn classify(rel_dir: &str) -> Option<Layer> {
     {
         return Some(Layer::L1);
     }
-    // L2 — apps, deck, sui, packages, tests, plus xtask + build-info tooling.
+    // L2 — apps, deck, sui, packages, tests, examples, plus xtask + build-info tooling.
     if rel_dir.starts_with("apps/")
         || rel_dir.starts_with("crates/deck/")
         || rel_dir.starts_with("crates/sui/")
         || rel_dir.starts_with("packages/")
         || rel_dir.starts_with("tests/")
+        || rel_dir.starts_with("examples/")
         || rel_dir == "crates/xtask"
         || rel_dir == "crates/build-info"
     {
