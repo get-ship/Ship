@@ -17,9 +17,6 @@ const img = (el: HTMLElement) => shadow(el).querySelector('img')
 const initials = (el: HTMLElement) => shadow(el).querySelector('[part="initials"]')
 
 describe('<sui-avatar>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-avatar')).toBeDefined()
-  })
 
   it('renders the .root host span with role=img (part="root")', () => {
     const { el } = mount(reg, 'sui-avatar')

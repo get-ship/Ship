@@ -10,9 +10,6 @@ const inputOf = (el: HTMLElement) => shadow(el).querySelector('input[role="combo
 const opts = (el: HTMLElement) => Array.from(shadow(el).querySelectorAll('li.opt[data-value]')) as HTMLLIElement[]
 
 describe('<sui-autocomplete>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-autocomplete')).toBeDefined()
-  })
 
   it('renders a shadow root with role=combobox aria-autocomplete=list', async () => {
     const { el } = mount(reg, 'sui-autocomplete')

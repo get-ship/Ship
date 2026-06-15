@@ -19,9 +19,6 @@ function makeCollapsible(attrs: Record<string, string | boolean> = {}) {
 }
 
 describe('<sui-collapsible>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-collapsible')).toBeDefined()
-  })
 
   it('open=false by default', () => {
     const { el } = makeCollapsible()

@@ -14,9 +14,6 @@ const shadow = (el: HTMLElement) => el.shadowRoot!
 const anchor = (el: HTMLElement) => shadow(el).querySelector('a')!
 
 describe('<sui-link>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-link')).toBeDefined()
-  })
 
   it('renders an anchor with part="link"', () => {
     const { el } = mount(reg, 'sui-link')

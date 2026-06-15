@@ -11,9 +11,6 @@ const listOf = (el: HTMLElement) => shadow(el).querySelector('ul[role="listbox"]
 const opts = (el: HTMLElement) => Array.from(shadow(el).querySelectorAll('li.opt[data-value]')) as HTMLLIElement[]
 
 describe('<sui-combobox>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-combobox')).toBeDefined()
-  })
 
   it('renders a shadow root with a combobox input', async () => {
     const { el } = mount(reg, 'sui-combobox')

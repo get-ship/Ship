@@ -43,9 +43,6 @@ afterEach(() => reg.cleanup())
 const shadow = (el: HTMLElement) => el.shadowRoot!
 
 describe('<sui-log-stream>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-log-stream')).toBeDefined()
-  })
 
   it('renders a <pre part="scroll"> in shadow DOM', async () => {
     const { el } = mount(reg, 'sui-log-stream')

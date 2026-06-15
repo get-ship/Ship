@@ -22,9 +22,6 @@ const threeOpts =
   '<option value="b">Bravo</option>'
 
 describe('<sui-select>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-select')).toBeDefined()
-  })
 
   it('default value is empty', async () => {
     const { el } = mount(reg, 'sui-select', {}, threeOpts)

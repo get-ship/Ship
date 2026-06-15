@@ -16,9 +16,6 @@ const shadow = (el: HTMLElement) => el.shadowRoot!
 const ta = (el: HTMLElement) => shadow(el).querySelector('textarea') as HTMLTextAreaElement
 
 describe('<sui-textarea>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-textarea')).toBeDefined()
-  })
 
   it('renders a native textarea in shadow DOM', () => {
     const { el } = mount(reg, 'sui-textarea')

@@ -17,9 +17,6 @@ function makeDialog(attrs: Record<string, string | boolean> = {}, inner = '') {
 type SuiDialog = HTMLElement & { show(): void; showModal(): void; close(): void }
 
 describe('<sui-dialog>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-dialog')).toBeDefined()
-  })
 
   it('closed by default — open attr absent, data-state=closed', () => {
     const { el } = makeDialog()

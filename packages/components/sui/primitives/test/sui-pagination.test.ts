@@ -40,9 +40,6 @@ const isDisabled = (btn: HTMLElement | null): boolean =>
     btn.shadowRoot?.querySelector('button')?.disabled === true)
 
 describe('<sui-pagination>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-pagination')).toBeDefined()
-  })
 
   it('renders the four edge controls (first / prev / next / last)', async () => {
     const { el } = mount(reg, 'sui-pagination', { page: 1, total: 50, 'page-size': 10 })

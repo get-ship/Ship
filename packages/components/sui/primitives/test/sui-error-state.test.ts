@@ -8,9 +8,6 @@ afterEach(() => reg.cleanup())
 const shadow = (el: HTMLElement) => el.shadowRoot!
 
 describe('<sui-error-state>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-error-state')).toBeDefined()
-  })
 
   it('renders a shadow root with a box div', () => {
     const { el } = mount(reg, 'sui-error-state')

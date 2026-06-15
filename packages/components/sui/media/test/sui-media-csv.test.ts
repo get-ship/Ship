@@ -80,11 +80,6 @@ function mountCsv(src: ViewerSource) {
 }
 
 describe('<sui-media-csv> — registration + composition', () => {
-  it('registers the custom element', () => {
-    const v = renderComponent(SOURCE, 'sui-media-csv', { controller: csvRenderer })
-    live.push(v)
-    expect(customElements.get('sui-media-csv')).toBeDefined()
-  })
 
   it('composes the committed sui-table (does NOT re-invent a grid)', async () => {
     const v = mountCsv({ contentType: 'text/csv', text: 'a,b\n1,2' })

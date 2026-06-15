@@ -28,9 +28,6 @@ function makeMenuWithItems(attrs: Record<string, string | boolean> = {}) {
 type SuiContextMenu = HTMLElement & { show(x: number, y: number): void; close(): void }
 
 describe('<sui-context-menu>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-context-menu')).toBeDefined()
-  })
 
   it('closed by default', () => {
     const { el } = makeMenu()

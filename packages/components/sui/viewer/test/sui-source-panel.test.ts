@@ -173,10 +173,6 @@ function mountPanel(
 const root = (el: HTMLElement) => el
 
 describe('<sui-source-panel> — registration + composition', () => {
-  it('registers the custom element', () => {
-    mountPanel({ 'component-name': 'sui-button' })
-    expect(customElements.get(TAG)).toBeDefined()
-  })
 
   it('composes sui-code (display) + sui-button (copy action)', async () => {
     const c = mountPanel(

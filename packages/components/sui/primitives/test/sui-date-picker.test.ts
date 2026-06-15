@@ -12,9 +12,6 @@ const days = (el: HTMLElement) =>
   Array.from(shadow(el).querySelectorAll('button.day[data-iso]')) as HTMLButtonElement[]
 
 describe('<sui-date-picker>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-date-picker')).toBeDefined()
-  })
 
   it('renders a shadow root with the trigger input', async () => {
     const { el } = mount(reg, 'sui-date-picker')

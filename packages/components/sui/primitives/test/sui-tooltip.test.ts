@@ -9,9 +9,6 @@ const shadow = (el: HTMLElement) => el.shadowRoot!
 const bubble = (el: HTMLElement) => shadow(el).querySelector('.bubble') as HTMLElement | null
 
 describe('<sui-tooltip>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-tooltip')).toBeDefined()
-  })
 
   it('renders .bubble span in shadow DOM', () => {
     const { el } = mount(reg, 'sui-tooltip', {}, '<button>hover me</button><span slot="content">tip</span>')

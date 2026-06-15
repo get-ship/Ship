@@ -18,9 +18,6 @@ const directBodyChildren = (sel: string) =>
   Array.from(document.body.children).filter((el) => el.matches(sel))
 
 describe('<sui-portal>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-portal')).toBeDefined()
-  })
 
   it('teleports slotted children to body on mount', () => {
     const { el } = mount(

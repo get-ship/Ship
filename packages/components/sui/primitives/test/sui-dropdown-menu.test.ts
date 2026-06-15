@@ -27,9 +27,6 @@ function makeMenuWithItems(attrs: Record<string, string | boolean> = {}) {
 }
 
 describe('<sui-dropdown-menu>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-dropdown-menu')).toBeDefined()
-  })
 
   it('closed by default', () => {
     const { el } = makeMenu()

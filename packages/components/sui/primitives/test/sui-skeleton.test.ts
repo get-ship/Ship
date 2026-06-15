@@ -14,9 +14,6 @@ const shadow = (el: HTMLElement) => el.shadowRoot!
 const bar = (el: HTMLElement) => shadow(el).querySelector('.sk')!
 
 describe('<sui-skeleton>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-skeleton')).toBeDefined()
-  })
 
   it('attaches a shadow root with the .sk bar (part="sk")', () => {
     const { el } = mount(reg, 'sui-skeleton')

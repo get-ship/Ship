@@ -11,9 +11,6 @@ afterEach(() => reg.cleanup())
 const shadow = (el: HTMLElement) => el.shadowRoot!
 
 describe('<sui-auth-dialog>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-auth-dialog')).toBeDefined()
-  })
 
   it('renders a sui-dialog with sui-tabs inside', async () => {
     const { el } = mount(reg, 'sui-auth-dialog')

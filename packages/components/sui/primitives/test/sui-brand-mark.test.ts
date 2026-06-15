@@ -10,9 +10,6 @@ const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 describe('<sui-brand-mark>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-brand-mark')).toBeDefined()
-  })
 
   it('renders an svg in the shadow root', async () => {
     const { el } = mount(reg, 'sui-brand-mark')

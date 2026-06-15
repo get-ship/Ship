@@ -45,9 +45,6 @@ afterEach(() => {
 const cmKeymapAbsent = typeof document.execCommand !== 'function'
 
 describe('<ship-code-editor>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('ship-code-editor')).toBeDefined()
-  })
 
   it('attaches a shadow root', async () => {
     const el = await mount('<ship-code-editor></ship-code-editor>')

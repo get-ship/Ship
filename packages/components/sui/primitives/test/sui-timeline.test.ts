@@ -11,9 +11,6 @@ const shadow = (el: HTMLElement) => el.shadowRoot!
 // ── <sui-timeline> ────────────────────────────────────────────────────────────
 
 describe('<sui-timeline>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-timeline')).toBeDefined()
-  })
 
   it('renders a shadow root with a list div and slot', () => {
     const { el } = mount(reg, 'sui-timeline')
@@ -36,9 +33,6 @@ describe('<sui-timeline>', () => {
 // ── <sui-timeline-item> ───────────────────────────────────────────────────────
 
 describe('<sui-timeline-item>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-timeline-item')).toBeDefined()
-  })
 
   it('renders gutter dot and body in shadow root', () => {
     const { el } = mount(reg, 'sui-timeline-item')

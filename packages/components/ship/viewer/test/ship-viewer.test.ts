@@ -70,11 +70,6 @@ afterEach(() => {
 })
 
 describe('<ship-viewer> dispatcher — registration', () => {
-  it('registers the custom element', () => {
-    const v = renderComponent(SOURCE, 'ship-viewer', { controller: dispatcher })
-    live.push(v)
-    expect(customElements.get('ship-viewer')).toBeDefined()
-  })
 
   it('host carries role=region (a11y landmark)', async () => {
     const v = mountViewer({ contentType: 'application/json', text: '{"a":1}' })

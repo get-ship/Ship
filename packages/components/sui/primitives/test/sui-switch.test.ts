@@ -16,9 +16,6 @@ const shadow = (el: HTMLElement) => el.shadowRoot!
 const input = (el: HTMLElement) => shadow(el).querySelector('input') as HTMLInputElement
 
 describe('<sui-switch>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-switch')).toBeDefined()
-  })
 
   it('renders a native checkbox in shadow DOM', () => {
     const { el } = mount(reg, 'sui-switch')

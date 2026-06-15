@@ -42,9 +42,6 @@ function composerInput(el: HTMLElement) { return shadow(el).querySelector<HTMLTe
 function submitBtn(el: HTMLElement) { return shadow(el).querySelector<HTMLButtonElement>('.composer .submit') }
 
 describe('<ship-markdown-editor>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('ship-markdown-editor')).toBeDefined()
-  })
 
   it('renders shell, toolbar, and editor host in shadow DOM', () => {
     const { el } = make()

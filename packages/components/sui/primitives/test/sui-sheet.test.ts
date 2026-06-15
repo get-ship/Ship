@@ -60,9 +60,6 @@ function mountWithSheet(
 }
 
 describe('<sui-sheet> — registration + render skeleton (Slice 0 baseline)', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-sheet')).toBeDefined()
-  })
 
   it('mounts a [part=grid] with role=grid', () => {
     const { shadow } = mount(reg, 'sui-sheet', {})

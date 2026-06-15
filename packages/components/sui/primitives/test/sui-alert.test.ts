@@ -11,9 +11,6 @@ const box = (el: HTMLElement) => shadow(el).querySelector('[part="box"]') as HTM
 const closeBtn = (el: HTMLElement) => shadow(el).querySelector('[part="close"]') as HTMLButtonElement | null
 
 describe('<sui-alert>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-alert')).toBeDefined()
-  })
 
   it('tone=info — reflects on host', () => {
     const { el } = mount(reg, 'sui-alert', { tone: 'info' }, 'heads up')

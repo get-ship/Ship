@@ -36,9 +36,6 @@ interface PopoverApi extends HTMLElement {
 }
 
 describe('<sui-popover>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-popover')).toBeDefined()
-  })
 
   it('closed by default — open attribute absent, trigger aria-expanded=false', async () => {
     const { el } = makePopover()

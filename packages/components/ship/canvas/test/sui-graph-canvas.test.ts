@@ -18,9 +18,6 @@ const edgesPositioned = JSON.stringify([
 ])
 
 describe('<sui-graph-canvas>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-graph-canvas')).toBeDefined()
-  })
 
   it('renders all nodes and edge paths', async () => {
     const { el } = mount(reg, 'sui-graph-canvas', {

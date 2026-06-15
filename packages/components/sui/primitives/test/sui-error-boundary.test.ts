@@ -22,9 +22,6 @@ const visibleSlotContent = (el: HTMLElement, name?: string): Element[] => {
 }
 
 describe('<sui-error-boundary>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-error-boundary')).toBeDefined()
-  })
 
   it('healthy state: renders children via default slot, no fallback visible', () => {
     const { el } = mount(

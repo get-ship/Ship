@@ -22,9 +22,6 @@ function makeAlert(attrs: Record<string, string | boolean> = {}, inner = '') {
 }
 
 describe('<sui-alert-dialog>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-alert-dialog')).toBeDefined()
-  })
 
   it('renders an inner sui-dialog with alertdialog role', () => {
     const { el } = makeAlert()

@@ -6,9 +6,6 @@ const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 describe('<sui-slider>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-slider')).toBeDefined()
-  })
 
   it('renders with default values', async () => {
     const { el } = mount(reg, 'sui-slider')

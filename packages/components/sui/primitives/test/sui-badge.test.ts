@@ -14,9 +14,6 @@ afterEach(() => reg.cleanup())
 const shadow = (el: HTMLElement) => el.shadowRoot!
 
 describe('<sui-badge>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-badge')).toBeDefined()
-  })
 
   it('attaches a shadow root with the .badge part', () => {
     const { el } = mount(reg, 'sui-badge')

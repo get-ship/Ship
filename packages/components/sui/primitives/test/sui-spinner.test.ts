@@ -14,9 +14,6 @@ const shadow = (el: HTMLElement) => el.shadowRoot!
 const ring = (el: HTMLElement) => shadow(el).querySelector('.ring')!
 
 describe('<sui-spinner>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-spinner')).toBeDefined()
-  })
 
   it('attaches a shadow root with the .ring (part="ring")', () => {
     const { el } = mount(reg, 'sui-spinner')

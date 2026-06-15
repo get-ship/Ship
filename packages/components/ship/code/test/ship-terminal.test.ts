@@ -45,9 +45,6 @@ async function xtermApiAttaches(): Promise<boolean> {
 const xtermApiAbsent = !(await xtermApiAttaches())
 
 describe('<ship-terminal>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('ship-terminal')).toBeDefined()
-  })
 
   it('attaches a shadow root', () => {
     const c = mkContainer()

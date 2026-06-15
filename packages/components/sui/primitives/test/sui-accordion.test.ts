@@ -30,9 +30,6 @@ function mountAccordion(type = 'single', value = '', extraItems = '') {
 // ── <sui-accordion> ──────────────────────────────────────────────────────────
 
 describe('<sui-accordion>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-accordion')).toBeDefined()
-  })
 
   it('renders a shadow root with a slot', () => {
     const { el } = mount(reg, 'sui-accordion')
@@ -133,9 +130,6 @@ describe('<sui-accordion>', () => {
 // ── <sui-accordion-item> ─────────────────────────────────────────────────────
 
 describe('<sui-accordion-item>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-accordion-item')).toBeDefined()
-  })
 
   it('renders trigger button and content-wrap in shadow root', () => {
     const { el } = mount(reg, 'sui-accordion-item', { value: 'x' })

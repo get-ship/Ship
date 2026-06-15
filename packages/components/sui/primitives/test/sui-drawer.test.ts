@@ -16,9 +16,6 @@ function makeDrawer(attrs: Record<string, string | boolean> = {}, inner = '') {
 type SuiDrawer = HTMLElement & { show(): void; close(): void }
 
 describe('<sui-drawer>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-drawer')).toBeDefined()
-  })
 
   it('closed by default', () => {
     const { el } = makeDrawer()

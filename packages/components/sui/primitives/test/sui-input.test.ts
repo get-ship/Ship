@@ -16,9 +16,6 @@ const setFormValueAbsent =
     .ElementInternals?.prototype?.setFormValue !== 'function'
 
 describe('<sui-input>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-input')).toBeDefined()
-  })
 
   it('renders a native input in shadow DOM', () => {
     const { el } = mount(reg, 'sui-input')

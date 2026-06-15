@@ -15,9 +15,6 @@ const shadow = (el: HTMLElement) => el.shadowRoot!
 const box = (el: HTMLElement) => shadow(el).querySelector('[part~="box"]')!
 
 describe('<sui-empty-state>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-empty-state')).toBeDefined()
-  })
 
   it('renders a .box (part="box") in the shadow root', () => {
     const { el } = mount(reg, 'sui-empty-state')

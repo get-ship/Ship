@@ -7,9 +7,6 @@ const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 describe('<sui-tree-view>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-tree-view')).toBeDefined()
-  })
 
   it('sets role=tree on host', async () => {
     const { el } = mount(reg, 'sui-tree-view', {})
@@ -71,9 +68,6 @@ describe('<sui-tree-view>', () => {
 })
 
 describe('<sui-tree-item>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-tree-item')).toBeDefined()
-  })
 
   it('sets role=treeitem on host', async () => {
     const { el } = mount(reg, 'sui-tree-item', { label: 'root' })

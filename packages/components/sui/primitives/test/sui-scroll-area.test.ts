@@ -15,9 +15,6 @@ const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 describe('<sui-scroll-area>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-scroll-area')).toBeDefined()
-  })
 
   it('default orientation attribute absent (SUI defers attribute reflection until prop changes)', () => {
     const { el } = mount(reg, 'sui-scroll-area', {})

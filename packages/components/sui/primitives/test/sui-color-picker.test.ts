@@ -14,9 +14,6 @@ const ranges = (el: HTMLElement) =>
   Array.from(shadow(el).querySelectorAll('.panel input[type="range"]')) as HTMLInputElement[]
 
 describe('<sui-color-picker>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-color-picker')).toBeDefined()
-  })
 
   it('renders a shadow root with the hex input and preview swatch', async () => {
     const { el } = mount(reg, 'sui-color-picker', { value: '#ff0000' })

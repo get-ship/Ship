@@ -94,14 +94,6 @@ function mountMedia(src: ViewerSource, attrs?: Record<string, string | boolean>)
 }
 
 describe('<sui-media-av> — registration + kind routing', () => {
-  it('registers the custom element', () => {
-    const v = renderComponent(SOURCE, 'sui-media-av', {
-      controller: mediaRenderer,
-      sourcePath: SOURCE_PATH,
-    })
-    live.push(v)
-    expect(customElements.get('sui-media-av')).toBeDefined()
-  })
 
   it('auto-detects a video source into a <video> element', async () => {
     const v = mountMedia({ contentType: 'video/mp4', url: VIDEO_URL })

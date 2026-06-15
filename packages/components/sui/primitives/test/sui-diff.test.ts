@@ -14,9 +14,6 @@ const linesOf = (el: HTMLElement, kind: string) =>
 const marker = (line: Element) => line.querySelector('[aria-hidden="true"]')
 
 describe('<sui-diff>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-diff')).toBeDefined()
-  })
 
   it('computes LCS diff from from/to props', async () => {
     const { el } = mount(reg, 'sui-diff', { from: 'a\nb\nc', to: 'a\nB\nc' })

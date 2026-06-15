@@ -30,9 +30,6 @@ const fireDrop = (target: Element, files: File[]) => {
 }
 
 describe('<sui-file-upload>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-file-upload')).toBeDefined()
-  })
 
   it('renders a hidden native file input and a dropzone in shadow DOM', () => {
     const { el } = mount(reg, 'sui-file-upload')

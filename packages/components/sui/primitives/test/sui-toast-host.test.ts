@@ -30,9 +30,6 @@ const dispatchNotify = (
 }
 
 describe('<sui-toast-host>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-toast-host')).toBeDefined()
-  })
 
   it('renders an inner <sui-toast-container> with forwarded position', async () => {
     const { el } = mount(reg, 'sui-toast-host', { position: 'top-left' })

@@ -23,9 +23,6 @@ function makeCard(attrs: Record<string, string | boolean> = {}, inner = '') {
 type SuiHoverCard = HTMLElement & { show(): void; hide(): void }
 
 describe('<sui-hover-card>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-hover-card')).toBeDefined()
-  })
 
   it('closed by default', () => {
     const { el } = makeCard()

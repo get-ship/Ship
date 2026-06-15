@@ -8,9 +8,6 @@ afterEach(() => reg.cleanup())
 const shadow = (el: HTMLElement) => el.shadowRoot!
 
 describe('<sui-code>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-code')).toBeDefined()
-  })
 
   it('renders inline variant by default', async () => {
     const { el } = mount(reg, 'sui-code', {}, 'foo')

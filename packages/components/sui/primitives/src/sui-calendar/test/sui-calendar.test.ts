@@ -61,11 +61,6 @@ const EV: CalendarEvent[] = [
 ]
 
 describe('<sui-calendar> — registration + engine identity', () => {
-  it('registers the custom element', () => {
-    const { v } = mountWith([])
-    live.push(v)
-    expect(customElements.get('sui-calendar')).toBeDefined()
-  })
 
   it('renders a month grid from the live engine (prop:calendar identity)', async () => {
     const { v } = mountWith(EV)

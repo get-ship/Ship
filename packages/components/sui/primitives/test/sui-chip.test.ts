@@ -16,9 +16,6 @@ const press = (el: HTMLElement, key: string) =>
   el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
 
 describe('<sui-chip>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-chip')).toBeDefined()
-  })
 
   it('renders a .chip (part="chip") in the shadow root', () => {
     const { el } = mount(reg, 'sui-chip')

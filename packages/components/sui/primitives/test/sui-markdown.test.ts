@@ -83,9 +83,6 @@ describe('bindHtml focus retention (used by sui-markdown)', () => {
 })
 
 describe('<sui-markdown>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-markdown')).toBeDefined()
-  })
 
   it('mounts and renders headings from value prop', async () => {
     const { el } = mount(reg, 'sui-markdown', { value: '# Hello' })

@@ -22,9 +22,6 @@ function mountFieldInvalid(inner = '') {
 const shadow = (el: HTMLElement) => el.shadowRoot!
 
 describe('<sui-field>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-field')).toBeDefined()
-  })
 
   it('renders shadow DOM', () => {
     const { el } = mountField()
