@@ -46,19 +46,7 @@ const xtermApiAbsent = !(await xtermApiAttaches())
 
 describe('<ship-terminal>', () => {
 
-  it('attaches a shadow root', () => {
-    const c = mkContainer()
-    c.innerHTML = '<ship-terminal></ship-terminal>'
-    const el = c.querySelector('ship-terminal')!
-    expect(el.shadowRoot).not.toBeNull()
-  })
 
-  it('shadow root contains the terminal-wrap container', () => {
-    const c = mkContainer()
-    c.innerHTML = '<ship-terminal></ship-terminal>'
-    const el = c.querySelector('ship-terminal')!
-    expect(el.shadowRoot!.querySelector('.terminal-wrap')).not.toBeNull()
-  })
 
   it('terminal container has role=terminal in interactive mode', () => {
     const c = mkContainer()

@@ -45,16 +45,30 @@ afterEach(() => {
 const cmKeymapAbsent = typeof document.execCommand !== 'function'
 
 describe('<ship-code-editor>', () => {
+  // P-X.b (wave 3): deleted two implementation-detail tests:
+  //   'attaches a shadow root'              — every custom element
+  //                                            has a shadow root; the
+  //                                            framework guarantees
+  //                                            this. The test asserted
+  //                                            only that the framework
+  //                                            ran, not that the
+  //                                            component did anything.
+  //   'shadow root contains editor-root div' — asserts a CSS class
+  //                                            name on an internal
+  //                                            element. The class name
+  //                                            is the impl detail; the
+  //                                            user-facing test is
+  //                                            below (mount → typing
+  //                                            → value property).
+  //   'has formAssociated set to true'       — KEEP. This IS the
+  //                                            form-participation
+  //                                            behavior a user sees
+  //                                            when they fill out a
+  //                                            form and hit Submit;
+  //                                            the class's static
+  //                                            field is the contract
+  //                                            surface.
 
-  it('attaches a shadow root', async () => {
-    const el = await mount('<ship-code-editor></ship-code-editor>')
-    expect(el.shadowRoot).not.toBeNull()
-  })
-
-  it('shadow root contains editor-root div', async () => {
-    const el = await mount('<ship-code-editor></ship-code-editor>')
-    expect(el.shadowRoot!.querySelector('.editor-root')).not.toBeNull()
-  })
 
   it('has formAssociated set to true', () => {
     const Ctor = customElements.get('ship-code-editor') as (typeof HTMLElement & { formAssociated?: boolean }) | undefined
