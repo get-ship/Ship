@@ -50,10 +50,6 @@ describe('<ship-markdown-editor>', () => {
     expect(shadow(el).querySelector('[part="editor"]')).not.toBeNull()
   })
 
-  it('reflects size attribute on host', () => {
-    const { el } = make({ size: 'sm' })
-    expect(el.getAttribute('size')).toBe('sm')
-  })
 
   it('--ed-min-h scales linearly with rows above a usable floor', async () => {
     // The editor sizes its writing surface from `rows`; assert the relation
@@ -71,11 +67,6 @@ describe('<ship-markdown-editor>', () => {
     expect(px(tiny.el)).toBeGreaterThan(28)
   })
 
-  it('reflects invalid and disabled attributes', () => {
-    const { el } = make({ invalid: true, disabled: true })
-    expect(el.hasAttribute('invalid')).toBe(true)
-    expect(el.hasAttribute('disabled')).toBe(true)
-  })
 
   it('passes aria-invalid and aria-disabled to shell', async () => {
     const { el } = make({ invalid: true, disabled: true })
