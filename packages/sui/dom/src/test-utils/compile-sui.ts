@@ -20,8 +20,8 @@ import { fileURLToPath } from 'node:url'
 
 import * as suiRuntime from '@ship/sui-runtime'
 import * as suiDom from '@ship/sui-dom'
-import * as suiRoute from '@ship/sui-runtime/route'
-import { route as makeRoute, type RouteSignals } from '@ship/sui-runtime/route'
+import * as suiRoute from '@ship/deck/route'
+import { route as makeRoute, type RouteSignals } from '@ship/deck/route'
 import '@ship/sui-runtime/template-hooks'
 
 /* ----------------------- native addon load ----------------------- */
@@ -194,7 +194,7 @@ function stripImports(js: string): string {
     )
     // import { route as __routeFactory } from "@ship/sui-runtime/route"
     .replace(
-      /^\s*import\s*\{\s*route\s+as\s+__routeFactory\s*\}\s*from\s*["']@ship\/sui-runtime\/route["']\s*;?\s*$/gm,
+      /^\s*import\s*\{\s*route\s+as\s+__routeFactory\s*\}\s*from\s*["']@ship\/deck\/route["']\s*;?\s*$/gm,
       'const __routeFactory = __route.route;',
     )
     // side-effect: import "@ship/sui-runtime"

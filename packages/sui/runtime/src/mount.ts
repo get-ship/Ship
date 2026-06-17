@@ -20,7 +20,7 @@
 
 import { signal, isSignal, type Signal } from './signal'
 import type { LiveSignal, LiveState } from './live'
-import type { RouteSignals } from './route'
+import type { RouteSignals } from '@ship/deck/route'
 import { createScope, withScope } from './effect-scope'
 import { morph } from './morph'
 import type { ViewPayload as GeneratedViewPayload } from './generated'

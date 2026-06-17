@@ -24,6 +24,9 @@
     "test:watch": "vitest",
     "bench": "vitest bench --run"
   },
+  "dependencies": {
+    "@ship/deck/route": "workspace:*"
+  },
   "devDependencies": {
     "@ship/test-setup": "workspace:*",
     "@tanstack/virtual-core": "^3.16.1",

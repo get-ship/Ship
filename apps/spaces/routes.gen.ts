@@ -4,7 +4,7 @@
 // `deck build`) after adding or renaming a `[param]` route dir.
 // See ADR unified-deck-router.
 
-import type { RouteShape } from '@ship/sui-runtime'
+import type { RouteShape } from '@ship/deck/route'
 
 /** Every dynamic route pattern the host should pre-register via
  *  `defineRoutes` so `route.params.<name>()` resolves on the matching

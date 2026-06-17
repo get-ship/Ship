@@ -66,7 +66,7 @@ import { ops } from './ops'
 // Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
 // popover, tooltip, tabs, etc.) — are resolved per-tag from workspace source
 // that the per-tag resolver cannot trace.
-import { route as createRoute, defineRoutes, setRouterPort } from '@ship/sui-runtime/route'
+import { route as createRoute, defineRoutes, setEditMode, setRouterPort } from '@ship/deck/route'
 import { DYNAMIC_ROUTE_PATTERNS } from '../routes.gen'
 import { chrome, mount, notifyViewUnmount, setHostContext } from '@ship/sui-runtime'
 import type { SuiLoader, ViewPayload } from '@ship/sui-runtime'
@@ -182,6 +182,11 @@ setRouterPort({
   navigate: (to, o) => navigate(to, o ?? {}),
   back: () => history.back(),
 })
+// Edit mode is OFF by default. The shell's launch surface is read-only
+// against the codegenned static route table; user-authored routes are
+// gated behind `setEditMode(true)`. TODO: read from ship.shell.config
+// once the daemon exposes an edit-mode flag in the shell config.
+setEditMode(false)
 
 // ── window.ship API ──────────────────────────────────────────────────
 

@@ -26,7 +26,7 @@
 //   the mounted route changes. Callers can override with `{ viewId }` on
 //   any state-bearing call.
 
-import { navigate as routeNavigate } from './route'
+import { navigate as routeNavigate } from '@ship/deck/route'
 
 /** Toast / status tone palette. Matches the values `<sui-toast>` paints
  *  (`info` · `success` · `warning` · `destructive`). `error` is accepted

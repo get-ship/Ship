@@ -286,14 +286,6 @@ export type {
   StatusValue,
 } from './chrome'
 
-// Re-export route surface so the bundled `@ship/sui-runtime/route`
-// importmap entry (which points at the single runtime.js bundle)
-// resolves to the actual symbols. Authors continue to use the subpath
-// import (`from '@ship/sui-runtime/route'`); the importmap routes it
-// here.
-export { defineRoutes, navigate, route, setRouterPort } from './route'
-export type { RouteShape, RouteSignals, RouterPort } from './route'
-
 // Re-export the patch applicator for the same reason as the route
 // surface above: `@ship/sdk-client`'s SSE layer imports
 // `@ship/sui-runtime/patch`, and the importmap points that subpath at

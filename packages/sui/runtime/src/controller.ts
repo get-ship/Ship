@@ -14,7 +14,7 @@
 
 import type { Signal } from './signal'
 import type { ShipHost, Clients } from './ship'
-import type { RouteSignals } from './route'
+import type { RouteSignals } from '@ship/deck/route'
 
 // ---------------------------------------------------------------------------
 // State-shape extraction over Scope

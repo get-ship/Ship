@@ -11,7 +11,7 @@
 // This factory is the contract glue between those two halves.
 
 import type { ShipHost, Clients } from './ship'
-import type { RouteSignals } from './route'
+import type { RouteSignals } from '@ship/deck/route'
 
 export interface ViewContext {
   ship: ShipHost
