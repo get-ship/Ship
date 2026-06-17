@@ -46,21 +46,21 @@
   }
   :host([hidden]) { display: none; }
 
-  :host([tone='default'])     { --link-fg: var(--primary); }
-  :host([tone='primary'])     { --link-fg: var(--primary); }
-  :host([tone='info'])        { --link-fg: var(--info); }
-  :host([tone='success'])     { --link-fg: var(--success); }
-  :host([tone='warning'])     { --link-fg: var(--warning); }
-  :host([tone='destructive']) { --link-fg: var(--destructive); }
-  :host([tone='accent'])      { --link-fg: var(--accent); }
-  :host([tone='muted'])       { --link-fg: var(--muted-foreground); }
+  :host([tone='default'])     { --link-fg: var(--primary);          --link-underline: var(--tone-primary-border); }
+  :host([tone='primary'])     { --link-fg: var(--primary);          --link-underline: var(--tone-primary-border); }
+  :host([tone='info'])        { --link-fg: var(--info);             --link-underline: var(--tone-info-border); }
+  :host([tone='success'])     { --link-fg: var(--success);          --link-underline: var(--tone-success-border); }
+  :host([tone='warning'])     { --link-fg: var(--warning);          --link-underline: var(--tone-warning-border); }
+  :host([tone='destructive']) { --link-fg: var(--destructive);      --link-underline: var(--tone-destructive-border); }
+  :host([tone='accent'])      { --link-fg: var(--accent);           --link-underline: var(--tone-accent-border); }
+  :host([tone='muted'])       { --link-fg: var(--muted-foreground); --link-underline: var(--tone-muted-border); }
 
   a {
     color: var(--link-fg);
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
-    text-decoration-color: color-mix(in oklch, var(--link-fg) 28%, transparent);
+    text-decoration-color: var(--link-underline);
     display: inline;
     border-radius: var(--radius-sm);
     transition:
@@ -73,7 +73,7 @@
     text-underline-offset: 3px;
   }
   :host([variant='underline']) a {
-    text-decoration-color: color-mix(in oklch, var(--link-fg) 50%, transparent);
+    text-decoration-color: var(--link-underline);
   }
   :host([variant='underline']) a:hover {
     text-decoration-color: var(--link-fg);
@@ -82,8 +82,8 @@
     text-decoration-color: transparent;
   }
   :host([variant='subtle']) a:hover {
-    color: color-mix(in oklch, var(--link-fg) 80%, var(--foreground));
-    text-decoration-color: color-mix(in oklch, var(--link-fg) 40%, transparent);
+    color: var(--link-fg);
+    text-decoration-color: var(--link-underline);
   }
   a:focus-visible {
     outline: var(--ring-width) solid var(--ring-color);
@@ -91,7 +91,7 @@
   }
   .ext {
     display: inline-block;
-    margin-inline-start: 2px;
+    margin-inline-start: var(--space-1);
     font-size: 0.85em;
     opacity: 0.65;
     vertical-align: -0.05em;
