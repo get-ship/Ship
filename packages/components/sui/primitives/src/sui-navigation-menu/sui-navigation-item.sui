@@ -27,8 +27,8 @@
   .link {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
     font-family: var(--font-body);
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
@@ -45,7 +45,7 @@
   }
   .link:hover {
     color: var(--foreground);
-    background: color-mix(in oklch, var(--muted) 50%, transparent);
+    background: var(--tone-muted-bg);
   }
   :host([active]) .link {
     color: var(--foreground);
@@ -59,9 +59,9 @@
   .link:focus-visible {
     outline: none;
     box-shadow:
-      0 0 0 var(--ring-offset, 2px) var(--background),
-      0 0 0 calc(var(--ring-offset, 2px) + var(--ring-width, 2px))
-        color-mix(in oklch, var(--primary) 50%, transparent);
+      0 0 0 var(--ring-offset) var(--background),
+      0 0 0 calc(var(--ring-offset) + var(--ring-width))
+        var(--ring);
   }
 
   .indicator {
