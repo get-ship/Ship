@@ -173,7 +173,8 @@
 
   .desc {
     font-size: var(--es-desc-fs);
-    max-width: 40ch;
+    max-width: 38ch;
+    line-height: 1.55;
     color: var(--muted-foreground);
   }
   :host([variant='inline']) .desc { max-width: 60ch; }
