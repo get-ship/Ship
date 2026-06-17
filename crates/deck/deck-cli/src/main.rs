@@ -28,24 +28,23 @@ enum Command {
     ///
     /// A `routes/` dir is a tree of mountable views — a route IS a directory
     /// with a `page.sui` (and optionally a `controller.ts`). A `[param]`
-    /// segment in the dir name is a dynamic. No manifests. With no flags, walks
-    /// `apps/shell/routes` and `apps/spaces/routes` relative to cwd (the
-    /// canonical monorepo layout).
+    /// segment in the dir name is a dynamic. No manifests. Each `--root` walks
+    /// `<root>/routes/` and writes `<root>/routes.gen.ts` with a label
+    /// auto-derived from the path's basename (`apps/shell` → `shell`,
+    /// `apps/spaces` → `spaces`). Repeatable; at least one `--root` is
+    /// required.
     Routes {
-        /// App root holding the new-style `routes/` dir. Walks
-        /// `<shell>/routes/` and writes `<shell>/routes.gen.ts`.
-        #[arg(long)]
-        shell: Vec<PathBuf>,
-        /// Space-scaffold root holding `routes/`. Walks `<spaces>/routes/`
-        /// and writes `<spaces>/routes.gen.ts`.
-        #[arg(long)]
-        spaces: Vec<PathBuf>,
+        /// App root holding a `routes/` dir. Walks `<root>/routes/` and
+        /// writes `<root>/routes.gen.ts`. The label is the path's basename.
+        /// Repeatable. e.g. `deck routes --root apps/shell --root apps/spaces`.
+        #[arg(long = "root", required = true)]
+        root: Vec<PathBuf>,
         /// DEPRECATED: the legacy `src/` layout. Walks `<shell-root>/src/`
-        /// and writes `<shell-root>/src/routes.gen.ts`. Kept for the
-        /// in-flight migration of existing checkouts; the new
-        /// `routes/` convention replaces it.
-        #[arg(long, hide = true)]
-        shell_root: Vec<PathBuf>,
+        /// and writes `<shell-root>/src/routes.gen.ts` with the label `shell`.
+        /// Kept for the in-flight migration of existing checkouts; the new
+        /// `routes/` convention replaces it. Hidden; new code uses `--root`.
+        #[arg(long = "shell-root", hide = true)]
+        legacy_shell_root: Vec<PathBuf>,
     },
 
     /// Generate boilerplate for a new view or primitive component.
@@ -143,44 +142,33 @@ fn main() {
 
 fn run() -> Result<()> {
     match Cli::parse().command {
-        Command::Routes { shell, spaces, shell_root } => {
+        Command::Routes { root, legacy_shell_root } => {
             let cwd = std::env::current_dir().context("cwd")?;
             let resolve = |p: PathBuf| {
                 if p.is_absolute() { p } else { cwd.join(p) }
             };
-            // Default to the canonical monorepo layout when no flags are given.
-            let (shells, spaces_dirs, legacy_roots) = if shell.is_empty()
-                && spaces.is_empty()
-                && shell_root.is_empty()
-            {
-                (
-                    vec![cwd.join("apps/shell")],
-                    vec![cwd.join("apps/spaces")],
-                    Vec::new(),
-                )
-            } else {
-                (shell.into_iter().map(resolve).collect(),
-                 spaces.into_iter().map(resolve).collect(),
-                 shell_root.into_iter().map(resolve).collect())
-            };
+            let roots: Vec<PathBuf> = root.into_iter().map(resolve).collect();
+            // The CLI requires --root at least once; clap's `required = true`
+            // enforces this, so by construction `roots` is non-empty here.
+            // (We still derive the label from the path's basename — no app-
+            // name coupling in the codegen, no monorepo-defaults heuristic.)
+            let legacy_roots: Vec<PathBuf> =
+                legacy_shell_root.into_iter().map(resolve).collect();
             let mut specs = Vec::new();
-            for s in &shells {
+            for s in &roots {
+                let label = s
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| s.display().to_string());
                 specs.push(deck_bundler::routes::RouteGenSpec {
                     dir: s.join("routes"),
                     out: s.join("routes.gen.ts"),
-                    label: "shell".to_string(),
-                });
-            }
-            for s in &spaces_dirs {
-                specs.push(deck_bundler::routes::RouteGenSpec {
-                    dir: s.join("routes"),
-                    out: s.join("routes.gen.ts"),
-                    label: "spaces".to_string(),
+                    label,
                 });
             }
             for s in &legacy_roots {
                 // Deprecated `src/` layout — emit to the legacy output path
-                // (`<shell_root>/src/routes.gen.ts`) so old checkouts still
+                // (`<shell-root>/src/routes.gen.ts`) so old checkouts still
                 // find the import. The new convention replaces it.
                 specs.push(deck_bundler::routes::RouteGenSpec {
                     dir: s.join("src"),

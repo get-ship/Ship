@@ -102,12 +102,11 @@ Two composition rules the host must honor:
 
 ## CLI
 
-```sh
 deck build --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
 deck build-assets          # bake framework + consumer bundles (in-process Rolldown)
-deck routes                # regenerate routes.gen.ts for apps/shell + apps/spaces
-deck routes --shell apps/other-shell   # add an extra shell root
-deck routes --spaces apps/other-space  # add an extra spaces root
+deck routes --root apps/shell --root apps/spaces
+# walks <root>/routes/ → emits <root>/routes.gen.ts (label = basename).
+# Repeatable; required at least once.
 deck scaffold view <name>  # new view (page.sui + controller.ts + style.css + manifest)
 deck scaffold component <tag>
 deck scaffold pack <name>

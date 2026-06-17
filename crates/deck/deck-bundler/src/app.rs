@@ -1,5 +1,6 @@
-//! Deck `app` build target (#170) — bundles a SUI SPA app (the hub,
-//! `apps/shell`, and the space scaffold, `apps/spaces`) to a static dir.
+//! Deck `app` build target (#170) — bundles a SUI SPA app (the hub
+//! `apps/shell`, the space scaffold `apps/spaces`, or any other host app
+//! that uses the `routes/` convention) to a static dir.
 //!
 //! This is the deck-owned replacement for the retired `shell-app.ts`
 //! (`Bun.build`) — one bundler engine (Rolldown) for framework + views +
