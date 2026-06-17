@@ -40,8 +40,8 @@
   }
 
   :host(:not([size])) label,
-    font-size: var(--text-sm);
-    font-size: var(--text-base);
+  :host([size='md']) label { font-size: var(--text-base); }
+  :host([size='sm']) label,
   :host([size='lg']) label { font-size: var(--text-sm); }
 
   .req {
