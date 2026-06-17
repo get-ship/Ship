@@ -25,6 +25,16 @@
     --ship-mark-size: 28px;
     width: var(--ship-mark-size);
     height: var(--ship-mark-size);
+    /* Bespoke logo ramp: collapses to canonical tokens so the SVG fill
+     * classes (c-primary, c-primary-deep, etc.) read from one place and
+     * themes can re-tint the mark by overriding the source tokens. */
+    --mark-c-base:           var(--tone-primary-bg);
+    --mark-c-primary:        var(--primary);
+    --mark-c-primary-deep:   var(--primary);
+    --mark-c-primary-dark:   var(--primary);
+    --mark-c-primary-darker: var(--primary);
+    --mark-c-primary-tint:   var(--primary);
+    --mark-c-highlight:      var(--tone-primary-bg);
   }
   :host([hidden]) { display: none; }
   :host([size='sm']) { --ship-mark-size: 22px; }
@@ -39,13 +49,13 @@
      black blobs that disappear against a dark --background (the
      original mix-with-black variants were invisible on console theme).
      Tint pulls toward --background for highlight pops. */
-  .c-base            { fill: color-mix(in oklch, var(--primary) 14%, var(--background)); }
-  .c-primary         { fill: var(--primary); }
-  .c-primary-deep    { fill: color-mix(in oklch, var(--primary) 88%, var(--foreground)); }
-  .c-primary-dark    { fill: color-mix(in oklch, var(--primary) 78%, var(--foreground)); }
-  .c-primary-darker  { fill: color-mix(in oklch, var(--primary) 65%, var(--foreground)); }
-  .c-primary-tint    { fill: color-mix(in oklch, var(--primary) 75%, var(--background)); }
-  .c-highlight       { fill: color-mix(in oklch, var(--primary) 35%, var(--background)); }
+  .c-base            { fill: var(--mark-c-base); }
+  .c-primary         { fill: var(--mark-c-primary); }
+  .c-primary-deep    { fill: var(--mark-c-primary-deep); }
+  .c-primary-dark    { fill: var(--mark-c-primary-dark); }
+  .c-primary-darker  { fill: var(--mark-c-primary-darker); }
+  .c-primary-tint    { fill: var(--mark-c-primary-tint); }
+  .c-highlight       { fill: var(--mark-c-highlight); }
 </style>
 
 <svg part="svg" viewBox="-260.519 -293.795 520.039 579.462" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
