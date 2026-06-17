@@ -404,5 +404,5 @@ pub const COMMANDS: &[CommandDescriptor] = &[
     },
 ];
 // create.surface, annotation.post, feedback.post removed:
-// rehomed to ViewService::Scaffold, AgentsService::PostAnnotation,
+// rehomed to UiService::Scaffold, AgentsService::PostAnnotation,
 // AgentsService::PostFeedback (crate-owned wires, one rpc story).

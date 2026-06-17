@@ -1,10 +1,12 @@
 //! `ship sui <diagnostics|hover|dependencies> <file>` — SUI `.sui` language
-//! intelligence over `SuiService` (Connect). Replaces the MCP `sui_*` tools;
-//! the daemon answers in-process via the sui_compiler facade.
+//! intelligence over `UiService` (Connect). The unified authoring service
+//! surfaces the compiler analysis ops; replaces the MCP `sui_*` tools and
+//! the retired `SuiService` Connect service. The daemon answers in-process
+//! via the sui_compiler facade.
 
 use anyhow::{Context, Result, anyhow};
 use connectrpc::client::{ClientConfig, HttpClient};
-use ship_ops_rpc::{SuiFileReq, SuiHoverReq, SuiServiceClient};
+use ship_ops_rpc::{SuiFileReq, SuiHoverReq, UiServiceClient};
 
 use crate::cli::SuiCommands;
 
@@ -14,7 +16,7 @@ pub fn run(action: SuiCommands) -> Result<()> {
         format!("http://127.0.0.1:{port}").parse().context("building daemon URI")?;
     let config =
         ClientConfig::new(uri).default_header("authorization", format!("Bearer {token}"));
-    let client = SuiServiceClient::new(HttpClient::plaintext(), config);
+    let client = UiServiceClient::new(HttpClient::plaintext(), config);
     let rt = tokio::runtime::Runtime::new().context("starting tokio runtime")?;
 
     let json = match action {

@@ -150,8 +150,9 @@ pub enum McpCommands {
 }
 
 /// `ship sui` — SUI `.sui` language intelligence (diagnostics, hover,
-/// dependencies) over `SuiService` (Connect). The daemon answers in-process
-/// via the sui_compiler facade.
+/// dependencies) over `UiService` (Connect). The unified authoring service
+/// surfaces the compiler analysis ops; the daemon answers in-process via
+/// the sui_compiler facade.
 #[derive(Subcommand, Debug)]
 pub enum SuiCommands {
     /// All diagnostics (parse + semantic + lint) for a `.sui` file
