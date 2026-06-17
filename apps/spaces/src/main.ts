@@ -96,9 +96,10 @@ async function boot(): Promise<void> {
     }
   }
   const runtime = await (w.__suiRuntimeReady ?? Promise.resolve(w.__suiRuntime))
-  }
+  const slot = document.getElementById('ship-content') ?? document.body
   // First cut: the space id IS the view name (a daemon-served view). A later
   // pass reads the space's config (chosen chrome + views) and confines them.
+
   try {
     const payload = await loader.fetchView(appId)
     await runtime.mount(slot, payload, { ship, loader, cssScope: 'adjacent' })

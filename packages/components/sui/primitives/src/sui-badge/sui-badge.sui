@@ -33,7 +33,7 @@
 <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
 <prop name="variant" values="solid|soft|outline" default="soft" reflect />
 <prop name="size" values="sm|md|lg" default="md" reflect />
-<prop name="pill" type="bool" default="false" reflect />
+<style>
 
   /* Tone-color mapping — defaults to the muted tone ramp so the base
    * .badge reads as a soft, low-key status label. Each tone variant
