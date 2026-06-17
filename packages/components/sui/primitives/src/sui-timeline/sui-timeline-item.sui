@@ -31,8 +31,8 @@
   :host {
     display: grid;
     grid-template-columns: 20px 1fr;
-    column-gap: 10px;
-    padding: 6px 0;
+    column-gap: var(--space-2);
+    padding: var(--space-2) 0;
     position: relative;
     --tone-fg: var(--muted-foreground);
   }
@@ -66,16 +66,14 @@
 
   .dot {
     position: relative;
-    z-index: 1;
+    z-index: var(--z-elevated);
     width: 10px;
     height: 10px;
     border-radius: var(--radius-full);
     background: var(--tone-fg);
-    margin-top: 4px;
+    margin-top: var(--space-1);
     flex-shrink: 0;
-    box-shadow:
-      0 0 0 3px var(--card),
-      0 0 0 5px color-mix(in oklch, var(--tone-fg) 18%, transparent);
+    box-shadow: 0 0 0 3px var(--surface-1);
   }
 
   .body { min-width: 0; }
@@ -83,7 +81,7 @@
   .head {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: var(--space-2);
     font-family: var(--font-body);
     font-size: var(--text-sm);
     font-weight: var(--font-weight-medium);
@@ -93,7 +91,7 @@
   .at {
     font-family: var(--font-mono);
     color: var(--muted-foreground);
-    font-size: 10.5px;
+    font-size: var(--text-xs);
     letter-spacing: 0.02em;
     margin-inline-start: auto;
   }
@@ -102,7 +100,7 @@
     font-size: var(--text-sm);
     color: var(--muted-foreground);
     line-height: var(--leading-normal);
-    margin-top: 2px;
+    margin-top: var(--space-1);
   }
 
   :host([interactive]) {
@@ -115,7 +113,7 @@
     box-shadow:
       0 0 0 var(--ring-offset) var(--background),
       0 0 0 calc(var(--ring-offset) + var(--ring-width))
-        color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+        var(--ring);
   }
   @media (forced-colors: active) {
     :host([interactive]:focus-visible) { outline: 2px solid CanvasText; outline-offset: 2px; }
