@@ -1,0 +1,26 @@
+{
+  "name": "@ship/primitives",
+  "version": "0.1.0",
+  "description": "Ship Primitives pack — small, presentational ship-* atoms that compose @ship/sui-primitives. Attribute-driven; the host owns the data wire (e.g. toggling state from a subscription) and registers @ship/sui-primitives for any composed tag (sui-badge, etc.).",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "customElements": "dist/custom-elements.json",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship/sui-dom": "workspace:*",
+    "@ship/sui-runtime": "workspace:*",
+    "@ship/sui-primitives": "workspace:*"
+  },
+  "devDependencies": {
+    "@ship/test-setup": "workspace:*",
+    "happy-dom": "^20.9.0",
+    "vitest": "^4.1.5"
+  }
+}

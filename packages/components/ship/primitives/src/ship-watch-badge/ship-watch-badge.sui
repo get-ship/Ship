@@ -1,0 +1,79 @@
+<!--
+  <ship-watch-badge> — @ship/primitives · a tiny connection-status dot + label.
+
+  Presentational atom for surfaces that watch a live stream (jobs, sessions,
+  tailing runs). The host passes the connection state via the `state`
+  reflected attribute; CSS picks the tone + dot and shows the matching label.
+  `state="live"` adds a soft pulse that only fires when the user has not asked
+  for reduced motion. `label` overrides the default copy when set — useful
+  for surfacing a sub-status ("live · 3s ago") without forking the component.
+
+  Prop:  state   live | connecting | paused | error  (reflect, default live)
+  Prop:  label   string                                (reflect, default "")
+  Part:  badge · dot · label
+-->
+<prop name="state" values="live|connecting|paused|error" default="live" reflect />
+<prop name="label" type="string" default="" reflect />
+
+<style>
+  :host { display: inline-block; font-family: var(--font-body);
+    --wc: var(--success); --wb: var(--tone-success-bg); --wbd: var(--tone-success-border); }
+  :host([hidden]) { display: none; }
+
+  :host([state='live'])       { --wc: var(--success);         --wb: var(--tone-success-bg);         --wbd: var(--tone-success-border); }
+  :host([state='connecting']) { --wc: var(--warning);         --wb: var(--tone-warning-bg);         --wbd: var(--tone-warning-border); }
+  :host([state='paused'])     { --wc: var(--muted-foreground); --wb: var(--muted);                  --wbd: var(--border-subtle); }
+  :host([state='error'])      { --wc: var(--destructive);     --wb: var(--tone-destructive-bg);     --wbd: var(--tone-destructive-border); }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    line-height: 1;
+    padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--wb);
+    border: 1px solid var(--wbd);
+    color: var(--wc);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--wc); flex-shrink: 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    :host([state='live']) .dot { animation: wb-pulse 1.6s var(--ease-out) infinite; }
+  }
+
+  /* Label routing — override copy takes precedence when `label` is set. */
+  .l { display: none; }
+  :host([state='live'])       .ll       { display: inline; }
+  :host([state='connecting']) .lc       { display: inline; }
+  :host([state='paused'])     .lp       { display: inline; }
+  :host([state='error'])      .le       { display: inline; }
+  :host(:not([label=''])) .ll,
+  :host(:not([label=''])) .lc,
+  :host(:not([label=''])) .lp,
+  :host(:not([label=''])) .le { display: none; }
+  :host(:not([label=''])) .lo { display: inline; }
+
+  @media (forced-colors: active) {
+    .badge { border-color: CanvasText; color: CanvasText; background: Canvas; }
+    .dot { background: CanvasText; }
+  }
+</style>
+
+<span class="badge" part="badge">
+  <span class="dot" part="dot"></span>
+  <span class="l ll" part="label">live</span>
+  <span class="l lc" part="label">connecting…</span>
+  <span class="l lp" part="label">paused</span>
+  <span class="l le" part="label">reconnecting</span>
+  <span class="l lo" part="label">{label()}</span>
+</span>
