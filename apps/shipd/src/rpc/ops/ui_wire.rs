@@ -95,9 +95,11 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
             })
         });
     // Sources root — the bundle's emitted `sources/` tree. Convention:
-    // `<ship_dir>/dist/_deck/sources/`. May not exist yet (no bundle run);
-    // the wire handles missing dirs with empty Packs / NotFound Read.
-    let sources_root = state.ship_dir().join("dist").join("_deck").join("sources");
+    // `<ship_dir>/.deck/sources/` (matches `deck_bundler::BundleLayout::deck_out()`
+    // for framework-singleton bundles and the `assets_dir_for("...")` path for
+    // view bundles). May not exist yet (no bundle run); the wire handles
+    // missing dirs with empty Packs / NotFound Read.
+    let sources_root = state.ship_dir().join(".deck").join("sources");
     let ui_wire = Arc::new(ship_views::wire::UiWire::new(
         sources_root,
         view_agent_fn,

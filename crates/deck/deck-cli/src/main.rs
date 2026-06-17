@@ -312,6 +312,14 @@ fn build_assets() -> Result<()> {
         println!("  {}: {len} bytes", t.name);
     }
 
+    // Emit the `sources/` tree for the studio viewer's `ship.ui.Read` resolver.
+    // Path is the identifier — no per-component manifest; the resolver chain
+    // is bundle → CDN → npm → ship-store, but the bundle is the fast path.
+    match deck_bundler::sources::build_sources(&layout) {
+        Ok(0) => println!("  sources/: (no .sui files found)"),
+        Ok(n) => println!("  sources/: {n} .sui files"),
+        Err(e) => bail!("emit sources/: {e}"),
+    }
     println!("deck build-assets: bundles baked via in-process Rolldown");
     println!("note: lucide-icons.json is committed source; regen via `cargo xtask gen-icons`");
     Ok(())

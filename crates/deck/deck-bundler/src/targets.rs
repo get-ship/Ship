@@ -84,7 +84,9 @@ impl BundleLayout {
         self
     }
 
-    fn deck_out(&self) -> PathBuf {
+    /// `<out_root>/.deck` — the deck-owned output dir (framework bundles,
+    /// `sources/` tree for the studio viewer, framework surface materialization).
+    pub fn deck_out(&self) -> PathBuf {
         self.out_root.join(".deck")
     }
     /// Host-owned assets root, derived from `cfg.host_assets_root`.
