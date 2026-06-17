@@ -67,14 +67,37 @@ async function boot(): Promise<void> {
   // For the launch surface the only dynamic is `/[appId]`; future
   // file-routed sub-spaces get added here for free.
   defineRoutes(DYNAMIC_ROUTE_PATTERNS)
-  const runtime = await (w.__suiRuntimeReady ?? Promise.resolve(w.__suiRuntime))
-    placeholder(slot, 'SUI runtime did not load.')
-    return
+  // Fetch the runtime per-space config from the daemon (succeeds
+  // with `{ routes: [] }` for the launch surface; future per-space
+  // author routes land here). Failures (daemon down, network) are
+  // swallowed at the SDK layer — boot continues with the static half
+  // alone. A collision between a static and a runtime pattern is
+  // logged and the runtime entry is dropped (first-wins on
+  // `defineRoutes`).
+  let runtimeRoutes: { pattern: string }[] = []
+  if (appId) {
+    const cfg = await ship.spaces.config({ id: appId })
+    runtimeRoutes = cfg?.routes ?? []
+    if (runtimeRoutes.length) {
+      const staticPatterns = new Set(DYNAMIC_ROUTE_PATTERNS.map((r) => r.pattern))
+      const collisions: string[] = []
+      const accepted = runtimeRoutes.filter((r) => {
+        if (staticPatterns.has(r.pattern)) {
+          collisions.push(r.pattern)
+          return false
+        }
+        return true
+      })
+      if (collisions.length) {
+        console.warn(
+          `[spaces] dropped ${collisions.length} runtime route(s) that collide with static routes:`,
+          collisions,
+        )
+      }
+      defineRoutes(accepted as typeof DYNAMIC_ROUTE_PATTERNS)
+    }
   }
-  if (!appId) {
-    // No --app id (e.g. opened directly): nothing to route to yet.
-    placeholder(slot, 'No space id. Launch a space from the Ship hub.')
-    return
+  const runtime = await (w.__suiRuntimeReady ?? Promise.resolve(w.__suiRuntime))
   }
   // First cut: the space id IS the view name (a daemon-served view). A later
   // pass reads the space's config (chosen chrome + views) and confines them.
