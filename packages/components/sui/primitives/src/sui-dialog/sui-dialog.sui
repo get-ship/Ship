@@ -54,14 +54,14 @@
     margin: auto;
     padding: 0;
     border: 1px solid var(--border);
-    border-radius: var(--radius-xl, 12px);
+    border-radius: var(--radius-xl);
     background: var(--card);
     color: var(--card-foreground);
     width: calc(100vw - 32px);
-    max-width: var(--dlg-max-w, 500px);
+    max-width: var(--dlg-max-w);
     max-height: min(calc(100vh - 32px), 85vh);
-    box-shadow: var(--shadow-xl, 0 20px 60px color-mix(in oklch, var(--foreground) 30%, transparent));
-    font-family: var(--font-body, system-ui);
+    box-shadow: var(--shadow-xl);
+    font-family: var(--font-body);
     overflow: visible;
     display: flex;
     flex-direction: column;
@@ -76,9 +76,9 @@
   }
 
   dialog::backdrop {
-    background: hsl(0 0% 0% / 0.5);
+    background: var(--backdrop);
     opacity: 0;
-    transition: opacity var(--duration-medium, 200ms) var(--ease-out, ease-out);
+    transition: opacity var(--duration-medium) var(--ease-out);
   }
   dialog[open]::backdrop { opacity: 1; }
   :host([backdrop='blur']) dialog::backdrop { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
@@ -87,33 +87,33 @@
   .sentinel { position: fixed; width: 1px; height: 1px; pointer-events: none; opacity: 0; }
 
   .header {
-    padding: var(--dlg-hpy, 18px) var(--dlg-px, 24px);
-    padding-right: calc(var(--dlg-px, 24px) + 36px);
+    padding: var(--dlg-hpy) var(--dlg-px);
+    padding-right: calc(var(--dlg-px) + var(--space-7));
     flex: 0 0 auto;
-    font-size: var(--text-lg, 16px);
-    font-weight: var(--font-weight-semibold, 600);
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-semibold);
     color: var(--foreground);
     border-bottom: 1px solid var(--border-subtle);
   }
   :host([no-header]) .header { display: none; }
 
   .body {
-    padding: var(--dlg-bpy, 16px) var(--dlg-px, 24px);
+    padding: var(--dlg-bpy) var(--dlg-px);
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    font-size: var(--text-base, 14px);
-    line-height: var(--leading-normal, 1.5);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
     scrollbar-width: thin;
   }
 
   .footer {
-    padding: var(--dlg-fpy, 16px) var(--dlg-px, 24px);
+    padding: var(--dlg-fpy) var(--dlg-px);
     border-top: 1px solid var(--border-subtle);
-    background: color-mix(in oklch, var(--muted) 28%, var(--card));
+    background: var(--tone-muted-border);
     display: flex;
-    gap: var(--space-2, 8px);
+    gap: var(--space-2);
     justify-content: flex-end;
     align-items: center;
     flex: 0 0 auto;
@@ -128,11 +128,11 @@
     display: inline-flex; align-items: center; justify-content: center;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: var(--radius-md, 6px);
+    border-radius: var(--radius-md);
     color: var(--muted-foreground);
-    cursor: pointer; padding: 0; font: inherit; z-index: 1;
-    transition: background-color var(--duration-fast, 120ms) var(--ease-out, ease-out),
-      color var(--duration-fast, 120ms) var(--ease-out, ease-out);
+    cursor: pointer; padding: 0; font: inherit; z-index: var(--z-elevated);
+    transition: background-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
   }
   .close:hover { background: var(--muted); color: var(--foreground); }
   .close:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
