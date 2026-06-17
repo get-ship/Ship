@@ -45,7 +45,7 @@
   }
   .link:hover {
     color: var(--foreground);
-    background: var(--tone-muted-bg);
+    background: var(--hover-bg);
   }
   :host([active]) .link {
     color: var(--foreground);
