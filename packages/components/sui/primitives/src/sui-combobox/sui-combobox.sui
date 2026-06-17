@@ -59,26 +59,42 @@
   .wrap {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-2);
     width: 100%;
     min-height: var(--h);
     padding: 0 var(--px);
     background: var(--background);
     border: 1px solid var(--tone-border);
     border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xs);
     transition:
+      background-color var(--duration-fast) var(--ease-out),
       border-color var(--duration-fast) var(--ease-out),
       box-shadow var(--duration-fast) var(--ease-out);
   }
-  .wrap:focus-within {
-    border-color: var(--tone-ring);
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--tone-ring) 25%, transparent);
+
+  /* Hover affordance — design bundle elevation (forms after-pattern,
+   * rest-shadow, hover). Matches sui-input / sui-select / sui-textarea. */
+  :host(:not([disabled])) .wrap:hover:not(:focus-within):not([data-open]) {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-sm);
   }
+
+  .wrap:focus-within,
+  :host([data-open]) .wrap {
+    border-color: var(--tone-ring);
+    box-shadow: 0 0 0 3px var(--tone-ring);
+  }
+
+  /* Disabled — system pattern, not blunt opacity. Matches select / input. */
   :host([disabled]) .wrap {
     background: var(--muted);
+    border-color: var(--border);
+    box-shadow: none;
     cursor: not-allowed;
-    opacity: 0.65;
+    filter: saturate(0.6);
   }
+  :host([disabled]) input.entry { color: var(--muted-foreground); }
 
   input.entry {
     flex: 1;
@@ -113,20 +129,20 @@
     max-height: 240px;
     overflow-y: auto;
     margin: 0;
-    padding: 4px;
+    padding: var(--space-1);
     list-style: none;
     background: var(--popover);
     color: var(--popover-foreground);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md, 0 4px 12px color-mix(in oklch, var(--foreground) 10%, transparent));
+    box-shadow: var(--shadow-md);
     z-index: var(--z-popover);
   }
   .opt {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 8px;
+    gap: var(--space-2);
+    padding: var(--space-2);
     border-radius: var(--radius-sm);
     font-family: var(--font-body);
     font-size: var(--fs);
@@ -136,10 +152,10 @@
   }
   .opt[aria-selected='true'] { font-weight: var(--font-weight-semibold); }
   .opt.hl {
-    background: color-mix(in oklch, var(--tone-ring) var(--selected-strength), transparent);
+    background: var(--selected-bg);
   }
   .empty {
-    padding: 8px;
+    padding: var(--space-2);
     font-family: var(--font-body);
     font-size: var(--fs);
     color: var(--muted-foreground);
