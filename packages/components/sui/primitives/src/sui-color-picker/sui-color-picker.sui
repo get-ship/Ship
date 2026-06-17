@@ -61,7 +61,7 @@
   .wrap {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-2);
     width: 100%;
     min-height: var(--h);
     padding: 0 var(--px);
@@ -72,7 +72,7 @@
   }
   .wrap:focus-within {
     border-color: var(--tone-ring);
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--tone-ring) 25%, transparent);
+    box-shadow: 0 0 0 3px var(--tone-ring);
   }
   :host([disabled]) .wrap {
     background: var(--muted);
@@ -111,7 +111,7 @@
     left: 0;
     z-index: var(--z-popover);
     width: 260px;
-    padding: 12px;
+    padding: var(--space-3);
     background: var(--popover);
     color: var(--popover-foreground);
     border: 1px solid var(--border);
@@ -119,15 +119,12 @@
     box-shadow: var(--shadow-md);
     font-family: var(--font-body);
     font-size: var(--fs);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
   }
 
   .swatches {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    gap: 8px;
+    gap: var(--space-2);
   }
   .swatch {
     appearance: none;
@@ -142,16 +139,16 @@
     transform: scale(1.08);
   }
   .swatch.selected {
-    box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--primary);
+    box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 4px var(--primary);
   }
 
-  .sliders { display: flex; flex-direction: column; gap: 6px; }
-  .slider-row { display: grid; grid-template-columns: 1.2rem 1fr 2.4rem; gap: 6px; align-items: center; }
+
+  .slider-row { display: grid; grid-template-columns: 1.2rem 1fr 2.4rem; gap: var(--space-2); align-items: center; }
   .slider-row label { color: var(--muted-foreground); font-size: 0.75rem; }
   .slider-row input[type='range'] { width: 100%; accent-color: var(--tone-ring); }
   .slider-row .val { font-family: var(--font-mono); font-size: 0.75rem; text-align: right; color: var(--foreground); }
 
-  .hex-row { display: flex; align-items: center; gap: 6px; }
+  .hex-row { display: flex; align-items: center; gap: var(--space-2); }
   .hex-row .label { color: var(--muted-foreground); font-size: 0.75rem; }
   .hex-row input {
     flex: 1;
@@ -159,7 +156,7 @@
     border: 1px solid var(--border);
     background: var(--background);
     border-radius: var(--radius-sm);
-    padding: 4px 6px;
+    padding: var(--space-1) var(--space-2);
     font: inherit;
     font-family: var(--font-mono);
     font-size: var(--fs);
@@ -185,7 +182,7 @@
   />
 </div>
 {#if open() && !disabled()}
-  <div class="panel" part="panel" role="dialog" aria-label="Choose color"
+  <sui-stack class="panel" gap="2" part="panel" role="dialog" aria-label="Choose color"
        bind:this={panelEl}>
     <div class="swatches">
       {#for sw of swatches() key={sw.hex}}
@@ -199,7 +196,7 @@
         ></button>
       {/for}
     </div>
-    <div class="sliders">
+    <sui-stack class="sliders" gap="1">
       <div class="slider-row">
         <label for={hueId()}>H</label>
         <input id={hueId()} type="range" min="0" max="360" step="1"
@@ -218,7 +215,7 @@
                bind:value={lightText} data-axis="l" />
         <span class="val">{light()}%</span>
       </div>
-    </div>
+    </sui-stack>
     <div class="hex-row">
       <span class="label">Hex</span>
       <input
@@ -230,5 +227,5 @@
         aria-label="Hex color"
       />
     </div>
-  </div>
+  </sui-stack>
 {/if}
