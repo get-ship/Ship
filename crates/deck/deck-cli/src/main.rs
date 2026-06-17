@@ -39,12 +39,6 @@ enum Command {
         /// Repeatable. e.g. `deck routes --root apps/shell --root apps/spaces`.
         #[arg(long = "root", required = true)]
         root: Vec<PathBuf>,
-        /// DEPRECATED: the legacy `src/` layout. Walks `<shell-root>/src/`
-        /// and writes `<shell-root>/src/routes.gen.ts` with the label `shell`.
-        /// Kept for the in-flight migration of existing checkouts; the new
-        /// `routes/` convention replaces it. Hidden; new code uses `--root`.
-        #[arg(long = "shell-root", hide = true)]
-        legacy_shell_root: Vec<PathBuf>,
     },
 
     /// Generate boilerplate for a new view or primitive component.
@@ -142,7 +136,7 @@ fn main() {
 
 fn run() -> Result<()> {
     match Cli::parse().command {
-        Command::Routes { root, legacy_shell_root } => {
+        Command::Routes { root } => {
             let cwd = std::env::current_dir().context("cwd")?;
             let resolve = |p: PathBuf| {
                 if p.is_absolute() { p } else { cwd.join(p) }
@@ -152,8 +146,6 @@ fn run() -> Result<()> {
             // enforces this, so by construction `roots` is non-empty here.
             // (We still derive the label from the path's basename — no app-
             // name coupling in the codegen, no monorepo-defaults heuristic.)
-            let legacy_roots: Vec<PathBuf> =
-                legacy_shell_root.into_iter().map(resolve).collect();
             let mut specs = Vec::new();
             for s in &roots {
                 let label = s
@@ -164,16 +156,6 @@ fn run() -> Result<()> {
                     dir: s.join("routes"),
                     out: s.join("routes.gen.ts"),
                     label,
-                });
-            }
-            for s in &legacy_roots {
-                // Deprecated `src/` layout — emit to the legacy output path
-                // (`<shell-root>/src/routes.gen.ts`) so old checkouts still
-                // find the import. The new convention replaces it.
-                specs.push(deck_bundler::routes::RouteGenSpec {
-                    dir: s.join("src"),
-                    out: s.join("src/routes.gen.ts"),
-                    label: "shell".to_string(),
                 });
             }
             let n = deck_bundler::routes::generate_routes(&specs)?;
