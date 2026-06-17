@@ -36,7 +36,7 @@
     display: block;
     --tone: var(--foreground);
     --tone-fg: var(--foreground);
-    --tone-bg: color-mix(in oklch, var(--foreground) 10%, transparent);
+    --tone-bg: var(--tone-default-bg);
   }
   :host([hidden]) { display: none; }
 
@@ -45,21 +45,21 @@
   :host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--tone-warning-fg);  --tone-bg: var(--tone-warning-bg); }
   :host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive);      --tone-bg: var(--tone-destructive-bg); }
   :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-bg: var(--muted); }
-  :host([tone='default'])     { --tone: var(--foreground);       --tone-fg: var(--foreground);       --tone-bg: color-mix(in oklch, var(--foreground) 10%, transparent); }
+  :host([tone='default'])     { --tone: var(--foreground);       --tone-fg: var(--foreground);       --tone-bg: var(--tone-default-bg); }
 
   .box {
     position: relative;
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: start;
-    gap: 11px;
-    padding: 12px 14px 12px 18px;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-3);
     border-radius: var(--radius);
     overflow: hidden;
     border: 1px solid var(--border);
-    background: var(--card);
+    background: var(--surface-1);
     font-family: var(--font-body);
-    font-size: 13px;
+    font-size: var(--text-base);
     line-height: 1.5;
     box-shadow: var(--shadow-xs);
   }
@@ -83,20 +83,14 @@
     color: var(--tone-fg);
   }
 
-  .content {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
-  }
-
+  .content { min-width: 0; }
   .title { font-weight: 600; color: var(--foreground); }
   .body { color: var(--muted-foreground); }
 
   .actions {
     display: flex;
-    gap: 8px;
-    margin-top: 8px;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
   }
 
   .close {
@@ -105,7 +99,7 @@
     border: 0;
     color: var(--muted-foreground);
     cursor: pointer;
-    font-size: 15px;
+    font-size: var(--text-md);
     width: 22px;
     height: 22px;
     border-radius: var(--radius-sm);
@@ -134,11 +128,11 @@
      aria-live={tone() === 'destructive' || tone() === 'warning' ? 'assertive' : 'polite'}
      aria-atomic="true">
   <span class="ico"><slot name="icon"></slot></span>
-  <div class="content">
+  <sui-stack class="content" gap="1">
     <div class="title"><slot name="title"></slot></div>
     <div class="body"><slot></slot></div>
     <div class="actions"><slot name="actions"></slot></div>
-  </div>
+  </sui-stack>
   <button class="close" part="close" type="button" aria-label="Dismiss" bind:this={closeBtn}>
     <svg viewBox="0 0 10 10" aria-hidden="true">
       <path d="M2 2 L8 8 M8 2 L2 8" stroke="currentColor"
