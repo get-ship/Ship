@@ -31,25 +31,6 @@ export interface LayoutShape {
  * An empty return means "no chrome — mount the route content directly
  * into the root element."
  *
- * Examples:
- *
- *   LAYOUTS = [{ pathPrefix: '/studio', tag: 'sui-studio-chrome' }]
- *   resolveLayoutChain('/studio/agents/abc', LAYOUTS)
- *     => [{ pathPrefix: '/studio', tag: 'sui-studio-chrome' }]
- *
- *   LAYOUTS = [
- *     { pathPrefix: '/studio', tag: 'sui-studio-chrome' },
- *     { pathPrefix: '/studio/agents', tag: 'sui-agents-chrome' },
- *   ]
- *   resolveLayoutChain('/studio/agents/abc', LAYOUTS)
- *     => [
- *       { pathPrefix: '/studio/agents', tag: 'sui-agents-chrome' },
- *       { pathPrefix: '/studio', tag: 'sui-studio-chrome' },
- *     ]
- *
- *   resolveLayoutChain('/home', []) => []
- *   resolveLayoutChain('/', LAYOUTS) => []
- *
  * The function is pure: same inputs, same outputs. The host calls it
  * at navigation time, then builds the chrome chain, then mounts.
  */
@@ -58,13 +39,12 @@ export function resolveLayoutChain(
   layouts: readonly LayoutShape[],
 ): LayoutShape[] {
   const pathname = pathnameOf(url)
-  // Filter, then sort by prefix length descending (longest first).
   const matches: LayoutShape[] = []
   for (const layout of layouts) {
     if (!layout || typeof layout.pathPrefix !== 'string' || layout.pathPrefix.length === 0) {
       continue
     }
-    if (pathname === layout.pathPrefix || pathname.startsWith(layout.pathPrefix + '/') || (layout.pathPrefix === '/' && pathname === '/')) {
+    if (matchPrefix(pathname, layout.pathPrefix)) {
       matches.push(layout)
     }
   }
@@ -72,10 +52,21 @@ export function resolveLayoutChain(
   return matches
 }
 
+/**
+ * Match a pathname against a layout prefix. The prefix matches if:
+ *  - pathname === prefix (exact match), or
+ *  - pathname starts with prefix + '/' (e.g. `/studio/agents` matches `/studio`), or
+ *  - prefix === '/' (matches every pathname).
+ */
+function matchPrefix(pathname: string, prefix: string): boolean {
+  if (prefix === '/') return true
+  if (pathname === prefix) return true
+  return pathname.startsWith(prefix + '/')
+}
+
 /** Extract the pathname from a URL string or URL object. */
 function pathnameOf(url: string | URL): string {
   if (typeof url === 'string') {
-    // Tolerate relative URLs by treating them as already a pathname.
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('file://')) {
       try {
         return new URL(url).pathname
