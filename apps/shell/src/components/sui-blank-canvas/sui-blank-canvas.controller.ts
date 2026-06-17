@@ -2,7 +2,8 @@
 // document-level event the corresponding hotkey would fire, so click +
 // key produce identical effects.
 
-import { controller, navigate } from '@ship/sui-runtime'
+import { controller } from '@ship/sui-runtime'
+import { navigate } from '@ship/deck/route'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-blank-canvas.sui'
 

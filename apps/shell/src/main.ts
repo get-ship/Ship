@@ -67,7 +67,8 @@ import { ops } from './ops'
 // popover, tooltip, tabs, etc.) — are resolved per-tag from workspace source
 // that the per-tag resolver cannot trace.
 import { route as createRoute, defineRoutes, setEditMode, setRouterPort } from '@ship/deck/route'
-import { DYNAMIC_ROUTE_PATTERNS } from '../routes.gen'
+import { DYNAMIC_ROUTE_PATTERNS, LAYOUTS } from '../routes.gen'
+import { resolveLayoutChain } from './route/layouts'
 import { chrome, mount, notifyViewUnmount, setHostContext } from '@ship/sui-runtime'
 import type { SuiLoader, ViewPayload } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'
@@ -386,10 +387,29 @@ async function buildConfinedModule(viewName: string): Promise<unknown> {
 async function mountRoute(pathname: string, opts: { module?: unknown } = {}): Promise<void> {
   const slot = document.getElementById('ship-content')
   if (!slot) throw new Error('shell: #ship-content missing from index.html')
-
   const token = ++latestMountToken
   // Notify devtools tabs of navigation.
   document.dispatchEvent(new Event('sui:navigate'))
+  // Wrap the route content in the chrome chain declared by LAYOUTS.
+  // The chain is rebuilt on every navigation; the previous chrome is
+  // disposed when its inner-target mount handle disposes (see below).
+  // An empty chain means "no chrome — mount directly into the slot".
+  const chain = resolveLayoutChain(pathname, LAYOUTS)
+  const mountTarget = chain.length === 0
+    ? slot
+    : (() => {
+        const inner = document.createElement('div')
+        inner.setAttribute('slot', 'route')
+        let parent: HTMLElement = inner
+        for (const layout of chain) {
+          const chrome = document.createElement(layout.tag)
+          chrome.appendChild(parent)
+          parent = chrome
+        }
+        slot.replaceChildren(parent)
+        return inner
+      })()
+
 
   if (!pathname || pathname === '/') {
     // Landing page replaces the slot directly — dispose the previous
@@ -436,7 +456,7 @@ async function mountRoute(pathname: string, opts: { module?: unknown } = {}): Pr
     // CSS-loss flicker on every navigation, especially under load.)
     const previous = currentHandle
     const previousViewId = currentViewId
-    const handle = await mount(slot, pathname, {
+    const handle = await mount(mountTarget, pathname, {
       cssScope: 'adjacent',
       // SUI views call `ship.<domain>.<op>()` inside `<data live>`
       // declarations. Without a `ship` SDK client wired to ctx,
