@@ -1,0 +1,148 @@
+<!--
+  <ship-item-editor> — @ship/collections · create-or-edit one item
+  as a form generated from the schema. Reads the schema via
+  ship.collections.state({active}); on Save calls
+  ship.collections.create_item or update_item, then emits
+  ship-item-save { collection, data, id? }. On Cancel emits
+  ship-item-cancel { collection }.
+
+  Client-side validation mirrors the server rejection the spec calls
+  out: required + per-type checks happen in the controller before
+  dispatch. The <sui-input>/<sui-textarea>/<sui-checkbox> primitives
+  are bound to local form signals; the controller commits the
+  assembled data on Save.
+
+  Tag prefix `ship-*` marks this component as depending on the Ship
+  runtime: mounting without a host that has called setShipClient()
+  will throw on the first SDK access.
+-->
+<prop name="collection" type="string" default="" />
+<prop name="id" type="string" default="" />
+<prop name="mode" values="create|edit" default="create" reflect />
+
+<style>
+  :host { display: block; font-family: var(--font-body); color: var(--foreground); }
+  :host([hidden]) { display: none; }
+
+  .head {
+    display: flex; align-items: center; gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .head h3 { margin: 0; font-size: var(--text-md); font-weight: var(--font-weight-semibold); }
+  .head .id { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); }
+
+  .form {
+    display: flex; flex-direction: column; gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+  }
+  .field { display: flex; flex-direction: column; gap: var(--space-1); }
+  .field label {
+    font-family: var(--font-mono); font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    display: flex; gap: var(--space-2); align-items: center;
+  }
+  .field label .req { color: var(--destructive); }
+  .field label .type { color: var(--muted-foreground); }
+
+  .errors {
+    padding: var(--space-3);
+    background: var(--tone-destructive-bg);
+    border: 1px solid var(--tone-destructive-border);
+    border-radius: var(--radius-sm);
+    color: var(--destructive);
+    font-size: var(--text-sm);
+  }
+  .errors ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
+
+  .actions { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+  .actions .right { margin-left: auto; display: flex; gap: var(--space-2); }
+</style>
+
+{#while-loading of state}
+  <sui-skeleton shape="line" size="lg"></sui-skeleton>
+{/while-loading}
+{#while-error err of state}
+  <sui-error-state title="Couldn't load schema" variant="inline">{err.message}</sui-error-state>
+{/while-error}
+{#if state().kind === 'ok' && state().value}
+  <div class="head">
+    <h3 data-test="editor-title">{mode() === 'create' ? 'New item' : 'Edit item'}</h3>
+    {#if mode() === 'edit'}<span class="id" data-test="editor-id">{id()}</span>{/if}
+  </div>
+  {#if fieldDefs().length === 0}
+    <sui-empty-state title="No fields" body="This collection's schema has no fields."></sui-empty-state>
+  {:else}
+    <form class="form" part="form" data-test="form" on:submit={submit}>
+      {#for f of fieldDefs() key={f.name}}
+        <div class="field" data-test={'field-' + f.name}>
+          <label>
+            <span>{f.name}</span>
+            <span class="type">· {f.type}</span>
+            {#if requiredFlags()[f.name]}<span class="req" title="required">*</span>{/if}
+          </label>
+          {#match f.type}
+            {:case 'bool'}
+              <sui-checkbox
+                prop:checked={formState()[f.name] === true}
+                prop:label={f.name}
+                on:sui-change={(e) => onChecked(f.name, e)}
+                data-test={'input-' + f.name}
+              ></sui-checkbox>
+            {:case 'text'}
+              {#if f.name === 'content' || f.name === 'description' || f.name === 'body'}
+                <sui-textarea
+                  prop:value={formState()[f.name] || ''}
+                  prop:name={f.name}
+                  prop:rows={4}
+                  on:sui-input={(e) => onTextInput(f.name, e)}
+                  data-test={'input-' + f.name}
+                ></sui-textarea>
+              {:else}
+                <sui-input
+                  prop:value={formState()[f.name] || ''}
+                  prop:name={f.name}
+                  on:sui-input={(e) => onTextInput(f.name, e)}
+                  data-test={'input-' + f.name}
+                ></sui-input>
+              {/if}
+            {:case 'json'}
+              <sui-textarea
+                prop:value={jsonValues()[f.name] || ''}
+                prop:name={f.name}
+                prop:variant={'code'}
+                prop:rows={4}
+                on:sui-input={(e) => onTextInput(f.name, e)}
+                data-test={'input-' + f.name}
+              ></sui-textarea>
+            {:default}
+              <sui-input
+                prop:value={formState()[f.name] || ''}
+                prop:name={f.name}
+                prop:type={numberTypes()[f.name] ? 'number' : 'text'}
+                on:sui-input={(e) => onTextInput(f.name, e)}
+                data-test={'input-' + f.name}
+              ></sui-input>
+          {/match}
+        </div>
+      {/for}
+      {#if errors().length > 0}
+        <div class="errors" data-test="errors">
+          <strong>Validation failed</strong>
+          <ul>
+            {#for e of errors() key={e}}
+              <li>{e}</li>
+            {/for}
+          </ul>
+        </div>
+      {/if}
+      <div class="actions">
+        <div class="right">
+          <sui-button variant="ghost" type="button" data-test="cancel" on:click={cancel}>Cancel</sui-button>
+          <sui-button variant="solid" tone="primary" type="submit" data-test="save" loading={saving() ? true : false}>{mode() === 'create' ? 'Create' : 'Save'}</sui-button>
+        </div>
+      </div>
+    </form>
+  {/if}
+{/if}
