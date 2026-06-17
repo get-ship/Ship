@@ -4,7 +4,7 @@
 // the earlier <sui-shell-top> primitive was consolidated away.
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { setRouterPort } from '@ship/sui-runtime'
+import { setRouterPort } from '@ship/deck/route'
 import '../../src/components/sui-shell-bottom/sui-shell-bottom.compiled.js'
 import '../../src/components/sui-blank-canvas/sui-blank-canvas.compiled.js'
 // sui-icon + sui-spinner are referenced by sui-blank-canvas's template.

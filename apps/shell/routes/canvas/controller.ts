@@ -1,7 +1,7 @@
 import { controller, signal, derived, ref, live } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import { ship } from '../../ops'
-import { route as routeFactory } from '@ship/sui-runtime/route'
+import { route as routeFactory } from '@ship/deck/route'
 import type { Scope } from './page.sui'
 
 const PAIR_KEY_PREFIX = 'ship.canvas.pair.'

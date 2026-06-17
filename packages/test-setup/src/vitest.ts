@@ -152,6 +152,7 @@ export function suiComponentVitestConfig(opts: SuiComponentVitestOptions = {}) {
         // renderView/renderComponent in @ship/test-setup import these.
         '@ship/sui-dom/test-utils': require.resolve('@ship/sui-dom/test-utils'),
         '@ship/sui-runtime/template-hooks': require.resolve('@ship/sui-runtime/template-hooks'),
+        '@ship/deck/route': require.resolve('@ship/deck/route'),
         '@ship/sui-runtime/route': require.resolve('@ship/sui-runtime/route'),
         '@ship/sui-runtime/virtual': require.resolve('@ship/sui-runtime/virtual'),
         '@ship/sui-runtime': require.resolve('@ship/sui-runtime'),

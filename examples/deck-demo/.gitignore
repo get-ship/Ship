@@ -1,4 +1,4 @@
 # deck build output — generated, never committed (#222).
 app/.deck/
 spa/dist/
-spa/src/routes.gen.ts
+spa/routes.gen.ts

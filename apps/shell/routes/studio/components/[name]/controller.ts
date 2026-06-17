@@ -1,44 +1,12 @@
 import { DECK_PREFIX } from '@ship/sdk-client'
 import { controller, signal, effect, derived } from '@ship/sui-runtime'
-import { defineRoutes } from '@ship/sui-runtime/route'
-import type { ViewScope } from '@ship/sui-runtime'
-import type { Scope } from './page.sui'
-import { loadCatalog, type CatalogEntry, type PropEntry } from '../catalog'
-import {
-  buildCells,
-  deriveAxes,
-  mountMatrixCells,
-  type MatrixAxis,
-} from './matrix'
-import { slotLabel } from './slot-compositions'
-import { buildSnippet } from './snippet'
-import { readSearchParams, writeSearchParams, highlightActiveCell } from './deep-link'
-
-
-const BOOL_TYPES = new Set(['boolean', 'Boolean', 'bool'])
-const isBoolType = (t: string | undefined) => t !== undefined && BOOL_TYPES.has(t)
-
-// One playground knob, classified for the template's typed control set:
-// enum → segmented buttons, bool → checkbox, string → text input.
-interface Knob {
-  name: string
-  kind: 'enum' | 'bool' | 'string'
-  values: string[]
-}
-
-function classifyKnob(p: PropEntry): Knob {
-  if (Array.isArray(p.values) && p.values.length > 0)
-    return { name: p.name, kind: 'enum', values: p.values }
-  if (isBoolType(p.type)) return { name: p.name, kind: 'bool', values: [] }
-  return { name: p.name, kind: 'string', values: [] }
-}
-
-// Canonical access path is /studio/components/:name (the shell route) and
-// /_deck/view/studio/components/:name (view-host standalone, e.g. dev-panel popouts).
-defineRoutes([
-  { pattern: '/studio/components/:name' },
-  { pattern: `${DECK_PREFIX}/view/studio/components/:name` },
-])
+// `defineRoutes` is intentionally NOT called here. The shell's
+// /studio/components/:name route is registered by the codegen at boot
+// (apps/shell/routes.gen.ts); the view's defineRoutes would land in a
+// separate runtime instance and never seed the shell's shared `route`
+// proxy's `params.name`. The view-host standalone pattern
+// /_deck/view/studio/components/:name is documented here but is
+// registered by a future host (TODO: not yet wired).
 
 // Shared across mounts: one iframe + one preview node at module scope. Holding
 // them caps DOM iframe count at 1 (the SSE connection survives navigations) and
@@ -56,9 +24,10 @@ export default controller({
     const copyFeedback = signal(false)
     // Authoritative subroute slug — seeded from `location.pathname` at
     // mount() rather than `route.params.name()`. The shell pre-registers
-    // the dynamic pattern, so the view's own `defineRoutes` lands in a
-    // different runtime instance and the shell's shared `route` proxy
-    // never seeds `params.name`. Reading the pathname sidesteps that.
+    // /studio/components/:name at boot (see apps/shell/routes.gen.ts),
+    // so `route.params.name()` resolves on first paint. Reading the
+    // pathname is defensive — if the codegen ever drifts, this still
+    // works.
     const currentName = signal<string>('')
 
     const entry = derived(() => {

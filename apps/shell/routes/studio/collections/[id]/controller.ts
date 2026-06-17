@@ -8,12 +8,10 @@
 // route `/api/v1/collections/<id>/items` — same surface the index view
 // uses.
 
-import { controller, signal, derived, live, unwrap, defineRoutes } from '@ship/sui-runtime'
+import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { ops } from '../../../../ops'
-
-defineRoutes([{ pattern: '/studio/collections/:id' }])
 
 interface SchemaField {
   name: string

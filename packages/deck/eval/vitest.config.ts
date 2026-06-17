@@ -4,8 +4,9 @@ import { resolve } from 'node:path'
 export default defineConfig({
   resolve: {
     alias: {
-      '@ship/sui-runtime/route': resolve(__dirname, '../../sui/runtime/src/route/index.ts'),
+      '@ship/deck/route': resolve(__dirname, '../../deck/route/src/index.ts'),
       '@ship/sui-runtime/template-hooks': resolve(__dirname, '../../sui/runtime/src/template-hooks/index.ts'),
+
       '@ship/sui-runtime': resolve(__dirname, '../../sui/runtime/src/index.ts'),
       '@ship/sui-dom/test-utils': resolve(__dirname, '../../sui/dom/src/test-utils/compile-sui.ts'),
       '@ship/sui-dom': resolve(__dirname, '../../sui/dom/src/index.ts'),

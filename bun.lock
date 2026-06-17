@@ -505,6 +505,17 @@
         "vitest": "^4.1.5",
       },
     },
+    "packages/deck/route": {
+      "name": "@ship/deck/route",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "typescript": "~5.8.3",
+        "vitest": "^4.1.5",
+      },
+    },
     "packages/deck/sdk": {
       "name": "@ship/sdk",
       "version": "0.2.0",
@@ -573,6 +584,9 @@
     "packages/sui/runtime": {
       "name": "@ship/sui-runtime",
       "version": "0.1.0",
+      "dependencies": {
+        "@ship/deck/route": "workspace:*",
+      },
       "devDependencies": {
         "@ship/test-setup": "workspace:*",
         "@tanstack/virtual-core": "^3.16.1",
@@ -1205,6 +1219,8 @@
     "@ship/deck-host": ["@ship/deck-host@workspace:packages/deck/host"],
 
     "@ship/deck-test-harness": ["@ship/deck-test-harness@workspace:packages/deck/test-harness"],
+
+    "@ship/deck/route": ["@ship/deck/route@workspace:packages/deck/route"],
 
     "@ship/docs": ["@ship/docs@workspace:apps/docs"],
 

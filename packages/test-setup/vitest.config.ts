@@ -18,6 +18,10 @@ export default defineConfig({
         replacement: resolve(__dirname, '../sui/runtime/src/template-hooks/index.ts'),
       },
       {
+        find: '@ship/deck/route',
+        replacement: resolve(__dirname, '../deck/route/src/index.ts'),
+      },
+      {
         find: '@ship/sui-runtime/route',
         replacement: resolve(__dirname, '../sui/runtime/src/route/index.ts'),
       },
