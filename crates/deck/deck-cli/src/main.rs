@@ -23,12 +23,29 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Regenerate the typed dynamic-route table (routes.gen.ts) from the app's
-    /// studio view tree. Also run inside `build`; standalone for dev iteration.
+    /// Regenerate the typed dynamic-route table (routes.gen.ts) from each app's
+    /// `routes/` view tree. Also run inside `build`; standalone for dev iteration.
+    ///
+    /// A `routes/` dir is a tree of mountable views — a route IS a directory
+    /// with a `page.sui` (and optionally a `controller.ts`). A `[param]`
+    /// segment in the dir name is a dynamic. No manifests. With no flags, walks
+    /// `apps/shell/routes` and `apps/spaces/routes` relative to cwd (the
+    /// canonical monorepo layout).
     Routes {
-        /// App root holding src/studio (default: cwd).
-        #[arg(long, default_value = ".")]
-        shell_root: PathBuf,
+        /// App root holding the new-style `routes/` dir. Walks
+        /// `<shell>/routes/` and writes `<shell>/routes.gen.ts`.
+        #[arg(long)]
+        shell: Vec<PathBuf>,
+        /// Space-scaffold root holding `routes/`. Walks `<spaces>/routes/`
+        /// and writes `<spaces>/routes.gen.ts`.
+        #[arg(long)]
+        spaces: Vec<PathBuf>,
+        /// DEPRECATED: the legacy `src/` layout. Walks `<shell-root>/src/`
+        /// and writes `<shell-root>/src/routes.gen.ts`. Kept for the
+        /// in-flight migration of existing checkouts; the new
+        /// `routes/` convention replaces it.
+        #[arg(long, hide = true)]
+        shell_root: Vec<PathBuf>,
     },
 
     /// Generate boilerplate for a new view or primitive component.
@@ -126,11 +143,54 @@ fn main() {
 
 fn run() -> Result<()> {
     match Cli::parse().command {
-        Command::Routes { shell_root } => {
+        Command::Routes { shell, spaces, shell_root } => {
             let cwd = std::env::current_dir().context("cwd")?;
-            let root = if shell_root.is_absolute() { shell_root } else { cwd.join(shell_root) };
-            let n = deck_bundler::routes::generate_routes(&root)?;
-            println!("deck routes → {n} dynamic routes");
+            let resolve = |p: PathBuf| {
+                if p.is_absolute() { p } else { cwd.join(p) }
+            };
+            // Default to the canonical monorepo layout when no flags are given.
+            let (shells, spaces_dirs, legacy_roots) = if shell.is_empty()
+                && spaces.is_empty()
+                && shell_root.is_empty()
+            {
+                (
+                    vec![cwd.join("apps/shell")],
+                    vec![cwd.join("apps/spaces")],
+                    Vec::new(),
+                )
+            } else {
+                (shell.into_iter().map(resolve).collect(),
+                 spaces.into_iter().map(resolve).collect(),
+                 shell_root.into_iter().map(resolve).collect())
+            };
+            let mut specs = Vec::new();
+            for s in &shells {
+                specs.push(deck_bundler::routes::RouteGenSpec {
+                    dir: s.join("routes"),
+                    out: s.join("routes.gen.ts"),
+                    label: "shell".to_string(),
+                });
+            }
+            for s in &spaces_dirs {
+                specs.push(deck_bundler::routes::RouteGenSpec {
+                    dir: s.join("routes"),
+                    out: s.join("routes.gen.ts"),
+                    label: "spaces".to_string(),
+                });
+            }
+            for s in &legacy_roots {
+                // Deprecated `src/` layout — emit to the legacy output path
+                // (`<shell_root>/src/routes.gen.ts`) so old checkouts still
+                // find the import. The new convention replaces it.
+                specs.push(deck_bundler::routes::RouteGenSpec {
+                    dir: s.join("src"),
+                    out: s.join("src/routes.gen.ts"),
+                    label: "shell".to_string(),
+                });
+            }
+            let n = deck_bundler::routes::generate_routes(&specs)?;
+            let total = specs.len();
+            println!("deck routes → {n} dynamic routes across {total} spec(s)");
             Ok(())
         }
         Command::Scaffold(Scaffold::View { name, path, component }) => {
