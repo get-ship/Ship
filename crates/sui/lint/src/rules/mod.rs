@@ -28,6 +28,7 @@ pub mod dead_affordance;
 pub mod dimension_literal;
 pub mod css_token;
 pub mod event_name;
+pub mod font_literal;
 pub mod for_key;
 pub mod layout_primitive;
 pub mod prop_value;
@@ -58,7 +59,7 @@ pub const SUI_TEMPLATE_RULES: &[(&str, RuleFn)] = &[
     (css_literals::RULE_ID, css_literals::check),
     (css_content_text::RULE_ID, css_content_text::check),
     (css_token::RULE_ID, css_token::check),
-    (for_key::RULE_ID, for_key::check),
+    (font_literal::RULE_ID, font_literal::check),
     (event_name::RULE_ID, event_name::check),
     (prop_value::RULE_ID, prop_value::check),
     (attr_presence::RULE_ID, attr_presence::check),
