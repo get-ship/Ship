@@ -20,5 +20,3 @@ pub mod search;
 pub mod search_context;
 pub mod settings;
 pub mod space;
-pub mod sui;
-pub mod view;

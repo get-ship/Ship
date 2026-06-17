@@ -5,14 +5,14 @@
 //! See docs/ship-architecture/references/docs/op-surface.md.
 //!
 //! Split (file-cap): the big per-domain mount blocks live in submodules —
-//! `pipelines_wire`, `agents_wire`, `view_wire` — each a `mount(router, …)`
+//! `pipelines_wire`, `agents_wire`, `ui_wire` — each a `mount(router, …)`
 //! that registers one crate-owned wire with its shipd closures. `policy`
 //! carries the proto-policy introspection map.
 
 mod agents_wire;
 mod pipelines_wire;
 pub mod policy;
-mod view_wire;
+mod ui_wire;
 #[cfg(test)]
 mod tests;
 
@@ -293,10 +293,10 @@ pub fn router(state: ApiState) -> axum::Router {
         None => router,
     };
     let router = ship_ops_rpc::EventsServiceExt::register(svc.clone(), router);
-    // view.* — crate-owned ViewWire (ship-views); closures in `view_wire`.
-    let router = view_wire::mount(router, &state);
-    let router = ship_ops_rpc::RegistryServiceExt::register(svc.clone(), router);
-    let router = ship_ops_rpc::SuiServiceExt::register(svc.clone(), router);
+    // ui.* — the unified authoring service (compiler analysis + view authoring
+    // + component discovery). Crate-owned `UiWire` (ship-views); closures in
+    // `ui_wire`. Replaces the retired `sui.*` and `view.*` services.
+    let router = ui_wire::mount(router, &state);
     // search — ShipdSearchWire (rpc::search) branches on the request scope:
     // THIS_SPACE runs the active-space ShipdSearchContext (the historical
     // single-context path); GLOBAL fans out across reachable spaces via

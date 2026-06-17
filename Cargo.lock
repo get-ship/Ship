@@ -9216,6 +9216,7 @@ dependencies = [
  "ship-substrate",
  "ship-types",
  "specta",
+ "sui-compiler",
  "tempfile",
  "tokio",
 ]

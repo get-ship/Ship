@@ -10,9 +10,11 @@ ship-substrate = { path = "../../../ship-substrate" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-collection = { path = "../ship-collection" }
 ship-artifacts = { path = "../ship-artifacts" }
-# ConnectRPC wire layer (wire.rs) — implements ViewService for shipd mount.
+# ConnectRPC wire layer (wire.rs) — implements UiService for shipd mount.
 connectrpc = { version = "0.4", features = ["axum"] }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
+# SUI compiler analysis facade (diagnostics / hover / dependencies).
+sui-compiler = { path = "../../../../sui/compiler" }
 
 deck = { path = "../../../../deck/deck" }
 async-trait = { workspace = true }

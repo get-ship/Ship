@@ -1,11 +1,14 @@
-//! view.* mount — crate-owned ViewWire (ship-views).
+//! ui.* mount — crate-owned `UiWire` (ship-views).
 //!
-//! Replaces `impl ViewService for OpsImpl` in the old view_rpc.rs (deleted).
-//! Session writes (patch/append/signal) answer "not found" — the canvas
-//! registry they used to capture is gone (see `mount`); edit-mode
-//! grant/revoke call ship_views::view_authoring directly (no daemon state);
-//! tool dispatch captures ApiState via the tool_fn closure. The synchronous
-//! scaffold core (`ViewService::Scaffold`) also lives here.
+//! Replaces the previous `view_wire` + `sui` + `view` modules: the unified
+//! `UiService` trait (12 RPCs) is implemented by `ship_views::wire::UiWire`,
+//! and shipd supplies the per-daemon context (auth, edit-mode grants, tool
+//! dispatch, scaffold ship_dir, and the `sources/` tree the bundler emits).
+//!
+//! Sources root: `<ship_dir>/dist/_deck/sources/`. The deck-bundler emits the
+//! `sources/` tree at build time; the runtime reads it. When the path
+//! doesn't exist yet (no bundle built) the `Packs`/`Read` RPCs return empty
+//! results — the rest of the trait still serves its writes.
 
 use std::sync::Arc;
 
@@ -18,8 +21,8 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
     // was deleted with the UI purge — no surface can create (`view.open` is gone)
     // or watch (the SSE subscribe route is gone) a session, so the registry was
     // permanently empty and every call already answered "not found". These
-    // closures preserve that exact observable behavior; removing the three ops
-    // from view.proto is the L1 follow-up cut.
+    // closures preserve that exact observable behavior; the three ops now live
+    // under `ship.ui.write` / C1.
     let view_patch_fn: ship_views::wire::PatchFn =
         Arc::new(move |id, _agent, _selector, _html| {
             Box::pin(async move { Err(no_view_session(&id)) })
@@ -32,7 +35,7 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
         Arc::new(move |id, _agent, _name, _value| {
             Box::pin(async move { Err(no_view_session(&id)) })
         });
-    // `ViewService.Tool` — inlined from the now-cut
+    // `UiService.Tool` — inlined from the now-cut
     // `routes::view_edit_tool_api::dispatch_tool_core`. The handler body
     // was a 3-line wrapper around
     // `ship_views::view_authoring::tool_dispatch::dispatch(&adapter, …)`;
@@ -77,7 +80,7 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
                 .and_then(|a| a.agent_id.clone())
                 .ok_or_else(|| ConnectError::permission_denied("agent identity required"))
         });
-    // scaffold_fn: moves scaffold_view route-core into the ViewWire.
+    // scaffold_fn: moves scaffold_view route-core into the UiWire.
     // Runs synchronous fs I/O in spawn_blocking so the future is Send.
     let scaffold_ship_dir = state.ship_dir().to_path_buf();
     let view_scaffold_fn: ship_views::wire::ScaffoldViewFn =
@@ -91,7 +94,12 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
                 .map_err(|e| ConnectError::internal(format!("scaffold task: {e}")))?
             })
         });
-    let view_wire = Arc::new(ship_views::wire::ViewWire::new(
+    // Sources root — the bundle's emitted `sources/` tree. Convention:
+    // `<ship_dir>/dist/_deck/sources/`. May not exist yet (no bundle run);
+    // the wire handles missing dirs with empty Packs / NotFound Read.
+    let sources_root = state.ship_dir().join("dist").join("_deck").join("sources");
+    let ui_wire = Arc::new(ship_views::wire::UiWire::new(
+        sources_root,
         view_agent_fn,
         view_patch_fn,
         view_append_fn,
@@ -99,7 +107,7 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
         view_tool_fn,
         view_scaffold_fn,
     ));
-    ship_ops_rpc::ViewServiceExt::register(view_wire, router)
+    ship_ops_rpc::UiServiceExt::register(ui_wire, router)
 }
 
 /// The error every session write answers with — identical to what the
@@ -110,7 +118,7 @@ fn no_view_session(id: &str) -> ConnectError {
 }
 
 // ── scaffold_view_sync ────────────────────────────────────────────────────────
-// Synchronous scaffold logic for ViewService::Scaffold. Moved from
+// Synchronous scaffold logic for UiService::Scaffold. Moved from
 // routes/create_api.rs::scaffold_view; runs in spawn_blocking from the closure.
 fn scaffold_view_sync(
     ship_dir: &std::path::Path,
