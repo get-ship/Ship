@@ -35,7 +35,11 @@
   :host { display: none; }
   :host([active]) {
     display: block;
-    animation: sui-tab-panel-fade var(--duration-medium) var(--ease-out);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    :host([active]) {
+      animation: sui-tab-panel-fade var(--duration-medium) var(--ease-out);
+    }
   }
   @keyframes sui-tab-panel-fade {
     from { opacity: 0; transform: translateY(4px); }
