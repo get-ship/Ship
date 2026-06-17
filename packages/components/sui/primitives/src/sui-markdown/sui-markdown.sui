@@ -30,8 +30,8 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--heading-font);
-    font-weight: var(--heading-weight, var(--font-weight-semibold));
-    letter-spacing: var(--heading-tracking, normal);
+    font-weight: var(--heading-weight);
+    letter-spacing: var(--heading-tracking);
     line-height: var(--leading-tight);
     margin: var(--space-5) 0 var(--space-2);
   }
@@ -43,7 +43,7 @@
   a {
     color: var(--primary);
     text-decoration: underline;
-    text-decoration-color: color-mix(in oklch, var(--primary) 30%, transparent);
+    text-decoration-color: var(--selected-border);
     text-underline-offset: 2px;
   }
   a:hover { text-decoration-color: var(--primary); }
@@ -51,15 +51,15 @@
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     font-variant-numeric: tabular-nums;
-    padding: 1px 5px;
+    padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
-    background: color-mix(in oklch, var(--card) 70%, var(--muted));
+    background: var(--surface-1);
     border: 1px solid var(--border-subtle);
   }
   pre {
     font-family: var(--font-mono);
     font-size: var(--text-sm);
-    background: color-mix(in oklch, var(--card) 40%, var(--muted));
+    background: var(--surface-2);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     padding: var(--space-3) var(--space-4);
@@ -72,7 +72,7 @@
     padding: var(--space-2) var(--space-4);
     border-left: 3px solid var(--primary);
     color: var(--muted-foreground);
-    background: color-mix(in oklch, var(--primary) 6%, transparent);
+    background: var(--tone-primary-bg);
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   }
   ul, ol { margin: var(--space-3) 0; padding-inline-start: var(--space-5); }
