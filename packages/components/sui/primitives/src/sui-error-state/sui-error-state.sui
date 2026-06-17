@@ -45,28 +45,28 @@
     --tone-fg: var(--destructive);
     --es-pad-y: 64px;
     --es-pad-x: 16px;
-    --es-gap: var(--space-3, 12px);
+    --es-gap: var(--space-3);
     --es-icon: 22px;
     --es-tile: 48px;
-    --es-title-fs: var(--text-md, 16px);
-    --es-desc-fs: var(--text-sm, 14px);
+    --es-title-fs: var(--text-md);
+    --es-desc-fs: var(--text-sm);
   }
   :host([hidden]) { display: none; }
 
   :host([size='sm']) {
-    --es-pad-y: var(--space-7, 28px);
-    --es-pad-x: var(--space-4, 16px);
-    --es-gap: var(--space-2, 8px);
+    --es-pad-y: var(--space-7);
+    --es-pad-x: var(--space-4);
+    --es-gap: var(--space-2);
     --es-icon: 16px; --es-tile: 36px;
-    --es-title-fs: var(--text-base, 14px);
+    --es-title-fs: var(--text-base);
   }
   :host([size='lg']) {
     --es-pad-y: 96px;
-    --es-pad-x: var(--space-6, 24px);
-    --es-gap: var(--space-4, 16px);
+    --es-pad-x: var(--space-6);
+    --es-gap: var(--space-4);
     --es-icon: 28px; --es-tile: 64px;
-    --es-title-fs: var(--text-lg, 18px);
-    --es-desc-fs: var(--text-base, 15px);
+    --es-title-fs: var(--text-lg);
+    --es-desc-fs: var(--text-base);
   }
 
   .box {
@@ -77,7 +77,7 @@
     gap: var(--es-gap);
     padding: var(--es-pad-y) var(--es-pad-x);
     text-align: center;
-    background: color-mix(in oklch, var(--muted) 30%, var(--card));
+    background: var(--tone-muted-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-xs);
@@ -87,11 +87,11 @@
     align-items: center;
     justify-content: flex-start;
     text-align: start;
-    background: color-mix(in oklch, var(--destructive) 4%, var(--card));
-    border: 1px solid color-mix(in oklch, var(--destructive) 24%, var(--border));
+    background: var(--tone-destructive-bg);
+    border: 1px solid var(--tone-destructive-border);
     border-radius: var(--radius-md);
     box-shadow: none;
-    padding: var(--space-3, 12px) var(--space-4, 16px);
+    padding: var(--space-3) var(--space-4);
   }
 
   .icon {
@@ -102,10 +102,10 @@
     width: var(--es-tile);
     height: var(--es-tile);
     border-radius: var(--radius-lg);
-    background: color-mix(in oklch, var(--destructive) 18%, var(--muted));
+    background: var(--tone-destructive-bg);
     color: var(--destructive);
     line-height: 1;
-    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--destructive) 22%, transparent);
+    box-shadow: inset 0 0 0 1px var(--tone-destructive-ring);
   }
   :host([variant='inline']) .icon {
     width: var(--es-icon);
@@ -117,7 +117,7 @@
   .copy {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
     align-items: center;
     min-width: 0;
   }
@@ -125,9 +125,9 @@
 
   .title {
     font-size: var(--es-title-fs);
-    font-weight: var(--font-weight-semibold, 600);
+    font-weight: var(--font-weight-semibold);
     color: var(--foreground);
-    line-height: var(--leading-tight, 1.25);
+    line-height: var(--leading-tight);
   }
 
   .desc {
@@ -138,12 +138,12 @@
 
   .code {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--text-xs);
     color: var(--muted-foreground);
     background: var(--muted);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
-    padding: 2px 7px;
+    padding: var(--space-1) var(--space-2);
     margin-top: var(--space-1);
   }
   .code:empty { display: none; }
@@ -158,7 +158,7 @@
     font-size: var(--text-xs);
     color: var(--muted-foreground);
     cursor: pointer;
-    padding: 2px 6px;
+    padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
     margin-top: var(--space-1);
   }
@@ -170,7 +170,7 @@
     display: none;
     margin-top: var(--space-2);
     padding: var(--space-2) var(--space-3);
-    background: color-mix(in oklch, var(--destructive) 6%, var(--muted));
+    background: var(--tone-destructive-bg);
     border-radius: var(--radius-sm);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
@@ -184,9 +184,9 @@
 
   .actions {
     display: flex;
-    gap: var(--space-2, 8px);
+    gap: var(--space-2);
     justify-content: center;
-    margin-top: 4px;
+    margin-top: var(--space-1);
     flex-wrap: wrap;
   }
   :host([variant='inline']) .actions {
