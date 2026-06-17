@@ -51,6 +51,7 @@
   :host {
     position: relative;
     display: inline-flex;
+    --sui-popover-anchor: --sui-popover-default;
   }
   :host([hidden]) { display: none; }
 
@@ -71,16 +72,16 @@
 
   .panel > .surface {
     min-width: 180px;
-    padding: 6px;
+    padding: var(--space-2);
     background: var(--popover);
     color: var(--popover-foreground);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg), inset 0 1px 0 color-mix(in oklch, var(--background) 40%, transparent);
-    backdrop-filter: var(--card-backdrop-filter, none);
-    -webkit-backdrop-filter: var(--card-backdrop-filter, none);
-    font-family: var(--font-body, system-ui);
-    font-size: var(--text-base, 14px);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 var(--background);
+    backdrop-filter: var(--card-backdrop-filter);
+    -webkit-backdrop-filter: var(--card-backdrop-filter);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
   }
   /* Open/close polish is driven by `transition:scale` on the
      #if-mounted .surface (see template). No CSS transition here. */
@@ -90,10 +91,10 @@
      anchors to its own trigger without any inline-style juggling. */
   @supports (anchor-name: --x) {
     ::slotted([slot='trigger']) {
-      anchor-name: var(--sui-popover-anchor, --sui-popover-default);
+      anchor-name: var(--sui-popover-anchor);
     }
     .panel {
-      position-anchor: var(--sui-popover-anchor, --sui-popover-default);
+      position-anchor: var(--sui-popover-anchor);
       /* When the chosen placement would clip the panel against the
          viewport edge, fall back automatically. `flip-block` swaps
          top↔bottom, `flip-inline` swaps left↔right, and the combined
