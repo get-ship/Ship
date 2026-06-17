@@ -1,9 +1,0 @@
-// Route metadata for views/agents/[id]/settings/. See
-// docs/ship-adrs/references/docs/view-directory-convention.md.
-{
-  "name": "agents-settings",
-  "path": "/studio/agents/[id]/settings",
-  "title": "Agent Settings",
-  "layout": "default",
-  "auth": "user"
-}

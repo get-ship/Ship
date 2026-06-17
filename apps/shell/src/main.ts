@@ -67,7 +67,7 @@ import { ops } from './ops'
 // popover, tooltip, tabs, etc.) — are resolved per-tag from workspace source
 // that the per-tag resolver cannot trace.
 import { route as createRoute, defineRoutes, setRouterPort } from '@ship/sui-runtime/route'
-import { DYNAMIC_ROUTE_PATTERNS } from './routes.gen'
+import { DYNAMIC_ROUTE_PATTERNS } from '../routes.gen'
 import { chrome, mount, notifyViewUnmount, setHostContext } from '@ship/sui-runtime'
 import type { SuiLoader, ViewPayload } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'

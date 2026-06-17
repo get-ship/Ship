@@ -1,9 +1,0 @@
-// Route metadata for views/agents/[id]/wire/. See
-// docs/ship-adrs/references/docs/view-directory-convention.md.
-{
-  "name": "agents-wire",
-  "path": "/studio/agents/[id]/wire",
-  "title": "Agent Wire",
-  "layout": "default",
-  "auth": "user"
-}

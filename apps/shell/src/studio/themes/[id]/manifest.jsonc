@@ -1,8 +1,0 @@
-// Route metadata for views/studio/themes/[id]/ — the theme editor.
-{
-  "name": "themes-detail",
-  "path": "/studio/themes/[id]",
-  "title": "Theme editor",
-  "layout": "default",
-  "auth": "user"
-}
