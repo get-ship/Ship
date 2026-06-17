@@ -70,18 +70,18 @@ function ensureSessionId(): string {
 }
 
 async function dispatch<T = unknown>(view: string, op: string, args: Record<string, unknown> = {}): Promise<T> {
-  // ViewService.Tool (Connect) replaces POST /api/v1/views/<view>/edit/tool.
-  const resp = await ops.view.tool({
+  // UiService.Tool (Connect, the unified ship.ui service) replaces POST
+  // /api/v1/views/<view>/edit/tool.
+  const resp = await ops.ui.tool({
     view, sessionId: ensureSessionId(), op, argsJson: JSON.stringify(args),
   })
   return JSON.parse(resp.json) as T
 }
-
 async function postLifecycle(view: string, kind: 'enter' | 'exit'): Promise<void> {
-  // ViewService.Enter/ExitEditMode (Connect) replaces the edit-mode/{kind} route.
+  // UiService.Enter/ExitEditMode (Connect) replaces the edit-mode/{kind} route.
   const req = { view, sessionId: ensureSessionId() }
-  if (kind === 'enter') await ops.view.enterEditMode(req)
-  else await ops.view.exitEditMode(req)
+  if (kind === 'enter') await ops.ui.enterEditMode(req)
+  else await ops.ui.exitEditMode(req)
 }
 
 const mcp: ViewMcp = {

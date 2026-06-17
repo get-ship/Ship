@@ -49,7 +49,7 @@ import type { Setting, SettingList } from "./gen/ship/ops/v1/settings_pb.js";
 import { SkillsService } from "./gen/ship/ops/v1/skills_pb.js";
 import { SearchService } from "./gen/ship/ops/v1/search_pb.js";
 import { SpaceService } from "./gen/ship/ops/v1/space_pb.js";
-import { ViewService } from "./gen/ship/ops/v1/view_pb.js";
+import { UiService } from "./gen/ship/ops/v1/ui_pb.js";
 
 export interface ShipConnectOptions {
   /** Daemon base URL, e.g. `http://127.0.0.1:9315`. */
@@ -83,7 +83,11 @@ export interface ShipConnectClient {
   settings: Client<typeof SettingsService>;
   skills: Client<typeof SkillsService>;
   space: Client<typeof SpaceService>;
-  view: Client<typeof ViewService>;
+  /** Unified authoring service (`UiService`): component discovery (Packs, Read),
+   *  SUI compiler analysis (Diagnostics, Hover, Dependencies), and view
+   *  authoring writes (PatchSession, AppendSession, SignalSession, EditMode,
+   *  Tool, Scaffold). Replaces the retired `SuiService` + `ViewService` pair. */
+  ui: Client<typeof UiService>;
 }
 
 /** Attach `Authorization: Bearer <token>` to every request. */
@@ -123,7 +127,7 @@ export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectCl
     settings: createClient(SettingsService, transport),
     skills: createClient(SkillsService, transport),
     space: createClient(SpaceService, transport),
-    view: createClient(ViewService, transport),
+    ui: createClient(UiService, transport),
   };
 }
 
@@ -147,7 +151,7 @@ export {
   SettingScope,
   SkillsService,
   SpaceService,
-  ViewService,
+  UiService,
 };
 
 export {
