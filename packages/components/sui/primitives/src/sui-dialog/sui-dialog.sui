@@ -55,7 +55,7 @@
     padding: 0;
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
-    background: var(--card);
+    background: var(--surface-1);
     color: var(--card-foreground);
     width: calc(100vw - 32px);
     max-width: var(--dlg-max-w);

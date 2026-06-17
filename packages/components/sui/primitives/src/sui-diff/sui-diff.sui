@@ -36,13 +36,16 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     overflow: hidden;
+    /* Off-scale: 1px hairline — line padding rounds the gutter markers without */
+    /* adding real vertical space. */
+    --diff-line-pad-y: 1px;
   }
   :host([hidden]) { display: none; }
 
   .line {
     display: grid;
     grid-template-columns: 16px 1fr;
-    padding: 1px 8px;
+    padding: var(--diff-line-pad-y) var(--space-2);
     white-space: pre-wrap;
     word-break: break-word;
   }

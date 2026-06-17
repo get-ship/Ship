@@ -43,7 +43,7 @@
     margin: 0; padding: 0;
     border: none;
     border-left: 1px solid var(--border);
-    background: var(--card);
+    background: var(--surface-1);
     color: var(--card-foreground);
     width: min(var(--dr-w), calc(100vw - var(--space-7)));
     max-width: 100vw;

@@ -32,12 +32,10 @@
   .head .id { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); }
 
   .form {
-    display: flex; flex-direction: column; gap: var(--space-3);
     padding: var(--space-4);
     background: var(--surface-1);
     border: 1px solid var(--border); border-radius: var(--radius-md);
   }
-  .field { display: flex; flex-direction: column; gap: var(--space-1); }
   .field label {
     font-family: var(--font-mono); font-size: var(--text-xs);
     color: var(--muted-foreground);
@@ -76,7 +74,7 @@
   {:else}
     <form class="form" part="form" data-test="form" on:submit={submit}>
       {#for f of fieldDefs() key={f.name}}
-        <div class="field" data-test={'field-' + f.name}>
+        <sui-stack class="field" gap="1" data-test={'field-' + f.name}>
           <label>
             <span>{f.name}</span>
             <span class="type">· {f.type}</span>

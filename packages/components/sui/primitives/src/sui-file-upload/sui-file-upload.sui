@@ -108,9 +108,6 @@
   }
 
   .file-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
     margin-top: var(--space-2);
   }
 
@@ -140,9 +137,6 @@
   }
 
   .file-meta {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
     flex: 1;
     min-width: 0;
   }
@@ -230,16 +224,16 @@
   <div class="error" role="alert" part="error">{errorMsg()}</div>
 {/if}
 {#if displayFiles().length > 0}
-  <div class="file-list" part="file-list" aria-live="polite" bind:this={fileListEl}>
+  <sui-stack class="file-list" part="file-list" gap="1" aria-live="polite" bind:this={fileListEl}>
     {#for f of displayFiles() key={f.key}}
       <div class="file-item" part="file-item">
         <span class="file-doc-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
         </span>
-        <span class="file-meta">
+        <sui-stack class="file-meta" part="file-meta" gap="1">
           <span class="file-name">{f.name}</span>
           <span class="file-size">{f.sizeStr}</span>
-        </span>
+        </sui-stack>
         <button
           class="remove"
           part="remove"
@@ -249,5 +243,5 @@
         >×</button>
       </div>
     {/for}
-  </div>
+  </sui-stack>
 {/if}

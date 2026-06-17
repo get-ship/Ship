@@ -49,7 +49,7 @@
     font-weight: var(--font-weight-semibold);
     color: var(--foreground);
     cursor: pointer;
-    gap: 8px;
+    gap: var(--space-2);
     transition: background var(--duration-fast) var(--ease-out);
   }
   .trigger:hover { background: var(--hover-bg); }
@@ -88,7 +88,7 @@
   @media (prefers-reduced-motion: reduce) { .content-wrap { transition: none; } }
 
   .content-inner { overflow: hidden; }
-  .content-body { padding: 12px 0; }
+  .content-body { padding: var(--space-3) 0; }
 </style>
 
 <button class="trigger" part="trigger" bind:this={triggerBtn} disabled={disabled()}>

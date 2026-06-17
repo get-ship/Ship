@@ -56,15 +56,20 @@
     vertical-align: middle;
     --tone: var(--foreground);
     --tone-fg: var(--foreground);
+    --tone-border: var(--border);
+    --tone-border-strong: var(--border-strong);
+    --tone-bg-hover: var(--hover-bg);
+    --tone-ring: var(--ring);
+    --sel-pad-end-extra: 6px;
   }
   :host([hidden]) { display: none; }
 
-  :host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info); }
-  :host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--success); }
-  :host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--warning); }
-  :host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive); }
-  :host([tone='accent'])      { --tone: var(--accent);           --tone-fg: var(--accent); }
-  :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); }
+  :host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info);             --tone-border: var(--tone-info-border); --tone-border-strong: var(--tone-info-border); --tone-bg-hover: var(--tone-info-bg); --tone-ring: var(--tone-info-ring); }
+  :host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--success);          --tone-border: var(--tone-success-border); --tone-border-strong: var(--tone-success-border); --tone-bg-hover: var(--tone-success-bg); --tone-ring: var(--tone-success-ring); }
+  :host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--warning);          --tone-border: var(--tone-warning-border); --tone-border-strong: var(--tone-warning-border); --tone-bg-hover: var(--tone-warning-bg); --tone-ring: var(--tone-warning-ring); }
+  :host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive);      --tone-border: var(--tone-destructive-border); --tone-border-strong: var(--tone-destructive-border); --tone-bg-hover: var(--tone-destructive-bg); --tone-ring: var(--tone-destructive-ring); }
+  :host([tone='accent'])      { --tone: var(--accent);           --tone-fg: var(--accent);           --tone-border: var(--tone-accent-border); --tone-border-strong: var(--tone-accent-border); --tone-bg-hover: var(--tone-accent-bg); --tone-ring: var(--tone-accent-ring); }
+  :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-border: var(--tone-muted-border); --tone-border-strong: var(--tone-muted-border); --tone-bg-hover: var(--tone-muted-bg); --tone-ring: var(--tone-muted-ring); }
 
   :host(:not([size])),
   :host([size='md']) { --sel-h: 34px; --sel-px: 12px; --sel-fs: 13px; --sel-gap: 8px; --sel-chev: 14px; }
@@ -78,7 +83,7 @@
     gap: var(--sel-gap);
     min-height: var(--sel-h);
     padding-inline: var(--sel-px);
-    padding-inline-end: calc(var(--sel-px) + var(--sel-chev) + 6px);
+    padding-inline-end: calc(var(--sel-px) + var(--sel-chev) + var(--sel-pad-end-extra));
     background: var(--background);
     color: var(--foreground);
     border: 1px solid var(--border);
@@ -100,17 +105,17 @@
   }
 
   :host(:not([disabled])) .field:hover {
-    background: color-mix(in oklch, var(--muted) 70%, var(--background));
-    border-color: color-mix(in oklch, var(--border) 160%, transparent);
+    background: var(--hover-bg);
+    border-color: var(--border-strong);
     box-shadow: var(--shadow-sm);
   }
 
   :host([tone]:not([tone='default'])) .field {
-    border-color: color-mix(in oklch, var(--tone) 38%, var(--border));
+    border-color: var(--tone-border);
   }
   :host([tone]:not([tone='default']):not([disabled])) .field:hover {
-    background: color-mix(in oklch, var(--tone) 8%, var(--background));
-    border-color: color-mix(in oklch, var(--tone) 55%, var(--border));
+    background: var(--tone-bg-hover);
+    border-color: var(--tone-border-strong);
   }
 
   select {
@@ -120,7 +125,7 @@
     height: 100%;
     margin: 0;
     padding-inline: var(--sel-px);
-    padding-inline-end: calc(var(--sel-px) + var(--sel-chev) + 6px);
+    padding-inline-end: calc(var(--sel-px) + var(--sel-chev) + var(--sel-pad-end-extra));
     font: inherit;
     color: transparent;
     background: transparent;
@@ -169,24 +174,23 @@
   }
   :host(:not([disabled])) .field:hover .chevron { color: var(--foreground); }
   :host([tone]:not([tone='default'])) .chevron {
-    color: color-mix(in oklch, var(--tone-fg) 75%, var(--muted-foreground));
+    color: var(--tone-fg);
   }
 
   :host(:focus-within) .field {
     outline: none;
-    border-color: color-mix(in oklch, var(--tone) 60%, var(--border));
+    border-color: var(--tone-border-strong);
     box-shadow:
       0 0 0 var(--ring-offset) var(--background),
       0 0 0 calc(var(--ring-offset) + var(--ring-width))
-        color-mix(in oklch, var(--tone) 55%, transparent);
+        var(--tone-ring);
   }
   :host(:not([tone]):focus-within) .field,
   :host([tone='default']:focus-within) .field {
-    border-color: color-mix(in oklch, var(--ring-color) 55%, var(--border));
+    border-color: var(--ring-color);
     box-shadow:
       0 0 0 var(--ring-offset) var(--background),
-      0 0 0 calc(var(--ring-offset) + var(--ring-width))
-        color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+      var(--shadow-accent);
   }
 
   :host([invalid]) .field { border-color: var(--destructive); }
@@ -194,8 +198,7 @@
     border-color: var(--destructive);
     box-shadow:
       0 0 0 var(--ring-offset) var(--background),
-      0 0 0 calc(var(--ring-offset) + var(--ring-width))
-        color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent);
+      var(--shadow-accent);
   }
 
   :host([disabled]) {
@@ -205,7 +208,7 @@
   }
   :host([disabled]) .field {
     background: var(--muted);
-    border-color: color-mix(in oklch, var(--border) 80%, transparent);
+    border-color: var(--border-subtle);
     box-shadow: none;
     cursor: not-allowed;
     filter: saturate(0.6);

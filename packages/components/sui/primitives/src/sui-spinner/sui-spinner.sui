@@ -41,12 +41,12 @@
     --sz: 16px;
     --bw: 2px;
   }
-  :host([tone='primary'])     { --tone-fg: var(--primary); }
-  :host([tone='info'])        { --tone-fg: var(--info); }
-  :host([tone='success'])     { --tone-fg: var(--success); }
-  :host([tone='warning'])     { --tone-fg: var(--warning); }
-  :host([tone='destructive']) { --tone-fg: var(--destructive); }
-  :host([tone='accent'])      { --tone-fg: var(--accent); }
+  :host([tone='primary'])     { --tone-fg: var(--primary);     --tone-ring: var(--tone-primary-ring); }
+  :host([tone='info'])        { --tone-fg: var(--info);         --tone-ring: var(--tone-info-ring); }
+  :host([tone='success'])     { --tone-fg: var(--success);      --tone-ring: var(--tone-success-ring); }
+  :host([tone='warning'])     { --tone-fg: var(--warning);      --tone-ring: var(--tone-warning-ring); }
+  :host([tone='destructive']) { --tone-fg: var(--destructive);  --tone-ring: var(--tone-destructive-ring); }
+  :host([tone='accent'])      { --tone-fg: var(--accent);       --tone-ring: var(--tone-accent-ring); }
   :host([size='xs']) { --sz: 10px; --bw: 1.5px; }
   :host([size='sm']) { --sz: 12px; --bw: 1.5px; }
   :host([size='md']) { --sz: 16px; --bw: 2px; }
@@ -64,7 +64,7 @@
     display: inline-block;
     width: var(--sz);
     height: var(--sz);
-    border: var(--bw) solid color-mix(in oklch, var(--tone-fg) 22%, transparent);
+    border: var(--bw) solid var(--tone-ring);
     border-right-color: var(--tone-fg);
     border-radius: 50%;
     animation: sui-spinner-spin 0.7s linear infinite;

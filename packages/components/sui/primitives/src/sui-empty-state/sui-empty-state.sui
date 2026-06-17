@@ -155,13 +155,8 @@
   }
 
   .copy {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    align-items: center;
     min-width: 0;
   }
-  :host([variant='inline']) .copy { align-items: flex-start; }
 
   .title {
     font-family: var(--heading-font);
@@ -208,10 +203,10 @@
   <div class="icon" part="icon" aria-hidden="true">
     <slot name="icon" reflect-empty="data-no-icon"></slot>
   </div>
-  <div class="copy">
+  <sui-stack class="copy" gap="1" align={variant() === 'inline' ? 'start' : 'center'}>
     <div class="title" part="title"><slot name="title"></slot></div>
     <div class="desc" part="desc"><slot></slot></div>
-  </div>
+  </sui-stack>
   <div class="actions" part="actions">
     <slot name="action"></slot>
   </div>

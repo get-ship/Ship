@@ -19,7 +19,8 @@
 <style>
   :host { display: block; position: relative; }
   :host([hidden]) { display: none; }
-  .list { display: flex; flex-direction: column; gap: 4px; }
+
 </style>
 
-<div class="list" part="list"><slot></slot></div>
+<sui-stack class="list" part="list" gap="1"><slot></slot></sui-stack>
+

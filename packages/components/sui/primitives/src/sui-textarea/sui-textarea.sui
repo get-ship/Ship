@@ -82,16 +82,16 @@
   :host([size='md']) {
     --ta-px: 12px;
     --ta-py: 10px;
-    --ta-fs: var(--text-base, 14px);
+    --ta-fs: var(--text-base);
     --ta-lh: 1.5;
-    --ta-radius: var(--radius-md, 6px);
+    --ta-radius: var(--radius-md);
   }
   :host([size='sm']) {
     --ta-px: 10px;
     --ta-py: 8px;
-    --ta-fs: var(--text-sm, 13px);
+    --ta-fs: var(--text-sm);
     --ta-lh: 1.45;
-    --ta-radius: var(--radius-sm, 4px);
+    --ta-radius: var(--radius-sm);
   }
 
   textarea {
@@ -109,13 +109,13 @@
     letter-spacing: -0.005em;
     box-shadow: var(--shadow-xs);
     transition:
-      background-color var(--duration-fast, 150ms) var(--ease-out, ease-out),
-      border-color var(--duration-fast, 150ms) var(--ease-out, ease-out),
-      box-shadow var(--duration-fast, 150ms) var(--ease-out, ease-out);
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out);
   }
 
   :host(:not([disabled])) textarea:hover {
-    border-color: color-mix(in oklch, var(--border) 160%, transparent);
+    border-color: var(--border-strong);
     box-shadow: var(--shadow-sm);
   }
 
@@ -123,14 +123,14 @@
   textarea:focus {
     outline: var(--focus-ring);
     outline-offset: var(--focus-ring-offset);
-    border-color: color-mix(in oklch, var(--tone) 70%, var(--border));
+    border-color: var(--tone-border);
   }
 
   :host([invalid]) textarea {
-    border-color: color-mix(in oklch, var(--destructive) 65%, var(--border));
+    border-color: var(--tone-destructive-border);
   }
   :host([invalid]) textarea:hover {
-    border-color: color-mix(in oklch, var(--destructive) 80%, var(--border));
+    border-color: var(--tone-destructive-border);
   }
   :host([invalid]) textarea:focus-visible,
   :host([invalid]) textarea:focus {
@@ -144,7 +144,7 @@
   textarea:disabled {
     cursor: not-allowed;
     background: var(--muted);
-    border-color: color-mix(in oklch, var(--border) 70%, transparent);
+    border-color: var(--border-subtle);
     color: var(--muted-foreground);
     box-shadow: none;
     opacity: 0.6;
@@ -153,7 +153,7 @@
 
   :host([variant='code']) textarea {
     font-family: var(--mono-font);
-    font-size: var(--text-base, 14px);
+    font-size: var(--text-base);
     line-height: 1.55;
     letter-spacing: 0;
     tab-size: 2;

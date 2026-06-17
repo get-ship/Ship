@@ -43,7 +43,7 @@
     width: 100%;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    background: var(--card);
+    background: var(--surface-1);
     overflow: hidden;
     font-variant-numeric: tabular-nums;
     --sui-grid-template: repeat(var(--sui-col-count), minmax(80px, 1fr));

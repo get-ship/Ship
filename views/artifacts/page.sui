@@ -1,282 +1,152 @@
-<div class="ship-view ship-view-artifacts"
+<!--
+  views/artifacts/page.sui — the Artifacts browser view.
+
+  Composes the @ship/artifacts pack:
+    - <ship-artifact-list>    the live-data table (subscribes to ship.artifacts.list)
+    - <ship-artifact-filters>  search + mime/collection/actor/age selects
+    - <ship-artifact-actions>  promote / rename / delete verbs
+    - <ship-artifact-upload>   drop / file select → host wires ship.artifacts.upload
+    - <ship-artifact-preview>  mime-dispatched preview (image / text / json / binary)
+
+  The host (this view) owns the SDK calls for upload / promote / delete / patch.
+  The pack components are presentational; they emit `ship-artifact-*` events
+  which the page wires to the SDK via the controller.
+
+  Page-level drop (anywhere on the page) is handled by the host so a
+  user can drop a file on empty space without opening the upload dialog.
+-->
+<client name="ship" />
+
+<div class="art-wrap"
   on:dragenter={onDragOver}
   on:dragover={onDragOver}
   on:dragleave={onDragLeave}
   on:drop={onDrop}>
-  <div class="art-wrap" attr:data-drag-active={dragActive()}>
 
-    <header class="art-head">
-      <div class="art-head-titles">
-        <h1 class="art-title">Artifacts</h1>
-        <p class="art-sub">
-          {visibleCount()} of {totalCount()} artifact{totalCount() === 1 ? '' : 's'}
-        </p>
-      </div>
-      <sui-cluster gap="2" align="center">
-        <sui-button tone="primary" variant="solid" size="sm"
-          on:click={openUpload} data-test="upload-button">
-          <sui-icon slot="leading" name="upload"></sui-icon>Upload
-        </sui-button>
-      </sui-cluster>
-    </header>
+  <header class="art-head">
+    <div class="art-head-titles">
+      <h1 class="art-title">Artifacts</h1>
+      <p class="art-sub">{visibleCount()} of {totalCount()} artifact{totalCount() === 1 ? '' : 's'}</p>
+    </div>
+    <sui-cluster gap="2" align="center">
+      <sui-button tone="primary" variant="solid" size="sm"
+        on:click={openUpload} data-test="upload-button">
+        <sui-icon slot="leading" name="upload"></sui-icon>Upload
+      </sui-button>
+    </sui-cluster>
+  </header>
 
-    {#while-error err of artifacts}
-      <sui-error-state title="Couldn't load artifacts" data-test="error" role="alert" aria-live="assertive">
-        {err.message}
-        <sui-button slot="action" tone="primary" variant="solid"
-          on:click={() => refresh()}>Retry</sui-button>
-      </sui-error-state>
-    {/while-error}
-    {#while-loading of artifacts}
-      <ul class="art-list" data-test="loading" role="status" aria-live="polite" aria-busy="true" aria-label="Loading artifacts">
-        {#for n of [0,1,2] key={n}}
-          <li class="art-skel-row" aria-hidden="true">
-            <sui-skeleton shape="block" size="sm" class="art-skel-icon"></sui-skeleton>
-            <div class="art-skel-text">
-              <sui-skeleton shape="line" size="md" style="width:40%"></sui-skeleton>
-              <sui-skeleton shape="line" size="sm" style="width:60%"></sui-skeleton>
+  <ship-artifact-filters
+    prop:collections={collectionsJson()}
+    prop:actors={actorsJson()}
+    on:ship-artifact-filter={onFilterChange}
+  ></ship-artifact-filters>
+  <ship-artifact-list
+    on:ship-artifact-select={onRowSelect}
+  ></ship-artifact-list>
+
+  {#if dragActive()}
+    <div class="art-drop-overlay" data-test="drop-overlay" aria-hidden="true">
+      <sui-icon name="upload" size="lg"></sui-icon>
+      <span>Drop to upload</span>
+    </div>
+  {/if}
+
+  <sui-drawer prop:open={detailOpen()} size="lg"
+    on:sui-close={closeDetail} data-test="detail-drawer">
+    {#if detailItem()}
+      <span slot="title">{detailItem().name || detailItem().id}</span>
+      <span slot="description">{detailItem().mime} · {detailItem().size_label}</span>
+
+      <sui-stack gap="4">
+        <dl class="art-detail-meta">
+          <div class="art-detail-row">
+            <dt>ID</dt>
+            <dd><span class="mono">{detailItem().id}</span></dd>
+          </div>
+          <div class="art-detail-row">
+            <dt>Created</dt>
+            <dd class="muted">{detailItem().created_at}</dd>
+          </div>
+          {#if detailItem().collection_id}
+            <div class="art-detail-row">
+              <dt>Collection</dt>
+              <dd><sui-chip tone="muted" variant="soft" size="sm">{detailItem().collection_id}</sui-chip></dd>
             </div>
-          </li>
-        {/for}
-      </ul>
-    {/while-loading}
-    {#if artifacts().kind === 'ok'}
-    {#if totalCount() === 0}
-      <sui-empty-state variant="default" size="sm" data-test="empty" role="status">
-        <sui-icon slot="icon" name="file"></sui-icon>
-        <span slot="title">No artifacts yet</span>
-        <span slot="description">
-          Run a workflow, or drop a file onto this page to upload one.
-        </span>
-        <sui-button slot="action" tone="primary" variant="solid"
-          on:click={openUpload}>
-          <sui-icon slot="leading" name="upload"></sui-icon>Upload an artifact
-        </sui-button>
-      </sui-empty-state>
-    {:else}
-      <div class="art-filters" data-test="filters">
-        <sui-input type="search" size="sm" placeholder="Search by name, id, actor…"
-          attr:value={searchQuery()}
-          on:sui-input={(e) => setSearchQuery(e.detail.value)}
-          class="art-filter-search"
-          aria-label="Search artifacts" data-test="filter-search"></sui-input>
+          {/if}
+          {#if detailItem().scope}
+            <div class="art-detail-row">
+              <dt>Scope</dt>
+              <dd><span class="mono-snip">{detailItem().scope}</span></dd>
+            </div>
+          {/if}
+        </dl>
 
-        <sui-select size="sm" attr:value={mimeFilter()}
-          on:sui-change={(e) => setMimeFilter(e.detail.value)}
-          aria-label="Filter by type" data-test="filter-mime">
-          <option value="">All types</option>
-          <option value="image">Images</option>
-          <option value="text">Text</option>
-          <option value="json">JSON</option>
-        </sui-select>
+        <ship-artifact-actions
+          prop:record={detailItemJson()}
+          on:ship-artifact-promote={onPromote}
+          on:ship-artifact-delete={onDelete}
+          on:ship-artifact-rename={onRename}
+        ></ship-artifact-actions>
 
-        <sui-select size="sm" attr:value={collectionFilter()}
-          on:sui-change={(e) => setCollectionFilter(e.detail.value)}
-          aria-label="Filter by collection" data-test="filter-collection">
-          <option value="">All collections</option>
+        <div class="art-detail-preview" data-test="detail-preview">
+          <ship-artifact-preview
+            prop:record={detailItemJson()}
+            prop:url={detailUrl()}
+          ></ship-artifact-preview>
+        </div>
+      </sui-stack>
+
+      <div slot="footer">
+        <sui-button variant="ghost" on:click={closeDetail}>Close</sui-button>
+        <a class="art-detail-download" attr:href={detailUrl()} data-no-router
+          attr:download={detailItem().name || detailItem().id}>
+          <sui-button tone="primary" variant="solid">
+            <sui-icon slot="leading" name="download"></sui-icon>Download
+          </sui-button>
+        </a>
+      </div>
+    {/if}
+  </sui-drawer>
+
+  <sui-dialog prop:open={uploadOpen()} size="md"
+    on:sui-close={closeUpload} data-test="upload-dialog">
+    <span slot="header">Upload artifact</span>
+    <sui-stack gap="3">
+      <ship-artifact-upload
+        prop:collection-id={uploadCollection()}
+        prop:disabled={uploading()}
+        on:ship-artifact-upload={(e) => submitUpload(e.detail.files)}
+      ></ship-artifact-upload>
+
+      <sui-stack gap="1">
+        <label class="art-upload-label" for="art-upload-col">
+          Collection <span class="art-upload-hint">(optional)</span>
+        </label>
+        <sui-select size="sm" attr:value={uploadCollection()}
+          on:sui-change={(e) => onUploadCollection(e.detail.value)}
+          prop:disabled={uploading()}
+          data-test="upload-collection">
+          <option value="">No collection</option>
           {#for c of collectionOptions() key={c.id}}
             <option attr:value={c.id}>{c.name || c.id}</option>
           {/for}
         </sui-select>
-
-        <sui-select size="sm" attr:value={actorFilter()}
-          on:sui-change={(e) => setActorFilter(e.detail.value)}
-          aria-label="Filter by actor" data-test="filter-actor">
-          <option value="">All actors</option>
-          {#for a of actorOptions() key={a}}
-            <option attr:value={a}>{a}</option>
-          {/for}
-        </sui-select>
-
-        <sui-select size="sm" attr:value={ageFilter()}
-          on:sui-change={(e) => setAgeFilter(e.detail.value)}
-          aria-label="Filter by age" data-test="filter-age">
-          <option value="">Any age</option>
-          <option value="24h">Last 24h</option>
-          <option value="7d">Last 7 days</option>
-          <option value="30d">Last 30 days</option>
-        </sui-select>
-
-        {#if hasActiveFilters()}
-          <sui-button size="sm" variant="ghost" on:click={clearFilters}
-            data-test="clear-filters">Clear</sui-button>
-        {/if}
-      </div>
-
-      {#if visibleCount() === 0}
-        <sui-empty-state variant="default" size="sm" data-test="empty-filtered" role="status" aria-live="polite">
-          <sui-icon slot="icon" name="search"></sui-icon>
-          <span slot="title">No matches</span>
-          <span slot="description">
-            {totalCount()} artifact{totalCount() === 1 ? '' : 's'} stored, but none match the current filters.
-          </span>
-          <sui-button slot="action" size="sm" variant="ghost" on:click={clearFilters}>
-            Clear filters
-          </sui-button>
-        </sui-empty-state>
-      {:else}
-        <sui-table variant="slot" label="Artifacts" data-test="table"
-          on:sui-row-click={(e) => activateRow(e.detail.id)}>
-          <tr slot="head">
-            <th>Name</th>
-            <th>Type</th>
-            <th>Viewer</th>
-            <th>Actor</th>
-            <th>Age</th>
-            <th>Size</th>
-            <th class="art-th-action" aria-label="Actions"></th>
-          </tr>
-          {#for a of visibleItems() key={a.id}}
-            <tr attr:data-row-id={a.id} data-test="row">
-              <td class="art-cell-name">
-                <sui-icon name="file" size="sm" tone="muted"></sui-icon>
-                <span class="art-cell-name-text">{a.name || a.id}</span>
-              </td>
-              <td><span class="mono muted">{a.mime}</span></td>
-              <td>
-                {#if a.viewer_url}
-                  <sui-chip tone="accent" variant="soft" size="sm" data-test="viewer-badge">
-                    ↗ {a.viewer_label}
-                  </sui-chip>
-                {:else}
-                  <sui-chip tone="muted" variant="soft" size="sm" data-test="viewer-badge">
-                    ⊘ {a.viewer_label}
-                  </sui-chip>
-                {/if}
-              </td>
-              <td>
-                {#if a.owner_actor}
-                  <span class="mono muted">{a.owner_actor}</span>
-                {:else}
-                  <span class="muted">—</span>
-                {/if}
-              </td>
-              <td class="muted">{a.created_short}</td>
-              <td>{a.size_label}</td>
-              <td class="art-cell-action">
-                <a class="art-row-link" attr:href={'/api/v1/artifacts/' + a.id}
-                  data-no-router on:click={(e) => e.stopPropagation()}
-                  attr:title={'Download ' + (a.name || a.id)}
-                  attr:aria-label={'Download ' + (a.name || a.id)}>
-                  <sui-icon name="download" size="sm"></sui-icon>
-                </a>
-              </td>
-            </tr>
-          {/for}
-        </sui-table>
-      {/if}
-    {/if}
-    {/if}
-
-    {#if dragActive()}
-      <div class="art-drop-overlay" data-test="drop-overlay" aria-hidden="true">
-        <sui-icon name="upload" size="lg"></sui-icon>
-        <span>Drop to upload</span>
-      </div>
-    {/if}
-
-    <sui-drawer prop:open={detailOpen()} size="lg"
-      on:sui-close={closeDetail} data-test="detail-drawer">
-      {#if detailItem()}
-        <span slot="title">{detailItem().name || detailItem().id}</span>
-        <span slot="description">{detailItem().mime} · {detailItem().size_label}</span>
-
-        <sui-stack gap="4">
-          <dl class="art-detail-meta">
-            <div class="art-detail-row">
-              <dt>ID</dt>
-              <dd><span class="mono">{detailItem().id}</span></dd>
-            </div>
-            <div class="art-detail-row">
-              <dt>Created</dt>
-              <dd class="muted">{detailItem().created_at}</dd>
-            </div>
-            {#if detailItem().collection_id}
-              <div class="art-detail-row">
-                <dt>Collection</dt>
-                <dd><sui-chip tone="muted" variant="soft" size="sm">{detailItem().collection_id}</sui-chip></dd>
-              </div>
-            {/if}
-            {#if detailItem().scope}
-              <div class="art-detail-row">
-                <dt>Scope</dt>
-                <dd><span class="mono-snip">{detailItem().scope}</span></dd>
-              </div>
-            {/if}
-          </dl>
-
-          <div class="art-detail-preview" data-test="detail-preview">
-            {#if previewKind() === 'image'}
-              <img class="art-detail-img" attr:src={detailUrl()}
-                attr:alt={detailItem().name || detailItem().id}>
-            {:else if previewKind() === 'html'}
-              <iframe class="art-detail-frame" attr:src={detailUrl()}
-                title="Artifact preview" sandbox></iframe>
-            {:else if previewKind() === 'text'}
-              {#if previewLoading()}
-                <sui-skeleton shape="block" size="lg"></sui-skeleton>
-              {:else if previewError()}
-                <div class="art-detail-error">{previewError()}</div>
-              {:else}
-                <pre class="art-detail-pre"><code>{previewText()}</code></pre>
-              {/if}
-            {:else}
-              <div class="art-detail-binary">
-                <sui-icon name="file" size="lg" tone="muted"></sui-icon>
-                <p>Binary file — download to view.</p>
-              </div>
-            {/if}
-          </div>
-        </sui-stack>
-
-        <div slot="footer">
-          <sui-button variant="ghost" on:click={closeDetail}>Close</sui-button>
-          <a class="art-detail-download" attr:href={detailUrl()} data-no-router
-            attr:download={detailItem().name || detailItem().id}>
-            <sui-button tone="primary" variant="solid">
-              <sui-icon slot="leading" name="download"></sui-icon>Download
-            </sui-button>
-          </a>
-        </div>
-      {/if}
-    </sui-drawer>
-
-    <sui-dialog prop:open={uploadOpen()} size="md"
-      on:sui-close={closeUpload} data-test="upload-dialog">
-      <span slot="header">Upload artifact</span>
-      <sui-stack gap="3">
-        <sui-file-upload accept="" prop:disabled={uploading()}
-          on:sui-change={(e) => onUploadFiles(e.detail.files)}
-          data-test="upload-files"></sui-file-upload>
-
-        <sui-stack gap="1">
-          <label class="art-upload-label" for="art-upload-col">
-            Collection <span class="art-upload-hint">(optional)</span>
-          </label>
-          <sui-select size="sm" attr:value={uploadCollection()}
-            on:sui-change={(e) => onUploadCollection(e.detail.value)}
-            prop:disabled={uploading()}
-            data-test="upload-collection">
-            <option value="">No collection</option>
-            {#for c of collectionOptions() key={c.id}}
-              <option attr:value={c.id}>{c.name || c.id}</option>
-            {/for}
-          </sui-select>
-        </sui-stack>
-
-        {#if uploadError()}
-          <div class="art-upload-error" data-test="upload-error">{uploadError()}</div>
-        {/if}
       </sui-stack>
-      <div slot="footer">
-        <sui-button variant="ghost" on:click={closeUpload}
-          prop:disabled={uploading()}>Cancel</sui-button>
-        <sui-button tone="primary" variant="solid" on:click={submitUpload}
-          prop:disabled={(uploadFiles().length === 0 || uploading())}
-          prop:loading={uploading()}
-          data-test="upload-submit">Upload</sui-button>
-      </div>
-    </sui-dialog>
 
-  </div>
+      {#if uploadError()}
+        <div class="art-upload-error" data-test="upload-error">{uploadError()}</div>
+      {/if}
+    </sui-stack>
+    <div slot="footer">
+      <sui-button variant="ghost" on:click={closeUpload}
+        prop:disabled={uploading()}>Cancel</sui-button>
+      <sui-button tone="primary" variant="solid" on:click={triggerUpload}
+        prop:disabled={uploading()}
+        prop:loading={uploading()}
+        data-test="upload-submit">Upload</sui-button>
+
+    </div>
+  </sui-dialog>
+
 </div>

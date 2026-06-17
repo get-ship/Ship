@@ -91,7 +91,6 @@
   :host([set='app']) {
     --app-accent: var(--foreground);
     --tile-size: 20px;
-    --glyph-size: 14px;
     --tile-radius: var(--radius-md);
     width: var(--tile-size);
     height: var(--tile-size);
@@ -143,8 +142,18 @@
   }
 
   :host([set='app'][variant='tile']) .frame {
-    background: color-mix(in oklch, var(--app-accent) 16%, transparent);
-    color: var(--app-accent);
+    position: relative;
+    overflow: hidden;
+  }
+  /* Soft tint of the app accent — rendered as an underlay pseudo-element
+   * so we don't have to write a color-mix in component CSS (the design
+   * system owns that formula in tokens.css, not here). */
+  :host([set='app'][variant='tile']) .frame::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--app-accent);
+    opacity: 0.16;
   }
 
   :host([set='app'][variant='solid']) .frame {
