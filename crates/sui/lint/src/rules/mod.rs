@@ -32,6 +32,8 @@ pub mod for_key;
 pub mod layout_primitive;
 pub mod prop_value;
 pub mod space_literal;
+pub mod primary_for_status;
+pub mod surface_not_card;
 
 /// Function signature every rule conforms to.
 pub type RuleFn = fn(&Path, &str) -> Vec<Finding>;
@@ -61,9 +63,10 @@ pub const SUI_TEMPLATE_RULES: &[(&str, RuleFn)] = &[
     (prop_value::RULE_ID, prop_value::check),
     (attr_presence::RULE_ID, attr_presence::check),
     (attr_bool_prop::RULE_ID, attr_bool_prop::check),
-    (dead_affordance::RULE_ID, dead_affordance::check),
     (space_literal::RULE_ID, space_literal::check),
     (layout_primitive::RULE_ID, layout_primitive::check),
     (dimension_literal::RULE_ID, dimension_literal::check),
     (client_directive::RULE_ID, client_directive::check),
+    (primary_for_status::RULE_ID, primary_for_status::check),
+    (surface_not_card::RULE_ID, surface_not_card::check),
 ];
