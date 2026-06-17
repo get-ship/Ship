@@ -73,7 +73,7 @@ shell *ARGS:
 # Regenerate the typed dynamic-route table from the view file tree (SSOT).
 [group('daily')]
 gen-routes:
-    @cargo run -q -p deck-cli -- routes --shell-root apps/shell
+    @cargo run -q -p deck-cli -- routes
 
 # Bakes every bundle via the in-process Rolldown bundler (#163) — the same
 # engine shipd runs, and the ONLY bundler. Framework singletons + the

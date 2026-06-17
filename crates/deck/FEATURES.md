@@ -111,7 +111,7 @@ chunks, builds apps and views, writes the asset graph, and watches for HMR.
 | Catalog aggregation | `.deck/catalogs/workspace.json` | `crates/deck/deck-bundler/src/catalog/mod.rs::build_catalog` | Walks packaged + sui-out CEMs into the workspace catalog, sorted + deduped by tag. |
 | Tag → source index | (per-view resolver feed) | `crates/deck/deck-bundler/src/catalog/mod.rs::tag_source_index` | Maps every component tag to its source `.sui` from the same CEM walk. |
 | Workspace discovery | (catalog input) | `crates/deck/deck-bundler/src/catalog/workspace.rs::discover_workspace_packages` | Expands `package.json` workspace globs into the package set the catalog walks. |
-| Routes codegen | `src/routes.gen.ts` | `crates/deck/deck-bundler/src/routes.rs::generate_routes` | Walks every `[param]` dir under the shell's `src/` and emits the typed `RouteShape[]` the runtime registers via `defineRoutes` (write-if-changed). |
+| Routes codegen | `routes.gen.ts` (per root) | `crates/deck/deck-bundler/src/routes.rs::generate_routes` | Walks every `[param]` dir under each app's `routes/` (shell + spaces) and emits a typed `RouteShape[]` the runtime registers via `defineRoutes` (write-if-changed). Multi-root via `RouteGenSpec` (`dir` + `out` + `label`). |
 | Targets / layout | (target set) | `crates/deck/deck-bundler/src/targets.rs::BundleLayout` | Framework singletons + consumer targets + discovered views, and where each output lands. |
 
 ## Config (`deck-config`)
@@ -138,7 +138,7 @@ The pure SUI-facing read side, plus the framework CLI.
 | Render helper | (source read) | `crates/deck/deck-host/src/render_helpers.rs::render_view_source` | Reads a view's `page.sui` source from the project root. |
 | CLI: build app | `deck build` | `crates/deck/deck-cli/src/main.rs::build` | Builds a SUI SPA app to a static output dir. |
 | CLI: bake assets | `deck build-assets` | `crates/deck/deck-cli/src/main.rs::build_assets` | Bakes framework + consumer bundles via the in-process bundler, with non-empty guards. |
-| CLI: routes | `deck routes` | `crates/deck/deck-cli/src/main.rs` | Regenerates the typed dynamic-route table standalone. |
+| CLI: routes | `deck routes` | `crates/deck/deck-cli/src/main.rs` | Regenerates the typed dynamic-route table standalone. With no flags, walks `apps/shell/routes` and `apps/spaces/routes`; `--shell=<path>` and `--spaces=<path>` are repeatable for additional roots; `--shell-root=<path>` is a hidden legacy flag for the old `src/` layout. |
 | CLI: scaffold view | `deck scaffold view` | `crates/deck/deck-cli/src/scaffold.rs::run_view` | Generates a new view (page.sui + controller.ts + style.css + manifest.jsonc). |
 | CLI: scaffold component | `deck scaffold component` | `crates/deck/deck-cli/src/scaffold.rs::run_component` | Generates a new `sui-*` primitive under the primitives package. |
 | CLI: scaffold pack | `deck scaffold pack` | `crates/deck/deck-cli/src/scaffold.rs::run_pack` | Generates a new first-party `@ship/<name>` component pack. |
