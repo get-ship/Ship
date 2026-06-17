@@ -63,7 +63,7 @@
   .wrap {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-2);
     width: 100%;
     min-height: var(--h);
     padding: 0 var(--px);
@@ -76,7 +76,7 @@
   }
   .wrap:focus-within {
     border-color: var(--tone-ring);
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--tone-ring) 25%, transparent);
+    box-shadow: 0 0 0 3px var(--tone-ring);
   }
   :host([disabled]) .wrap {
     background: var(--muted);
@@ -114,12 +114,12 @@
     left: 0;
     z-index: var(--z-popover);
     width: 260px;
-    padding: 8px;
+    padding: var(--space-2);
     background: var(--popover);
     color: var(--popover-foreground);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md, 0 4px 12px color-mix(in oklch, var(--foreground) 10%, transparent));
+    box-shadow: var(--shadow-md);
     font-family: var(--font-body);
     font-size: var(--fs);
   }
@@ -127,7 +127,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 4px;
+    margin-bottom: var(--space-1);
   }
   .nav button {
     appearance: none;
@@ -158,13 +158,13 @@
   .grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
+    gap: var(--space-1);
   }
   .dow {
     font-size: 0.75rem;
     text-align: center;
     color: var(--muted-foreground);
-    padding: 4px 0;
+    padding: var(--space-1) 0;
     font-weight: var(--font-weight-medium);
   }
   .day {
@@ -174,7 +174,7 @@
     color: var(--foreground);
     font: inherit;
     cursor: pointer;
-    padding: 6px 0;
+    padding: var(--space-2) 0;
     text-align: center;
     border-radius: var(--radius-sm);
   }
