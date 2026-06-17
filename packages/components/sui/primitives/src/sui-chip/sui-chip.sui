@@ -55,12 +55,29 @@
     display: inline-flex;
     vertical-align: middle;
     -webkit-tap-highlight-color: transparent;
-    --tone: var(--muted-foreground);
+    --chip-remove-ml: var(--space-1);
+    --chip-remove-mr: calc(var(--space-1) * -1);
     --tone-fg: var(--muted-foreground);
+    --tone-bg: var(--tone-muted-bg);
+    --tone-border: var(--tone-muted-border);
+    --tone-bg-hover: var(--tone-muted-bg);
+    --tone-border-hover: var(--tone-muted-border);
+    --tone-bg-solid: var(--muted);
+    --tone-outline-border: var(--border-strong);
+    --tone-outline-bg-hover: var(--tone-muted-bg);
+    --tone-ghost-bg-hover: var(--tone-muted-bg);
     --tone-contrast: var(--background);
     --chip-radius: var(--radius-full);
   }
   :host([hidden]) { display: none; }
+
+  :host([tone='default'])  { --tone-fg: var(--foreground); --tone-bg: var(--tone-default-bg); --tone-border: var(--tone-default-border); --tone-bg-hover: var(--tone-default-bg); --tone-border-hover: var(--tone-default-border); --tone-bg-solid: var(--foreground); --tone-outline-border: var(--border-strong); --tone-outline-bg-hover: var(--hover-bg); --tone-ghost-bg-hover: var(--hover-bg); --tone-contrast: var(--background); }
+  :host([tone='primary'])  { --tone-fg: var(--tone-primary-fg); --tone-bg: var(--tone-primary-bg); --tone-border: var(--tone-primary-border); --tone-bg-hover: var(--tone-primary-border); --tone-border-hover: var(--tone-primary-border); --tone-bg-solid: var(--primary); --tone-outline-border: var(--tone-primary-border); --tone-outline-bg-hover: var(--tone-primary-bg); --tone-ghost-bg-hover: var(--tone-primary-bg); --tone-contrast: var(--primary-foreground); }
+  :host([tone='info'])     { --tone-fg: var(--tone-info-fg); --tone-bg: var(--tone-info-bg); --tone-border: var(--tone-info-border); --tone-bg-hover: var(--tone-info-border); --tone-border-hover: var(--tone-info-border); --tone-bg-solid: var(--info); --tone-outline-border: var(--tone-info-border); --tone-outline-bg-hover: var(--tone-info-bg); --tone-ghost-bg-hover: var(--tone-info-bg); --tone-contrast: var(--info-foreground); }
+  :host([tone='success'])  { --tone-fg: var(--tone-success-fg); --tone-bg: var(--tone-success-bg); --tone-border: var(--tone-success-border); --tone-bg-hover: var(--tone-success-border); --tone-border-hover: var(--tone-success-border); --tone-bg-solid: var(--success); --tone-outline-border: var(--tone-success-border); --tone-outline-bg-hover: var(--tone-success-bg); --tone-ghost-bg-hover: var(--tone-success-bg); --tone-contrast: var(--success-foreground); }
+  :host([tone='warning'])  { --tone-fg: var(--tone-warning-fg); --tone-bg: var(--tone-warning-bg); --tone-border: var(--tone-warning-border); --tone-bg-hover: var(--tone-warning-border); --tone-border-hover: var(--tone-warning-border); --tone-bg-solid: var(--warning); --tone-outline-border: var(--tone-warning-border); --tone-outline-bg-hover: var(--tone-warning-bg); --tone-ghost-bg-hover: var(--tone-warning-bg); --tone-contrast: var(--warning-foreground); }
+  :host([tone='destructive']) { --tone-fg: var(--tone-destructive-fg); --tone-bg: var(--tone-destructive-bg); --tone-border: var(--tone-destructive-border); --tone-bg-hover: var(--tone-destructive-border); --tone-border-hover: var(--tone-destructive-border); --tone-bg-solid: var(--destructive); --tone-outline-border: var(--tone-destructive-border); --tone-outline-bg-hover: var(--tone-destructive-bg); --tone-ghost-bg-hover: var(--tone-destructive-bg); --tone-contrast: var(--destructive-foreground); }
+  :host([tone='accent'])   { --tone-fg: var(--tone-accent-fg); --tone-bg: var(--tone-accent-bg); --tone-border: var(--tone-accent-border); --tone-bg-hover: var(--tone-accent-border); --tone-border-hover: var(--tone-accent-border); --tone-bg-solid: var(--accent); --tone-outline-border: var(--tone-accent-border); --tone-outline-bg-hover: var(--tone-accent-bg); --tone-ghost-bg-hover: var(--tone-accent-bg); --tone-contrast: var(--accent-foreground); }
 
   :host(:not([size])),
   :host([size='sm']) { --chip-h: 22px; --chip-px: 8px;  --chip-fs: var(--text-xs);   --chip-gap: 4px; --chip-icon: 10px; --chip-remove: 14px; }
@@ -93,43 +110,43 @@
 
   :host(:not([variant])) .chip,
   :host([variant='soft']) .chip {
-    background: color-mix(in oklch, var(--tone) 14%, transparent);
-    border-color: color-mix(in oklch, var(--tone) 22%, transparent);
+    background: var(--tone-bg);
+    border-color: var(--tone-border);
   }
   :host([variant='soft']:not([disabled])) .chip:hover {
-    background: color-mix(in oklch, var(--tone) 22%, transparent);
-    border-color: color-mix(in oklch, var(--tone) 32%, transparent);
+    background: var(--tone-bg-hover);
+    border-color: var(--tone-border-hover);
   }
   :host([variant='outline']) .chip {
     background: transparent;
-    border-color: color-mix(in oklch, var(--tone) 45%, transparent);
+    border-color: var(--tone-outline-border);
   }
   :host([variant='outline']:not([disabled])) .chip:hover {
-    background: color-mix(in oklch, var(--tone) 10%, transparent);
+    background: var(--tone-outline-bg-hover);
   }
   :host([variant='solid']) .chip {
-    background: var(--tone);
-    border-color: color-mix(in oklch, var(--tone) 100%, var(--foreground) 6%);
+    background: var(--tone-bg-solid);
+    border-color: var(--tone-border);
     color: var(--tone-contrast);
-    box-shadow: inset 0 1px 0 0 color-mix(in oklch, var(--background) 18%, transparent);
+    box-shadow: inset 0 1px 0 0 var(--hover-bg);
   }
   :host([variant='ghost']) .chip {
     background: transparent;
     border-color: transparent;
   }
   :host([variant='ghost']:not([disabled])) .chip:hover {
-    background: color-mix(in oklch, var(--tone) 10%, transparent);
+    background: var(--tone-ghost-bg-hover);
   }
 
   :host([selected]) .chip {
-    background: var(--tone);
-    border-color: color-mix(in oklch, var(--tone) 100%, var(--foreground) 10%);
+    background: var(--tone-bg-solid);
+    border-color: var(--tone-border);
     color: var(--tone-contrast);
-    box-shadow: inset 0 1px 0 0 color-mix(in oklch, var(--background) 20%, transparent);
+    box-shadow: inset 0 1px 0 0 var(--hover-bg);
     font-weight: var(--font-weight-semibold);
   }
   :host([selected]:not([disabled])) .chip:hover {
-    background: color-mix(in oklch, var(--tone) 92%, var(--background) 8%);
+    background: var(--tone-bg-hover);
   }
   /* Selected without a tone (or with the catalog "muted" tone — the
    * unbranded baseline) inherits the brand. Material's filter chips
@@ -164,8 +181,8 @@
   :host([disabled]) .chip {
     cursor: not-allowed;
     background: var(--muted);
-    border-color: color-mix(in oklch, var(--border) 80%, transparent);
-    color: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
+    border-color: var(--border-subtle);
+    color: var(--muted-foreground);
     filter: saturate(0.65);
     box-shadow: none;
   }
@@ -194,7 +211,7 @@
     justify-content: center;
     width: var(--chip-remove);
     height: var(--chip-remove);
-    margin-inline: 2px -4px;
+    margin-inline: var(--chip-remove-ml) var(--chip-remove-mr);
     padding: 0;
     border: 0;
     background: transparent;
@@ -216,7 +233,7 @@
     stroke-linecap: round;
   }
   .remove:hover:not(:disabled) {
-    background: color-mix(in oklch, currentColor 18%, transparent);
+    background: var(--hover-bg);
   }
   :host([disabled]) .remove { cursor: not-allowed; }
 
