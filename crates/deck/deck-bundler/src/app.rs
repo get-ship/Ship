@@ -133,9 +133,16 @@ pub async fn bundle_app(
     _deck_out_dir: &Path,
 ) -> Result<AppBuild> {
     // Typed route table first (#168): main.ts imports routes.gen.ts, so it must
-    // be current before Rolldown reads the graph. No-op for apps with no studio.
-    crate::routes::generate_routes(shell_root).context("generate routes.gen.ts")?;
-
+    // be current before Rolldown reads the graph. The shell's view tree lives
+    // under `<shell_root>/routes/`; the generated `routes.gen.ts` is emitted at
+    // `<shell_root>/routes.gen.ts` (sibling of `routes/`), and `main.ts` imports
+    // it via `../routes.gen`. No-op for apps with no `routes/` dir.
+    let routes_spec = crate::routes::RouteGenSpec {
+        dir: shell_root.join("routes"),
+        out: shell_root.join("routes.gen.ts"),
+        label: "shell".to_string(),
+    };
+    crate::routes::generate_routes(&[routes_spec]).context("generate routes.gen.ts")?;
     let index_path = shell_root.join("index.html");
     let html = std::fs::read_to_string(&index_path)
         .with_context(|| format!("read {}", index_path.display()))?;
