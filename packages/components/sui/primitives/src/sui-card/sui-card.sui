@@ -56,7 +56,7 @@
   :host {
     display: block;
     position: relative;
-    background: var(--card);
+    background: var(--surface-1);
     color: var(--card-foreground);
     border: 1px solid var(--border);
     --card-radius: var(--radius-lg);
@@ -65,7 +65,7 @@
     box-shadow: var(--shadow-card-rest);
     --card-px: 20px;
     --card-py: 16px;
-    --card-gap: var(--space-3, 12px);
+    --card-gap: var(--space-3);
     --tone-fg: var(--foreground);
     --tone-border: var(--border);
     --tone-bg: transparent;
@@ -78,21 +78,21 @@
   }
   :host([hidden]) { display: none; }
 
-  :host([tone='primary'])     { --tone-fg: var(--primary);     --tone-border: color-mix(in oklch, var(--primary) 40%, var(--border));     --tone-bg: color-mix(in oklch, var(--primary) 8%, var(--card)); }
-  :host([tone='info'])        { --tone-fg: var(--info);        --tone-border: color-mix(in oklch, var(--info) 40%, var(--border));        --tone-bg: color-mix(in oklch, var(--info) 8%, var(--card)); }
-  :host([tone='success'])     { --tone-fg: var(--success);     --tone-border: color-mix(in oklch, var(--success) 40%, var(--border));     --tone-bg: color-mix(in oklch, var(--success) 8%, var(--card)); }
-  :host([tone='warning'])     { --tone-fg: var(--warning);     --tone-border: color-mix(in oklch, var(--warning) 40%, var(--border));     --tone-bg: color-mix(in oklch, var(--warning) 8%, var(--card)); }
-  :host([tone='destructive']) { --tone-fg: var(--destructive); --tone-border: color-mix(in oklch, var(--destructive) 40%, var(--border)); --tone-bg: color-mix(in oklch, var(--destructive) 8%, var(--card)); }
-  :host([tone='accent'])      { --tone-fg: var(--accent);      --tone-border: color-mix(in oklch, var(--accent) 40%, var(--border));      --tone-bg: color-mix(in oklch, var(--accent) 8%, var(--card)); }
+  :host([tone='primary'])     { --tone-fg: var(--primary);     --tone-border: var(--tone-primary-border);     --tone-bg: var(--tone-primary-bg); }
+  :host([tone='info'])        { --tone-fg: var(--info);        --tone-border: var(--tone-info-border);        --tone-bg: var(--tone-info-bg); }
+  :host([tone='success'])     { --tone-fg: var(--success);     --tone-border: var(--tone-success-border);     --tone-bg: var(--tone-success-bg); }
+  :host([tone='warning'])     { --tone-fg: var(--warning);     --tone-border: var(--tone-warning-border);     --tone-bg: var(--tone-warning-bg); }
+  :host([tone='destructive']) { --tone-fg: var(--destructive); --tone-border: var(--tone-destructive-border); --tone-bg: var(--tone-destructive-bg); }
+  :host([tone='accent'])      { --tone-fg: var(--accent);      --tone-border: var(--tone-accent-border);      --tone-bg: var(--tone-accent-bg); }
   :host([tone='muted'])       { --tone-border: var(--border); --tone-bg: var(--muted); }
 
   :host([tone]:not([tone='default'])) { border-color: var(--tone-border); }
   :host([fill]) { background: var(--tone-bg); border-color: var(--tone-border); }
 
   :host([padding='none']) { --card-px: 0px; --card-py: 0px; --card-gap: 0px; padding: 0; }
-  :host([padding='sm'])   { --card-px: 12px; --card-py: 10px; --card-gap: 8px; padding: 10px 12px; }
-  :host([padding='md'])   { --card-px: 20px; --card-py: 16px; padding: 16px 20px; }
-  :host([padding='lg'])   { --card-px: 28px; --card-py: 24px; --card-gap: 16px; padding: 24px 28px; }
+  :host([padding='sm'])   { --card-px: var(--space-3); --card-py: var(--space-2); --card-gap: var(--space-2); padding: var(--space-2) var(--space-3); }
+  :host([padding='md'])   { --card-px: var(--space-5); --card-py: var(--space-4); padding: var(--space-4) var(--space-5); }
+  :host([padding='lg'])   { --card-px: var(--space-6); --card-py: var(--space-5); --card-gap: var(--space-4); padding: var(--space-5) var(--space-6); }
 
   :host([variant='outline']) { background: transparent; box-shadow: none; }
 
@@ -102,7 +102,7 @@
    * weight of an emphasis cue). Default tone hides the rail. */
   :host([status-rail]) {
     border-left: 3px solid var(--tone-fg);
-    padding-inline-start: calc(var(--card-px) - 3px);
+    padding-inline-start: calc(var(--card-px) - var(--space-1));
   }
   :host([status-rail]:not([tone])),
   :host([status-rail][tone='default']) {
@@ -159,7 +159,7 @@
     padding: var(--card-py) var(--card-px);
     border-bottom: 1px solid var(--border-subtle);
     font-family: var(--heading-font);
-    font-weight: var(--heading-weight, 600);
+    font-weight: var(--heading-weight);
   }
   :host(:not([data-no-footer])) .footer {
     margin: var(--card-gap) calc(var(--card-px) * -1) calc(var(--card-py) * -1);
@@ -167,12 +167,12 @@
     border-top: 1px solid var(--border-subtle);
   }
   :host([padding='none']:not([data-no-header])) .header {
-    margin: 0 0 var(--space-3, 12px);
-    padding: 0 0 var(--space-3, 12px);
+    margin: 0 0 var(--space-3);
+    padding: 0 0 var(--space-3);
   }
   :host([padding='none']:not([data-no-footer])) .footer {
-    margin: var(--space-3, 12px) 0 0;
-    padding: var(--space-3, 12px) 0 0;
+    margin: var(--space-3) 0 0;
+    padding: var(--space-3) 0 0;
   }
 
   @media (forced-colors: active) {
