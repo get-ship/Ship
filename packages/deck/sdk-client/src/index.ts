@@ -17,6 +17,7 @@ import type { GitDiff, GitDiffArgs, GitOverview } from './ship-data'
 import type { ArtifactRecord, ShipSDK } from './ship-sdk'
 import { fetchBody, mutateForm, mutateJson } from './http'
 import { sharedSource } from './shared-source'
+import { readSpaceConfig } from './spaces'
 import { MuxClient } from './mux-client'
 import { liveStream } from './live-stream'
 import { createShipConnectClient, SettingScope } from '@ship/sdk/connect'
@@ -41,6 +42,8 @@ declare module '@ship/sui-runtime' {
 
 export { liveStream } from './live-stream'
 export { sharedSource } from './shared-source'
+export { readSpaceConfig } from './spaces'
+export type { SpaceConfig, SpaceRuntimeRoute } from './spaces'
 export {
   displayName as accountDisplayName,
   initials as accountInitials,
@@ -335,5 +338,8 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
           auto: args.auto ?? false,
         })),
     },
-  }
-}
+    spaces: {
+      config: (args) => readSpaceConfig(baseUrl, args),
+    },
+   }
+ }

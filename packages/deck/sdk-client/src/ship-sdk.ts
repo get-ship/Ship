@@ -243,4 +243,15 @@ export interface ShipSDK {
       auto?: boolean
     }): Promise<unknown>
   }
+  spaces: {
+    /** Per-space runtime config — the daemon's response to
+     *  `GET /_deck/spaces/{id}/config`. The spaces scaffold merges
+     *  `config.routes` with its static `routes.gen.ts` at boot. The
+     *  launch surface returns `{ routes: [] }`; future per-space
+     *  config (chrome, theme) lands here. Resolves `null` when the
+     *  daemon is unreachable — boot continues with the static half. */
+    config(args: { id: string }): Promise<{
+      routes: { pattern: string; layout?: string }[]
+    } | null>
+  }
 }
