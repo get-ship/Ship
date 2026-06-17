@@ -1,0 +1,119 @@
+<!--
+  <sui-link> — SUI port of <ship-link>.
+  Styled anchor wrapper. External variant adds target=_blank, a11y
+  annotation, and an external-link icon glyph.
+
+  Prop / event / method parity vs <ship-link>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  href (String, '')            href (string, '')        ✓
+  external (Boolean, false)    external (bool, false,   ✓ adds target=_blank +
+                                 reflect)                rel=noopener noreferrer
+                                                         + external-link SVG
+  tone ('default'|'muted',     tone (union, 'default',  ✓ SUI extends palette
+    'default')                   reflect)                beyond Lit's two values
+  ─────────────────────────────────────────────────────────────────────────────
+  (no events)                  (no events)              ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  slots: default (label)       slots: default           ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  parts: anchor                parts: link              SUI renames for clarity
+  ─────────────────────────────────────────────────────────────────────────────
+  SUI additions: variant       variant (default|        Lit only has hover
+    (not in Lit)                underline|subtle,        underline; SUI exposes
+                                reflect)                 it as a first-class
+                                                         variant.
+  SUI additions: target, rel   target, rel (string)     Explicit override for
+    (auto from external)                                 callers who need
+                                                         custom values alongside
+                                                         or instead of external.
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="href" type="string" default="" />
+<prop name="external" type="bool" default="false" reflect />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+<prop name="variant" values="default|underline|subtle" default="default" reflect />
+<prop name="target" type="string" default="" />
+<prop name="rel" type="string" default="" />
+
+<style>
+  :host {
+    display: inline;
+    font-family: var(--font-body);
+    --link-fg: var(--primary);
+  }
+  :host([hidden]) { display: none; }
+
+  :host([tone='default'])     { --link-fg: var(--primary); }
+  :host([tone='primary'])     { --link-fg: var(--primary); }
+  :host([tone='info'])        { --link-fg: var(--info); }
+  :host([tone='success'])     { --link-fg: var(--success); }
+  :host([tone='warning'])     { --link-fg: var(--warning); }
+  :host([tone='destructive']) { --link-fg: var(--destructive); }
+  :host([tone='accent'])      { --link-fg: var(--accent); }
+  :host([tone='muted'])       { --link-fg: var(--muted-foreground); }
+
+  a {
+    color: var(--link-fg);
+    text-decoration: none;
+    display: inline;
+    border-radius: var(--radius-sm);
+    transition:
+      color var(--duration-fast),
+      text-decoration-color var(--duration-fast);
+  }
+  a:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  :host([variant='underline']) a {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    text-decoration-color: color-mix(in oklch, var(--link-fg) 40%, transparent);
+  }
+  :host([variant='subtle']) a:hover {
+    color: color-mix(in oklch, var(--link-fg) 80%, var(--foreground));
+  }
+  a:focus-visible {
+    outline: var(--ring-width) solid var(--ring-color);
+    outline-offset: var(--ring-offset);
+  }
+  .ext {
+    display: inline-block;
+    margin-inline-start: 2px;
+    font-size: 0.9em;
+    opacity: 0.8;
+    vertical-align: -0.1em;
+  }
+  .ext svg {
+    width: 0.9em;
+    height: 0.9em;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+</style>
+
+<a part="link"
+   href={href()}
+   target={external() ? '_blank' : target()}
+   rel={external() ? 'noopener noreferrer' : rel()}>
+  <slot></slot>
+  {#if external()}
+    <span class="sr-only">(opens in new tab)</span>
+    <span class="ext" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
+      </svg>
+    </span>
+  {/if}
+</a>

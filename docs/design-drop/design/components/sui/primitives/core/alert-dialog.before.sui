@@ -1,0 +1,22 @@
+<!--
+  sui-alert-dialog.before.sui — EXISTING look (repo). A confirm/destructive modal
+  surface: title, description, Cancel + Confirm. Flat card, buttons right-aligned,
+  confirm uses the tone fill. Rendered inline (no overlay) for the comparison;
+  shows role=alertdialog. Compiled as <x-alert-dialog-before>. Props: tone.
+-->
+<prop name="tone" values="default|destructive" default="default" reflect />
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  .dlg { max-width: 400px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-5); box-shadow: var(--shadow-md); }
+  h3 { margin: 0 0 8px; font-size: var(--text-lg); font-weight: 600; }
+  p { margin: 0 0 18px; color: var(--muted-foreground); font-size: var(--text-sm); line-height: 1.5; }
+  .actions { display: flex; gap: 8px; justify-content: flex-end; }
+  button { height: 32px; padding: 0 14px; border-radius: var(--radius-sm); font: inherit; font-size: var(--text-sm); cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--foreground); }
+  .confirm { background: var(--primary); color: var(--primary-foreground); border-color: transparent; }
+  :host([tone='destructive']) .confirm { background: var(--destructive); color: var(--destructive-foreground); }
+</style>
+<div class="dlg" part="dialog" role="alertdialog" aria-labelledby="adt" aria-describedby="add">
+  <h3 id="adt">Delete this run?</h3>
+  <p id="add">This permanently removes run logs-2026 and its artifacts. This action can't be undone.</p>
+  <div class="actions"><button class="cancel" type="button">Cancel</button><button class="confirm" type="button">Delete</button></div>
+</div>

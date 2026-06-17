@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Agent canvas · workspace concept</title>
+<link rel="stylesheet" href="../../../sui/ship.css" />
+<script type="importmap">
+{ "imports": { "@ship/sui-runtime": "../../../sui/sui-runtime.js" } }
+</script>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--surface-0); color: var(--foreground); font-family: var(--font-body); display: grid; place-items: center; min-height: 100vh; padding: 22px; box-sizing: border-box; }
+
+  .frame { width: 1320px; height: 880px; display: grid; grid-template-rows: auto 1fr auto; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-1); box-shadow: var(--shadow-lg); overflow: hidden; }
+
+  /* ── topbar ─────────────────────────────────────────── */
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 11px 16px; border-bottom: 1px solid var(--divider); background: var(--surface-2); }
+  .brand { display: inline-flex; align-items: center; gap: 9px; }
+  .glyph { width: 22px; height: 22px; border-radius: var(--radius-sm); background: linear-gradient(135deg, var(--primary), var(--accent)); display: inline-grid; place-items: center; color: var(--primary-foreground); }
+  .glyph svg { width: 13px; height: 13px; }
+  .brand h1 { font-family: var(--heading-font); font-weight: var(--heading-weight); font-size: var(--text-lg); letter-spacing: var(--heading-tracking); margin: 0; }
+  .cid { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-foreground); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 2px 7px; }
+
+  .lens { display: inline-flex; background: var(--muted); border-radius: var(--radius-full); padding: 3px; margin-left: 6px; }
+  .lens button { font-family: var(--font-mono); font-size: 11px; padding: 4px 12px; border-radius: var(--radius-full); border: 0; background: transparent; color: var(--muted-foreground); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+  .lens button.on { background: var(--surface-1); color: var(--foreground); box-shadow: var(--shadow-xs); }
+  .lens svg { width: 12px; height: 12px; }
+
+  .topbar .right { margin-left: auto; display: inline-flex; align-items: center; gap: 10px; }
+  .agentchip { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-mono); font-size: 12px; padding: 5px 10px; border: 1px solid var(--tone-primary-border); background: var(--tone-primary-bg); border-radius: var(--radius-full); color: var(--foreground); }
+  .agentchip .d { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
+  .tbtn { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: var(--text-sm); font-weight: 600; padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card); color: var(--foreground); cursor: pointer; }
+  .tbtn svg { width: 13px; height: 13px; }
+  .tbtn.primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+
+  /* ── work area ──────────────────────────────────────── */
+  .work { display: grid; grid-template-columns: 1fr 372px; min-height: 0; }
+
+  /* the canvas */
+  .canvas { position: relative; overflow: hidden; background-color: var(--surface-0);
+    background-image: radial-gradient(var(--border-subtle) 1.1px, transparent 1.1px);
+    background-size: 22px 22px; padding: 34px; }
+  .canvas-inner { display: flex; flex-direction: column; gap: 22px; max-width: 620px; margin: 0 auto; }
+
+  .art { position: relative; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-md); overflow: hidden; }
+  .art-bar { display: flex; align-items: center; gap: 8px; padding: 8px 13px; border-bottom: 1px solid var(--divider); background: var(--surface-2); }
+  .art-bar .t { font-family: var(--heading-font); font-weight: 600; font-size: var(--text-md); }
+  .art-tag { font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--info); background: var(--tone-info-bg); border: 1px solid var(--tone-info-border); border-radius: var(--radius-full); padding: 2px 8px; }
+  .art-live { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10px; color: var(--accent); }
+  .art-live .d { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 1.1s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .3; } }
+  .art-body { padding: 14px; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin-bottom: 13px; }
+  .st { border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 9px 11px; background: var(--surface-2); }
+  .st .n { font-family: var(--font-mono); font-weight: 700; font-size: var(--text-xl); line-height: 1.1; }
+  .st .k { font-size: 10px; color: var(--muted-foreground); margin-top: 2px; }
+  .st.up .n { color: var(--success); }
+
+  table.leads { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+  table.leads th { text-align: left; font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-foreground); font-weight: 700; padding: 6px 8px; border-bottom: 1px solid var(--divider); }
+  table.leads td { padding: 7px 8px; border-bottom: 1px solid var(--divider); }
+  table.leads tr:last-child td { border-bottom: 0; }
+  .score { font-family: var(--font-mono); font-weight: 700; }
+  .badge { font-family: var(--font-mono); font-size: 9.5px; padding: 1px 7px; border-radius: var(--radius-full); }
+  .b-q { color: var(--success); background: var(--tone-success-bg); }
+  .b-n { color: var(--info); background: var(--tone-info-bg); }
+
+  /* draft email artifact */
+  .mailrow { font-size: var(--text-sm); line-height: 1.6; }
+  .mailrow .lbl { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .05em; }
+  .mailbody { margin-top: 9px; padding-top: 11px; border-top: 1px solid var(--divider); color: var(--foreground); font-size: var(--text-sm); line-height: 1.65; }
+  .caret::after { content: '▋'; color: var(--primary); animation: blink 1s steps(2) infinite; margin-left: 1px; }
+  .patch { background: color-mix(in oklch, var(--accent) 12%, transparent); border-radius: var(--radius-sm); padding: 0 3px; box-shadow: 0 0 0 1px var(--tone-accent-border); }
+
+  /* annotation pin on canvas */
+  .pin { position: absolute; top: -10px; right: -10px; width: 24px; height: 24px; border-radius: 50% 50% 50% 2px; background: var(--warning); color: oklch(0.2 0.02 80); display: grid; place-items: center; font-family: var(--font-mono); font-weight: 700; font-size: 12px; box-shadow: var(--shadow-md); border: 2px solid var(--card); }
+  .region-outline { position: absolute; inset: 6px; border: 1.5px dashed var(--warning); border-radius: var(--radius-sm); pointer-events: none; }
+
+  /* canvas chrome */
+  .agent-cursor { position: absolute; bottom: 26px; right: 26px; display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-mono); font-size: 11px; padding: 6px 11px; border-radius: var(--radius-full); background: var(--primary); color: var(--primary-foreground); box-shadow: var(--shadow-md); }
+  .agent-cursor .d { width: 7px; height: 7px; border-radius: 50%; background: var(--primary-foreground); animation: blink 1.1s ease-in-out infinite; }
+  .zoom { position: absolute; bottom: 26px; left: 26px; display: inline-flex; align-items: center; gap: 2px; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); }
+  .zoom button { width: 28px; height: 28px; border: 0; background: transparent; color: var(--foreground); cursor: pointer; font-size: 15px; }
+  .zoom .lvl { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); padding: 0 8px; border-left: 1px solid var(--divider); border-right: 1px solid var(--divider); height: 28px; display: inline-grid; place-items: center; }
+
+  /* ── conversation rail ──────────────────────────────── */
+  .rail { display: grid; grid-template-rows: auto 1fr auto; border-left: 1px solid var(--divider); background: var(--surface-1); min-height: 0; }
+  .rail-head { display: flex; align-items: center; gap: 9px; padding: 12px 14px; border-bottom: 1px solid var(--divider); }
+  .rail-head .t { font-family: var(--heading-font); font-weight: 600; font-size: var(--text-md); }
+  .rail-head .sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-foreground); margin-left: auto; }
+  .thread { overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; }
+  .ops-inline { padding-left: 18px; display: flex; flex-direction: column; gap: 7px; }
+
+  .ann { position: relative; border: 1px solid var(--tone-warning-border); background: var(--tone-warning-bg); border-radius: var(--radius-md); padding: 9px 11px 9px 13px; }
+  .ann::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--warning); border-radius: var(--radius-md) 0 0 var(--radius-md); }
+  .ann-head { display: flex; align-items: center; gap: 7px; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--warning); }
+  .ann-num { width: 16px; height: 16px; border-radius: 50% 50% 50% 2px; background: var(--warning); color: oklch(0.2 0.02 80); display: grid; place-items: center; font-weight: 700; font-size: 10px; }
+  .ann-note { font-size: var(--text-sm); color: var(--foreground); margin-top: 5px; }
+  .ann-q { margin-left: auto; font-size: 9.5px; color: var(--muted-foreground); text-transform: none; letter-spacing: 0; }
+
+  /* composer dock */
+  .dock { border-top: 1px solid var(--divider); padding: 11px 13px 13px; background: var(--surface-2); }
+  .modes { display: inline-flex; gap: 6px; margin-bottom: 10px; }
+  .mode { font-family: var(--font-mono); font-size: 11px; padding: 4px 11px; border-radius: var(--radius-full); border: 1px solid var(--border-subtle); background: var(--card); color: var(--muted-foreground); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+  .mode.on { border-color: var(--warning); color: var(--warning); background: var(--tone-warning-bg); }
+  .mode svg { width: 11px; height: 11px; }
+  .composer { display: flex; align-items: center; gap: 9px; padding: 9px 9px 9px 14px; border: 1px solid var(--border); border-radius: var(--radius-full); background: var(--card); box-shadow: var(--shadow-xs); }
+  .composer input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: var(--text-sm); color: var(--foreground); }
+  .composer input::placeholder { color: var(--muted-foreground); }
+  .send { width: 32px; height: 32px; flex: 0 0 auto; border: 0; border-radius: 50%; background: var(--primary); color: var(--primary-foreground); cursor: pointer; display: grid; place-items: center; }
+  .send svg { width: 15px; height: 15px; }
+  .dock-hint { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); margin-top: 8px; line-height: 1.5; }
+  .dock-hint b { color: var(--foreground); font-weight: 600; }
+
+  /* ── status bar ─────────────────────────────────────── */
+  .statusbar { display: flex; align-items: center; gap: 14px; padding: 7px 16px; border-top: 1px solid var(--divider); background: var(--surface-2); font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-foreground); }
+  .statusbar .live { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); }
+  .statusbar .live .d { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 1.1s ease-in-out infinite; }
+  .statusbar .sep { opacity: .5; }
+  .statusbar code { color: var(--foreground); }
+  .statusbar .r { margin-left: auto; }
+
+  @media (prefers-reduced-motion: reduce) { .art-live .d, .agent-cursor .d, .statusbar .live .d, .caret::after { animation: none; } }
+</style>
+</head>
+<body>
+<div class="frame" data-screen-label="agent-canvas">
+
+  <!-- topbar -->
+  <div class="topbar">
+    <span class="brand">
+      <span class="glyph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18M9 21V9"></path></svg></span>
+      <h1>lead-summary</h1>
+      <span class="cid">canvas 01J9…0001</span>
+    </span>
+    <div class="lens">
+      <button type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>Thread</button>
+      <button type="button" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18M9 21V9"></path></svg>Canvas</button>
+    </div>
+    <div class="right">
+      <span class="agentchip"><span class="d"></span>lead-tracker · floki</span>
+      <div id="d-controls"></div>
+      <button class="tbtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>New</button>
+      <button class="tbtn primary" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><path d="M17 21v-8H7v8M7 3v5h8"></path></svg>Save</button>
+    </div>
+  </div>
+
+  <!-- work -->
+  <div class="work">
+
+    <!-- the interactive canvas -->
+    <div class="canvas">
+      <div class="canvas-inner">
+
+        <!-- artifact 1: the rendered summary (the "response is a UI", full size) -->
+        <div class="art">
+          <div class="art-bar">
+            <span class="t">Leads — this week</span>
+            <span class="art-tag">sui · artifact</span>
+            <span class="art-live"><span class="d"></span>interactive</span>
+          </div>
+          <div class="art-body">
+            <div class="stats">
+              <div class="st"><div class="n">42</div><div class="k">new leads</div></div>
+              <div class="st up"><div class="n">+18%</div><div class="k">vs last wk</div></div>
+              <div class="st"><div class="n">7</div><div class="k">sources</div></div>
+              <div class="st"><div class="n">$2.4k</div><div class="k">pipeline</div></div>
+            </div>
+            <table class="leads">
+              <thead><tr><th>Lead</th><th>Source</th><th>Score</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>Acme Corp</td><td>Referral</td><td class="score">92</td><td><span class="badge b-q">qualified</span></td></tr>
+                <tr><td>Vertex Labs</td><td>Webinar</td><td class="score">78</td><td><span class="badge b-n">new</span></td></tr>
+                <tr><td>Northwind</td><td>Ads</td><td class="score">64</td><td><span class="badge b-n">new</span></td></tr>
+                <tr><td>Globex</td><td>Referral</td><td class="score">88</td><td><span class="badge b-q">qualified</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- artifact 2: the draft email, being patched live, with an annotation pinned -->
+        <div class="art">
+          <span class="pin">1</span>
+          <div class="art-bar">
+            <span class="t">Draft · summary email</span>
+            <span class="art-tag">sui · artifact</span>
+            <span class="art-live"><span class="d"></span>composing…</span>
+          </div>
+          <div class="art-body">
+            <div class="mailrow"><span class="lbl">To</span> &nbsp;the team &lt;all@acme.co&gt;</div>
+            <div class="mailrow"><span class="lbl">Subject</span> &nbsp;Q2 leads — 42 new this week (+18%)</div>
+            <div class="mailbody">
+              Team — quick pulse on the funnel. We pulled in <b>42 new leads</b> this week, up 18% week-over-week, led by referrals and the Q2 webinar.
+              <span class="patch">Thrilled to share the standouts</span> — Acme and Globex are both qualified and warm.<span class="caret"></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="agent-cursor"><span class="d"></span>lead-tracker is patching draft-email</div>
+      <div class="zoom"><button type="button">−</button><span class="lvl">100%</span><button type="button">+</button></div>
+    </div>
+
+    <!-- the conversation rail: chat IN the canvas -->
+    <div class="rail">
+      <div class="rail-head">
+        <span class="t">Conversation</span>
+        <span class="sub">in canvas · 2 turns</span>
+      </div>
+
+      <div class="thread" id="thread"></div>
+
+      <div class="dock">
+        <div class="modes">
+          <span class="mode">✛ Point</span>
+          <span class="mode on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 3"></rect></svg>Region</span>
+          <span class="mode">Off</span>
+        </div>
+        <div class="composer">
+          <input placeholder="Message or steer lead-tracker…" />
+          <button class="send" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg></button>
+        </div>
+        <div class="dock-hint"><b>Type</b> to steer · <b>pin</b> a point/region on the canvas to anchor feedback — both land in this one thread.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- status -->
+  <div class="statusbar">
+    <span class="live"><span class="d"></span>streaming</span>
+    <span class="sep">·</span>
+    <span>canvas <code>01J9SESSION0001</code></span>
+    <span class="sep">·</span>
+    <span>agent <code>lead-tracker</code></span>
+    <span class="sep">·</span>
+    <span>patching <code>draft-email</code> · morph #7</span>
+    <span class="r">space-acme</span>
+  </div>
+
+</div>
+
+<script type="module">
+import { defineComponent } from '../../../tools/catalog/sui-workbench.js';
+const el = (tag, attrs = {}, kids = []) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) if (v != null) n.setAttribute(k, v); for (const c of [].concat(kids)) n.append(c); return n; };
+const txt = (s) => document.createTextNode(s);
+
+try {
+  const D = '../../components/ship/', CE = '../../components/sui/chat-elements/';
+  const src = {
+    'ship-op-card':        D + 'agents/ship-op-card.sui',
+    'ship-approval-prompt':D + 'authority/ship-approval-prompt.sui',
+    'ship-usage-chip':     D + 'agents/ship-usage-chip.sui',
+    'ship-agent-controls': D + 'agents/ship-agent-controls.sui',
+    'sui-message':         CE + 'message.after.sui',
+  };
+  await Promise.all(Object.entries(src).map(async ([n, u]) => defineComponent({ name: n, sui: await (await fetch(u)).text() })));
+
+  // header controls (active → Steer / Stop)
+  document.getElementById('d-controls').appendChild(el('ship-agent-controls', { agent: 'lead-tracker', state: 'active' }));
+
+  // the conversation — real pack components living in the canvas rail
+  const thread = document.getElementById('thread');
+  const opcard = (a) => el('ship-op-card', a);
+
+  thread.append(
+    el('sui-message', { role: 'user', author: 'You', time: '12:00' }, txt('How many leads this week, and draft a summary email.')),
+    el('div', { class: 'ops-inline' }, [
+      opcard({ op: 'collections.read', blast: 'C0', decision: 'allowed', ms: '· 40ms', args: '{ collection: "leads" }', result: '{ ok: true, count: 42 }' }),
+      opcard({ op: 'sui.render', blast: 'C1', decision: 'allowed', ms: '· 12ms', args: '{ view: "lead-summary" → canvas }', result: '{ ok: true, artifact_id: "art-leadsum-1" }' }),
+    ]),
+    el('sui-message', { role: 'assistant', author: 'lead-tracker', time: '12:00' }, txt('Summary is on the canvas — draft email below. Review and I\'ll send.')),
+
+    // an annotation IS a spatially-anchored message in the same thread
+    el('div', { class: 'ann' }, [
+      el('div', { class: 'ann-head' }, [el('span', { class: 'ann-num' }, txt('1')), txt('Region · draft email'), el('span', { class: 'ann-q' }, txt('queued'))]),
+      el('div', { class: 'ann-note' }, txt('Make the tone warmer — less corporate, more “here\'s the good news.”')),
+    ]),
+    el('sui-message', { role: 'assistant', author: 'lead-tracker', time: '12:01' }, txt('Got it — warming up the opener now (patching in place).')),
+
+    // the gate, in context
+    el('div', { class: 'ops-inline' }, [
+      el('ship-approval-prompt', { op: 'mcp.create', req: 'ask:mcp.create#7', blast: 'C2', state: 'pending', grant: 'mcp · C1 → this op is C2', args: 'server: "gmail", draft: "Q2 lead summary"' }),
+    ]),
+
+    el('div', { class: 'ops-inline' }, [el('ship-usage-chip', { input: '8.1k', output: '1.4k', reasoning: '420', cache: '8.0k', cost: '$0.04' })]),
+  );
+
+} catch (e) {
+  document.getElementById('thread').textContent = 'compile failed: ' + (e && e.message || e);
+}
+</script>
+</body>
+</html>

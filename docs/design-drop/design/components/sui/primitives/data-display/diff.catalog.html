@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>sui-diff · existing vs new · components/sui</title>
+<link rel="stylesheet" href="../../../../../sui/ship.css" />
+<script type="importmap">
+{ "imports": { "@ship/sui-runtime": "../../../../../sui/sui-runtime.js" } }
+</script>
+<style>
+  html, body { margin: 0; }
+  body { background: var(--background); color: var(--foreground); font-family: var(--font-body); }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 28px var(--space-6) 120px; }
+  .eyebrow { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .12em; text-transform: uppercase; color: var(--muted-foreground); }
+  h1 { font-family: var(--heading-font); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--text-4xl); margin: 8px 0 0; }
+  .rule { width: 64px; height: 4px; border-radius: 2px; margin: 14px 0 14px; background: linear-gradient(90deg, var(--primary), var(--accent) 70%, transparent); }
+  .lede { color: var(--muted-foreground); font-size: var(--text-md); margin: 0; max-width: 76ch; line-height: 1.6; }
+  .lede b { color: var(--foreground); } .lede code, code { font-family: var(--font-mono); font-size: 0.92em; }
+
+  .bar { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: 18px; position: sticky; top: 0; z-index: 30; background: color-mix(in oklch, var(--background) 90%, transparent); backdrop-filter: blur(10px); padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
+  .seg { display: inline-flex; background: var(--muted); border-radius: var(--radius-md); padding: 3px; gap: 2px; }
+  .seg button { padding: 7px 18px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted-foreground); font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+  .themes { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+  .themes .tl { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+  .sw { display: inline-flex; gap: 5px; padding: 4px; background: var(--muted); border-radius: var(--radius-full); }
+  .sw button { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid color-mix(in oklch, var(--foreground) 14%, transparent); cursor: pointer; padding: 0; }
+  .sw button[aria-pressed="true"] { border-color: var(--foreground); box-shadow: 0 0 0 2px var(--background), 0 0 0 3px var(--foreground); }
+  .build { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); margin: 16px 0 0; }
+
+  section { margin-top: 40px; }
+  .sh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h2 { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-lg); margin: 0; }
+  .tag { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted-foreground); border: 1px solid var(--border); border-radius: var(--radius-full); padding: 2px 8px; }
+  .note { color: var(--muted-foreground); font-size: var(--text-sm); margin: 8px 0 16px; max-width: 78ch; line-height: 1.55; }
+  .note b { color: var(--foreground); font-weight: 600; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+  @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+  .cap { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); margin: 0 0 8px; }
+
+  .api { margin-top: 22px; border-collapse: collapse; width: 100%; font-size: var(--text-sm); }
+  .api th, .api td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+  .api th { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted-foreground); font-weight: 600; }
+  .api td:first-child { font-family: var(--font-mono); color: var(--foreground); white-space: nowrap; }
+  .api td code { color: var(--muted-foreground); }
+  sui-diff-before, sui-diff-after { display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">components/sui · primitives · data-display</div>
+  <h1>sui-diff</h1>
+  <div class="rule"></div>
+  <p class="lede"><b>Line diff viewer — live, not a screenshot.</b> The element below is the <b>real compiled <code>sui-diff</code></b>: its controller (ported verbatim from source) runs the actual LCS line-diff in the browser — pure JS, no daemon. The row <b>structure</b> (<code>.line.add/.del/.ctx/.hunk</code> + a <code>.sign</code> gutter) is ground truth from the controller; the <b>styling is authored here</b>, which is the gap this fills. <b>Existing</b> = the flat rendering a view gets with no design pass (colored text only); <b>New</b> = row tints, an accent gutter, and a hunk band. Toggle <b>Existing / New</b> · switch <b>themes</b> right.</p>
+
+  <div class="bar">
+    <span class="seg" id="seg" role="tablist" aria-label="Compare"><button data-v="before" aria-pressed="true">Existing</button><button data-v="after" aria-pressed="false">New</button></span>
+    <span class="themes"><span class="tl">Theme</span><span class="sw" id="sw"></span></span>
+  </div>
+  <div class="build" id="build">compiling…</div>
+
+  <section>
+    <div class="sh"><h2>unified diff</h2><span class="tag">value=</span></div>
+    <p class="note"><b>Pass a patch string</b> via <code>value</code> — <code>@@</code> rows render as hunk headers, <code>+</code>/<code>-</code> as add/remove, the rest as context.</p>
+    <div id="d-unified"></div>
+  </section>
+
+  <section>
+    <div class="sh"><h2>computed diff</h2><span class="tag">from= · to=</span></div>
+    <p class="note"><b>No patch? Pass two versions.</b> With only <code>from</code> and <code>to</code> set, the element diffs them itself (longest-common-subsequence) and renders the result. Same element, same styling.</p>
+    <div class="two">
+      <div><p class="cap">from / to → computed</p><div id="d-computed"></div></div>
+      <div><p class="cap">config bump</p><div id="d-config"></div></div>
+    </div>
+  </section>
+
+  <table class="api">
+    <thead><tr><th>prop</th><th>type</th><th>behavior</th></tr></thead>
+    <tbody>
+      <tr><td>value</td><td><code>string</code></td><td>Unified diff text (<code>@@</code> hunks, <code>+</code>/<code>-</code> lines). Takes precedence when set.</td></tr>
+      <tr><td>from</td><td><code>string</code></td><td>Original text — diffed against <code>to</code> when no <code>value</code>.</td></tr>
+      <tr><td>to</td><td><code>string</code></td><td>Updated text.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script type="module">
+import { defineComponent, themeBar } from '../../../../../tools/catalog/sui-workbench.js';
+const $ = (s) => document.querySelector(s);
+themeBar($('#sw'));
+
+const UNIFIED = `@@ -1,8 +1,9 @@ export const pipelineConfig
+ export const pipelineConfig = {
+   name: 'nightly-reindex',
+-  retries: 3,
+-  timeout: 30,
++  retries: 5,
++  timeout: 45,
++  backoff: 'exponential',
+   queue: 'default',
+   concurrency: 4,
+ }`;
+
+const FROM = `function score(run) {
+  const base = run.passed / run.total
+  return base * 100
+}`;
+const TO = `function score(run) {
+  if (run.total === 0) return 0
+  const base = run.passed / run.total
+  return Math.round(base * 100)
+}`;
+
+const CFG_FROM = `region = "us-east-1"
+replicas = 2
+ssl = false`;
+const CFG_TO = `region = "us-east-1"
+replicas = 4
+ssl = true
+healthcheck = "/ready"`;
+
+const FIXTURES = {
+  '#d-unified': { value: UNIFIED },
+  '#d-computed': { from: FROM, to: TO },
+  '#d-config': { from: CFG_FROM, to: CFG_TO },
+};
+
+try {
+  const controllerSrc = await (await fetch('./diff.controller.js')).text();
+  await Promise.all([
+    defineComponent({ name: 'sui-diff-before', sui: await (await fetch('./diff.before.sui')).text(), controllerSrc }),
+    defineComponent({ name: 'sui-diff-after',  sui: await (await fetch('./diff.sui')).text(),         controllerSrc }),
+  ]);
+  $('#build').textContent = 'Compiled ✓  sui-diff · existing + new  ·  live LCS diff  ·  registered';
+
+  function render(v) {
+    const tag = 'sui-diff-' + v;
+    for (const [sel, attrs] of Object.entries(FIXTURES)) {
+      const mount = $(sel);
+      mount.innerHTML = '';
+      const d = document.createElement(tag);
+      for (const [k, val] of Object.entries(attrs)) d.setAttribute(k, val);
+      mount.append(d);
+    }
+    document.querySelectorAll('#seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+  }
+  $('#seg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) render(b.dataset.v); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') render('before'); if (e.key === 'ArrowRight') render('after'); });
+  render('before');
+} catch (e) {
+  $('#build').innerHTML = '<span style="color:var(--destructive)">compile failed: ' + (e && e.message || e) + '</span>';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+<!--
+  sui-icon.after.sui — ENHANCED. A real icon box: a discrete size scale
+  (sm 14 · md 16 · lg 20 · xl 24) so icons never inherit an odd em size, a
+  fixed square that can't reflow (flex:none), text-baseline alignment tuned
+  (vertical-align: -0.125em — sits on the text baseline, not the middle), color
+  via currentColor, and an opt-in spin (gated on reduced-motion). Token-pure.
+  Compiled as <x-icon-after>. Props: size · spin. Slot: an <svg>.
+-->
+<prop name="size" values="sm|md|lg|xl" default="md" reflect />
+<prop name="spin" type="bool" default="false" reflect />
+<style>
+  :host { display: inline-flex; align-items: center; justify-content: center; vertical-align: -0.125em; color: inherit; --icon-size: 16px; }
+  :host([size='sm']) { --icon-size: 14px; }
+  :host([size='lg']) { --icon-size: 20px; }
+  :host([size='xl']) { --icon-size: 24px; }
+  ::slotted(svg) { width: var(--icon-size); height: var(--icon-size); display: block; flex: none; stroke-width: 2; }
+  @media (prefers-reduced-motion: no-preference) {
+    :host([spin]) ::slotted(svg) { animation: icon-spin 0.8s linear infinite; }
+  }
+  @keyframes icon-spin { to { transform: rotate(360deg); } }
+</style>
+<slot></slot>

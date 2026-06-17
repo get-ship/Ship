@@ -1,0 +1,28 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-breadcrumb.before.sui — fabricated sketch (not in source), self-contained static
+  (no such component exists in source). Fixed path
+  with chevron separators; trailing item is current. Compiled as <x-breadcrumb-before>.
+  Props: separator.
+-->
+<prop name="separator" type="string" default="/" reflect />
+
+<style>
+  :host { display: flex; align-items: center; }
+  nav { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 2px; font-family: var(--font-body); font-size: 13px; }
+  .crumb { color: var(--muted-foreground); text-decoration: none; padding: 2px 4px; border-radius: var(--radius-sm); cursor: pointer; }
+  .crumb:hover { color: var(--foreground); }
+  .crumb.current { color: var(--foreground); font-weight: var(--font-weight-medium, 500); }
+  .sep { display: inline-flex; align-items: center; justify-content: center; width: 12px; height: 12px; color: var(--muted-foreground); opacity: 0.7; }
+  .sep svg { width: 12px; height: 12px; }
+</style>
+
+<nav aria-label="Breadcrumb" part="nav">
+  <a class="crumb">Home</a>
+  <span class="sep" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+  <a class="crumb">Pipelines</a>
+  <span class="sep" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+  <a class="crumb">nightly-reindex</a>
+  <span class="sep" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+  <span class="crumb current" aria-current="page">Run #482</span>
+</nav>

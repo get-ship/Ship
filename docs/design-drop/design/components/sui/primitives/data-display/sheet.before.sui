@@ -1,0 +1,57 @@
+<!-- sui-sheet.before.sui — EXISTING look (repo). Engine is strong but the CHROME
+  is off-system: a raw spreadsheet read — hard uniform gridlines, a heavy grey
+  header, a generic selection box, a plain formula bar. Doesn't use the data-grid
+  tokens the rest of SHIP shares. Static snapshot. Compiled as <x-sheet-before>. -->
+<style>
+  :host { display: block; font-family: var(--font-body); font-size: 12px; width: 460px; max-width: 100%; }
+  .fx { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--border); border-bottom: 0; }
+  .ref { font-family: var(--font-mono); font-weight: 600; color: var(--foreground); min-width: 34px; }
+  .fxi { color: var(--muted-foreground); font-style: italic; }
+  .formula { font-family: var(--font-mono); color: var(--foreground); }
+  .grid { display: grid; grid-template-columns: 30px repeat(5, 1fr); border-left: 1px solid var(--border); border-top: 1px solid var(--border); }
+  .cnr, .ch, .rh, .cell { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 4px 7px; }
+  .cnr { background: var(--muted); }
+  .ch, .rh { background: var(--muted); color: var(--foreground); font-weight: 600; text-align: center; }
+  .rh { text-align: center; }
+  .cell { background: var(--card); color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cell.sel { outline: 2px solid var(--primary); outline-offset: -2px; }
+</style>
+<div class="fx" part="formula-bar"><span class="ref">B3</span><span class="fxi">fx</span><span class="formula">512</span></div>
+<div class="grid" part="grid">
+    <div class="cnr"></div>
+    <div class="ch">A</div>
+    <div class="ch">B</div>
+    <div class="ch">C</div>
+    <div class="ch">D</div>
+    <div class="ch">E</div>
+    <div class="rh">1</div>
+    <div class="cell">Shard</div>
+    <div class="cell">p99</div>
+    <div class="cell">Err</div>
+    <div class="cell">Status</div>
+    <div class="cell"></div>
+    <div class="rh">2</div>
+    <div class="cell">logs-2026</div>
+    <div class="cell">238</div>
+    <div class="cell">0.1%</div>
+    <div class="cell">ok</div>
+    <div class="cell"></div>
+    <div class="rh">3</div>
+    <div class="cell">logs-2025</div>
+    <div class="cell sel">512</div>
+    <div class="cell">0.3%</div>
+    <div class="cell">slow</div>
+    <div class="cell"></div>
+    <div class="rh">4</div>
+    <div class="cell">events</div>
+    <div class="cell">190</div>
+    <div class="cell">0.0%</div>
+    <div class="cell">ok</div>
+    <div class="cell"></div>
+    <div class="rh">5</div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+</div>

@@ -1,0 +1,46 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-segmented.after.sui — ELEVATED on the locked field language. Same template +
+  props as before; style-only diff:
+    • unselected buttons gain a hover affordance (--foreground text + a faint
+      --muted surface) so the unpicked options are discoverable
+    • focus ring: token offset/width stack → shared recipe
+      (0 0 0 1px --card, 0 0 0 3px color-mix(--primary 22%)) — matches the pack
+    • selected pill: --card + --shadow-xs PLUS a hairline --border-subtle ring so
+      it reads as a raised chip on muted/console themes; container border →
+      --border-strong for a crisper frame
+  Static visual, three fixed options (no controller). Compiled as <x-segmented-after>.
+-->
+<prop name="value" type="string" default="list" reflect />
+<prop name="size" values="sm|md" default="md" reflect />
+<prop name="disabled" type="bool" default="false" reflect />
+
+<style>
+  :host { display: inline-flex; }
+  :host([hidden]) { display: none; }
+  .container { display: inline-flex; padding: 2px; background: var(--muted); border: 1px solid var(--border-strong); border-radius: var(--radius-md); gap: 1px; }
+  .btn {
+    appearance: none; border: 0; background: transparent; border-radius: var(--radius-sm);
+    font-family: var(--font-body); color: var(--muted-foreground); cursor: pointer;
+    display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; line-height: 1;
+    transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+  }
+  :host(:not([size])) .btn, :host([size='md']) .btn { padding: 5px var(--space-3); font-size: var(--text-sm); }
+  :host([size='sm']) .btn { padding: 4px var(--space-2); font-size: var(--text-xs); }
+  .btn:not([aria-checked='true']):hover { background: color-mix(in oklch, var(--foreground) 6%, transparent); color: var(--foreground); }
+  .btn[aria-checked='true'] {
+    background: var(--card); color: var(--foreground);
+    box-shadow: var(--shadow-xs), inset 0 0 0 1px var(--border-subtle);
+  }
+  .btn:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--card), 0 0 0 3px color-mix(in oklch, var(--primary) 22%, transparent); }
+  :host([disabled]) .btn { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+</style>
+
+<div class="container" part="container" role="radiogroup">
+  <button class="btn" role="radio" type="button" data-value="list"
+    aria-checked={value() === 'list' ? 'true' : 'false'} tabindex={value() === 'list' ? '0' : '-1'}>List</button>
+  <button class="btn" role="radio" type="button" data-value="board"
+    aria-checked={value() === 'board' ? 'true' : 'false'} tabindex={value() === 'board' ? '0' : '-1'}>Board</button>
+  <button class="btn" role="radio" type="button" data-value="timeline"
+    aria-checked={value() === 'timeline' ? 'true' : 'false'} tabindex={value() === 'timeline' ? '0' : '-1'}>Timeline</button>
+</div>

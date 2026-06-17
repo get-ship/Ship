@@ -1,0 +1,27 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-loading.after.sui — ENHANCED. The indeterminate bar gets a soft gradient
+  sweep on a rounded track (degrades to a static fill under reduced-motion), and
+  the inline variant becomes a proper ring spinner + label with role=status /
+  aria-live so it's announced, not silent. Both motion paths are reduced-motion
+  aware. Token-pure. Compiled as <x-loading-after>. Props: variant · label.
+-->
+<prop name="variant" values="bar|inline" default="bar" reflect />
+<prop name="label" type="string" default="Loading" />
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  .bar { position: relative; height: 4px; background: var(--muted); border-radius: var(--radius-full); overflow: hidden; }
+  .bar::after { content: ""; position: absolute; inset: 0; width: 40%; border-radius: var(--radius-full); background: linear-gradient(90deg, transparent, var(--primary), transparent); }
+  @media (prefers-reduced-motion: no-preference) { .bar::after { animation: l-sweep 1.2s var(--ease-in-out) infinite; } }
+  @media (prefers-reduced-motion: reduce) { .bar::after { left: 30%; background: var(--primary); } }
+  @keyframes l-sweep { 0% { transform: translateX(-110%); } 100% { transform: translateX(360%); } }
+  :host([variant='inline']) { display: inline-flex; align-items: center; }
+  :host([variant='inline']) .bar { display: none; }
+  .inline { display: none; align-items: center; gap: 8px; color: var(--muted-foreground); font-size: var(--text-sm); }
+  :host([variant='inline']) .inline { display: inline-flex; }
+  .ring { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--primary); }
+  @media (prefers-reduced-motion: no-preference) { .ring { animation: l-spin 0.7s linear infinite; } }
+  @keyframes l-spin { to { transform: rotate(360deg); } }
+</style>
+<div class="bar" part="bar" role="progressbar" aria-label={label()}></div>
+<span class="inline" role="status" aria-live="polite"><span class="ring" aria-hidden="true"></span>{label()}…</span>

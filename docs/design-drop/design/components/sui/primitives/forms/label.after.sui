@@ -1,0 +1,29 @@
+<!--
+  sui-label.after.sui — ELEVATED. The uppercase 10px micro-cap baseline is dated
+  and hard to read at small sizes; this moves to a modern, legible field label:
+    • sentence case (no text-transform), 12/13px by size
+    • --foreground at full strength for clear figure/ground (vs --muted-foreground)
+    • weight 600, normal tracking
+    • required marker on the --destructive tone, nudged for optical balance
+  Same template + props. Compiled as <x-label-after>. Props: for · size · required.
+-->
+<prop name="for" type="string" default="" />
+<prop name="size" values="sm|md" default="sm" reflect />
+<prop name="required" type="bool" default="false" reflect />
+
+<style>
+  :host { display: inline-block; }
+  :host([hidden]) { display: none; }
+  label {
+    display: inline; font-family: var(--font-body); font-weight: 600;
+    letter-spacing: 0; color: var(--foreground); cursor: pointer;
+  }
+  :host(:not([size])) label, :host([size='sm']) label { font-size: 12px; }
+  :host([size='md']) label { font-size: 13px; }
+  .req { color: var(--destructive); margin-left: 3px; font-weight: 700; }
+</style>
+
+<label part="label">
+  <slot></slot>
+  {#if required()}<span class="req" aria-hidden="true">*</span>{/if}
+</label>

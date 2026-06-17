@@ -1,0 +1,35 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-copy-button.after.sui — POLISH. Same ghost footprint, but: (1) the copied
+  state turns the glyph to the success tone with a soft success wash (clear, not
+  just a silent swap), (2) an inline confirmation label can ride alongside on
+  wider placements (label='inline'), (3) an aria-live region announces "Copied"
+  for SR, (4) the icon box is fixed so the check never shifts layout. Token-pure.
+  Compiled as <x-copy-button-after>. Props: state · label · variant.
+-->
+<prop name="state" values="idle|copied" default="idle" reflect />
+<prop name="variant" values="icon|inline" default="icon" reflect />
+<prop name="label" type="string" default="Copy" />
+<style>
+  :host { display: inline-flex; }
+  button { display: inline-flex; align-items: center; gap: var(--space-2); height: 28px; padding: 0 6px; border: 1px solid transparent; background: transparent; color: var(--muted-foreground); border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-body); font-size: var(--text-xs); transition: background var(--duration-fast), color var(--duration-fast), border-color var(--duration-fast); }
+  button:hover { background: var(--muted); color: var(--foreground); }
+  button:focus-visible { outline: none; border-color: var(--tone-default-ring, var(--ring)); box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 22%, transparent); }
+  .ico { position: relative; width: 16px; height: 16px; flex: none; }
+  .ico svg { position: absolute; inset: 0; width: 16px; height: 16px; transition: opacity var(--duration-fast), transform var(--duration-fast); }
+  .check { opacity: 0; transform: scale(.7); }
+  .txt:empty { display: none; }
+  :host([variant='icon']) .txt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  /* copied */
+  :host([state='copied']) button { color: var(--tone-success-fg); background: var(--tone-success-bg); }
+  :host([state='copied']) .clip { opacity: 0; transform: scale(.7); }
+  :host([state='copied']) .check { opacity: 1; transform: none; }
+</style>
+<button part="button" type="button" aria-label={label()}>
+  <span class="ico">
+    <svg class="clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+    <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+  </span>
+  <span class="txt">{state() == 'copied' ? 'Copied' : 'Copy'}</span>
+</button>
+<span part="status" role="status" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">{state() == 'copied' ? 'Copied to clipboard' : ''}</span>

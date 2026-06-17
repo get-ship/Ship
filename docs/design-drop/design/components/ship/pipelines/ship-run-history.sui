@@ -1,0 +1,39 @@
+<!--
+  ship-run-history.sui — @ship/pipelines surface (the /pipelines history view).
+  NET-NEW feature mock. A runs table: status dot · run id · trigger · duration
+  (number + relative bar) · started. Zebra-free hairline rows, mono numerics,
+  hover. Static realistic content. Compiled <ship-run-history>.
+-->
+<style>
+  :host { display: block; }
+  .rh { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-xs); overflow: hidden; }
+  .hd { display: flex; align-items: center; gap: 10px; padding: 12px var(--space-5); border-bottom: 1px solid var(--border-subtle); font-family: var(--font-mono); font-weight: 600; font-size: var(--text-sm); }
+  .hd .cnt { margin-left: auto; font-weight: 400; font-size: 11px; color: var(--muted-foreground); }
+  .colhd, .row { display: grid; grid-template-columns: 16px 120px 1fr 96px 104px; align-items: center; gap: 12px; padding: 9px var(--space-5); }
+  .colhd { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted-foreground); font-weight: 600; border-bottom: 1px solid var(--border); }
+  .row { border-bottom: 1px solid var(--border-subtle); font-size: var(--text-sm); }
+  .row:last-child { border-bottom: 0; }
+  .row:hover { background: color-mix(in oklch, var(--foreground) 4%, transparent); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .s-success { background: var(--success); }
+  .s-failed  { background: var(--destructive); }
+  .s-running { background: var(--info); }
+  .rid { font-family: var(--font-mono); font-weight: 600; }
+  .trig { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+  .dur { display: flex; flex-direction: column; gap: 3px; }
+  .dur .n { font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .dur .b { height: 3px; border-radius: 2px; background: var(--muted); overflow: hidden; }
+  .dur .b > i { display: block; height: 100%; background: var(--muted-foreground); }
+  .when { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); text-align: right; }
+</style>
+
+<div class="rh" part="history">
+  <div class="hd">Recent runs<span class="cnt">last 24h · nightly-reindex</span></div>
+  <div class="colhd"><span></span><span>Run</span><span>Trigger</span><span>Duration</span><span>Started</span></div>
+  <div class="row"><span class="dot s-running"></span><span class="rid">#8842</span><span class="trig">schedule · 0 3 * * *</span><span class="dur"><span class="n">18s…</span><span class="b"><i style="width:60%"></i></span></span><span class="when">11:20</span></div>
+  <div class="row"><span class="dot s-failed"></span><span class="rid">#8841</span><span class="trig">manual · alex</span><span class="dur"><span class="n">1.2s</span><span class="b"><i style="width:9%"></i></span></span><span class="when">03:00</span></div>
+  <div class="row"><span class="dot s-success"></span><span class="rid">#8840</span><span class="trig">schedule</span><span class="dur"><span class="n">12.8s</span><span class="b"><i style="width:82%"></i></span></span><span class="when">−1d 03:00</span></div>
+  <div class="row"><span class="dot s-success"></span><span class="rid">#8839</span><span class="trig">schedule</span><span class="dur"><span class="n">11.9s</span><span class="b"><i style="width:76%"></i></span></span><span class="when">−2d 03:00</span></div>
+  <div class="row"><span class="dot s-success"></span><span class="rid">#8838</span><span class="trig">webhook · gh-push</span><span class="dur"><span class="n">9.4s</span><span class="b"><i style="width:60%"></i></span></span><span class="when">−3d 14:02</span></div>
+  <div class="row"><span class="dot s-success"></span><span class="rid">#8837</span><span class="trig">schedule</span><span class="dur"><span class="n">13.1s</span><span class="b"><i style="width:88%"></i></span></span><span class="when">−4d 03:00</span></div>
+</div>

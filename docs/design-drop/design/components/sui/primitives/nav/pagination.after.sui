@@ -1,0 +1,36 @@
+<!--
+  sui-pagination.after.sui — ELEVATED. The bare Prev/Next bar becomes a real pager:
+    • numbered page buttons with the current page filled (--primary), truncation
+      ellipsis for long ranges — direct access, not just step-by-step
+    • Prev/Next become compact icon buttons (chevrons) with disabled states
+    • a results count anchors the left
+  Static visual (page 2 of 10). Compiled as <x-pagination-after>.
+  Props: page · total · per-page.
+-->
+<prop name="page" type="number" default="2" reflect />
+<prop name="total" type="number" default="240" reflect />
+<prop name="per-page" type="number" default="25" reflect />
+
+<style>
+  :host { display: block; }
+  nav.bar { display: flex; align-items: center; gap: 5px; font-size: 0.8125rem; font-family: var(--font-body); }
+  .info { color: var(--muted-foreground); user-select: none; white-space: nowrap; margin-right: auto; }
+  .pg, .num { display: inline-flex; align-items: center; justify-content: center; height: 30px; min-width: 30px; padding: 0 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card); color: var(--foreground); font: inherit; font-size: 0.8125rem; font-variant-numeric: tabular-nums; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+  .pg svg { width: 15px; height: 15px; }
+  .num:hover, .pg:hover:not(:disabled) { background: var(--muted); border-color: var(--border-strong); }
+  .num.active { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); font-weight: var(--font-weight-semibold, 600); }
+  .pg:disabled { opacity: 0.4; cursor: not-allowed; }
+  .ellipsis { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; color: var(--muted-foreground); }
+</style>
+
+<nav class="bar" aria-label="Pagination">
+  <span class="info" part="info">240 results</span>
+  <button class="pg" part="prev" aria-label="Previous page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+  <button class="num">1</button>
+  <button class="num active" aria-current="page">2</button>
+  <button class="num">3</button>
+  <button class="num">4</button>
+  <span class="ellipsis" aria-hidden="true">…</span>
+  <button class="num">10</button>
+  <button class="pg" part="next" aria-label="Next page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+</nav>

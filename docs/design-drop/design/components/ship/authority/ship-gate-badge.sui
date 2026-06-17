@@ -1,0 +1,26 @@
+<!--
+  ship-gate-badge.sui — @ship/authority · a gate decision: allowed · approved ·
+  needs-approval · denied · running. Extracted from op-card so the gate verdict reads
+  identically everywhere it surfaces (op-card, approval-prompt, capability-bar).
+  Attribute-driven, tokens only.  Prop: decision.
+-->
+<prop name="decision" values="allowed|approved|needs-approval|denied|running" default="allowed" reflect />
+<style>
+  :host { display: inline-block; font-family: var(--font-body); --gc: var(--muted-foreground); --gb: var(--muted); }
+  :host([decision='allowed'])        { --gc: var(--muted-foreground); --gb: var(--muted); }
+  :host([decision='approved'])       { --gc: var(--success);     --gb: var(--tone-success-bg); }
+  :host([decision='needs-approval']) { --gc: var(--warning);     --gb: var(--tone-warning-bg); }
+  :host([decision='denied'])         { --gc: var(--destructive); --gb: var(--tone-destructive-bg); }
+  :host([decision='running'])        { --gc: var(--info);        --gb: var(--tone-info-bg); }
+  .g { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 3px 9px; border-radius: var(--radius-full); background: var(--gb); color: var(--gc); }
+  .d { width: 6px; height: 6px; border-radius: 50%; background: var(--gc); }
+  :host([decision='running']) .d { animation: gb-blink 1s ease-in-out infinite; }
+  @keyframes gb-blink { 50% { opacity: .3; } }
+  .l { display: none; }
+  :host([decision='allowed']) .la { display: inline; }
+  :host([decision='approved']) .lap { display: inline; }
+  :host([decision='needs-approval']) .lna { display: inline; }
+  :host([decision='denied']) .ld { display: inline; }
+  :host([decision='running']) .lr { display: inline; }
+</style>
+<span class="g" part="badge"><span class="d"></span><span class="l la">allowed</span><span class="l lap">approved</span><span class="l lna">needs approval</span><span class="l ld">denied</span><span class="l lr">running</span></span>

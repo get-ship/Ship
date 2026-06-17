@@ -1,0 +1,27 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!-- sui-component-viewer.before.sui — fabricated sketch (not in source). A minimal inspector:
+  a title bar, a preview stage, and a plain key/value props list. No variant
+  switcher, no viewport controls, no usage snippet. Compiled as
+  <x-component-viewer-before>. -->
+<style>
+  :host { display: block; font-family: var(--font-body); width: 520px; max-width: 100%; }
+  .shell { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--card); }
+  .top { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; color: var(--foreground); }
+  .main { display: grid; grid-template-columns: 1fr 180px; }
+  .stage { padding: 44px; display: flex; align-items: center; justify-content: center; background: var(--muted); }
+  .side { border-left: 1px solid var(--border); padding: 10px 12px; }
+  .prop { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; font-size: 12px; color: var(--muted-foreground); }
+  .prop b { color: var(--foreground); font-weight: 500; }
+  .demo { height: 32px; padding: 0 16px; border: 0; border-radius: var(--radius-sm); background: var(--primary); color: var(--primary-foreground); font: inherit; font-size: 13px; cursor: pointer; }
+</style>
+<div class="shell" part="shell">
+  <div class="top">sui-button</div>
+  <div class="main">
+    <div class="stage"><button class="demo">Run</button></div>
+    <div class="side">
+      <div class="prop"><b>tone</b>primary</div>
+      <div class="prop"><b>size</b>md</div>
+      <div class="prop"><b>disabled</b>false</div>
+    </div>
+  </div>
+</div>

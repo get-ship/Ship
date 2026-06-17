@@ -1,0 +1,17 @@
+<!-- sui-sparkline.new.sui — ELEVATED on IDENTICAL engine geometry. Adds a soft
+  gradient area fill, rounded joins, and an end-point marker. Same controller →
+  same line/area paths; only the template differs. Compiled as <x-spark-new>. -->
+<prop name="data" type="string" default="" />
+<prop name="tone" values="primary|accent|info|success|warning|destructive" default="primary" reflect />
+<style>
+  :host { display: block; width: 100%; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .area { stroke: none; }
+  .line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .dot { stroke: var(--card); stroke-width: 1.5; }
+</style>
+<svg viewBox="0 0 240 80" part="chart" role="img">
+  <path class="area" d={area().fillD} fill={line().color} fill-opacity="0.13"></path>
+  <path class="line" d={line().strokeD} stroke={line().color}></path>
+  <circle class="dot" cx={last().cx} cy={last().cy} r="3" fill={line().color}></circle>
+</svg>

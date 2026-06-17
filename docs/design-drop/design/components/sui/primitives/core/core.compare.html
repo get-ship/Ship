@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>core · button + card · existing vs new</title>
+<link rel="stylesheet" href="../../../../../sui/ship.css" />
+<script type="importmap">
+{ "imports": { "@ship/sui-runtime": "../../../../../sui/sui-runtime.js" } }
+</script>
+<style>
+  html, body { margin: 0; }
+  body { background: var(--background); color: var(--foreground); font-family: var(--font-body); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 28px var(--space-6) 100px; }
+  .eyebrow { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .12em; text-transform: uppercase; color: var(--muted-foreground); }
+  h1 { font-family: var(--heading-font); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--text-4xl); margin: 8px 0 0; }
+  .rule { width: 64px; height: 4px; border-radius: 2px; margin: 14px 0 14px; background: linear-gradient(90deg, var(--primary), var(--accent) 70%, transparent); }
+  .lede { color: var(--muted-foreground); font-size: var(--text-md); margin: 0; max-width: 74ch; line-height: 1.6; }
+  .lede b { color: var(--foreground); } .lede code { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .bar { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: 18px; position: sticky; top: 0; z-index: 30; background: color-mix(in oklch, var(--background) 90%, transparent); backdrop-filter: blur(10px); padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
+  .seg { display: inline-flex; background: var(--muted); border-radius: var(--radius-md); padding: 3px; gap: 2px; }
+  .seg button { padding: 7px 18px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted-foreground); font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+  .themes { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+  .themes .tl { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+  .sw { display: inline-flex; gap: 5px; padding: 4px; background: var(--muted); border-radius: var(--radius-full); }
+  .sw button { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid color-mix(in oklch, var(--foreground) 14%, transparent); cursor: pointer; padding: 0; }
+  .sw button[aria-pressed="true"] { border-color: var(--foreground); box-shadow: 0 0 0 2px var(--background), 0 0 0 3px var(--foreground); }
+  .build { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); margin: 16px 0 0; }
+
+  section { margin-top: 40px; }
+  .sh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h2 { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-lg); margin: 0; }
+  .tag { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted-foreground); border: 1px solid var(--border); border-radius: var(--radius-full); padding: 2px 8px; }
+  .note { color: var(--muted-foreground); font-size: var(--text-sm); margin: 8px 0 14px; max-width: 76ch; line-height: 1.55; }
+  .note b { color: var(--foreground); font-weight: 600; }
+  .panel { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-xs); padding: var(--space-5); }
+  .brow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .brow + .brow { margin-top: 14px; }
+  .blabel { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-foreground); width: 72px; flex-shrink: 0; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-4); }
+  .ph { color: var(--muted-foreground); font-size: 13px; line-height: 1.5; }
+  .mi-ic { width: 15px; height: 15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">components/sui · primitives · core</div>
+  <h1>button + card</h1>
+  <div class="rule"></div>
+  <p class="lede"><b>The two most fundamental primitives.</b> Both compiled <code>.sui</code>. As with badge/chip, the shipped <code>button</code> solid variant uses raw <code>black</code>/<code>white</code> literals the SUI compiler rejects — <b>Existing</b> is the nearest compiling equivalent; <b>New</b> is token-pure (solid border → <code>var(--tone)</code>, hover lighten → <code>--tone-contrast</code>) + soft-contrast tuning. <code>card</code> gets ring/border-token unification. Toggle <b>Existing / New</b>; switch <b>themes</b> right.</p>
+
+  <div class="bar">
+    <span class="seg" id="seg" role="tablist" aria-label="Compare"><button data-v="before" aria-pressed="true">Existing</button><button data-v="after" aria-pressed="false">New</button></span>
+    <span class="themes"><span class="tl">Theme</span><span class="sw" id="sw"></span></span>
+  </div>
+  <div class="build" id="build">compiling…</div>
+
+  <section>
+    <div class="sh"><h2>sui-button</h2><span class="tag">compile-compliance</span></div>
+    <p class="note"><b>New:</b> token-pure solid (no raw literals), tuned soft contrast on dark/console. Variants × tones, plus loading / disabled / icon states.</p>
+    <div class="demo" id="d-button"></div>
+  </section>
+
+  <section>
+    <div class="sh"><h2>sui-card</h2><span class="tag">polish</span></div>
+    <p class="note"><b>New:</b> interactive hover border → <code>--border-strong</code>, focus ring → shared recipe (tone-keyed), quieter <code>--border-subtle</code> header/footer separators. Shown: plain, interactive, tone fill, status-rail, accent-bar.</p>
+    <div class="demo" id="d-card"></div>
+  </section>
+</div>
+
+<script type="module">
+import { defineComponent, themeBar } from '../../../../../tools/catalog/sui-workbench.js';
+const $ = (s) => document.querySelector(s);
+themeBar($('#sw'));
+const el = (tag, attrs, text) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs || {})) { if (v === true) e.setAttribute(k, ''); else if (v != null) e.setAttribute(k, v); } if (text != null) e.textContent = text; return e; };
+function svgIcon(d) { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round'); s.setAttribute('class', 'mi-ic'); s.innerHTML = d; return s; }
+function btn(v, attrs, label, opts) {
+  const b = el('x-button-' + v, attrs);
+  if (opts && opts.leading) { const lead = svgIcon(opts.leading); lead.setAttribute('slot', 'leading'); b.appendChild(lead); }
+  if (label) b.appendChild(document.createTextNode(label));
+  return b;
+}
+
+const renderers = {
+  button(v, mount) {
+    mount.innerHTML = '';
+    const p = el('div', { class: 'panel' });
+    const rows = [
+      ['solid', [['primary', 'Run'], ['success', 'Approve'], ['warning', 'Review'], ['destructive', 'Delete']].map(([t, l]) => btn(v, { variant: 'solid', tone: t }, l))],
+      ['soft', [['primary', 'Run'], ['info', 'Details'], ['accent', 'Promote']].map(([t, l]) => btn(v, { variant: 'soft', tone: t }, l))],
+      ['outline', [['default', 'Cancel'], ['primary', 'Save'], ['destructive', 'Remove']].map(([t, l]) => btn(v, { variant: 'outline', tone: t }, l))],
+      ['ghost', [['default', 'Dismiss'], ['primary', 'Edit']].map(([t, l]) => btn(v, { variant: 'ghost', tone: t }, l))],
+      ['default', [btn(v, {}, 'Default'), btn(v, { size: 'sm' }, 'Small'), btn(v, { size: 'lg' }, 'Large')]],
+      ['states', [btn(v, { variant: 'solid', tone: 'primary', loading: true }, 'Saving'), btn(v, { variant: 'solid', tone: 'primary', disabled: true }, 'Disabled'), btn(v, { variant: 'soft', tone: 'primary' }, 'Icon', { leading: '<path d="M5 12h14M12 5v14"/>' })]],
+    ];
+    for (const [label, btns] of rows) {
+      const row = el('div', { class: 'brow' });
+      row.appendChild(el('span', { class: 'blabel' }, label));
+      btns.forEach(b => row.appendChild(b));
+      p.appendChild(row);
+    }
+    mount.appendChild(p);
+  },
+  card(v, mount) {
+    mount.innerHTML = '';
+    const grid = el('div', { class: 'cards' });
+    const mk = (attrs, head, body) => { const c = el('x-card-' + v, attrs); if (head) c.appendChild(el('span', { slot: 'header' }, head)); c.appendChild(el('div', { class: 'ph' }, body)); return c; };
+    grid.append(
+      mk({}, 'Run summary', 'p99 held at 91ms across the window.'),
+      mk({ interactive: true }, 'Interactive', 'Hover to lift; click target.'),
+      mk({ tone: 'success', fill: true }, 'Healthy', 'All shards green.'),
+      mk({ tone: 'warning', 'status-rail': true }, 'Budget', 'Within 8% of SLO.'),
+      mk({ 'accent-bar': true }, 'Accent bar', 'Gradient bar on hover.'),
+      mk({ variant: 'outline' }, 'Outline', 'No fill, no shadow.'),
+    );
+    mount.appendChild(grid);
+  },
+};
+const MOUNTS = { button: '#d-button', card: '#d-card' };
+
+try {
+  const defs = ['button', 'card'];
+  await Promise.all(defs.flatMap(name => ['before', 'after'].map(async (v) => {
+    const sui = await (await fetch(`./${name}.${v}.sui`)).text();
+    await defineComponent({ name: `x-${name}-${v}`, sui });
+  })));
+  $('#build').textContent = 'Compiled ✓  2 core primitives × existing + new  ·  registered';
+
+  function render(v) {
+    for (const [key, sel] of Object.entries(MOUNTS)) renderers[key](v, $(sel));
+    document.querySelectorAll('#seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+  }
+  $('#seg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) render(b.dataset.v); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') render('before'); if (e.key === 'ArrowRight') render('after'); });
+  render('before');
+} catch (e) {
+  $('#build').innerHTML = '<span style="color:var(--destructive)">compile failed: ' + (e && e.message || e) + '</span>';
+}
+</script>
+</body>
+</html>

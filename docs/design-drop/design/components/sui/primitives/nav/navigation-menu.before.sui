@@ -1,0 +1,28 @@
+<!--
+  sui-navigation-menu.before.sui — EXISTING look (repo). A horizontal app nav with
+  a trigger that opens a panel of plain links. Flat: text-only items, a basic
+  dropdown list, no active indicator. Panel shown open (Resources) for the
+  comparison. Compiled as <x-navigation-menu-before>.
+-->
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  .nav { display: flex; gap: 4px; align-items: center; }
+  .item { display: inline-flex; align-items: center; gap: 5px; padding: 8px 12px; font-size: 13px; color: var(--muted-foreground); background: none; border: 0; cursor: pointer; }
+  .item:hover { color: var(--foreground); }
+  .item.open { color: var(--foreground); }
+  .panel { margin-top: 6px; width: 240px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-md); padding: 6px; }
+  .link { display: block; padding: 8px 10px; font-size: 13px; color: var(--foreground); border-radius: var(--radius-sm); cursor: pointer; }
+  .link:hover { background: var(--muted); }
+</style>
+<div class="nav" part="nav" role="menubar">
+  <button class="item" role="menuitem">Home</button>
+  <button class="item" role="menuitem">Products</button>
+  <button class="item open" role="menuitem" aria-expanded="true">Resources <span style="font-size:9px">&#9662;</span></button>
+  <button class="item" role="menuitem">Pricing</button>
+</div>
+<div class="panel" part="panel" role="menu">
+  <a class="link" role="menuitem">Documentation</a>
+  <a class="link" role="menuitem">API reference</a>
+  <a class="link" role="menuitem">Changelog</a>
+  <a class="link" role="menuitem">Community</a>
+</div>

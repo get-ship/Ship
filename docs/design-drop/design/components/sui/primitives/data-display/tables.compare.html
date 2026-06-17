@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>data-display · table + timeline · existing vs new</title>
+<link rel="stylesheet" href="../../../../../sui/ship.css" />
+<script type="importmap">
+{ "imports": { "@ship/sui-runtime": "../../../../../sui/sui-runtime.js" } }
+</script>
+<style>
+  html, body { margin: 0; }
+  body { background: var(--background); color: var(--foreground); font-family: var(--font-body); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 28px var(--space-6) 100px; }
+  .eyebrow { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .12em; text-transform: uppercase; color: var(--muted-foreground); }
+  h1 { font-family: var(--heading-font); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--text-4xl); margin: 8px 0 0; }
+  .rule { width: 64px; height: 4px; border-radius: 2px; margin: 14px 0 14px; background: linear-gradient(90deg, var(--primary), var(--accent) 70%, transparent); }
+  .lede { color: var(--muted-foreground); font-size: var(--text-md); margin: 0; max-width: 74ch; line-height: 1.6; }
+  .lede b { color: var(--foreground); } .lede code { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .bar { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: 18px; position: sticky; top: 0; z-index: 30; background: color-mix(in oklch, var(--background) 90%, transparent); backdrop-filter: blur(10px); padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
+  .seg { display: inline-flex; background: var(--muted); border-radius: var(--radius-md); padding: 3px; gap: 2px; }
+  .seg button { padding: 7px 18px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted-foreground); font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+  .themes { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+  .themes .tl { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+  .sw { display: inline-flex; gap: 5px; padding: 4px; background: var(--muted); border-radius: var(--radius-full); }
+  .sw button { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid color-mix(in oklch, var(--foreground) 14%, transparent); cursor: pointer; padding: 0; }
+  .sw button[aria-pressed="true"] { border-color: var(--foreground); box-shadow: 0 0 0 2px var(--background), 0 0 0 3px var(--foreground); }
+  .build { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); margin: 16px 0 0; }
+
+  section { margin-top: 40px; }
+  .sh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h2 { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-lg); margin: 0; }
+  .tag { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted-foreground); border: 1px solid var(--border); border-radius: var(--radius-full); padding: 2px 8px; }
+  .note { color: var(--muted-foreground); font-size: var(--text-sm); margin: 8px 0 14px; max-width: 76ch; line-height: 1.55; }
+  .note b { color: var(--foreground); font-weight: 600; }
+  .ctlrow { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .chip { font-family: var(--font-mono); font-size: 11px; padding: 4px 10px; border-radius: var(--radius-full); border: 1px solid var(--border); background: var(--card); color: var(--muted-foreground); cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
+  .tl-panel { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-xs); padding: var(--space-5) var(--space-6); max-width: 460px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">components/sui · primitives · data-display</div>
+  <h1>table + timeline</h1>
+  <div class="rule"></div>
+  <p class="lede"><b>The heavy data primitives, shown static.</b> The real <code>sui-table</code> sorts/selects via a controller + a document-adopted stylesheet (and a <code>data</code> variant driven by signals); <code>sui-timeline</code> is a slot container. Here they're self-contained fixed-data mocks so the row/header and event-spine chrome can be compared. <b>New</b>: the table gets a header band + sort affordance + tone status cells + a selected row; the timeline gets tone-coded dots + descriptions. Toggle <b>Existing / New</b>; switch <b>themes</b> right.</p>
+
+  <div class="bar">
+    <span class="seg" id="seg" role="tablist" aria-label="Compare"><button data-v="before" aria-pressed="true">Existing</button><button data-v="after" aria-pressed="false">New</button></span>
+    <span class="themes"><span class="tl">Theme</span><span class="sw" id="sw"></span></span>
+  </div>
+  <div class="build" id="build">compiling…</div>
+
+  <section>
+    <div class="sh"><h2>sui-table</h2><span class="tag">redesign</span></div>
+    <p class="note"><b>New:</b> a <code>--muted</code> header band with a sort caret on the sorted column, status rendered as a tone dot + label, and a selected row with a <code>--primary</code> tint + left accent — vs a flat grid with plain-text status. Try the density chips.</p>
+    <div class="ctlrow" id="density" role="group" aria-label="Density">
+      <button class="chip" data-d="compact">compact</button>
+      <button class="chip" data-d="default" aria-pressed="true">default</button>
+      <button class="chip" data-d="comfortable">comfortable</button>
+    </div>
+    <div class="demo" id="d-table"></div>
+  </section>
+
+  <section>
+    <div class="sh"><h2>sui-timeline</h2><span class="tag">polish</span></div>
+    <p class="note"><b>New:</b> dots tone-code to each event (queued · started · retried · done) with a halo, the final event enlarges, and each entry gains a one-line description — vs a uniform grey column.</p>
+    <div class="demo" id="d-timeline"></div>
+  </section>
+</div>
+
+<script type="module">
+import { defineComponent, themeBar } from '../../../../../tools/catalog/sui-workbench.js';
+const $ = (s) => document.querySelector(s);
+themeBar($('#sw'));
+const el = (tag, attrs) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs || {})) { if (v === true) e.setAttribute(k, ''); else if (v != null) e.setAttribute(k, v); } return e; };
+
+let mode = 'before';
+let density = 'default';
+
+const renderers = {
+  table(v, mount) { mount.innerHTML = ''; mount.appendChild(el('x-table-' + v, { density, hoverable: true })); },
+  timeline(v, mount) { mount.innerHTML = ''; const p = el('div', { class: 'tl-panel' }); p.appendChild(el('x-timeline-' + v, {})); mount.appendChild(p); },
+};
+const MOUNTS = { table: '#d-table', timeline: '#d-timeline' };
+
+try {
+  const defs = ['table', 'timeline'];
+  await Promise.all(defs.flatMap(name => ['before', 'after'].map(async (v) => {
+    const sui = await (await fetch(`./${name}.${v}.sui`)).text();
+    await defineComponent({ name: `x-${name}-${v}`, sui });
+  })));
+  $('#build').textContent = 'Compiled ✓  2 data primitives × existing + new  ·  registered';
+
+  function render() {
+    for (const [key, sel] of Object.entries(MOUNTS)) renderers[key](mode, $(sel));
+    document.querySelectorAll('#seg button').forEach(btn => btn.setAttribute('aria-pressed', String(btn.dataset.v === mode)));
+  }
+  $('#seg').addEventListener('click', (e) => { const btn = e.target.closest('button'); if (btn) { mode = btn.dataset.v; render(); } });
+  $('#density').addEventListener('click', (e) => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    density = btn.dataset.d;
+    document.querySelectorAll('#density .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.d === density)));
+    renderers.table(mode, $('#d-table'));
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') { mode = 'before'; render(); } if (e.key === 'ArrowRight') { mode = 'after'; render(); } });
+  render();
+} catch (e) {
+  $('#build').innerHTML = '<span style="color:var(--destructive)">compile failed: ' + (e && e.message || e) + '</span>';
+}
+</script>
+</body>
+</html>

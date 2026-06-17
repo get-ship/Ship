@@ -1,0 +1,17 @@
+<!-- sui-bar-chart.existing.sui — the EXISTING look, rendered against the REAL
+  engine geometry (bars from barGeometry via the shared controller). Flat tone
+  bars, no axis — faithful to the current repo component. Compiled as <x-bar-existing>. -->
+<prop name="data" type="string" default="" />
+<prop name="tone" values="primary|accent|info|success|warning|destructive" default="primary" reflect />
+<prop name="labels" type="string" default="" />
+
+<style>
+  :host { display: block; width: 100%; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+</style>
+
+<svg viewBox="0 0 240 80" part="chart" role="img">
+  {#for b of bars() key={b.id}}
+    <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={b.rx} ry={b.ry} fill={b.color}><title>{b.title}</title></rect>
+  {/for}
+</svg>

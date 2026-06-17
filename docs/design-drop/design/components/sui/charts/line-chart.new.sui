@@ -1,0 +1,28 @@
+<!-- sui-line-chart.new.sui — ELEVATED on identical geometry. Rounded 2px joins,
+  card-ringed end-point markers per series, faint gridlines + baseline, and an
+  inline legend (color chip + label). Same two series as .existing. Compiled as
+  <x-line-new>. -->
+<style>
+  :host { display: block; width: 100%; font-family: var(--font-body); }
+  .legend { display: flex; gap: 16px; margin-bottom: 8px; }
+  .lg { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--muted-foreground); }
+  .chip { width: 9px; height: 9px; border-radius: 2px; }
+  .chip.a { background: var(--primary); } .chip.b { background: var(--accent); }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .grid { stroke: var(--border-subtle); stroke-width: 1; }
+  .baseline { stroke: var(--border); stroke-width: 1; }
+  .a { fill: none; stroke: var(--primary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .b { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .da { fill: var(--primary); stroke: var(--card); stroke-width: 1.5; }
+  .db { fill: var(--accent); stroke: var(--card); stroke-width: 1.5; }
+</style>
+<div class="legend"><span class="lg"><span class="chip a"></span>p99 latency</span><span class="lg"><span class="chip b"></span>error rate</span></div>
+<svg viewBox="0 0 240 96" part="chart" role="img" aria-label="Line chart">
+  <line class="grid" x1="0" y1="29" x2="240" y2="29"></line>
+  <line class="grid" x1="0" y1="58" x2="240" y2="58"></line>
+  <line class="baseline" x1="0" y1="88" x2="240" y2="88"></line>
+  <path class="a" d="M4 88 L29.8 71.3 L55.6 79.6 L81.3 54.6 L107.1 65.7 L132.9 40.6 L158.7 49 L184.4 26.7 L210.2 35.1 L236 10"></path>
+  <path class="b" d="M4 10 L29.8 28.4 L55.6 19.2 L81.3 55.9 L107.1 37.5 L132.9 65.1 L158.7 51.3 L184.4 78.8 L210.2 60.5 L236 88"></path>
+  <circle class="da" cx="236" cy="10" r="3"></circle>
+  <circle class="db" cx="236" cy="88" r="3"></circle>
+</svg>

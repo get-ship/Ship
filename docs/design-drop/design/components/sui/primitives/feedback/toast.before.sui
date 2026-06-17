@@ -1,0 +1,23 @@
+<!--
+  sui-toast.before.sui — EXISTING look (repo). A transient notice card: icon +
+  title + body + close. Flat — no tone tile, no auto-dismiss timer, no action
+  slot. Compiled as <x-toast-before>. Props: tone · title · body. Slot: icon.
+-->
+<prop name="tone" values="info|success|warning|destructive" default="info" reflect />
+<prop name="title" type="string" default="" />
+<prop name="body" type="string" default="" />
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  .toast { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); width: 320px; }
+  .ico { flex: none; color: var(--muted-foreground); display: inline-flex; }
+  ::slotted([slot='icon']) { width: 16px; height: 16px; display: inline-flex; }
+  .c { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .t { font-size: 13px; font-weight: 600; color: var(--foreground); }
+  .b { font-size: 12px; color: var(--muted-foreground); line-height: 1.45; }
+  .x { margin-left: auto; border: 0; background: none; color: var(--muted-foreground); cursor: pointer; font-size: 15px; line-height: 1; }
+</style>
+<div class="toast" part="toast" role="status" aria-live="polite">
+  <span class="ico"><slot name="icon"></slot></span>
+  <div class="c"><div class="t">{title()}</div><div class="b">{body()}</div></div>
+  <button class="x" aria-label="Dismiss">&#215;</button>
+</div>

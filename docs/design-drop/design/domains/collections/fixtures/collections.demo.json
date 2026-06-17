@@ -1,0 +1,183 @@
+{
+  "_meta": {
+    "purpose": "UI demo fixtures for the collections Data Studio + sui-collection-* pack. DESIGNER-READABLE: schema_json and data_json are shown DECODED here. On the wire they are base64-of-JSON bytes (see proto/fixtures/collection_service.json for the wire-roundtrip conformance fixture — that one has placeholders, this one has real data). The UI client decodes data_json/schema_json before rendering, so it consumes shapes like those shown below.",
+    "differs_from": "proto/fixtures/collection_service.json is proto-conformance (test-id placeholders). THIS file is rich demo data for building/screenshotting the UI before backend wiring.",
+    "scope": "device/account/space-agnostic; treat all as one space's collections."
+  },
+
+  "List.response": {
+    "collections": [
+      { "id": "notes",       "title": "Notes",    "item_count": 3,  "system": false },
+      { "id": "tasks",       "title": "Tasks",    "item_count": 5,  "system": false },
+      { "id": "contacts",    "title": "Contacts", "item_count": 2,  "system": false },
+      { "id": "feedback",    "title": "Feedback", "item_count": 8,  "system": true },
+      { "id": "annotations", "title": "Annotations", "item_count": 14, "system": true }
+    ]
+  },
+
+  "schemas": {
+    "_note": "Decoded schema_json. Demonstrates the full type vocabulary + constraints the schema editor must render. notes=simple, tasks=rich (every type + constraints), contacts=has a ref-ish field as plain text (relations deferred).",
+    "notes": {
+      "title": "Notes",
+      "fields": [
+        { "name": "title",    "type": "text",      "required": true },
+        { "name": "content",  "type": "text" },
+        { "name": "priority", "type": "integer",   "default": 1, "indexed": true },
+        { "name": "pinned",   "type": "bool",      "default": false }
+      ]
+    },
+    "tasks": {
+      "title": "Tasks",
+      "fields": [
+        { "name": "title",       "type": "text",      "required": true },
+        { "name": "status",      "type": "text",      "required": true, "default": "todo", "indexed": true },
+        { "name": "estimate_h",  "type": "real" },
+        { "name": "priority",    "type": "integer",   "default": 2, "indexed": true },
+        { "name": "done",        "type": "bool",      "default": false },
+        { "name": "due",         "type": "timestamp", "indexed": true },
+        { "name": "labels",      "type": "json" },
+        { "name": "external_id", "type": "text",      "unique": true }
+      ]
+    },
+    "contacts": {
+      "title": "Contacts",
+      "fields": [
+        { "name": "name",     "type": "text", "required": true },
+        { "name": "email",    "type": "text", "unique": true },
+        { "name": "company",  "type": "text" }
+      ]
+    },
+    "feedback": {
+      "title": "Feedback",
+      "system": true,
+      "fields": [
+        { "name": "target",  "type": "text", "required": true },
+        { "name": "body",    "type": "text", "required": true },
+        { "name": "rating",  "type": "integer" }
+      ]
+    }
+  },
+
+  "items": {
+    "_note": "Decoded data_json per row. id/created_at/updated_at are envelope fields the substrate provides; the rest is the typed payload matching the schema.",
+    "notes": [
+      { "id": "note-checkout", "created_at": "2026-05-24T18:35:00Z", "updated_at": "2026-05-31T21:58:00Z",
+        "data": { "title": "Checkout notes", "content": "Auth via JWT.", "priority": 3, "pinned": true } },
+      { "id": "note-jwt", "created_at": "2026-05-20T09:10:00Z", "updated_at": "2026-05-31T21:00:00Z",
+        "data": { "title": "Auth via JWT", "content": "Rotate signing key per space.", "priority": 5, "pinned": true } },
+      { "id": "note-kysely", "created_at": "2026-05-31T12:00:00Z", "updated_at": "2026-05-31T19:00:00Z",
+        "data": { "title": "Spike kysely", "content": "AST → Rust executor works.", "priority": 1, "pinned": false } }
+    ],
+    "tasks": [
+      { "id": "task-ports", "created_at": "2026-05-31T20:00:00Z", "updated_at": "2026-05-31T21:50:00Z",
+        "data": { "title": "Substrate Phase 1 ports", "status": "done", "estimate_h": 4.0, "priority": 1, "done": true, "due": "2026-05-31T00:00:00Z", "labels": ["substrate","arc"], "external_id": "SHIP-201" } },
+      { "id": "task-collection", "created_at": "2026-05-31T21:36:00Z", "updated_at": "2026-05-31T22:25:00Z",
+        "data": { "title": "ship-collection integrator", "status": "in_progress", "estimate_h": 6.5, "priority": 1, "done": false, "due": "2026-06-01T00:00:00Z", "labels": ["collections"], "external_id": "SHIP-210" } },
+      { "id": "task-cutover", "created_at": "2026-05-31T22:30:00Z", "updated_at": "2026-05-31T22:30:00Z",
+        "data": { "title": "Cutover + 27 consumers", "status": "todo", "estimate_h": 8.0, "priority": 2, "done": false, "due": null, "labels": ["collections","supervised"], "external_id": "SHIP-211" } },
+      { "id": "task-toolchain", "created_at": "2026-05-31T22:31:00Z", "updated_at": "2026-05-31T22:31:00Z",
+        "data": { "title": "@ship/db TS type gen", "status": "todo", "estimate_h": 5.0, "priority": 3, "done": false, "due": null, "labels": ["toolchain"], "external_id": "SHIP-212" } },
+      { "id": "task-ui", "created_at": "2026-05-31T22:40:00Z", "updated_at": "2026-05-31T22:40:00Z",
+        "data": { "title": "Collections Data Studio", "status": "todo", "estimate_h": 7.0, "priority": 2, "done": false, "due": null, "labels": ["ui","collections"], "external_id": "SHIP-213" } }
+    ],
+    "contacts": [
+      { "id": "c-micah", "created_at": "2026-04-01T00:00:00Z", "updated_at": "2026-04-01T00:00:00Z",
+        "data": { "name": "Micah", "email": "micah@ship.dev", "company": "Ship" } },
+      { "id": "c-ada", "created_at": "2026-04-02T00:00:00Z", "updated_at": "2026-04-02T00:00:00Z",
+        "data": { "name": "Ada L.", "email": "ada@analytical.engine", "company": null } }
+    ]
+  },
+
+  "queries": {
+    "_note": "Named queries for the Query tab. ast is the captured Kysely OperationNode (abbreviated); sql is the compiled output the runner can show; result is the typed rows the runner renders.",
+    "high_priority_pinned": {
+      "name": "high_priority_pinned",
+      "collection": "notes",
+      "params": { "minPriority": 3 },
+      "sql": "SELECT * FROM notes WHERE priority >= ? AND pinned = 1 ORDER BY priority DESC LIMIT 50",
+      "result": {
+        "rows": [
+          { "id": "note-jwt", "data": { "title": "Auth via JWT", "priority": 5, "pinned": true } },
+          { "id": "note-checkout", "data": { "title": "Checkout notes", "priority": 3, "pinned": true } }
+        ],
+        "row_count": 2,
+        "elapsed_ms": 1.4,
+        "next_cursor": ""
+      }
+    },
+    "open_tasks_by_due": {
+      "name": "open_tasks_by_due",
+      "collection": "tasks",
+      "params": {},
+      "sql": "SELECT * FROM tasks WHERE done = 0 ORDER BY due ASC LIMIT 50",
+      "result": {
+        "rows": [
+          { "id": "task-collection", "data": { "title": "ship-collection integrator", "status": "in_progress", "due": "2026-06-01T00:00:00Z" } },
+          { "id": "task-cutover", "data": { "title": "Cutover + 27 consumers", "status": "todo", "due": null } }
+        ],
+        "row_count": 2,
+        "elapsed_ms": 0.9,
+        "next_cursor": ""
+      }
+    }
+  },
+
+  "watch_stream": {
+    "_note": "Live sequence for sui-collection-table on collection=notes. Frame 1 = set-at-root snapshot. Then incremental patches mirroring patch.ts ops. Values shown decoded.",
+    "frames": [
+      { "seq": 1, "kind": "snapshot", "patches": [
+        { "op": "set", "path": "", "value": { "items": [
+          { "id": "note-checkout", "data": { "title": "Checkout notes", "priority": 3, "pinned": true } },
+          { "id": "note-jwt", "data": { "title": "Auth via JWT", "priority": 5, "pinned": true } },
+          { "id": "note-kysely", "data": { "title": "Spike kysely", "priority": 1, "pinned": false } }
+        ] } }
+      ]},
+      { "seq": 2, "kind": "patch", "_why": "new item created elsewhere", "patches": [
+        { "op": "append", "path": "items", "value": { "id": "note-new", "data": { "title": "Gate ship-collection", "priority": 4, "pinned": false } } }
+      ]},
+      { "seq": 3, "kind": "patch", "_why": "note-kysely pinned toggled", "patches": [
+        { "op": "merge", "path": "items[2]", "value": { "pinned": true } }
+      ]},
+      { "seq": 4, "kind": "patch", "_why": "note-checkout deleted", "patches": [
+        { "op": "remove", "path": "items[0]" }
+      ]},
+      { "seq": 5, "kind": "heartbeat", "ts": "2026-05-31T22:45:00Z" }
+    ]
+  },
+
+  "errors": {
+    "_note": "Error states the UI must render. Match repo tone semantics: validation → warning, hard failure → destructive.",
+    "validation_unknown_field": {
+      "rpc": "CreateItem",
+      "tone": "warning",
+      "message": "Field 'piority' is not in the notes schema. Did you mean 'priority'?"
+    },
+    "validation_type_mismatch": {
+      "rpc": "UpdateItem",
+      "tone": "warning",
+      "message": "Field 'priority' expects integer, got \"high\"."
+    },
+    "query_unsupported_ast": {
+      "rpc": "QueryItems",
+      "tone": "destructive",
+      "message": "Query rejected: JOINs are not supported. Collections query a single table."
+    },
+    "schema_reserved_id": {
+      "rpc": "CreateSchema",
+      "tone": "destructive",
+      "message": "'feedback' is a reserved system collection id."
+    },
+    "reproject_warning": {
+      "rpc": "UpdateSchema",
+      "tone": "warning",
+      "message": "Removing field 'estimate_h' will rebuild the projection from the event log. Existing item data is preserved; the column is dropped from the table. Continue?"
+    }
+  },
+
+  "empty_states": {
+    "no_collections": { "title": "No collections yet", "body": "Create one to start storing structured data.", "cta": "New collection" },
+    "empty_collection": { "title": "No items in tasks", "body": "Add the first item, or edit the schema.", "cta": "New item" },
+    "empty_filtered": { "title": "No matches", "body": "5 items stored, none match the current filters.", "cta": "Clear filters" },
+    "query_no_results": { "title": "0 rows", "body": "The query ran in 0.6ms and matched nothing." }
+  }
+}

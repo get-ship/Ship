@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spaces · scaffold & component architecture</title>
+<link rel="stylesheet" href="../../../sui/ship.css" />
+<link rel="stylesheet" href="spaces-arch.css" />
+</head>
+<body>
+
+<!-- ════════════════════════ HERO ════════════════════════ -->
+<header class="wrap hero">
+  <div class="hero-mark">
+    <div class="mark" style="width:52px;height:52px;border-radius:17px;font-size:22px;background:linear-gradient(155deg,color-mix(in oklch,var(--primary) 90%,white),var(--primary) 60%,color-mix(in oklch,var(--primary) 80%,black));"><span>S</span></div>
+    <div>
+      <div style="font-family:var(--font-display);font-weight:600;font-size:var(--text-lg);">Ship · Spaces</div>
+      <div class="eyebrow" style="margin-top:3px;">Domain design brief — scaffold &amp; component surface</div>
+    </div>
+  </div>
+  <div class="eyebrow"><span class="num">00</span> &nbsp;The premise</div>
+  <h1>A space is an app, not a tab. Ship gives it a window and a place to live.</h1>
+  <p class="lede">Every space runs as its own OS window, its own process, its own launcher on the host — 100% user-owned pixels. This brief draws the one line that organizes the whole domain: <b>what Ship ships as scaffold</b> versus <b>what the user builds as components</b> — and designs both against the real <span class="mono">ship.css</span> token system and the <span class="mono">SpaceService</span> contract.</p>
+  <div class="hero-meta">
+    <span class="pill"><span class="sdot ok"></span> ship/spaces — new component pack</span>
+    <span class="pill">authored as <b class="fg">&nbsp;.sui</b></span>
+    <span class="pill">binds <span class="mono">SpaceService</span> · Info · SetSetting · Watch · Activate · Add</span>
+    <span class="pill">token-pure · 7 themes</span>
+  </div>
+</header>
+
+<!-- ════════════════════════ 01 · TOPOLOGY ════════════════════════ -->
+<section class="band"><div class="wrap">
+  <div class="section-head">
+    <div class="eyebrow"><span class="num">01</span> &nbsp;Topology</div>
+    <h2>One hub. Many spaces. One daemon underneath.</h2>
+    <p class="lede">The shape that everything else follows. The <b>hub</b> is a single privileged app — registry, studio, authority, account. <b>Spaces</b> are N independent windows. They never talk to each other directly; the <b>daemon</b> is the spine, and each space's connection carries its own implicit space context.</p>
+  </div>
+
+  <div class="topo">
+    <div class="topo-col">
+      <span class="topo-tag">// the central app — ships with the binary</span>
+      <h3><span class="one-app">Ship Hub</span> · one window</h3>
+      <p class="topo-note">Spaces registry · Studio (the editor) · Authority queue · Marketplace · Activity · Account. The only surface that enumerates spaces, holds <span class="mono">Activate</span>, and grants capabilities. Privileged on purpose.</p>
+    </div>
+    <div class="topo-spine">
+      <div class="wire"></div>
+      <div class="node">shipd · daemon</div>
+      <div class="wire"></div>
+    </div>
+    <div class="topo-col">
+      <span class="topo-tag">// user-owned — N windows, each its own process</span>
+      <h3><span class="n-apps">Spaces</span> · many windows</h3>
+      <p class="topo-note">Each is a real OS app: own icon, own launcher (dock / Spotlight / Start menu / CLI), own theme &amp; chrome. A space's connection is space-scoped, which is why <span class="mono">Info</span> / <span class="mono">SetSetting</span> / <span class="mono">Watch(space)</span> take no space argument.</p>
+      <div class="win-row">
+        <span class="win-chip"><span class="mark" style="width:22px;height:22px;border-radius:7px;font-size:11px;background:linear-gradient(155deg,#c97a52,#a14b30);"><span>P</span></span> Paperback</span>
+        <span class="win-chip"><span class="mark" style="width:22px;height:22px;border-radius:7px;font-size:11px;background:linear-gradient(155deg,#e0a16b,#c2773f);"><span>S</span></span> Ship&nbsp;dev</span>
+        <span class="win-chip"><span class="mark" style="width:22px;height:22px;border-radius:7px;font-size:11px;background:linear-gradient(155deg,#8f6fd0,#6d4bb0);"><span>⌘</span></span> Rust&nbsp;Lane</span>
+        <span class="win-chip muted" style="color:var(--muted-foreground);">+4 idle</span>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ════════════════════════ 02 · THE BOUNDARY LEDGER ════════════════════════ -->
+<section class="band"><div class="wrap">
+  <div class="section-head">
+    <div class="eyebrow"><span class="num">02</span> &nbsp;The boundary — keystone decision</div>
+    <h2>Where each piece lives: shipped scaffold, or user component.</h2>
+    <p class="lede">You said the call is ours. Here's the proposed split. The rule: <b>Ship owns the window contract and the chrome shell; the user owns identity, theme, content, and — eventually — the chrome's body.</b> Anything a space can't be trusted to get right (OS registration, the title bar, the authority surface) stays scaffold.</p>
+  </div>
+
+  <div class="ledger">
+    <div class="ledger-head">
+      <span>Piece</span><span>Lives in</span><span>Vector</span><span>Why there</span>
+    </div>
+
+    <div class="ledger-row">
+      <div class="piece">Window shell &amp; lifecycle<span class="mono">ship-space-frame</span></div>
+      <div><span class="owner scaffold"><span class="dot"></span>Scaffold</span></div>
+      <div><span class="vec">core</span></div>
+      <div class="why">The window, its restore state, IPC, and the daemon connection. Ship guarantees this or nothing is a real app.</div>
+    </div>
+    <div class="ledger-row">
+      <div class="piece">Title bar &amp; identity<span class="mono">ship-space-titlebar</span></div>
+      <div><span class="owner scaffold"><span class="dot"></span>Scaffold</span></div>
+      <div><span class="vec a">A</span></div>
+      <div class="why">OS traffic-lights, space name + mark, run status. Themed by the user (mark, accent) but never removed — the OS needs a drag handle.</div>
+    </div>
+    <div class="ledger-row">
+      <div class="piece">Identity mark<span class="mono">ship-space-mark</span></div>
+      <div><span class="owner component"><span class="dot"></span>Component</span></div>
+      <div><span class="vec a">A</span></div>
+      <div class="why">Glyph + accent + shape. Drives the titlebar, the OS launcher icon, and the hub card. Fully user-authored.</div>
+    </div>
+    <div class="ledger-row">
+      <div class="piece">Theme &amp; tokens<span class="mono">appearance.theme</span></div>
+      <div><span class="owner component"><span class="dot"></span>Component</span></div>
+      <div><span class="vec a">A</span></div>
+      <div class="why">One of 7 built-ins or a marketplace theme + accent + density. Flows through every scaffold part via <span class="mono">data-theme</span>.</div>
+    </div>
+    <div class="ledger-row">
+      <div class="piece">Navigation region<span class="mono">ship-space-nav</span></div>
+      <div><span class="owner shared"><span class="dot"></span>Slot</span></div>
+      <div><span class="vec b">B</span></div>
+      <div class="why">Scaffold provides rail / top / none as layout; the user fills the items. The region is Ship's, the contents are the space's.</div>
+    </div>
+    <div class="ledger-row">
+      <div class="piece">Dock region<span class="mono">ship-space-dock</span></div>
+      <div><span class="owner shared"><span class="dot"></span>Slot</span></div>
+      <div><span class="vec b">B</span></div>
+      <div class="why">left / center / right / off. A managed tray the space populates — same deal as nav.</div>
+    </div>
+    <div class="ledger-row">
+      <div class="piece">Status bar &amp; command bar<span class="mono">ship-space-statusbar · -command</span></div>
+      <div><span class="owner shared"><span class="dot"></span>Slot</span></div>
+      <div><span class="vec b">B</span></div>
+      <div class="why">Daemon status is Ship's (left); space messages are the user's (right). ⌘K palette is scaffold, entries are contributed.</div>
+    </div>
+    <div class="ledger-row">
+      <div class="piece">View body<span class="mono">home → views/*</span></div>
+      <div><span class="owner component"><span class="dot"></span>Component</span></div>
+      <div><span class="vec b">B</span></div>
+      <div class="why">Everything inside the regions. The actual app. 100% user pixels — this is the point of the whole system.</div>
+    </div>
+    <div class="ledger-row">
+      <div class="piece">Custom chrome takeover<span class="mono">&lt;sui-view-chrome&gt;</span></div>
+      <div><span class="owner component"><span class="dot"></span>Component</span></div>
+      <div><span class="vec c">C</span></div>
+      <div class="why">The escape hatch: replace the entire chrome body with an authored module. Scaffold still owns window + IPC + runtime.</div>
+    </div>
+    <div class="ledger-row">
+      <div class="piece">Manifest<span class="mono">space.jsonc · ship-space-manifest</span></div>
+      <div><span class="owner shared"><span class="dot"></span>Contract</span></div>
+      <div><span class="vec a">A/B</span></div>
+      <div class="why">The declarative source of identity + appearance + os. Ship defines the schema; the user writes the values. Editor lives in Studio.</div>
+    </div>
+    <div class="ledger-row">
+      <div class="piece">Setup / create-space<span class="mono">ship-space-setup</span></div>
+      <div><span class="owner scaffold"><span class="dot"></span>Scaffold</span></div>
+      <div><span class="vec hub">hub</span></div>
+      <div class="why">First-run + new-space wizard. Writes the manifest, then registers the launcher with the host OS. Hub-only.</div>
+    </div>
+    <div class="ledger-row">
+      <div class="piece">Registry &amp; switcher<span class="mono">ship-space-registry · -switcher</span></div>
+      <div><span class="owner scaffold"><span class="dot"></span>Scaffold</span></div>
+      <div><span class="vec hub">hub</span></div>
+      <div class="why">List + Activate + Add. A space never enumerates its peers — only the hub does. Switching is OS window focus, not in-app.</div>
+    </div>
+  </div>
+
+  <div class="legend-key">
+    <span class="k"><span class="swatch" style="background:var(--primary)"></span> <b>Scaffold</b> — Ship ships it, fixed</span>
+    <span class="k"><span class="swatch" style="background:var(--accent)"></span> <b>Component</b> — user authors it</span>
+    <span class="k"><span class="swatch" style="background:var(--muted-foreground)"></span> <b>Slot / Contract</b> — Ship frames it, user fills it</span>
+    <span class="k mono">vectors: <span class="vec a">&nbsp;A</span> theme · <span class="vec b">B</span> regions · <span class="vec c">C</span> takeover · <span class="vec hub">hub</span> hub-only</span>
+  </div>
+</div></section>
+
+<!-- ════════════════════════ 03 · SCAFFOLD ANATOMY ════════════════════════ -->
+<section class="band"><div class="wrap">
+  <div class="section-head">
+    <div class="eyebrow"><span class="num">03</span> &nbsp;The scaffold</div>
+    <h2>One window contract, six parts. This is what Ship hands every space.</h2>
+    <p class="lede"><span class="mono">ship-space-frame</span> is the shell the binary ships. It owns the window and lays out five regions around a body the space fills. Each part is colored by who owns it — <span class="prim">scaffold</span>, <span style="color:var(--accent)">component</span>, or <span class="muted">slot</span>. Flip the theme to watch vector A flow through one unchanged scaffold.</p>
+  </div>
+
+  <div class="toolbar">
+    <span class="tlabel">Theme (vector A)</span>
+    <button class="tbtn" data-theme-set="ship-light" aria-pressed="true"><span class="sw" style="background:#f0eee9"></span>ship-light</button>
+    <button class="tbtn" data-theme-set="ship-dark"><span class="sw" style="background:#1c1b18"></span>ship-dark</button>
+    <button class="tbtn" data-theme-set="paper"><span class="sw" style="background:#f4ece0"></span>paper</button>
+    <button class="tbtn" data-theme-set="halo"><span class="sw" style="background:#e9f0f7"></span>halo</button>
+    <button class="tbtn" data-theme-set="console"><span class="sw" style="background:#0b0d0a"></span>console</button>
+    <span class="tlabel" style="margin-left:8px;">Density</span>
+    <button class="tbtn" data-density-set="comfortable" aria-pressed="true">comfortable</button>
+    <button class="tbtn" data-density-set="compact">compact</button>
+    <button class="tbtn" data-density-set="spacious">spacious</button>
+  </div>
+
+  <div class="anatomy">
+    <div class="stage-wrap" id="stage" data-theme-preview="ship-light">
+      <!-- numbered hotspots -->
+      <div class="hot s" style="top:7px;left:-11px;">1</div>
+      <div class="hot s" style="top:96px;left:-11px;">2</div>
+      <div class="hot c" style="top:200px;left:50%;transform:translateX(-50%);">3</div>
+      <div class="hot s" style="bottom:60px;left:-11px;">4</div>
+      <div class="hot s" style="bottom:14px;left:-11px;">5</div>
+      <div class="hot" style="top:152px;right:-11px;">6</div>
+
+      <div class="win" style="height:440px;">
+        <!-- 1 · titlebar -->
+        <div class="win-titlebar">
+          <div class="traffic"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+          <div class="win-id">
+            <span class="mark" style="width:17px;height:17px;border-radius:6px;font-size:9px;background:linear-gradient(155deg,#7fb0d8,#5a8fbf);"><span>D</span></span>
+            <span class="name">Fieldnotes</span>
+            <span class="path">~/Notes/fieldnotes</span>
+          </div>
+          <div class="win-status"><span class="sdot ok"></span> synced</div>
+        </div>
+        <div class="win-body">
+          <!-- 2 · nav (rail) -->
+          <div class="win-rail">
+            <div class="slot on" aria-label="notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h11a2 2 0 0 0 0-4h-1V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2zM8 7h6M8 11h6"/></svg></div>
+            <div class="slot" aria-label="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg></div>
+            <div class="slot" aria-label="tags"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4zM3 12l9 4 9-4M3 17l9 4 9-4"/></svg></div>
+            <div class="spacer"></div>
+            <div class="slot" aria-label="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.5-2.4.9a7 7 0 0 0-2.3-1.3L13.5 3h-3l-.7 2.3a7 7 0 0 0-2.3 1.3l-2.4-.9-2 3.5 2 1.5A7 7 0 0 0 5 12c0 .5 0 .9.1 1.3l-2 1.5 2 3.5 2.4-.9a7 7 0 0 0 2.3 1.3l.7 2.3h3l.7-2.3a7 7 0 0 0 2.3-1.3l2.4.9 2-3.5-2-1.5z"/></svg></div>
+          </div>
+          <div class="win-main">
+            <!-- 3 · view body -->
+            <div class="win-content">
+              <div style="font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--muted-foreground);">Today · 3 entries</div>
+              <h3 style="font-family:var(--font-display);font-size:var(--text-2xl);margin-top:10px;">The window is the workspace.</h3>
+              <p style="margin-top:10px;font-size:var(--text-md);line-height:var(--leading-relaxed);color:color-mix(in oklch,var(--foreground) 82%,transparent);max-width:54ch;">A space owns its pixels end to end — the OS does the switching, the focus, the identity. What's left for the app is the part that was always the point: the content.</p>
+              <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
+                <span class="chip">workspaces</span><span class="chip">os</span><span class="chip">focus</span>
+              </div>
+              <div style="margin-top:18px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:var(--card);padding:12px 14px;display:flex;align-items:center;gap:12px;">
+                <span class="mark" style="width:30px;height:30px;border-radius:9px;font-size:13px;background:linear-gradient(155deg,#7fb0d8,#5a8fbf);"><span>D</span></span>
+                <div style="font-size:var(--text-sm);"><b>Linked draft</b><div class="mono muted" style="font-size:var(--text-xs);margin-top:2px;">streamed from Studio · 38ms ago</div></div>
+                <span class="sdot live" style="margin-left:auto;"></span>
+              </div>
+            </div>
+            <!-- 5 · status bar -->
+            <div class="win-statusbar">
+              <span style="display:inline-flex;align-items:center;gap:6px;"><span class="sdot ok"></span> daemon</span>
+              <span>·</span><span>1 agent</span>
+              <span style="margin-left:auto;">⌘K</span>
+            </div>
+          </div>
+        </div>
+        <!-- 4 · dock -->
+        <div class="win-dock">
+          <div class="tray">
+            <div class="app" style="background:color-mix(in oklch,#5a8fbf 16%,transparent);color:#5a8fbf;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h11a2 2 0 0 0 0-4h-1V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v14"/></svg></div>
+            <div class="app" style="color:var(--muted-foreground);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg></div>
+            <div class="app" style="color:var(--muted-foreground);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="parts">
+      <div class="part shared">
+        <div class="pin">1</div>
+        <div><div class="pname">Title bar <span class="tag">ship-space-titlebar</span></div><div class="pdesc">OS handle + traffic-lights, the space mark &amp; name, run status. Scaffold-owned; user themes the mark and accent. Never removable.</div></div>
+      </div>
+      <div class="part shared">
+        <div class="pin">2</div>
+        <div><div class="pname">Nav region <span class="tag">ship-space-nav · rail|top|none</span></div><div class="pdesc">A managed layout slot. Ship positions it; the space contributes the items. Vector B chooses the form factor.</div></div>
+      </div>
+      <div class="part comp">
+        <div class="pin">3</div>
+        <div><div class="pname">View body <span class="tag">home → views/*</span></div><div class="pdesc">The app itself. Entirely user pixels. The reason a space exists — Ship just frames it.</div></div>
+      </div>
+      <div class="part shared">
+        <div class="pin">4</div>
+        <div><div class="pname">Dock <span class="tag">ship-space-dock · left|center|right|off</span></div><div class="pdesc">Optional app tray. Same slot contract as nav: Ship's region, the space's contents.</div></div>
+      </div>
+      <div class="part shared">
+        <div class="pin">5</div>
+        <div><div class="pname">Status bar <span class="tag">ship-space-statusbar</span></div><div class="pdesc">Daemon health on the left (Ship), space messages on the right (user). The seam runs down the middle.</div></div>
+      </div>
+      <div class="part">
+        <div class="pin">6</div>
+        <div><div class="pname">Command bar <span class="tag">ship-space-command · ⌘K</span></div><div class="pdesc">Scaffold palette; the space and its agents contribute entries. Always present so muscle memory survives across spaces.</div></div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ════════════════════════ 04 · THEME TRIPTYCH ════════════════════════ -->
+<section class="band"><div class="wrap">
+  <div class="section-head">
+    <div class="eyebrow"><span class="num">04</span> &nbsp;Vector A in practice</div>
+    <h2>Same scaffold, different soul.</h2>
+    <p class="lede">Theme is a component the user picks, not a fork of the chrome. Identical markup under three <span class="mono">data-theme</span> values — surfaces, type, shadow depth, radius and accent all bend through tokens. This is why theme can stay a one-line manifest field.</p>
+  </div>
+
+  <div class="triptych">
+    <div class="theme-cell"><div class="theme-name"><span class="sw" style="background:#f0eee9"></span>ship-light · the default</div><div class="mini-win" data-theme-preview="ship-light"><div class="mw" data-mark="S"></div></div></div>
+    <div class="theme-cell"><div class="theme-name"><span class="sw" style="background:#1c1b18"></span>ship-dark · dev spaces</div><div class="mini-win" data-theme-preview="ship-dark"><div class="mw" data-mark="S"></div></div></div>
+    <div class="theme-cell"><div class="theme-name"><span class="sw" style="background:#f4ece0"></span>paper · writing spaces</div><div class="mini-win" data-theme-preview="paper"><div class="mw" data-mark="P"></div></div></div>
+  </div>
+</div></section>
+
+<!-- ════════════════════════ 05 · VECTORS ════════════════════════ -->
+<section class="band"><div class="wrap">
+  <div class="section-head">
+    <div class="eyebrow"><span class="num">05</span> &nbsp;Customization tiers</div>
+    <h2>Three vectors, gated by trust and time.</h2>
+    <p class="lede">How far a space can stray from a stock Ship window — and what we let it touch today versus later. <b>A ships now</b> as the floor; B earns in once we've watched real spaces; C is the open question of whether a space may stop looking like Ship at all.</p>
+  </div>
+
+  <div class="vectors">
+    <div class="vcard a">
+      <div class="vtop"><div class="badge-tier">A</div><div><div class="vtitle">Theme &amp; identity</div><div class="vsub">ships now</div></div><span class="ship-state">ready</span></div>
+      <ul>
+        <li><span class="key">theme</span><span class="val">7 built-in or marketplace</span></li>
+        <li><span class="key">accent</span><span class="val">override --primary</span></li>
+        <li><span class="key">density</span><span class="val">compact · comfortable · spacious</span></li>
+        <li><span class="key">mark</span><span class="val">glyph + accent + shape</span></li>
+      </ul>
+    </div>
+    <div class="vcard b future">
+      <div class="vtop"><div class="badge-tier">B</div><div><div class="vtitle">Layout regions</div><div class="vsub">next milestone</div></div><span class="ship-state">later</span></div>
+      <ul>
+        <li><span class="key">nav</span><span class="val">rail · top · none</span></li>
+        <li><span class="key">dock</span><span class="val">left · center · right · off</span></li>
+        <li><span class="key">statusbar</span><span class="val">on · off</span></li>
+        <li><span class="key">command</span><span class="val">⌘K · double-mod · off</span></li>
+      </ul>
+    </div>
+    <div class="vcard c future">
+      <div class="vtop"><div class="badge-tier">C</div><div><div class="vtitle">Custom chrome</div><div class="vsub">open question</div></div><span class="ship-state">later</span></div>
+      <ul>
+        <li><span class="key">&lt;sui-view-chrome&gt;</span><span class="val">full body takeover</span></li>
+        <li><span class="key">scaffold</span><span class="val">window · IPC · runtime stay Ship</span></li>
+        <li><span class="key">examples</span><span class="val">terminal · canvas · custom OS</span></li>
+      </ul>
+    </div>
+  </div>
+</div></section>
+
+<!-- ════════════════════════ 06 · COMPONENT CATALOG ════════════════════════ -->
+<section class="band"><div class="wrap">
+  <div class="section-head">
+    <div class="eyebrow"><span class="num">06</span> &nbsp;The pack</div>
+    <h2><span class="mono" style="font-size:0.82em;">ship/spaces/*</span> — the components to author.</h2>
+    <p class="lede">The new domain pack, mirroring <span class="mono">ship/viewer</span>, <span class="mono">ship/authority</span> et al. Each is token-pure SUI, bound to a <span class="mono">SpaceService</span> RPC where it touches data. Classified by the boundary above.</p>
+  </div>
+
+  <div class="cat-group-label"><span class="eyebrow">Scaffold — runs inside a space window</span><span class="rule"></span></div>
+  <div class="catalog">
+    <div class="ccard">
+      <div class="chead"><div><div class="ctag">ship-space-frame</div><div class="crole">The window shell. Lays out titlebar + nav + dock + statusbar + command around a body slot; mounts the space-scoped daemon connection.</div></div></div>
+      <div class="props"><span class="pk">props</span> theme · density · nav · dock · statusbar · command</div>
+      <div class="cmeta"><span class="chip scaffold"><span class="dot"></span>scaffold</span><span class="chip rpc">Info</span><span class="chip rpc">Watch(space)</span><span class="chip">vector A/B</span></div>
+    </div>
+    <div class="ccard">
+      <div class="chead"><div><div class="ctag">ship-space-titlebar</div><div class="crole">Traffic-lights, mark + name + path, run status. The one chrome part that's structurally fixed — the OS needs a drag handle.</div></div></div>
+      <div class="props"><span class="pk">props</span> name · path · mark · status</div>
+      <div class="cmeta"><span class="chip scaffold"><span class="dot"></span>scaffold</span><span class="chip rpc">Info</span><span class="chip">vector A</span></div>
+    </div>
+    <div class="ccard">
+      <div class="chead"><div><div class="ctag">ship-space-nav · -dock</div><div class="crole">Managed layout regions. Scaffold owns placement (rail/top/none, left/center/right/off); the space contributes the items via slots.</div></div></div>
+      <div class="props"><span class="pk">props</span> placement · items[] · active</div>
+      <div class="cmeta"><span class="chip shared"><span class="dot"></span>slot</span><span class="chip">vector B</span></div>
+    </div>
+    <div class="ccard">
+      <div class="chead"><div><div class="ctag">ship-space-command</div><div class="crole">The ⌘K palette. Scaffold-provided so the gesture is identical in every space; entries are contributed by the space and its agents.</div></div></div>
+      <div class="props"><span class="pk">props</span> trigger · entries[]</div>
+      <div class="cmeta"><span class="chip scaffold"><span class="dot"></span>scaffold</span><span class="chip">composes sui-combobox</span><span class="chip">vector B</span></div>
+    </div>
+  </div>
+
+  <div class="cat-group-label" style="margin-top:30px;"><span class="eyebrow">Component — the user authors &amp; customizes these</span><span class="rule"></span></div>
+  <div class="catalog">
+    <div class="ccard">
+      <div class="chead"><div><div class="ctag">ship-space-mark</div><div class="crole">Identity tile: glyph or letter + accent + shape (squircle / circle / rounded). One source feeds the titlebar, the OS launcher icon, and the hub card.</div></div></div>
+      <div class="props"><span class="pk">props</span> glyph · accent · shape · size</div>
+      <div class="cmeta"><span class="chip component"><span class="dot"></span>component</span><span class="chip">vector A</span></div>
+    </div>
+    <div class="ccard">
+      <div class="chead"><div><div class="ctag">ship-space-theme-picker</div><div class="crole">Theme + accent + density chooser with live preview tiles (one <span class="mono">data-theme-preview</span> per swatch). The visible half of vector A.</div></div></div>
+      <div class="props"><span class="pk">props</span> theme · accent · density</div>
+      <div class="cmeta"><span class="chip component"><span class="dot"></span>component</span><span class="chip rpc">SetSetting</span><span class="chip">vector A</span></div>
+    </div>
+    <div class="ccard">
+      <div class="chead"><div><div class="ctag">ship-space-manifest</div><div class="crole">The <span class="mono">space.jsonc</span> editor: schema-aware form ⟷ source, validation, "registers on save". Each row is a <b>ship-setting-field</b>.</div></div></div>
+      <div class="props"><span class="pk">props</span> source · schema · dirty</div>
+      <div class="cmeta"><span class="chip shared"><span class="dot"></span>contract</span><span class="chip rpc">Info</span><span class="chip rpc">SetSetting</span></div>
+    </div>
+    <div class="ccard">
+      <div class="chead"><div><div class="ctag">ship-setting-field</div><div class="crole">One overlay key. Dispatches on value type — toggle, segmented, select, text, or raw-JSON fallback. The real design problem from the data contract.</div></div></div>
+      <div class="props"><span class="pk">props</span> key · value-json · kind</div>
+      <div class="cmeta"><span class="chip shared"><span class="dot"></span>contract</span><span class="chip rpc">SetSetting</span></div>
+    </div>
+    <div class="ccard">
+      <div class="chead"><div><div class="ctag">ship-view-chrome</div><div class="crole">The vector-C seam: an authored module that takes over the entire chrome body. Window, IPC and runtime stay Ship's. Ships last, behind a flag.</div></div></div>
+      <div class="props"><span class="pk">props</span> module · fallback</div>
+      <div class="cmeta"><span class="chip component"><span class="dot"></span>component</span><span class="chip">vector C</span></div>
+    </div>
+    <div class="ccard">
+      <div class="chead"><div><div class="ctag">ship-space-views</div><div class="crole">The gallery of <b>default views</b> a user can adopt into their space — dashboard, docs, canvas, inbox. Not first-party apps; starting points the space makes its own.</div></div></div>
+      <div class="props"><span class="pk">props</span> available[] · adopted · home</div>
+      <div class="cmeta"><span class="chip component"><span class="dot"></span>component</span><span class="chip">vector B</span></div>
+    </div>
+  </div>
+
+  <div class="cat-group-label" style="margin-top:30px;"><span class="eyebrow">Hub-only — the privileged central app</span><span class="rule"></span></div>
+  <div class="catalog">
+    <div class="ccard">
+      <div class="chead"><div><div class="ctag">ship-space-registry</div><div class="crole">The hub's table of all registered spaces. Row actions are launch / focus / set-default — never "open in place". The only surface that enumerates.</div></div></div>
+      <div class="props"><span class="pk">props</span> spaces[] · active-id</div>
+      <div class="cmeta"><span class="chip scaffold"><span class="dot"></span>scaffold</span><span class="chip rpc">List</span><span class="chip rpc">Watch(registry)</span><span class="chip rpc">Activate</span><span class="chip rpc">Add</span></div>
+    </div>
+    <div class="ccard">
+      <div class="chead"><div><div class="ctag">ship-space-setup</div><div class="crole">First-run + create-space wizard: name &amp; mark → theme &amp; chrome → register. Writes the manifest, then installs the host-OS launcher.</div></div></div>
+      <div class="props"><span class="pk">props</span> step · draft-manifest</div>
+      <div class="cmeta"><span class="chip scaffold"><span class="dot"></span>scaffold</span><span class="chip rpc">Add</span><span class="chip rpc">Activate</span></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ════════════════════════ 07 · SETUP FLOW ════════════════════════ -->
+<section class="band"><div class="wrap">
+  <div class="section-head">
+    <div class="eyebrow"><span class="num">07</span> &nbsp;Setup</div>
+    <h2>Create-space, end to end. Ship does the OS plumbing.</h2>
+    <p class="lede">The one flow that turns a directory into an installed app. The user makes four small choices; Ship writes <span class="mono">space.jsonc</span>, ensures <span class="mono">.ship/</span>, and registers launchers across the host OS — then hands back a real window.</p>
+  </div>
+
+  <div class="setup">
+    <div class="step">
+      <div class="scap"><span class="snum">0</span><span class="stitle">Welcome</span></div>
+      <div class="sbody">
+        <div style="display:flex;align-items:center;gap:11px;"><span class="mark" style="width:38px;height:38px;border-radius:12px;font-size:17px;background:linear-gradient(155deg,color-mix(in oklch,var(--primary) 90%,white),var(--primary));"><span>S</span></span><div style="font-family:var(--font-display);font-weight:600;font-size:var(--text-md);">Welcome to Ship</div></div>
+        <p class="muted" style="font-size:var(--text-sm);line-height:var(--leading-relaxed);">Every space becomes its own app — its own window, theme, and icon in your launcher.</p>
+        <div style="margin-top:auto;font-family:var(--font-mono);font-size:var(--text-xs);color:var(--info);border:1px solid color-mix(in oklch,var(--info) 35%,var(--border));border-radius:var(--radius-md);padding:8px 10px;background:color-mix(in oklch,var(--info) 6%,var(--card));">Ship registers each space with your OS. Uninstall anytime from the hub.</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="scap"><span class="snum">1</span><span class="stitle">Name &amp; mark</span></div>
+      <div class="sbody">
+        <div class="progress"><i style="width:33%"></i></div>
+        <div class="field on" style="display:flex;align-items:center;gap:8px;">Brand Voice<span style="width:1.5px;height:15px;background:var(--primary);animation:sb-pulse 1.2s linear infinite;"></span></div>
+        <div class="glyphs"><i class="on">◆</i><i>P</i><i>M</i><i>▲</i><i>✦</i><i>⌘</i></div>
+        <div class="swatches"><i style="background:oklch(0.7 0.16 140);box-shadow:0 0 0 2px var(--background),0 0 0 4px oklch(0.7 0.16 140);"></i><i style="background:oklch(0.62 0.16 35)"></i><i style="background:oklch(0.6 0.16 240)"></i><i style="background:oklch(0.62 0.18 305)"></i><i style="background:oklch(0.65 0.18 80)"></i></div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="scap"><span class="snum">2</span><span class="stitle">Theme &amp; chrome</span></div>
+      <div class="sbody">
+        <div class="progress"><i style="width:66%"></i></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+          <div data-theme-preview="halo" style="border-radius:var(--radius-sm);overflow:hidden;border:1.5px solid var(--primary);"><div style="height:30px;background:var(--background);position:relative;"><span style="position:absolute;top:6px;left:6px;width:16px;height:3px;border-radius:2px;background:var(--primary);"></span></div></div>
+          <div data-theme-preview="paper" style="border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);"><div style="height:30px;background:var(--background);"></div></div>
+          <div data-theme-preview="ship-dark" style="border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);"><div style="height:30px;background:var(--background);"></div></div>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted-foreground);">NAV</div>
+        <div class="seg"><span class="on">rail</span><span>top</span><span>none</span></div>
+        <div style="font-family:var(--font-mono);font-size:9px;color:var(--muted-foreground);">DOCK</div>
+        <div class="seg"><span>left</span><span class="on">center</span><span>off</span></div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="scap"><span class="snum">3</span><span class="stitle">Installed</span></div>
+      <div class="sbody">
+        <div class="progress"><i style="width:100%"></i></div>
+        <div style="display:flex;align-items:center;gap:11px;padding:10px;border-radius:var(--radius-md);background:linear-gradient(135deg,color-mix(in oklch,oklch(0.7 0.16 140) 12%,var(--card)),var(--card));border:1px solid color-mix(in oklch,oklch(0.7 0.16 140) 30%,var(--border));"><span class="mark" style="width:34px;height:34px;border-radius:11px;font-size:15px;background:linear-gradient(155deg,#7fd09a,#4faf74);"><span>◆</span></span><div style="font-size:var(--text-sm);"><b>Brand Voice</b><div class="mono muted" style="font-size:9px;">halo · rail · ~/Spaces/brand-voice</div></div></div>
+        <div class="receipt"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg></span><span class="rk">Applications</span><span class="rv">dock</span></div>
+        <div class="receipt"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg></span><span class="rk">Spotlight</span><span class="rv">⌘ Space</span></div>
+        <div class="receipt"><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg></span><span class="rk">Shell</span><span class="rv">ship open</span></div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ════════════════════════ 08 · OPEN QUESTIONS ════════════════════════ -->
+<section class="band"><div class="wrap">
+  <div class="section-head">
+    <div class="eyebrow"><span class="num">08</span> &nbsp;Where I need you</div>
+    <h2>Decisions that change the build.</h2>
+  </div>
+  <div class="closer">
+    <div class="note"><div class="nlabel">Settled · settings</div><p>Settings are <b>file-source + schema-backed</b>, rendered as a <b>rich UI</b> — typed controls from the schema, not raw JSON. The settings page lives <b>in the space</b> (space-scoped, matching <span class="mono">SetSetting</span> / <span class="mono">Watch(space)</span>), not in a hub Studio.</p></div>
+    <div class="note"><div class="nlabel">Settled · views</div><p>There are <b>no first-party spaces</b>. A space is a user surface; Ship ships <b>default views</b> a user can <i>adopt</i> — dashboard, docs, canvas, inbox — as starting points on the same scaffold.</p></div>
+    <div class="note q"><div class="nlabel">Next · the surface</div><p>Designed next, see <span class="mono">space-settings.html</span>: the per-space settings page with the <b>chrome customizer</b> (rail vs dock vs none) driving a live preview, the schema-backed rich settings, and the adoptable default views.</p></div>
+    <div class="note q"><div class="nlabel">Then · to SUI</div><p>From there I author the load-bearing piece as real <span class="mono">.sui</span> + demo — <span class="mono">ship-space-frame</span> (the scaffold) or <span class="mono">ship-setting-field</span> (the rich schema control).</p></div>
+  </div>
+</div></section>
+
+<!-- ════════════════════════ FOOT ════════════════════════ -->
+<footer class="wrap foot">
+  <span class="sdot ok"></span>
+  <span>Spaces — scaffold &amp; component architecture</span>
+  <span>·</span>
+  <span>ship/spaces · proposed pack</span>
+  <span style="margin-left:auto;">token-pure · ship.css</span>
+</footer>
+
+<script>
+(function () {
+  // ── Live scaffold: theme + density toggles ──
+  var stage = document.getElementById('stage');
+  function wire(attr, cssAttr, target) {
+    var btns = document.querySelectorAll('[data-' + attr + ']');
+    btns.forEach(function (b) {
+      b.addEventListener('click', function () {
+        btns.forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+        b.setAttribute('aria-pressed', 'true');
+        target.setAttribute(cssAttr, b.getAttribute('data-' + attr));
+      });
+    });
+  }
+  wire('theme-set', 'data-theme-preview', stage);
+  wire('density-set', 'data-density', stage);
+
+  // ── Triptych: build a mini space window into each .mw ──
+  var accents = { S: '#c2773f', P: '#a14b30' };
+  document.querySelectorAll('.mw').forEach(function (mw) {
+    var ch = mw.getAttribute('data-mark') || 'S';
+    var ac = accents[ch] || '#c2773f';
+    mw.outerHTML =
+      '<div class="mw-bar">' +
+        '<span class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span>' +
+        '<span class="mw-id"><span class="mark" style="width:13px;height:13px;border-radius:4px;font-size:7px;background:linear-gradient(155deg,' + ac + ',color-mix(in oklch,' + ac + ' 75%,black))"><span>' + ch + '</span></span>' + (ch === 'P' ? 'Paperback' : 'Ship') + '</span>' +
+      '</div>' +
+      '<div class="mw-body">' +
+        '<div class="mw-rail"><i class="on"></i><i></i><i></i></div>' +
+        '<div class="mw-main">' +
+          '<div class="mw-line accent"></div>' +
+          '<div class="mw-card"><div class="mw-line s"></div><div class="mw-line xs" style="margin-top:5px"></div></div>' +
+          '<div class="mw-card"><div class="mw-line"></div><div class="mw-line s" style="margin-top:5px"></div><div class="mw-line xs" style="margin-top:5px"></div></div>' +
+        '</div>' +
+      '</div>';
+  });
+})();
+</script>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+    <rect width="240" height="240" rx="32" fill="#c2773f"/>
+    <rect x="72" y="78" width="96" height="84" rx="10" fill="#fff"/>
+    <rect x="72" y="78" width="96" height="16" rx="8" fill="#f0d9c4"/>
+    <circle cx="84" cy="86" r="3" fill="#c2773f"/>
+    <rect x="80" y="104" width="20" height="50" rx="4" fill="#f0d9c4"/>
+    <rect x="108" y="104" width="52" height="8" rx="3" fill="#e8c4a4"/>
+    <rect x="108" y="118" width="40" height="6" rx="3" fill="#efe0d0"/>
+  </svg>
+</template>
+
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!--
+  sui-slider.before.sui — EXISTING look (repo source styling), rendered as a
+  static visual for the compare harness (no controller; position driven by a
+  `pct` prop 0–100 instead of pointer math). Thumb fills with --background, focus
+  ring uses the offset/width/opacity token stack, track is --muted. Compiled as
+  <x-slider-before>. Props: pct · value · min · max · tone · size · disabled · label.
+-->
+<prop name="pct" type="number" default="0" />
+<prop name="value" type="number" default="0" reflect />
+<prop name="min" type="number" default="0" />
+<prop name="max" type="number" default="100" />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
+<prop name="disabled" type="bool" default="false" reflect />
+<prop name="label" type="string" default="slider" />
+
+<style>
+  :host { display: block; font-family: var(--font-body); --tone: var(--primary); }
+  :host([hidden]) { display: none; }
+  :host([tone='info'])        { --tone: var(--info); }
+  :host([tone='success'])     { --tone: var(--success); }
+  :host([tone='warning'])     { --tone: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive); }
+  :host([tone='accent'])      { --tone: var(--accent); }
+  :host([tone='muted'])       { --tone: var(--muted-foreground); }
+  :host(:not([size])), :host([size='md']) { --sl-h: 6px; --sl-thumb: 16px; }
+  :host([size='sm']) { --sl-h: 4px; --sl-thumb: 12px; }
+  :host([size='lg']) { --sl-h: 8px; --sl-thumb: 20px; }
+
+  .container { position: relative; display: flex; align-items: center; width: 100%; height: var(--sl-thumb); cursor: pointer; }
+  :host([disabled]) .container { cursor: not-allowed; opacity: 0.5; }
+  .track { position: relative; width: 100%; height: var(--sl-h); background: var(--muted); border-radius: var(--radius-full); overflow: hidden; }
+  .fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--tone); border-radius: inherit; }
+  .thumb {
+    position: absolute; top: 50%; width: var(--sl-thumb); height: var(--sl-thumb);
+    background: var(--background); border: 2px solid var(--tone); border-radius: 50%;
+    box-shadow: var(--shadow-sm); transform: translate(-50%, -50%); box-sizing: border-box; outline: none;
+  }
+  .thumb:focus-visible {
+    box-shadow: 0 0 0 var(--ring-offset, 2px) var(--background),
+      0 0 0 calc(var(--ring-offset, 2px) + var(--ring-width, 2px)) color-mix(in oklch, var(--tone) var(--ring-opacity, 50%), transparent);
+  }
+</style>
+
+<div class="container">
+  <div class="track" part="track">
+    <div class="fill" part="fill" style={'width:' + pct() + '%'}></div>
+  </div>
+  <div class="thumb" part="thumb" role="slider" tabindex={disabled() ? '-1' : '0'}
+    aria-valuemin={min()} aria-valuemax={max()} aria-valuenow={value()} aria-label={label()}
+    style={'left:' + pct() + '%'}></div>
+</div>

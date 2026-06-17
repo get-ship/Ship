@@ -1,0 +1,33 @@
+<!--
+  sui-error-state.after.sui — ELEVATED, on the empty-state language but destructive-
+  toned. The bare centered text becomes a composed state: a soft card frame
+  (--border + faint --muted wash + --shadow-xs), a destructive icon tile with a
+  hairline ring, a firmer title / tighter description, a monospace error-code chip
+  (so the failure is reportable), and an actions row (Retry + a quieter details
+  link). Token-pure. Compiled as <x-error-state-after>.
+  Props: title · body · code. Slots: icon · action.
+-->
+<prop name="title" type="string" default="" />
+<prop name="body" type="string" default="" />
+<prop name="code" type="string" default="" reflect />
+<style>
+  :host { display: block; font-family: var(--font-body); --tone-fg: var(--destructive); --tone-bg: var(--tone-destructive-bg); }
+  .box { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: 48px 20px; text-align: center; background: color-mix(in oklch, var(--muted) 30%, var(--card)); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); }
+  .icon { display: inline-flex; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: var(--radius-lg); background: var(--tone-bg); color: var(--tone-fg); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--tone-fg) 22%, transparent); }
+  ::slotted([slot='icon']) { width: 24px; height: 24px; }
+  .copy { display: flex; flex-direction: column; gap: 5px; align-items: center; }
+  .t { font-family: var(--heading-font, var(--font-body)); font-size: var(--text-lg); font-weight: var(--heading-weight, 600); color: var(--foreground); }
+  .d { font-size: var(--text-sm); color: var(--muted-foreground); max-width: 40ch; line-height: 1.55; }
+  .code { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); background: var(--muted); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 2px 7px; }
+  .code:empty { display: none; }
+  .act { display: flex; gap: var(--space-2); justify-content: center; margin-top: 6px; flex-wrap: wrap; }
+</style>
+<div class="box" part="box" role="alert">
+  <div class="icon" part="icon" aria-hidden="true"><slot name="icon"></slot></div>
+  <div class="copy">
+    <div class="t">{title()}</div>
+    <div class="d">{body()}</div>
+    <div class="code">{code()}</div>
+  </div>
+  <div class="act"><slot name="action"></slot></div>
+</div>

@@ -1,0 +1,34 @@
+<!--
+  sui-spinner.after.sui — ELEVATED. The bare 3/4 ring becomes a proper track + arc:
+  a faint full-circle track (tone @ 22%) under a solid spinning arc (one side), so
+  the spinner reads as a defined ring on any surface instead of a floating gap.
+  Same contract. Compiled as <x-spinner-after>. Props: size · tone · label.
+-->
+<prop name="size" values="xs|sm|md|lg" default="md" reflect />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+<prop name="label" type="string" default="Loading" />
+
+<style>
+  :host { display: inline-flex; vertical-align: middle; --tone-fg: var(--muted-foreground); --sz: 16px; --bw: 2px; }
+  :host([tone='primary'])     { --tone-fg: var(--primary); }
+  :host([tone='info'])        { --tone-fg: var(--info); }
+  :host([tone='success'])     { --tone-fg: var(--success); }
+  :host([tone='warning'])     { --tone-fg: var(--warning); }
+  :host([tone='destructive']) { --tone-fg: var(--destructive); }
+  :host([tone='accent'])      { --tone-fg: var(--accent); }
+  :host([size='xs']) { --sz: 10px; --bw: 1.5px; }
+  :host([size='sm']) { --sz: 12px; --bw: 1.5px; }
+  :host([size='md']) { --sz: 16px; --bw: 2px; }
+  :host([size='lg']) { --sz: 24px; --bw: 2.5px; }
+
+  .ring {
+    display: inline-block; width: var(--sz); height: var(--sz);
+    border: var(--bw) solid color-mix(in oklch, var(--tone-fg) 22%, transparent);
+    border-top-color: var(--tone-fg);
+    border-radius: 50%; animation: sui-spinner-spin 0.7s linear infinite;
+  }
+  @keyframes sui-spinner-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .ring { animation-duration: 1.5s; } }
+</style>
+
+<span class="ring" part="ring" role={label() ? 'status' : null} aria-label={label() || null} aria-hidden={label() ? null : 'true'}></span>

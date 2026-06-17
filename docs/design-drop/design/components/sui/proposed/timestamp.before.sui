@@ -1,0 +1,13 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-timestamp.before.sui — fabricated sketch (not in source). Relative time as plain muted
+  text (host sets the string, e.g. "2h ago"); native title carries the absolute.
+  Compiled as <x-timestamp-before>. Props: datetime (title) · live (unused here).
+-->
+<prop name="datetime" type="string" default="" />
+<prop name="live" type="bool" default="false" reflect />
+<style>
+  :host { display: inline; font-family: var(--font-body); }
+  time { color: var(--muted-foreground); font-size: var(--text-sm); white-space: nowrap; }
+</style>
+<time part="time" datetime={datetime()} title={datetime()}><slot></slot></time>

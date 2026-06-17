@@ -1,0 +1,53 @@
+<!--
+  ship-policy-matrix.sui — @ship/authority · the capability × blast grid. What an agent
+  (or role) is allowed: each domain's max granted blast tier, everything beyond it locked.
+  The "what's allowed" companion to capability-bar's at-a-glance summary. ▸read policy.
+  Static realistic content; tokens only.
+-->
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  .m { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-xs); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 9px 12px; text-align: center; border-bottom: 1px solid var(--divider); }
+  tr:last-child td { border-bottom: 0; }
+  thead th { font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); background: var(--surface-2); }
+  th.dom, td.dom { text-align: left; font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 600; color: var(--foreground); }
+  .c0 { color: var(--muted-foreground); } .c1 { color: var(--info); } .c2 { color: var(--warning); } .c3 { color: var(--destructive); }
+  .cell { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: var(--radius-sm); }
+  .grant { background: color-mix(in oklch, currentColor 14%, transparent); }
+  .grant svg { width: 12px; height: 12px; }
+  .lock { color: var(--muted-foreground); opacity: .45; }
+  .lock svg { width: 11px; height: 11px; }
+  .note { font-size: 10px; color: var(--muted-foreground); }
+</style>
+<div class="m" part="matrix">
+  <table>
+    <thead><tr><th class="dom">domain</th><th class="c0">C0</th><th class="c1">C1</th><th class="c2">C2</th><th class="c3">C3</th><th>scope</th></tr></thead>
+    <tbody>
+      <tr><td class="dom">collections</td>
+        <td><span class="cell grant c0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span></td>
+        <td><span class="cell grant c1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span></td>
+        <td><span class="cell grant c2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span></td>
+        <td><span class="cell lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span></td>
+        <td class="note">granted · C2</td></tr>
+      <tr><td class="dom">runtime</td>
+        <td><span class="cell grant c0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span></td>
+        <td><span class="cell grant c1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span></td>
+        <td><span class="cell grant c2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span></td>
+        <td><span class="cell lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span></td>
+        <td class="note">granted · C2</td></tr>
+      <tr><td class="dom">mcp</td>
+        <td><span class="cell grant c0"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span></td>
+        <td><span class="cell grant c1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></span></td>
+        <td><span class="cell lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span></td>
+        <td><span class="cell lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span></td>
+        <td class="note">granted · C1 · ask above</td></tr>
+      <tr><td class="dom">account</td>
+        <td><span class="cell lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span></td>
+        <td><span class="cell lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span></td>
+        <td><span class="cell lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span></td>
+        <td><span class="cell lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span></td>
+        <td class="note">operator-only</td></tr>
+    </tbody>
+  </table>
+</div>

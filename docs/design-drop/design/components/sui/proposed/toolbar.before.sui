@@ -1,0 +1,13 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-toolbar.before.sui — fabricated sketch (not in source). A horizontal action row: a bare
+  flex container with a gap. No surface, no grouping rhythm. Compiled as
+  <x-toolbar-before>. Props: orientation. Slot: (default) controls.
+-->
+<prop name="orientation" values="horizontal|vertical" default="horizontal" reflect />
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  .bar { display: flex; align-items: center; gap: var(--space-2); }
+  :host([orientation='vertical']) .bar { flex-direction: column; align-items: stretch; }
+</style>
+<div class="bar" part="toolbar" role="toolbar" aria-orientation={orientation()}><slot></slot></div>

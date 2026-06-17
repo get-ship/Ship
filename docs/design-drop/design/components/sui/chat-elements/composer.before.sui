@@ -1,0 +1,44 @@
+<!--
+  sui-composer.before.sui — the EXISTING/grounded look. A plain bordered text
+  field + a text "Send" button. No attach affordance, no icon send, no elevated
+  focus ring. Pairs with the SAME composer.controller.js (Enter submits,
+  Shift+Enter newlines in multiline) so behavior matches — only the visual
+  differs. Props: multiline (bool) · disabled (bool) · placeholder.
+  Compiled as <x-comp-before>.
+-->
+<prop name="multiline" type="bool" default="false" reflect />
+<prop name="disabled" type="bool" default="false" reflect />
+<prop name="placeholder" type="string" default="Message…" />
+
+<style>
+  :host { display: block; width: 100%; font-family: var(--font-body); }
+  :host([hidden]) { display: none; }
+  .composer { display: flex; align-items: flex-end; gap: 8px; }
+  .field {
+    flex: 1; min-width: 0; resize: vertical;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--card); color: var(--foreground);
+    font: inherit; font-size: var(--text-sm); line-height: 1.5; padding: 7px 10px;
+  }
+  .field:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+  .field::placeholder { color: var(--muted-foreground); }
+  :host([disabled]) .field { background: var(--muted); }
+  .send {
+    flex: 0 0 auto; border: 1px solid var(--border);
+    background: var(--muted); color: var(--foreground);
+    font: inherit; font-size: var(--text-sm); font-weight: 600;
+    padding: 7px 14px; border-radius: var(--radius-sm); cursor: pointer;
+  }
+  .send:hover:not(:disabled) { background: var(--hover-bg); }
+  .send:disabled { color: var(--muted-foreground); cursor: not-allowed; }
+  .send:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+</style>
+
+<div class="composer" part="composer">
+  {#if multiline()}
+    <textarea class="field" part="field" rows="2" placeholder={placeholder()} disabled={disabled()} bind:value={text} bind:this={fieldEl}></textarea>
+  {:else}
+    <input class="field" part="field" type="text" placeholder={placeholder()} disabled={disabled()} bind:value={text} bind:this={fieldEl} />
+  {/if}
+  <button class="send" part="send" type="button" disabled={disabled()} bind:this={sendEl}>Send</button>
+</div>

@@ -1,0 +1,21 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-copy-button.before.sui — fabricated sketch (not in source). Ghost icon button with a
+  clipboard glyph; on copy the controller swaps to a check (state='copied').
+  Plain hover. Compiled as <x-copy-button-before>. Props: state · label.
+-->
+<prop name="state" values="idle|copied" default="idle" reflect />
+<prop name="label" type="string" default="Copy" />
+<style>
+  :host { display: inline-flex; }
+  button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; background: transparent; color: var(--muted-foreground); border-radius: var(--radius-sm); cursor: pointer; }
+  button:hover { background: var(--muted); color: var(--foreground); }
+  svg { width: 15px; height: 15px; }
+  .check { display: none; }
+  :host([state='copied']) .clip { display: none; }
+  :host([state='copied']) .check { display: block; }
+</style>
+<button part="button" type="button" aria-label={label()}>
+  <svg class="clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+  <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+</button>

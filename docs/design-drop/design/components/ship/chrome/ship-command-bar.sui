@@ -1,0 +1,49 @@
+<!--
+  ship-command-bar.sui — @ship/chrome · the cmdk keystone. ★ the one chrome locus.
+  Summoned palette (⌘K). Modes: find · search · create · ai. `ai` is where command-chat
+  lives — the same surface that hosts agent chat. Open over any surface; never docked.
+  Prior art: reference sui-command-bar (open · mode). Attribute-driven, tokens only.
+  Props: open · mode(find|search|create|ai). Body (results / chat turns) is slotted.
+-->
+<prop name="open" type="bool" default="true" reflect />
+<prop name="mode" values="find|search|create|ai" default="find" reflect />
+
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  :host(:not([open])) { display: none; }
+  .bar { width: 640px; max-width: 100%; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-1); box-shadow: var(--shadow-xl); overflow: hidden; }
+  .q { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--divider); }
+  .q svg { width: 16px; height: 16px; color: var(--muted-foreground); flex-shrink: 0; }
+  .q input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: var(--text-md); color: var(--foreground); }
+  .q input::placeholder { color: var(--muted-foreground); }
+  .modes { display: inline-flex; gap: 3px; }
+  .mtab { font-family: var(--font-mono); font-size: 10.5px; padding: 3px 9px; border-radius: var(--radius-full); color: var(--muted-foreground); background: var(--muted); cursor: pointer; }
+  .mtab.on { color: var(--primary); background: color-mix(in oklch, var(--primary) 13%, transparent); font-weight: 700; }
+  .body { max-height: 360px; overflow-y: auto; scrollbar-width: thin; padding: 8px; min-height: 70px; }
+  .foot { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-top: 1px solid var(--divider); background: var(--surface-2); font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); }
+  .foot .sep { opacity: .5; } .foot .r { margin-left: auto; }
+  .foot b { color: var(--foreground); }
+  /* mode-driven placeholder hint */
+  .ph { display: none; } :host([mode='find']) .ph-find, :host([mode='search']) .ph-search, :host([mode='create']) .ph-create, :host([mode='ai']) .ph-ai { display: inline; }
+</style>
+
+<div class="bar" part="bar">
+  <div class="q">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <input part="input" placeholder="Search, run, or ask…" />
+    <span class="modes">
+      <span class="mtab" data-m="find">find</span>
+      <span class="mtab" data-m="search">search</span>
+      <span class="mtab" data-m="create">create</span>
+      <span class="mtab" data-m="ai">ai</span>
+    </span>
+  </div>
+  <div class="body" part="body"><slot></slot></div>
+  <div class="foot">
+    <span class="ph ph-find">jump to a file, view, agent…</span>
+    <span class="ph ph-search">full-text across this space</span>
+    <span class="ph ph-create">new agent · view · skill…</span>
+    <span class="ph ph-ai">ask the agent — replies can render UI</span>
+    <span class="r"><b>↵</b> open<span class="sep"> · </span><b>esc</b> dismiss<span class="sep"> · </span><b>⌘K</b> toggle</span>
+  </div>
+</div>

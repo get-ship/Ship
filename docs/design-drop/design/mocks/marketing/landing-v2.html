@@ -1,0 +1,1662 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ship — AI ended up in a tab. We took it back.</title>
+
+<link rel="icon" type="image/svg+xml" href="../../../site/public/ship-logo.svg" />
+<link rel="stylesheet" href="../../../site/src/styles/tokens.css" />
+<link rel="stylesheet" href="../../../site/src/styles/themes.css" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600;700&family=Newsreader:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+
+<style>
+  /* ─────────────────────────────────────────────────────────
+   * v2 — manifesto + gallery + a single sharp scene.
+   * No feature soup. The product does the talking.
+   * ───────────────────────────────────────────────────────── */
+
+  :root {
+    --m-font-display: 'Syne', system-ui, sans-serif;
+    --m-font-body: 'DM Sans', system-ui, sans-serif;
+    --m-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --m-font-prose: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+
+    --m-pad-x: 32px;
+    --m-max: 1440px;
+    --m-prose-max: 720px;
+  }
+  @media (max-width: 760px) { :root { --m-pad-x: 20px; } }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--m-font-body);
+    background: var(--background);
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  ::selection { background: color-mix(in oklch, var(--primary) 35%, transparent); }
+  img { display: block; max-width: 100%; }
+
+  .m-container { max-width: var(--m-max); margin: 0 auto; padding: 0 var(--m-pad-x); }
+  .m-prose { max-width: var(--m-prose-max); }
+
+  /* ────────── Tiny menu-bar nav ────────── */
+  .m-bar {
+    position: sticky; top: 0; z-index: 40;
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    background: color-mix(in oklch, var(--background) 78%, transparent);
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+  }
+  .m-bar-inner {
+    max-width: var(--m-max); margin: 0 auto;
+    padding: 12px var(--m-pad-x);
+    display: flex; align-items: center; gap: 24px;
+  }
+  .m-bar a.brand {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--foreground);
+    font-family: var(--m-font-display); font-weight: 700; font-size: 15px;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .m-bar a.brand img { width: 26px; height: 26px; }
+  .m-bar .links {
+    display: flex; gap: 22px; margin-left: 32px;
+    font-size: 13px;
+    color: color-mix(in oklch, var(--foreground) 65%, var(--background));
+  }
+  .m-bar .links a:hover { color: var(--foreground); }
+  .m-bar .spacer { flex: 1; }
+  .m-bar .right {
+    display: flex; align-items: center; gap: 14px;
+    font-family: var(--m-font-mono); font-size: 11.5px;
+    color: color-mix(in oklch, var(--foreground) 60%, var(--background));
+  }
+  .m-bar .right a.dl {
+    padding: 7px 13px; border-radius: 7px;
+    background: var(--foreground); color: var(--background);
+    font-family: var(--m-font-body); font-weight: 600; font-size: 13px;
+    display: inline-flex; align-items: center; gap: 7px;
+  }
+  .m-bar .theme-toggle {
+    display: inline-flex; gap: 1px;
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 2px; background: var(--card);
+  }
+  .m-bar .theme-toggle button {
+    appearance: none; border: 0; cursor: pointer;
+    width: 22px; height: 22px; border-radius: 999px;
+    background: transparent;
+    display: grid; place-items: center;
+    color: color-mix(in oklch, var(--foreground) 55%, var(--background));
+    transition: background 120ms;
+  }
+  .m-bar .theme-toggle button.on {
+    background: var(--foreground); color: var(--background);
+  }
+  @media (max-width: 740px) {
+    .m-bar .links { display: none; }
+    .m-bar .right .meta { display: none; }
+  }
+
+  /* ────────── Hero ────────── */
+  .m-hero {
+    position: relative;
+    padding: 96px 0 64px;
+    isolation: isolate;
+  }
+  .m-hero::before {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 55% 50% at 75% 35%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 70%);
+    z-index: -1; pointer-events: none;
+  }
+  .m-hero-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    gap: 64px;
+    align-items: center;
+  }
+  @media (max-width: 1100px) { .m-hero-inner { grid-template-columns: 1fr; gap: 56px; } }
+
+  .m-hero h1 {
+    font-family: var(--m-font-display);
+    font-weight: 700;
+    font-size: clamp(46px, 7vw, 104px);
+    line-height: 0.92;
+    letter-spacing: -0.04em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .m-hero h1 em {
+    font-style: italic;
+    font-weight: 500;
+    color: color-mix(in oklch, var(--foreground) 50%, var(--primary));
+  }
+  .m-hero-sub {
+    font-family: var(--m-font-prose);
+    font-size: 21px; line-height: 1.45;
+    color: color-mix(in oklch, var(--foreground) 78%, var(--background));
+    max-width: 520px;
+    margin: 32px 0 0;
+    text-wrap: pretty;
+  }
+  .m-hero-sub b { color: var(--foreground); font-weight: 600; }
+  .m-hero-cta {
+    margin-top: 40px;
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  }
+  .m-hero-cta .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 13px 22px; border-radius: 10px;
+    background: var(--foreground); color: var(--background);
+    font-weight: 600; font-size: 15px;
+    border: 1px solid var(--foreground);
+    cursor: pointer;
+    transition: transform 120ms, box-shadow 200ms;
+  }
+  .m-hero-cta .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -10px color-mix(in oklch, var(--foreground) 45%, transparent); }
+  .m-hero-cta .ghost {
+    color: var(--foreground);
+    background: transparent; border-color: transparent;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklch, var(--foreground) 35%, transparent);
+    text-underline-offset: 4px;
+    padding: 13px 0;
+  }
+  .m-hero-cta .ghost:hover { text-decoration-color: var(--foreground); }
+
+  .m-hero-meta {
+    margin-top: 36px;
+    display: flex; align-items: center; gap: 14px;
+    font-family: var(--m-font-mono); font-size: 11.5px;
+    color: color-mix(in oklch, var(--foreground) 50%, var(--background));
+  }
+  .m-hero-meta strong { color: var(--foreground); font-weight: 600; }
+  .m-hero-meta-sep { width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: 0.4; }
+
+  /* Hero visual — one big realistic Ship window */
+  .m-hero-vis {
+    position: relative;
+    justify-self: end;
+    width: 100%;
+    max-width: 760px;
+    aspect-ratio: 1.18 / 1;
+  }
+  @media (max-width: 1100px) { .m-hero-vis { justify-self: center; } }
+
+  .m-hero-vis .floor {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 70%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 70%);
+    z-index: -1;
+  }
+
+  /* The hero window — a hub with the Authority queue + a request floating */
+  .hero-win {
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--background);
+    border: 1px solid color-mix(in oklch, var(--border) 90%, transparent);
+    box-shadow:
+      0 60px 120px -32px color-mix(in oklch, var(--foreground) 22%, transparent),
+      0 8px 24px -6px color-mix(in oklch, var(--foreground) 14%, transparent);
+    display: flex; flex-direction: column;
+  }
+  .hero-win .bar {
+    height: 38px; flex-shrink: 0;
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 0 14px;
+    background: color-mix(in oklch, var(--background) 72%, var(--card));
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+  }
+  .hero-win .bar .dots { display: flex; gap: 7px; }
+  .hero-win .bar .dots i { width: 11px; height: 11px; border-radius: 50%; display: block; font-style: normal; }
+  .hero-win .bar .dots i:nth-child(1) { background: #ff5f57; }
+  .hero-win .bar .dots i:nth-child(2) { background: #febc2e; }
+  .hero-win .bar .dots i:nth-child(3) { background: #28c840; }
+  .hero-win .bar .t {
+    justify-self: center; display: flex; align-items: center; gap: 9px;
+    font-size: 12.5px; font-weight: 600; letter-spacing: -0.005em;
+  }
+  .hero-win .bar .t img { width: 16px; height: 16px; }
+  .hero-win .bar .t span { font-family: var(--m-font-mono); font-size: 11px; font-weight: 500; color: color-mix(in oklch, var(--foreground) 55%, var(--background)); }
+  .hero-win .bar .meta { justify-self: end; font-family: var(--m-font-mono); font-size: 10.5px; color: color-mix(in oklch, var(--foreground) 55%, var(--background)); }
+
+  .hero-win .body {
+    flex: 1; display: grid; grid-template-columns: 168px 1fr;
+    min-height: 0;
+  }
+  .hero-win .sidebar {
+    background: color-mix(in oklch, var(--background) 92%, var(--card));
+    border-right: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    padding: 12px 8px;
+    font-size: 12.5px;
+  }
+  .hero-win .sidebar .brandrow {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 8px 12px;
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+    margin-bottom: 8px;
+  }
+  .hero-win .sidebar .brandrow img { width: 18px; height: 18px; }
+  .hero-win .sidebar .brandrow b { font-family: var(--m-font-display); font-weight: 700; letter-spacing: 0.02em; }
+  .hero-win .sidebar .brandrow em { font-family: var(--m-font-mono); font-style: normal; font-size: 9.5px; color: color-mix(in oklch, var(--foreground) 50%, var(--background)); margin-left: auto; letter-spacing: 0.1em; text-transform: uppercase; }
+  .hero-win .sidebar .ni {
+    display: flex; align-items: center; gap: 9px;
+    padding: 5px 8px; border-radius: 6px;
+    color: color-mix(in oklch, var(--foreground) 75%, var(--background));
+    font-weight: 500;
+  }
+  .hero-win .sidebar .ni svg { color: color-mix(in oklch, var(--foreground) 50%, var(--background)); }
+  .hero-win .sidebar .ni .count { margin-left: auto; font-family: var(--m-font-mono); font-size: 10px; color: color-mix(in oklch, var(--foreground) 50%, var(--background)); }
+  .hero-win .sidebar .ni.active {
+    background: color-mix(in oklch, var(--primary) 10%, transparent);
+    color: var(--foreground); font-weight: 600;
+    position: relative;
+  }
+  .hero-win .sidebar .ni.active::before {
+    content: ""; position: absolute; left: -8px; top: 6px; bottom: 6px;
+    width: 2px; background: var(--primary); border-radius: 1px;
+  }
+  .hero-win .sidebar .ni.active svg { color: var(--primary); }
+  .hero-win .sidebar .ni.active .count {
+    background: var(--primary); color: var(--primary-foreground);
+    padding: 1px 6px; border-radius: 999px; font-weight: 600;
+  }
+  .hero-win .sidebar .sep { height: 1px; background: color-mix(in oklch, var(--border) 50%, transparent); margin: 8px 4px; }
+
+  .hero-win .main {
+    padding: 20px 24px;
+    overflow: hidden;
+    display: flex; flex-direction: column; gap: 16px;
+    position: relative;
+  }
+  .hero-win .main h2 {
+    font-family: var(--m-font-display);
+    font-size: 22px; font-weight: 700;
+    letter-spacing: -0.018em;
+    margin: 0;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .hero-win .main h2 .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--primary);
+    animation: hp 1.6s ease-in-out infinite;
+  }
+  @keyframes hp { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 45%, transparent); } 50% { box-shadow: 0 0 0 6px color-mix(in oklch, var(--primary) 0%, transparent); } }
+  .hero-win .main .desc {
+    color: color-mix(in oklch, var(--foreground) 60%, var(--background));
+    font-size: 13px;
+    margin-top: -8px;
+  }
+  .hero-win .main .pend-card {
+    margin-top: 6px;
+    padding: 16px;
+    border-radius: 11px;
+    background: var(--card);
+    border: 1px solid color-mix(in oklch, var(--primary) 25%, var(--border));
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--primary) 5%, transparent);
+    display: grid; gap: 12px;
+  }
+  .hero-win .main .pend-card .head {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .hero-win .main .pend-card .mark {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: linear-gradient(135deg, color-mix(in oklch, var(--primary) 90%, white), var(--primary));
+    color: white; font-family: var(--m-font-mono); font-weight: 700; font-size: 12px;
+    display: grid; place-items: center;
+  }
+  .hero-win .main .pend-card .head .meta { flex: 1; }
+  .hero-win .main .pend-card .head .meta .who {
+    font-size: 12.5px; font-family: var(--m-font-mono);
+    color: color-mix(in oklch, var(--foreground) 65%, var(--background));
+  }
+  .hero-win .main .pend-card .head .meta .who b { color: var(--foreground); font-weight: 600; }
+  .hero-win .main .pend-card .head .meta .what {
+    font-family: var(--m-font-mono); font-size: 9.5px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 50%, var(--background));
+    margin-top: 2px;
+  }
+  .hero-win .main .pend-card .head .risk {
+    font-family: var(--m-font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: oklch(0.55 0.2 25);
+    background: color-mix(in oklch, oklch(0.55 0.2 25) 14%, transparent);
+    padding: 3px 8px; border-radius: 999px;
+  }
+  .hero-win .main .pend-card .cmd {
+    padding: 10px 12px; border-radius: 7px;
+    background: #16140f; color: #e8e1cf;
+    font-family: var(--m-font-mono); font-size: 12.5px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hero-win .main .pend-card .cmd .pr { color: #7c7565; }
+  .hero-win .main .pend-card .cmd .fl { color: #e0a16b; }
+  .hero-win .main .pend-card .why {
+    font-size: 12.5px; line-height: 1.55;
+    color: color-mix(in oklch, var(--foreground) 70%, var(--background));
+  }
+  .hero-win .main .pend-card .why b { color: var(--foreground); font-weight: 600; }
+  .hero-win .main .pend-card .acts {
+    display: flex; gap: 8px;
+  }
+  .hero-win .main .pend-card .acts span {
+    flex: 1; padding: 8px 0; border-radius: 7px;
+    text-align: center; font-size: 12px; font-weight: 600;
+    border: 1px solid var(--border);
+  }
+  .hero-win .main .pend-card .acts .a {
+    background: var(--foreground); color: var(--background); border-color: var(--foreground);
+  }
+  .hero-win .main .pend-card .acts .d {
+    color: oklch(0.55 0.2 25);
+  }
+  .hero-win .main .log {
+    margin-top: 4px;
+    padding: 0;
+    border-radius: 10px;
+    background: var(--card);
+    border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+    overflow: hidden;
+  }
+  .hero-win .main .log .lh {
+    padding: 9px 14px; font-family: var(--m-font-mono);
+    font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 55%, var(--background));
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hero-win .main .log .row {
+    display: grid;
+    grid-template-columns: 18px 70px minmax(0, 1fr) 36px;
+    align-items: center; gap: 10px;
+    padding: 7px 14px;
+    font-size: 11.5px;
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+  }
+  .hero-win .main .log .row:last-child { border-bottom: 0; }
+  .hero-win .main .log .row .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .hero-win .main .log .row .dot.ok { background: oklch(0.6 0.13 145); }
+  .hero-win .main .log .row .dot.no { background: oklch(0.55 0.2 25); }
+  .hero-win .main .log .row b { font-weight: 600; font-size: 11.5px; }
+  .hero-win .main .log .row i { font-style: normal; font-family: var(--m-font-mono); font-size: 10.5px; color: color-mix(in oklch, var(--foreground) 55%, var(--background)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hero-win .main .log .row em { font-style: normal; font-family: var(--m-font-mono); font-size: 10px; color: color-mix(in oklch, var(--foreground) 50%, var(--background)); text-align: right; }
+
+  /* ────────── Manifesto ────────── */
+  .m-manifesto {
+    padding: 120px 0 80px;
+    border-top: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+  }
+  .m-manifesto-inner {
+    max-width: var(--m-prose-max);
+    margin: 0 auto;
+    padding: 0 var(--m-pad-x);
+  }
+  .m-manifesto h3 {
+    font-family: var(--m-font-mono);
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.24em; text-transform: uppercase;
+    color: var(--primary);
+    margin: 0 0 28px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .m-manifesto h3::before {
+    content: ""; width: 28px; height: 1px; background: var(--primary);
+  }
+  .m-manifesto p {
+    font-family: var(--m-font-prose);
+    font-size: 26px; line-height: 1.4;
+    letter-spacing: -0.011em;
+    color: color-mix(in oklch, var(--foreground) 85%, var(--background));
+    margin: 0 0 28px;
+    text-wrap: pretty;
+  }
+  .m-manifesto p b {
+    font-weight: 600;
+    color: var(--foreground);
+  }
+  .m-manifesto p em {
+    font-style: italic;
+    color: color-mix(in oklch, var(--foreground) 60%, var(--primary));
+  }
+  .m-manifesto .sig {
+    margin-top: 14px;
+    font-family: var(--m-font-mono);
+    font-size: 11.5px;
+    color: color-mix(in oklch, var(--foreground) 55%, var(--background));
+    letter-spacing: 0.1em;
+  }
+
+  /* ────────── Gallery ────────── */
+  .m-gal {
+    padding: 96px 0 120px;
+    background: color-mix(in oklch, var(--card) 50%, var(--background));
+    border-top: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+  }
+  .m-gal-head {
+    max-width: var(--m-prose-max); margin: 0 auto 64px;
+    padding: 0 var(--m-pad-x);
+  }
+  .m-gal-head .lab {
+    font-family: var(--m-font-mono);
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.24em; text-transform: uppercase;
+    color: var(--primary);
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 24px;
+  }
+  .m-gal-head .lab::before {
+    content: ""; width: 28px; height: 1px; background: var(--primary);
+  }
+  .m-gal-head h2 {
+    font-family: var(--m-font-display);
+    font-weight: 700;
+    font-size: clamp(36px, 4vw, 56px);
+    line-height: 1; letter-spacing: -0.035em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .m-gal-head h2 em { font-style: italic; font-weight: 500; color: color-mix(in oklch, var(--foreground) 50%, var(--primary)); }
+  .m-gal-head p {
+    font-family: var(--m-font-prose);
+    font-size: 18.5px; line-height: 1.5;
+    color: color-mix(in oklch, var(--foreground) 70%, var(--background));
+    margin: 16px 0 0;
+    text-wrap: pretty;
+  }
+
+  .m-gal-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 18px;
+    max-width: var(--m-max); margin: 0 auto;
+    padding: 0 var(--m-pad-x);
+  }
+  .m-gal-card {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+    background: var(--background);
+    box-shadow: 0 20px 50px -16px rgba(0,0,0,0.15);
+    display: flex; flex-direction: column;
+    min-height: 320px;
+    transition: transform 200ms, box-shadow 200ms;
+  }
+  .m-gal-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 28px 60px -16px rgba(0,0,0,0.22);
+  }
+  .m-gal-card .titlebar {
+    height: 28px; flex-shrink: 0;
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 0 10px;
+    border-bottom: 1px solid color-mix(in oklch, currentColor 15%, transparent);
+  }
+  .m-gal-card .titlebar .d { display: flex; gap: 5px; }
+  .m-gal-card .titlebar .d i { width: 8px; height: 8px; border-radius: 50%; display: block; font-style: normal; }
+  .m-gal-card .titlebar .d i:nth-child(1) { background: #ff5f57; }
+  .m-gal-card .titlebar .d i:nth-child(2) { background: #febc2e; }
+  .m-gal-card .titlebar .d i:nth-child(3) { background: #28c840; }
+  .m-gal-card .titlebar .tt {
+    justify-self: center;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--m-font-body); font-size: 11.5px; font-weight: 600;
+  }
+  .m-gal-card .titlebar .tt .mk {
+    width: 13px; height: 13px; border-radius: 4px;
+    display: grid; place-items: center;
+    font-family: var(--m-font-mono); font-weight: 700; font-size: 8px;
+  }
+  .m-gal-card .canvas {
+    flex: 1;
+    padding: 18px 20px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+  .m-gal-card .caption {
+    padding: 14px 18px;
+    border-top: 1px solid color-mix(in oklch, currentColor 12%, transparent);
+    display: flex; align-items: center; gap: 12px;
+    flex-shrink: 0;
+  }
+  .m-gal-card .caption .nm {
+    font-family: var(--m-font-display); font-size: 15px; font-weight: 700;
+    letter-spacing: -0.005em;
+  }
+  .m-gal-card .caption .ln {
+    font-family: var(--m-font-mono); font-size: 11px;
+    flex: 1; opacity: 0.7;
+  }
+  .m-gal-card .caption .th {
+    font-family: var(--m-font-mono); font-size: 9.5px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 999px;
+    opacity: 0.65;
+    border: 1px solid currentColor;
+  }
+
+  /* Span helpers */
+  .m-gal-card.span-4 { grid-column: span 4; }
+  .m-gal-card.span-6 { grid-column: span 6; }
+  .m-gal-card.span-8 { grid-column: span 8; }
+  @media (max-width: 1100px) {
+    .m-gal-card.span-4, .m-gal-card.span-6, .m-gal-card.span-8 { grid-column: span 6; }
+  }
+  @media (max-width: 720px) {
+    .m-gal-card.span-4, .m-gal-card.span-6, .m-gal-card.span-8 { grid-column: span 12; }
+  }
+
+  /* Themed card variants — each gallery card is a real space */
+  .g-paper { background: #f4ece0; color: #2d1f12; border-color: #c0a78a; }
+  .g-paper .titlebar { background: #fbf6ec; border-color: #d6c8b0; }
+  .g-paper .titlebar .tt .mk { background: #a14b30; color: #fbf6ec; }
+
+  .g-dark { background: #16140f; color: #e8e1cf; border-color: rgba(0,0,0,0.5); }
+  .g-dark .titlebar { background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.06); }
+  .g-dark .titlebar .tt .mk { background: #e0a16b; color: #16140f; }
+
+  .g-console { background: #0a0e0a; color: #b6f1c4; border-color: rgba(0,0,0,0.7); font-family: var(--m-font-mono); }
+  .g-console .titlebar { background: rgba(0,0,0,0.5); border-color: rgba(140, 220, 160, 0.12); }
+  .g-console .titlebar .tt .mk { background: oklch(0.65 0.2 145); color: #0a0e0a; }
+  .g-console .titlebar .tt { font-family: var(--m-font-mono); }
+
+  .g-halo { background: #e6edf5; color: #1c2734; border-color: #c8d4e2; }
+  .g-halo .titlebar { background: #f4f7fb; border-color: #c8d4e2; }
+  .g-halo .titlebar .tt .mk { background: oklch(0.55 0.18 250); color: white; }
+
+  .g-contrast { background: #0a0907; color: #f8e8c4; border-color: #f8e8c4; }
+  .g-contrast .titlebar { background: rgba(0,0,0,0.6); border-color: #f8e8c4; }
+  .g-contrast .titlebar .tt .mk { background: #f8e8c4; color: #0a0907; }
+
+  .g-glass {
+    background: linear-gradient(135deg, oklch(0.6 0.16 285) 0%, oklch(0.45 0.18 295) 100%);
+    color: white; border-color: rgba(255,255,255,0.18);
+  }
+  .g-glass .titlebar { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); backdrop-filter: blur(10px); }
+  .g-glass .titlebar .tt .mk { background: rgba(255,255,255,0.3); color: white; backdrop-filter: blur(4px); }
+
+  .g-light { background: #f0eee9; color: #1a1714; border-color: #d8d2c3; }
+  .g-light .titlebar { background: #f7f4ed; border-color: #d8d2c3; }
+  .g-light .titlebar .tt .mk { background: oklch(0.62 0.16 35); color: white; }
+
+  /* Specific card content ---- */
+  /* Paperback (writing) */
+  .g-paper .canvas { gap: 6px; font-family: 'Newsreader', serif; }
+  .g-paper .canvas .ey { font-family: var(--m-font-mono); font-size: 9.5px; color: #7a6a55; letter-spacing: 0.12em; text-transform: uppercase; }
+  .g-paper .canvas .ti { font-size: 22px; font-weight: 600; line-height: 1.1; letter-spacing: -0.015em; }
+  .g-paper .canvas p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.55; color: color-mix(in oklch, #2d1f12 78%, transparent); }
+  .g-paper .canvas .reader {
+    margin-top: 10px;
+    padding: 7px 9px; border-radius: 5px;
+    background: color-mix(in oklch, #a14b30 8%, #fbf6ec);
+    border: 1px solid color-mix(in oklch, #a14b30 22%, #d6c8b0);
+    font-family: var(--m-font-body); font-size: 10px;
+    color: #7a6a55;
+    display: inline-flex; align-items: center; gap: 6px;
+    align-self: flex-start;
+  }
+  .g-paper .canvas .reader .pdot { width: 6px; height: 6px; border-radius: 50%; background: #a14b30; animation: hp 1.6s ease-in-out infinite; }
+  .g-paper .canvas .reader b { color: #2d1f12; font-weight: 600; }
+
+  /* Ship dev */
+  .g-dark .canvas { gap: 8px; }
+  .g-dark .canvas .greet {
+    font-family: var(--m-font-display);
+    font-size: 17px; font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+  .g-dark .canvas .greet i { font-style: italic; color: #e0a16b; }
+  .g-dark .canvas .grid {
+    margin-top: 4px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 7px;
+  }
+  .g-dark .canvas .grid .tile {
+    background: #1f1c16; border: 1px solid #332d22; border-radius: 6px;
+    padding: 8px 10px;
+    position: relative;
+  }
+  .g-dark .canvas .grid .tile::before { content: ""; position: absolute; top: 0; left: 0; width: 32px; height: 2px; background: #e0a16b; }
+  .g-dark .canvas .grid .tile.alt::before { background: #b08fd9; }
+  .g-dark .canvas .grid .tile .k { font-family: var(--m-font-mono); font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #7c7565; font-weight: 600; }
+  .g-dark .canvas .grid .tile .v { font-family: var(--m-font-display); font-size: 20px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .g-dark .canvas .grid .tile .m { font-family: var(--m-font-mono); font-size: 9px; color: oklch(0.65 0.15 145); margin-top: 2px; }
+  .g-dark .canvas .grid .tile.runs { grid-column: span 2; }
+  .g-dark .canvas .grid .tile.runs .runs-list { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+  .g-dark .canvas .grid .tile.runs .runs-list .r { display: grid; grid-template-columns: auto 1fr auto; gap: 7px; align-items: center; font-size: 10.5px; }
+  .g-dark .canvas .grid .tile.runs .runs-list .r .d { width: 6px; height: 6px; border-radius: 50%; }
+  .g-dark .canvas .grid .tile.runs .runs-list .r .d.live { background: oklch(0.65 0.18 60); animation: hp 1.6s ease-in-out infinite; }
+  .g-dark .canvas .grid .tile.runs .runs-list .r .d.ok { background: oklch(0.6 0.13 145); }
+  .g-dark .canvas .grid .tile.runs .runs-list .r b { color: #e8e1cf; font-weight: 600; }
+  .g-dark .canvas .grid .tile.runs .runs-list .r i { font-style: normal; font-family: var(--m-font-mono); font-size: 9.5px; color: #7c7565; }
+  .g-dark .canvas .grid .tile.runs .runs-list .r em { font-style: normal; font-family: var(--m-font-mono); font-size: 9.5px; color: #7c7565; }
+
+  /* Rust Lane (console) */
+  .g-console .canvas { font-family: var(--m-font-mono); font-size: 10.5px; line-height: 1.65; padding: 14px 18px; }
+  .g-console .canvas .line { display: flex; gap: 6px; }
+  .g-console .canvas .pr { color: rgba(182, 241, 196, 0.5); }
+  .g-console .canvas .cmd b { color: oklch(0.7 0.2 60); font-weight: 600; }
+  .g-console .canvas .out { color: rgba(182, 241, 196, 0.75); }
+  .g-console .canvas .warn { color: oklch(0.7 0.18 80); }
+  .g-console .canvas .ok { color: oklch(0.7 0.2 145); }
+  .g-console .canvas .blink {
+    display: inline-block; width: 6px; height: 12px;
+    background: oklch(0.7 0.2 145); vertical-align: text-bottom;
+    animation: gb 1s infinite;
+  }
+  @keyframes gb { 50% { opacity: 0; } }
+
+  /* Brand Voice (halo) */
+  .g-halo .canvas { gap: 10px; }
+  .g-halo .canvas .ey { font-family: var(--m-font-mono); font-size: 9.5px; color: #5a6a7e; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; }
+  .g-halo .canvas .review {
+    background: #f4f7fb;
+    border-radius: 9px;
+    padding: 12px 14px;
+    box-shadow: inset 0 -2px 0 #c8d4e2, inset 0 1px 0 white;
+  }
+  .g-halo .canvas .review .lab { font-family: var(--m-font-mono); font-size: 9px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: oklch(0.55 0.18 250); }
+  .g-halo .canvas .review .quote { font-size: 13px; line-height: 1.45; margin-top: 5px; }
+  .g-halo .canvas .review .quote s { color: #8a9aae; text-decoration-color: oklch(0.55 0.2 25); }
+  .g-halo .canvas .review .quote b { color: oklch(0.55 0.18 250); background: color-mix(in oklch, oklch(0.55 0.18 250) 10%, transparent); padding: 0 3px; border-radius: 2px; font-weight: 600; }
+  .g-halo .canvas .review .note { margin-top: 8px; font-size: 11.5px; color: #5a6a7e; font-style: italic; }
+  .g-halo .canvas .tones {
+    margin-top: auto; display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .g-halo .canvas .tones span {
+    font-family: var(--m-font-mono); font-size: 10px;
+    padding: 3px 9px; border-radius: 999px;
+    background: #f4f7fb;
+    border: 1px solid #c8d4e2;
+    color: #5a6a7e;
+  }
+  .g-halo .canvas .tones span.sel { background: oklch(0.55 0.18 250); color: white; border-color: oklch(0.55 0.18 250); }
+
+  /* Mesh (contrast) */
+  .g-contrast .canvas { gap: 10px; }
+  .g-contrast .canvas .ey { font-family: var(--m-font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(248, 232, 196, 0.55); }
+  .g-contrast .canvas .head {
+    display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 14px;
+  }
+  .g-contrast .canvas .head .lbl { font-family: var(--m-font-display); font-size: 19px; font-weight: 700; letter-spacing: -0.015em; }
+  .g-contrast .canvas .head .st {
+    font-family: var(--m-font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    border: 1.5px solid #f8e8c4; padding: 2px 8px; border-radius: 0;
+  }
+  .g-contrast .canvas .nodes {
+    margin-top: 4px;
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px;
+  }
+  .g-contrast .canvas .nodes i {
+    aspect-ratio: 1;
+    border: 1.5px solid #f8e8c4;
+    display: grid; place-items: center;
+    font-family: var(--m-font-mono); font-size: 8.5px; font-weight: 700;
+    font-style: normal;
+  }
+  .g-contrast .canvas .nodes i.ok { background: #f8e8c4; color: #0a0907; }
+  .g-contrast .canvas .nodes i.warn { background: transparent; color: oklch(0.7 0.18 60); border-color: oklch(0.7 0.18 60); }
+  .g-contrast .canvas .nodes i.no { background: transparent; color: oklch(0.65 0.2 25); border-color: oklch(0.65 0.2 25); }
+  .g-contrast .canvas .legend {
+    margin-top: auto;
+    display: flex; gap: 14px; font-family: var(--m-font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.06em;
+  }
+  .g-contrast .canvas .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .g-contrast .canvas .legend i { width: 8px; height: 8px; font-style: normal; display: block; border: 1.5px solid; }
+  .g-contrast .canvas .legend .a i { background: #f8e8c4; border-color: #f8e8c4; }
+  .g-contrast .canvas .legend .b i { border-color: oklch(0.7 0.18 60); }
+  .g-contrast .canvas .legend .c i { border-color: oklch(0.65 0.2 25); }
+
+  /* Inbox (light) */
+  .g-light .canvas { gap: 8px; padding: 14px 16px; }
+  .g-light .canvas .ey { font-family: var(--m-font-mono); font-size: 9.5px; color: #6e6859; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; }
+  .g-light .canvas .threads { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .g-light .canvas .threads .th {
+    display: grid; grid-template-columns: 18px 1fr auto; gap: 9px; align-items: center;
+    padding: 6px 8px; border-radius: 6px;
+    font-size: 11.5px;
+  }
+  .g-light .canvas .threads .th.pinned {
+    background: color-mix(in oklch, oklch(0.62 0.16 35) 10%, transparent);
+  }
+  .g-light .canvas .threads .th .ic {
+    width: 18px; height: 18px; border-radius: 4px;
+    background: color-mix(in oklch, oklch(0.62 0.16 35) 18%, transparent);
+    color: oklch(0.62 0.16 35);
+    display: grid; place-items: center;
+    font-family: var(--m-font-mono); font-weight: 700; font-size: 9px;
+  }
+  .g-light .canvas .threads .th .who { font-weight: 600; font-size: 11.5px; }
+  .g-light .canvas .threads .th .sub { font-size: 10.5px; color: #6e6859; }
+  .g-light .canvas .threads .th time { font-family: var(--m-font-mono); font-size: 9.5px; color: #6e6859; }
+  .g-light .canvas .stash { margin-top: auto; padding: 7px 10px; border-radius: 6px; background: rgba(0,0,0,0.04); font-family: var(--m-font-mono); font-size: 10px; color: #6e6859; }
+  .g-light .canvas .stash b { color: oklch(0.62 0.16 35); font-weight: 600; }
+
+  /* Lab (glass) */
+  .g-glass .canvas { gap: 10px; }
+  .g-glass .canvas .ey { font-family: var(--m-font-mono); font-size: 9.5px; color: rgba(255,255,255,0.65); letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; }
+  .g-glass .canvas .lab-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 8px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    backdrop-filter: blur(6px);
+  }
+  .g-glass .canvas .lab-row .pl {
+    width: 26px; height: 26px; border-radius: 6px;
+    background: rgba(255,255,255,0.22);
+    display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  }
+  .g-glass .canvas .lab-row .meta { flex: 1; }
+  .g-glass .canvas .lab-row .nm { font-size: 12.5px; font-weight: 600; }
+  .g-glass .canvas .lab-row .sub { font-family: var(--m-font-mono); font-size: 10px; color: rgba(255,255,255,0.7); }
+  .g-glass .canvas .lab-row .st { font-family: var(--m-font-mono); font-size: 9px; padding: 2px 6px; border-radius: 999px; background: rgba(255,255,255,0.2); }
+  .g-glass .canvas .lab-foot { font-family: var(--m-font-mono); font-size: 10.5px; color: rgba(255,255,255,0.65); margin-top: auto; }
+
+  /* Bring-your-own card */
+  .g-byo {
+    border: 1.5px dashed color-mix(in oklch, var(--border) 80%, transparent);
+    background: transparent;
+    box-shadow: none;
+    display: flex; align-items: center; justify-content: center;
+    padding: 40px;
+    text-align: center;
+    min-height: 320px;
+  }
+  .g-byo .titlebar, .g-byo .caption { display: none; }
+  .g-byo .canvas {
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    padding: 0;
+  }
+  .g-byo .ic {
+    width: 44px; height: 44px; border-radius: 11px;
+    background: color-mix(in oklch, var(--primary) 14%, transparent);
+    color: var(--primary);
+    display: grid; place-items: center;
+  }
+  .g-byo .ti { font-family: var(--m-font-display); font-size: 18px; font-weight: 700; letter-spacing: -0.005em; }
+  .g-byo .desc { font-family: var(--m-font-prose); font-size: 14px; color: color-mix(in oklch, var(--foreground) 70%, var(--background)); max-width: 240px; }
+
+  /* ────────── The scene (single trust moment) ────────── */
+  .m-scene {
+    padding: 120px 0;
+    background: var(--background);
+  }
+  .m-scene-head {
+    max-width: var(--m-prose-max); margin: 0 auto 56px;
+    padding: 0 var(--m-pad-x);
+  }
+  .m-scene-head .lab {
+    font-family: var(--m-font-mono);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase;
+    color: oklch(0.55 0.2 25);
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 22px;
+  }
+  .m-scene-head .lab::before { content: ""; width: 28px; height: 1px; background: oklch(0.55 0.2 25); }
+  .m-scene-head h2 {
+    font-family: var(--m-font-display);
+    font-weight: 700;
+    font-size: clamp(34px, 4.2vw, 56px);
+    line-height: 1.0; letter-spacing: -0.035em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .m-scene-head h2 em { font-style: italic; color: color-mix(in oklch, var(--foreground) 50%, oklch(0.55 0.2 25)); }
+  .m-scene-head .lede {
+    font-family: var(--m-font-prose);
+    font-size: 19px; line-height: 1.5;
+    color: color-mix(in oklch, var(--foreground) 75%, var(--background));
+    margin: 20px 0 0; max-width: 600px;
+    text-wrap: pretty;
+  }
+
+  .m-scene-grid {
+    max-width: var(--m-max); margin: 0 auto;
+    padding: 0 var(--m-pad-x);
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 28px;
+  }
+  @media (max-width: 1060px) { .m-scene-grid { grid-template-columns: 1fr; gap: 40px; } }
+
+  .m-scene-panel {
+    position: relative;
+  }
+  .m-scene-panel .step {
+    font-family: var(--m-font-mono);
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 50%, var(--background));
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .m-scene-panel .step b { color: oklch(0.55 0.2 25); font-weight: 700; }
+  .m-scene-panel .frame {
+    border-radius: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    aspect-ratio: 1.05/1;
+    display: flex; flex-direction: column;
+  }
+  .m-scene-panel .frame .bb {
+    height: 26px; display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center; padding: 0 10px;
+    background: rgba(0,0,0,0.04);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .m-scene-panel .frame .bb .d { display: flex; gap: 5px; }
+  .m-scene-panel .frame .bb .d i { width: 8px; height: 8px; border-radius: 50%; display: block; font-style: normal; }
+  .m-scene-panel .frame .bb .d i:nth-child(1) { background: #ff5f57; }
+  .m-scene-panel .frame .bb .d i:nth-child(2) { background: #febc2e; }
+  .m-scene-panel .frame .bb .d i:nth-child(3) { background: #28c840; }
+  .m-scene-panel .frame .bb .ti { justify-self: center; font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .m-scene-panel .frame .bb .ti .mk { width: 13px; height: 13px; border-radius: 4px; display: grid; place-items: center; font-family: var(--m-font-mono); font-weight: 700; font-size: 8px; color: white; }
+  .m-scene-panel .annot {
+    margin-top: 18px;
+    font-family: var(--m-font-prose);
+    font-size: 16px; line-height: 1.5;
+    color: color-mix(in oklch, var(--foreground) 80%, var(--background));
+  }
+  .m-scene-panel .annot b { color: var(--foreground); font-weight: 600; }
+  .m-scene-panel .annot code {
+    font-family: var(--m-font-mono); font-size: 14px;
+    background: color-mix(in oklch, var(--foreground) 6%, transparent);
+    padding: 1px 5px; border-radius: 3px;
+  }
+
+  /* Panel 1 — agent in space */
+  .p1 .frame { background: #16140f; color: #e8e1cf; border-color: rgba(0,0,0,0.5); }
+  .p1 .frame .bb { background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.06); }
+  .p1 .frame .bb .ti .mk { background: #e0a16b; color: #16140f; }
+  .p1 .frame .agent-thought {
+    flex: 1; padding: 16px;
+    display: flex; flex-direction: column; gap: 10px;
+    font-size: 12px; overflow: hidden;
+  }
+  .p1 .frame .agent-thought .who { display: flex; align-items: center; gap: 8px; font-family: var(--m-font-mono); font-size: 10.5px; color: #7c7565; }
+  .p1 .frame .agent-thought .who b { color: #e0a16b; font-weight: 600; }
+  .p1 .frame .agent-thought .who .d { width: 6px; height: 6px; border-radius: 50%; background: #e0a16b; animation: hp 1.4s ease-in-out infinite; }
+  .p1 .frame .agent-thought .msg { line-height: 1.55; color: #e8e1cf; }
+  .p1 .frame .agent-thought .term {
+    padding: 9px 12px; border-radius: 6px;
+    background: #0a0907; color: #b6f1c4;
+    font-family: var(--m-font-mono); font-size: 11px;
+    border-left: 2px solid oklch(0.55 0.2 25);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .p1 .frame .agent-thought .term .pr { color: #7c7565; }
+  .p1 .frame .agent-thought .term .flag { color: #e0a16b; }
+  .p1 .frame .agent-thought .pause {
+    padding: 8px 11px; border-radius: 6px;
+    background: color-mix(in oklch, oklch(0.55 0.2 25) 14%, transparent);
+    border: 1px solid color-mix(in oklch, oklch(0.55 0.2 25) 40%, transparent);
+    color: oklch(0.7 0.16 25);
+    font-family: var(--m-font-mono); font-size: 10.5px;
+    display: inline-flex; align-items: center; gap: 7px;
+    align-self: flex-start;
+  }
+
+  /* Panel 2 — request lands in hub */
+  .p2 .frame {
+    background: var(--background); color: var(--foreground);
+    border-color: var(--border);
+  }
+  .p2 .frame .bb { background: color-mix(in oklch, var(--background) 88%, var(--card)); border-color: var(--border); }
+  .p2 .frame .bb .ti .mk { background: linear-gradient(135deg, color-mix(in oklch, var(--primary) 90%, white), var(--primary)); }
+  .p2 .frame .hub-body {
+    flex: 1; padding: 16px;
+    display: flex; flex-direction: column; gap: 12px;
+    overflow: hidden;
+  }
+  .p2 .frame .hub-body .head {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--m-font-mono); font-size: 9.5px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--primary);
+  }
+  .p2 .frame .hub-body .head svg { width: 12px; height: 12px; }
+  .p2 .frame .hub-body .cardq {
+    padding: 14px; border-radius: 9px;
+    background: var(--card);
+    border: 1.5px solid color-mix(in oklch, var(--primary) 35%, var(--border));
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--primary) 6%, transparent);
+    display: grid; gap: 9px;
+  }
+  .p2 .frame .hub-body .cardq .row {
+    display: flex; align-items: center; gap: 9px;
+    font-family: var(--m-font-mono); font-size: 10.5px;
+    color: color-mix(in oklch, var(--foreground) 65%, var(--background));
+  }
+  .p2 .frame .hub-body .cardq .row b { color: var(--foreground); font-weight: 600; }
+  .p2 .frame .hub-body .cardq .row .mk2 { width: 18px; height: 18px; border-radius: 4px; background: linear-gradient(135deg, oklch(0.7 0.16 35), oklch(0.55 0.18 30)); color: white; display: grid; place-items: center; font-family: var(--m-font-mono); font-weight: 700; font-size: 9px; }
+  .p2 .frame .hub-body .cardq .row .risk { margin-left: auto; font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: oklch(0.55 0.2 25); background: color-mix(in oklch, oklch(0.55 0.2 25) 14%, transparent); padding: 2px 7px; border-radius: 999px; }
+  .p2 .frame .hub-body .cardq .cmd {
+    padding: 8px 11px; border-radius: 6px;
+    background: #16140f; color: #e8e1cf;
+    font-family: var(--m-font-mono); font-size: 12px;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .p2 .frame .hub-body .cardq .cmd .pr { color: #7c7565; }
+  .p2 .frame .hub-body .cardq .cmd .fl { color: #e0a16b; }
+  .p2 .frame .hub-body .cardq .stats {
+    display: flex; gap: 12px;
+    font-family: var(--m-font-mono); font-size: 10.5px;
+    color: color-mix(in oklch, var(--foreground) 55%, var(--background));
+  }
+  .p2 .frame .hub-body .cardq .stats b { color: var(--foreground); font-weight: 600; }
+  .p2 .frame .hub-body .cardq .acts { display: flex; gap: 7px; }
+  .p2 .frame .hub-body .cardq .acts span {
+    flex: 1; padding: 7px 0; border-radius: 6px;
+    text-align: center; font-size: 11.5px; font-weight: 600;
+    border: 1px solid var(--border);
+  }
+  .p2 .frame .hub-body .cardq .acts .a {
+    background: var(--foreground); color: var(--background); border-color: var(--foreground);
+  }
+  .p2 .frame .hub-body .cardq .acts .d {
+    color: oklch(0.55 0.2 25);
+  }
+
+  /* Panel 3 — audit log */
+  .p3 .frame {
+    background: var(--background); color: var(--foreground);
+    border-color: var(--border);
+  }
+  .p3 .frame .bb { background: color-mix(in oklch, var(--background) 88%, var(--card)); border-color: var(--border); }
+  .p3 .frame .bb .ti .mk { background: linear-gradient(135deg, color-mix(in oklch, var(--primary) 90%, white), var(--primary)); }
+  .p3 .frame .log-body {
+    flex: 1; padding: 0;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .p3 .frame .log-body .lh {
+    padding: 12px 16px; font-family: var(--m-font-mono);
+    font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: color-mix(in oklch, var(--foreground) 55%, var(--background));
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .p3 .frame .log-body .row {
+    display: grid; grid-template-columns: 20px 1fr 50px; gap: 10px;
+    align-items: center;
+    padding: 9px 16px;
+    font-size: 11.5px;
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+  }
+  .p3 .frame .log-body .row .d { width: 8px; height: 8px; border-radius: 50%; }
+  .p3 .frame .log-body .row .d.ok { background: oklch(0.6 0.13 145); }
+  .p3 .frame .log-body .row .d.no { background: oklch(0.55 0.2 25); }
+  .p3 .frame .log-body .row .d.now { background: var(--primary); animation: hp 1.6s ease-in-out infinite; }
+  .p3 .frame .log-body .row b { font-weight: 600; }
+  .p3 .frame .log-body .row i { font-style: normal; font-family: var(--m-font-mono); font-size: 10.5px; color: color-mix(in oklch, var(--foreground) 55%, var(--background)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .p3 .frame .log-body .row time { font-family: var(--m-font-mono); font-size: 10px; color: color-mix(in oklch, var(--foreground) 50%, var(--background)); text-align: right; }
+  .p3 .frame .log-body .row.now-row { background: color-mix(in oklch, var(--primary) 6%, transparent); }
+  .p3 .frame .log-body .policy {
+    margin-top: auto;
+    padding: 9px 16px;
+    background: color-mix(in oklch, var(--foreground) 4%, transparent);
+    border-top: 1px solid var(--border);
+    font-family: var(--m-font-mono); font-size: 10px;
+    color: color-mix(in oklch, var(--foreground) 60%, var(--background));
+    display: flex; align-items: center; gap: 8px;
+  }
+  .p3 .frame .log-body .policy b { color: var(--foreground); font-weight: 600; }
+
+  /* ────────── Closer ────────── */
+  .m-close {
+    padding: 140px 0 120px;
+    text-align: center;
+    background:
+      radial-gradient(ellipse 55% 50% at 50% 40%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 70%),
+      var(--background);
+    border-top: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+  }
+  .m-close-logo {
+    width: 76px; height: 76px; margin: 0 auto 36px;
+    opacity: 0.95;
+  }
+  .m-close h2 {
+    font-family: var(--m-font-display);
+    font-weight: 700; margin: 0;
+    font-size: clamp(40px, 5.5vw, 80px);
+    line-height: 0.96; letter-spacing: -0.04em;
+    text-wrap: balance;
+  }
+  .m-close h2 em { font-style: italic; font-weight: 500; color: color-mix(in oklch, var(--foreground) 50%, var(--primary)); }
+  .m-close .levellede {
+    font-family: var(--m-font-prose);
+    font-size: 21px; line-height: 1.45;
+    color: color-mix(in oklch, var(--foreground) 75%, var(--background));
+    max-width: 540px; margin: 28px auto 0;
+    text-wrap: pretty;
+  }
+  .m-close .levellede b { color: var(--foreground); font-weight: 600; }
+  .m-close .cta {
+    margin-top: 48px;
+    display: inline-flex; align-items: center; gap: 12px;
+    padding: 16px 28px; border-radius: 11px;
+    background: var(--foreground); color: var(--background);
+    font-size: 17px; font-weight: 600;
+    border: 1px solid var(--foreground);
+    cursor: pointer;
+    transition: transform 120ms, box-shadow 200ms;
+  }
+  .m-close .cta:hover { transform: translateY(-1px); box-shadow: 0 14px 30px -10px color-mix(in oklch, var(--foreground) 45%, transparent); }
+  .m-close .fine {
+    margin-top: 20px;
+    font-family: var(--m-font-mono); font-size: 11.5px;
+    color: color-mix(in oklch, var(--foreground) 55%, var(--background));
+    letter-spacing: 0.08em;
+  }
+  .m-close .fine a { text-decoration: underline; text-decoration-color: color-mix(in oklch, var(--foreground) 35%, transparent); text-underline-offset: 3px; }
+
+  /* ────────── Footer ────────── */
+  .m-foot {
+    padding: 56px 0 32px;
+    border-top: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+    background: color-mix(in oklch, var(--card) 50%, var(--background));
+  }
+  .m-foot-inner {
+    max-width: var(--m-max); margin: 0 auto;
+    padding: 0 var(--m-pad-x);
+    display: grid;
+    grid-template-columns: 1.6fr repeat(3, 1fr);
+    gap: 40px;
+  }
+  @media (max-width: 760px) { .m-foot-inner { grid-template-columns: 1fr 1fr; } }
+  .m-foot-brand img { width: 32px; height: 32px; margin-bottom: 12px; }
+  .m-foot-brand .name { font-family: var(--m-font-display); font-weight: 700; font-size: 19px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .m-foot-brand p { margin: 12px 0 0; font-family: var(--m-font-prose); font-size: 14.5px; line-height: 1.5; color: color-mix(in oklch, var(--foreground) 65%, var(--background)); max-width: 280px; }
+  .m-foot-col h5 { font-family: var(--m-font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: color-mix(in oklch, var(--foreground) 50%, var(--background)); margin: 0 0 14px; }
+  .m-foot-col a { display: block; padding: 4px 0; font-size: 14px; color: color-mix(in oklch, var(--foreground) 75%, var(--background)); transition: color 120ms; }
+  .m-foot-col a:hover { color: var(--foreground); }
+  .m-foot-bot {
+    max-width: var(--m-max); margin: 36px auto 0;
+    padding: 22px var(--m-pad-x) 0;
+    border-top: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+    display: flex; justify-content: space-between; gap: 16px;
+    font-family: var(--m-font-mono); font-size: 10.5px;
+    color: color-mix(in oklch, var(--foreground) 55%, var(--background));
+    letter-spacing: 0.06em;
+  }
+  .m-foot-bot a { display: inline-flex; align-items: center; gap: 6px; }
+  .m-foot-bot img { width: 14px; height: 14px; opacity: 0.8; }
+</style>
+</head>
+<body>
+
+<!-- ────────── NAV ────────── -->
+<header class="m-bar">
+  <div class="m-bar-inner">
+    <a class="brand" href="/">
+      <img src="../../../site/public/ship-logo.svg" alt="" />
+      <span>Ship</span>
+    </a>
+    <nav class="links" aria-label="Primary">
+      <a href="#gallery">In the wild</a>
+      <a href="#scene">Trust model</a>
+      <a href="https://docs.getship.dev">Docs</a>
+      <a href="#waitlist">Beta</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="right">
+      <div class="theme-toggle" role="tablist" aria-label="Theme">
+        <button class="on" data-theme-set="ship-light" title="Light">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6L19 19M5 19l1.4-1.4M17.6 6.4L19 5"/></svg>
+        </button>
+        <button data-theme-set="ship-dark" title="Dark">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+      </div>
+      <span class="meta">v1.4.2</span>
+      <a class="dl" href="#download">
+        Download
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 4v12m0 0l-5-5m5 5l5-5M4 20h16"/></svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- ────────── HERO ────────── -->
+<section class="m-hero">
+  <div class="m-container">
+    <div class="m-hero-inner">
+      <div>
+        <h1>AI ended up in a tab. <em>We took it back.</em></h1>
+        <p class="m-hero-sub">
+          Ship runs your AI as <b>real apps on your computer</b> — host-launched windows, files on your disk, capabilities you grant by hand. Bring the model you already use; it finally gets a place to live.
+        </p>
+        <div class="m-hero-cta">
+          <a class="btn" href="#download">
+            Download Ship
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a class="ghost" href="#scene">or watch one minute first →</a>
+        </div>
+        <div class="m-hero-meta">
+          <strong>macOS</strong>
+          <span class="m-hero-meta-sep"></span>
+          <span>Linux + Windows soon</span>
+          <span class="m-hero-meta-sep"></span>
+          <span>free for personal use</span>
+        </div>
+      </div>
+
+      <!-- HERO VISUAL: one big Ship hub showing the Authority queue with a real request -->
+      <div class="m-hero-vis" aria-hidden="true">
+        <div class="floor"></div>
+        <div class="hero-win">
+          <div class="bar">
+            <div class="dots"><i></i><i></i><i></i></div>
+            <div class="t"><img src="../../../site/public/ship-logo.svg" alt="" />Ship <span>hub · authority</span></div>
+            <div class="meta">⌘1 · 2 spaces running</div>
+          </div>
+          <div class="body">
+            <aside class="sidebar">
+              <div class="brandrow">
+                <img src="../../../site/public/ship-logo.svg" alt=""/>
+                <b>Ship</b>
+                <em>1.4.2</em>
+              </div>
+              <div class="ni">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                Spaces <span class="count">6</span>
+              </div>
+              <div class="ni">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M15 4V2M15 16v-2M8 9h2M20 9h2M3 21l9-9"/></svg>
+                Studio
+              </div>
+              <div class="ni active">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5l8-3z"/><path d="M9 12l2 2 4-4"/></svg>
+                Authority <span class="count">2</span>
+              </div>
+              <div class="ni">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+                Activity
+              </div>
+              <div class="sep"></div>
+              <div class="ni">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0 0-2l2-1-2-3-2 1a7 7 0 0 0-3-2l-.5-2h-3l-.5 2a7 7 0 0 0-3 2l-2-1-2 3 2 1a7 7 0 0 0 0 2l-2 1 2 3 2-1a7 7 0 0 0 3 2l.5 2h3l.5-2a7 7 0 0 0 3-2l2 1 2-3-2-1z"/></svg>
+                Settings
+              </div>
+              <div class="ni">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+                Account
+              </div>
+            </aside>
+            <div class="main">
+              <h2><span class="dot"></span>Awaiting your call</h2>
+              <p class="desc">Rust Lane has just rebased <code style="font-family:var(--m-font-mono);font-size:12px;background:color-mix(in oklch, var(--foreground) 6%, transparent); padding: 0 4px; border-radius: 3px">main</code> and wants to push it.</p>
+
+              <div class="pend-card">
+                <div class="head">
+                  <div class="mark">S</div>
+                  <div class="meta">
+                    <div class="who"><b>Rust Lane</b> · Ship</div>
+                    <div class="what">wants to run</div>
+                  </div>
+                  <span class="risk">High</span>
+                </div>
+                <div class="cmd"><span class="pr">$</span>git push <span class="fl">--force-with-lease</span> origin main</div>
+                <div class="why"><b>Why</b> · Rebased onto origin/main to drop 3 merge commits. Tests green locally. Force-with-lease keeps us safe if origin moved.</div>
+                <div class="acts">
+                  <span class="d">Deny</span>
+                  <span class="a">Approve with Touch ID</span>
+                </div>
+              </div>
+
+              <div class="log">
+                <div class="lh">Recent decisions · last 1h</div>
+                <div class="row"><span class="dot ok"></span><b>Rust Lane</b><i>cargo test --workspace</i><em>1m</em></div>
+                <div class="row"><span class="dot ok"></span><b>Publish</b><i>POST mastodon.social</i><em>6m</em></div>
+                <div class="row"><span class="dot no"></span><b>Loader</b><i>fetch openai.com — no key</i><em>14m</em></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────── MANIFESTO ────────── -->
+<section class="m-manifesto">
+  <div class="m-manifesto-inner">
+    <h3>Where we are, where we should be</h3>
+    <p>
+      AI ended up where it ended up: <em>in a tab</em>. Inside someone else's browser, with someone else's brand on the title bar, dragging your files to their servers, talking to their model on their terms.
+    </p>
+    <p>
+      That's a fine prototype. It's <em>a terrible product.</em>
+    </p>
+    <p>
+      Ship is what happens when you take it back. A window with your project's name. Files that stay on your disk. Models you brought. Agents that ask before they touch anything — and that <b>you can yank the keys from whenever you want</b>.
+    </p>
+    <p>
+      It's a runtime. It runs on <em>your computer</em>. It looks the way you tell it to.
+    </p>
+    <div class="sig">— mads, founder · ship</div>
+  </div>
+</section>
+
+<!-- ────────── GALLERY ────────── -->
+<section class="m-gal" id="gallery">
+  <div class="m-gal-head">
+    <div class="lab">A field guide</div>
+    <h2>Spaces, <em>in the wild.</em></h2>
+    <p>Real examples from real users — agents and apps built in Ship, opened daily, customized to taste. Each one its own window, its own dock entry, its own theme.</p>
+  </div>
+
+  <div class="m-gal-grid">
+
+    <!-- Paperback (paper) — wide -->
+    <article class="m-gal-card g-paper span-6">
+      <div class="titlebar">
+        <div class="d"><i></i><i></i><i></i></div>
+        <div class="tt"><span class="mk">P</span>Paperback</div>
+        <div></div>
+      </div>
+      <div class="canvas">
+        <div class="ey">Draft · 4m ago</div>
+        <div class="ti">On the slow death of the workspace tab</div>
+        <p>For most of the last decade, the workspace has been a tab — one of many — inside a browser-shaped vessel called The App. The tab pretended to be a window, the window pretended to be a desktop, the desktop pretended not to exist.</p>
+        <div class="reader"><span class="pdot"></span><b>Editor</b> reading along · suggested 3 cuts</div>
+      </div>
+      <div class="caption">
+        <span class="nm">Paperback</span>
+        <span class="ln">A serif editor. Two agents read with you.</span>
+        <span class="th">paper</span>
+      </div>
+    </article>
+
+    <!-- Ship (dark) — wide -->
+    <article class="m-gal-card g-dark span-6">
+      <div class="titlebar">
+        <div class="d"><i></i><i></i><i></i></div>
+        <div class="tt"><span class="mk">S</span>Ship · dev</div>
+        <div></div>
+      </div>
+      <div class="canvas">
+        <div class="greet">Good evening. <i>Three agents</i> are doing work.</div>
+        <div class="grid">
+          <div class="tile">
+            <div class="k">Runs / wk</div>
+            <div class="v">128</div>
+            <div class="m">↑ 12%</div>
+          </div>
+          <div class="tile alt">
+            <div class="k">Agents</div>
+            <div class="v">3</div>
+            <div class="m" style="color:#b08fd9">active</div>
+          </div>
+          <div class="tile runs">
+            <div class="k">In flight</div>
+            <div class="runs-list">
+              <div class="r"><span class="d live"></span><span><b>Rust Lane</b> <i>cargo check</i></span><em>2m</em></div>
+              <div class="r"><span class="d live"></span><span><b>Editor</b> <i>draft</i></span><em>14s</em></div>
+              <div class="r"><span class="d ok"></span><span><b>Doc Lane</b> <i>generate skill</i></span><em>4m</em></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <span class="nm">Ship</span>
+        <span class="ln">The monorepo. Three agent lanes; one terminal.</span>
+        <span class="th">ship-dark</span>
+      </div>
+    </article>
+
+    <!-- Rust Lane (console) — narrow -->
+    <article class="m-gal-card g-console span-4">
+      <div class="titlebar">
+        <div class="d"><i></i><i></i><i></i></div>
+        <div class="tt"><span class="mk">⌘</span>rust-lane</div>
+        <div></div>
+      </div>
+      <div class="canvas">
+        <div class="line"><span class="pr">$</span><span class="cmd"><b>cargo</b> check --workspace</span></div>
+        <div class="line"><span class="pr">›</span><span class="out">checking ship-runtime v0.4.1</span></div>
+        <div class="line"><span class="pr">›</span><span class="out">checking ship-sui v0.4.1</span></div>
+        <div class="line"><span class="pr">›</span><span class="warn">warning: unused import `Arc`</span></div>
+        <div class="line"><span class="pr">›</span><span class="ok">Finished `dev` profile in 4.21s</span></div>
+        <div class="line"><span class="pr">›</span><span class="out">14 files, 1 warning, 0 errors</span></div>
+        <div class="line"><span class="pr">$</span><span class="blink"></span></div>
+      </div>
+      <div class="caption">
+        <span class="nm">Rust Lane</span>
+        <span class="ln">Single-purpose. Cargo, clippy, git.</span>
+        <span class="th">console</span>
+      </div>
+    </article>
+
+    <!-- Brand Voice (halo) — narrow -->
+    <article class="m-gal-card g-halo span-4">
+      <div class="titlebar">
+        <div class="d"><i></i><i></i><i></i></div>
+        <div class="tt"><span class="mk">V</span>Brand Voice</div>
+        <div></div>
+      </div>
+      <div class="canvas">
+        <div class="ey">Suggestion · turn 4</div>
+        <div class="review">
+          <div class="lab">In your voice</div>
+          <div class="quote">"<s>Leverage our cutting-edge platform</s> <b>Use Ship to build what you actually want.</b>"</div>
+          <div class="note">closer to how you write. less corporate, more direct.</div>
+        </div>
+        <div class="tones">
+          <span class="sel">direct</span>
+          <span>warm</span>
+          <span>technical</span>
+        </div>
+      </div>
+      <div class="caption">
+        <span class="nm">Brand Voice</span>
+        <span class="ln">Knows how you sound.</span>
+        <span class="th">halo</span>
+      </div>
+    </article>
+
+    <!-- Mesh (contrast) — narrow -->
+    <article class="m-gal-card g-contrast span-4">
+      <div class="titlebar">
+        <div class="d"><i></i><i></i><i></i></div>
+        <div class="tt"><span class="mk">M</span>MESH</div>
+        <div></div>
+      </div>
+      <div class="canvas">
+        <div class="ey">Production · us-west-2</div>
+        <div class="head">
+          <div class="lbl">Mesh.</div>
+          <div class="st">OK</div>
+        </div>
+        <div class="nodes">
+          <i class="ok">01</i><i class="ok">02</i><i class="ok">03</i><i class="ok">04</i><i class="warn">05</i><i class="ok">06</i>
+          <i class="ok">07</i><i class="ok">08</i><i class="ok">09</i><i class="ok">10</i><i class="ok">11</i><i class="no">12</i>
+        </div>
+        <div class="legend">
+          <span class="a"><i></i>10 healthy</span>
+          <span class="b"><i></i>1 warn</span>
+          <span class="c"><i></i>1 down</span>
+        </div>
+      </div>
+      <div class="caption">
+        <span class="nm">Mesh</span>
+        <span class="ln">Prod at a glance. Audit built in.</span>
+        <span class="th">contrast</span>
+      </div>
+    </article>
+
+    <!-- Inbox (light) — wide-ish -->
+    <article class="m-gal-card g-light span-4">
+      <div class="titlebar">
+        <div class="d"><i></i><i></i><i></i></div>
+        <div class="tt"><span class="mk">I</span>Inbox</div>
+        <div></div>
+      </div>
+      <div class="canvas">
+        <div class="ey">Triage · 4 of 142</div>
+        <div class="threads">
+          <div class="th pinned">
+            <span class="ic">P</span>
+            <span><span class="who">Paige · ship-core</span><br/><span class="sub">PR review: capability model crate</span></span>
+            <time>14m</time>
+          </div>
+          <div class="th">
+            <span class="ic">D</span>
+            <span><span class="who">Dario</span><br/><span class="sub">re: pricing tiers — quick call?</span></span>
+            <time>2h</time>
+          </div>
+          <div class="th">
+            <span class="ic">S</span>
+            <span><span class="who">Stripe</span><br/><span class="sub">Invoice paid · INV-0042</span></span>
+            <time>1d</time>
+          </div>
+        </div>
+        <div class="stash"><b>Triage agent</b> · 138 stashed (newsletters, status emails, receipts)</div>
+      </div>
+      <div class="caption">
+        <span class="nm">Inbox</span>
+        <span class="ln">Threads that need you, on top.</span>
+        <span class="th">ship-light</span>
+      </div>
+    </article>
+
+    <!-- Lab (glass) — wide -->
+    <article class="m-gal-card g-glass span-4">
+      <div class="titlebar">
+        <div class="d"><i></i><i></i><i></i></div>
+        <div class="tt"><span class="mk">L</span>Lab</div>
+        <div></div>
+      </div>
+      <div class="canvas">
+        <div class="ey">Untitled experiment · just now</div>
+        <div class="lab-row">
+          <div class="pl">+</div>
+          <div class="meta">
+            <div class="nm">Try the new sonnet</div>
+            <div class="sub">model · sonnet-4.5</div>
+          </div>
+          <div class="st">draft</div>
+        </div>
+        <div class="lab-row">
+          <div class="pl">P</div>
+          <div class="meta">
+            <div class="nm">Compare summaries</div>
+            <div class="sub">3 models · 12 samples</div>
+          </div>
+          <div class="st">running</div>
+        </div>
+        <div class="lab-foot">A space for when you don't know yet.</div>
+      </div>
+      <div class="caption">
+        <span class="nm">Lab</span>
+        <span class="ln">Sketches, side quests, half-thoughts.</span>
+        <span class="th">glass</span>
+      </div>
+    </article>
+
+    <!-- BYO card -->
+    <article class="m-gal-card g-byo span-4">
+      <div class="canvas">
+        <div class="ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <div class="ti">Whatever you build next.</div>
+        <div class="desc">A skill, a workflow, a one-day weekend hack. <code style="font-family: var(--m-font-mono); font-size: 12px;">ship new</code> and it's a space.</div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ────────── THE SCENE ────────── -->
+<section class="m-scene" id="scene">
+  <div class="m-scene-head">
+    <div class="lab">A scene</div>
+    <h2>When the agent <em>crosses a line.</em></h2>
+    <p class="lede">
+      Rust Lane has just rebased the branch. It wants to push. The push is a <code style="font-family: var(--m-font-mono); font-size: 16px;">--force</code>. Ship doesn't shrug.
+    </p>
+  </div>
+
+  <div class="m-scene-grid">
+
+    <!-- Panel 1 -->
+    <div class="m-scene-panel p1">
+      <div class="step"><b>One</b> · in the space</div>
+      <div class="frame">
+        <div class="bb">
+          <div class="d"><i></i><i></i><i></i></div>
+          <div class="ti"><span class="mk" style="background:#e0a16b;color:#16140f">S</span>Ship · dev</div>
+          <div></div>
+        </div>
+        <div class="agent-thought">
+          <div class="who"><span class="d"></span><b>Rust Lane</b> · agent · turn 7</div>
+          <div class="msg">"Rebased main onto origin/main to drop the 3 merge commits. Tests green locally. Pushing now."</div>
+          <div class="term"><span class="pr">$</span>git push <span class="flag">--force-with-lease</span></div>
+          <div class="pause">⏸ paused · awaiting hub</div>
+        </div>
+      </div>
+      <div class="annot">
+        The agent doesn't get to just run it. Ship intercepts anything tagged <code>shell:write</code> or <code>git:write</code> and pauses. The agent <b>can ask</b> — it can't <b>do</b>.
+      </div>
+    </div>
+
+    <!-- Panel 2 -->
+    <div class="m-scene-panel p2">
+      <div class="step"><b>Two</b> · in the hub</div>
+      <div class="frame">
+        <div class="bb">
+          <div class="d"><i></i><i></i><i></i></div>
+          <div class="ti"><span class="mk">S</span>Ship · hub</div>
+          <div></div>
+        </div>
+        <div class="hub-body">
+          <div class="head">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5l8-3z"/><path d="M9 12l2 2 4-4"/></svg>
+            Awaiting your decision
+          </div>
+          <div class="cardq">
+            <div class="row"><span class="mk2">S</span><span><b>Rust Lane</b> wants to run</span><span class="risk">High</span></div>
+            <div class="cmd"><span class="pr">$</span>git push <span class="fl">--force-with-lease</span> origin main</div>
+            <div class="stats"><span><b>3</b> commits</span><span>·</span><span><b>7</b> files</span><span>·</span><span><b>2</b> collaborators since fetch</span></div>
+            <div class="acts">
+              <span class="d">Deny</span>
+              <span class="a">Approve · Touch ID</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="annot">
+        The request lands in the hub — not in a toast, not in the space, not in some agent log buried three levels deep. <b>The full story</b>: commit range, files touched, why now.
+      </div>
+    </div>
+
+    <!-- Panel 3 -->
+    <div class="m-scene-panel p3">
+      <div class="step"><b>Three</b> · the log keeps it</div>
+      <div class="frame">
+        <div class="bb">
+          <div class="d"><i></i><i></i><i></i></div>
+          <div class="ti"><span class="mk">S</span>Ship · hub</div>
+          <div></div>
+        </div>
+        <div class="log-body">
+          <div class="lh">Decisions log · last 24h</div>
+          <div class="row now-row">
+            <span class="d now"></span>
+            <span><b>Rust Lane</b> · <i>git push --force-with-lease</i></span>
+            <time>now</time>
+          </div>
+          <div class="row"><span class="d ok"></span><span><b>Publish</b> · <i>POST mastodon.social</i></span><time>6m</time></div>
+          <div class="row"><span class="d no"></span><span><b>Loader</b> · <i>fetch openai.com</i> · denied</span><time>14m</time></div>
+          <div class="row"><span class="d ok"></span><span><b>Doc Lane</b> · <i>write skills/*.md</i></span><time>22m</time></div>
+          <div class="row"><span class="d ok"></span><span><b>Editor</b> · <i>read clipboard</i> · once</span><time>38m</time></div>
+          <div class="policy">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5l8-3z"/></svg>
+            <span><b>Policy</b> · <code style="font-family: var(--m-font-mono); font-size: 10px">git:write</code> always prompts. <code style="font-family: var(--m-font-mono); font-size: 10px">fs:read</code> auto-allowed within space.</span>
+          </div>
+        </div>
+      </div>
+      <div class="annot">
+        Every decision — approved, denied, auto-allowed by policy — is in the log. <b>Replay it. Audit the agent. Set policy for next time.</b> The agent doesn't get to forget what it asked for.
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ────────── CLOSER ────────── -->
+<section class="m-close" id="download">
+  <div class="m-container">
+    <img src="../../../site/public/ship-logo.svg" alt="" class="m-close-logo" />
+    <h2>Ship is in <em>public beta.</em></h2>
+    <p class="levellede">
+      macOS today. Linux + Windows soon. <b>Free</b> for personal use. Bring the model and tools you already use; you can be in a space in 30 seconds.
+    </p>
+    <a class="cta" href="#" id="waitlist">
+      Download Ship — 12.4 MB
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 4v12m0 0l-5-5m5 5l5-5M4 20h16"/></svg>
+    </a>
+    <div class="fine">
+      or <a href="#">read the launch notes</a> · or <a href="https://docs.getship.dev">the docs</a>
+    </div>
+  </div>
+</section>
+
+<!-- ────────── FOOT ────────── -->
+<footer class="m-foot">
+  <div class="m-foot-inner">
+    <div class="m-foot-brand">
+      <img src="../../../site/public/ship-logo.svg" alt="" />
+      <div class="name">Ship</div>
+      <p>A personal runtime for AI. Built so the agents you trust get a real interface — and so the rest don't get any further than they should.</p>
+    </div>
+    <div class="m-foot-col">
+      <h5>Read</h5>
+      <a href="#gallery">In the wild</a>
+      <a href="#scene">Trust model</a>
+      <a href="https://docs.getship.dev">Docs</a>
+      <a href="#">Changelog</a>
+    </div>
+    <div class="m-foot-col">
+      <h5>Build</h5>
+      <a href="#">SDK</a>
+      <a href="#">Components (SUI)</a>
+      <a href="#">Skill format</a>
+      <a href="https://github.com/madvib/Ship">GitHub</a>
+    </div>
+    <div class="m-foot-col">
+      <h5>Stay</h5>
+      <a href="#">Beta updates</a>
+      <a href="#">Mastodon</a>
+      <a href="#">Status</a>
+      <a href="#">Contact</a>
+    </div>
+  </div>
+  <div class="m-foot-bot">
+    <a href="/">
+      <img src="../../../site/public/ship-logo.svg" alt="" />
+      Ship · v1.4.2 · © 2026
+    </a>
+    <span>made with itself</span>
+  </div>
+</footer>
+
+<script>
+  // Theme toggle — actually works, demos Ship's own theme machinery
+  const html = document.documentElement;
+  document.querySelectorAll('[data-theme-set]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const theme = btn.dataset.themeSet;
+      html.setAttribute('data-theme', theme);
+      html.classList.toggle('dark', theme === 'ship-dark' || theme === 'console' || theme === 'contrast');
+      document.querySelectorAll('[data-theme-set]').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+    });
+  });
+</script>
+
+</body>
+</html>

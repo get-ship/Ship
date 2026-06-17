@@ -1,0 +1,26 @@
+<!--
+  sui-label.before.sui — EXISTING look (repo source verbatim). Uppercase micro-cap
+  field label: 10px, weight 600, .06em tracking, --muted-foreground. Controller-less
+  (the `for` forwarding is behavioral, not visual). Compiled as <x-label-before>.
+  Props: for · size · required.
+-->
+<prop name="for" type="string" default="" />
+<prop name="size" values="sm|md" default="sm" reflect />
+<prop name="required" type="bool" default="false" reflect />
+
+<style>
+  :host { display: inline-block; }
+  :host([hidden]) { display: none; }
+  label {
+    display: inline; font-family: var(--font-body); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-foreground); cursor: pointer;
+  }
+  :host(:not([size])) label, :host([size='sm']) label { font-size: 10px; }
+  :host([size='md']) label { font-size: 11px; }
+  .req { color: var(--destructive); margin-left: 2px; }
+</style>
+
+<label part="label">
+  <slot></slot>
+  {#if required()}<span class="req" aria-hidden="true">*</span>{/if}
+</label>

@@ -1,0 +1,31 @@
+<!--
+  sui-link.after.sui — POLISH. Default links carry a faint persistent underline
+  (decoration-color --link-fg 28%) that strengthens to full on hover — a clearer
+  "this is a link" affordance than hover-only underline; underline-offset eased;
+  external icon slightly dimmer + tighter. Compiled as <x-link-after>.
+-->
+<prop name="href" type="string" default="#" />
+<prop name="external" type="bool" default="false" reflect />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+<prop name="variant" values="default|underline|subtle" default="default" reflect />
+
+<style>
+  :host { display: inline; font-family: var(--font-body); --link-fg: var(--primary); }
+  :host([tone='info'])        { --link-fg: var(--info); }
+  :host([tone='success'])     { --link-fg: var(--success); }
+  :host([tone='warning'])     { --link-fg: var(--warning); }
+  :host([tone='destructive']) { --link-fg: var(--destructive); }
+  :host([tone='accent'])      { --link-fg: var(--accent); }
+  :host([tone='muted'])       { --link-fg: var(--muted-foreground); }
+  a { color: var(--link-fg); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; text-decoration-color: color-mix(in oklch, var(--link-fg) 28%, transparent); border-radius: var(--radius-sm); transition: color var(--duration-fast), text-decoration-color var(--duration-fast); }
+  a:hover { text-decoration-color: var(--link-fg); text-underline-offset: 3px; }
+  :host([variant='subtle']) a { text-decoration-color: transparent; }
+  :host([variant='subtle']) a:hover { color: color-mix(in oklch, var(--link-fg) 80%, var(--foreground)); text-decoration-color: color-mix(in oklch, var(--link-fg) 40%, transparent); }
+  .ext { display: inline-block; margin-left: 2px; font-size: 0.85em; opacity: 0.65; vertical-align: -0.05em; }
+  .ext svg { width: 0.85em; height: 0.85em; }
+</style>
+
+<a part="link" href={href()} target={external() ? '_blank' : null} rel={external() ? 'noopener noreferrer' : null}>
+  <slot></slot>
+  {#if external()}<span class="ext" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></span>{/if}
+</a>

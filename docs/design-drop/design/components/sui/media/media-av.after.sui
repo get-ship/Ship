@@ -1,0 +1,53 @@
+<!--
+  media-av.after.sui — "New" designed audio/video renderer. PROPOSAL (media not in
+  _repo-src). A poster matte with a centered play affordance, over a transport bar:
+  play/pause, current + total time, a filled scrubber with a knob, and a volume
+  control. Static design (no live media). Compiled <media-av-after>.
+-->
+<prop name="name" type="string" default="walkthrough.mp4" />
+<prop name="time" type="string" default="1:24" />
+<prop name="dur" type="string" default="3:42" />
+
+<style>
+  :host { display: block; }
+  .av { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-xs); overflow: hidden; }
+  .poster {
+    position: relative; min-height: 220px; display: flex; align-items: center; justify-content: center;
+    background: repeating-linear-gradient(135deg, color-mix(in oklch, var(--foreground) 7%, var(--card)), color-mix(in oklch, var(--foreground) 7%, var(--card)) 10px, color-mix(in oklch, var(--foreground) 11%, var(--card)) 10px, color-mix(in oklch, var(--foreground) 11%, var(--card)) 20px);
+  }
+  .bigplay {
+    width: 58px; height: 58px; border-radius: 50%; border: 0; cursor: pointer;
+    background: color-mix(in oklch, var(--card) 86%, transparent); backdrop-filter: blur(8px);
+    box-shadow: var(--shadow-md); display: inline-flex; align-items: center; justify-content: center; color: var(--foreground);
+  }
+  .bigplay svg { width: 22px; height: 22px; margin-left: 3px; }
+
+  .transport { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-top: 1px solid var(--border-subtle); }
+  .pp { width: 30px; height: 30px; flex: 0 0 auto; border: 0; border-radius: var(--radius-full); background: var(--primary); color: var(--primary-foreground); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .pp svg { width: 14px; height: 14px; margin-left: 1px; }
+  .t { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); flex: 0 0 auto; min-width: 34px; }
+  .track { position: relative; flex: 1; height: 5px; border-radius: var(--radius-full); background: color-mix(in oklch, var(--foreground) 14%, transparent); }
+  .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 38%; border-radius: var(--radius-full); background: var(--primary); }
+  .knob { position: absolute; left: 38%; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--primary); border: 2px solid var(--card); transform: translate(-50%, -50%); box-shadow: var(--shadow-xs); }
+  .vol { width: 28px; height: 28px; flex: 0 0 auto; border: 0; background: transparent; color: var(--muted-foreground); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .vol svg { width: 16px; height: 16px; }
+</style>
+
+<div class="av" part="player">
+  <div class="poster">
+    <button class="bigplay" type="button" aria-label="Play {name()}">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+    </button>
+  </div>
+  <div class="transport">
+    <button class="pp" type="button" aria-label="Play">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+    </button>
+    <span class="t">{time()}</span>
+    <div class="track" role="slider" aria-label="Seek"><div class="fill"></div><div class="knob"></div></div>
+    <span class="t">{dur()}</span>
+    <button class="vol" type="button" aria-label="Mute">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 5a9 9 0 0 1 0 14"></path></svg>
+    </button>
+  </div>
+</div>

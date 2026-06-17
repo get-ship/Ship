@@ -1,0 +1,34 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-stepper.before.sui — fabricated sketch (not in source), self-contained static
+  (dots are controller-rendered in such a component, if it existed,). 5 steps, current = 3:
+  done dots tinted, active dot widened to a pill, upcoming muted. Compiled as
+  <x-stepper-before>. Props: total · current · tone · size.
+-->
+<prop name="total" type="number" default="5" reflect />
+<prop name="current" type="number" default="3" reflect />
+<prop name="tone" type="string" default="" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
+
+<style>
+  :host { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2, 8px); --dot-w: 7px; --dot-h: 7px; --dot-active-w: 22px; --tone-fg: var(--primary); }
+  :host([size='sm']) { --dot-w: 6px; --dot-h: 6px; --dot-active-w: 18px; }
+  :host([size='lg']) { --dot-w: 9px; --dot-h: 9px; --dot-active-w: 28px; }
+  :host([tone='info'])        { --tone-fg: var(--info); }
+  :host([tone='success'])     { --tone-fg: var(--success); }
+  :host([tone='warning'])     { --tone-fg: var(--warning); }
+  :host([tone='destructive']) { --tone-fg: var(--destructive); }
+  :host([tone='accent'])      { --tone-fg: var(--accent); }
+  .dots { display: inline-flex; align-items: center; gap: var(--space-2, 8px); }
+  .dot { width: var(--dot-w); height: var(--dot-h); border-radius: var(--radius-full); background: color-mix(in oklch, var(--muted-foreground) 35%, transparent); flex-shrink: 0; }
+  .dot.active { width: var(--dot-active-w); background: var(--tone-fg); }
+  .dot.done { background: color-mix(in oklch, var(--tone-fg) 55%, transparent); }
+</style>
+
+<div class="dots" role="progressbar" aria-valuemin="1" aria-valuemax={total()} aria-valuenow={current()}>
+  <span class="dot done"></span>
+  <span class="dot done"></span>
+  <span class="dot active"></span>
+  <span class="dot"></span>
+  <span class="dot"></span>
+</div>

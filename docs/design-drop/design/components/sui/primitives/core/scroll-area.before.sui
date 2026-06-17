@@ -1,0 +1,25 @@
+<!--
+  sui-scroll-area.before.sui — EXISTING look (repo). A fixed-height overflow
+  container using the native scrollbar. Representative rows inlined (design mock).
+  Compiled as <x-scroll-area-before>. Props: (none here — height fixed for demo).
+-->
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  .area { height: 184px; overflow-y: auto; padding-right: 4px; }
+  .ln { padding: var(--space-2) var(--space-1); border-bottom: 1px solid var(--border-subtle); font-size: var(--text-sm); color: var(--foreground); display: flex; justify-content: space-between; gap: 12px; }
+  .ln span { color: var(--muted-foreground); font-family: var(--font-mono); font-size: var(--text-xs); }
+  .ln:last-child { border-bottom: 0; }
+</style>
+<div class="area" part="viewport">
+  <div class="ln">Reindex logs-2026 <span>just now</span></div>
+  <div class="ln">Compaction nightly <span>6h ago</span></div>
+  <div class="ln">Shard rebalance <span>9h ago</span></div>
+  <div class="ln">Deploy v4.18.2 <span>1d ago</span></div>
+  <div class="ln">Snapshot full <span>1d ago</span></div>
+  <div class="ln">Rollback v4.18.1 <span>2d ago</span></div>
+  <div class="ln">Reindex logs-2025 <span>3d ago</span></div>
+  <div class="ln">Vacuum analyze <span>4d ago</span></div>
+  <div class="ln">Cache warm <span>5d ago</span></div>
+  <div class="ln">Backup verify <span>6d ago</span></div>
+  <div class="ln">Audit export <span>8d ago</span></div>
+</div>

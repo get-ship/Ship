@@ -1,0 +1,42 @@
+<!--
+  sui-date-picker.after.sui — ENHANCED. Locked field language + a calendar glyph
+  and a typed-entry parse hint (YYYY-MM-DD — the review ask). The grid gains a
+  real visual hierarchy: out-of-month days dimmed, a today ring, the selected day
+  a solid --primary disc, hover wash, rounded cells, and nav affordances. Same
+  month/selection as before. Token-pure. Compiled as <x-date-picker-after>.
+-->
+<style>
+  :host { display: block; font-family: var(--font-body); width: 248px; }
+  .field { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-xs); font-size: 13px; color: var(--foreground); }
+  .cicon { width: 15px; height: 15px; color: var(--muted-foreground); flex: none; }
+  .hint { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+  .cal { margin-top: 6px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-md); padding: 10px; }
+  .hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .hd .mo { font-size: 13px; font-weight: var(--font-weight-semibold, 600); }
+  .nav { display: inline-flex; gap: 2px; }
+  .nav button { width: 24px; height: 24px; border: 0; background: transparent; color: var(--muted-foreground); border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; line-height: 1; }
+  .nav button:hover { background: var(--muted); color: var(--foreground); }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .wd { text-align: center; font-size: 10.5px; font-weight: var(--font-weight-medium, 500); color: var(--muted-foreground); padding: 4px 0; }
+  .d { text-align: center; font-size: 12px; padding: 6px 0; border-radius: var(--radius-sm); cursor: pointer; color: var(--foreground); font-variant-numeric: tabular-nums; transition: background var(--duration-fast); }
+  .d:hover { background: var(--hover-bg); }
+  .d.out { color: var(--muted-foreground); opacity: .45; }
+  .d.today { box-shadow: inset 0 0 0 1px var(--border-strong); }
+  .d.sel { background: var(--primary); color: var(--primary-foreground); font-weight: var(--font-weight-semibold, 600); box-shadow: none; }
+</style>
+<div class="field" part="field">
+  <svg class="cicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+  <span>2026-06-12</span>
+  <span class="hint">YYYY-MM-DD</span>
+</div>
+<div class="cal" part="calendar">
+  <div class="hd"><span class="mo">June 2026</span><span class="nav"><button type="button" aria-label="Previous month">‹</button><button type="button" aria-label="Next month">›</button></span></div>
+  <div class="grid">
+    <span class="wd">S</span><span class="wd">M</span><span class="wd">T</span><span class="wd">W</span><span class="wd">T</span><span class="wd">F</span><span class="wd">S</span>
+    <span class="d out">31</span><span class="d">1</span><span class="d">2</span><span class="d">3</span><span class="d">4</span><span class="d">5</span><span class="d">6</span>
+    <span class="d">7</span><span class="d">8</span><span class="d">9</span><span class="d">10</span><span class="d">11</span><span class="d sel">12</span><span class="d">13</span>
+    <span class="d">14</span><span class="d">15</span><span class="d">16</span><span class="d">17</span><span class="d today">18</span><span class="d">19</span><span class="d">20</span>
+    <span class="d">21</span><span class="d">22</span><span class="d">23</span><span class="d">24</span><span class="d">25</span><span class="d">26</span><span class="d">27</span>
+    <span class="d">28</span><span class="d">29</span><span class="d">30</span><span class="d out">1</span><span class="d out">2</span><span class="d out">3</span><span class="d out">4</span>
+  </div>
+</div>

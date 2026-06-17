@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Studio · Artifacts</title>
+<link rel="stylesheet" href="../../../sui/ship.css" />
+<script>
+  (() => { const ORIG = window.fetch.bind(window);
+    window.fetch = (input, init) => { const url = typeof input === 'string' ? input : (input && input.url);
+      if (url === '/_sui/lucide-icons.json' || url === '/lucide-icons.json') return ORIG('../../../sui/lucide-icons.json', init);
+      return ORIG(input, init); }; })();
+</script>
+<script type="importmap">{ "imports": { "@ship/sui-runtime": "../../../sui/sui-runtime.js", "@ship/sui-dom": "../../../sui/sui-dom.js" } }</script>
+<script type="module" src="../../../sui/sui-components.js"></script>
+<script type="module">
+  import { defineComponent } from '../../../tools/catalog/sui-workbench.js';
+  const C = '../../components/ship/', S = '../../components/sui/';
+  try {
+    await defineComponent({ name: 'sui-brand-mark', sui: await (await fetch(S + 'sui-brand-mark.sui')).text() });
+    await defineComponent({ name: 'ship-activity-bar', sui: await (await fetch(C + 'chrome/ship-activity-bar.sui')).text() });
+    await defineComponent({ name: 'ship-status-bar', sui: await (await fetch(C + 'chrome/ship-status-bar.sui')).text() });
+  } catch (e) { console.error(e); }
+  // sui-input, sui-button, sui-badge come from the prebuilt bundle (sui-components.js)
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--surface-0); color: var(--foreground); font-family: var(--font-body); display: grid; place-items: center; min-height: 100vh; padding: 18px; }
+  .ide { width: 1340px; height: 850px; display: grid; grid-template-columns: 52px 196px 1fr 340px; grid-template-rows: 44px 1fr 26px;
+    grid-template-areas: "top top top top" "activity nav grid preview" "status status status status";
+    border: 1px solid var(--border-strong); border-radius: var(--radius-lg); overflow: hidden; background: var(--background); box-shadow: var(--shadow-lg); }
+  .top { grid-area: top; display: flex; align-items: center; gap: 14px; padding: 0 12px 0 14px; background: color-mix(in oklch, var(--surface-1) 90%, transparent); border-bottom: 1px solid var(--border-subtle); }
+  .brand { display: inline-flex; align-items: center; gap: 8px; } .brand b { font-family: var(--heading-font); font-size: 14px; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); }
+  .brand .badge { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .14em; padding: 2px 6px; border-radius: 3px; background: color-mix(in oklch, var(--primary) 13%, transparent); color: var(--primary); font-weight: 700; }
+  .crumb { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted-foreground); padding-left: 12px; margin-left: 4px; border-left: 1px solid var(--border-subtle); } .crumb .sp { color: var(--accent); font-family: var(--font-mono); font-size: 11.5px; } .crumb .sep { color: var(--border); } .crumb .here { color: var(--foreground); font-family: var(--font-mono); font-size: 12px; }
+  .top .sp2 { flex: 1; }
+  .themes { display: inline-flex; gap: 4px; padding: 3px; background: var(--muted); border-radius: var(--radius-full); } .themes button { width: 17px; height: 17px; border-radius: 50%; border: 1.5px solid transparent; cursor: pointer; padding: 0; } .themes button[aria-pressed="true"] { border-color: var(--foreground); box-shadow: 0 0 0 1.5px var(--background), 0 0 0 2.5px var(--foreground); }
+  .activity { grid-area: activity; } ship-activity-bar { height: 100%; }
+
+  .nav { grid-area: nav; background: var(--surface-1); border-right: 1px solid var(--border-subtle); padding: 10px 8px; }
+  .nh { padding: 4px 8px 8px; font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted-foreground); }
+  .knav { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; } .knav:hover { background: var(--hover-bg); } .knav.on { background: color-mix(in oklch, var(--primary) 12%, transparent); color: var(--primary); font-weight: 600; } .knav .ic { color: var(--muted-foreground); display: inline-flex; } .knav.on .ic { color: var(--primary); } .knav .ic svg { width: 15px; height: 15px; } .knav .ct { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); }
+  .nav .div { height: 1px; background: var(--divider); margin: 10px 8px; }
+
+  .grid { grid-area: grid; overflow-y: auto; scrollbar-width: thin; border-right: 1px solid var(--divider); padding: 14px 18px 24px; }
+  .gtb { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; } .gtb .search { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-1); color: var(--muted-foreground); font-size: 12px; flex: 1; } .gtb .search svg { width: 13px; height: 13px; } .gtb .rc { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .art { border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--card); overflow: hidden; cursor: pointer; transition: border-color 120ms, box-shadow 120ms; } .art:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); } .art.sel { border-color: var(--primary); box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 30%, transparent); }
+  .thumb { height: 96px; display: grid; place-items: center; background: var(--surface-2); position: relative; } .thumb .ext { position: absolute; top: 7px; left: 7px; font-family: var(--font-mono); font-size: 8px; font-weight: 700; padding: 1px 6px; border-radius: var(--radius-full); }
+  .e-md { color: var(--success); background: var(--tone-success-bg); } .e-sui { color: var(--primary); background: color-mix(in oklch, var(--primary) 13%, transparent); } .e-png { color: var(--accent); background: var(--tone-accent-bg); } .e-json { color: var(--warning); background: var(--tone-warning-bg); }
+  .thumb .gly { color: var(--muted-foreground); } .thumb .gly svg { width: 30px; height: 30px; }
+  .thumb.img { background: linear-gradient(135deg, oklch(0.7 0.13 200), oklch(0.65 0.16 320)); }
+  .thumb.mdp { background: var(--card); padding: 10px 12px; display: block; overflow: hidden; } .thumb.mdp .h { height: 7px; width: 60%; background: var(--foreground); opacity: .8; border-radius: 2px; margin-bottom: 5px; } .thumb.mdp .l { height: 4px; background: var(--border-strong); border-radius: 2px; margin-bottom: 4px; } .thumb.mdp .l.s { width: 80%; } .thumb.mdp .l.t { width: 65%; }
+  .a-meta { padding: 9px 11px; } .a-meta .nm { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .a-meta .sub { font-family: var(--font-mono); font-size: 9.5px; color: var(--muted-foreground); margin-top: 2px; display: flex; gap: 6px; } .a-meta .saved { color: var(--accent); }
+
+  .preview { grid-area: preview; background: var(--surface-1); border-left: 1px solid var(--border-subtle); display: flex; flex-direction: column; overflow: hidden; }
+  .pvh { padding: 14px; border-bottom: 1px solid var(--divider); } .pvh .nm { font-family: var(--font-mono); font-size: 13px; font-weight: 600; } .pvh .sub { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); margin-top: 3px; }
+  .pvbody { flex: 1; overflow-y: auto; scrollbar-width: thin; padding: 16px; }
+  .pv-render { border: 1px solid var(--border-subtle); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 14px; }
+  .pv-render .bar { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); padding: 6px 10px; border-bottom: 1px solid var(--divider); background: var(--surface-2); }
+  .pv-doc { padding: 12px 14px; font-size: 12.5px; line-height: 1.6; } .pv-doc h4 { font-family: var(--heading-font); margin: 0 0 6px; font-size: 14px; } .pv-doc p { margin: 0 0 8px; color: var(--muted-foreground); }
+  .pv-field { margin-bottom: 12px; } .pv-field label { display: block; font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-foreground); margin-bottom: 4px; } .pv-field .v { font-size: 12.5px; } .pv-field .v.mono { font-family: var(--font-mono); font-size: 11.5px; }
+  .pv-acts { padding: 12px 14px; border-top: 1px solid var(--divider); display: flex; gap: 8px; } .pa { flex: 1; text-align: center; font: inherit; font-size: 12px; font-weight: 600; padding: 7px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--foreground); } .pa.primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+  .saved-tag { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 10px; color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="ide" data-screen-label="studio-artifacts">
+  <div class="top">
+    <span class="brand"><sui-brand-mark size="sm"></sui-brand-mark><b>Studio</b><span class="badge">Artifacts</span></span>
+    <span class="crumb"><span class="sp">Acme Sales</span><span class="sep">/</span>artifacts</span>
+    <span class="sp2"></span>
+    <span class="themes" id="themes"></span>
+  </div>
+
+  <div class="activity"><ship-activity-bar active="artifacts"></ship-activity-bar></div>
+
+  <aside class="nav">
+    <div class="nh">Artifacts</div>
+    <div class="knav on" data-k="all"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span>All<span class="ct">128</span></div>
+    <div class="knav" data-k="md"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>Documents<span class="ct">61</span></div>
+    <div class="knav" data-k="sui"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></span>Views<span class="ct">22</span></div>
+    <div class="knav" data-k="img"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></span>Images<span class="ct">34</span></div>
+    <div class="knav" data-k="data"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></svg></span>Data<span class="ct">11</span></div>
+    <div class="div"></div>
+    <div class="knav" data-k="saved"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15 9 22 9 16.5 14 18.5 21 12 17 5.5 21 7.5 14 2 9 9 9"/></svg></span>Saved<span class="ct">18</span></div>
+  </aside>
+
+  <div class="grid">
+    <div class="gtb"><sui-input type="search" placeholder="Search artifacts…" size="sm" style="flex:1"></sui-input><sui-button tone="default" variant="outline" size="sm">New</sui-button><span class="rc">128 artifacts</span></div>
+    <div class="cards">
+      <div class="art sel"><div class="thumb mdp"><span class="ext e-md">MD</span><div class="h"></div><div class="l"></div><div class="l s"></div><div class="l t"></div></div><div class="a-meta"><div class="nm">q2-summary.md</div><div class="sub"><span>3m</span><span class="saved">★ saved</span></div></div></div>
+      <div class="art"><div class="thumb"><span class="ext e-sui">SUI</span><span class="gly"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span></div><div class="a-meta"><div class="nm">pipeline-board.sui</div><div class="sub"><span>22m</span></div></div></div>
+      <div class="art"><div class="thumb img"><span class="ext e-png">PNG</span></div><div class="a-meta"><div class="nm">hero-v2.png</div><div class="sub"><span>42m</span></div></div></div>
+      <div class="art"><div class="thumb mdp"><span class="ext e-md">MD</span><div class="h"></div><div class="l"></div><div class="l s"></div></div><div class="a-meta"><div class="nm">nightly-digest.md</div><div class="sub"><span>1h</span><span class="saved">★</span></div></div></div>
+      <div class="art"><div class="thumb"><span class="ext e-json">JSON</span><span class="gly"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></svg></span></div><div class="a-meta"><div class="nm">embed-batch.json</div><div class="sub"><span>2h</span></div></div></div>
+      <div class="art"><div class="thumb img" style="background:linear-gradient(135deg,oklch(0.6 0.16 35),oklch(0.6 0.16 80))"><span class="ext e-png">PNG</span></div><div class="a-meta"><div class="nm">chart-export.png</div><div class="sub"><span>3h</span></div></div></div>
+      <div class="art"><div class="thumb"><span class="ext e-sui">SUI</span><span class="gly"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span></div><div class="a-meta"><div class="nm">lead-summary.sui</div><div class="sub"><span>5h</span><span class="saved">★</span></div></div></div>
+      <div class="art"><div class="thumb mdp"><span class="ext e-md">MD</span><div class="h"></div><div class="l"></div><div class="l t"></div></div><div class="a-meta"><div class="nm">research-q2.md</div><div class="sub"><span>1d</span></div></div></div>
+      <div class="art"><div class="thumb img" style="background:linear-gradient(135deg,oklch(0.55 0.16 250),oklch(0.7 0.13 180))"><span class="ext e-png">PNG</span></div><div class="a-meta"><div class="nm">moodboard.png</div><div class="sub"><span>1d</span></div></div></div>
+    </div>
+  </div>
+
+  <aside class="preview">
+    <div class="pvh"><div class="nm">q2-summary.md</div><div class="sub">markdown · 3.2 KB · created 3m ago</div></div>
+    <div class="pvbody">
+      <div class="pv-render"><div class="bar">preview</div><div class="pv-doc"><h4>Q2 Lead Summary</h4><p>42 new leads this week, up 18% week-over-week. Referrals and the Q2 webinar led the funnel; Acme and Globex are both qualified and warm.</p><p>Pipeline value: $2.4k. Nine leads reached qualified.</p></div></div>
+      <div class="pv-field"><label>Produced by</label><div class="v">lead-tracker · session 01J9…0001</div></div>
+      <div class="pv-field"><label>Path</label><div class="v mono">artifacts/q2-summary.md</div></div>
+      <div class="pv-field"><label>Status</label><div class="v"><sui-badge tone="accent" variant="soft">★ saved to library</sui-badge></div></div>
+    </div>
+    <div class="pv-acts"><sui-button tone="default" variant="outline" size="sm" style="flex:1">Open</sui-button><sui-button tone="primary" variant="solid" size="sm" style="flex:1">Save as view</sui-button></div>
+  </aside>
+
+  <ship-status-bar class="status" daemon="ready" sessions="0" approvals="0" sync="synced" space="Acme Sales" context="128 artifacts · 18 saved"></ship-status-bar>
+</div>
+<script type="module">
+import { themeBar } from '../../../tools/catalog/sui-workbench.js';
+const NAMES = { 'ship-light':'Ship Light','ship-dark':'Ship Dark','paper':'Paper','halo':'Halo','console':'Console','contrast':'Contrast' };
+themeBar(document.getElementById('themes'), id => { const sb=document.querySelector('ship-status-bar'); if(sb) sb.setAttribute('theme', NAMES[id]||id); });
+document.querySelectorAll('.knav').forEach(k => k.addEventListener('click', () => { document.querySelectorAll('.knav').forEach(x=>x.classList.remove('on')); k.classList.add('on'); }));
+document.querySelectorAll('.art').forEach(a => a.addEventListener('click', () => { document.querySelectorAll('.art').forEach(x=>x.classList.remove('sel')); a.classList.add('sel'); }));
+</script>
+</body>
+</html>

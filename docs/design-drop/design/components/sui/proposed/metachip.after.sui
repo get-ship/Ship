@@ -1,0 +1,20 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-metachip.after.sui — ENHANCED. Tone-aware off the shared ramp (default /
+  info / success / warning) so a "live" vs "12 open" vs "stale" chip reads at a
+  glance, with a hairline tone border (legible on every theme), tabular numerals
+  for counts, and a slotted icon that inherits the tone color (currentColor) and
+  is size-clamped so it always lines up. Token-pure. Compiled as <x-metachip-after>.
+  Props: tone. Slots: icon · (default) label.
+-->
+<prop name="tone" values="default|info|success|warning" default="default" reflect />
+<style>
+  :host { display: inline-flex; vertical-align: middle; --mc-fg: var(--muted-foreground); --mc-bg: var(--tone-muted-bg); --mc-bd: var(--tone-muted-border); }
+  :host([tone='info'])    { --mc-fg: var(--tone-info-fg);    --mc-bg: var(--tone-info-bg);    --mc-bd: var(--tone-info-border); }
+  :host([tone='success']) { --mc-fg: var(--tone-success-fg); --mc-bg: var(--tone-success-bg); --mc-bd: var(--tone-success-border); }
+  :host([tone='warning']) { --mc-fg: var(--tone-warning-fg); --mc-bg: var(--tone-warning-bg); --mc-bd: var(--tone-warning-border); }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; min-height: 22px; color: var(--mc-fg); background: var(--mc-bg); border: 1px solid var(--mc-bd); border-radius: var(--radius-full); font-size: var(--text-sm); font-weight: var(--font-weight-medium, 500); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ico { display: inline-flex; }
+  .ico ::slotted(*) { width: 12px; height: 12px; }
+</style>
+<span class="chip" part="chip"><span class="ico"><slot name="icon"></slot></span><slot></slot></span>

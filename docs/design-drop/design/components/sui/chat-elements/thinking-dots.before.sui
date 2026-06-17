@@ -1,0 +1,12 @@
+<!--
+  sui-thinking-dots.before.sui — the EXISTING/grounded look. Three STATIC muted
+  dots, no animation. The naive "thinking" baseline; the authored version adds
+  the staggered bounce (reduced-motion aware). Pure CSS, no props/controller.
+  Compiled as <x-td-before>.
+-->
+<style>
+  :host { display: inline-flex; align-items: center; gap: 4px; padding: 8px 2px; }
+  :host([hidden]) { display: none; }
+  .d { width: 6px; height: 6px; border-radius: 50%; background: var(--muted-foreground); opacity: .5; }
+</style>
+<span class="d"></span><span class="d"></span><span class="d"></span>

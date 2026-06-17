@@ -1,0 +1,22 @@
+<!-- sui-gauge.existing.sui — EXISTING look (repo). Half-arc gauge via SVG
+  pathLength="100" (no controller): value arc = stroke-dasharray={value} 100.
+  Flat: muted track, butt caps, plain centered number. Compiled as <x-gauge-existing>.
+  Props: value · tone. -->
+<prop name="value" type="number" default="72" />
+<prop name="tone" values="primary|info|success|warning|destructive" default="primary" reflect />
+<style>
+  :host { display: inline-block; width: 150px; font-family: var(--font-body); --tone: var(--primary); }
+  :host([tone='info']) { --tone: var(--info); }
+  :host([tone='success']) { --tone: var(--success); }
+  :host([tone='warning']) { --tone: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive); }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .track { fill: none; stroke: var(--muted); stroke-width: 10; }
+  .val { fill: none; stroke: var(--tone); stroke-width: 10; }
+  .num { font-size: 20px; font-weight: 600; fill: var(--foreground); font-family: var(--font-body); }
+</style>
+<svg viewBox="0 0 120 72" part="chart" role="img" aria-label="Gauge">
+  <path class="track" d="M10 62 A50 50 0 0 1 110 62" pathLength="100"></path>
+  <path class="val" d="M10 62 A50 50 0 0 1 110 62" pathLength="100" stroke-dasharray={value() + ' 100'}></path>
+  <text class="num" x="60" y="58" text-anchor="middle">{value()}%</text>
+</svg>

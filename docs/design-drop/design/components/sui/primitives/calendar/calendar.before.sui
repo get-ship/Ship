@@ -1,0 +1,63 @@
+<!--
+  calendar.before.sui — "Existing" baseline MONTH view. Same ground-truth grid
+  structure + the same controller; this is the unstyled rendering: a plain 7-col
+  grid, bare day numbers, events as plain text lines, no today emphasis, no
+  weekend wash, no overflow pill. Compiled <sui-calendar-before>. calendar.after
+  is the elevated counterpart.
+-->
+<style>
+  :host { display: block; }
+  :host([hidden]) { display: none; }
+
+  .cal { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card); }
+  .head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+  .title { font-size: var(--text-md); font-weight: 600; }
+  .nav { margin-left: auto; display: inline-flex; gap: 4px; }
+  .nav button { font: inherit; font-size: 12px; padding: 4px 9px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card); color: var(--foreground); cursor: pointer; }
+
+  .dow { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .dowc { padding: 5px 8px; font-size: 11px; color: var(--muted-foreground); }
+
+  .grid { display: grid; grid-template-rows: repeat(6, 1fr); }
+  .wk { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .cell { min-height: 84px; padding: 4px 6px; border-top: 1px solid var(--border); border-left: 1px solid var(--border); }
+  .wk .cell:first-child { border-left: 0; }
+  .cell.outside .dnum { color: var(--muted-foreground); }
+  .dnum { font-size: 12px; }
+
+  .evts { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; }
+  .evt { font-size: 11px; color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .evt .bar { display: none; }
+  .more { font-size: 11px; color: var(--muted-foreground); }
+</style>
+
+<div class="cal" part="calendar">
+  <div class="head">
+    <div class="title">{title()}</div>
+    <div class="nav">
+      <button data-nav="today" type="button">Today</button>
+      <button data-nav="prev" type="button" aria-label="Previous month">‹</button>
+      <button data-nav="next" type="button" aria-label="Next month">›</button>
+    </div>
+  </div>
+  <div class="dow" role="row">
+    {#for d of weekdays() key={d.key}}<div class="dowc">{d.label}</div>{/for}
+  </div>
+  <div class="grid" role="grid">
+    {#for row of weekRows() key={row.key}}
+      <div class="wk" role="row">
+        {#for c of row.cells key={c.key}}
+          <div class={c.cls} role="gridcell" data-iso={c.iso}>
+            <span class="dnum">{c.day}</span>
+            <div class="evts">
+              {#for ev of c.events key={ev.id}}
+                <div class="evt">{ev.title}</div>
+              {/for}
+              {#if c.hasOverflow}<div class="more">+{c.overflow} more</div>{/if}
+            </div>
+          </div>
+        {/for}
+      </div>
+    {/for}
+  </div>
+</div>

@@ -1,0 +1,54 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!-- sui-component-viewer.after.sui — ELEVATED. A real inspector shell: a toolbar
+  with variant segments + viewport-width chips + a theme dot + a "browser" mode
+  badge (the review's ask — the browser/headless path is first-class here, no
+  Tauri), a preview stage on a subtle dot-grid, a side panel of LABELLED prop
+  controls (not a flat key/value dump), and a usage snippet footer. Token-pure.
+  Compiled as <x-component-viewer-after>. -->
+<style>
+  :host { display: block; font-family: var(--font-body); width: 520px; max-width: 100%; }
+  .shell { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--card); box-shadow: var(--shadow-xs); }
+  .top { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid var(--border-subtle); background: color-mix(in oklch, var(--muted) 55%, var(--card)); }
+  .name { font-family: var(--font-mono); font-size: 12px; color: var(--foreground); }
+  .segs { display: inline-flex; gap: 2px; background: var(--muted); border-radius: var(--radius-sm); padding: 2px; }
+  .segs button { border: 0; background: transparent; color: var(--muted-foreground); font: inherit; font-size: 11px; padding: 3px 8px; border-radius: var(--radius-sm); cursor: pointer; }
+  .segs button.on { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+  .right { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+  .widths { display: inline-flex; gap: 2px; font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); }
+  .widths span { padding: 3px 6px; border-radius: var(--radius-sm); cursor: pointer; }
+  .widths span.on { background: var(--muted); color: var(--foreground); }
+  .browser { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 10px; color: var(--tone-success-fg); }
+  .browser .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tone-success-fg); }
+  .main { display: grid; grid-template-columns: 1fr 200px; }
+  .stage { padding: 44px; display: flex; align-items: center; justify-content: center; background-color: var(--background); background-image: radial-gradient(var(--border-subtle) 1px, transparent 1px); background-size: 14px 14px; }
+  .side { border-left: 1px solid var(--border-subtle); padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+  .ctl { display: flex; flex-direction: column; gap: 5px; }
+  .ctl label { font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted-foreground); font-family: var(--font-mono); }
+  .pill { display: inline-flex; gap: 2px; background: var(--muted); border-radius: var(--radius-sm); padding: 2px; }
+  .pill span { font-size: 11px; padding: 3px 8px; border-radius: var(--radius-sm); color: var(--muted-foreground); cursor: pointer; }
+  .pill span.on { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+  .sw { display: flex; align-items: center; justify-content: space-between; }
+  .track { width: 30px; height: 17px; border-radius: var(--radius-full); background: var(--muted); position: relative; }
+  .track i { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--card); box-shadow: var(--shadow-xs); }
+  .foot { padding: 8px 10px; border-top: 1px solid var(--border-subtle); font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); background: color-mix(in oklch, var(--muted) 30%, var(--card)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .demo { height: 32px; padding: 0 16px; border: 0; border-radius: var(--radius-md); background: var(--primary); color: var(--primary-foreground); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: var(--shadow-xs); }
+</style>
+<div class="shell" part="shell">
+  <div class="top">
+    <span class="name">sui-button</span>
+    <span class="segs"><button class="on">Default</button><button>States</button><button>A11y</button></span>
+    <span class="right">
+      <span class="widths"><span>sm</span><span class="on">md</span><span>lg</span></span>
+      <span class="browser"><span class="dot"></span>browser</span>
+    </span>
+  </div>
+  <div class="main">
+    <div class="stage"><button class="demo">Run</button></div>
+    <div class="side">
+      <div class="ctl"><label>tone</label><span class="pill"><span class="on">primary</span><span>ghost</span></span></div>
+      <div class="ctl"><label>size</label><span class="pill"><span>sm</span><span class="on">md</span><span>lg</span></span></div>
+      <div class="ctl"><label>disabled</label><div class="sw"><span style="font-size:12px;color:var(--foreground)">off</span><span class="track"><i></i></span></div></div>
+    </div>
+  </div>
+  <div class="foot">&lt;sui-button tone="primary" size="md"&gt;Run&lt;/sui-button&gt;</div>
+</div>

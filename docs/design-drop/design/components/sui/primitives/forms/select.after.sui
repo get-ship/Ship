@@ -1,0 +1,65 @@
+<!--
+  sui-select.after.sui — UNIFIED on the locked field language (select was already
+  at the bar — rest shadow, hover, tone, system disabled — so this is alignment,
+  not a rework). Style-only diff vs before:
+    • surface --background → --card (the pack-wide resting field surface, matching
+      input/combobox)
+    • hover border color-mix(--border 160%) → --border-strong token
+    • focus-within ring: --ring-offset/--ring-width token stack → shared recipe
+      (0 0 0 1px --card, 0 0 0 3px color-mix(--tone 22%)) — one ring recipe for the
+      whole section
+  Static visual (no controller). Compiled as <x-select-after>.
+  Props: value · tone · size · disabled · invalid.
+-->
+<prop name="value" type="string" default="" />
+<prop name="tone" values="default|info|success|warning|destructive|accent|muted" default="default" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
+<prop name="disabled" type="bool" default="false" reflect />
+<prop name="invalid" type="bool" default="false" reflect />
+
+<style>
+  :host { display: inline-flex; vertical-align: middle; --tone: var(--foreground); --tone-fg: var(--foreground); }
+  :host([hidden]) { display: none; }
+  :host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info); }
+  :host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--success); }
+  :host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive); }
+  :host([tone='accent'])      { --tone: var(--accent);           --tone-fg: var(--accent); }
+  :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); }
+  :host(:not([size])), :host([size='md']) { --sel-h: 34px; --sel-px: 12px; --sel-fs: 13px; --sel-gap: 8px; --sel-chev: 14px; }
+  :host([size='sm']) { --sel-h: 28px; --sel-px: 10px; --sel-fs: 12px; --sel-gap: 6px; --sel-chev: 12px; }
+  :host([size='lg']) { --sel-h: 40px; --sel-px: 16px; --sel-fs: 14px; --sel-gap: 8px; --sel-chev: 16px; }
+
+  .field {
+    position: relative; display: inline-flex; align-items: center; gap: var(--sel-gap);
+    min-height: var(--sel-h); padding-inline: var(--sel-px);
+    padding-inline-end: calc(var(--sel-px) + var(--sel-chev) + 6px);
+    background: var(--card); color: var(--foreground);
+    border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-xs);
+    font-family: var(--font-body); font-size: var(--sel-fs); font-weight: var(--font-weight-medium);
+    line-height: 1; letter-spacing: -0.005em; cursor: pointer; user-select: none;
+    transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+  }
+  :host(:not([disabled])) .field:hover {
+    background: color-mix(in oklch, var(--muted) 50%, var(--card));
+    border-color: var(--border-strong); box-shadow: var(--shadow-sm);
+  }
+  :host([tone]:not([tone='default'])) .field { border-color: color-mix(in oklch, var(--tone) 38%, var(--border)); }
+
+  .value { display: inline-block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+  .chevron { position: absolute; inset-block: 0; inset-inline-end: var(--sel-px); margin-block: auto; width: var(--sel-chev); height: var(--sel-chev); color: var(--muted-foreground); pointer-events: none; }
+  :host(:not([disabled])) .field:hover .chevron { color: var(--foreground); }
+
+  :host(:focus-within) .field {
+    outline: none; border-color: color-mix(in oklch, var(--tone) 60%, var(--border));
+    box-shadow: 0 0 0 1px var(--card), 0 0 0 3px color-mix(in oklch, var(--tone) 22%, transparent);
+  }
+  :host([invalid]) .field { border-color: var(--destructive); }
+  :host([disabled]) { opacity: 0.6; cursor: not-allowed; }
+  :host([disabled]) .field { background: var(--muted); border-color: color-mix(in oklch, var(--border) 80%, transparent); box-shadow: none; cursor: not-allowed; filter: saturate(0.6); }
+</style>
+
+<div class="field" part="field">
+  <span class="value">{value()}</span>
+  <svg class="chevron" part="chevron" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"></path></svg>
+</div>
