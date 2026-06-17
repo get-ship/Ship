@@ -38,9 +38,9 @@
     padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);
     color: var(--muted-foreground);
   }
-  .toggle button[aria-pressed='true'] { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+  .toggle button[aria-pressed='true'] { background: var(--surface-1); color: var(--foreground); box-shadow: var(--shadow-xs); }
 
-  .body { padding: var(--space-4); background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .body { padding: var(--space-4); background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-md); }
 
   .field-row {
     display: grid; grid-template-columns: 2fr 1fr repeat(3, auto) auto;
