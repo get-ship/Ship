@@ -215,14 +215,272 @@ fn extract_layout_tag(path: &Path) -> Result<String> {
 /// No-op for a spec whose `dir` is absent. Per-spec write-if-changed
 /// (`routes.gen.ts` lives under the watched `apps/...` root and the app
 /// build regenerates it on every rebuild — an unconditional write would
-/// self-trigger the bundler watcher and self-perpetuate a rebuild/reload
-/// loop. See the inline regression test.)
 pub fn generate_routes(specs: &[RouteGenSpec]) -> Result<usize> {
     let mut total = 0;
     for spec in specs {
         total += generate_routes_one(spec)?;
+        // View-route discovery is a sibling walker: emit
+        // `views/routes.gen.ts` (router fields) and
+        // `views/meta.gen.ts` (host fields) for the same spec.
+        // No-op if no `<root>/views/` dir exists.
+        write_view_artifacts(spec)?;
     }
     Ok(total)
+}
+
+/// One raw view manifest entry. Parsed from `views/<name>/manifest.jsonc`.
+/// The JSON allows comments (`// …`) which serde_json doesn't natively
+/// accept, so we strip line-`//` comments before parsing. The router
+/// fields (pattern, view name) go to `views/routes.gen.ts`; the host
+/// fields (title, layout, auth, rail) go to `views/meta.gen.ts`. The
+/// split is the contract — the router is host-agnostic, the host reads
+/// what it needs.
+struct ViewManifest {
+    name: String,
+    path: String,
+    title: String,
+    layout: String,
+    auth: String,
+    rail: Option<serde_json::Value>,
+}
+
+/// Strip `//` line comments from a JSONC source so serde_json can parse
+/// it. Trailing comments on a line are stripped before any JSON value
+/// closes the line; strings containing `//` are preserved.
+fn strip_jsonc(src: &str) -> String {
+    let mut out = String::with_capacity(src.len());
+    let mut in_string = false;
+    let mut escape = false;
+    let mut chars = src.chars().peekable();
+    while let Some(c) = chars.next() {
+        if in_string {
+            out.push(c);
+            if escape {
+                escape = false;
+                continue;
+            }
+            if c == '\\' {
+                escape = true;
+            } else if c == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        if c == '"' {
+            in_string = true;
+            out.push(c);
+            continue;
+        }
+        if c == '/' && chars.peek() == Some(&'/') {
+            chars.next();
+            // Skip until newline.
+            for nc in chars.by_ref() {
+                if nc == '\n' {
+                    out.push('\n');
+                    break;
+                }
+            }
+            continue;
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// Walk `views/<name>/` for top-level dirs with a `manifest.jsonc`.
+/// Reads each manifest and returns the parsed entries. Skips entries
+/// missing `path` or whose `path` doesn't start with `/` (the router
+/// requires absolute patterns).
+fn discover_views(views_dir: &Path) -> Result<Vec<ViewManifest>> {
+    let mut out = Vec::new();
+    if !views_dir.is_dir() {
+        return Ok(out);
+    }
+    for entry in std::fs::read_dir(views_dir)
+        .with_context(|| format!("reading `{}`", views_dir.display()))?
+    {
+        let entry = entry?;
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
+        let manifest_path = entry.path().join("manifest.jsonc");
+        if !manifest_path.exists() {
+            continue;
+        }
+        let dir_name = entry.file_name().to_string_lossy().into_owned();
+        let raw = std::fs::read_to_string(&manifest_path)
+            .with_context(|| format!("reading `{}`", manifest_path.display()))?;
+        let json = strip_jsonc(&raw);
+        let parsed: serde_json::Value = serde_json::from_str(&json)
+            .with_context(|| format!("parsing `{}`", manifest_path.display()))?;
+        let path = parsed.get("path").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        if path.is_empty() {
+            eprintln!(
+                "view-discovery: skipping `{}` — manifest has no `path` field",
+                manifest_path.display()
+            );
+            continue;
+        }
+        if !path.starts_with('/') {
+            eprintln!(
+                "view-discovery: skipping `{}` — `path` is `{}`, must start with `/`",
+                manifest_path.display(),
+                path
+            );
+            continue;
+        }
+        let manifest_name = parsed.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        // The dir name is canonical; warn if the manifest's `name`
+        // disagrees (defensive — keeps the dir as the source of truth).
+        if !manifest_name.is_empty() && manifest_name != dir_name {
+            eprintln!(
+                "view-discovery: `{}` manifest `name` is `{}` but dir is `{}` — using dir",
+                manifest_path.display(),
+                manifest_name,
+                dir_name
+            );
+        }
+        let title = parsed.get("title").and_then(|v| v.as_str()).unwrap_or(&dir_name).to_string();
+        let layout = parsed.get("layout").and_then(|v| v.as_str()).unwrap_or("default").to_string();
+        let auth = parsed.get("auth").and_then(|v| v.as_str()).unwrap_or("user").to_string();
+        let rail = parsed.get("rail").cloned();
+        out.push(ViewManifest {
+            name: dir_name,
+            path,
+            title,
+            layout,
+            auth,
+            rail,
+        });
+    }
+    out.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(out)
+}
+
+/// Write `views/routes.gen.ts` — the router's contract. `ViewRoute[]`
+/// (pattern + view) and a derived `DYNAMIC_ROUTE_PATTERNS` for the
+/// host to pass to `defineRoutes`. The router is host-agnostic.
+fn write_views_routes(views_dir: &Path, label: &str, manifests: &[ViewManifest]) -> Result<()> {
+    let entries = manifests
+        .iter()
+        .map(|m| format!("  {{ pattern: '{}', view: '{}' }},", m.path, m.name))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let patterns = manifests
+        .iter()
+        .map(|m| format!("  {{ pattern: '{}' }},", m.path))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let body = format!(
+        "\
+// @generated by `deck routes` (deck-bundler) — DO NOT EDIT.
+// Router-only view table for the `{label}` view tree (every
+// `views/<name>/manifest.jsonc`). The router cares about the URL
+// pattern and the view resource name; host fields (title, layout,
+// auth, rail) live in `views/meta.gen.ts`. The two files are
+// separate contracts: the router is host-agnostic.
+// See ADR unified-deck-router.
+
+import type {{ RouteShape }} from '@ship/deck/route'
+
+/** Per-view route entries. `pattern` is the URL; `view` is the daemon
+ *  resource name (the view is served at `/_deck/views/<view>/…`).
+ *  The host registers the patterns with the runtime's `defineRoutes`
+ *  IF the view is downloaded/active at boot. */
+export const VIEW_ROUTES: ViewRoute[] = [
+{entries}
+]
+
+/** Convenience table for `defineRoutes` — the patterns the host
+ *  should pre-register. Static patterns need no entry (the runtime
+ *  matches them by segment equality) but listing them here is
+ *  defensive and matches the codegen's behavior for `routes/`. */
+export const DYNAMIC_ROUTE_PATTERNS: RouteShape[] = [
+{patterns}
+]
+
+export type ViewRoute = {{ pattern: string; view: string }}
+",
+        label = label,
+    );
+    let target = views_dir.join("routes.gen.ts");
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent).context("create views/routes.gen.ts parent")?;
+    }
+    let changed = std::fs::read_to_string(&target)
+        .map(|cur| cur != body)
+        .unwrap_or(true);
+    if changed {
+        std::fs::write(&target, body).context("write views/routes.gen.ts")?;
+    }
+    Ok(())
+}
+
+/// Write `views/meta.gen.ts` — the host's contract. `ViewMeta[]` with
+/// chrome/auth/rail. The host reads this at boot to choose chrome,
+/// gate access, and add launcher rail entries. The router does NOT
+/// see this file.
+fn write_views_meta(views_dir: &Path, label: &str, manifests: &[ViewManifest]) -> Result<()> {
+    let entries = manifests
+        .iter()
+        .map(|m| {
+            let rail_str = m
+                .rail
+                .as_ref()
+                .map(|r| serde_json::to_string(r).unwrap_or_else(|_| "undefined".to_string()))
+                .unwrap_or_else(|| "undefined".to_string());
+            format!(
+                "  {{ name: '{}', title: '{}', layout: '{}', auth: '{}', rail: {rail_str} }},",
+                m.name, m.title, m.layout, m.auth
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let body = format!(
+        "\
+// @generated by `deck routes` (deck-bundler) — DO NOT EDIT.
+// Host-only view metadata for the `{label}` view tree (every
+// `views/<name>/manifest.jsonc`). The host reads this to choose
+// chrome (layout), gate access (auth), and add launcher rail
+// entries. The router is host-agnostic and does NOT see this file
+// (the router's contract lives in `views/routes.gen.ts`).
+// See ADR unified-deck-router.
+
+/** Per-view host metadata. The host builds its launcher rail from
+ *  `name` (the navigation key) and the `rail` shape; chooses the
+ *  chrome wrapper from `layout`; gates access on `auth`. `path` is
+ *  NOT here — the router is the only consumer of `path` and it
+ *  reads it from `views/routes.gen.ts`. */
+export const VIEW_META: ViewMeta[] = [
+{entries}
+]
+
+export interface ViewRail {{
+  label: string
+  icon: string
+}}
+
+export interface ViewMeta {{
+  name: string
+  title: string
+  layout: string
+  auth: string
+  rail?: ViewRail
+}}
+",
+        label = label,
+    );
+    let target = views_dir.join("meta.gen.ts");
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent).context("create views/meta.gen.ts parent")?;
+    }
+    let changed = std::fs::read_to_string(&target)
+        .map(|cur| cur != body)
+        .unwrap_or(true);
+    if changed {
+        std::fs::write(&target, body).context("write views/meta.gen.ts")?;
+    }
+    Ok(())
 }
 
 fn generate_routes_one(spec: &RouteGenSpec) -> Result<usize> {
@@ -333,7 +591,40 @@ export const routes = {{
         std::fs::write(target, body).context("write routes.gen.ts")?;
     }
     Ok(routes.len())
- }
+}
+
+// Pulled out of `generate_routes_one` for readability: walk
+// `<spec.dir>/../views/` (sibling of `routes/`) for `manifest.jsonc`
+// files and emit TWO files: `views/routes.gen.ts` (router fields only)
+// and `views/meta.gen.ts` (host fields only). The split is the
+// contract — the router is host-agnostic; the host reads the meta.
+fn write_view_artifacts(spec: &RouteGenSpec) -> Result<()> {
+    // Sibling of `routes/`: `<root>/../views/` (or `<root>/views/` if
+    // `routes/` is a peer dir, e.g. `apps/shell/routes/…` →
+    // `apps/shell/views/…`). Try the parent first; fall back to the
+    // dir itself if it has a `views/` child.
+    let candidates = [
+        spec.dir.parent().map(|p| p.join("views")),
+        Some(spec.dir.join("views")),
+    ];
+    let views_dir = candidates
+        .into_iter()
+        .flatten()
+        .find(|p| p.is_dir());
+    let Some(views_dir) = views_dir else {
+        return Ok(());
+    };
+    let manifests = discover_views(&views_dir)
+        .with_context(|| format!("walking views for `{}`", spec.label))?;
+    if manifests.is_empty() {
+        return Ok(());
+    }
+    write_views_routes(&views_dir, &spec.label, &manifests)
+        .with_context(|| format!("writing views/routes.gen.ts for `{}`", spec.label))?;
+    write_views_meta(&views_dir, &spec.label, &manifests)
+        .with_context(|| format!("writing views/meta.gen.ts for `{}`", spec.label))?;
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {

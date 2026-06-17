@@ -23,22 +23,31 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Regenerate the typed dynamic-route table (routes.gen.ts) from each app's
-    /// `routes/` view tree. Also run inside `build`; standalone for dev iteration.
+    /// Regenerate the typed route tables for one or more apps. Two surfaces
+    /// per invocation:
     ///
-    /// A `routes/` dir is a tree of mountable views — a route IS a directory
-    /// with a `page.sui` (and optionally a `controller.ts`). A `[param]`
-    /// segment in the dir name is a dynamic. No manifests. Each `--root` walks
-    /// `<root>/routes/` and writes `<root>/routes.gen.ts` with a label
-    /// auto-derived from the path's basename (`apps/shell` → `shell`,
-    /// `apps/spaces` → `spaces`). Repeatable; at least one `--root` is
-    /// required.
+    ///   --root <path>  walks <path>/routes/ for file-routed views, writes
+    ///                  <path>/routes.gen.ts. Repeatable; the label is the
+    ///                  path's basename. First-party app routes.
+    ///   --views <path> walks <path>/<name>/manifest.jsonc, writes
+    ///                  <path>/routes.gen.ts (router fields) AND
+    ///                  <path>/meta.gen.ts (host fields). The split is
+    ///                  the contract: the router is host-agnostic, the
+    ///                  host reads the meta. Repeatable.
+    ///
+    /// At least one of --root or --views is required.
     Routes {
         /// App root holding a `routes/` dir. Walks `<root>/routes/` and
         /// writes `<root>/routes.gen.ts`. The label is the path's basename.
         /// Repeatable. e.g. `deck routes --root apps/shell --root apps/spaces`.
-        #[arg(long = "root", required = true)]
+        #[arg(long = "root")]
         root: Vec<PathBuf>,
+        /// Views dir holding `<name>/manifest.jsonc` entries. Walks the
+        /// dir, writes `<views>/routes.gen.ts` (router) and
+        /// `<views>/meta.gen.ts` (host). Repeatable. e.g.
+        /// `deck routes --views views`.
+        #[arg(long = "views")]
+        views: Vec<PathBuf>,
     },
 
     /// Generate boilerplate for a new view or primitive component.
@@ -136,31 +145,54 @@ fn main() {
 
 fn run() -> Result<()> {
     match Cli::parse().command {
-        Command::Routes { root } => {
+        Command::Routes { root, views } => {
             let cwd = std::env::current_dir().context("cwd")?;
             let resolve = |p: PathBuf| {
                 if p.is_absolute() { p } else { cwd.join(p) }
             };
-            let roots: Vec<PathBuf> = root.into_iter().map(resolve).collect();
-            // The CLI requires --root at least once; clap's `required = true`
-            // enforces this, so by construction `roots` is non-empty here.
-            // (We still derive the label from the path's basename — no app-
-            // name coupling in the codegen, no monorepo-defaults heuristic.)
-            let mut specs = Vec::new();
-            for s in &roots {
-                let label = s
+            if root.is_empty() && views.is_empty() {
+                anyhow::bail!("specify --root=<path> and/or --views=<path> at least once");
+            }
+            // First-party app routes: walk <root>/routes/ for mountable
+            // views (each is a dir with a page.sui). One routes.gen.ts per
+            // --root; the label is the path's basename. The codegen has
+            // no app-name coupling — generic over the workspace.
+            let mut routes_specs = Vec::new();
+            for s in &root {
+                let r = resolve(s.clone());
+                let label = r
                     .file_name()
                     .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| s.display().to_string());
-                specs.push(deck_bundler::routes::RouteGenSpec {
-                    dir: s.join("routes"),
-                    out: s.join("routes.gen.ts"),
+                    .unwrap_or_else(|| r.display().to_string());
+                routes_specs.push(deck_bundler::routes::RouteGenSpec {
+                    dir: r.join("routes"),
+                    out: r.join("routes.gen.ts"),
                     label,
                 });
             }
-            let n = deck_bundler::routes::generate_routes(&specs)?;
-            let total = specs.len();
-            println!("deck routes → {n} dynamic routes across {total} spec(s)");
+            let n_routes = deck_bundler::routes::generate_routes(&routes_specs)?;
+            // View discovery: walk <views>/<name>/manifest.jsonc, emit
+            // TWO files per --views: routes.gen.ts (router) and
+            // meta.gen.ts (host). Same RouteGenSpec shape — the codegen
+            // writes meta.gen.ts as a side-effect when the spec's dir is
+            // a views tree (the discover_views() walker kicks in).
+            let mut views_specs = Vec::new();
+            for s in &views {
+                let r = resolve(s.clone());
+                let label = r
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| r.display().to_string());
+                views_specs.push(deck_bundler::routes::RouteGenSpec {
+                    dir: r.clone(),
+                    out: r.join("routes.gen.ts"),
+                    label,
+                });
+            }
+            let n_views = deck_bundler::routes::generate_routes(&views_specs)?;
+            println!(
+                "deck routes → {n_routes} first-party route(s), {n_views} view route(s)"
+            );
             Ok(())
         }
         Command::Scaffold(Scaffold::View { name, path, component }) => {
@@ -169,7 +201,9 @@ fn run() -> Result<()> {
         Command::Scaffold(Scaffold::Component { tag, controller }) => {
             scaffold::run_component(tag, controller)
         }
-        Command::Scaffold(Scaffold::Pack { name }) => scaffold::run_pack(name),
+        Command::Scaffold(Scaffold::Pack { name }) => {
+            scaffold::run_pack(name)
+        }
         Command::Build { shell_root, out, bundle_framework, no_minify } => {
             build(shell_root, out, bundle_framework, !no_minify)
         }
@@ -177,8 +211,6 @@ fn run() -> Result<()> {
         Command::BuildAssets => build_assets(),
     }
 }
-
-/// Resolve baked targets to a directory (deck owns the output layout + chunk
 /// closure — see `deck_bundler::emit`).
 fn emit(targets: Vec<String>, out: PathBuf) -> Result<()> {
     let cwd = std::env::current_dir().context("cwd")?;
