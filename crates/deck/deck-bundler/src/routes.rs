@@ -12,7 +12,7 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 
 /// One codegen spec: walk `dir` recursively for mountable views (`page.sui`),
 /// emit the generated `routes.gen.ts` content to `out`. `label` is the
@@ -29,6 +29,19 @@ struct Route {
     pattern: String,
     params: Vec<String>,
     builder: String,
+}
+
+/// A `_layout.sui` discovered at the top level of a `routes/` dir. The
+/// runtime wraps the subtree's content in the layout component; the layout
+/// template has a `<slot>` that the route content fills.
+struct Layout {
+    /// URL prefix the layout covers (e.g. `/studio`). Every route under this
+    /// prefix is rendered inside the layout.
+    path_prefix: String,
+    /// Tag name read from the first `<sui-…>` or `<ship-…>` element in the
+    /// layout template (e.g. `sui-studio-chrome`). The runtime resolves
+    /// the tag to a component via the workspace pack import.
+    tag: String,
 }
 
 /// Recursively collect dirs holding a mountable view (`page.sui`).
@@ -104,6 +117,97 @@ fn camel_case(s: &str) -> String {
     out
 }
 
+/// Walk the top level of `routes_dir` for `_layout.sui` files. Each
+/// `routes/<name>/_layout.sui` becomes one layout entry with prefix `/<name>`.
+/// The tag is read from the first `<sui-…>` or `<ship-…>` element in the
+/// file. Layouts are emitted sorted by `path_prefix` so the generated
+/// `routes.gen.ts` is byte-stable across runs.
+fn discover_layouts(routes_dir: &Path) -> Result<Vec<Layout>> {
+    let mut layouts = Vec::new();
+    for entry in std::fs::read_dir(routes_dir).with_context(|| {
+        format!("reading routes dir `{}`", routes_dir.display())
+    })? {
+        let entry = entry?;
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
+        let child = entry.path();
+        let layout_file = child.join("_layout.sui");
+        if !layout_file.is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let prefix = format!("/{name}");
+        let tag = extract_layout_tag(&layout_file)
+            .with_context(|| format!("parsing `{}`", layout_file.display()))?;
+        layouts.push(Layout { path_prefix: prefix, tag });
+    }
+    layouts.sort_by(|a, b| a.path_prefix.cmp(&b.path_prefix));
+    Ok(layouts)
+}
+
+/// Read up to the first 4 KiB of a `_layout.sui` and return the tag name
+/// of the first `<sui-…>` or `<ship-…>` element. The SUI template grammar
+/// is HTML-flavoured; the codegen does not need a full parse — it just needs
+/// the wrapper component the runtime should import. If no qualifying tag is
+/// found, error: a layout with no `<sui-*` / `<ship-*` element has no
+/// component to mount.
+fn extract_layout_tag(path: &Path) -> Result<String> {
+    // Cap the read so a stray giant file can't pin the codegen. The tag is
+    // always on the first line in practice; 4 KiB is generous.
+    const HEAD_BYTES: usize = 4096;
+    let bytes = std::fs::read(path)
+        .with_context(|| format!("reading `{}`", path.display()))?;
+    let head_bytes = if bytes.len() > HEAD_BYTES { &bytes[..HEAD_BYTES] } else { &bytes[..] };
+    let head = std::str::from_utf8(head_bytes)
+        .with_context(|| format!("non-utf8 in `{}`", path.display()))?;
+    // Match the opening of the first element whose tag starts with `sui-`
+    // or `ship-`. Whitespace, a tag name (letters/digits/`-`/`_`), and
+    // either a `>` or whitespace ends the tag name. This is intentionally
+    // minimal — the layout is just a chrome wrapper, not a full template
+    // parse.
+    let mut idx = 0;
+    let bytes_str = head.as_bytes();
+    while idx < bytes_str.len() {
+        if bytes_str[idx] != b'<' {
+            idx += 1;
+            continue;
+        }
+        let after_lt = &bytes_str[idx + 1..];
+        // Skip closing tags (`</foo>`) and doctype/processing (`<!…`, `<?…`).
+        if let Some(&b) = after_lt.first() {
+            if b == b'/' || b == b'!' || b == b'?' {
+                idx += 1;
+                continue;
+            }
+        }
+        // Read tag name bytes.
+        let name_start = idx + 1;
+        let mut name_end = name_start;
+        while name_end < bytes_str.len() {
+            let b = bytes_str[name_end];
+            if b.is_ascii_alphanumeric() || b == b'-' || b == b'_' {
+                name_end += 1;
+            } else {
+                break;
+            }
+        }
+        if name_end == name_start {
+            idx += 1;
+            continue;
+        }
+        let tag = std::str::from_utf8(&bytes_str[name_start..name_end])
+            .context("non-utf8 tag name")?;
+        if tag.starts_with("sui-") || tag.starts_with("ship-") {
+            return Ok(tag.to_string());
+        }
+        idx = name_end;
+    }
+    bail!(
+        "`{}` has no `<sui-…>` or `<ship-…>` element — a layout must name a wrapper component",
+        path.display()
+    );
+}
 /// Generate `routes.gen.ts` for every spec. Each spec walks its `dir`
 /// (a `routes/` tree) and writes a `routes.gen.ts` to its `out` path.
 /// Returns the total number of dynamic routes emitted across all specs.
@@ -152,8 +256,39 @@ fn generate_routes_one(spec: &RouteGenSpec) -> Result<usize> {
         })
         .collect::<Vec<_>>()
         .join("\n");
-    // Flush-left literal so the JSDoc ` *` alignment is byte-exact (a `\`-joined
-    // string would strip the leading space). Leading `\` drops the first newline.
+    // Layouts — one entry per `routes/<name>/_layout.sui` at the top of the
+    // routes tree. The runtime wraps the matched subtree's content in the
+    // named component (the layout has a `<slot>` that the route fills). The
+    // tag is read from the first `<sui-…>` / `<ship-…>` element in the file.
+    let layouts = discover_layouts(routes_dir)
+        .with_context(|| format!("walking layouts for `{}`", spec.label))?;
+    let layout_lines = layouts
+        .iter()
+        .map(|l| format!("  {{ pathPrefix: '{}', tag: '{}' }},", l.path_prefix, l.tag))
+        .collect::<Vec<_>>()
+        .join("\n");
+    // The two cases below are stitched into the body via a single literal.
+    // When there are layouts, the block starts with its own blank line.
+    // When there are none, we still emit a blank line so the `routes`
+    // JSDoc has a separator — that matches the prior pre-LAYOUTS shape.
+    let layouts_block = if layouts.is_empty() {
+        "\n".to_string()
+    } else {
+        format!(
+"/** Per-prefix layout components — `routes/<name>/_layout.sui` is the
+ *  chrome wrapper for that subtree. The runtime reads `pathPrefix` to
+ *  pick the layout for the current URL and renders the matched route's
+ *  content inside the layout's `<slot>`. */
+export const LAYOUTS: LayoutShape[] = [
+{layout_lines}
+]
+
+/** Shape the runtime imports — duplicated inline so the file stays
+ *  self-describing (no extra module needed for the routes codegen). */
+export type LayoutShape = {{ pathPrefix: string; tag: string }}
+"
+        )
+    };
     let body = format!(
         "\
 // @generated by `deck routes` (deck-bundler) — DO NOT EDIT.
@@ -171,7 +306,7 @@ import type {{ RouteShape }} from '@ship/sui-runtime'
 export const DYNAMIC_ROUTE_PATTERNS: RouteShape[] = [
 {pattern_lines}
 ]
-
+{layouts_block}\
 /** Typed path builders — `navigate(routes.studioAgentsId({{ id }}))`.
  *  The first segment namespaces the builder so future `[param]` dirs
  *  under home/account/etc. don't collide. The param keys are checked
@@ -198,7 +333,7 @@ export const routes = {{
         std::fs::write(target, body).context("write routes.gen.ts")?;
     }
     Ok(routes.len())
-}
+ }
 
 #[cfg(test)]
 mod tests {
@@ -278,6 +413,76 @@ mod tests {
         let n = generate_routes(&[spec(root.path(), "shell")]).unwrap();
         assert_eq!(n, 0);
         assert!(!root.path().join("routes.gen.ts").exists());
+    }
+
+    #[test]
+    fn layout_discovery_emits_layouts_block() {
+        // A `routes/studio/_layout.sui` becomes a `LAYOUTS` entry with
+        // `pathPrefix: '/studio'` and the tag read from the file.
+        let root = tempfile::tempdir().unwrap();
+        let r = root.path().join("routes");
+        std::fs::create_dir_all(r.join("studio/agents/[id]")).unwrap();
+        std::fs::write(r.join("studio/agents/[id]/page.sui"), "<div/>").unwrap();
+        // Realistic layout: comment + a `<sui-*` wrapper + a `<slot>`.
+        std::fs::write(
+            r.join("studio/_layout.sui"),
+            "// studio chrome\n<sui-studio-chrome>\n  <slot />\n</sui-studio-chrome>\n",
+        )
+        .unwrap();
+        let n = generate_routes(&[spec(root.path(), "shell")]).unwrap();
+        assert_eq!(n, 1);
+        let ts = std::fs::read_to_string(r.parent().unwrap().join("routes.gen.ts")).unwrap();
+        assert!(
+            ts.contains("{ pathPrefix: '/studio', tag: 'sui-studio-chrome' },"),
+            "LAYOUTS entry missing from:\n{ts}"
+        );
+        assert!(ts.contains("export const LAYOUTS: LayoutShape[]"));
+        assert!(ts.contains("export type LayoutShape = { pathPrefix: string; tag: string }"));
+    }
+
+    #[test]
+    fn layout_discovery_ship_prefixed_tag() {
+        // `<ship-*` is also accepted (chrome wrappers under @ship/* packs).
+        let root = tempfile::tempdir().unwrap();
+        let r = root.path().join("routes");
+        std::fs::create_dir_all(r.join("library")).unwrap();
+        std::fs::write(r.join("library/page.sui"), "<div/>").unwrap();
+        std::fs::write(r.join("library/_layout.sui"), "<ship-library-chrome/>\n").unwrap();
+        let _ = generate_routes(&[spec(root.path(), "shell")]).unwrap();
+        let ts = std::fs::read_to_string(r.parent().unwrap().join("routes.gen.ts")).unwrap();
+        assert!(ts.contains("{ pathPrefix: '/library', tag: 'ship-library-chrome' }"));
+    }
+
+    #[test]
+    fn layout_discovery_skips_div_only_layout() {
+        // A `_layout.sui` with no `<sui-*` / `<ship-*` element errors out
+        // — a layout must name a wrapper component.
+        let root = tempfile::tempdir().unwrap();
+        let r = root.path().join("routes");
+        std::fs::create_dir_all(r.join("home")).unwrap();
+        std::fs::write(r.join("home/page.sui"), "<div/>").unwrap();
+        std::fs::write(r.join("home/_layout.sui"), "<div>no wrapper here</div>\n").unwrap();
+        let err = generate_routes(&[spec(root.path(), "shell")]).unwrap_err();
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("no `<sui-…>` or `<ship-…>` element"),
+            "expected layout-tag error, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn layout_discovery_absent_is_no_block() {
+        // No `_layout.sui` files → the LAYOUTS block is omitted (the
+        // runtime gets no layout surface, which is the current behavior
+        // for hosts that haven't opted in).
+        let root = tempfile::tempdir().unwrap();
+        let r = root.path().join("routes");
+        std::fs::create_dir_all(r.join("home")).unwrap();
+        std::fs::write(r.join("home/page.sui"), "<div/>").unwrap();
+        let _ = generate_routes(&[spec(root.path(), "shell")]).unwrap();
+        let ts = std::fs::read_to_string(r.parent().unwrap().join("routes.gen.ts")).unwrap();
+        assert!(!ts.contains("LAYOUTS"), "no LAYOUTS block when no _layout.sui files: {ts}");
+        assert!(!ts.contains("LayoutShape"));
     }
 
     // Regression: routes.gen.ts lives under the watched `apps/...` root and
