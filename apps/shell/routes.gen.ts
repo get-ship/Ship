@@ -11,6 +11,7 @@ import type { RouteShape } from '@ship/sui-runtime'
  *  pathname. Static routes (no `[param]`) need no entry — the runtime
  *  matches them by segment equality. */
 export const DYNAMIC_ROUTE_PATTERNS: RouteShape[] = [
+  { pattern: '/component-viewer/:name' },
   { pattern: '/studio/agents/:id' },
   { pattern: '/studio/agents/:id/settings' },
   { pattern: '/studio/agents/:id/wire' },
@@ -21,12 +22,24 @@ export const DYNAMIC_ROUTE_PATTERNS: RouteShape[] = [
   { pattern: '/studio/skills/:id' },
   { pattern: '/studio/themes/:id' },
 ]
+/** Per-prefix layout components — `routes/<name>/_layout.sui` is the
+ *  chrome wrapper for that subtree. The runtime reads `pathPrefix` to
+ *  pick the layout for the current URL and renders the matched route's
+ *  content inside the layout's `<slot>`. */
+export const LAYOUTS: LayoutShape[] = [
+  { pathPrefix: '/studio', tag: 'sui-studio-chrome' },
+]
 
+/** Shape the runtime imports — duplicated inline so the file stays
+ *  self-describing (no extra module needed for the routes codegen). */
+export type LayoutShape = { pathPrefix: string; tag: string }
 /** Typed path builders — `navigate(routes.studioAgentsId({ id }))`.
  *  The first segment namespaces the builder so future `[param]` dirs
  *  under home/account/etc. don't collide. The param keys are checked
  *  at compile time; you cannot typo or omit one. */
 export const routes = {
+  /** /component-viewer/:name */
+  componentViewerName: (p: { name: string }): string => `/component-viewer/${p.name}`,
   /** /studio/agents/:id */
   studioAgentsId: (p: { id: string }): string => `/studio/agents/${p.id}`,
   /** /studio/agents/:id/settings */
