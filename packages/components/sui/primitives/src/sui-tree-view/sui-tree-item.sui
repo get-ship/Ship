@@ -37,17 +37,17 @@
   .row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 7px;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
     cursor: pointer;
     outline: none;
     color: var(--foreground);
     transition: background-color var(--duration-fast) var(--ease-out);
   }
-  .row:hover { background: color-mix(in oklch, var(--foreground) 5%, transparent); }
+  .row:hover { background: var(--hover-bg); }
   :host([selected]) .row {
-    background: color-mix(in oklch, var(--primary) 10%, transparent);
+    background: var(--selected-bg);
     color: var(--foreground);
     font-weight: var(--font-weight-medium);
   }
@@ -55,7 +55,7 @@
     box-shadow:
       0 0 0 var(--ring-offset) var(--background),
       0 0 0 calc(var(--ring-offset) + var(--ring-width))
-        color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+        var(--ring);
   }
   @media (forced-colors: active) {
     .row:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
@@ -81,9 +81,9 @@
   .trailing { margin-inline-start: auto; color: var(--muted-foreground); font-size: var(--text-xs); }
 
   .children {
-    margin-inline-start: 9px;
+    margin-inline-start: var(--space-2);
     border-left: 1px solid var(--border-subtle);
-    padding-inline-start: 12px;
+    padding-inline-start: var(--space-3);
   }
   :host(:not([expanded])) .children { display: none; }
 </style>
