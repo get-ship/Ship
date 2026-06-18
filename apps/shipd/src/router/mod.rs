@@ -157,15 +157,8 @@ pub fn build_router(
     // operator-only at the transport. The legacy `/api/space-window/register`
     // REST route + `auth::space_window` were removed in the space cutover.
 
-    let session_issue_registry = auth_registry.clone();
-    let session_issue_handler = move |auth: axum::Extension<auth::AuthContext>| {
-        let reg = session_issue_registry.clone();
-        async move { session::issue_session_handler(reg, auth.0).await }
-    };
-
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
-        .ship_route(Route::IssueSession, session_issue_handler)
         .merge(api_ship_routes)
         // Hook ingress lives at flat `/hooks/*` (authed, but OFF `/api/v1`):
         // consumed by generated git-hook shell scripts that POST via curl and

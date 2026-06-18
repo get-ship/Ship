@@ -4,38 +4,25 @@ use axum::{Router, routing};
 
 #[cfg(feature = "ship-code")]
 use crate::sessions;
-use crate::routes::{actor_api, actors_api, artifacts_api, runtime_api, sandbox_api, schema_api};
+use crate::routes::{artifacts_api, sandbox_api};
 use crate::ship_runtime::ApiState;
-use crate::transport::pty as pty_handler;
 
 /// All enumerated routes, registered via `ShipRouterExt::ship_route` against
 /// the canonical `Route` enum. Paths come from `routes/mod.rs` — this function
 /// only binds handlers.
 pub(super) fn build_ship_routes(st: ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
-    // Actor writes (L0 kernel — kernel-directed mailbox delivery).
-    // The mesh.* op surface (and the mesh/actors/{id}/events introspection
-    // reads) was removed; the kernel mailbox primitive is now reached
-    // exclusively through actor_spawn + the kernel's own directed delivery
-    // via `EventEnvelope.target_actor_id`.
     // Base routes: always compiled regardless of feature flags.
+    // Note: optionB's actor_spawn / list_actors / daemon_status / serve_schema
+    // / workspace_pty route bindings were removed — the corresponding Route
+    // variants are gone from the canonical `Route` enum kept here, and the
+    // handler modules were deleted by the harness team. The op surface they
+    // implemented is reachable exclusively over ConnectRPC (ship.ops.v1).
     let router = Router::new()
-        .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
-        .ship_route(Route::ListActors, actors_api::list_actors_handler)
         // Isolation reads are served by the proto IsolationService
         // (ship.ops.v1) — the one op-surface path.
         .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
         .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
-        // Runtime — read-side only (daemon status, projections, event stream).
-        // Agent stop/steer, pipeline dispatch, job lifecycle, log stream, and
-        // pipeline run log stream all moved to typed Connect wires
-        // (AgentsService / PipelinesService / agent.Dispatch).
-        .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
-        // Op schema (ship.*) — read-side, served from the ship-ops-rpc
-        // catalog (consumed by `ship ops call` in the CLI). View manifest /
-        // bundle serving is owned by deck; view writes are the Connect
-        // ViewService wire.
-        .ship_route(Route::ShipSchema, schema_api::serve_schema)
         // The `/_deck/mutation/{name}` 410 tombstone moved to `deck::router()`
         // — it's a `/_deck/*` serving concern (deck composes that form `action`
         // URL via `deck_core::routes::mutation_action`), not an RPC route.
@@ -43,7 +30,6 @@ pub(super) fn build_ship_routes(st: ApiState) -> Router {
         // SkillService — all Connect wires (ship.ops.v1); no REST shells here.
         // Events / projections — the kernel event bus is served over Connect
         // `StreamService.Events` (ship.ops.v1); the SSE route was retired.
-        .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
 
         // Artifacts platform (three-scope)
         .merge(
