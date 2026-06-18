@@ -14,11 +14,9 @@
 //!   the URL path captures. Path captures are extracted as a
 //!   `HashMap<String, String>` so any `{name}` segment in the route is
 //!   available for substitution.
-//! - `GET <app.asset_prefix>{file}` → [`serve_app_asset`]
-//!   Serve a per-app static asset (`<app.source>/assets/{file}`). The
-//!   asset prefix is the collision-avoidance path the bundler can't do
-//!   on its own (each app's `index.html` references `/assets/...`; the
-//!   host re-roots those under a unique prefix per app).
+//! - `GET /<app.name>/{file}` → [`serve_app_asset`]
+//!   Serve a per-app static asset (`<app.source>/assets/{file}`).
+//!   The app's `name` is the URL namespace — no separate prefix field.
 //! - `GET /{file}` (the app's slice) → [`serve_app_public`]
 //!   Serve a per-app public asset. The bundler copies `<project>/public/`
 //!   to `<project>/<source>/` at build time, so single-segment root
@@ -72,11 +70,8 @@ pub async fn serve_app_index(
     into_axum(deck_core::serve_scaffold(mode_val, app, &params_refs))
 }
 
-/// `GET <app.asset_prefix>{file}` — serve a per-app static asset
-/// (`<app.source>/assets/{file}`). The asset prefix is the per-app
-/// re-root path the bundler emits in the dev's `index.html` (e.g. each
-/// app's HTML references `/assets/...` and the host serves them under
-/// `/<app_name>/_assets/...`).
+/// `GET /<app.name>/{file}` — serve a per-app static asset
+/// (`<app.source>/assets/{file}`). The app's name is its URL namespace.
 pub async fn serve_app_asset(
     mode: Option<Extension<DaemonMode>>,
     app: Option<Extension<Arc<AppServeConfig>>>,
@@ -122,7 +117,7 @@ pub async fn serve_app_public(
 ///
 /// - The PRIMARY app (the first one in the list, conventionally the
 ///   one at route `/`) gets:
-///   - `GET /<asset_prefix>{file}` (per-app asset namespace)
+///   - `GET /<app.name>/{file}` (per-app asset namespace)
 ///   - `GET /{file}` (per-app public-asset catch-all, primary only)
 ///   - The PRIMARY app's `GET /` (the index) is NOT mounted here —
 ///     `serve_index` (host's first-run flow) owns `/`. Both layers
@@ -134,7 +129,7 @@ pub async fn serve_app_public(
 ///     flow).
 /// - Each NON-PRIMARY app (e.g. spaces at `/space/{id}`) gets:
 ///   - `GET <app.route>` (e.g. `/space/{id}`)
-///   - `GET /<asset_prefix>{file}` (per-app asset namespace)
+///   - `GET /<app.name>/{file}` (per-app asset namespace)
 pub fn serve_apps(apps: &[AppServeConfig]) -> Router {
     let mut router = Router::new();
     for (i, app) in apps.iter().enumerate() {
@@ -149,18 +144,15 @@ pub fn serve_apps(apps: &[AppServeConfig]) -> Router {
                     get(serve_app_index).layer(Extension(app_ext)),
                 );
         }
-        // The asset_prefix is per-app; mount it for every app.
-        let asset_prefix = app
-            .asset_prefix
-            .trim_end_matches('/')
-            .trim_start_matches('/');
-        if !asset_prefix.is_empty() {
-            let app_ext = Arc::new(app.clone());
-            router = router.route(
-                &format!("/{asset_prefix}/{{file}}"),
-                get(serve_app_asset).layer(Extension(app_ext)),
-            );
-        }
+        // The asset namespace is the app's name. The route is
+        // `/<app.name>/{file}` and the handler reads the app config
+        // from the layer extension. No `assetPrefix` config field —
+        // the name IS the namespace.
+        let app_ext = Arc::new(app.clone());
+        router = router.route(
+            &format!("/{}/{{file}}", app.name),
+            get(serve_app_asset).layer(Extension(app_ext)),
+        );
     }
     // Public-asset catch-all: the primary app's `serve_app_public`
     // handles single-segment root paths (`/favicon.ico`, `/logo.svg`).

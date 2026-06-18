@@ -184,15 +184,11 @@ pub async fn bundle_app(
     // substitutes it in.
     let project_name = read_package_name(project)
         .with_context(|| format!("read package.json at {}", project.display()))?;
-
-    // 3. Generate the importmap from FRAMEWORK_ASSETS. The dist_prefix is
-    // the URL prefix the runtime serves the project's output at (empty for
-    // the project root, e.g. `/space` for the space scaffold). Default
-    // is empty (project served at the daemon root).
-    let dist_prefix = std::env::var("DECK_DIST_PREFIX").unwrap_or_default();
-    let importmap_json = generate_importmap(&dist_prefix);
+    // 3. Generate the importmap from FRAMEWORK_ASSETS. The framework
+    // serves the runtime singletons at /_deck/* — the workspace root.
+    // No per-app dist prefix; the app's name is its URL namespace.
+    let importmap_json = generate_importmap("");
     let externals = importmap_externals_from_json(&importmap_json)?;
-
     // 4. Render `index.html` from the template. The dev doesn't author
     // index.html — it's deck's entry contract. The template has placeholders
     // for the project name, the importmap, and the entry module name.
@@ -202,8 +198,6 @@ pub async fn bundle_app(
         &importmap_json,
         entry_module,
     );
-
-    // Wipe a conventional output dir so stale hashed chunks don't accumulate.
     let base = out_dir.file_name().and_then(|s| s.to_str()).unwrap_or("");
     if out_dir.exists() && (base == "dist" || out_dir.to_string_lossy().contains("/.deck")) {
         std::fs::remove_dir_all(out_dir).ok();
@@ -388,11 +382,10 @@ mod tests {
         assert!(html.contains("@ship/sdk-client"), "framework sdk in importmap");
 
         // Behavior 4: the entry chunk is produced by the bundler. The
-        // href is `/assets/entry-<hash>.js`. (The asset prefix
-        // unification between bundler and framework is a follow-up —
-        // today the bundler emits `/assets/...` and the framework
-        // serves per-app assets at `<app.asset_prefix>`, a known
-        // mismatch tracked separately.)
+        // href is `/assets/entry-<hash>.js`. The framework rewrites
+        // `/assets/` → `/<name>/` at serve time so the entry lands at
+        // `/<app.name>/<hash>.js` — the framework owns the namespace
+        // rule, the bundler emits a stable path.
         assert!(build.js_href.starts_with("/assets/entry-") && build.js_href.ends_with(".js"),
                 "expected /assets/entry-*.js, got {}", build.js_href);
 

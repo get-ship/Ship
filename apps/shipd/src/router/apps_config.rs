@@ -10,23 +10,23 @@
 //! {
 //!   "apps": [
 //!     {
-//!       "name": "hub",                          // required
+//!       "name": "hub",                          // required, the URL namespace
 //!       "root": "apps/hub",                     // required, repo-relative
 //!       "source": "apps/hub/.deck",             // required, the bundler output
 //!       "route": "/",                           // required, the URL prefix
-//!       "assetPrefix": "/hub/_assets/",          // optional, default ""
 //!       "injectGlobals": { "KEY": "value" }     // optional, default {}
 //!     }
 //!   ]
 //! }
 //! ```
 //!
-//! `root` is the dev's authored source tree (the bundler reads it).
-//! `source` is the bundler's output (`<root>/.deck/`). The two paths
-//! are the same as `apps/hub` and `apps/hub/.deck` for the per-app
-//! bundler model; we keep both fields explicit so an external deck
-//! user (a marketing site, docs, etc.) can declare apps whose source
-//! and output differ.
+//! `name` is the app's URL namespace; the framework serves the app's
+//! assets under `/<name>/<file>`. `root` is the dev's authored source
+//! tree (the bundler reads it). `source` is the bundler's output
+//! (`<root>/.deck/`). The two paths are the same as `apps/hub` and
+//! `apps/hub/.deck` for the per-app bundler model; we keep both
+//! fields explicit so an external deck user (a marketing site, docs,
+//! etc.) can declare apps whose source and output differ.
 use std::path::Path;
 
 use anyhow::{Context, Result};
@@ -48,7 +48,6 @@ struct AppEntry {
     /// The dev's authored source tree. Read by the Justfile / build
     /// orchestrator (shipd doesn't read this directly — the bundler
     /// does, when the host invokes `deck build --project <root>`).
-    root: String,
     /// The bundler's output. Read by shipd when serving the app.
     /// Repo-relative; resolved under the project root at serve time.
     source: String,
@@ -56,8 +55,6 @@ struct AppEntry {
     /// (spaces — the `{id}` is a path capture, accessible via
     /// `inject_globals` substitution).
     route: String,
-    #[serde(default)]
-    asset_prefix: String,
     #[serde(default)]
     inject_globals: std::collections::BTreeMap<String, String>,
 }
@@ -94,7 +91,6 @@ pub fn load_apps_config(path: &Path) -> Result<Vec<AppServeConfig>> {
             name: e.name,
             route: e.route,
             source: e.source,
-            asset_prefix: e.asset_prefix,
             inject_globals: e.inject_globals,
         })
         .collect();
@@ -228,11 +224,8 @@ mod tests {
             r#"{
                 "apps": [
                     {
-                        "name": "spaces",
-                        "root": "apps/spaces",
-                        "source": "apps/spaces/.deck",
-                        "route": "/space/{id}",
-                        "assetPrefix": "/space/_assets/",
+                        "name": "spaces", "root": "apps/spaces",
+                        "source": "apps/spaces/.deck", "route": "/space/{id}",
                         "injectGlobals": { "DECK_APP_ID": "$id" }
                     }
                 ]
@@ -243,7 +236,6 @@ mod tests {
         assert_eq!(apps.len(), 1);
         assert_eq!(apps[0].name, "spaces");
         assert_eq!(apps[0].route, "/space/{id}");
-        assert_eq!(apps[0].asset_prefix, "/space/_assets/");
         assert_eq!(
             apps[0].inject_globals.get("DECK_APP_ID").map(String::as_str),
             Some("$id")

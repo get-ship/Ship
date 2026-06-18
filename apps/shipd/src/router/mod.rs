@@ -227,7 +227,7 @@ pub fn build_router(
     // (apps are unauthenticated public surfaces; the auth middleware
     // above skips them via the path-prefix checks in the SPA-nav shim).
     // `serve_apps` reads the per-app list from `Extension<Arc<Vec<...>>>`
-    // and mounts `<app.route>` + `<app.asset_prefix>{file}` + the
+    // and mounts `<app.route>` + `/<app.name>/{file}` + the
     // primary app's `/{file}` catch-all. The L1 framework (`deck::router`)
     // still owns the framework surface (`/_deck/*` + `/api/*`); per-app
     // serving is host-driven from this point.

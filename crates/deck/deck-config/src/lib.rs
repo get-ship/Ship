@@ -73,13 +73,6 @@ pub struct AppServeConfig {
     /// Path to the built app, relative to the project root.
     /// e.g. `apps/hub/.deck` or `apps/spaces/.deck`.
     pub source: String,
-    /// URL prefix under which the app's assets are served.
-    /// e.g. `/hub/_assets/`. The dev's `index.html` references
-    /// `/assets/entry-…` which the framework rewrites to
-    /// `<asset_prefix>entry-…` so multiple apps don't collide on
-    /// `/assets/*`. Empty (default) = no rewrite; assets live at `/assets/`.
-    #[serde(default)]
-    pub asset_prefix: String,
     /// Globals injected as `<script>window.<key>=<value>;</script>` into
     /// the app's `index.html` before `</head>`. `$<param>` tokens in the
     /// value are substituted from the URL path captures declared in
