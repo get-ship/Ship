@@ -161,14 +161,14 @@ impl TerminalService for TerminalWire {
             .pty_sessions()
             .list()
             .into_iter()
-            .map(meta_to_wire)
+            .map(|m| meta_to_wire(&m))
             .collect();
         sessions.extend(
             self.state
                 .actor_sessions()
                 .list()
                 .into_iter()
-                .map(meta_to_wire),
+                .map(|m| meta_to_wire(&m)),
         );
         // Most-recent-activity first, matching the legacy `SessionListResponse`.
         sessions.sort_by(|a, b| b.started_at.cmp(&a.started_at));
@@ -232,7 +232,7 @@ impl TerminalService for TerminalWire {
         let cols = request.cols;
         let rows = request.rows;
         if let Some(entry) = self.state.actor_sessions().get(&id) {
-            entry
+            entry.handle
                 .resize(cols as u16, rows as u16)
                 .map_err(|e| ConnectError::internal(format!("resize: {e}")))?;
             return Ok(Response::new(ResizeTerminalResponse::default()));
@@ -251,6 +251,7 @@ impl TerminalService for TerminalWire {
     #[allow(refining_impl_trait)]
     async fn session_bytes(
         &self,
+        _ctx: RequestContext,
         request: OwnedSessionStreamRequestView,
     ) -> ServiceResult<ServiceStream<BytesChunk>> {
         let id = request.session_id.to_string();

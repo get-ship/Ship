@@ -8432,6 +8432,7 @@ dependencies = [
  "ship-runner",
  "ship-store",
  "ship-substrate",
+ "ship-terminal",
  "ship-types",
  "specta",
  "sqlx",
@@ -9175,6 +9176,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-terminal"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "serde",
+ "ship-harnesses",
+ "ship-substrate",
+ "tokio",
+]
+
+[[package]]
 name = "ship-triggers"
 version = "0.1.0"
 dependencies = [
@@ -9305,6 +9318,7 @@ dependencies = [
  "ship-store",
  "ship-substrate",
  "ship-substrate-host",
+ "ship-terminal",
  "ship-triggers",
  "ship-types",
  "ship-ui",
