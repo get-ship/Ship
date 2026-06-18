@@ -19,13 +19,10 @@ pub async fn serve_sui_runtime(mode: Option<Extension<DaemonMode>>) -> Response 
     into_axum(deck_core::serve_sui_runtime(mode_from_ext(mode)))
 }
 
-pub async fn serve_deck_route(mode: Option<Extension<DaemonMode>>) -> Response {
-    into_axum(deck_core::serve_deck_route(mode_from_ext(mode)))
-}
-
 pub async fn serve_sui_dom(mode: Option<Extension<DaemonMode>>) -> Response {
     into_axum(deck_core::serve_sui_dom(mode_from_ext(mode)))
 }
+
 pub async fn serve_sui_sdk_client(mode: Option<Extension<DaemonMode>>) -> Response {
     into_axum(deck_core::serve_sui_sdk_client(mode_from_ext(mode)))
 }
