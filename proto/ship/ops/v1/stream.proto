@@ -3,10 +3,12 @@
 // single long-lived observe channel). The daemon streams every kernel event as
 // JSON (JsonResponse.json = the serialized EventEnvelope). C0: observe-only.
 //
-// Intended to replace the SSE event stream (Route::EventStream, GET
-// /api/v1/events/stream) — SSE is one stream adapter over the same kernel
-// subscription and is STILL MOUNTED today; deck migration to this Connect
-// stream is pending.
+// Retires the `/api/v1/runtime/events` SSE route — SSE was just one stream
+// adapter; the deck consumes this Connect stream instead.
+//
+// Note: `SessionBytes` (raw PTY bytes per session) used to live here. It
+// moved to `terminal.proto` (the TerminalService) because PTY sessions are
+// a terminal-domain concern, not a generic observe channel.
 syntax = "proto3";
 
 package ship.ops.v1;
@@ -19,21 +21,6 @@ service StreamService {
     option (ship.ops.v1.capability) = "ship.events.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-
-  // Raw PTY byte stream for a session: replay the log then tail live output.
-  // `bytes` is byte-exact (Connect-JSON base64-encodes on the wire; the client
-  // decodes to a Uint8Array straight into xterm — no CR/LF mangling like SSE).
-  // Retires the `/api/v1/sessions/{id}/stream` SSE route. C0: observe a session.
-  rpc SessionBytes(SessionStreamRequest) returns (stream BytesChunk) {
-    option (ship.ops.v1.capability) = "ship.sessions.read";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
-  }
 }
 
 message EventsRequest {}
-message SessionStreamRequest {
-  string session_id = 1;
-}
-message BytesChunk {
-  bytes data = 1;
-}
