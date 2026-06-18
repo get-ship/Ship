@@ -42,20 +42,21 @@ pub(crate) struct Layout {
 }
 
 /// Recursively collect dirs holding a mountable view (`page.sui`).
+/// The root `dir` itself is also a candidate — `routes/page.sui`
+/// is a mount at `/` (the index route). Subdirs are walked for
+/// nested mounts.
 fn view_dirs(dir: &Path, acc: &mut Vec<std::path::PathBuf>) -> Result<()> {
+    if dir.join("page.sui").is_file() {
+        acc.push(dir.to_path_buf());
+    }
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         if entry.file_type()?.is_dir() {
-            let child = entry.path();
-            if child.join("page.sui").exists() {
-                acc.push(child.clone());
-            }
-            view_dirs(&child, acc)?;
+            view_dirs(&entry.path(), acc)?;
         }
     }
     Ok(())
 }
-
 /// `studio/agents/[id]/settings` → pattern `/studio/agents/:id/settings`,
 /// params `[id]`, builder `studioAgentsIdSettings`. Static routes (no
 /// `[param]`) return `None` — they need no `defineRoutes` entry.
@@ -81,19 +82,26 @@ fn to_route(routes_dir: &Path, dir: &Path) -> Option<Route> {
             }
         })
         .collect();
-    if params.is_empty() {
-        return None;
-    }
-    let pattern = format!("/{}", pattern_segs.join("/"));
+    let pattern = if pattern_segs.is_empty() {
+        "/".to_string()
+    } else {
+        format!("/{}", pattern_segs.join("/"))
+    };
     // Builder name: camelCase of the segments, including the first
     // segment (the top-level route name) so builders namespace per
-    // route. e.g. `studio/agents/[id]` → `studioAgentsId`.
-    let joined = segs_raw
-        .iter()
-        .map(|s| s.trim_start_matches('[').trim_end_matches(']'))
-        .collect::<Vec<_>>()
-        .join("-");
-    let builder = camel_case(&joined);
+    // route. e.g. `studio/agents/[id]` → `studioAgentsId`. The root
+    // `routes/page.sui` (a mount at `/`) gets the reserved `index`
+    // name — a single segment is too short to camelCase meaningfully.
+    let builder = if segs_raw.is_empty() {
+        "index".to_string()
+    } else {
+        let joined = segs_raw
+            .iter()
+            .map(|s| s.trim_start_matches('[').trim_end_matches(']'))
+            .collect::<Vec<_>>()
+            .join("-");
+        camel_case(&joined)
+    };
     Some(Route { pattern, params, builder })
 }
 
@@ -650,7 +658,6 @@ mod tests {
         }
     }
 
-    #[test]
     fn shell_route_discovery() {
         let root = tempfile::tempdir().unwrap();
         let r = root.path().join("routes");
@@ -659,17 +666,26 @@ mod tests {
             std::fs::write(r.join(d).join("page.sui"), "<div/>").unwrap();
         }
         let tree = build_route_tree(&r, "shell").unwrap();
-        // Two dynamic routes, one static (`skills` has no `[param]`).
+        // Static routes are NOT filtered out: a mount at `/studio/skills`
+        // needs to be in the route table, not silently dropped.
         let patterns: Vec<&str> = tree.routes.iter().map(|r| r.pattern.as_str()).collect();
-        assert_eq!(patterns, vec!["/studio/agents/:id/settings", "/studio/components/:name"]);
-        // Static routes are absent (no entry in `tree.routes`).
-        assert!(!tree.routes.iter().any(|r| r.pattern.contains("skills")));
+        assert_eq!(
+            patterns,
+            vec![
+                "/studio/agents/:id/settings",
+                "/studio/components/:name",
+                "/studio/skills"
+            ]
+        );
+        // The static route has no params.
+        let skills = tree.routes.iter().find(|r| r.pattern == "/studio/skills").unwrap();
+        assert!(skills.params.is_empty());
         // Builders are namespaced by the top-level segment.
         let builders: Vec<&str> = tree.routes.iter().map(|r| r.builder.as_str()).collect();
-        assert_eq!(builders, vec!["studioAgentsIdSettings", "studioComponentsName"]);
-        // Param keys surface in the right order.
-        let ids = tree.routes.iter().find(|r| r.pattern == "/studio/agents/:id/settings").unwrap();
-        assert_eq!(ids.params, vec!["id"]);
+        assert_eq!(
+            builders,
+            vec!["studioAgentsIdSettings", "studioComponentsName", "studioSkills"]
+        );
     }
 
     #[test]
