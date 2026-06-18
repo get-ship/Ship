@@ -121,7 +121,7 @@ default-members = [
     "apps/shipd",
     "apps/ship-cli",
     "tests/contract",
-exclude = [".artifacts"]
+]
 resolver = "2"
 
 # Hoisted dependency versions. Member crates inherit via `{ workspace = true, features = [...] }`.
