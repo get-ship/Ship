@@ -110,7 +110,7 @@ pub async fn handle_session_start(
     _emit_ctx: EmitContext,
     _event: &ShipHookEvent,
     actor: &str,
-    _session: Option<&str>,
+    session: Option<&str>,
 ) {
     let target = actor;
     tracing::info!(target, "hook/session-start received (no-op: session lifecycle sourced from actor.created)");
@@ -125,7 +125,7 @@ pub async fn handle_before_tool(
     _pty_broadcast: &dyn PtyBroadcastPort,
     event: &ShipHookEvent,
     actor: &str,
-    _session: Option<&str>,
+    session: Option<&str>,
 ) {
     let tool = event.tool_name.as_deref().unwrap_or("unknown");
 
@@ -159,7 +159,7 @@ pub async fn handle_after_tool(
     _pty_broadcast: &dyn PtyBroadcastPort,
     event: &ShipHookEvent,
     actor: &str,
-    _session: Option<&str>,
+    session: Option<&str>,
 ) {
     let tool = event.tool_name.as_deref().unwrap_or("unknown");
     if actor == "unknown" {
@@ -196,7 +196,7 @@ pub async fn handle_session_end(
     _emit_ctx: EmitContext,
     _event: &ShipHookEvent,
     actor: &str,
-    _session: Option<&str>,
+    session: Option<&str>,
 ) {
     tracing::info!(actor, "hook/session-end received (no-op: session lifecycle sourced from actor.stopped)");
 }
