@@ -134,7 +134,7 @@ pub async fn run_network(
 
     let (listener, port) =
         super::lifecycle::bind_with_retry(&config.host, config.desired_port, config.user_pinned, &paths.global_dir).await?;
-    super::write_port_file(rt.daemon_dir(), port)?;
+    crate::ship_runtime::init::identity_files::write_port_file(rt.daemon_dir(), port)?;
 
     let addr = format!("{}:{}", config.host, port);
     tracing::info!("shipd: listening on http://{addr}/mcp");

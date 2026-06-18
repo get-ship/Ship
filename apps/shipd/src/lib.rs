@@ -57,6 +57,9 @@ pub mod ship_runtime;
 // Tests for supervisor + shipd-internal integration (use ApiState,
 // ShipRuntime, etc.) live under `apps/shipd/src/supervisor/`.
 // Gated: these tests use ship-code types directly (dispatch_ports, process_registry).
+#[cfg(test)]
+mod test_harness;
+
 #[cfg(all(test, feature = "ship-code"))]
 #[path = "supervisor/mod.rs"]
 mod supervisor_tests;
