@@ -118,12 +118,10 @@ chunks, builds apps and views, writes the asset graph, and watches for HMR.
 
 | Feature | File | Implementation | Description |
 | --- | --- | --- | --- |
-| Manifest schema | `deck.jsonc` | `crates/deck/deck-config/src/lib.rs::DeckConfig` | Parsed `deck.jsonc`: targets, scaffolds, source roots, watch dirs, host-assets root, first-party app. |
+| Manifest schema | `deck.jsonc` | `crates/deck/deck-config/src/lib.rs::DeckConfig` | Parsed `deck.jsonc`: consumer-bundle targets, source roots, packs, view dirs, component source roots. |
 | Config load | (startup) | `crates/deck/deck-config/src/lib.rs::load` | Reads `<root>/deck.jsonc`, strips JSONC comments, falls back to defaults (never panics). |
 | Zero-config defaults | (built-in) | `crates/deck/deck-config/src/lib.rs::defaults` | The defaults a host with no `deck.jsonc` (deck-demo) runs on. |
 | Bundle target decl | (config entry) | `crates/deck/deck-config/src/lib.rs::TargetDecl` | One consumer bundle target (name, entry, externals, kind, out-file). |
-| Scaffold decl | (config entry) | `crates/deck/deck-config/src/lib.rs::ScaffoldDecl` | One HTML scaffold (route, source, asset prefix, injected globals). |
-| First-party app decl | (config entry) | `crates/deck/deck-config/src/lib.rs::FirstPartyApp` | The embedded host app's root + label for the catalog projection. |
 
 ## Host contract (`deck-host`, `deck-cli`)
 

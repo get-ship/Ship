@@ -8,6 +8,10 @@
   //
   // Read at build-time (cargo xtask build-assets) and daemon-startup
   // (shipd calls DeckConfig::load). Never read per-request.
+  //
+  // The Ship app list lives in apps.jsonc (L2/shipd), not here. The
+  // per-app bundler reads its own project manifest; L1 (deck) knows
+  // nothing about which apps exist or how they are routed.
   "targets": [
     {
       // Marketing site component pack — subset of sui-* tags used on the
@@ -43,28 +47,8 @@
       "externals": ["@ship/sui-runtime", "@ship/sui-dom"]
     }
   ],
-  "scaffolds": [
-    {
-      "name": "shell",
-      "route": "/",
-      "source": "hub-scaffold",
-      "assetPrefix": "/shell/_assets/"
-    },
-    {
-      "name": "space",
-      "route": "/space/{id}",
-      "source": "space-scaffold",
-      "assetPrefix": "/space/_assets/",
-      "injectGlobals": { "DECK_APP_ID": "$id" }
-    }
-  ],
   "sourceRoots": ["."],
-  "watch": ["packages", "apps/shell/src"],
-  "hostAssetsRoot": ".deck",
-  "firstPartyApp": { "root": "apps/shell/routes", "label": "app:shell" },
-  // Root-relative public assets (favicons, logos) served by deck at /{file}
-  // from <project_root>/apps/shell/public/<file>.
-  "publicDir": "apps/shell/public",
+  "watch": ["packages"],
   // Repo-root-relative search order for resolving `@ship/<name>` component
   // imports to their package source (`<root>/<name>`). First existing wins.
   // Ship's component reorg (#219) nests first-party packs under

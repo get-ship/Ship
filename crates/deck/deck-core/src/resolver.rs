@@ -63,24 +63,6 @@ pub(crate) fn detect_project_root_from(cwd: &std::path::Path) -> Option<PathBuf>
 
 use deck_host::resolver::ViewLayout;
 pub use deck_host::resolver::{ResolvedView, ResolveError, render_resolved};
-/// First-party view root, in resolution order:
-/// 1. `DECK_FIRST_PARTY_VIEWS` env var (set by shipd on dev launch to
-///    point at the workspace's first-party view source — typically
-///    `apps/hub/src` or `apps/spaces/src`).
-///
-/// 2. The deck framework no longer hardcodes an `apps/shell`-style
-///    bucket. Each per-project bundler is responsible for declaring
-///    which views it ships (the per-app `serve_apps` API is the
-///    contract); the framework's resolver sees a flat, host-provided
-///    view surface.
-///
-/// When the env var is unset, the host is non-ship and there is no
-/// first-party bucket. See .artifacts/asset-architecture.md.
-fn first_party_root() -> Option<PathBuf> {
-    std::env::var("DECK_FIRST_PARTY_VIEWS")
-        .ok()
-        .map(PathBuf::from)
-}
 /// Build a [`ViewLayout`] from the project-root `deck.jsonc` (when present)
 /// or fall back to the conventional `["views", ".ship/views"]` buckets with
 /// a single `page.sui` leaf. The leaf is unified across all buckets
@@ -101,8 +83,7 @@ fn view_layout() -> ViewLayout {
     layout
 }
 pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, ResolveError> {
-    let mut layout = view_layout();
-    layout.first_party_root = first_party_root();
+    let layout = view_layout();
     // `resolve_project_root` resolves override → nearest-ancestor marker
     // detection → cwd fallback. The override is the safe path; long-running
     // hosts (shipd, deck-demo) call `set_project_root` at startup so they

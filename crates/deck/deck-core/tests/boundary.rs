@@ -255,19 +255,11 @@ fn deck_core_source_has_no_deleted_resolver_helpers_or_project_dir_env() {
 
 /// Boundary invariant I2 (extension) — deck crates name no Ship app env vars.
 ///
-/// The previous slice renamed `SHIP_FIRST_PARTY_VIEWS` → `DECK_FIRST_PARTY_VIEWS`
-/// to make the deck→ship dependency direction explicit. Deck crates now have
-/// zero Ship-prefixed env vars; the boundary rule (deck names no Ship concept)
-/// forbids re-introducing any `std::env::var("SHIP_…")` read inside deck
-/// production source. Hosts that need Ship-app envs are wired them in via
-/// the env module, not directly in deck.
-///
-/// Scans every deck crate (`deck-core`, `deck-axum`, `deck-host`,
-/// `deck-bundler`, `deck-config`) for the `env::var("SHIP_…")` pattern.
-/// Test files (`*_tests.rs` + the boundary.rs itself) are skipped — the
-/// pattern is the literal phrase `env::var("SHIP` so a doc comment
-/// mentioning the gate's intent is fine, but a real read in production
-/// source is a violation.
+/// Deck crates have zero Ship-prefixed env vars; the boundary rule
+/// (deck names no Ship concept) forbids re-introducing any
+/// `std::env::var("SHIP_…")` read inside deck production source.
+/// Hosts that need Ship-app envs are wired in via the env module, not
+/// directly in deck.
 #[test]
 fn deck_crates_have_no_ship_prefixed_env_var_reads() {
     let deck_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

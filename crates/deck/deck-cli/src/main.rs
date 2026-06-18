@@ -353,9 +353,9 @@ fn build(project: PathBuf, out: Option<PathBuf>, bundle_framework: bool, minify:
     // every project. Per-project outputs go under `<project>/.deck/`.
     let deck_out_dir = repo_root.join(".deck");
 
-    // Load deck.jsonc to pick up `firstPartyApp` (sensible defaults when absent).
-    // The first-party-app config drives the per-tag component resolver: chrome
-    // `.sui` emit `@sui-tag/<tag>` imports that resolve to workspace source.
+    // Load deck.jsonc for the consumer-bundle targets + source roots.
+    // L1 (deck) has no per-app config — shipd's apps.jsonc owns the
+    // app list; the bundler is per-app and reads its own project root.
     let cfg = deck_bundler::DeckConfig::load(&repo_root);
 
     // The app graph compiles its own `.sui` in-process via the linked

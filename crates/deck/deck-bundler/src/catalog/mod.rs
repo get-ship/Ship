@@ -375,8 +375,8 @@ fn source_path_for_cem(repo_root: &Path, cem_abs: &Path) -> String {
 }
 
 /// Origin tag for a non-packaged source. `views/<name>/` → `view:<name>`;
-/// else `workspace:<first-seg>`. First-party app labelling is done by the
-/// caller via the configured `firstPartyApp` — no path literal here.
+/// else `workspace:<first-seg>`. Per-app labelling is resolved by the
+/// caller from the bundler's own project root, not from a global config.
 fn origin_for_non_packaged_source(norm: &str) -> String {
     if let Some(rest) = norm.strip_prefix("views/") {
         if let Some(name) = rest.split('/').next().filter(|s| !s.is_empty()) {
@@ -434,13 +434,14 @@ mod tests {
             r#"{"name":"@ship/charts","customElements":"dist/custom-elements.json"}"#,
         );
         write(&root.join("packages/charts/dist/custom-elements.json"), &cem("sui-bar"));
-        // A shell-local component in the sui-out mirror → app:shell (via configured firstPartyApp).
+        // A shell-local component in the sui-out mirror.
         write(
             &root.join(".ship/sui-out/apps/shell/src/sui-x/sui-x.custom-elements.json"),
             &cem("sui-x"),
         );
 
-        // Configured first-party app: apps/shell → app:shell.
+        // Build the catalog — the per-app resolver uses the bundler's
+        // own project root; the L1 framework has no per-app config.
         let workspace = build_catalog(root).unwrap();
 
         let ws_tags: Vec<&str> = workspace.entries.iter().map(|e| e.tagName.as_str()).collect();
@@ -449,9 +450,8 @@ mod tests {
         let bar = workspace.entries.iter().find(|e| e.tagName == "sui-bar").unwrap();
         assert_eq!(bar.package, "@ship/charts");
         assert!(!bar.private);
-        // The first-party app override is gone (no apps/shell-style
-        // shell-local projection); a sui-out CEM under apps/shell
-        // falls through to the workspace origin: `workspace:apps`.
+        // A sui-out CEM under apps/shell falls through to the workspace
+        // origin: `workspace:apps`. The catalog has no per-app projection.
         let x = workspace.entries.iter().find(|e| e.tagName == "sui-x").unwrap();
         assert_eq!(x.package, "workspace:apps");
         assert!(x.private);
@@ -459,8 +459,8 @@ mod tests {
 
     #[test]
     fn aggregates_sui_out_zero_config() {
-        // Without firstPartyApp, apps/shell components fall through to
-        // origin_for_non_packaged_source → workspace:apps (not app:shell).
+        // A sui-out CEM with no matching package falls through to
+        // origin_for_non_packaged_source → workspace:apps.
         let tmp = tempdir().unwrap();
         let root = tmp.path();
         write(&root.join("package.json"), r#"{"workspaces":[]}"#);
@@ -470,9 +470,10 @@ mod tests {
         );
         let workspace = build_catalog(root).unwrap();
         let x = workspace.entries.iter().find(|e| e.tagName == "sui-x").unwrap();
-        // No firstPartyApp configured — origin falls back to workspace:<first-seg>.
+        // No matching package — origin falls back to workspace:<first-seg>.
         assert_eq!(x.package, "workspace:apps");
     }
+
 
     #[test]
     fn index_maps_tag_to_existing_source_and_omits_missing() {
