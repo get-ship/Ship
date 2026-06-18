@@ -50,26 +50,59 @@ pub struct TargetDecl {
     pub out_file: Option<String>,
 }
 
-/// One scaffold declaration — a pre-wired HTML shell that Deck injects
-/// consumer scripts into.
+/// One app's serve configuration. The shape deck's per-app router consumes;
+/// shipd (or any deck host) builds a `Vec<AppServeConfig>` from its
+/// monorepo-level app list (`apps.jsonc` in the Ship repo; the host decides
+/// the source). The framework does NOT know the list — that is the host's
+/// concern.
+///
+/// Each app's `index.html` lives at `<source>/index.html` relative to the
+/// project root (the dev's authored source tree). The bundler writes
+/// `<project>/.deck/` for the built output; the dev points `source` there
+/// (e.g. `apps/hub/.deck`). The framework reads via the project's resolver
+/// so the path is repo-relative.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct ScaffoldDecl {
-    /// Logical scaffold name, e.g. `shell`.
+pub struct AppServeConfig {
+    /// Logical app name. Used for log lines + the SPA-fallback lookup
+    /// (which app serves a given multi-segment client route).
     pub name: String,
-    /// URL route pattern, e.g. `/` or `/space/{id}`.
+    /// URL route pattern. e.g. `/` (hub) or `/space/{id}` (spaces — the
+    /// `{id}` is a path capture, accessible via `inject_globals` substitution).
     pub route: String,
-    /// The scaffold template identifier.
+    /// Path to the built app, relative to the project root.
+    /// e.g. `apps/hub/.deck` or `apps/spaces/.deck`.
     pub source: String,
-    /// URL prefix under which the scaffold's assets are served.
+    /// URL prefix under which the app's assets are served.
+    /// e.g. `/hub/_assets/`. The dev's `index.html` references
+    /// `/assets/entry-…` which the framework rewrites to
+    /// `<asset_prefix>entry-…` so multiple apps don't collide on
+    /// `/assets/*`. Empty (default) = no rewrite; assets live at `/assets/`.
     #[serde(default)]
     pub asset_prefix: String,
-    /// Global JS variables injected into the scaffold's HTML.
+    /// Globals injected as `<script>window.<key>=<value>;</script>` into
+    /// the app's `index.html` before `</head>`. `$<param>` tokens in the
+    /// value are substituted from the URL path captures declared in
+    /// `route` (so for `route: "/space/{id}"` and an entry
+    /// `("DECK_APP_ID", "$id")`, the injection is `window.DECK_APP_ID="<id>";`).
     #[serde(default)]
     pub inject_globals: BTreeMap<String, String>,
 }
 
+/// Back-compat alias — `ScaffoldDecl` was the pre-per-app-app name. The new
+/// API surface uses `AppServeConfig`; the old type is preserved as a type
+/// alias so deck's existing `ScaffoldDecl` callers (read from `deck.jsonc`
+/// historically; now populated from `apps.jsonc` by the host) keep working
+/// until the cutover commit migrates them. The two names have identical
+/// shape; this is a pure rename.
+#[deprecated(note = "renamed to AppServeConfig — the framework is per-app; \
+    the host owns the list and passes Vec<AppServeConfig> to serve_apps()")]
+pub type ScaffoldDecl = AppServeConfig;
+
 /// Identifies the first-party application embedded in this host.
+/// (RETIRED — every app is per-app now; this field was the apps/shell
+/// shim. Removed in the cutover commit. The struct stays as a marker for
+/// any straggling reference until they're all updated.)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FirstPartyApp {

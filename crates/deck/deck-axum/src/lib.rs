@@ -6,12 +6,12 @@
 //! via [`into_axum`]. [`router`] registers deck's whole hosting surface as
 //! one mountable unit.
 
+pub mod apps;
 mod handlers;
 pub mod multiplex;
 pub mod pages;
 pub mod render_helpers;
 pub mod sui_source;
-
 pub use handlers::{
     serve_bundle_hmr, serve_catalog_workspace, serve_public_asset, serve_shell, serve_shell_asset,
     serve_meta,

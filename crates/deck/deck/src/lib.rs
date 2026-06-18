@@ -6,6 +6,7 @@
 //! continue to resolve without changes.
 
 pub use deck_axum::{
+    apps::{serve_app, serve_apps},
     into_axum, mode_from_ext, router, serve_bundle_hmr, serve_catalog_workspace,
     serve_public_asset, serve_shell, serve_shell_asset, serve_space, serve_space_asset,
     serve_meta,
@@ -14,6 +15,7 @@ pub use deck_axum::{
     serve_sui_view_setup, serve_view_host, serve_view_payload,
     serve_view_payload_subpath,
 };
+pub use deck_config::AppServeConfig;
 pub use deck_axum::multiplex::{MultiplexState, multiplex_router, HEARTBEAT_MS};
 
 // The SPA navigation fallback. deck's `router()` deliberately sets NO fallback

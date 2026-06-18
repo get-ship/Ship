@@ -89,18 +89,6 @@ pub async fn serve_view_host(
 ) -> Response {
     into_axum(deck_core::serve_view_host(mode_from_ext(mode), uri.path()))
 }
-
-// ── Scaffold handlers ─────────────────────────────────────────────────────────
-//
-// Both the shell (`/`) and space (`/space/{id}`) routes read their scaffold
-// declaration from the host-supplied `Extension<Arc<DeckConfig>>`. When
-// the scaffold is missing from the config (the `cfg` extension absent OR
-// the scaffolds list empty OR no matching name) the handlers return a
-// styled 404 — never a panic. deck ships no baked default scaffold
-// (no `default_shell_scaffold` / `default_space_scaffold`); a host that
-// wants to serve `/` or `/space/{id}` MUST declare the scaffold in
-// `deck.jsonc` under `scaffolds[]` (#273 — deck is a principled host,
-// it hardcodes no app names).
 /// Resolve the scaffold for the given route name from `cfg.scaffolds`.
 ///
 /// Returns `None` when the scaffold is not declared in the config — the
