@@ -218,19 +218,25 @@ pub fn build_router(
             auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
         }));
 
+    // The per-app router is merged into the root BEFORE the auth layer
+    // (apps are unauthenticated public surfaces; the auth middleware
+    // above skips them via the path-prefix checks in the SPA-nav shim).
+    // `serve_apps` reads the per-app list from `Extension<Arc<Vec<...>>>`
+    // and mounts `<app.route>` + `<app.asset_prefix>{file}` + the
+    // primary app's `/{file}` catch-all. The L1 framework (`deck::router`)
+    // still owns the framework surface (`/_deck/*` + `/api/*`); per-app
+    // serving is host-driven from this point.
+    let per_app = deck::serve_apps(&apps);
+    let apps_ext = Arc::new(apps);
     let root = Router::new()
         .merge(public_routes)
-        // (framework bundles, catalogs, pack assets, per-view
-        // template/setup/css/payload + sub-path, `/_deck/view/{name}`,
-        // and `/space/{id}` + `/space/_assets`). Mounted
-        // OUTSIDE the auth layer — these are static, no user-specific data,
-        // same posture as the rest of `/_deck/*`. `Router<()>` (its handlers
-        // read `Option<Extension<DaemonMode>>`, not `State`), so it merges
-        // straight into the stateless root. deck-axum owns these paths.
+        .merge(deck::pages::serve_index_route())
+        .merge(deck::pages::serve_setup_route())
+        .merge(per_app)
         .merge(deck::router())
         .merge(webhook_source_route)
-        .merge(authenticated_routes);
-    // No `.fallback(spa)` here — that would CLOBBER the data plane. The
+        .merge(authenticated_routes)
+        .layer(axum::Extension(apps_ext));
     // Connect-ops router (`rpc::ops::router().into_axum_service()`) dispatches the
     // entire `/ship.ops.v1.*` surface from a `fallback_service`; merging it into
     // `root` makes it root's fallback (carrying its auth layer). A
@@ -241,22 +247,17 @@ pub fn build_router(
     // the Connect fallback. The dev-only HMR firehose and the `/{file}` public-
     // asset catch-all are owned by `deck::router()`; shipd serves no frontend.
     // Load deck.jsonc from the workspace root (same root the bundler uses).
-    // Falls back to defaults when absent so a zero-config host works unchanged.
+    // The apps.jsonc list (already read by the caller) is what the
+    // router uses — the L1 framework's `DeckConfig::scaffolds` field
+    // is reserved for legacy consumers and unused by shipd post-
+    // cutover. The L1 default scaffolds (shell/space pointing at
+    // `.deck/hub-scaffold/`) are NOT applied — those are stale paths
+    // from the pre-per-app bundler model.
     let repo_root = rt.workspace_dir()
         .map(|p| p.to_path_buf())
         .or_else(|| std::env::current_dir().ok())
         .unwrap_or_else(|| rt.ship_dir().to_path_buf());
-    let mut deck_cfg = DeckConfig::load(&repo_root);
-    // Layer the apps.jsonc list OVER the deck.jsonc scaffolds: the host's
-    // `apps` list (already read by the caller and passed in) takes
-    // precedence over any scaffold entries the L1 defaults baked. The
-    // field is deprecated and goes away in the cutover commit; until
-    // then this keeps the old L1 serve_shell/serve_space handlers
-    // working while the new per-app API is exercised in parallel.
-    if !apps.is_empty() {
-        deck_cfg.scaffolds = apps.clone();
-    }
-    let deck_cfg = Arc::new(deck_cfg);
+    let deck_cfg = Arc::new(DeckConfig::load(&repo_root));
     let dbi = {
         let bi = build_info::build_info!();
         deck::DaemonBuildInfo {
@@ -282,11 +283,6 @@ pub fn build_router(
         // DeckConfig Extension — scaffold handlers (serve_shell, serve_space)
         // read scaffold declarations + inject_globals from this.
         .layer(axum::Extension(deck_cfg))
-        // Per-app serve config (the new per-app API) — the host injects
-        // the apps it knows about. The new handlers in
-        // `deck::apps::serve_app_*` read this. The old scaffold handlers
-        // ignore it; the cutover commit migrates them to read it.
-        .layer(axum::Extension(Arc::new(apps)))
         // DaemonBuildInfo Extension — deck's /_deck/meta handler reads this
         // to report the daemon's own build identity alongside the compiler's.
         .layer(axum::Extension(dbi))

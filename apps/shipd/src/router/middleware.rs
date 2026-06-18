@@ -1,17 +1,17 @@
 //! Router-level middlewares: the SPA-navigation shim and the build-skew header.
-
 use axum::response::Response;
 use std::sync::Arc;
 
-use deck::config::DeckConfig;
+use deck::AppServeConfig;
 
 /// Pre-routing SPA-navigation shim. A GET to a client-route path — a bare in-app
 /// route like `/git` or `/studio/themes` with no real server handler — is served
-/// the shell scaffold so a deep-link refresh hydrates client-side. Everything
-/// else flows through to routing, crucially the Connect-ops `fallback_service`
-/// (`/ship.ops.v1.*`, the root fallback) which a `.fallback(spa)` handler would
-/// otherwise shadow into a dead data plane. Runs INNER to the DaemonMode/
-/// DeckConfig extension layers so it can read them for `serve_shell`.
+/// the primary app's `index.html` so a deep-link refresh hydrates client-side.
+/// Everything else flows through to routing, crucially the Connect-ops
+/// `fallback_service` (`/ship.ops.v1.*`, the root fallback) which a
+/// `.fallback(spa)` handler would otherwise shadow into a dead data plane.
+/// Runs INNER to the DaemonMode/AppServeConfig extension layers so it can
+/// read them for the primary-app lookup.
 pub(super) async fn spa_nav_middleware(
     req: axum::extract::Request,
     next: axum::middleware::Next,
@@ -22,12 +22,18 @@ pub(super) async fn spa_nav_middleware(
             .get::<deck::DaemonMode>()
             .cloned()
             .map(axum::Extension);
-        let cfg = req
-            .extensions()
-            .get::<Arc<DeckConfig>>()
-            .cloned()
-            .map(axum::Extension);
-        return deck::serve_shell(mode, cfg).await;
+        let apps = req.extensions().get::<Arc<Vec<AppServeConfig>>>().cloned();
+        // Has a primary app? Serve its `index.html` (the SPA fallback
+        // for client-nav paths). No primary app? Let routing continue
+        // and the 404 handle it.
+        if apps.as_ref().is_some_and(|v| v.iter().any(|a| a.route == "/")) {
+            return deck::pages::serve_index(
+                mode,
+                apps.map(axum::Extension),
+                None,
+            )
+            .await;
+        }
     }
     next.run(req).await
 }

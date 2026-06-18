@@ -6,9 +6,8 @@
 //! continue to resolve without changes.
 
 pub use deck_axum::{
-    apps::{serve_app, serve_apps},
-    into_axum, mode_from_ext, router, serve_bundle_hmr, serve_catalog_workspace,
-    serve_public_asset, serve_shell, serve_shell_asset, serve_space, serve_space_asset,
+    apps::serve_apps,
+    into_axum, mode_from_ext, pages, router,
     serve_meta,
     serve_sui_dom, serve_sui_icon, serve_sui_live_reload,
     serve_sui_runtime, serve_sui_sdk_client,

@@ -78,10 +78,12 @@ pub fn into_axum(resp: DeckResponse) -> Response {
 /// `/_deck/meta` is registered here; hosts that need to inject a
 /// `DaemonBuildInfo` extension (shipd) simply layer it before mounting.
 pub fn router() -> Router {
-    use pages::{
-        serve_index, serve_setup, serve_theme_css, serve_themes_list, serve_view_tokens,
-        spa_or_public_asset,
-    };
+    use pages::{serve_theme_css, serve_themes_list, serve_view_tokens};
+    // First-run /, /setup, and /{file} SPA/public catch-all are HOST
+    // concerns. The host mounts `serve_index` (first-run check) at `/`,
+    // `serve_setup` at `/setup`, and the per-app `serve_apps` for the
+    // app's routes + per-app `/{file}` catch-all. The framework only
+    // owns the framework surface (`/_deck/*` + `/api/*`).
     Router::new()
         // Shared CSS / theme assets (unauthenticated) — paths are the
         // canonical `Route` enum values (routes.rs is ground truth).
@@ -90,9 +92,6 @@ pub fn router() -> Router {
         .route("/api/v1/themes", get(serve_themes_list))
         // Per-tag component source viewer (dev studio deep-link).
         .route("/_deck/source/{tag}", get(sui_source::serve_sui_source))
-        // First-run flow — both routes unauthenticated; decision via DataPort.
-        .route("/", get(serve_index))
-        .route("/setup", get(serve_setup))
         // HMR firehose — always mounted; the handler self-gates (empty SSE
         // when no bundler is wired), so no `if Development` guard is needed.
         .route("/_deck/dev/hmr", get(serve_bundle_hmr))
@@ -110,13 +109,6 @@ pub fn router() -> Router {
         .route("/_deck/meta", get(serve_meta))
         .route("/_deck/views/{name}/view.js", get(serve_sui_view_setup))
         .route("/_deck/views/{name}", get(serve_view_payload))
-        .route("/_deck/views/{name}/{*sub_path}", get(serve_view_payload_subpath))
-        .route("/space/_assets/{file}", get(serve_space_asset))
-        .route("/space/{id}", get(serve_space))
-        // Shell assets at /shell/_assets/{file} (symmetric with /space/_assets).
-        .route("/shell/_assets/{file}", get(serve_shell_asset))
-        // Single-view host surface under deck's /_deck/ namespace (singular
-        // "view" to avoid colliding with the plural "views" payload routes).
         .route("/_deck/view/{name}", get(serve_view_host))
         .route("/_deck/view/{name}/{*sub_path}", get(serve_view_host))
         // `POST /_deck/mutation/{name}` — 410 tombstone. The progressive-
@@ -129,12 +121,10 @@ pub fn router() -> Router {
             "/_deck/mutation/{name}",
             axum::routing::post(|| async { StatusCode::GONE }),
         )
-        // Host public assets at single-segment root paths (/favicon.ico, …) or
-        // the shell for a bare client-route segment. Registered AFTER the
-        // literal `/`, `/setup`, and `/api/...` routes so those keep their
-        // handlers; `/{file}` is the single-segment catch-all (axum prefers the
-        // literal routes).
-        .route("/{file}", get(spa_or_public_asset))
+    // The SPA / public-asset dispatch (`/{file}`) is host-driven; the
+    // per-app `serve_apps` mounts it for the primary app. The host's
+    // other routes (the connect fallback, `/api/*`, the per-app routes)
+    // all wire here.
     // No `.fallback` here: deck's `router()` is MERGED into the host's root
     // alongside the Connect-ops router, whose entire RPC dispatch IS a
     // `fallback_service`. axum panics if two merged routers both carry a

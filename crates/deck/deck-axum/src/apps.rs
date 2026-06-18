@@ -114,63 +114,62 @@ pub async fn serve_app_public(
 }
 
 // ── Router ─────────────────────────────────────────────────────────────────────
-
-/// Build the per-app router for a single app. The host calls this once
-/// per app and merges the resulting routers (or calls [`serve_apps`]
-/// which does the loop).
-///
-/// Each app gets two routes:
-/// - `GET <route>` (with `{name}` captures extracted as a HashMap)
-/// - `GET <asset_prefix>{file}`
-///
-/// The per-app public-asset catch-all is NOT per-app here — the host's
-/// existing `/{file}` catch-all routes to the FIRST app in its list
-/// (the asset_prefix is the per-app namespace for `assets/`; public
-/// files are app-specific so a single-segment root path needs a
-/// per-app source lookup). The host wires `serve_app_public` directly
-/// for each app at the `/{file}` route, layering them so the first
-/// app's public wins.
-pub fn serve_app(app: &AppServeConfig) -> Router {
-    let app_ext = Arc::new(app.clone());
-    Router::new()
-        .route(&app.route, get(serve_app_index))
-        .route(
-            &format!(
-                "/{}/{{file}}",
-                app.asset_prefix.trim_end_matches('/').trim_start_matches('/')
-            ),
-            get(serve_app_asset),
-        )
-        .layer(Extension(app_ext))
-}
-
 /// Build the per-app router for a list of apps. The host calls this once
 /// at startup; the resulting router merges into the host's root alongside
 /// the Connect fallback + the deck framework surface (`/_deck/*`).
 ///
-/// The order matters: the FIRST app in the list catches single-segment
-/// root paths (`/{file}`) for public assets. Hosts that have multiple
-/// apps with public assets should give each app a unique asset_prefix
-/// (the bundler emits this automatically from the project's name) so
-/// the per-app asset namespace is collision-free.
+/// ## Layering rules
+///
+/// - The PRIMARY app (the first one in the list, conventionally the
+///   one at route `/`) gets:
+///   - `GET /<asset_prefix>{file}` (per-app asset namespace)
+///   - `GET /{file}` (per-app public-asset catch-all, primary only)
+///   - The PRIMARY app's `GET /` (the index) is NOT mounted here —
+///     `serve_index` (host's first-run flow) owns `/`. Both layers
+///     converge: `serve_index` serves the same primary app's
+///     `index.html` once provisioned; before provisioning it
+///     redirects to `/setup`. The framework deliberately does not
+///     mount `<primary.route>` for the primary app to avoid the
+///     route conflict (and the bug where `/` would 404 the first-run
+///     flow).
+/// - Each NON-PRIMARY app (e.g. spaces at `/space/{id}`) gets:
+///   - `GET <app.route>` (e.g. `/space/{id}`)
+///   - `GET /<asset_prefix>{file}` (per-app asset namespace)
 pub fn serve_apps(apps: &[AppServeConfig]) -> Router {
     let mut router = Router::new();
-    for app in apps {
-        router = router.merge(serve_app(app));
+    for (i, app) in apps.iter().enumerate() {
+        let is_primary = i == 0;
+        // The primary app's `/` is served by `serve_index`, not here.
+        // Skip route mounting for the primary app at `/`.
+        if !(is_primary && app.route == "/") {
+            let app_ext = Arc::new(app.clone());
+            router = router
+                .route(
+                    &app.route,
+                    get(serve_app_index).layer(Extension(app_ext)),
+                );
+        }
+        // The asset_prefix is per-app; mount it for every app.
+        let asset_prefix = app
+            .asset_prefix
+            .trim_end_matches('/')
+            .trim_start_matches('/');
+        if !asset_prefix.is_empty() {
+            let app_ext = Arc::new(app.clone());
+            router = router.route(
+                &format!("/{asset_prefix}/{{file}}"),
+                get(serve_app_asset).layer(Extension(app_ext)),
+            );
+        }
     }
-    // Public-asset catch-all: the first app's `serve_app_public` handles
-    // single-segment root paths. The Extension is per-app, so each app
-    // would need its own route — but axum only allows ONE `/{file}` route
-    // per router. Hosts with multiple apps use the asset_prefix to
-    // namespace their public assets; the bare `/{file}` is reserved for
-    // the primary app (the one at the root route).
+    // Public-asset catch-all: the primary app's `serve_app_public`
+    // handles single-segment root paths (`/favicon.ico`, `/logo.svg`).
     if let Some(primary) = apps.first() {
         let primary_ext = Arc::new(primary.clone());
-        router = router
-            .route(
-                "/{file}",
-                get(serve_app_public).layer(Extension(primary_ext)),
-            );
+        router = router.route(
+            "/{file}",
+            get(serve_app_public).layer(Extension(primary_ext)),
+        );
     }
     router
 }
