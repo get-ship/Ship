@@ -32,9 +32,12 @@ defineRoutes(DYNAMIC_ROUTE_PATTERNS)
 import { mount } from '@ship/sui-runtime';
 import { navigate, route as createRoute } from '@ship/deck/route';
 import * as indexView from './routes/page.sui';
+// Stash the module on globalThis so the bundler can't tree-shake
+// the import. The namespace is read by the mount() call below;
+// the tree-shaker can't see into the externalized runtime, so
+// without this side-effect it would elide the entire view module.
+globalThis.__shipHubIndexView = indexView;
 const __r = createRoute({ routes: DYNAMIC_ROUTE_PATTERNS });
-// The runtime's mount() handles both SSR (payload.html + hydrate)
-// and CSR (view's __mount creates the DOM, then hydrate wires
 // signals). For the bundled path, payload.html is empty; the
 // runtime's CSR fallback calls `setupRet.__mount(target)` to
 // build the DOM in place. We just call mount with the empty

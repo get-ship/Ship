@@ -280,7 +280,7 @@ impl Plugin for SuiPlugin {
         if let Some(sui) = sui {
             let code = self
                 .compile(&sui)
-                .map_err(|e| anyhow!("{e}"))?;
+                .map_err(|e| anyhow!("compile {}: {e}", sui.display()))?;
             return Ok(Some(HookLoadOutput {
                 code: code.into(),
                 module_type: Some(ModuleType::Js),

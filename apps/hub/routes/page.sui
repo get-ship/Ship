@@ -1,14 +1,28 @@
 <!--
   Hub home — the primary app's index route (`/`).
 
-  The simplest possible page: a heading and a subheading. The template
-  reads `{name()}` from the controller's scope, which triggers the
-  compiler to emit a `hydrate()` function on the view's setup
-  return — without any signal read, the runtime's mount() would have
-  nothing to call (the compiler only emits hydrate when the template
-  binds to scope signals). The signal is unused; the read is a no-op
-  marker for the compiler.
+  Top chrome: <sui-nav-top> with the brand mark (left), and
+  the theme picker + account chip (right). The center
+  `default` slot is intentionally empty for v0 — the cmdk
+  command palette is a real component that will be added
+  in a follow-up. The nav-top works without a center slot;
+  the app chooses what to fill.
+
+  All chrome components are real primitives from
+  `@ship/sui-primitives`. The only thing this page owns is
+  the home content below the bar.
+
+  The `{name()}` binding exists so the compiler emits
+  `hydrate` on the view's setup return (the compiler only
+  emits hydrate when the template binds to scope signals;
+  without it the runtime has nothing to call). The signal
+  is a no-op constant.
 -->
+<sui-nav-top>
+  <sui-brand-mark slot="brand" href="/" aria-label="Ship home"></sui-brand-mark>
+  <sui-theme-picker slot="actions" placement="bottom-end"></sui-theme-picker>
+  <sui-account-chip slot="actions"></sui-account-chip>
+</sui-nav-top>
 <main>
   <h1>{name()}</h1>
   <p>Ship's primary app — ready when you are.</p>
