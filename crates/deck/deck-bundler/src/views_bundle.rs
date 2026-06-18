@@ -87,7 +87,6 @@ pub async fn bundle_views(
 
     let resolver = component_index(
         &layout.repo_root,
-        layout.cfg.first_party_app.as_ref(),
         &layout.cfg.packs,
     );
     let plugin = SuiPlugin {

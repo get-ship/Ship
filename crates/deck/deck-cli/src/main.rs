@@ -367,7 +367,6 @@ fn build(project: PathBuf, out: Option<PathBuf>, bundle_framework: bool, minify:
     let b = rt
         .block_on(deck_bundler::app::bundle_app(
             &repo_root,
-            cfg.first_party_app.as_ref(),
             &cfg.packs,
             &cfg.component_source_roots,
             &project,
@@ -378,9 +377,6 @@ fn build(project: PathBuf, out: Option<PathBuf>, bundle_framework: bool, minify:
             &deck_out_dir,
         ))
         .map_err(|e| anyhow::anyhow!("{e:#}"))?;
-
-    println!("deck build → {}", b.out_dir.display());
-    println!("  js  {}", b.js_href);
     if b.framework_assets > 0 {
         println!("  _deck  {} files (self-contained)", b.framework_assets);
     }

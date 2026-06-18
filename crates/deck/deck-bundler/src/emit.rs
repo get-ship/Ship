@@ -127,11 +127,12 @@ mod tests {
     fn emits_target_with_chunk_closure() {
         let tmp = tempdir().unwrap();
         let repo = tmp.path().to_path_buf();
-        // sui-marketing is a consumer target → lands in .deck/.
-        let deck = repo.join(".deck");
-        std::fs::create_dir_all(&deck).unwrap();
-        std::fs::write(deck.join("sui-marketing.js"), r#"import("./Chunk-X.js");"#).unwrap();
-        std::fs::write(deck.join("Chunk-X.js"), "export const x = 1;").unwrap();
+        // sui-marketing is a consumer target → lands in the host's
+        // assets root (repo-relative, not `.deck/`).
+        let assets = repo.clone();
+        std::fs::create_dir_all(&assets).unwrap();
+        std::fs::write(assets.join("sui-marketing.js"), r#"import("./Chunk-X.js");"#).unwrap();
+        std::fs::write(assets.join("Chunk-X.js"), "export const x = 1;").unwrap();
         // Declare the target via deck.jsonc.
         std::fs::write(
             repo.join("deck.jsonc"),

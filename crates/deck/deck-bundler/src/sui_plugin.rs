@@ -17,7 +17,6 @@ use rolldown::plugin::{
 };
 use rolldown_common::{ModuleType, ResolvedExternal};
 
-use deck_config::FirstPartyApp;
 
 use crate::compile::{compile_sui, CompileMode};
 
@@ -396,7 +395,7 @@ mod tests {
         let root = tmp.path();
         let declared: Vec<String> = vec!["@ship/sui-primitives".into()];
 
-        let scoped = component_index(root, None, &declared);
+        let scoped = component_index(root, &declared);
         assert!(scoped.index.contains_key("sui-button"), "declared tag resolves");
         assert!(
             !scoped.index.contains_key("ship-agent-card"),
@@ -415,7 +414,7 @@ mod tests {
     fn component_index_global_resolves_all_and_shadows_nothing() {
         let tmp = two_pack_fixture();
         let root = tmp.path();
-        let global = component_index(root, None, &[]);
+        let global = component_index(root, &[]);
         assert!(global.index.contains_key("sui-button"));
         assert!(global.index.contains_key("ship-agent-card"));
         assert!(global.shadowed.is_empty(), "global scope shadows nothing");
@@ -427,7 +426,7 @@ mod tests {
 /// A component added mid-process isn't picked up until restart — until then its
 /// tag resolves to a virtual no-op.
 ///
-/// `first_party_app` comes from `deck.jsonc` and drives the shell-local CEM
+/// `` comes from `deck.jsonc` and drives the shell-local CEM
 /// projection (which app root gets a special origin label). `None` in
 /// zero-config hosts — the projection simply doesn't apply.
 ///
@@ -439,7 +438,6 @@ mod tests {
 /// but declaring different packs don't collide.
 pub(crate) fn component_index(
     repo_root: &Path,
-    first_party_app: Option<&FirstPartyApp>,
     packs: &[String],
 ) -> ResolverIndex {
     type CacheKey = (PathBuf, Vec<String>);
@@ -450,14 +448,12 @@ pub(crate) fn component_index(
     if let Some(idx) = guard.get(&key) {
         return idx.clone();
     }
-    let scope = if packs.is_empty() { None } else { Some(packs) };
     let resolver = ResolverIndex {
         index: Arc::new(crate::catalog::tag_source_index_scoped(
             repo_root,
-            first_party_app,
-            scope,
+            Some(packs),
         )),
-        shadowed: Arc::new(crate::catalog::shadowed_tags(repo_root, first_party_app, packs)),
+        shadowed: Arc::new(crate::catalog::shadowed_tags(repo_root, packs)),
     };
     guard.insert(key, resolver.clone());
     resolver

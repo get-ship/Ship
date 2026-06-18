@@ -48,9 +48,10 @@ bootstrap:
     # pre-compile step — components compile from source on demand.
     cargo run -p deck-cli --quiet -- build-assets
     # Hub + space scaffolds: the daemon-served `/` and `/space/<id>` HTML apps.
-    # A fresh tree without these blanks the shell (no `/`) and any
-    # `--app=<id>` Tauri window (no `/space/<id>`).
-    cargo run -q -p deck-cli -- build --project apps/shell --bundle-framework
+    # The bundler reads `apps.jsonc` for the per-app list; the per-app
+    # `bundle-framework` flag materializes the framework singletons so
+    # each app's `.deck/` is self-contained.
+    cargo run -q -p deck-cli -- build --project apps/hub --bundle-framework
     cargo run -q -p deck-cli -- build --project apps/spaces
     just dev-runtime-install
     echo "bootstrap complete — 'just dev' to start the daemon"
@@ -85,7 +86,7 @@ gen-routes:
 [group('daily')]
 dev-build-all: _sui-compiler-lib gen-routes
     @cargo run -p deck-cli --quiet -- build-assets
-    @cargo run -q -p deck-cli -- build --project apps/shell --bundle-framework
+    @cargo run -q -p deck-cli -- build --project apps/hub --bundle-framework
     @cargo run -q -p deck-cli -- build --project apps/spaces
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
@@ -339,7 +340,7 @@ build: _sui-compiler-lib
     cargo run -p deck-cli --quiet -- build-assets
     echo "[4/8] catalog baked in [3/8] — the duplicate TS producer (@ship/sui-catalog) is retired; deck-bundler is the single source"
     echo "[5/8] hub scaffold (the daemon-served / — bundled with framework assets so the dir is self-contained for installed builds)"
-    cargo run -q -p deck-cli -- build --project apps/shell --bundle-framework
+    cargo run -q -p deck-cli -- build --project apps/hub --bundle-framework
     echo "[6/8] space scaffold (the daemon-served /space/<id> — the thin per-space frontend a Tauri --app=<id> window loads; DECK_APP_ID is injected by the daemon at serve time)"
     cargo run -q -p deck-cli -- build --project apps/spaces
     echo "[7/8] cargo build --release (ship-cli + shipd)"

@@ -64,24 +64,19 @@ pub(crate) fn detect_project_root_from(cwd: &std::path::Path) -> Option<PathBuf>
 use deck_host::resolver::ViewLayout;
 pub use deck_host::resolver::{ResolvedView, ResolveError, render_resolved};
 /// First-party view root, in resolution order:
+/// 1. `DECK_FIRST_PARTY_VIEWS` env var (set by shipd on dev launch to
+///    point at the workspace's first-party view source — typically
+///    `apps/hub/src` or `apps/spaces/src`).
 ///
-/// 1. `DeckConfig.first_party_app.root` from `<project_root>/deck.jsonc`
-///    (the canonical config-driven source — deck never names the app).
-/// 2. `DECK_FIRST_PARTY_VIEWS` env var.
+/// 2. The deck framework no longer hardcodes an `apps/shell`-style
+///    bucket. Each per-project bundler is responsible for declaring
+///    which views it ships (the per-app `serve_apps` API is the
+///    contract); the framework's resolver sees a flat, host-provided
+///    view surface.
 ///
-/// When none of the above is set, the host is non-ship and there is no
+/// When the env var is unset, the host is non-ship and there is no
 /// first-party bucket. See .artifacts/asset-architecture.md.
 fn first_party_root() -> Option<PathBuf> {
-    if let Some(root) = resolve_project_root() {
-        let cfg = deck_config::DeckConfig::load(&root);
-        if let Some(fpa) = cfg.first_party_app {
-            // `fpa.root` is repo-relative (e.g. `apps/shell/src`); the host
-            // resolver expects an absolute path so its `canonicalize`
-            // containment guard has a stable root. The relative-path form
-            // would resolve against cwd, which is not what callers mean.
-            return Some(root.join(fpa.root));
-        }
-    }
     std::env::var("DECK_FIRST_PARTY_VIEWS")
         .ok()
         .map(PathBuf::from)

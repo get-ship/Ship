@@ -337,7 +337,7 @@ impl Bundler {
         }
     }
     fn refresh_catalog(&self, layout: &BundleLayout) {
-        match catalog::build_catalog(&layout.repo_root, layout.cfg.first_party_app.as_ref()) {
+        match catalog::build_catalog(&layout.repo_root) {
             Ok(ws) => {
                 let dir = layout.repo_root.join(".deck/catalogs");
                 let _ = std::fs::create_dir_all(&dir);

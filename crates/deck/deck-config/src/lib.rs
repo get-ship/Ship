@@ -88,30 +88,6 @@ pub struct AppServeConfig {
     #[serde(default)]
     pub inject_globals: BTreeMap<String, String>,
 }
-
-/// Back-compat alias — `ScaffoldDecl` was the pre-per-app-app name. The new
-/// API surface uses `AppServeConfig`; the old type is preserved as a type
-/// alias so deck's existing `ScaffoldDecl` callers (read from `deck.jsonc`
-/// historically; now populated from `apps.jsonc` by the host) keep working
-/// until the cutover commit migrates them. The two names have identical
-/// shape; this is a pure rename.
-#[deprecated(note = "renamed to AppServeConfig — the framework is per-app; \
-    the host owns the list and passes Vec<AppServeConfig> to serve_apps()")]
-pub type ScaffoldDecl = AppServeConfig;
-
-/// Identifies the first-party application embedded in this host.
-/// (RETIRED — every app is per-app now; this field was the apps/shell
-/// shim. Removed in the cutover commit. The struct stays as a marker for
-/// any straggling reference until they're all updated.)
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FirstPartyApp {
-    /// Source root of the embedded app, e.g. `apps/shell`.
-    pub root: PathBuf,
-    /// Logical label, e.g. `app:shell`.
-    pub label: String,
-}
-
 /// The parsed contents of `deck.jsonc`.
 ///
 /// The container-level `#[serde(default)]` fills every missing field from
@@ -121,22 +97,24 @@ pub struct FirstPartyApp {
 /// container default and silently replaces the documented fallback with the
 /// type's empty value (an empty `view_dirs` once disabled view discovery for
 /// every host with a partial deck.jsonc).
+///
+/// ## What this is NOT
+///
+/// `DeckConfig` describes the L1 BUNDLE BUILD (consumer targets, source
+/// roots, watch dirs, packs). It does NOT describe the host's app list —
+/// the host reads its own `apps.jsonc` (or equivalent) and passes the
+/// per-app `Vec<AppServeConfig>` to the framework's `serve_apps()`.
+/// L1 is per-app; the host owns the list.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct DeckConfig {
     /// Consumer bundle targets (NOT the framework singletons — those are
     /// hardcoded inside deck-bundler and never declared here).
     pub targets: Vec<TargetDecl>,
-    /// Scaffold declarations — pre-wired HTML shells.
-    pub scaffolds: Vec<ScaffoldDecl>,
     /// Source roots to scan for views. Defaults to `["."]` (workspace root).
     pub source_roots: Vec<PathBuf>,
     /// Directories the bundler watches for live-reload. Defaults to `[]`.
     pub watch: Vec<PathBuf>,
-    /// Root directory where host-owned assets land (e.g. `apps/shipd/assets`).
-    pub host_assets_root: PathBuf,
-    /// First-party application embedded in this host, if any.
-    pub first_party_app: Option<FirstPartyApp>,
     /// Declared component packs (per-project component scope).
     ///
     /// When present and non-empty, component resolution is SCOPED to ONLY these
@@ -160,11 +138,6 @@ pub struct DeckConfig {
     /// `view_dirs` fixes the #254 leaf-name divergence (`page.sui` vs
     /// `index.sui`) that broke `.ship/views/<name>/index.sui` resolution.
     pub view_leaf: Option<String>,
-    /// Root-relative public-asset directory (e.g. `apps/shell/public`). When set,
-    /// deck serves single-segment root paths (`/favicon.ico`, `/ship-logo.svg`)
-    /// from `<project_root>/<public_dir>/<file>`. `None` = no public-asset server.
-    /// deck resolves the project root via its own resolver — never a Ship path.
-    pub public_dir: Option<PathBuf>,
     /// Repo-root-relative directories searched, in order, to resolve a
     /// `@ship/<name>` component import to its package source. The resolver
     /// joins `<repo_root>/<root>/<name>` for each root and takes the first
@@ -187,18 +160,14 @@ impl DeckConfig {
     pub fn defaults() -> Self {
         Self {
             targets: Vec::new(),
-            scaffolds: Vec::new(),
             source_roots: vec![PathBuf::from(".")],
             watch: Vec::new(),
-            host_assets_root: PathBuf::from(".deck"),
-            first_party_app: None,
             packs: Vec::new(),
             // Conventional view buckets. Override per-host in deck.jsonc.
             view_dirs: vec!["views".into(), ".ship/views".into()],
             // Single leaf convention — fixes the #254 `index.sui`/`page.sui`
             // divergence. Both buckets look up `<name>/<view_leaf>`.
             view_leaf: Some("page.sui".into()),
-            public_dir: None,
             // Generic single-root layout — `<repo_root>/packages/<name>`.
             // Hosts with a nested component layout override in deck.jsonc;
             // deck's code bakes no monorepo-specific search order.
@@ -234,7 +203,6 @@ impl DeckConfig {
         }
     }
 }
-
 
 /// Strip JSONC extensions from a string: `//` line comments, `/* */` block
 /// comments, and trailing commas before `]` or `}`. The result is valid JSON.
@@ -346,25 +314,8 @@ mod tests {
       "outFile": "sui-pdf.js" // explicit out_file override
     }
   ],
-  "scaffolds": [
-    {
-      "name": "shell",
-      "route": "/",
-      "source": "hub-scaffold",
-      "assetPrefix": "/shell/_assets/"
-    },
-    {
-      "name": "space",
-      "route": "/space/{id}",
-      "source": "space-scaffold",
-      "assetPrefix": "/space/_assets/",
-      "injectGlobals": { "DECK_APP_ID": "$id" }
-    }
-  ],
   "sourceRoots": ["."],
-  "watch": ["packages", "apps/shell/src"],
-  "hostAssetsRoot": ".deck",
-  "firstPartyApp": { "root": "apps/shell/src", "label": "app:shell" }
+  "watch": ["packages", "apps/site/src"]
 }"#;
     #[test]
     fn parse_example_jsonc() {
@@ -376,16 +327,8 @@ mod tests {
         assert_eq!(arcade.kind, TargetKind::LazyPack);
         let pdf = &cfg.targets[2];
         assert_eq!(pdf.out_file.as_deref(), Some("sui-pdf.js"));
-        assert_eq!(cfg.scaffolds.len(), 2);
-        let space = &cfg.scaffolds[1];
-        assert_eq!(space.route, "/space/{id}");
-        assert_eq!(space.inject_globals.get("DECK_APP_ID").map(String::as_str), Some("$id"));
         assert_eq!(cfg.source_roots, vec![PathBuf::from(".")]);
-        assert_eq!(cfg.watch, vec![PathBuf::from("packages"), PathBuf::from("apps/shell/src")]);
-        assert_eq!(cfg.host_assets_root, PathBuf::from(".deck"));
-         let app = cfg.first_party_app.as_ref().unwrap();
-        assert_eq!(app.root, PathBuf::from("apps/shell/src"));
-        assert_eq!(app.label, "app:shell");
+        assert_eq!(cfg.watch, vec![PathBuf::from("packages"), PathBuf::from("apps/site/src")]);
     }
     #[test]
     fn defaults_round_trip() {
@@ -395,15 +338,9 @@ mod tests {
         let d2: DeckConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(d, d2);
         assert!(d.targets.is_empty());
-        assert!(d.scaffolds.is_empty());
         assert_eq!(d.source_roots, vec![PathBuf::from(".")]);
         assert!(d.watch.is_empty());
-        assert_eq!(d.host_assets_root, PathBuf::from(".deck"));
-        assert!(d.first_party_app.is_none());
         assert!(d.packs.is_empty(), "defaults declare no packs → global resolution");
-        // View layout defaults match the conventional buckets.
-        assert_eq!(d.view_dirs, vec!["views".to_string(), ".ship/views".to_string()]);
-        assert_eq!(d.view_leaf.as_deref(), Some("page.sui"));
     }
 
     /// `packs` is optional and additive — an absent field parses to empty,
@@ -432,13 +369,10 @@ mod tests {
     #[test]
     fn partial_file_keeps_view_layout_defaults() {
         let json = r#"{
-  "scaffolds": [
-    { "name": "space", "route": "/space/{id}", "source": "space-scaffold" }
-  ]
+  "watch": ["packages"]
 }"#;
         let cfg: DeckConfig =
             serde_json::from_str(&strip_jsonc_comments(json)).expect("partial deck.jsonc parses");
-        assert_eq!(cfg.scaffolds.len(), 1);
         assert_eq!(
             cfg.view_dirs,
             vec!["views".to_string(), ".ship/views".to_string()],

@@ -78,7 +78,6 @@ pub async fn bundle_target(
     let resolver = if emit_component_imports {
         component_index(
             &layout.repo_root,
-            layout.cfg.first_party_app.as_ref(),
             &layout.cfg.packs,
         )
     } else {

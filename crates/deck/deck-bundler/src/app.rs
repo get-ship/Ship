@@ -155,7 +155,6 @@ fn read_package_name(project: &Path) -> Result<String> {
 /// and the routes/ walk, respectively.
 pub async fn bundle_app(
     repo_root: &Path,
-    first_party_app: Option<&deck_config::FirstPartyApp>,
     packs: &[String],
     component_source_roots: &[PathBuf],
     project: &Path,
@@ -241,7 +240,7 @@ pub async fn bundle_app(
         ..Default::default()
     };
     let app_plugin = AppPlugin { externals };
-    let resolver = crate::sui_plugin::component_index(repo_root, first_party_app, packs);
+    let resolver = crate::sui_plugin::component_index(repo_root, packs);
     let sui_plugin = crate::sui_plugin::SuiPlugin {
         repo_root: repo_root.to_path_buf(),
         emit_component_imports: true,
@@ -313,7 +312,7 @@ pub async fn bundle_app(
     // by shipd) carries every entry the new .sui emit just produced. The
     // watcher path (Bundler::build_all) refreshes too; this closes the gap
     // for the CLI `build` subcommand, which calls bundle_app directly.
-    match crate::catalog::build_catalog(repo_root, first_party_app) {
+    match crate::catalog::build_catalog(repo_root) {
         Ok(ws) => {
             let dir = repo_root.join(".deck/catalogs");
             let _ = std::fs::create_dir_all(&dir);
@@ -362,7 +361,7 @@ mod tests {
         write(&r.join("public/favicon.ico"), "ICO");
 
         let out = r.join("dist");
-        let build = bundle_app(r, None, &[], &[], r, &out, false, false, r, r)
+        let build = bundle_app(r, &[], &[], r, &out, false, false, r, r)
             .await
             .expect("bundle_app");
 
@@ -414,7 +413,7 @@ mod tests {
         );
 
         let out = r.join("dist");
-        bundle_app(r, None, &[], &[], r, &out, false, false, r, r)
+        bundle_app(r, &[], &[], r, &out, false, false, r, r)
             .await
             .expect("bundle_app should compile the .sui entry in-process");
     }

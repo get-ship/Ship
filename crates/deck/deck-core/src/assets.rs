@@ -1,5 +1,5 @@
 use crate::{CachePolicy, DaemonMode, DeckResponse};
-use deck_config::ScaffoldDecl;
+use deck_config::AppServeConfig;
 
 const ASSETS_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
@@ -94,7 +94,7 @@ pub fn resolve_view_js(name: &str) -> Option<String> {
 
 // ── Scaffold serving ──────────────────────────────────────────────────────────
 //
-// A `ScaffoldDecl` (from `deck.jsonc` or built-in defaults) describes one HTML
+// A `AppServeConfig` (from `deck.jsonc` or built-in defaults) describes one HTML
 // shell: which built artifact to load (`source`), where its hashed assets are
 // re-rooted (`asset_prefix`), and which `window.<key>=<value>` globals to
 // inject (`inject_globals`). This single function handles every scaffold route
@@ -104,7 +104,7 @@ pub fn resolve_view_js(name: &str) -> Option<String> {
 // the config value `"$id"` resolve to the actual route param. Any `$key` token
 // in an `inject_globals` value is replaced with the matching param.
 
-/// Serve an HTML scaffold defined by a `ScaffoldDecl`.
+/// Serve an HTML scaffold defined by a `AppServeConfig`.
 ///
 /// - Reads the built index.html from `<deck_out>/<source>/index.html`.
 /// - Rewrites `"/assets/` → `"<asset_prefix>` so Vite-hashed asset hrefs
@@ -118,7 +118,7 @@ pub fn resolve_view_js(name: &str) -> Option<String> {
 /// 404 only when neither exists.
 pub fn serve_scaffold(
     mode: DaemonMode,
-    scaffold: &ScaffoldDecl,
+    scaffold: &AppServeConfig,
     params: &[(&str, &str)],
 ) -> DeckResponse {
     let Some(html) = read_deck_asset(&format!("{}/index.html", scaffold.source))
@@ -196,7 +196,7 @@ pub fn serve_scaffold(
 /// percent-decoded but NOT stripped of `..` segments. Validate it before
 /// constructing the path to prevent directory traversal: a request like
 /// `/space/_assets/../../../etc/passwd` would otherwise escape the assets dir.
-pub fn serve_scaffold_asset(mode: DaemonMode, scaffold: &ScaffoldDecl, file: &str) -> DeckResponse {
+pub fn serve_scaffold_asset(mode: DaemonMode, scaffold: &AppServeConfig, file: &str) -> DeckResponse {
     // Reject path-traversal patterns. Only simple filenames (no slashes, no
     // leading dots, no ".." components) are valid asset names. This mirrors the
     // guard already present in serve_sui_chunk.
@@ -426,18 +426,18 @@ mod tests {
 
     // ── serve_scaffold ────────────────────────────────────────────────────────
 
-    /// Build a minimal ScaffoldDecl in-memory for tests.
+    /// Build a minimal AppServeConfig in-memory for tests.
     fn make_scaffold(
         name: &str,
         asset_prefix: &str,
         inject_globals: Vec<(&str, &str)>,
-    ) -> ScaffoldDecl {
+    ) -> AppServeConfig {
         use std::collections::BTreeMap;
         let mut globals = BTreeMap::new();
         for (k, v) in inject_globals {
             globals.insert(k.to_string(), v.to_string());
         }
-        ScaffoldDecl {
+        AppServeConfig {
             name: name.to_string(),
             route: "/".to_string(),
             source: "nonexistent-scaffold".to_string(),
@@ -490,7 +490,7 @@ mod tests {
 
         let mut globals = std::collections::BTreeMap::new();
         globals.insert("DECK_APP_ID".to_string(), "$id".to_string());
-        let scaffold = ScaffoldDecl {
+        let scaffold = AppServeConfig {
             name: "space".to_string(),
             route: "/space/{id}".to_string(),
             source: "my-scaffold".to_string(),
@@ -525,7 +525,7 @@ mod tests {
         )
         .unwrap();
         // Deliberately NO .deck/my-scaffold — only the source exists.
-        let scaffold = ScaffoldDecl {
+        let scaffold = AppServeConfig {
             name: "space".to_string(),
             route: "/space/{id}".to_string(),
             source: "my-scaffold".to_string(),
@@ -604,7 +604,7 @@ mod tests {
         // Valid key alongside it — should still appear.
         globals.insert("SAFE_KEY".to_string(), "safe_value".to_string());
 
-        let scaffold = ScaffoldDecl {
+        let scaffold = AppServeConfig {
             name: "test".to_string(),
             route: "/".to_string(),
             source: "safe-scaffold".to_string(),

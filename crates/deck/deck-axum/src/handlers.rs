@@ -3,8 +3,6 @@
 //! `axum::response::Response` via [`into_axum`](crate::into_axum). No
 //! hosting logic lives here — it all sits in `deck-core`.
 
-use std::sync::Arc;
-
 use axum::{
     Extension, Json,
     extract::{OriginalUri, Path, Query},
@@ -12,11 +10,9 @@ use axum::{
 };
 use serde_json::Value;
 
-use deck_config::DeckConfig;
 use deck_core::{DaemonBuildInfo, DaemonMode, ViewSetupQuery};
 
 use crate::{into_axum, mode_from_ext};
-
 // ── Framework bundle handlers ─────────────────────────────────────────────────
 
 pub async fn serve_sui_runtime(mode: Option<Extension<DaemonMode>>) -> Response {
@@ -88,102 +84,6 @@ pub async fn serve_view_host(
     OriginalUri(uri): OriginalUri,
 ) -> Response {
     into_axum(deck_core::serve_view_host(mode_from_ext(mode), uri.path()))
-}
-/// Resolve the scaffold for the given route name from `cfg.scaffolds`.
-///
-/// Returns `None` when the scaffold is not declared in the config — the
-/// caller turns that into a 404.
-fn resolve_scaffold<'a>(cfg: Option<&'a DeckConfig>, name: &str) -> Option<&'a deck_config::ScaffoldDecl> {
-    let cfg = cfg?;
-    if cfg.scaffolds.is_empty() {
-        return None;
-    }
-    cfg.scaffolds.iter().find(|s| s.name == name)
-}
-/// Build a 404 `DeckResponse` for a missing scaffold — names the requested
-/// route so the author sees why deck refused. Reuses the standard
-/// `not_found` shape so the daemon's error styling is consistent.
-fn scaffold_not_found(name: &str, mode: DaemonMode) -> deck_core::DeckResponse {
-    deck_core::DeckResponse::not_found(
-        format!("scaffold '{name}' not declared in deck.jsonc"),
-        mode,
-    )
-}
-/// `GET /space/{id}` — serve the space scaffold with `DECK_APP_ID` injected.
-pub async fn serve_space(
-    mode: Option<Extension<DaemonMode>>,
-    cfg: Option<Extension<Arc<DeckConfig>>>,
-    Path(id): Path<String>,
-) -> Response {
-    let mode_val = mode_from_ext(mode);
-    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let Some(scaffold) = resolve_scaffold(cfg_ref, "space") else {
-        return into_axum(scaffold_not_found("space", mode_val));
-    };
-    into_axum(deck_core::serve_scaffold(
-        mode_val,
-        scaffold,
-        &[("id", &id)],
-    ))
-}
-/// `GET /space/_assets/{file}` — space scaffold static assets.
-pub async fn serve_space_asset(
-    mode: Option<Extension<DaemonMode>>,
-    cfg: Option<Extension<Arc<DeckConfig>>>,
-    Path(file): Path<String>,
-) -> Response {
-    let mode_val = mode_from_ext(mode);
-    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let Some(scaffold) = resolve_scaffold(cfg_ref, "space") else {
-        return into_axum(scaffold_not_found("space", mode_val));
-    };
-    into_axum(deck_core::serve_scaffold_asset(mode_val, scaffold, &file))
-}
-/// `GET /` — serve the shell scaffold (the Ship platform app).
-pub async fn serve_shell(
-    mode: Option<Extension<DaemonMode>>,
-    cfg: Option<Extension<Arc<DeckConfig>>>,
-) -> Response {
-    let mode_val = mode_from_ext(mode);
-    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let Some(scaffold) = resolve_scaffold(cfg_ref, "shell") else {
-        return into_axum(scaffold_not_found("shell", mode_val));
-    };
-    into_axum(deck_core::serve_scaffold(mode_val, scaffold, &[]))
-}
-/// `GET /shell/_assets/{file}` — shell scaffold static assets.
-pub async fn serve_shell_asset(
-    mode: Option<Extension<DaemonMode>>,
-    cfg: Option<Extension<Arc<DeckConfig>>>,
-    Path(file): Path<String>,
-) -> Response {
-    let mode_val = mode_from_ext(mode);
-    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let Some(scaffold) = resolve_scaffold(cfg_ref, "shell") else {
-        return into_axum(scaffold_not_found("shell", mode_val));
-    };
-    into_axum(deck_core::serve_scaffold_asset(mode_val, scaffold, &file))
-}
-/// `GET /{file}` — host public assets (favicons, logos) from the declared
-/// `public_dir`. 404 when no `public_dir` is configured.
-pub async fn serve_public_asset(
-    mode: Option<Extension<DaemonMode>>,
-    cfg: Option<Extension<Arc<DeckConfig>>>,
-    Path(file): Path<String>,
-) -> Response {
-    let mode_val = mode_from_ext(mode);
-    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let Some(public_dir) = cfg_ref.and_then(|c| c.public_dir.as_ref()) else {
-        return into_axum(deck_core::DeckResponse::not_found(
-            "no public_dir configured",
-            mode_val,
-        ));
-    };
-    into_axum(deck_core::serve_public_asset(
-        mode_val,
-        &public_dir.to_string_lossy(),
-        &file,
-    ))
 }
 
 // ── View-payload handlers ─────────────────────────────────────────────────────

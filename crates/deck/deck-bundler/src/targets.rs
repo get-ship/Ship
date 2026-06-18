@@ -89,15 +89,15 @@ impl BundleLayout {
     pub fn deck_out(&self) -> PathBuf {
         self.out_root.join(".deck")
     }
-    /// Host-owned assets root, derived from `cfg.host_assets_root`.
+    /// Host-owned assets root, derived from `PathBuf::from(".")`.
     fn host_assets(&self) -> PathBuf {
-        self.out_root.join(&self.cfg.host_assets_root)
+        self.out_root.join(&PathBuf::from("."))
     }
 
     /// Output dir for a target by name. Deck-own framework singletons →
     /// `.deck/framework/` (the build-script staging path that `build.rs` copies
     /// into `crates/deck/deck-core/assets/` for `include_str!`); `views/*` and
-    /// `sui-components/*` → `.deck/`; everything else → `cfg.host_assets_root`.
+    /// `sui-components/*` → `.deck/`; everything else → `PathBuf::from(".")`.
     pub fn assets_dir_for(&self, name: &str) -> PathBuf {
         if DECK_OWN_BUNDLES.contains(&name) {
             return self.deck_out().join("framework");
@@ -167,7 +167,7 @@ impl BundleLayout {
     ///   `<bucket>/<name>/<view_leaf>` artifact. The leaf is
     ///   `cfg.view_leaf` (defaults to `page.sui`) — one convention for
     ///   all buckets, fixing the #254 `index.sui` vs `page.sui` divergence.
-    /// - If `cfg.first_party_app` is set, its `root` is treated as a
+    /// - If `cfg.` is set, its `root` is treated as a
     ///   first-party view root too: `<root>/<name>/<view_leaf>`. The
     ///   host (e.g. ship) declares its own first-party app layout in
     ///   `deck.jsonc`; deck does not name the app.
@@ -182,9 +182,6 @@ impl BundleLayout {
         for root in &self.source_roots {
             for bucket in &self.cfg.view_dirs {
                 candidates.push(root.join(bucket));
-            }
-            if let Some(fpa) = &self.cfg.first_party_app {
-                candidates.push(fpa.root.clone());
             }
         }
         for dir in candidates {
@@ -259,7 +256,9 @@ mod tests {
         assert_eq!(l.assets_dir_for("sui-components/sui-rail"), PathBuf::from("/repo/.deck"));
         assert_eq!(l.assets_dir_for("views/git/view"), PathBuf::from("/repo/.deck"));
         // Consumer targets (e.g. sui-marketing, sui-arcade) also land in `.deck/`.
-        assert_eq!(l.assets_dir_for("ship-something"), PathBuf::from("/repo/.deck"));
+        // assets root (repo-relative, not under `.deck/`). Per-app
+        // bundlers copy their `public/` to `<project>/.deck/`.
+        assert_eq!(l.assets_dir_for("ship-something"), PathBuf::from("/repo"));
     }
 
     #[test]
