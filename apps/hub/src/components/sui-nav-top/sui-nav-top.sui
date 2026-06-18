@@ -1,0 +1,67 @@
+<!--
+  <sui-nav-top> — Ship's top bar. Brand mark on the left, command
+  palette slot in the middle, account menu on the right. The hub's
+  chrome consumes the actual SDK surface (ship.account.state() for the
+  auth chip) — no hand-rolled `window.ship` global, no KernelBridge.
+-->
+<style>
+  :host {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--muted);
+    color: var(--foreground);
+    font-family: var(--font-body, system-ui, sans-serif);
+    font-size: 13px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+  }
+  :host([hidden]) { display: none; }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--foreground);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .brand-mark {
+    --ship-mark-size: 24px;
+    display: block;
+  }
+  .spacer { flex: 1; min-width: 0; }
+  .cmd-slot {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 1 320px;
+  }
+  .account {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 999px;
+    background: var(--muted-foreground);
+  }
+  .dot[data-state="logged_in"] { background: var(--success); }
+  .dot[data-state="logged_out"] { background: var(--muted-foreground); }
+  .dot[data-state="pending"] { background: var(--warning); }
+</style>
+
+<a class="brand" href="/" aria-label="Ship home">
+  <sui-brand-mark class="brand-mark"></sui-brand-mark>
+  <span>Ship</span>
+</a>
+<span class="spacer"></span>
+<span class="cmd-slot"><slot name="command-bar"></slot></span>
+<span class="spacer"></span>
+<span class="account" title={accountLabel()}>
+  <span class="dot" data-state={accountState()}></span>
+  <span>{accountLabel()}</span>
+</span>
