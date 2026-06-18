@@ -257,7 +257,24 @@ pub async fn bundle_app(
         }
     }
 
-    Ok(AppBuild {
+    // Refresh the runtime catalog so `/_deck/catalog/workspace.json` (served
+    // by shipd) carries every entry the new .sui emit just produced. The
+    // watcher path (Bundler::build_all) refreshes too; this closes the gap
+    // for the CLI `build` subcommand, which calls bundle_app directly.
+    match crate::catalog::build_catalog(repo_root, first_party_app) {
+        Ok(ws) => {
+            let dir = repo_root.join(".deck/catalogs");
+            let _ = std::fs::create_dir_all(&dir);
+            let _ = std::fs::write(
+                dir.join("workspace.json"),
+                crate::catalog::stringify_catalog(&ws),
+            );
+            tracing::info!(workspace = ws.count, "bundler: catalog refreshed (bundle_app)");
+        }
+        Err(e) => tracing::warn!(error = %e, "bundler: catalog refresh failed (bundle_app)"),
+    }
+
+     Ok(AppBuild {
         out_dir: out_dir.to_path_buf(),
         js_href,
         css_href,

@@ -306,9 +306,16 @@ fn entries_from_sui_out(
     for cem_abs in &cem_files {
         let source_path = source_path_for_cem(repo_root, cem_abs);
         let owning = find_owning_package(&source_path, &packaged_roots);
-        // Owning pack with an aggregated manifest → served from there; skip.
-        if owning.is_some_and(|(_, p)| p.custom_elements.is_some()) {
-            continue;
+        // Owning pack with a resolvable aggregated manifest → served from there;
+        // skip. When the manifest path is declared in `package.json` but the
+        // file is absent (the pack hasn't been built), fall through to the
+        // `.ship/sui-out/` path — that's what we just compiled.
+        if let Some((_, p)) = owning {
+            if let Some(ce) = &p.custom_elements {
+                if p.root.join(ce).exists() {
+                    continue;
+                }
+            }
         }
         let Some(cem) = read_json(cem_abs) else { continue };
         let Some(modules) = cem["modules"].as_array() else { continue };
