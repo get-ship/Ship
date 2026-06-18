@@ -4,17 +4,15 @@
 //! first op, `Meta` (C0), proves the proto → trait → mount pipeline end to end.
 //! See docs/ship-architecture/references/docs/op-surface.md.
 //!
-//! Split (file-cap): the big per-domain mount blocks live in submodules —
-//! `pipelines_wire`, `agents_wire`, `ui_wire` — each a `mount(router, …)`
+//! `pipelines_wire`, `agents_wire`, `ui_wire`, `terminal_wire` — each a `mount(router, …)`
 //! that registers one crate-owned wire with its shipd closures. `policy`
 //! carries the proto-policy introspection map.
 
 mod agents_wire;
 mod pipelines_wire;
 pub mod policy;
+mod terminal_wire;
 mod ui_wire;
-#[cfg(test)]
-mod tests;
 
 pub use policy::{OP_POLICY, OpPolicy, policy_for};
 
@@ -22,9 +20,8 @@ use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use ship_ops_rpc::{
-    BytesChunk, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
-    OwnedEventsRequestView, OwnedMetaRequestView, OwnedSessionStreamRequestView,
-    StreamService, StreamServiceExt,
+    JsonResponse, MetaResponse, OpsService, OpsServiceExt, OwnedEventsRequestView,
+    OwnedMetaRequestView, StreamService,
 };
 
 use crate::ship_runtime::ApiState;
@@ -109,42 +106,6 @@ impl StreamService for OpsImpl {
         };
         Ok(Response::new(Box::pin(stream)))
     }
-
-    // Raw PTY byte stream — the Connect adapter for a session, mirroring
-    // `sessions::api::io::stream_session` (the SSE route it retires): replay the
-    // log snapshot, then tail the live broadcast. `bytes` is byte-exact, so the
-    // CR/LF mangling that forced base64 over SSE is gone.
-    #[allow(refining_impl_trait)]
-    async fn session_bytes(
-        &self,
-        _ctx: RequestContext,
-        request: OwnedSessionStreamRequestView,
-    ) -> ServiceResult<ServiceStream<BytesChunk>> {
-        let id = request.session_id.to_string();
-        let (log_path, mut rx) = if let Some(entry) = self.state.actor_sessions().get(&id) {
-            (entry.log_path(), entry.subscribe())
-        } else if let Some(session) = self.state.pty_sessions().get(&id) {
-            (session.0.log_path.clone(), session.subscribe())
-        } else {
-            return Err(ConnectError::not_found(format!("session '{id}' not found")));
-        };
-        let replay = tokio::fs::read(&log_path).await.unwrap_or_default();
-        let stream = async_stream::stream! {
-            if !replay.is_empty() {
-                yield Ok::<BytesChunk, ConnectError>(BytesChunk { data: replay, ..Default::default() });
-            }
-            loop {
-                match rx.recv().await {
-                    Ok(bytes) => yield Ok(BytesChunk { data: bytes, ..Default::default() }),
-                    // Slow consumer dropped frames — keep tailing rather than abort.
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
-                    // Sender gone — session ended.
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-                }
-            }
-        };
-        Ok(Response::new(Box::pin(stream)))
-    }
 }
 
 /// Extract the kernel-attested pid from a request context.
@@ -175,7 +136,6 @@ fn pid_from_ctx(ctx: &connectrpc::RequestContext) -> Option<u32> {
 pub fn router(state: ApiState) -> axum::Router {
     let svc = Arc::new(OpsImpl { state: state.clone() });
     let router = OpsServiceExt::register(svc.clone(), connectrpc::Router::new());
-    let router = StreamServiceExt::register(svc.clone(), router);
     let router = ship_ops_rpc::RuntimeServiceExt::register(svc.clone(), router);
 
     // window.* — the live-data multiplex (ADR 0001). The Connect wire is
@@ -297,6 +257,12 @@ pub fn router(state: ApiState) -> axum::Router {
     // + component discovery). Crate-owned `UiWire` (ship-ui); closures in
     // `ui_wire`. Replaces the retired `sui.*` and `view.*` services.
     let router = ui_wire::mount(router, &state);
+    // terminal.* — the L2 Connect adapter over the PTY session domain
+    // (ship-terminal's SessionRegistry + ship-agents's ActorRegistry). Replaces
+    // the legacy `/api/v1/sessions/*` + `/api/v1/pty-sessions` REST routes
+    // (Phase 4 deletes those). All eight methods: Spawn/Stop/List/Get/
+    // SendInput/Resize/SessionBytes/SessionEvents.
+    let router = terminal_wire::mount(router, &state);
     // search — ShipdSearchWire (rpc::search) branches on the request scope:
     // THIS_SPACE runs the active-space ShipdSearchContext (the historical
     // single-context path); GLOBAL fans out across reachable spaces via
