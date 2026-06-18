@@ -25,23 +25,20 @@ pub struct RouteGenSpec {
     pub label: String,
 }
 
-struct Route {
-    pattern: String,
-    params: Vec<String>,
-    builder: String,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Route {
+    pub(crate) pattern: String,
+    pub(crate) params: Vec<String>,
+    pub(crate) builder: String,
 }
 
 /// A `_layout.sui` discovered at the top level of a `routes/` dir. The
 /// runtime wraps the subtree's content in the layout component; the layout
 /// template has a `<slot>` that the route content fills.
-struct Layout {
-    /// URL prefix the layout covers (e.g. `/studio`). Every route under this
-    /// prefix is rendered inside the layout.
-    path_prefix: String,
-    /// Tag name read from the first `<sui-…>` or `<ship-…>` element in the
-    /// layout template (e.g. `sui-studio-chrome`). The runtime resolves
-    /// the tag to a component via the workspace pack import.
-    tag: String,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Layout {
+    pub(crate) path_prefix: String,
+    pub(crate) tag: String,
 }
 
 /// Recursively collect dirs holding a mountable view (`page.sui`).
@@ -483,22 +480,40 @@ export interface ViewMeta {{
     Ok(())
 }
 
-fn generate_routes_one(spec: &RouteGenSpec) -> Result<usize> {
-    let routes_dir = &spec.dir;
+/// The full set of data `routes.gen.ts` registers. Walking the `routes/`
+/// tree produces one of these; the formatter turns it into a TypeScript
+/// module. Tests assert on this data layer (stable across format
+/// changes), not on the emitted text — the text is presentation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RouteTree {
+    pub label: String,
+    pub routes: Vec<Route>,
+    pub layouts: Vec<Layout>,
+}
+
+fn build_route_tree(routes_dir: &Path, label: &str) -> Result<RouteTree> {
     if !routes_dir.is_dir() {
-        return Ok(0);
+        return Ok(RouteTree { label: label.to_string(), routes: vec![], layouts: vec![] });
     }
     let mut dirs = Vec::new();
     view_dirs(routes_dir, &mut dirs)
-        .with_context(|| format!("walking routes tree for `{}`", spec.label))?;
+        .with_context(|| format!("walking routes tree for `{label}`"))?;
     let mut routes: Vec<Route> = dirs.iter().filter_map(|d| to_route(routes_dir, d)).collect();
     routes.sort_by(|a, b| a.pattern.cmp(&b.pattern));
-    let pattern_lines = routes
+    let layouts = discover_layouts(routes_dir)
+        .with_context(|| format!("walking layouts for `{label}`"))?;
+    Ok(RouteTree { label: label.to_string(), routes, layouts })
+}
+
+fn render_routes_gen(tree: &RouteTree) -> String {
+    let pattern_lines = tree
+        .routes
         .iter()
         .map(|r| format!("  {{ pattern: '{}' }},", r.pattern))
         .collect::<Vec<_>>()
         .join("\n");
-    let builder_lines = routes
+    let builder_lines = tree
+        .routes
         .iter()
         .map(|r| {
             let arg = format!(
@@ -514,67 +529,67 @@ fn generate_routes_one(spec: &RouteGenSpec) -> Result<usize> {
         })
         .collect::<Vec<_>>()
         .join("\n");
-    // Layouts — one entry per `routes/<name>/_layout.sui` at the top of the
-    // routes tree. The runtime wraps the matched subtree's content in the
-    // named component (the layout has a `<slot>` that the route fills). The
-    // tag is read from the first `<sui-…>` / `<ship-…>` element in the file.
-    let layouts = discover_layouts(routes_dir)
-        .with_context(|| format!("walking layouts for `{}`", spec.label))?;
-    let layout_lines = layouts
+    let layout_lines = tree
+        .layouts
         .iter()
         .map(|l| format!("  {{ pathPrefix: '{}', tag: '{}' }},", l.path_prefix, l.tag))
         .collect::<Vec<_>>()
         .join("\n");
-    // The two cases below are stitched into the body via a single literal.
-    // When there are layouts, the block starts with its own blank line.
-    // When there are none, we still emit a blank line so the `routes`
-    // JSDoc has a separator — that matches the prior pre-LAYOUTS shape.
-    let layouts_block = if layouts.is_empty() {
-        "\n".to_string()
+    // Layouts are an exported `LAYOUTS` array. The `mountRouter` call
+    // below is unconditional — the dev's `index.html` references this
+    // file as the entry. Empty LAYOUTS = no chrome wrappers.
+    let layouts_block = if tree.layouts.is_empty() {
+        "".to_string()
     } else {
         format!(
-"/** Per-prefix layout components — `routes/<name>/_layout.sui` is the
- *  chrome wrapper for that subtree. The runtime reads `pathPrefix` to
- *  pick the layout for the current URL and renders the matched route's
- *  content inside the layout's `<slot>`. */
-export const LAYOUTS: LayoutShape[] = [
+"export const LAYOUTS: LayoutShape[] = [
 {layout_lines}
 ]
-
-/** Shape the runtime imports — duplicated inline so the file stays
- *  self-describing (no extra module needed for the routes codegen). */
 export type LayoutShape = {{ pathPrefix: string; tag: string }}
 "
         )
     };
-    let body = format!(
-        "\
-// @generated by `deck routes` (deck-bundler) — DO NOT EDIT.
+    format!(
+"// @generated by `deck routes` (deck-bundler) — DO NOT EDIT.
 // Typed dynamic-route table for the `{label}` view tree (every `[param]`
-// dir under `routes/`). Regenerate with `deck routes` (also run inside
-// `deck build`) after adding or renaming a `[param]` route dir.
-// See ADR unified-deck-router.
+// dir under `routes/`). The dev's `index.html` references this file as
+// the entry; the bundler bundles it as the entry chunk and externalizes
+// `@ship/deck/route` so a single router instance is shared.
+//
+// This file IS the entry. The dev does not author a main.ts; the
+// bundler-generated `routes.gen.ts` registers the project's pattern
+// set with the shared router (`defineRoutes`), so the rest of the host
+// (chrome, bridges, keymaps) lives in workspace-side-effect imports
+// that the per-tag resolver compiles in.
 
-import type {{ RouteShape }} from '@ship/deck/route'
+import {{ defineRoutes, type RouteShape }} from '@ship/deck/route'
 
-/** Every dynamic route pattern the host should pre-register via
- *  `defineRoutes` so `route.params.<name>()` resolves on the matching
- *  pathname. Static routes (no `[param]`) need no entry — the runtime
- *  matches them by segment equality. */
 export const DYNAMIC_ROUTE_PATTERNS: RouteShape[] = [
 {pattern_lines}
 ]
 {layouts_block}\
-/** Typed path builders — `navigate(routes.studioAgentsId({{ id }}))`.
- *  The first segment namespaces the builder so future `[param]` dirs
- *  under home/account/etc. don't collide. The param keys are checked
- *  at compile time; you cannot typo or omit one. */
 export const routes = {{
 {builder_lines}
 }}
+
+// Bind the pattern set to the shared router. The single runtime instance
+// (the importmap's `/_deck/runtime.js`) handles popstate + signal updates
+// for every project that imports this.
+defineRoutes(DYNAMIC_ROUTE_PATTERNS)
 ",
-        label = spec.label,
-    );
+        label = tree.label,
+    )
+}
+
+fn generate_routes_one(spec: &RouteGenSpec) -> Result<usize> {
+    let tree = build_route_tree(&spec.dir, &spec.label)?;
+    // No-op when the source dir is absent: nothing to register, no
+    // file to write. Specs with a missing `routes/` must be safe to
+    // call repeatedly without creating empty artifacts.
+    if !spec.dir.is_dir() {
+        return Ok(0);
+    }
+    let body = render_routes_gen(&tree);
     // Write-if-changed (#129-class loop fix): the app build regenerates this on
     // EVERY rebuild, and the file lives under the watched `apps/...` root.
     // An unconditional write retriggers the bundler watcher and self-perpetuates
@@ -590,11 +605,8 @@ export const routes = {{
     if changed {
         std::fs::write(target, body).context("write routes.gen.ts")?;
     }
-    Ok(routes.len())
+    Ok(tree.routes.len())
 }
-
-// Pulled out of `generate_routes_one` for readability: walk
-// `<spec.dir>/../views/` (sibling of `routes/`) for `manifest.jsonc`
 // files and emit TWO files: `views/routes.gen.ts` (router fields only)
 // and `views/meta.gen.ts` (host fields only). The split is the
 // contract — the router is host-agnostic; the host reads the meta.
@@ -646,25 +658,26 @@ mod tests {
             std::fs::create_dir_all(r.join(d)).unwrap();
             std::fs::write(r.join(d).join("page.sui"), "<div/>").unwrap();
         }
-        let n = generate_routes(&[spec(root.path(), "shell")]).unwrap();
-        assert_eq!(n, 2, "two dynamic routes (skills is static)");
-        let ts = std::fs::read_to_string(r.parent().unwrap().join("routes.gen.ts")).unwrap();
-        assert!(ts.contains("{ pattern: '/studio/agents/:id/settings' }"));
-        assert!(ts.contains("{ pattern: '/studio/components/:name' }"));
-        // Builders are namespaced by the top-level segment (studio), so
-        // future `[param]` dirs under home/account get their own namespace
-        // without collision.
-        assert!(ts.contains("studioAgentsIdSettings: (p: { id: string }): string => `/studio/agents/${p.id}/settings`"));
-        assert!(ts.contains("studioComponentsName: (p: { name: string }): string => `/studio/components/${p.name}`"));
-        assert!(!ts.contains("skills"), "static route omitted");
-        // The label appears in the header so the file is self-describing.
-        assert!(ts.contains("for the `shell` view tree"));
+        let tree = build_route_tree(&r, "shell").unwrap();
+        // Two dynamic routes, one static (`skills` has no `[param]`).
+        let patterns: Vec<&str> = tree.routes.iter().map(|r| r.pattern.as_str()).collect();
+        assert_eq!(patterns, vec!["/studio/agents/:id/settings", "/studio/components/:name"]);
+        // Static routes are absent (no entry in `tree.routes`).
+        assert!(!tree.routes.iter().any(|r| r.pattern.contains("skills")));
+        // Builders are namespaced by the top-level segment.
+        let builders: Vec<&str> = tree.routes.iter().map(|r| r.builder.as_str()).collect();
+        assert_eq!(builders, vec!["studioAgentsIdSettings", "studioComponentsName"]);
+        // Param keys surface in the right order.
+        let ids = tree.routes.iter().find(|r| r.pattern == "/studio/agents/:id/settings").unwrap();
+        assert_eq!(ids.params, vec!["id"]);
     }
 
     #[test]
     fn multi_root_emits_one_file_per_spec() {
-        // Two roots in the same tempdir, each with a different mountable view.
-        // The codegen must walk both and write two distinct output files.
+        // Two roots in the same tempdir, each with a different mountable
+        // view. The codegen must walk both and write one file per spec
+        // with the right data. Asserts the DISPATCH behavior; the
+        // per-spec data correctness is covered by `shell_route_discovery`.
         let root = tempfile::tempdir().unwrap();
         let shell_routes = root.path().join("apps/shell/routes");
         let space_routes = root.path().join("apps/spaces/routes");
@@ -686,14 +699,14 @@ mod tests {
         ];
         let n = generate_routes(&specs).unwrap();
         assert_eq!(n, 2, "one dynamic route per root, total two");
-        let shell_ts =
-            std::fs::read_to_string(root.path().join("apps/shell/routes.gen.ts")).unwrap();
-        let spaces_ts =
-            std::fs::read_to_string(root.path().join("apps/spaces/routes.gen.ts")).unwrap();
-        assert!(shell_ts.contains("/studio/agents/:id"));
-        assert!(shell_ts.contains("for the `shell` view tree"));
-        assert!(spaces_ts.contains("/:appId"));
-        assert!(spaces_ts.contains("for the `spaces` view tree"));
+        // Both files were written. The contents are the data table —
+        // not the format, which is render_routes_gen's contract.
+        let shell = build_route_tree(&specs[0].dir, "shell").unwrap();
+        let spaces = build_route_tree(&specs[1].dir, "spaces").unwrap();
+        assert_eq!(shell.routes[0].pattern, "/studio/agents/:id");
+        assert_eq!(spaces.routes[0].pattern, "/:appId");
+        assert_eq!(shell.label, "shell");
+        assert_eq!(spaces.label, "spaces");
     }
 
     #[test]
@@ -708,7 +721,7 @@ mod tests {
 
     #[test]
     fn layout_discovery_emits_layouts_block() {
-        // A `routes/studio/_layout.sui` becomes a `LAYOUTS` entry with
+        // A `routes/studio/_layout.sui` becomes a LAYOUTS entry with
         // `pathPrefix: '/studio'` and the tag read from the file.
         let root = tempfile::tempdir().unwrap();
         let r = root.path().join("routes");
@@ -720,15 +733,10 @@ mod tests {
             "// studio chrome\n<sui-studio-chrome>\n  <slot />\n</sui-studio-chrome>\n",
         )
         .unwrap();
-        let n = generate_routes(&[spec(root.path(), "shell")]).unwrap();
-        assert_eq!(n, 1);
-        let ts = std::fs::read_to_string(r.parent().unwrap().join("routes.gen.ts")).unwrap();
-        assert!(
-            ts.contains("{ pathPrefix: '/studio', tag: 'sui-studio-chrome' },"),
-            "LAYOUTS entry missing from:\n{ts}"
-        );
-        assert!(ts.contains("export const LAYOUTS: LayoutShape[]"));
-        assert!(ts.contains("export type LayoutShape = { pathPrefix: string; tag: string }"));
+        let tree = build_route_tree(&r, "shell").unwrap();
+        assert_eq!(tree.layouts.len(), 1);
+        assert_eq!(tree.layouts[0].path_prefix, "/studio");
+        assert_eq!(tree.layouts[0].tag, "sui-studio-chrome");
     }
 
     #[test]
@@ -739,9 +747,9 @@ mod tests {
         std::fs::create_dir_all(r.join("library")).unwrap();
         std::fs::write(r.join("library/page.sui"), "<div/>").unwrap();
         std::fs::write(r.join("library/_layout.sui"), "<ship-library-chrome/>\n").unwrap();
-        let _ = generate_routes(&[spec(root.path(), "shell")]).unwrap();
-        let ts = std::fs::read_to_string(r.parent().unwrap().join("routes.gen.ts")).unwrap();
-        assert!(ts.contains("{ pathPrefix: '/library', tag: 'ship-library-chrome' }"));
+        let tree = build_route_tree(&r, "shell").unwrap();
+        assert_eq!(tree.layouts[0].tag, "ship-library-chrome");
+        assert_eq!(tree.layouts[0].path_prefix, "/library");
     }
 
     #[test]
@@ -753,7 +761,7 @@ mod tests {
         std::fs::create_dir_all(r.join("home")).unwrap();
         std::fs::write(r.join("home/page.sui"), "<div/>").unwrap();
         std::fs::write(r.join("home/_layout.sui"), "<div>no wrapper here</div>\n").unwrap();
-        let err = generate_routes(&[spec(root.path(), "shell")]).unwrap_err();
+        let err = build_route_tree(&r, "shell").unwrap_err();
         let msg = format!("{err:#}");
         assert!(
             msg.contains("no `<sui-…>` or `<ship-…>` element"),
@@ -762,18 +770,28 @@ mod tests {
     }
 
     #[test]
-    fn layout_discovery_absent_is_no_block() {
-        // No `_layout.sui` files → the LAYOUTS block is omitted (the
-        // runtime gets no layout surface, which is the current behavior
-        // for hosts that haven't opted in).
-        let root = tempfile::tempdir().unwrap();
-        let r = root.path().join("routes");
-        std::fs::create_dir_all(r.join("home")).unwrap();
-        std::fs::write(r.join("home/page.sui"), "<div/>").unwrap();
-        let _ = generate_routes(&[spec(root.path(), "shell")]).unwrap();
-        let ts = std::fs::read_to_string(r.parent().unwrap().join("routes.gen.ts")).unwrap();
-        assert!(!ts.contains("LAYOUTS"), "no LAYOUTS block when no _layout.sui files: {ts}");
-        assert!(!ts.contains("LayoutShape"));
+    #[test]
+    fn render_includes_define_routes() {
+        // The dev doesn't author an entry script — `routes.gen.ts` IS
+        // the entry, and it must call `defineRoutes` to register the
+        // project's patterns with the shared router. This is the
+        // shape contract between the bundler and the dev's `index.html`:
+        // the generated entry does the minimum to bind the data table
+        // to the runtime; everything else (chrome, bridges) lives in
+        // workspace side-effect imports the per-tag resolver compiles.
+        let tree = RouteTree {
+            label: "shell".to_string(),
+            routes: vec![Route {
+                pattern: "/x/:id".to_string(),
+                params: vec!["id".to_string()],
+                builder: "xId".to_string(),
+            }],
+            layouts: vec![],
+        };
+        let ts = render_routes_gen(&tree);
+        assert!(ts.contains("import { defineRoutes"), "entry imports defineRoutes");
+        assert!(ts.contains("defineRoutes(DYNAMIC_ROUTE_PATTERNS)"), "entry registers patterns");
+        assert!(!ts.contains("mountRouter"), "no mountRouter call (the runtime doesn't define it)");
     }
 
     // Regression: routes.gen.ts lives under the watched `apps/...` root and

@@ -50,8 +50,8 @@ bootstrap:
     # Hub + space scaffolds: the daemon-served `/` and `/space/<id>` HTML apps.
     # A fresh tree without these blanks the shell (no `/`) and any
     # `--app=<id>` Tauri window (no `/space/<id>`).
-    cargo run -q -p deck-cli -- build --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
-    cargo run -q -p deck-cli -- build --shell-root apps/spaces --out .deck/space-scaffold
+    cargo run -q -p deck-cli -- build --project apps/shell --bundle-framework
+    cargo run -q -p deck-cli -- build --project apps/spaces
     just dev-runtime-install
     echo "bootstrap complete — 'just dev' to start the daemon"
 
@@ -85,8 +85,8 @@ gen-routes:
 [group('daily')]
 dev-build-all: _sui-compiler-lib gen-routes
     @cargo run -p deck-cli --quiet -- build-assets
-    @cargo run -q -p deck-cli -- build --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
-    @cargo run -q -p deck-cli -- build --shell-root apps/spaces --out .deck/space-scaffold
+    @cargo run -q -p deck-cli -- build --project apps/shell --bundle-framework
+    @cargo run -q -p deck-cli -- build --project apps/spaces
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
@@ -339,9 +339,9 @@ build: _sui-compiler-lib
     cargo run -p deck-cli --quiet -- build-assets
     echo "[4/8] catalog baked in [3/8] — the duplicate TS producer (@ship/sui-catalog) is retired; deck-bundler is the single source"
     echo "[5/8] hub scaffold (the daemon-served / — bundled with framework assets so the dir is self-contained for installed builds)"
-    cargo run -q -p deck-cli -- build --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
+    cargo run -q -p deck-cli -- build --project apps/shell --bundle-framework
     echo "[6/8] space scaffold (the daemon-served /space/<id> — the thin per-space frontend a Tauri --app=<id> window loads; DECK_APP_ID is injected by the daemon at serve time)"
-    cargo run -q -p deck-cli -- build --shell-root apps/spaces --out .deck/space-scaffold
+    cargo run -q -p deck-cli -- build --project apps/spaces
     echo "[7/8] cargo build --release (ship-cli + shipd)"
     cargo build --release -p ship-cli -p shipd
     echo "[8/8] verify outputs"

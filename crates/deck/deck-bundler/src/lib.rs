@@ -8,6 +8,7 @@
 
 pub mod paths;
 pub mod tag_check;
+pub mod templates;
 
 pub mod app;
 mod asset_graph;

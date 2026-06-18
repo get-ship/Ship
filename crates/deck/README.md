@@ -102,7 +102,7 @@ Two composition rules the host must honor:
 
 ## CLI
 
-deck build --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
+deck build --project apps/hub --bundle-framework
 deck build-assets          # bake framework + consumer bundles (in-process Rolldown)
 deck routes --root apps/shell --root apps/spaces
 # walks <root>/routes/ → emits <root>/routes.gen.ts (label = basename).

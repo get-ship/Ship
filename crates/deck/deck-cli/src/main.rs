@@ -54,12 +54,17 @@ enum Command {
     #[command(subcommand)]
     Scaffold(Scaffold),
 
-    /// Build a SUI SPA app (hub, space scaffold) to a static output dir.
+    /// Build a SUI SPA project (the hub, a space scaffold) to a static
+    /// output dir. The project's source tree holds `package.json` (the
+    /// manifest: the bundler reads `name` for the page <title>), `routes/`
+    /// (the file-routed chrome), and `public/` (static assets). The
+    /// bundler generates `index.html` and `routes.gen.ts` (the entry).
     Build {
-        /// App root holding index.html, src/, public/ (default: cwd).
+        /// Project root (the dev's deck project: `package.json` + `routes/`
+        /// + `public/`). Default: cwd.
         #[arg(long, default_value = ".")]
-        shell_root: PathBuf,
-        /// Output dir (default: <shell-root>/dist).
+        project: PathBuf,
+        /// Output dir (default: <project>/.deck/).
         #[arg(long)]
         out: Option<PathBuf>,
         /// Materialize the /_deck/* framework surface into the output (self-contained).
@@ -201,11 +206,11 @@ fn run() -> Result<()> {
         Command::Scaffold(Scaffold::Component { tag, controller }) => {
             scaffold::run_component(tag, controller)
         }
+        Command::Build { project, out, bundle_framework, no_minify } => {
+            build(project, out, bundle_framework, !no_minify)
+        }
         Command::Scaffold(Scaffold::Pack { name }) => {
             scaffold::run_pack(name)
-        }
-        Command::Build { shell_root, out, bundle_framework, no_minify } => {
-            build(shell_root, out, bundle_framework, !no_minify)
         }
         Command::Emit { targets, out } => emit(targets, out),
         Command::BuildAssets => build_assets(),
@@ -327,16 +332,25 @@ fn find_repo_root(start: &Path) -> Result<PathBuf> {
     })
 }
 
-fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, minify: bool) -> Result<()> {
+fn build(project: PathBuf, out: Option<PathBuf>, bundle_framework: bool, minify: bool) -> Result<()> {
     let cwd = std::env::current_dir().context("cwd")?;
     let abs = |p: &Path| if p.is_absolute() { p.to_path_buf() } else { cwd.join(p) };
 
-    let shell_root = abs(&shell_root)
+    let project = abs(&project)
         .canonicalize()
-        .with_context(|| format!("shell-root {}", shell_root.display()))?;
-    let out_dir = out.map(|o| abs(&o)).unwrap_or_else(|| shell_root.join("dist"));
-    let repo_root = find_repo_root(&shell_root)?;
+        .with_context(|| format!("project {}", project.display()))?;
+    // The project is the dev's authored source tree (`package.json`,
+    // `routes/`, `public/`). The default out dir lives INSIDE the
+    // project as `<project>/.deck/` — a sibling of `routes/` and
+    // `public/`, not above them. The bundler writes the generated
+    // `index.html`, the entry chunk, and the framework surface there.
+    let out_dir = out
+        .map(|o| abs(&o))
+        .unwrap_or_else(|| project.join(".deck"));
+    let repo_root = find_repo_root(&project)?;
     let framework_assets_dir = repo_root.join("crates/deck/deck-core/assets");
+    // The framework surface (.deck/framework/<bundle>) is shared across
+    // every project. Per-project outputs go under `<project>/.deck/`.
     let deck_out_dir = repo_root.join(".deck");
 
     // Load deck.jsonc to pick up `firstPartyApp` (sensible defaults when absent).
@@ -356,7 +370,7 @@ fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, mini
             cfg.first_party_app.as_ref(),
             &cfg.packs,
             &cfg.component_source_roots,
-            &shell_root,
+            &project,
             &out_dir,
             minify,
             bundle_framework,
@@ -367,7 +381,6 @@ fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, mini
 
     println!("deck build → {}", b.out_dir.display());
     println!("  js  {}", b.js_href);
-    println!("  css {}", b.css_href);
     if b.framework_assets > 0 {
         println!("  _deck  {} files (self-contained)", b.framework_assets);
     }
