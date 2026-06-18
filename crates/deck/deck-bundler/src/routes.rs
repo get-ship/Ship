@@ -580,10 +580,26 @@ import * as indexView from './routes/page.sui';
 // without this side-effect it would elide the entire view module.
 globalThis.__shipHubIndexView = indexView;
 const __r = createRoute({ routes: DYNAMIC_ROUTE_PATTERNS });
-// signals). For the bundled path, payload.html is empty; the
-// runtime's CSR fallback calls `setupRet.__mount(target)` to
-// build the DOM in place. We just call mount with the empty
-// payload and the runtime does the right thing.
+// Inject the theme + token stylesheet (themes.css bundled as
+// view-tokens.css by the daemon at /api/assets/view-tokens.css)
+// so primitives that resolve `var(--primary)`, `var(--background)`,
+// etc. — the brand mark's themed ramp, the theme-picker's panel —
+// actually render with theme colors. Without this, `color-mix`
+// in shadow-DOM path fills collapses to black and the chrome
+// reads as solid silhouette. The data-ship-view-tokens marker
+// makes the injection idempotent on hot-reload.
+if (!document.querySelector('link[data-ship-view-tokens]')) {
+  const __link = document.createElement('link');
+  __link.rel = 'stylesheet';
+  __link.href = '/api/assets/view-tokens.css';
+  __link.setAttribute('data-ship-view-tokens', '');
+  document.head.appendChild(__link);
+}
+// Mount the index view. The runtime's mount() handles both SSR
+// (payload.html + hydrate) and CSR (view's __mount creates the
+// DOM, then hydrate wires signals). For the bundled path,
+// payload.html is empty; the runtime's CSR fallback calls
+// `setupRet.__mount(target)` to build the DOM in place.
 mount(document.getElementById('ship-root')!, {
   html: '',
   scope: {},
