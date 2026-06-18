@@ -5,6 +5,7 @@
 //! `middleware` carries the SPA-nav shim + build-skew header, `health` the
 //! health check + panic handler. This module owns the assembly.
 
+pub(super) mod apps_config;
 mod health;
 mod middleware;
 mod ship_routes;
@@ -25,6 +26,13 @@ use middleware::{build_header_middleware, spa_nav_middleware};
 use ship_routes::build_ship_routes;
 
 /// Build the full Axum router with all route groups, auth, and CORS.
+///
+/// `apps` is the per-app serve config (read from `apps.jsonc` at
+/// startup). The host injects the list into `DeckConfig::scaffolds`
+/// (deprecated) AND into `Extension<Vec<AppServeConfig>>` so the new
+/// per-app API can co-exist with the old scaffold-by-name API during
+/// the cutover. After the cutover commit, only the new API is used
+/// and the `scaffolds` field on `DeckConfig` is removed.
 pub fn build_router(
     rt: Arc<ship_runtime::ShipRuntime>,
     token: Arc<String>,
@@ -32,6 +40,7 @@ pub fn build_router(
     pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
     daemon_mode: deck::DaemonMode,
+    apps: Vec<deck::AppServeConfig>,
 ) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     let st = rt.clone();
@@ -237,10 +246,17 @@ pub fn build_router(
         .map(|p| p.to_path_buf())
         .or_else(|| std::env::current_dir().ok())
         .unwrap_or_else(|| rt.ship_dir().to_path_buf());
-    let deck_cfg = Arc::new(DeckConfig::load(&repo_root));
-
-    // Build the DaemonBuildInfo once here so deck's serve_meta handler
-    // (/_deck/meta) can read it via Option<Extension<DaemonBuildInfo>>.
+    let mut deck_cfg = DeckConfig::load(&repo_root);
+    // Layer the apps.jsonc list OVER the deck.jsonc scaffolds: the host's
+    // `apps` list (already read by the caller and passed in) takes
+    // precedence over any scaffold entries the L1 defaults baked. The
+    // field is deprecated and goes away in the cutover commit; until
+    // then this keeps the old L1 serve_shell/serve_space handlers
+    // working while the new per-app API is exercised in parallel.
+    if !apps.is_empty() {
+        deck_cfg.scaffolds = apps.clone();
+    }
+    let deck_cfg = Arc::new(deck_cfg);
     let dbi = {
         let bi = build_info::build_info!();
         deck::DaemonBuildInfo {
@@ -263,14 +279,17 @@ pub fn build_router(
         .layer(axum::Extension(daemon_mode))
         // DataPort Extension — deck's serve_index / serve_setup read host
         // provisioning via `Option<Extension<Arc<dyn DataPort>>>`. Same Arc the
-        // multiplex transport uses — ONE ShipDataPort for the whole router.
-        .layer(axum::Extension(data_port))
-        // DaemonBuildInfo Extension — deck's /_deck/meta handler reads this
-        // to report the daemon's own build identity alongside the compiler's.
-        .layer(axum::Extension(dbi))
         // DeckConfig Extension — scaffold handlers (serve_shell, serve_space)
         // read scaffold declarations + inject_globals from this.
         .layer(axum::Extension(deck_cfg))
+        // Per-app serve config (the new per-app API) — the host injects
+        // the apps it knows about. The new handlers in
+        // `deck::apps::serve_app_*` read this. The old scaffold handlers
+        // ignore it; the cutover commit migrates them to read it.
+        .layer(axum::Extension(Arc::new(apps)))
+        // DaemonBuildInfo Extension — deck's /_deck/meta handler reads this
+        // to report the daemon's own build identity alongside the compiler's.
+        .layer(axum::Extension(dbi))
         // Bundler Extension (#167) — deck's view.js handler builds an unbuilt
         // view in-process via Rolldown on a cache miss (controller inlined, no
         // bun). The same instance the watcher drives.

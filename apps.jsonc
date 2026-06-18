@@ -1,0 +1,31 @@
+// apps.jsonc — the Ship monorepo's app list. Read by shipd at startup
+// and by the Justfile's build orchestrator. NOT read by deck (L1) —
+// deck is per-app, the host owns the list.
+//
+// Each entry is the shape deck's `AppServeConfig` consumes directly.
+// `source` is repo-relative (the path the bundler wrote to, e.g.
+// `apps/hub/.deck`). `route` is the URL prefix the app serves at;
+// `assetPrefix` is the per-app re-root path for `assets/*` (so
+// multiple apps' `index.html` files can all reference `/assets/…`
+// without colliding). `injectGlobals` injects `window.<key>=<value>;`
+// into the HTML, with `$<param>` substituted from URL path captures
+// declared in `route`.
+{
+  "apps": [
+    {
+      "name": "hub",
+      "root": "apps/hub",
+      "source": "apps/hub/.deck",
+      "route": "/",
+      "assetPrefix": "/hub/_assets/"
+    },
+    {
+      "name": "spaces",
+      "root": "apps/spaces",
+      "source": "apps/spaces/.deck",
+      "route": "/space/{id}",
+      "assetPrefix": "/space/_assets/",
+      "injectGlobals": { "DECK_APP_ID": "$id" }
+    }
+  ]
+}
