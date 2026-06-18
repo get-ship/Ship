@@ -25,10 +25,16 @@
 pub mod actor_registry;
 pub mod agent_actor;
 pub mod lifecycle;
-pub mod registry;
-pub mod shell_actor;
-pub mod types;
 pub mod canonical_projection;
+
+// Re-export the L1 ship-terminal session domain (PTY registry + shell
+// spawn). PTY session types and the SessionRegistry live there now;
+// what stays here is the agent-flavored work (actor_registry,
+// agent_actor, lifecycle, canonical_projection).
+pub use ship_terminal::{
+    PtySession, SessionId, SessionKind, SessionMeta, SessionRegistry, SessionStatus,
+    SpawnRequest,
+};
 
 pub use canonical_projection::{
     CanonicalSession, CanonicalSessionProjection, CanonicalSessionStatus,
@@ -40,5 +46,3 @@ pub use canonical_projection::{
     load_latest_resumable_session,
 };
 pub use actor_registry::{ActorEntry, ActorRegistry};
-pub use registry::SessionRegistry;
-pub use types::{PtySession, SessionId, SessionKind, SessionStatus, SpawnRequest};

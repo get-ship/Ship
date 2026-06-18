@@ -24,6 +24,7 @@ ship-platform = { path = "../../crates/core/ship-platform" }
 ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", features = ["harness-drivers"], optional = true }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
+ship-terminal = { path = "../../crates/core/ship-platform/crates/ship-terminal" }
 ship-files = { path = "../../crates/core/ship-platform/crates/ship-files" }
 ship-harnesses = { path = "../../crates/core/ship-platform/crates/ship-harnesses" }
 ship-messaging = { path = "../../crates/core/ship-platform/crates/ship-messaging" }

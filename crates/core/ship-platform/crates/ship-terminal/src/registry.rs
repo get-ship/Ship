@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use super::types::{PtySession, SessionHandle, SessionId, SessionMeta};
+use crate::types::{PtySession, SessionHandle, SessionId, SessionMeta};
 
 #[derive(Clone, Default)]
 pub struct SessionRegistry {

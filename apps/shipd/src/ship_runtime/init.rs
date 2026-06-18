@@ -214,7 +214,7 @@ impl ShipRuntime {
             artifact_ctx,
             schemas,
             global_blob_dir,
-            pty_sessions: ship_agents::services::sessions::SessionRegistry::new(),
+            pty_sessions: ship_terminal::SessionRegistry::new(),
             actor_sessions: ship_agents::services::sessions::ActorRegistry::new(),
             rules: ship_agents::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
             permissions: {

@@ -30,7 +30,7 @@ use ship_substrate::supervisor::ActorHandle;
 use std::path::PathBuf;
 use tokio::sync::broadcast;
 
-use super::types::{SessionId, SessionMeta};
+use ship_terminal::types::{SessionId, SessionMeta};
 
 #[derive(Clone)]
 pub struct ActorEntry {

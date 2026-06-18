@@ -69,7 +69,7 @@ pub struct ShipRuntime {
     // The ViewService Patch/Append/Signal ops answer "not found" directly.)
     /// PTY session registry — chat, pipelines, dock terminal all go
     /// through here. See `crate::sessions` (when feature = "ship-code").
-    pub(super) pty_sessions: ship_agents::services::sessions::SessionRegistry,
+    pub(super) pty_sessions: ship_terminal::SessionRegistry,
     /// Actor-backed session registry — destination of the supervisor-
     /// primitive migration. Shells live here today; agents and pipelines
     /// follow as 1.1.c / 1.1.d land.

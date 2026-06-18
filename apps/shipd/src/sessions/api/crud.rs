@@ -221,14 +221,14 @@ pub async fn spawn_session(
             // `ship_substrate::supervisor::spawn_actor` — no second registry
             // write, no second event emit.
             match super::super::shell_actor::spawn_shell(
-                state.actor_sessions(),
+                state.pty_sessions(),
                 &req.workspace_id,
                 work_dir,
                 log_dir,
             ) {
-                Ok(entry) => {
+                Ok(session) => {
                     let resp = SpawnResponse {
-                        session_id: entry.handle.actor_id.clone(),
+                        session_id: session.meta().id,
                         attached: false,
                     };
                     (StatusCode::OK, Json(resp)).into_response()
@@ -295,7 +295,7 @@ pub async fn stop_session(
     if let Err(e) = require_scope(&auth, Scope::ManageRuns) {
         return e.into_response();
     }
-    if super::super::shell_actor::stop(state.actor_sessions(), &id)
+    if super::super::shell_actor::stop(state.pty_sessions(), &id)
         || lifecycle::stop(state.pty_sessions(), &id)
     {
         (StatusCode::NO_CONTENT, ()).into_response()

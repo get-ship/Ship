@@ -78,7 +78,7 @@ pub struct SpawnRequest {
     pub harness: Option<String>,
 }
 
-pub(crate) mod private {
+pub mod private {
     use super::*;
     use ship_harnesses::harness_adapter::HarnessEvent;
 

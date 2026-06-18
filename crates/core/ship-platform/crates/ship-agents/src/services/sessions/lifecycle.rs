@@ -14,10 +14,9 @@ use ship_substrate::services::dispatch_ports::LaunchProfile;
 use ship_harnesses::harness_adapter::adapter_for;
 use tokio::sync::broadcast;
 
-use super::registry::SessionRegistry;
-use super::types::{
-    private::Inner, PtySession, SessionHandle, SessionId, SessionKind, SessionMeta,
-    SessionStatus,
+use ship_terminal::SessionRegistry;
+use ship_terminal::types::{
+    Inner, PtySession, SessionHandle, SessionId, SessionKind, SessionMeta, SessionStatus,
 };
 
 /// Broadcast channel capacity — 1024 chunks ≈ several screens of output

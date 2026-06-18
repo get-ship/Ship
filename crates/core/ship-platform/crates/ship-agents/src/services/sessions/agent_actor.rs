@@ -31,7 +31,7 @@ use ship_substrate::supervisor::{spawn_actor, ActorKind, ActorProfile, Transport
 use tokio::sync::broadcast;
 
 use super::actor_registry::{ActorEntry, ActorRegistry};
-use super::types::{SessionKind, SessionMeta, SessionStatus};
+use ship_terminal::types::{SessionKind, SessionMeta, SessionStatus};
 
 const NEEDLE: &[u8] = b"dangerously-load-development-channels";
 const EVENT_CAP: usize = 256;
@@ -263,7 +263,7 @@ fn spawn_reader_middleware(
 /// captures exit code into the parent session meta and flips status
 /// back to Idle.
 pub fn run_headless_turn(
-    session: super::types::PtySession,
+    session: ship_terminal::types::PtySession,
     launch: ship_substrate::services::dispatch_ports::LaunchCommand,
     harness_id: String,
     work_dir: PathBuf,
@@ -365,7 +365,7 @@ pub fn run_headless_turn(
             }
         });
         let mut m = session_clone.0.meta.lock().unwrap();
-        m.status = super::types::SessionStatus::Idle;
+        m.status = ship_terminal::types::SessionStatus::Idle;
         m.last_activity = chrono::Utc::now();
         m.pid = None;
         if let Some(code) = exit {

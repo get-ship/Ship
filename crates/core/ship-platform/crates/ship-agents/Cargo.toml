@@ -26,6 +26,8 @@ ship-config = { path = "../ship-config" }
 ship-harnesses = { path = "../ship-harnesses" }
 ship-files = { path = "../ship-files" }
 ship-store = { path = "../ship-store" }
+# L1 sibling — PTY session registry + shell spawn, carved from this crate.
+ship-terminal = { path = "../ship-terminal" }
 # Agent-run assembly deps (supervisor split — `runtime::executors`):
 #   ship-auth     — per-process scoped token mint/drop on the spawn path.
 #   ship-device   — isolation-execution sandbox dispatcher bookkeeping.
