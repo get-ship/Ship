@@ -241,7 +241,7 @@ pub fn build_router(
         .merge(deck::router())
         .merge(webhook_source_route)
         .merge(authenticated_routes)
-        .layer(axum::Extension(apps_ext))
+        .layer(axum::Extension(apps_ext.clone()))
         // Top-level DataPort Extension — same Arc as the multiplex's
         // MultiplexState. deck's serve_index / serve_setup read this via
         // `Option<Extension<Arc<dyn DataPort>>>` to drive the first-run
@@ -287,6 +287,7 @@ pub fn build_router(
         // the Connect fallback: GET client-routes serve the shell, everything
         // else reaches the Connect dispatch. See the `root` comment above.
         .layer(axum::middleware::from_fn(spa_nav_middleware))
+        .layer(axum::Extension(apps_ext.clone()))
         // Daemon-mode Extension — Sui handlers read it via
         // `Option<Extension<DaemonMode>>` without router-state plumbing.
         .layer(axum::Extension(daemon_mode))
