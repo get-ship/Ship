@@ -260,3 +260,6 @@ apps/site/public/sui-components/
 # artifacts and must never be committed (CLAUDE.md: artifacts → .artifacts/).
 .ship/pipelines/sui-eval/task-spec.md
 .ship/pipelines/sui-eval/mockups/
+
+# Spikes — scratch directories, never tracked
+/spikes
