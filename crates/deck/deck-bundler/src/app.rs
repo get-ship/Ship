@@ -397,8 +397,12 @@ mod tests {
         assert!(html.contains("@ship/sui-runtime"), "framework runtime in importmap");
         assert!(html.contains("@ship/sdk-client"), "framework sdk in importmap");
 
-        // Behavior 4: the entry chunk is produced by the bundler.
-        assert!(build.js_href.starts_with("/assets/entry-") && build.js_href.ends_with(".js"));
+        // Behavior 4: the entry chunk is produced by the bundler. The
+        // bundler derives the per-app asset prefix from the project
+        // directory name (e.g. `test-app`); the test's tempdir name is
+        // a `.tmp<hex>` prefix, so we only assert the shape.
+        assert!(build.js_href.contains("/_assets/entry-") && build.js_href.ends_with(".js"),
+                "expected /<project>/_assets/entry-*.js, got {}", build.js_href);
 
         // Behavior 5: public/ assets are copied to out/.
         assert!(out.join("favicon.ico").exists(), "public/ copied");
