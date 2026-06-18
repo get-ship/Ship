@@ -1,63 +1,18 @@
 //! Proto-policy + gate conformance tests for the wires shipd mounts.
 //!
-<<<<<<<< HEAD:apps/shipd/src/policy_conformance_tests.rs
-//! Proto owns op policy (#67a): capability / blast-radius / sensitive method
-//! options are compiled into the `FileDescriptorSet` and read through the
-//! single crate-level reader (`ship_ops_rpc::policy::read_policies`) — the
-//! same decode the enforcement gate uses. shipd keeps NO policy map of its
-//! own; these tests pin that the contract every generated client sees is the
-//! one the gate enforces.
-//!
-//! Merged from the former `agent_rpc.rs` / `pipelines_rpc.rs` / `view_rpc.rs`
-//! headstones (their `impl … for OpsImpl` bodies were deleted when the wires
-//! became the sole handlers) plus the policy tests that lived in `ops_rpc.rs`.
-|||||||| 2ce4b8ea0:apps/shipd/src/agent_rpc.rs
-//! `impl AgentsService for OpsImpl` is deleted — the handler now lives in
-//! `ship_agents::services::agents::AgentsWire`, mounted via
-//! `AgentsServiceExt::register` in `ops_rpc.rs`. Tests here verify the proto
-//! policy descriptor + gate decisions that the wire enforces at runtime.
-========
 //! `impl AgentsService for OpsImpl` is deleted — the handler now lives in
 //! `ship_agents::services::agents::AgentsWire`, mounted via
 //! `AgentsServiceExt::register` in `rpc/ops`. Tests here verify the proto
 //! policy descriptor + gate decisions that the wire enforces at runtime.
->>>>>>>> optionB-routes-unify:apps/shipd/src/rpc/agent.rs
 
 #[cfg(test)]
 mod tests {
     use ship_ops_rpc::BlastRadius;
     use ship_ops_rpc::policy::MethodPolicy;
 
-<<<<<<<< HEAD:apps/shipd/src/policy_conformance_tests.rs
-    /// Resolve a Connect wire-path (`ship.ops.v1.Svc/Method`) to its compiled
-    /// proto policy. Panics with the path so a missing descriptor entry names
-    /// itself.
-    fn policy(wire_path: &str) -> MethodPolicy {
-        ship_ops_rpc::policy::read_policies()
-            .into_iter()
-            .find(|p| p.wire_path() == wire_path)
-            .unwrap_or_else(|| panic!("{wire_path} must carry a policy in the descriptor"))
-    }
-
-    // ── OpsService / AccountService ───────────────────────────────────────────
-
-    #[test]
-    fn meta_op_policy_read_from_proto_descriptor() {
-        // Proves #67a end to end: the method options declared in ops.proto are
-        // compiled into the descriptor and recovered by the gate.
-        let p = policy("ship.ops.v1.OpsService/Meta");
-        assert_eq!(p.capability, "ship.meta.read");
-        assert_eq!(p.blast, BlastRadius::C0Read);
-        assert!(!p.sensitive);
-|||||||| 2ce4b8ea0:apps/shipd/src/agent_rpc.rs
-    fn policy(method: &str) -> &'static crate::ops_rpc::OpPolicy {
-        crate::ops_rpc::policy_for(&format!("ship.ops.v1.AgentsService/{method}"))
-            .unwrap_or_else(|| panic!("AgentsService/{method} must carry a policy in the descriptor"))
-========
     fn policy(method: &str) -> &'static crate::rpc::ops::OpPolicy {
         crate::rpc::ops::policy_for(&format!("ship.ops.v1.AgentsService/{method}"))
             .unwrap_or_else(|| panic!("AgentsService/{method} must carry a policy in the descriptor"))
->>>>>>>> optionB-routes-unify:apps/shipd/src/rpc/agent.rs
     }
 
     #[test]
@@ -72,7 +27,7 @@ mod tests {
         // the wire enforcement (no enforcement change — doc/classification only).
         let p = policy("ship.ops.v1.AccountService/State");
         assert_eq!(p.capability, "ship.account.read");
-        assert_eq!(p.blast, BlastRadius::C3Critical);
+        assert_eq!(p.blast_radius, BlastRadius::C3Critical);
     }
 
     // ── PipelinesService ──────────────────────────────────────────────────────
@@ -81,21 +36,21 @@ mod tests {
     fn pipelines_list_is_c0_read() {
         let p = policy("ship.ops.v1.PipelinesService/List");
         assert_eq!(p.capability, "ship.pipelines.read");
-        assert_eq!(p.blast, BlastRadius::C0Read);
+        assert_eq!(p.blast_radius, BlastRadius::C0Read);
     }
 
     #[test]
     fn update_status_is_c1_runtime_write() {
         let p = policy("ship.ops.v1.PipelinesService/UpdateStatus");
         assert_eq!(p.capability, "ship.runtime.write");
-        assert_eq!(p.blast, BlastRadius::C1Space);
+        assert_eq!(p.blast_radius, BlastRadius::C1Space);
     }
 
     #[test]
     fn pipelines_put_is_c1_config_write() {
         let p = policy("ship.ops.v1.PipelinesService/Put");
         assert_eq!(p.capability, "ship.pipelines.write");
-        assert_eq!(p.blast, BlastRadius::C1Space);
+        assert_eq!(p.blast_radius, BlastRadius::C1Space);
     }
 
     // ── ViewService ───────────────────────────────────────────────────────────
@@ -115,7 +70,7 @@ mod tests {
         ] {
             let p = policy(&format!("ship.ops.v1.ViewService/{method}"));
             assert_eq!(p.capability, "ship.views.write");
-            assert_eq!(p.blast, BlastRadius::C1Space);
+            assert_eq!(p.blast_radius, BlastRadius::C1Space);
         }
     }
 
@@ -126,24 +81,24 @@ mod tests {
         let dispatch = policy("ship.ops.v1.AgentsService/Dispatch");
         assert_eq!(dispatch.capability, "ship.runtime.dispatch");
         // Dispatch spawns/controls agents — C2 (elevated, granted to commander).
-        assert_eq!(dispatch.blast, BlastRadius::C2Elevated);
+        assert_eq!(dispatch.blast_radius, BlastRadius::C2Elevated);
 
         let grant = policy("ship.ops.v1.AgentsService/Grant");
         assert_eq!(grant.capability, "ship.agents.grant");
         // Grant hands out authority — C3 (operator/2FA only).
-        assert_eq!(grant.blast, BlastRadius::C3Critical);
+        assert_eq!(grant.blast_radius, BlastRadius::C3Critical);
     }
 
     #[test]
     fn folded_profile_policies_preserved() {
         let list = policy("ship.ops.v1.AgentsService/List");
         assert_eq!(list.capability, "ship.agents.read");
-        assert_eq!(list.blast, BlastRadius::C0Read);
+        assert_eq!(list.blast_radius, BlastRadius::C0Read);
 
         let create = policy("ship.ops.v1.AgentsService/Create");
         assert_eq!(create.capability, "ship.agents.write");
         // Authoring (agent-profile CRUD) is elevated — C2.
-        assert_eq!(create.blast, BlastRadius::C2Elevated);
+        assert_eq!(create.blast_radius, BlastRadius::C2Elevated);
     }
 
     #[test]
@@ -151,7 +106,7 @@ mod tests {
         // Sessions folded from SessionsService keeps its capability.
         let sessions = policy("ship.ops.v1.AgentsService/Sessions");
         assert_eq!(sessions.capability, "ship.sessions.read");
-        assert_eq!(sessions.blast, BlastRadius::C0Read);
+        assert_eq!(sessions.blast_radius, BlastRadius::C0Read);
     }
 
     // ── Gate conformance: Connect handler is the SSOT for agents/agent ops ────
