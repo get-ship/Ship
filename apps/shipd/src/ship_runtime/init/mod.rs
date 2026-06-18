@@ -1,4 +1,18 @@
+//! L0 init split into submodules — daemon composition (`paths`, `startup`)
+//! re-exported here so callers reach them as `ship_runtime::init::X`.
+//!
+//! Submodules:
+//! - `paths`   — path discovery, env-var wiring, port derivation.
+//! - `startup` — runtime subsystem startup, identity files, session install.
 //! ShipRuntime construction and shutdown. Test ctors live in `test_ctors`.
+
+mod paths;
+mod startup;
+
+pub use paths::{DaemonPaths, DaemonConfig, resolve_daemon_paths, resolve_daemon_config, apply_path_env_vars};
+pub use startup::{
+    start_runtime_subsystems, register_active_space, write_identity_files, install_session_subsystems,
+};
 
 use anyhow::{Context, Result, anyhow};
 use std::collections::HashMap;
