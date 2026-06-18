@@ -34,16 +34,16 @@ pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::p
         // AgentPorts (with harness fields) AND starts the agent-sessions
         // actor with them — the actor is the SAME one that would otherwise
         // be started below, so we MUST NOT start it again here.
-        let run_mgr = crate::managers::RunManager::init(
+        let dispatch_handle = crate::dispatch::run_dispatch::subscribe_job_events(
             rt.kernel().clone(),
             global_dir.to_path_buf(),
-            rt.health_registry(),
+            &rt.health_registry(),
             rt.session_registry().clone(),
             rt.daemon_origin(),
             Some(floki_run_fn),
         )
         .await;
-        if let Some(dh) = run_mgr.dispatch_handle {
+        if let Some(dh) = dispatch_handle {
             rt.set_dispatch_handle(dh);
         }
     }

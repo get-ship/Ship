@@ -12,7 +12,6 @@ pub mod account;
 pub mod agent;
 pub mod events;
 pub mod ops;
-pub mod pipelines;
 pub mod registry;
 pub mod runtime;
 pub mod search;
