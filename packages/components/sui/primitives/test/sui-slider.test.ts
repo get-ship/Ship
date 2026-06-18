@@ -6,9 +6,6 @@ const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 describe('<sui-slider>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-slider')).toBeDefined()
-  })
 
   it('renders with default values', async () => {
     const { el } = mount(reg, 'sui-slider')
@@ -19,13 +16,35 @@ describe('<sui-slider>', () => {
     expect(thumb.getAttribute('aria-valuemax')).toBe('100')
   })
 
-  it('reflects value attribute and positions fill', async () => {
+  it('reflects value attribute via aria-valuenow', async () => {
     const { el } = mount(reg, 'sui-slider', { value: '50', min: '0', max: '100' })
     await flush()
-    const fill = el.shadowRoot!.querySelector('.fill') as HTMLElement
-    expect(fill.style.width).toBe('50%')
-    const thumb = el.shadowRoot!.querySelector('.thumb') as HTMLElement
-    expect(thumb.style.left).toBe('50%')
+    const thumb = el.shadowRoot!.querySelector('[role="slider"]')!
+    expect(thumb.getAttribute('aria-valuenow')).toBe('50')
+  })
+
+  it('fill width and thumb offset grow monotonically with value', async () => {
+    // Relational invariant: as value increases across the range, the visual
+    // fill and thumb advance toward the max end. We assert ordering, never an
+    // exact percent string (which couples to the px→% formatting).
+    const pct = (s: string) => parseFloat(s)
+    const widths: number[] = []
+    const offsets: number[] = []
+    for (const value of ['0', '25', '50', '75', '100']) {
+      const { el } = mount(reg, 'sui-slider', { value, min: '0', max: '100' })
+      await flush()
+      const fill = el.shadowRoot!.querySelector('[part~="fill"]') as HTMLElement
+      const thumb = el.shadowRoot!.querySelector('[part~="thumb"]') as HTMLElement
+      widths.push(pct(fill.style.width))
+      offsets.push(pct(thumb.style.left))
+    }
+    for (let i = 1; i < widths.length; i++) {
+      expect(widths[i]!).toBeGreaterThan(widths[i - 1]!)
+      expect(offsets[i]!).toBeGreaterThan(offsets[i - 1]!)
+    }
+    // Endpoints anchor the scale: empty at min, full at max.
+    expect(widths[0]!).toBe(0)
+    expect(widths[widths.length - 1]!).toBe(100)
   })
 
   it('thumb aria-label uses label prop', async () => {
@@ -35,16 +54,18 @@ describe('<sui-slider>', () => {
     expect(thumb.getAttribute('aria-label')).toBe('Volume')
   })
 
-  it('ArrowRight increments value by step and emits sui-change', async () => {
+  it('ArrowRight increments value by step and emits sui-change (bubbles + composed)', async () => {
     const { el } = mount(reg, 'sui-slider', { value: '10', step: '5' })
     await flush()
-    let detail: { value: number } | null = null
-    el.addEventListener('sui-change', (e) => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-change', (e) => { evt = e as CustomEvent })
     const thumb = el.shadowRoot!.querySelector('[role="slider"]') as HTMLElement
     thumb.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
     await flush()
     expect(el.getAttribute('value')).toBe('15')
-    expect(detail).toEqual({ value: 15 })
+    expect(evt!.detail).toEqual({ value: 15 })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('ArrowLeft decrements value', async () => {

@@ -6,13 +6,11 @@ const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
-const box = (el: HTMLElement) => shadow(el).querySelector('.box') as HTMLElement | null
-const closeBtn = (el: HTMLElement) => shadow(el).querySelector('.close') as HTMLButtonElement | null
+// Anchor on the public part contract, not the styling classes (.box/.close).
+const box = (el: HTMLElement) => shadow(el).querySelector('[part="box"]') as HTMLElement | null
+const closeBtn = (el: HTMLElement) => shadow(el).querySelector('[part="close"]') as HTMLButtonElement | null
 
 describe('<sui-alert>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-alert')).toBeDefined()
-  })
 
   it('tone=info — reflects on host', () => {
     const { el } = mount(reg, 'sui-alert', { tone: 'info' }, 'heads up')
@@ -99,12 +97,15 @@ describe('<sui-alert>', () => {
     expect(closeBtn(el)!.getAttribute('aria-label')).toBe('Dismiss')
   })
 
-  it('dismiss click fires sui-dismiss event', () => {
+  it('dismiss click fires sui-dismiss: bubbles + composed, no payload (detail null)', () => {
     const { el } = mount(reg, 'sui-alert', { dismissible: true }, 'msg')
-    let fired = 0
-    el.addEventListener('sui-dismiss', () => fired++)
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-dismiss', (e) => { evt = e as CustomEvent })
     closeBtn(el)!.click()
-    expect(fired).toBe(1)
+    expect(evt).not.toBeNull()
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+    expect(evt!.detail).toBeNull()
   })
 
   it('dismiss click removes host from DOM', () => {

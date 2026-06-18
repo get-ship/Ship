@@ -34,31 +34,46 @@
 
   .fallback {
     display: flex;
-    flex-direction: column;
+    gap: var(--space-3);
     align-items: flex-start;
-    gap: var(--space-2, 8px);
-    padding: var(--space-3, 12px) var(--space-4, 16px);
-    border: 1px solid color-mix(in oklch, var(--destructive) 30%, var(--border));
-    border-radius: var(--radius);
-    background: color-mix(in oklch, var(--destructive) 6%, var(--background));
+    padding: var(--space-4) var(--space-5);
+    border: 1px solid var(--tone-destructive-border);
+    border-radius: var(--radius-md);
+    background: var(--tone-destructive-bg);
     color: var(--foreground);
-    font-size: var(--text-sm, 13px);
+    font-size: var(--text-sm);
+    box-shadow: var(--shadow-xs);
   }
+
+  .fallback-icon {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    color: var(--destructive);
+    margin-top: var(--space-1);
+  }
+
+  .fallback-body { min-width: 0; }
 
   .message {
     color: var(--muted-foreground);
+    line-height: 1.5;
   }
 
   .retry {
+    align-self: flex-start;
     appearance: none;
-    background: transparent;
+    background: var(--surface-1);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 4px 10px;
+    padding: var(--space-1) var(--space-3);
     font: inherit;
-    font-size: var(--text-xs, 12px);
+    font-size: var(--text-xs);
+    font-weight: 600;
     color: var(--foreground);
     cursor: pointer;
+    box-shadow: var(--shadow-xs);
+    transition: background-color var(--duration-fast) var(--ease-out);
   }
   .retry:hover {
     background: var(--muted);
@@ -72,8 +87,15 @@
     <slot name="fallback"></slot>
   {:else}
     <div class="fallback" part="fallback" role="alert">
-      <div class="message" part="message">{fallbackText() || 'Something went wrong'}</div>
-      <button class="retry" part="retry" type="button" on:click={reset}>Retry</button>
+      <svg class="fallback-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path>
+        <path d="M12 9v4"></path>
+        <path d="M12 17h.01"></path>
+      </svg>
+      <sui-stack class="fallback-body" gap="1">
+        <div class="message" part="message">{fallbackText() || 'Something went wrong'}</div>
+        <button class="retry" part="retry" type="button" on:click={reset}>Retry</button>
+      </sui-stack>
     </div>
   {/if}
 {/if}

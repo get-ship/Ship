@@ -1,14 +1,19 @@
 /**
  * Build-time loader over the workspace SUI catalog.
  *
- * Reads `.deck/catalogs/workspace.json` — the canonical catalog
- * produced by `@ship/sui-catalog` (CLI: `bun packages/deck/catalog/src/cli.ts`)
- * which walks every workspace package's `customElements` manifest plus
- * the per-component CEMs in `.ship/sui-out/`. Emits the typed record per
+ * Reads `.deck/catalogs/workspace.json` — the canonical catalog baked by the
+ * deck bundler. It is produced by `deck::bundler::Bundler::refresh_catalog`
+ * (crates/deck/deck-bundler/src/lib.rs), which runs on every asset bake
+ * (`cargo run -p deck-cli -- build-assets`) and live while the daemon is
+ * running. The file is a build artifact (gitignored); when it is absent the
+ * gallery renders empty rather than failing the docs build, so a clean
+ * checkout without a bake still builds. Emits the typed record per
  * `<sui-*>` primitive that the docs site renders.
  */
 
-import catalog from '../../../../.deck/catalogs/workspace.json' with { type: 'json' };
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
 export type ComponentCategory =
   | 'typography'
@@ -361,7 +366,13 @@ function toComponent(e: CatalogEntry): ComponentDoc | null {
   };
 }
 
-const raw = catalog as { entries?: CatalogEntry[] };
+const CATALOG_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../../.deck/catalogs/workspace.json',
+);
+const raw: { entries?: CatalogEntry[] } = existsSync(CATALOG_PATH)
+  ? (JSON.parse(readFileSync(CATALOG_PATH, 'utf8')) as { entries?: CatalogEntry[] })
+  : { entries: [] };
 
 export const COMPONENTS: ComponentDoc[] = (raw.entries ?? [])
   .map(toComponent)

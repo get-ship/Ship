@@ -25,7 +25,7 @@ pub mod scopes;
 pub mod session;
 pub mod sweeper;
 
-#[cfg(any(test, feature = "testutil"))]
+#[cfg(test)]
 pub mod testutil;
 
 #[cfg(test)]

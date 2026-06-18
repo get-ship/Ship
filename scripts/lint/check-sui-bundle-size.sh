@@ -13,9 +13,20 @@ ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
 # Budgets (gzip bytes). Updating: bump only with a written rationale.
+#
+# Rationale (#297, 2026-06-11 — bake now minifies, virtualization split out):
+#   sui-runtime.js measures 16.1KB gz (48.1KB raw) after (a) build_all bakes
+#   with rolldown `minify` on and (b) `createVirtualizer` moved off the root
+#   barrel to the `@ship/sui-runtime/virtual` subpath, dropping
+#   @tanstack/virtual-core (~21KB minified) from the always-loaded singleton.
+#   20000 stands: ~24% headroom for framework-own growth, while a regression
+#   that re-inlines the windowing engine (or any dep of its size) breaches.
+#   sui-dom.js measures 1.6KB gz minified; 2500 keeps proportional headroom
+#   (the old 4000 was sized against the unminified bake and could hide a
+#   dom bundle that doubled).
 declare -A BUDGETS=(
   [sui-runtime.js]=20000
-  [sui-dom.js]=4000
+  [sui-dom.js]=2500
 )
 
 # Produce the framework bundles via the canonical in-process Rolldown bake

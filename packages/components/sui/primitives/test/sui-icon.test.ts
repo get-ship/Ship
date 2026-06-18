@@ -15,9 +15,6 @@ const svg = (el: HTMLElement) =>
   shadow(el).querySelector('svg[part="svg"]') as SVGSVGElement | null
 
 describe('<sui-icon>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-icon')).toBeDefined()
-  })
 
   it('renders default (no name, no label) — empty slot, host has aria-hidden=true', () => {
     const { el } = mount(reg, 'sui-icon')

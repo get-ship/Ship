@@ -1,0 +1,64 @@
+<!--
+  ship-code-editor.sui — the @ship/code editor SURFACE (chrome around CodeMirror).
+  The CodeMirror mount is represented by a realistic static, token-colored code
+  body; everything around it — tab strip, gutter + active-line, status bar — is
+  the SHIP-tier chrome being designed here. Syntax colors map to ship TONE tokens
+  (theme-reactive, no hex). Compiled as <ship-code-editor>.
+-->
+<style>
+  :host { display: block; font-family: var(--font-body); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--card); box-shadow: var(--shadow-xs); }
+  /* tab strip */
+  .tabs { display: flex; align-items: stretch; background: color-mix(in oklch, var(--muted) 50%, var(--card)); border-bottom: 1px solid var(--border-subtle); }
+  .tab { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; font-size: var(--text-sm); color: var(--muted-foreground); border-right: 1px solid var(--border-subtle); cursor: pointer; white-space: nowrap; }
+  .tab .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warning); }
+  .tab.active { background: var(--card); color: var(--foreground); position: relative; }
+  .tab.active::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--primary); }
+  .tab .x { color: var(--muted-foreground); font-size: 13px; }
+  .spacer { flex: 1; border-bottom: 1px solid var(--border-subtle); }
+  /* editor body */
+  .body { display: flex; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.7; background: var(--card); }
+  .gutter { padding: 10px 0; text-align: right; color: var(--muted-foreground); user-select: none; border-right: 1px solid var(--border-subtle); background: color-mix(in oklch, var(--muted) 22%, var(--card)); }
+  .gutter span { display: block; padding: 0 12px; font-variant-numeric: tabular-nums; }
+  .gutter span.cur { color: var(--foreground); background: var(--selected-bg); }
+  .code { padding: 10px 0; flex: 1; overflow: hidden; }
+  .ln { padding: 0 14px; white-space: pre; }
+  .ln.cur { background: color-mix(in oklch, var(--primary) 6%, transparent); }
+  .tag { color: var(--primary); }
+  .at { color: var(--info); }
+  .str { color: var(--success); }
+  .fn { color: var(--accent); }
+  .pn { color: var(--muted-foreground); }
+  .cm { color: var(--muted-foreground); font-style: italic; }
+  .cursor { display: inline-block; width: 2px; height: 1.1em; background: var(--primary); vertical-align: text-bottom; margin: 0 -1px; }
+  /* status bar */
+  .status { display: flex; align-items: center; gap: 14px; padding: 5px 12px; border-top: 1px solid var(--border-subtle); background: color-mix(in oklch, var(--muted) 50%, var(--card)); font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+  .status .br { color: var(--foreground); }
+  .status .sp { margin-left: auto; }
+</style>
+<div class="surface" part="surface">
+  <div class="tabs" part="tabs">
+    <span class="tab active">button.sui<span class="x">&#215;</span></span>
+    <span class="tab"><span class="dot"></span>card.sui<span class="x">&#215;</span></span>
+    <span class="tab">tokens.css<span class="x">&#215;</span></span>
+    <span class="spacer"></span>
+  </div>
+  <div class="body" part="editor">
+    <div class="gutter"><span>1</span><span>2</span><span>3</span><span class="cur">4</span><span>5</span><span>6</span><span>7</span></div>
+    <div class="code">
+      <div class="ln"><span class="cm">&lt;!-- a tonal button --&gt;</span></div>
+      <div class="ln"><span class="tag">&lt;prop</span> <span class="at">name</span><span class="pn">=</span><span class="str">"tone"</span> <span class="at">default</span><span class="pn">=</span><span class="str">"primary"</span> <span class="tag">/&gt;</span></div>
+      <div class="ln"><span class="tag">&lt;style&gt;</span></div>
+      <div class="ln cur">  <span class="fn">.btn</span> <span class="pn">{</span> background<span class="pn">:</span> <span class="fn">var</span><span class="pn">(</span>--primary<span class="pn">)</span><span class="cursor"></span><span class="pn">; }</span></div>
+      <div class="ln"><span class="tag">&lt;/style&gt;</span></div>
+      <div class="ln"><span class="tag">&lt;button</span> <span class="at">class</span><span class="pn">=</span><span class="str">"btn"</span><span class="tag">&gt;</span></div>
+      <div class="ln">  <span class="tag">&lt;slot /&gt;&lt;/button&gt;</span></div>
+    </div>
+  </div>
+  <div class="status" part="status">
+    <span class="br">&#9095; main</span>
+    <span>SUI</span>
+    <span class="sp">Ln 4, Col 34</span>
+    <span>Spaces: 2</span>
+    <span>UTF-8</span>
+  </div>
+</div>

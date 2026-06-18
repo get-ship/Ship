@@ -1,0 +1,77 @@
+<!--
+  sui-chip.before.sui — EXISTING look (repo styling), rendered controller-free
+  (states are attribute-driven CSS; the × button's bind:this + keyboard/click are
+  controller behavior, dropped for this static visual). Tone × variant(soft|
+  outline|solid|ghost) × size, plus selected / removable / disabled. The shipped
+  source's raw black/white color-mix literals are SUI-compiler errors — shown here
+  is the nearest compiling equivalent (--foreground/--background); the .after moves
+  to --tone-contrast + tunes contrast. Compiled as <x-chip-before>.
+  Props: tone · variant · size · selected · removable · disabled.
+-->
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="muted" reflect />
+<prop name="variant" values="solid|soft|outline|ghost" default="soft" reflect />
+<prop name="size" values="sm|md|lg" default="sm" reflect />
+<prop name="selected" type="bool" default="false" reflect />
+<prop name="removable" type="bool" default="false" reflect />
+<prop name="disabled" type="bool" default="false" reflect />
+
+<style>
+  :host {
+    display: inline-flex; vertical-align: middle;
+    --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-contrast: var(--background);
+    --chip-radius: var(--radius-full);
+  }
+  :host([hidden]) { display: none; }
+  :host([tone='primary'])     { --tone: var(--primary);     --tone-fg: var(--tone-primary-fg); }
+  :host([tone='info'])        { --tone: var(--info);        --tone-fg: var(--tone-info-fg); }
+  :host([tone='success'])     { --tone: var(--success);     --tone-fg: var(--tone-success-fg); }
+  :host([tone='warning'])     { --tone: var(--warning);     --tone-fg: var(--tone-warning-fg); }
+  :host([tone='destructive']) { --tone: var(--destructive); --tone-fg: var(--destructive); }
+  :host([tone='accent'])      { --tone: var(--accent);      --tone-fg: var(--tone-accent-fg); }
+
+  :host(:not([size])), :host([size='sm']) { --chip-h: 22px; --chip-px: 8px;  --chip-fs: var(--text-xs);   --chip-gap: 4px; --chip-icon: 10px; --chip-remove: 14px; }
+  :host([size='md']) { --chip-h: 26px; --chip-px: 10px; --chip-fs: var(--text-sm);   --chip-gap: 6px; --chip-icon: 12px; --chip-remove: 16px; }
+  :host([size='lg']) { --chip-h: 30px; --chip-px: 12px; --chip-fs: var(--text-base); --chip-gap: 6px; --chip-icon: 14px; --chip-remove: 18px; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: var(--chip-gap);
+    min-height: var(--chip-h); padding: 0 var(--chip-px);
+    font-family: var(--font-body); font-size: var(--chip-fs); font-weight: var(--font-weight-medium);
+    line-height: 1; color: var(--tone-fg); background: transparent; border: 1px solid transparent;
+    border-radius: var(--chip-radius); cursor: pointer; user-select: none; white-space: nowrap;
+    transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+  }
+  :host(:not([variant])) .chip,
+  :host([variant='soft']) .chip { background: color-mix(in oklch, var(--tone) 14%, transparent); border-color: color-mix(in oklch, var(--tone) 22%, transparent); }
+  :host([variant='outline']) .chip { background: transparent; border-color: color-mix(in oklch, var(--tone) 45%, transparent); }
+  :host([variant='solid']) .chip {
+    background: var(--tone); border-color: color-mix(in oklch, var(--tone) 94%, var(--foreground));
+    color: var(--tone-contrast); box-shadow: inset 0 1px 0 0 color-mix(in oklch, var(--background) 18%, transparent);
+  }
+  :host([variant='ghost']) .chip { background: transparent; border-color: transparent; }
+
+  :host([selected]) .chip {
+    background: var(--tone); border-color: color-mix(in oklch, var(--tone) 90%, var(--foreground));
+    color: var(--tone-contrast); box-shadow: inset 0 1px 0 0 color-mix(in oklch, var(--background) 20%, transparent);
+    font-weight: var(--font-weight-semibold);
+  }
+  :host([selected][tone='muted']) .chip { background: var(--foreground); border-color: var(--foreground); color: var(--background); }
+
+  :host([disabled]) .chip {
+    cursor: not-allowed; background: var(--muted); border-color: color-mix(in oklch, var(--border) 80%, transparent);
+    color: color-mix(in oklch, var(--muted-foreground) 70%, transparent); filter: saturate(0.65); box-shadow: none;
+  }
+
+  .remove { display: inline-flex; align-items: center; justify-content: center; width: var(--chip-remove); height: var(--chip-remove); margin-inline: 2px -4px; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; border-radius: var(--radius-full); flex-shrink: 0; }
+  .remove svg { width: 70%; height: 70%; display: block; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; }
+  .remove:hover { background: color-mix(in oklch, currentColor 18%, transparent); }
+</style>
+
+<span class="chip" part="chip">
+  <slot></slot>
+  {#if removable()}
+    <button class="remove" part="remove" type="button" aria-label="Remove" tabindex="-1">
+      <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2 L8 8 M8 2 L2 8" /></svg>
+    </button>
+  {/if}
+</span>

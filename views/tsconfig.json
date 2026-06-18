@@ -13,6 +13,21 @@
     "verbatimModuleSyntax": true,
     "noEmit": true,
     "types": [],
+    // `views/` is not a workspace member (root package.json doesn't
+    // include it in `workspaces.packages`), so tsc walking up from
+    // a controller's import never finds `@ship/sui-runtime` in the
+    // root node_modules. Map the package names to their on-disk
+    // entries directly so tsc resolves the imports.
+    "paths": {
+      "@ship/sui-runtime": ["../packages/sui/runtime/src/index.ts"],
+      "@ship/sui-runtime/*": ["../packages/sui/runtime/src/*"],
+      "@ship/sui-dom/test-utils": ["../packages/sui/dom/src/test-utils/index.ts"],
+      "@ship/sui-dom/test-utils/*": ["../packages/sui/dom/src/test-utils/*"],
+      "@ship/sdk-client": ["../packages/deck/sdk-client/src/index.ts"],
+      "@ship/sdk-client/*": ["../packages/deck/sdk-client/src/*"],
+      "@ship/sdk": ["../packages/deck/sdk/src/index.ts"],
+      "@ship/sdk/*": ["../packages/deck/sdk/src/*"],
+    },
     // Controllers do `import type { Scope } from './page.sui'`. The
     // sui-compiler emits `page.sui.d.ts` into the project mirror tree
     // at `<repo-root>/.ship/sui-out/views/<name>/`. `rootDirs` lets tsc

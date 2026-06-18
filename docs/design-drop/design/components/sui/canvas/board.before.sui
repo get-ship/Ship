@@ -1,0 +1,25 @@
+<!-- sui-board.before.sui — EXISTING look (repo). Node/edge diagram. Edges stroke
+  --border at 2px — which goes near-invisible on console/contrast — and ports are
+  tiny 9px dots (below hit-target). Plain nodes. Static snapshot. Compiled as
+  <x-board-before>. -->
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  .board { position: relative; width: 480px; height: 240px; max-width: 100%; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); background-image: radial-gradient(var(--border-subtle) 1px, transparent 1px); background-size: 16px 16px; overflow: hidden; }
+  svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .edge { fill: none; stroke: var(--border); stroke-width: 2; }
+  .node { position: absolute; width: 120px; height: 52px; box-sizing: border-box; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; }
+  .node .t { font-size: 12px; font-weight: 600; color: var(--foreground); }
+  .node .s { font-size: 10px; color: var(--muted-foreground); }
+  .port { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--muted-foreground); }
+</style>
+<div class="board" part="board">
+  <svg viewBox="0 0 480 240" aria-hidden="true">
+    <path class="edge" d="M136 50 C162 50 154 122 180 122"></path>
+    <path class="edge" d="M300 122 C326 122 318 50 344 50"></path>
+    <path class="edge" d="M240 148 L240 176"></path>
+  </svg>
+  <div class="node" style="left:16px;top:24px"><div class="t">Ingest</div><div class="s">source</div><span class="port" style="right:-4px;top:22px"></span></div>
+  <div class="node" style="left:180px;top:96px"><div class="t">Transform</div><div class="s">map · filter</div><span class="port" style="left:-4px;top:22px"></span><span class="port" style="right:-4px;top:22px"></span><span class="port" style="left:56px;bottom:-4px"></span></div>
+  <div class="node" style="left:344px;top:24px"><div class="t">Index</div><div class="s">sink</div><span class="port" style="left:-4px;top:22px"></span></div>
+  <div class="node" style="left:180px;top:176px"><div class="t">Alert</div><div class="s">on fail</div><span class="port" style="left:56px;top:-4px"></span></div>
+</div>

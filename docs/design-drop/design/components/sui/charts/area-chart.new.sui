@@ -1,0 +1,30 @@
+<!-- sui-area-chart.new.sui — ELEVATED on identical geometry. A soft gradient area
+  fill (tone → transparent), a rounded 2px line, faint --border-subtle gridlines +
+  a baseline, and a card-ringed end-point marker. Same series as .existing; only
+  the paint differs. Compiled as <x-area-new>. Props: tone. -->
+<prop name="tone" values="primary|accent|info|success|warning|destructive" default="primary" reflect />
+<style>
+  :host { display: block; width: 100%; --tone: var(--primary); }
+  :host([tone='accent']) { --tone: var(--accent); }
+  :host([tone='info']) { --tone: var(--info); }
+  :host([tone='success']) { --tone: var(--success); }
+  :host([tone='warning']) { --tone: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive); }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .grid { stroke: var(--border-subtle); stroke-width: 1; }
+  .baseline { stroke: var(--border); stroke-width: 1; }
+  .s0 { stop-color: var(--tone); stop-opacity: 0.30; }
+  .s1 { stop-color: var(--tone); stop-opacity: 0; }
+  .area { fill: url(#area-grad); stroke: none; }
+  .line { fill: none; stroke: var(--tone); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .dot { fill: var(--tone); stroke: var(--card); stroke-width: 1.5; }
+</style>
+<svg viewBox="0 0 240 96" part="chart" role="img" aria-label="Area chart">
+  <defs><linearGradient id="area-grad" x1="0" y1="0" x2="0" y2="1"><stop class="s0" offset="0%"></stop><stop class="s1" offset="100%"></stop></linearGradient></defs>
+  <line class="grid" x1="0" y1="29" x2="240" y2="29"></line>
+  <line class="grid" x1="0" y1="58" x2="240" y2="58"></line>
+  <line class="baseline" x1="0" y1="88" x2="240" y2="88"></line>
+  <path class="area" d="M4 88 L4 88 L29.8 71.3 L55.6 79.6 L81.3 54.6 L107.1 65.7 L132.9 40.6 L158.7 49 L184.4 26.7 L210.2 35.1 L236 10 L236 88 Z"></path>
+  <path class="line" d="M4 88 L29.8 71.3 L55.6 79.6 L81.3 54.6 L107.1 65.7 L132.9 40.6 L158.7 49 L184.4 26.7 L210.2 35.1 L236 10"></path>
+  <circle class="dot" cx="236" cy="10" r="3"></circle>
+</svg>

@@ -72,8 +72,8 @@ describe('date-math — calendar grid primitives', () => {
     const cells = monthGrid(2026, 5, 0) // June 2026, Sunday start
     expect(cells).toHaveLength(42)
     // June 1 2026 is a Monday → Sunday-start grid begins on May 31.
-    expect(cells[0].iso).toBe('2026-05-31')
-    expect(cells[0].inMonth).toBe(false)
+    expect(cells[0]!.iso).toBe('2026-05-31')
+    expect(cells[0]!.inMonth).toBe(false)
     const june1 = cells.find((c) => c.iso === '2026-06-01')!
     expect(june1.inMonth).toBe(true)
     expect(june1.day).toBe(1)

@@ -130,30 +130,46 @@ Agents in a running Ship cluster discover and message each other through the run
 
 ## Get Started
 
-1. Download Ship from the [releases page] and double-click the
-   installer for your platform (`.pkg` / `.msi` / `.deb` / `.rpm`).
-2. Your browser opens at `http://localhost:9315/setup` — finish the
-   wizard.
-3. `cd your-project && ship init && ship use my-agent`
+Ship is in **private beta** — there's no public installer yet. [Join the
+waitlist](https://getship.dev/waitlist/) for access as the beta opens. When the
+public beta lands, getting Ship will be a normal app install (a GUI installer or
+your package manager); both pieces — the `ship` CLI and the `shipd` daemon —
+register to start automatically, with setup opening in your browser on first run.
 
-[releases page]: https://github.com/madvib/ship/releases/latest
+To run Ship today, build it from source.
 
-## Install
+### Build from source
 
-Full per-platform matrix (GUI, CLI, dev fallback, uninstall) lives in
-[`docs/ship-getting-started/references/docs/installation.md`](docs/ship-getting-started/references/docs/installation.md). Short form:
+You need a [Rust toolchain](https://rustup.rs) and [Bun](https://bun.sh).
 
 ```sh
-# macOS          brew install madvib/tap/ship      (tap: TODO)
-# Debian/Ubuntu  sudo apt install ./ship_*.deb
-# Fedora/RHEL    sudo dnf install ./ship-*.rpm
-# Windows        msiexec /i ship-*.msi
-#
-# Dev / exotic Unix — bootstraps both binaries into ~/.ship/bin:
-curl -fsSL https://github.com/madvib/ship/releases/latest/download/install.sh | sh
-#
-# From source:
-cargo install --path apps/ship-cli --path apps/shipd
+git clone https://github.com/madvib/ship
+cd ship
+just build                 # builds the Rust binaries + bun workspace
+```
+
+`just build` is the canonical dev build. It produces the `ship` CLI and the
+`shipd` daemon under `target/`. Start the daemon and open the browser UI:
+
+```sh
+cargo run -p shipd         # serves http://localhost:9315
+```
+
+### Dev install script
+
+`scripts/install.sh` is an explicitly **developer / CI** path — it pulls a
+release tarball, drops both binaries under `~/.ship/bin`, registers a
+systemd-user or launchd service, and opens the setup wizard. It is not the
+end-user distribution story; use it only for dev or CI bootstrapping.
+
+```sh
+curl -fsSL https://github.com/madvib/ship/releases/download/vX.Y.Z/install.sh | sh
+```
+
+Once the binaries are on your path:
+
+```sh
+cd your-project && ship init && ship use my-agent
 ```
 
 ## Status

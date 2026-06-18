@@ -12,15 +12,12 @@
 // Keeping `index.ts` to the surface declaration only respects the 300-
 // line file cap and makes the SDK surface readable at a glance.
 import type { LiveSource } from '@ship/sui-runtime'
-import type {
-  AgentsSummariesResponse,
-  GitDiff,
-  GitDiffArgs,
-  GitOverview,
-} from './generated'
+import type { AgentsSummariesResponse } from './generated'
+import type { GitDiff, GitDiffArgs, GitOverview } from './ship-data'
 import type { ArtifactRecord, ShipSDK } from './ship-sdk'
 import { fetchBody, mutateForm, mutateJson } from './http'
 import { sharedSource } from './shared-source'
+import { readSpaceConfig } from './spaces'
 import { MuxClient } from './mux-client'
 import { liveStream } from './live-stream'
 import { createShipConnectClient, SettingScope } from '@ship/sdk/connect'
@@ -46,6 +43,8 @@ declare module '@ship/sui-runtime' {
 
 export { liveStream } from './live-stream'
 export { sharedSource } from './shared-source'
+export { readSpaceConfig } from './spaces'
+export type { SpaceConfig, SpaceRuntimeRoute } from './spaces'
 export {
   displayName as accountDisplayName,
   initials as accountInitials,
@@ -63,13 +62,17 @@ export {
 export type {
   AgentSummary,
   AgentsSummariesResponse,
+} from './generated'
+// Hand-owned SSE/mux payload shapes — their Rust structs left the specta
+// surface when the registered wire moved to proto (see ship-data.ts).
+export type {
   BranchSummary as GitBranch,
   CommitSummary as GitCommit,
   GitDiff,
   GitDiffArgs,
   GitOverview,
   StatusFile as GitFileEntry,
-} from './generated'
+} from './ship-data'
 // The Ship SDK surface + its hand-authored data types — owned here, not the framework.
 export type {
   AccountState,
@@ -264,72 +267,18 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
           .deleteItem({ collection: args.collection, id: args.item_id })
           .then(() => {}),
     },
-    dashboard: {
-      state: () => sse('dashboard', 'state'),
-    },
     events: {
       list: (args) => sse('events', 'list', args),
     },
+    // git is parked: read-only. overview/diff/annotations route through the
+    // mux resolver (`git.overview` registry op); the write path went out with
+    // GitService.
     git: {
       overview:    (args?: { workspace_id?: string; limit?: number }) =>
         sse<GitOverview>('git', 'overview', args),
       diff:        (args: GitDiffArgs) => sse<GitDiff>('git', 'diff', args),
       annotations: (args: { file: string; workspace_id?: string }) =>
         sse('git', 'annotations', args),
-      stage:       (args) =>
-        okJson<{ ok: true; staged: number }>(
-          connect.git.stage({ workspaceId: args.workspace_id ?? '', paths: args.paths }),
-        ),
-      unstage:     (args) =>
-        okJson<{ ok: true; unstaged: number }>(
-          connect.git.unstage({ workspaceId: args.workspace_id ?? '', paths: args.paths }),
-        ),
-      commit:      (args) =>
-        okJson<{ ok: true; sha: string; branch: string | null }>(
-          connect.git.commit({
-            workspaceId: args.workspace_id ?? '',
-            message: args.message,
-            author: args.author ?? '',
-          }),
-        ),
-      push:        (args) =>
-        okJson<{ ok: true; remote: string; force: boolean }>(
-          connect.git.push({
-            workspaceId: args?.workspace_id ?? '',
-            remote: args?.remote ?? '',
-            force: args?.force ?? false,
-          }),
-        ),
-      fetch:       (args) =>
-        okJson<{ ok: true; remote: string }>(
-          connect.git.fetch({ workspaceId: args?.workspace_id ?? '', remote: args?.remote ?? '' }),
-        ),
-      pull:        (args) =>
-        okJson<{ ok: true; head: string }>(
-          connect.git.pull({ workspaceId: args?.workspace_id ?? '', remote: args?.remote ?? '' }),
-        ),
-      checkout:    (args) =>
-        okJson<{ ok: true; ref: string; resolved: string }>(
-          connect.git.checkout({ workspaceId: args.workspace_id ?? '', refname: args.ref }),
-        ),
-      branch_create: (args) =>
-        okJson<{ ok: true; name: string }>(
-          connect.git.branchCreate({
-            workspaceId: args.workspace_id ?? '',
-            name: args.name,
-            checkout: args.checkout ?? false,
-          }),
-        ),
-      branch_delete: (args) =>
-        okJson<{ ok: true; name: string }>(
-          connect.git.branchDelete({
-            workspaceId: args.workspace_id ?? '',
-            name: args.name,
-            force: args.force ?? false,
-          }),
-        ),
-      init:        (args) =>
-        okJson<{ ok: true }>(connect.git.init({ workspaceId: args?.workspace_id ?? '' })),
     },
     mesh: {
       snapshot: () => sse('mesh', 'snapshot'),
@@ -390,5 +339,8 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
           auto: args.auto ?? false,
         })),
     },
-  }
-}
+    spaces: {
+      config: (args) => readSpaceConfig(baseUrl, args),
+    },
+   }
+ }

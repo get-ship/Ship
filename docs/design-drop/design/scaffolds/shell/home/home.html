@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+  <meta charset="utf-8" />
+  <title>Ship · home</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../../../../sui/ship.css" />
+  <style>
+    html, body { margin: 0; height: 100%; }
+    body {
+      background:
+        radial-gradient(circle at 1px 1px, var(--border-subtle) 1px, transparent 0)
+        0 0 / 36px 36px,
+        var(--background);
+      color: var(--foreground);
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    .icon    { width: 14px; height: 14px; flex-shrink: 0; }
+    .icon-xs { width: 12px; height: 12px; }
+    .icon-md { width: 16px; height: 16px; }
+
+    .home {
+      position: relative;
+      min-height: 100vh;
+      padding: 48px 56px 64px;
+      box-sizing: border-box;
+      max-width: 1320px;
+      margin: 0 auto;
+      display: grid;
+      gap: var(--space-6);
+    }
+
+    /* ── Greeting strip ─────────────────────────────────────── */
+    .greet {
+      display: flex; align-items: baseline; gap: var(--space-3);
+    }
+    .greet-title {
+      font-family: var(--heading-font);
+      font-size: 30px;
+      font-weight: var(--heading-weight);
+      letter-spacing: var(--heading-tracking);
+      line-height: 1;
+      margin: 0;
+    }
+    .greet-ws {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--muted-foreground);
+      padding: 2px 8px;
+      background: var(--muted);
+      border-radius: var(--radius-sm);
+    }
+    .greet-day {
+      margin-left: auto;
+      font-size: 12.5px;
+      color: var(--muted-foreground);
+    }
+    .greet-rule {
+      width: 96px; height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--primary), transparent);
+    }
+
+    /* ── Apps strip — small launchers, dock-style ───────────── */
+    .apps {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      padding: 8px;
+      border: 1px solid var(--border-subtle);
+      background: color-mix(in oklch, var(--surface-1) 75%, transparent);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(6px);
+      width: max-content;
+      max-width: 100%;
+    }
+    .app {
+      display: flex; flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      color: var(--foreground);
+      cursor: pointer;
+      transition: background 120ms, transform 120ms;
+      min-width: 76px;
+    }
+    .app:hover { background: var(--background); transform: translateY(-1px); }
+    .app-glyph {
+      width: 40px; height: 40px;
+      border-radius: var(--radius-md);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white;
+      position: relative;
+      isolation: isolate;
+      box-shadow:
+        inset 0 1px 0 color-mix(in oklch, white 22%, transparent),
+        inset 0 -1px 0 color-mix(in oklch, black 8%, transparent),
+        0 2px 6px color-mix(in oklch, var(--g-color, var(--primary)) 24%, transparent);
+    }
+    .app-glyph::before {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(160deg, color-mix(in oklch, white 14%, transparent) 0%, transparent 55%);
+    }
+    .app-label {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--foreground);
+    }
+    .app.is-studio .app-glyph { box-shadow:
+      inset 0 1px 0 color-mix(in oklch, white 22%, transparent),
+      0 3px 10px color-mix(in oklch, var(--primary) 32%, transparent),
+      0 0 0 2px color-mix(in oklch, var(--primary) 18%, transparent);
+    }
+    .apps-spacer {
+      width: 1px;
+      align-self: stretch;
+      background: var(--border-subtle);
+      margin: 4px 4px;
+    }
+
+    /* ── Widget grid — the substance ────────────────────────── */
+    .widgets {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      grid-template-rows: 1.1fr 1fr;
+      gap: var(--space-3);
+      min-height: 520px;
+    }
+    .w {
+      background: var(--card);
+      color: var(--card-foreground);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      display: flex; flex-direction: column;
+      gap: var(--space-3);
+      min-width: 0;
+      overflow: hidden;
+    }
+    .w-h {
+      display: flex; align-items: baseline; gap: 8px;
+    }
+    .w-h-name {
+      font-family: var(--heading-font);
+      font-size: 14px;
+      font-weight: var(--heading-weight);
+      letter-spacing: var(--heading-tracking);
+      color: var(--foreground);
+      margin: 0;
+    }
+    .w-h-sub {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--muted-foreground);
+    }
+    .w-h-live {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--success);
+      margin-left: auto;
+    }
+    .w-h-live-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--success);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--success) 60%, transparent); }
+      50%      { box-shadow: 0 0 0 5px color-mix(in oklch, var(--success) 0%, transparent); }
+    }
+    .w-h-act {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    /* Widget: Events (spans 2 rows, left col) */
+    .w-events { grid-row: 1 / 3; }
+    .events {
+      display: flex; flex-direction: column;
+      gap: 1px;
+      flex: 1; overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      margin: 0 -4px;
+    }
+    .ev {
+      display: grid;
+      grid-template-columns: 56px 14px 1fr auto;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 6px;
+      border-radius: var(--radius-sm);
+    }
+    .ev:hover { background: var(--surface-1); }
+    .ev-when { color: var(--muted-foreground); }
+    .ev-mark {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted-foreground);
+      margin: 0 auto;
+    }
+    .ev-mark.ok   { background: var(--success); }
+    .ev-mark.go   { background: var(--primary); box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 24%, transparent); }
+    .ev-mark.bad  { background: var(--destructive); }
+    .ev-mark.warn { background: var(--warning); }
+    .ev-text { color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ev-text b { color: var(--foreground); font-weight: var(--font-weight-semibold); }
+    .ev-tag {
+      font-size: 9.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+      padding: 1px 5px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+    }
+
+    /* Widget: Agents */
+    .agents-list { display: flex; flex-direction: column; gap: 4px; }
+    .agent {
+      display: grid;
+      grid-template-columns: 30px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 6px;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      color: var(--foreground);
+    }
+    .agent:hover { background: var(--surface-1); }
+    .agent-tile {
+      width: 30px; height: 30px;
+      border-radius: var(--radius-sm);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: var(--font-weight-bold);
+      position: relative;
+      isolation: isolate;
+      box-shadow:
+        inset 0 1px 0 color-mix(in oklch, white 22%, transparent),
+        0 1px 3px color-mix(in oklch, var(--g-color, var(--primary)) 20%, transparent);
+    }
+    .agent-body { min-width: 0; }
+    .agent-name {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--foreground);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .agent-meta { font-size: 10.5px; color: var(--muted-foreground); }
+    .agent-stat {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 1px 6px;
+      border-radius: var(--radius-full);
+    }
+    .agent-stat.ok  { color: var(--success); background: color-mix(in oklch, var(--success) 14%, transparent); }
+    .agent-stat.go  { color: var(--primary); background: color-mix(in oklch, var(--primary) 14%, transparent); }
+    .agent-stat.idle { color: var(--muted-foreground); background: var(--surface-2); }
+    .agent-stat-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+    /* Widget: Pipelines */
+    .pipes { display: flex; flex-direction: column; gap: var(--space-2); }
+    .pipe {
+      display: flex; flex-direction: column; gap: 6px;
+      padding: 6px 6px;
+      border-radius: var(--radius-sm);
+    }
+    .pipe-h {
+      display: flex; align-items: center; gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+    }
+    .pipe-h strong { font-weight: var(--font-weight-semibold); color: var(--foreground); }
+    .pipe-rate {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted-foreground);
+    }
+    .pipe-bar {
+      display: flex; gap: 2px;
+      height: 16px;
+    }
+    .pipe-cell {
+      flex: 1;
+      border-radius: 2px;
+      min-width: 2px;
+    }
+    .pc-ok   { background: color-mix(in oklch, var(--success) 60%, transparent); }
+    .pc-bad  { background: color-mix(in oklch, var(--destructive) 60%, transparent); }
+    .pc-go   { background: color-mix(in oklch, var(--primary) 70%, transparent); }
+    .pc-skip { background: color-mix(in oklch, var(--muted-foreground) 18%, transparent); }
+
+    /* Widget: Quick invoke */
+    .qi { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+    .qi-row {
+      display: flex; flex-direction: column;
+      gap: 4px;
+    }
+    .qi-label {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+    }
+    .qi-picker {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 8px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--background);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .qi-picker .glyph {
+      width: 18px; height: 18px;
+      border-radius: 3px;
+      background: #7a5cd6;
+      color: white;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+    }
+    .qi-input {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 5px 8px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--background);
+      color: var(--foreground);
+    }
+    .qi-vars { display: grid; grid-template-columns: 1fr 1.4fr; gap: 4px; }
+    .qi-foot { display: flex; align-items: center; gap: 8px; margin-top: auto; }
+    .qi-hint {
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted-foreground);
+    }
+    .qi-go {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
+      background: var(--primary);
+      color: var(--primary-foreground);
+      border: 0;
+      font: inherit; font-size: 12px;
+      font-weight: var(--font-weight-semibold);
+      cursor: pointer;
+    }
+    .qi-go:hover { filter: brightness(1.04); }
+
+    /* ── Pin row ────────────────────────────────────────────── */
+    .pins-h { font-size: 11px; font-weight: var(--font-weight-semibold); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted-foreground); margin: 0 0 var(--space-3); }
+    .pins {
+      display: flex; flex-wrap: wrap;
+      gap: 6px;
+    }
+    .pin {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px 6px 6px;
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
+      border: 1px solid var(--border-subtle);
+      text-decoration: none;
+      color: var(--foreground);
+      cursor: pointer;
+      transition: border-color 120ms, background 120ms;
+    }
+    .pin:hover {
+      border-color: var(--border);
+      background: var(--background);
+    }
+    .pin-tile {
+      width: 26px; height: 26px;
+      border-radius: var(--radius-sm);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: var(--font-weight-bold);
+      position: relative;
+      isolation: isolate;
+      box-shadow:
+        inset 0 1px 0 color-mix(in oklch, white 22%, transparent),
+        0 1px 3px color-mix(in oklch, var(--g-color, var(--primary)) 22%, transparent);
+    }
+    .pin-name {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--foreground);
+    }
+    .pin-kind {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+      padding: 1px 5px;
+      background: var(--background);
+      border-radius: var(--radius-sm);
+      margin-left: 2px;
+    }
+    .pin.is-add {
+      border-style: dashed;
+      background: transparent;
+      color: var(--muted-foreground);
+    }
+    .pin.is-add .pin-tile {
+      background: transparent;
+      border: 1px dashed var(--border);
+      color: var(--muted-foreground);
+      box-shadow: none;
+    }
+
+    /* Hues */
+    .hue-orange { --g-color: #d97757; background: #d97757; }
+    .hue-amber  { --g-color: #c98a2c; background: #c98a2c; }
+    .hue-red    { --g-color: #b94a4a; background: #b94a4a; }
+    .hue-violet { --g-color: #7a5cd6; background: #7a5cd6; }
+    .hue-blue   { --g-color: #4376d6; background: #4376d6; }
+    .hue-teal   { --g-color: #2a8a8a; background: #2a8a8a; }
+    .hue-green  { --g-color: #4f9e54; background: #4f9e54; }
+    .hue-pink   { --g-color: #c25a8e; background: #c25a8e; }
+    .hue-slate  { --g-color: #5b6878; background: #5b6878; }
+    .ship-mark  { --g-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
+  </style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+    <symbol id="i-radio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></symbol>
+    <symbol id="i-git" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+    <symbol id="i-dash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><polyline points="21 15 16 10 5 21"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></symbol>
+  </defs>
+</svg>
+
+<main class="home">
+
+  <!-- Greeting -->
+  <header class="greet">
+    <h1 class="greet-title">Good morning</h1>
+    <span class="greet-ws">ship-monorepo</span>
+    <span class="greet-day">Tue · May 19 · 9:14</span>
+  </header>
+  <div class="greet-rule"></div>
+
+  <!-- Apps strip (dock-y) -->
+  <div class="apps">
+    <a class="app is-studio" href="#studio">
+      <span class="app-glyph ship-mark" style="font-size:18px;line-height:1">◐</span>
+      <span class="app-label">Studio</span>
+    </a>
+    <div class="apps-spacer"></div>
+    <a class="app" href="#sessions">
+      <span class="app-glyph hue-green"><svg class="icon-md"><use href="#i-activity"/></svg></span>
+      <span class="app-label">Sessions</span>
+    </a>
+    <a class="app" href="#events">
+      <span class="app-glyph hue-violet"><svg class="icon-md"><use href="#i-radio"/></svg></span>
+      <span class="app-label">Events</span>
+    </a>
+    <a class="app" href="#git">
+      <span class="app-glyph hue-slate"><svg class="icon-md"><use href="#i-git"/></svg></span>
+      <span class="app-label">Git</span>
+    </a>
+    <a class="app" href="#dashboard">
+      <span class="app-glyph hue-amber"><svg class="icon-md"><use href="#i-dash"/></svg></span>
+      <span class="app-label">Dashboard</span>
+    </a>
+    <div class="apps-spacer"></div>
+    <a class="app" href="#canvas">
+      <span class="app-glyph hue-blue"><svg class="icon-md"><use href="#i-image"/></svg></span>
+      <span class="app-label">Canvas</span>
+    </a>
+    <a class="app" href="#collections">
+      <span class="app-glyph hue-teal"><svg class="icon-md"><use href="#i-folder"/></svg></span>
+      <span class="app-label">Collections</span>
+    </a>
+  </div>
+
+  <!-- Widget grid -->
+  <div class="widgets">
+
+    <!-- EVENTS — live stream (spans 2 rows, left) -->
+    <section class="w w-events">
+      <div class="w-h">
+        <h2 class="w-h-name">Events</h2>
+        <span class="w-h-sub">last 5 min · ship.events.list()</span>
+        <span class="w-h-live"><span class="w-h-live-dot"></span>live</span>
+      </div>
+      <div class="events">
+        <div class="ev"><span class="ev-when">9:14:02</span><span class="ev-mark go"></span><span class="ev-text"><b>test-runner</b> step <b>build</b> started · scheduler.rs</span><span class="ev-tag">release</span></div>
+        <div class="ev"><span class="ev-when">9:13:58</span><span class="ev-mark ok"></span><span class="ev-text"><b>rust-compiler</b> finished <b>build</b> · 14 crates · 8.4s</span><span class="ev-tag">release</span></div>
+        <div class="ev"><span class="ev-when">9:13:51</span><span class="ev-mark ok"></span><span class="ev-text"><b>rust-compiler</b> finished <b>lint</b> · 0 warnings</span><span class="ev-tag">release</span></div>
+        <div class="ev"><span class="ev-when">9:13:44</span><span class="ev-mark go"></span><span class="ev-text"><b>rust-compiler</b> step <b>lint</b> started · 14 crates</span><span class="ev-tag">release</span></div>
+        <div class="ev"><span class="ev-when">9:13:30</span><span class="ev-mark warn"></span><span class="ev-text"><b>doc-reviewer</b> queued · waiting for build to gate</span><span class="ev-tag">release</span></div>
+        <div class="ev"><span class="ev-when">9:12:17</span><span class="ev-mark ok"></span><span class="ev-text"><b>mesh-sentinel</b> reconcile · 4 peers steady</span><span class="ev-tag">mesh-sync</span></div>
+        <div class="ev"><span class="ev-when">9:11:55</span><span class="ev-mark ok"></span><span class="ev-text"><b>etl-runner</b> validate · 0 schema drifts</span><span class="ev-tag">etl-daily</span></div>
+        <div class="ev"><span class="ev-when">9:11:32</span><span class="ev-mark bad"></span><span class="ev-text"><b>etl-runner</b> load · row 42893 partition mismatch · retrying</span><span class="ev-tag">etl-daily</span></div>
+        <div class="ev"><span class="ev-when">9:10:08</span><span class="ev-mark ok"></span><span class="ev-text"><b>sql-shaper</b> shape · 6 queries reshaped</span><span class="ev-tag">etl-daily</span></div>
+        <div class="ev"><span class="ev-when">9:09:51</span><span class="ev-mark ok"></span><span class="ev-text"><b>mesh-sentinel</b> reconcile · 4 peers steady</span><span class="ev-tag">mesh-sync</span></div>
+        <div class="ev"><span class="ev-when">9:09:33</span><span class="ev-mark go"></span><span class="ev-text"><b>release</b> pipeline triggered · sha 8b3f2c1</span><span class="ev-tag">release</span></div>
+      </div>
+    </section>
+
+    <!-- AGENTS — active list -->
+    <section class="w">
+      <div class="w-h">
+        <h2 class="w-h-name">Agents</h2>
+        <span class="w-h-sub">3 active</span>
+        <a class="w-h-act" href="#agents">All →</a>
+      </div>
+      <div class="agents-list">
+        <a class="agent" href="#agents/rust-compiler">
+          <span class="agent-tile hue-orange">R</span>
+          <div class="agent-body">
+            <div class="agent-name">rust-compiler</div>
+            <div class="agent-meta">building · 14 crates</div>
+          </div>
+          <span class="agent-stat go"><span class="agent-stat-dot"></span>running</span>
+        </a>
+        <a class="agent" href="#agents/test-runner">
+          <span class="agent-tile hue-green">T</span>
+          <div class="agent-body">
+            <div class="agent-name">test-runner</div>
+            <div class="agent-meta">queued · awaits build</div>
+          </div>
+          <span class="agent-stat go"><span class="agent-stat-dot"></span>queued</span>
+        </a>
+        <a class="agent" href="#agents/mesh-sentinel">
+          <span class="agent-tile hue-teal">M</span>
+          <div class="agent-body">
+            <div class="agent-name">mesh-sentinel</div>
+            <div class="agent-meta">last reconcile 37s ago</div>
+          </div>
+          <span class="agent-stat ok"><span class="agent-stat-dot"></span>active</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- PIPELINES — 24h history bars -->
+    <section class="w">
+      <div class="w-h">
+        <h2 class="w-h-name">Pipelines</h2>
+        <span class="w-h-sub">last 24h</span>
+        <a class="w-h-act" href="#pipelines">All →</a>
+      </div>
+      <div class="pipes">
+        <div class="pipe">
+          <div class="pipe-h">
+            <strong>release</strong>
+            <span class="pipe-rate">6 runs · 92%</span>
+          </div>
+          <div class="pipe-bar">
+            <span class="pipe-cell pc-ok"></span><span class="pipe-cell pc-ok"></span><span class="pipe-cell pc-ok"></span><span class="pipe-cell pc-bad"></span><span class="pipe-cell pc-ok"></span><span class="pipe-cell pc-ok"></span><span class="pipe-cell pc-go"></span>
+          </div>
+        </div>
+        <div class="pipe">
+          <div class="pipe-h">
+            <strong>etl-daily</strong>
+            <span class="pipe-rate">1 run · 85%</span>
+          </div>
+          <div class="pipe-bar">
+            <span class="pipe-cell pc-ok"></span><span class="pipe-cell pc-skip"></span><span class="pipe-cell pc-skip"></span><span class="pipe-cell pc-skip"></span><span class="pipe-cell pc-skip"></span><span class="pipe-cell pc-skip"></span><span class="pipe-cell pc-skip"></span>
+          </div>
+        </div>
+        <div class="pipe">
+          <div class="pipe-h">
+            <strong>mesh-sync</strong>
+            <span class="pipe-rate">1,440 · 99%</span>
+          </div>
+          <div class="pipe-bar">
+            <span class="pipe-cell pc-ok"></span><span class="pipe-cell pc-ok"></span><span class="pipe-cell pc-ok"></span><span class="pipe-cell pc-ok"></span><span class="pipe-cell pc-ok"></span><span class="pipe-cell pc-bad"></span><span class="pipe-cell pc-ok"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUICK INVOKE — bottom middle -->
+    <section class="w">
+      <div class="w-h">
+        <h2 class="w-h-name">Quick invoke</h2>
+        <span class="w-h-sub">skills.invoke</span>
+      </div>
+      <div class="qi">
+        <div class="qi-row">
+          <span class="qi-label">Skill</span>
+          <div class="qi-picker">
+            <span class="glyph">T</span>
+            <span style="flex:1">tdd</span>
+            <svg class="icon-xs" style="color:var(--muted-foreground)"><use href="#i-chev"/></svg>
+          </div>
+        </div>
+        <div class="qi-row">
+          <span class="qi-label">Vars</span>
+          <div class="qi-vars">
+            <input class="qi-input" value="target" />
+            <input class="qi-input" value="scheduler.rs" />
+          </div>
+        </div>
+        <div class="qi-foot">
+          <span class="qi-hint">new session · ship-monorepo</span>
+          <button class="qi-go" type="button">
+            <svg class="icon-xs"><use href="#i-play"/></svg>
+            Invoke
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- WORKSPACE STATS — bottom right -->
+    <section class="w">
+      <div class="w-h">
+        <h2 class="w-h-name">Workspace</h2>
+        <span class="w-h-sub">ship-monorepo</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);flex:1">
+        <div>
+          <div style="font-family:var(--heading-font);font-size:28px;font-weight:var(--heading-weight);letter-spacing:var(--heading-tracking);line-height:1;color:var(--foreground)">8</div>
+          <div style="font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-foreground);margin-top:2px">agents</div>
+        </div>
+        <div>
+          <div style="font-family:var(--heading-font);font-size:28px;font-weight:var(--heading-weight);letter-spacing:var(--heading-tracking);line-height:1;color:var(--foreground)">14</div>
+          <div style="font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-foreground);margin-top:2px">skills</div>
+        </div>
+        <div>
+          <div style="font-family:var(--heading-font);font-size:28px;font-weight:var(--heading-weight);letter-spacing:var(--heading-tracking);line-height:1;color:var(--foreground)">5</div>
+          <div style="font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-foreground);margin-top:2px">MCP</div>
+        </div>
+        <div>
+          <div style="font-family:var(--heading-font);font-size:28px;font-weight:var(--heading-weight);letter-spacing:var(--heading-tracking);line-height:1;color:var(--foreground)">6</div>
+          <div style="font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-foreground);margin-top:2px">pipelines</div>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border-subtle);padding-top:8px;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted-foreground)">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--success);box-shadow:0 0 0 2px color-mix(in oklch, var(--success) 22%, transparent)"></span>
+        <span>2 live sessions · 14 ev/min</span>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Pins — small horizontal row -->
+  <section>
+    <h3 class="pins-h">Pinned</h3>
+    <div class="pins">
+      <a class="pin" href="#agents/rust-compiler"><span class="pin-tile hue-orange">R</span><span class="pin-name">rust-compiler</span><span class="pin-kind">agent</span></a>
+      <a class="pin" href="#agents/doc-reviewer"><span class="pin-tile hue-blue">D</span><span class="pin-name">doc-reviewer</span><span class="pin-kind">agent</span></a>
+      <a class="pin" href="#skills/tdd"><span class="pin-tile hue-violet">T</span><span class="pin-name">tdd</span><span class="pin-kind">skill</span></a>
+      <a class="pin" href="#skills/code-review"><span class="pin-tile hue-blue">C</span><span class="pin-name">code-review</span><span class="pin-kind">skill</span></a>
+      <a class="pin" href="#pipelines/release"><span class="pin-tile hue-teal">R</span><span class="pin-name">release</span><span class="pin-kind">pipe</span></a>
+      <a class="pin" href="#themes/paper"><span class="pin-tile hue-amber">p</span><span class="pin-name">paper</span><span class="pin-kind">theme</span></a>
+      <a class="pin is-add" href="#"><span class="pin-tile"><svg class="icon-xs"><use href="#i-plus"/></svg></span><span class="pin-name">Pin…</span></a>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  window.addEventListener('message', (e) => {
+    if (e.data?.type === 'theme') {
+      const DARK = new Set(['ship-dark', 'console', 'contrast']);
+      const h = document.documentElement;
+      h.setAttribute('data-theme', e.data.theme);
+      h.classList.toggle('dark', DARK.has(e.data.theme));
+    }
+  });
+
+  document.querySelectorAll('.app, .pin, .agent').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const href = el.getAttribute('href') || '';
+      if (href === '#studio') {
+        e.preventDefault();
+        window.parent?.postMessage({ type: 'launch', target: 'studio' }, '*');
+      } else if (href.startsWith('#agents/') || href.startsWith('#skills/') || href.startsWith('#pipelines/') || href.startsWith('#themes/')) {
+        e.preventDefault();
+        window.parent?.postMessage({ type: 'launch', target: 'studio', hash: href }, '*');
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

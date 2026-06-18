@@ -1,0 +1,29 @@
+<!--
+  sui-citation.before.sui — the EXISTING/grounded look. A plain bracketed
+  superscript reference number with a native title tooltip — the naive citation
+  baseline (no chip surface, no rich hover card). Same props/contract as the
+  authored version so the diff is purely visual/UX. Pure CSS, no controller.
+  Props: index (number) · source · section · quote. Compiled as <x-cite-before>.
+-->
+<prop name="index" type="number" default="1" reflect />
+<prop name="source" type="string" default="" />
+<prop name="section" type="string" default="" />
+<prop name="quote" type="string" default="" />
+
+<style>
+  :host { display: inline; font-family: var(--font-body); }
+  :host([hidden]) { display: none; }
+  .cite {
+    font-size: 11px; font-variant-numeric: tabular-nums; line-height: 0;
+    vertical-align: super; color: var(--tone-info-fg); cursor: help;
+    text-decoration: none; padding: 0 1px;
+  }
+  .cite:hover { text-decoration: underline; }
+  .cite:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+  /* baseline shows only the number — slotted label is not surfaced */
+  ::slotted(*) { display: none; }
+</style>
+
+<span class="cite" part="chip" tabindex="0"
+  aria-label={'Citation ' + index()}
+  title={source() + (section() ? ' \u00b7 ' + section() : '') + (quote() ? ' \u2014 \u201C' + quote() + '\u201D' : '')}>[{index()}]</span><slot></slot>

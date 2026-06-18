@@ -11,13 +11,10 @@
 // Generated code trips a few stylistic clippy lints (default-impl match
 // bindings, large descriptor blobs); allow on the module rather than patch the
 // generator output. Mirrors ship-gateway-client.
-#[allow(
-    clippy::match_single_binding,
-    clippy::large_stack_arrays,
-    clippy::needless_borrow,
-    clippy::useless_conversion,
-    clippy::redundant_clone
-)]
+// Generated code (connectrpc-build over proto/ship/ops/v1) is exempt from
+// lint policy wholesale — proto enum values legitimately generate
+// SCREAMING_CASE variants, and the generator's output is not ours to style.
+#[allow(clippy::all, non_camel_case_types)]
 pub mod ship {
     pub mod ops {
         pub mod v1 {

@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ship/spaces · component pack</title>
+<link rel="stylesheet" href="../../../../sui/ship.css" />
+<script type="importmap">
+{ "imports": { "@ship/sui-runtime": "../../../../sui/sui-runtime.js" } }
+</script>
+<style>
+  *,*::before,*::after { box-sizing:border-box; }
+  html,body { margin:0; }
+  body { background:var(--background); color:var(--foreground); font-family:var(--font-body); padding:40px; }
+  .page { max-width:900px; margin:0 auto; display:flex; flex-direction:column; gap:8px; }
+  .eyebrow { font-family:var(--font-mono); font-size:var(--text-xs); font-weight:600; letter-spacing:var(--tracking-wide); text-transform:uppercase; color:var(--muted-foreground); }
+  h1 { font-family:var(--font-display); font-weight:600; letter-spacing:var(--tracking-tight); font-size:var(--text-3xl); margin:6px 0 0; }
+  .sub { color:var(--muted-foreground); font-size:var(--text-md); line-height:var(--leading-relaxed); margin:6px 0 0; max-width:66ch; }
+  .toolbar { display:flex; align-items:center; gap:8px; margin:18px 0 6px; }
+  .tlabel { font-family:var(--font-mono); font-size:var(--text-xs); text-transform:uppercase; letter-spacing:var(--tracking-wide); color:var(--muted-foreground); }
+  .tbtn { font-family:var(--font-mono); font-size:var(--text-sm); padding:5px 12px; border-radius:var(--radius-full); border:1px solid var(--border); background:var(--card); color:var(--muted-foreground); cursor:pointer; display:inline-flex; align-items:center; gap:7px; }
+  .tbtn[aria-pressed="true"] { border-color:var(--primary); color:var(--primary); background:color-mix(in oklch,var(--primary) 9%,transparent); }
+  .tbtn .sw { width:11px; height:11px; border-radius:3px; border:1px solid var(--border); }
+  section.demo { margin-top:14px; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); overflow:hidden; }
+  .demo-head { display:flex; align-items:baseline; gap:10px; padding:12px 18px; border-bottom:1px solid var(--border-subtle); background:color-mix(in oklch,var(--muted) 30%,var(--card)); }
+  .demo-head .tag { font-family:var(--font-mono); font-size:var(--text-base); font-weight:600; }
+  .demo-head .role { font-size:var(--text-sm); color:var(--muted-foreground); }
+  .demo-head .binds { margin-left:auto; display:flex; gap:5px; flex-wrap:wrap; }
+  .bind { font-family:var(--font-mono); font-size:var(--text-xs); color:var(--info); background:color-mix(in oklch,var(--info) 9%,transparent); border-radius:var(--radius-full); padding:2px 8px; }
+  .stage { padding:26px; background:color-mix(in oklch,var(--muted) 18%,var(--background)); display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start; min-height:90px; }
+  .stage.tall { min-height:330px; }
+  .cell { display:flex; flex-direction:column; gap:8px; }
+  .cell .cap { font-family:var(--font-mono); font-size:var(--text-xs); color:var(--muted-foreground); }
+  .log { font-family:var(--font-mono); font-size:var(--text-xs); border:1px solid var(--border); border-radius:var(--radius-md); background:var(--card); padding:9px 11px; min-height:38px; min-width:280px; display:flex; flex-direction:column; gap:3px; color:var(--muted-foreground); }
+  .log .op { color:var(--info); } .log .id { color:var(--success); }
+  .err { color:var(--destructive); font-family:var(--font-mono); font-size:var(--text-sm); white-space:pre-wrap; margin-top:14px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div>
+    <div class="eyebrow">ship/spaces · component pack</div>
+    <h1>SpaceService surface</h1>
+    <p class="sub">The registry-side components, authored as real SUI and compiled in-browser. Each is presentational + token-pure and emits intent events (<span style="font-family:var(--font-mono)">sui-activate</span>, <span style="font-family:var(--font-mono)">sui-add</span>, <span style="font-family:var(--font-mono)">sui-cancel</span>); the integration layer owns List / Activate / Add / Watch. No RPC or stream machinery lives in the surfaces.</p>
+  </div>
+
+  <div class="toolbar">
+    <span class="tlabel">theme</span>
+    <button class="tbtn" data-theme-set="ship-light" aria-pressed="true"><span class="sw" style="background:#f0eee9"></span>ship-light</button>
+    <button class="tbtn" data-theme-set="ship-dark"><span class="sw" style="background:#1c1b18"></span>ship-dark</button>
+    <button class="tbtn" data-theme-set="paper"><span class="sw" style="background:#f4ece0"></span>paper</button>
+  </div>
+
+  <div id="stages"></div>
+  <div id="err" class="err"></div>
+</div>
+
+<script type="module">
+import init, { compile } from '../../../../sui/sui_compiler.js';
+const errEl = document.getElementById('err');
+
+const SPACES = [
+  { id:'harbor',    path:'/home/dev/harbor',     name:'Harbor',     created_at:'2026-01-01T00:00:00Z', last_seen_at:'2026-05-24T18:30:00Z' },
+  { id:'atlas',     path:'/home/dev/atlas',      name:'Atlas',      created_at:'2026-03-15T09:00:00Z', last_seen_at:'2026-05-24T09:15:00Z' },
+  { id:'docs-site', path:'/home/dev/docs-site',  name:'Docs Site',  created_at:'2026-02-01T00:00:00Z', last_seen_at:'2026-05-17T14:00:00Z' }
+];
+
+// ── controller JS ports (property-access runtime) ──
+const C_REGISTRY = `
+import { controller, signal } from '@ship/sui-runtime';
+const NOW = Date.parse('2026-05-24T19:05:00Z');
+function rel(iso){ if(!iso)return''; const t=Date.parse(iso); if(isNaN(t))return''; const m=Math.max(0,Math.round((NOW-t)/60000)); if(m<5)return'now'; if(m<60)return m+'m'; const h=Math.round(m/60); if(h<24)return h+'h'; const d=Math.round(h/24); if(d<7)return d+'d'; return Math.round(d/7)+'w'; }
+export default controller({
+  scope: () => ({ rows: signal([]) }),
+  mount(state, host){
+    const load=()=>{ let s=[]; try{s=JSON.parse(host.getAttribute('spaces')||'[]')}catch{s=[]} state.rows=s.map(x=>({id:x.id,name:x.name,path:x.path,lastSeen:rel(x.last_seen_at)})); };
+    load(); const o=new MutationObserver(load); o.observe(host,{attributes:true,attributeFilter:['spaces']});
+    const onClick=(e)=>{ for(const n of e.composedPath()){ if(!(n instanceof Element))continue; if(n.matches('[data-action=add]')){host.dispatchEvent(new CustomEvent('sui-add',{bubbles:true,composed:true}));return;} if(n.matches('.row[data-id]')){const id=n.getAttribute('data-id'); if(id&&id!==host.getAttribute('active'))host.dispatchEvent(new CustomEvent('sui-activate',{detail:{id},bubbles:true,composed:true}));return;} } };
+    host.addEventListener('click',onClick);
+    return ()=>{o.disconnect();host.removeEventListener('click',onClick)};
+  }});`;
+
+const C_SWITCHER = `
+import { controller, signal } from '@ship/sui-runtime';
+export default controller({
+  scope: () => ({ rows: signal([]), activeLabel: signal('') }),
+  mount(state, host){
+    const sync=()=>{ let s=[]; try{s=JSON.parse(host.getAttribute('spaces')||'[]')}catch{s=[]} state.rows=s.map(x=>({id:x.id,name:x.name,path:x.path})); const a=host.getAttribute('active')||''; const f=s.find(x=>x.id===a); state.activeLabel=f?f.name:''; };
+    sync(); const o=new MutationObserver(sync); o.observe(host,{attributes:true,attributeFilter:['spaces','active']});
+    const close=()=>{ state.open=false; };
+    const onClick=(e)=>{ for(const n of e.composedPath()){ if(!(n instanceof Element))continue;
+      if(n.matches('[data-action=toggle]')){ state.open=!host.hasAttribute('open'); return; }
+      if(n.matches('[data-action=add]')){ host.dispatchEvent(new CustomEvent('sui-add',{bubbles:true,composed:true})); close(); return; }
+      if(n.matches('.row[data-id]')){ const id=n.getAttribute('data-id'); if(id&&id!==host.getAttribute('active'))host.dispatchEvent(new CustomEvent('sui-activate',{detail:{id},bubbles:true,composed:true})); close(); return; } } };
+    host.addEventListener('click',onClick);
+    const onDoc=(e)=>{ if(!host.hasAttribute('open'))return; if(!e.composedPath().includes(host))close(); };
+    const onKey=(e)=>{ if(e.key==='Escape'&&host.hasAttribute('open'))close(); };
+    document.addEventListener('click',onDoc,true); document.addEventListener('keydown',onKey);
+    return ()=>{o.disconnect();host.removeEventListener('click',onClick);document.removeEventListener('click',onDoc,true);document.removeEventListener('keydown',onKey)};
+  }});`;
+
+const C_ADD = `
+import { controller } from '@ship/sui-runtime';
+export default controller({
+  scope: () => ({}),
+  mount(state, host){
+    const readPath=()=>{ const i=host.shadowRoot&&host.shadowRoot.querySelector('.input'); return (i&&i.value||'').trim(); };
+    const submit=()=>{ const p=readPath(); if(!p)return; host.dispatchEvent(new CustomEvent('sui-add',{detail:{path:p},bubbles:true,composed:true})); };
+    const cancel=()=>host.dispatchEvent(new CustomEvent('sui-cancel',{bubbles:true,composed:true}));
+    const onClick=(e)=>{ for(const n of e.composedPath()){ if(!(n instanceof Element))continue; if(n.matches('[data-action=submit]'))return submit(); if(n.matches('[data-action=cancel]'))return cancel(); } };
+    const onKey=(e)=>{ if(!host.hasAttribute('open'))return; if(e.key==='Enter'&&e.target.matches&&e.target.matches('.input')){e.preventDefault();submit();} else if(e.key==='Escape')cancel(); };
+    host.addEventListener('click',onClick); host.addEventListener('keydown',onKey);
+    return ()=>{host.removeEventListener('click',onClick);host.removeEventListener('keydown',onKey)};
+  }});`;
+
+async function define(name, controllerSrc) {
+  const setupUrl = controllerSrc ? URL.createObjectURL(new Blob([controllerSrc], { type:'text/javascript' })) : null;
+  const SUI = await (await fetch('./' + name + '.sui')).text();
+  const out = compile(SUI, JSON.stringify({ mode:'component', componentName:name, shadow:true, setupUrl, styles:null }));
+  await import(URL.createObjectURL(new Blob([out.js], { type:'text/javascript' })));
+}
+
+function el(tag, attrs) { const e = document.createElement(tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+function section(tag, role, binds) {
+  const s = document.createElement('section'); s.className = 'demo';
+  s.innerHTML = '<div class="demo-head"><span class="tag">' + tag + '</span><span class="role">' + role + '</span><span class="binds">' + binds.map(b => '<span class="bind">' + b + '</span>').join('') + '</span></div>';
+  const stage = document.createElement('div'); stage.className = 'stage'; s.appendChild(stage);
+  document.getElementById('stages').appendChild(s);
+  return stage;
+}
+
+try {
+  await init();
+  await define('ship-space-switcher', C_SWITCHER);
+  await define('ship-space-active-badge', null);
+  await define('ship-space-registry', C_REGISTRY);
+  await define('ship-space-add-dialog', C_ADD);
+
+  // ── switcher ──
+  const sw = section('ship-space-switcher', 'always-present picker', ['List','active_id','row → Activate','→ Add']);
+  sw.classList.add('tall');
+  const swCell = document.createElement('div'); swCell.className = 'cell';
+  const swEl = el('ship-space-switcher', { active:'harbor', open:'' });
+  swEl.setAttribute('spaces', JSON.stringify(SPACES));
+  const swLog = document.createElement('div'); swLog.className = 'log';
+  swCell.appendChild(swEl); swCell.appendChild(Object.assign(document.createElement('div'), { className:'cap', textContent:'events' })); swCell.appendChild(swLog);
+  sw.appendChild(swCell);
+  const swl = (h) => { const d = document.createElement('div'); d.innerHTML = h; swLog.appendChild(d); };
+  swl('<span class="op">List</span> → 3 spaces · active <span class="id">harbor</span>');
+  swEl.addEventListener('sui-activate', (e) => { swEl.setAttribute('active', e.detail.id); swl('<span class="op">sui-activate</span> → Activate(<span class="id">' + e.detail.id + '</span>)'); });
+  swEl.addEventListener('sui-add', () => swl('<span class="op">sui-add</span> → open Add flow'));
+
+  // ── active-badge ──
+  const ab = section('ship-space-active-badge', 'read-only "currently in" chip', ['Active','global-only state']);
+  [['Harbor', '/home/dev/harbor', 'active'], ['', '', 'global-only (active = null)']].forEach(([n, p, cap]) => {
+    const cell = document.createElement('div'); cell.className = 'cell';
+    const badge = el('ship-space-active-badge', n ? { name:n, path:p } : {});
+    cell.appendChild(badge); cell.appendChild(Object.assign(document.createElement('div'), { className:'cap', textContent:cap }));
+    ab.appendChild(cell);
+  });
+
+  // ── registry ──
+  const rg = section('ship-space-registry', 'the List table', ['List','Watch(registry)','Activate','Add']);
+  const rgCell = document.createElement('div'); rgCell.className = 'cell'; rgCell.style.flex = '1'; rgCell.style.minWidth = '420px';
+  const rgEl = el('ship-space-registry', { heading:'Spaces', active:'harbor' });
+  rgEl.setAttribute('spaces', JSON.stringify(SPACES));
+  rgCell.appendChild(rgEl); rg.appendChild(rgCell);
+  rgEl.addEventListener('sui-activate', (e) => rgEl.setAttribute('active', e.detail.id));
+
+  // ── add-dialog (default + two fixture error states) ──
+  const ad = section('ship-space-add-dialog', 'register a directory', ['Add','add_bad_path','add_already_registered']);
+  ad.classList.add('tall');
+  [
+    ['default', {}],
+    ['add_bad_path · destructive', { value:'/tmp/scratch', error:"Path '/tmp/scratch' is not a directory. Provide an existing directory to register as a space.", tone:'destructive' }],
+    ['add_already_registered · warning', { value:'/home/dev/harbor', error:"Path '/home/dev/harbor' is already registered as space 'harbor'.", tone:'warning' }]
+  ].forEach(([cap, attrs]) => {
+    const cell = document.createElement('div'); cell.className = 'cell';
+    const dlg = el('ship-space-add-dialog', Object.assign({ open:'' }, attrs));
+    cell.appendChild(dlg); cell.appendChild(Object.assign(document.createElement('div'), { className:'cap', textContent:cap }));
+    ad.appendChild(cell);
+  });
+
+  // theme toggle
+  document.querySelectorAll('[data-theme-set]').forEach((b) => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('[data-theme-set]').forEach((o) => o.setAttribute('aria-pressed', 'false'));
+      b.setAttribute('aria-pressed', 'true');
+      document.querySelectorAll('.stage').forEach((s) => s.setAttribute('data-theme-preview', b.getAttribute('data-theme-set')));
+    });
+  });
+} catch (e) {
+  errEl.textContent = 'compile/mount failed:\n' + (e && (e.stack || e.message) || e);
+  console.error(e);
+}
+</script>
+</body>
+</html>

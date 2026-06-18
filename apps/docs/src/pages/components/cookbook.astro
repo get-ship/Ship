@@ -57,7 +57,7 @@ const recipes = [
     html: `<sui-pipeline-dag>
   <sui-pipeline-step name="collect" step-type="run" state="completed" agent="git log"></sui-pipeline-step>
   <span class="arrow">&rarr;</span>
-  <sui-pipeline-step name="review" step-type="agent" state="completed" agent="Claude"></sui-pipeline-step>
+  <sui-pipeline-step name="review" step-type="agent" state="completed" agent="ship-agent"></sui-pipeline-step>
   <span class="arrow">&rarr;</span>
   <sui-pipeline-step name="gate" step-type="gate" state="running" agent="acceptance"></sui-pipeline-step>
   <span class="arrow">&rarr;</span>
@@ -69,10 +69,10 @@ const recipes = [
     title: 'Chat row',
     blurb: 'sui-avatar + agent badge + body. Drop into any conversation view.',
     html: `<div style="display:grid;grid-template-columns:auto 1fr;gap:12px;max-width:560px;padding:10px 12px;border:1px solid color-mix(in oklch,var(--border) 45%,transparent);border-radius:var(--radius-lg);background:var(--card);">
-  <sui-avatar name="Claude" tone="accent"></sui-avatar>
+  <sui-avatar name="ship-agent" tone="accent"></sui-avatar>
   <div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-      <strong style="font-size:13px;">Claude</strong>
+      <strong style="font-size:13px;">ship-agent</strong>
       <sui-badge tone="accent" variant="soft" size="sm">agent</sui-badge>
       <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground);">09:14</span>
     </div>

@@ -80,7 +80,7 @@ for (const h of HARNESSES) {
           // ~500ms, POST a synthetic before-tool hook (the cheapest
           // endpoint that exercises session_drain::update_heartbeat).
           for (let i = 0; i < 5; i++) {
-            await api("/api/v1/hooks/before-tool", {
+            await api("/hooks/before-tool", {
               method: "POST",
               body: JSON.stringify({
                 tool_name: "Heartbeat",

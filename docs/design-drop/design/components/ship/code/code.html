@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>@ship/code · code-editor · terminal · git-diff</title>
+<link rel="stylesheet" href="../../../../sui/ship.css" />
+<script type="importmap">
+{ "imports": { "@ship/sui-runtime": "../../../../sui/sui-runtime.js" } }
+</script>
+<style>
+  html, body { margin: 0; }
+  body { background: var(--background); color: var(--foreground); font-family: var(--font-body); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 28px var(--space-6) 100px; }
+  .eyebrow { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .12em; text-transform: uppercase; color: var(--muted-foreground); }
+  h1 { font-family: var(--heading-font); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--text-4xl); margin: 8px 0 0; }
+  .rule { width: 64px; height: 4px; border-radius: 2px; margin: 14px 0 14px; background: linear-gradient(90deg, var(--primary), var(--accent) 70%, transparent); }
+  .lede { color: var(--muted-foreground); font-size: var(--text-md); margin: 0; max-width: 74ch; line-height: 1.6; }
+  .lede b { color: var(--foreground); } .lede code { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .bar { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: 18px; position: sticky; top: 0; z-index: 30; background: color-mix(in oklch, var(--background) 90%, transparent); backdrop-filter: blur(10px); padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
+  .kicker { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); }
+  .themes { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+  .themes .tl { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+  .sw { display: inline-flex; gap: 5px; padding: 4px; background: var(--muted); border-radius: var(--radius-full); }
+  .sw button { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid color-mix(in oklch, var(--foreground) 14%, transparent); cursor: pointer; padding: 0; }
+  .sw button[aria-pressed="true"] { border-color: var(--foreground); box-shadow: 0 0 0 2px var(--background), 0 0 0 3px var(--foreground); }
+  .build { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); margin: 16px 0 0; }
+  section { margin-top: 40px; }
+  .sh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h2 { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-lg); margin: 0; }
+  .tag { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted-foreground); border: 1px solid var(--border); border-radius: var(--radius-full); padding: 2px 8px; }
+  .note { color: var(--muted-foreground); font-size: var(--text-sm); margin: 8px 0 16px; max-width: 76ch; line-height: 1.55; }
+  .note b { color: var(--foreground); font-weight: 600; }
+  .holder { max-width: 720px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">design · components/ship · @ship/code</div>
+  <h1>code-editor · terminal · git-diff</h1>
+  <div class="rule"></div>
+  <p class="lede"><b>The @ship/code surfaces.</b> The feature tier wraps heavy engines (CodeMirror, xterm); the <b>chrome</b> around each — tab strips, gutters, status bars, diff panes — is what's designed here, authored as token-pure SUI so it stays theme-reactive. The engine's own render area is mocked with realistic content. Syntax + ANSI colors map to ship <b>tone tokens</b> (no hex), so they re-theme. Switch <b>themes</b> at right — try <code>console</code>.</p>
+
+  <div class="bar">
+    <span class="kicker">@ship/code · surfaces (after-only — new tier)</span>
+    <span class="themes"><span class="tl">Theme</span><span class="sw" id="sw"></span></span>
+  </div>
+  <div class="build" id="build">compiling…</div>
+
+  <section>
+    <div class="sh"><h2>ship-code-editor</h2><span class="tag">CodeMirror</span></div>
+    <p class="note">Tab strip (active file + dirty dot), a line-number gutter with an active-line highlight, the token-colored editor body (the CodeMirror mount), and a status bar (branch · language · Ln/Col · indentation · encoding).</p>
+    <div class="demo holder" id="d-editor"></div>
+  </section>
+
+  <section>
+    <div class="sh"><h2>ship-terminal</h2><span class="tag">xterm</span></div>
+    <p class="note">Title bar with a session tab + split/new-tab actions, the framed scrollback (the xterm canvas) with tone-mapped output (ok · warn · fail · paths), a block cursor, and a status line (cwd · shell · size · encoding).</p>
+    <div class="demo holder" id="d-terminal"></div>
+  </section>
+
+  <section>
+    <div class="sh"><h2>ship-git-diff</h2><span class="tag">diff</span></div>
+    <p class="note">File header (path + add/del stat badge + a Split/Unified toggle), a hunk header, and a side-by-side grid where removed cells tint <code>--tone-destructive-bg</code> and added cells <code>--tone-success-bg</code>, with per-side line numbers.</p>
+    <div class="demo holder" id="d-diff"></div>
+  </section>
+</div>
+
+<script type="module">
+import { defineComponent, themeBar } from '../../../../tools/catalog/sui-workbench.js';
+const $ = (s) => document.querySelector(s);
+themeBar($('#sw'));
+
+try {
+  const defs = ['ship-code-editor', 'ship-terminal', 'ship-git-diff'];
+  await Promise.all(defs.map(async (name) => {
+    const sui = await (await fetch(`./${name}.sui`)).text();
+    await defineComponent({ name, sui });
+  }));
+  $('#build').textContent = 'Compiled ✓  3 @ship/code surfaces  ·  registered';
+  $('#d-editor').appendChild(document.createElement('ship-code-editor'));
+  $('#d-terminal').appendChild(document.createElement('ship-terminal'));
+  $('#d-diff').appendChild(document.createElement('ship-git-diff'));
+} catch (e) {
+  $('#build').innerHTML = '<span style="color:var(--destructive)">compile failed: ' + (e && e.message || e) + '</span>';
+}
+</script>
+</body>
+</html>

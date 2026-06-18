@@ -1,5 +1,5 @@
 export { initJsdomPolyfills, type JsdomPolyfillOpts } from './jsdom-polyfills'
-export { loadLucideIconMap, primeLucideIcons } from './lucide-icons'
+export { loadLucideIconMap, primeLucideIcons, defaultLucideIconsPath } from './lucide-icons'
 export {
   renderView,
   renderComponent,

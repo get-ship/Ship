@@ -1,4 +1,5 @@
-import { controller, effect, signal, ref, bindNativeEvent, chrome, navigate } from '@ship/sui-runtime'
+import { controller, effect, signal, ref, bindNativeEvent, chrome } from '@ship/sui-runtime'
+import { navigate } from '@ship/deck/route'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-view-picker.sui'
 import {

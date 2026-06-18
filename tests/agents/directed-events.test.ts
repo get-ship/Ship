@@ -1,13 +1,12 @@
-// Regression test for the L0 kernel "see_directed_events" opt-in.
+// Regression test for directed-event delivery (L0 kernel
+// "see_directed_events" opt-in).
 //
-// Before fix: directed events (target_actor_id set) were invisible to
-// the SSE broadcast stream — by kernel design. The SSE endpoint now
-// opts in via ActorConfig.see_directed_events; this test verifies a
-// directed event (studio.chat_turn — fired by the session message
-// endpoint with with_target) reaches the SSE subscriber.
-//
-// See .artifacts/agents-arc/discussions/directed-events-invisible-to-sse.md
-// for the discussion that drove the fix.
+// Directed events (target_actor_id set) bypass broadcast subscribers by
+// kernel design; the event-stream actor opts in via
+// ActorConfig.see_directed_events (see the StreamService.Events impl in
+// apps/shipd/src/ops_rpc.rs). This test verifies a directed event
+// (studio.chat_turn — fired by the session message endpoint with
+// with_target) is persisted and observable by a subscriber.
 
 import { describe, test, expect } from "bun:test";
 import {
@@ -31,8 +30,9 @@ describe("kernel / directed events visible to SSE", () => {
       try {
         await waitForActorRow(dispatched.slug);
 
-        // collectEvents uses /api/v1/events/stream (SSE) — the opt-in
-        // path. Open BEFORE sending so we don't race the emit.
+        // Anchor the collection window BEFORE sending so we don't race
+        // the emit (collectEvents only sees events persisted after it
+        // starts).
         const collectPromise = collectEvents(
           (e) =>
             e.event_type === "studio.chat_turn" &&

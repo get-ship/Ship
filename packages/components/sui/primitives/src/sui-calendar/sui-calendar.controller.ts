@@ -157,20 +157,20 @@ export default controller<Scope>({
     // routed into the scope signal so every derived re-resolves onto it.
     Object.defineProperty(host, 'calendar', {
       configurable: true,
-      get: () => state.$signals.engine(),
+      get: () => (state as unknown as { $signals: { engine: () => Calendar | null } }).$signals.engine(),
       set: (c: Calendar | null) => {
-        state.engine = c
+        (state as unknown as { engine: Calendar | null }).engine = c
       },
     })
 
     // Keep the reflected `view` attribute synced to the engine view so the
     // host CSS layout branches follow programmatic setView() too.
     const stopView = effect(() => {
-      const v = state.$signals.view()
+      const v = (state as unknown as { $signals: { view: () => ViewMode } }).$signals.view()
       if (host.getAttribute('view') !== v) host.setAttribute('view', v)
     })
 
-    const active = (): Calendar => state.$signals.cal()
+    const active = (): Calendar => (state as unknown as { $signals: { cal: () => Calendar } }).$signals.cal()
 
     // Deduped emit (sui-combobox lastEmitted pattern) over host.emit!. When
     // prop:calendar swaps the engine identity we re-seed from the NEW engine
@@ -268,7 +268,7 @@ export default controller<Scope>({
     }
 
     host.shadowRoot?.addEventListener('click', onShadowClick)
-    host.shadowRoot?.addEventListener('keydown', onShadowKey)
+    host.shadowRoot?.addEventListener('keydown', onShadowKey as EventListener)
 
     // Range selection (month drag + Shift+Arrow) + drag-to-create/move (time-
     // grid slot drag). The DOM↔engine bridge lives in the interactions module;
@@ -293,7 +293,7 @@ export default controller<Scope>({
       stopView()
       stopEmit()
       host.shadowRoot?.removeEventListener('click', onShadowClick)
-      host.shadowRoot?.removeEventListener('keydown', onShadowKey)
+      host.shadowRoot?.removeEventListener('keydown', onShadowKey as EventListener)
       delete (host as { calendar?: unknown }).calendar
     }
   },

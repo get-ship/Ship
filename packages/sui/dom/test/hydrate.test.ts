@@ -197,10 +197,9 @@ describe('hydrate — disposer fully tears down', () => {
     const handle = hydrate(loadFixture('counter.sui'), counterSetup, {
       container,
     })
-    const before = container.innerHTML
-    expect(before.length).toBeGreaterThan(0)
+    expect(container.childNodes.length).toBeGreaterThan(0)
     handle.dispose()
-    expect(container.innerHTML).toBe('')
+    expect(container.childNodes.length).toBe(0)
   })
 
   it('disposes effects so subsequent signal writes do not throw', () => {

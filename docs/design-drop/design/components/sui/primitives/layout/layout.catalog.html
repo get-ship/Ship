@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>layout primitives · existing vs new · components/sui</title>
+<link rel="stylesheet" href="../../../../../sui/ship.css" />
+<script type="importmap">
+{ "imports": { "@ship/sui-runtime": "../../../../../sui/sui-runtime.js" } }
+</script>
+<style>
+  html, body { margin: 0; }
+  body { background: var(--background); color: var(--foreground); font-family: var(--font-body); }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 28px var(--space-6) 120px; }
+  .eyebrow { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .12em; text-transform: uppercase; color: var(--muted-foreground); }
+  h1 { font-family: var(--heading-font); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--text-4xl); margin: 8px 0 0; }
+  .rule { width: 64px; height: 4px; border-radius: 2px; margin: 14px 0 14px; background: linear-gradient(90deg, var(--primary), var(--accent) 70%, transparent); }
+  .lede { color: var(--muted-foreground); font-size: var(--text-md); margin: 0; max-width: 78ch; line-height: 1.6; }
+  .lede b { color: var(--foreground); } .lede code, code { font-family: var(--font-mono); font-size: 0.92em; }
+
+  .bar { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: 18px; position: sticky; top: 0; z-index: 30; background: color-mix(in oklch, var(--background) 90%, transparent); backdrop-filter: blur(10px); padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
+  .seg { display: inline-flex; background: var(--muted); border-radius: var(--radius-md); padding: 3px; gap: 2px; }
+  .seg button { padding: 7px 18px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted-foreground); font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+  .themes { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+  .themes .tl { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+  .sw { display: inline-flex; gap: 5px; padding: 4px; background: var(--muted); border-radius: var(--radius-full); }
+  .sw button { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid color-mix(in oklch, var(--foreground) 14%, transparent); cursor: pointer; padding: 0; }
+  .sw button[aria-pressed="true"] { border-color: var(--foreground); box-shadow: 0 0 0 2px var(--background), 0 0 0 3px var(--foreground); }
+  .build { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); margin: 16px 0 0; }
+
+  section { margin-top: 44px; }
+  .sh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h2 { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-lg); margin: 0; }
+  .tag { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted-foreground); border: 1px solid var(--border); border-radius: var(--radius-full); padding: 2px 8px; }
+  .note { color: var(--muted-foreground); font-size: var(--text-sm); margin: 8px 0 0; max-width: 80ch; line-height: 1.55; }
+  .note b { color: var(--foreground); font-weight: 600; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-4); margin-top: 18px; }
+  .demo { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-xs); overflow: hidden; }
+  .demo > .cap { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--border-subtle); background: color-mix(in oklch, var(--muted) 40%, transparent); }
+  .demo .cap code { font-size: 11px; color: var(--foreground); }
+  .demo .cap .k { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
+  .demo .pad { padding: var(--space-4); }
+  .demo.full { grid-column: 1 / -1; }
+
+  .box { background: color-mix(in oklch, var(--primary) 12%, var(--card)); border: 1px solid color-mix(in oklch, var(--primary) 30%, transparent); color: color-mix(in oklch, var(--primary) 85%, var(--foreground)); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 12px; font-weight: 600; font-family: var(--font-mono); }
+  .box.s { padding: 6px 9px; }
+  .box.tall { padding: 18px 12px; }
+  .box.taller { padding: 30px 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 12px; font-weight: 500; border-radius: var(--radius-full); background: var(--muted); border: 1px solid var(--border-subtle); color: var(--foreground); }
+  .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
+  .abtn { font: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+  .abtn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
+  .crumb { font-size: 12px; color: var(--muted-foreground); }
+  .crumb.here { color: var(--foreground); font-weight: 600; }
+  .crumb .sep { color: var(--border-strong); margin: 0 2px; }
+  .fieldlabel { font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--muted-foreground); }
+  .faux-input { height: 32px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--background); box-shadow: var(--shadow-xs); }
+  .edged { outline: 1px dashed var(--border-strong); outline-offset: 4px; border-radius: 2px; }
+
+  .api { margin-top: 16px; border-collapse: collapse; width: 100%; font-size: var(--text-sm); }
+  .api th, .api td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+  .api th { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted-foreground); font-weight: 600; }
+  .api td:first-child { font-family: var(--font-mono); color: var(--foreground); white-space: nowrap; }
+  .api td code { color: var(--muted-foreground); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">components/sui · primitives · layout</div>
+  <h1>layout primitives</h1>
+  <div class="rule"></div>
+  <p class="lede"><b>The canonical layout set.</b> <code>sui-stack</code> (vertical) and <code>sui-cluster</code> (horizontal, wrapping) render as the <b>real compiled elements</b>, ported verbatim from <code>_repo-src</code>. <b>Existing</b> = the hand-rolled <code>display:flex; gap:12px</code> a view writes inline today — one magic number, no align/justify vocabulary, so every demo collapses to the same fixed gap. <b>New</b> = the token-driven primitive that honours the <code>gap</code> scale and <code>align</code>/<code>justify</code> props. Toggle <b>Existing / New</b> and watch the gaps and alignment come alive · switch <b>themes</b> right.</p>
+
+  <div class="bar">
+    <span class="seg" id="seg" role="tablist" aria-label="Compare"><button data-v="before" aria-pressed="true">Existing</button><button data-v="after" aria-pressed="false">New</button></span>
+    <span class="themes"><span class="tl">Theme</span><span class="sw" id="sw"></span></span>
+  </div>
+  <div class="build" id="build">compiling…</div>
+
+  <section>
+    <div class="sh"><h2>sui-stack</h2><span class="tag">layout · vertical</span></div>
+    <p class="note"><b>Vertical stack, one spacing-token gap.</b> <code>gap</code> = <code>0–8</code> → <code>var(--space-N)</code>; <code>align</code> maps to <code>align-items</code>.</p>
+    <div class="grid">
+      <div class="demo"><div class="cap"><span class="k">gap scale</span><code>gap="2"</code></div><div class="pad"><div class="mount" id="m-gap2"></div></div></div>
+      <div class="demo"><div class="cap"><span class="k">gap scale</span><code>gap="5"</code></div><div class="pad"><div class="mount" id="m-gap5"></div></div></div>
+      <div class="demo"><div class="cap"><span class="k">align</span><code>align="start"</code></div><div class="pad"><div class="mount" id="m-alstart"></div></div></div>
+      <div class="demo"><div class="cap"><span class="k">align</span><code>align="center"</code></div><div class="pad"><div class="mount" id="m-alcenter"></div></div></div>
+      <div class="demo full"><div class="cap"><span class="k">real composition</span><code>a form column — stack gap="4"</code></div><div class="pad"><div class="mount" id="m-form"></div><p class="note" style="margin-top:12px">Nested <code>sui-stack</code>s (label + input pairs, <code>gap="1"</code>) inside an outer column (<code>gap="4"</code>), closed by a <code>sui-cluster</code> action row. In <b>Existing</b> every gap is the same 12px; in <b>New</b> the token scale separates them.</p></div></div>
+    </div>
+    <table class="api">
+      <thead><tr><th>prop</th><th>values</th><th>default</th><th>maps to</th></tr></thead>
+      <tbody>
+        <tr><td>gap</td><td><code>0 | 1 … 8</code></td><td><code>4</code></td><td><code>gap: var(--space-N)</code></td></tr>
+        <tr><td>align</td><td><code>start | center | end | stretch</code></td><td><code>stretch</code></td><td><code>align-items</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sh"><h2>sui-cluster</h2><span class="tag">layout · horizontal · wraps</span></div>
+    <p class="note"><b>Horizontal group that wraps.</b> <code>align</code> defaults to <code>center</code>; <code>justify</code> distributes along the main axis. <b>Existing</b> can't express either — it pins center + start.</p>
+    <div class="grid">
+      <div class="demo"><div class="cap"><span class="k">justify</span><code>justify="start"</code></div><div class="pad"><div class="mount" id="m-jstart"></div></div></div>
+      <div class="demo"><div class="cap"><span class="k">justify</span><code>justify="between"</code></div><div class="pad"><div class="mount" id="m-jbetween"></div></div></div>
+      <div class="demo"><div class="cap"><span class="k">align · mixed</span><code>align="center"</code></div><div class="pad"><div class="mount" id="m-alc2"></div></div></div>
+      <div class="demo"><div class="cap"><span class="k">align · mixed</span><code>align="end"</code></div><div class="pad"><div class="mount" id="m-alend"></div></div></div>
+      <div class="demo full"><div class="cap"><span class="k">wrapping</span><code>a tag row that overflows — cluster gap="2"</code></div><div class="pad"><div class="mount" id="m-wrap"></div><p class="note" style="margin-top:12px">Wraps to a new line with the <b>same row-gap as the column-gap</b> — the property bare flex rows usually forget.</p></div></div>
+      <div class="demo full"><div class="cap"><span class="k">real composition</span><code>toolbar — justify="between" + breadcrumb cluster</code></div><div class="pad"><div class="mount" id="m-toolbar"></div></div></div>
+    </div>
+    <table class="api">
+      <thead><tr><th>prop</th><th>values</th><th>default</th><th>maps to</th></tr></thead>
+      <tbody>
+        <tr><td>gap</td><td><code>0 | 1 … 8</code></td><td><code>3</code></td><td><code>gap: var(--space-N)</code></td></tr>
+        <tr><td>align</td><td><code>start | center | end | baseline</code></td><td><code>center</code></td><td><code>align-items</code></td></tr>
+        <tr><td>justify</td><td><code>start | center | end | between | around</code></td><td><code>start</code></td><td><code>justify-content</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<script type="module">
+import { defineComponent, themeBar } from '../../../../../tools/catalog/sui-workbench.js';
+const $ = (s) => document.querySelector(s);
+themeBar($('#sw'));
+
+const el = (tag, attrs, kids, txt) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) { if (v === true) e.setAttribute(k, ''); else if (v != null) e.setAttribute(k, v); }
+  if (txt != null) e.textContent = txt;
+  if (kids) e.append(...kids);
+  return e;
+};
+const box = (txt, cls) => el('span', { class: 'box ' + (cls || '') }, null, txt);
+const abtn = (txt, cls) => el('span', { class: 'abtn ' + (cls || '') }, null, txt);
+const chip = (txt, dot) => el('span', { class: 'chip' }, dot ? [el('span', { class: 'dot' }), document.createTextNode(txt)] : [document.createTextNode(txt)]);
+const crumb = (txt, cls) => el('span', { class: 'crumb ' + (cls || '') }, null, txt);
+const sep = () => el('span', { class: 'crumb sep' }, null, '/');
+const fill = (sel, node) => { const m = $(sel); m.innerHTML = ''; m.append(node); };
+
+function render(v) {
+  const Stag = 'sui-stack-' + v;
+  const Ctag = 'sui-cluster-' + v;
+  const stack = (attrs, kids) => el(Stag, attrs, kids);
+  const cluster = (attrs, kids) => el(Ctag, attrs, kids);
+
+  fill('#m-gap2', stack({ gap: '2' }, [box('space-2 · 8px'), box('space-2 · 8px'), box('space-2 · 8px')]));
+  fill('#m-gap5', stack({ gap: '5' }, [box('space-5 · 20px'), box('space-5 · 20px'), box('space-5 · 20px')]));
+  fill('#m-alstart', stack({ gap: '3', align: 'start' }, [box('auto-width', 's'), box('items hug', 's'), box('the start edge', 's')]));
+  fill('#m-alcenter', stack({ gap: '3', align: 'center' }, [box('centered', 's'), box('on the', 's'), box('cross-axis', 's')]));
+
+  fill('#m-form', stack({ gap: '4' }, [
+    stack({ gap: '1' }, [el('span', { class: 'fieldlabel' }, null, 'Pipeline name'), el('div', { class: 'faux-input' })]),
+    stack({ gap: '1' }, [el('span', { class: 'fieldlabel' }, null, 'Schedule (cron)'), el('div', { class: 'faux-input' })]),
+    cluster({ gap: '2', justify: 'end' }, [abtn('Cancel'), abtn('Create pipeline', 'primary')]),
+  ]));
+
+  fill('#m-jstart', el('div', { class: 'edged' }, [cluster({ gap: '2', justify: 'start' }, [abtn('Run', 'primary'), abtn('Pause'), abtn('Logs')])]));
+  fill('#m-jbetween', el('div', { class: 'edged' }, [cluster({ gap: '2', justify: 'between' }, [abtn('Back'), abtn('Next', 'primary')])]));
+  fill('#m-alc2', el('div', { class: 'edged' }, [cluster({ gap: '3', align: 'center' }, [box('sm', 's'), box('tall', 'tall'), box('taller', 'taller'), box('sm', 's')])]));
+  fill('#m-alend', el('div', { class: 'edged' }, [cluster({ gap: '3', align: 'end' }, [box('sm', 's'), box('tall', 'tall'), box('taller', 'taller'), box('sm', 's')])]));
+
+  fill('#m-wrap', cluster({ gap: '2' }, ['nightly-reindex', 'status:running', 'owner:platform', 'region:us-east-1', 'retries:3', 'p99:842ms', 'queue:default', 'concurrency:4', 'last:2m ago'].map((t, i) => chip(t, i === 0))));
+
+  fill('#m-toolbar', cluster({ gap: '3', justify: 'between' }, [
+    cluster({ gap: '1' }, [crumb('Pipelines'), sep(), crumb('nightly-reindex'), sep(), crumb('Runs', 'here')]),
+    cluster({ gap: '2' }, [abtn('Filter'), abtn('Export'), abtn('Run now', 'primary')]),
+  ]));
+
+  document.querySelectorAll('#seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+}
+
+try {
+  await Promise.all([
+    defineComponent({ name: 'sui-stack-before',   sui: await (await fetch('./stack.before.sui')).text() }),
+    defineComponent({ name: 'sui-stack-after',     sui: await (await fetch('./stack.sui')).text() }),
+    defineComponent({ name: 'sui-cluster-before',  sui: await (await fetch('./cluster.before.sui')).text() }),
+    defineComponent({ name: 'sui-cluster-after',   sui: await (await fetch('./cluster.sui')).text() }),
+  ]);
+  $('#build').textContent = 'Compiled ✓  sui-stack · sui-cluster · existing + new  ·  registered';
+  $('#seg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) render(b.dataset.v); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') render('before'); if (e.key === 'ArrowRight') render('after'); });
+  render('before');
+} catch (e) {
+  $('#build').innerHTML = '<span style="color:var(--destructive)">compile failed: ' + (e && e.message || e) + '</span>';
+}
+</script>
+</body>
+</html>

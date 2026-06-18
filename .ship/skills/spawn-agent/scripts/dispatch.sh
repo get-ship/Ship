@@ -209,7 +209,7 @@ if [[ ! -f "$MCP_JSON" ]]; then
   exit 1
 fi
 if ! (grep -q '"command".*"ship"' "$MCP_JSON" && grep -q '"mcp"' "$MCP_JSON" && grep -q '"serve"' "$MCP_JSON"); then
-  echo "Error: .mcp.json missing ship mcp serve config. Agent not launched." >&2
+  echo "Error: .mcp.json missing the ship MCP server config. Agent not launched." >&2
   exit 1
 fi
 echo "MCP config verified: $MCP_JSON"

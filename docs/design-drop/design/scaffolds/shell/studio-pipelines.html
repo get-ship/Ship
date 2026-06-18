@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Studio · Pipelines</title>
+<link rel="stylesheet" href="../../../sui/ship.css" />
+<script>
+  (() => { const ORIG = window.fetch.bind(window);
+    window.fetch = (input, init) => { const url = typeof input === 'string' ? input : (input && input.url);
+      if (url === '/_sui/lucide-icons.json' || url === '/lucide-icons.json') return ORIG('../../../sui/lucide-icons.json', init);
+      return ORIG(input, init); }; })();
+</script>
+<script type="importmap">{ "imports": { "@ship/sui-runtime": "../../../sui/sui-runtime.js", "@ship/sui-dom": "../../../sui/sui-dom.js" } }</script>
+<script type="module" src="../../../sui/sui-components.js"></script>
+<script type="module">
+  import { defineComponent } from '../../../tools/catalog/sui-workbench.js';
+  const C = '../../components/ship/', S = '../../components/sui/';
+  try {
+    await defineComponent({ name: 'sui-brand-mark', sui: await (await fetch(S + 'sui-brand-mark.sui')).text() });
+    await defineComponent({ name: 'ship-activity-bar', sui: await (await fetch(C + 'chrome/ship-activity-bar.sui')).text() });
+    await defineComponent({ name: 'ship-status-bar', sui: await (await fetch(C + 'chrome/ship-status-bar.sui')).text() });
+    await defineComponent({ name: 'ship-blast-tag', sui: await (await fetch(C + 'authority/ship-blast-tag.sui')).text() });
+  } catch (e) { console.error(e); }
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--surface-0); color: var(--foreground); font-family: var(--font-body); display: grid; place-items: center; min-height: 100vh; padding: 18px; }
+  .ide { width: 1340px; height: 850px; display: grid; grid-template-columns: 52px 200px 1fr 372px; grid-template-rows: 44px 1fr 26px;
+    grid-template-areas: "top top top top" "activity nav canvas source" "status status status status";
+    border: 1px solid var(--border-strong); border-radius: var(--radius-lg); overflow: hidden; background: var(--background); box-shadow: var(--shadow-lg); }
+
+  .top { grid-area: top; display: flex; align-items: center; gap: 14px; padding: 0 12px 0 14px; background: color-mix(in oklch, var(--surface-1) 90%, transparent); border-bottom: 1px solid var(--border-subtle); }
+  .brand { display: inline-flex; align-items: center; gap: 8px; } .brand b { font-family: var(--heading-font); font-size: 14px; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); }
+  .brand .badge { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .14em; padding: 2px 6px; border-radius: 3px; background: color-mix(in oklch, var(--primary) 13%, transparent); color: var(--primary); font-weight: 700; }
+  .crumb { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted-foreground); padding-left: 12px; margin-left: 4px; border-left: 1px solid var(--border-subtle); } .crumb .sp { color: var(--accent); font-family: var(--font-mono); font-size: 11.5px; } .crumb .sep { color: var(--border); } .crumb .here { color: var(--foreground); font-family: var(--font-mono); font-size: 12px; }
+  .top .sp2 { flex: 1; }
+  .run-btn { display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 14px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--success); background: var(--success); color: white; } .run-btn svg { width: 13px; height: 13px; }
+  .themes { display: inline-flex; gap: 4px; padding: 3px; background: var(--muted); border-radius: var(--radius-full); } .themes button { width: 17px; height: 17px; border-radius: 50%; border: 1.5px solid transparent; cursor: pointer; padding: 0; } .themes button[aria-pressed="true"] { border-color: var(--foreground); box-shadow: 0 0 0 1.5px var(--background), 0 0 0 2.5px var(--foreground); }
+
+  .activity { grid-area: activity; } ship-activity-bar { height: 100%; }
+
+  /* pipeline list */
+  .nav { grid-area: nav; background: var(--surface-1); border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; overflow: hidden; }
+  .nh { padding: 10px 12px 8px; font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted-foreground); }
+  .plist { flex: 1; overflow-y: auto; padding: 0 8px; }
+  .prow { display: flex; align-items: center; gap: 9px; padding: 8px 9px; border-radius: var(--radius-sm); cursor: pointer; } .prow:hover { background: var(--hover-bg); } .prow.on { background: color-mix(in oklch, var(--primary) 12%, transparent); }
+  .prow .d { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; } .prow .m { flex: 1; min-width: 0; } .prow .nm { font-family: var(--font-mono); font-size: 12px; font-weight: 600; } .prow.on .nm { color: var(--primary); } .prow .sub { font-family: var(--font-mono); font-size: 9.5px; color: var(--muted-foreground); }
+
+  /* DAG canvas */
+  .canvas { grid-area: canvas; position: relative; overflow: hidden; background-color: var(--surface-0); background-image: radial-gradient(var(--border-subtle) 1.1px, transparent 1.1px); background-size: 26px 26px; border-right: 1px solid var(--divider); }
+  .cbar { position: absolute; top: 0; left: 0; right: 0; height: 38px; display: flex; align-items: center; gap: 10px; padding: 0 16px; background: color-mix(in oklch, var(--surface-1) 80%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--divider); z-index: 5; }
+  .cbar .t { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); } .cbar .t b { color: var(--foreground); }
+  .cbar .legend { margin-left: auto; display: inline-flex; gap: 11px; font-family: var(--font-mono); font-size: 9.5px; color: var(--muted-foreground); } .cbar .legend .sw { display: inline-flex; align-items: center; gap: 5px; } .cbar .legend i { width: 7px; height: 7px; border-radius: 50%; }
+  .world { position: absolute; inset: 38px 0 0 0; }
+  .wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; } .wires path { fill: none; stroke-width: 2; stroke-opacity: .5; } .wires path.active { stroke-opacity: 1; stroke-dasharray: 6 4; animation: flow 1s linear infinite; } @keyframes flow { to { stroke-dashoffset: -10; } }
+
+  .pnode { position: absolute; width: 168px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-sm); cursor: grab; user-select: none; overflow: hidden; }
+  .pnode[data-sel] { border-color: var(--k); box-shadow: 0 0 0 2px color-mix(in oklch, var(--k) 35%, transparent), var(--shadow-md); }
+  .pnode .ph { display: flex; align-items: center; gap: 7px; padding: 7px 10px; border-bottom: 1px solid var(--divider); background: color-mix(in oklch, var(--k) 9%, var(--card)); }
+  .pnode .ph .ic { width: 18px; height: 18px; border-radius: 4px; display: grid; place-items: center; background: var(--k); color: white; } .pnode .ph .ic svg { width: 11px; height: 11px; }
+  .pnode .ph .kind { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--k); }
+  .pnode .ph .st { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; }
+  .pnode .pb { padding: 9px 10px; } .pnode .nm { font-family: var(--font-mono); font-weight: 600; font-size: 12.5px; } .pnode .sub { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); margin-top: 3px; }
+  .k-source { --k: oklch(0.6 0.16 240); } .k-transform { --k: oklch(0.6 0.16 80); } .k-gate { --k: var(--warning); } .k-sink { --k: var(--success); } .k-fanout { --k: oklch(0.6 0.16 300); }
+  .st-ok { background: var(--success); } .st-run { background: var(--info); animation: pulse 1.4s ease-in-out infinite; } .st-idle { background: var(--border-strong); } .st-wait { background: var(--warning); } @keyframes pulse { 50% { opacity: .4; } }
+  .zoom { position: absolute; bottom: 14px; left: 14px; display: inline-flex; align-items: center; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-xs); } .zoom button { width: 26px; height: 26px; border: 0; background: transparent; color: var(--foreground); cursor: pointer; font-size: 14px; } .zoom .lvl { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); padding: 0 8px; }
+  .run-hist { position: absolute; bottom: 14px; right: 14px; display: flex; gap: 3px; align-items: flex-end; background: color-mix(in oklch, var(--card) 82%, transparent); backdrop-filter: blur(6px); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 7px 9px; } .run-hist .b { width: 5px; border-radius: 1px; } .run-hist .lbl { font-family: var(--font-mono); font-size: 9px; color: var(--muted-foreground); margin-right: 4px; align-self: center; }
+
+  /* jsonc source */
+  .source { grid-area: source; display: flex; flex-direction: column; min-height: 0; background: var(--surface-1); }
+  .src-bar { display: flex; align-items: center; gap: 9px; height: 38px; padding: 0 14px; border-bottom: 1px solid var(--divider); background: var(--surface-2); } .src-bar .t { font-family: var(--font-mono); font-size: 11px; color: var(--foreground); display: inline-flex; align-items: center; gap: 7px; } .src-bar .t .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warning); } .src-bar .fmt { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); cursor: pointer; }
+  .code { flex: 1; overflow: auto; scrollbar-width: thin; font-family: var(--font-mono); font-size: 12px; line-height: 1.65; padding: 10px 0; }
+  .ln { display: grid; grid-template-columns: 36px 1fr; } .ln .g { text-align: right; padding-right: 12px; color: var(--muted-foreground); opacity: .5; user-select: none; } .ln .c { white-space: pre; padding-right: 14px; } .ln.hl { background: color-mix(in oklch, var(--warning) 9%, transparent); }
+  .k { color: oklch(0.55 0.13 200); } .s { color: oklch(0.52 0.14 145); } .n { color: oklch(0.55 0.15 60); } .cm { color: var(--muted-foreground); font-style: italic; } .b { color: oklch(0.58 0.16 35); }
+  html.dark .k { color: oklch(0.78 0.11 200); } html.dark .s { color: oklch(0.76 0.13 145); } html.dark .b { color: oklch(0.76 0.14 40); }
+</style>
+</head>
+<body>
+<div class="ide" data-screen-label="studio-pipelines">
+  <div class="top">
+    <span class="brand"><sui-brand-mark size="sm"></sui-brand-mark><b>Studio</b><span class="badge">Pipelines</span></span>
+    <span class="crumb"><span class="sp">Acme Sales</span><span class="sep">/</span>pipelines<span class="sep">/</span><span class="here">nightly-digest</span></span>
+    <span class="sp2"></span>
+    <button class="run-btn"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20"/></svg>Run</button>
+    <span class="themes" id="themes"></span>
+  </div>
+
+  <div class="activity"><ship-activity-bar active="pipelines"></ship-activity-bar></div>
+
+  <aside class="nav">
+    <div class="nh">Pipelines</div>
+    <div class="plist">
+      <div class="prow on"><span class="d st-run"></span><div class="m"><div class="nm">nightly-digest</div><div class="sub">running · 2/4</div></div></div>
+      <div class="prow"><span class="d st-ok"></span><div class="m"><div class="nm">lead-enrich</div><div class="sub">ok · 6m ago</div></div></div>
+      <div class="prow"><span class="d st-idle"></span><div class="m"><div class="nm">weekly-report</div><div class="sub">idle · cron</div></div></div>
+      <div class="prow"><span class="d st-wait"></span><div class="m"><div class="nm">embed-loader</div><div class="sub">needs approval</div></div></div>
+    </div>
+  </aside>
+
+  <!-- DAG canvas -->
+  <div class="canvas" id="canvas">
+    <div class="cbar"><span class="t"><b>nightly-digest</b> · DAG</span><span class="legend"><span class="sw"><i style="background:var(--info)"></i>running</span><span class="sw"><i style="background:var(--success)"></i>ok</span><span class="sw"><i style="background:var(--warning)"></i>gate</span><span class="sw"><i style="background:var(--border-strong)"></i>idle</span></span></div>
+    <div class="world" id="world">
+      <svg class="wires" id="wires"></svg>
+
+      <div class="pnode k-source" data-node="source" style="left:40px;top:60px">
+        <div class="ph"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg></span><span class="kind">Source</span><span class="st st-ok"></span></div>
+        <div class="pb"><div class="nm">collections.read</div><div class="sub">leads · 42 rows</div></div>
+      </div>
+      <div class="pnode k-transform" data-node="transform" style="left:280px;top:60px">
+        <div class="ph"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M7 12h10M11 18h2"/></svg></span><span class="kind">Transform</span><span class="st st-run"></span></div>
+        <div class="pb"><div class="nm">summarize</div><div class="sub">group · score · digest</div></div>
+      </div>
+      <div class="pnode k-gate" data-node="gate" style="left:280px;top:230px">
+        <div class="ph"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><span class="kind">Gate</span><span class="st st-wait"></span></div>
+        <div class="pb"><div class="nm" style="display:flex;align-items:center;gap:6px">mcp.create <ship-blast-tag tier="C2"></ship-blast-tag></div><div class="sub">ask-stance · awaiting</div></div>
+      </div>
+      <div class="pnode k-sink" data-node="sink" style="left:540px;top:60px">
+        <div class="ph"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M22 6l-10 7L2 6"/></svg></span><span class="kind">Sink</span><span class="st st-idle"></span></div>
+        <div class="pb"><div class="nm">email.send</div><div class="sub">gmail · the team</div></div>
+      </div>
+      <div class="pnode k-sink" data-node="sink2" style="left:540px;top:230px">
+        <div class="ph"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></span><span class="kind">Sink</span><span class="st st-idle"></span></div>
+        <div class="pb"><div class="nm">sui.render</div><div class="sub">→ Reports view</div></div>
+      </div>
+    </div>
+    <div class="zoom"><button id="zout">−</button><span class="lvl" id="zlvl">100%</span><button id="zin">+</button></div>
+    <div class="run-hist"><span class="lbl">runs</span><span class="b" style="height:14px;background:var(--success)"></span><span class="b" style="height:20px;background:var(--success)"></span><span class="b" style="height:11px;background:var(--destructive)"></span><span class="b" style="height:18px;background:var(--success)"></span><span class="b" style="height:22px;background:var(--success)"></span><span class="b" style="height:16px;background:var(--info)"></span></div>
+  </div>
+
+  <!-- jsonc source -->
+  <div class="source">
+    <div class="src-bar"><span class="t"><span class="dot"></span>nightly-digest.jsonc</span><span class="fmt">Format</span></div>
+    <div class="code">
+      <div class="ln"><span class="g">1</span><span class="c"><span class="cm">// nightly-digest · runs 06:00 daily</span></span></div>
+      <div class="ln"><span class="g">2</span><span class="c">{</span></div>
+      <div class="ln"><span class="g">3</span><span class="c">  <span class="k">"on"</span>: { <span class="k">"cron"</span>: <span class="s">"0 6 * * *"</span> },</span></div>
+      <div class="ln"><span class="g">4</span><span class="c">  <span class="k">"steps"</span>: [</span></div>
+      <div class="ln"><span class="g">5</span><span class="c">    { <span class="k">"id"</span>: <span class="s">"source"</span>, <span class="k">"op"</span>: <span class="s">"collections.read"</span>,</span></div>
+      <div class="ln"><span class="g">6</span><span class="c">      <span class="k">"args"</span>: { <span class="k">"collection"</span>: <span class="s">"leads"</span> } },</span></div>
+      <div class="ln hl"><span class="g">7</span><span class="c">    { <span class="k">"id"</span>: <span class="s">"transform"</span>, <span class="k">"needs"</span>: [<span class="s">"source"</span>],</span></div>
+      <div class="ln hl"><span class="g">8</span><span class="c">      <span class="k">"op"</span>: <span class="s">"summarize"</span>, <span class="k">"window"</span>: <span class="s">"7d"</span> },</span></div>
+      <div class="ln"><span class="g">9</span><span class="c">    { <span class="k">"id"</span>: <span class="s">"gate"</span>, <span class="k">"needs"</span>: [<span class="s">"transform"</span>],</span></div>
+      <div class="ln"><span class="g">10</span><span class="c">      <span class="k">"op"</span>: <span class="s">"mcp.create"</span>, <span class="k">"blast"</span>: <span class="s">"C2"</span>,</span></div>
+      <div class="ln"><span class="g">11</span><span class="c">      <span class="k">"stance"</span>: <span class="s">"ask"</span> },</span></div>
+      <div class="ln"><span class="g">12</span><span class="c">    { <span class="k">"id"</span>: <span class="s">"sink"</span>, <span class="k">"needs"</span>: [<span class="s">"gate"</span>],</span></div>
+      <div class="ln"><span class="g">13</span><span class="c">      <span class="k">"op"</span>: <span class="s">"email.send"</span>, <span class="k">"to"</span>: <span class="s">"team"</span> },</span></div>
+      <div class="ln"><span class="g">14</span><span class="c">    { <span class="k">"id"</span>: <span class="s">"sink2"</span>, <span class="k">"needs"</span>: [<span class="s">"transform"</span>],</span></div>
+      <div class="ln"><span class="g">15</span><span class="c">      <span class="k">"op"</span>: <span class="s">"sui.render"</span>, <span class="k">"view"</span>: <span class="s">"reports"</span> }</span></div>
+      <div class="ln"><span class="g">16</span><span class="c">  ]</span></div>
+      <div class="ln"><span class="g">17</span><span class="c">}</span></div>
+    </div>
+  </div>
+
+  <ship-status-bar class="status" daemon="ready" sessions="2" approvals="2" sync="synced" space="Acme Sales" context="nightly-digest · 5 steps · running"></ship-status-bar>
+</div>
+
+<script type="module">
+import { themeBar } from '../../../tools/catalog/sui-workbench.js';
+const NAMES = { 'ship-light':'Ship Light','ship-dark':'Ship Dark','paper':'Paper','halo':'Halo','console':'Console','contrast':'Contrast' };
+themeBar(document.getElementById('themes'), id => { const sb=document.querySelector('ship-status-bar'); if(sb) sb.setAttribute('theme', NAMES[id]||id); });
+const world = document.getElementById('world'), wires = document.getElementById('wires');
+const nodes = [...world.querySelectorAll('.pnode')];
+const pos = new Map(); nodes.forEach(n => pos.set(n, { x: parseFloat(n.style.left), y: parseFloat(n.style.top) }));
+const KC = { source:'oklch(0.6 0.16 240)', transform:'oklch(0.6 0.16 80)', gate:'var(--warning)', sink:'var(--success)', sink2:'var(--success)' };
+const EDGES = [ ['source','transform',0], ['transform','gate',1], ['gate','sink',0], ['transform','sink2',0] ];
+const byId = id => world.querySelector(`[data-node="${id}"]`);
+const rp = n => { const p = pos.get(n); return { x: p.x + n.offsetWidth, y: p.y + n.offsetHeight/2 }; };
+const lp = n => { const p = pos.get(n); return { x: p.x, y: p.y + n.offsetHeight/2 }; };
+function draw() {
+  wires.innerHTML = '';
+  for (const [a,b,active] of EDGES) {
+    const na=byId(a), nb=byId(b); if(!na||!nb) continue; const A=rp(na), B=lp(nb); const dx=Math.max(40,Math.abs(B.x-A.x)*0.5);
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', `M ${A.x} ${A.y} C ${A.x+dx} ${A.y}, ${B.x-dx} ${B.y}, ${B.x} ${B.y}`);
+    path.setAttribute('stroke', KC[b]); if (active) path.setAttribute('class','active');
+    wires.appendChild(path);
+  }
+}
+draw();
+let drag=null;
+nodes.forEach(n => n.addEventListener('mousedown', e => { drag={n,sx:e.clientX,sy:e.clientY,ox:pos.get(n).x,oy:pos.get(n).y}; n.style.cursor='grabbing'; n.style.zIndex=10; }));
+window.addEventListener('mousemove', e => { if(!drag) return; const p=pos.get(drag.n); p.x=drag.ox+(e.clientX-drag.sx); p.y=drag.oy+(e.clientY-drag.sy); drag.n.style.left=p.x+'px'; drag.n.style.top=p.y+'px'; draw(); });
+window.addEventListener('mouseup', () => { if(drag){drag.n.style.cursor='grab'; drag=null;} });
+// node select highlights its jsonc lines
+const LINES = { source:[5,6], transform:[7,8], gate:[9,10,11], sink:[12,13], sink2:[14,15] };
+nodes.forEach(n => n.addEventListener('click', e => {
+  nodes.forEach(x=>x.removeAttribute('data-sel')); n.setAttribute('data-sel','');
+  const set = LINES[n.dataset.node] || [];
+  document.querySelectorAll('.ln').forEach((ln,i)=>ln.classList.toggle('hl', set.includes(i+1)));
+  e.stopPropagation();
+}));
+document.querySelectorAll('.prow').forEach(p => p.addEventListener('click', () => { document.querySelectorAll('.prow').forEach(x=>x.classList.remove('on')); p.classList.add('on'); }));
+let z=1; const az=()=>{ world.style.transform=`scale(${z})`; world.style.transformOrigin='0 0'; document.getElementById('zlvl').textContent=Math.round(z*100)+'%'; };
+document.getElementById('zin').addEventListener('click',()=>{z=Math.min(1.6,z+0.1);az();});
+document.getElementById('zout').addEventListener('click',()=>{z=Math.max(0.5,z-0.1);az();});
+</script>
+</body>
+</html>

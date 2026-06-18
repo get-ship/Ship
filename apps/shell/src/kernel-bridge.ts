@@ -1,8 +1,11 @@
-//! Kernel-event bridge. One SSE socket to `/api/v1/events/stream`,
+//! Kernel-event bridge. One Connect `StreamService.Events` server-stream
+//! (the successor to the retired `/api/v1/events/stream` SSE route),
 //! multiplexed to any number of subscribers by event-namespace prefix.
 //!
 //! Connects lazily on the first subscribe; closes 30s after the last
-//! unsubscribe. Reconnects with linear backoff on drop.
+//! unsubscribe. Reconnects with exponential backoff on drop.
+
+import { ops } from './ops'
 
 const CLOSE_GRACE_MS = 30_000
 const RECONNECT_BASE_MS = 1_000
@@ -17,9 +20,10 @@ interface KernelEvent {
   [k: string]: unknown
 }
 
-/** Wire envelope emitted by the daemon SSE endpoint
- *  (`apps/shipd/src/routes/runtime_api/events.rs`). `payload_json` is a
- *  string-wrapped JSON blob — the bridge parses it once into `payload`. */
+/** Wire envelope carried in `JsonResponse.json` by the Connect
+ *  `StreamService.Events` stream (`apps/shipd/src/ops_rpc.rs`) — the
+ *  serialized kernel `EventEnvelope`. `payload_json` is a string-wrapped
+ *  JSON blob, parsed once here into `payload`. */
 interface WireEnvelope {
   event_type: string
   entity_id?: string
@@ -33,7 +37,7 @@ type EventHandler = (event: KernelEvent) => void
 type UnsubscribeFn = () => void
 
 export class KernelBridge {
-  private socket: EventSource | null = null
+  private abort: AbortController | null = null
   private handlers = new Map<string, Set<EventHandler>>()
   private closeTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectAttempts = 0
@@ -43,7 +47,7 @@ export class KernelBridge {
     set.add(handler)
     this.handlers.set(namespace, set)
     this.cancelClose()
-    if (!this.socket) this.connect()
+    if (!this.abort) this.connect()
     return () => {
       const s = this.handlers.get(namespace)
       if (!s) return
@@ -54,45 +58,47 @@ export class KernelBridge {
   }
 
   private connect(): void {
-    const src = new EventSource('/api/v1/events/stream')
-    this.socket = src
-    // Daemon emits `event: ship.event` so EventSource.onmessage (which
-    // only fires for the default `message` type) never delivers — bind
-    // the named-event handler explicitly. See
-    // apps/shipd/src/routes/runtime_api/events.rs.
-    const onWire = (e: MessageEvent): void => {
-      let envelope: WireEnvelope
-      try { envelope = JSON.parse(e.data) as WireEnvelope } catch { return }
-      let payload: unknown = null
-      if (typeof envelope.payload_json === 'string' && envelope.payload_json.length > 0) {
-        try { payload = JSON.parse(envelope.payload_json) } catch { payload = envelope.payload_json }
+    const abort = new AbortController()
+    this.abort = abort
+    void this.runStream(abort.signal)
+  }
+
+  /** Tail the Connect event stream; reconnect with backoff on drop. */
+  private async runStream(signal: AbortSignal): Promise<void> {
+    while (!signal.aborted) {
+      try {
+        for await (const msg of ops.stream.events({}, { signal })) {
+          this.reconnectAttempts = 0
+          this.dispatch(msg.json)
+        }
+      } catch {
+        /* stream dropped — fall through to backoff + retry */
       }
-      this.fanOut({
-        event_type: envelope.event_type,
-        entity: (envelope.entity_id as string | undefined) ?? '',
-        actor: envelope.actor as string | undefined,
-        timestamp: (envelope.created_at as string | undefined) ?? '',
-        payload,
-      })
-    }
-    src.addEventListener('ship.event', onWire)
-    src.onmessage = onWire
-    src.onopen = () => {
-      this.reconnectAttempts = 0
-    }
-    src.onerror = () => {
-      src.close()
-      this.socket = null
-      if (this.handlers.size === 0) return
+      if (signal.aborted) break
       const delay = Math.min(
         RECONNECT_BASE_MS * 2 ** this.reconnectAttempts,
         RECONNECT_MAX_MS,
       )
       this.reconnectAttempts++
-      setTimeout(() => {
-        if (this.handlers.size > 0 && !this.socket) this.connect()
-      }, delay)
+      await new Promise((r) => setTimeout(r, delay))
     }
+  }
+
+  /** Parse one `JsonResponse.json` envelope and fan it out to subscribers. */
+  private dispatch(json: string): void {
+    let envelope: WireEnvelope
+    try { envelope = JSON.parse(json) as WireEnvelope } catch { return }
+    let payload: unknown = null
+    if (typeof envelope.payload_json === 'string' && envelope.payload_json.length > 0) {
+      try { payload = JSON.parse(envelope.payload_json) } catch { payload = envelope.payload_json }
+    }
+    this.fanOut({
+      event_type: envelope.event_type,
+      entity: (envelope.entity_id as string | undefined) ?? '',
+      actor: envelope.actor as string | undefined,
+      timestamp: (envelope.created_at as string | undefined) ?? '',
+      payload,
+    })
   }
 
   private fanOut(event: KernelEvent): void {
@@ -111,9 +117,9 @@ export class KernelBridge {
     this.cancelClose()
     this.closeTimer = setTimeout(() => {
       this.closeTimer = null
-      if (this.handlers.size === 0 && this.socket) {
-        this.socket.close()
-        this.socket = null
+      if (this.handlers.size === 0 && this.abort) {
+        this.abort.abort()
+        this.abort = null
       }
     }, CLOSE_GRACE_MS)
   }

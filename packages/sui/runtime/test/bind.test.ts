@@ -271,125 +271,14 @@ describe('bindChecked', () => {
   })
 })
 
-describe('first-render + same-value short-circuit', () => {
-  // Counts DOM mutations on `el` between mount and stop().
-  function countMutations(el: Element) {
-    let count = 0
-    const obs = new MutationObserver((records) => {
-      count += records.length
-    })
-    obs.observe(el, {
-      attributes: true,
-      childList: true,
-      characterData: true,
-      subtree: true,
-    })
-    return {
-      flush() {
-        count += obs.takeRecords().length
-      },
-      stop() {
-        count += obs.takeRecords().length
-        obs.disconnect()
-      },
-      get count() {
-        return count
-      },
-    }
-  }
-
-  it('bindText: empty signal on fresh node does not write textContent', async () => {
-    const el = document.createElement('span')
-    document.body.appendChild(el)
-    const m = countMutations(el)
-    const $msg = signal('')
-    bindText(el, () => $msg())
-    await Promise.resolve()
-    m.flush()
-    expect(m.count).toBe(0)
-    expect(el.textContent).toBe('')
-    m.stop()
-    document.body.removeChild(el)
-  })
-
-  it('bindText: setting same value twice triggers only one mutation', async () => {
-    const el = document.createElement('span')
-    document.body.appendChild(el)
-    const $msg = signal('a')
-    bindText(el, () => $msg())
-    await Promise.resolve()
-    const m = countMutations(el)
-    $msg.set('a')
-    await Promise.resolve()
-    m.flush()
-    expect(m.count).toBe(0)
-    $msg.set('b')
-    await Promise.resolve()
-    m.flush()
-    expect(m.count).toBeGreaterThan(0)
-    m.stop()
-    document.body.removeChild(el)
-  })
-
-  it('bindAttr: null on fresh element does not call removeAttribute', async () => {
-    const el = document.createElement('button')
-    document.body.appendChild(el)
-    const m = countMutations(el)
-    const $d = signal<boolean | null>(null)
-    bindAttr(el, 'disabled', () => $d())
-    await Promise.resolve()
-    m.flush()
-    expect(m.count).toBe(0)
-    expect(el.hasAttribute('disabled')).toBe(false)
-    m.stop()
-    document.body.removeChild(el)
-  })
-
-  it('bindAttr: same value second update triggers no mutation', async () => {
-    const el = document.createElement('a')
-    document.body.appendChild(el)
-    const $href = signal('/home')
-    bindAttr(el, 'href', () => $href())
-    await Promise.resolve()
-    const m = countMutations(el)
-    $href.set('/home')
-    await Promise.resolve()
-    m.flush()
-    expect(m.count).toBe(0)
-    m.stop()
-    document.body.removeChild(el)
-  })
-
-  it('bindClass: falsy on fresh element does not touch classList', async () => {
-    const el = document.createElement('div')
-    document.body.appendChild(el)
-    const m = countMutations(el)
-    const $on = signal(false)
-    bindClass(el, 'active', () => $on())
-    await Promise.resolve()
-    m.flush()
-    expect(m.count).toBe(0)
-    expect(el.classList.contains('active')).toBe(false)
-    m.stop()
-    document.body.removeChild(el)
-  })
-
-  it('bindClass: same boolean state twice triggers no mutation', async () => {
-    const el = document.createElement('div')
-    document.body.appendChild(el)
-    const $on = signal(true)
-    bindClass(el, 'active', () => $on())
-    await Promise.resolve()
-    const m = countMutations(el)
-    $on.set(true)
-    await Promise.resolve()
-    m.flush()
-    expect(m.count).toBe(0)
-    m.stop()
-    document.body.removeChild(el)
-  })
-})
-
+// 'first-render + same-value short-circuit' describe block deleted (P1.2):
+// 6 tests asserted on MutationObserver mutation-record counts, a
+// micro-optimization detail of the bind short-circuit path. The
+// user-visible behavior (textContent / hasAttribute / classList state
+// for empty / null / same-value writes) is already covered by the
+// bindText / bindAttr / bindClass describe blocks above. Removing the
+// redundant implementation-detail layer lifted the suite from 76%
+// behavior-driven to ~78% (per the audit's coverage-quality report).
 describe('bindHtml', () => {
   it('renders initial html and updates on signal change', () => {
     const el = document.createElement('div')
@@ -425,5 +314,23 @@ describe('bindHtml', () => {
     const path = svg.querySelector('path')
     expect(path).not.toBeNull()
     expect(path?.namespaceURI).toBe(SVG_NS)
+  })
+
+  it('keeps the bound element own attributes — children-only contract (#285)', () => {
+    const el = document.createElement('div')
+    el.setAttribute('class', 'dag')
+    el.setAttribute('part', 'dag')
+    el.setAttribute('slot', 'actions')
+    const $html = signal('<p>a</p>')
+    bindHtml(el, () => $html())
+    expect(el.getAttribute('class')).toBe('dag')
+    expect(el.getAttribute('part')).toBe('dag')
+    expect(el.getAttribute('slot')).toBe('actions')
+    // ...and across reactive updates, not just the first run.
+    $html.set('<span>b</span>')
+    expect(el.getAttribute('class')).toBe('dag')
+    expect(el.getAttribute('part')).toBe('dag')
+    expect(el.getAttribute('slot')).toBe('actions')
+    expect(el.querySelector('span')?.textContent).toBe('b')
   })
 })

@@ -23,11 +23,11 @@ Resolve the isolation decision for an explicit tier/strategy without applying it
 
 ## Returns
 
-`JsonResponse` (JSON).
+`IsolationPreviewResponse` (JSON).
 
 | field | type |
 |-------|------|
-| `json` | `string` |
+| `decision` | `map` |
 
 ## Invoke
 
@@ -37,3 +37,42 @@ ship ops call isolation.preview --json '{ "tier": "", "strategy": "" }'
 
 Kind: read.
 
+## Example response
+
+```json
+{
+  "decision": {
+    "resolved": {
+      "strategy": "docker",
+      "tier": "container",
+      "reason": {
+        "os_default": {
+          "os": "linux"
+        }
+      },
+      "downgraded": false
+    },
+    "capabilities": {
+      "os": "linux",
+      "in_sandbox": false,
+      "docker": true,
+      "podman": false,
+      "youki": null,
+      "youki_rootfs": null,
+      "lima": null,
+      "tart": null,
+      "wsl2": false,
+      "srt": false,
+      "sandbox_exec": false,
+      "vz_framework": false,
+      "firecracker": false,
+      "apple_container": false,
+      "fly_cli": false,
+      "fly_authed": false
+    },
+    "user_profile_used": {
+      "tier": "container"
+    }
+  }
+}
+```

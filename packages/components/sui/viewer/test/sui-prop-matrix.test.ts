@@ -189,9 +189,6 @@ describe('matrix.ts — buildCells', () => {
 // The rendered grid — composes <sui-render> per cell
 // ===========================================================================
 describe('<sui-prop-matrix> — registration + grid shell', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get(TAG)).toBeDefined()
-  })
 
   it('attaches a shadow root', () => {
     const el = mountMatrix({ 'component-name': SPECIMEN_TAG }, { compile: makeBoundCompile(), props: VARIANT_TONE, source: SPECIMEN_SRC })

@@ -1,7 +1,7 @@
 {
   "name": "@ship/sui-primitives",
   "version": "0.1.0",
-  "description": "Ship Primitives pack \u2014 generic `<sui-*>` UI elements (button, input, dialog, popover, etc.).",
+  "description": "Ship Primitives pack — generic `<sui-*>` UI elements (button, input, dialog, popover, etc.).",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
@@ -11,7 +11,8 @@
   },
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ship/sdk-client": "workspace:*",
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "@ship/test-setup": "workspace:*",
+    "@types/node": "24.12.4",
     "fast-formula-parser": "1.0.19",
     "vitest": "^4.1.5"
   }

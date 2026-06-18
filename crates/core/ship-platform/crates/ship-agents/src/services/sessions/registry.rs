@@ -50,7 +50,7 @@ impl SessionRegistry {
             .values()
             .map(|h| h.meta.lock().unwrap().clone())
             .collect();
-        metas.sort_by(|a, b| b.last_activity.cmp(&a.last_activity));
+        metas.sort_by_key(|m| std::cmp::Reverse(m.last_activity));
         metas
     }
 

@@ -35,20 +35,20 @@
     margin: 0;
     min-width: 240px;
     max-width: 340px;
-    padding: 16px;
+    padding: var(--space-4);
     background: var(--popover);
     color: var(--popover-foreground);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg, 8px);
-    box-shadow: var(--shadow-lg, 0 8px 24px color-mix(in oklch, var(--foreground) 12%, transparent));
-    font-family: var(--font-body, system-ui);
-    font-size: var(--text-base, 14px);
-    line-height: var(--leading-normal, 1.5);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 var(--surface-1);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
     opacity: 0;
     transform: translateY(-4px);
     transition:
-      opacity var(--duration-medium, 200ms) var(--ease-out, ease-out),
-      transform var(--duration-medium, 200ms) var(--ease-out, ease-out);
+      opacity var(--duration-medium) var(--ease-out),
+      transform var(--duration-medium) var(--ease-out);
   }
   .panel:popover-open {
     opacity: 1;
@@ -64,11 +64,11 @@
      positionPanel is skipped when this branch is live. */
   @supports (anchor-name: --x) {
     ::slotted([slot='trigger']) {
-      anchor-name: var(--sui-hc-anchor, --sui-hc-default);
+      anchor-name: var(--sui-hc-anchor);
     }
     .panel {
       position: fixed;
-      position-anchor: var(--sui-hc-anchor, --sui-hc-default);
+      position-anchor: var(--sui-hc-anchor);
       position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
       position-try-order: most-block-size;
     }

@@ -8,9 +8,6 @@ afterEach(() => reg.cleanup())
 const shadow = (el: HTMLElement) => el.shadowRoot!
 
 describe('<sui-json-view>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-json-view')).toBeDefined()
-  })
 
   it('renders string, number, boolean, and null primitives', async () => {
     const { el } = mount(reg, 'sui-json-view', { data: '{"a":1,"b":true,"c":null,"d":"hi"}' })

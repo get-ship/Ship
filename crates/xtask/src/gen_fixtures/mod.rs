@@ -13,7 +13,7 @@
 //!   cargo xtask gen-fixtures --event <name> — regen just one event fixture
 //!   cargo xtask gen-fixtures --report-missing — list registry entries without a fixture
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
@@ -94,7 +94,7 @@ pub fn run_with_args(args: &[&str]) -> Result<()> {
 }
 
 /// Regen fixtures for a single named event.
-fn regen_single_event(fixtures_dir: &PathBuf, event_name: &str) -> Result<()> {
+fn regen_single_event(fixtures_dir: &Path, event_name: &str) -> Result<()> {
     use ship_types::event_registry::registry;
     let def = registry()
         .find(|d| d.name == event_name)
@@ -114,7 +114,7 @@ fn regen_single_event(fixtures_dir: &PathBuf, event_name: &str) -> Result<()> {
 }
 
 /// Print a markdown-style coverage report for all fixture surfaces.
-fn report_missing_fixtures(fixtures_dir: &PathBuf) -> Result<()> {
+fn report_missing_fixtures(fixtures_dir: &Path) -> Result<()> {
     let missing_ops = ops::missing_fixtures(fixtures_dir)?;
     let missing_requests = op_requests::missing_requests(fixtures_dir)?;
     let needs_author_events = events::needs_author_list();
@@ -123,7 +123,7 @@ fn report_missing_fixtures(fixtures_dir: &PathBuf) -> Result<()> {
     let total_events = *event_stats.get("total").unwrap_or(&0);
     let auto_events = *event_stats.get("auto_generable").unwrap_or(&0);
     let na_events = *event_stats.get("needs_author").unwrap_or(&0);
-    let event_pct = if total_events > 0 { (auto_events * 100) / total_events } else { 0 };
+    let event_pct = (auto_events * 100).checked_div(total_events).unwrap_or(0);
 
     println!("# Fixture Coverage Report");
     println!();

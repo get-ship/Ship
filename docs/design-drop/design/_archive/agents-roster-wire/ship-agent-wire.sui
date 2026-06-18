@@ -1,0 +1,43 @@
+<!--
+  ship-agent-wire.sui — @ship/agents surface (the /agents/[id]/wire view). NET-NEW
+  feature mock. One agent's wiring: a left rail groups its connected capabilities —
+  Tools · Skills · Triggers — each a chip row hung off a connector rail, so what an
+  agent can reach reads at a glance. Static content. Compiled <ship-agent-wire>.
+-->
+<style>
+  :host { display: block; }
+  .wire { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-xs); overflow: hidden; }
+  .hd { display: flex; align-items: center; gap: 10px; padding: 14px var(--space-5); border-bottom: 1px solid var(--border-subtle); }
+  .nm { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-md); }
+  .model { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+  .body { padding: var(--space-5); display: flex; flex-direction: column; gap: 16px; }
+  .lane { display: grid; grid-template-columns: 92px 1fr; gap: 14px; align-items: start; }
+  .lane > .k { font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); padding-top: 6px; }
+  .rail { display: flex; flex-wrap: wrap; gap: 8px; position: relative; padding-left: 14px; }
+  .rail::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2px; border-radius: 1px; background: color-mix(in oklch, var(--primary) 40%, transparent); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 12px; padding: 5px 11px; border-radius: var(--radius-full); background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-xs); color: var(--foreground); }
+  .pill .d { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+  .pill.tool .d { background: var(--info); }
+  .pill.skill .d { background: var(--accent); }
+  .pill.trig .d { background: var(--success); }
+</style>
+
+<div class="wire" part="wire">
+  <div class="hd"><span class="nm">reindex-bot</span><span class="model">claude-sonnet · temp 0.2</span></div>
+  <div class="body">
+    <div class="lane"><span class="k">Tools</span><div class="rail">
+      <span class="pill tool"><span class="d"></span>search.index</span>
+      <span class="pill tool"><span class="d"></span>db.query</span>
+      <span class="pill tool"><span class="d"></span>http.fetch</span>
+      <span class="pill tool"><span class="d"></span>notify.slack</span>
+    </div></div>
+    <div class="lane"><span class="k">Skills</span><div class="rail">
+      <span class="pill skill"><span class="d"></span>summarize</span>
+      <span class="pill skill"><span class="d"></span>dedupe-records</span>
+    </div></div>
+    <div class="lane"><span class="k">Triggers</span><div class="rail">
+      <span class="pill trig"><span class="d"></span>schedule · 0 3 * * *</span>
+      <span class="pill trig"><span class="d"></span>webhook · gh-push</span>
+    </div></div>
+  </div>
+</div>

@@ -11,9 +11,6 @@ const shadow = (el: HTMLElement) => el.shadowRoot!
 // ── <sui-timeline> ────────────────────────────────────────────────────────────
 
 describe('<sui-timeline>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-timeline')).toBeDefined()
-  })
 
   it('renders a shadow root with a list div and slot', () => {
     const { el } = mount(reg, 'sui-timeline')
@@ -36,14 +33,11 @@ describe('<sui-timeline>', () => {
 // ── <sui-timeline-item> ───────────────────────────────────────────────────────
 
 describe('<sui-timeline-item>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-timeline-item')).toBeDefined()
-  })
 
   it('renders gutter dot and body in shadow root', () => {
     const { el } = mount(reg, 'sui-timeline-item')
     expect(shadow(el).querySelector('.gutter')).not.toBeNull()
-    expect(shadow(el).querySelector('.dot')).not.toBeNull()
+    expect(shadow(el).querySelector('[part="dot"]')).not.toBeNull()
     expect(shadow(el).querySelector('.body')).not.toBeNull()
   })
 
@@ -101,13 +95,17 @@ describe('<sui-timeline-item>', () => {
     expect(el.getAttribute('tabindex')).toBe('0')
   })
 
-  it('dispatches sui-select on click when interactive', async () => {
+  it('dispatches sui-select on click when interactive (bubbles + composed, empty detail)', async () => {
     const { el } = mount(reg, 'sui-timeline-item', { interactive: true })
     await flush()
     const fn = vi.fn()
     el.addEventListener('sui-select', fn)
     el.click()
     expect(fn).toHaveBeenCalledOnce()
+    const evt = fn.mock.calls[0]![0] as CustomEvent
+    expect(evt.detail).toEqual({})
+    expect(evt.bubbles).toBe(true)
+    expect(evt.composed).toBe(true)
   })
 
   it('does not dispatch sui-select on click when not interactive', async () => {

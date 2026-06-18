@@ -51,7 +51,7 @@
     width: 100%;
     border: 1px solid var(--border);
     border-radius: var(--table-radius);
-    background: var(--card);
+    background: var(--surface-1);
     box-shadow: var(--shadow-xs);
     overflow: hidden;
     overflow-x: auto;
@@ -78,7 +78,7 @@
     text-align: center;
     color: var(--muted-foreground);
     font-size: var(--text-sm);
-    background: var(--card);
+    background: var(--surface-1);
   }
   :host([data-empty]) .empty { display: block; }
   :host([data-empty]) table { display: none; }

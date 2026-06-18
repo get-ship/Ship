@@ -26,6 +26,4 @@ mod tests;
 
 pub use commands::{run_daemon, DaemonCommand};
 pub use ensure::{daemon_info_if_healthy, ensure_daemon};
-pub use pid_io::{read_pid, write_pid};
-pub use status::{format_relative_time, format_uptime};
 pub(crate) use legacy_pidfile::{daemon_start_inner, daemon_stop_inner};

@@ -1,14 +1,14 @@
 {
   "_meta": {
     "event": "session.started",
-    "scope": "runtime",
+    "scope": "space",
     "retention": "durable",
     "stability": "stable",
-    "payload_type": "SessionStarted",
+    "payload_type": "canonical_session::SessionStarted",
     "needs_author": false
   },
   "payload": {
-    "workspace_id": "test-workspace",
-    "branch": "main"
+    "_note": "NEEDS_AUTHOR: canonical_session::SessionStarted — auto-stub not possible; hand-author this fixture",
+    "_payload_type": "canonical_session::SessionStarted"
   }
 }

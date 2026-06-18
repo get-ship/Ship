@@ -1,0 +1,39 @@
+<!--
+  sui-navigation-menu.after.sui — ELEVATED. The flat menubar gains a rounded hover
+  wash + an active/open item that reads (muted pill + a chevron that rotates), and
+  the plain link list becomes a real mega-panel: a --shadow-lg card with a 2-col
+  grid of rich links (icon tile + title + description), so a top-level nav can
+  actually describe its destinations. Token-pure. Panel shown open for the
+  comparison. Compiled as <x-navigation-menu-after>.
+-->
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  .nav { display: flex; gap: 2px; align-items: center; }
+  .item { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 13px; font-weight: var(--font-weight-medium, 500); color: var(--muted-foreground); background: none; border: 0; border-radius: var(--radius-sm); cursor: pointer; transition: background var(--duration-fast), color var(--duration-fast); }
+  .item:hover { color: var(--foreground); background: var(--hover-bg); }
+  .item.open { color: var(--foreground); background: var(--muted); }
+  .chev { width: 13px; height: 13px; transition: transform var(--duration-medium) var(--ease-out); }
+  .item.open .chev { transform: rotate(180deg); }
+  .panel { margin-top: 8px; width: 460px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-lg); padding: var(--space-3); display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .rich { display: flex; gap: 11px; align-items: flex-start; padding: 10px; border-radius: var(--radius-md); cursor: pointer; transition: background var(--duration-fast); }
+  .rich:hover { background: var(--hover-bg); }
+  .tile { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: none; border-radius: var(--radius-md); background: var(--tone-info-bg); color: var(--tone-info-fg); }
+  .tile svg { width: 17px; height: 17px; }
+  .rt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .rt .h { font-size: 13px; font-weight: var(--font-weight-medium, 500); color: var(--foreground); }
+  .rt .s { font-size: 11.5px; color: var(--muted-foreground); line-height: 1.4; }
+</style>
+<div class="nav" part="nav" role="menubar">
+  <button class="item" role="menuitem">Home</button>
+  <button class="item" role="menuitem">Products</button>
+  <button class="item open" role="menuitem" aria-expanded="true">Resources
+    <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <button class="item" role="menuitem">Pricing</button>
+</div>
+<div class="panel" part="panel" role="menu">
+  <a class="rich" role="menuitem"><span class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2z"/><path d="M17 6h3v12a2 2 0 0 1-2 2"/></svg></span><span class="rt"><span class="h">Documentation</span><span class="s">Guides, tutorials &amp; concepts</span></span></a>
+  <a class="rich" role="menuitem"><span class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></svg></span><span class="rt"><span class="h">API reference</span><span class="s">Every endpoint &amp; type</span></span></a>
+  <a class="rich" role="menuitem"><span class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg></span><span class="rt"><span class="h">Changelog</span><span class="s">What shipped this week</span></span></a>
+  <a class="rich" role="menuitem"><span class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span class="rt"><span class="h">Community</span><span class="s">Forum &amp; Discord</span></span></a>
+</div>

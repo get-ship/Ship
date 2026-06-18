@@ -1,0 +1,26 @@
+<!--
+  sui-tooltip.before.sui — EXISTING look (repo styling), rendered STATIC (bubble
+  forced visible; the real component shows it on hover/focus). Dark foreground
+  bubble above the trigger. Compiled as <x-tooltip-before>.
+  Props: placement. Slots: (default) trigger · content (bubble body).
+-->
+<prop name="placement" values="top|bottom|left|right" default="top" reflect />
+
+<style>
+  :host { position: relative; display: inline-flex; }
+  :host([hidden]) { display: none; }
+  .bubble {
+    position: absolute; z-index: var(--z-popover, 50); padding: 4px 8px;
+    background: var(--foreground); color: var(--background);
+    font-family: var(--font-body); font-size: 11px; font-weight: var(--font-weight-medium, 500);
+    border-radius: var(--radius-sm); white-space: nowrap; pointer-events: none;
+    opacity: 1; box-shadow: var(--shadow-sm);
+  }
+  :host(:not([placement])) .bubble, :host([placement='top']) .bubble { bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); }
+  :host([placement='bottom']) .bubble { top: calc(100% + 6px); left: 50%; transform: translateX(-50%); }
+  :host([placement='left']) .bubble { right: calc(100% + 6px); top: 50%; transform: translateY(-50%); }
+  :host([placement='right']) .bubble { left: calc(100% + 6px); top: 50%; transform: translateY(-50%); }
+</style>
+
+<slot></slot>
+<span class="bubble" role="tooltip" part="bubble"><slot name="content"></slot></span>

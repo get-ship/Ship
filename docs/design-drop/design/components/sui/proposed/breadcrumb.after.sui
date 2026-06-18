@@ -1,0 +1,33 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-breadcrumb.after.sui — ELEVATED. Same path; diffs:
+    • a leading home glyph anchors the trail
+    • link crumbs underline + go --foreground on hover (clear they're navigable),
+      with a soft --muted hover chip
+    • current crumb is a subtle --muted chip at full --foreground weight, so "where
+      am I" reads at a glance
+    • separators lighter + tighter for a calmer rhythm
+  Compiled as <x-breadcrumb-after>. Props: separator.
+-->
+<prop name="separator" type="string" default="/" reflect />
+
+<style>
+  :host { display: flex; align-items: center; }
+  nav { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 1px; font-family: var(--font-body); font-size: 13px; }
+  .crumb { display: inline-flex; align-items: center; gap: 5px; color: var(--muted-foreground); text-decoration: none; padding: 3px 7px; border-radius: var(--radius-sm); cursor: pointer; transition: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out); }
+  .crumb:hover { color: var(--foreground); background: color-mix(in oklch, var(--foreground) 6%, transparent); text-decoration: underline; text-underline-offset: 2px; }
+  .crumb svg { width: 14px; height: 14px; }
+  .crumb.current { color: var(--foreground); font-weight: var(--font-weight-semibold, 600); background: var(--muted); cursor: default; text-decoration: none; }
+  .sep { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; color: color-mix(in oklch, var(--muted-foreground) 60%, transparent); }
+  .sep svg { width: 13px; height: 13px; }
+</style>
+
+<nav aria-label="Breadcrumb" part="nav">
+  <a class="crumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Home</a>
+  <span class="sep" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+  <a class="crumb">Pipelines</a>
+  <span class="sep" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+  <a class="crumb">nightly-reindex</a>
+  <span class="sep" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+  <span class="crumb current" aria-current="page">Run #482</span>
+</nav>

@@ -1,0 +1,75 @@
+<!--
+  <ship-query-runner> — @ship/collections · run a query and render
+  typed results + row count + elapsed time. Calls QueryItems via
+  the SDK and composes <sui-table> for the result grid. Reads the
+  schema for column rendering (the typed-from-schema contract).
+
+  Pairs with <ship-query-editor>: the host listens for
+  ship-query-change from the editor and re-issues a run.
+
+  The runner doesn't ship with a built-in run button — the host
+  triggers runs by listening for ship-query-change, or by passing
+  a query string via the `source` prop and toggling `run` to true.
+
+  Tag prefix `ship-*` marks this component as depending on the Ship
+  runtime: mounting without a host that has called setShipClient()
+  will throw on the first SDK access.
+-->
+<prop name="collection" type="string" default="" />
+<prop name="source" type="string" default="" />
+<prop name="limit" type="number" default="100" />
+
+<style>
+  :host { display: block; font-family: var(--font-body); color: var(--foreground); }
+  :host([hidden]) { display: none; }
+
+  .head {
+    display: flex; align-items: center; gap: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+  .head .label {
+    font-family: var(--font-mono); font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .head .meta { font-size: var(--text-xs); color: var(--muted-foreground); margin-left: auto; }
+  .head .meta .pill {
+    display: inline-block;
+    padding: var(--space-1) var(--space-1); border-radius: var(--radius-full);
+    font-family: var(--font-mono);
+    background: var(--muted);
+    color: var(--foreground);
+  }
+  .head .meta .pill.err { background: var(--tone-destructive-bg); color: var(--destructive); }
+
+  .empty { padding: var(--space-6); text-align: center; color: var(--muted-foreground); font-size: var(--text-sm); }
+</style>
+
+<div class="head">
+  <span class="label">Results</span>
+  {#if running()}<span class="label">· running…</span>{/if}
+  <span class="meta" data-test="meta">
+    <span class="pill" data-test="count">{rowCount()} rows</span>
+    <span class="pill" data-test="elapsed">{elapsed()}</span>
+  </span>
+</div>
+
+{#while-loading of results}
+  <sui-skeleton shape="line" size="md"></sui-skeleton>
+{/while-loading}
+{#while-error err of results}
+  <sui-error-state title="Query failed" variant="inline" data-test="error">{err.message}</sui-error-state>
+{/while-error}
+{#if results().kind === 'ok'}
+  {#if rows().length === 0}
+    <div class="empty" data-test="empty">0 rows</div>
+  {:else}
+    <sui-table
+      variant="data"
+      prop:rows={rows()}
+      prop:columns={columnDefs()}
+      hoverable
+      striped
+      data-test="grid"
+    ></sui-table>
+  {/if}
+{/if}

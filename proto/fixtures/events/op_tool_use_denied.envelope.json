@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "event": "op.tool_use_denied",
+    "scope": "runtime",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "op::OpToolUseDenied",
+    "needs_author": false
+  },
+  "envelope": {
+    "id": "01JTEST000000000000000EVENT",
+    "event_type": "op.tool_use_denied",
+    "entity_id": "test-entity-id",
+    "actor_id": "test-actor-id",
+    "space_id": "",
+    "occurred_at": "2026-01-01T00:00:00Z",
+    "payload": {
+      "_note": "NEEDS_AUTHOR: op::OpToolUseDenied — auto-stub not possible; hand-author this fixture",
+      "_payload_type": "op::OpToolUseDenied"
+    }
+  }
+}

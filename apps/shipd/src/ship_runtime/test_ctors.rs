@@ -53,7 +53,6 @@ impl ShipRuntime {
             artifact_ctx,
             schemas,
             global_blob_dir,
-            view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: ship_agents::services::sessions::SessionRegistry::new(),
             actor_sessions: ship_agents::services::sessions::ActorRegistry::new(),
             rules,
@@ -72,7 +71,7 @@ impl ShipRuntime {
             pipeline_watch_kernel: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
             shutdown_token: std::sync::OnceLock::new(),
-            live_resolvers: Arc::new(crate::live_resolvers::build()),
+            live_resolvers: Arc::new(crate::ship_runtime::live_resolvers::build()),
         }
     }
 

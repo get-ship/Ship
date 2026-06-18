@@ -1,0 +1,46 @@
+<!--
+  sui-dialog.after.sui — ELEVATED. Same static render + slot contract; diffs:
+    • header gains a bottom hairline so title / body / footer read as three tiers,
+      and the title sits with optional eyebrow spacing
+    • footer gets a faint --muted wash so the action zone is visually distinct
+    • close button → a rounded square that tints to --tone on hover, top-aligned to
+      the header baseline
+    • slightly deeper radius on the panel for a softer modal edge
+  Compiled as <x-dialog-after>. Props: size · no-close-button · no-header · no-footer.
+-->
+<prop name="size" values="sm|md|lg|full" default="md" reflect />
+<prop name="no-close-button" type="bool" default="false" reflect />
+<prop name="no-header" type="bool" default="false" reflect />
+<prop name="no-footer" type="bool" default="false" reflect />
+
+<style>
+  :host { display: block; }
+  :host([hidden]) { display: none; }
+  :host(:not([size])), :host([size='md']) { --dlg-max-w: 500px; --dlg-px: 24px; --dlg-hpy: 18px; --dlg-bpy: 16px; --dlg-fpy: 16px; }
+  :host([size='sm']) { --dlg-max-w: 400px; --dlg-px: 20px; --dlg-hpy: 16px; --dlg-bpy: 14px; --dlg-fpy: 14px; }
+  :host([size='lg']) { --dlg-max-w: 700px; --dlg-px: 28px; --dlg-hpy: 20px; --dlg-bpy: 20px; --dlg-fpy: 18px; }
+
+  .dialog {
+    position: relative; margin: 0 auto; width: 100%; max-width: var(--dlg-max-w);
+    border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--card); color: var(--card-foreground);
+    box-shadow: var(--shadow-xl); font-family: var(--font-body); overflow: hidden; display: flex; flex-direction: column;
+  }
+  .header { padding: var(--dlg-hpy) var(--dlg-px); padding-right: calc(var(--dlg-px) + 40px); flex: 0 0 auto; font-size: var(--text-lg); font-weight: var(--font-weight-semibold); color: var(--foreground); border-bottom: 1px solid var(--border-subtle); }
+  :host([no-header]) .header { display: none; }
+  .body { padding: var(--dlg-bpy) var(--dlg-px); flex: 1 1 auto; font-size: var(--text-base); line-height: var(--leading-normal, 1.55); color: var(--muted-foreground); }
+  .footer { padding: var(--dlg-fpy) var(--dlg-px); border-top: 1px solid var(--border-subtle); background: color-mix(in oklch, var(--muted) 28%, var(--card)); display: flex; gap: var(--space-2); justify-content: flex-end; align-items: center; flex: 0 0 auto; }
+  :host([no-footer]) .footer { display: none; }
+  .close { position: absolute; top: 13px; inset-inline-end: 13px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 0; border-radius: var(--radius-md); color: var(--muted-foreground); cursor: pointer; padding: 0; transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
+  .close:hover { background: var(--muted); color: var(--foreground); }
+  .close svg { width: 14px; height: 14px; display: block; }
+  :host([no-close-button]) .close { display: none; }
+</style>
+
+<div class="dialog" part="dialog" role="dialog" aria-modal="true">
+  <button class="close" part="close" type="button" aria-label="Close dialog">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg>
+  </button>
+  <div class="header" part="header"><slot name="header"></slot></div>
+  <div class="body" part="body"><slot></slot></div>
+  <div class="footer" part="footer"><slot name="footer"></slot></div>
+</div>

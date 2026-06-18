@@ -52,7 +52,7 @@
     background: linear-gradient(
       90deg,
       var(--muted) 0%,
-      color-mix(in oklch, var(--muted) 75%, var(--background)) 50%,
+      var(--tone-muted-bg) 50%,
       var(--muted) 100%
     );
     background-size: 200% 100%;

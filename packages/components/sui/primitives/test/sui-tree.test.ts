@@ -94,9 +94,6 @@ const itemIds = (shadow: ShadowRoot | null): string[] =>
   )
 
 describe('<sui-tree> — registration + container a11y', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-tree')).toBeDefined()
-  })
 
   it('sets role=tree on the container (single label column)', async () => {
     const { shadow } = mountTree()

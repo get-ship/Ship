@@ -178,14 +178,14 @@ Navigation flow:
 
 ## SDK access
 
-The `ship.*` SDK is the typed bridge to `shipd`. It is *not* a global; it's injected by the runtime into:
+The `ship.*` SDK is the typed bridge to `shipd`. It is *not* a global; it's one key on the host-supplied clients map. A view declares the clients it consumes with a top-level `<client name="ship" />` directive (see [template.md](template.md#client--host-injected-data-client)); the host passes the map at mount (`mount(target, payload, { clients: { ship } })`) and the runtime injects each declared name into:
 
-- The `source=` attribute of `<data>` elements (where `ship` and `route` are in scope)
-- The function form of a controller (`({ ship }) => ...`)
-- Each controller section's destructure (`{ ship }` is part of the scope object)
+- The `source=` attribute of `<data>` elements (where the declared clients and `route` are in scope)
+- The function form of a controller (`({ ship, clients }) => ...`)
+- Each controller section's destructure (`{ ship }` is part of the scope object; so is every other declared client)
 - Each controller hook's factory (when it accepts scope)
 
-Authors do not import `ship`. The runtime owns the binding.
+Authors do not import `ship`. The host owns the value, the runtime owns the wiring, and the SDK provider owns the type (`declare module '@ship/sui-runtime' { interface Clients { ship: ShipSDK } }`). `ship` is just the key Ship hosts use — a non-Ship host injects its own clients under its own names. Templates that declare no clients still receive the ambient `ship` as a grandfathered compatibility default.
 
 ## Mutations
 

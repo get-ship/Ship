@@ -33,10 +33,9 @@ use ship_ops_rpc::{
     IsolationCapabilities as ProtoCapabilities, IsolationDecision as ProtoDecision,
     IsolationPreviewResponse as ProtoPreviewResponse,
     IsolationProfile as ProtoProfile, IsolationRecommendationsResponse as ProtoRecommendations,
-    IsolationResolutionAlreadyInSandbox, IsolationResolutionAgentOverride,
     IsolationResolutionDowngrade, IsolationResolutionOsDefault,
-    IsolationResolutionReason as ProtoResolutionReason, IsolationResolutionRunOverride,
-    IsolationResolutionUserDefault, IsolationResolved as ProtoResolved,
+    IsolationResolutionReason as ProtoResolutionReason,
+    IsolationResolved as ProtoResolved,
     IsolationService as IsolationServiceTrait, IsolationStatusResponse as ProtoStatusResponse,
     IsolationStrategyRow as ProtoStrategyRow, IsolationTierRow as ProtoTierRow,
     IsolationVerifyResponse as ProtoVerifyResponse, IsolationVerifyStep as ProtoVerifyStep,
@@ -75,10 +74,10 @@ fn capabilities_to_proto(caps: &Capabilities) -> ProtoCapabilities {
         in_sandbox: caps.in_sandbox,
         docker: caps.docker,
         podman: caps.podman,
-        youki: caps.youki.as_ref().map(path_to_string),
-        youki_rootfs: caps.youki_rootfs.as_ref().map(path_to_string),
-        lima: caps.lima.as_ref().map(path_to_string),
-        tart: caps.tart.as_ref().map(path_to_string),
+        youki: caps.youki.as_deref().map(path_to_string),
+        youki_rootfs: caps.youki_rootfs.as_deref().map(path_to_string),
+        lima: caps.lima.as_deref().map(path_to_string),
+        tart: caps.tart.as_deref().map(path_to_string),
         wsl2: caps.wsl2,
         srt: caps.srt,
         sandbox_exec: caps.sandbox_exec,
@@ -91,7 +90,7 @@ fn capabilities_to_proto(caps: &Capabilities) -> ProtoCapabilities {
     }
 }
 
-fn path_to_string(p: &std::path::PathBuf) -> String {
+fn path_to_string(p: &std::path::Path) -> String {
     p.to_string_lossy().into_owned()
 }
 
@@ -123,13 +122,13 @@ fn strategy_id(s: crate::tier::IsolationStrategy) -> String {
 fn resolution_reason_to_proto(r: &ResolutionReason) -> ProtoResolutionReason {
     let reason = match r {
         ResolutionReason::RunOverride => {
-            ProtoReason::RunOverride(Box::new(IsolationResolutionRunOverride::default()))
+            ProtoReason::RunOverride(Box::default())
         }
         ResolutionReason::AgentOverride => {
-            ProtoReason::AgentOverride(Box::new(IsolationResolutionAgentOverride::default()))
+            ProtoReason::AgentOverride(Box::default())
         }
         ResolutionReason::UserDefault => {
-            ProtoReason::UserDefault(Box::new(IsolationResolutionUserDefault::default()))
+            ProtoReason::UserDefault(Box::default())
         }
         ResolutionReason::OsDefault { os } => {
             ProtoReason::OsDefault(Box::new(IsolationResolutionOsDefault {
@@ -145,7 +144,7 @@ fn resolution_reason_to_proto(r: &ResolutionReason) -> ProtoResolutionReason {
             }))
         }
         ResolutionReason::AlreadyInSandbox => {
-            ProtoReason::AlreadyInSandbox(Box::new(IsolationResolutionAlreadyInSandbox::default()))
+            ProtoReason::AlreadyInSandbox(Box::default())
         }
     };
     ProtoResolutionReason {
@@ -318,11 +317,9 @@ impl IsolationServiceTrait for IsolationWire {
     ) -> ServiceResult<ProtoPreviewResponse> {
         let tier = request
             .tier
-            .as_deref()
             .and_then(crate::tier::IsolationTier::from_id);
         let strategy = request
             .strategy
-            .as_deref()
             .and_then(crate::tier::IsolationStrategy::from_id);
         let profile = crate::tier::IsolationProfile { tier, strategy, policy: None };
         let decision = crate::decision_ops::preview(profile).map_err(iso_err)?;

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>charts · existing vs new · components/sui</title>
+<link rel="stylesheet" href="../../../../sui/ship.css" />
+<script type="importmap">
+{ "imports": {
+  "@ship/sui-runtime": "../../../../sui/sui-runtime.js",
+  "@charts/engine": "./chart-engine.js"
+} }
+</script>
+<style>
+  html, body { margin: 0; }
+  body { background: var(--background); color: var(--foreground); font-family: var(--font-body); }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 28px var(--space-6) 80px; }
+  .eyebrow { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .12em; text-transform: uppercase; color: var(--muted-foreground); }
+  h1 { font-family: var(--heading-font); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--text-4xl); margin: 8px 0 0; }
+  .rule { width: 64px; height: 4px; border-radius: 2px; margin: 14px 0 14px; background: linear-gradient(90deg, var(--primary), var(--accent) 70%, transparent); }
+  .lede { color: var(--muted-foreground); font-size: var(--text-md); margin: 0; max-width: 72ch; line-height: 1.6; }
+  .lede b { color: var(--foreground); } .lede code { font-family: var(--font-mono); font-size: var(--text-sm); }
+  .bar { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: 18px; position: sticky; top: 0; z-index: 30; background: color-mix(in oklch, var(--background) 90%, transparent); backdrop-filter: blur(10px); padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
+  .seg { display: inline-flex; background: var(--muted); border-radius: var(--radius-md); padding: 3px; gap: 2px; }
+  .seg button { padding: 7px 18px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted-foreground); font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+  .themes { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+  .themes .tl { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+  .sw { display: inline-flex; gap: 5px; padding: 4px; background: var(--muted); border-radius: var(--radius-full); }
+  .sw button { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid color-mix(in oklch, var(--foreground) 14%, transparent); cursor: pointer; padding: 0; }
+  .sw button[aria-pressed="true"] { border-color: var(--foreground); box-shadow: 0 0 0 2px var(--background), 0 0 0 3px var(--foreground); }
+  .build { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); margin: 16px 0 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-5); margin-top: 18px; }
+  .card { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-xs); padding: var(--space-5); }
+  .card.is-new { border-color: color-mix(in oklch, var(--success) 45%, var(--border)); box-shadow: 0 0 0 1px color-mix(in oklch, var(--success) 28%, transparent), var(--shadow-xs); }
+  .card .ct { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-foreground); margin-bottom: 14px; }
+  .card .badge { font-size: 8.5px; font-weight: 700; padding: 2px 7px; border-radius: var(--radius-full); background: var(--tone-muted-bg); color: var(--muted-foreground); }
+  .card.is-new .badge { background: var(--tone-success-bg); color: var(--tone-success-fg); }
+  .chost { display: flex; justify-content: center; align-items: center; min-height: 104px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">components/sui · charts · grounded</div>
+  <h1>charts — existing vs new</h1>
+  <div class="rule"></div>
+  <p class="lede"><b>Every chart side-by-side, geometry held fixed.</b> <code>bar-chart</code> + <code>sparkline</code> share the real engine (<code>normalizeSeries → barGeometry</code>, ported from the repo); <code>donut</code> rides the SVG <code>pathLength</code> trick — no controller. In all three, <b>New</b> changes only the <code>.sui</code> template: bar gets gridlines + value labels, sparkline a soft area + end marker, donut a tinted track + round caps + refined center type. Toggle <b>Existing / New</b>; switch <b>themes</b> right.</p>
+
+  <div class="bar">
+    <span class="seg" id="seg" role="tablist" aria-label="Compare"><button data-v="existing" aria-pressed="true">Existing</button><button data-v="new" aria-pressed="false">New</button></span>
+    <span class="themes"><span class="tl">Theme</span><span class="sw" id="sw"></span></span>
+  </div>
+  <div class="build" id="build">compiling…</div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script type="module">
+import { defineComponent, themeBar } from '../../../../tools/catalog/sui-workbench.js';
+const $ = (s) => document.querySelector(s);
+themeBar($('#sw'));
+const el = (tag, attrs) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v); return e; };
+
+const CHARTS = [
+  { label: 'bar-chart', base: 'x-bar', ctl: './bar-chart.engine.controller.js', ex: './bar-chart.existing.sui', nw: './bar-chart.new.sui',
+    series: [['requests/hr · primary', { data: '[12,19,9,22,17,28,24,31,26,33]', tone: 'primary' }], ['p99 ms · warning', { data: '[40,38,42,39,45,60,58,91,72,68]', tone: 'warning' }]] },
+  { label: 'sparkline', base: 'x-spark', ctl: './sparkline.engine.controller.js', ex: './sparkline.existing.sui', nw: './sparkline.new.sui',
+    series: [['throughput · success', { data: '[12,19,9,22,17,28,24,31,26,33]', tone: 'success' }], ['latency · accent', { data: '[40,38,42,39,45,60,58,91,72,68]', tone: 'accent' }]] },
+  // donut has no repo predecessor and no controller — both versions use the SVG
+  // pathLength trick (stroke-dasharray={value} 100). Props are value/tone/label.
+  { label: 'donut', base: 'x-donut', ctl: null, ex: './donut.existing.sui', nw: './donut.new.sui', center: true,
+    series: [['uptime · success', { value: '99', tone: 'success', label: 'uptime' }], ['p99 budget · warning', { value: '72', tone: 'warning', label: 'p99' }], ['cpu · primary', { value: '64', tone: 'primary', label: 'cpu' }], ['error rate · destructive', { value: '12', tone: 'destructive', label: 'errors' }]] },
+];
+
+try {
+  for (const c of CHARTS) {
+    const ctl = c.ctl ? await fetch(c.ctl).then(r => r.text()) : null;
+    const [exSui, nwSui] = await Promise.all([fetch(c.ex).then(r => r.text()), fetch(c.nw).then(r => r.text())]);
+    await defineComponent({ name: c.base + '-existing', sui: exSui, controllerSrc: ctl });
+    await defineComponent({ name: c.base + '-new', sui: nwSui, controllerSrc: ctl });
+  }
+  $('#build').textContent = 'Compiled ✓  ' + CHARTS.length + ' chart types × existing + new  ·  bar + sparkline on the real engine, donut on pathLength  ·  registered';
+
+  const grid = $('#grid');
+  const slots = [];
+  for (const c of CHARTS) for (const [title, attrs] of c.series) {
+    const card = el('div', { class: 'card' });
+    const ct = el('div', { class: 'ct' }); ct.append(document.createTextNode(c.label + ' · ' + title), el('span', { class: 'badge' }));
+    ct.querySelector('.badge').textContent = 'existing';
+    const host = el('div', c.center ? { class: 'chost' } : {});
+    card.append(ct, host); grid.appendChild(card);
+    slots.push({ base: c.base, attrs, host, card });
+  }
+
+  function render(v) {
+    const isNew = v === 'new';
+    for (const s of slots) { s.host.innerHTML = ''; s.host.appendChild(el(s.base + (isNew ? '-new' : '-existing'), s.attrs)); s.card.classList.toggle('is-new', isNew); s.card.querySelector('.badge').textContent = isNew ? 'new' : 'existing'; }
+    document.querySelectorAll('#seg button').forEach(btn => btn.setAttribute('aria-pressed', String(btn.dataset.v === v)));
+  }
+  $('#seg').addEventListener('click', (e) => { const btn = e.target.closest('button'); if (btn) render(btn.dataset.v); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') render('existing'); if (e.key === 'ArrowRight') render('new'); });
+  render('existing');
+} catch (e) {
+  $('#build').innerHTML = '<span style="color:var(--destructive)">compile failed: ' + (e && e.message || e) + '</span>';
+}
+</script>
+</body>
+</html>

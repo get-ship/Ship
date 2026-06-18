@@ -25,6 +25,8 @@
  * can implement them without re-deriving the interface.
  */
 
+import { createShipConnectClient } from './connect.js'
+
 export interface ShipEventEnvelope {
   id: string
   event_type: string
@@ -76,7 +78,7 @@ export class DirectTransport implements Transport {
   private baseUrl: string
   private token: string | undefined
   private timeout: number
-  private eventSource: EventSource | null = null
+  private streamAbort: AbortController | null = null
   private listeners = new Set<(e: ShipEventEnvelope) => void>()
 
   constructor(options?: DirectTransportOptions) {
@@ -129,31 +131,57 @@ export class DirectTransport implements Transport {
     this.ensureStream()
     return () => {
       this.listeners.delete(fn)
-      if (this.listeners.size === 0) {
-        this.eventSource?.close()
-        this.eventSource = null
-      }
+      if (this.listeners.size === 0) this.closeStream()
     }
   }
 
   private ensureStream(): void {
-    if (this.eventSource) return
-    let url = `${this.baseUrl}/api/events/stream`
-    if (this.token) url += `?token=${encodeURIComponent(this.token)}`
-    this.eventSource = new EventSource(url)
-    this.eventSource.addEventListener('ship.event', (e: MessageEvent) => {
-      try {
-        const envelope = JSON.parse(e.data as string) as ShipEventEnvelope
-        this.listeners.forEach((l) => l(envelope))
-      } catch {
-        /* malformed */
-      }
+    if (this.streamAbort) return
+    const abort = new AbortController()
+    this.streamAbort = abort
+    void this.runStream(abort.signal)
+  }
+
+  /**
+   * Tail the Connect `StreamService.Events` server-stream (the successor to
+   * the retired `/api/v1/events/stream` SSE route). Each frame carries the
+   * serialized `EventEnvelope` in `JsonResponse.json`. Reconnects with linear
+   * backoff on drop — mirroring the old `EventSource` auto-reconnect — until
+   * the last subscriber leaves and the signal aborts.
+   */
+  private async runStream(signal: AbortSignal): Promise<void> {
+    const client = createShipConnectClient({
+      baseUrl: this.baseUrl,
+      ...(this.token ? { token: this.token } : {}),
     })
+    let backoff = 1000
+    while (!signal.aborted) {
+      try {
+        for await (const msg of client.stream.events({}, { signal })) {
+          backoff = 1000
+          try {
+            const envelope = JSON.parse(msg.json) as ShipEventEnvelope
+            this.listeners.forEach((l) => l(envelope))
+          } catch {
+            /* malformed frame */
+          }
+        }
+      } catch {
+        /* stream dropped — fall through to backoff + retry */
+      }
+      if (signal.aborted) return
+      await new Promise((r) => setTimeout(r, backoff))
+      backoff = Math.min(backoff * 2, 15000)
+    }
+  }
+
+  private closeStream(): void {
+    this.streamAbort?.abort()
+    this.streamAbort = null
   }
 
   destroy(): void {
-    this.eventSource?.close()
-    this.eventSource = null
+    this.closeStream()
     this.listeners.clear()
   }
 }

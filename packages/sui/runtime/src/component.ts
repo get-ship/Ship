@@ -150,6 +150,16 @@ export function defineComponent(
       private cleanup: Disposer | undefined
       private scope: EffectScope | undefined
       private propSignals: Record<string, Signal<unknown>> = {}
+      /** Prop values set via JS property before `connectedCallback` populated
+       *  `propSignals` — buffered by the prop accessors, flushed on connect.
+       *  Mirrors the non-form class below so `el.value = 'x'` from a parent's
+       *  `prop:value={…}` binding (which fires before the child's
+       *  connectedCallback runs) survives into the prop signal instead of
+       *  being silently dropped. Without this, a `<sui-pagination page-size="25">`
+       *  sets `value="25"` on its inner `<sui-select>` but the value arrives
+       *  before the select's setup runs, so the prop signal stays at its
+       *  default `""` and the host's `el.value` is empty. */
+      private pendingProps: Record<string, unknown> | undefined
       private internals: ElementInternals
 
       constructor() {
@@ -172,6 +182,15 @@ export function defineComponent(
           } else {
             console.error(`[ship-set:${tag}] setup threw:`, err)
           }
+        }
+        // Flush any prop values set via JS property BEFORE the factory
+        // populated propSignals. The prop accessors' setter writes to
+        // pendingProps when no signal exists yet; without this flush
+        // the value is lost (this is the #P0.2 sui-pagination form-value
+        // bug). Same pattern as the non-form class below.
+        if (this.pendingProps) {
+          for (const k in this.pendingProps) this.propSignals[k]?.set(this.pendingProps[k])
+          this.pendingProps = undefined
         }
       }
 
@@ -232,6 +251,14 @@ export function defineComponent(
         )
       }
     }
+    // Mirror the prop-accessor loop from the non-form class below
+    // (#307): form-associated components must expose `el.value` (and any
+    // other declared prop) as a prototype getter that reads the prop
+    // signal, so user code like `formEl.value` returns the current value
+    // instead of `undefined`. Without this, `<sui-select value="x">` is
+    // invisible to plain DOM code that reads `el.value` (the form-association
+    // path goes through `ElementInternals.setFormValue`, not the property).
+    installPropAccessors(ShipSetFormElement.prototype, schema)
     customElements.define(tag, ShipSetFormElement)
     return
   }
@@ -303,16 +330,38 @@ export function defineComponent(
   // (native HTMLElement props like `hidden`/`title`) so we never shadow built-in
   // behavior — those keep using the attribute path. Reads are untracked: a
   // property read is a point-in-time value, not a reactive subscription.
-  type PropHost = {
-    propSignals: Record<string, Signal<unknown>>
-    pendingProps?: Record<string, unknown>
-  }
+  installPropAccessors(ShipSetElement.prototype, schema)
+  customElements.define(tag, ShipSetElement)
+}
+
+/** Host the prop-signal accessors. Mirrors the shape the classes expose
+ *  through their `propSignals` (form-class) or `propSignals` + `pendingProps`
+ *  (non-form class) instance fields. */
+type PropHost = {
+  propSignals: Record<string, Signal<unknown>>
+  pendingProps?: Record<string, unknown>
+}
+
+/**
+ * Install a `get`/`set` accessor on `prototype` for every prop in `schema`,
+ * reading from / writing to the instance's `propSignals` map. Pre-connect
+ * `set` writes buffer into `pendingProps` so a prop set on the element
+ * before `connectedCallback` (i.e. before the factory has built the signal)
+ * reaches the signal on first connect. Skip names already on the prototype
+ * chain (native HTMLElement props like `hidden`/`title`) so we never shadow
+ * built-in behaviour. Reads are untracked: a property read is a point-in-time
+ * value, not a reactive subscription.
+ */
+export function installPropAccessors(
+  prototype: object,
+  schema: ComponentSchema,
+): void {
   for (const attr of schema.observedAttrs) {
     const meta = schema.props[attr]
     if (!meta) continue
     const camel = meta.camel
-    if (camel in ShipSetElement.prototype) continue
-    Object.defineProperty(ShipSetElement.prototype, camel, {
+    if (camel in (prototype as Record<string, unknown>)) continue
+    Object.defineProperty(prototype, camel, {
       configurable: true,
       enumerable: false,
       get(this: PropHost) {
@@ -326,8 +375,6 @@ export function defineComponent(
       },
     })
   }
-
-  customElements.define(tag, ShipSetElement)
 }
 
 /**

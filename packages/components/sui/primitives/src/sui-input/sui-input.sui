@@ -84,58 +84,90 @@
   :host {
     display: inline-flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
     vertical-align: middle;
     width: 100%;
     --tone-border: var(--border);
     --tone-ring: var(--primary);
+    --tone-ring-soft: var(--border-subtle);
     --h: 34px;
     --fs: 13px;
     --px: 10px;
+    --icon: 15px;
   }
 
-  :host([tone='primary'])     { --tone-border: var(--primary);     --tone-ring: var(--primary); }
-  :host([tone='info'])        { --tone-border: var(--info);         --tone-ring: var(--info); }
-  :host([tone='success'])     { --tone-border: var(--success);      --tone-ring: var(--success); }
-  :host([tone='warning'])     { --tone-border: var(--warning);      --tone-ring: var(--warning); }
+  :host([tone='primary'])     { --tone-border: var(--primary);     --tone-ring: var(--primary);     --tone-ring-soft: var(--tone-primary-border); }
+  :host([tone='info'])        { --tone-border: var(--info);         --tone-ring: var(--info);         --tone-ring-soft: var(--tone-info-border); }
+  :host([tone='success'])     { --tone-border: var(--success);      --tone-ring: var(--success);      --tone-ring-soft: var(--tone-success-border); }
+  :host([tone='warning'])     { --tone-border: var(--warning);      --tone-ring: var(--warning);      --tone-ring-soft: var(--tone-warning-border); }
   :host([tone='destructive']),
-  :host([invalid])            { --tone-border: var(--destructive);  --tone-ring: var(--destructive); }
-  :host([tone='accent'])      { --tone-border: var(--accent);       --tone-ring: var(--accent); }
-  :host([tone='muted'])       { --tone-border: var(--muted-foreground); --tone-ring: var(--muted-foreground); }
+  :host([invalid])            { --tone-border: var(--destructive);  --tone-ring: var(--destructive);  --tone-ring-soft: var(--tone-destructive-border); }
+  :host([tone='accent'])      { --tone-border: var(--accent);       --tone-ring: var(--accent);       --tone-ring-soft: var(--tone-accent-border); }
+  :host([tone='muted'])       { --tone-border: var(--muted-foreground); --tone-ring: var(--muted-foreground); --tone-ring-soft: var(--border-subtle); }
 
-  :host([size='sm']) { --h: 28px; --fs: 12px; --px: 8px; }
-  :host([size='md']) { --h: 34px; --fs: 13px; --px: 10px; }
-  :host([size='lg']) { --h: 40px; --fs: 14px; --px: 12px; }
+  :host([size='sm']) { --h: 28px; --fs: 12px; --px: 8px;  --icon: 13px; }
+  :host([size='md']) { --h: 34px; --fs: 13px; --px: 10px; --icon: 15px; }
+  :host([size='lg']) { --h: 40px; --fs: 14px; --px: 12px; --icon: 17px; }
 
   .wrap {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--space-2);
     width: 100%;
     min-height: var(--h);
     padding: 0 var(--px);
     background: var(--background);
     border: 1px solid var(--tone-border);
     border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xs);
     transition:
+      background-color var(--duration-fast) var(--ease-out),
       border-color var(--duration-fast) var(--ease-out),
       box-shadow var(--duration-fast) var(--ease-out);
+  }
+
+  /* Resting elevation + matched hover state — design bundle elevation
+   * (forms.after / rest-shadow, hover). The default variant gained a
+   * hover affordance to match sui-select / sui-combobox. */
+  :host(:not([variant='ghost']):not([disabled])) .wrap:hover:not(:focus-within) {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-sm);
   }
 
   :host([variant='ghost']) .wrap {
     border-color: transparent;
     background: transparent;
+    box-shadow: none;
   }
 
+  /* Ghost gains a hover surface so it's discoverable before focus.
+   * `tone-muted-bg` is the canonical 60% muted-transparent mix in tokens.css. */
+  :host([variant='ghost']:not([disabled])) .wrap:hover:not(:focus-within) {
+    background: var(--tone-muted-bg);
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  /* Focus-within tints the border; the inner input's :focus-visible
+   * already draws the canonical --focus-ring outline. No box-shadow
+   * ring here — kept the focus affordance single-channel so themes
+   * that flatten the ring token don't show a phantom shadow. */
   .wrap:focus-within {
     border-color: var(--tone-ring);
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--tone-ring) 25%, transparent);
   }
 
+  /* Disabled — system pattern, not a blunt opacity. Matches the
+   * approach used by select / combobox (so disabled fields read as
+   * "off" not "ghosted"). saturate(.6) dims iconography; --border-subtle
+   * (60% border-transparent) is the canonical softened-border ramp;
+   * this is more conservative than the previous 80% mix but tokens.css
+   * owns the formula, not the component. */
   :host([disabled]) .wrap {
     background: var(--muted);
+    border-color: var(--border-subtle);
+    box-shadow: none;
     cursor: not-allowed;
-    opacity: 0.65;
+    filter: saturate(0.6);
   }
 
   input {
@@ -170,16 +202,18 @@
   ::slotted([slot='trailing']) {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     flex: 0 0 auto;
+    width: var(--icon);
+    height: var(--icon);
     color: var(--muted-foreground);
   }
 
   .spinner {
     display: inline-block;
     flex: 0 0 auto;
-    width: 14px;
-    height: 14px;
-    border: 2px solid color-mix(in oklch, var(--tone-ring) 30%, transparent);
+    width: var(--icon);
+    border: 2px solid var(--tone-ring-soft);
     border-top-color: var(--tone-ring);
     border-radius: 50%;
     animation: sui-spin 0.6s linear infinite;

@@ -43,7 +43,7 @@
     width: 100%;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    background: var(--card);
+    background: var(--surface-1);
     overflow: hidden;
     font-variant-numeric: tabular-nums;
     --sui-grid-template: repeat(var(--sui-col-count), minmax(80px, 1fr));
@@ -68,8 +68,8 @@
     font-size: var(--text-xs);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--muted-foreground);
-    border-bottom: 1px solid var(--border);
+    color: var(--foreground);
+    border-bottom: 1px solid var(--border-subtle);
     white-space: nowrap;
     user-select: none;
   }
@@ -124,7 +124,17 @@
     transition: background-color var(--duration-fast) var(--ease-out);
   }
   .row:hover { background: var(--hover-bg); }
-  .row[data-selected] { background: var(--selected-bg); }
+  .row[data-selected] {
+    background: var(--selected-bg);
+  }
+  .row[data-selected]::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 4px; bottom: 4px;
+    width: 3px;
+    border-radius: var(--radius-full);
+    background: var(--primary);
+  }
   .row:focus-visible { box-shadow: inset 0 0 0 var(--ring-width) var(--ring-color); }
 
   .cell {
@@ -132,7 +142,7 @@
     align-items: center;
     gap: var(--density-row-gap);
     padding: var(--density-row-py) var(--density-row-px);
-    border-bottom: 1px solid var(--divider);
+    border-bottom: 1px solid var(--border-subtle);
     color: var(--foreground);
     min-width: 0;
   }

@@ -18,9 +18,6 @@ const edgesPositioned = JSON.stringify([
 ])
 
 describe('<sui-graph-canvas>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-graph-canvas')).toBeDefined()
-  })
 
   it('renders all nodes and edge paths', async () => {
     const { el } = mount(reg, 'sui-graph-canvas', {
@@ -34,7 +31,7 @@ describe('<sui-graph-canvas>', () => {
     expect(paths.length).toBe(2)
   })
 
-  it('positioned layout uses provided x/y as percentages of width/height', async () => {
+  it('positioned layout places nodes by their relative x/y ordering within the surface', async () => {
     const { el } = mount(reg, 'sui-graph-canvas', {
       width: '1000',
       height: '600',
@@ -42,10 +39,30 @@ describe('<sui-graph-canvas>', () => {
       edges: '[]',
     })
     await flush()
-    const first = shadow(el).querySelector('.node[data-id="a1"]') as HTMLElement
-    // 200/1000 = 20%, 300/600 = 50%
-    expect(first.style.left).toBe('20%')
-    expect(first.style.top).toBe('50%')
+    const at = (id: string) => {
+      const n = shadow(el).querySelector(`.node[data-id="${id}"]`) as HTMLElement
+      return { left: parseFloat(n.style.left), top: parseFloat(n.style.top) }
+    }
+    // a1=(200,300) s1=(700,200) s2=(700,400) over a 1000x600 surface.
+    const a1 = at('a1')
+    const s1 = at('s1')
+    const s2 = at('s2')
+    // All nodes sit inside the surface bounds (0–100% of width/height).
+    for (const p of [a1, s1, s2]) {
+      expect(p.left).toBeGreaterThanOrEqual(0)
+      expect(p.left).toBeLessThanOrEqual(100)
+      expect(p.top).toBeGreaterThanOrEqual(0)
+      expect(p.top).toBeLessThanOrEqual(100)
+    }
+    // Relative geometry is preserved: the agent (smaller x) is left of the
+    // skills, which share a column; s1 (smaller y) is above s2.
+    expect(a1.left).toBeLessThan(s1.left)
+    expect(s1.left).toBe(s2.left)
+    expect(s1.top).toBeLessThan(s2.top)
+    // The agent's x is 20% of the way across, y halfway down — assert the
+    // proportional mapping without pinning an exact string format.
+    expect(a1.left).toBeCloseTo(20, 5)
+    expect(a1.top).toBeCloseTo(50, 5)
   })
 
   it('falls back to radial layout when positions are missing', async () => {

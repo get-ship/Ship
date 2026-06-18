@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "session.completed",
+    "scope": "space",
+    "retention": "durable",
+    "stability": "stable",
+    "payload_type": "canonical_session::SessionCompleted",
+    "needs_author": false
+  },
+  "payload": {
+    "_note": "NEEDS_AUTHOR: canonical_session::SessionCompleted — auto-stub not possible; hand-author this fixture",
+    "_payload_type": "canonical_session::SessionCompleted"
+  }
+}

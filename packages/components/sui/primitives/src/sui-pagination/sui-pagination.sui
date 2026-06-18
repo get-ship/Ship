@@ -39,12 +39,7 @@
   }
   :host([hidden]) { display: none; }
 
-  nav {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    flex-wrap: wrap;
-  }
+
 
   .range {
     color: var(--muted-foreground);
@@ -79,12 +74,24 @@
      sui-button soft variant + primary tone, set from the controller. */
   sui-button[aria-current='page'] { pointer-events: none; }
 
+  /* Ellipsis separator emitted by the controller between discontinuous page ranges */
+  .ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 30px;
+    color: var(--muted-foreground);
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+  }
+
   @media (forced-colors: active) {
     .range { color: CanvasText; }
   }
 </style>
 
-<nav part="nav" aria-label={label()} bind:this={navEl}>
+<sui-cluster class="nav" part="nav" gap="3" align="center" aria-label={label()} bind:this={navEl}>
   <div class="edges">
     <sui-button
       part="first"
@@ -159,4 +166,4 @@
       </sui-select>
     </label>
   {/if}
-</nav>
+</sui-cluster>

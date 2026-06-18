@@ -127,7 +127,7 @@ pub async fn serve_space(
     cfg: Option<Extension<Arc<DeckConfig>>>,
     Path(id): Path<String>,
 ) -> Response {
-    let mode_val = mode_from_ext(mode.clone());
+    let mode_val = mode_from_ext(mode);
     let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
     let Some(scaffold) = resolve_scaffold(cfg_ref, "space") else {
         return into_axum(scaffold_not_found("space", mode_val));
@@ -144,7 +144,7 @@ pub async fn serve_space_asset(
     cfg: Option<Extension<Arc<DeckConfig>>>,
     Path(file): Path<String>,
 ) -> Response {
-    let mode_val = mode_from_ext(mode.clone());
+    let mode_val = mode_from_ext(mode);
     let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
     let Some(scaffold) = resolve_scaffold(cfg_ref, "space") else {
         return into_axum(scaffold_not_found("space", mode_val));
@@ -156,7 +156,7 @@ pub async fn serve_shell(
     mode: Option<Extension<DaemonMode>>,
     cfg: Option<Extension<Arc<DeckConfig>>>,
 ) -> Response {
-    let mode_val = mode_from_ext(mode.clone());
+    let mode_val = mode_from_ext(mode);
     let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
     let Some(scaffold) = resolve_scaffold(cfg_ref, "shell") else {
         return into_axum(scaffold_not_found("shell", mode_val));
@@ -169,7 +169,7 @@ pub async fn serve_shell_asset(
     cfg: Option<Extension<Arc<DeckConfig>>>,
     Path(file): Path<String>,
 ) -> Response {
-    let mode_val = mode_from_ext(mode.clone());
+    let mode_val = mode_from_ext(mode);
     let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
     let Some(scaffold) = resolve_scaffold(cfg_ref, "shell") else {
         return into_axum(scaffold_not_found("shell", mode_val));
@@ -183,7 +183,7 @@ pub async fn serve_public_asset(
     cfg: Option<Extension<Arc<DeckConfig>>>,
     Path(file): Path<String>,
 ) -> Response {
-    let mode_val = mode_from_ext(mode.clone());
+    let mode_val = mode_from_ext(mode);
     let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
     let Some(public_dir) = cfg_ref.and_then(|c| c.public_dir.as_ref()) else {
         return into_axum(deck_core::DeckResponse::not_found(

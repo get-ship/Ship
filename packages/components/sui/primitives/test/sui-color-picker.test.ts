@@ -7,16 +7,13 @@ afterEach(() => reg.cleanup())
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
 const inputOf = (el: HTMLElement) => shadow(el).querySelector('input.entry') as HTMLInputElement
-const panelOf = (el: HTMLElement) => shadow(el).querySelector('.panel') as HTMLElement | null
+const panelOf = (el: HTMLElement) => shadow(el).querySelector('[part="panel"]') as HTMLElement | null
 const swatches = (el: HTMLElement) =>
   Array.from(shadow(el).querySelectorAll('button.swatch[data-hex]')) as HTMLButtonElement[]
 const ranges = (el: HTMLElement) =>
   Array.from(shadow(el).querySelectorAll('.panel input[type="range"]')) as HTMLInputElement[]
 
 describe('<sui-color-picker>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-color-picker')).toBeDefined()
-  })
 
   it('renders a shadow root with the hex input and preview swatch', async () => {
     const { el } = mount(reg, 'sui-color-picker', { value: '#ff0000' })
@@ -56,15 +53,16 @@ describe('<sui-color-picker>', () => {
     await flush()
     inputOf(el).click()
     await flush()
-    const changes: string[] = []
-    el.addEventListener('sui-change', (e) => {
-      changes.push((e as CustomEvent<{ value: string }>).detail.value)
-    })
+    const events: CustomEvent[] = []
+    el.addEventListener('sui-change', (e) => { events.push(e as CustomEvent) })
     const sw = swatches(el)[0]!
     const hex = sw.dataset.hex!
     sw.click()
     await flush()
-    expect(changes.at(-1)).toBe(hex)
+    const last = events.at(-1)!
+    expect(last.detail).toEqual({ value: hex })
+    expect(last.bubbles).toBe(true)
+    expect(last.composed).toBe(true)
     expect(el.getAttribute('value')).toBe(hex)
   })
 })

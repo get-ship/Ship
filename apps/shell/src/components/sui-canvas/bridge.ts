@@ -123,7 +123,9 @@ function createBridge(): CanvasBridge {
       throw new Error(`canvas.save failed: ${resp.status} ${text}`)
     }
     const body = await resp.json().catch(() => ({})) as { data?: { id?: string } }
-    void emit('canvas.saved', { canvas_id: canvasId, artifact_id: body.data?.id ?? '' })
+    // canvas.saved emit dropped with the culled events/emit endpoint (the
+    // same launch decision that no-op'd postInteraction/postAnnotations
+    // above — the emit helper was deleted but this call site lagged).
     return { ok: true, ...(body.data?.id !== undefined ? { id: body.data.id } : {}) }
   }
 

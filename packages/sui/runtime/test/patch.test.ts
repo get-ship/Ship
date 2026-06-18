@@ -1,35 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { signal, effect } from '../src/signal'
-import { applyPatch, applyPatches, tokenizePath } from '../src/patch'
+import { applyPatch, applyPatches } from '../src/patch'
 
-describe('tokenizePath', () => {
-  it('empty path → empty token list', () => {
-    expect(tokenizePath('')).toEqual([])
-  })
-  it('single field', () => {
-    expect(tokenizePath('foo')).toEqual([{ kind: 'field', name: 'foo' }])
-  })
-  it('dotted path', () => {
-    expect(tokenizePath('a.b.c')).toEqual([
-      { kind: 'field', name: 'a' },
-      { kind: 'field', name: 'b' },
-      { kind: 'field', name: 'c' },
-    ])
-  })
-  it('array index', () => {
-    expect(tokenizePath('items[3]')).toEqual([
-      { kind: 'field', name: 'items' },
-      { kind: 'index', i: 3 },
-    ])
-  })
-  it('mixed nested path', () => {
-    expect(tokenizePath('shapes[7].color')).toEqual([
-      { kind: 'field', name: 'shapes' },
-      { kind: 'index', i: 7 },
-      { kind: 'field', name: 'color' },
-    ])
-  })
-})
 
 describe('applyPatch — set', () => {
   it('replaces root value', () => {

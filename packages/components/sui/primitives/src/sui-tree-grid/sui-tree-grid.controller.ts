@@ -10,8 +10,9 @@
 //
 // Authority: build-spec §"The view", §"sui-tree-grid", Slice 5; behavioral #8.
 
-import { controller, signal, derived, ref, createVirtualizer, type Virtual } from '@ship/sui-runtime'
+import { controller, signal, derived, ref } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
+import { createVirtualizer, type Virtual } from '@ship/sui-runtime/virtual'
 import { createTable, type Table } from '../sui-table/engine/create-table'
 import type { TreeNode } from '../sui-tree-view/sui-tree-view.controller'
 import { parseJsonColumns, parseJsonNodes } from '../sui-tree/decode'

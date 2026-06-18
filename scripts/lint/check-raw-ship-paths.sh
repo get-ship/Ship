@@ -26,9 +26,13 @@ for pat in "${PATTERNS[@]}"; do
         --glob '!apps/docs/**' \
         --glob '!docs/**' \
         --glob '!**/tests.rs' \
+        --glob '!**/*_tests.rs' \
         --glob '!**/tests/**' \
+        --glob '!**/test/**/*.rs' \
         --glob '!**/*_test.rs' \
         --glob '!**/tests_*.rs' \
+        --glob '!**/*_fixtures.rs' \
+        --glob '!**/fixtures/**' \
         --glob '!crates/deck/deck/**' \
         --glob '!crates/deck/deck-host/**' \
         --glob '!crates/deck/deck-server/**' \

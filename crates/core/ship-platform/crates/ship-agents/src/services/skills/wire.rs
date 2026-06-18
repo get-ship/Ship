@@ -457,7 +457,7 @@ impl SkillsServiceTrait for SkillsWire {
             .map_err(|e| ConnectError::internal(format!("create skill dir: {e}")))?;
 
         let skill_md = target_dir.join("SKILL.md");
-        let body = render_skill_md(name, shape, purpose.as_deref());
+        let body = render_skill_md(name, shape, purpose);
         std::fs::write(&skill_md, body).map_err(|e| {
             let _ = std::fs::remove_dir_all(&target_dir);
             ConnectError::internal(format!("write SKILL.md: {e}"))

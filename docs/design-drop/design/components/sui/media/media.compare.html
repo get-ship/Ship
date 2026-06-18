@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>media renderers · existing vs new · components/sui</title>
+<link rel="stylesheet" href="../../../../sui/ship.css" />
+<script type="importmap">
+{ "imports": { "@ship/sui-runtime": "../../../../sui/sui-runtime.js" } }
+</script>
+<style>
+  html, body { margin: 0; }
+  body { background: var(--background); color: var(--foreground); font-family: var(--font-body); }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 28px var(--space-6) 120px; }
+  .eyebrow { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .12em; text-transform: uppercase; color: var(--muted-foreground); }
+  h1 { font-family: var(--heading-font); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--text-4xl); margin: 8px 0 0; }
+  .rule { width: 64px; height: 4px; border-radius: 2px; margin: 14px 0 14px; background: linear-gradient(90deg, var(--primary), var(--accent) 70%, transparent); }
+  .lede { color: var(--muted-foreground); font-size: var(--text-md); margin: 0; max-width: 80ch; line-height: 1.6; }
+  .lede b { color: var(--foreground); } .lede code, code { font-family: var(--font-mono); font-size: 0.92em; }
+  .flag { display: inline-block; margin-top: 12px; font-family: var(--font-mono); font-size: 11px; color: color-mix(in oklch, var(--warning) 80%, var(--foreground)); border: 1px solid color-mix(in oklch, var(--warning) 40%, transparent); background: color-mix(in oklch, var(--warning) 10%, transparent); border-radius: var(--radius-sm); padding: 4px 9px; }
+
+  .bar { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: 18px; position: sticky; top: 0; z-index: 30; background: color-mix(in oklch, var(--background) 90%, transparent); backdrop-filter: blur(10px); padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
+  .seg { display: inline-flex; background: var(--muted); border-radius: var(--radius-md); padding: 3px; gap: 2px; }
+  .seg button { padding: 7px 18px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted-foreground); font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-xs); }
+  .themes { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+  .themes .tl { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+  .sw { display: inline-flex; gap: 5px; padding: 4px; background: var(--muted); border-radius: var(--radius-full); }
+  .sw button { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid color-mix(in oklch, var(--foreground) 14%, transparent); cursor: pointer; padding: 0; }
+  .sw button[aria-pressed="true"] { border-color: var(--foreground); box-shadow: 0 0 0 2px var(--background), 0 0 0 3px var(--foreground); }
+  .build { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); margin: 16px 0 0; }
+
+  section { margin-top: 40px; }
+  .sh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h2 { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-lg); margin: 0; }
+  .tag { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted-foreground); border: 1px solid var(--border); border-radius: var(--radius-full); padding: 2px 8px; }
+  .note { color: var(--muted-foreground); font-size: var(--text-sm); margin: 8px 0 16px; max-width: 80ch; line-height: 1.55; }
+  .note b { color: var(--foreground); font-weight: 600; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+  @media (max-width: 820px) { .two { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">components/sui · media</div>
+  <h1>media renderers</h1>
+  <div class="rule"></div>
+  <p class="lede">Typed media renderers — <b>one element per content kind</b>, not a generic blob: <code>media-image</code> · <code>media-csv</code> · <code>media-av</code>. <b>Existing</b> = the raw/native rendering (bare image, text dump, native control row); <b>New</b> = the designed renderer. The CSV one is <b>live</b> — a real parser over the table. Toggle <b>Existing / New</b> · switch <b>themes</b> right.</p>
+  <div class="flag">⚠ design proposal — media was not in the imported <code>_repo-src</code>, so these are authored to the documented 3-renderer split, not ported from source.</div>
+
+  <div class="bar">
+    <span class="seg" id="seg" role="tablist" aria-label="Compare"><button data-v="before" aria-pressed="true">Existing</button><button data-v="after" aria-pressed="false">New</button></span>
+    <span class="themes"><span class="tl">Theme</span><span class="sw" id="sw"></span></span>
+  </div>
+  <div class="build" id="build">compiling…</div>
+
+  <section>
+    <div class="sh"><h2>media-csv</h2><span class="tag">live parser</span></div>
+    <p class="note"><b>New:</b> a filename + row-count bar, sticky header, zebra rows, right-aligned numerics. <b>Existing</b> dumps the raw text. Same CSV string into both.</p>
+    <div id="d-csv"></div>
+  </section>
+
+  <section>
+    <div class="two">
+      <div>
+        <div class="sh"><h2>media-image</h2><span class="tag">redesign</span></div>
+        <p class="note"><b>New:</b> checker matte, floating zoom control, meta footer. (Image area is a placeholder.)</p>
+        <div id="d-image"></div>
+      </div>
+      <div>
+        <div class="sh"><h2>media-av</h2><span class="tag">redesign</span></div>
+        <p class="note"><b>New:</b> poster + play affordance over a real transport — scrubber, times, volume.</p>
+        <div id="d-av"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+import { defineComponent, themeBar } from '../../../../tools/catalog/sui-workbench.js';
+const $ = (s) => document.querySelector(s);
+themeBar($('#sw'));
+
+const CSV = `id,status,duration_ms,rows,started_at
+run-8842,success,842,12840,2026-06-04T09:01
+run-8841,failed,1203,0,2026-06-04T03:00
+run-8840,success,778,12810,2026-06-03T03:00
+run-8839,success,810,12795,2026-06-02T03:00
+run-8838,running,—,—,2026-06-04T11:20`;
+
+function render(v) {
+  const csv = document.createElement('media-csv-' + v);
+  csv.setAttribute('data', CSV); csv.setAttribute('name', 'runs-export.csv');
+  $('#d-csv').innerHTML = ''; $('#d-csv').append(csv);
+
+  $('#d-image').innerHTML = ''; $('#d-image').append(document.createElement('media-image-' + v));
+  $('#d-av').innerHTML = ''; $('#d-av').append(document.createElement('media-av-' + v));
+
+  document.querySelectorAll('#seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v)));
+}
+
+try {
+  const csvCtrl = await (await fetch('./media-csv.controller.js')).text();
+  await Promise.all([
+    defineComponent({ name: 'media-csv-before', sui: await (await fetch('./media-csv.before.sui')).text() }),
+    defineComponent({ name: 'media-csv-after',  sui: await (await fetch('./media-csv.after.sui')).text(), controllerSrc: csvCtrl }),
+    defineComponent({ name: 'media-image-before', sui: await (await fetch('./media-image.before.sui')).text() }),
+    defineComponent({ name: 'media-image-after',  sui: await (await fetch('./media-image.after.sui')).text() }),
+    defineComponent({ name: 'media-av-before', sui: await (await fetch('./media-av.before.sui')).text() }),
+    defineComponent({ name: 'media-av-after',  sui: await (await fetch('./media-av.after.sui')).text() }),
+  ]);
+  $('#build').textContent = 'Compiled ✓  media-image · media-csv · media-av (existing + new)  ·  registered';
+  $('#seg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) render(b.dataset.v); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') render('before'); if (e.key === 'ArrowRight') render('after'); });
+  render('before');
+} catch (e) {
+  $('#build').innerHTML = '<span style="color:var(--destructive)">compile failed: ' + (e && e.message || e) + '</span>';
+}
+</script>
+</body>
+</html>

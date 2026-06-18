@@ -12,7 +12,7 @@ export default view((ctx) => {
 const __wireBoundary_b0 = (anchor) => bindFor({
   anchor,
   items: () => ($scope.rows().value),
-  key: (row, __i) => { const __child = Object.create($scope); __child.row = row; __child.__i = __i; return (($scope) => (row.id))(__child); },
+  key: (row, __i) => (row.id),
   render: (row, __i) => {
     const __childScope2 = Object.create($scope);
     __childScope2.row = row;

@@ -1,9 +1,9 @@
 ---
 name: ship-settings
-audience: public
 stable-id: ship-settings
+audience: public
 description: >-
-  The `settings` capability (2 ops). Call any op over ConnectRPC with
+  The `settings` capability (4 ops). Call any op over ConnectRPC with
   `ship ops call <name> --json '<args>'`. This file is a table of contents;
   open `references/docs/<op>.mdoc` for an op's args, return shape, and policy.
 tags: [sdk, api, settings]
@@ -25,9 +25,11 @@ page for full args, return shape, capability, and an example.
 
 ## Reads
 
-- [`settings.state`](references/docs/settings.state.mdoc) — Harnesses, defaults, terminal, about — everything the settings view renders.
+- [`settings.get`](references/docs/settings.get.mdoc) — Read a single setting by key in a scope (falls back to its default).
+- [`settings.list`](references/docs/settings.list.mdoc) — All settings in a scope (stored rows merged with defaults).
+- [`settings.watch`](references/docs/settings.watch.mdoc) — 
 
 ## Commands
 
-- [`settings.set`](references/docs/settings.set.mdoc) `[C1_WORKSPACE]` — Set a runtime setting (value is arbitrary JSON).
+- [`settings.set`](references/docs/settings.set.mdoc) `[C1_WORKSPACE]` — Set a setting in a scope (value is arbitrary JSON); authors settings.changed.
 

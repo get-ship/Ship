@@ -30,7 +30,7 @@ export default controller<Scope>({
       const i = items.indexOf(document.activeElement as HTMLElement)
       for (let j = 0; j < items.length; j++) {
         const idx = (i + 1 + j) % items.length
-        const label = (items[idx].textContent ?? '').trim().toLowerCase()
+        const label = (items[idx]!.textContent ?? '').trim().toLowerCase()
         if (label.startsWith(typeaheadBuf)) return idx
       }
       return -1
@@ -48,8 +48,8 @@ export default controller<Scope>({
       if (!items.length) return
       const i = ((index % items.length) + items.length) % items.length
       for (const it of items) it.setAttribute('tabindex', '-1')
-      items[i].setAttribute('tabindex', '0')
-      items[i].focus()
+      items[i]!.setAttribute('tabindex', '0')
+      items[i]!.focus()
     }
 
     function currentIndex(): number {
@@ -115,7 +115,7 @@ export default controller<Scope>({
       else if (e.key === 'End') { e.preventDefault(); focusItem(items.length - 1) }
       else if (e.key === 'Escape') { e.preventDefault(); doClose() }
       else if (e.key === 'Tab') { doClose() }
-      else if ((e.key === 'Enter' || e.key === ' ') && i >= 0) { e.preventDefault(); items[i].click() }
+      else if ((e.key === 'Enter' || e.key === ' ') && i >= 0) { e.preventDefault(); items[i]!.click() }
       else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
         const next = pushTypeahead(e.key)
         if (next >= 0) { e.preventDefault(); focusItem(next) }

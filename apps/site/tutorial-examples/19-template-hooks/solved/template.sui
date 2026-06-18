@@ -1,6 +1,6 @@
 <prop name="shadow" type="bool" default="false" />
 
-<use-title bind:text={pageTitle} />
+<use-title text="SUI tutorial · step 19" />
 
 <use-kbd>
   <on key="j" action="bumpUp" />
@@ -10,7 +10,7 @@
 
 <div class="hooks-demo">
   <p>count: <strong>{count()}</strong></p>
-  <p class="hint">look at the browser tab title — also try pressing j / k / r.</p>
+  <p class="hint">the title is set once on mount and restored on unmount — try pressing j / k / r for keyboard shortcuts.</p>
   <div class="row">
     <button on:click={() => bumpUp()}>+1</button>
     <button on:click={() => bumpDown()}>−1</button>

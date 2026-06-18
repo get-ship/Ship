@@ -4,7 +4,7 @@
   side-by-side comparison per run.
 
   Schema lives in .ship/collections/sui-eval-runs.jsonc. Rows are
-  written by .ship/pipelines/sui-eval/scripts/record.ts via
+  written by .ship/skills/sui-eval/scripts/record.ts via
   `ship ops call collections.create_item`. The runs() live source is
   declared in controller.ts (renderable subset doesn't admit
   `.items()` method calls in <data> source expressions).
@@ -14,7 +14,7 @@
   <header class="eval-head">
     <div>
       <h1 class="eval-title">Evals</h1>
-      <p class="eval-sub">SKILL × model authoring runs from the sui-eval pipeline.</p>
+      <p class="eval-sub">SKILL × model authoring runs from the sui-eval skill.</p>
     </div>
   </header>
 
@@ -38,9 +38,9 @@
         <sui-icon slot="icon" name="bar-chart-3"></sui-icon>
         <span slot="title">No eval runs yet</span>
         <span slot="description">
-          Run <span class="mono-snip">ship run sui-eval</span> to produce the first row.
-          The grade step writes one row per (run_id, lane_id) into the
-          <span class="mono-snip">sui-eval-runs</span> collection.
+          Run the <span class="mono-snip">sui-eval</span> skill (dispatch, lane-watch,
+          grade, record) to produce the first row. The grade step writes one row per
+          (run_id, lane_id) into the <span class="mono-snip">sui-eval-runs</span> collection.
         </span>
       </sui-empty-state>
     {:else}
@@ -74,6 +74,10 @@
                     <div>
                       <dt>lint warnings</dt>
                       <dd>{lane.lint_warnings}</dd>
+                    </div>
+                    <div>
+                      <dt>behavior</dt>
+                      <dd>{lane.behavior_label}</dd>
                     </div>
                   </dl>
                 </article>

@@ -131,7 +131,7 @@ export function runOut(node: Element): Animation | undefined {
 /** Cancel the in-flight animation on `node` and its descendants. Used
  *  when a departing subtree is re-mounted before its out-transition
  *  finished — the next `runEnter` starts the in-phase fresh. */
-export function cancelTransitions(node: Node): void {
+function cancelTransitions(node: Node): void {
   if (node.nodeType !== 1) return
   const root = node as Element
   if (root.hasAttribute(MARK)) {
@@ -161,7 +161,7 @@ function forEachRegisteredElement(
 /** Run the in-phase on every registered element inside `nodes`
  *  (including the nodes themselves). Returns nothing — the caller
  *  doesn't need to await enter animations. */
-export function runEnter(nodes: Iterable<Node>): void {
+function runEnter(nodes: Iterable<Node>): void {
   forEachRegisteredElement(nodes, el => { runIn(el) })
 }
 
@@ -170,7 +170,7 @@ export function runEnter(nodes: Iterable<Node>): void {
  *  finishes (or is cancelled), or `null` when no out-transitions were
  *  started — in the `null` case the caller should remove the nodes
  *  immediately (matches the no-transition fast path). */
-export function runLeave(nodes: Iterable<Node>): Promise<void> | null {
+function runLeave(nodes: Iterable<Node>): Promise<void> | null {
   const promises: Promise<unknown>[] = []
   forEachRegisteredElement(nodes, el => {
     const a = runOut(el)

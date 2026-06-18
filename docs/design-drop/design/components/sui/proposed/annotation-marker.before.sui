@@ -1,0 +1,44 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-annotation-marker.before.sui — fabricated sketch (not in source), rendered as a
+  static visual. Position driven by props (no controller): point pins via x/y,
+  region boxes via rx/ry/rw/rh (one could pack these in a "rect" string + controller
+  inline-style; split here for a controller-free render). Point pin = 20px primary
+  circle with an index badge + --background ring; region = dashed --primary box on
+  --tone-primary-bg. Compiled as <x-marker-before>.
+  Props: kind(point|region) · x · y · rx · ry · rw · rh · active · index.
+-->
+<prop name="kind" values="point|region" default="point" reflect />
+<prop name="x" type="number" default="0" />
+<prop name="y" type="number" default="0" />
+<prop name="rx" type="number" default="0" />
+<prop name="ry" type="number" default="0" />
+<prop name="rw" type="number" default="0" />
+<prop name="rh" type="number" default="0" />
+<prop name="active" type="bool" default="false" reflect />
+<prop name="index" type="number" default="0" />
+
+<style>
+  :host { position: absolute; pointer-events: auto; font-family: var(--font-body); font-size: var(--text-xs); }
+  :host([hidden]) { display: none; }
+  [part='pin'] {
+    position: absolute; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--primary); color: var(--primary-foreground);
+    display: none; align-items: center; justify-content: center;
+    font-weight: var(--font-weight-medium); box-shadow: var(--shadow-sm);
+    cursor: pointer; transform: translate(-50%, -50%); border: 2px solid var(--background);
+    transition: filter var(--duration-fast) var(--ease-out);
+  }
+  :host([kind='point']) [part='pin'] { display: inline-flex; }
+  :host([active]) [part='pin'] { filter: brightness(1.2); outline: 2px solid var(--ring-color); outline-offset: 2px; }
+  [part='box'] {
+    position: absolute; border: 2px dashed var(--primary); background: var(--tone-primary-bg);
+    border-radius: var(--radius-sm); cursor: pointer; box-sizing: border-box; display: none;
+  }
+  :host([kind='region']) [part='box'] { display: block; }
+  :host([active]) [part='box'] { background: color-mix(in oklch, var(--primary) 14%, transparent); }
+</style>
+
+<div part="pin" role="button" tabindex="0" style={'left:' + x() + 'px;top:' + y() + 'px'}>{index()}</div>
+<div part="box" role="button" tabindex="0"
+  style={'left:' + rx() + 'px;top:' + ry() + 'px;width:' + rw() + 'px;height:' + rh() + 'px'}></div>

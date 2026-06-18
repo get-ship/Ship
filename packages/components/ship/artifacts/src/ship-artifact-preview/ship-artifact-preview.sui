@@ -1,0 +1,44 @@
+<!--
+  <ship-artifact-preview> — @ship/artifacts · mime-driven preview pane.
+
+  Pure presentational with a small controller for the text kind: the host
+  passes `prop:record` (the ArtifactRow) and `prop:url` (the bytes URL);
+  the component decides the preview kind via `previewKindFor(mime)`:
+
+    image/*  → <img>
+    text/html → <iframe sandbox>
+    text/* + application/json + application/xml → fetched text → <pre>
+    everything else → "Binary file — download to view" with a download link
+
+  No SDK calls. The host owns the URL (typically the daemon's
+  `/api/v1/artifacts/{id}` route) and the bytes-fetch policy.
+-->
+<prop name="record" type="string" default="{}" />
+<prop name="url" type="string" default="" />
+
+{#if kind() === 'image'}
+  <figure class="pv-image" part="image">
+    <img class="pv-image-el" src={url()} alt={altText()} data-test="preview-image" />
+  </figure>
+{:else if kind() === 'html'}
+  <iframe class="pv-frame" part="frame" attr:src={url()}
+    title="Artifact preview" sandbox data-test="preview-frame"></iframe>
+{:else if kind() === 'text'}
+  {#if textLoading()}
+    <sui-skeleton shape="block" size="lg" data-test="preview-loading"></sui-skeleton>
+  {:else if textError()}
+    <div class="pv-error" role="alert" data-test="preview-error">{textError()}</div>
+  {:else}
+    <pre class="pv-pre" part="pre" data-test="preview-pre"><code>{textBody()}</code></pre>
+  {/if}
+{:else}
+  <div class="pv-binary" part="binary" data-test="preview-binary">
+    <sui-icon name="file" size="lg" tone="muted"></sui-icon>
+    <p>Binary file — download to view.</p>
+    <a class="pv-download" attr:href={url()} attr:download={downloadName()} data-no-router>
+      <sui-button tone="primary" variant="solid">
+        <sui-icon slot="leading" name="download"></sui-icon>Download
+      </sui-button>
+    </a>
+  </div>
+{/if}

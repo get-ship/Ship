@@ -1,8 +1,8 @@
 //! Path-layout helpers for composed traveling-artifact overlays.
 //!
-//! The four non-library traveling types (views / pipelines / triggers /
-//! collections) read from a *composed root* rather than raw `.ship/` when the
-//! space has locked deps. This module provides the resolver
+//! The five non-library traveling types (views / pipelines / triggers /
+//! collections / components) read from a *composed root* rather than raw
+//! `.ship/` when the space has locked deps. This module provides the resolver
 //! (`composed_root_for`) so L1 crates can call it without depending on
 //! `ship_platform::registry`.
 //!
@@ -18,12 +18,13 @@ use anyhow::{Context, Result};
 use compiler::lockfile::ShipLock;
 use compiler::manifest::ShipManifest;
 
-/// The four non-library traveling types.
+/// The five non-library traveling types.
 const COMPOSED_TYPES: &[ComposedType] = &[
     ComposedType { dir: "views",       granularity: Granularity::Dir  },
     ComposedType { dir: "pipelines",   granularity: Granularity::File },
     ComposedType { dir: "triggers",    granularity: Granularity::File },
     ComposedType { dir: "collections", granularity: Granularity::File },
+    ComposedType { dir: "components",  granularity: Granularity::Dir  },
 ];
 
 #[derive(Clone, Copy)]
@@ -127,6 +128,7 @@ fn exports_for<'a>(manifest: &'a ShipManifest, dir: &str) -> &'a [String] {
         "pipelines"   => &manifest.exports.pipelines,
         "triggers"    => &manifest.exports.triggers,
         "collections" => &manifest.exports.collections,
+        "components"  => &manifest.exports.components,
         _             => &[],
     }
 }

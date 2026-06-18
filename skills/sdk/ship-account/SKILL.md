@@ -1,9 +1,9 @@
 ---
 name: ship-account
-audience: public
 stable-id: ship-account
+audience: public
 description: >-
-  The `account` capability (1 ops). Call any op over ConnectRPC with
+  The `account` capability (4 ops). Call any op over ConnectRPC with
   `ship ops call <name> --json '<args>'`. This file is a table of contents;
   open `references/docs/<op>.mdoc` for an op's args, return shape, and policy.
 tags: [sdk, api, account]
@@ -26,4 +26,10 @@ page for full args, return shape, capability, and an example.
 ## Reads
 
 - [`account.state`](references/docs/account.state.mdoc) — Ship Cloud account snapshot — logged_out / pending / logged_in.
+
+## Commands
+
+- [`account.login`](references/docs/account.login.mdoc) `[C2_ELEVATED]` — Start a PKCE login — returns the browser auth URL + a state_id.
+- [`account.login_complete`](references/docs/account.login_complete.mdoc) `[C2_ELEVATED]` — Finish a PKCE login — exchanges the code, stores the key, returns identity.
+- [`account.logout`](references/docs/account.logout.mdoc) `[C2_ELEVATED]` — Revoke the gateway key (best-effort) and clear the local token. Idempotent.
 

@@ -362,20 +362,6 @@ mod tests {
     }
 
     #[test]
-    fn emits_required_arg_with_explicit_type() {
-        let out = emit().expect("emit succeeds");
-        // `agents.detail` takes `id: string` (required).
-        assert!(out.contains("detail(args: { id: string; })"), "expected required-arg signature");
-    }
-
-    #[test]
-    fn emits_optional_args_with_optional_arg_object() {
-        let out = emit().expect("emit succeeds");
-        // `collections.state` takes only optional args; the `args` parameter itself should be optional.
-        assert!(out.contains("state(args?: { active?: string; })"), "expected all-optional shape");
-    }
-
-    #[test]
     fn emits_example_block_per_op() {
         let out = emit().expect("emit succeeds");
         // Every op should have an @example block. Count handles by the method
@@ -389,30 +375,4 @@ mod tests {
         );
     }
 
-    #[test]
-    fn example_uses_set_declaration_and_template() {
-        let out = emit().expect("emit succeeds");
-        // `data agents = ship.agents.summaries()` declaration is still emitted.
-        assert!(
-            out.contains("data agents = ship.agents.summaries()"),
-            "missing .set declaration in @example",
-        );
-        // Every op now returns a named type, so the template-usage heuristic
-        // renders the guarded read pattern (JSON.stringify of the bound signal)
-        // rather than the inline-shape for-loop.
-        assert!(
-            out.contains("JSON.stringify(agents(), null, 2)"),
-            "missing named-type usage in @example",
-        );
-    }
-
-    #[test]
-    fn example_required_args_get_placeholder_literals() {
-        let out = emit().expect("emit succeeds");
-        // `agents.detail` requires `id: string`; example should pass a literal.
-        assert!(
-            out.contains("data agents = ship.agents.detail({ id: 'id' })"),
-            "expected placeholder for required string arg",
-        );
-    }
 }

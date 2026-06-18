@@ -46,9 +46,10 @@
     display: block;
     position: relative;
     overflow: hidden;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     background: var(--card);
+    box-shadow: var(--shadow-xs);
     font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
     font-size: var(--text-sm, 13px);
     line-height: 1.6;
@@ -57,14 +58,14 @@
   :host([size="sm"]) { font-size: var(--text-xs, 11px); line-height: 1.5; }
   :host([size="lg"]) { font-size: var(--text-base, 14px); line-height: 1.7; }
 
-  :host([tone="info"])        { --_focus-ring: var(--tone-info-border); }
-  :host([tone="success"])     { --_focus-ring: var(--tone-success-border); }
-  :host([tone="warning"])     { --_focus-ring: var(--tone-warning-border); }
-  :host([tone="destructive"]) { --_focus-ring: var(--tone-destructive-border); }
+  :host([tone="info"])        { --ring-color: var(--tone-info-border); }
+  :host([tone="success"])     { --ring-color: var(--tone-success-border); }
+  :host([tone="warning"])     { --ring-color: var(--tone-warning-border); }
+  :host([tone="destructive"]) { --ring-color: var(--tone-destructive-border); }
 
   :host(:focus-within) {
-    outline: 2px solid var(--_focus-ring, var(--ring));
-    outline-offset: 1px;
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
 
   .editor-root {

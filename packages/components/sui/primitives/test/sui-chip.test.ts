@@ -16,9 +16,6 @@ const press = (el: HTMLElement, key: string) =>
   el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
 
 describe('<sui-chip>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-chip')).toBeDefined()
-  })
 
   it('renders a .chip (part="chip") in the shadow root', () => {
     const { el } = mount(reg, 'sui-chip')
@@ -136,18 +133,16 @@ describe('<sui-chip>', () => {
       expect(btn!.getAttribute('aria-label')).toBe('Remove')
     })
 
-    it('dispatches a bubbling/composed ship-remove on × click', () => {
+    it('dispatches a bubbling/composed ship-remove with empty-object detail on × click', () => {
       const { el } = mount(reg, 'sui-chip', { removable: true })
-      let removed = 0
-      let composed = false
-      el.addEventListener('ship-remove', (e) => {
-        removed++
-        composed = (e as CustomEvent).composed
-      })
+      let evt: CustomEvent | null = null
+      el.addEventListener('ship-remove', (e) => { evt = e as CustomEvent })
       const btn = shadow(el).querySelector('.remove') as HTMLButtonElement
       btn.click()
-      expect(removed).toBe(1)
-      expect(composed).toBe(true)
+      expect(evt).not.toBeNull()
+      expect(evt!.bubbles).toBe(true)
+      expect(evt!.composed).toBe(true)
+      expect(evt!.detail).toEqual({})
     })
 
     it('dispatches ship-remove on Backspace when removable', () => {

@@ -66,7 +66,7 @@ describe('faceting — column facet applies OTHER columns filters, NOT its own',
     const table = mk()
     table.setColumnFilter('cat', 'x') // x rows = price 10, 20
     const priceFacets = table.getColumn('price')!.getFacetedUniqueValues()
-    expect([...priceFacets.keys()].sort((a, b) => a - b)).toEqual([10, 20])
+    expect([...priceFacets.keys()].sort((a, b) => (a as number) - (b as number))).toEqual([10, 20])
   })
 
   it('the global filter DOES narrow every facet (facets branch off preColumnFilteredRows)', () => {

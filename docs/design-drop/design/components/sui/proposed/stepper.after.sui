@@ -1,0 +1,43 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-stepper.after.sui — ELEVATED. The detached dots become a connected progress
+  track: dots sit on a line whose filled portion shows completion, so distance
+  traveled vs remaining reads instantly. done dots tinted, active dot enlarged with
+  a tone ring, upcoming muted; connectors tint up to the active step. Static, 5
+  steps current=3. Compiled as <x-stepper-after>. Props: total · current · tone · size.
+-->
+<prop name="total" type="number" default="5" reflect />
+<prop name="current" type="number" default="3" reflect />
+<prop name="tone" type="string" default="" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
+
+<style>
+  :host { display: inline-flex; align-items: center; --dot: 9px; --active: 14px; --tone-fg: var(--primary); }
+  :host([size='sm']) { --dot: 7px; --active: 12px; }
+  :host([size='lg']) { --dot: 11px; --active: 18px; }
+  :host([tone='info'])        { --tone-fg: var(--info); }
+  :host([tone='success'])     { --tone-fg: var(--success); }
+  :host([tone='warning'])     { --tone-fg: var(--warning); }
+  :host([tone='destructive']) { --tone-fg: var(--destructive); }
+  :host([tone='accent'])      { --tone-fg: var(--accent); }
+  .track { display: flex; align-items: center; width: 220px; }
+  :host([size='sm']) .track { width: 170px; }
+  :host([size='lg']) .track { width: 260px; }
+  .dot { width: var(--dot); height: var(--dot); border-radius: var(--radius-full); background: color-mix(in oklch, var(--muted-foreground) 30%, transparent); flex-shrink: 0; }
+  .dot.done { background: var(--tone-fg); }
+  .dot.active { width: var(--active); height: var(--active); background: var(--tone-fg); box-shadow: 0 0 0 4px color-mix(in oklch, var(--tone-fg) 20%, transparent); }
+  .conn { flex: 1; height: 2px; background: color-mix(in oklch, var(--muted-foreground) 25%, transparent); margin: 0 3px; border-radius: var(--radius-full); }
+  .conn.done { background: var(--tone-fg); }
+</style>
+
+<div class="track" role="progressbar" aria-valuemin="1" aria-valuemax={total()} aria-valuenow={current()}>
+  <span class="dot done"></span>
+  <span class="conn done"></span>
+  <span class="dot done"></span>
+  <span class="conn done"></span>
+  <span class="dot active"></span>
+  <span class="conn"></span>
+  <span class="dot"></span>
+  <span class="conn"></span>
+  <span class="dot"></span>
+</div>

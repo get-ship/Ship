@@ -1,0 +1,30 @@
+<!-- sui-donut.existing.sui — the EXISTING look. Plain single-value ring: a flat
+  muted track, a flat tone arc with butt caps, a plain centered value. Faithful
+  baseline — no tinting, no cap rounding, no label styling. Compiled as
+  <x-donut-existing>. Props: value (0–100) · tone · label. No controller. -->
+<prop name="value" type="number" default="0" reflect />
+<prop name="tone" values="primary|accent|info|success|warning|destructive" default="primary" reflect />
+<prop name="label" type="string" default="" />
+
+<style>
+  :host { display: inline-block; --tone: var(--primary); }
+  :host([hidden]) { display: none; }
+  :host([tone='accent'])      { --tone: var(--accent); }
+  :host([tone='info'])        { --tone: var(--info); }
+  :host([tone='success'])     { --tone: var(--success); }
+  :host([tone='warning'])     { --tone: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive); }
+  svg { display: block; width: 96px; height: 96px; }
+  .track { fill: none; stroke: var(--muted); stroke-width: 9; }
+  .arc { fill: none; stroke: var(--tone); stroke-width: 9; }
+  .val { fill: var(--foreground); font-family: var(--font-body); font-weight: var(--font-weight-semibold); font-size: 18px; }
+  .lab { fill: var(--muted-foreground); font-family: var(--font-body); font-size: 8px; }
+</style>
+
+<svg viewBox="0 0 80 80" part="chart" role="img">
+  <circle class="track" cx="40" cy="40" r="32" pathLength="100"></circle>
+  <circle class="arc" cx="40" cy="40" r="32" pathLength="100"
+    stroke-dasharray={value() + ' 100'} transform="rotate(-90 40 40)"></circle>
+  <text class="val" x="40" y="40" text-anchor="middle" dominant-baseline="central">{value()}</text>
+  <text class="lab" x="40" y="56" text-anchor="middle">{label()}</text>
+</svg>

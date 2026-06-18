@@ -1,0 +1,190 @@
+// `ui.*` — the unified authoring surface. Combines the previous `sui.*`
+// (SUI compiler analysis) and `view.*` (view authoring writes) into one
+// domain, plus a new component-discovery service. The domain name is
+// `ship.ui` because "sui" = "Ship User Interface" and the authoring side
+// of the platform is one thing: analyze a `.sui` file, discover what
+// components are available to compose, and write view changes. All C0
+// reads for the analysis/discovery side; C1 writes for the authoring
+// side. Two capabilities: `ship.ui.read` and `ship.ui.write` (replaces
+// the old `ship.views.read` / `ship.views.write`).
+//
+// The component-discovery side (Packs / Read) resolves `.sui` source
+// files through the bundle's `sources/` tree first, then the configured
+// CDN, then the ship store (later). The path is the identifier; the
+// resolver chain returns `resolved_at` so the caller knows where the
+// source came from.
+syntax = "proto3";
+
+package ship.ops.v1;
+
+import "ship/ops/v1/policy.proto";
+import "ship/ops/v1/ops.proto";
+
+// ── Component discovery (C0 reads) ─────────────────────────────────────────
+
+// A component pack — a bundle-baked set of UI components.
+message UiPack {
+  string id = 1;                   // e.g. "@sui/primitives", "@ship/artifacts"
+  string category = 2;             // "primitives" | "ship" | "user"
+  string title = 3;
+  repeated UiComponent components = 4;
+}
+
+message UiComponent {
+  string tag = 1;                  // e.g. "sui-button"
+  string file = 2;                 // relative path, e.g. "primitives/sui-button.sui"
+  string title = 3;
+  repeated string props = 4;
+  repeated string slots = 5;
+  repeated string events = 6;
+}
+
+// Query for the catalog. Filterable by category and tag substring.
+message UiQueryReq {
+  string category = 1;             // optional: "primitives" | "ship" | "user" | "" (all)
+  string tag_contains = 2;         // optional: substring match on tag
+}
+
+message UiQueryResponse {
+  repeated UiPack packs = 1;
+}
+
+// Read a `.sui` source by relative path. The path is resolved through
+// the bundle's `sources/` tree first, then the configured CDN, then the
+// ship store. `resolved_at` reports which step won.
+message UiReadReq {
+  string path = 1;
+  // Optional fallback URLs for cross-bundle sourcing. If the primary
+  // bundle doesn't have the file, the daemon tries these in order.
+  repeated string fallback_urls = 2;
+}
+
+message UiReadResponse {
+  string source = 1;
+  // Where the source came from: "bundle" | "cdn" | "ship-store".
+  string resolved_at = 2;
+  // mtime of the resolved source, for HMR / cache-busting.
+  string mtime = 3;
+}
+
+// ── SUI compiler analysis (C0 reads) ────────────────────────────────────────
+
+// A `.sui` file to analyze. Absolute, or workspace-relative (resolved
+// against SHIP_REPO_DIR or the nearest bun.lock root).
+message SuiFileReq {
+  string file = 1;
+}
+
+// Hover query at a 0-based LSP cursor.
+message SuiHoverReq {
+  string file = 1;
+  uint32 line = 2;
+  uint32 col = 3;
+}
+
+// ── View authoring writes (C1) ─────────────────────────────────────────────
+
+message ViewPatchReq {
+  string id = 1;
+  string selector = 2;
+  string html = 3;
+}
+
+message ViewAppendReq {
+  string id = 1;
+  string selector = 2;
+  string html = 3;
+}
+
+message ViewSignalReq {
+  string id = 1;
+  string name = 2;
+  string value_json = 3;
+}
+
+message ViewEditModeReq {
+  string view = 1;
+  string session_id = 2;
+}
+
+message ViewToolReq {
+  string view = 1;
+  string session_id = 2;
+  string op = 3;
+  string args_json = 4;
+}
+
+message ViewScaffoldReq {
+  string name = 1;
+  string shape = 2;
+  string purpose = 3;
+}
+
+message ViewScaffoldResponse {
+  string route = 1;
+  string path = 2;
+}
+
+// ── Service ────────────────────────────────────────────────────────────────
+
+service UiService {
+  // Component discovery (C0)
+  rpc Packs(UiQueryReq) returns (UiQueryResponse) {
+    option (ship.ops.v1.description) = "Query the available UI component packs (filterable by category, tag, prop, slot, event).";
+    option (ship.ops.v1.capability) = "ship.ui.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Read(UiReadReq) returns (UiReadResponse) {
+    option (ship.ops.v1.description) = "Read a `.sui` source by relative path. Resolves through the bundle's sources/ tree, then CDN, then ship store.";
+    option (ship.ops.v1.capability) = "ship.ui.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+
+  // SUI compiler analysis (C0)
+  rpc Diagnostics(SuiFileReq) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "All diagnostics (parse + semantic + lint) for a `.sui` file, collected.";
+    option (ship.ops.v1.capability) = "ship.ui.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Hover(SuiHoverReq) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Hover info for the symbol under the cursor (kind, origin, controller decl).";
+    option (ship.ops.v1.capability) = "ship.ui.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc Dependencies(SuiFileReq) returns (JsonResponse) {
+    option (ship.ops.v1.description) = "Dependency surface: custom-element tags, handled events, controller path.";
+    option (ship.ops.v1.capability) = "ship.ui.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+
+  // View authoring (C1) — gated on `ship.ui.write`
+  rpc PatchSession(ViewPatchReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.ui.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
+  }
+  rpc AppendSession(ViewAppendReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.ui.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
+  }
+  rpc SignalSession(ViewSignalReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.ui.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
+  }
+  rpc EnterEditMode(ViewEditModeReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.ui.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
+  }
+  rpc ExitEditMode(ViewEditModeReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.ui.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
+  }
+  rpc Tool(ViewToolReq) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.ui.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
+  }
+  rpc Scaffold(ViewScaffoldReq) returns (ViewScaffoldResponse) {
+    option (ship.ops.v1.description) = "Scaffold a new view directory from a named shape template.";
+    option (ship.ops.v1.capability) = "ship.ui.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
+  }
+}

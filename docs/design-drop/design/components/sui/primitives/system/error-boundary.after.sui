@@ -1,0 +1,62 @@
+<!--
+  error-boundary.after.sui — "New" elevated. Same ground-truth contract (renders
+  children; swaps to the fallback branch on a caught error; exposes reset()).
+  The design the source leaves to authors: a contained error card — destructive
+  hairline + wash, an alert glyph, a clear title over the caught message, and a
+  Reset affordance that maps to the controller's reset(). Compiled as
+  <sui-error-boundary-after>. `failed` stands in for the caught-error branch.
+-->
+<prop name="failed" type="bool" default="false" reflect />
+<prop name="title" type="string" default="This view hit an error" />
+<prop name="message" type="string" default="Something went wrong." />
+
+<style>
+  :host { display: block; }
+  :host([failed]) .ok { display: none; }
+  :host(:not([failed])) .fallback { display: none; }
+
+  .fallback {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: var(--space-4) var(--space-5);
+    border: 1px solid color-mix(in oklch, var(--destructive) 38%, var(--border));
+    background: color-mix(in oklch, var(--destructive) 8%, var(--card));
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xs);
+  }
+  .ic { width: 18px; height: 18px; flex: 0 0 auto; color: var(--destructive); margin-top: 1px; }
+  .body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .title { font-weight: 600; font-size: var(--text-sm); color: var(--foreground); }
+  .msg { font-size: var(--text-sm); color: var(--muted-foreground); line-height: 1.5; }
+  .reset {
+    align-self: flex-start;
+    margin-top: 5px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--foreground);
+    cursor: pointer;
+    box-shadow: var(--shadow-xs);
+    transition: background-color var(--duration-fast, .12s) var(--ease-out, ease-out);
+  }
+  .reset:hover { background: color-mix(in oklch, var(--muted) 70%, var(--background)); }
+</style>
+
+<div class="ok" part="content"><slot></slot></div>
+<div class="fallback" part="fallback" role="alert">
+  <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path>
+    <path d="M12 9v4"></path>
+    <path d="M12 17h.01"></path>
+  </svg>
+  <div class="body">
+    <span class="title">{title()}</span>
+    <span class="msg">{message()}</span>
+    <button class="reset" type="button">Reset</button>
+  </div>
+</div>

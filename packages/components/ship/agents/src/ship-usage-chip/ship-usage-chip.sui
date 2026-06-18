@@ -1,0 +1,36 @@
+<!--
+  ship-usage-chip.sui — @ship/agents (analytics) · per-turn / per-session token
+  consumption + cost. Compact: input · output tokens with optional reasoning + cache
+  breakdown and a cost tag. The reasoning / cache / cost segments hide when empty
+  (full vs minimal). Docks in a turn footer, a SessionDetail header, or a dashboard.
+  Attribute-driven, tokens only.  Props: input · output · reasoning · cache · cost.
+-->
+<prop name="input" type="string" default="0" />
+<prop name="output" type="string" default="0" />
+<prop name="reasoning" type="string" default="" />
+<prop name="cache" type="string" default="" />
+<prop name="cost" type="string" default="" />
+
+<style>
+  :host { display: inline-block; font-family: var(--font-mono); }
+  .chip { display: inline-flex; align-items: center; gap: 0; font-size: 11px; border: 1px solid var(--border-subtle); border-radius: var(--radius-full); background: var(--card); overflow: hidden; }
+  .seg { display: inline-flex; align-items: baseline; gap: 4px; padding: 3px 9px; color: var(--muted-foreground); border-right: 1px solid var(--divider); }
+  .seg:last-child { border-right: 0; }
+  .seg b { font-weight: 700; color: var(--foreground); font-variant-numeric: tabular-nums; }
+  .seg.muted b { color: var(--muted-foreground); font-weight: 600; }
+  .cost { padding: 3px 10px; color: var(--primary); background: var(--tone-primary-bg); font-weight: 700; font-variant-numeric: tabular-nums; }
+</style>
+
+<span class="chip" part="usage">
+  <span class="seg"><b data-test="usage-input">{input()}</b> in</span>
+  <span class="seg"><b data-test="usage-output">{output()}</b> out</span>
+  {#if reasoning()}
+  <span class="seg muted" data-test="usage-reasoning"><b>{reasoning()}</b> reas</span>
+  {/if}
+  {#if cache()}
+  <span class="seg muted" data-test="usage-cache"><b>{cache()}</b> cache</span>
+  {/if}
+  {#if cost()}
+  <span class="cost" data-test="usage-cost">{cost()}</span>
+  {/if}
+</span>

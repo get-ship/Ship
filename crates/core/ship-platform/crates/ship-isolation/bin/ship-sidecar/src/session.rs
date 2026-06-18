@@ -3,6 +3,10 @@
 //! Owns N child processes keyed by string id. Spawns watchers that
 //! push `Envelope::ProcessOutput` / `Envelope::ProcessExited` onto a
 //! broadcast channel; `Events.Stream` handlers subscribe to it.
+// Wire-builder style: proto envelopes are built default-then-assign at many
+// sites; the struct-literal form buys no safety on these non-exhaustive
+// generated types.
+#![allow(clippy::field_reassign_with_default)]
 
 use portable_pty::{CommandBuilder, MasterPty, PtySize as PortablePtySize, native_pty_system};
 use ship_isolation::sidecar::proto::*;

@@ -11,7 +11,8 @@
     "./template-hooks": "./src/template-hooks/index.ts",
     "./dev": "./src/dev.ts",
     "./route": "./src/route/index.ts",
-    "./patch": "./src/patch.ts"
+    "./patch": "./src/patch.ts",
+    "./virtual": "./src/virtual.ts"
   },
   "files": [
     "src",
@@ -22,6 +23,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "bench": "vitest bench --run"
+  },
+  "dependencies": {
+    "@ship/deck/route": "workspace:*"
   },
   "devDependencies": {
     "@ship/test-setup": "workspace:*",

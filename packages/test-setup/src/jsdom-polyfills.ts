@@ -28,7 +28,6 @@ export function initJsdomPolyfills(opts: JsdomPolyfillOpts = {}): void {
 
 function installResizeObserver(): void {
   if (typeof ResizeObserver !== 'undefined') return
-  // @ts-expect-error — JSDOM stub only; the callback never fires (no layout engine).
   global.ResizeObserver = class ResizeObserver {
     observe(): void {}
     unobserve(): void {}
@@ -62,7 +61,6 @@ function installCanvasGetContext(): void {
 
 function installToggleEvent(): void {
   if (typeof ToggleEvent !== 'undefined') return
-  // @ts-expect-error — JSDOM stub
   globalThis.ToggleEvent = class ToggleEvent extends Event {
     newState: string
     oldState: string
@@ -76,12 +74,16 @@ function installToggleEvent(): void {
 
 function installPointerEvent(): void {
   if (typeof PointerEvent !== 'undefined') return
+  // No MouseEvent means no DOM at all (a `@vitest-environment node` file
+  // sharing a jsdom-suite setup) — nothing dispatches pointer events there,
+  // and subclassing would throw at setup. Skip, per this file's "safe to
+  // call from any runtime" contract.
+  if (typeof MouseEvent === 'undefined') return
   // JSDOM 25 ships MouseEvent but not PointerEvent. Anchor-position primitives
   // (sui-hover-card, sui-tooltip) dispatch synthetic pointerenter/leave; the
   // shape (button, clientX, …) inherits from MouseEvent so subclassing works
   // without a real pointer-device emulation.
-  // @ts-expect-error — JSDOM stub
-  globalThis.PointerEvent = class PointerEvent extends MouseEvent {
+  ;(globalThis as { PointerEvent: unknown }).PointerEvent = class PointerEvent extends MouseEvent {
     pointerId: number
     pointerType: string
     constructor(type: string, init: PointerEventInit = {}) {
@@ -100,7 +102,7 @@ function installPopoverApi(): void {
     value(this: HTMLElement) {
       if (_openPopovers.has(this)) return
       _openPopovers.add(this)
-      const ev = new (globalThis as Record<string, typeof ToggleEvent>).ToggleEvent(
+      const ev = new (globalThis as unknown as Record<string, typeof ToggleEvent>)['ToggleEvent']!(
         'toggle', { newState: 'open', oldState: 'closed', bubbles: false },
       )
       this.dispatchEvent(ev)
@@ -112,7 +114,7 @@ function installPopoverApi(): void {
     value(this: HTMLElement) {
       if (!_openPopovers.has(this)) return
       _openPopovers.delete(this)
-      const ev = new (globalThis as Record<string, typeof ToggleEvent>).ToggleEvent(
+      const ev = new (globalThis as unknown as Record<string, typeof ToggleEvent>)['ToggleEvent']!(
         'toggle', { newState: 'closed', oldState: 'open', bubbles: false },
       )
       this.dispatchEvent(ev)

@@ -81,12 +81,13 @@ pub struct FirstPartyApp {
 
 /// The parsed contents of `deck.jsonc`.
 ///
-/// All fields carry `#[serde(default)]` so a minimal (or missing) `deck.jsonc`
-/// falls back gracefully to [`DeckConfig::defaults`].
-/// The parsed contents of `deck.jsonc`.
-///
-/// All fields carry `#[serde(default)]` so a minimal (or missing) `deck.jsonc`
-/// falls back gracefully to [`DeckConfig::defaults`].
+/// The container-level `#[serde(default)]` fills every missing field from
+/// [`DeckConfig::defaults`] (via the `Default` impl), so a minimal — or
+/// missing — `deck.jsonc` degrades gracefully. Fields must NOT carry their
+/// own `#[serde(default)]`: a field-level default takes precedence over the
+/// container default and silently replaces the documented fallback with the
+/// type's empty value (an empty `view_dirs` once disabled view discovery for
+/// every host with a partial deck.jsonc).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct DeckConfig {
@@ -113,7 +114,6 @@ pub struct DeckConfig {
     /// the tag and the pack that provides it. When absent or empty, resolution
     /// is GLOBAL — every workspace pack's tags are resolvable (zero behavior
     /// change for existing projects).
-    #[serde(default)]
     pub packs: Vec<String>,
     /// Per-source-root view bucket names. The resolver and bundler scan
     /// `<source_root>/<view_dir>/<name>/<view_leaf>` for each `view_dir` in
@@ -121,19 +121,16 @@ pub struct DeckConfig {
     /// so a zero-config host still resolves from both top-level and
     /// project-scoped view buckets. Hosts with a different layout override
     /// this list; deck no longer bakes the bucket names.
-    #[serde(default)]
     pub view_dirs: Vec<String>,
     /// The leaf filename for view artifacts under each `view_dir/<name>/`.
     /// Defaults to `"page.sui"`. A single leaf convention across all
     /// `view_dirs` fixes the #254 leaf-name divergence (`page.sui` vs
     /// `index.sui`) that broke `.ship/views/<name>/index.sui` resolution.
-    #[serde(default)]
     pub view_leaf: Option<String>,
     /// Root-relative public-asset directory (e.g. `apps/shell/public`). When set,
     /// deck serves single-segment root paths (`/favicon.ico`, `/ship-logo.svg`)
     /// from `<project_root>/<public_dir>/<file>`. `None` = no public-asset server.
     /// deck resolves the project root via its own resolver — never a Ship path.
-    #[serde(default)]
     pub public_dir: Option<PathBuf>,
     /// Repo-root-relative directories searched, in order, to resolve a
     /// `@ship/<name>` component import to its package source. The resolver
@@ -142,7 +139,6 @@ pub struct DeckConfig {
     /// layout. Hosts with a nested component layout (e.g. Ship's
     /// `packages/components/{sui,ship}`) declare the full search order here;
     /// deck no longer bakes any monorepo layout into its code.
-    #[serde(default)]
     pub component_source_roots: Vec<PathBuf>,
 }
 
@@ -394,6 +390,29 @@ mod tests {
         let cfg: DeckConfig =
             serde_json::from_str(&strip_jsonc_comments(json)).unwrap();
         assert_eq!(cfg.packs, vec!["@ship/sui-primitives", "deck-demo-app"]);
+    }
+
+    /// A PARTIAL deck.jsonc (deck-demo's shape: scaffolds only) must keep the
+    /// built-in view-layout defaults. Field-level `#[serde(default)]` attrs
+    /// used to shadow the container default here: `view_dirs` parsed to `[]`
+    /// and view discovery found zero targets (`unknown target: views/*/view`).
+    #[test]
+    fn partial_file_keeps_view_layout_defaults() {
+        let json = r#"{
+  "scaffolds": [
+    { "name": "space", "route": "/space/{id}", "source": "space-scaffold" }
+  ]
+}"#;
+        let cfg: DeckConfig =
+            serde_json::from_str(&strip_jsonc_comments(json)).expect("partial deck.jsonc parses");
+        assert_eq!(cfg.scaffolds.len(), 1);
+        assert_eq!(
+            cfg.view_dirs,
+            vec!["views".to_string(), ".ship/views".to_string()],
+            "partial config must inherit the conventional view buckets"
+        );
+        assert_eq!(cfg.view_leaf.as_deref(), Some("page.sui"));
+        assert_eq!(cfg.component_source_roots, vec![PathBuf::from("packages")]);
     }
 
     #[test]

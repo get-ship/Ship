@@ -90,15 +90,18 @@ async function main() {
   }
   console.log(`minted: ${mintedId}`);
 
-  // Verify the actor appears on the mesh under that id.
+  // Verify the actor appears in the live roster under that id. The mesh
+  // roster read (`GET /api/v1/mesh`) was culled with the mesh op surface;
+  // `GET /api/v1/actors` is the surviving projection (rows keyed by `id`,
+  // with `live` overlaid from the kernel's actor registry).
   await new Promise((r) => setTimeout(r, 500));
-  const mesh = await api("/api/v1/mesh");
-  const actors = mesh?.data?.data?.actors ?? [];
-  const found = actors.find((a) => a.actor_id === mintedId);
+  const roster = await api("/api/v1/actors");
+  const actors = roster?.data?.data?.actors ?? [];
+  const found = actors.find((a) => a.id === mintedId);
   if (!found) {
-    fail("minted actor not on mesh", {
+    fail("minted actor not in actor roster", {
       mintedId,
-      mesh_actors: actors.map((a) => a.actor_id),
+      roster_actors: actors.map((a) => a.id),
     });
   }
 

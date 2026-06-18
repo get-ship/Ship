@@ -64,10 +64,6 @@ async function waitFor(pred: () => boolean, tries = 300): Promise<void> {
 }
 
 describe('<ship-pdf> — registration', () => {
-  it('registers the custom element', () => {
-    mount()
-    expect(customElements.get('ship-pdf')).toBeDefined()
-  })
 
   it('renders a canvas in the page stage (not the error branch) by default', async () => {
     const v = mount()

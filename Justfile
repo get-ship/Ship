@@ -73,7 +73,7 @@ shell *ARGS:
 # Regenerate the typed dynamic-route table from the view file tree (SSOT).
 [group('daily')]
 gen-routes:
-    @cargo run -q -p deck-cli -- routes --shell-root apps/shell
+    @cargo run -q -p deck-cli -- routes
 
 # Bakes every bundle via the in-process Rolldown bundler (#163) — the same
 # engine shipd runs, and the ONLY bundler. Framework singletons + the
@@ -310,16 +310,6 @@ docs:
 [group('occasional')]
 docs-dev:
     cd apps/docs && bun run dev --port 4321 --host
-
-# Regenerate the committed OpenAPI snapshot.
-[group('occasional')]
-openapi-regen:
-    cd apps/docs && bun run openapi:generate
-
-# Fail if the committed openapi.json disagrees with the live spec.
-[group('occasional')]
-openapi-check:
-    cd apps/docs && bun run openapi:check-drift
 
 # Regenerate the Astro reference tree from docs/<skill>/references/docs/.
 [group('occasional')]

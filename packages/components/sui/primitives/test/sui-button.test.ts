@@ -32,9 +32,6 @@ afterEach(() => {
 })
 
 describe('<sui-button>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-button')).toBeDefined()
-  })
 
   it('attaches a shadow root with the rendered <button>', () => {
     const container = mkContainer()

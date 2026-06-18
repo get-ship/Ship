@@ -1,9 +1,9 @@
 ---
 name: ship-artifacts
-audience: public
 stable-id: ship-artifacts
+audience: public
 description: >-
-  The `artifacts` capability (4 ops). Call any op over ConnectRPC with
+  The `artifacts` capability (5 ops). Call any op over ConnectRPC with
   `ship ops call <name> --json '<args>'`. This file is a table of contents;
   open `references/docs/<op>.mdoc` for an op's args, return shape, and policy.
 tags: [sdk, api, artifacts]
@@ -26,6 +26,7 @@ page for full args, return shape, capability, and an example.
 ## Reads
 
 - [`artifacts.list`](references/docs/artifacts.list.mdoc) — Artifact metadata records, filterable by scope/mime/collection/item/owner.
+- [`artifacts.watch`](references/docs/artifacts.watch.mdoc) — Live watch — typed patch stream for artifact metadata changes.
 
 ## Commands
 

@@ -9,9 +9,6 @@ afterEach(() => {
 })
 
 describe('<sui-stack>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-stack')).toBeDefined()
-  })
 
   it('renders a shadow root with a default slot', async () => {
     const { el } = mount(reg, 'sui-stack', {}, '<p>a</p><p>b</p>')

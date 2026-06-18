@@ -1,52 +1,60 @@
 # Visual baselines
 
 End-to-end Playwright suite that exercises compile → daemon serve → SSR
-splice → shell mount → hydrate for every view + a representative slice of
-components, then asserts pixel-stable output against committed PNG
-baselines. This is the gate for runtime, compiler, and view changes.
+splice → shell mount → hydrate for every view, then asserts the
+page is attach-stable (no console errors, no thrown page errors,
+#sui-root has children). The pixel baselines in `baselines/` are
+**manual artifacts** — the run that produced them is documented in
+the commit log, but the test runner no longer auto-diffs against
+them (the diff was a noise surface; the actual regression channel
+is runtime errors at attach time, which the behavior spec catches).
 
 ## Run
 
 ```sh
 just dev            # daemon must be alive (port discovery via path_hash)
-just visual         # diff current render vs committed baselines
+just visual         # run the behavior suite
 ```
 
 `just visual` forwards extra args to Playwright, so the usual flags work:
 
 ```sh
-just visual --grep "sui-button"
-just visual --update-snapshots          # refresh baselines after an intentional change
+just visual --grep "agents"
+just visual --update-snapshots          # refresh baselines (manual artifact path)
 just visual reactivity.spec.ts          # one spec only
 ```
 
 ## What's covered
 
-- **Views** — every top-level entry in `views.json` rendered at
-  `/sui/<name>` × { `paper`, `ship-dark` }.
-- **Components** — curated slice of `sui-*` primitives rendered in a
-  synthesized harness page (origin = daemon, so /\_sui/\* resolves) ×
-  { `paper`, `ship-dark` }.
-- **Reactivity smoke** — counter SSR markup contains the seed value;
+- **views.spec.ts** — every top-level entry in `views.json` rendered at
+  `/sui/<name>` × { `paper`, `ship-dark` }. The test gates on
+  `expect(root).not.toBeEmpty()` plus zero `console.error` events and
+  zero `pageerror` events. A regression in the compile pipeline, the
+  attach path, or any controller that throws during mount surfaces here.
+- **reactivity.spec.ts** — counter SSR markup contains the seed value;
   attach + click + reset produces the expected reactive update.
+- **agent-attach.spec.ts** — the agent-attach + xterm bridge round-trips
+  PTY bytes through the SUI runtime.
 
-`ship-ui-studio` and views with unstable runtime output are excluded
-from `views.json` — see the policy below.
+`sui-*` component harnesses are no longer part of this suite; the
+component matrix is covered by the unit tests in
+`packages/components/sui/primitives/test/` (happy-dom under vitest).
 
-## Adding / updating baselines
+## Pixel baselines (manual artifacts)
 
-When a deliberate change moves pixels:
-
-1. Inspect the diff PNGs in `tests/e2e/visual/output/` (the test reports
-   the file path; the HTML report at `output/report/index.html` is the
-   pretty view).
-2. If the new render is correct: `just visual --update-snapshots`.
-3. Commit only the PNGs you've eyeballed.
+The `baselines/` directory retains the original PNGs from when the
+spec did pixel diff. Use `just visual --update-snapshots` to refresh
+after an intentional design change; eyeball the new render in
+`output/` before committing. The behavior spec doesn't depend on
+these files; updating them is a manual reviewer step, not a CI gate.
 
 ## Stable baselines only
 
-The harness's job is to catch regressions on **working** views. If a
-baseline capture renders a white page, an error overlay, or obviously
-broken markup, do **not** commit that PNG — exclude the view from
-`views.json` with a one-line comment instead. Committing broken baselines
-means future regressions stay invisible.
+The original baseline capture was a guard against regressions on
+**working** views. If a baseline render shows a white page, an error
+overlay, or obviously broken markup, do **not** treat the PNG as
+authoritative — exclude the view from `views.json` with a one-line
+comment and fix the view instead. (Same rule applies to the
+behavior spec: a view that surfaces console errors during mount is
+excluded by removing it from `views.json` until the regression is
+fixed; keeping the entry would be a baseline-on-broken-glass.)

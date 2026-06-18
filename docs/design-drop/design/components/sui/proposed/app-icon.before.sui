@@ -1,0 +1,13 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-app-icon.before.sui — fabricated sketch (not in source). A square tile holding an app /
+  integration glyph: a flat muted box with a centered icon. Compiled as
+  <x-app-icon-before>. Props: tone. Slot: an <svg> / glyph.
+-->
+<prop name="tone" values="default|info|success|warning" default="default" reflect />
+<style>
+  :host { display: inline-flex; }
+  .tile { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: var(--muted); color: var(--muted-foreground); border-radius: var(--radius-md); }
+  .tile ::slotted(svg) { width: 20px; height: 20px; }
+</style>
+<span class="tile" part="tile"><slot></slot></span>

@@ -1,0 +1,21 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-loading.before.sui — fabricated sketch (not in source). A loading affordance: an
+  indeterminate bar (default) or an inline text label. Animation runs
+  unconditionally (no reduced-motion guard). Compiled as <x-loading-before>.
+  Props: variant · label.
+-->
+<prop name="variant" values="bar|inline" default="bar" reflect />
+<prop name="label" type="string" default="Loading" />
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  .bar { height: 3px; background: var(--muted); border-radius: var(--radius-full); overflow: hidden; }
+  .blk { display: block; width: 30%; height: 100%; background: var(--primary); animation: l-move 1.2s linear infinite; }
+  @keyframes l-move { 0% { margin-left: -30%; } 100% { margin-left: 100%; } }
+  :host([variant='inline']) { display: inline-flex; }
+  :host([variant='inline']) .bar { display: none; }
+  .inline { display: none; color: var(--muted-foreground); font-size: var(--text-sm); }
+  :host([variant='inline']) .inline { display: inline; }
+</style>
+<div class="bar" part="bar"><span class="blk"></span></div>
+<span class="inline">{label()}…</span>

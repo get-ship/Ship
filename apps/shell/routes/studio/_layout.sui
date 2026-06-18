@@ -1,0 +1,41 @@
+<!--
+  /studio/_layout.sui — the studio chrome wrapper. Every route under
+  /studio/* is wrapped in <sui-studio-chrome>, which provides the
+  studio rail + main content area + footer.
+
+  The <slot name="route" /> is where the route content mounts. The
+  host's `mountRoute(root, url, layouts, payload)` (see
+  `apps/shell/src/route/mount-route.ts`) walks LAYOUTS, builds the chrome
+  chain, and mounts the route content into the innermost <div
+  slot="route">.
+
+  This is the first real _layout.sui. The codegen
+  (crates/deck/deck-bundler/src/routes.rs) discovers it and emits
+  LAYOUTS: LayoutShape[] = [{ pathPrefix: '/studio', tag: 'sui-studio-chrome' }].
+-->
+
+<sui-studio-chrome>
+  <sui-studio-rail></sui-studio-rail>
+  <main class="studio-main">
+    <slot name="route" />
+  </main>
+  <sui-shell-bottom></sui-shell-bottom>
+</sui-studio-chrome>
+
+<style>
+  sui-studio-chrome {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: 1fr auto;
+    width: 100%;
+    min-height: 100vh;
+    background: var(--surface-0);
+    color: var(--foreground);
+    font-family: var(--font-body);
+  }
+  .studio-main {
+    grid-column: 2;
+    grid-row: 1;
+    overflow: auto;
+  }
+</style>

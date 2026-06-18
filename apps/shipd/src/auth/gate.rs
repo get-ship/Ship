@@ -15,7 +15,7 @@
 //!
 //! This module is pure: [`decide`] takes a policy + a [`Caller`] and returns a
 //! [`Decision`]. Every write surface resolves through it via the `GateFn`
-//! closure built in `ops_rpc::router`, so there is one gate, not one per
+//! closure built in `rpc::ops::router`, so there is one gate, not one per
 //! transport.
 
 use crate::auth::AuthContext;

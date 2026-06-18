@@ -99,7 +99,7 @@ shape; using the wrong backend is the leak.
 | **Events** (`events` table) | Append-only history of state transitions; kernel-touching; replay-able; multiple subscribers care | Mutable settings; high-frequency reads of a single key |
 | **Projections** (platform.db tables) | Derived current-state of an event-sourced concern (sessions, jobs, actors) | Hand-written rows that bypass the event log |
 | **KV** (`kv_state`) | Mutable settings, namespaced; small structured values; per-key access | Anything with relations or a lifecycle worth modeling |
-| **Disk** (`<scope>/.ship/<vector>/`) | Authored config Ship's runtime depends on; external-tool readable (claude-code et al); hot-reloadable; git-trackable | Runtime-mutable state; transient; high-frequency writes |
+| **Disk** (`<scope>/.ship/<vector>/`) | Authored config Ship's runtime depends on; readable by external tools that consume the same files; hot-reloadable; git-trackable | Runtime-mutable state; transient; high-frequency writes |
 | **Collections** (data.db) | User-authored or user-saved structured data; multi-instance; queryable; UI-edited | Authored *config* the runtime depends on; needs external-tool consumption |
 | **Artifacts** (`~/.ship/artifacts/`) | Binary or large content; content-addressable; output-shaped | Anything you'd expect to query, edit, or publish |
 
@@ -124,7 +124,8 @@ Things that look like collections-shaped but aren't:
 - Pipelines, agents, skills, rules, MCP servers, views, triggers,
   permissions. These are **platform schemas** Ship defines; users
   author *instances* against them. They live on disk because:
-  - external harnesses (claude-code, codex) read them as files;
+  - external tools that need to read the same files (editors, the
+    LSP, ship-agent plugins) consume them;
   - hot-reload via fs-watch is the load-bearing mechanism;
   - git is a perfectly fine integration for sharing them.
 

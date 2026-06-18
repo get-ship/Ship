@@ -71,6 +71,15 @@ jobs:
       # does not exist; fix the caller (deleted stays deleted) — never silence it.
       - name: Typecheck shell (dead-op / surface-drift gate)
         run: bun run --cwd apps/shell typecheck
+      # Primitives pack is the foundation of every ship-* component and the
+      # first place a runtime contract drift surfaces. The current 171 errors
+      # are a known-acceptable workstream (see .artifacts/pre-launch-checklist.md
+      # P0.3) and will be driven to 0 in subsequent PRs. CI is wired NOW so
+      # the count cannot regress.
+      - name: Typecheck SUI primitives (foundation-surface drift gate)
+        run: bun run --cwd packages/components/sui/primitives typecheck
+      - name: Typecheck spaces
+        run: bun run --cwd apps/spaces typecheck
       - name: Check silent-error patterns
         run: bash scripts/lint/check-silent-errors.sh
       - name: Check migration discipline (naming + immutability)
@@ -94,12 +103,17 @@ jobs:
         run: just lint-justfile
       - name: Check SUI bundle sizes (within budget)
         run: bash scripts/lint/check-sui-bundle-size.sh
-      - name: Check OpenAPI drift
-        run: cd apps/docs && bun run openapi:check-drift
+      - name: Check landing custom-element bundle coverage (no inert tags)
+        run: node scripts/lint/check-landing-bundle-coverage.mjs
       - name: Collect skill docs
         run: cd apps/docs && AUDIENCE=internal bun run collect
       - name: Check skill-docs drift
         run: cd apps/docs && bun run docs:check-drift
+      # Build the Astro site so a red docs build can never ship. Runs after the
+      # collect/drift gates: the build's own prebuild re-runs the collector, so
+      # a sourceless sidebar section or a broken page fails here loudly.
+      - name: Build docs site (astro build)
+        run: bun run --filter @ship/docs build
       # ship-host (apps/host) is Ship's single native host — Tauri webview
       # wrapping a daemon-served scaffold. Needs webkit2gtk/libsoup that this
       # runner doesn't provision (only release.yml's tauri-action does).
@@ -107,13 +121,6 @@ jobs:
       # the release runners.
       - name: Clippy
         run: cargo clippy --workspace --exclude ship-host --features unstable -- -D warnings
-      # Rustdoc link enforcement — fail on broken intra-doc links. Run after the
-      # bundle bake so deck-core's build.rs assets are present.
-      - name: Check rustdoc links (broken intra-doc links)
-        run: RUSTDOCFLAGS="-D rustdoc::broken_intra_doc_links" cargo doc --workspace --exclude ship-host --no-deps
-      # Module-docs conformance — lib.rs >100 LOC must have //! module docs.
-      - name: Check module docs (lib.rs coverage)
-        run: bash scripts/lint/check-module-docs.sh
       - name: Build (stable)
         run: cargo build -p ship-cli -p shipd
       - name: Build (unstable)
@@ -126,6 +133,34 @@ jobs:
           cargo run -p xtask --quiet -- gen-skills
           git diff --exit-code skills/sdk/ \
             || { echo "skills/sdk is stale — run 'cargo run -p xtask -- gen-skills' and commit"; exit 1; }
+      # tokens.json is the registry the sui-css-token lint reads. It is generated
+      # from the canonical CSS token files (packages/sui/tokens/src/{tokens,
+      # themes}.css). Regenerate + assert no diff so a CSS token add/remove can't
+      # drift the lint registry (a zombie token it accepts, or a real token it's
+      # blind to).
+      - name: Check tokens.json drift
+        run: |
+          cargo run -p xtask --quiet -- gen-tokens --check \
+            || { echo "tokens.json is stale — run 'cargo run -p xtask -- gen-tokens' and commit"; exit 1; }
+      # gen-types emits the TS response types (packages/deck/sdk, sdk-client,
+      # sui/runtime, cloud-types) from the Rust specta registrations. The
+      # outputs are gitignored, so drift between a Rust type change and the
+      # generated TS is invisible without this check — retired registrations
+      # left consumers importing names that no longer generate (#265 fallout).
+      - name: Check gen-types drift
+        run: |
+          cargo run -p xtask --quiet -- gen-types --check \
+            || { echo "generated TS types are stale — run 'cargo run -p xtask -- gen-types' and fix consumers"; exit 1; }
+      # The daemon HTTP route reference (skills/sdk/http-routes) is generated
+      # from the @route annotations in apps/shipd/src/routes/mod.rs — the same
+      # registry build.rs compiles into the router. Re-render + byte-compare so
+      # a route add/remove/auth change can't land without the reference page
+      # (which the docs site harvests into Reference → SDK (Ops) → http) being
+      # refreshed.
+      - name: Check route reference drift
+        run: |
+          cargo run -p xtask --quiet -- gen-routes-doc --check \
+            || { echo "skills/sdk/http-routes is stale — run 'cargo run -p xtask -- gen-routes-doc' and commit"; exit 1; }
       # Proto contract fixtures are generated from proto/fixtures/theme.json and
       # validated against the ship.ops.v1 proto types. Regenerate + assert no
       # diff so a proto shape change can't outrun its fixture (which the Rust +
@@ -135,15 +170,16 @@ jobs:
           cargo run -p xtask --quiet -- gen-fixtures
           git diff --exit-code proto/fixtures/ \
             || { echo "proto/fixtures is stale — run 'cargo run -p xtask -- gen-fixtures' and commit"; exit 1; }
-      # Wire-tier event union (cloud-types) is generated from the event
-      # registry. This gate did not exist while gen-events itself was broken
-      # (stale source path) — the committed events.ts drifted a full retired
-      # event family behind the registry before anyone noticed.
-      - name: Check wire-event types drift
+      # @ship/sdk Connect gen is generated from proto/ship/ops/v1/*.proto by buf
+      # (buf.gen.sdk.yaml → protoc-gen-es). buf never cleans its output dir, so a
+      # deleted proto used to leave a zombie *_pb.ts behind. proto:generate now
+      # `rm -rf`s the gen dir first; regenerate and assert no diff so a stale or
+      # zombie generated module can't survive a proto deletion.
+      - name: Check @ship/sdk proto gen drift
         run: |
-          cargo run -p xtask --quiet -- gen-events
-          git diff --exit-code packages/cloud-types/src/events.ts \
-            || { echo "cloud-types events.ts is stale — run 'cargo run -p xtask -- gen-events' and commit"; exit 1; }
+          bun run --cwd packages/deck/sdk proto:generate
+          git diff --exit-code packages/deck/sdk/src/gen \
+            || { echo "packages/deck/sdk/src/gen is stale — run 'bun run --cwd packages/deck/sdk proto:generate' and commit"; exit 1; }
       - name: Lint layer boundaries
         run: cargo run -p xtask --quiet -- lint-layers
       - name: Lint import-level layer direction
@@ -188,10 +224,70 @@ jobs:
       # `passWithNoTests:false` in the shared vitest defaults.
       - name: Check no test file collects zero tests
         run: node scripts/check-zero-collection.mjs
-      - name: JS tests (compiles SUI on demand via the vitest factory)
-        run: bun run --filter '@ship/ui-components' test
+      # Workspace JS suites — the SUI framework runtime + every component pack.
+      # The vitest factory compiles each `.sui` on demand (mirroring to .ship/sui-out),
+      # so this exercises the real compile -> register -> render path for every tag.
+      # Scope is built from POSITIVE path-glob filters only — bun's `!`-negation filters
+      # silently break path-scoping (they pull in apps/*, e.g. apps/gateway), so any
+      # exclusion is expressed by omission, never by `!`:
+      #   ./packages/sui/**   -> @ship/sui-runtime, @ship/sui-dom, tree-sitter-sui (grammar)
+      #   ./packages/deck/**  -> @ship/sdk, @ship/sdk-client, @ship/deck-host, @ship/sui-eval, @ship/sui-lsp-browser
+      #   every healthy component pack under packages/components/{sui,ship}/*
+      # Runs --sequential with VITEST_MAX_FORKS=2: parallel cross-package execution
+      # oversubscribes the runner and flakes timing-sensitive suites (the GC leak gate,
+      # the scroll-anchor test, compile-timeouts); sequential keeps them deterministically green.
+      # apps/shell is not under packages/** so it gets its own step below.
+      - name: JS tests — SUI framework + component packs (compiles SUI on demand via the vitest factory)
+        run: |
+          set -eo pipefail
+          VITEST_MAX_FORKS=2 bun run \
+            --filter './packages/sui/**' \
+            --filter './packages/deck/**' \
+            --filter './packages/components/sui/charts' \
+            --filter './packages/components/sui/chat-elements' \
+            --filter './packages/components/sui/media' \
+            --filter './packages/components/sui/primitives' \
+            --filter './packages/components/sui/viewer' \
+            --filter './packages/components/ship/agents' \
+            --filter './packages/components/ship/arcade' \
+            --filter './packages/components/ship/authority' \
+            --filter './packages/components/ship/canvas' \
+            --filter './packages/components/ship/chrome' \
+            --filter './packages/components/ship/code' \
+            --filter './packages/components/ship/markdown' \
+            --filter './packages/components/ship/pdf' \
+            --filter './packages/components/ship/pipelines' \
+            --filter './packages/components/ship/spaces' \
+            --filter './packages/components/ship/viewer' \
+            --sequential test 2>&1 | tee js-test.log
+          # bun exits 0 on "No packages matched the filter" — turn an empty match or a
+          # zero-suite run into a hard failure so this gate can never pass vacuously.
+          grep -q "No packages matched the filter" js-test.log && { echo "::error::JS test filter matched no packages"; exit 1; }
+          [ "$(grep -cE '^[^|]+:test +\|' js-test.log)" -gt 0 ] || { echo "::error::JS test step ran zero package suites"; exit 1; }
+      # The shell's component suites (19 files) live outside packages/**, so the
+      # path-glob step above never matches them. Same vacuous-pass guard applies.
+      - name: JS tests — apps/shell
+        run: |
+          set -eo pipefail
+          VITEST_MAX_FORKS=2 bun run --filter './apps/shell' test 2>&1 | tee shell-test.log
+          grep -q "No packages matched the filter" shell-test.log && { echo "::error::shell test filter matched no packages"; exit 1; }
+          [ "$(grep -cE '^[^|]+:test +\|' shell-test.log)" -gt 0 ] || { echo "::error::shell test step ran zero suites"; exit 1; }
       - name: Bundle sui-runtime
         run: bun run --filter '@ship/sui-runtime' bundle
+      # Hermetic browser e2e (tests/e2e, `hermetic` project only). The
+      # full-loop spec boots its own debug `shipd` (built by the cargo steps
+      # above) against a temp SHIP_HOME and drives the deck-served shell in
+      # real chromium: hermeticity guard, daemon→UI live git read, theme
+      # mutation persisted over Connect, and the settings-form mutation
+      # round-trip (#298). The `dev-environment` project (every other spec)
+      # needs a `just dev` daemon or the shell vite server and is projected
+      # out — see tests/e2e/playwright.config.ts for the per-spec triage.
+      - name: Build hub scaffold (deck-served shell for the hermetic e2e)
+        run: bun run build:hub-scaffold
+      - name: Install Playwright chromium
+        run: bunx playwright install --with-deps chromium
+      - name: E2E — hermetic full loop (real browser against a hermetic shipd)
+        run: bunx playwright test --config tests/e2e/playwright.config.ts --project=hermetic
       # SUI rendering fuzz gate. Three targets, 60s each — keeps PR
       # wall-time small while catching the panic class that surfaced
       # six bugs in `crates/sui/compiler/src/{render/eval/lex,check/

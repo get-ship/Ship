@@ -88,7 +88,7 @@ pub fn emit_module(
 
     match mode {
         CompileMode::Component => component::emit_component_export(&mut w, program, body, opts),
-        _ => view::emit_view_export(&mut w, body),
+        _ => view::emit_view_export(&mut w, program, body),
     }
     // Phase 3b.5 (gate I): the `bindings` manifest is gone — every
     // binding kind is now wired by the compiled view's

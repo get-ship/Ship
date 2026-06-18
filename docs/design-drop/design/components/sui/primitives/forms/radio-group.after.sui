@@ -1,0 +1,35 @@
+<!--
+  sui-radio-group.after.sui — ENHANCED. The loose radio list becomes selectable
+  option cards: each option is a bordered --card row with a title + a description
+  sublabel and a custom dot, the selected card lifts to --selected-bg /
+  --selected-border with the dot filled, hover → --border-strong, and a real
+  focus-visible ring. Still native radios (keyboard nav: ↑/↓ + roving selection
+  is the controller's job; arrow-key roving + aria-checked wiring noted for the
+  code team). Token-pure. Compiled as <x-radio-group-after>.
+-->
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  fieldset { border: 0; margin: 0; padding: 0; }
+  legend { font-size: var(--text-sm); font-weight: var(--font-weight-medium, 500); color: var(--foreground); margin-bottom: 10px; padding: 0; }
+  .opts { display: flex; flex-direction: column; gap: 8px; }
+  .opt { display: flex; gap: 11px; align-items: flex-start; padding: 11px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-xs); cursor: pointer; transition: border-color var(--duration-fast), background var(--duration-fast); }
+  .opt:hover { border-color: var(--border-strong); }
+  .dot { width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--border-strong); margin-top: 1px; flex: none; display: grid; place-items: center; transition: border-color var(--duration-fast); }
+  .dot::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); transform: scale(0); transition: transform var(--duration-fast) var(--ease-spring, var(--ease-out)); }
+  input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .txt { display: flex; flex-direction: column; gap: 2px; }
+  .t { font-size: var(--text-md); color: var(--foreground); font-weight: var(--font-weight-medium, 500); }
+  .d { font-size: var(--text-sm); color: var(--muted-foreground); }
+  .opt:has(input:checked) { border-color: var(--selected-border); background: var(--selected-bg); }
+  .opt:has(input:checked) .dot { border-color: var(--primary); }
+  .opt:has(input:checked) .dot::after { transform: scale(1); }
+  .opt:has(input:focus-visible) { outline: none; box-shadow: 0 0 0 2px var(--card), 0 0 0 4px color-mix(in oklch, var(--primary) 35%, transparent); }
+</style>
+<fieldset part="group" role="radiogroup">
+  <legend>Shipping tier</legend>
+  <div class="opts">
+    <label class="opt"><input type="radio" name="rg-after" checked /><span class="dot"></span><span class="txt"><span class="t">Standard</span><span class="d">3–5 business days · included</span></span></label>
+    <label class="opt"><input type="radio" name="rg-after" /><span class="dot"></span><span class="txt"><span class="t">Priority</span><span class="d">1–2 business days · $12</span></span></label>
+    <label class="opt"><input type="radio" name="rg-after" /><span class="dot"></span><span class="txt"><span class="t">Dedicated</span><span class="d">Same-day courier · $40</span></span></label>
+  </div>
+</fieldset>

@@ -102,14 +102,39 @@ Two composition rules the host must honor:
 
 ## CLI
 
-```sh
 deck build --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
 deck build-assets          # bake framework + consumer bundles (in-process Rolldown)
-deck routes --shell-root . # regenerate the typed dynamic-route table
+deck routes --root apps/shell --root apps/spaces
+# walks <root>/routes/ → emits <root>/routes.gen.ts (label = basename).
+# Repeatable; required at least once.
 deck scaffold view <name>  # new view (page.sui + controller.ts + style.css + manifest)
 deck scaffold component <tag>
 deck scaffold pack <name>
+deck emit --target <name> --out <dir>   # copy baked targets (+ chunk closure) out
 ```
+
+### `deck emit`
+
+```sh
+deck emit --target sui-runtime --target sui-marketing --out dist/_assets
+```
+
+Copy already-baked target bundles into a directory for a consumer that loads
+them without the daemon (e.g. a static site build). Run it **after**
+`deck build-assets` — emit copies bake output, it does not bake.
+
+- `--target <name>` (repeatable, required) — a framework singleton
+  (`sui-runtime`, `sui-dom`, `sui-sdk-client`) or a consumer target declared in
+  `deck.jsonc` (`sui-marketing`, `sui-arcade`, `ship-code-editor`, …).
+- `--out <dir>` — destination directory, created if absent.
+
+deck resolves each target's output path via the same `BundleLayout` the bundler
+writes through, copies the target file, then follows its relative
+`import("./chunk.js")` graph and copies the whole content-hashed lazy-chunk
+**closure** — so the consumer never hardcodes deck's internal output layout
+(`crates/deck/deck-bundler/src/emit.rs`). The canonical consumer is
+`apps/site/scripts/copy-sui-assets.ts`, which names the six targets the static
+Astro build needs and shells out to `cargo run -p deck-cli -- emit`.
 
 ## See also
 

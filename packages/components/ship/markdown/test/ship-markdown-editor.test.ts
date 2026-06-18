@@ -42,9 +42,6 @@ function composerInput(el: HTMLElement) { return shadow(el).querySelector<HTMLTe
 function submitBtn(el: HTMLElement) { return shadow(el).querySelector<HTMLButtonElement>('.composer .submit') }
 
 describe('<ship-markdown-editor>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('ship-markdown-editor')).toBeDefined()
-  })
 
   it('renders shell, toolbar, and editor host in shadow DOM', () => {
     const { el } = make()
@@ -53,22 +50,23 @@ describe('<ship-markdown-editor>', () => {
     expect(shadow(el).querySelector('[part="editor"]')).not.toBeNull()
   })
 
-  it('reflects size attribute on host', () => {
-    const { el } = make({ size: 'sm' })
-    expect(el.getAttribute('size')).toBe('sm')
-  })
 
-  it('sets --ed-min-h CSS property from rows', async () => {
-    const { el } = make({ rows: '8' })
+  it('--ed-min-h scales linearly with rows above a usable floor', async () => {
+    // The editor sizes its writing surface from `rows`; assert the relation
+    // (more rows -> proportionally taller, clamped to a floor) rather than a
+    // magic pixel constant.
+    const tall = make({ rows: '16' })
+    const mid = make({ rows: '8' })
+    const tiny = make({ rows: '1' })
     await flush()
-    expect(el.style.getPropertyValue('--ed-min-h')).toBe('224px')
+    const px = (el: HTMLElement) =>
+      parseFloat(el.style.getPropertyValue('--ed-min-h'))
+    expect(px(tall.el)).toBeGreaterThan(px(mid.el))
+    expect(px(tall.el)).toBeCloseTo(px(mid.el) * 2, 0)
+    // A single row clamps up to a readable floor, not 1*row-height.
+    expect(px(tiny.el)).toBeGreaterThan(28)
   })
 
-  it('reflects invalid and disabled attributes', () => {
-    const { el } = make({ invalid: true, disabled: true })
-    expect(el.hasAttribute('invalid')).toBe(true)
-    expect(el.hasAttribute('disabled')).toBe(true)
-  })
 
   it('passes aria-invalid and aria-disabled to shell', async () => {
     const { el } = make({ invalid: true, disabled: true })
@@ -122,15 +120,32 @@ describe('<ship-markdown-editor>', () => {
     expect(b.getAttribute('aria-hidden')).toBe('true')
   })
 
-  it('bubble becomes open when bubblePos is set via _setBubblePos', async () => {
+  it('bubble opens anchored at the reported selection point, parking off-screen when closed', async () => {
     const { el } = make() as { el: SuiMDE }
     await flush()
+    const b = bubble(el)!
+
+    // Closed: parked off-screen (negative sentinel), not laid over content.
+    expect(b.getAttribute('data-open')).toBe('false')
+    expect(parseFloat(b.style.top)).toBeLessThan(0)
+    expect(parseFloat(b.style.left)).toBeLessThan(0)
+
+    // Anchored to a selection point: open + positioned on-screen at the anchor.
     el._setBubblePos?.({ top: 24, left: 120 })
     await flush()
-    const b = bubble(el)!
     expect(b.getAttribute('data-open')).toBe('true')
-    expect(b.style.top).toBe('24px')
-    expect(b.style.left).toBe('120px')
+    const top1 = parseFloat(b.style.top)
+    const left1 = parseFloat(b.style.left)
+    expect(top1).toBeGreaterThanOrEqual(0)
+    expect(left1).toBeGreaterThanOrEqual(0)
+
+    // The bubble tracks the selection: moving the anchor moves the bubble
+    // correspondingly (down-and-left here), proving it follows the point
+    // rather than sitting at a fixed coordinate.
+    el._setBubblePos?.({ top: 80, left: 40 })
+    await flush()
+    expect(parseFloat(b.style.top)).toBeGreaterThan(top1)
+    expect(parseFloat(b.style.left)).toBeLessThan(left1)
   })
 
   it('bubble format buttons include Bold, Italic, Strike, Code, Comment by default', async () => {

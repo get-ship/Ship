@@ -25,7 +25,7 @@ Daemon reads the list at render time, injects `<script type="module" src=...>` t
 
 ## Authoring a pack
 
-Pack components live at `packages/components/primitives/src/sui-<name>/` (the canonical generic pack) and `packages/components/ui-components/src/sui-<name>/` (Ship-app-specific). Each pack ships its own bundle (so it stays out of the core `sui-components.js`) and its own CEM fragment (so the manifest catalog stays complete).
+Pack components live at `packages/components/sui/primitives/src/sui-<name>/` (the canonical generic pack), with domain packs under `packages/components/ship/<pack>/src/`. Each pack ships its own bundle (so it stays out of the core `sui-components.js`) and its own CEM fragment (so the manifest catalog stays complete).
 
 When a view needs domain-specific UI that doesn't exist yet, the right move is to create or extend a pack component — not inline raw CSS/HTML in the template. File an `{#- SDK gap: pack/<name>: ... -#}` comment and escalate.
 

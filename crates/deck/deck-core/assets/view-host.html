@@ -104,12 +104,23 @@
               return r.json()
             },
           }
+          // Keyed clients map — the injection surface for the view's
+          // declared `<client name="…" />` directives. Deck hosts have ONE
+          // same-origin data client, so every name the payload declares is
+          // bound to it: the name is the view's alias for the host's data
+          // surface, not a router to distinct backends (a host with several
+          // real clients builds a richer map). `ship` stays present as the
+          // ambient-default compatibility key for undeclared views.
+          const clients = {
+            ship,
+            ...Object.fromEntries((payload.clients ?? []).map((n) => [n, ship])),
+          }
           // mount() morphs onto the SSR markup already inside #sui-root
           // (seeded by the daemon, including the __set_init__ island),
           // then returns a handle. Expose its disposer as
           // window.__suiDispose — hosts and e2e probes treat that
           // property as the "attach complete" signal.
-          const handle = await mount(target, payload, { ship, loader })
+          const handle = await mount(target, payload, { ship, clients, loader })
           window.__suiDispose = () => handle.dispose()
 
           // Live-reload: in development the daemon's bundler rebuilds this

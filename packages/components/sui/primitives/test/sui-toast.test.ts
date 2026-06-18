@@ -121,14 +121,17 @@ describe('<sui-toast>', () => {
     vi.useRealTimers()
   })
 
-  it('duration=500 — timer fires, host removed, sui-dismiss with reason=timeout', () => {
+  it('duration=500 — timer fires, host removed, sui-dismiss with reason=timeout (bubbles + composed)', () => {
     vi.useFakeTimers()
     const { el } = mount(reg, 'sui-toast', { duration: '500' })
     const spy = vi.fn()
     el.addEventListener('sui-dismiss', spy)
     vi.advanceTimersByTime(500)
     expect(spy).toHaveBeenCalledTimes(1)
-    expect((spy.mock.calls[0]![0] as CustomEvent).detail.reason).toBe('timeout')
+    const evt = spy.mock.calls[0]![0] as CustomEvent
+    expect(evt.detail).toEqual({ reason: 'timeout' })
+    expect(evt.bubbles).toBe(true)
+    expect(evt.composed).toBe(true)
     expect(el.isConnected).toBe(false)
     vi.useRealTimers()
   })

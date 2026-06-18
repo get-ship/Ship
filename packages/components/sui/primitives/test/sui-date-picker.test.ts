@@ -7,14 +7,11 @@ afterEach(() => reg.cleanup())
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
 const inputOf = (el: HTMLElement) => shadow(el).querySelector('input.entry') as HTMLInputElement
-const panelOf = (el: HTMLElement) => shadow(el).querySelector('.panel') as HTMLElement | null
+const panelOf = (el: HTMLElement) => shadow(el).querySelector('[part="panel"]') as HTMLElement | null
 const days = (el: HTMLElement) =>
   Array.from(shadow(el).querySelectorAll('button.day[data-iso]')) as HTMLButtonElement[]
 
 describe('<sui-date-picker>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-date-picker')).toBeDefined()
-  })
 
   it('renders a shadow root with the trigger input', async () => {
     const { el } = mount(reg, 'sui-date-picker')
@@ -51,14 +48,15 @@ describe('<sui-date-picker>', () => {
     await flush()
     inputOf(el).click()
     await flush()
-    const changes: string[] = []
-    el.addEventListener('sui-change', (e) => {
-      changes.push((e as CustomEvent<{ value: string }>).detail.value)
-    })
+    const events: CustomEvent[] = []
+    el.addEventListener('sui-change', (e) => { events.push(e as CustomEvent) })
     const target = days(el).find((d) => d.dataset.iso === '2026-05-20') as HTMLButtonElement
     target.click()
     await flush()
-    expect(changes.at(-1)).toBe('2026-05-20')
+    const last = events.at(-1)!
+    expect(last.detail).toEqual({ value: '2026-05-20' })
+    expect(last.bubbles).toBe(true)
+    expect(last.composed).toBe(true)
     expect(inputOf(el).value).toBe('2026-05-20')
   })
 

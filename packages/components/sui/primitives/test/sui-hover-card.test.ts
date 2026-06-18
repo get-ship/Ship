@@ -9,7 +9,7 @@ afterEach(() => {
 })
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
-const panelEl = (el: HTMLElement) => shadow(el).querySelector('.panel') as HTMLElement | null
+const panelEl = (el: HTMLElement) => shadow(el).querySelector('[part="panel"]') as HTMLElement | null
 
 function makeCard(attrs: Record<string, string | boolean> = {}, inner = '') {
   return mount(
@@ -23,9 +23,6 @@ function makeCard(attrs: Record<string, string | boolean> = {}, inner = '') {
 type SuiHoverCard = HTMLElement & { show(): void; hide(): void }
 
 describe('<sui-hover-card>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-hover-card')).toBeDefined()
-  })
 
   it('closed by default', () => {
     const { el } = makeCard()
@@ -95,24 +92,30 @@ describe('<sui-hover-card>', () => {
     expect(el.getAttribute('placement')).toBe('top')
   })
 
-  it('sui-open fires when opened via toggle event', async () => {
+  it('sui-open fires when opened via toggle event (bubbles + composed, no payload)', async () => {
     const { el } = makeCard()
     await flush()
-    let openFired = false
-    el.addEventListener('sui-open', () => { openFired = true })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-open', (e) => { evt = e as CustomEvent })
     const p = panelEl(el)!
     p.dispatchEvent(new ToggleEvent('toggle', { newState: 'open', oldState: 'closed' }))
-    expect(openFired).toBe(true)
+    expect(evt).not.toBeNull()
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+    expect(evt!.detail).toBeNull()
   })
 
-  it('sui-close fires when closed via toggle event', async () => {
+  it('sui-close fires when closed via toggle event (bubbles + composed, no payload)', async () => {
     const { el } = makeCard()
     await flush()
-    let closeFired = false
-    el.addEventListener('sui-close', () => { closeFired = true })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-close', (e) => { evt = e as CustomEvent })
     const p = panelEl(el)!
     p.dispatchEvent(new ToggleEvent('toggle', { newState: 'closed', oldState: 'open' }))
-    expect(closeFired).toBe(true)
+    expect(evt).not.toBeNull()
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
+    expect(evt!.detail).toBeNull()
   })
 
   it('pointerenter starts show timer', () => {

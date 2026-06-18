@@ -102,10 +102,6 @@ const stageRoot = (el: HTMLElement) => el.shadowRoot as ShadowRoot
 const specimen = (el: HTMLElement) => stageRoot(el).querySelector('[data-test="specimen"]')
 
 describe('<sui-render> — registration + shell', () => {
-  it('registers the custom element', () => {
-    mountRender({}, { compile: makeBoundCompile() })
-    expect(customElements.get(TAG)).toBeDefined()
-  })
 
   it('attaches a shadow root (the engine stage)', () => {
     const c = mountRender({}, { compile: makeBoundCompile() })

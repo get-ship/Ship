@@ -84,7 +84,7 @@ describe("hooks / daemon emit", () => {
         const probeActor = `hooks-test-${Date.now()}`;
         const sinceId = await latestEventId();
 
-        const res = await api(`/api/v1/hooks/${c.endpoint}`, {
+        const res = await api(`/hooks/${c.endpoint}`, {
           method: "POST",
           body: JSON.stringify({
             actor_id: probeActor,

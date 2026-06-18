@@ -1,7 +1,7 @@
 ---
 name: ship-rules
-audience: public
 stable-id: ship-rules
+audience: public
 description: >-
   The `rules` capability (5 ops). Call any op over ConnectRPC with
   `ship ops call <name> --json '<args>'`. This file is a table of contents;

@@ -1,0 +1,31 @@
+<!--
+  ship-file-tree.sui — @ship/chrome · the context navigator. A titled panel that holds
+  ship-tree-items for ONE context (views, components…). Shown only when the active context
+  is file-backed; list-backed contexts (agents, themes) render a list instead. Header label
+  is the context name, NOT a generic "Explorer". Props: label · scope. Items slotted.
+  Controller emits ship-new (＋) and ship-collapse-all.
+-->
+<prop name="label" type="string" default="" />
+<prop name="scope" type="string" default="" />
+
+<style>
+  :host { display: flex; flex-direction: column; min-height: 0; font-family: var(--font-body); background: var(--surface-1); }
+  .head { display: flex; align-items: center; gap: 8px; padding: 9px 12px 7px; }
+  .head .t { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted-foreground); }
+  .head .acts { margin-left: auto; display: inline-flex; gap: 2px; }
+  .head .acts button { width: 22px; height: 22px; border: 0; background: transparent; color: var(--muted-foreground); border-radius: var(--radius-sm); cursor: pointer; display: grid; place-items: center; }
+  .head .acts button:hover { background: var(--hover-bg); color: var(--foreground); }
+  .head .acts button:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+  .scope { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted-foreground); padding: 0 12px 6px; }
+  .body { flex: 1; overflow-y: auto; scrollbar-width: thin; padding: 0 6px 12px; }
+</style>
+
+<div class="head" part="head">
+  <span class="t">{label()}</span>
+  <span class="acts">
+    <button type="button" title="New" on:click={newItem}><sui-icon name="plus" size="sm"></sui-icon></button>
+    <button type="button" title="Collapse all" on:click={collapseAll}><sui-icon name="fold-vertical" size="sm"></sui-icon></button>
+  </span>
+</div>
+<div class="scope">{scope()}</div>
+<div class="body" part="body"><slot></slot></div>

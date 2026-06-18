@@ -16,9 +16,6 @@ const shadow = (el: HTMLElement) => el.shadowRoot!
 const input = (el: HTMLElement) => shadow(el).querySelector('input') as HTMLInputElement
 
 describe('<sui-checkbox>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-checkbox')).toBeDefined()
-  })
 
   it('renders a native checkbox in shadow DOM', () => {
     const { el } = mount(reg, 'sui-checkbox')
@@ -65,14 +62,16 @@ describe('<sui-checkbox>', () => {
     expect(input(el).indeterminate).toBe(true)
   })
 
-  it('fires sui-change with checked=true and value on user change', () => {
+  it('fires sui-change with checked=true and value on user change (bubbles + composed)', () => {
     const { el } = mount(reg, 'sui-checkbox', { value: 'agree' })
-    let detail: { checked: boolean; value: string } | null = null
-    el.addEventListener('sui-change', (e) => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-change', (e) => { evt = e as CustomEvent })
     const inp = input(el)
     inp.checked = true
     inp.dispatchEvent(new Event('change', { bubbles: true }))
-    expect(detail).toEqual({ checked: true, value: 'agree' })
+    expect(evt!.detail).toEqual({ checked: true, value: 'agree' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
     expect(el.hasAttribute('checked')).toBe(true)
   })
 

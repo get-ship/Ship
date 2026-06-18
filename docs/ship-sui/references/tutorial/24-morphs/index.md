@@ -66,7 +66,7 @@ The tutorial's mock-daemon service worker accepts POST requests on
 `/_deck/api/<path>` and looks up a `mutations` handler in the scenario:
 
 ```js
-// apps/docs/public/tutorial/scenarios/24-morphs.js
+// apps/site/public/tutorial/scenarios/24-morphs.js
 export default {
   '/users/list': {
     initial: { kind: 'ok', value: { items: [{ id: 1, name: 'alpha' }] } },

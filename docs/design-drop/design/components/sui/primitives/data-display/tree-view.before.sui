@@ -1,0 +1,36 @@
+<!--
+  sui-tree-view.before.sui — EXISTING look, self-contained static (the real
+  component recurses over nodes()/sui-tree-item with controller expand state).
+  Fixed file hierarchy, folders expanded, caret + indentation. Compiled as
+  <x-tree-before>.
+-->
+<style>
+  :host { display: block; font-family: var(--font-body); font-size: var(--text-sm); color: var(--foreground); }
+  :host([hidden]) { display: none; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  .branch { margin-left: 14px; }
+  .row { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: var(--radius-sm); cursor: pointer; }
+  .row:hover { background: var(--muted); }
+  .caret { width: 12px; text-align: center; color: var(--muted-foreground); font-size: 10px; flex-shrink: 0; }
+  .caret.leaf { visibility: hidden; }
+  .nm { white-space: nowrap; }
+</style>
+
+<ul role="tree">
+  <li role="treeitem"><div class="row"><span class="caret">▾</span><span class="nm">pipelines/</span></div>
+    <ul class="branch">
+      <li role="treeitem"><div class="row"><span class="caret">▾</span><span class="nm">nightly-reindex/</span></div>
+        <ul class="branch">
+          <li role="treeitem"><div class="row"><span class="caret leaf">▸</span><span class="nm">config.yaml</span></div></li>
+          <li role="treeitem"><div class="row"><span class="caret leaf">▸</span><span class="nm">run.log</span></div></li>
+        </ul>
+      </li>
+      <li role="treeitem"><div class="row"><span class="caret">▸</span><span class="nm">auth-sync/</span></div></li>
+    </ul>
+  </li>
+  <li role="treeitem"><div class="row"><span class="caret">▾</span><span class="nm">fixtures/</span></div>
+    <ul class="branch">
+      <li role="treeitem"><div class="row"><span class="caret leaf">▸</span><span class="nm">demo-data.json</span></div></li>
+    </ul>
+  </li>
+</ul>

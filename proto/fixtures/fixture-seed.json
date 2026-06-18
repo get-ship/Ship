@@ -1013,15 +1013,60 @@
         }
       ]
     },
+    "pipelines.cancel": {
+      "pipeline_run_id": "job-checkout-flow-a1b2c3d",
+      "slug": "checkout-flow-a1b2c3d",
+      "status": "cancelling"
+    },
     "pipelines.delete": {
       "id": "ship-feature",
       "scope": "project"
+    },
+    "pipelines.history": {
+      "runs": [
+        {
+          "pipeline_run_id": "job-checkout-flow-a1b2c3d",
+          "slug": "checkout-flow-a1b2c3d",
+          "status": "completed",
+          "started_at": "2026-05-24T18:00:00Z",
+          "ended_at": "2026-05-24T18:30:00Z",
+          "outcome": "completed"
+        }
+      ],
+      "total": "1",
+      "offset": "0",
+      "limit": "50"
     },
     "pipelines.list": {
       "items": [
         {
           "id": "ship-feature",
           "scope": "project"
+        }
+      ]
+    },
+    "pipelines.list_runs": {
+      "runs": [
+        {
+          "run": {
+            "pipeline_run_id": "job-checkout-flow-a1b2c3d",
+            "slug": "checkout-flow-a1b2c3d",
+            "status": "completed",
+            "started_at": "2026-05-24T18:00:00Z",
+            "ended_at": "2026-05-24T18:30:00Z",
+            "outcome": "completed"
+          },
+          "steps": [
+            {
+              "step_id": "implement",
+              "status": "completed",
+              "started_at": "2026-05-24T18:00:00Z",
+              "completed_at": "2026-05-24T18:30:00Z",
+              "depends_on": [],
+              "step_type": "agent",
+              "attempt": 1
+            }
+          ]
         }
       ]
     },
@@ -1032,6 +1077,54 @@
     "pipelines.put": {
       "id": "ship-feature",
       "scope": "project"
+    },
+    "pipelines.resolve_step": {
+      "slug": "checkout-flow-a1b2c3d",
+      "step_id": "implement",
+      "advanced": true
+    },
+    "pipelines.run": {
+      "run": {
+        "pipeline_run_id": "job-checkout-flow-a1b2c3d",
+        "slug": "checkout-flow-a1b2c3d",
+        "status": "completed",
+        "started_at": "2026-05-24T18:00:00Z",
+        "ended_at": "2026-05-24T18:30:00Z",
+        "outcome": "completed"
+      },
+      "steps": [
+        {
+          "step_id": "implement",
+          "status": "completed",
+          "started_at": "2026-05-24T18:00:00Z",
+          "completed_at": "2026-05-24T18:30:00Z",
+          "depends_on": [],
+          "step_type": "agent",
+          "attempt": 1
+        }
+      ]
+    },
+    "pipelines.summaries": {
+      "runs": [
+        {
+          "pipeline_run_id": "job-checkout-flow-a1b2c3d",
+          "slug": "checkout-flow-a1b2c3d",
+          "status": "completed",
+          "started_at": "2026-05-24T18:00:00Z",
+          "ended_at": "2026-05-24T18:30:00Z",
+          "outcome": "completed"
+        }
+      ]
+    },
+    "pipelines.watch": {
+      "patches": {
+        "patches": [
+          {
+            "op": "PATCH_OP_SET",
+            "value": "eyJydW5zIjpbXX0="
+          }
+        ]
+      }
     },
     "rules.create": {
       "id": "no-placeholders",

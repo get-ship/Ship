@@ -215,7 +215,7 @@ fn build_signature(lines: &[&str], start: usize) -> String {
     }
     if sig.len() > 120 {
         sig.truncate(117);
-        sig.push_str("…");
+        sig.push('…');
     }
     sig
 }

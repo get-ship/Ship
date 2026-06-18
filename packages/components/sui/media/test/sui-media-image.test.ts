@@ -82,14 +82,6 @@ function mountImage(src: ViewerSource, attrs?: Record<string, string | boolean>)
 const PNG_URL = 'blob:http://localhost/raster-fixture'
 
 describe('<sui-media-image> — registration + raster', () => {
-  it('registers the custom element', () => {
-    const v = renderComponent(SOURCE, 'sui-media-image', {
-      controller: imageRenderer,
-      sourcePath: SOURCE_PATH,
-    })
-    live.push(v)
-    expect(customElements.get('sui-media-image')).toBeDefined()
-  })
 
   it('renders a raster source into an <img> (part="img")', async () => {
     const v = mountImage({ contentType: 'image/png', url: PNG_URL })

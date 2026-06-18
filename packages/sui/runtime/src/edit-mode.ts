@@ -101,14 +101,6 @@ export function setEditMode(name: string, on: boolean): void {
   }
 }
 
-/** Test-only: drop the memoized signal cache. Used by unit tests so
- *  successive cases start from a clean slate. Not exported from
- *  `index.ts` — internal. */
-export function __resetEditModeRegistryForTests(): void {
-  SIGNALS.clear()
-  ANNOTATION_SIGNALS.clear()
-}
-
 // ── Annotation mode (sub-toggle inside edit mode) ────────────────────
 //
 // Annotation mode is a SECOND boolean per (project, view), only

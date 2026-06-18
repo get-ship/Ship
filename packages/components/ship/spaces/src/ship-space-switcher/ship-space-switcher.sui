@@ -1,0 +1,107 @@
+<!--
+  ship-space-switcher.sui — the @ship/spaces SWITCHER (SHELL side).
+  An always-present picker over SpaceService.List: a trigger showing the
+  active space, opening a menu of registered spaces (active marked). Choosing
+  one emits `ship-activate` {id} (the consumer re-points the daemon-global
+  default pointer via Activate / surfaces the space's window); the register row
+  emits `ship-add`. Like the registry, the surface shows no RPC/stream/daemon
+  machinery.
+
+  Rows + the active label are fed by the controller from the `spaces` (JSON)
+  and `active` attributes. `open` is reflected so the host can drive it.
+  Composes <sui-icon> for the chevron / check / register glyphs. Compiled as
+  <ship-space-switcher>. Parts: trigger · menu · row · add.
+-->
+<prop name="active" type="string" default="" />
+<prop name="open" type="bool" default="false" reflect />
+<prop name="placeholder" type="string" default="Select space" />
+
+<style>
+  :host { display: inline-block; position: relative; font-family: var(--font-body); color: var(--foreground); }
+  :host([hidden]) { display: none; }
+
+  .trigger {
+    appearance: none; cursor: pointer;
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    min-width: 180px;
+    padding: 6px 10px;
+    font-family: var(--font-body); font-size: var(--text-sm);
+    color: var(--foreground);
+    background: var(--card);
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xs);
+    transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+  }
+  .trigger:hover { background: var(--hover-bg); }
+  .trigger:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+  .t-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
+  .t-dot[data-cold='true'] { background: color-mix(in oklch, var(--foreground) 30%, transparent); }
+  .t-label { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: var(--font-weight-medium); }
+  .t-label[data-empty='true'] { color: var(--muted-foreground); font-weight: var(--font-weight-normal); }
+  .chev { color: var(--muted-foreground); transition: transform var(--duration-fast) var(--ease-out); }
+  :host([open]) .chev { transform: rotate(180deg); }
+
+  .menu {
+    position: absolute; top: calc(100% + 6px); left: 0; min-width: 100%; width: max-content; max-width: 340px;
+    z-index: var(--z-dropdown, 10);
+    background: var(--popover); color: var(--popover-foreground);
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-1); overflow: hidden;
+  }
+
+  .row {
+    appearance: none; cursor: pointer; width: 100%; text-align: left;
+    display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: var(--space-2);
+    padding: 7px 9px; border: 0; background: transparent; color: var(--foreground);
+    border-radius: var(--radius-sm); font-family: var(--font-body); font-size: var(--text-sm);
+  }
+  .row:hover { background: var(--hover-bg); }
+  .row:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); background: var(--hover-bg); }
+  .row.active { background: var(--selected-bg); }
+  .r-dot { width: 7px; height: 7px; border-radius: 50%; background: color-mix(in oklch, var(--foreground) 22%, transparent); }
+  .r-dot[data-active='true'] { background: var(--success); }
+  .r-main { min-width: 0; }
+  .r-name { font-weight: var(--font-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .r-path { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .r-check { color: var(--primary); opacity: 0; }
+  .row.active .r-check { opacity: 1; }
+
+  .sep { height: 1px; background: var(--border-subtle); margin: var(--space-1) 2px; }
+  .add {
+    appearance: none; cursor: pointer; width: 100%; text-align: left;
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: 7px 9px; border: 0; background: transparent; color: var(--muted-foreground);
+    border-radius: var(--radius-sm); font-family: var(--font-body); font-size: var(--text-sm);
+  }
+  .add:hover { background: var(--hover-bg); color: var(--foreground); }
+  .add:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<button class="trigger" type="button" part="trigger" data-action="toggle" aria-haspopup="listbox" aria-expanded={open() ? 'true' : 'false'}>
+  <span class="t-dot" data-cold={activeLabel() ? 'false' : 'true'}></span>
+  <span class="t-label" data-empty={activeLabel() ? 'false' : 'true'}>{activeLabel() ? activeLabel() : placeholder()}</span>
+  <sui-icon class="chev" name="chevron-down" size="sm"></sui-icon>
+</button>
+
+{#if open()}
+  <div class="menu" part="menu" role="listbox">
+    {#for s of rows() key={s.id}}
+      <button class="row" type="button" role="option" part="row" data-id={s.id} class:active={s.id === active()} aria-selected={s.id === active() ? 'true' : 'false'}>
+        <span class="r-dot" data-active={s.id === active() ? 'true' : 'false'}></span>
+        <span class="r-main">
+          <span class="r-name">{s.name}</span>
+          <span class="r-path">{s.path}</span>
+        </span>
+        <sui-icon class="r-check" name="check" size="sm"></sui-icon>
+      </button>
+    {/for}
+    <div class="sep"></div>
+    <button class="add" type="button" part="add" data-action="add">
+      <sui-icon name="plus" size="sm"></sui-icon>
+      Register a space…
+    </button>
+  </div>
+{/if}

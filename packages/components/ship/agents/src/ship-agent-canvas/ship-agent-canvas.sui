@@ -1,0 +1,63 @@
+<!--
+  ship-agent-canvas.sui — @ship/agents · the session-scoped Agent Canvas (chrome).
+  A field of ship-agent-slots the agent morphs, under a thin control bar that answers
+  "what's happening": activity (idle · thinking · morphing) · session identity ·
+  undo · stop · save. Scratch by default; Save graduates a slot to a durable artifact.
+  Launches from the persistent chat; lives and dies with the session. Slots are slotted.
+  Controller emits ship-undo · ship-stop · ship-save.  Props: agent · session · activity.
+-->
+<prop name="agent" type="string" default="agent" />
+<prop name="session" type="string" default="" />
+<prop name="activity" values="idle|thinking|morphing" default="idle" reflect />
+
+<style>
+  :host { display: flex; flex-direction: column; min-height: 0; font-family: var(--font-body); --ac: var(--muted-foreground); }
+  :host([activity='thinking']) { --ac: var(--primary); }
+  :host([activity='morphing']) { --ac: var(--accent); }
+
+  .bar { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--divider); background: var(--surface-2); flex: 0 0 auto; }
+  .who { display: inline-flex; align-items: baseline; gap: 7px; min-width: 0; }
+  .who .nm { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-sm); }
+  .who .ses { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); }
+  .scratch { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-foreground); border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 2px 6px; }
+
+  .activity { display: inline-flex; align-items: center; gap: 7px; font-family: var(--font-mono); font-size: 11px; color: var(--ac); }
+  .activity .d { width: 7px; height: 7px; border-radius: 50%; background: var(--ac); }
+  :host([activity='thinking']) .activity .d, :host([activity='morphing']) .activity .d { animation: cv-blink 1s ease-in-out infinite; }
+  @keyframes cv-blink { 50% { opacity: .3; } }
+  @media (prefers-reduced-motion: reduce) { .activity .d { animation: none !important; } }
+  .activity .l { display: none; } .activity .li { display: inline; }
+  :host([activity='thinking']) .li, :host([activity='morphing']) .li { display: none; }
+  :host([activity='thinking']) .lt { display: inline; }
+  :host([activity='morphing']) .lm { display: inline; }
+
+  .ctrls { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+  .cbtn { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: var(--text-sm); font-weight: 600; padding: 5px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card); color: var(--foreground); cursor: pointer; }
+  .cbtn:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+  .cbtn svg { width: 13px; height: 13px; }
+  .cbtn.icon { padding: 5px 7px; color: var(--muted-foreground); }
+  .cbtn.stop { color: var(--destructive); border-color: var(--tone-destructive-border); }
+  .cbtn.stop:hover { background: var(--tone-destructive-bg); }
+  .cbtn.save { color: var(--accent); border-color: var(--tone-accent-border); }
+  .cbtn.save:hover { background: var(--tone-accent-bg); }
+  .kbd { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 2px 7px; }
+
+  .field { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; background-color: var(--surface-0); background-image: radial-gradient(var(--border-subtle) 1px, transparent 1px); background-size: 24px 24px; scrollbar-width: thin; }
+  .field ::slotted(*) { margin-bottom: 14px; }
+</style>
+
+<div class="bar" part="controls">
+  <span class="who"><span class="nm" data-test="canvas-agent">{agent()}</span><span class="ses">{session()}</span></span>
+  <span class="scratch">scratch</span>
+  <span class="activity">
+    <span class="d"></span>
+    <span class="l li">idle</span><span class="l lt">thinking…</span><span class="l lm">morphing canvas…</span>
+  </span>
+  <span class="ctrls">
+    <button class="cbtn icon" type="button" title="Undo" data-test="canvas-undo" on:click={undo}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6M3 13a9 9 0 1 0 3-7.7L3 8"></path></svg></button>
+    <button class="cbtn stop" type="button" data-test="canvas-stop" on:click={stop}><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"></rect></svg>Stop</button>
+    <button class="cbtn save" type="button" data-test="canvas-save" on:click={save}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><path d="M17 21v-8H7v8M7 3v5h8"></path></svg>Save</button>
+    <span class="kbd">⌘K chat</span>
+  </span>
+</div>
+<div class="field" part="field"><slot></slot></div>

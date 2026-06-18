@@ -80,17 +80,23 @@ async function main() {
   const actorId = spawn.session_id;
   console.log(`spawned: ${actorId}`);
 
-  // Wait for mesh-register.
+  // Wait for the actor to register in the live roster. The mesh roster
+  // (`GET /api/v1/mesh`) was culled with the mesh op surface; `GET
+  // /api/v1/actors` is the surviving projection (rows keyed by `id`).
   const meshDeadline = Date.now() + 25_000;
   while (Date.now() < meshDeadline) {
-    const { data } = await api("/api/v1/mesh");
-    if ((data?.data?.actors ?? []).some((a) => a.actor_id === actorId)) break;
+    const { data } = await api("/api/v1/actors");
+    if ((data?.data?.actors ?? []).some((a) => a.id === actorId)) break;
     await new Promise((r) => setTimeout(r, 1000));
   }
 
   // Hammer: 3 hooks + a chat turn. Maximizes write paths exercised.
+  // Hook ingress lives at flat `/hooks/*` (off `/api/v1` — see
+  // apps/shipd/src/router.rs); the chat-turn push is `POST
+  // /api/v1/sessions/{id}/message` (the per-actor `/input` REST route was
+  // culled with the actor.* op surface).
   for (let i = 0; i < 3; i++) {
-    await api("/api/v1/hooks/before-tool", {
+    await api("/hooks/before-tool", {
       method: "POST",
       body: JSON.stringify({
         actor_id: actorId,
@@ -98,7 +104,7 @@ async function main() {
         tool_input: { i },
       }),
     });
-    await api("/api/v1/hooks/after-tool", {
+    await api("/hooks/after-tool", {
       method: "POST",
       body: JSON.stringify({
         actor_id: actorId,
@@ -107,7 +113,7 @@ async function main() {
       }),
     });
   }
-  await api(`/api/v1/actors/${actorId}/input`, {
+  await api(`/api/v1/sessions/${actorId}/message`, {
     method: "POST",
     body: JSON.stringify({ text: "loop3 probe" }),
   });

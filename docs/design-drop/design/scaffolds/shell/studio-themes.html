@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Studio · Themes</title>
+<link rel="stylesheet" href="../../../sui/ship.css" />
+<script>
+  (() => { const ORIG = window.fetch.bind(window);
+    window.fetch = (input, init) => { const url = typeof input === 'string' ? input : (input && input.url);
+      if (url === '/_sui/lucide-icons.json' || url === '/lucide-icons.json') return ORIG('../../../sui/lucide-icons.json', init);
+      return ORIG(input, init); }; })();
+</script>
+<script type="importmap">{ "imports": { "@ship/sui-runtime": "../../../sui/sui-runtime.js", "@ship/sui-dom": "../../../sui/sui-dom.js" } }</script>
+<script type="module" src="../../../sui/sui-components.js"></script>
+<script type="module">
+  import { defineComponent } from '../../../tools/catalog/sui-workbench.js';
+  const C = '../../components/ship/', S = '../../components/sui/';
+  try {
+    await defineComponent({ name: 'sui-brand-mark', sui: await (await fetch(S + 'sui-brand-mark.sui')).text() });
+    await defineComponent({ name: 'ship-activity-bar', sui: await (await fetch(C + 'chrome/ship-activity-bar.sui')).text() });
+    await defineComponent({ name: 'ship-status-bar', sui: await (await fetch(C + 'chrome/ship-status-bar.sui')).text() });
+    await defineComponent({ name: 'ship-op-card', sui: await (await fetch(C + 'agents/ship-op-card.sui')).text() });
+  } catch (e) { console.error(e); }
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--surface-0); color: var(--foreground); font-family: var(--font-body); display: grid; place-items: center; min-height: 100vh; padding: 18px; }
+  .ide { width: 1340px; height: 850px; display: grid; grid-template-columns: 52px 188px 1fr 1fr; grid-template-rows: 44px 1fr 26px;
+    grid-template-areas: "top top top top" "activity nav editor preview" "status status status status";
+    border: 1px solid var(--border-strong); border-radius: var(--radius-lg); overflow: hidden; background: var(--background); box-shadow: var(--shadow-lg); }
+  .top { grid-area: top; display: flex; align-items: center; gap: 14px; padding: 0 12px 0 14px; background: color-mix(in oklch, var(--surface-1) 90%, transparent); border-bottom: 1px solid var(--border-subtle); }
+  .brand { display: inline-flex; align-items: center; gap: 8px; } .brand b { font-family: var(--heading-font); font-size: 14px; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); }
+  .brand .badge { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .14em; padding: 2px 6px; border-radius: 3px; background: color-mix(in oklch, var(--primary) 13%, transparent); color: var(--primary); font-weight: 700; }
+  .crumb { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted-foreground); padding-left: 12px; margin-left: 4px; border-left: 1px solid var(--border-subtle); } .crumb .sp { color: var(--accent); font-family: var(--font-mono); font-size: 11.5px; } .crumb .sep { color: var(--border); } .crumb .here { color: var(--foreground); font-family: var(--font-mono); font-size: 12px; }
+  .top .sp2 { flex: 1; }
+  .theme-sel { display: inline-flex; gap: 4px; padding: 3px; background: var(--muted); border-radius: var(--radius-full); } .theme-sel button { width: 19px; height: 19px; border-radius: 50%; border: 1.5px solid transparent; cursor: pointer; padding: 0; } .theme-sel button[aria-pressed="true"] { border-color: var(--foreground); box-shadow: 0 0 0 1.5px var(--background), 0 0 0 2.5px var(--foreground); }
+  .dup { font: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--foreground); }
+  .activity { grid-area: activity; } ship-activity-bar { height: 100%; }
+  .nav { grid-area: nav; background: var(--surface-1); border-right: 1px solid var(--border-subtle); padding: 10px 8px; }
+  .nh { padding: 4px 8px 8px; font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted-foreground); }
+  .gnav { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; } .gnav:hover { background: var(--hover-bg); } .gnav.on { background: color-mix(in oklch, var(--primary) 12%, transparent); color: var(--primary); font-weight: 600; } .gnav .sw { width: 12px; height: 12px; border-radius: 3px; } .gnav .ct { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); }
+
+  .editor { grid-area: editor; overflow-y: auto; scrollbar-width: thin; border-right: 1px solid var(--divider); padding: 18px 22px 40px; }
+  .eh { font-family: var(--heading-font); font-weight: 600; font-size: var(--text-lg); margin: 0 0 4px; } .esub { font-size: 12px; color: var(--muted-foreground); margin: 0 0 18px; }
+  .tok { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--divider); }
+  .tok .chip { width: 28px; height: 28px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); cursor: pointer; }
+  .tok .nm { font-family: var(--font-mono); font-size: 12px; } .tok .nm .role { color: var(--muted-foreground); font-size: 10.5px; }
+  .tok .val { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); background: var(--surface-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 4px 8px; }
+  /* type rows */
+  .trow { display: flex; align-items: baseline; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--divider); } .trow .lab { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-foreground); width: 70px; } .trow .samp { flex: 1; }
+  /* spacing/radii rows */
+  .srow { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--divider); } .srow .lab { font-family: var(--font-mono); font-size: 11.5px; width: 90px; } .srow .bar { height: 14px; background: color-mix(in oklch, var(--primary) 30%, transparent); border-radius: 3px; } .srow .v { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+  .grp-sec { display: none; } .grp-sec.on { display: block; }
+
+  .preview { grid-area: preview; overflow-y: auto; scrollbar-width: thin; background-color: var(--surface-0); background-image: radial-gradient(var(--border-subtle) 1px, transparent 1px); background-size: 18px 18px; padding: 20px; }
+  .pv-h { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted-foreground); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; } .pv-h .live { color: var(--accent); }
+  .pv-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 16px; margin-bottom: 14px; }
+  .pv-card h3 { font-family: var(--heading-font); font-weight: 600; font-size: var(--text-md); margin: 0 0 4px; } .pv-card p { font-size: 13px; color: var(--muted-foreground); margin: 0 0 12px; line-height: 1.5; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .b { height: 34px; padding: 0 16px; border: 0; border-radius: var(--radius-md); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; } .b.primary { background: var(--primary); color: var(--primary-foreground); } .b.accent { background: var(--accent); color: var(--accent-foreground); } .b.outline { background: var(--card); color: var(--foreground); border: 1px solid var(--border); }
+  .badge { font-family: var(--font-mono); font-size: 11px; padding: 3px 9px; border-radius: var(--radius-full); } .bd-s { color: var(--success); background: var(--tone-success-bg); } .bd-w { color: var(--warning); background: var(--tone-warning-bg); } .bd-i { color: var(--info); background: var(--tone-info-bg); }
+  .swatches { display: flex; gap: 6px; } .swatches i { width: 34px; height: 34px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); }
+</style>
+</head>
+<body>
+<div class="ide" data-screen-label="studio-themes">
+  <div class="top">
+    <span class="brand"><sui-brand-mark size="sm"></sui-brand-mark><b>Studio</b><span class="badge">Themes</span></span>
+    <span class="crumb"><span class="sp">Acme Sales</span><span class="sep">/</span>themes<span class="sep">/</span><span class="here" id="tname">acme-warm</span></span>
+    <span class="sp2"></span>
+    <button class="dup">Duplicate</button>
+    <span class="theme-sel" id="themes"></span>
+  </div>
+
+  <div class="activity"><ship-activity-bar active="themes"></ship-activity-bar></div>
+
+  <aside class="nav">
+    <div class="nh">Tokens</div>
+    <div class="gnav on" data-g="color"><span class="sw" style="background:var(--primary)"></span>Color<span class="ct">24</span></div>
+    <div class="gnav" data-g="type"><span class="sw" style="background:var(--foreground)"></span>Type<span class="ct">9</span></div>
+    <div class="gnav" data-g="space"><span class="sw" style="background:var(--info)"></span>Spacing<span class="ct">8</span></div>
+    <div class="gnav" data-g="radii"><span class="sw" style="background:var(--accent)"></span>Radii<span class="ct">5</span></div>
+    <div class="gnav" data-g="shadow"><span class="sw" style="background:var(--muted-foreground)"></span>Shadow<span class="ct">5</span></div>
+  </aside>
+
+  <div class="editor">
+    <div class="grp-sec on" data-s="color">
+      <h2 class="eh">Color</h2><p class="esub">Theme tokens — oklch. Edit a swatch; the preview updates live.</p>
+      <div class="tok"><span class="chip" style="background:var(--primary)"></span><span class="nm">--primary<span class="role"> · brand</span></span><span class="val">oklch(0.67 0.16 58)</span></div>
+      <div class="tok"><span class="chip" style="background:var(--accent)"></span><span class="nm">--accent<span class="role"> · highlight</span></span><span class="val">oklch(0.61 0.23 303)</span></div>
+      <div class="tok"><span class="chip" style="background:var(--background);box-shadow:inset 0 0 0 1px var(--border)"></span><span class="nm">--background</span><span class="val">oklch(0.99 0 0)</span></div>
+      <div class="tok"><span class="chip" style="background:var(--foreground)"></span><span class="nm">--foreground</span><span class="val">oklch(0.15 0.01 49)</span></div>
+      <div class="tok"><span class="chip" style="background:var(--muted)"></span><span class="nm">--muted</span><span class="val">oklch(0.95 0 106)</span></div>
+      <div class="tok"><span class="chip" style="background:var(--success)"></span><span class="nm">--success</span><span class="val">oklch(0.6 0.14 145)</span></div>
+      <div class="tok"><span class="chip" style="background:var(--warning)"></span><span class="nm">--warning</span><span class="val">oklch(0.7 0.15 75)</span></div>
+      <div class="tok"><span class="chip" style="background:var(--destructive)"></span><span class="nm">--destructive</span><span class="val">oklch(0.6 0.2 25)</span></div>
+    </div>
+    <div class="grp-sec" data-s="type">
+      <h2 class="eh">Type</h2><p class="esub">Font roles &amp; scale.</p>
+      <div class="trow"><span class="lab">display</span><span class="samp" style="font-family:var(--heading-font);font-size:24px;font-weight:600">Syne · headings</span></div>
+      <div class="trow"><span class="lab">body</span><span class="samp" style="font-size:15px">DM Sans · the quick brown fox</span></div>
+      <div class="trow"><span class="lab">mono</span><span class="samp" style="font-family:var(--font-mono);font-size:14px">JetBrains · const x = 1</span></div>
+      <div class="trow"><span class="lab">scale</span><span class="samp" style="display:flex;gap:10px;align-items:baseline"><span style="font-size:11px">xs</span><span style="font-size:13px">sm</span><span style="font-size:16px">md</span><span style="font-size:22px">xl</span></span></div>
+    </div>
+    <div class="grp-sec" data-s="space">
+      <h2 class="eh">Spacing</h2><p class="esub">The space scale.</p>
+      <div class="srow"><span class="lab">space-1</span><span class="bar" style="width:4px"></span><span class="v">4px</span></div>
+      <div class="srow"><span class="lab">space-2</span><span class="bar" style="width:8px"></span><span class="v">8px</span></div>
+      <div class="srow"><span class="lab">space-3</span><span class="bar" style="width:12px"></span><span class="v">12px</span></div>
+      <div class="srow"><span class="lab">space-4</span><span class="bar" style="width:16px"></span><span class="v">16px</span></div>
+      <div class="srow"><span class="lab">space-6</span><span class="bar" style="width:24px"></span><span class="v">24px</span></div>
+      <div class="srow"><span class="lab">space-8</span><span class="bar" style="width:32px"></span><span class="v">32px</span></div>
+    </div>
+    <div class="grp-sec" data-s="radii">
+      <h2 class="eh">Radii</h2><p class="esub">Corner radius scale.</p>
+      <div class="srow"><span class="lab">radius-sm</span><span style="width:40px;height:24px;background:var(--muted);border:1px solid var(--border);border-radius:4px"></span><span class="v">4px</span></div>
+      <div class="srow"><span class="lab">radius-md</span><span style="width:40px;height:24px;background:var(--muted);border:1px solid var(--border);border-radius:8px"></span><span class="v">8px</span></div>
+      <div class="srow"><span class="lab">radius-lg</span><span style="width:40px;height:24px;background:var(--muted);border:1px solid var(--border);border-radius:12px"></span><span class="v">12px</span></div>
+      <div class="srow"><span class="lab">radius-full</span><span style="width:40px;height:24px;background:var(--muted);border:1px solid var(--border);border-radius:999px"></span><span class="v">999px</span></div>
+    </div>
+    <div class="grp-sec" data-s="shadow">
+      <h2 class="eh">Shadow</h2><p class="esub">Elevation scale.</p>
+      <div class="srow"><span class="lab">shadow-xs</span><span style="width:48px;height:28px;background:var(--card);border-radius:8px;box-shadow:var(--shadow-xs)"></span></div>
+      <div class="srow"><span class="lab">shadow-sm</span><span style="width:48px;height:28px;background:var(--card);border-radius:8px;box-shadow:var(--shadow-sm)"></span></div>
+      <div class="srow"><span class="lab">shadow-md</span><span style="width:48px;height:28px;background:var(--card);border-radius:8px;box-shadow:var(--shadow-md)"></span></div>
+      <div class="srow"><span class="lab">shadow-lg</span><span style="width:48px;height:28px;background:var(--card);border-radius:8px;box-shadow:var(--shadow-lg)"></span></div>
+    </div>
+  </div>
+
+  <div class="preview">
+    <div class="pv-h">live preview <span class="live">· this theme</span></div>
+    <div class="pv-card">
+      <h3>Buttons</h3>
+      <div class="row"><sui-button tone="primary" variant="solid" size="sm">Primary</sui-button><sui-button tone="accent" variant="solid" size="sm">Accent</sui-button><sui-button tone="default" variant="outline" size="sm">Outline</sui-button></div>
+      <div class="row"><sui-badge tone="success" variant="soft">success</sui-badge><sui-badge tone="warning" variant="soft">warning</sui-badge><sui-badge tone="info" variant="soft">info</sui-badge></div>
+    </div>
+    <div class="pv-card">
+      <h3>Palette</h3>
+      <div class="swatches"><i style="background:var(--primary)"></i><i style="background:var(--accent)"></i><i style="background:var(--success)"></i><i style="background:var(--warning)"></i><i style="background:var(--destructive)"></i><i style="background:var(--muted)"></i></div>
+    </div>
+    <div class="pv-card">
+      <h3>Component</h3>
+      <p>A real pack component under this theme.</p>
+      <ship-op-card op="collections.read" blast="C0" decision="allowed" ms="· 40ms" args="{ collection: &quot;leads&quot; }" result="{ ok: true }"></ship-op-card>
+    </div>
+  </div>
+
+  <ship-status-bar class="status" daemon="ready" sessions="0" approvals="0" sync="synced" space="Acme Sales" context="acme-warm · 24 tokens"></ship-status-bar>
+</div>
+
+<script type="module">
+import { themeBar } from '../../../tools/catalog/sui-workbench.js';
+themeBar(document.getElementById('themes'));
+document.querySelectorAll('.gnav').forEach(g => g.addEventListener('click', () => {
+  document.querySelectorAll('.gnav').forEach(x=>x.classList.remove('on')); g.classList.add('on');
+  document.querySelectorAll('.grp-sec').forEach(s=>s.classList.toggle('on', s.dataset.s===g.dataset.g));
+}));
+</script>
+</body>
+</html>

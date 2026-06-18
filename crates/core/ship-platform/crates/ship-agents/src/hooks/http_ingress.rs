@@ -125,7 +125,7 @@ pub async fn handle_before_tool(
     _pty_broadcast: &dyn PtyBroadcastPort,
     event: &ShipHookEvent,
     actor: &str,
-    session: Option<&str>,
+    _session: Option<&str>,
 ) {
     let tool = event.tool_name.as_deref().unwrap_or("unknown");
 
@@ -159,7 +159,7 @@ pub async fn handle_after_tool(
     _pty_broadcast: &dyn PtyBroadcastPort,
     event: &ShipHookEvent,
     actor: &str,
-    session: Option<&str>,
+    _session: Option<&str>,
 ) {
     let tool = event.tool_name.as_deref().unwrap_or("unknown");
     if actor == "unknown" {

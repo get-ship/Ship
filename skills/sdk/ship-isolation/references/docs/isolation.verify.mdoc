@@ -20,11 +20,13 @@ None.
 
 ## Returns
 
-`JsonResponse` (JSON).
+`IsolationVerifyResponse` (JSON).
 
 | field | type |
 |-------|------|
-| `json` | `string` |
+| `ok` | `bool` |
+| `steps` | `map` |
+| `resolved` | `map` |
 
 ## Invoke
 
@@ -34,3 +36,60 @@ ship ops call isolation.verify --json '{}'
 
 Kind: read.
 
+## Example response
+
+```json
+{
+  "ok": true,
+  "steps": [
+    {
+      "name": "decision_resolves",
+      "ok": true,
+      "detail": "resolved to docker (container)"
+    },
+    {
+      "name": "backend_implemented",
+      "ok": true,
+      "detail": "backend for docker is implemented"
+    },
+    {
+      "name": "no_silent_downgrade",
+      "ok": true,
+      "detail": "decision matches the configured tier"
+    }
+  ],
+  "resolved": {
+    "resolved": {
+      "strategy": "docker",
+      "tier": "container",
+      "reason": {
+        "os_default": {
+          "os": "linux"
+        }
+      },
+      "downgraded": false
+    },
+    "capabilities": {
+      "os": "linux",
+      "in_sandbox": false,
+      "docker": true,
+      "podman": false,
+      "youki": null,
+      "youki_rootfs": null,
+      "lima": null,
+      "tart": null,
+      "wsl2": false,
+      "srt": false,
+      "sandbox_exec": false,
+      "vz_framework": false,
+      "firecracker": false,
+      "apple_container": false,
+      "fly_cli": false,
+      "fly_authed": false
+    },
+    "user_profile_used": {
+      "tier": "container"
+    }
+  }
+}
+```

@@ -20,7 +20,7 @@
 
 import { signal, isSignal, type Signal } from './signal'
 import type { LiveSignal, LiveState } from './live'
-import type { RouteSignals } from './route'
+import type { RouteSignals } from '@ship/deck/route'
 import { createScope, withScope } from './effect-scope'
 import { morph } from './morph'
 import type { ViewPayload as GeneratedViewPayload } from './generated'
@@ -46,10 +46,15 @@ export interface SuiLoader {
 }
 
 export interface MountOptions {
+  /** Legacy single-client alias. Mirrored into `clients.ship` so views
+   *  compiled either side of the `<client>` directive resolve the same
+   *  object; prefer `clients: { ship }` going forward. */
   ship?: unknown
   /** Host-injected named data/ops clients, spread into scope so a view's
    *  `<data source="X.op()">` + handlers resolve bare `X` (the `<client>`-
-   *  declared map). The implementor-named replacement for the single `ship`. */
+   *  declared map). The implementor-named replacement for the single `ship`;
+   *  `ship` itself is just a key here (aliased from `opts.ship` when only
+   *  the legacy option is passed). */
   clients?: Record<string, unknown>
   route?: RouteSignals
   navigate?: (path: string) => void
@@ -158,21 +163,34 @@ export async function mount<Scope = Record<string, unknown>>(
   // Route signals come from opts.route (host-provided) or the compiled
   // view's own import of @ship/sui-runtime/route. Mount no longer creates
   // a fallback instance — route.ts is out of the static bundle.
+  //
+  // Clients ↔ ship aliasing: the keyed `clients` map is the injection
+  // surface; `ship` is one key on it plus the legacy ctx alias. A host
+  // passing only `opts.ship` still populates `clients.ship`, and a host
+  // passing only `clients: { ship }` still feeds `ctx.ship` — both styles
+  // reach views compiled before AND after the `<client>` directive.
+  // An explicit `opts.clients.ship` wins over `opts.ship` in the map.
+  const ship = opts.ship ?? opts.clients?.['ship']
+  const clients: Record<string, unknown> | undefined =
+    opts.clients !== undefined || opts.ship !== undefined
+      ? { ...(ship !== undefined ? { ship } : {}), ...opts.clients }
+      : undefined
+  warnUndeclaredClients(mod, payload.name, clients)
   const route = opts.route
   const navigate = opts.navigate ?? noop
   const baseScope: Record<string, unknown> = {
-    ship: opts.ship,
-    clients: opts.clients,
+    ship,
+    clients,
     // Spread each declared client by name so `<data source="X.op()">` resolves
     // bare `X`. Before `...built.scope` so author scope still shadows.
-    ...(opts.clients ?? {}),
+    ...(clients ?? {}),
     route,
     navigate,
     ...built.scope,
   }
   const setupCtx: SetupContext = {
-    ship: opts.ship,
-    clients: opts.clients,
+    ship,
+    clients,
     route,
     navigate,
     scope: { ...baseScope },
@@ -361,6 +379,29 @@ export async function mount<Scope = Record<string, unknown>>(
 }
 
 // ── Internals ─────────────────────────────────────────────────────────
+
+/**
+ * Compiled view modules carry their declared `<client>` names on the
+ * default export (`clients: ["api", …]` — the mount-contract half emitted
+ * by `emit/js/view.rs`). When the host's map is missing a declared key the
+ * view's `<data source>` thunks fail opaquely later, so name the gap now.
+ */
+function warnUndeclaredClients(
+  mod: CompiledModule,
+  viewName: string,
+  clients: Record<string, unknown> | undefined,
+): void {
+  const declared = (mod.default as { clients?: unknown }).clients
+  if (!Array.isArray(declared)) return
+  for (const name of declared) {
+    if (typeof name !== 'string') continue
+    if (clients === undefined || !(name in clients)) {
+      console.warn(
+        `[sui/mount] view "${viewName}" declares <client name="${name}"> but the host did not supply opts.clients.${name}`,
+      )
+    }
+  }
+}
 
 function hasHydratableMarkup(el: HTMLElement): boolean {
   if (el.children.length > 0) return true

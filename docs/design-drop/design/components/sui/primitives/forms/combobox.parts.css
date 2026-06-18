@@ -1,0 +1,40 @@
+/* combobox.parts.css — direction-specific styling for the combobox iteration
+   canvas. Builds on ../../parts.css (.field-input/.pop/.pop-row). TOKENS ONLY.
+   Each artboard wraps content in .cbx-frame on a ship surface. */
+
+.cbx-frame { font-family: var(--font-body); color: var(--foreground); background: var(--background); padding: 22px 22px 0; height: 100%; box-sizing: border-box; }
+.cbx-lab { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); margin-bottom: 12px; }
+.cbx-cap { font-size: 11.5px; line-height: 1.5; color: var(--muted-foreground); margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-subtle); }
+.cbx-frame .field-input { max-width: 100%; }
+.cbx-frame .field-input > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.cbx-frame .is-disabled { opacity: .55; background: var(--muted); cursor: not-allowed; }
+.cbx-frame .pop { margin-top: 6px; }
+
+/* ── A · baseline (reuses shared .pop-row defaults) ─────────────── */
+.cbx-a-pop .pop-row { padding: 8px 11px; }
+
+/* ── B · quiet + meta ───────────────────────────────────────────── */
+.cbx-b-field { min-height: 34px; }
+.cbx-b-val { flex: 1; }
+.cbx-b-grp { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted-foreground); padding: 8px 12px 4px; }
+.cbx-b-row { display: flex; align-items: center; gap: 9px; padding: 6px 12px 6px 0; position: relative; cursor: pointer; }
+.cbx-b-bar { width: 2px; align-self: stretch; border-radius: 1px; background: transparent; margin-right: 9px; }
+.cbx-b-row[aria-selected="true"] .cbx-b-bar { background: var(--primary); }
+.cbx-b-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.cbx-b-main b { font-weight: 600; font-size: var(--text-sm); }
+.cbx-b-id { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); }
+.cbx-b-row .chk { color: var(--primary); display: inline-flex; }
+.cbx-b-row .chk svg { width: 14px; height: 14px; }
+
+/* ── C · command palette ────────────────────────────────────────── */
+.cbx-c-field { min-height: 40px; font-size: var(--text-md); }
+.cbx-c-val { }
+.cbx-c-pop { padding-bottom: 0; }
+.cbx-c-sec { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); padding: 9px 13px 5px; font-weight: 600; }
+.cbx-c-row { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 13px; cursor: pointer; }
+.cbx-c-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.cbx-c-lab { flex: 1; font-size: var(--text-sm); }
+.cbx-c-kbd, .cbx-c-k { font-family: var(--font-mono); font-size: 10px; min-width: 16px; height: 17px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: var(--radius-sm); background: var(--card); color: var(--muted-foreground); }
+.cbx-c-foot { display: flex; gap: 11px; padding: 8px 11px; border-top: 1px solid var(--border-subtle); margin-top: 4px; background: color-mix(in oklch, var(--muted) 26%, var(--card)); }
+.cbx-c-foot span { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted-foreground); white-space: nowrap; }

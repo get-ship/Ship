@@ -1,0 +1,30 @@
+<!--
+  sui-accordion.before.sui — EXISTING look (repo). A vertical stack of native
+  <details> rows (exclusive open via shared name); each row is a hairline-topped
+  summary + body. No outer container — reads as a list of rules. Representative
+  rows are inlined (design mock). Compiled as <x-accordion-before>.
+-->
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  details { border-top: 1px solid var(--border); }
+  details:last-of-type { border-bottom: 1px solid var(--border); }
+  summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: var(--space-3) var(--space-1); cursor: pointer; list-style: none; color: var(--foreground); font-size: var(--text-sm); font-weight: 500; }
+  summary::-webkit-details-marker { display: none; }
+  .chev { color: var(--muted-foreground); transition: transform var(--duration-fast); }
+  details[open] .chev { transform: rotate(90deg); }
+  .body { padding: 0 var(--space-1) var(--space-3); color: var(--muted-foreground); font-size: var(--text-sm); line-height: 1.6; }
+</style>
+<div part="root">
+  <details name="acc-before" open>
+    <summary part="summary">Overview<span class="chev" aria-hidden="true">›</span></summary>
+    <div class="body">Run health, owner, and the active shard set for this service.</div>
+  </details>
+  <details name="acc-before">
+    <summary part="summary">Permissions<span class="chev" aria-hidden="true">›</span></summary>
+    <div class="body">Who can trigger a reindex, pause the queue, or roll back a deploy.</div>
+  </details>
+  <details name="acc-before">
+    <summary part="summary">Advanced<span class="chev" aria-hidden="true">›</span></summary>
+    <div class="body">Concurrency caps, retry budget, and the dry-run default.</div>
+  </details>
+</div>

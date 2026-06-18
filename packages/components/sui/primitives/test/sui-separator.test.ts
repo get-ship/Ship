@@ -9,9 +9,6 @@ const shadow = (el: HTMLElement) => el.shadowRoot!
 const hr = (el: HTMLElement) => shadow(el).querySelector('hr') as HTMLElement | null
 
 describe('<sui-separator>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-separator')).toBeDefined()
-  })
 
   it('renders an <hr> in shadow DOM', () => {
     const { el } = mount(reg, 'sui-separator')

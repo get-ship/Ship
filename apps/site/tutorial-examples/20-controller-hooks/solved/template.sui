@@ -6,14 +6,14 @@
   <ul>
     {#for item of list.filtered() key={item.id}}
       <li
-        class:selected={sel.isSelected(item.id)}
+        class:selected={sel.selected()?.id === item.id}
         on:click={() => sel.toggle(item.id)}
       >
         <strong>{item.label}</strong>
-        <span style="margin-left: auto; font-family: var(--font-mono); font-size: 0.75rem;">{item.id}</span>
+        <span class="id-tag">{item.id}</span>
       </li>
     {/for}
   </ul>
 
-  <p class="hint">selected: <strong>{sel.count()}</strong> · showing <strong>{list.filtered().length}</strong> / <strong>{items().length}</strong></p>
+  <p class="hint">selected: <strong>{sel.selected()?.label ?? '—'}</strong> · showing <strong>{list.filtered().length}</strong> / <strong>{items().length}</strong></p>
 </div>

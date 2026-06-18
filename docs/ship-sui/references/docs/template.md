@@ -62,6 +62,34 @@ The `source` expression is plain JS that runs inside `live()`'s tracked reactive
 
 `<data>` is the **canonical** way to bring server data into a view. See [data-subscriptions.md](data-subscriptions.md).
 
+### `<client>` — host-injected data client
+
+```html
+<client name="ship" />
+<data name="overview" source="ship.git.overview()" live />
+
+<!-- Any key works — the name is the view's alias into the host's
+     clients map, not a fixed vocabulary. A non-Ship host injects
+     whatever it has: -->
+<client name="api" />
+<data name="t" source="api.demo.clock()" live />
+```
+
+Declares a named data/ops client the view consumes. The host supplies a keyed map at mount (`mount(target, payload, { clients: { ship } })`) and the framework wires only what's declared: each declared name is destructured from `ctx.clients`, seeded into view scope, and legal as a `<data source>` / handler root. An undeclared root is a compile error (typo-safe); duplicate declarations, non-identifier names, and reserved context names (`route`, `navigate`, `ctx`, `scope`, `props`, `derived`) are rejected.
+
+The client's TYPE comes from declaration-merging the runtime's `Clients` interface — the provider augments its own key, the framework names no host shape:
+
+```ts
+// @ship/sdk-client does this for `ship`:
+declare module '@ship/sui-runtime' {
+  interface Clients { ship: ShipSDK }
+}
+```
+
+With the declaration in place, a `<data source>` that is a single call on a declared client types its signal from the client's method return (`Clients['ship']['git']['overview']`) in the generated `.sui.d.ts`.
+
+**Compatibility default:** a template that declares NO clients still receives the ambient `ship` (the grandfathered pre-directive behavior). New and migrated templates declare it explicitly — the `sui-client-directive` lint (Warn) flags `ship.*` usage without the declaration.
+
 ### `<prop>` — component prop declaration
 
 ```html

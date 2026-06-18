@@ -1,0 +1,118 @@
+<!-- sui-heatmap.existing.sui — EXISTING look (repo). A value grid: square cells,
+  one harsh tone stepped by opacity, no gap, no labels/legend. Static sample data
+  (same as .new). Compiled as <x-heatmap-existing>. Props: tone. -->
+<prop name="tone" values="primary|info|success|warning|destructive" default="success" reflect />
+<style>
+  :host { display: block; font-family: var(--font-body); --tone: var(--success); }
+  :host([tone='primary']) { --tone: var(--primary); }
+  :host([tone='info']) { --tone: var(--info); }
+  :host([tone='warning']) { --tone: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive); }
+  svg { display: block; width: 100%; height: auto; max-width: 360px; }
+  .c { fill: var(--tone); }
+  .i0 { fill: var(--muted); }
+  .i1 { fill-opacity: 0.35; }
+  .i2 { fill-opacity: 0.55; }
+  .i3 { fill-opacity: 0.78; }
+  .i4 { fill-opacity: 1; }
+</style>
+<svg viewBox="0 0 194 96" part="chart" role="img" aria-label="Heatmap">
+    <rect class="c i4" x="0" y="0" width="12" height="12"></rect>
+    <rect class="c i4" x="14" y="0" width="12" height="12"></rect>
+    <rect class="c i4" x="28" y="0" width="12" height="12"></rect>
+    <rect class="c i3" x="42" y="0" width="12" height="12"></rect>
+    <rect class="c i0" x="56" y="0" width="12" height="12"></rect>
+    <rect class="c i0" x="70" y="0" width="12" height="12"></rect>
+    <rect class="c i0" x="84" y="0" width="12" height="12"></rect>
+    <rect class="c i0" x="98" y="0" width="12" height="12"></rect>
+    <rect class="c i2" x="112" y="0" width="12" height="12"></rect>
+    <rect class="c i4" x="126" y="0" width="12" height="12"></rect>
+    <rect class="c i4" x="140" y="0" width="12" height="12"></rect>
+    <rect class="c i3" x="154" y="0" width="12" height="12"></rect>
+    <rect class="c i2" x="168" y="0" width="12" height="12"></rect>
+    <rect class="c i3" x="182" y="0" width="12" height="12"></rect>
+    <rect class="c i4" x="0" y="14" width="12" height="12"></rect>
+    <rect class="c i4" x="14" y="14" width="12" height="12"></rect>
+    <rect class="c i4" x="28" y="14" width="12" height="12"></rect>
+    <rect class="c i2" x="42" y="14" width="12" height="12"></rect>
+    <rect class="c i1" x="56" y="14" width="12" height="12"></rect>
+    <rect class="c i2" x="70" y="14" width="12" height="12"></rect>
+    <rect class="c i3" x="84" y="14" width="12" height="12"></rect>
+    <rect class="c i2" x="98" y="14" width="12" height="12"></rect>
+    <rect class="c i1" x="112" y="14" width="12" height="12"></rect>
+    <rect class="c i0" x="126" y="14" width="12" height="12"></rect>
+    <rect class="c i0" x="140" y="14" width="12" height="12"></rect>
+    <rect class="c i0" x="154" y="14" width="12" height="12"></rect>
+    <rect class="c i3" x="168" y="14" width="12" height="12"></rect>
+    <rect class="c i4" x="182" y="14" width="12" height="12"></rect>
+    <rect class="c i0" x="0" y="28" width="12" height="12"></rect>
+    <rect class="c i0" x="14" y="28" width="12" height="12"></rect>
+    <rect class="c i1" x="28" y="28" width="12" height="12"></rect>
+    <rect class="c i4" x="42" y="28" width="12" height="12"></rect>
+    <rect class="c i4" x="56" y="28" width="12" height="12"></rect>
+    <rect class="c i4" x="70" y="28" width="12" height="12"></rect>
+    <rect class="c i4" x="84" y="28" width="12" height="12"></rect>
+    <rect class="c i1" x="98" y="28" width="12" height="12"></rect>
+    <rect class="c i0" x="112" y="28" width="12" height="12"></rect>
+    <rect class="c i0" x="126" y="28" width="12" height="12"></rect>
+    <rect class="c i0" x="140" y="28" width="12" height="12"></rect>
+    <rect class="c i1" x="154" y="28" width="12" height="12"></rect>
+    <rect class="c i3" x="168" y="28" width="12" height="12"></rect>
+    <rect class="c i3" x="182" y="28" width="12" height="12"></rect>
+    <rect class="c i0" x="0" y="42" width="12" height="12"></rect>
+    <rect class="c i0" x="14" y="42" width="12" height="12"></rect>
+    <rect class="c i2" x="28" y="42" width="12" height="12"></rect>
+    <rect class="c i4" x="42" y="42" width="12" height="12"></rect>
+    <rect class="c i4" x="56" y="42" width="12" height="12"></rect>
+    <rect class="c i4" x="70" y="42" width="12" height="12"></rect>
+    <rect class="c i2" x="84" y="42" width="12" height="12"></rect>
+    <rect class="c i2" x="98" y="42" width="12" height="12"></rect>
+    <rect class="c i3" x="112" y="42" width="12" height="12"></rect>
+    <rect class="c i4" x="126" y="42" width="12" height="12"></rect>
+    <rect class="c i3" x="140" y="42" width="12" height="12"></rect>
+    <rect class="c i2" x="154" y="42" width="12" height="12"></rect>
+    <rect class="c i0" x="168" y="42" width="12" height="12"></rect>
+    <rect class="c i0" x="182" y="42" width="12" height="12"></rect>
+    <rect class="c i2" x="0" y="56" width="12" height="12"></rect>
+    <rect class="c i2" x="14" y="56" width="12" height="12"></rect>
+    <rect class="c i1" x="28" y="56" width="12" height="12"></rect>
+    <rect class="c i0" x="42" y="56" width="12" height="12"></rect>
+    <rect class="c i0" x="56" y="56" width="12" height="12"></rect>
+    <rect class="c i0" x="70" y="56" width="12" height="12"></rect>
+    <rect class="c i2" x="84" y="56" width="12" height="12"></rect>
+    <rect class="c i4" x="98" y="56" width="12" height="12"></rect>
+    <rect class="c i4" x="112" y="56" width="12" height="12"></rect>
+    <rect class="c i4" x="126" y="56" width="12" height="12"></rect>
+    <rect class="c i3" x="140" y="56" width="12" height="12"></rect>
+    <rect class="c i0" x="154" y="56" width="12" height="12"></rect>
+    <rect class="c i0" x="168" y="56" width="12" height="12"></rect>
+    <rect class="c i0" x="182" y="56" width="12" height="12"></rect>
+    <rect class="c i4" x="0" y="70" width="12" height="12"></rect>
+    <rect class="c i2" x="14" y="70" width="12" height="12"></rect>
+    <rect class="c i0" x="28" y="70" width="12" height="12"></rect>
+    <rect class="c i0" x="42" y="70" width="12" height="12"></rect>
+    <rect class="c i0" x="56" y="70" width="12" height="12"></rect>
+    <rect class="c i1" x="70" y="70" width="12" height="12"></rect>
+    <rect class="c i3" x="84" y="70" width="12" height="12"></rect>
+    <rect class="c i4" x="98" y="70" width="12" height="12"></rect>
+    <rect class="c i3" x="112" y="70" width="12" height="12"></rect>
+    <rect class="c i2" x="126" y="70" width="12" height="12"></rect>
+    <rect class="c i2" x="140" y="70" width="12" height="12"></rect>
+    <rect class="c i3" x="154" y="70" width="12" height="12"></rect>
+    <rect class="c i4" x="168" y="70" width="12" height="12"></rect>
+    <rect class="c i4" x="182" y="70" width="12" height="12"></rect>
+    <rect class="c i3" x="0" y="84" width="12" height="12"></rect>
+    <rect class="c i1" x="14" y="84" width="12" height="12"></rect>
+    <rect class="c i1" x="28" y="84" width="12" height="12"></rect>
+    <rect class="c i2" x="42" y="84" width="12" height="12"></rect>
+    <rect class="c i3" x="56" y="84" width="12" height="12"></rect>
+    <rect class="c i2" x="70" y="84" width="12" height="12"></rect>
+    <rect class="c i0" x="84" y="84" width="12" height="12"></rect>
+    <rect class="c i0" x="98" y="84" width="12" height="12"></rect>
+    <rect class="c i0" x="112" y="84" width="12" height="12"></rect>
+    <rect class="c i1" x="126" y="84" width="12" height="12"></rect>
+    <rect class="c i4" x="140" y="84" width="12" height="12"></rect>
+    <rect class="c i4" x="154" y="84" width="12" height="12"></rect>
+    <rect class="c i4" x="168" y="84" width="12" height="12"></rect>
+    <rect class="c i4" x="182" y="84" width="12" height="12"></rect>
+</svg>

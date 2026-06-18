@@ -64,24 +64,17 @@ async function main() {
   }
 
   try {
-    // Mesh presence — kernel mailbox attached.
-    let onMesh = false;
-    for (let i = 0; i < 20; i++) {
-      const { data } = await api("/api/v1/mesh");
-      if ((data?.data?.actors ?? []).some((a) => a.actor_id === id)) {
-        onMesh = true;
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 250));
-    }
-    if (!onMesh) fail("shell actor never reached the mesh", { id });
-
+    // Presence + projection in one read. The mesh roster (`GET
+    // /api/v1/mesh`) and the per-actor read (`GET /api/v1/actors/{id}`)
+    // were culled with the mesh op surface; `GET /api/v1/actors` is the
+    // surviving projection — rows keyed by `id`, with `live` overlaid
+    // from the kernel's actor registry (so presence == row.live).
     // Projection write is fire-and-forget on a std::thread; poll until
     // the row materialises rather than racing it.
     let row = null;
     for (let i = 0; i < 20; i++) {
-      const detail = await api(`/api/v1/actors/${id}`);
-      const a = detail?.data?.data;
+      const { data } = await api("/api/v1/actors");
+      const a = (data?.data?.actors ?? []).find((x) => x.id === id);
       if (a && a.kind === "shell") { row = a; break; }
       await new Promise((r) => setTimeout(r, 250));
     }
@@ -91,11 +84,11 @@ async function main() {
     await api(`/api/v1/sessions/${id}`, { method: "DELETE" });
   }
 
-  // After kill, it should drop from the mesh within a beat.
+  // After kill, it should drop from the roster within a beat.
   let cleared = false;
   for (let i = 0; i < 20; i++) {
-    const { data } = await api("/api/v1/mesh");
-    if (!(data?.data?.actors ?? []).some((a) => a.actor_id === id)) {
+    const { data } = await api("/api/v1/actors");
+    if (!(data?.data?.actors ?? []).some((a) => a.id === id)) {
       cleared = true;
       break;
     }

@@ -105,7 +105,7 @@ describe('buildTimeSlots', () => {
     expect(slots).toHaveLength(6) // 9,9:30,10,10:30,11,11:30
     expect(slots[0]).toMatchObject({ index: 0, minutes: 540, label: '09:00' })
     expect(slots[2]).toMatchObject({ minutes: 600, label: '10:00' })
-    expect(slots[1].label).toBe('09:30')
+    expect(slots[1]!.label).toBe('09:30')
   })
 })
 
@@ -123,10 +123,10 @@ describe('buildDayColumns', () => {
       windowEnd: 1440,
     })
     expect(cols).toHaveLength(1)
-    expect(cols[0].today).toBe(true)
-    expect(cols[0].laidOut).toHaveLength(2)
-    expect(cols[0].laidOut.every((p) => p.laneCount === 2)).toBe(true)
-    expect(cols[0].allDayEvents.map((e) => e.id)).toEqual(['c'])
+    expect(cols[0]!.today).toBe(true)
+    expect(cols[0]!.laidOut).toHaveLength(2)
+    expect(cols[0]!.laidOut.every((p) => p.laneCount === 2)).toBe(true)
+    expect(cols[0]!.allDayEvents.map((e) => e.id)).toEqual(['c'])
   })
 })
 
@@ -138,10 +138,10 @@ describe('buildAllDayBand', () => {
       events: [allDay('a', '2026-06-01', '2026-06-03'), allDay('b', '2026-06-02', '2026-06-04')],
     })
     expect(band).toHaveLength(2)
-    expect(band[0].spans[0].event.id).toBe('a')
+    expect(band[0]!.spans[0]!.event.id).toBe('a')
     // a spans col 0..1 (days 01,02 — end 03 exclusive)
-    expect(band[0].spans[0]).toMatchObject({ startCol: 0, endCol: 1 })
-    expect(band[1].spans[0].event.id).toBe('b')
+    expect(band[0]!.spans[0]).toMatchObject({ startCol: 0, endCol: 1 })
+    expect(band[1]!.spans[0]!.event.id).toBe('b')
   })
 
   it('reuses a lane for non-overlapping spans', () => {
@@ -151,7 +151,7 @@ describe('buildAllDayBand', () => {
       events: [allDay('a', '2026-06-01', '2026-06-02'), allDay('b', '2026-06-03', '2026-06-04')],
     })
     expect(band).toHaveLength(1)
-    expect(band[0].spans).toHaveLength(2)
+    expect(band[0]!.spans).toHaveLength(2)
   })
 })
 

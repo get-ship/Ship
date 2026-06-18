@@ -28,7 +28,9 @@ crates/
 packages/
   compiler/              @ship/compiler -- WASM npm package (built from crates/core/compiler)
   primitives/            @ship/primitives -- shared UI components (shadcn)
-  ui/                    @ship/ui-components -- generated types from Rust via Specta
+  deck/sdk/              @ship/sdk -- daemon SDK; Specta-generated types (cargo xtask gen-types)
+  deck/sdk-client/       @ship/sdk-client -- view data client; Specta-generated types
+  sui/runtime/           @ship/sui-runtime -- SUI framework runtime; Specta-generated types
   assets/                Shared static assets
 contrib/
   ship-dev.sh            Dev container launcher (Podman)

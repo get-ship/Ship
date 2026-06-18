@@ -84,6 +84,13 @@ export default controller<Scope>({
       if (e.target === dialogEl) state.$signals.open.set(false)
     }
 
+    // Escape on a modal dialog fires `cancel` before the native close. A
+    // non-dismissible dialog must veto it here — preventDefault on cancel is
+    // the platform's only hook to keep Escape from closing the dialog.
+    const onCancel = (e: Event) => {
+      if (!state.$signals.dismissible()) e.preventDefault()
+    }
+
     const onDismiss = () => {
       host.dispatchEvent(new CustomEvent('sui-dismiss', { bubbles: true, composed: true }))
       state.$signals.open.set(false)
@@ -91,14 +98,15 @@ export default controller<Scope>({
 
     const onSentinelStartFocus = () => {
       const items = collectFocusables()
-      if (items.length) items[items.length - 1].focus()
+      if (items.length) items[items.length - 1]!.focus()
     }
     const onSentinelEndFocus = () => {
       const items = collectFocusables()
-      if (items.length) items[0].focus()
+      if (items.length) items[0]!.focus()
     }
 
     dialogEl.addEventListener('close', onNativeClose)
+    dialogEl.addEventListener('cancel', onCancel)
     dialogEl.addEventListener('click', onBackdropClick)
     closeBtn?.addEventListener('click', onDismiss)
     sentinelStart?.addEventListener('focus', onSentinelStartFocus)
@@ -121,6 +129,7 @@ export default controller<Scope>({
     return () => {
       if (hasScrollLock) releaseScrollLock()
       dialogEl.removeEventListener('close', onNativeClose)
+      dialogEl.removeEventListener('cancel', onCancel)
       dialogEl.removeEventListener('click', onBackdropClick)
       closeBtn?.removeEventListener('click', onDismiss)
       sentinelStart?.removeEventListener('focus', onSentinelStartFocus)

@@ -1,0 +1,23 @@
+<!--
+  stack.before.sui — the "Existing" baseline: the hand-rolled vertical flex
+  a view writes inline today. It declares the same props so the compare page
+  can pass them, but HARDCODES a single pixel gap and ignores the scale /
+  align vocabulary — exactly the rigidity sui-stack replaces. Compiled as
+  <sui-stack-before>. The real token-driven primitive is stack.sui.
+-->
+<prop name="gap" values="0|1|2|3|4|5|6|7|8" default="4" reflect />
+<prop name="align" values="start|center|end|stretch" default="stretch" reflect />
+
+<style>
+  :host { display: block; }
+  :host([hidden]) { display: none; }
+  /* one bespoke rule, one magic number — no token, no align handling */
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+</style>
+
+<div class="stack"><slot></slot></div>

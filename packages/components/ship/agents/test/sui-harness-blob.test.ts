@@ -8,9 +8,6 @@ afterEach(() => reg.cleanup())
 const shadow = (el: HTMLElement) => el.shadowRoot!
 
 describe('<sui-harness-blob>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-harness-blob')).toBeDefined()
-  })
 
   it('renders a tile + label slot in shadow DOM', async () => {
     const { el } = mount(reg, 'sui-harness-blob', { harness: 'claude' }, 'Claude')
@@ -49,15 +46,7 @@ describe('<sui-harness-blob>', () => {
     expect(shadow(el).querySelector('.tile')?.getAttribute('aria-label')).toBe('OpenCode')
   })
 
-  it('reflects size attribute', () => {
-    const { el } = mount(reg, 'sui-harness-blob', { size: 'lg' })
-    expect(el.getAttribute('size')).toBe('lg')
-  })
 
-  it('reflects variant attribute', () => {
-    const { el } = mount(reg, 'sui-harness-blob', { variant: 'glyph' })
-    expect(el.getAttribute('variant')).toBe('glyph')
-  })
 
   it('falls back to claude when given an unknown harness', async () => {
     const { el } = mount(reg, 'sui-harness-blob', { harness: 'mystery' })

@@ -1,0 +1,55 @@
+<!--
+  ship-agent-controls.sui — @ship/agents · the session-control verbs as a bar.
+  Context-aware: the canonical verbs (Start · Steer · Approve · Stop) surface only
+  when valid for the current state — Approve only when suspended, Stop only when
+  running, Start when idle/terminal. Binds (production) ▸verb Start/Steer/Approve/Stop.
+  Header of AgentChat / SessionDetail; compact variant for a SessionRow. Attribute
+  driven (state), no controller. Tokens only.  Prop: state · agent.
+-->
+<prop name="agent" type="string" default="" />
+<prop name="state" values="idle|active|suspended|completed|failed" default="active" reflect />
+
+<style>
+  :host { display: block; font-family: var(--font-body); --sc: var(--muted-foreground); }
+  :host([state='active'])    { --sc: var(--primary); }
+  :host([state='suspended']) { --sc: var(--warning); }
+  :host([state='completed']) { --sc: var(--success); }
+  :host([state='failed'])    { --sc: var(--destructive); }
+  :host([state='idle'])      { --sc: var(--muted-foreground); }
+
+  .bar { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-xs); }
+  .id { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+  .sdot { width: 8px; height: 8px; border-radius: 50%; background: var(--sc); flex-shrink: 0; }
+  :host([state='active']) .sdot { animation: ac-pulse 1.6s ease-in-out infinite; }
+  @keyframes ac-pulse { 50% { opacity: .35; } }
+  .agent { font-family: var(--font-mono); font-weight: 600; font-size: var(--text-sm); color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .slbl { font-family: var(--font-mono); font-size: 11px; color: var(--sc); text-transform: lowercase; }
+
+  .verbs { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .btn { display: none; align-items: center; gap: 6px; font: inherit; font-size: var(--text-sm); font-weight: var(--font-weight-semibold); padding: 6px 13px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--foreground); transition: background var(--duration-fast) var(--ease-out); }
+  .btn:hover { background: var(--hover-bg); }
+  .btn svg { width: 13px; height: 13px; }
+  .primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+  .primary:hover { background: color-mix(in oklch, var(--primary) 88%, black); }
+  .danger { color: var(--destructive); border-color: var(--tone-destructive-border); }
+  .danger:hover { background: var(--tone-destructive-bg); }
+
+  :host([state='idle']) .v-start, :host([state='completed']) .v-start, :host([state='failed']) .v-start { display: inline-flex; }
+  :host([state='active']) .v-steer, :host([state='active']) .v-stop { display: inline-flex; }
+  :host([state='suspended']) .v-approve, :host([state='suspended']) .v-deny, :host([state='suspended']) .v-stop { display: inline-flex; }
+</style>
+
+<div class="bar" part="bar">
+  <span class="id">
+    <span class="sdot"></span>
+    <span class="agent">{agent()}</span>
+    <span class="slbl">{state()}</span>
+  </span>
+  <span class="verbs">
+    <button class="btn primary v-start" type="button"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"></path></svg>Start</button>
+    <button class="btn v-steer" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>Steer</button>
+    <button class="btn primary v-approve" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>Approve</button>
+    <button class="btn v-deny" type="button">Deny</button>
+    <button class="btn danger v-stop" type="button"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"></rect></svg>Stop</button>
+  </span>
+</div>

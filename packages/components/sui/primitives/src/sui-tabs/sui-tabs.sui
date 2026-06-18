@@ -82,13 +82,17 @@
     display: block;
     --tone: var(--primary);
   }
-  :host([sticky]) { position: sticky; top: 0; z-index: 10; background: var(--background); }
+  :host([tone='info'])        { --tone: var(--info); }
+  :host([tone='success'])     { --tone: var(--success); }
+  :host([tone='warning'])     { --tone: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive); }
+  :host([tone='accent'])      { --tone: var(--accent); }
+  :host([sticky]) { position: sticky; top: 0; z-index: var(--z-sticky); background: var(--background); }
 
   .strip {
     display: flex;
     align-items: center;
-    gap: 4px;
-    flex-wrap: wrap;
+    gap: var(--space-1);
     border-bottom: 1px solid var(--border);
   }
 
@@ -100,9 +104,9 @@
   }
 
   :host([variant='pill']) .strip {
-    gap: 4px;
+    gap: var(--space-1);
     border-bottom: 0;
-    padding: 4px;
+    padding: var(--space-1);
     background: var(--muted);
     border-radius: var(--radius-md);
   }

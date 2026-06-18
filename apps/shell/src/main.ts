@@ -66,8 +66,9 @@ import { ops } from './ops'
 // Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
 // popover, tooltip, tabs, etc.) — are resolved per-tag from workspace source
 // that the per-tag resolver cannot trace.
-import { route as createRoute, defineRoutes, setRouterPort } from '@ship/sui-runtime/route'
-import { DYNAMIC_ROUTE_PATTERNS } from './routes.gen'
+import { route as createRoute, defineRoutes, setEditMode, setRouterPort } from '@ship/deck/route'
+import { DYNAMIC_ROUTE_PATTERNS, LAYOUTS } from '../routes.gen'
+import { resolveLayoutChain } from './route/layouts'
 import { chrome, mount, notifyViewUnmount, setHostContext } from '@ship/sui-runtime'
 import type { SuiLoader, ViewPayload } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'
@@ -182,6 +183,11 @@ setRouterPort({
   navigate: (to, o) => navigate(to, o ?? {}),
   back: () => history.back(),
 })
+// Edit mode is OFF by default. The shell's launch surface is read-only
+// against the codegenned static route table; user-authored routes are
+// gated behind `setEditMode(true)`. TODO: read from ship.shell.config
+// once the daemon exposes an edit-mode flag in the shell config.
+setEditMode(false)
 
 // ── window.ship API ──────────────────────────────────────────────────
 
@@ -381,10 +387,29 @@ async function buildConfinedModule(viewName: string): Promise<unknown> {
 async function mountRoute(pathname: string, opts: { module?: unknown } = {}): Promise<void> {
   const slot = document.getElementById('ship-content')
   if (!slot) throw new Error('shell: #ship-content missing from index.html')
-
   const token = ++latestMountToken
   // Notify devtools tabs of navigation.
   document.dispatchEvent(new Event('sui:navigate'))
+  // Wrap the route content in the chrome chain declared by LAYOUTS.
+  // The chain is rebuilt on every navigation; the previous chrome is
+  // disposed when its inner-target mount handle disposes (see below).
+  // An empty chain means "no chrome — mount directly into the slot".
+  const chain = resolveLayoutChain(pathname, LAYOUTS)
+  const mountTarget = chain.length === 0
+    ? slot
+    : (() => {
+        const inner = document.createElement('div')
+        inner.setAttribute('slot', 'route')
+        let parent: HTMLElement = inner
+        for (const layout of chain) {
+          const chrome = document.createElement(layout.tag)
+          chrome.appendChild(parent)
+          parent = chrome
+        }
+        slot.replaceChildren(parent)
+        return inner
+      })()
+
 
   if (!pathname || pathname === '/') {
     // Landing page replaces the slot directly — dispose the previous
@@ -431,13 +456,18 @@ async function mountRoute(pathname: string, opts: { module?: unknown } = {}): Pr
     // CSS-loss flicker on every navigation, especially under load.)
     const previous = currentHandle
     const previousViewId = currentViewId
-    const handle = await mount(slot, pathname, {
+    const handle = await mount(mountTarget, pathname, {
       cssScope: 'adjacent',
       // SUI views call `ship.<domain>.<op>()` inside `<data live>`
       // declarations. Without a `ship` SDK client wired to ctx,
       // `ship` is undefined and the data lambda throws — visible
       // as views stuck on `Loading…` because the patch never lands.
       ship: shipClient,
+      // Keyed clients map — the shell's host identity is `ship`, so the
+      // SDK client is injected under that key for views that declare
+      // `<client name="ship" />`. (The legacy `ship` option above keeps
+      // undeclared views on the ambient compatibility default.)
+      clients: { ship: shipClient },
       // Host loader — the runtime is host-agnostic and doesn't know
       // the `/_deck/` URL scheme; this adapter supplies by-name or
       // by-path payload fetch (the daemon's resolver handles the

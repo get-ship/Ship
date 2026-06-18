@@ -215,9 +215,23 @@ impl TemplateEmitter {
         h.line(&format!("items: () => ({it_rw}),"));
         if let Some(k) = &instr.key {
             let k_rw = rewrite_for_scope(&k.source, &[var.as_str(), idx_name]);
-            h.line(&format!(
-                "key: ({var}, {idx_name}) => {{ const __child = Object.create($scope); __child.{var} = {var}; __child.{idx_name} = {idx_name}; return (($scope) => ({k_rw}))(__child); }},"
-            ));
+            // `rewrite_for_scope` qualifies every free identifier that
+            // isn't a loop binding, an expression-local, or a builtin
+            // with `$scope.` — so a rewritten key with no `$scope.`
+            // reference provably reads only its own parameters and
+            // globals. Emit the flat closure: bindFor calls the key fn
+            // once per row per render, and the child-scope form below
+            // pays one dead `Object.create($scope)` per call (~1000
+            // allocations on a keyed 1k-row swap). False positives
+            // (e.g. a string literal containing "$scope.") only fall
+            // back to the scoped form, which is always correct.
+            if k_rw.contains("$scope.") {
+                h.line(&format!(
+                    "key: ({var}, {idx_name}) => {{ const __child = Object.create($scope); __child.{var} = {var}; __child.{idx_name} = {idx_name}; return (($scope) => ({k_rw}))(__child); }},"
+                ));
+            } else {
+                h.line(&format!("key: ({var}, {idx_name}) => ({k_rw}),"));
+            }
         }
         h.line(&format!("render: ({var}, {idx_name}) => {{"));
         h.enter();

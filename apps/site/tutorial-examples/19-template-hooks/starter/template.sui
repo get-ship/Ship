@@ -1,6 +1,6 @@
 <prop name="shadow" type="bool" default="false" />
 
-<use-title bind:text={pageTitle} />
+<use-title text="SUI tutorial · step 19" />
 
 <use-kbd>
   <on key="j" action="bumpUp" />

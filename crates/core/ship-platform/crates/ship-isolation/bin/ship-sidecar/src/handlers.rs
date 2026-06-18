@@ -1,5 +1,8 @@
 //! ConnectRPC handlers for ship.sidecar.v1.
 #![allow(refining_impl_trait)]
+// Wire-builder style: proto responses are built default-then-assign; the
+// struct-literal form buys no safety on these non-exhaustive generated types.
+#![allow(clippy::field_reassign_with_default)]
 //!
 //! Three services wired to the generated traits:
 //!   - `Handshake.Hello` — capability advertisement
@@ -24,8 +27,8 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct HandshakeImpl;
 
 impl handshake_service::Handshake for HandshakeImpl {
-    async fn hello<'a>(
-        &'a self,
+    async fn hello(
+        &self,
         _ctx: RequestContext,
         _req: OwnedHelloRequestView,
     ) -> ServiceResult<HelloResponse> {
@@ -46,8 +49,8 @@ pub struct ProcessesImpl {
 }
 
 impl processes_service::Processes for ProcessesImpl {
-    async fn create<'a>(
-        &'a self,
+    async fn create(
+        &self,
         _ctx: RequestContext,
         req: OwnedProcessCreateRequestView,
     ) -> ServiceResult<ProcessInfo> {
@@ -72,8 +75,8 @@ impl processes_service::Processes for ProcessesImpl {
         Response::ok(info)
     }
 
-    async fn run<'a>(
-        &'a self,
+    async fn run(
+        &self,
         _ctx: RequestContext,
         req: OwnedProcessRunRequestView,
     ) -> ServiceResult<ProcessRunResponse> {
@@ -91,8 +94,8 @@ impl processes_service::Processes for ProcessesImpl {
         Response::ok(resp)
     }
 
-    async fn list<'a>(
-        &'a self,
+    async fn list(
+        &self,
         _ctx: RequestContext,
         _req: OwnedProcessListRequestView,
     ) -> ServiceResult<ProcessListResponse> {
@@ -104,8 +107,8 @@ impl processes_service::Processes for ProcessesImpl {
         Response::ok(out)
     }
 
-    async fn get<'a>(
-        &'a self,
+    async fn get(
+        &self,
         _ctx: RequestContext,
         req: OwnedProcessGetRequestView,
     ) -> ServiceResult<ProcessInfo> {
@@ -115,8 +118,8 @@ impl processes_service::Processes for ProcessesImpl {
         Response::ok(proc.info().await)
     }
 
-    async fn stop<'a>(
-        &'a self,
+    async fn stop(
+        &self,
         _ctx: RequestContext,
         req: OwnedProcessStopRequestView,
     ) -> ServiceResult<ProcessActionResponse> {
@@ -136,8 +139,8 @@ impl processes_service::Processes for ProcessesImpl {
         Response::ok(resp)
     }
 
-    async fn kill<'a>(
-        &'a self,
+    async fn kill(
+        &self,
         _ctx: RequestContext,
         req: OwnedProcessKillRequestView,
     ) -> ServiceResult<ProcessActionResponse> {
@@ -150,8 +153,8 @@ impl processes_service::Processes for ProcessesImpl {
         Response::ok(resp)
     }
 
-    async fn write_input<'a>(
-        &'a self,
+    async fn write_input(
+        &self,
         _ctx: RequestContext,
         req: OwnedProcessWriteInputRequestView,
     ) -> ServiceResult<ProcessActionResponse> {
@@ -164,8 +167,8 @@ impl processes_service::Processes for ProcessesImpl {
         Response::ok(resp)
     }
 
-    async fn resize_terminal<'a>(
-        &'a self,
+    async fn resize_terminal(
+        &self,
         _ctx: RequestContext,
         req: OwnedProcessResizeTerminalRequestView,
     ) -> ServiceResult<ProcessActionResponse> {

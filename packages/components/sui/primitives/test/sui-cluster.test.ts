@@ -9,9 +9,6 @@ afterEach(() => {
 })
 
 describe('<sui-cluster>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-cluster')).toBeDefined()
-  })
 
   it('renders a shadow root with a default slot', async () => {
     const { el } = mount(reg, 'sui-cluster', {}, '<span>a</span><span>b</span>')

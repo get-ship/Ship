@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Time-boxed parser fuzz run for `just fuzz-parser` (default 60s).
 #
-# Seeds the corpus from every .sui under packages/components/ui-components/src so the
+# Seeds the corpus from every .sui under packages/components so the
 # fuzzer mutates from real-world inputs instead of starting from random
 # bytes. The corpus dir lives at crates/sui/compiler/fuzz/corpus/parse_fragment
 # and is gitignored — this script regenerates it on each run.
@@ -12,7 +12,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 FUZZ_DIR="$ROOT/crates/sui/compiler/fuzz"
 CORPUS_DIR="$FUZZ_DIR/corpus/parse_fragment"
-SEED_DIR="$ROOT/packages/components/ui-components/src"
+SEED_DIR="$ROOT/packages/components"
 
 if ! command -v cargo-fuzz >/dev/null 2>&1; then
     echo "cargo-fuzz not installed. Run: cargo install cargo-fuzz" >&2

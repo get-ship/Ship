@@ -251,8 +251,8 @@ the host.
 ship as the defaults in v1.0. **The default install does not
 sandbox anything.** Users opt in explicitly through
 `ship isolation enable`, the wizard, or per-agent overrides. The
-documentation and the UI label this honestly:
-`<sui-isolation-badge tier="none">` reads "Not sandboxed".
+documentation and the UI label this honestly: an
+isolation badge for `tier="none"` reads "Not sandboxed".
 
 When `isolation.enforce = true`:
 

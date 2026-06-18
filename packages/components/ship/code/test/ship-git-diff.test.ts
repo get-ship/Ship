@@ -13,9 +13,6 @@ afterEach(() => reg.cleanup())
 const shadow = (el: HTMLElement) => el.shadowRoot!
 
 describe('<ship-git-diff> container', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('ship-git-diff')).toBeDefined()
-  })
 
   it('shows the empty placeholder when files === 0', async () => {
     const { el } = mount(reg, 'ship-git-diff')
@@ -78,9 +75,6 @@ describe('<ship-git-diff> container', () => {
 })
 
 describe('<ship-git-diff-file>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('ship-git-diff-file')).toBeDefined()
-  })
 
   it('renders the path + +/- counts', async () => {
     const { el } = mount(reg, 'ship-git-diff-file', {
@@ -113,9 +107,6 @@ describe('<ship-git-diff-file>', () => {
 })
 
 describe('<ship-git-diff-hunk>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('ship-git-diff-hunk')).toBeDefined()
-  })
 
   it('renders the header text', async () => {
     const { el } = mount(reg, 'ship-git-diff-hunk', { header: '@@ -10,7 +10,8 @@' })
@@ -131,9 +122,6 @@ describe('<ship-git-diff-hunk>', () => {
 })
 
 describe('<ship-git-diff-line>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('ship-git-diff-line')).toBeDefined()
-  })
 
   it('renders old/new gutters and a context space signature', async () => {
     const { el } = mount(reg, 'ship-git-diff-line', { old: '10', new: '10' })

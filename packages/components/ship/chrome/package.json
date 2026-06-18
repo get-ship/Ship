@@ -1,0 +1,26 @@
+{
+  "name": "@ship/chrome",
+  "version": "0.1.0",
+  "description": "Ship Chrome pack — ship-* shell-chrome components (command bar, activity bar, file tree + tree item, status bar, dock + dock app). Presentational SUI; controllers emit the shell intents (ship-open/close, ship-mode-change, ship-submit, ship-select, ship-context-change, ship-toggle, ship-launch). The host owns wiring to the daemon.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "customElements": "dist/custom-elements.json",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship/sui-dom": "workspace:*",
+    "@ship/sui-runtime": "workspace:*",
+    "@ship/sui-primitives": "workspace:*"
+  },
+  "devDependencies": {
+    "@ship/test-setup": "workspace:*",
+    "happy-dom": "^20.9.0",
+    "vitest": "^4.1.5"
+  }
+}

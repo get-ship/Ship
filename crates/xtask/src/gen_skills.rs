@@ -258,6 +258,23 @@ fn load_fixtures(root: &std::path::Path) -> BTreeMap<String, serde_json::Value> 
 pub fn run() -> Result<()> {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let out_root = root.join(OUT_REL);
+    // Clean generated output first so a renamed/removed domain leaves no stale
+    // `ship-<domain>/` dir behind. The generator owns every `ship-*` subdir of
+    // OUT_REL; wipe them before re-emitting (idempotency, mirrors proto-gen).
+    if let Ok(entries) = std::fs::read_dir(&out_root) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let is_skill_dir = path.is_dir()
+                && entry
+                    .file_name()
+                    .to_str()
+                    .is_some_and(|n| n.starts_with("ship-"));
+            if is_skill_dir {
+                std::fs::remove_dir_all(&path)
+                    .with_context(|| format!("cleaning {}", path.display()))?;
+            }
+        }
+    }
     let fixtures = load_fixtures(&root);
     let by_domain = collect();
     let (mut skills, mut pages) = (0usize, 0usize);

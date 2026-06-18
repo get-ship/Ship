@@ -331,8 +331,7 @@ fn parse_ops(repo_root: &Path) -> Result<Vec<OpDef>> {
 
             if let Some(svc) = &current_service {
                 // rpc Foo(Bar) returns (Baz) {
-                if trimmed.starts_with("rpc ") {
-                    let after_rpc = &trimmed[4..];
+                if let Some(after_rpc) = trimmed.strip_prefix("rpc ") {
                     let rpc_name = after_rpc
                         .split('(')
                         .next()

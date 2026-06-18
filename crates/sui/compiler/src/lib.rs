@@ -247,7 +247,7 @@ pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, Compile
     } else {
         None
     };
-    let meta = Some(emit::meta::emit_meta(&bindings));
+    let meta = Some(emit::meta::emit_meta(&program, &bindings));
     let ssr_html = if opts.emit_ssr && mode == CompileMode::View {
         let view_name = opts.source_path
             .as_ref()

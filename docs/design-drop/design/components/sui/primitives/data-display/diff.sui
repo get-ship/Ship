@@ -1,0 +1,94 @@
+<!--
+  <sui-diff> — line diff viewer. STRUCTURE + BEHAVIOR are ground truth
+  (ported from _repo-src/sui-diff/sui-diff.controller.ts); the original
+  paired .sui (which held the scoped <style>) was not in source, so the
+  VISUAL DESIGN below is authored here against ship tokens — that is the
+  gap this fills.
+
+  The controller renders into `contentEl` one `.line` per row with a kind
+  class — `add | del | ctx | hunk` — plus a `.sign` gutter glyph
+  (+ / - / @ / space). Feed it either a `value` (unified-diff text) or a
+  `from`/`to` pair (it computes an LCS line diff live — pure JS, no daemon).
+
+  scope contract (from the controller): derived `lines`; props value/from/to.
+  Tokens only — no hardcoded color.
+
+  Prop / event / slot
+  ─────────────────────────────────────────────────────────────────────
+  value (string)  a unified diff (@@ hunks, +/- lines). Wins if set.
+  from  (string)  left/original text  ─┐ computed LCS diff when no `value`
+  to    (string)  right/updated text  ─┘
+  ─────────────────────────────────────────────────────────────────────
+  parts: content · line
+-->
+<prop name="value" type="string" default="" />
+<prop name="from" type="string" default="" />
+<prop name="to" type="string" default="" />
+
+<style>
+  :host { display: block; }
+  :host([hidden]) { display: none; }
+
+  .diff {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--foreground);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xs);
+    overflow: auto;
+    padding: 6px 0;
+  }
+
+  .line {
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    column-gap: 10px;
+    align-items: baseline;
+    padding: 0.5px 14px 0.5px 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    border-left: 2px solid transparent;
+  }
+  .sign {
+    text-align: center;
+    user-select: none;
+    color: var(--muted-foreground);
+    opacity: 0.55;
+    font-weight: 600;
+  }
+
+  .line.add {
+    background: color-mix(in oklch, var(--success) 14%, transparent);
+    border-left-color: color-mix(in oklch, var(--success) 70%, transparent);
+  }
+  .line.add .sign { color: var(--success); opacity: 1; }
+
+  .line.del {
+    background: color-mix(in oklch, var(--destructive) 13%, transparent);
+    border-left-color: color-mix(in oklch, var(--destructive) 62%, transparent);
+  }
+  .line.del .sign { color: var(--destructive); opacity: 1; }
+
+  .line.ctx { color: color-mix(in oklch, var(--foreground) 76%, transparent); }
+
+  .line.hunk {
+    margin: 5px 0;
+    padding-block: 2px;
+    background: color-mix(in oklch, var(--info) 12%, transparent);
+    color: color-mix(in oklch, var(--info) 88%, var(--foreground));
+    font-weight: 600;
+  }
+  .line.hunk .sign { color: var(--info); opacity: 1; }
+</style>
+
+<div class="diff" part="content" role="list">
+  {#for ln of lines() key={ln.idx}}
+    <div class={ln.cls} part="line" role="listitem" aria-label={ln.label}>
+      <span class="sign" aria-hidden="true">{ln.sign}</span>
+      <span>{ln.text}</span>
+    </div>
+  {/for}
+</div>

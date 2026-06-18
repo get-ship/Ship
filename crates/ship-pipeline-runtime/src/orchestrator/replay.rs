@@ -56,7 +56,7 @@ pub(super) fn select_replay_targets(jobs: &HashMap<String, PipelineRun>) -> Vec<
         .cloned()
         .collect();
 
-    stale.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+    stale.sort_by_key(|r| std::cmp::Reverse(r.updated_at));
 
     if stale.len() > MAX_REPLAYS_PER_STARTUP {
         tracing::warn!(

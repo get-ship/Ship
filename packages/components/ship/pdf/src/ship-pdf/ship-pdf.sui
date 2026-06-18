@@ -40,8 +40,9 @@
     color: var(--foreground);
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     overflow: hidden;
+    box-shadow: var(--shadow-xs);
   }
   :host([hidden]) { display: none; }
 
@@ -50,8 +51,8 @@
     align-items: center;
     gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
-    border-bottom: 1px solid var(--border);
-    background: var(--muted);
+    border-bottom: 1px solid var(--border-subtle);
+    background: color-mix(in oklch, var(--muted) 50%, var(--card));
   }
   .toolbar:empty { display: none; }
 
@@ -61,7 +62,7 @@
     align-items: flex-start;
     padding: var(--space-4);
     overflow: auto;
-    background: var(--muted);
+    background: color-mix(in oklch, var(--foreground) 5%, var(--card));
   }
 
   canvas {

@@ -1,0 +1,12 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-mark.before.sui — fabricated sketch (not in source). Inline highlight. A flat warm
+  wash behind matched text (search hits, mentions). Compiled as <x-mark-before>.
+  Props: tone (default highlight only).
+-->
+<prop name="tone" values="default" default="default" reflect />
+<style>
+  :host { display: inline; }
+  mark { background: color-mix(in oklch, var(--warning) 35%, transparent); color: inherit; padding: 0 2px; border-radius: 2px; }
+</style>
+<mark part="mark"><slot></slot></mark>

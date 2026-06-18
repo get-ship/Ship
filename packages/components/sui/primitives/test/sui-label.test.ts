@@ -10,9 +10,6 @@ const label = (el: HTMLElement) => shadow(el).querySelector('label') as HTMLLabe
 const req = (el: HTMLElement) => shadow(el).querySelector('.req') as HTMLElement | null
 
 describe('<sui-label>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-label')).toBeDefined()
-  })
 
   it('renders a native <label> in shadow DOM', () => {
     const { el } = mount(reg, 'sui-label')

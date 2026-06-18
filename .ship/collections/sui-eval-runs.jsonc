@@ -19,6 +19,9 @@
     "worktree":       { "type": "string" },
     "view_files":     { "type": "json" },
     "css_violations": { "type": "json" },
-    "missing_fragments": { "type": "json" }
+    "missing_fragments": { "type": "json" },
+    "behavior_passed": { "type": "number" },
+    "behavior_total":  { "type": "number" },
+    "behavior_score":  { "type": "number", "filterable": true }
   }
 }

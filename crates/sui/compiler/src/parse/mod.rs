@@ -58,7 +58,7 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
                     continue;
                 }
                 "client" => {
-                    clients.push(parse_client(el)?);
+                    clients.push(parse_client(el, &clients)?);
                     pending_jsdoc = None;
                     continue;
                 }
@@ -153,9 +153,46 @@ fn parse_data(el: &html::Element) -> Result<DataDecl, CompileError> {
     })
 }
 
-fn parse_client(el: &html::Element) -> Result<ClientDecl, CompileError> {
+/// Setup-context names a `<client>` may not shadow. `ship` is deliberately
+/// NOT here — declaring `<client name="ship" />` is the migration path off
+/// the ambient default, routing the same key through `ctx.clients`.
+const RESERVED_CLIENT_NAMES: &[&str] = &["route", "navigate", "ctx", "scope", "props", "derived"];
+
+fn parse_client(el: &html::Element, existing: &[ClientDecl]) -> Result<ClientDecl, CompileError> {
     let name = required_attr(el, "name", "<client>")?;
+    if !is_js_identifier(&name) {
+        return Err(CompileError::new(format!(
+            "<client name=\"{name}\">: name must be a JS identifier — it becomes \
+             the scope name the template resolves (e.g. `{name}.domain.op()`)"
+        ))
+        .with_span(el.span)
+        .with_category("<client>"));
+    }
+    if RESERVED_CLIENT_NAMES.contains(&name.as_str()) {
+        return Err(CompileError::new(format!(
+            "<client name=\"{name}\">: `{name}` is a reserved setup-context name \
+             and cannot be used as a client key"
+        ))
+        .with_span(el.span)
+        .with_category("<client>"));
+    }
+    if existing.iter().any(|c| c.name == name) {
+        return Err(CompileError::new(format!(
+            "<client name=\"{name}\"> is declared more than once"
+        ))
+        .with_span(el.span)
+        .with_category("<client>"));
+    }
     Ok(ClientDecl { name, span: el.span })
+}
+
+fn is_js_identifier(s: &str) -> bool {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' || c == '$' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 }
 
 fn parse_prop(el: &html::Element) -> Result<PropDecl, CompileError> {

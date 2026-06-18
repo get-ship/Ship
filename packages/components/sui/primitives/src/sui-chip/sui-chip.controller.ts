@@ -2,7 +2,7 @@ import { controller, effect } from '@ship/sui-runtime'
 import type { Scope } from './sui-chip.sui'
 
 export default controller<Scope>({
-  mount(state, host) {
+  mount(state, host: HTMLElement) {
 
     if (!host.hasAttribute('role')) host.setAttribute('role', 'button')
     if (!host.hasAttribute('tabindex') && !state.disabled) {
@@ -35,7 +35,7 @@ export default controller<Scope>({
     host.addEventListener('keydown', onKeydown)
 
     const stopRemoveBtn = effect(() => {
-      const btn = state.removeBtn
+      const btn = state.removeBtn as HTMLElement | null
       if (!btn) return
       const onClick = (e: MouseEvent) => {
         e.stopPropagation()

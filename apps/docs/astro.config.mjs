@@ -2,6 +2,25 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import markdoc from "@astrojs/markdoc";
 import starlightSidebarTopics from "starlight-sidebar-topics";
+import { existsSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+// Generated per-pack component reference. collect-component-docs.ts (run via
+// the collect-skill-docs.ts prebuild/predev pass) emits one page per public
+// pack component into src/content/docs/components/<family>/ from the packs'
+// CEM output. The CEM inputs are build artifacts (.ship/sui-out, gitignored):
+// on a checkout that hasn't compiled the packs the directory is absent, and a
+// sidebar group pointing at a missing directory fails the build — so include
+// each group only when it has pages, mirroring src/lib/components.ts's
+// render-empty-instead-of-fail stance for the catalog.
+function componentRefGroup(label, family) {
+  const dir = join(HERE, "src/content/docs/components", family);
+  if (!existsSync(dir) || readdirSync(dir).length === 0) return [];
+  return [{ label, autogenerate: { directory: `components/${family}` } }];
+}
 
 // Internals visibility:
 //   - dev (bun run dev): always on — contributors want access locally.
@@ -10,48 +29,31 @@ import starlightSidebarTopics from "starlight-sidebar-topics";
 // The command arg is threaded in via defineConfig's functional form at bottom
 // of this file. We compute isInternal there.
 
-// Directories that belong exclusively to the Internals topic.
-// In public builds they get no sidebar topic (we exclude them from topic
-// resolution so they still render at their URL with no topic navigation).
-//
-// `pipelines` and `triggers` are power-user / experimental surfaces — kept
-// here so the content stays reachable internally but no public navigation
-// promises them. Promote out of this list when they ship publicly.
+// Content groups the collector produces (from `group:` frontmatter in
+// docs/<skill>/references/docs/) that belong exclusively to the Internals
+// topic. In public builds they get no sidebar topic (excluded from topic
+// resolution) but still render at their URL with no topic navigation.
 const INTERNALS_DIRS = [
   "architecture",
-  "ship-architecture",
-  "runtime",
-  "compiler",
-  "ship-stack",
-  "http-api",
   "contributing",
-  "pipelines",
-  "triggers",
 ];
 
 // Build the topics array. Internals is conditionally included via buildTopics(isInternal).
 function buildTopics(isInternal) {
   const topics = [
-  // Five user-facing topics, ordered by the path a new visitor
-  // walks: Start (install + concepts) → Tutorial (interactive) →
-  // Build (agent-coordination surfaces: skills, agents, views,
-  // artifacts, collections, recipes) → Components (SUI library)
-  // → Reference (CLI, MCP, schemas, agent surfaces).
-  //
-  // "Concepts" merged into Start so the foundation lives in one
-  // place. "Components" + "Component Packs" + "Design System" +
-  // "SDK" all moved under the Components topic — they're all the
-  // SUI component library surface and were duplicated before.
+  // User-facing topics, ordered by the path a new visitor walks:
+  // Start (concepts) → Build (agent-coordination surfaces: skills,
+  // agents, views) → Components (SUI library) → Tutorial (external) →
+  // Reference (ADRs, generated SDK ops, agent surfaces). Each `items`
+  // autogenerate directory and each `link` resolves to a real page the
+  // collector emits or a real Astro page under src/pages — sourceless
+  // sections were removed so nothing 404s.
   {
     id: "start",
     label: "Start",
     icon: "open-book",
-    link: "/getting-started/",
+    link: "/concepts/",
     items: [
-      {
-        label: "Getting Started",
-        autogenerate: { directory: "getting-started" },
-      },
       {
         label: "Concepts",
         autogenerate: { directory: "concepts" },
@@ -76,17 +78,6 @@ function buildTopics(isInternal) {
         label: "Views",
         autogenerate: { directory: "views" },
       },
-      {
-        label: "Artifacts",
-        autogenerate: { directory: "artifacts" },
-      },
-      {
-        label: "Collections",
-        autogenerate: { directory: "collections" },
-      },
-      // Pipelines + Triggers are experimental power-user surfaces —
-      // hidden from the public Build sidebar. Content stays reachable
-      // internally via the Internals topic (see INTERNALS_DIRS).
     ],
   },
   {
@@ -120,13 +111,13 @@ function buildTopics(isInternal) {
         link: "/components/cookbook/",
       },
       {
-        label: "Component Packs",
-        autogenerate: { directory: "component-packs" },
+        label: "Playground",
+        link: "/components/playground/",
       },
-      {
-        label: "Design System",
-        autogenerate: { directory: "design-system" },
-      },
+      // Generated component reference (CEM-derived, one page per public pack
+      // component) — present only after the packs have been compiled.
+      ...componentRefGroup("SUI Components", "sui"),
+      ...componentRefGroup("Ship Components", "ship"),
     ],
   },
   {
@@ -145,23 +136,19 @@ function buildTopics(isInternal) {
     id: "reference",
     label: "Reference",
     icon: "document",
-    link: "/cli/",
+    link: "/adrs/",
     items: [
       {
-        label: "CLI Reference",
-        autogenerate: { directory: "cli" },
+        label: "ADRs",
+        autogenerate: { directory: "adrs" },
       },
+      // Generated SDK op reference — one page per ConnectRPC op, harvested
+      // by collect-skill-docs.ts from skills/sdk/<skill>/references/docs/
+      // (emitted by `cargo xtask gen-skills`). Pages nest under ops/<domain>/
+      // so autogenerate builds a per-domain subgroup tree from one directory.
       {
-        label: "MCP Tools",
-        autogenerate: { directory: "mcp-tools" },
-      },
-      {
-        label: "Schemas",
-        autogenerate: { directory: "schema-reference" },
-      },
-      {
-        label: "Registry",
-        autogenerate: { directory: "registry" },
+        label: "SDK (Ops)",
+        autogenerate: { directory: "ops" },
       },
       // Agent-facing reference — every MCP tool, LSP surface,
       // sui-eval entrypoint, and ship:// resource that powers
@@ -187,30 +174,6 @@ function buildTopics(isInternal) {
               autogenerate: { directory: "architecture" },
             },
             {
-              label: "Ship Architecture",
-              autogenerate: { directory: "ship-architecture" },
-            },
-            {
-              label: "Runtime",
-              autogenerate: { directory: "runtime" },
-            },
-            {
-              label: "Compiler",
-              autogenerate: { directory: "compiler" },
-            },
-            {
-              label: "Ship Stack",
-              autogenerate: { directory: "ship-stack" },
-            },
-            {
-              label: "Pipelines (experimental)",
-              autogenerate: { directory: "pipelines" },
-            },
-            {
-              label: "Triggers (experimental)",
-              autogenerate: { directory: "triggers" },
-            },
-            {
               label: "Contributing",
               autogenerate: { directory: "contributing" },
             },
@@ -227,15 +190,11 @@ function buildTopics(isInternal) {
 // assignment. The homepage is mapped to the Guide topic below so that the
 // topic rail renders with proper labels (not numeric indices).
 function buildExcludedPatterns(isInternal) {
-  // `reference/adrs` lives outside any topic's autogenerated directory; keep
-  // it rendering at its URL without a topic rail.
-  const base = ["/adrs/**", "/adrs"];
-  return isInternal
-    ? base
-    : base.concat(
-        INTERNALS_DIRS.map((d) => `/${d}/**`),
-        INTERNALS_DIRS.map((d) => `/${d}`),
-      );
+  // In internal builds every group has a topic, so nothing is excluded.
+  // In public builds the Internals-only dirs keep rendering at their URL but
+  // without a topic rail (they have no public topic assignment).
+  if (isInternal) return [];
+  return INTERNALS_DIRS.flatMap((d) => [`/${d}/**`, `/${d}`]);
 }
 
 // predev sets AUDIENCE=internal so dev runs internal mode automatically.
@@ -279,7 +238,10 @@ export default defineConfig({
       },
       customCss: [
         "./src/styles/tokens.css",
-        "./src/styles/themes.css",
+        // Canonical theme catalog (packages/sui/tokens). De-vendored: the
+        // local copy diverged from canonical (stale ship-* selectors, missing
+        // syntax-* tokens) — import the single source instead.
+        "@ship/tokens/themes.css",
         "./src/styles/ship-theme.css",
       ],
       components: {
@@ -370,25 +332,13 @@ export default defineConfig({
       ],
       plugins: [
         starlightSidebarTopics(topics, {
-          // Map all /components/* Astro pages (not in content collection) to
-          // the Components topic by ID.
-          // Map the HTTP API guide (ship-http-api skill, /http-api/*) and the
-          // generated OpenAPI reference (/api-reference/*) to the internals topic.
+          // Map non-content Astro pages (under src/pages) to a topic by ID —
+          // the homepage to Start, every /components/* page to Components.
           topics: {
             // Map the homepage to the Start topic so the topic rail
             // renders with a named label on "/" instead of numeric fallbacks.
             start: ["/"],
             components: ["/components/**", "/components"],
-            ...(isInternal
-              ? {
-                  internals: [
-                    "/http-api/**",
-                    "/http-api",
-                    "/api-reference/**",
-                    "/api-reference",
-                  ],
-                }
-              : {}),
           },
           // In public builds, Internals-only pages render without a topic bar.
           exclude: excludedPatterns,

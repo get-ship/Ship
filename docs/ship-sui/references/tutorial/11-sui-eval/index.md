@@ -99,9 +99,15 @@ authoring viable.
 See `docs/ship-sui/references/docs/agent-surfaces.md` § 3 for the full
 API surface.
 
-## Where next
+## Where next from here
 
-This is the last step. Next moves:
+You finished the agent-tooling tier (steps 9–11: the agent loop, the
+LSP, and eval). Next up is the **composition** tier — slots, refs,
+class/style directives, controller hooks, and forms (steps 12–21) —
+then the **lifecycle** tier (steps 15–16 in the middle) and the
+**views** tier with live data and morphs (steps 22–25).
+
+Other places to go:
 - **Build a real view** — `scaffold_view` to start, `agent-authoring.md`
   as the checklist.
 - **Set up agent CI** — wrap `runEval` in your CI to gate PRs that

@@ -8,16 +8,41 @@
 //   1. compile every .sui file under the view dir via sui-compiler
 //   2. lint via sui-lint
 //   3. structural pass: required signals + control-flow + token-only CSS
-//   4. emit one JSON row per lane → .artifacts/sui-eval-runs/<run-id>.jsonl
+//   4. behavioral pass (when SUI_EVAL_BEHAVIOR_SPEC is set): scenario runner
+//      in jsdom via behavior-grade.ts
+//   5. emit one JSON row per lane → .artifacts/sui-eval-runs/<run-id>.jsonl
 //
 // Discovery is best-effort and fail-loud — if a lane's worktree isn't
 // reachable the row records the discovery gap rather than silently passing.
 
 import { execSync, spawnSync } from 'node:child_process'
 import { readdirSync, statSync, existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const RUN_ID = process.env.SHIP_PIPELINE_RUN_ID ?? `local-${process.env.SHIP_ACTOR_ID ?? 'unknown'}`
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
+
+// The compiler binary. `cargo run -p sui-compiler` inside a lane worktree
+// would REBUILD the compiler per lane (slow, and racy against parallel
+// compiler work) — use the orchestrating repo's prebuilt binary and only
+// fall back to cargo when it doesn't exist.
+function resolveCompiler(): { cmd: string; preArgs: string[] } {
+  const envBin = process.env.SUI_COMPILER
+  if (envBin && existsSync(envBin)) return { cmd: envBin, preArgs: [] }
+  try {
+    const root = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim()
+    const bin = join(root, 'target/debug/sui-compiler')
+    if (existsSync(bin)) return { cmd: bin, preArgs: [] }
+  } catch { /* fall through to cargo */ }
+  return { cmd: 'cargo', preArgs: ['run', '-p', 'sui-compiler', '--'] }
+}
+const COMPILER = resolveCompiler()
+
+// Optional behavioral dimension: a *.behavior.jsonc run by behavior-grade.ts
+// (scenario-runner in jsdom). When set, behavior joins the composite — it is
+// the "does it do what was asked" axis, so it carries the largest weight.
+const BEHAVIOR_SPEC = process.env.SUI_EVAL_BEHAVIOR_SPEC
 
 // The view the lanes were asked to build + the structural rubric to score it
 // against. Both are env-overridable so the cheap smoke pipeline (haiku →
@@ -38,6 +63,13 @@ const REQUIRED_TEMPLATE_FRAGMENTS = process.env.SUI_EVAL_REQUIRED_FRAGMENTS
 const REQUIRED_MANIFEST_FIELDS = ['name', 'path', 'title', 'auth']
 const FORBIDDEN_IN_CSS = /#[0-9a-fA-F]{3,8}|rgb\(|\b\d+px\b/g
 
+interface BehaviorScore {
+  total: number
+  passed: number
+  score: number
+  results: { name: string; passed: boolean; failedStep?: number; error?: string }[]
+}
+
 interface LaneScore {
   laneId: string
   worktree: string
@@ -49,6 +81,7 @@ interface LaneScore {
     cssTokenViolations: string[]
     viewFiles: string[]
   }
+  behavior?: BehaviorScore
   composite: number
 }
 
@@ -93,17 +126,42 @@ function scoreLane(laneId: string, worktree: string): LaneScore {
   const compile = compileView(worktree, viewFiles)
   const lint = lintView(worktree)
   const structural = structuralCheck(worktree, viewFiles)
+  const behavior = BEHAVIOR_SPEC ? behaviorCheck(worktree) : undefined
 
-  // Composite: compile 0.40 + lint 0.20 + structural 0.40 (weights tunable;
-  // we surface them in the jsonl so the comparison view can re-weight later).
+  // Composite weights (surfaced in the jsonl so the comparison view can
+  // re-weight later). With a behavior spec, behavior is the largest axis —
+  // "does it do what was asked" — and structure/lint shrink accordingly.
+  // Without one, the legacy compile/lint/structural split applies.
   const compileScore = compile.passed ? 1 : 0
   const lintScore = lint.errors === 0
     ? Math.max(0, 1 - lint.warnings * 0.05)
     : 0
   const structuralScore = structuralFraction(structural)
-  const composite = 0.40 * compileScore + 0.20 * lintScore + 0.40 * structuralScore
+  const composite = behavior
+    ? 0.30 * compileScore + 0.10 * lintScore + 0.20 * structuralScore + 0.40 * behavior.score
+    : 0.40 * compileScore + 0.20 * lintScore + 0.40 * structuralScore
 
-  return { laneId, worktree, compile, lint, structural, composite }
+  return { laneId, worktree, compile, lint, structural, ...(behavior ? { behavior } : {}), composite }
+}
+
+function behaviorCheck(worktree: string): BehaviorScore {
+  // behavior-grade.ts prints one JSON object on stdout (a measurement, exit 0
+  // even on failures). A crash or unparseable output scores 0 with the error
+  // captured — never silently passing.
+  const r = spawnSync('bun', [join(SCRIPT_DIR, 'behavior-grade.ts'), worktree, VIEW_PATH, BEHAVIOR_SPEC!], {
+    encoding: 'utf8',
+  })
+  try {
+    const parsed = JSON.parse(r.stdout ?? '') as BehaviorScore & { view: string }
+    return { total: parsed.total, passed: parsed.passed, score: parsed.score, results: parsed.results }
+  } catch {
+    return {
+      total: 0,
+      passed: 0,
+      score: 0,
+      results: [{ name: 'behavior-grade run', passed: false, error: (r.stderr ?? 'no output').slice(0, 400) }],
+    }
+  }
 }
 
 function collectViewFiles(dir: string): string[] {
@@ -127,9 +185,9 @@ function compileView(worktree: string, files: string[]): LaneScore['compile'] {
   for (const f of suiFiles) {
     const isComponent = f.includes('/_components/')
     const compName = isComponent ? deriveComponentName(f) : undefined
-    const args = ['run', '-p', 'sui-compiler', '--', 'build', f]
+    const args = [...COMPILER.preArgs, 'build', f]
     if (compName) args.push('--component-name', compName)
-    const r = spawnSync('cargo', args, { cwd: worktree, encoding: 'utf8' })
+    const r = spawnSync(COMPILER.cmd, args, { cwd: worktree, encoding: 'utf8' })
     if (r.status !== 0) {
       stderr += `[${f}] ${r.stderr ?? ''}\n`
     }
@@ -147,8 +205,8 @@ function lintView(worktree: string): LaneScore['lint'] {
   // inside `sui-compiler build`'s check phase. The compile step IS the lint
   // step; parse errors + warnings from the compiler's output.
   const r = spawnSync(
-    'cargo',
-    ['run', '-p', 'sui-compiler', '--', 'build', `${VIEW_PATH}/page.sui`],
+    COMPILER.cmd,
+    [...COMPILER.preArgs, 'build', `${VIEW_PATH}/page.sui`],
     { cwd: worktree, encoding: 'utf8' },
   )
   const text = (r.stdout ?? '') + (r.stderr ?? '')
@@ -218,7 +276,8 @@ writeFileSync(outFile, lines)
 console.log(`grade: wrote ${results.length} row(s) → ${outFile}`)
 for (const r of results) {
   const tag = r.compile.passed ? 'ok' : 'fail'
-  console.log(`  ${r.laneId.padEnd(8)} composite=${r.composite.toFixed(2)} compile=${tag} lint=${r.lint.errors}e/${r.lint.warnings}w`)
+  const beh = r.behavior ? ` behavior=${r.behavior.passed}/${r.behavior.total}` : ''
+  console.log(`  ${r.laneId.padEnd(8)} composite=${r.composite.toFixed(2)} compile=${tag} lint=${r.lint.errors}e/${r.lint.warnings}w${beh}`)
 }
 
 // Exit 0 even if a lane scored zero — `grade` is a measurement, not a gate.

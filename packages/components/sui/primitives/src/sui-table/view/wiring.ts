@@ -10,13 +10,12 @@
 // Authority: build-spec §"The view", §"Composition map", §"Behavioral spec
 // list", Slices 5 + 7c.
 
+import { derived, type Derived } from '@ship/sui-runtime'
 import {
   createVirtualizer,
-  derived,
-  type Derived,
   type Virtual,
   type VirtualItem,
-} from '@ship/sui-runtime'
+} from '@ship/sui-runtime/virtual'
 import type { Table } from '../engine/create-table'
 import type { CellValue, ColumnApi, Row } from '../engine/types'
 
@@ -144,7 +143,7 @@ export function windowRows<T>(
       const row = center[it.index]
       if (!row) continue
       out.push({
-        key: it.key,
+        key: it.key as string | number,
         index: it.index,
         start: it.start,
         size: it.size,

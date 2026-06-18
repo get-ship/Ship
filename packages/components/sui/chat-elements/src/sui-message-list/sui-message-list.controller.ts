@@ -1,12 +1,16 @@
 import {
   controller,
-  createVirtualizer,
   derived,
   effect,
   ref,
   signal,
 } from '@ship/sui-runtime'
-import type { Derived, ViewScope, Virtual, VirtualItem } from '@ship/sui-runtime'
+import type { Derived, ViewScope } from '@ship/sui-runtime'
+import {
+  createVirtualizer,
+  type Virtual,
+  type VirtualItem,
+} from '@ship/sui-runtime/virtual'
 import type { Scope } from './sui-message-list.sui'
 
 interface MessageItem {

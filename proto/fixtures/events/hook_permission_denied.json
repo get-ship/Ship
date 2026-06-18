@@ -2,7 +2,7 @@
   "_meta": {
     "event": "hook.permission_denied",
     "scope": "runtime",
-    "retention": "durable",
+    "retention": "ephemeral",
     "stability": "stable",
     "payload_type": "HookPermissionDeniedPayload",
     "needs_author": false

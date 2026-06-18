@@ -1,0 +1,114 @@
+<!--
+  calendar.after.sui — "New" elevated MONTH view. Structure mirrors what the
+  real sui-calendar view-model emits (title · nav · weekday row · 6×7 grid of
+  MonthCells with today / outside-month / event chips / overflow). Behavior
+  (prev/next/today) is wired in calendar.controller.js (a dependency-free month
+  engine). The design is the gap: a today ring, weekend wash, tone-barred event
+  chips, an overflow pill, hover + focus affordances. Compiled <sui-calendar-after>.
+-->
+<style>
+  :host { display: block; }
+  :host([hidden]) { display: none; }
+
+  .cal {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+  }
+
+  .head { display: flex; align-items: center; gap: 12px; padding: 14px var(--space-5); }
+  .title { font-family: var(--heading-font); font-weight: var(--heading-weight, 600); font-size: var(--text-xl); letter-spacing: var(--heading-tracking, -0.01em); }
+  .nav { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+  .todaybtn {
+    font: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; margin-right: 4px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card);
+    color: var(--foreground); cursor: pointer; box-shadow: var(--shadow-xs);
+    transition: background-color var(--duration-fast) var(--ease-out);
+  }
+  .todaybtn:hover { background: color-mix(in oklch, var(--muted) 70%, var(--background)); }
+  .navbtn {
+    width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 17px; line-height: 1; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--card); color: var(--foreground); cursor: pointer;
+    transition: background-color var(--duration-fast) var(--ease-out);
+  }
+  .navbtn:hover { background: color-mix(in oklch, var(--muted) 70%, var(--background)); }
+
+  .dow { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid var(--border-subtle); }
+  .dowc {
+    padding: 8px 10px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--muted-foreground); text-align: left;
+  }
+
+  .grid { display: grid; grid-template-rows: repeat(6, 1fr); }
+  .wk { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .cell {
+    min-height: 96px; padding: 5px 7px 7px; border-top: 1px solid var(--border-subtle);
+    border-left: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 4px;
+    cursor: pointer; transition: background-color var(--duration-fast) var(--ease-out);
+  }
+  .wk .cell:first-child { border-left: 0; }
+  .cell:hover { background: color-mix(in oklch, var(--foreground) 4%, transparent); }
+  /* weekend wash — first (Sun) and last (Sat) columns */
+  .wk .cell:first-child, .wk .cell:last-child { background: color-mix(in oklch, var(--muted) 22%, transparent); }
+  .cell.outside { background: color-mix(in oklch, var(--muted) 30%, transparent); }
+
+  .dnum {
+    align-self: flex-start; min-width: 22px; height: 22px; padding: 0 5px; display: inline-flex;
+    align-items: center; justify-content: center; font-size: 12px; font-weight: 600;
+    color: var(--foreground); border-radius: var(--radius-full);
+  }
+  .cell.outside .dnum { color: color-mix(in oklch, var(--muted-foreground) 80%, transparent); font-weight: 500; }
+  .cell.today .dnum { background: var(--primary); color: var(--primary-foreground); }
+
+  .evts { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .evt {
+    display: flex; align-items: center; gap: 6px; padding: 2px 6px; border-radius: var(--radius-sm);
+    font-size: 11px; line-height: 1.3; background: color-mix(in oklch, var(--tone, var(--primary)) 13%, transparent);
+    overflow: hidden;
+  }
+  .evt .bar { width: 3px; align-self: stretch; min-height: 12px; border-radius: 2px; background: var(--tone, var(--primary)); flex: 0 0 auto; }
+  .evt .lbl { color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .evt-info        { --tone: var(--info); }
+  .evt-accent      { --tone: var(--accent); }
+  .evt-success     { --tone: var(--success); }
+  .evt-warning     { --tone: var(--warning); }
+  .evt-destructive { --tone: var(--destructive); }
+  .evt-default     { --tone: var(--muted-foreground); }
+  .more { font-size: 10px; font-weight: 600; color: var(--muted-foreground); padding: 1px 4px; }
+
+  :host(:focus-visible) { outline: 2px solid var(--ring); outline-offset: 2px; }
+</style>
+
+<div class="cal" part="calendar">
+  <div class="head">
+    <div class="title">{title()}</div>
+    <div class="nav">
+      <button class="todaybtn" data-nav="today" type="button">Today</button>
+      <button class="navbtn" data-nav="prev" type="button" aria-label="Previous month">‹</button>
+      <button class="navbtn" data-nav="next" type="button" aria-label="Next month">›</button>
+    </div>
+  </div>
+  <div class="dow" role="row">
+    {#for d of weekdays() key={d.key}}<div class="dowc">{d.label}</div>{/for}
+  </div>
+  <div class="grid" role="grid" aria-label={title()}>
+    {#for row of weekRows() key={row.key}}
+      <div class="wk" role="row">
+        {#for c of row.cells key={c.key}}
+          <div class={c.cls} role="gridcell" data-iso={c.iso} aria-label={c.iso}>
+            <span class="dnum">{c.day}</span>
+            <div class="evts">
+              {#for ev of c.events key={ev.id}}
+                <div class={ev.cls}><span class="bar"></span><span class="lbl">{ev.title}</span></div>
+              {/for}
+              {#if c.hasOverflow}<div class="more">+{c.overflow} more</div>{/if}
+            </div>
+          </div>
+        {/for}
+      </div>
+    {/for}
+  </div>
+</div>

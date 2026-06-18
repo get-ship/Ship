@@ -1,0 +1,73 @@
+<!--
+  <ship-artifact-filters> — @ship/artifacts · the filter bar above the list.
+
+  Presentational. Composes <sui-input> + four <sui-select>s. Reads default
+  option sets from `prop:collections` and `prop:actors` (JSON-encoded).
+  Emits `ship-artifact-filter { kind, value }` on any change. The host
+  wires the events to a list reload (or future Watch filters).
+
+  No SDK. The controller's only job is event emission — see
+  controller.ts.
+
+  Props:
+    collections   JSON of CollectionRow[]    default '[]'
+    actors        JSON of string[]           default '[]'
+    disabled      reflect                    default false
+-->
+<prop name="collections" type="string" default="[]" />
+<prop name="actors" type="string" default="[]" />
+<prop name="disabled" type="bool" default="false" reflect />
+
+<style>
+  :host { display: block; font-family: var(--font-body); }
+  .filters sui-select { min-width: 140px; }
+  .filters sui-input { flex: 1 1 220px; min-width: 200px; }
+</style>
+
+<sui-cluster gap="2" class="filters" part="filters">
+  <sui-input type="search" size="sm" placeholder="Search by name, id, actor…"
+    aria-label="Search artifacts"
+    prop:disabled={disabled()}
+    data-test="filter-search"
+    on:sui-input={onSearch}></sui-input>
+
+  <sui-select size="sm" aria-label="Filter by type"
+    prop:disabled={disabled()}
+    data-test="filter-mime"
+    on:sui-change={onMime}>
+    <option value="">All types</option>
+    <option value="image">Images</option>
+    <option value="text">Text</option>
+    <option value="json">JSON</option>
+  </sui-select>
+
+  <sui-select size="sm" aria-label="Filter by collection"
+    prop:disabled={disabled()}
+    data-test="filter-collection"
+    on:sui-change={onCollection}>
+    <option value="">All collections</option>
+    {#for c of collectionRows() key={c.id}}
+      <option attr:value={c.id}>{c.name || c.id}</option>
+    {/for}
+  </sui-select>
+
+  <sui-select size="sm" aria-label="Filter by actor"
+    prop:disabled={disabled()}
+    data-test="filter-actor"
+    on:sui-change={onActor}>
+    <option value="">All actors</option>
+    {#for a of actorList() key={a}}
+      <option attr:value={a}>{a}</option>
+    {/for}
+  </sui-select>
+
+  <sui-select size="sm" aria-label="Filter by age"
+    prop:disabled={disabled()}
+    data-test="filter-age"
+    on:sui-change={onAge}>
+    <option value="">Any age</option>
+    <option value="24h">Last 24h</option>
+    <option value="7d">Last 7 days</option>
+    <option value="30d">Last 30 days</option>
+  </sui-select>
+</sui-cluster>

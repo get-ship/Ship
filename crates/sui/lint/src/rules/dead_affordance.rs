@@ -183,20 +183,62 @@ fn find_attr(inner: &str, attr: &str) -> Option<usize> {
 }
 
 /// Is `name` read anywhere — template body, style attr-selectors, or controller?
+///
+/// A prop is declared in kebab-case (`<prop name="described-by">`) but the
+/// template body reads it via the camelCase SUI accessor (`{describedBy()}`).
+/// We try the literal kebab name first, then fall back to the camel form —
+/// without the fallback, `sui-input`'s `described-by` / `error-message` look
+/// dead even though `{describedBy()}` / `{errorMessage()}` clearly read them.
 fn is_read(name: &str, body: &str, style: &str, controller: &str) -> bool {
     // 1+2+3: interpolation, directive binding, or accessor call in the body.
     if read_in_body(name, body) {
+        return true;
+    }
+    // Same scan with the camelCase form. Skipped when the name has no `-`
+    // (no transformation happened) so the common case is a single scan.
+    let camel = camelize(name);
+    if camel != name && read_in_body(&camel, body) {
         return true;
     }
     // 4: reflected-attribute CSS selector `[name` in the style block.
     if read_in_style(name, style) {
         return true;
     }
-    // 5: identifier mention in the paired controller.
+    // 5: identifier mention in the paired controller. The controller is
+    // TypeScript and accesses props through the camelCase SUI accessor
+    // (`state.$signals.describedBy()`), so we try the literal name first
+    // then the camel form — same reasoning as the body scan above.
     if !controller.is_empty() && contains_identifier(controller, name) {
         return true;
     }
+    if !controller.is_empty()
+        && camel != name
+        && contains_identifier(controller, &camel)
+    {
+        return true;
+    }
     false
+}
+
+/// Convert a kebab-case prop name to its camelCase SUI accessor form.
+/// `described-by` → `describedBy`, `error-message` → `errorMessage`,
+/// `aria-label` → `ariaLabel`. Names without a `-` are returned unchanged.
+/// The boundary is `-`; runs of `-` are not specially handled (a prop named
+/// `x--y` is not a SUI convention, so the degenerate output is acceptable).
+fn camelize(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut at_boundary = false;
+    for ch in s.chars() {
+        if ch == '-' {
+            at_boundary = true;
+        } else if at_boundary {
+            out.extend(ch.to_uppercase());
+            at_boundary = false;
+        } else {
+            out.push(ch);
+        }
+    }
+    out
 }
 
 /// `{name}` / `{name()}` interpolation, `attr:name=`/`prop:name=`/`class:name=`/
@@ -363,4 +405,91 @@ fn byte_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
         i += 1;
     }
     (line, col)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn run(src: &str) -> Vec<Finding> {
+        check(&PathBuf::from("/fake/foo.sui"), src)
+    }
+
+    // --- camelize helper ---
+
+    #[test]
+    fn camelize_kebab_to_camel() {
+        assert_eq!(camelize("described-by"), "describedBy");
+        assert_eq!(camelize("error-message"), "errorMessage");
+        assert_eq!(camelize("aria-label"), "ariaLabel");
+        assert_eq!(camelize("tone"), "tone");
+        assert_eq!(camelize(""), "");
+        // Multi-segment (e.g. "tone-primary-border" — current SUI primitives
+        // don't use these, but the helper is general).
+        assert_eq!(camelize("tone-primary-border"), "tonePrimaryBorder");
+    }
+
+    // --- Kebab prop read via camelCase accessor ---
+
+    #[test]
+    fn kebab_prop_read_via_camel_accessor_is_live() {
+        // The literal text is a kebab prop, but the template reads it via
+        // the camelCase SUI accessor. Should NOT be flagged.
+        let src = r#"
+            <prop name="described-by" type="string" default="" />
+            <prop name="error-message" type="string" default="" />
+            <div aria-describedby={describedBy()}>
+              {#if invalid() && errorMessage()}
+                <span role="alert">{errorMessage()}</span>
+              {/if}
+            </div>
+        "#;
+        assert!(run(src).is_empty(), "{:?}", run(src));
+    }
+
+    #[test]
+    fn kebab_prop_with_no_camel_accessor_still_flags() {
+        // Genuinely dead — kebab prop declared, no camel accessor either.
+        let src = r#"
+            <prop name="described-by" type="string" default="" />
+            <div>hello</div>
+        "#;
+        let f = run(src);
+        assert_eq!(f.len(), 1, "{f:?}");
+        assert!(f[0].message.contains("described-by"), "{}", f[0].message);
+    }
+
+    #[test]
+    fn prop_without_kebab_still_works() {
+        // A prop with no kebab (no transformation) — original behaviour.
+        let src = r#"
+            <prop name="tone" type="string" default="" />
+            <div>{tone()}</div>
+        "#;
+        assert!(run(src).is_empty(), "{:?}", run(src));
+    }
+
+    // --- Existing behaviour preserved ---
+
+    #[test]
+    fn truly_dead_prop_still_flags() {
+        let src = r#"
+            <prop name="orphan" type="string" default="" />
+            <div>hello</div>
+        "#;
+        let f = run(src);
+        assert_eq!(f.len(), 1, "{f:?}");
+        assert!(f[0].message.contains("orphan"));
+    }
+
+    #[test]
+    fn prop_read_in_attr_directive_is_live() {
+        // `attr:foo` directive counts as a read in the body scan.
+        let src = r#"
+            <prop name="foo" type="string" default="" />
+            <div attr:foo={foo()}></div>
+        "#;
+        assert!(run(src).is_empty(), "{:?}", run(src));
+    }
 }

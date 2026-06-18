@@ -51,9 +51,10 @@
     width: 100%;
     position: relative;
     overflow: hidden;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     background: var(--background);
+    box-shadow: var(--shadow-xs);
   }
   :host([hidden]) { display: none; }
 

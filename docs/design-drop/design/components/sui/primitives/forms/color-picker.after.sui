@@ -1,0 +1,35 @@
+<!--
+  sui-color-picker.after.sui — ENHANCED (confirms the review "approve"). The fixed
+  hex grid becomes a curated ramp bound to the theme's OKLCH tokens — every swatch
+  IS a theme color (so the picked color re-themes with the app), the stored value
+  is the resolved oklch(...) not a frozen hex, the selected swatch carries a real
+  --primary ring (not a foreground outline), and a caption states the contract.
+  Locked --card trigger. Popover shown open inline. Compiled as
+  <x-color-picker-after>.
+-->
+<style>
+  :host { display: block; font-family: var(--font-body); width: 240px; }
+  .trigger { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-xs); font-size: 13px; color: var(--foreground); }
+  .sw { width: 18px; height: 18px; border-radius: 5px; border: 1px solid var(--border-subtle); flex: none; box-shadow: inset 0 1px 0 color-mix(in oklch, var(--background) 40%, transparent); }
+  .val { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+  .pop { margin-top: 6px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-md); padding: 10px; }
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  .chip { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--border-subtle); cursor: pointer; transition: transform var(--duration-fast); }
+  .chip:hover { transform: scale(1.08); }
+  .chip.sel { box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--primary); }
+  .cap { margin-top: 10px; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-foreground); line-height: 1.4; }
+</style>
+<div class="trigger" part="trigger">
+  <span class="sw" style="background:var(--primary)"></span><span>Accent</span><span class="val">oklch(.55 .22 27)</span>
+</div>
+<div class="pop" part="popover">
+  <div class="grid">
+    <span class="chip sel" style="background:var(--primary)"></span>
+    <span class="chip" style="background:var(--accent)"></span>
+    <span class="chip" style="background:var(--info)"></span>
+    <span class="chip" style="background:var(--success)"></span>
+    <span class="chip" style="background:var(--warning)"></span>
+    <span class="chip" style="background:var(--destructive)"></span>
+  </div>
+  <div class="cap">Bound to theme ramp · stored as OKLCH</div>
+</div>

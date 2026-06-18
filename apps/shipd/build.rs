@@ -1,6 +1,6 @@
 //! Build-time codegen for the canonical Ship route registry.
 //!
-//! Reads `src/routes.rs`, parses every variant's `@route` / `@returns` /
+//! Reads `src/routes/mod.rs`, parses every variant's `@route` / `@returns` /
 //! `@body` doc-comment annotations, validates path-param → variant-field
 //! correspondence, and emits two artifacts:
 //!
@@ -27,7 +27,7 @@ fn main() {
     // Rerun triggers: the enum, this script, and the target paths we write.
     // (Touching only the generated files must NOT trigger re-build — we use
     // content-equality skips below.)
-    println!("cargo:rerun-if-changed=src/routes.rs");
+    println!("cargo:rerun-if-changed=src/routes/mod.rs");
     println!("cargo:rerun-if-changed=build.rs");
 
     // Build identity (BUILD_GIT_SHA, BUILD_GIT_DIRTY, BUILD_TIMESTAMP,
@@ -35,11 +35,11 @@ fn main() {
     // and mcp via the build-info crate.
     build_info::emit_build_env();
 
-    let routes_rs = Path::new("src/routes.rs");
+    let routes_rs = Path::new("src/routes/mod.rs");
     let source = fs::read_to_string(routes_rs)
-        .unwrap_or_else(|e| panic!("build.rs: read src/routes.rs: {e}"));
+        .unwrap_or_else(|e| panic!("build.rs: read src/routes/mod.rs: {e}"));
     let file = syn::parse_file(&source)
-        .unwrap_or_else(|e| panic!("build.rs: parse src/routes.rs: {e}"));
+        .unwrap_or_else(|e| panic!("build.rs: parse src/routes/mod.rs: {e}"));
 
     let variants = extract_route_variants(&file);
 

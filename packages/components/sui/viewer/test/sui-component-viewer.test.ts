@@ -147,9 +147,6 @@ afterEach(() => {
 const root = (el: HTMLElement) => (el.shadowRoot ?? el) as ParentNode
 
 describe('<sui-component-viewer> — registration + composition', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get(TAG)).toBeDefined()
-  })
 
   it('attaches a shadow root', () => {
     const el = mountViewer({ 'component-name': SPECIMEN_TAG }, { compile: makeBoundCompile(), source: SPECIMEN_SRC, cem: BUTTON_CEM })

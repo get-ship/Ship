@@ -3,6 +3,7 @@ import { runInDurableObject, drizzle, platform_schema, makeEvent, createMigrated
 import { EventRepository } from '../src/repositories/event.repository.js';
 import { ProjectProjectionRepository } from '../src/repositories/project-projection.repository.js';
 import { JobProjectionRepository } from '../src/repositories/job-projection.repository.js';
+import { PIPELINE_RUN_STARTED, PIPELINE_RUN_DISPATCHED, PIPELINE_RUN_COMPLETED, PIPELINE_RUN_FAILED } from '@ship-cloud/types';
 
 describe('Platform ProjectProjection', () => {
   let stub: DurableObjectStub;
@@ -71,7 +72,7 @@ describe('Platform ProjectProjection', () => {
   it('should ignore unrelated event types', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const proj = new ProjectProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
-      await proj.applyEvent(makeEvent({ event_type: 'job.created', entity_id: crypto.randomUUID() }));
+      await proj.applyEvent(makeEvent({ event_type: PIPELINE_RUN_STARTED, entity_id: crypto.randomUUID() }));
       expect((await proj.list()).value).toHaveLength(0);
     });
   });
@@ -85,7 +86,7 @@ describe('Platform JobProjection', () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const proj = new JobProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
       const jobId = crypto.randomUUID();
-      await proj.applyEvent(makeEvent({ event_type: 'job.created', entity_id: jobId }));
+      await proj.applyEvent(makeEvent({ event_type: PIPELINE_RUN_STARTED, entity_id: jobId }));
       const result = await proj.list();
       expect(result.value).toHaveLength(1);
       expect(result.value[0]!.status).toBe('created');
@@ -96,11 +97,11 @@ describe('Platform JobProjection', () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const proj = new JobProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
       const jobId = crypto.randomUUID();
-      await proj.applyEvent(makeEvent({ event_type: 'job.created', entity_id: jobId }));
+      await proj.applyEvent(makeEvent({ event_type: PIPELINE_RUN_STARTED, entity_id: jobId }));
       expect((await proj.list()).value[0]!.status).toBe('created');
-      await proj.applyEvent(makeEvent({ event_type: 'job.dispatched', entity_id: jobId }));
+      await proj.applyEvent(makeEvent({ event_type: PIPELINE_RUN_DISPATCHED, entity_id: jobId }));
       expect((await proj.list()).value[0]!.status).toBe('dispatched');
-      await proj.applyEvent(makeEvent({ event_type: 'job.completed', entity_id: jobId }));
+      await proj.applyEvent(makeEvent({ event_type: PIPELINE_RUN_COMPLETED, entity_id: jobId }));
       expect((await proj.list()).value[0]!.status).toBe('completed');
     });
   });
@@ -109,9 +110,9 @@ describe('Platform JobProjection', () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const proj = new JobProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
       const jobId = crypto.randomUUID();
-      await proj.applyEvent(makeEvent({ event_type: 'job.created', entity_id: jobId }));
-      await proj.applyEvent(makeEvent({ event_type: 'job.dispatched', entity_id: jobId }));
-      await proj.applyEvent(makeEvent({ event_type: 'job.failed', entity_id: jobId }));
+      await proj.applyEvent(makeEvent({ event_type: PIPELINE_RUN_STARTED, entity_id: jobId }));
+      await proj.applyEvent(makeEvent({ event_type: PIPELINE_RUN_DISPATCHED, entity_id: jobId }));
+      await proj.applyEvent(makeEvent({ event_type: PIPELINE_RUN_FAILED, entity_id: jobId }));
       expect((await proj.list()).value[0]!.status).toBe('failed');
     });
   });
@@ -131,7 +132,7 @@ describe('Platform SyncFacade integration', () => {
       const [wsId, jobId] = [crypto.randomUUID(), crypto.randomUUID()];
       const events = [
         makeEvent({ event_type: 'workspace.created', entity_id: wsId, payload_json: JSON.stringify({ name: 'ws-1' }) }),
-        makeEvent({ event_type: 'job.created', entity_id: jobId, space_id: wsId }),
+        makeEvent({ event_type: PIPELINE_RUN_STARTED, entity_id: jobId, space_id: wsId }),
       ];
 
       expect((await eventRepo.push(events)).value).toBe(2);

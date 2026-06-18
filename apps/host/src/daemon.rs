@@ -101,7 +101,16 @@ pub fn daemon_start() -> Result<DaemonInfo, String> {
 mod tests {
     use super::*;
     use ship_substrate::home::DaemonHandle;
+    use std::sync::Mutex;
     use tempfile::TempDir;
+
+    /// Process-wide lock for the daemon_start error-path test. The test
+    /// mutates `PATH` and the cwd; the mutex serialises the body so a
+    /// parallel `cargo test` doesn't have two of the same test stepping
+    /// on each other. (Other env-mutating tests in the crate — e.g.
+    /// `launcher::tests::install_writes_desktop_file_to_temp_home` —
+    /// touch a different env var, so a shared lock isn't needed.)
+    static TEST_ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn handle_in(dir: &std::path::Path, pid: Option<u32>) -> DaemonHandle {
         DaemonHandle {
@@ -113,7 +122,6 @@ mod tests {
             build_sha: None,
         }
     }
-
     #[test]
     fn from_handle_maps_fields_and_alive_pid() {
         let tmp = TempDir::new().unwrap();
@@ -145,5 +153,73 @@ mod tests {
             from_handle(handle_in(tmp.path(), None)).socket,
             Some(sock.display().to_string())
         );
+    }
+
+    /// Run a single-threaded gated block of daemon_start error-path tests.
+    /// The test is *serial* — it mutates `PATH` and the cwd, which are
+    /// process-global. A static `Mutex` makes cargo's parallel test runner
+    /// serialize this test against the other daemon tests that touch the
+    /// same env (`launcher::tests::install_writes_desktop_file_to_temp_home`
+    /// mutates `HOME`, for example). The mutex is taken for the whole body
+    /// and held until the very last assertion; cargo's scheduler sees the
+    /// guard on the way in and waits.
+    ///
+    /// The happy path of `daemon_start` is *not* exercised here: it requires
+    /// a real `ship` binary that brings up a daemon, which is what
+    /// `tests/contract` and the launch smoke test cover. Unit coverage
+    /// stays on the two error contracts:
+    ///   1. `ship` missing on PATH → surface the spawn error
+    ///   2. `ship` exits 0 but no handshake ever appears → 5s timeout Err
+    #[test]
+    fn daemon_start_error_paths() {
+        let _guard = TEST_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        let cwd = TempDir::new().unwrap();
+        let prev_cwd = std::env::current_dir().ok();
+        let prev_path = std::env::var_os("PATH");
+        std::env::set_current_dir(cwd.path()).unwrap();
+
+        // ---- (1) ship missing on PATH ------------------------------------
+        let empty_path = TempDir::new().unwrap();
+        std::env::set_var("PATH", empty_path.path());
+        let err = daemon_start()
+            .expect_err("expected daemon_start to fail when no `ship` is on PATH");
+        assert!(
+            err.to_lowercase().contains("ship") || err.to_lowercase().contains("spawn"),
+            "error must name `ship` or `spawn`; got: {err:?}"
+        );
+
+        // ---- (2) ship exists but no handshake ever appears ---------------
+        // A no-op `ship` shim exits 0 immediately. `daemon_start` reaps it
+        // and then polls for a handshake that never arrives. The 5s
+        // timeout contract is the load-bearing one: the function must
+        // return an Err after the timeout, never panic. The test takes
+        // ~5s; that's the cost of a meaningful test for this path.
+        let bin_dir = TempDir::new().unwrap();
+        let ship_shim = bin_dir.path().join("ship");
+        std::fs::write(&ship_shim, "#!/bin/sh\nexit 0\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&ship_shim, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        std::env::set_var("PATH", bin_dir.path());
+        let result = std::panic::catch_unwind(|| daemon_start());
+        let outcome =
+            result.expect("daemon_start must not panic when handshake never arrives");
+        assert!(outcome.is_err(), "expected timeout Err, got {outcome:?}");
+        let err = outcome.unwrap_err();
+        assert!(
+            err.contains("5s") || err.contains("handshake"),
+            "error should mention the timeout/handshake, got: {err:?}"
+        );
+
+        // Restore.
+        if let Some(prev) = prev_cwd {
+            std::env::set_current_dir(prev).unwrap();
+        }
+        match prev_path {
+            Some(v) => std::env::set_var("PATH", v),
+            None => std::env::remove_var("PATH"),
+        }
     }
 }

@@ -1,7 +1,7 @@
 ---
 name: ship-mcp
-audience: public
 stable-id: ship-mcp
+audience: public
 description: >-
   The `mcp` capability (6 ops). Call any op over ConnectRPC with
   `ship ops call <name> --json '<args>'`. This file is a table of contents;

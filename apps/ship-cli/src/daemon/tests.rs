@@ -1,4 +1,5 @@
-use super::{format_relative_time, format_uptime, read_pid, write_pid};
+use super::pid_io::{read_pid, write_pid};
+use super::status::{format_relative_time, format_uptime};
 use tempfile::TempDir;
 
 #[test]

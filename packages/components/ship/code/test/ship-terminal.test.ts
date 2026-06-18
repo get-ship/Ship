@@ -45,23 +45,8 @@ async function xtermApiAttaches(): Promise<boolean> {
 const xtermApiAbsent = !(await xtermApiAttaches())
 
 describe('<ship-terminal>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('ship-terminal')).toBeDefined()
-  })
 
-  it('attaches a shadow root', () => {
-    const c = mkContainer()
-    c.innerHTML = '<ship-terminal></ship-terminal>'
-    const el = c.querySelector('ship-terminal')!
-    expect(el.shadowRoot).not.toBeNull()
-  })
 
-  it('shadow root contains the terminal-wrap container', () => {
-    const c = mkContainer()
-    c.innerHTML = '<ship-terminal></ship-terminal>'
-    const el = c.querySelector('ship-terminal')!
-    expect(el.shadowRoot!.querySelector('.terminal-wrap')).not.toBeNull()
-  })
 
   it('terminal container has role=terminal in interactive mode', () => {
     const c = mkContainer()
@@ -95,12 +80,11 @@ describe('<ship-terminal>', () => {
     expect(el.getAttribute('theme')).toBe('dark')
   })
 
-  it('reflects fit attribute', () => {
-    const c = mkContainer()
-    c.innerHTML = '<ship-terminal fit></ship-terminal>'
-    const el = c.querySelector('ship-terminal')!
-    expect(el.hasAttribute('fit')).toBe(true)
-  })
+  // P1.3: `reflects fit attribute` deleted — boolean-attribute round-trip
+  // that's a sub-case of the runtime's generic `reflect` test in
+  // packages/sui/runtime/test/component.test.ts. The test was framed
+  // as an attribute round-trip (input → read back), not a behavior
+  // test of the imperative API or terminal rendering.
 
   it.skipIf(xtermApiAbsent)('host has imperative API methods after connect', async () => {
     const c = mkContainer()

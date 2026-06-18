@@ -22,11 +22,12 @@ Detected host sandbox capabilities + the strategy Ship would pick for the next a
 
 ## Returns
 
-`JsonResponse` (JSON).
+`IsolationStatusResponse` (JSON).
 
 | field | type |
 |-------|------|
-| `json` | `string` |
+| `capabilities` | `map` |
+| `decision` | `map` |
 
 ## Invoke
 
@@ -36,3 +37,60 @@ ship ops call isolation.status --json '{ "rescan": false }'
 
 Kind: read.
 
+## Example response
+
+```json
+{
+  "capabilities": {
+    "os": "linux",
+    "in_sandbox": false,
+    "docker": true,
+    "podman": false,
+    "youki": null,
+    "youki_rootfs": null,
+    "lima": null,
+    "tart": null,
+    "wsl2": false,
+    "srt": false,
+    "sandbox_exec": false,
+    "vz_framework": false,
+    "firecracker": false,
+    "apple_container": false,
+    "fly_cli": false,
+    "fly_authed": false
+  },
+  "decision": {
+    "resolved": {
+      "strategy": "docker",
+      "tier": "container",
+      "reason": {
+        "os_default": {
+          "os": "linux"
+        }
+      },
+      "downgraded": false
+    },
+    "capabilities": {
+      "os": "linux",
+      "in_sandbox": false,
+      "docker": true,
+      "podman": false,
+      "youki": null,
+      "youki_rootfs": null,
+      "lima": null,
+      "tart": null,
+      "wsl2": false,
+      "srt": false,
+      "sandbox_exec": false,
+      "vz_framework": false,
+      "firecracker": false,
+      "apple_container": false,
+      "fly_cli": false,
+      "fly_authed": false
+    },
+    "user_profile_used": {
+      "tier": "container"
+    }
+  }
+}
+```

@@ -39,7 +39,8 @@
     color: var(--foreground);
     background: var(--background);
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
     overflow: hidden;
     /* Local sub-scale spacing tokens (derived from the --space-N scale) for the
        dense calendar chrome — chips/gaps that read tighter than --space-1 (4px). */
@@ -99,22 +100,29 @@
     padding: var(--density-row-py) var(--density-row-px);
     border-right: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: var(--cal-gap-xs);
+    /* Layout (display:flex column, gap) is provided by <sui-stack>. */
   }
   .cell.out { color: var(--muted-foreground); background: var(--muted); }
-  .cell.weekend { background: var(--muted); }
+  .cell.weekend { background: var(--tone-muted-bg); }
   .cell.in-range { background: var(--selected-bg); }
-  .cell .daynum { font-size: var(--density-text); align-self: flex-start; }
+  .cell .daynum {
+    font-size: var(--density-text);
+    align-self: flex-start;
+    min-width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+  }
   .cell.today .daynum {
-    background: var(--selected-bg);
-    border-radius: var(--radius-sm);
-    padding: 0 var(--space-1);
+    box-shadow: inset 0 0 0 1.5px var(--primary);
+    color: var(--primary);
     font-weight: var(--font-weight-semibold);
   }
 
   .chip {
+    position: relative;
     appearance: none;
     border: 0;
     text-align: start;
@@ -122,16 +130,35 @@
     font: inherit;
     font-size: var(--density-text);
     color: var(--foreground);
-    background: var(--tone-default-bg);
+    background: var(--tone-primary-bg);
     border-radius: var(--radius-sm);
     padding: var(--cal-chip-py) var(--cal-chip-px);
+    padding-left: calc(var(--cal-chip-px) + var(--space-2));
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
+  .chip::before {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    min-height: 12px;
+    border-radius: var(--radius-sm);
+    background: var(--primary);
+  }
   .chip[aria-selected='true'] { outline: 2px solid var(--ring); outline-offset: -2px; }
   .chip.allday { background: var(--tone-accent-bg); }
-  .overflow { font-size: var(--density-text); color: var(--muted-foreground); }
+  .chip.allday::before { background: var(--accent); }
+  .overflow {
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--muted-foreground);
+    padding: 0 var(--space-1);
+  }
 
   /* ── Week / day time grid ── */
   .timegrid { display: none; }
@@ -166,10 +193,8 @@
   .slot-bg:hover { background: var(--hover-bg); }
   .allday-zone {
     position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    gap: var(--cal-gap-xs);
+    z-index: var(--z-elevated);
+    /* Layout (display:flex column, gap) is provided by <sui-stack>. */
     padding: var(--cal-gap-xs);
   }
   .allday-zone:empty { display: none; }
@@ -228,7 +253,7 @@
     {#for wk of weekRows() key={wk.key}}
       <div class="week" role="row">
         {#for cr of wk.cells key={cr.key}}
-          <div
+          <sui-stack
             class="cell"
             role="gridcell"
             data-iso={cr.cell.iso}
@@ -239,6 +264,7 @@
             class:in-range={cr.inRange}
             aria-current={cr.cell.today ? 'date' : null}
             aria-label={cr.cell.iso}
+            gap="1"
           >
             <span class="daynum">{cr.cell.day}</span>
             {#for ev of cr.cell.events key={ev.id}}
@@ -254,7 +280,7 @@
             {#if cr.cell.overflowCount > 0}
               <span class="overflow">+{cr.cell.overflowCount} more</span>
             {/if}
-          </div>
+          </sui-stack>
         {/for}
       </div>
     {/for}
@@ -274,7 +300,7 @@
               <div class="slot-bg" data-iso={dc.col.iso} data-minutes={slot.minutes}></div>
             {/for}
           </div>
-          <div class="allday-zone">
+          <sui-stack class="allday-zone" gap="1">
             {#for ev of dc.col.allDayEvents key={ev.id}}
               <button
                 type="button"
@@ -284,7 +310,7 @@
                 title={ev.title}
               >{ev.title}</button>
             {/for}
-          </div>
+          </sui-stack>
           {#for pe of dc.col.laidOut key={pe.event.id}}
             <button
               type="button"

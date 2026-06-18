@@ -144,7 +144,7 @@ export default controller({
           const sel = list[state.highlight]
           if (sel) { commit(sel.value, sel.label); return }
         }
-        commit(state.value)
+        commit(state.value as string)
       } else if (e.key === 'Escape') {
         if (!state.open) return
         e.preventDefault()
@@ -175,7 +175,7 @@ export default controller({
       const match = list.find((s) => s.value === value)
       commit(value, match?.label)
     }
-    host.shadowRoot?.addEventListener('mousedown', onShadowMousedown)
+    host.shadowRoot?.addEventListener('mousedown', onShadowMousedown as EventListener)
 
     host.expose!({
       focus: () => inputEl.focus(),
@@ -191,7 +191,7 @@ export default controller({
       inputEl.removeEventListener('input', onInput)
       inputEl.removeEventListener('keydown', onKeydown)
       inputEl.removeEventListener('blur', onBlur)
-      host.shadowRoot?.removeEventListener('mousedown', onShadowMousedown)
+      host.shadowRoot?.removeEventListener('mousedown', onShadowMousedown as EventListener)
     }
   },
 })

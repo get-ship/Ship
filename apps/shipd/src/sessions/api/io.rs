@@ -17,7 +17,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt as TokioStreamExt;
 
 use crate::auth::{AuthContext, Scope, require_scope};
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 
 use super::err;
 

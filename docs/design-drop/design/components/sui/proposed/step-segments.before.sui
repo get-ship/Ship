@@ -1,0 +1,19 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-step-segments.before.sui — fabricated sketch (not in source). A compact segmented
+  progress meter (vs the labeled nav stepper). Equal segments; done + current
+  both read as one solid --primary fill, upcoming are --muted. Square caps.
+  Static snapshot at "step 3 of 5". Compiled as <x-step-segments-before>.
+  Props: total · current (API; snapshot is hardcoded here).
+-->
+<prop name="total" type="number" default="5" />
+<prop name="current" type="number" default="3" />
+<style>
+  :host { display: block; }
+  .seg { display: flex; gap: 3px; }
+  .s { flex: 1; height: 6px; background: var(--muted); }
+  .s.done, .s.cur { background: var(--primary); }
+</style>
+<div class="seg" part="track" role="progressbar" aria-valuemin="0" aria-valuemax={total()} aria-valuenow={current()}>
+  <span class="s done"></span><span class="s done"></span><span class="s cur"></span><span class="s"></span><span class="s"></span>
+</div>

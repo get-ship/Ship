@@ -1,0 +1,43 @@
+<!--
+  ship-game-frame.sui — the @ship/arcade in-game SURFACE: the shared chrome every
+  game tag mounts into. Title bar (back + name + pause/restart/close), a HUD strip
+  (score · lives · level), the PixiJS canvas (mocked with a recessed grid), and a
+  controls hint footer. Token-pure, theme-reactive. Compiled as <ship-game-frame>.
+  Props: name.
+-->
+<prop name="name" type="string" default="Snake" />
+<style>
+  :host { display: block; font-family: var(--font-body); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--card); box-shadow: var(--shadow-xs); width: 380px; max-width: 100%; }
+  .bar { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid var(--border-subtle); background: color-mix(in oklch, var(--muted) 50%, var(--card)); }
+  .bar .nm { font-weight: var(--font-weight-semibold, 600); font-size: var(--text-sm); color: var(--foreground); }
+  .bar button { width: 26px; height: 26px; border: 0; background: transparent; color: var(--muted-foreground); border-radius: var(--radius-sm); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  .bar button:hover { background: var(--muted); color: var(--foreground); }
+  .bar svg { width: 15px; height: 15px; }
+  .bar .right { margin-left: auto; display: inline-flex; gap: 2px; }
+  .hud { display: flex; align-items: center; gap: 18px; padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); font-family: var(--font-mono); font-size: 11px; }
+  .hud .k { color: var(--muted-foreground); letter-spacing: .06em; text-transform: uppercase; }
+  .hud .v { color: var(--foreground); font-variant-numeric: tabular-nums; margin-left: 5px; }
+  .hud .hearts { color: var(--destructive); letter-spacing: 1px; }
+  .hud .lvl { margin-left: auto; color: var(--primary); }
+  .canvas { aspect-ratio: 16 / 11; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); background-color: color-mix(in oklch, var(--foreground) 6%, var(--card)); background-image: linear-gradient(var(--border-subtle) 1px, transparent 1px), linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px); background-size: 20px 20px; }
+  .foot { display: flex; gap: 10px; padding: 6px 12px; border-top: 1px solid var(--border-subtle); background: color-mix(in oklch, var(--muted) 50%, var(--card)); font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+  .foot .key { color: var(--foreground); background: var(--card); border: 1px solid var(--border-subtle); border-bottom-width: 2px; border-radius: var(--radius-sm); padding: 0 5px; }
+</style>
+<div class="surface" part="surface">
+  <div class="bar" part="titlebar">
+    <button type="button" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <span class="nm">{name()}</span>
+    <span class="right">
+      <button type="button" aria-label="Pause"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5v14M16 5v14"/></svg></button>
+      <button type="button" aria-label="Restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg></button>
+      <button type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </span>
+  </div>
+  <div class="hud" part="hud">
+    <span><span class="k">Score</span><span class="v">1,240</span></span>
+    <span><span class="k">Lives</span><span class="v hearts">&#9829;&#9829;&#9825;</span></span>
+    <span class="lvl"><span class="k">Lv</span><span class="v">3</span></span>
+  </div>
+  <div class="canvas" part="canvas">PixiJS canvas</div>
+  <div class="foot" part="controls"><span class="key">&#8592;</span><span class="key">&#8594;</span><span class="key">&#8593;</span><span class="key">&#8595;</span> move <span class="key">space</span> pause</div>
+</div>

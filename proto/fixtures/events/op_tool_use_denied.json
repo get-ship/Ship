@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "event": "op.tool_use_denied",
+    "scope": "runtime",
+    "retention": "ephemeral",
+    "stability": "stable",
+    "payload_type": "op::OpToolUseDenied",
+    "needs_author": false
+  },
+  "payload": {
+    "_note": "NEEDS_AUTHOR: op::OpToolUseDenied — auto-stub not possible; hand-author this fixture",
+    "_payload_type": "op::OpToolUseDenied"
+  }
+}

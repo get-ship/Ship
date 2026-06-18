@@ -10,7 +10,8 @@
 use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
 use serde::Serialize;
 
-use crate::routes::rest_api::{ApiState, MeshResponse};
+use crate::ship_runtime::ApiState;
+use crate::wire::MeshResponse;
 use ship_device::sandbox::{self, RuntimeEndpoint, SandboxState};
 
 #[derive(Serialize)]

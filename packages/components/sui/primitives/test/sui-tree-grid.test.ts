@@ -81,9 +81,6 @@ const rowIds = (shadow: ShadowRoot | null): string[] =>
   )
 
 describe('<sui-tree-grid> — registration + treegrid a11y', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-tree-grid')).toBeDefined()
-  })
 
   it('sets role=treegrid on the container (multi-column)', async () => {
     const { shadow } = mountTreeGrid()

@@ -1,0 +1,12 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-metachip.before.sui — fabricated sketch (not in source). A small metadata pill (icon +
+  label) for headers/cards — counts, versions, status. Flat muted fill, one look.
+  Compiled as <x-metachip-before>. Props: tone. Slots: icon · (default) label.
+-->
+<prop name="tone" values="default|info|success|warning" default="default" reflect />
+<style>
+  :host { display: inline-flex; vertical-align: middle; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; background: var(--muted); color: var(--muted-foreground); border-radius: var(--radius-full); font-size: var(--text-sm); }
+</style>
+<span class="chip" part="chip"><slot name="icon"></slot><slot></slot></span>

@@ -1,0 +1,27 @@
+<!--
+  sui-sparkline.sui — charts pack. Compact line+area trend in a 240×80 viewBox.
+  Geometry (path/area/last point) computed in the paired controller from `data`.
+  Props: data (JSON number[]) · tone. Scope: path · area · last (derived).
+-->
+<prop name="data" type="string" default="[]" />
+<prop name="tone" values="primary|accent|info|success|warning|destructive" default="primary" reflect />
+
+<style>
+  :host { display: block; width: 100%; --tone: var(--primary); }
+  :host([hidden]) { display: none; }
+  :host([tone='accent'])      { --tone: var(--accent); }
+  :host([tone='info'])        { --tone: var(--info); }
+  :host([tone='success'])     { --tone: var(--success); }
+  :host([tone='warning'])     { --tone: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive); }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .area { fill: color-mix(in oklch, var(--tone) 12%, transparent); stroke: none; }
+  .line { fill: none; stroke: var(--tone); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .dot { fill: var(--tone); stroke: var(--card); stroke-width: 1.5; }
+</style>
+
+<svg viewBox="0 0 240 80" part="chart" role="img">
+  <path class="area" d={area()}></path>
+  <path class="line" d={path()}></path>
+  <circle class="dot" cx={last().x} cy={last().y} r="3"></circle>
+</svg>

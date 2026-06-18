@@ -1,0 +1,107 @@
+<!--
+  <ship-query-editor> — @ship/collections · write a query against a
+  collection, with field/op autocomplete from the schema. Per spec
+  the rich Kysely-TS autocomplete is deferred (waits on @ship/db
+  toolchain); today this is a plain editor with field-name
+  completion from the schema.
+
+  Emits ship-query-change { ast, sql } on every edit so a paired
+  runner (or named-query save flow) can react. The "ast" is a
+  minimal shape the runner understands; the "sql" is the compiled
+  string shown back in the editor footer.
+
+  Tag prefix `ship-*` marks this component as depending on the Ship
+  runtime: mounting without a host that has called setShipClient()
+  will throw on the first SDK access.
+-->
+<prop name="collection" type="string" default="" />
+<prop name="value" type="string" default="SELECT * FROM items" />
+
+<style>
+  :host { display: block; font-family: var(--font-body); color: var(--foreground); }
+  :host([hidden]) { display: none; }
+
+  .head {
+    display: flex; align-items: center; gap: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+  .head .label {
+    font-family: var(--font-mono); font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .head .collection { font-weight: var(--font-weight-semibold); }
+
+  .editor {
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    background: var(--surface-1);
+    overflow: hidden;
+  }
+  .editor textarea {
+    width: 100%; min-height: 140px;
+    font-family: var(--font-mono); font-size: var(--text-sm);
+    color: var(--foreground);
+    background: transparent;
+    border: 0; outline: 0; resize: vertical;
+    padding: var(--space-3);
+    box-sizing: border-box;
+  }
+  .footer {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-1) var(--space-2); border-top: 1px solid var(--divider);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .footer .sql { font-family: var(--font-mono); }
+  .footer .ok { color: var(--success); }
+  .footer .err { color: var(--destructive); }
+
+  .suggestions {
+    position: relative;
+  }
+  .suggestions .pop {
+    position: absolute; top: 100%; left: 0; right: 0;
+    z-index: var(--z-dropdown);
+    max-height: 220px; overflow-y: auto;
+    margin-top: var(--space-1);
+    background: var(--popover); color: var(--popover-foreground);
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    padding: var(--space-1);
+  }
+  .suggestions .item {
+    padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);
+    font-family: var(--font-mono); font-size: var(--text-xs);
+    cursor: pointer;
+  }
+</style>
+
+<div class="head">
+  <span class="label">Query</span>
+  <span class="collection" data-test="collection">{collection()}</span>
+</div>
+
+<div class="editor" data-test="editor">
+  <textarea
+    part="textarea"
+    data-test="textarea"
+    placeholder="SELECT * FROM items"
+    aria-label="Query editor"
+    bind:value={value}
+  ></textarea>
+  <div class="footer">
+    <span class="sql" data-test="status">{statusText()}</span>
+  </div>
+</div>
+
+{#if suggestions().length > 0}
+  <div class="suggestions" data-test="suggestions">
+    <div class="pop" role="listbox">
+      {#for s of suggestions() key={s.name}}
+        <div class="item" role="option" data-test="suggestion" aria-selected="false" on:mousedown={() => acceptSuggestion(s)}>
+          <strong>{s.name}</strong>
+          <span style="color: var(--muted-foreground)"> · {s.type}</span>
+        </div>
+      {/for}
+    </div>
+  </div>
+{/if}

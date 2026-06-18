@@ -1,7 +1,7 @@
 ---
 name: ship-events
-audience: public
 stable-id: ship-events
+audience: public
 description: >-
   The `events` capability (1 ops). Call any op over ConnectRPC with
   `ship ops call <name> --json '<args>'`. This file is a table of contents;
@@ -25,5 +25,5 @@ page for full args, return shape, capability, and an example.
 
 ## Reads
 
-- [`events.list`](references/docs/events.list.mdoc) — Kernel events with filters, grouped by entity.
+- [`events.poll`](references/docs/events.poll.mdoc) — 
 

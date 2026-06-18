@@ -1,5 +1,6 @@
 //! Proto-policy + gate conformance tests for the wires shipd mounts.
 //!
+<<<<<<<< HEAD:apps/shipd/src/policy_conformance_tests.rs
 //! Proto owns op policy (#67a): capability / blast-radius / sensitive method
 //! options are compiled into the `FileDescriptorSet` and read through the
 //! single crate-level reader (`ship_ops_rpc::policy::read_policies`) — the
@@ -10,12 +11,24 @@
 //! Merged from the former `agent_rpc.rs` / `pipelines_rpc.rs` / `view_rpc.rs`
 //! headstones (their `impl … for OpsImpl` bodies were deleted when the wires
 //! became the sole handlers) plus the policy tests that lived in `ops_rpc.rs`.
+|||||||| 2ce4b8ea0:apps/shipd/src/agent_rpc.rs
+//! `impl AgentsService for OpsImpl` is deleted — the handler now lives in
+//! `ship_agents::services::agents::AgentsWire`, mounted via
+//! `AgentsServiceExt::register` in `ops_rpc.rs`. Tests here verify the proto
+//! policy descriptor + gate decisions that the wire enforces at runtime.
+========
+//! `impl AgentsService for OpsImpl` is deleted — the handler now lives in
+//! `ship_agents::services::agents::AgentsWire`, mounted via
+//! `AgentsServiceExt::register` in `rpc/ops`. Tests here verify the proto
+//! policy descriptor + gate decisions that the wire enforces at runtime.
+>>>>>>>> optionB-routes-unify:apps/shipd/src/rpc/agent.rs
 
 #[cfg(test)]
 mod tests {
     use ship_ops_rpc::BlastRadius;
     use ship_ops_rpc::policy::MethodPolicy;
 
+<<<<<<<< HEAD:apps/shipd/src/policy_conformance_tests.rs
     /// Resolve a Connect wire-path (`ship.ops.v1.Svc/Method`) to its compiled
     /// proto policy. Panics with the path so a missing descriptor entry names
     /// itself.
@@ -36,6 +49,15 @@ mod tests {
         assert_eq!(p.capability, "ship.meta.read");
         assert_eq!(p.blast, BlastRadius::C0Read);
         assert!(!p.sensitive);
+|||||||| 2ce4b8ea0:apps/shipd/src/agent_rpc.rs
+    fn policy(method: &str) -> &'static crate::ops_rpc::OpPolicy {
+        crate::ops_rpc::policy_for(&format!("ship.ops.v1.AgentsService/{method}"))
+            .unwrap_or_else(|| panic!("AgentsService/{method} must carry a policy in the descriptor"))
+========
+    fn policy(method: &str) -> &'static crate::rpc::ops::OpPolicy {
+        crate::rpc::ops::policy_for(&format!("ship.ops.v1.AgentsService/{method}"))
+            .unwrap_or_else(|| panic!("AgentsService/{method} must carry a policy in the descriptor"))
+>>>>>>>> optionB-routes-unify:apps/shipd/src/rpc/agent.rs
     }
 
     #[test]
@@ -215,7 +237,7 @@ mod tests {
 
     /// agent.grant: operator approval upgrades live sessions + persists baseline.
     /// Drives the ship_platform domain fn directly (the logic now lives in
-    /// `AgentsWire::grant_fn` closure in `ops_rpc.rs`, called after the gate clears).
+    /// `AgentsWire::grant_fn` closure in `rpc/ops`, called after the gate clears).
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn agent_grant_upgrades_live_session_and_persists_baseline() {
         use ship_auth::scopes::DaemonSession;

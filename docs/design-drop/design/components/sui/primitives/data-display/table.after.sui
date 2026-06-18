@@ -1,0 +1,52 @@
+<!--
+  sui-table.after.sui — ELEVATED, self-contained static. Diffs vs before:
+    • header reads as a distinct band (--muted wash) with a sort affordance (caret
+      on the sorted column) — scannable + signals interactivity
+    • status cell becomes a tone dot + label instead of bare text
+    • a selected row carries a --primary tint + a left accent bar
+    • stronger row hover, zebra off by default (band header does the structure)
+    • numeric columns right-aligned tabular (kept)
+  Compiled as <x-table-after>. Props: density · striped · hoverable.
+-->
+<prop name="density" values="compact|default|comfortable" default="default" reflect />
+<prop name="striped" type="bool" default="false" reflect />
+<prop name="hoverable" type="bool" default="true" reflect />
+
+<style>
+  :host { display: block; width: 100%; font-family: var(--font-body); font-size: var(--text-base); color: var(--foreground); --row-py: 10px; --row-px: var(--space-3); --th-py: 10px; }
+  :host([hidden]) { display: none; }
+  :host([density='compact']) { --row-py: 6px; --th-py: 7px; }
+  :host([density='comfortable']) { --row-py: 14px; --th-py: 13px; }
+  .wrap { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow-xs); overflow: hidden; overflow-x: auto; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+  thead { background: color-mix(in oklch, var(--muted) 45%, var(--card)); }
+  th { text-align: left; font-size: var(--text-xs); font-weight: 600; letter-spacing: .03em; color: var(--muted-foreground); padding: var(--th-py) var(--row-px); border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+  th:hover { color: var(--foreground); }
+  th.n, td.n { text-align: right; }
+  th .sort { display: inline-flex; vertical-align: middle; margin-left: 4px; color: var(--primary); }
+  th .sort svg { width: 12px; height: 12px; }
+  td { padding: var(--row-py) var(--row-px); border-bottom: 1px solid var(--border-subtle); white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: 0; }
+  :host([hoverable]) tbody tr:hover td { background: color-mix(in oklch, var(--muted) 55%, transparent); }
+  tr.sel td { background: color-mix(in oklch, var(--primary) 8%, transparent); }
+  tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
+  .st { display: inline-flex; align-items: center; gap: 7px; }
+  .st .dot { width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 3px color-mix(in oklch, var(--dotc) 20%, transparent); background: var(--dotc); }
+  .st.ok { --dotc: var(--success); } .st.warn { --dotc: var(--warning); } .st.err { --dotc: var(--destructive); }
+  .st .lbl { color: var(--foreground); }
+</style>
+
+<div class="wrap" part="wrap">
+  <table part="table" aria-label="Pipeline runs">
+    <thead part="thead"><tr>
+      <th>Run<span class="sort"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6 6 6-6"/></svg></span></th>
+      <th>Status</th><th class="n">p99</th><th class="n">Duration</th><th>Started</th>
+    </tr></thead>
+    <tbody part="tbody">
+      <tr class="sel"><td>nightly-reindex</td><td><span class="st ok"><span class="dot"></span><span class="lbl">Success</span></span></td><td class="n">91ms</td><td class="n">4m 12s</td><td>2h ago</td></tr>
+      <tr><td>auth-sync</td><td><span class="st ok"><span class="dot"></span><span class="lbl">Success</span></span></td><td class="n">38ms</td><td class="n">1m 02s</td><td>5h ago</td></tr>
+      <tr><td>shard-rebalance</td><td><span class="st warn"><span class="dot"></span><span class="lbl">Warning</span></span></td><td class="n">120ms</td><td class="n">9m 48s</td><td>1d ago</td></tr>
+      <tr><td>export-archive</td><td><span class="st err"><span class="dot"></span><span class="lbl">Error</span></span></td><td class="n">—</td><td class="n">0m 30s</td><td>2d ago</td></tr>
+    </tbody>
+  </table>
+</div>

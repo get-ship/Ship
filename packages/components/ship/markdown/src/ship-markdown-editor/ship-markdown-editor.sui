@@ -54,7 +54,7 @@
     position: relative;
     display: flex; flex-direction: column;
     background: var(--card); color: var(--foreground);
-    border: 1px solid var(--border); border-radius: var(--radius-md);
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
     box-shadow: var(--shadow-xs); overflow: hidden;
     min-height: var(--ed-min-h, 320px);
     transition: border-color var(--duration-fast) var(--ease-out),
@@ -93,7 +93,7 @@
   .toolbar button sui-icon { --tone-fg: currentColor; }
   .toolbar button:hover:not(:disabled) { background: color-mix(in oklch, var(--muted) 80%, transparent); color: var(--foreground); }
   .toolbar button:focus-visible { outline: none; box-shadow: 0 0 0 var(--ring-width) color-mix(in oklch, var(--tone) var(--ring-opacity), transparent); color: var(--foreground); }
-  .toolbar button[aria-pressed='true'], .toolbar button.is-active { background: color-mix(in oklch, var(--primary) 18%, var(--muted)); color: var(--foreground); }
+  .toolbar button[aria-pressed='true'], .toolbar button.is-active { background: var(--selected-bg); color: var(--primary); }
   .toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
   .toolbar sui-icon::part(svg) { width: 14px; height: 14px; }
   .toolbar .divider { width: 1px; height: 18px; background: var(--border); margin: 0 var(--space-1); flex-shrink: 0; }

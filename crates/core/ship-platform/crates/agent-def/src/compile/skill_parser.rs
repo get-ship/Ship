@@ -319,21 +319,21 @@ mod sdk_skill_tests {
             !skills.is_empty(),
             "sdk capability-skills must be embedded into the binary"
         );
-        let git = skills
+        let pipelines = skills
             .iter()
-            .find(|s| s.id == "ship-git")
-            .expect("ship-git capability-skill embedded");
+            .find(|s| s.id == "ship-pipelines")
+            .expect("ship-pipelines capability-skill embedded");
         assert!(
-            git.content.contains("ship ops call"),
+            pipelines.content.contains("ship ops call"),
             "capability-skill teaches the ops CLI"
         );
-        assert_eq!(git.source, SkillSource::Builtin);
+        assert_eq!(pipelines.source, SkillSource::Builtin);
     }
 
     #[test]
     fn embedded_skill_reference_pages_are_available() {
-        let refs = embedded_skill_reference_files("ship-git");
-        assert!(!refs.is_empty(), "ship-git ships per-op reference pages");
+        let refs = embedded_skill_reference_files("ship-pipelines");
+        assert!(!refs.is_empty(), "ship-pipelines ships per-op reference pages");
         assert!(
             refs.iter().all(|(p, _)| p != "SKILL.md"),
             "SKILL.md is delivered by the compiler, not as a reference file"
@@ -357,7 +357,7 @@ mod sdk_skill_tests {
 
         let pool = load_compile_skills(&ship_dir).unwrap();
         assert!(
-            pool.iter().any(|s| s.id == "ship-git"),
+            pool.iter().any(|s| s.id == "ship-pipelines"),
             "embedded capability-skills must be in the compile pool for a clean project"
         );
     }

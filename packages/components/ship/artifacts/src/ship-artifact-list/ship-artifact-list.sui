@@ -1,0 +1,50 @@
+<!--
+  <ship-artifact-list> — @ship/artifacts · the artifacts browser.
+
+  Subscribes to ship.artifacts.list({}) via live() inside the controller;
+  no SDK call from the consumer. Renders a sortable table with a default
+  six-column set (name · mime · viewer badge · actor · age · size).
+
+  Tag prefix `ship-*` (vs `sui-*`) marks this component as depending on
+  the Ship runtime: importing or mounting it without a host that has
+  called setShipClient() will throw on the first SDK access.
+
+  Emits `ship-artifact-select { id, name, mime, viewer_url, viewer_label }`
+  on row click. The host is responsible for opening a detail drawer or
+  routing to the viewer URL.
+-->
+
+<header class="list-head">
+  <span class="list-title">Artifacts</span>
+  <span class="list-count" data-test="list-count">
+    {visibleCount()} of {totalCount()} artifact{totalCount() === 1 ? '' : 's'}
+  </span>
+</header>
+
+{#while-loading of artifacts}
+  <sui-skeleton shape="line" size="lg"></sui-skeleton>
+{/while-loading}
+{#while-error err of artifacts}
+  <sui-error-state title="Couldn't load artifacts" data-test="error" role="alert" aria-live="assertive">
+    {err.message}
+  </sui-error-state>
+{/while-error}
+{#if artifacts().kind === 'ok'}
+  {#if rows().length === 0}
+    <sui-empty-state variant="default" size="sm" data-test="empty" role="status">
+      <sui-icon slot="icon" name="file"></sui-icon>
+      <span slot="title">No artifacts yet</span>
+      <span slot="description">Run a workflow, or drop a file to upload one.</span>
+    </sui-empty-state>
+  {:else}
+    <sui-table
+      variant="data"
+      prop:rows={rows()}
+      prop:columns={columnDefs()}
+      hoverable
+      striped
+      label="Artifacts"
+      data-test="table"
+    ></sui-table>
+  {/if}
+{/if}

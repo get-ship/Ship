@@ -17,10 +17,15 @@ import '@sui-tag/sui-panel-dock'
 import '@sui-tag/sui-shell-bottom'
 import '@sui-tag/sui-edit-overlay'
 import '@sui-tag/sui-blank-canvas'
+// sui-studio-chrome is the chrome wrapper for /studio/* (see LAYOUTS in
+// apps/shell/routes.gen.ts). The host inserts the element at navigation
+// time (apps/shell/src/main.ts::mountRoute walks LAYOUTS) — but the
+// custom element must be registered FIRST or the host's
+// `document.createElement(layout.tag)` is a no-op. Importing here
+// triggers the registration at first paint.
+import '@sui-tag/sui-studio-chrome'
 // Stamped into index.html at first paint (`<sui-toast-container>`), and mounted
 // imperatively by `initHelpOverlay()` (`<sui-help-overlay>`) — neither is reached
 // by any view's tag graph, so register both here or they stay inert no-ops.
 import '@sui-tag/sui-toast-container'
 import '@sui-tag/sui-help-overlay'
-
-export { SLOT_COMPOSITIONS } from './picker-slot-compositions'

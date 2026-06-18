@@ -29,8 +29,8 @@ ship-harnesses = { path = "../../crates/core/ship-platform/crates/ship-harnesses
 ship-messaging = { path = "../../crates/core/ship-platform/crates/ship-messaging" }
 ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }
-ship-views = { path = "../../crates/core/ship-platform/crates/ship-views" }
-ship-isolation = { path = "../../crates/core/ship-platform/crates/ship-isolation", default-features = false }
+ship-ui = { path = "../../crates/core/ship-platform/crates/ship-ui" }
+ship-isolation = { path = "../../crates/core/ship-isolation", default-features = false }
 ship-substrate-host = { path = "../../crates/core/ship-substrate/crates/ship-substrate-host" }
 ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }
 ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
@@ -117,9 +117,6 @@ include_dir = "0.7"
 # JSON Schema validator (Draft 2020-12). Used to validate pipeline
 # documents on write — catches structural errors beyond parse errors.
 jsonschema = { version = "0.46", default-features = false }
-# Cross-platform pseudo-terminal allocation (PTY on Unix, ConPTY on
-# Windows). Used by ProcessExecutor so spawned agents see a real TTY —
-# stream-json and human output stay line-buffered, isatty checks work.
 # Regex used by the SFC pipeline (apps/shipd/src/views/sfc) for block
 # splitting and signal-attribute rewriting. The patterns are small and
 # anchored — full PCRE features are not required.

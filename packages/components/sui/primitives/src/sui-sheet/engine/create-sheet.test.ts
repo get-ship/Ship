@@ -116,8 +116,8 @@ describe('createSheet — mutation discipline (setCell writes a Signal, fires on
     const onCellChange = vi.fn()
     const sheet = createSheet({ workbook: book({}), onCellChange })
     sheet.setCells([
-      { a1: 'A1', before: { value: undefined }, after: { value: 1 } },
-      { a1: 'A2', before: { value: undefined }, after: { value: 2 } },
+      { a1: 'A1', before: {}, after: { value: 1 } },
+      { a1: 'A2', before: {}, after: { value: 2 } },
     ])
     expect(onCellChange).toHaveBeenCalledTimes(1)
     expect(sheet.getCell('A1')().value).toBe(1)

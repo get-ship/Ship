@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ship settings — global Shell</title>
+<link rel="stylesheet" href="../../../sui/ship.css" />
+<script>
+  (() => { const ORIG = window.fetch.bind(window);
+    window.fetch = (input, init) => { const url = typeof input === 'string' ? input : (input && input.url);
+      if (url === '/_sui/lucide-icons.json' || url === '/lucide-icons.json') return ORIG('../../../sui/lucide-icons.json', init);
+      return ORIG(input, init); }; })();
+</script>
+<script type="importmap">{ "imports": { "@ship/sui-runtime": "../../../sui/sui-runtime.js", "@ship/sui-dom": "../../../sui/sui-dom.js" } }</script>
+<script type="module" src="../../../sui/sui-components.js"></script>
+<script type="module">
+  import { defineComponent } from '../../../tools/catalog/sui-workbench.js';
+  try { await defineComponent({ name: 'sui-brand-mark', sui: await (await fetch('../../components/sui/sui-brand-mark.sui')).text() }); } catch (e) { console.error('brand-mark', e); }
+</script>
+<style>
+  :root { --shell: oklch(0.65 0.16 260); }
+  html, body { margin: 0; height: 100%; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { background: var(--surface-0); color: var(--foreground); font-family: var(--font-body); display: grid; place-items: center; min-height: 100vh; padding: 20px; }
+  .icon { width: 15px; height: 15px; flex-shrink: 0; } .icon-sm { width: 12px; height: 12px; }
+
+  .frame { width: 1300px; height: 838px; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; background: var(--background); display: grid; grid-template-columns: 230px 1fr; grid-template-rows: 46px 1fr; grid-template-areas: "top top" "nav main"; }
+
+  /* top · chrome (global Shell) */
+  .top { grid-area: top; display: flex; align-items: center; gap: 14px; padding: 0 16px; background: color-mix(in oklch, var(--surface-1) 88%, transparent); border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(8px); }
+  .brand { display: inline-flex; align-items: center; gap: 8px; }
+  .brand .mk { width: 19px; height: 19px; border-radius: var(--radius-sm); background: var(--shell); color: white; display: grid; place-items: center; font-family: var(--font-mono); font-size: 11px; font-weight: 700; }
+  .brand b { font-family: var(--heading-font); font-size: 14px; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); }
+  .brand .badge { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .16em; padding: 2px 6px; border-radius: 3px; background: color-mix(in oklch, var(--shell) 12%, transparent); color: var(--shell); font-weight: 700; }
+  .cmdk { display: inline-flex; align-items: center; gap: 9px; margin: 0 auto; flex: 0 1 420px; min-width: 260px; padding: 6px 12px; border: 1px solid var(--border-subtle); background: var(--background); border-radius: var(--radius-md); color: var(--muted-foreground); font-size: 12.5px; cursor: text; }
+  .cmdk svg { width: 13px; height: 13px; } .cmdk .ph { flex: 1; }
+  .cmdk .m { font-family: var(--font-mono); font-size: 9px; padding: 1px 5px; border-radius: var(--radius-sm); background: var(--muted); } .cmdk .m.ai { color: var(--shell); background: color-mix(in oklch, var(--shell) 13%, transparent); }
+  .cmdk kbd { font-family: var(--font-mono); font-size: 10px; padding: 1px 5px; border-radius: 3px; background: var(--muted); }
+  .close { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border-subtle); background: transparent; color: var(--muted-foreground); padding: 4px 11px; border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 11px; cursor: pointer; }
+
+  /* settings section nav (settings is fine to have a nav) */
+  .nav { grid-area: nav; background: var(--surface-1); border-right: 1px solid var(--border-subtle); padding: 16px 10px; overflow-y: auto; scrollbar-width: thin; }
+  .acct { display: flex; align-items: center; gap: 10px; padding: 9px 10px 14px; border-bottom: 1px solid var(--divider); margin-bottom: 8px; }
+  .acct .av { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(145deg, var(--shell), oklch(0.6 0.16 300)); color: white; display: grid; place-items: center; font-family: var(--font-mono); font-weight: 700; font-size: 14px; }
+  .acct .nm { font-weight: 600; font-size: var(--text-sm); } .acct .em { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); }
+  .nsec { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted-foreground); padding: 14px 10px 6px; }
+  .nitem { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius-sm); color: var(--foreground); cursor: pointer; text-decoration: none; font-size: 13px; position: relative; line-height: 1.2; }
+  .nitem:hover { background: var(--hover-bg); }
+  .nitem .ico { color: var(--muted-foreground); display: inline-flex; } .nitem:hover .ico { color: var(--foreground); }
+  .nitem .lbl { flex: 1; white-space: nowrap; }
+  .nitem.on { background: color-mix(in oklch, var(--shell) 12%, transparent); }
+  .nitem.on::before { content: ''; position: absolute; left: -2px; top: 6px; bottom: 6px; width: 2px; border-radius: 2px; background: var(--shell); }
+  .nitem.on .ico { color: var(--shell); } .nitem.on .lbl { font-weight: 600; }
+  .nitem .cnt { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); }
+
+  /* main */
+  .main { grid-area: main; overflow-y: auto; scrollbar-width: thin; }
+  .head { padding: 24px 32px 0; }
+  .head .crumb { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+  .head .crumb b { color: var(--foreground); }
+  .head h1 { font-family: var(--heading-font); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--text-3xl); margin: 7px 0 0; }
+  .head .lede { font-size: 13px; color: var(--muted-foreground); margin: 5px 0 0; max-width: 78ch; line-height: 1.55; }
+  .head .lede b { color: var(--foreground); }
+
+  .body { padding: 22px 32px 60px; max-width: 880px; display: flex; flex-direction: column; gap: 26px; }
+  .sec-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+  .sec-h h2 { font-family: var(--heading-font); font-weight: 600; font-size: var(--text-lg); margin: 0; }
+  .sec-h .sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-foreground); }
+  .sec-h .act { margin-left: auto; font: inherit; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--card); color: var(--foreground); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .sec-h .act svg { width: 12px; height: 12px; }
+
+  /* account card */
+  .acard { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-xs); padding: 18px; display: grid; grid-template-columns: 64px 1fr auto; gap: 16px; align-items: center; }
+  .acard .big-av { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(145deg, var(--shell), oklch(0.6 0.16 300)); color: white; display: grid; place-items: center; font-family: var(--font-mono); font-weight: 700; font-size: 22px; }
+  .acard .nm { font-family: var(--heading-font); font-weight: 600; font-size: var(--text-lg); }
+  .acard .em { font-family: var(--font-mono); font-size: 12px; color: var(--muted-foreground); margin-top: 2px; }
+  .acard .plan { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-family: var(--font-mono); font-size: 10px; padding: 2px 9px; border-radius: var(--radius-full); color: var(--shell); background: color-mix(in oklch, var(--shell) 11%, transparent); border: 1px solid color-mix(in oklch, var(--shell) 30%, transparent); }
+  .acard .manage { font: inherit; font-size: 12.5px; font-weight: 600; padding: 7px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--card); color: var(--foreground); cursor: pointer; }
+
+  /* billing */
+  .bill { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .bcard { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); box-shadow: var(--shadow-xs); padding: 15px 16px; }
+  .bcard .k { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted-foreground); }
+  .bcard .v { font-family: var(--font-mono); font-weight: 700; font-size: var(--text-2xl); margin-top: 6px; line-height: 1; }
+  .bcard .meter { height: 6px; border-radius: 3px; background: var(--muted); margin-top: 11px; overflow: hidden; }
+  .bcard .meter i { display: block; height: 100%; border-radius: 3px; background: var(--shell); }
+  .bcard .note { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); margin-top: 7px; }
+  .bcard .v.ok { color: var(--success); }
+
+  /* space roster */
+  .roster { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+  .scard { display: flex; align-items: center; gap: 12px; padding: 13px 15px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-1); cursor: pointer; text-decoration: none; color: var(--foreground); transition: border-color 120ms, box-shadow 120ms, background 120ms; }
+  .scard:hover { border-color: var(--border); box-shadow: var(--shadow-sm); background: var(--card); }
+  .scard .sm { width: 36px; height: 36px; border-radius: var(--radius-md); display: grid; place-items: center; font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: white; background: var(--sh, var(--shell)); flex-shrink: 0; }
+  .scard .si { flex: 1; min-width: 0; }
+  .scard .snm { font-weight: 600; font-size: var(--text-sm); display: flex; align-items: center; gap: 8px; }
+  .scard .role { font-family: var(--font-mono); font-size: 9px; padding: 1px 6px; border-radius: var(--radius-full); }
+  .role-owner { color: var(--shell); background: color-mix(in oklch, var(--shell) 12%, transparent); }
+  .role-member { color: var(--muted-foreground); background: var(--muted); }
+  .scard .smeta { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); margin-top: 2px; }
+  .scard .running { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 9px; color: var(--success); }
+  .scard .running .d { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .scard .go { color: var(--muted-foreground); } .scard .go svg { width: 15px; height: 15px; }
+  .add-space { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 13px; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); background: transparent; color: var(--muted-foreground); cursor: pointer; font-size: 12.5px; font-weight: 600; }
+  .add-space svg { width: 14px; height: 14px; }
+
+  .sh-blue { --sh: oklch(0.6 0.16 240); } .sh-green { --sh: oklch(0.6 0.14 145); } .sh-orange { --sh: oklch(0.65 0.18 35); } .sh-violet { --sh: oklch(0.6 0.16 300); }
+
+  .footnote { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); line-height: 1.6; border-top: 1px solid var(--divider); padding-top: 14px; }
+  .footnote b { color: var(--foreground); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9M3 9h18"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.6 7.6a5 5 0 1 0-7 7 5 5 0 0 0 7-7zm0 0L15 7m0 0l3 3 3-3-3-3"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".9"/><circle cx="6.5" cy="12.5" r=".9"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.5 0-.4-.2-.8-.4-1.1-.3-.4-.4-.7-.4-1.1 0-.8.7-1.5 1.5-1.5H16c3.3 0 6-2.7 6-6 0-4.4-4.5-8-10-8z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+</defs></svg>
+
+<div class="frame" data-screen-label="shell-settings">
+
+  <div class="top">
+    <span class="brand"><sui-brand-mark size="sm"></sui-brand-mark><b>Ship</b><span class="badge">Settings</span></span>
+    <span class="cmdk"><svg><use href="#i-search"/></svg><span class="ph">Search settings, or ask…</span><span class="m ai">ai</span><kbd>⌘K</kbd></span>
+    <sui-button variant="outline" size="sm">Close</sui-button>
+  </div>
+
+  <nav class="nav">
+    <div class="acct"><span class="av">J</span><div><div class="nm">Jordan Vega</div><div class="em">jordan@gmail.com</div></div></div>
+    <div class="nsec">Account</div>
+    <a class="nitem on"><span class="ico"><svg class="icon"><use href="#i-user"/></svg></span><span class="lbl">Profile</span></a>
+    <a class="nitem"><span class="ico"><svg class="icon"><use href="#i-card"/></svg></span><span class="lbl">Billing &amp; usage</span></a>
+    <a class="nitem"><span class="ico"><svg class="icon"><use href="#i-key"/></svg></span><span class="lbl">API keys</span></a>
+    <a class="nitem"><span class="ico"><svg class="icon"><use href="#i-bell"/></svg></span><span class="lbl">Notifications</span></a>
+    <div class="nsec">Workspace</div>
+    <a class="nitem"><span class="ico"><svg class="icon"><use href="#i-grid"/></svg></span><span class="lbl">Spaces</span><span class="cnt">4</span></a>
+    <a class="nitem"><span class="ico"><svg class="icon"><use href="#i-store"/></svg></span><span class="lbl">Marketplace</span></a>
+    <a class="nitem"><span class="ico"><svg class="icon"><use href="#i-palette"/></svg></span><span class="lbl">Appearance</span></a>
+  </nav>
+
+  <div class="main">
+    <div class="head">
+      <div class="crumb">Ship / <b>Settings</b></div>
+      <h1>Settings</h1>
+      <div class="lede">Your account and everything that spans spaces. <b>This is the only global surface</b> — Studio configures a single space; settings live here.</div>
+    </div>
+    <div class="body">
+
+      <!-- account -->
+      <div class="sec">
+        <div class="sec-h"><h2>Account</h2><span class="sub">identity</span></div>
+        <div class="acard">
+          <span class="big-av">J</span>
+          <div><div class="nm">Jordan Vega</div><div class="em">jordan@gmail.com</div><span class="plan">Pro · seat of 1</span></div>
+          <sui-button variant="outline" size="sm">Manage</sui-button>
+        </div>
+      </div>
+
+      <!-- billing -->
+      <div class="sec">
+        <div class="sec-h"><h2>Billing &amp; usage</h2><span class="sub">this cycle · resets Jun 30</span><sui-button variant="outline" size="sm" style="margin-left:auto">Manage plan</sui-button></div>
+        <div class="bill">
+          <div class="bcard"><div class="k">Spend</div><div class="v">$48.20</div><div class="meter"><i style="width:48%"></i></div><div class="note">of $100 budget</div></div>
+          <div class="bcard"><div class="k">Tokens</div><div class="v">14.2M</div><div class="meter"><i style="width:62%"></i></div><div class="note">across 4 spaces</div></div>
+          <div class="bcard"><div class="k">Status</div><div class="v ok">Active</div><div class="note" style="margin-top:18px">Visa ···· 4242</div></div>
+        </div>
+      </div>
+
+      <!-- space roster -->
+      <div class="sec">
+        <div class="sec-h"><h2>Spaces</h2><span class="sub">all your spaces · open one to act, Studio to configure</span></div>
+        <div class="roster">
+          <a class="scard sh-blue"><span class="sm">A</span><div class="si"><div class="snm">Acme Sales <span class="role role-owner">owner</span></div><div class="smeta">3 agents · 14 views · <span class="running"><sui-status-dot tone="success" size="sm" pulse></sui-status-dot>1 running</span></div></div><span class="go"><svg><use href="#i-arrow"/></svg></span></a>
+          <a class="scard sh-green"><span class="sm">DV</span><div class="si"><div class="snm">Dev Tools <span class="role role-owner">owner</span></div><div class="smeta">6 agents · 9 views</div></div><span class="go"><svg><use href="#i-arrow"/></svg></span></a>
+          <a class="scard sh-orange"><span class="sm">RS</span><div class="si"><div class="snm">Research <span class="role role-member">member</span></div><div class="smeta">2 agents · view-only config</div></div><span class="go"><svg><use href="#i-arrow"/></svg></span></a>
+          <a class="scard sh-violet"><span class="sm">PB</span><div class="si"><div class="snm">Playbook <span class="role role-member">member</span></div><div class="smeta">shared by platform · 11 views</div></div><span class="go"><svg><use href="#i-arrow"/></svg></span></a>
+        </div>
+        <div style="margin-top:11px"><sui-button variant="outline">New space</sui-button></div>
+      </div>
+
+      <div class="footnote"><b>The boundary:</b> account · billing · the space roster · marketplace are global and live here. Configuring <b>inside</b> a space (agents, skills, views, themes) happens in <b>Studio</b>, scoped to that one space. Cross-space exists only at this level.</div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

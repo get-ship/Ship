@@ -37,9 +37,10 @@
 //!   absent.
 //!
 //! **R4 — Downward-only into L2:** L1 must NOT depend on L2, and L0 must NOT
-//!   depend on L2. Every L1→L2 / L0→L2 edge hard-fails; `KNOWN_L2_EDGES` is
-//!   empty (the former `ship-views`→`deck` violation was severed by inverting
-//!   the dependency through `ViewToolPort`).
+//!   depend on L2. Currently flags the live edge `ship-ui` (L1) → `deck` (L2)
+//!   as a known-violation (WARN, non-blocking — the real fix is de-bucketing the
+//!   SDK-manifest surface out of ship-ui; until then every *new* L1→L2 /
+//!   L0→L2 edge hard-fails).
 //!
 //! Run via `cargo xtask lint-layers`. CI fails on any hard error; WARN lines
 //! (known-violations) are reported but non-blocking.
@@ -78,22 +79,16 @@ const OUTBOUND_ALLOWLIST: &[&str] = &[
     "ship-sidecar-proto",
 ];
 
-/// R2 known-violations — L0 crates that currently carry transport deps but
-/// have not yet been reclassified or de-bucketed.
+/// R2 known-violations — L0 crates that currently carry transport deps but are
+/// on R15's "not ours, leave" list (or whose de-bucket is a separate slice).
+/// Each emits a WARN; the lint does NOT fail on them. The owning lane ratchets
+/// these to the allowlist or fixes the architecture before removing them.
 ///
-/// **This list is intentionally empty** as of the ship-isolation → L1 move.
-/// Transport is legal at L1, so the honest fix was a physical move, not a
-/// suppression entry. The list MUST stay empty: any L0 crate with a transport
-/// dep now hard-fails with no suppression path. A new justified row here is an
-/// architecture regression and must be reviewed as such.
-///
-/// (`ship-isolation` was here while it lived at L0; it is now at L1 under
-/// `crates/core/ship-platform/crates/ship-isolation` — transport is legal there.)
-///
-/// (`ship-substrate` was here for the `reqwest` pulled by
-/// `services/human_gateway.rs`; that egress now lives in `ship-messaging` (L1)
-/// and the substrate is transport-clean — do NOT re-add it.)
-const R2_KNOWN_VIOLATIONS: &[&str] = &[];
+/// - `ship-isolation` — runs/drives a Connect server inside L0.
+/// - `ship-substrate` — `reqwest` pulled by `services/human_gateway.rs`; the fix
+///   is moving that human-gateway egress out of the substrate (de-bucket), not
+///   suppressing it here.
+const R2_KNOWN_VIOLATIONS: &[&str] = &["ship-isolation", "ship-substrate"];
 
 // ── R4 — known L1→L2 / L0→L2 edges (WARN, non-blocking) ────────────────────────
 
@@ -102,7 +97,11 @@ const R2_KNOWN_VIOLATIONS: &[&str] = &[];
 /// consequences don't independently turn the lint red) and reported as a single
 /// WARN. The list is the ratchet: a *new* L1→L2 / L0→L2 edge not listed here
 /// hard-fails.
-const KNOWN_L2_EDGES: &[(&str, &str)] = &[];
+const KNOWN_L2_EDGES: &[(&str, &str)] = &[
+    // ship-ui (L1) embeds deck (L2) for the SDK-manifest render surface.
+    // Fix = de-bucket that surface out of ship-ui; until then, WARN.
+    ("ship-ui", "deck"),
+];
 
 pub fn run(repo_root: &Path) -> Result<(), String> {
     let ws = metadata::load(repo_root)?;

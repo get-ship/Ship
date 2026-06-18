@@ -1,5 +1,5 @@
 ---
-title: "selector — single-source list highlighting"
+title: "Selection state — keyed by Set membership"
 description: "When one signal drives the highlighted row, two rows re-render. Not N."
 group: "Tutorial"
 order: 17
@@ -19,32 +19,35 @@ the selection changes **every row re-evaluates**:
 {/for}
 ```
 
-`selector()` flips that — it returns a function `(key) => boolean`
-that is O(1) per call and only notifies the **two affected** rows
-(the one losing selection, the one gaining it) on change.
+The "subscribes every row" claim is what costs paint time on a long
+list. The fix is to read a structure that can answer "is `r.id` the
+selected id?" with **per-key reactivity** — only the two affected
+rows (the one losing selection, the one gaining it) re-evaluate.
+
+Wrap the single selection in a `Set`, expose it as a `derived`, and
+use the allowlisted `.has()` method call in the template:
 
 ```ts
-import { signal, selector } from '@ship/sui-runtime'
+import { signal, derived } from '@ship/sui-runtime'
 
 const selectedId = signal(0)
-const isSelected = selector(selectedId)   // keyed reactivity
+const selectedSet = derived(() => new Set([selectedId()]))
 ```
 
 ```sui
 {#for r of rows() key={r.id}}
-  <li class:selected={isSelected(r.id)}>{r.label}</li>
+  <li class:selected={selectedSet().has(r.id)}>{r.label}</li>
 {/for}
 ```
 
-Under the hood: `selector()` runs a single ambient effect against
-the source signal. Each `isSelected(key)` call subscribes the
-current effect to a *bucket keyed by the value*. When the source
-changes from A → B, only buckets A and B notify — every other
-bucket sits cold.
+`has()` is on the compiler's allowlist because it's read-only and
+referentially transparent. The SUI runtime tracks each row's effect
+against the *bucket* keyed by `r.id`, so when `selectedId` changes
+from A → B only buckets A and B notify — every other row sits cold.
 
 For a 1000-row list with a moving selection: naive = 1000
-re-evaluations per selection change; `selector()` = 2. The other
-998 rows never wake up.
+re-evaluations per selection change; `selectedSet().has(id)` = 2.
+The other 998 rows never wake up.
 
 ## Try it
 
@@ -53,10 +56,12 @@ Try:
 
 1. **Watch the DOM**: open devtools' Rendering → "Paint flashing".
    Move the selection with `j/k`. Only two rows flash per move.
-2. **Compare with naive**: swap `isSelected(r.id)` for
-   `r.id === selectedId()` in the template. Now every row flashes
-   per move (a much larger paint area).
-3. **Selector over derived**: pass a derived signal (e.g. one that
-   normalises `selectedId` modulo `rows().length`) into `selector()`.
-   The bucket reactivity still applies — only the affected rows
-   re-fire.
+2. **Compare with naive**: in the starter, the template uses
+   `selectedId() === r.id` — every row reads `selectedId` and
+   re-evaluates on change. The solved swaps to `selectedSet().has(r.id)`
+   and only the two affected rows re-evaluate. Toggle between the
+   two and watch the paint area change.
+3. **Selection over a derived**: pass a derived signal (one that
+   normalises `selectedId` modulo `rows().length`) into the `Set`
+   constructor. The bucket reactivity still applies — only the
+   affected rows re-fire.

@@ -27,6 +27,14 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
     let mut findings = Vec::new();
     for block in scan_style_blocks(source) {
         for rule in scan_rule_blocks(block.content) {
+            // Exempt the custom element's own `:host` rule. `:host` IS the
+            // host element — there is no `<sui-stack>` to swap it with; the
+            // host's own `display: inline-flex` + `flex-direction: column` +
+            // `gap` is the host's root layout, not a hand-rolled sub-stack.
+            // Both bare `:host` and functional `:host([attr=…])` count.
+            if block_starts_with_host(&block.content[..rule.body_offset - 1]) {
+                continue;
+            }
             let mut display = None;
             let mut direction = None;
             let mut wrap = None;
@@ -105,6 +113,32 @@ fn mk(path: &Path, line: usize, col: usize, message: &str, suggest: &str) -> Fin
     }
 }
 
+
+/// True when the rule whose body starts at position `body_offset` (i.e. the
+/// rule whose selector ends at `body_offset - 1`, the `{`) is a `:host`
+/// rule — bare `:host` or functional `:host(...)`. The host's own layout
+/// is the host element itself, not a hand-rolled sub-stack; flagging it
+/// as a `<sui-stack>` swap is meaningless.
+///
+/// We work from `content[..body_offset]` — the slice that contains the
+/// selector. The selector is everything from the start of the content (or
+/// after a previous `;` / `}`) up to (but not including) the `{` at
+/// `body_offset`. The slice passed in is the prefix; we walk back to the
+/// most recent rule boundary and check whether the trimmed selector begins
+/// with `:host`.
+fn block_starts_with_host(prefix: &str) -> bool {
+    let bytes = prefix.as_bytes();
+    let mut k = bytes.len();
+    while k > 0 {
+        let prev = bytes[k - 1];
+        if prev == b';' || prev == b'}' {
+            break;
+        }
+        k -= 1;
+    }
+    let selector = prefix[k..].trim();
+    selector == ":host" || selector.starts_with(":host(")
+}
 struct StyleBlock<'a> {
     content_offset: usize,
     content: &'a str,
@@ -366,5 +400,36 @@ mod tests {
     fn non_flex_grid_block_passes() {
         let f = run("<style>.x { display: grid; gap: var(--space-3); }</style>");
         assert!(f.is_empty(), "grid is out of scope for v1: {f:?}");
+    }
+    #[test]
+    fn host_bare_selector_passes() {
+        // The custom element's own `:host` is the host itself — not a
+        // hand-rolled sub-stack. Pattern from `sui-input.sui:85`.
+        let f = run("<style>:host { display: inline-flex; flex-direction: column; gap: var(--space-1); }</style>");
+        assert!(f.is_empty(), "host should be exempt: {f:?}");
+    }
+
+    #[test]
+    fn host_functional_selector_passes() {
+        // `:host([tone='primary'])` is still a host-context rule.
+        let f = run("<style>:host([tone='primary']) { display: flex; flex-direction: column; gap: var(--space-2); }</style>");
+        assert!(f.is_empty(), "host([attr]) should be exempt: {f:?}");
+    }
+
+    #[test]
+    fn non_host_after_host_still_warns() {
+        // The :host rule is exempt, but a sibling `.wrap` rule with the
+        // same hand-rolled flex shape is NOT a host rule — should warn.
+        let f = run("<style>:host { display: inline-flex; flex-direction: column; gap: var(--space-1); } .wrap { display: flex; flex-direction: column; gap: var(--space-2); }</style>");
+        assert_eq!(f.len(), 1, "{f:?}");
+        assert!(f[0].message.contains("sui-stack"));
+    }
+
+    #[test]
+    fn host_with_space_then_other_selector_warns() {
+        // `:host .x` — the descendant is the hand-rolled stack, not the
+        // host. The selector starts with `:host` but is not a host rule.
+        let f = run("<style>:host .x { display: flex; flex-direction: column; gap: var(--space-2); }</style>");
+        assert_eq!(f.len(), 1, "{f:?}");
     }
 }

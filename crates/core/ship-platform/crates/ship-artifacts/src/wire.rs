@@ -164,9 +164,9 @@ where
         request: ship_ops_rpc::OwnedPatchArtifactRequestView,
     ) -> ServiceResult<ProtoRecord> {
         let svc = self.make_svc(&ctx);
-        let name = ne(request.name.as_ref());
-        let owner = ne(request.owner_actor.as_ref());
-        let exp = ne(request.expires_at.as_ref());
+        let name = ne(request.name);
+        let owner = ne(request.owner_actor);
+        let exp = ne(request.expires_at);
         let record = svc
             .patch(request.id.as_ref(), name, owner, exp)
             .await
@@ -181,8 +181,8 @@ where
     ) -> ServiceResult<ProtoRecord> {
         let svc = self.make_svc(&ctx);
         let target = parse_target_scope(
-            request.target_scope.as_ref(),
-            ne(request.run_id.as_ref()),
+            request.target_scope,
+            ne(request.run_id),
             svc.ctx.space_id().as_str(),
         )
         .map_err(|e| ConnectError::invalid_argument(e.to_string()))?;
@@ -212,7 +212,7 @@ fn sv(s: String) -> serde_json::Value {
 }
 
 /// Return `Some(s)` if non-empty, else `None`.
-fn ne<'a>(s: &'a str) -> Option<&'a str> {
+fn ne(s: &str) -> Option<&str> {
     if s.is_empty() { None } else { Some(s) }
 }
 

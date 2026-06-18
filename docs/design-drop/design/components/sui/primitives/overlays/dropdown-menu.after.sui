@@ -1,0 +1,36 @@
+<!--
+  sui-dropdown-menu.after.sui — ELEVATED menu. Same static render; diffs:
+    • items become a 3-zone row: leading icon · label · trailing shortcut/hint —
+      so commands read like a real command surface (icon + ⌘-key affordance)
+    • hover uses a softer --muted wash with the item rounded inside panel padding,
+      vs a flat --accent block bleeding to the panel edge
+    • separators + a section label get real styling; destructive items tint red
+    • panel: --shadow-lg + a hairline top highlight, roomier 5px padding
+  Compiled as <x-dropdown-after>. Slots: trigger · (default) menu items.
+-->
+<prop name="open" type="bool" default="true" reflect />
+
+<style>
+  :host { position: relative; display: inline-flex; }
+  :host([hidden]) { display: none; }
+  .panel {
+    min-width: 210px; padding: 5px;
+    background: var(--popover, var(--card)); color: var(--popover-foreground, var(--card-foreground));
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 color-mix(in oklch, var(--background) 40%, transparent);
+    display: flex; flex-direction: column; font-family: var(--font-body); font-size: var(--text-sm);
+  }
+  ::slotted(button), ::slotted([role='menuitem']) {
+    display: flex; align-items: center; gap: 10px; text-align: left;
+    background: transparent; border: 0; padding: 7px 9px;
+    border-radius: var(--radius-sm); color: inherit; font: inherit; cursor: pointer; width: 100%;
+    transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+  }
+  ::slotted(button:hover), ::slotted([role='menuitem']:hover) { background: var(--muted); outline: none; }
+  ::slotted(button[data-tone='destructive']) { color: var(--destructive); }
+  ::slotted(button[data-tone='destructive']:hover) { background: var(--tone-destructive-bg); }
+  ::slotted(hr) { height: 1px; border: 0; background: var(--border-subtle); margin: 5px 4px; }
+  ::slotted([data-section]) { font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); padding: 6px 9px 3px; }
+</style>
+
+<div class="panel" part="panel" role="menu"><slot></slot></div>

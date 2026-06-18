@@ -40,23 +40,14 @@ function withState(state: Record<string, unknown>): {
 }
 
 describe('controller() helper', () => {
-  it('wraps a def in a {setup, __def} export', () => {
-    type Scope = { count: Signal<number> }
-    const def = {
-      on: { incr: (s: MutableState<Scope>) => { s.count++ } },
-    } satisfies ControllerDef<Scope>
+  // P1.x wave 2: deleted two structural-shape tests (was lines 43-52
+  // and 54-59 before this commit): 'wraps a def in {setup, __def} export'
+  // and 'passes function-form defs through (still wrapped)'. They
+  // asserted the wrapper's shape (typeof out.setup, out.__def identity)
+  // and nothing the next 12 behavior tests in this file don't already
+  // prove implicitly. The behavior tests (controller contract, mount +
+  // unmount lifecycle, use-section composition, etc.) are kept.
 
-    const out = controller(def)
-    expect(typeof out.setup).toBe('function')
-    expect(out.__def).toBe(def)
-  })
-
-  it('passes function-form defs through (still wrapped)', () => {
-    const factory = ({ ship: _ship }: { ship: unknown }) => ({})
-    const out = controller(factory)
-    expect(typeof out.setup).toBe('function')
-    expect(out.__def).toBe(factory)
-  })
 
   it('setup() runs the resolver and returns bindings', () => {
     const ctx = withState({ count: 5 })

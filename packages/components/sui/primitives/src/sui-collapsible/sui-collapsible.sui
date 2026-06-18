@@ -43,7 +43,7 @@
   .content-wrap {
     display: grid;
     grid-template-rows: 0fr;
-    transition: grid-template-rows var(--duration-medium, 200ms) var(--ease-out, ease-out);
+    transition: grid-template-rows var(--duration-medium) var(--ease-out);
   }
   :host([open]) .content-wrap {
     grid-template-rows: 1fr;
@@ -57,6 +57,16 @@
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
+    transition: background var(--duration-fast) var(--ease-out);
+  }
+  /* Hover wash on the disclosure header. */
+  ::slotted([slot='trigger']:hover) {
+    background: var(--hover-bg);
+  }
+  /* Canonical focus convention — replaces the design's box-shadow ring. */
+  ::slotted([slot='trigger']:focus-visible) {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
   :host([disabled]) ::slotted([slot='trigger']) {
     cursor: not-allowed;

@@ -1,0 +1,48 @@
+<!--
+  sui-card.before.sui — EXISTING look (repo styling). Container surface: tone
+  border/fill/rail, interactive hover lift, accent bar, header/content/footer.
+  Compiled as <x-card-before>. Props: tone · variant · padding · interactive ·
+  accent-bar · status-rail · fill. Slots: header · (default) · footer.
+-->
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+<prop name="variant" values="default|outline" default="default" reflect />
+<prop name="padding" values="none|sm|md|lg" default="md" reflect />
+<prop name="interactive" type="bool" default="false" reflect />
+<prop name="accent-bar" type="bool" default="false" reflect />
+<prop name="status-rail" type="bool" default="false" reflect />
+<prop name="fill" type="bool" default="false" reflect />
+
+<style>
+  :host {
+    display: block; position: relative; background: var(--card); color: var(--card-foreground, var(--foreground));
+    border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-card-rest, var(--shadow-xs));
+    --card-px: 20px; --card-py: 16px; --card-gap: var(--space-3, 12px); --tone-fg: var(--foreground); --tone-border: var(--border); --tone-bg: transparent;
+    padding: var(--card-py) var(--card-px);
+    transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  }
+  :host([hidden]) { display: none; }
+  :host([tone='primary'])     { --tone-fg: var(--primary);     --tone-border: color-mix(in oklch, var(--primary) 40%, var(--border));     --tone-bg: color-mix(in oklch, var(--primary) 8%, var(--card)); }
+  :host([tone='info'])        { --tone-fg: var(--info);        --tone-border: color-mix(in oklch, var(--info) 40%, var(--border));        --tone-bg: color-mix(in oklch, var(--info) 8%, var(--card)); }
+  :host([tone='success'])     { --tone-fg: var(--success);     --tone-border: color-mix(in oklch, var(--success) 40%, var(--border));     --tone-bg: color-mix(in oklch, var(--success) 8%, var(--card)); }
+  :host([tone='warning'])     { --tone-fg: var(--warning);     --tone-border: color-mix(in oklch, var(--warning) 40%, var(--border));     --tone-bg: color-mix(in oklch, var(--warning) 8%, var(--card)); }
+  :host([tone='destructive']) { --tone-fg: var(--destructive); --tone-border: color-mix(in oklch, var(--destructive) 40%, var(--border)); --tone-bg: color-mix(in oklch, var(--destructive) 8%, var(--card)); }
+  :host([tone='accent'])      { --tone-fg: var(--accent);      --tone-border: color-mix(in oklch, var(--accent) 40%, var(--border));      --tone-bg: color-mix(in oklch, var(--accent) 8%, var(--card)); }
+  :host([tone]:not([tone='default'])) { border-color: var(--tone-border); }
+  :host([fill]) { background: var(--tone-bg); border-color: var(--tone-border); }
+  :host([padding='none']) { --card-px: 0px; --card-py: 0px; --card-gap: 0px; padding: 0; }
+  :host([padding='sm'])   { --card-px: 12px; --card-py: 10px; --card-gap: 8px; padding: 10px 12px; }
+  :host([padding='lg'])   { --card-px: 28px; --card-py: 24px; --card-gap: 16px; padding: 24px 28px; }
+  :host([variant='outline']) { background: transparent; box-shadow: none; }
+  :host([status-rail]) { border-left: 3px solid var(--tone-fg); padding-left: calc(var(--card-px) - 3px); }
+  :host([accent-bar])::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--primary), var(--accent)); opacity: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; transition: opacity var(--duration-medium) var(--ease-out); pointer-events: none; }
+  :host([accent-bar]:hover)::before { opacity: 1; }
+  :host([interactive]) { cursor: pointer; }
+  :host([interactive]:hover) { border-color: color-mix(in oklch, var(--border) 160%, transparent); box-shadow: var(--shadow-hover, var(--shadow-sm)); transform: translateY(-1px); }
+  .header, .footer { display: block; }
+  :host(:not([data-no-header])) .header { margin: calc(var(--card-py) * -1) calc(var(--card-px) * -1) var(--card-gap); padding: var(--card-py) var(--card-px); border-bottom: 1px solid var(--border); font-family: var(--heading-font); font-weight: var(--heading-weight, 600); }
+  :host(:not([data-no-footer])) .footer { margin: var(--card-gap) calc(var(--card-px) * -1) calc(var(--card-py) * -1); padding: var(--card-py) var(--card-px); border-top: 1px solid var(--border); }
+</style>
+
+<div class="header" part="header"><slot name="header" reflect-empty="data-no-header"></slot></div>
+<div class="content" part="content"><slot></slot></div>
+<div class="footer" part="footer"><slot name="footer" reflect-empty="data-no-footer"></slot></div>

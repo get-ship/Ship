@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Studio</title>
+<link rel="stylesheet" href="../../../sui/ship.css" />
+<script>
+  (() => { const ORIG = window.fetch.bind(window);
+    window.fetch = (input, init) => { const url = typeof input === 'string' ? input : (input && input.url);
+      if (url === '/_sui/lucide-icons.json' || url === '/lucide-icons.json') return ORIG('../../../sui/lucide-icons.json', init);
+      return ORIG(input, init); }; })();
+</script>
+<script type="importmap">{ "imports": { "@ship/sui-runtime": "../../../sui/sui-runtime.js", "@ship/sui-dom": "../../../sui/sui-dom.js" } }</script>
+<script type="module" src="../../../sui/sui-components.js"></script>
+<script type="module">
+  import { defineComponent } from '../../../tools/catalog/sui-workbench.js';
+  try { await defineComponent({ name: 'sui-brand-mark', sui: await (await fetch('../../components/sui/sui-brand-mark.sui')).text() }); } catch (e) { console.error('brand-mark', e); }
+</script>
+<style>
+  :root { --studio: oklch(0.65 0.18 35); --cfg: oklch(0.68 0.16 80); --lib: oklch(0.6 0.16 305); }
+  html, body { margin: 0; height: 100%; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { background: var(--surface-0); color: var(--foreground); font-family: var(--font-body); display: grid; place-items: center; min-height: 100vh; padding: 20px; }
+  .icon { width: 15px; height: 15px; flex-shrink: 0; } .icon-sm { width: 12px; height: 12px; }
+
+  .frame { width: 1320px; height: 840px; border: 1px solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; background: var(--background); display: grid; grid-template-columns: 230px 1fr; grid-template-rows: 46px 1fr 26px; grid-template-areas: "top top" "rail main" "rail status"; }
+
+  /* ── top bar · CHROME (cmdk lives here) ─────────────── */
+  .top { grid-area: top; display: flex; align-items: center; gap: 14px; padding: 0 16px; background: color-mix(in oklch, var(--surface-1) 88%, transparent); border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(8px); }
+  .brand { display: inline-flex; align-items: center; gap: 8px; }
+  .brand .mk { width: 19px; height: 19px; border-radius: var(--radius-sm); background: var(--studio); color: white; display: grid; place-items: center; font-family: var(--font-mono); font-size: 11px; font-weight: 700; box-shadow: inset 0 1px 0 color-mix(in oklch, white 22%, transparent); }
+  .brand b { font-family: var(--heading-font); font-size: 14px; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); }
+  .brand .badge { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .16em; padding: 2px 6px; border-radius: 3px; background: color-mix(in oklch, var(--studio) 12%, transparent); color: var(--studio); font-weight: 700; }
+  /* cmdk — the chrome locus */
+  .cmdk { display: inline-flex; align-items: center; gap: 9px; margin: 0 auto; flex: 0 1 440px; min-width: 280px; padding: 6px 12px; border: 1px solid var(--border-subtle); background: var(--background); border-radius: var(--radius-md); color: var(--muted-foreground); font-size: 12.5px; cursor: text; }
+  .cmdk svg { width: 13px; height: 13px; }
+  .cmdk .ph { flex: 1; }
+  .cmdk .modes { display: inline-flex; gap: 3px; }
+  .cmdk .m { font-family: var(--font-mono); font-size: 9px; padding: 1px 5px; border-radius: var(--radius-sm); background: var(--muted); }
+  .cmdk .m.ai { color: var(--studio); background: color-mix(in oklch, var(--studio) 13%, transparent); }
+  .cmdk kbd { font-family: var(--font-mono); font-size: 10px; padding: 1px 5px; border-radius: 3px; background: var(--muted); }
+  .top .close { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border-subtle); background: transparent; color: var(--muted-foreground); padding: 4px 11px; border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 11px; cursor: pointer; }
+  .top .close:hover { color: var(--foreground); border-color: var(--border); }
+
+  /* ── rail ───────────────────────────────────────────── */
+  .rail { grid-area: rail; background: var(--surface-1); border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; overflow-y: auto; scrollbar-width: thin; }
+  /* space picker — legal here (standalone Studio = Shell) */
+  .picker { padding: 11px 10px 8px; }
+  .pk-lbl { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted-foreground); padding: 0 4px 5px; }
+  .pk-btn { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); cursor: pointer; box-shadow: var(--shadow-xs); }
+  .pk-btn .sm { width: 22px; height: 22px; border-radius: var(--radius-sm); display: grid; place-items: center; font-family: var(--font-mono); font-weight: 700; font-size: 11px; background: color-mix(in oklch, var(--accent) 22%, var(--card)); color: color-mix(in oklch, var(--accent) 90%, var(--foreground)); }
+  .pk-btn .nm { font-weight: 600; font-size: var(--text-sm); } .pk-btn .sc { font-family: var(--font-mono); font-size: 9px; color: var(--muted-foreground); }
+  .pk-btn .cv { margin-left: auto; color: var(--muted-foreground); } .pk-btn .cv svg { width: 13px; height: 13px; }
+
+  .grp { padding: 8px 8px 2px; }
+  .grp-h { display: flex; align-items: center; gap: 7px; padding: 6px 10px 5px; font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted-foreground); }
+  .grp-h .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--scope, var(--muted-foreground)); }
+  .grp-h .where { margin-left: auto; letter-spacing: 0; text-transform: none; font-size: 10px; opacity: .7; }
+  .grp.configure { --scope: var(--cfg); } .grp.library { --scope: var(--lib); }
+  .item { display: flex; align-items: center; gap: 10px; padding: 6px 10px; margin: 0 2px; border-radius: var(--radius-sm); color: var(--foreground); cursor: pointer; text-decoration: none; font-size: 13px; position: relative; }
+  .item:hover { background: var(--hover-bg); }
+  .item .ico { color: var(--muted-foreground); display: inline-flex; } .item:hover .ico { color: var(--foreground); }
+  .item .lbl { flex: 1; } .item .cnt { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-foreground); }
+  .item.on { background: color-mix(in oklch, var(--studio) 12%, transparent); }
+  .item.on::before { content: ''; position: absolute; left: -2px; top: 6px; bottom: 6px; width: 2px; border-radius: 2px; background: var(--studio); }
+  .item.on .ico { color: var(--studio); } .item.on .lbl { font-weight: 600; }
+
+  /* ── main ───────────────────────────────────────────── */
+  .main { grid-area: main; overflow-y: auto; scrollbar-width: thin; }
+  .vc { display: flex; align-items: center; gap: 12px; padding: 0 24px; height: 40px; border-bottom: 1px solid var(--border-subtle); position: sticky; top: 0; background: color-mix(in oklch, var(--background) 92%, transparent); backdrop-filter: blur(8px); z-index: 5; }
+  .crumb { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted-foreground); }
+  .crumb .grp-tag { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--cfg); padding: 2px 6px; border-radius: 3px; background: color-mix(in oklch, var(--cfg) 11%, transparent); }
+  .crumb .sep { color: var(--border); } .crumb .here { color: var(--foreground); font-weight: 600; }
+  .vc .actions { margin-left: auto; display: inline-flex; gap: 8px; }
+  .nb { font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 13px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--foreground); display: inline-flex; align-items: center; gap: 6px; }
+  .nb svg { width: 13px; height: 13px; } .nb.primary { background: var(--studio); color: white; border-color: var(--studio); }
+
+  .view { padding: 26px 24px 50px; }
+  .vh { display: flex; align-items: flex-end; gap: 14px; margin-bottom: 18px; }
+  .vh h1 { font-family: var(--heading-font); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--text-2xl); margin: 0; }
+  .vh .sub { font-size: 12.5px; color: var(--muted-foreground); margin: 3px 0 0; }
+  .vh .search { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-1); color: var(--muted-foreground); font-size: 12px; min-width: 200px; }
+  .vh .search svg { width: 13px; height: 13px; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .card { display: grid; grid-template-columns: 42px 1fr auto; gap: 13px; padding: 14px 15px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-1); align-items: start; cursor: pointer; text-decoration: none; color: var(--foreground); transition: border-color 120ms, background 120ms, box-shadow 120ms; }
+  .card:hover { border-color: var(--border); background: var(--card); box-shadow: var(--shadow-sm); }
+  .tile { width: 40px; height: 40px; border-radius: var(--radius-md); display: grid; place-items: center; color: white; font-family: var(--font-mono); font-size: 15px; font-weight: 700; background: var(--tile, var(--studio)); box-shadow: 0 2px 6px color-mix(in oklch, var(--tile, var(--studio)) 30%, transparent); }
+  .cb { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .cb .nm { font-family: var(--font-mono); font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .cb .desc { font-size: 12px; line-height: 1.45; color: var(--muted-foreground); margin: 0; }
+  .cb .meta { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); margin-top: 2px; display: flex; gap: 8px; align-items: center; }
+  .cb .meta .sep { color: var(--border); }
+  .harness { font-family: var(--font-mono); font-size: 9px; padding: 1px 6px; border-radius: var(--radius-full); }
+  .h-floki { color: var(--primary); background: var(--tone-primary-bg); } .h-claude { color: var(--accent); background: var(--tone-accent-bg); }
+  .cs { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+  .running { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 9px; color: var(--success); padding: 1px 7px; border-radius: var(--radius-full); background: var(--tone-success-bg); }
+  .running .p { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: pl 1.8s ease-in-out infinite; }
+  @keyframes pl { 50% { opacity: .4; } }
+  .src { font-family: var(--font-mono); font-size: 9px; color: var(--muted-foreground); }
+  .play { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border); background: var(--card); color: var(--studio); display: grid; place-items: center; cursor: pointer; }
+  .play svg { width: 12px; height: 12px; }
+
+  .tile-orange { --tile: oklch(0.65 0.18 35); } .tile-blue { --tile: oklch(0.6 0.16 240); } .tile-green { --tile: oklch(0.6 0.14 145); } .tile-violet { --tile: oklch(0.6 0.16 300); } .tile-teal { --tile: oklch(0.6 0.12 195); } .tile-amber { --tile: oklch(0.7 0.15 75); }
+
+  /* ── status ─────────────────────────────────────────── */
+  .status { grid-area: status; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: color-mix(in oklch, var(--surface-1) 94%, transparent); border-top: 1px solid var(--border-subtle); font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-foreground); }
+  .status .sep { color: var(--border); } .status .right { margin-left: auto; display: inline-flex; gap: 12px; }
+  .status .live { display: inline-flex; align-items: center; gap: 6px; color: var(--success); } .status .live .d { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></symbol>
+  <symbol id="i-bot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+  <symbol id="i-term" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></symbol>
+  <symbol id="i-merge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".9"/><circle cx="6.5" cy="12.5" r=".9"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.5 0-.4-.2-.8-.4-1.1-.3-.4-.4-.7-.4-1.1 0-.8.7-1.5 1.5-1.5H16c3.3 0 6-2.7 6-6 0-4.4-4.5-8-10-8z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5M4 9v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9M3 9h18"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+</defs></svg>
+
+<div class="frame" data-screen-label="studio">
+
+  <!-- top · chrome -->
+  <div class="top">
+    <span class="brand"><sui-brand-mark size="sm"></sui-brand-mark><b>Ship</b><span class="badge">Studio</span></span>
+    <span class="cmdk"><sui-icon name="search" size="sm"></sui-icon><span class="ph">Search, run a command, or ask…</span><span class="modes"><span class="m">find</span><span class="m ai">ai</span></span><kbd>⌘K</kbd></span>
+    <sui-button variant="outline" size="sm">Close</sui-button>
+  </div>
+
+  <!-- rail -->
+  <aside class="rail">
+    <div class="picker">
+      <div class="pk-lbl">Configuring space</div>
+      <button class="pk-btn"><span class="sm">A</span><div><div class="nm">Acme Sales</div><div class="sc">space · acme-sales</div></div><span class="cv"><sui-icon name="chevron-down" size="sm"></sui-icon></span></button>
+    </div>
+    <div class="grp configure">
+      <div class="grp-h"><span class="dot"></span>Configure<span class="where">this space</span></div>
+      <a class="item on"><sui-icon class="ico" name="bot" size="sm"></sui-icon><span class="lbl">Agents</span><span class="cnt">3</span></a>
+      <a class="item"><sui-icon class="ico" name="layout-dashboard" size="sm"></sui-icon><span class="lbl">Views</span><span class="cnt">3</span></a>
+      <a class="item"><sui-icon class="ico" name="workflow" size="sm"></sui-icon><span class="lbl">Pipelines</span><span class="cnt">2</span></a>
+      <a class="item"><sui-icon class="ico" name="grid-3x3" size="sm"></sui-icon><span class="lbl">Components</span><span class="cnt">110</span></a>
+      <a class="item"><sui-icon class="ico" name="palette" size="sm"></sui-icon><span class="lbl">Themes</span><span class="cnt">4</span></a>
+    </div>
+    <div class="grp library">
+      <div class="grp-h"><span class="dot"></span>Library<span class="where">you · cross-space</span></div>
+      <a class="item"><sui-icon class="ico" name="library" size="sm"></sui-icon><span class="lbl">Browse library</span><span class="cnt">142</span></a>
+      <a class="item"><sui-icon class="ico" name="sparkles" size="sm"></sui-icon><span class="lbl">Marketplace</span></a>
+    </div>
+  </aside>
+
+  <!-- main -->
+  <div class="main">
+    <div class="vc">
+      <span class="crumb"><span class="grp-tag">Configure</span><span class="sep">/</span><span class="here">Agents</span></span>
+      <div class="actions">
+        <sui-button variant="outline" size="sm">Install</sui-button>
+        <sui-button tone="primary" size="sm">New agent</sui-button>
+      </div>
+    </div>
+    <div class="view">
+      <div class="vh">
+        <div><h1>Agents</h1><div class="sub">Configured in <b>Acme Sales</b>. Edit opens the agent editor; Start launches a session.</div></div>
+        <span class="search"><sui-icon name="search" size="sm"></sui-icon>Filter agents…</span>
+      </div>
+      <div class="grid">
+        <a class="card" href="agent-editor.html"><span class="tile tile-blue">L</span><div class="cb"><div class="nm">lead-tracker <span class="harness h-floki">floki</span></div><p class="desc">Tracks weekly leads · drafts summary emails.</p><div class="meta">2 skills <span class="sep">·</span> 1 mcp <span class="sep">·</span> caps: collections C2</div></div><div class="cs"><span class="running"><span class="p"></span>running</span><span class="play"><svg><use href="#i-play"/></svg></span></div></a>
+        <a class="card" href="agent-editor.html"><span class="tile tile-orange">CR</span><div class="cb"><div class="nm">code-reviewer <span class="harness h-claude">claude</span></div><p class="desc">Reviews PRs · runs the test suite on demand.</p><div class="meta">4 skills <span class="sep">·</span> 0 mcp <span class="sep">·</span> caps: runtime C2</div></div><div class="cs"><span class="src">project</span><span class="play"><svg><use href="#i-play"/></svg></span></div></a>
+        <a class="card" href="agent-editor.html"><span class="tile tile-teal">DG</span><div class="cb"><div class="nm">digest <span class="harness h-floki">floki</span></div><p class="desc">Nightly rollup of activity into a report.</p><div class="meta">1 skill <span class="sep">·</span> 1 mcp <span class="sep">·</span> caps: collections C1</div></div><div class="cs"><span class="src">paused</span><span class="play"><svg><use href="#i-play"/></svg></span></div></a>
+        <a class="card" href="agent-editor.html"><span class="tile tile-violet">SP</span><div class="cb"><div class="nm">spawner <span class="harness h-floki">floki</span></div><p class="desc">Orchestrates child agents across a task.</p><div class="meta">3 skills <span class="sep">·</span> 0 mcp <span class="sep">·</span> caps: runtime C1</div></div><div class="cs"><span class="src">project</span><span class="play"><svg><use href="#i-play"/></svg></span></div></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- status -->
+  <div class="status">
+    <span class="live"><sui-status-dot tone="success" size="sm" pulse></sui-status-dot>daemon 1.4.2</span>
+    <span class="sep">·</span><span>Studio · Acme Sales</span>
+    <span class="sep">·</span><span>3 agents · 1 running</span>
+    <span class="right"><span>⌘K command</span><span class="sep">·</span><span>⌘. desktop</span></span>
+  </div>
+</div>
+</body>
+</html>

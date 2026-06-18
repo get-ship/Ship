@@ -47,9 +47,8 @@ fn main() {
         .arg("ship/ops/v1/settings.proto")
         .arg("ship/ops/v1/account.proto")
         .arg("ship/ops/v1/events.proto")
-        .arg("ship/ops/v1/view.proto")
+        .arg("ship/ops/v1/ui.proto")
         .arg("ship/ops/v1/registry.proto")
-        .arg("ship/ops/v1/sui.proto")
         .arg("ship/ops/v1/search.proto")
         .arg("ship/ops/v1/reactive.proto")
         .status()
@@ -74,16 +73,15 @@ fn main() {
             "ship/ops/v1/permissions.proto",
             "ship/ops/v1/mcp.proto",
             "ship/ops/v1/skills.proto",
-            "ship/ops/v1/pipelines.proto",
             "ship/ops/v1/agents.proto",
+            "ship/ops/v1/pipelines.proto",
             "ship/ops/v1/space.proto",
             "ship/ops/v1/device.proto",
             "ship/ops/v1/settings.proto",
             "ship/ops/v1/account.proto",
             "ship/ops/v1/events.proto",
-            "ship/ops/v1/view.proto",
+            "ship/ops/v1/ui.proto",
             "ship/ops/v1/registry.proto",
-            "ship/ops/v1/sui.proto",
             "ship/ops/v1/search.proto",
             "ship/ops/v1/reactive.proto",
         ])

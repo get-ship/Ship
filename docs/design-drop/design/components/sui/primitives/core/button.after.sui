@@ -1,0 +1,54 @@
+<!--
+  sui-button.after.sui — UNIFIED + token-pure (mature primitive; polish). Diffs vs
+  before: solid border color-mix(... --foreground) → var(--tone); solid hover lighten
+  uses --tone-contrast (theme-aware) instead of the repo's raw white literal — so the
+  shipped raw black/white literals (which the SUI compiler rejects) are replaced with
+  tokens. Same matrix. Compiled as <x-button-after>.
+  Props: tone · variant · size · disabled · loading · pressed · label.
+-->
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+<prop name="variant" values="solid|soft|outline|ghost|default" default="default" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
+<prop name="disabled" type="bool" default="false" reflect />
+<prop name="loading" type="bool" default="false" reflect />
+<prop name="pressed" type="string" default="" reflect />
+<prop name="label" type="string" default="" />
+
+<style>
+  :host { display: inline-flex; vertical-align: middle; --tone: var(--foreground); --tone-fg: var(--foreground); --tone-contrast: var(--background); --btn-h: 34px; --btn-px: var(--space-3); --btn-fs: 13px; --btn-gap: 8px; }
+  :host([hidden]) { display: none; }
+  :host([tone='primary'])     { --tone: var(--primary);          --tone-fg: var(--tone-primary-fg);  --tone-contrast: var(--primary-foreground); }
+  :host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--tone-info-fg); }
+  :host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--tone-success-fg); }
+  :host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--tone-warning-fg); }
+  :host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive); --tone-contrast: var(--primary-foreground); }
+  :host([tone='accent'])      { --tone: var(--accent);           --tone-fg: var(--tone-accent-fg);   --tone-contrast: var(--accent-foreground); }
+  :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); }
+  :host([size='sm']) { --btn-h: 28px; --btn-fs: 12px; --btn-px: 10px; --btn-gap: 6px; }
+  :host([size='lg']) { --btn-h: 40px; --btn-fs: 14px; --btn-px: 16px; --btn-gap: 8px; }
+
+  button { display: inline-flex; align-items: center; justify-content: center; gap: var(--btn-gap); min-height: var(--btn-h); padding: 0 var(--btn-px); font-family: var(--font-body); font-weight: var(--font-weight-medium, 500); font-size: var(--btn-fs); line-height: 1; letter-spacing: -0.005em; border-radius: var(--radius-md); border: 1px solid transparent; background: transparent; color: var(--foreground); cursor: pointer; white-space: nowrap; position: relative; transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out); }
+  :host([variant='default']) button { background: var(--background); border-color: var(--border); color: var(--foreground); box-shadow: var(--shadow-xs); }
+  :host([variant='default']) button:hover:not(:disabled) { background: color-mix(in oklch, var(--muted) 70%, var(--background)); border-color: var(--border-strong); transform: translateY(-1px); }
+  :host([variant='solid']) button { background: var(--tone); border-color: var(--tone); color: var(--tone-contrast); box-shadow: var(--shadow-xs); }
+  :host([variant='solid']) button:hover:not(:disabled) { background: color-mix(in oklch, var(--tone) 88%, var(--tone-contrast)); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+  :host([variant='soft']) button { background: color-mix(in oklch, var(--tone) 16%, transparent); border-color: color-mix(in oklch, var(--tone) 30%, transparent); color: var(--tone-fg); }
+  :host([variant='soft']) button:hover:not(:disabled) { background: color-mix(in oklch, var(--tone) 24%, transparent); }
+  :host([variant='outline']) button { background: transparent; border-color: color-mix(in oklch, var(--tone) 55%, transparent); color: var(--tone-fg); }
+  :host([variant='outline']) button:hover:not(:disabled) { background: color-mix(in oklch, var(--tone) 10%, transparent); }
+  :host([variant='ghost']) button { background: transparent; border-color: transparent; color: var(--tone-fg); }
+  :host([variant='ghost']) button:hover:not(:disabled) { background: color-mix(in oklch, var(--tone) 12%, transparent); }
+  button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--background), 0 0 0 4px color-mix(in oklch, var(--tone) 55%, transparent); }
+  button:disabled { cursor: not-allowed; color: color-mix(in oklch, var(--muted-foreground) 65%, transparent); background: var(--muted); border-color: color-mix(in oklch, var(--border) 80%, transparent); box-shadow: none; transform: none; filter: saturate(0.6); }
+  :host([variant='ghost']) button:disabled, :host([variant='outline']) button:disabled { background: transparent; }
+  :host([loading]) .content { opacity: 0; }
+  .content { display: inline-flex; align-items: center; gap: var(--btn-gap); transition: opacity var(--duration-fast) var(--ease-out); }
+  .spinner-wrap { position: absolute; inset: 0; display: inline-flex; align-items: center; justify-content: center; pointer-events: none; }
+  .spinner { width: 14px; height: 14px; border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sui-button-spin 0.7s linear infinite; }
+  @keyframes sui-button-spin { to { transform: rotate(360deg); } }
+</style>
+
+<button part="button" disabled={disabled() || loading()} aria-busy={loading() ? 'true' : 'false'} aria-label={label()} aria-pressed={pressed()}>
+  <span class="content"><slot name="leading"></slot><slot></slot><slot name="trailing"></slot></span>
+  {#if loading()}<span class="spinner-wrap" aria-hidden="true"><span class="spinner"></span></span>{/if}
+</button>

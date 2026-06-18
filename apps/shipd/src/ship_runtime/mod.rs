@@ -11,6 +11,9 @@
 pub mod types;
 pub(crate) mod init;
 mod accessors;
+// live_resolvers: the `(domain, op) -> live value` resolver table — built in
+// `init`, held on `ShipRuntime`, exposed via `accessors::live_resolvers`.
+pub mod live_resolvers;
 mod tasks;
 #[cfg(test)]
 mod test_ctors;
@@ -60,8 +63,10 @@ pub struct ShipRuntime {
     pub(super) schemas: Arc<ship_collection::projection::SchemaRegistry>,
     /// Blob root for artifacts (global ship dir).
     pub(super) global_blob_dir: std::path::PathBuf,
-    /// Agent-owned view sessions (Phase 1 canvas framework).
-    pub(super) view_sessions: crate::views::session::SharedViewSessionRegistry,
+    // (The agent-owned `view_sessions` canvas registry was deleted: the
+    // UI purge removed every surface that could create (`view.open`) or
+    // watch (SSE subscribe) a session, leaving a permanently-empty map.
+    // The ViewService Patch/Append/Signal ops answer "not found" directly.)
     /// PTY session registry — chat, pipelines, dock terminal all go
     /// through here. See `crate::sessions` (when feature = "ship-code").
     pub(super) pty_sessions: ship_agents::services::sessions::SessionRegistry,
@@ -146,5 +151,5 @@ pub struct ShipRuntime {
     /// (The per-window multiplex registry was deleted in the transport move to
     /// deck-axum (#276); it now lives in `deck_core::window_registry` and is
     /// constructed at router-mount time in `apps/shipd/src/router.rs`.)
-    pub(super) live_resolvers: std::sync::Arc<crate::live_resolvers::LiveResolverRegistry>,
+    pub(super) live_resolvers: std::sync::Arc<crate::ship_runtime::live_resolvers::LiveResolverRegistry>,
 }

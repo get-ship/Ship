@@ -1,0 +1,25 @@
+<!-- sui-gauge.new.sui — ELEVATED on the same pathLength arc. A tone-tinted track
+  (not flat --muted), round caps so the value arc reads as a filled meter, a
+  larger value number with a unit label beneath, and an origin cap dot. Same
+  value/geometry. Compiled as <x-gauge-new>. Props: value · tone · label. -->
+<prop name="value" type="number" default="72" />
+<prop name="tone" values="primary|info|success|warning|destructive" default="primary" reflect />
+<prop name="label" type="string" default="uptime" />
+<style>
+  :host { display: inline-block; width: 150px; font-family: var(--font-body); --tone: var(--primary); }
+  :host([tone='info']) { --tone: var(--info); }
+  :host([tone='success']) { --tone: var(--success); }
+  :host([tone='warning']) { --tone: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive); }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .track { fill: none; stroke: color-mix(in oklch, var(--tone) 16%, var(--muted)); stroke-width: 10; stroke-linecap: round; }
+  .val { fill: none; stroke: var(--tone); stroke-width: 10; stroke-linecap: round; }
+  .num { font-size: 22px; font-weight: var(--font-weight-semibold, 600); fill: var(--foreground); font-family: var(--font-body); font-variant-numeric: tabular-nums; }
+  .lbl { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; fill: var(--muted-foreground); font-family: var(--font-mono); }
+</style>
+<svg viewBox="0 0 120 72" part="chart" role="img" aria-label="Gauge">
+  <path class="track" d="M10 62 A50 50 0 0 1 110 62" pathLength="100"></path>
+  <path class="val" d="M10 62 A50 50 0 0 1 110 62" pathLength="100" stroke-dasharray={value() + ' 100'}></path>
+  <text class="num" x="60" y="54" text-anchor="middle">{value()}%</text>
+  <text class="lbl" x="60" y="68" text-anchor="middle">{label()}</text>
+</svg>

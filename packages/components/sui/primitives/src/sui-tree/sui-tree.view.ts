@@ -15,7 +15,8 @@
 // Authority: build-spec §"Accessibility" (flat-list ARIA), §"The view", Slices
 // 3-5; behavioral specs #1/#2/#4/#6/#8.
 
-import { derived, type Derived, type VirtualItem } from '@ship/sui-runtime'
+import { derived, type Derived } from '@ship/sui-runtime'
+import type { VirtualItem } from '@ship/sui-runtime/virtual'
 import type { Table } from '../sui-table/engine/create-table'
 import type { CellValue, ColumnApi, Row } from '../sui-table/engine/types'
 import type { TreeNode } from '../sui-tree-view/sui-tree-view.controller'

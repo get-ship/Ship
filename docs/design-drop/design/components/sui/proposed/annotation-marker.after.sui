@@ -1,0 +1,68 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-annotation-marker.after.sui — ELEVATED. Same prop/position contract; diffs:
+    • pin ring --background → --card (reads raised on every theme); active uses
+      the shared focus-ring recipe (0 0 0 2px --card, 0 0 0 4px color-mix(--primary
+      40%)) instead of a flat outline, plus a brightness lift + scale
+    • region: dashed → a crisp 2px solid --primary 55% edge on a lighter
+      --primary 9% fill, with a numbered index tab in the corner so a drawn region
+      reads as an ordered annotation, not just a box
+    • tabular index numerals
+  Static visual (no controller). Compiled as <x-marker-after>.
+  Props: kind(point|region) · x · y · rx · ry · rw · rh · active · index.
+-->
+<prop name="kind" values="point|region" default="point" reflect />
+<prop name="x" type="number" default="0" />
+<prop name="y" type="number" default="0" />
+<prop name="rx" type="number" default="0" />
+<prop name="ry" type="number" default="0" />
+<prop name="rw" type="number" default="0" />
+<prop name="rh" type="number" default="0" />
+<prop name="active" type="bool" default="false" reflect />
+<prop name="index" type="number" default="0" />
+
+<style>
+  :host { position: absolute; pointer-events: auto; font-family: var(--font-body); font-size: var(--text-xs); }
+  :host([hidden]) { display: none; }
+  [part='pin'] {
+    position: absolute; width: 21px; height: 21px; border-radius: 50%;
+    background: var(--primary); color: var(--primary-foreground);
+    display: none; align-items: center; justify-content: center;
+    font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums;
+    box-shadow: var(--shadow-sm); cursor: pointer; transform: translate(-50%, -50%);
+    border: 2px solid var(--card);
+    transition: filter var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+  }
+  :host([kind='point']) [part='pin'] { display: inline-flex; }
+  [part='pin']:hover { filter: brightness(1.08); }
+  :host([active]) [part='pin'] {
+    filter: brightness(1.1); transform: translate(-50%, -50%) scale(1.08);
+    box-shadow: 0 0 0 2px var(--card), 0 0 0 4px color-mix(in oklch, var(--primary) 40%, transparent);
+  }
+  [part='box'] {
+    position: absolute; border: 2px solid color-mix(in oklch, var(--primary) 55%, transparent);
+    background: color-mix(in oklch, var(--primary) 9%, transparent);
+    border-radius: var(--radius-sm); cursor: pointer; box-sizing: border-box; display: none;
+  }
+  :host([kind='region']) [part='box'] { display: block; }
+  [part='box']::before {
+    content: ''; position: absolute; top: -1px; left: -1px; width: 17px; height: 16px;
+    background: var(--primary); border-radius: var(--radius-sm) 0 var(--radius-sm) 0;
+  }
+  .tab {
+    position: absolute; top: -1px; left: -1px; width: 17px; height: 16px; display: none;
+    align-items: center; justify-content: center; color: var(--primary-foreground);
+    font-size: 10px; font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; z-index: 1;
+  }
+  :host([kind='region']) .tab { display: inline-flex; }
+  :host([active]) [part='box'] {
+    background: color-mix(in oklch, var(--primary) 16%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 22%, transparent);
+  }
+</style>
+
+<div part="pin" role="button" tabindex="0" style={'left:' + x() + 'px;top:' + y() + 'px'}>{index()}</div>
+<div part="box" role="button" tabindex="0"
+  style={'left:' + rx() + 'px;top:' + ry() + 'px;width:' + rw() + 'px;height:' + rh() + 'px'}>
+  <span class="tab">{index()}</span>
+</div>

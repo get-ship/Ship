@@ -1,0 +1,58 @@
+<!--
+  sui-avatar.after.sui — ELEVATED. Same contract; diffs:
+    • a hairline definition ring (inset 0 0 0 1px color-mix(--foreground 9%)) so the
+      avatar separates from same-colored surfaces (a muted avatar on a muted row
+      currently melts in) — token-based, works on every theme
+    • initials gain a soft top inner-highlight for a subtle dimensional read
+    • tone initials backgrounds bumped 20→26% so toned avatars are clearly colored,
+      not near-grey
+  Compiled as <x-avatar-after>. Props: src · name · initials · icon-slug · size · shape · tone.
+-->
+<prop name="src" type="string" default="" />
+<prop name="name" type="string" default="" />
+<prop name="initials" type="string" default="" />
+<prop name="icon-slug" type="string" default="" />
+<prop name="size" values="xs|sm|md|lg|xl" default="md" reflect />
+<prop name="shape" values="round|square" default="round" reflect />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="muted" reflect />
+
+<style>
+  :host {
+    display: inline-flex; vertical-align: middle; --sz: 32px; --fs: 13px;
+    --av-bg: linear-gradient(135deg, color-mix(in oklch, var(--primary) 70%, transparent), color-mix(in oklch, var(--accent) 70%, transparent));
+    --av-fg: var(--foreground);
+  }
+  :host([hidden]) { display: none; }
+  :host([size='xs']) { --sz: 20px; --fs: 10px; }
+  :host([size='sm']) { --sz: 28px; --fs: 11px; }
+  :host([size='md']) { --sz: 32px; --fs: 13px; }
+  :host([size='lg']) { --sz: 40px; --fs: 15px; }
+  :host([size='xl']) { --sz: 56px; --fs: 22px; }
+  :host([tone='primary'])     { --av-bg: var(--primary);     --av-fg: var(--primary-foreground); }
+  :host([tone='accent'])      { --av-bg: var(--accent);      --av-fg: var(--accent-foreground); }
+  :host([tone='info'])        { --av-bg: color-mix(in oklch, var(--info) 26%, var(--muted));        --av-fg: var(--info); }
+  :host([tone='success'])     { --av-bg: color-mix(in oklch, var(--success) 26%, var(--muted));     --av-fg: var(--success); }
+  :host([tone='warning'])     { --av-bg: color-mix(in oklch, var(--warning) 26%, var(--muted));     --av-fg: var(--warning); }
+  :host([tone='destructive']) { --av-bg: color-mix(in oklch, var(--destructive) 26%, var(--muted)); --av-fg: var(--destructive); }
+
+  .root {
+    position: relative;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: var(--sz); height: var(--sz); flex: none;
+    background: var(--av-bg); color: var(--av-fg);
+    font-family: var(--font-body); font-weight: var(--font-weight-bold); font-size: var(--fs);
+    letter-spacing: 0.02em; text-transform: uppercase; line-height: 1; overflow: hidden; user-select: none;
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--foreground) 9%, transparent), inset 0 1px 0 color-mix(in oklch, var(--background) 22%, transparent);
+  }
+  :host([shape='round'])  .root { border-radius: 50%; }
+  :host([shape='square']) .root { border-radius: var(--radius-sm); }
+  img { width: 100%; height: 100%; object-fit: contain; display: block; padding: 10%; box-sizing: border-box; }
+</style>
+
+<span class="root" part="root" role="img" aria-label={name() || initials() || 'avatar'}>
+  {#if iconSlug() || src()}
+    <img part="img" src={iconSlug() ? 'https://cdn.simpleicons.org/' + iconSlug() : src()} alt={name()} />
+  {:else}
+    <span part="initials">{initials() ? initials().slice(0, 2).toUpperCase() : (name().trim().slice(0, 1).toUpperCase() || '?')}</span>
+  {/if}
+</span>

@@ -53,10 +53,14 @@
     --toast-fs: var(--text-base);
     --toast-title-fs: var(--text-base);
     --toast-gap: 10px;
+    --toast-row-gap: var(--space-1);
+    --toast-pad-end: 24px;
     --toast-min-w: 280px;
     --toast-max-w: 420px;
     --toast-slide-x: 16px;
     --toast-slide-y: 0;
+    --toast-content-gap: 2px;
+    --toast-actions-mt: 6px;
     /* tone channel defaults */
     --tone-bg: transparent;
     --tone-border: var(--border);
@@ -102,19 +106,17 @@
     display: grid;
     grid-template-columns: auto 1fr auto;
     column-gap: var(--toast-gap);
-    row-gap: 4px;
+    row-gap: var(--toast-row-gap);
     align-items: start;
     padding: var(--toast-py) var(--toast-px);
-    padding-right: calc(var(--toast-px) + 24px);
+    padding-right: calc(var(--toast-px) + var(--toast-pad-end));
     min-width: var(--toast-min-w);
     max-width: var(--toast-max-w);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     border: 1px solid var(--tone-border);
-    background: var(--card);
+    background: var(--surface-1);
     color: var(--card-foreground);
-    box-shadow:
-      0 0 0 1px color-mix(in oklch, var(--foreground) 3%, transparent),
-      var(--shadow-md);
+    box-shadow: var(--shadow-lg);
     font-family: var(--font-body);
     font-size: var(--toast-fs);
     line-height: var(--leading-normal);
@@ -127,8 +129,8 @@
 
   :host(:not([tone])) .toast,
   :host([tone='default']) .toast {
-    border-color: color-mix(in oklch, var(--border) 160%, transparent);
-    background: var(--card);
+    border-color: var(--border-strong);
+    background: var(--surface-1);
   }
 
   :host([tone='info']) .toast,
@@ -138,7 +140,7 @@
   :host([tone='accent']) .toast,
   :host([tone='primary']) .toast,
   :host([tone='muted']) .toast {
-    background: color-mix(in oklch, var(--tone-bg) 70%, var(--card));
+    background: var(--tone-bg);
     border-color: var(--tone-border);
   }
 
@@ -164,27 +166,25 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
+    width: 26px;
+    height: 26px;
     flex: 0 0 auto;
+    border-radius: var(--radius-md);
+    background: var(--tone-bg);
     color: var(--tone-fg);
-    margin-top: 1px;
   }
   :host(:not([tone])) .icon,
-  :host([tone='default']) .icon { color: var(--muted-foreground); }
-  .icon svg { width: 18px; height: 18px; display: block; }
-  :host([size='sm']) .icon,
-  :host([size='sm']) .icon svg { width: 16px; height: 16px; }
-  :host([size='lg']) .icon,
-  :host([size='lg']) .icon svg { width: 20px; height: 20px; }
+  :host([tone='default']) .icon { background: transparent; color: var(--muted-foreground); }
+  .icon svg { width: 15px; height: 15px; display: block; }
+  :host([size='sm']) .icon { width: 22px; height: 22px; }
+  :host([size='sm']) .icon svg { width: 13px; height: 13px; }
+  :host([size='lg']) .icon { width: 30px; height: 30px; }
+  :host([size='lg']) .icon svg { width: 17px; height: 17px; }
 
   :host([data-no-icon]) .toast { grid-template-columns: 1fr auto; }
   :host([data-no-icon]) .icon { display: none; }
 
   .content {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
     min-width: 0;
     color: var(--card-foreground);
   }
@@ -207,7 +207,7 @@
   .actions {
     display: flex;
     gap: var(--space-2);
-    margin-top: 6px;
+    margin-top: var(--toast-actions-mt);
     grid-column: 2;
   }
   :host([data-no-actions]) .actions { display: none; margin-top: 0; }
@@ -228,12 +228,17 @@
     cursor: pointer;
     padding: 0;
     font: inherit;
-    z-index: 1;
+    z-index: var(--z-elevated);
     transition:
       background-color var(--duration-fast) var(--ease-out),
       color var(--duration-fast) var(--ease-out);
   }
   .close:hover {
+    background: var(--tone-bg);
+    color: var(--tone-fg);
+  }
+  :host(:not([tone])) .close:hover,
+  :host([tone='default']) .close:hover {
     background: var(--active-bg);
     color: var(--foreground);
   }
@@ -241,8 +246,8 @@
   .close:focus-visible {
     outline: none;
     box-shadow:
-      0 0 0 2px var(--card),
-      0 0 0 4px color-mix(in oklch, var(--tone-fg) 55%, transparent);
+      0 0 0 2px var(--surface-1),
+      0 0 0 4px var(--border-strong);
   }
   .close svg { width: 12px; height: 12px; display: block; }
 
@@ -251,9 +256,10 @@
     left: 0; right: 0; bottom: 0;
     height: 2px;
     background: var(--tone-fg);
+    border-top-right-radius: var(--radius-full);
     transform: scaleX(1);
     transform-origin: left center;
-    animation: sui-toast-progress var(--toast-duration, 5000ms) linear forwards;
+    animation: sui-toast-progress var(--toast-duration) linear forwards;
   }
   :host(:not([tone])) .progress,
   :host([tone='default']) .progress { background: var(--muted-foreground); }
@@ -323,7 +329,7 @@
       {/match}
     {/if}
   </span>
-  <div class="content">
+  <sui-stack class="content" gap="0">
     <div class="title">
       <slot name="title" bind:this={titleSlotEl}></slot>
     </div>
@@ -331,7 +337,7 @@
     <div class="actions">
       <slot name="actions" bind:this={actionsSlotEl}></slot>
     </div>
-  </div>
+  </sui-stack>
   {#if dismissible()}
     <button class="close" part="close" type="button" aria-label="Dismiss notification" bind:this={closeBtn}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

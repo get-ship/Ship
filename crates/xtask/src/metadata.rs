@@ -9,10 +9,8 @@
 //! name screams (the consuming lint turns it into a hard error).
 //!
 //! Layer classification is path-based (workspace-relative crate directory) so
-//! it never drifts from the filesystem. `lint_layers` derives its taxonomy from
-//! here; `lint_imports` still carries its own hand-maintained crate list and a
-//! separate L0/L1/Shared rule-classification (`lint_imports::CRATES`) that must
-//! be updated by hand when this table changes.
+//! it never drifts from the filesystem, and is computed once here so every
+//! lint agrees on the taxonomy.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -51,6 +49,7 @@ impl Layer {
 /// L0 sibling primitives that live under `crates/core/` next to ship-substrate.
 const L0_SIBLINGS: &[&str] = &[
     "ship-git",
+    "ship-isolation",
     "ship-cloud",
     "ship-ops-rpc",
     "ship-gateway-client",
@@ -82,8 +81,7 @@ pub fn classify(rel_dir: &str) -> Option<Layer> {
     {
         return Some(Layer::L1);
     }
-    // L2 — apps, deck, sui, packages, tests, examples, plus xtask + build-info
-    // tooling.
+    // L2 — apps, deck, sui, packages, tests, examples, plus xtask + build-info tooling.
     if rel_dir.starts_with("apps/")
         || rel_dir.starts_with("crates/deck/")
         || rel_dir.starts_with("crates/sui/")

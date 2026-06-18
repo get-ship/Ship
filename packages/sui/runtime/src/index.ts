@@ -121,12 +121,13 @@ export {
 export { bindFor, bindForSignal } from './for'
 export type { BindForOptions, RenderedItem } from './for'
 
-// Backbone #2 — virtualization. `createVirtualizer()` is a reactive adapter
-// over the `@tanstack/virtual-core` windowing engine (a devDependency the
-// bundler inlines at build). Consumers bind to `Virtual<T>` — never to the
-// upstream core directly.
-export { createVirtualizer } from './virtual'
-export type { Virtual, VirtualOptions, VirtualItem } from './virtual'
+// Backbone #2 — virtualization — lives on the `@ship/sui-runtime/virtual`
+// subpath, NOT this barrel (#297): re-exporting it here dragged
+// `@tanstack/virtual-core` (~21KB minified, a third of the bundle) into the
+// always-loaded runtime singleton. Windowing consumers import
+// `createVirtualizer` / `Virtual` / `VirtualItem` from the subpath; their
+// bundles inline the adapter + engine while the reactive core stays the
+// external singleton (see src/virtual.ts).
 
 export { bindIf } from './if'
 export type { BindIfOptions, BranchRender } from './if'
@@ -285,14 +286,6 @@ export type {
   StatusValue,
 } from './chrome'
 
-// Re-export route surface so the bundled `@ship/sui-runtime/route`
-// importmap entry (which points at the single runtime.js bundle)
-// resolves to the actual symbols. Authors continue to use the subpath
-// import (`from '@ship/sui-runtime/route'`); the importmap routes it
-// here.
-export { defineRoutes, navigate, route, setRouterPort } from './route'
-export type { RouteShape, RouteSignals, RouterPort } from './route'
-
 // Re-export the patch applicator for the same reason as the route
 // surface above: `@ship/sdk-client`'s SSE layer imports
 // `@ship/sui-runtime/patch`, and the importmap points that subpath at
@@ -304,16 +297,14 @@ export type { Patch, PatchOp, PathToken } from './patch'
 // gen-types` from Rust source; do not edit `generated.ts` by hand.
 // View-system contract types only — Ship daemon-domain data (git/agents/
 // account) lives in @ship/sdk-client, never the framework.
+// (LintFinding + the Write* request/response types left this surface when
+// the write paths + lint moved to the view-edit Connect wire — their specta
+// registrations were retired; see crates/xtask/src/types.rs.)
 export type {
-  LintFinding,
   ManifestRail,
   RailMeta,
   ResolveError,
   ResolvedView,
   ViewListEntry,
   ViewManifest,
-  WriteDiagnostics,
-  WriteManifestRequest,
-  WriteResponse,
-  WriteTemplateRequest,
 } from './generated'

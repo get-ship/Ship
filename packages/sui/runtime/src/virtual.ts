@@ -28,10 +28,22 @@
 //   measured size differing from the estimate) DOES change start/size and so
 //   MUST break identity to force a re-render.
 
-import { signal, derived, untrack, type Derived } from './signal'
-import { onCleanup } from './effect-scope'
-import { effect } from './signal'
-import type { Disposer } from './bind'
+// Reactive core via the BARE self-specifier, not relative paths (mirrors
+// template-hooks/index.ts). This module is a `@ship/sui-runtime/virtual`
+// subpath OFF the root barrel (#297): consumer bundles inline it (plus
+// `@tanstack/virtual-core`), so its runtime imports must stay external —
+// the deck bundler externalizes the bare `@ship/sui-runtime` specifier,
+// keeping ONE signal graph. Relative imports here would inline a second
+// copy of the reactive core into every consumer (split-brain signals).
+import {
+  signal,
+  derived,
+  effect,
+  untrack,
+  onCleanup,
+  type Derived,
+  type Disposer,
+} from '@ship/sui-runtime'
 import {
   Virtualizer,
   elementScroll,

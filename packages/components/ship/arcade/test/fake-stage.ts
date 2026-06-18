@@ -7,7 +7,7 @@
 //
 //   • collision + input use the REAL engine subsystems (`createCollide`,
 //     `createInput`) — both are pure logic, so `sui-collider` overlap and
-//     `sui-input` key→action mapping are genuine behavior, not stubs.
+//     `sui-stage-input` key→action mapping are genuine behavior, not stubs.
 //   • world / loop / audio / particles / palette are faithful fakes that record
 //     what the controller asks of them and integrate entities exactly as the
 //     real loop does (`e.x += e.vx * dt`).

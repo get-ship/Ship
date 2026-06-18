@@ -1,6 +1,6 @@
 ---
 title: "View Directory Convention"
-description: "ADR: views/<name>/ uses page.sui (route entry), controller.ts, style.css, manifest.jsonc, dist/ (generated), and _components/ (view-private widgets) — distinct from the component shape under packages/components/ui-components/src/sui-*."
+description: "ADR: views/<name>/ uses page.sui (route entry), controller.ts, style.css, manifest.jsonc, dist/ (generated), and _components/ (view-private widgets) — distinct from the component shape under packages/components/sui/primitives/src/sui-*."
 group: ADRs
 order: 21
 audience: internal
@@ -11,6 +11,8 @@ tags: [views, sui, routing, conventions]
 ---
 
 # View Directory Convention
+
+> **Superseded paths.** This ADR records the *decision* (the view directory shape), which still stands. The component paths it cites below are historical: components now live at `packages/components/sui/<pack>/src/<tag>/` and `packages/components/ship/<pack>/src/<tag>/`, not the deleted `packages/components/ui-components/`. Read the path references below as the layout at the time of the decision, not current guidance.
 
 ## Context
 

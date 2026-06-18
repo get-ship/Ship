@@ -97,7 +97,8 @@ describe('<sui-launcher>', () => {
     const { el } = mount(reg, 'sui-launcher')
     await flush()
     const foot = shadow(el).querySelector('[part~="foot"]')!
-    const kbds = foot.querySelectorAll('sui-kbd')
+    // Native <kbd> since d04fdd672 cut the sui-kbd primitive.
+    const kbds = foot.querySelectorAll('kbd')
     expect(kbds.length).toBeGreaterThanOrEqual(1)
   })
 

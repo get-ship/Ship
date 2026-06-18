@@ -35,7 +35,11 @@
   :host { display: none; }
   :host([active]) {
     display: block;
-    animation: sui-tab-panel-fade var(--duration-medium, 200ms) var(--ease-out, ease-out);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    :host([active]) {
+      animation: sui-tab-panel-fade var(--duration-medium) var(--ease-out);
+    }
   }
   @keyframes sui-tab-panel-fade {
     from { opacity: 0; transform: translateY(4px); }
@@ -44,10 +48,10 @@
   :host(:focus-visible) {
     outline: none;
     box-shadow:
-      0 0 0 var(--ring-offset, 2px) var(--background),
-      0 0 0 calc(var(--ring-offset, 2px) + var(--ring-width, 2px))
-        color-mix(in oklch, var(--ring-color) var(--ring-opacity, 60%), transparent);
-    border-radius: var(--radius-md, 6px);
+      0 0 0 var(--ring-offset) var(--background),
+      0 0 0 calc(var(--ring-offset) + var(--ring-width))
+        var(--ring);
+    border-radius: var(--radius-md);
   }
 </style>
 

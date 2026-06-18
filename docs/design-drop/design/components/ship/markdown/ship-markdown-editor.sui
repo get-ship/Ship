@@ -1,0 +1,56 @@
+<!--
+  ship-markdown-editor.sui — the @ship/markdown SURFACE (chrome around Tiptap).
+  The Tiptap editing area is represented by realistic rendered markdown; the
+  formatting toolbar (with an active/pressed state), the editor prose body with a
+  text cursor + selection, and the status bar are the SHIP chrome. Token-pure,
+  theme-reactive. Compiled as <ship-markdown-editor>.
+-->
+<style>
+  :host { display: block; font-family: var(--font-body); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--card); box-shadow: var(--shadow-xs); }
+  .tb { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; padding: 6px 8px; border-bottom: 1px solid var(--border-subtle); background: color-mix(in oklch, var(--muted) 50%, var(--card)); }
+  .tb button { min-width: 28px; height: 28px; padding: 0 7px; border: 0; background: transparent; color: var(--muted-foreground); border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-mono); font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+  .tb button:hover { background: var(--muted); color: var(--foreground); }
+  .tb button.on { background: var(--selected-bg); color: var(--primary); }
+  .tb button b { font-weight: 700; } .tb button i { font-style: italic; }
+  .tb .sep { width: 1px; align-self: stretch; margin: 4px 5px; background: var(--border-subtle); }
+  .tb svg { width: 15px; height: 15px; }
+  .doc { padding: 16px 20px; font-size: var(--text-md); line-height: 1.7; color: var(--foreground); max-width: 64ch; }
+  .doc h2 { font-family: var(--heading-font); font-weight: var(--heading-weight); font-size: var(--text-2xl); margin: 0 0 var(--space-3); }
+  .doc p { margin: 0 0 var(--space-3); }
+  .doc strong { font-weight: var(--font-weight-semibold, 600); }
+  .doc .sel { background: var(--selected-bg); border-radius: 2px; }
+  .doc a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+  .doc ul { margin: 0 0 var(--space-3); padding-left: var(--space-5); }
+  .doc li { margin: 2px 0; } .doc li::marker { color: var(--muted-foreground); }
+  .doc code { font-family: var(--font-mono); font-size: var(--text-sm); background: color-mix(in oklch, var(--card) 70%, var(--muted)); border: 1px solid var(--border-subtle); padding: 1px 5px; border-radius: var(--radius-sm); }
+  .doc blockquote { margin: var(--space-3) 0; padding: 4px 14px; border-left: 3px solid var(--primary); background: color-mix(in oklch, var(--primary) 6%, transparent); color: var(--muted-foreground); }
+  .cur { display: inline-block; width: 2px; height: 1.1em; background: var(--primary); vertical-align: text-bottom; margin: 0 -1px; }
+  .status { display: flex; gap: 14px; padding: 5px 12px; border-top: 1px solid var(--border-subtle); background: color-mix(in oklch, var(--muted) 50%, var(--card)); font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+  .status .sp { margin-left: auto; }
+</style>
+<div class="surface" part="surface">
+  <div class="tb" part="toolbar">
+    <button class="on" type="button" aria-label="Bold"><b>B</b></button>
+    <button type="button" aria-label="Italic"><i>I</i></button>
+    <button type="button" aria-label="Strikethrough"><span style="text-decoration:line-through">S</span></button>
+    <span class="sep"></span>
+    <button type="button">H1</button>
+    <button type="button">H2</button>
+    <span class="sep"></span>
+    <button type="button" aria-label="Bullet list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+    <button type="button" aria-label="Quote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17h3l2-4V7H5v6h3zM14 17h3l2-4V7h-6v6h3z"/></svg></button>
+    <button type="button" aria-label="Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></svg></button>
+    <button type="button" aria-label="Link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.07 0l2-2a5 5 0 00-7.07-7.07l-1 1M14 11a5 5 0 00-7.07 0l-2 2A5 5 0 005 17.07l1-1"/></svg></button>
+  </div>
+  <div class="doc" part="editor" contenteditable="false">
+    <h2>Release notes</h2>
+    <p>This build ships the <strong class="sel">tonal button</strong> and refreshes the field language. See <a href="#">the design doc</a> for the full diff.<span class="cur"></span></p>
+    <ul><li>Re-skinned <code>sui-sheet</code> onto data-grid tokens</li><li>Fixed <code>sui-board</code> edge contrast on dark themes</li></ul>
+    <blockquote>Heads up: re-run the token codemod before upgrading.</blockquote>
+  </div>
+  <div class="status" part="status">
+    <span>Markdown</span>
+    <span class="sp">142 words</span>
+    <span>Saved</span>
+  </div>
+</div>

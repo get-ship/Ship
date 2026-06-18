@@ -1,0 +1,65 @@
+<!--
+  sui-tool-call.sui — chat-elements pack. Renders an agent tool invocation:
+  name, typed args, and a running / success / error state with a collapsible
+  result. New component. Review fixes baked in: ERROR shows an inline message +
+  Retry; RUNNING shows a Cancel. State + visibility are attribute-driven (no
+  controller needed for the visual); the Retry/Cancel buttons emit on click.
+  Props: name · state(running|success|error) · args · result · error.
+-->
+<prop name="name" type="string" default="tool" />
+<prop name="state" values="running|success|error" default="success" reflect />
+<prop name="args" type="string" default="" />
+<prop name="result" type="string" default="" />
+<prop name="error" type="string" default="" />
+
+<style>
+  :host { display: block; font-family: var(--font-body); max-width: 100%; }
+  :host([hidden]) { display: none; }
+  .tool { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); overflow: hidden; box-shadow: var(--shadow-xs); }
+  .hd { display: flex; align-items: center; gap: 8px; padding: 7px 11px; font-family: var(--font-mono); font-size: var(--text-xs); border-bottom: 1px solid var(--border-subtle); }
+  .hd > svg { width: 14px; height: 14px; color: var(--muted-foreground); }
+  .tn { color: var(--foreground); font-weight: 600; }
+  .st { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+  .st .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted-foreground); }
+  .lbl { display: none; }
+  :host([state='running']) .st { color: var(--tone-warning-fg); }
+  :host([state='running']) .dot { background: var(--warning); animation: tc-pulse 1s ease-in-out infinite; }
+  :host([state='running']) .lbl.run { display: inline; }
+  :host([state='success']) .st { color: var(--tone-success-fg); }
+  :host([state='success']) .dot { background: var(--success); }
+  :host([state='success']) .lbl.ok { display: inline; }
+  :host([state='error']) .st { color: var(--destructive); }
+  :host([state='error']) .dot { background: var(--destructive); }
+  :host([state='error']) .lbl.er { display: inline; }
+  @keyframes tc-pulse { 50% { opacity: .3; } }
+
+  .body { padding: 8px 11px; font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); white-space: pre-wrap; line-height: 1.5; }
+  .res { color: var(--foreground); }
+
+  .cancel { display: none; border: 1px solid var(--border); background: var(--card); color: var(--foreground); font: inherit; font-size: 10.5px; padding: 2px 8px; border-radius: var(--radius-sm); cursor: pointer; margin-left: 4px; }
+  :host([state='running']) .cancel { display: inline-flex; }
+  .cancel:hover { background: var(--hover-bg); }
+
+  .err { display: none; align-items: center; gap: 10px; padding: 8px 11px; border-top: 1px solid var(--border-subtle); background: var(--tone-destructive-bg); color: var(--destructive); font-size: var(--text-sm); }
+  :host([state='error']) .err { display: flex; }
+  .err .msg { flex: 1; }
+  .retry { border: 1px solid color-mix(in oklch, var(--destructive) 40%, var(--border)); background: var(--card); color: var(--destructive); font: inherit; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: var(--radius-sm); cursor: pointer; }
+  .retry:hover { background: color-mix(in oklch, var(--destructive) 8%, var(--card)); }
+  .btn:focus-visible, .retry:focus-visible, .cancel:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
+</style>
+
+<div class="tool" part="tool">
+  <div class="hd">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"></path></svg>
+    <span class="tn" part="name">{name()}</span>
+    <span class="st" part="status">
+      <span class="dot"></span>
+      <span class="lbl run">running</span>
+      <span class="lbl ok">done</span>
+      <span class="lbl er">failed</span>
+      <button class="cancel" type="button">Cancel</button>
+    </span>
+  </div>
+  <div class="body" part="body">{args()}<span class="res">{result()}</span></div>
+  <div class="err" part="error"><span class="msg">{error()}</span><button class="retry" type="button">Retry</button></div>
+</div>

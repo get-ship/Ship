@@ -234,7 +234,7 @@ pub fn emit_actor_created_for(session: &PtySession, extras: &ActorSpawnExtras) {
 
 
 fn set_status(inner: &SessionHandle, status: SessionStatus) {
-    let (id, prior) = {
+    let (_id, _prior) = {
         let mut m = inner.meta.lock().unwrap();
         let prior = m.status;
         m.status = status;

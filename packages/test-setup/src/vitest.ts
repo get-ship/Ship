@@ -13,7 +13,7 @@
 import { defineConfig } from 'vitest/config'
 import type { Plugin, ViteUserConfig as VitestUserConfig } from 'vitest/config'
 import { createRequire } from 'node:module'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { resolve, dirname, basename, relative } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 // @ts-expect-error — JS module, no .d.ts.
@@ -209,7 +209,9 @@ export function suiComponentVitestConfig(opts: SuiComponentVitestOptions = {}) {
         // renderView/renderComponent in @ship/test-setup import these.
         '@ship/sui-dom/test-utils': require.resolve('@ship/sui-dom/test-utils'),
         '@ship/sui-runtime/template-hooks': require.resolve('@ship/sui-runtime/template-hooks'),
+        '@ship/deck/route': require.resolve('@ship/deck/route'),
         '@ship/sui-runtime/route': require.resolve('@ship/sui-runtime/route'),
+        '@ship/sui-runtime/virtual': require.resolve('@ship/sui-runtime/virtual'),
         '@ship/sui-runtime': require.resolve('@ship/sui-runtime'),
         '@ship/sui-dom': require.resolve('@ship/sui-dom'),
         ...opts.alias,
@@ -235,8 +237,13 @@ export function suiComponentVitestConfig(opts: SuiComponentVitestOptions = {}) {
           const sourceDir = dirname(sourceArtifact)
           const stem = basename(sourceArtifact).replace(/\.compiled\.js$/, '')
           const mirrorFile = mirrorArtifactFor(sourceDir, stem)
-          if (existsSync(mirrorFile)) return mirrorFile
           const suiFile = resolve(sourceDir, `${stem}.sui`)
+          // A mirror artifact is only valid while it's at least as new as its
+          // `.sui` source — a stale mirror silently tests yesterday's compile.
+          const mirrorFresh =
+            existsSync(mirrorFile) &&
+            (!existsSync(suiFile) || statSync(mirrorFile).mtimeMs >= statSync(suiFile).mtimeMs)
+          if (mirrorFresh) return mirrorFile
           if (existsSync(suiFile)) {
             compileSui(suiFile, stem)
             if (existsSync(mirrorFile)) return mirrorFile

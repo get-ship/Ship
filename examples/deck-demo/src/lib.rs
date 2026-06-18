@@ -13,11 +13,9 @@
 //! 2. Mount `deck::router()`.
 //! 3. Layer the extensions deck's handlers read — `DaemonMode` and a
 //!    `Bundler` (so a controller view gets its Rolldown bundle on demand).
-//! 4. Add the HMR SSE route the view-host's live-reload client subscribes to.
-//!    `deck::router()` does NOT provide `/_deck/dev/hmr` — it's host-wired (the
-//!    e2e's 404). We bridge the bundler's event firehose to it directly.
-//! 5. Mount the data port (`data_port::router`) for live-data + mutation
-//!    endpoints backed by the in-memory [`DemoStore`].
+//! 4. Mount the data port (`data_port::router`) for the live-data endpoints
+//!    backed by the in-memory [`DemoStore`]. Tokens, the HMR SSE route, and
+//!    the mutation tombstone all come from `deck::router()` itself.
 //!
 //! Decoupling gaps surfaced (see README): env config is still process-global
 //! (now `DECK_*`-named with a `SHIP_*` legacy fallback — Fix C);
@@ -28,12 +26,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use axum::http::{StatusCode, header};
-use axum::response::Response;
-use axum::routing::get;
 use axum::{Extension, Router};
 use deck::bundler::Bundler;
-use deck::{DaemonMode, router, serve_bundle_hmr};
+use deck::{DaemonMode, router};
 
 pub mod data_port;
 pub use data_port::DemoStore;
@@ -66,27 +61,6 @@ fn make_bundler(app_dir: &Path) -> Bundler {
     Bundler::start(app_dir.to_path_buf(), None, cfg)
 }
 
-/// Design tokens + all six themes, concatenated — matches what shipd serves at
-/// /api/assets/view-tokens.css so view-host.html's existing `<link>` resolves.
-///
-/// The view-host requests this URL for every SUI view it mounts. Deck-axum has
-/// no `/api/assets/*` handler (tokens are a Ship concern there), so we wire it
-/// directly in the deck-demo host rather than patching deck-core.
-const VIEW_TOKENS_CSS: &str = concat!(
-    include_str!("../../../packages/sui/tokens/src/tokens.css"),
-    "\n",
-    include_str!("../../../packages/sui/tokens/src/themes.css"),
-);
-
-async fn serve_view_tokens() -> Response {
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/css; charset=utf-8")
-        .header(header::CACHE_CONTROL, "no-cache")
-        .body(axum::body::Body::from(VIEW_TOKENS_CSS))
-        .unwrap()
-}
-
 /// deck's hosting surface + the two extensions its handlers read + the HMR SSE
 /// route + the in-memory data port. Shared by both entry points.
 fn build_router(
@@ -96,13 +70,11 @@ fn build_router(
     store: Arc<DemoStore>,
 ) -> Router {
     router()
-        // Tokens + themes — view-host.html requests /api/assets/view-tokens.css.
-        // Deck has no /api/assets/* route; the deck-demo host wires it directly.
-        .route("/api/assets/view-tokens.css", get(serve_view_tokens))
-        // The canonical deck-axum HMR handler — no hand-rolled variant here.
-        .route("/_deck/dev/hmr", get(serve_bundle_hmr))
-        // Data port: live-data SSE + mutation + data endpoints (ship-free,
-        // in-memory, mirrors shipd handlers with the kernel removed).
+        // Tokens (/api/assets/view-tokens.css), HMR (/_deck/dev/hmr), and the
+        // mutation tombstone come from deck's own router since the shipd
+        // UI-purge — no host wiring.
+        // Data port: live-data SSE + data endpoints (ship-free, in-memory,
+        // mirrors shipd handlers with the kernel removed).
         .merge(data_port::router(store))
         .layer(Extension(mode))
         // DeckConfig Extension — scaffold handlers read scaffold declarations
@@ -121,8 +93,14 @@ pub fn deck_app(app_dir: PathBuf) -> Router {
 /// Like [`deck_app`] but with an explicit mode — for tests that need to
 /// verify production vs development behavior without reaching into the env.
 pub fn deck_app_with_mode(app_dir: PathBuf, mode: DaemonMode) -> Router {
+    deck_app_with_store(app_dir, mode, DemoStore::new())
+}
+
+/// Like [`deck_app_with_mode`] but with a caller-owned [`DemoStore`]. Tests
+/// use this to mutate the store directly (the PE form endpoint is a 410
+/// tombstone in deck's router) and assert the live SSE surface reflects it.
+pub fn deck_app_with_store(app_dir: PathBuf, mode: DaemonMode, store: Arc<DemoStore>) -> Router {
     let cfg = Arc::new(deck::config::DeckConfig::load(&app_dir));
-    let store = DemoStore::new();
     build_router(mode, make_bundler(&app_dir), cfg, store)
 }
 

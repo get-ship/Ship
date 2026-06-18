@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use ship_types::event_registry::{EventScope, Retention, registry};
@@ -27,6 +27,7 @@ const COMPLEX_PAYLOADS: &[&str] = &[
     "ArtifactUpdated",            // changed: serde_json::Value
     "PipelineRunStartedPayload",  // steps: Option<Pipeline>, pipeline: Option<Vec<PipelinePhase>>, vars: HashMap, step_specs: Vec<String>
     "PipelineRunDispatchedPayload", // harness_meta: Option<serde_json::Value>
+    "AgentSessionStartedPayload", // vars: Option<HashMap<String,String>>, depends_on: Option<Vec<String>>
 ];
 
 /// Collect and sort wire-tier events from the live inventory registry.
@@ -319,33 +320,15 @@ fn render_ts(events: &[WireEvent]) -> String {
 
 // ── Source file parsing ───────────────────────────────────────────────────────
 
-fn load_structs(root: &PathBuf) -> Result<BTreeMap<String, Vec<StructField>>> {
-    // `payload.rs` and `pipeline.rs` became module DIRECTORIES at some point
-    // and this list silently rotted (gen-events failed on the missing file).
-    // Enumerate the payload directory so new payload files are picked up
-    // without touching this list again.
-    let source_dirs = &["crates/core/ship-substrate/crates/ship-types/src/payload"];
-    let source_files = &[
-        "crates/core/ship-substrate/src/events/pipeline/payloads.rs",
-        "crates/core/ship-substrate/src/events/pipeline/observed.rs",
+fn load_structs(root: &Path) -> Result<BTreeMap<String, Vec<StructField>>> {
+    let sources = &[
+        "crates/core/ship-substrate/crates/ship-types/src/payload.rs",
+        "crates/core/ship-substrate/src/events/agent_session.rs",
+        "crates/core/ship-substrate/src/events/pipeline.rs",
     ];
-    let mut paths: Vec<PathBuf> = Vec::new();
-    for rel in source_dirs {
-        let dir = root.join(rel);
-        for entry in std::fs::read_dir(&dir)
-            .with_context(|| format!("reading dir {}", dir.display()))?
-        {
-            let p = entry?.path();
-            if p.extension().is_some_and(|e| e == "rs") {
-                paths.push(p);
-            }
-        }
-        paths.sort();
-    }
-    paths.extend(source_files.iter().map(|rel| root.join(rel)));
-
     let mut all: BTreeMap<String, Vec<StructField>> = BTreeMap::new();
-    for path in paths {
+    for rel in sources {
+        let path = root.join(rel);
         let src = std::fs::read_to_string(&path)
             .with_context(|| format!("reading {}", path.display()))?;
         let parsed = parse_structs(&src);

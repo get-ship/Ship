@@ -22,11 +22,20 @@
     <p class="theme-current">Active: {activeTheme()}</p>
   </section>
 
+  <section class="gallery-components">
+    <h2>Shared components</h2>
+    <p>
+      demo-chip resolves from the app's component workspace; widgets uses the
+      same tag, so the multi-entry build hoists it into one shared chunk.
+    </p>
+    <demo-chip>gallery-alpha</demo-chip>
+  </section>
+
   <nav class="gallery-nav">
     <h2>Pack sections</h2>
     <ul>
       <li><a href="/_deck/view/counter">counter — signal basics (sui/*)</a></li>
-      <li><a href="/_deck/view/clock">clock — live data tick (ship/demo.*)</a></li>
+      <li><a href="/_deck/view/clock">clock — live data tick (&lt;client name="api"&gt;, api/demo.*)</a></li>
       <li><a href="/_deck/view/todos">todos — live list + mutation (ship/demo.*)</a></li>
       <li><a href="/_deck/view/boom">boom — error boundary (ship/demo.*)</a></li>
       <li><a href="/_deck/view/greet">greet — static SSR (sui/*)</a></li>

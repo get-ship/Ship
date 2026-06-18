@@ -6,8 +6,9 @@
 
 use super::types::{ArgDescriptor, CommandDescriptor};
 
-/// The mutation catalog. Order mirrors `services::command::call`'s dispatch.
-/// Grows as route-level command logic is lifted into the command layer (#78).
+/// The mutation catalog. Consumed by the schema route (`/api/v1/ship/schema`),
+/// xtask's proto description back-port, and the gate conformance tests that
+/// pin each entry's capability + blast against the proto descriptor.
 pub const COMMANDS: &[CommandDescriptor] = &[
     // ── pipeline lifecycle ────────────────────────────────────────
     CommandDescriptor {
@@ -403,5 +404,5 @@ pub const COMMANDS: &[CommandDescriptor] = &[
     },
 ];
 // create.surface, annotation.post, feedback.post removed:
-// rehomed to ViewService::Scaffold, AgentsService::PostAnnotation,
+// rehomed to UiService::Scaffold, AgentsService::PostAnnotation,
 // AgentsService::PostFeedback (crate-owned wires, one rpc story).

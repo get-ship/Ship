@@ -30,9 +30,6 @@ const fireDrop = (target: Element, files: File[]) => {
 }
 
 describe('<sui-file-upload>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-file-upload')).toBeDefined()
-  })
 
   it('renders a hidden native file input and a dropzone in shadow DOM', () => {
     const { el } = mount(reg, 'sui-file-upload')
@@ -98,20 +95,21 @@ describe('<sui-file-upload>', () => {
     expect(clicked).toBe(1)
   })
 
-  it('selecting a file via the input fires sui-change with the file in detail', async () => {
+  it('selecting a file via the input fires sui-change with the file in detail (bubbles + composed)', async () => {
     const { el } = mount(reg, 'sui-file-upload')
-    let detail: { files: File[] } | null = null
-    el.addEventListener('sui-change', (e) => {
-      detail = (e as CustomEvent).detail
-    })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-change', (e) => { evt = e as CustomEvent })
     const inp = fileInput(el)
     const f = makeFile('a.txt', 4)
     setInputFiles(inp, [f])
     inp.dispatchEvent(new Event('change', { bubbles: true }))
     await flush()
-    expect(detail).not.toBeNull()
-    expect(detail!.files.length).toBe(1)
-    expect(detail!.files[0]!.name).toBe('a.txt')
+    expect(evt).not.toBeNull()
+    const detail = evt!.detail as { files: File[] }
+    expect(detail.files.length).toBe(1)
+    expect(detail.files[0]!.name).toBe('a.txt')
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('drag-and-drop populates the file list and fires sui-change', async () => {

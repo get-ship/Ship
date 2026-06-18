@@ -1,3 +1,4 @@
+<client name="ship" />
 <data name="pending" source="ship.authority.pending()" live />
 
 <div class="auth-page">

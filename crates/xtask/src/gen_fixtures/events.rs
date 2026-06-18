@@ -11,7 +11,7 @@
 //! real-world values are marked with NEEDS_AUTHOR and listed by --report-missing.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use serde_json::{json, Value};
@@ -391,7 +391,7 @@ pub struct EventsReport {
     pub needs_author_list: Vec<String>,
 }
 
-pub fn run(fixtures_dir: &PathBuf, check_mode: bool) -> Result<EventsReport> {
+pub fn run(fixtures_dir: &Path, check_mode: bool) -> Result<EventsReport> {
     let events_dir = fixtures_dir.join("events");
     std::fs::create_dir_all(&events_dir)
         .with_context(|| format!("create {}", events_dir.display()))?;

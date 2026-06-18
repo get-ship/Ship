@@ -1,7 +1,7 @@
 ---
 name: ship-runtime
-audience: public
 stable-id: ship-runtime
+audience: public
 description: >-
   The `runtime` capability (1 ops). Call any op over ConnectRPC with
   `ship ops call <name> --json '<args>'`. This file is a table of contents;

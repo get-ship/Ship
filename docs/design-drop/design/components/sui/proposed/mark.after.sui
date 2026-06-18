@@ -1,0 +1,19 @@
+<!-- ⚠ FABRICATED — this component does NOT exist in madvib/Ship@job/sui-framework. Hallucinated during a session that ran before real source was imported. Treat as a rough sketch only; see ./README.md for triage (drop / kind-of-X / possible real gap). -->
+<!--
+  sui-mark.after.sui — ENHANCED. The highlight becomes tone-aware (default /
+  primary / success / warning), reading from the shared tone ramp so a "match"
+  vs a "mention" vs a "change" can be visually distinguished — and it stays
+  legible on every theme (the ramp bg is theme-tuned; a flat 35% warning wash
+  goes muddy on console/contrast). Adds a faint underline accent so the span
+  reads as a deliberate mark, not a stray background. Token-pure.
+  Compiled as <x-mark-after>. Props: tone.
+-->
+<prop name="tone" values="default|primary|success|warning" default="default" reflect />
+<style>
+  :host { display: inline; --mk-bg: var(--tone-warning-bg); --mk-line: var(--tone-warning-border); }
+  :host([tone='primary']) { --mk-bg: var(--selected-bg); --mk-line: var(--selected-border); }
+  :host([tone='success']) { --mk-bg: var(--tone-success-bg); --mk-line: var(--tone-success-border); }
+  :host([tone='warning']) { --mk-bg: var(--tone-warning-bg); --mk-line: var(--tone-warning-border); }
+  mark { background: var(--mk-bg); color: inherit; padding: 1px 3px; border-radius: var(--radius-sm); box-shadow: inset 0 -2px 0 var(--mk-line); }
+</style>
+<mark part="mark"><slot></slot></mark>

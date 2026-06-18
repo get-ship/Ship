@@ -1,26 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setRouterPort } from '@ship/deck/route'
 import '../../src/components/sui-command-bar/sui-command-bar.compiled.js'
 import '../../src/components/sui-command-bar/sui-command-palette.compiled.js'
 import '../../src/components/sui-command-bar/sui-command-chat.compiled.js'
 // sui-dialog lives in @ship/sui-primitives.
 import '@ship/sui-primitives'
-import { createContainerRegistry, mount, flush as realFlush } from '../test-utils'
-
-// flush() advances fake timers by 0 ms — equivalent to the real
-// `setTimeout(r, 0)` flush from test-utils but compatible with the
-// fake-timer setup in beforeEach/afterEach below.
-const flush = () => vi.advanceTimersByTimeAsync(0)
+import { createContainerRegistry, flush, mount } from '../test-utils'
 
 const reg = createContainerRegistry()
-// Fake timers: the bar's find-mode debounce (200 ms) and the view-picker's
-// filter debounce are real `setTimeout` calls in the controller. Advancing
-// fake timers makes those fire instantaneously and deterministically rather
-// than relying on wall-clock waits that flake under load.
-beforeEach(() => { vi.useFakeTimers() })
-afterEach(() => {
-  reg.cleanup()
-  vi.useRealTimers()
-})
+afterEach(() => reg.cleanup())
 
 // Stub the unified search wire (Connect /ship.ops.v1.SearchService/Search)
 // + other GETs the bar fires on open so find mode always has a
@@ -60,10 +48,10 @@ afterEach(() => {
   if (_originalFetch) globalThis.fetch = _originalFetch
 })
 
-// Advance fake timers past the find-mode debounce (200 ms) + drain
-// any queued 0 ms timers so DOM updates settle before assertions.
+// Wait long enough for the find-mode debounce (200ms) + a fetch
+// microtask to resolve, then flush DOM updates.
 async function waitSearch() {
-  await vi.advanceTimersByTimeAsync(200)
+  await new Promise((r) => setTimeout(r, 240))
   await flush()
   await flush()
 }
@@ -262,45 +250,42 @@ describe('<sui-command-bar>', () => {
       expect(el.getAttribute('mode')).toBe('command')
     })
 
+    // NB: these start from a palette-bearing mode (command/find). `ai`
+    // renders <sui-command-chat>, which has no `.cb-search` — the palette
+    // input is the surface that drives detectMode.
     it('> prefix sets find mode', async () => {
-      // Real async path — these don't exercise the debounce; fake timers starve them.
-      vi.useRealTimers()
       const { el } = makeBar()
-      ;(el as CB).show('ai')
-      await realFlush()
+      ;(el as CB).show('command')
+      await flush()
       const input = searchInput(el)
-      if (!input) return
-      input.value = '>dash'
-      input.dispatchEvent(new Event('input'))
-      await realFlush()
+      expect(input).not.toBeNull()
+      input!.value = '>dash'
+      input!.dispatchEvent(new Event('input'))
+      await flush()
       expect(el.getAttribute('mode')).toBe('find')
     })
 
     it('+ prefix sets create mode', async () => {
-      // Real async path — these don't exercise the debounce; fake timers starve them.
-      vi.useRealTimers()
       const { el } = makeBar()
-      ;(el as CB).show('ai')
-      await realFlush()
+      ;(el as CB).show('find')
+      await flush()
       const input = searchInput(el)
-      if (!input) return
-      input.value = '+view'
-      input.dispatchEvent(new Event('input'))
-      await realFlush()
+      expect(input).not.toBeNull()
+      input!.value = '+view'
+      input!.dispatchEvent(new Event('input'))
+      await flush()
       expect(el.getAttribute('mode')).toBe('create')
     })
 
     it('@token sets mention mode', async () => {
-      // Real async path — these don't exercise the debounce; fake timers starve them.
-      vi.useRealTimers()
       const { el } = makeBar()
-      ;(el as CB).show('ai')
-      await realFlush()
+      ;(el as CB).show('find')
+      await flush()
       const input = searchInput(el)
-      if (!input) return
-      input.value = '@agent'
-      input.dispatchEvent(new Event('input'))
-      await realFlush()
+      expect(input).not.toBeNull()
+      input!.value = '@agent'
+      input!.dispatchEvent(new Event('input'))
+      await flush()
       expect(el.getAttribute('mode')).toBe('mention')
     })
   })
@@ -381,18 +366,7 @@ describe('<sui-command-bar>', () => {
       ;(el as CB).show('create')
       await flush()
       const btns = palShadow(el)?.querySelectorAll('.cb-surface-btn')
-      // Assert by identity AND exact cardinality: the identity loop names every
-      // expected surface (a missing one fails with a readable id), and the
-      // length check makes the set CLOSED — a new surface must be added HERE
-      // explicitly or this fails. (Identity-only would let a 7th surface pass
-      // silently; count-only fails unreadably. Both directions are guarded.)
-      // The set mirrors CREATE_SURFACES in types.ts.
-      const expected = ['view', 'skill', 'agent', 'pipeline', 'trigger', 'theme']
-      const surfaces = Array.from(btns ?? []).map((b) => (b as HTMLElement).dataset['surface'])
-      for (const id of expected) {
-        expect(surfaces).toContain(id)
-      }
-      expect(surfaces).toHaveLength(expected.length)
+      expect(btns?.length).toBe(6)
     })
 
     it('renders name + shape inputs', async () => {
@@ -449,56 +423,49 @@ describe('<sui-command-bar>', () => {
     })
   })
 
-  describe('navigation contract — shell listens for sui:navigate', () => {
-    // The shell (apps/shell/src/main.ts) wires the actual mountRoute call
-    // off sui:navigate-with-detail. The bar's job is to dispatch that event
-    // with the chosen path — without it, selecting a result updated the URL
-    // silently and the page kept showing the old view.
-    it('clicking a find item dispatches sui:navigate with detail.to', async () => {
-      // Real async path — these don't exercise the debounce; fake timers starve them.
-      vi.useRealTimers()
+  describe('navigation contract — selection routes through the unified router', () => {
+    // Per ADR unified-deck-router, selecting a result calls the runtime
+    // `navigate()`, which delegates to the host RouterPort (the shell
+    // registers one via setRouterPort at boot and dispatches `sui:navigate`
+    // as a *notification* after mounting). The bar's contract is the
+    // RouterPort call with the chosen path.
+    it('clicking a find item navigates to the item path', async () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
       await waitSearch()
-      const events: CustomEvent[] = []
-      const onNav = (e: Event) => {
-        const ce = e as CustomEvent<{ to?: string }>
-        if (ce.detail?.to) events.push(ce)
-      }
-      document.addEventListener('sui:navigate', onNav)
+      const navigated: string[] = []
+      const prevPort = globalThis.__shipRouterPort
+      setRouterPort({ navigate: (to) => navigated.push(to), back: () => {} })
       try {
         const item = palShadow(el)?.querySelector('.cb-item[data-path]') as HTMLElement | null
-        const expectedPath = item?.dataset['path']
-        item?.click()
-        await realFlush()
-        expect(events.length).toBeGreaterThan(0)
-        expect(events[0]!.detail.to).toBe(expectedPath)
+        expect(item).not.toBeNull()
+        const expectedPath = item!.dataset['path']
+        item!.click()
+        await flush()
+        expect(navigated.length).toBeGreaterThan(0)
+        expect(navigated[0]).toBe(expectedPath)
       } finally {
-        document.removeEventListener('sui:navigate', onNav)
+        globalThis.__shipRouterPort = prevPort
       }
     })
 
-    it('Enter on a find result dispatches sui:navigate with detail.to', async () => {
-      // Real async path — these don't exercise the debounce; fake timers starve them.
-      vi.useRealTimers()
+    it('Enter on a find result navigates to the result path', async () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
       await waitSearch()
-      const events: CustomEvent[] = []
-      const onNav = (e: Event) => {
-        const ce = e as CustomEvent<{ to?: string }>
-        if (ce.detail?.to) events.push(ce)
-      }
-      document.addEventListener('sui:navigate', onNav)
+      const navigated: string[] = []
+      const prevPort = globalThis.__shipRouterPort
+      setRouterPort({ navigate: (to) => navigated.push(to), back: () => {} })
       try {
-        const expectedPath = (palShadow(el)?.querySelector('.cb-item[data-path]') as HTMLElement | null)
-          ?.dataset['path']
+        const item = palShadow(el)?.querySelector('.cb-item[data-path]') as HTMLElement | null
+        expect(item).not.toBeNull()
+        const expectedPath = item!.dataset['path']
         el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, composed: true }))
-        await realFlush()
-        expect(events.length).toBeGreaterThan(0)
-        expect(events[0]!.detail.to).toBe(expectedPath)
+        await flush()
+        expect(navigated.length).toBeGreaterThan(0)
+        expect(navigated[0]).toBe(expectedPath)
       } finally {
-        document.removeEventListener('sui:navigate', onNav)
+        globalThis.__shipRouterPort = prevPort
       }
     })
   })

@@ -11,9 +11,6 @@ afterEach(() => {
 })
 
 describe('<sui-tab-panel>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-tab-panel')).toBeDefined()
-  })
 
   it('declares a shadow root with a default slot', async () => {
     const { el } = mount(reg, 'sui-tab-panel', { name: 'one' }, 'panel body')

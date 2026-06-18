@@ -45,7 +45,7 @@ const __renderWhileError_0 = (err) => {
 const __wireBoundary_b5 = (anchor) => bindFor({
   anchor,
   items: () => ($scope.agents().value.items),
-  key: (agent, __i) => { const __child = Object.create($scope); __child.agent = agent; __child.__i = __i; return (($scope) => (agent.id))(__child); },
+  key: (agent, __i) => (agent.id),
   render: (agent, __i) => {
     const __childScope25 = Object.create($scope);
     __childScope25.agent = agent;

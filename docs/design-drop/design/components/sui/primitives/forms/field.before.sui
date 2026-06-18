@@ -1,0 +1,22 @@
+<!--
+  sui-field.before.sui — EXISTING look (repo source verbatim). Vertical stack:
+  label slot → control slot → hint/error (hint/error swap on [invalid]).
+  Controller-less here (the aria-describedby wiring is behavioral). Compiled as
+  <x-field-before>. Prop: invalid. Slots: label · (default) · hint · error.
+-->
+<prop name="invalid" type="bool" default="false" reflect />
+
+<style>
+  :host { display: flex; flex-direction: column; gap: 6px; }
+  :host([hidden]) { display: none; }
+  .hint, .error { font-family: var(--font-body); font-size: 11px; line-height: 1.4; }
+  .hint { color: var(--muted-foreground); }
+  .error { color: var(--destructive); }
+  :host(:not([invalid])) .error { display: none; }
+  :host([invalid]) .hint { display: none; }
+</style>
+
+<slot name="label"></slot>
+<slot></slot>
+<div class="hint"><slot name="hint"></slot></div>
+<div class="error" role="alert" aria-live="polite"><slot name="error"></slot></div>

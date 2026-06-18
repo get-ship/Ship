@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>chat-elements · live · components/sui</title>
+<link rel="stylesheet" href="../../../../sui/ship.css" />
+<script type="importmap">
+{ "imports": { "@ship/sui-runtime": "../../../../sui/sui-runtime.js" } }
+</script>
+<style>
+  html, body { margin: 0; }
+  body { background: var(--background); color: var(--foreground); font-family: var(--font-body); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 30px var(--space-6) 70px; }
+  .top { display: flex; align-items: flex-start; gap: var(--space-4); flex-wrap: wrap; }
+  .eyebrow { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .12em; text-transform: uppercase; color: var(--muted-foreground); }
+  h1 { font-family: var(--heading-font); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); font-size: var(--text-4xl); margin: 8px 0 0; }
+  .rule { width: 64px; height: 4px; border-radius: 2px; margin: 14px 0 16px; background: linear-gradient(90deg, var(--primary), var(--accent) 70%, transparent); }
+  .lede { color: var(--muted-foreground); font-size: var(--text-md); margin: 0; max-width: 64ch; line-height: 1.6; }
+  .lede b { color: var(--foreground); }
+  .grow { flex: 1; }
+  .themes { display: inline-flex; align-items: center; gap: 8px; }
+  .themes .tl { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+  .sw { display: inline-flex; gap: 5px; padding: 4px; background: var(--muted); border-radius: var(--radius-full); }
+  .sw button { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid color-mix(in oklch, var(--foreground) 14%, transparent); cursor: pointer; padding: 0; }
+  .sw button[aria-pressed="true"] { border-color: var(--foreground); box-shadow: 0 0 0 2px var(--background), 0 0 0 3px var(--foreground); }
+  .build { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); margin: 20px 0 0; }
+  .thread { margin-top: 18px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { display: flex; gap: 10px; max-width: 88%; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .av { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font: 700 11px var(--font-mono); }
+  .msg.assistant .av { background: var(--muted); color: var(--muted-foreground); }
+  .msg.user .av { background: var(--tone-primary-bg); color: var(--tone-primary-fg); }
+  .bub { padding: 9px 13px; border-radius: var(--radius-lg); font-size: var(--text-sm); line-height: 1.55; }
+  .msg.assistant .bub { background: var(--muted); color: var(--foreground); border-bottom-left-radius: var(--radius-xs); }
+  .msg.user .bub { background: var(--primary); color: var(--primary-foreground); border-bottom-right-radius: var(--radius-xs); }
+  .composer-wrap { margin-top: 16px; }
+  .echo { margin-top: 10px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); min-height: 16px; }
+  .echo b { color: var(--tone-success-fg); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="eyebrow">components/sui · chat-elements · live</div>
+      <h1>chat-elements</h1>
+      <div class="rule"></div>
+      <p class="lede"><b>Real compiled components</b> — <code>citation.sui</code> and <code>composer.sui</code> authored here (the branch ships controllers, no templates) and compiled live by your wasm compiler. The inline <b>citation</b> chip expands on hover/focus; the <b>composer</b> submits on <kbd>↵</kbd>. Message bubbles are plain scaffolding (message-list is the virtualized one — next). Switch <b>themes</b> top-right.</p>
+    </div>
+    <span class="grow"></span>
+    <span class="themes"><span class="tl">Theme</span><span class="sw" id="sw"></span></span>
+  </div>
+
+  <div class="build" id="build">compiling…</div>
+
+  <div class="thread" id="thread">
+    <div class="msg user"><div class="av">YOU</div><div class="bub">Why did <b>nightly-reindex</b> drop to 91% p99?</div></div>
+    <div class="msg assistant"><div class="av">SH</div><div class="bub">Shard 1 hit lock contention during the cutover window — the projection rebuilt from the event log, so no data was lost <sui-citation index="1" source="substrate-adr-014.md" section="§4" quote="Removing a field rebuilds the projection from the event log. Existing item data is preserved.">source</sui-citation>. I can re-run it off-peak.</div></div>
+    <div class="msg assistant"><div class="av">SH</div><div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
+      <sui-tool-call name="query_pipeline_runs" state="success" args='{ "app": "pipelines", "since": "24h", "status": "warn" }' result="&#10;→ 1 run · nightly-reindex · p99 91.0"></sui-tool-call>
+      <sui-tool-call name="restart_run" state="error" args='{ "id": "nightly-reindex", "window": "off-peak" }' error="Timed out after 30s — daemon unreachable."></sui-tool-call>
+      <sui-tool-call name="reindex_shard" state="running" args='{ "shard": 1 }'></sui-tool-call>
+    </div></div>
+    <div class="msg assistant"><div class="av">SH</div><sui-thinking-dots></sui-thinking-dots></div>
+  </div>
+
+  <div class="composer-wrap">
+    <sui-composer id="composer" placeholder="Reply to the agent…"></sui-composer>
+    <div class="echo" id="echo">submit a message to see the <code>sui-composer-submit</code> event →</div>
+  </div>
+</div>
+
+<script type="module">
+import { defineComponent, themeBar } from '../../../../tools/catalog/sui-workbench.js';
+const $ = (s) => document.querySelector(s);
+themeBar($('#sw'));
+try {
+  const [citeSui, compSui, compCtl, toolSui, dotsSui, mlSui, mlCtl] = await Promise.all([
+    fetch('./citation.sui').then(r => r.text()),
+    fetch('./composer.sui').then(r => r.text()),
+    fetch('./composer.controller.js').then(r => r.text()),
+    fetch('./tool-call.sui').then(r => r.text()),
+    fetch('./thinking-dots.sui').then(r => r.text()),
+    fetch('./message-list.sui').then(r => r.text()),
+    fetch('./message-list.controller.js').then(r => r.text()),
+  ]);
+  const oc = await defineComponent({ name: 'sui-citation', sui: citeSui });
+  const op = await defineComponent({ name: 'sui-composer', sui: compSui, controllerSrc: compCtl });
+  await defineComponent({ name: 'sui-tool-call', sui: toolSui });
+  await defineComponent({ name: 'sui-thinking-dots', sui: dotsSui });
+  await defineComponent({ name: 'sui-message-list', sui: mlSui, controllerSrc: mlCtl });
+  $('#build').textContent = 'Compiled ✓  citation · composer · tool-call · thinking-dots · message-list  ·  all registered';
+
+  // sui-message-list demo (its own block; bubbles above are static scaffolding)
+  const ml = document.createElement('sui-message-list');
+  ml.setAttribute('sticky-bottom', '');
+  ml.items = [
+    { id: '1', role: 'user', av: 'YOU', text: 'Restart the failed shard.' },
+    { id: '2', role: 'assistant', av: 'SH', text: 'Restarting reindex · shard 1, off-peak window.' },
+    { id: '3', role: 'user', av: 'YOU', text: 'Ping me when it clears.' },
+    { id: '4', role: 'assistant', av: 'SH', text: 'Watching the run now', streaming: true },
+  ];
+  const sec = document.createElement('div');
+  sec.style.marginTop = '18px';
+  sec.innerHTML = '<div class="eyebrow" style="margin-bottom:8px">sui-message-list · roles · streaming caret · sticky-bottom</div>';
+  const box = document.createElement('div'); box.className = 'thread'; box.style.padding = '14px'; box.appendChild(ml);
+  sec.appendChild(box);
+  document.querySelector('.composer-wrap').before(sec);
+
+  $('#composer').addEventListener('sui-composer-submit', (e) => {
+    const t = e.detail.text;
+    const thread = $('#thread');
+    const m = document.createElement('div'); m.className = 'msg user';
+    m.innerHTML = '<div class="av">YOU</div><div class="bub"></div>';
+    m.querySelector('.bub').textContent = t;
+    thread.appendChild(m);
+    $('#echo').innerHTML = 'dispatched <b>sui-composer-submit</b> · { text: ' + JSON.stringify(t) + ' }';
+  });
+} catch (e) {
+  $('#build').innerHTML = '<span style="color:var(--destructive)">compile failed: ' + (e && e.message || e) + '</span>';
+}
+</script>
+</body>
+</html>

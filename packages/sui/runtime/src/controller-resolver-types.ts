@@ -4,7 +4,7 @@
 // `controller-hook-resolver.ts` (which needs `ResolverContext`).
 
 import type { ShipHost, Clients } from './ship'
-import type { RouteSignals } from './route'
+import type { RouteSignals } from '@ship/deck/route'
 
 /**
  * Setup-time context passed to the resolver. Mirrors what `hydrate`

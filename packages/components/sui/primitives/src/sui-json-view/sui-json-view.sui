@@ -32,39 +32,53 @@
     display: block;
     font-family: var(--font-mono);
     font-size: var(--text-sm);
-    line-height: var(--leading-normal);
+    line-height: 1.65;
     color: var(--foreground);
   }
   :host([hidden]) { display: none; }
 
-  .node { display: block; }
+  .node { display: block; border-radius: var(--radius-sm); }
   .branch {
-    margin-inline-start: 12px;
-    border-left: 1px dashed var(--border);
-    padding-inline-start: 10px;
+    margin-inline-start: var(--space-2);
+    border-left: 1px solid var(--border-subtle);
+    padding-inline-start: var(--space-3);
   }
   details > summary {
     list-style: none;
     cursor: pointer;
     user-select: none;
     display: inline-flex;
-    align-items: baseline;
-    gap: 4px;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-sm);
   }
+  details > summary:hover { background: var(--hover-bg); }
   details > summary::-webkit-details-marker { display: none; }
+  .leaf:hover { background: var(--hover-bg); }
   .caret {
-    display: inline-block;
-    width: 10px;
+    display: inline-flex;
+    width: 11px;
+    height: 11px;
     color: var(--muted-foreground);
     transition: transform var(--duration-fast) var(--ease-out);
   }
+  .caret svg { width: 11px; height: 11px; display: block; }
   details[open] > summary .caret { transform: rotate(90deg); }
-  .key { color: var(--primary); font-weight: var(--font-weight-medium); }
+  .punc { color: var(--muted-foreground); }
+  .key { color: var(--foreground); font-weight: var(--font-weight-medium); }
   .s { color: var(--success); }
   .n { color: var(--info); }
   .b { color: var(--accent); font-weight: var(--font-weight-medium); }
   .null { color: var(--muted-foreground); font-style: italic; }
-  .meta { color: var(--muted-foreground); font-size: var(--text-xs); margin-inline-start: 4px; }
+  .meta {
+    color: var(--muted-foreground);
+    font-size: var(--text-xs);
+    background: var(--muted);
+    border-radius: var(--radius-full);
+    padding: 0 var(--space-1);
+    margin-left: var(--space-1);
+  }
   .error { color: var(--destructive); }
 </style>
 

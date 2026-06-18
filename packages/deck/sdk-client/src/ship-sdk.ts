@@ -21,14 +21,16 @@
 import type {
   AccountState,
   AgentsSummariesResponse,
+  SkillIndexEntry,
+} from './generated'
+import type {
   ArtifactRecord,
   CollectionFieldRecord,
   CollectionSummary,
   GitDiff,
   GitDiffArgs,
   GitOverview,
-  SkillIndexEntry,
-} from './generated'
+} from './ship-data'
 import type { LiveSource } from '@ship/sui-runtime'
 
 export type { AccountState, ArtifactRecord, CollectionFieldRecord, CollectionSummary, SkillIndexEntry }
@@ -130,10 +132,6 @@ export interface ShipSDK {
     /** Delete an item. */
     delete_item(args: { collection: string; item_id: string }): Promise<void>
   }
-  dashboard: {
-    /** Aggregate stats + recent runs + events + agents + collections. */
-    state(): LiveSource<unknown>
-  }
   events: {
     /** Kernel events with filters, grouped by entity. */
     list(args?: {
@@ -145,65 +143,15 @@ export interface ShipSDK {
     }): LiveSource<unknown>
   }
   git: {
+    // Read-only: git is parked. The write path (stage/commit/push/…) went out
+    // with GitService — these reads route through the mux resolver
+    // (`git.overview`), not a Connect service.
     /** Repo overview — branch + head + status buckets + commits + branches. */
     overview(args?: { workspace_id?: string; limit?: number }): LiveSource<GitOverview>
     /** Unified diff for a commit (or `'WORKING'` for the working tree). */
     diff(args: GitDiffArgs): LiveSource<GitDiff>
     /** Per-file annotation overlays for a diff. */
     annotations(args: { file: string; workspace_id?: string }): LiveSource<unknown>
-    /** Stage one or more paths (file-level). */
-    stage(args: { paths: string[]; workspace_id?: string }): Promise<{
-      ok: true
-      staged: number
-    }>
-    /** Unstage one or more paths. */
-    unstage(args: { paths: string[]; workspace_id?: string }): Promise<{
-      ok: true
-      unstaged: number
-    }>
-    /** Commit the current index. `author` is `"Name <email>"` or omitted to
-     *  inherit from git config. */
-    commit(args: {
-      message: string
-      author?: string
-      workspace_id?: string
-    }): Promise<{ ok: true; sha: string; branch: string | null }>
-    /** Push current branch to `remote` (default `origin`). */
-    push(args?: {
-      remote?: string
-      force?: boolean
-      workspace_id?: string
-    }): Promise<{ ok: true; remote: string; force: boolean }>
-    /** Fetch refs from `remote` (default `origin`). */
-    fetch(args?: { remote?: string; workspace_id?: string }): Promise<{
-      ok: true
-      remote: string
-    }>
-    /** Fast-forward-only pull. Surfaces `non_ff` 409 on divergence. */
-    pull(args?: { remote?: string; workspace_id?: string }): Promise<{
-      ok: true
-      head: string
-    }>
-    /** Checkout a branch / tag / sha. */
-    checkout(args: { ref: string; workspace_id?: string }): Promise<{
-      ok: true
-      ref: string
-      resolved: string
-    }>
-    /** Create a local branch from HEAD. */
-    branch_create(args: {
-      name: string
-      checkout?: boolean
-      workspace_id?: string
-    }): Promise<{ ok: true; name: string }>
-    /** Delete a local branch (refuses current branch + unmerged unless `force`). */
-    branch_delete(args: {
-      name: string
-      force?: boolean
-      workspace_id?: string
-    }): Promise<{ ok: true; name: string }>
-    /** Initialize a git repository at the active workspace root. */
-    init(args?: { workspace_id?: string }): Promise<{ ok: true }>
   }
   mesh: {
     /** Live registry of mesh-connected agents. */
@@ -269,29 +217,9 @@ export interface ShipSDK {
     }): LiveSource<unknown>
     /** Single skill detail (frontmatter + body + vars). */
     detail(args: { id: string }): LiveSource<unknown>
-    /** Invoke a library skill — attach its reference content to a
-     *  session and emit lifecycle events on the kernel bus.
-     *
-     *  Resolves the skill, mints a `run_id`, picks a `session_id`
-     *  (explicit > active-agent-for-workspace > synthetic = run_id),
-     *  and emits `skill.started` → `skill.attached_to_session` →
-     *  `skill.completed`. Operator + mode skill types are not yet
-     *  wired through this surface — see
-     *  `.artifacts/sui-arc/skills-invoke-real.md`. */
-    invoke(args: {
-      id: string
-      vars?: Record<string, unknown>
-      workspace_id?: string
-      session_id?: string
-    }): Promise<{
-      ok: true
-      run_id: string
-      skill_id: string
-      session_id: string
-      workspace_id: string | null
-      mode: 'library'
-      reused_session: boolean
-    }>
+    // skills.invoke was dropped with its culled REST route (zero real
+    // callers — Phase 3a, af1200c07); the implementation removed it but
+    // this interface lagged. Deleted stays deleted.
   }
   pipelines: {
     /** Pipeline summaries for the studio list. Live SSE. */
@@ -314,5 +242,16 @@ export interface ShipSDK {
       harness?: string
       auto?: boolean
     }): Promise<unknown>
+  }
+  spaces: {
+    /** Per-space runtime config — the daemon's response to
+     *  `GET /_deck/spaces/{id}/config`. The spaces scaffold merges
+     *  `config.routes` with its static `routes.gen.ts` at boot. The
+     *  launch surface returns `{ routes: [] }`; future per-space
+     *  config (chrome, theme) lands here. Resolves `null` when the
+     *  daemon is unreachable — boot continues with the static half. */
+    config(args: { id: string }): Promise<{
+      routes: { pattern: string; layout?: string }[]
+    } | null>
   }
 }

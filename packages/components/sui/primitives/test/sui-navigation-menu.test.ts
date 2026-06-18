@@ -9,9 +9,6 @@ afterEach(() => reg.cleanup())
 // ── sui-navigation-item ────────────────────────────────────────────────────
 
 describe('<sui-navigation-item>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-navigation-item')).toBeDefined()
-  })
 
   it('renders a button by default (no href)', () => {
     const container = reg.mk()
@@ -59,15 +56,17 @@ describe('<sui-navigation-item>', () => {
     expect(el.shadowRoot!.querySelector('button')!.disabled).toBe(true)
   })
 
-  it('click dispatches sui-nav-select with value', async () => {
+  it('click dispatches sui-nav-select with value (bubbles + composed)', async () => {
     const container = reg.mk()
     container.innerHTML = '<sui-navigation-item value="home">Home</sui-navigation-item>'
     const el = container.querySelector('sui-navigation-item') as HTMLElement
     await flush()
-    let detail: { value: string } | null = null
-    el.addEventListener('sui-nav-select', (e) => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-nav-select', (e) => { evt = e as CustomEvent })
     el.shadowRoot!.querySelector('button')!.click()
-    expect(detail).toEqual({ value: 'home' })
+    expect(evt!.detail).toEqual({ value: 'home' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('disabled item does not dispatch sui-nav-select on click', async () => {
@@ -105,9 +104,6 @@ describe('<sui-navigation-menu>', () => {
     return container.querySelector('sui-navigation-menu') as HTMLElement
   }
 
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-navigation-menu')).toBeDefined()
-  })
 
   it('sets role="navigation" on host', async () => {
     const el = mountMenu(`
@@ -141,11 +137,13 @@ describe('<sui-navigation-menu>', () => {
     `)
     await flush()
     const items = el.querySelectorAll('sui-navigation-item') as NodeListOf<HTMLElement>
-    let detail: { value: string } | null = null
-    el.addEventListener('sui-change', (e) => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-change', (e) => { evt = e as CustomEvent })
     items[1].shadowRoot!.querySelector('button')!.click()
     await flush()
-    expect(detail).toEqual({ value: 'b' })
+    expect(evt!.detail).toEqual({ value: 'b' })
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
     expect(el.getAttribute('value')).toBe('b')
     expect(items[0].hasAttribute('active')).toBe(false)
     expect(items[1].hasAttribute('active')).toBe(true)

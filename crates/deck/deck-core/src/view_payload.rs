@@ -21,6 +21,9 @@ use crate::routes::subscribe_url;
 struct SplitEntry {
     mtime: SystemTime,
     split: render::RenderSplit,
+    /// Declared `<client>` names, captured at parse time so a cache hit
+    /// still serves the payload's `clients` list without re-parsing.
+    clients: Vec<String>,
 }
 
 static SPLIT_CACHE: OnceLock<Mutex<HashMap<String, SplitEntry>>> = OnceLock::new();
@@ -34,16 +37,22 @@ fn clone_split(s: &render::RenderSplit) -> render::RenderSplit {
 }
 
 /// Cache hit only when we have a source mtime AND it matches the cached entry.
-fn split_cache_get(key: &str, mtime: Option<SystemTime>) -> Option<render::RenderSplit> {
+fn split_cache_get(
+    key: &str,
+    mtime: Option<SystemTime>,
+) -> Option<(render::RenderSplit, Vec<String>)> {
     let mt = mtime?;
     let cache = split_cache().lock().unwrap_or_else(|e| e.into_inner());
     let entry = cache.get(key)?;
-    (entry.mtime == mt).then(|| clone_split(&entry.split))
+    (entry.mtime == mt).then(|| (clone_split(&entry.split), entry.clients.clone()))
 }
 
-fn split_cache_put(key: &str, mtime: SystemTime, split: &render::RenderSplit) {
+fn split_cache_put(key: &str, mtime: SystemTime, split: &render::RenderSplit, clients: &[String]) {
     let mut cache = split_cache().lock().unwrap_or_else(|e| e.into_inner());
-    cache.insert(key.to_string(), SplitEntry { mtime, split: clone_split(split) });
+    cache.insert(
+        key.to_string(),
+        SplitEntry { mtime, split: clone_split(split), clients: clients.to_vec() },
+    );
 }
 
 /// Test-only: drop a cached split so a fresh fixture isn't shadowed by a prior
@@ -88,7 +97,7 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> DeckResponse {
         .source_path
         .as_deref()
         .and_then(|p| std::fs::metadata(p).and_then(|m| m.modified()).ok());
-    let split = if let Some(hit) = split_cache_get(&view_name, source_mtime) {
+    let (split, clients) = if let Some(hit) = split_cache_get(&view_name, source_mtime) {
         hit
     } else {
         let program = match parse::parse(&resolved.source) {
@@ -101,10 +110,12 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> DeckResponse {
             Ok(r) => r,
             Err(err) => return compile_error_response(name, &resolved.source, err, mode),
         };
+        let clients: Vec<String> =
+            program.clients.iter().map(|c| c.name.clone()).collect();
         if let Some(mt) = source_mtime {
-            split_cache_put(&view_name, mt, &split);
+            split_cache_put(&view_name, mt, &split, &clients);
         }
-        split
+        (split, clients)
     };
     let css = collect_view_css(name, resolved.source_path.as_deref());
     let module_url = crate::routes::view_module_url(name, sub_path);
@@ -134,6 +145,7 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> DeckResponse {
         scope,
         module_url,
         params: resolved.params,
+        clients,
     };
     json_ok(&payload, mode)
 }

@@ -123,7 +123,7 @@ export default controller({
     }
 
     const syncViewToValue = () => {
-      const seed = state.value || state.focused || todayIso()
+      const seed = (state.value as string) || (state.focused as string) || todayIso()
       const parts = parseIso(seed)
       if (!parts) return
       state.viewYear = parts.y
@@ -197,7 +197,7 @@ export default controller({
     inputEl.addEventListener('keydown', onInputKeydown)
 
     const onPanelKeydown = (e: KeyboardEvent) => {
-      const cur = state.focused || state.value || todayIso()
+      const cur = (state.focused as string) || (state.value as string) || todayIso()
       let next: string | null = null
       if (e.key === 'ArrowLeft') next = addDays(cur, -1)
       else if (e.key === 'ArrowRight') next = addDays(cur, 1)
@@ -209,7 +209,7 @@ export default controller({
       else if (e.key === 'Escape') { e.preventDefault(); closePanel(); inputEl.focus(); return }
       if (next != null) {
         e.preventDefault()
-        const clamped = clampIso(next, state.min, state.max)
+        const clamped = clampIso(next, state.min as string, state.max as string)
         state.focused = clamped
         const parts = parseIso(clamped)
         if (parts) {
@@ -247,7 +247,7 @@ export default controller({
     }
 
     host.shadowRoot?.addEventListener('click', onShadowClick)
-    host.shadowRoot?.addEventListener('keydown', onShadowKeydown)
+    host.shadowRoot?.addEventListener('keydown', onShadowKeydown as EventListener)
     document.addEventListener('pointerdown', onDocPointer)
 
     host.expose!({
@@ -263,7 +263,7 @@ export default controller({
       inputEl.removeEventListener('change', onInputChange)
       inputEl.removeEventListener('keydown', onInputKeydown)
       host.shadowRoot?.removeEventListener('click', onShadowClick)
-      host.shadowRoot?.removeEventListener('keydown', onShadowKeydown)
+      host.shadowRoot?.removeEventListener('keydown', onShadowKeydown as EventListener)
       document.removeEventListener('pointerdown', onDocPointer)
     }
   },

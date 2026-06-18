@@ -21,8 +21,19 @@
 <prop name="value" type="string" default="" reflect />
 
 <style>
-  :host { display: block; }
+  /* Owned surface: a single rounded container that clips its rows, rather
+     than a loose stack of rules. Rows are divided by --border-subtle. */
+  :host {
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--surface-1);
+  }
   :host([hidden]) { display: none; }
+  ::slotted(sui-accordion-item:not(:first-child)) {
+    border-top: 1px solid var(--border-subtle);
+  }
 </style>
 
 <slot></slot>

@@ -1,0 +1,27 @@
+<!--
+  sui-timeline.before.sui — EXISTING look, self-contained static (the real
+  component is a slot container; item dots/connector come from slotted markup).
+  Fixed run-history events with a left connector line + muted dots. Compiled as
+  <x-timeline-before>.
+-->
+<style>
+  :host { display: block; }
+  :host([hidden]) { display: none; }
+  .list { display: flex; flex-direction: column; }
+  .item { display: flex; gap: 12px; }
+  .gutter { position: relative; width: 12px; display: flex; justify-content: center; flex-shrink: 0; }
+  .gutter::before { content: ''; position: absolute; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .item:first-child .gutter::before { top: 6px; }
+  .item:last-child .gutter::before { bottom: calc(100% - 12px); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted-foreground); margin-top: 4px; position: relative; z-index: 1; box-shadow: 0 0 0 3px var(--card); }
+  .c { padding-bottom: 16px; }
+  .time { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+  .title { font-size: var(--text-sm); color: var(--foreground); }
+</style>
+
+<div class="list" part="list" role="list">
+  <div class="item"><div class="gutter"><span class="dot"></span></div><div class="c"><div class="time">09:12:04</div><div class="title">Run queued</div></div></div>
+  <div class="item"><div class="gutter"><span class="dot"></span></div><div class="c"><div class="time">09:13:01</div><div class="title">Reindex started — 10 shards</div></div></div>
+  <div class="item"><div class="gutter"><span class="dot"></span></div><div class="c"><div class="time">09:17:22</div><div class="title">Shard 1 retried off-peak</div></div></div>
+  <div class="item"><div class="gutter"><span class="dot"></span></div><div class="c"><div class="time">09:21:48</div><div class="title">Completed — p99 91ms</div></div></div>
+</div>

@@ -99,10 +99,6 @@ const qa = (el: HTMLElement, sel: string) => Array.from(root(el).querySelectorAl
 const knobRow = (el: HTMLElement, name: string) => root(el).querySelector(`[data-knob="${name}"]`)
 
 describe('<sui-prop-knobs> — registration + shell', () => {
-  it('registers the custom element', () => {
-    mountKnobs({ props: [] })
-    expect(customElements.get(TAG)).toBeDefined()
-  })
 
   it('renders its knob panel subtree (the sui-stack part)', async () => {
     const c = mountKnobs({ props: [] })

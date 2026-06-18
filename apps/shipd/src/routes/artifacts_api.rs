@@ -24,7 +24,7 @@ use axum::{
 use serde::Deserialize;
 
 use crate::auth::{AuthContext};
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 use crate::auth::scopes::{can_read_artifacts, can_write_artifacts};
 use ship_artifacts::error::ArtifactError as ArtifactsError;
 use ship_artifacts::service::ArtifactService;

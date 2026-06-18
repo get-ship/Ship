@@ -1,9 +1,9 @@
 ---
 name: ship-collections
-audience: public
 stable-id: ship-collections
+audience: public
 description: >-
-  The `collections` capability (9 ops). Call any op over ConnectRPC with
+  The `collections` capability (10 ops). Call any op over ConnectRPC with
   `ship ops call <name> --json '<args>'`. This file is a table of contents;
   open `references/docs/<op>.mdoc` for an op's args, return shape, and policy.
 tags: [sdk, api, collections]
@@ -25,16 +25,17 @@ page for full args, return shape, capability, and an example.
 
 ## Reads
 
-- [`collections.detail`](references/docs/collections.detail.mdoc) — Single collection: schema + items + total count.
-- [`collections.items`](references/docs/collections.items.mdoc) — Rows for a single collection.
-- [`collections.list`](references/docs/collections.list.mdoc) — Collection summaries with field records (id, name, fields[name,type,required]).
-- [`collections.state`](references/docs/collections.state.mdoc) — Collections list + active schema + items (tier-3 app data).
+- [`collections.get`](references/docs/collections.get.mdoc) — Collection schema and item count.
+- [`collections.get_item`](references/docs/collections.get_item.mdoc) — Single collection item by id.
+- [`collections.list`](references/docs/collections.list.mdoc) — All collections, including system ones (flagged system=true).
+- [`collections.query_items`](references/docs/collections.query_items.mdoc) — Cursor-paginated item query — named-query ref or inline Kysely AST.
+- [`collections.watch`](references/docs/collections.watch.mdoc) — Live watch — all collections, one collection (filterable), or one item.
 
 ## Commands
 
-- [`collections.create_item`](references/docs/collections.create_item.mdoc) `[C1_WORKSPACE]` — Create an item in a collection (id auto-generated if omitted).
-- [`collections.create_schema`](references/docs/collections.create_schema.mdoc) `[C1_WORKSPACE]` — Define a new collection (nested CollectionSchema as schema_json).
+- [`collections.create_item`](references/docs/collections.create_item.mdoc) `[C1_WORKSPACE]` — Create an item in a collection.
+- [`collections.create_schema`](references/docs/collections.create_schema.mdoc) `[C1_WORKSPACE]` — Define a new collection schema.
 - [`collections.delete_item`](references/docs/collections.delete_item.mdoc) `[C1_WORKSPACE]` — Delete a collection item by id.
-- [`collections.update_item`](references/docs/collections.update_item.mdoc) `[C1_WORKSPACE]` — Replace a collection item's data by id.
-- [`collections.update_schema`](references/docs/collections.update_schema.mdoc) `[C1_WORKSPACE]` — Replace a collection's schema (nested CollectionSchema as schema_json).
+- [`collections.update_item`](references/docs/collections.update_item.mdoc) `[C1_WORKSPACE]` — Replace a collection item's data.
+- [`collections.update_schema`](references/docs/collections.update_schema.mdoc) `[C1_WORKSPACE]` — Replace a collection schema.
 

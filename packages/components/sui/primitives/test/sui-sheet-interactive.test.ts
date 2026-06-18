@@ -46,17 +46,20 @@ describe('<sui-sheet> — pointer selection', () => {
   it('clicking a cell sets it active and emits sui-selection-change', async () => {
     const { el, shadow, sheet } = mountSheet({ A1: { value: 1 }, B2: { value: 2 } })
     await flush()
-    let detail: { active: { row: number; col: number }; a1: string } | null = null
-    el.addEventListener('sui-selection-change', (e) => { detail = (e as CustomEvent).detail })
+    let evt: CustomEvent | null = null
+    el.addEventListener('sui-selection-change', (e) => { evt = e as CustomEvent })
     pointer(cellAt(shadow!, 'B2'), 'pointerdown')
     await flush()
     // The engine is the source of truth for the active cell + selection.
     expect(sheet.activeCell()).toEqual({ row: 1, col: 1 })
     expect(sheet.getCell('B2')().isActive).toBe(true)
     // The advertised event fires with the active address + its A1.
-    expect(detail).not.toBeNull()
-    expect(detail!.active).toEqual({ row: 1, col: 1 })
-    expect(detail!.a1).toBe('B2')
+    expect(evt).not.toBeNull()
+    const detail = evt!.detail as { active: { row: number; col: number }; a1: string }
+    expect(detail.active).toEqual({ row: 1, col: 1 })
+    expect(detail.a1).toBe('B2')
+    expect(evt!.bubbles).toBe(true)
+    expect(evt!.composed).toBe(true)
   })
 
   it('shift-click extends the selection range from the active anchor', async () => {
@@ -83,14 +86,16 @@ describe('<sui-sheet> — editing model', () => {
   it('double-click opens the editor on the active cell and emits sui-cell-activate', async () => {
     const { el, shadow, sheet } = mountSheet({ A1: { value: 9 } })
     await flush()
-    let activated: { a1: string } | null = null
-    el.addEventListener('sui-cell-activate', (e) => { activated = (e as CustomEvent).detail })
+    let activateEvt: CustomEvent | null = null
+    el.addEventListener('sui-cell-activate', (e) => { activateEvt = e as CustomEvent })
     pointer(cellAt(shadow!, 'A1'), 'dblclick')
     await flush()
     expect(sheet.editing()).not.toBeNull()
     expect(sheet.editing()!.cell).toEqual({ row: 0, col: 0 })
-    expect(activated).not.toBeNull()
-    expect(activated!.a1).toBe('A1')
+    expect(activateEvt).not.toBeNull()
+    expect((activateEvt!.detail as { a1: string }).a1).toBe('A1')
+    expect(activateEvt!.bubbles).toBe(true)
+    expect(activateEvt!.composed).toBe(true)
     expect(shadow!.querySelector('[part="cell-editor"]')).not.toBeNull()
   })
 
@@ -107,8 +112,12 @@ describe('<sui-sheet> — editing model', () => {
   it('Enter commits the draft, emits sui-cell-commit, and advances down', async () => {
     const { el, shadow, sheet } = mountSheet()
     await flush()
+    let commitEvt: CustomEvent | null = null
     let committed: { a1: string; after: { value?: unknown } } | null = null
-    el.addEventListener('sui-cell-commit', (e) => { committed = (e as CustomEvent).detail })
+    el.addEventListener('sui-cell-commit', (e) => {
+      commitEvt = e as CustomEvent
+      committed = (e as CustomEvent).detail
+    })
     pointer(cellAt(shadow!, 'A1'), 'pointerdown')
     key(shadow!.querySelector('[part="grid"]')!, '4')
     await flush()
@@ -121,6 +130,8 @@ describe('<sui-sheet> — editing model', () => {
     expect(committed).not.toBeNull()
     expect(committed!.a1).toBe('A1')
     expect(committed!.after.value).toBe(42)
+    expect(commitEvt!.bubbles).toBe(true)
+    expect(commitEvt!.composed).toBe(true)
     // Enter advances the active cell down.
     expect(sheet.activeCell()).toEqual({ row: 1, col: 0 })
   })

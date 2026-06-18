@@ -1,6 +1,7 @@
 ---
 name: sui-eval
 stable-id: sui-eval
+audience: internal
 description: Run the SUI authoring eval. Dispatch lane agents to build a view from a spec, watch their tmux panes for idle (not commits), grade compile + lint + structure, record scores to the sui-eval-runs collection. Off-daemon — uses dispatch.sh, not pipelines.
 tags: [eval, sui, dispatch, grading]
 audience: internal
@@ -66,14 +67,30 @@ not a gate. Low score is signal, not error.
 **3. Read results** in `views/eval` (grouped by run_id) or the raw jsonl under
 `.artifacts/sui-eval-runs/`.
 
-### Manual grade (override the task)
+### Manual / headless grade (override the task)
 
-`grade.ts` discovers lanes by `-haiku`/`-sonnet` suffix under `SHIP_WORKTREE_DIR`
-(default `~/.ship/worktrees`). Override the target view + rubric for a different
-task:
+`grade.ts` discovers lanes via `git worktree list` by `-haiku`/`-sonnet`/`-opus`
+suffix; with zero lane worktrees it falls back to the cwd as one anonymous lane,
+so the whole grading pipeline runs headless against any candidate on disk — no
+dispatch, no tmux, no daemon. Compile/lint use the prebuilt
+`target/debug/sui-compiler` (override with `SUI_COMPILER=`), never `cargo run`.
 
 ```bash
-SUI_EVAL_VIEW_PATH=views/smoke-counter SUI_EVAL_REQUIRED_FRAGMENTS='on:click' bun .../grade.ts
+SHIP_PIPELINE_RUN_ID=<run-id> \
+SUI_EVAL_VIEW_PATH=views/authority \
+SUI_EVAL_REQUIRED_FRAGMENTS='{#if,{#for,key={,on:click,{#while-loading,{#while-error' \
+SUI_EVAL_BEHAVIOR_SPEC=.ship/skills/sui-eval/tasks/authority/authority.behavior.jsonc \
+bun .ship/skills/sui-eval/scripts/grade.ts
+```
+
+`SUI_EVAL_BEHAVIOR_SPEC` adds the behavioral dimension: `behavior-grade.ts` runs
+the spec's scenarios against the candidate in jsdom (vitest + the production WASM
+compiler via `@ship/test-setup`'s `runScenarios`) and the composite reweights to
+compile 0.30 / lint 0.10 / structural 0.20 / behavior 0.40. Without it the legacy
+0.40/0.20/0.40 split applies. `behavior-grade.ts` also runs standalone:
+
+```bash
+bun .ship/skills/sui-eval/scripts/behavior-grade.ts <lane-dir> <view-path> <spec.behavior.jsonc>
 ```
 
 ## Cleanup

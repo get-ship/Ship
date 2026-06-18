@@ -19,19 +19,19 @@ function diffLines(a: string, b: string): Line[] {
   const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0))
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
-      dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
+      dp[i]![j] = A[i] === B[j] ? dp[i + 1]![j + 1]! + 1 : Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!)
     }
   }
   const out: Line[] = []
   let i = 0
   let j = 0
   while (i < n && j < m) {
-    if (A[i] === B[j]) { out.push({ kind: 'ctx', text: A[i] }); i++; j++ }
-    else if (dp[i + 1][j] >= dp[i][j + 1]) { out.push({ kind: 'del', text: A[i] }); i++ }
-    else { out.push({ kind: 'add', text: B[j] }); j++ }
+    if (A[i] === B[j]) { out.push({ kind: 'ctx', text: A[i]! }); i++; j++ }
+    else if (dp[i + 1]![j]! >= dp[i]![j + 1]!) { out.push({ kind: 'del', text: A[i]! }); i++ }
+    else { out.push({ kind: 'add', text: B[j]! }); j++ }
   }
-  while (i < n) out.push({ kind: 'del', text: A[i++] })
-  while (j < m) out.push({ kind: 'add', text: B[j++] })
+  while (i < n) out.push({ kind: 'del', text: A[i++]! })
+  while (j < m) out.push({ kind: 'add', text: B[j++]! })
   return out
 }
 
@@ -49,7 +49,7 @@ function renderLines(lines: Line[]): string {
     .map((l) => {
       const sign = l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : l.kind === 'hunk' ? '@' : ' '
       const kindLabel = l.kind === 'add' ? 'added' : l.kind === 'del' ? 'removed' : l.kind === 'hunk' ? 'hunk' : 'context'
-      return `<div class="line ${l.kind}" part="line" role="listitem" aria-label="${kindLabel}: ${escape(l.text)}"><span class="sign" aria-hidden="true">${sign}</span><span>${escape(l.text)}</span></div>`
+      return `<div class="line ${l.kind}" part="line" data-line-kind="${l.kind}" role="listitem" aria-label="${kindLabel}: ${escape(l.text)}"><span class="sign" aria-hidden="true">${sign}</span><span>${escape(l.text)}</span></div>`
     })
     .join('')
 }

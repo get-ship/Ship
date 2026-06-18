@@ -1,0 +1,52 @@
+<!--
+  sui-alert.after.sui — ELEVATED. Moves from a fully tone-tinted banner to a crisp
+  card with a tone-colored left rail + a tinted icon tile — instant scannability and
+  a cleaner read on dense pages:
+    • surface → --card with a 4px tone rail (::before), vs a flat tinted fill
+    • icon seats in a --tone tinted rounded tile instead of bare
+    • title --foreground / body --muted-foreground hierarchy (was all --tone-fg)
+    • dismiss is a quieter square that tints on hover
+  Same slot contract + a11y. Compiled as <x-alert-after>. Props: tone · dismissible.
+-->
+<prop name="tone" values="info|success|warning|destructive|muted" default="info" reflect />
+<prop name="dismissible" type="bool" default="false" reflect />
+
+<style>
+  :host { display: block; --tone: var(--info); --tone-fg: var(--info); --tone-bg: var(--tone-info-bg); }
+  :host([hidden]) { display: none; }
+  :host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--tone-success-fg);     --tone-bg: var(--tone-success-bg); }
+  :host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--tone-warning-fg);     --tone-bg: var(--tone-warning-bg); }
+  :host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive);         --tone-bg: var(--tone-destructive-bg); }
+  :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground);    --tone-bg: var(--muted); }
+
+  .box {
+    position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 11px;
+    padding: 12px 14px 12px 18px; border-radius: var(--radius); overflow: hidden;
+    border: 1px solid var(--border); background: var(--card);
+    font-family: var(--font-body); font-size: 13px; line-height: 1.5; box-shadow: var(--shadow-xs);
+  }
+  .box::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--tone); }
+
+  .ico { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; flex-shrink: 0; border-radius: var(--radius-md); background: var(--tone-bg); color: var(--tone-fg); }
+  ::slotted([slot='icon']) { display: inline-flex; width: 15px; height: 15px; }
+
+  .content { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .title { font-weight: 600; color: var(--foreground); }
+  .body { color: var(--muted-foreground); }
+  .actions { display: flex; gap: 8px; margin-top: 8px; }
+  .close { display: none; background: transparent; border: 0; color: var(--muted-foreground); cursor: pointer; font-size: 15px; width: 22px; height: 22px; border-radius: var(--radius-sm); align-items: center; justify-content: center; line-height: 1; }
+  :host([dismissible]) .close { display: inline-flex; }
+  .close:hover { background: var(--tone-bg); color: var(--tone-fg); }
+</style>
+
+<div class="box" part="box"
+     role={tone() === 'destructive' || tone() === 'warning' ? 'alert' : 'status'}
+     aria-live={tone() === 'destructive' || tone() === 'warning' ? 'assertive' : 'polite'} aria-atomic="true">
+  <span class="ico"><slot name="icon"></slot></span>
+  <div class="content">
+    <div class="title"><slot name="title"></slot></div>
+    <div class="body"><slot></slot></div>
+    <div class="actions"><slot name="actions"></slot></div>
+  </div>
+  <button class="close" part="close" aria-label="Dismiss">&#215;</button>
+</div>

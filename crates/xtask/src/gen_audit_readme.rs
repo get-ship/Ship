@@ -35,7 +35,7 @@ fn extract_metadata(content: &str, filename: &str, layer: &str) -> Result<AuditR
     let lines: Vec<&str> = content.lines().collect();
 
     // Line 0: Extract module name from H1 title.
-    if lines.len() > 0 && lines[0].starts_with("# ") {
+    if !lines.is_empty() && lines[0].starts_with("# ") {
         let h1_text = &lines[0][2..];
         // Try to extract text within backticks.
         if let Some(start) = h1_text.find('`') {

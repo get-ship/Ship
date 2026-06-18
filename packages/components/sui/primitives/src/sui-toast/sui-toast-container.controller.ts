@@ -195,8 +195,10 @@ export default controller<Scope>({
       }
       if (opts.actionHtml) {
         const wrap = doc.createElement('span')
-        wrap.setAttribute('slot', 'actions')
         const html = opts.actionHtml
+        wrap.setAttribute('slot', 'actions')
+        // bindHtml reconciles children only — `wrap`'s own attributes
+        // (the slot assignment above) survive the morph.
         bindHtml(wrap, () => html)
         t.appendChild(wrap)
       }

@@ -173,5 +173,49 @@ describe('component() with formValue + formDisabled', () => {
       (el as unknown as { __shipSetFormHooks?: unknown }).__shipSetFormHooks,
     ).toBeUndefined()
   })
+})
 
+// #307: form-associated components must expose `el.value` (and any other
+// declared prop) as a prototype getter that reads the prop signal. Without
+// this, plain DOM code that does `formEl.value` reads `HTMLElement.value`
+// (undefined) instead of the form value — silently invisible to JS.
+describe('form-associated component — prop accessors (#307)', () => {
+  it('exposes the form-value prop on the prototype as a getter', () => {
+    const tag = nextTag()
+    component(tag, {
+      props: { value: prop.string({ default: '' }) },
+      formValue: 'value',
+    })
+    const el = mount(tag, { value: 'hello' })
+    expect((el as unknown as { value: unknown }).value).toBe('hello')
+  })
+
+  it('exposes form-disabled as a getter that reflects the attr', () => {
+    const tag = nextTag()
+    component(tag, {
+      props: {
+        value: prop.string({ default: '' }),
+        disabled: prop.bool({ default: false }),
+      },
+      formValue: 'value',
+      formDisabled: 'disabled',
+    })
+    const el = mount(tag, { value: 'x', disabled: '' })
+    expect((el as unknown as { disabled: unknown }).disabled).toBe(true)
+  })
+
+  it('non-form prop accessors coexist on the form class', () => {
+    const tag = nextTag()
+    component(tag, {
+      props: {
+        value: prop.string({ default: '' }),
+        label: prop.string({ default: '' }),
+      },
+      formValue: 'value',
+    })
+    const el = mount(tag, { value: 'v1', label: 'l1' })
+    const e = el as unknown as { value: unknown; label: unknown }
+    expect(e.value).toBe('v1')
+    expect(e.label).toBe('l1')
+  })
 })

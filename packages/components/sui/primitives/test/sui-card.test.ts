@@ -6,9 +6,6 @@ const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
 describe('<sui-card>', () => {
-  it('registers the custom element', () => {
-    expect(customElements.get('sui-card')).toBeDefined()
-  })
 
   describe('non-interactive (default)', () => {
     it('has no role or tabindex when interactive is false', () => {

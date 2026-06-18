@@ -76,6 +76,7 @@ const THEME_FALLBACKS: Record<string, string> = {
   yellow: '#ca8a04',
   blue: '#2563eb',
   magenta: '#9333ea',
+  cyan: '#0891b2',
   white: '#1c1917',
   brightBlack: '#a8a29e',
   brightRed: '#ef4444',
@@ -98,6 +99,7 @@ const TOKEN_MAP: Record<string, string> = {
   yellow: '--warning',
   blue: '--info',
   magenta: '--accent',
+  cyan: '--info',
   white: '--foreground',
 }
 
@@ -157,7 +159,6 @@ function buildTheme(host: HTMLElement): Record<string, string> {
     host,
     `color-mix(in oklch, ${primary} 30%, transparent)`,
   )
-  theme.cyan = normalizeColor(host, 'oklch(0.7 0.15 200)')
   theme.brightBlack = theme.white!
   theme.brightRed = theme.red!
   theme.brightGreen = theme.green!

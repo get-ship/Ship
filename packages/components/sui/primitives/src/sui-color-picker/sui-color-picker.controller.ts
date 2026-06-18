@@ -85,11 +85,11 @@ export default controller({
     const stopValueSync = effect(() => {
       const v = state.value
       if (suppress) return
-      if (isHex(v)) syncFromHex(v)
+      if (isHex(v as string)) syncFromHex(v as string)
     })
 
     // Initial seed.
-    if (isHex(state.value)) syncFromHex(state.value)
+    if (isHex(state.value as string)) syncFromHex(state.value as string)
 
     // Slider edits → value.
     const sliderEffect = effect(() => {
@@ -102,7 +102,7 @@ export default controller({
       state.hue = Math.round(h)
       state.sat = Math.round(s)
       state.light = Math.round(l)
-      if (hex !== state.value.toLowerCase()) {
+      if (hex !== (state.value as string).toLowerCase()) {
         suppress = true
         state.value = hex
         state.hexDraft = hex
@@ -128,7 +128,7 @@ export default controller({
       // User typed a hex in the trigger input.
       const v = inputEl.value.trim()
       if (v === '') return
-      if (!commitHex(v)) inputEl.value = state.value
+      if (!commitHex(v)) inputEl.value = state.value as string
     }
     const onInputKeydown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && state.open) {
@@ -154,7 +154,7 @@ export default controller({
     const onHexInputChange = (e: Event) => {
       const t = e.target as HTMLInputElement | null
       if (!t || !t.matches('.hex-row input')) return
-      if (!commitHex(t.value)) t.value = state.value
+      if (!commitHex(t.value)) t.value = state.value as string
     }
 
     const onDocPointer = (e: Event) => {
