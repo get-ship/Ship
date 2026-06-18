@@ -219,7 +219,26 @@ export async function mount<Scope = Record<string, unknown>>(
     if (built.scope[k]) finalScope[k] = built.scope[k]
   }
 
-  // 7. Run hydrate(root, ctx) if the compiled module exposed it.
+  // 7. CSR path: if the target is still empty (no SSR HTML and no
+  // `payload.html`), call the view's `__mount(target)` to create
+  // the DOM. The compiled view's `__mount` is the CSR equivalent
+  // of the SSR template — it builds the elements and wires the
+  // text-open / attr-marker hooks that `hydrate` then activates.
+  // (The legacy `attach()` path in @ship/sui-dom followed this same
+  // shape; the new mount keeps it for the bundled-per-app world.)
+  const clientMount = setupRet?.['__mount']
+  if (
+    typeof clientMount === 'function' &&
+    target.childNodes.length === 0
+  ) {
+    try {
+      clientMount(target)
+    } catch (err) {
+      console.error('[sui/mount] __mount threw:', err)
+    }
+  }
+
+  // 8. Run hydrate(root, ctx) if the compiled module exposed it.
   const cleanups: Array<() => void> = []
   // Hoisted ahead of handle declaration so the async-mount branch
   // can guard against pushing a cleanup into a mount that already

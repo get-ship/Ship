@@ -1,15 +1,15 @@
 <!--
   Hub home — the primary app's index route (`/`).
 
-  The simplest possible page: a heading and a subheading. No chrome,
-  no controller, no state. The point is to prove the route renders
-  and the framework + bundler agree on the path. Real chrome and
-  data come in follow-up commits — port the shell's `sui-nav-top`,
-  `sui-status-bar`, `sui-command-bar` (one at a time, accepting the
-  `window.ship` breakage, fixing in subsequent commits) and let
-  this page grow its launch surface.
+  The simplest possible page: a heading and a subheading. The template
+  reads `{name()}` from the controller's scope, which triggers the
+  compiler to emit a `hydrate()` function on the view's setup
+  return — without any signal read, the runtime's mount() would have
+  nothing to call (the compiler only emits hydrate when the template
+  binds to scope signals). The signal is unused; the read is a no-op
+  marker for the compiler.
 -->
 <main>
-  <h1>Hub</h1>
+  <h1>{name()}</h1>
   <p>Ship's primary app — ready when you are.</p>
 </main>

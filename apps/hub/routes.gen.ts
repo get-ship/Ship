@@ -6,21 +6,47 @@
 //
 // This file IS the entry. The dev does not author a main.ts; the
 // bundler-generated `routes.gen.ts` registers the project's pattern
-// set with the shared router (`defineRoutes`), so the rest of the host
-// (chrome, bridges, keymaps) lives in workspace-side-effect imports
-// that the per-tag resolver compiles in.
-
+// set with the shared router (`defineRoutes`) and mounts the index
+// view into `#ship-root`. SPA navigation on popstate is the
+// follow-up — for v0 the index is the only mount.
 import { defineRoutes, type RouteShape } from '@ship/deck/route'
-
 export const DYNAMIC_ROUTE_PATTERNS: RouteShape[] = [
+  { pattern: '/' },
   { pattern: '/studio/components/:name' },
 ]
 export const routes = {
+  /** / */
+  index: (p: {  }): string => `/`,
   /** /studio/components/:name */
   studioComponentsName: (p: { name: string }): string => `/studio/components/${p.name}`,
 }
 
-// Bind the pattern set to the shared router. The single runtime instance
-// (the importmap's `/_deck/runtime.js`) handles popstate + signal updates
-// for every project that imports this.
+// Bind the pattern set to the shared router.
 defineRoutes(DYNAMIC_ROUTE_PATTERNS)
+
+// Mount the index view. The SuiPlugin has already compiled
+// `./routes/page.sui` (its default export is the view module).
+// `route({ routes: DYNAMIC_ROUTE_PATTERNS })` gives the view live
+// URL signals; the runtime's `mount(target, payload)` does the
+// rest (setup + hydrate + lifecycle). For v0 the index is the only
+import { mount } from '@ship/sui-runtime';
+import { navigate, route as createRoute } from '@ship/deck/route';
+import * as indexView from './routes/page.sui';
+const __r = createRoute({ routes: DYNAMIC_ROUTE_PATTERNS });
+// The runtime's mount() handles both SSR (payload.html + hydrate)
+// and CSR (view's __mount creates the DOM, then hydrate wires
+// signals). For the bundled path, payload.html is empty; the
+// runtime's CSR fallback calls `setupRet.__mount(target)` to
+// build the DOM in place. We just call mount with the empty
+// payload and the runtime does the right thing.
+mount(document.getElementById('ship-root')!, {
+  html: '',
+  scope: {},
+  params: {},
+  route: __r,
+}, {
+  module: indexView,
+  navigate,
+  clients: {},
+});
+        

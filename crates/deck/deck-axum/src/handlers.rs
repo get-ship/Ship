@@ -27,6 +27,10 @@ pub async fn serve_sui_sdk_client(mode: Option<Extension<DaemonMode>>) -> Respon
     into_axum(deck_core::serve_sui_sdk_client(mode_from_ext(mode)))
 }
 
+pub async fn serve_deck_route(mode: Option<Extension<DaemonMode>>) -> Response {
+    into_axum(deck_core::serve_deck_route(mode_from_ext(mode)))
+}
+
 
 /// `GET /_deck/icons/{file}` — one lucide icon. `{file}` is captured whole
 /// (e.g. `search.svg`) because axum 0.8 forbids mixing path-params with

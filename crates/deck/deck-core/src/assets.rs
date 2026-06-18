@@ -46,9 +46,13 @@ fn read_source_asset(rel: &str) -> Option<String> {
 const SUI_RUNTIME_JS: &str = include_str!("../assets/sui-runtime.js");
 const SUI_DOM_JS: &str = include_str!("../assets/sui-dom.js");
 const SUI_SDK_CLIENT_JS: &str = include_str!("../assets/sui-sdk-client.js");
+// `deck/route` is the bundler-generated entry's `@ship/deck/route`
+// import. The runtime exports `defineRoutes`, `route`, `navigate`,
+// `setEditMode` — every app's entry needs this singleton, so the
+// framework ships the bundle as an `include_str!` constant.
+const DECK_ROUTE_JS: &str = include_str!("../assets/deck-route.js");
 const SUI_LUCIDE_ICONS_JSON: &str = include_str!("../assets/lucide-icons.json");
 const LIVE_RELOAD_JS: &str = include_str!("../assets/live-reload.js");
-
 // Aliases the runtime used to resolve client-side. Promoted to the daemon so a
 // `<sui-icon name="git">` request finds `git-branch` server-side with no client
 // indirection. Keep in lockstep with `packages/components/sui/primitives/src/sui-icon/registry.ts`.
@@ -304,8 +308,15 @@ pub fn serve_sui_sdk_client(mode: DaemonMode) -> DeckResponse {
     let js = read_framework_asset("sui-sdk-client.js").unwrap_or_else(|| SUI_SDK_CLIENT_JS.to_string());
     DeckResponse::js_asset(js, mode)
 }
-/// `GET /_deck/icons/{name}.svg` — one lucide icon, served standalone. Replaces
-/// `GET /_deck/icons/{name}.svg` — one lucide icon, served standalone. Replaces
+
+/// `GET /_deck/route.js` — the `@ship/deck/route` framework singleton.
+/// The bundler-generated entry imports it for `defineRoutes`, `route`,
+/// `navigate`, `setEditMode`. The bundle is the package compiled
+/// output (the source lives at `packages/deck/route/` and is shipped
+/// via `include_str!`).
+pub fn serve_deck_route(mode: DaemonMode) -> DeckResponse {
+    DeckResponse::js_asset(DECK_ROUTE_JS.to_string(), mode)
+}
 /// the retired whole-blob `/_deck/lucide-icons.json` endpoint (~410 KB fetched
 /// once on first mount). Per-icon serving hands the browser HTTP cache the
 /// granularity that matches usage: each `<sui-icon>` triggers one tiny GET

@@ -14,6 +14,7 @@ pub mod render_helpers;
 pub mod sui_source;
 pub use handlers::{
     serve_bundle_hmr, serve_catalog_workspace,
+    serve_deck_route,
     serve_meta,
     serve_sui_chunk, serve_sui_dom, serve_sui_icon,
     serve_sui_live_reload,
@@ -101,6 +102,7 @@ pub fn router() -> Router {
         .route("/_deck/runtime.js", get(serve_sui_runtime))
         .route("/_deck/dom.js", get(serve_sui_dom))
         .route("/_deck/sdk-client.js", get(serve_sui_sdk_client))
+        .route("/_deck/route.js", get(serve_deck_route))
         .route("/_deck/icons/{file}", get(serve_sui_icon))
         .route("/_deck/live-reload.js", get(serve_sui_live_reload))
 

@@ -53,6 +53,13 @@ const FRAMEWORK_ASSETS: &[(&str, &str, &str)] = &[
     ("@ship/sui-runtime/patch", "sui-runtime.js", "_deck/runtime.js"),
     ("@ship/sui-dom", "sui-dom.js", "_deck/dom.js"),
     ("@ship/sdk-client", "sui-sdk-client.js", "_deck/sdk-client.js"),
+    // `@ship/deck/route` lives in the framework because the bundler
+    // generates an entry that imports it. The runtime exports
+    // `defineRoutes`, `route`, `navigate`, `setEditMode` — every app's
+    // entry needs this singleton. The bundle file is built in
+    // `crates/deck/deck-core/build.rs` and shipped via
+    // `include_str!` in `assets.rs`.
+    ("@ship/deck/route", "deck-route.js", "_deck/route.js"),
 ];
 
 /// Generate the importmap JSON from FRAMEWORK_ASSETS. The keys are the
