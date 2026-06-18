@@ -106,9 +106,6 @@ pub trait ComponentResolver: Send + Sync {
 pub struct PacksQuery {
     pub category:     String,
     pub tag_contains: String,
-    pub has_prop:     String,
-    pub has_slot:     String,
-    pub has_event:    String,
 }
 // ── Default chain implementation ─────────────────────────────────────────────
 

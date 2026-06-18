@@ -180,9 +180,6 @@ impl UiServiceTrait for UiWire {
             .packs(crate::registry::PacksQuery {
                 category:     request.category.to_string(),
                 tag_contains: request.tag_contains.to_string(),
-                has_prop:     request.has_prop.to_string(),
-                has_slot:     request.has_slot.to_string(),
-                has_event:    request.has_event.to_string(),
             })
             .await
             .map_err(ConnectError::internal)?;

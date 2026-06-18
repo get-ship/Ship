@@ -39,15 +39,10 @@ message UiComponent {
   repeated string events = 6;
 }
 
-// Query for the catalog. Filterable by category, tag substring, prop
-// presence, slot presence, event presence. Used by the studio and by
-// agents authoring views.
+// Query for the catalog. Filterable by category and tag substring.
 message UiQueryReq {
   string category = 1;             // optional: "primitives" | "ship" | "user" | "" (all)
   string tag_contains = 2;         // optional: substring match on tag
-  string has_prop = 3;             // optional: filter to components with this prop
-  string has_slot = 4;             // optional
-  string has_event = 5;            // optional
 }
 
 message UiQueryResponse {
