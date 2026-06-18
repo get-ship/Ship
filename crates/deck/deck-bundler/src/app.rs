@@ -53,6 +53,7 @@ const FRAMEWORK_ASSETS: &[(&str, &str, &str)] = &[
     ("@ship/sui-runtime/patch", "sui-runtime.js", "_deck/runtime.js"),
     ("@ship/sui-dom", "sui-dom.js", "_deck/dom.js"),
     ("@ship/sdk-client", "sui-sdk-client.js", "_deck/sdk-client.js"),
+    ("@ship/deck/route", "deck-route.js", "_deck/route.js"),
 ];
 
 /// Generate the importmap JSON from FRAMEWORK_ASSETS. The keys are the
@@ -264,7 +265,16 @@ pub async fn bundle_app(
         .map(|e| e.file_name().to_string_lossy().into_owned())
         .find(|n| n.starts_with("entry-") && n.ends_with(".js"))
         .context("app build: no entry chunk assets/entry-*.js emitted")?;
-    let js_href = format!("/assets/{js_name}");
+    // The asset prefix is the per-app config (e.g. `/hub/_assets/`). The
+    // bundler writes assets at `<out_dir>/assets/`; shipd serves the
+    // per-app's `out_dir` at the asset_prefix path (see apps.jsonc).
+    // The project name is the segment — `apps/hub` → `/hub/_assets/`.
+    let project_segment = project
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("app");
+    let asset_prefix = format!("/{project_segment}/_assets/");
+    let js_href = format!("{asset_prefix}{js_name}");
 
     // 7. Copy public/ verbatim (favicons, logos referenced by root-absolute href).
     let public_dir = project.join("public");

@@ -9,6 +9,7 @@ pub use deck_axum::{
     apps::serve_apps,
     into_axum, mode_from_ext, pages, router,
     serve_meta,
+    serve_deck_route,
     serve_sui_dom, serve_sui_icon, serve_sui_live_reload,
     serve_sui_runtime, serve_sui_sdk_client,
     serve_sui_view_setup, serve_view_host, serve_view_payload,

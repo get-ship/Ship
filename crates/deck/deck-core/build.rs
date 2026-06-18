@@ -37,6 +37,7 @@ const FRAMEWORK_BUNDLES: &[&str] = &[
     "sui-runtime.js",
     "sui-dom.js",
     "sui-sdk-client.js",
+    "deck-route.js",
 ];
 
 /// All assets that must be non-empty before the build proceeds.
@@ -44,10 +45,10 @@ const ASSETS: &[&str] = &[
     "sui-runtime.js",
     "sui-dom.js",
     "sui-sdk-client.js",
+    "deck-route.js",
     "lucide-icons.json",
 ];
 
-// Deck's OWN source roots — the JS/TS that deck's framework singletons are
 // built from. Host-app source roots (e.g. apps/shell/src) are NOT listed
 // here: they are runtime cfg (`deck.jsonc`) and cannot be read in a build
 // script. The bake writes host assets at runtime; build.rs need not track
@@ -56,6 +57,7 @@ const COARSE_SOURCE_ROOTS: &[&str] = &[
     "packages/sui/runtime/src",
     "packages/sui/dom/src",
     "packages/deck/sdk-client/src",
+    "packages/deck/route/src",
 ];
 
 fn main() {

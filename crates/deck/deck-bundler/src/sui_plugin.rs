@@ -185,20 +185,20 @@ impl Plugin for SuiPlugin {
         // `./X.compiled.js` siblings (umbrella `index.ts` imports), and the
         // ABSOLUTE paths the virtual-aggregate entry emits — both must become
         // a virtual id.
-        if spec.ends_with(".compiled.js") {
-            if Path::new(spec).is_absolute() {
-                return Ok(Some(HookResolveIdOutput::from_id(
-                    normalize(Path::new(spec)).to_string_lossy().to_string(),
-                )));
-            }
-            if (spec.starts_with("./") || spec.starts_with("../"))
-                && let Some(importer) = args.importer
-            {
-                let dir = Path::new(importer).parent().unwrap_or(&self.repo_root);
-                let abs = normalize(&dir.join(spec));
-                return Ok(Some(HookResolveIdOutput::from_id(abs.to_string_lossy().to_string())));
-            }
+        // `*.sui` → resolve relative to the importer's dir; `load`
+        // then compiles it. Same shape as the `.compiled.js` handler
+        // below — both are virtual ids that point at a `.sui` source.
+        if spec.ends_with(".sui")
+            && (spec.starts_with("./") || spec.starts_with("../"))
+            && let Some(importer) = args.importer
+        {
+            let dir = Path::new(importer).parent().unwrap_or(&self.repo_root);
+            let abs = normalize(&dir.join(spec));
+            return Ok(Some(HookResolveIdOutput::from_id(
+                abs.to_string_lossy().to_string(),
+            )));
         }
+        // `*.compiled.js` → virtual id; `load` compiles the sibling `.sui`. The
         // `@ship/<non-singleton>` → workspace package source (not prebuilt
         // dist) so its components compile from source too. A bare specifier
         // (`@ship/tokens`) resolves to `src/index.ts`; a subpath

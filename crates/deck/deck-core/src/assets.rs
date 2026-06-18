@@ -48,7 +48,7 @@ const SUI_DOM_JS: &str = include_str!("../assets/sui-dom.js");
 const SUI_SDK_CLIENT_JS: &str = include_str!("../assets/sui-sdk-client.js");
 const SUI_LUCIDE_ICONS_JSON: &str = include_str!("../assets/lucide-icons.json");
 const LIVE_RELOAD_JS: &str = include_str!("../assets/live-reload.js");
-
+const DECK_ROUTE_JS: &str = include_str!("../assets/deck-route.js");
 // Aliases the runtime used to resolve client-side. Promoted to the daemon so a
 // `<sui-icon name="git">` request finds `git-branch` server-side with no client
 // indirection. Keep in lockstep with `packages/components/sui/primitives/src/sui-icon/registry.ts`.
@@ -314,6 +314,11 @@ pub fn serve_sui_dom(mode: DaemonMode) -> DeckResponse {
 
 pub fn serve_sui_sdk_client(mode: DaemonMode) -> DeckResponse {
     let js = read_framework_asset("sui-sdk-client.js").unwrap_or_else(|| SUI_SDK_CLIENT_JS.to_string());
+    DeckResponse::js_asset(js, mode)
+}
+
+pub fn serve_deck_route(mode: DaemonMode) -> DeckResponse {
+    let js = read_framework_asset("deck-route.js").unwrap_or_else(|| DECK_ROUTE_JS.to_string());
     DeckResponse::js_asset(js, mode)
 }
 /// `GET /_deck/icons/{name}.svg` — one lucide icon, served standalone. Replaces
