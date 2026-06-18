@@ -206,7 +206,15 @@ pub fn serve_scaffold_asset(mode: DaemonMode, scaffold: &AppServeConfig, file: &
             mode,
         );
     }
-    match read_deck_asset(&format!("{}/assets/{file}", scaffold.source)) {
+    // Try `<deck_out>/<source>/assets/<file>` first (the legacy path
+    // shape: scaffold source = relative path under the global
+    // `.deck/`), then `<project_root>/<source>/assets/<file>` (the
+    // per-app build output: e.g. `apps/hub/.deck/assets/<file>`).
+    // The per-app case is the post-cutover shape; the legacy case
+    // keeps old deck.jsonc-driven scaffolds working until they're
+    // migrated.
+    let path = format!("{}/assets/{file}", scaffold.source);
+    match read_deck_asset(&path).or_else(|| read_source_asset(&path)) {
         Some(body) if file.ends_with(".css") => DeckResponse::css_view(body, mode),
         Some(body) => DeckResponse::js_asset(body, mode),
         None => DeckResponse::not_found(

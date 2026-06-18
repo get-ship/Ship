@@ -216,8 +216,13 @@ pub fn build_router(
         // auth) so requests must carry a valid bearer before short-circuit.
         .layer(axum::middleware::from_fn(move |req, next| {
             auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
-        }));
-
+        }))
+        // Top-level DataPort Extension — deck's serve_index / serve_setup
+        // read provisioning via `Option<Extension<Arc<dyn DataPort>>>`
+        // and need a top-level extension (the per-multiplex MultiplexState
+        // wrapper doesn't satisfy the type). Same Arc the multiplex
+        // state holds; no extra cost.
+        .layer(axum::Extension(data_port.clone()));
     // The per-app router is merged into the root BEFORE the auth layer
     // (apps are unauthenticated public surfaces; the auth middleware
     // above skips them via the path-prefix checks in the SPA-nav shim).
@@ -236,8 +241,15 @@ pub fn build_router(
         .merge(deck::router())
         .merge(webhook_source_route)
         .merge(authenticated_routes)
-        .layer(axum::Extension(apps_ext));
-    // Connect-ops router (`rpc::ops::router().into_axum_service()`) dispatches the
+        .layer(axum::Extension(apps_ext))
+        // Top-level DataPort Extension — same Arc as the multiplex's
+        // MultiplexState. deck's serve_index / serve_setup read this via
+        // `Option<Extension<Arc<dyn DataPort>>>` to drive the first-run
+        // flow (provisioned → serve the primary app, not provisioned →
+        // redirect to /setup). Adding it here, on `root`, covers every
+        // request — the per-app routes, the public catch-all, and the
+        // multiplex.
+        .layer(axum::Extension(data_port.clone()));
     // entire `/ship.ops.v1.*` surface from a `fallback_service`; merging it into
     // `root` makes it root's fallback (carrying its auth layer). A
     // `.fallback(spa_fallback)` would silently replace it and 404 every RPC. SPA

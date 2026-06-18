@@ -121,5 +121,5 @@ pub(super) fn daemon_run(host: String, port: u16, dev: bool) -> Result<()> {
         .enable_all()
         .build()
         .context("cannot build tokio runtime")?;
-    rt.block_on(shipd::run_network(host, Some(port), dev, None, shipd::DaemonMode::Development))
+    rt.block_on(shipd::run_network(host, Some(port), dev, None, shipd::DaemonMode::Development, None))
 }

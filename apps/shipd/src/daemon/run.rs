@@ -84,8 +84,14 @@ pub async fn run_network(
     // `--dev` flag, which dev launchers pass inconsistently. In a user's project
     // / prod install there is no `apps/shell/src`, so the env stays unset and
     // the shell bundle owns first-party views.
+    // The ship host configures deck's first-party view root — deck itself
+    // knows no app layout (the host owns the list via apps.jsonc). The
+    // first-party root is the workspace's per-app source: apps/hub/src
+    // (or apps/spaces/src — the file-routed chrome for the per-app
+    // builds). The dev daemon points at the hub source; production
+    // installs have no per-app workspace and the env stays unset.
     if let Some(root) = worktree_root.as_ref() {
-        let fp_root = root.join("apps").join("shell").join("src");
+        let fp_root = root.join("apps").join("hub").join("src");
         if fp_root.is_dir() {
             // SAFETY: set once at startup, before any request thread reads it.
             unsafe {
