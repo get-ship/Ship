@@ -97,19 +97,16 @@ pub fn resolve_view_js(name: &str) -> Option<String> {
 // A `AppServeConfig` (from `apps.jsonc` or built-in defaults) describes one
 // HTML shell: which built artifact to load (`source`), and which
 // `window.<key>=<value>` globals to inject (`inject_globals`). The app's
-// `name` is its URL namespace — assets are rewritten to `/<name>/<file>`.
-// This single function handles every scaffold route (shell `GET /`, space
-// `GET /space/{id}`, etc.).
+// `name` is its URL namespace — assets are written by the bundler with
+// the final served path. This single function handles every scaffold
+// route (shell `GET /`, space `GET /space/{id}`, etc.).
 //
 // `params` are route-param substitutions — e.g. `&[("id", "my-space")]` lets
 // the config value `"$id"` resolve to the actual route param. Any `$key` token
 // in an `inject_globals` value is replaced with the matching param.
-
 /// Serve an HTML scaffold defined by a `AppServeConfig`.
 ///
 /// - Reads the built index.html from `<deck_out>/<source>/index.html`.
-/// - Rewrites `"/assets/` → `/<name>/` so the app's hashed assets
-///   resolve under the app's URL namespace.
 /// - Injects one `<script>window.<key>=<value>;</script>` per
 ///   `inject_globals` entry, substituting `$<param>` tokens from `params`.
 /// - Injects the daemon-mode meta tag via `inject_mode_meta`.
@@ -162,14 +159,11 @@ pub fn serve_scaffold(
         parts
     };
 
-    // Rewrite asset hrefs: the bundler emits `href="/assets/..."` —
-    // reroot under the app's name so multiple apps don't collide on
-    // `/assets/*`. The app's name is its URL namespace.
-    let prefix = format!("/{}/", scaffold.name);
-    let html = html.replace("\"/assets/", &format!("\"{prefix}"));
-    // Inject globals before `</head>` so the JS variables are available as
-    // early as possible.  Fall back to `<head>` insertion when `</head>` is
-    // absent (malformed scaffold).
+    // Inject globals before `</head>` so the JS variables are available
+    // as early as possible. Fall back to `<head>` insertion when
+    // `</head>` is absent (malformed scaffold). The asset hrefs in
+    // the HTML are written by the bundler with the final served
+    // path — no rewrite here.
     let html = if !inject.is_empty() {
         if html.contains("</head>") {
             html.replace("</head>", &format!("{inject}</head>"))
@@ -471,7 +465,7 @@ mod tests {
     /// tmpdir via the test-only `ProjectRootGuard` so the resolver
     /// deterministically sees our fixture.
     #[test]
-    fn serve_scaffold_rewrites_assets_and_injects_globals() {
+    fn serve_scaffold_serves_html_and_injects_globals() {
         use crate::test_lock::ProjectRootGuard;
         let dir = tempfile::tempdir().unwrap();
         let _root = ProjectRootGuard::new(dir.path());
@@ -480,7 +474,7 @@ mod tests {
         let dot_deck = dir.path().join(".deck");
         let scaffold_dir = dot_deck.join("my-scaffold");
         std::fs::create_dir_all(&scaffold_dir).unwrap();
-        let html = r#"<!doctype html><html><head></head><body><script src="/assets/main.js"></script></body></html>"#;
+        let html = r#"<!doctype html><html><head></head><body><script src="/space/main.js"></script></body></html>"#;
         std::fs::write(scaffold_dir.join("index.html"), html).unwrap();
         let mut globals = std::collections::BTreeMap::new();
         globals.insert("DECK_APP_ID".to_string(), "$id".to_string());
@@ -493,10 +487,10 @@ mod tests {
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[("id", "my-space")]);
 
         assert_eq!(resp.status, 200);
+        // The asset href is preserved (bundler wrote the final URL).
         let body = std::str::from_utf8(&resp.body).unwrap();
-        // Asset href rewritten under the app's name (the URL namespace).
-        assert!(body.contains("/space/main.js"), "expected /space/<file> in: {body}");
-        // Global injected with substituted id.
+        assert!(body.contains("/space/main.js"), "expected /space/main.js in: {body}");
+        // The inject_globals block lands before </head>.
         assert!(body.contains("window.DECK_APP_ID=\"my-space\""), "expected injected global in: {body}");
     }
 

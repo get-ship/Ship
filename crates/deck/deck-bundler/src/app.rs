@@ -179,11 +179,17 @@ pub async fn bundle_app(
     };
     crate::routes::generate_routes(&[routes_spec]).context("generate routes.gen.ts")?;
 
-    // 2. Read the project name from `package.json#name`. Used as the page
-    // <title> and the chrome's brand string. Required: the template
-    // substitutes it in.
+    // 2. Read the project name from `package.json#name`. The dev's
+    // npm name is the app's identity; the URL namespace is the
+    // last `/`-segment (so `@ship/hub` → `hub`). One source of
+    // truth: `package.json#name`.
     let project_name = read_package_name(project)
         .with_context(|| format!("read package.json at {}", project.display()))?;
+    let url_namespace = project_name
+        .rsplit_once('/')
+        .map(|(_, tail)| tail)
+        .unwrap_or(&project_name)
+        .to_string();
     // 3. Generate the importmap from FRAMEWORK_ASSETS. The framework
     // serves the runtime singletons at /_deck/* — the workspace root.
     // No per-app dist prefix; the app's name is its URL namespace.
@@ -251,16 +257,16 @@ pub async fn bundle_app(
         .write()
         .await
         .map_err(|e| anyhow!("rolldown write(app): {e:?}"))?;
-
     // 6. The entry chunk is `assets/entry-<hash>.js` (input name "entry").
+    // The script href in the generated HTML is the final URL — the
+    // bundler is the only place that knows the project name (the
+    // framework serves the file at `/<name>/<file>`). No string
     let js_name = std::fs::read_dir(&assets_dir)?
         .filter_map(|e| e.ok())
         .map(|e| e.file_name().to_string_lossy().into_owned())
         .find(|n| n.starts_with("entry-") && n.ends_with(".js"))
         .context("app build: no entry chunk assets/entry-*.js emitted")?;
-    let js_href = format!("/assets/{js_name}");
-
-    // 7. Copy public/ verbatim (favicons, logos referenced by root-absolute href).
+    let js_href = format!("/{url_namespace}/{js_name}");
     let public_dir = project.join("public");
     if public_dir.exists() {
         for entry in std::fs::read_dir(&public_dir)? {
@@ -381,14 +387,17 @@ mod tests {
         assert!(html.contains("@ship/sui-runtime"), "framework runtime in importmap");
         assert!(html.contains("@ship/sdk-client"), "framework sdk in importmap");
 
-        // Behavior 4: the entry chunk is produced by the bundler. The
-        // href is `/assets/entry-<hash>.js`. The framework rewrites
-        // `/assets/` → `/<name>/` at serve time so the entry lands at
-        // `/<app.name>/<hash>.js` — the framework owns the namespace
-        // rule, the bundler emits a stable path.
-        assert!(build.js_href.starts_with("/assets/entry-") && build.js_href.ends_with(".js"),
-                "expected /assets/entry-*.js, got {}", build.js_href);
-
+        // Behavior 4: the entry chunk href is the final served path.
+        // The bundler writes `/<url_namespace>/entry-<hash>.js` so
+        // the framework can serve it at the corresponding route
+        // without a string rewrite. The URL namespace is the last
+        // `/`-segment of `package.json#name` (`@ship/hub` → `hub`).
+        assert!(build.js_href.starts_with("/test-app/entry-") && build.js_href.ends_with(".js"),
+                "expected /test-app/entry-*.js, got {}", build.js_href);
+        // that knows the project name; the framework serves the
+        // file at `/<name>/<file>`.
+        assert!(build.js_href.starts_with("/test-app/entry-") && build.js_href.ends_with(".js"),
+                "expected /test-app/entry-*.js, got {}", build.js_href);
         // Behavior 5: public/ assets are copied to out/.
         assert!(out.join("favicon.ico").exists(), "public/ copied");
     }
