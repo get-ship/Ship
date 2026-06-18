@@ -95,13 +95,13 @@ pub async fn register_active_space(
 /// same path the caller resolved up front; we keep this helper argument
 /// explicit so it remains usable from contexts that have only the path.
 pub fn write_identity_files(daemon_dir: &Path, root: &Path) -> Result<()> {
-    crate::daemon::write_pid_file(daemon_dir)?;
+    crate::ship_runtime::init::identity_files::write_pid_file(daemon_dir)?;
     // Record the *worktree* this daemon serves, not the main-checkout
     // root we'd get from ProjectRoot::discover's redirect. `just status`
     // and the e2e visual harness consult this to verify they're talking
     // to the daemon scoped to their cwd.
-    crate::daemon::write_workspace_file(daemon_dir, root)?;
-    crate::daemon::write_sha_file(daemon_dir, build_info::build_info!().git_sha)?;
+    crate::ship_runtime::init::identity_files::write_workspace_file(daemon_dir, root)?;
+    crate::ship_runtime::init::identity_files::write_sha_file(daemon_dir, build_info::build_info!().git_sha)?;
     Ok(())
 }
 

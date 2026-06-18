@@ -12,6 +12,7 @@ mod convert;
 #[cfg(test)]
 mod test_env;
 mod daemon;
+pub mod daemon_cmds;
 mod events_cmd;
 #[cfg(feature = "unstable")]
 mod top;

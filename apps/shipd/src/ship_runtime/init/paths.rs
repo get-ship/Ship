@@ -148,7 +148,7 @@ pub fn apply_path_env_vars(paths: &DaemonPaths) -> Result<()> {
     // Clean stale daemon files BEFORE setting workspace env vars — the
     // eprintln below surfaces the refusal-to-start error to the operator
     // before any subsequent log lines.
-    crate::daemon::cleanup_stale_daemon_files(&paths.daemon_dir).map_err(|e| {
+    crate::ship_runtime::init::identity_files::cleanup_stale_daemon_files(&paths.daemon_dir).map_err(|e| {
         eprintln!("\nshipd startup aborted: {e}\n");
         e
     })?;

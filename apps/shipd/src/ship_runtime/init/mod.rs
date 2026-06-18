@@ -1,18 +1,22 @@
-//! L0 init split into submodules — daemon composition (`paths`, `startup`)
-//! re-exported here so callers reach them as `ship_runtime::init::X`.
+//! L0 init split into submodules — daemon composition (`paths`, `startup`,
+//! `identity_files`) re-exported here so callers reach them as
+//! `ship_runtime::init::X`.
 //!
 //! Submodules:
-//! - `paths`   — path discovery, env-var wiring, port derivation.
-//! - `startup` — runtime subsystem startup, identity files, session install.
+//! - `paths`          — path discovery, env-var wiring, port derivation.
+//! - `startup`        — runtime subsystem startup, identity files, session install.
+//! - `identity_files` — pid/port/workspace/sha writers + stale-file cleanup.
 //! ShipRuntime construction and shutdown. Test ctors live in `test_ctors`.
 
 mod paths;
 mod startup;
+pub mod identity_files;
 
 pub use paths::{DaemonPaths, DaemonConfig, resolve_daemon_paths, resolve_daemon_config, apply_path_env_vars};
 pub use startup::{
     start_runtime_subsystems, register_active_space, write_identity_files, install_session_subsystems,
 };
+pub use identity_files::*;
 
 use anyhow::{Context, Result, anyhow};
 use std::collections::HashMap;
@@ -317,7 +321,7 @@ impl ShipRuntime {
         // Remove pid and port (liveness indicators) but keep the token.
         // Preserving the token across restarts means CLI clients that cached
         // it don't need to re-handshake after a daemon restart.
-        crate::daemon::remove_liveness_files(&self.daemon_dir);
+        crate::ship_runtime::init::identity_files::remove_liveness_files(&self.daemon_dir);
         tracing::info!("shipd: shutdown complete");
     }
 }

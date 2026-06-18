@@ -8,7 +8,7 @@ fn token_path(daemon_dir: &Path) -> PathBuf {
 
 mod stale_cleanup_tests {
     use super::token_path;
-    use crate::daemon::{another_daemon_alive, cleanup_stale_daemon_files, pid_path, port_path};
+    use crate::ship_runtime::init::identity_files::{another_daemon_alive, cleanup_stale_daemon_files, pid_path, port_path, parent_pid};
     use std::path::Path;
     use tempfile::TempDir;
 
@@ -114,7 +114,7 @@ mod stale_cleanup_tests {
     #[test]
     fn live_supervisor_parent_does_not_block_child_startup() {
         let dir = TempDir::new().unwrap();
-        let ppid = crate::daemon::parent_pid().expect("test must run with a parent");
+        let ppid = parent_pid().expect("test must run with a parent");
         write_pid(dir.path(), &ppid.to_string());
 
         let detected = another_daemon_alive(dir.path());
@@ -147,7 +147,7 @@ mod stale_cleanup_tests {
         assert_ne!(child_pid, std::process::id(), "child pid must not be ours");
         assert_ne!(
             Some(child_pid),
-            crate::daemon::parent_pid(),
+            parent_pid(),
             "child pid must not be our parent"
         );
 
@@ -168,7 +168,7 @@ mod path_layout_tests {
     //! either the singleton `<root>/machine/daemon/` or a per-worktree
     //! `<root>/machine/daemons/<hash>/` (devx-04). The helpers treat
     //! `daemon_dir` as opaque; policy lives in the caller.
-    use crate::daemon::{remove_liveness_files, write_pid_file, write_port_file, write_workspace_file};
+    use crate::ship_runtime::init::identity_files::{remove_liveness_files, write_pid_file, write_port_file, write_workspace_file};
     use ship_substrate::ShipHome;
     use ship_substrate::home::DaemonFile;
     use tempfile::TempDir;

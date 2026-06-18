@@ -1,10 +1,10 @@
 //! Ship daemon (shipd) library.
 //!
-//! Exposes `run_network` for starting the HTTP/SSE MCP daemon and
-//! `network_status` / `network_stop` for CLI subcommands. The daemon
+//! Exposes `run_network` for starting the HTTP/SSE MCP daemon. The
+//! user-facing `network status` / `network stop` subcommands live in the
+//! ship CLI (`apps/ship-cli/src/daemon_cmds.rs`). The daemon
 //! composition root (`run_network`) lives in `daemon::run`; this file is
 //! the module map.
-
 // Force ship-cloud's event_registrations (sync.* family) into the linked
 // binary. ship-cloud has no runtime call-sites in shipd outside the sync
 // service (unstable), but its `inventory::submit!` registrations must be
@@ -61,10 +61,8 @@ pub mod ship_runtime;
 #[path = "supervisor/mod.rs"]
 mod supervisor_tests;
 
-#[cfg(test)]
-pub mod test_harness;
+pub use daemon::run_network;
 
-pub use daemon::{network_status, network_stop, run_network};
 pub use deck::DaemonMode;
 
 /// Test-only: build a minimal router with the CORS middleware for testing.
