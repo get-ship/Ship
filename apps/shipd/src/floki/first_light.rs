@@ -31,7 +31,7 @@ use ship_substrate::persistence::SqliteJournalStore;
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, EventSink};
 use ship_types::{Authority, ScopeBinding};
 
-use crate::floki_gateway::ShipdGateway;
+use crate::floki::gateway::ShipdGateway;
 use crate::ship_runtime::SharedKernel;
 
 // ── ShipdKernelSink ───────────────────────────────────────────────────────────
