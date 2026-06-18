@@ -1,0 +1,13 @@
+<!--
+  Studio: a single component viewer.
+
+  The dev authors a `routes/` tree; the bundler walks it and emits
+  the typed route table. This file is the mount surface for
+  `/studio/components/:name`. The dynamic `name` segment is read off
+  the route signals and used to fetch the source from `ship.ui.read`.
+
+  Placeholder chrome — the actual viewer (source, props, slots)
+  lives in the studio's component view, not here.
+<h1>{name()}</h1>
+  <p>component viewer — source loads via ship.ui.read</p>
+</div>
