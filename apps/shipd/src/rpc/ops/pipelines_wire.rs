@@ -35,8 +35,8 @@ pub(super) fn mount(
             let resolve: Box<dyn Fn(&crate::ship_runtime::ApiState) -> serde_json::Value + Send + Sync> = match op {
                 "pipelines.summaries" => {
                     Box::new(move |st| {
-                        use crate::services::pipelines::summaries;
-                        use crate::services::pipelines::state::Filter;
+                        use ship_pipeline_runtime::view::summaries;
+                        use ship_pipeline_runtime::view::state::Filter;
                         let ctx = summaries::build(st.ship_dir(), Filter::default(), None);
                         serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
                     })
@@ -45,7 +45,7 @@ pub(super) fn mount(
                     let slug = args.get("slug").and_then(|v| v.as_str())
                         .unwrap_or("").to_string();
                     Box::new(move |st| {
-                        use crate::services::pipelines::run_detail;
+                        use ship_pipeline_runtime::view::run_detail;
                         let ctx = run_detail::build(&slug, st.ship_dir());
                         serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
                     })
@@ -58,7 +58,7 @@ pub(super) fn mount(
                     let q = args.get("q").and_then(|v| v.as_str())
                         .filter(|s| !s.is_empty()).map(str::to_string);
                     Box::new(move |st| {
-                        use crate::services::pipelines::history;
+                        use ship_pipeline_runtime::view::history;
                         let ctx = history::build(st.ship_dir(), q.clone(), pipeline.clone(), offset, limit);
                         serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
                     })
