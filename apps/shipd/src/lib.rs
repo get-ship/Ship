@@ -32,7 +32,6 @@ pub mod auth;
 pub mod wire;
 pub mod transport;
 mod daemon;
-pub mod routes;
 pub mod router;
 // rpc: per-domain Connect wire impls + the ops router composition root.
 pub mod rpc;

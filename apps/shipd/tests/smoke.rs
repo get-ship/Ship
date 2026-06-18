@@ -128,25 +128,6 @@ async fn responses_carry_x_shipd_build_header() {
     assert!(!value.is_empty(), "X-Shipd-Build value must not be empty");
 }
 
-// Auth smoke pair — anchored on /api/v1/sandboxes (GET + ReadWorkspace), a
-// surviving REST route. The original anchor /api/v1/capabilities was deleted
-// with the ghost-route batch; these two silently pinned a 404 until re-anchored.
-#[tokio::test]
-async fn protected_route_requires_auth() {
-    let d = TestDaemon::start().await;
-    let res = d.bare().get(d.url("/api/v1/sandboxes")).send().await.unwrap();
-    assert_eq!(res.status(), 401);
-}
-
-#[tokio::test]
-async fn authed_request_reaches_protected_route() {
-    let d = TestDaemon::start().await;
-    let res = d.authed().get(d.url("/api/v1/sandboxes")).send().await.unwrap();
-    assert_eq!(res.status(), 200);
-    let body: serde_json::Value = res.json().await.unwrap();
-    assert_eq!(body["ok"], true);
-}
-
 #[tokio::test]
 async fn cors_preflight_returns_headers() {
     let d = TestDaemon::start().await;

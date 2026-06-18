@@ -7,22 +7,17 @@
 
 mod health;
 mod middleware;
-mod ship_routes;
 
 use axum::Router;
 use std::sync::Arc;
 
 use deck::config::DeckConfig;
 use crate::{auth, ship_runtime};
-use crate::routes::{human_webhook, webhook_ext};
-#[cfg(feature = "ship-code")]
-use crate::routes::hooks_api;
 use crate::auth::{attest, pairing, session};
 use crate::transport::cors;
 
 use health::{handle_panic, health_check};
 use middleware::{build_header_middleware, spa_nav_middleware};
-use ship_routes::build_ship_routes;
 
 /// Build the full Axum router with all route groups, auth, and CORS.
 pub fn build_router(
@@ -33,24 +28,8 @@ pub fn build_router(
     attestation_verifier: attest::AttestationVerifier,
     daemon_mode: deck::DaemonMode,
 ) -> Router {
-    use crate::routes::{Route, ShipRouterExt};
     let st = rt.clone();
-    // Non-enumerated third-party routes (telegram webhook + hooks) stay on
-    // `.route()` — they predate the canonical `Route` enum. Leave flat.
-    let webhook_routes = Router::new()
-        .route("/webhook/telegram", axum::routing::post(human_webhook::telegram_webhook))
-        .with_state(rt.kernel().clone());
-    #[cfg(feature = "ship-code")]
-    let hook_routes = Router::new()
-        .route("/hooks/session-start", axum::routing::post(hooks_api::hook_session_start))
-        .route("/hooks/before-tool", axum::routing::post(hooks_api::hook_before_tool))
-        .route("/hooks/after-tool", axum::routing::post(hooks_api::hook_after_tool))
-        .route("/hooks/session-end", axum::routing::post(hooks_api::hook_session_end))
-        .route("/hooks/permission-denied", axum::routing::post(hooks_api::hook_permission_denied))
-        .with_state(st.clone());
     // Enumerated routes — one `ApiState`-typed router, registered via
-    // `ship_route(Route::X, handler)` against the canonical full paths.
-    let api_ship_routes = build_ship_routes(st);
 
     // ONE ShipDataPort for the whole router: deck's serve_index / serve_setup
     // read provisioning via `Extension<Arc<dyn DataPort>>` (injected at the
@@ -58,19 +37,6 @@ pub fn build_router(
     let data_port: Arc<dyn deck_core::DataPort> =
         Arc::new(crate::ports::data::ShipDataPort::new(rt.clone()));
 
-    // Public webhook route — unauthenticated; each trigger carries its own secret.
-    let webhook_kernel = rt.kernel().clone();
-    let webhook_source_route = if let Some(src) = rt.webhook_source() {
-        Router::new()
-            .route(
-                "/api/hooks/webhook/{*path}",
-                axum::routing::post(webhook_ext::handle_webhook),
-            )
-            .layer(axum::Extension(src))
-            .layer(axum::Extension(webhook_kernel))
-    } else {
-        Router::new()
-    };
 
     // Unauthenticated routes (before auth middleware)
     let register_registry = session_registry.clone();
@@ -159,7 +125,6 @@ pub fn build_router(
 
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
-        .merge(api_ship_routes)
         // Hook ingress lives at flat `/hooks/*` (authed, but OFF `/api/v1`):
         // consumed by generated git-hook shell scripts that POST via curl and
         // can't speak Connect, so it's a permanent ingress holdout. Kept out of
@@ -167,9 +132,7 @@ pub fn build_router(
         // Gated: hooks_api uses ship-agents PTY session state (ship-code feature).
         ;
     #[cfg(feature = "ship-code")]
-    let authenticated_routes = authenticated_routes.merge(hook_routes);
     let authenticated_routes = authenticated_routes
-        .nest("/api", webhook_routes)
         // ConnectRPC op surface (ship.ops.v1) — additive, wrapped by
         // auth_middleware below so the gate sees AuthContext. See rpc::ops.
         // The authority-projection layer runs INSIDE auth_middleware (it's
@@ -212,7 +175,6 @@ pub fn build_router(
         // read `Option<Extension<DaemonMode>>`, not `State`), so it merges
         // straight into the stateless root. deck-axum owns these paths.
         .merge(deck::router())
-        .merge(webhook_source_route)
         .merge(authenticated_routes);
     // No `.fallback(spa)` here — that would CLOBBER the data plane. The
     // Connect-ops router (`rpc::ops::router().into_axum_service()`) dispatches the
@@ -275,9 +237,6 @@ pub fn build_router(
         // Outer request body cap. 50 MB matches the files-API upload limit.
         // JSON / Form extractors still enforce axum's `DefaultBodyLimit`
         // (2 MB) on their own — this layer only sets the outer ceiling.
-        .layer(tower_http::limit::RequestBodyLimitLayer::new(
-            crate::routes::artifacts_api::MAX_UPLOAD_BYTES,
-        ))
         // Catch handler panics → 500 instead of connection abort.
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
 }

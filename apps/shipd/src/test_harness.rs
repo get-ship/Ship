@@ -45,28 +45,11 @@ impl TestDaemon {
             crate::ship_runtime::ShipRuntime::new_test(ship_dir.clone(), kernel.clone()),
         );
 
-        let artifacts_routes = Router::new()
-            .route(
-                "/artifacts",
-                axum::routing::post(crate::routes::artifacts_api::upload_artifact),
-            )
-            .route(
-                "/artifacts/{id}",
-                axum::routing::get(crate::routes::artifacts_api::download_artifact),
-            )
-            .layer(axum::extract::DefaultBodyLimit::max(
-                crate::routes::artifacts_api::MAX_UPLOAD_BYTES,
-            ))
-            .with_state(api_state.clone());
-
-        // Inject a default CLI AuthContext so handlers can extract it.
-        // Mount under /api/v1 to match the production router (apps/shipd/
-        // src/router.rs); the test paths in artifacts_api_tests and
-        // collection_tests use /api/v1/* canonical URLs.
-        let default_auth = Self::cli_auth();
-        let router = Router::new()
-            .nest("/api/v1", artifacts_routes)
-            .layer(axum::Extension(default_auth));
+        // The REST surface was deleted (Connect is the only path). The test
+        // daemon now provides a minimal router — a tower::ServiceExt target
+        // for tests that need to make HTTP requests but don't depend on any
+        // particular REST route. Connect tests construct their own client.
+        let router: Router = Router::new();
 
         Self {
             router,
