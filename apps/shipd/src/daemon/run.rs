@@ -12,10 +12,9 @@
 //! `init::paths` (paths + config + env) and `init::startup` (subsystem
 //! boot + identity + session), re-exported at the `init` root.
 //!
-//! Split (file-cap): listener binding + direct event emit live in
-//! `super::net`, the agent-stack startup in `super::agent_stack`, the leak
-//! diagnostics in `super::diag`, and the post-serve drain in
-//! `super::shutdown`. This file owns the sequential composition story.
+//! Split (file-cap): the listener binding, direct event emit, agent-stack
+//! startup, leak diagnostics, first-run UX, and post-serve drain all live
+//! in `super::lifecycle`. This file owns the sequential composition story.
 
 use anyhow::{Result, anyhow};
 use ship_substrate::events::EventEnvelope;
@@ -90,10 +89,10 @@ pub async fn run_network(
     ship_runtime::init::start_runtime_subsystems(&rt, &paths.global_dir).await?;
     ship_runtime::init::register_active_space(&rt, &paths.global_dir, &paths.project_root).await?;
 
-    // L1 agent + diagnostic subsystems (split out per file-cap).
-    super::agent_stack::start_agent_stack(&rt, &paths.global_dir).await;
-    super::human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
-    super::diag::spawn_leak_diag(&rt);
+    // L1 agent + diagnostic subsystems (see super::lifecycle).
+    super::lifecycle::start_agent_stack(&rt, &paths.global_dir).await;
+    super::lifecycle::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
+    super::lifecycle::spawn_leak_diag(&rt);
 
     // L0 identity files + auth + sessions.
     let token = auth::read_or_generate_token(&paths.daemon_dir)?;
@@ -134,7 +133,7 @@ pub async fn run_network(
     );
 
     let (listener, port) =
-        super::net::bind_with_retry(&config.host, config.desired_port, config.user_pinned, &paths.global_dir).await?;
+        super::lifecycle::bind_with_retry(&config.host, config.desired_port, config.user_pinned, &paths.global_dir).await?;
     super::write_port_file(rt.daemon_dir(), port)?;
 
     let addr = format!("{}:{}", config.host, port);
@@ -165,7 +164,7 @@ pub async fn run_network(
     // First-run UX: if `data.db` doesn't exist yet, open the default
     // browser at `/setup` once the listener is bound. Harmless no-op on
     // subsequent starts; suppressible via `SHIP_NO_BROWSER=1`.
-    super::first_run::maybe_open_setup(&paths.global_dir, port);
+    super::lifecycle::maybe_open_setup(&paths.global_dir, port);
 
     // Emit the daemon.startup_completed event so external observers
     // (and the history projection) can correlate startup with later
@@ -210,8 +209,8 @@ pub async fn run_network(
     bundler_watcher.abort();
 
     // Bounded agent drain + sandbox reap + runtime shutdown + the
-    // daemon.shutdown_completed event — see `super::shutdown`.
-    super::shutdown::drain_and_shutdown(&rt, &paths.global_dir).await;
+    // daemon.shutdown_completed event — see `super::lifecycle`.
+    super::lifecycle::drain_and_shutdown(&rt, &paths.global_dir).await;
     Ok(())
 }
 

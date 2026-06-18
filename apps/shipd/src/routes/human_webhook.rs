@@ -8,7 +8,7 @@
 //! `router/mod.rs`) receives Telegram `Update` objects and emits
 //! `human.response` events on the kernel so Commander can unblock. The
 //! send side is the `HumanGatewayService` actor spawned by
-//! `daemon::human_gateway` when `SHIP_TELEGRAM_TOKEN`/`CHAT_ID` are set.
+//! `daemon::lifecycle` when `SHIP_TELEGRAM_TOKEN`/`CHAT_ID` are set.
 //!
 //! Authentication: Telegram's setWebhook API accepts a shared `secret_token`
 //! (max 256 chars, `[A-Za-z0-9_-]`) which Telegram echoes back on every

@@ -191,18 +191,10 @@ pub async fn shutdown_signal() {
 #[cfg(test)]
 mod tests;
 
-// First-run UX + Telegram human-gateway bootstrap — both are daemon-
-// startup concerns folded under this module for layout coherence.
-pub mod first_run;
-pub mod human_gateway;
-
-// run_network + its split-out phases (file-cap): listener binding/emit
-// (`net`), agent-stack startup (`agent_stack`), leak diagnostics (`diag`),
-// post-serve drain (`shutdown`).
-mod agent_stack;
-mod diag;
-mod net;
+// Daemon lifecycle helpers — agent-stack startup, leak diagnostics,
+// human-gateway bootstrap, listener binding/emit, first-run UX, and
+// post-serve drain. Folded from 6 small submodules for layout coherence.
+pub mod lifecycle;
 mod run;
-mod shutdown;
 
 pub use run::run_network;

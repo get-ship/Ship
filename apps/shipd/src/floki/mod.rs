@@ -7,7 +7,7 @@
 //!   Gateway, AuthContext, ToolCtx (kernel-backed SessionEventSink), and
 //!   ScriptExecutor, then calls `floki::run_step`. Its
 //!   `dispatch_floki_session` is the `FlokiRunFn` handed to ship-agents at
-//!   boot (`daemon::agent_stack`), invoked when `agent.session.started`
+//!   boot (`daemon::lifecycle`), invoked when `agent.session.started`
 //!   arrives with `harness == "floki"`.
 //!
 //! The floki crate (L1, ship-platform) gains no shipd dependency.

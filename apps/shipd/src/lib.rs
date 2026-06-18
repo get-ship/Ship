@@ -41,7 +41,7 @@ pub mod rpc;
 pub mod ports;
 // floki: the shipd ↔ floki seam — `gateway` (floki::Gateway over the
 // in-process ops router) + `floki_dispatch` (the floki-session composition
-// root dispatched from daemon::agent_stack). No reverse dependency
+// root dispatched from daemon::lifecycle). No reverse dependency
 // (floki → shipd); the arrow is shipd → floki only.
 pub mod floki;
 // dispatch: job+session dispatch composition root — gated because it
