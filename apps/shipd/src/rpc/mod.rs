@@ -9,10 +9,8 @@ pub mod account;
 // agent: policy + gate conformance tests for AgentsService.
 // The impl AgentsService for OpsImpl is deleted — AgentsWire (ship-agents) is
 // now the sole handler, mounted via AgentsServiceExt::register in `ops`.
-pub mod agent;
 pub mod events;
 pub mod ops;
-pub mod registry;
 pub mod runtime;
 pub mod search;
 // search_context: shipd-side SearchContext impl — sole consumer is `search`.
