@@ -25,8 +25,6 @@ fn install_test_platform_defaults() {
     ship_pipeline_runtime::install_projections();
 }
 
-#[cfg(feature = "ship-code")]
-pub mod sessions;
 pub mod auth;
 // wire: shared response envelope types. Stays at the crate root — it is the
 // bottom of the module DAG (auth AND routes consume it; see

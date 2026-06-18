@@ -3,9 +3,9 @@
 //! or revoke other sessions.
 //!
 //! "Auth sessions" here = the token registry. Distinct from PTY
-//! sessions (`sessions::api::list_pty_sessions` on `/api/v1/pty-sessions`)
-//! and workspace sessions (`runtime_api::list_workspace_sessions` on
-//! `/api/v1/sessions`).
+//! sessions (served by the Connect `TerminalService` in
+//! `ship.ops.v1`) and workspace sessions
+//! (`runtime_api::list_workspace_sessions` on `/api/v1/sessions`).
 
 use crate::auth::AuthContext;
 use crate::auth::scopes::{Scope, SessionRegistry, remove_persisted_session};

@@ -71,55 +71,7 @@ pub enum Route {
     // (`/_deck/source/{tag}`) are all owned by `deck::router()` now — shipd
     // serves no frontend surface, so those route variants were removed.
 
-    // ── Generic view serving ─────────────────────────────────────────────
-
-    /// @route POST "/api/v1/sessions/spawn"
-    /// @auth scope ManageRuns
-    SpawnPtySession,
-
-    /// @route GET "/api/v1/pty-sessions"
-    /// @auth scope ReadRuns
-    ListPtySessions,
-
-    /// @route GET "/api/v1/sessions/{id}"
-    /// @auth scope ReadRuns
-    GetPtySession { id: String },
-
-    /// @route DELETE "/api/v1/sessions/{id}"
-    /// @auth scope ManageRuns
-    StopPtySession { id: String },
-
-    /// @route POST "/api/v1/sessions/{id}/input"
-    /// @auth scope ManageRuns
-    PtySessionInput { id: String },
-
-    /// @route POST "/api/v1/sessions/{id}/resize"
-    /// @auth scope ManageRuns
-    PtySessionResize { id: String },
-
-    /// @route POST "/api/v1/sessions/{id}/message"
-    /// @auth scope ManageRuns
-    PtySessionMessage { id: String },
-
-    /// @route POST "/api/v1/sessions/{id}/reply"
-    /// @auth scope ManageRuns
-    PtySessionReply { id: String },
-
-    /// @route GET "/api/v1/sessions/{id}/stream"
-    /// @auth scope ManageRuns
-    StreamPtySession { id: String },
-
-    /// @route GET "/api/v1/sessions/{id}/events"
-    /// @auth scope ReadRuns
-    StreamPtySessionEvents { id: String },
-
-    /// @route GET "/api/v1/harnesses/installed"
-    /// @auth scope ReadWorkspace
-    InstalledProviders,
-
-
     // ── Events polling (slice 6) ──────────────────────────────────────────
-
     // ── Events / projections ─────────────────────────────────────────────
 
     /// @route GET "/api/v1/events/stream"

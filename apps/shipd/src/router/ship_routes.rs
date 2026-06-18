@@ -1,9 +1,6 @@
 //! The enumerated `/api/v1/*` route group, bound via `ShipRouterExt`.
 
 use axum::{Router, routing};
-
-#[cfg(feature = "ship-code")]
-use crate::sessions;
 use crate::routes::{artifacts_api, sandbox_api};
 use crate::ship_runtime::ApiState;
 
@@ -46,21 +43,5 @@ pub(super) fn build_ship_routes(st: ApiState) -> Router {
         )
         .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
 ;
-
-    // Sessions (PTY) — harness-driver stack; only compiled with ship-code.
-    #[cfg(feature = "ship-code")]
-    let router = router
-        .ship_route(Route::SpawnPtySession, sessions::api::spawn_session)
-        .ship_route(Route::ListPtySessions, sessions::api::list_pty_sessions)
-        .ship_route(Route::GetPtySession_template(), sessions::api::get_session)
-        .ship_route(Route::StopPtySession_template(), sessions::api::stop_session)
-        .ship_route(Route::PtySessionInput_template(), sessions::api::session_input)
-        .ship_route(Route::PtySessionResize_template(), sessions::api::session_resize)
-        .ship_route(Route::PtySessionMessage_template(), sessions::api::session_message)
-        .ship_route(Route::PtySessionReply_template(), sessions::api::session_reply)
-        .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
-        .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
-        .ship_route(Route::InstalledProviders, sessions::api::installed_harnesses);
-
     router.with_state(st)
 }
