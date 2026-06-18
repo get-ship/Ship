@@ -28,7 +28,7 @@ ship-files = { path = "../../crates/core/ship-platform/crates/ship-files" }
 ship-harnesses = { path = "../../crates/core/ship-platform/crates/ship-harnesses" }
 ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }
-ship-views = { path = "../../crates/core/ship-platform/crates/ship-views" }
+ship-ui = { path = "../../crates/core/ship-platform/crates/ship-ui" }
 ship-isolation = { path = "../../crates/core/ship-isolation", default-features = false }
 ship-substrate-host = { path = "../../crates/core/ship-substrate/crates/ship-substrate-host" }
 ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }

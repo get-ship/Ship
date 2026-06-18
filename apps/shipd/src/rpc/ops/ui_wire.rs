@@ -1,14 +1,12 @@
-//! ui.* mount — crate-owned `UiWire` (ship-views).
+//! ui.* mount — transport glue for the unified `UiService` (ship-ui).
 //!
-//! Replaces the previous `view_wire` + `sui` + `view` modules: the unified
-//! `UiService` trait (12 RPCs) is implemented by `ship_views::wire::UiWire`,
-//! and shipd supplies the per-daemon context (auth, edit-mode grants, tool
-//! dispatch, scaffold ship_dir, and the `sources/` tree the bundler emits).
-//!
-//! Sources root: `<ship_dir>/dist/_deck/sources/`. The deck-bundler emits the
-//! `sources/` tree at build time; the runtime reads it. When the path
-//! doesn't exist yet (no bundle built) the `Packs`/`Read` RPCs return empty
-//! results — the rest of the trait still serves its writes.
+//! The actual trait impl lives in `ship_ui::wire::UiWire`. shipd
+//! only constructs the wire and registers it via
+//! `UiServiceExt::register`; the platform owns the protocol. The
+//! chain resolver (`ship_ui::registry::ChainResolver`) is wired with
+//! the host's configured roots: workspace components (default =
+//! `ship_dir`) + the current space's `.ship/views/`. Future roots
+//! (shop registry, CDN) drop in without wire changes.
 
 use std::sync::Arc;
 
@@ -23,33 +21,33 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
     // permanently empty and every call already answered "not found". These
     // closures preserve that exact observable behavior; the three ops now live
     // under `ship.ui.write` / C1.
-    let view_patch_fn: ship_views::wire::PatchFn =
+    let view_patch_fn: ship_ui::wire::PatchFn =
         Arc::new(move |id, _agent, _selector, _html| {
             Box::pin(async move { Err(no_view_session(&id)) })
         });
-    let view_append_fn: ship_views::wire::AppendFn =
+    let view_append_fn: ship_ui::wire::AppendFn =
         Arc::new(move |id, _agent, _selector, _html| {
             Box::pin(async move { Err(no_view_session(&id)) })
         });
-    let view_signal_fn: ship_views::wire::SignalFn =
+    let view_signal_fn: ship_ui::wire::SignalFn =
         Arc::new(move |id, _agent, _name, _value| {
             Box::pin(async move { Err(no_view_session(&id)) })
         });
     // `UiService.Tool` — inlined from the now-cut
     // `routes::view_edit_tool_api::dispatch_tool_core`. The handler body
     // was a 3-line wrapper around
-    // `ship_views::view_authoring::tool_dispatch::dispatch(&adapter, …)`;
+    // `ship_ui::view_authoring::tool_dispatch::dispatch(&adapter, …)`;
     // with the REST shell gone, the Connect closure calls `dispatch`
     // directly and maps `DispatchResult` to the Connect surface.
-    use ship_views::view_authoring::tool_dispatch::DispatchResult as DR;
+    use ship_ui::view_authoring::tool_dispatch::DispatchResult as DR;
     let view_state_for_tool = state.clone();
-    let view_tool_fn: ship_views::wire::ToolFn =
+    let view_tool_fn: ship_ui::wire::ToolFn =
         Arc::new(move |view, session_id, op, args| {
             let st = view_state_for_tool.clone();
             Box::pin(async move {
                 let adapter = crate::ports::view::ViewToolAdapter::new(st);
                 let result =
-                    ship_views::view_authoring::tool_dispatch::dispatch(
+                    ship_ui::view_authoring::tool_dispatch::dispatch(
                         &adapter, view, session_id, op, args,
                     )
                     .await;
@@ -73,7 +71,7 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
                 }
             })
         });
-    let view_agent_fn: ship_views::wire::AgentFn =
+    let view_agent_fn: ship_ui::wire::AgentFn =
         Arc::new(|ctx: &connectrpc::RequestContext| {
             ctx.extensions
                 .get::<crate::auth::AuthContext>()
@@ -83,7 +81,7 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
     // scaffold_fn: moves scaffold_view route-core into the UiWire.
     // Runs synchronous fs I/O in spawn_blocking so the future is Send.
     let scaffold_ship_dir = state.ship_dir().to_path_buf();
-    let view_scaffold_fn: ship_views::wire::ScaffoldViewFn =
+    let view_scaffold_fn: ship_ui::wire::ScaffoldViewFn =
         Arc::new(move |name: String, shape: String, purpose: Option<String>| {
             let ship_dir = scaffold_ship_dir.clone();
             Box::pin(async move {
@@ -94,14 +92,20 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
                 .map_err(|e| ConnectError::internal(format!("scaffold task: {e}")))?
             })
         });
-    // Sources root — the bundle's emitted `sources/` tree. Convention:
-    // `<ship_dir>/.deck/sources/` (matches `deck_bundler::BundleLayout::deck_out()`
-    // for framework-singleton bundles and the `assets_dir_for("...")` path for
-    // view bundles). May not exist yet (no bundle run); the wire handles
-    // missing dirs with empty Packs / NotFound Read.
-    let sources_root = state.ship_dir().join(".deck").join("sources");
-    let ui_wire = Arc::new(ship_views::wire::UiWire::new(
-        sources_root,
+    // Resolver chain — the wire is generic; shipd configures the
+    // roots. Default to: workspace components (ship_dir) + the
+    // current space's .ship/views/ dir. The host (ship.jsonc or
+    // `ship ui set-roots`) can override. Multiple roots compose;
+    // first match wins.
+    let ship_dir = state.ship_dir().to_path_buf();
+    let views_root = ship_dir.join(".ship").join("views");
+    let resolver: Arc<dyn ship_ui::registry::ComponentResolver> =
+        Arc::new(ship_ui::registry::ChainResolver::new(vec![
+            ship_ui::registry::Root::Workspace { dir: ship_dir },
+            ship_ui::registry::Root::ViewsDir { dir: views_root },
+        ]));
+    let ui_wire = Arc::new(ship_ui::wire::UiWire::new(
+        resolver,
         view_agent_fn,
         view_patch_fn,
         view_append_fn,
@@ -138,7 +142,7 @@ fn scaffold_view_sync(
     }
 
     let scaffold_rel = std::path::PathBuf::from("skills")
-        .join("ship-views")
+        .join("ship-ui")
         .join("scaffolds")
         .join(shape);
     let mut scaffold_src: Option<std::path::PathBuf> = None;

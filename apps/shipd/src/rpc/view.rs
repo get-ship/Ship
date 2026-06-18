@@ -1,6 +1,6 @@
 //! `UiService` policy + gate conformance tests.
 //!
-//! The `impl UiService for OpsImpl` is gone — `UiWire` (ship-views) is now the
+//! The `impl UiService for OpsImpl` is gone — `UiWire` (ship-ui) is now the
 //! sole handler, mounted via `UiServiceExt::register` in `rpc/ops/ui_wire`.
 //!
 //! The unified `ship.ui` service (proto/ship/ops/v1/ui.proto) carries

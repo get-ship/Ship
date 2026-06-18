@@ -294,7 +294,7 @@ pub fn router(state: ApiState) -> axum::Router {
     };
     let router = ship_ops_rpc::EventsServiceExt::register(svc.clone(), router);
     // ui.* — the unified authoring service (compiler analysis + view authoring
-    // + component discovery). Crate-owned `UiWire` (ship-views); closures in
+    // + component discovery). Crate-owned `UiWire` (ship-ui); closures in
     // `ui_wire`. Replaces the retired `sui.*` and `view.*` services.
     let router = ui_wire::mount(router, &state);
     // search — ShipdSearchWire (rpc::search) branches on the request scope:

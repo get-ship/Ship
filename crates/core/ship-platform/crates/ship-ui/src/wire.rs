@@ -6,25 +6,20 @@
 //! `proto/ship/ops/v1/ui.proto` for the single-source contract.
 //!
 //! Four groups of handlers:
-//!   * Component discovery (`packs`, `read`) — C0 reads served from a
-//!     `sources_root` directory the daemon was booted with. The host passes the
-//!     path; this crate does not couple to shipd's `ApiState` for source
-//!     location. Packs scans the on-disk source tree; Read serves one file.
+//!   * Component discovery (`packs`, `read`) — C0 reads delegated to an
+//!     injected `Arc<dyn ComponentResolver>`. The resolver chain is
+//!     constructed by the host (shipd) at mount time; this crate
+//!     never walks a directory or composes a path from a tag.
 //!   * SUI compiler analysis (`diagnostics`, `hover`, `dependencies`) — C0
 //!     reads. The analyses run in-process against the `sui_compiler` analysis
 //!     facade (the same Rust intelligence the LSP server uses — no bun/node).
 //!   * View authoring writes (`patch_session`, `append_session`,
 //!     `signal_session`, `enter_edit_mode`, `exit_edit_mode`, `tool`) — the
-//!     first three are injected via typed async closures from shipd
-//!     (`rpc/ops/view_wire.rs`); the edit-mode grants + tool call into
-//!     `ship_views::view_authoring` directly.
+//!     first three are injected via typed async closures from the host;
+//!     the edit-mode grants + tool call into
+//!     `ship_ui::view_authoring` directly.
 //!   * Scaffold (`scaffold`) — sync fs work via a closure, spawn_blocking
 //!     wrapped.
-//!
-//! Agent-identity binding is preserved: `patch_session`, `append_session`,
-//! `signal_session` all require an `agent_id` extracted from the auth context.
-//! The `AgentFn` closure handles that extraction without coupling this crate
-//! to shipd's `AuthContext` type.
 //!
 //! Gates: all reads carry `ship.ui.read` / C0; all writes carry
 //! `ship.ui.write` / C1 in the proto descriptor; the auth middleware rejects
@@ -38,7 +33,7 @@ use std::sync::Arc;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use serde_json::{json, Value};
 use ship_ops_rpc::{
-    JsonResponse, UiComponent, UiPack, UiQueryResponse, UiReadResponse, UiService as UiServiceTrait,
+    JsonResponse, UiQueryResponse, UiReadResponse, UiService as UiServiceTrait,
     ViewScaffoldResponse,
 };
 
@@ -80,11 +75,14 @@ pub type ScaffoldViewFn = Arc<
 
 /// ConnectRPC wire for the unified `UiService`.
 ///
-/// `sources_root` is the bundle's emitted `sources/` tree; `packs` walks it
-/// and `read` resolves a relative path against it. Shipd sets the path at
-/// boot from its bundle config.
+/// Component discovery (`Packs`, `Read`) is delegated to an injected
+/// `Arc<dyn ComponentResolver>`. The wire does NOT know where
+/// components live — that's the host's convention, expressed as a
+/// chain of `Root` entries (workspace, per-space views, future
+/// shop / CDN). The host (shipd) constructs the resolver chain at
+/// mount time from its config; the wire just calls it.
 pub struct UiWire {
-    sources_root: PathBuf,
+    resolver:     Arc<dyn crate::registry::ComponentResolver>,
     agent_fn:     AgentFn,
     patch_fn:     PatchFn,
     append_fn:    AppendFn,
@@ -95,16 +93,16 @@ pub struct UiWire {
 
 impl UiWire {
     pub fn new(
-        sources_root: PathBuf,
-        agent_fn:     AgentFn,
-        patch_fn:     PatchFn,
-        append_fn:    AppendFn,
-        signal_fn:    SignalFn,
-        tool_fn:      ToolFn,
-        scaffold_fn:  ScaffoldViewFn,
+        resolver:    Arc<dyn crate::registry::ComponentResolver>,
+        agent_fn:    AgentFn,
+        patch_fn:    PatchFn,
+        append_fn:   AppendFn,
+        signal_fn:   SignalFn,
+        tool_fn:     ToolFn,
+        scaffold_fn: ScaffoldViewFn,
     ) -> Self {
         Self {
-            sources_root,
+            resolver,
             agent_fn,
             patch_fn,
             append_fn,
@@ -163,171 +161,9 @@ fn read_sui_source(file: &str) -> Result<(PathBuf, String), String> {
         .map_err(|e| format!("failed to read {}: {e}", abs.display()))?;
     Ok((abs, source))
 }
-
-/// Resolve a relative `path` against the wire's `sources_root`. Returns
-/// `(absolute, source, mtime_iso8601)` on success.
-fn read_source_from_bundle(
-    sources_root: &std::path::Path,
-    path: &str,
-) -> Result<(PathBuf, String, String), String> {
-    if path.is_empty() {
-        return Err("path is required".to_string());
-    }
-    let rel = std::path::Path::new(path);
-    if rel.is_absolute() {
-        return Err("path must be relative to sources/".to_string());
-    }
-    // Reject `..` components to keep resolution inside the bundle.
-    for comp in rel.components() {
-        if matches!(comp, std::path::Component::ParentDir) {
-            return Err("path may not contain '..'".to_string());
-        }
-    }
-    let abs = sources_root.join(rel);
-    if !abs.is_file() {
-        return Err(format!("source not found in bundle: {path}"));
-    }
-    let source = std::fs::read_to_string(&abs)
-        .map_err(|e| format!("failed to read {}: {e}", abs.display()))?;
-    let mtime = std::fs::metadata(&abs)
-        .and_then(|m| m.modified())
-        .ok()
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| {
-            // Trivial RFC3339-ish: seconds since epoch as a string. The studio
-            // doesn't need sub-second precision and chrono isn't worth pulling
-            // in for a single timestamp field.
-            format!("{}", d.as_secs())
-        })
-        .unwrap_or_default();
-    Ok((abs, source, mtime))
-}
-
-/// Walk `sources_root` once, producing a flat catalog of packs.
-///
-/// The catalog key is the first path segment of every `.sui` file
-/// (e.g. `primitives/sui-button.sui` → pack id `@sui/primitives`). The pack
-/// `category` is the first segment (`primitives` / `ship` / `user`). The
-/// `id` is `@<category>/<segment>` — matching the npm-style naming the design
-/// bundle uses for `sui-*` and `ship-*` packs.
-fn catalog_from_bundle(
-    sources_root: &std::path::Path,
-) -> Result<Vec<UiPack>, String> {
-    use std::collections::BTreeMap;
-
-    let mut packs: BTreeMap<String, UiPack> = BTreeMap::new();
-    walk_sources(sources_root, sources_root, &mut packs)?;
-    Ok(packs.into_values().collect())
-}
-
-fn walk_sources(
-    root: &std::path::Path,
-    dir: &std::path::Path,
-    packs: &mut std::collections::BTreeMap<String, UiPack>,
-) -> Result<(), String> {
-    let entries = std::fs::read_dir(dir)
-        .map_err(|e| format!("read_dir {}: {e}", dir.display()))?;
-    for entry in entries {
-        let entry = entry.map_err(|e| format!("dir entry: {e}"))?;
-        let path = entry.path();
-        let file_ty = entry.file_type().map_err(|e| format!("file_type: {e}"))?;
-        if file_ty.is_dir() {
-            walk_sources(root, &path, packs)?;
-        } else if file_ty.is_file() && path.extension().and_then(|s| s.to_str()) == Some("sui") {
-            let rel = path
-                .strip_prefix(root)
-                .map_err(|e| format!("strip_prefix: {e}"))?
-                .to_string_lossy()
-                .replace('\\', "/");
-            register_component(&path, &rel, packs);
-        }
-    }
-    Ok(())
-}
-
-fn register_component(
-    abs: &std::path::Path,
-    rel: &str,
-    packs: &mut std::collections::BTreeMap<String, UiPack>,
-) {
-    let first = rel.split('/').next().unwrap_or("user");
-    let category = match first {
-        "primitives" => "primitives",
-        "ship" => "ship",
-        _ => "user",
-    };
-    let id = match category {
-        "primitives" => format!("@sui/{first}"),
-        "ship" => format!("@ship/{first}"),
-        _ => format!("@user/{first}"),
-    };
-    let title = match (category, first) {
-        ("primitives", "primitives") => "SUI Primitives",
-        ("ship", "artifacts") => "Ship Artifacts",
-        ("ship", "collections") => "Ship Collections",
-        ("ship", "primitives") => "Ship Primitives",
-        _ => first,
-    }
-    .to_string();
-
-    // Tag = the filename without `.sui`. We don't introspect props/slots/events
-    // here — the studio reads the source via `Read` and parses it itself.
-    let tag = abs
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("?")
-        .to_string();
-
-    let entry = packs.entry(id.clone()).or_insert_with(|| UiPack {
-        id: id.clone(),
-        category: category.to_string(),
-        title: title.clone(),
-        components: Vec::new(),
-        __buffa_unknown_fields: Default::default(),
-    });
-    entry.components.push(UiComponent {
-        tag,
-        file: rel.to_string(),
-        title: String::new(),
-        props: Vec::new(),
-        slots: Vec::new(),
-        events: Vec::new(),
-        __buffa_unknown_fields: Default::default(),
-    });
-}
-
-fn apply_query_filter(
-    packs: Vec<UiPack>,
-    category: &str,
-    tag_contains: &str,
-    has_prop: &str,
-    has_slot: &str,
-    has_event: &str,
-) -> Vec<UiPack> {
-    packs
-        .into_iter()
-        .filter(|p| category.is_empty() || p.category == category)
-        .map(|mut p| {
-            p.components.retain(|c| {
-                let tag_ok = tag_contains.is_empty() || c.tag.contains(tag_contains);
-                // has_prop / has_slot / has_event — the catalog emitted here
-                // doesn't introspect, so without a parse pass these are
-                // always empty. Until the studio's per-file introspect lands,
-                // these filters match everything (a no-op) when the
-                // substring is empty and match nothing when set. That's the
-                // honest behavior: callers asking for a specific prop see
-                // an empty list, not silently all.
-                let prop_ok = has_prop.is_empty();
-                let slot_ok = has_slot.is_empty();
-                let event_ok = has_event.is_empty();
-                tag_ok && prop_ok && slot_ok && event_ok
-            });
-            p
-        })
-        .filter(|p| !p.components.is_empty())
-        .collect()
-}
-
+// Component discovery (packs, read) lives in `crate::registry`. The
+// wire delegates to the resolver chain; the wire never walks a
+// bundle directory or composes a path from a tag.
 // ── Trait implementation ──────────────────────────────────────────────────────
 
 #[allow(refining_impl_trait)]
@@ -339,18 +175,19 @@ impl UiServiceTrait for UiWire {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedUiQueryReqView,
     ) -> ServiceResult<UiQueryResponse> {
-        let packs = catalog_from_bundle(&self.sources_root)
+        let packs = self
+            .resolver
+            .packs(crate::registry::PacksQuery {
+                category:     request.category.to_string(),
+                tag_contains: request.tag_contains.to_string(),
+                has_prop:     request.has_prop.to_string(),
+                has_slot:     request.has_slot.to_string(),
+                has_event:    request.has_event.to_string(),
+            })
+            .await
             .map_err(ConnectError::internal)?;
-        let filtered = apply_query_filter(
-            packs,
-            request.category,
-            request.tag_contains,
-            request.has_prop,
-            request.has_slot,
-            request.has_event,
-        );
         Ok(Response::new(UiQueryResponse {
-            packs: filtered,
+            packs,
             __buffa_unknown_fields: Default::default(),
         }))
     }
@@ -360,21 +197,18 @@ impl UiServiceTrait for UiWire {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedUiReadReqView,
     ) -> ServiceResult<UiReadResponse> {
-        let (_abs, source, mtime) = read_source_from_bundle(&self.sources_root, request.path)
+        let loc = self
+            .resolver
+            .read(request.path.to_string())
+            .await
             .map_err(ConnectError::invalid_argument)?;
-        // The host can fall back to its own CDN / ship-store resolver using
-        // `request.fallback_urls` — but the bundle is the fast path. If the
-        // caller supplied fallbacks, we still return the bundle source and
-        // report the resolved location so the caller can decide.
-        let resolved_at = format!("bundle://{}", request.path);
         Ok(Response::new(UiReadResponse {
-            source,
-            resolved_at,
-            mtime,
+            source:      loc.source,
+            resolved_at: loc.origin,
+            mtime:       loc.mtime,
             __buffa_unknown_fields: Default::default(),
         }))
     }
-
     // ── SUI compiler analysis (C0) ────────────────────────────────────────
 
     async fn diagnostics(

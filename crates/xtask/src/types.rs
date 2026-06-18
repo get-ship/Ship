@@ -154,32 +154,32 @@ pub fn collect_framework_types() -> TypeCollection {
     c.register::<shipd::views::resolve::ManifestRail>();
 
     // view-authoring — contract types shared with the chrome edit-mode UI.
-    c.register::<ship_views::view_authoring::CompileError>();
-    c.register::<ship_views::view_authoring::SnapshotMeta>();
-    c.register::<ship_views::view_authoring::ViewReadSourceRequest>();
-    c.register::<ship_views::view_authoring::ViewReadSourceResponse>();
-    c.register::<ship_views::view_authoring::ViewWriteSourceRequest>();
-    c.register::<ship_views::view_authoring::ViewWriteSourceResponse>();
-    c.register::<ship_views::view_authoring::ViewCompileCheckRequest>();
-    c.register::<ship_views::view_authoring::ViewCompileCheckResponse>();
-    c.register::<ship_views::view_authoring::ViewCollectionsSchemaRequest>();
-    c.register::<ship_views::view_authoring::ViewListSiblingsRequest>();
-    c.register::<ship_views::view_authoring::SiblingView>();
-    c.register::<ship_views::view_authoring::ViewListSiblingsResponse>();
-    c.register::<ship_views::view_authoring::ViewThemeTokensRequest>();
-    c.register::<ship_views::view_authoring::ViewThemeTokensResponse>();
-    c.register::<ship_views::view_authoring::ViewPreviewSnapshotRequest>();
-    c.register::<ship_views::view_authoring::ViewPreviewSnapshotResponse>();
-    c.register::<ship_views::view_authoring::AnnotationKind>();
-    c.register::<ship_views::view_authoring::ViewAnnotateRequest>();
-    c.register::<ship_views::view_authoring::ViewAnnotateResponse>();
-    c.register::<ship_views::view_authoring::ViewListSnapshotsRequest>();
-    c.register::<ship_views::view_authoring::ViewListSnapshotsResponse>();
-    c.register::<ship_views::view_authoring::ViewRestoreSnapshotRequest>();
-    c.register::<ship_views::view_authoring::ViewRestoreSnapshotResponse>();
-    c.register::<ship_views::view_authoring::ViewEditModeEnterRequest>();
-    c.register::<ship_views::view_authoring::ViewEditModeExitRequest>();
-    c.register::<ship_views::view_authoring::ViewEditModeAck>();
+    c.register::<ship_ui::view_authoring::CompileError>();
+    c.register::<ship_ui::view_authoring::SnapshotMeta>();
+    c.register::<ship_ui::view_authoring::ViewReadSourceRequest>();
+    c.register::<ship_ui::view_authoring::ViewReadSourceResponse>();
+    c.register::<ship_ui::view_authoring::ViewWriteSourceRequest>();
+    c.register::<ship_ui::view_authoring::ViewWriteSourceResponse>();
+    c.register::<ship_ui::view_authoring::ViewCompileCheckRequest>();
+    c.register::<ship_ui::view_authoring::ViewCompileCheckResponse>();
+    c.register::<ship_ui::view_authoring::ViewCollectionsSchemaRequest>();
+    c.register::<ship_ui::view_authoring::ViewListSiblingsRequest>();
+    c.register::<ship_ui::view_authoring::SiblingView>();
+    c.register::<ship_ui::view_authoring::ViewListSiblingsResponse>();
+    c.register::<ship_ui::view_authoring::ViewThemeTokensRequest>();
+    c.register::<ship_ui::view_authoring::ViewThemeTokensResponse>();
+    c.register::<ship_ui::view_authoring::ViewPreviewSnapshotRequest>();
+    c.register::<ship_ui::view_authoring::ViewPreviewSnapshotResponse>();
+    c.register::<ship_ui::view_authoring::AnnotationKind>();
+    c.register::<ship_ui::view_authoring::ViewAnnotateRequest>();
+    c.register::<ship_ui::view_authoring::ViewAnnotateResponse>();
+    c.register::<ship_ui::view_authoring::ViewListSnapshotsRequest>();
+    c.register::<ship_ui::view_authoring::ViewListSnapshotsResponse>();
+    c.register::<ship_ui::view_authoring::ViewRestoreSnapshotRequest>();
+    c.register::<ship_ui::view_authoring::ViewRestoreSnapshotResponse>();
+    c.register::<ship_ui::view_authoring::ViewEditModeEnterRequest>();
+    c.register::<ship_ui::view_authoring::ViewEditModeExitRequest>();
+    c.register::<ship_ui::view_authoring::ViewEditModeAck>();
 
     c
 }

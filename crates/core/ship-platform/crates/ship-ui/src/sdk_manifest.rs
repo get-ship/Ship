@@ -16,7 +16,7 @@ use serde_json::Value;
 // ── Embedded manifest ─────────────────────────────────────────────────────────
 //
 // Paths are relative to this source file, which lives at:
-//   crates/core/ship-platform/crates/ship-views/src/sdk_manifest.rs
+//   crates/core/ship-platform/crates/ship-ui/src/sdk_manifest.rs
 // Six levels up reaches the workspace root.
 
 const SDK_URLS: &str = include_str!(

@@ -2,7 +2,7 @@
 //!
 //! Relocated from `apps/shipd/src/routes/view_edit_tool_api.rs` (Batch C
 //! routes-cull). All daemon-specific capabilities are injected via
-//! `ViewToolPort` declared in `ship_views::view_ports`.
+//! `ViewToolPort` declared in `ship_ui::view_ports`.
 //!
 //! `dispatch` is the single entry point. shipd's REST handler and the
 //! `ViewWire` Connect closure both funnel through it.

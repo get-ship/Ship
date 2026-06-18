@@ -1,7 +1,7 @@
-//! Port traits for daemon-specific capabilities consumed by ship-views domain logic.
+//! Port traits for daemon-specific capabilities consumed by ship-ui domain logic.
 //!
 //! Follows the same pattern as `apps/shipd/src/agent_event_ports.rs` and
-//! `pipeline_ports.rs`. ship-views declares the trait; shipd implements it in
+//! `pipeline_ports.rs`. ship-ui declares the trait; shipd implements it in
 //! `apps/shipd/src/view_ports.rs` and injects the concrete adapter via the
 //! `ViewWire` closures or direct state passing.
 //!

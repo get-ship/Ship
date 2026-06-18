@@ -1,7 +1,7 @@
 //! Port implementations — shipd-side adapters for L1 crate ports.
 //!
 //! Each module implements a port trait owned by a lower-layer crate
-//! (deck's `DataPort`, ship-views' `ViewToolPort`, ship-pipeline-runtime's
+//! (deck's `DataPort`, ship-ui' `ViewToolPort`, ship-pipeline-runtime's
 //! dispatch ports, ship-device's session ports, ship-agents' event
 //! adapters), wiring it to `ShipRuntime` state.
 

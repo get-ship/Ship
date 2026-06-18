@@ -1,7 +1,7 @@
-//! Shipd implementations of the ship-views port traits.
+//! Shipd implementations of the ship-ui port traits.
 //!
 //! Bridges `ApiState` (Arc<ShipRuntime>) to the abstract ports declared in
-//! `ship_views::view_ports`. Follows the same pattern as
+//! `ship_ui::view_ports`. Follows the same pattern as
 //! `agent_event_ports.rs` and `pipeline_ports.rs`.
 
 use std::path::PathBuf;
@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use ship_substrate::ports::SpaceContext;
-use ship_views::view_ports::{BundlerBuildError, ViewToolPort};
+use ship_ui::view_ports::{BundlerBuildError, ViewToolPort};
 
 use crate::ship_runtime::ApiState;
 
@@ -50,7 +50,7 @@ impl ViewToolPort for ViewToolAdapter {
     }
 
     fn space_context(&self, space: &str) -> Arc<SpaceContext> {
-        ship_views::view_authoring::space_context_for(
+        ship_ui::view_authoring::space_context_for(
             self.state.kernel().clone(),
             self.state.ship_dir(),
             space,
@@ -72,7 +72,7 @@ impl ViewToolPort for ViewToolAdapter {
     fn resolve_theme_css(&self) -> String {
         // Theme resolution now lives in deck-core (the single owner of the
         // CSS/theme serving surface). shipd delegates — the non-serving
-        // consumer is `ship_views::view_authoring::tool_dispatch`.
+        // consumer is `ship_ui::view_authoring::tool_dispatch`.
         deck_core::resolve_theme_css()
     }
 }
