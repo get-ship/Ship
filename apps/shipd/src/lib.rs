@@ -42,7 +42,7 @@ pub mod rpc;
 // pipeline dispatch, device sessions, agent event adapters).
 pub mod ports;
 // floki: the shipd ↔ floki seam — `gateway` (floki::Gateway over the
-// in-process ops router) + `first_light` (the floki-session composition
+// in-process ops router) + `floki_dispatch` (the floki-session composition
 // root dispatched from daemon::agent_stack). No reverse dependency
 // (floki → shipd); the arrow is shipd → floki only.
 pub mod floki;

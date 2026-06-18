@@ -74,7 +74,7 @@ impl EventSink for ShipdKernelSink {
                 session_id: event.session_id.clone(),
             };
             if let Err(e) = kernel.lock().await.emit(event, &ctx).await {
-                tracing::warn!("floki_first_light: kernel emit failed: {e}");
+                tracing::warn!("floki_floki_dispatch: kernel emit failed: {e}");
             }
         });
         Ok(())
@@ -399,7 +399,7 @@ mod tests {
     ///   3. Loop completes and returns the scripted text.
     ///   4. The C0 op does NOT appear as denied in the output.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn first_light_smoke_c0_read_session_events_and_gate_clear() {
+    async fn floki_dispatch_smoke_c0_read_session_events_and_gate_clear() {
         let harness = crate::test_harness::TestDaemon::new().await;
         let gw: Arc<dyn floki::Gateway> =
             Arc::new(ShipdGateway::new(crate::rpc::ops::router(harness.state.clone())));
@@ -455,7 +455,7 @@ mod tests {
     /// This validates the gate-verdict-reaches-model path through the real ops
     /// router, not the stub InProcessGateway.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn first_light_smoke_denied_c2_gate_verdict_reaches_model_and_session_events() {
+    async fn floki_dispatch_smoke_denied_c2_gate_verdict_reaches_model_and_session_events() {
         let harness = crate::test_harness::TestDaemon::new().await;
         let gw: Arc<dyn floki::Gateway> =
             Arc::new(ShipdGateway::new(crate::rpc::ops::router(harness.state.clone())));
@@ -509,7 +509,7 @@ mod tests {
     /// ANTHROPIC_API_KEY and SHIP_MODEL are set in the environment.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     #[ignore = "requires ANTHROPIC_API_KEY + SHIP_MODEL in env; run manually"]
-    async fn first_light_live_run_with_real_api_key() {
+    async fn floki_dispatch_live_run_with_real_api_key() {
         let harness = crate::test_harness::TestDaemon::new().await;
         let gw = Arc::new(ShipdGateway::new(crate::rpc::ops::router(harness.state.clone())));
         let agent = floki_agent(&["collections"]);
