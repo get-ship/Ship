@@ -25,7 +25,7 @@ mod procs;
 mod tail;
 mod sui;
 mod logging;
-mod uninstall;
+
 mod mcp;
 mod paths;
 mod profile;
@@ -114,8 +114,6 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 use cli::AuthCommands;
                 match action {
                     AuthCommands::Pair { code } => auth::run_auth_pair(&code),
-                    AuthCommands::Status => auth::run_auth_status(),
-                    AuthCommands::Revoke { token, all } => auth::run_auth_revoke(token.as_deref(), all),
                 }
             }
             Commands::Use {
@@ -244,7 +242,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             Commands::Build { dry_run } => build::run(dry_run),
             Commands::Isolation { action } => isolation_cmd::run(action),
             Commands::Events { action } => dispatch_events(action),
-            Commands::Uninstall { yes } => uninstall::run(yes),
+
         },
     }
 }

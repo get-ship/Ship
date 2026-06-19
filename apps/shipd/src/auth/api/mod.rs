@@ -1,25 +1,14 @@
-//! Auth HTTP surface — three orthogonal flows split per concern:
+//! Auth HTTP surface — two orthogonal flows split per concern:
 //!
 //! - [`pairing`] — browser pair-init / pair-confirm / pair-status
 //! - [`attest`] — server-side JWT attestation
-//! - [`sessions`] — auth-token list + revoke (daemon-token only)
-//!
-//! Re-exports flatten the import path; existing call sites
-//! (`router.rs`, `routes/openapi.rs`) continue to resolve through
-//! `crate::auth::*`.
-
 pub mod attest;
 pub mod pairing;
-pub mod sessions;
 
 pub use attest::{AttestRequest, AttestResponse, server_attest};
 pub use pairing::{
     PairConfirmRequest, PairConfirmResponse, PairInitRequest, PairInitResponse, PairStatusQuery,
     PairStatusResponse, pair_confirm, pair_init, pair_status,
-};
-pub use sessions::{
-    ListSessionsResponse, RevokeSessionsRequest, RevokeSessionsResponse, SessionSummary,
-    list_auth_sessions, revoke_sessions,
 };
 
 #[cfg(test)]

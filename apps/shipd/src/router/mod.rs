@@ -82,11 +82,9 @@ pub fn build_router(
 
     let auth_token = token;
     let auth_registry = session_registry;
-    // Authenticated pair confirm + session management — require daemon.token bearer.
+    // Authenticated pair confirm + session register — require daemon.token bearer.
     let pair_confirm_reg = pairing_registry.clone();
     let pair_confirm_sessions = auth_registry.clone();
-    let list_sessions_registry = auth_registry.clone();
-    let revoke_sessions_registry = auth_registry.clone();
     let pair_confirm_routes = Router::new()
         .route(
             "/auth/pair/confirm",
@@ -97,18 +95,6 @@ pub fn build_router(
                     auth_ext,
                     body,
                 )
-            }),
-        )
-        .route(
-            "/auth/sessions",
-            axum::routing::get(move |auth_ext: axum::Extension<auth::AuthContext>| {
-                auth::list_auth_sessions(list_sessions_registry.clone(), auth_ext)
-            }),
-        )
-        .route(
-            "/auth/sessions/revoke",
-            axum::routing::post(move |auth_ext: axum::Extension<auth::AuthContext>, body: axum::Json<auth::RevokeSessionsRequest>| {
-                auth::revoke_sessions(revoke_sessions_registry.clone(), auth_ext, body)
             }),
         )
         .route("/api/session/register", axum::routing::post(move |
@@ -297,7 +283,7 @@ mod merge_tests {
             "/_deck/runtime.js",
             "/shell/_assets/x.js",
             "/space/abc",
-            "/auth/sessions",
+
             "/hooks/session-start",
             "/webhook/telegram",
             "/favicon.ico",                 // dotted asset

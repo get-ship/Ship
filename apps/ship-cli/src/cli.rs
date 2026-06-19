@@ -344,12 +344,7 @@ pub enum Commands {
     },
 
 
-    /// Uninstall Ship from this machine (stops daemon, removes ~/.ship, scrubs PATH)
-    Uninstall {
-        /// Skip the confirmation prompt
-        #[arg(long)]
-        yes: bool,
-    },
+
 
 
 }
@@ -445,17 +440,7 @@ pub enum AuthCommands {
         /// The pairing code shown in Studio (e.g. "4F8-2K9")
         code: String,
     },
-    /// List active paired sessions
-    Status,
-    /// Revoke paired sessions
-    Revoke {
-        /// Revoke only sessions whose token starts with this prefix
-        #[arg(long, conflicts_with = "all")]
-        token: Option<String>,
-        /// Revoke all persisted sessions
-        #[arg(long, conflicts_with = "token")]
-        all: bool,
-    },
+
 }
 
 #[derive(Subcommand, Debug)]

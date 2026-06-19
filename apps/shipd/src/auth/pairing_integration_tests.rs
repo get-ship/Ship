@@ -1,12 +1,11 @@
 //! Integration tests for the pairing flow.
 //!
-//! Exercises the full init → confirm → status → revoke chain through the
-//! handler functions, asserting that:
+//! Exercises the full init → confirm → status chain through the handler
+//! functions, asserting that:
 //!   - Session tokens come back with Full scope
 //!   - Codes are single-use
 //!   - Claim tokens are single-use
 //!   - Paired sessions persist across restarts via KV
-//!   - Revoke removes from both registry and KV
 
 use crate::auth;
 use crate::auth::{AuthContext, Scope};
@@ -281,48 +280,3 @@ async fn ephemeral_session_not_persisted() {
     );
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn revoke_removes_from_registry_and_kv() {
-    setup_ship_dir();
-    let reg = pairing::new_shared();
-    let sessions = session_registry();
-
-    // Pair to create a persisted session.
-    let init = auth::pair_init(reg.clone(), sessions.clone(), None, None)
-        .await
-        .unwrap();
-    let _ = auth::pair_confirm(
-        reg.clone(),
-        sessions.clone(),
-        axum::Extension(full_auth()),
-        axum::Json(auth::PairConfirmRequest { code: init.0.code.clone() }),
-    )
-    .await;
-
-    // Find the issued session token.
-    let token = {
-        let r = sessions.lock().await;
-        r.keys().next().unwrap().clone()
-    };
-
-    // Revoke it.
-    let resp = auth::revoke_sessions(
-        sessions.clone(),
-        axum::Extension(full_auth()),
-        axum::Json(auth::RevokeSessionsRequest {
-            token_prefix: Some(token[..16].to_string()),
-            all: false,
-        }),
-    )
-    .await
-    .unwrap();
-    assert_eq!(resp.0.revoked, 1);
-
-    // Registry empty.
-    assert!(sessions.lock().await.is_empty());
-
-    // Hydrate from KV — should not reappear.
-    let fresh = session_registry();
-    auth::hydrate_sessions(&fresh).await;
-    assert!(fresh.lock().await.is_empty(), "revoked session must be deleted from KV");
-}
