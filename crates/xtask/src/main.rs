@@ -4,7 +4,6 @@
 //!   cargo xtask gen-types          # regenerate packages/deck/sdk/src/generated.ts
 //!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
 
-mod build_assets;
 mod cli;
 mod coverage;
 mod gen_audit_readme;
