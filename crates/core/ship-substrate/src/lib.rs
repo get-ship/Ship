@@ -25,7 +25,6 @@ pub mod task_health;
 pub mod home;
 pub mod isolation;
 pub mod locate;
-pub mod log;
 pub mod persistence;
 pub mod project;
 pub mod projections;
@@ -51,7 +50,6 @@ pub use events::{
     EventEnvelope, list_events_since, query_events_since, read_events, read_recent_events,
 };
 pub use errors::{KernelError, WorkspaceError};
-pub use log::{LogEntry, log_action, log_action_by, read_log, read_log_entries};
 pub use trash::{TrashEntry, list_trash, purge_old_trash, restore_file, trash_file};
 
 pub mod testutil;

@@ -174,8 +174,8 @@ register_event!("process.spawned", [EventScope::Runtime], Retention::Ephemeral, 
 
 // ── project.* ───────────────────────────────────────────────────────────────
 // Moved to ship-space/src/event_registrations.rs (keystone-A Phase A bundle 4,
-// 2026-06-10): project.archived / project.log / project.registered /
 // project.seen / project.switched — the SPACE domain owns its events at L1.
+// (`project.log` was DELETED 2026-06-19 — dead code, no emitter.)
 
 // ── rule.* / skill.* watcher pings ──────────────────────────────────────────
 // rule.changed / skill.changed — moved to ship-config/src/event_registrations.rs

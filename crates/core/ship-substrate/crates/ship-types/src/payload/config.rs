@@ -1,4 +1,4 @@
-// -- Config / Log aggregates ---------------------------------------------------
+// -- Config / Settings aggregates ---------------------------------------------
 
 use serde::{Deserialize, Serialize};
 
@@ -39,8 +39,3 @@ pub struct SettingChanged {
     pub scope: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProjectLog {
-    pub action: String,
-    pub details: String,
-}

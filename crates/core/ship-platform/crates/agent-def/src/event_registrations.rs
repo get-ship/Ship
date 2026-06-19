@@ -1,12 +1,14 @@
-//! Event registrations for the canonical session family.
+//! Event registrations for the canonical session family AND the agents-domain
+//! facet vocabulary.
 //!
-//! This module registers the 7 canonical session events with the global
-//! event registry using the `inventory::submit!` mechanism, making them
-//! available to downstream code that calls `event_registry::registry()`.
+//! This module registers the 7 canonical session events + 3 op.* (fine-grain
+//! tool-use) + 1 dispatch.* (spawn-intent) + the AGENTS-domain facets
+//! (skill.* / rule.* / permissions.updated / compile.completed /
+//! agent.task.complete) with the global event registry via the hoisted
+//! `register_event!` macro from `ship_types`, making them available to
+//! downstream code that calls `event_registry::registry()`.
 //!
-//! Uses the hoisted `register_event!` macro from `ship_types` (formerly a
-//! local copy in both payload_registry.rs and here; de-duped in keystone-A
-//! de-bucket — collection domain owns its events at L1).
+//! The `agent.def.updated` registration lives in `ship-config` (its emitter).
 
 use ship_types::event_registry::{EventScope, Retention, Stability};
 use ship_types::register_event;
@@ -45,11 +47,13 @@ register_event!("dispatch.requested", [EventScope::Runtime], Retention::Ephemera
 
 // ── agents-domain facets (keystone-A Phase A, 2026-06-10) ──────────────────
 // Moved from ship-substrate payload_registry.rs: the AGENTS domain owns its
-// facet vocabulary (skills / rules / permissions / compile / def updates).
-// Payload structs remain in ship_types::payload (L0 leaf types crate, no
+// facet vocabulary (skills / rules / permissions / compile). The def-update
+// registration moved to ship-config/src/event_registrations.rs — the
+// `agent.def.updated` event is EMITTED by the ship-config watcher/write path,
+// so its registration must be link-time present in ship-config. Payload
+// structs remain in ship_types::payload (L0 leaf types crate, no
 // layering concern); the REGISTRATIONS — ownership of name, scope, retention
-// and the carried validator — live with the domain.
-register_event!("agent.def.updated", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "AgentDefUpdated", ship_types::payload::AgentDefUpdated);
+// and the carried validator — live with the EMITTER's crate.
 register_event!("agent.task.complete", [EventScope::Space], Retention::Durable, Stability::Stable, "AgentTaskComplete", ship_types::payload::AgentTaskComplete);
 register_event!("compile.completed", [EventScope::Space], Retention::Durable, Stability::Stable, "CompileCompleted", ship_types::payload::CompileCompleted);
 register_event!("permissions.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PermissionsUpdated", ship_types::payload::PermissionsUpdated);

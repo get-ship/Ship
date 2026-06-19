@@ -200,7 +200,6 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "ProjectSeen" => json!({ "seen_at": "2026-01-01T00:00:00Z" }),
         "ProjectArchived" => json!({ "archived_at": "2026-01-01T00:00:00Z" }),
         "ProjectSwitched" => json!({ "space_id": "test-space", "name": "test", "path": "/home/user/projects/test", "at": "2026-01-01T00:00:00Z" }),
-        "ProjectLog" => json!({ "action": "test-action", "details": "test details" }),
         "WorkspaceCreated" => json!({ "workspace_id": "test-workspace" }),
 
         // ── Rule events ──────────────────────────────────────────────────────

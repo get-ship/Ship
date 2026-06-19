@@ -39,7 +39,6 @@ pub const AGENT_DEF_UPDATED: &str = "agent.def.updated";
 pub const VIEW_CHANGED: &str = "view.changed";
 pub const RULE_CHANGED: &str = "rule.changed";
 pub const COLLECTION_CHANGED: &str = "collection.changed";
-pub const PROJECT_LOG: &str = "project.log";
 
 pub const PROCESS_SPAWNED: &str = "process.spawned";
 pub const PROCESS_EXITED: &str = "process.exited";

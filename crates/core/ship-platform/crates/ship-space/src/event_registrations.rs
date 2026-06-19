@@ -1,15 +1,18 @@
 //! Event registrations for the SPACE domain.
 //!
-//! Registers the 9 project.* / workspace.* / space.setting.changed events
-//! with the global event registry using the hoisted `register_event!` macro
-//! from `ship_types`.
+//! Registers the project.* / space.setting.* / workspace.* events with the
+//! global event registry using the hoisted `register_event!` macro from
+//! `ship_types`. The legacy project-log daemon-wide audit stream was deleted
+//! (2026-06-19) — the writer API had no callers and the read path was
+//! unreferenced; the corresponding payload and event-name const in
+//! ship-types were removed as well.
 //!
 //! Keystone-A Phase A bundle 4 (2026-06-10): the SPACE domain owns its events
 //! at L1. These registrations moved from `ship_substrate::events::payload_registry`.
 //!
-//! Payload structs STAY in ship_types::payload — several are consumed by L0
-//! (ProjectLog by ship-substrate/src/log.rs; WorkspaceActivated by tests_actor.rs)
-//! and by ship-config's SpaceSettingsProjection (SpaceSettingChanged).
+//! Payload structs STAY in ship_types::payload — WorkspaceActivated is
+//! consumed by L0 (tests_actor.rs); SpaceSettingChanged is consumed by
+//! ship-config's SpaceSettingsProjection.
 
 use ship_types::event_registry::{EventScope, Retention, Stability};
 use ship_types::register_event;
@@ -20,11 +23,9 @@ use ship_types::register_event;
 // resolver itself consults. So the registry events are Runtime-owned (Phase 4d
 // §6.1): a space-partitioned registry could not bootstrap space-id resolution,
 // and routing them to space.db while reading daemon-wide would force fan-out.
-// `project.log` is a daemon-wide audit stream (fixed "project" entity, no
-// space) → also Runtime. `project.switched` carries a space binding through
-// the kernel and stays Space.
+// Space. (The legacy project-log daemon-wide audit stream is GONE — see the
+// module doc.)
 register_event!("project.archived", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ProjectArchived", ship_types::payload::ProjectArchived);
-register_event!("project.log", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProjectLog", ship_types::payload::ProjectLog);
 register_event!("project.registered", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ProjectRegistered", ship_types::payload::ProjectRegistered);
 register_event!("project.seen", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProjectSeen", ship_types::payload::ProjectSeen);
 register_event!("project.switched", [EventScope::Space], Retention::Durable, Stability::Stable, "ProjectSwitched", ship_types::payload::ProjectSwitched);

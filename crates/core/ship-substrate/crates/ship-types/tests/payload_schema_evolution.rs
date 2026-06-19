@@ -130,14 +130,6 @@ fn config_changed_v1_round_trips() {
     assert_eq!(p.detail.as_deref(), Some("agent-X.jsonc"));
 }
 
-#[test]
-fn project_log_v1_round_trips() {
-    let _: ProjectLog = parse(
-        r#"{"action": "compiled", "details": "all harnesses"}"#,
-        "ProjectLog",
-    );
-}
-
 // `agent.def.updated` (Format-2 notification): carries ONLY {path, content_hash}.
 // The space_id rides the envelope scope_key (Space-scoped), never the payload —
 // mirror ConfigFileChanged. The notification must NEVER carry file content.

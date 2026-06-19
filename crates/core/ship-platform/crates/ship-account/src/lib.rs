@@ -19,6 +19,7 @@
 
 pub mod error;
 pub mod events;
+pub mod event_registrations;
 pub mod gateway;
 pub mod service;
 pub mod store;

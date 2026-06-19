@@ -43,7 +43,7 @@ pub use auth::{AgentGrantsProvisioned, AuthSessionCreated, AuthSessionExpired, A
 // CollectionCreated / CollectionItem* / CollectionSchemaChanged moved to
 // ship-collection/src/events.rs — no re-export here.
 pub use compile::CompileCompleted;
-pub use config::{ConfigChanged, ConfigFileChanged, ProjectLog, SettingChanged, SpaceSettingChanged};
+pub use config::{ConfigChanged, ConfigFileChanged, SettingChanged, SpaceSettingChanged};
 pub use crud::{
     PermissionsUpdated, RuleCreated, RuleDeleted, RuleUpdated, SkillCreated, SkillDeleted,
     SkillUpdated,
