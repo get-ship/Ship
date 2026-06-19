@@ -446,7 +446,7 @@ fn compile_error_from_build_error(
             (format!("unknown target: {t}"), default_file, 1, None)
         }
         BundlerBuildError::NoCompiler => (
-            "sui-compiler not found; run `ship runtime install`".into(),
+            "sui-compiler unavailable — rebuild the daemon (`ship build`)".into(),
             default_file,
             1,
             None,

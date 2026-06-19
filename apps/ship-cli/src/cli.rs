@@ -19,8 +19,7 @@ const AFTER_HELP: &str = "\x1b[1mDaily Workflow:\x1b[0m
 
 \x1b[1mConfiguration:\x1b[0m
   ship mcp add-stdio ... Register an MCP server
-  ship config set k v    Set a user preference
-  ship convert <source>  Convert harness configs to .ship/
+
 
 \x1b[1mLearn More:\x1b[0m
   ship docs topics       List help topics
@@ -229,15 +228,10 @@ pub enum Commands {
         #[arg(long)]
         tag: Option<String>,
     },
-
-    /// Add a package dependency or import config from a Studio share link
+    /// Add a package dependency
     Add {
         /// Package path with optional version: github.com/owner/repo[@version]
-        #[arg(required_unless_present = "from")]
-        package: Option<String>,
-        /// Import agent config from a Studio share link (MCP or JSON)
-        #[arg(long, conflicts_with = "package")]
-        from: Option<String>,
+        package: String,
     },
 
     /// Scan files for hidden Unicode characters (prompt injection vectors)
@@ -250,11 +244,7 @@ pub enum Commands {
         json: bool,
     },
 
-    /// Convert harness config files (CLAUDE.md, .cursor/) into .ship/ format
-    Convert {
-        /// A getship.dev URL (e.g. https://getship.dev/p/<id>), local path, or harness config
-        source: String,
-    },
+
 
     // ── Inspection ───────────────────────────────────────────────────────────
     /// Query the project event log
@@ -276,14 +266,7 @@ pub enum Commands {
         action: HookCommands,
     },
 
-    /// Rebuild projection tables from the event log (dev tool — not part of the user-facing CLI)
-    #[cfg(feature = "unstable")]
-    #[command(hide = true)]
-    RebuildProjections,
 
-    /// Real-time dashboard — workspaces, sessions, events (htop for Ship)
-    #[cfg(feature = "unstable")]
-    Top,
 
     /// Run a named pipeline (e.g. ship run tdd "implement auth")
     Run {
@@ -360,11 +343,6 @@ pub enum Commands {
         dry_run: bool,
     },
 
-    /// Manage the toolchain at ~/.ship/runtime/ (the sui-compiler binary; #163 retired bun)
-    Runtime {
-        #[command(subcommand)]
-        action: RuntimeCommands,
-    },
 
     /// Uninstall Ship from this machine (stops daemon, removes ~/.ship, scrubs PATH)
     Uninstall {
@@ -373,8 +351,6 @@ pub enum Commands {
         yes: bool,
     },
 
-    /// Show help — same as --help
-    Help,
 
 }
 
@@ -502,24 +478,4 @@ pub enum ConfigCommands {
     Path,
 }
 
-#[derive(Subcommand, Debug)]
-pub enum RuntimeCommands {
-    /// Install or repair ~/.ship/runtime/ from local sources. Since the daemon
-    /// bundles in-process via Rolldown, the only component is sui-compiler
-    /// (in-repo target/{release,debug}/sui-compiler by default; override with
-    /// --sui-compiler).
-    Install {
-        /// Path to the sui-compiler binary to copy in. Defaults to a walk-up
-        /// search for target/{release,debug}/sui-compiler from cwd.
-        #[arg(long = "sui-compiler", value_name = "PATH")]
-        sui_compiler: Option<PathBuf>,
-    },
-    /// Wipe ~/.ship/runtime/ and reinstall fresh. Same flags as install.
-    Update {
-        #[arg(long = "sui-compiler", value_name = "PATH")]
-        sui_compiler: Option<PathBuf>,
-    },
-    /// Verify the toolchain is healthy. Reports the first missing or
-    /// non-executable component, and exits non-zero on any failure.
-    Doctor,
-}
+

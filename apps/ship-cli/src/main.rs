@@ -8,14 +8,11 @@ mod cli;
 mod commands;
 mod compile;
 mod config;
-mod convert;
 #[cfg(test)]
 mod test_env;
 mod daemon;
-pub mod daemon_cmds;
+
 mod events_cmd;
-#[cfg(feature = "unstable")]
-mod top;
 mod help_topics;
 mod doctor;
 mod hook;
@@ -24,8 +21,7 @@ mod init;
 mod install;
 mod isolation_cmd;
 mod procs;
-mod toolchain;
-mod runtime_cmd;
+
 mod tail;
 mod sui;
 mod logging;
@@ -167,8 +163,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             } => run_compile_cmd(harness.as_deref(), dry_run, path),
             Commands::Workspace { action } => dispatch_workspace(action),
             Commands::Mcp { action } => dispatch_mcp(action),
-            Commands::Isolation { action } => isolation_cmd::run(action),
-            Commands::Convert { source } => convert::run_convert(&source),
+
             Commands::Docs { topic } => help_topics::run(topic.as_deref()),
             Commands::Publish {
                 export_path,
@@ -182,14 +177,10 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 let root = std::env::current_dir()?;
                 install::run_install(&root, frozen, offline)
             }
-            Commands::Add { package, from } => match (package, from) {
-                (_, Some(url)) => add::from::run_add_from(&url),
-                (Some(pkg), None) => {
-                    let root = std::env::current_dir()?;
-                    add::run_add(&root, &pkg)
-                }
-                (None, None) => anyhow::bail!("provide a package name or --from <url>"),
-            },
+            Commands::Add { package } => {
+                let root = std::env::current_dir()?;
+                add::run_add(&root, &package)
+            }
             Commands::Audit { path, json } => audit::run_audit(path, json),
             Commands::Validate { agent, json, path } => {
                 let root = path
@@ -199,11 +190,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     .unwrap_or_else(|| std::env::current_dir().unwrap());
                 validate::run_validate(agent.as_deref(), json, &root)
             }
-            Commands::Events { action } => dispatch_events(action),
-            #[cfg(feature = "unstable")]
-            Commands::RebuildProjections => run_rebuild_projections(),
-            #[cfg(feature = "unstable")]
-            Commands::Top => run_top(),
+
             Commands::Run {
                 pipeline,
                 spec_text,
@@ -255,45 +242,14 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             }
             Commands::Doctor => doctor::run(),
             Commands::Build { dry_run } => build::run(dry_run),
-            Commands::Runtime { action } => match action {
-                cli::RuntimeCommands::Install { sui_compiler } => {
-                    runtime_cmd::run_install(sui_compiler)
-                }
-                cli::RuntimeCommands::Update { sui_compiler } => {
-                    runtime_cmd::run_update(sui_compiler)
-                }
-                cli::RuntimeCommands::Doctor => runtime_cmd::run_doctor(),
-            },
+            Commands::Isolation { action } => isolation_cmd::run(action),
+            Commands::Events { action } => dispatch_events(action),
             Commands::Uninstall { yes } => uninstall::run(yes),
-            Commands::Help => {
-                use clap::CommandFactory;
-                Cli::command().print_help()?;
-                Ok(())
-            }
         },
     }
 }
 
-#[cfg(feature = "unstable")]
-fn run_rebuild_projections() -> Result<()> {
-    let report = ship_substrate::db::rebuild::rebuild_projections_default()?;
-    println!(
-        "Rebuilt {} projection(s) from {} event(s) in {}ms",
-        report.projections_rebuilt.len(),
-        report.events_replayed,
-        report.duration_ms,
-    );
-    for name in &report.projections_rebuilt {
-        println!("  ✓ {name}");
-    }
-    Ok(())
-}
 
-#[cfg(feature = "unstable")]
-fn run_top() -> Result<()> {
-    let ship_dir = ship_substrate::project::get_project_dir(None)?;
-    top::run(ship_dir)
-}
 
 // ── Config ────────────────────────────────────────────────────────────────────
 

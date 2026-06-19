@@ -127,20 +127,16 @@ Resolution order: command flag > env var > ship config > default.
 const TOPIC_MCP: &str = "\
 MCP Servers
 
-Ship can both consume and serve MCP (Model Context Protocol) servers.
-
-Consuming (declare servers your agent connects to):
+Ship consumes MCP (Model Context Protocol) servers via ConnectRPC. Declare
+servers your agent connects to:
   ship mcp add my-server --url https://example.com/mcp
   ship mcp add-stdio my-tool my-binary --name \"My Tool\"
   ship mcp list
   ship mcp remove my-server
 
-Serving (run the Ship MCP server for project intelligence):
-  ship mcp serve              stdio mode (default, for Claude Code)
-  ship mcp serve --http       HTTP daemon mode for CI/remote agents
-
 Server definitions live in .ship/mcp.jsonc.
 ";
+
 
 const TOPIC_HARNESSES: &str = "\
 Harnesses

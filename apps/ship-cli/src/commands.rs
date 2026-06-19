@@ -128,9 +128,6 @@ pub enum McpCommands {
         /// Server URL (required for HTTP/SSE transport)
         #[arg(long)]
         url: Option<String>,
-        /// Register to ~/.ship/mcp/ instead of .ship/agents/mcp.toml
-        #[arg(long)]
-        global: bool,
     },
     /// Register a stdio MCP server
     AddStdio {
@@ -140,10 +137,7 @@ pub enum McpCommands {
         args: Vec<String>,
         #[arg(long)]
         name: Option<String>,
-        #[arg(long)]
-        global: bool,
     },
-    /// List configured MCP servers
     List,
     /// Remove an MCP server
     Remove { id: String },

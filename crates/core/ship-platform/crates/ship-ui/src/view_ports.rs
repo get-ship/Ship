@@ -47,7 +47,7 @@ impl std::fmt::Display for BundlerBuildError {
         match self {
             Self::Bundle { message, .. } => write!(f, "{message}"),
             Self::UnknownTarget(t) => write!(f, "unknown bundler target: {t}"),
-            Self::NoCompiler => write!(f, "sui-compiler not found; run `ship runtime install`"),
+            Self::NoCompiler => write!(f, "sui-compiler unavailable — rebuild the daemon (`ship build`)"),
         }
     }
 }
