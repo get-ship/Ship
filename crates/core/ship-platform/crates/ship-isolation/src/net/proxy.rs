@@ -263,12 +263,6 @@ fn rewrite_first_line(raw: &str, host: &str) -> String {
     raw.to_string()
 }
 
-#[allow(dead_code)]
-async fn drain_until_eof<R: AsyncReadExt + Unpin>(mut r: R) {
-    let mut buf = [0u8; 1024];
-    while r.read(&mut buf).await.unwrap_or(0) > 0 {}
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
