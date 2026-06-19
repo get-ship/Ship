@@ -105,6 +105,27 @@ fn to_route(routes_dir: &Path, dir: &Path) -> Option<Route> {
     Some(Route { pattern, params, builder })
 }
 
+/// Reconstruct a route's view-module import path from its URL pattern — the
+/// inverse of `to_route`'s segment mapping (`:param` ↔ `[param]` dir):
+/// `/studio/agents/:id` → `./routes/studio/agents/[id]/page.sui`; `/` →
+/// `./routes/page.sui`. The emitter uses it to statically import each view.
+fn module_import_path(pattern: &str) -> String {
+    let segs: Vec<String> = pattern
+        .split('/')
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            s.strip_prefix(':')
+                .map(|p| format!("[{p}]"))
+                .unwrap_or_else(|| s.to_string())
+        })
+        .collect();
+    if segs.is_empty() {
+        "./routes/page.sui".to_string()
+    } else {
+        format!("./routes/{}/page.sui", segs.join("/"))
+    }
+}
+
 /// `agents-id-settings` → `agentsIdSettings` (uppercase the char after each `-`).
 fn camel_case(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
@@ -513,7 +534,7 @@ fn build_route_tree(routes_dir: &Path, label: &str) -> Result<RouteTree> {
     Ok(RouteTree { label: label.to_string(), routes, layouts })
 }
 
-fn render_routes_gen(tree: &RouteTree, routes_dir: &Path) -> String {
+fn render_routes_gen(tree: &RouteTree) -> String {
     let pattern_lines = tree
         .routes
         .iter()
@@ -543,103 +564,78 @@ fn render_routes_gen(tree: &RouteTree, routes_dir: &Path) -> String {
         .map(|l| format!("  {{ pathPrefix: '{}', tag: '{}' }},", l.path_prefix, l.tag))
         .collect::<Vec<_>>()
         .join("\n");
-    // Layouts are an exported `LAYOUTS` array. The `mountRouter` call
-    // below is unconditional — the dev's `index.html` references this
-    // file as the entry. Empty LAYOUTS = no chrome wrappers.
-    let layouts_block = if tree.layouts.is_empty() {
-        "".to_string()
+    // Each route's view module is statically imported (route0, route1, …) so
+    // the bundler pulls it into the graph, and keyed by pattern in the module
+    // map handed to `mountRouter`. The map reference is a real use, so the
+    // tree-shaker keeps the modules — no globalThis stash needed.
+    let route_imports = tree
+        .routes
+        .iter()
+        .enumerate()
+        .map(|(i, r)| format!("import * as route{i} from '{}';", module_import_path(&r.pattern)))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let module_map = tree
+        .routes
+        .iter()
+        .enumerate()
+        .map(|(i, r)| format!("    '{}': route{i},", r.pattern))
+        .collect::<Vec<_>>()
+        .join("\n");
+    // No routes → no entry behavior (nothing to import or mount).
+    let router_block = if tree.routes.is_empty() {
+        String::new()
     } else {
         format!(
-"export const LAYOUTS: LayoutShape[] = [
-{layout_lines}
-]
-export type LayoutShape = {{ pathPrefix: string; tag: string }}
 "
-        )
-    };
-    // Import the index view's compiled module so the bundler pulls
-    // it into the entry chunk. The SuiPlugin compiles `.sui` in-process
-    // (load hook on `.sui` and `.compiled.js` specifiers). The default
-    // export is `{ setup, _compilerVersion, clients }` — the runtime
-    // calls `module.default.setup(ctx)` to seed the scope and then
-    // `setupRet.hydrate(target, ctx)` to render the DOM (the view
-    // produces its own HTML, no SSR for the bundled path).
-    let mount_block = if routes_dir.join("page.sui").is_file() {
-        r#"
-// Mount the index view. The SuiPlugin has already compiled
-// `./routes/page.sui` (its default export is the view module).
-// `route({ routes: DYNAMIC_ROUTE_PATTERNS })` gives the view live
-// URL signals; the runtime's `mount(target, payload)` does the
-// rest (setup + hydrate + lifecycle). For v0 the index is the only
-import { mount } from '@ship/sui-runtime';
-import { navigate, route as createRoute } from '@ship/deck/route';
-import * as indexView from './routes/page.sui';
-// Stash the module on globalThis so the bundler can't tree-shake
-// the import. The namespace is read by the mount() call below;
-// the tree-shaker can't see into the externalized runtime, so
-// without this side-effect it would elide the entire view module.
-globalThis.__shipHubIndexView = indexView;
-const __r = createRoute({ routes: DYNAMIC_ROUTE_PATTERNS });
-// Inject the theme + token stylesheet (themes.css bundled as
-// view-tokens.css by the daemon at /api/assets/view-tokens.css)
-// so primitives that resolve `var(--primary)`, `var(--background)`,
-// etc. — the brand mark's themed ramp, the theme-picker's panel —
-// actually render with theme colors. Without this, `color-mix`
-// in shadow-DOM path fills collapses to black and the chrome
-// reads as solid silhouette. The data-ship-view-tokens marker
-// makes the injection idempotent on hot-reload.
-if (!document.querySelector('link[data-ship-view-tokens]')) {
+// Inject the theme + token stylesheet (served by the daemon at
+// /api/assets/view-tokens.css) so themed primitives resolve their
+// `var(--token)` colors. The marker keeps it idempotent on hot-reload.
+if (!document.querySelector('link[data-ship-view-tokens]')) {{
   const __link = document.createElement('link');
   __link.rel = 'stylesheet';
   __link.href = '/api/assets/view-tokens.css';
   __link.setAttribute('data-ship-view-tokens', '');
   document.head.appendChild(__link);
-}
-// Mount the index view. The runtime's mount() handles both SSR
-// (payload.html + hydrate) and CSR (view's __mount creates the
-// DOM, then hydrate wires signals). For the bundled path,
-// payload.html is empty; the runtime's CSR fallback calls
-// `setupRet.__mount(target)` to build the DOM in place.
-mount(document.getElementById('ship-root')!, {
-  html: '',
-  scope: {},
-  params: {},
-  route: __r,
-}, {
-  module: indexView,
-  navigate,
-  clients: {},
-});
-        "#
-    .to_string()
-    } else {
-        String::new()
+}}
+
+// Hand the generated tables + statically-imported view modules to the
+// framework router. `mountRouter` (@ship/deck/route) owns history, route
+// match, the layout chain, and SPA navigation — one router for every
+// per-app deck host. See ADR `unified-deck-router`.
+mountRouter({{
+  root: '#{root_id}',
+  routes: DYNAMIC_ROUTE_PATTERNS,
+  layouts: LAYOUTS,
+  modules: {{
+{module_map}
+  }},
+  clients: {{}},
+}});
+",
+            root_id = crate::templates::ROOT_ID,
+        )
     };
     format!(
 "// @generated by `deck routes` (deck-bundler) — DO NOT EDIT.
-// Typed dynamic-route table for the `{label}` view tree (every `[param]`
-// dir under `routes/`). The dev's `index.html` references this file as
-// the entry; the bundler bundles it as the entry chunk and externalizes
-// `@ship/deck/route` so a single router instance is shared.
-//
-// This file IS the entry. The dev does not author a main.ts; the
-// bundler-generated `routes.gen.ts` registers the project's pattern
-// set with the shared router (`defineRoutes`) and mounts the index
-// view into `#ship-root`. SPA navigation on popstate is the
-// follow-up — for v0 the index is the only mount.
-import {{ defineRoutes, type RouteShape }} from '@ship/deck/route'
+// Typed route table + entry for the `{label}` view tree (every `[param]`
+// dir under `routes/`). This file IS the entry — the dev authors no
+// main.ts. It declares the route table, statically imports each route's
+// view module, and hands them to the framework router `mountRouter`
+// (@ship/deck/route), which owns route match + layout chains + SPA
+// navigation. See ADR `unified-deck-router`.
+import {{ mountRouter, type RouteShape, type LayoutShape }} from '@ship/deck/route'
+{route_imports}
 export const DYNAMIC_ROUTE_PATTERNS: RouteShape[] = [
 {pattern_lines}
 ]
-{layouts_block}\
+export const LAYOUTS: LayoutShape[] = [
+{layout_lines}
+]
 export const routes = {{
 {builder_lines}
 }}
-
-// Bind the pattern set to the shared router.
-defineRoutes(DYNAMIC_ROUTE_PATTERNS)
-{mount_block}\
-",
+{router_block}",
         label = tree.label,
     )
 }
@@ -653,7 +649,7 @@ fn generate_routes_one(spec: &RouteGenSpec) -> Result<usize> {
     if !spec.dir.is_dir() {
         return Ok(0);
     }
-    let body = render_routes_gen(&tree, &spec.dir);
+    let body = render_routes_gen(&tree);
     // Write-if-changed (#129-class loop fix): the app build regenerates this on
     // EVERY rebuild, and the file lives under the watched `apps/...` root.
     // An unconditional write retriggers the bundler watcher and self-perpetuates
@@ -842,29 +838,42 @@ mod tests {
     }
 
     #[test]
+    fn module_import_path_inverts_to_route_segment_mapping() {
+        // Pure logic, generic inputs — no app routes. `:param` ↔ `[param]` dir.
+        assert_eq!(module_import_path("/"), "./routes/page.sui");
+        assert_eq!(module_import_path("/x"), "./routes/x/page.sui");
+        assert_eq!(module_import_path("/x/:id"), "./routes/x/[id]/page.sui");
+        assert_eq!(module_import_path("/a/:b/c/:d"), "./routes/a/[b]/c/[d]/page.sui");
+    }
+
     #[test]
-    fn render_includes_define_routes() {
-        // The dev doesn't author an entry script — `routes.gen.ts` IS
-        // the entry, and it must call `defineRoutes` to register the
-        // project's patterns with the shared router. This is the
-        // shape contract between the bundler and the dev's `index.html`:
-        // the generated entry does the minimum to bind the data table
-        // to the runtime; everything else (chrome, bridges) lives in
-        // workspace side-effect imports the per-tag resolver compiles.
-        let dir = std::path::Path::new("/tmp/routes-test");
+    fn render_wires_every_route_into_the_router() {
+        // Contract, not a text snapshot, and built from a GENERIC tree so a
+        // framework test never names an app's routes. The entry must wire the
+        // framework router and place EVERY route in the module map keyed by its
+        // own pattern; the retired v0 hand-rolled mount must not reappear.
         let tree = RouteTree {
-            label: "shell".to_string(),
-            routes: vec![Route {
-                pattern: "/x/:id".to_string(),
-                params: vec!["id".to_string()],
-                builder: "xId".to_string(),
-            }],
+            label: "x".to_string(),
+            routes: vec![
+                Route { pattern: "/".to_string(), params: vec![], builder: "index".to_string() },
+                Route {
+                    pattern: "/a/:id".to_string(),
+                    params: vec!["id".to_string()],
+                    builder: "aId".to_string(),
+                },
+            ],
             layouts: vec![],
         };
-        let ts = render_routes_gen(&tree, &dir);
-        assert!(ts.contains("import { defineRoutes"), "entry imports defineRoutes");
-        assert!(ts.contains("defineRoutes(DYNAMIC_ROUTE_PATTERNS)"), "entry registers patterns");
-        assert!(!ts.contains("mountRouter"), "no mountRouter call (the runtime doesn't define it)");
+        let ts = render_routes_gen(&tree);
+        assert!(ts.contains("mountRouter("), "entry wires the framework router");
+        for r in &tree.routes {
+            assert!(
+                ts.contains(&format!("'{}':", r.pattern)),
+                "every route is in the module map; `{}` is missing",
+                r.pattern,
+            );
+        }
+        assert!(!ts.contains("getElementById"), "the v0 hand-rolled index mount is gone");
     }
 
     // Regression: routes.gen.ts lives under the watched `apps/...` root and

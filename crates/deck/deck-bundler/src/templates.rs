@@ -17,6 +17,12 @@
 //! importmap at first module fetch, so it lives at the top of `<head>` to
 //! win the race against `routes.gen.ts` and any per-view bundles.
 
+/// The DOM id of the SPA mount point. Single source for the `index.html`
+/// `<div id>` AND the `mountRouter({ root })` call the route emitter writes
+/// (`routes.rs`) — change it here and both move together, no hardcoded
+/// literal drifting on either side.
+pub const ROOT_ID: &str = "ship-root";
+
 /// The minimal `index.html` template for a deck project.
 pub const INDEX_HTML_TEMPLATE: &str = r#"<!doctype html>
 <html lang="en">
@@ -32,7 +38,7 @@ pub const INDEX_HTML_TEMPLATE: &str = r#"<!doctype html>
   </script>
 </head>
 <body>
-  <div id="ship-root"></div>
+  <div id="{{root_id}}"></div>
   <script type="module" src="/{{entry_module}}"></script>
 </body>
 </html>
@@ -50,6 +56,7 @@ pub fn render_index_html(
     entry_module: &str,
 ) -> String {
     INDEX_HTML_TEMPLATE
+        .replace("{{root_id}}", ROOT_ID)
         .replace("{{project_name}}", project_name)
         .replace("{{importmap}}", importmap_json)
         .replace("{{entry_module}}", entry_module)
