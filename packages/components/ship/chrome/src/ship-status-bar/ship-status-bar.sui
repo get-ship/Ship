@@ -1,60 +1,204 @@
 <!--
-  ship-status-bar.sui — @ship/chrome · the bottom strip. Glance-only AMBIENT system state
-  for an agentic OS — NOT a code editor. Deliberately NOT VSCode: no git branch, no
-  "problems", no Ln/Col. Ship-native segments: daemon health · live agent sessions ·
-  pending approvals (gate) · sync · the active space · a context string.
-  Subtle surface strip (not a bold accent bar). Attribute-driven, tokens only.
-  Props: daemon(ready|busy|offline) · sessions · approvals · sync(synced|syncing|offline)
-       · space · context · theme.
-  Controller emits ship-open-runs when the sessions / approvals segment is clicked.
+  <ship-status-bar> — @ship/chrome · the bottom strip. Glance-only system status.
+  Lives in the chrome pack (migrated from apps/shell/src/components/sui-status-bar).
+  Hosts:
+    daemon-dot · project · branch · agents · view-extensions ··· end-slot · dev · theme
+
+  Click behavior (intent):
+    project       → opens project switcher (sui:project-switcher:open)
+    daemon dot    → opens devtools dock (sui:dock:toggle)
+    theme         → opens theme picker (sui:theme-picker:open)
+
+  Live-updating via `chrome.status.set('key', { label, icon, tone, tooltip })`.
+  The controller subscribes to sui:status:set / sui:status:clear and renders
+  entries into an aria-live="polite" region.
+
+  Prop surface
+  ─────────────────────────────────────────────────────────────────────────────
+  branch   (string, '')              git branch text
+  theme    (string, '')              current theme ID
+  online   (bool, false, reflect)    daemon connection state — dot tone
+  agents   (string, '')              local agent indicator text
+  mode     (string, '', reflect)     'development' renders DEV badge
+  project  (string, '')              active project label (shown when set)
+  ─────────────────────────────────────────────────────────────────────────────
+  Slots:
+    start  — view-injected status content between branch and extensions
+    end    — view-injected status content between spacer and theme
+  Parts: project, dot-btn, dot, branch, agents, extensions, mode, theme-btn
+  ─────────────────────────────────────────────────────────────────────────────
 -->
-<prop name="daemon" values="ready|busy|offline" default="ready" reflect />
-<prop name="sessions" type="string" default="0" />
-<prop name="approvals" type="string" default="0" reflect />
-<prop name="sync" values="synced|syncing|offline" default="synced" reflect />
-<prop name="space" type="string" default="" />
-<prop name="context" type="string" default="" />
-<prop name="theme" type="string" default="Ship Light" />
+
+<prop name="branch" type="string" default="" />
+<prop name="theme" type="string" default="" />
+<prop name="online" type="bool" default="false" reflect />
+<prop name="agents" type="string" default="" />
+<prop name="mode" type="string" default="" reflect />
+<prop name="project" type="string" default="" />
 
 <style>
-  :host { display: flex; align-items: center; gap: 16px; padding: 0 14px; height: 28px;
-    font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground);
-    background: var(--surface-2); border-top: 1px solid var(--border-subtle); }
-  .seg { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-  .seg b { color: var(--foreground); font-weight: 600; }
-  .seg sui-icon { opacity: .8; }
-  button.seg { border: 0; background: transparent; font: inherit; color: inherit; padding: 2px 4px; margin: -2px -4px; border-radius: var(--radius-sm); cursor: pointer; }
-  button.seg:hover { background: var(--hover-bg); }
-  button.seg:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
-  .dot { width: 7px; height: 7px; border-radius: var(--radius-full); background: var(--muted-foreground); flex-shrink: 0; }
+  :host {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    height: 24px;
+    padding: 0 var(--space-3, 12px);
+    border-top: 1px solid var(--border);
+    background: var(--sidebar, var(--muted));
+    font-family: var(--font-body);
+    font-size: 11px;
+    color: var(--muted-foreground);
+    user-select: none;
+    -webkit-user-select: none;
+    overflow: hidden;
+  }
+  :host([hidden]) { display: none; }
 
-  /* daemon health */
-  .daemon .dot { background: var(--muted-foreground); }
-  :host([daemon='ready']) .daemon .dot { background: var(--success); }
-  :host([daemon='busy'])  .daemon .dot { background: var(--warning); animation: sb-pulse 1s ease-in-out infinite; }
-  :host([daemon='offline']) .daemon { opacity: .55; }
-  @keyframes sb-pulse { 50% { opacity: .35; } }
+  button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-shrink: 0;
+    border-radius: var(--radius-sm, 4px);
+    transition:
+      background-color var(--duration-fast, 120ms) var(--ease-out, ease-out),
+      color var(--duration-fast, 120ms) var(--ease-out, ease-out);
+  }
+  button:hover {
+    background: color-mix(in oklch, var(--foreground) 8%, transparent);
+    color: var(--foreground);
+  }
+  button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
+  }
 
-  /* live sessions — emphasized only when >0 (set via attr by host) */
-  .sessions b { color: var(--accent); }
+  .dot-btn { padding: 0 var(--space-1); height: 18px; }
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-full, 9999px);
+    background: var(--destructive);
+    flex-shrink: 0;
+    transition: background-color var(--duration-fast, 120ms) var(--ease-out, ease-out);
+  }
+  :host([online]) .dot { background: var(--success); }
 
-  /* approvals — a gate waiting; hidden at zero */
-  .approvals { color: var(--warning); }
-  :host([approvals='0']) .approvals { display: none; }
+  .project { padding: 0 6px; height: 18px; max-width: 180px; }
+  .project > .swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--primary);
+    flex-shrink: 0;
+  }
+  .project > .label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
-  .r { margin-left: auto; display: inline-flex; align-items: center; gap: 16px; }
+  .text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .text:empty { display: none; }
 
-  /* sync */
-  :host([sync='syncing']) .sync sui-icon { animation: sb-spin 1.4s linear infinite; }
-  :host([sync='offline']) .sync { opacity: .55; }
-  @keyframes sb-spin { to { transform: rotate(360deg); } }
+  .slot-wrap {
+    display: inline-flex;
+    gap: var(--space-2);
+    align-items: center;
+  }
+
+  .extensions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 1;
+    overflow: hidden;
+  }
+  .extensions:empty { display: none; }
+  .ext-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 0 6px;
+    height: 18px;
+    border-radius: var(--radius-sm, 4px);
+    border: 1px solid color-mix(in oklch, var(--foreground) 14%, transparent);
+    background: color-mix(in oklch, var(--foreground) 4%, transparent);
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+  }
+  .ext-chip[data-tone="info"]    { color: var(--primary); border-color: color-mix(in oklch, var(--primary) 30%, transparent); }
+  .ext-chip[data-tone="success"] { color: var(--success);          border-color: color-mix(in oklch, var(--success) 30%, transparent); }
+  .ext-chip[data-tone="warning"] { color: var(--warning);          border-color: color-mix(in oklch, var(--warning) 30%, transparent); }
+  .ext-chip[data-tone="error"]   { color: var(--destructive);      border-color: color-mix(in oklch, var(--destructive) 30%, transparent); }
+
+  .spacer { flex: 1; }
+
+  /* DEV badge — visible when host has [mode="development"]. */
+  .mode {
+    display: none;
+    font-family: var(--mono-font, var(--font-mono));
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 1px 5px;
+    border-radius: var(--radius-sm, 4px);
+    background: color-mix(in oklab, var(--warning) 18%, transparent);
+    color: var(--warning);
+    border: 1px solid color-mix(in oklab, var(--warning) 36%, transparent);
+    text-transform: uppercase;
+    line-height: 1.2;
+    flex-shrink: 0;
+  }
+  :host([mode="development"]) .mode { display: inline-flex; }
+
+  .theme-btn { padding: 0 6px; height: 18px; }
 </style>
 
-<span class="seg daemon"><span class="dot"></span>daemon · <b>{daemon()}</b></span>
-<button class="seg sessions" type="button" on:click={openRuns}><sui-icon name="activity" size="sm"></sui-icon><b>{sessions()}</b> active</button>
-<button class="seg approvals" type="button" on:click={openRuns}><sui-icon name="shield" size="sm"></sui-icon><b>{approvals()}</b> to approve</button>
-<span class="r">
-  <span class="seg">{context()}</span>
-  <span class="seg space"><sui-icon name="box" size="sm"></sui-icon>{space()}</span>
-  <span class="seg sync"><sui-icon name="refresh-cw" size="sm"></sui-icon>{sync()}</span>
+<button class="dot-btn" part="dot-btn" type="button"
+  on:click={onDotClick}
+  title="Daemon — click to toggle dev panel"
+  aria-label="Daemon connection status. Click to toggle dev panel.">
+  <span class="dot" part="dot" aria-hidden="true"></span>
+</button>
+{#if project()}
+  <button class="project" part="project" type="button"
+    on:click={onProjectClick}
+    title="Active project — click to switch"
+    aria-label="Active project. Click to switch.">
+    <span class="swatch" aria-hidden="true"></span>
+    <span class="label">{project()}</span>
+  </button>
+{/if}
+<span class="text" part="branch">{branch()}</span>
+<span class="text" part="agents">{agents()}</span>
+<span class="slot-wrap"><slot name="start"></slot></span>
+<span class="extensions" part="extensions" role="status" aria-live="polite" aria-label="View status">
+  {#for ext of extensions() key={ext.key}}
+    <span class="ext-chip" data-tone={ext.tone} title={ext.tooltip}>
+      <span>{ext.label}</span>
+    </span>
+  {/for}
 </span>
+<span class="spacer"></span>
+<span class="slot-wrap"><slot name="end"></slot></span>
+<span class="mode" part="mode" aria-label="Daemon mode">dev</span>
+<button class="theme-btn" part="theme-btn" type="button"
+  on:click={onThemeClick}
+  title="Active theme — click to open theme picker"
+  aria-label="Active theme. Click to open theme picker.">{theme()}</button>

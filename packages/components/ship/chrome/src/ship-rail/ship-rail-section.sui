@@ -1,0 +1,44 @@
+<!--
+  <ship-rail-section> — labeled section divider for <ship-rail>.
+  Co-located with <ship-rail> in the same directory.
+
+  Prop surface
+  ─────────────────────────────────────────────────────────────────────────────
+  label  (string, '')  section heading text
+  ─────────────────────────────────────────────────────────────────────────────
+  Slots: (default) — accepts <ship-rail-item> children for this section
+  Parts: heading
+  ─────────────────────────────────────────────────────────────────────────────
+  CSS custom properties consumed from parent <ship-rail>:
+    --rail-label-display  (flex | none)  hides heading when rail is collapsed
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="label" type="string" default="" />
+
+<style>
+  :host {
+    display: block;
+    margin-top: var(--space-2, 8px);
+  }
+  :host(:first-child) { margin-top: 0; }
+  :host([hidden]) { display: none; }
+
+  .heading {
+    display: var(--rail-label-display, flex);
+    padding: var(--space-1, 4px) var(--space-4, 16px);
+    font-family: var(--font-body);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    opacity: 0.65;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+</style>
+
+<span class="heading" part="heading">{label()}</span>
+<slot></slot>
