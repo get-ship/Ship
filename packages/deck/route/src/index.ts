@@ -26,6 +26,10 @@
 
 import { signal, type Signal } from '@ship/sui-runtime'
 
+// Layout-chain resolution lives in its own module (this file is at the
+// size cap). Re-exported so `@ship/deck/route` is the single import site.
+export { resolveLayoutChain, type LayoutShape } from './layouts'
+
 /**
  * The reactive URL handle exposed to view scope as `route`.
  *
