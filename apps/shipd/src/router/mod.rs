@@ -28,11 +28,10 @@ use ship_routes::build_ship_routes;
 /// Build the full Axum router with all route groups, auth, and CORS.
 ///
 /// `apps` is the per-app serve config (read from `apps.jsonc` at
-/// startup). The host injects the list into `DeckConfig::scaffolds`
-/// (deprecated) AND into `Extension<Vec<AppServeConfig>>` so the new
-/// per-app API can co-exist with the old scaffold-by-name API during
-/// the cutover. After the cutover commit, only the new API is used
-/// and the `scaffolds` field on `DeckConfig` is removed.
+/// startup) and injected as `Extension<Vec<AppServeConfig>>`. This is
+/// the only app-serve path — the old scaffold-by-name API and the
+/// `DeckConfig::scaffolds` field it used were removed at the per-app
+/// cutover.
 pub fn build_router(
     rt: Arc<ship_runtime::ShipRuntime>,
     token: Arc<String>,
@@ -258,13 +257,12 @@ pub fn build_router(
     // everything else — all RPC POSTs, unknown backend paths — flow through to
     // the Connect fallback. The dev-only HMR firehose and the `/{file}` public-
     // asset catch-all are owned by `deck::router()`; shipd serves no frontend.
-    // Load deck.jsonc from the workspace root (same root the bundler uses).
-    // The apps.jsonc list (already read by the caller) is what the
-    // router uses — the L1 framework's `DeckConfig::scaffolds` field
-    // is reserved for legacy consumers and unused by shipd post-
-    // cutover. The L1 default scaffolds (shell/space pointing at
-    // `.deck/hub-scaffold/`) are NOT applied — those are stale paths
-    // from the pre-per-app bundler model.
+    // Load deck.jsonc from the workspace root (same root the bundler uses)
+    // for the L1 bundle config — consumer targets, source roots, component
+    // source roots. It carries NO app/serve list: the per-app serve config
+    // comes from apps.jsonc (the `Vec<AppServeConfig>` the caller already
+    // read and passes in). deck.jsonc and the app list are deliberately
+    // separate surfaces — L1 is per-app; the host owns the list.
     let repo_root = rt.workspace_dir()
         .map(|p| p.to_path_buf())
         .or_else(|| std::env::current_dir().ok())

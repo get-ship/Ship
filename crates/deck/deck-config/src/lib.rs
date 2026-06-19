@@ -282,8 +282,9 @@ mod tests {
     /// `sui_plugin.rs` already covers shell chrome via the catalog's
     /// tag-source walk — the chrome target was dead. The `targets` list
     /// is now 3 (marketing, arcade, pdf); tests in this file assert that
-    /// count. The chrome sources still live in `apps/shell/src/components/`
-    /// and views pick them up via `@sui-tag/<tag>`.
+    /// count. Chrome `<sui-*>` tags are not bundled as a target at all —
+    /// the per-view tree-shaking resolver pulls each used tag from its
+    /// source via `@sui-tag/<tag>`.
     const EXAMPLE_JSONC: &str = r#"{
   // Consumer bundle targets (NOT the framework singletons).
   "targets": [
