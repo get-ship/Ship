@@ -713,31 +713,21 @@ mod tests {
     fn shell_route_discovery() {
         let root = tempfile::tempdir().unwrap();
         let r = root.path().join("routes");
-        for d in ["studio/agents/[id]/settings", "studio/components/[name]", "studio/skills"] {
+        for d in ["a/b/[id]/c", "a/d/[name]", "a/e"] {
             std::fs::create_dir_all(r.join(d)).unwrap();
             std::fs::write(r.join(d).join("page.sui"), "<div/>").unwrap();
         }
-        let tree = build_route_tree(&r, "shell").unwrap();
-        // Static routes are NOT filtered out: a mount at `/studio/skills`
-        // needs to be in the route table, not silently dropped.
+        let tree = build_route_tree(&r, "app").unwrap();
+        // Static routes are NOT filtered out: a static mount (`/a/e`, no
+        // `[param]` segment) must still land in the table, not be dropped.
         let patterns: Vec<&str> = tree.routes.iter().map(|r| r.pattern.as_str()).collect();
-        assert_eq!(
-            patterns,
-            vec![
-                "/studio/agents/:id/settings",
-                "/studio/components/:name",
-                "/studio/skills"
-            ]
-        );
+        assert_eq!(patterns, vec!["/a/b/:id/c", "/a/d/:name", "/a/e"]);
         // The static route has no params.
-        let skills = tree.routes.iter().find(|r| r.pattern == "/studio/skills").unwrap();
-        assert!(skills.params.is_empty());
+        let stat = tree.routes.iter().find(|r| r.pattern == "/a/e").unwrap();
+        assert!(stat.params.is_empty());
         // Builders are namespaced by the top-level segment.
         let builders: Vec<&str> = tree.routes.iter().map(|r| r.builder.as_str()).collect();
-        assert_eq!(
-            builders,
-            vec!["studioAgentsIdSettings", "studioComponentsName", "studioSkills"]
-        );
+        assert_eq!(builders, vec!["aBIdC", "aDName", "aE"]);
     }
 
     #[test]
@@ -747,34 +737,34 @@ mod tests {
         // with the right data. Asserts the DISPATCH behavior; the
         // per-spec data correctness is covered by `shell_route_discovery`.
         let root = tempfile::tempdir().unwrap();
-        let shell_routes = root.path().join("apps/shell/routes");
-        let space_routes = root.path().join("apps/spaces/routes");
-        std::fs::create_dir_all(shell_routes.join("studio/agents/[id]")).unwrap();
-        std::fs::write(shell_routes.join("studio/agents/[id]/page.sui"), "<div/>").unwrap();
-        std::fs::create_dir_all(space_routes.join("[appId]")).unwrap();
-        std::fs::write(space_routes.join("[appId]/page.sui"), "<div/>").unwrap();
+        let one_routes = root.path().join("apps/one/routes");
+        let two_routes = root.path().join("apps/two/routes");
+        std::fs::create_dir_all(one_routes.join("x/[id]")).unwrap();
+        std::fs::write(one_routes.join("x/[id]/page.sui"), "<div/>").unwrap();
+        std::fs::create_dir_all(two_routes.join("[id]")).unwrap();
+        std::fs::write(two_routes.join("[id]/page.sui"), "<div/>").unwrap();
         let specs = vec![
             RouteGenSpec {
-                dir: shell_routes,
-                out: root.path().join("apps/shell/routes.gen.ts"),
-                label: "shell".to_string(),
+                dir: one_routes,
+                out: root.path().join("apps/one/routes.gen.ts"),
+                label: "one".to_string(),
             },
             RouteGenSpec {
-                dir: space_routes,
-                out: root.path().join("apps/spaces/routes.gen.ts"),
-                label: "spaces".to_string(),
+                dir: two_routes,
+                out: root.path().join("apps/two/routes.gen.ts"),
+                label: "two".to_string(),
             },
         ];
         let n = generate_routes(&specs).unwrap();
         assert_eq!(n, 2, "one dynamic route per root, total two");
         // Both files were written. The contents are the data table —
         // not the format, which is render_routes_gen's contract.
-        let shell = build_route_tree(&specs[0].dir, "shell").unwrap();
-        let spaces = build_route_tree(&specs[1].dir, "spaces").unwrap();
-        assert_eq!(shell.routes[0].pattern, "/studio/agents/:id");
-        assert_eq!(spaces.routes[0].pattern, "/:appId");
-        assert_eq!(shell.label, "shell");
-        assert_eq!(spaces.label, "spaces");
+        let one = build_route_tree(&specs[0].dir, "one").unwrap();
+        let two = build_route_tree(&specs[1].dir, "two").unwrap();
+        assert_eq!(one.routes[0].pattern, "/x/:id");
+        assert_eq!(two.routes[0].pattern, "/:id");
+        assert_eq!(one.label, "one");
+        assert_eq!(two.label, "two");
     }
 
     #[test]
@@ -789,22 +779,22 @@ mod tests {
 
     #[test]
     fn layout_discovery_emits_layouts_block() {
-        // A `routes/studio/_layout.sui` becomes a LAYOUTS entry with
-        // `pathPrefix: '/studio'` and the tag read from the file.
+        // A `routes/foo/_layout.sui` becomes a LAYOUTS entry with
+        // `pathPrefix: '/foo'` and the tag read from the file.
         let root = tempfile::tempdir().unwrap();
         let r = root.path().join("routes");
-        std::fs::create_dir_all(r.join("studio/agents/[id]")).unwrap();
-        std::fs::write(r.join("studio/agents/[id]/page.sui"), "<div/>").unwrap();
+        std::fs::create_dir_all(r.join("foo/bar/[id]")).unwrap();
+        std::fs::write(r.join("foo/bar/[id]/page.sui"), "<div/>").unwrap();
         // Realistic layout: comment + a `<sui-*` wrapper + a `<slot>`.
         std::fs::write(
-            r.join("studio/_layout.sui"),
-            "// studio chrome\n<sui-studio-chrome>\n  <slot />\n</sui-studio-chrome>\n",
+            r.join("foo/_layout.sui"),
+            "// chrome\n<sui-foo-chrome>\n  <slot />\n</sui-foo-chrome>\n",
         )
         .unwrap();
-        let tree = build_route_tree(&r, "shell").unwrap();
+        let tree = build_route_tree(&r, "app").unwrap();
         assert_eq!(tree.layouts.len(), 1);
-        assert_eq!(tree.layouts[0].path_prefix, "/studio");
-        assert_eq!(tree.layouts[0].tag, "sui-studio-chrome");
+        assert_eq!(tree.layouts[0].path_prefix, "/foo");
+        assert_eq!(tree.layouts[0].tag, "sui-foo-chrome");
     }
 
     #[test]
@@ -812,12 +802,12 @@ mod tests {
         // `<ship-*` is also accepted (chrome wrappers under @ship/* packs).
         let root = tempfile::tempdir().unwrap();
         let r = root.path().join("routes");
-        std::fs::create_dir_all(r.join("library")).unwrap();
-        std::fs::write(r.join("library/page.sui"), "<div/>").unwrap();
-        std::fs::write(r.join("library/_layout.sui"), "<ship-library-chrome/>\n").unwrap();
-        let tree = build_route_tree(&r, "shell").unwrap();
-        assert_eq!(tree.layouts[0].tag, "ship-library-chrome");
-        assert_eq!(tree.layouts[0].path_prefix, "/library");
+        std::fs::create_dir_all(r.join("baz")).unwrap();
+        std::fs::write(r.join("baz/page.sui"), "<div/>").unwrap();
+        std::fs::write(r.join("baz/_layout.sui"), "<ship-baz-chrome/>\n").unwrap();
+        let tree = build_route_tree(&r, "app").unwrap();
+        assert_eq!(tree.layouts[0].tag, "ship-baz-chrome");
+        assert_eq!(tree.layouts[0].path_prefix, "/baz");
     }
 
     #[test]

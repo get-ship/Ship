@@ -28,8 +28,11 @@ vi.mock('@ship/sui-runtime', () => {
 import { mountRouter, type RouterHandle } from '../src/mount-router'
 import { navigate, setEditMode } from '../src/index'
 
-const MOD_HOME = { __id: 'home' }
-const MOD_THEMES = { __id: 'themes' }
+// Generic, app-agnostic fixtures. The router is framework code (deck) and must
+// not know any app's routes — so these are abstract paths/tags, never an app's
+// real IA. `/a/b` is a nested route; `x-chrome` is an arbitrary layout tag.
+const MOD_INDEX = { __id: 'index' }
+const MOD_LEAF = { __id: 'leaf' }
 
 let router: RouterHandle | undefined
 
@@ -38,7 +41,7 @@ beforeEach(() => {
   // its own pattern set without tripping the static-baseline check.
   setEditMode(true)
   history.replaceState({}, '', '/')
-  document.body.innerHTML = '<div id="ship-root"></div>'
+  document.body.innerHTML = '<div id="root"></div>'
   mountCalls.length = 0
 })
 
@@ -49,10 +52,10 @@ afterEach(() => {
 
 const start = (layouts: { pathPrefix: string; tag: string }[] = []) =>
   mountRouter({
-    root: '#ship-root',
-    routes: [{ pattern: '/' }, { pattern: '/studio/themes' }],
+    root: '#root',
+    routes: [{ pattern: '/' }, { pattern: '/a/b' }],
     layouts,
-    modules: { '/': MOD_HOME, '/studio/themes': MOD_THEMES },
+    modules: { '/': MOD_INDEX, '/a/b': MOD_LEAF },
   })
 
 const flush = () => vi.waitFor(() => expect(mountCalls.length).toBeGreaterThan(0))
@@ -62,26 +65,26 @@ describe('mountRouter', () => {
     router = start()
     await flush()
     expect(mountCalls).toHaveLength(1)
-    expect(mountCalls[0].opts.module).toBe(MOD_HOME)
-    expect(mountCalls[0].target).toBe(document.getElementById('ship-root'))
+    expect(mountCalls[0].opts.module).toBe(MOD_INDEX)
+    expect(mountCalls[0].target).toBe(document.getElementById('root'))
   })
 
   it('navigate() routes through the registered port and mounts the new module', async () => {
     router = start()
     await flush()
-    navigate('/studio/themes')
+    navigate('/a/b')
     await vi.waitFor(() => expect(mountCalls).toHaveLength(2))
-    expect(mountCalls[1].opts.module).toBe(MOD_THEMES)
-    expect(location.pathname).toBe('/studio/themes')
+    expect(mountCalls[1].opts.module).toBe(MOD_LEAF)
+    expect(location.pathname).toBe('/a/b')
   })
 
   it('wraps the route in the layout chrome chain and mounts into the inner slot', async () => {
-    router = start([{ pathPrefix: '/studio', tag: 'sui-studio-chrome' }])
+    router = start([{ pathPrefix: '/a', tag: 'x-chrome' }])
     await flush()
-    navigate('/studio/themes')
+    navigate('/a/b')
     await vi.waitFor(() => expect(mountCalls).toHaveLength(2))
-    const root = document.getElementById('ship-root')!
-    const chrome = root.querySelector('sui-studio-chrome')
+    const root = document.getElementById('root')!
+    const chrome = root.querySelector('x-chrome')
     expect(chrome).not.toBeNull()
     const slot = chrome!.querySelector('div[slot="route"]')
     expect(slot).not.toBeNull()
@@ -92,13 +95,13 @@ describe('mountRouter', () => {
     router = start()
     await flush()
     const a = document.createElement('a')
-    a.href = '/studio/themes'
-    a.textContent = 'Themes'
+    a.href = '/a/b'
+    a.textContent = 'leaf'
     document.body.appendChild(a)
     a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
     await vi.waitFor(() => expect(mountCalls).toHaveLength(2))
-    expect(mountCalls[1].opts.module).toBe(MOD_THEMES)
-    expect(location.pathname).toBe('/studio/themes')
+    expect(mountCalls[1].opts.module).toBe(MOD_LEAF)
+    expect(location.pathname).toBe('/a/b')
   })
 
   it('clears root and does not mount when no route matches', async () => {
@@ -108,15 +111,15 @@ describe('mountRouter', () => {
     await vi.waitFor(() => expect(location.pathname).toBe('/does-not-exist'))
     // No matching module → no second mount; root emptied.
     expect(mountCalls).toHaveLength(1)
-    expect(document.getElementById('ship-root')!.childNodes.length).toBe(0)
+    expect(document.getElementById('root')!.childNodes.length).toBe(0)
   })
 
-  it('passes clients through generically (no `ship` baked into the router)', async () => {
-    const clients = { ship: { tag: 'connect-client' } }
+  it('passes arbitrary named clients through (no client name baked into the router)', async () => {
+    const clients = { api: { tag: 'some-client' } }
     router = mountRouter({
-      root: '#ship-root',
+      root: '#root',
       routes: [{ pattern: '/' }],
-      modules: { '/': MOD_HOME },
+      modules: { '/': MOD_INDEX },
       clients,
     })
     await flush()
