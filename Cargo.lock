@@ -1915,6 +1915,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "deck-conformance"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "deck",
+ "deck-core",
+ "form_urlencoded",
+ "futures-util",
+ "serde",
+ "serde_json",
+ "sui-compiler",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tower",
+ "tracing",
+]
+
+[[package]]
 name = "deck-core"
 version = "0.1.0"
 dependencies = [
@@ -1933,27 +1953,6 @@ dependencies = [
  "tokio",
  "tracing",
  "ulid",
-]
-
-[[package]]
-name = "deck-demo"
-version = "0.0.0"
-dependencies = [
- "axum",
- "deck",
- "deck-core",
- "form_urlencoded",
- "futures-util",
- "serde",
- "serde_json",
- "ship-substrate",
- "sui-compiler",
- "tempfile",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tower",
- "tracing",
 ]
 
 [[package]]
@@ -12884,7 +12883,6 @@ dependencies = [
  "shipd",
  "specta",
  "specta-typescript",
- "tokio",
 ]
 
 [[package]]

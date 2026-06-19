@@ -9,7 +9,7 @@
 //! Resolution: host-supplied [`DeckConfig`] (shipd calls
 //! [`DeckConfig::load`]) > root `deck.jsonc` > built-in defaults
 //! (conventional `views/` roots + singletons, so a zero-config host
-//! like deck-demo works).
+//! like deck-conformance works).
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -148,7 +148,7 @@ impl Default for DeckConfig {
 }
 
 impl DeckConfig {
-    /// Built-in defaults — a zero-config host (e.g. deck-demo) gets these
+    /// Built-in defaults — a zero-config host (e.g. deck-conformance) gets these
     /// when no `deck.jsonc` is present or when only some fields are declared.
     pub fn defaults() -> Self {
         Self {
@@ -356,7 +356,7 @@ mod tests {
         assert_eq!(cfg.packs, vec!["@ship/sui-primitives", "deck-demo-app"]);
     }
 
-    /// A PARTIAL deck.jsonc (deck-demo's shape: scaffolds only) must keep the
+    /// A PARTIAL deck.jsonc (deck-conformance's shape: scaffolds only) must keep the
     /// built-in view-layout defaults. Field-level `#[serde(default)]` attrs
     /// used to shadow the container default here: `view_dirs` parsed to `[]`
     /// and view discovery found zero targets (`unknown target: views/*/view`).

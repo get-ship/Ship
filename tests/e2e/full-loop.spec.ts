@@ -1,7 +1,7 @@
 /**
  * Full-loop e2e: a hermetic `shipd` + the real deck-served shell + real data.
  *
- * Every other e2e spec here either drives the ship-free deck-demo or talks to a
+ * Every other e2e spec here either drives the ship-free deck-conformance or talks to a
  * shell vite dev server, and skips when neither is up. This one OWNS its daemon
  * — it boots a fresh `shipd` against a throwaway SHIP_HOME (see `_daemon.ts`),
  * drives the shell deck serves at `/`, and proves the loop closes against real

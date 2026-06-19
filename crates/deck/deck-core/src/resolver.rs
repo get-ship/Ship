@@ -9,7 +9,7 @@ static DETECTION_WARN_ONCE: Once = Once::new();
 
 /// Authoritative project-root override set ONCE at host startup.
 ///
-/// Long-running / embedding hosts (shipd, deck-demo) call this with the
+/// Long-running / embedding hosts (shipd, deck-conformance) call this with the
 /// workspace root they already hold. The resolver consults this BEFORE
 /// the cwd-detection floor, so per-workspace requests resolve against
 /// the workspace they were launched against even if cwd drifts later.
@@ -86,7 +86,7 @@ pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, Resol
     let layout = view_layout();
     // `resolve_project_root` resolves override → nearest-ancestor marker
     // detection → cwd fallback. The override is the safe path; long-running
-    // hosts (shipd, deck-demo) call `set_project_root` at startup so they
+    // hosts (shipd, deck-conformance) call `set_project_root` at startup so they
     // never ride the cwd-detection floor. The detection floor is the fragile
     // path: it keys on deck-owned SOURCE markers (`deck.jsonc` > `views/` >
     // `.ship/views/`), so a fresh checkout resolves before any `.deck` build
@@ -112,12 +112,12 @@ pub(crate) fn deck_out_root() -> Option<PathBuf> {
 
 /// Resolution order (HIGH → LOW):
 /// 1. **HOST OVERRIDE** — `set_project_root(root)` set at startup. Authoritative
-///    for long-running hosts (shipd, deck-demo) that already hold the workspace
+///    for long-running hosts (shipd, deck-conformance) that already hold the workspace
 ///    root in typed state. Sound because deck serves one root per process.
 /// 2. **DETECTION FLOOR** — std-only nearest-ancestor upwalk from
 ///    `std::env::current_dir()`, looking for a deck-owned SOURCE marker
 ///    (`deck.jsonc` > `views/` > `.ship/views/`) at any of the up to 32
-///    ancestors. Nearest-ancestor-wins: deck-demo's `app/` does NOT resolve
+///    ancestors. Nearest-ancestor-wins: deck-conformance's `app/` does NOT resolve
 ///    to the monorepo root, and a fresh checkout resolves before `.deck` is
 ///    built (markers are source-side, all git-tracked).
 /// 3. **ZERO-CONFIG FALLBACK** — `current_dir()`. Matches the
@@ -211,7 +211,7 @@ mod project_root_tests {
 
     /// Nested project: monorepo root has a `views/`, the inner project's
     /// `app/` ALSO has a `views/`. Detection must pick the NEAREST one
-    /// (`app/`), not the topmost (monorepo). This is the deck-demo shape:
+    /// (`app/`), not the topmost (monorepo). This is the deck-conformance shape:
     /// a demo app nested inside a wider monorepo, where reaching the
     /// monorepo root would shadow the project's own views.
     #[test]

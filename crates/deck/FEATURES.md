@@ -46,7 +46,7 @@ each is guarded by a dedicated gate test:
 
 ## Executable reference
 
-`examples/deck-demo` is the ship-free worked example. It is a zero-config Deck
+`crates/deck/deck-conformance` is the ship-free worked example. It is a zero-config Deck
 host (no Ship app, no `.ship` dir) that exercises every feature below — view
 host, payload, scaffolds, framework bundles, icons, live-data SSE, form
 mutation, HMR — so the contract is demonstrated end-to-end without any Ship
@@ -120,7 +120,7 @@ chunks, builds apps and views, writes the asset graph, and watches for HMR.
 | --- | --- | --- | --- |
 | Manifest schema | `deck.jsonc` | `crates/deck/deck-config/src/lib.rs::DeckConfig` | Parsed `deck.jsonc`: consumer-bundle targets, source roots, packs, view dirs, component source roots. |
 | Config load | (startup) | `crates/deck/deck-config/src/lib.rs::load` | Reads `<root>/deck.jsonc`, strips JSONC comments, falls back to defaults (never panics). |
-| Zero-config defaults | (built-in) | `crates/deck/deck-config/src/lib.rs::defaults` | The defaults a host with no `deck.jsonc` (deck-demo) runs on. |
+| Zero-config defaults | (built-in) | `crates/deck/deck-config/src/lib.rs::defaults` | The defaults a host with no `deck.jsonc` (deck-conformance) runs on. |
 | Bundle target decl | (config entry) | `crates/deck/deck-config/src/lib.rs::TargetDecl` | One consumer bundle target (name, entry, externals, kind, out-file). |
 
 ## Host contract (`deck-host`, `deck-cli`)

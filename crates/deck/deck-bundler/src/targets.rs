@@ -57,7 +57,7 @@ pub struct BundleLayout {
 impl BundleLayout {
     /// Construct loading `deck.jsonc` from `repo_root` (the normal default).
     /// Falls back to [`DeckConfig::defaults`] when the file is absent, so
-    /// zero-config hosts (deck-demo, integration test tempdirs) work without
+    /// zero-config hosts (deck-conformance, integration test tempdirs) work without
     /// a manifest.
     pub fn new(repo_root: PathBuf, workspace_root: Option<PathBuf>) -> Self {
         let cfg = DeckConfig::load(&repo_root);

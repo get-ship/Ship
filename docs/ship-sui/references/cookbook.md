@@ -482,7 +482,7 @@ prop:rows={rowsSignal}>…</my-widget>`. The compiler emits the
 A view names the data clients it consumes with `<client>`; the host
 supplies a keyed map at mount. `ship` is just the key Ship hosts use —
 here a deck host injects its own client as `api`. Worked exemplar in
-the repo: `examples/deck-demo/app/views/clock/page.sui`.
+the repo: `crates/deck/deck-conformance/app/views/clock/page.sui`.
 
 `app/views/clock/page.sui`:
 
