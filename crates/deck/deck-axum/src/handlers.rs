@@ -99,11 +99,46 @@ pub async fn serve_view_payload(
     into_axum(deck_core::serve_view_payload(mode_from_ext(mode), &name))
 }
 
+/// `GET /_deck/views/{name}/{*sub_path}` — the JSON payload for a
+/// nested/parameterized view route. The wildcard path segment carries
+/// one or more URL segments (e.g. `greet/zelda` or `studio/agents/42`);
+/// the runtime folds the sub into the resolved `name` (and the
+/// `__subscribe__` URL) and walks the resolver to capture `[param]`
+/// segments. Mirrors the path-split pattern `serve_view_host` uses,
+/// because axum's `Path<(String, String)>` only captures a fixed
+/// 2-tuple and the deeper the nesting the more brittle that becomes.
 pub async fn serve_view_payload_subpath(
     mode: Option<Extension<DaemonMode>>,
-    Path((name, sub_path)): Path<(String, String)>,
+    OriginalUri(uri): OriginalUri,
 ) -> Response {
-    into_axum(deck_core::serve_view_payload_subpath(mode_from_ext(mode), &name, &sub_path))
+    // The sub-path payload surface is at `/_deck/views/{name}/{*sub_path}`.
+    // Segment layout: ["_deck", "views", name, ...sub]. Name is at index 2;
+    // the sub path is everything after the name, joined back with `/`.
+    let mut segs = uri.path().trim_start_matches('/').split('/');
+    let name = segs
+        .nth(2)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+    let sub_path: String = segs.collect::<Vec<_>>().join("/");
+    match name {
+        Some(name) => into_axum(deck_core::serve_view_payload_subpath(
+            mode_from_ext(mode),
+            &name,
+            &sub_path,
+        )),
+        // Fallback: degenerate path that didn't match the 3-segment
+        // `/_deck/views/<name>/<sub…>` shape — delegate to the top-level
+        // payload handler, which produces the canonical 404 / name-error JSON.
+        None => {
+            let name = uri
+                .path()
+                .trim_start_matches('/')
+                .rsplit('/')
+                .next()
+                .unwrap_or("");
+            into_axum(deck_core::serve_view_payload(mode_from_ext(mode), name))
+        }
+    }
 }
 
 // ── Meta handler (/_deck/meta) ─────────────────────────────────────────────────

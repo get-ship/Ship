@@ -113,6 +113,17 @@ pub fn router() -> Router {
         .route("/_deck/catalog/workspace", get(serve_catalog_workspace))
         .route("/_deck/meta", get(serve_meta))
         .route("/_deck/views/{name}/view.js", get(serve_sui_view_setup))
+        // `GET /_deck/views/{name}/{*sub_path}` — the JSON payload for a
+        // nested / parameterized view route. The `view.js` route above
+        // accepts `?sub=<path>` for the same payload client-side; the path
+        // form here is the canonical API for the runtime + the conformance
+        // param test. Without it, `/_deck/views/<name>/<sub>` 404s and the
+        // resolver-side `[id]` behavior the unit tests prove is invisible
+        // to the e2e suite.
+        .route(
+            "/_deck/views/{name}/{*sub_path}",
+            get(serve_view_payload_subpath),
+        )
         .route("/_deck/views/{name}", get(serve_view_payload))
         .route("/_deck/view/{name}", get(serve_view_host))
         .route("/_deck/view/{name}/{*sub_path}", get(serve_view_host))

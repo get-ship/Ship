@@ -33,10 +33,15 @@ use std::path::PathBuf;
 
 /// Framework singletons that must be baked into the binary.
 /// Sourced from `.deck/framework/`, staged to `assets/` by this script.
+/// `deck-route.js` is the `@ship/deck/route` framework singleton
+/// (defineRoutes / route / navigate / setEditMode) — every per-app
+/// bundler-generated entry imports it, so the framework ships it as
+/// `include_str!("../assets/deck-route.js")` from `assets.rs`.
 const FRAMEWORK_BUNDLES: &[&str] = &[
     "sui-runtime.js",
     "sui-dom.js",
     "sui-sdk-client.js",
+    "deck-route.js",
 ];
 
 /// All assets that must be non-empty before the build proceeds.
@@ -44,6 +49,7 @@ const ASSETS: &[&str] = &[
     "sui-runtime.js",
     "sui-dom.js",
     "sui-sdk-client.js",
+    "deck-route.js",
     "lucide-icons.json",
 ];
 
