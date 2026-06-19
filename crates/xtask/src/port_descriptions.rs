@@ -1,9 +1,13 @@
-//! ONE-TIME porter: move op descriptions from the Rust registry
-//! (`schema::OPS`/`COMMANDS`) into the per-domain protos as
+//! ONE-TIME porter: move command descriptions from the Rust registry
+//! (`schema::COMMANDS`) into the per-domain protos as
 //! `option (ship.ops.v1.description) = "…"`. After this, the proto carries the
 //! prose (the SSOT, decision #67a) and the registry's `description` field has no
 //! reader left. Run once: `cargo xtask port-descriptions`. protoc (the build)
 //! is the safety net — a malformed injection fails the descriptor compile.
+//!
+//! The read-side op registry (`OPS`) was retired with the per-domain proto
+//! migration (#67a); the per-domain protos already carry their own
+//! `description` options, so this porter now only sources the command side.
 //!
 //! Skips the `*.gen.proto` umbrella (generated scaffold, retiring with #78) and
 //! the non-service files. Idempotent at file granularity: a proto that already
@@ -36,12 +40,9 @@ fn op_name(service: &str, method: &str) -> String {
     format!("{domain}.{}", snake(method))
 }
 
-/// op name → one-line description, from the registry (both read + command tables).
+/// op name → one-line description, from the command registry.
 fn descriptions() -> HashMap<String, String> {
     let mut m = HashMap::new();
-    for op in ship_ops_rpc::catalog::OPS.iter() {
-        m.insert(op.name.to_string(), op.description.to_string());
-    }
     for cmd in ship_ops_rpc::catalog::COMMANDS {
         m.insert(cmd.name.to_string(), cmd.description.to_string());
     }
