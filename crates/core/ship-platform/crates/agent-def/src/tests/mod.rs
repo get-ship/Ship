@@ -20,3 +20,5 @@ mod integration_profile_resolution;
 mod integration_harness_routing;
 #[cfg(test)]
 mod event_scope_discipline;
+#[cfg(test)]
+mod file_changed_consumer;

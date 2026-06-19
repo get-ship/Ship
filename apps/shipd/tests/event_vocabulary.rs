@@ -87,6 +87,12 @@ fn domain_family_slices_are_fully_registered() {
 /// Durable or argue its row here.
 #[test]
 fn space_ephemeral_events_are_a_pinned_shrinking_set() {
+    // The ratchet has shrunk again (job/transient-events): `agent.def.updated`
+    // moved from Space+Ephemeral to Space+Durable because the kernel's
+    // `route` now honors `Retention` (Ephemeral → deliver only, no persist).
+    // The read-only agent-def index and the `ship-agents` watch consumers
+    // key off the persisted row, so the event must be Durable. See
+    // `.artifacts/transient-events-design.md` for the rationale.
     let mut actual: Vec<&str> = event_registry::registry()
         .filter(|d| {
             d.primary_scope() == EventScope::Space && d.retention == Retention::Ephemeral
@@ -96,7 +102,7 @@ fn space_ephemeral_events_are_a_pinned_shrinking_set() {
     actual.sort_unstable();
     assert_eq!(
         actual,
-        ["agent.changed", "agent.def.updated", "view.changed"],
+        ["agent.changed", "view.changed"],
         "the Space+Ephemeral set changed. Space-scoped events should be \
          Durable (restoration replays them) — make the new event Durable, \
          rescope it to Runtime like its config-family siblings, or justify \

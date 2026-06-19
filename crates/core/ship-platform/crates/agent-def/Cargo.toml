@@ -24,6 +24,11 @@ compiler = { path = "../../../compiler", features = ["specta"] }
 inventory = { workspace = true }
 include_dir = "0.7"
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
+# The `file_changed_consumer` module (job/transient-events) spawns a tokio
+# task on the kernel-log broadcast. The runner mechanism pulls tokio in
+# transitively, but the consumer needs direct access to `tokio::spawn` /
+# `tokio::sync::broadcast` error types — declare the dep here.
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time", "sync"] }
 
 anyhow = { workspace = true }
 serde = { workspace = true }
@@ -45,7 +50,6 @@ home = { workspace = true }
 # feature + cfg(test) in lib.rs) so agent-def tests can re-export it without a
 # local copy.
 ship-platform = { path = "../..", features = ["testutil"] }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
 tempfile = { workspace = true }
 chrono = { workspace = true }
 walkdir = "2.3"

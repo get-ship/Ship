@@ -209,9 +209,17 @@ mod tests {
     }
 
     /// `agent.def.updated` scope/retention pin — moved here from
-    /// ship-substrate when the registration moved (keystone-A Phase A).
+    /// ship-substrate when the registration moved (keystone-A Phase A),
+    /// and re-pinned in job/transient-events when the kernel started
+    /// honoring `Retention` (Durable = persist + deliver, Ephemeral =
+    /// deliver only). The `ship-config` watcher now emits a transient
+    /// `config.file_changed` for every config file; the agent-def
+    /// domain consumer maps the `agents` subset into a durable
+    /// `agent.def.updated` (the read model the read-only agent-def
+    /// index + the `ship-agents` watch consumers key off). See
+    /// `.artifacts/transient-events-design.md`.
     #[test]
-    fn agent_def_updated_is_space_ephemeral() {
+    fn agent_def_updated_is_space_durable() {
         let def = event_registry::lookup("agent.def.updated")
             .expect("agent.def.updated must be in registry");
         assert_eq!(
@@ -222,8 +230,10 @@ mod tests {
         assert_eq!(def.primary_scope(), EventScope::Space);
         assert_eq!(
             def.retention,
-            Retention::Ephemeral,
-            "Bucket-2 notification is ephemeral — the file is truth"
+            Retention::Durable,
+            "agent.def.updated is the DOMAIN event for an agent-def file change — \
+             it is the durable fact the read-only index and the per-agent watch \
+             consumers key off (job/transient-events spike)"
         );
     }
 }

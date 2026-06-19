@@ -39,7 +39,14 @@ use ship_types::register_event;
 
 // ── actor.* ─────────────────────────────────────────────────────────────────
 register_event!("actor.crashed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ActorCrashed", crate::events::types::ActorCrashed);
-register_event!("actor.created", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ActorCreated", crate::events::types::ActorCreated);
+// `actor.created` is the row's BIRTH — the ActorProjection seeds `actors` from it
+// on every rebuild. Reclassifying it as Durable is the right call now that the
+// kernel's `route` consults `Retention` (job/transient-events spike,
+// `.artifacts/transient-events-design.md`): losing it on daemon restart would
+// leave the actors table empty. The activity ticks below (`actor.slept`,
+// `actor.woke`, `actor.stopped`) keep Ephemeral — they are heartbeat-style
+// signals the kernel delivers to live subscribers, not durable state.
+register_event!("actor.created", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ActorCreated", crate::events::types::ActorCreated);
 register_event!("actor.mailbox_full", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ActorMailboxFull", crate::events::types::ActorMailboxFull);
 register_event!("actor.slept", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ActorSlept", crate::events::types::ActorSlept);
 register_event!("actor.stopped", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ActorStopped", crate::events::types::ActorStopped);
@@ -107,8 +114,14 @@ register_event!("daemon.owner.bound", [EventScope::Account], Retention::Durable,
 register_event!("daemon.owner.unbound", [EventScope::Account], Retention::Durable, Stability::Stable, "DaemonOwnerUnbound", crate::events::types::DaemonOwnerUnbound);
 
 // ── executor.* ──────────────────────────────────────────────────────────────
-register_event!("executor.session_destroyed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ExecutorSessionDestroyedPayload", crate::events::executor::ExecutorSessionDestroyedPayload);
-register_event!("executor.window_destroyed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ExecutorWindowDestroyedPayload", crate::events::executor::ExecutorWindowDestroyedPayload);
+// Reclassified to Durable (job/transient-events): the post-mortem query
+// "every session we destroyed in the last 24h" the cleanup slice relies
+// on is a durable fact. They are no longer transient observations — the
+// kernel's `route` now honors `Retention` and the docs on `Ephemeral`
+// ("Windowed; only the last N … retained") no longer fit these events
+// whose consumers (the post-mortem projection) want the full history.
+register_event!("executor.session_destroyed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ExecutorSessionDestroyedPayload", crate::events::executor::ExecutorSessionDestroyedPayload);
+register_event!("executor.window_destroyed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ExecutorWindowDestroyedPayload", crate::events::executor::ExecutorWindowDestroyedPayload);
 
 // ── hook.* ──────────────────────────────────────────────────────────────────
 // DEREGISTERED (#25b, 2026-06-10): all 6 hook.* events retired. Emitters
@@ -160,18 +173,29 @@ register_event!("pipeline.run.started", [EventScope::Runtime], Retention::Durabl
 register_event!("pipeline.step.completed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepCompletedPayload", crate::events::pipeline::PipelineStepCompletedPayload);
 register_event!("pipeline.step.done_declared", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepDoneDeclaredPayload", crate::events::pipeline::PipelineStepDoneDeclaredPayload);
 register_event!("pipeline.step.failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepFailedPayload", crate::events::pipeline::PipelineStepFailedPayload);
-register_event!("pipeline.step.observed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "PipelineStepObservedPayload", crate::events::pipeline::PipelineStepObservedPayload);
-register_event!("pipeline.step.output", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "PipelineStepOutputPayload", crate::events::pipeline::PipelineStepOutputPayload);
+// Reclassified to Durable (job/transient-events). The
+// `pipeline_step_runs` projection in `ship-pipeline-runtime` already
+// anchors step lifecycle on `started/completed/failed/retry/...` and
+// "deliberately does not anchor on `pipeline.step.observed`" (per the
+// module doc), so the projection's correctness is unchanged. Reclassifying
+// these as Durable preserves the post-mortem audit trail ("we observed
+// step X at time T with reason R") the orchestrator tests query for.
+register_event!("pipeline.step.observed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepObservedPayload", crate::events::pipeline::PipelineStepObservedPayload);
+register_event!("pipeline.step.output", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepOutputPayload", crate::events::pipeline::PipelineStepOutputPayload);
 register_event!("pipeline.step.retry", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepRetry", crate::events::types::PipelineStepRetry);
 register_event!("pipeline.step.spawn_failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepSpawnFailedPayload", crate::events::pipeline::PipelineStepSpawnFailedPayload);
 register_event!("pipeline.step.started", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepStartedPayload", crate::events::pipeline::PipelineStepStartedPayload);
-
-// ── process.* ───────────────────────────────────────────────────────────────
+// Reclassified to Durable (job/transient-events): the `ActorProjection`
+// backfills the actor's pid from `process.spawned` (the projection
+// code path is documented as "apply the pid from `process.spawned` to
+// the matching actor row so live = pid_alive works honestly instead of
+// falling back to the activity_live timer"). Losing this on restart
+// would mean every actor's pid column is empty on cold boot, and the
+// activity_live timer has to re-learn every pid from scratch.
+register_event!("process.spawned", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ProcessSpawnedPayload", crate::events::process::ProcessSpawnedPayload);
+register_event!("process.signal_sent", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProcessSignalSentPayload", crate::events::process::ProcessSignalSentPayload);
 register_event!("process.exited", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ProcessExitedPayload", crate::events::process::ProcessExitedPayload);
 register_event!("process.killed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ProcessKilledPayload", crate::events::process::ProcessKilledPayload);
-register_event!("process.signal_sent", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProcessSignalSentPayload", crate::events::process::ProcessSignalSentPayload);
-register_event!("process.spawned", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProcessSpawnedPayload", crate::events::process::ProcessSpawnedPayload);
-
 // ── project.* ───────────────────────────────────────────────────────────────
 // Moved to ship-space/src/event_registrations.rs (keystone-A Phase A bundle 4,
 // project.seen / project.switched — the SPACE domain owns its events at L1.
@@ -213,10 +237,17 @@ register_event!("supervisor.shutting_down", [EventScope::Runtime], Retention::Du
 // Phase A bundle 3, 2026-06-10): watcher-ping family co-locates with its emitter.
 
 // ── legacy/deprecated (kept for backward compat, fail-closed classification) ─
-// workspace.* moved to ship-space/src/event_registrations.rs (keystone-A Phase A
+// Reclassified to Durable (job/transient-events): the per-step
+// projection in `ship-pipeline-runtime` still anchors on
+// `pipeline.run.updated` (see `STEP_EVENT_TYPES` in
+// `pipeline_step_run.rs`); the event carries a human-to-agent message
+// for the running step, which is the durable audit trail. The event is
+// `Stability::Deprecated` (the new path is direct mailbox messaging to
+// the step) but the existing anchor is still correct as long as the
+// event flows.
+register_event!("pipeline.run.updated", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "PipelineRunUpdatedPayload", crate::events::pipeline::PipelineRunUpdatedPayload);
 // bundle 4, 2026-06-10) — the SPACE domain owns its deprecated legacy events.
 register_event!("daemon.crashed", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonCrashed", crate::events::daemon::CrashedPayload);
 register_event!("daemon.pidfile_acquired", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonPidfileAcquired", crate::events::daemon::PidfileAcquiredPayload);
 register_event!("daemon.pidfile_stale_taken", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonPidfileStaleTaken", crate::events::daemon::PidfileStaleTakenPayload);
-register_event!("pipeline.run.updated", [EventScope::Runtime], Retention::Ephemeral, Stability::Deprecated, "PipelineRunUpdatedPayload", crate::events::pipeline::PipelineRunUpdatedPayload);
 register_event!("process.orphaned", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "ProcessOrphaned", crate::events::process::ProcessOrphanedPayload);

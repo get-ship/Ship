@@ -24,13 +24,16 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ship_substrate::ports::{FsBroker, FsError, FsMode, KernelLog};
+use ship_substrate::events::EmitContext;
+use ship_substrate::ports::{FsBroker, FsCap, FsError, FsMode, FsRoot, KernelLog};
 use ship_types::SpaceId;
+use ship_types::envelope::EventEnvelope;
+use ship_types::event_types;
+use ship_types::payload::AgentDefUpdated;
 
 use crate::agents::{agent_rel, agents_cap, scope_cap, under_prefix};
 use crate::error::ConfigError;
 use crate::types::AgentProfile;
-
 /// Accepted def extensions, canonical first. `.json` is tolerated so a
 /// hand-authored plain-JSON def still resolves on read/locate/delete.
 const DEF_EXTS: &[&str] = &["jsonc", "json"];
@@ -220,9 +223,13 @@ pub fn save_agents_config(
 /// door the writer uses (an absent file → empty hash = the deleted marker the
 /// index drops the row on). Space-scoped (the def lives in a space's `.ship`).
 ///
-/// This composes the existing watcher authorship ([`crate::watcher`]) onto the
-/// write door — one event shape for both producers, so a double-emit (op +
-/// watcher) is harmless at the idempotent index. The writer itself is untouched.
+/// This is the DETERMINISTIC half of the agent-def producer→index loop
+/// (job/transient-events): a gated CRUD write produces a durable row here,
+/// independent of the OS watcher. The watcher → consumer loop
+/// (`ship_config::watcher` → `agent_def::file_changed_consumer`) is the
+/// EDIT-TIME half. Both produce the same event shape, and the read-only
+/// index in `ship_config::agents_index` is idempotent on the notification.
+/// The writer itself is untouched.
 pub async fn notify_agent_def_saved(
     kernel: &Arc<KernelLog>,
     fs: &dyn FsBroker,
@@ -232,7 +239,36 @@ pub async fn notify_agent_def_saved(
 ) {
     let agents_dir = ship_substrate::project::agents_ns(ship_dir);
     let file = agents_dir.join(format!("{id}.jsonc"));
-    crate::watcher::author_agent_def_updated(kernel, fs, &agents_dir, &file, space).await;
+    let rel = file
+        .strip_prefix(&agents_dir)
+        .unwrap_or(&file)
+        .to_string_lossy()
+        .to_string();
+    let cap = FsCap::new_unchecked(
+        agents_dir.clone(),
+        FsRoot::Space(ship_substrate::ports::SpaceId::new("config")),
+        FsMode::ReadOnly,
+    );
+    // Empty hash signals a removed file (read fails) — a valid "deleted" marker.
+    let content_hash = fs
+        .read(&cap, &rel)
+        .map(|bytes| ship_types::sha256_hex(&bytes))
+        .unwrap_or_default();
+    let payload = AgentDefUpdated {
+        path: rel.clone(),
+        content_hash,
+    };
+    let envelope = match EventEnvelope::new(event_types::AGENT_DEF_UPDATED, &rel, &payload) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("config: failed to build agent.def.updated envelope: {e}");
+            return;
+        }
+    };
+    let ctx = EmitContext::daemon_internal(space);
+    if let Err(e) = kernel.emit(envelope, &ctx).await {
+        tracing::warn!("config: failed to emit agent.def.updated: {e}");
+    }
 }
 
 /// Render an agent profile to JSONC. When `existing` already holds a canonical

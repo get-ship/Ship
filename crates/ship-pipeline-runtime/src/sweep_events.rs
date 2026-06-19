@@ -50,7 +50,13 @@ pub struct CoherenceRestoredPayload {
 use ship_types::event_registry::{EventScope, Retention, Stability};
 use ship_types::register_event;
 
+// The sweep audit trail: a `sweep_completed` event records the
+// drift count + actions taken for one run of the reconciler — a Durable
+// fact the post-mortem projection needs. Reclassified from Ephemeral
+// to Durable in job/transient-events (the kernel's `route` now honors
+// `Retention`); the orchestrator's own tests query the events table
+// for these, which is the durable audit path.
 register_event!("supervisor.coherence_restored", [EventScope::Runtime], Retention::Durable, Stability::Stable, "CoherenceRestoredPayload", crate::sweep_events::CoherenceRestoredPayload);
 register_event!("supervisor.drift_detected", [EventScope::Runtime], Retention::Durable, Stability::Stable, "DriftDetectedPayload", crate::sweep_events::DriftDetectedPayload);
-register_event!("supervisor.sweep_completed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SweepCompletedPayload", crate::sweep_events::SweepCompletedPayload);
-register_event!("supervisor.sweep_started", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SweepStartedPayload", crate::sweep_events::SweepStartedPayload);
+register_event!("supervisor.sweep_completed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SweepCompletedPayload", crate::sweep_events::SweepCompletedPayload);
+register_event!("supervisor.sweep_started", [EventScope::Runtime], Retention::Durable, Stability::Stable, "SweepStartedPayload", crate::sweep_events::SweepStartedPayload);

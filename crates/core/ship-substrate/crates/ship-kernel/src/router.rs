@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 
 use ship_types::envelope::EventEnvelope;
 pub use ship_types::ActorConfig;
-
+use ship_types::event_registry::Retention;
 use crate::mailbox::Mailbox;
 use crate::sink::EventSink;
 use crate::validator::EventValidator;
@@ -190,11 +190,35 @@ impl KernelRouter {
         &self.subscriptions
     }
 
-    /// Validate, persist, and deliver an event.
+    /// Validate, then either persist (Durable) or skip persistence
+    /// (`Retention::Ephemeral`), and deliver to mailboxes either way.
+    ///
+    /// `Retention::Ephemeral` events are **transient signals** — delivered
+    /// to live in-memory subscribers (`deliver` → per-actor mailboxes;
+    /// `KernelLog::broadcast` → external subscribers) but NEVER written to
+    /// the durable events table. The doc on `Retention::Ephemeral` says
+    /// "Windowed; only the last N or a recent time window is retained";
+    /// this is what makes that contract true end-to-end. See
+    /// `.artifacts/transient-events-design.md` (job/transient-events) for
+    /// the spike rationale.
+    ///
+    /// Events with no registered definition (ad-hoc / test) default to
+    /// `Durable` to preserve existing emit-site behavior — fail-closed
+    /// toward persisting, not toward dropping.
     pub async fn route(&self, event: EventEnvelope) -> anyhow::Result<()> {
         // Run validators
         for v in &self.validators {
             v.validate(&event)?;
+        }
+
+        // Skip the durable write for transient signals. Mailbox delivery
+        // below is unaffected.
+        if ship_types::event_registry::lookup(&event.event_type)
+            .map(|d| d.retention == Retention::Ephemeral)
+            .unwrap_or(false)
+        {
+            self.deliver(&event);
+            return Ok(());
         }
 
         // Persist via sink

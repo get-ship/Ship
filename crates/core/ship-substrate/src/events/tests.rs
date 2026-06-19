@@ -307,7 +307,12 @@ fn test_property_event_ordering() -> anyhow::Result<()> {
 }
 
 #[test]
-fn registry_actor_created_is_runtime_ephemeral() {
+fn registry_actor_created_is_runtime_durable() {
+    // Reclassified Durable: `actor.created` is the BIRTH of the actors
+    // projection row (see ActorProjection) — losing it on daemon restart
+    // would leave the actors table empty. Job/transient-events spike
+    // (`.artifacts/transient-events-design.md`) is the call site; the
+    // activity ticks (`actor.slept`/`woke`/`stopped`) keep Ephemeral.
     let def = ship_types::event_registry::lookup("actor.created")
         .expect("actor.created must be in registry");
     assert_eq!(
@@ -315,7 +320,7 @@ fn registry_actor_created_is_runtime_ephemeral() {
         &[ship_types::event_registry::EventScope::Runtime]
     );
     assert_eq!(def.primary_scope(), ship_types::event_registry::EventScope::Runtime);
-    assert_eq!(def.retention, ship_types::event_registry::Retention::Ephemeral);
+    assert_eq!(def.retention, ship_types::event_registry::Retention::Durable);
 }
 
 // `registry_agent_def_updated_is_space_ephemeral` moved to agent-def

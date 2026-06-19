@@ -47,13 +47,19 @@ register_event!("dispatch.requested", [EventScope::Runtime], Retention::Ephemera
 
 // ── agents-domain facets (keystone-A Phase A, 2026-06-10) ──────────────────
 // Moved from ship-substrate payload_registry.rs: the AGENTS domain owns its
-// facet vocabulary (skills / rules / permissions / compile). The def-update
-// registration moved to ship-config/src/event_registrations.rs — the
-// `agent.def.updated` event is EMITTED by the ship-config watcher/write path,
-// so its registration must be link-time present in ship-config. Payload
-// structs remain in ship_types::payload (L0 leaf types crate, no
-// layering concern); the REGISTRATIONS — ownership of name, scope, retention
-// and the carried validator — live with the EMITTER's crate.
+// facet vocabulary (skills / rules / permissions / compile) AND the
+// `agent.def.updated` def-update event. Payload structs remain in
+// ship_types::payload (L0 leaf types crate, no layering concern); the
+// REGISTRATIONS — ownership of name, scope, retention
+// and the carried validator — live with the domain.
+// `agent.def.updated` is the durable domain event for an agent-def file
+// change. Reclassified from Ephemeral to Durable in job/transient-events:
+// the read-only agent-def index (`ship-config::agents_index`) reads back
+// from the space db on boot, and the agent-fanout consumers
+// (`ship-agents::services::agents::watch`) key off its presence.
+// Registered here (the domain owner); ship-config's tests link agent-def via a
+// dev-dependency, and the daemon links both in production.
+register_event!("agent.def.updated", [EventScope::Space], Retention::Durable, Stability::Stable, "AgentDefUpdated", ship_types::payload::AgentDefUpdated);
 register_event!("agent.task.complete", [EventScope::Space], Retention::Durable, Stability::Stable, "AgentTaskComplete", ship_types::payload::AgentTaskComplete);
 register_event!("compile.completed", [EventScope::Space], Retention::Durable, Stability::Stable, "CompileCompleted", ship_types::payload::CompileCompleted);
 register_event!("permissions.updated", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PermissionsUpdated", ship_types::payload::PermissionsUpdated);

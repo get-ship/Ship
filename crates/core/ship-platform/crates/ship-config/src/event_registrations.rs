@@ -1,21 +1,18 @@
 //! Event registrations for the CONFIG family.
 //!
 //! Registers the watcher-ping events (`config.changed`, `config.file_changed`,
-//! `<domain>.changed` × 6) and the `agent.def.updated` Format-2 def
-//! notification with the global event registry using the hoisted
-//! `register_event!` macro from `ship_types`. All of these are EMITTED by
-//! ship-config (the watcher, the gated def write door, and the config
-//! service), so the registration must be link-time present here.
+//! `<domain>.changed` × 6) with the global event registry via the hoisted
+//! `register_event!` macro from `ship_types`. These are EMITTED by ship-config
+//! (the watcher and the config service), so the registration is link-time
+//! present here.
 //!
-//! Keystone-A Phase A bundle 3 (2026-06-10): the watcher-ping family moved
-//! from `ship_substrate::events::payload_registry`. The `agent.def.updated`
-//! registration moved from `agent-def/src/event_registrations.rs` in the
-//! event-routing correctness fix (2026-06-19): the emitter is ship-config's
-//! watcher / agents_write path, not agent-def.
+//! `agent.def.updated` is NOT registered here — it's owned by the agent-def
+//! domain (`agent-def/src/event_registrations.rs`). ship-config still emits it
+//! from the gated def-write path and links agent-def as a dev-dependency so its
+//! tests carry the registration; the daemon links both in production.
 //!
-//! Payload structs (`ConfigChanged`, `ConfigFileChanged`, `AgentDefUpdated`)
-//! STAY in `ship_types::payload` — `ConfigChanged` is the shared type used
-//! by all watcher events; the others have no owner-specific reason to move.
+//! Payload structs (`ConfigChanged`, `ConfigFileChanged`) STAY in
+//! `ship_types::payload` — `ConfigChanged` is the shared watcher-event type.
 
 use ship_types::event_registry::{EventScope, Retention, Stability};
 use ship_types::register_event;
@@ -23,8 +20,13 @@ use ship_types::register_event;
 // ── config.changed / config.file_changed ────────────────────────────────────
 // Machine/daemon runtime settings (daemon.port, terminal.program, watcher.*,
 // isolation tiers) — per-machine, never synced. `set_setting_and_emit` mints
-// daemon-internal with no space; Runtime is the correct partition.
-register_event!("config.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ConfigChanged", ship_types::payload::ConfigChanged);
+// `config.changed` is a daemon-settings mutation — the platform record
+// of "this setting was set to this value at this time". It is a Durable
+// fact (the settings are the source of truth on disk; the event log is
+// the journal of how they got there). Reclassified from Ephemeral to
+// Durable in job/transient-events so the kernel's `route` honors
+// retention (Ephemeral now means "deliver to live subscribers only").
+register_event!("config.changed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ConfigChanged", ship_types::payload::ConfigChanged);
 register_event!("config.file_changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ConfigFileChanged", ship_types::payload::ConfigFileChanged);
 
 // ── <domain>.changed watcher-ping family ────────────────────────────────────
@@ -37,16 +39,3 @@ register_event!("pipeline.changed", [EventScope::Runtime], Retention::Ephemeral,
 register_event!("rule.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "RuleChanged", ship_types::payload::ConfigChanged);
 register_event!("skill.changed", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "SkillChanged", ship_types::payload::ConfigChanged);
 register_event!("view.changed", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "ViewChanged", ship_types::payload::ConfigChanged);
-
-// ── agent.def.updated (Format-2 def notification) ───────────────────────────
-// Fine-grained, space-stamped, content-hashed notification that an
-// `.ship/agents/<id>.jsonc` was written. Emitted by the gated write path
-// (`agents_write::save_agents_config`) and the watcher (`watcher.rs`); the
-// notification carries ONLY {path, content_hash} — never file content. The
-// read-only def index re-reads the file on the ping. Space-scoped because the
-// def lives in a space's `.ship`.
-//
-// Lives here (not agent-def) because this is the EMITTER's crate — a test
-// binary linking ship-config without agent-def still needs the registration
-// to be link-time present for the kernel to route the event.
-register_event!("agent.def.updated", [EventScope::Space], Retention::Ephemeral, Stability::Stable, "AgentDefUpdated", ship_types::payload::AgentDefUpdated);

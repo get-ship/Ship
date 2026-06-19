@@ -183,3 +183,123 @@ fn implements_event_sink_trait_as_arc() {
     sink.persist(&ev).unwrap();
     assert!(has_event(&db::runtime_db_path(root), &ev.id));
 }
+
+// ── Transient-signal mechanism (job/transient-events) ────────────────────────
+//
+// The kernel's `KernelRouter::route` consults the event registry's
+// `Retention` and SKIPS the sink for `Retention::Ephemeral` events —
+// delivering them to mailboxes only. `Retention::Durable` keeps the
+// existing persist+deliver behavior. See
+// `.artifacts/transient-events-design.md` for the rationale.
+//
+// `actor.slept` is a real registered event (Runtime + Ephemeral);
+// `actor.crashed` is Runtime + Durable. The pair proves the skip is
+// driven by the registry lookup, not by the event shape, scope, or
+// whether the sink is wired. (`actor.created` would have been the
+// obvious pick but is now Durable — it's the projection's seed event.)
+
+fn retention_test_event(event_type: &str, entity: &str, payload: serde_json::Value) -> EventEnvelope {
+    use ship_types::event_registry::EventScope;
+    EventEnvelope::new(event_type, entity, &payload)
+        .unwrap()
+        .with_actor_id(entity)
+        .with_scope(EventScope::Runtime, Some("machine-1"))
+}
+
+fn actor_slept_payload() -> serde_json::Value {
+    serde_json::json!({ "idle_secs": 1u64 })
+}
+
+/// Route an Ephemeral event through the kernel → the events table stays
+/// empty for that id, but the mailbox receives the envelope. This is the
+/// contract the `config.file_changed` watcher ping (Runtime/Ephemeral)
+/// relies on.
+#[tokio::test(flavor = "multi_thread")]
+async fn kernel_router_skips_persist_for_ephemeral_event() {
+    use ship_kernel::KernelRouter;
+    use ship_types::event_registry::lookup;
+
+    // Sanity: the event is registered as Ephemeral in this build.
+    let def = lookup("actor.slept").expect("actor.slept must be registered");
+    assert_eq!(
+        def.retention,
+        ship_types::event_registry::Retention::Ephemeral,
+        "test fixture invariant: actor.slept is registered as Ephemeral"
+    );
+
+    let tmp = tempdir().unwrap();
+    let root = tmp.path();
+    let sink: Arc<dyn EventSink> = Arc::new(PartitionedSink::new(root.to_path_buf()));
+    let mut router = KernelRouter::new(sink);
+
+    // Subscribe an actor on the "actor." namespace so the mailbox fires.
+    let cfg = ship_types::ActorConfig {
+        namespace: "actor".into(),
+        write_namespaces: vec!["actor.".into()],
+        read_namespaces: vec!["actor.".into()],
+        subscribe_namespaces: vec!["actor.".into()],
+        see_directed_events: false,
+    };
+    let mut mailbox = router.spawn_actor("listener", cfg).expect("spawn");
+
+    let ev = retention_test_event("actor.slept", "actor-skip", actor_slept_payload());
+    let id = ev.id.clone();
+    router.route(ev).await.expect("route");
+
+    // Ephemeral: the events table does NOT carry the id.
+    assert!(
+        !has_event(&db::runtime_db_path(root), &id),
+        "Ephemeral event must NOT be persisted; runtime.db has no row for {id}"
+    );
+
+    // Mailbox DID receive the envelope — transient signals are delivered,
+    // just not persisted.
+    let delivered = mailbox.recv().await.expect("mailbox receives the Ephemeral event");
+    assert_eq!(delivered.event_type, "actor.slept");
+    assert_eq!(delivered.id, id);
+ }
+
+/// Route a Durable event through the kernel → the events table HAS the
+/// row, and the mailbox also receives. Pair to the Ephemeral case proves
+/// the skip is retention-driven, not a blanket no-op.
+#[tokio::test(flavor = "multi_thread")]
+async fn kernel_router_persists_durable_event_and_delivers() {
+    use ship_kernel::KernelRouter;
+    use ship_types::event_registry::lookup;
+
+    let def = lookup("actor.crashed").expect("actor.crashed must be registered");
+    assert_eq!(
+        def.retention,
+        ship_types::event_registry::Retention::Durable,
+        "test fixture invariant: actor.crashed is registered as Durable"
+    );
+
+    let tmp = tempdir().unwrap();
+    let root = tmp.path();
+    let sink: Arc<dyn EventSink> = Arc::new(PartitionedSink::new(root.to_path_buf()));
+    let mut router = KernelRouter::new(sink);
+
+    let cfg = ship_types::ActorConfig {
+        namespace: "actor".into(),
+        write_namespaces: vec!["actor.".into()],
+        read_namespaces: vec!["actor.".into()],
+        subscribe_namespaces: vec!["actor.".into()],
+        see_directed_events: false,
+    };
+    let mut mailbox = router.spawn_actor("listener", cfg).expect("spawn");
+
+    let ev = retention_test_event(
+        "actor.crashed",
+        "actor-persist",
+        serde_json::json!({ "error": "boom", "restart_count": 0u32 }),
+    );
+    let id = ev.id.clone();
+    router.route(ev).await.expect("route");
+
+    assert!(
+        has_event(&db::runtime_db_path(root), &id),
+        "Durable event must be persisted to runtime.db"
+    );
+    let delivered = mailbox.recv().await.expect("mailbox receives the Durable event");
+    assert_eq!(delivered.event_type, "actor.crashed");
+ }

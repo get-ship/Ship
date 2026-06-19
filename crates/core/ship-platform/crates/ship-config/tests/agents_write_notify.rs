@@ -28,6 +28,17 @@ use ship_substrate::ports::{KernelLog, LocalFsBroker};
 use ship_types::SpaceId;
 use ship_types::event_types;
 
+// Force a reference to an `agent-def` symbol so the linker keeps the
+// `agent-def::event_registrations` inventory submissions alive in this
+// integration test binary. Without this, `agent.def.updated` is stripped
+// from the registry this test sees and the kernel's
+// retention-driven persist/deliver branch takes the unregistered default
+// (Durable) — masking the actual production routing. See the matching
+// block in tests/watcher.rs.
+#[allow(dead_code)]
+const _AGENT_DEF_LINK: fn() -> Option<std::any::TypeId> = || {
+    Some(std::any::TypeId::of::<agent_def::Agent>())
+};
 /// Canonical project `.ship` dir under a fresh tempdir. `/tmp` is symlinked on
 /// WSL/macOS; the FsBroker's symlink-escape guard canonicalizes the deepest
 /// existing ancestor, so the cap root must be canonical — production dirs are.

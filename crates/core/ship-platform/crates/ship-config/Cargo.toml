@@ -31,6 +31,10 @@ tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time
 tempfile = { workspace = true }
 futures-util = { workspace = true }
 ship-reactive = { path = "../ship-reactive" }
-
+# Test-only: link in the agent-def registrations so `agent.def.updated` is
+# present in this test binary's inventory (job/transient-events — the
+# space-scope assertion depends on the registry view, the way the runtime
+# shipd binary sees it). Cargo permits the dev-dep cycle through agent-def.
+agent-def = { path = "../agent-def" }
 [lints]
 workspace = true
