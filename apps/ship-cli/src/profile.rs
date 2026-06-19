@@ -31,8 +31,7 @@ impl ProjectState {
     pub fn load(ship_dir: &Path) -> Self {
         // The read is `compile_state::load` → `open_space_db`, which opens (and
         // self-provisions) the bounded `spaces/<id>/space.db` where the
-        // Space-scoped `project_compile_state` projection lives. No platform.db
-        // is touched here.
+        // Space-scoped `project_compile_state` projection lives.
         let space_id = match ship_substrate::project::ensure_space_id(ship_dir) {
             Ok(id) => id,
             Err(e) => {
@@ -59,7 +58,7 @@ impl ProjectState {
 
 /// Activate an agent: compile + install plugins. Compile state (active_agent,
 /// plugins) is recorded by the `compile.completed` event into the Space-scoped
-/// `project_compile_state` projection — no state file, no platform.db write.
+/// `project_compile_state` projection — no state file involved.
 /// If `agent_id` is None, re-runs the active agent read from that projection.
 /// `extra_skills` are injected at compile time on top of the agent's declared skill refs.
 pub fn activate_agent(

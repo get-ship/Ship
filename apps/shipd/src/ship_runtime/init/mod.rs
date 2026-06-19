@@ -91,49 +91,32 @@ impl ShipRuntime {
             }
         }
 
-        // Ensure DB exists and init kernel.
-        //
-        // platform.db is dead — the kernel routes every event into its per-scope
-        // db (runtime.db / account.db / spaces/<id>/space.db) via PartitionedSink.
-        // The only remaining reason to touch platform.db at boot is the ONE-TIME
-        // legacy migration off it: a pre-existing install carries `kv_state` +
-        // legacy collection tables in platform.db that the kv/collections
-        // migrations drain out. Both steps run only when a platform.db actually
-        // exists — a fresh install never creates one.
-        //
-        // Ordering for the legacy drain:
-        // 1. Open data.db (collections migration copies legacy rows out of platform.db)
-        //    BEFORE the platform.db migration — migration 0006 drops those tables.
-        // 2. Migrate kv rows from platform.db kv_state into kv.db BEFORE the
-        //    platform.db migration — migration 0002 drops kv_state.
-        //
-        // Use spawn_blocking because the DB layer uses block_in_place internally.
-        // Install platform-level projections + supervisor hooks before
-        // any SqliteEventStore is constructed.
-        ship_platform::install_defaults();
-        ship_pipeline_runtime::install_projections();
-
-        let dir = global_dir.clone();
-        let kernel = tokio::task::spawn_blocking(move || {
-            ship_substrate::home::ensure_layout(&ship_substrate::ShipHome::at(dir.clone()))
-                .context("ensure ship home layout")?;
-            // Open data.db + run collections migration first.
-            let _ = ship_substrate::data::DataService::open(&dir)?;
-            // Legacy platform.db drain — one-time, only when a platform.db is
-            // present. `migrate_from_platform_db` already early-returns when it
-            // is absent; the platform.db schema migration (which drops the
-            // drained legacy tables) is gated on the same `.exists()` so a fresh
-            // install never materializes a dead platform.db.
-            ship_agents::migrate_skill_vars_from_platform_db(&dir)
-                .context("kv migration from platform.db")?;
-            if ship_substrate::db::platform_db_path(&dir).exists() {
-                ship_substrate::db::ensure_db_at(&dir)?;
-            }
-            ship_substrate::events::init_kernel_router(dir)
-                .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
-        })
-        .await
-        .map_err(|e| anyhow!("spawn_blocking failed: {e}"))??;
+         // Ensure DB exists and init kernel.
+         //
+         // The kernel routes every event into its per-scope db
+         // (runtime.db / account.db / spaces/<id>/space.db) via PartitionedSink.
+         // The space/account dbs are provisioned lazily on first persist; the
+         // runtime db is provisioned eagerly here. data.db is opened once at
+         // startup so the per-collection schema migrations run (no-op on a
+         // fresh install). platform.db is dead — no boot step touches it.
+         //
+         // Use spawn_blocking because the DB layer uses block_in_place internally.
+         // Install platform-level projections + supervisor hooks before
+         // any SqliteEventStore is constructed.
+         ship_platform::install_defaults();
+         ship_pipeline_runtime::install_projections();
+ 
+         let dir = global_dir.clone();
+         let kernel = tokio::task::spawn_blocking(move || {
+             ship_substrate::home::ensure_layout(&ship_substrate::ShipHome::at(dir.clone()))
+                 .context("ensure ship home layout")?;
+             // Open data.db + run the per-collection schema migrations.
+             let _ = ship_substrate::data::DataService::open(&dir)?;
+             ship_substrate::events::init_kernel_router(dir)
+                 .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
+         })
+         .await
+         .map_err(|e| anyhow!("spawn_blocking failed: {e}"))??;
 
         // One-line startup status: events persisted, latest event id. Makes
         // it easy to spot if a restart "lost" events (a mismatched count vs.

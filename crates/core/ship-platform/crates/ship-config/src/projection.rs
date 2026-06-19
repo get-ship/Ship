@@ -120,14 +120,13 @@ pub fn get(space_id: &str, key: &str) -> Result<Option<Value>> {
 mod tests {
     use super::*;
 
-    fn fresh() -> (tempfile::TempDir, sqlx::SqliteConnection) {
-        let tmp = tempfile::tempdir().unwrap();
-        ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
-        let conn =
-            ship_substrate::db::open_db_at(&ship_substrate::db::platform_db_path(tmp.path()))
-                .unwrap();
-        (tmp, conn)
-    }
+     fn fresh() -> (tempfile::TempDir, sqlx::SqliteConnection) {
+         let tmp = tempfile::tempdir().unwrap();
+         let path = tmp.path().join("scope.db");
+         ship_substrate::db::ensure_events_db_at_path(&path).unwrap();
+         let conn = ship_substrate::db::open_db_at(&path).unwrap();
+         (tmp, conn)
+     }
 
     /// Build a `space.setting.changed` event with the space riding the envelope
     /// (`with_context`), the key as `entity_id`, and the value in the payload.

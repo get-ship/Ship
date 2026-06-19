@@ -35,7 +35,6 @@ impl TestDaemon {
         let temp_dir = TempDir::new().unwrap();
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(temp_dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
-        ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
 
         let kernel = Arc::new(tokio::sync::Mutex::new(
             ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),

@@ -16,7 +16,6 @@ async fn agent_pre_register_visible_in_kernel_before_mcp() {
     let tmp = tempfile::tempdir().unwrap();
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
     init_kernel_router(ship_dir).expect("init kernel router");
 
     let log_dir = tmp.path().join("logs");

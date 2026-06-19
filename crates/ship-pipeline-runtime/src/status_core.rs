@@ -337,7 +337,6 @@ mod tests {
             let tmp = TempDir::new().unwrap();
             let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
             std::fs::create_dir_all(&ship_dir).unwrap();
-            ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
             Self { ship_dir, _tmp: tmp, emitted: Mutex::new(Vec::new()) }
         }
     }

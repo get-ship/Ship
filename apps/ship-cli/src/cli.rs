@@ -426,24 +426,6 @@ pub enum DaemonCommands {
     Dir,
     /// Remove orphaned worktrees for merged and failed jobs
     Cleanup,
-    /// Report how `platform.db`'s migration log relates to the migration
-    /// set this binary embeds. Read-only — inspects `_sqlx_migrations` and
-    /// changes nothing. The migration runner now tolerates a DB whose log
-    /// is ahead of the binary on its own, so this is a pure diagnostic:
-    /// use it to understand a startup migration error.
-    #[command(name = "repair-migrations")]
-    RepairMigrations {
-        /// Backup and recreate `platform.db` when a checksum mismatch is
-        /// detected. Pre-launch escape hatch: when a baseline migration is
-        /// edited in place (per the migrations/README convention), every
-        /// dev DB that already applied the old checksum fails to start.
-        /// `--reset` backs up the affected DB to `<path>.bak-<timestamp>`
-        /// and deletes the original (plus -wal and -shm), letting the
-        /// next daemon start re-apply migrations from scratch. Without
-        /// `--reset` the command remains a read-only diagnostic.
-        #[arg(long)]
-        reset: bool,
-    },
     /// Run the daemon in the foreground (internal — used by `start`, also useful for Docker/systemd)
     #[command(hide = true)]
     Run {

@@ -10,7 +10,7 @@
 //! path), so every helper that calls `get_global_dir()` lands in the
 //! same directory without us having to touch env vars.
 //!
-//! Each test clears that directory's `platform.db` + `data.db` on entry
+//! Each test clears that directory's `data.db` on entry
 //! so prior tests sharing the same worker thread start from a clean state.
 
 use std::sync::Arc;
@@ -67,7 +67,7 @@ fn step(id: &str, agent: &str) -> PipelineStep {
 /// see stale events from a prior run.
 fn fresh_ship_dir() -> std::path::PathBuf {
     let dir = ship_substrate::project::get_global_dir().expect("test ship dir");
-    for name in ["platform.db", "data.db"] {
+    for name in ["data.db"] {
         let p = dir.join(name);
         if p.exists() { let _ = std::fs::remove_file(&p); }
     }

@@ -65,7 +65,7 @@ pub fn get_global_dir() -> Result<PathBuf> {
     if is_test_ctx {
         panic!(
             "Test binary detected without explicit DB isolation. \
-             Use `ensure_db_at()` with an explicit path or set SHIP_HOME \
+             Use `KernelRouter::new(ship_dir)` with an explicit path or set SHIP_HOME \
              to a temp directory in test setup."
         );
     }

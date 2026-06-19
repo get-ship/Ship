@@ -160,19 +160,6 @@ fn per_scope_projection_fires_into_scope_db() {
     assert_eq!(count_in(&db::account_db_path(root)), 0, "actors row must NOT be in account.db");
 }
 
-/// The kernel emit path never provisions a `platform.db` — the sink routes by
-/// scope into the per-scope files only.
-#[test]
-fn kernel_emit_path_never_creates_platform_db() {
-    let tmp = tempdir().unwrap();
-    let root = tmp.path();
-    let sink = PartitionedSink::new(root.to_path_buf());
-    sink.persist(&event(EventScope::Runtime, Some("m"))).unwrap();
-    assert!(
-        !db::platform_db_path(root).exists(),
-        "PartitionedSink must not create platform.db"
-    );
-}
 
 #[test]
 fn implements_event_sink_trait_as_arc() {

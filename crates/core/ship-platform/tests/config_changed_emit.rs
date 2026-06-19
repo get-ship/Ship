@@ -2,18 +2,16 @@
 //! publishes a `config.changed` kernel event with the expected payload.
 
 use ship_platform::config::{get_setting, set_setting_and_emit};
-use ship_substrate::db::ensure_db_at;
-use ship_substrate::events::{EventFilter, new_isolated_for_test};
-use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
-use ship_substrate::project::get_global_dir;
-use ship_types::event_types::CONFIG_CHANGED;
-
-#[tokio::test(flavor = "multi_thread")]
-async fn set_setting_and_emit_publishes_config_changed() {
-    ship_platform::install_defaults();
-    let ship_dir = get_global_dir().expect("auto-isolated test ship dir");
-    ensure_db_at(&ship_dir).expect("ensure platform.db");
-    let kernel = new_isolated_for_test(ship_dir.clone()).expect("isolated kernel");
+ use ship_substrate::events::{EventFilter, new_isolated_for_test};
+ use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
+ use ship_substrate::project::get_global_dir;
+ use ship_types::event_types::CONFIG_CHANGED;
+ 
+ #[tokio::test(flavor = "multi_thread")]
+ async fn set_setting_and_emit_publishes_config_changed() {
+     ship_platform::install_defaults();
+     let ship_dir = get_global_dir().expect("auto-isolated test ship dir");
+     let kernel = new_isolated_for_test(ship_dir.clone()).expect("isolated kernel");
 
     let key = "test.setting.emit_path";
     let value = serde_json::json!("changed");

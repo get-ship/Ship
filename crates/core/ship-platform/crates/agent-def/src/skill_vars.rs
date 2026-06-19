@@ -1,6 +1,6 @@
 //! Skill variable state — read/write for CLI and MCP tools.
 //!
-//! Storage: all scopes use `platform.db` KV. No files.
+//! Storage: all scopes use `kv.db` (a separate sqlite file from the event log).
 //!
 //! KV namespaces:
 //! - global  `skill_vars:{skill_id}`                      machine-wide preferences

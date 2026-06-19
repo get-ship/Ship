@@ -297,7 +297,7 @@ pub(crate) fn emit_supervisor_event<P: Serialize>(
             return;
         }
     };
-    // daemon.* is Runtime-scoped → write runtime.db (not the dead platform.db).
+    // daemon.* is Runtime-scoped → write runtime.db.
     let store = match SqliteEventStore::new_for_scope(
         global_dir,
         ship_substrate::events::EventScope::Runtime,

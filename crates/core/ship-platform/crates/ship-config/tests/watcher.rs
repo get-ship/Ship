@@ -7,7 +7,6 @@ use std::path::Path;
 use std::sync::Arc;
 
 use ship_config::watcher::{author_change, author_file_changed};
-use ship_substrate::db::ensure_db_at;
 use ship_substrate::events::EventFilter;
 use ship_substrate::events::new_isolated_for_test;
 use ship_substrate::home::ShipHome;
@@ -37,7 +36,6 @@ async fn setup() -> (tempfile::TempDir, std::path::PathBuf, Arc<KernelLog>) {
     let base = std::fs::canonicalize(tmp.path()).unwrap();
     let ship_dir = ShipHome::project_ship_dir(&base);
     std::fs::create_dir_all(&ship_dir).unwrap();
-    ensure_db_at(&ship_dir).unwrap();
     let kernel = Arc::new(KernelLog::new(new_isolated_for_test(ship_dir.clone()).unwrap()));
     (tmp, ship_dir, kernel)
 }

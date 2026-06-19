@@ -72,8 +72,8 @@ pub const KERNEL_NAMESPACES: &[&str] = &[
     "workspace.", // L1-owned: registrations in ship-space/src/event_registrations.rs
 ];
 
-/// Platform-only namespaces: persisted in platform.db but NOT routed to actors.
-/// These are UI/config events that actors don't need.
+/// Namespaces reserved for non-actor events (UI / config). Persisted in the
+/// per-scope event dbs but NOT routed to actors — actors don't need them.
 pub const PLATFORM_ONLY_NAMESPACES: &[&str] = &[
     "project.",
     "skill.",

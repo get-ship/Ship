@@ -1,13 +1,13 @@
-//! Tolerant `platform.db` migration runner.
-//!
-//! `sqlx::migrate!`'s default runner is strict: it hard-errors when the
-//! database's `_sqlx_migrations` log contains a version the current binary
-//! doesn't embed ("migration N was previously applied but is missing in the
+//! Tolerant migration runner — shared by every per-scope event db
+//! (`runtime.db`, `account.db`, `spaces/<id>/space.db`). `sqlx::migrate!`'s
+//! default runner is strict: it hard-errors when the database's
+//! `_sqlx_migrations` log contains a version the current binary doesn't
+//! embed ("migration N was previously applied but is missing in the
 //! resolved migrations"). In Ship that failure is chronic, not exceptional —
-//! `platform.db` is one shared store, and every dev worktree builds a
-//! *different* version of Ship's own migration code and points it at that
-//! store. Branch switches, agent-worktree dispatches, and migration-touching
-//! merges all leave the DB log ahead of whichever binary boots next.
+//! every dev worktree builds a *different* version of Ship's own migration
+//! code and points it at a shared per-scope db. Branch switches,
+//! agent-worktree dispatches, and migration-touching merges all leave the
+//! DB log ahead of whichever binary boots next.
 //!
 //! The fix is to relax exactly that one failure mode. The runner's single
 //! invariant is: **every migration the binary embeds is applied to the DB.**
@@ -59,9 +59,9 @@ static MIGRATION_GATE: Mutex<()> = Mutex::const_new(());
 /// of this runner documents.
 const PRE_LAUNCH_REBASELINE: bool = true;
 
-/// Apply every embedded `platform.db` migration not yet recorded in the DB,
-/// tolerating a database whose `_sqlx_migrations` log is *ahead* of this
-/// binary. See the module docs for the exact invariant.
+/// Apply every embedded migration not yet recorded in the DB, tolerating a
+/// database whose `_sqlx_migrations` log is *ahead* of this binary. See the
+/// module docs for the exact invariant.
 ///
 /// Errors only on a dirty (partially-applied) migration; checksum drift is
 /// currently re-baselined pre-launch — see PRE_LAUNCH_REBASELINE.
@@ -96,11 +96,11 @@ pub async fn run_tolerant(conn: &mut SqliteConnection) -> Result<()> {
         .map_err(|e| anyhow!("read _sqlx_migrations log: {e}"))?
     {
         if !embedded.contains(&applied.version) {
-            tracing::debug!(
-                version = applied.version,
-                "platform.db migration log is ahead of this binary — version \
-                 not in the resolved set; tolerated, no action taken"
-            );
+        tracing::debug!(
+            version = applied.version,
+            "migration log is ahead of this binary — version \
+             not in the resolved set; tolerated, no action taken"
+        );
         }
     }
 
@@ -114,16 +114,15 @@ pub async fn run_tolerant(conn: &mut SqliteConnection) -> Result<()> {
              modified. Applied migrations are immutable — a change must be a \
              new migration, never an edit to a recorded one. Restore the \
              original file content, OR (pre-launch only, accepts data loss) \
-             run `ship daemon repair-migrations --reset` to back up and \
-             recreate platform.db so the next start re-applies migrations \
-             from scratch."
+             delete the affected per-scope db so the next start re-applies \
+             migrations from scratch."
         ),
         MigrateError::Dirty(v) => anyhow!(
             "migration {v} is dirty: a previous run failed partway through. \
-             The database needs manual inspection — `ship daemon \
-             repair-migrations` reports the recorded state."
+             The database needs manual inspection — the recorded \
+             `_sqlx_migrations` row is the source of truth."
         ),
-        other => anyhow!("platform.db migration failed: {other}"),
+        other => anyhow!("migration failed: {other}"),
     })
 }
 
@@ -171,46 +170,45 @@ async fn rebaseline_drifted_checksums(
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::db::{ensure_db_at, open_db_at, platform_db_path};
-    use crate::testutil::init_project_minimal;
-    use tempfile::tempdir;
-
-    /// `ensure_db_at` materializes `platform.db` (running the tolerant
-    /// migrator once), then hands back a connection to it.
-    fn fresh_db() -> (tempfile::TempDir, SqliteConnection) {
-        let tmp = tempdir().unwrap();
-        let ship_dir = init_project_minimal(tmp.path()).unwrap();
-        ensure_db_at(&ship_dir).unwrap();
-        let conn = open_db_at(&platform_db_path(&ship_dir)).unwrap();
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+     use crate::db::{ensure_events_db_at_path, open_db_at};
+     use tempfile::tempdir;
+ 
+     /// `ensure_events_db_at_path` materializes a per-scope db (running the
+     /// tolerant migrator once), then hands back a connection to it.
+     fn fresh_db() -> (tempfile::TempDir, SqliteConnection) {
+         let tmp = tempdir().unwrap();
+         let path = tmp.path().join("scope.db");
+         ensure_events_db_at_path(&path).unwrap();
+         let conn = open_db_at(&path).unwrap();
         (tmp, conn)
-    }
+     }
 
-    /// A `platform.db` whose migration log carries an extra applied version
-    /// the binary doesn't embed (the branch-switch / worktree-dispatch case)
-    /// must migrate cleanly — the extra row is tolerated, not fatal.
-    #[tokio::test(flavor = "multi_thread")]
-    async fn db_ahead_of_binary_is_tolerated() {
-        let (_tmp, mut conn) = fresh_db();
+     /// A per-scope db whose migration log carries an extra applied version
+     /// the binary doesn't embed (the branch-switch / worktree-dispatch case)
+     /// must migrate cleanly — the extra row is tolerated, not fatal.
+     #[tokio::test(flavor = "multi_thread")]
+     async fn db_ahead_of_binary_is_tolerated() {
+         let (_tmp, mut conn) = fresh_db();
+ 
+         // Inject a version far above anything this binary embeds, as if a
+         // newer worktree's binary had applied it against the shared store.
+         sqlx::query(
+             "INSERT INTO _sqlx_migrations \
+              (version, description, installed_on, success, checksum, execution_time) \
+              VALUES (999999999999, 'from-the-future', CURRENT_TIMESTAMP, 1, X'00', 0)",
+         )
+         .execute(&mut conn)
+         .await
+         .unwrap();
+ 
+         // A strict runner would hard-error here; the tolerant one completes.
+         run_tolerant(&mut conn).await.unwrap();
+     }
 
-        // Inject a version far above anything this binary embeds, as if a
-        // newer worktree's binary had applied it against the shared store.
-        sqlx::query(
-            "INSERT INTO _sqlx_migrations \
-             (version, description, installed_on, success, checksum, execution_time) \
-             VALUES (999999999999, 'from-the-future', CURRENT_TIMESTAMP, 1, X'00', 0)",
-        )
-        .execute(&mut conn)
-        .await
-        .unwrap();
-
-        // A strict runner would hard-error here; the tolerant one completes.
-        run_tolerant(&mut conn).await.unwrap();
-    }
-
-    /// A `platform.db` missing an embedded migration gets it applied and
+     /// A per-scope db missing an embedded migration gets it applied and
     /// recorded; a re-run is a no-op.
     // Re-applying the *highest-versioned* migration requires that
     // migration to be idempotent. CREATE-TABLE-IF-NOT-EXISTS migrations

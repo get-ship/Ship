@@ -118,3 +118,26 @@ Net result: `cargo tree -p shipd --no-default-features` still shows
 `ship-code`, but only via `ship-pipeline-runtime`. Once R13 dissolves
 the orchestrator, the same cfg-gate pattern used here for the agent
 domain will clean this up.
+
+## Unreleased — storage cleanup (job/storage-cleanup)
+
+Two bounded storage fixes:
+
+- **Remove the dead `platform.db` subsystem.** It was legacy cruft, never
+  created on fresh installs, with no live readers or writers. Pre-launch
+  = no data to preserve, so the file, its one-shot legacy drain, the
+  `Db::Platform` variant, the `ensure_db_at`/`platform_db_path` resolvers,
+  the `db::repair` migration-drift diagnostic, the
+  `migrate_skill_vars_from_platform_db` drain, the `ship daemon
+  repair-migrations` CLI, the `0002_drop_kv_state.sql` platform-only
+  migration, and the `db::repair` module are all deleted. The per-scope
+  event dbs (`runtime.db` / `account.db` / `spaces/<id>/space.db`) and
+  the shared tolerant migration runner are unchanged. Skill vars
+  continue to read/write `kv.db` (the canonical key-value store) — no
+  behavior change.
+- **Triggers → `space.db`.** Trigger collection actions were bound to
+  `data.db` (the dead single-content-store); they now bind to the
+  per-scope `spaces/<id>/space.db` via the canonical
+  `SpaceContext::for_space` construction. This greens the two
+  `triggers_engine_dispatch_*` integration tests that previously read
+  the inserted item back from a different file.

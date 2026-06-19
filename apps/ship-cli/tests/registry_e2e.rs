@@ -232,7 +232,7 @@ fn workspace_state_active_profile_round_trip() {
     assert_eq!(
         val.as_str(),
         Some("my-profile"),
-        "active_profile must round-trip through platform.db"
+        "active_profile must round-trip through kv.db"
     );
 
     // Second write — same value, idempotent.

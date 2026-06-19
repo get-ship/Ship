@@ -27,22 +27,21 @@ fn sync_actor_config() -> ActorConfig {
     }
 }
 
-fn setup_router() -> (tempfile::TempDir, KernelRouter) {
-    let tmp = tempdir().unwrap();
-    let base = ship_substrate::ShipHome::project_ship_dir(tmp.path());
-    std::fs::create_dir_all(&base).unwrap();
-    ship_substrate::db::ensure_db_at(&base).unwrap();
-    let router = KernelRouter::new(base).unwrap();
-    (tmp, router)
-}
-
-fn setup_store(actor_id: &str, write_ns: Vec<String>, read_ns: Vec<String>) -> (tempfile::TempDir, ActorStore) {
-    let tmp = tempdir().unwrap();
-    ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
-    let db_path = ship_substrate::db::platform_db_path(tmp.path());
-    let store = ActorStore::new(actor_id, db_path, write_ns, read_ns);
-    (tmp, store)
-}
+ fn setup_router() -> (tempfile::TempDir, KernelRouter) {
+     let tmp = tempdir().unwrap();
+     let base = ship_substrate::ShipHome::project_ship_dir(tmp.path());
+     std::fs::create_dir_all(&base).unwrap();
+     let router = KernelRouter::new(base).unwrap();
+     (tmp, router)
+ }
+ 
+ fn setup_store(actor_id: &str, write_ns: Vec<String>, read_ns: Vec<String>) -> (tempfile::TempDir, ActorStore) {
+     let tmp = tempdir().unwrap();
+     let db_path = ship_substrate::db::runtime_db_path(tmp.path());
+     ship_substrate::db::ensure_events_db_at_path(&db_path).unwrap();
+     let store = ActorStore::new(actor_id, db_path, write_ns, read_ns);
+     (tmp, store)
+ }
 
 /// Minimal service handler that records lifecycle calls for inspection.
 struct RecordingHandler {

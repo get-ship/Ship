@@ -255,7 +255,7 @@ pub(super) fn emit_daemon_event<P: serde::Serialize>(
             return;
         }
     };
-    // daemon.* is Runtime-scoped → write runtime.db (not the dead platform.db).
+    // daemon.* is Runtime-scoped → write runtime.db.
     let store = match SqliteEventStore::new_for_scope(
         global_dir,
         ship_substrate::events::EventScope::Runtime,
@@ -313,9 +313,8 @@ pub fn maybe_open_setup(ship_dir: &Path, port: u16) {
     spawn_open(&url);
 }
 
-/// True when the user-content DB does not exist yet. We deliberately ignore
-/// `platform.db` — that one is rewritten on every daemon boot (PID/port
-/// bookkeeping) and its presence doesn't mean the user ever completed setup.
+/// True when the user-content DB does not exist yet. A fresh install has no
+/// `data.db`, which is what first-run UX keys on.
 fn is_first_run(ship_dir: &Path) -> bool {
     !ship_substrate::db::data_db_path(ship_dir).exists()
 }

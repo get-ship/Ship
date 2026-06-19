@@ -90,7 +90,7 @@ fn make_octx(platform: Arc<CountingPlatform>) -> OrchestratorContext {
 
 fn fresh_ship_dir() -> PathBuf {
     let dir = ship_substrate::project::get_global_dir().expect("test ship dir");
-    for name in ["platform.db", "data.db"] {
+    for name in ["data.db"] {
         let p = dir.join(name);
         if p.exists() { let _ = std::fs::remove_file(&p); }
     }

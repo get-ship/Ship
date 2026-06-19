@@ -1,4 +1,4 @@
-//! Daemon lifecycle: command dispatch, supervisor, status, repair, cleanup.
+//! Daemon lifecycle: command dispatch, supervisor, status, cleanup.
 
 pub mod pidfile;
 pub mod service_registration;
@@ -13,7 +13,6 @@ mod ensure;
 mod legacy_pidfile;
 mod paths;
 mod pid_io;
-mod repair;
 mod status;
 mod supervise;
 

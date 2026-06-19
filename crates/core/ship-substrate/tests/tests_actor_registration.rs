@@ -12,7 +12,6 @@ use ship_substrate::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope
 fn make_kernel(dir: &TempDir) -> KernelRouter {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
     KernelRouter::new(ship_dir).unwrap()
 }
 

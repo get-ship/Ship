@@ -359,7 +359,7 @@ impl ShipRuntime {
         self.pipeline_reactive.get()
     }
 
-    /// Persist event to platform.db and deliver through the kernel.
+    /// Persist event to its scope db and deliver through the kernel.
     ///
     /// Delegates to `KernelRouter::emit` — the single write path. A successful
     /// return means the event is durable on disk AND delivered to in-memory

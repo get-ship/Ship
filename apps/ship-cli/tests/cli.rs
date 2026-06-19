@@ -120,7 +120,7 @@ fn use_activates_agent_writes_claude_md_and_state() {
         .success()
         .stdout(predicate::str::contains("activated agent 'my-agent'"));
 
-    // State is persisted to platform.db (at ~/.ship/). Verify via ship status.
+    // State is persisted to the per-scope db. Verify via ship status.
     ship_in(&tmp)
         .args(["status", "--path", tmp.path().to_str().unwrap()])
         .assert()
@@ -871,7 +871,7 @@ fn e2e_compile_with_dependency_skills() {
     );
 
     // Use ship_in for DB isolation and set HOME for cache resolution.
-    // Both SHIP_HOME (for platform.db) and HOME (for cache) point to tmp.
+    // Both SHIP_HOME (for the per-scope event dbs) and HOME (for cache) point to tmp.
     ship_in(&tmp)
         .env("HOME", tmp.path())
         .args(["use", "with-deps", "--path", p])
@@ -909,7 +909,7 @@ fn e2e_validate_then_compile_catches_bad_config() {
         r#"{ "agent": { "name": "Broken" } }"#,
     );
 
-    // Validate should fail. Use ship_in to isolate platform.db so no stale
+    // Validate should fail. Use ship_in to isolate the per-scope dbs so no stale
     // active_agent from a prior test run or the developer's machine leaks in.
     ship_in(&tmp)
         .args(["validate", "--path", p])
@@ -940,8 +940,8 @@ fn e2e_validate_then_compile_catches_bad_config() {
         .success()
         .stdout(predicate::str::contains("valid"));
 
-    // Compile must use ship_in so platform.db is isolated to this test's tmp
-    // dir. Without isolation, a stale active_agent in the global platform.db
+    // Compile must use ship_in so the per-scope dbs are isolated to this test's
+    // tmp dir. Without isolation, a stale active_agent in the global runtime.db
     // causes build_context_content to emit a mode comment, making parts
     // non-empty and CLAUDE.md to be written even when there are no rules.
     ship_in(&tmp)

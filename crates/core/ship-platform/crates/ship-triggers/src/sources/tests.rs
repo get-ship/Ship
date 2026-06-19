@@ -24,15 +24,21 @@ fn tmp_ship_dir() -> (TempDir, std::path::PathBuf) {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(ship_dir.join("triggers")).unwrap();
     std::fs::create_dir_all(ship_dir.join("schemas")).unwrap();
-    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
     (tmp, ship_dir)
 }
 
 fn test_kernel(ship_dir: &Path) -> Arc<Mutex<KernelRouter>> {
-    let kr = KernelRouter::new(ship_dir.to_path_buf()).unwrap();
-    Arc::new(Mutex::new(kr))
-}
-
+     // Register the CollectionItemProjection for the test bus — the
+     // canonical trigger insert path is event-sourced and the projection
+     // materializes the `collection_*` table the read path queries.
+     ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
+         vec![Box::new(
+             ship_collection::item_projection::CollectionItemProjection,
+         )]
+     }));
+     let kr = KernelRouter::new(ship_dir.to_path_buf()).unwrap();
+     Arc::new(Mutex::new(kr))
+ }
 fn write_hook(ship_dir: &Path, filename: &str, content: &str) {
     let path = ship_dir.join("triggers").join(filename);
     std::fs::write(path, content).unwrap();

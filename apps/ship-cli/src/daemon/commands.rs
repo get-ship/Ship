@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use crate::daemon::ensure::announce_daemon_url;
 use crate::daemon::paths::ship_dir;
 use crate::daemon::pidfile;
-use crate::daemon::repair::daemon_repair_migrations;
 use crate::daemon::service_registration;
 use crate::daemon::status::daemon_status;
 use crate::daemon::cleanup::daemon_cleanup;
@@ -20,12 +19,8 @@ pub enum DaemonCommand {
     /// `scripts/dev/*` without those reaching into ShipHome internals.
     Dir,
     Cleanup,
-    /// Read-only migration drift diagnostic by default. With `reset: true`,
-    /// backs up and recreates `platform.db` when a checksum mismatch is
-    /// detected (pre-launch escape hatch for edited baseline migrations).
-    RepairMigrations { reset: bool },
-    Run { host: String, port: u16, dev: bool },
     /// Internal: supervisor loop that watches and restarts the daemon.
+    Run { host: String, port: u16, dev: bool },
     Supervise { host: String, dev: bool },
     /// Internal: called by native installer post-install hooks to
     /// register shipd with the OS service manager. Not user-facing.
@@ -56,7 +51,6 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
             Ok(())
         }
         DaemonCommand::Cleanup => daemon_cleanup(),
-        DaemonCommand::RepairMigrations { reset } => daemon_repair_migrations(reset),
         DaemonCommand::Run { host, port, dev } => daemon_run(host, port, dev),
         DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
         DaemonCommand::InstallService { shipd_path, no_start, no_autostart } => {

@@ -1,8 +1,14 @@
-# platform.db migrations
+# Per-scope event db migrations
 
-This directory holds the sqlx migrations for `platform.db`. sqlx runs
-every file here in lexicographic order on `DataService::open` /
-`ensure_db_at` and tracks applied versions in `_sqlx_migrations`.
+This directory holds the sqlx migrations for the per-scope event dbs
+(`runtime.db` / `account.db` / `spaces/<id>/space.db`). The tolerant
+runner in `db::migrate` applies every file here in lexicographic order
+on `ensure_db_at_path` (the helper `ensure_events_db_at_path` is the
+production entry point) and tracks applied versions in
+`_sqlx_migrations`.
+
+> `platform.db` is dead (per-scope arc). All per-scope dbs share this
+> same migration set so they self-provision on first write.
 
 ## Files
 
@@ -10,10 +16,10 @@ every file here in lexicographic order on `DataService::open` /
   one file. Pre-launch you can keep editing this in place + wipe DBs;
   once external installations exist it freezes. **When you edit the
   baseline, dev DBs that already applied the previous checksum will
-  hard-error on next start.** Run `ship daemon repair-migrations --reset`
-  to back up the affected DB (`<path>.bak-<ts>`) and let the next start
-  re-apply migrations from scratch. Post-launch, this flag stops being
-  the right answer — new migrations only.
+  hard-error on next start.** Pre-launch, the tolerant runner
+  re-baselines drifted checksums with a WARN — see
+  `db::migrate::PRE_LAUNCH_REBASELINE`. Post-launch, edits to applied
+  migrations are rejected; new migrations only.
 - `YYYYMMDDHHMM_kebab_description.sql` — every schema change after the
   baseline. UTC timestamp prefix, monotonic relative to the newest
   existing file. Lowercase ASCII + digits + `-`/`_` in the slug.
@@ -37,7 +43,7 @@ The CI guard (`scripts/lint/check-migration-naming.sh`, wired into
 ## Testing locally
 
 ```
-cargo test -p runtime
+cargo test -p ship-substrate
 just check-migrations
 ```
 
@@ -46,7 +52,7 @@ Smoke against a real sqlite file:
 ```
 rm -f /tmp/ship-mig.db
 sqlx migrate run \
-    --source crates/core/runtime/migrations \
+    --source crates/core/ship-substrate/migrations \
     --database-url sqlite:///tmp/ship-mig.db
 sqlite3 /tmp/ship-mig.db ".schema"
 ```

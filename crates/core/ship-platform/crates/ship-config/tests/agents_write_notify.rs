@@ -19,7 +19,6 @@ use std::sync::Arc;
 
 use ship_config::agents_write::{notify_agent_def_saved, save_agents_config};
 use ship_config::types::AgentProfile;
-use ship_substrate::db::ensure_db_at;
 use ship_substrate::events::EventFilter;
 use ship_substrate::events::new_isolated_for_test;
 use ship_substrate::home::ShipHome;
@@ -51,7 +50,6 @@ async fn setup() -> (tempfile::TempDir, PathBuf, Arc<KernelLog>) {
     let tmp = tempfile::tempdir().unwrap();
     let dir = ship_dir(&tmp);
     std::fs::create_dir_all(&dir).unwrap();
-    ensure_db_at(&dir).unwrap();
     let kernel = Arc::new(KernelLog::new(new_isolated_for_test(dir.clone()).unwrap()));
     (tmp, dir, kernel)
 }

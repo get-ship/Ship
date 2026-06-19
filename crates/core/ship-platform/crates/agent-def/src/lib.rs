@@ -35,10 +35,6 @@ pub use emit::{
 };
 pub use op::{OpToolUseCompleted, OpToolUseDenied, OpToolUseStarted};
 
-/// One-time legacy `platform.db` → `kv.db` skill-vars drain, re-exported for the
-/// daemon boot path so shipd needn't depend on the internal storage module. The
-/// skill domain — including its variable persistence (`skill_vars_store`) — lives here.
-pub use skill_vars_store::migrate_from_platform_db as migrate_skill_vars_from_platform_db;
 
 #[cfg(test)]
 mod testutil;

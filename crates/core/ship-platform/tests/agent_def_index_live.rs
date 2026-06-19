@@ -22,7 +22,6 @@ use ship_config::agents_write::{notify_agent_def_saved, save_agents_config};
 use ship_config::types::AgentProfile;
 use ship_platform::config::agent_index::{apply_def_updated, build_def_index, spawn_def_index_consumer};
 use ship_substrate::data::DataService;
-use ship_substrate::db::ensure_db_at;
 use ship_substrate::events::new_isolated_for_test;
 use ship_substrate::home::ShipHome;
 use ship_substrate::ports::{
@@ -233,7 +232,6 @@ async fn write_then_emit_then_spawned_consumer_indexes_the_row() {
     let tmp = tempfile::tempdir().unwrap();
     let dir = ship_dir(&tmp);
     std::fs::create_dir_all(&dir).unwrap();
-    ensure_db_at(&dir).unwrap();
     let fs = LocalFsBroker::new();
 
     // The index over the space db + the shared KernelLog both producers ride.

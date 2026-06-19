@@ -279,10 +279,7 @@ fn cross_scope_emit_persists_and_isolates_per_db() {
         assert_eq!(actors_count(&account_db), 0, "actors row must NOT be in account.db");
         assert_eq!(actors_count(&space_a_db), 0, "actors row must NOT be in space A db");
 
-        // The kernel emit path never resurrects platform.db.
-        assert!(
-            !db::platform_db_path(&root).exists(),
-            "emit path must not create platform.db"
-        );
+        // The kernel emit path routes per-scope into the per-scope dbs; it
+        // never creates a global single-store file.
     });
 }

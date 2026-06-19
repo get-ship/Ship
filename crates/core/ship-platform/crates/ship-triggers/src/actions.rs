@@ -217,24 +217,30 @@ fn envelope_payload_mut(envelope: &mut EventEnvelope) -> Result<Value> {
 }
 
 /// Build a `CollectionService` over a `SpaceContext` bound to the trigger's
-/// space (the daemon DataStore + shared kernel). The schema registry is the
-/// shared one threaded through `ActionCtx` (C-2 UD-7) — collection-table
-/// creation + schema validation happen inside `create_item`/`update_item`.
+/// space (the per-scope `spaces/<id>/space.db` + shared kernel). The schema
+/// registry is the shared one threaded through `ActionCtx` (C-2 UD-7) —
+/// collection-table creation + schema validation happen inside
+/// `create_item`/`update_item`.
 fn collection_service(ctx: &ActionCtx<'_>) -> Result<CollectionService> {
-    use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
-    // A collection CRUD action is space-scoped. With no resolved trigger space
-    // there is no active space to bind to — error cleanly rather than fabricate a
-    // `global` partition (S2 home-space kill).
-    let space_id = ctx.trigger_space.ok_or_else(|| {
-        anyhow!("collection action requires a resolved trigger space; none active")
-    })?;
-    let data_svc = ship_substrate::data::DataService::open(ctx.ship_dir)
-        .map_err(|e| anyhow!("trigger collection action: open data.db: {e}"))?;
-    let store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
-    let kernel_log = Arc::new(KernelLog::new(ctx.kernel.clone()));
-    let space_ctx = Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel_log));
-    Ok(CollectionService { ctx: space_ctx, schemas: ctx.schemas.clone() })
-}
+     use ship_substrate::db::{ensure_events_db_at_path, space_db_path};
+     use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+     // A collection CRUD action is space-scoped. With no resolved trigger space
+     // there is no active space to bind to — error cleanly rather than fabricate a
+     // `global` partition (S2 home-space kill).
+     let space_id = ctx.trigger_space.ok_or_else(|| {
+         anyhow!("collection action requires a resolved trigger space; none active")
+     })?;
+     // Mirror the canonical SpaceContext::for_space: open the per-scope
+     // spaces/<id>/space.db that the CollectionProjection wrote into.
+     let space_db = space_db_path(ctx.ship_dir, space_id);
+     ensure_events_db_at_path(&space_db)?;
+     let data_svc = ship_substrate::data::DataService::open_at(&space_db)
+         .map_err(|e| anyhow!("trigger collection action: open space.db: {e}"))?;
+     let store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
+     let kernel_log = Arc::new(KernelLog::new(ctx.kernel.clone()));
+     let space_ctx = Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel_log));
+     Ok(CollectionService { ctx: space_ctx, schemas: ctx.schemas.clone() })
+ }
 
 /// Ensure the collection's item table exists before a CRUD call. The new
 /// `CollectionService::create_item`/`update_item` assume the table is present

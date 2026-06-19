@@ -98,14 +98,15 @@ async fn run_service_calls_on_drain_when_mailbox_closes() {
     let (tx, rx) = mpsc::channel(4);
     let mailbox = Mailbox::from_receiver(rx);
 
-    let tmp = tempdir().unwrap();
-    ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
-    let store = ActorStore::new(
-        "drain-svc",
-        ship_substrate::db::platform_db_path(tmp.path()),
-        vec!["test.".into()],
-        vec![],
-    );
+     let tmp = tempdir().unwrap();
+     let db_path = ship_substrate::db::runtime_db_path(tmp.path());
+     ship_substrate::db::ensure_events_db_at_path(&db_path).unwrap();
+     let store = ActorStore::new(
+         "drain-svc",
+         db_path,
+         vec!["test.".into()],
+         vec![],
+     );
 
     let calls = Arc::new(Mutex::new(Vec::new()));
     let handler = DrainOrderRecorder { calls: calls.clone() };

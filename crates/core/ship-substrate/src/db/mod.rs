@@ -2,18 +2,12 @@
 //! `account.db` / `spaces/<id>/space.db`) that production reads and writes go
 //! through, plus the schema/migration plumbing shared by every db file.
 //!
-//! `platform.db` itself is dead (deleted in the 4d/B per-scope arc). Production
-//! never creates or reads it. The legacy resolvers that survive are
-//! deliberately READ-ONLY: `platform_db_path` (path resolution only, no I/O),
-//! `open_db_at` (open without migrating — never creates), and the `Db::Platform`
-//! variant they route through. The ONE legacy fn that can still materialize the
-//! file — `ensure_db_at` — is reachable in production from exactly one site, the
-//! `.exists()`-guarded one-time legacy drain at boot (`apps/shipd/.../init.rs`),
-//! so it never resurrects `platform.db` on a fresh install. No public, non-test,
-//! unguarded fn creates `platform.db`: the global-path creators (`ensure_db`,
-//! `db_path`, `open_db`) were deleted with the per-scope capstone. Do not wire
-//! any legacy resolver into a new production write/read path — emit through the
-//! kernel (`PartitionedSink`) and read via the per-scope openers below.
+//! Production never creates or reads `platform.db` (it was deleted in the
+//! 4d/B per-scope arc). Every scope owns its own db file with its own
+//! `events` log and projection tables. The boot path checks each present
+//! scope db; do not wire any new code path through a global single store —
+//! emit through the kernel (`PartitionedSink`) and read via the per-scope
+//! openers below.
 
 pub mod actor_events;
 pub mod cursors;
@@ -24,7 +18,6 @@ pub mod events;
 pub mod integrity;
 mod migrate;
 pub mod events_scope_reconcile;
-pub mod repair;
 #[cfg(test)]
 mod events_tests;
 #[cfg(test)]
@@ -98,20 +91,6 @@ pub(crate) fn resolve_db_path(ship_dir: &Path, db: crate::Db) -> PathBuf {
         .join(db.as_str())
 }
 
-/// Resolve the LEGACY platform.db path under a given ship-home root:
-/// `<ship_dir>/machine/db/platform.db` (or the `Var::DevDbDir` override). Thin
-/// typed wrapper over [`resolve_db_path`] — pure path resolution, never touches
-/// the filesystem.
-///
-/// platform.db is dead (per-scope arc). This resolver survives ONLY for the
-/// `.exists()`-guarded legacy drain at boot, the read-only migration-drift
-/// diagnostic (`ship repair`), and `#[cfg(test)]` round-trips. It returns a path
-/// but does NOT create the file — callers open it read-only via [`open_db_at`].
-/// Per-scope production paths are [`runtime_db_path`] / [`account_db_path`] /
-/// [`space_db_path`].
-pub fn platform_db_path(ship_dir: &Path) -> PathBuf {
-    resolve_db_path(ship_dir, crate::Db::Platform)
-}
 
 /// Resolve the data database path under a given ship-home root.
 /// Thin typed wrapper over [`resolve_db_path`].
@@ -135,8 +114,7 @@ pub fn kv_db_path(ship_dir: &Path) -> PathBuf {
 /// - Account  → `<ship_dir>/account.db`
 /// - Runtime  → `<ship_dir>/runtime.db`
 ///
-/// They back `PartitionedSink`'s scope routing. The existing `platform_db_path`
-/// is intentionally left untouched.
+/// They back `PartitionedSink`'s scope routing.
 pub const SPACES_DIR: &str = "spaces";
 const SPACE_DB_FILE: &str = "space.db";
 const RUNTIME_DB_FILE: &str = "runtime.db";
@@ -160,10 +138,10 @@ pub fn account_db_path(ship_dir: &Path) -> PathBuf {
 
 /// Ensure the events schema is initialized at an explicit per-scope db path.
 ///
-/// Mirrors `ensure_db_at`: creates parent directories and applies the full
-/// `events`-table schema (reconcile + migrations) via the shared
-/// [`ensure_db_at_path`]. Idempotent. Used by `PartitionedSink` on cache miss
-/// to lazily provision a scope's db file.
+/// Creates parent directories and applies the full `events`-table schema
+/// (reconcile + migrations) via the shared [`ensure_db_at_path`].
+/// Idempotent. Used by `PartitionedSink` on cache miss to lazily provision
+/// a scope's db file.
 pub fn ensure_events_db_at_path(path: &Path) -> Result<()> {
     ensure_db_at_path(path)
 }
@@ -250,27 +228,11 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     // (partially-applied) migration still hard-errors. On failure, refuse to
     // start; never delete user data.
     if let Err(e) = block_on_anyhow(migrate::run_tolerant(&mut conn)) {
-        tracing::error!("platform.db migration failed on {}: {e}", path.display());
+        tracing::error!("migration failed on {}: {e}", path.display());
         return Err(anyhow!("migration failed on {}: {e}", path.display()));
     }
 
     Ok(())
-}
-
-/// Migrate the LEGACY platform.db schema for an explicit ship-dir.
-///
-/// This is the ONLY surviving public fn that can materialize `platform.db`. The
-/// no-arg global-path creators (`ensure_db`/`db_path`/`open_db`) were deleted
-/// with the per-scope capstone; this one survives because the one-time legacy
-/// drain at daemon boot must migrate a pre-existing `platform.db` so its
-/// `kv_state` / legacy collection tables can be drained before migrations drop
-/// them. Its sole production caller — `apps/shipd/.../init.rs` — invokes it ONLY
-/// inside an `.exists()` guard, so a fresh install never reaches it and the dead
-/// file is never resurrected. Otherwise `#[cfg(test)]` round-trips only.
-/// Production handlers ensure their per-scope db via [`ensure_events_db_at_path`]
-/// + the per-scope openers — do not call this to "prepare" an event read.
-pub fn ensure_db_at(ship_dir: &Path) -> Result<()> {
-    ensure_db_at_path(&platform_db_path(ship_dir))
 }
 
 /// Open a connection to a specific database path (no migration run, never
@@ -387,40 +349,3 @@ where
         .map_err(|e| anyhow!("Migration failed: {e}"))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::testutil::init_project_minimal as init_project;
-    use tempfile::tempdir;
-
-    // These exercise the surviving legacy platform.db migration entry
-    // (`ensure_db_at`) — the one kept for the `.exists()`-guarded boot drain —
-    // against an explicit temp ship-dir. Production never resurrects
-    // platform.db; the no-arg global-path creators were deleted with the
-    // per-scope capstone.
-
-    #[test]
-    fn test_ensure_db_at_creates_fresh() {
-        let tmp = tempdir().unwrap();
-        let ship_dir = init_project(tmp.path()).unwrap();
-        ensure_db_at(&ship_dir).unwrap();
-        assert!(platform_db_path(&ship_dir).exists());
-    }
-
-    #[test]
-    fn test_ensure_db_at_idempotent() {
-        let tmp = tempdir().unwrap();
-        let ship_dir = init_project(tmp.path()).unwrap();
-        ensure_db_at(&ship_dir).unwrap();
-        ensure_db_at(&ship_dir).unwrap();
-    }
-
-    #[test]
-    fn test_open_db_at_returns_connection() {
-        let tmp = tempdir().unwrap();
-        let ship_dir = init_project(tmp.path()).unwrap();
-        ensure_db_at(&ship_dir).unwrap();
-        let conn = open_db_at(&platform_db_path(&ship_dir));
-        assert!(conn.is_ok());
-    }
-}

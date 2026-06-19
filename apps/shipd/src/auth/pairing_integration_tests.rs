@@ -17,12 +17,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-fn setup_ship_dir() {
-    // `get_global_dir()` auto-isolates per test binary (see runtime::project).
-    // Just ensure the DB exists at that path.
-    let ship_dir = ship_substrate::project::get_global_dir().unwrap();
-    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
-}
+ fn setup_ship_dir() {
+     // `get_global_dir()` auto-isolates per test binary (see runtime::project).
+     // The kernel router ensures its own scope dbs on first use.
+     let _ = ship_substrate::project::get_global_dir();
+ }
 
 fn session_registry() -> SessionRegistry {
     Arc::new(Mutex::new(HashMap::new()))

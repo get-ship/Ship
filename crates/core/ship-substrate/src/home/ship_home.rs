@@ -29,13 +29,6 @@ const RUNTIME_SUI_COMPILER: &str = "sui-compiler";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Db {
-    /// `platform.db` — LEGACY. The former single event/runtime store, dead
-    /// since the per-scope arc (events now live in `runtime.db`/`account.db`/
-    /// `spaces/<id>/space.db`). Retained only so the guarded one-time legacy
-    /// drain and the read-only `ship repair` drift diagnostic can still resolve
-    /// the old file when a pre-per-scope install carries one. Never created by
-    /// fresh installs; do not route a new production read/write through it.
-    Platform,
     /// `data.db` — collection / content data.
     Data,
     /// `kv.db` — durable key-value store (separated from event log in Phase 3).
@@ -46,7 +39,6 @@ impl Db {
     /// On-disk filename.
     pub fn as_str(&self) -> &'static str {
         match self {
-            Db::Platform => "platform.db",
             Db::Data => "data.db",
             Db::Kv => "kv.db",
         }

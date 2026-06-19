@@ -495,16 +495,6 @@ compile:
 use agent="default":
     ship use {{ agent }}
 
-# Reconcile recorded migration checksums against current files.
-[group('occasional')]
-repair-migrations:
-    ship daemon repair-migrations
-
-# Mark a migration version as applied without executing it.
-[group('occasional')]
-repair-migrations-mark version:
-    ship daemon repair-migrations --mark-applied {{ version }}
-
 # Tail the daemon log. Discovers the right log file via daemon dir.
 [group('occasional')]
 logs:

@@ -380,7 +380,7 @@ pub async fn emit_executor_window_destroyed(
 
 // ── Routing ─────────────────────────────────────────────────────────────────
 
-/// Persist an event to platform.db and deliver it through the kernel.
+/// Persist an event and deliver it through the kernel.
 ///
 /// Thin wrapper around `KernelRouter::emit` that logs failures at ERROR
 /// with slug/event_type/entity_id context. The unit return type matches
@@ -389,7 +389,8 @@ pub async fn emit_executor_window_destroyed(
 /// delete their use of this helper.
 ///
 /// `ship_dir` is accepted for backward compatibility and ignored — the
-/// kernel always writes to the platform.db under its own `base_dir`.
+/// kernel writes to the event's scope db (runtime.db / account.db /
+/// spaces/<id>/space.db) under its own `base_dir`.
 pub async fn persist_and_route(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     envelope: EventEnvelope,
