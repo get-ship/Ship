@@ -46,8 +46,8 @@ fn sample_envelope(id: &str, event_type: &str, space_id: &str) -> EventEnvelope 
 #[test]
 fn sync_types_push_request_serializes_events_array() {
     let events = vec![
-        sample_envelope("01JAAA", "workspace.created", "sp-1"),
-        sample_envelope("01JBBB", "workspace.updated", "sp-1"),
+        sample_envelope("01JAAA", "actor.created", "sp-1"),
+        sample_envelope("01JBBB", "agent.task.complete", "sp-1"),
     ];
     let req = PushRequest { events };
     let json = serde_json::to_value(&req).unwrap();
@@ -60,7 +60,7 @@ fn sync_types_push_request_serializes_events_array() {
 fn sync_types_push_request_has_no_top_level_space_id() {
     // The space_id auth model uses the x-project-id header, not the request
     // body. This is the canonical wire-format invariant documented in types.rs.
-    let events = vec![sample_envelope("01JAAA", "workspace.created", "sp-xyz")];
+    let events = vec![sample_envelope("01JAAA", "actor.created", "sp-xyz")];
     let req = PushRequest { events };
     let json = serde_json::to_value(&req).unwrap();
 
@@ -74,7 +74,7 @@ fn sync_types_push_request_has_no_top_level_space_id() {
 fn sync_types_push_request_space_id_in_envelope_body() {
     // space_id lives inside each EventEnvelope, not duplicated into the request
     // wrapper. Confirmed by the audit's wire-format note (types.rs:54–63).
-    let events = vec![sample_envelope("01JAAA", "workspace.created", "sp-canonical")];
+    let events = vec![sample_envelope("01JAAA", "actor.created", "sp-canonical")];
     let req = PushRequest { events };
     let json_str = serde_json::to_string(&req).unwrap();
 
@@ -137,7 +137,7 @@ fn sync_types_pull_response_deserializes_events_and_cursor() {
     let json = r#"{
         "events": [{
             "id": "01JFFFFF",
-            "event_type": "workspace.created",
+            "event_type": "actor.created",
             "entity_id": "ws-1",
             "actor": "ship",
             "payload_json": "{}",
@@ -156,7 +156,7 @@ fn sync_types_pull_response_deserializes_events_and_cursor() {
     }"#;
     let resp: PullResponse = serde_json::from_str(json).unwrap();
     assert_eq!(resp.events.len(), 1, "one event must deserialise");
-    assert_eq!(resp.events[0].event_type, "workspace.created");
+    assert_eq!(resp.events[0].event_type, "actor.created");
     assert_eq!(resp.cursor, "01JFFFFF");
 }
 

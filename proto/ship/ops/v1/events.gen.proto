@@ -90,47 +90,42 @@ oneof payload {
 
 // account / ephemeral — account.key_refreshed
 message AccountKeyRefreshedMsg {
+  bytes payload_json = 1;
 }
 
 // account / durable — account.login_completed
 message AccountLoginCompletedMsg {
+  bytes payload_json = 1;
 }
 
 // account / durable — account.login_started
 message AccountLoginStartedMsg {
-  string redirect_uri = 1;
+  bytes payload_json = 1;
 }
 
 // account / durable — account.logout
 message AccountLogoutMsg {
-  bool had_token = 1;
-  bool key_revoked = 2;
+  bytes payload_json = 1;
 }
 
 // space / ephemeral — agent.changed
 message AgentChangedMsg {
-  string path = 1;
-  string content_hash = 2;
+  bytes payload_json = 1;
 }
 
 // space / ephemeral — agent.def.updated
 message AgentDefUpdatedMsg {
-  string path = 1;
-  string content_hash = 2;
+  bytes payload_json = 1;
 }
 
 // account / durable — agent.grants.provisioned
 message AgentGrantsProvisionedMsg {
-  repeated string grants = 1;
-  string source = 2;
-  string approved_by = 3;
+  bytes payload_json = 1;
 }
 
 // space / durable — agent.task.complete
 message AgentTaskCompleteMsg {
-  string task_id = 1;
-  string task_type = 2;
-  string space_id = 3;
+  bytes payload_json = 1;
 }
 
 // space / durable — artifact.created
@@ -155,21 +150,17 @@ message ArtifactUpdatedMsg {
 
 // account / durable — auth.session.created
 message AuthSessionCreatedMsg {
-  string agent_id = 1;
-  string scopes_json = 2;
-  string space_id = 3;
-  int64 created_at_unix = 4;
-  int64 expires_at_unix = 5;
-  string source = 6;
+  bytes payload_json = 1;
 }
 
 // account / durable — auth.session.expired
 message AuthSessionExpiredMsg {
+  bytes payload_json = 1;
 }
 
 // account / durable — auth.session.revoked
 message AuthSessionRevokedMsg {
-  string reason = 1;
+  bytes payload_json = 1;
 }
 
 // space / durable — collection.created
@@ -199,37 +190,27 @@ message CollectionSchemaChangedMsg {
 
 // space / durable — compile.completed
 message CompileCompletedMsg {
-  string active_agent = 1;
-  string compiled_at = 2;
-  string ship_version = 3;
-  string harness = 4;
-  repeated string plugins_installed = 5;
+  bytes payload_json = 1;
 }
 
 // account / durable — daemon.owner.bound
 message DaemonOwnerBoundMsg {
-  string source = 1;
-  int64 bound_at_unix = 2;
+  bytes payload_json = 1;
 }
 
 // account / durable — daemon.owner.unbound
 message DaemonOwnerUnboundMsg {
+  bytes payload_json = 1;
 }
 
 // space / durable — human.response
 message HumanResponseMsg {
-  string conversation_id = 1;
-  string text = 2;
-  string sender = 3;
+  bytes payload_json = 1;
 }
 
 // space / durable — project.switched
 message ProjectSwitchedMsg {
-  string space_id = 1;
-  string name = 2;
-  string path = 3;
-  string previous = 4;
-  string at = 5;
+  bytes payload_json = 1;
 }
 
 // space / durable — session.cancelled
@@ -259,8 +240,7 @@ message SessionSuspendedMsg {
 
 // space / durable — space.setting.changed
 message SpaceSettingChangedMsg {
-  string key = 1;
-  string value_json = 2;
+  bytes payload_json = 1;
 }
 
 // space / durable — studio.annotation.created
@@ -285,7 +265,6 @@ message StudioReplyMsg {
 
 // space / ephemeral — view.changed
 message ViewChangedMsg {
-  string path = 1;
-  string content_hash = 2;
+  bytes payload_json = 1;
 }
 

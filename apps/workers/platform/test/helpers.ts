@@ -8,10 +8,10 @@ import type { EventEnvelope } from '@ship-cloud/types';
 export function makeEvent(overrides: Partial<EventEnvelope> = {}): EventEnvelope {
   return {
     id: crypto.randomUUID(),
-    event_type: 'workspace.created',
+    event_type: 'actor.created',
     entity_id: crypto.randomUUID(),
     actor: 'ship',
-    payload_json: JSON.stringify({ name: 'test-workspace' }),
+    payload_json: '{}',
     version: 1,
     causation_id: null,
     space_id: null,

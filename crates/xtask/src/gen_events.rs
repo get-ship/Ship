@@ -322,9 +322,7 @@ fn render_ts(events: &[WireEvent]) -> String {
 
 fn load_structs(root: &Path) -> Result<BTreeMap<String, Vec<StructField>>> {
     let sources = &[
-        "crates/core/ship-substrate/crates/ship-types/src/payload.rs",
-        "crates/core/ship-substrate/src/events/agent_session.rs",
-        "crates/core/ship-substrate/src/events/pipeline.rs",
+        "crates/core/ship-substrate/crates/ship-types/src/payload/mod.rs",
     ];
     let mut all: BTreeMap<String, Vec<StructField>> = BTreeMap::new();
     for rel in sources {

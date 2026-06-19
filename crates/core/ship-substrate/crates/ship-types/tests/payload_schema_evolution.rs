@@ -16,29 +16,6 @@ fn parse<'de, T: serde::Deserialize<'de>>(json: &'de str, label: &str) -> T {
         .unwrap_or_else(|e| panic!("[{label}] v1 fixture failed to deserialize: {e}"))
 }
 
-// ── Workspace aggregate (legacy — kept for back-compat replay) ───────────────
-
-#[test]
-fn workspace_created_v1_round_trips() {
-    let json = r#"{"workspace_id": "ws-1", "path": "/repos/proj"}"#;
-    let p: WorkspaceCreated = parse(json, "WorkspaceCreated");
-    assert_eq!(p.workspace_id, "ws-1");
-    assert_eq!(p.path.as_deref(), Some("/repos/proj"));
-}
-
-#[test]
-fn workspace_activated_v1_round_trips() {
-    let json = r#"{"agent_id": "code-lane", "harnesses": ["claude", "codex"]}"#;
-    let p: WorkspaceActivated = parse(json, "WorkspaceActivated");
-    assert_eq!(p.agent_id.as_deref(), Some("code-lane"));
-    assert_eq!(p.harnesses, vec!["claude", "codex"]);
-}
-
-#[test]
-fn workspace_archived_v1_round_trips() {
-    let _: WorkspaceArchived = parse("{}", "WorkspaceArchived");
-}
-
 // Session aggregate types were deleted with the workbench family (R6).
 // Canonical session payload schema evolution tests live in ship-substrate
 // where the canonical_session types are defined.

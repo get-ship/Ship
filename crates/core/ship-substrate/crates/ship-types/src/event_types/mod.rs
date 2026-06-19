@@ -16,9 +16,6 @@ pub use mesh::*;
 // `ship_collection::events::ALL_COLLECTION`). Full-linkage vocabulary guards
 // live in shipd (`tests/event_vocabulary.rs`): a pinned registry count plus a
 // live-validator sweep, with NO exception lists.
-pub const WORKSPACE_CREATED: &str = "workspace.created";
-pub const WORKSPACE_ACTIVATED: &str = "workspace.activated";
-pub const WORKSPACE_ARCHIVED: &str = "workspace.archived";
 pub const ACTOR_CREATED: &str = "actor.created";
 pub const ACTOR_WOKE: &str = "actor.woke";
 pub const ACTOR_SLEPT: &str = "actor.slept";

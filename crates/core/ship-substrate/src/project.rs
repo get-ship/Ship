@@ -6,18 +6,12 @@
 pub const SHIP_DIR_NAME: &str = ".ship";
 pub const PRIMARY_CONFIG_FILE: &str = "ship.jsonc";
 
-mod app_state;
 mod discovery;
 mod global;
 mod identity;
 mod paths;
-mod registry;
 mod space;
 
-pub use app_state::{
-    AppState, get_active_project_global, get_recent_projects_global, load_app_state,
-    save_app_state, set_active_project_global,
-};
 pub use discovery::{BOUNDARY_FILE, get_project_dir, resolve_project_ship_dir, ship_dir_from_path};
 pub use global::get_global_dir;
 pub use identity::{
@@ -29,10 +23,6 @@ pub use paths::{
     teams_dir, upcoming_releases_dir, user_skills_dir, vision_doc_path,
     vision_template_path,
 };
-pub use registry::{
-    ProjectEntry, ProjectRegistry, get_registry_path, list_registered_projects, load_registry,
-    register_project, save_registry, unregister_project,
-};
 pub use space::resolve_active_space;
 
 #[cfg(test)]
@@ -43,7 +33,6 @@ mod tests {
     use std::path::{Path, PathBuf};
     use tempfile::tempdir;
 
-    use super::app_state::normalize_app_state_paths;
     use super::discovery::{canonicalize_lossy, parse_main_worktree_root};
     use super::global::{is_likely_rust_test_binary, parse_test_global_dir_pid};
     use super::identity::is_transient_project_root;
@@ -305,38 +294,5 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn normalize_app_state_paths_canonicalizes_and_dedupes_entries() -> Result<()> {
-        let tmp = tempdir()?;
-        let root = tmp.path().join("workspace");
-        let ship = root.join(SHIP_DIR_NAME);
-        fs::create_dir_all(&ship)?;
 
-        let mut state = AppState {
-            active_project: Some(root.clone()),
-            recent_projects: vec![root.clone(), ship.clone()],
-        };
-
-        assert!(normalize_app_state_paths(&mut state));
-        let canonical_ship = canonicalize_lossy(&ship);
-        assert_eq!(state.active_project, Some(canonical_ship.clone()));
-        assert_eq!(state.recent_projects, vec![canonical_ship]);
-        Ok(())
-    }
-
-    #[test]
-    fn normalize_app_state_paths_reports_no_change_for_canonical_state() -> Result<()> {
-        let tmp = tempdir()?;
-        let ship = tmp.path().join("workspace").join(SHIP_DIR_NAME);
-        fs::create_dir_all(&ship)?;
-        let canonical_ship = canonicalize_lossy(&ship);
-
-        let mut state = AppState {
-            active_project: Some(canonical_ship.clone()),
-            recent_projects: vec![canonical_ship],
-        };
-
-        assert!(!normalize_app_state_paths(&mut state));
-        Ok(())
-    }
 }

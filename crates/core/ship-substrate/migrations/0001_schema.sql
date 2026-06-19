@@ -116,7 +116,6 @@ CREATE TABLE IF NOT EXISTS projects (
   id            TEXT PRIMARY KEY NOT NULL,
   path          TEXT NOT NULL,
   name          TEXT NOT NULL,
-  label         TEXT,
   created_at    TEXT NOT NULL,
   last_seen_at  TEXT NOT NULL,
   archived_at   TEXT,

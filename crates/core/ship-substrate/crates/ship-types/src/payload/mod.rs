@@ -33,7 +33,6 @@ mod spec6;
 // No re-export shim — consumers import from ship_agents::studio_events.
 mod sync;
 mod watcher;
-mod workspace;
 
 pub use account::{AccountKeyRefreshed, AccountLoginCompleted, AccountLoginStarted, AccountLogout};
 pub use actor::{
@@ -65,22 +64,5 @@ pub use watcher::{
 };
 pub use project::{ProjectArchived, ProjectRegistered, ProjectSeen, ProjectSwitched};
 pub use process::ProcessOrphaned;
-pub use workspace::{WorkspaceActivated, WorkspaceArchived, WorkspaceCreated};
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn workspace_created_payload_deserializes() {
-        let original = WorkspaceCreated {
-            workspace_id: "ws-1".to_string(),
-            path: None,
-        };
-        let json = serde_json::to_string(&original).unwrap();
-        let decoded: WorkspaceCreated = serde_json::from_str(&json).unwrap();
-        assert_eq!(decoded.workspace_id, "ws-1");
-    }
-
-}
 

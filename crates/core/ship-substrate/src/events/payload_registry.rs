@@ -246,7 +246,6 @@ register_event!("supervisor.shutting_down", [EventScope::Runtime], Retention::Du
 // the step) but the existing anchor is still correct as long as the
 // event flows.
 register_event!("pipeline.run.updated", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "PipelineRunUpdatedPayload", crate::events::pipeline::PipelineRunUpdatedPayload);
-// bundle 4, 2026-06-10) — the SPACE domain owns its deprecated legacy events.
 register_event!("daemon.crashed", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonCrashed", crate::events::daemon::CrashedPayload);
 register_event!("daemon.pidfile_acquired", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonPidfileAcquired", crate::events::daemon::PidfileAcquiredPayload);
 register_event!("daemon.pidfile_stale_taken", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonPidfileStaleTaken", crate::events::daemon::PidfileStaleTakenPayload);

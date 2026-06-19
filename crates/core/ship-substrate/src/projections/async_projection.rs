@@ -126,17 +126,17 @@ mod tests {
         let applied = Arc::new(Mutex::new(Vec::new()));
         let proj = Arc::new(MockProjection {
             name: "test",
-            types: &["workspace.created"],
+            types: &["actor.created"],
             applied: applied.clone(),
         });
         let (tx, rx) = broadcast::channel(16);
         let _handle = spawn_projection(proj, rx, test_db_opener);
 
-        tx.send(make_event("workspace.created")).unwrap();
+        tx.send(make_event("actor.created")).unwrap();
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         assert_eq!(applied.lock().unwrap().len(), 1);
-        assert_eq!(applied.lock().unwrap()[0], "workspace.created");
+        assert_eq!(applied.lock().unwrap()[0], "actor.created");
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -144,7 +144,7 @@ mod tests {
         let applied = Arc::new(Mutex::new(Vec::new()));
         let proj = Arc::new(MockProjection {
             name: "test",
-            types: &["workspace.created"],
+            types: &["actor.created"],
             applied: applied.clone(),
         });
         let (tx, rx) = broadcast::channel(16);
@@ -161,7 +161,7 @@ mod tests {
         let applied = Arc::new(Mutex::new(Vec::new()));
         let proj = Arc::new(MockProjection {
             name: "test",
-            types: &["workspace.created"],
+            types: &["actor.created"],
             applied: applied.clone(),
         });
 
@@ -170,7 +170,7 @@ mod tests {
 
         // Fill past capacity before spawning receiver task
         for _ in 0..5 {
-            tx.send(make_event("workspace.created")).unwrap();
+            tx.send(make_event("actor.created")).unwrap();
         }
 
         let _handle = spawn_projection(proj, rx, test_db_opener);
@@ -178,7 +178,7 @@ mod tests {
         // Send one more event after spawn so the projection has something to
         // receive after recovering from the Lagged error.
         tokio::time::sleep(Duration::from_millis(50)).await;
-        tx.send(make_event("workspace.created")).unwrap();
+        tx.send(make_event("actor.created")).unwrap();
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         let count = applied.lock().unwrap().len();
@@ -190,7 +190,7 @@ mod tests {
         let applied = Arc::new(Mutex::new(Vec::new()));
         let proj = Arc::new(MockProjection {
             name: "test",
-            types: &["workspace.created"],
+            types: &["actor.created"],
             applied: applied.clone(),
         });
         let (tx, rx) = broadcast::channel(16);

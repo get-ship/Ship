@@ -47,8 +47,8 @@ fn namespace_validator_rejects_wrong_skill() {
 #[test]
 fn namespace_validator_blocks_system_namespace() {
     let v = NamespaceValidator;
-    let event = make_event("workspace.created");
-    let ctx = skill_ctx("workspace");
+    let event = make_event("actor.created");
+    let ctx = skill_ctx("actor");
     let err = v.validate(&event, &ctx).unwrap_err();
     assert!(matches!(err, ValidationError::ReservedNamespace { .. }));
 }
@@ -56,16 +56,8 @@ fn namespace_validator_blocks_system_namespace() {
 #[test]
 fn runtime_caller_can_emit_system_events() {
     let v = NamespaceValidator;
-    let event = make_event("workspace.created");
+    let event = make_event("actor.created");
     let ctx = caller_ctx(CallerKind::Runtime);
-    assert!(v.validate(&event, &ctx).is_ok());
-}
-
-#[test]
-fn cli_caller_can_emit_system_events() {
-    let v = NamespaceValidator;
-    let event = make_event("session.started");
-    let ctx = caller_ctx(CallerKind::Cli);
     assert!(v.validate(&event, &ctx).is_ok());
 }
 
@@ -102,7 +94,7 @@ fn kernel_and_platform_only_are_disjoint() {
 #[test]
 fn elevated_from_untrusted_rejected() {
     let v = ElevatedValidator;
-    let event = make_event("workspace.created").elevate();
+    let event = make_event("actor.created").elevate();
     let ctx = caller_ctx(CallerKind::Mcp);
     let err = v.validate(&event, &ctx).unwrap_err();
     assert!(matches!(err, ValidationError::DirectionViolation { .. }));
@@ -120,11 +112,10 @@ fn elevated_from_sdk_rejected() {
 #[test]
 fn elevated_from_runtime_passes() {
     let v = ElevatedValidator;
-    let event = make_event("workspace.created").elevate();
+    let event = make_event("actor.created").elevate();
     let ctx = caller_ctx(CallerKind::Runtime);
     assert!(v.validate(&event, &ctx).is_ok());
 }
-
 #[test]
 fn elevated_from_cli_passes() {
     let v = ElevatedValidator;

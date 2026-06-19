@@ -64,12 +64,11 @@ fn apply_registered(event: &EventEnvelope, conn: &mut SqliteConnection) -> Resul
     block_on(async {
         sqlx::query(
             "INSERT INTO projects \
-             (id, path, name, label, created_at, last_seen_at, archived_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, NULL, datetime('now')) \
+             (id, path, name, created_at, last_seen_at, archived_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, NULL, datetime('now')) \
              ON CONFLICT(id) DO UPDATE SET \
                path         = excluded.path, \
                name         = excluded.name, \
-               label        = excluded.label, \
                last_seen_at = excluded.last_seen_at, \
                archived_at  = NULL, \
                updated_at   = datetime('now')",
@@ -77,7 +76,6 @@ fn apply_registered(event: &EventEnvelope, conn: &mut SqliteConnection) -> Resul
         .bind(&space_id)
         .bind(&payload.path)
         .bind(&payload.name)
-        .bind(&payload.label)
         .bind(&payload.created_at)
         .bind(&payload.created_at)
         .execute(conn)

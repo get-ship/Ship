@@ -142,16 +142,20 @@ fn query_events_since_latest_cursor_returns_empty() {
 
 #[test]
 fn query_events_since_elevated_only() {
-    use crate::events::types::{WorkspaceActivated, event_types as et};
+    use crate::events::types::{ProjectRegistered, event_types as et};
     let (_tmp, _ship_dir) = setup();
     let store = runtime_store();
     // Non-elevated event
     store.append(&make_seen_event("noise")).unwrap();
     // Elevated event
     let elevated = EventEnvelope::new(
-        et::WORKSPACE_ACTIVATED,
+        et::PROJECT_REGISTERED,
         "ws-1",
-        &WorkspaceActivated { agent_id: None, harnesses: vec![] },
+        &ProjectRegistered {
+            path: "/test/path".into(),
+            name: "test".into(),
+            created_at: "2026-01-01T00:00:00Z".into(),
+        },
     )
     .unwrap()
     .elevate();
@@ -160,5 +164,5 @@ fn query_events_since_elevated_only() {
     assert_eq!(all.len(), 2);
     let elevated_only = query_events_since(None, true).unwrap();
     assert_eq!(elevated_only.len(), 1);
-    assert_eq!(elevated_only[0].event_type, et::WORKSPACE_ACTIVATED);
+    assert_eq!(elevated_only[0].event_type, et::PROJECT_REGISTERED);
 }

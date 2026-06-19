@@ -4,19 +4,17 @@ import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator';
 import { EventRepository } from '../src/repositories/event.repository.js';
 import { PIPELINE_RUN_STARTED, PIPELINE_RUN_DISPATCHED, PIPELINE_RUN_COMPLETED, PIPELINE_RUN_FAILED } from '@ship-cloud/types';
-import { ProjectProjectionRepository } from '../src/repositories/project-projection.repository.js';
 import { JobProjectionRepository } from '../src/repositories/job-projection.repository.js';
 import { platform_schema } from '../src/data/schema/index.js';
 import migrations from '../migrations/migrations.js';
 import type { EventEnvelope } from '@ship-cloud/types';
-
 function makeEvent(overrides: Partial<EventEnvelope> = {}): EventEnvelope {
   return {
     id: crypto.randomUUID(),
-    event_type: 'workspace.created',
+    event_type: PIPELINE_RUN_STARTED,
     entity_id: crypto.randomUUID(),
     actor: 'ship',
-    payload_json: JSON.stringify({ name: 'test-workspace' }),
+    payload_json: '{}',
     version: 1,
     elevated: false,
     created_at: new Date().toISOString(),
@@ -245,135 +243,6 @@ describe('Platform EventRepository', () => {
   });
 });
 
-describe('Platform ProjectProjection', () => {
-  let stub: DurableObjectStub;
-
-  beforeEach(async () => {
-    const id = env.PLATFORM.idFromName(`test-${crypto.randomUUID()}`);
-    stub = env.PLATFORM.get(id);
-
-    await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: platform_schema });
-      await migrate(db, migrations);
-    });
-  });
-
-  it('should create project projection from event', async () => {
-    await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: platform_schema });
-      const projection = new ProjectProjectionRepository(db);
-
-      const wsId = crypto.randomUUID();
-      await projection.applyEvent(makeEvent({
-        event_type: 'workspace.created',
-        entity_id: wsId,
-        payload_json: JSON.stringify({ name: 'my-workspace' }),
-      }));
-
-      const result = await projection.list();
-      expect(result.isSuccess).toBe(true);
-      expect(result.value).toHaveLength(1);
-      expect(result.value[0]!.id).toBe(wsId);
-      expect(result.value[0]!.name).toBe('my-workspace');
-      expect(result.value[0]!.status).toBe('created');
-    });
-  });
-
-  it('should transition through full lifecycle: created -> activated -> archived -> deleted', async () => {
-    await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: platform_schema });
-      const projection = new ProjectProjectionRepository(db);
-
-      const wsId = crypto.randomUUID();
-
-      await projection.applyEvent(makeEvent({
-        event_type: 'workspace.created', entity_id: wsId,
-        payload_json: JSON.stringify({ name: 'ws' }),
-      }));
-      expect((await projection.list()).value[0]!.status).toBe('created');
-
-      await projection.applyEvent(makeEvent({
-        event_type: 'workspace.activated', entity_id: wsId,
-      }));
-      expect((await projection.list()).value[0]!.status).toBe('activated');
-
-      await projection.applyEvent(makeEvent({
-        event_type: 'workspace.archived', entity_id: wsId,
-      }));
-      expect((await projection.list()).value[0]!.status).toBe('archived');
-
-      await projection.applyEvent(makeEvent({
-        event_type: 'workspace.deleted', entity_id: wsId,
-      }));
-      expect((await projection.list()).value[0]!.status).toBe('deleted');
-    });
-  });
-
-  it('should ignore duplicate created events (idempotent)', async () => {
-    await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: platform_schema });
-      const projection = new ProjectProjectionRepository(db);
-
-      const wsId = crypto.randomUUID();
-      const event = makeEvent({
-        event_type: 'workspace.created', entity_id: wsId,
-        payload_json: JSON.stringify({ name: 'ws' }),
-      });
-
-      await projection.applyEvent(event);
-      await projection.applyEvent(event);
-
-      const result = await projection.list();
-      expect(result.value).toHaveLength(1);
-    });
-  });
-
-  it('should track multiple projects independently', async () => {
-    await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: platform_schema });
-      const projection = new ProjectProjectionRepository(db);
-
-      const ws1 = crypto.randomUUID();
-      const ws2 = crypto.randomUUID();
-
-      await projection.applyEvent(makeEvent({
-        event_type: 'workspace.created', entity_id: ws1,
-        payload_json: JSON.stringify({ name: 'alpha' }),
-      }));
-      await projection.applyEvent(makeEvent({
-        event_type: 'workspace.created', entity_id: ws2,
-        payload_json: JSON.stringify({ name: 'beta' }),
-      }));
-      await projection.applyEvent(makeEvent({
-        event_type: 'workspace.activated', entity_id: ws1,
-      }));
-
-      const result = await projection.list();
-      expect(result.value).toHaveLength(2);
-
-      const alpha = result.value.find((w) => w.id === ws1)!;
-      const beta = result.value.find((w) => w.id === ws2)!;
-      expect(alpha.status).toBe('activated');
-      expect(beta.status).toBe('created');
-    });
-  });
-
-  it('should ignore unrelated event types', async () => {
-    await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: platform_schema });
-      const projection = new ProjectProjectionRepository(db);
-
-      await projection.applyEvent(makeEvent({
-        event_type: PIPELINE_RUN_STARTED,
-        entity_id: crypto.randomUUID(),
-      }));
-
-      const result = await projection.list();
-      expect(result.value).toHaveLength(0);
-    });
-  });
-});
-
 describe('Platform JobProjection', () => {
   let stub: DurableObjectStub;
 
@@ -456,37 +325,29 @@ describe('Platform SyncFacade integration', () => {
       // Use the DO's own facade (through the repos factory) to verify integration
       const db = drizzle(state.storage, { schema: platform_schema });
       const eventRepo = new EventRepository(db);
-      const projectProjection = new ProjectProjectionRepository(db);
       const jobProjection = new JobProjectionRepository(db);
 
       // Manually simulate what SyncFacade.push does
-      const wsId = crypto.randomUUID();
       const jobId = crypto.randomUUID();
       const events = [
-        makeEvent({ event_type: 'workspace.created', entity_id: wsId, payload_json: JSON.stringify({ name: 'ws-1' }) }),
-        makeEvent({ event_type: PIPELINE_RUN_STARTED, entity_id: jobId, space_id: wsId }),
+        makeEvent({ event_type: PIPELINE_RUN_STARTED, entity_id: jobId }),
       ];
 
       const pushResult = await eventRepo.push(events);
-      expect(pushResult.value).toBe(2);
+      expect(pushResult.value).toBe(1);
 
       for (const event of events) {
-        await projectProjection.applyEvent(event);
         await jobProjection.applyEvent(event);
       }
 
-      // Verify projections updated
-      const projectsList = await projectProjection.list();
-      expect(projectsList.value).toHaveLength(1);
-      expect(projectsList.value[0]!.name).toBe('ws-1');
-
+      // Verify projection updated
       const jobs = await jobProjection.list();
       expect(jobs.value).toHaveLength(1);
       expect(jobs.value[0]!.status).toBe('created');
 
       // Verify pull returns events
       const pullResult = await eventRepo.pull();
-      expect(pullResult.value.events).toHaveLength(2);
+      expect(pullResult.value.events).toHaveLength(1);
     });
   });
 });

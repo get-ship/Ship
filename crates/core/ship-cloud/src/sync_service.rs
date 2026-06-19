@@ -187,9 +187,8 @@ mod tests {
     use tempfile::tempdir;
 
     /// The runtime.db path under the test's thread-local global ship-dir. The
-    /// sync test fixtures persist Runtime-scoped (`workspace.created`) events, so
-    /// they back their `ActorStore` with `runtime.db` rather than the dead
-    /// `platform.db`.
+    /// sync test fixtures persist Runtime-scoped events, so they back their
+    /// `ActorStore` with `runtime.db` rather than the dead `platform.db`.
     fn test_runtime_db() -> std::path::PathBuf {
         runtime_db_path(&ship_substrate::project::get_global_dir().unwrap())
     }
@@ -239,7 +238,7 @@ mod tests {
             sqlx::query(
                 "INSERT INTO events \
                  (id, event_type, entity_id, actor, payload_json, elevated, created_at) \
-                 VALUES (?, 'workspace.created', 'ws-1', 'ship', '{}', 1, ?)",
+                 VALUES (?, 'actor.created', 'ws-1', 'ship', '{}', 1, ?)",
             )
             .bind(id)
             .bind(&now)

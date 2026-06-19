@@ -61,7 +61,7 @@ fn actor_store_rejects_read_outside_namespace() {
     let (_tmp, mut router) = setup();
     let (store, _mb) = router.spawn_actor("studio", studio_config()).unwrap();
     let filter = EventFilter {
-        event_type: Some("workspace.created".into()),
+        event_type: Some("actor.created".into()),
         ..Default::default()
     };
     let err = store.query(&filter).unwrap_err();
@@ -191,7 +191,7 @@ async fn route_delivers_to_multiple_subscribers() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn kernel_store_receives_system_events() {
     let (_tmp, router) = setup();
-    let event = ev("workspace.created");
+    let event = ev("actor.created");
     // emit persists + delivers. route is delivery-only.
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 

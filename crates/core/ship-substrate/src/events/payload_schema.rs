@@ -77,8 +77,7 @@ mod tests {
 
     #[test]
     fn valid_payload_passes() {
-        // Use actor.created — L0-registered (Runtime-scoped), remains in L0 after
-        // keystone-A Phase A bundle 4 (workspace.created moved to ship-space).
+        // Use actor.created — L0-registered (Runtime-scoped), stable.
         let v = PayloadSchemaValidator;
         let event = EventEnvelope::new(
             "actor.created",

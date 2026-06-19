@@ -1,18 +1,14 @@
 //! Event registrations for the SPACE domain.
-//!
-//! Registers the project.* / space.setting.* / workspace.* events with the
-//! global event registry using the hoisted `register_event!` macro from
-//! `ship_types`. The legacy project-log daemon-wide audit stream was deleted
-//! (2026-06-19) — the writer API had no callers and the read path was
-//! unreferenced; the corresponding payload and event-name const in
-//! ship-types were removed as well.
+//! Registers the project.* / space.setting.* events with the global event
+//! registry using the hoisted `register_event!` macro from `ship_types`.
+//! workspace.* (deprecated) was deleted (deadlayer-cut, 2026-06-19) — the
+//! events had no live emitters and only test-only consumers.
 //!
 //! Keystone-A Phase A bundle 4 (2026-06-10): the SPACE domain owns its events
 //! at L1. These registrations moved from `ship_substrate::events::payload_registry`.
 //!
-//! Payload structs STAY in ship_types::payload — WorkspaceActivated is
-//! consumed by L0 (tests_actor.rs); SpaceSettingChanged is consumed by
-//! ship-config's SpaceSettingsProjection.
+//! Payload structs STAY in ship_types::payload — SpaceSettingChanged is
+//! consumed by ship-config's SpaceSettingsProjection.
 
 use ship_types::event_registry::{EventScope, Retention, Stability};
 use ship_types::register_event;
@@ -33,7 +29,3 @@ register_event!("project.switched", [EventScope::Space], Retention::Durable, Sta
 // ── space.setting.* ─────────────────────────────────────────────────────────
 register_event!("space.setting.changed", [EventScope::Space], Retention::Durable, Stability::Stable, "SpaceSettingChanged", ship_types::payload::SpaceSettingChanged);
 
-// ── workspace.* (deprecated) ────────────────────────────────────────────────
-register_event!("workspace.created", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "WorkspaceCreated", ship_types::payload::WorkspaceCreated);
-register_event!("workspace.activated", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "WorkspaceActivated", ship_types::payload::WorkspaceActivated);
-register_event!("workspace.archived", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "WorkspaceArchived", ship_types::payload::WorkspaceArchived);

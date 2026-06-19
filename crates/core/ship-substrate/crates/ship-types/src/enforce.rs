@@ -97,7 +97,7 @@ mod tests {
             },
         );
         let mut env =
-            EventEnvelope::new("workspace.created", "ws-1", &serde_json::json!({})).unwrap();
+        EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({})).unwrap();
         stamp_author(&mut env, &binding);
         assert_eq!(env.author_device_id.as_deref(), Some("dev-1"));
         assert_eq!(env.author_account_id.as_deref(), Some("acct-1"));
@@ -108,7 +108,7 @@ mod tests {
     fn stamp_author_device_only_binding_leaves_account_none() {
         let binding = ScopeBinding::daemon_internal(None, Authority::Sdk);
         let mut env =
-            EventEnvelope::new("workspace.created", "ws-1", &serde_json::json!({})).unwrap();
+            EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({})).unwrap();
         stamp_author(&mut env, &binding);
         assert!(env.author_device_id.is_some());
         assert_eq!(env.author_account_id, None);

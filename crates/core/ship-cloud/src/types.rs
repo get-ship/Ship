@@ -34,7 +34,7 @@ mod tests {
     fn sample_envelope() -> EventEnvelope {
         EventEnvelope {
             id: "01J0000000000000000000000A".to_string(),
-            event_type: "workspace.created".to_string(),
+            event_type: "actor.created".to_string(),
             entity_id: "ws-1".to_string(),
             actor: "ship".to_string(),
             payload_json: "{}".to_string(),
@@ -60,13 +60,14 @@ mod tests {
             events: vec![sample_envelope()],
         };
         let json = serde_json::to_string(&req).unwrap();
-        assert!(json.contains("workspace.created"));
+        assert!(json.contains("actor.created"));
         // The partition tuple rides the envelope body (`scope` + `scope_key`).
         // Sync wire-format reviewers: this is the canonical attribution, not a
         // duplicate of any header.
         assert!(json.contains("scope_key"));
         assert!(json.contains("\"scope\""));
     }
+
 
     #[test]
     fn push_response_deserializes() {
@@ -81,7 +82,7 @@ mod tests {
         let json = r#"{
             "events": [{
                 "id": "01J0000000000000000000000A",
-                "event_type": "workspace.created",
+                "event_type": "actor.created",
                 "entity_id": "ws-1",
                 "actor": "ship",
                 "payload_json": "{}",

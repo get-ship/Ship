@@ -9,10 +9,10 @@
 use tempfile::tempdir;
 
 use ship_types::envelope::EventEnvelope;
+use crate::db::{block_on, open_db_at};
 use crate::events::filter::EventFilter;
 use crate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::events::validator::{CallerKind, EmitContext};
-
 fn runtime_ctx() -> EmitContext {
     EmitContext {
         caller_kind: CallerKind::Runtime,
@@ -38,7 +38,6 @@ fn agent_config(actor_id: &str) -> ActorConfig {
         read_namespaces: vec!["agent.".to_string()],
         subscribe_namespaces: vec![
             "studio.".to_string(),
-            "workspace.".to_string(),
             "session.".to_string(),
             "actor.".to_string(),
         ],
@@ -147,44 +146,6 @@ fn agent_cannot_read_studio_events() {
     );
 }
 
-// ── system events reach agent mailbox ────────────────────────────────────────
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn workspace_system_event_reaches_agent_mailbox() {
-    let tmp = tempdir().unwrap();
-    let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
-
-    let (_agent_store, mut agent_mb) =
-        router.spawn_actor("agent.mcp", agent_config("agent.mcp")).unwrap();
-
-    // System event emitted (e.g. by db/workspace_events.rs).
-    let event = ev("workspace.activated");
-    router.emit(event.clone(), &runtime_ctx()).await.unwrap();
-
-    let received = agent_mb.try_recv().expect("agent mailbox must receive workspace events");
-    assert_eq!(received.id, event.id);
-}
-
-// ── studio does not receive events it does not subscribe to ──────────────────
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn studio_does_not_receive_unsubscribed_events() {
-    let tmp = tempdir().unwrap();
-    let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
-
-    let (_studio_store, mut studio_mb) = router.spawn_actor("studio", studio_config()).unwrap();
-
-    // workspace.* is NOT in studio's subscribe_namespaces.
-    router
-        .emit(ev("workspace.activated"), &runtime_ctx())
-        .await
-        .unwrap();
-
-    assert!(
-        studio_mb.try_recv().is_err(),
-        "studio must not receive workspace events it did not subscribe to"
-    );
-}
 
 // ── artifact event routing ───────────────────────────────────────────────────
 
@@ -253,12 +214,11 @@ async fn studio_feedback_reaches_agent_mailbox() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn kernel_store_records_system_events_for_audit() {
-    use crate::db::{block_on, open_db_at};
 
     let tmp = tempdir().unwrap();
     let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let event = ev("workspace.created");
+    let event = ev("actor.created");
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let mut conn = open_db_at(&router.kernel_store_path()).unwrap();

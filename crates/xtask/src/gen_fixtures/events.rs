@@ -28,8 +28,6 @@ const NEEDS_AUTHOR_PAYLOADS: &[&str] = &[
     "PipelineRunDispatchedPayload", // harness_meta: Option<serde_json::Value>
     // AgentSessionStartedPayload removed (#26): agent.session.* family retired.
     // dispatch.requested uses DispatchRequestedPayload; see dispatch_intent.rs.
-    "dispatch_intent::DispatchRequestedPayload", // vars + depends_on: not trivially defaultable
-    "WorkspaceActivated",           // harnesses: Vec<String> — not trivially defaultable
 ];
 
 /// Map from `payload_type_name` → deterministic JSON stub.
@@ -40,15 +38,12 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
     let slug = event_name.replace('.', "-");
     match payload_type {
         // ── Empty-payload events (unit structs) ───────────────────────────────
-        "WorkspaceArchived"
-        | "ActorWoke"
+        "ActorWoke"
         | "SessionToolCountIncremented"
         | "AuthSessionExpired"
         | "AccountLoginCompleted"
         | "AccountKeyRefreshed"
         | "DaemonOwnerUnbound" => json!({}),
-
-        // ── Account events ───────────────────────────────────────────────────
         "AccountLoginStarted" => json!({ "redirect_uri": "https://auth.ship.example/oauth/callback" }),
         "AccountLogout" => json!({ "had_token": true, "key_revoked": false }),
         "AgentGrantsProvisioned" => json!({ "grants": ["ship.git.read", "ship.rules.write"], "source": "operator-granted" }),
@@ -200,7 +195,6 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "ProjectSeen" => json!({ "seen_at": "2026-01-01T00:00:00Z" }),
         "ProjectArchived" => json!({ "archived_at": "2026-01-01T00:00:00Z" }),
         "ProjectSwitched" => json!({ "space_id": "test-space", "name": "test", "path": "/home/user/projects/test", "at": "2026-01-01T00:00:00Z" }),
-        "WorkspaceCreated" => json!({ "workspace_id": "test-workspace" }),
 
         // ── Rule events ──────────────────────────────────────────────────────
         "RuleCreated" => json!({ "file_name": "test-rule.md", "content_hash": "sha256-test" }),

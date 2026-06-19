@@ -7,14 +7,6 @@ export class ProjectsFacade extends RpcTarget {
     super();
   }
 
-  async list() {
-    const result = await this.repos.projectProjection.list();
-    if (result.isFailure) {
-      throw new Error(result.errorMessage);
-    }
-    return result.value;
-  }
-
   // ===== Membership =====
 
   async listMembers(): Promise<Member[]> {

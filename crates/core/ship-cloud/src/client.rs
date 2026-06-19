@@ -134,7 +134,7 @@ mod tests {
     fn sample_events() -> Vec<EventEnvelope> {
         vec![EventEnvelope {
             id: "01J0000000000000000000000A".to_string(),
-            event_type: "workspace.created".to_string(),
+            event_type: "actor.created".to_string(),
             entity_id: "ws-1".to_string(),
             actor: "ship".to_string(),
             payload_json: "{}".to_string(),

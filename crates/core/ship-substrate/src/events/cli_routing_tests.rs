@@ -36,7 +36,6 @@ fn agent_config() -> ActorConfig {
         write_namespaces: vec!["".into()],
         read_namespaces: vec!["agent.".into()],
         subscribe_namespaces: vec![
-            "workspace.".into(),
             "session.".into(),
             "gate.".into(),
         ],
@@ -55,14 +54,14 @@ fn session_ev() -> EventEnvelope {
     })).unwrap()
 }
 
-// ── workspace event reaches kernel store ──────────────────────────────────────
+// ── system event reaches kernel store ───────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn workspace_event_reaches_kernel_store() {
+async fn system_event_reaches_kernel_store() {
     let tmp = tempdir().unwrap();
     let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let event = ev(event_types::WORKSPACE_CREATED);
+    let event = ev(event_types::ACTOR_CREATED);
     // emit persists + delivers. route is delivery-only.
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
@@ -74,7 +73,7 @@ async fn workspace_event_reaches_kernel_store() {
             .await
     })
     .unwrap();
-    assert_eq!(count, 1, "workspace event must reach kernel store");
+    assert_eq!(count, 1, "system event must reach kernel store");
 }
 
 // ── session event delivered to subscribed actor mailbox ───────────────────────
@@ -148,10 +147,10 @@ fn event_persisted_to_store_without_router() {
     let ship_dir = init_project(tmp.path()).unwrap();
 
     let store = SqliteEventStore::new_at_db_path(&runtime_db_path(&ship_dir)).unwrap();
-    let event = ev(event_types::WORKSPACE_CREATED);
+    let event = ev(event_types::ACTOR_CREATED);
     store.append(&event).unwrap();
 
     let got = store.get(&event.id).unwrap().expect("event must be in the store db");
     assert_eq!(got.id, event.id);
-    assert_eq!(got.event_type, event_types::WORKSPACE_CREATED);
+    assert_eq!(got.event_type, event_types::ACTOR_CREATED);
 }

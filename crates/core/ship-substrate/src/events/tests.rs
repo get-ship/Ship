@@ -123,13 +123,8 @@ fn test_filter_by_entity_id() -> anyhow::Result<()> {
 fn test_filter_by_event_type() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let entity = "filter-type-entity";
-    store.append(&EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, entity, &WorkspaceActivated { agent_id: None, harnesses: vec![] })?)?;
     store.append(&EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, entity, &session_started(entity))?)?;
-    store.append(&EventEnvelope::new(event_types::WORKSPACE_ARCHIVED, entity, &WorkspaceArchived {})?)?;
-
-    let ws = store.query(&EventFilter { entity_id: Some(entity.into()), event_type: Some(event_types::WORKSPACE_ACTIVATED.into()), ..Default::default() })?;
-    assert_eq!(ws.len(), 1);
-    assert_eq!(ws[0].event_type, event_types::WORKSPACE_ACTIVATED);
+    store.append(&EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, entity, &TestCompleted { session_id: entity.into() })?)?;
 
     let sess = store.query(&EventFilter { entity_id: Some(entity.into()), event_type: Some(event_types::canonical_session::SESSION_STARTED.into()), ..Default::default() })?;
     assert_eq!(sess.len(), 1);
@@ -196,8 +191,6 @@ fn test_payload_round_trip() -> anyhow::Result<()> {
         }};
     }
 
-    rt!(event_types::WORKSPACE_ACTIVATED,   WorkspaceActivated { agent_id: Some("a1".into()), harnesses: vec!["claude".into()] });
-    rt!(event_types::WORKSPACE_ARCHIVED,    WorkspaceArchived {});
     rt!(event_types::canonical_session::SESSION_STARTED, session_started("rt-entity"));
     rt!(event_types::canonical_session::SESSION_COMPLETED, TestCompleted { session_id: "rt-entity".into() });
     rt!(event_types::canonical_session::SESSION_FAILED, TestFailed { session_id: "rt-entity".into(), reason: "err".into() });

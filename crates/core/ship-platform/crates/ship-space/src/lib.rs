@@ -19,11 +19,8 @@
 //!   effective-settings overlay (global ⟵ space). The daemon supplies its global
 //!   settings snapshot; the overlay is here.
 //!
-//! No sqlite/sqlx/rusqlite types in this crate. No raw fs except the tolerant
-//! legacy `~/.ship/projects.json` fallback reader in [`registry`]
-//! (std::fs::read_to_string); all other storage/events go through the port
-//! types from ship-substrate.
-
+//! No sqlite/sqlx/rusqlite types in this crate. No raw fs; all storage/events
+//! go through the port types from ship-substrate.
 pub mod config;
 pub mod error;
 pub mod event_registrations;

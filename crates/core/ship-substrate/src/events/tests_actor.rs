@@ -3,7 +3,7 @@ use ship_types::envelope::EventEnvelope;
 use crate::events::filter::EventFilter;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
-use crate::events::types::{WorkspaceActivated};
+use crate::events::types::ProjectRegistered;
 use crate::testutil::init_project_minimal as init_project;
 use tempfile::tempdir;
 use serde::{Serialize, Deserialize};
@@ -104,8 +104,16 @@ fn test_elevated_filter() -> anyhow::Result<()> {
     let ev_end = EventEnvelope::new(event_types::canonical_session::SESSION_COMPLETED, entity, &TestCompleted { session_id: entity.into() })?
         .elevate();
     store.append(&ev_end)?;
-    let ev_ws = EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, entity, &WorkspaceActivated { agent_id: None, harnesses: vec![] })?
-        .elevate();
+    let ev_ws = EventEnvelope::new(
+        event_types::PROJECT_REGISTERED,
+        entity,
+        &ProjectRegistered {
+            path: "/test/path".into(),
+            name: "test".into(),
+            created_at: "2026-01-01T00:00:00Z".into(),
+        },
+    )?
+    .elevate();
     store.append(&ev_ws)?;
 
     let all = store.query_aggregate(entity)?;
@@ -116,7 +124,6 @@ fn test_elevated_filter() -> anyhow::Result<()> {
     assert!(elevated.iter().all(|e| e.elevated));
     Ok(())
 }
-
 #[test]
 fn supervisor_queries_elevated_child_events_by_parent_actor_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
@@ -159,8 +166,16 @@ fn supervisor_queries_elevated_child_events_by_parent_actor_id() -> anyhow::Resu
 fn test_hierarchy_traversal_via_parent_actor_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
 
-    let ws_ev = EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, "ws-entity", &WorkspaceActivated { agent_id: None, harnesses: vec![] })?
-        .with_actor_id("actor-ws-1");
+    let ws_ev = EventEnvelope::new(
+        event_types::PROJECT_REGISTERED,
+        "ws-entity",
+        &ProjectRegistered {
+            path: "/test/path".into(),
+            name: "ws-entity".into(),
+            created_at: "2026-01-01T00:00:00Z".into(),
+        },
+    )?
+    .with_actor_id("actor-ws-1");
     store.append(&ws_ev)?;
 
     let sess_ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "sess-entity", &session_started("sess-entity"))?

@@ -21,21 +21,11 @@
 //! The sync SQL READ HELPERS (`list_active` / `get` / `find_by_path`) STAY in
 //! `ship_substrate::db::projects` so the space-id resolver and `SpaceRegistry`
 //! impl can keep working unchanged without any async overhead.
-//!
-//! [`list`] also merges entries from the legacy `~/.ship/projects.json` file
-//! (kept from the old `workspaces.list` registry op) so that installs whose
-//! event-sourced projection is empty still return a populated list. Legacy
-//! entries use the `path_hash`-derived id scheme identical to the event-sourced
-//! keying, and are filtered if the path already appears in the `projects` table.
 
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-
-use serde_json::Value;
 
 use ship_substrate::home::path_hash;
 use ship_substrate::ports::{DataStore, KernelLog};
-use ship_substrate::project::{get_registry_path, load_registry};
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types::{PROJECT_REGISTERED, PROJECT_SEEN, PROJECT_SWITCHED};
 use ship_types::payload::{ProjectRegistered, ProjectSeen, ProjectSwitched};
@@ -78,14 +68,8 @@ fn ship_dir(kernel: &KernelLog) -> Option<PathBuf> {
 // ── Public registry API ───────────────────────────────────────────────────────
 
 /// List all live (non-archived) spaces, newest `last_seen_at` first.
-///
-/// Also merges any `~/.ship/projects.json` entries whose path has not yet been
-/// materialised in the `projects` SQL table. Legacy entries receive a
-/// `path_hash`-derived id (identical to the scheme used by [`add`]) so they
-/// are stable and comparable with event-sourced rows. Any path that IS already
-/// in the SQL table is skipped.
 pub async fn list(kernel: &KernelLog) -> Result<Vec<SpaceRecord>, SpaceError> {
-    let mut records = match ship_dir(kernel) {
+    let records = match ship_dir(kernel) {
         Some(dir) => ship_substrate::db::projects::list_active_at(&dir)
             .map_err(|e| SpaceError::Internal(e.to_string()))?
             .into_iter()
@@ -93,68 +77,7 @@ pub async fn list(kernel: &KernelLog) -> Result<Vec<SpaceRecord>, SpaceError> {
             .collect::<Vec<_>>(),
         None => Vec::new(),
     };
-    let seen_paths: HashSet<String> = records.iter().map(|r| r.path.clone()).collect();
-    for entry in load_legacy_entries() {
-        let path_str = entry.path.to_string_lossy().to_string();
-        if seen_paths.contains(&path_str) {
-            continue;
-        }
-        let id = path_hash(&entry.path);
-        records.push(SpaceRecord {
-            id,
-            name: entry.name,
-            path: path_str,
-            created_at: String::new(),
-            last_seen_at: String::new(),
-        });
-    }
     Ok(records)
-}
-
-struct LegacyEntry {
-    name: String,
-    path: PathBuf,
-}
-
-/// Tolerant reader for `~/.ship/projects.json`. Accepts the canonical
-/// `{"projects": [...]}` shape and a bare `[...]` array (older CLI builds).
-fn load_legacy_entries() -> Vec<LegacyEntry> {
-    if let Ok(reg) = load_registry() {
-        return reg
-            .projects
-            .into_iter()
-            .map(|e| LegacyEntry { name: e.name, path: e.path })
-            .collect();
-    }
-    let Ok(path) = get_registry_path() else {
-        return Vec::new();
-    };
-    let Ok(raw) = std::fs::read_to_string(&path) else {
-        return Vec::new();
-    };
-    let Ok(value) = serde_json::from_str::<Value>(&raw) else {
-        return Vec::new();
-    };
-    let array = value.as_array().cloned().unwrap_or_default();
-    array
-        .into_iter()
-        .filter_map(|entry| {
-            let obj = entry.as_object()?;
-            let path = obj.get("path").and_then(Value::as_str)?;
-            let name = obj
-                .get("name")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-                .or_else(|| {
-                    PathBuf::from(path)
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .map(str::to_string)
-                })
-                .unwrap_or_else(|| path.to_string());
-            Some(LegacyEntry { name, path: PathBuf::from(path) })
-        })
-        .collect()
 }
 
 /// The currently-active space record, or `None` on cold boot (or when the stored
@@ -229,7 +152,6 @@ pub async fn add(
     let payload = ProjectRegistered {
         path: path_str,
         name: resolved_name,
-        label: None,
         created_at: now.clone(),
     };
     let envelope = EventEnvelope::new(PROJECT_REGISTERED, &id, &payload)

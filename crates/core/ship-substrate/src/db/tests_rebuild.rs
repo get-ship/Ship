@@ -19,18 +19,14 @@ fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
     (tmp, ship_dir)
 }
 
-fn workspace_created_event(branch: &str) -> EventEnvelope {
+fn project_registered_event(branch: &str) -> EventEnvelope {
     EventEnvelope::new(
-        event_types::WORKSPACE_CREATED,
+        event_types::PROJECT_REGISTERED,
         branch,
         &serde_json::json!({
-            "workspace_id": branch,
-            "workspace_type": "feature",
-            "active_agent": null,
-            "harnesses": [],
-            "mcp_servers": [],
-            "skills": [],
-            "path": null
+            "path": branch,
+            "name": branch,
+            "created_at": "2026-01-01T00:00:00Z"
         }),
     )
     .unwrap()
@@ -38,11 +34,11 @@ fn workspace_created_event(branch: &str) -> EventEnvelope {
     .elevate()
 }
 
-fn workspace_archived_event(branch: &str) -> EventEnvelope {
+fn project_archived_event(branch: &str) -> EventEnvelope {
     EventEnvelope::new(
-        event_types::WORKSPACE_ARCHIVED,
+        event_types::PROJECT_ARCHIVED,
         branch,
-        &serde_json::json!({}),
+        &serde_json::json!({ "archived_at": "2026-01-01T00:00:00Z" }),
     )
     .unwrap()
     .with_context(Some(branch), None)
@@ -53,13 +49,12 @@ fn workspace_archived_event(branch: &str) -> EventEnvelope {
 fn rebuild_replays_events_without_panic() {
     let (_tmp, ship_dir) = setup();
     let store = SqliteEventStore::new_for_scope(&ship_dir, EventScope::Runtime, None).unwrap();
-
-    // Workspace projection is now a no-op (events still flow through);
-    // verify rebuild completes cleanly with workspace events present.
+    // project.* events are folded by ProjectsProjection; verify rebuild
+    // completes cleanly with project lifecycle events present.
     let events = vec![
-        workspace_created_event("feature/rebuild-a"),
-        workspace_created_event("feature/rebuild-b"),
-        workspace_archived_event("feature/rebuild-b"),
+        project_registered_event("feature/rebuild-a"),
+        project_registered_event("feature/rebuild-b"),
+        project_archived_event("feature/rebuild-b"),
     ];
     for ev in &events {
         store.append(ev).unwrap();

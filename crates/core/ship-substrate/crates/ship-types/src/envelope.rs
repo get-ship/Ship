@@ -205,9 +205,9 @@ mod tests {
 
     #[test]
     fn event_envelope_new_sets_required_fields() {
-        let env = EventEnvelope::new("workspace.created", "ws-1", &serde_json::json!({}))
+        let env = EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({}))
             .expect("new must succeed");
-        assert_eq!(env.event_type, "workspace.created");
+        assert_eq!(env.event_type, "actor.created");
         assert_eq!(env.entity_id, "ws-1");
         assert_eq!(env.id.len(), 26, "id must be a 26-char ULID");
         assert_eq!(env.version, 1);
@@ -216,7 +216,7 @@ mod tests {
 
     #[test]
     fn event_envelope_builder_chain() {
-        let env = EventEnvelope::new("workspace.created", "ws-1", &serde_json::json!({}))
+        let env = EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({}))
             .unwrap()
             .with_causation("cause-1")
             .with_actor_id("agent.x")
@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn event_envelope_roundtrips_serde() {
-        let env = EventEnvelope::new("workspace.created", "ws-1", &serde_json::json!({})).unwrap();
+        let env = EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({})).unwrap();
         let json = serde_json::to_string(&env).unwrap();
         let decoded: EventEnvelope = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded.event_type, env.event_type);
@@ -239,7 +239,7 @@ mod tests {
     // T7 — Envelope round-trips with the optional signature/author fields.
     #[test]
     fn new_envelope_author_signature_default_none() {
-        let env = EventEnvelope::new("workspace.created", "ws-1", &serde_json::json!({})).unwrap();
+        let env = EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({})).unwrap();
         assert_eq!(env.signature, None);
         assert_eq!(env.author_account_id, None);
         assert_eq!(env.author_device_id, None);
@@ -255,7 +255,7 @@ mod tests {
         // An envelope JSON without the author/signature keys (pre-Phase-2 shape).
         let old = serde_json::json!({
             "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-            "event_type": "workspace.created",
+            "event_type": "actor.created",
             "entity_id": "ws-1",
             "actor": "ship",
             "payload_json": "{}",
@@ -279,7 +279,7 @@ mod tests {
     // T8 — signing_bytes is canonical + deterministic.
     #[test]
     fn signing_bytes_ignores_mutable_fields() {
-        let base = EventEnvelope::new("workspace.created", "ws-1", &serde_json::json!({"k": 1}))
+        let base = EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({"k": 1}))
             .unwrap();
         let mut a = base.clone();
         let mut b = base.clone();
@@ -296,7 +296,7 @@ mod tests {
 
     #[test]
     fn signing_bytes_changes_with_authored_fields() {
-        let base = EventEnvelope::new("workspace.created", "ws-1", &serde_json::json!({"k": 1}))
+        let base = EventEnvelope::new("actor.created", "ws-1", &serde_json::json!({"k": 1}))
             .unwrap();
         // payload digest is covered.
         let mut diff_payload = base.clone();

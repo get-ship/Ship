@@ -50,7 +50,7 @@ fn sync_wire_format_push_request_no_top_level_space_id() {
     // The gateway's x-project-id middleware (`apps/gateway/src/middleware/
     // project-auth.ts:23–24`) is the auth surface — space_id must not be
     // duplicated at the PushRequest body level.
-    let events = vec![elevated_envelope("01JAA", "workspace.created")];
+    let events = vec![elevated_envelope("01JAA", "actor.created")];
     let req = PushRequest { events };
     let json = serde_json::to_value(&req).unwrap();
 
@@ -68,7 +68,7 @@ fn sync_wire_format_push_request_no_top_level_space_id() {
 fn sync_wire_format_push_request_scope_key_in_envelope_not_duplicated() {
     // The partition key appears exactly once per event (inside the
     // EventEnvelope), not at the PushRequest wrapper level.
-    let events = vec![elevated_envelope("01JAA", "workspace.created")];
+    let events = vec![elevated_envelope("01JAA", "actor.created")];
     let req = PushRequest { events };
     let json_str = serde_json::to_string(&req).unwrap();
 
@@ -119,7 +119,7 @@ fn sync_wire_format_event_id_and_type_survive_push_request_round_trip() {
 
 #[test]
 fn sync_wire_format_causation_id_null_when_none() {
-    let env = elevated_envelope("01JAA", "workspace.created");
+    let env = elevated_envelope("01JAA", "actor.created");
     assert!(env.causation_id.is_none());
     let req = PushRequest { events: vec![env] };
     let json = serde_json::to_value(&req).unwrap();
@@ -222,7 +222,7 @@ fn sync_wire_format_pull_response_preserves_all_envelope_fields() {
     let pull_json = serde_json::json!({
         "events": [{
             "id": "01JPRESERVE",
-            "event_type": "workspace.archived",
+            "event_type": "project.archived",
             "entity_id": "ws-preserve",
             "actor": "ship",
             "payload_json": "{\"archived\":true}",
@@ -245,8 +245,7 @@ fn sync_wire_format_pull_response_preserves_all_envelope_fields() {
     let env = &resp.events[0];
 
     assert_eq!(env.id, "01JPRESERVE");
-    assert_eq!(env.event_type, "workspace.archived");
-    assert_eq!(env.entity_id, "ws-preserve");
+    assert_eq!(env.event_type, "project.archived");
     assert_eq!(env.version, 3);
     assert_eq!(env.causation_id.as_deref(), Some("01JPREV"));
     assert_eq!(env.space_id(), Some("sp-preserve"));

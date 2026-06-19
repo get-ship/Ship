@@ -2,7 +2,7 @@ import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
 export const events = sqliteTable('events', {
   id: text('id').primaryKey(),                        // ULID
-  event_type: text('event_type').notNull(),           // e.g. "workspace.created"
+  event_type: text('event_type').notNull(),           // e.g. "actor.created"
   entity_id: text('entity_id').notNull(),
   actor: text('actor').notNull(),                     // always "ship" for now
   payload_json: text('payload_json').notNull(),       // JSON string
