@@ -2,7 +2,7 @@
   "_meta": {
     "event": "supervisor.sweep_started",
     "scope": "runtime",
-    "retention": "ephemeral",
+    "retention": "durable",
     "stability": "stable",
     "payload_type": "SweepStartedPayload",
     "needs_author": false

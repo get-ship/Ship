@@ -15,8 +15,11 @@
     "space_id": "",
     "occurred_at": "2026-01-01T00:00:00Z",
     "payload": {
-      "_note": "NEEDS_AUTHOR: op::OpToolUseDenied — auto-stub not possible; hand-author this fixture",
-      "_payload_type": "op::OpToolUseDenied"
+      "session_id": "test-session-id",
+      "tool": "Bash",
+      "reason": "ship-gate: blocked destructive command",
+      "denied_by": "ship-gate",
+      "denied_at": "2026-01-01T00:00:00Z"
     }
   }
 }

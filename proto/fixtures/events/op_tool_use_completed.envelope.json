@@ -15,8 +15,10 @@
     "space_id": "",
     "occurred_at": "2026-01-01T00:00:00Z",
     "payload": {
-      "_note": "NEEDS_AUTHOR: op::OpToolUseCompleted — auto-stub not possible; hand-author this fixture",
-      "_payload_type": "op::OpToolUseCompleted"
+      "session_id": "test-session-id",
+      "tool": "Bash",
+      "status": "ok",
+      "ended_at": "2026-01-01T00:00:01Z"
     }
   }
 }

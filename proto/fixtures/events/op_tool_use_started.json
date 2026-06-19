@@ -8,7 +8,8 @@
     "needs_author": false
   },
   "payload": {
-    "_note": "NEEDS_AUTHOR: op::OpToolUseStarted — auto-stub not possible; hand-author this fixture",
-    "_payload_type": "op::OpToolUseStarted"
+    "session_id": "test-session-id",
+    "tool": "Bash",
+    "started_at": "2026-01-01T00:00:00Z"
   }
 }

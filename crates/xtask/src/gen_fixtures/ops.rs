@@ -74,9 +74,15 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         // Scaffold + feedback/annotation typed results (proto-added; fixtures backfilled).
         v!(SkillScaffoldResponse), v!(ViewScaffoldResponse),
         v!(PostFeedbackResponse), v!(PostAnnotationResponse),
-    ]
-    .into_iter()
-    .collect()
+        // UI discovery reads + terminal session/stop typed results
+        // (proto-added; fixtures backfilled on this branch).
+        v!(UiQueryResponse), v!(UiReadResponse),
+        v!(TerminalSession), v!(StopTerminalResponse),
+        v!(ListTerminalsResponse), v!(SendInputResponse), v!(ResizeTerminalResponse),
+        v!(BytesChunk),
+     ]
+     .into_iter()
+     .collect()
 }
 
 use ship_ops_rpc::policy::{op_name, snake};

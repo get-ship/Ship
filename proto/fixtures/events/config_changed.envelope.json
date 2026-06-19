@@ -2,7 +2,7 @@
   "_meta": {
     "event": "config.changed",
     "scope": "runtime",
-    "retention": "ephemeral",
+    "retention": "durable",
     "stability": "stable",
     "payload_type": "ConfigChanged",
     "needs_author": false

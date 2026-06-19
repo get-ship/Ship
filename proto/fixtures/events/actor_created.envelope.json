@@ -2,7 +2,7 @@
   "_meta": {
     "event": "actor.created",
     "scope": "runtime",
-    "retention": "ephemeral",
+    "retention": "durable",
     "stability": "stable",
     "payload_type": "ActorCreated",
     "needs_author": false

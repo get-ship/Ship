@@ -2,7 +2,7 @@
   "_meta": {
     "event": "pipeline.step.observed",
     "scope": "runtime",
-    "retention": "ephemeral",
+    "retention": "durable",
     "stability": "stable",
     "payload_type": "PipelineStepObservedPayload",
     "needs_author": false

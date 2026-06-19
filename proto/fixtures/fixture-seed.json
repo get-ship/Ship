@@ -1696,8 +1696,119 @@
           ],
           "would_resolve_to": null,
           "recommended": false
+        },
+        {
+          "tier": "cloud",
+          "label": "Cloud sandbox",
+          "strategies": [
+            {
+              "strategy": "fly",
+              "available": false,
+              "unavailable_reason": "flyctl not installed"
+            }
+          ],
+          "would_resolve_to": null,
+          "recommended": false
         }
       ]
+    },
+    "ui.packs": {
+      "packs": [
+        {
+          "id": "@sui/primitives",
+          "category": "primitives",
+          "title": "Primitives",
+          "components": [
+            {
+              "tag": "sui-button",
+              "file": "primitives/sui-button.sui",
+              "title": "Button",
+              "props": ["variant", "size"],
+              "slots": ["default"],
+              "events": ["click"]
+            }
+          ]
+        }
+      ]
+    },
+    "ui.read": {
+      "source": "<sui-button variant=\"primary\">Checkout</sui-button>\n",
+      "resolved_at": "bundle",
+      "mtime": "2026-05-24T18:00:00Z"
+    },
+    "ui.scaffold": {
+      "route": "/v/checkout-summary",
+      "path": "/home/dev/harbor/.ship/views/checkout-summary"
+    },
+    "terminal.spawn": {
+      "id": "term-rust-lane-1",
+      "kind": "shell",
+      "workspace_id": "harbor",
+      "agent_id": "rust-lane",
+      "harness": "claude",
+      "model": "claude-opus-4-7",
+      "status": "running",
+      "outcome": "",
+      "reason": "",
+      "input": "",
+      "parent": "",
+      "turn_count": 0,
+      "started_at": "2026-05-24T18:00:00Z",
+      "ended_at": "",
+      "pid": "12345",
+      "log_path": ".ship/logs/term-rust-lane-1.log",
+      "harness_session_id": "sess-rust-lane-1",
+      "work_dir": "/home/dev/harbor"
+    },
+    "terminal.get": {
+      "id": "term-rust-lane-1",
+      "kind": "shell",
+      "workspace_id": "harbor",
+      "agent_id": "rust-lane",
+      "harness": "claude",
+      "model": "claude-opus-4-7",
+      "status": "running",
+      "outcome": "",
+      "reason": "",
+      "input": "",
+      "parent": "",
+      "turn_count": 3,
+      "started_at": "2026-05-24T18:00:00Z",
+      "ended_at": "",
+      "pid": "12345",
+      "log_path": ".ship/logs/term-rust-lane-1.log",
+      "harness_session_id": "sess-rust-lane-1",
+      "work_dir": "/home/dev/harbor"
+    },
+    "terminal.list": {
+      "sessions": [
+        {
+          "id": "term-rust-lane-1",
+          "kind": "shell",
+          "workspace_id": "harbor",
+          "agent_id": "rust-lane",
+          "harness": "claude",
+          "model": "claude-opus-4-7",
+          "status": "running",
+          "outcome": "",
+          "reason": "",
+          "input": "",
+          "parent": "",
+          "turn_count": 3,
+          "started_at": "2026-05-24T18:00:00Z",
+          "ended_at": "",
+          "pid": "12345",
+          "log_path": ".ship/logs/term-rust-lane-1.log",
+          "harness_session_id": "sess-rust-lane-1",
+          "work_dir": "/home/dev/harbor"
+        }
+      ]
+    },
+    "terminal.stop": {},
+    "terminal.send_input": {},
+    "terminal.resize": {},
+    "terminal.session_bytes": {
+      "data": "JGJ1bmRsZQpbMV0rIGRvbmU="
     }
-  }
-}
+   }
+ }

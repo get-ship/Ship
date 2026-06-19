@@ -1,0 +1,112 @@
+{
+  "Spawn": {
+    "response_ok": {
+      "id": "term-rust-lane-1",
+      "kind": "shell",
+      "workspace_id": "harbor",
+      "agent_id": "rust-lane",
+      "harness": "claude",
+      "model": "claude-opus-4-7",
+      "status": "running",
+      "outcome": "",
+      "reason": "",
+      "input": "",
+      "parent": "",
+      "turn_count": 0,
+      "started_at": "2026-05-24T18:00:00Z",
+      "ended_at": "",
+      "pid": "12345",
+      "log_path": ".ship/logs/term-rust-lane-1.log",
+      "harness_session_id": "sess-rust-lane-1",
+      "work_dir": "/home/dev/harbor"
+    },
+    "request": {
+      "workspace_id": "test-workspace_id",
+      "kind": "test-kind",
+      "work_dir": "test-work_dir"
+    }
+  },
+  "Stop": {
+    "response_ok": {},
+    "request": {
+      "session_id": "test-session-id"
+    }
+  },
+  "List": {
+    "response_ok": {
+      "sessions": [
+        {
+          "id": "term-rust-lane-1",
+          "kind": "shell",
+          "workspace_id": "harbor",
+          "agent_id": "rust-lane",
+          "harness": "claude",
+          "model": "claude-opus-4-7",
+          "status": "running",
+          "outcome": "",
+          "reason": "",
+          "input": "",
+          "parent": "",
+          "turn_count": 3,
+          "started_at": "2026-05-24T18:00:00Z",
+          "ended_at": "",
+          "pid": "12345",
+          "log_path": ".ship/logs/term-rust-lane-1.log",
+          "harness_session_id": "sess-rust-lane-1",
+          "work_dir": "/home/dev/harbor"
+        }
+      ]
+    },
+    "request": {
+      "include_ended": false
+    }
+  },
+  "Get": {
+    "response_ok": {
+      "id": "term-rust-lane-1",
+      "kind": "shell",
+      "workspace_id": "harbor",
+      "agent_id": "rust-lane",
+      "harness": "claude",
+      "model": "claude-opus-4-7",
+      "status": "running",
+      "outcome": "",
+      "reason": "",
+      "input": "",
+      "parent": "",
+      "turn_count": 3,
+      "started_at": "2026-05-24T18:00:00Z",
+      "ended_at": "",
+      "pid": "12345",
+      "log_path": ".ship/logs/term-rust-lane-1.log",
+      "harness_session_id": "sess-rust-lane-1",
+      "work_dir": "/home/dev/harbor"
+    },
+    "request": {
+      "session_id": "test-session-id"
+    }
+  },
+  "SendInput": {
+    "response_ok": {},
+    "request": {
+      "session_id": "test-session-id",
+      "data": "test-data"
+    }
+  },
+  "Resize": {
+    "response_ok": {},
+    "request": {
+      "session_id": "test-session-id",
+      "cols": 0,
+      "rows": 0
+    }
+  },
+  "SessionBytes": {
+    "response_ok": {
+      "data": "JGJ1bmRsZQpbMV0rIGRvbmU="
+    },
+    "request": {
+      "session_id": "test-session-id"
+    }
+  }
+}
