@@ -26,9 +26,10 @@
 
 import { signal, type Signal } from '@ship/sui-runtime'
 
-// Layout-chain resolution lives in its own module (this file is at the
-// size cap). Re-exported so `@ship/deck/route` is the single import site.
+// Layout-chain resolution + the router live in their own modules (this file
+// is at the size cap). Re-exported so `@ship/deck/route` is one import site.
 export { resolveLayoutChain, type LayoutShape } from './layouts'
+export { mountRouter, type MountRouterOptions, type RouterHandle } from './mount-router'
 
 /**
  * The reactive URL handle exposed to view scope as `route`.
@@ -369,6 +370,23 @@ export function mergeRoutes(
     defineRoutesUnchecked(merged.slice(staticRoutes.length))
   }
   return { merged, collisions }
+}
+
+/**
+ * Find the registered route shape whose pattern matches `pathname` (or
+ * `undefined`). The router uses this to pick the view module for a
+ * navigation — modules are keyed by pattern. Reuses the same compiled
+ * regexes as `route.params` matching, so there is one matcher, not two.
+ */
+export function matchRoute(pathname: string): RouteShape | undefined {
+  for (const shape of SHAPES) {
+    if (shape.regex.test(pathname)) {
+      return shape.name === undefined
+        ? { pattern: shape.pattern }
+        : { pattern: shape.pattern, name: shape.name }
+    }
+  }
+  return undefined
 }
 
 // ---------------------------------------------------------------------------

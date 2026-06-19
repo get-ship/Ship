@@ -1,0 +1,160 @@
+// mountRouter — the per-app router. Promotes the shell's hand-rolled
+// `mountRoute` (apps/shell/src/main.ts) into the deck framework so every
+// per-app deck host (hub, spaces, …) gets SPA navigation + layout chains from
+// one place. Implements ADR `unified-deck-router` for the per-app model: when
+// that ADR was written the host was the single shell; the per-app cutover
+// means the framework must provide the router so no app re-hand-rolls it.
+//
+// Invariants this file holds to:
+//   - deck ⊥ ship: there is no `ship` here — clients are a generic name→client
+//     map; the client name belongs to the app, not the framework.
+//   - no hardcoding: the root element, route table, and layouts are injected
+//     by the bundler-emitted entry (from config); nothing is baked in.
+//   - deck → sui only: this imports the runtime's `mount()`; the runtime never
+//     imports this.
+
+import { mount, type MountHandle } from '@ship/sui-runtime'
+import {
+  matchRoute,
+  navigate,
+  route as createRoute,
+  setRouterPort,
+  type RouteShape,
+} from './index'
+import { resolveLayoutChain, type LayoutShape } from './layouts'
+
+export interface MountRouterOptions {
+  /** Mount target — a selector or element. Injected by the emitted entry; the
+   *  framework bakes in no `#ship-root`. */
+  root: string | HTMLElement
+  /** The generated route table (`DYNAMIC_ROUTE_PATTERNS`). */
+  routes: RouteShape[]
+  /** The generated layout table (`LAYOUTS`); empty = no chrome wrappers. */
+  layouts?: LayoutShape[]
+  /** Pattern → statically-imported view module. The emitted entry imports each
+   *  route's `page.sui` and builds this map. */
+  modules: Record<string, unknown>
+  /** Host-injected named clients, spread into view scope. Generic — the client
+   *  name is the app's (e.g. `ship`), not a framework constant. */
+  clients?: Record<string, unknown>
+  /** Optional host loader (by-name/by-path payload fetch). Per-app bundles
+   *  co-bundle their views, so this is usually unset. */
+  loader?: unknown
+}
+
+/** A running router. `dispose()` detaches its global listeners (HMR/tests). */
+export interface RouterHandle {
+  dispose(): void
+}
+
+export function mountRouter(opts: MountRouterOptions): RouterHandle {
+  const rootEl =
+    typeof opts.root === 'string' ? document.querySelector(opts.root) : opts.root
+  if (!rootEl) {
+    throw new Error(`[deck/route] mountRouter: root '${String(opts.root)}' not found`)
+  }
+
+  // Registers the patterns (route() calls defineRoutes internally) and returns
+  // the reactive URL handle injected into every mounted view.
+  const routeSignals = createRoute({ routes: opts.routes })
+  const layouts = opts.layouts ?? []
+
+  let token = 0
+  let current: MountHandle | null = null
+
+  async function mountCurrent(): Promise<void> {
+    const pathname = location.pathname
+    const myToken = ++token
+    const matched = matchRoute(pathname)
+    const mod = matched ? opts.modules[matched.pattern] : undefined
+    if (!mod) {
+      // No bundled view for this path — clear rather than leave stale chrome.
+      rootEl!.replaceChildren()
+      current?.dispose()
+      current = null
+      return
+    }
+    const target = buildMountTarget(rootEl!, resolveLayoutChain(pathname, layouts))
+    const previous = current
+    const handle = await mount(target, pathname, {
+      module: mod as never,
+      clients: opts.clients,
+      loader: opts.loader as never,
+      route: routeSignals,
+      navigate,
+      cssScope: 'adjacent',
+    })
+    // Race guard: a later navigation already superseded this mount.
+    if (myToken !== token) {
+      handle.dispose()
+      return
+    }
+    current = handle
+    previous?.dispose()
+  }
+
+  function go(to: string, navOpts?: { replace?: boolean }): void {
+    if (navOpts?.replace) history.replaceState({}, '', to)
+    else history.pushState({}, '', to)
+    globalThis.__shipSetRouteUpdate?.()
+    void mountCurrent()
+  }
+
+  function onClick(e: MouseEvent): void {
+    if (
+      e.defaultPrevented || e.button !== 0 ||
+      e.metaKey || e.ctrlKey || e.shiftKey || e.altKey
+    ) {
+      return
+    }
+    let anchor: HTMLAnchorElement | undefined
+    for (const el of e.composedPath?.() ?? []) {
+      if (el instanceof HTMLAnchorElement) { anchor = el; break }
+    }
+    anchor ??= (e.target as Element | null)?.closest?.('a') ?? undefined
+    if (!anchor) return
+    const href = anchor.getAttribute('href')
+    if (!href || anchor.target === '_blank' || anchor.hasAttribute('download')) return
+    const url = new URL(anchor.href, location.href)
+    if (url.origin !== location.origin) return
+    e.preventDefault()
+    go(url.pathname + url.search + url.hash)
+  }
+
+  const onPop = (): void => { void mountCurrent() }
+
+  setRouterPort({ navigate: (to, navOpts) => go(to, navOpts), back: () => history.back() })
+  document.addEventListener('click', onClick)
+  window.addEventListener('popstate', onPop)
+
+  void mountCurrent()
+
+  return {
+    dispose(): void {
+      document.removeEventListener('click', onClick)
+      window.removeEventListener('popstate', onPop)
+      current?.dispose()
+      current = null
+    },
+  }
+}
+
+/**
+ * Build the chrome chain for `chain` (deepest-first) under `root`, returning
+ * the innermost `<div slot="route">` to mount into. Empty chain → the root
+ * element itself. The chain is rebuilt per navigation (mirrors the shell);
+ * reusing chrome across same-prefix navigations is a later optimization.
+ */
+function buildMountTarget(root: Element, chain: LayoutShape[]): HTMLElement {
+  if (chain.length === 0) return root as HTMLElement
+  const inner = document.createElement('div')
+  inner.setAttribute('slot', 'route')
+  let parent: HTMLElement = inner
+  for (const layout of chain) {
+    const chrome = document.createElement(layout.tag)
+    chrome.appendChild(parent)
+    parent = chrome
+  }
+  root.replaceChildren(parent)
+  return inner
+}
