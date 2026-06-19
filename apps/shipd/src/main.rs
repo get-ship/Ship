@@ -89,8 +89,8 @@ fn main() -> anyhow::Result<()> {
         .map(std::path::PathBuf::from)
         .or_else(discover_workspace);
     // `--apps-config <path>` — override the apps.jsonc path. Default is
-    // `<worktree>/apps.jsonc` (set inside `run_network`); the flag is
-    // for non-default layouts (a marketing site, docs, a customer
+    // `<worktree>/apps/shipd/apps.jsonc` (set inside `run_network`); the
+    // flag is for non-default layouts (a marketing site, docs, a customer
     // shipd install that doesn't ship the Ship apps).
     let apps_config_override = extract_str_arg(&args, "--apps-config")
         .map(std::path::PathBuf::from);

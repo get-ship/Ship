@@ -284,13 +284,14 @@ pub async fn run_network(
     auth::spawn_session_sweeper(session_registry.clone());
     let pairing_registry = auth::pairing::new_shared();
     let attestation_verifier = auth::attest::AttestationVerifier::new();
-    // Read the apps list from `<repo>/apps.jsonc`. The file is the
+    // Read the apps list from `apps/shipd/apps.jsonc`. The file is the
     // Ship-monorepo source of truth for "which apps ship, on what
     // routes, with what globals" — deck (L1) is per-app, the host
-    // owns the list. Default to `<worktree>/apps.jsonc`; the
+    // owns the list, so it lives with shipd (its only reader), not at the
+    // repo root. Default to `<worktree>/apps/shipd/apps.jsonc`; the
     let apps_config_path = apps_config_override
-        .or_else(|| worktree_root.as_ref().map(|r| r.join("apps.jsonc")))
-        .unwrap_or_else(|| std::path::PathBuf::from("apps.jsonc"));
+        .or_else(|| worktree_root.as_ref().map(|r| r.join("apps/shipd/apps.jsonc")))
+        .unwrap_or_else(|| std::path::PathBuf::from("apps/shipd/apps.jsonc"));
     let apps = match router::apps_config::load_apps_config(&apps_config_path) {
         Ok(apps) => {
             tracing::info!(

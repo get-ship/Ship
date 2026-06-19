@@ -48,9 +48,10 @@ bootstrap:
     # pre-compile step — components compile from source on demand.
     cargo run -p deck-cli --quiet -- build-assets
     # Hub + space scaffolds: the daemon-served `/` and `/space/<id>` HTML apps.
-    # The bundler reads `apps.jsonc` for the per-app list; the per-app
-    # `bundle-framework` flag materializes the framework singletons so
-    # each app's `.deck/` is self-contained.
+    # shipd's serve-time app list lives in `apps/shipd/apps.jsonc`; here we
+    # invoke the per-app bundler explicitly. The per-app `bundle-framework`
+    # flag materializes the framework singletons so each app's `.deck/` is
+    # self-contained.
     cargo run -q -p deck-cli -- build --project apps/hub --bundle-framework
     cargo run -q -p deck-cli -- build --project apps/spaces
     just dev-runtime-install

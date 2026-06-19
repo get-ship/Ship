@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # The whole desktop loop in one command (`just shell`): rebuild the hub +
 # space apps, ensure the dev daemon, build + launch the native window against
-# it. The bundler reads `apps.jsonc` for the per-app list; each app is built
-# to its own `.deck/` (apps/hub/.deck + apps/spaces/.deck) and shipd serves
-# them at `/` and `/space/{id}` respectively.
+# it. Each app is built to its own `.deck/` (apps/hub/.deck +
+# apps/spaces/.deck) and shipd serves them at `/` and `/space/{id}`
+# respectively (shipd's serve-time list lives in apps/shipd/apps.jsonc).
 #
 # Why the rebuild is here and not optional: the per-app `.deck/` is a
 # pre-built static app the daemon serves at `/`. Unlike view bundles
