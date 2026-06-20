@@ -25,6 +25,8 @@ use deck_ssr::host::SsrDispatch;
 use deck_ssr::run::render;
 use deck_core::DataPort;
 use serde_json::{json, Value};
+use sui_compiler::emit::synthetic::{emit_synthetic, AppManifest};
+use sui_compiler::parse::parse;
 use sui_compiler::CompileMode;
 
 const CONF: &str = "crates/deck/deck-conformance/app";
@@ -337,6 +339,77 @@ fn slice1_warm_ssr_latency() {
     let _ = std::fs::create_dir_all(out_path.parent().unwrap());
     std::fs::write(&out_path, format!("{out}\n")).expect("write latency");
     eprintln!("\nwrote {}", out_path.display());
+}
+
+/// The hub `/` launch closure is built from `@ship/sui-primitives` chrome
+/// components — and they are PROPFUL, which the synthetic emit rejects today
+/// (gap G1: props flow in at mount; the standalone synthetic controller can't
+/// model them). This catalogs that concretely on the ACTUAL closure, so the
+/// dominant sweep gap has honest, measurable counts rather than prose. The
+/// view hub `/` still renders (its chrome SSRs as custom-element tags); it is
+/// the components THEMSELVES that the synthetic emit can't yet synthesize.
+#[test]
+fn slice1_hub_closure_component_catalog() {
+    let repo = repo_root().expect("repo root");
+    let manifest = AppManifest::parse("{}").expect("empty manifest");
+    let closure = [
+        "packages/components/sui/primitives/src/sui-nav-top/sui-nav-top.sui",
+        "packages/components/sui/primitives/src/sui-brand-mark/sui-brand-mark.sui",
+        "packages/components/sui/primitives/src/sui-theme-picker/sui-theme-picker.sui",
+        "packages/components/sui/primitives/src/sui-account-chip/sui-account-chip.sui",
+        "packages/components/sui/primitives/src/sui-icon/sui-icon.sui",
+        "packages/components/sui/primitives/src/sui-popover/sui-popover.sui",
+    ];
+    let mut rows = vec![
+        "# Slice 1 — hub `/` component closure (synthetic emit)\n".to_string(),
+        "The launch chrome is propful `@ship/sui-primitives`; the synthetic emit rejects \
+         propful components today (gap G1). Honest count:\n"
+            .to_string(),
+        "| component | props | synthesizes | reason |".to_string(),
+        "|---|--:|:--:|---|".to_string(),
+    ];
+    let mut rejected_propful = 0;
+    for rel in &closure {
+        let src = std::fs::read_to_string(repo.join(rel)).expect("read component");
+        let props = src.matches("<prop").count();
+        let name = Path::new(rel).file_stem().and_then(|s| s.to_str()).unwrap_or(rel);
+        let (ok, reason) = match parse(&src)
+            .map_err(|e| e.render(&src))
+            .and_then(|p| {
+                emit_synthetic(&p, &manifest, None, "./c.ts", CompileMode::Component)
+                    .map_err(|e| e.render(&src))
+            }) {
+            Ok(_) => (true, "synthesizes (propless)".to_string()),
+            Err(e) => {
+                let first = e.lines().next().unwrap_or("").to_string();
+                if first.contains("prop") {
+                    rejected_propful += 1;
+                    (false, "rejected: propful (gap G1)".to_string())
+                } else {
+                    (false, format!("rejected: {}", first.chars().take(80).collect::<String>()))
+                }
+            }
+        };
+        rows.push(format!("| {name} | {props} | {} | {reason} |", yn(ok)));
+    }
+    rows.push(format!(
+        "\n**{rejected_propful} of {} hub-closure chrome components are blocked by gap G1 \
+         (propful components unsupported).** This is the dominant Slice-2 item.",
+        closure.len()
+    ));
+    let out = rows.join("\n");
+    let out_path = repo.join(".artifacts/synthetic-slice1-hub-closure.md");
+    let _ = std::fs::create_dir_all(out_path.parent().unwrap());
+    std::fs::write(&out_path, format!("{out}\n")).expect("write closure table");
+    eprintln!("\n{out}\nwrote {}", out_path.display());
+
+    // The finding, regression-guarded: the propful launch chrome is uniformly
+    // rejected with the props gap (G1) — not some other error, not silently.
+    assert!(
+        rejected_propful >= 5,
+        "expected the propful hub-closure chrome to be rejected by the props gap (G1); \
+         only {rejected_propful} were"
+    );
 }
 
 fn render_table(outcomes: &[Outcome], correct: usize, total: usize) -> String {
