@@ -11,7 +11,7 @@ Floki is the runtime where Ship owns the agent loop. Because the loop is ours, e
 - `agent_loop` — `run_step` drives one model turn using the commodity rig. Two tools: `ship_op` (single gated op) and `run_script` (code-mode JS).
 - `dispatch` — `GatewayDispatch` adapts `Gateway` to the `ship_js::Dispatch` seam so the JS VM and the durable-execution engine share ONE op contract.
 - `durable` — `run_durable_script`: a ship-js script run over `durable_execution::JournalingDispatch` (Stage 1 — journal + replay for code-mode; live-loop durability is Stage 2, tracked in #30).
-- `session` — `Session`, `HistoryStore`, `InMemoryHistoryStore`, `Turn`.
+- `session` *(internal, `pub(crate)`)* — `HistoryStore`/`Session`/`Turn` history primitives kept in-crate ahead of consumers. Not part of the public surface; the live durable-conversation path is `durable_loop`.
 - `spine` — post-exec verify + `Ask` approval handshake.
 - `provider` — model construction and credential resolution.
 - `sdkgen` — per-session SDK generation (the soft layer; the gate is the hard one).
