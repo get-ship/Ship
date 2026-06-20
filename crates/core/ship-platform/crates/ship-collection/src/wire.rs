@@ -99,19 +99,23 @@ where
         _request: ship_ops_rpc::OwnedEmptyView,
     ) -> ServiceResult<CollectionList> {
         let svc = self.make_svc(&ctx);
-        let collections: Vec<CollectionSummary> = svc
-            .list()
-            .into_iter()
-            .map(|s| {
-                CollectionSummary {
-                    id: s.id,
-                    title: s.title.unwrap_or_default(),
-                    item_count: 0,
-                    system: s.system,
-                    ..Default::default()
-                }
-            })
-            .collect();
+        let schemas = svc.list();
+        let mut collections = Vec::with_capacity(schemas.len());
+        for s in schemas {
+            // Match `get`/`update` — count via the projection-backed
+            // `DataStore::count` rather than hardcoding 0. Sequential awaits
+            // are fine: the summary list is short (built-in + user schemas)
+            // and `count_items_for_wire` falls back to 0 on error, so a
+            // transient read never breaks the list response.
+            let count = count_items_for_wire(&svc, &s.id).await;
+            collections.push(CollectionSummary {
+                id: s.id,
+                title: s.title.unwrap_or_default(),
+                item_count: count as u32,
+                system: s.system,
+                ..Default::default()
+            });
+        }
         Ok(Response::new(CollectionList { collections, ..Default::default() }))
     }
 

@@ -1,91 +1,53 @@
-# Job Spec: ship CLI wide cull — collapse to op-client + operator + dev-tooling
+# Job Spec: collections CLEARING — dead service, dual DDL, codegen drift, contract gaps
 
-**Branch:** job/cli-wide-cull  (fork from launch/unified-HEAD @ f01cab1fa, post cli-cull + substrate merges)
+**Branch:** job/collections-clearing  (fork from launch/unified-HEAD)
 **Agent:** rust-lane
 **Mode:** autonomous
 
-## Premise (operator intent — do not re-litigate)
-`ship` is NOT a product CLI. Its tagline "Agent configuration compiler — compose,
-compile, distribute" is the pre-pivot product. Post-pivot: Ship = agentic-app runtime;
-Floki + UI = product; ConnectRPC is the only surface Ship exposes. A CLI command that
-does local disk/db work instead of calling a Connect op is legacy by definition. This
-job collapses `ship` to three legitimate roles and deletes everything else.
+## Goal
+Clear verified dead code, duplication, and unambiguous contract/codegen bugs in the
+collections module. Removal + collapse + mechanical fixes only. Findings verified in
+`.artifacts/platform-services-audit.md` (collections section) — RE-VERIFY each against the
+compiler + caller search before acting. Never guess — STOP + `note(out-of-scope)` on surprise.
 
-## SURVIVOR SET — KEEP exactly these (whitelist; everything else goes)
-1. **Agent surface:** `ops` (list/call) — the generic Connect client. Untouchable.
-2. **Operator:** the `daemon` family (start/stop/restart/status/dir/cleanup/run/
-   supervise/install-service/uninstall-service), `doctor`, `meta`. Process/host control
-   + diagnostics — legitimately not a Connect call.
-3. **Dev-tooling (NOT product — the omp/dispatch workflow depends on these):**
-   `use`, `compile`, `config`. `dispatch.sh` calls `ship use <agent>` (compiles the agent
-   → CLAUDE.md, the boot of every dispatched agent) and `ship config get`. Keep them; they
-   are flagged for eventual migration to daemon-side dispatch, but cutting them now breaks
-   the agent loop. Plus local UX: `docs`, `help`, and `build` (the `just build` wrapper).
+## File scope
+- `crates/core/ship-platform/crates/ship-collection/**`
+- `crates/xtask/src/gen_collection_types.rs`
+Do NOT touch: `apps/shipd/src/ship_runtime/init/mod.rs` (the dual-connection item is assigned
+to the artifacts job), deck crates, ship-ui beyond what's required.
 
-## CUT — delete these commands + their handlers (the wide cull)
-For each: remove the `Commands` variant in `cli.rs`, the dispatch arm + `mod` decl in
-`main.rs`, any subcommand enum in `commands.rs`, the handler module(s), and their tests.
+## CLEAR / COLLAPSE / FIX (verify each first)
+1. **Delete `DecisionService`** — `ship-collection/src/decisions.rs` (~330 lines) + its test
+   file + `pub mod decisions` in `lib.rs`. Zero runtime callers; its doc comment falsely claims
+   `floki MementoTool` integration (MementoTool does not exist anywhere). This removes that
+   false-doc finding too. Confirm zero callers across the workspace first.
+2. **Collapse dual DDL** — `create_schema`/`update_schema` run DDL twice: once in
+   `service.rs:244-247` and once in the projection (`item_projection.rs:61-68`). Remove the
+   direct `ensure_collection_table`/`persist_schema` calls from `service.rs`; make
+   `item_projection.rs` the sole DDL writer (its module header already claims this invariant).
+3. **Codegen column drift (bug)** — `gen_collection_types.rs:33-39` `SYSTEM_COLUMNS` emits
+   names (`_id/_created/_updated/_actor/_space`) that do not match the SQLite schema
+   (`item_projection.rs:162-170`: `id/created_at/updated_at/space_id`), and `_actor` has no DB
+   column at all. Align the codegen to the actual column names and drop `_actor`. Regenerate
+   (`cargo run -p xtask -- gen-collection-types`). Add a parity test asserting each
+   `SYSTEM_COLUMNS` name exists in `PRAGMA table_info(collection_<fixture>)`.
+4. **`List` returns `item_count: 0` (bug)** — `wire.rs:107-109` hardcodes 0; the
+   `count_items_for_wire` helper (`wire.rs:308`) already exists and is used by `get`/`update`.
+   Wire it into the `list` handler.
+5. **`RESERVED_IDS` governance** — add `"view_snapshots"` to `RESERVED_IDS` (`types.rs:71`);
+   add a test enumerating all known system collection IDs and asserting each is reserved.
 
-- `init`            → init.rs (scaffolds .ship/ on disk; SpaceService territory)
-- `status`          → the Status arm (compiler-product state readout; keep profile.rs only
-                       insofar as `use` needs it — see SHARED MODULES)
-- `validate`        → validate.rs, validate_tests.rs
-- `install`         → install.rs
-- `add`             → add.rs, add/ (whole dir)
-- `publish`         → publish.rs, publish_tests.rs
-- `mcp`             → mcp.rs + McpCommands (McpService owns this)
-- `isolation`       → isolation_cmd.rs + IsolationCommands (IsolationService owns this)
-- `run`            → ship_run.rs, ship_run_tests.rs (PipelinesService.Dispatch / ops)
-- `procs`          → procs.rs (RuntimeService.ListProcs / ops)
-- `tail`           → tail.rs (EventsService.Poll / ops)
-- `sui`            → sui.rs + SuiCommands (UiService; a ship-code/editor concern)
-- `events`         → events_cmd.rs + EventsCommands (EventsService / ops)
-- `audit`          → audit.rs (real enforcement is at the gated-op layer)
-- `workspace`      → trash_cmd.rs + WorkspaceCommands
-- `auth` + `login` + `logout` + `whoami` → auth.rs (whole file) + AuthCommands.
-                       Operator intent: **auth is not a CLI concern** — it belongs in the
-                       UI/Studio. Removes login/logout/whoami/pair/status/revoke wholesale.
-- `hook`           → hook.rs + HookCommands. Operator intent: **hooks are a ship-code
-                       concern.** Cut from `ship`; the tool-gate capability moves to
-                       ship-code (note it in the commit body; do NOT build it here).
-
-(`convert`, `runtime`, `uninstall`, `top`, `rebuild-projections`, `add --from`, and the
-auth-session REST were already removed in the prior cli-cull merge — confirm they're gone,
-don't re-do.)
-
-## SHARED MODULES — caution
-- `profile.rs` and `compile/` are used by BOTH the kept `use`/`compile` AND the cut
-  `status`/`init`. KEEP the parts `use`/`compile` need; remove only status/init-specific
-  code. If a function is only reachable from a cut command, remove it; if `use`/`compile`
-  still calls it, keep it. Verify with a caller search — never guess.
-- `http.rs`, `paths.rs`, `logging.rs`, `test_env.rs`, `meta_cmd.rs`, `ops_cmd.rs`,
-  `doctor.rs`, `use_command*.rs`, `config.rs`, `help_topics.rs`, `build.rs`, daemon files
-  — KEEP.
-
-## Cascade
-- Rewrite the `#[command(about = ...)]` tagline — drop "Agent configuration compiler —
-  compose, compile, distribute"; describe what `ship` actually is now (an operator + agent
-  op-client). Rewrite `AFTER_HELP` to list only surviving commands.
-- Remove now-unused deps from `apps/ship-cli/Cargo.toml` (e.g. `rmcp`, `ureq`, possibly
-  `reqwest` if no survivor uses it — verify each before removing).
-- Delete dead help topics in `help_topics.rs` that describe cut commands.
+## EXPLICITLY OUT OF SCOPE (flagged separately — do NOT touch)
+- `QueryItems.named_query` stub (`wire.rs:153`) — proto/SDK contract decision.
+- `Watch(scope=item)` broken snapshot (`patch.rs:52`) — broken feature, separate.
+- The dual `DataService` connection in `init/mod.rs` — assigned to the artifacts job.
 
 ## Constraints
-- Verify-then-delete; never guess. If a "cut" command turns out to be called by a survivor
-  or by the dev workflow, STOP and write a `note(out-of-scope)`.
-- Pre-launch: delete, no shims, no migration.
-- Never push. Commit locally.
+Verify-then-act; pre-launch (delete, no shims); never push; never widen scope. STOP+note on
+any surprise live consumer (e.g. if `DecisionService` turns out to be wired somewhere).
 
 ## Acceptance
-1. `cargo build -p ship-cli` and `cargo build -p shipd` green.
-2. `cargo build --workspace --features unstable` / `just check` green.
-3. `ship --help` lists ONLY: ops, daemon, doctor, meta, use, compile, config, docs, build
-   (+ help). No init/status/validate/install/add/publish/mcp/isolation/run/procs/tail/sui/
-   events/audit/workspace/auth/login/logout/whoami/hook.
-4. **Dev workflow intact:** `ship use <agent> --path <dir>` still compiles an agent to
-   CLAUDE.md (the dispatch.sh path). Spot-check it runs.
-5. Surviving ship-cli tests pass; tests for cut commands are removed with their modules.
-6. Commit cleanly. DO NOT push.
-
----
-> Execute yourself. Read-only research subagents OK. Commit when acceptance passes. DO NOT push.
+1. `cargo build -p ship-collection -p shipd` green.
+2. `cargo run -p xtask -- gen-collection-types` runs clean; regenerated TS committed.
+3. The new parity test + RESERVED_IDS test pass; `cargo build --workspace` / `just check` green.
+4. Commit cleanly. DO NOT push.

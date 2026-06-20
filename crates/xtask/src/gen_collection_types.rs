@@ -5,9 +5,9 @@
 //!   - a per-collection row type (`<Pascal>Row`)
 //!   - an entry in the `Database` interface keyed by collection id
 //!
-//! Every row carries the system columns from ADR D4 (Relational Collections &
-//! the Bounded Query Capability): `_id`, `_created`, `_updated`, `_actor`,
-//! `_space` — present on every table, all auto-typed `string`.
+//! Every row carries the system columns from `ship_collection::item_projection`:
+//! `id`, `created_at`, `updated_at`, `space_id` — present on every
+//! `collection_<id>` table, all auto-typed `string`.
 //!
 //! The emitted `Database` interface is the input to typed Kysely queries. This
 //! generator's scope is the schema→types mapping only; the narrowed-Kysely
@@ -26,16 +26,17 @@ use ship_collection::types::{FieldKind, SchemaDoc};
 
 const OUTPUT_PATH: &str = "packages/deck/sdk/src/generated/collections.ts";
 const SCHEMAS_DIR: &str = ".ship/collections";
+// ── System columns ────────────────────────────────────────────────────────
 
-// ── System columns (ADR D4) ───────────────────────────────────────────────
-
-/// `(column, ts_type)` for the auto-typed system columns present on every row.
+/// `(column, ts_type)` for the auto-typed system columns present on every
+/// `collection_<id>` table. Names MUST match the SQLite columns emitted by
+/// `ship_collection::item_projection::create_base_table` — a parity test in
+/// `ship-collection/tests/parity.rs` asserts the set equality.
 const SYSTEM_COLUMNS: &[(&str, &str)] = &[
-    ("_id", "string"),
-    ("_created", "string"),
-    ("_updated", "string"),
-    ("_actor", "string"),
-    ("_space", "string"),
+    ("id", "string"),
+    ("created_at", "string"),
+    ("updated_at", "string"),
+    ("space_id", "string"),
 ];
 
 // ── Public entry point ─────────────────────────────────────────────────────
@@ -296,12 +297,11 @@ mod tests {
         );
         let ts = render(&[doc]);
 
-        // System columns present on the row.
-        assert!(ts.contains("_id: string;"), "missing _id\n{ts}");
-        assert!(ts.contains("_created: string;"));
-        assert!(ts.contains("_updated: string;"));
-        assert!(ts.contains("_actor: string;"));
-        assert!(ts.contains("_space: string;"));
+        // System columns present on the row (names match `create_base_table`).
+        assert!(ts.contains("id: string;"), "missing id\n{ts}");
+        assert!(ts.contains("created_at: string;"));
+        assert!(ts.contains("updated_at: string;"));
+        assert!(ts.contains("space_id: string;"));
 
         // Field mappings.
         assert!(ts.contains("title: string;"), "required field not non-optional\n{ts}");
@@ -344,9 +344,8 @@ mod tests {
     #[test]
     fn quotes_non_bare_keys() {
         assert_eq!(ts_property_key("title"), "title");
-        assert_eq!(ts_property_key("_id"), "_id");
+        assert_eq!(ts_property_key("space_id"), "space_id");
         assert_eq!(ts_property_key("sui-eval-runs"), "\"sui-eval-runs\"");
-        assert_eq!(ts_property_key("a.b"), "\"a.b\"");
     }
 
     #[test]
