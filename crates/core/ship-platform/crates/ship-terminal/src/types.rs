@@ -67,6 +67,7 @@ pub struct SessionMeta {
 pub mod private {
     use super::*;
     use ship_harnesses::harness_adapter::HarnessEvent;
+    use ship_substrate::supervisor::ChildHandle;
 
     use std::path::PathBuf;
     use std::sync::{Arc, Mutex};
@@ -89,6 +90,16 @@ pub mod private {
         pub event_tx: broadcast::Sender<HarnessEvent>,
         /// Absolute path to the tee'd log file for replay.
         pub log_path: PathBuf,
+        /// Substrate-owned child handle for the spawned actor. `Some` when
+        /// the supervisor's `spawn_actor` returned a live handle (the
+        /// shell-spawn path); `None` for per-turn agent sessions whose
+        /// child is spawned fresh on every turn and torn down on completion
+        /// (the registry holds the metadata only — see
+        /// `ship_agents::services::sessions::lifecycle::spawn_agent`).
+        /// `stop()` calls `ChildHandle::stop()` on this when present so the
+        /// underlying process is terminated, not just the registry entry
+        /// removed (B17 — was a leak before).
+        pub child: Option<Arc<ChildHandle>>,
     }
 
     pub type SessionHandle = Arc<Inner>;

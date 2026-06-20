@@ -9008,10 +9008,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "libc",
  "serde",
  "ship-harnesses",
  "ship-substrate",
+ "tempfile",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

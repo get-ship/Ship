@@ -90,6 +90,7 @@ pub fn spawn_agent(
         output_tx,
         event_tx,
         log_path,
+        child: None,
     });
 
     registry.insert(id.clone(), inner.clone());

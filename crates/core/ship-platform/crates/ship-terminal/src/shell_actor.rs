@@ -83,12 +83,33 @@ pub fn spawn_shell(
         output_tx,
         event_tx,
         log_path,
+        child: Some(handle.child.clone()),
     });
 
     registry.insert(id, inner.clone());
     Ok(PtySession(inner))
 }
 
+/// Stop a shell session. Removes the registry entry AND terminates the
+/// underlying child process (B17 — was leaking; `registry.remove` left the
+/// `$SHELL` child running).
+///
+/// Returns `true` if the session was found and stopped, `false` if the id
+/// wasn't registered (caller can fall through to a different registry).
 pub fn stop(registry: &SessionRegistry, id: &str) -> bool {
-    registry.remove(id).is_some()
+    let Some(session) = registry.remove(id) else {
+        return false;
+    };
+    // `ChildHandle::stop` is idempotent (kills a no-op when the child already
+    // exited) and returns `Ok` even if the kill signal is best-effort. Surface
+    // errors with `tracing::warn!` — a stopped session with a still-running
+    // shell is a worse state than a no-op stop, but not a hard error: the
+    // caller already removed the registry entry, so the next /api/v1/sessions
+    // list won't see this id regardless.
+    if let Some(child) = session.0.child.as_ref() {
+        if let Err(e) = child.stop() {
+            tracing::warn!(session_id = %id, "shell stop: child.kill failed: {e}");
+        }
+    }
+    true
 }
