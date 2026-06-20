@@ -119,7 +119,13 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> DeckResponse {
     };
     let css = collect_view_css(name, resolved.source_path.as_deref());
     let module_url = crate::routes::view_module_url(name, sub_path);
-    let raw_html = read_precompiled_ssr(resolved.source_path.as_deref())
+    // First-paint source, in precedence order:
+    //   1. ship-js synthetic SSR — ONLY when the `DECK_SSR=ship-js` gate is on,
+    //      a renderer is registered, and it succeeds (gated + additive).
+    //   2. a precompiled `<stem>.ssr.html` mirror artifact.
+    //   3. the Rust render-eval split (the default; unchanged when the gate is off).
+    let raw_html = synthetic_first_paint(&view_name, sub_path, &resolved)
+        .or_else(|| read_precompiled_ssr(resolved.source_path.as_deref()))
         .unwrap_or(split.html);
     // Host-side injection: bake the daemon-relative mutation action URL into
     // any <form mutation="bN"> that doesn't already carry an explicit action=.
@@ -148,6 +154,30 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> DeckResponse {
         clients,
     };
     json_ok(&payload, mode)
+}
+
+/// Bridge to the gated ship-js SSR seam. Returns first-paint HTML only when
+/// the gate is on, a renderer is registered, the view has a source path, and
+/// the render succeeds — otherwise `None`, and the caller falls back to
+/// render-eval. `view_name` is the (sub-folded) routed name; `resolved`
+/// carries the source path + captured route params.
+fn synthetic_first_paint(
+    view_name: &str,
+    sub_path: Option<&str>,
+    resolved: &deck_host::resolver::ResolvedView,
+) -> Option<String> {
+    let source_path = resolved.source_path.as_deref()?;
+    let params = serde_json::to_value(&resolved.params).unwrap_or(serde_json::Value::Null);
+    let pathname = format!("/{view_name}");
+    let req = crate::synthetic_ssr::SsrRequest {
+        view_name,
+        sub_path,
+        source_path,
+        pathname: &pathname,
+        params,
+        query: serde_json::json!({}),
+    };
+    crate::synthetic_ssr::first_paint(&req)
 }
 
 fn read_precompiled_ssr(source_path: Option<&std::path::Path>) -> Option<String> {

@@ -18,15 +18,28 @@
 
 pub mod build;
 pub mod host;
+pub mod pool;
 pub mod run;
+pub mod serve;
 
 /// The SDK served for `import "ship"` — the deny-by-default loader's one
 /// importable module. The thinnest possible door: `call` is the host-
 /// dispatch wire (`op_ship_call` → the host's `Dispatch`), `emit` surfaces
 /// a value out of the headless run. The host decides what `call` is allowed
 /// to reach; this is just the wire.
+///
+/// `call` also maintains an in-flight counter exposed as
+/// `globalThis.__shipPending()`, so the SSR entry can flush async `live()`
+/// sources DETERMINISTICALLY — drain while host work is pending instead of
+/// spinning a fixed number of microtask ticks (see `ssr/ssr-entry.ts`).
 pub const SHIP_SDK: &str = "\
-export const call = (op, args) => Deno.core.ops.op_ship_call(op, args ?? {});
+let __pending = 0;
+globalThis.__shipPending = () => __pending;
+export const call = (op, args) => {
+  __pending++;
+  return Promise.resolve(Deno.core.ops.op_ship_call(op, args ?? {}))
+    .finally(() => { __pending--; });
+};
 export const emit = (v) => Deno.core.ops.op_emit(v);";
 
 /// What one SSR run produces.

@@ -12,6 +12,7 @@ use serde_json::{json, Value};
 use sui_compiler::CompileMode;
 
 const GREET: &str = "crates/deck/deck-conformance/app/views/greet/[id]/page.sui";
+const GLYPH: &str = "crates/deck/deck-conformance/app/views/glyph/page.sui";
 const BOARD: &str = "crates/deck/deck-conformance/app/views/board/page.sui";
 const BOARD_CTRL: &str = "crates/deck/deck-conformance/app/views/board/controller.ts";
 const FEED: &str = "crates/deck/deck-conformance/app/views/feed/page.sui";
@@ -108,6 +109,38 @@ fn board_control_flow_first_paint_via_ship_js() {
     );
     // The remove buttons (on:click handlers) render too.
     assert!(out.html.contains("remove"), "on: handlers' elements must render; got:\n{}", out.html);
+}
+
+#[test]
+fn glyph_svg_first_paint_serializes_namespaced() {
+    // The broader server-DOM case (acceptance #3): an inline `<svg>` subtree.
+    // The synthetic render builds it via `createElementNS(SVG_NS, …)`, and the
+    // shared server-DOM serializes namespaced elements — empty SVG elements
+    // self-close (`<circle .../>`), which HTML void elements never do.
+    let repo = repo_root().expect("repo root");
+    let build_dir = repo.join("target/deck-ssr-test/glyph");
+    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let bundle = rt
+        .block_on(synthesize_and_bundle(&repo, GLYPH, MANIFEST, CompileMode::View, &[], &build_dir))
+        .expect("synthesize + bundle glyph");
+
+    let dispatch = Arc::new(SsrDispatch::for_request("/glyph", json!({}), json!({})));
+    let out = render(&bundle, dispatch).expect("render glyph");
+
+    assert!(out.html.contains("<svg"), "svg root must render; got:\n{}", out.html);
+    assert!(
+        out.html.contains("<circle") && out.html.contains("r=\"10\""),
+        "svg child + its attribute must render; got:\n{}",
+        out.html
+    );
+    assert!(out.html.contains("<path"), "second svg child must render; got:\n{}", out.html);
+    // Namespace-aware serialization: empty SVG elements self-close. (HTML void
+    // elements like <br> never emit the slash — this is the SVG branch.)
+    assert!(
+        out.html.contains("/>"),
+        "empty SVG elements must self-close (namespaced serialization); got:\n{}",
+        out.html
+    );
 }
 
 #[test]

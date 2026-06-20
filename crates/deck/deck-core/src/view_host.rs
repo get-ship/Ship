@@ -120,6 +120,26 @@ pub(crate) fn live_emit_ssr(name: &str) -> Option<String> {
     Some(output.html)
 }
 
+/// Bridge to the gated ship-js SSR seam for the view-host shell. Resolves the
+/// view, then asks the seam for first-paint HTML. Returns `None` (→ the
+/// render-eval path) when the gate is off, no renderer is registered, the view
+/// has no source path, or the render fails.
+fn synthetic_first_paint_host(name: &str) -> Option<String> {
+    let resolved = resolve(name, None).ok()?;
+    let source_path = resolved.source_path.as_deref()?;
+    let params = serde_json::to_value(&resolved.params).unwrap_or(serde_json::Value::Null);
+    let pathname = format!("/{name}");
+    let req = crate::synthetic_ssr::SsrRequest {
+        view_name: name,
+        sub_path: None,
+        source_path,
+        pathname: &pathname,
+        params,
+        query: serde_json::json!({}),
+    };
+    crate::synthetic_ssr::first_paint(&req)
+}
+
 pub fn serve_view_host(mode: DaemonMode, path: &str) -> DeckResponse {
     // Dev: always re-read from disk (no cache). Prod: use in-memory cache.
     // If no precompiled SSR exists, fall back to live-emit so the shell
@@ -141,16 +161,21 @@ pub fn serve_view_host(mode: DaemonMode, path: &str) -> DeckResponse {
     let ssr_content = view_name
         .as_deref()
         .map(|name| {
-            let from_disk = if mode == DaemonMode::Production {
-                ssr_html_for_view(name)
-            } else {
-                load_ssr_from_disk(name).unwrap_or_default()
-            };
-            let raw = if from_disk.is_empty() {
-                live_emit_ssr(name).unwrap_or_default()
-            } else {
-                from_disk
-            };
+            // Gated, additive: ship-js synthetic SSR first-paint when the
+            // `DECK_SSR=ship-js` gate is on and a renderer is registered;
+            // otherwise the existing precompiled / live-emit render-eval path.
+            let raw = synthetic_first_paint_host(name).unwrap_or_else(|| {
+                let from_disk = if mode == DaemonMode::Production {
+                    ssr_html_for_view(name)
+                } else {
+                    load_ssr_from_disk(name).unwrap_or_default()
+                };
+                if from_disk.is_empty() {
+                    live_emit_ssr(name).unwrap_or_default()
+                } else {
+                    from_disk
+                }
+            });
             // Host-side injection: augment <form mutation="bN"> with the
             // daemon-relative action URL. Idempotent — safe on pre-baked
             // .ssr.html artifacts.
