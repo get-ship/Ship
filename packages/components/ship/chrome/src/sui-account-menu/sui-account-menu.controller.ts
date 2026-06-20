@@ -1,19 +1,13 @@
-// <sui-account-menu> — Ship Cloud account affordance, hub-side chrome
-// copy of the shell source (apps/shell/src/components/sui-account-menu/).
+// <sui-account-menu> — Ship Cloud account affordance for the chrome strip.
 //
-// The shell is being deprecated as the hub composes from packs. The hub
-// owns the chrome, so this component lives under `apps/hub/src/components/`
-// rather than a shared pack. The surface is identical to the shell version:
-// trigger button + native popover with sign-in / sign-out / billing /
-// settings actions, and the live account state subscription drives the
+// Lives in @ship/chrome alongside <ship-nav-top>, which composes it. The
+// trigger button + native popover surface sign-in / sign-out / billing /
+// settings actions, and the live account-state subscription drives the
 // identity display.
 //
-// Refactor: the shell version called `chrome.navigate('/settings#account')`
-// (apps/shell/src/components/sui-account-menu/sui-account-menu.controller.ts:87).
-// The hub doesn't expose a `chrome` object — the hub's bundler entry wires
-// the runtime's RouterPort directly and exposes `navigate()` from
-// `@ship/deck/route`. Importing `navigate` here keeps the controller
-// host-agnostic and decoupled from the shell's `chrome` indirection.
+// Navigation goes through `navigate()` from `@ship/deck/route` (the runtime's
+// RouterPort, wired by the bundler entry) — no host `chrome` indirection, so
+// the component is host-agnostic.
 //
 // `account` is auto-created from `<data name="account" source="ship.account.state()" live />`
 // in the template — see SUI hard rule #2 (subscriptions in <data>).

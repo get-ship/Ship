@@ -1,14 +1,20 @@
 <!--
   <ship-nav-top> — @ship/chrome · the filled top bar.
-  Top strip: brand mark, project switcher, breadcrumb trail, per-view action
-  slot, command-bar slot, theme picker, account menu, fullscreen toggle.
 
-  Ported from apps/shell/src/components/sui-nav-top (the SUI port of the
-  Lit <ship-nav-top>). The chrome-pack tag is `ship-nav-top`; the
-  three-slot layout primitive stays under <sui-nav-top> in
-  @ship/sui-primitives — these are distinct components and serve
-  distinct roles (the primitive is a generic 3-slot bar; this is the
-  filled shell bar).
+  COMPOSES the <sui-nav-top> primitive (@ship/sui-primitives) — it does NOT
+  re-implement the bar. The primitive owns the slotted-bar structure (height,
+  border, background, and the brand / default / actions slot regions); this
+  component only assembles the ship-specific slot contents:
+
+    brand   → home-linked <sui-brand-mark>
+    default → project switcher, breadcrumb trail, per-view action slot,
+              command-bar slot
+    actions → theme picker, account menu, fullscreen toggle
+
+  The three-slot layout primitive stays under <sui-nav-top>; this is the
+  filled shell bar. <ship-nav-top> exposes its own pass-through slots
+  (`actions`, `command-bar`) for the mounted view — these are forwarded into
+  the primitive's default region.
 
   Prop / event surface
   ─────────────────────────────────────────────────────────────────────────────
@@ -27,7 +33,7 @@
   Listens on document:
     sui:navigate  { detail: { to: string } }  — updates path + crumbs
   ─────────────────────────────────────────────────────────────────────────────
-  Slots:
+  Slots (pass-through into the primitive's default region):
     actions      per-view action buttons injected by the mounted view
     command-bar  command palette host — shell slots <sui-command-bar> here
   ─────────────────────────────────────────────────────────────────────────────
@@ -35,11 +41,11 @@
          fullscreen
   ─────────────────────────────────────────────────────────────────────────────
   CSS custom properties:
-    --ship-top-bar-h (default 40px)  host height; matches layout grid row
+    --ship-top-bar-h (default 40px)  bar height; forwarded to the primitive's
+                                     :host via the shared token
   ─────────────────────────────────────────────────────────────────────────────
-  Navigation: refactored from `chrome.navigate` (shell) to
-  `navigate()` from @ship/deck/route — the chrome pack has no chrome
-  import. The single source of navigation lives in the route module.
+  Navigation: `navigate()` from @ship/deck/route — the chrome pack has no
+  chrome import. The single source of navigation lives in the route module.
 
   Dock affordance: the shell previously polled `body.dock-open` via a
   MutationObserver to mirror the panel dock state. The dock itself is
@@ -55,23 +61,10 @@
 <prop name="view" type="string" default="" />
 
 <style>
-  :host {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2, 8px);
-    height: var(--ship-top-bar-h, 40px);
-    padding: 0 var(--space-3, 12px);
-    border-bottom: 1px solid var(--border);
-    background: var(--muted);
-    font-family: var(--font-body, system-ui, sans-serif);
-    font-size: var(--text-sm, 13px);
-    color: var(--foreground);
-    user-select: none;
-    -webkit-user-select: none;
-    overflow: hidden;
-    box-sizing: border-box;
-    flex-shrink: 0;
-  }
+  /* The bar chrome (height, border, background, slot regions) lives in the
+     composed <sui-nav-top> primitive. This host is a pure assembler, so it
+     contributes no box of its own. */
+  :host { display: contents; }
   :host([hidden]) { display: none; }
 
   .brand {
@@ -149,29 +142,31 @@
   }
 </style>
 
-<a class="brand" part="brand" href="/" aria-label="Ship home" title="Ship home" on:click={onBrand}>
-  <sui-brand-mark class="brand-mark"></sui-brand-mark>
-</a>
-<span class="sep" aria-hidden="true"></span>
-<sui-project-switcher part="project-switcher"></sui-project-switcher>
-<span class="sep" aria-hidden="true"></span>
-<nav class="crumbs" part="crumbs" aria-label="Breadcrumbs">
-  {#for c of crumbs() key={c.key}}
-    {#if c.isLast}
-      <span class="current" id="breadcrumbs-title" transition:fade={{ duration: 120 }}>{c.label}</span>
-    {:else}
-      <a href={c.href} on:click={(e) => onCrumbClick(e, c.href)} transition:fade={{ duration: 120 }}>{c.label}</a>
-      <span class="chevron" aria-hidden="true">›</span>
-    {/if}
-  {/for}
-</nav>
-<span class="view-actions"><slot name="actions"></slot></span>
-<span class="spacer"></span>
-<span class="cmd-slot"><slot name="command-bar"></slot></span>
-<span class="spacer"></span>
-<sui-theme-picker placement="bottom-end" part="theme-picker"></sui-theme-picker>
-<sui-account-menu placement="bottom-end" part="account-menu"></sui-account-menu>
-<sui-button variant="ghost" size="sm" part="fullscreen"
-  title="Fullscreen (F11)" aria-label="Toggle fullscreen" on:click={onFullscreen}>
-  <sui-icon slot="leading" name="maximize"></sui-icon>
-</sui-button>
+<sui-nav-top>
+  <a slot="brand" class="brand" part="brand" href="/" aria-label="Ship home" title="Ship home" on:click={onBrand}>
+    <sui-brand-mark class="brand-mark"></sui-brand-mark>
+  </a>
+
+  <sui-project-switcher part="project-switcher"></sui-project-switcher>
+  <span class="sep" aria-hidden="true"></span>
+  <nav class="crumbs" part="crumbs" aria-label="Breadcrumbs">
+    {#for c of crumbs() key={c.key}}
+      {#if c.isLast}
+        <span class="current" id="breadcrumbs-title" transition:fade={{ duration: 120 }}>{c.label}</span>
+      {:else}
+        <a href={c.href} on:click={(e) => onCrumbClick(e, c.href)} transition:fade={{ duration: 120 }}>{c.label}</a>
+        <span class="chevron" aria-hidden="true">›</span>
+      {/if}
+    {/for}
+  </nav>
+  <span class="view-actions"><slot name="actions"></slot></span>
+  <span class="spacer"></span>
+  <span class="cmd-slot"><slot name="command-bar"></slot></span>
+
+  <sui-theme-picker slot="actions" placement="bottom-end" part="theme-picker"></sui-theme-picker>
+  <sui-account-menu slot="actions" placement="bottom-end" part="account-menu"></sui-account-menu>
+  <sui-button slot="actions" variant="ghost" size="sm" part="fullscreen"
+    title="Fullscreen (F11)" aria-label="Toggle fullscreen" on:click={onFullscreen}>
+    <sui-icon slot="leading" name="maximize"></sui-icon>
+  </sui-button>
+</sui-nav-top>
