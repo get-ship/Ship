@@ -131,6 +131,7 @@ pub fn emit_synthetic(
     authored: Option<&AuthoredController>,
     controller_specifier: &str,
     mode: CompileMode,
+    component_tag: Option<&str>,
 ) -> Result<SyntheticOutput, CompileError> {
     // Per-view resolver: import only the manifest clients this template (or
     // a `<data source>`) actually references — mirrors how the production
@@ -143,8 +144,9 @@ pub fn emit_synthetic(
     }
 
     let controller_ts = emit_controller(program, manifest, &used, authored, mode)?;
-    let render_ts = render::emit_render(program, controller_specifier, mode)?;
-    let render_client_ts = render::emit_render_client(program, controller_specifier, mode)?;
+    let render_ts = render::emit_render(program, controller_specifier, mode, component_tag)?;
+    let render_client_ts =
+        render::emit_render_client(program, controller_specifier, mode, component_tag)?;
     Ok(SyntheticOutput { controller_ts, render_ts, render_client_ts, used_clients: used })
 }
 
@@ -262,6 +264,15 @@ pub(super) fn emit_controller(
     // The single typed scope. Member order: manifest clients, then
     // `<data>`, then the spread of the composed authored scope. `tsgo`/
     // `tsc` type-checks the render against THIS type.
+    //
+    // G5 — `{#async … as v}` lifts the `as v` binding into the typed
+    // scope so the render can reference `scope.v` after the Let
+    // snapshot. The actual value's TS type is unreachable from the
+    // controller (it lives in the template, not the controller DSL),
+    // so each Let name is typed `any` — the runtime snapshot is the
+    // source of truth, the static type-check is a best-effort
+    // declaration. The render's `emit_let_block` writes `$scope.v`
+    // at mount, so the runtime lookup matches.
     w.line("// The view's typed scope: every name a template expression resolves,");
     w.line("// merged from manifest imports, `<data>` directives, and the composed");
     w.line("// controller. `tsgo`/`tsc` type-checks the template against THIS type.");
@@ -272,9 +283,55 @@ pub(super) fn emit_controller(
     if authored.is_some() {
         members.push("...__authoredScope".to_string());
     }
+    let let_names = collect_let_names(&program.template);
+    for name in &let_names {
+        members.push(format!("{name}: any"));
+    }
     w.line(&format!("export const scope = {{ {} }};", members.join(", ")));
     w.line("export type Scope = typeof scope;");
     Ok(w.into_string())
+}
+
+/// Walk the template's `Instr::Let` instructions and collect the `as v`
+/// binding names. G5 — each becomes a typed scope member so the
+/// render can read `scope.<name>` after the Let snapshot.
+fn collect_let_names(instrs: &[Instr]) -> Vec<String> {
+    let mut out = Vec::new();
+    for instr in instrs {
+        match instr {
+            Instr::Let(l) => {
+                out.push(l.name.clone());
+                out.extend(collect_let_names(&l.body));
+            }
+            Instr::Element(el) => out.extend(collect_let_names(&el.children)),
+            Instr::If(i) => {
+                for b in &i.branches {
+                    out.extend(collect_let_names(&b.body));
+                }
+                if let Some(eb) = &i.else_body {
+                    out.extend(collect_let_names(eb));
+                }
+            }
+            Instr::For(f) => {
+                out.extend(collect_let_names(&f.body));
+                if let Some(eb) = &f.else_body {
+                    out.extend(collect_let_names(eb));
+                }
+            }
+            Instr::Match(m) => {
+                for c in &m.cases {
+                    out.extend(collect_let_names(&c.body));
+                }
+                if let Some(d) = &m.default {
+                    out.extend(collect_let_names(d));
+                }
+            }
+            Instr::WhileLoading(wl) => out.extend(collect_let_names(&wl.body)),
+            Instr::WhileError(we) => out.extend(collect_let_names(&we.body)),
+            _ => {}
+        }
+    }
+    out
 }
 
 /// Compose an authored `controller({ scope, derived, on })` (the production
@@ -299,13 +356,19 @@ pub(super) fn emit_controller(
 fn emit_authored_compose(w: &mut Writer, used: &[String], manifest: &AppManifest) {
     w.line("// Authored controller — COMPOSED via its real `controller({...})` DSL:");
     w.line("// `setup(ctx)` runs `resolveController` (the same resolver the browser");
-    w.line("// hydrate path runs) and returns the flat bindings. Its contributed");
-    w.line("// scope type is recovered from the `ControllerExport` so the render");
-    w.line("// type-checks `scope.X` reads against it — composed, never rewritten.");
+    w.line("// hydrate path runs) and returns the flat bindings. The scope's");
+    w.line("// contributed type is recovered from the controller's `__def.scope`");
+    w.line("// factory return (not the legacy `ControllerExport<infer S>` generic");
+    w.line("// — the generic is often pinned to the empty view `Scope` and would");
+    w.line("// erase factory-added members from the recovered type).");
+    // Use `infer ReturnType<...>` so a non-function `scope` (legacy
+    // `controller<Scope>({...})` with no `scope:` factory) falls back to
+    // `object` — matches the controller's contribution of nothing.
     w.line(
-        "type __AuthoredScope = typeof __authored extends ControllerExport<infer S> ? S : never;",
+        "type __AuthoredScope = typeof __authored.__def extends { scope?: infer F }",
     );
-
+    w.line("  ? F extends () => infer R ? R : object");
+    w.line("  : object;");
     // Map the constructed manifest clients onto the resolver context: the
     // well-known ambient names become `ResolverContext` fields; the rest go
     // into `clients` (spread into scope by the resolver, as in production).

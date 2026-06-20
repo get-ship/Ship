@@ -76,6 +76,11 @@ class TextNode {
   nodeType = TEXT_NODE
   parentNode: Parent | null = null
   _t = ''
+  /** Slice 2 — hydration key the synthetic bind* calls record so the SSR
+   *  serialization wraps the node in `<!--sui:text:bN-->...<!--/sui-->`. The
+   *  client `hydrate()` reads these markers back via `collectTextOpens`.
+   *  `null` on the browser DOM (only meaningful in the server-DOM). */
+  __hydrateKey: string | null = null
   get textContent(): string {
     return this._t
   }
@@ -94,9 +99,16 @@ class TextNode {
   cloneNode(_deep?: boolean): TextNode {
     const t = new TextNode()
     t._t = this._t
+    t.__hydrateKey = this.__hydrateKey
     return t
   }
   toHTML(): string {
+    // Hydration marker — wrap so `collectTextOpens(root)` finds the key.
+    // The element-mark contract emits the key as an HTML comment open +
+    // close pair around the text contents. Inner text is escaped as usual.
+    if (this.__hydrateKey) {
+      return `<!--sui:text:${this.__hydrateKey}-->${esc(this._t)}<!--/sui-->`
+    }
     return esc(this._t)
   }
 }
@@ -182,6 +194,17 @@ class El {
   tag: string
   parentNode: Parent | null = null
   attrs = new Map<string, string>()
+  /** Slice 2 — hydration marker attributes (`on:event`, `class:name`, etc.)
+   *  the synthetic bind* calls record via `markHydrateAttr`. The El's
+   *  `toHTML()` folds them into the serialized attribute set so the
+   *  client `collectElementMarkers` finds them. `null` on the browser
+   *  DOM (only meaningful in the server-DOM). */
+  __hydrateAttr: Record<string, string> | null = null
+  /** Slice 2 — boundary key for control-flow wrappers (`<sui-if key="bN">`).
+   *  Set via `markHydrateBoundary`. Browser DOM uses the standard
+   *  `setAttribute('key', ...)` path; the server-DOM shortcuts by
+   *  carrying the key in this field for serialization. */
+  __hydrateBoundary: string | null = null
   childNodes: SNode[] = []
   _classes = new Set<string>()
   classList: ClassList
@@ -220,7 +243,6 @@ class El {
   hasAttribute(name: string): boolean {
     return this.getAttribute(name) != null
   }
-  /** The morph contract: an array of `{ name, value }` (class/style folded). */
   get attributes(): Array<{ name: string; value: string }> {
     const out: Array<{ name: string; value: string }> = []
     if (this._classes.size) out.push({ name: 'class', value: [...this._classes].join(' ') })
@@ -303,6 +325,8 @@ class El {
     el.namespaceURI = this.namespaceURI
     el.attrs = new Map(this.attrs)
     el._classes = new Set(this._classes)
+    el.__hydrateAttr = this.__hydrateAttr ? { ...this.__hydrateAttr } : null
+    el.__hydrateBoundary = this.__hydrateBoundary
     for (const [k, v] of this.style.props) el.style.props.set(k, v)
     if (deep) for (const c of this.childNodes) el.appendChild(c.cloneNode(true))
     return el
@@ -310,8 +334,19 @@ class El {
   toHTML(): string {
     const cls = this._classes.size ? ` class="${esc([...this._classes].join(' '))}"` : ''
     const styleStr = this.style.props.size ? ` style="${esc(this.style.serialize())}"` : ''
+    // Slice 2 — fold the hydration marker attrs (`on:click="bN"`,
+    // `class:active="bN"`, etc.) into the serialized set so the
+    // client `collectElementMarkers` picks them up. Boundary keys
+    // (for `<sui-if key="bN">` etc.) go on as `key="bN"` (the
+    // `collectElementMarkers` walker reads `getAttribute('key')`).
+    const markerAttrs = this.__hydrateAttr
+      ? Object.entries(this.__hydrateAttr).map(([k, v]) => ` ${k}="${esc(v)}"`)
+      : []
+    const boundaryAttr = this.__hydrateBoundary
+      ? ` key="${esc(this.__hydrateBoundary)}"`
+      : ''
     const attrs = [...this.attrs].map(([k, v]) => ` ${k}="${esc(v)}"`).join('')
-    const open = `<${this.tag}${cls}${styleStr}${attrs}`
+    const open = `<${this.tag}${cls}${styleStr}${attrs}${markerAttrs.join('')}${boundaryAttr}`
     const inner = this.childNodes.map((c) => c.toHTML()).join('')
     // HTML void elements never close; empty SVG elements self-close.
     if (VOID.has(this.tag)) return `${open}>`

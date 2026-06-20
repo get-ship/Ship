@@ -87,7 +87,7 @@ fn synth_client_into(repo: &Path, gendir: &Path, s: &Surface) {
     };
 
     let controller_name = format!("{stem}.synthetic.controller.ts");
-    let out = emit_synthetic(&program, &manifest, authored.as_ref(), &format!("./{controller_name}"), s.mode)
+    let out = emit_synthetic(&program, &manifest, authored.as_ref(), &format!("./{controller_name}"), s.mode, None)
         .unwrap_or_else(|e| panic!("synthesize {}: {}", s.name, e.render(&src)));
     fs::write(dir.join(&controller_name), out.controller_ts).unwrap();
     fs::write(dir.join(format!("{stem}.client.ts")), out.render_client_ts).unwrap();
@@ -101,9 +101,17 @@ fn write_runtime_shim(repo: &Path, work: &Path) {
     let shim = format!(
         "export * from \"{r}/packages/sui/runtime/src/server.ts\";\n\
          export {{ view }} from \"{r}/packages/sui/runtime/src/view.ts\";\n\
+         // Slice 2 — re-export the hydration-marker recording helpers so\n\
+         // the synthetic emit's `mount(container)` (which calls\n\
+         // `markHydrateText` next to `bindText`) type-checks under tsc.\n\
+         export {{ markHydrateText, markHydrateAttr, markHydrateBoundary }} from \"{r}/packages/sui/runtime/src/hydrate-mark.ts\";\n\
          // Types the @ship/sui-dom hydrate helpers import from the runtime but\n\
          // that the SSR server entry does not surface.\n\
-         export type {{ Modifier, OnOptions }} from \"{r}/packages/sui/runtime/src/on.ts\";\n"
+         export type {{ Modifier, OnOptions }} from \"{r}/packages/sui/runtime/src/on.ts\";\n\
+         // `ViewScope` lives on controller.ts (the legacy export authors still\n\
+         // reach for). Re-export so a controller declaring\n\
+         // `controller<ViewScope>(...)` doesn't break under the shim.\n\
+         export type {{ ViewScope }} from \"{r}/packages/sui/runtime/src/controller.ts\";\n"
     );
     fs::write(work.join("runtime-shim.ts"), shim).unwrap();
 }
@@ -242,7 +250,7 @@ fn client_render_typo_is_caught_by_tsgo() {
     let manifest_src = fs::read_to_string(repo.join(CONF_MANIFEST)).unwrap();
     let manifest = AppManifest::parse(&manifest_src).unwrap();
     let program = parse("<h1>Hello, {route.parms.id()}</h1>").unwrap();
-    let out = emit_synthetic(&program, &manifest, None, "./page.synthetic.controller.ts", CompileMode::View)
+    let out = emit_synthetic(&program, &manifest, None, "./page.synthetic.controller.ts", CompileMode::View, None)
         .unwrap();
 
     let work = repo.join("target/synthetic-client-tsc-typo");
@@ -262,17 +270,17 @@ fn client_render_typo_is_caught_by_tsgo() {
     );
 }
 
-/// Catalogued finding (regression-guarded): hub `/`'s authored controller
-/// declares `controller<Scope>` with the EMPTY view `Scope` (the view declares
-/// no `<state>`), so the synthetic compose recovers `{}` as the contributed
-/// scope type and the controller-added `name` is erased — the client render's
-/// `scope.name()` is then a TS2339. hub renders correctly at runtime (proven
-/// by the SSR sweep + jsdom CSR); only its STRICT tsgo-green is blocked, by a
-/// one-line controller-generic widen (or a compiler enhancement to recover the
-/// scope-factory's actual return type). This test pins that diagnosis so a
-/// future fix flips it deliberately.
+/// Slice 2 G4 — hub's authored controller declares
+/// `controller<Scope>({...})` with the EMPTY view `Scope` (the view
+/// declares no `<state>`), so the legacy `ControllerExport<infer S>`
+/// recovery would erase the controller-added `name` from the recovered
+/// type — `scope.name()` would be a TS2339. The slice 2 G4 fix:
+/// recover the scope-factory's ACTUAL return type instead of the
+/// `ControllerExport<Scope>` generic. The hub render is now strict-tsc
+/// GREEN. (Slice 1 catalogued the opposite — this is the slice-2
+/// acceptance proof.)
 #[test]
-fn hub_controller_generic_erases_added_scope_member() {
+fn hub_controller_recovers_scope_factory_return_type() {
     let repo = repo_root();
     let Some(tsc) = tsc_path(&repo) else {
         eprintln!("SKIP synthetic_client_tsc hub: tsc not found — run `bun install`.");
@@ -296,9 +304,9 @@ fn hub_controller_generic_erases_added_scope_member() {
     );
     write_tsconfig(&repo, &work, &["generated/hub/**/*.ts".to_string()], "tsconfig.json");
     let (ok, output) = run_tsc(&tsc, &work, "tsconfig.json");
-    assert!(!ok, "expected hub to surface the recovered-scope gap; tsc was unexpectedly green");
     assert!(
-        output.contains("name") && (output.contains("2339") || output.contains("does not exist")),
-        "the gap must be `name` missing from the recovered scope type; got:\n{output}"
+        ok,
+        "slice 2 G4: hub must type-check GREEN (scope-factory return type is recovered); \
+         got:\n{output}"
     );
 }

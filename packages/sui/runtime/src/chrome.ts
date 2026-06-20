@@ -26,8 +26,14 @@
 //   the mounted route changes. Callers can override with `{ viewId }` on
 //   any state-bearing call.
 
-import { navigate as routeNavigate } from '@ship/deck/route'
-
+// Slice 2 — `navigate` no longer imports from `@ship/deck/route`. The
+// runtime's own `navigate()` (exported from `./mount` / wired through
+// the host's `RouterPort`) is the canonical entry; chrome calls that
+// via the global `__suiNavigate` set by the host. Falls back to a
+// CustomEvent `sui:navigate` dispatch for legacy hosts — the unified
+// router listens to both. (Chrome is slated to die; this fallback
+// is the minimum decouple, not a new feature.)
+declare const globalThis: { __suiNavigate?: (path: string, opts?: { replace?: boolean }) => void } & typeof globalThis
 /** Toast / status tone palette. Matches the values `<sui-toast>` paints
  *  (`info` · `success` · `warning` · `destructive`). `error` is accepted
  *  as an alias for `destructive` so callers can speak the more natural
@@ -147,11 +153,17 @@ export const chrome = {
     else delete detail['tone']
     emit('sui:notify', detail)
   },
-
-  // Delegates to the unified router via the runtime `navigate()` → host
-  // `RouterPort`. (Previously this hand-pushed history + emitted a
-  // `sui:navigate` *trigger*; the host router now owns history + mounting
-  // and emits `sui:navigate` as the route-change *notification*.) See ADR
+  navigate(path: string, opts?: NavigateOpts): void {
+    // Prefer the runtime's host-wired `navigate` (set by `mount.ts` from
+    // the host's `RouterPort`). Fall back to a CustomEvent dispatch for
+    // legacy hosts that haven't wired the unified router.
+    const replace = opts?.replace ? { replace: true } : undefined
+    if (typeof globalThis.__suiNavigate === 'function') {
+      globalThis.__suiNavigate(path, replace)
+    } else {
+      emit('sui:navigate', { path, replace: !!opts?.replace })
+    }
+  },
   // `unified-deck-router`.
   navigate(path: string, opts?: NavigateOpts): void {
     routeNavigate(path, opts?.replace ? { replace: true } : {})

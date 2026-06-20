@@ -27,7 +27,7 @@ const SHIP_MANIFEST: &str = r#"{
 fn synth(src: &str, manifest_src: &str, mode: CompileMode) -> (String, String) {
     let program = parse(src).expect("parse .sui");
     let manifest = AppManifest::parse(manifest_src).expect("parse manifest");
-    let out = emit_synthetic(&program, &manifest, None, "./page.synthetic.controller.ts", mode)
+    let out = emit_synthetic(&program, &manifest, None, "./page.synthetic.controller.ts", mode, None)
         .expect("emit_synthetic");
     (out.controller_ts, out.render_ts)
 }
@@ -139,6 +139,7 @@ fn authored_controller_is_composed_via_setup_not_rewritten() {
         Some(&authored),
         "./page.synthetic.controller.ts",
         CompileMode::View,
+        None,
     )
     .expect("emit");
     assert!(out.controller_ts.contains(r#"import __authored from "./controller.ts";"#));
@@ -151,9 +152,9 @@ fn authored_controller_is_composed_via_setup_not_rewritten() {
     );
     assert!(
         out.controller_ts.contains(
-            "type __AuthoredScope = typeof __authored extends ControllerExport<infer S> ? S : never;"
+            "type __AuthoredScope = typeof __authored.__def extends { scope?: infer F }",
         ),
-        "recovers the contributed scope type from the ControllerExport:\n{}",
+        "recovers the scope-factory return type from __def.scope (slice 2 G4):\n{}",
         out.controller_ts
     );
     assert!(
@@ -192,6 +193,7 @@ fn authored_compose_maps_manifest_clients_into_resolver_ctx() {
         Some(&authored),
         "./page.synthetic.controller.ts",
         CompileMode::View,
+        None,
     )
     .expect("emit");
     assert!(out.controller_ts.contains("route: route,"), "route → ctx.route:\n{}", out.controller_ts);
@@ -215,20 +217,38 @@ fn propless_component_synthesizes_like_a_view() {
 fn component_props_are_rejected_for_now() {
     let program = parse("<prop name=\"label\" type=\"string\" />\n<span>{label}</span>").expect("parse");
     let manifest = AppManifest::parse("{}").expect("manifest");
-    let err = emit_synthetic(&program, &manifest, None, "./c.ts", CompileMode::Component)
+    let err = emit_synthetic(&program, &manifest, None, "./c.ts", CompileMode::Component, None)
         .expect_err("component props must be rejected in Phase 1");
     assert!(format!("{err:?}").contains("prop"), "error names props: {err:?}");
 }
 
+/// Slice 2 G5 — `{#async … as v}` synthesizes (the `as v` binding is
+/// lifted into the typed scope as `v: any`; the render's `$scope.v`
+/// write at mount is the runtime source of truth). The slice-1
+/// regression guard flipped from "rejected" to "synthesizes".
 #[test]
-fn async_let_is_rejected_until_phase_2() {
+fn async_let_lifts_as_v_binding_into_typed_scope() {
     let src = r#"<data name="thing" source="ship.demo.thing()" live />
 {#async thing as v}{:loading}<p>…</p>{:error err}<p>{err.message}</p>{:ok}<p>{v.x}</p>{/async}"#;
     let program = parse(src).expect("parse");
     let manifest = AppManifest::parse(SHIP_MANIFEST).expect("manifest");
-    let err = emit_synthetic(&program, &manifest, None, "./c.ts", CompileMode::View)
-        .expect_err("{#async} must be rejected");
-    assert!(format!("{err:?}").contains("async"), "error names async: {err:?}");
+    let out = emit_synthetic(&program, &manifest, None, "./c.ts", CompileMode::View, None)
+        .expect("G5: {#async … as v} must synthesize in slice 2");
+    // Controller exposes the `v` binding on the typed scope (the
+    // `as v` binder declared in the template, lifted into the controller).
+    assert!(
+        out.controller_ts.contains("v: any"),
+        "G5: the `as v` binding must appear on the controller's typed scope:\n{}",
+        out.controller_ts
+    );
+    // Render snapshots the value at mount, so the body can read it
+    // through the runtime `$scope.v` (the typed scope's `v: any`
+    // flows from the controller to the render via the `scope` import).
+    assert!(
+        out.render_ts.contains("$scope.v = (scope.thing().value)"),
+        "G5: render must snapshot the `as v` value at mount:\n{}",
+        out.render_ts
+    );
 }
 
 #[test]
@@ -244,10 +264,10 @@ fn client_emit_returns_mount_and_hydrate_contract() {
         None,
         "./page.synthetic.controller.ts",
         CompileMode::View,
+        None,
     )
     .expect("emit");
     let client = out.render_client_ts;
-    // The browser contract: wrapped in `view()`, default-exported.
     assert!(client.contains("export default view(() => {"), "client wraps in view():\n{client}");
     assert!(client.contains("__mount(container: HTMLElement) {"), "client has __mount:\n{client}");
     assert!(client.contains("hydrate(root: HTMLElement) {"), "client has hydrate:\n{client}");
@@ -275,10 +295,8 @@ fn merged_client_module_is_self_contained() {
 <ul>{#for item of list().value.items key={item.id}}<li>{item.text}</li>{/for}</ul>"#;
     let program = parse(src).expect("parse");
     let manifest = AppManifest::parse(SHIP_MANIFEST).expect("manifest");
-    let merged = emit_synthetic_client_module(&program, &manifest, None, CompileMode::View)
+    let merged = emit_synthetic_client_module(&program, &manifest, None, CompileMode::View, None)
         .expect("merged client module");
-
-    // No cross-module scope import survives the merge.
     assert!(
         !merged.contains("import { scope } from"),
         "merged module must not import scope across a boundary:\n{merged}"
@@ -308,4 +326,83 @@ fn only_referenced_manifest_clients_are_imported() {
     let (ctrl, _render) = synth("<p>static</p>", ROUTE_MANIFEST, CompileMode::View);
     assert!(!ctrl.contains("@ship/deck/route"), "unused manifest client must not import:\n{ctrl}");
     assert!(ctrl.contains("export const scope = {  };"), "empty scope when nothing referenced:\n{ctrl}");
+}
+
+/// Slice 2 G3 — a manifest client name appearing inside a string literal
+/// does NOT spuriously import the client. The classic case is
+/// `class:active={x === 'ship-light'}` where `ship` would otherwise
+/// be matched as a free identifier inside the literal span, importing
+/// the (unprovided) `ship` client and breaking the bundle.
+#[test]
+fn string_literal_does_not_trigger_manifest_import() {
+    let manifest = r#"{ "clients": { "ship": { "from": "@app/clients/demo", "import": "makeShip", "construct": true } } }"#;
+    let (ctrl, _render) = synth(
+        r#"<span class:active={kind === 'ship-light'}>x</span>"#,
+        manifest,
+        CompileMode::Component,
+    );
+    assert!(
+        !ctrl.contains("__make_ship") && !ctrl.contains("const ship ="),
+        "string-literal `ship` must not import the ship client:\n{ctrl}"
+    );
+}
+
+/// Slice 2 G3 — the same skip applies to template literals. The author
+/// pattern `${ship.foo}` in a string template still counts as a free
+/// reference (it IS a real expression), but `\`hello ${world} ship\``'s
+/// outside-of-interpolation text doesn't.
+#[test]
+fn template_literal_outside_interpolation_does_not_trigger_manifest_import() {
+    let manifest = r#"{ "clients": { "ship": { "from": "@app/clients/demo", "import": "makeShip", "construct": true } } }"#;
+    let (ctrl, _render) = synth(
+        r#"<p class:active={kind === `ship-light`}>x</p>"#,
+        manifest,
+        CompileMode::View,
+    );
+    assert!(
+        !ctrl.contains("__make_ship"),
+        "template-literal `ship` must not import the client:\n{ctrl}"
+    );
+}
+/// `ControllerExport<Scope>` generic) so a controller-declared signal
+/// like `name` is visible in the recovered scope. Uses the canonical
+/// `controller({ scope: () => ({...}) })` form (no explicit generic)
+/// so the `SC` parameter is inferred from the return — proves the
+/// recovery is doing real work, not just papering over the gap.
+#[test]
+fn authored_scope_factory_return_type_is_recovered() {
+    let program = parse("<h1>{name()}</h1>").expect("parse");
+    let manifest = AppManifest::parse("{}").expect("manifest");
+    // Canonical form: `controller({ scope: () => ({ name: signal(...) }) })`.
+    // TypeScript infers `SC = { name: Signal<string> }` from the return;
+    // the synthetic controller must recover that exact type from
+    // `__def.scope` (not from the generic `ControllerExport<Scope>`).
+    let authored_src = r#"import { controller, signal } from '@ship/sui-runtime'
+export default controller({
+  scope: () => ({ name: signal('Hub') }),
+})
+"#;
+    // Canonical form — `controller({ scope: () => ({...}) })` with no
+    // explicit generic. The recovery is structural (text on the
+    // emitted controller module); the specifier never resolves.
+    let authored = AuthoredController { specifier: "./in-memory.ts".to_string() };
+    let out = emit_synthetic(
+        &program,
+        &manifest,
+        Some(&authored),
+        "./page.synthetic.controller.ts",
+        CompileMode::View,
+        None,
+    )
+    .expect("emit");
+    let ctrl = out.controller_ts;
+    // The recovery uses `__def.scope` factory return:
+    assert!(
+        ctrl.contains("type __AuthoredScope = typeof __authored.__def extends { scope?: infer F }"),
+        "G4: recovery must inspect __def.scope, not the ControllerExport<Scope> generic:\n{ctrl}"
+    );
+    // (The authored module isn't actually imported for this unit test —
+    // the G4 tsc proof lives in `synthetic_client_tsc::hub_controller_recovers_scope_factory_return_type`
+    // which uses the real on-disk controller.)
+    drop(authored_src);
 }

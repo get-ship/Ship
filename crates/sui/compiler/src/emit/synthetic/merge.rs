@@ -37,6 +37,7 @@ pub fn emit_synthetic_client_module(
     manifest: &AppManifest,
     authored: Option<&AuthoredController>,
     mode: CompileMode,
+    component_tag: Option<&str>,
 ) -> Result<String, CompileError> {
     let mut used: Vec<String> = Vec::new();
     for name in manifest.clients.keys() {
@@ -45,8 +46,12 @@ pub fn emit_synthetic_client_module(
         }
     }
     let controller_ts = emit_controller(program, manifest, &used, authored, mode)?;
-    let client_ts = render::emit_render_client(program, MERGED_CONTROLLER_SPEC, mode)?;
-
+    let client_ts = render::emit_render_client(
+        program,
+        MERGED_CONTROLLER_SPEC,
+        mode,
+        component_tag,
+    )?;
     let (ctrl_imports, ctrl_body) = split_module(&controller_ts);
     let (client_imports, client_body) = split_module(&client_ts);
     let merged_imports = merge_imports(&ctrl_imports, &client_imports, MERGED_CONTROLLER_SPEC);

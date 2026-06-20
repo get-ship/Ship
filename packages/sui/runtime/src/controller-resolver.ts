@@ -271,20 +271,35 @@ export interface ControllerExport<Scope = object> {
 // with no type arguments; the explicit-`<Scope>` overloads below are the
 // deprecated legacy/curried bridges (an explicit single `<Scope>` can't bind
 // this overload's two inferred params, so resolution falls through to them).
-export function controller<Ctx, SC extends Record<string, unknown>>(
-  def: ScopedControllerDef<Ctx, SC>,
-): ControllerExport<Ctx & SC>
+// `__def` is added to the canonical return so the synthetic controller
+// can recover the scope-factory return type via
+// `typeof __authored.__def.scope` (slice 2 G4). The original `D` generic
+// preserves the precise literal type of `def` (including the inferred
+// `Ctx` + `SC`).
+export function controller<Ctx, SC extends Record<string, unknown>, D extends ScopedControllerDef<Ctx, SC> = ScopedControllerDef<Ctx, SC>>(
+  def: D,
+): ControllerExport<Ctx & SC> & { __def: D }
 // Legacy form `controller<Scope>(def)` — for controllers with NO `scope:`
 // factory (only `on`/`mount`). Their scope is entirely template-declared, so
 // the compiler-emitted `Scope` is already precise (no casts). A controller
-// that contributes scope uses the inferred form above.
 export function controller<Scope>(def: ControllerDef<Scope>): ControllerExport<Scope>
 // Implementation signature: `any` so it satisfies both overloads (the
-// overloads are the real public contract).
+// overloads are the real public contract). The `__def` field carries
+// the original `def` (its precise literal type) so the synthetic
+// controller can recover the scope-factory return type via
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function controller(def: any): ControllerExport<object> {
+export function controller<D extends ControllerDef<any> = ControllerDef<object>>(
+  def: D,
+): ControllerExport<object> & { __def: D } {
   return {
     setup: (ctx) => resolveController(def as ControllerDef<object>, ctx),
-    __def: def as ControllerDef<object>,
+    // `__def` carries the precise literal type of `def` (via the `D`
+    // generic) so the synthetic controller can recover the
+    // scope-factory return type through
+    // `typeof __authored.__def extends { scope?: infer F }` (slice 2
+    // G4). The `controller<Scope>(def)` legacy overload's
+    // `ControllerDef<Scope>` is still the public type for callers
+    // who read `__def` without the literal-narrowing pattern.
+    __def: def,
   }
 }

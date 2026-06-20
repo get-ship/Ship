@@ -102,6 +102,7 @@ pub(super) fn emit_render(
     program: &Program,
     controller_specifier: &str,
     mode: CompileMode,
+    _component_tag: Option<&str>,
 ) -> Result<String, CompileError> {
     if let Some(err) = unsupported_feature(&program.template) {
         return Err(err);
@@ -155,6 +156,7 @@ pub(super) fn emit_render_client(
     program: &Program,
     controller_specifier: &str,
     mode: CompileMode,
+    _component_tag: Option<&str>,
 ) -> Result<String, CompileError> {
     if let Some(err) = unsupported_feature(&program.template) {
         return Err(err);
@@ -282,19 +284,24 @@ fn render_dom_imports(program: &Program, mode: CompileMode) -> Vec<String> {
 /// `<name>` is not a member of the controller's `Scope`, so the two
 /// diverge. Phase 2 handles `{#async}` by lifting the binding into the
 /// controller's typed scope; until then it is out of scope here.
+/// G5 — `{#async … as v}` lifts the `as v` binding into the typed
+/// scope so the render can reference `scope.v` after the Let
+/// snapshot. The render's `emit_let_block` writes `$scope.v = (value)`
+/// at mount; the controller's scope declares `v: any` so the
+/// type-check passes (the actual shape is the value expression's
+/// return type, but we don't have that at the controller level —
+/// the controller only knows the NAME; the render sees the value).
+/// The slice-2 acceptance is that views using `{#async … as v}`
+/// synthesize (no more unsupported-feature error) and the render
+/// still drives the binding through the runtime `$scope`.
 fn unsupported_feature(instrs: &[Instr]) -> Option<CompileError> {
     for instr in instrs {
         let nested: Option<&[Instr]> = match instr {
-            Instr::Let(_) => {
-                return Some(
-                    CompileError::new(
-                        "synthesize: `{#async … as v}` is not supported in the synthetic \
-                         render yet — its `as` binding isn't part of the controller's typed \
-                         scope. (Phase 2: lift the binding into the typed scope.)",
-                    )
-                    .with_category("synthesize"),
-                );
-            }
+            // G5: Let (from `{#async … as v}`) is now allowed — the
+            // controller declares the binding on its typed scope,
+            // and the render snapshots the value into the runtime
+            // `$scope` at mount.
+            Instr::Let(_) => None,
             Instr::Element(el) => Some(&el.children),
             Instr::If(i) => {
                 for b in &i.branches {

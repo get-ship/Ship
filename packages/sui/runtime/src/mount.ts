@@ -19,8 +19,7 @@
 // they share the payload/scope context and have no use apart from mount().
 
 import { signal, isSignal, type Signal } from './signal'
-import type { LiveSignal, LiveState } from './live'
-import type { RouteSignals } from '@ship/deck/route'
+import type { RouteSignals } from './route-signals'
 import { createScope, withScope } from './effect-scope'
 import { morph } from './morph'
 import type { ViewPayload as GeneratedViewPayload } from './generated'
@@ -348,9 +347,21 @@ export async function mount<Scope = Record<string, unknown>>(
   }
 
   // 10. Build the handle.
+  // The handle's `scope` is the union of SSR-built signals (writable
+  // patch targets) + the setup return's signals (any authored signals
+  // the controller exposes). The runtime tests depend on `name`-style
+  // signals being reachable through `handle.scope` so post-hydrate
+  // writes can drive the binding's effect; without the union, the
+  // handle exposes only the (empty) payload-derived scope and the
+  // test's `sig.set(...)` becomes a no-op.
+  const handleScope = Object.assign(
+    Object.create(null),
+    built.scope,
+    setupRet ?? {},
+  ) as Record<string, unknown> as unknown as Scope
   const handle: MountHandle<Scope> = {
     element: target,
-    scope: built.scope as unknown as Scope,
+    scope: handleScope,
     dispose() {
       if (disposed) return
       disposed = true
@@ -396,8 +407,6 @@ export async function mount<Scope = Record<string, unknown>>(
   }
   return handle
 }
-
-// ── Internals ─────────────────────────────────────────────────────────
 
 /**
  * Compiled view modules carry their declared `<client>` names on the

@@ -429,6 +429,15 @@ impl TemplateEmitter {
                 let v = self.fresh("t");
                 let rw = self.rw(&expr.source, &[]);
                 w.line(&format!("const {v} = document.createTextNode(\"\");"));
+                // Slice 2 — record the hydration key on the text node so
+                // the ship-js SSR path's serialization wraps it in
+                // `<!--sui:text:bN-->...<!--/sui-->`. The browser DOM
+                // has no `__hydrateKey` field so this call is a no-op;
+                // the server-DOM reads the field at toHTML time.
+                w.line(&format!(
+                    "markHydrateText({v}, {k});",
+                    k = js_string(&key),
+                ));
                 w.line(&format!("{parent_var}.appendChild({v});"));
                 if self.is_static_row_expr(&expr.source) {
                     // D5: row-scope static read — skip the bindText
