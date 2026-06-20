@@ -47,13 +47,12 @@ bootstrap:
     # umbrella + islands + marketing/arcade in-process (rolldown). No per-pack
     # pre-compile step — components compile from source on demand.
     cargo run -p deck-cli --quiet -- build-assets
-    # Hub + space scaffolds: the daemon-served `/` and `/space/<id>` HTML apps.
-    # shipd's serve-time app list lives in `apps/shipd/apps.jsonc`; here we
-    # invoke the per-app bundler explicitly. The per-app `bundle-framework`
-    # flag materializes the framework singletons so each app's `.deck/` is
+    # App scaffolds: the daemon-served `/` and `/space/<id>` HTML apps. The app
+    # list lives ONLY in `apps/shipd/apps.jsonc` (read by shipd at startup);
+    # build each from its registry `root` via the per-app bundler. The
+    # root-mounted app gets `--bundle-framework` so its `.deck/` is
     # self-contained.
-    cargo run -q -p deck-cli -- build --project apps/hub --bundle-framework
-    cargo run -q -p deck-cli -- build --project apps/spaces
+    just _build-apps
     just dev-runtime-install
     echo "bootstrap complete — 'just dev' to start the daemon"
 
@@ -70,25 +69,44 @@ dev:
 shell *ARGS:
     @scripts/dev/shell.sh {{ARGS}}
 
-# Force a one-shot rebuild of every asset bundle served by the daemon
-# (sui-runtime, sui-dom, sui-components, islands, views/*).
-# Regenerate the typed dynamic-route table from the view file tree (SSOT).
-[group('daily')]
-gen-routes:
-    @cargo run -q -p deck-cli -- routes
-
 # Bakes every bundle via the in-process Rolldown bundler (#163) — the same
 # engine shipd runs, and the ONLY bundler. Framework singletons + the
 # sui-components umbrella + islands + views + marketing/arcade, all traced from
 # source. No per-pack build step: components compile from `.sui` on demand.
-# Also rebuilds the hub + space scaffolds (the daemon-served `/` and
-# `/space/<id>`) so a fresh tree or a stale `.deck/space-scaffold` doesn't
-# blank a Tauri `--app=<id>` window.
+# Also rebuilds every app's scaffold (the daemon-served `/` and `/space/<id>`)
+# so a fresh tree or a stale `.deck/` doesn't blank a Tauri `--app=<id>` window.
+#
+# Route tables self-generate inside the build — no separate `gen-routes` step
+# and no hardcoded app list. `build-assets` writes the view tables
+# (`views/{routes,meta}.gen.ts`) from the framework's view scan; each
+# `deck build --project <app>` writes that app's `routes.gen.ts` (the bundle
+# entry) as its first step. The app list comes from `apps/shipd/apps.jsonc` —
+# the single registry (also read by shipd at startup), never duplicated here.
 [group('daily')]
-dev-build-all: _sui-compiler-lib gen-routes
+dev-build-all: _sui-compiler-lib
     @cargo run -p deck-cli --quiet -- build-assets
-    @cargo run -q -p deck-cli -- build --project apps/hub --bundle-framework
-    @cargo run -q -p deck-cli -- build --project apps/spaces
+    @just _build-apps
+
+# Build every app in the registry from its `root` via `deck build --project`.
+# The app list lives ONLY in `apps/shipd/apps.jsonc` (the single registry, also
+# read by shipd at startup) — no recipe duplicates it. The root-mounted app
+# (`route == "/"`) self-contains the /_deck/* framework surface
+# (`--bundle-framework`); every `deck build` self-generates that app's
+# `routes.gen.ts` entry as its first step. jq can't read JSONC, so strip `//`
+# line comments first (apps.jsonc holds no `//` inside any string).
+_build-apps:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sed 's://.*$::' apps/shipd/apps.jsonc \
+        | jq -r '.apps[] | [.root, .route] | @tsv' \
+        | while IFS=$'\t' read -r root route; do
+            [ -z "$root" ] && continue
+            if [ "$route" = "/" ]; then
+                cargo run -q -p deck-cli -- build --project "$root" --bundle-framework
+            else
+                cargo run -q -p deck-cli -- build --project "$root"
+            fi
+        done
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
@@ -330,23 +348,25 @@ build: _sui-compiler-lib
     #!/usr/bin/env bash
     set -euo pipefail
     command -v bun >/dev/null || { echo "build: bun not on PATH" >&2; exit 1; }
-    echo "[1/8] gen-types"
+    echo "[1/7] gen-types"
     cargo run -p xtask --quiet -- gen-types
-    echo "[2/8] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bundler loads)"
-    # Steps 3-8 drive the SUI compiler over Bun FFI against this .so. Nothing
+    echo "[2/7] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bundler loads)"
+    # Steps 3-7 drive the SUI compiler over Bun FFI against this .so. Nothing
     # out-of-band), so without this step it silently goes stale and bundles
     # compile against an old token registry / lint set. Cheap no-op when fresh.
     cargo build -p sui-compiler
-    echo "[3/8] framework + sui-* bundles + islands + views + catalog (cargo run -p deck-cli --quiet -- build-assets — in-process Rolldown; the only bundler AND the only catalog producer, → .deck/catalogs/workspace.json)"
+    echo "[3/7] framework + sui-* bundles + islands + views + catalog (cargo run -p deck-cli --quiet -- build-assets — in-process Rolldown; the only bundler AND the only catalog producer, → .deck/catalogs/workspace.json)"
     cargo run -p deck-cli --quiet -- build-assets
-    echo "[4/8] catalog baked in [3/8] — the duplicate TS producer (@ship/sui-catalog) is retired; deck-bundler is the single source"
-    echo "[5/8] hub scaffold (the daemon-served / — bundled with framework assets so the dir is self-contained for installed builds)"
-    cargo run -q -p deck-cli -- build --project apps/hub --bundle-framework
-    echo "[6/8] space scaffold (the daemon-served /space/<id> — the thin per-space frontend a Tauri --app=<id> window loads; DECK_APP_ID is injected by the daemon at serve time)"
-    cargo run -q -p deck-cli -- build --project apps/spaces
-    echo "[7/8] cargo build --release (ship-cli + shipd)"
+    echo "[4/7] catalog baked in [3/7] — the duplicate TS producer (@ship/sui-catalog) is retired; deck-bundler is the single source"
+    # App scaffolds (the daemon-served / and /space/<id>). Built from the
+    # `apps/shipd/apps.jsonc` registry — the single app list, never duplicated
+    # in a recipe; the root-mounted app self-contains the /_deck/* framework
+    # surface (`--bundle-framework`).
+    echo "[5/7] app scaffolds (from apps/shipd/apps.jsonc)"
+    just _build-apps
+    echo "[6/7] cargo build --release (ship-cli + shipd)"
     cargo build --release -p ship-cli -p shipd
-    echo "[8/8] verify outputs"
+    echo "[7/7] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
     for bin in ship shipd; do
@@ -357,7 +377,10 @@ build: _sui-compiler-lib
             echo "  ✓ $target_dir/release/$bin"
         fi
     done
-    for asset in .deck/framework/sui-runtime.js .deck/sui-marketing.js .deck/sui-arcade.js .deck/catalogs/workspace.json apps/hub/.deck/index.html apps/spaces/.deck/index.html; do
+    # Per-app `index.html` outputs come from the apps.jsonc registry (one app
+    # list, never duplicated); framework bundles are checked by fixed path.
+    app_indexes=$(sed 's://.*$::' apps/shipd/apps.jsonc | jq -r '.apps[].root + "/.deck/index.html"')
+    for asset in .deck/framework/sui-runtime.js .deck/sui-marketing.js .deck/sui-arcade.js .deck/catalogs/workspace.json $app_indexes; do
         if [ ! -s "$asset" ]; then
             echo "  ✗ $asset missing or empty" >&2
             missing=1
