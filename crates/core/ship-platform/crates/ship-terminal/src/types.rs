@@ -15,9 +15,7 @@ pub enum SessionKind {
     /// agent id and a harness id, output parses through the harness
     /// adapter.
     Agent,
-    /// A pipeline step's child process. Registered so the pipelines
-    /// view can live-stream output. Does not take user stdin.
-    Pipeline,
+
     /// A plain shell (`$SHELL`) for the dock's terminal tab. No agent,
     /// no harness, no parsing — just raw passthrough.
     Shell,
@@ -65,18 +63,6 @@ pub struct SessionMeta {
     pub harness_session_id: Option<String>,
 }
 
-/// Incoming spawn request. Agent-kind sessions require `agent_id` +
-/// `harness`; shell kinds require none; pipeline kinds are registered
-/// internally by the orchestrator, not over HTTP.
-#[derive(Clone, Debug, Deserialize)]
-pub struct SpawnRequest {
-    pub workspace_id: String,
-    pub kind: SessionKind,
-    #[serde(default)]
-    pub agent_id: Option<String>,
-    #[serde(default)]
-    pub harness: Option<String>,
-}
 
 pub mod private {
     use super::*;

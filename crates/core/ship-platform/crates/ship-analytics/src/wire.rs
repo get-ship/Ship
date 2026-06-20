@@ -2,8 +2,7 @@
 //!
 //! `AnalyticsWire` calls the typed `service` module (which opens and closes
 //! its own DB connection per call — no raw DB in this file) and maps rows
-//! into proto messages. Shipd mounts it via `AnalyticsServiceExt::register`,
-//! replacing `impl AnalyticsService for OpsImpl` in `apps/shipd/analytics_rpc.rs`.
+//! into proto messages. Shipd mounts it via `AnalyticsServiceExt::register`.
 //!
 //! All four ops are C0 reads (edge-authenticated); no gate closure is needed.
 

@@ -16,7 +16,6 @@ use super::types::{Cursor, EntityKindFilter, SearchHit, SearchOpts};
 #[derive(Serialize, Debug)]
 pub struct SearchResponse {
     pub hits: Vec<SearchHit>,
-    pub total: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
 }
@@ -54,7 +53,6 @@ pub async fn run_search(
     merged.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
 
     let limit = opts.limit_or_default();
-    let total = merged.len();
     let truncated = if merged.len() > limit {
         merged.truncate(limit);
         true
@@ -68,7 +66,7 @@ pub async fn run_search(
         None
     };
 
-    SearchResponse { hits: merged, total, cursor }
+    SearchResponse { hits: merged, cursor }
 }
 
 fn adapter_enabled(kind: EntityKindFilter, allow: Option<&[EntityKindFilter]>) -> bool {

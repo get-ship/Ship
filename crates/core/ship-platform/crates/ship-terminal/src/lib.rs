@@ -14,7 +14,7 @@
 //!
 //! ## Modules
 //! - `types`        — `SessionId`, `SessionKind`, `SessionStatus`,
-//!                    `SessionMeta`, `SpawnRequest`, `Inner`,
+//!                    `SessionMeta`, `Inner`,
 //!                    `SessionHandle`, `PtySession`.
 //! - `registry`     — in-memory `SessionRegistry` (HashMap of
 //!                    `SessionId -> SessionHandle`).
@@ -27,8 +27,7 @@ pub mod shell_actor;
 pub mod types;
 
 pub use registry::SessionRegistry;
-pub use shell_actor::{spawn_shell, stop as stop_shell};
+pub use shell_actor::spawn_shell;
 pub use types::{
     Inner, PtySession, SessionHandle, SessionId, SessionKind, SessionMeta, SessionStatus,
-    SpawnRequest,
 };

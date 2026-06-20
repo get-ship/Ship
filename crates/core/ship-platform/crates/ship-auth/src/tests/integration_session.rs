@@ -12,11 +12,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 
-use ship_substrate::events::filter::EventFilter;
-use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
-use ship_types::event_types::{AUTH_SESSION_CREATED, AUTH_SESSION_REVOKED};
-use tempfile::tempdir;
-
 use crate::scopes::{
     DaemonSession, Scope, SessionRegistry, generate_session_token, persist_session,
     remove_persisted_session,
@@ -26,7 +21,9 @@ use crate::session::{
     issue_browser_session, issue_browser_session_with_ttl, lookup_browser_session,
     parse_session_cookie,
 };
-use crate::testutil::init_auth;
+use crate::testutil::{init_auth, query_events};
+use ship_types::event_types::{AUTH_SESSION_CREATED, AUTH_SESSION_REVOKED};
+use tempfile::tempdir;
 
 fn empty_registry() -> SessionRegistry {
     Arc::new(Mutex::new(HashMap::new()))
@@ -46,22 +43,6 @@ fn persisted_session(token: &str) -> DaemonSession {
         ephemeral: false,
         is_operator_cred: false,
     }
-}
-
-fn query_events(event_type: &str) -> Vec<ship_types::envelope::EventEnvelope> {
-    // auth.session.* is Account-scoped → account.db.
-    let store = SqliteEventStore::new_for_scope(
-        &ship_substrate::project::get_global_dir().expect("global dir"),
-        ship_types::event_registry::EventScope::Account,
-        None,
-    )
-    .expect("open auto-isolated test store");
-    store
-        .query(&EventFilter {
-            event_type: Some(event_type.to_string()),
-            ..Default::default()
-        })
-        .expect("query events")
 }
 
 // ── Cookie parsing ────────────────────────────────────────────────────────────

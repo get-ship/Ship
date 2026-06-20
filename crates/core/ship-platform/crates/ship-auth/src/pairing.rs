@@ -271,7 +271,7 @@ pub fn new_shared() -> SharedPairingRegistry {
 
 /// Generate a human-readable pairing code. 6 characters from an
 /// unambiguous alphabet (no 0/O, 1/I/L), formatted as XXX-XXX.
-fn generate_code() -> Result<String, getrandom::Error> {
+pub(crate) fn generate_code() -> Result<String, getrandom::Error> {
     const ALPHABET: &[u8] = b"ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     let mut bytes = [0u8; 6];
     getrandom::getrandom(&mut bytes)?;
@@ -283,7 +283,7 @@ fn generate_code() -> Result<String, getrandom::Error> {
 }
 
 /// Generate a long-random claim token. 256 bits of entropy, hex-encoded.
-fn generate_claim_token() -> Result<String, getrandom::Error> {
+pub(crate) fn generate_claim_token() -> Result<String, getrandom::Error> {
     let mut bytes = [0u8; 32];
     getrandom::getrandom(&mut bytes)?;
     Ok(format!("claim_{}", super::scopes::hex_encode(&bytes)))
@@ -294,114 +294,4 @@ fn generate_claim_token() -> Result<String, getrandom::Error> {
 /// confirmed via CLI that they own the machine.
 pub fn paired_session_scopes() -> Vec<Scope> {
     vec![Scope::Full]
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn init_produces_unique_codes_and_claims() {
-        let mut reg = PairingRegistry::new();
-        let a = reg.init(None, "").unwrap();
-        let b = reg.init(None, "").unwrap();
-        assert_ne!(a.code, b.code);
-        assert_ne!(a.claim_token, b.claim_token);
-    }
-
-    #[test]
-    fn confirm_unknown_code_fails() {
-        let mut reg = PairingRegistry::new();
-        let err = reg.confirm("BAD-COD", "ship_sess_x".to_string()).unwrap_err();
-        assert_eq!(err, ConfirmError::UnknownCode);
-    }
-
-    #[test]
-    fn confirm_then_claim_roundtrip() {
-        let mut reg = PairingRegistry::new();
-        let pairing = reg.init(Some("studio".to_string()), "").unwrap();
-
-        assert_eq!(reg.claim(&pairing.claim_token), ClaimResult::Pending);
-
-        let claim = reg.confirm(&pairing.code, "ship_sess_abc".to_string()).unwrap();
-        assert_eq!(claim, pairing.claim_token);
-
-        let result = reg.claim(&pairing.claim_token);
-        assert_eq!(
-            result,
-            ClaimResult::Approved { session_token: "ship_sess_abc".to_string() }
-        );
-
-        // Second claim is Unknown — one-shot.
-        assert_eq!(reg.claim(&pairing.claim_token), ClaimResult::Unknown);
-    }
-
-    #[test]
-    fn confirm_twice_rejects_second() {
-        let mut reg = PairingRegistry::new();
-        let p = reg.init(None, "").unwrap();
-        reg.confirm(&p.code, "tok1".to_string()).unwrap();
-        // Code was consumed; second confirm gets UnknownCode.
-        let err = reg.confirm(&p.code, "tok2".to_string()).unwrap_err();
-        assert_eq!(err, ConfirmError::UnknownCode);
-    }
-
-    #[test]
-    fn unknown_claim_token_returns_unknown() {
-        let mut reg = PairingRegistry::new();
-        assert_eq!(reg.claim("no-such-claim"), ClaimResult::Unknown);
-    }
-
-    #[test]
-    fn code_alphabet_excludes_confusing_chars() {
-        let code = generate_code().unwrap();
-        assert!(!code.contains('0'));
-        assert!(!code.contains('O'));
-        assert!(!code.contains('1'));
-        assert!(!code.contains('I'));
-        assert!(!code.contains('L'));
-        assert_eq!(code.len(), 7); // XXX-XXX
-    }
-
-    #[test]
-    fn claim_token_is_long() {
-        let token = generate_claim_token().unwrap();
-        assert!(token.starts_with("claim_"));
-        assert_eq!(token.len(), 6 + 64); // prefix + 32 bytes hex
-    }
-
-    #[test]
-    fn confirm_rejects_after_max_attempts() {
-        let mut reg = PairingRegistry::new();
-        let p = reg.init(None, "").unwrap();
-        // Burn the budget with wrong-code guesses.
-        for _ in 0..MAX_CONFIRM_ATTEMPTS {
-            let _ = reg.confirm("XXX-XXX", "tok".to_string());
-        }
-        // Even the correct code is now locked out until the pairing expires.
-        let err = reg.confirm(&p.code, "tok".to_string()).unwrap_err();
-        assert_eq!(err, ConfirmError::TooManyAttempts);
-    }
-
-    #[test]
-    fn init_rejects_after_max_pending() {
-        let mut reg = PairingRegistry::new();
-        for _ in 0..MAX_PENDING {
-            reg.init(None, "").unwrap();
-        }
-        let err = reg.init(None, "").unwrap_err();
-        assert_eq!(err, InitError::TooManyPending);
-    }
-
-    #[test]
-    fn init_rate_limits_per_source() {
-        let mut reg = PairingRegistry::new();
-        for _ in 0..INIT_RATE_PER_MINUTE {
-            reg.init(None, "127.0.0.1").unwrap();
-        }
-        let err = reg.init(None, "127.0.0.1").unwrap_err();
-        assert_eq!(err, InitError::RateLimited);
-        // A different source still has its own budget.
-        reg.init(None, "10.0.0.1").unwrap();
-    }
 }

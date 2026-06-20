@@ -25,3 +25,26 @@ pub fn init_auth(base_dir: impl AsRef<std::path::Path>) -> anyhow::Result<std::p
 
     ship_substrate::testutil::init_project_minimal(base_dir)
 }
+
+/// Query all events of a given type from the auto-isolated Account-scope
+/// store. Account-scoped events (`auth.session.*`, `daemon.owner.*`,
+/// `agent.grants.*`) land in `account.db`; this helper opens that store
+/// with the same auto-isolated path the test environment uses.
+pub fn query_events(
+    event_type: &str,
+) -> Vec<ship_types::envelope::EventEnvelope> {
+    use ship_substrate::events::filter::EventFilter;
+    use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
+    let store = SqliteEventStore::new_for_scope(
+        &ship_substrate::project::get_global_dir().expect("global dir"),
+        ship_types::event_registry::EventScope::Account,
+        None,
+    )
+    .expect("open auto-isolated test store");
+    store
+        .query(&EventFilter {
+            event_type: Some(event_type.to_string()),
+            ..Default::default()
+        })
+        .expect("query events")
+}

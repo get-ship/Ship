@@ -7,30 +7,12 @@
 /// - `pending_grants` diff: empty, partial, fully unapproved
 /// - `has_pending` flag correctness
 /// - `resolve_from` fail-closed on projection error (deny extras, not role fallback)
-use ship_substrate::events::filter::EventFilter;
-use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 use ship_types::event_types::AGENT_GRANTS_PROVISIONED;
 use tempfile::tempdir;
 
 use crate::grant_diff::{has_pending, pending_grants};
 use crate::scopes::{provision_grants, resolve_grants_at};
-use crate::testutil::init_auth;
-
-fn query_events(event_type: &str) -> Vec<ship_types::envelope::EventEnvelope> {
-    // auth.session.* / daemon.owner.* / agent.grants.* are Account-scoped → account.db.
-    let store = SqliteEventStore::new_for_scope(
-        &ship_substrate::project::get_global_dir().expect("global dir"),
-        ship_types::event_registry::EventScope::Account,
-        None,
-    )
-    .expect("open auto-isolated test store");
-    store
-        .query(&EventFilter {
-            event_type: Some(event_type.to_string()),
-            ..Default::default()
-        })
-        .expect("query events")
-}
+use crate::testutil::{init_auth, query_events};
 
 fn sv(items: &[&str]) -> Vec<String> {
     items.iter().map(|s| s.to_string()).collect()

@@ -11,7 +11,7 @@
 /// - `paired_session_scopes` returns Full
 use crate::pairing::{
     ClaimResult, ConfirmError, InitError, PairingRegistry, INIT_RATE_PER_MINUTE, MAX_CONFIRM_ATTEMPTS,
-    MAX_PENDING, paired_session_scopes, set_dev_mode, is_dev_mode,
+    MAX_PENDING, generate_claim_token, generate_code, paired_session_scopes, set_dev_mode, is_dev_mode,
 };
 use crate::scopes::Scope;
 
@@ -147,4 +147,29 @@ fn auth_pairing_dev_mode_toggle() {
     assert!(!is_dev_mode());
     // Restore original.
     set_dev_mode(orig);
+}
+
+// ── generate_code / generate_claim_token shapes ───────────────────────────────
+
+#[test]
+fn auth_pairing_generate_code_excludes_confusing_chars() {
+    // The alphabet must avoid 0/O, 1/I/L so a human reading a code aloud
+    // doesn't get the digits and letters mixed up.
+    let code = generate_code().unwrap();
+    assert!(!code.contains('0'));
+    assert!(!code.contains('O'));
+    assert!(!code.contains('1'));
+    assert!(!code.contains('I'));
+    assert!(!code.contains('L'));
+    assert_eq!(code.len(), 7); // XXX-XXX
+}
+
+#[test]
+fn auth_pairing_generate_claim_token_is_long() {
+    // 256 bits of entropy is unguessable; the `claim_` prefix identifies
+    // these tokens in logs and protects against them being mistaken for
+    // other token families.
+    let token = generate_claim_token().unwrap();
+    assert!(token.starts_with("claim_"));
+    assert_eq!(token.len(), 6 + 64); // prefix + 32 bytes hex
 }
