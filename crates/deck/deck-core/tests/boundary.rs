@@ -12,26 +12,66 @@
 //! (`sui-components` is no longer a singleton — the umbrella was retired
 //! (#221/#269); `sui-components/<tag>` is now the per-tag resolver namespace.)
 //!
+//! P2-11 hardening:
+//!   - `FORBIDDEN` widens to Ship-app-prefixed route patterns (`/shell/`,
+//!     `/spaces/`) and Ship-app asset namespaces (`/shell/_assets/`,
+//!     `/space/<id>`), so a deck crate cannot mount a route that is a Ship-
+//!     app concern (deck names the framework surface, the host names the
+//!     app surface).
+//!   - The scan also covers `*.sh` e2e scripts under `crates/deck/`. Bash
+//!     scripts that hardcode `apps/shell`, `apps/site`, etc. are also a
+//!     boundary leak — a deck e2e script must call the deck surface, not
+//!     reach into a Ship app's layout. The comment-line exemption carries
+//!     over; `#[cfg(test)]`-style brace suppression does not apply (bash has
+//!     no blocks), so only `#` comments are exempt.
+//!
 //! Exclusions:
-//!   - Lines starting with `//` (doc/line comments — may cite paths as examples)
-//!   - Lines inside `#[cfg(test)]` + `mod tests` blocks (fixtures legitimately
-//!     use these paths as concrete examples of what a host passes in)
-//!   - Dedicated `*_tests.rs` files
+//!   - Rust: lines starting with `//` (doc/line comments — may cite paths as
+//!     examples); lines inside `#[cfg(test)]` + `mod tests` blocks; dedicated
+//!     `*_tests.rs` files.
+//!   - Bash: lines starting with `#` (comment lines).
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Ship-app concepts that must never appear in deck-crate production source.
+/// Widened under P2-11:
+///   - The four route-prefix entries catch Ship-app mount paths and asset
+///     namespaces (`/shell/`, `/spaces/`, `/shell/_assets/`, `/space/`).
+///     These are exclusively Ship-app concerns — a non-Ship host would not
+///     mount routes under those prefixes. (`/_deck/*` is deck's surface and
+///     stays permitted; the gate's purpose is to keep deck from naming the
+///     app side of the seam.)
+///   - `shipd` and `shipd_` cover daemon-side naming patterns (env vars,
+///     files) that a host-agnostic deck crate would never legitimately use.
 const FORBIDDEN: &[&str] = &[
+    // Ship-app directories (path literals).
     "apps/shell",
     "apps/shipd",
     "apps/site",
+    // Ship-app-specific bundle names (deck owns the generic framework
+    // singletons — sui-runtime, sui-dom, sui-sdk-client — but the app-side
+    // bundles below are Ship-app concerns).
     "sui-chrome",
     "sui-marketing",
     "sui-arcade",
     "sui-pdf",
+    // The ship-app identifier macro.
     "__SHIP_APP_ID__",
+    // Route patterns that only exist inside Ship apps — a deck crate must
+    // not bake one of these paths into a router or asset URL.
+    "/shell/",
+    "/shell/_assets/",
+    "/spaces/",
+    "/space/",
+    // Daemon-side identifiers (the binary name + the daemon env-var prefix
+    // when used as an env-var name in deck source — e.g. `SHIPD_PORT`).
+    "shipd",
 ];
 
+/// Walk a directory tree and yield every `.rs` file that is NOT a dedicated
+/// test file. Test files (`*_tests.rs`, the gate's own `boundary.rs`) legitimately
+/// use realistic path fixtures — the gate is about production source.
 fn collect_rs(dir: &Path, out: &mut Vec<PathBuf>) {
     let Ok(entries) = fs::read_dir(dir) else { return };
     for entry in entries.flatten() {
@@ -39,8 +79,6 @@ fn collect_rs(dir: &Path, out: &mut Vec<PathBuf>) {
         if p.is_dir() {
             collect_rs(&p, out);
         } else if p.extension().is_some_and(|e| e == "rs")
-            // Skip dedicated test files — they legitimately use realistic path
-            // fixtures. The gate is about production source.
             && !p.file_name().is_some_and(|n| {
                 let s = n.to_string_lossy();
                 s.ends_with("_tests.rs") || s == "boundary.rs"
@@ -51,10 +89,28 @@ fn collect_rs(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// Scan a file's non-comment production lines for forbidden literals.
+/// Walk a directory tree and yield every `.sh` file. Bash e2e scripts that
+/// hardcode `apps/shell`, `apps/site`, etc. are a boundary leak the same way
+/// the equivalent Rust reference is — a deck e2e script must call the deck
+/// surface, not reach into a Ship-app layout. (P2-11: a previous revision of
+/// the gate exempted test scripts from the Ship-name scan, which let e2e
+/// bash hardcode `apps/shell`; this scanner closes that gap.)
+fn collect_sh(dir: &Path, out: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.is_dir() {
+            collect_sh(&p, out);
+        } else if p.extension().is_some_and(|e| e == "sh") {
+            out.push(p);
+        }
+    }
+}
+
+/// Scan a Rust file's non-comment production lines for forbidden literals.
 /// Skips lines inside `#[cfg(test)]` attribute + `mod tests { … }` blocks
 /// so test fixtures that pass realistic Ship paths don't trigger.
-fn scan_violations(f: &Path) -> Vec<String> {
+fn scan_rs_violations(f: &Path) -> Vec<String> {
     let Ok(text) = fs::read_to_string(f) else { return vec![] };
     let mut violations = Vec::new();
     let mut brace_depth: i32 = 0;
@@ -63,19 +119,23 @@ fn scan_violations(f: &Path) -> Vec<String> {
     // block we suppress until we leave that brace depth. This doesn't handle
     // all edge cases but is sufficient for the Rust source shapes in deck crates.
     let mut test_block_depth: Option<i32> = None;
-
     for (n, line) in text.lines().enumerate() {
         let trimmed = line.trim_start();
 
-        // Count braces to track depth (crude but reliable for well-formatted Rust).
         for ch in line.chars() {
             match ch {
                 '{' => brace_depth += 1,
                 '}' => {
                     brace_depth -= 1;
                     // If we just closed the test block, clear the marker.
+                    // `d` was captured BEFORE the test-block's opening `{`
+                    // was counted (see the order below — `#[cfg(test)]` is
+                    // checked AFTER the brace counter runs, so `d` is the
+                    // depth immediately OUTSIDE the test block). After the
+                    // closing `}`, `brace_depth` is back to that level, so
+                    // `<= d` (not `< d`) is the right "we just closed" signal.
                     if let Some(d) = test_block_depth {
-                        if brace_depth < d {
+                        if brace_depth <= d {
                             test_block_depth = None;
                         }
                     }
@@ -111,6 +171,80 @@ fn scan_violations(f: &Path) -> Vec<String> {
     violations
 }
 
+/// Scan a bash e2e script for forbidden literals. Suppresses `#` line
+/// comments (which may cite Ship paths as documentation); bash has no block
+/// structure to track.
+fn scan_sh_violations(f: &Path) -> Vec<String> {
+    let Ok(text) = fs::read_to_string(f) else { return vec![] };
+    let mut violations = Vec::new();
+    for (n, line) in text.lines().enumerate() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with('#') {
+            continue;
+        }
+        for forbidden in FORBIDDEN {
+            if line.contains(forbidden) {
+                violations.push(format!("{}:{}: {}", f.display(), n + 1, trimmed));
+                break;
+            }
+        }
+    }
+    violations
+}
+
+/// Belt-and-suspenders test-side guards. The bash scanner has no brace
+/// tracking; verify the rust scanner is the one we expect by calling its
+/// brace-aware scan on a synthetic snippet that mixes a comment / test /
+/// production line so a regression that drops brace tracking fails loudly.
+#[cfg(test)]
+mod scanner_self_tests {
+    use super::*;
+
+    #[test]
+    fn rust_scanner_skips_test_block() {
+        let dir = tempfile::tempdir().unwrap();
+        let f = dir.path().join("probe.rs");
+        std::fs::write(
+            &f,
+            "// forbidden comment: apps/shell\n\
+             fn prod() {}\n\
+             #[cfg(test)]\n\
+             mod tests {\n\
+             // forbidden in a test block: apps/site\n\
+             #[test] fn _x() { assert!(true); }\n\
+             }\n",
+        )
+        .unwrap();
+        assert!(scan_rs_violations(&f).is_empty(), "test-block comments must not trip the gate");
+    }
+
+    #[test]
+    fn rust_scanner_flags_production_line() {
+        let dir = tempfile::tempdir().unwrap();
+        let f = dir.path().join("probe.rs");
+        std::fs::write(&f, "fn bad() { let _ = \"apps/shell\"; }\n").unwrap();
+        let v = scan_rs_violations(&f);
+        assert_eq!(v.len(), 1, "production-line literal must trip the gate: {v:?}");
+        assert!(v[0].contains("apps/shell"), "the violation names the forbidden literal: {v:?}");
+    }
+
+    #[test]
+    fn bash_scanner_skips_hash_comments_and_flags_production() {
+        let dir = tempfile::tempdir().unwrap();
+        let f = dir.path().join("probe.sh");
+        std::fs::write(
+            &f,
+            "#!/usr/bin/env bash\n\
+             # doc: `apps/shell` is fine in a comment\n\
+             echo \"apps/shell must trip\"\n",
+        )
+        .unwrap();
+        let v = scan_sh_violations(&f);
+        assert_eq!(v.len(), 1, "non-comment line must trip the bash scanner: {v:?}");
+        assert!(v[0].contains("apps/shell"), "the violation names the forbidden literal: {v:?}");
+    }
+}
+
 #[test]
 fn deck_crates_name_no_ship_app() {
     // crates/deck/deck-core/  → ../  → crates/deck/
@@ -119,23 +253,39 @@ fn deck_crates_name_no_ship_app() {
         .unwrap()
         .to_path_buf();
 
-    let mut files = Vec::new();
+    // Rust: every `<crate>/src/**/*.rs` (excluding `*_tests.rs` + this gate
+    // itself) + each crate's `build.rs`. Bash: every `*.sh` under each crate
+    // (the deck-conformance crate ships e2e scripts; deck-bundler has its own
+    // shell fixtures; deck-axum / deck-host / deck-config have none).
+    let mut rs_files = Vec::new();
+    let mut sh_files = Vec::new();
     for crate_name in [
         "deck", "deck-cli", "deck-core", "deck-axum", "deck-host", "deck-bundler", "deck-config",
     ] {
-        let src = deck_dir.join(crate_name).join("src");
-        collect_rs(&src, &mut files);
-        // Also include build.rs at the crate root if present.
-        let build_rs = deck_dir.join(crate_name).join("build.rs");
+        let crate_root = deck_dir.join(crate_name);
+        let src = crate_root.join("src");
+        if src.is_dir() {
+            collect_rs(&src, &mut rs_files);
+            collect_sh(&src, &mut sh_files);
+        }
+        // Also include `build.rs` at the crate root if present.
+        let build_rs = crate_root.join("build.rs");
         if build_rs.is_file() {
-            files.push(build_rs);
+            rs_files.push(build_rs);
+        }
+        // Plus the conformance crate's e2e scripts (a `e2e/` dir sibling
+        // to `src/`) — the bash scanner's main target.
+        let e2e = crate_root.join("e2e");
+        if e2e.is_dir() {
+            collect_sh(&e2e, &mut sh_files);
         }
     }
-    assert!(!files.is_empty(), "found no deck crate source to scan ({deck_dir:?})");
-
     let mut violations = Vec::new();
-    for f in &files {
-        violations.extend(scan_violations(f));
+    for f in &rs_files {
+        violations.extend(scan_rs_violations(f));
+    }
+    for f in &sh_files {
+        violations.extend(scan_sh_violations(f));
     }
     assert!(
         violations.is_empty(),

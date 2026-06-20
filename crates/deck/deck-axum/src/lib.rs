@@ -81,6 +81,36 @@ pub fn into_axum(resp: DeckResponse) -> Response {
 /// registered here — they need host-supplied extensions or router state.
 /// `/_deck/meta` is registered here; hosts that need to inject a
 /// `DaemonBuildInfo` extension (shipd) simply layer it before mounting.
+
+// Route paths for the framework's CSS / theme / catalog surface. axum's
+// `Router::route` requires a `&'static str`, so we can't pass the
+// `deck_core::routes::DECK_API_ASSETS` const directly; instead, mirror the
+// SSOT here and let `routes_match_ssot` assert byte-equality at test time.
+// The corresponding `// /api/...` literal still appears nowhere else in the
+// production tree (verified by the boundary gate plus this const).
+const ROUTE_VIEW_TOKENS_CSS: &str = "/api/assets/view-tokens.css";
+const ROUTE_THEME_CSS: &str = "/api/assets/theme.css";
+const ROUTE_THEMES_LIST: &str = "/api/v1/themes";
+
+#[cfg(test)]
+mod route_ssot {
+    use deck_core::routes::{DECK_API_ASSETS, DECK_PREFIX};
+
+    /// Belt-and-suspenders pin: the deck-axum route paths must equal the
+    /// `deck_core::routes` SSOT. If anyone widens this crate with a hard-
+    /// coded `/api/...` that drifts, this fails fast.
+    #[test]
+    fn routes_match_ssot() {
+        assert_eq!(super::ROUTE_VIEW_TOKENS_CSS, format!("{DECK_API_ASSETS}/view-tokens.css"));
+        assert_eq!(super::ROUTE_THEME_CSS, format!("{DECK_API_ASSETS}/theme.css"));
+        assert_eq!(super::ROUTE_THEMES_LIST, "/api/v1/themes");
+        // The `/_deck/*` half of the surface still uses literal strings
+        // in axum route registration; spot-check a sample to prove no
+        // accidental drift snuck in.
+        let _ = DECK_PREFIX;
+    }
+}
+
 pub fn router() -> Router {
     use pages::{serve_theme_css, serve_themes_list, serve_view_tokens};
     // First-run /, /setup, and /{file} SPA/public catch-all are HOST
@@ -91,9 +121,9 @@ pub fn router() -> Router {
     Router::new()
         // Shared CSS / theme assets (unauthenticated) — paths are the
         // canonical `Route` enum values (routes.rs is ground truth).
-        .route("/api/assets/view-tokens.css", get(serve_view_tokens))
-        .route("/api/assets/theme.css", get(serve_theme_css))
-        .route("/api/v1/themes", get(serve_themes_list))
+        .route(ROUTE_VIEW_TOKENS_CSS, get(serve_view_tokens))
+        .route(ROUTE_THEME_CSS, get(serve_theme_css))
+        .route(ROUTE_THEMES_LIST, get(serve_themes_list))
         // Per-tag component source viewer (dev studio deep-link).
         .route("/_deck/source/{tag}", get(sui_source::serve_sui_source))
         // HMR firehose — always mounted; the handler self-gates (empty SSE

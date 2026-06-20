@@ -65,9 +65,10 @@ pub(crate) mod test_lock {
             super::resolver::reset_project_root_override_for_test();
         }
     }
+// P2-11 canary — should trip the gate
+pub const P2_11_CANARY: &str = "apps/shell";
 }
-
-pub use response::{CachePolicy, DeckResponse, compute_etag};
+pub use response::{CachePolicy, DeckResponse, HTML_SECURITY_HEADERS, compute_etag};
 pub use change_source::{ChangeFeed, ChangeSource};
 pub use data_port::DataPort;
 pub use live_wire::{
@@ -111,3 +112,4 @@ impl DaemonMode {
         }
     }
 }
+// P2-11 canary: apps/shell

@@ -586,15 +586,25 @@ fn render_routes_gen(tree: &RouteTree) -> String {
     let router_block = if tree.routes.is_empty() {
         String::new()
     } else {
+        // Note: this string template is rendered into generated JS at
+        // `deck routes` / `deck build` time. The path literal is repeated
+        // here (and in three HTML templates under
+        // `crates/deck/deck-core/assets/`) because the bundler does not
+        // depend on deck-core (would be a cycle: deck-core consumes the
+        // bundler's output). Instead, the `ssot_path_literal_pinned`
+        // test below asserts the literal still matches the
+        // `deck_core::routes::DECK_API_ASSETS` SSOT so the two halves
+        // cannot drift.
+        let view_tokens_path = "/api/assets/view-tokens.css";
         format!(
 "
 // Inject the theme + token stylesheet (served by the daemon at
-// /api/assets/view-tokens.css) so themed primitives resolve their
-// `var(--token)` colors. The marker keeps it idempotent on hot-reload.
+// {view_tokens_path}) so themed primitives resolve their `var(--token)`
+// colors. The marker keeps it idempotent on hot-reload.
 if (!document.querySelector('link[data-ship-view-tokens]')) {{
   const __link = document.createElement('link');
   __link.rel = 'stylesheet';
-  __link.href = '/api/assets/view-tokens.css';
+  __link.href = '{view_tokens_path}';
   __link.setAttribute('data-ship-view-tokens', '');
   document.head.appendChild(__link);
 }}
@@ -613,6 +623,7 @@ mountRouter({{
   clients: {{}},
 }});
 ",
+            view_tokens_path = view_tokens_path,
             root_id = crate::templates::ROOT_ID,
         )
     };
@@ -890,5 +901,46 @@ mod tests {
         // Before the fix this errored (EACCES) — the loop's signature.
         generate_routes(&[s])
             .expect("unchanged routes must not rewrite the file (would self-trigger the watcher)");
+    }
+
+    /// The bundler does not depend on `deck-core` (would be a cycle: deck-core
+    /// consumes the bundler's output). So we cannot `use deck_core::routes`.
+    /// Instead, parse `crates/deck/deck-core/src/routes.rs` and pull the
+    /// `DECK_API_ASSETS` literal out of it, then assert the codegen here
+    /// renders it as `<literal>/view-tokens.css`. A half-edit on either side
+    /// breaks this test.
+    #[test]
+    fn ssot_path_literal_pinned() {
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let ssot_path = manifest_dir
+            .parent() // crates/deck
+            .and_then(|p| p.parent()) // crates
+            .and_then(|p| p.parent()) // repo root
+            .expect("CARGO_MANIFEST_DIR has three ancestors")
+            .join("crates/deck/deck-core/src/routes.rs");
+        let ssot = std::fs::read_to_string(&ssot_path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", ssot_path.display()));
+        let needle = "pub const DECK_API_ASSETS: &str = \"/api/assets\";";
+        assert!(
+            ssot.contains(needle),
+            "SSOT drift: `{}` must contain `pub const DECK_API_ASSETS: &str = \"/api/assets\";`",
+            ssot_path.display(),
+        );
+
+        // The codegen must render the literal as `<DECK_API_ASSETS>/view-tokens.css`.
+        let tree = RouteTree {
+            label: "x".to_string(),
+            routes: vec![Route {
+                pattern: "/".to_string(),
+                params: vec![],
+                builder: "index".to_string(),
+            }],
+            layouts: vec![],
+        };
+        let ts = render_routes_gen(&tree);
+        assert!(
+            ts.contains("'/api/assets/view-tokens.css'"),
+            "rendered routes.gen.ts must inline `<DECK_API_ASSETS>/view-tokens.css` exactly (got: {ts})",
+        );
     }
 }

@@ -3,19 +3,24 @@
 //! The feature inventory is only useful if its implementation pointers stay
 //! true. This test reads `FEATURES.md`, extracts every implementation
 //! reference, and asserts for each that the referenced file exists AND — when
-//! the ref carries a `::symbol` suffix — that the file's contents contain that
-//! symbol token. A moved or renamed symbol fails the build here, so the doc is
-//! a tested artifact rather than prose that rots.
+//! the ref carries a `::symbol` suffix — that the symbol is a real EXPORTED
+//! Rust item (`pub fn`, `pub struct`, `pub enum`, `pub type`, `pub trait`,
+//! `pub const`, `pub static`, or `pub use …`). A substring match is NOT
+//! enough: P2-11 caught a regression where a symbol surviving only in a
+//! comment passed the gate. The token check is a regex match on a Rust item
+//! declaration (with `pub` visibility), so a renamed symbol or a moved-but-
+//! still-mentioned-in-comments item fails the build.
 //!
 //! Reference grammar (matched anywhere in the file):
-//!   - `crates/<...>/<file>.rs::<symbol>` — file must exist, symbol must be present.
+//!   - `crates/<...>/<file>.rs::<symbol>` — file must exist, symbol must be
+//!     a real exported Rust item (`pub fn/struct/enum/type/trait/const/static`
+//!     or `pub use …`).
 //!   - `crates/<...>/<file>.rs`           — file must exist (no symbol check).
 //!   - `crates/<...>:<line>`              — file must exist (a `path:line` ref).
 //!
 //! The repo root is resolved from `CARGO_MANIFEST_DIR`
 //! (`<repo>/crates/deck/deck-core`) up three parents, then `FEATURES.md` is read
 //! from `<repo>/crates/deck/FEATURES.md`.
-
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
@@ -53,7 +58,56 @@ fn is_symbol_char(c: char) -> bool {
 /// A reference starts at a `crates/` occurrence, runs while [`is_path_char`],
 /// and — if immediately followed by `::` — captures the trailing symbol token.
 /// A path that does not end in `.rs` is kept only when it is a `path:line`
-/// form (the trailing `:` + digits is not part of `is_path_char`, so the path
+/// `true` if `contents` contains `sym` as a real exported Rust item —
+/// the declaration's keyword is preceded by `pub` and followed by the
+/// symbol's identifier. The shape we recognise:
+///
+///   pub fn <sym>( … ) { … }              (function)
+///   pub async fn <sym>( … ) { … }        (async function)
+///   pub unsafe fn <sym>( … ) { … }       (unsafe function)
+///   pub struct <sym>( … ) | { … } | ;     (struct)
+///   pub enum <sym> { … }                  (enum)
+///   pub trait <sym>( … ) | { … }          (trait)
+///   pub type <sym> = …;                   (type alias)
+///   pub const <sym>: … = …;               (const)
+///   pub static <sym>: … = …;              (static)
+///   pub use (…|)::<sym>( … )? ;           (re-export — symbol appears in the
+///                                          import list, optionally aliased)
+///
+/// Substring matches (a symbol surviving only in a comment or doc-string
+/// without a `pub` declaration nearby) return `false`. The check is
+/// intentionally conservative — it might miss a `pub fn` declaration split
+/// across an attribute (`#[inline] pub fn …`) in unusual shapes, but the
+/// FEATURES.md inventory is hand-authored and the handful of items it cites
+/// are all plain `pub fn`/`pub struct` etc. declarations.
+fn is_exported_rust_item(contents: &str, sym: &str) -> bool {
+    use std::sync::OnceLock;
+    // The regex matches `pub` followed by an optional modifier (`async`,
+    // `unsafe`, or `default`) and one of the eight item keywords
+    // (`fn`, `struct`, `enum`, `trait`, `type`, `const`, `static`, `use`),
+    // then captures the symbol identifier that follows. RE2 has no
+    // look-around, so `const fn` is matched by the modifier-aware shape
+    // form is matched by the keyword branch. Both shapes survive.
+    //
+    // `pub use` is matched as a `use` keyword followed by a path; we capture
+    // the LAST identifier in the path (the re-exported symbol). RE2 has
+    // no lazy quantifier we can use cleanly, so we use a greedy tail-match
+    // and let the word-boundary at the end keep it tight.
+    static RE: OnceLock<regex::Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        regex::Regex::new(
+            r"(?xm)
+              \bpub\b
+              (?:[\s]+(?:async|unsafe|default))?[\s]*
+              (?:fn|struct|enum|trait|type|const|static)\b
+              (?:[\s]+[^;{]*?\b)??(?P<sym1>\w+)\b
+              |
+              \bpub\b[\s]+use\b[^;\n]*\b(?P<sym2>\w+)\b",
+        )
+        .expect("is_exported_rust_item regex is valid")
+    });
+    re.captures_iter(contents).any(|cap| cap.name("sym1").or_else(|| cap.name("sym2")).map_or(false, |m| m.as_str() == sym))
+}
 /// itself is captured up to the `.rs` or directory token). We only assert on
 /// refs whose captured path ends in `.rs`, which is every Implementation cell.
 fn extract_refs(text: &str) -> BTreeSet<Ref> {
@@ -135,12 +189,14 @@ fn every_implementation_ref_resolves() {
             ));
             break;
         };
-
         if let Some(sym) = &r.symbol
-            && !contents.contains(sym.as_str())
+            && !is_exported_rust_item(&contents, sym)
         {
             first_failure = Some(format!(
-                "unresolved ref `{}::{}`: symbol `{}` not found in {}",
+                "unresolved ref `{}::{}`: symbol `{}` is not a `pub` Rust item in {} \
+                 (the gate rejects substring-only matches — comments and doc-strings \
+                 are not enough; the symbol must be declared `pub fn`/`pub struct`/`pub enum`/\
+                 `pub type`/`pub trait`/`pub const`/`pub static`/`pub use` in the file)",
                 r.path,
                 sym,
                 sym,
@@ -198,5 +254,70 @@ mod extractor_tests {
         let r = refs.iter().next().unwrap();
         assert_eq!(r.path, "crates/deck/deck-core/src/response.rs");
         assert_eq!(r.symbol.as_deref(), Some("DeckResponse"));
+    }
+
+    /// P2-11 — the symbol check must NOT be a substring match. A symbol
+    /// surviving only in a comment / doc-string / use-line / pub(crate)
+    /// alias must fail, because the inventory cites a `pub` API surface.
+    /// These tests pin that behaviour: a regression to substring-match
+    /// (the pre-P2-11 shape) breaks ALL of them.
+    #[test]
+    fn exported_item_check_accepts_pub_declarations() {
+        let contents = "\
+            pub fn serve_thing() {}\n\
+            pub struct MyStruct {}\n\
+            pub enum MyEnum { A }\n\
+            pub trait MyTrait {}\n\
+            pub type MyAlias = u32;\n\
+            pub const MY_CONST: u32 = 0;\n\
+            pub static MY_STATIC: u32 = 0;\n\
+            pub use crate::other::serve_other;\n\
+            pub async fn serve_async() {}\n\
+            pub unsafe fn serve_unsafe() {}\n";
+        assert!(is_exported_rust_item(contents, "serve_thing"));
+        assert!(is_exported_rust_item(contents, "MyStruct"));
+        assert!(is_exported_rust_item(contents, "MyEnum"));
+        assert!(is_exported_rust_item(contents, "MyTrait"));
+        assert!(is_exported_rust_item(contents, "MyAlias"));
+        assert!(is_exported_rust_item(contents, "MY_CONST"));
+        assert!(is_exported_rust_item(contents, "MY_STATIC"));
+        assert!(is_exported_rust_item(contents, "serve_other"));
+        assert!(is_exported_rust_item(contents, "serve_async"));
+        assert!(is_exported_rust_item(contents, "serve_unsafe"));
+    }
+
+    #[test]
+    fn exported_item_check_rejects_comment_only_match() {
+        // Substring match would pass; the `pub`-item check must NOT.
+        let contents = "\
+            // `serve_thing` was here before, the impl is gone now.\n\
+            fn serve_thing() { /* no `pub` */ }\n";
+        assert!(
+            !is_exported_rust_item(contents, "serve_thing"),
+            "comment-only mention must not satisfy the gate (pre-P2-11 substring-match bug)"
+        );
+    }
+
+    #[test]
+    fn exported_item_check_rejects_pub_crate_only() {
+        // `pub(crate)` is crate-private — the inventory cites the public
+        // surface, so crate-only symbols must fail the gate.
+        let contents = "\
+            pub(crate) fn serve_thing() {}\n\
+            pub(crate) struct SuiPlugin {}\n";
+        assert!(!is_exported_rust_item(contents, "serve_thing"));
+        assert!(!is_exported_rust_item(contents, "SuiPlugin"));
+    }
+
+    #[test]
+    fn exported_item_check_rejects_use_only_re_export() {
+        // A `use` import (not `pub use`) brings a symbol into scope but
+        // does not re-export it; the gate's `pub use` branch must NOT
+        // accept a plain `use` mention.
+        let contents = "use crate::other::serve_other;\n";
+        assert!(
+            !is_exported_rust_item(contents, "serve_other"),
+            "plain `use` must not satisfy the gate (only `pub use` re-exports)"
+        );
     }
 }

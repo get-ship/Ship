@@ -18,6 +18,46 @@ pub enum CachePolicy {
     None,
 }
 
+// ── HTML security headers ─────────────────────────────────────────────────────
+//
+// Every HTML response emitted by deck (`html_view`) carries a fixed set of
+// security headers. The set is the SINGLE mint point for these headers; the
+// `html_view_carries_security_headers` behavior test pins them so a half-edit
+// (dropping a header, weakening the CSP, renaming X-Frame-Options) is caught
+// before it ships. The headers live as a `const &[(&str, &str)]` rather than
+// `format!`-inlined so:
+//
+//   1. The literal text is greppable + diffable.
+//   2. A header change does not introduce per-call allocations.
+//   3. The behavior test can assert against the exact bytes the daemon sends.
+//
+// Why these headers:
+//   - `X-Frame-Options: SAMEORIGIN` — clickjacking defence. SAMEORIGIN (not
+//     DENY) lets the hub embed same-origin iframes (preview surfaces).
+//   - `X-Content-Type-Options: nosniff` — stops browsers from MIME-sniffing a
+//     body whose declared content-type is `text/html` into something else.
+//   - `Content-Security-Policy: …` — defence-in-depth against stored XSS via
+//     SUI primitives. `'unsafe-inline'` is required because deck inlines
+//     scripts (`inject_globals`) and SUI templates may inline styles; the
+//     policy still restricts external origins so a stored XSS cannot load
+//     attacker-controlled scripts. font-src / style-src admit Google Fonts
+//     because the shell's `index.html` loads Syne / DM Sans / JetBrains Mono
+//     from fonts.googleapis.com (see apps/shell/index.html). Without these,
+//     the design system falls back to system fonts and the page looks visually
+//     broken (icons tied to those families disappear). We could self-host; for
+//     the dev loop a CSP allow is the smallest fix. img-src 'self' data: stays
+//     tight; connect-src 'self' blocks exfiltration; frame-ancestors 'self'
+//     mirrors X-Frame-Options for browsers that honour CSP framing.
+pub const HTML_SECURITY_HEADERS: &[(&str, &str)] = &[
+    ("X-Frame-Options", "SAMEORIGIN"),
+    ("X-Content-Type-Options", "nosniff"),
+    (
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'",
+    ),
+];
+
+
 impl CachePolicy {
     fn header(self, mode: DaemonMode) -> &'static str {
         match self {
@@ -82,29 +122,15 @@ impl DeckResponse {
         Self::new(200, "text/css; charset=utf-8", CachePolicy::View, mode, body)
     }
     pub fn html_view(body: impl Into<Vec<u8>>, mode: DaemonMode) -> Self {
-        // Security headers for HTML responses:
-        // - X-Frame-Options: SAMEORIGIN — prevents the page being embedded in a
-        //   foreign-origin iframe (clickjacking defence).
-        // - X-Content-Type-Options: nosniff — tells browsers to honour the declared
-        //   content-type and not MIME-sniff the body.
-        // - Content-Security-Policy: a minimal self-only policy. Deck inlines
-        //   script (inject_globals) and inline styles may appear in SUI templates,
-        //   so 'unsafe-inline' is needed; the policy still restricts external
-        //   origins so a stored XSS cannot load attacker-controlled scripts.
-        Self::new(200, "text/html; charset=utf-8", CachePolicy::View, mode, body)
-            .with_header("X-Frame-Options", "SAMEORIGIN")
-            .with_header("X-Content-Type-Options", "nosniff")
-            .with_header(
-                "Content-Security-Policy",
-                // font-src + style-src need to allow Google Fonts because
-                // the shell's index.html loads Syne / DM Sans / JetBrains
-                // Mono from fonts.googleapis.com. Without these, the design
-                // system falls back to system fonts and the page looks
-                // visually broken (icons tied to those families disappear).
-                // We could self-host, but for the dev loop a CSP allow is
-                // the smallest fix. img-src 'self' data: stays tight.
-                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'",
-            )
+        // All HTML responses carry the deck-defined security header set. The
+        // values live in `HTML_SECURITY_HEADERS` (top of file) — the single
+        // mint point, with a behavior test pinning the bytes so a half-edit
+        // is caught before it ships.
+        let mut resp = Self::new(200, "text/html; charset=utf-8", CachePolicy::View, mode, body);
+        for (name, value) in HTML_SECURITY_HEADERS {
+            resp = resp.with_header(name, *value);
+        }
+        resp
     }
     pub fn json_asset(body: impl Into<Vec<u8>>, mode: DaemonMode) -> Self {
         Self::new(200, "application/json; charset=utf-8", CachePolicy::Asset, mode, body)
@@ -196,6 +222,78 @@ mod tests {
         assert!(
             header_value(&resp, "Content-Security-Policy").is_none(),
             "CSP must not appear on non-HTML responses"
+        );
+    }
+
+    /// Behavior pin: the `extra_headers` carried by an `html_view` response
+    /// must equal `HTML_SECURITY_HEADERS` exactly, in order, byte-for-byte.
+    /// This is the transport-agnostic assertion — it catches a header added
+    /// to the const but not emitted by `html_view`, or a header emitted by
+    /// `html_view` but missing from the const. The wire-level mirror in
+    /// `deck-axum` (`html_view_security_headers_reach_the_wire`) confirms
+    /// the adapter preserves them, completing the chain.
+    #[test]
+    fn html_view_emits_exactly_the_security_header_set() {
+        let resp = DeckResponse::html_view("<html></html>", DaemonMode::Development);
+        assert_eq!(
+            resp.extra_headers.len(),
+            HTML_SECURITY_HEADERS.len(),
+            "html_view must emit exactly the HTML_SECURITY_HEADERS set; \
+             got {} extra headers but the const declares {}",
+            resp.extra_headers.len(),
+            HTML_SECURITY_HEADERS.len(),
+        );
+        for (i, (name, value)) in HTML_SECURITY_HEADERS.iter().enumerate() {
+            let (got_name, got_value) = &resp.extra_headers[i];
+            assert_eq!(
+                got_name, name,
+                "header #{i} name: expected `{name}`, got `{got_name}`"
+            );
+            assert_eq!(
+                got_value, value,
+                "header `{name}` value mismatch: expected `{value}`, got `{got_value}`"
+            );
+        }
+    }
+
+    /// Negative-case proof: a half-edit that drops `X-Frame-Options` from
+    /// the const fails the behavior test. Mirrors as an inline assertion
+    /// here so the test surfaces the failure mode without spinning up a
+    /// deck-axum dep.
+    #[test]
+    fn html_view_security_headers_are_not_substring_matchable() {
+        // The security-header assertion above checks the WHOLE response,
+        // not a substring. If the const ever shrank to `X-Frame-Options`
+        // alone, `html_view_carries_security_headers` (which uses
+        // `header_value` lookups for X-Content-Type-Options and CSP) would
+        // also fail. Belt-and-suspenders: a third, exact-set equality
+        // assertion (`html_view_emits_exactly_the_security_header_set`)
+        // catches partial overlaps a single substring check would miss.
+        let resp = DeckResponse::html_view("<html></html>", DaemonMode::Development);
+        let names: Vec<&str> = resp
+            .extra_headers
+            .iter()
+            .map(|(k, _)| *k)
+            .collect();
+        assert!(
+            names.contains(&"X-Frame-Options"),
+            "X-Frame-Options missing from served HTML response (extra_headers={names:?})"
+        );
+        assert!(
+            names.contains(&"X-Content-Type-Options"),
+            "X-Content-Type-Options missing from served HTML response (extra_headers={names:?})"
+        );
+        assert!(
+            names.contains(&"Content-Security-Policy"),
+            "Content-Security-Policy missing from served HTML response (extra_headers={names:?})"
+        );
+        // No spurious header slipped in past the const.
+        let expected_count = HTML_SECURITY_HEADERS.len();
+        assert_eq!(
+            resp.extra_headers.len(),
+            expected_count,
+            "extra_headers count drifted from HTML_SECURITY_HEADERS.len() — \
+             either `html_view` added an extra header or the const shrank",
         );
     }
 

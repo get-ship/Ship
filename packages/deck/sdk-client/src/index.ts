@@ -21,13 +21,12 @@ import { readSpaceConfig } from './spaces'
 import { MuxClient } from './mux-client'
 import { liveStream } from './live-stream'
 import { createShipConnectClient, SettingScope } from '@ship/sdk/connect'
-
-/// Single source of truth for the client-side serve-scheme URL prefix.
-/// Every TS literal that names `/_deck/...` (and the companion Rust
-/// `deck_core::routes::DECK_PREFIX`) routes through this constant so the
-/// prefix has ONE mint point on the client side. deck, the host, names the
-/// URL namespace; the framework (SUI) does not.
-export const DECK_PREFIX = '/_deck';
+// Re-export the URL constants from `./constants` so the existing surface
+// (`import { DECK_PREFIX, DECK_API_ASSETS } from '@ship/sdk-client'`) keeps
+// working unchanged. The mint point lives in `./constants`; that module's
+// source is what `ts_constants_pinned_to_rust` (in
+// `crates/deck/deck-core/src/routes.rs`) reads to assert Rust↔TS parity.
+export { DECK_API_ASSETS, DECK_PREFIX } from './constants'
 
 // Bind the SUI runtime's host-agnostic `ShipHost` slot to the concrete
 // `ShipSDK` via declaration merging. The runtime types `ViewScope.ship` as
