@@ -25,7 +25,7 @@ pub async fn compose(
     let (root, name) = match space_id {
         Some(id) => match registry::get(kernel, id).await? {
             Some(rec) => (Some(rec.path), Some(rec.name)),
-            None => (None, None),
+            None => return Err(SpaceError::NotFound(format!("space '{id}' not found"))),
         },
         None => (None, None),
     };

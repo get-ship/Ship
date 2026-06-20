@@ -161,8 +161,8 @@ pub async fn add(
 }
 
 /// Switch the active space to `id`. Bumps `last_seen_at`, writes the active
-/// pointer, and emits `project.switched`. Errors with `BadArgs` if `id` does not
-/// resolve to a known space. Returns the new active record.
+/// pointer, and emits `project.switched`. Errors with `NotFound` if `id` does
+/// not resolve to a known space. Returns the new active record.
 pub async fn activate(
     store: &dyn DataStore,
     kernel: &KernelLog,
@@ -170,7 +170,7 @@ pub async fn activate(
 ) -> Result<SpaceRecord, SpaceError> {
     let record = get(kernel, id)
         .await?
-        .ok_or_else(|| SpaceError::BadArgs(format!("space '{id}' not known")))?;
+        .ok_or_else(|| SpaceError::NotFound(format!("space '{id}' not found")))?;
     let previous = projection::get_active_id(store).await?;
     let now = now_rfc3339();
 

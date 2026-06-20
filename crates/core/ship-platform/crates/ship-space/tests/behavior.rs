@@ -76,16 +76,14 @@ async fn info_no_space_returns_empty_identity() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn info_unknown_space_leaves_identity_empty() {
+async fn info_unknown_space_raises_not_found() {
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
 
-    let composed = ship_space::info::compose(&kernel, Some("space-unknown"))
+    let err = ship_space::info::compose(&kernel, Some("space-unknown"))
         .await
-        .unwrap();
-    assert_eq!(composed.space_id.as_deref(), Some("space-unknown"));
-    assert_eq!(composed.root, None);
-    assert_eq!(composed.name, None);
+        .expect_err("unknown space must raise NotFound");
+    assert!(matches!(err, ship_space::error::SpaceError::NotFound(_)));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -178,15 +176,14 @@ async fn activate_switches_pointer_and_emits_switched() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn activate_unknown_id_is_bad_args() {
+async fn activate_unknown_id_is_not_found() {
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
     let svc = registry_service(&tmp, kernel);
 
     let err = svc.activate("deadbeef").await.expect_err("unknown id rejected");
-    assert!(matches!(err, ship_space::error::SpaceError::BadArgs(_)));
+    assert!(matches!(err, ship_space::error::SpaceError::NotFound(_)));
 }
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn active_is_none_on_cold_boot_then_resolves_after_activate() {
     let tmp = tempfile::tempdir().unwrap();
