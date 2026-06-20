@@ -74,6 +74,11 @@ impl SyncClient {
     }
 
     /// Push workspace-scoped events to cloud.
+    ///
+    /// Phase-2 fast-follow: the transport is wired but no caller exercises
+    /// it yet — the sync service today only pushes platform events
+    /// (`push_platform_events`). The workspace path mirrors it and lands
+    /// once a per-workspace elevated-event cursor is plumbed through.
     pub fn push_workspace_events(
         &self,
         workspace_id: &str,
