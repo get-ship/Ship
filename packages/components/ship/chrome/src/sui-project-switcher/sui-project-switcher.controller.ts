@@ -1,15 +1,16 @@
 import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import { navigate } from '@ship/deck/route'
-import { createShipConnectClient } from '@ship/sdk-client'
+import { createShipConnectClient } from '@ship/sdk/connect'
 import type { Scope } from './sui-project-switcher.sui'
 import { openSpace } from './open-space'
 
 // Host-agnostic same-origin Connect client (mirrors ship-command-bar's
 // `ops`). Cookies carry the session; `baseUrl: ''` keeps the same origin so
-// the daemon serves both the SPA and the API. The framework externalizes
-// `@ship/sdk-client` to a single `/_deck/sdk-client.js` instance, so every
-// chrome component that creates a client shares one transport.
+// the daemon serves both the SPA and the API. `createShipConnectClient` comes
+// from `@ship/sdk/connect` (the generated Connect transport, bundled into the
+// component) — NOT `@ship/sdk-client`, which the framework externalizes to
+// `/_deck/sdk-client.js` and does not re-export it (runtime "no export" error).
 const ship = createShipConnectClient({ baseUrl: '' })
 
 interface Project {
