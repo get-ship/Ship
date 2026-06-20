@@ -23,6 +23,11 @@ import './ship-status-bar/ship-status-bar.compiled.js'
 import './ship-dock/ship-dock.compiled.js'
 import './ship-dock-app/ship-dock-app.compiled.js'
 import './ship-nav-top/ship-nav-top.compiled.js'
+// <ship-nav-top> composes these two domain affordances; the pack owns them so
+// any host that mounts the nav bar gets the project switcher + account menu
+// registered (the hub previously kept app-local copies — now consolidated here).
+import './sui-project-switcher/sui-project-switcher.compiled.js'
+import './sui-account-menu/sui-account-menu.compiled.js'
 import './ship-rail/ship-rail.compiled.js'
 import './ship-rail/ship-rail-item.compiled.js'
 import './ship-rail/ship-rail-section.compiled.js'

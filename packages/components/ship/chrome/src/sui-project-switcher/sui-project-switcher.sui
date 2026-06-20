@@ -8,11 +8,14 @@
   panel, anchored with getBoundingClientRect() on open, `toggle` event drives
   aria-expanded.
 
-  Hub port of apps/shell/src/components/sui-project-switcher/ — same template
-  surface, same controller shape. The only seam change is the call surface
-  (ship.space.* on the hub's @ship/sdk-client Connect handle instead of the
-  shell's `ops` wrapper) and `navigate('/')` from @ship/deck/route instead of
-  `location.assign('/')` for the post-activate reload.
+  Lives in @ship/chrome alongside <ship-nav-top>, which composes it. The
+  controller owns the call surface (ship.space.* on a same-origin
+  @ship/sdk-client Connect handle) and `navigate('/')` from @ship/deck/route
+  for the post-activate reload — no host `chrome` indirection. The "open as
+  window" affordance routes through the pack-local open-space transport seam.
+
+  Events: sui:project-switcher:ready {} once after mount.
+  Parts: trigger, dot, name, menu.
 -->
 
 <style>
