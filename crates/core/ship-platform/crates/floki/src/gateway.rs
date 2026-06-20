@@ -74,15 +74,22 @@ pub trait Gateway: Send + Sync {
 #[derive(Default)]
 pub struct InProcessGateway;
 
-impl InProcessGateway {
-    /// Intrinsic human-in-the-loop stance for an op (S11). Ops in this set are
-    /// allowed by the gate (when the capability is granted) but the
-    /// `Ask` layer must also approve them. This is policy of the *call*,
-    /// not of the agent — it never elevates the agent or clears C3.
-    fn is_ask_stance(op: &str) -> bool {
-        matches!(op, "mcp.create" | "mcp.delete" | "account.rotate_key")
-    }
+/// Intrinsic human-in-the-loop stance for an op (S11). Ops in this set are
+/// allowed by the gate (when the capability is granted) but the
+/// `Ask` layer must also approve them. This is policy of the *call*,
+/// not of the agent — it never elevates the agent or clears C3.
+///
+/// `account.rotate_key` is intentionally NOT in the set: C3 is operator-only
+/// and the gate denies any agent call before ask-stance runs. Including it
+/// would be dead — the Ask path can never fire for C3.
+///
+/// The single source of truth for ask-stance. The L2 `ShipdGateway` imports
+/// this so its pre-check cannot drift from `InProcessGateway`'s.
+pub fn is_ask_stance(op: &str) -> bool {
+    matches!(op, "mcp.create" | "mcp.delete")
+}
 
+impl InProcessGateway {
     /// Allocate a stable-ish request id for a pending `Ask`. Per-process
     /// counter; unique within a single run. Production would key this
     /// on the daemon's id minting — this is the seam, not the policy.
@@ -119,7 +126,7 @@ impl Gateway for InProcessGateway {
         // Skip on a post-approval re-dispatch: the human already said yes.
         // The op still passes through the gate; the Ask layer does not
         // bypass it.
-        if kind == GatewayCallKind::First && Self::is_ask_stance(op) {
+        if kind == GatewayCallKind::First && is_ask_stance(op) {
             return Err(GatewayError::Ask {
                 op: op.to_string(),
                 args: args.clone(),
@@ -257,5 +264,64 @@ mod tests {
             )
             .await;
         assert!(matches!(r, Err(GatewayError::Denied(_))));
+    }
+
+    // ── SSOT drift guard ─────────────────────────────────────────────────
+    //
+    // The floki descriptor set (`registry::blast_of`) and the L2 proto
+    // descriptor (`ship_ops_rpc::policy::policy_for`) must agree on blast
+    // tier for every op known to both. Today the floki descriptor is an
+    // illustrative stand-in (see the SSOT-DRIFT note in `registry.rs`),
+    // so the set of *shared* op names is small. We pin the agreement on
+    // every such op. When the real `FileDescriptorSet` wiring lands and
+    // the floki descriptor disappears, this test will fold into the
+    // proto's own self-consistency check.
+    //
+    // The blast-tier mapping: `floki::Blast` and `ship_ops_rpc::BlastRadius`
+    // are the same four-tier enum under different names; we compare them
+    // by ordinal to stay robust to a future rename on either side.
+    #[test]
+    fn blast_tiers_agree_with_proto_for_shared_ops() {
+        // Every floki registry op name that ALSO appears in the proto.
+        // Currently only the MCP config ops share a name (`mcp.create`,
+        // `mcp.delete`); `collections.*` etc. use illustrative names
+        // that don't match the proto's `List`/`Get`/etc.
+        let shared = ["mcp.create", "mcp.delete"];
+
+        for op in shared {
+            let floki_blast = registry::blast_of(op)
+                .unwrap_or_else(|| panic!("floki registry missing op {op}"));
+            let proto_policy = ship_ops_rpc::policy::policy_for(op)
+                .unwrap_or_else(|| panic!("proto missing op {op}"));
+            let proto_blast = proto_policy.blast;
+
+            // Compare by ordinal — both enums derive PartialOrd/Ord with
+            // C0 < C1 < C2 < C3 ordering, so this stays correct even if
+            // either side renames a variant.
+            let floki_ord = blast_to_ord(floki_blast);
+            let proto_ord = blast_to_ord_from_proto(proto_blast);
+            assert_eq!(
+                floki_ord, proto_ord,
+                "blast tier drift for `{op}`: floki={floki_blast:?} proto={proto_blast:?}"
+            );
+        }
+    }
+
+    fn blast_to_ord(b: crate::gate::Blast) -> u8 {
+        match b {
+            crate::gate::Blast::C0Safe => 0,
+            crate::gate::Blast::C1Space => 1,
+            crate::gate::Blast::C2Elevated => 2,
+            crate::gate::Blast::C3Critical => 3,
+        }
+    }
+
+    fn blast_to_ord_from_proto(b: ship_ops_rpc::BlastRadius) -> u8 {
+        match b {
+            ship_ops_rpc::BlastRadius::C0Read => 0,
+            ship_ops_rpc::BlastRadius::C1Space => 1,
+            ship_ops_rpc::BlastRadius::C2Elevated => 2,
+            ship_ops_rpc::BlastRadius::C3Critical => 3,
+        }
     }
 }

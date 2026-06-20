@@ -41,7 +41,7 @@ use tower::ServiceExt as _;
 use crate::auth::{AuthContext as ShipdAuth, gate};
 use floki::{
     auth::AuthContext as FlokiAuth,
-    gateway::{Gateway, GatewayCallKind, GatewayError},
+    gateway::{Gateway, GatewayCallKind, GatewayError, is_ask_stance},
 };
 
 // ── Op-name → wire-path map ───────────────────────────────────────────────────
@@ -61,14 +61,6 @@ static OP_TO_WIRE: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
         .collect()
 });
 
-// ── Ask-stance set (mirrors `InProcessGateway::is_ask_stance`) ────────────────
-
-/// Ops that require a human approval even when the grant is present (S11).
-/// Matches `floki::gateway::InProcessGateway::is_ask_stance` exactly so the
-/// two impls never diverge on policy.
-fn is_ask_stance(op: &str) -> bool {
-    matches!(op, "mcp.create" | "mcp.delete" | "account.rotate_key")
-}
 
 /// Stable-ish request-id for a pending `Ask`. Per-process counter; mirrors
 /// the `InProcessGateway` seam.

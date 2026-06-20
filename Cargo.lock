@@ -2651,6 +2651,7 @@ dependencies = [
  "serde_json",
  "ship-js",
  "ship-kernel",
+ "ship-ops-rpc",
  "thiserror 2.0.18",
  "tokio",
  "tracing",

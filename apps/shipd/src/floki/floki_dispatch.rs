@@ -6,13 +6,13 @@
 //!     Bridges `SessionEventSink`'s synchronous `persist` contract to the
 //!     async `KernelRouter::emit` via a background `tokio::spawn`, matching
 //!     the fire-and-forget pattern used by all other shipd emit paths.
-//!   - [`run_floki_step`] — the composition root for a floki-harness agent run.
-//!     Resolves credentials from env, wires `ToolCtx` with a kernel-backed
-//!     `SessionEventSink`, and calls `floki::run_step` — the canonical loop.
+//!   - [`dispatch_floki_session`] — the composition root for a floki-harness
+//!     agent run, wired in `daemon::lifecycle` as the `FlokiRunFn`.
 //!
-//! Routing: when `agent.dispatch` identifies a floki-harness agent, callers
-//! invoke `run_floki_step`. The existing old-harness path is unmodified;
-//! this is the parallel entry point for first-light (slice: FIRST-LIGHT).
+//! Routing: when `agent.session.started` arrives with `harness == "floki"`,
+//! ship-agents invokes this `FlokiRunFn`. The existing old-harness dispatch
+//! path (`dispatch_agent_session_core`) is unmodified; this is the parallel
+//! first-light entry point.
 //!
 //! Layering: L2 (shipd). Depends on floki (L1) + `ShipdGateway` (also L2).
 //! The floki crate gains NO shipd dependency — arrow is shipd → floki only.
@@ -20,8 +20,8 @@
 use std::sync::Arc;
 
 use floki::{
-    AgentOutput, AuthContext as FlokiAuth, BuiltModel, Cancel, FlokiProgram, HeadlessApprover,
-    ScriptExecutor, SessionEventSink, Steer, ToolCtx, build_model, run_step,
+    AuthContext as FlokiAuth, BuiltModel, Cancel, FlokiProgram, HeadlessApprover,
+    ScriptExecutor, SessionEventSink, Steer, ToolCtx, build_model,
 };
 use floki::dispatch::GatewayDispatch;
 use floki::provider::{Byok, CredentialSource};
@@ -81,71 +81,6 @@ impl EventSink for ShipdKernelSink {
     }
 }
 
-// ── run_floki_step ────────────────────────────────────────────────────────────
-
-/// Assemble and run one floki agent turn in shipd.
-///
-/// Resolves credentials from env (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` +
-/// `SHIP_MODEL`), constructs `FlokiAuth` from the agent's declared capability
-/// grants, wires a `SessionEventSink` backed by the real kernel, and calls
-/// `floki::run_step` — the canonical per-turn loop.
-///
-/// Canonical `session.*` events are emitted to the kernel regardless of the
-/// turn outcome. Returns `Err` if credentials are absent from env or if the
-/// turn itself fails.
-///
-/// # Floki-harness routing
-///
-/// Call this from the `agent.dispatch` handler when `agent.harness.id == "floki"`.
-/// The old-harness dispatch path (`dispatch_agent_session_core`) is unmodified;
-/// this is the parallel first-light entry point.
-pub async fn run_floki_step(
-    agent: &floki::Agent,
-    gateway: Arc<ShipdGateway>,
-    session_id: String,
-    space_id: String,
-    kernel: SharedKernel,
-    input: &str,
-) -> anyhow::Result<AgentOutput> {
-    // ── Credentials + model ───────────────────────────────────────────────────
-    let cred = Byok::from_env().resolve()?;
-    let auth = FlokiAuth::in_process(
-        &agent.identity.id,
-        agent.capabilities.iter().map(|c| c.domain.clone()).collect(),
-    );
-
-    // ── Session event sink ────────────────────────────────────────────────────
-    let session_sink = SessionEventSink::new(Arc::new(ShipdKernelSink::new(kernel)));
-
-    // ── ToolCtx ───────────────────────────────────────────────────────────────
-    let ctx = ToolCtx {
-        session_sink,
-        session_id,
-        space_id,
-        approver: Arc::new(HeadlessApprover),
-        steer: Steer::new(),
-        cancel: Cancel::new(),
-        journal_mode: false,
-    };
-
-    // ── ScriptExecutor ────────────────────────────────────────────────────────
-    // One per session for first-light. A production path shares one executor
-    // across sessions (the VM thread is FIFO-queued) — that's a follow-on
-    // concern once lifecycle management is defined end to end.
-    let executor = Arc::new(ScriptExecutor::spawn());
-
-    // ── Build model and run ───────────────────────────────────────────────────
-    // `Arc<ShipdGateway>` coerces to `Arc<dyn floki::Gateway>`.
-    match build_model(&cred)? {
-        BuiltModel::Anthropic(m) => {
-            run_step(m, agent, gateway, auth, executor, ctx, input).await
-        }
-        BuiltModel::OpenAiCompat(m) => {
-            run_step(m, agent, gateway, auth, executor, ctx, input).await
-        }
-    }
-}
-
 // ── Floki-harness dispatch entry point ────────────────────────────────────────
 
 /// Dispatch entry point invoked from the `service.agents` actor when
@@ -157,10 +92,6 @@ pub async fn run_floki_step(
 /// The journal is saved via the persisted `SqliteJournalStore` (P1.0b) —
 /// a suspended session survives a daemon restart; Stage-3 adds the boot-scan
 /// that auto-resumes it.
-///
-/// `run_floki_step` is preserved for backward compatibility with tests that
-/// call it directly; the production dispatch path now goes through
-/// `dispatch_floki_session`.
 ///
 /// Session lifecycle events (`session.started`, `session.completed`) are
 /// emitted by `FlokiProgram::run`, not this function.
@@ -233,35 +164,36 @@ pub async fn dispatch_floki_session(
         .unwrap_or_else(Journal::new);
 
     // ── Execute ───────────────────────────────────────────────────────────
+    // The two provider arms (`Anthropic` / `OpenAiCompat`) need the same
+    // `FlokiProgram` wiring — only the model type differs. A closure can't
+    // span both arms because each completion-model is a distinct
+    // `GenericCompletionModel<M>` type, so we use a local macro to share
+    // the construction without monomorphizing through a generic fn (which
+    // would also need `M: CompletionModel + ...` bounds at the call site).
+    macro_rules! make_program {
+        ($model:expr) => {
+            FlokiProgram {
+                model: $model,
+                preamble: String::new(),
+                initial_input: input.clone(),
+                max_turns: 10,
+                gateway: gw.clone(),
+                auth: auth.clone(),
+                executor: executor.clone(),
+                grants: vec![],
+                tool_ctx: tool_ctx.clone(),
+            }
+        };
+    }
     let run = |journal: Journal| async {
         match build_model(&cred) {
             Ok(BuiltModel::Anthropic(m)) => {
-                let program = FlokiProgram {
-                    model: m,
-                    preamble: String::new(),
-                    initial_input: input.clone(),
-                    max_turns: 10,
-                    gateway: gw.clone(),
-                    auth: auth.clone(),
-                    executor: executor.clone(),
-                    grants: vec![],
-                    tool_ctx: tool_ctx.clone(),
-                };
+                let program = make_program!(m);
                 let dispatch = Arc::new(GatewayDispatch::new(gw.clone(), auth.clone()));
                 execute(journal, dispatch, &program).await
             }
             Ok(BuiltModel::OpenAiCompat(m)) => {
-                let program = FlokiProgram {
-                    model: m,
-                    preamble: String::new(),
-                    initial_input: input.clone(),
-                    max_turns: 10,
-                    gateway: gw.clone(),
-                    auth: auth.clone(),
-                    executor: executor.clone(),
-                    grants: vec![],
-                    tool_ctx: tool_ctx.clone(),
-                };
+                let program = make_program!(m);
                 let dispatch = Arc::new(GatewayDispatch::new(gw.clone(), auth.clone()));
                 execute(journal, dispatch, &program).await
             }
@@ -294,34 +226,6 @@ pub async fn dispatch_floki_session(
     );
 }
 
-/// Build a minimal `floki::Agent` from the dispatch payload.
-///
-/// Pulls `identity.id` and `disposition.model` from the payload; other fields
-/// use safe defaults. A follow-on slice will load the full profile from disk
-/// and inject the real capability set.
-fn build_agent_from_payload(payload: &DispatchRequestedPayload) -> floki::Agent {
-    // agent_def types are re-exported by ship_agents under `agent_domain`.
-    use ship_agents::agent_domain::{Capability, Disposition, Harness, Identity};
-    floki::Agent {
-        harness: Harness { id: "floki".into(), settings: Default::default() },
-        identity: Identity {
-            id: payload.agent_id.clone(),
-            name: payload.agent_id.clone(),
-            version: "0.1.0".into(),
-            description: String::new(),
-            tags: vec![],
-        },
-        disposition: Disposition {
-            rules: String::new(),
-            model: payload.model.clone(),
-            temperature: None,
-            max_turns: None,
-        },
-        capabilities: vec![] as Vec<Capability>,
-        skills: vec![],
-        mcp: vec![],
-    }
-}
 
 // ── Smoke tests ───────────────────────────────────────────────────────────────
 
@@ -502,30 +406,4 @@ mod tests {
         );
     }
 
-    /// LIVE-ONLY — full end-to-end with a real API key and real model.
-    ///
-    /// Exercises `run_floki_step` including `Byok::from_env` credential
-    /// resolution and the real Anthropic client. Skipped in CI unless
-    /// ANTHROPIC_API_KEY and SHIP_MODEL are set in the environment.
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[ignore = "requires ANTHROPIC_API_KEY + SHIP_MODEL in env; run manually"]
-    async fn floki_dispatch_live_run_with_real_api_key() {
-        let harness = crate::test_harness::TestDaemon::new().await;
-        let gw = Arc::new(ShipdGateway::new(crate::rpc::ops::router(harness.state.clone())));
-        let agent = floki_agent(&["collections"]);
-
-        let out = super::run_floki_step(
-            &agent,
-            gw,
-            "live-session-1".into(),
-            "live-space-1".into(),
-            harness.state.kernel().clone(),
-            "say hello, then list all collections",
-        )
-        .await
-        .expect("live run must complete");
-
-        assert!(!out.text.is_empty(), "live run must produce non-empty output");
-        println!("live output: {}", out.text);
-    }
 }

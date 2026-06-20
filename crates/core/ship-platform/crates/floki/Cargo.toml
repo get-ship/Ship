@@ -30,4 +30,5 @@ rig = { version = "0.38.1", package = "rig-core" }
 [dev-dependencies]
 rig = { version = "0.38.1", package = "rig-core", features = ["test-utils"] }
 ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
+ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "test-util"] }

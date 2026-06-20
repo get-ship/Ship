@@ -46,7 +46,7 @@ pub mod provider;
 pub mod registry;
 pub mod resilience;
 pub mod sdkgen;
-pub mod session;
+pub(crate) mod session;
 pub mod spine;
 
 // NOTE: orchestration (the recursive spawn-agent seam) is intentionally NOT
@@ -65,9 +65,5 @@ pub use ship_js::deno::ScriptExecutor;
 pub use approver::UserInput;
 pub use auth::AuthContext;
 pub use dispatch::GatewayDispatch;
-pub use durable::run_durable_script;
-pub use gateway::{Gateway, GatewayCallKind, GatewayError, InProcessGateway};
+pub use gateway::{Gateway, GatewayCallKind, GatewayError, InProcessGateway, is_ask_stance};
 pub use provider::{BuiltModel, Credential, Provider, build_model};
-pub use resilience::{RetryPolicy, run_resilient};
-pub use session::{HistoryStore, InMemoryHistoryStore, Session, Turn};
-pub use spine::SpineError;
