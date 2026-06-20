@@ -129,7 +129,6 @@ fn ensure_table(conn: &mut SqliteConnection) -> Result<()> {
          `scope` TEXT NOT NULL, \
          `{COL_SCOPE_SPACE}` TEXT, \
          `run_id` TEXT, \
-         `user_id` TEXT, \
          `content_hash` TEXT, \
          `expires_at` TEXT, \
          `owner_actor` TEXT, \
@@ -150,9 +149,9 @@ fn insert_row(conn: &mut SqliteConnection, space_id: &str, p: &ArtifactCreated) 
     let sql = format!(
         "INSERT OR REPLACE INTO `{TABLE}` (\
          `id`, `space_id`, `created_at`, `name`, `path`, `mime`, `size`, `scope`, \
-         `{COL_SCOPE_SPACE}`, `run_id`, `user_id`, `content_hash`, `expires_at`, \
+         `{COL_SCOPE_SPACE}`, `run_id`, `content_hash`, `expires_at`, \
          `owner_actor`, `collection_id`, `item_id`) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
     block_on(async {
         sqlx::query(&sql)
@@ -166,7 +165,6 @@ fn insert_row(conn: &mut SqliteConnection, space_id: &str, p: &ArtifactCreated) 
             .bind(&p.scope)
             .bind(&p.space_id)
             .bind(&p.run_id)
-            .bind(&p.user_id)
             .bind(&p.content_hash)
             .bind(&p.expires_at)
             .bind(&p.owner_actor)

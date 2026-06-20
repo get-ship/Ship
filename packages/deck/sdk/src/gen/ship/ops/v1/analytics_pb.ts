@@ -1,7 +1,8 @@
 // Analytics read surface — the FIRST hand-authored domain proto under
-// proto-as-SSOT (decision #67 a). Unlike reads.gen.proto / commands.gen.proto
-// (generated from the legacy Rust descriptor tables), this file is authored
-// directly: it is the single source for these ops' shapes AND policy. The
+// proto-as-SSOT (decision #67a; the since-retired reads.gen.proto /
+// commands.gen.proto were generated from legacy Rust descriptor tables — #78
+// removed them). This file is the single source for these ops' shapes AND
+// policy. The
 // daemon implements the generated `AnalyticsService` trait reading the
 // `ship_analytics` projection; the gate reads the per-rpc capability/blast
 // options from the compiled descriptor set (no Rust descriptor table).

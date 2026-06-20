@@ -89,9 +89,6 @@ impl ArtifactService {
             scope: scope.kind_str().to_string(),
             space_id: scope.space_id().map(str::to_string),
             run_id: scope.run_id().map(str::to_string),
-            // user-scope was removed (artifacts are Run|Project); column kept
-            // for the persisted row but never set.
-            user_id: None,
             content_hash: Some(content_hash),
             expires_at: expires_at.map(str::to_string),
             owner_actor: owner_actor.map(str::to_string),
@@ -253,7 +250,6 @@ impl ArtifactService {
             scope: target_scope.kind_str().to_string(),
             space_id: target_scope.space_id().map(str::to_string),
             run_id: target_scope.run_id().map(str::to_string),
-            user_id: None,
             content_hash: Some(content_hash),
             expires_at: if retained { None } else { old.expires_at.clone() },
             owner_actor: old.owner_actor.clone(),
@@ -351,7 +347,6 @@ fn created_payload(r: &ArtifactRecord) -> ArtifactCreated {
         owner_actor: r.owner_actor.clone(),
         space_id: r.space_id.clone(),
         run_id: r.run_id.clone(),
-        user_id: r.user_id.clone(),
         expires_at: r.expires_at.clone(),
         collection_id: r.collection_id.clone(),
         item_id: r.item_id.clone(),

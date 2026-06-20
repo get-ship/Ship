@@ -130,19 +130,20 @@ impl ShipRuntime {
             Err(e) => tracing::warn!("trash auto-purge failed: {e}"),
         }
 
-        // Build the collection + artifact `SpaceContext`s
+        // Build the single active-space `SpaceContext`
         // and the ONE shared schema registry, here (C-2 §3.1 / UD-7). The
         // `collections()`/`artifacts()` accessors construct stateless services
-        // over these per call; the collection wire is mounted with the SAME
-        // registry so a wire-created schema is visible to trigger inserts.
-        // Collections AND artifact metadata are event-sourced (ADR D6/D7): the
-        // read path must bind to the SAME per-scope `spaces/<id>/space.db` that the
-        // `CollectionProjection` / `ArtifactProjection` materialize the table into,
-        // so a query reads exactly what the projection wrote.
+        // over this per call; both wire mounts (collections.proto +
+        // artifacts.proto) ride the SAME ctx so a wire-created schema is
+        // visible to trigger inserts. Collections AND artifact metadata are
+        // event-sourced (ADR D6/D7): the read path must bind to the SAME
+        // per-scope `spaces/<id>/space.db` that the `CollectionProjection` /
+        // `ArtifactProjection` materialize the table into, so a query reads
+        // exactly what the projection wrote.
         //
         // The active space is the path-hash of the DISCOVERED project root — the
         // identity the `projects` projection keys on. With NO discoverable project
-        // the daemon boots space-less: `space_id` is `None`, the contexts are NOT
+        // the daemon boots space-less: `space_id` is `None`, the ctx is NOT
         // built, and a space-scoped op resolves the active space per-request and
         // errors cleanly if there is none. There is NO daemon home space and NO
         // `global` pseudo-space to fall back onto (S2 home-space kill).
@@ -152,10 +153,13 @@ impl ShipRuntime {
                 .as_deref()
                 .and_then(ship_substrate::project::resolve_active_space)
         };
-        let collection_ctx = space_id
-            .as_deref()
-            .map(|id| build_space_db_context_arc(kernel.clone(), global_dir, id));
-        let artifact_ctx = space_id
+        // One `SpaceContext` for both collections AND artifacts — they share
+        // the same per-scope `spaces/<id>/space.db` (ADR D6/D7), so binding
+        // a single ctx with one `DataService::open_at` + one `KernelLog` is
+        // correct. The previous code opened two `DataService` connections
+        // over the same file (collection_ctx + artifact_ctx) and stood up two
+        // `KernelLog` instances — collapsed here.
+        let space_ctx = space_id
             .as_deref()
             .map(|id| build_space_db_context_arc(kernel.clone(), global_dir, id));
         let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
@@ -211,8 +215,7 @@ impl ShipRuntime {
             dispatch_handle: std::sync::OnceLock::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
-            collection_ctx,
-            artifact_ctx,
+            space_ctx,
             schemas,
             global_blob_dir,
             pty_sessions: ship_terminal::SessionRegistry::new(),

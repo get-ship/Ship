@@ -31,8 +31,6 @@ pub struct ArtifactCreated {
     #[serde(default)]
     pub run_id: Option<String>,
     #[serde(default)]
-    pub user_id: Option<String>,
-    #[serde(default)]
     pub expires_at: Option<String>,
     #[serde(default)]
     pub collection_id: Option<String>,

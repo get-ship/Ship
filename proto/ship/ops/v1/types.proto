@@ -39,7 +39,6 @@ message ArtifactRecord {
   string scope = 6;
   optional string space_id = 7;
   optional string run_id = 8;
-  optional string user_id = 9;
   optional string content_hash = 10;
   optional string expires_at = 11;
   optional string owner_actor = 12;

@@ -260,7 +260,6 @@ async fn watch_first_frame_is_snapshot_then_patch_on_create() {
     let registry = ReactiveRegistry::new(kernel.clone());
     let key = WatchKey { space_id: "test".into(), scope: "artifacts".into(), query_hash: 0 };
     let mut rx = registry.watch(key, EventFilter::default(), spec);
-
     // First frame: snapshot set at root.
     let frame1 = tokio::time::timeout(Duration::from_secs(2), rx.recv())
         .await.expect("timeout").expect("closed");
@@ -325,7 +324,6 @@ fn collection_id_is_plain_field_no_collection_dependency() {
         scope: "project".into(),
         space_id: None,
         run_id: None,
-        user_id: None,
         content_hash: None,
         expires_at: None,
         owner_actor: None,

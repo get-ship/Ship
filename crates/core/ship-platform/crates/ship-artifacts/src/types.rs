@@ -54,7 +54,6 @@ pub struct ArtifactRecord {
     pub scope: String,
     pub space_id: Option<String>,
     pub run_id: Option<String>,
-    pub user_id: Option<String>,
     pub content_hash: Option<String>,
     pub expires_at: Option<String>,
     pub owner_actor: Option<String>,

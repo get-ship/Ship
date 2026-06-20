@@ -23,9 +23,10 @@ impl ShipRuntime {
         // Test fixture binds a concrete space (`test-space`) — there is no daemon
         // home space / `global` partition to fall back onto (S2). Production boot
         // leaves these `None` in space-less mode.
-        let collection_ctx =
-            Some(super::init::build_space_db_context_arc(kernel.clone(), &ship_dir, "test-space"));
-        let artifact_ctx =
+        // home space / `global` partition to fall back onto (S2). Production boot
+        // leaves these `None` in space-less mode. Both collection + artifact wire
+        // mounts share the SAME ctx (single per-scope db).
+        let space_ctx =
             Some(super::init::build_space_db_context_arc(kernel.clone(), &ship_dir, "test-space"));
         let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
         let global_blob_dir = ship_dir.clone();
@@ -49,8 +50,7 @@ impl ShipRuntime {
             dispatch_handle: std::sync::OnceLock::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
-            collection_ctx,
-            artifact_ctx,
+            space_ctx,
             schemas,
             global_blob_dir,
             pty_sessions: ship_terminal::SessionRegistry::new(),

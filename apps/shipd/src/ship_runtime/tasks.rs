@@ -51,7 +51,7 @@ impl ShipRuntime {
     /// Best-effort: errors are logged but don't take down the daemon. No-op when
     /// the daemon booted space-less (no active space → no artifact store to sweep).
     pub fn start_artifact_gc(&self) {
-        let Some(artifact_ctx) = self.artifact_ctx.clone() else {
+        let Some(space_ctx) = self.space_ctx.clone() else {
             tracing::info!("artifact GC: no active space, GC loop not started");
             return;
         };
@@ -60,7 +60,7 @@ impl ShipRuntime {
             &self.health_registry,
             "artifact-gc",
             move || {
-                let artifact_ctx = artifact_ctx.clone();
+                let artifact_ctx = space_ctx.clone();
                 let global_dir = global_dir.clone();
                 async move {
                     loop {

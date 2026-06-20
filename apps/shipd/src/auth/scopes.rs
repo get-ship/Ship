@@ -64,44 +64,6 @@ pub async fn enforce_required_auth(
         }
     }
 }
-
-// ── Artifact scope checks (HTTP-context-bound) ─────────────────────────────
-
-/// Returns true if `auth` can READ artifacts at `scope_kind`
-/// (`"run"`/`"project"`/`"user"`). Holders of `Scope::Full` bypass.
-pub fn can_read_artifacts(auth: &super::AuthContext, scope_kind: &str) -> bool {
-    if auth.has_scope(Scope::Full) {
-        return true;
-    }
-    match scope_kind {
-        "run" => auth.has_scope(Scope::ReadArtifactsRun),
-        "project" => auth.has_scope(Scope::ReadArtifactsProject),
-        _ => false,
-    }
-}
-
-pub fn can_write_artifacts(auth: &super::AuthContext, scope_kind: &str) -> bool {
-    if auth.has_scope(Scope::Full) {
-        return true;
-    }
-    match scope_kind {
-        "run" => auth.has_scope(Scope::WriteArtifactsRun),
-        "project" => auth.has_scope(Scope::WriteArtifactsProject),
-        _ => false,
-    }
-}
-
-pub fn can_delete_artifacts(auth: &super::AuthContext, scope_kind: &str) -> bool {
-    if auth.has_scope(Scope::Full) {
-        return true;
-    }
-    match scope_kind {
-        "run" => auth.has_scope(Scope::DeleteArtifactsRun),
-        "project" => auth.has_scope(Scope::DeleteArtifactsProject),
-        _ => false,
-    }
-}
-
 /// Return a 403 Forbidden response if the caller lacks the required scope.
 pub fn require_scope(
     auth: &super::AuthContext,

@@ -57,7 +57,6 @@ fn record_to_proto(r: ArtifactRecord) -> ProtoRecord {
         scope: r.scope,
         space_id: r.space_id,
         run_id: r.run_id,
-        user_id: r.user_id,
         content_hash: r.content_hash,
         expires_at: r.expires_at,
         owner_actor: r.owner_actor,

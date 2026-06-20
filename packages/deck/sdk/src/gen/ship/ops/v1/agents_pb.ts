@@ -1,9 +1,8 @@
-// `agents.*` — the ONE canonical agent surface (#89, agents-arc E4/E6). Collapsed
-// from the historic split: profile CRUD + view reads, orchestration
+// `agents.*` — the ONE canonical agent surface (#89, agents-arc E4/E6) and the
+// sole serving path (the generated ReadOps/CommandOps umbrella was retired, #78).
+// Collapsed from the historic split: profile CRUD + view reads, orchestration
 // (dispatch/stop/steer/grant), and SessionsService (runtime-session read) all
 // fold into this single plural `AgentsService`.
-// Mounted ADDITIVELY beside the generated ReadOps/CommandOps (which keep serving
-// the legacy paths until the GUI flip, #72).
 //
 // Plural by convention: every sibling resource domain is plural
 // (SkillsService/PipelinesService/CollectionsService/…) → `skills.*`,
@@ -20,8 +19,9 @@
 //     deprecated `studio.message` event with no real gated RPC.)
 //
 // Request messages take fresh names (ListAgentsRequest, DispatchAgentRequest,
-// ListSessionsReq, …) because the generated reads.gen.proto /
-// commands.gen.proto already declare AgentsListRequest et al. in this same
+// ListSessionsReq, …) — historical collision-avoidance against the deleted
+// reads.gen.proto / commands.gen.proto (which declared AgentsListRequest et al.)
+// in this same
 // package — two definitions would collide. Return types reuse the shared shapes
 // in types.proto + JsonResponse from ops.proto.
 

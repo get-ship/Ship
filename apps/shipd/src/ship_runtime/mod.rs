@@ -48,14 +48,14 @@ pub struct ShipRuntime {
     pub(super) session_registry: SessionRegistry,
     /// Health registry for supervised background tasks.
     pub(super) health_registry: HealthRegistry,
-    /// Active-space `SpaceContext` for collections, bound to the active space's
-    /// per-scope `spaces/<id>/space.db`. `None` when the daemon booted space-less
-    /// (no discoverable project); the `collections()` accessor then errors cleanly
-    /// rather than fabricate a `global` partition (S2 home-space kill).
-    pub(super) collection_ctx: Option<Arc<ship_substrate::ports::SpaceContext>>,
-    /// Active-space `SpaceContext` for artifacts. `None` in space-less mode — the
-    /// `artifacts()` accessor errors cleanly.
-    pub(super) artifact_ctx: Option<Arc<ship_substrate::ports::SpaceContext>>,
+    /// Active-space `SpaceContext`, bound to the active space's per-scope
+    /// `spaces/<id>/space.db`. Both `collections()` and `artifacts()` ride the
+    /// SAME ctx — they share the same per-scope db, the same `KernelLog`, and
+    /// the same broadcast channel (one-way-to-do-things; collapsing the
+    /// previous dual `DataService` connections). `None` when the daemon
+    /// booted space-less; both accessors then error cleanly rather than
+    /// fabricate a `global` partition (S2 home-space kill).
+    pub(super) space_ctx: Option<Arc<ship_substrate::ports::SpaceContext>>,
     /// The ONE shared collection schema registry — hydrated from the file
     /// overlay at startup and shared across the collection wire, triggers,
     /// and the internal `collections()` accessor so a wire-created schema is

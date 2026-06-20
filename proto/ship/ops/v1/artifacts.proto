@@ -21,9 +21,7 @@ message ListArtifactsRequest {
   string item_id = 4;
   string owner_actor = 5;
   string content_hash = 6;
-  string sort = 7;
   uint64 limit = 8;
-  uint64 offset = 9;
 }
 
 message PatchArtifactRequest {
@@ -37,7 +35,6 @@ message PromoteArtifactRequest {
   string id = 1;
   string target_scope = 2;
   string run_id = 3;
-  string user_id = 4;
 }
 
 message DeleteArtifactRequest {
@@ -70,7 +67,7 @@ service ArtifactsService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }
   rpc Promote(PromoteArtifactRequest) returns (ArtifactRecord) {
-    option (ship.ops.v1.description) = "Promote an artifact to a target scope (run → project → user).";
+    option (ship.ops.v1.description) = "Promote an artifact to a target scope (run → project).";
     option (ship.ops.v1.capability) = "ship.artifacts.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
   }

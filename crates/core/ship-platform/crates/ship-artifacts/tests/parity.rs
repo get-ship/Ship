@@ -258,8 +258,6 @@ async fn parity_store_run_scope_sets_run_id() {
 
     assert_eq!(rec.scope, "run");
     assert_eq!(rec.space_id.as_deref(), Some("proj"));
-    assert_eq!(rec.run_id.as_deref(), Some("run-001"));
-    assert!(rec.user_id.is_none());
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

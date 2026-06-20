@@ -121,7 +121,7 @@ impl ShipRuntime {
     /// call (C-2 §3.1). Errors cleanly when the daemon is space-less (no active
     /// space) rather than fabricate a `global` partition (S2 home-space kill).
     pub fn collections(&self) -> anyhow::Result<ship_collection::service::CollectionService> {
-        let ctx = self.collection_ctx.clone().ok_or_else(|| {
+        let ctx = self.space_ctx.clone().ok_or_else(|| {
             anyhow::anyhow!("no active space: collections are unavailable in space-less mode")
         })?;
         Ok(ship_collection::service::CollectionService {
@@ -131,9 +131,11 @@ impl ShipRuntime {
     }
 
     /// Build an `ArtifactService` over the active-space `SpaceContext` + blob
-    /// root. Errors cleanly when the daemon is space-less.
+    /// root. Errors cleanly when the daemon is space-less. Shares the same
+    /// `SpaceContext` as `collections()` (single per-scope db, single
+    /// `KernelLog` — see `space_ctx`).
     pub fn artifacts(&self) -> anyhow::Result<ship_artifacts::service::ArtifactService> {
-        let ctx = self.artifact_ctx.clone().ok_or_else(|| {
+        let ctx = self.space_ctx.clone().ok_or_else(|| {
             anyhow::anyhow!("no active space: artifacts are unavailable in space-less mode")
         })?;
         Ok(ship_artifacts::service::ArtifactService::new(
@@ -141,7 +143,6 @@ impl ShipRuntime {
             self.global_blob_dir.clone(),
         ))
     }
-
     /// The shared collection schema registry (C-2 UD-7) — used by the wire mount
     /// and any caller that needs the same registry instance.
     pub fn collection_schemas(
@@ -152,14 +153,15 @@ impl ShipRuntime {
 
     /// The active-space collection `SpaceContext` — used by the wire mount.
     /// `None` when the daemon booted space-less; the wire mount is skipped.
+    /// Alias for `space_ctx`; both collection and artifact wire mounts share
+    /// the same context (single per-scope db).
     pub fn collection_ctx(&self) -> Option<Arc<ship_substrate::ports::SpaceContext>> {
-        self.collection_ctx.clone()
+        self.space_ctx.clone()
     }
-
     /// The active-space artifact `SpaceContext` — used by the wire mount + GC
-    /// sweep. `None` when the daemon booted space-less.
+    /// sweep. `None` when the daemon booted space-less. Alias for `space_ctx`.
     pub fn artifact_ctx(&self) -> Option<Arc<ship_substrate::ports::SpaceContext>> {
-        self.artifact_ctx.clone()
+        self.space_ctx.clone()
     }
 
     /// Blob root for artifacts (global ship dir).

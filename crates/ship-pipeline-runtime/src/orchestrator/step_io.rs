@@ -109,7 +109,8 @@ pub async fn resolve_consumes(
             })?;
 
         // Write to .artifacts/input/<name>.
-        write_input_file(worktree_path, consumed_name, &record, &ship_dir)
+        write_input_file(worktree_path, consumed_name, &record, &art_svc)
+            .await
             .map_err(|e| format!("resolve_consumes: failed writing input '{consumed_name}': {e}"))?;
 
         // Extract a failure reason from `<lane>.failed` sentinel artifacts.
@@ -351,17 +352,18 @@ fn read_failure_reason(path: &Path) -> Option<String> {
 }
 
 /// Write an artifact blob to `<worktree>/.artifacts/input/<name>`.
-/// Tries hardlink first (fast, same device); falls back to byte copy.
+/// Bytes are fetched via `ArtifactService::get_blob` (the `BlobBackend`
+/// abstraction that every other consumer goes through), then written to
+/// the worktree. The previous path hardlinked raw bytes at
+/// `ship_dir.join(&record.path)`, bypassing the trait and breaking the
+/// content-addressed read seam (lib.rs:5) — removed.
 ///
 /// Defense-in-depth: even though `pipeline_loader::validate_output_name`
-/// rejects traversal at load time, we re-verify here that `dst` resolves
-/// within `input_dir`. A loader bypass (e.g. payload injected via an
-/// unvalidated code path) cannot escape the worktree.
-fn write_input_file(
+async fn write_input_file(
     worktree_path: &Path,
     name: &str,
     record: &ArtifactRecord,
-    ship_dir: &Path,
+    art_svc: &ArtifactService,
 ) -> std::io::Result<()> {
     let input_dir = worktree_path.join(".artifacts/input");
     std::fs::create_dir_all(&input_dir)?;
@@ -370,13 +372,14 @@ fn write_input_file(
     if dst.exists() {
         return Ok(());
     }
-    let src = ship_dir.join(&record.path);
-    if std::fs::hard_link(&src, &dst).is_err() {
-        std::fs::copy(&src, &dst)?;
-    }
+    // Route through `ArtifactService::get_blob` (the `BlobBackend` abstraction)
+    // — every other consumer goes through it; the previous path hardlinked
+    // raw bytes at `ship_dir.join(&record.path)`, bypassing the trait.
+    let (_record, bytes) = art_svc.get_blob(&record.id).await
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    std::fs::write(&dst, &bytes)?;
     Ok(())
 }
-
 /// Verify that `candidate` resolves under `base`. We intentionally do NOT
 /// call `canonicalize` on the candidate — the file may not exist yet, and
 /// canonicalize follows symlinks which could itself be an attack vector.
