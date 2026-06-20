@@ -8,19 +8,13 @@ description = "Git domain — repository operations, status, diffs. git2-backed 
 
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
-ship-ops-rpc = { path = "../ship-ops-rpc" }
-
 git2 = "0.19"
 serde = { workspace = true }
 serde_json = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
 tracing = { workspace = true }
 chrono = { workspace = true }
-tokio = { workspace = true, features = ["rt"] }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["test-util", "rt-multi-thread", "macros"] }
 tempfile = { workspace = true }
 
 [lints]

@@ -155,7 +155,7 @@ Each harness section lists the **full upstream config surface**, then marks each
 #### Environment & Auth
 | Field | Type | Ship Status | Notes |
 |---|---|---|---|
-| `env` | Record<string, string> | 🔴 Gap | Environment variables |
+| `env` | Record<string, string> | ✅ Compiled | Environment variables |
 | `apiKeyHelper` | string | 🔧 harness_config | Auth script |
 | `awsCredentialExport` | string | 🔧 harness_config | AWS creds |
 | `awsAuthRefresh` | string | 🔧 harness_config | AWS refresh |
@@ -298,10 +298,10 @@ Fields: `statusLine`, `fileSuggestion`, `spinnerVerbs`, `spinnerTipsEnabled`, `t
 | `[mcp_servers.<name>]` (stdio) | ✅ Compiled | command/args/env |
 | `[mcp_servers.<name>]` (HTTP) | ✅ Compiled | url field |
 | `cwd` | 🔴 Gap | Working directory |
-| `startup_timeout_sec` / `startup_timeout_ms` | 🔴 Gap | Per-server startup timeout |
+| `startup_timeout_sec` / `startup_timeout_ms` | ✅ Compiled (sec only) | Per-server startup timeout |
 | `tool_timeout_sec` | 🔴 Gap | Per-tool timeout |
 | `enabled` | 🔴 Gap | Server enable/disable |
-| `enabled_tools` / `disabled_tools` | 🔴 Gap | Per-server tool allow/block |
+| `enabled_tools` / `disabled_tools` | ✅ Compiled | Per-server tool allow/block |
 | `required` | 🔴 Gap | Fail-fast if server unavailable |
 | `bearer_token` / `bearer_token_env_var` | 🔴 Gap | Auth token |
 | `oauth_resource` / `scopes` | 🔧 harness_config | OAuth config |
@@ -487,7 +487,7 @@ Scoping: project (`.cursor/hooks.json`) + global (`~/.cursor/hooks.json`). Both 
 #### Cloud Agents
 | Feature | Ship Status | Notes |
 |---|---|---|
-| `environment.json` | 🔴 Gap | Cloud agent env config |
+| `environment.json` | ✅ Compiled | Cloud agent env config |
 | `environment.json` fields | 🔴 Gap | `build.context`, `build.dockerfile`, `install`, `start`, `terminals[]` |
 | `.cursor/Dockerfile` | 🔴 Gap | Custom base image for remote env |
 | Background agents | ⬜ | Cloud compute (up to 8 parallel via worktrees) |

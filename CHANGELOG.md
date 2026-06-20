@@ -27,7 +27,6 @@ First release of the Ship CLI and MCP server.
 - Job queue: `create_job`, `list_jobs`, `update_job`, `append_job_log`
 
 **CLI**
-- `ship init` — initialize a project
 - `ship status` — show active workspace and session
 - `ship workspace` — workspace management
 - `ship agent` — agent profile management

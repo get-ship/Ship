@@ -9,12 +9,11 @@ description = "Ship Cloud sync transport — HTTP push/pull of elevated events t
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
 ship-types = { path = "../ship-substrate/crates/ship-types" }
-ship-gateway-client = { path = "../ship-gateway-client" }
-
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
+
 # The HTTP client. `json` feature gates `send_json` and `read_json` (the
 # `Body` reader used by `SyncClient`); without it the `ureq 3` `RequestBuilder`
 # and `Body` APIs are byte-only.

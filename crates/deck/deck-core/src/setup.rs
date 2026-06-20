@@ -28,7 +28,7 @@ const PLACEHOLDER_HTML: &str = r#"<!doctype html>
   <main data-ship-setup>
     <h1>Welcome to Ship</h1>
     <p>The setup wizard is on its way. In the meantime, point a CLI or MCP client at <code>http://localhost:9315</code> to start configuring this daemon.</p>
-    <p>Run <code>ship init</code> in a project to scaffold your first workspace.</p>
+    <p>From your project directory, run <code>ship use my-agent</code> to activate an agent and compile its provider config.</p>
   </main>
 </body>
 </html>

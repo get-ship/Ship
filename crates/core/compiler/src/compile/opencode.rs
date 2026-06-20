@@ -197,14 +197,9 @@ fn build_opencode_mcp(resolved: &ResolvedConfig) -> Json {
 /// Ship manages: `model`, `mcp` (servers), `permission`.
 /// Everything else passes through via `opencode_settings_extra`.
 ///
-/// Returns `Some` when there is content to write (model, MCP servers, permissions, or extras).
+/// Always returns `Some`; the MCP block is always emitted even when empty.
 pub(super) fn build_opencode_config_patch(resolved: &ResolvedConfig) -> Option<Json> {
     let model = resolved.model.as_deref();
-    let _has_extra = resolved
-        .opencode
-        .settings_extra
-        .as_ref()
-        .is_some_and(|v| !v.is_null());
 
     let permissions_patch = build_opencode_permissions(&resolved.permissions);
 

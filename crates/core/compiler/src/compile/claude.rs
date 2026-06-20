@@ -6,11 +6,8 @@ use crate::types::{HookConfig, HookTrigger, Permissions};
 
 /// Build the `.claude/settings.json` patch from permissions, hooks, model, and harness settings.
 ///
-/// Returns `None` when nothing needs to be written — i.e. when all permissions
-/// are at their safe defaults and there are no hooks. This is intentional: Ship
-/// must never write a settings file that silently restricts what Claude can do.
-/// If no overrides are present, Claude Code's own defaults govern — which is the
-/// safest and least surprising behaviour.
+/// Always returns `Some` — Ship unconditionally sets `autoMemoryEnabled: false`
+/// so a settings patch is always written. Callers must always write the returned value.
 #[allow(clippy::too_many_arguments)]
 pub fn build_claude_settings_patch(
     permissions: &Permissions,
@@ -25,15 +22,8 @@ pub fn build_claude_settings_patch(
 ) -> Option<Json> {
     let has_perms = has_permission_overrides(permissions);
     let has_hooks = !hooks.is_empty();
-    let _has_agent_limits =
-        permissions.agent.max_cost_per_session.is_some() || permissions.agent.max_turns.is_some();
-    let _has_model = model.is_some();
-    let _has_extra = extra.is_some_and(|v: &Json| !v.is_null());
     let has_env = !env.is_empty();
     let has_available_models = !available_models.is_empty();
-    let _has_theme = theme.is_some();
-    let _has_auto_updates = auto_updates.is_some();
-    let _has_co_authored = include_co_authored_by.is_some();
 
     let mut patch = serde_json::json!({});
 

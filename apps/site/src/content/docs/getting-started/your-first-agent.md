@@ -23,7 +23,7 @@ Save, and Ship compiles the agent into the configuration your tool expects — `
 
 ## From the command line
 
-The same things are available as CLI commands if you'd rather stay in the terminal — `ship init`, `ship use`, `ship compile`, `ship add`.
+The same things are available as CLI commands if you'd rather stay in the terminal — `ship use`, `ship compile`.
 
 ## What's next
 

@@ -5,6 +5,7 @@ use anyhow::Context;
 use semver::Version;
 
 use super::constraint::{VersionConstraint, normalize_version};
+use super::url_encode::percent_encode;
 
 /// Resolved version: original tag string plus exact commit SHA.
 #[derive(Debug, Clone)]
@@ -68,15 +69,7 @@ fn try_static_alias(dep_path: &str) -> Option<String> {
 fn try_registry_api_alias(dep_path: &str) -> anyhow::Result<String> {
     let base_url = ship_substrate::env::read(ship_substrate::env::Var::RegistryUrl)
         .unwrap_or_else(|| "https://getship.dev".to_string());
-    let encoded: String = dep_path
-        .bytes()
-        .flat_map(|b| match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                vec![b as char]
-            }
-            _ => format!("%{b:02X}").chars().collect(),
-        })
-        .collect();
+    let encoded = percent_encode(dep_path);
     let url = format!("{base_url}/api/registry/resolve?name={encoded}");
 
     let resp = ureq::get(&url)

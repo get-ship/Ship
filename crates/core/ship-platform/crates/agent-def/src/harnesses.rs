@@ -5,8 +5,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
 
 /// Serializable model info for Tauri/MCP.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -17,18 +15,6 @@ pub struct ModelInfo {
     pub context_window: u32,
     pub recommended: bool,
 }
-
-/// Returns the IDs of all harnesses Ship can compile configs for.
-///
-/// Derived from `services::harness_adapter::REGISTRY` — the single source of
-/// truth. Adding a harness to the REGISTRY propagates here automatically; no
-/// manual list to keep in sync.
-pub fn supported_harness_ids() -> impl Iterator<Item = &'static str> {
-    ship_harnesses::harness_adapter::capabilities()
-        .into_iter()
-        .map(|(id, _)| id)
-}
-
 
 // ─── Harness registry ────────────────────────────────────────────────────────
 
@@ -507,51 +493,4 @@ fn collect_toml_models(
             }
         }
     }
-}
-
-// ─── Provider status (binary detection) ──────────────────────────────────────
-
-/// Serializable harness binary-detection status. Used by the `ListProviders`
-/// REST endpoint; the detection result is cached for `PROVIDER_CACHE_TTL`.
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ProviderStatus {
-    pub id: String,
-    pub available: bool,
-    pub binary: String,
-    pub version: Option<String>,
-}
-
-const PROVIDER_CACHE_TTL: Duration = Duration::from_secs(300);
-static PROVIDER_CACHE: Mutex<Option<(Instant, Vec<ProviderStatus>)>> = Mutex::new(None);
-
-/// Return all registered harnesses with binary-detection status, using a
-/// 5-minute in-memory cache so repeated REST polls don't fork subprocesses.
-pub fn list_providers() -> Vec<ProviderStatus> {
-    let mut guard = match PROVIDER_CACHE.lock() {
-        Ok(g) => g,
-        Err(poisoned) => {
-            tracing::warn!("provider cache lock was poisoned, recovering");
-            poisoned.into_inner()
-        }
-    };
-    if let Some((ts, ref cached)) = *guard {
-        if ts.elapsed() < PROVIDER_CACHE_TTL {
-            return cached.clone();
-        }
-    }
-    let providers: Vec<ProviderStatus> = HARNESSES
-        .iter()
-        .map(|d| {
-            let available = detect_binary(d.binary);
-            let version = if available { detect_version(d.binary) } else { None };
-            ProviderStatus {
-                id: d.id.to_string(),
-                available,
-                binary: d.binary.to_string(),
-                version,
-            }
-        })
-        .collect();
-    *guard = Some((Instant::now(), providers.clone()));
-    providers
 }

@@ -9,7 +9,7 @@
 //! Advisory only for v0.1 — installs proceed even on mismatch or registry
 //! unavailability.
 
-use super::tracking::percent_encode;
+use super::url_encode::percent_encode;
 
 /// Query the Ship registry for the expected content hash of a package version.
 ///

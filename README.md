@@ -54,9 +54,6 @@ Skills are markdown templates compiled into agent context. They use progressive 
 
 Skills are shareable packages. The registry at [getship.dev](https://getship.dev) hosts community skills. Built-in: `tdd`, `code-review`, `web-qa`, `browse`, `spawn-agent`, `design-review`, and more.
 
-```bash
-ship add github.com/acme/agent-skills    # install a skill package
-```
 
 ## Pipelines
 
@@ -100,8 +97,6 @@ Each invocation is a **run** with status, ownership, and a completion signal. St
 Skills and agent profiles are shareable packages. Packages are GitHub repos with a `.ship/` directory.
 
 ```bash
-ship add github.com/acme/agent-toolkit
-ship install --frozen          # CI
 ship publish                   # publish your own
 ```
 
@@ -169,7 +164,7 @@ curl -fsSL https://github.com/madvib/ship/releases/download/vX.Y.Z/install.sh | 
 Once the binaries are on your path:
 
 ```sh
-cd your-project && ship init && ship use my-agent
+cd your-project && ship use my-agent
 ```
 
 ## Status

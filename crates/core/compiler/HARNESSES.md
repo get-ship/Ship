@@ -304,6 +304,6 @@ otlp_endpoint = "http://localhost:4317"
 1. Fetch the harness's official docs for: rules, skills, MCP, settings, hooks
 2. Add a verified section above with `<!-- verified: YYYY-MM-DD source: <url> -->` on each source
 3. Add a row to the Support Matrix
-4. Add a `HarnessDescriptor` entry in `crates/core/compiler/src/compile/mod.rs`
+4. Add a `HarnessDescriptor` entry in `crates/core/compiler/src/compile/harness.rs` (append to the `HARNESSES` static slice)
 5. Add `"<id>"` to `normalize_harnesses()` in `crates/core/compiler/src/resolve.rs`
 6. Add tests: harness_exists, mcp_format, skill_dir, context_file, no_settings_patch (if applicable)

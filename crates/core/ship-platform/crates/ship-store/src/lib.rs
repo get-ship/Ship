@@ -24,6 +24,7 @@ pub mod install_bundle;
 mod install_helpers;
 pub mod resolver;
 pub mod tracking;
+pub mod url_encode;
 pub mod types;
 pub mod verify;
 

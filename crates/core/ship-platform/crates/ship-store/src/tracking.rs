@@ -2,37 +2,26 @@
 //!
 //! After a package is freshly fetched from the registry (not a cache hit),
 //! we POST to the registry's install endpoint so download counts are tracked.
-//! This is non-blocking: a detached thread runs `curl` in the background.
+//! This is non-blocking: a detached thread runs the POST in the background.
 //! Failures are silently ignored — tracking must never slow down or break installs.
+//!
+//! Implementation note: this uses [`ureq`] running in-process on a worker thread
+//! rather than shelling out to `curl(1)`. The behavior is *almost* identical
+//! for the happy path (POST with 5 s timeout, silently discard the response),
+//! but the failure modes differ: `ureq` runs in-process, so if the daemon is
+//! killed mid-POST the in-flight request is abandoned; `curl` runs in its own
+//! process and would survive a daemon SIGKILL. We accept that edge case —
+//! install tracking is best-effort telemetry, never a correctness boundary.
 
-use std::process::{Command, Stdio};
+use std::time::Duration;
 
-/// Percent-encode a package path for use in a URL.
-///
-/// Encodes everything except unreserved characters (RFC 3986):
-/// ALPHA / DIGIT / "-" / "." / "_" / "~"
-pub fn percent_encode(input: &str) -> String {
-    let mut encoded = String::with_capacity(input.len());
-    for byte in input.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                encoded.push(byte as char);
-            }
-            b'/' => {
-                // Keep path separators readable — registry routes expect them encoded.
-                encoded.push_str("%2F");
-            }
-            _ => {
-                encoded.push_str(&format!("%{:02X}", byte));
-            }
-        }
-    }
-    encoded
-}
+use super::url_encode::percent_encode;
+
+const TRACK_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Fire-and-forget POST to track a package install.
 ///
-/// Spawns a detached thread that runs `curl` with a 5-second timeout.
+/// Spawns a detached thread that performs a `ureq::post` with a 5 s timeout.
 /// Returns immediately. Never errors — all failures are silently swallowed.
 ///
 /// Skipped when:
@@ -56,45 +45,17 @@ pub fn track_install(package_path: &str, offline: bool) {
     let endpoint = format!("{}/api/registry/{}/install", base_url, encoded);
 
     std::thread::spawn(move || {
-        let _ = Command::new("curl")
-            .args([
-                "-s", // silent
-                "-o",
-                "/dev/null", // discard response body
-                "-X",
-                "POST",
-                "--max-time",
-                "5",
-                &endpoint,
-            ])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+        let agent = ureq::Agent::config_builder()
+            .timeout_global(Some(TRACK_TIMEOUT))
+            .build()
+            .new_agent();
+        let _ = agent.post(&endpoint).header("User-Agent", "ship-pkg/0.1").send_empty();
     });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn percent_encode_simple_path() {
-        assert_eq!(
-            percent_encode("github.com/owner/repo"),
-            "github.com%2Fowner%2Frepo"
-        );
-    }
-
-    #[test]
-    fn percent_encode_preserves_unreserved() {
-        assert_eq!(percent_encode("a-b_c.d~e"), "a-b_c.d~e");
-    }
-
-    #[test]
-    fn percent_encode_encodes_special_chars() {
-        assert_eq!(percent_encode("a b@c"), "a%20b%40c");
-    }
 
     #[test]
     fn track_install_skipped_when_offline() {
@@ -118,16 +79,25 @@ mod tests {
 
     #[test]
     fn track_install_does_not_block_on_bad_url() {
-        // Point to a URL that won't resolve — should still return quickly.
+        // Point to an unreachable port on localhost. The spawned worker thread
+        // should fail fast (connection refused) without making `track_install`
+        // block. We assert that the call returns well under our internal
+        // 5 s timeout — a hard upper bound of 500 ms leaves 10x headroom for
+        // slow CI while still catching a regression that re-introduces a
+        // blocking wait on the caller side.
         // SAFETY: test is single-threaded; env var is restored immediately after.
         let prev = ship_substrate::env::read_raw(ship_substrate::env::Var::RegistryUrl).ok();
         unsafe { ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, "http://127.0.0.1:1") };
+        let start = std::time::Instant::now();
         track_install("github.com/test/pkg", false);
-        // Give the spawned thread a moment, but the main thread should not block.
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        let elapsed = start.elapsed();
         match prev {
             Some(val) => unsafe { ship_substrate::env::set(ship_substrate::env::Var::RegistryUrl, &val) },
             None => unsafe { ship_substrate::env::remove(ship_substrate::env::Var::RegistryUrl) },
         }
+        assert!(
+            elapsed < std::time::Duration::from_millis(500),
+            "track_install blocked for {elapsed:?} on a bad URL; expected < 500ms"
+        );
     }
 }
