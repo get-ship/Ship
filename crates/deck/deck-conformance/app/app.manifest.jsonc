@@ -1,0 +1,18 @@
+// App manifest — a name → real-ESM-import map (the synthetic-view import map).
+//
+// SUI stays ignorant of what these names MEAN. `route` is a deck/app concept
+// (the URL handle behind the view-host), not a SUI one — SUI only sees a name
+// and a module specifier. This map is what REPLACES the reserved-word
+// `BUILTINS`/ambient-ctx mechanism: composition by real import, type-checked
+// by tsgo, the compiler unaware that "route", "ship", or "views" exist.
+//
+// `construct: true` means the import is a factory (`route()` → RouteSignals,
+// `makeShip()` → ShipClient), so the synthetic controller emits
+// `const route = route()` / `const ship = makeShip()`.
+{
+  "clients": {
+    "route": { "from": "@ship/deck/route", "import": "route", "construct": true },
+    "ship": { "from": "@app/clients/demo", "import": "makeShip", "construct": true },
+    "api": { "from": "@app/clients/demo", "import": "makeApi", "construct": true }
+  }
+}

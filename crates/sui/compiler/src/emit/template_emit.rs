@@ -196,6 +196,25 @@ impl TemplateEmitter {
         rewrite_scoped(src, extra_locals, &self.expr_prefix, &machinery)
     }
 
+    /// `true` when emitting the synthetic (typed TS) render rather than the
+    /// production runtime module — i.e. the author-expression prefix is
+    /// `scope.` not `$scope.`.
+    pub(super) fn is_synthetic(&self) -> bool {
+        self.expr_prefix != "$scope."
+    }
+
+    /// Declare a per-boundary disposer array. In synthetic (TS) mode the
+    /// empty array literal is annotated so it doesn't infer `never[]` under
+    /// strict null checks; production stays byte-identical (`const v = [];`,
+    /// valid JS — TS annotations would be invalid there).
+    pub(super) fn decl_cleanups(&self, var: &str) -> String {
+        if self.is_synthetic() {
+            format!("const {var}: Array<() => void> = [];")
+        } else {
+            format!("const {var} = [];")
+        }
+    }
+
     /// Drain the render-callback buffer. Called by `emit_setup_body`
     /// after `emit_top_level` finishes writing `__mount`.
     pub fn take_render_callbacks(&mut self) -> String {
@@ -492,7 +511,7 @@ impl TemplateEmitter {
         w.line(&format!(
             "const {frag} = document.createDocumentFragment();"
         ));
-        w.line(&format!("const {cl} = [];"));
+        w.line(&self.decl_cleanups(&cl));
         self.boundary_depth += 1;
         self.emit_children(w, body, &frag, &cl);
         self.boundary_depth -= 1;

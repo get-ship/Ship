@@ -1,0 +1,66 @@
+// @ship/sui-runtime/server — the SERVER (V8 / no-browser) entry.
+//
+// The synthetic SSR build aliases `@ship/sui-runtime` to THIS module. It
+// re-exports the environment-agnostic reactive core + the DOM bindings from
+// their source modules, deliberately bypassing the package index
+// (`./index.ts`) for two reasons:
+//
+//   1. The index runs a browser-only module side effect on load —
+//      `import './boundary-elements'` calls `customElements.define(...)`,
+//      and there is no `customElements` in a V8 isolate. (The call is
+//      guarded by `typeof customElements`, so it is inert; the point is to
+//      not pull the whole browser graph in at all.)
+//   2. The index transitively imports `./generated` (Specta/proto codegen
+//      types) and the full view/controller/mount/chrome graph — none of
+//      which a synthesized render or controller needs.
+//
+// The bindings (`bindText`, `bindAttr`, `bindIf`, `bindFor`, …) only touch
+// the DOM *when called*, through the `node`/`el` they're handed. Server-side
+// the SSR entry installs a minimal server-DOM as `globalThis.document`, so
+// the SAME binder runs unchanged and serializes to HTML — there is one
+// isomorphic render artifact, not a second string-renderer emit path.
+
+// ── reactive core (pure; no DOM) ────────────────────────────────────────────
+export {
+  signal,
+  derived,
+  effect,
+  batch,
+  untrack,
+  selector,
+  isSignal,
+  debounce,
+  type Signal,
+} from './signal'
+export { live, unwrap, unwrapOr, type LiveSource, type LiveSignal, type LiveState } from './live'
+export { data } from './data'
+export { createMountState, componentMountState, pickSignals, SIGNALS_KEY } from './state-proxy'
+export { ref, attachRef } from './ref'
+
+// ── DOM bindings (operate on the node they're given — server-DOM or real) ────
+export {
+  bindText,
+  bindShow,
+  bindAttr,
+  bindClass,
+  bindProp,
+  bindValue,
+  bindChecked,
+  bindHtml,
+  type Disposer,
+} from './bind'
+export { on, matchesKey } from './on'
+export { wireFormMutation } from './mutation'
+
+// ── control flow ────────────────────────────────────────────────────────────
+export { bindIf } from './if'
+export { bindFor, bindForSignal } from './for'
+export { bindWhileLoading, bindWhileError } from './while'
+export { bindAwait } from './await'
+
+// ── slots / boundaries / transitions / hooks ────────────────────────────────
+export { bindSlotEmpty } from './slot-empty'
+export { resolveSlots, snapshotChildren, slotFilled } from './slot'
+export { registerTransition, runIn, runOut, fade, slide, scale } from './transition'
+export { getTemplateHook, registerTemplateHook } from './template-hooks/registry'
+export { adoptSuiSheets } from './styles/index'

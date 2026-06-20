@@ -261,7 +261,7 @@ impl TemplateEmitter {
         body_w.line(&format!(
             "const {frag} = document.createDocumentFragment();"
         ));
-        body_w.line(&format!("const {cl} = [];"));
+        body_w.line(&self.decl_cleanups(&cl));
         let hoist_snapshot = self.boundary_hoists.len();
         self.boundary_depth += 1;
         let outer_for = std::mem::replace(&mut self.for_in_scope, body_needs_v);
@@ -418,7 +418,7 @@ impl TemplateEmitter {
             h.line(&format!(
                 "const {frag} = document.createDocumentFragment();"
             ));
-            h.line(&format!("const {cl} = [];"));
+            h.line(&self.decl_cleanups(&cl));
             self.boundary_depth += 1;
             self.emit_children(&mut h, eb, &frag, &cl);
             self.boundary_depth -= 1;
@@ -608,7 +608,7 @@ impl TemplateEmitter {
         h.line(&format!("const {render_key} = () => {{"));
         h.enter();
         h.line(&format!("const {frag} = document.createDocumentFragment();"));
-        h.line(&format!("const {cl} = [];"));
+        h.line(&self.decl_cleanups(&cl));
         self.boundary_depth += 1;
         self.emit_children(&mut h, body, &frag, &cl);
         self.boundary_depth -= 1;
@@ -636,7 +636,7 @@ impl TemplateEmitter {
         let frag = self.fresh("frag");
         let cl = self.fresh("c");
         h.line(&format!("const {frag} = document.createDocumentFragment();"));
-        h.line(&format!("const {cl} = [];"));
+        h.line(&self.decl_cleanups(&cl));
         self.boundary_depth += 1;
         // The error binder lives on the runtime `$scope` child scope; qualify
         // author references to it with `$scope.` (synthetic mode).
