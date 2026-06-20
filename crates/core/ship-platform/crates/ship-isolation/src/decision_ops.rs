@@ -172,7 +172,8 @@ pub fn verify_decision() -> VerifyResult {
         IsolationStrategy::SrtWrapper => true,
         IsolationStrategy::HarnessSandbox => true,
         IsolationStrategy::DockerEngine => true,
-        IsolationStrategy::YoukiRootless => true,
+        // No spawn arm wired in process.rs — recommendable but refuses under enforce until a spawn driver lands.
+        IsolationStrategy::YoukiRootless => false,
         // WSL is spawn-wired (process.rs `wire_sidecar_sandbox`); the Windows
         // substrate. Selection is Windows-gated; the code compiles everywhere.
         IsolationStrategy::Wsl2 => true,
