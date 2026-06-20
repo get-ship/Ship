@@ -76,6 +76,7 @@ pub async fn run_script(dispatch: Arc<dyn Dispatch>, script: String) -> anyhow::
         ..Default::default()
     });
     rt.op_state().borrow_mut().put(HostEnv { dispatch });
+    rt.op_state().borrow_mut().put(Collector::default());
 
     rt.execute_script("[ship:bootstrap]", BOOTSTRAP)
         .map_err(|e| anyhow::anyhow!("bootstrap: {e}"))?;
@@ -183,6 +184,18 @@ mod tests {
         assert_eq!(v["op"], "demo.op");
         assert_eq!(v["args"]["x"], 1);
         assert_eq!(v["ok"], true);
+    }
+
+    // op_emit from a SCRIPT (not a module) must not panic on the Collector
+    // borrow — the borrow was previously unsatisfied because run_script never
+    // seeded one. The script's top-level value is irrelevant; what matters is
+    // that the emit succeeded and the run returned Ok.
+    #[tokio::test(flavor = "current_thread")]
+    async fn run_script_op_emit_does_not_panic_on_unsatisfied_borrow() {
+        let src = r#"Deno.core.ops.op_emit({ hello: "world" })"#.to_string();
+        let _v = run_script(arc(Echo), src)
+            .await
+            .expect("op_emit from a script must not panic on the Collector borrow");
     }
 
     // run_module: an ES module imports the SDK, calls an op, and emits the
