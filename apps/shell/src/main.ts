@@ -18,7 +18,7 @@
 //      ⌘. navigates to /studio; ⌃` toggles the terminal panel;
 //      ⌘? opens help.
 
-import { createClient, DECK_PREFIX, setShipClient, type ShipSDK } from '@ship/sdk-client'
+import { createClient, DECK_API_ASSETS, DECK_PREFIX, setShipClient, type ShipSDK } from '@ship/sdk-client'
 import { ops } from './ops'
 // `import './components'` and `import { loadHeavyChrome } from
 // './chrome/load-heavy-chrome'` removed. Both source files were deleted in
@@ -103,7 +103,7 @@ function injectTokenStyles(): void {
   if (document.querySelector('link[data-ship-view-tokens]')) return
   const link = document.createElement('link')
   link.rel = 'stylesheet'
-  link.href = `${daemonBase()}/api/assets/view-tokens.css`
+  link.href = `${daemonBase()}${DECK_API_ASSETS}/view-tokens.css`
   link.setAttribute('data-ship-view-tokens', '')
   document.head.appendChild(link)
 }

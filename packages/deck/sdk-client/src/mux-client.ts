@@ -16,10 +16,16 @@
 //     subscribe re-opens cleanly.
 
 import { type LiveSignal } from '@ship/sui-runtime'
+import { DECK_PREFIX } from './constants'
 
-// Fixed companion to deck's DECK_PREFIX ('/_deck'). Lives here so this
-// module stays free of an index.ts import cycle.
-const MUX = '/_deck/mux'
+// Derived companion to deck's DECK_PREFIX. The `/_deck/mux/{open,subscribe,
+// unsubscribe,stream/<id>}` endpoints are served by deck-core; this constant
+// is the single mint point for that path prefix in the client. Derived from
+// DECK_PREFIX (not a separate literal) so the `/_deck` SSOT has one source
+// — changing `DECK_PREFIX` flows through here automatically. Imported from
+// `./constants` rather than `./index` to avoid a `mux-client ↔ index`
+// import cycle (index re-exports `MuxClient`).
+const MUX = `${DECK_PREFIX}/mux`
 
 export class MuxClient {
   private windowId: string | null = null
