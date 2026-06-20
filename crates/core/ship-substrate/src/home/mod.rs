@@ -6,6 +6,7 @@
 //! `scripts/lint/check-raw-ship-paths.sh`.
 
 pub mod daemon;
+pub mod device_id;
 pub mod ensure;
 pub mod project;
 pub mod ship_home;
@@ -17,6 +18,7 @@ pub use daemon::{
 pub use ensure::ensure_layout;
 pub use project::ProjectRoot;
 pub use ship_home::{Db, ShipHome};
+pub use device_id::read_or_generate_device_id;
 // Per modular-runtime-01, `Scope` and `Vector` live in `ship_types`. The
 // home/{scope,vector}.rs shim files have been deleted; callers should
 // import `ship_types::{Scope, Vector}` directly. This re-export stays so
