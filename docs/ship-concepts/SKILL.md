@@ -13,3 +13,4 @@ The "what is X" surface for Ship. Where Extensions docs explain *how to author* 
 ## References
 
 - [`references/docs/index.md`](references/docs/index.md) — concepts index (placeholder).
+- [`references/docs/surfaces.md`](references/docs/surfaces.md) — apps vs views, pages, routes, spaces, store: the surface taxonomy + sui/deck/ship ownership.
