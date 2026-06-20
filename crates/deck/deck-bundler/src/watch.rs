@@ -87,9 +87,9 @@ pub(crate) async fn run(b: &Bundler) {
             ) {
                 return;
             }
-            let is_create_dir = matches!(ev.kind, EventKind::Create(_));
+            let is_create = matches!(ev.kind, EventKind::Create(_));
             for p in ev.paths {
-                producer.push(WatchSignal { path: p, is_create_dir });
+                producer.push(WatchSignal { path: p, is_create });
             }
         }
     }) {
@@ -127,60 +127,50 @@ pub(crate) async fn run(b: &Bundler) {
         }
         let mut seen = std::collections::HashSet::new();
         for sig in changed {
-            let path = sig.path;
-            // #193 completion (#256): a directory CREATED after boot under a
-            // watched root was never re-pruned — a vendored/build subtree a
-            // fanout lane materialized at runtime would re-accumulate notify
-            // PathBufs. On a create-dir event, membership-check the new dir:
-            // skip pruned trees, watch the surviving subtree, and invalidate the
-            // target snapshot (a new view may have appeared).
-            if sig.is_create_dir && path.is_dir() {
-                let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-                if !PRUNE.contains(&name) {
-                    watch_subtree(&mut watcher, std::slice::from_ref(&path));
-                }
-                b.invalidate_targets_for_watch();
-                continue;
-            }
-            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-            if !matches!(ext, "ts" | "tsx" | "js" | "sui") {
-                continue;
-            }
-            // Generated build OUTPUTS live under watched roots (routes.gen.ts
-            // at apps/shell/src/; packages/.../generated/*.ts). Their rewrite
-            // is a rebuild RESULT, not a source change — reacting to it
-            // self-triggers an endless rebuild/reload loop (shipd CPU spin). A
-            // real route change still triggers via the `[param]` dir / `.sui`.
-            {
-                let s = path.to_string_lossy();
-                if s.ends_with(".gen.ts") || s.contains("/generated/") {
-                    continue;
-                }
-            }
-            for t in layout.targets_for_file(&path) {
-                if !seen.insert(t.name.clone()) {
-                    continue;
-                }
-                // Route through single-flight so a watcher rebuild of this
-                // target coalesces with any on-demand build of the SAME target
-                // instead of running a second concurrent `BundlerBuilder` (the
-                // cross-build collision class). #256.
-                match b.rebuild_for_watch(&t).await {
-                    Ok(m) => {
-                        let _ = b.emit_watch_event(BundlerEvent::ModuleChanged {
-                            target: m.target,
-                            out_path: m.out_path,
-                            bytes: m.bytes,
-                        });
+            match classify(&sig) {
+                // #193/#256: a dir created after boot is membership-checked
+                // (skip pruned trees, watch the survivor) and invalidates the
+                // snapshot (a view may appear under it).
+                SignalAction::NewDir => {
+                    let name = sig.path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+                    if !PRUNE.contains(&name) {
+                        watch_subtree(&mut watcher, std::slice::from_ref(&sig.path));
                     }
-                    Err(e) => {
-                        let _ = b.emit_watch_event(BundlerEvent::CompileError {
-                            target: t.name.clone(),
-                            message: e.to_string(),
-                            line: None,
-                            col: None,
-                            file: Some(path.display().to_string()),
-                        });
+                    b.invalidate_targets_for_watch();
+                }
+                SignalAction::Ignore => {}
+                SignalAction::Rebuild { invalidate } => {
+                    // P0-1: a `.sui` written into an already-watched bucket
+                    // creates no directory, so dir-create invalidation misses it
+                    // — refresh the snapshot the moment the leaf lands, else the
+                    // cached find_target/build_all keep missing it until restart.
+                    if invalidate {
+                        b.invalidate_targets_for_watch();
+                    }
+                    for t in layout.targets_for_file(&sig.path) {
+                        if !seen.insert(t.name.clone()) {
+                            continue;
+                        }
+                        // Single-flight: coalesce this rebuild with any on-demand
+                        // build of the SAME target (cross-build collision). #256.
+                        match b.rebuild_for_watch(&t).await {
+                            Ok(m) => {
+                                let _ = b.emit_watch_event(BundlerEvent::ModuleChanged {
+                                    target: m.target,
+                                    out_path: m.out_path,
+                                    bytes: m.bytes,
+                                });
+                            }
+                            Err(e) => {
+                                let _ = b.emit_watch_event(BundlerEvent::CompileError {
+                                    target: t.name.clone(),
+                                    message: e.to_string(),
+                                    line: None,
+                                    col: None,
+                                    file: Some(sig.path.display().to_string()),
+                                });
+                            }
+                        }
                     }
                 }
             }
@@ -194,11 +184,48 @@ pub(crate) async fn run(b: &Bundler) {
 }
 
 /// One FS signal from the notify callback: the changed path plus whether the
-/// originating event created a directory (so the consumer can re-prune
-/// runtime-created vendored subtrees, #193 completion).
+/// originating event was a CREATE (a new directory to re-prune, #193 completion,
+/// or a new `.sui` view leaf to discover, P0-1). Modify/remove events carry
+/// `is_create = false`.
 struct WatchSignal {
     path: PathBuf,
-    is_create_dir: bool,
+    is_create: bool,
+}
+
+/// What the consumer loop does with one drained signal. Split out of `run` so
+/// the create→invalidate policy is unit-testable (P0-1).
+#[derive(Debug, PartialEq, Eq)]
+enum SignalAction {
+    /// A directory created after boot: watch its subtree (unless pruned) and
+    /// invalidate the target snapshot.
+    NewDir,
+    /// A source file that may rebuild targets. `invalidate` is true only when the
+    /// event CREATED a `.sui` leaf — a new view target the snapshot predates, so
+    /// it must be re-walked (P0-1). A `.sui` edit / `.ts` change leaves the
+    /// target set unchanged.
+    Rebuild { invalidate: bool },
+    /// Generated build output or an unrelated extension — nothing to do.
+    Ignore,
+}
+
+/// Classify one drained `WatchSignal` (pure aside from `is_dir`/extension reads).
+fn classify(sig: &WatchSignal) -> SignalAction {
+    if sig.is_create && sig.path.is_dir() {
+        return SignalAction::NewDir;
+    }
+    let ext = sig.path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    if !matches!(ext, "ts" | "tsx" | "js" | "sui") {
+        return SignalAction::Ignore;
+    }
+    // Generated build OUTPUTS (routes.gen.ts, packages/.../generated/*.ts) are a
+    // rebuild RESULT, not a source change — reacting self-triggers an endless
+    // rebuild loop (shipd CPU spin). A real route change still fires via the
+    // `[param]` dir / `.sui`.
+    let s = sig.path.to_string_lossy();
+    if s.ends_with(".gen.ts") || s.contains("/generated/") {
+        return SignalAction::Ignore;
+    }
+    SignalAction::Rebuild { invalidate: sig.is_create && ext == "sui" }
 }
 
 /// Bounded, drop-oldest, coalescing watch ring shared between the sync notify
@@ -291,7 +318,7 @@ mod tests {
         let q = WatchQueue::default();
         // Fill past capacity; the oldest entries must be evicted, length capped.
         for i in 0..(WATCH_CHANNEL_CAP + 50) {
-            q.push(WatchSignal { path: PathBuf::from(format!("/p/{i}")), is_create_dir: false });
+            q.push(WatchSignal { path: PathBuf::from(format!("/p/{i}")), is_create: false });
         }
         let drained = q.drain();
         assert_eq!(drained.len(), WATCH_CHANNEL_CAP, "ring is bounded at capacity");
@@ -306,7 +333,7 @@ mod tests {
     #[test]
     fn drain_empties_the_ring() {
         let q = WatchQueue::default();
-        q.push(WatchSignal { path: PathBuf::from("/a"), is_create_dir: true });
+        q.push(WatchSignal { path: PathBuf::from("/a"), is_create: true });
         assert_eq!(q.drain().len(), 1);
         assert!(q.drain().is_empty(), "second drain yields nothing");
     }
@@ -323,7 +350,51 @@ mod tests {
     async fn wait_nonempty_returns_true_when_signal_present() {
         let q = WatchQueue::default();
         let flag = AtomicBool::new(true);
-        q.push(WatchSignal { path: PathBuf::from("/a"), is_create_dir: false });
+        q.push(WatchSignal { path: PathBuf::from("/a"), is_create: false });
         assert!(q.wait_nonempty(&flag).await);
+    }
+
+    // ── classify (P0-1: a runtime-authored `.sui` must refresh the snapshot) ──
+
+    /// A `.sui` CREATE must invalidate the snapshot (P0-1); a `.sui` EDIT must
+    /// not (the target set is unchanged). Before the fix only dir-create
+    /// invalidated, leaving a leaf written into a watched bucket invisible.
+    #[test]
+    fn classify_sui_create_invalidates_snapshot() {
+        let tmp = tempfile::tempdir().unwrap();
+        let sui = tmp.path().join("views/bar/page.sui");
+        std::fs::create_dir_all(sui.parent().unwrap()).unwrap();
+        std::fs::write(&sui, "<div/>").unwrap();
+        let create = classify(&WatchSignal { path: sui.clone(), is_create: true });
+        assert_eq!(create, SignalAction::Rebuild { invalidate: true }, "create re-walks");
+        let edit = classify(&WatchSignal { path: sui, is_create: false });
+        assert_eq!(edit, SignalAction::Rebuild { invalidate: false }, "edit does not");
+    }
+
+    /// A newly-created directory is `NewDir` (#193/#256 behaviour, preserved).
+    #[test]
+    fn classify_new_dir_is_newdir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("views/baz");
+        std::fs::create_dir_all(&dir).unwrap();
+        assert_eq!(classify(&WatchSignal { path: dir, is_create: true }), SignalAction::NewDir);
+    }
+
+    /// Generated outputs (`.gen.ts`/`generated/`, reacting self-triggers a
+    /// rebuild loop) and non-source extensions are ignored.
+    #[test]
+    fn classify_generated_and_unrelated_are_ignored() {
+        assert_eq!(
+            classify(&WatchSignal { path: PathBuf::from("/x/routes.gen.ts"), is_create: true }),
+            SignalAction::Ignore,
+        );
+        assert_eq!(
+            classify(&WatchSignal { path: PathBuf::from("/x/generated/foo.ts"), is_create: false }),
+            SignalAction::Ignore,
+        );
+        assert_eq!(
+            classify(&WatchSignal { path: PathBuf::from("/x/image.png"), is_create: true }),
+            SignalAction::Ignore,
+        );
     }
 }
