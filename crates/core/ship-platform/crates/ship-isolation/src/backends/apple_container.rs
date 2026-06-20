@@ -57,6 +57,14 @@ impl AppleContainer {
 /// Pull the container's IP out of `container inspect` JSON. DRAFT: the exact
 /// shape is unverified — adjust the field paths on real hardware. Tries a few
 /// likely locations and strips any CIDR suffix.
+///
+/// Compile-time guard: the `#[deprecated]` attribute turns every reference
+/// into a warning labelled `UNVERIFIED`. Maintainers who route new code
+/// through this function (outside the existing tests / `prepare` call site)
+/// see the warning and remember the field paths are educated guesses, not
+/// hardware-verified shapes. Remove the attribute once the live
+/// `apple_container_live` test passes on real Apple Silicon.
+#[deprecated(note = "UNVERIFIED — ip_from_inspect field paths are educated guesses; verify on real Apple Silicon before removing this guard")]
 fn ip_from_inspect(json: &str) -> Option<String> {
     let v: serde_json::Value = serde_json::from_str(json).ok()?;
     let obj = v.as_array().and_then(|a| a.first()).unwrap_or(&v);
@@ -109,6 +117,11 @@ async fn wait_until_ready(host: &str, port: u16) -> Result<(), IsolatorError> {
     )))
 }
 
+// The existing prepare call site is the one path currently using the
+// UNVERIFIED helper (the live test is gated to real Apple Silicon);
+// suppress the deprecation warning only for the call sites that exist
+// today, so any future caller surfaces the warning.
+#[allow(deprecated)]
 #[async_trait]
 impl Isolator for AppleContainer {
     fn name(&self) -> &'static str {
@@ -203,6 +216,7 @@ impl Isolator for AppleContainer {
 }
 
 #[cfg(test)]
+#[allow(deprecated)] // ip_from_inspect is UNVERIFIED; tests exercise it intentionally
 mod tests {
     use super::*;
 

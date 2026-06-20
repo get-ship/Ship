@@ -163,8 +163,9 @@ pub fn verify_decision() -> VerifyResult {
 
     // Strategy implementation check. The Registry is built lazily in
     // ship-supervisor; here we hard-code the set of strategies we have
-    // backends for. Falls out of sync at compile time if backends are
-    // added — keep the match exhaustive.
+    // backends for. The match is exhaustive — a missing variant is a
+    // compile error — but it does NOT catch a variant added with the
+    // wrong `has_impl` value, so each arm needs to stay honest.
     let strategy = decision.resolved.strategy;
     let has_impl = match strategy {
         IsolationStrategy::Noop => true,
