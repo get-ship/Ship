@@ -394,7 +394,6 @@ pub const COMMANDS: &[CommandDescriptor] = &[
             ArgDescriptor { name: "slug", kind: "string?", required: false },
             ArgDescriptor { name: "branch", kind: "string?", required: false },
             ArgDescriptor { name: "source_spec_path", kind: "string?", required: false },
-            ArgDescriptor { name: "depends_on", kind: "string[]", required: false },
             ArgDescriptor { name: "vars", kind: "map", required: false },
         ],
         permission: "ship.runtime.dispatch",
