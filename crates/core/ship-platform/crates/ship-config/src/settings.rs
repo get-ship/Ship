@@ -31,34 +31,7 @@ use crate::types::HarnessProjectOverrides;
 /// since silently picking an AI the user hasn't installed or paid for is a
 /// footgun.
 pub fn setting_default(key: &str) -> Option<&'static str> {
-    match key {
-        "terminal.program" => Some("tmux"),
-        "daemon.port" => Some("9315"),
-        // Command bar send key: "enter" sends on Enter (newline via Shift+Enter);
-        // "cmd+enter" inserts newline on Enter and sends on Cmd/Ctrl+Enter.
-        "cmdk.send_key" => Some("enter"),
-        // When true, `ship use --launch` re-enters an existing (agent, path)
-        // session instead of spawning fresh. Off by default so the user opts
-        // in to implicit resumes.
-        "agent_session.auto_resume" => Some("false"),
-        // u64 ms — debounce window for the declarative `.ship/` watcher.
-        "watcher.debounce_ms" => Some("200"),
-        // usize — default `limit` for `git log` reads when no caller value is supplied.
-        "git.log_limit" => Some("50"),
-        // u32 — maximum hook recursion depth before the engine drops further events.
-        "hooks.max_depth" => Some("3"),
-        // ─── Isolation (see crates/core/ship-platform/crates/ship-isolation/docs/strategy.md) ───
-        "isolation.default_tier" => Some("auto"),
-        "isolation.default_strategy" => Some("auto"),
-        "isolation.allow_tier_0" => Some("true"),
-        "isolation.enforce" => Some("false"),
-        "isolation.lazy_fetch" => Some("true"),
-        "isolation.network_default" => Some("allowlist"),
-        "isolation.allowlist_default" => {
-            Some("api.anthropic.com,console.anthropic.com,*.github.com")
-        }
-        _ => None,
-    }
+    DEFAULT_KEYS.iter().find(|(k, _)| *k == key).map(|(_, v)| *v)
 }
 
 /// Get a single setting from the daemon_settings table, falling back to the

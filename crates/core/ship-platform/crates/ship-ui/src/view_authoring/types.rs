@@ -1,7 +1,6 @@
 //! Contract types shared between the view-authoring MCP tools and the
 //! frontend (chrome) edit-mode UI.
 //!
-//! Source of truth: `.artifacts/launch-arc/intent/chrome/view-authoring-contract.md`.
 //! Frontend imports the TS bindings emitted from these structs by
 //! `cargo xtask gen-types`.
 

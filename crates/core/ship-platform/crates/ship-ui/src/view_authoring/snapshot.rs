@@ -34,7 +34,6 @@ fn def(field_type: FieldKind, required: bool) -> FieldDef {
     FieldDef { kind: field_type, required, values: None }
 }
 
-/// Schema mirrors the contract block in `view-authoring-contract.md`.
 pub fn view_snapshots_schema() -> SchemaDoc {
     let mut fields: IndexMap<String, FieldDef> = IndexMap::new();
     fields.insert("view_name".into(), def(FieldKind::String, true));

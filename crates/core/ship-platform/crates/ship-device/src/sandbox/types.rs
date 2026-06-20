@@ -69,7 +69,7 @@ impl SandboxLifetime {
 
 impl Default for SandboxLifetime {
     fn default() -> Self {
-        // 15 minute idle reap — per runtime-architecture.md §6
+        // 15 minute idle reap — per runtime-architecture.md §5
         Self::Idle {
             timeout_secs: 15 * 60,
         }

@@ -467,9 +467,61 @@ mod tests {
         assert!(!is_valid_view_name("has/slash"));
     }
 
-    #[test]
-    fn known_ops_are_all_dispatched() {
-        // Verify string constants match what dispatch() expects.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn known_ops_are_all_dispatched() {
+        // Drive every op string through `dispatch` so a renamed (or deleted)
+        // match arm is caught — the catch-all falls through to
+        // `BadRequest { code: "unknown_op", .. }`, which is the only result
+        // that signals "no arm matched".
+        use crate::view_authoring::capability;
+        use crate::view_ports::PreviewError;
+        use serde_json::json;
+        use ship_substrate::ports::SpaceContext;
+        use std::path::PathBuf;
+        use std::sync::Arc;
+
+        capability::reset_for_test();
+        capability::grant("sess-dispatch", "view-dispatch");
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let ctx = SpaceContext::for_space(tmp.path(), ship_substrate::ports::SpaceId::new("test"))
+            .expect("space context");
+        let ctx = Arc::new(ctx);
+        let ship_dir = tmp.path().to_path_buf();
+
+        struct MockPort {
+            ctx: Arc<SpaceContext>,
+            ship_dir: PathBuf,
+        }
+        #[async_trait::async_trait]
+        impl ViewToolPort for MockPort {
+            async fn build_view(&self, _target: &str) -> Result<(), BundlerBuildError> {
+                Err(BundlerBuildError::UnknownTarget("mock".into()))
+            }
+            fn space_context(&self, _space: &str) -> Arc<SpaceContext> {
+                self.ctx.clone()
+            }
+            fn ship_dir(&self) -> PathBuf {
+                self.ship_dir.clone()
+            }
+            fn collections(&self) -> anyhow::Result<ship_collection::service::CollectionService> {
+                Err(anyhow::anyhow!("mock: no active space"))
+            }
+            fn project_slug(&self) -> Option<String> {
+                None
+            }
+            fn resolve_theme_css(&self) -> String {
+                String::new()
+            }
+            fn resolve_view_source(&self, _name: &str) -> Result<(String, PathBuf), String> {
+                Err("mock: view not found".into())
+            }
+            fn preview_view_html(&self, _name: &str) -> Result<String, PreviewError> {
+                Err(PreviewError::ViewNotFound("mock".into()))
+            }
+        }
+        let port = MockPort { ctx, ship_dir };
+
         let known = [
             "read_source",
             "write_source",
@@ -481,10 +533,20 @@ mod tests {
             "list_snapshots",
             "restore_snapshot",
         ];
-        // All strings are valid identifiers — they must not contain typos.
-        for op in &known {
-            assert!(!op.is_empty());
-            assert!(op.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'));
+        assert_eq!(known.len(), 9, "9 view.* ops expected");
+
+        for op in known {
+            let result = dispatch(
+                &port,
+                "view-dispatch".into(),
+                "sess-dispatch".into(),
+                op.into(),
+                json!({}),
+            )
+            .await;
+            if let DispatchResult::BadRequest { code: "unknown_op", message } = &result {
+                panic!("op `{op}` did not match a dispatch arm: {message}");
+            }
         }
     }
 }
