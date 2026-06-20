@@ -7,6 +7,12 @@
 //! imports with real type resolution (no ambient passthrough). Finally it
 //! shows a deliberate `route.parms` typo is CAUGHT (TS2339).
 //!
+//! The tsconfig is FULL STRICT (`strict: true`, `noImplicitAny: true`): the
+//! synthetic render's generated machinery (boundary `anchor`, `{#while-error}`
+//! binder, disposer arrays) is type-annotated mode-aware, so no implicit-`any`
+//! remains. Author expressions were already fully checked; this closes the
+//! machinery gap so a synthesized view checks exactly as strictly as authored TS.
+//!
 //! Opt-in by environment: requires `bun install` so `node_modules/.bin/tsc`
 //! and the workspace package sources exist. When `tsc` is absent the test
 //! prints why and returns — it never fails for a missing toolchain (mirrors
@@ -69,7 +75,7 @@ fn write_tsconfig(repo: &Path, dir: &Path, include: &[&str], name: &str) {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": [],
     "strict": true,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
     "skipLibCheck": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,

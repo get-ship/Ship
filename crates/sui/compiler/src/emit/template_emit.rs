@@ -215,6 +215,20 @@ impl TemplateEmitter {
         }
     }
 
+    /// A machinery callback parameter, annotated in synthetic (TS) mode so the
+    /// render type-checks under `noImplicitAny`. Production stays byte-identical
+    /// (bare `name`, valid JS — a TS annotation would be a syntax error there).
+    /// The generated machinery types are FIXED by the runtime contract (the
+    /// boundary anchor is a `Comment`, the `{#while-error}` binder is an
+    /// `Error`), so the annotation is precise, not a widening to `any`.
+    pub(super) fn machinery_param(&self, name: &str, ty: &str) -> String {
+        if self.is_synthetic() {
+            format!("{name}: {ty}")
+        } else {
+            name.to_string()
+        }
+    }
+
     /// Drain the render-callback buffer. Called by `emit_setup_body`
     /// after `emit_top_level` finishes writing `__mount`.
     pub fn take_render_callbacks(&mut self) -> String {

@@ -123,7 +123,11 @@ fn non_live_data_lowers_to_data_handle() {
 }
 
 #[test]
-fn authored_controller_is_composed_not_rewritten() {
+fn authored_controller_is_composed_via_setup_not_rewritten() {
+    // The authored module default-exports a real `controller({...})`
+    // (`ControllerExport`); the synthetic controller drives its `setup(ctx)`
+    // (the production `resolveController`), spreads the result, and recovers
+    // the contributed scope TYPE from the export — composed, never rewritten.
     let authored = AuthoredController { specifier: "./controller.ts".to_string() };
     let program = parse("<p>{greeting()} (count {count()})</p>").expect("parse");
     let manifest = AppManifest::parse("{}").expect("manifest");
@@ -136,7 +140,25 @@ fn authored_controller_is_composed_not_rewritten() {
     )
     .expect("emit");
     assert!(out.controller_ts.contains(r#"import __authored from "./controller.ts";"#));
-    assert!(out.controller_ts.contains("const __authoredScope = __authored();"));
+    assert!(
+        out.controller_ts.contains(
+            "import type { ControllerExport, ResolverContext } from \"@ship/sui-runtime\";"
+        ),
+        "composes the DSL via its typed export:\n{}",
+        out.controller_ts
+    );
+    assert!(
+        out.controller_ts.contains(
+            "type __AuthoredScope = typeof __authored extends ControllerExport<infer S> ? S : never;"
+        ),
+        "recovers the contributed scope type from the ControllerExport:\n{}",
+        out.controller_ts
+    );
+    assert!(
+        out.controller_ts.contains("const __authoredScope = __authored.setup(__ctx) as __AuthoredScope;"),
+        "runs the real resolveController via setup(ctx):\n{}",
+        out.controller_ts
+    );
     assert!(
         out.controller_ts.contains("export const scope = { ...__authoredScope };"),
         "authored scope is spread (composed), never rewritten:\n{}",
@@ -144,6 +166,38 @@ fn authored_controller_is_composed_not_rewritten() {
     );
     // Render reads the composed members against the typed scope.
     assert!(out.render_ts.contains("scope.greeting()") && out.render_ts.contains("scope.count()"));
+}
+
+#[test]
+fn authored_compose_maps_manifest_clients_into_resolver_ctx() {
+    // A view whose template uses a well-known manifest client (`route`) AND a
+    // named one (`api`) and has an authored controller: the synthetic
+    // controller passes them to `setup(ctx)` in the shape `resolveController`
+    // expects — well-known names as `ResolverContext` fields, the rest spread
+    // into `clients`.
+    let authored = AuthoredController { specifier: "./controller.ts".to_string() };
+    let manifest = AppManifest::parse(
+        r#"{ "clients": {
+            "route": { "from": "@ship/deck/route", "import": "route", "construct": true },
+            "api":   { "from": "@app/clients/demo", "import": "makeApi", "construct": true }
+        } }"#,
+    )
+    .expect("manifest");
+    let program = parse("<p>{route.params.id()} {api.demo.clock()}</p>").expect("parse");
+    let out = emit_synthetic(
+        &program,
+        &manifest,
+        Some(&authored),
+        "./page.synthetic.controller.ts",
+        CompileMode::View,
+    )
+    .expect("emit");
+    assert!(out.controller_ts.contains("route: route,"), "route → ctx.route:\n{}", out.controller_ts);
+    assert!(
+        out.controller_ts.contains("clients: { api },"),
+        "named client → ctx.clients:\n{}",
+        out.controller_ts
+    );
 }
 
 #[test]

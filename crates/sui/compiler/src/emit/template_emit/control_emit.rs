@@ -130,8 +130,9 @@ impl TemplateEmitter {
         // Hoisted handler — emitted into `boundary_hoists`, drained
         // into the setup body before the `return`.
         let mut h = Writer::new();
+        let ap = self.machinery_param("anchor", "Comment");
         h.line(&format!(
-            "const __wireBoundary_{key} = (anchor) => bindIf({{"
+            "const __wireBoundary_{key} = ({ap}) => bindIf({{"
         ));
         h.enter();
         h.line("anchor,");
@@ -206,8 +207,9 @@ impl TemplateEmitter {
         );
 
         let mut h = Writer::new();
+        let ap = self.machinery_param("anchor", "Comment");
         h.line(&format!(
-            "const __wireBoundary_{key} = (anchor) => bindFor({{"
+            "const __wireBoundary_{key} = ({ap}) => bindFor({{"
         ));
         h.enter();
         h.line("anchor,");
@@ -458,8 +460,9 @@ impl TemplateEmitter {
 
         let disc_rw = self.rw(&instr.discriminant.source, &[]);
         let mut h = Writer::new();
+        let ap = self.machinery_param("anchor", "Comment");
         h.line(&format!(
-            "const __wireBoundary_{key} = (anchor) => bindIf({{"
+            "const __wireBoundary_{key} = ({ap}) => bindIf({{"
         ));
         h.enter();
         h.line("anchor,");
@@ -624,7 +627,11 @@ impl TemplateEmitter {
         let child = self.fresh("childScope");
         let var = error_var;
         let mut h = Writer::new();
-        h.line(&format!("const {render_key} = ({var}) => {{"));
+        // The `{#while-error}` binder is an `Error` (the runtime
+        // `bindWhileError` contract); annotate it in synthetic mode so the
+        // render type-checks strict.
+        let ep = self.machinery_param(var, "Error");
+        h.line(&format!("const {render_key} = ({ep}) => {{"));
         h.enter();
         h.line(&format!("const {child} = Object.create($scope);"));
         h.line(&format!("{child}.{var} = {var};"));

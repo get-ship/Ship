@@ -203,9 +203,14 @@ fn emit_controller(
             runtime_imports.join(", ")
         ));
     }
-    // Compose the authored controller — import it, never rewrite it.
+    // Compose the authored controller — import it, never rewrite it. The
+    // authored module default-exports a real `controller({ scope, derived,
+    // on })` (`ControllerExport`); the synthetic controller drives its
+    // `setup(ctx)` (below). The type imports recover its contributed scope
+    // type and shape the resolver context.
     if let Some(a) = authored {
         w.line(&format!("import __authored from {};", js_string(&a.specifier)));
+        w.line("import type { ControllerExport, ResolverContext } from \"@ship/sui-runtime\";");
     }
     w.nl();
 
@@ -219,11 +224,7 @@ fn emit_controller(
         w.nl();
     }
     if authored.is_some() {
-        w.line(
-            "// Authored controller scope — COMPOSED (imported + merged), never rewritten.",
-        );
-        w.line("const __authoredScope = __authored();");
-        w.nl();
+        emit_authored_compose(&mut w, used, manifest);
     }
     if !program.data.is_empty() {
         w.line("// `<data>` directives, lowered to controller statements.");
@@ -264,4 +265,65 @@ fn emit_controller(
     w.line(&format!("export const scope = {{ {} }};", members.join(", ")));
     w.line("export type Scope = typeof scope;");
     Ok(w.into_string())
+}
+
+/// Compose an authored `controller({ scope, derived, on })` (the production
+/// DSL) into the synthetic controller's scope.
+///
+/// The authored module default-exports a `ControllerExport` (what
+/// `controller(def)` returns). We run its `setup(ctx)` — the SAME
+/// `resolveController` the browser hydrate path runs — so the authored
+/// logic is COMPOSED, never rewritten: signals from the `scope:` factory,
+/// memoized `derived`, and pre-bound `on` handlers all resolve exactly as in
+/// production. `setup` returns flat `ResolvedBindings` (erased to
+/// `Record<string, unknown>`), so we recover the controller's contributed
+/// scope TYPE from its `ControllerExport<Scope>` parameter and cast — that
+/// recovered type is what the render type-checks its `scope.X` reads against.
+///
+/// `ctx` mirrors what production's hydrate flow hands the resolver: the
+/// well-known ambient names (`ship`, `route`, `navigate`) map to the
+/// `ResolverContext` fields; every other manifest client is spread into
+/// `clients`. The values are the real constructed clients (see the
+/// value-client block above); only the *shape* is cast across the
+/// app-manifest-naming → platform-`ResolverContext` seam.
+fn emit_authored_compose(w: &mut Writer, used: &[String], manifest: &AppManifest) {
+    w.line("// Authored controller — COMPOSED via its real `controller({...})` DSL:");
+    w.line("// `setup(ctx)` runs `resolveController` (the same resolver the browser");
+    w.line("// hydrate path runs) and returns the flat bindings. Its contributed");
+    w.line("// scope type is recovered from the `ControllerExport` so the render");
+    w.line("// type-checks `scope.X` reads against it — composed, never rewritten.");
+    w.line(
+        "type __AuthoredScope = typeof __authored extends ControllerExport<infer S> ? S : never;",
+    );
+
+    // Map the constructed manifest clients onto the resolver context: the
+    // well-known ambient names become `ResolverContext` fields; the rest go
+    // into `clients` (spread into scope by the resolver, as in production).
+    let mut ship = "undefined as never".to_string();
+    let mut route: Option<&str> = None;
+    let mut navigate: Option<&str> = None;
+    let mut client_entries: Vec<&str> = Vec::new();
+    for name in used {
+        // `navigate` is a plain value-import (construct:false); ship/route are
+        // constructed handles. Either way the const is named `<name>`.
+        match name.as_str() {
+            "ship" => ship = "ship".to_string(),
+            "route" => route = Some("route"),
+            "navigate" => navigate = Some("navigate"),
+            other => client_entries.push(other),
+        }
+    }
+    let _ = manifest; // naming map is the manifest's contract; values are the consts above.
+    w.line("const __ctx = {");
+    w.line(&format!("  ship: {ship},"));
+    w.line(&format!("  clients: {{ {} }},", client_entries.join(", ")));
+    if let Some(r) = route {
+        w.line(&format!("  route: {r},"));
+    }
+    if let Some(n) = navigate {
+        w.line(&format!("  navigate: {n},"));
+    }
+    w.line("} as unknown as ResolverContext;");
+    w.line("const __authoredScope = __authored.setup(__ctx) as __AuthoredScope;");
+    w.nl();
 }

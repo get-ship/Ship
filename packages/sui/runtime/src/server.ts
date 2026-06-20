@@ -37,6 +37,21 @@ export { data } from './data'
 export { createMountState, componentMountState, pickSignals, SIGNALS_KEY } from './state-proxy'
 export { ref, attachRef } from './ref'
 
+// ── controller DSL (pure; no DOM) ───────────────────────────────────────────
+// The synthetic controller composes an authored `controller({ scope, derived,
+// on })` by calling its `setup(ctx)` — the same resolver the browser hydrate
+// path runs. `controller`/`resolveController` are environment-agnostic (they
+// build signal/derived/on bindings, no DOM), so they belong in the server
+// entry too: a synthesized view's authored controller imports `controller`
+// from `@ship/sui-runtime`, which the SSR build aliases here.
+export { controller, resolveController, LIFECYCLE_KEY } from './controller-resolver'
+export type {
+  ControllerExport,
+  ControllerLifecycle,
+  ResolverContext,
+  ResolvedBindings,
+} from './controller-resolver'
+
 // ── DOM bindings (operate on the node they're given — server-DOM or real) ────
 export {
   bindText,
@@ -57,6 +72,13 @@ export { bindIf } from './if'
 export { bindFor, bindForSignal } from './for'
 export { bindWhileLoading, bindWhileError } from './while'
 export { bindAwait } from './await'
+
+// ── the server DOM (SSR-only; one isomorphic render artifact) ────────────────
+// `installServerDom()` is what makes the SAME render + bindings above run in a
+// V8 isolate (no browser) and serialize to first-paint HTML. The SSR entry
+// installs it before mounting; see `server-dom.ts`.
+export { installServerDom } from './server-dom'
+export type { ServerRoot } from './server-dom'
 
 // ── slots / boundaries / transitions / hooks ────────────────────────────────
 export { bindSlotEmpty } from './slot-empty'
