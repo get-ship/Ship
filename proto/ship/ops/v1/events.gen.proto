@@ -31,19 +31,18 @@ EVENT_TYPE_UNSPECIFIED = 0;
   EVENT_TYPE_COMPILE_COMPLETED = 21;
   EVENT_TYPE_DAEMON_OWNER_BOUND = 22;
   EVENT_TYPE_DAEMON_OWNER_UNBOUND = 23;
-  EVENT_TYPE_HUMAN_RESPONSE = 24;
-  EVENT_TYPE_PROJECT_SWITCHED = 25;
-  EVENT_TYPE_SESSION_CANCELLED = 26;
-  EVENT_TYPE_SESSION_COMPLETED = 27;
-  EVENT_TYPE_SESSION_FAILED = 28;
-  EVENT_TYPE_SESSION_STARTED = 29;
-  EVENT_TYPE_SESSION_SUSPENDED = 30;
-  EVENT_TYPE_SPACE_SETTING_CHANGED = 31;
-  EVENT_TYPE_STUDIO_ANNOTATION_CREATED = 32;
-  EVENT_TYPE_STUDIO_CHAT_TURN = 33;
-  EVENT_TYPE_STUDIO_FEEDBACK_CREATED = 34;
-  EVENT_TYPE_STUDIO_REPLY = 35;
-  EVENT_TYPE_VIEW_CHANGED = 36;
+  EVENT_TYPE_PROJECT_SWITCHED = 24;
+  EVENT_TYPE_SESSION_CANCELLED = 25;
+  EVENT_TYPE_SESSION_COMPLETED = 26;
+  EVENT_TYPE_SESSION_FAILED = 27;
+  EVENT_TYPE_SESSION_STARTED = 28;
+  EVENT_TYPE_SESSION_SUSPENDED = 29;
+  EVENT_TYPE_SPACE_SETTING_CHANGED = 30;
+  EVENT_TYPE_STUDIO_ANNOTATION_CREATED = 31;
+  EVENT_TYPE_STUDIO_CHAT_TURN = 32;
+  EVENT_TYPE_STUDIO_FEEDBACK_CREATED = 33;
+  EVENT_TYPE_STUDIO_REPLY = 34;
+  EVENT_TYPE_VIEW_CHANGED = 35;
 }
 
 // Tagged union of all wire-tier event payloads.
@@ -72,19 +71,18 @@ oneof payload {
     CompileCompletedMsg compile_completed = 21;
     DaemonOwnerBoundMsg daemon_owner_bound = 22;
     DaemonOwnerUnboundMsg daemon_owner_unbound = 23;
-    HumanResponseMsg human_response = 24;
-    ProjectSwitchedMsg project_switched = 25;
-    SessionCancelledMsg session_cancelled = 26;
-    SessionCompletedMsg session_completed = 27;
-    SessionFailedMsg session_failed = 28;
-    SessionStartedMsg session_started = 29;
-    SessionSuspendedMsg session_suspended = 30;
-    SpaceSettingChangedMsg space_setting_changed = 31;
-    StudioAnnotationCreatedMsg studio_annotation_created = 32;
-    StudioChatTurnMsg studio_chat_turn = 33;
-    StudioFeedbackCreatedMsg studio_feedback_created = 34;
-    StudioReplyMsg studio_reply = 35;
-    ViewChangedMsg view_changed = 36;
+    ProjectSwitchedMsg project_switched = 24;
+    SessionCancelledMsg session_cancelled = 25;
+    SessionCompletedMsg session_completed = 26;
+    SessionFailedMsg session_failed = 27;
+    SessionStartedMsg session_started = 28;
+    SessionSuspendedMsg session_suspended = 29;
+    SpaceSettingChangedMsg space_setting_changed = 30;
+    StudioAnnotationCreatedMsg studio_annotation_created = 31;
+    StudioChatTurnMsg studio_chat_turn = 32;
+    StudioFeedbackCreatedMsg studio_feedback_created = 33;
+    StudioReplyMsg studio_reply = 34;
+    ViewChangedMsg view_changed = 35;
   }
 }
 
@@ -113,7 +111,7 @@ message AgentChangedMsg {
   bytes payload_json = 1;
 }
 
-// space / ephemeral — agent.def.updated
+// space / durable — agent.def.updated
 message AgentDefUpdatedMsg {
   bytes payload_json = 1;
 }
@@ -200,11 +198,6 @@ message DaemonOwnerBoundMsg {
 
 // account / durable — daemon.owner.unbound
 message DaemonOwnerUnboundMsg {
-  bytes payload_json = 1;
-}
-
-// space / durable — human.response
-message HumanResponseMsg {
   bytes payload_json = 1;
 }
 

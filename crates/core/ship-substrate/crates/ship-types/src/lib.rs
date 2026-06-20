@@ -31,7 +31,8 @@ pub use enforce::{enforce_scope, stamp_author};
 pub use envelope::EventEnvelope;
 pub use hash::sha256_hex;
 pub use identity::{
-    local_device_id, AccountId, ActorIdentity, ActorType, DeviceId, SpaceId,
+    local_device_id, set_local_device_id, AccountId, ActorIdentity, ActorType, DeviceId,
+    SpaceId,
 };
 pub use scope::Scope;
 pub use vector::Vector;

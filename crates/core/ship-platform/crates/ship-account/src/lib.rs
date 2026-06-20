@@ -27,7 +27,7 @@ pub mod types;
 pub mod wire;
 
 pub use error::AccountError;
-pub use gateway::{account_token, publish_to_gateway, resolve_gateway_base_url, DEFAULT_GATEWAY};
+pub use gateway::{resolve_gateway_base_url, DEFAULT_GATEWAY};
 pub use service::{AccountService, OwnerBinder, StartLoginResponse};
 pub use store::{AccountTokenStore, FileTokenStore};
 pub use types::{AccountState, AccountToken, MeView};

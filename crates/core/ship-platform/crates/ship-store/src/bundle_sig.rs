@@ -150,6 +150,14 @@ pub fn verify_bundle_attestation(
     }
     .ok_or(BundleVerifyError::UntrustedKey)?;
 
+    // Runtime fail-closed guard: refuse to trust the placeholder first-party
+    // kid even if it somehow made it into the trusted_keys set (e.g. a stale
+    // config or a malformed build that bypassed the compile-time check above).
+    // The placeholder kid is, by definition, an untrusted key.
+    if FIRST_PARTY_KID.contains("PLACEHOLDER") && trusted.kid == FIRST_PARTY_KID {
+        return Err(BundleVerifyError::UntrustedKey);
+    }
+
     let decoding_key = DecodingKey::from_ed_components(&trusted.x_base64url)
         .map_err(|_| BundleVerifyError::Malformed)?;
 
@@ -327,6 +335,61 @@ mod tests {
     fn malformed_jwks_yields_no_keys() {
         assert!(trusted_keys_from_jwks("not json").is_empty());
         assert!(trusted_keys_from_jwks(r#"{"keys":[]}"#).is_empty());
+    }
+
+    #[test]
+    fn placeholder_first_party_kid_is_rejected_at_verify_time() {
+        // FIRST_PARTY_KID still carries the PLACEHOLDER stub in this build
+        // (the compile-time guard only fires under `--features release`).
+        // The runtime guard in `verify_bundle_attestation` must refuse to
+        // verify an attestation that selects the placeholder kid, even when
+        // it is the only entry in `trusted_keys`.
+        assert!(FIRST_PARTY_KID.contains("PLACEHOLDER"));
+
+        let hash = "f".repeat(64);
+        let claim = sample_claim(&hash);
+        // Sign with the test key but claim the placeholder kid in the header,
+        // so selection resolves to a TrustedKey whose kid == FIRST_PARTY_KID.
+        let jwt = sign(&claim, TEST_PRIV_PEM, FIRST_PARTY_KID);
+
+        let keys = vec![TrustedKey {
+            kid: FIRST_PARTY_KID.to_string(),
+            x_base64url: TEST_PUB_X.to_string(),
+        }];
+
+        let err = verify_bundle_attestation(&hash, &jwt, &keys).unwrap_err();
+        assert_eq!(err, BundleVerifyError::UntrustedKey);
+    }
+
+    #[test]
+    fn placeholder_kid_does_not_shadow_a_real_trusted_kid() {
+        // When the trusted set contains BOTH the placeholder first-party kid
+        // and a real publisher kid, the real kid must still verify — only the
+        // placeholder kid is rejected by the runtime guard.
+        let hash = "1".repeat(64);
+        let claim = sample_claim(&hash);
+        let jwt = sign(&claim, TEST_PRIV_PEM, TEST_KID);
+
+        let keys = vec![
+            TrustedKey {
+                kid: FIRST_PARTY_KID.to_string(),
+                x_base64url: TEST_PUB_X.to_string(),
+            },
+            TrustedKey {
+                kid: TEST_KID.to_string(),
+                x_base64url: TEST_PUB_X.to_string(),
+            },
+        ];
+
+        let verified =
+            verify_bundle_attestation(&hash, &jwt, &keys).expect("real kid still verifies");
+        assert_eq!(verified, claim);
+
+        // And conversely, selecting the placeholder kid is still rejected.
+        let placeholder_jwt = sign(&claim, TEST_PRIV_PEM, FIRST_PARTY_KID);
+        let err =
+            verify_bundle_attestation(&hash, &placeholder_jwt, &keys).unwrap_err();
+        assert_eq!(err, BundleVerifyError::UntrustedKey);
     }
 
 }

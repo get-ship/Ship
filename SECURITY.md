@@ -34,14 +34,14 @@ Threats explicitly out of scope at the application layer:
 
 ## Defense layers
 
-Three layers, listed in order from most universal to strongest. Each layer
+Two layers, listed in order from most universal to strongest. Each layer
 adds defense where the layers below it stop short. No layer alone is
 sufficient.
 
 ### Layer 1 — Harness permissions (the floor)
 
 **Status: in production as of `67b946b7`.**
-**Source:** `apps/ship-cli/src/compile/permissions.rs` (`FLOOR_DENIES`)
+**Source:** `crates/core/ship-platform/crates/agent-def/src/compile/permissions.rs` (`FLOOR_DENIES`)
 **Universal across harnesses.**
 
 The agent compiler bakes a deny list into every agent's harness config
@@ -74,96 +74,9 @@ through tool calls matching the floor patterns.
   paths via concatenation, redirecting through unusual binaries).
 - File reads by other processes running as the same user.
 
-### Layer 2 — PreToolUse hooks (Ship integrity)
+PreToolUse runtime gate — ship-code concern, not wired for launch.
 
-**Status: in production as of `job/pretooluse-hooks`.**
-**Source:** `crates/core/cli-framework/src/hooks/tool_gate.rs` (gate logic),
-`apps/ship-cli/src/hook.rs::run_before_tool` (transport).
-**Wiring:** `crates/core/compiler/src/compile/{claude,gemini,codex,cursor}.rs::inject_ship_lifecycle_hooks`
-already emits `ship hook before-tool` into every supported harness's
-PreToolUse equivalent; the gate runs inside that handler — no separate
-binary, no parallel install path.
-**Universal across harnesses that support hooks (Claude Code, Gemini,
-Codex, Cursor today).**
-
-The hook receives the tool-call JSON from the harness on stdin and runs
-Ship-aware checks before the call executes. Unlike Layer 1, the hook
-sees actual arguments rather than glob patterns, so it catches
-dynamically-constructed bypasses Layer 1's literal-glob matcher misses.
-
-**Rules enforced:**
-
-- **Write / Edit / MultiEdit / NotebookEdit** to any path inside
-  `~/.ship/machine/`, `~/.ship/data/`, or `~/.ship/projections/` — match
-  is segment-aware (`~/.ship/datasets/` is not flagged).
-- **Write** inside `.git/` (would let an agent rewrite refs) or
-  `.claude/` (would let an agent disable the hooks themselves).
-- **Bash** verbs `tar`/`cp`/`mv`/`dd`/`rsync`/`tee`/`chmod`/`chown`/`ln`/
-  `install`/`base64`/`xxd`/`od`/`hexdump`/`cat`/`head`/`tail`/`less`/
-  `more`/`rm` paired with a Ship-protected path in any argument
-  position. `sudo` / `env KEY=v` / `timeout` prefixes are stripped before
-  identifying the verb.
-- **Bash redirects** (`>`, `>>`, `&>`, `&>>`) whose target token is a
-  Ship-protected path, regardless of the leading verb.
-- **Bash shell-wrappers** — `bash -c "..."`, `sh -c "..."`, `eval "..."`
-  recursively re-enter the gate so a quoted inner script cannot evade
-  the verb rules. Bounded to depth 4.
-- **Direct daemon HTTP** — `curl`/`wget`/`http`/`httpie`/`xh` targeting
-  any of `localhost:<port>`, `127.0.0.1:<port>`, `[::1]:<port>`,
-  `0.0.0.0:<port>` where `<port>` is the live daemon port (discovered
-  via the same per-worktree / singleton walk the CLI uses). Legitimate
-  Ship operations go through the `ship` CLI or MCP tools, which
-  authenticate and audit-log.
-
-**Failure mode:** fail-closed. Malformed hook JSON or unparseable shell
-denies the call rather than waving it through — the threat model
-weighs "false-positive deny" against "smuggled bypass" and decides in
-favour of the safer side.
-
-**Protocol:** On deny, the gate writes Claude Code's structured
-permission-decision JSON to stdout and exits 0
-(`{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"..."}}`).
-This is the protocol path that surfaces a human-readable reason to the
-model, so the agent can explain to the user why the call was blocked
-and suggest a Ship-native alternative. Other harnesses (Gemini, Codex,
-Cursor) either consume the same shape or ignore stdout — either way the
-downstream daemon roundtrip is skipped because there is no tool call to
-log.
-
-**Performance:** The gate is pure logic plus one optional read of the
-daemon port file (skipped when no daemon is running). Measured well
-under the 50 ms hook budget; integration test runtime including process
-spawn is ~0.5 s, which is dominated by process startup, not gate work.
-
-**What this defends:** runtime intent. An agent attempting to corrupt
-Ship state, exfiltrate a credential via constructed paths, or call the
-daemon directly is blocked regardless of how the command is phrased,
-including via `$HOME` concatenation, `bash -c` wrapping, or `env`/`sudo`
-prefixing.
-
-**What this does NOT defend:**
-
-- **Harnesses that do not support PreToolUse hooks at all** — none are
-  currently in scope, but future additions need an audit before they
-  ship.
-- **An agent that disables the hook via harness config** — the gate
-  blocks writes to `.claude/`, and Layer 1 separately denies
-  `.claude/settings.json`, but a sufficiently determined agent that
-  combines a Layer-1 bypass with a Layer-2 bypass could try. Closing
-  that gap is Layer 3's job.
-- **An agent escaping the harness entirely** (`--dangerously-skip-permissions`,
-  spawning a Python subprocess that doesn't consult Claude Code at all).
-  Hooks live inside the harness; they have no effect if the harness
-  isn't invoked. Layer 3 is the only defense against this class.
-- **File reads by other processes running as the same Unix user** —
-  that's a keychain / Unix-socket-peercred concern, tracked separately
-  under "Account token storage" below.
-- **Audit logging of denied calls** — filed as a follow-up; for now,
-  denials are visible to the model (via the reason string) and to
-  whoever inspects the harness's hook transcript, but are not
-  persisted to the event store.
-
-### Layer 3 — OS sandbox (future)
+### Layer 2 — OS sandbox (future)
 
 **Status: spec dispatched as `local-sandbox-spec`; implementation post-launch.**
 **Universal across harnesses; kernel-enforced.**
@@ -176,23 +89,27 @@ its allowed range. This is the only layer that defends against an agent
 escaping the harness entirely.
 
 The spec doc is the current authoritative design. Until it lands,
-Layer 2 is the strongest defense against intentional misuse and Layer 1
-catches the unintentional cases.
+Layer 1 is the only defense against intentional misuse and catches the
+unintentional cases.
 
 ## Additional protections, not full layers
 
-### `CallerKind` gate on daemon account routes
+### Account-op gate on daemon account routes
 
-**Status: lands with this commit arc.**
+**Status: in production.**
 
-Daemon routes under `/api/v1/account/*` enforce that the caller is
-`CallerKind::Cli` (daemon-token-authed, indicating user-present
-interactive access). MCP session tokens are categorically denied,
-regardless of role scope. This is defense-in-depth — it prevents the
-obvious accident of an MCP agent with a `contributor`-role session
-token unlocking account ops. It is not a defense against an agent that
-has already read the daemon token from disk; that case is closed by
-Layers 1 + 2 + 3.
+Account ops ride ConnectRPC (`apps/shipd/src/rpc/account.rs`) and are
+gated by [`BlastRadius`] in `apps/shipd/src/auth/gate.rs::decide`:
+C3 account ops require a human-operator/2FA credential — i.e., the
+transport is ConnectRPC, the policy is per-method, and the elevation is
+operator authority, not transport. `CallerKind::Cli` is a transport
+label only and grants NO elevation (`auth/middleware.rs:203`); an
+on-disk daemon/SDK token is capped at `Authority::Sdk` and never
+reaches operator. This is defense-in-depth — it prevents the obvious
+accident of an MCP agent with a `contributor`-role session token
+unlocking account ops. It is not a defense against an agent that has
+already read the daemon token from disk; that case is closed by
+Layer 1.
 
 ### Account token storage
 
@@ -229,7 +146,7 @@ into credential paths; regression test prevents reintroduction.
 ## Permission floor — exact list
 
 The authoritative source is `FLOOR_DENIES` in
-`apps/ship-cli/src/compile/permissions.rs`. The list below is for
+`crates/core/ship-platform/crates/agent-def/src/compile/permissions.rs`. The list below is for
 reference and may lag the source.
 
 **Cross-machine credentials (Read denied):** `~/.ssh/**`, `~/.gnupg/**`,

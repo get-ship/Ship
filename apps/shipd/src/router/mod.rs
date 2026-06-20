@@ -285,7 +285,6 @@ mod merge_tests {
             "/space/abc",
 
             "/hooks/session-start",
-            "/webhook/telegram",
             "/favicon.ico",                 // dotted asset
             "/ship.ops.v1.AgentsService/Summaries", // Connect RPC (dotted)
         ] {

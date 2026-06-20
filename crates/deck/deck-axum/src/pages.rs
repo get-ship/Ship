@@ -102,7 +102,6 @@ pub async fn spa_fallback(
         || path.starts_with("/_deck")
         || path.starts_with("/hooks")
         || path.starts_with("/auth")
-        || path.starts_with("/webhook")
         || path.starts_with("/daemon")
         || path.starts_with("/space")
         || path.starts_with("/shell")

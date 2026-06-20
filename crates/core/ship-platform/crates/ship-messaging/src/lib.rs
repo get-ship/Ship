@@ -1,11 +1,17 @@
-//! Human gateway service — puts a human on the mesh via pluggable adapters.
+//! Outbound human-gateway service — adapter-only for now.
 //!
-//! Also owns the `human.response` event registration (keystone-A Phase A bundle 4b).
+//! When a `pipeline.run.blocked` event fires with `needs_human: true`, the
+//! gateway forwards the block reason to a human via the configured adapter
+//! (Telegram today; Slack/WhatsApp etc. plug in as new
+//! [`NotificationAdapter`] implementations). The outbound notifier is the
+//! only half wired today.
 //!
-//! When a `pipeline.run.blocked` event fires with `needs_human: true`, the gateway
-//! forwards the block reason to a human via the configured adapter (Telegram,
-//! Slack, etc.). Inbound replies arrive via webhook and are emitted as
-//! `human.response` events by the shipd webhook handler.
+//! Inbound (webhook → kernel re-emit) is a messaging fast-follow. The
+//! `human.response` event registration that previously lived here has been
+//! removed (theme-A contain A8): no emitter ever published it, and the
+//! adapter-only `HumanGatewayService` has no use for an outbox. When the
+//! inbound path lands it will own its own registration, mirroring this
+//! crate's outbound shape.
 //!
 //! Lives at L1 (`ship-messaging`) because the adapters make outbound HTTP
 //! calls — egress is forbidden in the L0 substrate. The generic
@@ -30,9 +36,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use serde::Deserialize;
-use tokio::sync::mpsc;
 
+use ship_substrate::events::pipeline::event_types::PIPELINE_RUN_BLOCKED;
+use ship_substrate::events::pipeline::PipelineRunBlockedPayload;
 use ship_substrate::events::{ActorStore, EventEnvelope};
 use ship_substrate::services::ServiceHandler;
 
@@ -118,52 +124,40 @@ impl NotificationAdapter for TelegramAdapter {
     }
 }
 
-// ── PipelineRunBlockedPayload ─────────────────────────────────────────────────────────
-
-#[derive(Debug, Deserialize)]
-struct PipelineRunBlockedPayload {
-    pipeline_run_id: Option<String>,
-    slug: Option<String>,
-    blocker: Option<String>,
-    needs_human: Option<bool>,
-}
-
 // ── HumanGatewayService ───────────────────────────────────────────────────────
 
 /// Headless service that listens for `pipeline.run.blocked` events and notifies a human.
 pub struct HumanGatewayService {
     adapter: Arc<dyn NotificationAdapter>,
-    /// Outbox for emitting events back onto the kernel (reserved for future use).
-    _outbox: mpsc::UnboundedSender<EventEnvelope>,
 }
 
 impl HumanGatewayService {
-    pub fn new(
-        adapter: Arc<dyn NotificationAdapter>,
-        outbox: mpsc::UnboundedSender<EventEnvelope>,
-    ) -> Self {
-        Self { adapter, _outbox: outbox }
+    pub fn new(adapter: Arc<dyn NotificationAdapter>) -> Self {
+        Self { adapter }
     }
 
     fn handle_job_blocked(&self, event: &EventEnvelope) {
         let payload: PipelineRunBlockedPayload = match serde_json::from_str(&event.payload_json) {
             Ok(p) => p,
             Err(e) => {
-                tracing::warn!("human-gateway: failed to parse job.blocked payload: {e}");
+                tracing::warn!("human-gateway: failed to parse pipeline.run.blocked payload: {e}");
                 return;
             }
         };
 
-        if payload.needs_human != Some(true) {
+        if !payload.needs_human {
             return;
         }
 
-        let pipeline_run_id = payload.pipeline_run_id.clone();
+        let pipeline_run_id = Some(payload.pipeline_run_id.clone());
+        // Render without a slug: the canonical `PipelineRunBlockedPayload`
+        // carries no `slug` field (it belongs on the run-dispatched event,
+        // not the blocked one), and the local shadow that used to mint a
+        // phantom "unknown" slug was deleted (theme-A contain A8).
         let text = format!(
-            "\u{1f6a7} Blocked: {}\nJob: {} ({})",
-            payload.blocker.as_deref().unwrap_or("unknown"),
-            payload.slug.as_deref().unwrap_or("unknown"),
-            pipeline_run_id.as_deref().unwrap_or("unknown"),
+            "\u{1f6a7} Blocked: {} ({})",
+            payload.blocker,
+            payload.pipeline_run_id,
         );
 
         let msg = OutboundMessage {
@@ -188,7 +182,7 @@ impl ServiceHandler for HumanGatewayService {
     }
 
     fn handle(&mut self, event: &EventEnvelope, _store: &ActorStore) -> Result<()> {
-        if event.event_type == "pipeline.run.blocked" {
+        if event.event_type == PIPELINE_RUN_BLOCKED {
             self.handle_job_blocked(event);
         }
         Ok(())
@@ -200,40 +194,53 @@ impl ServiceHandler for HumanGatewayService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
-    fn test_job_blocked_payload_needs_human_false() {
-        let json = r#"{"pipeline_run_id":"j1","slug":"my-job","blocker":"waiting","needs_human":false}"#;
+    fn pipeline_run_blocked_payload_needs_human_false() {
+        let json = r#"{"pipeline_run_id":"j1","blocker":"waiting","needs_human":false}"#;
         let p: PipelineRunBlockedPayload = serde_json::from_str(json).unwrap();
-        assert_eq!(p.needs_human, Some(false));
-        assert_eq!(p.pipeline_run_id.as_deref(), Some("j1"));
+        assert!(!p.needs_human);
+        assert_eq!(p.pipeline_run_id, "j1");
     }
 
     #[test]
-    fn test_job_blocked_payload_needs_human_true() {
-        let json = r#"{"pipeline_run_id":"j2","slug":"deploy","blocker":"needs approval","needs_human":true}"#;
+    fn pipeline_run_blocked_payload_needs_human_true() {
+        let json = r#"{"pipeline_run_id":"j2","blocker":"needs approval","needs_human":true}"#;
         let p: PipelineRunBlockedPayload = serde_json::from_str(json).unwrap();
-        assert_eq!(p.needs_human, Some(true));
-        assert_eq!(p.blocker.as_deref(), Some("needs approval"));
+        assert!(p.needs_human);
+        assert_eq!(p.blocker, "needs approval");
     }
 
     #[test]
-    fn test_outbound_message_format() {
+    fn render_omits_phantom_slug() {
+        // Regression: the local-mirror payload had a `slug` field the
+        // canonical one does not. Rendering it produced a literal
+        // "unknown" line on every block, which is user-facing noise.
+        // The canonical payload has no slug; the render must not pretend.
         let payload = PipelineRunBlockedPayload {
-            pipeline_run_id: Some("abc".to_string()),
-            slug: Some("release".to_string()),
-            blocker: Some("manual review required".to_string()),
-            needs_human: Some(true),
+            pipeline_run_id: "abc".to_string(),
+            blocker: "manual review required".to_string(),
+            needs_human: true,
         };
         let text = format!(
-            "\u{1f6a7} Blocked: {}\nJob: {} ({})",
-            payload.blocker.as_deref().unwrap_or("unknown"),
-            payload.slug.as_deref().unwrap_or("unknown"),
-            payload.pipeline_run_id.as_deref().unwrap_or("unknown"),
+            "\u{1f6a7} Blocked: {} ({})",
+            payload.blocker, payload.pipeline_run_id,
         );
         assert!(text.contains("manual review required"));
-        assert!(text.contains("release"));
         assert!(text.contains("abc"));
+        assert!(!text.contains("unknown"));
+        assert!(!text.contains("Job:"), "phantom Job: line must be gone");
+    }
+
+    #[test]
+    fn payload_alias_job_id() {
+        // Legacy producers emit `job_id`; the canonical struct accepts it
+        // via `#[serde(alias = "job_id")]` so deserialization must not
+        // choke on historical envelopes.
+        let legacy = json!({"job_id": "j-1", "blocker": "x", "needs_human": true});
+        let p: PipelineRunBlockedPayload = serde_json::from_value(legacy).unwrap();
+        assert_eq!(p.pipeline_run_id, "j-1");
     }
 
     #[test]

@@ -17,7 +17,6 @@ use ship_substrate::events::daemon::{
     PortBindFailedPayload, ShutdownCompletedPayload, event_types as daemon_events,
 };
 use ship_substrate::events::{EventEnvelope, SqliteEventStore};
-use ship_substrate::task_health;
 
 use crate::ship_runtime::ShipRuntime;
 
@@ -117,7 +116,6 @@ pub(super) fn spawn_leak_diag(rt: &Arc<ShipRuntime>) {
 /// Silently skips if `SHIP_TELEGRAM_TOKEN` or `SHIP_TELEGRAM_CHAT_ID` is absent.
 pub async fn spawn_human_gateway(
     kernel: &Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
-    health_registry: &task_health::HealthRegistry,
 ) {
     use ship_messaging::{HumanGatewayService, TelegramAdapter};
     use ship_substrate::events::ActorConfig;
@@ -132,9 +130,9 @@ pub async fn spawn_human_gateway(
         }
     };
 
-    let (outbox_tx, mut outbox_rx) =
-        tokio::sync::mpsc::unbounded_channel::<ship_substrate::events::EventEnvelope>();
-
+    // Adapter-only: the inbound outbox was removed with the dark
+    // `human.response` registration (theme-A contain A8). When the
+    // inbound fast-follow lands it will own its own channel + drain.
     let config = ActorConfig {
         namespace: "service.human-gateway".to_string(),
         write_namespaces: vec!["human.".to_string()],
@@ -147,32 +145,15 @@ pub async fn spawn_human_gateway(
     };
 
     let handler: Box<dyn ship_substrate::services::ServiceHandler> = Box::new(
-        HumanGatewayService::new(StdArc::new(adapter), outbox_tx),
+        HumanGatewayService::new(StdArc::new(adapter)),
     );
 
     match spawn_service(&mut *kernel.lock().await, "service.human-gateway", config, handler) {
         Ok(_) => tracing::info!("shipd: human gateway service started (telegram)"),
         Err(e) => {
             tracing::warn!("shipd: failed to spawn human gateway: {e}");
-            return;
         }
     }
-
-    // Drain outbox → kernel (currently unused, reserved for future adapter replies)
-    let kr = kernel.clone();
-    task_health::spawn_monitored(health_registry, "human-gateway-outbox", async move {
-        let ctx = ship_substrate::events::EmitContext {
-            caller_kind: ship_substrate::events::CallerKind::Mcp,
-            skill_id: None,
-            binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
-            session_id: None,
-        };
-        while let Some(event) = outbox_rx.recv().await {
-            if let Err(e) = kr.lock().await.emit(event, &ctx).await {
-                tracing::warn!("human-gateway outbox routing error: {e}");
-            }
-        }
-    });
 }
 
 // ── I/O: listener binding + daemon.* event emit ──────────────────────────

@@ -72,12 +72,14 @@ impl ScopeBinding {
     ///
     /// Only daemon-process code (L0/L1/shipd) can name this; agents/apps go
     /// through RPC and the daemon mints via the auth seam for them. Sets a
-    /// stable per-install device id, no account, the given space + authority.
+    /// stable per-install device id (installed by `set_local_device_id` at
+    /// boot from `~/.ship/machine/device-id`, mode 0600; falls back to the
+    /// `"local-device"` placeholder when no install has happened yet), no
+    /// account, the given space + authority.
     pub fn daemon_internal(space: Option<SpaceId>, authority: Authority) -> Self {
         Self {
-            // FLAG: server-auth — `local_device_id()` is a per-install placeholder.
             device_id: local_device_id(),
-            // FLAG: server-auth — anonymous account until the server-auth arc lands.
+            // Anonymous account until the server-auth arc lands.
             account_id: None,
             space_id: space,
             authority,

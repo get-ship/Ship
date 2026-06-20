@@ -91,7 +91,7 @@ pub async fn run_network(
 
     // L1 agent + diagnostic subsystems (see super::lifecycle).
     super::lifecycle::start_agent_stack(&rt, &paths.global_dir).await;
-    super::lifecycle::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
+    super::lifecycle::spawn_human_gateway(rt.kernel()).await;
     super::lifecycle::spawn_leak_diag(&rt);
 
     // L0 identity files + auth + sessions.

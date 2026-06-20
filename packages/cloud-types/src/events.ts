@@ -9,7 +9,7 @@ export type WireEvent =
   | { type: "account.login_started"; scope: "account"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "account.logout"; scope: "account"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "agent.changed"; scope: "space"; retention: "ephemeral"; payload: Record<string, unknown> }
-  | { type: "agent.def.updated"; scope: "space"; retention: "ephemeral"; payload: Record<string, unknown> }
+  | { type: "agent.def.updated"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "agent.grants.provisioned"; scope: "account"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "agent.task.complete"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "artifact.created"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
@@ -27,7 +27,6 @@ export type WireEvent =
   | { type: "compile.completed"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "daemon.owner.bound"; scope: "account"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "daemon.owner.unbound"; scope: "account"; retention: "durable"; payload: Record<string, unknown> }
-  | { type: "human.response"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "project.switched"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "session.cancelled"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "session.completed"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
@@ -66,7 +65,6 @@ export const WIRE_EVENT_TYPES = [
   "compile.completed",
   "daemon.owner.bound",
   "daemon.owner.unbound",
-  "human.response",
   "project.switched",
   "session.cancelled",
   "session.completed",
@@ -98,7 +96,6 @@ export const SPACE_EVENT_TYPES = [
   "collection.item_updated",
   "collection.schema.changed",
   "compile.completed",
-  "human.response",
   "project.switched",
   "session.cancelled",
   "session.completed",

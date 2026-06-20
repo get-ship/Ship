@@ -19,7 +19,9 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
-use ship_substrate::home::ProjectRoot;
+use ship_substrate::home::{read_or_generate_device_id, ProjectRoot};
+use ship_substrate::ShipHome;
+use ship_types::set_local_device_id;
 
 use super::ShipRuntime;
 
@@ -141,6 +143,16 @@ pub async fn install_session_subsystems(
     // container-reachable host for Tier 2+). Same boot-install pattern as
     // the session registry above.
     ship_platform::isolation::set_daemon_origin(rt.daemon_origin());
+    // Install the per-machine device id so every scope binding minted by
+    // `ScopeBinding::daemon_internal` carries the stable id instead of the
+    // `"local-device"` placeholder. Read+possible-mint under
+    // `~/.ship/machine/device-id` (mode 0600). Propagating IO errors so a
+    // mint failure blocks boot — mirrors `read_or_generate_token`'s posture
+    // (the device id is a per-machine secret, not per-daemon).
+    let home = ShipHome::at(rt.ship_dir().to_path_buf());
+    let device_id = read_or_generate_device_id(&home)
+        .map_err(|e| anyhow::anyhow!("mint device id at {}: {e}", home.device_id_path().display()))?;
+    set_local_device_id(device_id);
     // Hydrate any persisted paired sessions from a previous daemon lifetime.
     // Dev mode starts fresh — don't carry prior sessions across dev restarts.
     if !dev {

@@ -92,6 +92,16 @@ impl ShipHome {
         self.root.join(MACHINE_DIR)
     }
 
+    /// `~/.ship/machine/device-id` — the stable per-install device identity,
+    /// minted once at first daemon boot by `read_or_generate_device_id` and
+    /// loaded by `ship_types::set_local_device_id` on every subsequent boot.
+    /// Lives under `machine/` (not `library/`) so it doesn't sync across
+    /// machines, and not under `machine/daemons/<hash>/` so it survives
+    /// per-worktree daemon churn.
+    pub fn device_id_path(&self) -> PathBuf {
+        self.machine_dir().join("device-id")
+    }
+
     /// Resolve a vector directory at the given scope.
     ///
     /// - `Scope::User` yields `<root>/library/<vector>/`; `project_root` is ignored.

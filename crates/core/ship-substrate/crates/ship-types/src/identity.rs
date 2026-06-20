@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use serde::{Deserialize, Serialize};
 
 /// Macro-defined opaque string newtype for a scope identity axis.
@@ -42,14 +44,27 @@ scope_id! {
     SpaceId
 }
 
-/// The stable per-install device identity.
-///
-/// FLAG: server-auth — this is a per-install *placeholder*. Today it returns a
-/// fixed local id; the server-auth arc replaces it with a real, attested device
-/// identity. Every minter that fills it carries the same flag so the arc does
-/// not silently ship a fake identity. Deterministic so it is testable.
+/// Process-wide installation handle for the per-machine device identity.
+/// `set_local_device_id` populates it at daemon boot (mint-once in
+/// `~/.ship/machine/device-id`, mode 0600); the `local_device_id` getter
+/// returns that value, falling back to `"local-device"` so tests and
+/// pre-boot callers (e.g. `caller.rs::daemon_internal_space_key_roundtrips`)
+/// keep working without the install step.
+static LOCAL_DEVICE_ID: OnceLock<DeviceId> = OnceLock::new();
+
+/// Install the per-machine device identity. Set-once and idempotent: a
+/// second call is silently ignored so daemon boot is safe to invoke from
+/// tests that build multiple `ShipHome` paths. Returns `true` if this
+/// call was the install, `false` if a value was already in place.
+pub fn set_local_device_id(id: DeviceId) -> bool {
+    LOCAL_DEVICE_ID.set(id).is_ok()
+}
+
+/// The stable per-install device identity. Returns the value installed
+/// by `set_local_device_id` at daemon boot, or the `"local-device"`
+/// fallback when no install has happened yet.
 pub fn local_device_id() -> DeviceId {
-    DeviceId::new("local-device")
+    LOCAL_DEVICE_ID.get().cloned().unwrap_or_else(|| DeviceId::new("local-device"))
 }
 
 /// Actor identity — unique instance IDs and stable labels.

@@ -102,7 +102,10 @@ fn domain_catalog() -> Vec<DomainMeta> {
             key: "registry",
             display: "Registry",
             event_prefixes: vec![],
-            services: vec!["RegistryService"],
+            // The legacy `ops/v1/RegistryService` is gone (theme-A contain A6);
+            // the redesigned `ship.gateway.v1.RegistryService` is the TS-side
+            // server contract and doesn't ride the daemon's connect surface.
+            services: vec![],
             description: "Content-addressed package store: dependency resolution, fetch/cache/verify, lock, composition overlay, and bundle attestation.",
             coverage_audit_docs: vec![],
         },
@@ -213,9 +216,11 @@ fn domain_catalog() -> Vec<DomainMeta> {
         DomainMeta {
             key: "studio",
             display: "Studio",
-            event_prefixes: vec!["studio.", "human."],
-            // chat gutted in agents-arc E6 (read-projection over the deprecated
-            // `studio.message` event, no real gated RPC).
+            // The legacy `human.response` event was removed (theme-A
+            // contain A8); the inbound half is a messaging fast-follow.
+            // Chat gutted in agents-arc E6 (read-projection over the
+            // deprecated `studio.message` event, no real gated RPC).
+            event_prefixes: vec!["studio."],
             services: vec!["DashboardService", "FeedbackService", "AnnotationService"],
             description: "Studio UI primitives: chat turns, agent replies, dashboard state, feedback, and annotation events.",
             coverage_audit_docs: vec![".artifacts/specs/module-audits/apps/shipd.md", ".artifacts/specs/module-audits/L1-platform/sessions.md", ".artifacts/specs/module-audits/L0-substrate/ship-substrate.md"],
