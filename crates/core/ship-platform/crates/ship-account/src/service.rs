@@ -289,9 +289,8 @@ impl AccountService {
         }
     }
 
-    /// Return the stored API key — the SINGLE key-read path the publish flow
-    /// depends on (single-own; no `credentials.jsonc` mirror). Errors when
-    /// logged out or expired.
+    /// Return the stored API key — the SINGLE key-read path (single-own; no
+    /// `credentials.jsonc` mirror). Errors when logged out or expired.
     pub async fn get_key(&self) -> Result<String, AccountError> {
         let token = self.store.read().await?.ok_or(AccountError::LoggedOut)?;
         if token.is_expired() {

@@ -1,23 +1,21 @@
-//! Cloud-gateway resolution — account identity's other half.
+//! Cloud-gateway resolution — Ship Cloud identity's other half.
 //!
-//! The account crate owns Ship Cloud identity, so it also owns *where* that
-//! identity is exchanged: the gateway base URL and the read of the stored
-//! account key. This product logic used to live in `ship_platform::config::{
-//! credentials, gateway}` (the legacy `credentials.jsonc` tier); it moved here
-//! (S5) so the daemon's registry route is thin transport that just calls these.
+//! The account crate owns Ship Cloud identity, so it also owns the read of
+//! the stored account key. The legacy `publish_to_gateway` proxy is gone;
+//! the redesigned registry surface lives in `proto/ship/gateway/v1/` and
+//! `ship-gateway-client` (`RegistryServiceClient`).
 //!
-//! ZERO raw `fs`: both reads route through `ship_substrate::config_doc`
+//! ZERO raw `fs`: the read routes through `ship_substrate::config_doc`
 //! (the substrate config-document seam — None-on-missing, JSONC comment-strip).
 //! The gateway base URL is read from the portable `library/settings.jsonc`
 //! (`cloud.base_url`); the account key is read from the SINGLE owner doc
 //! `machine/daemon/account.jsonc` — never the retired `credentials.jsonc`.
 
-use axum::http::StatusCode;
 use serde::Deserialize;
-
 use ship_substrate::config_doc;
 use ship_substrate::ShipHome;
 
+#[cfg(test)]
 use crate::types::AccountToken;
 
 /// Default Ship Cloud gateway base URL when none is configured.
@@ -68,69 +66,16 @@ fn normalize_base_url(configured: Option<&str>) -> String {
         .to_string()
 }
 
-/// Read the stored Ship Cloud account key from the daemon's single owner doc
-/// (`machine/daemon/account.jsonc`), the SOLE holder of the gateway key.
-///
-/// Returns `None` when the machine is not logged in OR the stored token has
-/// expired (a stale key must not be forwarded to the gateway). Synchronous —
-/// the substrate doc read is a plain disk read; the registry route is thin
-/// transport and reads it inline.
-pub fn account_token() -> Option<String> {
-    read_account_key(&ShipHome::from_env())
-}
-
-/// Read + expiry-gate the stored account key under an explicit home. Split out
-/// so the read is exercisable against a temp home without env mutation.
+/// Test-only: the public `account_token()` reader was removed with the
+/// legacy `publish_to_gateway` proxy. Kept here as a test helper so the
+/// `read → expiry-gate` logic still has direct coverage.
+#[cfg(test)]
 fn read_account_key(home: &ShipHome) -> Option<String> {
     let token: AccountToken = config_doc::read_doc(&home.account_token_path()).ok().flatten()?;
     if token.is_expired() {
         return None;
     }
     Some(token.key)
-}
-
-/// Attach the stored API key and forward a publish payload to the Ship Cloud
-/// gateway (`<cloud.base_url>/api/v1/registry/publish`).
-///
-/// Returns the gateway's `(status, body)` on success; `(status, message)` for
-/// missing credentials or transport failures.
-///
-/// Called by the daemon's thin registry route handler. Lives here because the
-/// account crate owns credentials + gateway-URL resolution.
-pub async fn publish_to_gateway(
-    payload: serde_json::Value,
-) -> Result<(StatusCode, serde_json::Value), (StatusCode, String)> {
-    let token = account_token().ok_or((
-        StatusCode::UNAUTHORIZED,
-        "Not authenticated. Run `ship login` on this machine first.".to_string(),
-    ))?;
-
-    let url = format!("{}/api/v1/registry/publish", resolve_gateway_base_url());
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .unwrap_or_else(|_| reqwest::Client::new());
-
-    let resp = client
-        .post(&url)
-        .bearer_auth(&token)
-        .json(&payload)
-        .send()
-        .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("Gateway request failed: {e}")))?;
-
-    let status =
-        StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
-    let body_bytes = resp.bytes().await.map_err(|e| {
-        (StatusCode::BAD_GATEWAY, format!("Reading gateway response failed: {e}"))
-    })?;
-
-    let body_value: serde_json::Value =
-        serde_json::from_slice(&body_bytes).unwrap_or_else(|_| {
-            serde_json::Value::String(String::from_utf8_lossy(&body_bytes).into_owned())
-        });
-
-    Ok((status, body_value))
 }
 
 #[cfg(test)]

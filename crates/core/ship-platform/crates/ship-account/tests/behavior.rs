@@ -231,7 +231,7 @@ async fn logout_emits_account_logout_via_kernel() {
     );
 }
 
-// ── get_key proofs (the SINGLE key-read path the publish flow depends on) ──────
+// ── get_key proofs (the SINGLE key-read path) ───────────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_key_returns_stored_key() {
