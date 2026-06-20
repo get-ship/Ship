@@ -43,17 +43,15 @@ message Me {
 }
 
 // Account-state snapshot. The tag mirrors the AccountState enum:
-// pending carries state_id; logged_in carries user_id + optional me.
+// logged_in carries user_id + optional me.
 message AccountState {
   enum Status {
     LOGGED_OUT = 0;
-    PENDING = 1;
-    LOGGED_IN = 2;
+    LOGGED_IN = 1;
   }
   Status status = 1;
   string user_id = 2;   // set when LOGGED_IN
-  string state_id = 3;  // set when PENDING
-  optional Me me = 4;   // best-effort identity when LOGGED_IN
+  optional Me me = 3;   // best-effort identity when LOGGED_IN
 }
 
 message LoginStarted {

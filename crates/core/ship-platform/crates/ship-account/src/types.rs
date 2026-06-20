@@ -33,15 +33,13 @@ impl AccountToken {
 }
 
 /// Account-state snapshot. The tagged enum mirrors the typed
-/// `account.proto::AccountState`: `Pending` carries `state_id`, `LoggedIn`
-/// carries `user_id` + an optional best-effort identity.
+/// `account.proto::AccountState`; `LoggedIn` carries `user_id` + an
+/// optional best-effort identity.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum AccountState {
     LoggedOut,
-    /// A login flow is in progress; the daemon waits for `complete_login`.
-    Pending { state_id: String },
     LoggedIn {
         user_id: String,
         /// Best-effort cached identity; may be stale.

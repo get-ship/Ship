@@ -73,11 +73,6 @@ fn state_to_proto(state: AccountState) -> ProtoState {
             status: buffa::EnumValue::Known(Status::LOGGED_OUT),
             ..Default::default()
         },
-        AccountState::Pending { state_id } => ProtoState {
-            status: buffa::EnumValue::Known(Status::PENDING),
-            state_id,
-            ..Default::default()
-        },
         AccountState::LoggedIn { user_id, me } => ProtoState {
             status: buffa::EnumValue::Known(Status::LOGGED_IN),
             user_id,
