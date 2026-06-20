@@ -9,6 +9,16 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "deck": {
+    "bundles": [
+      {
+        "name": "ship-code-editor",
+        "entry": "src/index.ts",
+        "externals": ["@ship/sui-runtime", "@ship/sui-dom"],
+        "lazy": true
+      }
+    ]
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest"

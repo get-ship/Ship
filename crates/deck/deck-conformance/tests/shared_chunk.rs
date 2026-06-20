@@ -76,6 +76,7 @@ async fn demo_chip_lands_in_one_shared_chunk_and_both_views_import_it() {
             "@ship/sdk-client".into(),
         ],
         out_file: "views/widgets/view.js".into(),
+        lazy: false,
     };
     let gallery = BundleTarget {
         name: "views/gallery/view".into(),
@@ -86,6 +87,7 @@ async fn demo_chip_lands_in_one_shared_chunk_and_both_views_import_it() {
             "@ship/sdk-client".into(),
         ],
         out_file: "views/gallery/view.js".into(),
+        lazy: false,
     };
 
     // The bundler uses `layout.repo_root` for the component_index lookup (the

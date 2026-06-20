@@ -1,15 +1,18 @@
 //! deck-config — parses `deck.jsonc` into [`DeckConfig`].
 //!
-//! `deck.jsonc` is the single source of truth for Deck's consumer bundle
-//! manifest (peer of `package.json`). Read at build-time and daemon-startup,
-//! never per-request. Framework singletons (sui-runtime/dom/sdk-client/
-//! components) are hardcoded inside the bundler — NOT declared here.
-//! `deck.jsonc` targets are consumer bundles only.
+//! `deck.jsonc` is an OPTIONAL host override for Deck's view-discovery + watch
+//! layout (view buckets, leaf name, watched dirs, per-project pack scope). Read
+//! at build-time and daemon-startup, never per-request. It no longer carries the
+//! consumer bundle manifest: bundles are self-declared per-package
+//! (`package.json` `deck.bundles[]`) and DISCOVERED by the bundler, and
+//! `@ship/<name>` component resolution is DERIVED from the workspace package map
+//! — neither lives here anymore. Framework singletons (sui-runtime/dom/
+//! sdk-client) are hardcoded inside the bundler.
 //!
-//! Resolution: host-supplied [`DeckConfig`] (shipd calls
-//! [`DeckConfig::load`]) > root `deck.jsonc` > built-in defaults
-//! (conventional `views/` roots + singletons, so a zero-config host
-//! like deck-conformance works).
+//! Resolution: host-supplied [`DeckConfig`] (shipd calls [`DeckConfig::load`]) >
+//! root `deck.jsonc` (when present) > built-in defaults (conventional `views/`
+//! roots, so a zero-config host like deck-conformance — or the Ship repo, which
+//! ships no `deck.jsonc` — works on defaults).
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -17,38 +20,6 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 // ─── types ────────────────────────────────────────────────────────────────────
-
-/// Output kind for a [`TargetDecl`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "kebab-case")]
-pub enum TargetKind {
-    /// A reusable component pack (default).
-    #[default]
-    ComponentPack,
-    /// A lazily-loaded component pack (heavy chunk, code-split).
-    LazyPack,
-    /// A full application entry.
-    App,
-}
-
-/// One consumer bundle target declared in `deck.jsonc`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TargetDecl {
-    /// Logical name, e.g. `sui-components/sui-chrome`.
-    pub name: String,
-    /// Entry module path relative to the workspace root.
-    pub entry: PathBuf,
-    /// Module specifiers that stay external (not bundled).
-    #[serde(default)]
-    pub externals: Vec<String>,
-    /// Output kind. Defaults to `component-pack`.
-    #[serde(default)]
-    pub kind: TargetKind,
-    /// Override the output filename. Defaults to `<name>.js`.
-    #[serde(default)]
-    pub out_file: Option<String>,
-}
 
 /// One app's serve configuration. The shape deck's per-app router consumes;
 /// shipd (or any deck host) builds a `Vec<AppServeConfig>` from its
@@ -93,17 +64,15 @@ pub struct AppServeConfig {
 ///
 /// ## What this is NOT
 ///
-/// `DeckConfig` describes the L1 BUNDLE BUILD (consumer targets, source
-/// roots, watch dirs, packs). It does NOT describe the host's app list —
-/// the host reads its own `apps.jsonc` (or equivalent) and passes the
-/// per-app `Vec<AppServeConfig>` to the framework's `serve_apps()`.
-/// L1 is per-app; the host owns the list.
+/// `DeckConfig` describes the host's VIEW-DISCOVERY + watch layout. It does NOT
+/// describe the host's app list (the host reads its own `apps.jsonc` and passes
+/// a per-app `Vec<AppServeConfig>` to `serve_apps()`), the consumer bundle set
+/// (self-declared per-package in `package.json` `deck.bundles[]`, discovered by
+/// the bundler), or `@ship/<name>` component resolution (derived from the
+/// workspace package map). L1 is per-app; the host owns the list.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct DeckConfig {
-    /// Consumer bundle targets (NOT the framework singletons — those are
-    /// hardcoded inside deck-bundler and never declared here).
-    pub targets: Vec<TargetDecl>,
     /// Source roots to scan for views. Defaults to `["."]` (workspace root).
     pub source_roots: Vec<PathBuf>,
     /// Directories the bundler watches for live-reload. Defaults to `[]`.
@@ -131,14 +100,6 @@ pub struct DeckConfig {
     /// `view_dirs` fixes the #254 leaf-name divergence (`page.sui` vs
     /// `index.sui`) that broke `.ship/views/<name>/index.sui` resolution.
     pub view_leaf: Option<String>,
-    /// Repo-root-relative directories searched, in order, to resolve a
-    /// `@ship/<name>` component import to its package source. The resolver
-    /// joins `<repo_root>/<root>/<name>` for each root and takes the first
-    /// that exists. Defaults to `["packages"]` — a generic, host-agnostic
-    /// layout. Hosts with a nested component layout (e.g. Ship's
-    /// `packages/components/{sui,ship}`) declare the full search order here;
-    /// deck no longer bakes any monorepo layout into its code.
-    pub component_source_roots: Vec<PathBuf>,
 }
 
 impl Default for DeckConfig {
@@ -152,7 +113,6 @@ impl DeckConfig {
     /// when no `deck.jsonc` is present or when only some fields are declared.
     pub fn defaults() -> Self {
         Self {
-            targets: Vec::new(),
             source_roots: vec![PathBuf::from(".")],
             watch: Vec::new(),
             packs: Vec::new(),
@@ -161,10 +121,6 @@ impl DeckConfig {
             // Single leaf convention — fixes the #254 `index.sui`/`page.sui`
             // divergence. Both buckets look up `<name>/<view_leaf>`.
             view_leaf: Some("page.sui".into()),
-            // Generic single-root layout — `<repo_root>/packages/<name>`.
-            // Hosts with a nested component layout override in deck.jsonc;
-            // deck's code bakes no monorepo-specific search order.
-            component_source_roots: vec![PathBuf::from("packages")],
         }
     }
 
@@ -276,53 +232,27 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    /// Minimal example deck.jsonc that exercises all declared fields.
-    /// The shell-chrome target was removed 2026-06-06: cut 1 deleted
-    /// `apps/shell/src/components/index.ts`, and the per-tag resolver in
-    /// `sui_plugin.rs` already covers shell chrome via the catalog's
-    /// tag-source walk — the chrome target was dead. The `targets` list
-    /// is now 3 (marketing, arcade, pdf); tests in this file assert that
-    /// count. Chrome `<sui-*>` tags are not bundled as a target at all —
-    /// the per-view tree-shaking resolver pulls each used tag from its
-    /// source via `@sui-tag/<tag>`.
+    /// Minimal example deck.jsonc that exercises the view-layout fields a host
+    /// may override. Consumer bundle targets are NO LONGER here — they are
+    /// self-declared per-package (`package.json` `deck.bundles[]`) and
+    /// discovered by the bundler; `@ship/<name>` resolution is derived from the
+    /// workspace package map. So this config carries only view discovery + watch
+    /// + pack scope.
     const EXAMPLE_JSONC: &str = r#"{
-  // Consumer bundle targets (NOT the framework singletons).
-  "targets": [
-    {
-      "name": "sui-marketing",
-      "kind": "component-pack",
-      "entry": "apps/site/src/marketing/marketing-bundle.ts",
-      "externals": ["@ship/sui-runtime", "@ship/sui-dom"]
-    },
-    {
-      "name": "sui-arcade",
-      "kind": "lazy-pack",
-      "entry": "packages/components/ship/arcade/src/index.ts",
-      "externals": ["@ship/sui-runtime", "@ship/sui-dom"]
-    },
-    {
-      "name": "sui-pdf",
-      "kind": "lazy-pack",
-      "entry": "packages/components/ship/pdf/src/index.ts",
-      "externals": ["@ship/sui-runtime", "@ship/sui-dom"],
-      "outFile": "sui-pdf.js" // explicit out_file override
-    }
-  ],
   "sourceRoots": ["."],
-  "watch": ["packages", "apps/site/src"]
+  "watch": ["packages", "apps/site/src"],
+  "viewDirs": ["views", ".ship/views"],
+  "viewLeaf": "page.sui"
 }"#;
     #[test]
     fn parse_example_jsonc() {
         let cfg: DeckConfig =
             serde_json::from_str(&strip_jsonc_comments(EXAMPLE_JSONC))
                 .expect("example deck.jsonc must parse");
-        assert_eq!(cfg.targets.len(), 3);
-        let arcade = &cfg.targets[1];
-        assert_eq!(arcade.kind, TargetKind::LazyPack);
-        let pdf = &cfg.targets[2];
-        assert_eq!(pdf.out_file.as_deref(), Some("sui-pdf.js"));
         assert_eq!(cfg.source_roots, vec![PathBuf::from(".")]);
         assert_eq!(cfg.watch, vec![PathBuf::from("packages"), PathBuf::from("apps/site/src")]);
+        assert_eq!(cfg.view_dirs, vec!["views".to_string(), ".ship/views".to_string()]);
+        assert_eq!(cfg.view_leaf.as_deref(), Some("page.sui"));
     }
     #[test]
     fn defaults_round_trip() {
@@ -331,7 +261,6 @@ mod tests {
         let json = serde_json::to_string(&d).unwrap();
         let d2: DeckConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(d, d2);
-        assert!(d.targets.is_empty());
         assert_eq!(d.source_roots, vec![PathBuf::from(".")]);
         assert!(d.watch.is_empty());
         assert!(d.packs.is_empty(), "defaults declare no packs → global resolution");
@@ -373,7 +302,6 @@ mod tests {
             "partial config must inherit the conventional view buckets"
         );
         assert_eq!(cfg.view_leaf.as_deref(), Some("page.sui"));
-        assert_eq!(cfg.component_source_roots, vec![PathBuf::from("packages")]);
     }
 
     #[test]
@@ -391,14 +319,5 @@ mod tests {
         // Should not panic; must return defaults with a warn log (not testable here).
         let cfg = DeckConfig::load(tmp.path());
         assert_eq!(cfg, DeckConfig::defaults());
-    }
-
-    #[test]
-    fn target_kind_kebab_case_roundtrip() {
-        let json = r#"{"name":"x","entry":"x.ts","kind":"lazy-pack","externals":[]}"#;
-        let t: TargetDecl = serde_json::from_str(json).unwrap();
-        assert_eq!(t.kind, TargetKind::LazyPack);
-        let out = serde_json::to_string(&t).unwrap();
-        assert!(out.contains("lazy-pack"));
     }
 }

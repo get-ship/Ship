@@ -36,7 +36,7 @@ use tracing::{error, info, warn};
 pub use proto::BundleManifest;
 use asset_graph::write_asset_graph;
 use targets::{BundleLayout, BundleTarget};
-pub use deck_config::{DeckConfig, TargetKind};
+pub use deck_config::DeckConfig;
 
 /// Unsolicited events emitted while watching.
 #[derive(Debug, Clone)]
@@ -254,14 +254,15 @@ impl Bundler {
     /// bake, CI) cannot mistake a partial bake for a clean one.
     ///
     /// Dev loop skip-lazy gate: when the env var `DECK_DEV_SKIP_LAZY=1` is
-    /// set, every consumer target whose `kind: lazy-pack` in deck.jsonc is
+    /// set, every consumer target whose self-declaration marks it `lazy` is
     /// skipped during the build. The dev loop page never imports the arcade
     /// or PDF packs (Pixi.js + pdfjs-dist together are ~4 MB of JS that the
     /// browser heap retains even though no view references them; this is the
     /// 400 MB dev-loop reading measured 2026-06-06). Production builds
     /// (`cargo xtask build-assets` for the dist, or any consumer that
     /// explicitly wants the full asset graph) leave the env var unset and
-    /// every target emits as before.
+    /// every target emits as before — the gate is a manual dev lever, so the
+    /// default bake is identical whether a target is eager or lazy.
     pub async fn build_all(&self) -> Result<(), BundlerError> {
         let layout = self.layout();
         let mut failed: Vec<String> = Vec::new();
@@ -281,20 +282,14 @@ impl Bundler {
                 views.push(t.clone());
                 continue;
             }
-            // Dev-loop skip: if the env gate is on AND this target's kind
-            // in deck.jsonc is `lazy-pack`, skip it. Look up the cfg to
-            // discover the kind (BundleTarget does not carry the kind field
-            // — that's scope-2 cleanup, see .artifacts/2026-06-07-deck-
-            // architecture-review.md).
-            if skip_lazy
-                && self.cfg.targets.iter().any(|c| {
-                    c.name == t.name
-                        && matches!(c.kind, deck_config::TargetKind::LazyPack)
-                })
-            {
+            // Dev-loop skip: if the env gate is on AND this target's
+            // self-declaration marks it lazy, skip it. The flag rides on the
+            // `BundleTarget` itself now (the discovery carries it through) — no
+            // by-name lookup into a central config.
+            if skip_lazy && t.lazy {
                 tracing::info!(
                     target = %t.name,
-                    "build_all: skipping lazy-pack target (DECK_DEV_SKIP_LAZY=1)"
+                    "build_all: skipping lazy target (DECK_DEV_SKIP_LAZY=1)"
                 );
                 continue;
             }

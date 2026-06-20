@@ -40,7 +40,7 @@ each is guarded by a dedicated gate test:
 - `deck-bundler` — in-process Rolldown bundler (compile, per-view resolve,
   shared-chunk dedup, app/view builds, asset-graph, watch/HMR, catalog,
   route codegen).
-- `deck-config` — the `deck.jsonc` manifest schema.
+- `deck-config` — the optional `deck.jsonc` view-discovery + watch override schema.
 - `deck-cli` — the `deck` framework CLI (build / build-assets / routes / scaffold).
 - `deck` — thin re-export facade over the above (what shipd imports).
 
@@ -112,16 +112,18 @@ chunks, builds apps and views, writes the asset graph, and watches for HMR.
 | Tag → source index | (per-view resolver feed) | `crates/deck/deck-bundler/src/catalog/mod.rs::tag_source_index` | Maps every component tag to its source `.sui` from the same CEM walk. |
 | Workspace discovery | (catalog input) | `crates/deck/deck-bundler/src/catalog/workspace.rs::discover_workspace_packages` | Expands `package.json` workspace globs into the package set the catalog walks. |
 | Routes codegen | `routes.gen.ts` (per root) | `crates/deck/deck-bundler/src/routes.rs::generate_routes` | Walks every `[param]` dir under each app's `routes/` (shell + spaces) and emits a typed `RouteShape[]` the runtime registers via `defineRoutes` (write-if-changed). Multi-root via `RouteGenSpec` (`dir` + `out` + `label`). |
-| Targets / layout | (target set) | `crates/deck/deck-bundler/src/targets.rs::BundleLayout` | Framework singletons + consumer targets + discovered views, and where each output lands. |
+| Targets / layout | (target set) | `crates/deck/deck-bundler/src/targets.rs::BundleLayout` | Framework singletons + discovered consumer bundles + discovered views, and where each output lands. |
+| Consumer bundle discovery | (per-package self-decl) | `crates/deck/deck-bundler/src/catalog/workspace.rs::discover_bundle_declarations` | Walks the workspace for each package's `package.json` `deck.bundles[]` (name/entry/externals/lazy) — the dissolved central `targets` list. |
+| Component-root map | (`@ship/<name>` resolution) | `crates/deck/deck-bundler/src/catalog/workspace.rs::component_package_roots` | npm-name→package-root derived from the workspace map; replaces the hand-maintained `componentSourceRoots` search order. |
 
 ## Config (`deck-config`)
 
 | Feature | File | Implementation | Description |
 | --- | --- | --- | --- |
-| Manifest schema | `deck.jsonc` | `crates/deck/deck-config/src/lib.rs::DeckConfig` | Parsed `deck.jsonc`: consumer-bundle targets, source roots, packs, view dirs, component source roots. |
-| Config load | (startup) | `crates/deck/deck-config/src/lib.rs::load` | Reads `<root>/deck.jsonc`, strips JSONC comments, falls back to defaults (never panics). |
-| Zero-config defaults | (built-in) | `crates/deck/deck-config/src/lib.rs::defaults` | The defaults a host with no `deck.jsonc` (deck-conformance) runs on. |
-| Bundle target decl | (config entry) | `crates/deck/deck-config/src/lib.rs::TargetDecl` | One consumer bundle target (name, entry, externals, kind, out-file). |
+| Manifest schema | `deck.jsonc` (optional) | `crates/deck/deck-config/src/lib.rs::DeckConfig` | Optional host override for the VIEW-discovery + watch layout: source roots, watch dirs, packs, view dirs, view leaf. Consumer bundles + `@ship/<name>` resolution are NOT here (self-declared + discovered). |
+| Config load | (startup) | `crates/deck/deck-config/src/lib.rs::load` | Reads `<root>/deck.jsonc` when present, strips JSONC comments, falls back to defaults (never panics). |
+| Zero-config defaults | (built-in) | `crates/deck/deck-config/src/lib.rs::defaults` | The defaults a host with no `deck.jsonc` (deck-conformance, and the Ship repo itself) runs on. |
+| Bundle self-declaration | `package.json` `deck.bundles[]` | `crates/deck/deck-bundler/src/catalog/workspace.rs::BundleDecl` | One consumer bundle a package declares for itself (name, package-relative entry, externals, lazy). Discovered by the bundler — no central registry. |
 
 ## Host contract (`deck-host`, `deck-cli`)
 

@@ -12,7 +12,6 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, Subcommand};
-use deck_bundler::TargetKind;
 
 #[derive(Parser)]
 #[command(name = "deck", about = "The deck framework CLI", version)]
@@ -81,8 +80,9 @@ enum Command {
     /// ever hardcodes deck's internal output layout. Run after `build-assets`.
     Emit {
         /// Target name(s): framework singletons (sui-runtime, sui-dom,
-        /// sui-sdk-client) or consumer targets from deck.jsonc (sui-marketing,
-        /// sui-arcade, ship-code-editor, …). Repeatable.
+        /// sui-sdk-client) or discovered consumer bundles (sui-marketing,
+        /// sui-arcade, ship-code-editor, …) — the names declared in each
+        /// package's `deck.bundles`. Repeatable.
         #[arg(long = "target", required = true)]
         targets: Vec<String>,
         /// Destination directory (created if absent).
@@ -91,10 +91,10 @@ enum Command {
     },
 
     /// Bake all framework + consumer bundles via the in-process Rolldown
-    /// bundler. Reads deck.jsonc for consumer targets; framework singletons
-    /// are hardcoded in deck-bundler. Honesty guards verify every framework
-    /// bundle is non-empty after the bake — a silently-failed target cannot
-    /// ship empty bytes.
+    /// bundler. Consumer bundles are discovered from per-package
+    /// `deck.bundles`; framework singletons are hardcoded in deck-bundler.
+    /// Honesty guards verify every framework bundle is non-empty after the
+    /// bake — a silently-failed target cannot ship empty bytes.
     BuildAssets,
 }
 
@@ -275,32 +275,23 @@ fn build_assets() -> Result<()> {
         println!("  {name}: {len} bytes");
     }
 
-    // Consumer guard: the .deck/ bundles declared in deck.jsonc have no
-    // build.rs guard — verify each is non-empty as defense in depth.
+    // Consumer guard: the discovered consumer bundles (per-package
+    // `deck.bundles`) have no build.rs guard — verify each is non-empty as
+    // defense in depth.
     // Use BundleLayout to derive the exact output path per target (same routing
     // logic the bundler uses) so the guard is always in sync with reality.
     //
-    // Dev-loop skip: when DECK_DEV_SKIP_LAZY=1, the same lazy-pack targets
-    // the bundler skipped above are also skipped by the guard (otherwise
-    // a successful dev build would always fail the guard for the skipped
-    // targets). The bundler's skip log is the ground truth for what was
-    // skipped.
+    // Dev-loop skip: when DECK_DEV_SKIP_LAZY=1, the same lazy targets the
+    // bundler skipped above are also skipped by the guard (otherwise a
+    // successful dev build would always fail the guard for the skipped
+    // targets). The lazy flag rides on the BundleTarget (from the package's
+    // self-declaration) — no central-config lookup.
     let skip_lazy = std::env::var("DECK_DEV_SKIP_LAZY")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
-    // consumer_targets() returns BundleTarget (no kind field); the kind
-    // lives on cfg.targets. Look it up by name for the skip check.
     for t in layout.consumer_targets() {
-        let kind_is_lazy = layout
-            .cfg
-            .targets
-            .iter()
-            .any(|c| c.name == t.name && matches!(c.kind, TargetKind::LazyPack));
-        if skip_lazy && kind_is_lazy {
-            println!(
-                "  {}: skipped (DECK_DEV_SKIP_LAZY=1, kind=lazy-pack)",
-                t.name
-            );
+        if skip_lazy && t.lazy {
+            println!("  {}: skipped (DECK_DEV_SKIP_LAZY=1, lazy)", t.name);
             continue;
         }
         let out_dir = layout.assets_dir_for(&t.name);
@@ -353,9 +344,10 @@ fn build(project: PathBuf, out: Option<PathBuf>, bundle_framework: bool, minify:
     // every project. Per-project outputs go under `<project>/.deck/`.
     let deck_out_dir = repo_root.join(".deck");
 
-    // Load deck.jsonc for the consumer-bundle targets + source roots.
-    // L1 (deck) has no per-app config — shipd's apps.jsonc owns the
-    // app list; the bundler is per-app and reads its own project root.
+    // Load the host's view-discovery config (packs scope). Consumer bundles
+    // are discovered from per-package `deck.bundles`, not read here. L1 (deck)
+    // has no per-app config — shipd's apps.jsonc owns the app list; the
+    // bundler is per-app and reads its own project root.
     let cfg = deck_bundler::DeckConfig::load(&repo_root);
 
     // The app graph compiles its own `.sui` in-process via the linked
@@ -368,7 +360,6 @@ fn build(project: PathBuf, out: Option<PathBuf>, bundle_framework: bool, minify:
         .block_on(deck_bundler::app::bundle_app(
             &repo_root,
             &cfg.packs,
-            &cfg.component_source_roots,
             &project,
             &out_dir,
             minify,

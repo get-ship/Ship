@@ -86,6 +86,7 @@ mod tests {
             entry: TargetEntry::Real(PathBuf::from("src/x.ts")),
             externals: vec![],
             out_file: out_file.into(),
+            lazy: false,
         }
     }
 

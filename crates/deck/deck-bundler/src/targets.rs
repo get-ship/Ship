@@ -36,6 +36,12 @@ pub struct BundleTarget {
     pub externals: Vec<String>,
     /// Output path relative to the target's assets dir (`assets_dir_for`).
     pub out_file: String,
+    /// Lazy intent (from a consumer bundle's self-declaration). Only the
+    /// optional dev-loop skip (`DECK_DEV_SKIP_LAZY=1`) reads it — it omits heavy
+    /// lazy packs from a dev bake. Always `false` for framework + view targets.
+    /// The default bake (env unset) builds lazy and eager identically, so this
+    /// flag never changes production output.
+    pub lazy: bool,
 }
 
 /// Repo + workspace layout. `repo_root` is the ship monorepo (framework +
@@ -49,8 +55,10 @@ pub struct BundleLayout {
     /// redirect for tests / out-of-tree builds so output never clobbers
     /// committed assets.
     pub out_root: PathBuf,
-    /// Parsed `deck.jsonc` — consumer bundle targets + watch dirs + host assets
-    /// root. Defaults to `DeckConfig::defaults()` for zero-config hosts.
+    /// View-discovery + watch config (`view_dirs`, `view_leaf`, `packs`,
+    /// `watch`). Consumer bundle targets are NO LONGER here — they are
+    /// discovered from per-package `deck.bundles` (see `consumer_targets`).
+    /// Defaults to `DeckConfig::defaults()` for zero-config hosts.
     pub cfg: DeckConfig,
 }
 
@@ -108,7 +116,7 @@ impl BundleLayout {
         self.host_assets()
     }
 
-    /// All targets: framework singletons + consumer targets from cfg + view bundles.
+    /// All targets: framework singletons + discovered consumer bundles + view bundles.
     pub fn all_targets(&self) -> Vec<BundleTarget> {
         let mut out = self.framework_singletons();
         out.extend(self.consumer_targets());
@@ -127,36 +135,44 @@ impl BundleLayout {
                 entry: TargetEntry::Real(r("packages/sui/runtime/src/index.ts")),
                 externals: vec![],
                 out_file: "sui-runtime.js".into(),
+                lazy: false,
             },
             BundleTarget {
                 name: "sui-dom".into(),
                 entry: TargetEntry::Real(r("packages/sui/dom/src/index.ts")),
                 externals: vec!["@ship/sui-runtime".into()],
                 out_file: "sui-dom.js".into(),
+                lazy: false,
             },
             BundleTarget {
                 name: "sui-sdk-client".into(),
                 entry: TargetEntry::Real(r("packages/deck/sdk-client/src/index.ts")),
                 externals: vec!["@ship/sui-runtime".into()],
                 out_file: "sui-sdk-client.js".into(),
+                lazy: false,
             },
         ]
     }
 
-    /// Consumer bundle targets from `deck.jsonc`. The logical name drives
-    /// `assets_dir_for` routing (e.g. `sui-components/*` → `.deck/`,
-    /// anything else → `host_assets_root`).
+    /// Consumer bundle targets, DISCOVERED from per-package self-declaration
+    /// (`package.json` `deck.bundles[]`) — the dissolved central `deck.jsonc
+    /// targets`. The package that owns the entry declares the bundle; the
+    /// bundler walks the workspace to find them, the same way it discovers
+    /// `views/*`. Each declaration's `entry` is package-relative, joined onto
+    /// the declaring package's root. The logical name drives `assets_dir_for`
+    /// routing (anything not `views/`/`sui-components/`/a framework singleton →
+    /// `host_assets`).
     pub fn consumer_targets(&self) -> Vec<BundleTarget> {
-        self.cfg.targets.iter().map(|t| {
-            let entry = TargetEntry::Real(self.repo_root.join(&t.entry));
-            let out_file = t.out_file.clone().unwrap_or_else(|| format!("{}.js", t.name));
-            BundleTarget {
-                name: t.name.clone(),
-                entry,
-                externals: t.externals.clone(),
-                out_file,
-            }
-        }).collect()
+        crate::catalog::discover_bundle_declarations(&self.repo_root)
+            .into_iter()
+            .map(|(pkg_root, d)| BundleTarget {
+                name: d.name.clone(),
+                entry: TargetEntry::Real(pkg_root.join(&d.entry)),
+                externals: d.externals,
+                out_file: format!("{}.js", d.name),
+                lazy: d.lazy,
+            })
+            .collect()
     }
 
     /// One bundle per discovered view. The scan is fully config-driven
@@ -206,6 +222,7 @@ impl BundleLayout {
                         "@ship/sdk-client".into(),
                     ],
                     out_file: format!("views/{name}/view.js"),
+                    lazy: false,
                 });
             }
         }
@@ -274,5 +291,48 @@ mod tests {
 
         assert!(names.contains(&"sui-runtime"), "static framework target present");
         assert!(names.contains(&"views/git/view"), "discovered view");
+    }
+
+    /// Consumer bundles are DISCOVERED from per-package `deck.bundles` — no
+    /// central `targets` list. The declaration's package-relative `entry` is
+    /// joined onto the declaring package's root, and `lazy` rides through onto
+    /// the `BundleTarget`. This is the dissolution's core invariant.
+    #[test]
+    fn consumer_targets_discovered_from_package_self_declaration() {
+        let tmp = tempdir().unwrap();
+        let root = tmp.path().to_path_buf();
+        write(&root.join("package.json"), r#"{ "workspaces": ["packages/*", "apps/*"] }"#);
+        // An eager marketing pack (apps/site) + a lazy component pack.
+        write(
+            &root.join("apps/site/package.json"),
+            r#"{ "name": "@ship/site", "deck": { "bundles": [
+                { "name": "sui-marketing", "entry": "src/marketing/marketing-bundle.ts",
+                  "externals": ["@ship/sui-runtime", "@ship/sui-dom"], "lazy": false } ] } }"#,
+        );
+        write(
+            &root.join("packages/arcade/package.json"),
+            r#"{ "name": "@ship/arcade", "deck": { "bundles": [
+                { "name": "sui-arcade", "entry": "src/index.ts",
+                  "externals": ["@ship/sui-runtime", "@ship/sui-dom"], "lazy": true } ] } }"#,
+        );
+
+        let l = BundleLayout::new(root.clone(), None);
+        let consumer = l.consumer_targets();
+
+        let marketing = consumer.iter().find(|t| t.name == "sui-marketing").expect("marketing discovered");
+        assert_eq!(
+            marketing.entry,
+            TargetEntry::Real(root.join("apps/site/src/marketing/marketing-bundle.ts")),
+            "entry is package-relative, joined onto the declaring package root"
+        );
+        assert_eq!(marketing.externals, vec!["@ship/sui-runtime", "@ship/sui-dom"]);
+        assert_eq!(marketing.out_file, "sui-marketing.js");
+        assert!(!marketing.lazy, "marketing is eager");
+
+        let arcade = consumer.iter().find(|t| t.name == "sui-arcade").expect("arcade discovered");
+        assert!(arcade.lazy, "arcade's lazy intent rides onto the BundleTarget");
+
+        // No central registry: discovery is the only source of consumer targets.
+        assert_eq!(consumer.len(), 2, "exactly the two self-declared bundles");
     }
 }

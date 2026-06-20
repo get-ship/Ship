@@ -15,7 +15,8 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 pub use workspace::{
-    WorkspacePackage, composed_component_index, discover_workspace_packages,
+    BundleDecl, WorkspacePackage, component_package_roots, composed_component_index,
+    discover_bundle_declarations, discover_workspace_packages,
     discover_workspace_packages_scoped, pack_id_for_name,
 };
 use workspace::{read_json, source_tags_for_package};

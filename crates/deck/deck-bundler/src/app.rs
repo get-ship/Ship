@@ -163,7 +163,6 @@ fn read_package_name(project: &Path) -> Result<String> {
 pub async fn bundle_app(
     repo_root: &Path,
     packs: &[String],
-    component_source_roots: &[PathBuf],
     project: &Path,
     out_dir: &Path,
     minify: bool,
@@ -253,7 +252,7 @@ pub async fn bundle_app(
         emit_component_imports: true,
         component_index: resolver.index,
         shadowed_tags: resolver.shadowed,
-        component_source_roots: Arc::new(component_source_roots.to_vec()),
+        component_roots: crate::catalog::component_package_roots(repo_root),
     };
     let mut bundler = BundlerBuilder::default()
         .with_options(options)
@@ -374,7 +373,7 @@ export default controller({ scope: () => ({ id: signal('demo') }) })\n",
         write(&r.join("public/favicon.ico"), "ICO");
 
         let out = r.join("dist");
-        let build = bundle_app(r, &[], &[], r, &out, false, false, r, r)
+        let build = bundle_app(r, &[], r, &out, false, false, r, r)
             .await
             .expect("bundle_app");
 
@@ -437,7 +436,7 @@ export default controller({ scope: () => ({ id: signal('demo') }) })\n",
         );
 
         let out = r.join("dist");
-        bundle_app(r, &[], &[], r, &out, false, false, r, r)
+        bundle_app(r, &[], r, &out, false, false, r, r)
             .await
             .expect("bundle_app should compile the .sui entry in-process");
     }

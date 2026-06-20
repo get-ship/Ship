@@ -85,11 +85,12 @@ pub(crate) struct SuiPlugin {
     /// of these tags, the resolver no-ops it AND warns the author (naming the
     /// pack to declare).
     pub(crate) shadowed_tags: Arc<HashMap<String, String>>,
-    /// Repo-root-relative directories searched, in order, to resolve a
-    /// `@ship/<name>` import to its package source (`<repo_root>/<root>/<name>`).
-    /// Comes from `DeckConfig::component_source_roots` — deck bakes no monorepo
-    /// layout; the host declares its search order in `deck.jsonc`.
-    pub(crate) component_source_roots: Arc<Vec<PathBuf>>,
+    /// npm package name → absolute package root, for resolving a `@ship/<name>`
+    /// import to its workspace source. DERIVED from the bun/npm workspace package
+    /// map (`component_package_roots`) — deck bakes no monorepo layout and keeps
+    /// no hand-maintained search order. A name absent from the map falls through
+    /// to Rolldown's native resolver (prod / node_modules resolution).
+    pub(crate) component_roots: Arc<HashMap<String, PathBuf>>,
 }
 
 /// The per-view resolver's lookup tables, built once per `(repo_root, packs)`.
@@ -209,25 +210,16 @@ impl Plugin for SuiPlugin {
         if let Some(rest) = spec.strip_prefix("@ship/") {
             let name = rest.split('/').next().unwrap_or(rest);
             let subpath = rest.strip_prefix(name).map(|s| s.trim_start_matches('/'));
-            let cands = if let Some(s) = name.strip_prefix("sui-") {
-                vec![s.to_string(), name.to_string()]
-            } else {
-                vec![name.to_string()]
-            };
-            for d in &cands {
-                // Component search roots come from config
-                // (`DeckConfig::component_source_roots`, declared in
-                // `deck.jsonc`). deck no longer bakes a monorepo layout —
-                // a host with nested component buckets (e.g. Ship's
-                // `packages/components/{sui,ship}`) lists the full search
-                // order there. Each root is joined repo-root-relative and
-                // the first existing package wins. (There is no umbrella
-                // bundle — chrome is per-tag tree-shaking only.)
-                for root in self.component_source_roots.iter() {
-                    let pkg = self.repo_root.join(root).join(d);
-                    if !pkg.join("src/index.ts").exists() {
-                        continue
-                    }
+            // Resolve `@ship/<name>` via the DERIVED workspace package map
+            // (`component_roots`, keyed by package.json `name`) — the same map
+            // bun/npm resolve through. No hand-maintained search order, no
+            // `sui-` dir-name heuristic: the map IS the authoritative
+            // name→source binding. A name absent from the map (a prod build with
+            // no workspace, a true node_modules dep) falls through to Rolldown's
+            // native resolver below. (There is no umbrella bundle — chrome is
+            // per-tag tree-shaking only.)
+            if let Some(pkg) = self.component_roots.get(&format!("@ship/{name}")) {
+                if pkg.join("src/index.ts").exists() {
                     let src = pkg.join("src");
                     let target = match subpath {
                         None | Some("") => src.join("index.ts"),

@@ -49,5 +49,6 @@ pub use deck_core::{resolver, view_payload};
 // `ship_platform::bundler::*` now use `deck::bundler::*`.
 pub use deck_bundler as bundler;
 
-// deck.jsonc config — the SSOT for consumer bundle targets.
+// deck.jsonc config — the OPTIONAL host override for view-discovery + watch
+// layout. Consumer bundles are self-declared per-package + discovered.
 pub use deck_config as config;

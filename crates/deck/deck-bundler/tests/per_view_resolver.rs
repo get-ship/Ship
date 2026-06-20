@@ -45,6 +45,7 @@ fn view_target(root: &Path) -> BundleTarget {
         entry: TargetEntry::Real(root.join("views/usewidget/page.sui")),
         externals: vec![],
         out_file: "views/usewidget/view.js".into(),
+        lazy: false,
     }
 }
 
@@ -54,6 +55,7 @@ fn second_view_target(root: &Path) -> BundleTarget {
         entry: TargetEntry::Real(root.join("views/usewidget2/page.sui")),
         externals: vec![],
         out_file: "views/usewidget2/view.js".into(),
+        lazy: false,
     }
 }
 

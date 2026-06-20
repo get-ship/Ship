@@ -164,9 +164,9 @@ async fn gate_bundle_parity_all_targets_build() {
 
     let layout = BundleLayout::new(repo.clone(), None).with_out_root(scratch.path().to_path_buf());
 
-    // The full target set: static framework singletons + discovered separate-
-    // bundle islands + discovered view bundles. This is the EXACT set
-    // `Bundler::build_all` would iterate.
+    // The full target set: static framework singletons + discovered consumer
+    // bundles (per-package `deck.bundles`) + discovered view bundles. This is
+    // the EXACT set `Bundler::build_all` would iterate.
     let targets = layout.all_targets();
     assert!(
         !targets.is_empty(),

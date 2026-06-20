@@ -129,14 +129,15 @@ mod tests {
         let repo = tmp.path().to_path_buf();
         // sui-marketing is a consumer target → lands in the host's
         // assets root (repo-relative, not `.deck/`).
-        let assets = repo.clone();
-        std::fs::create_dir_all(&assets).unwrap();
-        std::fs::write(assets.join("sui-marketing.js"), r#"import("./Chunk-X.js");"#).unwrap();
-        std::fs::write(assets.join("Chunk-X.js"), "export const x = 1;").unwrap();
-        // Declare the target via deck.jsonc.
+        std::fs::write(repo.join("sui-marketing.js"), r#"import("./Chunk-X.js");"#).unwrap();
+        std::fs::write(repo.join("Chunk-X.js"), "export const x = 1;").unwrap();
+        // Declare the consumer bundle via per-package self-declaration; the
+        // bundler discovers it from the workspace (no central deck.jsonc).
+        std::fs::write(repo.join("package.json"), r#"{ "workspaces": ["packages/*"] }"#).unwrap();
+        std::fs::create_dir_all(repo.join("packages/site")).unwrap();
         std::fs::write(
-            repo.join("deck.jsonc"),
-            r#"{ "targets": [ { "name": "sui-marketing", "kind": "component-pack", "entry": "x.ts", "externals": [] } ] }"#,
+            repo.join("packages/site/package.json"),
+            r#"{ "name": "@ship/site", "deck": { "bundles": [ { "name": "sui-marketing", "entry": "x.ts" } ] } }"#,
         )
         .unwrap();
 
