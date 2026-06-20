@@ -207,6 +207,23 @@ impl BundleLayout {
             .collect()
     }
 
+    /// The `views/` bucket dirs the framework walks for view discovery —
+    /// every `source_root` × `cfg.view_dirs` (defaults `["views",
+    /// ".ship/views"]`). One definition, two consumers: `discover_view_bundles`
+    /// scans these for view *bundles*, and the view-table codegen
+    /// (`<bucket>/routes.gen.ts` + `<bucket>/meta.gen.ts`, run from
+    /// `build_all`) walks the same dirs. SSOT for "where views live" — no
+    /// second hardcoded path.
+    pub fn view_bucket_dirs(&self) -> Vec<PathBuf> {
+        let mut out = Vec::new();
+        for root in &self.source_roots {
+            for bucket in &self.cfg.view_dirs {
+                out.push(root.join(bucket));
+            }
+        }
+        out
+    }
+
     /// One bundle per discovered view. The scan is fully config-driven
     /// (#273 — deck hardcodes no path):
     ///
@@ -226,13 +243,7 @@ impl BundleLayout {
         let mut out = Vec::new();
         let mut seen = HashSet::new();
         let leaf = self.cfg.view_leaf.as_deref().unwrap_or("page.sui");
-        let mut candidates: Vec<PathBuf> = Vec::new();
-        for root in &self.source_roots {
-            for bucket in &self.cfg.view_dirs {
-                candidates.push(root.join(bucket));
-            }
-        }
-        for dir in candidates {
+        for dir in self.view_bucket_dirs() {
             let Ok(entries) = std::fs::read_dir(&dir) else { continue };
             for e in entries.flatten() {
                 let name = e.file_name().to_string_lossy().into_owned();
@@ -327,6 +338,35 @@ mod tests {
 
         assert!(names.contains(&"sui-runtime"), "static framework target present");
         assert!(names.contains(&"views/git/view"), "discovered view");
+    }
+
+    /// `view_bucket_dirs()` is the single definition of "where views live" —
+    /// every `source_root` × `cfg.view_dirs`. The view-bundle scan AND the
+    /// view-table codegen (`build_all`) both walk exactly these dirs, so a
+    /// regression here would desync the bundle scan from the table gen.
+    #[test]
+    fn view_bucket_dirs_are_source_roots_times_view_dirs() {
+        // Contributor mode: one source root.
+        let l = BundleLayout::with_config(PathBuf::from("/repo"), None, DeckConfig::defaults());
+        assert_eq!(
+            l.view_bucket_dirs(),
+            vec![PathBuf::from("/repo/views"), PathBuf::from("/repo/.ship/views")],
+        );
+        // External-project mode: repo_root + workspace_root, each × view_dirs.
+        let l2 = BundleLayout::with_config(
+            PathBuf::from("/repo"),
+            Some(PathBuf::from("/ws")),
+            DeckConfig::defaults(),
+        );
+        assert_eq!(
+            l2.view_bucket_dirs(),
+            vec![
+                PathBuf::from("/repo/views"),
+                PathBuf::from("/repo/.ship/views"),
+                PathBuf::from("/ws/views"),
+                PathBuf::from("/ws/.ship/views"),
+            ],
+        );
     }
 
     /// Consumer bundles are DISCOVERED from per-package `deck.bundles` — no

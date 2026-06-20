@@ -681,6 +681,37 @@ fn generate_routes_one(spec: &RouteGenSpec) -> Result<usize> {
 // files and emit TWO files: `views/routes.gen.ts` (router fields only)
 // and `views/meta.gen.ts` (host fields only). The split is the
 // contract — the router is host-agnostic; the host reads the meta.
+
+/// Generate the view route + meta tables for a single views bucket dir
+/// (`views/`, `.ship/views/`). Walks `<views_dir>/<name>/manifest.jsonc`
+/// and writes `<views_dir>/routes.gen.ts` (router fields) +
+/// `<views_dir>/meta.gen.ts` (host fields). No-op when the dir is absent
+/// or holds no manifests. Returns the number of views discovered.
+///
+/// This is the framework-owned home for the view tables: the bundler's
+/// `build_all` (the asset bake / `deck build-assets`) calls it for every
+/// discovered view bucket, so a fresh clone + `build-assets` produces them
+/// with no manual `deck routes --views` step. The bundler's watch path
+/// ignores `.gen.ts`, so these writes never self-trigger a rebuild loop.
+pub fn generate_view_artifacts(views_dir: &Path, label: &str) -> Result<usize> {
+    if !views_dir.is_dir() {
+        return Ok(0);
+    }
+    let manifests = discover_views(views_dir)
+        .with_context(|| format!("walking views for `{label}`"))?;
+    if manifests.is_empty() {
+        return Ok(0);
+    }
+    write_views_routes(views_dir, label, &manifests)
+        .with_context(|| format!("writing views/routes.gen.ts for `{label}`"))?;
+    write_views_meta(views_dir, label, &manifests)
+        .with_context(|| format!("writing views/meta.gen.ts for `{label}`"))?;
+    Ok(manifests.len())
+}
+
+/// Per-spec view-artifact emit used by `generate_routes` (the `deck routes`
+/// CLI path). Resolves the views dir relative to a `routes/` spec, then
+/// delegates to `generate_view_artifacts`.
 fn write_view_artifacts(spec: &RouteGenSpec) -> Result<()> {
     // Sibling of `routes/`: `<root>/../views/` (or `<root>/views/` if
     // `routes/` is a peer dir, e.g. `apps/shell/routes/…` →
@@ -697,15 +728,7 @@ fn write_view_artifacts(spec: &RouteGenSpec) -> Result<()> {
     let Some(views_dir) = views_dir else {
         return Ok(());
     };
-    let manifests = discover_views(&views_dir)
-        .with_context(|| format!("walking views for `{}`", spec.label))?;
-    if manifests.is_empty() {
-        return Ok(());
-    }
-    write_views_routes(&views_dir, &spec.label, &manifests)
-        .with_context(|| format!("writing views/routes.gen.ts for `{}`", spec.label))?;
-    write_views_meta(&views_dir, &spec.label, &manifests)
-        .with_context(|| format!("writing views/meta.gen.ts for `{}`", spec.label))?;
+    generate_view_artifacts(&views_dir, &spec.label)?;
     Ok(())
 }
 
@@ -942,5 +965,68 @@ mod tests {
             ts.contains("'/api/assets/view-tokens.css'"),
             "rendered routes.gen.ts must inline `<DECK_API_ASSETS>/view-tokens.css` exactly (got: {ts})",
         );
+    }
+
+    /// `generate_view_artifacts` is the framework-owned view-table codegen
+    /// `build_all` calls per bucket. Given a `views/` bucket with manifests, it
+    /// must emit BOTH `routes.gen.ts` (router fields: pattern + view) and
+    /// `meta.gen.ts` (host fields: title/layout/auth/rail) — the host-agnostic
+    /// split is the contract. JSONC comments in the manifest are tolerated.
+    #[test]
+    fn generate_view_artifacts_emits_routes_and_meta() {
+        let root = tempfile::tempdir().unwrap();
+        let views = root.path().join("views");
+        std::fs::create_dir_all(views.join("git")).unwrap();
+        std::fs::write(
+            views.join("git/manifest.jsonc"),
+            "// a comment\n{ \"name\": \"git\", \"path\": \"/git\", \"title\": \"Git\", \
+             \"layout\": \"default\", \"auth\": \"user\", \
+             \"rail\": { \"label\": \"Git\", \"icon\": \"git-branch\" } }\n",
+        )
+        .unwrap();
+        std::fs::create_dir_all(views.join("eval")).unwrap();
+        std::fs::write(
+            views.join("eval/manifest.jsonc"),
+            "{ \"name\": \"eval\", \"path\": \"/eval\" }\n",
+        )
+        .unwrap();
+
+        let n = generate_view_artifacts(&views, "views").unwrap();
+        assert_eq!(n, 2, "two manifests discovered");
+
+        // routes.gen.ts: router contract (pattern + view name). The host table
+        // is a SEPARATE file — the router export must not appear here.
+        let routes = std::fs::read_to_string(views.join("routes.gen.ts")).unwrap();
+        assert!(routes.contains("VIEW_ROUTES"), "router table present");
+        assert!(routes.contains("pattern: '/git', view: 'git'"), "git route entry");
+        assert!(routes.contains("pattern: '/eval', view: 'eval'"), "eval route entry");
+        assert!(!routes.contains("VIEW_META"), "host table stays out of the router file");
+
+        // meta.gen.ts: host contract (title/layout/auth/rail). The router table
+        // export must not appear here — the split is the contract.
+        let meta = std::fs::read_to_string(views.join("meta.gen.ts")).unwrap();
+        assert!(meta.contains("VIEW_META"), "host table present");
+        assert!(meta.contains("name: 'git'") && meta.contains("title: 'Git'"), "git meta");
+        assert!(meta.contains("\"icon\":\"git-branch\""), "rail rides through to meta");
+        assert!(!meta.contains("VIEW_ROUTES"), "router table stays out of the meta file");
+    }
+
+    /// No-op safety: an absent bucket dir and a present-but-empty bucket both
+    /// return 0 and write nothing. `build_all` calls this for EVERY configured
+    /// bucket (`views`, `.ship/views`); a host without a `.ship/views` must not
+    /// get an empty artifact written there.
+    #[test]
+    fn generate_view_artifacts_noop_without_dir_or_manifests() {
+        let root = tempfile::tempdir().unwrap();
+        // Absent dir → 0, nothing written.
+        let absent = root.path().join("ship-views");
+        assert_eq!(generate_view_artifacts(&absent, "x").unwrap(), 0);
+        assert!(!absent.exists());
+        // Present but no manifests → 0, no artifacts.
+        let empty = root.path().join("views");
+        std::fs::create_dir_all(&empty).unwrap();
+        assert_eq!(generate_view_artifacts(&empty, "x").unwrap(), 0);
+        assert!(!empty.join("routes.gen.ts").exists());
+        assert!(!empty.join("meta.gen.ts").exists());
     }
 }
