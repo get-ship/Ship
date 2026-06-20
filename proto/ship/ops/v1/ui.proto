@@ -84,24 +84,6 @@ message SuiHoverReq {
 
 // ── View authoring writes (C1) ─────────────────────────────────────────────
 
-message ViewPatchReq {
-  string id = 1;
-  string selector = 2;
-  string html = 3;
-}
-
-message ViewAppendReq {
-  string id = 1;
-  string selector = 2;
-  string html = 3;
-}
-
-message ViewSignalReq {
-  string id = 1;
-  string name = 2;
-  string value_json = 3;
-}
-
 message ViewEditModeReq {
   string view = 1;
   string session_id = 2;
@@ -157,19 +139,6 @@ service UiService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
 
-  // View authoring (C1) — gated on `ship.ui.write`
-  rpc PatchSession(ViewPatchReq) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.ui.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
-  }
-  rpc AppendSession(ViewAppendReq) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.ui.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
-  }
-  rpc SignalSession(ViewSignalReq) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.ui.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
-  }
   rpc EnterEditMode(ViewEditModeReq) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.ui.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_SPACE;
