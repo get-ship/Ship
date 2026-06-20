@@ -5,7 +5,7 @@
 //! 2026-06-10): the SPACE domain owns its projection at L1.
 //!
 //! The `projects` table is the daemon's machine-wide record of known space
-//! paths. This projection folds `project.registered / seen / archived` events
+//! paths. This projection folds `project.registered / seen` events
 //! (Runtime-scoped, live in `runtime.db`) into the `projects` sqlx table.
 //! The ship-space crate is the sole writer of those events; this projection
 //! is the sole writer of the read-side `projects` table rows.
@@ -21,14 +21,14 @@ use sqlx::SqliteConnection;
 use ship_substrate::db::block_on;
 use ship_substrate::projections::registry::Projection;
 use ship_types::envelope::EventEnvelope;
-use ship_types::event_types::{PROJECT_ARCHIVED, PROJECT_REGISTERED, PROJECT_SEEN};
-use ship_types::payload::{ProjectArchived, ProjectRegistered, ProjectSeen};
+use ship_types::event_types::{PROJECT_REGISTERED, PROJECT_SEEN};
+use ship_types::payload::{ProjectRegistered, ProjectSeen};
 
 /// Event-sourced materialiser for the `projects` table.
 ///
-/// Folds `project.registered / seen / archived` events (Runtime-scoped, live
-/// in `runtime.db`) into the `projects` sqlx table. The ship-space crate is
-/// the sole writer of those events; this projection is the sole writer of the
+/// Folds `project.registered / seen` events (Runtime-scoped, live in
+/// `runtime.db`) into the `projects` sqlx table. The ship-space crate is the
+/// sole writer of those events; this projection is the sole writer of the
 /// read-side `projects` table rows.
 pub struct ProjectsProjection;
 
@@ -38,14 +38,13 @@ impl Projection for ProjectsProjection {
     }
 
     fn event_types(&self) -> &[&str] {
-        &[PROJECT_REGISTERED, PROJECT_SEEN, PROJECT_ARCHIVED]
+        &[PROJECT_REGISTERED, PROJECT_SEEN]
     }
 
     fn apply(&self, event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
         match event.event_type.as_str() {
             PROJECT_REGISTERED => apply_registered(event, conn),
             PROJECT_SEEN => apply_seen(event, conn),
-            PROJECT_ARCHIVED => apply_archived(event, conn),
             _ => Ok(()),
         }
     }
@@ -98,16 +97,3 @@ fn apply_seen(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> 
     Ok(())
 }
 
-fn apply_archived(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
-    let payload: ProjectArchived = serde_json::from_str(&event.payload_json)?;
-    block_on(async {
-        sqlx::query(
-            "UPDATE projects SET archived_at = ?, updated_at = datetime('now') WHERE id = ?",
-        )
-        .bind(&payload.archived_at)
-        .bind(&event.entity_id)
-        .execute(conn)
-        .await
-    })?;
-    Ok(())
-}

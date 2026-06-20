@@ -21,7 +21,6 @@ use ship_types::register_event;
 // and routing them to space.db while reading daemon-wide would force fan-out.
 // Space. (The legacy project-log daemon-wide audit stream is GONE — see the
 // module doc.)
-register_event!("project.archived", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ProjectArchived", ship_types::payload::ProjectArchived);
 register_event!("project.registered", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ProjectRegistered", ship_types::payload::ProjectRegistered);
 register_event!("project.seen", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProjectSeen", ship_types::payload::ProjectSeen);
 register_event!("project.switched", [EventScope::Space], Retention::Durable, Stability::Stable, "ProjectSwitched", ship_types::payload::ProjectSwitched);

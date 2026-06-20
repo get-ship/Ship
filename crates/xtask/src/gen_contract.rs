@@ -202,7 +202,7 @@ fn domain_catalog() -> Vec<DomainMeta> {
             display: "Projects (spaces)",
             event_prefixes: vec!["project."],
             services: vec!["SpaceService"],
-            description: "Space/project registry: register, switch, archive spaces.",
+            description: "Space/project registry: register and switch spaces.",
             coverage_audit_docs: vec![],
         },
         DomainMeta {
