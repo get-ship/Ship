@@ -6,7 +6,7 @@
 //! base. Keyed by `(space_id, key)` — last write wins (UPSERT on apply).
 //!
 //! The space scope rides the event envelope (`space_id`, stamped via
-//! `with_context`), NOT the payload — mirror `ConfigFileChanged`. The setting
+//! `with_scope(EventScope::Space, _)`), NOT the payload — mirror `ConfigFileChanged`. The setting
 //! key is the envelope's `entity_id`.
 //!
 //! See `.artifacts/specs/space/129-per-space-settings.md`.
@@ -20,6 +20,7 @@ use sqlx::{Row, SqliteConnection};
 use ship_substrate::db::block_on;
 use ship_substrate::projections::registry::Projection;
 use ship_types::envelope::EventEnvelope;
+
 use ship_types::event_types::SPACE_SETTING_CHANGED;
 use ship_types::payload::SpaceSettingChanged;
 
@@ -119,6 +120,8 @@ pub fn get(space_id: &str, key: &str) -> Result<Option<Value>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ship_types::event_registry::EventScope;
+
 
      fn fresh() -> (tempfile::TempDir, sqlx::SqliteConnection) {
          let tmp = tempfile::tempdir().unwrap();
@@ -129,12 +132,12 @@ mod tests {
      }
 
     /// Build a `space.setting.changed` event with the space riding the envelope
-    /// (`with_context`), the key as `entity_id`, and the value in the payload.
+    /// (`with_scope(EventScope::Space, _)`), the key as `entity_id`, and the value in the payload.
     fn changed(space_id: &str, key: &str, value_json: &str) -> EventEnvelope {
         let payload = SpaceSettingChanged { key: key.to_string(), value_json: value_json.to_string() };
         EventEnvelope::new(SPACE_SETTING_CHANGED, key, &payload)
             .unwrap()
-            .with_context(Some(space_id), None)
+            .with_scope(EventScope::Space, Some(space_id))
     }
 
     /// Direct read of a stored override, off the test's own connection (the
@@ -186,7 +189,7 @@ mod tests {
     #[test]
     fn event_without_space_id_is_skipped() {
         let (_tmp, mut conn) = fresh();
-        // No `with_context` → no space on the envelope → no overlay row.
+        // No `with_scope` → no space on the envelope → no overlay row.
         let payload = SpaceSettingChanged {
             key: "theme".to_string(),
             value_json: "\"dark\"".to_string(),

@@ -145,19 +145,6 @@ impl EventEnvelope {
         self
     }
 
-    /// Attach the caller's space context + session. Behavior-preserving shim
-    /// for the legacy `space_id`-keyed call sites: a present key means the event
-    /// belongs to that space, so this stamps `(Space, key)`. A `None` key leaves
-    /// the registry-inferred scope from `new()` untouched. Phase 1/2 replace
-    /// this caller-supplied key with the authoritative substrate scope binding.
-    pub fn with_context(mut self, space_id: Option<&str>, session_id: Option<&str>) -> Self {
-        if let Some(key) = space_id {
-            self.scope = EventScope::Space;
-            self.scope_key = Some(key.to_string());
-        }
-        self.session_id = session_id.map(str::to_string);
-        self
-    }
 
     /// Set the full `(scope, scope_key)` tuple directly. The explicit form used
     /// by call sites that know the event's partition (Account/System/Device),

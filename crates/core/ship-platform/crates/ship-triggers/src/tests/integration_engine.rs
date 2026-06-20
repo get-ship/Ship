@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use ship_substrate::events::{EventEnvelope, KernelRouter};
+use ship_substrate::events::{EventEnvelope, EventScope, KernelRouter};
 use crate::engine::HookEngine;
 use crate::filter;
 use ship_config::resolve_hooks_max_depth;
@@ -71,7 +71,7 @@ fn run_failed_envelope() -> EventEnvelope {
         &json!({ "pipeline_run_id": "job-1", "error": "boom", "status": "failed" }),
     )
     .unwrap()
-    .with_context(Some(TEST_SPACE), None)
+    .with_scope(EventScope::Space, Some(TEST_SPACE))
 }
 
 fn run_completed_envelope() -> EventEnvelope {
@@ -81,7 +81,7 @@ fn run_completed_envelope() -> EventEnvelope {
         &json!({ "pipeline_run_id": "job-1", "slug": "job-1", "status": "ok" }),
     )
     .unwrap()
-    .with_context(Some(TEST_SPACE), None)
+    .with_scope(EventScope::Space, Some(TEST_SPACE))
 }
 
 fn write_schema(ship_dir: &Path, id: &str) {

@@ -30,7 +30,7 @@ fn project_registered_event(branch: &str) -> EventEnvelope {
         }),
     )
     .unwrap()
-    .with_context(Some(branch), None)
+    .with_scope(EventScope::Space, Some(branch))
     .elevate()
 }
 
@@ -41,7 +41,7 @@ fn project_archived_event(branch: &str) -> EventEnvelope {
         &serde_json::json!({ "archived_at": "2026-01-01T00:00:00Z" }),
     )
     .unwrap()
-    .with_context(Some(branch), None)
+    .with_scope(EventScope::Space, Some(branch))
     .elevate()
 }
 

@@ -6,6 +6,7 @@ mod actor_tests {
     use crate::events::types::event_types;
     use crate::events::EventEnvelope;
     use crate::projections::{ActorProjection, EventBus};
+    use crate::events::EventScope;
 
     fn setup() -> (std::path::PathBuf, sqlx::SqliteConnection) {
         let ship_dir = crate::project::get_global_dir().unwrap();
@@ -37,7 +38,7 @@ mod actor_tests {
             }),
         )
         .unwrap()
-        .with_context(Some(ws_id), None)
+        .with_scope(EventScope::Space, Some(ws_id))
         .with_actor_id(actor_id)
         .elevate()
     }
@@ -45,7 +46,7 @@ mod actor_tests {
     fn actor_woke_event(actor_id: &str, ws_id: &str) -> EventEnvelope {
         EventEnvelope::new(event_types::ACTOR_WOKE, actor_id, &serde_json::json!({}))
             .unwrap()
-            .with_context(Some(ws_id), None)
+            .with_scope(EventScope::Space, Some(ws_id))
             .with_actor_id(actor_id)
             .elevate()
     }
@@ -57,7 +58,7 @@ mod actor_tests {
             &serde_json::json!({"idle_secs": 30}),
         )
         .unwrap()
-        .with_context(Some(ws_id), None)
+        .with_scope(EventScope::Space, Some(ws_id))
         .with_actor_id(actor_id)
         .elevate()
     }
@@ -69,7 +70,7 @@ mod actor_tests {
             &serde_json::json!({"reason": "done"}),
         )
         .unwrap()
-        .with_context(Some(ws_id), None)
+        .with_scope(EventScope::Space, Some(ws_id))
         .with_actor_id(actor_id)
         .elevate()
     }
@@ -81,7 +82,7 @@ mod actor_tests {
             &serde_json::json!({"error": "OOM", "restart_count": restart_count}),
         )
         .unwrap()
-        .with_context(Some(ws_id), None)
+        .with_scope(EventScope::Space, Some(ws_id))
         .with_actor_id(actor_id)
         .elevate()
     }
@@ -158,7 +159,7 @@ mod actor_tests {
             }),
         )
         .unwrap()
-        .with_context(Some(space), None)
+        .with_scope(EventScope::Space, Some(space))
         .with_actor_id("win-find-test")
         .elevate();
         bus.dispatch(&win, &mut conn).unwrap();

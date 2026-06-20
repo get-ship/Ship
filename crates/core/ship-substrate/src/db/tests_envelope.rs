@@ -4,7 +4,7 @@
 //! The job projection query omits `target_actor_id` (13-col SELECT).
 //! A shared `envelope_from_row` must handle both schemas correctly.
 
-use ship_types::envelope::EventEnvelope;
+use ship_types::{envelope::EventEnvelope, event_registry::EventScope};
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::testutil::init_project_minimal as init_project;
 use tempfile::tempdir;
@@ -73,14 +73,15 @@ fn envelope_round_trip_preserves_all_fields() {
     let (_tmp, _ship_dir) = setup();
     let store = runtime_store();
 
-    let ev = EventEnvelope::new("test.roundtrip", "entity-rt", &serde_json::json!({"x": 1}))
+    let mut ev = EventEnvelope::new("test.roundtrip", "entity-rt", &serde_json::json!({"x": 1}))
         .unwrap()
         .with_causation("cause-1")
-        .with_context(Some("ws-1"), Some("sess-1"))
+        .with_scope(EventScope::Space, Some("ws-1"))
         .with_actor_id("actor-a")
         .with_parent_actor_id("actor-parent")
         .with_target("actor-target")
         .elevate();
+    ev.session_id = Some("sess-1".to_string());
 
     store.append(&ev).unwrap();
 

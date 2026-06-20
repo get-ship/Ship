@@ -1,5 +1,6 @@
 use crate::db::{block_on, open_db_at, runtime_db_path};
 use ship_types::envelope::EventEnvelope;
+use ship_types::event_registry::EventScope;
 use crate::events::filter::EventFilter;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::*;
@@ -62,12 +63,13 @@ fn session_started(session_id: &str) -> TestSession {
 #[test]
 fn test_round_trip() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
-    let ev = EventEnvelope::new(
+    let mut ev = EventEnvelope::new(
         event_types::canonical_session::SESSION_STARTED,
         "entity-a",
         &session_started("entity-a"),
     )?
-    .with_context(Some("ws-1"), Some("sess-1"));
+    .with_scope(EventScope::Space, Some("ws-1"));
+    ev.session_id = Some("sess-1".to_string());
 
     store.append(&ev)?;
     let got = store.get(&ev.id)?.expect("event not found");
@@ -136,7 +138,7 @@ fn test_filter_by_event_type() -> anyhow::Result<()> {
 fn test_filter_by_workspace_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "e1", &session_started("e1"))?
-        .with_context(Some("ws-scoped"), None);
+        .with_scope(EventScope::Space, Some("ws-scoped"));
     store.append(&ev)?;
     store.append(&EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "e2", &session_started("e2"))?)?;
 

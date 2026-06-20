@@ -12,7 +12,7 @@ use anyhow::Result;
 
 use crate::db::block_on_anyhow;
 use crate::events::types::event_types;
-use crate::events::types::{ActorCrashed, ActorCreated, ActorSlept, ActorStopped, ActorWoke};
+use crate::events::types::{ActorCreated, ActorSlept, ActorStopped, ActorWoke};
 use crate::events::EventEnvelope;
 use crate::persistence::event_store::SqliteEventStore;
 use ship_types::event_registry::EventScope;
@@ -285,18 +285,3 @@ pub fn emit_actor_stopped(
     )
 }
 
-pub fn emit_actor_crashed(
-    id: &str,
-    error: &str,
-    restart_count: u32,
-    space_id: Option<&str>,
-    parent_actor_id: Option<&str>,
-) -> Result<()> {
-    emit_actor_event(
-        id,
-        space_id,
-        parent_actor_id,
-        event_types::ACTOR_CRASHED,
-        &ActorCrashed { error: error.to_string(), restart_count },
-    )
-}
