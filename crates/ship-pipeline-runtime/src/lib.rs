@@ -63,3 +63,20 @@ pub fn install_projections() {
         }));
     });
 }
+
+/// Returns `true` when the orchestrator runtime (and the `ship-code`-backed
+/// dispatch engine it depends on) is compiled in.
+///
+/// Use this from RPC write closures that hand off to the orchestrator — the
+/// `pipelines.dispatch` path in particular — so the gate fails loud with
+/// `failed_precondition` instead of emitting `pipeline.run.started` to no
+/// consumer. The dispatch envelope can still be built and persisted (the
+/// `loader` submodule + `run_core::dispatch_one` stay compiled) but nothing
+/// picks it up on the harness-free build.
+///
+/// Resolves at compile time via `cfg!` — the harness-free build (no ship-code)
+/// bakes in `false` so there's no runtime branch and the dead branch is
+/// stripped by the linker.
+pub fn orchestrator_available() -> bool {
+    cfg!(feature = "ship-code")
+}

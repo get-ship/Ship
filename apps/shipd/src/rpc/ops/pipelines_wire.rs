@@ -48,6 +48,22 @@ pub(super) fn mount(
                     .ok_or_else(|| ConnectError::unauthenticated("auth context required"))?;
                 match op.as_str() {
                     "pipelines.dispatch" => {
+                        // Scope gate: require CreateRuns (same as the HTTP handler).
+                        use crate::auth::Scope;
+                        if !auth.scopes.iter().any(|s| matches!(s, Scope::Full | Scope::CreateRuns)) {
+                            return Err(ConnectError::permission_denied("requires CreateRuns scope"));
+                        }
+                        // Engine gate: fail loud when the orchestrator runtime is not
+                        // compiled in. Otherwise `run_pipeline_core` would build and
+                        // persist the `pipeline.run.started` envelope but nothing on
+                        // shipd would consume it — silent dispatch loss. The
+                        // pairing cutover will wire a real engine here; until then
+                        // we reject up front so callers see the gap honestly.
+                        if !ship_pipeline_runtime::orchestrator_available() {
+                            return Err(ConnectError::failed_precondition(
+                                "pipeline execution engine not available",
+                            ));
+                        }
                         use ship_pipeline_runtime::run_core::{PipelineRunRequest, RunPipelineCoreError, run_pipeline_core};
                         use crate::ports::pipeline::PipelineDispatchAdapter;
                         let opt = |k: &str| {
@@ -75,12 +91,6 @@ pub(super) fn mount(
                             auto: args.get("auto").and_then(|v| v.as_bool()).unwrap_or(false),
                             source_spec_path: opt("source_spec_path"),
                         };
-                        // Scope gate: require CreateRuns (same as the HTTP handler).
-                        use crate::auth::Scope;
-                        let _ = &auth; // scope check via auth fields
-                        if !auth.scopes.iter().any(|s| matches!(s, Scope::Full | Scope::CreateRuns)) {
-                            return Err(ConnectError::permission_denied("requires CreateRuns scope"));
-                        }
                         let port = PipelineDispatchAdapter::new(st.clone());
                         run_pipeline_core(&port, req).await
                             .map(|outcome| serde_json::json!({
