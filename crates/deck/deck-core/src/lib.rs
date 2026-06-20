@@ -10,14 +10,14 @@ pub mod change_source;
 pub mod data_port;
 pub mod response;
 
-pub mod asset_graph;
+// (formerly `pub mod asset_graph;`) — purged with the `.deck/` runtime read.
 pub mod assets;
 pub mod error_page;
 pub mod form_inject;
 pub mod live_wire;
 pub mod meta;
 pub mod mode_html;
-pub mod packs;
+// (formerly `pub mod packs;`) — purged with the `.deck/` runtime read.
 pub mod render_helpers;
 pub mod resolver;
 pub mod routes;
@@ -81,14 +81,14 @@ pub use window_registry::{
 
 pub use assets::{
     resolve_view_js, serve_deck_route, serve_public_asset, serve_scaffold, serve_scaffold_asset,
-    serve_sui_chunk, serve_sui_dom, serve_sui_icon,
+    serve_sui_dom, serve_sui_icon,
     serve_sui_live_reload, serve_sui_runtime, serve_sui_sdk_client,
 };
 pub use error_page::view_not_found;
 pub use form_inject::inject_form_actions;
 pub use meta::{serve_meta, DaemonBuildInfo};
 pub use mode_html::{inject_mode_meta, mode_str};
-pub use packs::serve_catalog_workspace;
+// (formerly `packs::serve_catalog_workspace`) — purged with the `.deck/` runtime read.
 pub use setup::{redirect, serve_setup_placeholder};
 pub use themes::{list_themes, resolve_theme_css, serve_theme_css, serve_themes_list, ThemeMeta, ThemeSource};
 pub use view_tokens::serve_view_tokens;

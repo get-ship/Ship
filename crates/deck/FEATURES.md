@@ -73,11 +73,11 @@ Each handler logic lives in `deck-core` and returns a `DeckResponse`; the matchi
 | Scaffold shell | `GET /` and `GET /space/{id}` | `crates/deck/deck-core/src/assets.rs::serve_scaffold` | Serves an HTML scaffold (shell/space), rewriting asset hrefs and injecting validated globals. |
 | Scaffold asset | `GET /{shell,space}/_assets/{file}` | `crates/deck/deck-core/src/assets.rs::serve_scaffold_asset` | Serves a scaffold's hashed static asset with path-traversal rejection. |
 | Meta / drift stamp | `GET /_deck/meta` | `crates/deck/deck-core/src/meta.rs::serve_meta` | Compiler + daemon build identity for the shell's version-drift check. |
-| Workspace catalog | `GET /_deck/catalog/workspace` | `crates/deck/deck-core/src/packs.rs::serve_catalog_workspace` | The baked component catalog (`.deck/catalogs/workspace.json`) for devtools. |
+| Workspace catalog | (purged — `GET /_deck/catalog/workspace`) | (purged — `deck-core/src/packs.rs`) | The runtime catalog serving was the framework's hardcoded `.deck/catalogs/` read. Purged. |
 | Live-reload client | `GET /_deck/live-reload.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_live_reload` | The single HMR client; self-gates on the `ship-mode` meta so it only subscribes in dev. |
 | Styled 404 page | (host 404 body) | `crates/deck/deck-core/src/error_page.rs::view_not_found` | Rendered `text/html` not-found page (with servable-view list), not raw JSON. |
 | View resolution | (internal) | `crates/deck/deck-core/src/resolver.rs::resolve` | Host-agnostic project-root + first-party resolution feeding every view handler. |
-| Asset-graph read | (internal) | `crates/deck/deck-core/src/asset_graph.rs::lookup` | Reads the bundler's `.deck/asset-graph.json` SSOT so served paths match the build. |
+| Asset-graph read | (purged — `deck-core/src/asset_graph.rs`) | (purged — `deck-purge-root`) | The runtime read of `.deck/asset-graph.json` was the framework's hardcoded `.deck/` reach. Purged. |
 | Module URL builder | (internal) | `crates/deck/deck-core/src/routes.rs::view_module_url` | One source of truth for the view-module `/_deck/...` URL. |
 | Mutation URL builder | (internal) | `crates/deck/deck-core/src/routes.rs::mutation_action` | Builds the `POST /_deck/mutation/{name}` form-action URL. |
 | Subscribe URL builder | (internal) | `crates/deck/deck-core/src/routes.rs::subscribe_url` | Builds the `/_deck/views/{name}/sse` live-data URL. |
@@ -106,9 +106,9 @@ chunks, builds apps and views, writes the asset graph, and watches for HMR.
 | Per-view `@sui-tag` resolver | (view bundle) | `crates/deck/deck-bundler/src/sui_plugin.rs::component_index` | `<tag>` → source `.sui` index so a view bundle carries exactly the components it uses. |
 | Shared-chunk dedup | `.deck/` shared chunks | `crates/deck/deck-bundler/src/views_bundle.rs::bundle_views` | Multi-entry view build: a component used by ≥2 views lands in one shared chunk. |
 | App build | static dir | `crates/deck/deck-bundler/src/app.rs::bundle_app` | Bundles a SUI SPA (hub/space), externalizing the document importmap; compiles its `.sui` in-process. |
-| Asset-graph write | `.deck/asset-graph.json` | `crates/deck/deck-bundler/src/asset_graph.rs::write_asset_graph` | Derives the asset SSOT from the artifacts `build_all` actually produced (path + content hash + bytes). |
+| Asset-graph write | (purged — `deck-bundler/src/asset_graph.rs`) | (purged — `deck-purge-root`) | The framework no longer writes a monorepo-root `.deck/asset-graph.json`. |
 | Watch / HMR | (broadcast events) | `crates/deck/deck-bundler/src/watch.rs::run` | Pruned non-recursive FS watch, bounded drop-oldest ring, debounced rebuild, emits `BundlerEvent`s. |
-| Catalog aggregation | `.deck/catalogs/workspace.json` | `crates/deck/deck-bundler/src/catalog/mod.rs::build_catalog` | Walks packaged + sui-out CEMs into the workspace catalog, sorted + deduped by tag. |
+| Catalog aggregation | (purged — `.deck/catalogs/`) | (purged — `deck-purge-root`) | The framework no longer writes a monorepo-root `.deck/catalogs/workspace.json`. The catalog walker (`crates/deck/deck-bundler/src/catalog/mod.rs::build_catalog`) is available in-memory for hosts. |
 | Tag → source index | (per-view resolver feed) | `crates/deck/deck-bundler/src/catalog/mod.rs::tag_source_index` | Maps every component tag to its source `.sui` from the same CEM walk. |
 | Workspace discovery | (catalog input) | `crates/deck/deck-bundler/src/catalog/workspace.rs::discover_workspace_packages` | Expands `package.json` workspace globs into the package set the catalog walks. |
 | Routes codegen | `routes.gen.ts` (per root) | `crates/deck/deck-bundler/src/routes.rs::generate_routes` | Walks every `[param]` dir under each app's `routes/` (shell + spaces) and emits a typed `RouteShape[]` the runtime registers via `defineRoutes` (write-if-changed). Multi-root via `RouteGenSpec` (`dir` + `out` + `label`). |

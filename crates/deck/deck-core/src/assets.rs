@@ -5,39 +5,31 @@ const ASSETS_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
 /// deck's OWN baked product (sui-runtime/dom/sdk-client + primitives umbrella +
 /// lucide). These ship inside the deck-core crate, like Next shipping its own
-/// runtime. App + user content is NOT here — see `read_deck_asset`.
+/// runtime. App + user content is NOT here — see `read_source_asset`.
 ///
 /// Used for committed assets (lucide-icons.json, live-reload.js) that remain in
-/// the crate's `assets/` directory. Framework singletons are served by
-/// `read_framework_asset`, which reads from `.deck/framework/` first.
+/// the crate's `assets/` directory. Framework singletons come from the
+/// `include_str!` constants below — the `.deck/framework/` dev-override was
+/// purged (see deck-purge-root); the framework no longer reads a monorepo-root
+/// `.deck/framework/`.
 fn read_asset(rel: &str) -> Option<String> {
     let path = std::path::Path::new(ASSETS_DIR).join("assets").join(rel);
     std::fs::read_to_string(path).ok()
 }
 
-/// Hot-path for the 4 framework singletons (sui-runtime/dom/sdk-client/components).
-/// Reads from `.deck/framework/<name>` — the canonical bake target, which is
-/// updated on every `cargo run -p deck-cli -- build-assets` and by the running
-/// daemon's watch-rebuild. In an installed (no-.deck) deployment the caller falls
-/// back to the embedded `include_str!` constant.
-fn read_framework_asset(name: &str) -> Option<String> {
-    let root = crate::resolver::deck_out_root()?;
-    std::fs::read_to_string(root.join("framework").join(name)).ok()
-}
+/// App + user build output, read from the host-supplied output tree. deck
+/// bakes none of this — view + chrome bundles are the project's content,
+/// served from the path the host passes in via `scaffold.source` (per-app)
+/// or the asset graph (workspace-level). The legacy `<root>/.deck/<rel>`
+/// read was the framework's hardcoded `.deck/` reach — PURGED
+/// (deck-purge-root). The framework no longer reads a monorepo-root
+/// `.deck/`; the host owns the output location.
+// (formerly `read_deck_asset(rel)` — `<root>/.deck/<rel>`) removed.
 
-/// App + user build output, read from the host-supplied `.deck/` tree (deck's
-/// `.next`-equivalent). deck bakes none of this — view + chrome bundles are the
-/// project's content, served from where the project built them. Returns None
-/// when there is no project root (the on-demand compile path then takes over).
-fn read_deck_asset(rel: &str) -> Option<String> {
-    let root = crate::resolver::deck_out_root()?;
-    std::fs::read_to_string(root.join(rel)).ok()
-}
-
-/// Project SOURCE (not built output), read from the project root directly. The
-/// dev/source fallback for scaffolds: when a scaffold has no built
-/// `.deck/<source>/` artifact yet, serve its authored `<source>/index.html` in
-/// place — the same built-or-source fallback `view.rs` uses for view modules.
+/// Project SOURCE (not built output), read from the project root directly.
+/// The dev/source fallback for scaffolds: when a scaffold has no built
+/// artifact under `<project_root>/<source>/`, serve the authored source
+/// at the same path — the same built-or-source pattern view.rs uses.
 fn read_source_asset(rel: &str) -> Option<String> {
     let root = crate::resolver::resolve_project_root()?;
     std::fs::read_to_string(root.join(rel)).ok()
@@ -78,25 +70,17 @@ fn alias_for(name: &str) -> Option<&'static str> {
 }
 
 // Public helper (used by view.rs). deck bakes NO app views — per-view bundles
-// live in the project's `.deck/views/<name>/view.js`; absent that, view.rs
+// live wherever the host's bundler writes them. Absent that, view.rs
 // compiles on demand from source.
-
-pub fn resolve_view_js(name: &str) -> Option<String> {
-    // SSOT-first: if the bundler recorded this view in the asset graph, serve
-    // the exact artifact it built (resolved through the one project root). Fall
-    // back to the conventional `.deck/` path so a view compiled outside
-    // `build_all` (the on-demand path) still resolves — never worse than the
-    // old direct probe.
-    if let Some(node) = crate::asset_graph::lookup(&format!("views/{name}/view"))
-        && let Some(abs) = crate::asset_graph::resolve(&node)
-        && let Ok(js) = std::fs::read_to_string(&abs)
-    {
-        return Some(js);
-    }
-    read_deck_asset(&format!("views/{name}/view.js"))
+pub fn resolve_view_js(_name: &str) -> Option<String> {
+    // Framework does not probe `<root>/.deck/views/...` (the runtime
+    // `.deck/` read was purged, deck-purge-root). The asset-graph SSOT
+    // lived in `.deck/asset-graph.json` — also purged. View bundles
+    // that were prebuilt are NOT served here; the runtime compiles
+    // them on demand via view.rs (the bake pipeline output is now
+    // out of reach of the runtime; view chunk serving is a follow-up).
+    None
 }
-
-// ── Scaffold serving ──────────────────────────────────────────────────────────
 //
 // A `AppServeConfig` (from `apps.jsonc` or built-in defaults) describes one
 // HTML shell: which built artifact to load (`source`), and which
@@ -123,8 +107,7 @@ pub fn serve_scaffold(
     scaffold: &AppServeConfig,
     params: &[(&str, &str)],
 ) -> DeckResponse {
-    let Some(html) = read_deck_asset(&format!("{}/index.html", scaffold.source))
-        .or_else(|| read_source_asset(&format!("{}/index.html", scaffold.source)))
+    let Some(html) = read_source_asset(&format!("{}/index.html", scaffold.source))
     else {
         return DeckResponse::not_found(
             format!(
@@ -190,23 +173,22 @@ pub fn serve_scaffold(
 /// `/space/_assets/../../../etc/passwd` would otherwise escape the assets dir.
 pub fn serve_scaffold_asset(mode: DaemonMode, scaffold: &AppServeConfig, file: &str) -> DeckResponse {
     // Reject path-traversal patterns. Only simple filenames (no slashes, no
-    // leading dots, no ".." components) are valid asset names. This mirrors the
-    // guard already present in serve_sui_chunk.
+    // leading dots, no ".." components) are valid asset names. The chunk
+    // route's same guard was here formerly (`serve_sui_chunk`); it lives
+    // here now since the chunk route is gone.
     if file.contains("..") || file.contains('/') || file.contains('\\') || file.starts_with('.') {
         return DeckResponse::not_found(
             format!("invalid asset path: {file}"),
             mode,
         );
     }
-    // Try `<deck_out>/<source>/assets/<file>` first (the legacy path
-    // shape: scaffold source = relative path under the global
-    // `.deck/`), then `<project_root>/<source>/assets/<file>` (the
-    // per-app build output: e.g. `apps/hub/.deck/assets/<file>`).
-    // The per-app case is the post-cutover shape; the legacy case
-    // keeps old deck.jsonc-driven scaffolds working until they're
-    // migrated.
+    // Per-app build output: `<project_root>/<source>/assets/<file>` (e.g.
+    // `apps/hub/.deck/assets/<file>`). The framework's old
+    // `<deck_out>/<source>/assets/<file>` fallback was the legacy
+    // `deck.jsonc`-driven scaffold shape — purged (deck-purge-root);
+    // the host owns the output location via `scaffold.source`.
     let path = format!("{}/assets/{file}", scaffold.source);
-    match read_deck_asset(&path).or_else(|| read_source_asset(&path)) {
+    match read_source_asset(&path) {
         Some(body) if file.ends_with(".css") => DeckResponse::css_view(body, mode),
         Some(body) => DeckResponse::js_asset(body, mode),
         None => DeckResponse::not_found(
@@ -286,27 +268,24 @@ fn substitute_params(value: &str, params: &[(&str, &str)]) -> String {
     }
     out
 }
-//
-// Hot-path: read from `.deck/framework/` (the canonical bake target, updated
-// on every `build-assets` run and by the daemon's watch-rebuild).
-// Production/installed fallback: the embedded `include_str!` constant (baked
-// into the binary at compile time by build.rs staging `.deck/framework/` →
-// `assets/`). This keeps the daemon self-contained when deployed without a
-// source tree.
+// Framework singletons: served from the embedded `include_str!` constant
+// (baked into the binary at compile time by build.rs staging
+// `.deck/framework/` → `assets/`). The runtime `.deck/framework/` read
+// was the framework's dev-override — purged (deck-purge-root). The
+// bake pipeline (build.rs) still stages `.deck/framework/` → `assets/` for
+// compile-time inclusion, but the runtime serves nothing from
+// `.deck/framework/` directly.
 
 pub fn serve_sui_runtime(mode: DaemonMode) -> DeckResponse {
-    let js = read_framework_asset("sui-runtime.js").unwrap_or_else(|| SUI_RUNTIME_JS.to_string());
-    DeckResponse::js_asset(js, mode)
+    DeckResponse::js_asset(SUI_RUNTIME_JS.to_string(), mode)
 }
 
 pub fn serve_sui_dom(mode: DaemonMode) -> DeckResponse {
-    let js = read_framework_asset("sui-dom.js").unwrap_or_else(|| SUI_DOM_JS.to_string());
-    DeckResponse::js_asset(js, mode)
+    DeckResponse::js_asset(SUI_DOM_JS.to_string(), mode)
 }
 
 pub fn serve_sui_sdk_client(mode: DaemonMode) -> DeckResponse {
-    let js = read_framework_asset("sui-sdk-client.js").unwrap_or_else(|| SUI_SDK_CLIENT_JS.to_string());
-    DeckResponse::js_asset(js, mode)
+    DeckResponse::js_asset(SUI_SDK_CLIENT_JS.to_string(), mode)
 }
 
 /// `GET /_deck/route.js` — the `@ship/deck/route` framework singleton.
@@ -368,21 +347,13 @@ pub fn serve_sui_live_reload(mode: DaemonMode) -> DeckResponse {
     DeckResponse::js_asset(js, mode)
 }
 
-/// `GET /_deck/{file}` — a shared chunk emitted by the multi-entry view build
-/// (#267): a deduped view bundle does `import "../../<chunk>.js"`, which the
-/// browser resolves to `/_deck/<chunk>.js`. Served content-addressed from the
-/// `.deck/` root. Single-segment `.js` only; the framework singletons
-/// (`/_deck/runtime.js` …) match their exact routes first, so this catches only
-/// the hashed shared chunks.
-pub fn serve_sui_chunk(mode: DaemonMode, file: &str) -> DeckResponse {
-    if file.contains("..") || file.contains('/') || !file.ends_with(".js") {
-        return DeckResponse::not_found("invalid chunk", mode);
-    }
-    match read_deck_asset(file) {
-        Some(js) => DeckResponse::js_asset(js, mode),
-        None => DeckResponse::not_found(format!("chunk missing: {file}"), mode),
-    }
-}
+/// `GET /_deck/{file}` — was a shared chunk emitted by the multi-entry view
+/// build (#267), served content-addressed from the `.deck/` root. PURGED
+/// (deck-purge-root): the framework no longer reads a monorepo-root
+/// `.deck/`, so the runtime serves no shared chunks at this path. The
+/// route is gone; view bundles that used to import `../../<chunk>.js`
+/// now fail to load — view chunk serving is a follow-up.
+// (formerly `pub fn serve_sui_chunk(mode, file) -> DeckResponse`) removed.
 
 #[cfg(test)]
 mod tests {
@@ -481,9 +452,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let _root = ProjectRootGuard::new(dir.path());
 
-        // deck_out_root() = <project_root>/.deck
-        let dot_deck = dir.path().join(".deck");
-        let scaffold_dir = dot_deck.join("my-scaffold");
+        // Per-app build output: <project_root>/<source>/index.html
+        // (post-cutover; the legacy `<root>/.deck/<source>/index.html`
+        // was purged with the framework's `.deck/` runtime read).
+        let scaffold_dir = dir.path().join("my-scaffold");
         std::fs::create_dir_all(&scaffold_dir).unwrap();
         let html = r#"<!doctype html><html><head></head><body><script src="/space/main.js"></script></body></html>"#;
         std::fs::write(scaffold_dir.join("index.html"), html).unwrap();
@@ -586,11 +558,12 @@ mod tests {
         use crate::test_lock::ProjectRootGuard;
         let dir = tempfile::tempdir().unwrap();
         let _root = ProjectRootGuard::new(dir.path());
-        let dot_deck = dir.path().join(".deck").join("safe-scaffold");
-        std::fs::create_dir_all(&dot_deck).unwrap();
+        // Per-app build output: <project_root>/safe-scaffold/index.html
+        // (the legacy `<root>/.deck/safe-scaffold/` was purged).
+        let safe_scaffold = dir.path().join("safe-scaffold");
+        std::fs::create_dir_all(&safe_scaffold).unwrap();
         let html = r#"<!doctype html><html><head></head><body></body></html>"#;
-        std::fs::write(dot_deck.join("index.html"), html).unwrap();
-
+        std::fs::write(safe_scaffold.join("index.html"), html).unwrap();
         let mut globals = std::collections::BTreeMap::new();
         // Invalid key: would inject `alert(1)` if not validated.
         globals.insert("x;alert(1)//".to_string(), "injected".to_string());

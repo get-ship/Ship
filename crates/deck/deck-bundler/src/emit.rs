@@ -112,6 +112,7 @@ pub fn emit_targets(layout: &BundleLayout, names: &[String], out_dir: &Path) -> 
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use crate::DeckConfig;
     use tempfile::tempdir;
 
     #[test]
@@ -141,7 +142,7 @@ mod tests {
         )
         .unwrap();
 
-        let layout = BundleLayout::new(repo.clone(), None);
+        let layout = BundleLayout::with_config(repo.clone(), None, DeckConfig::defaults());
         let out: PathBuf = tmp.path().join("public");
         let n = emit_targets(&layout, &["sui-marketing".into()], &out).unwrap();
         assert_eq!(n, 2, "bundle + its chunk");

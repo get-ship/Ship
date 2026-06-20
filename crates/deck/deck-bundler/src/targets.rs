@@ -63,37 +63,39 @@ pub struct BundleLayout {
 }
 
 impl BundleLayout {
-    /// Construct loading `deck.jsonc` from `repo_root` (the normal default).
-    /// Falls back to [`DeckConfig::defaults`] when the file is absent, so
-    /// zero-config hosts (deck-conformance, integration test tempdirs) work without
-    /// a manifest.
-    pub fn new(repo_root: PathBuf, workspace_root: Option<PathBuf>) -> Self {
-        let cfg = DeckConfig::load(&repo_root);
-        Self::with_config(repo_root, workspace_root, cfg)
-    }
-
-    /// Construct with an explicit [`DeckConfig`] (the normal shipd/bake path —
-    /// caller already called `DeckConfig::load` once; avoids a double read).
+    /// Construct with an explicit [`DeckConfig`] — the only construction path.
+    /// `DeckConfig` is host-supplied (the daemon calls [`DeckConfig::defaults`]
+    /// plus any overrides it wants); the bundler does not load any file from
+    /// the workspace root. `repo_root` is the host's project root (set via
+    /// `set_project_root`); `workspace_root` distinguishes an external-project
+    /// workspace from the framework repo for source-root resolution.
     pub fn with_config(
-        repo_root: PathBuf,
-        workspace_root: Option<PathBuf>,
-        cfg: DeckConfig,
-    ) -> Self {
-        let source_roots = match &workspace_root {
-            Some(ws) if *ws != repo_root => vec![repo_root.clone(), ws.clone()],
-            _ => vec![repo_root.clone()],
-        };
-        Self { out_root: repo_root.clone(), repo_root, source_roots, cfg }
-    }
+         repo_root: PathBuf,
+         workspace_root: Option<PathBuf>,
+         cfg: DeckConfig,
+     ) -> Self {
+         let source_roots = match &workspace_root {
+             Some(ws) if *ws != repo_root => vec![repo_root.clone(), ws.clone()],
+             _ => vec![repo_root.clone()],
+         };
+         Self { out_root: repo_root.clone(), repo_root, source_roots, cfg }
+     }
 
     /// Redirect output under `out_root` (sources still resolve from `repo_root`).
     pub fn with_out_root(mut self, out_root: PathBuf) -> Self {
         self.out_root = out_root;
         self
     }
-
-    /// `<out_root>/.deck` — the deck-owned output dir (framework bundles,
-    /// `sources/` tree for the studio viewer, framework surface materialization).
+    /// Build-time output dir: `<out_root>/.deck` is the bake's staging
+    /// area — `deck build-assets` writes framework + view + chrome
+    /// bundles here, and `crates/deck-core/build.rs` copies the
+    /// framework singletons into `crates/deck/deck-core/assets/` for
+    /// `include_str!`. The framework's RUNTIME does not read this
+    /// directory; the daemon serves singletons via `include_str!`
+    /// constants and views on demand (view.rs). This is build-time
+    /// orchestration only — `deck.jsonc` had no opinion here, and
+    /// `set_project_root` does not own the path either (the bundler
+    /// always writes under `<out_root>/.deck`, the bake's contract).
     pub fn deck_out(&self) -> PathBuf {
         self.out_root.join(".deck")
     }
@@ -263,7 +265,7 @@ mod tests {
     #[test]
     fn assets_dir_routes_by_name() {
         // Framework singletons land in `.deck/framework/` (build-script staging).
-        let l = BundleLayout::new(PathBuf::from("/repo"), None);
+        let l = BundleLayout::with_config(PathBuf::from("/repo"), None, DeckConfig::defaults());
         assert_eq!(l.assets_dir_for("sui-runtime"), PathBuf::from("/repo/.deck/framework"));
         assert_eq!(l.assets_dir_for("sui-dom"), PathBuf::from("/repo/.deck/framework"));
         assert_eq!(l.assets_dir_for("sui-sdk-client"), PathBuf::from("/repo/.deck/framework"));
@@ -285,7 +287,7 @@ mod tests {
         // A view.
         write(&root.join("views/git/page.sui"), "<div>git</div>\n");
 
-        let l = BundleLayout::new(root, None);
+        let l = BundleLayout::with_config(root, None, DeckConfig::defaults());
         let targets = l.all_targets();
         let names: Vec<&str> = targets.iter().map(|t| t.name.as_str()).collect();
 
@@ -316,7 +318,7 @@ mod tests {
                   "externals": ["@ship/sui-runtime", "@ship/sui-dom"], "lazy": true } ] } }"#,
         );
 
-        let l = BundleLayout::new(root.clone(), None);
+        let l = BundleLayout::with_config(root.clone(), None, DeckConfig::defaults());
         let consumer = l.consumer_targets();
 
         let marketing = consumer.iter().find(|t| t.name == "sui-marketing").expect("marketing discovered");

@@ -28,9 +28,13 @@ impl ShipRuntime {
                 .clone()
                 .or_else(|| std::env::current_dir().ok())
                 .unwrap_or_else(|| self.ship_dir.clone());
-            // Load deck.jsonc from the repo root — the single source of truth
-            // for consumer bundle targets, watch dirs, and host_assets_root.
-            let cfg = deck::config::DeckConfig::load(&repo_root);
+            // Host-supplied config — the framework no longer reads any file
+            // from the project root. shipd passes built-in defaults plus
+            // its own overrides (the `apps.jsonc`-shaped config it builds
+            // itself). If shipd needs custom `viewDirs` or `packs`, it
+            // constructs a `DeckConfig` (clone `defaults()` + override) and
+            // passes it here.
+            let cfg = deck::config::DeckConfig::defaults();
             // In-process Rolldown bundler (#163) — no worker script, no child
             // process. Bundles `repo_root`'s built-ins + the user `workspace`.
             deck::bundler::Bundler::start(repo_root, workspace, cfg)

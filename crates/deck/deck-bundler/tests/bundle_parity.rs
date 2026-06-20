@@ -111,6 +111,7 @@ use std::time::Duration;
 
 use deck_bundler::rolldown_bundle::bundle_target;
 use deck_bundler::targets::BundleLayout;
+use deck_config::DeckConfig;
 use serde_json::json;
 use sui_compiler::{compile, CompileMode, CompileOpts, ComponentMeta};
 
@@ -162,7 +163,7 @@ async fn gate_bundle_parity_all_targets_build() {
     let scratch = tempfile::tempdir().expect("scratch out_root");
     let staging = tempfile::tempdir().expect("staging dir");
 
-    let layout = BundleLayout::new(repo.clone(), None).with_out_root(scratch.path().to_path_buf());
+    let layout = BundleLayout::with_config(repo.clone(), None, DeckConfig::defaults()).with_out_root(scratch.path().to_path_buf());
 
     // The full target set: static framework singletons + discovered consumer
     // bundles (per-package `deck.bundles`) + discovered view bundles. This is

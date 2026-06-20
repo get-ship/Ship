@@ -53,11 +53,11 @@ fn make_bundler(app_dir: &Path) -> Bundler {
     // Authoritative project-root override for deck-core's resolver. Set
     // ONCE at startup — deck serves one root per process, so a single
     // global is sound (see `deck_core::resolver::set_project_root` doc).
-    // repo_root == app_dir so bundle output (`<root>/.deck`) lands where
-    // the resolver reads it (`<root>/.deck`). Zero-config host: no
-    // deck.jsonc — use defaults (no consumer targets, .deck output root).
+    // repo_root == app_dir so bundle output lands where the resolver
+    // reads it. Zero-config host: no `deck.jsonc` — use built-in
+    // defaults (no consumer targets, conventional view buckets).
     deck::resolver::set_project_root(app_dir.to_path_buf());
-    let cfg = deck::config::DeckConfig::load(app_dir);
+    let cfg = deck::config::DeckConfig::defaults();
     Bundler::start(app_dir.to_path_buf(), None, cfg)
 }
 
@@ -100,7 +100,7 @@ pub fn deck_app_with_mode(app_dir: PathBuf, mode: DaemonMode) -> Router {
 /// use this to mutate the store directly (the PE form endpoint is a 410
 /// tombstone in deck's router) and assert the live SSE surface reflects it.
 pub fn deck_app_with_store(app_dir: PathBuf, mode: DaemonMode, store: Arc<DemoStore>) -> Router {
-    let cfg = Arc::new(deck::config::DeckConfig::load(&app_dir));
+    let cfg = Arc::new(deck::config::DeckConfig::defaults());
     build_router(mode, make_bundler(&app_dir), cfg, store)
 }
 
@@ -109,7 +109,7 @@ pub fn deck_app_with_store(app_dir: PathBuf, mode: DaemonMode, store: Arc<DemoSt
 /// the watch task. Reads the daemon mode from [`demo_mode`].
 pub async fn deck_dev_server(app_dir: PathBuf) -> Router {
     let mode = demo_mode();
-    let cfg = Arc::new(deck::config::DeckConfig::load(&app_dir));
+    let cfg = Arc::new(deck::config::DeckConfig::defaults());
     let bundler = make_bundler(&app_dir);
     if let Err(e) = bundler.start_watching().await {
         eprintln!("deck-conformance: watcher failed to start: {e}");

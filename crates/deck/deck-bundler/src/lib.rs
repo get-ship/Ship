@@ -11,7 +11,7 @@ pub mod tag_check;
 pub mod templates;
 
 pub mod app;
-mod asset_graph;
+// (formerly `mod asset_graph;`) — purged with the runtime `.deck/asset-graph.json` read.
 pub mod catalog;
 pub mod emit;
 pub mod routes;
@@ -30,11 +30,11 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tokio::sync::{broadcast, Notify};
-use tracing::{error, info, warn};
+use tracing::error;
 
 
 pub use proto::BundleManifest;
-use asset_graph::write_asset_graph;
+// (formerly `use asset_graph::write_asset_graph;`) — purged.
 use targets::{BundleLayout, BundleTarget};
 pub use deck_config::DeckConfig;
 
@@ -321,7 +321,11 @@ impl Bundler {
             }
         }
         self.refresh_catalog(&layout);
-        write_asset_graph(&layout, &built);
+        // (formerly `write_asset_graph(&layout, &built);`) — purged:
+        // the framework no longer writes a monorepo-root
+        // `.deck/asset-graph.json` (deck-purge-root). The asset-graph SSOT
+        // was additive-only (nothing read it yet) and the runtime
+        // `.deck/asset-graph.json` read was purged in lockstep.
         if failed.is_empty() {
             Ok(())
         } else {
@@ -332,15 +336,14 @@ impl Bundler {
         }
     }
     fn refresh_catalog(&self, layout: &BundleLayout) {
-        match catalog::build_catalog(&layout.repo_root) {
-            Ok(ws) => {
-                let dir = layout.repo_root.join(".deck/catalogs");
-                let _ = std::fs::create_dir_all(&dir);
-                let _ = std::fs::write(dir.join("workspace.json"), catalog::stringify_catalog(&ws));
-                info!(workspace = ws.count, "bundler: catalog refreshed");
-            }
-            Err(e) => warn!(error = %e, "bundler: catalog refresh failed"),
-        }
+        // (formerly wrote `<repo_root>/.deck/catalogs/workspace.json`)
+        // — purged: the framework no longer writes a monorepo-root
+        // `.deck/catalogs/` (deck-purge-root). The workspace catalog was
+        // served via `packs::serve_catalog_workspace`, which was also
+        // removed. The `catalog::build_catalog` walker stays available
+        // for hosts that want to compute the catalog in-memory for
+        // their own devtools; it just does not get written to disk.
+        let _ = layout;
     }
 
     /// Subscribe to unsolicited build events (HMR).

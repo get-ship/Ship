@@ -56,13 +56,14 @@ fn compile_view_js(name: &str, resolved: &ResolvedView, mode: DaemonMode) -> Dec
         Err(err) => return DeckResponse::render_error(err.render(&resolved.source), mode),
     };
 
-    // A view with a paired controller must be served as a bundle (the compiled
-    // module imports `./<controller>`). Deck bundles that in-process via Rolldown
-    // to `.deck/views/<name>/view.js` (#167). The deck-axum handler builds it on
-    // a cache miss AND, since P0-2, surfaces the real compile error when that
-    // build fails — so reaching here means no bundle exists and no bundler ran to
-    // produce one (no bundler wired, or the artifact is missing after a
-    // reported-success build). Report that honestly; never shell out.
+    // A view with a paired controller must be served as a bundle (the
+    // compiled module imports `./<controller>`). Deck used to bundle
+    // that in-process via Rolldown to `.deck/views/<name>/view.js`
+    // (#167); the runtime read of that path was purged (deck-purge-root).
+    // Until view chunk serving has a host-supplied path, controller
+    // views fall back to this honest error. The in-process bundler
+    // path (when wired via `Extension<Bundler>`) can produce a bundle
+    // and serve it; the runtime read step is what was purged.
     let final_js = match (&ts_path, resolved.source_path.as_deref()) {
         (Some(ts), Some(_sui)) => {
             return DeckResponse::render_error(

@@ -274,17 +274,14 @@ pub fn build_router(
     // everything else — all RPC POSTs, unknown backend paths — flow through to
     // the Connect fallback. The dev-only HMR firehose and the `/{file}` public-
     // asset catch-all are owned by `deck::router()`; shipd serves no frontend.
-    // Load deck.jsonc from the workspace root (same root the bundler uses)
-    // for the L1 bundle config — consumer targets, source roots, component
-    // source roots. It carries NO app/serve list: the per-app serve config
-    // comes from apps.jsonc (the `Vec<AppServeConfig>` the caller already
-    // read and passes in). deck.jsonc and the app list are deliberately
-    // separate surfaces — L1 is per-app; the host owns the list.
-    let repo_root = rt.workspace_dir()
-        .map(|p| p.to_path_buf())
-        .or_else(|| std::env::current_dir().ok())
-        .unwrap_or_else(|| rt.ship_dir().to_path_buf());
-    let deck_cfg = Arc::new(DeckConfig::load(&repo_root));
+    // source roots. The per-app serve config comes from apps.jsonc (the
+    // `Vec<AppServeConfig>` the caller already read and passes in). The
+    // framework no longer reads any file from the project root — shipd
+    // passes built-in defaults here; if shipd needs a custom layout it
+    // clones `defaults()` and overrides before threading the config
+    // through. The app list and the view-discovery config are
+    // deliberately separate surfaces — L1 is per-app; the host owns both.
+    let deck_cfg = Arc::new(DeckConfig::defaults());
     let dbi = {
         let bi = build_info::build_info!();
         deck::DaemonBuildInfo {

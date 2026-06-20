@@ -11,7 +11,7 @@ use std::path::Path;
 
 use deck_bundler::rolldown_bundle::bundle_target;
 use deck_bundler::targets::{BundleLayout, BundleTarget, TargetEntry};
-
+use deck_config::DeckConfig;
 fn write(path: &Path, body: &str) {
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(path, body).unwrap();
@@ -76,7 +76,7 @@ fn js_files(dir: &Path) -> Vec<std::path::PathBuf> {
 
 async fn bundle(root: &Path, out_root: &Path) -> String {
     let layout =
-        BundleLayout::new(root.to_path_buf(), None).with_out_root(out_root.to_path_buf());
+        BundleLayout::with_config(root.to_path_buf(), None, DeckConfig::defaults()).with_out_root(out_root.to_path_buf());
     let staging = out_root.join("_staging");
     std::fs::create_dir_all(&staging).unwrap();
     bundle_target(&layout, &view_target(root), &staging, false)
@@ -116,7 +116,7 @@ async fn shared_component_dedups_into_one_chunk_across_views() {
 
     // Both views import <sui-widget>; the multi-entry build must hoist it.
     deck_bundler::views_bundle::bundle_views(
-        &BundleLayout::new(root.to_path_buf(), None).with_out_root(out.path().to_path_buf()),
+        &BundleLayout::with_config(root.to_path_buf(), None, DeckConfig::defaults()).with_out_root(out.path().to_path_buf()),
         &[view_target(root), second_view_target(root)],
         &out.path().join("_staging"),
         false,

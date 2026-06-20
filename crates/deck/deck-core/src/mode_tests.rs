@@ -27,25 +27,10 @@ fn asset_dev_mode_no_etag() {
     assert!(resp.etag.is_none(), "dev asset must not have ETag");
 }
 
-// ── Shared chunk serving (#267 per-view resolver, multi-entry build) ──────────
-
-#[test]
-fn chunk_serves_from_deck_root_and_rejects_bad_input() {
-    use crate::test_lock::ProjectRootGuard;
-    let tmp = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(tmp.path().join(".deck")).unwrap();
-    std::fs::write(tmp.path().join(".deck/shared-abc123.js"), "export const x=1\n").unwrap();
-    let _root = ProjectRootGuard::new(tmp.path());
-    let ok = crate::assets::serve_sui_chunk(DaemonMode::Production, "shared-abc123.js");
-    let traversal = crate::assets::serve_sui_chunk(DaemonMode::Production, "../etc/passwd");
-    let nested = crate::assets::serve_sui_chunk(DaemonMode::Production, "sub/x.js");
-    let nonjs = crate::assets::serve_sui_chunk(DaemonMode::Production, "evil.txt");
-    let missing = crate::assets::serve_sui_chunk(DaemonMode::Production, "nope.js");
-    assert_eq!(ok.status, 200, "a real shared chunk serves");
-    assert!(ok.cache_control.contains("immutable"), "content-addressed → immutable; got {}", ok.cache_control);
-    assert_eq!(traversal.status, 404, "path traversal rejected");
-    assert_eq!(nested.status, 404, "nested path rejected (single segment only)");
-    assert_eq!(nonjs.status, 404, "non-.js rejected");
-    assert_eq!(missing.status, 404, "missing chunk → 404");
-}
+// ── Shared chunk serving (#267 per-view resolver, multi-entry build) — PURGED ───
+// The `serve_sui_chunk` runtime read of `<root>/.deck/<file>` was the
+// framework's hardcoded `.deck/` reach (deck-purge-root). The route
+// `/_deck/{file}` is gone; chunk serving is a follow-up. The rejection
+// shape (path traversal / nested / non-.js / missing) is preserved by
+// `serve_scaffold_asset`'s path-traversal guard — same rule, different path.
 

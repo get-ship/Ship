@@ -221,7 +221,7 @@ fn emit(targets: Vec<String>, out: PathBuf) -> Result<()> {
     let cwd = std::env::current_dir().context("cwd")?;
     let out = if out.is_absolute() { out } else { cwd.join(out) };
     let repo_root = find_repo_root(&cwd)?;
-    let cfg = deck_bundler::DeckConfig::load(&repo_root);
+    let cfg = deck_bundler::DeckConfig::defaults();
     let layout = deck_bundler::targets::BundleLayout::with_config(repo_root, None, cfg);
     let n = deck_bundler::emit::emit_targets(&layout, &targets, &out)?;
     println!("deck emit → {} files into {}", n, out.display());
@@ -241,7 +241,7 @@ fn build_assets() -> Result<()> {
     let cwd = std::env::current_dir().context("cwd")?;
     let repo_root = find_repo_root(&cwd)?;
 
-    let cfg = deck_bundler::DeckConfig::load(&repo_root);
+    let cfg = deck_bundler::DeckConfig::defaults();
     let bundler = deck_bundler::Bundler::start(repo_root.clone(), None, cfg.clone());
 
     let rt = tokio::runtime::Builder::new_multi_thread()
@@ -348,7 +348,7 @@ fn build(project: PathBuf, out: Option<PathBuf>, bundle_framework: bool, minify:
     // are discovered from per-package `deck.bundles`, not read here. L1 (deck)
     // has no per-app config — shipd's apps.jsonc owns the app list; the
     // bundler is per-app and reads its own project root.
-    let cfg = deck_bundler::DeckConfig::load(&repo_root);
+    let cfg = deck_bundler::DeckConfig::defaults();
 
     // The app graph compiles its own `.sui` in-process via the linked
     // sui-compiler crate (#255) — no binary to locate.

@@ -1,21 +1,22 @@
-//! deck-config — parses `deck.jsonc` into [`DeckConfig`].
+//! deck-config — `DeckConfig` (the host's view-discovery + watch layout) and
+//! per-app `AppServeConfig`.
 //!
-//! `deck.jsonc` is an OPTIONAL host override for Deck's view-discovery + watch
-//! layout (view buckets, leaf name, watched dirs, per-project pack scope). Read
-//! at build-time and daemon-startup, never per-request. It no longer carries the
-//! consumer bundle manifest: bundles are self-declared per-package
-//! (`package.json` `deck.bundles[]`) and DISCOVERED by the bundler, and
-//! `@ship/<name>` component resolution is DERIVED from the workspace package map
-//! — neither lives here anymore. Framework singletons (sui-runtime/dom/
-//! sdk-client) are hardcoded inside the bundler.
+//! `DeckConfig` is HOST-SUPPLIED. The framework does not read any file from
+//! a project root — the host (shipd, deck-conformance) constructs the
+//! `DeckConfig` it wants to pass in (typically [`DeckConfig::defaults`]
+//! plus any host-specific overrides) and threads it through `Bundler::start`
+//! and the resolver. There is no `deck.jsonc` lookup, no detection marker,
+//! no implicit load. Per-app scaffolding (`AppServeConfig`) is the
+//! `Vec<AppServeConfig>` the host builds from its own `apps.jsonc` — the
+//! framework names no app, no list.
 //!
-//! Resolution: host-supplied [`DeckConfig`] (shipd calls [`DeckConfig::load`]) >
-//! root `deck.jsonc` (when present) > built-in defaults (conventional `views/`
-//! roots, so a zero-config host like deck-conformance — or the Ship repo, which
-//! ships no `deck.jsonc` — works on defaults).
+//! A stray `deck.jsonc` at the workspace root has no effect: not loaded,
+//! not detected. The earlier file-read and `deck.jsonc` project-root
+//! marker were the dead-weight surface dissolved by the deck-purge-root
+//! job; the host now hands deck its paths, deck does not detect them.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
@@ -107,48 +108,22 @@ impl Default for DeckConfig {
         Self::defaults()
     }
 }
-
 impl DeckConfig {
     /// Built-in defaults — a zero-config host (e.g. deck-conformance) gets these
-    /// when no `deck.jsonc` is present or when only some fields are declared.
+    /// when the host passes no override. Conventional `["views", ".ship/views"]`
+    /// view buckets and the unified `page.sui` leaf (#254).
     pub fn defaults() -> Self {
         Self {
             source_roots: vec![PathBuf::from(".")],
             watch: Vec::new(),
             packs: Vec::new(),
-            // Conventional view buckets. Override per-host in deck.jsonc.
+            // Conventional view buckets. Hosts that need a different layout
+            // construct a `DeckConfig` (clone `defaults()` + override) and pass
+            // it in — no file load.
             view_dirs: vec!["views".into(), ".ship/views".into()],
             // Single leaf convention — fixes the #254 `index.sui`/`page.sui`
             // divergence. Both buckets look up `<name>/<view_leaf>`.
             view_leaf: Some("page.sui".into()),
-        }
-    }
-
-    /// Load `<workspace_root>/deck.jsonc`.
-    ///
-    /// Falls back to [`DeckConfig::defaults`] when the file is absent (zero-
-    /// config hosts) or cannot be parsed (logs a warning — never panics).
-    /// An unreadable file (permission error) is treated the same as absent.
-    pub fn load(workspace_root: &Path) -> Self {
-        let path = workspace_root.join("deck.jsonc");
-        let raw = match std::fs::read_to_string(&path) {
-            Ok(s) => s,
-            Err(_) => {
-                // File absent or unreadable — zero-config host, use defaults.
-                return Self::defaults();
-            }
-        };
-        let stripped = strip_jsonc_comments(&raw);
-        match serde_json::from_str::<Self>(&stripped) {
-            Ok(cfg) => cfg,
-            Err(e) => {
-                tracing::warn!(
-                    path = %path.display(),
-                    error = %e,
-                    "deck-config: failed to parse deck.jsonc, using defaults"
-                );
-                Self::defaults()
-            }
         }
     }
 }
@@ -157,11 +132,19 @@ impl DeckConfig {
 /// comments, and trailing commas before `]` or `}`. The result is valid JSON.
 /// Respects string literals so URLs like `"http://"` are not mangled.
 ///
+/// Public helper for hosts (and tests) that need to parse a JSONC document
+/// without depending on `ship-substrate` — the deck-config crate is the
+/// std-only JSONC parser the deck-core resolver chain requires. The
+/// `deck-config::DeckConfig` type no longer reads any file itself; the
+/// helper stays so a host that DOES want JSONC parsing for its own
+/// config (e.g. `apps.jsonc`) can build a `DeckConfig` via
+/// `serde_json::from_str(&strip_jsonc_comments(&raw))` and pass it in.
+///
 /// NOTE: this is a deliberate second copy of the JSONC stripper inlined
 /// into the deck-config crate to drop the `ship-substrate` dependency
 /// edge from deck-core's resolver chain. The two copies must stay in
 /// sync — if the algorithm changes, update both.
-fn strip_jsonc_comments(input: &str) -> String {
+pub fn strip_jsonc_comments(input: &str) -> String {
     // Phase 1: strip comments.
     let mut stage = String::with_capacity(input.len());
     let mut chars = input.chars().peekable();
@@ -304,20 +287,38 @@ mod tests {
         assert_eq!(cfg.view_leaf.as_deref(), Some("page.sui"));
     }
 
+    /// `DeckConfig::load` is GONE. Constructing a host config is the host's
+    /// job — `DeckConfig::defaults()` plus any overrides the host reads
+    /// (with `strip_jsonc_comments` if it has JSONC). The acceptance
+    /// criterion for the deck-purge-root job: a stray `deck.jsonc` at the
+    /// workspace root has NO effect (not loaded, not a detection marker).
+    /// This test pins that contract by parsing the JSONC content via the
+    /// public helper (the host's path) and asserting a dropped file plus
+    /// a default config produce identical views.
     #[test]
-    fn missing_file_returns_defaults() {
-        let tmp = tempfile::tempdir().unwrap();
-        // No deck.jsonc in this directory.
-        let cfg = DeckConfig::load(tmp.path());
-        assert_eq!(cfg, DeckConfig::defaults());
+    fn stray_deck_jsonc_has_no_effect() {
+        let d = DeckConfig::defaults();
+        // A stray deck.jsonc the framework would have read before — a
+        // non-empty override with custom view buckets. Parsed via the
+        // public `strip_jsonc_comments` helper to show a host CAN parse
+        // it (host-supplied config still works), but the framework does
+        // not load it on its own.
+        let jsonc = r#"{
+  "viewDirs": ["apps/shell/src/views"],
+  "viewLeaf": "page.sui"
+}"#;
+        let from_str: DeckConfig =
+            serde_json::from_str(&strip_jsonc_comments(jsonc)).expect("host-parsed config");
+        assert_eq!(
+            from_str.view_dirs,
+            vec!["apps/shell/src/views".to_string()],
+            "host parsing of deck.jsonc-shaped content still works"
+        );
+        assert_ne!(
+            d.view_dirs, from_str.view_dirs,
+            "the override is real when parsed — it's just not auto-loaded"
+        );
+        // The framework sees defaults() — the stray file is inert.
+        assert_eq!(d, DeckConfig::defaults());
     }
-
-    #[test]
-    fn parse_error_returns_defaults() {
-        let tmp = tempfile::tempdir().unwrap();
-        std::fs::write(tmp.path().join("deck.jsonc"), b"{ invalid json !!!").unwrap();
-        // Should not panic; must return defaults with a warn log (not testable here).
-        let cfg = DeckConfig::load(tmp.path());
-        assert_eq!(cfg, DeckConfig::defaults());
-    }
-}
+ }

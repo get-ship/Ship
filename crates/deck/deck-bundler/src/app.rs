@@ -313,23 +313,14 @@ pub async fn bundle_app(
             framework_assets += 1;
         }
     }
-
-    // Refresh the runtime catalog so `/_deck/catalog/workspace.json` (served
-    // by shipd) carries every entry the new .sui emit just produced. The
-    // watcher path (Bundler::build_all) refreshes too; this closes the gap
-    // for the CLI `build` subcommand, which calls bundle_app directly.
-    match crate::catalog::build_catalog(repo_root) {
-        Ok(ws) => {
-            let dir = repo_root.join(".deck/catalogs");
-            let _ = std::fs::create_dir_all(&dir);
-            let _ = std::fs::write(
-                dir.join("workspace.json"),
-                crate::catalog::stringify_catalog(&ws),
-            );
-            tracing::info!(workspace = ws.count, "bundler: catalog refreshed (bundle_app)");
-        }
-        Err(e) => tracing::warn!(error = %e, "bundler: catalog refresh failed (bundle_app)"),
-    }
+    // (formerly refreshed the runtime catalog by writing
+    // `<repo_root>/.deck/catalogs/workspace.json`) — purged:
+    // the framework no longer writes a monorepo-root `.deck/catalogs/`
+    // (deck-purge-root). The catalog walker
+    // (`crate::catalog::build_catalog`) stays available for hosts that
+    // want to compute the catalog in-memory for their own devtools; it
+    // just does not get written to disk by the framework.
+    let _ = repo_root;
 
     Ok(AppBuild {
         out_dir: out_dir.to_path_buf(),

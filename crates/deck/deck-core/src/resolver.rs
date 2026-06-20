@@ -35,18 +35,16 @@ pub(crate) fn reset_project_root_override_for_test() {
 }
 
 /// Nearest-ancestor detection: upwalk from `cwd`, accept the first ancestor
-/// that contains a deck-owned SOURCE marker (`deck.jsonc` > `views/` >
-/// `.ship/views/`). Bounded at ~32 hops. Std-only — never reaches a
-/// TOPMOST-Cargo.toml workspace resolver (which would shadow a nested
-/// project's root onto the monorepo root). Never keys on `.deck` (build
-/// output, absent on fresh checkout, flips post-build).
+/// that contains a deck-owned SOURCE marker (`views/` > `.ship/views/`).
+/// Bounded at ~32 hops. Std-only — never reaches a TOPMOST-Cargo.toml
+/// workspace resolver (which would shadow a nested project's root onto
+/// the monorepo root). Never keys on `.deck` (build output, absent on
+/// fresh checkout, flips post-build) — and never on `deck.jsonc` (the
+/// file the framework used to load; purged — see deck-purge-root).
 pub(crate) fn detect_project_root_from(cwd: &std::path::Path) -> Option<PathBuf> {
     const MAX_DEPTH: usize = 32;
     let mut cur = cwd;
     for _ in 0..MAX_DEPTH {
-        if cur.join("deck.jsonc").is_file() {
-            return Some(cur.to_path_buf());
-        }
         if cur.join("views").is_dir() {
             return Some(cur.to_path_buf());
         }
@@ -63,24 +61,18 @@ pub(crate) fn detect_project_root_from(cwd: &std::path::Path) -> Option<PathBuf>
 
 use deck_host::resolver::ViewLayout;
 pub use deck_host::resolver::{ResolvedView, ResolveError, render_resolved};
-/// Build a [`ViewLayout`] from the project-root `deck.jsonc` (when present)
-/// or fall back to the conventional `["views", ".ship/views"]` buckets with
-/// a single `page.sui` leaf. The leaf is unified across all buckets
-/// (fixes the #254 `index.sui` vs `page.sui` divergence); the bucket
-/// list is config-driven so a host with a different layout can override
-/// it via `viewDirs` in `deck.jsonc`.
+/// Build a [`ViewLayout`] from the conventional `["views", ".ship/views"]`
+/// buckets with a single `page.sui` leaf. The leaf is unified across all
+/// buckets (fixes the #254 `index.sui` vs `page.sui` divergence). The
+/// framework does not load any config file — a host that needs a different
+/// layout (custom view buckets, custom leaf) constructs a `DeckConfig`
+/// (clone `defaults()` + override) and threads it into `Bundler::start`;
+/// the bundler's view-discovery walks `cfg.view_dirs` directly. The
+/// runtime resolver here just reports the conventional defaults; the
+/// SAFE PATH is `set_project_root` so long-running hosts never ride the
+/// cwd-detection floor.
 fn view_layout() -> ViewLayout {
-    let mut layout = ViewLayout::conventional();
-    if let Some(root) = resolve_project_root() {
-        let cfg = deck_config::DeckConfig::load(&root);
-        if !cfg.view_dirs.is_empty() {
-            layout.view_dirs = cfg.view_dirs.clone();
-        }
-        if let Some(leaf) = cfg.view_leaf {
-            layout.view_leaf = leaf;
-        }
-    }
-    layout
+    ViewLayout::conventional()
 }
 pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, ResolveError> {
     let layout = view_layout();
@@ -88,10 +80,8 @@ pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, Resol
     // detection → cwd fallback. The override is the safe path; long-running
     // hosts (shipd, deck-conformance) call `set_project_root` at startup so they
     // never ride the cwd-detection floor. The detection floor is the fragile
-    // path: it keys on deck-owned SOURCE markers (`deck.jsonc` > `views/` >
-    // `.ship/views/`), so a fresh checkout resolves before any `.deck` build
-    // output exists, and a nested project's `app/` is not shadowed onto the
-    // monorepo root.
+    // path: it keys on deck-owned SOURCE markers (`views/` > `.ship/views/`),
+    // and a nested project's `app/` is not shadowed onto the monorepo root.
     let Some(dir) = resolve_project_root() else {
         return Err(ResolveError {
             message: format!(
@@ -102,13 +92,12 @@ pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, Resol
     };
     deck_host::resolver::resolve(&dir, &layout, name, sub_path)
 }
-/// Project root for locating the `.deck` build-output tree. deck reads app +
-/// user view/chrome bundles from `<project_root>/.deck/` — never from its own
-/// crate (that holds only deck's baked runtime). Same resolution as view
-/// source, so the built bundles sit beside the source tree they came from.
-pub(crate) fn deck_out_root() -> Option<PathBuf> {
-    resolve_project_root().map(|p| p.join(".deck"))
-}
+/// Project root for locating the build-output tree. deck reads app +
+/// user view/chrome bundles from where the host passes them (per-app
+/// `scaffold.source`, asset-graph entries) — not from a hardcoded
+/// `<project_root>/.deck/` reach (that was the deck-purge-root cut).
+/// The host is the authority on output location; the framework follows.
+// (formerly `pub(crate) fn deck_out_root() -> Option<PathBuf>` — `<root>/.deck`) removed.
 
 /// Resolution order (HIGH → LOW):
 /// 1. **HOST OVERRIDE** — `set_project_root(root)` set at startup. Authoritative
@@ -116,8 +105,8 @@ pub(crate) fn deck_out_root() -> Option<PathBuf> {
 ///    root in typed state. Sound because deck serves one root per process.
 /// 2. **DETECTION FLOOR** — std-only nearest-ancestor upwalk from
 ///    `std::env::current_dir()`, looking for a deck-owned SOURCE marker
-///    (`deck.jsonc` > `views/` > `.ship/views/`) at any of the up to 32
-///    ancestors. Nearest-ancestor-wins: deck-conformance's `app/` does NOT resolve
+///    (`views/` > `.ship/views/`) at any of the up to 32 ancestors.
+///    Nearest-ancestor-wins: deck-conformance's `app/` does NOT resolve
 ///    to the monorepo root, and a fresh checkout resolves before `.deck` is
 ///    built (markers are source-side, all git-tracked).
 /// 3. **ZERO-CONFIG FALLBACK** — `current_dir()`. Matches the
@@ -239,11 +228,12 @@ mod project_root_tests {
         assert_ne!(detected, Some(monorepo));
     }
 
-    /// `deck.jsonc` is the strongest marker — even nested inside a tree
-    /// that ALSO has a `views/` directory, `deck.jsonc` wins at the SAME
-    /// depth, and the nearest one wins over any ancestor's `deck.jsonc`.
+    /// `deck.jsonc` is NOT a detection marker anymore (purged). The
+    /// `views/` directory is the strongest source marker — even nested
+    /// inside a tree that also has a `deck.jsonc`, `views/` wins because
+    /// `deck.jsonc` is inert (no effect on detection or config load).
     #[test]
-    fn detection_prefers_deck_jsonc_over_views_dir() {
+    fn stray_deck_jsonc_does_not_outrank_views_dir() {
         let tmp = tempfile::tempdir().unwrap();
         let outer = tmp.path().to_path_buf();
         std::fs::write(outer.join("deck.jsonc"), "{}\n").unwrap();
@@ -251,7 +241,7 @@ mod project_root_tests {
         std::fs::create_dir(&inner).unwrap();
         std::fs::create_dir(inner.join("views")).unwrap();
         // From `inner`, the nearest marker is `views/`. The outer's
-        // `deck.jsonc` is one level up.
+        // `deck.jsonc` is one level up AND is ignored.
         let detected = detect_project_root_from(&inner);
         assert_eq!(detected, Some(inner));
     }
@@ -299,5 +289,52 @@ mod project_root_tests {
             Some(PathBuf::from("/some/explicit/host/root")),
         );
         reset_project_root_override_for_test();
+    }
+
+    /// Acceptance #1 of the deck-purge-root job: a stray `deck.jsonc` at the
+    /// workspace root has NO effect — not loaded (no `DeckConfig::load`), not
+    /// a detection marker. Drop a `deck.jsonc` into a project root and assert
+    /// `detect_project_root_from` ignores it entirely — only `views/` and
+    /// `.ship/views/` are accepted as source-side markers.
+    #[test]
+    fn stray_deck_jsonc_is_not_a_detection_marker() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().to_path_buf();
+        // A stray deck.jsonc — the file the framework used to load and key
+        // detection on. Drop it at the root and a nested level; detection
+        // must ignore it.
+        std::fs::write(root.join("deck.jsonc"), r#"{ "viewDirs": ["evil"] }"#).unwrap();
+        let inner = root.join("nested");
+        std::fs::create_dir(&inner).unwrap();
+        std::fs::write(inner.join("deck.jsonc"), "{}\n").unwrap();
+
+        // No `views/` or `.ship/views/` anywhere → returns None.
+        assert_eq!(
+            detect_project_root_from(&root),
+            None,
+            "a deck.jsonc alone is NOT a detection marker; framework ignores it"
+        );
+        assert_eq!(
+            detect_project_root_from(&inner),
+            None,
+            "a nested deck.jsonc is also ignored"
+        );
+
+        // Add a `views/` at the nested level — detection finds the inner,
+        // not the deck.jsonc-bearing root.
+        std::fs::create_dir(inner.join("views")).unwrap();
+        assert_eq!(
+            detect_project_root_from(&inner),
+            Some(inner.clone()),
+            "views/ wins at the nearest ancestor; deck.jsonc is irrelevant"
+        );
+        // And from the root (which has BOTH deck.jsonc AND views/ via inner),
+        // the nearest marker path is still views/-driven — root has deck.jsonc
+        // only, so detection walks up and returns None.
+        assert_eq!(
+            detect_project_root_from(&root),
+            None,
+            "a deck.jsonc at root with no views/ nearby is still inert"
+        );
     }
 }

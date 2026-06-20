@@ -13,10 +13,10 @@ pub mod pages;
 pub mod render_helpers;
 pub mod sui_source;
 pub use handlers::{
-    serve_bundle_hmr, serve_catalog_workspace,
+    serve_bundle_hmr,
     serve_deck_route,
     serve_meta,
-    serve_sui_chunk, serve_sui_dom, serve_sui_icon,
+    serve_sui_dom, serve_sui_icon,
     serve_sui_live_reload,
     serve_sui_runtime,
     serve_sui_sdk_client,
@@ -105,12 +105,15 @@ pub fn router() -> Router {
         .route("/_deck/route.js", get(serve_deck_route))
         .route("/_deck/icons/{file}", get(serve_sui_icon))
         .route("/_deck/live-reload.js", get(serve_sui_live_reload))
-
-        // Shared chunks from the multi-entry view build (#267), served
-        // content-addressed from `.deck/` root. The exact singleton routes
-        // above win for `/_deck/runtime.js` etc.; this catches hashed chunks.
-        .route("/_deck/{file}", get(serve_sui_chunk))
-        .route("/_deck/catalog/workspace", get(serve_catalog_workspace))
+        // (formerly `/\_deck/{file}` → `serve_sui_chunk`) — purged:
+        // shared chunks from the multi-entry view build were served
+        // from `<root>/.deck/<chunk>.js`; the framework no longer reads
+        // a monorepo-root `.deck/` (deck-purge-root). View bundles that
+        // imported `../../<chunk>.js` no longer find their chunks at
+        // runtime — view chunk serving is a follow-up.
+        // (formerly `/\_deck/catalog/workspace` → `serve_catalog_workspace`)
+        // — purged with `packs::serve_catalog_workspace` and the
+        // `.deck/catalogs/workspace.json` write.
         .route("/_deck/meta", get(serve_meta))
         .route("/_deck/views/{name}/view.js", get(serve_sui_view_setup))
         // `GET /_deck/views/{name}/{*sub_path}` — the JSON payload for a
