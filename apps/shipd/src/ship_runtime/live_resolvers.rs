@@ -178,7 +178,7 @@ pub fn build() -> LiveResolverRegistry {
         "account",
         "state",
         Arc::new(|state: &ApiState, _args: &Value| {
-            let token_path = state.daemon_dir().join("account.jsonc");
+            let token_path = state.account_token_path();
             let token: Option<AccountToken> = config_doc::read_doc(&token_path)
                 .ok()
                 .flatten();

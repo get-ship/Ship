@@ -1,6 +1,6 @@
 //! ShipRuntime simple accessor methods. Lazy managers and tasks are in `tasks`.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ship_substrate::task_health::HealthRegistry;
@@ -63,6 +63,13 @@ impl ShipRuntime {
 
     pub fn daemon_dir(&self) -> &Path {
         &self.daemon_dir
+    }
+
+    /// `<daemon_dir>/account.jsonc` — the daemon-owned Ship Cloud token store.
+    /// Mirrors `ShipHome::account_token_path`; typed accessor in place of a
+    /// hand-joined path so the live-data resolver matches the wire's path.
+    pub fn account_token_path(&self) -> PathBuf {
+        self.daemon_dir.join(ship_substrate::ShipHome::account_token_file())
     }
 
     /// `SkillsService` accessor.

@@ -143,6 +143,14 @@ impl ShipHome {
         self.daemon_dir().join(ACCOUNT_TOKEN_FILE)
     }
 
+    /// The bare filename of the daemon-owned account token file
+    /// (`"account.jsonc"`). Exposed so callers outside the home module can
+    /// construct a `daemon_dir().join(account_token_file())` path without
+    /// rebuilding the layout string. Same SSOT as [`Self::account_token_path`].
+    pub fn account_token_file() -> &'static str {
+        ACCOUNT_TOKEN_FILE
+    }
+
     /// Per-worktree daemon directory: `machine/daemons/<hash>/`.
     /// `hash` is the 8-char output of `ship_substrate::home::path_hash(project_root)`.
     pub fn worktree_daemon_dir(&self, hash: &str) -> PathBuf {
