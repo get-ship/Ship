@@ -343,7 +343,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
     // (ship-space) are the SSOT; they route through the ConnectRPC wire.
     // ── agent control ─────────────────────────────────────────────
     CommandDescriptor {
-        name: "agent.stop",
+        name: "agents.stop",
         description: "Stop a running agent by slug.",
         args: &[ArgDescriptor { name: "slug", kind: "string", required: true }],
         permission: "ship.agents.write",
@@ -352,7 +352,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         sensitive: false,
     },
     CommandDescriptor {
-        name: "agent.grant",
+        name: "agents.grant",
         description: "Grant restricted capabilities to an agent (operator approval). \
                       Upgrades the agent's live sessions; the next gated call passes. \
                       C3 — operator-only, the human-in-the-loop approval point.",
@@ -366,7 +366,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         sensitive: false,
     },
     CommandDescriptor {
-        name: "agent.steer",
+        name: "agents.steer",
         description: "Inject a message into a running agent.",
         args: &[
             ArgDescriptor { name: "slug", kind: "string", required: true },
@@ -378,7 +378,7 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         sensitive: false,
     },
     CommandDescriptor {
-        name: "agent.dispatch",
+        name: "agents.dispatch",
         description: "Dispatch a single agent session (the canonical agent command).",
         args: &[
             ArgDescriptor { name: "agent", kind: "string", required: true },

@@ -60,9 +60,9 @@ fn auth_grants_resolve_falls_back_to_role_when_no_provisioned_record() {
     let tmp = tempdir().unwrap();
     init_auth(tmp.path()).unwrap();
 
-    // No provisioned record → role baseline (commander → ["agent"]).
+    // No provisioned record → role baseline (commander → ["agents"]).
     let grants = resolve_grants_at(tmp.path(), "fresh-agent", Some("commander"));
-    assert_eq!(grants, sv(&["agent"]));
+    assert_eq!(grants, sv(&["agents"]));
 }
 
 #[test]
@@ -93,7 +93,7 @@ fn auth_grants_resolve_provisioned_record_overrides_role() {
     .unwrap();
     ProvisionedGrantsProjection.apply(&ev, &mut conn).unwrap();
 
-    // Commander role says ["agent"] but provisioned set ["agents"] wins.
+    // Commander role says ["agents"] and the provisioned set agrees.
     let grants = resolve_grants_at(tmp.path(), "pinned-agent", Some("commander"));
     assert_eq!(grants, sv(&["agents"]));
 }

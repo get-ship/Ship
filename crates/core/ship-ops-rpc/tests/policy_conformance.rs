@@ -81,3 +81,48 @@ fn agent_grant_resolves_to_critical() {
     let p = policy_for("agents.grant").expect("agents.grant must resolve");
     assert_eq!(p.blast, BlastRadius::C3Critical);
 }
+
+/// The agents-control wire MUST use plural `agents.*` op-names — the singular
+/// form (`agent.dispatch`/`agent.steer`/`agent.grant`) is the exact 500-causing
+/// regression #314 closed. Pin every agents-control op the handler layer calls:
+/// the plural form resolves to its declared tier, and the singular form does
+/// NOT (the wire cannot regress).
+#[test]
+fn agents_control_wire_is_plural_and_tiered() {
+    // Plural ops resolve to their declared blast tier.
+    for (op, want) in [
+        ("agents.dispatch", BlastRadius::C2Elevated),
+        ("agents.steer", BlastRadius::C2Elevated),
+        ("agents.stop", BlastRadius::C2Elevated),
+        ("agents.grant", BlastRadius::C3Critical),
+    ] {
+        let p = policy_for(op)
+            .unwrap_or_else(|| panic!("`{op}` must resolve via op_name(AgentsService, …)"));
+        assert_eq!(p.blast, want, "`{op}` blast mismatch");
+    }
+    // Singular ops must NOT resolve — the gate uses `policy_for(op_name(s, m))`
+    // where `s = "AgentsService"` derives plural names; a singular call would
+    // fall through to None and the gate would 500.
+    for op in ["agent.dispatch", "agent.steer", "agent.stop", "agent.grant"] {
+        assert!(
+            policy_for(op).is_none(),
+            "singular `{op}` must NOT resolve — the wire must pass plural op-names"
+        );
+    }
+}
+
+/// The op-name SSOT: `op_name("AgentsService", method)` produces plural names.
+/// If a future proto descriptor renames the service back to singular, every
+/// agents-control op resolves as `agents.<m>` no longer. Pin the derivation
+/// alongside the wire to keep the regression path obvious in one diff.
+#[test]
+fn op_name_for_agents_service_is_plural() {
+    for (method, want) in [
+        ("Dispatch", "agents.dispatch"),
+        ("Steer", "agents.steer"),
+        ("Stop", "agents.stop"),
+        ("Grant", "agents.grant"),
+    ] {
+        assert_eq!(op_name("AgentsService", method), want, "AgentsService.{method}");
+    }
+}

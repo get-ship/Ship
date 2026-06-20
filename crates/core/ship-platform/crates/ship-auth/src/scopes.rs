@@ -256,7 +256,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         // No provisioned record → role baseline applies (migration-safe).
         let grants = resolve_grants_at(tmp.path(), "fresh-agent", Some("commander"));
-        assert_eq!(grants, vec!["agent".to_string()]);
+        assert_eq!(grants, vec!["agents".to_string()]);
         // A worker with no record gets no elevated services (C1 baseline only).
         assert!(resolve_grants_at(tmp.path(), "w", Some("worker")).is_empty());
     }

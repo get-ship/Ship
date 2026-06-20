@@ -12,11 +12,12 @@
 //!   * Orchestration control (C2/C3) — `DispatchFn`/`StopFn`/`SteerFn`/`GrantFn`.
 //!   * Watch stream (agents-arc E5) — `Arc<ReactiveRegistry>` + ship_dir.
 //!
-//! `agent.grant` preserves its C3 operator-authority check: the `gate` closure
+//! `agents.grant` preserves its C3 operator-authority check: the `gate` closure
 //! (supplied by shipd from the proto descriptor) enforces C3 before any handler
 //! body runs — unchanged from the `OpsImpl` path. The `GrantFn` carries the
 //! two-effect domain logic (live-session upgrade + baseline persistence).
 // FILE_CAP_OVERRIDE: AgentsService has 23 RPC methods across 4 planes; one impl block.
+
 
 use std::future::Future;
 use std::path::{Path, PathBuf};
@@ -618,7 +619,7 @@ impl AgentsServiceTrait for AgentsWire {
     // ── Orchestration control (C2/C3) ─────────────────────────────────────────
     //
     // The gate closure (same blast-radius source as rules/mcp/permissions/skills)
-    // is called first. `agent.grant` is C3Critical — the gate blocks non-operators
+    // is called first. `agents.grant` is C3Critical — the gate blocks non-operators
     // before the GrantFn body runs, preserving the security invariant.
 
     async fn dispatch(
@@ -627,7 +628,7 @@ impl AgentsServiceTrait for AgentsWire {
         request: ship_ops_rpc::OwnedDispatchAgentRequestView,
     ) -> ServiceResult<DispatchResult> {
         use agent_def::InvocationMode;
-        (self.gate)(&ctx, "agent.dispatch")?;
+        (self.gate)(&ctx, "agents.dispatch")?;
 
         // Per-project workspace isolation: MCP session bound to project A cannot
         // dispatch into project B. Trusted (CLI/SDK) callers pass through.
@@ -712,15 +713,14 @@ impl AgentsServiceTrait for AgentsWire {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedSteerAgentRequestView,
     ) -> ServiceResult<SteerResult> {
-        (self.gate)(&ctx, "agent.steer")?;
+        (self.gate)(&ctx, "agents.steer")?;
         let result = (self.steer_fn)(request.slug.to_string(), request.message.to_string()).await?;
         serde_json::from_value::<SteerResult>(result)
             .map(Response::new)
-            .map_err(|e| ConnectError::internal(format!("decode agent.steer response: {e}")))
+            .map_err(|e| ConnectError::internal(format!("decode agents.steer response: {e}")))
     }
 
-    /// `agent.grant` — C3 operator-only authority grant.
-    ///
+    /// `agents.grant` — C3 operator-only authority grant.
     /// The gate closure enforces `C3Critical` / `ship.agents.grant` before the
     /// handler body executes. Non-operators are rejected at the gate. The `GrantFn`
     /// carries the two-effect domain logic: (1) upgrade live session grants in the
@@ -734,12 +734,12 @@ impl AgentsServiceTrait for AgentsWire {
         request: ship_ops_rpc::OwnedGrantAgentRequestView,
     ) -> ServiceResult<GrantResult> {
         // C3 gate — enforced here before the GrantFn body runs.
-        (self.gate)(&ctx, "agent.grant")?;
+        (self.gate)(&ctx, "agents.grant")?;
         let grants: Vec<String> = request.grants.iter().map(|s| s.to_string()).collect();
         let result = (self.grant_fn)(request.agent.to_string(), grants, ctx).await?;
         serde_json::from_value::<GrantResult>(result)
             .map(Response::new)
-            .map_err(|e| ConnectError::internal(format!("decode agent.grant response: {e}")))
+            .map_err(|e| ConnectError::internal(format!("decode agents.grant response: {e}")))
     }
 
     // ── Watch (agents-arc E5) ─────────────────────────────────────────────────
