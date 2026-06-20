@@ -128,10 +128,11 @@ mod tests {
     fn emits_target_with_chunk_closure() {
         let tmp = tempdir().unwrap();
         let repo = tmp.path().to_path_buf();
-        // sui-marketing is a consumer target → lands in the host's
-        // assets root (repo-relative, not `.deck/`).
-        std::fs::write(repo.join("sui-marketing.js"), r#"import("./Chunk-X.js");"#).unwrap();
-        std::fs::write(repo.join("Chunk-X.js"), "export const x = 1;").unwrap();
+        // sui-marketing is a consumer target → lands in `.deck/` (the
+        // bake's staging area), not the host's assets root.
+        std::fs::create_dir_all(repo.join(".deck")).unwrap();
+        std::fs::write(repo.join(".deck/sui-marketing.js"), r#"import("./Chunk-X.js");"#).unwrap();
+        std::fs::write(repo.join(".deck/Chunk-X.js"), "export const x = 1;").unwrap();
         // Declare the consumer bundle via per-package self-declaration; the
         // bundler discovers it from the workspace (no central deck.jsonc).
         std::fs::write(repo.join("package.json"), r#"{ "workspaces": ["packages/*"] }"#).unwrap();

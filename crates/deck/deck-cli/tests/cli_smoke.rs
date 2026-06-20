@@ -108,38 +108,6 @@ impl Drop for ScaffoldGuard {
     }
 }
 
-// ── build-assets cwd-pollution guard ─────────────────────────────────────────
-
-/// `deck build-assets` currently emits the consumer packs (sui-marketing /
-/// sui-arcade / sui-pdf / ship-code-editor) into CWD instead of `.deck/` — a
-/// deck-bundler bug (followup: `build-assets-cwd-pollution`). Until that's
-/// fixed, any test that runs `build-assets` (cwd = repo root) leaves those
-/// `.js` in the working tree. This drop-guard removes them so the suite never
-/// dirties the tree — fires even if an assertion panics. Idempotent, so it is
-/// safe under parallel test execution.
-struct CwdBundleGuard {
-    root: PathBuf,
-}
-
-impl CwdBundleGuard {
-    fn new() -> Self {
-        Self { root: repo_root() }
-    }
-}
-
-impl Drop for CwdBundleGuard {
-    fn drop(&mut self) {
-        for name in [
-            "sui-marketing.js",
-            "sui-arcade.js",
-            "sui-pdf.js",
-            "ship-code-editor.js",
-        ] {
-            let _ = std::fs::remove_file(self.root.join(name));
-        }
-    }
-}
-
 // ── build-assets ────────────────────────────────────────────────────────────
 
 /// `deck build-assets` must materialize the framework singletons
@@ -149,7 +117,6 @@ impl Drop for CwdBundleGuard {
 /// even when a consumer target (e.g. sui-marketing) fails the bake.
 #[test]
 fn build_assets_writes_framework_bundles() {
-    let _cwd_guard = CwdBundleGuard::new();
     let out = run_deck(&["build-assets"]);
     let stderr = String::from_utf8_lossy(&out.stderr);
     // Don't assert status — consumer failures (sui-marketing) are a
@@ -183,7 +150,6 @@ fn build_assets_writes_framework_bundles() {
 /// non-zero build-assets exit (see `build_assets_writes_framework_bundles`).
 #[test]
 fn emit_places_target_in_out_dir() {
-    let _cwd_guard = CwdBundleGuard::new();
     // Ensure the target is baked. If the framework dir is already
     // populated, this is a fast no-op rewrite.
     let _ = run_deck(&["build-assets"]);

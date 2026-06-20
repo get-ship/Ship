@@ -99,23 +99,23 @@ impl BundleLayout {
     pub fn deck_out(&self) -> PathBuf {
         self.out_root.join(".deck")
     }
-    /// Host-owned assets root, derived from `PathBuf::from(".")`.
-    fn host_assets(&self) -> PathBuf {
-        self.out_root.join(&PathBuf::from("."))
+    fn framework_dir(&self) -> PathBuf {
+        self.deck_out().join("framework")
     }
 
-    /// Output dir for a target by name. Deck-own framework singletons →
-    /// `.deck/framework/` (the build-script staging path that `build.rs` copies
-    /// into `crates/deck/deck-core/assets/` for `include_str!`); `views/*` and
-    /// `sui-components/*` → `.deck/`; everything else → `PathBuf::from(".")`.
+    /// Output dir for a target by name. Every build artifact lands under
+    /// `.deck/` — the bundler owns its output layout; the host / project
+    /// root is never a bake target. Deck-own framework singletons go
+    /// under `.deck/framework/` (the build-script staging path that
+    /// `build.rs` copies into `crates/deck/deck-core/assets/` for
+    /// `include_str!`); everything else — `views/*`, `sui-components/*`,
+    /// and discovered consumer packs (`sui-marketing`, `sui-arcade`,
+    /// `sui-pdf`, `ship-code-editor`, …) — goes directly under `.deck/`.
     pub fn assets_dir_for(&self, name: &str) -> PathBuf {
         if DECK_OWN_BUNDLES.contains(&name) {
-            return self.deck_out().join("framework");
+            return self.framework_dir();
         }
-        if name.starts_with("views/") || name.starts_with("sui-components/") {
-            return self.deck_out();
-        }
-        self.host_assets()
+        self.deck_out()
     }
 
     /// All targets: framework singletons + discovered consumer bundles + view bundles.
@@ -162,8 +162,8 @@ impl BundleLayout {
     /// bundler walks the workspace to find them, the same way it discovers
     /// `views/*`. Each declaration's `entry` is package-relative, joined onto
     /// the declaring package's root. The logical name drives `assets_dir_for`
-    /// routing (anything not `views/`/`sui-components/`/a framework singleton →
-    /// `host_assets`).
+    /// routing — every discovered consumer target lands in `.deck/` (the
+    /// bake's staging area, sibling to the framework singletons).
     pub fn consumer_targets(&self) -> Vec<BundleTarget> {
         crate::catalog::discover_bundle_declarations(&self.repo_root)
             .into_iter()
@@ -274,10 +274,14 @@ mod tests {
         // is per-tag tree-shaking only.)
         assert_eq!(l.assets_dir_for("sui-components/sui-rail"), PathBuf::from("/repo/.deck"));
         assert_eq!(l.assets_dir_for("views/git/view"), PathBuf::from("/repo/.deck"));
-        // Consumer targets (e.g. sui-marketing, sui-arcade) also land in `.deck/`.
-        // assets root (repo-relative, not under `.deck/`). Per-app
-        // bundlers copy their `public/` to `<project>/.deck/`.
-        assert_eq!(l.assets_dir_for("ship-something"), PathBuf::from("/repo"));
+        // Consumer targets (e.g. sui-marketing, sui-arcade, sui-pdf,
+        // ship-code-editor) ALSO land in `.deck/` — the bake's staging
+        // area, sibling to the framework singletons. No target is a host
+        // asset; the bundler owns its output layout and every build
+        // artifact belongs under `.deck/`.
+        assert_eq!(l.assets_dir_for("sui-marketing"), PathBuf::from("/repo/.deck"));
+        assert_eq!(l.assets_dir_for("sui-arcade"), PathBuf::from("/repo/.deck"));
+        assert_eq!(l.assets_dir_for("ship-something"), PathBuf::from("/repo/.deck"));
     }
 
     #[test]
