@@ -2,10 +2,11 @@
 // hook resolvers. Lives in its own file to break the cycle between
 // `controller-resolver.ts` (which delegates to `resolveHook`) and
 // `controller-hook-resolver.ts` (which needs `ResolverContext`).
-
+//
 // Slice 2 — SUI-local `RouteSignals` (see ./route-signals for the
 // decoupling rationale). Replaces the `@ship/deck/route` import.
 import type { RouteSignals } from './route-signals'
+import type { ShipHost, Clients } from './ship'
 
 /**
  * Setup-time context passed to the resolver. Mirrors what `hydrate`

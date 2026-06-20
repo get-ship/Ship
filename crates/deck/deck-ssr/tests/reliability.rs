@@ -376,7 +376,7 @@ fn slice1_hub_closure_component_catalog() {
         let (ok, reason) = match parse(&src)
             .map_err(|e| e.render(&src))
             .and_then(|p| {
-                emit_synthetic(&p, &manifest, None, "./c.ts", CompileMode::Component)
+                emit_synthetic(&p, &manifest, None, "./c.ts", CompileMode::Component, None)
                     .map_err(|e| e.render(&src))
             }) {
             Ok(_) => (true, "synthesizes (propless)".to_string()),

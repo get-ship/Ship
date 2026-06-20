@@ -45,16 +45,12 @@ struct AppsConfigFile {
 #[serde(rename_all = "camelCase")]
 struct AppEntry {
     name: String,
-    /// The dev's authored source tree. Read by the Justfile / build
-    /// orchestrator (shipd doesn't read this directly — the bundler
-    /// does, when the host invokes `deck build --project <root>`).
-    /// The bundler's output. Read by shipd when serving the app.
-    /// Repo-relative; resolved under the project root at serve time.
-    source: String,
-    /// URL route prefix for the app. e.g. `/` (hub) or `/space/{id}`
-    /// (spaces — the `{id}` is a path capture, accessible via
-    /// `inject_globals` substitution).
     route: String,
+    source: String,
+    /// Where this app's compiled VIEW bundles live (relative to project root).
+    /// When absent, deck uses the bundler's default workspace-root output.
+    #[serde(default)]
+    view_output: Option<String>,
     #[serde(default)]
     inject_globals: std::collections::BTreeMap<String, String>,
 }
@@ -91,6 +87,7 @@ pub fn load_apps_config(path: &Path) -> Result<Vec<AppServeConfig>> {
             name: e.name,
             route: e.route,
             source: e.source,
+            view_output: e.view_output,
             inject_globals: e.inject_globals,
         })
         .collect();

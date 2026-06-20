@@ -1,10 +1,17 @@
+use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::sync::{Once, RwLock};
+use std::sync::{Mutex, Once, RwLock};
 
 /// One-root-per-process invariant: a single daemon serves one workspace, so a
 /// process-global override is sound. If that ever breaks (multi-tenant
 /// embedding), per-request threading through the resolver is the fallback.
 static PROJECT_ROOT_OVERRIDE: RwLock<Option<PathBuf>> = RwLock::new(None);
+/// Per-app view-output dirs (slice-2 component 1). A host (shipd) calls
+/// `register_view_output(app_name, dir)` so apps with a non-conventional
+/// layout (e.g. `apps/hub/.deck/views/<name>/view.js`) serve their own view
+/// bundles without depending on the global project root. Read by
+/// `assets::resolve_view_js` BEFORE the workspace-root fallback.
+static VIEW_OUTPUTS: Mutex<BTreeMap<String, PathBuf>> = Mutex::new(BTreeMap::new());
 static DETECTION_WARN_ONCE: Once = Once::new();
 
 /// Authoritative project-root override set ONCE at host startup.
@@ -19,6 +26,24 @@ pub fn set_project_root(root: PathBuf) {
     }
 }
 
+/// Register a per-app view-bundle output dir. Hosts call this for each
+/// `AppServeConfig.view_output` they own. The resolver probes these dirs
+/// BEFORE the workspace-root fallback when serving `/_deck/views/{name}/view.js`.
+pub fn register_view_output(app_name: impl Into<String>, dir: PathBuf) {
+    if let Ok(mut map) = VIEW_OUTPUTS.lock() {
+        map.insert(app_name.into(), dir);
+    }
+}
+
+/// Snapshot the currently-registered view outputs (test-only inspection).
+pub fn current_view_outputs() -> Vec<(String, PathBuf)> {
+    VIEW_OUTPUTS
+        .lock()
+        .ok()
+        .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+        .unwrap_or_default()
+}
+
 /// Read the current override (test-only inspection).
 pub fn current_project_root_override() -> Option<PathBuf> {
     PROJECT_ROOT_OVERRIDE.read().ok().and_then(|g| g.clone())
@@ -28,6 +53,9 @@ pub fn current_project_root_override() -> Option<PathBuf> {
 pub(crate) fn reset_project_root_override_for_test() {
     if let Ok(mut slot) = PROJECT_ROOT_OVERRIDE.write() {
         *slot = None;
+    }
+    if let Ok(mut map) = VIEW_OUTPUTS.lock() {
+        map.clear();
     }
     // Note: `DETECTION_WARN_ONCE` is NOT reset — the per-process warn
     // is one-shot by design (per spec). Tests that need a fresh warn

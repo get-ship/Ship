@@ -68,19 +68,53 @@ static ICON_MAP: std::sync::LazyLock<std::collections::HashMap<String, String>> 
 fn alias_for(name: &str) -> Option<&'static str> {
     ICON_ALIASES.iter().find_map(|(k, v)| (*k == name).then_some(*v))
 }
-
-// Public helper (used by view.rs). deck bakes NO app views — per-view bundles
-// live wherever the host's bundler writes them. Absent that, view.rs
-// compiles on demand from source.
-pub fn resolve_view_js(_name: &str) -> Option<String> {
-    // Framework does not probe `<root>/.deck/views/...` (the runtime
-    // `.deck/` read was purged, deck-purge-root). The asset-graph SSOT
-    // lived in `.deck/asset-graph.json` — also purged. View bundles
-    // that were prebuilt are NOT served here; the runtime compiles
-    // them on demand via view.rs (the bake pipeline output is now
-    // out of reach of the runtime; view chunk serving is a follow-up).
+// Public helper (used by view.rs). The in-process bundler writes view bundles
+// to `<project_root>/.deck/views/<name>/view.js` (the per-view output dir the
+// bundler owns). This helper reads that bundle when it exists so a controller
+// view is served from its compiled, inlined-controller form — the on-demand
+// build path in `view.rs::compile_view_js` only kicks in when no bundle is on
+// disk yet. The host calls `set_project_root(app_dir)` so the path resolves to
+// the right per-app workspace (e.g. conformance's `app/` dir, shipd's repo
+// root).
+pub fn resolve_view_js(name: &str) -> Option<String> {
+    // Per-app view outputs first (slice-2 component 1): a host with a
+    // non-conventional layout (e.g. `apps/hub/.deck/views/<name>/view.js`)
+    // registers its apps via `register_view_output` so the runtime finds
+    // the bundle without depending on the workspace-root `.deck/`.
+    for (_app, root) in crate::resolver::current_view_outputs() {
+        if let Some(js) = read_view_bundle(&root, name) {
+            return Some(js);
+        }
+    }
+    // Fallback: the bundler's default workspace-root output.
+    for view_root in candidate_view_roots() {
+        if let Some(js) = read_view_bundle(&view_root, name) {
+            return Some(js);
+        }
+    }
     None
 }
+
+fn read_view_bundle(root: &std::path::Path, name: &str) -> Option<String> {
+    let bundle = root.join(format!("views/{name}/view.js"));
+    std::fs::read(&bundle).ok().and_then(|b| String::from_utf8(b).ok())
+}
+
+/// Iterate view-bundle roots to probe for `<root>/views/<name>/view.js`.
+/// Order: per-app view-output dirs first (host-supplied via
+/// `AppServeConfig.viewOutput`), then the bundler's default workspace root
+/// (`<project_root>/.deck/views`). Per-app wins so apps with a non-conventional
+/// layout (e.g. `apps/hub/.deck/views/<name>/view.js`) serve from their own
+/// dir without the host having to set a global project root.
+fn candidate_view_roots() -> Vec<std::path::PathBuf> {
+    use crate::resolver::resolve_project_root;
+    let mut roots: Vec<std::path::PathBuf> = Vec::new();
+    if let Some(pr) = resolve_project_root() {
+        roots.push(pr.join(".deck"));
+    }
+    roots
+}
+
 //
 // A `AppServeConfig` (from `apps.jsonc` or built-in defaults) describes one
 // HTML shell: which built artifact to load (`source`), and which
@@ -418,6 +452,7 @@ mod tests {
             name: name.to_string(),
             route: "/".to_string(),
             source: "nonexistent-scaffold".to_string(),
+            view_output: None,
             inject_globals: globals,
         }
     }
@@ -465,6 +500,7 @@ mod tests {
             name: "space".to_string(),
             route: "/space/{id}".to_string(),
             source: "my-scaffold".to_string(),
+            view_output: None,
             inject_globals: globals,
         };
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[("id", "my-space")]);
@@ -494,11 +530,11 @@ mod tests {
             r#"<!doctype html><html><head></head><body><div id="sui-root"></div></body></html>"#,
         )
         .unwrap();
-        // Deliberately NO .deck/my-scaffold — only the source exists.
         let scaffold = AppServeConfig {
             name: "space".to_string(),
             route: "/space/{id}".to_string(),
             source: "my-scaffold".to_string(),
+            view_output: None,
             inject_globals: std::collections::BTreeMap::new(),
         };
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[("id", "x")]);
@@ -569,11 +605,11 @@ mod tests {
         globals.insert("x;alert(1)//".to_string(), "injected".to_string());
         // Valid key alongside it — should still appear.
         globals.insert("SAFE_KEY".to_string(), "safe_value".to_string());
-
         let scaffold = AppServeConfig {
             name: "test".to_string(),
             route: "/".to_string(),
             source: "safe-scaffold".to_string(),
+            view_output: None,
             inject_globals: globals,
         };
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[]);

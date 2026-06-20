@@ -74,7 +74,22 @@ fn synthesized_board_client_mounts_and_stays_reactive() {
 }
 
 fn write_harness(repo: &Path, work: &Path) {
-    let runtime_server = repo.join("packages/sui/runtime/src/server.ts");
+    let r = repo.display();
+    // Slice 2 — use a shim that re-exports the SSR server surface + the
+    // hydration-marker recording helpers (markHydrateText et al.) so the
+    // synthetic render's `markHydrateText(...)` calls type-check and resolve
+    // at runtime under vitest. The server.ts surface alone lacks the marker
+    // helpers; the shim pulls them in from `hydrate-mark.ts`. This matches
+    // `synthetic_client_jsdom`'s harness.
+    let shim = work.join("runtime-shim.ts");
+    fs::write(
+        &shim,
+        format!(
+            "export * from \"{r}/packages/sui/runtime/src/server.ts\";\n\
+             export {{ markHydrateText, markHydrateAttr, markHydrateBoundary }} from \"{r}/packages/sui/runtime/src/hydrate-mark.ts\";\n"
+        ),
+    )
+    .unwrap();
     let route_server = repo.join("packages/deck/route/src/server.ts");
     let cfg = format!(
         r#"import {{ defineConfig }} from 'vitest/config'
@@ -86,11 +101,10 @@ export default defineConfig({{
   }} }},
 }})
 "#,
-        rt = runtime_server.to_string_lossy(),
+        rt = shim.to_string_lossy(),
         route = route_server.to_string_lossy(),
     );
     fs::write(work.join("vitest.config.ts"), cfg).unwrap();
-
     let test = r#"import { describe, it, expect } from 'vitest'
 import { mount } from './board.render.ts'
 

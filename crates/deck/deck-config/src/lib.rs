@@ -45,11 +45,22 @@ pub struct AppServeConfig {
     /// Path to the built app, relative to the project root.
     /// e.g. `apps/hub/.deck` or `apps/spaces/.deck`.
     pub source: String,
-    /// Globals injected as `<script>window.<key>=<value>;</script>` into
-    /// the app's `index.html` before `</head>`. `$<param>` tokens in the
-    /// value are substituted from the URL path captures declared in
-    /// `route` (so for `route: "/space/{id}"` and an entry
-    /// `("DECK_APP_ID", "$id")`, the injection is `window.DECK_APP_ID="<id>";`).
+    /// Where this app's compiled VIEW bundles live, relative to the project
+    /// root. The runtime probes `<view_output>/views/<name>/view.js` BEFORE
+    /// falling back to the bundler's default workspace-root output dir
+    /// (`<project_root>/.deck/views`), so apps with a non-conventional layout
+    /// (e.g. `apps/hub/.deck/views/<name>/view.js`) serve their own bundles
+    /// without depending on the global project root.
+    ///
+    /// Optional: when absent, deck uses the bundler's default (the workspace
+    /// root's `.deck/views`).
+    #[serde(default)]
+    pub view_output: Option<String>,
+    /// Globals injected as `<script>window.<key>=<value>;</script>` into the
+    /// app's `index.html` before `</head>`. `$<param>` tokens in the value are
+    /// substituted from the URL path captures declared in `route` (so for
+    /// `route: "/space/{id}"` and an entry `("DECK_APP_ID", "$id")`, the
+    /// injection is `window.DECK_APP_ID="<id>";`).
     #[serde(default)]
     pub inject_globals: BTreeMap<String, String>,
 }

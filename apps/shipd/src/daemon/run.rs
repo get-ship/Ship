@@ -310,6 +310,21 @@ pub async fn run_network(
             Vec::new()
         }
     };
+    // Slice-2 component 1: register each app's per-app view-output dir so
+    // deck's runtime serves compiled view bundles from the right per-app
+    // location (e.g. `apps/hub/.deck/views/<name>/view.js`) before falling
+    // back to the workspace-root output. The path is resolved against the
+    // project root the daemon already holds (`worktree_root`); an absent
+    // `view_output` is fine — the runtime falls back to the workspace-root
+    // output dir the bundler owns.
+    if let Some(root) = worktree_root.as_ref() {
+        for app in &apps {
+            if let Some(rel) = &app.view_output {
+                let abs = root.join(rel);
+                deck::register_view_output(app.name.clone(), abs);
+            }
+        }
+    }
     let app = router::build_router(
         rt.clone(),
         token,

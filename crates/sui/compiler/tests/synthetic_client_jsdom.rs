@@ -69,6 +69,11 @@ fn synth(repo: &Path, work: &Path, t: &Target) {
     )
     .unwrap_or_else(|e| panic!("split {}: {}", t.name, e.render(&src)));
     fs::write(work.join(format!("{}.ssr.ts", t.name)), split.render_ts).unwrap();
+    fs::write(
+        work.join(format!("{}.controller.ts", t.name)),
+        split.controller_ts,
+    )
+    .unwrap();
 }
 
 fn write_harness(repo: &Path, work: &Path) {

@@ -80,7 +80,7 @@ pub async fn synthesize_and_bundle_with(
         .map_err(|e| anyhow!("parse manifest: {}", e.render(&manifest_src)))?;
     let authored = authored.map(|p| AuthoredController { specifier: path_str(p) });
     let out =
-        emit_synthetic(&program, &manifest, authored.as_ref(), "./page.synthetic.controller.ts", mode)
+        emit_synthetic(&program, &manifest, authored.as_ref(), "./page.synthetic.controller.ts", mode, None)
             .map_err(|e| anyhow!("synthesize: {}", e.render(&source)))?;
 
     std::fs::create_dir_all(build_dir)
