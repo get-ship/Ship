@@ -13,13 +13,11 @@
 //!     `ensure_default_sandbox` marks Tier 0/1 sandboxes Running
 //!     with `RuntimeEndpoint::InProcess` immediately; Tier 2+ paths
 //!     return them in `Pending` for the orchestrator to drive
-//!     prep + endpoint attachment.
-//!   - `spawn_actor(profile)` end-to-end with runtime dispatch.
-//!     That's the next slice — the dispatcher exposes
-//!     `runtime_for(sandbox_id)` so callers can grab the right
-//!     ActorRuntime; the actual spawn happens at the orchestrator's
-//!     existing call site, just routed through this trait.
-
+//!   - `spawn_actor(profile)` end-to-end with runtime dispatch. The
+//!     orchestrator holds the spawn call site; the dispatcher exposes
+//!     `endpoint_for(sandbox_id)` and the caller resolves the sidecar
+//!     runtime itself when the endpoint is Remote (lives in
+//!     `ship-isolation::runtime`).
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
@@ -31,11 +29,9 @@ use super::types::{
 };
 use ship_isolation::tier::{IsolationProfile, IsolationTier};
 use ship_substrate::isolation::SandboxOwner;
-use ship_substrate::supervisor::{ActorRuntime, InProcessActorRuntime};
 
 pub struct SandboxDispatcher {
     registry: Arc<RwLock<SandboxRegistry>>,
-    in_process: Arc<dyn ActorRuntime>,
 }
 
 impl Default for SandboxDispatcher {
@@ -48,7 +44,6 @@ impl SandboxDispatcher {
     pub fn new() -> Self {
         Self {
             registry: Arc::new(RwLock::new(SandboxRegistry::new())),
-            in_process: InProcessActorRuntime::shared(),
         }
     }
 
@@ -227,29 +222,6 @@ impl SandboxDispatcher {
         // shutdown task can't deadlock on it.
         drop(owner_to_drop);
         Ok(())
-    }
-
-    /// Look up the ActorRuntime that services a sandbox. Tier 0/1 →
-    /// the shared in-process runtime. Tier 2+ Remote → caller is
-    /// responsible for building/caching the sidecar runtime keyed by
-    /// `addr` (cache lives in `ship-isolation::runtime` once C3.5
-    /// wires it; today we return None for Remote so existing callers
-    /// pass through their own path).
-    pub async fn runtime_for(
-        &self,
-        sandbox_id: &SandboxId,
-    ) -> Option<Arc<dyn ActorRuntime>> {
-        let reg = self.registry.read().await;
-        let sandbox = reg.get(sandbox_id)?;
-        match sandbox.runtime_endpoint.as_ref()? {
-            RuntimeEndpoint::InProcess => Some(self.in_process.clone()),
-            // Sidecar runtime resolution is a separate concern owned
-            // by ship-isolation::runtime; the dispatcher exposes the
-            // endpoint and lets the orchestrator pick the runtime.
-            // Returning None here tells the caller "you have a Remote
-            // endpoint; resolve a SidecarActorRuntime yourself."
-            RuntimeEndpoint::Remote { .. } => None,
-        }
     }
 
     /// Pair: sandbox's runtime endpoint + the actor runtime for it

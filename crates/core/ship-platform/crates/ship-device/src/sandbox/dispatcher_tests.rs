@@ -164,56 +164,6 @@ async fn reap_eligible_returns_idle_sandboxes_past_timeout() {
 }
 
 #[tokio::test]
-async fn runtime_for_returns_in_process_for_tier_zero() {
-    let dispatcher = SandboxDispatcher::new();
-    let id = dispatcher
-        .ensure_default_sandbox("my-project", none_profile())
-        .await
-        .unwrap();
-    let runtime = dispatcher
-        .runtime_for(&id)
-        .await
-        .expect("InProcess endpoint must resolve to a runtime");
-    assert_eq!(runtime.name(), "in-process");
-}
-
-#[tokio::test]
-async fn runtime_for_returns_none_for_remote_endpoint_caller_resolves_sidecar() {
-    let dispatcher = SandboxDispatcher::new();
-    // Tier 2 profile keeps sandbox in Pending state initially.
-    let id = dispatcher
-        .ensure_default_sandbox("my-project", container_profile())
-        .await
-        .unwrap();
-    let reg = dispatcher.registry();
-    let r = reg.read().await;
-    assert_eq!(r.get(&id).unwrap().state, SandboxState::Pending);
-    drop(r);
-
-    // Orchestrator does the prep (mocked here by just marking remote
-    // running with an addr) and the dispatcher exposes the endpoint
-    // — but returns None from runtime_for so the orchestrator picks
-    // the SidecarActorRuntime impl itself (lives in ship-isolation).
-    dispatcher
-        .mark_remote_running(&id, "http://127.0.0.1:2468", "http")
-        .await
-        .expect("mark running");
-    let runtime = dispatcher.runtime_for(&id).await;
-    assert!(
-        runtime.is_none(),
-        "Remote endpoint is opaque to dispatcher; caller resolves the sidecar runtime"
-    );
-    let endpoint = dispatcher.endpoint_for(&id).await.unwrap();
-    match endpoint {
-        RuntimeEndpoint::Remote { addr, scheme } => {
-            assert_eq!(addr, "http://127.0.0.1:2468");
-            assert_eq!(scheme, "http");
-        }
-        other => panic!("expected Remote endpoint, got {other:?}"),
-    }
-}
-
-#[tokio::test]
 async fn global_dispatcher_singleton_returns_same_instance() {
     let d1 = crate::sandbox::dispatcher();
     let d2 = crate::sandbox::dispatcher();
