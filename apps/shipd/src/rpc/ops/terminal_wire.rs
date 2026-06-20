@@ -13,8 +13,8 @@
 //! Either registry can hold the session id a request names; the wire
 //! looks up the actor registry first (it owns the persistent-session
 //! path the dock terminal uses today), then falls back to the PTY
-//! registry. Phase 3 retires the legacy REST surface; this wire is the
-//! only terminal surface until Phase 4.
+//! registry. Phase 3 retired the legacy REST surface; this wire is the
+//! permanent terminal Connect surface.
 //!
 //! Capability / blast-radius policy lives in the proto (read by the gate
 //! from the descriptor at startup) — the wire does not re-enforce it.
@@ -346,7 +346,6 @@ fn meta_to_wire(m: &SessionMeta) -> TerminalSession {
 fn kind_str(k: PtyKind) -> String {
     match k {
         PtyKind::Agent => "agent",
-        PtyKind::Pipeline => "pipeline",
         PtyKind::Shell => "shell",
     }
     .to_string()

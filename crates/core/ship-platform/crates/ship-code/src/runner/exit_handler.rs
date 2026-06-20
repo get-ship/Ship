@@ -79,10 +79,10 @@ async fn handle_agent_exited(
     let terminal = match signal.exit_code {
         Some(0) => build_completed(vocab, signal),
         Some(code) => {
-            build_failed(vocab, signal, &failed_message(vocab, code), Some(code), "exit_nonzero")
+            build_failed(vocab, signal, &failed_message(vocab, code), Some(code))
         }
         None => {
-            build_failed(vocab, signal, no_code_message(vocab), None, "exit_no_code")
+            build_failed(vocab, signal, no_code_message(vocab), None)
         }
     };
     emit_terminal(kernel, &signal.slug, terminal).await;
@@ -119,7 +119,6 @@ async fn handle_session_destroyed(
         signal,
         session_destroyed_message(vocab),
         None,
-        "session_destroyed",
     );
     emit_terminal(kernel, &signal.slug, terminal).await;
 }
@@ -182,7 +181,6 @@ fn build_failed(
     signal: &ExitSignal,
     error: &str,
     exit_code: Option<i32>,
-    _stage: &str,
 ) -> TerminalEvent {
     match vocab {
         ExitVocabulary::PipelineRun => TerminalEvent {
@@ -225,7 +223,7 @@ async fn emit_terminal(
             return;
         }
     };
-    persist_and_route(kernel, envelope, slug, None).await;
+    persist_and_route(kernel, envelope, slug).await;
 }
 
 #[cfg(test)]

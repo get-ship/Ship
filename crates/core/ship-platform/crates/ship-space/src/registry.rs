@@ -111,7 +111,6 @@ pub async fn get(kernel: &KernelLog, id: &str) -> Result<Option<SpaceRecord>, Sp
 /// into the `projects` SQL table inside the kernel transaction. The DataStore
 /// port is no longer used for record writes.
 pub async fn add(
-    store: &dyn DataStore,
     kernel: &KernelLog,
     path: &Path,
     name: Option<&str>,
@@ -157,11 +156,6 @@ pub async fn add(
     let envelope = EventEnvelope::new(PROJECT_REGISTERED, &id, &payload)
         .map_err(|e| SpaceError::Internal(e.to_string()))?;
     kernel.emit(envelope, &runtime_emit_ctx()).await?;
-
-    // The `_store` parameter is retained (but unused for records) to keep the
-    // caller signature stable; it is still used by `activate` for the active
-    // pointer.
-    let _ = store;
 
     Ok(record)
 }

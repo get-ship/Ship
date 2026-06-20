@@ -83,7 +83,7 @@ pub async fn register_active_space(
         };
         let kernel = std::sync::Arc::new(KernelLog::new(rt.kernel().clone()));
         let canonical = std::fs::canonicalize(root.path()).unwrap_or_else(|_| root.path().to_path_buf());
-        if let Err(e) = ship_space::registry::add(&*store, &kernel, &canonical, None).await {
+        if let Err(e) = ship_space::registry::add(&kernel, &canonical, None).await {
             tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
         }
     }

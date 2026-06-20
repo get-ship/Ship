@@ -107,7 +107,7 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
     match EventEnvelope::new(process_event_types::PROCESS_KILLED, &slug, &killed) {
         Ok(env) => {
             let env = env.with_actor_id("service.agents");
-            persist_and_route(kernel, env, &slug, None).await;
+            persist_and_route(kernel, env, &slug).await;
         }
         Err(e) => {
             tracing::warn!(slug, "agent-session-cancel: failed to build process.killed envelope: {e}");

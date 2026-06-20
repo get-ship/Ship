@@ -173,65 +173,6 @@ pub fn send_agent_message(
     Ok(())
 }
 
-/// Caller-supplied actor metadata recorded into `actor.created` payload.
-/// `kind` and the basics come from the spawn primitive; this carries the
-/// agent-flavored fields the projection / dashboard cares about.
-#[derive(Default, Clone)]
-pub struct ActorSpawnExtras {
-    pub model: Option<String>,
-    pub transport: Option<String>,
-    pub persistence: Option<String>,
-    pub system_prompt_hash: Option<String>,
-    pub capabilities: Vec<String>,
-    pub space_id: Option<String>,
-    pub cwd: Option<String>,
-}
-
-/// Emit `actor.created` for a freshly spawned PtySession. Reads metadata
-/// from the session's meta lock, then dispatches the emit on a fresh
-/// std::thread so the underlying `block_on` in the kernel-route path
-/// doesn't deadlock the tokio runtime that called us. Fire-and-forget;
-/// emit failures only warn.
-pub fn emit_actor_created_for(session: &PtySession, extras: &ActorSpawnExtras) {
-    let m = session.0.meta.lock().unwrap();
-    let kind_str = match m.kind {
-        SessionKind::Agent => "agent",
-        SessionKind::Pipeline => "pipeline-step",
-        SessionKind::Shell => "shell",
-    };
-    let payload = ship_substrate::events::types::ActorCreated {
-        kind: kind_str.to_string(),
-        environment_type: "local".to_string(),
-        workspace_id: Some(m.workspace_id.clone()),
-        parent_actor_id: None,
-        restart_count: 0,
-        agent_id: m.agent_id.clone(),
-        harness: m.harness.clone(),
-        model: extras.model.clone(),
-        transport: extras.transport.clone().or(Some("pty".to_string())),
-        persistence: extras.persistence.clone().or(Some("long-lived".to_string())),
-        system_prompt_hash: extras.system_prompt_hash.clone(),
-        pid: m.pid,
-        capabilities: extras.capabilities.clone(),
-        space_id: extras.space_id.clone(),
-        cwd: extras.cwd.clone(),
-    };
-    let actor_id = m.id.clone();
-    let workspace_id = m.workspace_id.clone();
-    drop(m);
-    std::thread::spawn(move || {
-        if let Err(e) = ship_substrate::db::actor_events::emit_actor_created(
-            &actor_id,
-            &payload,
-            Some(&workspace_id),
-            None,
-        ) {
-            tracing::warn!(actor = %actor_id, error = %e, "actor.created emit failed");
-        }
-    });
-}
-
-
 fn set_status(inner: &SessionHandle, status: SessionStatus) {
     let (_id, _prior) = {
         let mut m = inner.meta.lock().unwrap();
@@ -263,13 +204,6 @@ pub fn sweep_idle(registry: &SessionRegistry) {
                 }
             }
     }
-}
-
-/// Drop a per-turn agent session from the registry. The underlying
-/// per-turn child is owned by the substrate supervisor and exits on its
-/// own when the turn finishes; this just clears the metadata sidecar.
-pub fn stop(registry: &SessionRegistry, id: &str) -> bool {
-    registry.remove(id).is_some()
 }
 
 /// Load an agent's `rules.inline` from `.ship/agents/<agent_id>.jsonc` in

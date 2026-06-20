@@ -6,12 +6,12 @@
 //! Per the charter: actor lifecycle + supervision are L0; agent profiles
 //! plus compilation to harness config are L1 — that's this module.
 //!
-//! HTTP transport over these primitives lives in `apps/shipd/src/sessions/api.rs`.
+//! Connect transport over these primitives lives in `apps/shipd/src/rpc/ops/terminal_wire.rs`.
 //!
 //! # Layering inside this module
 //!
 //! * `types`           — `SessionId`, `SessionKind`, `SessionStatus`,
-//!                       `PtySession`, `SessionMeta`, `SpawnRequest`.
+//!                       `PtySession`, `SessionMeta`.
 //! * `registry`        — legacy in-memory `SessionRegistry` for per-turn
 //!                       harnesses (no persistent child between turns).
 //! * `actor_registry`  — `ActorRegistry` + `ActorEntry` keyed on the
@@ -32,8 +32,7 @@ pub mod canonical_projection;
 // what stays here is the agent-flavored work (actor_registry,
 // agent_actor, lifecycle, canonical_projection).
 pub use ship_terminal::{
-    PtySession, SessionId, SessionKind, SessionMeta, SessionRegistry, SessionStatus,
-    SpawnRequest,
+    SessionStatus,
 };
 
 pub use canonical_projection::{

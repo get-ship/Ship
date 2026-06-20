@@ -277,6 +277,6 @@ pub(crate) async fn emit_session_failed(
         &payload,
     ) {
         let env = env.with_actor_id("service.agents");
-        persist_and_route(kernel, env, slug, None).await;
+        persist_and_route(kernel, env, slug).await;
     }
 }

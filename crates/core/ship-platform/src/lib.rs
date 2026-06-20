@@ -72,7 +72,7 @@ pub mod config {
 
     // Relocated from platform-internal crud/discover/watcher
     pub use ship_config::crud::{add_mcp_server, ensure_standard_dirs, list_mcp_servers, remove_mcp_server};
-    pub use ship_agents::active_agent::get_active_agent;
+
     pub use ship_config::discover::discover_projects;
     pub use ship_config::watcher::{spawn_config_watcher, ConfigWatcher};
 }

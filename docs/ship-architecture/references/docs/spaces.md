@@ -93,6 +93,6 @@ identity (id/root/name) plus the merged `settings_json`.
 - Window token mint + pid-binding: `apps/shipd/src/auth/space_window.rs`,
   `peer_socket.rs`.
 - The space service surface (Info/WindowIntent/WindowList/CloseWindow/SetSetting):
-  `apps/shipd/src/space_rpc.rs` + `proto/ship/ops/v1/space.proto`.
-- Per-space settings: `ship-platform::projections::space_settings`,
-  `apps/shipd/src/services/command/space.rs`.
+  `apps/shipd/src/rpc/space.rs` + `proto/ship/ops/v1/space.proto`.
+- Per-space settings: `ship_config::projection::SpaceSettingsProjection`,
+  `apps/shipd/src/rpc/space.rs`.

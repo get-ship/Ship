@@ -2,7 +2,7 @@
 //! stream-json` for headless runs with parseable events.
 
 use std::collections::HashMap;
-use std::path::Path;
+
 
 use ship_substrate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
 use ship_runner::harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent};
@@ -126,7 +126,6 @@ impl HarnessAdapter for CursorAdapter {
             _ => None,
         }
     }
-    fn extract_session_meta(&self, _work_dir: &Path) -> Option<serde_json::Value> { None }
 }
 
 #[cfg(test)]

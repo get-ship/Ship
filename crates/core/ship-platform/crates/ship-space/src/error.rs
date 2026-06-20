@@ -10,9 +10,6 @@ pub enum SpaceError {
     /// The named entity does not exist (→ not_found / 404).
     #[error("not found: {0}")]
     NotFound(String),
-    /// A required precondition is unmet, e.g. no space identity (→ failed_precondition / 409).
-    #[error("conflict: {0}")]
-    Conflict(String),
     /// An internal failure (→ internal / 500).
     #[error("internal: {0}")]
     Internal(String),
@@ -23,7 +20,6 @@ impl From<SpaceError> for ConnectError {
         match e {
             SpaceError::BadArgs(m) => ConnectError::invalid_argument(m),
             SpaceError::NotFound(m) => ConnectError::not_found(m),
-            SpaceError::Conflict(m) => ConnectError::failed_precondition(m),
             SpaceError::Internal(m) => ConnectError::internal(m),
         }
     }

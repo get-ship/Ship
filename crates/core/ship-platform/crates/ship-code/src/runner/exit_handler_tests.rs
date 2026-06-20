@@ -89,7 +89,6 @@ fn pipeline_failed_nonzero_keys_on_run_id() {
         &sig,
         &failed_message(&ExitVocabulary::PipelineRun, 3),
         Some(3),
-        "exit_nonzero",
     );
     assert_eq!(t.event_type, pipeline_event_types::PIPELINE_RUN_FAILED);
     assert_eq!(t.entity_id, "run-1");
@@ -123,7 +122,7 @@ fn agent_session_completed_keys_on_session_id() {
 fn agent_session_failed_nonzero_keys_on_session_id() {
     let vocab = ExitVocabulary::AgentSession { session_id: "sess-9".into() };
     let sig = session_signal(Some(2));
-    let t = build_failed(&vocab, &sig, &failed_message(&vocab, 2), Some(2), "exit_nonzero");
+    let t = build_failed(&vocab, &sig, &failed_message(&vocab, 2), Some(2));
     // Now emits canonical session.failed.
     assert_eq!(t.event_type, canonical_session_event_types::SESSION_FAILED);
     assert_eq!(t.entity_id, "sess-9");
@@ -145,7 +144,6 @@ fn agent_session_no_code_is_failure_not_completion() {
         &session_signal(None),
         no_code_message(&vocab),
         None,
-        "exit_no_code",
     );
     assert_eq!(t.event_type, canonical_session_event_types::SESSION_FAILED);
     assert_eq!(t.payload["reason"], "harness exited with no captured exit code");

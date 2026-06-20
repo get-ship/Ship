@@ -62,7 +62,7 @@ impl SpaceService {
         path: &std::path::Path,
         name: Option<&str>,
     ) -> Result<SpaceRecord, SpaceError> {
-        registry::add(self.ctx.data(), self.ctx.kernel(), path, name).await
+        registry::add(self.ctx.kernel(), path, name).await
     }
 
     /// Switch the active space. See [`registry::activate`].

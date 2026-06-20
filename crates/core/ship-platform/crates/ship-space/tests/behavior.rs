@@ -316,10 +316,9 @@ async fn list_surfaces_active_id_after_activate() {
 async fn add_derives_name_from_path_when_unnamed() {
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
-    let store = store_for(&tmp, "runtime", "runtime");
     let path = tmp.path().join("my-space");
     std::fs::create_dir_all(&path).unwrap();
-    let r = registry::add(store.as_ref(), &kernel, &path, None).await.unwrap();
+    let r = registry::add(&kernel, &path, None).await.unwrap();
     assert_eq!(r.name, "my-space", "name derived from final path segment");
 }
 

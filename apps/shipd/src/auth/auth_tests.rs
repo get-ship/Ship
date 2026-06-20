@@ -461,7 +461,7 @@ async fn anomalous_token_format_fails_closed() {
 // ── Session is the sole binding minter (Phase 2 / #196) ───────────────────
 
 use ship_substrate::events::CallerKind;
-use ship_types::{Authority, SpaceId, local_device_id};
+use ship_types::{Authority, EventScope, SpaceId, local_device_id};
 
 /// T1 — a space-window session mints the correct binding: its OWN space (not a
 /// process-global), `Authority::Space`, the placeholder device id, no account.
@@ -487,7 +487,7 @@ fn space_window_session_mints_space_binding() {
     );
     assert_eq!(ctx.binding.device_id(), &local_device_id());
     assert_eq!(ctx.binding.account_id(), None);
-    assert_eq!(ctx.space_key().as_deref(), Some("space-A"));
+    assert_eq!(ctx.binding.key_for(EventScope::Space).as_deref(), Some("space-A"));
 }
 
 /// T2 — operator authority derives SOLELY from a verified operator cred (S6,
@@ -543,5 +543,5 @@ fn operator_authority_requires_a_verified_cred_not_the_cli_transport() {
     );
     // Intended P2 fail-soft: operator with no session space keys None (no
     // home-space fallback on the emit path).
-    assert_eq!(operator.to_emit_context(CallerKind::Cli).space_key(), None);
+    assert_eq!(operator.to_emit_context(CallerKind::Cli).binding.key_for(EventScope::Space), None);
 }

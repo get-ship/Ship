@@ -1247,7 +1247,7 @@ async fn emit_process_killed(
     match EventEnvelope::new(proc_events::PROCESS_KILLED, slug, &payload) {
         Ok(env) => {
             let env = env.with_actor_id("service.process-executor");
-            persist_and_route(kernel, env, slug, None).await;
+            persist_and_route(kernel, env, slug).await;
         }
         Err(e) => {
             tracing::warn!(slug, "process-executor: failed to build process.killed envelope: {e}");
