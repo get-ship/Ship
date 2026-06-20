@@ -53,20 +53,33 @@ impl ship_ops_rpc::SearchService for ShipdSearchWire {
     ) -> ServiceResult<ProtoSearchResponse> {
         let parsed = parse_request(&request);
 
-        let hits = match parsed.scope {
+        // B6 — forward the aggregator's cursor output. The proto request cursor
+        // already decodes into `parsed.opts.cursor`; this branch was dropping
+        // the response cursor. ThisSpace has access to the full
+        // `SearchResponse { hits, cursor }` and can forward it directly. The
+        // GLOBAL path delegates to `run_global_search`, whose surface still
+        // returns only `Vec<SearchHit>` today — see TODO at the call site.
+        let (hits, next_cursor) = match parsed.scope {
             SearchScope::ThisSpace => {
                 let ctx = ShipdSearchContext::new(self.state.clone());
-                self.service.run(&ctx, &parsed.query, parsed.opts).await.hits
+                let resp = self.service.run(&ctx, &parsed.query, parsed.opts).await;
+                (resp.hits, resp.cursor.unwrap_or_default())
             }
             SearchScope::Global => {
-                self.run_global_search(&parsed.query, parsed.opts).await
+                // TODO: `run_global_search` discards the per-space aggregator
+                // cursor — its return type is `Vec<SearchHit>`. Once the
+                // global fan-out exposes a merged `SearchResponse` (i.e.
+                // `run_global` surfaces `resp.cursor`), forward it here in
+                // place of the empty string. Do not fabricate a cursor.
+                let global_hits = self.run_global_search(&parsed.query, parsed.opts).await;
+                (global_hits, String::new())
             }
         };
 
         let proto_hits = hits.into_iter().map(hit_to_proto).collect();
         Ok(Response::new(ProtoSearchResponse {
             hits: proto_hits,
-            next_cursor: String::new(),
+            next_cursor,
             ..Default::default()
         }))
     }
