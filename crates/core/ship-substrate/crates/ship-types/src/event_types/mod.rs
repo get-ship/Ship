@@ -145,11 +145,6 @@ pub const ACTOR_MAILBOX_FULL: &str = "actor.mailbox_full";
 /// A1: space, durable.
 pub const AGENT_TASK_COMPLETE: &str = "agent.task.complete";
 
-/// Human gateway — a human sent a response into the system (e.g. Telegram
-/// webhook reply). `entity_id` is the session or conversation id.
-/// A1: space, durable.
-pub const HUMAN_RESPONSE: &str = "human.response";
-
 /// Kernel — an actor was restored from a persisted snapshot.
 /// `entity_id` is the actor_id.
 /// A1: device, durable.

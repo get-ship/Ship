@@ -41,8 +41,8 @@ pub(super) fn is_client_nav(path: &str) -> bool {
     if path == "/" || path == "/setup" {
         return false;
     }
-    const BACKEND: [&str; 8] = [
-        "/api", "/_deck", "/hooks", "/auth", "/webhook", "/daemon", "/space", "/shell",
+    const BACKEND: [&str; 7] = [
+        "/api", "/_deck", "/hooks", "/auth", "/daemon", "/space", "/shell",
     ];
     if BACKEND.iter().any(|p| path.starts_with(p)) {
         return false;

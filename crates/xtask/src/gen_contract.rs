@@ -212,12 +212,15 @@ fn domain_catalog() -> Vec<DomainMeta> {
             services: vec!["OpsService"],
             description: "Daemon lifecycle: startup/shutdown/crash events and the ops meta-service.",
             coverage_audit_docs: vec![".artifacts/specs/module-audits/apps/shipd.md"],
+        },
         DomainMeta {
             key: "studio",
             display: "Studio",
-            // chat gutted in agents-arc E6 (read-projection over the deprecated
-            // `studio.message` event, no real gated RPC).
-            event_prefixes: vec!["studio.", "human."],
+            // The legacy `human.response` event was removed (theme-A
+            // contain A8); the inbound half is a messaging fast-follow.
+            // Chat gutted in agents-arc E6 (read-projection over the
+            // deprecated `studio.message` event, no real gated RPC).
+            event_prefixes: vec!["studio."],
             services: vec!["DashboardService", "FeedbackService", "AnnotationService"],
             description: "Studio UI primitives: chat turns, agent replies, dashboard state, feedback, and annotation events.",
             coverage_audit_docs: vec![".artifacts/specs/module-audits/apps/shipd.md", ".artifacts/specs/module-audits/L1-platform/sessions.md", ".artifacts/specs/module-audits/L0-substrate/ship-substrate.md"],
