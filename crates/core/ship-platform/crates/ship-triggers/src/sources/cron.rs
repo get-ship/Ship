@@ -4,6 +4,7 @@
 //! on schedule. Persists last-fire timestamps via the KV store so restarts don't
 //! double-fire within the same scheduled interval.
 
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use chrono::{DateTime, Utc};
@@ -35,12 +36,16 @@ impl CronEntry {
 }
 
 pub struct CronSource {
+    ship_dir: PathBuf,
     reload_tx: Mutex<Option<UnboundedSender<Vec<HookDef>>>>,
 }
 
 impl CronSource {
-    pub fn new() -> Self {
-        Self { reload_tx: Mutex::new(None) }
+    pub fn new(ship_dir: PathBuf) -> Self {
+        Self {
+            ship_dir,
+            reload_tx: Mutex::new(None),
+        }
     }
 }
 
@@ -51,7 +56,7 @@ impl TriggerSource for CronSource {
     ) -> tokio::task::JoinHandle<()> {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         *self.reload_tx.lock().expect("CronSource reload_tx mutex poisoned") = Some(tx);
-        tokio::spawn(cron_source_task(rx, kernel))
+        tokio::spawn(cron_source_task(self.ship_dir.clone(), rx, kernel))
     }
 
     fn reload(&self, new_defs: &[HookDef]) {
@@ -62,6 +67,7 @@ impl TriggerSource for CronSource {
 }
 
 async fn cron_source_task(
+    ship_dir: PathBuf,
     mut reload_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<HookDef>>,
     kernel: std::sync::Arc<tokio::sync::Mutex<KernelRouter>>,
 ) {
@@ -88,7 +94,7 @@ async fn cron_source_task(
                     }
                     // Check last-fire from the event log to prevent double-fire on restart.
                     let hook_name = entry.def.name.clone();
-                    if let Some(last) = load_last_fire(&hook_name) {
+                    if let Some(last) = load_last_fire(&ship_dir, &hook_name) {
                         if last >= fire_at {
                             // Already fired for this scheduled interval.
                             entry.advance();
@@ -166,9 +172,13 @@ async fn emit_cron_event(
 /// Read the most recent fire time for this hook from the event log.
 /// `emit_cron_event` writes `external.cron.{hook_name}` events with
 /// `entity_id = hook_name`; the latest one's `created_at` is the last fire.
-fn load_last_fire(hook_name: &str) -> Option<DateTime<Utc>> {
+fn load_last_fire(ship_dir: &Path, hook_name: &str) -> Option<DateTime<Utc>> {
     let event_type = format!("external.cron.{hook_name}");
-    let events = ship_substrate::db::events::query_events_by_entity_and_type(hook_name, &event_type)
-        .ok()?;
+    let events = ship_substrate::db::events::query_events_by_entity_and_type_at(
+        &ship_substrate::db::runtime_db_path(ship_dir),
+        hook_name,
+        &event_type,
+    )
+    .ok()?;
     events.last().map(|e| e.created_at)
 }
