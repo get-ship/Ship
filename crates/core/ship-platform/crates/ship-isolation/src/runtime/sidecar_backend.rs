@@ -16,7 +16,7 @@ use connectrpc::client::SharedHttp2Connection;
 use std::sync::Arc;
 
 use ship_sidecar_proto::{
-    ProcessGetRequest, ProcessKillRequest, ProcessResizeTerminalRequest, ProcessState,
+    ProcessGetRequest, ProcessResizeTerminalRequest, ProcessState,
     ProcessStopRequest, ProcessWriteInputRequest, ProcessesClient, PtySize,
 };
 use ship_substrate::supervisor::ChildBackend;
@@ -160,19 +160,3 @@ impl ChildBackend for SidecarChildBackend {
     }
 }
 
-/// Force-kill the process. Exposed as a free function (not a trait
-/// method) because the `ChildBackend` trait's `stop` is graceful; a
-/// SIGKILL escalation is a separate, less-common path. The
-/// orchestrator can call this directly after `stop()` times out.
-#[allow(dead_code)]
-pub async fn force_kill(
-    client: &ProcessesClient<SharedHttp2Connection>,
-    process_id: &str,
-) -> Result<()> {
-    let req = ProcessKillRequest { id: process_id.to_string(), ..Default::default() };
-    client
-        .kill(req)
-        .await
-        .map_err(|e| anyhow!("Processes.Kill: {e}"))?;
-    Ok(())
-}

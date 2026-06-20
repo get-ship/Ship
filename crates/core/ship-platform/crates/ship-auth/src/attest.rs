@@ -67,8 +67,6 @@ struct Jwks {
 #[derive(Debug, Clone, Deserialize)]
 struct Jwk {
     kid: Option<String>,
-    #[allow(dead_code)]
-    alg: Option<String>,
     kty: String,
     #[serde(default)]
     crv: Option<String>,

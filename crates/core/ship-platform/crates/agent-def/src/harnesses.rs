@@ -29,13 +29,6 @@ pub fn supported_harness_ids() -> impl Iterator<Item = &'static str> {
         .map(|(id, _)| id)
 }
 
-/// `true` if `id` names a registered harness (case-sensitive, trimmed).
-///
-/// Backed by the REGISTRY — same gate as `normalize_harness_ids`.
-#[allow(dead_code)]
-pub fn is_supported_harness(id: &str) -> bool {
-    ship_harnesses::harness_adapter::adapter_for(id).is_ok()
-}
 
 // ─── Harness registry ────────────────────────────────────────────────────────
 
