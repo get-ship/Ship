@@ -157,6 +157,12 @@ where
         Ok(Response::new(Box::pin(stream)))
     }
 
+    // SHORTCOMING (artifacts authz pass): patch/promote/delete are C1 writes gated only by the
+    // blast tier — they do NOT consult the caller's artifact Scopes. The role model grants agents
+    // run-scope write but withholds Write/DeleteArtifactsProject (ship-auth-types scopes::roles::
+    // pipeline_agent_artifact_scopes); nothing here checks it, so an agent can mutate/promote
+    // PROJECT-scoped artifacts. Fix: thread caller scopes in (RequestContext → scopes) + a per-scope
+    // check vs the target scope. Spec: #[ignore]'d test in ship-auth-types scopes/tests.rs.
     async fn patch(
         &self,
         ctx: RequestContext,

@@ -48,8 +48,11 @@ message ArtifactsWatchReq {
 }
 
 // Artifact metadata records + lifecycle. Reads are C0; metadata mutations are
-// C1 workspace writes, gated through the one gate (services::command::call),
-// which also enforces the per-artifact scope ACL.
+// C1 workspace writes — gated by the blast tier ONLY (open to any in-scope agent).
+// SHORTCOMING: the per-artifact scope ACL is GRANTED in roles (ship-auth-types
+// scopes::roles::pipeline_agent_artifact_scopes — agents get run-scope R/W/D +
+// project READ, NOT project write/delete) but is NOT enforced at the wire
+// (ship-artifacts/src/wire.rs). Tracked for a dedicated artifacts authz pass.
 service ArtifactsService {
   rpc List(ListArtifactsRequest) returns (ArtifactsListResponse) {
     option (ship.ops.v1.description) = "Artifact metadata records, filterable by scope/mime/collection/item/owner.";

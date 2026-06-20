@@ -243,3 +243,17 @@ fn worker_can_read_project_artifacts_but_not_write() {
     assert!(!Scope::WriteArtifactsProject.is_granted_by(&scopes));
     assert!(!Scope::DeleteArtifactsProject.is_granted_by(&scopes));
 }
+
+// SHORTCOMING — the grant model above is correct, but NOTHING enforces it at the artifact write
+// wire (ship-artifacts/src/wire.rs patch/promote/delete never check caller scopes vs the target
+// scope), so an agent can currently mutate/promote PROJECT-scoped artifacts. This #[ignore]'d test
+// pins the intent and fails-until-implemented; the dedicated artifacts authz pass must wire a
+// per-scope check, replace the panic with a wire-level denial assertion, and remove #[ignore].
+#[test]
+#[ignore = "enforcement not wired — dedicated artifacts authz pass"]
+fn agent_is_denied_project_scoped_artifact_write() {
+    let agent = scopes_for_role(Some("worker"));
+    assert!(!Scope::WriteArtifactsProject.is_granted_by(&agent), "agents must not be granted project write");
+    assert!(!Scope::DeleteArtifactsProject.is_granted_by(&agent), "agents must not be granted project delete");
+    panic!("artifacts authz: the write wire does not enforce the above — agent project-artifact writes are NOT denied today");
+}
