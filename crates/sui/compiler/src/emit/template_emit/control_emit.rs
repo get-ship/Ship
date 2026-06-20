@@ -516,8 +516,14 @@ impl TemplateEmitter {
         self.hydrate_calls.line(
             "  if (__t.nodeType === 1 && __t.parentNode) __t.parentNode.replaceChild(__anchor, __t);",
         );
+        // `__anchor` is `Comment | Element` (the marker is an Element until the
+        // replace above swaps in a Comment); `__wireBoundary` takes a `Comment`.
+        // In the typed synthetic render, narrow with a cast — the marker is
+        // always an element boundary, so the Comment branch always wins at
+        // runtime. Production emits untyped JS, so no cast there.
+        let anchor_arg = if self.is_synthetic() { "__anchor as Comment" } else { "__anchor" };
         self.hydrate_calls.line(&format!(
-            "  __cleanups.push(__wireBoundary_{key}(__anchor));"
+            "  __cleanups.push(__wireBoundary_{key}({anchor_arg}));"
         ));
         self.hydrate_calls.line("}");
     }
@@ -597,8 +603,21 @@ impl TemplateEmitter {
 
         if self.is_view && self.boundary_depth == 0 {
             self.hydrate_uses_markers = true;
+            // The `{#while-error}` render binds its error as `Error` (so the
+            // author's `err.message` type-checks), matching `bindWhileError`.
+            // But `hydrateWhileError` types its render param `unknown`, so in
+            // the typed synthetic render the narrower `(err: Error)` fn is not
+            // directly assignable — cast it to the helper's own param type.
+            // Production emits untyped JS (no cast). This surfaces an upstream
+            // runtime-types inconsistency between the bind/hydrate while-error
+            // helpers (see the slice-1 assessment notes).
+            let render_arg = if self.is_synthetic() {
+                format!("({render_key} as unknown as Parameters<typeof hydrateWhileError>[3])")
+            } else {
+                render_key.clone()
+            };
             self.hydrate_calls.line(&format!(
-                "if (__m[{k}]) __cleanups.push(hydrateWhileError(__m[{k}], {k}, () => $scope.{bind}(), {render_key}));",
+                "if (__m[{k}]) __cleanups.push(hydrateWhileError(__m[{k}], {k}, () => $scope.{bind}(), {render_arg}));",
                 k = js_string(&key),
             ));
         }

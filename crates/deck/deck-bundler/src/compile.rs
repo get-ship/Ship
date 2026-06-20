@@ -9,6 +9,8 @@
 
 use std::path::{Path, PathBuf};
 
+use sui_compiler::emit::synthetic::{emit_synthetic_client_module, AppManifest, AuthoredController};
+use sui_compiler::parse::parse;
 use sui_compiler::{compile, CompileMode as SuiMode, CompileOpts, ComponentMeta};
 
 /// A `.sui` compiles as a custom-element (`component`) or a view. Component mode
@@ -40,6 +42,17 @@ pub fn compile_sui(
     stem: &str,
     emit_component_imports: bool,
 ) -> Result<String, CompileError> {
+    // Gated, scoped synthetic CLIENT emit (slice 1). When `SUI_CLIENT_EMIT=
+    // synthetic` AND this is a VIEW with an `app.manifest.jsonc` above it, emit
+    // the synthetic client contract (`default.setup` → `__mount` + `hydrate`)
+    // instead of the production module. Default OFF and scoped to manifested
+    // views, so every other target — and the flag-off case — is byte-for-byte
+    // the production emit below.
+    if mode == CompileMode::View && synthetic_client_enabled() {
+        if let Some(js) = try_synthetic_client(sui_file)? {
+            return Ok(js);
+        }
+    }
     let source = std::fs::read_to_string(sui_file)
         .map_err(|e| CompileError::Read(sui_file.to_path_buf(), e))?;
     let opts = CompileOpts {
@@ -77,6 +90,60 @@ fn paired_controller(sui_file: &Path, stem: &str) -> Option<String> {
     parent.join(&filename).exists().then(|| format!("./{filename}"))
 }
 
+/// The gate for the synthetic CLIENT emit. Default OFF — the bundler emits the
+/// production module. ON only when `SUI_CLIENT_EMIT=synthetic`, and even then
+/// only for views that opt in by having an `app.manifest.jsonc` above them
+/// (see [`try_synthetic_client`]). This is the slice-1 proof seam: additive,
+/// scoped, never a global default flip.
+pub fn synthetic_client_enabled() -> bool {
+    std::env::var("SUI_CLIENT_EMIT").map(|v| v == "synthetic").unwrap_or(false)
+}
+
+/// Emit the synthetic CLIENT module for `sui_file` when it opts into the
+/// synthetic path: an `app.manifest.jsonc` exists at or above its directory.
+/// Returns `Ok(None)` (→ production emit) when no manifest is found, so a
+/// non-manifested view is untouched even with the flag set. The merged module
+/// composes a sibling `controller.ts` (absolute path so Rolldown resolves it)
+/// and resolves the manifest's free names as real ESM imports.
+fn try_synthetic_client(sui_file: &Path) -> Result<Option<String>, CompileError> {
+    let Some(manifest_path) = find_app_manifest(sui_file) else {
+        return Ok(None);
+    };
+    let source = std::fs::read_to_string(sui_file)
+        .map_err(|e| CompileError::Read(sui_file.to_path_buf(), e))?;
+    let manifest_src = std::fs::read_to_string(&manifest_path)
+        .map_err(|e| CompileError::Read(manifest_path.clone(), e))?;
+    let program = parse(&source).map_err(|e| CompileError::Compile(e.render(&source)))?;
+    let manifest =
+        AppManifest::parse(&manifest_src).map_err(|e| CompileError::Compile(e.render(&manifest_src)))?;
+    let authored = sibling_controller_abs(sui_file)
+        .map(|specifier| AuthoredController { specifier });
+    let js = emit_synthetic_client_module(&program, &manifest, authored.as_ref(), SuiMode::View)
+        .map_err(|e| CompileError::Compile(e.render(&source)))?;
+    Ok(Some(js))
+}
+
+/// Walk up from `sui_file`'s directory to the nearest `app.manifest.jsonc`.
+fn find_app_manifest(sui_file: &Path) -> Option<PathBuf> {
+    let mut dir = sui_file.parent();
+    while let Some(d) = dir {
+        let candidate = d.join("app.manifest.jsonc");
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+        dir = d.parent();
+    }
+    None
+}
+
+/// The sibling authored controller next to a `page.sui`, as an absolute path
+/// string — the synthetic controller imports it directly so Rolldown resolves
+/// it to the on-disk `.ts`.
+fn sibling_controller_abs(sui_file: &Path) -> Option<String> {
+    let c = sui_file.parent()?.join("controller.ts");
+    c.is_file().then(|| c.to_string_lossy().into_owned())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,5 +176,49 @@ mod tests {
         assert!(on.contains("@sui-tag/sui-table"), "flag emits the registration import");
         let off = compile_sui(&sui, CompileMode::View, "page", false).expect("compiles");
         assert!(!off.contains("@sui-tag/"), "off: no component imports");
+    }
+
+    /// The synthetic gate is OFF by default and ON only for manifested views.
+    /// Serialized via the env var; restore it so sibling tests are unaffected.
+    #[test]
+    fn synthetic_gate_is_scoped_and_additive() {
+        let src = tempdir().unwrap();
+        let dir = src.path();
+        std::fs::write(dir.join("page.sui"), "<h1>{route.params.id()}</h1>\n").unwrap();
+        let sui = dir.join("page.sui");
+
+        // Flag OFF (default): production emit regardless of manifest presence.
+        let prev = std::env::var("SUI_CLIENT_EMIT").ok();
+        unsafe { std::env::remove_var("SUI_CLIENT_EMIT") };
+        let off = compile_sui(&sui, CompileMode::View, "page", false).expect("compiles");
+        assert!(
+            off.contains("view((ctx)") && !off.contains("export default view(() =>"),
+            "flag-off must be the production emit:\n{off}"
+        );
+
+        // Flag ON but NO manifest above → still production (scoped opt-in).
+        unsafe { std::env::set_var("SUI_CLIENT_EMIT", "synthetic") };
+        let on_no_manifest = compile_sui(&sui, CompileMode::View, "page", false).expect("compiles");
+        assert!(
+            on_no_manifest.contains("view((ctx)"),
+            "flag-on without a manifest stays production:\n{on_no_manifest}"
+        );
+
+        // Flag ON + an app manifest above → synthetic client contract.
+        std::fs::write(
+            dir.join("app.manifest.jsonc"),
+            r#"{ "clients": { "route": { "from": "@ship/deck/route", "import": "route", "construct": true } } }"#,
+        )
+        .unwrap();
+        let on = compile_sui(&sui, CompileMode::View, "page", false).expect("compiles");
+        assert!(
+            on.contains("export default view(() =>") && on.contains("__mount(container"),
+            "flag-on + manifest emits the synthetic client contract:\n{on}"
+        );
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var("SUI_CLIENT_EMIT", v) },
+            None => unsafe { std::env::remove_var("SUI_CLIENT_EMIT") },
+        }
     }
 }

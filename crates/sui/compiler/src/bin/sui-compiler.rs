@@ -198,6 +198,7 @@ fn synthesize(
     let authored = sibling_controller(&input, &out_dir, raw_stem);
     let controller_name = format!("{stem}.synthetic.controller.ts");
     let render_name = format!("{stem}.render.ts");
+    let client_name = format!("{stem}.client.ts");
 
     let out = emit_synthetic(
         &program,
@@ -212,16 +213,20 @@ fn synthesize(
         .with_context(|| format!("create out dir {}", out_dir.display()))?;
     let controller_path = out_dir.join(&controller_name);
     let render_path = out_dir.join(&render_name);
+    let client_path = out_dir.join(&client_name);
     fs::write(&controller_path, &out.controller_ts)
         .with_context(|| format!("write {}", controller_path.display()))?;
     fs::write(&render_path, &out.render_ts)
         .with_context(|| format!("write {}", render_path.display()))?;
+    fs::write(&client_path, &out.render_client_ts)
+        .with_context(|| format!("write {}", client_path.display()))?;
     println!(
-        "synthesized {} ({:?}) → {}, {} (clients: {}{})",
+        "synthesized {} ({:?}) → {}, {}, {} (clients: {}{})",
         input.display(),
         mode,
         controller_path.display(),
         render_path.display(),
+        client_path.display(),
         if out.used_clients.is_empty() { "none".to_string() } else { out.used_clients.join(", ") },
         if authored.is_some() { "; composed authored controller.ts" } else { "" },
     );

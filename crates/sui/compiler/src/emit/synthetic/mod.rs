@@ -23,8 +23,11 @@
 //! manifest names it. This path is additive: the ambient/`BUILTINS` path
 //! and the Rust render-eval are untouched.
 
+mod merge;
 pub mod render;
 mod scan;
+
+pub use merge::emit_synthetic_client_module;
 
 use std::collections::BTreeMap;
 
@@ -89,13 +92,19 @@ fn strip_line_comments(src: &str) -> String {
         .join("\n")
 }
 
-/// The two emitted artifacts plus the manifest clients actually used.
+/// The emitted artifacts plus the manifest clients actually used.
 #[derive(Debug, Clone)]
 pub struct SyntheticOutput {
     /// The synthetic controller module (logic/data half).
     pub controller_ts: String,
-    /// The render module (markup half), importing the controller's `scope`.
+    /// The SSR render module (markup half, mount-only), importing the
+    /// controller's `scope`. This is what ship-js SSR runs.
     pub render_ts: String,
+    /// The CLIENT render module: `export default view(() => …)` whose setup
+    /// returns the `__mount` + `hydrate` contract `mount.ts` drives. Same
+    /// mount body as `render_ts`, plus the production hydrate buffers. Empty
+    /// of nothing — always emitted (additive; the SSR path ignores it).
+    pub render_client_ts: String,
     /// Manifest clients the template referenced (the subset imported).
     pub used_clients: Vec<String>,
 }
@@ -135,10 +144,11 @@ pub fn emit_synthetic(
 
     let controller_ts = emit_controller(program, manifest, &used, authored, mode)?;
     let render_ts = render::emit_render(program, controller_specifier, mode)?;
-    Ok(SyntheticOutput { controller_ts, render_ts, used_clients: used })
+    let render_client_ts = render::emit_render_client(program, controller_specifier, mode)?;
+    Ok(SyntheticOutput { controller_ts, render_ts, render_client_ts, used_clients: used })
 }
 
-fn emit_controller(
+pub(super) fn emit_controller(
     program: &Program,
     manifest: &AppManifest,
     used: &[String],

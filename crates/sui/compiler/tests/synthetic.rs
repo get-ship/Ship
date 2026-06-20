@@ -6,7 +6,9 @@
 //! lives alongside the deck-conformance app; these lock the *shape* the
 //! TS proof depends on, and run in plain `cargo test` (no node toolchain).
 
-use sui_compiler::emit::synthetic::{emit_synthetic, AppManifest, AuthoredController};
+use sui_compiler::emit::synthetic::{
+    emit_synthetic, emit_synthetic_client_module, AppManifest, AuthoredController,
+};
 use sui_compiler::parse::parse;
 use sui_compiler::CompileMode;
 
@@ -227,6 +229,77 @@ fn async_let_is_rejected_until_phase_2() {
     let err = emit_synthetic(&program, &manifest, None, "./c.ts", CompileMode::View)
         .expect_err("{#async} must be rejected");
     assert!(format!("{err:?}").contains("async"), "error names async: {err:?}");
+}
+
+#[test]
+fn client_emit_returns_mount_and_hydrate_contract() {
+    // The CLIENT half: `default.setup(ctx)` returns `__mount` (CSR build) +
+    // `hydrate` (adopt SSR markers) — the contract mount.ts drives. Same
+    // mount body as the SSR render, plus the production hydrate buffers.
+    let program = parse("<h1>Hello, {route.params.id()}</h1>").expect("parse");
+    let manifest = AppManifest::parse(ROUTE_MANIFEST).expect("manifest");
+    let out = emit_synthetic(
+        &program,
+        &manifest,
+        None,
+        "./page.synthetic.controller.ts",
+        CompileMode::View,
+    )
+    .expect("emit");
+    let client = out.render_client_ts;
+    // The browser contract: wrapped in `view()`, default-exported.
+    assert!(client.contains("export default view(() => {"), "client wraps in view():\n{client}");
+    assert!(client.contains("__mount(container: HTMLElement) {"), "client has __mount:\n{client}");
+    assert!(client.contains("hydrate(root: HTMLElement) {"), "client has hydrate:\n{client}");
+    // It imports `view` from the runtime and the text hydrate helpers from
+    // @ship/sui-dom (the production split).
+    assert!(client.contains("from \"@ship/sui-dom\""), "imports hydrate helpers from sui-dom:\n{client}");
+    assert!(client.contains("collectTextOpens") && client.contains("hydrateText"), "text hydrate:\n{client}");
+    // __mount still reads the typed scope (the CSR path), exactly like SSR.
+    assert!(client.contains("scope.route.params.id()"), "typed scope read in __mount:\n{client}");
+    // The SSR render stays the bare `mount` export (unchanged contract).
+    assert!(
+        out.render_ts.contains("export function mount(container: HTMLElement)")
+            && !out.render_ts.contains("export default view"),
+        "SSR render keeps its mount-only export:\n{}",
+        out.render_ts
+    );
+}
+
+#[test]
+fn merged_client_module_is_self_contained() {
+    // The bundler-facing single module: controller + client render fused.
+    // The cross-module `import { scope }` is dropped (scope is now local),
+    // and the two import blocks merge without duplicate bindings.
+    let src = r#"<data name="list" source="ship.demo.todos()" live />
+<ul>{#for item of list().value.items key={item.id}}<li>{item.text}</li>{/for}</ul>"#;
+    let program = parse(src).expect("parse");
+    let manifest = AppManifest::parse(SHIP_MANIFEST).expect("manifest");
+    let merged = emit_synthetic_client_module(&program, &manifest, None, CompileMode::View)
+        .expect("merged client module");
+
+    // No cross-module scope import survives the merge.
+    assert!(
+        !merged.contains("import { scope } from"),
+        "merged module must not import scope across a boundary:\n{merged}"
+    );
+    // The controller's `scope` const is present as a local (its export line).
+    assert!(merged.contains("export const scope = { ship, list };"), "scope is local:\n{merged}");
+    // The client default export is present.
+    assert!(merged.contains("export default view(() => {"), "client default export present:\n{merged}");
+    // The live-data lowering (controller) and the for-binder (render) coexist.
+    assert!(merged.contains("const list = live(() => (ship.demo.todos()));"), "controller body:\n{merged}");
+    assert!(merged.contains("bindFor("), "render body:\n{merged}");
+    // Exactly one value import per module specifier (names unioned, not
+    // duplicated) — count `from "@ship/sui-runtime"` value-import lines.
+    let runtime_value_imports = merged
+        .lines()
+        .filter(|l| l.starts_with("import {") && l.contains("from \"@ship/sui-runtime\""))
+        .count();
+    assert_eq!(
+        runtime_value_imports, 1,
+        "value imports from @ship/sui-runtime must be merged to one line:\n{merged}"
+    );
 }
 
 #[test]
