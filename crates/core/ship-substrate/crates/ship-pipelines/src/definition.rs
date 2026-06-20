@@ -135,6 +135,10 @@ pub struct PipelineStepDef {
     pub fanout: Option<FanoutSpec>,
     /// Per-step spec body. Replaces the positional `step_specs` Vec — the
     /// orchestrator writes this into `.artifacts/pipeline/NN-<id>.md` at launch.
+    // DEFERRED SEAM — keep (P0.2 typed authoring contract; the legacy
+    // positional `step_specs` Vec on `PipelineMeta` will be retired when
+    // the orchestrator's parse path is repointed onto `PipelineDefinition`.
+    // Do not remove until that cutover lands.)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spec: Option<String>,
     /// Execution override (provider / model / harness / invocation), flattened

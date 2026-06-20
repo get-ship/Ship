@@ -75,6 +75,13 @@ pub struct HarnessDescriptor {
     pub skills_output: SkillsOutput,
 }
 
+// DEFERRED SEAM — keep narrow (Open Call #3: the hardcoded `HARNESSES` slice
+// here is intentionally narrower than the runtime harness REGISTRY. The slice
+// covers the harnesses the agent-def migration paths know about; the wider
+// registry (in ship-harnesses) is the source of truth at runtime. The const
+// MUST stay narrow until the migration paths are taught to consult the
+// registry instead. Do not expand (adds a second source of truth) and do not
+// remove/cut (breaks the agent-def projection) — wait for a decision.)
 pub const HARNESSES: &[HarnessDescriptor] = &[
     HarnessDescriptor {
         id: "claude",

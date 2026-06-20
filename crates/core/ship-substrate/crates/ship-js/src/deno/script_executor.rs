@@ -6,7 +6,6 @@
 //! caller sends a job over a channel and awaits a `Send` result. The returned
 //! future holds only channel ends (Send-clean); all V8 work stays on the one VM
 //! thread.
-//!
 //! Concurrency model: jobs run **one at a time** on the VM thread — each
 //! `run_module` is awaited to completion before the next job starts. This is
 //! deliberate: a V8 isolate is thread-bound AND not safely re-entrant across
@@ -14,6 +13,10 @@
 //! agents per process is therefore a *pool* of these threads (one isolate live
 //! per thread at a time), not many isolates multiplexed on one thread. The pool
 //! is a Phase-D concern; this is one sequential VM thread.
+// DEFERRED SEAM — keep single-threaded (Phase-D pool: this executor is one
+// current-thread VM; many concurrent agents is a *pool* of these, not
+// multiple isolates multiplexed on one thread. Do not change the
+// single-threaded shape without landing the pool.)
 //!
 //! Auth-agnostic: each job carries its own [`Dispatch`], which is where the
 //! host has captured whatever credential/gate it wants. The executor itself sees

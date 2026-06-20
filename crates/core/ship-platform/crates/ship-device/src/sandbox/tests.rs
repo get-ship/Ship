@@ -183,10 +183,12 @@ fn reap_candidates_skips_running_and_per_run() {
     reg.mark_running(&id_running, RuntimeEndpoint::InProcess).unwrap();
     reg.mark_running(&id_per_run, RuntimeEndpoint::InProcess).unwrap();
     reg.add_actor(&id_running, "actor-1").unwrap();
-
     // PerRun sandbox is Running with no actors; it should NOT be in
-    // reap_candidates (per-run is reaped explicitly by the run's
-    // lifecycle owner, not by the idle reaper).
+    // reap_candidates. Today: `is_ready_to_reap` only returns true for
+    // `SandboxLifetime::Idle`, so PerRun is excluded by construction —
+    // there is no run-finished reaper wired yet (see the seam-doc comment
+    // on `SandboxLifetime::PerRun`). When that reaper lands, it will
+    // tear down the sandbox via `mark_stopped`, not via this sweep.
     let now = Utc::now();
     let candidates = reg.reap_candidates(now + ChronoDuration::seconds(3600));
     assert!(!candidates.contains(&id_running), "Running sandbox should not be reaped");

@@ -1,63 +1,34 @@
-# Theme-B Wave 2 + Settings-S4 + B1 — ORCHESTRATOR (omp + subagents)
+# Theme C/D surface-cleaning — ORCHESTRATOR (omp): seam-doc · D3 · D2 · D12
 
-Orchestrator: 5 work-items. Fan subagents, commit per item, build+regen green, NEVER push.
-Verify-then-act (locate by symbol — lines drift); re-verify each, skip+report if it doesn't hold.
+DISPATCH after batch-1 merges (one omp job at a time). Orchestrator: commit per item, build green,
+NEVER push. Verify-then-act (locate by symbol — lines drift); skip+report if a finding doesn't hold.
+Stay OUT of view/deck/sui/reactive crates (live worktrees).
 
-COORDINATION — serialize these (do NOT parallel-edit the same file):
-- EVENT REGISTRY: B2, B14, S4 all remove event registrations (kernel.actor.*, mailbox_full,
-  space.setting.changed). Their edits to payload_registry / event_types / event_registrations /
-  payload modules + xtask fixtures MUST be serialized.
-- PROTO + REGEN: B12 and S4 both edit protos (ui.proto, space.proto) and need an SDK/contract/
-  fixture regen. Do ALL proto edits first, then ONE regen pass (gen_contract, gen_fixtures, SDK
-  proto:generate), committed separately.
-- Do S4 BEFORE B1 (B1 reads the unified settings_overlay S4 makes canonical for SPACE).
+## 1. Theme-C seam-documentation pass (NO CUTS — comments only)
+For each ratified-but-unbuilt seam, add a clear `// DEFERRED SEAM — keep (<why>)` comment so future
+clearing passes don't mistake it for dead code, and fix any stale/misleading comment. Do NOT remove
+or change behavior.
+- `durable-execution` `load_all_incomplete` (store.rs:53) — floki Stage-3 resume seam.
+- `ship-substrate/crates/ship-pipelines` `PipelineStepDef::spec` (definition.rs:23) — P0.2 spec seam; note positional `step_specs` retires later.
+- `ship-device` `SandboxLifetime::PerRun` (types.rs:54) — no reaper yet; fix the misleading `tests.rs:188` comment.
+- `agent-def` harness const vs registry (harnesses.rs:92 — HARNESSES(2) vs REGISTRY(5), "Open Call #3") — add a note that the const is intentionally narrow pending a decision (do NOT expand/cut).
+- `ship-js` single VM thread (script_executor.rs:14) — Phase-D pool seam.
 
-## B2 — CUT actor snapshot/restore (dead + corrupting)
-ship-substrate: remove `KernelRouter::snapshot/suspend/restore` (events/kernel_lifecycle.rs) — KEEP
-`handle_actor_crash`. Remove `ActorSnapshot` + `event_stats` (persistence/snapshot.rs). Delete
-snapshot_tests.rs + snapshot_edge_tests.rs. Remove the orphaned `kernel.actor.snapshot/suspended/
-restored` event types + `KernelActorSnapshot/Suspended/Restored` payloads (payload_registry.rs +
-ship-types payload/kernel.rs) + the xtask fixture. (Registered Stable — update the registry.)
+## 2. D3 — remove dead L0 aggregate
+`durable-execution/src/engine.rs:362` `AggregateDecision`/`aggregate` are re-exported but never
+called; the canonical fanout aggregation is L1 `ship_pipelines::fanout`. Remove the dead L0 copy.
+Fix the `parallel` docstring link first if it points at the removed item.
 
-## B12 — REMOVE dead UI session writes
-proto/ship/ops/v1/ui.proto: remove PatchSession/AppendSession/SignalSession RPCs +
-ViewPatchReq/ViewAppendReq/ViewSignalReq messages. apps/shipd/src/rpc/ops/ui_wire.rs: remove the 3
-no-op closures. apps/shipd/src/rpc/ops/tests.rs: remove their contract-presence tests (~195-197,
-~267-269). (Regen in the proto pass.)
+## 3. D2 — remove dead kernel bypass routes
+`ship-kernel/src/router.rs:168` `send_to_actor`/`mailbox_sender` are bypass-the-route-pipeline
+methods with zero callers. Remove them. LEAVE the inner `with_validator` layer alone (that's a
+flagged triage, not this batch).
 
-## B14 — CONTAIN mailbox_full event
-ship-kernel: remove the `mailbox_full` Stable event registration + const (lib.rs ~:36) — no emitter
-(backpressure is fast-follow). Drop it from the event registry.
-
-## S4 — collapse the SPACE settings tier onto the unified overlay
-SPACE settings must live ONLY in `settings_overlay` (the unified SettingsService store):
-- space.proto: remove `SetSetting` RPC + `SpaceSettingValue` + `SetSpaceSettingReq` +
-  `SpaceInfo.settings_json`.
-- Delete ship-space/src/config.rs (legacy `space_overlay` writer/reader) + ship-config/src/
-  projection.rs (SpaceSettingsProjection) + its `space_settings` migration .sql.
-- Repoint the effective-settings reader (ship-space info::compose / apps/shipd/src/rpc/space.rs) to
-  read `settings_overlay` via `ship_config::overlay` instead of `space_overlay`.
-- Drop the legacy `space.setting.changed` event; the unified `settings.changed` (SettingsService.
-  Watch) is THE surface. Repoint SpaceWire.Watch(space) prefix `space.setting.` → `settings.changed`.
-- Trim registration/export sites (ship-platform lib.rs, ship-space lib.rs, event_registrations,
-  event_types, payload, integrity.rs).
-- DATA: add a same-db per-space.db copy migration `INSERT OR REPLACE INTO settings_overlay
-  SELECT ... FROM space_overlay` so existing overrides survive; OR skip if you confirm space_overlay
-  is empty (pre-launch likely zero rows) — note which you did.
-- Tests: port/delete ship-space/tests/behavior.rs (config::set / info-overlay / "exactly one
-  space.setting.changed") + ship-config projection in-file tests. Keep the green ship-config/tests/
-  behavior.rs (unified path).
-
-## B1 — wire the search opt-out onto the unified overlay (first real consumer)
-apps/shipd/src/rpc/search.rs: rewrite `opted_out_spaces` to read the unified overlay per candidate
-space — for each candidate's space_store, `ship_config::overlay::get(&*store, "search.global").await
-.and_then(|v| v.as_bool()).unwrap_or(true)` (unset = included; only explicit `false` opts out).
-Remove the dead SpaceService.info / Value::Null / space_overlay path. The fan-out gate
-`run_global(..., |id| !opted_out.contains(id))` already exists + is tested — don't touch it. Keep the
-key name `search.global`.
+## 4. D12 — relocate agent-schema helpers out of the fs crate
+`ship-files/src/jsonc.rs:18` holds agent-schema jsonc helpers in the wrong crate. Move them to
+`ship-agents` (or the agent-def crate if that's the true owner — pick by who consumes them); update
+imports. Pure relocation, no behavior change.
 
 ## Acceptance
-One commit per item + one regen commit. Proto regen clean (no drift). `cargo check --workspace
---exclude ship-host --features unstable` green; affected tests pass (ship-substrate, ship-kernel,
-ship-types, ship-config, ship-space, ship-search, shipd, xtask). The ship-search global-opt-out test
-passes with the new reader. NO push.
+One commit per item (seam-doc = one commit). `cargo check --workspace --exclude ship-host --features
+unstable` green; affected tests pass. NO push.

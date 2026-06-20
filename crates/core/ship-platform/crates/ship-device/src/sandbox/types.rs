@@ -51,6 +51,12 @@ pub enum SandboxLifetime {
     /// Idle reap after the timeout (expressed as seconds for
     /// serde simplicity; humans configure as minutes in settings).
     Idle { timeout_secs: u64 },
+    // DEFERRED SEAM — keep (PerRun reaper is not wired yet. The idle-reap
+    // sweep already excludes PerRun (see `is_ready_to_reap`), so a PerRun
+    // sandbox currently lives until `mark_stopped` is called by hand. The
+    // intended lifecycle is: the run's owner (pipeline / agent turn) tears
+    // down the sandbox when the run finishes; that wiring is a future
+    // change. Do not remove the variant without landing the reaper.)
     PerRun,
     Manual,
 }

@@ -50,6 +50,10 @@ pub trait JournalStore: Send + Sync {
     /// Every persisted run whose journal is parked on a suspend — the startup
     /// recovery sweep (pipeline C9, floki Stage-3 boot-scan). Returns
     /// `(run_id, journal)` pairs; completed runs are excluded.
+    // DEFERRED SEAM — keep (floki Stage-3 boot-scan: the startup recovery
+    // sweep that rehydrates parked runs after a daemon restart. No call site
+    // wires the boot-scan today; the trait method is the seam the next
+    // stage plugs into. Do not remove without landing the Stage-3 call site.)
     async fn load_all_incomplete(&self) -> Result<Vec<(String, Journal)>, JournalStoreError>;
 }
 
