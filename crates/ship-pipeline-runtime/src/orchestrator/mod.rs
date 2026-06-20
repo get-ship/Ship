@@ -17,7 +17,15 @@
 // dedup/exit_handler/router/observe/spawn_env moved to L1 ship_code::runner.
 // Re-exported at the historic `orchestrator::{dedup, emit, exit_handler}` paths
 // so the L1 policy below and shipd resolve them unchanged.
+//
+// All three re-exports are gated by `ship-code`: `dedup` / `exit_handler` pull
+// from ship-code, and `emit` is kept alongside them so the harness-free build
+// (`cargo check -p shipd --no-default-features`) doesn't have to drag ship-code
+// in just for the re-export surface. The L0 `ship_runner::emit` module itself
+// stays compiled by the runtime crate; only the historical re-export is gated.
+#[cfg(feature = "ship-code")]
 pub use ship_runner::emit;
+#[cfg(feature = "ship-code")]
 pub use ship_code::runner::{dedup, exit_handler};
 pub mod coordinator;
 pub mod coordinator_programs;
@@ -27,16 +35,13 @@ pub mod fanout_aggregate;
 pub mod fanout_cancel;
 pub mod fanout_driver;
 pub mod fanout_recover;
-pub mod git_helpers;
 pub mod review_retry;
 pub mod gate_rules;
 pub mod handlers;
 pub mod pipeline;
-pub mod pipeline_loader;
-#[cfg(test)]
-mod pipeline_loader_tests;
-pub mod pending;
 pub mod pipeline_specs;
+#[cfg(test)]
+mod pipeline_specs_tests;
 pub mod projection_reader;
 pub mod prompt_composer;
 pub mod replay;
@@ -47,6 +52,14 @@ pub mod step_executor;
 pub mod step_io;
 pub mod step_monitor;
 pub mod sweep;
+
+// `pending` imports the ship-code-bound `dispatch_pipeline_run_internal`
+// (orchestrator runtime path) so it must be gated alongside the rest of the
+// orchestrator. The dispatch entry path stays on `crate::run_core::dispatch_one`
+// → `crate::loader::pipeline_loader::ensure_pipeline`; `pending` is the queue
+// sweeper that fires `dispatch_pipeline_run_internal` after job.completed.
+#[cfg(feature = "ship-code")]
+pub mod pending;
 
 pub mod dispatch;
 

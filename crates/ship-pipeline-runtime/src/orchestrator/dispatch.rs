@@ -29,7 +29,7 @@ use super::emit::{
     emit_pipeline_run_dispatched, emit_pipeline_run_dispatched_with_meta, emit_pipeline_run_failed, emit_process_spawned,
     emit_spawn_failed, persist_and_route,
 };
-use super::pipeline_loader::ensure_pipeline;
+use crate::loader::pipeline_loader::ensure_pipeline;
 use super::step_monitor::StepMonitor;
 use super::OrchestratorContext;
 

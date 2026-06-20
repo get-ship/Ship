@@ -385,7 +385,7 @@ async fn evaluate_step_gate(
     // pipeline run. Prefer the job-level baseline SHA captured at dispatch so
     // commits from earlier steps are visible; fall back to the gating step's
     // own start SHA for legacy events (pre-baseline_sha) that don't carry it.
-    let start_sha = super::git_helpers::gate_baseline_sha(
+    let start_sha = crate::loader::git_helpers::gate_baseline_sha(
         job.baseline_sha.as_deref(),
         payload.start_sha.as_deref(),
     );

@@ -3,6 +3,10 @@
 //! Small, stateless wrappers around `git` invocations used across the
 //! dispatch → step → gate chain. Kept as a single helper module so the
 //! semantics of "what SHA do we capture when" are defined in one place.
+//!
+//! Lives at `crate::loader::git_helpers` (not under `orchestrator`) so
+//! `run_core::resolve_project_head_sha` can capture a job baseline
+//! without the `ship-code` feature.
 
 /// Resolve HEAD SHA in a git directory. Returns `None` if git fails,
 /// the directory isn't a repo, or the output is empty.

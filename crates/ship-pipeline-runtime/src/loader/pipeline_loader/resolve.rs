@@ -119,7 +119,6 @@ fn parse_pipeline_name_from_frontmatter(content: &str) -> Option<String> {
 
 /// Resolve spec content for frontmatter parsing.
 /// Prefers the inline `spec_content` on the payload (authoritative, event-carried)
-
 fn spec_content_for_resolution(payload: &PipelineRunStartedPayload) -> String {
     if let Some(content) = &payload.spec_content {
         return content.clone();
@@ -143,5 +142,3 @@ fn read_spec_content(spec_path: &str) -> String {
     }
     String::new()
 }
-
-

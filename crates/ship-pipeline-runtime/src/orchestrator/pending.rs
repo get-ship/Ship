@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::dispatch::dispatch_pipeline_run_internal;
-use super::pipeline_loader::ensure_pipeline;
+use crate::loader::pipeline_loader::ensure_pipeline;
 use super::OrchestratorContext;
 
 /// Scan the job projection for pending jobs whose dependencies are all resolved.

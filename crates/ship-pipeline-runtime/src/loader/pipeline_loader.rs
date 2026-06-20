@@ -10,6 +10,11 @@
 //! frontmatter is YAML (markdown convention) and may carry a
 //! `pipeline: <name>` reference, but inline pipeline definitions in
 //! spec frontmatter are not supported.
+//!
+//! Lives at `crate::loader::pipeline_loader` (not under `orchestrator`)
+//! so `run_core::dispatch_one` can build the dispatch envelope without
+//! the `ship-code` feature. Pure spec validation; no process or session
+//! types are touched here.
 
 use ship_substrate::events::pipeline::{PipelineRunStartedPayload, Pipeline, PipelineStep};
 use ship_pipelines::{PipelineMeta, normalize_pipeline};
@@ -24,7 +29,7 @@ use resolve::resolve_steps;
 /// 4. None → single `Agent` step from `payload.agent`
 ///
 /// Returns `Err` if the resolved pipeline fails validation — currently, any
-/// agent/gate step without an `agent` declared.
+/// agent/gate step without an `agent` declared, or any malformed gate block.
 pub fn ensure_pipeline(mut payload: PipelineRunStartedPayload) -> Result<PipelineRunStartedPayload, String> {
     resolve_steps(&mut payload);
     interpolate_pipeline(&mut payload);
@@ -89,7 +94,6 @@ fn resolve_template(
 
 /// Reload the `step_specs` block for a named pipeline from disk. Used by
 /// `advance_pipeline` so every step dispatch (including replay) can re-write
-
 pub fn load_step_specs_by_name(name: &str) -> Option<Vec<String>> {
     let (_, meta) = load_pipeline_file(name).ok()??;
     meta.step_specs
@@ -107,7 +111,7 @@ pub fn load_step_specs_by_name(name: &str) -> Option<Vec<String>> {
 ///
 /// Supports both old format (explicit id/type/agent) and new format (agents list,
 /// simplified steps).
-pub(crate) fn load_pipeline_file(name: &str) -> Result<Option<(Pipeline, PipelineMeta)>, String> {
+pub fn load_pipeline_file(name: &str) -> Result<Option<(Pipeline, PipelineMeta)>, String> {
     let mut dir = std::env::current_dir().map_err(|e| format!("cwd lookup failed: {e}"))?;
     loop {
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(&dir);
@@ -137,7 +141,7 @@ pub(crate) fn load_pipeline_file(name: &str) -> Result<Option<(Pipeline, Pipelin
 ///
 /// Returns a human-readable error string on any parse failure — the caller
 /// is responsible for prefixing the source path.
-pub(super) fn parse_pipeline_content(content: &str) -> Result<(Pipeline, PipelineMeta), String> {
+pub fn parse_pipeline_content(content: &str) -> Result<(Pipeline, PipelineMeta), String> {
     let (normalized, meta) = normalize_pipeline(content)
         .map_err(|e| format!("pipeline normalization failed: {e}"))?;
     let steps_val = normalized
@@ -147,7 +151,7 @@ pub(super) fn parse_pipeline_content(content: &str) -> Result<(Pipeline, Pipelin
         .map_err(|e| format!("failed to deserialize steps: {e}"))?;
     for step in &steps {
         if let Some(gate) = &step.gate
-            && let Err(e) = super::gate_rules::validate(gate)
+            && let Err(e) = ship_pipelines::gate::validate(gate)
         {
             return Err(format!("step '{}' has malformed gate block: {e}", step.id));
         }
@@ -157,8 +161,7 @@ pub(super) fn parse_pipeline_content(content: &str) -> Result<(Pipeline, Pipelin
 }
 
 /// Merge pipeline-level default vars into the job payload.
-
-pub(super) fn merge_meta_vars(payload: &mut PipelineRunStartedPayload, meta: &PipelineMeta) {
+pub fn merge_meta_vars(payload: &mut PipelineRunStartedPayload, meta: &PipelineMeta) {
     if let Some(pipeline_vars) = &meta.vars {
         let run_vars = payload.vars.get_or_insert_with(Default::default);
         for (k, v) in pipeline_vars {
@@ -171,4 +174,3 @@ pub(super) fn merge_meta_vars(payload: &mut PipelineRunStartedPayload, meta: &Pi
         payload.step_specs = Some(specs.clone());
     }
 }
-

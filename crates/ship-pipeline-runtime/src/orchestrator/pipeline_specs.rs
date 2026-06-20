@@ -108,7 +108,7 @@ pub fn prepare_step_for_dispatch(
     let step_specs = ctx
         .pipeline_name
         .as_deref()
-        .and_then(super::pipeline_loader::load_step_specs_by_name);
+        .and_then(crate::loader::pipeline_loader::load_step_specs_by_name);
     if let Err(e) = write_pipeline_specs(
         worktree_path, slug, pipeline, &ctx.user_spec_body, step_specs.as_deref(),
     ) {

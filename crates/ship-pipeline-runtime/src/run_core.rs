@@ -27,7 +27,7 @@ pub async fn dispatch_one(
     payload: PipelineRunStartedPayload,
     pipeline_run_id: &str,
 ) -> Result<DispatchOneOutcome, DispatchOneError> {
-    let payload = crate::orchestrator::pipeline_loader::ensure_pipeline(payload)
+    let payload = crate::loader::pipeline_loader::ensure_pipeline(payload)
         .map_err(DispatchOneError::BadRequest)?;
 
     let slug = payload.slug.clone();
@@ -224,7 +224,7 @@ fn locate_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
 fn resolve_project_head_sha() -> Option<String> {
     let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
-    crate::orchestrator::git_helpers::resolve_head_sha(project_root)
+    crate::loader::git_helpers::resolve_head_sha(project_root)
 }
 
 // ── end_turn_core ─────────────────────────────────────────────────────────────

@@ -9,19 +9,28 @@
 //!
 //! # Layout
 //!
-//! - [`pipelines`] — `PipelinesService` (CRUD over `<scope>/pipelines/*.jsonc`)
-//!   and the spec state core. Owns the file I/O via `ship_files::files::FilesService`.
+//! - [`loader`] — always-on helpers: pipeline spec loader (`ensure_pipeline` /
+//!   `load_pipeline_file`) and git baseline capture. The dispatch entry path
+//!   (`run_core::dispatch_one`) depends on these WITHOUT ship-code.
 //! - [`orchestrator`] — the run runtime: handlers, router, run_step,
-//!   review_retry, sweep, fanout, replay, dispatch, pipeline_loader,
-//!   pipeline_specs, step_io, step_monitor, projection_reader, spawn_policy,
-//!   prompt_composer, gate_rules, git_helpers, pipeline.
+//!   review_retry, sweep, fanout, replay, dispatch, pipeline_specs, step_io,
+//!   step_monitor, projection_reader, spawn_policy, prompt_composer,
+//!   gate_rules, pipeline. Gated behind the `ship-code` feature — the
+//!   orchestrator depends on process/session types from `ship-code`.
 //! - [`orchestrator::emit`] — re-export of the L0 `ship-runner` emit mechanism;
 //!   [`orchestrator::dedup`], [`orchestrator::exit_handler`] — re-exports of the
 //!   L1 `ship_code::runner` mechanism. Historic `services::orchestrator::*`
-//!   import paths keep working.
+//!   import paths keep working for consumers built with `ship-code` on.
 
 pub mod sweep_events;
 pub mod log_stream;
+// `loader` is the always-on submodule that hosts the pipeline spec loader
+// + git baseline helpers used by `run_core::dispatch_one`. The orchestrator
+// runtime (which depends on ship-code) is gated below; `run_core` and any
+// other harness-free consumer stays on `crate::loader::{pipeline_loader,
+// git_helpers}`.
+pub mod loader;
+#[cfg(feature = "ship-code")]
 pub mod orchestrator;
 pub mod pipeline_ports;
 pub mod pipelines;

@@ -132,7 +132,12 @@ specta = { workspace = true, features = ["chrono", "serde_json"], optional = tru
 default = ["ship-code"]
 # ship-code: harness-driver stack (dispatch, sessions, hooks, job routes).
 # Turn off with --no-default-features to get a harness-free shipd build.
-ship-code = ["dep:ship-code", "harness-drivers"]
+# Forwarded into ship-pipeline-runtime so the orchestrator (which depends on
+# ship-code) is gated out of the harness-free build; the dispatch entry path
+# (run_core::dispatch_one + loader::{pipeline_loader, git_helpers}) stays
+# compiled without ship-code so the pipeline envelope can still be built and
+# persisted.
+ship-code = ["dep:ship-code", "harness-drivers", "ship-pipeline-runtime/ship-code"]
 # harness-drivers: propagate down to ship-agents and ship-platform so their
 # cfg gates align with shipd's ship-code gate. When ship-code is ON, both
 # ship-agents and ship-platform get harness-drivers. With --no-default-features

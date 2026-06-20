@@ -7,7 +7,7 @@ use ship_substrate::events::pipeline::{
     FanoutJudge, FanoutLane, FanoutSpec, Pipeline, PipelineStep, StepOutput, StepType,
     OutputScope,
 };
-use crate::orchestrator::pipeline_loader::ensure_pipeline;
+use crate::loader::pipeline_loader::ensure_pipeline;
 use crate::orchestrator::step_io::parse_lane_scoped_ref;
 
 // ── helpers ──────────────────────────────────────────────────────────────────

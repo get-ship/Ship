@@ -13,7 +13,7 @@
 
 use std::sync::Mutex;
 
-use crate::orchestrator::pipeline_loader::load_pipeline_file;
+use crate::loader::pipeline_loader::load_pipeline_file;
 
 /// CWD is a process-global resource. Hold this while chdir'd or parallel
 /// tests will stomp on each other's cwd.
