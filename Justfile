@@ -196,6 +196,7 @@ gate:
 lint:
     cargo clippy --workspace --exclude ship-host --features unstable -- -D warnings
     @just check-raw
+    @just lint-anti-theater
 
 # Visual QA against the daemon serving cwd. Discovers port automatically.
 [group('daily')]
@@ -300,6 +301,11 @@ coverage:
 [group('occasional')]
 lint-imports:
     cargo run -p xtask --quiet -- lint-imports
+
+# Ban source-grep-in-tests (R18): tests must prove behavior, not assert on .rs text.
+[group('occasional')]
+lint-anti-theater:
+    cargo run -p xtask --quiet -- lint-anti-theater
 
 # Build docs site (Astro static).
 [group('occasional')]

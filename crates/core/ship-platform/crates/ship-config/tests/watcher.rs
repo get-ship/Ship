@@ -173,36 +173,56 @@ async fn file_changed_deleted_marker_has_empty_hash() {
 
 // ── Watcher domain-freedom (job/transient-events) ──────────────────────────────
 //
-// The watcher module owns the file-tier signal path; it must NOT name any
-// agent-domain types or the durable `agent.def.updated` event type. The
-// agent-def domain owns those. We assert this structurally by reading the
-// watcher source and grepping for the agent-only tokens. A change that
-// re-introduces an agent-import in the watcher fails this test.
+// The watcher owns the file-tier signal path: it authors only TRANSIENT pings
+// (`agent.changed`, `config.file_changed`). It must NEVER author the DURABLE
+// `agent.def.updated` event — the agent-def domain owns that. We prove this
+// BEHAVIORALLY (R18: no source-grep): drive every authoring entry point and
+// assert the durable type is neither broadcast nor persisted.
 
-/// Watcher must not import `AgentDefUpdated` — the durable payload type
-/// is the agent-def domain's, not the watcher's.
-#[test]
-fn watcher_does_not_import_agent_def_updated_payload() {
-    let src = include_str!("../src/watcher.rs");
-    assert!(
-        !src.contains("AgentDefUpdated"),
-        "ship-config/src/watcher.rs must not import or name `AgentDefUpdated`; \
-         the agent-def domain owns the durable agent.def.updated event \
-         (job/transient-events). The S5 deterministic notify lives in \
-         `agents_write.rs`, not the watcher."
+/// Behavioral proof: no watcher authoring path emits or persists the durable
+/// `agent.def.updated`. Replaces the former source-grep guards, which broke on
+/// rename and proved nothing about behavior.
+#[tokio::test(flavor = "multi_thread")]
+async fn watcher_never_authors_durable_agent_def_updated() {
+    const AGENT_DEF_UPDATED: &str = "agent.def.updated";
+    let (_tmp, ship_dir, kernel) = setup().await;
+    let fs = LocalFsBroker::new();
+    let dir = ship_dir.join("agents");
+    std::fs::create_dir_all(&dir).unwrap();
+    fs.write_atomic(
+        &FsCap::new_unchecked(
+            dir.clone(),
+            FsRoot::Space(PortSpaceId::new("config")),
+            FsMode::ReadWrite,
+        ),
+        "a.jsonc",
+        b"{}",
+    )
+    .unwrap();
+    let file = dir.join("a.jsonc");
+
+    let mut rx = kernel.subscribe();
+    // Every authoring entry point the watcher exposes.
+    author_change(&kernel, event_types::AGENT_CHANGED, "agents", Some(SpaceId::new("sp-1"))).await;
+    author_file_changed(&kernel, &fs, "agents", &dir, &file, Some(SpaceId::new("sp-1"))).await;
+
+    // Nothing the watcher broadcast was the durable agent-def event.
+    while let Ok(ev) = rx.try_recv() {
+        assert_ne!(
+            ev.event_type, AGENT_DEF_UPDATED,
+            "watcher must not author the durable `agent.def.updated` — the agent-def domain owns it"
+        );
+    }
+
+    // And nothing durable was persisted under that type, in either scope.
+    assert_eq!(
+        count_events(&ship_substrate::db::space_db_path(&ship_dir, "sp-1"), AGENT_DEF_UPDATED),
+        0,
+        "watcher must not persist `agent.def.updated` to the space db"
     );
-}
-
-/// Watcher must not emit `agent.def.updated`. The `event_types` constants
-/// exported by ship-types are public, so an unused import is possible; we
-/// assert the watcher code never references `AGENT_DEF_UPDATED`.
-#[test]
-fn watcher_does_not_emit_agent_def_updated() {
-    let src = include_str!("../src/watcher.rs");
-    assert!(
-        !src.contains("AGENT_DEF_UPDATED"),
-        "ship-config/src/watcher.rs must not reference `AGENT_DEF_UPDATED`; \
-         that is the agent-def domain's durable event \
-         (job/transient-events)."
+    assert_eq!(
+        count_events(&ship_substrate::db::runtime_db_path(&ship_dir), AGENT_DEF_UPDATED),
+        0,
+        "watcher must not persist `agent.def.updated` to runtime.db"
     );
 }

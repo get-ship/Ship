@@ -184,6 +184,8 @@ jobs:
         run: cargo run -p xtask --quiet -- lint-layers
       - name: Lint import-level layer direction
         run: cargo run -p xtask --quiet -- lint-imports
+      - name: Lint test-theater (R18 — no source-grep in tests)
+        run: cargo run -p xtask --quiet -- lint-anti-theater
       # Contract conformance: every event fixture roundtrips Rust↔JSON and matches
       # the registry's metadata (scope/retention/stability). Fixtures themselves
       # are gated by the "Check proto fixtures drift" step above.
