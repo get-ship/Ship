@@ -1969,6 +1969,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "deck-ssr"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "deck-core",
+ "rolldown",
+ "rolldown_common",
+ "serde",
+ "serde_json",
+ "ship-js",
+ "sui-compiler",
+ "tokio",
+]
+
+[[package]]
 name = "deluxe"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
