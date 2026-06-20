@@ -1,13 +1,19 @@
 <!--
-  Studio: a single component viewer.
+  Studio — single-component viewer for `/studio/components/:name`.
 
-  The dev authors a `routes/` tree; the bundler walks it and emits
-  the typed route table. This file is the mount surface for
-  `/studio/components/:name`. The dynamic `name` segment is read off
-  the route signals and used to fetch the source from `ship.ui.read`.
-
-  Placeholder chrome — the actual viewer (source, props, slots)
-  lives in the studio's component view, not here.
-<h1>{name()}</h1>
-  <p>component viewer — source loads via ship.ui.read</p>
-</div>
+  The dynamic `[name]` segment is read off the route signals in the
+  paired controller.ts (`route.params.name`) and returned as the `name`
+  scope signal, so the heading below shows the selected component. The
+  full inspector (source panel, prop knobs, slot matrix) lands with the
+  studio surface build-out — this is the real route, authored against
+  the same `@ship/sui-primitives` chrome as the home route.
+-->
+<sui-nav-top>
+  <sui-brand-mark slot="brand" href="/" aria-label="Ship home"></sui-brand-mark>
+  <sui-theme-picker slot="actions" placement="bottom-end"></sui-theme-picker>
+  <sui-account-chip slot="actions"></sui-account-chip>
+</sui-nav-top>
+<main class="component-viewer">
+  <h1 class="component-viewer-title">{name()}</h1>
+  <p class="component-viewer-sub">Component viewer — source, prop knobs, and the slot matrix land with the studio surface.</p>
+</main>
