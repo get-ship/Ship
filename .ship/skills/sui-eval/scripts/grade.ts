@@ -7,7 +7,8 @@
 //
 //   1. compile every .sui file under the view dir via sui-compiler
 //   2. lint via sui-lint
-//   3. structural pass: required signals + control-flow + token-only CSS
+//   3. structural pass: required signals + control-flow + token-only CSS +
+//      pure-expression templates (no capabilities/statements in `.sui`)
 //   4. behavioral pass (when SUI_EVAL_BEHAVIOR_SPEC is set): scenario runner
 //      in jsdom via behavior-grade.ts
 //   5. emit one JSON row per lane → .artifacts/sui-eval-runs/<run-id>.jsonl
@@ -19,6 +20,7 @@ import { execSync, spawnSync } from 'node:child_process'
 import { readdirSync, statSync, existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { scanTemplatePurity } from './template-purity'
 
 const RUN_ID = process.env.SHIP_PIPELINE_RUN_ID ?? `local-${process.env.SHIP_ACTOR_ID ?? 'unknown'}`
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
@@ -79,6 +81,7 @@ interface LaneScore {
     manifestOk: boolean
     requiredFragments: { found: string[]; missing: string[] }
     cssTokenViolations: string[]
+    templatePurityViolations: string[]
     viewFiles: string[]
   }
   behavior?: BehaviorScore
@@ -240,10 +243,16 @@ function structuralCheck(worktree: string, files: string[]): LaneScore['structur
     .replace(/\/\*[\s\S]*?\*\//g, '')
   const cssTokenViolations = Array.from(new Set(cssText.match(FORBIDDEN_IN_CSS) ?? []))
 
+  // A capability (fetch/IO/non-determinism/non-owned mutation) or a
+  // statement/declaration in a `.sui` template is a FAIL — it must promote to
+  // controller.ts. See template-purity.ts + docs/ship-sui authoring-model.
+  const templatePurityViolations = scanTemplatePurity(templateText)
+
   return {
     manifestOk,
     requiredFragments: { found, missing },
     cssTokenViolations,
+    templatePurityViolations,
     viewFiles: files.map((p) => p.replace(worktree + '/', '')),
   }
 }
@@ -254,8 +263,12 @@ function structuralFraction(s: LaneScore['structural']): number {
   const reqHits = s.requiredFragments.found.length
   const cssClean = s.cssTokenViolations.length === 0 ? 1 : 0
   const manifest = s.manifestOk ? 1 : 0
-  // Equal weight: template fragments, css purity, manifest presence.
-  return (reqHits / reqTotal) * 0.5 + cssClean * 0.25 + manifest * 0.25
+  // Pure-expression template gate: any capability/statement in a `.sui` file
+  // floors this slice (the line must hold for the structure to count as sound).
+  const templatePure = s.templatePurityViolations.length === 0 ? 1 : 0
+  // Weights: template fragments 0.4, css purity 0.2, manifest 0.2,
+  // template purity 0.2.
+  return (reqHits / reqTotal) * 0.4 + cssClean * 0.2 + manifest * 0.2 + templatePure * 0.2
 }
 
 // --- main -----------------------------------------------------------------
@@ -277,7 +290,9 @@ console.log(`grade: wrote ${results.length} row(s) → ${outFile}`)
 for (const r of results) {
   const tag = r.compile.passed ? 'ok' : 'fail'
   const beh = r.behavior ? ` behavior=${r.behavior.passed}/${r.behavior.total}` : ''
-  console.log(`  ${r.laneId.padEnd(8)} composite=${r.composite.toFixed(2)} compile=${tag} lint=${r.lint.errors}e/${r.lint.warnings}w${beh}`)
+  const impure = r.structural.templatePurityViolations.length
+  const pure = impure === 0 ? '' : ` impure=${impure}!`
+  console.log(`  ${r.laneId.padEnd(8)} composite=${r.composite.toFixed(2)} compile=${tag} lint=${r.lint.errors}e/${r.lint.warnings}w${pure}${beh}`)
 }
 
 // Exit 0 even if a lane scored zero — `grade` is a measurement, not a gate.

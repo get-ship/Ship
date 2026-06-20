@@ -87,6 +87,7 @@ Six edges SUI has over comparable frameworks:
 
 ## See also
 
+- **[The authoring model](./authoring-model/)** — the pure-expression-vs-capability line and the not-JSX split: what goes in `.sui` vs. `controller.ts`, and why.
 - **[The template surface](./template/)** — directives, control flow, bindings, slots, expressions.
 - **[The controller surface](./controller/)** — three tiers, scope rules, mutation discipline.
 - **[Hooks](./hooks/)** — template vs controller hooks, when to reach for which.
