@@ -206,6 +206,7 @@ fn synthesize(
         authored.as_ref(),
         &format!("./{controller_name}"),
         mode,
+        None,
     )
     .map_err(|e| anyhow!("{}", e.render(&source)))?;
 

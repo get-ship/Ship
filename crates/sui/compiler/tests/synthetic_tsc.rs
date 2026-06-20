@@ -42,6 +42,8 @@ struct Surface {
     mode: CompileMode,
     /// Authored controller specifier (relative to the generated dir), if any.
     authored: Option<&'static str>,
+    /// Component tag name (kebab-case) for component-mode emit; `None` for views.
+    component_tag: Option<&'static str>,
 }
 
 fn synth_into(repo: &Path, manifest: &AppManifest, gendir: &Path, s: &Surface) {
@@ -56,6 +58,7 @@ fn synth_into(repo: &Path, manifest: &AppManifest, gendir: &Path, s: &Surface) {
         authored.as_ref(),
         &format!("./{controller_name}"),
         s.mode,
+        s.component_tag,
     )
     .unwrap_or_else(|e| panic!("synthesize {}: {}", s.name, e.render(&src)));
     let dir = gendir.join(s.name);
@@ -138,6 +141,7 @@ fn four_surfaces_typecheck_green_and_typo_is_caught() {
             source_rel: "crates/deck/deck-conformance/app/views/greet/[id]/page.sui",
             mode: CompileMode::View,
             authored: None,
+            component_tag: None,
         },
         // 2. control-flow-heavy: {#if}/{#else}/{#for}, on:, nested component.
         Surface {
@@ -145,6 +149,7 @@ fn four_surfaces_typecheck_green_and_typo_is_caught() {
             source_rel: "crates/deck/deck-conformance/app/views/board/page.sui",
             mode: CompileMode::View,
             authored: Some("@app/views/board/controller"),
+            component_tag: None,
         },
         // 3. <data live> + client (host-dispatch data path).
         Surface {
@@ -152,6 +157,7 @@ fn four_surfaces_typecheck_green_and_typo_is_caught() {
             source_rel: "crates/deck/deck-conformance/app/views/feed/page.sui",
             mode: CompileMode::View,
             authored: None,
+            component_tag: None,
         },
         // 4. a component (.sui + controller).
         Surface {
@@ -159,6 +165,7 @@ fn four_surfaces_typecheck_green_and_typo_is_caught() {
             source_rel: "crates/deck/deck-conformance/app/components/badge/badge.sui",
             mode: CompileMode::Component,
             authored: Some("@app/components/badge/badge.controller"),
+            component_tag: Some("sui-badge"),
         },
     ];
     for s in &surfaces {
@@ -178,7 +185,7 @@ fn four_surfaces_typecheck_green_and_typo_is_caught() {
     let typo_src = "<h1>Hello, {route.parms.id()}</h1>";
     let program = parse(typo_src).unwrap();
     let out_typo =
-        emit_synthetic(&program, &manifest, None, "./greet-typo.synthetic.controller.ts", CompileMode::View)
+        emit_synthetic(&program, &manifest, None, "./greet-typo.synthetic.controller.ts", CompileMode::View, None)
             .unwrap();
     let typo_dir = gendir.join("greet-typo");
     fs::create_dir_all(&typo_dir).unwrap();

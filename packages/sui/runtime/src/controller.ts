@@ -14,7 +14,9 @@
 
 import type { Signal } from './signal'
 import type { ShipHost, Clients } from './ship'
-import type { RouteSignals } from '@ship/deck/route'
+// Slice 2 — SUI-local `RouteSignals` (see ./route-signals for the
+// decoupling rationale). Replaces the `@ship/deck/route` import.
+import type { RouteSignals } from './route-signals'
 
 // ---------------------------------------------------------------------------
 // State-shape extraction over Scope

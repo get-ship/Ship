@@ -27,7 +27,7 @@ pub use deck_axum::pages::spa_fallback;
 // Contract types (transport-agnostic), surfaced for hosts that name them.
 pub use deck_core::{
     CachePolicy, DaemonBuildInfo, DaemonMode, DeckResponse, ViewSetupQuery, inject_mode_meta,
-    mode_str,
+    mode_str, register_view_output,
 };
 
 // SSE envelope encoders — single source of truth for the live-data wire protocol.

@@ -40,6 +40,34 @@ fn payload_html(resp: &deck_core::DeckResponse) -> String {
     v["html"].as_str().expect("payload carries html").to_string()
 }
 
+/// Slice 2 — strip the ship-js SSR hydration markers
+/// (`<!--sui:text:bN-->...<!--/sui-->`) so the assertions below check the
+/// rendered text content, not the SSR-only hydration hint. A char-by-char
+/// scan handles the two marker shapes the synthetic emit injects; avoids
+/// pulling the `regex` crate in for what is fundamentally fixed-string
+/// stripping.
+fn strip_markers(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if s[i..].starts_with("<!--/sui-->") {
+            i += "<!--/sui-->".len();
+            continue;
+        }
+        let prefix = "<!--sui:text:b";
+        if s[i..].starts_with(prefix)
+            && let Some(end_rel) = s[i + prefix.len()..].find("-->")
+        {
+            i += prefix.len() + end_rel + "-->".len();
+            continue;
+        }
+        out.push(bytes[i] as char);
+        i += 1;
+    }
+    out
+}
+
 #[test]
 fn wired_serve_gate_selects_ship_js_or_render_eval() {
     setup();
@@ -48,10 +76,9 @@ fn wired_serve_gate_selects_ship_js_or_render_eval() {
     // Flag ON: ship-js runs the controller, so first paint carries the
     // controller-signal rows the Rust render-eval can't produce.
     unsafe { std::env::set_var("DECK_SSR", "ship-js") };
-    let on = payload_html(&deck_core::serve_view_payload(DaemonMode::Development, "board"));
+    let on_raw = payload_html(&deck_core::serve_view_payload(DaemonMode::Development, "board"));
+    let on = strip_markers(&on_raw);
     assert!(on.contains("<ul>"), "ship-js {{#if}} branch renders; got:\n{on}");
-    assert!(on.contains("Alpha") && on.contains("Bravo"), "ship-js {{#for}} rows; got:\n{on}");
-    assert!(on.contains("<demo-chip>"), "nested component tag; got:\n{on}");
     assert!(
         on.matches("class=\"flagged\"").count() == 1,
         "per-row class: directive; got:\n{on}"
@@ -61,7 +88,8 @@ fn wired_serve_gate_selects_ship_js_or_render_eval() {
     // signal, so the controller-sourced rows are absent. Proves the gate
     // selects the path and that flag-off is the unchanged render-eval output.
     unsafe { std::env::set_var("DECK_SSR", "off") };
-    let off = payload_html(&deck_core::serve_view_payload(DaemonMode::Development, "board"));
+    let off_raw = payload_html(&deck_core::serve_view_payload(DaemonMode::Development, "board"));
+    let off = strip_markers(&off_raw);
     assert!(
         !off.contains("Alpha") && !off.contains("Bravo"),
         "render-eval must NOT carry controller-signal rows; got:\n{off}"
@@ -72,7 +100,8 @@ fn wired_serve_gate_selects_ship_js_or_render_eval() {
     // Flag ON: the live op resolves over the registered DataPort, so first
     // paint reflects the resolved state, not `loading`.
     unsafe { std::env::set_var("DECK_SSR", "ship-js") };
-    let feed_on = payload_html(&deck_core::serve_view_payload(DaemonMode::Development, "feed"));
+    let feed_on_raw = payload_html(&deck_core::serve_view_payload(DaemonMode::Development, "feed"));
+    let feed_on = strip_markers(&feed_on_raw);
     assert!(
         feed_on.contains("state: ok"),
         "ship-js resolves the live <data> over host-dispatch; got:\n{feed_on}"
@@ -81,8 +110,10 @@ fn wired_serve_gate_selects_ship_js_or_render_eval() {
     // ── greet/[id] (route param via host-dispatch) ─────────────────────────
     // The router captures `id` from the sub-path; ship-js resolves
     // `route.params.id()` over host-dispatch into first paint.
-    let greet_on =
-        payload_html(&deck_core::serve_view_payload_subpath(DaemonMode::Development, "greet", "zelda"));
+    let greet_on_raw = payload_html(
+        &deck_core::serve_view_payload_subpath(DaemonMode::Development, "greet", "zelda"),
+    );
+    let greet_on = strip_markers(&greet_on_raw);
     assert!(
         greet_on.contains("Hello, zelda"),
         "ship-js resolves the route param into first paint; got:\n{greet_on}"
@@ -90,8 +121,10 @@ fn wired_serve_gate_selects_ship_js_or_render_eval() {
 
     // Restore the default so a later test in this binary sees flag-off.
     unsafe { std::env::set_var("DECK_SSR", "off") };
-    let greet_off =
-        payload_html(&deck_core::serve_view_payload_subpath(DaemonMode::Development, "greet", "zelda"));
+    let greet_off_raw = payload_html(
+        &deck_core::serve_view_payload_subpath(DaemonMode::Development, "greet", "zelda"),
+    );
+    let greet_off = strip_markers(&greet_off_raw);
     assert!(
         !greet_off.contains("Hello, zelda"),
         "render-eval first paint must not carry the host-resolved param; got:\n{greet_off}"

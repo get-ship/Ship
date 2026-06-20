@@ -152,6 +152,12 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
         Instr::StaticText { .. } | Instr::Comment { .. } => {}
         Instr::DynamicText { expr } => {
             out.runtime_imports.insert("bindText");
+            // Slice 2 — emit `markHydrateText` alongside every dynamic
+            // text position so the ship-js SSR path serializes the
+            // marker comments the client `hydrate()` reads. Browser
+            // DOM ignores (no `__hydrateKey` field on a real Text);
+            // server-DOM wraps the node at toHTML time.
+            out.runtime_imports.insert("markHydrateText");
             // Phase 3b.3: depth-0 text bindings in views are direct-emit.
             // The compiler still calls `bindText` from `__mount` (legacy
             // CSR path), but `hydrate(root, ctx)` wires via these helpers.

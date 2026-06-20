@@ -118,7 +118,7 @@ fn try_synthetic_client(sui_file: &Path) -> Result<Option<String>, CompileError>
         AppManifest::parse(&manifest_src).map_err(|e| CompileError::Compile(e.render(&manifest_src)))?;
     let authored = sibling_controller_abs(sui_file)
         .map(|specifier| AuthoredController { specifier });
-    let js = emit_synthetic_client_module(&program, &manifest, authored.as_ref(), SuiMode::View)
+    let js = emit_synthetic_client_module(&program, &manifest, authored.as_ref(), SuiMode::View, None)
         .map_err(|e| CompileError::Compile(e.render(&source)))?;
     Ok(Some(js))
 }

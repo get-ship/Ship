@@ -30,6 +30,32 @@ impl DataPort for DemoData {
     }
 }
 
+/// Slice 2 — strip the ship-js SSR hydration text markers
+/// (`<!--sui:text:bN-->...<!--/sui-->`) so the rendered-content assertions
+/// check the visible payload, not the SSR-only hydration hint the markers
+/// carry. Char-by-char scan avoids pulling `regex` in for what is fixed-
+/// string stripping.
+fn strip_markers(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if s[i..].starts_with("<!--/sui-->") {
+            i += "<!--/sui-->".len();
+            continue;
+        }
+        let prefix = "<!--sui:text:b";
+        if s[i..].starts_with(prefix)
+            && let Some(end_rel) = s[i + prefix.len()..].find("-->")
+        {
+            i += prefix.len() + end_rel + "-->".len();
+            continue;
+        }
+        out.push(bytes[i] as char);
+        i += 1;
+    }
+    out
+}
 #[test]
 fn greet_first_paint_via_ship_js_with_route_through_host_dispatch() {
     let repo = repo_root().expect("repo root");
@@ -55,10 +81,11 @@ fn greet_first_paint_via_ship_js_with_route_through_host_dispatch() {
     let out = render(&bundle, dispatch).expect("render in ship-js");
 
     // First paint produced by ship-js run_module (NOT render-eval).
+    let html = strip_markers(&out.html);
     assert!(
-        out.html.contains("<h1>Hello, zelda</h1>"),
+        html.contains("<h1>Hello, zelda</h1>"),
         "first paint must contain the route-resolved heading; got:\n{}",
-        out.html
+        html
     );
     // The value came through the host-dispatch wire.
     assert_eq!(out.route_params["id"], "zelda", "route param resolved via host-dispatch");
@@ -171,9 +198,10 @@ fn feed_data_client_value_resolves_via_host_dispatch() {
         out.call_path
     );
     // After the flush, the live signal is resolved (ok), not loading.
+    let html = strip_markers(&out.html);
     assert!(
-        out.html.contains("state: ok"),
+        html.contains("state: ok"),
         "first paint must reflect the resolved live state via host-dispatch; got:\n{}",
-        out.html
+        html
     );
 }

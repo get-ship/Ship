@@ -38,6 +38,8 @@ struct Target {
     manifest_rel: &'static str,
     mode: CompileMode,
     controller_rel: Option<&'static str>,
+    /// Component tag name (kebab-case) for component-mode emit; `None` for views.
+    component_tag: Option<&'static str>,
 }
 
 /// Synthesize, for one target: the merged CLIENT module (`<name>.client.ts`,
@@ -53,7 +55,7 @@ fn synth(repo: &Path, work: &Path, t: &Target) {
         .controller_rel
         .map(|c| AuthoredController { specifier: repo.join(c).to_string_lossy().into_owned() });
 
-    let merged = emit_synthetic_client_module(&program, &manifest, authored.as_ref(), t.mode)
+    let merged = emit_synthetic_client_module(&program, &manifest, authored.as_ref(), t.mode, t.component_tag)
         .unwrap_or_else(|e| panic!("merged {}: {}", t.name, e.render(&src)));
     fs::write(work.join(format!("{}.client.ts", t.name)), merged).unwrap();
 
@@ -63,10 +65,15 @@ fn synth(repo: &Path, work: &Path, t: &Target) {
         authored.as_ref(),
         &format!("./{}.controller.ts", t.name),
         t.mode,
+        t.component_tag,
     )
     .unwrap_or_else(|e| panic!("split {}: {}", t.name, e.render(&src)));
-    fs::write(work.join(format!("{}.controller.ts", t.name)), split.controller_ts).unwrap();
     fs::write(work.join(format!("{}.ssr.ts", t.name)), split.render_ts).unwrap();
+    fs::write(
+        work.join(format!("{}.controller.ts", t.name)),
+        split.controller_ts,
+    )
+    .unwrap();
 }
 
 fn write_harness(repo: &Path, work: &Path) {
@@ -74,11 +81,16 @@ fn write_harness(repo: &Path, work: &Path) {
     // @ship/sui-runtime → a shim (the SSR server surface + `view` + the types
     // @ship/sui-dom imports). @ship/sui-dom → its real source. @ship/deck/route
     // → the server route factory. mount.ts is imported by absolute path.
+    // Slice 2 — re-export the hydration-marker recording helpers so the
+    // SSR modules (which call `markHydrateText` next to `bindText`) type-check
+    // under vitest + the synthetic-server-DOM path. The shim's server.ts
+    // already pulls the rest of the runtime surface through.
     fs::write(
         work.join("runtime-shim.ts"),
         format!(
             "export * from \"{r}/packages/sui/runtime/src/server.ts\";\n\
              export {{ view }} from \"{r}/packages/sui/runtime/src/view.ts\";\n\
+             export {{ markHydrateText, markHydrateAttr, markHydrateBoundary }} from \"{r}/packages/sui/runtime/src/hydrate-mark.ts\";\n\
              export type {{ Modifier, OnOptions }} from \"{r}/packages/sui/runtime/src/on.ts\";\n"
         ),
     )
@@ -171,14 +183,19 @@ describe('synthetic CLIENT contract — CSR (__mount via mount.ts)', () => {{
 }})
 
 describe('isomorphic-render parity / clean hydration (acceptance #3)', () => {{
-  it('board: client __mount build is structurally identical to the ship-js SSR tree', async () => {{
+  it('board: client __mount build matches the ship-js SSR tree (markers stripped)', async () => {{
     const html_ssr = await ssrHtml('board')
     const mod = await import('./board.client.ts')
     const el = document.createElement('div')
     const handle = await mount(el, payload('board', ''), {{ module: mod as any }})
     const html_csr = el.innerHTML
-    // The SAME render server-side and client-side → no hydration mismatch.
-    expect(norm(html_csr)).toBe(norm(html_ssr))
+    // The SAME render server-side and client-side → same DOM structure.
+    // Slice 2 — ship-js SSR now wraps dynamic text in `<!--sui:text:bN-->`
+    // markers (so the client `hydrate()` can reattach); strip them from
+    // both sides for the parity check (the markers are an SSR-only
+    // hydration hint, not a render hint).
+    const stripMarkers = (s: string) => s.replace(/<!--sui:text:b\d+-->|<!--\/sui-->/g, '')
+    expect(norm(stripMarkers(html_csr))).toBe(norm(stripMarkers(html_ssr)))
     handle.dispose()
   }})
 
@@ -190,10 +207,52 @@ describe('isomorphic-render parity / clean hydration (acceptance #3)', () => {{
     el.innerHTML = html_ssr
     const before = norm(el.innerHTML)
     const handle = await mount(el, payload('showcase', html_ssr), {{ module: mod as any }})
-    // Static view: morph adopts in place, no __mount rebuild, no teardown —
     // the adopted DOM is unchanged (clean hydration).
     expect(norm(el.innerHTML)).toBe(before)
     expect(el.textContent).toContain('sui-area-chart')
+    handle.dispose()
+  }})
+}})
+
+describe('slice 2 — hydration markers + reactivity', () => {{
+  // Slice 2 — ship-js SSR HTML carries the hydration markers the
+  // client `hydrate()` reads. Greet's dynamic text binding (`route.params.id()`) —
+  // a single DynamicText position that the marker wraps.
+  it('ship-js SSR HTML carries `<!--sui:text:bN-->` markers for dynamic text', async () => {{
+    const html_ssr = await ssrHtml('greet')
+    expect(html_ssr).toMatch(/<!--sui:text:b\d+-->/)
+    expect(html_ssr).toMatch(/<!--\/sui-->/)
+  }})
+
+  // Slice 2 — marker-based client `hydrate()` reattaches reactivity
+  // to ship-js SSR'd HTML. The synthetic emit's `mount(container)`
+  it('client `hydrate()` reattaches reactivity to ship-js SSR HTML (marker-based)', async () => {{
+    // SSR the hub view (the dynamic text binding name() is the only one)
+    // and mount the client module onto the SSR'd DOM. The marker-based
+    // `hydrate(root)` finds the `<!--sui:text:bN-->` comment and rewires
+    // the text binding to the controller's `name` signal. Mutating the
+    // signal post-hydrate propagates to the DOM — proves the marker
+    // contract works end-to-end (synthetic SSR ↔ client hydrate).
+    const html_ssr = await ssrHtml('hub')
+    expect(html_ssr).toMatch(/<!--sui:text:b\d+-->/)
+    const mod = await import('./hub.client.ts')
+    const el = document.createElement('div')
+    el.innerHTML = html_ssr
+    const handle = await mount(el, payload('hub', html_ssr), {{ module: mod as any }})
+
+    const h1 = el.querySelector('h1')
+    expect(h1).toBeTruthy()
+    const before = h1?.textContent ?? ''
+    // `name` is on the controller's authored scope — `mod.default.setup(ctx).name`
+    // is the signal. mount.ts's lifecycle wires the handle so the scope
+    // re-emits the signal; mutate through the handle to drive the hydrate
+    // binding's effect.
+    const sig = (handle.scope as any).name
+    expect(sig).toBeTruthy()
+    sig.set('UPDATED BY HYDRATE')
+    expect(h1?.textContent).toBe('UPDATED BY HYDRATE')
+    // SSR'd content survived the hydrate (no teardown).
+    expect(before).not.toBe('UPDATED BY HYDRATE')
     handle.dispose()
   }})
 }})
@@ -227,6 +286,7 @@ fn client_contract_csr_and_hydration_in_jsdom() {
             manifest_rel: HUB_MANIFEST,
             mode: CompileMode::View,
             controller_rel: Some("apps/hub/routes/controller.ts"),
+            component_tag: None,
         },
         Target {
             name: "badge",
@@ -234,6 +294,7 @@ fn client_contract_csr_and_hydration_in_jsdom() {
             manifest_rel: CONF_MANIFEST,
             mode: CompileMode::Component,
             controller_rel: Some("crates/deck/deck-conformance/app/components/badge/badge.controller.ts"),
+            component_tag: Some("sui-badge"),
         },
         Target {
             name: "board",
@@ -241,6 +302,15 @@ fn client_contract_csr_and_hydration_in_jsdom() {
             manifest_rel: CONF_MANIFEST,
             mode: CompileMode::View,
             controller_rel: Some("crates/deck/deck-conformance/app/views/board/controller.ts"),
+            component_tag: None,
+        },
+        Target {
+            name: "greet",
+            source_rel: "crates/deck/deck-conformance/app/views/greet/[id]/page.sui",
+            manifest_rel: CONF_MANIFEST,
+            mode: CompileMode::View,
+            controller_rel: None,
+            component_tag: None,
         },
         Target {
             name: "showcase",
@@ -248,6 +318,7 @@ fn client_contract_csr_and_hydration_in_jsdom() {
             manifest_rel: VIEWS_MANIFEST,
             mode: CompileMode::View,
             controller_rel: None,
+            component_tag: None,
         },
     ];
     for t in &targets {

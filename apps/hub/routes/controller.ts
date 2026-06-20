@@ -4,10 +4,16 @@
 // on the view's setup return. Without any signal read, the
 // compiler doesn't emit hydrate and the runtime's mount() has
 // nothing to call.
-import { controller, signal, type ViewScope } from '@ship/sui-runtime'
-import type { Scope } from './page.sui'
+//
+// Slice 2 — uses the canonical `controller({...})` form (no
+// explicit generic) so the `SC` parameter is inferred from the
+// scope factory's return. The synthetic controller's `__def.scope`
+// recovery (G4 fix) then recovers the exact scope shape
+// (`{ name: Signal<string> }`) instead of the empty view
+// `Scope` the legacy `controller<Scope>({...})` form pinned.
+import { controller, signal } from '@ship/sui-runtime'
 
-export default controller<Scope>({
+export default controller({
   scope: () => ({
     name: signal('Hub'),
   }),

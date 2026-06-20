@@ -43,7 +43,6 @@ for (let i = 0; i < 1000 && quiet < 3; i++) {
   if (pending() > 0) quiet = 0
   else quiet++
 }
-
 const html = dom.html(container)
 dispose()
 

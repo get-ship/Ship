@@ -66,7 +66,14 @@ export {
 } from './bind'
 export { on, matchesKey } from './on'
 export { wireFormMutation } from './mutation'
-
+// Slice 2 — the synthetic emit stamps `markHydrateText(...)` next to every
+// `bindText` / `bindFor` / `bindIf` dynamic-text position so ship-js SSR
+// emits the `<!--sui:text:bN-->` markers the client `hydrate()` reads.
+// The helpers are no-ops on the browser DOM and the SSR server-DOM stamps
+// the field the server-DOM serialization reads. Re-exported from the
+// server entry so synthesized renders type-check + resolve when the SSR
+// build aliases `@ship/sui-runtime` here.
+export { markHydrateText, markHydrateAttr, markHydrateBoundary } from './hydrate-mark'
 // ── control flow ────────────────────────────────────────────────────────────
 export { bindIf } from './if'
 export { bindFor, bindForSignal } from './for'

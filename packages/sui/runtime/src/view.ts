@@ -11,7 +11,12 @@
 // This factory is the contract glue between those two halves.
 
 import type { ShipHost, Clients } from './ship'
-import type { RouteSignals } from '@ship/deck/route'
+// Slice 2 — SUI-local structural `RouteSignals` (replaces the
+// `@ship/deck/route` import). The deck-side `RouteSignals` is
+// structurally compatible (both import the same `Signal` from
+// `@ship/sui-runtime`); the deck `route` factory's return value
+// satisfies this structural type at the assignment site.
+import type { RouteSignals } from './route-signals'
 
 export interface ViewContext {
   ship: ShipHost
@@ -21,7 +26,13 @@ export interface ViewContext {
 }
 
 export type ViewSetup<Bindings = Record<string, unknown>> = (
-  ctx: ViewContext,
+  // Slice 2 — the runtime's view() accepts an untyped context so the
+  // synthetic emitter can pass through the mount-time props seam
+  // (component-mode mounts carry a `ctx.props` field the view-shaped
+  // setup reads via `ctx.props` before calling the scope factory).
+  // The browser-mount path still constructs a real `ViewContext` and
+  // casts back inside `mount.ts` where it has the typed values.
+  ctx: any,
 ) => Bindings
 
 export interface ViewDef<Bindings = Record<string, unknown>> {
