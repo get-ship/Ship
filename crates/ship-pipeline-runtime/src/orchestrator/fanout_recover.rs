@@ -62,7 +62,7 @@ pub async fn emit_fanout_lane_dispatched(
             return;
         }
     };
-    persist_and_route(kernel, envelope, parent_slug, None).await;
+    persist_and_route(kernel, envelope, parent_slug).await;
 }
 
 /// Parsed lane dispatch record — the subset of a `pipeline.step.started`

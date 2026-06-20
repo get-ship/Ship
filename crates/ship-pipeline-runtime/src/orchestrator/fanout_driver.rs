@@ -146,7 +146,7 @@ impl FanoutDispatch {
             EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, &self.pipeline_run_id, &payload)
         {
             let env = env.with_actor_id("service.orchestrator");
-            persist_and_route(&self.kernel, env, &self.parent_slug, None).await;
+            persist_and_route(&self.kernel, env, &self.parent_slug).await;
         }
     }
 }

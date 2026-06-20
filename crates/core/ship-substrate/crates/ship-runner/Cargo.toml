@@ -3,7 +3,7 @@ name = "ship-runner"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "L0 runner mechanism — the generic sequence + lifecycle engine (router mailbox loop, event dedup, terminal-state guard, exit-signal routing, kernel-emit plumbing). Distinct from ship-supervisor (per-process OS lifecycle) and from the L1 pipelines service (the user-facing feature). Drives only the domain-free runner ports in ship-substrate; carries NO ship-platform dependency."
+description = "L0 runner mechanism — kernel-emit primitives (`persist_and_route`, `KernelEventSink`, pipeline/process/executor emitters) and the `HarnessAdapter` trait. The lifecycle engine (router, dedup, teardown) lives in `ship_code::runner`."
 
 [dependencies]
 ship-substrate = { path = "../.." }

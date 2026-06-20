@@ -55,7 +55,6 @@ impl RunStepDispatch {
                 &self.kernel,
                 env.with_actor_id("service.orchestrator"),
                 &self.slug,
-                self.ship_dir.as_deref(),
             )
             .await;
         }

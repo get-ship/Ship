@@ -53,7 +53,7 @@ impl EventSink for KernelEventSink {
             .space_id()
             .map(str::to_string)
             .unwrap_or_default();
-        persist_and_route(&self.kernel, envelope, &slug, None).await;
+        persist_and_route(&self.kernel, envelope, &slug).await;
     }
 }
 
@@ -68,7 +68,6 @@ async fn emit_pipeline_run_dispatch_event<P: serde::Serialize>(
     pipeline_run_id: &str,
     slug: &str,
     payload: &P,
-    ship_dir: Option<&std::path::Path>,
 ) {
     let envelope = match EventEnvelope::new(event_type, pipeline_run_id, payload) {
         Ok(e) => e.with_actor_id("service.orchestrator"),
@@ -80,7 +79,7 @@ async fn emit_pipeline_run_dispatch_event<P: serde::Serialize>(
             return;
         }
     };
-    persist_and_route(kernel, envelope, slug, ship_dir).await;
+    persist_and_route(kernel, envelope, slug).await;
 }
 
 /// Build + persist a `process.*` event under `service.process-lifecycle`.
@@ -97,7 +96,7 @@ async fn emit_process_event<P: serde::Serialize>(
             return;
         }
     };
-    persist_and_route(kernel, envelope, slug, None).await;
+    persist_and_route(kernel, envelope, slug).await;
 }
 
 /// Build + persist an `executor.*` event under `service.executor-lifecycle`.
@@ -114,7 +113,7 @@ async fn emit_executor_event<P: serde::Serialize>(
             return;
         }
     };
-    persist_and_route(kernel, envelope, slug, None).await;
+    persist_and_route(kernel, envelope, slug).await;
 }
 
 // ── Public pipeline-run-lifecycle emitters ─────────────────────────────────
@@ -126,18 +125,16 @@ pub async fn emit_pipeline_run_dispatched(
     worktree_path: &std::path::Path,
     slug: &str,
 ) {
-    emit_pipeline_run_dispatched_with_meta(kernel, pipeline_run_id, worktree_path, slug, None, None).await;
+    emit_pipeline_run_dispatched_with_meta(kernel, pipeline_run_id, worktree_path, slug, None).await;
 }
 
 /// Emit a `pipeline.run.dispatched` event with optional harness metadata.
-/// `ship_dir` overrides the default store path (used in tests).
 pub async fn emit_pipeline_run_dispatched_with_meta(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     pipeline_run_id: &str,
     worktree_path: &std::path::Path,
     slug: &str,
     harness_meta: Option<serde_json::Value>,
-    ship_dir: Option<&std::path::Path>,
 ) {
     let payload = ship_substrate::events::pipeline::PipelineRunDispatchedPayload {
         pipeline_run_id: pipeline_run_id.to_string(),
@@ -152,7 +149,6 @@ pub async fn emit_pipeline_run_dispatched_with_meta(
         pipeline_run_id,
         slug,
         &payload,
-        ship_dir,
     )
     .await;
     tracing::info!(slug, "pipeline run dispatched");
@@ -182,20 +178,17 @@ pub async fn emit_spawn_failed(
         pipeline_run_id,
         slug,
         &payload,
-        None,
     )
     .await;
 }
 
 /// Emit a `pipeline.step.started` event for a specific pipeline step.
-/// (Function name retains the legacy 'dispatched' wording.)
-pub async fn emit_step_dispatched_event(
+pub async fn emit_step_started_event(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     pipeline_run_id: &str,
     step_id: &str,
     step_type: &str,
     slug: &str,
-    ship_dir: Option<&std::path::Path>,
 ) {
     let payload = serde_json::json!({
         "pipeline_run_id": pipeline_run_id, "slug": slug,
@@ -207,7 +200,6 @@ pub async fn emit_step_dispatched_event(
         pipeline_run_id,
         slug,
         &payload,
-        ship_dir,
     )
     .await;
 }
@@ -227,12 +219,12 @@ pub async fn emit_step_failed(
         step_id: step_id.to_string(),
         error: reason.to_string(),
     };
-    emit_pipeline_run_dispatch_event(kernel, event_types::PIPELINE_STEP_FAILED, pipeline_run_id, slug, &step_fail, None).await;
+    emit_pipeline_run_dispatch_event(kernel, event_types::PIPELINE_STEP_FAILED, pipeline_run_id, slug, &step_fail).await;
     let run_fail = PipelineRunFailedPayload {
         pipeline_run_id: pipeline_run_id.to_string(),
         error: format!("step `{step_id}` failed: {reason}"),
     };
-    emit_pipeline_run_dispatch_event(kernel, event_types::PIPELINE_RUN_FAILED, pipeline_run_id, slug, &run_fail, None).await;
+    emit_pipeline_run_dispatch_event(kernel, event_types::PIPELINE_RUN_FAILED, pipeline_run_id, slug, &run_fail).await;
 }
 
 /// Emit a `pipeline.run.failed` event when a pipeline run cannot be dispatched or encounters a fatal error.
@@ -252,7 +244,6 @@ pub async fn emit_pipeline_run_failed(
         pipeline_run_id,
         slug,
         &payload,
-        None,
     )
     .await;
     tracing::error!(slug, error, "pipeline run failed");
@@ -387,15 +378,10 @@ pub async fn emit_executor_window_destroyed(
 /// the call-site contract (most callers don't propagate); when callers are
 /// rewritten to propagate, they should call `kernel.emit` directly and
 /// delete their use of this helper.
-///
-/// `ship_dir` is accepted for backward compatibility and ignored — the
-/// kernel writes to the event's scope db (runtime.db / account.db /
-/// spaces/<id>/space.db) under its own `base_dir`.
 pub async fn persist_and_route(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     envelope: EventEnvelope,
     slug: &str,
-    _ship_dir: Option<&std::path::Path>,
 ) {
     let event_type = envelope.event_type.clone();
     let entity_id = envelope.entity_id.clone();

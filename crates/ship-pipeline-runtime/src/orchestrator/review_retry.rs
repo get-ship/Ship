@@ -92,7 +92,7 @@ pub async fn try_review_retry(
     };
 
     ship_runner::emit::persist_and_route(
-        kernel, retry_envelope, &payload.slug, None,
+        kernel, retry_envelope, &payload.slug,
     ).await;
 
     // Build synthetic envelope for advance_pipeline
@@ -155,6 +155,6 @@ pub async fn emit_pipeline_run_failed_for_review(
         Err(_) => return,
     };
     ship_runner::emit::persist_and_route(
-        kernel, env, &payload.slug, None,
+        kernel, env, &payload.slug,
     ).await;
 }

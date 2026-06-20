@@ -1,7 +1,8 @@
 //! `durable-execution` (L0) — the journaling engine for durable program execution.
 //!
 //! Runs a *program* (a DAG of ops; an agent turn or a pipeline is the intended
-//! production shape — live wiring is pending (floki Stage-2, pipelines P1.0b))
+//! production shape — live wiring is complete (floki Stage-2 shipped; Stage-3
+//! deferrals tracked in durable_loop.rs))
 //! and journals every op outcome. Because the journal is the source of truth, a
 //! program can **suspend** (a human checkpoint, an approval, an await) and later
 //! **resume** by *replaying* the journal: already-completed ops — including model

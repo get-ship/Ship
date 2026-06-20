@@ -11,6 +11,4 @@ mod module_loader;
 mod runtime;
 mod script_executor;
 
-pub use module_loader::{ShipModuleLoader, MAIN, SDK};
-pub use runtime::{run_module, run_script};
 pub use script_executor::ScriptExecutor;

@@ -425,7 +425,7 @@ async fn emit_step_gate_failure(
     };
     if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_FAILED, &payload.pipeline_run_id, &step_fail) {
         let env = env.with_actor_id("service.orchestrator");
-        super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
+        super::emit::persist_and_route(kernel, env, &payload.slug).await;
     }
 
     let base_error = format!("step `{}` gate failed: {reason}", payload.step_name);
@@ -439,6 +439,6 @@ async fn emit_step_gate_failure(
     };
     if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_RUN_FAILED, &payload.pipeline_run_id, &run_fail) {
         let env = env.with_actor_id("service.orchestrator");
-        super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
+        super::emit::persist_and_route(kernel, env, &payload.slug).await;
     }
 }

@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::emit::{
-    emit_pipeline_run_dispatched_with_meta, emit_process_spawned, emit_step_dispatched_event,
+    emit_pipeline_run_dispatched_with_meta, emit_process_spawned, emit_step_started_event,
     emit_step_failed,
 };
 use super::step_io::resolve_consumes;
@@ -241,7 +241,7 @@ pub(crate) async fn dispatch_step(
                 kernel, &job, step, fanout, step_idx, ship_dir_override, octx,
             ).await;
             if spawned > 0 {
-                emit_pipeline_run_dispatched_with_meta(kernel, &job.pipeline_run_id, worktree_path, slug, None, ship_dir_override).await;
+                emit_pipeline_run_dispatched_with_meta(kernel, &job.pipeline_run_id, worktree_path, slug, None).await;
                 return true;
             }
             return false;
@@ -401,8 +401,8 @@ pub(crate) async fn dispatch_step(
                     }
                 }
 
-                emit_pipeline_run_dispatched_with_meta(kernel, &job.pipeline_run_id, worktree_path, slug, None, ship_dir_override).await;
-                emit_step_dispatched_event(kernel, &job.pipeline_run_id, &step.id, "agent", slug, ship_dir_override).await;
+                emit_pipeline_run_dispatched_with_meta(kernel, &job.pipeline_run_id, worktree_path, slug, None).await;
+                emit_step_started_event(kernel, &job.pipeline_run_id, &step.id, "agent", slug).await;
                 true
             }
         }

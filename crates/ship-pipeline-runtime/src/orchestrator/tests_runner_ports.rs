@@ -295,7 +295,7 @@ async fn dispatch_threads_agent_as_domain_free_authority_through_spawn_policy() 
     let created =
         EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &payload.pipeline_run_id, &payload)
             .unwrap();
-    ship_runner::emit::persist_and_route(&kernel, created, &payload.slug, None)
+    ship_runner::emit::persist_and_route(&kernel, created, &payload.slug)
         .await;
 
     dispatch_pipeline_run_internal(&kernel, &payload, &ctx).await;

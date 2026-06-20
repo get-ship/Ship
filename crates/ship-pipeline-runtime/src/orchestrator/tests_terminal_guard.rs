@@ -154,7 +154,7 @@ async fn seed_terminal(
         baseline_sha: None,
     };
     let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, pipeline_run_id, &created).unwrap();
-    ship_runner::emit::persist_and_route(&kernel, env, slug, None).await;
+    ship_runner::emit::persist_and_route(&kernel, env, slug).await;
 
     let terminal_payload = serde_json::json!({
         "pipeline_run_id": pipeline_run_id,
@@ -165,7 +165,7 @@ async fn seed_terminal(
         "stage": "executor_spawn",
     });
     let env = EventEnvelope::new(terminal_event_type, pipeline_run_id, &terminal_payload).unwrap();
-    ship_runner::emit::persist_and_route(&kernel, env, slug, None).await;
+    ship_runner::emit::persist_and_route(&kernel, env, slug).await;
 
     kernel
 }

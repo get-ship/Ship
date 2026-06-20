@@ -401,7 +401,7 @@ pub(crate) async fn emit_composed_step_session(
         &canonical_started,
     ) {
         let env = env.with_actor_id("service.pipeline-composer");
-        persist_and_route(kernel, env, &session_slug, None).await;
+        persist_and_route(kernel, env, &session_slug).await;
     }
 }
 
@@ -439,7 +439,7 @@ pub(crate) async fn emit_composed_session_terminal(
             &payload,
         ) {
             let env = env.with_actor_id("service.pipeline-composer");
-            persist_and_route(kernel, env, &session_slug, None).await;
+            persist_and_route(kernel, env, &session_slug).await;
         }
     } else {
         let payload = SessionCompleted { session_id: session.session_id.clone() };
@@ -449,7 +449,7 @@ pub(crate) async fn emit_composed_session_terminal(
             &payload,
         ) {
             let env = env.with_actor_id("service.pipeline-composer");
-            persist_and_route(kernel, env, &session_slug, None).await;
+            persist_and_route(kernel, env, &session_slug).await;
         }
     }
 }
@@ -582,7 +582,7 @@ async fn dispatch_first_run_step_inner(
         }
     };
 
-    emit_pipeline_run_dispatched_with_meta(kernel, &payload.pipeline_run_id, &worktree_path, slug, None, ship_dir).await;
+    emit_pipeline_run_dispatched_with_meta(kernel, &payload.pipeline_run_id, &worktree_path, slug, None).await;
 
     super::run_step::execute_run_step(
         &payload.pipeline_run_id, slug, step_id, command,

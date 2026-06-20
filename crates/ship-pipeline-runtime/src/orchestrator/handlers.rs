@@ -85,7 +85,7 @@ pub async fn finalize_pipeline_if_done(
         Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(_) => return,
     };
-    persist_and_route(kernel, env, &slug, None).await;
+    persist_and_route(kernel, env, &slug).await;
 }
 
 /// Handle `job.cancelled` — terminate the agent process, tear down the
@@ -151,7 +151,7 @@ pub async fn handle_cancelled(
     match EventEnvelope::new(process_event_types::PROCESS_KILLED, &slug, &killed) {
         Ok(env) => {
             let env = env.with_actor_id("service.orchestrator");
-            persist_and_route(kernel, env, &slug, None).await;
+            persist_and_route(kernel, env, &slug).await;
         }
         Err(e) => {
             tracing::warn!(slug, "job-dispatch: failed to build process.killed envelope: {e}");
@@ -198,7 +198,7 @@ pub async fn execute_merge_step(
             );
             match merged_envelope {
                 Ok(envelope) => {
-                    persist_and_route(kernel, envelope, slug, None).await;
+                    persist_and_route(kernel, envelope, slug).await;
                 }
                 Err(e) => {
                     tracing::error!(slug, "pipeline: failed to build job.merged envelope: {e}");
@@ -219,7 +219,7 @@ pub async fn execute_merge_step(
             );
             match fail_envelope {
                 Ok(envelope) => {
-                    persist_and_route(kernel, envelope, slug, None).await;
+                    persist_and_route(kernel, envelope, slug).await;
                 }
                 Err(e) => {
                     tracing::error!(slug, "pipeline: failed to build pipeline.run.failed envelope: {e}");

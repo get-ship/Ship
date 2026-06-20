@@ -5,9 +5,9 @@
 //! one door (`gateway::Gateway`) where the gate runs; code-mode JS executes in a
 //! locked-down V8 isolate ([`ship_js`]) whose only effect is the same gated wire;
 //! and a code-mode op stream CAN be journaled and replayed without re-running
-//! effects ([`durable::run_durable_script`], Stage 1) — but the live loop is
-//! not yet journal-driven and the model turn is not durable (tokens re-burn on
-//! resume); that is Stage 2, tracked in floki-Stage-2 (#30). A
+//! effects ([`durable::run_durable_script`], Stage 1) — and is now journal-driven
+//! (Stage 2, [`durable_loop::FlokiProgram`]); Stage-3 deferrals (mid-exchange
+//! saves, multi-input continuation) tracked in floki-Stage-2 (#30). A
 //! third-party harness (claude, codex — `ship-code`'s territory) cannot offer
 //! any of that, because we don't own its loop.
 //!

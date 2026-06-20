@@ -17,7 +17,7 @@ use ship_substrate::events::KernelRouter;
 use crate::projections::pipeline_run::PipelineRun;
 use ship_code::dispatch_ports::{SessionContext, LaunchProfile, StepInfo};
 use ship_runner::emit::{
-    emit_process_spawned, emit_step_dispatched_event, emit_step_failed,
+    emit_process_spawned, emit_step_started_event, emit_step_failed,
 };
 use crate::orchestrator::step_monitor::{StepMonitor, start_step_monitor};
 use crate::orchestrator::{FanoutLaneRef, LaneOutcome, OrchestratorContext};
@@ -220,8 +220,8 @@ pub async fn dispatch_fanout_step(
         fanout.min_successful_lanes,
     );
 
-    // Emit step_dispatched for the fanout step so the projection sets current_step.
-    emit_step_dispatched_event(kernel, &job.pipeline_run_id, &step.id, "fanout", slug, ship_dir_override).await;
+    // Emit step_started for the fanout step so the projection sets current_step.
+    emit_step_started_event(kernel, &job.pipeline_run_id, &step.id, "fanout", slug).await;
 
     spawned
 }

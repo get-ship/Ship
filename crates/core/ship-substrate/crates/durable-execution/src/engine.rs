@@ -1,8 +1,8 @@
 //! The durable-execution engine.
 //!
 //! A *program* is a deterministic sequence of journaled op-calls (intended
-//! production shapes: a ship-js script or an agent turn — the live wiring is
-//! pending (floki Stage-2, pipelines P1.0b); here: a [`Program`] impl). Every op result
+//! production shapes: a ship-js script or an agent turn — live wiring is
+//! complete (floki Stage-2 shipped; Stage-3 deferrals tracked in durable_loop.rs); here: a [`Program`] impl). Every op result
 //! is written to the **journal**. On resume the program **re-runs from the top**,
 //! and ops that already completed return their *logged* results instead of
 //! re-executing — so a recovered run never re-burns work (a model call is just a

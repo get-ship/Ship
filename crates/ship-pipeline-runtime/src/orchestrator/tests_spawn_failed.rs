@@ -187,7 +187,6 @@ async fn isolation_prepare_failure_emits_spawn_failed() {
         &kernel,
         created,
         &payload.slug,
-        None,
     )
     .await;
 
@@ -238,7 +237,6 @@ async fn executor_spawn_failure_emits_spawn_failed() {
         &kernel,
         created,
         &payload.slug,
-        None,
     )
     .await;
 

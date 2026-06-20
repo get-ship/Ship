@@ -16,7 +16,7 @@ use crate::sink::EventSink;
 use crate::validator::EventValidator;
 use crate::KernelError;
 
-pub const MAILBOX_CAPACITY: usize = 256;
+const MAILBOX_CAPACITY: usize = 256;
 
 /// Kernel-managed event router with per-actor isolation.
 pub struct KernelRouter {
@@ -184,8 +184,8 @@ impl KernelRouter {
 
     /// Snapshot of all namespace → actor-ID subscription mappings.
     ///
-    /// Used by runtime-specific delivery paths (e.g. scope-filtered delivery)
-    /// that need to inspect subscription state without going through `route`.
+    /// Used by diagnostics (`KernelRouter::diag_line`) to count active subscription
+    /// edges; not used by any delivery path.
     pub fn subscriptions(&self) -> &HashMap<String, Vec<String>> {
         &self.subscriptions
     }

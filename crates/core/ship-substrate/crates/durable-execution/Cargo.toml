@@ -16,8 +16,8 @@ async-trait = { workspace = true }
 futures-util = { workspace = true }
 # The op-execution contract (`Dispatch` + `DispatchError`) is shared with the JS
 # engine — durable-execution CONSUMES ship-js. `default-features = false` takes
-# only the dispatch seam (no deno/V8); the `code-mode` feature (later) turns on
-# ship-js's `deno` to run JS scripts as durable programs.
+# only the dispatch seam (no deno/V8); code-mode (deno) is activated by the
+# consumer (floki), not by a feature on this crate.
 ship-js = { path = "../ship-js", default-features = false }
 
 [dev-dependencies]

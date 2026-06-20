@@ -88,7 +88,7 @@ pub async fn run_sweep(
                 EventEnvelope::new(run_events::PIPELINE_RUN_FAILED, &job.pipeline_run_id, &fail_payload)
             {
                 let env = env.with_actor_id("service.coherence-sweep");
-                persist_and_route(kernel, env, &job.slug, None).await;
+                persist_and_route(kernel, env, &job.slug).await;
             }
             emit_event(
                 kernel,
@@ -205,7 +205,7 @@ pub async fn run_sweep(
         };
         if let Ok(env) = EventEnvelope::new(run_events::PIPELINE_RUN_FAILED, &job.pipeline_run_id, &fail_payload) {
             let env = env.with_actor_id("service.coherence-sweep");
-            persist_and_route(kernel, env, &job.slug, None).await;
+            persist_and_route(kernel, env, &job.slug).await;
         }
 
         emit_event(
@@ -367,5 +367,5 @@ async fn emit_event(
             return;
         }
     };
-    persist_and_route(kernel, envelope, entity_id, None).await;
+    persist_and_route(kernel, envelope, entity_id).await;
 }

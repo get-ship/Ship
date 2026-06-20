@@ -146,7 +146,7 @@ impl AgentStepDispatch {
                 return;
             }
         };
-        ship_runner::emit::persist_and_route(&self.kernel, envelope, &self.slug, None).await;
+        ship_runner::emit::persist_and_route(&self.kernel, envelope, &self.slug).await;
 
         // Terminalize the composed agent_session so it doesn't sit at
         // Dispatched forever. Failed verdict → session failed; Advance /

@@ -8,7 +8,7 @@ Runs a program (a DAG of op-calls) and journals every op outcome. Because the jo
 
 - `engine` — `ExecCtx` (op / suspend / parallel / retry / record), `Program`, `execute`, `resume`, `JournalingDispatch` (the bridge that makes an externally-driven op stream durable), `Journal`, `JournalEntry`, `OpRecord`.
 - `Dispatch` — the op-execution seam, re-exported from `ship-js`. The engine and the JS runtime share ONE contract; the host captures auth/gate/transport inside its impl.
-- `store` — `JournalStore` trait + `InMemoryJournalStore`; `SqliteJournalStore` lives in ship-pipeline-runtime (the layer that owns the event store).
+- `store` — `JournalStore` trait + `InMemoryJournalStore`; `SqliteJournalStore` lives in ship-substrate/src/persistence/journal_store.rs.
 - `projection` — the model's context as a disposable, re-derivable view of the journal (`ContextProjector`, `KeepRecent`, `Verbatim`).
 
 ## Wiring status

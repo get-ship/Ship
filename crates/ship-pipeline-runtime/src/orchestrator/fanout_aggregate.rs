@@ -161,7 +161,7 @@ pub(crate) async fn emit_failed_marker(
     match EventEnvelope::new(event_types::PIPELINE_STEP_DONE_DECLARED, pipeline_run_id, &payload) {
         Ok(env) => {
             let env = env.with_actor_id("service.fanout");
-            persist_and_route(kernel, env, slug, None).await;
+            persist_and_route(kernel, env, slug).await;
         }
         Err(e) => {
             tracing::warn!(pipeline_run_id, lane_id, "fanout: failed marker — envelope build failed: {e}");
