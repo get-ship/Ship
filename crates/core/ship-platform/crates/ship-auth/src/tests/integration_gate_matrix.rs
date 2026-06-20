@@ -107,9 +107,9 @@ fn auth_gate_matrix_none_role_matches_worker() {
 // ── grants_for_role (C2 elevated services) ────────────────────────────────────
 
 #[test]
-fn auth_gate_matrix_commander_grants_only_agent_service() {
+fn auth_gate_matrix_commander_grants_only_agents_service() {
     let grants = grants_for_role(Some("commander"));
-    assert_eq!(grants, vec!["agent".to_string()]);
+    assert_eq!(grants, vec!["agents".to_string()]);
 }
 
 #[test]
@@ -122,7 +122,8 @@ fn auth_gate_matrix_worker_grants_empty_c1_baseline_only() {
 fn auth_gate_matrix_contributor_grants_all_elevated_services() {
     let grants = grants_for_role(Some("contributor"));
     // The contributor role (operator's own profile) should carry all elevated services.
-    assert!(grants.contains(&"agent".to_string()));
+    // The orchestration domain is plural `agents` (AgentsService proto) — singular
+    // `agent` is dead since the agents-control 500s fix.
     assert!(grants.contains(&"agents".to_string()));
     assert!(grants.contains(&"skills".to_string()));
 }

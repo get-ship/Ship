@@ -173,12 +173,12 @@ mod tests {
         };
         let caller = caller_from_auth(&auth);
         assert!(!caller.is_operator, "a space window is never the operator");
-        // C2 in an elevated service (e.g. `agent`) is allowed — the space
+        // C2 in an elevated service (e.g. `agents`) is allowed — the space
         // operates at C2.
-        assert_eq!(decide(BlastRadius::C2Elevated, "agent", &caller), Decision::Allow);
+        assert_eq!(decide(BlastRadius::C2Elevated, "agents", &caller), Decision::Allow);
         // C3 is denied no matter the service — the space can never touch it.
         assert!(matches!(decide(BlastRadius::C3Critical, "account", &caller), Decision::Deny(_)));
-        assert!(matches!(decide(BlastRadius::C3Critical, "agent", &caller), Decision::Deny(_)));
+        assert!(matches!(decide(BlastRadius::C3Critical, "agents", &caller), Decision::Deny(_)));
     }
 
     #[test]
@@ -312,5 +312,76 @@ mod tests {
                 svc
             );
         }
+    }
+
+    /// The agents-control wire parity (P0 security: agents.* 500s).
+    ///
+    /// The handler-layer gate calls carry PLURAL op-names (`agents.dispatch`,
+    /// `agents.steer`, `agents.grant`) and the per-domain service is `AgentsService`
+    /// (plural) in the proto descriptor. The gate looks up op-policy through
+    /// `policy_for(op_name)` — singular strings (`agent.dispatch` etc.) resolve
+    /// to `None` and the gate fails OPEN (500s). The role-table domain must be
+    /// plural `agents` so `grants_for_role("commander")` matches the gate's
+    /// grant axis. This test pins both ends: any regression to the singular
+    /// wire or singular domain surfaces here, not as a runtime 500.
+    #[test]
+    fn agents_control_wire_is_plural_and_grantable() {
+        use ship_ops_rpc::policy::policy_for;
+        use ship_auth_types::scopes::grants_for_role;
+
+        // (1) The proto-sourced policy resolves each agents-control op to its
+        // declared blast tier — the gate's op-name lookup returns Some.
+        let dispatch = policy_for("agents.dispatch")
+            .expect("agents.dispatch must resolve via op_name(AgentsService, Dispatch)");
+        assert_eq!(dispatch.blast, BlastRadius::C2Elevated, "agents.dispatch is C2");
+        let steer = policy_for("agents.steer")
+            .expect("agents.steer must resolve via op_name(AgentsService, Steer)");
+        assert_eq!(steer.blast, BlastRadius::C2Elevated, "agents.steer is C2");
+        let grant = policy_for("agents.grant")
+            .expect("agents.grant must resolve via op_name(AgentsService, Grant)");
+        assert_eq!(grant.blast, BlastRadius::C3Critical, "agents.grant is C3");
+
+        // (2) The singular wire does NOT resolve — regression guard. If a
+        // future edit reintroduces a singular call (`agent.dispatch`/`agent.steer`/
+        // `agent.grant`), the proto descriptor still derives plural op-names, so
+        // these lookups stay None and the wire-gate falls open.
+        assert!(
+            policy_for("agent.dispatch").is_none(),
+            "singular `agent.dispatch` must NOT resolve — wire must use plural"
+        );
+        assert!(
+            policy_for("agent.steer").is_none(),
+            "singular `agent.steer` must NOT resolve — wire must use plural"
+        );
+        assert!(
+            policy_for("agent.grant").is_none(),
+            "singular `agent.grant` must NOT resolve — wire must use plural"
+        );
+
+        // (3) The role-table domain is plural `agents` so a commander (the
+        // orchestrator role) actually reaches the agents-control ops through
+        // the C2 elevation check. Without this, every commander-orchestrated
+        // op would be denied even with a correct proto policy.
+        let commander_grants: Vec<String> = grants_for_role(Some("commander"));
+        let commander_slice: Vec<&str> = commander_grants.iter().map(String::as_str).collect();
+        let commander = caller(false, &commander_slice);
+        assert!(
+            commander.elevated_services.iter().any(|s| s == "agents"),
+            "commander role must carry `agents` domain — singular `agent` is dead"
+        );
+        assert_eq!(
+            decide(BlastRadius::C2Elevated, "agents", &commander),
+            Decision::Allow,
+            "commander must clear C2 in the agents domain (dispatch/steer share this path)"
+        );
+        // C3 is operator-only — a commander (non-operator) cannot grant, even
+        // when their grants cover the domain.
+        assert!(
+            matches!(
+                decide(BlastRadius::C3Critical, "agents", &commander),
+                Decision::Deny(_)
+            ),
+            "commander is not operator — agents.grant (C3) must be denied"
+        );
     }
 }

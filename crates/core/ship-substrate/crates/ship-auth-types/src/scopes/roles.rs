@@ -93,14 +93,18 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
 /// their C2 re-tiering — harmless while those ops are still C1.
 pub fn grants_for_role(role: Option<&str>) -> Vec<String> {
     let g: &[&str] = match role {
-        // Commander orchestrates: dispatch/stop/steer live in the `agent` service.
-        Some("commander") | Some("lead") => &["agent"],
+        // Commander orchestrates: dispatch/stop/steer live in the `agents` service
+        // (the AgentsService proto is plural — `op_name("AgentsService", m)`
+        // derives `agents.dispatch` etc.). Keeping the domain singular "agent"
+        // would fail to match the wire's op-name and the gate would deny every
+        // commander-orchestrated op as ungated (the agents-control 500s root cause).
+        Some("commander") | Some("lead") => &["agents"],
         // Designer authors: the C2 authoring services (agent profiles, skills,
         // mcp, surface creation, view edit). Note `view`/`create` are singular —
         // the actual op-domains.
         Some("designer") => &["agents", "skills", "mcp", "create", "view"],
         // contributor = the operator's own profile: every elevated service.
-        Some("contributor") => &["agent", "agents", "skills", "mcp", "create", "view"],
+        Some("contributor") => &["agents", "skills", "mcp", "create", "view"],
         // worker / unknown: no elevated services (the C1 baseline only).
         _ => &[],
     };

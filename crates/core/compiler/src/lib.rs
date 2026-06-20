@@ -18,6 +18,7 @@ pub mod manifest;
 pub mod output;
 pub mod resolve;
 pub mod schemas;
+pub mod skill_parser;
 pub mod types;
 pub mod vars;
 
