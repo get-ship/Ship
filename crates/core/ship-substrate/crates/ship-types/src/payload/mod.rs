@@ -21,7 +21,6 @@ mod compile;
 mod config;
 mod crud;
 mod daemon;
-mod kernel;
 mod mesh;
 mod process;
 mod project;
@@ -35,14 +34,11 @@ mod sync;
 mod watcher;
 
 pub use account::{AccountKeyRefreshed, AccountLoginCompleted, AccountLoginStarted, AccountLogout};
-pub use actor::{
-    ActorCrashed, ActorCreated, ActorMailboxFull, ActorSlept, ActorStopped, ActorWoke,
-};
+pub use actor::{ActorCrashed, ActorCreated, ActorSlept, ActorStopped, ActorWoke};
 pub use auth::{AgentGrantsProvisioned, AuthSessionCreated, AuthSessionExpired, AuthSessionRevoked};
-// CollectionCreated / CollectionItem* / CollectionSchemaChanged moved to
 // ship-collection/src/events.rs — no re-export here.
 pub use compile::CompileCompleted;
-pub use config::{ConfigChanged, ConfigFileChanged, SettingChanged, SpaceSettingChanged};
+pub use config::{ConfigChanged, ConfigFileChanged, SettingChanged};
 pub use crud::{
     PermissionsUpdated, RuleCreated, RuleDeleted, RuleUpdated, SkillCreated, SkillDeleted,
     SkillUpdated,
@@ -52,7 +48,7 @@ pub use daemon::{
     DaemonPidfileStaleTaken, DaemonPortBindFailed, DaemonShutdownCompleted, DaemonStartupCompleted,
     SupervisorShuttingDown,
 };
-pub use kernel::{KernelActorRestored, KernelActorSnapshot, KernelActorSuspended};
+// KernelActor* retired (B2, 2026-06-20).
 pub use mesh::{MeshDeregister, MeshMessage, MeshRegister};
 pub use skill::{SkillCompleted, SkillFailed, SkillStarted};
 pub use spec6::{AgentTaskComplete, HumanResponse, PipelineStepRetry};

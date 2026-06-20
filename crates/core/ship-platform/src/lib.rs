@@ -63,9 +63,6 @@ pub mod config {
     pub use ship_config::library;
     pub use ship_config::local;
 
-    // Space settings projection
-    pub use ship_config::projection::SpaceSettingsProjection;
-
     // Settings view-state helpers (display structs for the Settings page).
     // Relocated from shipd::services::settings::view_state (L2 → L1).
     pub mod settings_view;
@@ -109,13 +106,7 @@ fn install_defaults_inner() {
             // ProjectsProjection moved to ship-space (keystone-A Phase A bundle 4,
             // 2026-06-10). The SQL read helpers stay in ship_substrate::db::projects.
             Box::new(ship_space::ProjectsProjection),
-            // Per-space settings overlay (event-sourced fold of
-            // `space.setting.changed`). The live overlay read is owned by the
-            // ship-space crate's own DataStore-backed table (`SpaceService.Info`);
-            // this projection materializes the same events for the event history.
-            Box::new(config::SpaceSettingsProjection),
             Box::new(ship_auth::AuthSessionsProjection),
-            Box::new(ship_auth::DaemonOwnerProjection),
             // Per-agent approved grant baseline the mint path reads.
             // ProvisionedGrantsProjection moved to ship-auth (keystone-A
             // Phase A bundle 2, 2026-06-10): the AUTH domain owns it at L1.

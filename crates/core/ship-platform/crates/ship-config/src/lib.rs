@@ -42,7 +42,6 @@ pub mod library;
 pub mod local;
 pub mod overlay;
 pub mod patch;
-pub mod projection;
 pub mod project;
 pub mod service;
 pub mod settings;

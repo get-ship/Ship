@@ -16,13 +16,6 @@ pub struct ConfigFileChanged {
     pub content_hash: String,
 }
 
-/// Per-space settings override (`space.setting.changed`).
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SpaceSettingChanged {
-    pub key: String,
-    pub value_json: String,
-}
-
 /// Unified scope-discriminated settings change (`settings.changed`).
 ///
 /// The keystone settings event: one type across all three scopes (SPACE /

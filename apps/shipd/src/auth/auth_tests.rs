@@ -461,7 +461,7 @@ async fn anomalous_token_format_fails_closed() {
 // ── Session is the sole binding minter (Phase 2 / #196) ───────────────────
 
 use ship_substrate::events::CallerKind;
-use ship_types::{Authority, EventScope, SpaceId, local_device_id};
+use ship_types::{Authority, SpaceId, event_registry::EventScope, local_device_id};
 
 /// T1 — a space-window session mints the correct binding: its OWN space (not a
 /// process-global), `Authority::Space`, the placeholder device id, no account.

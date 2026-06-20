@@ -1,57 +1,44 @@
 //! ConnectRPC wire layer for `SpaceService`.
 //!
-//! `SpaceWire<F, G>` wraps the service with two per-request factories:
+//! `SpaceWire<F>` wraps the service with one per-request factory:
 //! - `make_ctx` builds the Runtime-scoped `SpaceContext` (registry + kernel).
-//! - `resolve_space` resolves the per-request *target space* — `(space_id,
-//!   per-space DataStore, global settings snapshot)` — for the Space-scoped reads
-//!   (`Info`) and writes (`SetSetting`). The daemon owns the global snapshot
-//!   source + the per-space store factory; this keeps the daemon thin while the
-//!   overlay composition lives in the crate.
 //!
 //! It implements the generated `ship_ops_rpc::SpaceService` trait so shipd can
 //! mount it via `SpaceServiceExt::register`.
+//!
+//! Per-space settings live on the unified `settings_overlay` (S4) and are
+//! served by `SettingsService`. The `SpaceService.Watch` stream covers the
+//! registry (list + active pointer) AND, on its `space` variant, per-space
+//! `settings.changed` events. The per-space reactive prefix was repointed
+//! from the legacy `space.setting.` to `settings.changed` in S4.
 
 use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use ship_reactive::{ReactiveRegistry, ResolverSpec, WatchKey};
 use ship_substrate::events::EventFilter;
-use ship_substrate::ports::{DataStore, KernelLog, SpaceContext};
+use ship_substrate::ports::{KernelLog, SpaceContext};
 
 use ship_ops_rpc::{
-    ActiveSpace, Space, SpaceInfo, SpaceList, SpaceService as SpaceServiceTrait,
-    SpaceSettingValue, WatchEvent,
+    ActiveSpace, Space, SpaceInfo, SpaceList, SpaceService as SpaceServiceTrait, WatchEvent,
 };
 
 use crate::service::SpaceService;
 use crate::types::SpaceRecord;
 
-/// The per-request target-space resolution the daemon supplies for the
-/// Space-scoped RPCs: the resolved space id (None in global-only mode), the
-/// per-space `DataStore` (binds the space's `space.db`), and the daemon-global
-/// `settings.state` snapshot that is the overlay base.
-pub struct TargetSpace {
-    pub space_id: Option<String>,
-    pub settings_store: Arc<dyn DataStore>,
-    pub global_settings: serde_json::Value,
-}
-
-/// Wraps SpaceService with per-request context factories.
-pub struct SpaceWire<F, G> {
+/// Wraps SpaceService with the per-request Runtime-scoped context factory.
+pub struct SpaceWire<F> {
     make_ctx: F,
-    resolve_space: G,
     reactive: Arc<ReactiveRegistry>,
 }
 
-impl<F, G> SpaceWire<F, G>
+impl<F> SpaceWire<F>
 where
     F: Fn(&RequestContext) -> Result<Arc<SpaceContext>, ConnectError> + Send + Sync + 'static,
-    G: Fn(&RequestContext) -> Result<TargetSpace, ConnectError> + Send + Sync + 'static,
 {
-    pub fn new(kernel: Arc<KernelLog>, make_ctx: F, resolve_space: G) -> Self {
+    pub fn new(kernel: Arc<KernelLog>, make_ctx: F) -> Self {
         Self {
             make_ctx,
-            resolve_space,
             reactive: Arc::new(ReactiveRegistry::new(kernel)),
         }
     }
@@ -75,10 +62,9 @@ fn record_to_proto(r: SpaceRecord) -> Space {
 // ── Trait implementation ──────────────────────────────────────────────────────
 
 #[allow(refining_impl_trait)]
-impl<F, G> SpaceServiceTrait for SpaceWire<F, G>
+impl<F> SpaceServiceTrait for SpaceWire<F>
 where
     F: Fn(&RequestContext) -> Result<Arc<SpaceContext>, ConnectError> + Send + Sync + 'static,
-    G: Fn(&RequestContext) -> Result<TargetSpace, ConnectError> + Send + Sync + 'static,
 {
     async fn list(
         &self,
@@ -114,22 +100,16 @@ where
         _request: ship_ops_rpc::OwnedSpaceInfoReqView,
     ) -> ServiceResult<SpaceInfo> {
         let svc = self.make_svc(&ctx)?;
-        let target = (self.resolve_space)(&ctx)?;
+        let bound = svc.ctx.space_id().as_str();
         let composed = svc
-            .info(
-                target.settings_store.as_ref(),
-                target.space_id.as_deref(),
-                target.global_settings,
-            )
+            .info(if bound.is_empty() { None } else { Some(bound) })
             .await
-            .map_err(ConnectError::from)?;
-        let settings_json = serde_json::to_string(&composed.settings)
-            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        .map_err(ConnectError::from)?;
+
         Ok(Response::new(SpaceInfo {
             space_id: composed.space_id,
             root: composed.root,
             name: composed.name,
-            settings_json,
             ..Default::default()
         }))
     }
@@ -159,32 +139,6 @@ where
         }))
     }
 
-    async fn set_setting(
-        &self,
-        ctx: RequestContext,
-        request: ship_ops_rpc::OwnedSetSpaceSettingReqView,
-    ) -> ServiceResult<SpaceSettingValue> {
-        let svc = self.make_svc(&ctx)?;
-        let target = (self.resolve_space)(&ctx)?;
-        let space_id = target.space_id.ok_or_else(|| {
-            ConnectError::failed_precondition("no space bound for this connection")
-        })?;
-        let out = svc
-            .set_setting(
-                target.settings_store.as_ref(),
-                &space_id,
-                request.key,
-                request.value_json,
-            )
-            .await
-            .map_err(ConnectError::from)?;
-        Ok(Response::new(SpaceSettingValue {
-            key: out.key,
-            value_json: out.value_json,
-            ..Default::default()
-        }))
-    }
-
     async fn watch(
         &self,
         ctx: RequestContext,
@@ -199,7 +153,10 @@ where
                 ("registry".to_string(), "project.")
             }
             Some(ship_ops_rpc::__buffa::oneof::space_watch_req::Scope::Space(id)) => {
-                (format!("space:{id}"), "space.setting.")
+                // Per-space stream — `settings.changed` (Space scope) for that
+                // space. The legacy `space.setting.` prefix was repointed in S4
+                // to the unified `settings.changed` event.
+                (format!("space:{id}"), "settings.")
             }
             None => {
                 return Err(ConnectError::invalid_argument("watch scope is required"));
@@ -230,20 +187,27 @@ where
     }
 }
 
-/// Snapshot the registry (list + active pointer) for the Watch root frame. The
-/// per-space settings overlay snapshot is intentionally registry-shaped here —
-/// the daemon's per-space store is resolved per request, not per watcher, so the
-/// reactive root carries the registry view; the FE re-fetches `Info` on a frame.
+/// Snapshot the registry (list + active pointer) for the Watch root frame.
+/// The per-space settings overlay snapshot was removed in S4 — settings changes
+/// stream on `SettingsService.Watch`. The FE re-fetches `Info` on a frame.
 async fn registry_snapshot(ctx: Arc<SpaceContext>) -> serde_json::Value {
-    let spaces = crate::registry::list(ctx.kernel()).await.unwrap_or_default();
-    let active = crate::projection::get_active_id(ctx.data()).await.ok().flatten();
-    serde_json::json!({
-        "spaces": spaces.iter().map(|s| serde_json::json!({
-            "id": s.id, "path": s.path, "name": s.name,
-            "created_at": s.created_at, "last_seen_at": s.last_seen_at,
-        })).collect::<Vec<_>>(),
-        "active_id": active,
-    })
+    use serde_json::json;
+    let svc = SpaceService { ctx };
+    let spaces = svc.list().await.unwrap_or_default();
+    let active_id = svc.active_id().await.unwrap_or_default();
+    let spaces_json: Vec<_> = spaces
+        .into_iter()
+        .map(|r| {
+            json!({
+                "id": r.id,
+                "path": r.path,
+                "name": r.name,
+                "created_at": r.created_at,
+                "last_seen_at": r.last_seen_at,
+            })
+        })
+        .collect();
+    json!({ "spaces": spaces_json, "active_id": active_id })
 }
 
 fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ship_ops_rpc::PatchOp {
@@ -289,3 +253,4 @@ pub(crate) fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEve
         ..Default::default()
     }
 }
+

@@ -93,9 +93,9 @@ fn domain_catalog() -> Vec<DomainMeta> {
         DomainMeta {
             key: "runtime",
             display: "Runtime (actors)",
-            event_prefixes: vec!["actor.", "process.", "executor.", "supervisor.", "kernel.actor.", "mesh."],
+            event_prefixes: vec!["actor.", "process.", "executor.", "supervisor.", "mesh."],
             services: vec!["RuntimeService"],
-            description: "Actor lifecycle supervision, process management, mesh peer-discovery, and kernel snapshot primitives.",
+            description: "Actor lifecycle supervision, process management, and mesh peer-discovery.",
             coverage_audit_docs: vec![".artifacts/specs/module-audits/L0-substrate/ship-kernel.md"],
         },
         DomainMeta {
@@ -200,9 +200,9 @@ fn domain_catalog() -> Vec<DomainMeta> {
         DomainMeta {
             key: "projects",
             display: "Projects (spaces)",
-            event_prefixes: vec!["project.", "space.setting."],
+            event_prefixes: vec!["project."],
             services: vec!["SpaceService"],
-            description: "Space/project registry: register, switch, archive spaces; space-setting change events.",
+            description: "Space/project registry: register, switch, archive spaces.",
             coverage_audit_docs: vec![],
         },
         DomainMeta {

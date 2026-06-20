@@ -26,13 +26,8 @@ use ship_types::event_types::canonical_session::{ALL_CANONICAL_OP, ALL_CANONICAL
 fn full_registry_count_is_pinned() {
     let n = event_registry::all_names().len();
     assert_eq!(
-        n, 114,
-        "the full event vocabulary changed size. Bump this pin with your \
-         event addition/removal so vocabulary changes stay conscious. \
-         (#26: -5 agent.session.* deregistered + 1 dispatch.requested added = -4; \
-         2026-06-10; 2026-06-19: -1 project.log deleted — dead code, no emitter; \
-         2026-06-20: -1 human.response deleted — dark inbound, no emitter, \
-         A8 messaging fast-follow)"
+        n, 109,
+        "the full event vocabulary changed size. Bump this pin with your event addition/removal so vocabulary changes stay conscious. (B-wave2 / 2026-06-20: -3 kernel.actor events cut (snapshot, suspended, restored), -1 space.setting.changed cut, -1 actor.mailbox_full cut. 114 - 5 = 109.)"
     );
 }
 
@@ -52,7 +47,7 @@ fn every_registered_validator_rejects_garbage() {
         );
         checked += 1;
     }
-    assert!(checked >= 114, "expected the full linked registry, got {checked}");
+    assert!(checked >= 109, "expected the full linked registry, got {checked}");
 }
 
 /// The domain-owned closed family lists are fully registered at full linkage.

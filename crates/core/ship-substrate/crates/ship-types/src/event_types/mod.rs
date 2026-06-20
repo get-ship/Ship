@@ -123,42 +123,15 @@ pub const PERMISSIONS_UPDATED: &str = "permissions.updated";
 /// `requires:`/`grants:` in skills are intent, never authority.
 pub const AGENT_GRANTS_PROVISIONED: &str = "agent.grants.provisioned";
 
-/// Per-space settings override — a single (space, key) value was set. The
-/// space scope rides the envelope (`space_id`, stamped via `with_context`),
-/// NOT the payload — mirror `CONFIG_FILE_CHANGED`. Layered OVER the global
-/// daemon settings (`settings.state`); space overrides win per-key. `entity_id`
-/// is the setting key. Payload: `SpaceSettingChanged`.
-pub const SPACE_SETTING_CHANGED: &str = "space.setting.changed";
-
 /// Unified scope-discriminated settings change — the keystone settings event.
 /// One type across SPACE / ACCOUNT / RUNTIME (`SettingsService.Set` authors it);
 /// the chosen `EventScope` rides the envelope and routes to the matching
 /// per-scope db. `entity_id` is the setting key. Payload: `SettingChanged`.
 pub const SETTINGS_CHANGED: &str = "settings.changed";
 
-/// Actor — mailbox rejected a message because the channel was full.
-/// `entity_id` is the actor_id.
-/// A1: device, durable.
-pub const ACTOR_MAILBOX_FULL: &str = "actor.mailbox_full";
-
 /// Agent — a dispatched task ran to completion. `entity_id` is the task id.
-/// A1: space, durable.
 pub const AGENT_TASK_COMPLETE: &str = "agent.task.complete";
 
-/// Kernel — an actor was restored from a persisted snapshot.
-/// `entity_id` is the actor_id.
-/// A1: device, durable.
-pub const KERNEL_ACTOR_RESTORED: &str = "kernel.actor.restored";
-
-/// Kernel — a snapshot of actor state was written to durable storage.
-/// `entity_id` is the actor_id.
-/// A1: device, durable.
-pub const KERNEL_ACTOR_SNAPSHOT: &str = "kernel.actor.snapshot";
-
-/// Kernel — an actor was suspended (paused, not stopped).
-/// `entity_id` is the actor_id.
-/// A1: device, durable.
-pub const KERNEL_ACTOR_SUSPENDED: &str = "kernel.actor.suspended";
 
 /// Studio — a user annotation was created on a session or artifact.
 /// `entity_id` is the annotation id.

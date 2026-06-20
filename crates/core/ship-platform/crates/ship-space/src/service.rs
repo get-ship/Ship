@@ -6,10 +6,9 @@
 //!
 //! Scope split: the registry (`projects` + active pointer) is Runtime-scoped, so
 //! `ctx` binds the Runtime store (runtime.db) — it owns list/active/add/activate
-//! and is the kernel handle for every emit. The per-space settings overlay
-//! (`space_settings`) is Space-scoped, so `info` + `set_setting` take an explicit
-//! per-space `&dyn DataStore` the caller (the daemon's wire) builds per request
-//! from the target space id.
+//! and is the kernel handle for every emit. `info` is identity-only; per-space
+//! settings live on the unified `settings_overlay` (S4) and are owned by
+//! `SettingsService`.
 //!
 //! After the dual-read-model dissolution (2026-06-10), record reads go through
 //! `registry::list/get` which use `kernel.try_ship_dir()` to open the `projects`
@@ -17,19 +16,16 @@
 
 use std::sync::Arc;
 
-use serde_json::Value;
-
-use ship_substrate::ports::{DataStore, SpaceContext};
+use ship_substrate::ports::SpaceContext;
 
 use crate::error::SpaceError;
-use crate::types::{SettingValue, SpaceInfo, SpaceRecord};
-use crate::{config, info, registry};
+use crate::types::{SpaceInfo, SpaceRecord};
+use crate::{info, registry};
 
 /// Core service — stateless; all state lives in `SpaceContext`.
 pub struct SpaceService {
     /// Runtime-scoped context: the `projects` registry + active pointer store,
-    /// and the kernel handle for every `project.*` / `space.setting.changed`
-    /// emit.
+    /// and the kernel handle for every `project.*` emit.
     pub ctx: Arc<SpaceContext>,
 }
 
@@ -70,32 +66,14 @@ impl SpaceService {
         registry::activate(self.ctx.data(), self.ctx.kernel(), id).await
     }
 
-    // ── config (Space-scoped) ───────────────────────────────────────────────
+    // ── info (identity only) ────────────────────────────────────────────────
 
-    /// Write a per-space settings override against the per-space `settings_store`.
-    /// Emits `space.setting.changed` through the runtime kernel handle (the space
-    /// rides the envelope, so the kernel routes it to the space's `space.db`).
-    pub async fn set_setting(
-        &self,
-        settings_store: &dyn DataStore,
-        space_id: &str,
-        key: &str,
-        raw_value_json: &str,
-    ) -> Result<SettingValue, SpaceError> {
-        config::set(settings_store, self.ctx.kernel(), space_id, key, raw_value_json).await
-    }
-
-    // ── info (identity + overlay) ───────────────────────────────────────────
-
-    /// Compose identity + effective (global ⟵ space) settings. Identity comes
-    /// from the `projects` SQL table (via `kernel.try_ship_dir()`); the overlay
-    /// from the per-space `settings_store`. See [`info::compose`].
+    /// Compose identity (id/root/name from `projects`). Per-space settings
+    /// moved to `SettingsService` (S4). See [`info::compose`].
     pub async fn info(
         &self,
-        settings_store: &dyn DataStore,
         space_id: Option<&str>,
-        global_settings: Value,
     ) -> Result<SpaceInfo, SpaceError> {
-        info::compose(self.ctx.kernel(), settings_store, space_id, global_settings).await
+        info::compose(self.ctx.kernel(), space_id).await
     }
 }

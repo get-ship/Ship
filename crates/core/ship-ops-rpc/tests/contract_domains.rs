@@ -9,7 +9,7 @@ use ship_ops_rpc::{
     ActiveSpace, ArtifactsListResponse, CollectionItem, Deletion,
     EventsListResponse, ListProcsResponse, McpIndexResponse, PermissionsIndexResponse,
     PipelinesIndexResponse, SessionsListResponse, SkillFileResponse, SkillsIndexResponse, Space,
-    SpaceInfo, SpaceList, SpaceSettingValue, SpecDetail, SpecGetResponse, SpecsListResponse,
+    SpaceInfo, SpaceList, SpecDetail, SpecGetResponse, SpecsListResponse,
     ToolPatternsResponse,
 };
 
@@ -172,22 +172,16 @@ fn specs_detail_parses_acceptance() {
 }
 
 #[test]
-fn space_info_parses_identity_and_settings() {
+fn space_info_parses_identity_only() {
+    // S4: SpaceInfo is identity-only (id/root/name). The effective settings
+    // overlay moved to the unified SettingsService — see settings_contract.rs.
     let r: SpaceInfo =
         serde_json::from_str(&response_ok(SPACE, "Info")).expect("parse SpaceInfo");
     assert_eq!(r.space_id.as_deref(), Some("harbor"));
     assert_eq!(r.root.as_deref(), Some("/home/dev/harbor"));
-    assert!(r.settings_json.contains("theme"));
-}
-
-#[test]
-fn space_set_setting_parses_key_and_value() {
-    // Per-space override write returns the typed SpaceSettingValue (space-domain
-    // owned); the typed return needs a fixture sample.
-    let r: SpaceSettingValue =
-        serde_json::from_str(&response_ok(SPACE, "SetSetting")).expect("parse SpaceSettingValue");
-    assert_eq!(r.key, "theme");
-    assert_eq!(r.value_json, "\"dark\"");
+    // No settings_json field on the proto — per-space settings live on
+    // SettingsService.
+    assert!(r.space_id.is_some());
 }
 
 // Window contract tests moved to the device topic (DeviceService) — the space

@@ -12,16 +12,10 @@
 //!   — the `space_registry` DataStore table was retired in 2026-06-10 as part of
 //!   the keystone-A dual-read-model dissolution). The [`projection`] module now
 //!   only manages the `space_active` single-row pointer.
-//! - **config** ([`config`]) — the per-space settings overlay. Reads the
-//!   `space_settings` table (Space-scoped, per-space `space.db`); writes emit
-//!   `space.setting.changed` (the space rides the envelope, not the payload).
-//! - **info** ([`info`]) — identity (id/root/name from `projects`) + the
-//!   effective-settings overlay (global ⟵ space). The daemon supplies its global
-//!   settings snapshot; the overlay is here.
+//! - **info** ([`info`]) — identity (id/root/name from `projects`). The per-space
+//!   settings overlay moved to the unified `settings_overlay` (S4), read via
+//!   `ship_config::overlay`; the legacy `space_overlay` writer/reader is gone.
 //!
-//! No sqlite/sqlx/rusqlite types in this crate. No raw fs; all storage/events
-//! go through the port types from ship-substrate.
-pub mod config;
 pub mod error;
 pub mod event_registrations;
 pub mod helpers;

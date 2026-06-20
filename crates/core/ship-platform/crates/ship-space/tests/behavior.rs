@@ -6,16 +6,14 @@
 //! async registry reads (which now read from SQL, not the dissolved `space_registry`
 //! DataStore) see each newly registered space.
 //!
-//! Ported from the retired `services/space/tests.rs` (non-window) + the
-//! `projects/mod.rs` + `projects/active.rs` proofs, re-expressed against the
-//! ports. The window proofs are CUT — they belong to the ship-device topic.
+//! S4 cut: the per-space `config::set` + `info::compose` overlay tests are gone
+//! — the legacy `space_overlay` table is retired and the unified
+//! `settings_overlay` is owned by `SettingsService` (ship-config). The
+//! registry/identity tests below cover the rest of `ship-space`.
 
 use std::sync::Arc;
 use std::time::Duration;
 
-use serde_json::json;
-use ship_space::config;
-use ship_space::info;
 use ship_space::registry;
 use ship_space::service::SpaceService;
 use ship_substrate::data::DataService;
@@ -49,9 +47,6 @@ fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
     Arc::new(KernelLog::new(router))
 }
 
-/// A DataStore over a fresh per-scope db bound to `partition`. The registry
-/// active pointer (`space_active`) is Runtime-scoped: bind the runtime
-/// partition. Per-space settings bind the target space's partition.
 fn store_for(tmp: &tempfile::TempDir, db_name: &str, partition: &str) -> Arc<dyn DataStore> {
     let ship_dir = ShipHome::project_ship_dir(tmp.path());
     let db_path = ship_dir.join(format!("{db_name}.db"));
@@ -67,133 +62,49 @@ fn registry_service(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> SpaceSer
     SpaceService::new(ctx)
 }
 
-// ── config::set ─────────────────────────────────────────────────────────────
+// ── info::compose (identity-only, S4) ─────────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn set_rejects_non_json_value_and_emits_nothing() {
+async fn info_no_space_returns_empty_identity() {
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
-    let store = store_for(&tmp, "spaces/space-a/space", "space-a");
-    let mut rx = kernel.subscribe();
 
-    let err = config::set(store.as_ref(), &kernel, "space-a", "theme", "not json at all")
-        .await
-        .expect_err("invalid JSON is rejected");
-    assert!(matches!(err, ship_space::error::SpaceError::BadArgs(_)));
-
-    // Nothing emitted on bad input.
-    tokio::time::sleep(Duration::from_millis(20)).await;
-    assert!(rx.try_recv().is_err(), "no event emitted on bad input");
-    // Nothing persisted.
-    assert!(config::get(store.as_ref(), "theme").await.unwrap().is_none());
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn set_canonicalizes_echoes_and_emits_one_event() {
-    let tmp = tempfile::tempdir().unwrap();
-    let kernel = make_kernel(&tmp);
-    let store = store_for(&tmp, "spaces/space-a/space", "space-a");
-    let mut rx = kernel.subscribe();
-
-    // Whitespace-laden but valid JSON re-serializes to canonical form.
-    let out = config::set(store.as_ref(), &kernel, "space-a", "theme", "  \"dark\"  ")
-        .await
-        .expect("valid JSON accepted");
-    assert_eq!(out.key, "theme");
-    assert_eq!(out.value_json, "\"dark\"", "value canonicalized");
-
-    // Exactly one space.setting.changed event, carrying the key as the payload's
-    // entity_id and the canonical value in the payload (the space rides the
-    // envelope at the kernel/routing layer, not the payload — proven below by the
-    // override landing in the space's own partition).
-    let event = tokio::time::timeout(Duration::from_secs(2), rx.recv())
-        .await
-        .expect("timeout")
-        .expect("closed");
-    assert_eq!(event.event_type, "space.setting.changed");
-    let payload: serde_json::Value = serde_json::from_str(&event.payload_json).unwrap();
-    assert_eq!(payload["key"], json!("theme"), "key in the payload");
-    assert_eq!(payload["value_json"], json!("\"dark\""), "canonical value in the payload");
-    // exactly one event of this type.
-    let extra: Vec<_> = std::iter::from_fn(|| rx.try_recv().ok())
-        .filter(|e| e.event_type == "space.setting.changed")
-        .collect();
-    assert!(extra.is_empty(), "exactly one space.setting.changed emitted");
-
-    // The override is persisted + canonical, in THIS space's partition.
-    let stored = config::get(store.as_ref(), "theme").await.unwrap();
-    assert_eq!(stored, Some(json!("dark")));
-    // A different space's partition does not see this override (space rides the
-    // partition, not the payload).
-    let other = store_for(&tmp, "spaces/space-b/space", "space-b");
-    assert!(config::get(other.as_ref(), "theme").await.unwrap().is_none());
-}
-
-// ── info::compose (overlay) ───────────────────────────────────────────────────
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn info_no_space_passes_settings_through_unoverlaid() {
-    let tmp = tempfile::tempdir().unwrap();
-    let kernel = make_kernel(&tmp);
-    let settings = store_for(&tmp, "spaces/none/space", "none");
-
-    let base = json!({ "theme": "light", "x": 1 });
-    let composed = info::compose(&kernel, settings.as_ref(), None, base.clone())
-        .await
-        .unwrap();
+    let composed = ship_space::info::compose(&kernel, None).await.unwrap();
     assert_eq!(composed.space_id, None);
     assert_eq!(composed.root, None);
     assert_eq!(composed.name, None);
-    assert_eq!(composed.settings, base, "no space ⟹ unoverlaid base");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn info_unknown_space_leaves_base_unchanged() {
+async fn info_unknown_space_leaves_identity_empty() {
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
-    let settings = store_for(&tmp, "spaces/space-unknown/space", "space-unknown");
 
-    let base = json!({ "theme": "light" });
-    let composed =
-        info::compose(&kernel, settings.as_ref(), Some("space-unknown"), base.clone())
-            .await
-            .unwrap();
+    let composed = ship_space::info::compose(&kernel, Some("space-unknown"))
+        .await
+        .unwrap();
     assert_eq!(composed.space_id.as_deref(), Some("space-unknown"));
-    // Unknown space ⟹ no projects row ⟹ no identity, no override ⟹ base unchanged.
     assert_eq!(composed.root, None);
     assert_eq!(composed.name, None);
-    assert_eq!(composed.settings, base);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn info_live_space_resolves_identity_and_overlays_override() {
+async fn info_live_space_resolves_identity() {
     let tmp = tempfile::tempdir().unwrap();
     let kernel = make_kernel(&tmp);
     let svc = registry_service(&tmp, kernel.clone());
 
-    // Register a space so the registry has identity.
     let space_path = tmp.path().join("acme");
     std::fs::create_dir_all(&space_path).unwrap();
     let record = svc.add(&space_path, Some("Acme")).await.unwrap();
     let space = record.id.clone();
 
-    // Write a per-space override against the space's partition store.
-    let settings = store_for(&tmp, &format!("spaces/{space}/space"), &space);
-    config::set(settings.as_ref(), &kernel, &space, "theme", "\"dark\"")
-        .await
-        .unwrap();
-
-    let base = json!({ "theme": "light", "untouched": true });
-    let composed = svc
-        .info(settings.as_ref(), Some(&space), base)
+    let composed = ship_space::info::compose(&kernel, Some(&space))
         .await
         .unwrap();
     assert_eq!(composed.space_id.as_deref(), Some(space.as_str()));
     assert_eq!(composed.name.as_deref(), Some("Acme"));
     assert_eq!(composed.root.as_deref(), Some(record.path.as_str()));
-    // Space override wins per-key; non-overridden keys survive.
-    assert_eq!(composed.settings["theme"], json!("dark"));
-    assert_eq!(composed.settings["untouched"], json!(true));
 }
 
 // ── registry: add / list / activate / active ─────────────────────────────────

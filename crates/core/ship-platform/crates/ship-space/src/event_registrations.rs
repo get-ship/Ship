@@ -26,6 +26,6 @@ register_event!("project.registered", [EventScope::Runtime], Retention::Durable,
 register_event!("project.seen", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ProjectSeen", ship_types::payload::ProjectSeen);
 register_event!("project.switched", [EventScope::Space], Retention::Durable, Stability::Stable, "ProjectSwitched", ship_types::payload::ProjectSwitched);
 
-// ── space.setting.* ─────────────────────────────────────────────────────────
-register_event!("space.setting.changed", [EventScope::Space], Retention::Durable, Stability::Stable, "SpaceSettingChanged", ship_types::payload::SpaceSettingChanged);
-
+// Space-scoped settings changes ride the unified `settings.changed` event
+// (SettingsService.Set, EventScope::Space). Per-space settings are read +
+// written through the unified `settings_overlay` table.

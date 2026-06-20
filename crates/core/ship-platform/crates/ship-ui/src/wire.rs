@@ -41,21 +41,6 @@ use ship_ops_rpc::{
 
 type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 
-/// Extract the agent_id from a request context.
-/// Shipd wires this to `ctx.extensions.get::<AuthContext>().agent_id.clone()`.
-pub type AgentFn = Arc<dyn Fn(&RequestContext) -> Result<String, ConnectError> + Send + Sync>;
-
-/// Async closure for `patch_session`: (id, agent, selector, html) → Result<()>.
-pub type PatchFn =
-    Arc<dyn Fn(String, String, String, String) -> BoxFuture<Result<(), ConnectError>> + Send + Sync>;
-
-/// Async closure for `append_session`: (id, agent, selector, html) → Result<()>.
-pub type AppendFn =
-    Arc<dyn Fn(String, String, String, String) -> BoxFuture<Result<(), ConnectError>> + Send + Sync>;
-
-/// Async closure for `signal_session`: (id, agent, name, value) → Result<()>.
-pub type SignalFn =
-    Arc<dyn Fn(String, String, String, Value) -> BoxFuture<Result<(), ConnectError>> + Send + Sync>;
 
 /// Async closure for `tool`: (view, session_id, op, args) → Result<String>.
 /// Returns the raw JSON body from `dispatch_tool_core`. Captures `ApiState`.
@@ -83,10 +68,6 @@ pub type ScaffoldViewFn = Arc<
 /// mount time from its config; the wire just calls it.
 pub struct UiWire {
     resolver:     Arc<dyn crate::registry::ComponentResolver>,
-    agent_fn:     AgentFn,
-    patch_fn:     PatchFn,
-    append_fn:    AppendFn,
-    signal_fn:    SignalFn,
     tool_fn:      ToolFn,
     scaffold_fn:  ScaffoldViewFn,
 }
@@ -94,26 +75,16 @@ pub struct UiWire {
 impl UiWire {
     pub fn new(
         resolver:    Arc<dyn crate::registry::ComponentResolver>,
-        agent_fn:    AgentFn,
-        patch_fn:    PatchFn,
-        append_fn:   AppendFn,
-        signal_fn:   SignalFn,
         tool_fn:     ToolFn,
         scaffold_fn: ScaffoldViewFn,
     ) -> Self {
         Self {
             resolver,
-            agent_fn,
-            patch_fn,
-            append_fn,
-            signal_fn,
             tool_fn,
             scaffold_fn,
         }
     }
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 /// Identical view-name validation used by the REST edit-mode routes.
 fn is_valid_view_name(name: &str) -> bool {
@@ -248,60 +219,13 @@ impl UiServiceTrait for UiWire {
     }
 
     // ── View authoring writes (C1) ────────────────────────────────────────
-
-    async fn patch_session(
-        &self,
-        ctx: RequestContext,
-        request: ship_ops_rpc::OwnedViewPatchReqView,
-    ) -> ServiceResult<JsonResponse> {
-        let agent = (self.agent_fn)(&ctx)?;
-        (self.patch_fn)(
-            request.id.to_string(),
-            agent,
-            request.selector.to_string(),
-            request.html.to_string(),
-        )
-        .await?;
-        json_ok(serde_json::json!({ "ok": true }))
-    }
-
-    async fn append_session(
-        &self,
-        ctx: RequestContext,
-        request: ship_ops_rpc::OwnedViewAppendReqView,
-    ) -> ServiceResult<JsonResponse> {
-        let agent = (self.agent_fn)(&ctx)?;
-        (self.append_fn)(
-            request.id.to_string(),
-            agent,
-            request.selector.to_string(),
-            request.html.to_string(),
-        )
-        .await?;
-        json_ok(serde_json::json!({ "ok": true }))
-    }
-
-    async fn signal_session(
-        &self,
-        ctx: RequestContext,
-        request: ship_ops_rpc::OwnedViewSignalReqView,
-    ) -> ServiceResult<JsonResponse> {
-        let agent = (self.agent_fn)(&ctx)?;
-        let value: Value = if request.value_json.is_empty() {
-            Value::Null
-        } else {
-            serde_json::from_str(request.value_json)
-                .map_err(|e| ConnectError::invalid_argument(format!("value_json: {e}")))?
-        };
-        (self.signal_fn)(
-            request.id.to_string(),
-            agent,
-            request.name.to_string(),
-            value,
-        )
-        .await?;
-        json_ok(serde_json::json!({ "ok": true }))
-    }
+    //
+    // The 3 session-write RPCs (Patch/Append/Signal) were removed in B12 — the
+    // ViewSessionRegistry was deleted with the UI purge, so no surface can
+    // create or watch a session and these calls were always answering
+    // `SessionError::NotFound`. The `ship.ui.write` writes that remain are
+    // the edit-mode grants + tool + scaffold, all of which only need a
+    // validated auth context, not a view-session id.
 
     async fn enter_edit_mode(
         &self,

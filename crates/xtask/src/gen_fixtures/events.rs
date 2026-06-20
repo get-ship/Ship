@@ -67,11 +67,6 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "ActorSlept" => json!({ "idle_secs": 30 }),
         "ActorStopped" => json!({ "reason": "natural-exit" }),
         "ActorCrashed" => json!({ "error": "test-crash-error", "restart_count": 0 }),
-        "ActorMailboxFull" => json!({
-            "actor_id": "test-actor",
-            "dropped_event_type": "session.progress",
-            "dropped_event_id": "test-event-id"
-        }),
 
         // ── Agent events ─────────────────────────────────────────────────────
         "AgentChanged" => json!({ "path": ".ship/agents/test.jsonc", "content_hash": "sha256-test" }),
@@ -140,7 +135,6 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         // ── Config events ────────────────────────────────────────────────────
         "ConfigChanged" => json!({ "subject": "test-config", "detail": null }),
         "ConfigFileChanged" => json!({ "domain": "agents", "path": ".ship/agents/test.jsonc", "content_hash": "sha256-test" }),
-        "SpaceSettingChanged" => json!({ "key": "test.setting", "value_json": "\"test-value\"" }),
 
         // ── Daemon events ────────────────────────────────────────────────────
         "DaemonStartupCompleted" => json!({ "pid": 12345, "version": "0.1.0" }),
@@ -150,13 +144,8 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         "DaemonPidfileAcquired" => json!({ "pid": 12345 }),
         "DaemonPidfileStaleTaken" => json!({ "stale_pid": 11111, "new_pid": 12345 }),
 
-        // ── Kernel actor events ──────────────────────────────────────────────
-        "KernelActorRestored" => json!({ "actor_id": "test-actor", "event_count": 42 }),
-        "KernelActorSnapshot" => json!({ "actor_id": "test-actor", "event_count": 42, "last_event_id": null, "size_bytes": 4096 }),
-        "KernelActorSuspended" => json!({ "actor_id": "test-actor", "reason": "idle-timeout" }),
 
         // ── Mesh events ──────────────────────────────────────────────────────
-        "MeshDeregister" => json!({ "actor_id": "test-actor" }),
         "MeshMessage" => json!({ "from": "actor-a", "to": "actor-b", "message_type": "test.msg" }),
         "MeshRegister" => json!({ "actor_id": "test-actor", "namespace": "test-ns" }),
 

@@ -1,5 +1,4 @@
 //! Emit-context + time helpers for the space service.
-
 use ship_substrate::events::validator::EmitContext;
 use ship_types::SpaceId;
 
@@ -12,10 +11,10 @@ pub(crate) fn runtime_emit_ctx() -> EmitContext {
     EmitContext::daemon_internal(None)
 }
 
-/// Emit context for the Space-scoped `space.setting.changed` event. The space
-/// rides the envelope (not the payload); the daemon-internal mint carries the
-/// space scope key so the kernel routes the override to `spaces/<space>/space.db`
-/// and fail-closes a space-unbound caller.
+/// Emit context for Space-scoped events. The space rides the envelope (not the
+/// payload); the daemon-internal mint carries the space scope key so the
+/// kernel routes the event to `spaces/<space>/space.db` and fail-closes a
+/// space-unbound caller. Used by `project.switched` (Space scope).
 pub(crate) fn space_emit_ctx(space_id: &str) -> EmitContext {
     EmitContext::daemon_internal(Some(SpaceId::new(space_id)))
 }

@@ -15,24 +15,11 @@ use connectrpc::ConnectError;
 use crate::ship_runtime::ApiState;
 
 pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc::Router {
-    // Session writes (Patch/Append/Signal): the agent-canvas ViewSessionRegistry
-    // was deleted with the UI purge — no surface can create (`view.open` is gone)
-    // or watch (the SSE subscribe route is gone) a session, so the registry was
-    // permanently empty and every call already answered "not found". These
-    // closures preserve that exact observable behavior; the three ops now live
-    // under `ship.ui.write` / C1.
-    let view_patch_fn: ship_ui::wire::PatchFn =
-        Arc::new(move |id, _agent, _selector, _html| {
-            Box::pin(async move { Err(no_view_session(&id)) })
-        });
-    let view_append_fn: ship_ui::wire::AppendFn =
-        Arc::new(move |id, _agent, _selector, _html| {
-            Box::pin(async move { Err(no_view_session(&id)) })
-        });
-    let view_signal_fn: ship_ui::wire::SignalFn =
-        Arc::new(move |id, _agent, _name, _value| {
-            Box::pin(async move { Err(no_view_session(&id)) })
-        });
+    // B12: the 3 session-write RPCs (Patch/Append/Signal) were removed — the
+    // ViewSessionRegistry was deleted with the UI purge and these closures
+    // were always answering "not found". `UiWire` no longer takes
+    // patch/append/signal closures; only the agent/tool/scaffold closures
+    // remain.
     // `UiService.Tool` — inlined from the now-cut
     // `routes::view_edit_tool_api::dispatch_tool_core`. The handler body
     // was a 3-line wrapper around
@@ -71,13 +58,6 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
                 }
             })
         });
-    let view_agent_fn: ship_ui::wire::AgentFn =
-        Arc::new(|ctx: &connectrpc::RequestContext| {
-            ctx.extensions
-                .get::<crate::auth::AuthContext>()
-                .and_then(|a| a.agent_id.clone())
-                .ok_or_else(|| ConnectError::permission_denied("agent identity required"))
-        });
     // scaffold_fn: moves scaffold_view route-core into the UiWire.
     // Runs synchronous fs I/O in spawn_blocking so the future is Send.
     let scaffold_ship_dir = state.ship_dir().to_path_buf();
@@ -106,21 +86,11 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
         ]));
     let ui_wire = Arc::new(ship_ui::wire::UiWire::new(
         resolver,
-        view_agent_fn,
-        view_patch_fn,
-        view_append_fn,
-        view_signal_fn,
+
         view_tool_fn,
         view_scaffold_fn,
     ));
     ship_ops_rpc::UiServiceExt::register(ui_wire, router)
-}
-
-/// The error every session write answers with — identical to what the
-/// always-empty registry's `SessionError::NotFound` mapped to before the
-/// registry was deleted.
-fn no_view_session(id: &str) -> ConnectError {
-    ConnectError::internal(format!("view session '{id}' not found"))
 }
 
 // ── scaffold_view_sync ────────────────────────────────────────────────────────
