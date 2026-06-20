@@ -25,9 +25,7 @@
       "item_id": "test-item_id",
       "owner_actor": "test-owner_actor",
       "content_hash": "test-content_hash",
-      "sort": "test-sort",
-      "limit": 0,
-      "offset": 0
+      "limit": 0
     }
   },
   "Watch": {
@@ -82,8 +80,7 @@
     "request": {
       "id": "test-id",
       "target_scope": "test-target_scope",
-      "run_id": "test-run_id",
-      "user_id": "test-user_id"
+      "run_id": "test-run_id"
     }
   },
   "Delete": {

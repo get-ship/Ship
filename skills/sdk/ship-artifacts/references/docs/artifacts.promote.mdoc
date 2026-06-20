@@ -1,6 +1,6 @@
 ---
 title: artifacts.promote
-description: Promote an artifact to a target scope (run → project → user).
+description: Promote an artifact to a target scope (run → project).
 audience: public
 group: "Ops: artifacts"
 order: 3
@@ -10,7 +10,7 @@ order: 3
 
 # `artifacts.promote`
 
-Promote an artifact to a target scope (run → project → user).
+Promote an artifact to a target scope (run → project).
 
 **Policy** — command `[C1_WORKSPACE]`. Capability `ship.artifacts.write`.
 
@@ -21,7 +21,6 @@ Promote an artifact to a target scope (run → project → user).
 | `id` | `string` |
 | `target_scope` | `string` |
 | `run_id` | `string` |
-| `user_id` | `string` |
 
 ## Returns
 
@@ -37,7 +36,6 @@ Promote an artifact to a target scope (run → project → user).
 | `scope` | `string` |
 | `space_id` | `string` |
 | `run_id` | `string` |
-| `user_id` | `string` |
 | `content_hash` | `string` |
 | `expires_at` | `string` |
 | `owner_actor` | `string` |
@@ -48,7 +46,7 @@ Promote an artifact to a target scope (run → project → user).
 ## Invoke
 
 ```
-ship ops call artifacts.promote --json '{ "id": "", "target_scope": "", "run_id": "", "user_id": "" }'
+ship ops call artifacts.promote --json '{ "id": "", "target_scope": "", "run_id": "" }'
 ```
 
 Kind: command.

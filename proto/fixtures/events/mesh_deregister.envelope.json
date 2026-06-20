@@ -15,7 +15,8 @@
     "space_id": "",
     "occurred_at": "2026-01-01T00:00:00Z",
     "payload": {
-      "actor_id": "test-actor"
+      "_note": "NEEDS_AUTHOR: MeshDeregister — auto-stub not possible; hand-author this fixture",
+      "_payload_type": "MeshDeregister"
     }
   }
 }

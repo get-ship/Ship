@@ -65,9 +65,14 @@ message ActivateSpaceReq {
   string id = 1;
 }
 
-// Watch request — currently watches the registry (list + active pointer).
-// The settings surface moved to SettingsService.Watch(scope=SPACE) (S4).
+// Watch request — `registry` watches the space list/active pointer,
+// `space` watches per-space `settings.changed` events (S4 repointed from
+// the legacy `space.setting.` prefix to the unified `settings.changed`).
 message SpaceWatchReq {
+  oneof scope {
+    SpaceListReq registry = 1;
+    string space = 2;
+  }
 }
 
 // ── Service ─────────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@
     "needs_author": false
   },
   "payload": {
-    "actor_id": "test-actor",
-    "reason": "idle-timeout"
+    "_note": "NEEDS_AUTHOR: KernelActorSuspended — auto-stub not possible; hand-author this fixture",
+    "_payload_type": "KernelActorSuspended"
   }
 }

@@ -32,5 +32,5 @@ page for full args, return shape, capability, and an example.
 
 - [`artifacts.delete`](references/docs/artifacts.delete.mdoc) `[C1_WORKSPACE]` — Soft-delete an artifact by id.
 - [`artifacts.patch`](references/docs/artifacts.patch.mdoc) `[C1_WORKSPACE]` — Patch an artifact's metadata (name / owner / expiry).
-- [`artifacts.promote`](references/docs/artifacts.promote.mdoc) `[C1_WORKSPACE]` — Promote an artifact to a target scope (run → project → user).
+- [`artifacts.promote`](references/docs/artifacts.promote.mdoc) `[C1_WORKSPACE]` — Promote an artifact to a target scope (run → project).
 

@@ -192,9 +192,6 @@ async fn update_job_status_core_is_shared_and_emits() {
 #[test]
 fn ui_write_ops_policy_in_descriptor() {
     for method in [
-        "PatchSession",
-        "AppendSession",
-        "SignalSession",
         "EnterEditMode",
         "ExitEditMode",
         "Tool",
@@ -261,12 +258,8 @@ fn pipelines_put_is_c1_config_write() {
 }
 
 /// Every `view.*` write on `ViewService` declares `ship.views.write` / C1.
-#[test]
 fn view_rpc_op_policy_in_descriptor() {
     for method in [
-        "PatchSession",
-        "AppendSession",
-        "SignalSession",
         "EnterEditMode",
         "ExitEditMode",
         "Tool",

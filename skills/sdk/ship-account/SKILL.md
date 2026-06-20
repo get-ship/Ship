@@ -23,13 +23,10 @@ ship ops call <name> --json '<args-json>'
 Reads are safe (C0). Commands carry a blast-radius class. Open an op's reference
 page for full args, return shape, capability, and an example.
 
-## Reads
-
-- [`account.state`](references/docs/account.state.mdoc) — Ship Cloud account snapshot — logged_out / pending / logged_in.
-
 ## Commands
 
 - [`account.login`](references/docs/account.login.mdoc) `[C2_ELEVATED]` — Start a PKCE login — returns the browser auth URL + a state_id.
 - [`account.login_complete`](references/docs/account.login_complete.mdoc) `[C2_ELEVATED]` — Finish a PKCE login — exchanges the code, stores the key, returns identity.
 - [`account.logout`](references/docs/account.logout.mdoc) `[C2_ELEVATED]` — Revoke the gateway key (best-effort) and clear the local token. Idempotent.
+- [`account.state`](references/docs/account.state.mdoc) `[C3_CRITICAL]` — Ship Cloud account snapshot — logged_out / pending / logged_in. Operator-only (require_operator, S6, #124).
 

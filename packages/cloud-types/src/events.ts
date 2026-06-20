@@ -33,7 +33,6 @@ export type WireEvent =
   | { type: "session.failed"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "session.started"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "session.suspended"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
-  | { type: "space.setting.changed"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "studio.annotation.created"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "studio.chat_turn"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
   | { type: "studio.feedback.created"; scope: "space"; retention: "durable"; payload: Record<string, unknown> }
@@ -71,7 +70,6 @@ export const WIRE_EVENT_TYPES = [
   "session.failed",
   "session.started",
   "session.suspended",
-  "space.setting.changed",
   "studio.annotation.created",
   "studio.chat_turn",
   "studio.feedback.created",
@@ -102,7 +100,6 @@ export const SPACE_EVENT_TYPES = [
   "session.failed",
   "session.started",
   "session.suspended",
-  "space.setting.changed",
   "studio.annotation.created",
   "studio.chat_turn",
   "studio.feedback.created",

@@ -62,16 +62,6 @@
       "id": "test-id"
     }
   },
-  "SetSetting": {
-    "response_ok": {
-      "key": "theme",
-      "value_json": "\"dark\""
-    },
-    "request": {
-      "key": "test-key",
-      "value_json": "test-value_json"
-    }
-  },
   "Watch": {
     "response_ok": {
       "patches": {

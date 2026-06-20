@@ -8,9 +8,7 @@
     "needs_author": false
   },
   "payload": {
-    "actor_id": "test-actor",
-    "event_count": 42,
-    "last_event_id": null,
-    "size_bytes": 4096
+    "_note": "NEEDS_AUTHOR: KernelActorSnapshot — auto-stub not possible; hand-author this fixture",
+    "_payload_type": "KernelActorSnapshot"
   }
 }

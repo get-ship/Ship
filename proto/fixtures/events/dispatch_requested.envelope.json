@@ -5,7 +5,7 @@
     "retention": "ephemeral",
     "stability": "stable",
     "payload_type": "dispatch_intent::DispatchRequestedPayload",
-    "needs_author": true
+    "needs_author": false
   },
   "envelope": {
     "id": "01JTEST000000000000000EVENT",

@@ -37,12 +37,11 @@ EVENT_TYPE_UNSPECIFIED = 0;
   EVENT_TYPE_SESSION_FAILED = 27;
   EVENT_TYPE_SESSION_STARTED = 28;
   EVENT_TYPE_SESSION_SUSPENDED = 29;
-  EVENT_TYPE_SPACE_SETTING_CHANGED = 30;
-  EVENT_TYPE_STUDIO_ANNOTATION_CREATED = 31;
-  EVENT_TYPE_STUDIO_CHAT_TURN = 32;
-  EVENT_TYPE_STUDIO_FEEDBACK_CREATED = 33;
-  EVENT_TYPE_STUDIO_REPLY = 34;
-  EVENT_TYPE_VIEW_CHANGED = 35;
+  EVENT_TYPE_STUDIO_ANNOTATION_CREATED = 30;
+  EVENT_TYPE_STUDIO_CHAT_TURN = 31;
+  EVENT_TYPE_STUDIO_FEEDBACK_CREATED = 32;
+  EVENT_TYPE_STUDIO_REPLY = 33;
+  EVENT_TYPE_VIEW_CHANGED = 34;
 }
 
 // Tagged union of all wire-tier event payloads.
@@ -77,12 +76,11 @@ oneof payload {
     SessionFailedMsg session_failed = 27;
     SessionStartedMsg session_started = 28;
     SessionSuspendedMsg session_suspended = 29;
-    SpaceSettingChangedMsg space_setting_changed = 30;
-    StudioAnnotationCreatedMsg studio_annotation_created = 31;
-    StudioChatTurnMsg studio_chat_turn = 32;
-    StudioFeedbackCreatedMsg studio_feedback_created = 33;
-    StudioReplyMsg studio_reply = 34;
-    ViewChangedMsg view_changed = 35;
+    StudioAnnotationCreatedMsg studio_annotation_created = 30;
+    StudioChatTurnMsg studio_chat_turn = 31;
+    StudioFeedbackCreatedMsg studio_feedback_created = 32;
+    StudioReplyMsg studio_reply = 33;
+    ViewChangedMsg view_changed = 34;
   }
 }
 
@@ -228,11 +226,6 @@ message SessionStartedMsg {
 
 // space / durable — session.suspended
 message SessionSuspendedMsg {
-  bytes payload_json = 1;
-}
-
-// space / durable — space.setting.changed
-message SpaceSettingChangedMsg {
   bytes payload_json = 1;
 }
 
