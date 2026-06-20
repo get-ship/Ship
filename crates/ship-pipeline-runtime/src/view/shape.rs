@@ -53,19 +53,6 @@ pub struct RunView {
     pub depends_on: Vec<String>,
 }
 
-pub fn run_state_token(s: &PipelineRunStatus) -> &'static str {
-    match s {
-        PipelineRunStatus::Pending => "pending",
-        PipelineRunStatus::Dispatched => "dispatched",
-        PipelineRunStatus::GatePending => "gate-pending",
-        PipelineRunStatus::Completed => "completed",
-        PipelineRunStatus::Failed => "failed",
-        PipelineRunStatus::Merged => "merged",
-        PipelineRunStatus::Blocked => "blocked",
-        PipelineRunStatus::Cancelled => "cancelled",
-    }
-}
-
 pub fn tone_for(s: &PipelineRunStatus) -> &'static str {
     match s {
         PipelineRunStatus::Dispatched => "info",
@@ -188,7 +175,7 @@ pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
         slug: job.slug.clone(),
         agent: job.agent.clone(),
         branch: job.branch.clone(),
-        state: run_state_token(&job.status),
+        state: super::state::status_token(&job.status),
         tone: tone_for(&job.status),
         status_text: status_text_label(&job.status),
         duration: format_duration((job.updated_at - job.created_at).num_seconds()),
@@ -218,27 +205,6 @@ pub fn current_project_workspace_id() -> Option<String> {
     }
     let branch = String::from_utf8_lossy(&out.stdout).trim().to_string();
     if branch.is_empty() { None } else { Some(branch) }
-}
-
-/// Locate a pipeline file on disk by walking up from CWD.
-pub fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
-    let mut walker = std::env::current_dir().ok()?;
-    loop {
-        let ship = ship_substrate::ShipHome::project_ship_dir(&walker);
-        let dir = ship_store::compose::composed_root_for(&ship).join("pipelines");
-        if dir.is_dir() {
-            for ext in ["yaml", "yml", "jsonc", "json"] {
-                let cand = dir.join(format!("{name}.{ext}"));
-                if cand.exists() {
-                    return Some(cand);
-                }
-            }
-            return None;
-        }
-        if !walker.pop() {
-            return None;
-        }
-    }
 }
 
 pub fn harnesses_on_path() -> Vec<String> {

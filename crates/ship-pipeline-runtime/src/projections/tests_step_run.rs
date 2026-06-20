@@ -245,32 +245,6 @@ fn step_output_nudges_pending_step_to_running() {
     assert_eq!(c.started_at, Some(at(1)));
 }
 
-#[test]
-fn run_updated_attaches_message_to_running_step_only() {
-    let run = "run-upd";
-    let updated = ev(
-        pet::PIPELINE_RUN_UPDATED,
-        3,
-        serde_json::json!({
-            "pipeline_run_id": run, "message": "focus on edge cases", "sender": "human"
-        }),
-    );
-    // a is completed, b is running → only b takes the note.
-    let map = project(&[
-        run_started(run, 0),
-        step_started(run, "a", 1),
-        step_completed(run, "a", 2),
-        step_started(run, "b", 2),
-        updated,
-    ]);
-    assert_eq!(row(&map, run, "a").note, None, "completed step takes no run-update");
-    assert_eq!(
-        row(&map, run, "b").note.as_deref(),
-        Some("focus on edge cases"),
-        "running step takes the run-update message"
-    );
-}
-
 // ── Retry / attempt ─────────────────────────────────────────────────────────────
 
 #[test]

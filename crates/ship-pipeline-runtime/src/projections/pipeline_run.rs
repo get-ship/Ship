@@ -107,9 +107,6 @@ pub struct PipelineRun {
     /// DAG pipeline steps.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub steps: Option<ship_substrate::events::pipeline::Pipeline>,
-    /// Index of the currently active pipeline phase (legacy).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub current_phase: Option<usize>,
     /// IDs of completed pipeline steps (DAG).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub completed_steps: Vec<String>,
@@ -174,13 +171,6 @@ pub fn apply(record: &mut PipelineRun, event: &EventEnvelope) {
             if let Some(ref pipeline) = record.steps {
                 let next = pipeline.unblocked_steps(&record.completed_steps);
                 record.current_step = next.first().map(|s| s.id.clone());
-            }
-            if record.pipeline.is_some() {
-                if record.status == PipelineRunStatus::Completed {
-                    record.current_phase = Some(record.current_phase.map_or(1, |p| p + 1));
-                } else if record.current_phase.is_none() {
-                    record.current_phase = Some(0);
-                }
             }
             record.updated_at = ts;
         }
@@ -334,7 +324,6 @@ fn record_from_created(event: &EventEnvelope) -> Option<PipelineRun> {
         harness_meta: None,
         pipeline,
         steps,
-        current_phase: None,
         completed_steps: vec![],
         current_step: None,
         vars: serde_json::from_value(p["vars"].clone()).ok(),
@@ -389,7 +378,6 @@ const JOB_EVENT_TYPES: &[&str] = &[
     event_types::PIPELINE_RUN_FAILED,
     event_types::PIPELINE_STEP_SPAWN_FAILED,
     event_types::PIPELINE_RUN_CANCELLED,
-    event_types::PIPELINE_RUN_UPDATED,
     event_types::PIPELINE_STEP_STARTED,
     event_types::PIPELINE_STEP_COMPLETED,
     event_types::PIPELINE_STEP_FAILED,
@@ -438,7 +426,7 @@ impl Projection for PipelineRunProjection {
 const ROW_COLS: &str = "pipeline_run_id, slug, agent, branch, spec_path, source_spec_path, \
     depends_on_json, status, worktree, blocker, error, model, harness, \
     created_at, updated_at, harness_meta_json, pipeline_json, steps_json, \
-    current_phase, completed_steps_json, current_step, vars_json, \
+    completed_steps_json, current_step, vars_json, \
     step_retries_json, headless, baseline_sha";
 
 fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<PipelineRun> {
@@ -464,19 +452,18 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<PipelineRun> {
         .ok()
         .flatten()
         .and_then(|s| serde_json::from_str(&s).ok());
-    let current_phase: Option<i64> = row.try_get(18).ok().flatten();
-    let completed_steps_json: String = row.get(19);
+    let completed_steps_json: String = row.get(18);
     let completed_steps: Vec<String> =
         serde_json::from_str(&completed_steps_json).unwrap_or_default();
     let vars: Option<HashMap<String, String>> = row
-        .try_get::<Option<String>, _>(21)
+        .try_get::<Option<String>, _>(20)
         .ok()
         .flatten()
         .and_then(|s| serde_json::from_str(&s).ok());
-    let step_retries_json: String = row.get(22);
+    let step_retries_json: String = row.get(21);
     let step_retries: HashMap<String, u32> =
         serde_json::from_str(&step_retries_json).unwrap_or_default();
-    let headless: i64 = row.get(23);
+    let headless: i64 = row.get(22);
 
     Ok(PipelineRun {
         pipeline_run_id: row.get(0),
@@ -507,13 +494,12 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<PipelineRun> {
         harness_meta,
         pipeline,
         steps,
-        current_phase: current_phase.map(|v| v as usize),
         completed_steps,
-        current_step: row.try_get(20).ok().flatten(),
+        current_step: row.try_get(19).ok().flatten(),
         vars,
         step_retries,
         headless: headless != 0,
-        baseline_sha: row.try_get(24).ok().flatten(),
+        baseline_sha: row.try_get(23).ok().flatten(),
     })
 }
 
@@ -549,9 +535,9 @@ fn upsert_record(record: &PipelineRun, conn: &mut SqliteConnection) -> Result<()
               pipeline_run_id, slug, agent, branch, spec_path, source_spec_path, \
               depends_on_json, status, worktree, blocker, error, model, harness, \
               created_at, updated_at, harness_meta_json, pipeline_json, steps_json, \
-              current_phase, completed_steps_json, current_step, vars_json, \
+              completed_steps_json, current_step, vars_json, \
               step_retries_json, headless, baseline_sha) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(pipeline_run_id) DO UPDATE SET \
               slug=excluded.slug, agent=excluded.agent, branch=excluded.branch, \
               spec_path=excluded.spec_path, source_spec_path=excluded.source_spec_path, \
@@ -560,7 +546,6 @@ fn upsert_record(record: &PipelineRun, conn: &mut SqliteConnection) -> Result<()
               model=excluded.model, harness=excluded.harness, \
               updated_at=excluded.updated_at, \
               harness_meta_json=excluded.harness_meta_json, pipeline_json=excluded.pipeline_json, \
-              steps_json=excluded.steps_json, current_phase=excluded.current_phase, \
               completed_steps_json=excluded.completed_steps_json, current_step=excluded.current_step, \
               vars_json=excluded.vars_json, step_retries_json=excluded.step_retries_json, \
               headless=excluded.headless, baseline_sha=excluded.baseline_sha",
@@ -583,7 +568,6 @@ fn upsert_record(record: &PipelineRun, conn: &mut SqliteConnection) -> Result<()
         .bind(&harness_meta_json)
         .bind(&pipeline_json)
         .bind(&steps_json)
-        .bind(record.current_phase.map(|v| v as i64))
         .bind(&completed_steps_json)
         .bind(&record.current_step)
         .bind(&vars_json)

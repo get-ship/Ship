@@ -335,7 +335,6 @@ mod replay_filter {
                 steps: step_ids.iter().map(|s| pipeline_step(s)).collect(),
                 auto_merge,
             }),
-            current_phase: None,
             completed_steps: completed.iter().map(|s| s.to_string()).collect(),
             current_step: None,
             vars: None,

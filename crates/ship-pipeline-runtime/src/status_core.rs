@@ -166,6 +166,13 @@ pub struct StepDoneReq {
 /// Core of the step-done command, shared by the REST handler and the ConnectRPC
 /// `PipelinesService`. Resolves the active step from the projection and emits
 /// `step.done_declared`.
+///
+/// NOTE: this is a deliberate alias of [`resolve_step_core`] today — both
+/// emit `PIPELINE_STEP_DONE_DECLARED` and discard `decision`. They diverge at
+/// the orchestrator dissolution (P2.x), where `resolve_step_core` becomes
+/// engine `resume(decision)` with retry/fail branches. Wiring `decision`
+/// end-to-end is the flagged behavior fix; here we just mark the alias so
+/// callers don't expect divergent semantics in the meantime.
 pub async fn step_done_core(
     port: &dyn PipelineDispatchPort,
     slug: &str,
@@ -270,10 +277,12 @@ pub async fn cancel_run_core(
 ///
 /// FOR NOW it maps onto the EXISTING advance flow: it emits
 /// `PIPELINE_STEP_DONE_DECLARED` for the named step (the same signal `step_done`
-/// rides), so the orchestrator advances the run today. At the dissolution (P2.x)
-/// this becomes engine `resume(decision)` with retry/fail branches; `decision`
-/// is already on the wire so callers don't have to change shape then. Returns the
-/// typed [`ResolveStepResult`].
+/// rides), so the orchestrator advances the run today. Deliberate alias of
+/// [`step_done_core`] until the orchestrator dissolution (P2.x), where this
+/// becomes engine `resume(decision)` with retry/fail branches; `decision` is
+/// already on the wire so callers don't have to change shape then. Returns
+/// the typed [`ResolveStepResult`]. Wiring `decision` end-to-end is the
+/// flagged behavior fix.
 pub async fn resolve_step_core(
     port: &dyn PipelineDispatchPort,
     slug: &str,

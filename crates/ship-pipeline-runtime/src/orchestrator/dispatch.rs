@@ -502,7 +502,6 @@ fn pipeline_run_from_payload(
         harness_meta: None,
         pipeline: payload.pipeline.clone(),
         steps: payload.steps.clone(),
-        current_phase: None,
         completed_steps: vec![],
         current_step: None,
         vars: payload.vars.clone(),

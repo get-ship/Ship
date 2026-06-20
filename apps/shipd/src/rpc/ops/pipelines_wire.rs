@@ -1,17 +1,17 @@
 //! pipelines.* mount — crate-owned PipelinesWire (ship-pipeline-runtime).
 //!
 //! Replaces `impl PipelinesService for OpsImpl` (deleted).
-//! Reads (C0): list/get call the crate service directly; summaries/run/history
-//! go through the live_read_fn closure (shipd view helpers). Writes (C1): all
-//! config + runtime writes go through the write_fn closure (shipd route cores +
-//! gated command calls). Live-read streams go through the live_read_fn closure
-//! (shipd kernel subscriber loop).
+//! Reads (C0): list/get call the crate service directly off the typed
+//! pipeline_runs + pipeline_step_runs projections (P0.3 — no live closure).
+//! Writes (C1): all config + runtime writes go through the `write_fn` closure
+//! (shipd route cores + gated command calls).
 //!
-//! Non-live run-level reads (Summaries/Run/History/ListRuns) are TYPED (P0.3):
-//! the crate-owned wire reads the pipeline_runs + pipeline_step_runs
-//! projections directly off `ship_dir` via `read_core` — no shipd read closure.
-//! The GUI view-model (pills/tones/timeline) stays on the *Live streams below.
-
+//! The legacy `pipelines.summaries`/`pipelines.run`/`pipelines.history`
+//! *Live streams (the snapshot-emission family) are retired — the typed
+//! `Watch` RPC (P0.4) is the structured replacement; the proto rpcs still
+//! exist so a null closure answers them as `unimplemented` until the
+//! shell→Watch migration drops them.
+//!
 use std::sync::Arc;
 
 use connectrpc::ConnectError;
@@ -24,79 +24,16 @@ pub(super) fn mount(
     state: &ApiState,
     gate: &GateFn,
 ) -> connectrpc::Router {
-    let pipelines_state_for_live = state.clone();
-    let pipelines_live_fn: ship_pipeline_runtime::wire::LiveReadFn = Arc::new(move |op, args| {
-        let st = pipelines_state_for_live.clone();
-        Box::pin(async move {
-            // Build a temporary OpsImpl-equivalent live read using the kernel.
-            use connectrpc::{ConnectError, Response, ServiceStream};
-            use ship_substrate::events::ActorConfig;
-            use ship_ops_rpc::JsonResponse;
-            let resolve: Box<dyn Fn(&crate::ship_runtime::ApiState) -> serde_json::Value + Send + Sync> = match op {
-                "pipelines.summaries" => {
-                    Box::new(move |st| {
-                        use ship_pipeline_runtime::view::summaries;
-                        use ship_pipeline_runtime::view::state::Filter;
-                        let ctx = summaries::build(st.ship_dir(), Filter::default(), None);
-                        serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
-                    })
-                }
-                "pipelines.run" => {
-                    let slug = args.get("slug").and_then(|v| v.as_str())
-                        .unwrap_or("").to_string();
-                    Box::new(move |st| {
-                        use ship_pipeline_runtime::view::run_detail;
-                        let ctx = run_detail::build(&slug, st.ship_dir());
-                        serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
-                    })
-                }
-                "pipelines.history" => {
-                    let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(50) as usize;
-                    let offset = args.get("offset").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-                    let pipeline = args.get("pipeline").and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty()).map(str::to_string);
-                    let q = args.get("q").and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty()).map(str::to_string);
-                    Box::new(move |st| {
-                        use ship_pipeline_runtime::view::history;
-                        let ctx = history::build(st.ship_dir(), q.clone(), pipeline.clone(), offset, limit);
-                        serde_json::to_value(&ctx).unwrap_or(serde_json::Value::Null)
-                    })
-                }
-                _ => Box::new(|_| serde_json::Value::Null),
-            };
-            let initial = resolve(&st);
-            let actor_id = format!("live-read-{}", ship_substrate::gen_ulid());
-            let config = ActorConfig {
-                namespace: actor_id.clone(),
-                write_namespaces: vec![],
-                read_namespaces: vec![],
-                subscribe_namespaces: vec!["config".to_string()],
-                see_directed_events: false,
-            };
-            let mailbox = {
-                let mut kernel = st.kernel().lock().await;
-                kernel
-                    .spawn_actor(&actor_id, config)
-                    .map(|(_store, mb)| mb)
-                    .map_err(|e| ConnectError::internal(e.to_string()))?
-            };
-            let guard = crate::ship_runtime::ActorGuard { actor_id, kernel: st.kernel().clone() };
-            let stream = async_stream::stream! {
-                let _guard = guard;
-                let mut mb = mailbox;
-                if let Ok(json) = serde_json::to_string(&initial) {
-                    yield Ok::<JsonResponse, ConnectError>(JsonResponse { json, ..Default::default() });
-                }
-                while let Some(_ev) = mb.recv().await {
-                    while mb.try_recv().is_ok() {}
-                    let value = resolve(&st);
-                    if let Ok(json) = serde_json::to_string(&value) {
-                        yield Ok(JsonResponse { json, ..Default::default() });
-                    }
-                }
-            };
-            Ok(Response::new(Box::pin(stream) as ServiceStream<JsonResponse>))
+    // The `pipelines.summaries`/`pipelines.run`/`pipelines.history` *Live
+    // streams were retired: the typed `Watch` (P0.4) is the structured
+    // replacement, the mux 404s them, and the GUI is migrating off. The
+    // closure type stays in the wire surface (proto keeps the rpcs, the
+    // `*_live` Connect methods exist on `PipelinesWire`), so a null stub
+    // answers the three still-defined ops cleanly until the proto + GUI
+    // pair drops them.
+    let pipelines_live_fn: ship_pipeline_runtime::wire::LiveReadFn = Arc::new(|_op, _args| {
+        Box::pin(async {
+            Err(ConnectError::unimplemented("pipelines live streams are retired; use the typed Watch RPC"))
         })
     });
     let pipelines_state_for_write = state.clone();

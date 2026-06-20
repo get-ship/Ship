@@ -7,9 +7,6 @@
 pub mod state;
 pub mod view_state;
 pub mod shape;
-pub mod run_detail;
-pub mod history;
-pub mod summaries;
 
 /// Flatten top-level re-exports that callers commonly need.
 pub use state::{
@@ -18,7 +15,4 @@ pub use state::{
     aggregate_pipeline_stats, partition_runs, status_token, status_tone,
     pipeline_name_for_job_public,
 };
-pub use shape::{RunView, StepView, Stats, StatusPill};
-pub use run_detail::{RunDetailCtx, StepObservationRow, TimelineRow};
-pub use history::HistoryCtx;
-pub use summaries::SummariesCtx;
+

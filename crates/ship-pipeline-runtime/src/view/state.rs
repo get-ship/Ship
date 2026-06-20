@@ -120,12 +120,13 @@ impl Filter {
     }
 }
 
-/// Normalized kebab-case token for `PipelineRunStatus`.
+/// Normalized snake_case token for `PipelineRunStatus` (the DOMAIN token —
+/// proto convention; the GUI kebab variant was the drift we're closing).
 pub fn status_token(s: &PipelineRunStatus) -> &'static str {
     match s {
         PipelineRunStatus::Pending => "pending",
         PipelineRunStatus::Dispatched => "dispatched",
-        PipelineRunStatus::GatePending => "gate-pending",
+        PipelineRunStatus::GatePending => "gate_pending",
         PipelineRunStatus::Completed => "completed",
         PipelineRunStatus::Failed => "failed",
         PipelineRunStatus::Merged => "merged",
@@ -148,8 +149,10 @@ pub fn status_tone(s: &PipelineRunStatus) -> &'static str {
     }
 }
 
-/// Recognised pipeline file extensions, preferred first.
-const PIPELINE_EXTS: &[&str] = &["jsonc", "yaml"];
+/// Recognised pipeline file extensions. jsonc-only: the loader
+/// (`pipeline_loader.rs`) reads `{name}.jsonc` and YAML pipelines failed to
+/// dispatch from studio (the ext list matched; the loader did not).
+const PIPELINE_EXTS: &[&str] = &["jsonc"];
 
 /// List pipeline definitions from `<ship_dir>/pipelines/`, sorted by name.
 pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
