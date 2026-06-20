@@ -387,7 +387,7 @@ async fn cron_fires_on_schedule() {
     let (_tmp, ship_dir) = tmp_ship_dir();
     let kernel = test_kernel(&ship_dir);
 
-    let source = Arc::new(super::cron::CronSource::new());
+    let source = Arc::new(super::cron::CronSource::new(ship_dir.clone()));
     // Every second (6-field cron).
     let hook = make_cron_hook("tick", "* * * * * *");
     source.start(kernel.clone());
@@ -412,7 +412,7 @@ async fn cron_hot_reload_replaces_triggers() {
     let (_tmp, ship_dir) = tmp_ship_dir();
     let kernel = test_kernel(&ship_dir);
 
-    let source = Arc::new(super::cron::CronSource::new());
+    let source = Arc::new(super::cron::CronSource::new(ship_dir.clone()));
     let hook_a = make_cron_hook("tick-a", "* * * * * *");
     let hook_b = make_cron_hook("tick-b", "* * * * * *");
 

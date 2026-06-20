@@ -165,9 +165,12 @@ impl ShipRuntime {
         .await
         {
             Ok(engine) => {
-                // Also start the filesystem watcher for hot-reload.
-                if let Err(e) = ship_triggers::watcher::spawn_watcher(engine.clone()) {
-                    tracing::warn!("hook watcher failed to start: {e}");
+                // Also start the filesystem watcher for hot-reload. Bind it to a
+                // long-lived field — dropping the HookWatcher aborts the reload task,
+                // so it MUST live for the daemon's lifetime.
+                match ship_triggers::watcher::spawn_watcher(engine.clone()) {
+                    Ok(w) => { let _ = self.hook_watcher.set(w); }
+                    Err(e) => tracing::warn!("hook watcher failed to start: {e}"),
                 }
                 let _ = self.hook_engine.set(engine);
                 tracing::info!("hooks: engine started");
@@ -191,8 +194,9 @@ impl ShipRuntime {
         if self.config_watcher.get().is_some() {
             return;
         }
+        let kernel_log = std::sync::Arc::new(ship_substrate::ports::KernelLog::new(self.kernel.clone()));
         match ship_platform::config::spawn_config_watcher(
-            self.kernel.clone(),
+            kernel_log,
             self.ship_dir.clone(),
             self.workspace_dir.clone(),
         ) {

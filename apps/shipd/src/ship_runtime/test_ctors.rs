@@ -64,6 +64,7 @@ impl ShipRuntime {
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
+            hook_watcher: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
             agent_def_kernel: std::sync::OnceLock::new(),
             agent_reactive: std::sync::OnceLock::new(),

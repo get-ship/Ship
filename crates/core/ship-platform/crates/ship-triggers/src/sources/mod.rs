@@ -37,8 +37,8 @@ impl SourceManager {
     pub fn new(ship_dir: PathBuf) -> Self {
         Self {
             webhook: Arc::new(webhook::WebhookSource::new()),
-            file: Arc::new(file::FileSource::new(ship_dir)),
-            cron: Arc::new(cron::CronSource::new()),
+            file: Arc::new(file::FileSource::new(ship_dir.clone())),
+            cron: Arc::new(cron::CronSource::new(ship_dir)),
         }
     }
 

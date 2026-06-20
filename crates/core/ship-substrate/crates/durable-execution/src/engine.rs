@@ -221,7 +221,11 @@ impl ExecCtx {
                             OpRecord::Suspended { .. } => return Err(EngineError::Suspended),
                         }
                     }
-                    None => return Err(EngineError::Suspended),
+                    None => return Err(EngineError::NonDeterministic {
+                        idx: start + i,
+                        expected: "<missing>".to_string(),
+                        got: op.to_string(),
+                    }),
                 }
             }
             self.cursor += k; // commit
@@ -695,6 +699,65 @@ mod tests {
         let (s2, _) = execute(journal, gw, &ThreeReads).await;
         assert_eq!(calls.load(Ordering::SeqCst), 3, "replay re-executes nothing");
         assert_eq!(s1, s2);
+    }
+
+    // K-1 edge: the parallel replay branch entered (slot `start` is journaled) but
+    // slot `start + K - 1` is missing — the journal was partially torn, not parked.
+    // This is non-deterministic replay, not a suspended run: surface the variant.
+    #[tokio::test]
+    async fn parallel_replay_with_missing_mid_batch_slot_is_non_deterministic() {
+        // A torn K-1 journal: only slot 0 is present, slot 1 is absent. This is
+        // unreachable through the live path (the live `parallel` appends all-or-
+        // nothing), but a JournalStore that lost atomicity across a process
+        // boundary can rehydrate a journal in exactly this shape — and the
+        // engine must surface it as a NonDeterministic replay, not park the run.
+        let torn: Journal = serde_json::from_value(json!({
+            "entries": [
+                { "seq": 0, "op": "collections.read",
+                  "record": { "Completed": { "ok": true } } }
+            ]
+        }))
+        .expect("torn journal deserializes");
+
+        let (gw, calls, _) = counting();
+        struct ParallelTwo;
+        #[async_trait]
+        impl Program for ParallelTwo {
+            async fn run(&self, ctx: &mut ExecCtx) -> Result<Value, EngineError> {
+                ctx.parallel(vec![
+                    ("collections.read".into(), json!({})),
+                    ("collections.get".into(), json!({})),
+                ])
+                .await
+                .map(|vs| json!(vs))
+            }
+        }
+
+        let (status, journal) = execute(torn, gw.clone(), &ParallelTwo).await;
+        // The run did NOT park: cursor never advanced past the replay branch,
+        // so no new lanes are journaled and the dispatch is not called.
+        match status {
+            RunStatus::Failed(msg) => {
+                assert!(
+                    msg.contains("non-deterministic")
+                        && msg.contains("recorded `<missing>`")
+                        && msg.contains("`collections.get`")
+                        && msg.contains("at journal slot 1"),
+                    "error should be NonDeterministic(missing, idx=1, got=collections.get); got: {msg}"
+                );
+            }
+            other => panic!("expected Failed(NonDeterministic), got {other:?}"),
+        }
+        assert_eq!(
+            journal.entries().len(),
+            1,
+            "torn journal is unchanged — cursor never reached the live frontier"
+        );
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            0,
+            "no dispatch — the parallel replay branch never fell through to live execution"
+        );
     }
 
     #[test]

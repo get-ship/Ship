@@ -2,10 +2,9 @@
 //!
 //! Storage: all scopes use `kv.db` (a separate sqlite file from the event log).
 //!
-//! KV namespaces:
 //! - global  `skill_vars:{skill_id}`                      machine-wide preferences
-//! - local   `skill_vars.local:{ctx}:{skill_id}`          per-context, not shared
-//! - project `skill_vars.project:{ctx}:{skill_id}`        per-context, intended to be shared
+//! - local   `skill_vars.local:v2:{ctx}:{skill_id}`        per-context, not shared
+//! - project `skill_vars.project:v2:{ctx}:{skill_id}`      per-context, intended to be shared
 //!
 //! Where `ctx` is a stable hex token derived from the ship_dir path.
 //!
@@ -17,7 +16,6 @@ use anyhow::Result;
 use serde_json::Value;
 use crate::skill_vars_store::KvNamespace;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 // ── Context key ───────────────────────────────────────────────────────────────
@@ -25,9 +23,9 @@ use std::path::Path;
 /// Stable 16-char hex token derived from the canonical ship_dir path.
 /// Scopes local/project state to a specific context without exposing the path.
 fn context_key(ship_dir: &Path) -> String {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    ship_dir.hash(&mut hasher);
-    format!("{:016x}", hasher.finish())
+    let digest = ship_types::sha256_hex(ship_dir.to_string_lossy().as_bytes());
+    let short = &digest[..16];
+    format!("v2:{short}")
 }
 
 // ── KV namespaces ─────────────────────────────────────────────────────────────
@@ -365,5 +363,22 @@ mod tests {
         let list = list_skill_vars(&ship_dir).unwrap();
         assert_eq!(list.len(), 1);
         assert_eq!(list[0].0, "commit");
+    }
+
+    #[test]
+    fn context_key_is_stable_and_v2_prefixed() {
+        let p = Path::new("/tmp/skill_vars_stable_path");
+        let k1 = context_key(p);
+        let k2 = context_key(p);
+        // Stable across repeated calls.
+        assert_eq!(k1, k2);
+        // Shape: "v2:" + exactly 16 hex chars.
+        assert!(k1.starts_with("v2:"), "key {k1:?} missing v2 prefix");
+        let hex = &k1["v2:".len()..];
+        assert_eq!(hex.len(), 16, "hex tail {hex:?} not 16 chars");
+        assert!(hex.chars().all(|c| c.is_ascii_hexdigit()), "non-hex chars in {hex:?}");
+        // Different paths hash differently.
+        let other = context_key(Path::new("/tmp/skill_vars_other_path"));
+        assert_ne!(k1, other);
     }
 }

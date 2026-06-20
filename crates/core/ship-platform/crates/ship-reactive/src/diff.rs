@@ -147,6 +147,11 @@ fn shallow_diff_fields(
                 changed.insert(k.clone(), nv.clone());
             }
         }
+        for k in om.keys() {
+            if !nm.contains_key(k) {
+                changed.insert(k.clone(), Value::Null);
+            }
+        }
     }
     changed
 }
