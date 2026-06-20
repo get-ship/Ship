@@ -24,7 +24,7 @@ pub use ship_kernel::Mailbox;
 
 // Persistence (re-exported from crate::persistence)
 pub use crate::persistence::{
-    ActorStore, EventStore, SqliteEventStore, ActorSnapshot,
+    ActorStore, EventStore, SqliteEventStore,
 };
 // Backward-compatible module aliases for consumers.
 pub use crate::persistence::event_store as store;

@@ -65,7 +65,6 @@ pub fn check_integrity(db_path: &std::path::Path) -> Result<IntegrityStatus> {
         "pipeline_runs",
         "projects",
         "project_compile_state",
-        "space_settings",
         "auth_sessions",
         "daemon_owner",
         "provisioned_grants",

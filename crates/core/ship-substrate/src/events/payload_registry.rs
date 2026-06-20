@@ -47,7 +47,9 @@ register_event!("actor.crashed", [EventScope::Runtime], Retention::Durable, Stab
 // `actor.woke`, `actor.stopped`) keep Ephemeral — they are heartbeat-style
 // signals the kernel delivers to live subscribers, not durable state.
 register_event!("actor.created", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ActorCreated", crate::events::types::ActorCreated);
-register_event!("actor.mailbox_full", [EventScope::Runtime], Retention::Durable, Stability::Stable, "ActorMailboxFull", crate::events::types::ActorMailboxFull);
+// `actor.mailbox_full` retired (B14, 2026-06-20) — the event had no emitter;
+// the kernel's `route` is delivery-only and silently drops on mailbox full.
+// Backpressure (post-emit signal) is a fast-follow. See `.artifacts/specs/...`.
 register_event!("actor.slept", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ActorSlept", crate::events::types::ActorSlept);
 register_event!("actor.stopped", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ActorStopped", crate::events::types::ActorStopped);
 register_event!("actor.woke", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "ActorWoke", crate::events::types::ActorWoke);
@@ -136,9 +138,13 @@ register_event!("executor.window_destroyed", [EventScope::Runtime], Retention::D
 // 2026-06-10): human.response — the MESSAGING domain (human-gateway) owns it at L1.
 
 // ── kernel.actor.* ──────────────────────────────────────────────────────────
-register_event!("kernel.actor.restored", [EventScope::Runtime], Retention::Durable, Stability::Stable, "KernelActorRestored", crate::events::types::KernelActorRestored);
-register_event!("kernel.actor.snapshot", [EventScope::Runtime], Retention::Durable, Stability::Stable, "KernelActorSnapshot", crate::events::types::KernelActorSnapshot);
-register_event!("kernel.actor.suspended", [EventScope::Runtime], Retention::Durable, Stability::Stable, "KernelActorSuspended", crate::events::types::KernelActorSuspended);
+// B2 (2026-06-20) retired kernel.actor.{snapshot, suspended, restored} along
+// with the `KernelRouter::snapshot/suspend/restore` API + `ActorSnapshot`
+// type. The shared-log architecture retired per-actor DB files, leaving
+// `db_bytes` meaningless in a snapshot round-trip (see
+// `persistence/snapshot.rs` STALE-SEMANTICS block). The `kernel.actor.*`
+// events were the lifecycle channel; cut together. No replacement — actors
+// reload from the shared event log on cold start.
 
 // ── mesh.* ──────────────────────────────────────────────────────────────────
 // 7 mesh.* registrations DELETED (residue cull, 2026-06-10): they were the
@@ -207,10 +213,11 @@ register_event!("process.killed", [EventScope::Runtime], Retention::Durable, Sta
 // its emitter in ship-config. The CRUD events (rule.created etc.) stay in
 // agent-def (bundle 1, 2026-06-10).
 
-
-// ── space.setting.* ─────────────────────────────────────────────────────────
-// Moved to ship-space/src/event_registrations.rs (keystone-A Phase A bundle 4,
-// 2026-06-10): space.setting.changed — the SPACE domain owns it at L1.
+// ── settings.changed unified scope keystone ──────────────────────────────────
+// The space tier lives at EventScope::Space and rides the same `settings.changed`
+// event as ACCOUNT / RUNTIME (registered above in `settings.*`). The legacy
+// `space.setting.changed` family was dissolved in S4 — per-space overrides now
+// author `settings.changed` (Space scope) from the SettingsService wire.
 
 // ── studio.* ────────────────────────────────────────────────────────────────
 // Moved to ship-agents/src/event_registrations.rs (keystone-A de-bucket,
