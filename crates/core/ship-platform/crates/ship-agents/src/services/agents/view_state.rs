@@ -11,11 +11,11 @@
 use serde::Serialize;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use super::agents_jsonc::{first_letter, resolve_array_field};
 
-use ship_files::jsonc::{first_letter, resolve_array_field};
-
-// Re-export helpers whose names tests refer to directly (via `super::*`
-// in the sibling tests file). Canonical home is `agents_jsonc`.
+// Re-export `strip_jsonc` so the sibling test file can pull it in via
+// `super::*` (the comment-stripping itself still delegates to
+// `ship_substrate::fs_util::strip_jsonc_comments`).
 #[cfg(test)]
 pub(crate) use ship_files::jsonc::strip_jsonc;
 
