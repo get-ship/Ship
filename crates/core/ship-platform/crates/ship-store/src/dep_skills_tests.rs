@@ -74,6 +74,68 @@ fn transitive_capabilities_unions_requires_and_grants() {
     );
 }
 
+/// #106 regression: a dep skill declaring its capabilities inline
+/// (`grants: [..]`, `requires: [..]`) must flow through
+/// `transitive_capabilities` exactly like the block form did. The earlier
+/// hand-rolled `parse_dep_skill` only recognized block lists and silently
+/// DROPPED inline declarations — agents loaded from a dep package were
+/// missing half their declared capability surface. The canonical parser
+/// (`compiler::skill_parser::parse_skill`) accepts both forms; this pins
+/// the dep-skill path's contract so a future parser regression is caught
+/// at the install surface, not at runtime when an agent discovers it
+/// can't perform its declared op.
+#[test]
+fn transitive_capabilities_includes_inline_grants_and_requires() {
+    let tmp = TempDir::new().unwrap();
+    let hex = "feedface";
+    write_file(
+        tmp.path(),
+        &format!("objects/{hex}/ship.jsonc"),
+        r#"{ "id": "d2", "module": { "name": "github.com/o/p2", "version": "1.0.0" }, "exports": { "skills": ["skills/bar"], "agents": [] } }"#,
+    );
+    // Inline-list form on BOTH grants and requires — the shape the old
+    // hand-rolled parser dropped silently.
+    write_file(
+        tmp.path(),
+        &format!("objects/{hex}/skills/bar/SKILL.md"),
+        "---\nname: Bar\ngrants: [cap.a, cap.b]\nrequires: [cap.c]\n---\n\nContent.",
+    );
+    let lock = make_lock("github.com/o/p2", &format!("sha256:{hex}"));
+    let lock_path = tmp.path().join("ship.lock");
+    lock.write_atomic(&lock_path).unwrap();
+
+    let caps = transitive_capabilities(&lock_path, Some(tmp.path())).unwrap();
+    assert_eq!(
+        caps.granted,
+        vec!["cap.a".to_string(), "cap.b".to_string()],
+        "inline `grants: [..]` must surface — the #106 regression case"
+    );
+    assert_eq!(
+        caps.required,
+        vec!["cap.c".to_string()],
+        "inline `requires: [..]` must surface"
+    );
+    assert_eq!(
+        caps.unmet,
+        vec!["cap.c".to_string()],
+        "cap.c required but not granted within the dep tree"
+    );
+}
+
+/// #106 — the dep-skill parser itself accepts inline-form frontmatter.
+/// Belt-and-braces alongside the transitive test: if the parser regresses
+/// but the transitive path still sees the cap (e.g. via a manual union),
+/// this test catches it at the parser surface.
+#[test]
+fn parse_dep_skill_handles_inline_form() {
+    let raw = "---\nname: bar\ngrants: [g1, g2]\nrequires: [r1]\n---\n\nBody.";
+    let skill = parse_dep_skill("github.com/o/p/skills/bar", raw);
+    assert_eq!(skill.source, SkillSource::Community, "dep skills are Community");
+    assert_eq!(skill.grants, vec!["g1".to_string(), "g2".to_string()]);
+    assert_eq!(skill.requires, vec!["r1".to_string()]);
+    assert_eq!(skill.name, "bar", "frontmatter name is preserved");
+}
+
 // ── is_dep_ref ────────────────────────────────────────────────────────
 
 #[test]

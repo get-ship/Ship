@@ -164,101 +164,18 @@ pub fn resolve_dep_skill(ref_str: &str, lock: &ShipLock, cache_root: &Path) -> R
 
 /// Parse a SKILL.md from a dep package, using `dep_ref` as the skill id.
 ///
-/// Parses per the agentskills.io spec: `name`, `description`, `license`,
-/// `compatibility`, `allowed-tools`, `metadata`. Legacy `version` and `author`
-/// top-level keys are folded into `metadata`.
+/// Delegates to the canonical [`compiler::skill_parser::parse_skill`] — one
+/// parser for compile-path, dep-skill cache, and any future consumer. The
+/// earlier hand-rolled parser only handled block-form `grants:` / `requires:`
+/// and silently DROPPED inline `grants: [..]` / `requires: [..]` declarations,
+/// so dep-loaded agents were missing half their declared capability surface
+/// (#106). The canonical parser accepts BOTH forms.
 fn parse_dep_skill(dep_ref: &str, raw: &str) -> Skill {
-    use std::collections::HashMap;
-
-    let mut name = dep_ref.to_string();
-    let mut description = None;
-    let mut license = None;
-    let mut compatibility = None;
-    let mut allowed_tools = vec![];
-    let mut metadata: HashMap<String, String> = HashMap::new();
-    let mut grants: Vec<String> = vec![];
-    let mut requires: Vec<String> = vec![];
-    let mut content_start = 0usize;
-
-    if let Some(rest) = raw.strip_prefix("---\n")
-        && let Some(end) = rest.find("\n---\n")
-    {
-        let fm = &rest[..end];
-        // Tracks an open YAML list/map block: "metadata" | "requires" | "grants".
-        // (Hand-rolled; only the block-list form is supported. The proper skill
-        // frontmatter parser should subsume this — see #106.)
-        let mut section = "";
-        for line in fm.lines() {
-            let indented = line.starts_with("  ") || line.starts_with('\t');
-            if !section.is_empty() && indented {
-                let trimmed = line.trim();
-                match section {
-                    "metadata" => {
-                        if let Some((k, v)) = trimmed.split_once(':') {
-                            metadata.insert(k.trim().to_string(), v.trim().to_string());
-                        }
-                    }
-                    "requires" | "grants" => {
-                        let item = trimmed
-                            .trim_start_matches('-')
-                            .trim()
-                            .trim_matches('"')
-                            .trim_matches('\'');
-                        if !item.is_empty() {
-                            if section == "requires" {
-                                requires.push(item.to_string());
-                            } else {
-                                grants.push(item.to_string());
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-                continue;
-            }
-            section = "";
-            if let Some(v) = line.strip_prefix("name:") {
-                name = v.trim().to_string();
-            } else if let Some(v) = line.strip_prefix("description:") {
-                description = Some(v.trim().to_string());
-            } else if let Some(v) = line.strip_prefix("license:") {
-                license = Some(v.trim().to_string());
-            } else if let Some(v) = line.strip_prefix("compatibility:") {
-                compatibility = Some(v.trim().to_string());
-            } else if let Some(v) = line.strip_prefix("allowed-tools:") {
-                allowed_tools = v.split_whitespace().map(str::to_string).collect();
-            } else if line.trim_end() == "metadata:" {
-                section = "metadata";
-            } else if line.trim_end() == "requires:" {
-                section = "requires";
-            } else if line.trim_end() == "grants:" {
-                section = "grants";
-            } else if let Some(v) = line.strip_prefix("version:") {
-                metadata.insert("version".to_string(), v.trim().to_string());
-            } else if let Some(v) = line.strip_prefix("author:") {
-                metadata.insert("author".to_string(), v.trim().to_string());
-            }
-        }
-        content_start = 4 + end + 5; // "---\n" + fm + "\n---\n"
-    }
-
-    let content = raw[content_start..].trim().to_string();
-    Skill {
-        id: dep_ref.to_string(),
-        name,
-        stable_id: None,
-        description,
-        license,
-        compatibility,
-        allowed_tools,
-        metadata,
-        content,
-        source: SkillSource::Community,
-        vars: Default::default(),
-        artifacts: vec![],
-        grants,
-        requires,
-    }
+    let mut skill = compiler::skill_parser::parse_skill(dep_ref, raw);
+    // Mark dep-loaded skills as Community so downstream consumers (the gate,
+    // the SDK generator) can distinguish them from authored/builtin skills.
+    skill.source = SkillSource::Community;
+    skill
 }
 
 /// Find all leaf skill sub-directories within a namespace directory.
