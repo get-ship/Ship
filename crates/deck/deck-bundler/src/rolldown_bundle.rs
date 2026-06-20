@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use rolldown::{BundlerBuilder, BundlerOptions, InputItem, OutputFormat};
-use rolldown_common::ManualCodeSplittingOptions;
+use rolldown_common::{ManualCodeSplittingOptions, PreserveEntrySignatures};
 
 use super::proto::BundleManifest;
 use super::targets::{BundleLayout, BundleTarget, TargetEntry};
@@ -66,6 +66,14 @@ pub async fn bundle_target(
             min_module_size: Some(0.0),
             ..Default::default()
         }),
+        // Framework singletons (sui-runtime/sui-dom/sui-sdk-client) are libraries
+        // consumed by name via the host importmap — preserve their full public
+        // export surface. The default `ExportsOnly` tree-shook a re-exported const
+        // (`DECK_API_ASSETS`) with no in-bundle consumer, producing a runtime
+        // "does not provide an export named …" error. `Strict` makes the entry's
+        // declared exports roots. App/view targets keep the default.
+        preserve_entry_signatures: crate::targets::is_framework_singleton(&target.name)
+            .then_some(PreserveEntrySignatures::Strict),
         ..Default::default()
     };
 

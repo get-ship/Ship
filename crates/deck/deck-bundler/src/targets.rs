@@ -16,7 +16,18 @@ use deck_config::DeckConfig;
 /// per-tag tree-shaking resolver (the `sui-components/<name>` prefix in
 /// `assets_dir_for` + the `@sui-tag/<tag>` virtual import in `sui_plugin.rs`)
 /// is the canonical way chrome loads. There is no umbrella.
-const DECK_OWN_BUNDLES: [&str; 3] = ["sui-runtime", "sui-dom", "sui-sdk-client"];
+const DECK_OWN_BUNDLES: [&str; 4] = ["sui-runtime", "sui-dom", "sui-sdk-client", "deck-route"];
+
+/// True for deck's own framework singletons — libraries consumed by name via the
+/// host importmap (`@ship/sdk-client` → `/_deck/sdk-client.js`, …). Their full
+/// public export surface (including re-exported consts like `DECK_API_ASSETS`)
+/// must survive tree-shaking, so the Rolldown build sets
+/// `preserve_entry_signatures: Strict` for them. The default `ExportsOnly` DCE'd
+/// a re-exported const with no in-bundle consumer, breaking the client at runtime
+/// with "does not provide an export named …". App/view targets keep the default.
+pub fn is_framework_singleton(name: &str) -> bool {
+    DECK_OWN_BUNDLES.contains(&name)
+}
 
 /// A target's entry: a real on-disk module, or a synthetic aggregate that
 /// imports each `source` by absolute path (the build phase generates the entry).
@@ -151,6 +162,25 @@ impl BundleLayout {
                 entry: TargetEntry::Real(r("packages/deck/sdk-client/src/index.ts")),
                 externals: vec!["@ship/sui-runtime".into()],
                 out_file: "sui-sdk-client.js".into(),
+                lazy: false,
+            },
+            // `@ship/deck/route` — the unified router singleton (defineRoutes /
+            // route / navigate / mountRouter / mergeRoutes). Every per-app
+            // `routes.gen.ts` imports `mountRouter` from it (ADR
+            // unified-deck-router), the daemon serves it via `include_str!`
+            // (assets.rs `DECK_ROUTE_JS`), and build.rs stages it from
+            // `.deck/framework/`. It was dropped from the build target list in
+            // 643543394 (deck.jsonc → discovery) but its source kept gaining
+            // exports (mountRouter), so the served bundle went stale and lacked
+            // them — breaking client hydration. Restored here as the 4th
+            // singleton so the bake regenerates it. `is_framework_singleton`
+            // (via DECK_OWN_BUNDLES) gives it `preserve_entry_signatures: Strict`
+            // so re-exported handles can't be tree-shaken away.
+            BundleTarget {
+                name: "deck-route".into(),
+                entry: TargetEntry::Real(r("packages/deck/route/src/index.ts")),
+                externals: vec!["@ship/sui-runtime".into()],
+                out_file: "deck-route.js".into(),
                 lazy: false,
             },
         ]

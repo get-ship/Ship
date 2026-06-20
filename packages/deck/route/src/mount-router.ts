@@ -13,7 +13,7 @@
 //   - deck → sui only: this imports the runtime's `mount()`; the runtime never
 //     imports this.
 
-import { mount, type MountHandle } from '@ship/sui-runtime'
+import { mount, type MountHandle, type ViewPayload } from '@ship/sui-runtime'
 import {
   matchRoute,
   navigate,
@@ -76,14 +76,24 @@ export function mountRouter(opts: MountRouterOptions): RouterHandle {
     }
     const target = buildMountTarget(rootEl!, resolveLayoutChain(pathname, layouts))
     const previous = current
-    const handle = await mount(target, pathname, {
-      module: mod as never,
-      clients: opts.clients,
-      loader: opts.loader as never,
-      route: routeSignals,
-      navigate,
-      cssScope: 'adjacent',
-    })
+    // Co-bundled views are the norm: `opts.modules` is statically imported, so
+    // there is no SSR payload to fetch and no loader. Pass an empty payload so
+    // `mount()` skips by-name resolution (which requires a loader) and, finding
+    // the target empty, runs the view's `__mount(target)` to build the DOM
+    // (CSR) then `hydrate`. A host that DOES inject a loader keeps by-name SSR
+    // fetching (pass the pathname so `mount()` resolves the payload).
+    const handle = await mount(
+      target,
+      opts.loader ? pathname : coBundledPayload(pathname),
+      {
+        module: mod as never,
+        clients: opts.clients,
+        loader: opts.loader as never,
+        route: routeSignals,
+        navigate,
+        cssScope: 'adjacent',
+      },
+    )
     // Race guard: a later navigation already superseded this mount.
     if (myToken !== token) {
       handle.dispose()
@@ -137,6 +147,18 @@ export function mountRouter(opts: MountRouterOptions): RouterHandle {
       current = null
     },
   }
+}
+
+/**
+ * Empty CSR payload for the co-bundled case. The view module is statically
+ * imported (`opts.modules`), so there is no daemon-produced SSR payload and no
+ * loader to fetch one. Empty `html`/`css`/`scope` leave the mount target empty,
+ * so `mount()` runs the view's `__mount(target)` (the per-app CSR builder) then
+ * `hydrate`. `params` is empty — `route.params` is seeded from the URL by the
+ * `route()` instance (`routeSignals`), not from a payload.
+ */
+function coBundledPayload(name: string): ViewPayload {
+  return { name, html: '', css: '', scope: {}, moduleUrl: '', params: {}, clients: [] }
 }
 
 /**
