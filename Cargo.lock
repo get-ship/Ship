@@ -8227,13 +8227,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "axum",
  "base64 0.22.1",
  "buffa",
  "chrono",
  "connectrpc",
  "getrandom 0.2.17",
- "reqwest 0.12.28",
  "serde",
  "serde_json",
  "sha2",
