@@ -1900,6 +1900,7 @@ dependencies = [
  "anyhow",
  "clap",
  "deck-bundler",
+ "tempfile",
  "tokio",
  "tracing-subscriber",
 ]
