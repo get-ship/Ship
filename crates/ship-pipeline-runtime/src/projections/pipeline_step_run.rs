@@ -290,22 +290,6 @@ pub fn apply_event(map: &mut StepRunMap, event: &EventEnvelope) {
             mark_running(row, ts);
         }
 
-        // DEAD SUB #3 — run.updated: a mid-flight message routed to the run's
-        // agent mailbox. It carries no step_id, so attach it to the run's
-        // currently-running step(s) as a note.
-        pipeline_event_types::PIPELINE_RUN_UPDATED => {
-            let Some(run_id) = p["pipeline_run_id"].as_str() else {
-                return;
-            };
-            let message = p["message"].as_str().map(str::to_string);
-            for row in map.values_mut() {
-                if row.run_id == run_id && row.status == StepRunStatus::Running {
-                    row.note = message.clone();
-                    row.updated_at = ts;
-                }
-            }
-        }
-
         // CHILD SESSION ANCHOR — started: a composed step's agent session came
         // up. Record session_id on the step row (the channel the terminal rides
         // back on) and move it to running.
@@ -382,7 +366,6 @@ pub struct PipelineStepRunProjection;
 
 const STEP_EVENT_TYPES: &[&str] = &[
     pipeline_event_types::PIPELINE_RUN_STARTED,
-    pipeline_event_types::PIPELINE_RUN_UPDATED,
     pipeline_event_types::PIPELINE_STEP_STARTED,
     pipeline_event_types::PIPELINE_STEP_COMPLETED,
     pipeline_event_types::PIPELINE_STEP_FAILED,
