@@ -1,0 +1,184 @@
+//! Integration tests for the synthetic emitter (`emit::synthetic`).
+//!
+//! These exercise the emitter as a pure function — parse a `.sui`, run
+//! `emit_synthetic`, assert structural properties of the emitted controller
+//! + render. The TS-level proof (tsgo-green + typo caught + jsdom mount)
+//! lives alongside the deck-conformance app; these lock the *shape* the
+//! TS proof depends on, and run in plain `cargo test` (no node toolchain).
+
+use sui_compiler::emit::synthetic::{emit_synthetic, AppManifest, AuthoredController};
+use sui_compiler::parse::parse;
+use sui_compiler::CompileMode;
+
+const ROUTE_MANIFEST: &str = r#"{
+  "clients": {
+    "route": { "from": "@ship/deck/route", "import": "route", "construct": true }
+  }
+}"#;
+
+const SHIP_MANIFEST: &str = r#"{
+  "clients": {
+    "ship": { "from": "./clients/demo.ts", "import": "makeShip", "construct": true }
+  }
+}"#;
+
+fn synth(src: &str, manifest_src: &str, mode: CompileMode) -> (String, String) {
+    let program = parse(src).expect("parse .sui");
+    let manifest = AppManifest::parse(manifest_src).expect("parse manifest");
+    let out = emit_synthetic(&program, &manifest, None, "./page.synthetic.controller.ts", mode)
+        .expect("emit_synthetic");
+    (out.controller_ts, out.render_ts)
+}
+
+#[test]
+fn route_is_a_real_import_not_a_builtin() {
+    let (ctrl, render) = synth(
+        "<h1>Hello, {route.params.id()}</h1>",
+        ROUTE_MANIFEST,
+        CompileMode::View,
+    );
+    // The controller imports `route` as a REAL ESM import + constructs it.
+    assert!(
+        ctrl.contains(r#"import { route as __make_route } from "@ship/deck/route";"#),
+        "controller must import route from the manifest module:\n{ctrl}"
+    );
+    assert!(ctrl.contains("const route = __make_route();"), "route is constructed:\n{ctrl}");
+    assert!(ctrl.contains("export const scope = { route };"), "typed scope exports route:\n{ctrl}");
+    // The render reads the signal by CALLING it (the closed signal-read seam).
+    assert!(
+        render.contains("bindText(") && render.contains("=> (scope.route.params.id())"),
+        "render must read the route signal by calling it against the typed scope:\n{render}"
+    );
+    assert!(render.contains(r#"import { scope } from "./page.synthetic.controller.ts";"#));
+}
+
+#[test]
+fn route_typo_is_a_real_member_access_for_tsgo_to_reject() {
+    // `route.parms` (typo) must survive into the render verbatim as
+    // `scope.route.parms.id()` — a real member access against RouteSignals,
+    // which tsgo rejects. (No ambient passthrough.)
+    let (_ctrl, render) = synth(
+        "<h1>Hello, {route.parms.id()}</h1>",
+        ROUTE_MANIFEST,
+        CompileMode::View,
+    );
+    assert!(
+        render.contains("scope.route.parms.id()"),
+        "the typo must reach the typed scope read so tsgo flags it:\n{render}"
+    );
+}
+
+#[test]
+fn control_flow_reuses_template_emitter_with_mixed_prefix() {
+    // The hard path: {#while-*}, {#if}, {#for}, class:, mutation — the full
+    // production TemplateEmitter, driven with the `scope.` author prefix.
+    let src = r#"<data name="list" source="ship.demo.todos()" live />
+<div>
+  {#while-loading of list}<p>Loading…</p>{/while-loading}
+  {#while-error err of list}<p>Error: {err.message}</p>{/while-error}
+  {#if list().kind === 'ok'}
+  <ul>
+    {#for item of list().value.items key={item.id}}
+    <li class:done={item.done}>{item.text}</li>
+    {/for}
+  </ul>
+  {/if}
+</div>"#;
+    let (ctrl, render) = synth(src, SHIP_MANIFEST, CompileMode::View);
+
+    // Controller: live data lowered + typed scope.
+    assert!(ctrl.contains("const list = live(() => (ship.demo.todos()));"), "live data:\n{ctrl}");
+    assert!(ctrl.contains("export const scope = { ship, list };"), "scope:\n{ctrl}");
+
+    // Render: the full binder set is reused from TemplateEmitter.
+    for binder in ["bindWhileLoading", "bindWhileError", "bindIf", "bindFor", "bindClass"] {
+        assert!(render.contains(binder), "render must use {binder} (TemplateEmitter reuse):\n{render}");
+    }
+    // Outer-scope data reads are typed (`scope.`), so tsgo checks them.
+    assert!(render.contains("items: () => (scope.list().value.items)"), "typed outer read:\n{render}");
+    assert!(render.contains("if (scope.list().kind === 'ok')"), "typed if test:\n{render}");
+    // Loop / error binders live on the runtime `$scope` (keyed-reuse mutates
+    // them) — qualified with `$scope.`, NOT the typed prefix.
+    assert!(render.contains("$scope.item.done"), "loop local is machinery-prefixed:\n{render}");
+    assert!(render.contains("$scope.err.message"), "error binder is machinery-prefixed:\n{render}");
+    // The key fn keeps the loop var bare (it is the key fn parameter).
+    assert!(render.contains("key: (item, __i) => (item.id)"), "key var stays bare:\n{render}");
+    // The keyed-reuse update reassigns the runtime binder and re-reads it.
+    assert!(
+        render.contains("$scope.item = __new") && render.contains("$scope.item.text"),
+        "update() reassigns and re-reads the runtime row binder:\n{render}"
+    );
+}
+
+#[test]
+fn non_live_data_lowers_to_data_handle() {
+    let src = r#"<data name="cfg" source="ship.demo.config()" />
+<p>{cfg().value}</p>"#;
+    let (ctrl, _render) = synth(src, SHIP_MANIFEST, CompileMode::View);
+    assert!(
+        ctrl.contains("const cfg = data({ initial: undefined, source: () => (ship.demo.config()) });"),
+        "non-live <data> lowers to the data() handle shape:\n{ctrl}"
+    );
+    assert!(ctrl.contains(r#"import { data } from "@ship/sui-runtime";"#), "imports data:\n{ctrl}");
+}
+
+#[test]
+fn authored_controller_is_composed_not_rewritten() {
+    let authored = AuthoredController { specifier: "./controller.ts".to_string() };
+    let program = parse("<p>{greeting()} (count {count()})</p>").expect("parse");
+    let manifest = AppManifest::parse("{}").expect("manifest");
+    let out = emit_synthetic(
+        &program,
+        &manifest,
+        Some(&authored),
+        "./page.synthetic.controller.ts",
+        CompileMode::View,
+    )
+    .expect("emit");
+    assert!(out.controller_ts.contains(r#"import __authored from "./controller.ts";"#));
+    assert!(out.controller_ts.contains("const __authoredScope = __authored();"));
+    assert!(
+        out.controller_ts.contains("export const scope = { ...__authoredScope };"),
+        "authored scope is spread (composed), never rewritten:\n{}",
+        out.controller_ts
+    );
+    // Render reads the composed members against the typed scope.
+    assert!(out.render_ts.contains("scope.greeting()") && out.render_ts.contains("scope.count()"));
+}
+
+#[test]
+fn propless_component_synthesizes_like_a_view() {
+    // demo-chip shape: slot-only component, no props, no controller.
+    let (ctrl, render) = synth("<span class=\"chip\"><slot></slot></span>", "{}", CompileMode::Component);
+    assert!(ctrl.contains("export const scope = {  };"), "empty typed scope:\n{ctrl}");
+    assert!(render.contains("export function mount(container: HTMLElement)"), "render mounts:\n{render}");
+    assert!(render.contains(r#"document.createElement("span")"#), "emits the element:\n{render}");
+}
+
+#[test]
+fn component_props_are_rejected_for_now() {
+    let program = parse("<prop name=\"label\" type=\"string\" />\n<span>{label}</span>").expect("parse");
+    let manifest = AppManifest::parse("{}").expect("manifest");
+    let err = emit_synthetic(&program, &manifest, None, "./c.ts", CompileMode::Component)
+        .expect_err("component props must be rejected in Phase 1");
+    assert!(format!("{err:?}").contains("prop"), "error names props: {err:?}");
+}
+
+#[test]
+fn async_let_is_rejected_until_phase_2() {
+    let src = r#"<data name="thing" source="ship.demo.thing()" live />
+{#async thing as v}{:loading}<p>…</p>{:error err}<p>{err.message}</p>{:ok}<p>{v.x}</p>{/async}"#;
+    let program = parse(src).expect("parse");
+    let manifest = AppManifest::parse(SHIP_MANIFEST).expect("manifest");
+    let err = emit_synthetic(&program, &manifest, None, "./c.ts", CompileMode::View)
+        .expect_err("{#async} must be rejected");
+    assert!(format!("{err:?}").contains("async"), "error names async: {err:?}");
+}
+
+#[test]
+fn only_referenced_manifest_clients_are_imported() {
+    // route is in the manifest but unused → not imported.
+    let (ctrl, _render) = synth("<p>static</p>", ROUTE_MANIFEST, CompileMode::View);
+    assert!(!ctrl.contains("@ship/deck/route"), "unused manifest client must not import:\n{ctrl}");
+    assert!(ctrl.contains("export const scope = {  };"), "empty scope when nothing referenced:\n{ctrl}");
+}

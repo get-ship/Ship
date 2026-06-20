@@ -106,6 +106,28 @@ enum Command {
         #[arg(long)]
         component_name: Option<String>,
     },
+    /// Synthesize a single `.sui` into a manifest-driven, tsc-checkable
+    /// pair — a **synthetic controller** (`<stem>.synthetic.controller.ts`)
+    /// and a **render** (`<stem>.render.ts`). Each name in `--manifest`
+    /// becomes a real ESM import; the compiler stays ignorant of it. A
+    /// sibling `controller.ts` (if present) is composed, not rewritten.
+    /// Additive: the ambient/`BUILTINS` path and render-eval are untouched.
+    Synthesize {
+        /// Path to a single `.sui` file.
+        input: PathBuf,
+        /// Path to the app manifest (JSON / JSONC-lite) — a name → import map.
+        #[arg(long)]
+        manifest: PathBuf,
+        /// Directory to write `<stem>.synthetic.controller.ts` +
+        /// `<stem>.render.ts` into.
+        #[arg(long)]
+        out_dir: PathBuf,
+        /// Force component mode (otherwise inferred: `--component-name` or a
+        /// non-`page.sui` stem). Affects only the runtime import set + the
+        /// propless-component guard.
+        #[arg(long)]
+        component: bool,
+    },
 }
 
 #[derive(Clone, Debug, clap::ValueEnum)]
@@ -136,7 +158,116 @@ fn main() -> Result<()> {
             input, out, clean, mode, no_dts, styles, component_name, no_ssr,
             emit_component_imports,
         ),
+        Command::Synthesize { input, manifest, out_dir, component } => {
+            synthesize(input, manifest, out_dir, component)
+        }
     }
+}
+
+/// Synthesize one `.sui` into a synthetic controller + render pair.
+fn synthesize(
+    input: PathBuf,
+    manifest_path: PathBuf,
+    out_dir: PathBuf,
+    force_component: bool,
+) -> Result<()> {
+    use sui_compiler::emit::synthetic::{emit_synthetic, AppManifest};
+    use sui_compiler::parse;
+
+    let source = fs::read_to_string(&input)
+        .with_context(|| format!("read {}", input.display()))?;
+    let manifest_src = fs::read_to_string(&manifest_path)
+        .with_context(|| format!("read manifest {}", manifest_path.display()))?;
+    let program = parse::parse(&source).map_err(|e| anyhow!("{}", e.render(&source)))?;
+    let manifest =
+        AppManifest::parse(&manifest_src).map_err(|e| anyhow!("{}", e.render(&manifest_src)))?;
+
+    let file = input.file_name().and_then(|f| f.to_str()).unwrap_or("view.sui");
+    let raw_stem = file.strip_suffix(".sui").unwrap_or(file);
+    let mode = if force_component || raw_stem != "page" {
+        CompileMode::Component
+    } else {
+        CompileMode::View
+    };
+
+    let stem = {
+        let s = raw_stem.replace(['/', '\\'], "_");
+        if s.is_empty() { "view".to_string() } else { s }
+    };
+    // `page.sui` pairs with a sibling `controller.ts`; compose it when present.
+    let authored = sibling_controller(&input, &out_dir, raw_stem);
+    let controller_name = format!("{stem}.synthetic.controller.ts");
+    let render_name = format!("{stem}.render.ts");
+
+    let out = emit_synthetic(
+        &program,
+        &manifest,
+        authored.as_ref(),
+        &format!("./{controller_name}"),
+        mode,
+    )
+    .map_err(|e| anyhow!("{}", e.render(&source)))?;
+
+    fs::create_dir_all(&out_dir)
+        .with_context(|| format!("create out dir {}", out_dir.display()))?;
+    let controller_path = out_dir.join(&controller_name);
+    let render_path = out_dir.join(&render_name);
+    fs::write(&controller_path, &out.controller_ts)
+        .with_context(|| format!("write {}", controller_path.display()))?;
+    fs::write(&render_path, &out.render_ts)
+        .with_context(|| format!("write {}", render_path.display()))?;
+    println!(
+        "synthesized {} ({:?}) → {}, {} (clients: {}{})",
+        input.display(),
+        mode,
+        controller_path.display(),
+        render_path.display(),
+        if out.used_clients.is_empty() { "none".to_string() } else { out.used_clients.join(", ") },
+        if authored.is_some() { "; composed authored controller.ts" } else { "" },
+    );
+    Ok(())
+}
+
+/// A sibling `controller.ts` (for `page.sui`) or `<stem>.controller.ts`,
+/// composed by the synthetic controller via a relative import from `out_dir`.
+fn sibling_controller(
+    input: &Path,
+    out_dir: &Path,
+    stem: &str,
+) -> Option<sui_compiler::emit::synthetic::AuthoredController> {
+    use sui_compiler::emit::synthetic::AuthoredController;
+    let parent = input.parent()?;
+    let candidate = if stem == "page" {
+        parent.join("controller.ts")
+    } else {
+        parent.join(format!("{stem}.controller.ts"))
+    };
+    if !candidate.exists() {
+        return None;
+    }
+    Some(AuthoredController { specifier: rel_specifier(&candidate, out_dir) })
+}
+
+/// POSIX relative-path specifier from `out_dir` to `target` (both made
+/// absolute against CWD), suitable as an ESM import string.
+fn rel_specifier(target: &Path, out_dir: &Path) -> String {
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let abs = |p: &Path| if p.is_absolute() { p.to_path_buf() } else { cwd.join(p) };
+    let (target, out_dir) = (abs(target), abs(out_dir));
+    let from: Vec<_> = out_dir.components().collect();
+    let to: Vec<_> = target.components().collect();
+    let common = from.iter().zip(to.iter()).take_while(|(a, b)| a == b).count();
+    let mut out = String::new();
+    for _ in 0..(from.len() - common) {
+        out.push_str("../");
+    }
+    let rest: Vec<String> =
+        to[common..].iter().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect();
+    out.push_str(&rest.join("/"));
+    if !out.starts_with('.') {
+        out = format!("./{out}");
+    }
+    out
 }
 
 fn build(
