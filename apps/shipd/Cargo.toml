@@ -60,6 +60,7 @@ buffa-descriptor = "0.5"
 http = "1"
 deck = { path = "../../crates/deck/deck" }
 deck-core = { path = "../../crates/deck/deck-core" }
+deck-ssr = { path = "../../crates/deck/deck-ssr", optional = true }
 sui-compiler = { path = "../../crates/sui/compiler" }
 sui-signals = { path = "../../crates/sui/signals" }
 chrono = { workspace = true }
@@ -138,6 +139,10 @@ ship-code = ["dep:ship-code", "harness-drivers"]
 # all three compile flag-off (ship-code is absent, harness-driver stack gone).
 harness-drivers = ["ship-agents/harness-drivers", "ship-platform/harness-drivers"]
 unstable = ["ship-platform/unstable"]
+# ship-js-ssr: compile in deck-ssr (deno_core/V8) so the daemon can serve the
+# synthetic ship-js SSR path. OFF by default — keeps V8 out of the normal build.
+# Selected at runtime by DECK_SSR=ship-js; inert otherwise (render-eval serves).
+ship-js-ssr = ["dep:deck-ssr"]
 # G2 daemon RSS-soak regression gate (.artifacts/sui-arc/integrity/report.md §4).
 # OFF by default so it never runs in `cargo test` / `just build`. The soak
 # harness (`tests/rss_soak.rs`) drives the leak-prone substrate churn

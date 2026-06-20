@@ -9257,6 +9257,7 @@ dependencies = [
  "datastar",
  "deck",
  "deck-core",
+ "deck-ssr",
  "floki",
  "form_urlencoded",
  "futures",

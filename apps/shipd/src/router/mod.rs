@@ -66,6 +66,23 @@ pub fn build_router(
     let data_port: Arc<dyn deck_core::DataPort> =
         Arc::new(crate::ports::data::ShipDataPort::new(rt.clone()));
 
+    // Synthetic ship-js SSR (gated). Compiled in via the `ship-js-ssr` feature
+    // (keeps V8 out of the default build) and activated at runtime by
+    // DECK_SSR=ship-js. Register the renderer (isolate pool + DataPort) only when
+    // the flag is set, so V8 is not spun up otherwise; deck-core's serve seam
+    // falls back to render-eval whenever no renderer is registered.
+    #[cfg(feature = "ship-js-ssr")]
+    if deck_core::synthetic_ssr::enabled() {
+        match deck_ssr::serve::register(Some(data_port.clone())) {
+            Ok(()) => {
+                tracing::info!("deck-ssr: synthetic ship-js SSR registered (DECK_SSR=ship-js)")
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "deck-ssr: SSR registration failed; serving via render-eval")
+            }
+        }
+    }
+
     // Public webhook route — unauthenticated; each trigger carries its own secret.
     let webhook_kernel = rt.kernel().clone();
     let webhook_source_route = if let Some(src) = rt.webhook_source() {
