@@ -8,20 +8,26 @@
 //! - `scope = THIS_SPACE` (or `UNSPECIFIED`): run the daemon's active-space
 //!   context — byte-identical to the historical single-context path.
 //! - `scope = GLOBAL`: enumerate live spaces via `SpaceService.List`, skip any
-//!   that opted out (`search.global = false`), build a `SearchContext` bound to
-//!   each remaining space (`SpaceContext::for_space`), and hand them to
+//!   that opted out (`search.global = false` on the unified
+//!   `settings_overlay`), build a `SearchContext` bound to each remaining
+//!   space (`SpaceContext::for_space`), and hand them to
 //!   `ship_search::run_global`, which runs the SAME scope-blind service per
 //!   space, stamps each hit's `space_id`, merges, and re-ranks.
+//!
+//! B1: the opt-out is read from the unified `settings_overlay` per space
+//! (the legacy `SpaceService.info`/`Value::Null` path that read the
+//! `space_overlay` table is gone). `search.global` is the only key; unset
+//! (or non-bool) is included, only an explicit `false` opts out.
 
 use std::sync::Arc;
 
 use connectrpc::{RequestContext, Response, ServiceResult};
+use serde_json::Value;
 use ship_ops_rpc::{OwnedSearchRequestView, SearchResponse as ProtoSearchResponse};
 use ship_search::{
     hit_to_proto, parse_request, run_global, SearchScope, SearchService,
     SpaceTarget,
 };
-use ship_space::service::SpaceService;
 use ship_substrate::ports::{DataStore, KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
 use crate::rpc::search_context::ShipdSearchContext;
@@ -125,6 +131,7 @@ impl ShipdSearchWire {
 
     /// Live space ids from the Runtime-scoped registry (`SpaceService.List`).
     async fn list_spaces(&self) -> Vec<String> {
+        use ship_space::service::SpaceService;
         let svc = SpaceService::new(self.runtime_ctx());
         svc.list()
             .await
@@ -133,27 +140,23 @@ impl ShipdSearchWire {
     }
 
     /// Subset of `spaces` whose effective `search.global` setting is `false`.
-    /// Default (unset) is included, so only an explicit `false` opts out.
+    /// Default (unset, non-bool) is included; only an explicit `false` opts out.
+    /// Reads from the unified `settings_overlay` table (B1: replaced the
+    /// `SpaceService.info`/`Value::Null`/`space_overlay` path).
     async fn opted_out_spaces(&self, spaces: &[String]) -> std::collections::HashSet<String> {
-        let svc = SpaceService::new(self.runtime_ctx());
-        // settings.state op removed with the string-dispatch apparatus; the
-        // settings overlay is read directly by the crate-owned SettingsWire.
-        let global_settings = serde_json::Value::Null;
-
         let mut out = std::collections::HashSet::new();
         for space_id in spaces {
             let store = self.space_store(space_id);
-            let Ok(info) = svc
-                .info(&*store, Some(space_id), global_settings.clone())
-                .await
-            else {
-                continue;
+            // B1: read `search.global` from the unified `settings_overlay`
+            // (B1: replaced the `SpaceService.info`/`Value::Null`/`space_overlay`
+            // path). Unset / non-bool ⇒ included; only an explicit `false` opts
+            // out. A read error is conservative: include the space (don't opt
+            // it out) — the fan-out gate's default is "include".
+            let value = ship_config::overlay::get(&*store, "search.global").await.ok().flatten();
+            let included = match value {
+                Some(Value::Bool(b)) => b,
+                _ => true,
             };
-            let included = info
-                .settings
-                .get("search.global")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(true);
             if !included {
                 out.insert(space_id.clone());
             }
