@@ -28,8 +28,8 @@ pub mod store;
 /// runtime share ONE seam. The host implements it over its gateway + credential.
 pub use ship_js::{Dispatch, DispatchError};
 pub use engine::{
-    aggregate, execute, resume, AggregateDecision, EngineError, ExecCtx, Journal, JournalEntry,
-    JournalingDispatch, OpRecord, Program, RunStatus,
+    execute, resume, EngineError, ExecCtx, Journal, JournalEntry, JournalingDispatch, OpRecord,
+    Program, RunStatus,
 };
-pub use projection::{ContextItem, ContextProjector, KeepRecent, Verbatim};
+
 pub use store::{InMemoryJournalStore, JournalStore, JournalStoreError};

@@ -204,7 +204,7 @@ impl ExecCtx {
     /// order (deterministic → replay returns the same vector, re-executing
     /// nothing). All-or-nothing: a failed lane fails the node (it re-runs on
     /// resume, with nothing journaled). For min-successful tolerance, pair the
-    /// returned values with [`aggregate`].
+    /// returned values with `ship_pipelines::aggregate_lane_outcomes`.
     pub async fn parallel(&mut self, calls: Vec<(String, Value)>) -> Result<Vec<Value>, EngineError> {
         let k = calls.len();
         let start = self.cursor;
@@ -361,25 +361,6 @@ pub async fn resume(
 ) -> (RunStatus, Journal) {
     journal.resolve_suspended(decision);
     execute(journal, dispatch, program).await
-}
-
-/// The min-successful fan-out verdict (mirrors
-/// `ship-pipelines::aggregate_lane_outcomes`): advance when at least `min_ok`
-/// lanes succeeded, else fail.
-#[derive(Debug, Clone, PartialEq)]
-pub enum AggregateDecision {
-    Advance { ok: usize },
-    Fail { ok: usize, needed: usize },
-}
-
-/// Pure fan-out decision over per-lane outcomes.
-pub fn aggregate(results: &[Result<Value, String>], min_ok: usize) -> AggregateDecision {
-    let ok = results.iter().filter(|r| r.is_ok()).count();
-    if ok >= min_ok {
-        AggregateDecision::Advance { ok }
-    } else {
-        AggregateDecision::Fail { ok, needed: min_ok }
-    }
 }
 
 /// An [`Dispatch`] decorator that turns any externally-driven op stream into a
@@ -758,14 +739,6 @@ mod tests {
             0,
             "no dispatch — the parallel replay branch never fell through to live execution"
         );
-    }
-
-    #[test]
-    fn aggregate_min_successful() {
-        let ok = || Ok::<Value, String>(json!(1));
-        let err = || Err::<Value, String>("boom".into());
-        assert_eq!(aggregate(&[ok(), ok(), err()], 2), AggregateDecision::Advance { ok: 2 });
-        assert_eq!(aggregate(&[ok(), err(), err()], 2), AggregateDecision::Fail { ok: 1, needed: 2 });
     }
 
     // Retry recovers a transient blip and journals ONLY the final result; replay
