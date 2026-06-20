@@ -1,35 +1,39 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-pub use crate::commands::{
-    EventsCommands, HookCommands, IsolationCommands, McpCommands, SuiCommands, WorkspaceCommands,
-};
+const AFTER_HELP: &str = "\x1b[1mAgent surface:\x1b[0m
+  ship ops list             List every Connect op the daemon exposes
+  ship ops call <name>      Invoke an op with a JSON body
+  ship meta                 Daemon build/version fingerprint
 
-const AFTER_HELP: &str = "\x1b[1mDaily Workflow:\x1b[0m
-  ship init              Start here — scaffold .ship/
-  ship use <agent-id>    Activate an agent (compiles immediately)
-  ship status            Show active agent
-  ship compile           Re-compile after editing config
+\x1b[1mOperator:\x1b[0m
+  ship daemon start         Start shipd in the background
+  ship daemon stop          Stop the running daemon
+  ship daemon restart       Restart (stop + start, or systemctl restart)
+  ship daemon status        Show daemon supervision + liveness
+  ship daemon dir           Print the daemon IPC dir for this cwd
+  ship daemon cleanup       Remove orphaned worktrees for merged/failed jobs
+  ship daemon install-service      Register shipd with the OS service manager
+  ship daemon uninstall-service    Undo the service registration
+  ship doctor               Diagnose ship setup — build, daemon, home
 
-\x1b[1mPackages:\x1b[0m
-  ship add <package>     Add a dependency
-  ship install           Resolve all dependencies
-  ship audit             Scan for hidden Unicode (security)
-  ship publish           Share your package on the registry
+\x1b[1mDev-tooling (use, compile, config):\x1b[0m
+  ship use <agent-id>       Activate an agent (compiles immediately)
+  ship compile              Re-compile the active agent to harness-native files
+  ship config get <key>     Read a config value
+  ship config set <key> <v> Write a config value
+  ship config list          List all set values
+  ship config path          Show config file location
 
-\x1b[1mConfiguration:\x1b[0m
-  ship mcp add-stdio ... Register an MCP server
-
-
-\x1b[1mLearn More:\x1b[0m
-  ship docs topics       List help topics
-  ship docs <topic>      Detailed help for a topic
+\x1b[1mLocal:\x1b[0m
+  ship docs <topic>         Detailed help for a topic
+  ship build                One-shot production build (`just build` wrapper)
   https://getship.dev/docs";
 
 #[derive(Parser, Debug)]
 #[command(name = "ship")]
 #[command(version = crate::build_version())]
-#[command(about = "Agent configuration compiler — compose, compile, distribute")]
+#[command(about = "Ship operator + agent op-client — invoke the ConnectRPC surface, run the daemon, and use the dev workflow (use / compile / config).")]
 #[command(after_help = AFTER_HELP)]
 #[command(disable_help_subcommand = true)]
 pub struct Cli {
@@ -39,29 +43,6 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    // ── Setup ────────────────────────────────────────────────────────────────
-    /// Scaffold .ship/ in the current project, or configure ~/.ship/ globally
-    Init {
-        /// Configure ~/.ship/ identity and defaults instead of current project
-        #[arg(long)]
-        global: bool,
-        /// Default harness target (claude, codex, cursor, opencode)
-        #[arg(long)]
-        harness: Option<String>,
-        /// Overwrite existing .ship/ configuration
-        #[arg(long)]
-        force: bool,
-    },
-
-    /// Authenticate with getship.dev
-    Login,
-
-    /// Sign out
-    Logout,
-
-    /// Show current identity
-    Whoami,
-
     /// Daemon build/version, via the ConnectRPC op surface (ship.ops.v1)
     Meta,
 
@@ -71,19 +52,12 @@ pub enum Commands {
         action: OpsCommands,
     },
 
-    /// Pair a browser session (Studio) with the local daemon
-    Auth {
-        #[command(subcommand)]
-        action: AuthCommands,
-    },
-
     /// Read or write user preferences (~/.ship/config.toml)
     Config {
         #[command(subcommand)]
         action: ConfigCommands,
     },
 
-    // ── Daily Use ────────────────────────────────────────────────────────────
     /// Activate an agent for the current (or specified) directory
     ///
     /// Without launch flags this only compiles and activates the agent.
@@ -155,12 +129,6 @@ pub enum Commands {
         keepalive: bool,
     },
 
-    /// Show the active agent and compilation status
-    Status {
-        #[arg(long)]
-        path: Option<PathBuf>,
-    },
-
     /// Compile the active agent to harness-native config files
     Compile {
         /// Compile for a specific harness only (claude, codex, cursor, opencode)
@@ -174,155 +142,10 @@ pub enum Commands {
         path: Option<PathBuf>,
     },
 
-    /// Validate .ship/ config — checks TOML, skill refs, MCP fields, permissions
-    Validate {
-        /// Validate a single agent (omit to validate all)
-        #[arg(long)]
-        agent: Option<String>,
-        /// Emit errors as JSON array instead of human-readable output
-        #[arg(long)]
-        json: bool,
-        /// Path to project root (defaults to current directory)
-        #[arg(long)]
-        path: Option<PathBuf>,
-    },
-
-    /// Workspace utilities (trash, restore)
-    Workspace {
-        #[command(subcommand)]
-        action: WorkspaceCommands,
-    },
-
-    /// Manage external MCP servers (add, list, remove)
-    Mcp {
-        #[command(subcommand)]
-        action: McpCommands,
-    },
-
-    /// Inspect agent isolation: detected host capabilities + recommended
-    /// strategy + per-OS defaults. See `crates/core/ship-platform/crates/ship-isolation/docs/`.
-    Isolation {
-        #[command(subcommand)]
-        action: IsolationCommands,
-    },
-
-    // ── Publishing ───────────────────────────────────────────────────────────
-    /// Install all dependencies declared in .ship/ship.jsonc
-    Install {
-        /// Fail if the lockfile would change rather than updating it
-        #[arg(long)]
-        frozen: bool,
-        /// Skip install tracking (no network POST to registry)
-        #[arg(long)]
-        offline: bool,
-    },
-
-    /// Publish this package to the Ship registry
-    Publish {
-        /// Publish only this export (e.g. agents/skills/tdd, agents/profiles/red-green.toml)
-        export_path: Option<String>,
-        /// Preview what would be published without making any network requests
-        #[arg(long)]
-        dry_run: bool,
-        /// Dist-tag for pre-release publishing (e.g. beta, next)
-        #[arg(long)]
-        tag: Option<String>,
-    },
-    /// Add a package dependency
-    Add {
-        /// Package path with optional version: github.com/owner/repo[@version]
-        package: String,
-    },
-
-    /// Scan files for hidden Unicode characters (prompt injection vectors)
-    Audit {
-        /// Path to scan (defaults to .ship/ in current directory)
-        #[arg(long)]
-        path: Option<PathBuf>,
-        /// Emit findings as JSON array
-        #[arg(long)]
-        json: bool,
-    },
-
-
-
-    // ── Inspection ───────────────────────────────────────────────────────────
-    /// Query the project event log
-    Events {
-        #[command(subcommand)]
-        action: EventsCommands,
-    },
-
     /// Show detailed help for a topic (run `ship docs topics` to list)
     Docs {
-        /// Topic name (e.g. agents, skills, mcp, compile, harnesses)
+        /// Topic name (e.g. agents, skills, compile, harnesses)
         topic: Option<String>,
-    },
-
-    /// Harness hook integration (before-tool, after-tool, session-end)
-    #[command(hide = true)]
-    Hook {
-        #[command(subcommand)]
-        action: HookCommands,
-    },
-
-
-
-    /// Run a named pipeline (e.g. ship run tdd "implement auth")
-    Run {
-        /// Pipeline name (loaded from .ship/pipelines/<name>.jsonc)
-        pipeline: String,
-        /// Inline spec text describing the work
-        #[arg(trailing_var_arg = false)]
-        spec_text: Option<String>,
-        /// Path to a spec file (alternative to inline text)
-        #[arg(long)]
-        spec: Option<std::path::PathBuf>,
-        /// Workspace to run in (auto-creates if needed)
-        #[arg(long)]
-        workspace: Option<String>,
-        /// Pipeline variable (repeatable: --var key=value)
-        #[arg(long = "var", value_name = "KEY=VALUE")]
-        vars: Vec<String>,
-        /// Show the resolved pipeline without executing
-        #[arg(long)]
-        dry_run: bool,
-        /// Run steps as direct child processes (no tmux PTY window). Default
-        /// is to launch each step in a tmux window so you can `tmux attach`
-        /// and watch the agent live.
-        #[arg(long)]
-        headless: bool,
-    },
-
-    /// List process records (lifecycle view from the ProcessRecord projection)
-    Procs {
-        /// Filter to a single job slug
-        #[arg(long)]
-        slug: Option<String>,
-        /// Filter by session kind. Valid values: agent, pipeline-step, shell.
-        #[arg(long, value_name = "KIND")]
-        kind: Option<String>,
-        /// Cap the number of rows returned (default 100)
-        #[arg(long)]
-        limit: Option<usize>,
-        /// Emit records as JSON instead of a table
-        #[arg(long)]
-        json: bool,
-    },
-
-    /// Stream events for a slug in real time (1s polling)
-    Tail {
-        /// Job slug to follow
-        slug: String,
-        /// Filter to a single event namespace (e.g. "job", "process", "supervisor")
-        #[arg(long)]
-        namespace: Option<String>,
-    },
-
-    /// SUI `.sui` language intelligence — diagnostics, hover, dependencies
-    Sui {
-        #[command(subcommand)]
-        action: SuiCommands,
     },
 
     /// Manage the Ship daemon (shipd) background process
@@ -342,11 +165,6 @@ pub enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
-
-
-
-
-
 }
 
 #[derive(Subcommand, Debug)]
@@ -362,8 +180,6 @@ pub enum OpsCommands {
         json: Option<String>,
     },
 }
-
-
 
 #[derive(Subcommand, Debug)]
 pub enum DaemonCommands {
@@ -434,16 +250,6 @@ pub enum DaemonCommands {
 }
 
 #[derive(Subcommand, Debug)]
-pub enum AuthCommands {
-    /// Confirm a pairing code displayed by Studio (or another browser client)
-    Pair {
-        /// The pairing code shown in Studio (e.g. "4F8-2K9")
-        code: String,
-    },
-
-}
-
-#[derive(Subcommand, Debug)]
 pub enum ConfigCommands {
     /// Get a config value (e.g. ship config get terminal.program)
     Get {
@@ -462,5 +268,3 @@ pub enum ConfigCommands {
     /// Show config file path
     Path,
 }
-
-

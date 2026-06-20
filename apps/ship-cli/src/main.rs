@@ -1,42 +1,24 @@
-mod add;
-mod audit;
-mod auth;
 mod meta_cmd;
 mod ops_cmd;
 mod build;
 mod cli;
-mod commands;
 mod compile;
 mod config;
 #[cfg(test)]
 mod test_env;
 mod daemon;
 
-mod events_cmd;
 mod help_topics;
 mod doctor;
-mod hook;
 mod http;
-mod init;
-mod install;
-mod isolation_cmd;
-mod procs;
-
-mod tail;
-mod sui;
 mod logging;
 
-mod mcp;
 mod paths;
 mod profile;
-mod publish;
-mod ship_run;
-mod validate;
-mod trash_cmd;
 mod use_command;
 
 use anyhow::Result;
-use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, McpCommands, WorkspaceCommands};
+use cli::{Cli, Commands, ConfigCommands};
 use std::path::PathBuf;
 
 // #193 leak hunt: route every allocation through dhat's instrumented allocator
@@ -87,41 +69,38 @@ fn main() {
         eprintln!("Error: {:#}", e);
         eprintln!();
         eprintln!("  Logs:   ~/.ship/machine/logs/ship.log");
-        eprintln!("  Events: ship events list --since 5m");
         std::process::exit(1);
     }
 }
 
 fn dispatch(command: Option<Commands>) -> Result<()> {
     match command {
-        None => run_status(None),
-        Some(cmd) => match cmd {
-            Commands::Init {
-                global,
-                harness,
-                force: _,
-            } => init::run(global, harness),
-            Commands::Config { action } => dispatch_config(action),
-            Commands::Login => auth::run_login(),
-            Commands::Logout => auth::run_logout(),
-            Commands::Whoami => auth::run_whoami(),
-            Commands::Meta => meta_cmd::run(),
-            Commands::Ops { action } => match action {
-                cli::OpsCommands::List => ops_cmd::list(),
-                cli::OpsCommands::Call { name, json } => ops_cmd::call(&name, json),
-            },
-            Commands::Auth { action } => {
-                use cli::AuthCommands;
-                match action {
-                    AuthCommands::Pair { code } => auth::run_auth_pair(&code),
-                }
-            }
-            Commands::Use {
-                agent_id,
-                path,
-                compile: _,
-                scoped,
-                with_skills,
+        Some(Commands::Meta) => meta_cmd::run(),
+        Some(Commands::Ops { action }) => match action {
+            cli::OpsCommands::List => ops_cmd::list(),
+            cli::OpsCommands::Call { name, json } => ops_cmd::call(&name, json),
+        },
+        Some(Commands::Config { action }) => dispatch_config(action),
+        Some(Commands::Use {
+            agent_id,
+            path,
+            compile: _,
+            scoped,
+            with_skills,
+            launch,
+            resume,
+            prompt,
+            spec,
+            harness,
+            model,
+            detach,
+            transport,
+            no_keepalive,
+            keepalive,
+        }) => {
+            let opts = use_command::LaunchOpts {
+                agent: agent_id.clone(),
+                path: path.clone(),
                 launch,
                 resume,
                 prompt,
@@ -130,124 +109,52 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 model,
                 detach,
                 transport,
-                no_keepalive,
                 keepalive,
-            } => {
-                let opts = use_command::LaunchOpts {
-                    agent: agent_id.clone(),
-                    path: path.clone(),
-                    launch,
-                    resume,
-                    prompt,
-                    spec,
-                    harness,
-                    model,
-                    detach,
-                    transport,
-                    keepalive,
-                    no_keepalive,
-                };
-                run_use(Some(&agent_id), path, with_skills, scoped)?;
-                if use_command::should_launch(&opts) {
-                    use_command::run_launch(opts)?;
+                no_keepalive,
+            };
+            run_use(Some(&agent_id), path, with_skills, scoped)?;
+            if use_command::should_launch(&opts) {
+                use_command::run_launch(opts)?;
+            }
+            Ok(())
+        }
+        Some(Commands::Compile {
+            harness,
+            dry_run,
+            path,
+        }) => run_compile_cmd(harness.as_deref(), dry_run, path),
+        Some(Commands::Docs { topic }) => help_topics::run(topic.as_deref()),
+        Some(Commands::Daemon { action }) => {
+            use cli::DaemonCommands;
+            use daemon::{DaemonCommand, run_daemon};
+            let cmd = match action {
+                DaemonCommands::Start { host, dev } => DaemonCommand::Start { host, dev },
+                DaemonCommands::Stop => DaemonCommand::Stop,
+                DaemonCommands::Restart { host, dev } => DaemonCommand::Restart { host, dev },
+                DaemonCommands::Status => DaemonCommand::Status,
+                DaemonCommands::Dir => DaemonCommand::Dir,
+                DaemonCommands::Cleanup => DaemonCommand::Cleanup,
+                DaemonCommands::Run { host, port, dev } => DaemonCommand::Run { host, port, dev },
+                DaemonCommands::Supervise { host, dev } => DaemonCommand::Supervise { host, dev },
+                DaemonCommands::InstallService { shipd_path, no_start, no_autostart } => {
+                    DaemonCommand::InstallService { shipd_path, no_start, no_autostart }
                 }
-                Ok(())
-            }
-            Commands::Status { path } => run_status(path),
-            Commands::Compile {
-                harness,
-                dry_run,
-                path,
-            } => run_compile_cmd(harness.as_deref(), dry_run, path),
-            Commands::Workspace { action } => dispatch_workspace(action),
-            Commands::Mcp { action } => dispatch_mcp(action),
-
-            Commands::Docs { topic } => help_topics::run(topic.as_deref()),
-            Commands::Publish {
-                export_path,
-                dry_run,
-                tag,
-            } => {
-                let root = std::env::current_dir()?;
-                publish::run_publish(&root, export_path.as_deref(), dry_run, tag.as_deref())
-            }
-            Commands::Install { frozen, offline } => {
-                let root = std::env::current_dir()?;
-                install::run_install(&root, frozen, offline)
-            }
-            Commands::Add { package } => {
-                let root = std::env::current_dir()?;
-                add::run_add(&root, &package)
-            }
-            Commands::Audit { path, json } => audit::run_audit(path, json),
-            Commands::Validate { agent, json, path } => {
-                let root = path
-                    .as_deref()
-                    .map(std::fs::canonicalize)
-                    .transpose()?
-                    .unwrap_or_else(|| std::env::current_dir().unwrap());
-                validate::run_validate(agent.as_deref(), json, &root)
-            }
-
-            Commands::Run {
-                pipeline,
-                spec_text,
-                spec,
-                workspace,
-                vars,
-                dry_run,
-                headless,
-            } => {
-                let parsed_vars: Vec<(String, String)> = vars
-                    .iter()
-                    .filter_map(|v| {
-                        let (k, val) = v.split_once('=')?;
-                        Some((k.to_string(), val.to_string()))
-                    })
-                    .collect();
-                ship_run::run(ship_run::RunOptions {
-                    pipeline_name: pipeline,
-                    spec_text,
-                    spec_file: spec,
-                    workspace,
-                    vars: parsed_vars,
-                    dry_run,
-                    headless,
-                })
-            }
-            Commands::Hook { action } => dispatch_hook(action),
-            Commands::Procs { slug, kind, limit, json } => procs::run(slug.as_deref(), kind.as_deref(), limit, json),
-            Commands::Sui { action } => sui::run(action),
-            Commands::Tail { slug, namespace } => tail::run(&slug, namespace.as_deref()),
-            Commands::Daemon { action } => {
-                use cli::DaemonCommands;
-                use daemon::{DaemonCommand, run_daemon};
-                let cmd = match action {
-                    DaemonCommands::Start { host, dev } => DaemonCommand::Start { host, dev },
-                    DaemonCommands::Stop => DaemonCommand::Stop,
-                    DaemonCommands::Restart { host, dev } => DaemonCommand::Restart { host, dev },
-                    DaemonCommands::Status => DaemonCommand::Status,
-                    DaemonCommands::Dir => DaemonCommand::Dir,
-                    DaemonCommands::Cleanup => DaemonCommand::Cleanup,
-                    DaemonCommands::Run { host, port, dev } => DaemonCommand::Run { host, port, dev },
-                    DaemonCommands::Supervise { host, dev } => DaemonCommand::Supervise { host, dev },
-                    DaemonCommands::InstallService { shipd_path, no_start, no_autostart } => {
-                        DaemonCommand::InstallService { shipd_path, no_start, no_autostart }
-                    }
-                    DaemonCommands::UninstallService => DaemonCommand::UninstallService,
-                };
-                run_daemon(cmd)
-            }
-            Commands::Doctor => doctor::run(),
-            Commands::Build { dry_run } => build::run(dry_run),
-            Commands::Isolation { action } => isolation_cmd::run(action),
-            Commands::Events { action } => dispatch_events(action),
-
-        },
+                DaemonCommands::UninstallService => DaemonCommand::UninstallService,
+            };
+            run_daemon(cmd)
+        }
+        Some(Commands::Doctor) => doctor::run(),
+        Some(Commands::Build { dry_run }) => build::run(dry_run),
+        None => {
+            // No subcommand: print the short help so users discover the surface.
+            use clap::CommandFactory;
+            let mut cmd = Cli::command();
+            cmd.print_help().ok();
+            println!();
+            Ok(())
+        }
     }
 }
-
-
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -300,7 +207,7 @@ fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<Stri
             let sd = ship_substrate::ShipHome::project_ship_dir(std::fs::canonicalize(p)?);
             anyhow::ensure!(
                 sd.exists(),
-                ".ship/ not found in {}. Run: ship init",
+                ".ship/ not found in {}. Run `ship use` from a project with .ship/ scaffolded.",
                 p.display()
             );
             sd
@@ -322,36 +229,7 @@ fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<Stri
     profile::activate_agent(agent_id, &project_root, output_root.as_deref(), extra_skills, scoped)
 }
 
-// ── Status ────────────────────────────────────────────────────────────────────
-
-fn run_status(path: Option<PathBuf>) -> Result<()> {
-    let target = path
-        .as_deref()
-        .map(std::fs::canonicalize)
-        .transpose()?
-        .unwrap_or_else(|| std::env::current_dir().unwrap());
-
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&target);
-    let state = profile::ProjectState::load(&ship_dir);
-    match state.active_agent {
-        Some(ref p) => {
-            println!("active agent: {}", p);
-            if let Some(ref at) = state.compiled_at {
-                println!("compiled: {}", at);
-            }
-            if !state.plugins_installed.is_empty() {
-                println!("plugins: {}", state.plugins_installed.join(", "));
-            }
-        }
-        None => {
-            println!("No active agent for {}", target.display());
-            println!("Run: ship use <agent-id>");
-        }
-    }
-    Ok(())
-}
-
-// ── Compile ───────────────────────────────────────────────────────────────────
+// ── Compile ──────────────────────────────────────────────────────────────────
 
 fn run_compile_cmd(harness: Option<&str>, dry_run: bool, path: Option<PathBuf>) -> Result<()> {
     let project_root = path
@@ -361,7 +239,7 @@ fn run_compile_cmd(harness: Option<&str>, dry_run: bool, path: Option<PathBuf>) 
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
     if !ship_substrate::ShipHome::project_ship_dir(&project_root).exists() {
-        anyhow::bail!(".ship/ not found. Run: ship init");
+        anyhow::bail!(".ship/ not found. Run `ship use <agent>` from a project with .ship/ scaffolded.");
     }
 
     let state = profile::ProjectState::load(&ship_substrate::ShipHome::project_ship_dir(&project_root));
@@ -373,70 +251,6 @@ fn run_compile_cmd(harness: Option<&str>, dry_run: bool, path: Option<PathBuf>) 
         active_agent: state.active_agent.as_deref(),
         extra_skills: vec![],
         plugins_installed: state.plugins_installed.clone(),
-            scoped_launch: false,
+        scoped_launch: false,
     })
-}
-
-// ── Workspace ────────────────────────────────────────────────────────────────
-
-fn dispatch_workspace(action: WorkspaceCommands) -> Result<()> {
-    match action {
-        WorkspaceCommands::Trash { purge } => {
-            if purge {
-                trash_cmd::run_trash_purge()
-            } else {
-                trash_cmd::run_trash_list()
-            }
-        }
-        WorkspaceCommands::Restore { filename, dest } => {
-            trash_cmd::run_restore(&filename, dest)
-        }
-    }
-}
-
-// ── Subcommand dispatchers ────────────────────────────────────────────────────
-
-fn dispatch_mcp(action: McpCommands) -> Result<()> {
-    match action {
-        McpCommands::List => mcp::list(),
-        McpCommands::Add { id, name, url, .. } => {
-            let url =
-                url.ok_or_else(|| anyhow::anyhow!("--url is required for HTTP/SSE servers"))?;
-            mcp::add_http(&id, name, &url)
-        }
-        McpCommands::AddStdio {
-            id,
-            command,
-            args,
-            name,
-            ..
-        } => mcp::add_stdio(&id, name, &command, args),
-        McpCommands::Remove { id } => mcp::remove(&id),
-    }
-}
-
-// ── Internal (not user-facing) ───────────────────────────────────────────────
-
-fn dispatch_hook(action: HookCommands) -> Result<()> {
-    try_init_kernel_router();
-    match action {
-        HookCommands::SessionStart => hook::run_session_start(),
-        HookCommands::BeforeTool => hook::run_before_tool(),
-        HookCommands::AfterTool => hook::run_after_tool(),
-        HookCommands::SessionEnd => hook::run_session_end(),
-    }
-}
-
-fn dispatch_events(action: EventsCommands) -> Result<()> {
-    let ship_dir = paths::project_ship_dir_required()?;
-    match action {
-        EventsCommands::List {
-            since,
-            actor,
-            entity,
-            action,
-            limit,
-            json,
-        } => events_cmd::run_events(&ship_dir, since, actor, entity, action, limit, json),
-    }
 }

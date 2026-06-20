@@ -4,18 +4,23 @@ use anyhow::Result;
 
 pub fn run(topic: Option<&str>) -> Result<()> {
     match topic {
-        None | Some("topics") => print_topic_list(),
-        Some(t) => match lookup(t) {
-            Some(text) => print!("{}", text),
+        None | Some("topics") | Some("list") => {
+            print_topic_list();
+            Ok(())
+        }
+        Some(name) => match lookup(name) {
+            Some(body) => {
+                println!("{body}");
+                Ok(())
+            }
             None => {
-                eprintln!("Unknown help topic: {}", t);
+                eprintln!("Unknown topic: {name}");
                 eprintln!();
                 print_topic_list();
-                anyhow::bail!("run `ship docs topics` to see available topics");
+                Err(anyhow::anyhow!("unknown help topic: {name}"))
             }
         },
     }
-    Ok(())
 }
 
 fn print_topic_list() {
@@ -32,7 +37,6 @@ const TOPICS: &[(&str, &str)] = &[
     ("agents", "Creating and managing agent definitions"),
     ("compile", "How compilation works and harness output"),
     ("config", "User preferences and environment variables"),
-    ("mcp", "MCP server configuration and the Ship MCP server"),
     ("harnesses", "Supported harnesses and their output formats"),
     ("skills", "Adding and authoring agent skills"),
     ("workflow", "Typical day-to-day workflow with Ship"),
@@ -43,7 +47,6 @@ fn lookup(topic: &str) -> Option<&'static str> {
         "agents" => Some(TOPIC_AGENTS),
         "compile" => Some(TOPIC_COMPILE),
         "config" => Some(TOPIC_CONFIG),
-        "mcp" => Some(TOPIC_MCP),
         "harnesses" => Some(TOPIC_HARNESSES),
         "skills" => Some(TOPIC_SKILLS),
         "workflow" => Some(TOPIC_WORKFLOW),
@@ -61,8 +64,7 @@ identity, skills, permissions, and harness targets.
   Activate: ship use <id>
   Recompile: ship compile
 
-`ship init` scaffolds a default `dev` agent. To add more, copy dev.jsonc
-and change the id, name, and skill refs.
+To add more agents, copy dev.jsonc and change the id, name, and skill refs.
 
 Agent files live in .ship/agents/<id>.jsonc. Global agents live in
 ~/.ship/agents/<id>.jsonc.
@@ -84,8 +86,6 @@ config files to the project root (e.g. CLAUDE.md, .cursor/, .mcp.json).
 The compiler resolves skills, permissions, MCP servers, and rules into a
 single output per harness. Output files are build artifacts and should be
 gitignored.
-
-Run `ship validate` before compile to catch config errors early.
 ";
 
 const TOPIC_CONFIG: &str = "\
@@ -124,20 +124,6 @@ Environment variables override config values when set:
 Resolution order: command flag > env var > ship config > default.
 ";
 
-const TOPIC_MCP: &str = "\
-MCP Servers
-
-Ship consumes MCP (Model Context Protocol) servers via ConnectRPC. Declare
-servers your agent connects to:
-  ship mcp add my-server --url https://example.com/mcp
-  ship mcp add-stdio my-tool my-binary --name \"My Tool\"
-  ship mcp list
-  ship mcp remove my-server
-
-Server definitions live in .ship/mcp.jsonc.
-";
-
-
 const TOPIC_HARNESSES: &str = "\
 Harnesses
 
@@ -160,9 +146,7 @@ Skills
 Skills are markdown files that add domain knowledge or workflow instructions
 to an agent. They live in .ship/skills/<skill-id>/SKILL.md.
 
-  Install from registry: ship add github.com/owner/skill-pack
   Create a new skill:    mkdir .ship/skills/my-skill && edit SKILL.md
-  Install deps:          ship install
 
 Skills are referenced in agent JSONC files:
   \"skills\": { \"refs\": [\"my-skill\", \"code-review\"] }
@@ -174,24 +158,21 @@ assets/vars.json (typed variables) and references/docs/ (reference material).
 const TOPIC_WORKFLOW: &str = "\
 Typical Workflow
 
-1. Initialize a project (scaffolds .ship/ with a dev agent and compiles):
-   ship init
+1. Scaffold .ship/ in a new project (or copy from an existing one):
+   mkdir -p .ship/agents && cat > .ship/agents/dev.jsonc <<'JSON'
+   { \"agent\": { \"id\": \"dev\", \"name\": \"Dev\", \"harnesses\": [\"claude\"] } }
+   JSON
 
 2. Edit the agent to add skills, permissions, harnesses:
    Edit .ship/agents/dev.jsonc directly
 
-3. Recompile after changes:
-   ship compile
+3. Activate and compile:
+   ship use dev
+   (re-compile after changes: ship compile)
 
 4. Add more agents by copying dev.jsonc:
    cp .ship/agents/dev.jsonc .ship/agents/backend.jsonc
    (change the id and name, then: ship use backend)
-
-5. Install packages from the registry:
-   ship add github.com/owner/skill-pack
-
-6. Validate config before committing:
-   ship validate
 
 The compiled output (CLAUDE.md, .cursor/, etc.) is gitignored.
 Only .ship/ is committed to version control.

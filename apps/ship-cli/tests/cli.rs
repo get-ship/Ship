@@ -1,9 +1,10 @@
 //! End-to-end tests for the `ship` CLI binary.
 //!
 //! Each test runs the actual binary against an isolated temp directory.
-//! No network calls are made — auth commands are stubs, compile operates
-//! on local fixture files only.
-
+//! The `ship init` command was cut (SpaceService territory post-pivot), so
+//! tests that need a `.ship/` layout scaffold it manually via
+//! `scaffold_ship_dir`. Surviving commands under test: `ship use`,
+//! `ship compile`, `ship --help`.
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
@@ -11,7 +12,7 @@ use std::path::Path;
 use tempfile::TempDir;
 
 /// Bare CLI command — no DB isolation. Use `ship_in()` for tests that touch
-/// the database (ship use, ship status, etc.).
+/// the database (ship use writes the active_agent projection).
 fn ship() -> Command {
     Command::cargo_bin("ship").unwrap()
 }
@@ -30,69 +31,38 @@ fn write(dir: &Path, rel: &str, content: &str) {
     fs::write(p, content).unwrap();
 }
 
-// ── ship init ─────────────────────────────────────────────────────────────────
-
-#[test]
-fn init_creates_ship_structure() {
-    let tmp = TempDir::new().unwrap();
-
-    ship()
-        .args(["init"])
-        .current_dir(tmp.path())
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("initialized .ship/"));
-
-    assert!(ship_substrate::ShipHome::project_ship_dir(tmp.path()).is_dir());
-    assert!(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc").exists());
-    // Gitignore for compiled artifacts lives at the project root, not .ship/
-    assert!(tmp.path().join(".gitignore").exists());
-    // Default dev agent is scaffolded
-    assert!(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("agents/dev.jsonc").exists());
-    // No modes/ directory (deprecated)
-    assert!(!ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("modes").exists());
+/// Manually scaffold the bare-minimum `.ship/` tree that `ship use` and
+/// `ship compile` need. Mirrors what the (now-removed) `ship init` produced
+/// for a fresh project. Adds a `dev` agent at `.ship/agents/dev.jsonc` so
+/// `ship use dev` resolves.
+fn scaffold_ship_dir(root: &Path) {
+    write(
+        root,
+        ".ship/ship.jsonc",
+        r#"{
+  "$schema": "../schemas/ship.schema.json",
+  "project": {
+    "harnesses": ["claude"],
+  },
 }
-
-#[test]
-fn init_is_idempotent() {
-    let tmp = TempDir::new().unwrap();
-
-    ship()
-        .args(["init"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let original = fs::read_to_string(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc")).unwrap();
-
-    // Second run must succeed without overwriting existing files.
-    ship()
-        .args(["init"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let after = fs::read_to_string(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc")).unwrap();
-    assert_eq!(
-        original, after,
-        "init must not overwrite existing ship.jsonc"
+"#,
     );
+    write(
+        root,
+        ".ship/agents/dev.jsonc",
+        r#"{
+  "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/agent.schema.json",
+  "agent": {
+    "id": "dev",
+    "name": "Dev",
+    "version": "0.1.0",
+    "description": "General-purpose development agent"
+  },
+  "skills": { "refs": [] },
+  "mcp": { "servers": [] },
+  "permissions": { "preset": "ship-standard" }
 }
-
-#[test]
-fn init_with_harness_sets_harness_in_toml() {
-    let tmp = TempDir::new().unwrap();
-
-    ship()
-        .args(["init", "--harness", "cursor"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    let content = fs::read_to_string(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc")).unwrap();
-    assert!(
-        content.contains("cursor"),
-        "harness should appear in ship.jsonc"
+"#,
     );
 }
 
@@ -101,12 +71,8 @@ fn init_with_harness_sets_harness_in_toml() {
 #[test]
 fn use_activates_agent_writes_claude_md_and_state() {
     let tmp = TempDir::new().unwrap();
-
-    ship_in(&tmp)
-        .args(["init"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
+    let p = tmp.path().to_str().unwrap();
+    scaffold_ship_dir(tmp.path());
     write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
     write(
         tmp.path(),
@@ -115,17 +81,11 @@ fn use_activates_agent_writes_claude_md_and_state() {
     );
 
     ship_in(&tmp)
-        .args(["use", "my-agent", "--path", tmp.path().to_str().unwrap()])
+        .args(["use", "my-agent", "--path", p])
         .assert()
         .success()
         .stdout(predicate::str::contains("activated agent 'my-agent'"));
 
-    // State is persisted to the per-scope db. Verify via ship status.
-    ship_in(&tmp)
-        .args(["status", "--path", tmp.path().to_str().unwrap()])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("my-agent"));
     assert!(
         tmp.path().join("CLAUDE.md").exists(),
         "CLAUDE.md must be written"
@@ -135,12 +95,8 @@ fn use_activates_agent_writes_claude_md_and_state() {
 #[test]
 fn use_same_agent_twice_is_idempotent() {
     let tmp = TempDir::new().unwrap();
-
-    ship_in(&tmp)
-        .args(["init"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
+    let p = tmp.path().to_str().unwrap();
+    scaffold_ship_dir(tmp.path());
     write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
     write(
         tmp.path(),
@@ -148,15 +104,9 @@ fn use_same_agent_twice_is_idempotent() {
         r#"{ "agent": { "name": "My Agent", "id": "my-agent", "harnesses": ["claude"] } }"#,
     );
 
-    let args = ["use", "my-agent", "--path", tmp.path().to_str().unwrap()];
+    let args = ["use", "my-agent", "--path", p];
     ship_in(&tmp).args(args).assert().success();
     ship_in(&tmp).args(args).assert().success();
-
-    ship_in(&tmp)
-        .args(["status", "--path", tmp.path().to_str().unwrap()])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("my-agent"));
 }
 
 #[test]
@@ -173,12 +123,7 @@ fn use_fails_without_ship_dir() {
 #[test]
 fn use_fails_for_unknown_agent() {
     let tmp = TempDir::new().unwrap();
-
-    ship()
-        .args(["init"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
+    scaffold_ship_dir(tmp.path());
 
     ship()
         .args(["use", "nonexistent", "--path", tmp.path().to_str().unwrap()])
@@ -288,26 +233,6 @@ fn compile_harness_codex_writes_codex_config_toml() {
     );
 }
 
-// ── ship status ───────────────────────────────────────────────────────────────
-
-#[test]
-fn status_shows_dev_agent_after_init() {
-    let tmp = TempDir::new().unwrap();
-
-    ship_in(&tmp)
-        .args(["init"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    // ship init now auto-activates the dev agent
-    ship_in(&tmp)
-        .args(["status", "--path", tmp.path().to_str().unwrap()])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("dev"));
-}
-
 // ── ship compile idempotency ───────────────────────────────────────────────────
 
 #[test]
@@ -335,134 +260,18 @@ fn compile_is_idempotent() {
     );
 }
 
-// ── ship install ──────────────────────────────────────────────────────────────
-
-#[test]
-fn install_without_module_succeeds_with_no_deps() {
-    let tmp = TempDir::new().unwrap();
-    // Write a minimal ship.jsonc with no module and no deps
-    write(
-        tmp.path(),
-        ".ship/ship.jsonc",
-        r#"{ "project": { "harnesses": ["claude"] } }"#,
-    );
-
-    // install with no deps and no module should succeed (no network needed)
-    ship()
-        .args(["install"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-}
-
-#[test]
-fn install_empty_deps_writes_lock() {
-    let tmp = TempDir::new().unwrap();
-    // Write a minimal registry manifest with no dependencies.
-    write(
-        tmp.path(),
-        ".ship/ship.jsonc",
-        "{\"module\": {\"name\": \"github.com/test/repo\", \"version\": \"0.1.0\"}}\n",
-    );
-
-    // install with no deps needs no network; lock is written immediately.
-    ship()
-        .args(["install"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    assert!(
-        ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("ship.lock").exists(),
-        ".ship/ship.lock must be created by ship install"
-    );
-}
-
-// ── ship validate ─────────────────────────────────────────────────────────────
-
-#[test]
-fn validate_passes_on_valid_config() {
-    let tmp = TempDir::new().unwrap();
-    write(
-        tmp.path(),
-        ".ship/permissions.jsonc",
-        r#"{ "ship-standard": { "default_mode": "acceptEdits" } }"#,
-    );
-    write(
-        tmp.path(),
-        ".ship/agents/default.jsonc",
-        r#"{
-  "agent": { "name": "Default", "id": "default", "harnesses": ["claude"] },
-  "skills": { "refs": [] },
-  "mcp": { "servers": [] },
-  "permissions": { "preset": "ship-standard" }
-}"#,
-    );
-
-    ship()
-        .args(["validate", "--path", tmp.path().to_str().unwrap()])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("valid"));
-}
-
-#[test]
-fn validate_reports_error_on_bad_config() {
-    let tmp = TempDir::new().unwrap();
-    write(tmp.path(), ".ship/agents/bad.jsonc", "not valid json {{{");
-
-    ship()
-        .args(["validate", "--path", tmp.path().to_str().unwrap()])
-        .assert()
-        .failure()
-        .stdout(predicate::str::contains("✗"));
-}
-
-// ── auth ──────────────────────────────────────────────────────────────────────
-
-#[test]
-fn logout_when_not_logged_in() {
-    let tmp = TempDir::new().unwrap();
-
-    ship()
-        .args(["logout"])
-        .env("HOME", tmp.path())
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Not logged in"));
-}
-
-#[test]
-fn whoami_not_logged_in_when_no_config() {
-    let tmp = TempDir::new().unwrap();
-
-    // Isolate HOME so no real ~/.ship/config.toml is read.
-    ship()
-        .args(["whoami"])
-        .env("HOME", tmp.path())
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("Not logged in"));
-}
-
 // ── E2E integration tests ────────────────────────────────────────────────────
 
-/// Full user story: init -> write agent JSONC with permissions/skills/hooks ->
+/// Full user story: scaffold .ship/ -> write agent JSONC with permissions/skills/hooks ->
 /// write rules -> write MCP config -> write permissions preset -> use agent ->
 /// compile for claude -> verify all output files.
 #[test]
-fn e2e_init_create_agent_use_compile_full_flow() {
+fn e2e_scaffold_create_agent_use_compile_full_flow() {
     let tmp = TempDir::new().unwrap();
     let p = tmp.path().to_str().unwrap();
+    scaffold_ship_dir(tmp.path());
 
-    // 1. ship init
-    ship()
-        .args(["init"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
-
-    // 2. Write a realistic agent JSONC with permissions preset, skills ref, hooks
+    // Write a realistic agent JSONC with permissions preset, skills ref, hooks
     write(
         tmp.path(),
         ".ship/agents/fullstack.jsonc",
@@ -489,14 +298,14 @@ fn e2e_init_create_agent_use_compile_full_flow() {
 }"#,
     );
 
-    // 3. Write a rule file
+    // Write a rule file
     write(
         tmp.path(),
         ".ship/rules/style.md",
         "Prefer composition over inheritance. Use explicit return types.",
     );
 
-    // 4. Write MCP config with a server
+    // Write MCP config with a server
     write(
         tmp.path(),
         ".ship/mcp.jsonc",
@@ -518,7 +327,7 @@ fn e2e_init_create_agent_use_compile_full_flow() {
 }"#,
     );
 
-    // 5. Write permissions.jsonc with ship-autonomous preset
+    // Write permissions.jsonc with ship-autonomous preset
     write(
         tmp.path(),
         ".ship/permissions.jsonc",
@@ -535,14 +344,14 @@ fn e2e_init_create_agent_use_compile_full_flow() {
 }"#,
     );
 
-    // 6. ship use <agent> (this compiles with the agent active)
+    // ship use <agent> (this compiles with the agent active)
     ship_in(&tmp)
         .args(["use", "fullstack", "--path", p])
         .assert()
         .success()
         .stdout(predicate::str::contains("activated agent 'fullstack'"));
 
-    // 7. Verify CLAUDE.md contains rule content and inline rule (written by ship use)
+    // Verify CLAUDE.md contains rule content and inline rule (written by ship use)
     let claude_md = fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
     assert!(
         claude_md.contains("Prefer composition over inheritance"),
@@ -553,13 +362,13 @@ fn e2e_init_create_agent_use_compile_full_flow() {
         "CLAUDE.md must contain inline rule from agent"
     );
 
-    // 8. Re-compile picks up active agent from DB state
+    // Re-compile picks up active agent from DB state
     ship_in(&tmp)
         .args(["compile", "--harness", "claude", "--path", p])
         .assert()
         .success();
 
-    // 9. Verify .claude/settings.json contains permissions
+    // Verify .claude/settings.json contains permissions
     let settings_path = tmp.path().join(".claude/settings.json");
     assert!(settings_path.exists(), ".claude/settings.json must exist");
     let settings: serde_json::Value =
@@ -574,7 +383,7 @@ fn e2e_init_create_agent_use_compile_full_flow() {
         "deny list must contain preset entries"
     );
 
-    // 10. Verify .mcp.json contains the github server
+    // Verify .mcp.json contains the github server
     let mcp_json_path = tmp.path().join(".mcp.json");
     assert!(mcp_json_path.exists(), ".mcp.json must exist");
     let mcp: serde_json::Value =
@@ -592,6 +401,7 @@ fn e2e_init_create_agent_use_compile_full_flow() {
 fn e2e_cross_harness_same_config() {
     let tmp = TempDir::new().unwrap();
     let p = tmp.path().to_str().unwrap();
+    scaffold_ship_dir(tmp.path());
 
     // Set up a realistic .ship/ with agent, rules, permissions, MCP
     write(
@@ -712,6 +522,7 @@ fn e2e_cross_harness_same_config() {
 fn e2e_permission_preset_plus_agent_override() {
     let tmp = TempDir::new().unwrap();
     let p = tmp.path().to_str().unwrap();
+    scaffold_ship_dir(tmp.path());
 
     // permissions.jsonc defines ship-autonomous with specific deny list
     write(
@@ -804,20 +615,19 @@ fn e2e_compile_with_dependency_skills() {
     let tmp = TempDir::new().unwrap();
     let p = tmp.path().to_str().unwrap();
     let hex = "a1b2c3d4e5f6";
+    scaffold_ship_dir(tmp.path());
 
     // ship.jsonc referencing a dependency
     write(
         tmp.path(),
         ".ship/ship.jsonc",
         r#"{
-  "module": {
-    "name": "github.com/test/my-project",
-    "version": "0.1.0"
+  "$schema": "../schemas/ship.schema.json",
+  "project": {
+    "harnesses": ["claude"],
   },
-  "dependencies": {
-    "github.com/example/skills-pkg": "main"
-  }
-}"#,
+}
+"#,
     );
 
     // ship.lock with a matching entry
@@ -893,70 +703,5 @@ fn e2e_compile_with_dependency_skills() {
         skill_content.contains("You are a cool skill"),
         "skill file must contain dep skill content, got: {}",
         skill_content
-    );
-}
-
-/// Validate catches bad config, then after fixing it, validate and compile succeed.
-#[test]
-fn e2e_validate_then_compile_catches_bad_config() {
-    let tmp = TempDir::new().unwrap();
-    let p = tmp.path().to_str().unwrap();
-
-    // Write invalid agent JSONC (missing required `id` field in agent)
-    write(
-        tmp.path(),
-        ".ship/agents/broken.jsonc",
-        r#"{ "agent": { "name": "Broken" } }"#,
-    );
-
-    // Validate should fail. Use ship_in to isolate the per-scope dbs so no stale
-    // active_agent from a prior test run or the developer's machine leaks in.
-    ship_in(&tmp)
-        .args(["validate", "--path", p])
-        .assert()
-        .failure();
-
-    // Fix the config by adding the required fields
-    write(
-        tmp.path(),
-        ".ship/agents/broken.jsonc",
-        r#"{
-  "agent": {
-    "id": "broken",
-    "name": "Fixed Agent",
-    "harnesses": ["claude"]
-  },
-  "skills": { "refs": [] },
-  "mcp": { "servers": [] },
-  "permissions": {},
-  "rules": {}
-}"#,
-    );
-
-    // Validate should now pass
-    ship_in(&tmp)
-        .args(["validate", "--path", p])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("valid"));
-
-    // Compile must use ship_in so the per-scope dbs are isolated to this test's
-    // tmp dir. Without isolation, a stale active_agent in the global runtime.db
-    // causes build_context_content to emit a mode comment, making parts
-    // non-empty and CLAUDE.md to be written even when there are no rules.
-    ship_in(&tmp)
-        .args(["compile", "--harness", "claude", "--path", p])
-        .assert()
-        .success();
-
-    // The config has no rules, so CLAUDE.md is correctly not written.
-    // The MCP config is always written for the claude harness.
-    assert!(
-        !tmp.path().join("CLAUDE.md").exists(),
-        "CLAUDE.md must NOT be written when there are no rules"
-    );
-    assert!(
-        tmp.path().join(".mcp.json").exists(),
-        ".mcp.json must be written after successful compile"
     );
 }
