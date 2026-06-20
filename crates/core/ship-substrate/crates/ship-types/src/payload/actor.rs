@@ -57,10 +57,3 @@ pub struct ActorCrashed {
     pub restart_count: u32,
 }
 
-/// Payload for `actor.mailbox_full`. `entity_id` is the actor_id.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ActorMailboxFull {
-    pub actor_id: String,
-    pub dropped_event_type: String,
-    pub dropped_event_id: String,
-}
