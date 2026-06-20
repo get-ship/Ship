@@ -10,10 +10,11 @@ use anyhow::{Context, Result};
 
 /// Default dependencies seeded into every new project.
 /// Each entry is `(package_path, version_constraint)`.
-pub const DEFAULT_INIT_DEPS: &[(&str, &str)] = &[
-    ("@ship/task-policy", "latest"),
-    ("@ship/ship-help", "latest"),
-];
+///
+/// Empty: the legacy `@ship/task-policy` + `@ship/ship-help` references pointed
+/// at packages that were never published. The init flow stays — callers still
+/// get a seeded `dependencies` section — but no phantom packages are added.
+pub const DEFAULT_INIT_DEPS: &[(&str, &str)] = &[];
 
 /// Result of seeding default dependencies.
 #[derive(Debug)]
