@@ -65,9 +65,11 @@ export interface ShipConnectOptions {
 export interface ShipConnectClient {
   /** Daemon meta (`OpsService`). */
   meta: Client<typeof OpsService>;
-  /** Live data stream (`StreamService`) — backs `<data live>`. */
+  /** Kernel-bridge firehose (`StreamService.Events`) — the server-stream the
+   *  shell's `apps/shell/src/kernel-bridge.ts` tails. Not used by the SDK
+   *  itself; `<data live>` views use the typed per-domain `*Live` rpcs on
+   *  `account`/`collections`/`pipelines`/etc. via `@ship/sdk-client/live-stream`. */
   stream: Client<typeof StreamService>;
-  // Per-domain clients — the flip target.
   account: Client<typeof AccountService>;
   agents: Client<typeof AgentsService>;
   analytics: Client<typeof AnalyticsService>;

@@ -1,20 +1,23 @@
 /**
  * Transport abstraction for ShipClient.
  *
- * A transport is responsible for two things:
- *   1. Request/response — `request(method, path, body?) -> Promise<unknown>`
- *      (payload already unwrapped from the {ok,data} envelope)
- *   2. Event streaming — `subscribeEvents(fn) -> unsubscribe`
+ * A transport is responsible for one thing: request/response against the
+ * daemon. The event-streaming surface (`subscribeEvents`) was retired with
+ * the B13 firehose cut — kernel-bridge + canvas subscribers live in the
+ * shell process and read the kernel firehose there (apps/shell); the SDK
+ * here stays request-only. Reactive subscribers consume domain-scoped Watch
+ * RPCs (`@ship/sdk/connect`) directly.
  *
- * Three implementations are contemplated:
+ * Two implementations are contemplated:
  *
- *   - DirectTransport (implemented): fetch + EventSource against a daemon
- *     running on loopback. Used by the Studio shell and by daemon-hosted
- *     component views that live in the same origin as the SDK.
+ *   - DirectTransport (implemented): fetch against a daemon running on
+ *     loopback. Used by the Studio shell and by daemon-hosted component
+ *     views that live in the same origin as the SDK.
  *
- *   - InjectedTransport (stub): forwards to a parent-injected `window.shipApi`
- *     object. Future use: nested iframes / test harnesses where the host
- *     already owns a ShipClient and wants to share its transport.
+ *   - InjectedTransport (stub): forwards to a parent-injected
+ *     `window.shipApi` object. Future use: nested iframes / test harnesses
+ *     where the host already owns a ShipClient and wants to share its
+ *     transport.
  *
  *   - BridgeTransport (stub): postMessage bridge for sandboxed iframes.
  *     Request/response correlation over structured cloning. The parent
@@ -26,16 +29,6 @@
  */
 
 import { createShipConnectClient } from './connect.js'
-
-export interface ShipEventEnvelope {
-  id: string
-  event_type: string
-  entity_id: string
-  actor_id?: string
-  space_id?: string
-  payload_json?: string
-  created_at: string
-}
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
@@ -55,14 +48,7 @@ export interface Transport {
    */
   request<T = unknown>(path: string, init?: TransportRequestInit): Promise<T>
 
-  /**
-   * Subscribe to the daemon SSE event stream. Returns an unsubscribe fn.
-   * Implementations are free to share a single underlying stream across
-   * subscribers.
-   */
-  subscribeEvents(fn: (event: ShipEventEnvelope) => void): () => void
-
-  /** Release any held resources (SSE connections, etc). */
+  /** Release any held resources. */
   destroy(): void
 }
 
@@ -78,8 +64,6 @@ export class DirectTransport implements Transport {
   private baseUrl: string
   private token: string | undefined
   private timeout: number
-  private streamAbort: AbortController | null = null
-  private listeners = new Set<(e: ShipEventEnvelope) => void>()
 
   constructor(options?: DirectTransportOptions) {
     this.baseUrl = options?.baseUrl ?? 'http://localhost:9315'
@@ -126,63 +110,8 @@ export class DirectTransport implements Transport {
     return json as T
   }
 
-  subscribeEvents(fn: (event: ShipEventEnvelope) => void): () => void {
-    this.listeners.add(fn)
-    this.ensureStream()
-    return () => {
-      this.listeners.delete(fn)
-      if (this.listeners.size === 0) this.closeStream()
-    }
-  }
-
-  private ensureStream(): void {
-    if (this.streamAbort) return
-    const abort = new AbortController()
-    this.streamAbort = abort
-    void this.runStream(abort.signal)
-  }
-
-  /**
-   * Tail the Connect `StreamService.Events` server-stream (the successor to
-   * the retired `/api/v1/events/stream` SSE route). Each frame carries the
-   * serialized `EventEnvelope` in `JsonResponse.json`. Reconnects with linear
-   * backoff on drop — mirroring the old `EventSource` auto-reconnect — until
-   * the last subscriber leaves and the signal aborts.
-   */
-  private async runStream(signal: AbortSignal): Promise<void> {
-    const client = createShipConnectClient({
-      baseUrl: this.baseUrl,
-      ...(this.token ? { token: this.token } : {}),
-    })
-    let backoff = 1000
-    while (!signal.aborted) {
-      try {
-        for await (const msg of client.stream.events({}, { signal })) {
-          backoff = 1000
-          try {
-            const envelope = JSON.parse(msg.json) as ShipEventEnvelope
-            this.listeners.forEach((l) => l(envelope))
-          } catch {
-            /* malformed frame */
-          }
-        }
-      } catch {
-        /* stream dropped — fall through to backoff + retry */
-      }
-      if (signal.aborted) return
-      await new Promise((r) => setTimeout(r, backoff))
-      backoff = Math.min(backoff * 2, 15000)
-    }
-  }
-
-  private closeStream(): void {
-    this.streamAbort?.abort()
-    this.streamAbort = null
-  }
-
   destroy(): void {
-    this.closeStream()
-    this.listeners.clear()
+    /* noop — DirectTransport holds no resources outside the fetch pool */
   }
 }
 
@@ -196,8 +125,7 @@ export class DirectTransport implements Transport {
  * wants to reuse the host's already-authenticated client without
  * re-opening a DirectTransport.
  *
- * To implement: mirror each ShipClient method onto the injected target
- * and multiplex `onEvent` subscriptions through the host's single stream.
+ * To implement: mirror each ShipClient method onto the injected target.
  */
 export class InjectedTransport implements Transport {
   constructor(_target: unknown) {
@@ -206,10 +134,6 @@ export class InjectedTransport implements Transport {
 
   request<T = unknown>(_path: string, _init?: TransportRequestInit): Promise<T> {
     throw new Error('InjectedTransport.request not implemented')
-  }
-
-  subscribeEvents(_fn: (event: ShipEventEnvelope) => void): () => void {
-    throw new Error('InjectedTransport.subscribeEvents not implemented')
   }
 
   destroy(): void {
@@ -225,10 +149,6 @@ export class InjectedTransport implements Transport {
  * postMessage bridge between a sandboxed iframe (child) and its host.
  * The host holds the real ShipClient (with a DirectTransport) and
  * relays calls. Correlates requests by monotonically increasing seq.
- *
- * Today, `ViewHost.tsx` implements an ad-hoc version of this protocol
- * inline. The plan is to move that protocol into this class and have
- * both sides speak it through a `ShipClient`.
  */
 export class BridgeTransport implements Transport {
   constructor(_peer: Window) {
@@ -237,10 +157,6 @@ export class BridgeTransport implements Transport {
 
   request<T = unknown>(_path: string, _init?: TransportRequestInit): Promise<T> {
     throw new Error('BridgeTransport.request not implemented')
-  }
-
-  subscribeEvents(_fn: (event: ShipEventEnvelope) => void): () => void {
-    throw new Error('BridgeTransport.subscribeEvents not implemented')
   }
 
   destroy(): void {

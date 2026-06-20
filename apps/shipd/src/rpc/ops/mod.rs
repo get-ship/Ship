@@ -20,11 +20,8 @@ pub use policy::{OP_POLICY, OpPolicy, policy_for};
 
 use std::sync::Arc;
 
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
-use ship_ops_rpc::{
-    JsonResponse, MetaResponse, OpsService, OpsServiceExt, OwnedEventsRequestView,
-    OwnedMetaRequestView, StreamService,
-};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use ship_ops_rpc::{MetaResponse, OpsService, OpsServiceExt, OwnedMetaRequestView};
 
 use crate::ship_runtime::ApiState;
 
@@ -58,55 +55,6 @@ impl OpsService for OpsImpl {
             build: option_env!("BUILD_GIT_SHA").unwrap_or("dev").to_string(),
             ..Default::default()
         }))
-    }
-}
-
-// ── Streaming (the Connect-native event bus; retires the SSE event route) ─────
-// Mirrors the old runtime_api::event_stream: spawn a broadcast subscriber actor,
-// then stream every kernel event as JSON. SSE was just one adapter over this.
-impl StreamService for OpsImpl {
-    #[allow(refining_impl_trait)]
-    async fn events(
-        &self,
-        _ctx: RequestContext,
-        _req: OwnedEventsRequestView,
-    ) -> ServiceResult<ServiceStream<JsonResponse>> {
-        use ship_substrate::events::ActorConfig;
-        let actor_id = format!(
-            "studio-events-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or(0)
-        );
-        let config = ActorConfig {
-            namespace: actor_id.clone(),
-            write_namespaces: vec![],
-            read_namespaces: vec![],
-            subscribe_namespaces: vec!["".to_string()],
-            see_directed_events: true,
-        };
-        let mailbox = {
-            let mut kernel = self.state.kernel().lock().await;
-            kernel
-                .spawn_actor(&actor_id, config)
-                .map(|(_store, mb)| mb)
-                .map_err(|e| ConnectError::internal(e.to_string()))?
-        };
-        let guard = crate::ship_runtime::ActorGuard {
-            actor_id,
-            kernel: self.state.kernel().clone(),
-        };
-        let stream = async_stream::stream! {
-            let _guard = guard;
-            let mut mb = mailbox;
-            while let Some(event) = mb.recv().await {
-                if let Ok(json) = serde_json::to_string(&event) {
-                    yield Ok::<JsonResponse, ConnectError>(JsonResponse { json, ..Default::default() });
-                }
-            }
-        };
-        Ok(Response::new(Box::pin(stream)))
     }
 }
 

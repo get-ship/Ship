@@ -19,11 +19,7 @@
  */
 
 import { QueryClient, QueryObserver } from '@tanstack/query-core'
-import {
-  DirectTransport,
-  type Transport,
-  type ShipEventEnvelope,
-} from './transport'
+import { DirectTransport, type Transport } from './transport'
 
 // ── Capabilities ────────────────────────────────────────────
 
@@ -32,7 +28,7 @@ export type Capability =
   | 'read:events' | 'read:artifacts' | 'read:git' | 'read:settings'
   | 'write:agents' | 'write:skills' | 'write:jobs'
   | 'write:artifacts' | 'write:settings'
-  | 'emit:events' | 'subscribe:events'
+  | 'emit:events'
   | `namespace:${string}`
   | '*'
 
@@ -88,12 +84,6 @@ export type PairStatus =
   | { status: 'expired' }
   | { status: 'unknown' }
 
-// ── SSE Event types ─────────────────────────────────────────
-
-export type ShipEvent = ShipEventEnvelope
-
-type EventListener = (event: ShipEvent) => void
-
 // ── Client ──────────────────────────────────────────────────
 
 export class ShipClient {
@@ -101,9 +91,6 @@ export class ShipClient {
   private capabilities: Capability[]
   private staleTime: number
   private queryClient: QueryClient
-  private eventListeners = new Set<EventListener>()
-  private namespaceListeners = new Map<string, Set<EventListener>>()
-  private streamUnsub: (() => void) | null = null
   private token: string | undefined
   private baseUrl: string
   private timeout: number
@@ -327,69 +314,6 @@ export class ShipClient {
     })
   }
 
-  // ── SSE Events ──────────────────────────────────────────
-
-  /** Open the event stream. Idempotent. */
-  connectEvents(): void {
-    if (this.streamUnsub) return
-    this.streamUnsub = this.transport.subscribeEvents((event) => {
-      this.eventListeners.forEach((fn) => fn(event))
-      for (const [ns, fns] of this.namespaceListeners) {
-        if (event.event_type.startsWith(ns)) fns.forEach((fn) => fn(event))
-      }
-      this.autoInvalidate(event)
-    })
-  }
-
-  /** Subscribe to all events. Opens the stream lazily. Returns unsubscribe. */
-  onEvent(fn: EventListener): Unsubscribe {
-    this.eventListeners.add(fn)
-    this.connectEvents()
-    return () => {
-      this.eventListeners.delete(fn)
-      this.maybeCloseStream()
-    }
-  }
-
-  onNamespace(namespace: string, fn: EventListener): Unsubscribe {
-    if (!this.namespaceListeners.has(namespace)) {
-      this.namespaceListeners.set(namespace, new Set())
-    }
-    const fns = this.namespaceListeners.get(namespace)!
-    fns.add(fn)
-    this.connectEvents()
-    return () => {
-      fns.delete(fn)
-      this.maybeCloseStream()
-    }
-  }
-
-  disconnectEvents(): void {
-    this.streamUnsub?.()
-    this.streamUnsub = null
-  }
-
-  private maybeCloseStream(): void {
-    if (this.eventListeners.size > 0) return
-    for (const fns of this.namespaceListeners.values()) {
-      if (fns.size > 0) return
-    }
-    this.disconnectEvents()
-  }
-
-  private autoInvalidate(event: ShipEvent): void {
-    const t = event.event_type
-    if (t.startsWith('workspace.')) this.invalidatePrefix('/runtime/workspaces')
-    if (t.startsWith('session.')) {
-      this.invalidatePrefix('/runtime/workspaces')
-      this.invalidatePrefix('/runtime/sessions')
-    }
-    if (t.startsWith('job.')) this.invalidatePrefix('/runtime/jobs')
-    if (t.startsWith('mesh.') || t.startsWith('actor.')) {
-      this.invalidatePrefix('/runtime/agents')
-    }
-  }
-
   // ── View-author surface (ex-createShipApi) ──────────────
 
   /** List all jobs. */
@@ -511,10 +435,7 @@ export class ShipClient {
   // ── Cleanup ─────────────────────────────────────────────
 
   destroy(): void {
-    this.disconnectEvents()
     this.transport.destroy()
     this.queryClient.clear()
-    this.eventListeners.clear()
-    this.namespaceListeners.clear()
   }
 }

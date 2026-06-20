@@ -1,24 +1,19 @@
 import { describe, it, expect, vi } from 'vitest'
 import { ShipClient } from './client'
-import type { Transport, TransportRequestInit, ShipEventEnvelope } from './transport'
+import type { Transport, TransportRequestInit } from './transport'
 
 /** Minimal in-memory transport, useful for asserting client behavior. */
 function mockTransport(handler: (path: string, init?: TransportRequestInit) => unknown) {
-  const listeners = new Set<(e: ShipEventEnvelope) => void>()
   const requestSpy = vi.fn((path: string, init?: TransportRequestInit) => {
     return Promise.resolve(handler(path, init))
   })
   const transport: Transport = {
     request: requestSpy as Transport['request'],
-    subscribeEvents(fn) {
-      listeners.add(fn)
-      return () => listeners.delete(fn)
-    },
     destroy() {
-      listeners.clear()
+      /* noop */
     },
   }
-  return { transport, requestSpy, listeners }
+  return { transport, requestSpy }
 }
 
 describe('ShipClient construction', () => {
@@ -91,23 +86,3 @@ describe('ShipClient HTTP surface via transport', () => {
   })
 })
 
-describe('ShipClient events', () => {
-  it('onEvent returns an unsubscribe and routes events', () => {
-    const { transport, listeners } = mockTransport(() => undefined)
-    const c = new ShipClient({ transport })
-    const received: ShipEventEnvelope[] = []
-    const unsub = c.onEvent((e) => received.push(e))
-    expect(listeners.size).toBe(1)
-    const evt: ShipEventEnvelope = {
-      id: '1',
-      event_type: 'job.created',
-      entity_id: 'j1',
-      created_at: 'now',
-    }
-    listeners.forEach((l) => l(evt))
-    expect(received).toHaveLength(1)
-    unsub()
-    // the transport listener is released once the last consumer goes
-    expect(listeners.size).toBe(0)
-  })
-})
