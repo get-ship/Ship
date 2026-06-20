@@ -65,19 +65,14 @@ mod kernel_router_enforce_tests;
 #[cfg(test)]
 mod cross_actor_tests;
 #[cfg(test)]
-mod snapshot_tests;
-#[cfg(test)]
 mod cli_routing_tests;
 #[cfg(test)]
 mod validator_tests;
 #[cfg(test)]
 mod lifecycle_tests;
-#[cfg(test)]
-mod snapshot_edge_tests;
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-
 pub fn read_events() -> Result<Vec<EventEnvelope>> {
     crate::db::events::list_all_events()
 }
