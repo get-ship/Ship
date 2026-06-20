@@ -31,41 +31,13 @@ import { signal, type Signal } from '@ship/sui-runtime'
 export { resolveLayoutChain, type LayoutShape } from './layouts'
 export { mountRouter, type MountRouterOptions, type RouterHandle } from './mount-router'
 
-/**
- * The reactive URL handle exposed to view scope as `route`.
- *
- * Each `params.<name>` and `query.<name>` is a `Signal<string |
- * undefined>` — call it to read the current value (and subscribe the
- * surrounding reactive scope). Writing to either record throws;
- * mutate via `navigate(path)` instead.
- *
- * Param names are discovered lazily: reading `route.params.id` for the
- * first time creates the signal and seeds it from the current pathname.
- * If no registered route shape matches the pathname (or the shape
- * doesn't capture `id`), the signal's value is `undefined` and stays
- * that way until a future navigation introduces a matching segment.
- */
-export interface RouteSignals {
-  /** Path params (e.g. `/agents/:id` → `params.id`). Lazy proxy. */
-  params: Record<string, Signal<string | undefined>>
-  /** Query params (e.g. `?q=foo` → `query.q`). Lazy proxy. */
-  query: Record<string, Signal<string | undefined>>
-  /** Pathname. Updates on every navigation. */
-  pathname: Signal<string>
-  /** Hash fragment, including the leading `#`. */
-  hash: Signal<string>
-}
-
-/**
- * A registered route pattern (e.g. `/agents/:id`). Pattern segments
- * starting with `:` are captured as named params on `route.params`.
- */
-export interface RouteShape {
-  /** Path pattern, e.g. `'/agents/:id'`. */
-  pattern: string
-  /** Optional name for debugging. */
-  name?: string
-}
+// `RouteSignals` and `RouteShape` live in `./types` (importable without the
+// browser router) and are re-exported here so `@ship/deck/route`'s public
+// surface is unchanged. Param names are discovered lazily: reading
+// `route.params.id` for the first time creates the signal and seeds it from
+// the current pathname.
+export type { RouteSignals, RouteShape } from './types'
+import type { RouteSignals, RouteShape } from './types'
 
 interface CompiledShape extends RouteShape {
   regex: RegExp

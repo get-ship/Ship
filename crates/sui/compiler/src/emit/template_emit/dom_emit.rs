@@ -4,7 +4,6 @@
 // element and its attributes. emit_attr is a single (large) static/dynamic/
 // hook/modifier dispatch matrix; the modifier + kbd-shortcut helpers are its
 // leaves. Splitting by attr-kind fragments one mapping table.
-use super::super::expr_rewrite::rewrite_for_scope;
 use super::super::util::camel_of;
 use super::super::writer::{js_string, Writer};
 use super::TemplateEmitter;
@@ -148,7 +147,7 @@ impl TemplateEmitter {
             }
             AttrInstr::Expr { name, expr, .. } => {
                 let key = self.next_key();
-                let rw = rewrite_for_scope(&expr.source, &[]);
+                let rw = self.rw(&expr.source, &[]);
                 if self.is_static_row_expr(&expr.source) {
                     // D5: row-scope static attr — initial setAttribute
                     // only, matching bindAttr's null/false/"" → drop and
@@ -191,7 +190,7 @@ impl TemplateEmitter {
             }
             AttrInstr::BindValue { expr, .. } => {
                 let key = self.next_key();
-                let rw = rewrite_for_scope(&expr.source, &[]);
+                let rw = self.rw(&expr.source, &[]);
                 w.line(&format!(
                     "{cleanups_var}.push(bindValue({el_var}, ({rw})));"
                 ));
@@ -205,7 +204,7 @@ impl TemplateEmitter {
             }
             AttrInstr::BindChecked { expr, .. } => {
                 let key = self.next_key();
-                let rw = rewrite_for_scope(&expr.source, &[]);
+                let rw = self.rw(&expr.source, &[]);
                 w.line(&format!(
                     "{cleanups_var}.push(bindChecked({el_var}, ({rw})));"
                 ));
@@ -243,7 +242,7 @@ impl TemplateEmitter {
             }
             AttrInstr::On { event, handler, modifiers, .. } => {
                 let key = self.next_key();
-                let rw = rewrite_for_scope(&handler.source, &[]);
+                let rw = self.rw(&handler.source, &[]);
                 let mods_js = serialize_modifiers(modifiers);
                 w.line(&format!(
                     "{cleanups_var}.push(on({el_var}, {ev}, (function () {{ const __h = ({rw}); return (typeof __h === \"function\") ? __h.bind(undefined) : (() => {{}}); }})(), {{ modifiers: {mods_js} }}));",
@@ -265,7 +264,7 @@ impl TemplateEmitter {
             }
             AttrInstr::Class { name, expr, .. } => {
                 let key = self.next_key();
-                let rw = rewrite_for_scope(&expr.source, &[]);
+                let rw = self.rw(&expr.source, &[]);
                 if self.is_static_row_expr(&expr.source) {
                     // D5: row-scope static class — truthy → add. Also
                     // recorded for the for's `update()` callback so
@@ -295,7 +294,7 @@ impl TemplateEmitter {
             }
             AttrInstr::Style { name, expr, .. } => {
                 let key = self.next_key();
-                let rw = rewrite_for_scope(&expr.source, &[]);
+                let rw = self.rw(&expr.source, &[]);
                 let prop = js_string(name);
                 if self.is_static_row_expr(&expr.source) {
                     // D5: row-scope static style — initial setProperty,
@@ -326,7 +325,7 @@ impl TemplateEmitter {
             }
             AttrInstr::Prop { name, expr, .. } => {
                 let key = self.next_key();
-                let rw = rewrite_for_scope(&expr.source, &[]);
+                let rw = self.rw(&expr.source, &[]);
                 // `prop:` targets a JS PROPERTY on the element, camelCase as it
                 // appears on the object — but the template attribute name is
                 // HTML-lowercased, so a multi-word target arrives kebab/lower
@@ -381,10 +380,10 @@ impl TemplateEmitter {
                 // resolve through `$scope`. Transitions register on
                 // element creation — no boundary key, no SSR marker,
                 // no manifest entry.
-                let name_rw = rewrite_for_scope(name, &[]);
+                let name_rw = self.rw(name, &[]);
                 let opts_rw = opts
                     .as_ref()
-                    .map(|e| rewrite_for_scope(&e.source, &[]))
+                    .map(|e| self.rw(&e.source, &[]))
                     .unwrap_or_else(|| "{}".to_string());
                 w.line(&format!(
                     "registerTransition({el_var}, {name_rw}, ({opts_rw}), \"{d}\");",
@@ -402,8 +401,8 @@ impl TemplateEmitter {
         el_var: &str,
         cleanups_var: &str,
     ) {
-        let n_rw = rewrite_for_scope(&name_expr.source, &[]);
-        let v_rw = rewrite_for_scope(&value_expr.source, &[]);
+        let n_rw = self.rw(&name_expr.source, &[]);
+        let v_rw = self.rw(&value_expr.source, &[]);
         let prev = self.fresh("prevAttr");
         // Dynamic attr: subscribe to row-deps of BOTH the name and
         // value expressions (the effect re-runs when either changes).
@@ -434,8 +433,8 @@ impl TemplateEmitter {
     /// `__m[bN]` resolves to the same element the CSR effect would
     /// observe. The body matches CSR exactly, modulo the element source.
     fn emit_dynamic_attr_hydrate(&mut self, key: &str, name_expr: &Expr, value_expr: &Expr) {
-        let n_rw = rewrite_for_scope(&name_expr.source, &[]);
-        let v_rw = rewrite_for_scope(&value_expr.source, &[]);
+        let n_rw = self.rw(&name_expr.source, &[]);
+        let v_rw = self.rw(&value_expr.source, &[]);
         let k = js_string(key);
         self.hydrate_calls.line(&format!("if (__m[{k}]) {{"));
         self.hydrate_calls.line(&format!("  const __el = __m[{k}];"));

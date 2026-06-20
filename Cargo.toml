@@ -53,6 +53,7 @@ members = [
     "crates/deck/deck-core",
     "crates/deck/deck-axum",
     "crates/deck/deck",
+    "crates/deck/deck-ssr",
     "crates/xtask",
     "packages/sui/grammar",
     "apps/shipd",

@@ -21,7 +21,6 @@
 //! `{#while-loading}` / `{#while-error}` follow the same shape via
 //! `hydrateWhileLoading` / `hydrateWhileError` (gate G).
 
-use super::super::expr_rewrite::rewrite_for_scope;
 use super::super::writer::{js_string, Writer};
 use super::TemplateEmitter;
 use crate::ir::*;
@@ -139,7 +138,7 @@ impl TemplateEmitter {
         h.line("test: () => {");
         h.enter();
         for (i, b) in instr.branches.iter().enumerate() {
-            let rw = rewrite_for_scope(&b.cond.source, &[]);
+            let rw = self.rw(&b.cond.source, &[]);
             h.line(&format!("if ({rw}) return {i};"));
         }
         let fallback = if instr.else_body.is_some() {
@@ -189,7 +188,7 @@ impl TemplateEmitter {
             self.emit_boundary_hydrate(&key, "for");
         }
 
-        let it_rw = rewrite_for_scope(&instr.iterable.source, &[]);
+        let it_rw = self.rw(&instr.iterable.source, &[]);
         let var = &instr.var_name;
         let idx_name = instr.index_name.as_deref().unwrap_or("__i");
         // D3: skip the per-row `__v` version signal when no binding in
@@ -214,7 +213,7 @@ impl TemplateEmitter {
         h.line("anchor,");
         h.line(&format!("items: () => ({it_rw}),"));
         if let Some(k) = &instr.key {
-            let k_rw = rewrite_for_scope(&k.source, &[var.as_str(), idx_name]);
+            let k_rw = self.rw(&k.source, &[var.as_str(), idx_name]);
             // `rewrite_for_scope` qualifies every free identifier that
             // isn't a loop binding, an expression-local, or a builtin
             // with `$scope.` — so a rewritten key with no `$scope.`
@@ -262,7 +261,7 @@ impl TemplateEmitter {
         body_w.line(&format!(
             "const {frag} = document.createDocumentFragment();"
         ));
-        body_w.line(&format!("const {cl} = [];"));
+        body_w.line(&self.decl_cleanups(&cl));
         let hoist_snapshot = self.boundary_hoists.len();
         self.boundary_depth += 1;
         let outer_for = std::mem::replace(&mut self.for_in_scope, body_needs_v);
@@ -279,7 +278,15 @@ impl TemplateEmitter {
             &mut self.reactive_row_use,
             RowUse::None,
         );
+        // The row + index binders live on the runtime `$scope` child scope
+        // — qualify author references to them with `$scope.` (synthetic
+        // mode), not the typed `scope.` prefix. Push for the body walk; the
+        // Vec is truncated back after so nested loops stack correctly.
+        let machinery_mark = self.machinery_locals.len();
+        self.machinery_locals.push(var.clone());
+        self.machinery_locals.push(idx_name.to_string());
         self.emit_children(&mut body_w, &instr.body, &frag, &cl);
+        self.machinery_locals.truncate(machinery_mark);
         self.for_in_scope = outer_for;
         self.for_var_name = outer_var;
         self.for_idx_name = outer_idx;
@@ -411,7 +418,7 @@ impl TemplateEmitter {
             h.line(&format!(
                 "const {frag} = document.createDocumentFragment();"
             ));
-            h.line(&format!("const {cl} = [];"));
+            h.line(&self.decl_cleanups(&cl));
             self.boundary_depth += 1;
             self.emit_children(&mut h, eb, &frag, &cl);
             self.boundary_depth -= 1;
@@ -449,7 +456,7 @@ impl TemplateEmitter {
             self.emit_boundary_hydrate(&key, "match");
         }
 
-        let disc_rw = rewrite_for_scope(&instr.discriminant.source, &[]);
+        let disc_rw = self.rw(&instr.discriminant.source, &[]);
         let mut h = Writer::new();
         h.line(&format!(
             "const __wireBoundary_{key} = (anchor) => bindIf({{"
@@ -460,7 +467,7 @@ impl TemplateEmitter {
         h.enter();
         h.line(&format!("const __d = ({disc_rw});"));
         for (i, c) in instr.cases.iter().enumerate() {
-            let c_rw = rewrite_for_scope(&c.test.source, &[]);
+            let c_rw = self.rw(&c.test.source, &[]);
             h.line(&format!(
                 "if (__d === ({c_rw})) return {i};"
             ));
@@ -601,7 +608,7 @@ impl TemplateEmitter {
         h.line(&format!("const {render_key} = () => {{"));
         h.enter();
         h.line(&format!("const {frag} = document.createDocumentFragment();"));
-        h.line(&format!("const {cl} = [];"));
+        h.line(&self.decl_cleanups(&cl));
         self.boundary_depth += 1;
         self.emit_children(&mut h, body, &frag, &cl);
         self.boundary_depth -= 1;
@@ -629,9 +636,14 @@ impl TemplateEmitter {
         let frag = self.fresh("frag");
         let cl = self.fresh("c");
         h.line(&format!("const {frag} = document.createDocumentFragment();"));
-        h.line(&format!("const {cl} = [];"));
+        h.line(&self.decl_cleanups(&cl));
         self.boundary_depth += 1;
+        // The error binder lives on the runtime `$scope` child scope; qualify
+        // author references to it with `$scope.` (synthetic mode).
+        let machinery_mark = self.machinery_locals.len();
+        self.machinery_locals.push(var.to_string());
         self.emit_children(&mut h, body, &frag, &cl);
+        self.machinery_locals.truncate(machinery_mark);
         self.boundary_depth -= 1;
         h.line(&format!(
             "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"

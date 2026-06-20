@@ -64,6 +64,43 @@ const KEYWORDS: &[&str] = &[
 /// via `$scope.item`, but bare reads are smaller and equivalently
 /// correct.
 pub fn rewrite_for_scope(src: &str, extra_locals: &[&str]) -> String {
+    rewrite_with_prefix(src, extra_locals, "$scope.")
+}
+
+/// Same walk as [`rewrite_for_scope`], but qualifies free identifiers
+/// with an arbitrary `prefix` instead of the hardcoded `$scope.`. The
+/// synthetic-controller emit (`emit::synthetic`) drives the production
+/// [`super::template_emit::TemplateEmitter`] with `"scope."` so template
+/// expressions resolve against the synthetic controller's **real, typed**
+/// `scope` export (a typed TS object) rather than the untyped runtime
+/// `$scope` proxy — which is what lets tsgo catch `scope.route.parms`
+/// against `RouteSignals`. The runtime machinery the emitter generates
+/// (child scopes, per-row version signals) keeps using the literal
+/// `$scope` runtime variable; only free identifiers in author
+/// expressions take this prefix. See the `emit::synthetic` module docs.
+pub fn rewrite_with_prefix(src: &str, extra_locals: &[&str], prefix: &str) -> String {
+    rewrite_scoped(src, extra_locals, prefix, &[])
+}
+
+/// The full mixed-prefix walk. Free identifiers resolve to one of three
+/// places, checked in order:
+///   1. `extra_locals` (plus arrow params harvested mid-walk) → left bare.
+///   2. `machinery` → qualified with the **runtime** `$scope.` prefix,
+///      regardless of `prefix`. The synthetic emit uses this for `{#for}`
+///      row binders and `{#while-error}` error binders: those live on the
+///      runtime-mutable `$scope` child scope (which the keyed-reuse
+///      `update` callback reassigns), not on the typed `scope` export.
+///   3. everything else → qualified with `prefix`.
+///
+/// In production (`prefix == "$scope."`) the machinery set is harmless —
+/// its members would get `$scope.` from rule 3 anyway, so output is
+/// byte-identical whether or not the emitter populates it.
+pub fn rewrite_scoped(
+    src: &str,
+    extra_locals: &[&str],
+    prefix: &str,
+    machinery: &[&str],
+) -> String {
     let bytes = src.as_bytes();
     let mut out = String::with_capacity(src.len() + 16);
     let mut i = 0;
@@ -111,9 +148,11 @@ pub fn rewrite_for_scope(src: &str, extra_locals: &[&str]) -> String {
                 } else {
                     ""
                 };
-                let rewritten = rewrite_for_scope(
+                let rewritten = rewrite_scoped(
                     inner,
                     &locals.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    prefix,
+                    machinery,
                 );
                 out.push_str(&rewritten);
                 out.push('}');
@@ -217,7 +256,13 @@ pub fn rewrite_for_scope(src: &str, extra_locals: &[&str]) -> String {
             prev_dot = false;
             continue;
         }
-        out.push_str("$scope.");
+        if machinery.contains(&word) {
+            // Row/error binder — lives on the runtime-mutable `$scope`,
+            // never the typed `scope` export.
+            out.push_str("$scope.");
+        } else {
+            out.push_str(prefix);
+        }
         out.push_str(word);
         prev_dot = false;
     }
@@ -508,6 +553,27 @@ mod tests {
     #[test]
     fn simple_call_qualified() {
         assert_eq!(rw("count()"), "$scope.count()");
+    }
+
+    #[test]
+    fn prefix_is_configurable_for_synthetic_scope() {
+        // The synthetic emit drives the same walk with a `scope.` prefix
+        // so author expressions resolve against the typed `scope` export.
+        assert_eq!(rewrite_with_prefix("count()", &[], "scope."), "scope.count()");
+        assert_eq!(
+            rewrite_with_prefix("route.params.id()", &[], "scope."),
+            "scope.route.params.id()"
+        );
+        // Locals + builtins behave identically regardless of prefix.
+        assert_eq!(
+            rewrite_with_prefix("(e) => Math.max(0, count())", &[], "scope."),
+            "(e) => Math.max(0, scope.count())"
+        );
+        // `rewrite_for_scope` is exactly the `$scope.` instantiation.
+        assert_eq!(
+            rewrite_with_prefix("a + b", &[], "$scope."),
+            rewrite_for_scope("a + b", &[])
+        );
     }
 
     #[test]
