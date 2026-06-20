@@ -16,11 +16,12 @@ use crate::events::{
 use crate::error::CollectionError;
 use crate::helpers::{emit_ctx, new_ulid, now_rfc3339, row_to_item};
 use crate::projection::{
-    SchemaRegistry, count_items, ensure_collection_table, ensure_registry_table, persist_schema,
+    SchemaRegistry, count_items, ensure_collection_table, ensure_registry_table,
     update_schema_persistent,
 };
-use crate::schema::{parse_schema_doc, validate_item};
 use crate::types::{ItemRecord, SchemaDoc};
+
+use crate::schema::{parse_schema_doc, validate_item};
 
 /// Core service — stateless; all state lives in `SpaceContext` + `SchemaRegistry`.
 pub struct CollectionService {
@@ -236,15 +237,14 @@ impl CollectionService {
         let mut doc = parse_schema_doc(schema_json)?;
         doc.id = id.to_string();
 
-        // The `_schema_registry` table is the durable backing of the in-memory
-        // SchemaRegistry (schema metadata, not collection items) — the service
-        // owns it. We also DDL the collection table here (DDL, not an item
-        // write) so the read connection's schema cache stays current — the
-        // `CollectionProjection` independently DDLs it on the `collection.created`
-        // event for the rebuild path; both are idempotent CREATE-IF-NOT-EXISTS.
+        // The service is EMIT-ONLY for `collection_<id>`: it emits
+        // `collection.created` and the `CollectionItemProjection` (L1, sole
+        // writer per its module header) DDLs the table from the event payload
+        // inside the same SQLite transaction as the append. We still bootstrap
+        // the `_schema_registry` table here because the projection doesn't own
+        // that table — it backs the in-memory `SchemaRegistry`, not collection
+        // items.
         ensure_registry_table(self.ctx.data()).await?;
-        ensure_collection_table(self.ctx.data(), &doc).await?;
-        persist_schema(self.ctx.data(), &doc).await?;
 
         let schema_str = serde_json::to_string(&doc)
             .map_err(|e| CollectionError::Internal(e.to_string()))?;
@@ -275,7 +275,15 @@ impl CollectionService {
         // DDL the table on the read connection (adds any new columns) so its
         // schema cache stays current, then persist the registry row. The
         // `CollectionProjection` independently DDLs on `collection.schema.changed`
-        // for the rebuild path; both are idempotent.
+        // for the rebuild path; both are idempotent. The dual write is left
+        // in place for `update_schema` specifically: removing it exposes a
+        // sqlx 0.8.6 auto-reprepare race — the DataService's long-lived
+        // SELECT * on `collection_<id>` captures columns metadata before the
+        // ALTER and panics on row decode when sqlite auto-reprepares the
+        // statement with the new column count. The `create_schema` path
+        // (also flagged by the audit) is cleaned up; `update_schema` needs a
+        // follow-up that either patches sqlx or moves readers to a
+        // per-request connection.
         ensure_collection_table(self.ctx.data(), &doc).await?;
         update_schema_persistent(self.ctx.data(), &doc).await?;
 

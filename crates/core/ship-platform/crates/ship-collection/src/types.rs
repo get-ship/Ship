@@ -68,6 +68,11 @@ pub struct ItemRecord {
 }
 
 /// Reserved collection IDs that may not be used for user-created schemas.
+///
+/// MUST contain every system collection the runtime ships or writes on its own
+/// behalf (built-in schemas + `view_snapshots`). A parity test in
+/// `tests/parity.rs` enumerates known system IDs and asserts each is reserved,
+/// so a new system collection can never ship without governance.
 pub const RESERVED_IDS: &[&str] = &[
-    "notes", "feedback", "annotations", "decisions", "_schema_registry",
+    "notes", "feedback", "annotations", "decisions", "view_snapshots", "_schema_registry",
 ];
