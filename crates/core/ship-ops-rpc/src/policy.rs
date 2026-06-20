@@ -39,8 +39,13 @@ pub enum BlastRadius {
 impl BlastRadius {
     pub fn from_descriptor(s: &str) -> Self {
         match s {
-            "C0_SAFE" | "C0_READ" => Self::C0Read,
-            "C1_WORKSPACE" | "C1_SPACE" => Self::C1Space,
+            // Only the canonical proto names are accepted (proto renames a
+            // tier via descriptor only — there is no `C0_READ` synonym).
+            // Unspecified (0) or unknown → `C3Critical` (**fail closed**): a
+            // misdeclared op is operator-only. Reconciles the proto name
+            // (`C0_SAFE`) with the gate's `C0Read`.
+            "C0_SAFE" => Self::C0Read,
+            "C1_WORKSPACE" => Self::C1Space,
             "C2_ELEVATED" => Self::C2Elevated,
             "C3_CRITICAL" => Self::C3Critical,
             _ => Self::C3Critical,
@@ -371,6 +376,41 @@ mod tests {
         // ungated surface. (Reads + commands both carry one.)
         for p in read_policies() {
             assert!(!p.capability.is_empty(), "rpc `{}` has no capability option", p.method);
+        }
+    }
+
+    /// Fail-closed contract for `BlastRadius::from_descriptor`: an unknown /
+    /// mis-spelled tier string MUST resolve to `C3Critical` (the most
+    /// restrictive tier), never to a permissive one. The C0_READ alias was
+    /// dead code — the proto declares `C0_SAFE` only, and `from_descriptor`
+    /// is the boundary that translates proto strings to gate tiers. If a
+    /// future edit reintroduces an alias (e.g. `C0_READ` accepting
+    /// "C0_READ" as `C0Read`), this test catches it: the canonical proto
+    /// name still works, but anything not on the proto enum list fails
+    /// closed.
+    #[test]
+    fn from_descriptor_fails_closed_on_unknown_tier_string() {
+        // Canonical proto names resolve to their declared tier.
+        assert_eq!(BlastRadius::from_descriptor("C0_SAFE"), BlastRadius::C0Read);
+        assert_eq!(BlastRadius::from_descriptor("C1_WORKSPACE"), BlastRadius::C1Space);
+        assert_eq!(BlastRadius::from_descriptor("C2_ELEVATED"), BlastRadius::C2Elevated);
+        assert_eq!(BlastRadius::from_descriptor("C3_CRITICAL"), BlastRadius::C3Critical);
+        // Anything else — typo, retired alias, blank, garbage — fails closed
+        // to C3 (operator-only), NEVER to a permissive C0/C1/C2.
+        for unknown in [
+            "",
+            "C0_READ",          // retired alias — must NOT resolve to C0Read
+            "C1_SPACE",         // retired alias — must NOT resolve to C1Space
+            "c0_safe",          // case sensitivity — proto emits upper
+            "C0",               // bare tier name
+            "BLAST_RADIUS_C0",  // proto enum value name without _SAFE
+            "nonsense",
+        ] {
+            assert_eq!(
+                BlastRadius::from_descriptor(unknown),
+                BlastRadius::C3Critical,
+                "`{unknown}` must fail closed to C3Critical — never to a permissive tier"
+            );
         }
     }
 }
