@@ -51,6 +51,25 @@ pub async fn synthesize_and_bundle(
     client_aliases: &[ClientAlias],
     build_dir: &Path,
 ) -> Result<String> {
+    synthesize_and_bundle_with(repo, view_rel, manifest_rel, mode, None, client_aliases, build_dir)
+        .await
+}
+
+/// As [`synthesize_and_bundle`], but composing an authored controller. The
+/// `authored` path is the on-disk `controller.ts`; the synthetic controller
+/// imports it by an absolute specifier Rolldown resolves directly.
+#[allow(clippy::too_many_arguments)]
+pub async fn synthesize_and_bundle_with(
+    repo: &Path,
+    view_rel: &str,
+    manifest_rel: &str,
+    mode: CompileMode,
+    authored: Option<&Path>,
+    client_aliases: &[ClientAlias],
+    build_dir: &Path,
+) -> Result<String> {
+    use sui_compiler::emit::synthetic::AuthoredController;
+
     let source = std::fs::read_to_string(repo.join(view_rel))
         .with_context(|| format!("read view {view_rel}"))?;
     let manifest_src = std::fs::read_to_string(repo.join(manifest_rel))
@@ -59,8 +78,10 @@ pub async fn synthesize_and_bundle(
         parse(&source).map_err(|e| anyhow!("parse view: {}", e.render(&source)))?;
     let manifest = AppManifest::parse(&manifest_src)
         .map_err(|e| anyhow!("parse manifest: {}", e.render(&manifest_src)))?;
-    let out = emit_synthetic(&program, &manifest, None, "./page.synthetic.controller.ts", mode)
-        .map_err(|e| anyhow!("synthesize: {}", e.render(&source)))?;
+    let authored = authored.map(|p| AuthoredController { specifier: path_str(p) });
+    let out =
+        emit_synthetic(&program, &manifest, authored.as_ref(), "./page.synthetic.controller.ts", mode)
+            .map_err(|e| anyhow!("synthesize: {}", e.render(&source)))?;
 
     std::fs::create_dir_all(build_dir)
         .with_context(|| format!("mkdir {}", build_dir.display()))?;
