@@ -24,11 +24,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-use tokio::sync::Mutex;
 
 use ship_substrate::ShipHome;
 use ship_substrate::events::EmitContext;
-use ship_substrate::events::kernel_router::KernelRouter;
 use ship_substrate::ports::{
     FsBroker, FsCap, FsDelta, FsMode, FsRoot, FsWatch, KernelLog, LocalFsBroker, LocalFsWatch,
     WatchOpts,
@@ -37,6 +35,7 @@ use ship_types::SpaceId;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types;
 use ship_types::payload::{ConfigChanged, ConfigFileChanged};
+
 /// Author the coarse `<domain>.changed` config event with the SAME `event_type`
 /// / `subject` / `entity_id` the watcher used to emit, so config reactivity
 /// (compile invalidation, Studio) is unbroken.
@@ -156,7 +155,7 @@ const DOMAINS: &[DomainCfg] = &[
 /// Spawn watchers for the six declarative config domains, both at user-scope
 /// and (when present) project-scope.
 pub fn spawn_config_watcher(
-    kernel: Arc<Mutex<KernelRouter>>,
+    kernel: Arc<KernelLog>,
     ship_dir: PathBuf,
     workspace_dir: Option<PathBuf>,
 ) -> Result<ConfigWatcher> {
@@ -197,7 +196,7 @@ pub fn spawn_config_watcher(
 
 fn spawn_domain_watch(
     watcher: &mut ConfigWatcher,
-    kernel: Arc<Mutex<KernelRouter>>,
+    kernel: Arc<KernelLog>,
     dir: PathBuf,
     domain: &'static DomainCfg,
     space: Option<SpaceId>,
@@ -227,7 +226,7 @@ fn spawn_domain_watch(
 }
 
 fn spawn_domain_consumer(
-    kernel: Arc<Mutex<KernelRouter>>,
+    kernel: Arc<KernelLog>,
     mut rx: tokio::sync::mpsc::UnboundedReceiver<FsDelta>,
     domain: &'static DomainCfg,
     dir: PathBuf,
@@ -246,9 +245,9 @@ fn spawn_domain_consumer(
     })
 }
 
-/// KernelRouter-based variant of [`author_change`] used by the spawner.
+/// Spawner-side variant of [`author_change`] used by the watcher consumer task.
 async fn author_change_router(
-    kernel: &Arc<Mutex<KernelRouter>>,
+    kernel: &Arc<KernelLog>,
     event_type: &str,
     subject: &str,
     space: Option<SpaceId>,
@@ -262,12 +261,12 @@ async fn author_change_router(
         }
     };
     let ctx = EmitContext::daemon_internal(space);
-    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
+    if let Err(e) = kernel.emit(envelope, &ctx).await {
         tracing::warn!("config: failed to emit {event_type}: {e}");
     }
 }
 
-/// KernelRouter-based per-file authorship used by the spawner.
+/// Spawner-side per-file authorship used by the watcher consumer task.
 ///
 /// Always emits the generic, **transient** `config.file_changed` signal
 /// — even for the agents domain. The watcher no longer names
@@ -277,7 +276,7 @@ async fn author_change_router(
 /// The watcher therefore carries ZERO domain / agent knowledge — only
 /// the watched directory's name and the file's rel path + content hash.
 async fn author_file_changed_router(
-    kernel: &Arc<Mutex<KernelRouter>>,
+    kernel: &Arc<KernelLog>,
     fs: &dyn FsBroker,
     domain: &str,
     dir: &Path,
@@ -310,7 +309,7 @@ async fn author_file_changed_router(
         }
     };
     let ctx = EmitContext::daemon_internal(space);
-    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
+    if let Err(e) = kernel.emit(envelope, &ctx).await {
         tracing::warn!("config: failed to emit config.file_changed: {e}");
     }
 }
