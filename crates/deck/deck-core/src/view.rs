@@ -57,16 +57,19 @@ fn compile_view_js(name: &str, resolved: &ResolvedView, mode: DaemonMode) -> Dec
     };
 
     // A view with a paired controller must be served as a bundle (the compiled
-    // module imports `./<controller>`). Deck bundles that in-process via
-    // Rolldown to `.deck/views/<name>/view.js` (#167); the deck-axum handler
-    // builds it on a cache miss before this path is reached, so reaching here
-    // with a controller means the build failed. Surface that — never shell out.
+    // module imports `./<controller>`). Deck bundles that in-process via Rolldown
+    // to `.deck/views/<name>/view.js` (#167). The deck-axum handler builds it on
+    // a cache miss AND, since P0-2, surfaces the real compile error when that
+    // build fails — so reaching here means no bundle exists and no bundler ran to
+    // produce one (no bundler wired, or the artifact is missing after a
+    // reported-success build). Report that honestly; never shell out.
     let final_js = match (&ts_path, resolved.source_path.as_deref()) {
-        (Some(_ts), Some(_sui)) => {
+        (Some(ts), Some(_sui)) => {
             return DeckResponse::render_error(
                 format!(
-                    "view `{name}` has a paired controller but no bundle in .deck — \
-                     the in-process bundler must build views/{name}/view"
+                    "view `{name}` has a paired controller ({}) but no compiled \
+                     bundle is available and no in-process bundler produced one",
+                    ts.display()
                 ),
                 mode,
             );

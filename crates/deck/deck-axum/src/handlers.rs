@@ -68,6 +68,7 @@ pub async fn serve_sui_view_setup(
     Path(name): Path<String>,
     Query(q): Query<ViewSetupQuery>,
 ) -> Response {
+    let mode = mode_from_ext(mode);
     // Deck owns bundling (#167). If the view bundle isn't on disk yet, build it
     // in-process via Rolldown — the controller is inlined natively, no bun. The
     // daemon's watcher keeps `.deck` warm afterward; this covers the cold miss.
@@ -76,9 +77,23 @@ pub async fn serve_sui_view_setup(
         && deck_core::resolve_view_js(&name).is_none()
         && let Some(Extension(b)) = bundler.as_ref()
     {
-        let _ = b.build(&format!("views/{name}/view")).await;
+        // P0-2: when the in-process build FAILS (e.g. a broken paired
+        // `controller.ts`), surface the REAL compile error instead of swallowing
+        // it with `let _ =` and falling through to deck-core's generic "the
+        // in-process bundler must build views/{name}/view" fallback, which masks
+        // the actual syntax/type error. Only a `Bundle` failure (the view exists
+        // but did not compile) short-circuits; `UnknownTarget`/`NoCompiler` fall
+        // through so the resolve path yields the right 404 / diagnostic.
+        if let Err(e) = b.build(&format!("views/{name}/view")).await
+            && let deck_bundler::BundlerError::Bundle { .. } = &e
+        {
+            return into_axum(deck_core::DeckResponse::render_error(
+                format!("view `{name}` failed to compile:\n{e}"),
+                mode,
+            ));
+        }
     }
-    into_axum(deck_core::serve_sui_view_setup(mode_from_ext(mode), &name, q.sub.as_deref()))
+    into_axum(deck_core::serve_sui_view_setup(mode, &name, q.sub.as_deref()))
 }
 
 // ── View-host handler ─────────────────────────────────────────────────────────
