@@ -215,6 +215,17 @@ g.__shipServerRoute = route
 // ── render the synthesized view to HTML ─────────────────────────────────────
 const container = new El('__root__')
 const dispose = mount(container as unknown as HTMLElement)
+
+// Flush async `live()` sources before serializing (must-build #8): a
+// `<data live source="api.x()">` resolves over the host-dispatch wire, which
+// is an async op. Mounting renders the `loading` state synchronously; yielding
+// lets the op resolve, the live signal update, and the bound effects re-fire
+// against the server-DOM — so first paint carries the resolved value, not
+// `loading`. Bounded so a never-resolving source can't hang the render.
+for (let i = 0; i < 50; i++) {
+  await Promise.resolve()
+}
+
 const html = container.childNodes.map((c) => c.toHTML()).join('')
 dispose()
 

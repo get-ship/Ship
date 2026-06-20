@@ -4,16 +4,30 @@
 
 use std::sync::Arc;
 
-use deck_ssr::build::{repo_root, synthesize_and_bundle, synthesize_and_bundle_with};
+use deck_ssr::build::{repo_root, synthesize_and_bundle, synthesize_and_bundle_with, ClientAlias};
 use deck_ssr::host::SsrDispatch;
 use deck_ssr::run::render;
-use serde_json::json;
+use deck_core::DataPort;
+use serde_json::{json, Value};
 use sui_compiler::CompileMode;
 
 const GREET: &str = "crates/deck/deck-conformance/app/views/greet/[id]/page.sui";
 const BOARD: &str = "crates/deck/deck-conformance/app/views/board/page.sui";
 const BOARD_CTRL: &str = "crates/deck/deck-conformance/app/views/board/controller.ts";
+const FEED: &str = "crates/deck/deck-conformance/app/views/feed/page.sui";
+const DEMO_SERVER: &str = "crates/deck/deck-conformance/app/clients/demo.server.ts";
 const MANIFEST: &str = "crates/deck/deck-conformance/app/app.manifest.jsonc";
+
+/// A test data port: answers the demo ops the host-dispatch wire forwards.
+struct DemoData;
+impl DataPort for DemoData {
+    fn resolve(&self, domain: &str, op: &str, _args: &Value) -> Option<Value> {
+        match (domain, op) {
+            ("api", "demo.clock") => Some(json!({ "now": "12:34:56" })),
+            _ => None,
+        }
+    }
+}
 
 #[test]
 fn greet_first_paint_via_ship_js_with_route_through_host_dispatch() {
@@ -94,4 +108,39 @@ fn board_control_flow_first_paint_via_ship_js() {
     );
     // The remove buttons (on:click handlers) render too.
     assert!(out.html.contains("remove"), "on: handlers' elements must render; got:\n{}", out.html);
+}
+
+#[test]
+fn feed_data_client_value_resolves_via_host_dispatch() {
+    // The <data live source="api.demo.clock()"> + <client> surface. The client
+    // server entry resolves the source over the host-dispatch wire; after the
+    // async flush, first paint carries the resolved state (not `loading`).
+    let repo = repo_root().expect("repo root");
+    let build_dir = repo.join("target/deck-ssr-test/feed");
+    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let client = ClientAlias {
+        specifier: "@app/clients/demo".to_string(),
+        server_entry: repo.join(DEMO_SERVER),
+    };
+    let bundle = rt
+        .block_on(synthesize_and_bundle(&repo, FEED, MANIFEST, CompileMode::View, &[client], &build_dir))
+        .expect("synthesize + bundle feed");
+
+    let dispatch = Arc::new(
+        SsrDispatch::for_request("/feed", json!({}), json!({})).with_data(Arc::new(DemoData)),
+    );
+    let out = render(&bundle, dispatch).expect("render feed");
+
+    // The live data op crossed the host-dispatch wire.
+    assert!(
+        out.call_path.iter().any(|op| op == "api.demo.clock"),
+        "the <data> source op must cross the wire; call path: {:?}",
+        out.call_path
+    );
+    // After the flush, the live signal is resolved (ok), not loading.
+    assert!(
+        out.html.contains("state: ok"),
+        "first paint must reflect the resolved live state via host-dispatch; got:\n{}",
+        out.html
+    );
 }
