@@ -8425,7 +8425,6 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
- "ship-gateway-client",
  "ship-substrate",
  "ship-types",
  "sqlx",
@@ -8548,15 +8547,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-events-macro"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
 name = "ship-files"
 version = "0.1.0"
 dependencies = [
@@ -8589,16 +8579,12 @@ dependencies = [
 name = "ship-git"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "chrono",
  "git2",
  "serde",
  "serde_json",
- "ship-ops-rpc",
  "ship-substrate",
  "tempfile",
- "thiserror 2.0.18",
- "tokio",
  "tracing",
 ]
 
@@ -8854,7 +8840,6 @@ dependencies = [
  "ship-types",
  "tempfile",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -8996,7 +8981,6 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2",
- "ship-events-macro",
  "ship-kernel",
  "ship-pipelines",
  "ship-runner",
@@ -9063,7 +9047,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "ship-events-macro",
  "specta",
  "thiserror 2.0.18",
  "ulid",
