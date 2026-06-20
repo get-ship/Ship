@@ -225,10 +225,6 @@ export class InjectedTransport implements Transport {
  * postMessage bridge between a sandboxed iframe (child) and its host.
  * The host holds the real ShipClient (with a DirectTransport) and
  * relays calls. Correlates requests by monotonically increasing seq.
- *
- * Today, `ViewHost.tsx` implements an ad-hoc version of this protocol
- * inline. The plan is to move that protocol into this class and have
- * both sides speak it through a `ShipClient`.
  */
 export class BridgeTransport implements Transport {
   constructor(_peer: Window) {
