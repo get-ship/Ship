@@ -166,3 +166,68 @@ No `BACKEND-GAP` or `DESIGN-FORK` from this job.
   has the same gap and is also degraded.
 
 No `DESIGN-FORK` or `FRAMEWORK-GAP` from this job.
+
+## job/port-studio (2026-06-21)
+
+### `BACKEND-GAP` — `ship.events.list` for the agents list per-card status badge
+
+- **Surface:** the hub `/studio/agents` index
+  (`apps/hub/routes/studio/agents/controller.ts`, the
+  `agentEvents` live signal at the top of `scope`).
+- **Symptom:** the per-card "running / completed / errored" status
+  chip reads from `ship.events.list({ event_type: 'agent.',
+  limit: 50 })`. The hub's `createShipConnectClient` does not yet
+  expose an `events.list` op on its Connect surface — the events
+  namespace is a live SSE channel on `@ship/sdk-client`, not a
+  Connect op. The page renders the full UI; the per-card status
+  chip simply doesn't show. Same code path the shell's
+  `apps/shell/routes/studio/agents/controller.ts` (verbatim
+  copy) used.
+- **Surface today:** the agents list renders the title, sub
+  counts, project/library segmented filters, the search box, and
+  the card grid with hue tiles, name, description, skills/mcp/
+  rules counts, source badge, and tags. The per-card live status
+  chip is the one element that doesn't paint.
+- **What the backend team needs to ship:** a Connect op
+  `ship.events.list({ event_type, limit })` that returns the
+  same `{ groups: [{ rows: EventRow[] }] }` envelope the SSE
+  channel emits. The controller's `agentEvents` is the stable
+  boundary — switching from the SSE channel to a Connect op is
+  a one-line change.
+- **Not blocking:** the agents list builds clean and renders the
+  full UI; the chip is a degradation, not a missing feature path.
+
+### `BACKEND-GAP` — `routes.studioAgentsIdWire` / `studioAgentsIdSettings` (cut sub-routes)
+
+- **Surface:** the hub `/studio/agents/:id` detail page's tab
+  strip (`<sui-toggle value="overview|wire|settings">`, the
+  shell's `agents/[id]/page.sui` lines 61-65) and the
+  controller's `goWire` / `goSettings` / `goTab` handlers
+  (`apps/hub/routes/studio/agents/[id]/controller.ts` lines
+  192-200).
+- **Symptom:** the sub-routes `apps/hub/routes/studio/agents/
+  {create,settings,wire}/` were CUT per the port-studio spec
+  ("CUT the YAGNI sub-routes: `create/`, `[id]/settings/`,
+  `[id]/wire/`"). The generated `apps/hub/routes.gen.ts`
+  therefore does not include `studioAgentsIdWire` /
+  `studioAgentsIdSettings` / `studioAgentsCreate` keys. The
+  controller's calls
+  `navigate(routes.studioAgentsIdWire({ id: s.agentId }))` and
+  similar throw "undefined is not a function" at runtime; the
+  page's `banner` signal surfaces the error.
+- **Surface today:** the detail page renders the full UI — hue
+  tile, name, meta, action buttons (activate, edit, tabs),
+  description, tags, skills section, MCP servers section, rules
+  section, permissions section, providers section, source path.
+  The Overview / Wire / Settings tab strip and the segment
+  control work; clicking Wire or Settings throws a runtime
+  error and the page's banner surfaces it.
+- **What the backend team needs to ship:** the cut sub-routes
+  themselves. Each is a separate view tree in the shell
+  (`apps/shell/routes/studio/agents/{create,settings,wire}/`).
+  Porting them (one job per sub-route, or a batch) is the
+  same shape as this port: verbatim shell markup, the spec's
+  two import seams, and the same BACKEND-GAP surface rules.
+Resolves when those routes land.
+
+No `DESIGN-FORK` or `FRAMEWORK-GAP` from this job.
