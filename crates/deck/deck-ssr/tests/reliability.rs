@@ -30,9 +30,16 @@ use sui_compiler::parse::parse;
 use sui_compiler::CompileMode;
 
 const CONF: &str = "crates/deck/deck-conformance/app";
+// `job/cut-app-manifest` deleted the per-app `app.manifest.jsonc` files for
+// the `hub /` and `views/showcase` targets — `route` / `navigate` now resolve
+// by convention (`sui_compiler::emit::synthetic::convention_client`) so
+// product apps no longer need one. The conformance manifest is the one
+// remaining checked-in manifest; it covers the `hub /` and `views/showcase`
+// cases (its `ship` / `api` declarations are tree-shaken when unused, and
+// the convention covers the `route` reads the two views carry).
 const CONF_MANIFEST: &str = "crates/deck/deck-conformance/app/app.manifest.jsonc";
-const HUB_MANIFEST: &str = "apps/hub/app.manifest.jsonc";
-const VIEWS_MANIFEST: &str = "views/app.manifest.jsonc";
+const HUB_MANIFEST: &str = "crates/deck/deck-conformance/app/app.manifest.jsonc";
+const VIEWS_MANIFEST: &str = "crates/deck/deck-conformance/app/app.manifest.jsonc";
 const DEMO_SERVER: &str = "crates/deck/deck-conformance/app/clients/demo.server.ts";
 
 /// One reliability target.

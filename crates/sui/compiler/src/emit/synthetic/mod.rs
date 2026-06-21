@@ -19,10 +19,11 @@
 //!    controller's typed `scope`.
 //!
 //! Nothing here consults `check::scope_bound`'s `BUILTINS` or the ambient
-//! `emit/js/setup.rs` ctx handling. `route` is legal solely because the
-//! manifest names it. This path is additive: the ambient/`BUILTINS` path
-//! and the Rust render-eval are untouched.
-
+//! `emit/js/setup.rs` ctx handling. The view-host handles `route` and
+//! `navigate` resolve through [`convention_client`] (a real
+//! `@ship/deck/route` import); every other client resolves through the
+//! app manifest. This path is additive: the ambient/`BUILTINS` path and
+//! the Rust render-eval are untouched.
 mod merge;
 pub mod render;
 mod scan;
@@ -60,6 +61,44 @@ pub struct ManifestClient {
 pub struct AppManifest {
     #[serde(default)]
     pub clients: BTreeMap<String, ManifestClient>,
+}
+
+/// The view-host handles every `.sui` view uses, but that NO app needs to
+/// declare in its `app.manifest.jsonc`. The synthetic emit resolves them by
+/// convention: a real ESM import from `@ship/deck/route`, `construct: true`
+/// for `route` (its export is the `route()` factory, not a `RouteSignals`
+/// instance) and a plain value-import for `navigate` (it's a function
+/// reference, not a factory). Apps that want to override the convention can
+/// still declare the name in the manifest — the manifest wins, the
+/// convention is the fallback for the absent case.
+///
+/// We keep the convention list small and stable; adding a new well-known
+/// handle is an explicit, single-file change.
+pub fn convention_client(name: &str) -> Option<ManifestClient> {
+    match name {
+        "route" => Some(ManifestClient {
+            from: "@ship/deck/route".to_string(),
+            import: "route".to_string(),
+            construct: true,
+        }),
+        "navigate" => Some(ManifestClient {
+            from: "@ship/deck/route".to_string(),
+            import: "navigate".to_string(),
+            construct: false,
+        }),
+        _ => None,
+    }
+}
+
+/// Look up a manifested name; fall back to the convention table when the
+/// manifest is silent. Returns a borrowed `ManifestClient` that always
+/// reflects the manifest's authored shape (construct / alias / specifier)
+/// when present — only the absent case is the convention's path.
+fn resolve_client<'a>(manifest: &'a AppManifest, name: &str) -> Option<ManifestClient> {
+    if let Some(c) = manifest.clients.get(name) {
+        return Some(c.clone());
+    }
+    convention_client(name)
 }
 
 impl AppManifest {
@@ -121,6 +160,33 @@ const HEADER: &str = "\
 // resolves member access against the imported type, so a typo like
 // `route.parms.id` is a hard type error, not an ambient passthrough.";
 
+/// Compute the set of client names this `program` actually uses, unioned
+/// with any convention-backed name (`route`/`navigate`) the template or
+/// `<data source>` references. The manifest's authored shape (construct /
+/// alias / specifier) wins when a name is present there — only the
+/// absent case is the convention's path. Stable order: manifest clients
+/// first, then convention names — so the generated import block is
+/// byte-stable for the same inputs.
+pub(crate) fn used_clients(program: &Program, manifest: &AppManifest) -> Vec<String> {
+    let mut used: Vec<String> = Vec::new();
+    for name in manifest.clients.keys() {
+        if scan::references_ident(program, name) {
+            used.push(name.clone());
+        }
+    }
+    // Convention fallback — the same scan drives this so a view that
+    // never references `route` still doesn't pull in `@ship/deck/route`.
+    for name in ["route", "navigate"] {
+        if manifest.clients.contains_key(name) {
+            continue;
+        }
+        if scan::references_ident(program, name) {
+            used.push(name.to_string());
+        }
+    }
+    used
+}
+
 /// Emit the synthetic controller + render for `program`. Pure
 /// transformation. `controller_specifier` is the render's import path back
 /// to the emitted controller (e.g. `"./page.synthetic.controller.ts"`).
@@ -135,13 +201,11 @@ pub fn emit_synthetic(
 ) -> Result<SyntheticOutput, CompileError> {
     // Per-view resolver: import only the manifest clients this template (or
     // a `<data source>`) actually references — mirrors how the production
-    // emitter imports only the tags a view uses.
-    let mut used: Vec<String> = Vec::new();
-    for name in manifest.clients.keys() {
-        if scan::references_ident(program, name) {
-            used.push(name.clone());
-        }
-    }
+    // emitter imports only the tags a view uses. Convention-backed names
+    // (`route`/`navigate`) join the list when the manifest is silent —
+    // see [`used_clients`].
+    let used = used_clients(program, manifest);
+
 
     let controller_ts = emit_controller(program, manifest, &used, authored, mode)?;
     let render_ts = render::emit_render(program, controller_specifier, mode, component_tag)?;
@@ -174,9 +238,17 @@ pub(super) fn emit_controller(
     let mut w = Writer::new();
     w.line(HEADER);
 
-    // Real ESM imports for the manifested names.
+    // Real ESM imports for the manifested names. Convention-backed names
+    // (`route`/`navigate`) resolve through the same path when the
+    // manifest is silent — see [`resolve_client`].
     for name in used {
-        let c = &manifest.clients[name];
+        let Some(c) = resolve_client(manifest, name) else {
+            // An unknown used name shouldn't reach here — `used_clients`
+            // only emits names that are either in the manifest or in the
+            // convention table. Defensive: skip rather than panic so a
+            // future caller doesn't break the emit.
+            continue;
+        };
         if c.construct {
             w.line(&format!(
                 "import {{ {imp} as __make_{name} }} from {from};",
@@ -226,10 +298,10 @@ pub(super) fn emit_controller(
     }
     w.nl();
 
-    if used.iter().any(|n| manifest.clients[n].construct) {
+    if used.iter().any(|n| resolve_client(manifest, n).is_some_and(|c| c.construct)) {
         w.line("// Manifest value-clients, constructed once per view.");
         for name in used {
-            if manifest.clients[name].construct {
+            if resolve_client(manifest, name).is_some_and(|c| c.construct) {
                 w.line(&format!("const {name} = __make_{name}();"));
             }
         }

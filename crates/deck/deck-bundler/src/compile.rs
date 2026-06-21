@@ -221,4 +221,66 @@ mod tests {
             None => unsafe { std::env::remove_var("SUI_CLIENT_EMIT") },
         }
     }
+
+    /// `route` and `navigate` are the view-host handles every `.sui` view may
+    /// reference; they resolve through the synthetic emit's convention
+    /// (`@ship/deck/route` import, `construct: true` for `route`) so an
+    /// app needs no `app.manifest.jsonc` entry for them. The synthetic
+    /// CLIENT contract still gates on the manifest (it scopes which views
+    /// opt in), but the route handle is now convention-driven and reaches
+    /// the bundled module the moment the flag turns on.
+    #[test]
+    fn convention_resolves_route_navigate_without_manifest() {
+        let src = tempdir().unwrap();
+        let dir = src.path();
+        std::fs::write(
+            dir.join("page.sui"),
+            "<h1>id={route.params.id()}</h1>\n",
+        )
+        .unwrap();
+        let sui = dir.join("page.sui");
+
+        // Flag ON, NO manifest above → convention still kicks in and the
+        // synthetic client contract is emitted (the manifest here is the
+        // "any view that opts in" trigger, not the source of `route`).
+        let prev = std::env::var("SUI_CLIENT_EMIT").ok();
+        unsafe { std::env::set_var("SUI_CLIENT_EMIT", "synthetic") };
+        std::fs::write(
+            dir.join("app.manifest.jsonc"),
+            // The manifest is now ONLY used to opt this view in. The
+            // view-host handles resolve by convention.
+            r#"{ "clients": {} }"#,
+        )
+        .unwrap();
+        let on = compile_sui(&sui, CompileMode::View, "page", false).expect("compiles");
+        assert!(
+            on.contains("export default view(() =>") && on.contains("__mount(container"),
+            "convention must drive the synthetic client contract:\n{on}"
+        );
+        // `route` is a construct: the convention emits
+        // `import { route as __make_route } from "@ship/deck/route"`
+        // and `const route = __make_route()`.
+        assert!(
+            on.contains("__make_route") && on.contains("@ship/deck/route"),
+            "convention must import `route` from `@ship/deck/route`:\n{on}"
+        );
+
+        // A view that does NOT reference `route` must not pull in
+        // `@ship/deck/route` — the convention is per-view, not global.
+        std::fs::write(
+            dir.join("page.sui"),
+            "<p>just a paragraph, no route reads</p>\n",
+        )
+        .unwrap();
+        let on_no_route = compile_sui(&sui, CompileMode::View, "page", false).expect("compiles");
+        assert!(
+            !on_no_route.contains("@ship/deck/route"),
+            "a view that never references `route` must not import `@ship/deck/route`:\n{on_no_route}"
+        );
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var("SUI_CLIENT_EMIT", v) },
+            None => unsafe { std::env::remove_var("SUI_CLIENT_EMIT") },
+        }
+    }
 }
