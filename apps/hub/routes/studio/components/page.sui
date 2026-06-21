@@ -1,25 +1,84 @@
-<!--
-  Hub studio · `/studio/components` — the component catalog index.
+<div class="studio-view" data-test="studio-view">
+  <sui-studio-rail></sui-studio-rail>
+  <main class="studio-content" data-test="studio-content">
+    <div class="ship-view components-view">
+      <div class="components-wrap">
 
-  Composes the `@ship/studio` pack's <ship-component-catalog>, which
-  owns the catalog data story (BACKEND-GAP today; the empty-state
-  explains the gap + flags the operator-visible
-  `.artifacts/hub-buildout-flags.md` entry). The route is a thin
-  composition — chrome is the root layout, the page body is the pack
-  component.
+        <header class="components-head">
+          <div class="components-head-titles">
+            <h1 class="components-title">Components</h1>
+            <p class="components-sub">
+              <strong>{counts().primitives}</strong> primitives
+              <span class="components-sub-sep" aria-hidden="true"></span>
+              <strong>{counts().charts}</strong> charts
+              <span class="components-sub-sep" aria-hidden="true"></span>
+              <strong>{counts().pipelines}</strong> pipelines
+            </p>
+            <div class="components-rule" aria-hidden="true"></div>
+          </div>
+        </header>
 
-  Top chrome: the <ship-nav-top> is owned by the root layout
-  (`routes/_layout.sui` → `<ship-app-chrome>`). The breadcrumb trail
-  auto-derives from `location.pathname` and shows
-  `/studio/components`.
+        <div class="components-filters">
+          <div class="components-search">
+            <sui-icon name="search" size="sm" tone="muted"></sui-icon>
+            <input type="text" placeholder="Filter by tag, group, or prop…" aria-label="Search components"
+              spellcheck="false" data-test="search" value={filterText()} on:input={onSearchInput} />
+            {#if filterText()}
+              <button type="button" class="components-search-clear" aria-label="Clear search" on:click={clearSearch}>
+                <sui-icon name="x" size="xs"></sui-icon>
+              </button>
+            {/if}
+          </div>
+          <div class="components-pills" role="tablist" aria-label="Filter by package">
+            <button type="button" class="components-pill" data-test="pill-all"
+              attr:data-active={filter() === 'all'} on:click={() => setFilter('all')}>
+              All <span class="components-pill-count">{counts().all}</span>
+            </button>
+            <button type="button" class="components-pill" data-test="pill-primitives"
+              attr:data-active={filter() === 'primitives'} on:click={() => setFilter('primitives')}>
+              Primitives <span class="components-pill-count">{counts().primitives}</span>
+            </button>
+            <button type="button" class="components-pill" data-test="pill-charts"
+              attr:data-active={filter() === 'charts'} on:click={() => setFilter('charts')}>
+              Charts <span class="components-pill-count">{counts().charts}</span>
+            </button>
+            <button type="button" class="components-pill" data-test="pill-pipelines"
+              attr:data-active={filter() === 'pipelines'} on:click={() => setFilter('pipelines')}>
+              Pipelines <span class="components-pill-count">{counts().pipelines}</span>
+            </button>
+          </div>
+        </div>
 
-  Per the hub-buildout-charter §Connect-only, the catalog needs a
-  `ship.ui.components.list()` op that does not exist today (no Connect
-  surface; the shell's HTTP catalog was purged; the framework stopped
-  writing the .deck/catalogs/workspace.json index). The component
-  degrades to the documented empty-state — no invented data, no
-  resurrected fetch.
--->
-<main class="studio-components">
-  <ship-component-catalog></ship-component-catalog>
-</main>
+        {#if loading()}
+          <div class="components-loading"><sui-spinner size="md" centered></sui-spinner></div>
+        {:else if visibleCount() === 0}
+          <sui-empty-state icon="search-x" variant="default" size="sm" data-test="empty">
+            <span slot="title">No matching components</span>
+            Nothing matches your filter.
+            <sui-button slot="action" variant="outline" size="sm" on:click={clearSearch}>Clear search</sui-button>
+          </sui-empty-state>
+        {:else}
+          <div class="components-groups" data-test="components-groups">
+            {#for group of groups() key={group.id}}
+              <section class="components-group" data-test="components-group" attr:data-group={group.id}>
+                <div class="components-group-h">
+                  {group.label} <span class="components-group-count">· {group.count}</span>
+                </div>
+                <div class="components-grid">
+                  {#for item of group.cells key={item.id}}
+                    <a class="component-cell" data-test="component-cell"
+                      attr:data-id={item.id} attr:href={'/studio/components/' + item.id}>
+                      <span class="component-cell-tag">{item.tag}</span>
+                      <span class="component-cell-desc">{item.description}</span>
+                    </a>
+                  {/for}
+                </div>
+              </section>
+            {/for}
+          </div>
+        {/if}
+
+      </div>
+    </div>
+  </main>
+</div>

@@ -1,0 +1,53 @@
+<!--
+  /studio/_layout.sui — the studio chrome wrapper. Every route under
+  /studio/* is wrapped in <sui-studio-chrome>, which provides the
+  studio rail + main content area + footer.
+
+  The <slot name="route" /> is where the route content mounts. The
+  host's `mountRoute(root, url, layouts, payload)` walks LAYOUTS,
+  builds the chrome chain, and mounts the route content into the
+  innermost <div slot="route">.
+
+  Hub note: this file is a verbatim port from the shell. The shell's
+  <sui-shell-bottom> is a shell-specific footer (account, status, etc.)
+  the hub does not ship; per the port-studio contract, the page markup
+  is byte-identical, and the missing <sui-shell-bottom> renders as an
+  unregistered custom element (no-op at runtime, no compile error). The
+  hub's root layout (`routes/_layout.sui` → `<ship-app-chrome>`)
+  supplies the real top nav outside the studio chrome.
+
+  Hub height-chain integration: the mount-router's `buildMountTarget`
+  appends this chrome to the outer root chrome (a custom element with
+  a named `<slot name="route">`) as a light-DOM child. The chrome's
+  controller sets `slot="route"` on its host in `mount`, which triggers
+  slot redistribution and projects the chrome into the route slot —
+  without that, the chrome would be unslotted light-DOM content and
+  invisible inside the host's display. See
+  `apps/hub/src/components/sui-studio-chrome/sui-studio-chrome.controller.ts`.
+-->
+
+<sui-studio-chrome>
+  <sui-studio-rail></sui-studio-rail>
+  <main class="studio-main">
+    <slot name="route" />
+  </main>
+  <sui-shell-bottom></sui-shell-bottom>
+</sui-studio-chrome>
+
+<style>
+  sui-studio-chrome {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: 1fr auto;
+    width: 100%;
+    min-height: 100vh;
+    background: var(--surface-0);
+    color: var(--foreground);
+    font-family: var(--font-body);
+  }
+  .studio-main {
+    grid-column: 2;
+    grid-row: 1;
+    overflow: auto;
+  }
+</style>

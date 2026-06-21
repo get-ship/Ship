@@ -1,0 +1,126 @@
+/* Studio layout — the rail + content grid shared by every studio route.
+   The daemon's view-payload builder folds the top-level view dir's
+   style.css into every nested route under views/studio/, so this layout
+   applies to /studio, /studio/agents, /studio/agents/[id], … without each
+   leaf re-declaring it. The rail itself (<sui-studio-rail>) carries its own
+   styles in shadow DOM; this file owns only the surrounding frame.
+
+   Height chain (port-studio-render):
+     #ship-root
+       └─ <ship-app-chrome>            (root layout, min-height: 100vh, flex col)
+            └─ <ship-nav-top>          (fixed)
+            └─ <main.app-main>         (flex: 1, min-height: 0)
+                 └─ [slot=route]
+                      └─ <sui-studio-chrome>    (slot="route" set in mount — projects here)
+                           └─ <main.main>      (1fr, min-height: 0)
+                                └─ [slot=route]
+                                     └─ <div slot="route">    (router mount target)
+                                          └─ .studio-view     (height: 100%, grid 220px 1fr)
+
+   The router creates the innermost <div slot="route"> unstyled. To make
+   `.studio-view`'s `height: 100%` resolve, that div must fill its slotted
+   parent (`<main class="main">` in the studio chrome). Make the slot-
+   tagged div a flex column with `flex: 1; min-height: 0` so it takes the
+   1fr row, and `.studio-view` (already `height: 100%; min-height: 0`) gets
+   a resolved height to lay its grid out against. The selector is keyed on
+   `[slot="route"]` (the attribute the runtime's `buildMountTarget` sets),
+   not on a class — the router never assigns a class to the mount target. */
+[slot="route"] {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The rail|content grid belongs on `.studio-view` — the element whose direct
+   children ARE the rail + `.studio-content`. (It was on `[slot="route"]`, one
+   level up, whose only child is `.studio-view`, so the grid-areas had no grid
+   parent and rail/content stacked.) `[slot="route"]` above just resolves the
+   height so `.studio-view`'s `height: 100%` has something to measure against. */
+.studio-view {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  grid-template-areas: "rail content";
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+}
+
+sui-studio-rail { grid-area: rail; min-height: 0; }
+
+.studio-content {
+  grid-area: content;
+  overflow: auto;
+  position: relative;
+  background: var(--background);
+  min-height: 0;
+}
+
+/* ── /studio landing ────────────────────────────────────── */
+
+.studio-landing {
+  padding: var(--space-6) var(--space-5);
+  max-width: 64rem;
+  margin: 0 auto;
+}
+.studio-landing-h1 {
+  font-family: var(--heading-font);
+  font-size: var(--text-3xl);
+  font-weight: var(--heading-weight);
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-2);
+  color: var(--foreground);
+}
+.studio-landing-sub {
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  margin: 0 0 var(--space-5);
+  max-width: 56ch;
+  line-height: 1.5;
+}
+.studio-landing-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+.studio-landing-link:hover { background: color-mix(in oklch, var(--primary) 88%, black); }
+
+/* Toolbar replacement — inlined from sui-toolbar primitive */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toolbar[hidden] { display: none; }
+.toolbar[gap='sm'] { gap: 4px; }
+.toolbar[gap='lg'] { gap: 12px; }
+.toolbar[justify='center'] { justify-content: center; }
+.toolbar[justify='end'] { justify-content: flex-end; }
+.toolbar[justify='between'] { justify-content: space-between; }
+.toolbar[justify='split'] { justify-content: flex-start; }
+.toolbar[justify='split'] > :first-child { margin-right: auto; }
+.toolbar[align='start'] { align-items: flex-start; }
+.toolbar[align='end'] { align-items: flex-end; }
+.toolbar[align='baseline'] { align-items: baseline; }
+.toolbar[variant='bordered'] {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+.toolbar--justify-between { justify-content: space-between; }
+.toolbar--bordered {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+.toolbar--footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

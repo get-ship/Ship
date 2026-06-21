@@ -1,0 +1,64 @@
+<!--
+  <sui-studio-chrome> — chrome wrapper for the /studio/* subtree.
+
+  Hub port of `apps/shell/src/components/sui-studio-chrome/sui-studio-chrome.sui`
+  (the studio's chrome is one of the components this job ports verbatim so the
+  shell's studio layout — `routes/studio/_layout.sui`, also ported verbatim —
+  has a real custom element to register for the LAYOUTS table; see
+  `apps/hub/routes.gen.ts`'s `{ pathPrefix: '/studio', tag: 'sui-studio-chrome' }`).
+
+  Why a hub-local copy instead of importing the shell's:
+  the shell's chrome lives in `apps/shell/src/components/sui-studio-chrome/`,
+  an APP folder the deck bundler's component-package-roots walker does not
+  scan (apps are not in `package.json#workspaces` for the hub build). The
+  hub's bundler would resolve `@sui-tag/sui-studio-chrome` to a no-op empty
+  module, the chrome custom element would never register, and `document
+  .createElement('sui-studio-chrome')` would yield an `HTMLUnknownElement`
+  with no `:host` styles — every studio route's chrome collapses to `display:
+  inline` / 0x0 and the page's `.studio-view` height chain has no ancestor
+  with a resolved height. Same pattern the prior port-studio job used for
+  `sui-studio-rail` (`apps/hub/src/components/sui-studio-rail/`, verbatim .sui
+  + a controller with a 4-line port seam).
+
+  Body byte-identical to the shell. Slots:
+    route       the route content (filled by the host at navigation time)
+    bottom      status bar / footer (unused in the hub; the root layout's
+                <ship-app-chrome> owns the bottom chrome layer)
+
+  Layout: column flex. The route slot's <main> takes the 1fr row, fills the
+  chrome's height; the footer (auto row) sits at the bottom. `min-height:
+  100vh` so the chrome fills the viewport on first paint before the route
+  content has measured.
+-->
+
+<style>
+  :host {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+    min-height: 100vh;
+    background: var(--surface-0);
+    color: var(--foreground);
+    font-family: var(--font-body);
+  }
+  :host([hidden]) { display: none; }
+
+  .main {
+    grid-row: 1;
+    grid-column: 1;
+    overflow: auto;
+    min-height: 0;
+  }
+  .bottom {
+    grid-row: 2;
+    grid-column: 1;
+    flex-shrink: 0;
+  }
+</style>
+
+<main class="main" part="main">
+  <slot name="route"></slot>
+</main>
+<footer class="bottom" part="bottom">
+  <slot name="bottom"></slot>
+</footer>
