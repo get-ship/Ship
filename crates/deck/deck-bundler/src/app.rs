@@ -592,5 +592,128 @@ export default controller({ scope: () => ({ id: signal('demo') }) })\n",
             css_on_disk.len(),
             "exactly one <link rel=stylesheet> per emitted CSS asset"
         );
+        // Belt-and-braces: exactly one `<link rel="stylesheet">` per
+        // emitted CSS asset (no synthesized empty links when nothing was
+        // imported — the existing `bundle_app_generates_index_and_routes_gen`
+        // covers the zero-import path implicitly).
+        assert_eq!(
+            html.matches("<link rel=\"stylesheet\"").count(),
+            css_on_disk.len(),
+            "exactly one <link rel=stylesheet> per emitted CSS asset"
+        );
+    }
+
+    /// Gate per `.artifacts/job-spec.md`: a freshly built sui app's
+    /// `index.html` links the design-token stylesheet AND the emitted CSS
+    /// under `assets/` defines `:root` tokens (e.g. `--background`). The
+    /// token CSS enters the entry graph by convention: the generated
+    /// `routes.gen.ts` imports `@ship/tokens/tokens.css` and Rolldown's
+    /// native `AssetModulePlugin` bundles + links it. A static-only
+    /// deploy (no daemon, no `view-tokens.css` serve route) has tokens.
+    ///
+    /// Mirrors the per-app build proof in
+    /// `bundle_app_emits_and_links_css_assets` (the test it supersedes for
+    /// the token path): the project must NOT hand-author the import —
+    /// `routes.gen.ts` is generated, the import lands via the entry
+    /// contract, and `var(--token)` resolves in the built bundle.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn bundle_app_bundles_design_tokens_via_entry() {
+        let root = tempfile::tempdir().unwrap();
+        let r = root.path();
+        // Minimal workspace: the app project + the `@ship/tokens` package
+        // that exports `./tokens.css`. `component_package_roots` walks the
+        // workspace to build the `@ship/<name>` → source-dir map that
+        // `SuiPlugin::resolve_id` uses to re-anchor the bare specifier.
+        // Without this map the bundler cannot find the CSS, and the gate
+        write(
+            &r.join("package.json"),
+            r#"{"name":"tokens-app","private":true,"type":"module",
+                "workspaces":["packages/sui/*"]}"#,
+        );
+        write(
+            &r.join("packages/sui/tokens/package.json"),
+            r#"{"name":"@ship/tokens","type":"module",
+                "exports":{".":"./src/index.ts","./tokens.css":"./src/tokens.css"}}"#,
+        );
+        // Bare-minimum tokens.css: a single `:root` block with the
+        // `--background` token the spec names as the gate's exemplar.
+        // The gate asserts both presence (the convention) and shape
+        // (a real `:root` block with the named token).
+        write(
+            &r.join("packages/sui/tokens/src/tokens.css"),
+            ":root { --background: oklch(20% 0 0); }\n",
+        );
+        write(
+            &r.join("packages/sui/tokens/src/index.ts"),
+            "export const __noop = 1;\n",
+        );
+        // Minimal route so the entry isn't empty. The token import goes
+        // through the generated `routes.gen.ts` (not a hand-authored
+        // controller) — that's the whole point of the gate.
+        write(
+            &r.join("routes/page.sui"),
+            "<div class=\"token-probe\">tok</div>\n",
+        );
+        let out = r.join("dist");
+        let build = bundle_app(r, &[], r, &out, false, false, r, r)
+            .await
+            .expect("bundle_app");
+        // Gate 1: a hashed `tokens-<hash>.css` asset is emitted under
+        // `<out>/assets/`. The default Rolldown asset filename is
+        // `assets/[name]-[hash][extname]`. The stem comes from the source
+        // file (`packages/sui/tokens/src/tokens.css` → `tokens-<hash>.css`).
+        let css_on_disk: Vec<String> = std::fs::read_dir(out.join("assets"))
+            .expect("assets dir emitted")
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.ends_with(".css"))
+            .collect();
+        assert!(
+            css_on_disk.iter().any(|n| n.starts_with("tokens-")),
+            "expected a tokens-<hash>.css asset under <out>/assets/ (got: {css_on_disk:?})",
+        );
+        // Gate 2: the build exposes the absolute URL the link references
+        // — `/<namespace>/<file>.css` — and the generated `index.html`
+        // links it. Same URL convention as the entry JS, so the daemon's
+        // `serve_app_asset` (`GET /<app>/{file}`) serves it for dev.
+        assert!(
+            build.css_hrefs.iter().any(|h| h.starts_with("/tokens-app/tokens-") && h.ends_with(".css")),
+            "css_hrefs must include the bundled tokens asset, got: {:?}",
+            build.css_hrefs,
+        );
+        let html = std::fs::read_to_string(out.join("index.html")).unwrap();
+        for href in &build.css_hrefs {
+            assert!(
+                html.contains(href),
+                "index.html must reference the bundled tokens href {href}",
+            );
+        }
+        // The link must precede the entry script (parallel fetch, before
+        // first paint — the same guarantee the merged CSS-asset path
+        // establishes for hand-authored CSS).
+        let link_pos = html.find("<link rel=\"stylesheet\"").expect("a <link rel=stylesheet> exists");
+        let script_pos = html.find("<script type=\"module\"").expect("entry script exists");
+        assert!(
+            link_pos < script_pos,
+            "token <link rel=stylesheet> must precede <script type=module>; got link@{link_pos} script@{script_pos}",
+        );
+
+        // Gate 3: the emitted token CSS defines `:root` tokens. The
+        // presence of `--background` is the spec's named exemplar (it
+        // resolves in every component that uses `var(--background)`).
+        let tokens_path = out
+            .join("assets")
+            .join(css_on_disk.iter().find(|n| n.starts_with("tokens-")).unwrap());
+        let tokens_css = std::fs::read_to_string(&tokens_path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", tokens_path.display()));
+        assert!(
+            tokens_css.contains(":root"),
+            "emitted tokens CSS must define a :root block (got {} bytes)",
+            tokens_css.len(),
+        );
+        assert!(
+            tokens_css.contains("--background:"),
+            "emitted tokens CSS must define the --background role token (the spec's named exemplar)",
+        );
     }
 }
