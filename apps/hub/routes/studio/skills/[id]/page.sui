@@ -1,0 +1,16 @@
+<!--
+  Hub studio · `/studio/skills/:id` — the single-skill detail viewer.
+
+  Composes the `@ship/skills` pack's <ship-skill-detail>, passing
+  the route's `[id]` param as the viewer's `id` prop. The composite
+  reads `ship.skills.detail({ id })` (Connect SDK LiveSource) and
+  renders the skill's frontmatter, body, and files. Empty / loading
+  / missing / error states are first-class.
+
+  The route is a thin composition — chrome is the root layout
+  (`routes/_layout.sui` → `<ship-app-chrome>`), the page body is the
+  pack component + the `id` prop binding.
+-->
+<main class="studio-skills-detail">
+  <ship-skill-detail prop:id={id()}></ship-skill-detail>
+</main>

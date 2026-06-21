@@ -1,0 +1,36 @@
+{
+  "name": "@ship/skills",
+  "version": "0.1.0",
+  "description": "Ship Skills pack — <ship-skill-list>, <ship-skill-detail>. The hub /studio/skills surface; reads the Connect SDK (ship.skills.list / ship.skills.detail) and composes <sui-stack> / <sui-card> / <sui-empty-state> / <sui-spinner> / <sui-icon> / <sui-badge> / <sui-cluster> / <sui-button> / <sui-skeleton> from @ship/sui-primitives. The list is grouped by SkillScopeTag (project/user); the detail page renders frontmatter, body, and files. Wired by `apps/hub/routes/studio/skills/`. Reuses the existing per-package `deck.bundles` self-declaration (the framework discovers it the same way as `@ship/home` and `@ship/studio`).",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "customElements": "dist/custom-elements.json",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "deck": {
+    "bundles": [
+      {
+        "name": "ship-skills",
+        "entry": "src/index.ts",
+        "externals": ["@ship/sui-runtime", "@ship/sui-dom", "@ship/sdk-client"],
+        "lazy": true
+      }
+    ]
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship/sdk-client": "workspace:*",
+    "@ship/sui-dom": "workspace:*",
+    "@ship/sui-primitives": "workspace:*",
+    "@ship/sui-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@ship/test-setup": "workspace:*",
+    "vitest": "^4.1.5"
+  }
+}

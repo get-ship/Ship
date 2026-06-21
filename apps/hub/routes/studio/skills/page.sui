@@ -1,0 +1,17 @@
+<!--
+  Hub studio · `/studio/skills` — the skill list.
+
+  Composes the `@ship/skills` pack's <ship-skill-list>, which reads
+  `ship.skills.list()` (Connect SDK LiveSource) and renders the
+  registered skills grouped by SkillScopeTag (project/user/library).
+  Empty/loading/error states are first-class; no BACKEND-GAP — the
+  Connect op exists (`ship-sdk.ts:211`).
+
+  The route is a thin composition — chrome is the root layout
+  (`routes/_layout.sui` → `<ship-app-chrome>`), the page body is the
+  pack component. No per-page bindings; the composite owns the data
+  story.
+-->
+<main class="studio-skills">
+  <ship-skill-list></ship-skill-list>
+</main>
