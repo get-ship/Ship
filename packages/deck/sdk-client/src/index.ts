@@ -112,46 +112,54 @@ export interface CreateClientOpts {
  * await ship.agents.create({ id: 'foo', doc: { ... } })
  * ```
  */
-// ── Shared singleton (pre-bound packs) ────────────────────────────────────
+// ── Shared singleton (zero-config) ─────────────────────────────────────────
 //
-// `ship-*` packs (e.g. @ship/agents, @ship/sessions) reach for the SDK
-// from inside a web component — below the view tier where ViewScope
-// supplies `ship`. The host (shell `main.ts`) calls `setShipClient`
-// once at startup; pack components `import { ship }` and use it
-// directly. The Proxy is lazy — importing it does not require the
-// shell to have initialized; only first use does.
+// `ship-*` packs (e.g. @ship/agents, @ship/pipelines) reach for the SDK from
+// inside a web component — below the view tier where ViewScope supplies `ship`.
+// They just `import { ship }` and call it: the singleton lazily binds a
+// same-origin client on first use, so there is NO host bootstrap step. Using
+// our own SDK is one import, no config, no "remember to initialize" — the daemon
+// serves both the SPA and the API, so same-origin is always right.
 //
-// This mirrors the `setHostContext` / `hostContext()` seam: the
-// runtime/SDK names no host concept, the host plugs one in. Pure
-// `sui-*` packs do not reach for `ship` and do not see this singleton.
+// A host that needs a non-default transport (custom baseUrl, an injected
+// EventSource, a test fake) calls `setShipClient(...)` before first use — an
+// optional override, not a required ceremony. deck names no ship concept and
+// emits no init; the default lives here, in the SDK. Pure `sui-*` packs never
+// reach for `ship` and never bind a client.
 
 let _shipClient: ShipSDK | null = null
 
-/** Register the SDK client for `ship-*` pack components. Call once at
- *  host startup, before any pack mounts. */
+/** Override the SDK client (optional). Tests inject a fake; a host on a
+ *  non-same-origin transport sets a custom-`baseUrl` client. Call before the
+ *  first `ship.*` access. Left unset, `getShipClient` lazily binds a same-origin
+ *  client — the common case needs no call at all. */
 export function setShipClient(client: ShipSDK): void {
   _shipClient = client
 }
 
-/** Read the registered client (rarely needed directly — prefer `ship`). */
+/** Read the SDK client (rarely needed directly — prefer `ship`). Lazily binds a
+ *  same-origin client on first use, so `import { ship }` works with zero
+ *  ceremony and no host bootstrap. */
 export function getShipClient(): ShipSDK {
   if (!_shipClient) {
-    throw new Error(
-      '[@ship/sdk-client] ship client not initialized. Host must call setShipClient() at startup.',
-    )
+    // Zero-config default: same-origin. The daemon serves the SPA and the API
+    // together, so `baseUrl: ''` is correct for every first-party host (hub,
+    // shell, spaces). No setShipClient ceremony, no deck coupling.
+    _shipClient = createClient({ baseUrl: '' })
   }
   return _shipClient
 }
 
-/** The lazy SDK singleton for `ship-*` packs.
+/** The SDK singleton for `ship-*` packs. Zero ceremony — `import { ship }` and
+ *  call it; the client lazily binds same-origin on first property access.
  *
  * ```ts
  * import { ship } from '@ship/sdk-client'
  * const agents = live(() => ship.agents.summaries())
  * ```
  *
- * Throws if read before the host calls `setShipClient`. Safe to import
- * at any time — the trap only fires on access. */
+ * Safe to import anytime. A host overrides the transport via `setShipClient`
+ * before first use; otherwise the same-origin default just works. */
 export const ship: ShipSDK = new Proxy({} as ShipSDK, {
   get(_target, prop, _receiver) {
     return Reflect.get(getShipClient() as object, prop)
