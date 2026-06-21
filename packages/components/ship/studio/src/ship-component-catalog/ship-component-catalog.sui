@@ -1,0 +1,219 @@
+<!--
+  <ship-component-catalog> — @ship/studio · the hub `/studio/components` index.
+
+  The hub's component-catalog surface. The component index is the natural
+  jump-off for any view-author (or AI agent) that wants to compose an
+  existing `<sui-*>` / `<ship-*>` primitive into a new deck view, so the
+  page exposes the full tag list, grouped by semantic category (Actions,
+  Inputs, Layout, Feedback, …), with a free-text filter and a flat
+  per-package pill (All / Primitives / Ship / Charts / Pipelines).
+
+  Data story (BACKEND-GAP)
+  ─────────────────────────────────────────────────────────────────────────
+  The catalog needs: a list of every workspace component tag, plus each
+  tag's package, description, and prop/slot/example metadata. Three data
+  sources were candidates; all three are unavailable today:
+
+    1. `ship.ui.*` / `ship.components.*` Connect SDK op — does not exist.
+       The SDK exposes `account`, `agents`, `artifacts`, `canvas`,
+       `collections`, `events`, `git`, `mesh`, `pipelines`, `sessions`,
+       `settings`, `skills`, `spaces` (`ship-sdk.ts`). No `ui` /
+       `components` namespace; the charter forbids inventing a
+       non-existent op.
+
+    2. `GET /_deck/catalog/workspace` HTTP endpoint — was the shell's
+       historical source. Purged with `packs::serve_catalog_workspace`
+       and the `.deck/catalogs/workspace.json` write (`deck-axum/src/
+       lib.rs`); the runtime no longer serves the catalog. The shell's
+       loader (`apps/shell/routes/studio/components/catalog.ts`) calls
+       the dead endpoint and gets a non-OK response — its studio
+       components surface is also degraded.
+
+    3. The catalog file is on disk in some worktrees
+       (`.deck/catalogs/workspace.json`) but the framework stopped
+       regenerating it (`refresh_catalog` is a no-op in
+       `deck-bundler/src/lib.rs:358`). It is gitignored. The file is a
+       stale snapshot from a previous build, not a live index of the
+       current source tree — using it as if it were live would be a
+       resurrexit of a dead path the framework intentionally retired
+       (charter §Connect-only: "anything calling a non-Connect / dead /
+       outdated endpoint is cut or re-grounded on the current SDK —
+       never resurrected").
+
+  Per the charter §Connect-only + the job spec ("if a needed read is
+  absent → BACKEND-GAP flag + degrade (empty/placeholder state)"), this
+  component renders the documented empty-state. When the backend team
+  ships a real Connect op (e.g. `ship.ui.components.list()` /
+  `ship.ui.components.detail({ tag })`), the controller's `scope`
+  switches to a `live(() => ship.ui.components.list())` and the rest of
+  the surface (grouping, filter, per-cell links) reads the same
+  controller shape — this template is the stable contract.
+
+  Until then: a single empty-state with a "what this would show"
+  caption, no fabricated data, no resurrected fetch.
+
+  Prop / event
+  ─────────────────────────────────────────────────────────────────────────
+  filter    (string, '')                  pre-applied free-text filter
+  pkg       (string, 'all')               pre-applied package pill
+  ─────────────────────────────────────────────────────────────────────────
+
+  Emits:
+    ship-component-open   { detail: { tag: string } }   click on a cell
+-->
+<prop name="filter" type="string" default="" />
+<prop name="pkg" type="string" default="all" />
+
+<style>
+  :host { display: block; }
+
+  .head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+  .head h1 {
+    font-family: var(--heading-font, var(--font-display));
+    font-size: var(--text-xl);
+    font-weight: var(--heading-weight, var(--font-weight-semibold));
+    letter-spacing: var(--heading-tracking);
+    margin: 0;
+    color: var(--foreground);
+  }
+  .head .sub {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .head .rule {
+    margin-left: auto;
+    width: 64px;
+    height: var(--space-1);
+    border-radius: var(--radius-sm);
+    background: linear-gradient(90deg, var(--primary), transparent);
+  }
+
+  /* Future-live branch: kept structurally complete so the moment the
+     BACKEND-GAP closes, the catalog renders without a template change. */
+  /* `.groups` IS a <sui-stack> in the template; no hand-rolled flex column. */
+  .group-h {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted-foreground);
+    margin-bottom: var(--space-2);
+  }
+  .group-count {
+    font-family: var(--font-mono);
+    font-weight: normal;
+    letter-spacing: 0;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--space-2);
+  }
+  .cell {
+    display: block;
+    padding: var(--space-3);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--foreground);
+    transition: border-color var(--duration-fast) var(--ease-out),
+                transform var(--duration-fast) var(--ease-out);
+  }
+  .cell:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+  }
+  .cell:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+  .cell-tag {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--primary);
+  }
+  .cell-desc {
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    line-height: 1.4;
+  }
+
+  /* The empty-state's "open the sui-card viewer" action is a plain
+     <a> styled as a soft outline button — <sui-button> has no href
+     prop, and a nav link shouldn't carry the press-state machine
+     semantics of a form submit anyway. The empty-state action slot
+     projects it inline. */
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    background: var(--background);
+    color: var(--foreground);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    font: inherit;
+    font-size: var(--text-sm);
+    transition: background var(--duration-fast) var(--ease-out);
+  }
+  .back-link:hover {
+    background: var(--muted);
+    text-decoration: none;
+  }
+  .back-link:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+</style>
+
+<section class="head" data-test="studio-catalog-head">
+  <h1>Components</h1>
+  <span class="sub">{sub()}</span>
+  <span class="rule" aria-hidden="true"></span>
+</section>
+
+{#if state() === 'ready' && entries().length > 0}
+  <sui-stack class="groups" data-test="studio-catalog-groups" data-ready="true" gap="5">
+    {#for g of groups() key={g.id}}
+      <section class="group" data-test="studio-catalog-group" attr:data-group={g.id}>
+        <header class="group-h">
+          {g.label} <span class="group-count">· {g.count}</span>
+        </header>
+        <div class="grid">
+          {#for cell of g.cells key={cell.tag}}
+            <a class="cell" data-test="studio-catalog-cell"
+              attr:data-tag={cell.tag}
+              attr:href={'/studio/components/' + cell.tag}
+              on:click={(e) => onOpen(e, cell.tag)}>
+              <sui-stack gap="1">
+                <span class="cell-tag">{cell.tag}</span>
+                <span class="cell-desc">{cell.description}</span>
+              </sui-stack>
+            </a>
+          {/for}
+        </div>
+      </section>
+    {/for}
+  </sui-stack>
+{:else}
+  <sui-empty-state variant="default" size="md" tone="muted" data-test="studio-catalog-empty">
+    <sui-icon slot="icon" name="layout-grid"></sui-icon>
+    <span slot="title">Component catalog unavailable</span>
+    The hub cannot list the workspace components right now — the Connect
+    SDK has no <code>ship.ui.components</code> op and the deck catalog
+    endpoint was retired. The surface degrades to this empty state until
+    the backend ships a components op; the flag is recorded in
+    <code>.artifacts/hub-buildout-flags.md</code>.
+    <a slot="action" class="back-link" href="/studio/components/sui-card" data-test="studio-catalog-back">Open the sui-card viewer</a>
+  </sui-empty-state>
+{/if}

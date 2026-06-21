@@ -1,19 +1,26 @@
 <!--
-  Studio — single-component viewer for `/studio/components/:name`.
+  Hub studio · `/studio/components/:name` — the single-component viewer.
 
-  The dynamic `[name]` segment is read off the route signals in the paired
-  controller.ts (`route.params.name`) and returned as the `name` scope signal,
-  so the heading below shows the selected component. The full inspector (source
-  panel, prop knobs, slot matrix) lands with the studio surface build-out —
-  this is the real route.
+  Composes the `@ship/studio` pack's <ship-component-viewer>, passing
+  the route's `[name]` param as the viewer's `tag` prop. The composite
+  owns the BACKEND-GAP data story (no `ship.ui.components.detail` op +
+  the shell's purged catalog endpoint + the framework-stopped catalog
+  write) and renders the documented empty-state for every tag today.
+  The route is a thin composition — chrome is the root layout, the
+  page body is the pack component + the `tag` prop binding.
 
   Top chrome: the <ship-nav-top> is owned by the root layout
-  (`routes/_layout.sui` → `<ship-app-chrome>`). Pages compose only
-  page body — the nav is declared ONCE in the layout. The bar auto-derives
-  its breadcrumb trail from `location.pathname`, so this route shows the
-  `/studio/components/:name` crumbs without an explicit prop.
+  (`routes/_layout.sui` → `<ship-app-chrome>`). The breadcrumb trail
+  auto-derives from `location.pathname` and shows
+  `/studio/components/:name`.
+
+  Per the hub-buildout-charter §Connect-only, the viewer needs a
+  `ship.ui.components.detail({ tag })` op that does not exist today.
+  The component's `entry` derived is the stable boundary — when the
+  backend ships the op, the controller's `entry` becomes a
+  `live(() => ship.ui.components.detail({ tag: tag() }))` and the
+  template's `state() === 'found'` branch renders props / slots /
+  source / snippet without a template change.
 -->
-<main class="component-viewer">
-  <h1 class="component-viewer-title">{name()}</h1>
-  <p class="component-viewer-sub">Component viewer — source, prop knobs, and the slot matrix land with the studio surface.</p>
+  <ship-component-viewer prop:tag={name()}></ship-component-viewer>
 </main>

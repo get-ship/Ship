@@ -1,0 +1,25 @@
+<!--
+  Hub studio · `/studio/components` — the component catalog index.
+
+  Composes the `@ship/studio` pack's <ship-component-catalog>, which
+  owns the catalog data story (BACKEND-GAP today; the empty-state
+  explains the gap + flags the operator-visible
+  `.artifacts/hub-buildout-flags.md` entry). The route is a thin
+  composition — chrome is the root layout, the page body is the pack
+  component.
+
+  Top chrome: the <ship-nav-top> is owned by the root layout
+  (`routes/_layout.sui` → `<ship-app-chrome>`). The breadcrumb trail
+  auto-derives from `location.pathname` and shows
+  `/studio/components`.
+
+  Per the hub-buildout-charter §Connect-only, the catalog needs a
+  `ship.ui.components.list()` op that does not exist today (no Connect
+  surface; the shell's HTTP catalog was purged; the framework stopped
+  writing the .deck/catalogs/workspace.json index). The component
+  degrades to the documented empty-state — no invented data, no
+  resurrected fetch.
+-->
+<main class="studio-components">
+  <ship-component-catalog></ship-component-catalog>
+</main>
