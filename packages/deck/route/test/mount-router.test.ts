@@ -104,14 +104,34 @@ describe('mountRouter', () => {
     expect(location.pathname).toBe('/a/b')
   })
 
-  it('clears root and does not mount when no route matches', async () => {
+  it('shows a fallback and does not call mount() when no route matches', async () => {
     router = start()
     await flush()
     navigate('/does-not-exist')
     await vi.waitFor(() => expect(location.pathname).toBe('/does-not-exist'))
-    // No matching module → no second mount; root emptied.
+    // No matching module → mount() not called a second time; fallback shown.
     expect(mountCalls).toHaveLength(1)
-    expect(document.getElementById('root')!.childNodes.length).toBe(0)
+    const root = document.getElementById('root')!
+    expect(root.querySelector('.deck-not-found')).not.toBeNull()
+  })
+
+  it('no-match with a matching layout prefix shows chrome + fallback in route slot', () => {
+    // The chrome element comes from the layout chain; the fallback lives in the
+    // slot inside it — never a blank screen.
+    history.replaceState({}, '', '/a/missing')
+    router = mountRouter({
+      root: '#root',
+      routes: [{ pattern: '/a/b' }],
+      layouts: [{ pathPrefix: '/a', tag: 'x-chrome' }],
+      modules: { '/a/b': MOD_LEAF },
+    })
+    // mountCurrent for the no-match path is synchronous (no awaits) — DOM is
+    // ready immediately after mountRouter() returns.
+    const root = document.getElementById('root')!
+    expect(root.querySelector('x-chrome')).not.toBeNull()
+    const slot = root.querySelector('x-chrome div[slot="route"]')
+    expect(slot).not.toBeNull()
+    expect(slot!.querySelector('.deck-not-found')).not.toBeNull()
   })
 
   it('passes arbitrary named clients through (no client name baked into the router)', async () => {

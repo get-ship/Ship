@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { live, type LiveSignal, type LiveState } from '@ship/sui-runtime'
 import { createClient } from '../src/index'
 import { _resetSharedSourceCache } from '../src/shared-source'
@@ -584,6 +584,190 @@ describe('mutations via Connect', () => {
     const fd = calls[0]!.init?.body as FormData
     expect(fd.get('file')).toBeInstanceOf(File)
     expect(fd.get('collection_id')).toBe('systems')
+  })
+})
+
+// ── Backoff / offline behaviour ───────────────────────────────────────────────
+
+describe('backoff and offline handling', () => {
+  let origFetch: typeof globalThis.fetch
+
+  beforeEach(() => {
+    FakeEventSource.instances = []
+    _resetSharedSourceCache()
+    origFetch = globalThis.fetch
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    globalThis.fetch = origFetch
+    _resetSharedSourceCache()
+  })
+
+  it('EventSource onerror closes the ES immediately (no browser reconnect loop)', async () => {
+    const { mockFetch } = makeMuxFetch({ initialValue: {}, subId: 'sub.err' })
+    globalThis.fetch = mockFetch
+
+    const sig = makeSig<unknown>()
+    const ship = createClient({ EventSource: FakeEventSource as any })
+    const teardown = ship.agents.summaries().subscribe(sig)
+
+    await vi.runAllTimersAsync()
+
+    const es = FakeEventSource.instances.find((e) => e.url.includes('/mux/stream/'))
+    expect(es).toBeDefined()
+    expect(sig().kind).toBe('ok')  // initial_value delivered
+
+    // Simulate browser firing onerror (e.g. daemon went down)
+    es!.emitError()
+
+    // Signal transitions to offline/error immediately
+    expect(sig().kind).toBe('error')
+    // EventSource must be closed so the browser does not reconnect in a loop
+    expect(es!.closed).toBe(true)
+
+    teardown()
+  })
+
+  it('onerror schedules a backoff reconnect and does not retry immediately', async () => {
+    const openRequests: string[] = []
+    let openCount = 0
+    globalThis.fetch = async (url: any, init?: any) => {
+      const u = String(url)
+      openRequests.push(u)
+      if (u.includes('/_deck/mux/open')) {
+        openCount++
+        return new Response(
+          JSON.stringify({ window_id: `win${openCount}`, session_id: 'sess', heartbeat_ms: 15000 }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )
+      }
+      if (u.includes('/_deck/mux/subscribe')) {
+        return new Response(
+          JSON.stringify({ subscription_id: `sub${openCount}`, initial_value: {} }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )
+      }
+      if (u.includes('/_deck/mux/unsubscribe')) {
+        return new Response(JSON.stringify({ removed: true }), {
+          status: 200, headers: { 'content-type': 'application/json' },
+        })
+      }
+      throw new Error(`Unexpected fetch: ${u}`)
+    }
+
+    const sig = makeSig<unknown>()
+    const ship = createClient({ EventSource: FakeEventSource as any })
+    const teardown = ship.agents.summaries().subscribe(sig)
+
+    await vi.runAllTimersAsync()
+    const initialOpenCount = openCount
+    expect(sig().kind).toBe('ok')
+
+    // Trigger stream loss
+    const es = FakeEventSource.instances[0]
+    es!.emitError()
+    expect(sig().kind).toBe('error')
+
+    // No new open should have been fired yet (backoff pending)
+    expect(openCount).toBe(initialOpenCount)
+
+    // Advance by BASE_MS (1000ms) — reconnect fires
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(openCount).toBeGreaterThan(initialOpenCount)
+    expect(sig().kind).toBe('ok')  // reconnected, initial_value re-delivered
+
+    teardown()
+  })
+
+  it('mux/subscribe 4xx marks the registration permanent — no reconnect on stream loss', async () => {
+    let openCount = 0
+    globalThis.fetch = async (url: any) => {
+      const u = String(url)
+      if (u.includes('/_deck/mux/open')) {
+        openCount++
+        return new Response(
+          JSON.stringify({ window_id: 'win1', session_id: 'sess', heartbeat_ms: 15000 }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )
+      }
+      if (u.includes('/_deck/mux/subscribe')) {
+        // Permanent failure (op not found)
+        return new Response('not found', { status: 404 })
+      }
+      if (u.includes('/_deck/mux/unsubscribe')) {
+        return new Response(JSON.stringify({ removed: true }), {
+          status: 200, headers: { 'content-type': 'application/json' },
+        })
+      }
+      throw new Error(`Unexpected fetch: ${u}`)
+    }
+
+    const sig = makeSig<unknown>()
+    const ship = createClient({ EventSource: FakeEventSource as any })
+    ship.agents.summaries().subscribe(sig)
+
+    await vi.runAllTimersAsync()
+    expect(sig().kind).toBe('error')  // 404 surfaced as error
+
+    // Simulate stream loss after the 404
+    const es = FakeEventSource.instances.find((e) => e.url.includes('/mux/stream/'))
+    es?.emitError()
+
+    // Advance well past the backoff window — no reconnect attempt expected
+    // because the only registration is permanent.
+    await vi.advanceTimersByTimeAsync(30_000)
+    // Only the initial open; no re-open after the stream loss
+    expect(openCount).toBe(1)
+  })
+
+  it('mux/open failure schedules backoff and succeeds on retry', async () => {
+    let openAttempt = 0
+    globalThis.fetch = async (url: any) => {
+      const u = String(url)
+      if (u.includes('/_deck/mux/open')) {
+        openAttempt++
+        if (openAttempt === 1) {
+          return new Response('unavailable', { status: 503 })
+        }
+        return new Response(
+          JSON.stringify({ window_id: 'win2', session_id: 'sess', heartbeat_ms: 15000 }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )
+      }
+      if (u.includes('/_deck/mux/subscribe')) {
+        return new Response(
+          JSON.stringify({ subscription_id: 'sub.retry', initial_value: { ok: true } }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        )
+      }
+      if (u.includes('/_deck/mux/unsubscribe')) {
+        return new Response(JSON.stringify({ removed: true }), {
+          status: 200, headers: { 'content-type': 'application/json' },
+        })
+      }
+      throw new Error(`Unexpected fetch: ${u}`)
+    }
+
+    const sig = makeSig<unknown>()
+    const ship = createClient({ EventSource: FakeEventSource as any })
+    const teardown = ship.agents.summaries().subscribe(sig)
+
+    // Flush only the async fetch chain (microtask ticks, no timer advancement).
+    // vi.runAllTimersAsync() would also fire the 1 s backoff timer that
+    // _scheduleReconnect() schedules, causing the retry to succeed before the
+    // error assertion below.  Eight Promise.resolve() awaits drain the ~4-level
+    // promise chain without advancing fake time at all.
+    for (let i = 0; i < 8; i++) await Promise.resolve()
+    expect(sig().kind).toBe('error')  // first open failed
+
+    // Advance by BASE_MS — retry fires and succeeds
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(sig().kind).toBe('ok')
+    expect(openAttempt).toBe(2)
+
+    teardown()
   })
 })
 

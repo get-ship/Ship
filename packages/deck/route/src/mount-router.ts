@@ -68,8 +68,12 @@ export function mountRouter(opts: MountRouterOptions): RouterHandle {
     const matched = matchRoute(pathname)
     const mod = matched ? opts.modules[matched.pattern] : undefined
     if (!mod) {
-      // No bundled view for this path — clear rather than leave stale chrome.
-      rootEl!.replaceChildren()
+      // No bundled view for this path — build the layout chain (so the nav +
+      // studio rail stay visible) and mount a graceful fallback in the route slot.
+      // A missing route must never produce a blank screen.
+      const chain = resolveLayoutChain(pathname, layouts)
+      const target = buildMountTarget(rootEl!, chain)
+      target.replaceChildren(buildNotFound(pathname))
       current?.dispose()
       current = null
       return
@@ -159,6 +163,25 @@ export function mountRouter(opts: MountRouterOptions): RouterHandle {
  */
 function coBundledPayload(name: string): ViewPayload {
   return { name, html: '', css: '', scope: {}, moduleUrl: '', params: {}, clients: [] }
+}
+
+/**
+ * Build a minimal "not found" element with the unmatched path and a back
+ * affordance. Used when no route module matches the current pathname. Avoids
+ * innerHTML to prevent any XSS concern with user-controlled URL paths.
+ */
+function buildNotFound(pathname: string): HTMLElement {
+  const el = document.createElement('div')
+  el.className = 'deck-not-found'
+  const msg = document.createElement('p')
+  msg.textContent = `Not found: ${pathname}`
+  const btn = document.createElement('button')
+  btn.type = 'button'
+  btn.textContent = 'Go back'
+  btn.addEventListener('click', () => history.back())
+  el.appendChild(msg)
+  el.appendChild(btn)
+  return el
 }
 
 /**
