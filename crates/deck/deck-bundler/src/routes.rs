@@ -126,6 +126,21 @@ fn module_import_path(pattern: &str) -> String {
     }
 }
 
+/// Inverse of the layout discovery: `/` → `./routes/_layout.sui`
+/// (the root layout, sibling of `routes/page.sui`); `/studio` →
+/// `./routes/studio/_layout.sui`. The codegen imports the layout's
+/// `.sui` so the chrome wrapper it composes registers at first
+/// paint (the per-view resolver chain — layout → its first
+/// `<sui-*` / `<ship-*` tag → that wrapper's source `.sui` —
+/// lands the `customElements.define` call when the module loads).
+fn layout_module_path(path_prefix: &str) -> String {
+    if path_prefix == "/" {
+        return "./routes/_layout.sui".to_string();
+    }
+    let rest = path_prefix.strip_prefix('/').unwrap_or(path_prefix);
+    format!("./routes/{rest}/_layout.sui")
+}
+
 /// `agents-id-settings` → `agentsIdSettings` (uppercase the char after each `-`).
 fn camel_case(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
@@ -143,13 +158,30 @@ fn camel_case(s: &str) -> String {
     out
 }
 
-/// Walk the top level of `routes_dir` for `_layout.sui` files. Each
-/// `routes/<name>/_layout.sui` becomes one layout entry with prefix `/<name>`.
-/// The tag is read from the first `<sui-…>` or `<ship-…>` element in the
-/// file. Layouts are emitted sorted by `path_prefix` so the generated
-/// `routes.gen.ts` is byte-stable across runs.
+/// Walk `routes_dir` for `_layout.sui` files. Two flavors:
+///   - A root `routes/_layout.sui` (sibling of `routes/page.sui`) becomes
+///     a layout entry with prefix `/` — the runtime's longest-prefix
+///     match treats `/` as "every pathname" (see
+///     `packages/deck/route/src/layouts.ts::matchPrefix`). This is how
+///     the hub root layout covers the index route `/` and every other
+///     route under it; without it the nav had to be composed per-page.
+///   - A `routes/<name>/_layout.sui` becomes a layout entry with prefix
+///     `/<name>`. Unchanged from the pre-root-layout codegen.
+///
+/// The tag is read from the first `<sui-…>` or `<ship-…>` element in
+/// the file. Layouts are emitted sorted by `path_prefix` so the
+/// generated `routes.gen.ts` is byte-stable across runs.
 fn discover_layouts(routes_dir: &Path) -> Result<Vec<Layout>> {
     let mut layouts = Vec::new();
+    // Root layout: `routes/_layout.sui` → prefix `/`. Discovered before
+    // the subdir loop so the prefix `/` sorts first (shortest path_prefix,
+    // and the loop below sorts by `path_prefix` for byte stability).
+    let root_layout = routes_dir.join("_layout.sui");
+    if root_layout.is_file() {
+        let tag = extract_layout_tag(&root_layout)
+            .with_context(|| format!("parsing `{}`", root_layout.display()))?;
+        layouts.push(Layout { path_prefix: "/".to_string(), tag });
+    }
     for entry in std::fs::read_dir(routes_dir).with_context(|| {
         format!("reading routes dir `{}`", routes_dir.display())
     })? {
@@ -575,6 +607,33 @@ fn render_routes_gen(tree: &RouteTree) -> String {
         .map(|(i, r)| format!("import * as route{i} from '{}';", module_import_path(&r.pattern)))
         .collect::<Vec<_>>()
         .join("\n");
+    // Each layout's `.sui` is statically imported alongside the route
+    // views so the chrome wrapper it composes (its first `<sui-*` /
+    // `<ship-*` element) is registered at first paint. The runtime
+    // builds the chain via `document.createElement(layout.tag)`; if the
+    // tag isn't registered, the createElement call returns a bare
+    // HTMLElement that never upgrades, and the route content's named
+    // slot (the `route` slot) has nothing to project into. The
+    // shell's `apps/shell/src/components/index.ts` is the
+    // host-side fix for the same gap; the framework does the same
+    // here so every per-app host gets the registration without
+    // hand-seeding.
+    //
+    // Import paths mirror the on-disk layout files relative to the
+    // routes root. A root `routes/_layout.sui` imports as
+    // `./routes/_layout.sui`; a `routes/<name>/_layout.sui` imports
+    // as `./routes/<name>/_layout.sui`. The module side-effect
+    // (the per-view resolver compiles the layout, the layout's
+    // first tag is emitted as `@sui-tag/<tag>`, that resolves to the
+    // chrome wrapper's source `.sui`, that compiles as a Component
+    // and registers the custom element) is the registration
+    // mechanism — no tree-shake removal.
+    let layout_imports = tree
+        .layouts
+        .iter()
+        .map(|l| format!("import '{}';", layout_module_path(&l.path_prefix)))
+        .collect::<Vec<_>>()
+        .join("\n");
     let module_map = tree
         .routes
         .iter()
@@ -637,6 +696,7 @@ mountRouter({{
 // navigation. See ADR `unified-deck-router`.
 import {{ mountRouter, type RouteShape, type LayoutShape }} from '@ship/deck/route'
 {route_imports}
+{layout_imports}
 export const DYNAMIC_ROUTE_PATTERNS: RouteShape[] = [
 {pattern_lines}
 ]
@@ -648,7 +708,8 @@ export const routes = {{
 }}
 {router_block}",
         label = tree.label,
-    )
+        layout_imports = layout_imports,
+     )
 }
 
 fn generate_routes_one(spec: &RouteGenSpec) -> Result<usize> {
@@ -845,6 +906,57 @@ mod tests {
     }
 
     #[test]
+    fn layout_discovery_root_layout_has_slash_prefix() {
+        // A `routes/_layout.sui` (sibling of `routes/page.sui`) becomes a
+        // LAYOUTS entry with `pathPrefix: '/'` — the runtime's longest-
+        // prefix match treats `/` as "every pathname" (see
+        // `packages/deck/route/src/layouts.ts::matchPrefix`). The root
+        // layout covers the index route AND every nested route (the
+        // longest-prefix match keeps nested layouts outermost-in-chain).
+        let root = tempfile::tempdir().unwrap();
+        let r = root.path().join("routes");
+        // Index route + a nested subdir with its OWN layout (the
+        // subdir layout must coexist with the root layout).
+        std::fs::create_dir_all(r.join("studio/components/[name]")).unwrap();
+        std::fs::write(r.join("page.sui"), "<div/>").unwrap();
+        std::fs::write(
+            r.join("studio/components/[name]/page.sui"),
+            "<div/>",
+        )
+        .unwrap();
+        std::fs::write(r.join("studio/_layout.sui"), "<sui-studio-chrome/>\n").unwrap();
+        std::fs::write(
+            r.join("_layout.sui"),
+            "<ship-hub-chrome>\n  <slot name=\"route\"/>\n</ship-hub-chrome>\n",
+        )
+        .unwrap();
+        let tree = build_route_tree(&r, "hub").unwrap();
+        // Both layouts discovered, sorted by path_prefix (`/` before
+        // `/studio`).
+        assert_eq!(tree.layouts.len(), 2);
+        assert_eq!(tree.layouts[0].path_prefix, "/");
+        assert_eq!(tree.layouts[0].tag, "ship-hub-chrome");
+        assert_eq!(tree.layouts[1].path_prefix, "/studio");
+        assert_eq!(tree.layouts[1].tag, "sui-studio-chrome");
+    }
+
+    #[test]
+    fn layout_discovery_root_layout_only_when_no_subdir_layouts() {
+        // A sole `routes/_layout.sui` → a single LAYOUTS entry with
+        // prefix `/`. The /studio case above is a richer version of
+        // this; this one isolates the root-only path.
+        let root = tempfile::tempdir().unwrap();
+        let r = root.path().join("routes");
+        std::fs::create_dir_all(&r).unwrap();
+        std::fs::write(r.join("page.sui"), "<div/>").unwrap();
+        std::fs::write(r.join("_layout.sui"), "<ship-app-chrome/>\n").unwrap();
+        let tree = build_route_tree(&r, "hub").unwrap();
+        assert_eq!(tree.layouts.len(), 1);
+        assert_eq!(tree.layouts[0].path_prefix, "/");
+        assert_eq!(tree.layouts[0].tag, "ship-app-chrome");
+    }
+
+    #[test]
     fn layout_discovery_skips_div_only_layout() {
         // A `_layout.sui` with no `<sui-*` / `<ship-*` element errors out
         // — a layout must name a wrapper component.
@@ -868,6 +980,21 @@ mod tests {
         assert_eq!(module_import_path("/x"), "./routes/x/page.sui");
         assert_eq!(module_import_path("/x/:id"), "./routes/x/[id]/page.sui");
         assert_eq!(module_import_path("/a/:b/c/:d"), "./routes/a/[b]/c/[d]/page.sui");
+    }
+
+    #[test]
+    fn layout_module_path_inverts_to_layout_file() {
+        // Pure logic, mirrors `module_import_path` for layouts. The
+        // codegen statically imports each layout's `.sui` so the
+        // chrome wrapper it composes registers at first paint; the
+        // generated path is the on-disk layout relative to the
+        // entry (the entry lives next to `routes/`).
+        //   `/`        → `./routes/_layout.sui` (the root layout, sibling
+        //                  of `routes/page.sui`)
+        //   `/studio`  → `./routes/studio/_layout.sui` (the subdir layout)
+        assert_eq!(layout_module_path("/"), "./routes/_layout.sui");
+        assert_eq!(layout_module_path("/studio"), "./routes/studio/_layout.sui");
+        assert_eq!(layout_module_path("/a/b"), "./routes/a/b/_layout.sui");
     }
 
     #[test]
@@ -898,6 +1025,39 @@ mod tests {
             );
         }
         assert!(!ts.contains("getElementById"), "the v0 hand-rolled index mount is gone");
+    }
+
+    #[test]
+    fn render_emits_layout_imports_for_chrome_registration() {
+        // Each layout's `.sui` is statically imported alongside the
+        // route views so the chrome wrapper it composes (its first
+        // `<sui-*` / `<ship-*` element) registers at first paint.
+        // The runtime creates the chrome via
+        // `document.createElement(layout.tag)`; an unregistered tag
+        // is a no-op and the named-slot projection is empty. The
+        // shell's `apps/shell/src/components/index.ts` is the
+        // host-side fix for the same gap; the framework does it
+        // here so every per-app host gets the registration for
+        // free.
+        let tree = RouteTree {
+            label: "x".to_string(),
+            routes: vec![
+                Route { pattern: "/".to_string(), params: vec![], builder: "index".to_string() },
+            ],
+            layouts: vec![
+                Layout { path_prefix: "/".to_string(), tag: "ship-app-chrome".to_string() },
+                Layout { path_prefix: "/studio".to_string(), tag: "sui-studio-chrome".to_string() },
+            ],
+        };
+        let ts = render_routes_gen(&tree);
+        assert!(
+            ts.contains("import './routes/_layout.sui';"),
+            "root layout must be statically imported: {ts}",
+        );
+        assert!(
+            ts.contains("import './routes/studio/_layout.sui';"),
+            "subdir layout must be statically imported: {ts}",
+        );
     }
 
     // Regression: routes.gen.ts lives under the watched `apps/...` root and

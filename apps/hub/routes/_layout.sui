@@ -1,0 +1,29 @@
+<!--
+  Hub root layout — every route under `apps/hub/routes/` is wrapped in
+  <ship-app-chrome>, the chrome that assembles the top nav and the
+  route outlet.
+
+  The bundler (`crates/deck/deck-bundler/src/routes.rs::discover_layouts`)
+  discovers this file as a ROOT layout — sibling of `routes/page.sui`,
+  prefix `/`. The runtime's longest-prefix match in
+  `packages/deck/route/src/layouts.ts::matchPrefix` treats prefix `/` as
+  "every pathname", so the chrome wraps the index route AND every
+  nested route (longest-prefix wins, so a future `routes/studio/
+  _layout.sui` would compose with this one — `ship-app-chrome`
+  outermost, the studio chrome innermost).
+
+  Slot convention: the runtime's
+  `mountRouter` → `buildMountTarget` inserts a `<div slot="route">` as
+  the innermost element of the chrome chain (see
+  `packages/deck/route/src/mount-router.ts:170-182`). That div is
+  projected into this layout's `<slot name="route" />` by
+  `resolveSlots` at mount time. The chrome component
+  (`<ship-app-chrome>`, in `@ship/chrome`) is the one that owns the
+  slot — `_layout.sui` is just the assembly view of the chrome.
+
+  The nav is declared ONCE here, not per-page. Pages compose only the
+  page body; the chrome owns the wrapper.
+-->
+<ship-app-chrome>
+  <slot name="route" />
+</ship-app-chrome>
