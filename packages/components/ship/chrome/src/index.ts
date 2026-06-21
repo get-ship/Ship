@@ -23,6 +23,7 @@ import './ship-status-bar/ship-status-bar.compiled.js'
 import './ship-dock/ship-dock.compiled.js'
 import './ship-dock-app/ship-dock-app.compiled.js'
 import './ship-nav-top/ship-nav-top.compiled.js'
+import './ship-app-chrome/ship-app-chrome.compiled.js'
 // <ship-nav-top> composes these two domain affordances; the pack owns them so
 // any host that mounts the nav bar gets the project switcher + account menu
 // registered (the hub previously kept app-local copies — now consolidated here).

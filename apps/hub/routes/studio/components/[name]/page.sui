@@ -7,14 +7,12 @@
   panel, prop knobs, slot matrix) lands with the studio surface build-out —
   this is the real route.
 
-  Top chrome: <ship-nav-top> (@ship/chrome) — same filled bar as the home
-  route. See routes/page.sui for `note(deferred): hub root layout — layout
-  convention gap`: the bundler discovers no root `/` layout, so the nav is
-  composed per-page until a deck-engine layout change lands. <ship-nav-top>
-  auto-derives its breadcrumb trail from `location.pathname`, so this route
-  shows the `/studio/components/:name` crumbs without an explicit prop.
+  Top chrome: the <ship-nav-top> is owned by the root layout
+  (`routes/_layout.sui` → `<ship-app-chrome>`). Pages compose only
+  page body — the nav is declared ONCE in the layout. The bar auto-derives
+  its breadcrumb trail from `location.pathname`, so this route shows the
+  `/studio/components/:name` crumbs without an explicit prop.
 -->
-<ship-nav-top></ship-nav-top>
 <main class="component-viewer">
   <h1 class="component-viewer-title">{name()}</h1>
   <p class="component-viewer-sub">Component viewer — source, prop knobs, and the slot matrix land with the studio surface.</p>

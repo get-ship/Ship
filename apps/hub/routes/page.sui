@@ -1,19 +1,9 @@
 <!--
   Hub home — the primary app's index route (`/`).
 
-  Top chrome: <ship-nav-top> (@ship/chrome) — the filled bar that composes
-  the <sui-nav-top> primitive and assembles the ship-specific slot contents
-  (brand mark, project switcher, breadcrumbs, theme picker, account menu,
-  fullscreen). The page owns only the home content below the bar.
-
-  note(deferred): hub root layout — layout convention gap. The intent was a
-  single root layout (`<ship-nav-top>` once, wrapping every route). deck's
-  bundler only discovers `routes/<subdir>/_layout.sui` (prefix `/<subdir>` —
-  see crates/deck/deck-bundler/src/routes.rs::discover_layouts); a root
-  `routes/_layout.sui` with prefix `/` (which would cover this index route) is
-  never emitted. Emitting one needs a deck-engine change, which is out of this
-  job's scope. Until then the nav is composed per-page (here + the studio
-  route). Both render the same <ship-nav-top>.
+  Top chrome: the <ship-nav-top> is owned by the root layout
+  (`routes/_layout.sui` → `<ship-app-chrome>`). Pages compose only
+  page body — the nav is declared ONCE in the layout, not per-page.
 
   Dashboard composite: the page composes the @ship/home pack (greeting +
   spaces grid + recent-runs). The pack controllers read the Connect SDK
@@ -21,7 +11,6 @@
   list (a list-all-spaces SDK method is a known BACKEND-GAP — the spaces
   grid degrades to the empty-state until the gap closes).
 -->
-<ship-nav-top></ship-nav-top>
 <main class="hub-home">
   <ship-home-greeting workspace={workspace()}></ship-home-greeting>
   <ship-spaces-hero spaces={spacesJson()} limit="8"></ship-spaces-hero>
