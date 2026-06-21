@@ -30,7 +30,7 @@ use rolldown::plugin::{
     HookResolveIdArgs, HookResolveIdOutput, HookResolveIdReturn, HookUsage, Plugin, PluginContext,
 };
 use rolldown::{BundlerBuilder, BundlerOptions, InputItem, OutputFormat};
-use rolldown_common::{ChunkFilenamesOutputOption, ResolvedExternal};
+use rolldown_common::{ChunkFilenamesOutputOption, ModuleType, ResolvedExternal};
 
 /// deck's baked framework bundles. Each entry is `(package_alias,
 /// source_filename, output_url_relative_to_project)`. The bundler copies
@@ -102,6 +102,12 @@ fn importmap_externals_from_json(importmap_json: &str) -> Result<HashSet<String>
 pub struct AppBuild {
     pub out_dir: PathBuf,
     pub js_href: String,
+    /// Absolute URL paths for every CSS asset emitted under
+    /// `<out_dir>/assets/` by Rolldown's native asset pipeline
+    /// (see `module_types: { ".css" -> Asset }` above). The bundler
+    /// injects a `<link rel="stylesheet">` for each one into the
+    /// generated `index.html`. Empty when the project imports no CSS.
+    pub css_hrefs: Vec<String>,
     pub framework_assets: usize,
 }
 
@@ -228,6 +234,18 @@ pub async fn bundle_app(
     if !routes_gen.exists() {
         bail!("app build: expected generated entry at {}", routes_gen.display());
     }
+    // CSS ships as a hashed asset via Rolldown's native `ModuleType::Asset`
+    // path (`rolldown_plugin_asset_module`). The `SuiPlugin::load` hook only
+    // handles `.sui` / `.compiled.js` and returns `Ok(None)` for everything
+    // else, so the built-in `AssetModulePlugin` runs and emits a hashed
+    // `assets/<name>-<hash>.css` file. The chunk references it via a
+    // placeholder that `render_chunk` resolves to the asset filename;
+    // we then lift that link into the generated `index.html` below.
+    // (Rolldown 1.0 removed `ModuleType::Css` — issue rolldown/rolldown#4271;
+    // the asset type is the supported way to ship a CSS file.)
+    let mut module_types: rustc_hash::FxHashMap<String, ModuleType> =
+        rustc_hash::FxHashMap::default();
+    module_types.insert(".css".to_string(), ModuleType::Asset);
     let options = BundlerOptions {
         input: Some(vec![InputItem {
             name: Some("entry".to_string()),
@@ -243,6 +261,7 @@ pub async fn bundle_app(
         chunk_filenames: Some(ChunkFilenamesOutputOption::String(
             "assets/[name]-[hash].js".to_string(),
         )),
+        module_types: Some(module_types),
         ..Default::default()
     };
     let app_plugin = AppPlugin { externals };
@@ -273,6 +292,24 @@ pub async fn bundle_app(
         .find(|n| n.starts_with("entry-") && n.ends_with(".js"))
         .context("app build: no entry chunk assets/entry-*.js emitted")?;
     let js_href = format!("/{url_namespace}/{js_name}");
+    // 6b. Discover every CSS asset Rolldown emitted under `assets/`. The
+    // `AssetModulePlugin` writes each `.css` import as `assets/<name>-<hash>.css`
+    // (content-hashed; default `asset_filenames = "assets/[name]-[hash][extname]"`).
+    // We link them directly from `index.html` — Vite-style: the SPA entry is JS,
+    // but global / token / shared CSS is a stylesheet the browser fetches in
+    // parallel, before the JS runs. The SuiPlugin's `load` hook returns `Ok(None)`
+    // for `.css`, so the builtin `AssetModulePlugin` handles it (it runs AFTER
+    // user plugins via `PluginHookMeta.order = Post`).
+    let mut css_names: Vec<String> = std::fs::read_dir(&assets_dir)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.ends_with(".css"))
+        .collect();
+    css_names.sort();
+    let css_hrefs: Vec<String> = css_names
+        .iter()
+        .map(|n| format!("/{url_namespace}/{n}"))
+        .collect();
     let public_dir = project.join("public");
     if public_dir.exists() {
         for entry in std::fs::read_dir(&public_dir)? {
@@ -282,17 +319,34 @@ pub async fn bundle_app(
             }
         }
     }
-
     // 8. Write the rendered index.html (the dev doesn't author it; the
     // template was rendered above in step 4). The script tag references
-    // the entry chunk.
-    let final_html = html.replace(
+    // the entry chunk; CSS assets (if any) get a `<link rel="stylesheet">`
+    // injected BEFORE the entry script so the browser fetches and applies
+    // them in parallel with the module load — same first-paint guarantee
+    // the per-view synthetic CSS render lifts (orthogonal layer — this is
+    // the GLOBAL/linkable CSS path; the view-synthetic one handles view
+    // chrome inline in SSR/CSR first-paint).
+    let mut final_html = html.replace(
         &format!("/{entry_module}"),
         &js_href,
     );
+    if !css_hrefs.is_empty() {
+        let link_tags = css_hrefs
+            .iter()
+            .map(|href| format!("  <link rel=\"stylesheet\" href=\"{href}\">"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        // Anchor immediately before the entry `<script type="module">`. The
+        // template renders `<script type="module" src="/<entry_module>">`
+        // first as a relative substitute; after the `.replace()` above it
+        // carries the final hashed href.
+        final_html = final_html.replace(
+            "  <script type=\"module\"",
+            &format!("{link_tags}\n  <script type=\"module\""),
+        );
+    }
     std::fs::write(out_dir.join("index.html"), final_html)?;
-
-    // 9. Self-contained build: materialize the /_deck/* code surface locally.
     let mut framework_assets = 0;
     if bundle_framework {
         let sui_dir = out_dir.join("_deck");
@@ -325,6 +379,7 @@ pub async fn bundle_app(
     Ok(AppBuild {
         out_dir: out_dir.to_path_buf(),
         js_href,
+        css_hrefs,
         framework_assets,
     })
 }
@@ -430,5 +485,112 @@ export default controller({ scope: () => ({ id: signal('demo') }) })\n",
         bundle_app(r, &[], r, &out, false, false, r, r)
             .await
             .expect("bundle_app should compile the .sui entry in-process");
+    }
+
+    /// When a deck app's module graph imports a `.css` file, the per-app
+    /// `bundle_app` builds it through Rolldown's NATIVE asset path
+    /// (`module_types: { ".css" -> Asset }` → `AssetModulePlugin`), emits
+    /// a content-hashed file under `<out>/assets/`, and lifts the link
+    /// into the generated `index.html` so the browser fetches the
+    /// stylesheet in parallel with the SPA entry module.
+    ///
+    /// Gate per `.artifacts/job-spec.md`: a CSS file imported by the entry
+    /// MUST end up as a hashed `.css` under `assets/` AND `<link
+    /// rel="stylesheet" href="/<ns>/<file>.css">` MUST appear in the
+    /// generated HTML — same URL convention the entry JS uses
+    /// (`/<namespace>/<file>`), so the daemon's `serve_app_asset`
+    /// (`GET /<app>/{file}`) serves it.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn bundle_app_emits_and_links_css_assets() {
+        let root = tempfile::tempdir().unwrap();
+        let r = root.path();
+        write(
+            &r.join("package.json"),
+            r#"{"name":"css-test-app","private":true,"type":"module"}"#,
+        );
+        // A minimal route so the entry isn't empty. The CSS import goes
+        // on the sibling controller so it reaches the entry graph (the
+        // entry is `routes.gen.ts`, which statically imports this).
+        write(
+            &r.join("routes/page.sui"),
+            "<div class=\"css-probe\">css</div>\n",
+        );
+        write(
+            &r.join("routes/controller.ts"),
+            "import './styles.css';\n\
+             import { controller } from '@ship/sui-runtime'\n\
+             export default controller({ scope: () => ({}) })\n",
+        );
+        write(
+            &r.join("routes/styles.css"),
+            ".css-probe { color: rebeccapurple; }\n",
+        );
+
+        let out = r.join("dist");
+        let build = bundle_app(r, &[], r, &out, false, false, r, r)
+            .await
+            .expect("bundle_app");
+
+        // Gate 1: at least one hashed `.css` asset emitted under
+        // `<out>/assets/`. The default Rolldown asset filename is
+        // `assets/[name]-[hash][extname]` → `assets/styles-<hash>.css`.
+        let css_on_disk: Vec<String> = std::fs::read_dir(out.join("assets"))
+            .expect("assets dir emitted")
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.ends_with(".css"))
+            .collect();
+        assert!(
+            !css_on_disk.is_empty(),
+            "expected a hashed .css asset under <out>/assets/, got none"
+        );
+        assert!(
+            css_on_disk.iter().all(|n| n.starts_with("styles-")),
+            "CSS asset should be content-hashed off the source stem (got {css_on_disk:?})"
+        );
+
+        // Gate 2: AppBuild exposes the absolute URLs the index.html link
+        // references — one per emitted file, all under `/<namespace>/`.
+        assert_eq!(build.css_hrefs.len(), css_on_disk.len(), "css_hrefs matches disk");
+        for href in &build.css_hrefs {
+            assert!(
+                href.starts_with("/css-test-app/styles-") && href.ends_with(".css"),
+                "css_href uses the same URL convention as the entry (/<ns>/<file>.css), got {href}"
+            );
+        }
+
+        // Gate 3: the generated `index.html` links the CSS before the
+        // entry `<script type="module">`. Order matters — the stylesheet
+        // must apply BEFORE first paint, in parallel with module fetch.
+        let html = std::fs::read_to_string(out.join("index.html")).unwrap();
+        assert!(
+            html.contains("<link rel=\"stylesheet\""),
+            "index.html must link the CSS asset"
+        );
+        for href in &build.css_hrefs {
+            assert!(
+                html.contains(href),
+                "index.html must reference {href}"
+            );
+        }
+        // The link must precede the entry script (link is fetched + applied
+        // before module eval; same first-paint guarantee the view-synthetic
+        // CSS render lifts — but for GLOBAL/linkable CSS, not view chrome).
+        let link_pos = html.find("<link rel=\"stylesheet\"").unwrap();
+        let script_pos = html.find("<script type=\"module\"").unwrap();
+        assert!(
+            link_pos < script_pos,
+            "<link rel=stylesheet> must precede <script type=module>; got link@{link_pos} script@{script_pos}"
+        );
+
+        // Belt-and-braces: exactly one `<link rel="stylesheet">` per
+        // emitted CSS asset (no synthesized empty links when nothing was
+        // imported — the existing `bundle_app_generates_index_and_routes_gen`
+        // covers the zero-import path implicitly).
+        assert_eq!(
+            html.matches("<link rel=\"stylesheet\"").count(),
+            css_on_disk.len(),
+            "exactly one <link rel=stylesheet> per emitted CSS asset"
+        );
     }
 }

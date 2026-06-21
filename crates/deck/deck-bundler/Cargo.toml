@@ -22,6 +22,10 @@ tempfile = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
 rolldown = "1.0.3"
 rolldown_common = "1.0.3"
+# `module_types` on `BundlerOptions` takes `FxHashMap<String, ModuleType>`.
+# Already in the lockfile (transitive via `rolldown_common`); pinned direct
+# so the bundler can build the `{ ".css" -> Asset }` map without a wrapper.
+rustc-hash = "2"
 
 # glibc `malloc_trim` after each bundle returns the transient rolldown/oxc
 # module-graph arenas to the OS (#256). Linux-only; on other targets the

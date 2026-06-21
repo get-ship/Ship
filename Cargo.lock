@@ -1884,6 +1884,7 @@ dependencies = [
  "notify",
  "rolldown",
  "rolldown_common",
+ "rustc-hash 2.1.2",
  "serde",
  "serde_json",
  "sui-compiler",
