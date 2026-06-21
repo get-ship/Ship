@@ -12,6 +12,8 @@
 // that pack (`import '@ship/sui-chat-elements'`) — it is a declared dependency.
 import './ship-agents-table/ship-agents-table.compiled.js'
 import './ship-agent-card/ship-agent-card.compiled.js'
+import './ship-agent-list/ship-agent-list.compiled.js'
+import './ship-agent-detail/ship-agent-detail.compiled.js'
 import './ship-agent-chat/ship-agent-chat.compiled.js'
 import './ship-agent-thread/ship-agent-thread.compiled.js'
 import './sui-harness-blob/sui-harness-blob.compiled.js'

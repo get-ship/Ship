@@ -64,6 +64,7 @@
       "name": "@ship/hub",
       "version": "0.0.0",
       "dependencies": {
+        "@ship/agents": "workspace:*",
         "@ship/home": "workspace:*",
         "@ship/studio": "workspace:*",
       },
