@@ -10,6 +10,7 @@
   "dependencies": {
     "@ship/agents": "workspace:*",
     "@ship/home": "workspace:*",
-    "@ship/studio": "workspace:*"
+    "@ship/studio": "workspace:*",
+    "@ship/skills": "workspace:*"
   }
 }

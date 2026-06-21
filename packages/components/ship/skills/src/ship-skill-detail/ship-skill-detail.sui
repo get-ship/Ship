@@ -1,0 +1,219 @@
+<!--
+  <ship-skill-detail> — @ship/skills · the hub `/studio/skills/:id` viewer.
+
+  Reads `ship.skills.detail({ id })` (Connect SDK LiveSource) and
+  renders the skill's frontmatter, body, and files. The `:id` route
+  param flows through the hub route controller as the `id` prop.
+
+  Loading/missing/error states are first-class. The shell's detail
+  page is a full editor (markdown body + metadata section panels +
+  save). The hub surface is read-only — the spec narrows
+  `/studio/skills/[id]` to "renders the detail"; the shell already
+  owns the write path, so adding an editor here is a YAGNI for this
+  pass.
+
+  Composes
+    <sui-stack>         section stack
+    <sui-cluster>       meta row
+    <sui-icon>          affordance glyphs
+    <sui-badge>         scope pill
+    <sui-markdown>      body renderer (read-only)
+    <sui-empty-state>   missing / error fallback
+    <sui-spinner>       loading indicator
+
+  Prop / event
+  ─────────────────────────────────────────────────────────────────────
+  id   (string, '')   skill id from the route (the `:id` param)
+
+  Emits:
+    ship-skill-back   {}   click on the back link
+-->
+
+<prop name="id" type="string" default="" />
+
+<style>
+  :host { display: block; }
+
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--muted-foreground);
+    text-decoration: none;
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-2);
+  }
+  .back:hover { color: var(--foreground); text-decoration: underline; }
+  .back:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  .header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+  }
+  .glyph {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    background: color-mix(in oklab, var(--primary) 14%, transparent);
+    color: var(--primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .header-body { flex: 1; min-width: 0; }
+  .title {
+    font-family: var(--heading-font, var(--font-display));
+    font-size: var(--text-2xl, var(--text-xl));
+    font-weight: var(--heading-weight, var(--font-weight-semibold));
+    letter-spacing: var(--heading-tracking);
+    color: var(--foreground);
+    margin: 0 0 var(--space-1);
+  }
+  .meta {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .meta code {
+    background: var(--muted);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    color: var(--foreground);
+  }
+  .rule {
+    width: 64px;
+    height: var(--space-1);
+    border-radius: var(--radius-sm);
+    background: linear-gradient(90deg, var(--primary), transparent);
+    margin-top: var(--space-2);
+  }
+
+  .meta-panel {
+    padding: var(--space-3);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+  .meta-panel h2 {
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted-foreground);
+    margin: 0 0 var(--space-2);
+  }
+  .fm-row {
+    display: grid;
+    grid-template-columns: minmax(80px, max-content) 1fr;
+    gap: var(--space-3);
+    padding: var(--space-1) 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    align-items: baseline;
+  }
+  .fm-key { color: var(--muted-foreground); }
+  .fm-val { color: var(--foreground); overflow-wrap: anywhere; }
+
+  .files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .file {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-2);
+    background: var(--muted);
+    border-radius: var(--radius-sm);
+    color: var(--foreground);
+  }
+
+  .body {
+    padding: var(--space-4);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+</style>
+
+<a class="back" href="/studio/skills" data-test="skill-detail-back" on:click={onBack}>
+  <sui-icon name="chevron-left" size="xs"></sui-icon>
+  Skills
+</a>
+
+{#if state() === 'loading'}
+  <div class="skills-loading" data-test="skill-detail-loading">
+    <sui-spinner size="md" centered></sui-spinner>
+  </div>
+{:else if state() === 'error'}
+  <sui-empty-state variant="default" size="md" tone="muted" data-test="skill-detail-error">
+    <sui-icon slot="icon" name="alert-triangle"></sui-icon>
+    <span slot="title">Couldn't load skill</span>
+    The skill detail couldn't be read right now. Reload to try again.
+  </sui-empty-state>
+{:else if state() === 'missing'}
+  <sui-empty-state variant="default" size="md" tone="muted" data-test="skill-detail-missing">
+    <sui-icon slot="icon" name="search-x"></sui-icon>
+    <span slot="title">No such skill</span>
+    <span>{'No skill with id "' + id() + '" was found.'}</span>
+  </sui-empty-state>
+{:else}
+  <header class="header" data-test="skill-detail-head">
+    <span class="glyph" aria-hidden="true"><sui-icon name="sparkles" size="md"></sui-icon></span>
+    <div class="header-body">
+      <h1 class="title" data-test="skill-detail-title">{detail().name || detail().id}</h1>
+      <div class="meta" data-test="skill-detail-meta">
+        <code>{detail().id}</code>
+        <span aria-hidden="true">·</span>
+        <sui-badge tone="muted" variant="outline" size="sm">{scopeLabel()}</sui-badge>
+      </div>
+      <div class="rule" aria-hidden="true"></div>
+    </div>
+  </header>
+
+  <sui-stack class="skill-body" data-test="skill-detail-body" gap="5">
+    {#if frontmatterRows().length > 0}
+      <section class="meta-panel" data-test="skill-detail-frontmatter">
+        <h2>Frontmatter · {frontmatterRows().length}</h2>
+        <sui-stack gap="0">
+          {#for row of frontmatterRows() key={row.key}}
+            <div class="fm-row">
+              <span class="fm-key">{row.key}</span>
+              <span class="fm-val">{row.value}</span>
+            </div>
+          {/for}
+        </sui-stack>
+      </section>
+    {/if}
+
+    <section class="body" data-test="skill-detail-content">
+      {#if detail().body}
+        <sui-markdown attr:value={detail().body}></sui-markdown>
+      {:else}
+        <sui-empty-state variant="inline" size="sm" tone="muted" data-test="skill-detail-no-body">
+          <sui-icon slot="icon" name="file"></sui-icon>
+          <span slot="title">No body</span>
+          This skill has no SKILL.md content yet.
+        </sui-empty-state>
+      {/if}
+    </section>
+
+    {#if detail().files.length > 0}
+      <section class="meta-panel" data-test="skill-detail-files">
+        <h2>Files · {detail().files.length}</h2>
+        <div class="files">
+          {#for f of detail().files key={f}}
+            <code class="file">{f}</code>
+          {/for}
+        </div>
+      </section>
+    {/if}
+  </sui-stack>
+{/if}
