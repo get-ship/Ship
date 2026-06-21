@@ -1,0 +1,167 @@
+<!--
+  <ship-activity-runs> — @ship/home · recent pipeline runs on the hub `/`.
+
+  The "active runs" widget of the home dashboard. Reads
+  ship.pipelines.summaries() (Connect SDK) and renders the active_runs
+  list, bounded by `limit`. Each row carries a state pill, the agent
+  name, the branch, and a "Nm ago" timestamp. The relative-time
+  re-renders every 30s (the controller's tick signal).
+
+  On loading + zero runs the component renders the empty-state. The
+  hub dashboard accepts that the home is a "summary" surface — the
+  full runs / history view lives at /studio/pipelines.
+
+  Composes
+    <sui-stack>      row stack
+    <sui-cluster>    row meta cluster
+    <sui-status-dot>  state indicator
+    <sui-badge>      state pill
+    <sui-empty-state>  no-runs fallback
+    <sui-icon>       affordance glyphs
+
+  Prop / event
+  ─────────────────────────────────────────────────────────────────────
+  limit   (number, 6)   max rows rendered
+  ─────────────────────────────────────────────────────────────────────
+
+  Emits:
+    ship-pipeline-open  { detail: { slug } }   click on a row
+-->
+
+<prop name="limit" type="number" default="6" />
+
+<style>
+  :host { display: block; }
+
+  .head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .head h2 {
+    font-family: var(--heading-font, var(--font-display));
+    font-size: var(--text-lg);
+    font-weight: var(--heading-weight, var(--font-weight-semibold));
+    letter-spacing: var(--heading-tracking);
+    margin: 0;
+    color: var(--foreground);
+  }
+  .head .sub {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .head .live {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--success);
+  }
+  .head .live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: sui-activity-live-pulse 1.8s var(--ease-out) infinite;
+  }
+  @keyframes sui-activity-live-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--success) 60%, transparent); }
+    50%      { box-shadow: 0 0 0 5px color-mix(in oklch, var(--success) 0%, transparent); }
+  }
+
+  /* The list is laid out with <sui-stack> in the template (avoids
+     hand-rolled flex column + gap). The styling below is the
+     clickable surface, hover, and focus ring. */
+  .row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--foreground);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+  }
+  .row:hover { background: var(--surface-1); }
+  .row:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+  /* The .row-main column is a <sui-stack> in the template; the host
+     supplies gap=1 there. The .row-when col is a fixed-width column
+     on the right; the .row-main flex:1 to claim the rest. */
+  .row-main {
+    flex: 1;
+    min-width: 0;
+  }
+  .row-name {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .row-meta {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .row-when {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+</style>
+
+<section class="head" data-test="home-activity">
+  <h2>Activity</h2>
+  <span class="sub">{sub()}</span>
+  <span class="live" aria-label="live" data-test="home-activity-live"><span class="live-dot"></span>live</span>
+</section>
+
+{#if !hasRuns()}
+  <sui-empty-state variant="inline" size="md" tone="muted" data-test="home-activity-empty">
+    <sui-icon slot="icon" name="activity"></sui-icon>
+    <span slot="title">No active runs</span>
+    Active pipeline runs will appear here as they start. Trigger one from the <b>Studio</b>.
+  </sui-empty-state>
+{:else}
+  <sui-stack class="rows" gap="1" data-test="home-activity-list">
+    {#for r of items() key={r.key}}
+      <a class="row" href={'/studio/pipelines/run/' + r.slug}
+         on:click={(e) => onOpen(e, r.slug)}
+         aria-label={'Open run ' + r.slug}>
+        <sui-status-dot tone={r.tone} size="sm" label={r.stateLabel}></sui-status-dot>
+        <sui-stack class="row-main" gap="1">
+          <span class="row-name">{r.slug}</span>
+          <span class="row-meta">
+            <span>{r.agent}</span>
+            {#if r.branch}
+              <span aria-hidden="true">·</span>
+              <span>{r.branch}</span>
+            {/if}
+            <sui-badge tone={r.tone} size="sm">{r.stateLabel}</sui-badge>
+          </span>
+        </sui-stack>
+        <span class="row-when">{r.updatedLabel}</span>
+      </a>
+    {/for}
+  </sui-stack>
+{/if}

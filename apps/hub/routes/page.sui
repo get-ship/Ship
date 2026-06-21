@@ -15,13 +15,15 @@
   job's scope. Until then the nav is composed per-page (here + the studio
   route). Both render the same <ship-nav-top>.
 
-  The `{name()}` binding exists so the compiler emits `hydrate` on the view's
-  setup return (the compiler only emits hydrate when the template binds to
-  scope signals; without it the runtime has nothing to call). The signal is a
-  no-op constant.
+  Dashboard composite: the page composes the @ship/home pack (greeting +
+  spaces grid + recent-runs). The pack controllers read the Connect SDK
+  directly; the page supplies the workspace name + a JSON-encoded spaces
+  list (a list-all-spaces SDK method is a known BACKEND-GAP — the spaces
+  grid degrades to the empty-state until the gap closes).
 -->
 <ship-nav-top></ship-nav-top>
-<main>
-  <h1>{name()}</h1>
-  <p>Ship's primary app — ready when you are.</p>
+<main class="hub-home">
+  <ship-home-greeting workspace={workspace()}></ship-home-greeting>
+  <ship-spaces-hero spaces={spacesJson()} limit="8"></ship-spaces-hero>
+  <ship-activity-runs limit="6"></ship-activity-runs>
 </main>
