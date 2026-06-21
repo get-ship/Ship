@@ -13,7 +13,7 @@
 use std::collections::BTreeMap;
 
 use super::super::writer::Writer;
-use super::{emit_controller, render, scan, AppManifest, AuthoredController};
+use super::{emit_controller, render, AppManifest, AuthoredController};
 use crate::diagnostics::CompileError;
 use crate::ir::Program;
 use crate::CompileMode;
@@ -39,12 +39,9 @@ pub fn emit_synthetic_client_module(
     mode: CompileMode,
     component_tag: Option<&str>,
 ) -> Result<String, CompileError> {
-    let mut used: Vec<String> = Vec::new();
-    for name in manifest.clients.keys() {
-        if scan::references_ident(program, name) {
-            used.push(name.clone());
-        }
-    }
+    // Per-view resolver, including the convention-backed `route`/`navigate`
+    // names — the bundler and the SSR build both feed through this seam.
+    let used = super::used_clients(program, manifest);
     let controller_ts = emit_controller(program, manifest, &used, authored, mode)?;
     let client_ts = render::emit_render_client(
         program,
