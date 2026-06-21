@@ -3,9 +3,34 @@
    style.css into every nested route under views/studio/, so this layout
    applies to /studio, /studio/agents, /studio/agents/[id], … without each
    leaf re-declaring it. The rail itself (<sui-studio-rail>) carries its own
-   styles in shadow DOM; this file owns only the surrounding frame. */
+   styles in shadow DOM; this file owns only the surrounding frame.
 
-.studio-view {
+   Height chain (port-studio-render):
+     #ship-root
+       └─ <ship-app-chrome>            (root layout, min-height: 100vh, flex col)
+            └─ <ship-nav-top>          (fixed)
+            └─ <main.app-main>         (flex: 1, min-height: 0)
+                 └─ [slot=route]
+                      └─ <sui-studio-chrome>    (slot="route" set in mount — projects here)
+                           └─ <main.main>      (1fr, min-height: 0)
+                                └─ [slot=route]
+                                     └─ <div slot="route">    (router mount target)
+                                          └─ .studio-view     (height: 100%, grid 220px 1fr)
+
+   The router creates the innermost <div slot="route"> unstyled. To make
+   `.studio-view`'s `height: 100%` resolve, that div must fill its slotted
+   parent (`<main class="main">` in the studio chrome). Make the slot-
+   tagged div a flex column with `flex: 1; min-height: 0` so it takes the
+   1fr row, and `.studio-view` (already `height: 100%; min-height: 0`) gets
+   a resolved height to lay its grid out against. The selector is keyed on
+   `[slot="route"]` (the attribute the runtime's `buildMountTarget` sets),
+   not on a class — the router never assigns a class to the mount target. */
+[slot="route"] {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+
   display: grid;
   height: 100%;
   min-height: 0;

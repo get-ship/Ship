@@ -43,15 +43,26 @@ export default controller({
     // `rail` is a `LiveSignal<unknown>` — call it directly and narrow the
     // `ok` envelope's `value` (unknown to the type system) to the payload.
     const loading = derived(() => rail().kind !== 'ok')
+    // Defensive: the hub's `ship.skills.summaries` returns a different /
+    // empty shape than the shell's. A missing `groups` or `kind_counts`
+    // must NOT throw — the derived re-runs on every source tick, so an
+    // unguarded `.flatMap` / `.find` on `undefined` triggers the runtime's
+    // crash → re-subscribe loop and a CPU storm. Mirror the agents
+    // controller's `v?.groups ?? []` pattern: degrade to empty arrays
+    // and let the page's own loading/empty state render.
     const items = derived(() => {
       const r = rail()
       if (r.kind !== 'ok') return []
-      return (r.value as RailValue).groups.flatMap((g) => g.skills)
+      const v = r.value as Partial<RailValue> | null | undefined
+      const groups = Array.isArray(v?.groups) ? v!.groups : []
+      return groups.flatMap((g) => Array.isArray(g?.skills) ? g.skills : [])
     })
     const total = derived(() => {
       const r = rail()
       if (r.kind !== 'ok') return 0
-      return (r.value as RailValue).kind_counts.find((k) => k.id === 'all')?.count ?? 0
+      const v = r.value as Partial<RailValue> | null | undefined
+      const counts = Array.isArray(v?.kind_counts) ? v!.kind_counts : []
+      return counts.find((k) => k?.id === 'all')?.count ?? 0
     })
     return { q, kind, rail, loading, items, total }
   },
