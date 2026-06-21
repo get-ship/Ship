@@ -1,0 +1,22 @@
+<!--
+  Hub studio · `/studio/agents` — the agents list index.
+
+  Composes the `@ship/agents` pack's <ship-agent-list>, which owns
+  the data wiring (ship.agents.summaries() via live() inside the
+  controller) and the search/filter state. The route is a thin
+  composition — chrome is the root layout, the page body is the pack
+  composite.
+
+  Top chrome: the <ship-nav-top> is owned by the root layout
+  (`routes/_layout.sui` → `<ship-app-chrome>`).
+
+  Per the hub-buildout-charter §Connect-only, the list is wired to the
+  real Connect SDK op `ship.agents.summaries()`. No backend gap on
+  this surface — the SDK exposes the op (`packages/deck/sdk-client/
+  src/ship-sdk.ts::agents.summaries`) and the payload shape is
+  narrowed locally in the pack's controller (the same pattern the
+  shell's studio/agents and the home pack's <ship-activity-runs> use).
+-->
+<main class="studio-agents">
+  <ship-agent-list></ship-agent-list>
+</main>

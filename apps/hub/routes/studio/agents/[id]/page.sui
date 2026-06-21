@@ -1,0 +1,24 @@
+<!--
+  Hub studio · `/studio/agents/:id` — the single-agent detail viewer.
+
+  Composes the `@ship/agents` pack's <ship-agent-detail>, passing
+  the route's `[id]` param as the composite's `id` prop. The
+  composite owns the data wiring (ship.agents.detail({ id }) via
+  live() inside the controller) and renders the agent's identity
+  header, description, tags, capabilities, and source path.
+
+  The route is a thin composition — chrome is the root layout, the
+  page body is the pack composite + the `id` prop binding.
+
+  Top chrome: the <ship-nav-top> is owned by the root layout
+  (`routes/_layout.sui` → `<ship-app-chrome>`).
+
+  Per the hub-buildout-charter §Connect-only, the detail is wired to
+  the real Connect SDK op `ship.agents.detail({ id })`. The composite's
+  controller narrows the `unknown` payload to the per-agent shape
+  the surface renders; missing fields fall back to the id-hash hue
+  and the id-derived initials.
+-->
+<main class="studio-agent-detail">
+  <ship-agent-detail prop:id={id()}></ship-agent-detail>
+</main>
