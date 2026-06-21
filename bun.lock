@@ -46,7 +46,6 @@
         "@bufbuild/protobuf": "^2.5.2",
         "@connectrpc/connect": "^2.0.3",
         "@ship-cloud/types": "workspace:*",
-        "@ship/sdk": "workspace:*",
         "better-auth": "^1.5.3",
         "drizzle-orm": "catalog:",
         "hono": "catalog:",
@@ -64,6 +63,10 @@
     "apps/hub": {
       "name": "@ship/hub",
       "version": "0.0.0",
+      "dependencies": {
+        "@ship/home": "workspace:*",
+        "@ship/studio": "workspace:*",
+      },
     },
     "apps/site": {
       "name": "@ship/site",
@@ -224,6 +227,7 @@
       "dependencies": {
         "@ship/deck/route": "workspace:*",
         "@ship/sdk": "workspace:*",
+        "@ship/sdk-client": "workspace:*",
         "@ship/sui-dom": "workspace:*",
         "@ship/sui-primitives": "workspace:*",
         "@ship/sui-runtime": "workspace:*",
@@ -280,6 +284,20 @@
       "devDependencies": {
         "@ship/test-setup": "workspace:*",
         "happy-dom": "^20.9.0",
+        "vitest": "^4.1.5",
+      },
+    },
+    "packages/components/ship/home": {
+      "name": "@ship/home",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ship/sdk-client": "workspace:*",
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-primitives": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "@ship/test-setup": "workspace:*",
         "vitest": "^4.1.5",
       },
     },
@@ -360,6 +378,20 @@
       "devDependencies": {
         "@ship/test-setup": "workspace:*",
         "happy-dom": "^20.9.0",
+        "vitest": "^4.1.5",
+      },
+    },
+    "packages/components/ship/studio": {
+      "name": "@ship/studio",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ship/sdk-client": "workspace:*",
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-primitives": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "@ship/test-setup": "workspace:*",
         "vitest": "^4.1.5",
       },
     },
@@ -507,17 +539,9 @@
       },
       "devDependencies": {
         "@tanstack/query-core": "^5.96.2",
-        "@types/react": "^19.0.0",
-        "react": "^19.0.0",
         "typescript": "~5.8.3",
         "vitest": "^4.1.5",
       },
-      "peerDependencies": {
-        "react": "^19.0.0",
-      },
-      "optionalPeers": [
-        "react",
-      ],
     },
     "packages/deck/sdk-client": {
       "name": "@ship/sdk-client",
@@ -1205,6 +1229,8 @@
 
     "@ship/docs": ["@ship/docs@workspace:apps/docs"],
 
+    "@ship/home": ["@ship/home@workspace:packages/components/ship/home"],
+
     "@ship/hub": ["@ship/hub@workspace:apps/hub"],
 
     "@ship/markdown": ["@ship/markdown@workspace:packages/components/ship/markdown"],
@@ -1222,6 +1248,8 @@
     "@ship/site": ["@ship/site@workspace:apps/site"],
 
     "@ship/spaces": ["@ship/spaces@workspace:packages/components/ship/spaces"],
+
+    "@ship/studio": ["@ship/studio@workspace:packages/components/ship/studio"],
 
     "@ship/sui-canvas": ["@ship/sui-canvas@workspace:packages/components/ship/canvas"],
 
