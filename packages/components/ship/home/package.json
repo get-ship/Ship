@@ -1,0 +1,36 @@
+{
+  "name": "@ship/home",
+  "version": "0.1.0",
+  "description": "Ship Home pack — <ship-home-greeting>, <ship-spaces-hero>, <ship-activity-runs>. The hub `/` dashboard composite; composes <sui-card> / <sui-avatar> / <sui-status-dot> / <sui-empty-state> / <sui-stack> / <sui-badge> from @ship/sui-primitives. The greeting and spaces-hero are pure-derived presenters; ship-activity-runs reads the Connect SDK (ship.pipelines.summaries). Spaces-list is a known BACKEND-GAP; <ship-spaces-hero> degrades to the empty-state until a list-all-spaces SDK method lands.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "customElements": "dist/custom-elements.json",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "deck": {
+    "bundles": [
+      {
+        "name": "ship-home",
+        "entry": "src/index.ts",
+        "externals": ["@ship/sui-runtime", "@ship/sui-dom", "@ship/sdk-client"],
+        "lazy": true
+      }
+    ]
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship/sdk-client": "workspace:*",
+    "@ship/sui-dom": "workspace:*",
+    "@ship/sui-primitives": "workspace:*",
+    "@ship/sui-runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "@ship/test-setup": "workspace:*",
+    "vitest": "^4.1.5"
+  }
+}

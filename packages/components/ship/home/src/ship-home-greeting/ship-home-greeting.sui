@@ -1,0 +1,93 @@
+<!--
+  <ship-home-greeting> — @ship/home · greeting strip for the hub `/`.
+
+  The hero band of the home dashboard: hour-of-day greeting (morning /
+  afternoon / evening), workspace label (when supplied), and a small
+  weekday + date + clock readout. The clock ticks every 30s; the
+  template's derived reads re-run on the tick signal, swapping only
+  the data-clock text node (pure expression, no I/O in the template).
+
+  Pure-derived presenter — no SDK I/O. The workspace label is supplied
+  as a prop or, when absent, falls back to the controller's default
+  sub-line (the host's controller wires the workspace name from the
+  live pipelines workspace_id, but the component itself stays
+  presentational).
+
+  Prop / event
+  workspace (string, '')   workspace label shown next to the greeting
+
+  Tokens only: the strip uses --font-display, --font-mono, --foreground,
+  --muted-foreground, --primary, --border, --space-*. No component-
+  local hard-coded colours; theming is inherited from the parent.
+-->
+
+<prop name="workspace" type="string" default="" />
+
+<style>
+  :host { display: block; }
+
+  /* The greeting line is a baseline-aligned flex row of {title, workspace
+     chip, day/clock}. <sui-cluster> is the right primitive for the
+     cluster shape, but it does not support pushing the trailing chip to
+     the row's end with `margin-left: auto` — the design wants the day
+     pushed to the end of the row. Keeping the hand-rolled rule. */
+  .greet {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+  .greet-title {
+    font-family: var(--heading-font, var(--font-display));
+    font-size: var(--text-3xl, 30px);
+    font-weight: var(--heading-weight, var(--font-weight-semibold));
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin: 0;
+    color: var(--foreground);
+  }
+  .greet-ws {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs, 13px);
+    color: var(--muted-foreground);
+    padding: var(--space-1) var(--space-2);
+    background: var(--muted);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+  }
+  .greet-day {
+    margin-left: auto;
+    font-size: var(--text-xs, 12.5px);
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .greet-rule {
+    width: 96px;
+    height: 4px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(90deg, var(--primary), transparent);
+    margin-top: var(--space-2);
+  }
+
+  .greet-sub {
+    font-size: var(--text-sm, 13px);
+    color: var(--muted-foreground);
+    margin: var(--space-3) 0 0;
+    line-height: 1.5;
+  }
+  .greet-sub b { color: var(--foreground); font-weight: var(--font-weight-semibold); }
+</style>
+
+<header class="greet" data-test="home-greeting">
+  <h1 class="greet-title">{greeting()}.</h1>
+  {#if workspace()}
+    <span class="greet-ws" data-test="home-greeting-workspace">{workspace()}</span>
+  {/if}
+  <span class="greet-day" data-test="home-greeting-day">{dayLabel()} · {clock()}</span>
+</header>
+<div class="greet-rule" aria-hidden="true"></div>
+<p class="greet-sub">{sub()}</p>
