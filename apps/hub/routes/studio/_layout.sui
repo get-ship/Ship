@@ -33,21 +33,3 @@
   </main>
   <sui-shell-bottom></sui-shell-bottom>
 </sui-studio-chrome>
-
-<style>
-  sui-studio-chrome {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-rows: 1fr auto;
-    width: 100%;
-    min-height: 100vh;
-    background: var(--surface-0);
-    color: var(--foreground);
-    font-family: var(--font-body);
-  }
-  .studio-main {
-    grid-column: 2;
-    grid-row: 1;
-    overflow: auto;
-  }
-</style>

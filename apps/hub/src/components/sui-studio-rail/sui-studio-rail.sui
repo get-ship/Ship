@@ -36,7 +36,10 @@
     display: flex; align-items: center; gap: 8px;
     padding: 10px 16px;
     border-bottom: 1px solid var(--border-subtle);
+    text-decoration: none;
+    cursor: pointer;
   }
+  .h:hover { background: var(--hover-bg); }
   .h-mark {
     width: 20px; height: 20px;
     border-radius: var(--radius-sm);
@@ -148,53 +151,23 @@
   .exit:hover { color: var(--foreground); background: var(--hover-bg); }
 </style>
 
-<div class="h">
+<a class="h" href="/studio" data-test="rail-home">
   <span class="h-mark" aria-hidden="true"><sui-icon name="grid" size="sm"></sui-icon></span>
   <span class="h-text">Studio</span>
   <span class="h-rule" aria-hidden="true"></span>
-</div>
-
-<nav class="section" aria-label="Project">
-  <div class="section-h">Project <span class="section-h-count">{projectItems().length}</span></div>
-  {#for item of projectItems() key={item.id}}
-    <div class="item is-soon" data-test="rail-item" attr:data-section={item.id}>
-      <span class="item-icon" aria-hidden="true"><sui-icon attr:name={item.icon} size="xs"></sui-icon></span>
-      <span class="item-label">{item.label}</span>
-      <span class="item-soon">soon</span>
-    </div>
-  {/for}
-</nav>
+</a>
 
 <nav class="section" aria-label="Configure">
   <div class="section-h">Configure <span class="section-h-count">{configureItems().length}</span></div>
   {#for item of configureItems() key={item.id}}
-    {#if item.href}
-      <a class="item" data-test="rail-item"
-        attr:data-section={item.id}
-        attr:data-active={item.active}
-        attr:href={item.href}>
-        <span class="item-icon" aria-hidden="true"><sui-icon attr:name={item.icon} size="xs"></sui-icon></span>
-        <span class="item-label">{item.label}</span>
-        {#if item.count}<span class="item-count">{item.count}</span>{/if}
-      </a>
-    {:else}
-      <div class="item is-soon" data-test="rail-item" attr:data-section={item.id}>
-        <span class="item-icon" aria-hidden="true"><sui-icon attr:name={item.icon} size="xs"></sui-icon></span>
-        <span class="item-label">{item.label}</span>
-        <span class="item-soon">soon</span>
-      </div>
-    {/if}
-  {/for}
-</nav>
-
-<nav class="section" aria-label="Library">
-  <div class="section-h">Library <span class="section-h-count">{libraryItems().length}</span></div>
-  {#for item of libraryItems() key={item.id}}
-    <div class="item is-soon" data-test="rail-item" attr:data-section={item.id}>
+    <a class="item" data-test="rail-item"
+      attr:data-section={item.id}
+      attr:data-active={item.active}
+      attr:href={item.href}>
       <span class="item-icon" aria-hidden="true"><sui-icon attr:name={item.icon} size="xs"></sui-icon></span>
       <span class="item-label">{item.label}</span>
-      <span class="item-soon">soon</span>
-    </div>
+      {#if item.count}<span class="item-count">{item.count}</span>{/if}
+    </a>
   {/for}
 </nav>
 

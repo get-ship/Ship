@@ -28,9 +28,10 @@
   `<sui-nav-top>` primitive). This wrapper stitches the two: the bar
   PLUS the named slot the router fills.
 
-  Layout: column flex. The bar is fixed-height; the main region takes
-  the remaining height. `min-height: 100vh` so the chrome fills the
-  viewport on first paint before the route content has measured.
+  Layout: `position: fixed; inset: 0` so the chrome fills the viewport
+  exactly (bypasses the browser's default 8px body margin) and is
+  immune to content-driven growth. Inner column flex: the bar is
+  fixed-height; the main region takes the remaining height via `flex:1`.
 
   No slots beyond `route` — the wrapper is pure chrome scaffolding.
   View-injected pass-through slots (e.g. a per-view top-bar action
@@ -44,7 +45,9 @@
   :host {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-body);
@@ -54,7 +57,9 @@
   .app-main {
     flex: 1;
     min-height: 0;
-    display: block;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
   }
 </style>
 

@@ -12,9 +12,10 @@
 // events the shell fires on every SPA navigation.
 //
 // Counts come from the daemon REST API, not the SDK live channel, so the
-// rail stays dependency-light inside the eager chrome bundle. Only the
-// Agents section is backed by a deck view today; the rest are honest
-// "soon" placeholders (no href, no fabricated count).
+// rail stays dependency-light inside the eager chrome bundle. Agents,
+// skills, and components have live deck routes. Collections and themes link
+// out but their routes are not yet implemented; the router clears the route
+// slot on an unmatched path.
 
 import { controller, signal, derived, effect } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
@@ -34,29 +35,16 @@ interface RailEntry {
   count?: string
 }
 
-const PROJECT: ReadonlyArray<RailEntry> = [
-  { id: 'overview', label: 'Overview', icon: 'circle' },
-  { id: 'isolation', label: 'Isolation', icon: 'box' },
-]
-
-// Agents is the one section live as a deck view (views/studio/agents/**).
-// The others land as deck views in follow-ups; until then they're honest
-// placeholders rather than links into the void.
+// Live routes: agents, skills, components. Collections and themes have
+// hrefs but routes are pending — the router clears the content area on
+// navigation while the chrome stays (chrome is fixed, lives above the
+// router's replaceChildren scope).
 const CONFIGURE: ReadonlyArray<RailEntry> = [
   { id: 'agents', label: 'Agents', icon: 'bot', href: '/studio/agents' },
   { id: 'skills', label: 'Skills', icon: 'zap', href: '/studio/skills' },
   { id: 'components', label: 'Components', icon: 'layers', href: '/studio/components' },
-  { id: 'themes', label: 'Themes', icon: 'palette', href: '/studio/themes' },
   { id: 'collections', label: 'Collections', icon: 'database', href: '/studio/collections' },
-  { id: 'pipelines', label: 'Pipelines', icon: 'workflow', href: '/studio/pipelines' },
-  { id: 'mcp', label: 'MCP servers', icon: 'terminal' },
-  { id: 'permissions', label: 'Permissions', icon: 'shield' },
-]
-
-const LIBRARY: ReadonlyArray<RailEntry> = [
-  { id: 'installed', label: 'Installed', icon: 'package' },
-  { id: 'marketplace', label: 'Marketplace', icon: 'store' },
-  { id: 'publishing', label: 'Publishing', icon: 'upload' },
+  { id: 'themes', label: 'Themes', icon: 'palette', href: '/studio/themes' },
 ]
 
 function isActive(path: string, href: string): true | null {
@@ -102,9 +90,7 @@ export default controller({
     )
 
     return {
-      projectItems: derived<RailEntry[]>(() => PROJECT.map((e) => ({ ...e }))),
       configureItems,
-      libraryItems: derived<RailEntry[]>(() => LIBRARY.map((e) => ({ ...e }))),
     }
   },
 })
