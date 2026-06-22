@@ -58,110 +58,133 @@ async function main() {
   const stamp = Date.now();
   // Collection ids are snake_case alphanumeric per the trait validator.
   const collectionId = `loop_${stamp}`;
-
-  // 1. CREATE SCHEMA
-  const schema = {
-    id: collectionId,
-    name: `Loop ${stamp}`,
-    fields: {
-      title: { type: "string", required: true },
-      body: { type: "markdown" },
-      priority: { type: "number", filterable: true },
-    },
-  };
-  const created = await api("/api/v1/collections", {
-    method: "POST",
-    body: JSON.stringify(schema),
-  });
-  if (created.status === 409) {
-    // Stale collection from a previous run — soft skip on schema create
-    // and continue with the existing id.
-    console.log(`~ schema ${collectionId} already exists; reusing`);
-  } else {
-    assert(created.status === 201, `POST /api/v1/collections → 201 (got ${created.status})`);
-  }
-
-  // 2. LIST SCHEMAS — new id appears
-  const list = await api("/api/v1/collections");
-  assert(list.status === 200, "GET /api/v1/collections → 200");
-  const items = list.data.data ?? [];
-  assert(
-    items.some((s) => s.id === collectionId),
-    `list contains ${collectionId}`,
-  );
-
-  // 3. CREATE ITEMS
-  const baseTime = stamp;
+  // Track the schema we create so the finally block can warn if we leak
+  // it. `CollectionsService` has no DeleteSchema RPC (see
+  // proto/ship/ops/v1/collections.proto:133-199) — once a schema is
+  // POSTed it lives in the daemon's space.db for the lifetime of that
+  // home. The prod-guard at the top of this file refuses to run against
+  // ~/.ship unless explicitly opted in, so in practice the leak is
+  // confined to a test home (which the operator can `rm -rf` to clean
+  // up). The warning below makes the leak loud rather than silent.
+  let schemaCreated = false;
   const itemIds = [];
-  for (let i = 0; i < 3; i++) {
-    const itemId = `item-${stamp}-${i}`;
-    itemIds.push(itemId);
-    const r = await api(`/api/v1/collections/${collectionId}/items`, {
+
+  try {
+    // 1. CREATE SCHEMA
+    const schema = {
+      id: collectionId,
+      name: `Loop ${stamp}`,
+      fields: {
+        title: { type: "string", required: true },
+        body: { type: "markdown" },
+        priority: { type: "number", filterable: true },
+      },
+    };
+    const created = await api("/api/v1/collections", {
+      method: "POST",
+      body: JSON.stringify(schema),
+    });
+    if (created.status === 409) {
+      // Stale collection from a previous run — soft skip on schema create
+      // and continue with the existing id.
+      console.log(`~ schema ${collectionId} already exists; reusing`);
+    } else {
+      assert(created.status === 201, `POST /api/v1/collections → 201 (got ${created.status})`);
+      schemaCreated = true;
+    }
+
+    // 2. LIST SCHEMAS — new id appears
+    const list = await api("/api/v1/collections");
+    assert(list.status === 200, "GET /api/v1/collections → 200");
+    const items = list.data.data ?? [];
+    assert(
+      items.some((s) => s.id === collectionId),
+      `list contains ${collectionId}`,
+    );
+
+    // 3. CREATE ITEMS
+    const baseTime = stamp;
+    for (let i = 0; i < 3; i++) {
+      const itemId = `item-${stamp}-${i}`;
+      itemIds.push(itemId);
+      const r = await api(`/api/v1/collections/${collectionId}/items`, {
+        method: "POST",
+        body: JSON.stringify({
+          id: itemId,
+          data: {
+            title: `Item ${i}`,
+            body: `Body ${i}`,
+            priority: i * 10,
+          },
+        }),
+      });
+      assert(r.status === 201, `create item ${itemId} → 201 (got ${r.status})`);
+    }
+
+    // 4. GET ITEM — round-trip the middle item
+    const middle = await api(`/api/v1/collections/${collectionId}/items/${itemIds[1]}`);
+    assert(middle.status === 200, `GET item → 200`);
+    assert(middle.data.data?.data?.title === "Item 1", "item title round-trips");
+    assert(middle.data.data?.data?.priority === 10, "item priority round-trips");
+
+    // 5. QUERY — sort by priority desc, expect [item-2, item-1, item-0]
+    const queried = await api(`/api/v1/collections/${collectionId}/query`, {
       method: "POST",
       body: JSON.stringify({
-        id: itemId,
-        data: {
-          title: `Item ${i}`,
-          body: `Body ${i}`,
-          priority: i * 10,
-        },
+        collection: collectionId,
+        sort: { priority: -1 },
+        limit: 10,
       }),
     });
-    assert(r.status === 201, `create item ${itemId} → 201 (got ${r.status})`);
-  }
+    assert(queried.status === 200, "POST query → 200");
+    const results = queried.data.data ?? [];
+    assert(results.length >= 3, `query returns at least 3 items (got ${results.length})`);
+    // Filter to just our items
+    const ours = results.filter((it) => itemIds.includes(it.id));
+    assert(ours.length === 3, `query returns exactly our 3 items (got ${ours.length})`);
+    assert(
+      ours[0].data?.priority === 20 && ours[2].data?.priority === 0,
+      `priority desc order [20, 10, 0] (got [${ours.map((i) => i.data?.priority).join(", ")}])`,
+    );
 
-  // 4. GET ITEM — round-trip the middle item
-  const middle = await api(`/api/v1/collections/${collectionId}/items/${itemIds[1]}`);
-  assert(middle.status === 200, `GET item → 200`);
-  assert(middle.data.data?.data?.title === "Item 1", "item title round-trips");
-  assert(middle.data.data?.data?.priority === 10, "item priority round-trips");
-
-  // 5. QUERY — sort by priority desc, expect [item-2, item-1, item-0]
-  const queried = await api(`/api/v1/collections/${collectionId}/query`, {
-    method: "POST",
-    body: JSON.stringify({
-      collection: collectionId,
-      sort: { priority: -1 },
-      limit: 10,
-    }),
-  });
-  assert(queried.status === 200, "POST query → 200");
-  const results = queried.data.data ?? [];
-  assert(results.length >= 3, `query returns at least 3 items (got ${results.length})`);
-  // Filter to just our items
-  const ours = results.filter((it) => itemIds.includes(it.id));
-  assert(ours.length === 3, `query returns exactly our 3 items (got ${ours.length})`);
-  assert(
-    ours[0].data?.priority === 20 && ours[2].data?.priority === 0,
-    `priority desc order [20, 10, 0] (got [${ours.map((i) => i.data?.priority).join(", ")}])`,
-  );
-
-  // 6. UPDATE — partial-merge a field
-  const upd = await api(`/api/v1/collections/${collectionId}/items/${itemIds[0]}`, {
-    method: "PUT",
-    body: JSON.stringify({ data: { priority: 999 } }),
-  });
-  assert(upd.status === 200, "PUT item → 200");
-  assert(upd.data.data?.data?.priority === 999, "priority updated");
-  assert(
-    upd.data.data?.data?.title === "Item 0",
-    "title preserved across partial update",
-  );
-
-  // 7. DELETE
-  for (const itemId of itemIds) {
-    const r = await api(`/api/v1/collections/${collectionId}/items/${itemId}`, {
-      method: "DELETE",
+    // 6. UPDATE — partial-merge a field
+    const upd = await api(`/api/v1/collections/${collectionId}/items/${itemIds[0]}`, {
+      method: "PUT",
+      body: JSON.stringify({ data: { priority: 999 } }),
     });
-    assert(r.status === 200, `delete ${itemId} → 200`);
+    assert(upd.status === 200, "PUT item → 200");
+    assert(upd.data.data?.data?.priority === 999, "priority updated");
+    assert(
+      upd.data.data?.data?.title === "Item 0",
+      "title preserved across partial update",
+    );
+
+    // 7. DELETE ITEMS
+    for (const itemId of itemIds) {
+      const r = await api(`/api/v1/collections/${collectionId}/items/${itemId}`, {
+        method: "DELETE",
+      });
+      assert(r.status === 200, `delete ${itemId} → 200`);
+    }
+    const verify = await api(`/api/v1/collections/${collectionId}/items/${itemIds[0]}`);
+    assert(verify.status === 404, `GET after delete → 404 (got ${verify.status})`);
+
+    console.log("\ncollections-roundtrip: PASS");
+  } finally {
+    // Items are deleted by step 7 above (on the happy path). On an
+    // assertion failure mid-run we can't enumerate the items we DID
+    // create (we lost the per-id status). The schema is the only
+    // deterministic, top-level leak we can name — surface it loud.
+    // The item leak in failure mode is a known limitation; a future
+    // DeleteSchema RPC + matching DELETE-by-collection-item would
+    // close it. See proto/ship/ops/v1/collections.proto for the
+    // current RPC surface.
+    if (schemaCreated) {
+      console.warn(
+        `  ⚠ schema '${collectionId}' persists in this daemon's space.db ` +
+          `(no DeleteSchema RPC). To remove it: drop the schema row from ` +
+          `the space.db, or re-init the home (rm -rf $SHIP_HOME).`,
+      );
+    }
   }
-  const verify = await api(`/api/v1/collections/${collectionId}/items/${itemIds[0]}`);
-  assert(verify.status === 404, `GET after delete → 404 (got ${verify.status})`);
-
-  console.log("\ncollections-roundtrip: PASS");
 }
-
-main().catch((e) => {
-  console.error("collections-roundtrip: FAIL", e);
-  process.exit(1);
-});

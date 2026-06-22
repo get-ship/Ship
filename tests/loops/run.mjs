@@ -22,7 +22,7 @@ import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, basename } from "node:path";
-import { guardProdHome } from "./_prod-guard.mjs";
+import { guardProdHome, logPath } from "./_prod-guard.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RESULTS = join(__dirname, "results");
@@ -118,7 +118,20 @@ const COLORS = {
 async function main() {
   const TOKEN = await token();
   const SHIPD_URL = await shipdUrl();
-  const env = { ...process.env, TOKEN, SHIPD_URL };
+  // Explicitly forward SHIP_HOME + SHIP_LOG so every spec resolves the
+  // SAME home the runner talked to, even when the caller didn't set them.
+  // SHIP_LOG defaults to <SHIP_HOME>/machine/logs/shipd.log (the file
+  // shipd actually writes — see apps/shipd/src/main.rs:32-49). The
+  // previous `LOG_PATH = $HOME/.ship/logs/ship.log` default in two
+  // specs pointed at a path that hasn't existed since the home-layout
+  // migration to `machine/logs/`.
+  const env = {
+    ...process.env,
+    TOKEN,
+    SHIPD_URL,
+    SHIP_HOME: process.env.SHIP_HOME ?? "",
+    SHIP_LOG: process.env.SHIP_LOG ?? logPath("shipd.log"),
+  };
   await mkdir(RESULTS, { recursive: true });
 
   const files = await discover();

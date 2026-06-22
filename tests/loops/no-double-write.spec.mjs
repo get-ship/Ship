@@ -17,14 +17,14 @@
  *   TOKEN=$(cat ~/.ship/daemon.token) node apps/shell/scripts/loop3-no-double-write.mjs
  */
 import { readFile } from "node:fs/promises";
-import { guardProdHome } from "./_prod-guard.mjs";
+import { guardProdHome, logPath } from "./_prod-guard.mjs";
 
 // Refuse to mutate the operator's prod daemon (~/.ship) on direct runs.
 guardProdHome();
 
 const BASE = process.env.SHIPD_URL ?? "http://localhost:9315";
 const TOKEN = process.env.TOKEN;
-const LOG_PATH = process.env.SHIP_LOG ?? `${process.env.HOME}/.ship/logs/ship.log`;
+const LOG_PATH = process.env.SHIP_LOG ?? logPath("shipd.log");
 
 if (!TOKEN) {
   console.error("TOKEN env var required");

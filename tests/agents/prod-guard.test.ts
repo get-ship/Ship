@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
   assertNotProdHome,
+  logPath,
   prodHome,
   resolveHome,
   wouldHitProd,
@@ -78,6 +79,30 @@ describe("prod-home guard (in-process)", () => {
     process.env.SHIP_LOOPS_ALLOW_PROD = "1";
     expect(assertNotProdHome()).toBe(PROD);
     expect(wouldHitProd()).toBe(false);
+  });
+});
+
+describe("logPath (shipd log resolver)", () => {
+  test("resolves to <home>/machine/logs/shipd.log by default", () => {
+    delete process.env.SHIP_HOME;
+    // Default home resolves to ~/.ship (prod), but logPath itself
+    // never refuses — it's a path resolver, not a guard. Pin SHIP_HOME
+    // to make the assertion stable.
+    process.env.SHIP_HOME = TMP;
+    expect(logPath()).toBe(join(TMP, "machine", "logs", "shipd.log"));
+  });
+
+  test("selects a named file (e.g. ship.log)", () => {
+    process.env.SHIP_HOME = TMP;
+    expect(logPath("ship.log")).toBe(join(TMP, "machine", "logs", "ship.log"));
+  });
+
+  test("honours an explicit home argument", () => {
+    expect(logPath("shipd.log", TMP)).toBe(join(TMP, "machine", "logs", "shipd.log"));
+  });
+
+  test("home can be ~/.ship — logPath does not refuse (it's a path)", () => {
+    expect(logPath("shipd.log", PROD)).toBe(join(PROD, "machine", "logs", "shipd.log"));
   });
 });
 

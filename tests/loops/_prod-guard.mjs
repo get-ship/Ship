@@ -60,6 +60,16 @@ export function prodRefusalMessage(home = resolveHome()) {
     `      ${ALLOW_PROD_ENV}=1 <run the test>\n`
   );
 }
+// shipd writes a JSON file appender at `<home>/machine/logs/shipd.log`
+// (apps/shipd/src/main.rs:32-49). ship-cli (the consumer of SHIP_LOG)
+// writes plain-text INFO+ to `<home>/machine/logs/ship.log`
+// (apps/ship-cli/src/logging.rs:5-7). Resolve against the active home,
+// NOT `$HOME/.ship` — when SHIP_HOME points at a tempdir, the daemon's
+// log file lives there too. `name` selects which file; default
+// "shipd.log" is the one the runtime actually writes.
+export function logPath(name = "shipd.log", home = resolveHome()) {
+  return join(home, "machine", "logs", name);
+}
 
 /**
  * Throwing guard — for in-process callers (module load in _helpers.ts, the
