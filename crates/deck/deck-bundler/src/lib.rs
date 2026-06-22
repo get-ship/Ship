@@ -1,5 +1,6 @@
 //! Bundler — the daemon bundles assets IN-PROCESS via Rolldown (#163).
 //!
+// FILE_CAP_OVERRIDE: accessor methods for graph-driven HMR watcher (#deck-hmr-graph-watch); extracting them would require pub-leaking Bundler internals.
 //! Replaces the bun worker: no child process, no JSON-line protocol. `Bundler`
 //! locates sui-compiler once, then `build`/`build_all` drive Rolldown
 //! (`rolldown_bundle`) directly, and `start_watching` re-bundles affected
@@ -24,7 +25,8 @@ pub mod views_bundle;
 mod watch;
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -77,12 +79,16 @@ pub struct Bundler {
     /// invalidated only when a directory is created/removed (the watcher calls
     /// `invalidate_targets`).
     targets_cache: Arc<Mutex<Option<Arc<Vec<BundleTarget>>>>>,
+    /// Module graph: maps target name → set of on-disk module paths that
+    /// contributed to its last build. Drives the graph-based HMR watcher —
+    /// watch exactly those paths' parent dirs instead of hardcoded monorepo dirs.
+    module_graph: Arc<Mutex<HashMap<String, HashSet<PathBuf>>>>,
 }
 
 impl Bundler {
     /// Start the in-process bundler. `repo_root` is the monorepo/source root;
     /// `workspace` the user-project (if distinct); `cfg` is the parsed
-    /// `deck.jsonc` (caller calls `DeckConfig::load(repo_root)` first).
+    /// `deck.jsonc` (caller calls `DeckConfig::defaults()` first).
     /// The compiler is the linked `sui-compiler` crate, compiled in-process
     /// (#255) — no binary to locate, no installed-vs-local drift.
     pub fn start(repo_root: PathBuf, workspace: Option<PathBuf>, cfg: DeckConfig) -> Self {
@@ -97,6 +103,7 @@ impl Bundler {
             watching: Arc::new(AtomicBool::new(false)),
             in_flight: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
             targets_cache: Arc::new(Mutex::new(None)),
+            module_graph: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -184,6 +191,9 @@ impl Bundler {
             target: target_name.to_string(),
             message: e.to_string(),
         });
+        if let Ok(ref manifest) = result {
+            self.update_module_graph(&target_name, manifest.modules.iter().cloned().collect());
+        }
         {
             let mut map = self.in_flight.lock().await;
             map.remove(target_name);
@@ -243,6 +253,7 @@ impl Bundler {
                     sources.iter().map(|p| p.to_string_lossy().to_string()).collect()
                 }
             },
+            modules: vec![],
         }
     }
 
@@ -320,13 +331,15 @@ impl Bundler {
             // watch) stay unminified for debuggability. No source maps are
             // emitted on either path (BundlerOptions leaves `sourcemap`
             // unset), so minifying drops nothing that existed before.
-            if let Err(e) =
-                rolldown_bundle::bundle_target(&layout, t, &self.staging, true).await
-            {
-                error!(target = %t.name, error = %e, "bundler: target failed");
-                failed.push(format!("{} ({e})", t.name));
-            } else {
-                built.push(t.clone());
+            match rolldown_bundle::bundle_target(&layout, t, &self.staging, true).await {
+                Err(e) => {
+                    error!(target = %t.name, error = %e, "bundler: target failed");
+                    failed.push(format!("{} ({e})", t.name));
+                }
+                Ok(manifest) => {
+                    self.update_module_graph(&t.name, manifest.modules.iter().cloned().collect());
+                    built.push(t.clone());
+                }
             }
         }
         // View targets together (shared-chunk dedup). Atomic: one bad view fails
@@ -411,9 +424,6 @@ impl Bundler {
     pub(crate) fn watching_flag(&self) -> &AtomicBool {
         &self.watching
     }
-    pub(crate) fn layout_for_watch(&self) -> BundleLayout {
-        self.layout()
-    }
     pub(crate) fn invalidate_targets_for_watch(&self) {
         self.invalidate_targets();
     }
@@ -437,5 +447,36 @@ impl Bundler {
         ev: BundlerEvent,
     ) -> Result<usize, broadcast::error::SendError<BundlerEvent>> {
         self.event_tx.send(ev)
+    }
+
+    pub(crate) fn update_module_graph(&self, target: &str, modules: HashSet<PathBuf>) {
+        let mut g = self.module_graph.lock().unwrap_or_else(|e| e.into_inner());
+        g.insert(target.to_string(), modules);
+    }
+
+    pub(crate) fn module_dirs_for_watch(&self) -> Vec<PathBuf> {
+        let g = self.module_graph.lock().unwrap_or_else(|e| e.into_inner());
+        watch::module_parent_dirs(&g).into_iter().collect()
+    }
+
+    pub(crate) fn targets_for_module_for_watch(&self, path: &Path) -> Vec<targets::BundleTarget> {
+        let g = self.module_graph.lock().unwrap_or_else(|e| e.into_inner());
+        let names = watch::targets_for_module(&g, path);
+        let snap = self.targets_snapshot();
+        names.into_iter()
+            .filter_map(|name| snap.iter().find(|t| t.name == name).cloned())
+            .collect()
+    }
+
+    pub(crate) fn view_bucket_dirs_for_watch(&self) -> Vec<PathBuf> {
+        self.layout().view_bucket_dirs()
+    }
+
+    pub(crate) fn target_for_entry_path_for_watch(&self, path: &Path) -> Option<targets::BundleTarget> {
+        use targets::TargetEntry;
+        self.targets_snapshot()
+            .iter()
+            .find(|t| matches!(&t.entry, TargetEntry::Real(p) if p.as_path() == path))
+            .cloned()
     }
 }

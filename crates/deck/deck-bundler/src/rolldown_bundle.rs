@@ -103,17 +103,18 @@ pub async fn bundle_target(
     // crate::arena::trim_arenas() to return the freed arenas to glibc
     // (cut 4: arena.rs deleted; shipd now uses jemalloc, which returns
     // freed arenas to the OS by default — no trim required).
-    {
+    let module_paths = {
         let mut bundler = BundlerBuilder::default()
             .with_options(options)
             .with_plugins(vec![Arc::new(plugin)])
             .build()
             .map_err(|e| anyhow!("rolldown build({}): {e:?}", target.name))?;
-        bundler
+        let output = bundler
             .write()
             .await
             .map_err(|e| anyhow!("rolldown write({}): {e:?}", target.name))?;
-    }
+        extract_module_paths(&output)
+    };
 
     // Post-bundle tag-collision check (#308). Walks every emitted
     // chunk and errors on a tag defined by more than one file. Runs
@@ -135,7 +136,34 @@ pub async fn bundle_target(
                 sources.iter().map(|p| p.to_string_lossy().to_string()).collect()
             }
         },
+        modules: module_paths,
     })
+}
+
+const MODULE_PRUNE: &[&str] = &["node_modules", ".git", "target", "dist", ".deck", "sui-out"];
+
+fn extract_module_paths(output: &rolldown::BundleOutput) -> Vec<PathBuf> {
+    use rolldown_common::Output;
+    let mut paths = std::collections::HashSet::new();
+    for asset in &output.assets {
+        if let Output::Chunk(chunk) = asset {
+            for module_id in &chunk.module_ids {
+                let s: &str = module_id;
+                if !s.starts_with('/') {
+                    continue;
+                }
+                let p = PathBuf::from(s);
+                if p.components().any(|c| {
+                    matches!(c, std::path::Component::Normal(n)
+                        if MODULE_PRUNE.contains(&n.to_string_lossy().as_ref()))
+                }) {
+                    continue;
+                }
+                paths.insert(p);
+            }
+        }
+    }
+    paths.into_iter().collect()
 }
 
 #[cfg(test)]
@@ -292,5 +320,63 @@ mod tests {
             body.contains("`ship-pdf`"),
             "pdf bundle must register the ship-pdf tag"
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn graph_capture_includes_transitive_dep_excludes_node_modules() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("app")).unwrap();
+        std::fs::create_dir_all(root.join("lib")).unwrap();
+        std::fs::write(root.join("app/main.ts"),
+            "import { getX } from '../lib/util.ts'; export default getX;").unwrap();
+        std::fs::write(root.join("lib/util.ts"), "export function getX() { return Math.random(); }").unwrap();
+
+        let scratch = tempfile::tempdir().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        let layout = BundleLayout::with_config(root.to_path_buf(), None, DeckConfig::defaults())
+            .with_out_root(scratch.path().to_path_buf());
+        let target = BundleTarget {
+            name: "test/main".to_string(),
+            entry: TargetEntry::Real(root.join("app/main.ts")),
+            externals: vec![],
+            out_file: "main.js".to_string(),
+            lazy: false,
+        };
+        let manifest = bundle_target(&layout, &target, staging.path(), false).await.unwrap();
+        assert!(manifest.modules.iter().any(|m| m.ends_with("app/main.ts")),
+            "entry in module set, got: {:?}", manifest.modules);
+        assert!(manifest.modules.iter().any(|m| m.ends_with("lib/util.ts")),
+            "imported dep from different dir in module set, got: {:?}", manifest.modules);
+        assert!(!manifest.modules.iter().any(|m| m.components().any(|c| {
+            matches!(c, std::path::Component::Normal(n) if n == "node_modules")
+        })), "node_modules must not appear in module set");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn app_source_coverage_outside_conventional_dirs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("app/routes")).unwrap();
+        std::fs::create_dir_all(root.join("app/src")).unwrap();
+        std::fs::write(root.join("app/routes/page.ts"),
+            "import { getHelper } from '../src/helper.ts'; export default getHelper;").unwrap();
+        std::fs::write(root.join("app/src/helper.ts"), "export function getHelper() { return Math.random().toString(); }").unwrap();
+        let scratch = tempfile::tempdir().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        let layout = BundleLayout::with_config(root.to_path_buf(), None, DeckConfig::defaults())
+            .with_out_root(scratch.path().to_path_buf());
+        let target = BundleTarget {
+            name: "app/page".to_string(),
+            entry: TargetEntry::Real(root.join("app/routes/page.ts")),
+            externals: vec![],
+            out_file: "page.js".to_string(),
+            lazy: false,
+        };
+        let manifest = bundle_target(&layout, &target, staging.path(), false).await.unwrap();
+        assert!(manifest.modules.iter().any(|m| m.ends_with("app/routes/page.ts")),
+            "entry in module set");
+        assert!(manifest.modules.iter().any(|m| m.ends_with("app/src/helper.ts")),
+            "imported src file in module set — this is the apps/hub regression");
     }
 }
