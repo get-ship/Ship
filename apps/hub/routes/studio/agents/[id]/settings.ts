@@ -8,12 +8,12 @@
 // talks to in dev. The `SettingScope` is RUNTIME because the active
 // agent id is machine-local.
 import { SettingScope } from '@ship/sdk/connect'
-import { ship } from '../../../../src/lib/client'
+import { ops } from '../../../../src/lib/client'
 
 /** Read one RUNTIME setting, parsed from its JSON bytes. `null` when unset. */
 export async function readSetting<T = unknown>(key: string): Promise<T | null> {
   try {
-    const setting = await ship.settings.get({ key, scope: SettingScope.RUNTIME })
+    const setting = await ops.settings.get({ key, scope: SettingScope.RUNTIME })
     if (setting.valueJson.length === 0) return null
     return JSON.parse(new TextDecoder().decode(setting.valueJson)) as T
   } catch {
@@ -23,7 +23,7 @@ export async function readSetting<T = unknown>(key: string): Promise<T | null> {
 
 /** Write one RUNTIME setting as JSON bytes. */
 export async function writeSetting(key: string, value: unknown): Promise<void> {
-  await ship.settings.set({
+  await ops.settings.set({
     key,
     valueJson: new TextEncoder().encode(JSON.stringify(value)),
     scope: SettingScope.RUNTIME,

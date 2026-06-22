@@ -3,20 +3,17 @@
 // view is one of the surfaces this job ports verbatim) EXCEPT the
 // import seams the hub cannot satisfy verbatim:
 //
-//   1. The `ship` and `ops` imports — the shell pulls `ship` (the live
-//      `createClient()` reader) and `ops` (the `createShipConnectClient`
-//      mutator) from its `../../../../ops` wrapper. The hub has no
-//      `ops.ts`; it has one Connect client (`createShipConnectClient`,
-//      the same singleton every other hub controller uses) under
-//      `src/lib/client.ts`. The shell's two clients are equivalent to
-//      the hub's one for the purposes of this surface — the skill
-//      detail uses the Connect client for both reads (`ship.skills.*`)
-//      and writes (`ship.skills.writeBody` / `writeFrontmatter`).
+//   1. The `ops` import — the hub's typed unary client (`src/lib/client.ts`).
+//      skills.* has no live mux resolver (see live_resolvers.rs), so BOTH the
+//      detail read and the frontmatter/body writes go through `ops`
+//      (createShipConnectClient); the read decodes the `{ json }` envelope.
+//      (The hub's live SSE client `ship` is reserved for ops that have a
+//      resolver — agents.summaries, collections.list, …)
 //   2. The `routes` import from `routes.gen` — the path is the same
 //      depth in both apps, so the relative path is unchanged.
 import { controller, signal, derived, live, effect } from '@ship/sui-runtime'
 import type { LiveSource, ViewScope } from '@ship/sui-runtime'
-import { ship } from '../../../../src/lib/client'
+import { ops } from '../../../../src/lib/client'
 import type { Scope } from './page.sui'
 
 interface SkillDetail {
@@ -55,11 +52,17 @@ export default controller({
   scope: ({ route }: ViewScope<Scope>) => {
     const skillId = derived(() => route.params.id() ?? '')
     const skillRes = live(() =>
-      ship.skills.detail({ id: skillId() || '__none__' }) as LiveSource<SkillDetail>,
+      ops.skills.detail({ id: skillId() || '__none__' }) as unknown as LiveSource<SkillDetail>,
     )
     const sk = derived<SkillDetail | null>(() => {
       const r = skillRes() as LiveResult
-      return r.kind === 'ok' && r.value ? r.value : null
+      if (r.kind !== 'ok' || !r.value) return null
+      // Unary op → `{ json }` envelope; decode to the SkillDetail payload.
+      const v = r.value as SkillDetail & { json?: string }
+      if (typeof v.json === 'string') {
+        try { return JSON.parse(v.json) as SkillDetail } catch { return null }
+      }
+      return v
     })
     const loading = derived(() => (skillRes() as LiveResult).kind !== 'ok')
 
@@ -119,7 +122,7 @@ export default controller({
       if (tags.length) fm.tags = tags
       if ((s.authors ?? []).length) fm.authors = s.authors
       try {
-        await ship.skills.writeFrontmatter({ id, frontmatterJson: JSON.stringify(fm), scope: '' })
+        await ops.skills.writeFrontmatter({ id, frontmatterJson: JSON.stringify(fm), scope: '' })
         return { ok: true, msg: 'Saved.' }
       } catch (e) {
         return { ok: false, msg: (e as Error).message ?? 'Save failed.' }
@@ -154,7 +157,7 @@ export default controller({
       if (!id || s.saving) return
       s.saving = true; s.saveBanner = null
       try {
-        await ship.skills.writeBody({ id, body: s.draft, scope: '' })
+        await ops.skills.writeBody({ id, body: s.draft, scope: '' })
         s.baseline = s.draft
         s.saveBanner = { ok: true, msg: 'Saved.' }
       } catch (e) {

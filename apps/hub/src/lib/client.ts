@@ -1,15 +1,27 @@
-// The hub's singleton Connect client. Every chrome controller imports
-// `ship` from this file — there is no `ops.ts` wrapper, no DI, no
-// factory call. The bundler externalizes the importmap-resolved
-// `@ship/sdk/connect` so a single client (and single stub registry,
-// single user-context) is shared across every chrome controller.
+// The hub's daemon clients — mirroring the shell's split (apps/shell/src/ops.ts),
+// keyed to the daemon's live-data contract (apps/shipd/src/ship_runtime/
+// live_resolvers.rs):
 //
-// `baseUrl: ''` is intentional: in the dev loop shipd serves the SPA
-// at the same origin as the API (vite proxies /api + /_deck +
-// /<service>/<method> to shipd's loopback port). In the proxy-less
-// Tauri webview the host plants `window.__SHIP_DAEMON_URL__` with the
-// loopback origin and the SDK reads that to switch transports —
-// same code, both surfaces.
+//   - `ship` = the `@ship/sdk-client` LIVE reader. Ops with a registered live
+//     mux resolver — `agents.summaries`, `collections.list`, `git.overview`,
+//     `account.state` — stream over SSE as `LiveSource`s:
+//     `live(() => ship.agents.summaries())`. Use `ship` ONLY for those ops; an
+//     op with no resolver (skills.*, events.list) 404s the subscribe.
+//   - `ops` = the typed Connect request/response client. Everything unary:
+//     `skills.summaries`/`detail` (a `{ json }` envelope — decode at the call
+//     site), `settings.*`, `space.*`, and the write mutations. Throws
+//     `ConnectError` on failure (no `resp.ok`).
+//
+// One of each, shared across every chrome controller — no DI, no per-view
+// factory. `baseUrl: ''` is same-origin (dev: shipd serves SPA + API on one
+// port; Tauri: the host plants `window.__SHIP_DAEMON_URL__` and the SDK
+// switches transports). `@ship/sdk-client` is importmap-resolved
+// (daemon-served `/_deck/sdk-client.js`); `@ship/sdk/connect` is inlined.
+import { createClient } from '@ship/sdk-client'
 import { createShipConnectClient } from '@ship/sdk/connect'
 
-export const ship = createShipConnectClient({ baseUrl: '' })
+/** Live SSE reader — only for ops with a registered live resolver. */
+export const ship = createClient()
+
+/** Typed unary request/response client — skills, settings, space, mutations. */
+export const ops = createShipConnectClient({ baseUrl: '' })

@@ -6,7 +6,7 @@
 // `createShipConnectClient` singleton from `src/lib/client.ts` (the
 // hub's per-app Connect client). All other code paths are unchanged.
 import { controller, signal, live, derived } from '@ship/sui-runtime'
-import { ship } from '../../../src/lib/client'
+import { ops } from '../../../src/lib/client'
 import type { LiveSource, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
@@ -38,7 +38,7 @@ export default controller({
     const q = signal('')
     const kind = signal<KindFilter>('all')
     const rail = live(() =>
-      ship.skills.summaries({ q: q(), kind: kind(), tag: '' }) as LiveSource<RailValue>,
+      ops.skills.summaries({ q: q(), kind: kind(), tag: '' }) as unknown as LiveSource<RailValue>,
     )
     // `rail` is a `LiveSignal<unknown>` — call it directly and narrow the
     // `ok` envelope's `value` (unknown to the type system) to the payload.

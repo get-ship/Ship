@@ -20,7 +20,7 @@
 import { controller, signal, derived, effect } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-studio-rail.sui'
-import { ship } from '../../lib/client'
+import { ops } from '../../lib/client'
 
 interface RailEntry {
   id: string
@@ -71,7 +71,7 @@ export default controller({
     // simply hides the badge.
     effect(() => {
       let cancelled = false
-      void ship.agents
+      void ops.agents
         .list({})
         .then((res) => {
           if (cancelled) return

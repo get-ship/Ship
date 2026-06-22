@@ -16,7 +16,7 @@
 // so the wire calls are identical; only the import name differs.
 
 import { SettingScope } from '@ship/sdk/connect'
-import { ship } from '../../lib/client'
+import { ops } from '../../lib/client'
 
 export interface ApiView {
   name: string
@@ -40,7 +40,7 @@ const DEFAULT_PINS = ['dashboard', 'agents', 'skills', 'pipelines', 'git']
 /** Read one RUNTIME setting, parsed from its JSON bytes. `null` when unset. */
 async function readSetting<T = unknown>(key: string): Promise<T | null> {
   try {
-    const setting = await ship.settings.get({ key, scope: SettingScope.RUNTIME })
+    const setting = await ops.settings.get({ key, scope: SettingScope.RUNTIME })
     if (setting.valueJson.length === 0) return null
     return JSON.parse(new TextDecoder().decode(setting.valueJson)) as T
   } catch {
@@ -50,7 +50,7 @@ async function readSetting<T = unknown>(key: string): Promise<T | null> {
 
 /** Write one RUNTIME setting as JSON bytes. */
 async function writeSetting(key: string, value: unknown): Promise<void> {
-  await ship.settings.set({
+  await ops.settings.set({
     key,
     valueJson: new TextEncoder().encode(JSON.stringify(value)),
     scope: SettingScope.RUNTIME,
@@ -115,7 +115,7 @@ export async function fetchViews(_url?: string): Promise<ApiView[]> {
 
 export async function fetchProject(_url?: string): Promise<Project | null> {
   try {
-    const resp = await ship.space.list({})
+    const resp = await ops.space.list({})
     const list = resp.spaces.map((s) => ({ id: s.id, name: s.name, path: s.path }))
     return list.find((p) => p.id === resp.activeId) ?? list[0] ?? null
   } catch { return null }
@@ -125,7 +125,7 @@ export async function fetchProject(_url?: string): Promise<Project | null> {
  *  view+project picker (per Task #54 — single popover for both). */
 export async function fetchProjects(_url?: string): Promise<{ projects: Project[]; activeId: string | null }> {
   try {
-    const resp = await ship.space.list({})
+    const resp = await ops.space.list({})
     return {
       projects: resp.spaces.map((s) => ({ id: s.id, name: s.name, path: s.path })),
       activeId: resp.activeId ?? null,
@@ -137,7 +137,7 @@ export async function fetchProjects(_url?: string): Promise<{ projects: Project[
  *  can refresh state. */
 export async function switchProject(id: string): Promise<boolean> {
   try {
-    await ship.space.activate({ id })
+    await ops.space.activate({ id })
     return true
   } catch { return false }
 }
