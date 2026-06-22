@@ -1,18 +1,138 @@
 <!--
-  Hub home — the primary app's index route (`/`).
-
-  Top chrome: the <ship-nav-top> is owned by the root layout
-  (`routes/_layout.sui` → `<ship-app-chrome>`). Pages compose only
-  page body — the nav is declared ONCE in the layout, not per-page.
-
-  Dashboard composite: the page composes the @ship/home pack (greeting +
-  spaces grid + recent-runs). The pack controllers read the Connect SDK
-  directly; the page supplies the workspace name + a JSON-encoded spaces
-  list (a list-all-spaces SDK method is a known BACKEND-GAP — the spaces
-  grid degrades to the empty-state until the gap closes).
+  Hub home — the `/` route. Minimal and full-bleed: a greeting, the user's
+  spaces, and navigation into the hub's surfaces. The top nav is owned by the
+  root layout (`routes/_layout.sui` → `<ship-app-chrome>`); this page owns the
+  body only. No activity/pipeline widgets — premature without a real pipeline
+  surface (operator steer). Spaces list is a backend gap today, so it shows a
+  clean empty-state until the list op lands.
 -->
-<main class="hub-home">
-  <ship-home-greeting workspace={workspace()}></ship-home-greeting>
-  <ship-spaces-hero spaces={spacesJson()} limit="8"></ship-spaces-hero>
-  <ship-activity-runs limit="6"></ship-activity-runs>
+<style>
+  .hub-home {
+    position: relative;
+    box-sizing: border-box;
+    min-height: calc(100vh - var(--ship-top-bar-h, 40px));
+    width: 100%;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body);
+    padding: var(--space-8) var(--space-7) var(--space-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-7, 28px);
+    overflow-y: auto;
+  }
+  /* Subtle dotted backdrop masked to the top — same family as the shell desktop. */
+  .hub-home::before {
+    content: '';
+    position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background-image: radial-gradient(circle at 1px 1px,
+      color-mix(in oklch, var(--foreground) 7%, transparent) 1px, transparent 0);
+    background-size: 22px 22px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, var(--foreground) 35%, transparent 100%);
+    mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, var(--foreground) 35%, transparent 100%);
+  }
+  .home-head, .section { position: relative; z-index: 1; }
+
+  .home-head { display: flex; flex-direction: column; gap: var(--space-1, 4px); }
+  .home-greet {
+    margin: 0;
+    font-family: var(--heading-font, var(--font-display, var(--font-body)));
+    font-size: var(--text-4xl, 32px);
+    font-weight: var(--heading-weight, var(--font-weight-semibold, 600));
+    letter-spacing: -0.03em; line-height: 1.05;
+  }
+  .home-sub { margin: 0; color: var(--muted-foreground); font-size: var(--text-md, 15px); }
+
+  .section { display: flex; flex-direction: column; gap: var(--space-4, 16px); }
+  .section-title {
+    margin: 0; font-family: var(--font-mono); font-size: var(--text-xs, 12px);
+    text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--muted-foreground); font-weight: var(--font-weight-semibold, 600);
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--space-4, 16px);
+  }
+
+  .card {
+    display: flex; flex-direction: column; gap: var(--space-2, 8px);
+    background: color-mix(in oklch, var(--card) 92%, transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg, 12px);
+    padding: var(--space-5, 20px);
+    box-shadow: var(--shadow-sm);
+    text-decoration: none; color: inherit;
+    transition: border-color 120ms var(--ease-out, ease),
+                box-shadow 120ms var(--ease-out, ease),
+                transform 120ms var(--ease-out, ease);
+  }
+  a.card { cursor: pointer; }
+  a.card:hover {
+    border-color: color-mix(in oklch, var(--primary) 40%, var(--border));
+    box-shadow: var(--shadow-md, var(--shadow-sm));
+    transform: translateY(-2px);
+  }
+  a.card:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
+  }
+  .card-ico {
+    display: grid; place-items: center; width: 36px; height: 36px;
+    border-radius: var(--radius-md, 8px);
+    background: color-mix(in oklch, var(--primary) 12%, transparent);
+    color: var(--primary);
+  }
+  .card-ico sui-icon { width: 18px; height: 18px; }
+  .card-title { font-size: var(--text-md, 15px); font-weight: var(--font-weight-semibold, 600); }
+  .card-desc { font-size: var(--text-sm, 13px); color: var(--muted-foreground); line-height: 1.4; }
+
+  .empty {
+    grid-column: 1 / -1;
+    display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2, 8px);
+    padding: var(--space-6, 24px) var(--space-7, 28px);
+    background: color-mix(in oklch, var(--card) 55%, transparent);
+    border: 1px dashed var(--border); border-radius: var(--radius-lg, 12px);
+  }
+  .empty-title { font-size: var(--text-md, 15px); font-weight: var(--font-weight-medium, 500); color: var(--foreground); }
+  .empty-desc { font-size: var(--text-sm, 13px); color: var(--muted-foreground); max-width: 56ch; line-height: 1.5; }
+</style>
+
+<main class="hub-home" data-view-enter>
+  <header class="home-head">
+    <h1 class="home-greet">{greeting()}.</h1>
+    <p class="home-sub">Your Ship workspace — open a space or jump into the studio.</p>
+  </header>
+
+  <section class="section" aria-labelledby="home-spaces-h">
+    <h2 class="section-title" id="home-spaces-h">Spaces</h2>
+    <div class="card-grid">
+      <div class="empty">
+        <span class="empty-title">No spaces yet</span>
+        <span class="empty-desc">A space is an independent workspace with its own daemon-backed directory. Space creation and the spaces list arrive with the spaces surface.</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="home-studio-h">
+    <h2 class="section-title" id="home-studio-h">Studio</h2>
+    <div class="card-grid">
+      <a class="card" href="/studio/components">
+        <span class="card-ico"><sui-icon name="box"></sui-icon></span>
+        <span class="card-title">Components</span>
+        <span class="card-desc">Browse and inspect the SUI component library.</span>
+      </a>
+      <a class="card" href="/studio/agents">
+        <span class="card-ico"><sui-icon name="bot"></sui-icon></span>
+        <span class="card-title">Agents</span>
+        <span class="card-desc">The agents configured in this workspace.</span>
+      </a>
+      <a class="card" href="/studio/skills">
+        <span class="card-ico"><sui-icon name="sparkles"></sui-icon></span>
+        <span class="card-title">Skills</span>
+        <span class="card-desc">Skills available to your agents.</span>
+      </a>
+    </div>
+  </section>
 </main>
