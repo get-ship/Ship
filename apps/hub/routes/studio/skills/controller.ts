@@ -50,19 +50,31 @@ export default controller({
     // crash → re-subscribe loop and a CPU storm. Mirror the agents
     // controller's `v?.groups ?? []` pattern: degrade to empty arrays
     // and let the page's own loading/empty state render.
-    const items = derived(() => {
+    // skills.summaries is a UNARY Connect op (no live mux resolver — see
+    // apps/shipd/.../live_resolvers.rs: only agents.summaries / collections.list
+    // / git.overview / account.state are live). It wraps its payload in a generic
+    // `{ json }` envelope. Decode it (plain fn, not an extra signal node),
+    // tolerating both the flat `{ items }` the daemon returns today and the
+    // grouped `{ groups, kind_counts }` shape. A missing field degrades to empty.
+    const payload = (): Partial<RailValue> & { items?: SkillSummary[] } => {
       const r = rail()
-      if (r.kind !== 'ok') return []
-      const v = r.value as Partial<RailValue> | null | undefined
-      const groups = Array.isArray(v?.groups) ? v!.groups : []
+      if (r.kind !== 'ok') return {}
+      let v = r.value as { json?: unknown } | Record<string, unknown> | null | undefined
+      if (v && typeof (v as { json?: unknown }).json === 'string') {
+        try { v = JSON.parse((v as { json: string }).json) as Record<string, unknown> } catch { v = {} }
+      }
+      return (v ?? {}) as Partial<RailValue> & { items?: SkillSummary[] }
+    }
+    const items = derived(() => {
+      const v = payload()
+      if (Array.isArray(v.items)) return v.items
+      const groups = Array.isArray(v.groups) ? v.groups : []
       return groups.flatMap((g) => Array.isArray(g?.skills) ? g.skills : [])
     })
     const total = derived(() => {
-      const r = rail()
-      if (r.kind !== 'ok') return 0
-      const v = r.value as Partial<RailValue> | null | undefined
-      const counts = Array.isArray(v?.kind_counts) ? v!.kind_counts : []
-      return counts.find((k) => k?.id === 'all')?.count ?? 0
+      const v = payload()
+      const counts = Array.isArray(v.kind_counts) ? v.kind_counts : []
+      return counts.find((k) => k?.id === 'all')?.count ?? items().length
     })
     return { q, kind, rail, loading, items, total }
   },
