@@ -7,11 +7,13 @@
 //! a cycle. Instead deck-ssr **registers** an implementation here at host
 //! startup, and the serve path calls through this seam.
 //!
-//! This keeps the path **additive**: the default is the Rust render-eval. The
-//! ship-js path is selected only when BOTH the `DECK_SSR=ship-js` flag is set
-//! AND a renderer has been registered AND it renders without error — any of
-//! those failing falls straight back to render-eval, so flag-off behavior (and
-//! a daemon built without deck-ssr) is byte-for-byte unchanged.
+//! ship-js is now the **default** first-paint engine. It is selected whenever a
+//! renderer has been registered AND it renders without error — either failing
+//! falls straight back to the **archived** Rust render-eval (see
+//! [`crate::render_eval_archived`]). So a daemon built without deck-ssr, or one
+//! that opts back out via `DECK_SSR=render-eval`, keeps the byte-for-byte
+//! render-eval output. The path stays additive: the fallback is always
+//! render-eval; ship-js only swaps the first-paint source when it is available.
 
 use std::path::Path;
 use std::sync::OnceLock;
@@ -58,9 +60,12 @@ fn renderer() -> Option<&'static dyn SyntheticSsr> {
     RENDERER.get().map(|b| b.as_ref())
 }
 
-/// The gate. Default OFF (render-eval). On only when `DECK_SSR=ship-js`.
+/// The gate. Default ON (ship-js). `DECK_SSR=render-eval` opts BACK to the
+/// archived render-eval engine; every other value (including unset) selects
+/// ship-js. The escape hatch's single source of truth is
+/// [`crate::render_eval_archived::requested`] — this is its inverse.
 pub fn enabled() -> bool {
-    std::env::var("DECK_SSR").map(|v| v == "ship-js").unwrap_or(false)
+    !crate::render_eval_archived::requested()
 }
 
 /// First-paint HTML through ship-js when the gate is on AND a renderer is

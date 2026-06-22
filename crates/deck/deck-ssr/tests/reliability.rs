@@ -125,7 +125,9 @@ fn targets() -> Vec<Target> {
             needs_data: false,
             pathname: "/",
             params: json!({}),
-            expect: "Ship's primary app",
+            // The hub home was redesigned (greeting + workspace layout) — the
+            // static `home-sub` copy is the stable fidelity marker now.
+            expect: "Your Ship workspace",
         },
         Target {
             name: "views/showcase",

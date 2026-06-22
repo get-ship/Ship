@@ -1,8 +1,8 @@
-//! Acceptance #1: the gated ship-js SSR path is WIRED into deck-core's serve
-//! path — `serve_view_payload` returns ship-js first-paint when the
-//! `DECK_SSR=ship-js` gate is on (and the renderer is registered), and the
-//! unchanged Rust render-eval output when the gate is off. ADDITIVE: flag-off
-//! is the default render-eval; the flag only swaps the first-paint source.
+//! Acceptance #1: the ship-js SSR path is WIRED into deck-core's serve path AND
+//! is now the DEFAULT — `serve_view_payload` returns ship-js first paint by
+//! default (renderer registered), and the archived Rust render-eval output when
+//! the operator opts back via `DECK_SSR=render-eval`. ADDITIVE: render-eval is
+//! the surviving escape hatch; the env var only swaps the first-paint source.
 //!
 //! This drives the SAME public entrypoint the daemon's HTTP handler calls
 //! (`deck_core::serve_view_payload[_subpath]`), through the registered
@@ -73,21 +73,23 @@ fn wired_serve_gate_selects_ship_js_or_render_eval() {
     setup();
 
     // ── board (a REAL controller({...}) DSL view) ──────────────────────────
-    // Flag ON: ship-js runs the controller, so first paint carries the
-    // controller-signal rows the Rust render-eval can't produce.
-    unsafe { std::env::set_var("DECK_SSR", "ship-js") };
+    // DEFAULT (no env): ship-js is now the default engine — it runs the
+    // controller, so first paint carries the controller-signal rows the
+    // archived render-eval can't produce.
+    unsafe { std::env::remove_var("DECK_SSR") };
     let on_raw = payload_html(&deck_core::serve_view_payload(DaemonMode::Development, "board"));
     let on = strip_markers(&on_raw);
-    assert!(on.contains("<ul>"), "ship-js {{#if}} branch renders; got:\n{on}");
+    assert!(on.contains("<ul>"), "default ship-js {{#if}} branch renders; got:\n{on}");
     assert!(
         on.matches("class=\"flagged\"").count() == 1,
         "per-row class: directive; got:\n{on}"
     );
 
-    // Flag OFF: the default render-eval path — it cannot run the controller
-    // signal, so the controller-sourced rows are absent. Proves the gate
-    // selects the path and that flag-off is the unchanged render-eval output.
-    unsafe { std::env::set_var("DECK_SSR", "off") };
+    // OPT BACK: `DECK_SSR=render-eval` selects the archived render-eval path —
+    // it cannot run the controller signal, so the controller-sourced rows are
+    // absent. Proves the env var opts back to the archived engine and that the
+    // default differs from it.
+    unsafe { std::env::set_var("DECK_SSR", "render-eval") };
     let off_raw = payload_html(&deck_core::serve_view_payload(DaemonMode::Development, "board"));
     let off = strip_markers(&off_raw);
     assert!(
@@ -97,9 +99,9 @@ fn wired_serve_gate_selects_ship_js_or_render_eval() {
     assert_ne!(on, off, "the two paths must differ; the gate is doing nothing otherwise");
 
     // ── feed (<data live> + host-dispatch) ─────────────────────────────────
-    // Flag ON: the live op resolves over the registered DataPort, so first
-    // paint reflects the resolved state, not `loading`.
-    unsafe { std::env::set_var("DECK_SSR", "ship-js") };
+    // DEFAULT (ship-js): the live op resolves over the registered DataPort, so
+    // first paint reflects the resolved state, not `loading`.
+    unsafe { std::env::remove_var("DECK_SSR") };
     let feed_on_raw = payload_html(&deck_core::serve_view_payload(DaemonMode::Development, "feed"));
     let feed_on = strip_markers(&feed_on_raw);
     assert!(
@@ -108,7 +110,7 @@ fn wired_serve_gate_selects_ship_js_or_render_eval() {
     );
 
     // ── greet/[id] (route param via host-dispatch) ─────────────────────────
-    // The router captures `id` from the sub-path; ship-js resolves
+    // The router captures `id` from the sub-path; default ship-js resolves
     // `route.params.id()` over host-dispatch into first paint.
     let greet_on_raw = payload_html(
         &deck_core::serve_view_payload_subpath(DaemonMode::Development, "greet", "zelda"),
@@ -116,11 +118,13 @@ fn wired_serve_gate_selects_ship_js_or_render_eval() {
     let greet_on = strip_markers(&greet_on_raw);
     assert!(
         greet_on.contains("Hello, zelda"),
-        "ship-js resolves the route param into first paint; got:\n{greet_on}"
+        "default ship-js resolves the route param into first paint; got:\n{greet_on}"
     );
 
-    // Restore the default so a later test in this binary sees flag-off.
-    unsafe { std::env::set_var("DECK_SSR", "off") };
+    // Opt back to the archived render-eval engine: its first paint cannot carry
+    // the host-resolved param. Confirms `DECK_SSR=render-eval` reaches the
+    // archived path end-to-end.
+    unsafe { std::env::set_var("DECK_SSR", "render-eval") };
     let greet_off_raw = payload_html(
         &deck_core::serve_view_payload_subpath(DaemonMode::Development, "greet", "zelda"),
     );
@@ -129,4 +133,7 @@ fn wired_serve_gate_selects_ship_js_or_render_eval() {
         !greet_off.contains("Hello, zelda"),
         "render-eval first paint must not carry the host-resolved param; got:\n{greet_off}"
     );
+
+    // Restore the default (ship-js) so the env var doesn't leak to other tests.
+    unsafe { std::env::remove_var("DECK_SSR") };
 }
