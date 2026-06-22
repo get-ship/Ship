@@ -1,0 +1,154 @@
+/*
+ * Hub home — `/` route stylesheet.
+ *
+ * Page-level layout (container padding, section spacing, the studio-entry
+ * card grid). The composite components themselves — <ship-home-greeting>,
+ * <ship-spaces-hero>, <ship-activity-runs> — own their internal styles in
+ * shadow DOM. The studio-entry grid is a hand-rolled anchor card pattern
+ * sized to match the space-card grid; tokens only.
+ *
+ * Convention: this is the deck-route-css sibling — `routes/page.sui`
+ * imports it via the codegen auto-link (see `crates/deck/deck-bundler/
+ * src/routes.rs::module_import_path`). It lands in the build as a hashed
+ * `<link rel="stylesheet">` and applies globally (not scoped to shadow
+ * DOM) since the home is a view, not a component.
+ *
+ * Tokens only — every color / spacing / radius / shadow / motion value
+ * reads from `--space-N`, `--radius-N`, `--text-N`, `--card`, `--border`,
+ * `--primary`, `--foreground`, `--muted-foreground`, `--shadow-sm`,
+ * `--shadow-md`, `--duration-fast`, `--ease-out`. No hardcoded literals.
+ */
+
+.hub-home {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  padding: var(--space-7) var(--space-6) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Subtle dotted backdrop masked to the top — same family as the shell
+   desktop. Provides depth without competing with the components. */
+.hub-home::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle at 1px 1px,
+    color-mix(in oklch, var(--foreground) 7%, transparent) 1px, transparent 0);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, var(--foreground) 35%, transparent 100%);
+  mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, var(--foreground) 35%, transparent 100%);
+}
+
+.hub-home > * { position: relative; z-index: 1; }
+
+/* Section heading + sub copy — used by the Studio grid block. The
+   @ship/home composite components own their own header rows. */
+.hub-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.hub-section-title {
+  margin: 0;
+  font-family: var(--heading-font, var(--font-display, var(--font-body)));
+  font-size: var(--text-lg);
+  font-weight: var(--heading-weight, var(--font-weight-semibold, 600));
+  letter-spacing: var(--heading-tracking, -0.01em);
+  color: var(--foreground);
+}
+
+.hub-section-sub {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  line-height: 1.5;
+  max-width: 60ch;
+}
+
+/* Studio entry-points grid. The cards are real navigable links, so the
+   `<a>` is the click target; we style the anchor directly (no nested
+   card chrome — the link IS the card, no clickable-vs-container
+   ambiguity). */
+.hub-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.hub-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+.hub-card:hover {
+  border-color: color-mix(in oklch, var(--primary) 50%, var(--border));
+  box-shadow: var(--shadow-md, var(--shadow-sm));
+  transform: translateY(-2px);
+}
+.hub-card:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow:
+    0 0 0 2px color-mix(in oklch, var(--primary) 30%, transparent),
+    var(--shadow-md, var(--shadow-sm));
+}
+.hub-card:active {
+  transform: translateY(0);
+  transition-duration: 60ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub-card:hover { transform: none; }
+}
+
+.hub-card-ico {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.hub-card-body {
+  min-width: 0;
+}
+
+.hub-card-title {
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--foreground);
+  line-height: 1.2;
+}
+
+.hub-card-desc {
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  line-height: 1.45;
+  display: block;
+}
