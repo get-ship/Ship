@@ -149,6 +149,15 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
+    /// Serializes the tests that mutate the process-global `SUI_CLIENT_EMIT`
+    /// env var. Cargo runs tests in parallel threads and env is process-wide,
+    /// so without this the two env-mutating tests race — one's set/remove
+    /// clobbers the other's assertions (latent before; exposed when sibling
+    /// crates added more `compile()`-calling tests that shifted scheduling).
+    /// Read-only consumers (`compile()` elsewhere) are unaffected — their
+    /// assertions don't depend on the synthetic flag.
+    static EMIT_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn compiles_view_to_js_in_process() {
         let src = tempdir().unwrap();
@@ -182,6 +191,7 @@ mod tests {
     /// Serialized via the env var; restore it so sibling tests are unaffected.
     #[test]
     fn synthetic_gate_is_scoped_and_additive() {
+        let _env = EMIT_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         let src = tempdir().unwrap();
         let dir = src.path();
         std::fs::write(dir.join("page.sui"), "<h1>{route.params.id()}</h1>\n").unwrap();
@@ -231,6 +241,7 @@ mod tests {
     /// the bundled module the moment the flag turns on.
     #[test]
     fn convention_resolves_route_navigate_without_manifest() {
+        let _env = EMIT_ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         let src = tempdir().unwrap();
         let dir = src.path();
         std::fs::write(

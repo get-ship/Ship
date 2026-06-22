@@ -191,6 +191,12 @@ pub async fn bundle_app(
     };
     crate::routes::generate_routes(&[routes_spec]).context("generate routes.gen.ts")?;
 
+    // 1b. Component catalog for this app: aggregate CEM modules from component
+    // pack deps and emit `components.gen.ts`. No-op when the project has no
+    // `package.json` dependencies on component packs.
+    crate::cem::generate_components_gen(project, repo_root)
+        .context("generate components.gen.ts")?;
+
     // 2. Read the project name from `package.json#name`. The dev's
     // npm name is the app's identity; the URL namespace is the
     // last `/`-segment (so `@ship/hub` → `hub`). One source of
