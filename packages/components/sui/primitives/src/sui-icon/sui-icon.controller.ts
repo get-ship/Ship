@@ -71,6 +71,16 @@ export default controller<Scope>({
     const root = host.shadowRoot!
     let svgEl: SVGSVGElement | null = null
     let lastKey: string | null = null
+    // Which key we've already kicked a fetch for. The render effect subscribes
+    // to the GLOBAL `fetchTick`, so any icon's fetch re-runs EVERY icon's
+    // effect — without this guard each still-pending icon re-attaches another
+    // `.then(fetchTick.set)` on every re-run, and the single-flight promise
+    // accumulates callbacks → one resolve fires N bumps → N re-runs → more
+    // callbacks: a positive-feedback storm that OOMs an icon-heavy page
+    // (the skills card grid: ~60 icons, 5GB in seconds). Kick at most once
+    // per key; the bump on resolve re-runs the effect, which finds the cache
+    // populated and renders.
+    let pendingKey: string | null = null
 
     const stopAria = effect(() => {
       const label = state.$signals.label()
@@ -116,13 +126,19 @@ export default controller<Scope>({
       if (src) {
         markup = srcCache.get(src)
         if (markup === undefined) {
-          fetchSrc(src).then(() => fetchTick.set(fetchTick() + 1))
+          if (pendingKey !== key) {
+            pendingKey = key
+            fetchSrc(src).then(() => { if (pendingKey === key) pendingKey = null; fetchTick.set(fetchTick() + 1) })
+          }
           return
         }
       } else {
         markup = getCachedIcon(resolvedName)
         if (markup === undefined) {
-          fetchIcon(resolvedName).then(() => fetchTick.set(fetchTick() + 1))
+          if (pendingKey !== key) {
+            pendingKey = key
+            fetchIcon(resolvedName).then(() => { if (pendingKey === key) pendingKey = null; fetchTick.set(fetchTick() + 1) })
+          }
           return
         }
       }
