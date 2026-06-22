@@ -40,6 +40,13 @@ export interface MountRouterOptions {
   /** Optional host loader (by-name/by-path payload fetch). Per-app bundles
    *  co-bundle their views, so this is usually unset. */
   loader?: unknown
+  /** pathPrefix → statically-imported layout view module. When an entry exists
+   *  for a prefix, the layout is rendered via mount() so its full authored
+   *  markup (chrome element + any composed slotted children) appears in the
+   *  DOM. When absent for a prefix, falls back to bare createElement(tag) —
+   *  the same behavior as before this field existed — so tag-only layouts
+   *  never regress. Emitted by the bundler alongside `modules`. */
+  layoutModules?: Record<string, unknown>
 }
 
 /** A running router. `dispose()` detaches its global listeners (HMR/tests). */
@@ -58,9 +65,13 @@ export function mountRouter(opts: MountRouterOptions): RouterHandle {
   // the reactive URL handle injected into every mounted view.
   const routeSignals = createRoute({ routes: opts.routes })
   const layouts = opts.layouts ?? []
+  const layoutModules = opts.layoutModules ?? {}
 
   let token = 0
   let current: MountHandle | null = null
+  // Layout MountHandles for the current navigation. Disposed when the next
+  // navigation replaces the chrome chain or the router itself disposes.
+  let prevLayoutHandles: MountHandle[] = []
 
   async function mountCurrent(): Promise<void> {
     const pathname = location.pathname
@@ -72,14 +83,31 @@ export function mountRouter(opts: MountRouterOptions): RouterHandle {
       // studio rail stay visible) and mount a graceful fallback in the route slot.
       // A missing route must never produce a blank screen.
       const chain = resolveLayoutChain(pathname, layouts)
-      const target = buildMountTarget(rootEl!, chain)
+      const { target, layoutHandles } = await buildMountTarget(rootEl!, chain, layoutModules)
+      if (myToken !== token) {
+        for (const h of layoutHandles) h.dispose()
+        return
+      }
       target.replaceChildren(buildNotFound(pathname))
       current?.dispose()
+      for (const h of prevLayoutHandles) h.dispose()
       current = null
+      prevLayoutHandles = layoutHandles
       return
     }
-    const target = buildMountTarget(rootEl!, resolveLayoutChain(pathname, layouts))
+    const { target, layoutHandles } = await buildMountTarget(
+      rootEl!,
+      resolveLayoutChain(pathname, layouts),
+      layoutModules,
+    )
+    // Race guard after buildMountTarget (it is async when layout modules are
+    // present): a later navigation already superseded this one.
+    if (myToken !== token) {
+      for (const h of layoutHandles) h.dispose()
+      return
+    }
     const previous = current
+    const prevHandles = prevLayoutHandles
     // Co-bundled views are the norm: `opts.modules` is statically imported, so
     // there is no SSR payload to fetch and no loader. Pass an empty payload so
     // `mount()` skips by-name resolution (which requires a loader) and, finding
@@ -101,10 +129,13 @@ export function mountRouter(opts: MountRouterOptions): RouterHandle {
     // Race guard: a later navigation already superseded this mount.
     if (myToken !== token) {
       handle.dispose()
+      for (const h of layoutHandles) h.dispose()
       return
     }
     current = handle
+    prevLayoutHandles = layoutHandles
     previous?.dispose()
+    for (const h of prevHandles) h.dispose()
   }
 
   function go(to: string, navOpts?: { replace?: boolean }): void {
@@ -149,6 +180,8 @@ export function mountRouter(opts: MountRouterOptions): RouterHandle {
       window.removeEventListener('popstate', onPop)
       current?.dispose()
       current = null
+      for (const h of prevLayoutHandles) h.dispose()
+      prevLayoutHandles = []
     },
   }
 }
@@ -186,20 +219,71 @@ function buildNotFound(pathname: string): HTMLElement {
 
 /**
  * Build the chrome chain for `chain` (deepest-first) under `root`, returning
- * the innermost `<div slot="route">` to mount into. Empty chain → the root
- * element itself. The chain is rebuilt per navigation (mirrors the shell);
- * reusing chrome across same-prefix navigations is a later optimization.
+ * the innermost `<div slot="route">` to mount the route content into, plus any
+ * layout MountHandles for later disposal. Empty chain → the root element itself.
+ *
+ * When a layout has an entry in `layoutModules`, its view module is mounted via
+ * the runtime's `mount()` so its full authored markup (the chrome element plus
+ * any composed slotted children, e.g. `<sui-command-bar slot="command-bar">`)
+ * renders into the DOM. The rendered chrome element is located by `layout.tag`
+ * after mounting; `parent` (the inner content accumulated so far) is appended
+ * to it. When no module entry exists for a prefix, falls back to the original
+ * `document.createElement(tag)` path — no regression for tag-only layouts.
+ *
+ * The chain is rebuilt per navigation; reusing chrome across same-prefix
+ * navigations is a later optimization.
  */
-function buildMountTarget(root: Element, chain: LayoutShape[]): HTMLElement {
-  if (chain.length === 0) return root as HTMLElement
-  const inner = document.createElement('div')
-  inner.setAttribute('slot', 'route')
-  let parent: HTMLElement = inner
+async function buildMountTarget(
+  root: Element,
+  chain: LayoutShape[],
+  layoutModules: Record<string, unknown>,
+): Promise<{ target: HTMLElement; layoutHandles: MountHandle[] }> {
+  if (chain.length === 0) return { target: root as HTMLElement, layoutHandles: [] }
+
+  const routeSlot = document.createElement('div')
+  routeSlot.setAttribute('slot', 'route')
+  let parent: HTMLElement = routeSlot
+  const layoutHandles: MountHandle[] = []
+
+  // Chain is deepest-first (index 0 = innermost). Iterate deepest-to-outermost,
+  // wrapping `parent` in each chrome layer; `root.replaceChildren` places the
+  // assembled tree into the document once complete.
   for (const layout of chain) {
-    const chrome = document.createElement(layout.tag)
-    chrome.appendChild(parent)
-    parent = chrome
+    const mod = layoutModules[layout.pathPrefix]
+    if (mod) {
+      // Layout has a view module — mount it to render authored markup.
+      // Mount into a temporary container so the rendered chrome can be
+      // extracted and moved into the chain (DOM move, no clone needed).
+      const container = document.createElement('div')
+      const handle = await mount(
+        container,
+        coBundledPayload(`layout:${layout.pathPrefix}`),
+        { module: mod as never, cssScope: 'adjacent' },
+      )
+      layoutHandles.push(handle)
+      // Find the rendered chrome by the known tag; fall back to firstElementChild
+      // for resilience, and to container itself if the mount produced nothing
+      // (degenerate layout module — never blank).
+      const chrome =
+        (container.querySelector(layout.tag) as HTMLElement | null) ??
+        (container.firstElementChild as HTMLElement | null)
+      if (chrome) {
+        chrome.appendChild(parent)
+        parent = chrome
+      } else {
+        container.appendChild(parent)
+        parent = container
+      }
+    } else {
+      // Fallback: bare custom-element tag. The element registers via the
+      // side-effect import emitted in routes.gen.ts; authored layout children
+      // are not rendered (pre-fix behavior preserved for tag-only layouts).
+      const chrome = document.createElement(layout.tag)
+      chrome.appendChild(parent)
+      parent = chrome
+    }
   }
+
   root.replaceChildren(parent)
-  return inner
+  return { target: routeSlot, layoutHandles }
 }
