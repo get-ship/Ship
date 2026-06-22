@@ -1,7 +1,7 @@
 {
-  "name": "@ship/primitives",
+  "name": "@ship/shared",
   "version": "0.1.0",
-  "description": "Ship Primitives pack — small, presentational ship-* atoms that compose @ship/sui-primitives. Attribute-driven; the host owns the data wire (e.g. toggling state from a subscription) and registers @ship/sui-primitives for any composed tag (sui-badge, etc.).",
+  "description": "Ship Shared pack — internal ship-* components reused across Ship's own first-party apps (hub, spaces). INTERNAL, not a published domain pack. Presentational atoms compose @ship/sui-primitives; the host owns the data wire and registers @ship/sui-primitives for any composed tag.",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",

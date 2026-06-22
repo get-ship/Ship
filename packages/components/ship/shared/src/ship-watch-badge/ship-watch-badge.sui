@@ -1,5 +1,5 @@
 <!--
-  <ship-watch-badge> — @ship/primitives · a tiny connection-status dot + label.
+  <ship-watch-badge> — @ship/shared · a tiny connection-status dot + label.
 
   Presentational atom for surfaces that watch a live stream (jobs, sessions,
   tailing runs). The host passes the connection state via the `state`

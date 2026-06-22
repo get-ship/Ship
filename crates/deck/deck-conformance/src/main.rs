@@ -2,7 +2,7 @@
 //!
 //! The host contract lives in `lib.rs` ([`deck_conformance::deck_app`]); this binary
 //! is just the listener. It serves the app under `app/` with NO daemon, NO
-//! ship domains, NO `@ship/primitives` — the deck framework standing on its
+//! ship domains, NO Ship component pack — the deck framework standing on its
 //! own (effectively the `deck serve` the CLI doesn't have yet).
 //!
 //! Run: `cargo run -p deck-conformance`, then open:
