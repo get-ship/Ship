@@ -20,7 +20,7 @@ import { sharedSource } from './shared-source'
 import { readSpaceConfig } from './spaces'
 import { MuxClient } from './mux-client'
 import { liveStream } from './live-stream'
-import { createShipConnectClient, SettingScope } from '@ship/sdk/connect'
+import { createShipConnectClient, resolveDaemonBase, SettingScope } from '@ship/sdk/connect'
 // Re-export the URL constants from `./constants` so the existing surface
 // (`import { DECK_PREFIX, DECK_API_ASSETS } from '@ship/sdk-client'`) keeps
 // working unchanged. The mint point lives in `./constants`; that module's
@@ -142,10 +142,11 @@ export function setShipClient(client: ShipSDK): void {
  *  ceremony and no host bootstrap. */
 export function getShipClient(): ShipSDK {
   if (!_shipClient) {
-    // Zero-config default: same-origin. The daemon serves the SPA and the API
-    // together, so `baseUrl: ''` is correct for every first-party host (hub,
-    // shell, spaces). No setShipClient ceremony, no deck coupling.
-    _shipClient = createClient({ baseUrl: '' })
+    // Zero-config default: createClient() resolves its base via
+    // resolveDaemonBase() — same-origin under dev, the Tauri loopback origin
+    // when the host plants __SHIP_DAEMON_URL__. Correct for every first-party
+    // host (hub, shell, spaces) with no setShipClient ceremony.
+    _shipClient = createClient()
   }
   return _shipClient
 }
@@ -167,7 +168,7 @@ export const ship: ShipSDK = new Proxy({} as ShipSDK, {
 })
 
 export function createClient(opts?: CreateClientOpts): ShipSDK {
-  const baseUrl = (opts?.baseUrl ?? '').replace(/\/$/, '')
+  const baseUrl = (opts?.baseUrl ?? resolveDaemonBase()).replace(/\/$/, '')
   const ESCtor = opts?.EventSource ?? globalThis.EventSource
 
   // Per-domain Connect clients (#72). Mutations route here; the daemon's

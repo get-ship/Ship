@@ -13,10 +13,12 @@
 //     `ConnectError` on failure (no `resp.ok`).
 //
 // One of each, shared across every chrome controller — no DI, no per-view
-// factory. `baseUrl: ''` is same-origin (dev: shipd serves SPA + API on one
-// port; Tauri: the host plants `window.__SHIP_DAEMON_URL__` and the SDK
-// switches transports). `@ship/sdk-client` is importmap-resolved
-// (daemon-served `/_deck/sdk-client.js`); `@ship/sdk/connect` is inlined.
+// factory, NO daemon-base wiring: both clients default their transport via the
+// SDK's `resolveDaemonBase()` (same-origin under dev; the Tauri loopback origin
+// when the host plants `window.__SHIP_DAEMON_URL__`). The app hand-rolls no
+// `main.ts` daemon bootstrap — the framework owns reachability.
+// `@ship/sdk-client` is importmap-resolved (daemon-served `/_deck/sdk-client.js`);
+// `@ship/sdk/connect` is inlined.
 //
 // Theme transport: `setThemeTransport` is wired here as a module-level side
 // effect, mirroring apps/shell/src/ops.ts. Save/load back to the daemon's
@@ -31,7 +33,7 @@ import { setThemeTransport, type ThemeId } from '@ship/tokens/themes'
 export const ship = createClient()
 
 /** Typed unary request/response client — skills, settings, space, mutations. */
-export const ops = createShipConnectClient({ baseUrl: '' })
+export const ops = createShipConnectClient()
 
 // ---------------------------------------------------------------------------
 // RUNTIME settings helpers (verbatim from apps/shell/src/ops.ts).

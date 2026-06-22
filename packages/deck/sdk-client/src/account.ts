@@ -89,7 +89,7 @@ export async function signIn(redirectUri?: string): Promise<StartLoginResponse> 
   // `browserUrl` off to the browser (the daemon's redirect_uri is the
   // local CLI callback — Shell can't host one, so the browser-side
   // `ship login` CLI owns the callback today).
-  const connect = createShipConnectClient({ baseUrl: '' })
+  const connect = createShipConnectClient()
   const started = await connect.account.login({
     redirectUri: redirectUri ?? 'http://127.0.0.1:0/callback',
   })
@@ -110,7 +110,7 @@ export async function signOut(): Promise<void> {
   // REST path surfaced 204 as success; the typed wire returns a
   // result either way, so a 204-equivalent "no token" case
   // short-circuits cleanly here.
-  const connect = createShipConnectClient({ baseUrl: '' })
+  const connect = createShipConnectClient()
   await connect.account.logout({})
 }
 
