@@ -1,23 +1,23 @@
 // Studio rail controller — URL-driven nav state for the Studio surface.
 // (Hub port of `apps/shell/src/components/sui-studio-rail/
-// sui-studio-rail.controller.ts`. Body is byte-identical to the shell;
-// the only change is the import seam: the shell pulls `ops` from its
-// `../../ops` wrapper, the hub has no `ops.ts` so it pulls the same
-// `createShipConnectClient` singleton from `../../lib/client`.)
-//
-// The rail is a chrome component reused by every studio deck route. It has
-// no view `route` signal of its own (custom elements don't receive the
-// view mount ctx), so it tracks the active section by reading
-// `location.pathname` and refreshing on popstate / sui:navigate — the same
-// events the shell fires on every SPA navigation.
-//
-// Counts come from the daemon REST API, not the SDK live channel, so the
-// rail stays dependency-light inside the eager chrome bundle. Agents,
-// skills, and components have live deck routes. Collections and themes link
-// out but their routes are not yet implemented; the router clears the route
-// slot on an unmatched path.
+// sui-studio-rail.controller.ts`. Body is byte-identical to the shell
+// except for two intentional changes:
+//   1. The import seam — the shell pulls `ops` from its `../../ops`
+//      wrapper, the hub has no `ops.ts` so it pulls the same
+//      `createShipConnectClient` singleton from `../../lib/client`.
+//   2. The listeners + count fetch moved out of the `scope:` block's
+//      `effect()` bodies and into a `mount:` block with an explicit
+//      cleanup return. The pre-fix shape (`effect(() => { addEventListener;
+//      return () => removeEventListener })`) leaks listeners across every
+//      studio nav: the chrome chain is rebuilt on every navigation
+//      (mountRouter → buildMountTarget), the studio chrome's mount
+//      runs a fresh rail, and the new rail's effect() has no tracked
+//      deps so the effect's internal cleanup (the only path that
+//      removes the listeners) never runs. `mount(): return cleanup`
+//      is wired to `cleanups[]` by the runtime's mount and fires on
+//      `handle.dispose()`.
 
-import { controller, signal, derived, effect } from '@ship/sui-runtime'
+import { controller, signal, derived } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-studio-rail.sui'
 import { ops } from '../../lib/client'
@@ -56,31 +56,6 @@ export default controller({
     const path = signal(typeof location !== 'undefined' ? location.pathname : '/studio')
     const agentCount = signal<string>('')
 
-    effect(() => {
-      if (typeof window === 'undefined') return
-      const onNav = () => path.set(location.pathname)
-      window.addEventListener('popstate', onNav)
-      window.addEventListener('sui:navigate', onNav)
-      return () => {
-        window.removeEventListener('popstate', onNav)
-        window.removeEventListener('sui:navigate', onNav)
-      }
-    })
-
-    // One-shot count fetch. Tolerant of shape + failure — a missing count
-    // simply hides the badge.
-    effect(() => {
-      let cancelled = false
-      void ops.agents
-        .list({})
-        .then((res) => {
-          if (cancelled) return
-          agentCount.set(String(res.items.length))
-        })
-        .catch(() => { /* leave the badge empty when the API is unreachable */ })
-      return () => { cancelled = true }
-    })
-
     const configureItems = derived<RailEntry[]>(() =>
       CONFIGURE.map((e) => ({
         ...e,
@@ -91,6 +66,50 @@ export default controller({
 
     return {
       configureItems,
+      // Surface the path signal + count signal (raw refs, not the
+      // proxied writable view) so the `mount:` block (which owns
+      // teardown) can wire and unwire the listeners through the
+      // standard lifecycle disposer instead of via an `effect()`
+      // whose returned cleanup never fires. Pre-fix, the effect
+      // had no tracked dependencies so it never re-ran; the
+      // internal cleanup (which removes the listeners) only fires
+      // on `effect.stop()`, which the scope never called. Every
+      // mount of the studio chrome leaked a `popstate` +
+      // `sui:navigate` listener pair, and the chrome is rebuilt
+      // per navigation (mountRouter → buildMountTarget rebuilds
+      // the chrome chain on every nav).
+      path,
+      agentCount,
+    }
+  },
+  mount(state, _host) {
+    // URL → path signal. One-shot per mount; the chrome persists
+    // for the route's lifetime and re-mounts cleanly on navigation.
+    // The returned disposer is the canonical teardown path —
+    // `mount()`'s return value is wired to `cleanups[]` by
+    // `@ship/sui-runtime`'s mount (mount.ts:276-278) and fires on
+    // `handle.dispose()`. See ship-nav-top.controller.ts:108-120
+    const onNav = (): void => { state.path = location.pathname }
+    window.addEventListener('popstate', onNav)
+    window.addEventListener('sui:navigate', onNav)
+
+    // One-shot count fetch. Tolerant of shape + failure — a missing
+    // count simply hides the badge. An AbortController cancels the
+    // response write if the chrome unmounts before it settles, so
+    // the post-dispose write never reaches a stale signal.
+    const ac = new AbortController()
+    void ops.agents
+      .list({})
+      .then((res) => {
+        if (ac.signal.aborted) return
+        state.agentCount = String(res.items.length)
+      })
+      .catch(() => { /* leave the badge empty when the API is unreachable */ })
+
+    return () => {
+      window.removeEventListener('popstate', onNav)
+      window.removeEventListener('sui:navigate', onNav)
+      ac.abort()
     }
   },
 })
