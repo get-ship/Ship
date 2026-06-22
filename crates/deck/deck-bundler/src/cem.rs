@@ -96,6 +96,32 @@ pub fn write_pack_cem(pack_root: &Path) -> Result<Option<PathBuf>> {
     Ok(Some(out_path))
 }
 
+/// Materialize the standard `dist/custom-elements.json` for EVERY workspace
+/// component pack that declares a `customElements` field. Run ONCE during the
+/// framework build (`deck build-assets`), so apps then aggregate the
+/// pre-written manifests via `generate_components_gen` (B2 stays a pure read).
+/// Returns the count written. A pack that fails to compile is skipped (logged),
+/// not fatal — one bad pack must not sink the whole catalog.
+pub fn write_all_pack_cems(repo_root: &Path) -> Result<usize> {
+    let packages = discover_workspace_packages(repo_root)
+        .map_err(|e| anyhow::anyhow!("discover workspace packages: {e}"))?;
+    let mut written = 0usize;
+    for pkg in &packages {
+        if pkg.custom_elements.is_none() {
+            continue;
+        }
+        match write_pack_cem(&pkg.root) {
+            Ok(Some(_)) => written += 1,
+            Ok(None) => {}
+            Err(e) => eprintln!(
+                "[deck/cem] write_pack_cem({}) failed, skipping: {e:#}",
+                pkg.root.display()
+            ),
+        }
+    }
+    Ok(written)
+}
+
 /// Walk `dir` recursively and collect `.sui` files that follow the component
 /// convention: the file stem equals its immediate parent directory name
 /// (e.g. `src/sui-foo/sui-foo.sui`).

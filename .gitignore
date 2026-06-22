@@ -21,6 +21,7 @@ packages/deck/sdk-client/src/generated.ts
 packages/sui/runtime/src/generated.ts
 # deck routes/meta codegen (deck-bundler `deck routes` output — regenerated on build)
 apps/*/routes.gen.ts
+**/components.gen.ts
 views/*.gen.ts
 
 # Playwright visual-baseline output (actual screenshots + diffs).

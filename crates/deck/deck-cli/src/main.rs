@@ -251,6 +251,16 @@ fn build_assets() -> Result<()> {
     rt.block_on(bundler.build_all())
         .map_err(|e| anyhow::anyhow!("build_all failed: {e}"))?;
 
+    // Materialize each component pack's standard `dist/custom-elements.json`
+    // (CEM) from its source. Run once here (the framework build), so per-app
+    // builds aggregate the pre-written manifests into `<app>/components.gen.ts`
+    // (`generate_components_gen`). Also the file every pack declares for
+    // external tooling (Storybook / VS Code / lit-analyzer).
+    match deck_bundler::cem::write_all_pack_cems(&repo_root) {
+        Ok(n) => println!("  cem: {n} component pack manifest(s) written"),
+        Err(e) => eprintln!("  cem: pack manifest generation failed: {e:#}"),
+    }
+
     // Build the layout once — used for both the framework verify and the
     // consumer guard below. assets_dir_for("sui-runtime") is now
     // .deck/framework/ (the canonical bake target per Recommendation B1).
