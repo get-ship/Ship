@@ -1,0 +1,19 @@
+// apps/hub/deck.jsonc — the hub defines the hub.
+//
+// Per-app serve config (the `AppServeConfig` shape deck consumes). Loaded by
+// shipd via the app-registration port; deck-config owns the schema + parser.
+//
+// Schema:
+//   name        string             logical app name / URL namespace
+//   route       string             URL route pattern shipd mounts the app at
+//   source      string             repo-relative bundler output (served assets)
+//   viewOutput? string             repo-relative compiled-view bundle dir
+//   render      "csr" | "ssr"      first-frame paint; surfaced as
+//                                  <meta name="ship-render"> (default "csr")
+//   injectGlobals? { string: string }  window.<k>=<v>; $<param> from route caps
+{
+  "name": "hub",
+  "route": "/",
+  "source": "apps/hub/.deck",
+  "render": "csr"
+}

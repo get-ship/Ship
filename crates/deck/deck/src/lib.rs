@@ -16,7 +16,8 @@ pub use deck_axum::{
     serve_view_payload,
     serve_view_payload_subpath,
 };
-pub use deck_config::AppServeConfig;
+pub use deck_config::{AppServeConfig, RenderMode};
+pub use deck_core::AppRegistry;
 pub use deck_axum::multiplex::{MultiplexState, multiplex_router, HEARTBEAT_MS};
 
 // The SPA navigation fallback. deck's `router()` deliberately sets NO fallback

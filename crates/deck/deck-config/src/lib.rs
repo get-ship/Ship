@@ -10,22 +10,59 @@
 //! `Vec<AppServeConfig>` the host builds from its own `apps.jsonc` — the
 //! framework names no app, no list.
 //!
-//! A stray `deck.jsonc` at the workspace root has no effect: not loaded,
+//! A stray `deck.jsonc` at the workspace ROOT has no effect: not loaded,
 //! not detected. The earlier file-read and `deck.jsonc` project-root
 //! marker were the dead-weight surface dissolved by the deck-purge-root
 //! job; the host now hands deck its paths, deck does not detect them.
+//!
+//! ## Per-app `deck.jsonc` (app-owned)
+//!
+//! Distinct from the retired root marker: each app owns a per-app
+//! `apps/<app>/deck.jsonc` that declares its serve config — the
+//! [`AppServeConfig`] shape (`name`, `route`, `source`, optional
+//! `viewOutput`, the [`RenderMode`], optional `injectGlobals`). The hub
+//! defines the hub. deck-config provides the schema + the JSONC parser
+//! ([`AppServeConfig::parse_deck_jsonc`]); the HOST decides which files to
+//! load and binds their locations (deck still names no path). The host's
+//! orchestration list (`apps.jsonc` in the Ship repo) only points at WHERE
+//! each app's `deck.jsonc` lives — the per-app file is the source of truth
+//! for that app's serve config.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+mod jsonc;
+pub use jsonc::strip_jsonc_comments;
+
 // ─── types ────────────────────────────────────────────────────────────────────
 
-/// One app's serve configuration. The shape deck's per-app router consumes;
-/// shipd (or any deck host) builds a `Vec<AppServeConfig>` from its
-/// monorepo-level app list (`apps.jsonc` in the Ship repo; the host decides
-/// the source). The framework does NOT know the list — that is the host's
+/// How an app paints its first frame.
+///
+/// `Csr` (the default) ships an empty mount point (`#ship-root`) and lets the
+/// client bundle render. `Ssr` means the app server-renders its first frame
+/// before hydration. This is the OBSERVABLE "does this app server-render at
+/// all" flag the router/serving path consumes — NOT the SSR-engine selector
+/// (which engine renders is a separate, host-gated concern). The served
+/// `index.html` carries the active mode as `<meta name="ship-render">` so it
+/// is legible client-side.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum RenderMode {
+    /// Client-side render — empty `#ship-root`, the client bundle paints.
+    #[default]
+    Csr,
+    /// Server-side render — the first frame is rendered before hydration.
+    Ssr,
+}
+
+/// One app's serve configuration — the parsed contents of a per-app
+/// `apps/<app>/deck.jsonc`, and the shape deck's per-app router consumes.
+/// shipd (or any deck host) builds a `Vec<AppServeConfig>` by loading each
+/// app's `deck.jsonc` (the apps it serves come from the host's own
+/// orchestration list — `apps.jsonc` in the Ship repo; the host decides the
+/// source). The framework does NOT know the list — that is the host's
 /// concern.
 ///
 /// Each app's `index.html` lives at `<source>/index.html` relative to the
@@ -63,8 +100,26 @@ pub struct AppServeConfig {
     /// injection is `window.DECK_APP_ID="<id>";`).
     #[serde(default)]
     pub inject_globals: BTreeMap<String, String>,
+    /// How the app paints its first frame — `csr` (default) or `ssr`. Made
+    /// observable by serving it as a `<meta name="ship-render">` tag in the
+    /// app's `index.html`. Absent ⇒ `csr` (the implicit-empty-`#ship-root`
+    /// posture every app had before this field existed).
+    #[serde(default)]
+    pub render: RenderMode,
 }
-/// The parsed contents of `deck.jsonc`.
+
+impl AppServeConfig {
+    /// Parse a per-app `deck.jsonc` (JSONC source) into the serve config.
+    ///
+    /// Strips JSONC extensions, then deserializes. `name`, `route`, and
+    /// `source` are required; `viewOutput`, `injectGlobals`, and `render`
+    /// default. The HOST decides which file to read and feeds the bytes here
+    /// — deck-config names no path.
+    pub fn parse_deck_jsonc(raw: &str) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(&strip_jsonc_comments(raw))
+    }
+}
+/// The parsed contents of the host's view-discovery `DeckConfig`.
 ///
 /// The container-level `#[serde(default)]` fills every missing field from
 /// [`DeckConfig::defaults`] (via the `Default` impl), so a minimal — or
@@ -139,86 +194,6 @@ impl DeckConfig {
     }
 }
 
-/// Strip JSONC extensions from a string: `//` line comments, `/* */` block
-/// comments, and trailing commas before `]` or `}`. The result is valid JSON.
-/// Respects string literals so URLs like `"http://"` are not mangled.
-///
-/// Public helper for hosts (and tests) that need to parse a JSONC document
-/// without depending on `ship-substrate` — the deck-config crate is the
-/// std-only JSONC parser the deck-core resolver chain requires. The
-/// `deck-config::DeckConfig` type no longer reads any file itself; the
-/// helper stays so a host that DOES want JSONC parsing for its own
-/// config (e.g. `apps.jsonc`) can build a `DeckConfig` via
-/// `serde_json::from_str(&strip_jsonc_comments(&raw))` and pass it in.
-///
-/// NOTE: this is a deliberate second copy of the JSONC stripper inlined
-/// into the deck-config crate to drop the `ship-substrate` dependency
-/// edge from deck-core's resolver chain. The two copies must stay in
-/// sync — if the algorithm changes, update both.
-pub fn strip_jsonc_comments(input: &str) -> String {
-    // Phase 1: strip comments.
-    let mut stage = String::with_capacity(input.len());
-    let mut chars = input.chars().peekable();
-    let mut in_string = false;
-    let mut escape = false;
-    while let Some(c) = chars.next() {
-        if in_string {
-            stage.push(c);
-            if escape { escape = false; } else if c == '\\' { escape = true; } else if c == '"' { in_string = false; }
-            continue;
-        }
-        if c == '"' { in_string = true; stage.push(c); continue; }
-        if c == '/' {
-            match chars.peek() {
-                Some('/') => { while let Some(&nc) = chars.peek() { chars.next(); if nc == '\n' { stage.push('\n'); break; } } continue; }
-                Some('*') => { chars.next(); while let Some(nc) = chars.next() { if nc == '*' && chars.peek() == Some(&'/') { chars.next(); break; } } continue; }
-                _ => {}
-            }
-        }
-        stage.push(c);
-    }
-    // Phase 2: remove trailing commas (`,` followed only by whitespace then
-    // `]` or `}`). Walk as bytes for cheap peek-ahead, but copy non-ASCII
-    // bytes verbatim — `bytes[i] as char` would mangle multi-byte UTF-8
-    // (e.g. an emdash 0xE2 0x80 0x94 turns into three U+00E2/U+0080/U+0094
-    // chars when push'd to a String).
-    let src = stage.as_bytes();
-    let mut cleaned: Vec<u8> = Vec::with_capacity(src.len());
-    let mut i = 0;
-    let mut in_string2 = false;
-    let mut escape2 = false;
-    while i < src.len() {
-        let b = src[i];
-        if in_string2 {
-            cleaned.push(b);
-            if escape2 {
-                escape2 = false;
-            } else if b == b'\\' {
-                escape2 = true;
-            } else if b == b'"' {
-                in_string2 = false;
-            }
-            i += 1;
-            continue;
-        }
-        if b == b'"' { in_string2 = true; cleaned.push(b); i += 1; continue; }
-        if b == b',' {
-            let mut j = i + 1;
-            while j < src.len() && (src[j] == b' ' || src[j] == b'\t' || src[j] == b'\r' || src[j] == b'\n') {
-                j += 1;
-            }
-            if j < src.len() && (src[j] == b']' || src[j] == b'}') {
-                i += 1;
-                continue;
-            }
-        }
-        cleaned.push(b);
-        i += 1;
-    }
-    // Safe: we only dropped ASCII commas at valid char boundaries; every
-    // other byte was copied verbatim from the original UTF-8 String.
-    String::from_utf8(cleaned).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
-}
 // ─── tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -296,6 +271,81 @@ mod tests {
             "partial config must inherit the conventional view buckets"
         );
         assert_eq!(cfg.view_leaf.as_deref(), Some("page.sui"));
+    }
+
+    // ── per-app deck.jsonc (AppServeConfig) ───────────────────────────────────
+
+    /// The hub's per-app `deck.jsonc`: a full serve config with an explicit
+    /// `csr` render mode. Mirrors `apps/hub/deck.jsonc`.
+    const HUB_DECK_JSONC: &str = r#"{
+  // apps/hub/deck.jsonc — the hub defines the hub.
+  "name": "hub",
+  "route": "/",
+  "source": "apps/hub/.deck",
+  "render": "csr"
+}"#;
+
+    #[test]
+    fn parse_app_deck_jsonc_full() {
+        let cfg = AppServeConfig::parse_deck_jsonc(HUB_DECK_JSONC)
+            .expect("hub deck.jsonc must parse");
+        assert_eq!(cfg.name, "hub");
+        assert_eq!(cfg.route, "/");
+        assert_eq!(cfg.source, "apps/hub/.deck");
+        assert_eq!(cfg.view_output, None);
+        assert!(cfg.inject_globals.is_empty());
+        assert_eq!(cfg.render, RenderMode::Csr);
+    }
+
+    /// `render` is optional and defaults to `csr` — the implicit posture every
+    /// app had before the field existed (empty `#ship-root`, client paints).
+    #[test]
+    fn parse_app_deck_render_defaults_to_csr() {
+        let json = r#"{ "name": "hub", "route": "/", "source": "apps/hub/.deck" }"#;
+        let cfg = AppServeConfig::parse_deck_jsonc(json).expect("minimal deck.jsonc parses");
+        assert_eq!(cfg.render, RenderMode::Csr, "absent render ⇒ csr");
+        // The whole-config Default also lands on csr.
+        assert_eq!(AppServeConfig::default().render, RenderMode::Csr);
+    }
+
+    /// `render: "ssr"` parses into the SSR variant; injectGlobals + a
+    /// route-capture (spaces' shape) round-trip through the JSONC parser.
+    #[test]
+    fn parse_app_deck_ssr_and_inject_globals() {
+        let json = r#"{
+  "name": "spaces",
+  "route": "/space/{id}",
+  "source": "apps/spaces/.deck",
+  "render": "ssr",
+  "injectGlobals": { "DECK_APP_ID": "$id" }
+}"#;
+        let cfg = AppServeConfig::parse_deck_jsonc(json).expect("spaces deck.jsonc parses");
+        assert_eq!(cfg.route, "/space/{id}");
+        assert_eq!(cfg.render, RenderMode::Ssr);
+        assert_eq!(
+            cfg.inject_globals.get("DECK_APP_ID").map(String::as_str),
+            Some("$id")
+        );
+    }
+
+    /// `RenderMode` serializes to the lowercase wire tokens the meta tag emits.
+    #[test]
+    fn render_mode_serde_tokens() {
+        assert_eq!(serde_json::to_string(&RenderMode::Csr).unwrap(), "\"csr\"");
+        assert_eq!(serde_json::to_string(&RenderMode::Ssr).unwrap(), "\"ssr\"");
+        let m: RenderMode = serde_json::from_str("\"ssr\"").unwrap();
+        assert_eq!(m, RenderMode::Ssr);
+    }
+
+    /// A `deck.jsonc` missing a required field (`source`) is a parse error —
+    /// surfaced to the host at load, not silently defaulted.
+    #[test]
+    fn parse_app_deck_missing_required_field_errors() {
+        let json = r#"{ "name": "hub", "route": "/" }"#;
+        assert!(
+            AppServeConfig::parse_deck_jsonc(json).is_err(),
+            "missing `source` must error, not default to empty"
+        );
     }
 
     /// `DeckConfig::load` is GONE. Constructing a host config is the host's

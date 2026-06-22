@@ -284,32 +284,23 @@ pub async fn run_network(
     auth::spawn_session_sweeper(session_registry.clone());
     let pairing_registry = auth::pairing::new_shared();
     let attestation_verifier = auth::attest::AttestationVerifier::new();
-    // Read the apps list from `apps/shipd/apps.jsonc`. The file is the
-    // Ship-monorepo source of truth for "which apps ship, on what
-    // routes, with what globals" — deck (L1) is per-app, the host
-    // owns the list, so it lives with shipd (its only reader), not at the
-    // repo root. Default to `<worktree>/apps/shipd/apps.jsonc`; the
+    // Enumerate the apps via shipd's app-registration port impl. `apps.jsonc`
+    // is the Ship-monorepo orchestration list ("which apps ship, where each
+    // one's `deck.jsonc` lives") — deck (L1) is per-app and names no path, so
+    // the list lives with shipd (its only reader). The registry reads it and
+    // loads each `apps/<app>/deck.jsonc` into an `AppServeConfig`. Default to
+    // `<worktree>/apps/shipd/apps.jsonc`; per-app config resolves under the
+    // worktree root.
+    use deck_core::AppRegistry as _;
     let apps_config_path = apps_config_override
         .or_else(|| worktree_root.as_ref().map(|r| r.join("apps/shipd/apps.jsonc")))
         .unwrap_or_else(|| std::path::PathBuf::from("apps/shipd/apps.jsonc"));
-    let apps = match router::apps_config::load_apps_config(&apps_config_path) {
-        Ok(apps) => {
-            tracing::info!(
-                path = %apps_config_path.display(),
-                count = apps.len(),
-                "shipd: loaded apps.jsonc"
-            );
-            apps
-        }
-        Err(e) => {
-            tracing::warn!(
-                path = %apps_config_path.display(),
-                error = %e,
-                "shipd: apps.jsonc failed to load — serving no apps"
-            );
-            Vec::new()
-        }
-    };
+    let project_root_for_apps = worktree_root
+        .clone()
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let app_registry =
+        router::apps_config::ShipAppRegistry::new(project_root_for_apps, apps_config_path);
+    let apps = app_registry.serve_configs();
     // Slice-2 component 1: register each app's per-app view-output dir so
     // deck's runtime serves compiled view bundles from the right per-app
     // location (e.g. `apps/hub/.deck/views/<name>/view.js`) before falling
