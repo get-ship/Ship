@@ -231,3 +231,54 @@ No `DESIGN-FORK` or `FRAMEWORK-GAP` from this job.
 Resolves when those routes land.
 
 No `DESIGN-FORK` or `FRAMEWORK-GAP` from this job.
+
+## job/hub-data-layer (2026-06-22)
+
+Wired the studio data surfaces to the daemon's live-data contract
+(`apps/shipd/src/ship_runtime/live_resolvers.rs`): `ship` = live SSE client
+(ops WITH a resolver), `ops` = unary Connect (everything else). Committed:
+skills (unary + `{json}` decode), agents (live `agents.summaries`), client split.
+
+### `BACKEND-GAP` — `events.list` has no live mux resolver
+- **Surface:** the agents list's per-card run-status badge (`running` /
+  `completed` / `errored`), `apps/hub/routes/studio/agents/controller.ts`
+  (`agentEvents` → `agentStatus`).
+- **Symptom:** `ship.events.list(...)` opens an SSE subscribe that 404s
+  (`live_resolvers.rs` registers only git.overview / agents.summaries /
+  collections.list / account.state). The mux-client marks the 4xx permanent
+  (no retry storm) and the status map degrades to `{}`.
+- **Surface today:** the 7 agent cards render (name, description, source, tags,
+  active chip); only the live run-status pill is absent (it's `{#if}`-guarded).
+- **Closes when:** a `events.list` live resolver lands (or events move to a
+  Connect unary op the controller can poll).
+
+### `BACKEND-GAP` — `skills.summaries` / `skills.detail` are unary-only
+- **Surface:** `/studio/skills` (list) + `/studio/skills/:id` (detail).
+- **Detail:** skills has NO live resolver, only the unary Connect ops, which
+  wrap their payload in a generic `{ json }` envelope. The shell reads skills
+  over its live client; the hub reads via `ops` + decodes the envelope. Works,
+  but skills do not live-update. Not blocking — flagged for parity if skills
+  ever need live (they rarely change).
+
+### `BACKEND-GAP` / `FRAMEWORK-GAP` — components catalog (`/_deck/catalog`)
+- **Surface:** `/studio/components`. Fetches `GET /_deck/catalog/workspace`,
+  which 404s (no such daemon endpoint). 0 cells render.
+- **Direction (operator):** load the component catalog from the compiler's
+  custom-elements-manifest (CEM), NOT a deck REST endpoint. Needs CEM emission
+  from the sui compiler/bundler + a hub client path that consumes it. Tracked
+  as task #4.
+
+### `FRAMEWORK-GAP` (observation) — generated entry passes `clients: {}`
+- `apps/hub/routes.gen.ts` injects no named clients into the view mount ctx, so
+  controllers that `scope: ({ ship, agents }) => …` (ported from the shell's
+  ctx-injection model) get `undefined`. The hub convention is module-import
+  clients (`src/lib/client.ts`); the agents controllers were rewired to that.
+  Note for any further shell ports: use the module client, not ctx.
+
+### QA-TOOLING note — headless render crash on large card grids
+- `/studio/skills` (15 cards) crashes the headless chromium renderer in WSL2
+  (debug build), even with `--disable-gpu`; `/studio/agents` (7 cards) is fine.
+  The data wiring is verified correct (cap-3 render + CDP DOM). This is a
+  headless artifact — 15 DOM/CSS cards are trivial for webkit2gtk. Real-app
+  (Tauri) render sanity of large lists is owed; if it reproduces there, it's a
+  sui-runtime keyed-`{#for}` scaling issue, not a data bug.
