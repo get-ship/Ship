@@ -15,18 +15,51 @@
 //! marker were the dead-weight surface dissolved by the deck-purge-root
 //! job; the host now hands deck its paths, deck does not detect them.
 //!
-//! ## Per-app `deck.jsonc` (app-owned)
+//! ## Per-app `deck.jsonc` (app-owned, OPTIONAL)
 //!
-//! Distinct from the retired root marker: each app owns a per-app
-//! `apps/<app>/deck.jsonc` that declares its serve config — the
-//! [`AppServeConfig`] shape (`name`, `route`, `source`, optional
-//! `viewOutput`, the [`RenderMode`], optional `injectGlobals`). The hub
-//! defines the hub. deck-config provides the schema + the JSONC parser
-//! ([`AppServeConfig::parse_deck_jsonc`]); the HOST decides which files to
-//! load and binds their locations (deck still names no path). The host's
-//! orchestration list (`apps.jsonc` in the Ship repo) only points at WHERE
-//! each app's `deck.jsonc` lives — the per-app file is the source of truth
-//! for that app's serve config.
+//! Distinct from the retired root marker: an app MAY own a per-app
+//! `apps/<app>/deck.jsonc` that declares only the non-conventional
+//! pieces — [`AppServeConfig`] — but the file is optional. An app
+//! whose config is fully conventional needs no `deck.jsonc` at all;
+//! the host reads the absent file as a `Default::default()` config.
+//!
+//! What stays on the per-app file (only what is genuinely
+//! non-conventional):
+//!
+//! - `render` (`csr` default | `ssr`) — the rendering-modes design
+//!   exposes this on the per-app shape so individual apps can opt
+//!   into SSR (per-route override is a follow-up).
+//! - `injectGlobals` — a host-owned injection concern (URL path
+//!   captures → `window.<k>`); apps with a dynamic route (the
+//!   spaces scaffold's `/space/{id}` → `DECK_APP_ID`) need this and
+//!   the spaces file is the only current user.
+//! - `entry` — the host-owned entry bootstrap (`clientsModule` +
+//!   `exposeNames`) the bundler emits as `entry.gen.ts`.
+//!
+//! What is NOT here anymore (and where it lives instead):
+//!
+//! - `name` → the app's directory basename (`apps/hub` ⇒ `hub`). The
+//!   host derives it; the app does not declare its own name.
+//! - `route` → the orchestration list (`apps.jsonc` in the Ship
+//!   repo). Where an app mounts is the host composing many apps'
+//!   decision, not the app's self-declaration. The `ShipAppRegistry`
+//!   reads it from `apps.jsonc`.
+//! - `source` → always `<app>/.deck` (the bundler's default
+//!   output dir). Not config.
+//! - `viewOutput` → always `<app>/.deck/views`. Not config.
+//! - `frameworkClients` → provider-declared. The framework-singleton
+//!   package (`@ship/sdk-client` et al.) self-declares its serve
+//!   contract in its own `package.json#deckFramework` (mirror of how
+//!   packs declare `customElements`). The bundler DISCOVERS these by
+//!   walking the app's resolved dependency graph. The app declares
+//!   nothing; deck names no ship package. See
+//!   `crates/deck/deck-bundler/src/app.rs::discover_deck_frameworks`
+//!   for the discovery pass.
+//!
+//! `AppServeConfig::parse_deck_jsonc` is the only entry point the
+//! host needs; deck-config owns the schema + the JSONC parser. The
+//! host decides which files to load and binds their locations —
+//! deck still names no path.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -36,8 +69,34 @@ use serde::{Deserialize, Serialize};
 mod jsonc;
 pub use jsonc::strip_jsonc_comments;
 
-// ─── types ────────────────────────────────────────────────────────────────────
-
+/// One app's serve configuration — the parsed contents of a per-app
+/// `apps/<app>/deck.jsonc` (or `Default::default()` when the file is
+/// absent), and the shape deck's per-app router consumes. shipd (or
+/// any deck host) builds a `Vec<AppServeConfig>` by loading each
+/// app's `deck.jsonc` — or, when the file is absent, the empty
+/// `Default::default()` — and pairs it with the route the host's
+/// `apps.jsonc` orchestration list declares. The framework does NOT
+/// know the list; that is the host's concern.
+///
+/// # What lives here vs. what is convention
+///
+/// Only genuinely non-conventional config sits on this struct. Every
+/// field that has a discoverable default is gone — see the module-level
+/// doc for the dropped fields and where they live now:
+///
+/// - `name` → directory basename; the host derives it.
+/// - `route` → the host's orchestration list (`apps.jsonc`).
+/// - `source` → always `<app>/.deck`; the bundler writes there.
+/// - `viewOutput` → always `<app>/.deck/views`; convention.
+/// - `frameworkClients` → provider-declared discovery via
+///   `package.json#deckFramework` (see `deck_bundler::app`).
+///
+/// What stays:
+///
+/// - `render` — the rendering-modes flag (csr default | ssr).
+/// - `injectGlobals` — host-owned URL-capture → `window.<k>` injections.
+/// - `entry` — host-owned entry bootstrap (`entry.gen.ts`).
+///
 /// How an app paints its first frame.
 ///
 /// `Csr` (the default) ships an empty mount point (`#ship-root`) and lets the
@@ -56,48 +115,39 @@ pub enum RenderMode {
     /// Server-side render — the first frame is rendered before hydration.
     Ssr,
 }
-
-/// One app's serve configuration — the parsed contents of a per-app
-/// `apps/<app>/deck.jsonc`, and the shape deck's per-app router consumes.
-/// shipd (or any deck host) builds a `Vec<AppServeConfig>` by loading each
-/// app's `deck.jsonc` (the apps it serves come from the host's own
-/// orchestration list — `apps.jsonc` in the Ship repo; the host decides the
-/// source). The framework does NOT know the list — that is the host's
-/// concern.
-///
-/// Each app's `index.html` lives at `<source>/index.html` relative to the
-/// project root (the dev's authored source tree). The bundler writes
-/// `<project>/.deck/` for the built output; the dev points `source` there
-/// (e.g. `apps/hub/.deck`). The framework reads via the project's resolver
-/// so the path is repo-relative.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AppServeConfig {
-    /// Logical app name. Used for log lines + the SPA-fallback lookup
-    /// (which app serves a given multi-segment client route).
+    /// Logical app name + URL namespace. The bundler writes built assets
+    /// under `/<name>/…` and the daemon serves them at that path. HOST
+    /// sets this from the app's directory basename (`apps/hub` ⇒ `hub`).
+    /// NOT read from `deck.jsonc` — the file doesn't get to name itself
+    /// (the directory is authoritative; a stale or wrong `name` in the
+    /// file would silently ship assets under the wrong namespace).
+    /// `serde(skip)` ensures the JSONC parser cannot see it.
+    #[serde(skip, default)]
     pub name: String,
-    /// URL route pattern. e.g. `/` (hub) or `/space/{id}` (spaces — the
-    /// `{id}` is a path capture, accessible via `inject_globals` substitution).
+    /// URL route pattern shipd mounts the app at. HOST sets this from
+    /// its own orchestration list (`apps.jsonc` in the Ship repo):
+    /// `"/"` for the hub, `"/space/{id}"` for the spaces scaffold, etc.
+    /// The app does NOT self-declare where it mounts — that's the host
+    /// composing many apps' decision. `serde(skip)` ensures the file
+    /// can't override the host's bind (a stale `route` would silently
+    /// change where the app serves).
+    #[serde(skip, default)]
     pub route: String,
-    /// Path to the built app, relative to the project root.
-    /// e.g. `apps/hub/.deck` or `apps/spaces/.deck`.
+    /// Path to the built app's output dir, relative to the project
+    /// root. Convention: always `<app>/.deck` (the bundler's default
+    /// `out_dir`). The host sets this; the file doesn't get to choose
+    /// a non-conventional output location. `serde(skip)` mirrors `name`.
+    #[serde(skip, default)]
     pub source: String,
-    /// Where this app's compiled VIEW bundles live, relative to the project
-    /// root. The runtime probes `<view_output>/views/<name>/view.js` BEFORE
-    /// falling back to the bundler's default workspace-root output dir
-    /// (`<project_root>/.deck/views`), so apps with a non-conventional layout
-    /// (e.g. `apps/hub/.deck/views/<name>/view.js`) serve their own bundles
-    /// without depending on the global project root.
-    ///
-    /// Optional: when absent, deck uses the bundler's default (the workspace
-    /// root's `.deck/views`).
-    #[serde(default)]
-    pub view_output: Option<String>,
     /// Globals injected as `<script>window.<key>=<value>;</script>` into the
     /// app's `index.html` before `</head>`. `$<param>` tokens in the value are
-    /// substituted from the URL path captures declared in `route` (so for
-    /// `route: "/space/{id}"` and an entry `("DECK_APP_ID", "$id")`, the
-    /// injection is `window.DECK_APP_ID="<id>";`).
+    /// substituted from the URL path captures declared in the host's
+    /// `apps.jsonc` route (so for `route: "/space/{id}"` and an entry
+    /// `("DECK_APP_ID", "$id")`, the injection is
+    /// `window.DECK_APP_ID="<id>";`).
     #[serde(default)]
     pub inject_globals: BTreeMap<String, String>,
     /// How the app paints its first frame — `csr` (default) or `ssr`. Made
@@ -106,25 +156,6 @@ pub struct AppServeConfig {
     /// posture every app had before this field existed).
     #[serde(default)]
     pub render: RenderMode,
-    /// Framework clients the HOST registers for this app — bare specifier
-    /// aliases that resolve to host-provided ESM modules through the
-    /// generated importmap. The bundler does NOT hardcode any client alias
-    /// (no `@ship/sdk-client`, no `@ship/*-sdk`); every client that needs
-    /// importmap resolution must be declared HERE.
-    ///
-    /// Each entry maps the alias to a per-app copy instruction:
-    /// `from` is the workspace-relative source path (typically a `.deck/framework/`
-    /// bundle the bake produced); `dist` is the output path relative to the
-    /// project's build dir (the bundler copies `from` → `<out>/<dist>` when
-    /// `--bundle-framework` is set). The importmap binds the alias to
-    /// `/_deck/<dist_basename>` — the same URL convention every framework
-    /// singleton uses — so the daemon serves the asset the same way.
-    ///
-    /// This is the L1 (deck) expression of the `DataPort` / `AppRegistry`
-    /// discipline: the host binds its own concrete inside the impl; deck
-    /// provides the slot, not the concrete.
-    #[serde(default)]
-    pub framework_clients: BTreeMap<String, FrameworkClientEntry>,
     /// Host-owned entry bootstrap. The bundler generates a typed
     /// `entry.gen.ts` from this — the file that constructs the named
     /// `clients` map and hands it to `mountRouter({...})`. The data
@@ -135,23 +166,6 @@ pub struct AppServeConfig {
     /// doesn't ship a `main.ts` and neither should the host.
     #[serde(default)]
     pub entry: Option<EntryBootstrap>,
-}
-
-/// One framework-client registration — the importmap alias → asset copy.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FrameworkClientEntry {
-    /// Workspace-relative source path of the client asset. Resolved at build
-    /// time; the path is read once and its bytes copied to `<out>/<dist>`.
-    /// Typically `<repo>/.deck/framework/<bundle>` — the bake output.
-    #[serde(rename = "from")]
-    pub from: String,
-    /// Output path, relative to the project's build dir. The importmap binds
-    /// the alias to `/_deck/<dist_basename>`, mirroring the existing
-    /// `FRAMEWORK_ASSETS` convention so the daemon's static-asset handler
-    /// serves client assets on the same code path.
-    #[serde(rename = "dist")]
-    pub dist: String,
 }
 
 /// Host-owned entry bootstrap. The bundler reads this from
@@ -183,10 +197,10 @@ pub struct EntryBootstrap {
 impl AppServeConfig {
     /// Parse a per-app `deck.jsonc` (JSONC source) into the serve config.
     ///
-    /// Strips JSONC extensions, then deserializes. `name`, `route`, and
-    /// `source` are required; `viewOutput`, `injectGlobals`, and `render`
-    /// default. The HOST decides which file to read and feeds the bytes here
-    /// — deck-config names no path.
+    /// Strips JSONC extensions, then deserializes. Every field is optional
+    /// (an absent file ⇒ `Default::default()`); the file's whole purpose is
+    /// to opt out of the conventional defaults. The HOST decides which file
+    /// to read and feeds the bytes here — deck-config names no path.
     pub fn parse_deck_jsonc(raw: &str) -> Result<Self, serde_json::Error> {
         serde_json::from_str(&strip_jsonc_comments(raw))
     }
@@ -347,120 +361,142 @@ mod tests {
 
     // ── per-app deck.jsonc (AppServeConfig) ───────────────────────────────────
 
-    /// The hub's per-app `deck.jsonc`: a full serve config with an explicit
-    /// `csr` render mode. Mirrors `apps/hub/deck.jsonc`.
-    const HUB_DECK_JSONC: &str = r#"{
-  // apps/hub/deck.jsonc — the hub defines the hub.
+    /// The new-shape hub: only `entry` is non-conventional (the host-owned
+    /// entry bootstrap that imports the data tables from `./routes.gen`,
+    /// constructs the named `clients` map off the host's
+    /// `./src/lib/client.ts` factory, and calls `mountRouter`). Every
+    /// other field is convention: `name` is the directory basename,
+    /// `route` comes from `apps.jsonc`, `source` is `<app>/.deck`, no
+    /// `frameworkClients` (the bundler discovers the SDK-client through
+    /// the `deckFramework` self-declaration on `@ship/sdk-client`'s own
+    /// `package.json`).
+    const HUB_DECK_NEW: &str = r#"{
+  "entry": {
+    "clientsModule": "./src/lib/client.ts",
+    "exposeNames": ["ship", "ops"]
+  }
+}"#;
+
+    /// The legacy hub (deck-jsonc-simplify BEFORE) carries `name`/
+    /// `route`/`source`/`render`. The cutover makes every one of those
+    /// fields discoverable from elsewhere — they are UNKNOWN to the new
+    /// schema. serde drops unknown fields silently (no error), so a
+    /// legacy file parses to a config identical to the empty default.
+    const HUB_DECK_LEGACY: &str = r#"{
   "name": "hub",
   "route": "/",
   "source": "apps/hub/.deck",
   "render": "csr"
 }"#;
 
+    /// Spaces keeps only its genuinely non-conventional bits: the
+    /// `DECK_APP_ID` URL-capture → `window.DECK_APP_ID` injection
+    /// (`/space/{id}` route is declared by the host's `apps.jsonc`).
+    const SPACES_DECK_NEW: &str = r#"{
+  "injectGlobals": { "DECK_APP_ID": "$id" }
+}"#;
+
+    /// The new-shape parse: an app with only the `entry` bootstrap (the
+    /// hub's whole reason to keep a `deck.jsonc`) lands a valid config.
+    /// No `name`/`route`/`source`/`viewOutput`/`frameworkClients` fields —
+    /// Legacy fields (`route`/`source`/`render`) are unknown to the new
+    /// schema and serde drops them silently — the parse produces a
+    /// `Default::default()` config PLUS any legacy `name` field that
+    /// happens to match the directory basename (the host ignores the
+    /// value; the spec says the directory basename is authoritative).
+    /// Legacy fields (`route`/`source`/`render`) are unknown to the new
+    /// schema and serde drops them silently — including the legacy
+    /// `name` field, which is `#[serde(skip)]` (the directory basename
+    /// is authoritative; a stale or wrong `name` in the file must not
+    /// ship assets under the wrong namespace). The parse produces a
+    /// `Default::default()` config — `name`/`source` are empty until
+    /// the host fills them in.
     #[test]
-    fn parse_app_deck_jsonc_full() {
-        let cfg = AppServeConfig::parse_deck_jsonc(HUB_DECK_JSONC)
-            .expect("hub deck.jsonc must parse");
-        assert_eq!(cfg.name, "hub");
-        assert_eq!(cfg.route, "/");
-        assert_eq!(cfg.source, "apps/hub/.deck");
-        assert_eq!(cfg.view_output, None);
-        assert!(cfg.inject_globals.is_empty());
-        assert_eq!(cfg.render, RenderMode::Csr);
+    fn parse_app_deck_legacy_fields_dropped_silently() {
+        let cfg = AppServeConfig::parse_deck_jsonc(HUB_DECK_LEGACY)
+            .expect("legacy fields are dropped, not errors");
+        // Everything is dropped — host fills name/source.
+        assert_eq!(cfg, AppServeConfig::default(), "legacy fields parse to default");
     }
 
-    /// `render` is optional and defaults to `csr` — the implicit posture every
-    /// app had before the field existed (empty `#ship-root`, client paints).
+
+
+    /// `render` is optional and defaults to `csr` — the implicit posture
+    /// every app had before the field existed (empty `#ship-root`,
+    /// client paints). The default-constructed config also lands on csr.
     #[test]
     fn parse_app_deck_render_defaults_to_csr() {
-        let json = r#"{ "name": "hub", "route": "/", "source": "apps/hub/.deck" }"#;
-        let cfg = AppServeConfig::parse_deck_jsonc(json).expect("minimal deck.jsonc parses");
-        assert_eq!(cfg.render, RenderMode::Csr, "absent render ⇒ csr");
-        // The whole-config Default also lands on csr.
-        assert_eq!(AppServeConfig::default().render, RenderMode::Csr);
+        let cfg = AppServeConfig::default();
+        assert_eq!(cfg.render, RenderMode::Csr, "Default ⇒ csr");
+        let parsed = AppServeConfig::parse_deck_jsonc("{}")
+            .expect("empty deck.jsonc parses to Default");
+        assert_eq!(parsed, AppServeConfig::default());
+        assert_eq!(parsed.render, RenderMode::Csr);
     }
 
-    /// `render: "ssr"` parses into the SSR variant; injectGlobals + a
-    /// route-capture (spaces' shape) round-trip through the JSONC parser.
+    /// `render: "ssr"` parses into the SSR variant; spaces' `injectGlobals`
+    /// + URL-capture (`DECK_APP_ID: $id`) round-trip through the JSONC
+    /// parser. The route itself is declared by the host's `apps.jsonc`,
+    /// not by the app — the file carries only the URL-capture →
+    /// `window.<k>` mapping.
     #[test]
     fn parse_app_deck_ssr_and_inject_globals() {
         let json = r#"{
-  "name": "spaces",
-  "route": "/space/{id}",
-  "source": "apps/spaces/.deck",
   "render": "ssr",
   "injectGlobals": { "DECK_APP_ID": "$id" }
 }"#;
         let cfg = AppServeConfig::parse_deck_jsonc(json).expect("spaces deck.jsonc parses");
-        assert_eq!(cfg.route, "/space/{id}");
         assert_eq!(cfg.render, RenderMode::Ssr);
         assert_eq!(
             cfg.inject_globals.get("DECK_APP_ID").map(String::as_str),
             Some("$id")
         );
+        // No name/route/source — host-supplied.
+        assert_eq!(cfg, AppServeConfig {
+            name: String::new(),
+            route: String::new(),
+            source: String::new(),
+            inject_globals: [("DECK_APP_ID".to_string(), "$id".to_string())]
+                .into_iter().collect(),
+            render: RenderMode::Ssr,
+            entry: None,
+        });
     }
 
-    /// `RenderMode` serializes to the lowercase wire tokens the meta tag emits.
+    /// `entry` round-trips through the JSONC parser — the host-owned
+    /// the bundler imports + the `exposeNames` it spreads into the
+    /// `clients` map).
     #[test]
-    fn render_mode_serde_tokens() {
-        assert_eq!(serde_json::to_string(&RenderMode::Csr).unwrap(), "\"csr\"");
-        assert_eq!(serde_json::to_string(&RenderMode::Ssr).unwrap(), "\"ssr\"");
-        let m: RenderMode = serde_json::from_str("\"ssr\"").unwrap();
-        assert_eq!(m, RenderMode::Ssr);
-    }
-
-    /// A `deck.jsonc` missing a required field (`source`) is a parse error —
-    /// surfaced to the host at load, not silently defaulted.
-    #[test]
-    fn parse_app_deck_missing_required_field_errors() {
-        let json = r#"{ "name": "hub", "route": "/" }"#;
-        assert!(
-            AppServeConfig::parse_deck_jsonc(json).is_err(),
-            "missing `source` must error, not default to empty"
-        );
-    }
-    /// `frameworkClients` + `entry` round-trip through the JSONC parser —
-    /// the registration seam the bundler reads to (a) emit importmap entries
-    /// for host-registered clients and (b) generate a typed `entry.gen.ts`
-    /// from the host's `clientsModule` + `exposeNames`. The shape is the
-    /// spec's hard constraint: deck names no ship path, the HOST does.
-    #[test]
-    fn parse_app_deck_framework_clients_and_entry() {
-        let json = r#"{
-  "name": "hub",
-  "route": "/",
-  "source": "apps/hub/.deck",
-  "frameworkClients": {
-    "@ship/sdk-client": {
-      "from": ".deck/framework/sui-sdk-client.js",
-      "dist": "_deck/sdk-client.js"
-    }
-  },
-  "entry": {
-    "clientsModule": "./src/lib/client.ts",
-    "exposeNames": ["ship", "ops"]
-  }
-}"#;
-        let cfg = AppServeConfig::parse_deck_jsonc(json).expect("hub deck.jsonc parses");
-        let sdk = cfg.framework_clients.get("@ship/sdk-client")
-            .expect("@ship/sdk-client registered");
-        assert_eq!(sdk.from, ".deck/framework/sui-sdk-client.js");
-        assert_eq!(sdk.dist, "_deck/sdk-client.js");
-        let entry = cfg.entry.expect("entry bootstrap declared");
+    fn parse_app_deck_entry_bootstrap() {
+        let cfg = AppServeConfig::parse_deck_jsonc(HUB_DECK_NEW)
+            .expect("hub deck.jsonc parses");
+        let entry = cfg.entry.as_ref().expect("entry declared");
         assert_eq!(entry.clients_module, "./src/lib/client.ts");
         assert_eq!(entry.expose_names, vec!["ship", "ops"]);
     }
 
-    /// A host without `frameworkClients` or `entry` parses fine — the
-    /// fields default to empty/None, the bundler emits no client importmap
-    /// entries and no `entry.gen.ts`. (An app with no framework clients
-    /// mounts with `clients: {}` — the same shape the prior render emitted.)
+    /// An absent `entry` parses to `None` — the bundler falls back to
+    /// the legacy `routes.gen.ts`-as-entry shape (no client wiring,
+    /// token import rides the data file).
     #[test]
-    fn parse_app_deck_framework_clients_default_to_empty() {
-        let json = r#"{ "name": "hub", "route": "/", "source": "apps/hub/.deck" }"#;
-        let cfg = AppServeConfig::parse_deck_jsonc(json).expect("minimal deck.jsonc parses");
-        assert!(cfg.framework_clients.is_empty(), "absent frameworkClients ⇒ empty");
+    fn parse_app_deck_no_entry_is_none() {
+        let cfg = AppServeConfig::parse_deck_jsonc("{}")
+            .expect("empty deck.jsonc parses");
         assert!(cfg.entry.is_none(), "absent entry ⇒ None");
+    }
+
+    /// Spaces' shape — only `injectGlobals`, no `entry`. This is the
+    /// canonical "non-conventional but not full-bootstrap" config.
+    #[test]
+    fn parse_app_deck_spaces_inject_globals_only() {
+        let cfg = AppServeConfig::parse_deck_jsonc(SPACES_DECK_NEW)
+            .expect("spaces deck.jsonc parses");
+        assert_eq!(
+            cfg.inject_globals.get("DECK_APP_ID").map(String::as_str),
+            Some("$id")
+        );
+        assert!(cfg.entry.is_none());
+        assert_eq!(cfg.render, RenderMode::Csr);
     }
 
 
@@ -498,4 +534,4 @@ mod tests {
         // The framework sees defaults() — the stray file is inert.
         assert_eq!(d, DeckConfig::defaults());
     }
- }
+}
