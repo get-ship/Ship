@@ -36,6 +36,6 @@ deck-config = { path = "../deck-config" }
 tempfile = "3"
 filetime = "0.2"
 tokio = { workspace = true, features = ["test-util", "macros", "rt-multi-thread"] }
-
+regex = { workspace = true }
 [lints]
 workspace = true

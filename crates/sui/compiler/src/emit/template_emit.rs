@@ -34,7 +34,7 @@
 // It already delegates element/attr emit to `dom_emit` and control flow to
 // `control_emit` (submodules); what remains is the single walk that dispatches
 // instructions to them. Splitting the dispatcher scatters one loop.
-use super::expr_rewrite::rewrite_for_scope;
+use super::expr_rewrite::rewrite_scoped;
 use super::writer::{js_string, Writer};
 use crate::ir::*;
 use crate::keys::{BindingRegistry, KeyAllocator};
@@ -134,6 +134,22 @@ pub struct TemplateEmitter {
     /// the SVG namespace — without this, `<svg>` / `<rect>` etc. from
     /// `.sui` templates resolve as HTML elements and render blank.
     pub(super) svg_depth: usize,
+    /// Prefix applied to free identifiers in author expressions. The
+    /// default `"$scope."` is the production runtime-proxy path (output
+    /// byte-identical to before this field existed). The synthetic emit
+    /// (`emit::synthetic`) sets `"scope."` so author expressions resolve
+    /// against the typed `scope` export — the runtime machinery this
+    /// emitter generates (child scopes, version signals) keeps using the
+    /// literal `$scope` runtime variable. See `emit::synthetic`.
+    pub(super) expr_prefix: String,
+    /// Stack of row/error binders introduced by enclosing `{#for}` /
+    /// `{#while-error}` blocks. These live on the runtime-mutable `$scope`
+    /// child scope (which keyed-reuse `update` reassigns), so author
+    /// expressions referencing them are qualified with `$scope.` even when
+    /// `expr_prefix` is `"scope."`. Pushed entering a body, popped exiting;
+    /// the stack handles nesting. In production (`expr_prefix == "$scope."`)
+    /// this changes nothing — see `expr_rewrite::rewrite_scoped`.
+    pub(super) machinery_locals: Vec<String>,
 }
 
 impl TemplateEmitter {
@@ -156,6 +172,60 @@ impl TemplateEmitter {
             inline_update_stmts: Vec::new(),
             reactive_row_use: crate::lower::row_field_uses::RowUse::None,
             svg_depth: 0,
+            expr_prefix: "$scope.".to_string(),
+            machinery_locals: Vec::new(),
+        }
+    }
+
+    /// Set the author-expression prefix (default `"$scope."`). Returns
+    /// `self` for builder-style use. The synthetic emit passes `"scope."`
+    /// so author expressions type-check against the controller's typed
+    /// `scope` export while the generated runtime machinery still drives
+    /// the literal `$scope` variable.
+    pub fn with_expr_prefix(mut self, prefix: &str) -> Self {
+        self.expr_prefix = prefix.to_string();
+        self
+    }
+
+    /// Rewrite an author-expression source, qualifying free identifiers
+    /// with the configured [`Self::expr_prefix`]. All template-feature
+    /// emit goes through this rather than `rewrite_for_scope` directly so
+    /// the synthetic and production paths share one walk.
+    pub(super) fn rw(&self, src: &str, extra_locals: &[&str]) -> String {
+        let machinery: Vec<&str> = self.machinery_locals.iter().map(|s| s.as_str()).collect();
+        rewrite_scoped(src, extra_locals, &self.expr_prefix, &machinery)
+    }
+
+    /// `true` when emitting the synthetic (typed TS) render rather than the
+    /// production runtime module — i.e. the author-expression prefix is
+    /// `scope.` not `$scope.`.
+    pub(super) fn is_synthetic(&self) -> bool {
+        self.expr_prefix != "$scope."
+    }
+
+    /// Declare a per-boundary disposer array. In synthetic (TS) mode the
+    /// empty array literal is annotated so it doesn't infer `never[]` under
+    /// strict null checks; production stays byte-identical (`const v = [];`,
+    /// valid JS — TS annotations would be invalid there).
+    pub(super) fn decl_cleanups(&self, var: &str) -> String {
+        if self.is_synthetic() {
+            format!("const {var}: Array<() => void> = [];")
+        } else {
+            format!("const {var} = [];")
+        }
+    }
+
+    /// A machinery callback parameter, annotated in synthetic (TS) mode so the
+    /// render type-checks under `noImplicitAny`. Production stays byte-identical
+    /// (bare `name`, valid JS — a TS annotation would be a syntax error there).
+    /// The generated machinery types are FIXED by the runtime contract (the
+    /// boundary anchor is a `Comment`, the `{#while-error}` binder is an
+    /// `Error`), so the annotation is precise, not a widening to `any`.
+    pub(super) fn machinery_param(&self, name: &str, ty: &str) -> String {
+        if self.is_synthetic() {
+            format!("{name}: {ty}")
+        } else {
+            name.to_string()
         }
     }
 
@@ -357,8 +427,17 @@ impl TemplateEmitter {
                 // Registry parity: text bindings consume one b<N>.
                 let key = self.next_key();
                 let v = self.fresh("t");
-                let rw = rewrite_for_scope(&expr.source, &[]);
+                let rw = self.rw(&expr.source, &[]);
                 w.line(&format!("const {v} = document.createTextNode(\"\");"));
+                // Slice 2 — record the hydration key on the text node so
+                // the ship-js SSR path's serialization wraps it in
+                // `<!--sui:text:bN-->...<!--/sui-->`. The browser DOM
+                // has no `__hydrateKey` field so this call is a no-op;
+                // the server-DOM reads the field at toHTML time.
+                w.line(&format!(
+                    "markHydrateText({v}, {k});",
+                    k = js_string(&key),
+                ));
                 w.line(&format!("{parent_var}.appendChild({v});"));
                 if self.is_static_row_expr(&expr.source) {
                     // D5: row-scope static read — skip the bindText
@@ -420,11 +499,18 @@ impl TemplateEmitter {
         parent_var: &str,
         cleanups_var: &str,
     ) {
-        let value_rw = rewrite_for_scope(&instr.value.source, &[]);
+        let value_rw = self.rw(&instr.value.source, &[]);
         w.line(&format!("$scope.{name} = ({value_rw});", name = instr.name));
+        // The `as` binder lives on the runtime `$scope`; qualify body
+        // references to it with `$scope.` (synthetic mode). (The synthetic
+        // render currently rejects `{#async}` upstream; this keeps the emit
+        // internally consistent and is a no-op in production.)
+        let machinery_mark = self.machinery_locals.len();
+        self.machinery_locals.push(instr.name.clone());
         for child in &instr.body {
             self.emit_one(w, child, parent_var, cleanups_var);
         }
+        self.machinery_locals.truncate(machinery_mark);
     }
 
     /// Emit a `{ nodes, cleanup }` branch result. Used by `bindIf`,
@@ -448,7 +534,7 @@ impl TemplateEmitter {
         w.line(&format!(
             "const {frag} = document.createDocumentFragment();"
         ));
-        w.line(&format!("const {cl} = [];"));
+        w.line(&self.decl_cleanups(&cl));
         self.boundary_depth += 1;
         self.emit_children(w, body, &frag, &cl);
         self.boundary_depth -= 1;

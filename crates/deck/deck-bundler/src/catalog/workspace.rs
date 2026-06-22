@@ -4,8 +4,11 @@
 //! `workspaces.packages` globs, expand each (single trailing `*` only), and
 //! return every package dir with a parsable `package.json` that has a `name`.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock};
 
+use serde::Deserialize;
 use serde_json::Value;
 
 #[derive(Debug, Clone)]
@@ -18,6 +21,36 @@ pub struct WorkspacePackage {
     pub private: bool,
     /// `package.json.customElements` (relative to root), if any.
     pub custom_elements: Option<String>,
+    /// `package.json.deck.bundles[]` — consumer bundles this package declares
+    /// for itself (the dissolved `deck.jsonc targets`). Empty for packages that
+    /// declare none. The package OWNS its bundle definition; the bundler
+    /// discovers it (see [`discover_bundle_declarations`]).
+    pub bundles: Vec<BundleDecl>,
+}
+
+/// One consumer-bundle self-declaration, read from a package's `package.json`
+/// `deck.bundles[]`. Replaces the central `deck.jsonc` `TargetDecl`: the package
+/// that owns the entry declares the bundle, and the bundler discovers it the
+/// same way it discovers `views/*`. `entry` is relative to the declaring
+/// package's root (not the repo root).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BundleDecl {
+    /// Logical name + output basename (`<name>.js`), e.g. `sui-marketing`.
+    pub name: String,
+    /// Entry module, relative to the declaring package's root.
+    pub entry: PathBuf,
+    /// Module specifiers kept external (not bundled). The build phase
+    /// additionally forces `@ship/sui-runtime` external for every target.
+    #[serde(default)]
+    pub externals: Vec<String>,
+    /// Eager (false) vs lazy (true) intent. Both bundle identically; `lazy`
+    /// only gates the optional dev-loop skip (`DECK_DEV_SKIP_LAZY=1`) that omits
+    /// heavy on-demand packs (pixi/pdfjs/codemirror) from a dev bake. Unset env
+    /// (the default + every production bake) builds eager and lazy alike, so
+    /// output is identical regardless of this flag.
+    #[serde(default)]
+    pub lazy: bool,
 }
 
 pub(super) fn read_json(path: &Path) -> Option<Value> {
@@ -127,16 +160,73 @@ pub fn discover_workspace_packages_scoped(
                     continue;
                 }
             }
+            let bundles = manifest
+                .get("deck")
+                .and_then(|d| d.get("bundles"))
+                .and_then(|b| serde_json::from_value::<Vec<BundleDecl>>(b.clone()).ok())
+                .unwrap_or_default();
             out.push(WorkspacePackage {
                 name: name.to_string(),
                 root: dir,
                 private: manifest["private"].as_bool() == Some(true),
                 custom_elements: manifest["customElements"].as_str().map(String::from),
+                bundles,
             });
         }
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(out)
+}
+
+/// Every consumer-bundle self-declaration in the workspace, paired with its
+/// declaring package's absolute root (to resolve the package-relative `entry`).
+/// This is the discovery half of the dissolved `deck.jsonc targets`: instead of
+/// a central registry, each package declares its bundles and the bundler walks
+/// the workspace to find them — the same model used for `views/*`. Order follows
+/// `discover_workspace_packages` (byte-stable, sorted by package name).
+pub fn discover_bundle_declarations(repo_root: &Path) -> Vec<(PathBuf, BundleDecl)> {
+    discover_workspace_packages(repo_root)
+        .unwrap_or_default()
+        .into_iter()
+        .flat_map(|p| {
+            let root = p.root;
+            p.bundles.into_iter().map(move |b| (root.clone(), b))
+        })
+        .collect()
+}
+
+/// npm package name → absolute package root, for resolving `@ship/<name>`
+/// component imports to workspace source. This is the bun/npm workspace package
+/// map — `@ship/<name>` already resolves to its package dir via `workspaces` —
+/// surfaced for the bundler's resolver (`SuiPlugin::component_roots`). It
+/// REPLACES the hand-maintained `componentSourceRoots` search order: in dev the
+/// map is the source of truth; in prod, standard package resolution
+/// (node_modules) applies and this map is simply empty.
+///
+/// Cached per `repo_root` (shared `Arc`, mirroring `component_index`) so the
+/// per-build plugin construction is a cheap clone, not a fresh workspace walk.
+pub fn component_package_roots(repo_root: &Path) -> Arc<HashMap<String, PathBuf>> {
+    static CACHE: OnceLock<Mutex<HashMap<PathBuf, Arc<HashMap<String, PathBuf>>>>> =
+        OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    {
+        let guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(map) = guard.get(repo_root) {
+            return map.clone();
+        }
+    }
+    let map: Arc<HashMap<String, PathBuf>> = Arc::new(
+        discover_workspace_packages(repo_root)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|p| (p.name, p.root))
+            .collect(),
+    );
+    cache
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(repo_root.to_path_buf(), map.clone());
+    map
 }
 
 /// npm name → daemon pack-id. `@ship/charts` → `charts`; `widgets` → `widgets`.

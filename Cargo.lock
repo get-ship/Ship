@@ -1838,6 +1838,7 @@ dependencies = [
  "notify",
  "rolldown",
  "rolldown_common",
+ "rustc-hash 2.1.2",
  "serde",
  "serde_json",
  "sui-compiler",
@@ -1854,6 +1855,7 @@ dependencies = [
  "anyhow",
  "clap",
  "deck-bundler",
+ "tempfile",
  "tokio",
  "tracing-subscriber",
 ]
@@ -1869,28 +1871,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "deck-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "deck-bundler",
- "deck-config",
- "deck-host",
- "filetime",
- "notify",
- "serde",
- "serde_json",
- "specta",
- "sui-compiler",
- "sui-signals",
- "tempfile",
- "tokio",
- "tracing",
- "ulid",
-]
-
-[[package]]
-name = "deck-demo"
+name = "deck-conformance"
 version = "0.0.0"
 dependencies = [
  "axum",
@@ -1900,7 +1881,6 @@ dependencies = [
  "futures-util",
  "serde",
  "serde_json",
- "ship-substrate",
  "sui-compiler",
  "tempfile",
  "tokio",
@@ -1908,6 +1888,28 @@ dependencies = [
  "tokio-util",
  "tower",
  "tracing",
+]
+
+[[package]]
+name = "deck-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "deck-bundler",
+ "deck-config",
+ "deck-host",
+ "filetime",
+ "notify",
+ "regex",
+ "serde",
+ "serde_json",
+ "specta",
+ "sui-compiler",
+ "sui-signals",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "ulid",
 ]
 
 [[package]]
@@ -1921,6 +1923,22 @@ dependencies = [
  "sui-compiler",
  "sui-signals",
  "tempfile",
+]
+
+[[package]]
+name = "deck-ssr"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "deck-core",
+ "rolldown",
+ "rolldown_common",
+ "serde",
+ "serde_json",
+ "ship-js",
+ "sui-compiler",
+ "tokio",
 ]
 
 [[package]]
@@ -9097,6 +9115,7 @@ dependencies = [
  "datastar",
  "deck",
  "deck-core",
+ "deck-ssr",
  "durable-execution",
  "floki",
  "form_urlencoded",
@@ -12668,7 +12687,6 @@ dependencies = [
  "shipd",
  "specta",
  "specta-typescript",
- "tokio",
 ]
 
 [[package]]

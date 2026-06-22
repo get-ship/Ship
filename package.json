@@ -4,7 +4,7 @@
   "workspaces": {
     "packages": [
       "apps/docs",
-      "apps/shell",
+      "apps/hub",
       "apps/spaces",
       "apps/site",
       "apps/gateway",
@@ -38,11 +38,8 @@
   ],
   "scripts": {
     "build:bundles": "cargo run -p deck-cli -- build-assets",
-    "build:hub-scaffold": "bun run --filter shell build",
-    "build:space-scaffold": "bun run --filter spaces build",
-    "build:scaffolds": "bun run build:hub-scaffold && bun run build:space-scaffold",
-    "build": "bun run build:bundles && bun run build:scaffolds",
-    "test:rust": "cargo test",
+    "build:apps": "bun run --filter hub build && bun run --filter spaces build",
+    "build": "bun run build:bundles && bun run build:apps",
     "wasm": "wasm-pack build crates/sui/compiler --target web --out-dir ../../../packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm",
     "lint": "vp lint",
     "lint:fix": "vp lint --fix",

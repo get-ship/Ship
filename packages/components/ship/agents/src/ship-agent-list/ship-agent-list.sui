@@ -1,0 +1,354 @@
+<!--
+  <ship-agent-list> — @ship/agents · the hub `/studio/agents` index.
+
+  Page-level list composite. Reads ship.agents.summaries() via the
+  controller (no SDK call in the host route), owns the search + source
+  filter state, and renders a card-grid of agent tiles. Each tile is
+  a self-contained summary cell: hue tile, name, id, description,
+  source badge, skill/mcp/rules stats, tag chips, and an active
+  indicator when the agent is the workspace's active agent.
+
+  Renders loading / error / empty states off the live source state.
+  The composite composes <sui-card>, <sui-stack>, <sui-cluster>,
+  <sui-chip>, <sui-badge>, <sui-status-dot>, <sui-icon>, <sui-skeleton>,
+  <sui-empty-state>, <sui-error-state>, <sui-toggle-group>, <sui-toggle>
+  from @ship/sui-primitives. No new primitives introduced.
+
+  The per-tile hue swatch is a small swatch set on
+  `--tile-color` (one of the design-system `--hue-*` tokens) and
+  composed with a --surface wash via color-mix in the controller
+  effect — same pattern as <sui-harness-blob>. The chip is data-only;
+  the per-id hash → hue derivation lives in the controller and is
+  unit-tested independently of the rendering.
+
+  Prop / event
+  ─────────────────────────────────────────────────────────────────────
+  limit  (number, 24)   max rows rendered
+  ─────────────────────────────────────────────────────────────────────
+
+  Emits:
+    ship-agent-open  { detail: { id } }   click on a card
+-->
+
+<prop name="limit" type="number" default="24" />
+
+<style>
+  :host { display: block; }
+
+  .head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+  .head h1 {
+    font-family: var(--heading-font, var(--font-display));
+    font-size: var(--text-xl);
+    font-weight: var(--heading-weight, var(--font-weight-semibold));
+    letter-spacing: var(--heading-tracking);
+    margin: 0;
+    color: var(--foreground);
+  }
+  .head .sub {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .head .rule {
+    margin-left: auto;
+    width: 64px;
+    height: var(--space-1);
+    border-radius: var(--radius-sm);
+    background: linear-gradient(90deg, var(--primary), transparent);
+  }
+
+  .filters {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    flex-wrap: wrap;
+  }
+  .search {
+    position: relative;
+    flex: 1;
+    min-width: 240px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+  .search:focus-within {
+    border-color: var(--primary);
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+  .search input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font: inherit;
+    font-size: var(--text-sm);
+    color: var(--foreground);
+    min-width: 0;
+  }
+  .search input::placeholder { color: var(--muted-foreground); }
+  .search-clear {
+    border: 0;
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    padding: var(--space-1);
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+  }
+  .search-clear:hover { color: var(--foreground); }
+
+  /* Per-tile hue swatch. The controller sets `style="--tile-color:
+     var(--hue-orange)"` on each tile so the wash is data-bound to
+     the agent's id hash. The tile is otherwise all design tokens. */
+  .hue {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    color: var(--primary-foreground, var(--background));
+    font-weight: var(--font-weight-bold);
+    font-size: var(--text-md);
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+    border: var(--space-1) solid transparent;
+    background:
+      color-mix(in oklch, var(--tile-color, var(--muted)) 80%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklch, var(--tile-color, var(--muted)) 40%, transparent);
+  }
+
+  .cell-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+  }
+  .cell-name {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cell-id {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cell-body { min-width: 0; flex: 1; }
+
+  .cell-desc {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--muted-foreground);
+    line-height: var(--leading-normal);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .cell-stats {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .cell-stats sui-badge { font-family: var(--font-mono); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-3);
+  }
+  .cell-a {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    border-radius: var(--radius-md);
+  }
+  .cell-a:hover { transform: translateY(-1px); }
+  .cell-a:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+  .cell-a[data-active] { outline: var(--space-1) solid var(--primary); outline-offset: calc(var(--space-1) * -1); }
+
+  .sk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-3);
+  }
+  .sk-card {
+    height: 160px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+  }
+</style>
+
+<header class="head" data-test="agents-list-head">
+  <h1>Agents</h1>
+  <span class="sub" data-test="agents-list-sub">{sub()}</span>
+  <span class="rule" aria-hidden="true"></span>
+</header>
+
+<div class="filters" data-test="agents-list-filters">
+  <div class="search">
+    <sui-icon name="search" size="sm" tone="muted"></sui-icon>
+    <input
+      type="text"
+      placeholder="Search by name, description, or tag…"
+      aria-label="Search agents"
+      spellcheck="false"
+      data-test="agents-list-search"
+      value={q()}
+      on:input={onSearchInput}
+    />
+    {#if q()}
+      <button
+        type="button"
+        class="search-clear"
+        aria-label="Clear search"
+        data-test="agents-list-search-clear"
+        on:click={clearSearch}
+      >
+        <sui-icon name="x" size="xs"></sui-icon>
+      </button>
+    {/if}
+  </div>
+  <sui-toggle-group
+    variant="outline"
+    type="single"
+    value={kind()}
+    size="sm"
+    aria-label="Filter by source"
+    on:sui-change={(e) => setKind(e.detail.value)}
+    data-test="agents-list-kind"
+  >
+    <sui-toggle value="all" data-test="agents-list-kind-all">All · {kindCounts().all}</sui-toggle>
+    <sui-toggle value="project" data-test="agents-list-kind-project">Project · {kindCounts().project}</sui-toggle>
+    <sui-toggle value="user" data-test="agents-list-kind-user">Library · {kindCounts().user}</sui-toggle>
+  </sui-toggle-group>
+</div>
+
+{#if summaries().kind === 'loading'}
+  <div class="sk-grid" role="status" aria-live="polite" aria-busy="true" aria-label="Loading agents" data-test="agents-list-loading">
+    {#for n of [0,1,2,3,4,5] key={n}}
+      <div class="sk-card" aria-hidden="true">
+        <sui-skeleton shape="line" size="md" style="width: 60%"></sui-skeleton>
+        <sui-skeleton shape="line" size="sm" style="width: 90%; margin-top: var(--space-2)"></sui-skeleton>
+        <sui-skeleton shape="line" size="sm" style="width: 70%; margin-top: var(--space-1)"></sui-skeleton>
+      </div>
+    {/for}
+  </div>
+{:else if summaries().kind === 'error'}
+  <sui-error-state
+    title="Couldn't load agents"
+    variant="inline"
+    data-test="agents-list-error"
+    role="alert"
+    aria-live="assertive"
+  >
+    {summaries().error.message}
+  </sui-error-state>
+{:else if !hasResults()}
+  <sui-empty-state
+    icon={total() === 0 ? 'sparkles' : 'search-x'}
+    variant="default"
+    size="md"
+    tone="muted"
+    data-test={total() === 0 ? 'agents-list-empty' : 'agents-list-empty-filtered'}
+    role="status"
+  >
+    {#if total() === 0}
+      <span slot="title">No agents yet</span>
+      Drop a JSONC file under <code>.ship/agents/</code> or create one from the Studio.
+    {:else}
+      <span slot="title">No matching agents</span>
+      {q() ? 'Nothing matches "' + q() + '".' : 'No agents in this scope.'}
+      <sui-button
+        slot="action"
+        variant="outline"
+        size="sm"
+        on:click={resetFilters}
+        data-test="agents-list-clear-filters"
+      >
+        Clear filters
+      </sui-button>
+    {/if}
+  </sui-empty-state>
+{:else}
+  <div class="grid" data-view-enter data-test="agents-list-grid">
+    {#for a of rows() key={a.id}}
+      <a
+        class="cell-a"
+        href={'/studio/agents/' + a.id}
+        attr:data-id={a.id}
+        attr:data-active={a.active}
+        on:click={(e) => onOpen(e, a.id)}
+        data-test="agents-list-cell"
+      >
+        <sui-card variant="default" padding="md">
+          <div class="cell-head">
+            <span
+              class="hue"
+              attr:style={'--tile-color: var(--hue-' + a.hue + ')'}
+              aria-hidden="true"
+              data-test="agents-list-letter"
+            >{a.letter}</span>
+            <div class="cell-body">
+              <div class="cell-name">{a.name}</div>
+              <div class="cell-id">{a.id}</div>
+            </div>
+            {#if a.active}
+              <sui-chip
+                tone="success"
+                variant="soft"
+                size="sm"
+                data-test="agents-list-active"
+              >
+                <sui-status-dot slot="leading" tone="success" size="sm" pulse label="Active"></sui-status-dot>
+                active
+              </sui-chip>
+            {/if}
+          </div>
+          <p class="cell-desc">{a.description || 'No description'}</p>
+          <sui-cluster class="cell-stats" gap="1" data-test="agents-list-stats">
+            <sui-badge tone="muted" variant="outline" size="sm">{a.source || 'local'}</sui-badge>
+            <span>{a.skills_count} skill{a.skills_count === 1 ? '' : 's'}</span>
+            <span aria-hidden="true">·</span>
+            <span>{a.mcp_count} MCP</span>
+            <span aria-hidden="true">·</span>
+            <span>{a.rules_count} rule{a.rules_count === 1 ? '' : 's'}</span>
+          </sui-cluster>
+          {#if a.tags.length > 0}
+            <sui-cluster gap="1" data-test="agents-list-tags">
+              {#for t of a.tags.slice(0, 3) key={t}}
+                <sui-chip tone="muted" variant="soft" size="sm">{t}</sui-chip>
+              {/for}
+              {#if a.tags.length > 3}
+                <sui-chip tone="muted" variant="outline" size="sm">+{a.tags.length - 3}</sui-chip>
+              {/if}
+            </sui-cluster>
+          {/if}
+        </sui-card>
+      </a>
+    {/for}
+  </div>
+{/if}

@@ -14,6 +14,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@ship/deck/route": "workspace:*",
+    "@ship/sdk": "workspace:*",
+    "@ship/sdk-client": "workspace:*",
     "@ship/sui-dom": "workspace:*",
     "@ship/sui-runtime": "workspace:*",
     "@ship/sui-primitives": "workspace:*"

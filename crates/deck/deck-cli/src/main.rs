@@ -12,7 +12,6 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, Subcommand};
-use deck_bundler::TargetKind;
 
 #[derive(Parser)]
 #[command(name = "deck", about = "The deck framework CLI", version)]
@@ -54,12 +53,17 @@ enum Command {
     #[command(subcommand)]
     Scaffold(Scaffold),
 
-    /// Build a SUI SPA app (hub, space scaffold) to a static output dir.
+    /// Build a SUI SPA project (the hub, a space scaffold) to a static
+    /// output dir. The project's source tree holds `package.json` (the
+    /// manifest: the bundler reads `name` for the page <title>), `routes/`
+    /// (the file-routed chrome), and `public/` (static assets). The
+    /// bundler generates `index.html` and `routes.gen.ts` (the entry).
     Build {
-        /// App root holding index.html, src/, public/ (default: cwd).
+        /// Project root (the dev's deck project: `package.json` + `routes/`
+        /// + `public/`). Default: cwd.
         #[arg(long, default_value = ".")]
-        shell_root: PathBuf,
-        /// Output dir (default: <shell-root>/dist).
+        project: PathBuf,
+        /// Output dir (default: <project>/.deck/).
         #[arg(long)]
         out: Option<PathBuf>,
         /// Materialize the /_deck/* framework surface into the output (self-contained).
@@ -76,8 +80,9 @@ enum Command {
     /// ever hardcodes deck's internal output layout. Run after `build-assets`.
     Emit {
         /// Target name(s): framework singletons (sui-runtime, sui-dom,
-        /// sui-sdk-client) or consumer targets from deck.jsonc (sui-marketing,
-        /// sui-arcade, ship-code-editor, …). Repeatable.
+        /// sui-sdk-client) or discovered consumer bundles (sui-marketing,
+        /// sui-arcade, ship-code-editor, …) — the names declared in each
+        /// package's `deck.bundles`. Repeatable.
         #[arg(long = "target", required = true)]
         targets: Vec<String>,
         /// Destination directory (created if absent).
@@ -86,10 +91,10 @@ enum Command {
     },
 
     /// Bake all framework + consumer bundles via the in-process Rolldown
-    /// bundler. Reads deck.jsonc for consumer targets; framework singletons
-    /// are hardcoded in deck-bundler. Honesty guards verify every framework
-    /// bundle is non-empty after the bake — a silently-failed target cannot
-    /// ship empty bytes.
+    /// bundler. Consumer bundles are discovered from per-package
+    /// `deck.bundles`; framework singletons are hardcoded in deck-bundler.
+    /// Honesty guards verify every framework bundle is non-empty after the
+    /// bake — a silently-failed target cannot ship empty bytes.
     BuildAssets,
 }
 
@@ -168,6 +173,12 @@ fn run() -> Result<()> {
                     dir: r.join("routes"),
                     out: r.join("routes.gen.ts"),
                     label,
+                    // `deck routes` is a standalone CLI command — it
+                    // doesn't read the host's `deck.jsonc` (the bundler
+                    // owns that). No host bootstrap, so the codegen
+                    // writes `routes.gen.ts` in legacy shape (entry IS
+                    // `routes.gen.ts`; the token import rides there).
+                    entry_bootstrap: None,
                 });
             }
             let n_routes = deck_bundler::routes::generate_routes(&routes_specs)?;
@@ -187,6 +198,7 @@ fn run() -> Result<()> {
                     dir: r.clone(),
                     out: r.join("routes.gen.ts"),
                     label,
+                    entry_bootstrap: None,
                 });
             }
             let n_views = deck_bundler::routes::generate_routes(&views_specs)?;
@@ -201,11 +213,11 @@ fn run() -> Result<()> {
         Command::Scaffold(Scaffold::Component { tag, controller }) => {
             scaffold::run_component(tag, controller)
         }
+        Command::Build { project, out, bundle_framework, no_minify } => {
+            build(project, out, bundle_framework, !no_minify)
+        }
         Command::Scaffold(Scaffold::Pack { name }) => {
             scaffold::run_pack(name)
-        }
-        Command::Build { shell_root, out, bundle_framework, no_minify } => {
-            build(shell_root, out, bundle_framework, !no_minify)
         }
         Command::Emit { targets, out } => emit(targets, out),
         Command::BuildAssets => build_assets(),
@@ -216,7 +228,7 @@ fn emit(targets: Vec<String>, out: PathBuf) -> Result<()> {
     let cwd = std::env::current_dir().context("cwd")?;
     let out = if out.is_absolute() { out } else { cwd.join(out) };
     let repo_root = find_repo_root(&cwd)?;
-    let cfg = deck_bundler::DeckConfig::load(&repo_root);
+    let cfg = deck_bundler::DeckConfig::defaults();
     let layout = deck_bundler::targets::BundleLayout::with_config(repo_root, None, cfg);
     let n = deck_bundler::emit::emit_targets(&layout, &targets, &out)?;
     println!("deck emit → {} files into {}", n, out.display());
@@ -236,7 +248,7 @@ fn build_assets() -> Result<()> {
     let cwd = std::env::current_dir().context("cwd")?;
     let repo_root = find_repo_root(&cwd)?;
 
-    let cfg = deck_bundler::DeckConfig::load(&repo_root);
+    let cfg = deck_bundler::DeckConfig::defaults();
     let bundler = deck_bundler::Bundler::start(repo_root.clone(), None, cfg.clone());
 
     let rt = tokio::runtime::Builder::new_multi_thread()
@@ -245,6 +257,16 @@ fn build_assets() -> Result<()> {
         .context("build tokio runtime")?;
     rt.block_on(bundler.build_all())
         .map_err(|e| anyhow::anyhow!("build_all failed: {e}"))?;
+
+    // Materialize each component pack's standard `dist/custom-elements.json`
+    // (CEM) from its source. Run once here (the framework build), so per-app
+    // builds aggregate the pre-written manifests into `<app>/components.gen.ts`
+    // (`generate_components_gen`). Also the file every pack declares for
+    // external tooling (Storybook / VS Code / lit-analyzer).
+    match deck_bundler::cem::write_all_pack_cems(&repo_root) {
+        Ok(n) => println!("  cem: {n} component pack manifest(s) written"),
+        Err(e) => eprintln!("  cem: pack manifest generation failed: {e:#}"),
+    }
 
     // Build the layout once — used for both the framework verify and the
     // consumer guard below. assets_dir_for("sui-runtime") is now
@@ -270,32 +292,23 @@ fn build_assets() -> Result<()> {
         println!("  {name}: {len} bytes");
     }
 
-    // Consumer guard: the .deck/ bundles declared in deck.jsonc have no
-    // build.rs guard — verify each is non-empty as defense in depth.
+    // Consumer guard: the discovered consumer bundles (per-package
+    // `deck.bundles`) have no build.rs guard — verify each is non-empty as
+    // defense in depth.
     // Use BundleLayout to derive the exact output path per target (same routing
     // logic the bundler uses) so the guard is always in sync with reality.
     //
-    // Dev-loop skip: when DECK_DEV_SKIP_LAZY=1, the same lazy-pack targets
-    // the bundler skipped above are also skipped by the guard (otherwise
-    // a successful dev build would always fail the guard for the skipped
-    // targets). The bundler's skip log is the ground truth for what was
-    // skipped.
+    // Dev-loop skip: when DECK_DEV_SKIP_LAZY=1, the same lazy targets the
+    // bundler skipped above are also skipped by the guard (otherwise a
+    // successful dev build would always fail the guard for the skipped
+    // targets). The lazy flag rides on the BundleTarget (from the package's
+    // self-declaration) — no central-config lookup.
     let skip_lazy = std::env::var("DECK_DEV_SKIP_LAZY")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
-    // consumer_targets() returns BundleTarget (no kind field); the kind
-    // lives on cfg.targets. Look it up by name for the skip check.
     for t in layout.consumer_targets() {
-        let kind_is_lazy = layout
-            .cfg
-            .targets
-            .iter()
-            .any(|c| c.name == t.name && matches!(c.kind, TargetKind::LazyPack));
-        if skip_lazy && kind_is_lazy {
-            println!(
-                "  {}: skipped (DECK_DEV_SKIP_LAZY=1, kind=lazy-pack)",
-                t.name
-            );
+        if skip_lazy && t.lazy {
+            println!("  {}: skipped (DECK_DEV_SKIP_LAZY=1, lazy)", t.name);
             continue;
         }
         let out_dir = layout.assets_dir_for(&t.name);
@@ -327,22 +340,32 @@ fn find_repo_root(start: &Path) -> Result<PathBuf> {
     })
 }
 
-fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, minify: bool) -> Result<()> {
+fn build(project: PathBuf, out: Option<PathBuf>, bundle_framework: bool, minify: bool) -> Result<()> {
     let cwd = std::env::current_dir().context("cwd")?;
     let abs = |p: &Path| if p.is_absolute() { p.to_path_buf() } else { cwd.join(p) };
 
-    let shell_root = abs(&shell_root)
+    let project = abs(&project)
         .canonicalize()
-        .with_context(|| format!("shell-root {}", shell_root.display()))?;
-    let out_dir = out.map(|o| abs(&o)).unwrap_or_else(|| shell_root.join("dist"));
-    let repo_root = find_repo_root(&shell_root)?;
+        .with_context(|| format!("project {}", project.display()))?;
+    // The project is the dev's authored source tree (`package.json`,
+    // `routes/`, `public/`). The default out dir lives INSIDE the
+    // project as `<project>/.deck/` — a sibling of `routes/` and
+    // `public/`, not above them. The bundler writes the generated
+    // `index.html`, the entry chunk, and the framework surface there.
+    let out_dir = out
+        .map(|o| abs(&o))
+        .unwrap_or_else(|| project.join(".deck"));
+    let repo_root = find_repo_root(&project)?;
     let framework_assets_dir = repo_root.join("crates/deck/deck-core/assets");
+    // The framework surface (.deck/framework/<bundle>) is shared across
+    // every project. Per-project outputs go under `<project>/.deck/`.
     let deck_out_dir = repo_root.join(".deck");
 
-    // Load deck.jsonc to pick up `firstPartyApp` (sensible defaults when absent).
-    // The first-party-app config drives the per-tag component resolver: chrome
-    // `.sui` emit `@sui-tag/<tag>` imports that resolve to workspace source.
-    let cfg = deck_bundler::DeckConfig::load(&repo_root);
+    // Load the host's view-discovery config (packs scope). Consumer bundles
+    // are discovered from per-package `deck.bundles`, not read here. L1 (deck)
+    // has no per-app config — shipd's apps.jsonc owns the app list; the
+    // bundler is per-app and reads its own project root.
+    let cfg = deck_bundler::DeckConfig::defaults();
 
     // The app graph compiles its own `.sui` in-process via the linked
     // sui-compiler crate (#255) — no binary to locate.
@@ -353,10 +376,8 @@ fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, mini
     let b = rt
         .block_on(deck_bundler::app::bundle_app(
             &repo_root,
-            cfg.first_party_app.as_ref(),
             &cfg.packs,
-            &cfg.component_source_roots,
-            &shell_root,
+            &project,
             &out_dir,
             minify,
             bundle_framework,
@@ -364,10 +385,6 @@ fn build(shell_root: PathBuf, out: Option<PathBuf>, bundle_framework: bool, mini
             &deck_out_dir,
         ))
         .map_err(|e| anyhow::anyhow!("{e:#}"))?;
-
-    println!("deck build → {}", b.out_dir.display());
-    println!("  js  {}", b.js_href);
-    println!("  css {}", b.css_href);
     if b.framework_assets > 0 {
         println!("  _deck  {} files (self-contained)", b.framework_assets);
     }

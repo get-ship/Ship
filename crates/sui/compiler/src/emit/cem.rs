@@ -138,3 +138,57 @@ fn camel_of(attr: &str) -> String {
     }
     out
 }
+
+/// Aggregate per-component CEM documents into one standard manifest.
+///
+/// Input: slice of per-component `{schemaVersion, modules:[...]}` values
+/// (as produced by `emit_cem`).
+/// Output: `{schemaVersion:"1.0.0", modules:[<all concatenated, sorted by "path">]}`.
+/// Pure, deterministic, no I/O. sui owns this format.
+pub fn merge_cem(components: &[Value]) -> Value {
+    let mut all_modules: Vec<Value> = components
+        .iter()
+        .filter_map(|v| v["modules"].as_array().cloned())
+        .flatten()
+        .collect();
+    all_modules.sort_by(|a, b| {
+        let a_path = a["path"].as_str().unwrap_or("");
+        let b_path = b["path"].as_str().unwrap_or("");
+        a_path.cmp(b_path)
+    });
+    json!({
+        "schemaVersion": "1.0.0",
+        "modules": all_modules,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn merge_two_cems_sorts_by_path() {
+        let cem_z = json!({
+            "schemaVersion": "1.0.0",
+            "modules": [{"path": "z.sui", "kind": "javascript-module"}]
+        });
+        let cem_a = json!({
+            "schemaVersion": "1.0.0",
+            "modules": [{"path": "a.sui", "kind": "javascript-module"}]
+        });
+        let merged = merge_cem(&[cem_z, cem_a]);
+        let modules = merged["modules"].as_array().unwrap();
+        assert_eq!(modules.len(), 2, "two modules in merged manifest");
+        assert_eq!(modules[0]["path"], "a.sui", "a.sui sorts before z.sui");
+        assert_eq!(modules[1]["path"], "z.sui", "z.sui sorts after a.sui");
+        assert_eq!(merged["schemaVersion"], "1.0.0");
+    }
+
+    #[test]
+    fn merge_empty_returns_empty_manifest() {
+        let merged = merge_cem(&[]);
+        assert_eq!(merged["schemaVersion"], "1.0.0");
+        let modules = merged["modules"].as_array().unwrap();
+        assert!(modules.is_empty(), "no modules for empty input");
+    }
+}

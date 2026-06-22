@@ -52,9 +52,24 @@ import { SearchService } from "./gen/ship/ops/v1/search_pb.js";
 import { SpaceService } from "./gen/ship/ops/v1/space_pb.js";
 import { UiService } from "./gen/ship/ops/v1/ui_pb.js";
 
+/**
+ * Resolve the daemon base URL for browser hosts — the SINGLE source of truth so
+ * no app hand-rolls a `daemonBase()` helper in its entry. A Tauri host plants
+ * `window.__SHIP_DAEMON_URL__` (the daemon's loopback origin, since the webview
+ * origin is NOT the daemon's); under same-origin dev (shipd serves the SPA and
+ * the API on one port) it's absent → `''` (relative requests). Every SDK client
+ * defaults its `baseUrl` to this, so `createClient()` / `createShipConnectClient()`
+ * reach the daemon correctly in dev AND Tauri with zero per-app wiring.
+ */
+export function resolveDaemonBase(): string {
+  const w = globalThis as { __SHIP_DAEMON_URL__?: string };
+  return (w.__SHIP_DAEMON_URL__ ?? "").replace(/\/$/, "");
+}
+
 export interface ShipConnectOptions {
-  /** Daemon base URL, e.g. `http://127.0.0.1:9315`. */
-  baseUrl: string;
+  /** Daemon base URL, e.g. `http://127.0.0.1:9315`. Defaults to
+   *  {@link resolveDaemonBase} (Tauri loopback / same-origin dev). */
+  baseUrl?: string;
   /** Bearer token: daemon token for the operator, scoped session token for an agent. */
   token?: string;
   /** Override fetch (tests / non-browser hosts). */
@@ -105,9 +120,9 @@ function bearer(token: string): Interceptor {
  * Build a typed Connect client for the daemon op surface.
  * Wire paths: `/ship.ops.v1.<Service>/<Method>`.
  */
-export function createShipConnectClient(opts: ShipConnectOptions): ShipConnectClient {
+export function createShipConnectClient(opts: ShipConnectOptions = {}): ShipConnectClient {
   const transport = createConnectTransport({
-    baseUrl: opts.baseUrl,
+    baseUrl: opts.baseUrl ?? resolveDaemonBase(),
     ...(opts.fetch ? { fetch: opts.fetch } : {}),
     interceptors: opts.token ? [bearer(opts.token)] : [],
   });

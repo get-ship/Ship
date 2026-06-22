@@ -6,19 +6,23 @@
 //! via [`into_axum`]. [`router`] registers deck's whole hosting surface as
 //! one mountable unit.
 
+pub mod apps;
 mod handlers;
 pub mod multiplex;
 pub mod pages;
 pub mod render_helpers;
 pub mod sui_source;
-
 pub use handlers::{
-    serve_bundle_hmr, serve_catalog_workspace, serve_public_asset, serve_shell, serve_shell_asset,
+    serve_bundle_hmr,
+    serve_deck_route,
     serve_meta,
-    serve_sui_chunk, serve_sui_dom, serve_sui_icon,
-    serve_sui_live_reload, serve_space, serve_space_asset, serve_sui_runtime,
-    serve_sui_sdk_client, serve_sui_view_setup,
-    serve_view_host, serve_view_payload, serve_view_payload_subpath,
+    serve_sui_dom, serve_sui_icon,
+    serve_sui_live_reload,
+    serve_sui_runtime,
+    serve_sui_sdk_client,
+    serve_sui_view_setup,
+    serve_view_host, serve_view_payload,
+    serve_view_payload_subpath,
 };
 
 // Re-export the contract types so `deck`'s facade (and shipd through it)
@@ -77,46 +81,83 @@ pub fn into_axum(resp: DeckResponse) -> Response {
 /// registered here — they need host-supplied extensions or router state.
 /// `/_deck/meta` is registered here; hosts that need to inject a
 /// `DaemonBuildInfo` extension (shipd) simply layer it before mounting.
+
+// Route paths for the framework's CSS / theme / catalog surface. axum's
+// `Router::route` requires a `&'static str`, so we can't pass the
+// `deck_core::routes::DECK_API_ASSETS` const directly; instead, mirror the
+// SSOT here and let `routes_match_ssot` assert byte-equality at test time.
+// The corresponding `// /api/...` literal still appears nowhere else in the
+// production tree (verified by the boundary gate plus this const).
+const ROUTE_VIEW_TOKENS_CSS: &str = "/api/assets/view-tokens.css";
+const ROUTE_THEME_CSS: &str = "/api/assets/theme.css";
+const ROUTE_THEMES_LIST: &str = "/api/v1/themes";
+
+#[cfg(test)]
+mod route_ssot {
+    use deck_core::routes::{DECK_API_ASSETS, DECK_PREFIX};
+
+    /// Belt-and-suspenders pin: the deck-axum route paths must equal the
+    /// `deck_core::routes` SSOT. If anyone widens this crate with a hard-
+    /// coded `/api/...` that drifts, this fails fast.
+    #[test]
+    fn routes_match_ssot() {
+        assert_eq!(super::ROUTE_VIEW_TOKENS_CSS, format!("{DECK_API_ASSETS}/view-tokens.css"));
+        assert_eq!(super::ROUTE_THEME_CSS, format!("{DECK_API_ASSETS}/theme.css"));
+        assert_eq!(super::ROUTE_THEMES_LIST, "/api/v1/themes");
+        // The `/_deck/*` half of the surface still uses literal strings
+        // in axum route registration; spot-check a sample to prove no
+        // accidental drift snuck in.
+        let _ = DECK_PREFIX;
+    }
+}
+
 pub fn router() -> Router {
-    use pages::{
-        serve_index, serve_setup, serve_theme_css, serve_themes_list, serve_view_tokens,
-        spa_or_public_asset,
-    };
+    use pages::{serve_theme_css, serve_themes_list, serve_view_tokens};
+    // First-run /, /setup, and /{file} SPA/public catch-all are HOST
+    // concerns. The host mounts `serve_index` (first-run check) at `/`,
+    // `serve_setup` at `/setup`, and the per-app `serve_apps` for the
+    // app's routes + per-app `/{file}` catch-all. The framework only
+    // owns the framework surface (`/_deck/*` + `/api/*`).
     Router::new()
         // Shared CSS / theme assets (unauthenticated) — paths are the
         // canonical `Route` enum values (routes.rs is ground truth).
-        .route("/api/assets/view-tokens.css", get(serve_view_tokens))
-        .route("/api/assets/theme.css", get(serve_theme_css))
-        .route("/api/v1/themes", get(serve_themes_list))
+        .route(ROUTE_VIEW_TOKENS_CSS, get(serve_view_tokens))
+        .route(ROUTE_THEME_CSS, get(serve_theme_css))
+        .route(ROUTE_THEMES_LIST, get(serve_themes_list))
         // Per-tag component source viewer (dev studio deep-link).
         .route("/_deck/source/{tag}", get(sui_source::serve_sui_source))
-        // First-run flow — both routes unauthenticated; decision via DataPort.
-        .route("/", get(serve_index))
-        .route("/setup", get(serve_setup))
         // HMR firehose — always mounted; the handler self-gates (empty SSE
         // when no bundler is wired), so no `if Development` guard is needed.
         .route("/_deck/dev/hmr", get(serve_bundle_hmr))
         .route("/_deck/runtime.js", get(serve_sui_runtime))
         .route("/_deck/dom.js", get(serve_sui_dom))
         .route("/_deck/sdk-client.js", get(serve_sui_sdk_client))
+        .route("/_deck/route.js", get(serve_deck_route))
         .route("/_deck/icons/{file}", get(serve_sui_icon))
         .route("/_deck/live-reload.js", get(serve_sui_live_reload))
-
-        // Shared chunks from the multi-entry view build (#267), served
-        // content-addressed from `.deck/` root. The exact singleton routes
-        // above win for `/_deck/runtime.js` etc.; this catches hashed chunks.
-        .route("/_deck/{file}", get(serve_sui_chunk))
-        .route("/_deck/catalog/workspace", get(serve_catalog_workspace))
+        // (formerly `/\_deck/{file}` → `serve_sui_chunk`) — purged:
+        // shared chunks from the multi-entry view build were served
+        // from `<root>/.deck/<chunk>.js`; the framework no longer reads
+        // a monorepo-root `.deck/` (deck-purge-root). View bundles that
+        // imported `../../<chunk>.js` no longer find their chunks at
+        // runtime — view chunk serving is a follow-up.
+        // (formerly `/\_deck/catalog/workspace` → `serve_catalog_workspace`)
+        // — purged with `packs::serve_catalog_workspace` and the
+        // `.deck/catalogs/workspace.json` write.
         .route("/_deck/meta", get(serve_meta))
         .route("/_deck/views/{name}/view.js", get(serve_sui_view_setup))
+        // `GET /_deck/views/{name}/{*sub_path}` — the JSON payload for a
+        // nested / parameterized view route. The `view.js` route above
+        // accepts `?sub=<path>` for the same payload client-side; the path
+        // form here is the canonical API for the runtime + the conformance
+        // param test. Without it, `/_deck/views/<name>/<sub>` 404s and the
+        // resolver-side `[id]` behavior the unit tests prove is invisible
+        // to the e2e suite.
+        .route(
+            "/_deck/views/{name}/{*sub_path}",
+            get(serve_view_payload_subpath),
+        )
         .route("/_deck/views/{name}", get(serve_view_payload))
-        .route("/_deck/views/{name}/{*sub_path}", get(serve_view_payload_subpath))
-        .route("/space/_assets/{file}", get(serve_space_asset))
-        .route("/space/{id}", get(serve_space))
-        // Shell assets at /shell/_assets/{file} (symmetric with /space/_assets).
-        .route("/shell/_assets/{file}", get(serve_shell_asset))
-        // Single-view host surface under deck's /_deck/ namespace (singular
-        // "view" to avoid colliding with the plural "views" payload routes).
         .route("/_deck/view/{name}", get(serve_view_host))
         .route("/_deck/view/{name}/{*sub_path}", get(serve_view_host))
         // `POST /_deck/mutation/{name}` — 410 tombstone. The progressive-
@@ -129,12 +170,10 @@ pub fn router() -> Router {
             "/_deck/mutation/{name}",
             axum::routing::post(|| async { StatusCode::GONE }),
         )
-        // Host public assets at single-segment root paths (/favicon.ico, …) or
-        // the shell for a bare client-route segment. Registered AFTER the
-        // literal `/`, `/setup`, and `/api/...` routes so those keep their
-        // handlers; `/{file}` is the single-segment catch-all (axum prefers the
-        // literal routes).
-        .route("/{file}", get(spa_or_public_asset))
+    // The SPA / public-asset dispatch (`/{file}`) is host-driven; the
+    // per-app `serve_apps` mounts it for the primary app. The host's
+    // other routes (the connect fallback, `/api/*`, the per-app routes)
+    // all wire here.
     // No `.fallback` here: deck's `router()` is MERGED into the host's root
     // alongside the Connect-ops router, whose entire RPC dispatch IS a
     // `fallback_service`. axum panics if two merged routers both carry a

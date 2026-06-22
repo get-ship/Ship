@@ -1,0 +1,147 @@
+<div class="studio-view" data-test="studio-view">
+  <sui-studio-rail></sui-studio-rail>
+  <main class="studio-content" data-test="studio-content">
+    {#if loading()}
+      <div class="sk-loading"><sui-spinner size="md" centered></sui-spinner></div>
+    {:else if !sk()}
+      <div class="sk-empty">
+        <sui-empty-state icon="search-x" variant="default" size="md" data-test="skill-not-found">
+          <span slot="title">No such skill</span>
+          <span>{'No skill with id "' + skillId() + '" was found.'}</span>
+        </sui-empty-state>
+      </div>
+    {:else}
+      <div class="sk-detail" data-test="skill-detail">
+
+        <!-- Editor pane -->
+        <section class="sk-editor">
+          <div class="sk-editor-bar">
+            <h1 class="sk-editor-title">{skName()}</h1>
+            <div class="sk-editor-actions">
+              {#if saveBanner()}
+                <span class="sk-save-msg" attr:data-ok={saveBanner().ok}>{saveBanner().msg}</span>
+              {/if}
+              <sui-button tone="primary" variant="solid" size="sm" data-test="skill-save"
+                prop:disabled={!dirty() || saving()} on:click={save}>
+                <sui-icon slot="leading" name="save" size="xs"></sui-icon>
+                {saving() ? 'Saving…' : dirty() ? 'Save' : 'Saved'}
+              </sui-button>
+            </div>
+          </div>
+          <div class="sk-editor-body">
+            {#if hasBody() || dirty()}
+              <ship-markdown-editor data-test="skill-editor" full-height
+                attr:value={draft()}
+                on:sui-change={onEditorInput}
+                on:input={onEditorInput}></ship-markdown-editor>
+            {:else}
+              <div class="sk-editor-empty">
+                <sui-icon name="file" size="xl" tone="muted"></sui-icon>
+                <span>This skill has no SKILL.md content yet — start typing to add it.</span>
+                <ship-markdown-editor data-test="skill-editor" full-height
+                  attr:value={draft()}
+                  on:sui-change={onEditorInput}
+                  on:input={onEditorInput}></ship-markdown-editor>
+              </div>
+            {/if}
+          </div>
+        </section>
+
+        <!-- Metadata panel -->
+        <aside class="sk-meta" aria-label="Skill metadata">
+          <sui-collapsible class="sk-coll" prop:open={openIdentityAttr()}
+            on:sui-toggle={(e) => toggleSection('identity', e.detail.open)}>
+            <div slot="trigger" class="sk-coll-trigger">
+              <sui-icon name="id-card" size="xs" tone="muted"></sui-icon><span>Identity</span>
+              <sui-icon class="sk-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
+            </div>
+            <div class="sk-coll-body">
+              <div class="sk-row"><span class="sk-row-k">id</span><code class="sk-row-v">{skillId()}</code></div>
+              <div class="sk-row"><span class="sk-row-k">kind</span><span class="sk-row-v">{sk().kind}</span></div>
+              <div class="sk-row"><span class="sk-row-k">source</span><span class="sk-row-v">{skSourceLabel()}</span></div>
+              {#if (sk().authors || []).length > 0}
+                <div class="sk-row"><span class="sk-row-k">authors</span><span class="sk-row-v">{skAuthorsText()}</span></div>
+              {/if}
+            </div>
+          </sui-collapsible>
+
+          <sui-collapsible class="sk-coll" prop:open={openDescriptionAttr()}
+            on:sui-toggle={(e) => toggleSection('description', e.detail.open)}>
+            <div slot="trigger" class="sk-coll-trigger">
+              <sui-icon name="info" size="xs" tone="muted"></sui-icon><span>Description</span>
+              <sui-icon class="sk-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
+            </div>
+            <div class="sk-coll-body">
+              <textarea class="sk-textarea" data-test="desc-edit" rows="4"
+                placeholder="What this skill does (one-liner shown in the list)…"
+                attr:disabled={descSaving()} prop:value={descDraft()} on:input={onDescInput}></textarea>
+              <div class="sk-section-actions">
+                <span class="sk-hint">{descDirty() ? 'Unsaved' : 'Synced'}</span>
+                <sui-button variant="ghost" size="sm" prop:disabled={!descDirty() || descSaving()} on:click={resetDesc}>Cancel</sui-button>
+                <sui-button variant="solid" tone="primary" size="sm" data-test="desc-save"
+                  prop:disabled={!descDirty() || descSaving()} on:click={saveDesc}>{descSaving() ? 'Saving…' : 'Save'}</sui-button>
+              </div>
+              {#if descBanner()}
+                <sui-alert tone={descBanner().ok ? 'success' : 'destructive'}>{descBanner().msg}</sui-alert>
+              {/if}
+            </div>
+          </sui-collapsible>
+
+          <sui-collapsible class="sk-coll" prop:open={openTagsAttr()}
+            on:sui-toggle={(e) => toggleSection('tags', e.detail.open)}>
+            <div slot="trigger" class="sk-coll-trigger">
+              <sui-icon name="tag" size="xs" tone="muted"></sui-icon><span>Tags</span>
+              <span class="sk-coll-count">{tagsList().length}</span>
+              <sui-icon class="sk-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
+            </div>
+            <div class="sk-coll-body">
+              {#if tagsList().length > 0}
+                <div class="sk-chips" data-test="tag-chips">
+                  {#for t of tagsList() key={t}}
+                    <span class="sk-chip">{t}<button type="button" class="sk-chip-x" aria-label="Remove tag" on:click={() => removeTag(t)}><sui-icon name="x" size="xs"></sui-icon></button></span>
+                  {/for}
+                </div>
+              {/if}
+              <input type="text" class="sk-tag-input" placeholder="Add tag, Enter to commit…"
+                prop:value={tagsInput()} on:input={onTagsInput} on:keydown={onTagsKeydown} />
+              <div class="sk-section-actions">
+                <span class="sk-hint">{tagsDirty() ? 'Unsaved' : 'Synced'}</span>
+                <sui-button variant="ghost" size="sm" prop:disabled={!tagsDirty() || tagsSaving()} on:click={resetTags}>Cancel</sui-button>
+                <sui-button variant="solid" tone="primary" size="sm" data-test="tags-save"
+                  prop:disabled={!tagsDirty() || tagsSaving()} on:click={saveTags}>{tagsSaving() ? 'Saving…' : 'Save'}</sui-button>
+              </div>
+              {#if tagsBanner()}
+                <sui-alert tone={tagsBanner().ok ? 'success' : 'destructive'}>{tagsBanner().msg}</sui-alert>
+              {/if}
+            </div>
+          </sui-collapsible>
+
+          {#if skVariables().length > 0}
+            <sui-collapsible class="sk-coll" prop:open={openVariablesAttr()}
+              on:sui-toggle={(e) => toggleSection('variables', e.detail.open)}>
+              <div slot="trigger" class="sk-coll-trigger">
+                <sui-icon name="braces" size="xs" tone="muted"></sui-icon><span>Variables</span>
+                <span class="sk-coll-count">{skVariables().length}</span>
+                <sui-icon class="sk-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
+              </div>
+              <div class="sk-coll-body"><div class="sk-chips">{#for v of skVariables() key={v}}<code class="sk-mono-chip">{v}</code>{/for}</div></div>
+            </sui-collapsible>
+          {/if}
+
+          {#if skFiles().length > 0}
+            <sui-collapsible class="sk-coll" prop:open={openFilesAttr()}
+              on:sui-toggle={(e) => toggleSection('files', e.detail.open)}>
+              <div slot="trigger" class="sk-coll-trigger">
+                <sui-icon name="file" size="xs" tone="muted"></sui-icon><span>Files</span>
+                <span class="sk-coll-count">{skFiles().length}</span>
+                <sui-icon class="sk-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
+              </div>
+              <div class="sk-coll-body"><div class="sk-chips">{#for f of skFiles() key={f}}<code class="sk-mono-chip">{f}</code>{/for}</div></div>
+            </sui-collapsible>
+          {/if}
+        </aside>
+
+      </div>
+    {/if}
+  </main>
+</div>

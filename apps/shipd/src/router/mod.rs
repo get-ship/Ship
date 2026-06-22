@@ -5,8 +5,10 @@
 //! `middleware` carries the SPA-nav shim + build-skew header, `health` the
 //! health check + panic handler. This module owns the assembly.
 
+pub(super) mod apps_config;
 mod health;
 mod middleware;
+mod webhook_ext;
 
 use axum::Router;
 use std::sync::Arc;
@@ -20,6 +22,12 @@ use health::{handle_panic, health_check};
 use middleware::{build_header_middleware, spa_nav_middleware};
 
 /// Build the full Axum router with all route groups, auth, and CORS.
+///
+/// `apps` is the per-app serve config (read from `apps.jsonc` at
+/// startup) and injected as `Extension<Vec<AppServeConfig>>`. This is
+/// the only app-serve path — the old scaffold-by-name API and the
+/// `DeckConfig::scaffolds` field it used were removed at the per-app
+/// cutover.
 pub fn build_router(
     rt: Arc<ship_runtime::ShipRuntime>,
     token: Arc<String>,
@@ -27,6 +35,7 @@ pub fn build_router(
     pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
     daemon_mode: deck::DaemonMode,
+    apps: Vec<deck::AppServeConfig>,
 ) -> Router {
     let st = rt.clone();
     // Enumerated routes — one `ApiState`-typed router, registered via
@@ -37,6 +46,36 @@ pub fn build_router(
     let data_port: Arc<dyn deck_core::DataPort> =
         Arc::new(crate::ports::data::ShipDataPort::new(rt.clone()));
 
+    // Synthetic ship-js SSR (gated). Compiled in via the `ship-js-ssr` feature
+    // (keeps V8 out of the default build) and activated at runtime by
+    // DECK_SSR=ship-js. Register the renderer (isolate pool + DataPort) only when
+    // the flag is set, so V8 is not spun up otherwise; deck-core's serve seam
+    // falls back to render-eval whenever no renderer is registered.
+    #[cfg(feature = "ship-js-ssr")]
+    if deck_core::synthetic_ssr::enabled() {
+        match deck_ssr::serve::register(Some(data_port.clone())) {
+            Ok(()) => {
+                tracing::info!("deck-ssr: synthetic ship-js SSR registered (DECK_SSR=ship-js)")
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "deck-ssr: SSR registration failed; serving via render-eval")
+            }
+        }
+    }
+
+    // Public webhook route — unauthenticated; each trigger carries its own secret.
+    let webhook_kernel = rt.kernel().clone();
+    let webhook_source_route = if let Some(src) = rt.webhook_source() {
+        Router::new()
+            .route(
+                "/api/hooks/webhook/{*path}",
+                axum::routing::post(webhook_ext::handle_webhook),
+            )
+            .layer(axum::Extension(src))
+            .layer(axum::Extension(webhook_kernel))
+    } else {
+        Router::new()
+    };
 
     // Unauthenticated routes (before auth middleware)
     let register_registry = session_registry.clone();
@@ -149,21 +188,40 @@ pub fn build_router(
         // auth) so requests must carry a valid bearer before short-circuit.
         .layer(axum::middleware::from_fn(move |req, next| {
             auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
-        }));
-
+        }))
+        // Top-level DataPort Extension — deck's serve_index / serve_setup
+        // read provisioning via `Option<Extension<Arc<dyn DataPort>>>`
+        // and need a top-level extension (the per-multiplex MultiplexState
+        // wrapper doesn't satisfy the type). Same Arc the multiplex
+        // state holds; no extra cost.
+        .layer(axum::Extension(data_port.clone()));
+    // The per-app router is merged into the root BEFORE the auth layer
+    // (apps are unauthenticated public surfaces; the auth middleware
+    // above skips them via the path-prefix checks in the SPA-nav shim).
+    // `serve_apps` reads the per-app list from `Extension<Arc<Vec<...>>>`
+    // and mounts `<app.route>` + `/<app.name>/{file}` + the
+    // primary app's `/{file}` catch-all. The L1 framework (`deck::router`)
+    // still owns the framework surface (`/_deck/*` + `/api/*`); per-app
+    // serving is host-driven from this point.
+    let per_app = deck::serve_apps(&apps);
+    let apps_ext = Arc::new(apps);
     let root = Router::new()
         .merge(public_routes)
-        // (framework bundles, catalogs, pack assets, per-view
-        // template/setup/css/payload + sub-path, `/_deck/view/{name}`,
-        // and `/space/{id}` + `/space/_assets`). Mounted
-        // OUTSIDE the auth layer — these are static, no user-specific data,
-        // same posture as the rest of `/_deck/*`. `Router<()>` (its handlers
-        // read `Option<Extension<DaemonMode>>`, not `State`), so it merges
-        // straight into the stateless root. deck-axum owns these paths.
+        .merge(deck::pages::serve_index_route())
+        .merge(deck::pages::serve_setup_route())
+        .merge(per_app)
         .merge(deck::router())
-        .merge(authenticated_routes);
-    // No `.fallback(spa)` here — that would CLOBBER the data plane. The
-    // Connect-ops router (`rpc::ops::router().into_axum_service()`) dispatches the
+        .merge(webhook_source_route)
+        .merge(authenticated_routes)
+        .layer(axum::Extension(apps_ext.clone()))
+        // Top-level DataPort Extension — same Arc as the multiplex's
+        // MultiplexState. deck's serve_index / serve_setup read this via
+        // `Option<Extension<Arc<dyn DataPort>>>` to drive the first-run
+        // flow (provisioned → serve the primary app, not provisioned →
+        // redirect to /setup). Adding it here, on `root`, covers every
+        // request — the per-app routes, the public catch-all, and the
+        // multiplex.
+        .layer(axum::Extension(data_port.clone()));
     // entire `/ship.ops.v1.*` surface from a `fallback_service`; merging it into
     // `root` makes it root's fallback (carrying its auth layer). A
     // `.fallback(spa_fallback)` would silently replace it and 404 every RPC. SPA
@@ -172,16 +230,14 @@ pub fn build_router(
     // everything else — all RPC POSTs, unknown backend paths — flow through to
     // the Connect fallback. The dev-only HMR firehose and the `/{file}` public-
     // asset catch-all are owned by `deck::router()`; shipd serves no frontend.
-    // Load deck.jsonc from the workspace root (same root the bundler uses).
-    // Falls back to defaults when absent so a zero-config host works unchanged.
-    let repo_root = rt.workspace_dir()
-        .map(|p| p.to_path_buf())
-        .or_else(|| std::env::current_dir().ok())
-        .unwrap_or_else(|| rt.ship_dir().to_path_buf());
-    let deck_cfg = Arc::new(DeckConfig::load(&repo_root));
-
-    // Build the DaemonBuildInfo once here so deck's serve_meta handler
-    // (/_deck/meta) can read it via Option<Extension<DaemonBuildInfo>>.
+    // source roots. The per-app serve config comes from apps.jsonc (the
+    // `Vec<AppServeConfig>` the caller already read and passes in). The
+    // framework no longer reads any file from the project root — shipd
+    // passes built-in defaults here; if shipd needs a custom layout it
+    // clones `defaults()` and overrides before threading the config
+    // through. The app list and the view-discovery config are
+    // deliberately separate surfaces — L1 is per-app; the host owns both.
+    let deck_cfg = Arc::new(DeckConfig::defaults());
     let dbi = {
         let bi = build_info::build_info!();
         deck::DaemonBuildInfo {
@@ -199,19 +255,18 @@ pub fn build_router(
         // the Connect fallback: GET client-routes serve the shell, everything
         // else reaches the Connect dispatch. See the `root` comment above.
         .layer(axum::middleware::from_fn(spa_nav_middleware))
+        .layer(axum::Extension(apps_ext.clone()))
         // Daemon-mode Extension — Sui handlers read it via
         // `Option<Extension<DaemonMode>>` without router-state plumbing.
         .layer(axum::Extension(daemon_mode))
         // DataPort Extension — deck's serve_index / serve_setup read host
         // provisioning via `Option<Extension<Arc<dyn DataPort>>>`. Same Arc the
-        // multiplex transport uses — ONE ShipDataPort for the whole router.
-        .layer(axum::Extension(data_port))
-        // DaemonBuildInfo Extension — deck's /_deck/meta handler reads this
-        // to report the daemon's own build identity alongside the compiler's.
-        .layer(axum::Extension(dbi))
         // DeckConfig Extension — scaffold handlers (serve_shell, serve_space)
         // read scaffold declarations + inject_globals from this.
         .layer(axum::Extension(deck_cfg))
+        // DaemonBuildInfo Extension — deck's /_deck/meta handler reads this
+        // to report the daemon's own build identity alongside the compiler's.
+        .layer(axum::Extension(dbi))
         // Bundler Extension (#167) — deck's view.js handler builds an unbuilt
         // view in-process via Rolldown on a cache miss (controller inlined, no
         // bun). The same instance the watcher drives.

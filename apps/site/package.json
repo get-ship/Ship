@@ -3,6 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "deck": {
+    "bundles": [
+      {
+        "name": "sui-marketing",
+        "entry": "src/marketing/marketing-bundle.ts",
+        "externals": ["@ship/sui-runtime", "@ship/sui-dom"],
+        "lazy": false
+      }
+    ]
+  },
   "scripts": {
     "predev": "bun run scripts/copy-sui-assets.ts && bun scripts/build-og-image.mjs",
     "dev": "astro dev",

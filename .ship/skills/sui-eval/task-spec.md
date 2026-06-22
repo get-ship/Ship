@@ -60,6 +60,13 @@ primitives — keep everything you author scoped to this view.
 ## Hard rules (will be linted + compiled — failure = score floor)
 
 - Templates declare, controllers do. No `<script>` block in `.sui`.
+- Template expressions are PURE functions of scope signals —
+  `map`/`filter`/arithmetic/ternary/member access only. A `.sui` file
+  containing a capability (`fetch`/IO/`eval`/`localStorage`/`Date.now`/
+  `Math.random`/non-owned mutation such as `arr.sort()`) OR a
+  statement/declaration (`const`/`let`/`function`) is a FAIL: promote it to a
+  controller `derived`/`live`/`on`, reached through the ship SDK. (Background:
+  `docs/ship-sui/references/docs/authoring-model.md`.)
 - Read signals by call (`name()`), write via assignment (`state.name = v`)
   or `name.set(v)` only inside `on:` handlers.
 - No raw hex / px / rgb in `style.css` for themed properties — use

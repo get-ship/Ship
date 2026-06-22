@@ -18,13 +18,13 @@
 //      ⌘. navigates to /studio; ⌃` toggles the terminal panel;
 //      ⌘? opens help.
 
-import { createClient, DECK_PREFIX, setShipClient, type ShipSDK } from '@ship/sdk-client'
+import { createClient, DECK_API_ASSETS, DECK_PREFIX, setShipClient, type ShipSDK } from '@ship/sdk-client'
 import { ops } from './ops'
 // `import './components'` and `import { loadHeavyChrome } from
 // './chrome/load-heavy-chrome'` removed. Both source files were deleted in
 // commit `ee33c2c9a` (the static-chrome-import drop) but main.ts still
 // referenced them, which made the scaffold build (`cargo run -p deck-cli
-// -- build --shell-root apps/shell`) fail with rolldown's
+// -- build --project apps/shell`) fail with rolldown's
 // `DiagnosableResolveError` for the dangling specifiers.
 //
 // The chrome is registered through the per-tag resolver, content-deduped
@@ -43,7 +43,7 @@ import { ops } from './ops'
 // the deck's in-process rolldown plugin generates on the fly for views, but
 // the scaffold's `bundle_app` path (this build) can't synthesize them
 // because they only exist on the view-build path. Result: `cargo run -p
-// deck-cli -- build --shell-root apps/shell` fails with rolldown
+// deck-cli -- build --project apps/shell` fails with rolldown
 // `DiagnosableResolveError` for `*.compiled.js`.
 //
 // The chrome these packs register is also registered by the per-tag resolver
@@ -103,7 +103,7 @@ function injectTokenStyles(): void {
   if (document.querySelector('link[data-ship-view-tokens]')) return
   const link = document.createElement('link')
   link.rel = 'stylesheet'
-  link.href = `${daemonBase()}/api/assets/view-tokens.css`
+  link.href = `${daemonBase()}${DECK_API_ASSETS}/view-tokens.css`
   link.setAttribute('data-ship-view-tokens', '')
   document.head.appendChild(link)
 }

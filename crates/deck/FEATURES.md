@@ -40,13 +40,13 @@ each is guarded by a dedicated gate test:
 - `deck-bundler` — in-process Rolldown bundler (compile, per-view resolve,
   shared-chunk dedup, app/view builds, asset-graph, watch/HMR, catalog,
   route codegen).
-- `deck-config` — the `deck.jsonc` manifest schema.
+- `deck-config` — the optional `deck.jsonc` view-discovery + watch override schema.
 - `deck-cli` — the `deck` framework CLI (build / build-assets / routes / scaffold).
 - `deck` — thin re-export facade over the above (what shipd imports).
 
 ## Executable reference
 
-`examples/deck-demo` is the ship-free worked example. It is a zero-config Deck
+`crates/deck/deck-conformance` is the ship-free worked example. It is a zero-config Deck
 host (no Ship app, no `.ship` dir) that exercises every feature below — view
 host, payload, scaffolds, framework bundles, icons, live-data SSE, form
 mutation, HMR — so the contract is demonstrated end-to-end without any Ship
@@ -73,11 +73,11 @@ Each handler logic lives in `deck-core` and returns a `DeckResponse`; the matchi
 | Scaffold shell | `GET /` and `GET /space/{id}` | `crates/deck/deck-core/src/assets.rs::serve_scaffold` | Serves an HTML scaffold (shell/space), rewriting asset hrefs and injecting validated globals. |
 | Scaffold asset | `GET /{shell,space}/_assets/{file}` | `crates/deck/deck-core/src/assets.rs::serve_scaffold_asset` | Serves a scaffold's hashed static asset with path-traversal rejection. |
 | Meta / drift stamp | `GET /_deck/meta` | `crates/deck/deck-core/src/meta.rs::serve_meta` | Compiler + daemon build identity for the shell's version-drift check. |
-| Workspace catalog | `GET /_deck/catalog/workspace` | `crates/deck/deck-core/src/packs.rs::serve_catalog_workspace` | The baked component catalog (`.deck/catalogs/workspace.json`) for devtools. |
+| Workspace catalog | (purged — `GET /_deck/catalog/workspace`) | (purged — `deck-core/src/packs.rs`) | The runtime catalog serving was the framework's hardcoded `.deck/catalogs/` read. Purged. |
 | Live-reload client | `GET /_deck/live-reload.js` | `crates/deck/deck-core/src/assets.rs::serve_sui_live_reload` | The single HMR client; self-gates on the `ship-mode` meta so it only subscribes in dev. |
 | Styled 404 page | (host 404 body) | `crates/deck/deck-core/src/error_page.rs::view_not_found` | Rendered `text/html` not-found page (with servable-view list), not raw JSON. |
 | View resolution | (internal) | `crates/deck/deck-core/src/resolver.rs::resolve` | Host-agnostic project-root + first-party resolution feeding every view handler. |
-| Asset-graph read | (internal) | `crates/deck/deck-core/src/asset_graph.rs::lookup` | Reads the bundler's `.deck/asset-graph.json` SSOT so served paths match the build. |
+| Asset-graph read | (purged — `deck-core/src/asset_graph.rs`) | (purged — `deck-purge-root`) | The runtime read of `.deck/asset-graph.json` was the framework's hardcoded `.deck/` reach. Purged. |
 | Module URL builder | (internal) | `crates/deck/deck-core/src/routes.rs::view_module_url` | One source of truth for the view-module `/_deck/...` URL. |
 | Mutation URL builder | (internal) | `crates/deck/deck-core/src/routes.rs::mutation_action` | Builds the `POST /_deck/mutation/{name}` form-action URL. |
 | Subscribe URL builder | (internal) | `crates/deck/deck-core/src/routes.rs::subscribe_url` | Builds the `/_deck/views/{name}/sse` live-data URL. |
@@ -86,6 +86,8 @@ Each handler logic lives in `deck-core` and returns a `DeckResponse`; the matchi
 | DeckResponse model | (transport port) | `crates/deck/deck-core/src/response.rs::DeckResponse` | The framework-agnostic response (status/headers/body) every handler returns. |
 | Daemon mode | (internal) | `crates/deck/deck-core/src/lib.rs::DaemonMode` | Dev/Prod switch driving cache headers, HMR gating, and SSR caching. |
 | Mode meta injection | (HTML rewrite) | `crates/deck/deck-core/src/mode_html.rs::inject_mode_meta` | Rewrites `<meta name="ship-mode">` so the live-reload client self-gates. |
+| Render meta injection | (HTML rewrite) | `crates/deck/deck-core/src/mode_html.rs::inject_render_meta` | Rewrites `<meta name="ship-render">` so the app's csr/ssr mode is observable client-side. |
+| App-registration port | (host seam) | `crates/deck/deck-core/src/app_port.rs::AppRegistry` | Sibling to `DataPort`: the host enumerates the apps it serves (each a per-app `deck.jsonc`-loaded `AppServeConfig`); deck names no path. |
 | axum router | (mount unit) | `crates/deck/deck-axum/src/lib.rs::router` | Registers Deck's whole hosting surface as one mountable axum `Router`. |
 | DeckResponse → axum | (adapter) | `crates/deck/deck-axum/src/lib.rs::into_axum` | Maps a `DeckResponse` 1:1 onto an axum `Response`. |
 | HMR stream | `GET /_deck/dev/hmr` | `crates/deck/deck-axum/src/handlers.rs::serve_bundle_hmr` | SSE firehose of bundler events for the live-reload client; cancel-token terminated for graceful drain. |
@@ -102,28 +104,28 @@ chunks, builds apps and views, writes the asset graph, and watches for HMR.
 | Build all targets | `.deck/` + `crates/deck/deck-core/assets/` | `crates/deck/deck-bundler/src/lib.rs::build_all` | Bakes every target (views multi-entry), refreshes the catalog, writes the asset graph; honest per-target failure. |
 | In-process compile | (JS string) | `crates/deck/deck-bundler/src/compile.rs::compile_sui` | Compiles one `.sui` to JS via `sui_compiler::compile`, auto-wiring a paired controller. |
 | Rolldown driver | per-target `.js` | `crates/deck/deck-bundler/src/rolldown_bundle.rs::bundle_target` | Drives Rolldown for one target with the SUI plugin; trims arenas after each build. |
-| SUI resolve/load plugin | (Rolldown plugin) | `crates/deck/deck-bundler/src/sui_plugin.rs::SuiPlugin` | `resolve_id`/`load` hooks: compile `.sui`, externalize singletons, re-anchor `@ship/<pkg>`, resolve `@sui-tag/<tag>`. |
-| Per-view `@sui-tag` resolver | (view bundle) | `crates/deck/deck-bundler/src/sui_plugin.rs::component_index` | `<tag>` → source `.sui` index so a view bundle carries exactly the components it uses. |
+| SUI resolve/load plugin | (Rolldown plugin) | `crates/deck/deck-bundler/src/sui_plugin.rs` | `resolve_id`/`load` hooks: compile `.sui`, externalize singletons, re-anchor `@ship/<pkg>`, resolve `@sui-tag/<tag>`. |
+| Per-view `@sui-tag` resolver | (view bundle) | `crates/deck/deck-bundler/src/sui_plugin.rs` | `<tag>` → source `.sui` index so a view bundle carries exactly the components it uses. |
 | Shared-chunk dedup | `.deck/` shared chunks | `crates/deck/deck-bundler/src/views_bundle.rs::bundle_views` | Multi-entry view build: a component used by ≥2 views lands in one shared chunk. |
 | App build | static dir | `crates/deck/deck-bundler/src/app.rs::bundle_app` | Bundles a SUI SPA (hub/space), externalizing the document importmap; compiles its `.sui` in-process. |
-| Asset-graph write | `.deck/asset-graph.json` | `crates/deck/deck-bundler/src/asset_graph.rs::write_asset_graph` | Derives the asset SSOT from the artifacts `build_all` actually produced (path + content hash + bytes). |
-| Watch / HMR | (broadcast events) | `crates/deck/deck-bundler/src/watch.rs::run` | Pruned non-recursive FS watch, bounded drop-oldest ring, debounced rebuild, emits `BundlerEvent`s. |
-| Catalog aggregation | `.deck/catalogs/workspace.json` | `crates/deck/deck-bundler/src/catalog/mod.rs::build_catalog` | Walks packaged + sui-out CEMs into the workspace catalog, sorted + deduped by tag. |
+| Asset-graph write | (purged — `deck-bundler/src/asset_graph.rs`) | (purged — `deck-purge-root`) | The framework no longer writes a monorepo-root `.deck/asset-graph.json`. |
+| Watch / HMR | (broadcast events) | `crates/deck/deck-bundler/src/watch.rs` | Pruned non-recursive FS watch, bounded drop-oldest ring, debounced rebuild, emits `BundlerEvent`s. |
+| Catalog aggregation | (purged — `.deck/catalogs/`) | (purged — `deck-purge-root`) | The framework no longer writes a monorepo-root `.deck/catalogs/workspace.json`. The catalog walker (`crates/deck/deck-bundler/src/catalog/mod.rs::build_catalog`) is available in-memory for hosts. |
 | Tag → source index | (per-view resolver feed) | `crates/deck/deck-bundler/src/catalog/mod.rs::tag_source_index` | Maps every component tag to its source `.sui` from the same CEM walk. |
 | Workspace discovery | (catalog input) | `crates/deck/deck-bundler/src/catalog/workspace.rs::discover_workspace_packages` | Expands `package.json` workspace globs into the package set the catalog walks. |
 | Routes codegen | `routes.gen.ts` (per root) | `crates/deck/deck-bundler/src/routes.rs::generate_routes` | Walks every `[param]` dir under each app's `routes/` (shell + spaces) and emits a typed `RouteShape[]` the runtime registers via `defineRoutes` (write-if-changed). Multi-root via `RouteGenSpec` (`dir` + `out` + `label`). |
-| Targets / layout | (target set) | `crates/deck/deck-bundler/src/targets.rs::BundleLayout` | Framework singletons + consumer targets + discovered views, and where each output lands. |
+| Targets / layout | (target set) | `crates/deck/deck-bundler/src/targets.rs::BundleLayout` | Framework singletons + discovered consumer bundles + discovered views, and where each output lands. |
+| Consumer bundle discovery | (per-package self-decl) | `crates/deck/deck-bundler/src/catalog/workspace.rs::discover_bundle_declarations` | Walks the workspace for each package's `package.json` `deck.bundles[]` (name/entry/externals/lazy) — the dissolved central `targets` list. |
+| Component-root map | (`@ship/<name>` resolution) | `crates/deck/deck-bundler/src/catalog/workspace.rs::component_package_roots` | npm-name→package-root derived from the workspace map; replaces the hand-maintained `componentSourceRoots` search order. |
 
 ## Config (`deck-config`)
 
 | Feature | File | Implementation | Description |
 | --- | --- | --- | --- |
-| Manifest schema | `deck.jsonc` | `crates/deck/deck-config/src/lib.rs::DeckConfig` | Parsed `deck.jsonc`: targets, scaffolds, source roots, watch dirs, host-assets root, first-party app. |
-| Config load | (startup) | `crates/deck/deck-config/src/lib.rs::load` | Reads `<root>/deck.jsonc`, strips JSONC comments, falls back to defaults (never panics). |
-| Zero-config defaults | (built-in) | `crates/deck/deck-config/src/lib.rs::defaults` | The defaults a host with no `deck.jsonc` (deck-demo) runs on. |
-| Bundle target decl | (config entry) | `crates/deck/deck-config/src/lib.rs::TargetDecl` | One consumer bundle target (name, entry, externals, kind, out-file). |
-| Scaffold decl | (config entry) | `crates/deck/deck-config/src/lib.rs::ScaffoldDecl` | One HTML scaffold (route, source, asset prefix, injected globals). |
-| First-party app decl | (config entry) | `crates/deck/deck-config/src/lib.rs::FirstPartyApp` | The embedded host app's root + label for the catalog projection. |
+| Manifest schema | `deck.jsonc` (optional) | `crates/deck/deck-config/src/lib.rs::DeckConfig` | Optional host override for the VIEW-discovery + watch layout: source roots, watch dirs, packs, view dirs, view leaf. Consumer bundles + `@ship/<name>` resolution are NOT here (self-declared + discovered). |
+| Config load | (startup) | `crates/deck/deck-config/src/lib.rs` | Reads `<root>/deck.jsonc` when present, strips JSONC comments, falls back to defaults (never panics). |
+| Zero-config defaults | (built-in) | `crates/deck/deck-config/src/lib.rs::defaults` | The defaults a host with no `deck.jsonc` (deck-conformance, and the Ship repo itself) runs on. |
+| Bundle self-declaration | `package.json` `deck.bundles[]` | `crates/deck/deck-bundler/src/catalog/workspace.rs::BundleDecl` | One consumer bundle a package declares for itself (name, package-relative entry, externals, lazy). Discovered by the bundler — no central registry. |
 
 ## Host contract (`deck-host`, `deck-cli`)
 
@@ -136,8 +138,8 @@ The pure SUI-facing read side, plus the framework CLI.
 | Render + mtime cache | (SSR) | `crates/deck/deck-host/src/resolver.rs::render_resolved` | Compiles + renders a resolved view, mtime-keyed so a re-emitted artifact is never stale. |
 | View payload shape | (JSON contract) | `crates/deck/deck-host/src/view_payload.rs::ViewPayload` | The serialized payload contract (html/css/scope/moduleUrl/params) shared with the runtime. |
 | Render helper | (source read) | `crates/deck/deck-host/src/render_helpers.rs::render_view_source` | Reads a view's `page.sui` source from the project root. |
-| CLI: build app | `deck build` | `crates/deck/deck-cli/src/main.rs::build` | Builds a SUI SPA app to a static output dir. |
-| CLI: bake assets | `deck build-assets` | `crates/deck/deck-cli/src/main.rs::build_assets` | Bakes framework + consumer bundles via the in-process bundler, with non-empty guards. |
+| CLI: build app | `deck build` | `crates/deck/deck-cli/src/main.rs` | Builds a SUI SPA app to a static output dir. |
+| CLI: bake assets | `deck build-assets` | `crates/deck/deck-cli/src/main.rs` | Bakes framework + consumer bundles via the in-process bundler, with non-empty guards. |
 | CLI: routes | `deck routes` | `crates/deck/deck-cli/src/main.rs` | Regenerates the typed dynamic-route table standalone. `--root=<path>` is required and repeatable; the CLI walks `<root>/routes/` and writes `<root>/routes.gen.ts` with a label auto-derived from the path's basename (no app-name coupling, no monorepo-defaults heuristic). |
 | CLI: scaffold view | `deck scaffold view` | `crates/deck/deck-cli/src/scaffold.rs::run_view` | Generates a new view (page.sui + controller.ts + style.css + manifest.jsonc). |
 | CLI: scaffold component | `deck scaffold component` | `crates/deck/deck-cli/src/scaffold.rs::run_component` | Generates a new `sui-*` primitive under the primitives package. |
@@ -148,7 +150,7 @@ The pure SUI-facing read side, plus the framework CLI.
 | Feature | Surface | Implementation | Description |
 | --- | --- | --- | --- |
 | HTML security headers | HTML responses | `crates/deck/deck-core/src/response.rs::html_view` | X-Frame-Options, X-Content-Type-Options nosniff, and a self-only CSP on every HTML body. |
-| View-name validation | view routes | `crates/deck/deck-core/src/view.rs::is_valid_view_name` | Rejects traversal / dotted / oversize / bad-char names before any disk access. |
+| View-name validation | view routes | `crates/deck/deck-host/src/render_helpers.rs::is_valid_view_name` | Rejects traversal / dotted / oversize / bad-char names before any disk access. |
 | Scaffold asset traversal guard | scaffold assets | `crates/deck/deck-core/src/assets.rs::serve_scaffold_asset` | Rejects `..`, slashes, and leading dots in asset filenames. |
 | inject_globals key validation | scaffold HTML | `crates/deck/deck-core/src/assets.rs::serve_scaffold` | Skips any `inject_globals` key that is not a safe JS identifier (no script injection). |
 | Symlink containment | view resolution | `crates/deck/deck-host/src/resolver.rs::read_view_artifact` | Canonicalizes + size-caps view artifacts; the resolver rejects leaves that escape their bucket root. |

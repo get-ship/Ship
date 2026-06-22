@@ -63,16 +63,16 @@ Everything Ship-specific about the layout lives in `deck.jsonc`, not in deck's
 code. Key fields (`deck-config/src/lib.rs`):
 
 - `targets[]` — consumer bundle targets (`name`, `entry`, `externals`, `kind`).
-- `scaffolds[]` — named SPA apps (`name`, `route`, `source`, `assetPrefix`,
-  `injectGlobals`).
 - `sourceRoots` / `componentSourceRoots` — where `.sui` and `@ship/<pack>`
   components resolve from. The host declares its monorepo layout here; deck's
   resolver names none of it.
-- `firstPartyApp`, `packs[]` — the per-tag component resolver's roots.
+- `packs[]` — the per-tag component resolver's roots.
 - `viewDirs` / `viewLeaf` — where views live and the entry filename.
-- `publicDir` / `hostAssetsRoot` — static-asset roots.
 - `watch[]` — dev-watch paths.
 
+The Ship app list (hub, spaces) lives in `apps.jsonc` at the workspace
+root, owned by shipd (L2). Deck knows nothing about which apps exist
+or how they are routed.
 A zero-config host gets sensible generic defaults (e.g. `sourceRoots: ["packages"]`).
 
 ## Mounting deck in a host (what shipd does)
@@ -102,7 +102,7 @@ Two composition rules the host must honor:
 
 ## CLI
 
-deck build --shell-root apps/shell --out .deck/hub-scaffold --bundle-framework
+deck build --project apps/hub --bundle-framework
 deck build-assets          # bake framework + consumer bundles (in-process Rolldown)
 deck routes --root apps/shell --root apps/spaces
 # walks <root>/routes/ → emits <root>/routes.gen.ts (label = basename).

@@ -17,7 +17,6 @@ use rolldown::plugin::{
 };
 use rolldown_common::{ModuleType, ResolvedExternal};
 
-use deck_config::FirstPartyApp;
 
 use crate::compile::{compile_sui, CompileMode};
 
@@ -86,11 +85,12 @@ pub(crate) struct SuiPlugin {
     /// of these tags, the resolver no-ops it AND warns the author (naming the
     /// pack to declare).
     pub(crate) shadowed_tags: Arc<HashMap<String, String>>,
-    /// Repo-root-relative directories searched, in order, to resolve a
-    /// `@ship/<name>` import to its package source (`<repo_root>/<root>/<name>`).
-    /// Comes from `DeckConfig::component_source_roots` — deck bakes no monorepo
-    /// layout; the host declares its search order in `deck.jsonc`.
-    pub(crate) component_source_roots: Arc<Vec<PathBuf>>,
+    /// npm package name → absolute package root, for resolving a `@ship/<name>`
+    /// import to its workspace source. DERIVED from the bun/npm workspace package
+    /// map (`component_package_roots`) — deck bakes no monorepo layout and keeps
+    /// no hand-maintained search order. A name absent from the map falls through
+    /// to Rolldown's native resolver (prod / node_modules resolution).
+    pub(crate) component_roots: Arc<HashMap<String, PathBuf>>,
 }
 
 /// The per-view resolver's lookup tables, built once per `(repo_root, packs)`.
@@ -210,25 +210,16 @@ impl Plugin for SuiPlugin {
         if let Some(rest) = spec.strip_prefix("@ship/") {
             let name = rest.split('/').next().unwrap_or(rest);
             let subpath = rest.strip_prefix(name).map(|s| s.trim_start_matches('/'));
-            let cands = if let Some(s) = name.strip_prefix("sui-") {
-                vec![s.to_string(), name.to_string()]
-            } else {
-                vec![name.to_string()]
-            };
-            for d in &cands {
-                // Component search roots come from config
-                // (`DeckConfig::component_source_roots`, declared in
-                // `deck.jsonc`). deck no longer bakes a monorepo layout —
-                // a host with nested component buckets (e.g. Ship's
-                // `packages/components/{sui,ship}`) lists the full search
-                // order there. Each root is joined repo-root-relative and
-                // the first existing package wins. (There is no umbrella
-                // bundle — chrome is per-tag tree-shaking only.)
-                for root in self.component_source_roots.iter() {
-                    let pkg = self.repo_root.join(root).join(d);
-                    if !pkg.join("src/index.ts").exists() {
-                        continue
-                    }
+            // Resolve `@ship/<name>` via the DERIVED workspace package map
+            // (`component_roots`, keyed by package.json `name`) — the same map
+            // bun/npm resolve through. No hand-maintained search order, no
+            // `sui-` dir-name heuristic: the map IS the authoritative
+            // name→source binding. A name absent from the map (a prod build with
+            // no workspace, a true node_modules dep) falls through to Rolldown's
+            // native resolver below. (There is no umbrella bundle — chrome is
+            // per-tag tree-shaking only.)
+            if let Some(pkg) = self.component_roots.get(&format!("@ship/{name}")) {
+                if pkg.join("src/index.ts").exists() {
                     let src = pkg.join("src");
                     let target = match subpath {
                         None | Some("") => src.join("index.ts"),
@@ -281,7 +272,7 @@ impl Plugin for SuiPlugin {
         if let Some(sui) = sui {
             let code = self
                 .compile(&sui)
-                .map_err(|e| anyhow!("{e}"))?;
+                .map_err(|e| anyhow!("compile {}: {e}", sui.display()))?;
             return Ok(Some(HookLoadOutput {
                 code: code.into(),
                 module_type: Some(ModuleType::Js),
@@ -396,7 +387,7 @@ mod tests {
         let root = tmp.path();
         let declared: Vec<String> = vec!["@ship/sui-primitives".into()];
 
-        let scoped = component_index(root, None, &declared);
+        let scoped = component_index(root, &declared);
         assert!(scoped.index.contains_key("sui-button"), "declared tag resolves");
         assert!(
             !scoped.index.contains_key("ship-agent-card"),
@@ -415,7 +406,7 @@ mod tests {
     fn component_index_global_resolves_all_and_shadows_nothing() {
         let tmp = two_pack_fixture();
         let root = tmp.path();
-        let global = component_index(root, None, &[]);
+        let global = component_index(root, &[]);
         assert!(global.index.contains_key("sui-button"));
         assert!(global.index.contains_key("ship-agent-card"));
         assert!(global.shadowed.is_empty(), "global scope shadows nothing");
@@ -427,7 +418,7 @@ mod tests {
 /// A component added mid-process isn't picked up until restart — until then its
 /// tag resolves to a virtual no-op.
 ///
-/// `first_party_app` comes from `deck.jsonc` and drives the shell-local CEM
+/// `` comes from `deck.jsonc` and drives the shell-local CEM
 /// projection (which app root gets a special origin label). `None` in
 /// zero-config hosts — the projection simply doesn't apply.
 ///
@@ -439,7 +430,6 @@ mod tests {
 /// but declaring different packs don't collide.
 pub(crate) fn component_index(
     repo_root: &Path,
-    first_party_app: Option<&FirstPartyApp>,
     packs: &[String],
 ) -> ResolverIndex {
     type CacheKey = (PathBuf, Vec<String>);
@@ -450,14 +440,12 @@ pub(crate) fn component_index(
     if let Some(idx) = guard.get(&key) {
         return idx.clone();
     }
-    let scope = if packs.is_empty() { None } else { Some(packs) };
     let resolver = ResolverIndex {
         index: Arc::new(crate::catalog::tag_source_index_scoped(
             repo_root,
-            first_party_app,
-            scope,
+            Some(packs),
         )),
-        shadowed: Arc::new(crate::catalog::shadowed_tags(repo_root, first_party_app, packs)),
+        shadowed: Arc::new(crate::catalog::shadowed_tags(repo_root, packs)),
     };
     guard.insert(key, resolver.clone());
     resolver

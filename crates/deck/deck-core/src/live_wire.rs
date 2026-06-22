@@ -1,7 +1,7 @@
 //! SSE envelope encoders for the SUI live-data wire protocol.
 //!
 //! These pure formatting functions are the single source of truth for every
-//! SSE frame the runtime consumes. Both `shipd` and `deck-demo` (and any
+//! SSE frame the runtime consumes. Both `shipd` and `deck-conformance` (and any
 //! future deck host) import from here — no copies.
 //!
 //! ## Wire formats

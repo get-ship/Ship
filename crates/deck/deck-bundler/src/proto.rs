@@ -4,6 +4,8 @@
 //! bundler (#163) only the build manifest remains — constructed in Rust, not
 //! deserialized from a worker.
 
+use std::path::PathBuf;
+
 /// What one target produced.
 #[derive(Debug, Clone)]
 pub struct BundleManifest {
@@ -15,4 +17,9 @@ pub struct BundleManifest {
     pub bytes: usize,
     /// Source inputs (entry / aggregate sources) — for watch dependency hints.
     pub inputs: Vec<String>,
+    /// Resolved module graph: every on-disk source file that contributed to
+    /// this bundle (absolute paths, vendored dirs excluded). Populated from
+    /// Rolldown's `OutputChunk.module_ids` after each build; empty for
+    /// synthesized manifests (single-flight coalesced waiters).
+    pub modules: Vec<PathBuf>,
 }

@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use rolldown::{BundlerBuilder, BundlerOptions, InputItem, OutputFormat};
-use rolldown_common::ManualCodeSplittingOptions;
+use rolldown_common::{ManualCodeSplittingOptions, PreserveEntrySignatures};
 
 use super::proto::BundleManifest;
 use super::targets::{BundleLayout, BundleTarget, TargetEntry};
@@ -66,6 +66,14 @@ pub async fn bundle_target(
             min_module_size: Some(0.0),
             ..Default::default()
         }),
+        // Framework singletons (sui-runtime/sui-dom/sui-sdk-client) are libraries
+        // consumed by name via the host importmap — preserve their full public
+        // export surface. The default `ExportsOnly` tree-shook a re-exported const
+        // (`DECK_API_ASSETS`) with no in-bundle consumer, producing a runtime
+        // "does not provide an export named …" error. `Strict` makes the entry's
+        // declared exports roots. App/view targets keep the default.
+        preserve_entry_signatures: crate::targets::is_framework_singleton(&target.name)
+            .then_some(PreserveEntrySignatures::Strict),
         ..Default::default()
     };
 
@@ -78,7 +86,6 @@ pub async fn bundle_target(
     let resolver = if emit_component_imports {
         component_index(
             &layout.repo_root,
-            layout.cfg.first_party_app.as_ref(),
             &layout.cfg.packs,
         )
     } else {
@@ -89,24 +96,25 @@ pub async fn bundle_target(
         emit_component_imports,
         component_index: resolver.index,
         shadowed_tags: resolver.shadowed,
-        component_source_roots: Arc::new(layout.cfg.component_source_roots.clone()),
+        component_roots: crate::catalog::component_package_roots(&layout.repo_root),
     };
     // The bundler + its oxc module graph live in `bundler` and are dropped at
     // the end of this scope. Earlier this called malloc_trim(0) via
     // crate::arena::trim_arenas() to return the freed arenas to glibc
     // (cut 4: arena.rs deleted; shipd now uses jemalloc, which returns
     // freed arenas to the OS by default — no trim required).
-    {
+    let module_paths = {
         let mut bundler = BundlerBuilder::default()
             .with_options(options)
             .with_plugins(vec![Arc::new(plugin)])
             .build()
             .map_err(|e| anyhow!("rolldown build({}): {e:?}", target.name))?;
-        bundler
+        let output = bundler
             .write()
             .await
             .map_err(|e| anyhow!("rolldown write({}): {e:?}", target.name))?;
-    }
+        extract_module_paths(&output)
+    };
 
     // Post-bundle tag-collision check (#308). Walks every emitted
     // chunk and errors on a tag defined by more than one file. Runs
@@ -128,12 +136,40 @@ pub async fn bundle_target(
                 sources.iter().map(|p| p.to_string_lossy().to_string()).collect()
             }
         },
+        modules: module_paths,
     })
+}
+
+const MODULE_PRUNE: &[&str] = &["node_modules", ".git", "target", "dist", ".deck", "sui-out"];
+
+fn extract_module_paths(output: &rolldown::BundleOutput) -> Vec<PathBuf> {
+    use rolldown_common::Output;
+    let mut paths = std::collections::HashSet::new();
+    for asset in &output.assets {
+        if let Output::Chunk(chunk) = asset {
+            for module_id in &chunk.module_ids {
+                let s: &str = module_id;
+                if !s.starts_with('/') {
+                    continue;
+                }
+                let p = PathBuf::from(s);
+                if p.components().any(|c| {
+                    matches!(c, std::path::Component::Normal(n)
+                        if MODULE_PRUNE.contains(&n.to_string_lossy().as_ref()))
+                }) {
+                    continue;
+                }
+                paths.insert(p);
+            }
+        }
+    }
+    paths.into_iter().collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::DeckConfig;
 
     fn repo_root() -> PathBuf {
         let mut d = Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf();
@@ -157,7 +193,7 @@ mod tests {
         let scratch = tempfile::tempdir().unwrap();
         let staging = tempfile::tempdir().unwrap();
         let layout =
-            BundleLayout::new(repo, None).with_out_root(scratch.path().to_path_buf());
+            BundleLayout::with_config(repo, None, DeckConfig::defaults()).with_out_root(scratch.path().to_path_buf());
 
         let targets = layout.all_targets();
         let marketing = targets.iter().find(|t| t.name == "sui-marketing").unwrap();
@@ -209,7 +245,7 @@ mod tests {
         let scratch = tempfile::tempdir().unwrap();
         let staging = tempfile::tempdir().unwrap();
         let layout =
-            BundleLayout::new(repo, None).with_out_root(scratch.path().to_path_buf());
+            BundleLayout::with_config(repo, None, DeckConfig::defaults()).with_out_root(scratch.path().to_path_buf());
 
         let targets = layout.all_targets();
         let arcade = targets.iter().find(|t| t.name == "sui-arcade").unwrap();
@@ -249,7 +285,7 @@ mod tests {
         let scratch = tempfile::tempdir().unwrap();
         let staging = tempfile::tempdir().unwrap();
         let layout =
-            BundleLayout::new(repo, None).with_out_root(scratch.path().to_path_buf());
+            BundleLayout::with_config(repo, None, DeckConfig::defaults()).with_out_root(scratch.path().to_path_buf());
 
         let targets = layout.all_targets();
         let pdf = targets.iter().find(|t| t.name == "sui-pdf").unwrap();
@@ -284,5 +320,63 @@ mod tests {
             body.contains("`ship-pdf`"),
             "pdf bundle must register the ship-pdf tag"
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn graph_capture_includes_transitive_dep_excludes_node_modules() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("app")).unwrap();
+        std::fs::create_dir_all(root.join("lib")).unwrap();
+        std::fs::write(root.join("app/main.ts"),
+            "import { getX } from '../lib/util.ts'; export default getX;").unwrap();
+        std::fs::write(root.join("lib/util.ts"), "export function getX() { return Math.random(); }").unwrap();
+
+        let scratch = tempfile::tempdir().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        let layout = BundleLayout::with_config(root.to_path_buf(), None, DeckConfig::defaults())
+            .with_out_root(scratch.path().to_path_buf());
+        let target = BundleTarget {
+            name: "test/main".to_string(),
+            entry: TargetEntry::Real(root.join("app/main.ts")),
+            externals: vec![],
+            out_file: "main.js".to_string(),
+            lazy: false,
+        };
+        let manifest = bundle_target(&layout, &target, staging.path(), false).await.unwrap();
+        assert!(manifest.modules.iter().any(|m| m.ends_with("app/main.ts")),
+            "entry in module set, got: {:?}", manifest.modules);
+        assert!(manifest.modules.iter().any(|m| m.ends_with("lib/util.ts")),
+            "imported dep from different dir in module set, got: {:?}", manifest.modules);
+        assert!(!manifest.modules.iter().any(|m| m.components().any(|c| {
+            matches!(c, std::path::Component::Normal(n) if n == "node_modules")
+        })), "node_modules must not appear in module set");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn app_source_coverage_outside_conventional_dirs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("app/routes")).unwrap();
+        std::fs::create_dir_all(root.join("app/src")).unwrap();
+        std::fs::write(root.join("app/routes/page.ts"),
+            "import { getHelper } from '../src/helper.ts'; export default getHelper;").unwrap();
+        std::fs::write(root.join("app/src/helper.ts"), "export function getHelper() { return Math.random().toString(); }").unwrap();
+        let scratch = tempfile::tempdir().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        let layout = BundleLayout::with_config(root.to_path_buf(), None, DeckConfig::defaults())
+            .with_out_root(scratch.path().to_path_buf());
+        let target = BundleTarget {
+            name: "app/page".to_string(),
+            entry: TargetEntry::Real(root.join("app/routes/page.ts")),
+            externals: vec![],
+            out_file: "page.js".to_string(),
+            lazy: false,
+        };
+        let manifest = bundle_target(&layout, &target, staging.path(), false).await.unwrap();
+        assert!(manifest.modules.iter().any(|m| m.ends_with("app/routes/page.ts")),
+            "entry in module set");
+        assert!(manifest.modules.iter().any(|m| m.ends_with("app/src/helper.ts")),
+            "imported src file in module set — this is the apps/hub regression");
     }
 }

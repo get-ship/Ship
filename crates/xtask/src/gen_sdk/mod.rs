@@ -1,4 +1,4 @@
-//! `gen-sdk` — emit six machine-readable JSON files that describe the entire
+//! `gen-sdk` — emit five machine-readable JSON files that describe the entire
 //! Ship authoring surface. Downstream tasks (AST lint, view-meta endpoint, MCP
 //! scaffolder, editor tooling) read these instead of re-parsing raw source.
 
@@ -10,10 +10,8 @@ use std::{
 use anyhow::{Context, Result};
 use serde_json::{json, Map, Value};
 
-mod data_ts;
 mod framework;
 mod jsonc;
-mod ship_ops;
 mod view_contexts;
 
 const VERSION: &str = "0.1.0";
@@ -53,23 +51,11 @@ pub fn run(repo_root: &Path) -> Result<()> {
         "sdk-views",
         collect_view_manifests(&ship_substrate::ShipHome::project_ship_dir(repo_root).join("views"))?,
     )?;
-    write_doc(
-        &out_dir.join("sdk-ship-ops.json"),
-        "sdk-ship-ops",
-        ship_ops::extract()?,
-    )?;
     // sdk-framework.json describes framework-level concepts (directives,
     // scope bindings, template syntax, reactivity rules). Its envelope
     // version tracks the manifest's own surface, not gen-sdk's VERSION —
     // those evolve independently.
     write_framework(&out_dir.join("sdk-framework.json"), repo_root)?;
-
-    // Typed TS bindings for the OPS catalog — set authors get IDE
-    // completion + (phase 2) compile-time validation of `data ship.*`.
-    // Land alongside the JSONs in the same generated/ dir.
-    let data_ts_path = out_dir.join("data.ts");
-    fs::write(&data_ts_path, data_ts::emit()?)
-        .with_context(|| format!("write {}", data_ts_path.display()))?;
 
     // Typed framework manifest — `FrameworkManifest` interface +
     // `FRAMEWORK` const. Pairs with the JSON for TS-side consumers.
@@ -78,7 +64,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
         .with_context(|| format!("write {}", framework_ts_path.display()))?;
 
     eprintln!(
-        "gen-sdk: wrote 7 JSON + 2 TS files to {}",
+        "gen-sdk: wrote 5 JSON + 1 TS files to {}",
         out_dir.display()
     );
     Ok(())

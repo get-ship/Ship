@@ -88,11 +88,17 @@ fn main() -> anyhow::Result<()> {
         .or_else(|| extract_str_arg(&args, "--workspace"))
         .map(std::path::PathBuf::from)
         .or_else(discover_workspace);
+    // `--apps-config <path>` — override the apps.jsonc path. Default is
+    // `<worktree>/apps/shipd/apps.jsonc` (set inside `run_network`); the
+    // flag is for non-default layouts (a marketing site, docs, a customer
+    // shipd install that doesn't ship the Ship apps).
+    let apps_config_override = extract_str_arg(&args, "--apps-config")
+        .map(std::path::PathBuf::from);
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
-    rt.block_on(shipd::run_network(host, port, dev, workspace, daemon_mode))
+    rt.block_on(shipd::run_network(host, port, dev, workspace, daemon_mode, apps_config_override))
 }
 
 fn extract_u16_arg(args: &[String], flag: &str) -> Option<u16> {

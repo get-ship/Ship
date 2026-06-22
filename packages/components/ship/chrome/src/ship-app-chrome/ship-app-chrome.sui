@@ -1,0 +1,69 @@
+<!--
+  <ship-app-chrome> — @ship/chrome · the per-app root layout wrapper.
+
+  A chrome wrapper for a route LAYOUT (routes/_layout.sui → prefix '/',
+  the longest-prefix match covering the index route AND every nested
+  route). Pairs with the bundler's root-layout discovery
+  (`crates/deck/deck-bundler/src/routes.rs::discover_layouts`); see the
+  job spec at `.artifacts/job-spec.md` (job/deck-root-layout) for the
+  chain.
+
+  Composes:
+    <ship-nav-top>  the filled top bar (brand, project switcher,
+                    breadcrumbs, theme picker, account menu, etc.)
+    <slot name="route" />  the route content — the runtime's
+                            `mountRouter` (packages/deck/route/src/
+                            mount-router.ts::buildMountTarget) inserts
+                            a <div slot="route"> here via the chrome
+                            chain, and `mount()` projects the route
+                            view into that div through this named slot.
+
+  Why a wrapper, not just `<ship-nav-top>` in the layout file? The
+  `extract_layout_tag` codegen reads the FIRST `<sui-*` / `<ship-*`
+  element of the `_layout.sui` and emits it as the LAYOUTS `tag`; the
+  runtime then `document.createElement(tag)`s that element. The
+  wrapper IS the chrome. A naked `<ship-nav-top>` would mount the bar
+  but never receive the route content — the bar has no
+  `<slot name="route">`, by design (it composes the slotless
+  `<sui-nav-top>` primitive). This wrapper stitches the two: the bar
+  PLUS the named slot the router fills.
+
+  Layout: `position: fixed; inset: 0` so the chrome fills the viewport
+  exactly (bypasses the browser's default 8px body margin) and is
+  immune to content-driven growth. Inner column flex: the bar is
+  fixed-height; the main region takes the remaining height via `flex:1`.
+
+  No slots beyond `route` — the wrapper is pure chrome scaffolding.
+  View-injected pass-through slots (e.g. a per-view top-bar action
+  button) belong on `<ship-nav-top>` (it exposes `actions` /
+  `command-bar`); projecting them inside this wrapper would
+  duplicate the slot surface and confuse authors about which chrome
+  layer the content lives in.
+-->
+
+<style>
+  :host {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body);
+  }
+  :host([hidden]) { display: none; }
+
+  .app-main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+  }
+</style>
+
+<ship-nav-top></ship-nav-top>
+<main class="app-main" part="main">
+  <slot name="route"></slot>
+</main>

@@ -26,41 +26,18 @@
 
 import { signal, type Signal } from '@ship/sui-runtime'
 
-/**
- * The reactive URL handle exposed to view scope as `route`.
- *
- * Each `params.<name>` and `query.<name>` is a `Signal<string |
- * undefined>` — call it to read the current value (and subscribe the
- * surrounding reactive scope). Writing to either record throws;
- * mutate via `navigate(path)` instead.
- *
- * Param names are discovered lazily: reading `route.params.id` for the
- * first time creates the signal and seeds it from the current pathname.
- * If no registered route shape matches the pathname (or the shape
- * doesn't capture `id`), the signal's value is `undefined` and stays
- * that way until a future navigation introduces a matching segment.
- */
-export interface RouteSignals {
-  /** Path params (e.g. `/agents/:id` → `params.id`). Lazy proxy. */
-  params: Record<string, Signal<string | undefined>>
-  /** Query params (e.g. `?q=foo` → `query.q`). Lazy proxy. */
-  query: Record<string, Signal<string | undefined>>
-  /** Pathname. Updates on every navigation. */
-  pathname: Signal<string>
-  /** Hash fragment, including the leading `#`. */
-  hash: Signal<string>
-}
+// Layout-chain resolution + the router live in their own modules (this file
+// is at the size cap). Re-exported so `@ship/deck/route` is one import site.
+export { resolveLayoutChain, type LayoutShape } from './layouts'
+export { mountRouter, type MountRouterOptions, type RouterHandle } from './mount-router'
 
-/**
- * A registered route pattern (e.g. `/agents/:id`). Pattern segments
- * starting with `:` are captured as named params on `route.params`.
- */
-export interface RouteShape {
-  /** Path pattern, e.g. `'/agents/:id'`. */
-  pattern: string
-  /** Optional name for debugging. */
-  name?: string
-}
+// `RouteSignals` and `RouteShape` live in `./types` (importable without the
+// browser router) and are re-exported here so `@ship/deck/route`'s public
+// surface is unchanged. Param names are discovered lazily: reading
+// `route.params.id` for the first time creates the signal and seeds it from
+// the current pathname.
+export type { RouteSignals, RouteShape } from './types'
+import type { RouteSignals, RouteShape } from './types'
 
 interface CompiledShape extends RouteShape {
   regex: RegExp
@@ -365,6 +342,23 @@ export function mergeRoutes(
     defineRoutesUnchecked(merged.slice(staticRoutes.length))
   }
   return { merged, collisions }
+}
+
+/**
+ * Find the registered route shape whose pattern matches `pathname` (or
+ * `undefined`). The router uses this to pick the view module for a
+ * navigation — modules are keyed by pattern. Reuses the same compiled
+ * regexes as `route.params` matching, so there is one matcher, not two.
+ */
+export function matchRoute(pathname: string): RouteShape | undefined {
+  for (const shape of SHAPES) {
+    if (shape.regex.test(pathname)) {
+      return shape.name === undefined
+        ? { pattern: shape.pattern }
+        : { pattern: shape.pattern, name: shape.name }
+    }
+  }
+  return undefined
 }
 
 // ---------------------------------------------------------------------------

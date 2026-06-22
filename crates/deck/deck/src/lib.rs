@@ -6,14 +6,18 @@
 //! continue to resolve without changes.
 
 pub use deck_axum::{
-    into_axum, mode_from_ext, router, serve_bundle_hmr, serve_catalog_workspace,
-    serve_public_asset, serve_shell, serve_shell_asset, serve_space, serve_space_asset,
+    apps::serve_apps,
+    into_axum, mode_from_ext, pages, router,
     serve_meta,
+    serve_deck_route,
     serve_sui_dom, serve_sui_icon, serve_sui_live_reload,
     serve_sui_runtime, serve_sui_sdk_client,
-    serve_sui_view_setup, serve_view_host, serve_view_payload,
+    serve_sui_view_setup, serve_view_host,
+    serve_view_payload,
     serve_view_payload_subpath,
 };
+pub use deck_config::{AppServeConfig, RenderMode};
+pub use deck_core::AppRegistry;
 pub use deck_axum::multiplex::{MultiplexState, multiplex_router, HEARTBEAT_MS};
 
 // The SPA navigation fallback. deck's `router()` deliberately sets NO fallback
@@ -24,11 +28,11 @@ pub use deck_axum::pages::spa_fallback;
 // Contract types (transport-agnostic), surfaced for hosts that name them.
 pub use deck_core::{
     CachePolicy, DaemonBuildInfo, DaemonMode, DeckResponse, ViewSetupQuery, inject_mode_meta,
-    mode_str,
+    mode_str, register_view_output,
 };
 
 // SSE envelope encoders — single source of truth for the live-data wire protocol.
-// Both shipd and deck-demo (and any future host) call these; no copies.
+// Both shipd and deck-conformance (and any future host) call these; no copies.
 pub use deck_core::live_wire::{
     PatchElements, PatchElementsMode,
     format_keepalive, format_patch_elements, format_patch_set, format_patch_signals,
@@ -46,5 +50,6 @@ pub use deck_core::{resolver, view_payload};
 // `ship_platform::bundler::*` now use `deck::bundler::*`.
 pub use deck_bundler as bundler;
 
-// deck.jsonc config — the SSOT for consumer bundle targets.
+// deck.jsonc config — the OPTIONAL host override for view-discovery + watch
+// layout. Consumer bundles are self-declared per-package + discovered.
 pub use deck_config as config;

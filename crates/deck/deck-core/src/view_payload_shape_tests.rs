@@ -164,23 +164,4 @@ fn compile_error_returns_500_with_position() {
     assert!(!body["message"].as_str().unwrap().is_empty());
 }
 
-#[test]
-fn first_party_view_payload_works() {
-    let _g = lock_with_dir(repo_root());
-    // First-party views live under the ship host's `apps/shell/src`, supplied
-    // via `DECK_FIRST_PARTY_VIEWS` (the resolver's first-party bucket). `studio`
-    // is a first-party view — it resolves there, not under the project's
-    // top-level `views/`. (Was `agents`, which the studio reorg moved into
-    // `apps/shell/src/studio/`.)
-    let fp_prev = std::env::var_os("DECK_FIRST_PARTY_VIEWS");
-    unsafe { std::env::set_var("DECK_FIRST_PARTY_VIEWS", repo_root().join("apps/shell/src")); }
-    let resp = serve_view_payload(DaemonMode::Development, "studio");
-    match fp_prev {
-        Some(v) => unsafe { std::env::set_var("DECK_FIRST_PARTY_VIEWS", v) },
-        None => unsafe { std::env::remove_var("DECK_FIRST_PARTY_VIEWS") },
-    }
-    assert_eq!(resp.status, 200);
-    let v: serde_json::Value = serde_json::from_str(&body_str(&resp)).unwrap();
-    assert_eq!(v["name"], "studio");
-    assert_eq!(v["moduleUrl"], "/_deck/views/studio/view.js");
-}
+

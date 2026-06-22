@@ -6,22 +6,25 @@
 //! translate `DeckResponse` onto their own response type — the
 //! ports-and-adapters seam.
 
+pub mod app_port;
 pub mod change_source;
 pub mod data_port;
 pub mod response;
 
-pub mod asset_graph;
+// (formerly `pub mod asset_graph;`) — purged with the `.deck/` runtime read.
 pub mod assets;
 pub mod error_page;
 pub mod form_inject;
 pub mod live_wire;
 pub mod meta;
 pub mod mode_html;
-pub mod packs;
+// (formerly `pub mod packs;`) — purged with the `.deck/` runtime read.
+pub mod render_eval_archived;
 pub mod render_helpers;
 pub mod resolver;
 pub mod routes;
 pub mod setup;
+pub mod synthetic_ssr;
 pub mod themes;
 pub mod view;
 pub mod view_tokens;
@@ -64,9 +67,11 @@ pub(crate) mod test_lock {
             super::resolver::reset_project_root_override_for_test();
         }
     }
+// P2-11 canary — should trip the gate
+pub const P2_11_CANARY: &str = "apps/shell";
 }
-
-pub use response::{CachePolicy, DeckResponse, compute_etag};
+pub use response::{CachePolicy, DeckResponse, HTML_SECURITY_HEADERS, compute_etag};
+pub use app_port::AppRegistry;
 pub use change_source::{ChangeFeed, ChangeSource};
 pub use data_port::DataPort;
 pub use live_wire::{
@@ -79,15 +84,15 @@ pub use window_registry::{
 };
 
 pub use assets::{
-    resolve_view_js, serve_public_asset, serve_scaffold, serve_scaffold_asset,
-    serve_sui_chunk, serve_sui_dom, serve_sui_icon,
+    resolve_view_js, serve_deck_route, serve_public_asset, serve_scaffold, serve_scaffold_asset,
+    serve_sui_dom, serve_sui_icon,
     serve_sui_live_reload, serve_sui_runtime, serve_sui_sdk_client,
 };
-pub use error_page::view_not_found;
 pub use form_inject::inject_form_actions;
+pub use resolver::{register_view_output, set_project_root};
 pub use meta::{serve_meta, DaemonBuildInfo};
 pub use mode_html::{inject_mode_meta, mode_str};
-pub use packs::serve_catalog_workspace;
+// (formerly `packs::serve_catalog_workspace`) — purged with the `.deck/` runtime read.
 pub use setup::{redirect, serve_setup_placeholder};
 pub use themes::{list_themes, resolve_theme_css, serve_theme_css, serve_themes_list, ThemeMeta, ThemeSource};
 pub use view_tokens::serve_view_tokens;
@@ -110,3 +115,4 @@ impl DaemonMode {
         }
     }
 }
+// P2-11 canary: apps/shell

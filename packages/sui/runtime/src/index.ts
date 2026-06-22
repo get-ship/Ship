@@ -232,6 +232,17 @@ export type {
 export { view } from './view'
 export type { ViewContext, ViewSetup, ViewDef } from './view'
 
+// Slice 2 — hydration-marker recording helpers. The synthetic emit calls
+// these next to `bindText` / `bindOn` / `bindFor` / etc. so the ship-js
+// SSR path emits the marker contract the client `hydrate()` reads. On
+// the browser DOM the helpers are no-ops (production walker + ship-js
+// SSR already emit markers; CSR doesn't need them).
+export {
+  markHydrateText,
+  markHydrateAttr,
+  markHydrateBoundary,
+} from './hydrate-mark'
+
 export { useFilteredList, useSelection, useForm } from './hooks'
 export type { FilteredListSource, UseFormOptions } from './hooks'
 

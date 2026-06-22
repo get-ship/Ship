@@ -43,6 +43,7 @@ loop against a mock daemon. From here:
 
 | Doc | When |
 |---|---|
+| `docs/ship-sui/references/docs/authoring-model.md` | The line between `.sui` and `controller.ts` — pure expressions vs. capabilities, why it's not JSX, with a worked before/after. |
 | `docs/ship-sui/references/docs/template.md` | Full template surface — every directive, every binding, every block keyword. |
 | `docs/ship-sui/references/docs/controller.md` | Three-tier controller contract. Scope rules, hook composition, mutation discipline. |
 | `docs/ship-sui/references/docs/hooks.md` | Template vs controller hooks — when to reach for which. |

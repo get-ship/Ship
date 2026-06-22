@@ -1,84 +1,62 @@
-# Ship UI — component packs (design review)
+# Ship UI — component packs
 
-> Orienting doc for a **design review** of Ship's component library. Read this,
-> then the ask at the bottom. Capture scope for this pass: **the component packs**
-> (not the product views or marketing site).
+Ship's UI is **SUI** — a `.sui` template + optional `.controller.ts`, compiled AOT to web
+components. Components ship as **packs** under `packages/components/{sui,ship}/`. This README is
+the canonical map of the pack taxonomy; the full rationale lives in the ADR
+[`ship-component-architecture.md`](../../docs/ship-adrs/references/docs/ship-component-architecture.md).
 
-## What this is
+## The two tiers
 
-Ship has its own UI framework, **SUI** — a `.sui` template + optional
-`.controller.ts`, compiled AOT to web components. Think "our own React + a design
-system." Components ship as **packs** under `packages/components/{sui,ship}/`.
+- **`sui-*`** — the framework's **reusable, atomic primitives**. A pack is `sui` **only if it is
+  all of**: SDK-pure · atomic / single-concern · generic (useful in a stranger's app) · our own
+  engine (not a wrapper) · published. The standard library.
+- **`ship-*`** — **everything built from `sui`** (the default). A pack is `ship` if it trips
+  **any** of: touches a Ship domain / the SDK · wraps an external engine (CodeMirror, Tiptap,
+  pdf.js, PixiJS) · is a composed feature / vertical · is internal / unpublished · is shared
+  across ≥2 `ship` packs.
 
-Two tiers (full rationale: `docs/ship-adrs/.../ship-component-architecture.md`):
+> **The law:** `sui` has to earn it; `ship` is the default. **Runtime/SDK dependency ⇒ `ship`**
+> is the one hard line. Pure-sui reused by ≥2 `ship` packs ⇒ promote to a `sui` element pack.
 
-- **`sui-*`** — the framework's **reusable, atomic primitives**. SDK-pure, generic,
-  one concern each, our own engines. The "standard library" any app would want.
-- **`ship-*`** — **features/verticals built from `sui`**: domain packs, or surfaces
-  wrapping a heavyweight engine (CodeMirror, Tiptap, pdf.js, PixiJS), or composed
-  product surfaces. Over time the larger surface.
+Tag prefix, directory (`sui/` vs `ship/`), and package name must agree. Everything is
+**token-themed** (`var(--token)`, never hardcoded — compiler-enforced).
 
-> **The law:** `sui` has to earn it (SDK-pure · atomic · generic · own-engine ·
-> published); everything else is `ship`.
+## What lives here vs. elsewhere
 
-Everything is **token-themed** — colors/spacing/radii/typography come from design
-tokens (`var(--token)`), never hardcoded. Themes: `ship-light`, `ship-dark`,
-`console`, plus `paper`/`halo`/`contrast`/`glass`. A component that hardcodes a hex
-is a bug (compiler-enforced).
+- **Packs** (this directory) are the **library you compose with** — and the primary frontend
+  deliverable for a Ship feature (a feature = L0/L1 backend + an RPC surface + a pack). Our own
+  views are *suggested use*; the pack is the deliverable. **A domain is just a pack.**
+- **Apps** (`apps/hub`, `apps/spaces`) are first-party programs that **compose packs**. The hub
+  is all-static first-party code; its routes (home, `studio/*`, settings, account) are **app
+  code — not packs and not views.** Hub-only widgets are co-located in `apps/hub`, not exported.
+- **Views** — user-defined applets that slot dynamically into a space's route tree — are a
+  separate **feature** (their own docs), not a pack tier. The hub does not use the views feature.
+- **Windows** are a Tauri host concern. `just shell` opens the native hub window.
 
-## Inventory (honest status)
+## Inventory (status)
 
-### `sui-*` — primitives (the standard library)
-| Pack / tag | What | Status |
-|---|---|---|
-| `@ship/sui-primitives` (~60 tags) | forms, overlays, layout, feedback, data-display, nav | **solid**; 1 hardening pass applied (HIGH token findings); ~50 medium/low findings open |
-| `sui-table` + `sui-pagination` | data-grid: sort/filter/group/paginate/select/resize, virtualized | **done** — the reference engine |
-| `sui-tree` / `sui-tree-grid` | hierarchy + tree×grid | **done** |
-| `sui-sheet` | spreadsheet: A1, **formula engine**, range/edit/fill/copy-paste/keyboard | engine + interactivity **just landed** |
-| `sui-calendar` | month/week/day, events, **range-select + drag-create/move**, keyboard grid | **done** (range/drag just added) |
-| `sui-charts` (~7) | area/bar/donut/gauge/heatmap/line/sparkline | exists; light harden |
-| `sui-canvas` / `sui-board` / `sui-draw` | pan/zoom substrate · node-edge diagrams (**dagre auto-layout**) · SVG whiteboard | **done** (Wave-3) |
-| `sui-chat-elements` (~6) | message-list (**virtualized**), composer, citation, tool-call, thinking-dots | done (just virtualized) |
-| `sui-media` | image / audio-video / csv renderers + mime detection | image/av/csv done; **pdf/map are `ship` renderers** |
-| `sui-viewer` tooling | the component-viewer itself: live render, prop-knobs, prop-matrix, source-panel | **done** (this is how you'll view the rest) |
+### `sui-*` — the standard library
+| Pack | What |
+|---|---|
+| `sui/primitives` (~60 tags) | forms, overlays, layout, feedback, data-display, nav |
+| `sui/primitives` (table/pagination, tree, sheet, calendar) | data-grid, hierarchy, spreadsheet (formula engine), calendar |
+| `sui/charts` (~7) | area/bar/donut/gauge/heatmap/line/sparkline |
+| `sui/primitives` (canvas/board/draw) | pan-zoom substrate · dagre node-edge · SVG whiteboard |
+| `sui/chat-elements` (~6) | message-list (virtualized), composer, citation, tool-call |
+| `sui/media` | image / audio-video / csv renderers + mime detection |
+| `sui/viewer` | **`<sui-component-viewer>`** — live render, prop knobs, state matrix, source panel |
 
-### `ship-*` — features / engine-wrapped surfaces
-| Pack / tag | Engine | Status |
-|---|---|---|
-| `@ship/code` | `ship-code-editor` (CodeMirror), `ship-terminal` (xterm), `ship-git-diff` | done |
-| `@ship/markdown` | `ship-markdown-editor` (Tiptap WYSIWYG) | done |
-| `@ship/pdf` | `ship-pdf` (pdf.js) | done; wired into the viewer router |
-| `@ship/viewer` | `ship-viewer` — the mime **router** (dispatches to sui-media + ship renderers) | done |
-| `@ship/arcade` | 8 game tags over a PixiJS engine (powers the marketing-site games) | done + tested |
-| `@ship/agents` · `@ship/pipelines` · `@ship/authority` | Ship-domain packs | exist |
+### `ship-*` — features / engine-wrapped / domain
+| Pack | What |
+|---|---|
+| `ship/code` | `ship-code-editor` (CodeMirror), `ship-terminal` (xterm), `ship-git-diff` |
+| `ship/markdown` | `ship-markdown-editor` (Tiptap) |
+| `ship/pdf` | `ship-pdf` (pdf.js) — a viewer-router renderer |
+| `ship/viewer` | `ship-viewer` — the mime **router** (dispatches to `sui/media` + `ship` renderers) |
+| `ship/arcade` | game tags over a PixiJS engine |
+| `ship/chrome` | app chrome: `ship-nav-top`, `ship-app-chrome`, project switcher, account menu |
+| `ship/agents` · `ship/pipelines` · `ship/authority` · `ship/collections` · `ship/skills` · `ship/spaces` · `ship/artifacts` | **domain packs** — runtime-bound (RPC · events · verbs) |
 
-**Known gaps (not yet built):** map viewer (`ship-map`); secondary viewers
-(html/yaml/notebook/hex/archive); `ship-code-diff` (merge view); the full
-primitives-hardening pass (only HIGH token findings applied so far).
-
-## How to view them
-
-The intended surface is **`<sui-component-viewer>`** (pack #16) — it live-renders
-any component by tag, with a prop-knobs panel, a variant/state matrix, and a theme
-switcher. Note: a desktop **Tauri shell** hosts these in production, but it can't
-run in this dev environment (WSL's GL stack is broken) — so review is via the
-component-viewer surface in a browser / headless screenshots, not the native shell.
-
-## The ask (design review)
-
-Looking for design judgment on the **`sui-*` primitive library** first (it's the
-foundation everything composes from):
-
-1. **Consistency** — do the packs feel like one system? Spacing rhythm, density,
-   radii, motion, focus/hover/active states, empty/loading/error states.
-2. **Token & theme fidelity** — do they hold up across `ship-light`/`ship-dark`/
-   `console`? Any contrast failures, near-invisible text, color-mix unwinding wrong?
-   (Several packs were just token-hardened — sanity-check them.)
-3. **A11y** — keyboard operability + ARIA on the interactive ones (table, tree,
-   calendar grid, sheet, board, chat). Flag focus traps / unreachable controls.
-4. **Gaps & priorities** — for a credible launch component library, what's *missing*
-   or *underbaked*? Which of the "known gaps" above are launch-critical vs later?
-5. **The composed `ship-*` surfaces** — do the editor/viewer/canvas surfaces read as
-   polished product, or as primitives bolted together?
-
-Concrete, prioritized, brutally honest > exhaustive. Point at specific tags.
+## Viewing components
+`<sui-component-viewer>` (`sui/viewer`) live-renders any component by tag — props panel, state
+matrix, theme switch. The native hub window: `just shell` (Tauri).

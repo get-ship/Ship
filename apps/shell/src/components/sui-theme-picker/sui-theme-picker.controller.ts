@@ -1,3 +1,4 @@
+import { DECK_API_ASSETS } from '@ship/sdk-client'
 import { controller, signal, derived, effect, ref, chrome } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import {
@@ -40,7 +41,7 @@ function ensureThemesCssInShadow(host: HTMLElement) {
   if (root.querySelector('link[data-sui-theme-preview-styles]')) return
   const link = document.createElement('link')
   link.rel = 'stylesheet'
-  link.href = '/api/assets/view-tokens.css'
+  link.href = `${DECK_API_ASSETS}/view-tokens.css`
   link.setAttribute('data-sui-theme-preview-styles', '')
   root.appendChild(link)
 }

@@ -20,10 +20,16 @@ import { fileURLToPath } from 'node:url'
 
 import * as suiRuntime from '@ship/sui-runtime'
 import * as suiDom from '@ship/sui-dom'
-import * as suiRoute from '@ship/deck/route'
-import { route as makeRoute, type RouteSignals } from '@ship/deck/route'
+// Slice 2 — `@ship/deck/route` is no longer imported by the
+// @ship/sui-dom test harness. The structural `RouteSignals` lives
+// in `@ship/sui-runtime` now; the test util constructs an empty
+// instance inline (the mount surface uses the host-wired `navigate`
+// and reads `route` through the structural type — a test-local
+// mock satisfies both). The `makeRoute` import is GONE — keeps
+// sui ⊥ deck at the test boundary.
+import { signal } from '@ship/sui-runtime'
+import type { RouteSignals } from '@ship/sui-runtime'
 import '@ship/sui-runtime/template-hooks'
-
 /* ----------------------- native addon load ----------------------- */
 
 const HERE = dirname(fileURLToPath(import.meta.url))

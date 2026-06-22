@@ -53,13 +53,14 @@ members = [
     "crates/deck/deck-core",
     "crates/deck/deck-axum",
     "crates/deck/deck",
+    "crates/deck/deck-ssr",
     "crates/xtask",
     "packages/sui/grammar",
     "apps/shipd",
     "apps/ship-cli",
     "apps/host",
     "tests/contract",
-    "examples/deck-demo",
+    "crates/deck/deck-conformance",
 ]
 # A bare `cargo build` (no -p) builds this subset, which EXCLUDES apps/host
 # (crate ship-host). ship-host pulls in webkit2gtk/Tauri system libs that aren't
@@ -121,6 +122,7 @@ default-members = [
     "apps/shipd",
     "apps/ship-cli",
     "tests/contract",
+    "crates/deck/deck-conformance",
 ]
 resolver = "2"
 

@@ -21,7 +21,6 @@
 //! `{#while-loading}` / `{#while-error}` follow the same shape via
 //! `hydrateWhileLoading` / `hydrateWhileError` (gate G).
 
-use super::super::expr_rewrite::rewrite_for_scope;
 use super::super::writer::{js_string, Writer};
 use super::TemplateEmitter;
 use crate::ir::*;
@@ -131,15 +130,16 @@ impl TemplateEmitter {
         // Hoisted handler — emitted into `boundary_hoists`, drained
         // into the setup body before the `return`.
         let mut h = Writer::new();
+        let ap = self.machinery_param("anchor", "Comment");
         h.line(&format!(
-            "const __wireBoundary_{key} = (anchor) => bindIf({{"
+            "const __wireBoundary_{key} = ({ap}) => bindIf({{"
         ));
         h.enter();
         h.line("anchor,");
         h.line("test: () => {");
         h.enter();
         for (i, b) in instr.branches.iter().enumerate() {
-            let rw = rewrite_for_scope(&b.cond.source, &[]);
+            let rw = self.rw(&b.cond.source, &[]);
             h.line(&format!("if ({rw}) return {i};"));
         }
         let fallback = if instr.else_body.is_some() {
@@ -189,7 +189,7 @@ impl TemplateEmitter {
             self.emit_boundary_hydrate(&key, "for");
         }
 
-        let it_rw = rewrite_for_scope(&instr.iterable.source, &[]);
+        let it_rw = self.rw(&instr.iterable.source, &[]);
         let var = &instr.var_name;
         let idx_name = instr.index_name.as_deref().unwrap_or("__i");
         // D3: skip the per-row `__v` version signal when no binding in
@@ -207,14 +207,15 @@ impl TemplateEmitter {
         );
 
         let mut h = Writer::new();
+        let ap = self.machinery_param("anchor", "Comment");
         h.line(&format!(
-            "const __wireBoundary_{key} = (anchor) => bindFor({{"
+            "const __wireBoundary_{key} = ({ap}) => bindFor({{"
         ));
         h.enter();
         h.line("anchor,");
         h.line(&format!("items: () => ({it_rw}),"));
         if let Some(k) = &instr.key {
-            let k_rw = rewrite_for_scope(&k.source, &[var.as_str(), idx_name]);
+            let k_rw = self.rw(&k.source, &[var.as_str(), idx_name]);
             // `rewrite_for_scope` qualifies every free identifier that
             // isn't a loop binding, an expression-local, or a builtin
             // with `$scope.` — so a rewritten key with no `$scope.`
@@ -262,7 +263,7 @@ impl TemplateEmitter {
         body_w.line(&format!(
             "const {frag} = document.createDocumentFragment();"
         ));
-        body_w.line(&format!("const {cl} = [];"));
+        body_w.line(&self.decl_cleanups(&cl));
         let hoist_snapshot = self.boundary_hoists.len();
         self.boundary_depth += 1;
         let outer_for = std::mem::replace(&mut self.for_in_scope, body_needs_v);
@@ -279,7 +280,15 @@ impl TemplateEmitter {
             &mut self.reactive_row_use,
             RowUse::None,
         );
+        // The row + index binders live on the runtime `$scope` child scope
+        // — qualify author references to them with `$scope.` (synthetic
+        // mode), not the typed `scope.` prefix. Push for the body walk; the
+        // Vec is truncated back after so nested loops stack correctly.
+        let machinery_mark = self.machinery_locals.len();
+        self.machinery_locals.push(var.clone());
+        self.machinery_locals.push(idx_name.to_string());
         self.emit_children(&mut body_w, &instr.body, &frag, &cl);
+        self.machinery_locals.truncate(machinery_mark);
         self.for_in_scope = outer_for;
         self.for_var_name = outer_var;
         self.for_idx_name = outer_idx;
@@ -411,7 +420,7 @@ impl TemplateEmitter {
             h.line(&format!(
                 "const {frag} = document.createDocumentFragment();"
             ));
-            h.line(&format!("const {cl} = [];"));
+            h.line(&self.decl_cleanups(&cl));
             self.boundary_depth += 1;
             self.emit_children(&mut h, eb, &frag, &cl);
             self.boundary_depth -= 1;
@@ -449,10 +458,11 @@ impl TemplateEmitter {
             self.emit_boundary_hydrate(&key, "match");
         }
 
-        let disc_rw = rewrite_for_scope(&instr.discriminant.source, &[]);
+        let disc_rw = self.rw(&instr.discriminant.source, &[]);
         let mut h = Writer::new();
+        let ap = self.machinery_param("anchor", "Comment");
         h.line(&format!(
-            "const __wireBoundary_{key} = (anchor) => bindIf({{"
+            "const __wireBoundary_{key} = ({ap}) => bindIf({{"
         ));
         h.enter();
         h.line("anchor,");
@@ -460,7 +470,7 @@ impl TemplateEmitter {
         h.enter();
         h.line(&format!("const __d = ({disc_rw});"));
         for (i, c) in instr.cases.iter().enumerate() {
-            let c_rw = rewrite_for_scope(&c.test.source, &[]);
+            let c_rw = self.rw(&c.test.source, &[]);
             h.line(&format!(
                 "if (__d === ({c_rw})) return {i};"
             ));
@@ -506,8 +516,14 @@ impl TemplateEmitter {
         self.hydrate_calls.line(
             "  if (__t.nodeType === 1 && __t.parentNode) __t.parentNode.replaceChild(__anchor, __t);",
         );
+        // `__anchor` is `Comment | Element` (the marker is an Element until the
+        // replace above swaps in a Comment); `__wireBoundary` takes a `Comment`.
+        // In the typed synthetic render, narrow with a cast — the marker is
+        // always an element boundary, so the Comment branch always wins at
+        // runtime. Production emits untyped JS, so no cast there.
+        let anchor_arg = if self.is_synthetic() { "__anchor as Comment" } else { "__anchor" };
         self.hydrate_calls.line(&format!(
-            "  __cleanups.push(__wireBoundary_{key}(__anchor));"
+            "  __cleanups.push(__wireBoundary_{key}({anchor_arg}));"
         ));
         self.hydrate_calls.line("}");
     }
@@ -587,8 +603,21 @@ impl TemplateEmitter {
 
         if self.is_view && self.boundary_depth == 0 {
             self.hydrate_uses_markers = true;
+            // The `{#while-error}` render binds its error as `Error` (so the
+            // author's `err.message` type-checks), matching `bindWhileError`.
+            // But `hydrateWhileError` types its render param `unknown`, so in
+            // the typed synthetic render the narrower `(err: Error)` fn is not
+            // directly assignable — cast it to the helper's own param type.
+            // Production emits untyped JS (no cast). This surfaces an upstream
+            // runtime-types inconsistency between the bind/hydrate while-error
+            // helpers (see the slice-1 assessment notes).
+            let render_arg = if self.is_synthetic() {
+                format!("({render_key} as unknown as Parameters<typeof hydrateWhileError>[3])")
+            } else {
+                render_key.clone()
+            };
             self.hydrate_calls.line(&format!(
-                "if (__m[{k}]) __cleanups.push(hydrateWhileError(__m[{k}], {k}, () => $scope.{bind}(), {render_key}));",
+                "if (__m[{k}]) __cleanups.push(hydrateWhileError(__m[{k}], {k}, () => $scope.{bind}(), {render_arg}));",
                 k = js_string(&key),
             ));
         }
@@ -601,7 +630,7 @@ impl TemplateEmitter {
         h.line(&format!("const {render_key} = () => {{"));
         h.enter();
         h.line(&format!("const {frag} = document.createDocumentFragment();"));
-        h.line(&format!("const {cl} = [];"));
+        h.line(&self.decl_cleanups(&cl));
         self.boundary_depth += 1;
         self.emit_children(&mut h, body, &frag, &cl);
         self.boundary_depth -= 1;
@@ -617,7 +646,11 @@ impl TemplateEmitter {
         let child = self.fresh("childScope");
         let var = error_var;
         let mut h = Writer::new();
-        h.line(&format!("const {render_key} = ({var}) => {{"));
+        // The `{#while-error}` binder is an `Error` (the runtime
+        // `bindWhileError` contract); annotate it in synthetic mode so the
+        // render type-checks strict.
+        let ep = self.machinery_param(var, "Error");
+        h.line(&format!("const {render_key} = ({ep}) => {{"));
         h.enter();
         h.line(&format!("const {child} = Object.create($scope);"));
         h.line(&format!("{child}.{var} = {var};"));
@@ -629,9 +662,14 @@ impl TemplateEmitter {
         let frag = self.fresh("frag");
         let cl = self.fresh("c");
         h.line(&format!("const {frag} = document.createDocumentFragment();"));
-        h.line(&format!("const {cl} = [];"));
+        h.line(&self.decl_cleanups(&cl));
         self.boundary_depth += 1;
+        // The error binder lives on the runtime `$scope` child scope; qualify
+        // author references to it with `$scope.` (synthetic mode).
+        let machinery_mark = self.machinery_locals.len();
+        self.machinery_locals.push(var.to_string());
         self.emit_children(&mut h, body, &frag, &cl);
+        self.machinery_locals.truncate(machinery_mark);
         self.boundary_depth -= 1;
         h.line(&format!(
             "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"

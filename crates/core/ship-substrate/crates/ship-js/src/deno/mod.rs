@@ -6,9 +6,20 @@
 //! isolate whose ONLY effect is the [`crate::Dispatch`] wire; [`ScriptExecutor`]
 //! drives `!Send` isolates from a `Send` caller; [`ShipModuleLoader`] is the
 //! deny-by-default import world.
+//!
+//! Every run is **bounded**: a [`RunLimits`] (default 5 s wall-clock + 256 MiB
+//! heap) terminates the isolate on overrun instead of wedging the process.
+//! The bounded variants are [`run_script_with_limits`] and
+//! [`run_module_with_limits`]; the un-suffixed entry points are bounded
+//! wrappers for back-compat.
 
 mod module_loader;
 mod runtime;
 mod script_executor;
 
+pub use module_loader::{ShipModuleLoader, MAIN, SDK};
+pub use runtime::{
+    run_module, run_module_with_limits, run_script, run_script_with_limits, RunError,
+    RunLimits, TerminateReason,
+};
 pub use script_executor::ScriptExecutor;

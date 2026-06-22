@@ -5,8 +5,7 @@
  * Transport is pluggable (see ./transport.ts). Default = DirectTransport.
  *
  * This client is the single entry point for every caller — the Studio
- * shell, trusted web component views (via ViewMount injection), and
- * (future) sandboxed iframe extensions via BridgeTransport.
+ * shell and trusted web component views via a SUI/web-component mount.
  *
  * Usage:
  *   const ship = new ShipClient({ token: '...' })

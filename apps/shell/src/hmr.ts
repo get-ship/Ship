@@ -24,7 +24,7 @@
 
 import { DECK_PREFIX } from '@ship/sdk-client'
 
-interface MountModule {
+export interface MountModule {
   default: { setup: (...args: unknown[]) => unknown }
 }
 
@@ -48,10 +48,20 @@ function isDevMode(): boolean {
   return document.querySelector('meta[name="ship-mode"]')?.getAttribute('content') === 'development'
 }
 
-// Re-evaluate the rebuilt view bundle in place. `bust` is the bundler byte
-// count (dev) or the compile timestamp (prod) — either changes per build,
-// so the cache-busting query string forces a fresh network fetch.
-//
+/** HMR failure stages, surfaced distinctly so the cause is never hidden. */
+export type HmrPhase = 'fetch' | 'import' | 'hydrate'
+
+// Injectable IO for `remountView`: fetch the rebuilt bundle, then evaluate it
+// as a module. Split out so the orchestration (per-phase error handling,
+// keep-last-good) is unit-testable without a network or a real blob-URL dynamic
+// import (which jsdom can't run). Production wires `defaultIo` below.
+export interface RemountIo {
+  /** Fetch the rebuilt bundle source. Throws on network / non-2xx. */
+  fetchSource(url: string): Promise<string>
+  /** Evaluate bundle source to its module. Throws on a compile/syntax error. */
+  evalModule(src: string): Promise<MountModule>
+}
+
 // Why fetch+Blob URL instead of `await import(url)`:
 //   dynamic `import(url)` registers the module in the host realm's ESM
 //   registry under the cache-busted URL. The bundler rewrites that
@@ -64,25 +74,97 @@ function isDevMode(): boolean {
 //   nothing — the URL vanishes with its blob the moment
 //   `URL.revokeObjectURL` is called. This is dev-only; the production
 //   `sui:view:compiled` path hits the same code and gets the same fix.
-async function remountView(deps: HmrDeps, view: string, bust: string): Promise<void> {
-  const url = `${DECK_PREFIX}/views/${view}/view.js?v=${encodeURIComponent(bust)}`
-  try {
+const defaultIo: RemountIo = {
+  async fetchSource(url) {
     const res = await fetch(url, { credentials: 'same-origin' })
     if (!res.ok) throw new Error(`view bundle HTTP ${res.status}`)
-    const src = await res.text()
+    return res.text()
+  },
+  async evalModule(src) {
     const blob = new Blob([src], { type: 'text/javascript' })
     const blobUrl = URL.createObjectURL(blob)
     try {
-      const m = (await import(/* @vite-ignore */ blobUrl)) as MountModule
-      await deps.remount(m)
-      console.info(`[hmr] re-mounted ${view}`)
+      return (await import(/* @vite-ignore */ blobUrl)) as MountModule
     } finally {
       URL.revokeObjectURL(blobUrl)
     }
+  },
+}
+
+// Re-evaluate the rebuilt view bundle in place. `bust` is the bundler byte count
+// (dev) or the compile timestamp (prod) — either changes per build, so the
+// cache-busting query forces a fresh fetch.
+//
+// P0-3: a mid-edit failure must NOT blanket-`window.location.reload()` — that
+// discards all signal state and hides the cause. Each stage (fetch → import →
+// hydrate) is caught separately and the real error is surfaced (console + dev
+// overlay) while the LAST-GOOD mount is kept: a compile error fails at fetch
+// (the daemon serves the diagnostic as non-2xx) or import (a syntax error in the
+// new bundle) BEFORE `remount` runs, so the live view is untouched and fixing
+// the typo re-fires this path and recovers cleanly — no reload, no lost state.
+export async function remountView(
+  deps: HmrDeps,
+  view: string,
+  bust: string,
+  io: RemountIo = defaultIo,
+): Promise<void> {
+  const url = `${DECK_PREFIX}/views/${view}/view.js?v=${encodeURIComponent(bust)}`
+  let src: string
+  try {
+    src = await io.fetchSource(url)
   } catch (err) {
-    console.error(`[hmr] re-mount of ${view} failed; reloading`, err)
-    window.location.reload()
+    reportHmrError(view, 'fetch', err)
+    return
   }
+  let m: MountModule
+  try {
+    m = await io.evalModule(src)
+  } catch (err) {
+    reportHmrError(view, 'import', err)
+    return
+  }
+  try {
+    await deps.remount(m)
+    clearHmrError()
+    console.info(`[hmr] re-mounted ${view}`)
+  } catch (err) {
+    // The new module imported fine but remount threw mid-hydrate. We can't
+    // guarantee the prior mount survived, but a blanket reload would still lose
+    // state and hide the stack — surface it and let the next good build recover.
+    reportHmrError(view, 'hydrate', err)
+  }
+}
+
+const HMR_OVERLAY_ID = 'sui-hmr-error'
+
+// Surface an HMR failure: log the real error (classified by phase, never
+// swallowed) and paint a dismissable dev overlay. The last-good mount is left
+// untouched, so the page keeps working while the author fixes the source.
+function reportHmrError(view: string, phase: HmrPhase, err: unknown): void {
+  const detail = err instanceof Error ? (err.stack ?? err.message) : String(err)
+  console.error(`[hmr] ${phase} error in ${view} — keeping last-good view:`, err)
+  if (typeof document === 'undefined') return
+  let el = document.getElementById(HMR_OVERLAY_ID)
+  if (!el) {
+    el = document.createElement('div')
+    el.id = HMR_OVERLAY_ID
+    el.setAttribute('role', 'alert')
+    el.style.cssText =
+      'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;max-height:40vh;' +
+      'overflow:auto;margin:0;padding:12px 16px;white-space:pre-wrap;' +
+      'font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;' +
+      'color:#fff;background:#7f1d1d;border-top:2px solid #ef4444'
+    el.addEventListener('click', clearHmrError)
+    document.body.appendChild(el)
+  }
+  el.dataset.phase = phase
+  el.textContent = `HMR ${phase} error in ${view} (last-good view kept — click to dismiss)\n\n${detail}`
+}
+
+// Remove the HMR error overlay (a build succeeded, or the user dismissed it).
+function clearHmrError(): void {
+  if (typeof document === 'undefined') return
+  document.getElementById(HMR_OVERLAY_ID)?.remove()
 }
 
 export function initHmr(deps: HmrDeps): { close(): void } {

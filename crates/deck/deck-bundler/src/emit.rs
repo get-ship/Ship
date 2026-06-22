@@ -112,6 +112,7 @@ pub fn emit_targets(layout: &BundleLayout, names: &[String], out_dir: &Path) -> 
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use crate::DeckConfig;
     use tempfile::tempdir;
 
     #[test]
@@ -127,19 +128,22 @@ mod tests {
     fn emits_target_with_chunk_closure() {
         let tmp = tempdir().unwrap();
         let repo = tmp.path().to_path_buf();
-        // sui-marketing is a consumer target → lands in .deck/.
-        let deck = repo.join(".deck");
-        std::fs::create_dir_all(&deck).unwrap();
-        std::fs::write(deck.join("sui-marketing.js"), r#"import("./Chunk-X.js");"#).unwrap();
-        std::fs::write(deck.join("Chunk-X.js"), "export const x = 1;").unwrap();
-        // Declare the target via deck.jsonc.
+        // sui-marketing is a consumer target → lands in `.deck/` (the
+        // bake's staging area), not the host's assets root.
+        std::fs::create_dir_all(repo.join(".deck")).unwrap();
+        std::fs::write(repo.join(".deck/sui-marketing.js"), r#"import("./Chunk-X.js");"#).unwrap();
+        std::fs::write(repo.join(".deck/Chunk-X.js"), "export const x = 1;").unwrap();
+        // Declare the consumer bundle via per-package self-declaration; the
+        // bundler discovers it from the workspace (no central deck.jsonc).
+        std::fs::write(repo.join("package.json"), r#"{ "workspaces": ["packages/*"] }"#).unwrap();
+        std::fs::create_dir_all(repo.join("packages/site")).unwrap();
         std::fs::write(
-            repo.join("deck.jsonc"),
-            r#"{ "targets": [ { "name": "sui-marketing", "kind": "component-pack", "entry": "x.ts", "externals": [] } ] }"#,
+            repo.join("packages/site/package.json"),
+            r#"{ "name": "@ship/site", "deck": { "bundles": [ { "name": "sui-marketing", "entry": "x.ts" } ] } }"#,
         )
         .unwrap();
 
-        let layout = BundleLayout::new(repo.clone(), None);
+        let layout = BundleLayout::with_config(repo.clone(), None, DeckConfig::defaults());
         let out: PathBuf = tmp.path().join("public");
         let n = emit_targets(&layout, &["sui-marketing".into()], &out).unwrap();
         assert_eq!(n, 2, "bundle + its chunk");

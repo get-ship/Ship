@@ -1,0 +1,48 @@
+// apps/hub/deck.jsonc — the hub defines the hub.
+//
+// Per-app serve config (the `AppServeConfig` shape deck consumes). Loaded by
+// shipd via the app-registration port; deck-config owns the schema + parser.
+//
+// Schema:
+//   name        string             logical app name / URL namespace
+//   route       string             URL route pattern shipd mounts the app at
+//   source      string             repo-relative bundler output (served assets)
+//   viewOutput? string             repo-relative compiled-view bundle dir
+//   render      "csr" | "ssr"      first-frame paint; surfaced as
+//                                  <meta name="ship-render"> (default "csr")
+//   injectGlobals? { string: string }  window.<k>=<v>; $<param> from route caps
+//   frameworkClients? { alias: { from, dist } }  host-registered ESM
+//                                   clients the bundler binds through the
+//                                   generated importmap. The framework
+//                                   hardcodes no ship path; every client
+//                                   alias (e.g. `@ship/sdk-client`) is
+//                                   declared HERE by the host. `from` is
+//                                   workspace-relative, `dist` is the
+//                                   output path under the project's
+//                                   build dir (the bundler binds the
+//                                   alias to `/_deck/<dist-basename>`).
+//   entry?         { clientsModule, exposeNames }  host-owned entry bootstrap
+//                                   the bundler emits as `entry.gen.ts`:
+//                                   imports the data tables from
+//                                   `routes.gen`, constructs the named
+//                                   `clients` map off `clientsModule`'s
+//                                   exports, and calls `mountRouter`.
+//                                   `exposeNames` becomes the keys the
+//                                   runtime exposes to every view's
+//                                   `ctx.clients.<name>`.
+{
+  "name": "hub",
+  "route": "/",
+  "source": "apps/hub/.deck",
+  "render": "csr",
+  "frameworkClients": {
+    "@ship/sdk-client": {
+      "from": ".deck/framework/sui-sdk-client.js",
+      "dist": "_deck/sdk-client.js"
+    }
+  },
+  "entry": {
+    "clientsModule": "./src/lib/client.ts",
+    "exposeNames": ["ship", "ops"]
+  }
+}

@@ -87,7 +87,6 @@ pub async fn bundle_views(
 
     let resolver = component_index(
         &layout.repo_root,
-        layout.cfg.first_party_app.as_ref(),
         &layout.cfg.packs,
     );
     let plugin = SuiPlugin {
@@ -95,7 +94,7 @@ pub async fn bundle_views(
         emit_component_imports: true,
         component_index: resolver.index,
         shadowed_tags: resolver.shadowed,
-        component_source_roots: Arc::new(layout.cfg.component_source_roots.clone()),
+        component_roots: crate::catalog::component_package_roots(&layout.repo_root),
     };
     {
         let mut bundler = BundlerBuilder::default()

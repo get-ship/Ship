@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 use std::time::SystemTime;
 
-use sui_compiler::{bindings, parse, render};
+use sui_compiler::render;
 
 use crate::{DaemonMode, DeckResponse};
 use crate::form_inject::inject_form_actions;
@@ -100,24 +100,28 @@ pub(crate) fn load_ssr_from_disk(name: &str) -> Option<String> {
     std::fs::read_to_string(&ssr_path).ok()
 }
 
-/// Render SSR HTML at request time from the source view. Used as a
-/// fallback when no precompiled mirror-tree `<stem>.ssr.html` exists yet
-/// — without this, the shell ships an empty `#sui-root` and the client
-/// has nothing to morph onto.
-///
-/// Uses the full `render()` so the body carries the `<script
-/// id="__set_init__">` seed island — the client runtime needs it to
-/// hydrate initial signal state, and `<data live>` views need its
-/// `__subscribe__` URL to open the SSE channel. The precompiled
-/// `<stem>.ssr.html` artifact (see `load_ssr_from_disk`) is emitted the
-/// same way, so dev live-emit and prod from-disk stay byte-identical.
-pub(crate) fn live_emit_ssr(name: &str) -> Option<String> {
+// The live-emit render-eval first paint (`live_emit_ssr`) was relocated to
+// `crate::render_eval_archived::live_first_paint` when ship-js became the
+// default SSR engine — see that module's ARCHIVED header.
+
+/// Bridge to the gated ship-js SSR seam for the view-host shell. Resolves the
+/// view, then asks the seam for first-paint HTML. Returns `None` (→ the
+/// render-eval path) when the gate is off, no renderer is registered, the view
+/// has no source path, or the render fails.
+fn synthetic_first_paint_host(name: &str) -> Option<String> {
     let resolved = resolve(name, None).ok()?;
-    let program = parse::parse(&resolved.source).ok()?;
-    let registry = bindings::build(&program);
-    let opts = render::RenderOpts { view_name: name.to_string() };
-    let output = render::render(&program, &registry, &opts).ok()?;
-    Some(output.html)
+    let source_path = resolved.source_path.as_deref()?;
+    let params = serde_json::to_value(&resolved.params).unwrap_or(serde_json::Value::Null);
+    let pathname = format!("/{name}");
+    let req = crate::synthetic_ssr::SsrRequest {
+        view_name: name,
+        sub_path: None,
+        source_path,
+        pathname: &pathname,
+        params,
+        query: serde_json::json!({}),
+    };
+    crate::synthetic_ssr::first_paint(&req)
 }
 
 pub fn serve_view_host(mode: DaemonMode, path: &str) -> DeckResponse {
@@ -141,16 +145,22 @@ pub fn serve_view_host(mode: DaemonMode, path: &str) -> DeckResponse {
     let ssr_content = view_name
         .as_deref()
         .map(|name| {
-            let from_disk = if mode == DaemonMode::Production {
-                ssr_html_for_view(name)
-            } else {
-                load_ssr_from_disk(name).unwrap_or_default()
-            };
-            let raw = if from_disk.is_empty() {
-                live_emit_ssr(name).unwrap_or_default()
-            } else {
-                from_disk
-            };
+            // ship-js synthetic SSR first paint by DEFAULT (when a renderer is
+            // registered and it renders); otherwise the archived precompiled /
+            // live-emit render-eval path (`render_eval_archived`), also the
+            // engine reached by `DECK_SSR=render-eval`.
+            let raw = synthetic_first_paint_host(name).unwrap_or_else(|| {
+                let from_disk = if mode == DaemonMode::Production {
+                    ssr_html_for_view(name)
+                } else {
+                    load_ssr_from_disk(name).unwrap_or_default()
+                };
+                if from_disk.is_empty() {
+                    crate::render_eval_archived::live_first_paint(name).unwrap_or_default()
+                } else {
+                    from_disk
+                }
+            });
             // Host-side injection: augment <form mutation="bN"> with the
             // daemon-relative action URL. Idempotent — safe on pre-baked
             // .ssr.html artifacts.

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "cargo run -q -p deck-cli -- build --shell-root . --out ../../.deck/hub-scaffold --bundle-framework",
+    "build": "cargo run -q -p deck-cli -- build --project . --bundle-framework",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

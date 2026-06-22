@@ -3,8 +3,6 @@
 //! `axum::response::Response` via [`into_axum`](crate::into_axum). No
 //! hosting logic lives here — it all sits in `deck-core`.
 
-use std::sync::Arc;
-
 use axum::{
     Extension, Json,
     extract::{OriginalUri, Path, Query},
@@ -12,11 +10,9 @@ use axum::{
 };
 use serde_json::Value;
 
-use deck_config::DeckConfig;
 use deck_core::{DaemonBuildInfo, DaemonMode, ViewSetupQuery};
 
 use crate::{into_axum, mode_from_ext};
-
 // ── Framework bundle handlers ─────────────────────────────────────────────────
 
 pub async fn serve_sui_runtime(mode: Option<Extension<DaemonMode>>) -> Response {
@@ -29,6 +25,10 @@ pub async fn serve_sui_dom(mode: Option<Extension<DaemonMode>>) -> Response {
 
 pub async fn serve_sui_sdk_client(mode: Option<Extension<DaemonMode>>) -> Response {
     into_axum(deck_core::serve_sui_sdk_client(mode_from_ext(mode)))
+}
+
+pub async fn serve_deck_route(mode: Option<Extension<DaemonMode>>) -> Response {
+    into_axum(deck_core::serve_deck_route(mode_from_ext(mode)))
 }
 
 
@@ -47,18 +47,9 @@ pub async fn serve_sui_live_reload(mode: Option<Extension<DaemonMode>>) -> Respo
     into_axum(deck_core::serve_sui_live_reload(mode_from_ext(mode)))
 }
 
-pub async fn serve_sui_chunk(
-    mode: Option<Extension<DaemonMode>>,
-    Path(file): Path<String>,
-) -> Response {
-    into_axum(deck_core::serve_sui_chunk(mode_from_ext(mode), &file))
-}
-
-// ── Catalog handler ───────────────────────────────────────────────────────────
-
-pub async fn serve_catalog_workspace(mode: Option<Extension<DaemonMode>>) -> Response {
-    into_axum(deck_core::serve_catalog_workspace(mode_from_ext(mode)))
-}
+// (formerly `serve_sui_chunk` + `serve_catalog_workspace`) — purged
+// with the runtime `.deck/` reads. The routes are gone too (deck-axum
+// `router()`).
 
 // ── View handlers ─────────────────────────────────────────────────────────────
 
@@ -68,6 +59,7 @@ pub async fn serve_sui_view_setup(
     Path(name): Path<String>,
     Query(q): Query<ViewSetupQuery>,
 ) -> Response {
+    let mode = mode_from_ext(mode);
     // Deck owns bundling (#167). If the view bundle isn't on disk yet, build it
     // in-process via Rolldown — the controller is inlined natively, no bun. The
     // daemon's watcher keeps `.deck` warm afterward; this covers the cold miss.
@@ -76,9 +68,23 @@ pub async fn serve_sui_view_setup(
         && deck_core::resolve_view_js(&name).is_none()
         && let Some(Extension(b)) = bundler.as_ref()
     {
-        let _ = b.build(&format!("views/{name}/view")).await;
+        // P0-2: when the in-process build FAILS (e.g. a broken paired
+        // `controller.ts`), surface the REAL compile error instead of swallowing
+        // it with `let _ =` and falling through to deck-core's generic "the
+        // in-process bundler must build views/{name}/view" fallback, which masks
+        // the actual syntax/type error. Only a `Bundle` failure (the view exists
+        // but did not compile) short-circuits; `UnknownTarget`/`NoCompiler` fall
+        // through so the resolve path yields the right 404 / diagnostic.
+        if let Err(e) = b.build(&format!("views/{name}/view")).await
+            && let deck_bundler::BundlerError::Bundle { .. } = &e
+        {
+            return into_axum(deck_core::DeckResponse::render_error(
+                format!("view `{name}` failed to compile:\n{e}"),
+                mode,
+            ));
+        }
     }
-    into_axum(deck_core::serve_sui_view_setup(mode_from_ext(mode), &name, q.sub.as_deref()))
+    into_axum(deck_core::serve_sui_view_setup(mode, &name, q.sub.as_deref()))
 }
 
 // ── View-host handler ─────────────────────────────────────────────────────────
@@ -90,114 +96,6 @@ pub async fn serve_view_host(
     into_axum(deck_core::serve_view_host(mode_from_ext(mode), uri.path()))
 }
 
-// ── Scaffold handlers ─────────────────────────────────────────────────────────
-//
-// Both the shell (`/`) and space (`/space/{id}`) routes read their scaffold
-// declaration from the host-supplied `Extension<Arc<DeckConfig>>`. When
-// the scaffold is missing from the config (the `cfg` extension absent OR
-// the scaffolds list empty OR no matching name) the handlers return a
-// styled 404 — never a panic. deck ships no baked default scaffold
-// (no `default_shell_scaffold` / `default_space_scaffold`); a host that
-// wants to serve `/` or `/space/{id}` MUST declare the scaffold in
-// `deck.jsonc` under `scaffolds[]` (#273 — deck is a principled host,
-// it hardcodes no app names).
-/// Resolve the scaffold for the given route name from `cfg.scaffolds`.
-///
-/// Returns `None` when the scaffold is not declared in the config — the
-/// caller turns that into a 404.
-fn resolve_scaffold<'a>(cfg: Option<&'a DeckConfig>, name: &str) -> Option<&'a deck_config::ScaffoldDecl> {
-    let cfg = cfg?;
-    if cfg.scaffolds.is_empty() {
-        return None;
-    }
-    cfg.scaffolds.iter().find(|s| s.name == name)
-}
-/// Build a 404 `DeckResponse` for a missing scaffold — names the requested
-/// route so the author sees why deck refused. Reuses the standard
-/// `not_found` shape so the daemon's error styling is consistent.
-fn scaffold_not_found(name: &str, mode: DaemonMode) -> deck_core::DeckResponse {
-    deck_core::DeckResponse::not_found(
-        format!("scaffold '{name}' not declared in deck.jsonc"),
-        mode,
-    )
-}
-/// `GET /space/{id}` — serve the space scaffold with `DECK_APP_ID` injected.
-pub async fn serve_space(
-    mode: Option<Extension<DaemonMode>>,
-    cfg: Option<Extension<Arc<DeckConfig>>>,
-    Path(id): Path<String>,
-) -> Response {
-    let mode_val = mode_from_ext(mode);
-    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let Some(scaffold) = resolve_scaffold(cfg_ref, "space") else {
-        return into_axum(scaffold_not_found("space", mode_val));
-    };
-    into_axum(deck_core::serve_scaffold(
-        mode_val,
-        scaffold,
-        &[("id", &id)],
-    ))
-}
-/// `GET /space/_assets/{file}` — space scaffold static assets.
-pub async fn serve_space_asset(
-    mode: Option<Extension<DaemonMode>>,
-    cfg: Option<Extension<Arc<DeckConfig>>>,
-    Path(file): Path<String>,
-) -> Response {
-    let mode_val = mode_from_ext(mode);
-    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let Some(scaffold) = resolve_scaffold(cfg_ref, "space") else {
-        return into_axum(scaffold_not_found("space", mode_val));
-    };
-    into_axum(deck_core::serve_scaffold_asset(mode_val, scaffold, &file))
-}
-/// `GET /` — serve the shell scaffold (the Ship platform app).
-pub async fn serve_shell(
-    mode: Option<Extension<DaemonMode>>,
-    cfg: Option<Extension<Arc<DeckConfig>>>,
-) -> Response {
-    let mode_val = mode_from_ext(mode);
-    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let Some(scaffold) = resolve_scaffold(cfg_ref, "shell") else {
-        return into_axum(scaffold_not_found("shell", mode_val));
-    };
-    into_axum(deck_core::serve_scaffold(mode_val, scaffold, &[]))
-}
-/// `GET /shell/_assets/{file}` — shell scaffold static assets.
-pub async fn serve_shell_asset(
-    mode: Option<Extension<DaemonMode>>,
-    cfg: Option<Extension<Arc<DeckConfig>>>,
-    Path(file): Path<String>,
-) -> Response {
-    let mode_val = mode_from_ext(mode);
-    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let Some(scaffold) = resolve_scaffold(cfg_ref, "shell") else {
-        return into_axum(scaffold_not_found("shell", mode_val));
-    };
-    into_axum(deck_core::serve_scaffold_asset(mode_val, scaffold, &file))
-}
-/// `GET /{file}` — host public assets (favicons, logos) from the declared
-/// `public_dir`. 404 when no `public_dir` is configured.
-pub async fn serve_public_asset(
-    mode: Option<Extension<DaemonMode>>,
-    cfg: Option<Extension<Arc<DeckConfig>>>,
-    Path(file): Path<String>,
-) -> Response {
-    let mode_val = mode_from_ext(mode);
-    let cfg_ref = cfg.as_ref().map(|e| e.0.as_ref());
-    let Some(public_dir) = cfg_ref.and_then(|c| c.public_dir.as_ref()) else {
-        return into_axum(deck_core::DeckResponse::not_found(
-            "no public_dir configured",
-            mode_val,
-        ));
-    };
-    into_axum(deck_core::serve_public_asset(
-        mode_val,
-        &public_dir.to_string_lossy(),
-        &file,
-    ))
-}
-
 // ── View-payload handlers ─────────────────────────────────────────────────────
 
 pub async fn serve_view_payload(
@@ -207,11 +105,46 @@ pub async fn serve_view_payload(
     into_axum(deck_core::serve_view_payload(mode_from_ext(mode), &name))
 }
 
+/// `GET /_deck/views/{name}/{*sub_path}` — the JSON payload for a
+/// nested/parameterized view route. The wildcard path segment carries
+/// one or more URL segments (e.g. `greet/zelda` or `studio/agents/42`);
+/// the runtime folds the sub into the resolved `name` (and the
+/// `__subscribe__` URL) and walks the resolver to capture `[param]`
+/// segments. Mirrors the path-split pattern `serve_view_host` uses,
+/// because axum's `Path<(String, String)>` only captures a fixed
+/// 2-tuple and the deeper the nesting the more brittle that becomes.
 pub async fn serve_view_payload_subpath(
     mode: Option<Extension<DaemonMode>>,
-    Path((name, sub_path)): Path<(String, String)>,
+    OriginalUri(uri): OriginalUri,
 ) -> Response {
-    into_axum(deck_core::serve_view_payload_subpath(mode_from_ext(mode), &name, &sub_path))
+    // The sub-path payload surface is at `/_deck/views/{name}/{*sub_path}`.
+    // Segment layout: ["_deck", "views", name, ...sub]. Name is at index 2;
+    // the sub path is everything after the name, joined back with `/`.
+    let mut segs = uri.path().trim_start_matches('/').split('/');
+    let name = segs
+        .nth(2)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+    let sub_path: String = segs.collect::<Vec<_>>().join("/");
+    match name {
+        Some(name) => into_axum(deck_core::serve_view_payload_subpath(
+            mode_from_ext(mode),
+            &name,
+            &sub_path,
+        )),
+        // Fallback: degenerate path that didn't match the 3-segment
+        // `/_deck/views/<name>/<sub…>` shape — delegate to the top-level
+        // payload handler, which produces the canonical 404 / name-error JSON.
+        None => {
+            let name = uri
+                .path()
+                .trim_start_matches('/')
+                .rsplit('/')
+                .next()
+                .unwrap_or("");
+            into_axum(deck_core::serve_view_payload(mode_from_ext(mode), name))
+        }
+    }
 }
 
 // ── Meta handler (/_deck/meta) ─────────────────────────────────────────────────
