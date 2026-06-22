@@ -1,0 +1,124 @@
+<div class="studio-view" data-test="studio-view">
+  <sui-studio-rail></sui-studio-rail>
+  <main class="studio-content" data-test="studio-content">
+    <div class="ship-view theme-detail-view">
+      <div class="theme-detail-wrap">
+
+        <a class="theme-detail-back" href="/studio/themes" data-test="theme-detail-back">
+          <sui-icon name="chevron-left" size="xs"></sui-icon>
+          Themes
+        </a>
+
+        {#if !theme()}
+          <sui-empty-state icon="search-x" variant="default" size="md" data-test="theme-not-found">
+            <span slot="title">No such theme</span>
+            <span>{'No theme with id "' + themeName() + '" was found.'}</span>
+            <sui-button slot="action" variant="outline" size="sm" href="/studio/themes">Back to themes</sui-button>
+          </sui-empty-state>
+        {:else}
+          <header class="theme-detail-head" data-test="theme-detail">
+            <div class="theme-detail-head-body">
+              <h1 class="theme-detail-name">{theme().label}</h1>
+              <div class="theme-detail-meta">
+                <code class="theme-detail-id mono-snip">{theme().id}</code>
+                <span class="theme-detail-sep" aria-hidden="true"></span>
+                <sui-badge tone="muted" variant="outline" size="sm">{theme().dark ? 'Dark' : 'Light'}</sui-badge>
+                {#if isActive()}
+                  <span class="theme-detail-sep" aria-hidden="true"></span>
+                  <sui-chip tone="success" variant="soft" size="sm" data-test="active-chip">
+                    <sui-status-dot slot="leading" tone="success" size="sm" label="Active"></sui-status-dot>
+                    active
+                  </sui-chip>
+                {/if}
+              </div>
+              <div class="theme-detail-rule" aria-hidden="true"></div>
+            </div>
+            <div class="theme-detail-actions">
+              {#if applyBanner()}
+                <span class="theme-detail-banner" attr:data-ok={applyBanner().ok} data-test="apply-banner">
+                  {applyBanner().msg}
+                </span>
+              {/if}
+              {#if isActive()}
+                <sui-button variant="outline" size="sm" data-test="theme-clear" on:click={clearActive}>
+                  Clear active
+                </sui-button>
+              {:else}
+                <sui-button tone="primary" variant="solid" size="sm" data-test="theme-set-active" on:click={setActive}>
+                  <sui-icon slot="leading" name="check" size="xs"></sui-icon>
+                  Set active
+                </sui-button>
+              {/if}
+            </div>
+          </header>
+
+          <!-- Swatches — the four palette stops the theme actually paints with. -->
+          <section class="theme-detail-sec" data-test="swatches">
+            <div class="theme-detail-sec-head">
+              <h2 class="theme-detail-sec-h">Palette</h2>
+              <span class="theme-detail-sec-meta">4 stops</span>
+            </div>
+            <div class="theme-swatch-strip" attr:data-test-theme={theme().id}>
+              {#for s of swatches() key={s.label}}
+                <div class="theme-swatch-tile" attr:data-label={s.label}>
+                  <div class="theme-swatch-chip-large" style={'background:' + s.value}></div>
+                  <div class="theme-swatch-meta">
+                    <span class="theme-swatch-label">{s.label}</span>
+                    <code class="theme-swatch-value mono-snip">{s.value}</code>
+                  </div>
+                </div>
+              {/for}
+            </div>
+          </section>
+
+          <!-- Token preview — surfaces the theme on actual UI elements. -->
+          <section class="theme-detail-sec" data-test="preview">
+            <div class="theme-detail-sec-head">
+              <h2 class="theme-detail-sec-h">Preview</h2>
+              <span class="theme-detail-sec-meta">background · card · text · button · chip</span>
+            </div>
+            <div class="theme-preview-stage" attr:data-preview-theme={theme().id}>
+              <div class="theme-preview-card">
+                <div class="theme-preview-card-head">
+                  <sui-icon name="layout" size="sm" tone="muted"></sui-icon>
+                  <span>Sample card</span>
+                </div>
+                <p class="theme-preview-prose">
+                  The quick brown fox jumps over the lazy dog. <a href="#">Link text</a> picks up the
+                  primary tone so contrast reads at a glance.
+                </p>
+                <div class="theme-preview-row">
+                  <sui-button tone="primary" variant="solid" size="sm">Primary</sui-button>
+                  <sui-button tone="accent" variant="soft" size="sm">Accent</sui-button>
+                  <sui-button variant="outline" size="sm">Outline</sui-button>
+                </div>
+                <div class="theme-preview-row">
+                  <sui-chip tone="muted" variant="soft" size="sm">muted</sui-chip>
+                  <sui-chip tone="primary" variant="soft" size="sm">primary</sui-chip>
+                  <sui-chip tone="success" variant="soft" size="sm">success</sui-chip>
+                  <sui-chip tone="warning" variant="soft" size="sm">warning</sui-chip>
+                  <sui-chip tone="destructive" variant="soft" size="sm">destructive</sui-chip>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Usage — short hint on how the theme is loaded. -->
+          <section class="theme-detail-sec" data-test="usage">
+            <div class="theme-detail-sec-head">
+              <h2 class="theme-detail-sec-h">Usage</h2>
+            </div>
+            <p class="theme-detail-prose">
+              The active theme is persisted to <code class="mono-snip">ship-shell-theme</code> in the
+              <code class="mono-snip">RUNTIME</code> settings table and cached in
+              <code class="mono-snip">localStorage</code> for first paint. The
+              <code class="mono-snip">ship:theme:change</code> event fires on every switch so
+              other surfaces can re-render.
+            </p>
+          </section>
+        {/if}
+
+      </div>
+    </div>
+  </main>
+</div>
