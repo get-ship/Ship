@@ -355,7 +355,7 @@
         "vitest": "^4.1.5",
       },
     },
-    "packages/components/ship/primitives": {
+    "packages/components/ship/shared": {
       "name": "@ship/primitives",
       "version": "0.1.0",
       "dependencies": {
@@ -1255,7 +1255,7 @@
 
     "@ship/pipelines": ["@ship/pipelines@workspace:packages/components/ship/pipelines"],
 
-    "@ship/primitives": ["@ship/primitives@workspace:packages/components/ship/primitives"],
+    "@ship/primitives": ["@ship/primitives@workspace:packages/components/ship/shared"],
 
     "@ship/sdk": ["@ship/sdk@workspace:packages/deck/sdk"],
 

@@ -171,6 +171,12 @@
               {:loading}
               <div role="status" aria-live="polite" aria-busy="true" style="padding:var(--space-4);color:var(--muted-foreground)">Loading&hellip;</div>
 
+              {:error err}
+              <sui-error-state role="alert" title="Couldn't load collection" data-test="col-detail-error">
+                {err.message}
+                <sui-button slot="action" tone="primary" variant="solid" on:click={() => window.location.reload()}>Retry</sui-button>
+              </sui-error-state>
+
               {:ok}
 {#if colDetailValue()}
               {#if filteredRows().length === 0 && (colDetailValue()?.items?.length ?? 0) === 0}
