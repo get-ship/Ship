@@ -1,8 +1,14 @@
-// Shared catalog loader for ship-ui-studio.
-// Fetches three sources: Lit CEM, SUI registry, daemon views.
-
-import { DECK_PREFIX } from '@ship/sdk-client'
+// Component catalog loader for the studio explorer.
+//
+// Source: the build-time `components.gen.ts` (emitted by `deck build` —
+// `deck-bundler` aggregates the standard custom-elements-manifest of every
+// component pack the app depends on, from the sui compiler's per-component
+// CEM). No runtime endpoint — the old `/_deck/catalog/workspace` deck route was
+// purged (deck-purge-root). We import the generated catalog and project the
+// standard CEM `modules[].declarations[]` into the studio's flat CatalogEntry.
 import type { ComponentExample } from '@ship/sui-runtime'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- generated at build
+import { COMPONENTS_CATALOG } from '../../../components.gen'
 
 export interface CatalogEntry {
   id: string
@@ -113,7 +119,7 @@ export function categoryRank(category: string): number {
 // There is no Lit path and no per-tag hide list — the catalog already covers
 // shell-local chrome and view-local components via the sui-out walk.
 async function loadSuiComponents(): Promise<CatalogEntry[]> {
-  const byTag = await loadSuiCatalog()
+  const byTag = loadSuiCatalog()
   return [...byTag.keys()]
     .sort()
     .map(tag => {
@@ -133,10 +139,13 @@ async function loadSuiComponents(): Promise<CatalogEntry[]> {
     })
 }
 
-// One wire entry from the workspace catalog. Carries the standard CEM fields
-// the studio needs plus the co-located `examples` (fun fixtures).
-interface CatalogEntryWire {
-  tagName: string
+// A standard CEM module + the class declaration we project. `package` is the
+// deck extension (`components.gen.ts` annotates each module with its source
+// pack); `examples` rides on the declaration when the compiler emits fixtures.
+interface CemDeclaration {
+  kind?: string
+  tagName?: string
+  customElement?: boolean
   description?: string
   attributes?: Array<{
     name: string
@@ -145,10 +154,13 @@ interface CatalogEntryWire {
     description?: string
     values?: unknown
   }>
-  examples?: ComponentExample[]
   slots?: SlotEntry[]
+  examples?: ComponentExample[]
+}
+interface CemModule {
+  path?: string
   package?: string
-  sourcePath?: string
+  declarations?: CemDeclaration[]
 }
 interface SuiCatalogEntry {
   props: PropEntry[]
@@ -159,16 +171,17 @@ interface SuiCatalogEntry {
   sourcePath?: string
 }
 
-async function loadSuiCatalog(): Promise<Map<string, SuiCatalogEntry>> {
+// Project the generated standard CEM into the studio's tag→entry map. Pure +
+// synchronous — the catalog is bundled, not fetched. Each custom-element class
+// declaration becomes one entry; `module.package`/`module.path` carry origin.
+function loadSuiCatalog(): Map<string, SuiCatalogEntry> {
   const out = new Map<string, SuiCatalogEntry>()
-  try {
-    const res = await fetch(`${DECK_PREFIX}/catalog/workspace`, { credentials: 'same-origin' })
-    if (!res.ok) return out
-    const doc = await res.json() as { entries?: CatalogEntryWire[] }
-    for (const e of doc.entries ?? []) {
-      if (!e.tagName) continue
-      out.set(e.tagName, {
-        props: (e.attributes ?? []).map((a): PropEntry => ({
+  const modules = (COMPONENTS_CATALOG as { modules?: CemModule[] }).modules ?? []
+  for (const m of modules) {
+    for (const d of m.declarations ?? []) {
+      if (d.kind !== 'class' || !d.customElement || !d.tagName) continue
+      out.set(d.tagName, {
+        props: (d.attributes ?? []).map((a): PropEntry => ({
           name: a.name,
           type: a.type?.text ?? 'string',
           // exactOptionalPropertyTypes: omit optional keys rather than
@@ -177,17 +190,15 @@ async function loadSuiCatalog(): Promise<Map<string, SuiCatalogEntry>> {
           ...(a.description === undefined ? {} : { description: a.description }),
           ...(Array.isArray(a.values) ? { values: a.values as string[] } : {}),
         })),
-        ...(e.examples === undefined ? {} : { examples: e.examples }),
-        ...(e.description === undefined ? {} : { description: e.description }),
-        ...(Array.isArray(e.slots) ? { slots: e.slots } : {}),
-        ...(e.package === undefined ? {} : { pkg: e.package }),
-        ...(e.sourcePath === undefined ? {} : { sourcePath: e.sourcePath }),
+        ...(Array.isArray(d.examples) ? { examples: d.examples } : {}),
+        ...(d.description === undefined ? {} : { description: d.description }),
+        ...(Array.isArray(d.slots) ? { slots: d.slots } : {}),
+        ...(m.package === undefined ? {} : { pkg: m.package }),
+        ...(m.path === undefined ? {} : { sourcePath: m.path }),
       })
     }
-    return out
-  } catch {
-    return out
   }
+  return out
 }
 
 // The components explorer shows installed-pack components — sourced entirely
