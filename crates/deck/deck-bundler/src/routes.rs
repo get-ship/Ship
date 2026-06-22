@@ -698,10 +698,17 @@ fn render_routes_gen(tree: &RouteTree) -> String {
     // `<link>`, emitted CSS has `:root` tokens) holds for daemon AND
     // static-only deploys.
     let token_import = format!("import '{}';", "@ship/tokens/tokens.css");
+    // Each layout's `.sui` is imported as a named module (import * as layoutN)
+    // so the bundler tracks it as a real use (no tree-shake removal) AND
+    // `mountRouter` receives the module object to render the layout's authored
+    // markup via mount(). The named binding also guarantees the custom-element
+    // side-effect (registration) fires on first paint — same as the former
+    // side-effect-only import, but now the module is also passed to the router.
     let layout_imports = tree
         .layouts
         .iter()
-        .map(|l| format!("import '{}';", layout_module_path(&l.path_prefix)))
+        .enumerate()
+        .map(|(i, l)| format!("import * as layout{i} from '{}';", layout_module_path(&l.path_prefix)))
         .collect::<Vec<_>>()
         .join("\n");
     let module_map = tree
@@ -709,6 +716,20 @@ fn render_routes_gen(tree: &RouteTree) -> String {
         .iter()
         .enumerate()
         .map(|(i, r)| format!("    '{}': route{i},", r.pattern))
+        .collect::<Vec<_>>()
+        .join("\n");
+    // pathPrefix → layout module map, parallel to `modules` for routes.
+    // mountRouter uses this to render each layout as a view module (authored
+    // markup) rather than a bare createElement(tag). Layouts without a
+    // _layout.sui would not be in this table — the tag-only fallback path
+    // in the router handles them. Currently every discovered layout has a
+    // _layout.sui (discover_layouts only records files that exist), so the
+    // map is always complete.
+    let layout_modules_map = tree
+        .layouts
+        .iter()
+        .enumerate()
+        .map(|(i, l)| format!("    '{}': layout{i},", l.path_prefix))
         .collect::<Vec<_>>()
         .join("\n");
     // No routes → no entry behavior (nothing to import or mount).
@@ -728,6 +749,9 @@ mountRouter({{
   layouts: LAYOUTS,
   modules: {{
 {module_map}
+  }},
+  layoutModules: {{
+{layout_modules_map}
   }},
   clients: {{}},
 }});
@@ -1110,17 +1134,12 @@ mod tests {
     }
 
     #[test]
-    fn render_emits_layout_imports_for_chrome_registration() {
-        // Each layout's `.sui` is statically imported alongside the
-        // route views so the chrome wrapper it composes (its first
-        // `<sui-*` / `<ship-*` element) registers at first paint.
-        // The runtime creates the chrome via
-        // `document.createElement(layout.tag)`; an unregistered tag
-        // is a no-op and the named-slot projection is empty. The
-        // shell's `apps/shell/src/components/index.ts` is the
-        // host-side fix for the same gap; the framework does it
-        // here so every per-app host gets the registration for
-        // free.
+    fn render_emits_layout_imports_and_layout_modules_map() {
+        // Each layout's `.sui` is imported as a named module (import * as layoutN)
+        // so (a) the bundler keeps it in the graph (real use, no tree-shake) and
+        // (b) the module object is passed to mountRouter via layoutModules so the
+        // router can call mount() on it to render authored markup (the fix).
+        // Layout sort order: '/' < '/studio' → layout0 = root, layout1 = studio.
         let tree = RouteTree {
             label: "x".to_string(),
             routes: vec![
@@ -1137,13 +1156,27 @@ mod tests {
             ],
         };
         let ts = render_routes_gen(&tree);
+        // Named imports (not bare side-effect imports).
         assert!(
-            ts.contains("import './routes/_layout.sui';"),
-            "root layout must be statically imported: {ts}",
+            ts.contains("import * as layout0 from './routes/_layout.sui';"),
+            "root layout must be a named module import: {ts}",
         );
         assert!(
-            ts.contains("import './routes/studio/_layout.sui';"),
-            "subdir layout must be statically imported: {ts}",
+            ts.contains("import * as layout1 from './routes/studio/_layout.sui';"),
+            "subdir layout must be a named module import: {ts}",
+        );
+        // layoutModules map passed to mountRouter.
+        assert!(
+            ts.contains("layoutModules:"),
+            "mountRouter call must include layoutModules map: {ts}",
+        );
+        assert!(
+            ts.contains("'/': layout0,"),
+            "root prefix maps to layout0: {ts}",
+        );
+        assert!(
+            ts.contains("'/studio': layout1,"),
+            "studio prefix maps to layout1: {ts}",
         );
     }
 

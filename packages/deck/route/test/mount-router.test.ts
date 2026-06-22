@@ -9,6 +9,8 @@ const { mountCalls } = vi.hoisted(() => ({
 // Mock the runtime instead of importing it: the real @ship/sui-runtime pulls
 // chrome.ts → @ship/deck/route, a cycle vitest can't resolve (pre-existing).
 // A minimal signal + a recording mount is all the router needs.
+// The mock calls opts.module.__mount(target) when present so layout-module
+// stubs can simulate rendering (proves authored markup is rendered, not dropped).
 vi.mock('@ship/sui-runtime', () => {
   const signal = <T>(initial: T) => {
     let v = initial
@@ -19,6 +21,9 @@ vi.mock('@ship/sui-runtime', () => {
     return s
   }
   const mount = vi.fn(async (target: unknown, name: unknown, opts: any) => {
+    if (opts?.module?.__mount) {
+      opts.module.__mount(target)
+    }
     mountCalls.push({ target, name, opts })
     return { dispose: vi.fn() }
   })
@@ -115,7 +120,7 @@ describe('mountRouter', () => {
     expect(root.querySelector('.deck-not-found')).not.toBeNull()
   })
 
-  it('no-match with a matching layout prefix shows chrome + fallback in route slot', () => {
+  it('no-match with a matching layout prefix shows chrome + fallback in route slot', async () => {
     // The chrome element comes from the layout chain; the fallback lives in the
     // slot inside it — never a blank screen.
     history.replaceState({}, '', '/a/missing')
@@ -125,10 +130,9 @@ describe('mountRouter', () => {
       layouts: [{ pathPrefix: '/a', tag: 'x-chrome' }],
       modules: { '/a/b': MOD_LEAF },
     })
-    // mountCurrent for the no-match path is synchronous (no awaits) — DOM is
-    // ready immediately after mountRouter() returns.
     const root = document.getElementById('root')!
-    expect(root.querySelector('x-chrome')).not.toBeNull()
+    // buildMountTarget is now async; wait for the layout to settle before asserting.
+    await vi.waitFor(() => expect(root.querySelector('x-chrome')).not.toBeNull())
     const slot = root.querySelector('x-chrome div[slot="route"]')
     expect(slot).not.toBeNull()
     expect(slot!.querySelector('.deck-not-found')).not.toBeNull()
@@ -144,5 +148,123 @@ describe('mountRouter', () => {
     })
     await flush()
     expect(mountCalls[0].opts.clients).toBe(clients)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Layout-module rendering (the root-cause fix: layouts render authored markup)
+// ---------------------------------------------------------------------------
+
+describe('layout module rendering', () => {
+  // A layout module stub with a slotted child: proves the authored markup
+  // is rendered rather than silently dropped (the pre-fix bug).
+  const LAYOUT_MOD_SLOTTED = {
+    __mount(target: Element) {
+      const chrome = document.createElement('x-chrome')
+      const extra = document.createElement('x-extra')
+      extra.setAttribute('slot', 'foo')
+      chrome.appendChild(extra)
+      target.appendChild(chrome)
+    },
+  }
+
+  it('renders authored layout markup including slotted children', async () => {
+    // The slotted child <x-extra slot="foo"> is composed in the _layout.sui
+    // template. Before the fix, only the bare chrome tag was createElement'd
+    // — the authored content was silently dropped. This test proves it now renders.
+    history.replaceState({}, '', '/a/b')
+    router = mountRouter({
+      root: '#root',
+      routes: [{ pattern: '/a/b' }],
+      layouts: [{ pathPrefix: '/a', tag: 'x-chrome' }],
+      modules: { '/a/b': MOD_LEAF },
+      layoutModules: { '/a': LAYOUT_MOD_SLOTTED },
+    })
+    const root = document.getElementById('root')!
+    await vi.waitFor(() => expect(root.querySelector('x-chrome')).not.toBeNull())
+    // The authored <x-extra slot="foo"> must be present.
+    expect(root.querySelector('x-extra[slot="foo"]')).not.toBeNull()
+  })
+
+  it('mounts route content into the innermost layout slot="route"', async () => {
+    // Existing slotting contract holds: route mounts into div[slot="route"]
+    // inside the chrome, even when the chrome is rendered via a layout module.
+    const LAYOUT_MOD = {
+      __mount(target: Element) {
+        target.appendChild(document.createElement('x-chrome'))
+      },
+    }
+    history.replaceState({}, '', '/a/b')
+    router = mountRouter({
+      root: '#root',
+      routes: [{ pattern: '/a/b' }],
+      layouts: [{ pathPrefix: '/a', tag: 'x-chrome' }],
+      modules: { '/a/b': MOD_LEAF },
+      layoutModules: { '/a': LAYOUT_MOD },
+    })
+    const root = document.getElementById('root')!
+    await vi.waitFor(() => expect(mountCalls.length).toBeGreaterThan(1))
+    const chrome = root.querySelector('x-chrome')!
+    const slot = chrome.querySelector('div[slot="route"]')
+    expect(slot).not.toBeNull()
+    const routeMountCall = mountCalls.find((c) => c.opts?.module === MOD_LEAF)
+    expect(routeMountCall).toBeDefined()
+    expect(routeMountCall!.target).toBe(slot)
+  })
+
+  it('composes a 2-layout chain outer→inner with route at the innermost slot', async () => {
+    // Two layouts: outer at '/' (x-outer) and inner at '/a' (x-inner).
+    // Chain: root > x-outer > x-inner > div[slot="route"]. Route innermost.
+    const OUTER_MOD = {
+      __mount(target: Element) {
+        target.appendChild(document.createElement('x-outer'))
+      },
+    }
+    const INNER_MOD = {
+      __mount(target: Element) {
+        target.appendChild(document.createElement('x-inner'))
+      },
+    }
+    history.replaceState({}, '', '/a/b')
+    router = mountRouter({
+      root: '#root',
+      routes: [{ pattern: '/a/b' }],
+      layouts: [
+        { pathPrefix: '/', tag: 'x-outer' },
+        { pathPrefix: '/a', tag: 'x-inner' },
+      ],
+      modules: { '/a/b': MOD_LEAF },
+      layoutModules: { '/': OUTER_MOD, '/a': INNER_MOD },
+    })
+    const root = document.getElementById('root')!
+    // 2 layout mounts + 1 route mount = at least 3 calls
+    await vi.waitFor(() => expect(mountCalls.length).toBeGreaterThanOrEqual(3))
+    const outer = root.querySelector('x-outer')
+    expect(outer).not.toBeNull()
+    const inner = outer!.querySelector('x-inner')
+    expect(inner).not.toBeNull()
+    const innerSlot = inner!.querySelector('div[slot="route"]')
+    expect(innerSlot).not.toBeNull()
+    const routeMountCall = mountCalls.find((c) => c.opts?.module === MOD_LEAF)
+    expect(routeMountCall!.target).toBe(innerSlot)
+  })
+
+  it('falls back to bare createElement when pathPrefix has no layoutModule entry', async () => {
+    // layoutModules omits '/a' → createElement('x-chrome') fallback.
+    // DOM structure identical to pre-module behavior; no regression.
+    history.replaceState({}, '', '/a/b')
+    router = mountRouter({
+      root: '#root',
+      routes: [{ pattern: '/a/b' }],
+      layouts: [{ pathPrefix: '/a', tag: 'x-chrome' }],
+      modules: { '/a/b': MOD_LEAF },
+      layoutModules: {},
+    })
+    const root = document.getElementById('root')!
+    await vi.waitFor(() => expect(mountCalls.length).toBeGreaterThan(0))
+    const chrome = root.querySelector('x-chrome')
+    expect(chrome).not.toBeNull()
+    const slot = chrome!.querySelector('div[slot="route"]')
+    expect(slot).not.toBeNull()
   })
 })
