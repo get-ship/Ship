@@ -5,7 +5,7 @@ defining what "working" means as a runnable contract — each slice
 either passes (the behavior works) or fails (the behavior is the next
 job).
 
-Distinct from `tests/loops/` (older Node + .mjs loops) and `tests/e2e/`
+Distinct from `tests/e2e/`
 (Playwright UI tests). This suite is **TypeScript + Bun**, no
 transpilation, no separate runner — `bun test tests/agents/` discovers
 and runs everything.

@@ -21,7 +21,7 @@ import { join } from "node:path";
 // crates/core/ship-substrate/src/project/global.rs and run.mjs's #185.
 // These tests mutate live daemon kernel state; refuse to target a daemon
 // whose home is the operator's prod ~/.ship (unless SHIP_LOOPS_ALLOW_PROD=1).
-import { assertNotProdHome, resolveHome } from "../loops/_prod-guard.mjs";
+import { assertNotProdHome, resolveHome } from "../_shared/prod-guard.mjs";
 
 // Per-worktree daemon discovery — matches scripts/dev/_lib.sh::daemon_dir.
 //

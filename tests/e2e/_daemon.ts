@@ -24,7 +24,7 @@ import { createServer } from 'node:net'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { assertNotProdHome } from '../loops/_prod-guard.mjs'
+import { assertNotProdHome } from '../_shared/prod-guard.mjs'
 
 /** Repo root — the workspace the hermetic daemon scopes to (serves the shell). */
 export const REPO_ROOT = path.resolve(__dirname, '..', '..')

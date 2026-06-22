@@ -196,7 +196,6 @@ apps/shell/public/vendor/
 packages/**/vendor/
 
 # loop test results — local only
-tests/loops/results/
 
 # Playwright e2e output — local only
 tests/e2e/report/

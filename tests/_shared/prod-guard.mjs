@@ -1,4 +1,4 @@
-// Shared prod-home guard for bun/node e2e suites (tests/loops + tests/agents).
+// Shared prod-home guard for bun/node e2e suites (tests/agents + tests/e2e).
 //
 // THE LEAK this closes: every e2e spec here talks to a LIVE daemon over HTTP,
 // and a daemon's home is whatever it was launched with. The dev daemon

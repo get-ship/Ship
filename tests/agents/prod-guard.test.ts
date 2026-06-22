@@ -22,10 +22,10 @@ import {
   prodHome,
   resolveHome,
   wouldHitProd,
-} from "../loops/_prod-guard.mjs";
+} from "../_shared/prod-guard.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const GUARD_PATH = join(__dirname, "../loops/_prod-guard.mjs");
+const GUARD_PATH = join(__dirname, "../_shared/prod-guard.mjs");
 const PROD = join(homedir(), ".ship");
 const TMP = tmpdir();
 

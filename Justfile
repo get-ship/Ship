@@ -141,7 +141,7 @@ dev-runtime-update:
     fi
     ./target/debug/ship runtime update --bun "$BUN_BIN" --sui-compiler target/release/sui-compiler
 
-# Run all tests (Rust + loops). For a faster inner loop use test-fast.
+# Run all tests (Rust). For a faster inner loop use test-fast.
 [group('daily')]
 test:
     # ship-host (apps/host) is Ship's single native host — Tauri webview wrapping
@@ -197,11 +197,6 @@ lint:
     cargo clippy --workspace --exclude ship-host --features unstable -- -D warnings
     @just check-raw
     @just lint-anti-theater
-
-# Visual QA against the daemon serving cwd. Discovers port automatically.
-[group('daily')]
-qa:
-    bun tests/loops/run.mjs
 
 # Full smoke: build everything, restart the daemon, hit every baselined
 # view, run the Playwright visual suite. What CI will run — aim for green
