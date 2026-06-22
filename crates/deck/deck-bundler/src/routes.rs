@@ -23,6 +23,15 @@ pub struct RouteGenSpec {
     pub dir: PathBuf,
     pub out: PathBuf,
     pub label: String,
+    /// When `Some`, the codegen ALSO writes `entry.gen.ts` (next to
+    /// `routes.gen.ts`) — the host-owned bootstrap that imports the
+    /// data tables, constructs the named `clients` map off the host's
+    /// `clientsModule`, and calls `mountRouter`. `routes.gen.ts` is
+    /// emitted DATA-ONLY in this case (no token import, no router call).
+    /// When `None`, `routes.gen.ts` IS the SPA entry (legacy shape):
+    /// it carries the token import + the `mountRouter` call (no
+    /// `entry.gen.ts` is written).
+    pub entry_bootstrap: Option<deck_config::EntryBootstrap>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -587,21 +596,22 @@ pub(crate) struct RouteTree {
     pub layouts: Vec<Layout>,
 }
 
-fn build_route_tree(routes_dir: &Path, label: &str) -> Result<RouteTree> {
-    if !routes_dir.is_dir() {
-        return Ok(RouteTree { label: label.to_string(), routes: vec![], layouts: vec![] });
-    }
-    let mut dirs = Vec::new();
-    view_dirs(routes_dir, &mut dirs)
-        .with_context(|| format!("walking routes tree for `{label}`"))?;
-    let mut routes: Vec<Route> = dirs.iter().filter_map(|d| to_route(routes_dir, d)).collect();
-    routes.sort_by(|a, b| a.pattern.cmp(&b.pattern));
-    let layouts = discover_layouts(routes_dir)
-        .with_context(|| format!("walking layouts for `{label}`"))?;
-    Ok(RouteTree { label: label.to_string(), routes, layouts })
+
+#[allow(dead_code)] // legacy callers + tests still go through `render_routes_gen`.
+fn render_routes_gen(tree: &RouteTree) -> String {
+    render_routes_gen_with(tree, true)
 }
 
-fn render_routes_gen(tree: &RouteTree) -> String {
+/// Render `routes.gen.ts`. `include_token_import` controls whether the
+/// `@ship/tokens/tokens.css` side-effect import lives in this file
+/// (the legacy shape — `routes.gen.ts` is the SPA entry) or in
+/// `entry.gen.ts` (the split shape — data + bootstrap are separate).
+/// The split shape is the spec's preferred form; the legacy shape is
+/// retained for builds that don't declare an `entry` bootstrap in
+/// `deck.jsonc` so the token import keeps shipping with every per-app
+/// build (the design tokens MUST ride the bundle for `var(--token)`
+/// to resolve at first paint — see `ssot_tokens_import_pinned`).
+fn render_routes_gen_with(tree: &RouteTree, include_token_import: bool) -> String {
     let pattern_lines = tree
         .routes
         .iter()
@@ -658,46 +668,6 @@ fn render_routes_gen(tree: &RouteTree) -> String {
         .map(|r| format!("import '{}';", style_module_path(&r.pattern)))
         .collect::<Vec<_>>()
         .join("\n");
-    // Each layout's `.sui` is statically imported alongside the route
-    // views so the chrome wrapper it composes (its first `<sui-*` /
-    // `<ship-*` element) is registered at first paint. The runtime
-    // builds the chain via `document.createElement(layout.tag)`; if the
-    // tag isn't registered, the createElement call returns a bare
-    // HTMLElement that never upgrades, and the route content's named
-    // slot (the `route` slot) has nothing to project into. The
-    // shell's `apps/shell/src/components/index.ts` is the
-    // host-side fix for the same gap; the framework does the same
-    // here so every per-app host gets the registration without
-    // hand-seeding.
-    //
-    // Import paths mirror the on-disk layout files relative to the
-    // routes root. A root `routes/_layout.sui` imports as
-    // `./routes/_layout.sui`; a `routes/<name>/_layout.sui` imports
-    // as `./routes/<name>/_layout.sui`. The module side-effect
-    // (the per-view resolver compiles the layout, the layout's
-    // first tag is emitted as `@sui-tag/<tag>`, that resolves to the
-    // chrome wrapper's source `.sui`, that compiles as a Component
-    // and registers the custom element) is the registration
-    // mechanism — no tree-shake removal.
-    // The design tokens (the OKLCH palette, semantic surfaces, tone ramps,
-    // role tokens, motion/density channels) ride with every per-app build by
-    // convention: the entry graph imports `@ship/tokens/tokens.css`, and
-    // Rolldown's existing CSS-asset path (`module_types: { ".css" -> Asset }`,
-    // `deck-bundler/src/app.rs`) bundles it as a content-hashed
-    // `assets/tokens-<hash>.css` and lifts a `<link rel="stylesheet">` into
-    // the generated `index.html` BEFORE the entry script. Zero per-app
-    // config, zero hand-authored import — the generated entry pulls them in.
-    //
-    // Why `@ship/tokens/tokens.css` and not a runtime-injected `<link>` to a
-    // daemon-served path: the runtime injection in this file used to fetch
-    // `/api/assets/view-tokens.css` (a deck-core static asset). That path
-    // doesn't exist in a static-only deploy (no daemon), so the bundled app
-    // would ship with NO tokens and every `var(--token)` would resolve to
-    // nothing — the unstyled-hub bug. Bundling ships tokens in the same
-    // graph as the SPA itself, so the gate (built `index.html` has a token
-    // `<link>`, emitted CSS has `:root` tokens) holds for daemon AND
-    // static-only deploys.
-    let token_import = format!("import '{}';", "@ship/tokens/tokens.css");
     // Each layout's `.sui` is imported as a named module (import * as layoutN)
     // so the bundler tracks it as a real use (no tree-shake removal) AND
     // `mountRouter` receives the module object to render the layout's authored
@@ -732,44 +702,34 @@ fn render_routes_gen(tree: &RouteTree) -> String {
         .map(|(i, l)| format!("    '{}': layout{i},", l.path_prefix))
         .collect::<Vec<_>>()
         .join("\n");
-    // No routes → no entry behavior (nothing to import or mount).
-    let router_block = if tree.routes.is_empty() {
-        String::new()
+    // The token import (design tokens — OKLCH palette, semantic surfaces,
+    // tone ramps, role tokens, motion/density channels) and the
+    // `mountRouter` call used to live here. They've moved to `entry.gen.ts`
+    // (the host-owned bootstrap): `routes.gen.ts` is now DATA only — route
+    // table + layout table + typed path builders + the modules / layoutModules
+    // maps. Decoupled per the spec's "routes.gen.ts ↔ entry.gen.ts split":
+    // the data + the bootstrap are separately consumable, separately testable.
+    // The token import lands in `entry.gen.ts` so it ships with the bootstrap
+    // (the single module the entry chunk pulls in); see `render_entry_gen`.
+    // The token import (design tokens — OKLCH palette, semantic surfaces,
+    // tone ramps, role tokens, motion/density channels) is conditionally
+    // emitted by THIS file: when `include_token_import` is true (the
+    // legacy shape — `routes.gen.ts` is the SPA entry, no host bootstrap),
+    // the import rides here. When false (the split shape — the host
+    // declared an `entry` bootstrap), the import moves to `entry.gen.ts`
+    // (the host-owned bootstrap). Either way the tokens ship with the
+    // build — the split is which file pulls them in.
+    let token_import_block = if include_token_import {
+        format!("import '@ship/tokens/tokens.css';\n")
     } else {
-        format!(
-"
-{token_import}
-// Hand the generated tables + statically-imported view modules to the
-// framework router. `mountRouter` (@ship/deck/route) owns history, route
-// match, the layout chain, and SPA navigation — one router for every
-// per-app deck host. See ADR `unified-deck-router`.
-mountRouter({{
-  root: '#{root_id}',
-  routes: DYNAMIC_ROUTE_PATTERNS,
-  layouts: LAYOUTS,
-  modules: {{
-{module_map}
-  }},
-  layoutModules: {{
-{layout_modules_map}
-  }},
-  clients: {{}},
-}});
-",
-            root_id = crate::templates::ROOT_ID,
-            token_import = token_import,
-        )
+        String::new()
     };
     format!(
 "// @generated by `deck routes` (deck-bundler) — DO NOT EDIT.
-// Typed route table + entry for the `{label}` view tree (every `[param]`
-// dir under `routes/`). This file IS the entry — the dev authors no
-// main.ts. It declares the route table, statically imports each route's
-// view module, and hands them to the framework router `mountRouter`
-// (@ship/deck/route), which owns route match + layout chains + SPA
-// navigation. See ADR `unified-deck-router`.
-import {{ mountRouter, type RouteShape, type LayoutShape }} from '@ship/deck/route'
-{route_imports}
+// Typed route table + view-module map for the `{label}` view tree (every
+// `[param]` dir under `routes/`). This file is DATA ONLY when the host
+import {{ type RouteShape, type LayoutShape }} from '@ship/deck/route'
+{token_import_block}{route_imports}
 {style_imports}
 {layout_imports}
 export const DYNAMIC_ROUTE_PATTERNS: RouteShape[] = [
@@ -781,7 +741,13 @@ export const LAYOUTS: LayoutShape[] = [
 export const routes = {{
 {builder_lines}
 }}
-{router_block}",
+export const modules: Record<string, unknown> = {{
+{module_map}
+}}
+export const layoutModules: Record<string, unknown> = {{
+{layout_modules_map}
+}}
+",
         label = tree.label,
         layout_imports = layout_imports,
         route_imports = route_imports,
@@ -789,12 +755,125 @@ export const routes = {{
         pattern_lines = pattern_lines,
         builder_lines = builder_lines,
         layout_lines = layout_lines,
-        router_block = router_block,
+        module_map = module_map,
+        layout_modules_map = layout_modules_map,
      )
 }
 
-fn generate_routes_one(spec: &RouteGenSpec) -> Result<usize> {
+/// Render the host-owned `entry.gen.ts` — the bootstrap that imports
+/// the data tables from `./routes.gen`, constructs the named `clients`
+/// map (off the host's `clientsModule` exports), and calls `mountRouter`.
+///
+/// Why this file exists (separately from `routes.gen.ts`): the spec
+/// requires deck stop bundling client wiring into its own route-table
+/// emission. Routes are data + a stable contract every per-app host
+/// consumes; client construction is the host's call (which clients to
+/// expose, with what names, against which daemon). The split mirrors
+/// the `DataPort` / `AppRegistry` discipline: the host binds its own
+/// concrete inside the impl; the framework provides the slot.
+///
+/// `entry_bootstrap` declares the host's `clientsModule` path (relative
+/// to the generated entry, which lives at `<project>/entry.gen.ts` next
+/// to `routes.gen.ts`) and the names the bundler reads off that module's
+/// named exports. The map keys are those names; the map values are the
+/// actual client instances the host constructed.
+///
+/// Design-token side-effect import (`@ship/tokens/tokens.css`) rides
+/// THIS file (not `routes.gen.ts`) so the bundle still ships the tokens
+/// before first paint — the data file is data-only.
+pub(crate) fn render_entry_gen(
+    tree: &RouteTree,
+    entry_bootstrap: &deck_config::EntryBootstrap,
+) -> String {
+    let names_csv = entry_bootstrap.expose_names.join(", ");
+    let clients_obj = entry_bootstrap
+        .expose_names
+        .iter()
+        .map(|n| format!("    {n}: {n},"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    // Even with zero routes the bootstrap still runs — it sets up the
+    // mount target, the client wiring, and the token CSS. The router
+    // will display its not-found fallback.
+    format!(
+"// @generated by `deck routes` (deck-bundler) — DO NOT EDIT.
+// Host-owned entry bootstrap for the `{label}` view tree. Imports the
+// data tables from `./routes.gen`, constructs the named `clients` map
+// from the host's `{clients_module}` factory, and hands everything to
+// the framework router `mountRouter` (@ship/deck/route), which owns
+// history, route match, the layout chain, and SPA navigation. See ADR
+// `unified-deck-router`.
+//
+// Split from `routes.gen.ts`: this file is the host's bootstrap seam
+// (data + client wiring + router call). Routes are data; clients are
+// the host's concrete. The framework names no ship path; the host binds
+// its own inside this file. Additive + safe: the `clients` map is just
+// the names declared in `deck.jsonc#entry.exposeNames`, and the runtime
+// exposes them to every view's `ctx.clients.<name>` (and the legacy
+// `ctx.<name>` alias, so pre-migration view code still resolves).
+import {{ mountRouter }} from '@ship/deck/route';
+import {{ {names_csv} }} from '{clients_module}';
+import {{
+  DYNAMIC_ROUTE_PATTERNS,
+  LAYOUTS,
+  modules,
+  layoutModules,
+}} from './routes.gen';
+import '@ship/tokens/tokens.css';
+mountRouter({{
+  root: '#{root_id}',
+  routes: DYNAMIC_ROUTE_PATTERNS,
+  layouts: LAYOUTS,
+  modules,
+  layoutModules,
+  clients: {{
+{clients_obj}
+  }},
+}});
+",
+        label = tree.label,
+        clients_module = entry_bootstrap.clients_module,
+        names_csv = names_csv,
+        clients_obj = clients_obj,
+        root_id = crate::templates::ROOT_ID,
+    )
+}
 
+/// Write a generated file only when its contents actually moved. The app
+/// build regenerates these files on EVERY rebuild, and they live under the
+/// watched `apps/...` root — an unconditional write retriggers the bundler
+/// watcher and self-perpetuates a rebuild/reload loop (shipd CPU spin,
+/// page reloads ~6×/sec). Only touch the file when the generated content
+/// actually moved.
+pub(crate) fn write_if_changed(target: &Path, body: &str) -> Result<()> {
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("create parent for {}", target.display()))?;
+    }
+    let changed = std::fs::read_to_string(target)
+        .map(|cur| cur != body)
+        .unwrap_or(true);
+    if changed {
+        std::fs::write(target, body)
+            .with_context(|| format!("write {}", target.display()))?;
+    }
+    Ok(())
+}
+
+pub(crate) fn build_route_tree(routes_dir: &Path, label: &str) -> Result<RouteTree> {
+    if !routes_dir.is_dir() {
+        return Ok(RouteTree { label: label.to_string(), routes: vec![], layouts: vec![] });
+    }
+    let mut dirs = Vec::new();
+    view_dirs(routes_dir, &mut dirs)
+        .with_context(|| format!("walking routes tree for `{label}`"))?;
+    let mut routes: Vec<Route> = dirs.iter().filter_map(|d| to_route(routes_dir, d)).collect();
+    routes.sort_by(|a, b| a.pattern.cmp(&b.pattern));
+    let layouts = discover_layouts(routes_dir)
+        .with_context(|| format!("walking layouts for `{label}`"))?;
+    Ok(RouteTree { label: label.to_string(), routes, layouts })
+}
+fn generate_routes_one(spec: &RouteGenSpec) -> Result<usize> {
     let tree = build_route_tree(&spec.dir, &spec.label)?;
     // No-op when the source dir is absent: nothing to register, no
     // file to write. Specs with a missing `routes/` must be safe to
@@ -802,21 +881,23 @@ fn generate_routes_one(spec: &RouteGenSpec) -> Result<usize> {
     if !spec.dir.is_dir() {
         return Ok(0);
     }
-    let body = render_routes_gen(&tree);
-    // Write-if-changed (#129-class loop fix): the app build regenerates this on
-    // EVERY rebuild, and the file lives under the watched `apps/...` root.
-    // An unconditional write retriggers the bundler watcher and self-perpetuates
-    // a rebuild/reload loop (shipd CPU spin, page reloads ~6×/sec). Only touch
-    // the file when the generated content actually moved.
-    let target = &spec.out;
-    if let Some(parent) = target.parent() {
-        std::fs::create_dir_all(parent).context("create routes.gen.ts parent")?;
-    }
-    let changed = std::fs::read_to_string(target)
-        .map(|cur| cur != body)
-        .unwrap_or(true);
-    if changed {
-        std::fs::write(target, body).context("write routes.gen.ts")?;
+    // DATA-ONLY when a host bootstrap will own the SPA entry (the
+    // `entry.gen.ts` split); token import + `mountRouter` live there.
+    // Otherwise (`routes.gen.ts` IS the SPA entry — legacy shape), the
+    // token import rides this file so the bundle still ships tokens.
+    let body = render_routes_gen_with(&tree, spec.entry_bootstrap.is_none());
+    write_if_changed(&spec.out, &body)?;
+    // The host bootstrap (when declared) gets its own generated file
+    // right next to `routes.gen.ts`. Path is `<project>/entry.gen.ts`,
+    // matching the entry_module the bundler feeds to Rolldown.
+    if let Some(ref bootstrap) = spec.entry_bootstrap {
+        let entry_path = spec
+            .out
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."))
+            .join("entry.gen.ts");
+        let entry_body = render_entry_gen(&tree, bootstrap);
+        write_if_changed(&entry_path, &entry_body)?;
     }
     Ok(tree.routes.len())
 }
@@ -883,6 +964,10 @@ mod tests {
             dir: root.join("routes"),
             out: root.join("routes.gen.ts"),
             label: label.to_string(),
+            // Tests run the legacy shape: routes.gen.ts IS the entry,
+            // the token import rides there. The split-shape path has its
+            // own dedicated tests below.
+            entry_bootstrap: None,
         }
     }
 
@@ -924,11 +1009,13 @@ mod tests {
                 dir: one_routes,
                 out: root.path().join("apps/one/routes.gen.ts"),
                 label: "one".to_string(),
+                entry_bootstrap: None,
             },
             RouteGenSpec {
                 dir: two_routes,
                 out: root.path().join("apps/two/routes.gen.ts"),
                 label: "two".to_string(),
+                entry_bootstrap: None,
             },
         ];
         let n = generate_routes(&specs).unwrap();
@@ -1097,12 +1184,19 @@ mod tests {
         );
     }
 
+    /// `routes.gen.ts` is DATA ONLY after the entry-split — route table +
+    /// layout table + typed path builders + the `modules` / `layoutModules`
+    /// maps. The framework router call moved to `entry.gen.ts` (the
+    /// host-owned bootstrap). This test pins the data shape, not the
+    /// router call.
     #[test]
-    fn render_wires_every_route_into_the_router() {
+    fn render_emits_data_only_route_table() {
         // Contract, not a text snapshot, and built from a GENERIC tree so a
-        // framework test never names an app's routes. The entry must wire the
-        // framework router and place EVERY route in the module map keyed by its
-        // own pattern; the retired v0 hand-rolled mount must not reappear.
+        // framework test never names an app's routes. The data file must
+        // ship the route table, the typed path builders, and the modules
+        // map keyed by pattern — the same data the host's entry.gen.ts
+        // hands to `mountRouter`. The retired v0 hand-rolled mount must
+        // not reappear.
         let tree = RouteTree {
             label: "x".to_string(),
             routes: vec![
@@ -1121,25 +1215,37 @@ mod tests {
             ],
             layouts: vec![],
         };
-        let ts = render_routes_gen(&tree);
-        assert!(ts.contains("mountRouter("), "entry wires the framework router");
+        let ts = render_routes_gen_with(&tree, false);
+        // DATA: route table + typed path builders + modules map.
+        assert!(ts.contains("DYNAMIC_ROUTE_PATTERNS"), "route table emitted");
+        assert!(ts.contains("export const routes = {"), "path-builder map emitted");
+        assert!(ts.contains("export const modules:"), "modules map exported for entry.gen");
         for r in &tree.routes {
             assert!(
                 ts.contains(&format!("'{}':", r.pattern)),
-                "every route is in the module map; `{}` is missing",
+                "every route is in the modules map; `{}` is missing",
                 r.pattern,
             );
         }
+        // DATA-ONLY: no router call, no token CSS, no client wiring —
+        // those moved to `entry.gen.ts` (the host-owned bootstrap).
+        assert!(!ts.contains("mountRouter("), "routes.gen.ts is data-only — no mountRouter");
+        assert!(
+            !ts.contains("@ship/tokens/tokens.css"),
+            "routes.gen.ts is data-only — the token import lives in entry.gen.ts",
+        );
+        assert!(!ts.contains("clients:"), "routes.gen.ts is data-only — no clients wiring");
+        // The v0 hand-rolled index mount stays gone.
         assert!(!ts.contains("getElementById"), "the v0 hand-rolled index mount is gone");
     }
 
+    /// The data file exports `layoutModules` as a typed map for `entry.gen.ts`
+    /// to forward into `mountRouter({ layoutModules })`. Layouts stay imported
+    /// as named modules (no tree-shake removal) and the registration side
+    /// effect (custom-element `define`) fires on first paint. Layout sort
+    /// order: '/' < '/studio' → layout0 = root, layout1 = studio.
     #[test]
     fn render_emits_layout_imports_and_layout_modules_map() {
-        // Each layout's `.sui` is imported as a named module (import * as layoutN)
-        // so (a) the bundler keeps it in the graph (real use, no tree-shake) and
-        // (b) the module object is passed to mountRouter via layoutModules so the
-        // router can call mount() on it to render authored markup (the fix).
-        // Layout sort order: '/' < '/studio' → layout0 = root, layout1 = studio.
         let tree = RouteTree {
             label: "x".to_string(),
             routes: vec![
@@ -1165,10 +1271,10 @@ mod tests {
             ts.contains("import * as layout1 from './routes/studio/_layout.sui';"),
             "subdir layout must be a named module import: {ts}",
         );
-        // layoutModules map passed to mountRouter.
+        // Data-only shape: `layoutModules` is a typed export for entry.gen.ts.
         assert!(
-            ts.contains("layoutModules:"),
-            "mountRouter call must include layoutModules map: {ts}",
+            ts.contains("export const layoutModules:"),
+            "routes.gen.ts must export the layoutModules map (entry.gen.ts consumes it): {ts}",
         );
         assert!(
             ts.contains("'/': layout0,"),
@@ -1178,6 +1284,67 @@ mod tests {
             ts.contains("'/studio': layout1,"),
             "studio prefix maps to layout1: {ts}",
         );
+    }
+
+    /// `entry.gen.ts` is the host-owned bootstrap: imports the data
+    /// tables from `./routes.gen`, constructs the host's named `clients`
+    /// map, and calls `mountRouter` with both. Pin the shape so a future
+    /// emission tweak doesn't quietly drop the host-wiring or the token
+    /// CSS side-effect.
+    #[test]
+    fn render_entry_gen_wires_clients_and_router() {
+        let tree = RouteTree {
+            label: "x".to_string(),
+            routes: vec![Route {
+                pattern: "/".to_string(),
+                params: vec![],
+                builder: "index".to_string(),
+                has_style: false,
+            }],
+            layouts: vec![Layout {
+                path_prefix: "/".to_string(),
+                tag: "ship-app-chrome".to_string(),
+            }],
+        };
+        let bootstrap = deck_config::EntryBootstrap {
+            clients_module: "./src/lib/client.ts".to_string(),
+            expose_names: vec!["ship".to_string(), "ops".to_string()],
+        };
+        let ts = render_entry_gen(&tree, &bootstrap);
+        // Host wiring: imports the named clients off the host's module
+        // and spreads them into the `clients` map mountRouter receives.
+        assert!(
+            ts.contains("import { ship, ops } from './src/lib/client.ts'"),
+            "host's clientsModule is imported and named imports are emitted: {ts}",
+        );
+        assert!(
+            ts.contains("    ship: ship,"),
+            "client map keys ship + ops present: {ts}",
+        );
+        assert!(
+            ts.contains("    ops: ops,"),
+            "client map keys ship + ops present: {ts}",
+        );
+        // Data wiring: imports the data tables from routes.gen.
+        assert!(
+            ts.contains("DYNAMIC_ROUTE_PATTERNS"),
+            "data table import present: {ts}",
+        );
+        assert!(
+            ts.contains("LAYOUTS"),
+            "data layout-table import present: {ts}",
+        );
+        assert!(ts.contains("modules,"), "modules map imported: {ts}");
+        assert!(ts.contains("layoutModules,"), "layoutModules map imported: {ts}");
+        // The token import rides the bootstrap so the bundle ships
+        // design tokens before first paint.
+        assert!(
+            ts.contains("import '@ship/tokens/tokens.css';"),
+            "design-token CSS side-effect import lives in entry.gen.ts: {ts}",
+        );
+        // Router call shape: root, routes, layouts, modules, layoutModules, clients.
+        assert!(ts.contains("mountRouter("), "mountRouter called: {ts}");
+        assert!(ts.contains("clients: {"), "mountRouter receives clients: {ts}");
     }
 
     /// The per-route `style.css` convention (deck-route-css): during
@@ -1302,12 +1469,16 @@ mod tests {
             .expect("unchanged routes must not rewrite the file (would self-trigger the watcher)");
     }
 
-    /// The generated `routes.gen.ts` entry imports `@ship/tokens/tokens.css`
-    /// so the design tokens ride with every per-app build via Rolldown's
-    /// CSS-asset path. The token CSS package is the canonical home
-    /// (`packages/sui/tokens/package.json` declares `./tokens.css` as a
-    /// subpath export); the import here is the convention. A rename on
-    /// either side breaks this test, surfacing the drift.
+    /// After the entry-split, the design-token CSS side-effect import
+    /// rides `entry.gen.ts` (the host-owned bootstrap) — NOT
+    /// `routes.gen.ts` (data only). The router call + token import are
+    /// both bootstrap-layer concerns: the framework emits the data;
+    /// the host's bootstrap pulls tokens in + calls the router.
+    ///
+    /// The token CSS package stays the canonical home
+    /// (`packages/sui/tokens/package.json` declares `./tokens.css` as
+    /// a subpath export); `entry.gen.ts` is the conventional entry
+    /// that pulls it in.
     #[test]
     fn ssot_tokens_import_pinned() {
         let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -1325,10 +1496,6 @@ mod tests {
              ./tokens.css → ./src/tokens.css` (got: {pkg})",
         );
 
-        // The codegen must render the import verbatim — no runtime link
-        // injection, no daemon-served path. A change in the entry contract
-        // (e.g. dropping the token import) breaks the per-app build gate
-        // and surfaces here.
         let tree = RouteTree {
             label: "x".to_string(),
             routes: vec![Route {
@@ -1339,17 +1506,29 @@ mod tests {
             }],
             layouts: vec![],
         };
-        let ts = render_routes_gen(&tree);
+        // `entry.gen.ts` must import the token CSS — that's the bootstrap
+        // layer's responsibility. The data file must NOT (data-only
+        // contract).
+        let bootstrap = deck_config::EntryBootstrap {
+            clients_module: "./src/lib/client.ts".to_string(),
+            expose_names: vec!["ship".to_string()],
+        };
+        let entry = render_entry_gen(&tree, &bootstrap);
         assert!(
-            ts.contains("import '@ship/tokens/tokens.css';"),
-            "rendered routes.gen.ts must import @ship/tokens/tokens.css (got: {ts})",
+            entry.contains("import '@ship/tokens/tokens.css';"),
+            "rendered entry.gen.ts must import @ship/tokens/tokens.css (got: {entry})",
         );
         // And the old daemon-served link must be gone — it's a static-only
         // deploy hazard and the SSOT literal this used to pin (`<DECK_API_ASSETS>
         // /view-tokens.css`) is now exclusively deck-core's concern.
         assert!(
-            !ts.contains("view-tokens.css"),
-            "rendered routes.gen.ts must NOT reference the daemon-served view-tokens.css path (got: {ts})",
+            !entry.contains("view-tokens.css"),
+            "rendered entry.gen.ts must NOT reference the daemon-served view-tokens.css path (got: {entry})",
+        );
+        let routes = render_routes_gen_with(&tree, false);
+        assert!(
+            !routes.contains("@ship/tokens/tokens.css"),
+            "rendered routes.gen.ts is data-only — must NOT import tokens (got: {routes})",
         );
     }
 

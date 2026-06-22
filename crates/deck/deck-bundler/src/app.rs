@@ -32,11 +32,22 @@ use rolldown::plugin::{
 use rolldown::{BundlerBuilder, BundlerOptions, InputItem, OutputFormat};
 use rolldown_common::{ChunkFilenamesOutputOption, ModuleType, ResolvedExternal};
 
-/// deck's baked framework bundles. Each entry is `(package_alias,
-/// source_filename, output_url_relative_to_project)`. The bundler copies
-/// `source_filename` from the workspace's prebuilt framework dir to
+/// deck's BAKED framework singletons — assets deck itself owns and ships
+/// in every app build. Each entry is `(package_alias, source_filename,
+/// output_url_relative_to_project)`. The bundler copies `source_filename`
+/// from the workspace's prebuilt framework dir to
 /// `output_url_relative_to_project` in the project's output, then emits
 /// an importmap entry mapping `package_alias → /output_url_relative_to_project`.
+///
+/// Scope of this list: deck-owned runtime (the SUI runtime + DOM bindings
+/// + the router the framework owns). What is NOT here: any framework
+/// CLIENT (`@ship/sdk-client`, etc.). Framework clients are per-app
+/// registrations the HOST supplies through `AppServeConfig::framework_clients`
+/// (see `crates/deck/deck-config`). The bundler reads the host's
+/// `deck.jsonc` and merges those entries into the importmap + asset-copy
+/// pipeline alongside this list. **Deck hardcodes no ship path**; the
+/// host binds its own concrete inside the impl.
+///
 /// Lucide icons are NOT here — the daemon serves them per-icon from its
 /// embedded set at `/_deck/icons/{name}.svg`. Static-only deploys without
 /// a daemon use `<sui-icon src=…>` (CDN escape hatch).
@@ -52,7 +63,6 @@ const FRAMEWORK_ASSETS: &[(&str, &str, &str)] = &[
     ("@ship/sui-runtime/template-hooks", "sui-runtime.js", "_deck/runtime.js"),
     ("@ship/sui-runtime/patch", "sui-runtime.js", "_deck/runtime.js"),
     ("@ship/sui-dom", "sui-dom.js", "_deck/dom.js"),
-    ("@ship/sdk-client", "sui-sdk-client.js", "_deck/sdk-client.js"),
     // `@ship/deck/route` lives in the framework because the bundler
     // generates an entry that imports it. The runtime exports
     // `defineRoutes`, `route`, `navigate`, `setEditMode` — every app's
@@ -62,16 +72,41 @@ const FRAMEWORK_ASSETS: &[(&str, &str, &str)] = &[
     ("@ship/deck/route", "deck-route.js", "_deck/route.js"),
 ];
 
-/// Generate the importmap JSON from FRAMEWORK_ASSETS. The keys are the
-/// package aliases; the values are the absolute URL the host serves the
-/// framework bundle at (`/<dist_rel>` for the project's output, which shipd
-/// serves at the project root). Output is pretty-printed with 2-space indent
-/// to match the existing `apps/shell/index.html` style.
-fn generate_importmap(dist_prefix: &str) -> String {
-    let mut imports: std::collections::BTreeMap<&str, String> =
+/// Generate the importmap JSON. The keys are the package aliases (deck's
+/// `FRAMEWORK_ASSETS` singletons + every host-registered client the per-app
+/// `AppServeConfig::framework_clients` map declares); the values are the
+/// absolute URL the host serves each bundle at (`/<dist_rel>` for the
+/// project's output, which shipd serves at the project root).
+///
+/// Host-registered clients ride the SAME `_deck/<dist_basename>` URL
+/// convention as the framework singletons: the host declares an alias
+/// (e.g. `@ship/sdk-client`) + a `dist` path (e.g. `_deck/sdk-client.js`)
+/// and the bundler binds the alias to `/_deck/sdk-client.js` — so the
+/// daemon's static-asset handler serves client assets on the same code
+/// path as the runtime/dom/route singletons. No special-case route; just
+/// one URL convention, one handler.
+///
+/// Output is pretty-printed with 2-space indent to match the existing
+/// `apps/shell/index.html` style.
+fn generate_importmap(
+    dist_prefix: &str,
+    framework_clients: &std::collections::BTreeMap<String, deck_config::FrameworkClientEntry>,
+) -> String {
+    let mut imports: std::collections::BTreeMap<String, String> =
         std::collections::BTreeMap::new();
     for (alias, _src, dist_rel) in FRAMEWORK_ASSETS {
-        imports.insert(alias, format!("{dist_prefix}/{dist_rel}"));
+        imports.insert((*alias).to_string(), format!("{dist_prefix}/{dist_rel}"));
+    }
+    // Host-registered clients: `<alias>` → `/_deck/<basename>`.
+    // Same prefix as FRAMEWORK_ASSETS so the daemon's existing static
+    // handler serves them on the same code path; the `dist` field's
+    // basename is what the importmap binds.
+    for (alias, entry) in framework_clients {
+        let basename = std::path::Path::new(&entry.dist)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or(&entry.dist);
+        imports.insert(alias.clone(), format!("{dist_prefix}/_deck/{basename}"));
     }
     let body = imports
         .iter()
@@ -176,10 +211,29 @@ pub async fn bundle_app(
     framework_assets_dir: &Path,
     _deck_out_dir: &Path,
 ) -> Result<AppBuild> {
+    // 0. Load the host's per-app `deck.jsonc` (optional). The host's
+    // registration is what wires framework CLIENTS (no framework hardcode)
+    // and what configures the host-owned entry bootstrap (`entry.gen.ts`).
+    // The file is optional — an app without one still builds, just with
+    // no host-registered clients and no `entry.gen.ts` (the old
+    // `routes.gen.ts`-as-entry shape).
+    let app_cfg_path = project.join("deck.jsonc");
+    let app_cfg = if app_cfg_path.exists() {
+        let raw = std::fs::read_to_string(&app_cfg_path)
+            .with_context(|| format!("read {}", app_cfg_path.display()))?;
+        Some(deck_config::AppServeConfig::parse_deck_jsonc(&raw)
+            .with_context(|| format!("parse {}", app_cfg_path.display()))?)
+    } else {
+        None
+    };
+    let framework_clients: std::collections::BTreeMap<String, deck_config::FrameworkClientEntry> =
+        app_cfg.as_ref().map(|c| c.framework_clients.clone()).unwrap_or_default();
+    let entry_bootstrap: Option<deck_config::EntryBootstrap> =
+        app_cfg.as_ref().and_then(|c| c.entry.clone());
+
     // 1. Generate the route table from `<project>/routes/`. The dev doesn't
     // author a route config — the routes/ tree IS the source. The bundler
-    // emits `routes.gen.ts` to the same dir; that file is the entry that
-    // `index.html` (also generated) references.
+    // emits `routes.gen.ts` to the same dir.
     let routes_spec = crate::routes::RouteGenSpec {
         dir: project.join("routes"),
         out: project.join("routes.gen.ts"),
@@ -188,6 +242,11 @@ pub async fn bundle_app(
             .and_then(|s| s.to_str())
             .unwrap_or("app")
             .to_string(),
+        // Plumb the host's entry bootstrap into the route-table spec so
+        // `generate_routes` ALSO emits `entry.gen.ts` (when declared) and
+        // keeps `routes.gen.ts` data-only. Without this, the data file
+        // would re-acquire the router call + token import.
+        entry_bootstrap: entry_bootstrap.clone(),
     };
     crate::routes::generate_routes(&[routes_spec]).context("generate routes.gen.ts")?;
 
@@ -208,15 +267,24 @@ pub async fn bundle_app(
         .map(|(_, tail)| tail)
         .unwrap_or(&project_name)
         .to_string();
-    // 3. Generate the importmap from FRAMEWORK_ASSETS. The framework
-    // serves the runtime singletons at /_deck/* — the workspace root.
+    // 3. Generate the importmap. The framework serves the runtime singletons
+    // at /_deck/* — the workspace root. Host-registered clients ride the
+    // same `/_deck/<basename>` URL convention so the daemon's static-asset
+    // handler serves them on the same code path as the framework singletons.
     // No per-app dist prefix; the app's name is its URL namespace.
-    let importmap_json = generate_importmap("");
+    let importmap_json = generate_importmap("", &framework_clients);
     let externals = importmap_externals_from_json(&importmap_json)?;
     // 4. Render `index.html` from the template. The dev doesn't author
     // index.html — it's deck's entry contract. The template has placeholders
     // for the project name, the importmap, and the entry module name.
-    let entry_module = "routes.gen.ts";
+    // The entry module is `entry.gen.ts` when the host declares one (the
+    // `entry.bootstrap` shape in `deck.jsonc`); otherwise fall back to the
+    // historical `routes.gen.ts`-as-entry shape so legacy builds keep working.
+    let entry_module = if entry_bootstrap.is_some() {
+        "entry.gen.ts"
+    } else {
+        "routes.gen.ts"
+    };
     let html = crate::templates::render_index_html(
         &project_name,
         &importmap_json,
@@ -229,10 +297,12 @@ pub async fn bundle_app(
     let assets_dir = out_dir.join("assets");
     std::fs::create_dir_all(&assets_dir)?;
 
-    // 5. Bundle the generated `routes.gen.ts` as the entry. The dev's source
-    // tree has no `main.ts`; the bundler generates the entry from the
-    // routes/ walk and bundles it. AppPlugin runs FIRST so importmap
-    // specifiers (incl. `@ship/sui-runtime/*` subpaths) win as externals;
+    // 5. Bundle the generated entry as the SPA entry. The dev's source
+    // tree has no `main.ts`; the bundler generates it from the
+    // routes/ walk (data only) plus, when the host declares one, a
+    // host-owned `entry.gen.ts` (client wiring + mountRouter call).
+    // AppPlugin runs FIRST so importmap specifiers (incl. `@ship/sui-runtime/*`
+    // subpaths and every host-registered client alias) win as externals;
     // SuiPlugin then compiles `.sui` siblings and re-anchors the remaining
     // `@ship/<pkg>` (e.g. sui-charts, pipelines) to workspace source so the
     // app graph compiles them in-process.
@@ -357,19 +427,51 @@ pub async fn bundle_app(
     if bundle_framework {
         let sui_dir = out_dir.join("_deck");
         std::fs::create_dir_all(&sui_dir)?;
+        // Deck-owned framework singletons. De-dup by source filename —
+        // multiple aliases (e.g. `@ship/sui-runtime`, `@ship/sui-runtime/route`)
+        // share one source file. Track by source path to skip repeats.
+        let mut copied_sources: std::collections::HashSet<String> = Default::default();
         for (_alias, src, dist_rel) in FRAMEWORK_ASSETS {
-            // De-dup by source filename: multiple aliases (e.g.
-            // `@ship/sui-runtime`, `@ship/sui-runtime/route`) share one
-            // source file. Track by source path to skip repeats.
             let from = framework_assets_dir.join(src);
             if !from.exists() {
                 bail!("app build: bundle_framework: missing framework asset {}", from.display());
             }
             let dst = out_dir.join(dist_rel);
-            if dst.exists() {
+            if dst.exists() || !copied_sources.insert(src.to_string()) {
                 continue;
             }
             std::fs::copy(&from, dst)?;
+            framework_assets += 1;
+        }
+        // Host-registered framework clients. `from` is workspace-relative
+        // (e.g. `.deck/framework/sui-sdk-client.js`); `dist` is the
+        // project's `<out>/<dist>` (e.g. `_deck/sdk-client.js`). The
+        // importmap binds the alias to the `dist` basename — copied below.
+        for (alias, entry) in &framework_clients {
+            let from_path = std::path::Path::new(&entry.from);
+            // Workspace-relative paths (`from`) are anchored at the repo root.
+            // An absolute path is honored as-is so a host can pull a
+            // pre-built client from anywhere on disk.
+            let from = if from_path.is_absolute() {
+                from_path.to_path_buf()
+            } else {
+                repo_root.join(from_path)
+            };
+            if !from.exists() {
+                bail!(
+                    "app build: bundle_framework: missing framework client `{}` (from {})",
+                    alias,
+                    from.display()
+                );
+            }
+            let dst = out_dir.join(&entry.dist);
+            if dst.exists() {
+                continue;
+            }
+            if let Some(parent) = dst.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::copy(&from, &dst)?;
             framework_assets += 1;
         }
     }
@@ -452,7 +554,15 @@ export default controller({ scope: () => ({ id: signal('demo') }) })\n",
         // bundle (the importmap is the runtime's source of truth, not
         // the bundler — but the importmap must at least NAME the assets).
         assert!(html.contains("@ship/sui-runtime"), "framework runtime in importmap");
-        assert!(html.contains("@ship/sdk-client"), "framework sdk in importmap");
+        // Deck must NOT hardcode any framework CLIENT (no `@ship/sdk-client`).
+        // Framework clients are per-app registrations the host supplies
+        // through `AppServeConfig::framework_clients`. A default build
+        // (no host deck.jsonc) emits NO client alias — the framework
+        // names no ship path.
+        assert!(
+            !html.contains("@ship/sdk-client"),
+            "framework must NOT hardcode `@ship/sdk-client` — host-registered (got: {html})",
+        );
 
         // Behavior 4: the entry chunk href is the final served path.
         // The bundler writes `/<url_namespace>/entry-<hash>.js` so
@@ -720,6 +830,129 @@ export default controller({ scope: () => ({ id: signal('demo') }) })\n",
         assert!(
             tokens_css.contains("--background:"),
             "emitted tokens CSS must define the --background role token (the spec's named exemplar)",
+        );
+    }
+
+    /// Host-registered framework clients: when the per-app `deck.jsonc`
+    /// declares `frameworkClients[<alias>]`, the bundler:
+    ///   1. emits an importmap entry for the alias → `/_deck/<dist-basename>`,
+    ///   2. copies the source asset (`from`) to `<out>/<dist>` when
+    ///      `--bundle-framework` is set.
+    /// The framework itself never hardcodes any client alias (no
+    /// `@ship/sdk-client`, etc.) — every alias is the host's call.
+    /// Host-registered framework clients appear in the generated importmap
+    /// when the per-app `deck.jsonc` declares `frameworkClients[<alias>]`.
+    /// The framework itself never hardcodes any client alias (no
+    /// `@ship/sdk-client`, etc.) — every alias is the host's call. This
+    /// test runs without `--bundle-framework`: the importmap is emitted
+    /// at codegen time (before any framework-asset copy), so the alias
+    /// is asserted regardless of bundle mode.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn bundle_app_emits_host_registered_client_importmap() {
+        let root = tempfile::tempdir().unwrap();
+        let r = root.path();
+        write(
+            &r.join("package.json"),
+            r#"{"name":"client-test-app","private":true,"type":"module"}"#,
+        );
+        // Host-declared client: alias → from/dist. `from` is workspace-relative.
+        // The source asset doesn't need to exist for this test — the importmap
+        // is emitted before the framework-asset copy runs, so we only assert
+        // the importmap binding here.
+        write(
+            &r.join("deck.jsonc"),
+            r#"{
+  "name": "client-test-app",
+  "route": "/",
+  "source": "client-test-app/.deck",
+  "frameworkClients": {
+    "@ship/sdk-client": {
+      "from": ".deck/framework/sui-sdk-client.js",
+      "dist": "_deck/sdk-client.js"
+    }
+  }
+}"#,
+        );
+        // Minimal route so the entry isn't empty.
+        write(&r.join("routes/page.sui"), "<div>x</div>\n");
+
+        let out = r.join("dist");
+        bundle_app(r, &[], r, &out, false, false, r, r)
+            .await
+            .expect("bundle_app");
+
+        // Gate: importmap binds the host-registered alias to `/_deck/<dist-basename>`.
+        let html = std::fs::read_to_string(out.join("index.html")).unwrap();
+        assert!(
+            html.contains("\"@ship/sdk-client\": \"/_deck/sdk-client.js\""),
+            "importmap must bind the host-registered alias to `/_deck/sdk-client.js` (got: {html})",
+        );
+        // Hard constraint: framework must NEVER hardcode `@ship/sdk-client`
+        // as a literal in `FRAMEWORK_ASSETS`. A host-registered alias
+        // comes from the host's `deck.jsonc`, not the framework's own list.
+        assert!(
+            !html.contains("@ship/sdk-client")
+                || html.contains("@ship/sdk-client\": \"/_deck/sdk-client.js\""),
+            "the only place `@ship/sdk-client` may appear is the host's importmap entry (got: {html})",
+        );
+    }
+
+    /// `--bundle-framework` ALSO copies the host-registered client asset
+    /// (alongside the deck-owned framework singletons) and counts it in
+    /// `framework_assets`. This proves the host's client registration
+    /// rides the same copy pipeline as `@ship/sui-runtime` etc.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn bundle_app_copies_host_registered_client_when_bundling() {
+        let root = tempfile::tempdir().unwrap();
+        let r = root.path();
+        write(
+            &r.join("package.json"),
+            r#"{"name":"client-bundle-app","private":true,"type":"module"}"#,
+        );
+        // Stage the deck-owned framework singletons AND the host's client.
+        // `bundle_framework=true` copies every entry to `<out>/<dist>`;
+        // without the deck-owned ones staged, the build errors with
+        // "missing framework asset sui-runtime.js".
+        let framework_dir = r.join("framework");
+        std::fs::create_dir_all(&framework_dir).unwrap();
+        for name in ["sui-runtime.js", "sui-dom.js", "deck-route.js"] {
+            std::fs::write(framework_dir.join(name), "// stub\n").unwrap();
+        }
+        let host_framework = r.join(".deck/framework");
+        std::fs::create_dir_all(&host_framework).unwrap();
+        std::fs::write(host_framework.join("sui-sdk-client.js"), "// stub\n").unwrap();
+        write(
+            &r.join("deck.jsonc"),
+            r#"{
+  "name": "client-bundle-app",
+  "route": "/",
+  "source": "client-bundle-app/.deck",
+  "frameworkClients": {
+    "@ship/sdk-client": {
+      "from": ".deck/framework/sui-sdk-client.js",
+      "dist": "_deck/sdk-client.js"
+    }
+  }
+}"#,
+        );
+        write(&r.join("routes/page.sui"), "<div>x</div>\n");
+
+        let out = r.join("dist");
+        let build = bundle_app(r, &[], r, &out, false, true, &framework_dir, r)
+            .await
+            .expect("bundle_app");
+
+        // Gate 1: the host-registered client asset was copied to <out>/<dist>.
+        assert!(
+            out.join("_deck/sdk-client.js").exists(),
+            "`--bundle-framework` must copy the host-registered client asset to <out>/<dist>",
+        );
+        // Gate 2: framework_assets counter includes the host client (so it
+        // shows up in the build log alongside the deck-owned singletons).
+        assert!(
+            build.framework_assets >= 4,
+            "framework_assets must include 3 deck-owned singletons + 1 host client (got {})",
+            build.framework_assets,
         );
     }
 }

@@ -1,13 +1,17 @@
 // Hub version of `apps/shell/routes/studio/agents/controller.ts`.
 //
-// The shell injected `ship` + the `agents` LiveSignal through the view mount
-// ctx; the hub's generated entry passes `clients: {}`, so this controller owns
-// its own data via the module client (`src/lib/client.ts`). The list reads
-// `ship.agents.summaries()` — agents.summaries has a registered live mux
-// resolver (apps/shipd/src/ship_runtime/live_resolvers.rs), so `ship` (the live
-// SSE client) streams `{ items }`, and the page's `{#async agents}` consumes
-// that LiveSignal. Run-status (events.list) has no resolver yet — it degrades
-// (see the `agentEvents` note below).
+// Client seam: the shell injected `ship` + the `agents` LiveSignal through
+// the view mount ctx; the hub pulls `ship` from the AMBIENT
+// `ctx.clients.ship` injected by the host's `entry.gen.ts` (deck-runtime
+// maps `clients.<name>` into view scope). The relative `src/lib/client`
+// import is gone — the client lives in the view mount context, not a
+// per-view module path.
+//
+// The list reads `ship.agents.summaries()` — agents.summaries has a
+// registered live mux resolver (apps/shipd/src/ship_runtime/live_resolvers.rs),
+// so `ship` (the live SSE client) streams `{ items }`, and the page's
+// `{#async agents}` consumes that LiveSignal. Run-status (events.list)
+// has no resolver yet — it degrades (see the `agentEvents` note below).
 import { controller, signal, unwrap, live, derived } from '@ship/sui-runtime'
 import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
@@ -16,7 +20,6 @@ import type { Scope } from './page.sui'
 // parallel palette. (Reading a sibling route's helper, not editing it.)
 import { pickHue } from './[id]/hue'
 import { matchesKind, matchesQuery } from './filter'
-import { ship } from '../../../src/lib/client'
 
 type AgentStatus = 'running' | 'completed' | 'errored'
 
@@ -34,19 +37,20 @@ interface KindFilter { id: 'all' | 'project' | 'user'; label: string; count: num
 interface AgentsList { items: AgentSummary[] }
 
 export default controller({
-  scope: (_ctx: ViewScope<Scope>) => {
+  scope: (ctx: ViewScope<Scope>) => {
     const q = signal('')
     const kind = signal<KindFilter['id']>('all')
+    // AMBIENT client (host-owned): the entry.gen.ts bootstrap constructs
+    // `ship` from `src/lib/client.ts` and injects it as `clients.ship`.
+    // `ship` is the LIVE SSE client — only ops with a registered mux
+    // resolver (`agents.summaries`, `collections.list`, `git.overview`,
+    // `account.state`) subscribe over SSE; other ops would 404.
+    const ship = ctx.clients.ship
     // The agent list is LIVE: agents.summaries has a registered mux resolver
     // (apps/shipd/src/ship_runtime/live_resolvers.rs), so `ship` (the SSE
     // client) streams `{ items }`. The page's `{#async agents}` consumes this
     // LiveSignal for its loading/error/ok states; items / filteredItems /
-    // kindFilters / activeId derive from it.
     const agents = live(() => ship.agents.summaries()) as LiveSignal<AgentsList>
-    // Run-status badges come from kernel events (events.list). That op has NO
-    // live resolver yet (BACKEND-GAP — see .artifacts/hub-buildout-flags.md):
-    // the subscribe 404s and degrades to {} (the mux-client marks 4xx permanent
-    // — no retry storm). The status pill is `{#if}`-guarded, so cards still render.
     const agentEvents = live(() => ship.events.list({ event_type: 'agent.', limit: 50 }))
     const agentStatus = derived<Record<string, AgentStatus>>(() => {
       const env = agentEvents()
@@ -90,7 +94,7 @@ export default controller({
         { id: 'all', label: 'All', count: all.length },
         { id: 'project', label: 'Project', count: project },
         { id: 'user', label: 'Library', count: user },
-      ] satisfies KindFilter[]
+      ] as KindFilter[]
     })
     return { q, kind, agents, agentEvents, agentStatus, items, filteredItems, activeId, kindFilters }
   },
