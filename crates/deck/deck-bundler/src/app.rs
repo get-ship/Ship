@@ -40,13 +40,14 @@ use rolldown_common::{ChunkFilenamesOutputOption, ModuleType, ResolvedExternal};
 /// an importmap entry mapping `package_alias → /output_url_relative_to_project`.
 ///
 /// Scope of this list: deck-owned runtime (the SUI runtime + DOM bindings
-/// + the router the framework owns). What is NOT here: any framework
-/// CLIENT (`@ship/sdk-client`, etc.). Framework clients are per-app
-/// registrations the HOST supplies through `AppServeConfig::framework_clients`
-/// (see `crates/deck/deck-config`). The bundler reads the host's
-/// `deck.jsonc` and merges those entries into the importmap + asset-copy
-/// pipeline alongside this list. **Deck hardcodes no ship path**; the
-/// host binds its own concrete inside the impl.
+/// + the router the framework owns). What is NOT here: framework CLIENTS
+/// (`@ship/sdk-client`, etc.) — those are provider-declared. A framework-
+/// singleton package self-declares its serve contract in its OWN
+/// `package.json#deckFramework` (mirror of how packs declare
+/// `customElements`), and the bundler DISCOVERS these by walking the
+/// app's resolved dependency graph (see [`discover_deck_frameworks`]).
+/// The app declares nothing; deck names no ship package; the singleton
+/// owner names itself.
 ///
 /// Lucide icons are NOT here — the daemon serves them per-icon from its
 /// embedded set at `/_deck/icons/{name}.svg`. Static-only deploys without
@@ -71,42 +72,65 @@ const FRAMEWORK_ASSETS: &[(&str, &str, &str)] = &[
     // `include_str!` in `assets.rs`.
     ("@ship/deck/route", "deck-route.js", "_deck/route.js"),
 ];
+/// A framework-singleton self-declaration, read from a package's
+/// `package.json#deckFramework`. Replaces the host-declared
+/// `framework_clients` map: the package that owns the singleton
+/// declares its serve contract, and the bundler discovers it via the
+/// app's dep graph (the same walker that finds components, bundles,
+/// views). Mirror of how packs declare `customElements` — the package
+/// names itself; deck names no ship path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DeckFrameworkDecl {
+    /// Bare specifier the app's source imports (`@ship/sdk-client`).
+    pub alias: String,
+    /// Absolute path to the source module the bundler reads the
+    /// singleton bytes from (`<package_root>/<entry>`). Resolution
+    /// happens during discovery (the dep's package.json#deckFramework
+    /// `entry` is package-relative; we anchor it to the package root
+    /// in the workspace).
+    pub src_path: PathBuf,
+    /// The output URL path the importmap binds the alias to (relative
+    /// to the project root). The basename is what gets copied to
+    /// `<out>/_deck/<basename>` when `--bundle-framework` is set.
+    pub serve: String,
+}
 
-/// Generate the importmap JSON. The keys are the package aliases (deck's
-/// `FRAMEWORK_ASSETS` singletons + every host-registered client the per-app
-/// `AppServeConfig::framework_clients` map declares); the values are the
-/// absolute URL the host serves each bundle at (`/<dist_rel>` for the
-/// project's output, which shipd serves at the project root).
+/// Generate the importmap JSON. The keys are the package aliases
+/// (deck's `FRAMEWORK_ASSETS` singletons + every discovered
+/// framework-singleton declared by an app dependency's
+/// `package.json#deckFramework`). The values are the absolute URL the
+/// host serves each bundle at — `/_deck/<file>` for the project's
+/// output, which shipd serves at the project root via the
+/// `serve_scaffold_asset` route.
 ///
-/// Host-registered clients ride the SAME `_deck/<dist_basename>` URL
-/// convention as the framework singletons: the host declares an alias
-/// (e.g. `@ship/sdk-client`) + a `dist` path (e.g. `_deck/sdk-client.js`)
-/// and the bundler binds the alias to `/_deck/sdk-client.js` — so the
-/// daemon's static-asset handler serves client assets on the same code
-/// path as the runtime/dom/route singletons. No special-case route; just
-/// one URL convention, one handler.
+/// Discovered frameworks ride the SAME `_deck/<basename>` URL
+/// convention as the framework singletons: the dep's package.json
+/// declares a `serve` filename (e.g. `_deck/sdk-client.js`) and the
+/// bundler binds the alias to `/_deck/sdk-client.js`. No special-case
+/// route; one URL convention, one handler.
 ///
 /// Output is pretty-printed with 2-space indent to match the existing
 /// `apps/shell/index.html` style.
 fn generate_importmap(
     dist_prefix: &str,
-    framework_clients: &std::collections::BTreeMap<String, deck_config::FrameworkClientEntry>,
+    discovered: &[DeckFrameworkDecl],
 ) -> String {
     let mut imports: std::collections::BTreeMap<String, String> =
         std::collections::BTreeMap::new();
     for (alias, _src, dist_rel) in FRAMEWORK_ASSETS {
         imports.insert((*alias).to_string(), format!("{dist_prefix}/{dist_rel}"));
     }
-    // Host-registered clients: `<alias>` → `/_deck/<basename>`.
-    // Same prefix as FRAMEWORK_ASSETS so the daemon's existing static
-    // handler serves them on the same code path; the `dist` field's
-    // basename is what the importmap binds.
-    for (alias, entry) in framework_clients {
-        let basename = std::path::Path::new(&entry.dist)
+    // Provider-declared singletons: `<alias>` → `/_deck/<basename>`.
+    // The dep's package.json#deckFramework#serve field provides the
+    // relative URL; the bundler binds the alias to `/_deck/<basename>`
+    // (the same URL the framework singletons ride). The daemon's
+    // existing static-asset handler serves them on the same code path.
+    for decl in discovered {
+        let basename = std::path::Path::new(&decl.serve)
             .file_name()
             .and_then(|s| s.to_str())
-            .unwrap_or(&entry.dist);
-        imports.insert(alias.clone(), format!("{dist_prefix}/_deck/{basename}"));
+            .unwrap_or(&decl.serve);
+        imports.insert(decl.alias.clone(), format!("{dist_prefix}/_deck/{basename}"));
     }
     let body = imports
         .iter()
@@ -195,7 +219,136 @@ fn read_package_name(project: &Path) -> Result<String> {
         .map(String::from)
         .with_context(|| format!("package.json at {} has no `name` field", project.display()))
 }
+/// Discover framework-singleton self-declarations by walking the app's
+/// `package.json` dependency graph. Each dep's own `package.json` MAY
+/// carry a `deckFramework` field:
+/// ```jsonc
+/// {
+///   "deckFramework": {
+///     "alias": "@ship/sdk-client",
+///     "entry": "sui-sdk-client.js",
+///     "serve": "_deck/sdk-client.js"
+///   }
+/// }
+/// ```
+///
+/// The bundler reads every transitive dep, collects each declaration, and
+/// returns the resolved list. The importmap, externals list, and
+/// `--bundle-framework` copy are all driven from this discovery pass —
+/// the host's `deck.jsonc` carries no client registration anymore
+/// (`framework_clients` is removed from the schema).
+///
+/// Discovery is depth-first on the dep tree, deduplicated by alias
+/// (first wins on collision — a workspace with two `@ship/sdk-client`
+/// copies would otherwise fight the importmap). A dep outside the
+/// workspace (e.g. a published package on the registry) is skipped —
+/// only in-workspace package.json files declare their serve contract.
+/// For dev that's sufficient; the prod install path resolves via
+/// standard package resolution and the runtime still serves the
+/// asset at the importmap's URL (the daemon's static handler is the
+/// authoritative source).
+pub(crate) fn discover_deck_frameworks(
+    project: &Path,
+    repo_root: &Path,
+) -> Result<Vec<DeckFrameworkDecl>> {
+    let pkg_path = project.join("package.json");
+    let raw = std::fs::read_to_string(&pkg_path)
+        .with_context(|| format!("read {}", pkg_path.display()))?;
+    let pkg: serde_json::Value = serde_json::from_str(&raw)
+        .with_context(|| format!("parse {}", pkg_path.display()))?;
+    // Build the workspace name → root map once. The same map the
+    // SuiPlugin uses to resolve `@ship/<name>` to workspace source;
+    // we reuse it so the discovery walker is anchored against the
+    // same source of truth. A bare `@ship/sdk-client` declared by a
+    // dep that resolves via node_modules (not a workspace member)
+    // is skipped — the bundler ships only what it can resolve to a
+    // file on disk.
+    let package_roots = crate::catalog::component_package_roots(repo_root);
+    let mut out: Vec<DeckFrameworkDecl> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    walk_deck_frameworks(&pkg, &package_roots, &mut out, &mut seen)?;
+    // Stable order so the importmap is byte-stable across runs.
+    out.sort_by(|a, b| a.alias.cmp(&b.alias));
+    Ok(out)
+}
 
+fn walk_deck_frameworks(
+    pkg: &serde_json::Value,
+    package_roots: &std::collections::HashMap<String, PathBuf>,
+    out: &mut Vec<DeckFrameworkDecl>,
+    seen: &mut std::collections::HashSet<String>,
+) -> Result<()> {
+    // 1. Read THIS package's `dependencies` (deps + devDeps + peerDeps).
+    for deps_key in ["dependencies", "devDependencies", "peerDependencies"] {
+        let Some(deps) = pkg.get(deps_key).and_then(|d| d.as_object()) else {
+            continue;
+        };
+        for (dep_name, _ver) in deps {
+            if !seen.insert(dep_name.clone()) {
+                continue;
+            }
+            let Some(root) = package_roots.get(dep_name) else {
+                // Not in workspace (registry install). Skip — the
+                // singleton owner must be a workspace member for
+                // dev-mode self-declaration to work. Production
+                // resolution is the runtime's `importmap` URL.
+                continue;
+            };
+            let dep_pkg_path = root.join("package.json");
+            let raw = match std::fs::read_to_string(&dep_pkg_path) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            let dep_pkg: serde_json::Value = match serde_json::from_str(&raw) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+            // 2. Self-declaration: if this dep's package.json carries
+            // `deckFramework`, register it.
+            if let Some(decl) = dep_pkg.get("deckFramework") {
+                let alias = decl
+                    .get("alias")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "{}: deckFramework missing string `alias`",
+                            dep_pkg_path.display()
+                        )
+                    })?
+                    .to_string();
+                let entry = decl
+                    .get("entry")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "{}: deckFramework missing string `entry`",
+                            dep_pkg_path.display()
+                        )
+                    })?
+                    .to_string();
+                let serve = decl
+                    .get("serve")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "{}: deckFramework missing string `serve`",
+                            dep_pkg_path.display()
+                        )
+                    })?
+                    .to_string();
+                let src_path = root.join(&entry);
+                out.push(DeckFrameworkDecl {
+                    alias,
+                    src_path,
+                    serve,
+                });
+            }
+            // 3. Recurse into this dep's deps (transitive).
+            walk_deck_frameworks(&dep_pkg, package_roots, out, seen)?;
+        }
+    }
+    Ok(())
+}
 /// Build a SUI SPA project to `out_dir`. `repo_root` is the workspace root
 /// (cwd for module resolution); `project` is the dev's authored source
 /// (`package.json` + `routes/` + `public/`). The dev does NOT author
@@ -211,12 +364,13 @@ pub async fn bundle_app(
     framework_assets_dir: &Path,
     _deck_out_dir: &Path,
 ) -> Result<AppBuild> {
-    // 0. Load the host's per-app `deck.jsonc` (optional). The host's
-    // registration is what wires framework CLIENTS (no framework hardcode)
-    // and what configures the host-owned entry bootstrap (`entry.gen.ts`).
-    // The file is optional — an app without one still builds, just with
-    // no host-registered clients and no `entry.gen.ts` (the old
-    // `routes.gen.ts`-as-entry shape).
+    // 0. Load the host's per-app `deck.jsonc` (optional). The file is
+    // OPTIONAL — an app without one is a valid conventional app: no
+    // injectGlobals, csr render, no `entry.gen.ts`. The whole-config
+    // `Default` lands on `render: csr`, empty injectGlobals, no entry.
+    // The host's apps.jsonc owns route/name/source; deck-config names
+    // no path — the bundler is the per-app call site, the host binds
+    // the orchestration list separately.
     let app_cfg_path = project.join("deck.jsonc");
     let app_cfg = if app_cfg_path.exists() {
         let raw = std::fs::read_to_string(&app_cfg_path)
@@ -226,11 +380,16 @@ pub async fn bundle_app(
     } else {
         None
     };
-    let framework_clients: std::collections::BTreeMap<String, deck_config::FrameworkClientEntry> =
-        app_cfg.as_ref().map(|c| c.framework_clients.clone()).unwrap_or_default();
     let entry_bootstrap: Option<deck_config::EntryBootstrap> =
         app_cfg.as_ref().and_then(|c| c.entry.clone());
-
+    // 0b. Discover provider-declared framework singletons by walking
+    // the app's `package.json` deps. Each dep's own `package.json`
+    // MAY carry a `deckFramework` field (mirror of `customElements`).
+    // The bundler assembles the importmap + the externals list + the
+    // `--bundle-framework` copy set from the discovered declarations.
+    // Deck names no ship package; each singleton owner names itself.
+    let discovered = discover_deck_frameworks(project, repo_root)
+        .context("discover provider-declared framework singletons")?;
     // 1. Generate the route table from `<project>/routes/`. The dev doesn't
     // author a route config — the routes/ tree IS the source. The bundler
     // emits `routes.gen.ts` to the same dir.
@@ -268,11 +427,13 @@ pub async fn bundle_app(
         .unwrap_or(&project_name)
         .to_string();
     // 3. Generate the importmap. The framework serves the runtime singletons
-    // at /_deck/* — the workspace root. Host-registered clients ride the
-    // same `/_deck/<basename>` URL convention so the daemon's static-asset
-    // handler serves them on the same code path as the framework singletons.
-    // No per-app dist prefix; the app's name is its URL namespace.
-    let importmap_json = generate_importmap("", &framework_clients);
+    // at /_deck/* — the workspace root. Discovered provider-declared
+    // singletons (each dep's `package.json#deckFramework`) ride the same
+    // `/_deck/<basename>` URL convention so the daemon's static-asset
+    // handler serves them on the same code path as the framework
+    // singletons. No per-app dist prefix; the app's name is its URL
+    // namespace.
+    let importmap_json = generate_importmap("", &discovered);
     let externals = importmap_externals_from_json(&importmap_json)?;
     // 4. Render `index.html` from the template. The dev doesn't author
     // index.html — it's deck's entry contract. The template has placeholders
@@ -443,35 +604,29 @@ pub async fn bundle_app(
             std::fs::copy(&from, dst)?;
             framework_assets += 1;
         }
-        // Host-registered framework clients. `from` is workspace-relative
-        // (e.g. `.deck/framework/sui-sdk-client.js`); `dist` is the
-        // project's `<out>/<dist>` (e.g. `_deck/sdk-client.js`). The
-        // importmap binds the alias to the `dist` basename — copied below.
-        for (alias, entry) in &framework_clients {
-            let from_path = std::path::Path::new(&entry.from);
-            // Workspace-relative paths (`from`) are anchored at the repo root.
-            // An absolute path is honored as-is so a host can pull a
-            // pre-built client from anywhere on disk.
-            let from = if from_path.is_absolute() {
-                from_path.to_path_buf()
-            } else {
-                repo_root.join(from_path)
-            };
-            if !from.exists() {
+        // Discovered provider-declared singletons. Each `src_path` is
+        // already absolute (the dep's workspace package root +
+        // `package.json#deckFramework#entry`); the importmap binds the
+        // alias to `<serve>`'s basename. The bundle copy writes
+        // `<out>/<serve>` — the path the importmap binds — so the
+        // daemon's static-asset handler serves it on the same code
+        // path as the framework singletons.
+        for decl in &discovered {
+            if !decl.src_path.exists() {
                 bail!(
-                    "app build: bundle_framework: missing framework client `{}` (from {})",
-                    alias,
-                    from.display()
+                    "app build: bundle_framework: missing framework singleton `{}` (from {})",
+                    decl.alias,
+                    decl.src_path.display()
                 );
             }
-            let dst = out_dir.join(&entry.dist);
+            let dst = out_dir.join(&decl.serve);
             if dst.exists() {
                 continue;
             }
             if let Some(parent) = dst.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            std::fs::copy(&from, &dst)?;
+            std::fs::copy(&decl.src_path, &dst)?;
             framework_assets += 1;
         }
     }
@@ -833,43 +988,41 @@ export default controller({ scope: () => ({ id: signal('demo') }) })\n",
         );
     }
 
-    /// Host-registered framework clients: when the per-app `deck.jsonc`
-    /// declares `frameworkClients[<alias>]`, the bundler:
-    ///   1. emits an importmap entry for the alias → `/_deck/<dist-basename>`,
-    ///   2. copies the source asset (`from`) to `<out>/<dist>` when
-    ///      `--bundle-framework` is set.
-    /// The framework itself never hardcodes any client alias (no
-    /// `@ship/sdk-client`, etc.) — every alias is the host's call.
-    /// Host-registered framework clients appear in the generated importmap
-    /// when the per-app `deck.jsonc` declares `frameworkClients[<alias>]`.
-    /// The framework itself never hardcodes any client alias (no
-    /// `@ship/sdk-client`, etc.) — every alias is the host's call. This
-    /// test runs without `--bundle-framework`: the importmap is emitted
-    /// at codegen time (before any framework-asset copy), so the alias
-    /// is asserted regardless of bundle mode.
+    /// Provider-declared framework singleton discovery: when an app
+    /// dependency's `package.json` carries a `deckFramework` field,
+    /// the bundler:
+    ///   1. emits an importmap entry binding the alias to
+    ///      `/_deck/<serve-basename>`, and
+    ///   2. copies the source asset (`<dep-root>/<entry>`) to
+    ///      `<out>/<serve>` when `--bundle-framework` is set.
+    /// The framework itself never hardcodes any client alias — every
+    /// alias is the dep's own self-declaration. This test runs without
+    /// `--bundle-framework`: the importmap is emitted at codegen time
+    /// (before any framework-asset copy), so the alias is asserted
+    /// regardless of bundle mode.
     #[tokio::test(flavor = "multi_thread")]
-    async fn bundle_app_emits_host_registered_client_importmap() {
+    async fn bundle_app_discovers_provider_declared_singleton() {
         let root = tempfile::tempdir().unwrap();
         let r = root.path();
+        // App + dependency form a workspace. The app's deps include
+        // `@ship/sdk-client`, whose OWN package.json carries the
+        // `deckFramework` self-declaration. The bundler walks the
+        // dep tree and binds the alias from the dep's declaration.
         write(
             &r.join("package.json"),
-            r#"{"name":"client-test-app","private":true,"type":"module"}"#,
+            r#"{"name":"client-test-app","private":true,"type":"module",
+                "workspaces":["packages/*"],
+                "dependencies":{"@ship/sdk-client":"workspace:*"}}"#,
         );
-        // Host-declared client: alias → from/dist. `from` is workspace-relative.
-        // The source asset doesn't need to exist for this test — the importmap
-        // is emitted before the framework-asset copy runs, so we only assert
-        // the importmap binding here.
         write(
-            &r.join("deck.jsonc"),
+            &r.join("packages/sdk-client/package.json"),
             r#"{
-  "name": "client-test-app",
-  "route": "/",
-  "source": "client-test-app/.deck",
-  "frameworkClients": {
-    "@ship/sdk-client": {
-      "from": ".deck/framework/sui-sdk-client.js",
-      "dist": "_deck/sdk-client.js"
-    }
+  "name": "@ship/sdk-client",
+  "type": "module",
+  "deckFramework": {
+    "alias": "@ship/sdk-client",
+    "entry": "sui-sdk-client.js",
+    "serve": "_deck/sdk-client.js"
   }
 }"#,
         );
@@ -881,35 +1034,59 @@ export default controller({ scope: () => ({ id: signal('demo') }) })\n",
             .await
             .expect("bundle_app");
 
-        // Gate: importmap binds the host-registered alias to `/_deck/<dist-basename>`.
+        // Gate: importmap binds the discovered alias to
+        // `/_deck/<serve-basename>` (the dep's serve URL convention).
         let html = std::fs::read_to_string(out.join("index.html")).unwrap();
         assert!(
             html.contains("\"@ship/sdk-client\": \"/_deck/sdk-client.js\""),
-            "importmap must bind the host-registered alias to `/_deck/sdk-client.js` (got: {html})",
+            "importmap must bind the discovered alias to `/_deck/sdk-client.js` (got: {html})",
         );
         // Hard constraint: framework must NEVER hardcode `@ship/sdk-client`
-        // as a literal in `FRAMEWORK_ASSETS`. A host-registered alias
-        // comes from the host's `deck.jsonc`, not the framework's own list.
+        // as a literal in `FRAMEWORK_ASSETS`. The alias only lands in the
+        // importmap through provider-declared discovery (the dep's
+        // own `package.json#deckFramework`).
         assert!(
             !html.contains("@ship/sdk-client")
                 || html.contains("@ship/sdk-client\": \"/_deck/sdk-client.js\""),
-            "the only place `@ship/sdk-client` may appear is the host's importmap entry (got: {html})",
+            "the only place `@ship/sdk-client` may appear is the discovered importmap entry (got: {html})",
         );
     }
 
-    /// `--bundle-framework` ALSO copies the host-registered client asset
-    /// (alongside the deck-owned framework singletons) and counts it in
-    /// `framework_assets`. This proves the host's client registration
-    /// rides the same copy pipeline as `@ship/sui-runtime` etc.
+    /// `--bundle-framework` ALSO copies the provider-declared singleton
+    /// asset (alongside the deck-owned framework singletons) and counts
+    /// it in `framework_assets`. This proves the provider-declared
+    /// discovery rides the same copy pipeline as `@ship/sui-runtime`.
     #[tokio::test(flavor = "multi_thread")]
-    async fn bundle_app_copies_host_registered_client_when_bundling() {
+    async fn bundle_app_copies_provider_declared_singleton_when_bundling() {
         let root = tempfile::tempdir().unwrap();
         let r = root.path();
+        // App + dep workspace; the dep's package.json self-declares
+        // its serve contract. The bundler discovers it and copies
+        // the source asset when `--bundle-framework` is set.
         write(
             &r.join("package.json"),
-            r#"{"name":"client-bundle-app","private":true,"type":"module"}"#,
+            r#"{"name":"client-bundle-app","private":true,"type":"module",
+                "workspaces":["packages/*"],
+                "dependencies":{"@ship/sdk-client":"workspace:*"}}"#,
         );
-        // Stage the deck-owned framework singletons AND the host's client.
+        write(
+            &r.join("packages/sdk-client/package.json"),
+            r#"{
+  "name": "@ship/sdk-client",
+  "type": "module",
+  "deckFramework": {
+    "alias": "@ship/sdk-client",
+    "entry": "sui-sdk-client.js",
+    "serve": "_deck/sdk-client.js"
+  }
+}"#,
+        );
+        std::fs::write(
+            r.join("packages/sdk-client/sui-sdk-client.js"),
+            "// stub\n",
+        )
+        .unwrap();
+        // Stage the deck-owned framework singletons too —
         // `bundle_framework=true` copies every entry to `<out>/<dist>`;
         // without the deck-owned ones staged, the build errors with
         // "missing framework asset sui-runtime.js".
@@ -918,23 +1095,6 @@ export default controller({ scope: () => ({ id: signal('demo') }) })\n",
         for name in ["sui-runtime.js", "sui-dom.js", "deck-route.js"] {
             std::fs::write(framework_dir.join(name), "// stub\n").unwrap();
         }
-        let host_framework = r.join(".deck/framework");
-        std::fs::create_dir_all(&host_framework).unwrap();
-        std::fs::write(host_framework.join("sui-sdk-client.js"), "// stub\n").unwrap();
-        write(
-            &r.join("deck.jsonc"),
-            r#"{
-  "name": "client-bundle-app",
-  "route": "/",
-  "source": "client-bundle-app/.deck",
-  "frameworkClients": {
-    "@ship/sdk-client": {
-      "from": ".deck/framework/sui-sdk-client.js",
-      "dist": "_deck/sdk-client.js"
-    }
-  }
-}"#,
-        );
         write(&r.join("routes/page.sui"), "<div>x</div>\n");
 
         let out = r.join("dist");
@@ -942,17 +1102,77 @@ export default controller({ scope: () => ({ id: signal('demo') }) })\n",
             .await
             .expect("bundle_app");
 
-        // Gate 1: the host-registered client asset was copied to <out>/<dist>.
+        // Gate 1: the provider-declared singleton asset was copied
+        // to `<out>/<serve>` (the path the importmap binds).
         assert!(
             out.join("_deck/sdk-client.js").exists(),
-            "`--bundle-framework` must copy the host-registered client asset to <out>/<dist>",
+            "`--bundle-framework` must copy the provider-declared singleton to <out>/<serve>",
         );
-        // Gate 2: framework_assets counter includes the host client (so it
-        // shows up in the build log alongside the deck-owned singletons).
+        // Gate 2: framework_assets counter includes the discovered
+        // singleton (alongside the 3 deck-owned singletons).
         assert!(
             build.framework_assets >= 4,
-            "framework_assets must include 3 deck-owned singletons + 1 host client (got {})",
+            "framework_assets must include 3 deck-owned singletons + 1 discovered singleton (got {})",
             build.framework_assets,
         );
+    }
+
+    /// An app with NO `deck.jsonc` and a `@ship/sdk-client` dependency
+    /// whose package.json self-declares the framework singleton lands a
+    /// valid importmap binding. This is the hub case after the
+    /// deck-jsonc-simplify cutover: a first-party app whose config is
+    /// fully conventional needs no `deck.jsonc` at all. The bundler
+    /// supplies all defaults; the SDK-client is discovered, not declared.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn bundle_app_no_deck_jsonc_still_discovers_framework() {
+        let root = tempfile::tempdir().unwrap();
+        let r = root.path();
+        // App + dep workspace; the app has NO deck.jsonc.
+        write(
+            &r.join("package.json"),
+            r#"{"name":"hub","private":true,"type":"module",
+                "workspaces":["packages/*"],
+                "dependencies":{"@ship/sdk-client":"workspace:*"}}"#,
+        );
+        write(
+            &r.join("packages/sdk-client/package.json"),
+            r#"{
+  "name": "@ship/sdk-client",
+  "type": "module",
+  "deckFramework": {
+    "alias": "@ship/sdk-client",
+    "entry": "sui-sdk-client.js",
+    "serve": "_deck/sdk-client.js"
+  }
+}"#,
+        );
+        std::fs::write(
+            r.join("packages/sdk-client/sui-sdk-client.js"),
+            "// stub\n",
+        )
+        .unwrap();
+        write(&r.join("routes/page.sui"), "<div>x</div>\n");
+
+        let out = r.join("dist");
+        bundle_app(r, &[], r, &out, false, false, r, r)
+            .await
+            .expect("bundle_app with NO deck.jsonc");
+
+        // No deck.jsonc ⇒ AppServeConfig is default (render=csr, no entry).
+        // The dep's `deckFramework` declaration supplies the SDK-client
+        // singleton in the importmap.
+        let html = std::fs::read_to_string(out.join("index.html")).unwrap();
+        assert!(
+            html.contains("\"@ship/sdk-client\": \"/_deck/sdk-client.js\""),
+            "importmap must bind the discovered SDK-client (got: {html})",
+        );
+        // The framework singletons still ship (deck-owned runtime + dom + route).
+        assert!(html.contains("@ship/sui-runtime"), "framework runtime in importmap");
+        assert!(html.contains("@ship/sui-dom"), "framework dom in importmap");
+        assert!(html.contains("@ship/deck/route"), "framework route in importmap");
+        // Since no `entry.bootstrap` was declared, the legacy shape is
+        // used: `routes.gen.ts` IS the entry.
+        assert!(r.join("routes.gen.ts").exists(), "routes.gen.ts is the entry (no deck.jsonc ⇒ no entry.gen.ts)");
+        assert!(!r.join("entry.gen.ts").exists(), "no entry.gen.ts without an entry bootstrap");
     }
 }

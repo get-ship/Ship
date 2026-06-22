@@ -1,18 +1,30 @@
 // apps.jsonc — the Ship monorepo's app ORCHESTRATION list: which apps to
-// serve and where each one's `deck.jsonc` lives. Read by shipd at startup
-// (which loads each app's `deck.jsonc` into its serve config) and by the
-// Justfile build orchestrator. NOT read by deck (L1) — deck is per-app, the
-// host owns the list.
+// serve and where each one's `deck.jsonc` lives. Read by shipd at startup,
+// which loads each app's `deck.jsonc` (if any) into its serve config and
+// pairs it with the host's bind (name/route/source) here. NOT read by
+// deck (L1) — deck is per-app, the host owns the list.
 //
 // Schema (per entry):
-//   { "name": string,   // app handle (logging/orchestration)
+//   { "name": string,   // app handle (logging/orchestration). MUST match
+//                       // the directory basename (`apps/hub` ⇒ `hub`);
+//                       // the directory basename is authoritative for
+//                       // the URL namespace — the framework derives
+//                       // identity from the dir.
 //     "root": string,    // repo-relative dir holding the app's deck.jsonc
-//     "route": string }  // build-orchestration hint (root app, "/", bundles
-//                        // the /_deck/* framework surface)
+//                        // (or just the app source, when the app's
+//                        // config is fully conventional and ships no
+//                        // deck.jsonc).
+//     "route": string }  // URL route pattern shipd mounts the app at.
+//                        // AUTHORITATIVE — the per-app `deck.jsonc`
+//                        // cannot override it (the host composes many
+//                        // apps; the app does not decide where it
+//                        // mounts). `{id}` is a path capture.
 //
-// Per-app config (source, render, injectGlobals, viewOutput) lives in each
-// app's `apps/<root>/deck.jsonc` — the app defines the app. shipd serves using
-// the route declared in each app's deck.jsonc, which is authoritative.
+// Per-app config (render, injectGlobals, entry) lives in each app's
+// `apps/<root>/deck.jsonc` — the app declares only the NON-conventional
+// pieces (its URL-capture → window globals, its host-owned entry
+// bootstrap). Conventional defaults — name/route/source — come from this
+// orchestration list + the directory basename + the bundler convention.
 {
   "apps": [
     { "name": "hub", "root": "apps/hub", "route": "/" },
