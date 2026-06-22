@@ -1,6 +1,7 @@
 // FILE_CAP_OVERRIDE: bar controller is a single-responsibility state harness for 3 panel
-// sub-components; keyboard + SSE + search + focus management must co-locate here.
-// Architectural split would require deep prop-drilling or a separate event bus.
+// sub-components; keyboard + session-event subscription + search + focus management
+// must co-locate here. Architectural split would require deep prop-drilling or a
+// separate event bus.
 import { controller, signal, derived, effect, ref, shared } from '@ship/sui-runtime'
 import type { Signal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-command-bar.sui'
@@ -10,7 +11,7 @@ import {
   loadSlashCommands, cachedSlashCommands, slashCacheAge, SLASH_CACHE_TTL_MS,
   searchEntities, detectMode,
 } from './types'
-import { ops, readSetting } from '../../lib/client'
+import { ops, ship, readSetting } from '../../lib/client'
 import { navigate } from '@ship/deck/route'
 
 export default controller({
@@ -108,8 +109,7 @@ export default controller({
     const daemonOnline     = state.$signals.daemonOnline
 
     const dialogEl = state.$signals.dialogRef?.() as (HTMLElement & { show(): void; close(): void }) | null
-
-    let streamAbort: AbortController | null = null
+    let streamAbort: { abort(): void } | null = null
     let lastSpaceAt = 0
 
     // ── Slash registry + send-key setting loaders ─────────────────
@@ -182,38 +182,87 @@ export default controller({
       }
     }
     ;(host as unknown as CB).setMode = (m: string) => mode.set(m as BarMode)
-
-    // ── SSE stream management ──────────────────────────────────────
+    // ── Session event subscription (kernel event stream) ─────────
+    // Ported off the dead per-session SSE EventSource onto the unified
+    // kernel event stream surfaced via
+    // `ship.onNamespace('agent.session.')` (the established pattern in
+    // apps/shell/src/kernel-bridge.ts). The Connect half is
+    // `StreamService.Events` — a server-stream the SDK already wraps as
+    // `ship`; namespace filtering happens client-side.
+    //
+    // Trade-off vs the old SSE bridge: the per-actor HarnessEvent
+    // broadcast (Message/ToolUse/TurnComplete chunks) is NOT on the
+    // Connect surface today — those still live on the actor mailbox
+    // (`actor_registry::subscribe_events`). We surface lifecycle +
+    // tool_use + turn_observed events that DO land on the kernel bus
+    // and document the missing per-chunk stream in
+    // .artifacts/cmdk-sessions-scrub-notes.md.
     function attachStream(sessionId: string): void {
       detachStream()
-      const ac = new AbortController()
-      streamAbort = ac
-      const es = new EventSource(`/api/v1/sessions/${sessionId}/events`, { withCredentials: true })
+      // `agent.session.*` is the canonical agent-session lifecycle; `hook.*`
+      // is the supervisor-synthesized per-tool-call feed. Subscribe to both
+      // namespaces; the SDK multiplexes onto the single StreamService.Events
+      // server-stream and fans out by namespace prefix.
+      //
+      // `currentAgentId` tracks the in-progress agent bubble so consecutive
+      // text chunks from the same turn coalesce. We never receive text
+      // chunks on this stream today (the harness per-chunk HarnessEvent
+      // broadcast lives on the actor mailbox, no Connect equivalent yet —
+      // see cmdk-sessions-scrub-notes.md); `currentAgentId` is plumbed
+      // through for when that lands. For now the kernel turns are bookended
+      // by `hook.turn_observed`/`agent.session.turn_ended`, which clears it.
       let currentAgentId: string | null = null
-      es.addEventListener('harness', (ev) => {
-        let parsed: { kind?: string; text?: string; tool?: string }
-        try { parsed = JSON.parse((ev as MessageEvent).data) } catch { return }
-        switch (parsed.kind) {
-          case 'message': {
-            const chunk = parsed.text ?? ''
-            if (!chunk) return
-            if (currentAgentId) {
-              thread.set(thread().map((m) => m.id === currentAgentId ? { ...m, text: m.text + chunk } : m))
-            } else {
-              const id = String(Date.now() + Math.random())
-              currentAgentId = id
-              thread.set([...thread(), { id, sender: 'agent', text: chunk }])
-            }
+      const handleEvent = (event: { event_type: string; entity_id: string; payload_json?: string }): void => {
+        let payload: Record<string, unknown> = {}
+        try { payload = event.payload_json ? JSON.parse(event.payload_json) : {} } catch { /* malformed */ }
+        const payloadSession = (payload as { session_id?: unknown }).session_id
+        if (typeof payloadSession === 'string' && payloadSession !== sessionId) return
+        if (event.entity_id && event.entity_id !== sessionId) return
+
+        switch (event.event_type) {
+          case 'agent.session.dispatched': {
+            // The harness process is up and observable. Flip the active
+            // session to status='ready' (was 'spawning' during the optim-
+            // istic window). The dispatch result stashed the slug already.
+            const s = session()
+            if (s?.id === sessionId) session.set({ ...s, status: 'ready' })
             break
           }
-          case 'tool_use':
-            thread.set([...thread(), { id: String(Date.now() + Math.random()), sender: 'system', text: `→ tool: ${parsed.tool ?? '?'}` }])
+          case 'agent.session.turn_ended':
+          case 'agent.session.completed':
+          case 'agent.session.failed':
+          case 'agent.session.cancelled': {
+            const s = session()
+            if (s?.id === sessionId) session.set(null)
+            // Force a session-list refresh; the canonical_sessions row
+            // updated and pty-sessions listing will reflect the new state.
+            void loadCurrentSession()
             break
-          case 'turn_complete': currentAgentId = null; break
+          }
+          case 'hook.tool_use_started': {
+            const tool = (payload as { tool?: unknown }).tool
+            const name = typeof tool === 'string' ? tool : '?'
+            thread.set([...thread(), {
+              id: String(Date.now() + Math.random()),
+              sender: 'system',
+              text: `→ tool: ${name}`,
+            }])
+            break
+          }
+          case 'hook.turn_observed': {
+            // Mirrors the old SSE `turn_complete` boundary — clears the
+            // current-message accumulator so the next chunk starts a
+            // fresh bubble.
+            currentAgentId = null
+            break
+          }
+          default:
+            break
         }
-      })
-      es.onerror = () => { if (!ac.signal.aborted) es.close() }
-      ac.signal.addEventListener('abort', () => es.close())
+      }
+      const off = ship.onNamespace('agent.session.', handleEvent)
+      const offHook = ship.onNamespace('hook.', handleEvent)
+      streamAbort = { abort: () => { off(); offHook() } }
     }
     function detachStream(): void { streamAbort?.abort(); streamAbort = null }
 
@@ -223,7 +272,6 @@ export default controller({
       if (s?.id) attachStream(s.id)
       else detachStream()
     })
-
     // Re-focus the right input whenever mode flips while the bar is open
     // (e.g., send-to-agent prefill flips mode→'ai' on an already-open bar).
     const stopModeFocusSync = effect(() => {
@@ -372,10 +420,19 @@ export default controller({
       const top = searchHits()[0]
       if (top) { navigate(top.path); value.set(''); open.set(false) }
     }
-
     async function endSession(id: string): Promise<void> {
-      try { await fetch(`/api/v1/sessions/${id}`, { method: 'DELETE', credentials: 'same-origin' }) } catch { /* best-effort */ }
-      if (session()?.id === id) { session.set(null) }
+      // agents.stop takes the dispatch slug. The picker shows both
+      // sessions we dispatched (slug stashed on the SessionSummary)
+      // and sessions loaded from agents.sessions (no slug yet — see
+      // cmdk-sessions-scrub-notes.md). When we don't have a slug, fall
+      // back to optimistic UI drop + refresh; the kernel completion
+      // event will reconcile.
+      const summary = allSessions().find((x: SessionSummary) => x.id === id)
+      const slug = summary?.slug
+      if (slug) {
+        try { await ops.agents.stop({ slug }) } catch { /* best-effort */ }
+      }
+      if (session()?.id === id) session.set(null)
       await loadCurrentSession()
     }
 

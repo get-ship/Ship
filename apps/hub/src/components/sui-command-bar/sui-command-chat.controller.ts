@@ -27,8 +27,26 @@ export default controller({
     const daemonOffline = derived(() => bar!.daemonOnline() === false)
 
     function endSession(id: string): void {
-      void fetch(`/api/v1/sessions/${id}`, { method: 'DELETE', credentials: 'same-origin' })
-        .catch(() => {/* best-effort */})
+      // Connect: agents.stop takes the dispatch *slug* (NOT the pty session id
+      // the SSE bridge keyed on). Picker rows from agents.sessions don't carry
+      // a slug yet — see SessionSummary.slug + cmdk-sessions-scrub-notes.md.
+      // Without one we don't fabricate a request the server would 400 on;
+      // fall through to optimistic UI drop + a warning toast.
+      const summary = bar!.allSessions().find((x: SessionSummary) => x.id === id)
+      const slug = summary?.slug
+      if (!slug) {
+        if (bar!.session()?.id === id) bar!.session.set(null)
+        bar!.sessionPickerOpen.set(false)
+        document.dispatchEvent(new CustomEvent('sui:notify', {
+          detail: {
+            tone: 'warning',
+            title: 'End session',
+            description: 'Session is not locally dispatchable; cleared from view.',
+          },
+        }))
+        return
+      }
+      void ops.agents.stop({ slug }).catch(() => {/* best-effort */})
       if (bar!.session()?.id === id) bar!.session.set(null)
       bar!.sessionPickerOpen.set(false)
     }
@@ -74,28 +92,56 @@ export default controller({
       // Mirrors palette.spawnSession but lives in chat too so the unified
       // ai mode (chat panel always renders) can start a session without
       // bouncing back through the palette.
+      // Ported off the dead spawn route onto the unified
+      // agents.dispatch Connect op (apps/shipd/.../rpc_wire.rs:624). The
+      // returned slug is the handle steer/stop take; we save it on the
+      // SessionSummary so subsequent messages in this session can address
+      // it without a server-side lookup. The bar's loadCurrentSession
+      // picks up the new row via ship:session:changed (fired by the
+      // agents.session.started kernel event projection).
       const agent = s.bar.spawnAgent()
       const harness = s.bar.spawnHarness()
       if (!agent || !harness) return
       s.bar.spawning.set(true)
       s.bar.spawnError.set(null)
       try {
-        const workspace_id = await ops.space
+        const workspace = await ops.space
           .active({})
-          .then((r) => r.active?.id)
-          .catch(() => undefined)
-        if (!workspace_id) {
+          .then((r) => r.active?.id ?? '')
+          .catch(() => '')
+        if (!workspace) {
           s.bar.spawnError.set('No active project — cannot spawn session.')
           return
         }
-        const resp = await fetch('/api/v1/sessions/spawn', {
-          method: 'POST', credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ workspace_id, kind: 'agent', agent_id: agent, harness }),
+        const result = await ops.agents.dispatch({
+          agent,
+          harness,
+          workspace,
+          // Chat is conversational; pty invocation lets the harness run
+          // interactively. Empty invocation defaults to Pty server-side
+          // (rpc_wire.rs:647-651).
+          keepalive: true,
+          openTab: false,
         })
-        if (!resp.ok) {
-          const err = await resp.json().catch(() => ({})) as { error?: string }
-          s.bar.spawnError.set(err.error ?? `HTTP ${resp.status}`)
+        // Stash the slug on the matching session row once loadCurrentSession
+        // picks it up; optimistically bind the session signal so a user
+        // typing right after dispatch can be addressed immediately.
+        if (result.sessionId && result.slug) {
+          const existing = s.bar.allSessions().find((x: SessionSummary) => x.id === result.sessionId)
+          if (existing) existing.slug = result.slug
+          const current = s.bar.session()
+          if (current?.id === result.sessionId) {
+            s.bar.session.set({ ...current, slug: result.slug })
+          } else if (!current) {
+            s.bar.session.set({
+              id: result.sessionId,
+              workspace_id: workspace,
+              agent_id: agent,
+              harness,
+              status: 'spawning',
+              slug: result.slug,
+            })
+          }
         }
       } catch (err) {
         s.bar.spawnError.set(err instanceof Error ? err.message : 'Unknown error')
@@ -152,6 +198,7 @@ async function sendCurrent(s: any): Promise<void> {
   const text = s.bar.value().trim()
   if (!text || !s.bar.session()) return
   const sessionId = s.bar.session()!.id
+  const slug = s.bar.session()!.slug
 
   // Optimistic render: append user bubble, clear composer + history idx.
   s.bar.thread.set([
@@ -162,16 +209,17 @@ async function sendCurrent(s: any): Promise<void> {
   s.bar.historyIdx.set(-1)
   s.bar.sendError.set(null)
 
+  // Connect: agents.steer takes the dispatch slug. If the active session has
+  // no slug (loaded from agents.sessions before the cmdk that owns it gets a
+  // chance to inject one), we rewind the optimistic bubble and surface a
+  // dismissible error rather than fabricating a 400-bound request.
+  if (!slug) {
+    restoreOnFailure(s, text, 'Send failed: session has no dispatch handle yet — try again in a moment.')
+    return
+  }
+
   try {
-    const resp = await fetch(`/api/v1/sessions/${sessionId}/message`, {
-      method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    })
-    if (!resp.ok) {
-      restoreOnFailure(s, text, `Send failed: HTTP ${resp.status}`)
-      return
-    }
+    await ops.agents.steer({ slug, message: text })
     // Successful send → record in recent buffer so ArrowUp can recall.
     const recent = s.bar.recentSends() as string[]
     const next = [text, ...recent.filter((t: string) => t !== text)].slice(0, RECENT_MAX)

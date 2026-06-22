@@ -7,6 +7,7 @@ import {
   CREATE_SURFACES, SEARCH_KIND_LABELS,
   detectMode, isKebab,
 } from './types'
+import { ops } from '../../lib/client'
 import { navigate } from '@ship/deck/route'
 
 export default controller({
@@ -132,7 +133,29 @@ export default controller({
 
     // ── Imperative helpers exposed to template ────────────────────
     function endSession(id: string): void {
-      void fetch(`/api/v1/sessions/${id}`, { method: 'DELETE', credentials: 'same-origin' })
+      // Ported off the dead per-session DELETE onto agents.stop (Connect).
+      // agents.stop takes the dispatch *slug*
+      // — the pty session id the old route keyed on is a different
+      // value. Sessions we dispatched carry the slug on their
+      // SessionSummary; sessions loaded from agents.sessions don't
+      // (yet — see cmdk-sessions-scrub-notes.md). Without a slug we
+      // can't stop cleanly; surface a toast and bail rather than
+      // fabricating a 400-bound request.
+      const summary = bar!.allSessions().find((x: SessionSummary) => x.id === id)
+      const slug = summary?.slug
+      if (!slug) {
+        bar!.sessionPickerOpen.set(false)
+        document.dispatchEvent(new CustomEvent('sui:notify', {
+          detail: {
+            tone: 'warning',
+            title: 'End session',
+            description: 'Session is not locally dispatchable; cleared from view.',
+          },
+        }))
+        if (bar!.session()?.id === id) bar!.session.set(null)
+        return
+      }
+      void ops.agents.stop({ slug })
         .catch(() => {/* best-effort */})
         .then(() => {
           if (bar!.session()?.id === id) bar!.session.set(null)

@@ -23,11 +23,17 @@ export interface CreateSurfaceDef {
 }
 
 export interface SessionSummary {
+  /** PTY session id (the runtime `SessionMeta.id` from `agents.sessions`). */
   id: string
   workspace_id: string
   agent_id?: string
   harness?: string
   status: string
+  /** Dispatch handle for `agents.stop` / `agents.steer` (NOT the same as
+   *  `id` — slug is `<workspace>-<ulid-suffix>` and only the cmdk that
+   *  dispatched has it; sessions listed from `agents.sessions` won't carry
+   *  one until the daemon enriches `SessionMeta` with the slug field). */
+  slug?: string
 }
 
 export interface AgentSummary {
