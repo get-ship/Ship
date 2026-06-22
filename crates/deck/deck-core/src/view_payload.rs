@@ -120,10 +120,14 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> DeckResponse {
     let css = collect_view_css(name, resolved.source_path.as_deref());
     let module_url = crate::routes::view_module_url(name, sub_path);
     // First-paint source, in precedence order:
-    //   1. ship-js synthetic SSR — ONLY when the `DECK_SSR=ship-js` gate is on,
-    //      a renderer is registered, and it succeeds (gated + additive).
+    //   1. ship-js synthetic SSR — the DEFAULT: selected whenever a renderer is
+    //      registered and it succeeds. `DECK_SSR=render-eval` opts back out.
     //   2. a precompiled `<stem>.ssr.html` mirror artifact.
-    //   3. the Rust render-eval split (the default; unchanged when the gate is off).
+    //   3. the archived Rust render-eval split (`render_eval_archived`) — the
+    //      fallback when ship-js is unregistered/errored or opted out of. The
+    //      `render_split` engine itself is shared with the CSR hydration init
+    //      (`split.init` below), so it stays in the compiler; this is its
+    //      first-paint use.
     let raw_html = synthetic_first_paint(&view_name, sub_path, &resolved)
         .or_else(|| read_precompiled_ssr(resolved.source_path.as_deref()))
         .unwrap_or(split.html);
