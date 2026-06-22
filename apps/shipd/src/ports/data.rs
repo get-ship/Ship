@@ -74,15 +74,18 @@ impl ChangeSource for ShipChangeSource {
     ) -> Pin<Box<dyn Future<Output = Result<Box<dyn ChangeFeed>, String>> + Send + '_>> {
         let state = self.state.clone();
         Box::pin(async move {
-            // ONE kernel actor per multiplex stream, subscribes the `config`
-            // namespace. Mirrors the body at `live_read::live_read_inner:35-49`
-            // (the per-op `<Op>Live` transport's identical pattern).
+            // ONE kernel actor per multiplex stream. Subscribes the namespaces
+            // whose events should re-resolve every live sub: `config` (settings,
+            // collections, etc.) AND `agent` — so editing an agent file
+            // (`agent.def.updated`, the `agent` namespace) makes the live agents
+            // surface update instead of going stale until an unrelated
+            // `config.changed`. Mirrors `live_read::live_read_inner:35-49`.
             let actor_id = format!("mux-{}", ship_substrate::gen_ulid());
             let config = ActorConfig {
                 namespace: actor_id.clone(),
                 write_namespaces: vec![],
                 read_namespaces: vec![],
-                subscribe_namespaces: vec!["config".to_string()],
+                subscribe_namespaces: vec!["config".to_string(), "agent".to_string()],
                 see_directed_events: false,
             };
             let mailbox = {

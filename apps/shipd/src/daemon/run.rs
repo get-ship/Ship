@@ -298,17 +298,22 @@ pub async fn run_network(
     let app_registry =
         router::apps_config::ShipAppRegistry::new(project_root_for_apps, apps_config_path);
     let apps = app_registry.serve_configs();
-    // Slice-2 component 1: register each app's per-app view-output dir so
-    // deck's runtime serves compiled view bundles from the right per-app
-    // location (e.g. `apps/hub/.deck/views/<name>/view.js`) before falling
-    // back to the workspace-root output. The path is resolved against the
-    // project root the daemon already holds (`worktree_root`); an absent
-    // `view_output` is fine — the runtime falls back to the workspace-root
-    // output dir the bundler owns.
+    // Per-app view-output dir is CONVENTION (`<app>/.deck/views`) — every
+    // app gets it registered so deck's runtime serves compiled view
+    // bundles from the right per-app location (e.g.
+    // `apps/hub/.deck/views/<name>/view.js`) before falling back to the
+    // workspace-root output. The path is resolved against the project
+    // root the daemon already holds (`worktree_root`); an app with no
+    // built `.deck/` yet still gets the dir registered (the runtime
+    // gracefully 404s and falls back).
     if let Some(root) = worktree_root.as_ref() {
         for app in &apps {
-            if let Some(rel) = &app.view_output {
-                let abs = root.join(rel);
+            // Convention: `<app.source>/views` (always `<app>/.deck/views`
+            // when the host binds source from the directory basename).
+            // The host constructs `app.source` via the convention
+            // `format!("{root}/.deck")` for first-party apps.
+            if !app.source.is_empty() {
+                let abs = root.join(&app.source).join("views");
                 deck::register_view_output(app.name.clone(), abs);
             }
         }

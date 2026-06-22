@@ -1,7 +1,8 @@
-// @ship/primitives — Ship Primitives pack (small, presentational ship-* atoms).
+// @ship/shared — Ship Shared pack (internal ship-* components shared across
+// Ship's own apps: hub, spaces). INTERNAL — not a published domain pack.
 //
 // Each <tag>.compiled.js calls customElements.define() on import, so a single
-// `import '@ship/primitives'` registers every tag globally.
+// `import '@ship/shared'` registers every tag globally.
 //
 // These are tiny status / affordance atoms. They are purely presentational —
 // the host passes state via reflected attributes and the component renders.
@@ -9,3 +10,4 @@
 // responsible for registering @ship/sui-primitives via `import
 // '@ship/sui-primitives'`.
 import './ship-watch-badge/ship-watch-badge.compiled.js'
+import './ship-error-state/ship-error-state.compiled.js'

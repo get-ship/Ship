@@ -50,6 +50,12 @@ export default controller({
     const rail = live(() =>
       ops.skills.summaries({ q: q(), kind: kind(), tag: '' }) as unknown as LiveSource<RailValue>,
     )
+    // `loading` is true until the source first resolves — the template
+    // (`{#if loading()}`) renders the spinner meanwhile. Returned below + used
+    // by the view, but it was never declared (ReferenceError "loading is not
+    // defined" blanked the whole skills route). Mirrors the [id] controller's
+    // `kind !== 'ok'` pattern.
+    const loading = derived(() => rail().kind !== 'ok')
     // Defensive: the hub's `ship.skills.summaries` returns a different /
     // empty shape than the shell's. A missing `groups` or `kind_counts`
     // must NOT throw — the derived re-runs on every source tick, so an

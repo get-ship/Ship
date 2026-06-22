@@ -1,0 +1,184 @@
+/* themes/[name]/style.css — the theme-detail view. Mirrors the
+   tokens/typography rhythm of the index view (themes/style.css) so a
+   user moving from the picker to the detail feels the same surface. */
+
+.theme-detail-view {
+  height: 100%;
+  overflow-y: auto;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.theme-detail-wrap {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5) var(--space-8);
+}
+
+/* Header */
+.theme-detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-4);
+  transition: color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+}
+.theme-detail-back:hover { color: var(--foreground); }
+
+.theme-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.theme-detail-head-body { min-width: 0; flex: 1; }
+.theme-detail-name {
+  font-family: var(--heading-font, var(--font-display));
+  font-size: var(--text-2xl);
+  font-weight: var(--heading-weight, var(--font-weight-semibold));
+  margin: 0;
+  color: var(--foreground);
+}
+.theme-detail-meta {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.theme-detail-sep {
+  width: 1px;
+  height: 12px;
+  background: var(--border);
+}
+.theme-detail-id { color: var(--foreground); font-size: var(--text-sm); }
+.theme-detail-rule {
+  height: 1px;
+  background: var(--border);
+  margin-top: var(--space-3);
+}
+
+.theme-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.theme-detail-banner {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  padding: 0 var(--space-2);
+}
+.theme-detail-banner[data-ok='false'] { color: var(--destructive, var(--tone-destructive-fg, currentColor)); }
+.theme-detail-banner[data-ok='true']  { color: var(--tone-success-fg, currentColor); }
+
+/* Sections */
+.theme-detail-sec { margin-top: var(--space-6); }
+.theme-detail-sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.theme-detail-sec-h {
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+  color: var(--foreground);
+}
+.theme-detail-sec-meta {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+.theme-detail-prose {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+.theme-detail-prose a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Swatches — the four palette stops the index view shows as a strip. */
+.theme-swatch-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+.theme-swatch-tile {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  overflow: hidden;
+}
+.theme-swatch-chip-large {
+  height: 96px;
+  border-bottom: 1px solid var(--border);
+}
+.theme-swatch-meta {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.theme-swatch-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--foreground);
+}
+.theme-swatch-value {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  word-break: break-all;
+}
+
+/* Preview — surfaces the theme on a real card. The preview is a
+   self-contained "card" inside a frame that itself uses the current
+   live tokens, but the inner content uses inline `style="background"`
+   to show the THEME's palette, not the active one. That gives the
+   reader a concrete read on what switching to this theme does
+   without actually applying it (which would mutate the rest of the
+   hub until they switch back). */
+.theme-preview-stage {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  padding: var(--space-5);
+}
+.theme-preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  border: 1px solid var(--border);
+}
+.theme-preview-card-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--foreground);
+}
+.theme-preview-prose {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+.theme-preview-prose a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+.theme-preview-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}

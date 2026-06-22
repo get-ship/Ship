@@ -7,12 +7,22 @@
 //     relative `src/lib/client` import is gone; the client lives in
 //     the view mount context, not a per-view module path.
 //   - `collections.list` → LIVE `ship.collections.list()` (registered resolver).
-//   - `collections.detail` → unary `ops.collections.detail()` + { json } decode.
-//     The op has no live mux resolver; using `ship` here would SSE-404.
-//     A `colDetailValue` derived decodes the envelope and exposes the plain shape
-//     the template reads. Degrade-to-null on missing/malformed data.
-//   - All mutations (create/create_item/update_item/delete_item/update_schema)
-//     → `ops.collections.*` (unary; `ship` is read-only live).
+//   - `collections.detail` → unary `ops.collections.get({ id })`. The
+//     connect service has no `detail` rpc; the schema+item-count
+//     read is `Get` (proto), which the connect client surfaces as
+//     `get` returning `CollectionDetail { id, schemaJson: bytes, itemCount }`.
+//     `ship.collections.detail` SSE-404s (no registered mux resolver
+//     for the `collections.detail` tuple), and the SDK has no
+//     wrapper for `get`. A `colDetailValue` derived decodes the
+//     `schemaJson` bytes and projects to the controller's
+//     `ColDetailShape` (`name`/`builtin`/`fields`/`total_items`).
+//     Items are NOT returned by `Get` — the rows tab degrades to
+//     an empty state until a JS-friendly items op lands (see
+//     `.artifacts/hub-studio-fixes-notes.md`).
+//   - Mutations → `ship.collections.{create,update_schema,create_item,
+//     update_item,delete_item}` (the SDK's snake_case wrappers, which
+//     adapt to the connect client internally and keep this controller
+//     from hand-rolling the `dataJson`/`schemaJson` bytes-encoding).
 import { controller, signal, derived, live } from '@ship/sui-runtime'
 import { route as routeFactory } from '@ship/deck/route'
 import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
@@ -40,9 +50,10 @@ type ColRow = {
   last_activity?: string | null
 }
 
-type Item = { id: string; data?: Record<string, unknown> }
-
-// Shape exposed after the { json } envelope is decoded from ops.collections.detail.
+// Shape exposed after the wire's `ops.collections.get` is projected in
+// `colDetailValue`. `items` is always empty here — the proto's `Get`
+// returns only schema + count; rows need a separate items op the
+// connect surface does not expose in a JS-friendly form.
 type ColDetailShape = {
   schema: {
     name: string
@@ -157,7 +168,7 @@ function shortDate(iso: string): string {
   if (delta < 604_800) return `${Math.round(delta / 86_400)}d ago`
   return new Date(then).toISOString().slice(0, 10)
 }
- export default controller({
+export default controller({
   scope: (ctx: ViewScope<Scope>) => {
     // AMBIENT clients (host-owned): the entry.gen.ts bootstrap constructs
     // `ship` + `ops` from `src/lib/client.ts` and injects them as
@@ -169,27 +180,52 @@ function shortDate(iso: string): string {
     const activeId = derived(() => route.query.collection() || '')
     // LIVE: collections.list has a registered live resolver.
     const collections = live(() => ship.collections.list())
-    // UNARY: collections.detail has no registered resolver; SSE would 404.
-    const colDetail = live(() => ops.collections.detail({ id: activeId() })) as LiveSignal<unknown>
-    // Decode the { json } envelope from the unary ops response defensively.
-    // Tolerates both the raw Connect shape (already decoded) and the { json }
-    // string envelope. Degrades to null rather than throwing.
+    // UNARY: collections.get is the real Connect rpc (the proto's `Get`
+    // returns `CollectionDetail { id, schemaJson: bytes, itemCount }`).
+    // `ship.collections.detail` SSE-404s (no mux resolver for the
+    // `collections.detail` tuple), and there is no SDK `get` wrapper.
+    // The schema comes as JSON bytes (`TextEncoder(JSON.stringify(SchemaDoc))`);
+    // the `colDetailValue` derived decodes + projects below.
+    const colDetail = live(() => ops.collections.get({ id: activeId() })) as LiveSignal<unknown>
+    // Project the wire's `CollectionDetail` to the controller's
+    // `ColDetailShape`. Defensive on every step so a malformed
+    // payload degrades to null rather than throwing — the live
+    // signal hands `error` envelopes to the template otherwise.
     const colDetailValue = derived<ColDetailShape | null>(() => {
       const r = colDetail()
       if (r.kind !== 'ok') return null
-      let v = r.value as { json?: unknown } | Record<string, unknown> | null | undefined
-      if (v && typeof (v as { json?: unknown }).json === 'string') {
-        try {
-          v = JSON.parse((v as { json: string }).json) as Record<string, unknown>
-        } catch {
-          v = null
-        }
+      const v = r.value as { id?: string; schemaJson?: Uint8Array | string; itemCount?: number } | null | undefined
+      if (!v) return null
+      let schema: { id?: string; title?: string; system?: boolean; fields?: Record<string, SchemaField> } | null = null
+      const raw = v.schemaJson
+      if (raw instanceof Uint8Array) {
+        try { schema = JSON.parse(new TextDecoder().decode(raw)) } catch { schema = null }
+      } else if (typeof raw === 'string') {
+        try { schema = JSON.parse(raw) } catch { schema = null }
       }
-      return (v ?? null) as ColDetailShape | null
+      if (!schema) return null
+      const fields = schema.fields
+        ? Object.entries(schema.fields).map(([name, f]) => ({
+            name,
+            field_type: (f as { type?: string }).type ?? 'string',
+            ...((f as { required?: boolean }).required === undefined ? {} : { required: (f as { required?: boolean }).required }),
+            values: Array.isArray((f as { values?: unknown }).values) ? ((f as { values?: unknown }).values as string[]) : undefined,
+          }))
+        : []
+      return {
+        schema: {
+          name: schema.title ?? schema.id ?? v.id ?? activeId(),
+          builtin: schema.system === true,
+          fields,
+        },
+        items: [],
+        total_items: typeof v.itemCount === 'number' ? v.itemCount : 0,
+      }
     })
 
     const indexQuery = signal('')
     const statusFilter = signal('')
+
 
     const activeCollection = derived<ColRow | null>(() => {
       const v = collections() as { kind: string; value?: { items: ColRow[] } }
@@ -265,18 +301,25 @@ function shortDate(iso: string): string {
     const newColDraftName = signal('')
     const drawerError = signal('')
 
+    // The SDK's `ship.collections.*` methods are the snake_case wrappers
+    // around the connect client's camelCase rpcs; they handle the
+    // `dataJson`/`schemaJson` bytes-encoding internally so the
+    // controller can pass plain objects. (`ops` only exposes the
+    // raw connect surface — no friendly wrappers for the
+    // collections writes, so the snake_case call shape lives here.)
     const createItem = (a: { collection: string; data: Record<string, unknown> }) =>
-      ops.collections.create_item(a)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (ship as any).collections.create_item(a)
     const updateItem = (a: { collection: string; item_id: string; data: Record<string, unknown> }) =>
-      ops.collections.update_item(a)
+      (ship as any).collections.update_item(a)
     const deleteItem = (a: { collection: string; item_id: string }) =>
-      ops.collections.delete_item(a)
+      (ship as any).collections.delete_item(a)
     const updateSchema = (a: {
       id: string
       fields: Array<{ name: string; type: string; required?: boolean; values?: string[] }>
-    }) => ops.collections.update_schema(a)
+    }) => (ship as any).collections.update_schema(a)
     const createCol = (a: { id: string; name?: string; fields?: Record<string, unknown> }) =>
-      ops.collections.create(a)
+      (ship as any).collections.create(a)
 
     return {
       activeId, activeCollection, collections, colDetail, colDetailValue,

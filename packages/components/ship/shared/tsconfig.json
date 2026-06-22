@@ -19,7 +19,7 @@
     "noEmit": false,
     "rootDirs": [
       "src",
-      "../../../../.ship/sui-out/packages/components/ship/primitives/src"
+      "../../../../.ship/sui-out/packages/components/ship/shared/src"
     ]
   },
   "include": ["src/**/*"],

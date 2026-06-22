@@ -457,9 +457,9 @@ mod tests {
             name: name.to_string(),
             route: "/".to_string(),
             source: "nonexistent-scaffold".to_string(),
-            view_output: None,
             inject_globals: globals,
             render: RenderMode::Csr,
+            entry: None,
         }
     }
 
@@ -506,9 +506,9 @@ mod tests {
             name: "space".to_string(),
             route: "/space/{id}".to_string(),
             source: "my-scaffold".to_string(),
-            view_output: None,
             inject_globals: globals,
             render: RenderMode::Csr,
+            entry: None,
         };
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[("id", "my-space")]);
 
@@ -539,9 +539,9 @@ mod tests {
             name: "ssr-app".to_string(),
             route: "/".to_string(),
             source: "ssr-scaffold".to_string(),
-            view_output: None,
             inject_globals: std::collections::BTreeMap::new(),
             render: RenderMode::Ssr,
+            entry: None,
         };
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[]);
         assert_eq!(resp.status, 200);
@@ -573,9 +573,9 @@ mod tests {
             name: "space".to_string(),
             route: "/space/{id}".to_string(),
             source: "my-scaffold".to_string(),
-            view_output: None,
             inject_globals: std::collections::BTreeMap::new(),
             render: RenderMode::Csr,
+            entry: None,
         };
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[("id", "x")]);
         // Status 200 is the only contract: the source-fallback path
@@ -649,9 +649,9 @@ mod tests {
             name: "test".to_string(),
             route: "/".to_string(),
             source: "safe-scaffold".to_string(),
-            view_output: None,
             inject_globals: globals,
             render: RenderMode::Csr,
+            entry: None,
         };
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[]);
 

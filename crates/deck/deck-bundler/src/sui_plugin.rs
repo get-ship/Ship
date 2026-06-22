@@ -20,7 +20,15 @@ use rolldown_common::{ModuleType, ResolvedExternal};
 
 use crate::compile::{compile_sui, CompileMode};
 
-const SINGLETONS: [&str; 3] = ["@ship/sui-runtime", "@ship/sui-dom", "@ship/sdk-client"];
+// NOTE: `@ship/sdk-client` was here historically (deck-self-typed as a
+// framework singleton). The deck-jsonc-simplify cutover moves it to
+// provider-declared discovery: the package self-declares its serve
+// contract in `package.json#deckFramework`, the bundler discovers it
+// via the app's dep graph, and `AppPlugin` externalizes whatever the
+// importmap declares. Hardcoding the alias here would silently anchor
+// `@ship/sdk-client` to workspace source — the OPPOSITE of what the
+// importmap says — and break the host-declared singleton pattern.
+const SINGLETONS: [&str; 2] = ["@ship/sui-runtime", "@ship/sui-dom"];
 
 /// Virtual id for an unresolved `@sui-tag/<tag>` import — a shared empty module
 /// so the import is a harmless no-op. `\0` marks it virtual (Rollup/Rolldown

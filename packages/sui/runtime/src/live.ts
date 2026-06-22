@@ -13,7 +13,7 @@
 //                               signal lifecycle. The Phase-3 SDK
 //                               client returns this shape.
 
-import { effect, signal, type Signal } from './signal'
+import { effect, signal, untrack, type Signal } from './signal'
 import { onCleanup } from './effect-scope'
 
 /** The lifecycle of a `LiveSignal<T>` value. */
@@ -123,45 +123,61 @@ export function live<T>(
   // cleanups land in the MountHandle's cleanup list.)
   const stop = effect(() => {
     const myToken = ++token
+    // Only `source()` runs tracked — its signal reads (the query the
+    // controller builds) are the effect's real deps and the only thing
+    // that should re-fire it. Everything that touches `sig` runs under
+    // `untrack`: a `LiveSource.subscribe` that reads `sig()` (to merge or
+    // accumulate state) must NOT subscribe this effect to `sig`, or its
+    // own `sig.set` re-fires the effect → re-calls `source` → re-subscribes
+    // → unbounded re-entry → `RangeError: Maximum call stack size exceeded`.
     let result: LiveSource<T> | Promise<T> | T
     try {
       result = source()
     } catch (err) {
       if (myToken !== token) return
-      const error = toError(err)
-      sig.set({ kind: 'error', error })
-      opts?.onError?.(err)
-      return
-    }
-    sig.set({ kind: 'loading' })
-
-    if (isLiveSource<T>(result)) {
-      let disposed = false
-      const unsub = result.subscribe(sig)
-      return () => {
-        if (disposed) return
-        disposed = true
-        try {
-          unsub()
-        } catch (err) {
-          opts?.onError?.(err)
-        }
-      }
-    }
-
-    Promise.resolve(result as Promise<T> | T).then(
-      (value) => {
-        if (myToken !== token) return
-        sig.set({ kind: 'ok', value })
-      },
-      (err) => {
-        if (myToken !== token) return
+      untrack(() => {
         const error = toError(err)
         sig.set({ kind: 'error', error })
         opts?.onError?.(err)
-      },
-    )
-    return undefined
+      })
+      return
+    }
+
+    return untrack(() => {
+      sig.set({ kind: 'loading' })
+
+      if (isLiveSource<T>(result)) {
+        let disposed = false
+        // `disposed` keeps the disposer idempotent (it runs on re-fire and
+        // again on unmount). Re-entry is already prevented by `untrack`
+        // above — this run is never a `sig` subscriber, so the stream's
+        // `sig.set` can't re-fire it.
+        const unsub = result.subscribe(sig)
+        return () => {
+          if (disposed) return
+          disposed = true
+          try {
+            unsub()
+          } catch (err) {
+            opts?.onError?.(err)
+          }
+        }
+      }
+
+      Promise.resolve(result as Promise<T> | T).then(
+        (value) => {
+          if (myToken !== token) return
+          sig.set({ kind: 'ok', value })
+        },
+        (err) => {
+          if (myToken !== token) return
+          const error = toError(err)
+          sig.set({ kind: 'error', error })
+          opts?.onError?.(err)
+        },
+      )
+      return undefined
+    })
   })
 
   onCleanup(stop)
