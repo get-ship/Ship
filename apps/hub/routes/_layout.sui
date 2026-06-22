@@ -25,5 +25,6 @@
   page body; the chrome owns the wrapper.
 -->
 <ship-app-chrome>
+  <sui-command-bar slot="command-bar" id="ship-command-bar"></sui-command-bar>
   <slot name="route" />
 </ship-app-chrome>
