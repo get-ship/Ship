@@ -198,24 +198,40 @@ function coBundledPayload(name: string): ViewPayload {
   return { name, html: '', css: '', scope: {}, moduleUrl: '', params: {}, clients: [] }
 }
 
-/**
- * Build a minimal "not found" element with the unmatched path and a back
- * affordance. Used when no route module matches the current pathname. Avoids
- * innerHTML to prevent any XSS concern with user-controlled URL paths.
- */
-function buildNotFound(pathname: string): HTMLElement {
-  const el = document.createElement('div')
-  el.className = 'deck-not-found'
-  const msg = document.createElement('p')
-  msg.textContent = `Not found: ${pathname}`
-  const btn = document.createElement('button')
-  btn.type = 'button'
-  btn.textContent = 'Go back'
-  btn.addEventListener('click', () => history.back())
-  el.appendChild(msg)
-  el.appendChild(btn)
-  return el
-}
+ /**
+  * Build the 404 fallback element. The chrome chain is already mounted at
+  * this point (see `mountCurrent`'s no-match branch), so this element lives
+  * INSIDE the chrome's route slot — the rail and nav stay visible. The
+  * surface is the shared `<ship-error-state>` primitive from
+  * `@ship/primitives`; the chrome's compiled view emits a
+  * `@sui-tag/ship-error-state` import for us, so by the time this runs
+  * the custom element is registered.
+  *
+  * `textContent` (not innerHTML) on the body keeps user-controlled URL
+  * paths safe from XSS. The element upgrades synchronously because the
+  * chrome's mount precedes this call.
+  */
+ function buildNotFound(pathname: string): HTMLElement {
+   // Guard against an unbuilt workspace — falling back to a bare text node
+   // (the previous behaviour) is better than throwing. The framework
+   // never imports `@ship/primitives` directly; registration is a bundler
+   // concern, and the chrome view does the heavy lifting.
+   if (!customElements.get('ship-error-state')) {
+     const fallback = document.createElement('div')
+     fallback.className = 'deck-not-found'
+     const msg = document.createElement('p')
+     msg.textContent = `Not found: ${pathname}`
+     return fallback
+   }
+   const el = document.createElement('ship-error-state')
+   // variant prop default is 'not-found' — set it explicitly so the host
+   // attribute is observable (the component-factory skips the first
+   // reflect pass for defaults).
+   el.setAttribute('variant', 'not-found')
+   el.setAttribute('body', `No route matches ${pathname}.`)
+   el.setAttribute('action-label', 'Go back')
+   return el
+ }
 
 /**
  * Build the chrome chain for `chain` (deepest-first) under `root`, returning
