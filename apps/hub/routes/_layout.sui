@@ -21,10 +21,28 @@
   (`<ship-app-chrome>`, in `@ship/chrome`) is the one that owns the
   slot — `_layout.sui` is just the assembly view of the chrome.
 
-  The nav is declared ONCE here, not per-page. Pages compose only the
-  page body; the chrome owns the wrapper.
+  Error handling: the route outlet is wrapped in `<sui-error-boundary>`
+  so a controller `mount()` throw renders the shared `<ship-error-state>`
+  fallback IN-CHROME instead of a blank page or a bare text node. The
+  `<template slot="fallback">` marker is inert until the boundary swaps
+  to its error branch; when it does, the boundary clones the template
+  contents into a live wrapper element so the slot renders. Both tags
+  auto-register via deck's per-tag resolver (no global import needed):
+  the moment either appears in this template the bundler emits an
+  `@sui-tag/<name>` registration import. The nav is declared ONCE here,
+  not per-page. Pages compose only the page body; the chrome owns the
+  wrapper.
 -->
 <ship-app-chrome>
   <sui-command-bar slot="command-bar" id="ship-command-bar"></sui-command-bar>
-  <slot name="route" />
+  <sui-error-boundary data-test="hub-route-boundary">
+    <template slot="fallback">
+      <ship-error-state
+        variant="error"
+        action-label="Try again"
+        data-test="hub-route-error"
+      ></ship-error-state>
+    </template>
+    <slot name="route" />
+  </sui-error-boundary>
 </ship-app-chrome>

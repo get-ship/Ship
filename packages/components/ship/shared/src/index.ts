@@ -9,3 +9,4 @@
 // responsible for registering @ship/sui-primitives via `import
 // '@ship/sui-primitives'`.
 import './ship-watch-badge/ship-watch-badge.compiled.js'
+import './ship-error-state/ship-error-state.compiled.js'

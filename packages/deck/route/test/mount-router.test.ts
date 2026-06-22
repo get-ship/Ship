@@ -117,8 +117,35 @@ describe('mountRouter', () => {
     // No matching module → mount() not called a second time; fallback shown.
     expect(mountCalls).toHaveLength(1)
     const root = document.getElementById('root')!
-    expect(root.querySelector('.deck-not-found')).not.toBeNull()
-  })
+    // The fallback wrapper class is rendered when <ship-error-state> is
+    // not registered (e.g. an app that hasn't adopted @ship/primitives).
+    // When registered, the router renders the element directly.
+    expect(root.querySelector('.deck-not-found, ship-error-state')).not.toBeNull()
+   })
+
+  it('renders <ship-error-state> as the 404 surface when registered', async () => {
+    // The hub's chrome view auto-registers <ship-error-state>; the router
+    // then mounts the upgraded element instead of the bare fallback div.
+    if (!customElements.get('ship-error-state')) {
+      class ShipErrorState extends HTMLElement {
+        static observedAttributes = ['variant', 'body', 'action-label']
+        connectedCallback() {
+          if (!this.shadowRoot) this.attachShadow({ mode: 'open' })
+        }
+      }
+      customElements.define('ship-error-state', ShipErrorState)
+    }
+    router = start()
+    await flush()
+    navigate('/does-not-exist')
+    await vi.waitFor(() => expect(location.pathname).toBe('/does-not-exist'))
+    const root = document.getElementById('root')!
+    const card = root.querySelector('ship-error-state')
+    expect(card).not.toBeNull()
+    expect(card!.getAttribute('variant')).toBe('not-found')
+    expect(card!.getAttribute('body')).toContain('/does-not-exist')
+    expect(card!.getAttribute('action-label')).toBe('Go back')
+   })
 
   it('no-match with a matching layout prefix shows chrome + fallback in route slot', async () => {
     // The chrome element comes from the layout chain; the fallback lives in the
@@ -135,7 +162,7 @@ describe('mountRouter', () => {
     await vi.waitFor(() => expect(root.querySelector('x-chrome')).not.toBeNull())
     const slot = root.querySelector('x-chrome div[slot="route"]')
     expect(slot).not.toBeNull()
-    expect(slot!.querySelector('.deck-not-found')).not.toBeNull()
+    expect(slot!.querySelector('.deck-not-found, ship-error-state')).not.toBeNull()
   })
 
   it('passes arbitrary named clients through (no client name baked into the router)', async () => {
