@@ -86,6 +86,8 @@ Each handler logic lives in `deck-core` and returns a `DeckResponse`; the matchi
 | DeckResponse model | (transport port) | `crates/deck/deck-core/src/response.rs::DeckResponse` | The framework-agnostic response (status/headers/body) every handler returns. |
 | Daemon mode | (internal) | `crates/deck/deck-core/src/lib.rs::DaemonMode` | Dev/Prod switch driving cache headers, HMR gating, and SSR caching. |
 | Mode meta injection | (HTML rewrite) | `crates/deck/deck-core/src/mode_html.rs::inject_mode_meta` | Rewrites `<meta name="ship-mode">` so the live-reload client self-gates. |
+| Render meta injection | (HTML rewrite) | `crates/deck/deck-core/src/mode_html.rs::inject_render_meta` | Rewrites `<meta name="ship-render">` so the app's csr/ssr mode is observable client-side. |
+| App-registration port | (host seam) | `crates/deck/deck-core/src/app_port.rs::AppRegistry` | Sibling to `DataPort`: the host enumerates the apps it serves (each a per-app `deck.jsonc`-loaded `AppServeConfig`); deck names no path. |
 | axum router | (mount unit) | `crates/deck/deck-axum/src/lib.rs::router` | Registers Deck's whole hosting surface as one mountable axum `Router`. |
 | DeckResponse → axum | (adapter) | `crates/deck/deck-axum/src/lib.rs::into_axum` | Maps a `DeckResponse` 1:1 onto an axum `Response`. |
 | HMR stream | `GET /_deck/dev/hmr` | `crates/deck/deck-axum/src/handlers.rs::serve_bundle_hmr` | SSE firehose of bundler events for the live-reload client; cancel-token terminated for graceful drain. |

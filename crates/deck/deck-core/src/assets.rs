@@ -1,5 +1,7 @@
 use crate::{CachePolicy, DaemonMode, DeckResponse};
 use deck_config::AppServeConfig;
+#[cfg(test)]
+use deck_config::RenderMode;
 
 const ASSETS_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
@@ -196,6 +198,9 @@ pub fn serve_scaffold(
     };
 
     let html = crate::mode_html::inject_mode_meta(&html, mode);
+    // Surface the app's render mode (csr|ssr) so it's legible client-side
+    // rather than implicit (empty `#ship-root` = csr was the old tell).
+    let html = crate::mode_html::inject_render_meta(&html, scaffold.render);
     DeckResponse::html_view(html, mode)
 }
 
@@ -454,6 +459,7 @@ mod tests {
             source: "nonexistent-scaffold".to_string(),
             view_output: None,
             inject_globals: globals,
+            render: RenderMode::Csr,
         }
     }
 
@@ -502,6 +508,7 @@ mod tests {
             source: "my-scaffold".to_string(),
             view_output: None,
             inject_globals: globals,
+            render: RenderMode::Csr,
         };
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[("id", "my-space")]);
 
@@ -511,6 +518,38 @@ mod tests {
         assert!(body.contains("/space/main.js"), "expected /space/main.js in: {body}");
         // The inject_globals block lands before </head>.
         assert!(body.contains("window.DECK_APP_ID=\"my-space\""), "expected injected global in: {body}");
+    }
+
+    /// serve_scaffold surfaces the app's render mode as a `ship-render` meta
+    /// tag so CSR-vs-SSR is observable client-side. An `ssr` app emits
+    /// `content="ssr"`; the default `csr` app emits `content="csr"`.
+    #[test]
+    fn serve_scaffold_injects_render_meta() {
+        use crate::test_lock::ProjectRootGuard;
+        let dir = tempfile::tempdir().unwrap();
+        let _root = ProjectRootGuard::new(dir.path());
+        let scaffold_dir = dir.path().join("ssr-scaffold");
+        std::fs::create_dir_all(&scaffold_dir).unwrap();
+        std::fs::write(
+            scaffold_dir.join("index.html"),
+            r#"<!doctype html><html><head></head><body></body></html>"#,
+        )
+        .unwrap();
+        let scaffold = AppServeConfig {
+            name: "ssr-app".to_string(),
+            route: "/".to_string(),
+            source: "ssr-scaffold".to_string(),
+            view_output: None,
+            inject_globals: std::collections::BTreeMap::new(),
+            render: RenderMode::Ssr,
+        };
+        let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[]);
+        assert_eq!(resp.status, 200);
+        let body = std::str::from_utf8(&resp.body).unwrap();
+        assert!(
+            body.contains("name=\"ship-render\" content=\"ssr\""),
+            "render mode must be observable as ship-render meta; got: {body}"
+        );
     }
 
     /// serve_scaffold falls back to the authored SOURCE `<source>/index.html`
@@ -536,6 +575,7 @@ mod tests {
             source: "my-scaffold".to_string(),
             view_output: None,
             inject_globals: std::collections::BTreeMap::new(),
+            render: RenderMode::Csr,
         };
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[("id", "x")]);
         // Status 200 is the only contract: the source-fallback path
@@ -611,6 +651,7 @@ mod tests {
             source: "safe-scaffold".to_string(),
             view_output: None,
             inject_globals: globals,
+            render: RenderMode::Csr,
         };
         let resp = serve_scaffold(DaemonMode::Development, &scaffold, &[]);
 

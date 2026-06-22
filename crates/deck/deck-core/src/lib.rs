@@ -6,6 +6,7 @@
 //! translate `DeckResponse` onto their own response type — the
 //! ports-and-adapters seam.
 
+pub mod app_port;
 pub mod change_source;
 pub mod data_port;
 pub mod response;
@@ -69,6 +70,7 @@ pub(crate) mod test_lock {
 pub const P2_11_CANARY: &str = "apps/shell";
 }
 pub use response::{CachePolicy, DeckResponse, HTML_SECURITY_HEADERS, compute_etag};
+pub use app_port::AppRegistry;
 pub use change_source::{ChangeFeed, ChangeSource};
 pub use data_port::DataPort;
 pub use live_wire::{
