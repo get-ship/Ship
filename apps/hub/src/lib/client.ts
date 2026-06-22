@@ -17,11 +17,70 @@
 // port; Tauri: the host plants `window.__SHIP_DAEMON_URL__` and the SDK
 // switches transports). `@ship/sdk-client` is importmap-resolved
 // (daemon-served `/_deck/sdk-client.js`); `@ship/sdk/connect` is inlined.
+//
+// Theme transport: `setThemeTransport` is wired here as a module-level side
+// effect, mirroring apps/shell/src/ops.ts. Save/load back to the daemon's
+// RUNTIME settings table so the theme choice persists across sessions.
+// Tier-4 localStorage is still the synchronous cache the boot script reads,
+// so the Connect round-trip never blocks paint.
 import { createClient } from '@ship/sdk-client'
-import { createShipConnectClient } from '@ship/sdk/connect'
+import { createShipConnectClient, SettingScope } from '@ship/sdk/connect'
+import { setThemeTransport, type ThemeId } from '@ship/tokens/themes'
 
 /** Live SSE reader — only for ops with a registered live resolver. */
 export const ship = createClient()
 
 /** Typed unary request/response client — skills, settings, space, mutations. */
 export const ops = createShipConnectClient({ baseUrl: '' })
+
+// ---------------------------------------------------------------------------
+// RUNTIME settings helpers (verbatim from apps/shell/src/ops.ts).
+// Used below for the theme transport and available to any hub module that
+// imports this file.
+// ---------------------------------------------------------------------------
+
+/** Read one RUNTIME setting, parsed from its JSON bytes. `null` when unset. */
+export async function readSetting<T = unknown>(key: string): Promise<T | null> {
+  try {
+    const setting = await ops.settings.get({ key, scope: SettingScope.RUNTIME })
+    if (setting.valueJson.length === 0) return null
+    return JSON.parse(new TextDecoder().decode(setting.valueJson)) as T
+  } catch {
+    return null
+  }
+}
+
+/** Write one RUNTIME setting as JSON bytes. */
+export async function writeSetting(key: string, value: unknown): Promise<void> {
+  await ops.settings.set({
+    key,
+    valueJson: new TextEncoder().encode(JSON.stringify(value)),
+    scope: SettingScope.RUNTIME,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Theme transport (mirrors apps/shell/src/ops.ts setThemeTransport block).
+// Wired once at module load — fire-and-forget writes ride the RUNTIME settings
+// table (machine-local launch defaults) so the theme survives a daemon restart
+// but stays per-machine. A failed write surfaces a toast (sync failure ≠ apply
+// failure: the theme is already visible via the localStorage cache).
+// ---------------------------------------------------------------------------
+const THEME_SETTING_KEY = 'shell.theme'
+setThemeTransport({
+  save(id: ThemeId) {
+    void writeSetting(THEME_SETTING_KEY, id).catch((err: unknown) => {
+      console.error('[theme] failed to persist theme to daemon settings', err)
+      document.dispatchEvent(new CustomEvent('sui:notify', {
+        detail: {
+          tone: 'warning',
+          title: 'Theme not synced',
+          description: 'Applied locally, but saving it to the daemon failed — it may not persist across sessions.',
+        },
+      }))
+    })
+  },
+  async load(): Promise<string | null> {
+    return await readSetting<string>(THEME_SETTING_KEY)
+  },
+})
