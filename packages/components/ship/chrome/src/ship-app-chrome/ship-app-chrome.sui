@@ -33,12 +33,15 @@
   immune to content-driven growth. Inner column flex: the bar is
   fixed-height; the main region takes the remaining height via `flex:1`.
 
-  No slots beyond `route` — the wrapper is pure chrome scaffolding.
-  View-injected pass-through slots (e.g. a per-view top-bar action
-  button) belong on `<ship-nav-top>` (it exposes `actions` /
-  `command-bar`); projecting them inside this wrapper would
-  duplicate the slot surface and confuse authors about which chrome
-  layer the content lives in.
+  Slots: `route` (router fills this) and `command-bar` (forwarded
+  through to `<ship-nav-top slot="command-bar">`). Any consuming
+  layout that wants a trigger pill in the top bar slots its
+  `<sui-command-bar slot="command-bar">` into this wrapper and the
+  forwarding slot chain carries it through the shadow boundaries:
+  `_layout` → `ship-app-chrome` → `ship-nav-top` → `.cmd-slot`.
+  Other view-injected top-bar content (actions, pickers) belongs on
+  `<ship-nav-top>` directly — not on this wrapper — to avoid
+  duplicating the slot surface.
 -->
 
 <style>
@@ -63,7 +66,9 @@
   }
 </style>
 
-<ship-nav-top></ship-nav-top>
+<ship-nav-top>
+  <slot name="command-bar" slot="command-bar"></slot>
+</ship-nav-top>
 <main class="app-main" part="main">
   <slot name="route"></slot>
 </main>
