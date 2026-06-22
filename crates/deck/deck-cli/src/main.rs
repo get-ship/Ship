@@ -173,6 +173,12 @@ fn run() -> Result<()> {
                     dir: r.join("routes"),
                     out: r.join("routes.gen.ts"),
                     label,
+                    // `deck routes` is a standalone CLI command — it
+                    // doesn't read the host's `deck.jsonc` (the bundler
+                    // owns that). No host bootstrap, so the codegen
+                    // writes `routes.gen.ts` in legacy shape (entry IS
+                    // `routes.gen.ts`; the token import rides there).
+                    entry_bootstrap: None,
                 });
             }
             let n_routes = deck_bundler::routes::generate_routes(&routes_specs)?;
@@ -192,6 +198,7 @@ fn run() -> Result<()> {
                     dir: r.clone(),
                     out: r.join("routes.gen.ts"),
                     label,
+                    entry_bootstrap: None,
                 });
             }
             let n_views = deck_bundler::routes::generate_routes(&views_specs)?;

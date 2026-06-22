@@ -1,8 +1,11 @@
 // Hub version of apps/shell/routes/studio/collections/controller.ts
 //
 // Client seam changes from shell:
-//   - `ship` + `ops` imported from src/lib/client (not from ctx / shell ops.ts).
-//     Scope destructures `_ctx` — the hub's generated entry passes `clients: {}`.
+//   - `ship` + `ops` are AMBIENT — pulled off `ctx.clients.<name>` (the
+//     host's `entry.gen.ts` constructs them from `src/lib/client.ts`
+//     and the deck-runtime maps `clients.<name>` into view scope). The
+//     relative `src/lib/client` import is gone; the client lives in
+//     the view mount context, not a per-view module path.
 //   - `collections.list` → LIVE `ship.collections.list()` (registered resolver).
 //   - `collections.detail` → unary `ops.collections.detail()` + { json } decode.
 //     The op has no live mux resolver; using `ship` here would SSE-404.
@@ -14,7 +17,6 @@ import { controller, signal, derived, live } from '@ship/sui-runtime'
 import { route as routeFactory } from '@ship/deck/route'
 import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
-import { ship, ops } from '../../../src/lib/client'
 
 type SchemaInput = { name: string; type: string; required?: boolean; values?: string[] }
 
@@ -155,15 +157,19 @@ function shortDate(iso: string): string {
   if (delta < 604_800) return `${Math.round(delta / 86_400)}d ago`
   return new Date(then).toISOString().slice(0, 10)
 }
-
-export default controller({
-  scope: (_ctx: ViewScope<Scope>) => {
+ export default controller({
+  scope: (ctx: ViewScope<Scope>) => {
+    // AMBIENT clients (host-owned): the entry.gen.ts bootstrap constructs
+    // `ship` + `ops` from `src/lib/client.ts` and injects them as
+    // `clients.ship` / `clients.ops`. Reading off `ctx.clients` keeps the
+    // view free of any relative `../../../lib/client` import.
+    const ship = ctx.clients.ship
+    const ops = ctx.clients.ops
     const route = routeFactory()
     const activeId = derived(() => route.query.collection() || '')
     // LIVE: collections.list has a registered live resolver.
     const collections = live(() => ship.collections.list())
     // UNARY: collections.detail has no registered resolver; SSE would 404.
-    // Wrap in live() so {#async colDetail} tracks the loading/ok/error state.
     const colDetail = live(() => ops.collections.detail({ id: activeId() })) as LiveSignal<unknown>
     // Decode the { json } envelope from the unary ops response defensively.
     // Tolerates both the raw Connect shape (already decoded) and the { json }

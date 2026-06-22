@@ -1,19 +1,20 @@
 // Hub version of `apps/shell/routes/studio/skills/[id]/controller.ts` —
 // the surface is byte-identical to the shell (the studio's skill-detail
 // view is one of the surfaces this job ports verbatim) EXCEPT the
-// import seams the hub cannot satisfy verbatim:
+// client seam: the shell pulls `ship` from its `../../../../ops`
+// wrapper, the hub pulls `ops` from the AMBIENT `ctx.clients.ops`
+// injected by the host's `entry.gen.ts` (deck-runtime maps
+// `clients.<name>` into view scope). The relative `src/lib/client`
+// import is gone — the client lives in the view mount context, not a
+// per-view module path.
 //
-//   1. The `ops` import — the hub's typed unary client (`src/lib/client.ts`).
-//      skills.* has no live mux resolver (see live_resolvers.rs), so BOTH the
-//      detail read and the frontmatter/body writes go through `ops`
-//      (createShipConnectClient); the read decodes the `{ json }` envelope.
-//      (The hub's live SSE client `ship` is reserved for ops that have a
-//      resolver — agents.summaries, collections.list, …)
-//   2. The `routes` import from `routes.gen` — the path is the same
-//      depth in both apps, so the relative path is unchanged.
+// skills.* has no live mux resolver (see live_resolvers.rs), so BOTH
+// the detail read and the frontmatter/body writes go through `ops`
+// (createShipConnectClient); the read decodes the `{ json }` envelope.
+// (The hub's live SSE client `ship` is reserved for ops that have a
+// resolver — agents.summaries, collections.list, …)
 import { controller, signal, derived, live, effect } from '@ship/sui-runtime'
 import type { LiveSource, ViewScope } from '@ship/sui-runtime'
-import { ops } from '../../../../src/lib/client'
 import type { Scope } from './page.sui'
 
 interface SkillDetail {
@@ -47,16 +48,18 @@ const appendTags = (input: string, current: string[]): string[] => {
   for (const p of raw.split(',').map((t) => t.trim()).filter(Boolean)) if (!next.includes(p)) next.push(p)
   return next
 }
-
 export default controller({
-  scope: ({ route }: ViewScope<Scope>) => {
+  scope: (ctx: ViewScope<Scope>) => {
+    // AMBIENT client (host-owned): the entry.gen.ts bootstrap constructs
+    // `ops` from `src/lib/client.ts` and injects it as `clients.ops`.
+    const ops = ctx.clients.ops
+    const { route } = ctx
     const skillId = derived(() => route.params.id() ?? '')
     const skillRes = live(() =>
       ops.skills.detail({ id: skillId() || '__none__' }) as unknown as LiveSource<SkillDetail>,
     )
     const sk = derived<SkillDetail | null>(() => {
       const r = skillRes() as LiveResult
-      if (r.kind !== 'ok' || !r.value) return null
       // Unary op → `{ json }` envelope; decode to the SkillDetail payload.
       const v = r.value as SkillDetail & { json?: string }
       if (typeof v.json === 'string') {

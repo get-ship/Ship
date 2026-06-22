@@ -1,25 +1,25 @@
 // Hub version of `apps/shell/routes/studio/agents/[id]/controller.ts` —
 // the surface is byte-identical to the shell (the studio's detail view is
-// one of the surfaces this job ports verbatim) EXCEPT the import seams
-// the hub cannot satisfy verbatim:
+// one of the surfaces this job ports verbatim) EXCEPT the client seam:
+// the shell pulls `ship` from its `../../../../ops` wrapper, the hub
+// pulls `ship` from the AMBIENT `ctx.clients.ship` injected by the
+// host's `entry.gen.ts` (deck-runtime maps `clients.<name>` into view
+// scope). The relative `src/lib/client` import is gone — the client
+// lives in the view mount context, not a per-view module path.
 //
-//   1. The `ship` import (the spec's required change) — the shell pulls
-//      `ship` from its `../../../../ops` wrapper, the hub has no `ops.ts`
-//      so it pulls the same `createShipConnectClient` singleton from
-//      `src/lib/client.ts` (the hub's per-app Connect client).
-//   2. The `readSetting` / `writeSetting` helpers — the shell pulls them
+// Notes on the other seams:
+//   1. The `readSetting` / `writeSetting` helpers — the shell pulls them
 //      from `../../../../ops` (the same `ops.ts` file). The hub has no
-//      `ops.ts`; the helpers are inlined here in a sibling `settings.ts`
-//      shim that re-exports the same names with the same bodies. The
-//      logic is verbatim from the shell's `apps/shell/src/ops.ts`.
-//   3. The `routes` import from `routes.gen` — the path is the same
+//      `ops.ts`; the helpers live in a sibling `settings.ts` shim that
+//      re-exports the same names with the same bodies.
+//   2. The `routes` import from `routes.gen` — the path is the same
 //      depth in both apps, so the relative path is unchanged. NOTE: the
 //      hub's generated `routes.gen.ts` does not include keys for the
 //      cut YAGNI sub-routes (create / settings / wire), so `goWire` /
 //      `goSettings` / `goTab` are RUNTIME dead-ends today. The page
 //      markup is verbatim; the navigation is inert until the sub-routes
 //      are ported (BACKEND-GAP, see .artifacts/port-studio-notes.md).
-//   4. The `navigate` import — the shell pulls it from
+//   3. The `navigate` import — the shell pulls it from
 //      `@ship/sui-runtime` (the host's runtime re-exports it from
 //      `@ship/deck/route`). The hub's deck-bundled `@ship/sui-runtime`
 //      does NOT re-export `navigate` (only the host-supplied one does).
@@ -32,7 +32,7 @@ import { routes } from '../../../../routes.gen'
 import { navigate } from '@ship/deck/route'
 import { HUES, pickHue, pickInitials } from './hue'
 import { readSetting, writeSetting } from './settings'
-import { ship } from '../../../../src/lib/client'
+import type { ShipConnectClient } from '@ship/sdk/connect'
 
 type Permissions = {
   preset?: string
@@ -65,22 +65,21 @@ type WireResp = { agent?: AgentDetail } | null | undefined
 type Banner = { ok: true; msg: string } | { ok: false; msg: string } | null
 
 
-async function readActiveAgent(): Promise<string> {
-  const value = await readSetting<unknown>('shell.agent.active')
+async function readActiveAgent(ops: ShipConnectClient): Promise<string> {
+  const value = await readSetting<unknown>(ops, 'shell.agent.active')
   return typeof value === 'string' ? value : ''
 }
 
 export default controller({
-  scope: ({ route, ship }: ViewScope<Scope>) => {
+  scope: (ctx: ViewScope<Scope>) => {
+    // AMBIENT client (host-owned): the entry.gen.ts bootstrap constructs
+    // `ship` from `src/lib/client.ts` and injects it as `clients.ship`.
+    const { route } = ctx
+    const ship = ctx.clients.ship
     const agentId = derived(() => route.params.id() ?? '')
     const wireCtx = live(() => ship.agents.wire({ id: agentId() }))
     // `wireCtx` emits as `unknown` (emitter gap); narrow to a LiveSignal.
     const wireData = derived(() => (unwrap(wireCtx as LiveSignal<WireResp>) ?? null) as WireResp)
-
-    const agent = derived<AgentDetail | null>(() => {
-      const d = wireData()
-      return (d && d.agent) ? d.agent : null
-    })
 
     const notFound = derived(() => {
       const ctx = unwrap(wireCtx as LiveSignal<WireResp>)
@@ -234,7 +233,7 @@ export default controller({
       s.activating = true
       s.banner = null
       try {
-        await writeSetting('shell.agent.active', s.agentId)
+        await writeSetting(s.clients.ops, 'shell.agent.active', s.agentId)
         s.activeAgentId = s.agentId
         s.banner = { ok: true, msg: 'Agent activated.' }
       } catch (err) {
@@ -248,7 +247,7 @@ export default controller({
       s.activating = true
       s.banner = null
       try {
-        await writeSetting('shell.agent.active', '')
+        await writeSetting(s.clients.ops, 'shell.agent.active', '')
         s.activeAgentId = ''
         s.banner = { ok: true, msg: 'Agent cleared.' }
       } catch (err) {

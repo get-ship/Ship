@@ -106,6 +106,78 @@ pub struct AppServeConfig {
     /// posture every app had before this field existed).
     #[serde(default)]
     pub render: RenderMode,
+    /// Framework clients the HOST registers for this app — bare specifier
+    /// aliases that resolve to host-provided ESM modules through the
+    /// generated importmap. The bundler does NOT hardcode any client alias
+    /// (no `@ship/sdk-client`, no `@ship/*-sdk`); every client that needs
+    /// importmap resolution must be declared HERE.
+    ///
+    /// Each entry maps the alias to a per-app copy instruction:
+    /// `from` is the workspace-relative source path (typically a `.deck/framework/`
+    /// bundle the bake produced); `dist` is the output path relative to the
+    /// project's build dir (the bundler copies `from` → `<out>/<dist>` when
+    /// `--bundle-framework` is set). The importmap binds the alias to
+    /// `/_deck/<dist_basename>` — the same URL convention every framework
+    /// singleton uses — so the daemon serves the asset the same way.
+    ///
+    /// This is the L1 (deck) expression of the `DataPort` / `AppRegistry`
+    /// discipline: the host binds its own concrete inside the impl; deck
+    /// provides the slot, not the concrete.
+    #[serde(default)]
+    pub framework_clients: BTreeMap<String, FrameworkClientEntry>,
+    /// Host-owned entry bootstrap. The bundler generates a typed
+    /// `entry.gen.ts` from this — the file that constructs the named
+    /// `clients` map and hands it to `mountRouter({...})`. The data
+    /// side of the bootstrap (route table, layout table, view modules,
+    /// layout modules) is the framework's `routes.gen.ts`; the
+    /// client-construction side is the HOST's `entry.gen.ts`. Same
+    /// `data + bootstrap` discipline every per-app host follows; deck
+    /// doesn't ship a `main.ts` and neither should the host.
+    #[serde(default)]
+    pub entry: Option<EntryBootstrap>,
+}
+
+/// One framework-client registration — the importmap alias → asset copy.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrameworkClientEntry {
+    /// Workspace-relative source path of the client asset. Resolved at build
+    /// time; the path is read once and its bytes copied to `<out>/<dist>`.
+    /// Typically `<repo>/.deck/framework/<bundle>` — the bake output.
+    #[serde(rename = "from")]
+    pub from: String,
+    /// Output path, relative to the project's build dir. The importmap binds
+    /// the alias to `/_deck/<dist_basename>`, mirroring the existing
+    /// `FRAMEWORK_ASSETS` convention so the daemon's static-asset handler
+    /// serves client assets on the same code path.
+    #[serde(rename = "dist")]
+    pub dist: String,
+}
+
+/// Host-owned entry bootstrap. The bundler reads this from
+/// `apps/<app>/deck.jsonc` and emits `entry.gen.ts` next to the data-only
+/// `routes.gen.ts`. Decoupled so the host can wire ANY clients it needs —
+/// the framework ships `mountRouter` and a `clients` injection surface;
+/// which keys the host puts on the map is the host's call.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntryBootstrap {
+    /// Module-relative specifier of the host's client factory. The bundler
+    /// emits `import { <names...> } from '<clientsModule>'` in `entry.gen.ts`;
+    /// the host's file constructs each named client (a `createClient()` call,
+    /// a wrapper, etc.) and named-exports the result. Same path conventions
+    /// as a route's `controller.ts` import — the path is relative to the
+    /// generated entry, which lives at `<project>/entry.gen.ts` next to
+    /// `routes.gen.ts`.
+    #[serde(rename = "clientsModule")]
+    pub clients_module: String,
+    /// Names the bundler reads off the factory's exports and spreads into
+    /// the `clients` map. Each name becomes a key on the `clients` object
+    /// `mountRouter({ clients })` receives; views read it via `ctx.clients.<name>`
+    /// (and the legacy `ctx.<name>` alias, so pre-migration view code still
+    /// resolves during the cutover).
+    #[serde(rename = "exposeNames")]
+    pub expose_names: Vec<String>,
 }
 
 impl AppServeConfig {
@@ -347,6 +419,50 @@ mod tests {
             "missing `source` must error, not default to empty"
         );
     }
+    /// `frameworkClients` + `entry` round-trip through the JSONC parser —
+    /// the registration seam the bundler reads to (a) emit importmap entries
+    /// for host-registered clients and (b) generate a typed `entry.gen.ts`
+    /// from the host's `clientsModule` + `exposeNames`. The shape is the
+    /// spec's hard constraint: deck names no ship path, the HOST does.
+    #[test]
+    fn parse_app_deck_framework_clients_and_entry() {
+        let json = r#"{
+  "name": "hub",
+  "route": "/",
+  "source": "apps/hub/.deck",
+  "frameworkClients": {
+    "@ship/sdk-client": {
+      "from": ".deck/framework/sui-sdk-client.js",
+      "dist": "_deck/sdk-client.js"
+    }
+  },
+  "entry": {
+    "clientsModule": "./src/lib/client.ts",
+    "exposeNames": ["ship", "ops"]
+  }
+}"#;
+        let cfg = AppServeConfig::parse_deck_jsonc(json).expect("hub deck.jsonc parses");
+        let sdk = cfg.framework_clients.get("@ship/sdk-client")
+            .expect("@ship/sdk-client registered");
+        assert_eq!(sdk.from, ".deck/framework/sui-sdk-client.js");
+        assert_eq!(sdk.dist, "_deck/sdk-client.js");
+        let entry = cfg.entry.expect("entry bootstrap declared");
+        assert_eq!(entry.clients_module, "./src/lib/client.ts");
+        assert_eq!(entry.expose_names, vec!["ship", "ops"]);
+    }
+
+    /// A host without `frameworkClients` or `entry` parses fine — the
+    /// fields default to empty/None, the bundler emits no client importmap
+    /// entries and no `entry.gen.ts`. (An app with no framework clients
+    /// mounts with `clients: {}` — the same shape the prior render emitted.)
+    #[test]
+    fn parse_app_deck_framework_clients_default_to_empty() {
+        let json = r#"{ "name": "hub", "route": "/", "source": "apps/hub/.deck" }"#;
+        let cfg = AppServeConfig::parse_deck_jsonc(json).expect("minimal deck.jsonc parses");
+        assert!(cfg.framework_clients.is_empty(), "absent frameworkClients ⇒ empty");
+        assert!(cfg.entry.is_none(), "absent entry ⇒ None");
+    }
+
 
     /// `DeckConfig::load` is GONE. Constructing a host config is the host's
     /// job — `DeckConfig::defaults()` plus any overrides the host reads

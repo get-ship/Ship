@@ -1,12 +1,16 @@
 // Hub version of `apps/shell/routes/studio/skills/controller.ts` —
 // the surface is byte-identical to the shell (the studio's skill-list
 // view is one of the surfaces this job ports verbatim) EXCEPT the
-// `ship` import seam: the shell pulls `ship` from its `../../../ops`
-// wrapper, the hub has no `ops.ts` so it pulls the same
-// `createShipConnectClient` singleton from `src/lib/client.ts` (the
-// hub's per-app Connect client). All other code paths are unchanged.
+// client seam: the shell pulls `ship` from its `../../../ops` wrapper,
+// the hub pulls `ops` from the AMBIENT `ctx.clients.ops` injected by
+// the host's `entry.gen.ts` (deck-runtime maps `clients.<name>` into
+// view scope). The relative `src/lib/client` import is gone — the
+// client lives in the view mount context, not a per-view module path.
+//
+// The runtime also exposes `ctx.<name>` as a legacy alias (the
+// `ship`/`ops` keys ride the spread), so pre-migration view code
+// still resolves during the cutover. New code reads `ctx.clients.<name>`.
 import { controller, signal, live, derived } from '@ship/sui-runtime'
-import { ops } from '../../../src/lib/client'
 import type { LiveSource, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
@@ -34,15 +38,18 @@ interface RailValue {
 }
 
 export default controller({
-  scope: (_ctx: ViewScope<Scope>) => {
+  scope: (ctx: ViewScope<Scope>) => {
     const q = signal('')
     const kind = signal<KindFilter>('all')
+    // AMBIENT client: the host's `entry.gen.ts` constructs `ops` from
+    // `src/lib/client.ts` and injects it as `clients.ops`. The runtime
+    // maps that to `ctx.clients.ops` (and the legacy `ctx.ops` alias).
+    // Reading the client off `ctx` keeps the view free of any relative
+    // `../../../lib/client` import — the host owns the construction site.
+    const ops = ctx.clients.ops
     const rail = live(() =>
       ops.skills.summaries({ q: q(), kind: kind(), tag: '' }) as unknown as LiveSource<RailValue>,
     )
-    // `rail` is a `LiveSignal<unknown>` — call it directly and narrow the
-    // `ok` envelope's `value` (unknown to the type system) to the payload.
-    const loading = derived(() => rail().kind !== 'ok')
     // Defensive: the hub's `ship.skills.summaries` returns a different /
     // empty shape than the shell's. A missing `groups` or `kind_counts`
     // must NOT throw — the derived re-runs on every source tick, so an
