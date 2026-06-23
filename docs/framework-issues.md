@@ -67,3 +67,78 @@ rather than live? Or is it a genuine new-op request? The ported code assumes the
 
 ### Notes
 - icon-404s: a per-page asset 404 (lucide). Cosmetic; lower priority. Likely framework asset-serving, not a data issue.
+
+---
+
+## CULL TRIAGE — `apps/shell` surface-by-surface (shell→hub port)
+
+The **RPC surface is the source of truth** for which UI surfaces exist. The port is a
+**cull**, not a preserve-everything. Decision rule per surface:
+
+- **KEEP** — reads only the on-contract **live** resolvers (`agents.summaries`,
+  `collections.list`, `account.state`, `git.overview`) **or** a **unary `ops.*`**
+  Connect method that exists in `proto/ship`. RPC-backed + current → port.
+- **REQ** — wanted surface whose **live** read is *not* one of the 4 registered
+  resolvers. Operator decides: switch to a unary `ops.*` (often already exists) /
+  a Connect server-stream (FW-3) / register a resolver. **Do NOT add to the backend
+  to satisfy ported code.**
+- **DIE** — placeholder UI or stale surface → flag for delete, **do not port**.
+  (Shell deletion happens at deprecation, operator-driven — flagged here only.)
+
+**Contract facts that drive the column.** The off-contract problem is the **live
+(deck-mux) resolver layer** — only 4 are registered. The unary Connect surface is
+much wider: `proto/ship/ops/v1` ships unary methods for agents (incl. `Wire`,
+`Settings`, `CreateCtx`, `Detail`, `Summaries`), collections (`Get`/`List`/items),
+skills (`List`/`File`/`Summaries`), settings (`Get`/`List`/`Set`), ui (`Packs`/`Read`),
+search (`Search`), space (`Add`/`List`/`Activate`), artifacts (`List`), and pipelines
+(plus **streaming** `SummariesLive`/`RunLive`/`HistoryLive`). There is **no** `git`,
+`mesh`, or `canvas` proto service at all — `git.overview` is a live-only resolver
+(on contract); `mesh.snapshot` and `canvas.pair` are live-only **and off-contract**
+(genuinely new ops, no unary fallback).
+
+### KEEP
+
+| Surface | deciding op | why KEEP |
+|---|---|---|
+| `routes/home` | `ship.git.overview` (live) | on-contract live resolver |
+| `routes/setup` | `ops.space.add` (unary) | `SpaceService.Add` on the Connect surface |
+| `routes/component-viewer/[name]` | `ops.ui.packs`, `ops.ui.read` (unary) | `UiService.Packs/Read` on the Connect surface |
+| `routes/studio` (landing) | — (chrome only, no data) | static landing; already ported to hub |
+| `routes/studio/agents` (list) | `ship.agents.summaries` (live) | on-contract live resolver |
+| `routes/studio/collections` (list) | `ship.collections.list` (live) | on-contract live resolver |
+| `routes/studio/components` (+`[name]`) | registry catalog + `ops.search.search`/`ops.ui.*` (unary) | no live dep; catalog empty pending the **registry** (FW-2), not an RPC gap |
+| `routes/studio/themes` (+`[id]`) | — (client-side token catalog, no op) | no daemon read |
+
+### REQ — wanted, but the live read is off-contract (operator validates; do NOT pre-answer)
+
+| Surface | off-contract live read | unary fallback on the surface? | tracks |
+|---|---|---|---|
+| `routes/activity` | `ship.mesh.snapshot` | **none** — no `mesh` proto service exists | **REQ-4** (the wanted cross-space system-view; kept) |
+| `routes/canvas` | `ship.canvas.pair.*`, `ship.artifacts.list` | `canvas` has no proto; `ArtifactsService.List` exists (unary) | REQ (new) — also reads `ship.agents.summaries` ✓ |
+| `routes/settings` | `ship.settings.update` | `SettingsService.{Get,List,Set,Watch}` exist (unary) | **REQ-5**; reads `ship.account.state` ✓ + `ops.settings.*` ✓ |
+| `routes/studio/skills` (+`[id]`) | `ship.skills.summaries`, `ship.skills.detail` | `SkillsService.{List,File,Summaries}` exist (unary) | REQ (new) — wanted draft, kept |
+| `routes/studio/collections/[id]` (+`partials`) | `ship.collections.detail` | `CollectionsService.Get` exists (unary) | **REQ-2** |
+| `routes/studio/pipelines` (+`history`, `focus/[name]`, `run/[slug]`) | `ship.pipelines.{dispatch,focus,history,run,summaries}` | `PipelinesService` has unary + `SummariesLive`/`RunLive`/`HistoryLive` **streams** | **REQ-3** (the FW-3 stream-vs-mux case is concrete here) |
+| `routes/studio/agents/[id]` | `ship.agents.wire` | `AgentsService.Wire` exists (unary) | **REQ-1** |
+| `routes/studio/agents/[id]/settings` | `ship.agents.wire`/settings | `AgentsService.Settings` exists (unary) | **REQ-1** |
+| `routes/studio/agents/[id]/wire` | `ship.agents.wire` | `AgentsService.Wire` exists (unary) | **REQ-1** |
+| `routes/studio/agents/create` | `ship.agents.create_ctx` | `AgentsService.CreateCtx` exists (unary) | **REQ-1** |
+
+### DIE — placeholder/stale → flag for delete, do NOT port (shell: flag only, not deleted here)
+
+| Surface | deciding signal | note |
+|---|---|---|
+| `routes/account` | pure placeholder UI — disabled "Connect account" button, copy "Not connected yet; sign-in lands once the account service is wired" | `account.state` is on-contract but returns `logged_out` only; no getship.dev account API → no real surface. **Not ported to hub.** |
+| `routes/library` | pure placeholder UI — disabled "Browse marketplace" button, copy "Lands once the pack registry is wired" | no op at all; awaits a pack registry. **Not ported to hub.** |
+
+### Chrome / cross-cutting
+
+- `<sui-command-bar>` (hub-wide) — core palette is on-contract & verified 200; only the
+  session-state sub-feature is off-contract. Tracked as **REQ-6** above.
+- **Stale `'mesh'` glyph entries** (flag, shell-only): `apps/shell/src/components/sui-view-picker/{data,render}.ts`
+  and `apps/shell/src/components/sui-launcher/render.ts` carry `'mesh'` in their
+  `HIDDEN_VIEWS` / `KNOWN_APP_NAMES` lookup lists, referencing a `mesh` *view* that has
+  no route anywhere. Harmless leftover (the view list `fetchViews()` returns empty), but
+  stale — drop `'mesh'` (and the other dead names) from those lists at shell cutover.
+- `apps/shell/src/chrome/open-space.ts` is live (used by the shell); its hub port
+  (`apps/hub/src/chrome/open-space.ts`) is **unreferenced** — see cull notes (flagged, not deleted).
