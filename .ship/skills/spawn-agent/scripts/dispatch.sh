@@ -268,14 +268,21 @@ elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
     echo "Copied generated artifacts from $LAUNCH_REPO_ROOT"
   fi
 
-  # Rebuild fallback: if .deck/framework/sui-runtime.js is still missing,
-  # regenerate via the canonical bundler (cargo run -p deck-cli -- build-assets).
-  # The .deck/ copy above handles the fast path; this is the cold-clone fallback.
+  # Framework bundles (.deck/framework/sui-*.js) are baked in the EXTERNAL sui
+  # repo post-carve — ship no longer owns the sources, so build-assets MUST NOT
+  # run in the ship worktree (it can't resolve packages/sui/*). Seed the
+  # worktree's framework from sui's baked output; bake sui first only if sui
+  # itself is cold.
   if [[ ! -s "$WORKTREE_PATH/.deck/framework/sui-runtime.js" ]]; then
-    echo "Regenerating SUI framework bundles (slow path; launch-repo copy was unavailable)"
-    (cd "$WORKTREE_PATH" && \
-       cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p sui-compiler && \
-       cargo run --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli --quiet -- build-assets) 2>&1 | tail -20
+    if [[ ! -s /home/madvib/dev/sui/.deck/framework/sui-runtime.js ]]; then
+      echo "Baking SUI framework in /home/madvib/dev/sui (cold)"
+      (cd /home/madvib/dev/sui && \
+         cargo build -p sui-compiler && \
+         cargo run -p deck-cli --quiet -- build-assets) 2>&1 | tail -20
+    fi
+    echo "Seeding .deck/framework from /home/madvib/dev/sui"
+    mkdir -p "$WORKTREE_PATH/.deck/framework"
+    cp -r /home/madvib/dev/sui/.deck/framework/. "$WORKTREE_PATH/.deck/framework/" 2>/dev/null || true
   fi
   # /home/madvib/dev/sui/packages/sui/grammar lived in ship pre-carve and was bootstrapped here.
   # Post-carve, the grammar source lives in the external sui repo; the
