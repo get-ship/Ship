@@ -30,6 +30,12 @@ Two kinds of entries:
 - **Consequence if deck exits the data loop:** REQ-1..6 reframe to "add a Connect streaming method to the contract," with no deck resolver layer to maintain.
 - **Decision: operator.** Not to be pre-answered by code.
 
+## FW-4 · bundler silently drops inline `<style>` in a route `page.sui`
+- **Symptom:** `/settings` (verbatim shell port) rendered with *none* of its own CSS → browser-default headings, unsized icons, full-bleed sprawl. Live-DOM probe found zero `<style>` with the route's classes; `.settings-wrap` computed `max-width: none`.
+- **Cause:** the deck bundler only auto-links a **co-located `style.css`** as a route's stylesheet; an inline `<style>` block in the route template is **dropped with no warning**.
+- **Fixed (frontend):** settings now uses `apps/hub/routes/settings/style.css`. It was the only route doing inline `<style>`.
+- **Framework ask (sui):** a bundler/compiler **lint or diagnostic** for a dropped route-level `<style>` — silent drop is a footgun. Location: deck-bundler / sui-compiler.
+
 ---
 
 ## REQ-1 · agent detail / settings / wire / create-context data  — RESOLVED (unary)
