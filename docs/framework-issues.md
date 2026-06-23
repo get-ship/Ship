@@ -47,14 +47,21 @@ op that has no registered resolver. The list/overview surfaces (`agents.summarie
 | Surface | live read it calls | on contract? | unary `ops.*` it also uses |
 |---|---|---|---|
 | `studio/agents/[id]` (+settings/wire/create) | `ship.agents.wire`, `agents.create_ctx` | ❌ | `ops.agents.patch` |
-| `studio/collections/[id]` | `ship.collections.detail` | ❌ | `ops.collections.create/update` |
+| `studio/collections/[id]` | `ship.collections.detail` | ✅ **RESOLVED (unary)** | `ops.collections.get` (read) + `ops.collections.{createItem,updateItem}` |
 | `studio/pipelines` | `ship.pipelines.{dispatch,focus,history,run}` | ❌ | `ops.pipelines.{put,end,delete}` |
 | `activity` | `ship.mesh.snapshot` | ❌ | — |
-| `settings` | `ship.settings.update` | ❌ | `ops.settings.{list,watch}`, `ship.account.state` ✅ |
+| `settings` | `ship.settings.update` | ✅ **RESOLVED (unary)** | `ops.settings.{list,watch,set}`, `ship.account.state` ✅ |
 
 **Operator decisions (do NOT pre-answer by editing the backend):** for each — is the surface
 in scope on the *current* contract? Should the read be **unary** (`ops.*`, request/response)
 rather than live? Or is it a genuine new-op request? The ported code assumes the deprecated live shape.
+
+**Resolution (collections/[id], settings, agents-list run-status — same pattern as REQ-1):**
+the data IS on the contract as **unary Connect** methods, read through `ctx.clients.ops`
+wrapped in `live(() => …)` so the promise drives the `{#async}` lifecycle.
+- `studio/collections/[id]`: read `ops.collections.get({ id })` → `CollectionDetail { id, schemaJson: bytes, itemCount }`. The schema arrives as JSON bytes (decode + project to `{ schema: { id, name, fields, builtin }, total_items }`, same decode the collections LIST controller does). Mutations are the camelCase Connect writes `ops.collections.{createItem,updateItem}({ collection, id?, dataJson })`. **Gap:** `Get` carries schema + `itemCount` only, never the rows (`Query` exposes rows but needs a Kysely AST the frontend doesn't build), so the **Rows tab degrades to its empty state** and a write won't reflect without a reload. A JS-friendly "all items" read (named query, or items on `Get`) would close it. Schema/meta/JSONC tabs + row count are fully populated.
+- `settings`: read `ops.settings.list({ scope: RUNTIME })` + `ops.settings.watch` (render trigger); write `ops.settings.set` (the contract verb — the template's `mutation="ship.settings.update"` resolves to a scope closure that calls `set`). `ship.account.state` stays LIVE (on-contract resolver) — verified 200.
+- `studio/agents` (list) run-status: the `agentEvents` feed switched from the dead live `ship.events.list({ event_type: 'agent.' })` (no resolver → `mux/subscribe` 404) to unary **`ops.events.poll({ namespace: 'agent', limit })`** → `EventsService.Poll` → `JsonResponse { json }` wrapping `{ events: EventEnvelope[] }` (snake_case fields: `event_type`, `actor`, `created_at`). `namespace` server-side filters to `agent.*`; the JSON is decoded in `agentStatus`. Degrades cleanly: empty feed → empty status map → cards render with no dots.
 
 ## REQ-6 · command-bar session-state surface (pty-sessions + agent.session/hook live) — NEEDS OPERATOR VALIDATION
 - **Surface:** `<sui-command-bar>` (cmdk), mounted hub-wide. The **core** palette (navigate, `ops.search.search`, `ops.agents.list`, `ops.agents.harnesses`) is fully wired and returns **200** — verified. This REQ is only the *session-state* sub-feature (active-agent dot + AI/chat lifecycle).

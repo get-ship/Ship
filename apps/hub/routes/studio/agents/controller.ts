@@ -31,8 +31,8 @@ interface AgentSummary {
   active: boolean
   tags?: string[]
 }
-interface EventRow { event_type: string; actor: string; timestamp: string }
-interface EventsEnvelope { groups: Array<{ rows: EventRow[] }> }
+interface EventRow { event_type: string; actor: string; created_at: string }
+interface EventsEnvelope { events: EventRow[] }
 interface KindFilter { id: 'all' | 'project' | 'user'; label: string; count: number }
 interface AgentsList { items: AgentSummary[] }
 
@@ -46,18 +46,32 @@ export default controller({
     // resolver (`agents.summaries`, `collections.list`, `git.overview`,
     // `account.state`) subscribe over SSE; other ops would 404.
     const ship = ctx.clients.ship
+    // `ops` = the unary Connect client (host-owned, injected as `clients.ops`).
+    // Run-status reads it; the live `ship` reader is only for ops with a mux
+    // resolver (agents.summaries).
+    const ops = ctx.clients.ops
     // The agent list is LIVE: agents.summaries has a registered mux resolver
     // (apps/shipd/src/ship_runtime/live_resolvers.rs), so `ship` (the SSE
     // client) streams `{ items }`. The page's `{#async agents}` consumes this
     // LiveSignal for its loading/error/ok states; items / filteredItems /
     const agents = live(() => ship.agents.summaries()) as LiveSignal<AgentsList>
-    const agentEvents = live(() => ship.events.list({ event_type: 'agent.', limit: 50 }))
+    // Run-status feed: unary EventsService.Poll (no live resolver, so the dead
+    // `ship.events.list` 404'd on subscribe). `Poll` returns a JsonResponse
+    // { json } wrapping `{ events: EventEnvelope[] }`; `namespace: 'agent'`
+    // server-side filters to event_type `agent.*`. The JSON (snake_case
+    // EventEnvelope fields) is decoded in agentStatus below.
+    const agentEvents = live(() => ops.events.poll({ namespace: 'agent', limit: 50n }))
     const agentStatus = derived<Record<string, AgentStatus>>(() => {
-      const env = agentEvents()
-      if (env.kind !== 'ok') return {}
-      const v = env.value as EventsEnvelope
-      const rows: EventRow[] = (v?.groups ?? []).flatMap((g) => g.rows ?? [])
-      rows.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+      const st = agentEvents()
+      if (st.kind !== 'ok') return {}
+      let rows: EventRow[] = []
+      try {
+        const env = JSON.parse((st.value as { json?: string }).json ?? '{}') as EventsEnvelope
+        rows = Array.isArray(env?.events) ? env.events : []
+      } catch {
+        return {}
+      }
+      rows.sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))
       const map: Record<string, AgentStatus> = {}
       for (const r of rows) {
         if (!r.actor) continue

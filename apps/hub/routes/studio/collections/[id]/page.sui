@@ -1,0 +1,196 @@
+<div class="ship-view col-detail-view">
+
+  {#if !collectionId()}
+    <div class="cd-empty">
+      <sui-empty-state>
+        <span slot="title">No collection selected</span>
+        <span slot="description">The URL did not include a collection id.</span>
+      </sui-empty-state>
+    </div>
+  {:else}
+
+    <div class="cd-head">
+      <a class="cd-back" attr:href={'/studio/collections'}
+        on:click={(e) => { e.preventDefault(); navigate('/studio/collections') }}>
+        <sui-icon name="chevron-left" size="sm"></sui-icon>
+        <span>Collections</span>
+      </a>
+
+      {#async colDetail}
+        {:loading}
+        <div class="cd-loading">Loading {collectionId()}&hellip;</div>
+      
+        {:ok}
+{#if detailValue()}
+        <div class="cd-identity">
+          <span class="cd-icon"><sui-icon name="database" size="sm"></sui-icon></span>
+          <h1 class="cd-name">{detailValue().schema.name || collectionId()}</h1>
+          <span class="cd-id mono-snip">{detailValue().schema.id}</span>
+          {#if detailValue().schema.builtin}
+            <span class="cd-builtin"><sui-icon name="lock" size="xs"></sui-icon> built-in</span>
+          {/if}
+        </div>
+        <div class="cd-meta">
+          <span class="cd-meta-item">
+            <span class="cd-meta-key">source</span>
+            <span class="cd-meta-val mono-snip">{sourcePath()}</span>
+          </span>
+          <span class="cd-meta-item">
+            <span class="cd-meta-key">schema</span>
+            <span class="cd-meta-val">{fieldsSummary()}</span>
+          </span>
+          <span class="cd-meta-item">
+            <span class="cd-meta-key">rows</span>
+            <span class="cd-meta-val">{detailValue().total_items}</span>
+          </span>
+        </div>
+        <sui-cluster gap="3" align="center" justify="between">
+          <sui-toggle-group variant="segmented" type="single" size="sm" attr:value={tab()} on:sui-change={(e) => tab.set(e.detail.value)}>
+            <sui-toggle value="schema"><sui-icon name="columns" size="sm"></sui-icon>Schema</sui-toggle>
+            <sui-toggle value="rows"><sui-icon name="list-check" size="sm"></sui-icon>Rows</sui-toggle>
+            <sui-toggle value="jsonc"><sui-icon name="file" size="sm"></sui-icon>JSONC</sui-toggle>
+          </sui-toggle-group>
+          <sui-button size="sm" tone="primary" variant="solid" on:click={openNewRow}>
+            <sui-icon slot="leading" name="plus"></sui-icon>New row
+          </sui-button>
+        </sui-cluster>
+      {/if}
+      {/async}
+
+      {#if colDetail().kind === 'error'}
+        <div class="cd-error">
+          <sui-icon name="alert-triangle" size="sm"></sui-icon>
+          Failed to load collection &ldquo;{collectionId()}&rdquo;.
+        </div>
+      {/if}
+    </div>
+
+    {#if detailValue()}
+      <div class="cd-body">
+
+        {#if tab() === 'schema'}
+          <div class="cd-tab-panel cd-schema-panel">
+            <div class="cd-section-head">
+              <h2 class="cd-section-title">Fields</h2>
+              <span class="cd-section-sub">{fieldsSummary()}</span>
+            </div>
+            {#if detailValue().schema.builtin}
+              <div class="cd-builtin-note">
+                <sui-icon name="lock" size="sm"></sui-icon>
+                Built-in collections ship with the runtime. Fields are listed for reference only.
+              </div>
+            {/if}
+            <sui-stack gap="1">
+              {#for f of schemaFieldsView() key={f.name}}
+                <div class="cd-field-row">
+                  <span class={'cd-ft cd-ft-' + f.field_type}>{f.field_type}</span>
+                  <span class="cd-field-name mono-snip">{f.name}</span>
+                  {#if f.required}<span class="cd-field-flag">required</span>{/if}
+                  {#if f.values && f.values.length > 0}
+                    <span class="cd-field-values mono-snip">{f.values_pretty}</span>
+                  {/if}
+                </div>
+              {/for}
+            </sui-stack>
+          </div>
+        {/if}
+
+        {#if tab() === 'rows'}
+          <div class="cd-tab-panel cd-rows-panel">
+            {#if detailValue().items.length === 0}
+              <sui-empty-state>
+                <span slot="title">No rows in {detailValue().schema.name || collectionId()}</span>
+                <span slot="description">Click &ldquo;New row&rdquo; to add the first item.</span>
+              </sui-empty-state>
+            {:else}
+              <table class="cd-table">
+                <thead>
+                  <tr>
+                    <th>id</th>
+                    {#for f of detailValue().schema.fields key={f.name}}<th>{f.name}</th>{/for}
+                  </tr>
+                </thead>
+                <tbody>
+                  {#for row of rowsView() key={row.id}}
+                    <tr>
+                      <td class="cd-cell cd-cell-id mono-snip">{row.id}</td>
+                      {#for cell of row.cells key={cell.kind + ':' + cell.value}}
+                        {#if cell.kind === 'status'}
+                          <td class="cd-cell">
+                            <button type="button" class={cell.class_name}
+                              aria-label={'Cycle status for ' + row.id}
+                              on:click={() => cycleStatus(row.raw)}>
+                              <span class="status-chip-dot" aria-hidden="true"></span>
+                              <span class="status-chip-label">{cell.value}</span>
+                            </button>
+                          </td>
+                        {:else if cell.kind === 'ref'}
+                          <td class="cd-cell">
+                            <span class="ref-pill">
+                              <sui-icon attr:name={cell.icon} size="xs"></sui-icon>
+                              <span class="mono-snip">{cell.label}</span>
+                            </span>
+                          </td>
+                        {:else}
+                          <td class="cd-cell">{cell.value}</td>
+                        {/if}
+                      {/for}
+                    </tr>
+                  {/for}
+                </tbody>
+              </table>
+            {/if}
+          </div>
+        {/if}
+
+        {#if tab() === 'jsonc'}
+          <div class="cd-tab-panel cd-jsonc-panel">
+            <div class="cd-section-head">
+              <h2 class="cd-section-title">Raw config</h2>
+              <span class="cd-section-sub mono-snip">{sourcePath()}</span>
+            </div>
+            <pre class="cd-jsonc">{jsoncSource()}</pre>
+          </div>
+        {/if}
+
+      </div>
+    {/if}
+
+    <sui-drawer prop:open={newRowOpen()} size="md" on:sui-close={closeNewRow}>
+      <span slot="title">New row</span>
+      {#if detailValue()}
+        <span slot="description">Add a new item to {detailValue().schema.name || collectionId()}</span>
+        <sui-stack gap="3">
+          {#for f of detailValue().schema.fields key={f.name}}
+            <sui-stack gap="1">
+              <label class="cd-drawer-label">
+                {f.name}{#if f.required}<span class="cd-drawer-req">*</span>{/if}
+                <span class="cd-drawer-type">{f.field_type}</span>
+              </label>
+              {#if f.field_type === 'boolean'}
+                <sui-switch prop:checked={rowDraft()[f.name]}
+                  on:change={(e) => setDraftField(f.name, e.target.checked)}></sui-switch>
+              {:else if f.field_type === 'markdown'}
+                <sui-textarea rows="4" attr:placeholder={f.name}
+                  attr:value={rowDraft()[f.name] ?? ''}
+                  on:input={(e) => setDraftField(f.name, e.target.value)}></sui-textarea>
+              {:else}
+                <sui-input attr:type={f.field_type === 'number' ? 'number' : 'text'}
+                  attr:value={rowDraft()[f.name] ?? ''}
+                  attr:placeholder={f.name}
+                  on:input={(e) => setDraftField(f.name, e.target.value)}></sui-input>
+              {/if}
+            </sui-stack>
+          {/for}
+          {#if drawerError()}<div class="cd-drawer-error">{drawerError()}</div>{/if}
+        </sui-stack>
+        <div slot="footer">
+          <sui-button variant="ghost" on:click={closeNewRow}>Cancel</sui-button>
+          <sui-button tone="primary" variant="solid" on:click={saveNewRow}>Save</sui-button>
+        </div>
+      {/if}
+    </sui-drawer>
+
+  {/if}
+
+</div>
