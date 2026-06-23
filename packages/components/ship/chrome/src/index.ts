@@ -22,6 +22,10 @@ import './ship-tree-item/ship-tree-item.compiled.js'
 import './ship-status-bar/ship-status-bar.compiled.js'
 import './ship-dock/ship-dock.compiled.js'
 import './ship-dock-app/ship-dock-app.compiled.js'
+// <ship-home-dock> — the desktop launcher tray; composes <ship-dock-app> tiles
+// for the hub `/` home. Route-agnostic: emits the tile's `ship-launch { label }`
+// upward, the host maps label → route.
+import './ship-home-dock/ship-home-dock.compiled.js'
 import './ship-nav-top/ship-nav-top.compiled.js'
 import './ship-app-chrome/ship-app-chrome.compiled.js'
 // <ship-nav-top> composes these two domain affordances; the pack owns them so

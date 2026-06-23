@@ -1,154 +1,150 @@
 /*
  * Hub home — `/` route stylesheet.
  *
- * Page-level layout (container padding, section spacing, the studio-entry
- * card grid). The composite components themselves — <ship-home-greeting>,
- * <ship-spaces-hero>, <ship-activity-runs> — own their internal styles in
- * shadow DOM. The studio-entry grid is a hand-rolled anchor card pattern
- * sized to match the space-card grid; tokens only.
+ * The home is a desktop: a masked dot-grid background + a primary-tinted
+ * corner glow, a greeting hero + live git-glance stage, and a launcher dock
+ * pinned to the bottom. Page-level layout only — the composed components
+ * (<ship-home-greeting>, <ship-home-dock>) own their internal shadow-DOM
+ * styles.
  *
- * Convention: this is the deck-route-css sibling — `routes/page.sui`
- * imports it via the codegen auto-link (see `crates/deck/deck-bundler/
- * src/routes.rs::module_import_path`). It lands in the build as a hashed
- * `<link rel="stylesheet">` and applies globally (not scoped to shadow
- * DOM) since the home is a view, not a component.
+ * Convention: this is the deck-route-css sibling of `routes/page.sui`, linked
+ * by the codegen auto-link and landing in the build as a hashed global
+ * <link>. Because every route's style.css is loaded globally (routes.gen.ts
+ * style_imports), the home-specific fill rule below is scoped with `:has`.
  *
- * Tokens only — every color / spacing / radius / shadow / motion value
- * reads from `--space-N`, `--radius-N`, `--text-N`, `--card`, `--border`,
- * `--primary`, `--foreground`, `--muted-foreground`, `--shadow-sm`,
- * `--shadow-md`, `--duration-fast`, `--ease-out`. No hardcoded literals.
+ * Height chain — the desktop fills the chrome's scrolling main and pins the
+ * dock to its bottom:
+ *   <main.app-main>        (flex:1; min-height:0; flex col; overflow:auto)  [@ship/chrome]
+ *     └─ [slot="route"]    (the router's mount target — made a filling flex
+ *          column below, scoped to the home route via :has)
+ *          └─ .hub-home    (flex:1; flex col)
+ *               ├─ .home-stage      (flex:1 — greeting + git-glance)
+ *               └─ .home-dock-row   (flex:0 — the dock, centered)
+ *
+ * Tokens only — every color / spacing / radius / shadow / motion value reads
+ * from a `var(--token)`; no hardcoded color literals.
  */
+
+/* The router mounts the home into a bare `<div slot="route">`. Make that
+   target a filling flex column so .hub-home fills the chrome's main and the
+   dock pins to the bottom. Scoped with `:has` so it's self-contained — it
+   touches only the home's mount target, never another route's. */
+[slot='route']:has(> .hub-home) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
 
 .hub-home {
   position: relative;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100%;
   width: 100%;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body);
-  padding: var(--space-7) var(--space-6) var(--space-8);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-7);
-  max-width: 1100px;
-  margin: 0 auto;
+  overflow: hidden;
 }
 
-/* Subtle dotted backdrop masked to the top — same family as the shell
-   desktop. Provides depth without competing with the components. */
-.hub-home::before {
-  content: '';
+/* Desktop backdrop: a dot-grid masked toward the top + a primary corner glow.
+   Token-based, same family as the shell desktop the operator liked. */
+.home-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  background: var(--background);
+}
+.home-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
   background-image: radial-gradient(circle at 1px 1px,
-    color-mix(in oklch, var(--foreground) 7%, transparent) 1px, transparent 0);
+    color-mix(in oklch, var(--foreground) 8%, transparent) 1px, transparent 0);
   background-size: 22px 22px;
-  -webkit-mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, var(--foreground) 35%, transparent 100%);
-  mask-image: radial-gradient(ellipse 80% 50% at 50% 0%, var(--foreground) 35%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 25%, var(--foreground) 45%, transparent 100%);
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 25%, var(--foreground) 45%, transparent 100%);
+}
+.home-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 55% 45% at 85% 8%,
+    color-mix(in oklch, var(--primary) 13%, transparent), transparent 70%);
 }
 
-.hub-home > * { position: relative; z-index: 1; }
+/* Stage — greeting + git-glance, centered, takes the remaining height above
+   the dock. Content sits toward the top for the desktop feel. */
+.home-stage {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) var(--space-5);
+}
 
-/* Section heading + sub copy — used by the Studio grid block. The
-   @ship/home composite components own their own header rows. */
-.hub-section {
+/* Git-glance — a live readout card, not a full panel. */
+.home-glance {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-
-.hub-section-title {
-  margin: 0;
-  font-family: var(--heading-font, var(--font-display, var(--font-body)));
-  font-size: var(--text-lg);
-  font-weight: var(--heading-weight, var(--font-weight-semibold, 600));
-  letter-spacing: var(--heading-tracking, -0.01em);
-  color: var(--foreground);
-}
-
-.hub-section-sub {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--muted-foreground);
-  line-height: 1.5;
-  max-width: 60ch;
-}
-
-/* Studio entry-points grid. The cards are real navigable links, so the
-   `<a>` is the click target; we style the anchor directly (no nested
-   card chrome — the link IS the card, no clickable-vs-container
-   ambiguity). */
-.hub-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: var(--space-4);
-  margin-top: var(--space-2);
-}
-
-.hub-card {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: start;
-  gap: var(--space-3);
-  padding: var(--space-5);
-  background: var(--card);
-  color: var(--foreground);
+  padding: var(--space-4) var(--space-5);
+  background: color-mix(in oklch, var(--surface-1) 92%, transparent);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  text-decoration: none;
-  transition:
-    border-color var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
+  backdrop-filter: blur(10px);
+  align-self: flex-start;
+  min-width: 320px;
+  max-width: 480px;
 }
-.hub-card:hover {
-  border-color: color-mix(in oklch, var(--primary) 50%, var(--border));
-  box-shadow: var(--shadow-md, var(--shadow-sm));
-  transform: translateY(-2px);
+.home-glance-h {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--muted-foreground);
 }
-.hub-card:focus-visible {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow:
-    0 0 0 2px color-mix(in oklch, var(--primary) 30%, transparent),
-    var(--shadow-md, var(--shadow-sm));
+.home-git {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  flex-wrap: wrap;
 }
-.hub-card:active {
-  transform: translateY(0);
-  transition-duration: 60ms;
+.home-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
 }
-@media (prefers-reduced-motion: reduce) {
-  .hub-card:hover { transform: none; }
-}
-
-.hub-card-ico {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: color-mix(in oklch, var(--primary) 12%, transparent);
-  color: var(--primary);
+.home-glance-muted { color: var(--muted-foreground); }
+.home-glance-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--warning);
   flex-shrink: 0;
 }
+.home-glance-dot[data-clean='1'] { background: var(--success); }
 
-.hub-card-body {
-  min-width: 0;
-}
-
-.hub-card-title {
-  font-size: var(--text-md);
-  font-weight: var(--font-weight-semibold, 600);
-  color: var(--foreground);
-  line-height: 1.2;
-}
-
-.hub-card-desc {
-  font-size: var(--text-sm);
-  color: var(--muted-foreground);
-  line-height: 1.45;
-  display: block;
+/* Dock row — the launcher, centered, pinned to the bottom of the desktop. */
+.home-dock-row {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--space-6) var(--space-6);
 }

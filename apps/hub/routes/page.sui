@@ -1,77 +1,56 @@
 <!--
-  Hub home — the `/` route.
+  Hub home — the `/` route. A desktop, not a directory.
 
-  The home dashboard composes the @ship/home pack (`ship-home-greeting` for
-  the hero strip, `ship-spaces-hero` for the spaces section, and
-  `ship-activity-runs` for the recent pipeline runs) and pairs them with a
-  Studio entry-points grid (Components / Agents / Skills / Collections /
-  Themes). Each studio entry is a real navigable route in `/studio/<id>` —
-  the home is purely a directory, not a stateful surface.
+  Three parts, top to bottom:
+    • <ship-home-greeting>  the hero strip (hour-of-day greeting + workspace
+                            chip + clock). Pure-derived, client-side; the
+                            controller only feeds it the `workspace` label.
+    • git-glance            a live `ship.git.overview()` readout — branch,
+                            short HEAD, clean/dirty dot. git.overview is a
+                            registered live resolver in the hub today, so
+                            `{#async git}` streams loading → ok/offline.
+    • <ship-home-dock>      the launcher dock — a glassmorphic tray of
+                            <ship-dock-app> tiles. Each tile bubbles
+                            `ship-launch { label }`; `onLaunch` maps it to a
+                            real hub route and navigates.
 
   Page chrome:
-    • the top nav is owned by the root layout (`<ship-app-chrome>`)
-    • page-level layout (container padding, section spacing, studio card
-      grid) lives in `routes/style.css` per the deck-route-css convention;
-      the components themselves carry their own card / typography styles.
+    • the top nav is owned by the root layout (`<ship-app-chrome>`).
+    • the desktop background (masked dot-grid + corner glow), the stage
+      layout, and the dock row live in `routes/style.css` (FW-4: no inline
+      route <style>); the components carry their own shadow-DOM styles.
     • tokens only — no hardcoded colors / spacing / radii.
 
-  Notes:
-    • The home is intentionally SDK-free. Spaces lists are a documented
-      BACKEND-GAP (`ship.spaces.list()` doesn't exist yet — see
-      `.artifacts/hub-buildout-flags.md`); `ship-spaces-hero` degrades to
-      its empty-state. Activity runs through the LiveSource mux and
-      stays self-contained inside `ship-activity-runs`.
-    • The Studio grid renders ALL FIVE entry points (Components, Agents,
-      Skills, Collections, Themes). Each is a real route the hub already
-      serves — no broken links.
+  Degraded honestly: the spaces hero (`spaces.list`) and activity runs
+  (`pipelines.summaries`) have no live resolver in the hub yet, so they are
+  omitted from this take rather than rendered as broken / empty widgets.
 -->
 
-<main class="hub-home" data-view-enter>
-  <ship-home-greeting workspace={workspace()}></ship-home-greeting>
+<main class="hub-home" data-view-enter data-test="home">
+  <div class="home-bg" aria-hidden="true"></div>
 
-  <ship-spaces-hero spaces={spaces()} limit="8"></ship-spaces-hero>
+  <div class="home-stage">
+    <ship-home-greeting workspace={workspace()}></ship-home-greeting>
 
-  <section class="hub-section" aria-labelledby="home-studio-h">
-    <h2 class="hub-section-title" id="home-studio-h">Studio</h2>
-    <p class="hub-section-sub">Configure this workspace — pick a section to dive in.</p>
-    <div class="hub-cards">
-      <a class="hub-card" href="/studio/components" data-test="home-studio-components">
-        <sui-icon class="hub-card-ico" name="box" tone="primary" size="md"></sui-icon>
-        <sui-stack class="hub-card-body" gap="1">
-          <span class="hub-card-title">Components</span>
-          <span class="hub-card-desc">Browse and inspect the SUI component library.</span>
-        </sui-stack>
-      </a>
-      <a class="hub-card" href="/studio/agents" data-test="home-studio-agents">
-        <sui-icon class="hub-card-ico" name="bot" tone="primary" size="md"></sui-icon>
-        <sui-stack class="hub-card-body" gap="1">
-          <span class="hub-card-title">Agents</span>
-          <span class="hub-card-desc">The agents configured in this workspace.</span>
-        </sui-stack>
-      </a>
-      <a class="hub-card" href="/studio/skills" data-test="home-studio-skills">
-        <sui-icon class="hub-card-ico" name="sparkles" tone="primary" size="md"></sui-icon>
-        <sui-stack class="hub-card-body" gap="1">
-          <span class="hub-card-title">Skills</span>
-          <span class="hub-card-desc">Skills available to your agents.</span>
-        </sui-stack>
-      </a>
-      <a class="hub-card" href="/studio/collections" data-test="home-studio-collections">
-        <sui-icon class="hub-card-ico" name="database" tone="primary" size="md"></sui-icon>
-        <sui-stack class="hub-card-body" gap="1">
-          <span class="hub-card-title">Collections</span>
-          <span class="hub-card-desc">The typed collections that organize the workspace.</span>
-        </sui-stack>
-      </a>
-      <a class="hub-card" href="/studio/themes" data-test="home-studio-themes">
-        <sui-icon class="hub-card-ico" name="palette" tone="primary" size="md"></sui-icon>
-        <sui-stack class="hub-card-body" gap="1">
-          <span class="hub-card-title">Themes</span>
-          <span class="hub-card-desc">Theme studio — design tokens, surfaces, motion.</span>
-        </sui-stack>
-      </a>
-    </div>
-  </section>
+    <section class="home-glance" aria-labelledby="home-git-h" data-test="home-git">
+      <h2 class="home-glance-h" id="home-git-h">Git</h2>
+      {#async git}
+        {:loading}
+        <span class="home-glance-muted" data-test="git-loading">Loading&hellip;</span>
+        {:error err}
+        <span class="home-glance-muted" data-test="git-error">offline</span>
+        {:ok}
+        <div class="home-git" data-test="git-summary">
+          <span class="home-glance-dot" data-clean={isClean() ? '1' : '0'} aria-hidden="true"></span>
+          <strong class="home-mono" data-test="git-branch">{branchName()}</strong>
+          <span class="home-mono home-glance-muted" data-test="git-head">{headShort()}</span>
+          <span class="home-mono home-glance-muted" data-test="git-status">{statusLabel()}</span>
+        </div>
+      {/async}
+    </section>
+  </div>
 
-  <ship-activity-runs limit="6"></ship-activity-runs>
+  <footer class="home-dock-row">
+    <ship-home-dock prop:apps={apps()} on:ship-launch={onLaunch} data-test="home-dock"></ship-home-dock>
+  </footer>
 </main>
