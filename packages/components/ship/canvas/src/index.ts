@@ -12,6 +12,14 @@ import './sui-board/sui-board.compiled.js'
 import './sui-draw/sui-draw.compiled.js'
 import './sui-graph-canvas/sui-graph-canvas.compiled.js'
 
+// Annotation subsystem — the framework-agnostic capture overlay
+// (<sui-annotation-layer>) plus its marker + list faces. Pure runtime
+// signals; POSTs to a configurable endpoint, no SDK. Lives beside the
+// spatial faces because annotations are a canvas-surface concern.
+import './sui-annotation/sui-annotation-layer.compiled.js'
+import './sui-annotation/sui-annotation-marker.compiled.js'
+import './sui-annotation/sui-annotation-list.compiled.js'
+
 export { createCanvas } from './engine/create-canvas'
 export { createBoardModel } from './sui-board/engine/board-model'
 export { layoutBoard } from './sui-board/engine/layout-adapter'

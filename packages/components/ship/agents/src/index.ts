@@ -10,6 +10,10 @@
 // <ship-agent-thread> additionally composes `@ship/sui-chat-elements`
 // primitives (<sui-message-list>, <sui-composer>); the host registers
 // that pack (`import '@ship/sui-chat-elements'`) — it is a declared dependency.
+//
+// <sui-agent-attach> composes `<ship-terminal>` from `@ship/code` — same
+// contract: the host registers that pack (`import '@ship/code'`) so the
+// embedded terminal tag is defined when the attach element mounts.
 import './ship-agents-table/ship-agents-table.compiled.js'
 import './ship-agent-card/ship-agent-card.compiled.js'
 import './ship-agent-list/ship-agent-list.compiled.js'
@@ -24,3 +28,4 @@ import './ship-session-metrics/ship-session-metrics.compiled.js'
 import './ship-agent-canvas/ship-agent-canvas.compiled.js'
 import './ship-agent-slot/ship-agent-slot.compiled.js'
 import './ship-session-list/ship-session-list.compiled.js'
+import './sui-agent-attach/sui-agent-attach.compiled.js'

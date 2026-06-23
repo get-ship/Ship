@@ -39,6 +39,8 @@ import '@ship/sui-primitives'
 import { createClient } from '@ship/sdk-client'
 import { createShipConnectClient, SettingScope } from '@ship/sdk/connect'
 import { setThemeTransport, type ThemeId } from '@ship/tokens/themes'
+import { navigate } from '@ship/deck/router'
+import { registerKeymap } from '../chrome/keymap'
 
 /** Live SSE reader — only for ops with a registered live resolver. */
 export const ship = createClient()
@@ -97,3 +99,12 @@ setThemeTransport({
     return await readSetting<string>(THEME_SETTING_KEY)
   },
 })
+
+// ---------------------------------------------------------------------------
+// Global keymap (apps/hub/src/chrome/keymap.ts). The hub has no main.ts, so
+// this clientsModule is the single host-owned entry seam (imported by
+// entry.gen.ts) that owns app-level keydown glue — same role it plays for the
+// `@ship/sui-primitives` registration above. The keymap is state-free; it
+// takes the router's `navigate` so the keymap module stays decoupled.
+// ---------------------------------------------------------------------------
+registerKeymap({ navigate })
