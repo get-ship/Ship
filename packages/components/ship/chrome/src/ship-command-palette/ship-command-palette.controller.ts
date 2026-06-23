@@ -1,17 +1,17 @@
-// FILE_CAP_OVERRIDE: bar controller is a single-responsibility state harness for 3 panel
-// sub-components; keyboard + session-event subscription + search + focus management
-// must co-locate here. Architectural split would require deep prop-drilling or a
-// separate event bus.
+// FILE_CAP_OVERRIDE: <ship-command-palette> controller is a single-responsibility
+// state harness for 3 panel sub-components; keyboard + session-event subscription +
+// search + focus management must co-locate here. Architectural split would require
+// deep prop-drilling or a separate event bus.
 import { controller, signal, derived, effect, ref, shared } from '@ship/sui-runtime'
 import type { Signal, ViewScope } from '@ship/sui-runtime'
-import type { Scope } from './sui-command-bar.sui'
+import type { Scope } from './ship-command-palette.sui'
 import {
   type BarMode, type SessionSummary, type AgentSummary, type ThreadLine, type CreateSurface,
   type SlashCommand, type SearchHit,
   loadSlashCommands, cachedSlashCommands, slashCacheAge, SLASH_CACHE_TTL_MS,
   searchEntities, detectMode,
 } from './types'
-import { ops, ship, readSetting } from '../../lib/client'
+import { ops, ship, readSetting } from './client'
 import { navigate } from '@ship/deck/router'
 
 export default controller({
@@ -138,7 +138,7 @@ export default controller({
       // palette search input.
       queueMicrotask(() => {
         if (mode() === 'ai') {
-          const chat = host.shadowRoot?.querySelector('sui-command-chat')
+          const chat = host.shadowRoot?.querySelector('ship-command-chat')
           const ta = chat?.shadowRoot?.querySelector('.cb-chat-input') as HTMLTextAreaElement | null
           if (ta) {
             ta.focus()
@@ -146,7 +146,7 @@ export default controller({
           }
           return
         }
-        const pal = host.shadowRoot?.querySelector('sui-command-palette')
+        const pal = host.shadowRoot?.querySelector('ship-command-panel')
         const inp = pal?.shadowRoot?.querySelector('.cb-search') as HTMLInputElement | null
         inp?.focus()
       })
@@ -363,7 +363,7 @@ export default controller({
 
     // ── Keyboard navigation helpers ────────────────────────────────
     function getPaletteItems(): NodeListOf<Element> | undefined {
-      const pal = host.shadowRoot?.querySelector('sui-command-palette')
+      const pal = host.shadowRoot?.querySelector('ship-command-panel')
       return pal?.shadowRoot?.querySelectorAll('.cb-item')
     }
 
@@ -488,8 +488,8 @@ export default controller({
     document.addEventListener('ship:create:open', onCreateOpen)
 
     // Expose endSession + loadCurrentSession on the shared context
-    // so palette/chat controllers can call them.
-    const ctxKey = '__sui_ctx_sui-command-bar'
+    // so panel/chat controllers can call them.
+    const ctxKey = '__sui_ctx_ship-command-palette'
     const ctx = (host as unknown as Record<string, unknown>)[ctxKey] as Record<string, unknown> | undefined
     if (ctx) {
       ctx['endSession'] = endSession

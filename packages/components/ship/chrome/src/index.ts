@@ -32,3 +32,10 @@ import './sui-account-menu/sui-account-menu.compiled.js'
 import './ship-rail/ship-rail.compiled.js'
 import './ship-rail/ship-rail-item.compiled.js'
 import './ship-rail/ship-rail-section.compiled.js'
+// <ship-command-palette> — the ⌘K palette composition (trigger pill + dialog).
+// It provisions a shared scope its two inner panels consume via useShared:
+// <ship-command-panel> (find/command/mention/create) and <ship-command-chat>
+// (the unified ai mode). Distinct from the <ship-command-bar> primitive above.
+import './ship-command-palette/ship-command-palette.compiled.js'
+import './ship-command-palette/ship-command-panel.compiled.js'
+import './ship-command-palette/ship-command-chat.compiled.js'

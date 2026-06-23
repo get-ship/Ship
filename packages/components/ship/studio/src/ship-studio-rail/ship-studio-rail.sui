@@ -1,22 +1,18 @@
 <!--
-  <sui-studio-rail> — Studio's navigation rail.
+  <ship-studio-rail> — @ship/studio · the Studio navigation rail.
 
-  The Studio surface is a deck view (views/studio/) whose nested routes
-  (/studio/agents, /studio/agents/:id, …) each render this rail in their
-  layout. The rail is a globally-registered chrome component (loaded in
-  the sui-chrome aggregate) so the on-demand-compiled nested leaves can
-  drop the `<sui-studio-rail>` tag without importing it — nested view
-  controllers are bundled with `bun build` and can't resolve `.sui`
-  imports.
+  A host's studio routes (/studio/agents, /studio/agents/:id, …) each drop
+  this rail in their layout. It resolves via the bundler's per-tag scan, so
+  nested leaves can name `<ship-studio-rail>` without importing it.
 
   Navigation is plain deck: every entry is an `<a href="/studio/…">`,
-  intercepted by the shell's anchor delegate (which walks composedPath,
-  so shadow-DOM links route as SPA navigations). Active state is read
-  from `location.pathname`, refreshed on popstate / sui:navigate.
+  intercepted by the host's anchor delegate (which walks composedPath, so
+  shadow-DOM links route as SPA navigations). Active state is read from
+  `location.pathname`, refreshed on popstate / sui:navigate.
 
-  Only sections backed by a real deck view link out. The rest stay
-  honest "soon" placeholders until their view lands — no fabricated
-  destinations, no 404s.
+  Only sections backed by a real deck view link out. The rest stay honest
+  "soon" placeholders until their view lands — no fabricated destinations,
+  no 404s.
 -->
 
 <style>

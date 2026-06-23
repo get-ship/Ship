@@ -1,10 +1,11 @@
 <!--
-  <sui-command-palette> — inner command palette panel.
-  Consumed inside <sui-command-bar>. Accesses harness state via useShared.
+  <ship-command-panel> — @ship/chrome · the inner command palette panel
+  (find / command / mention / create modes). Consumed inside
+  <ship-command-palette>. Accesses harness state via useShared.
 -->
-<!-- FILE_CAP_OVERRIDE: palette template is a multi-mode switch (find/command/mention/create);
+<!-- FILE_CAP_OVERRIDE: panel template is a multi-mode switch (find/command/mention/create);
      each mode's markup is self-contained and cannot be split into separate files without
-     losing the shared search input row and the bar shared-scope bindings. -->
+     losing the shared search input row and the palette shared-scope bindings. -->
 
 <style>
   :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
@@ -424,7 +425,7 @@
       </div>
 
     {:default}
-      <!-- ai mode is owned by <sui-command-chat> via isChat(); palette
+      <!-- ai mode is owned by <ship-command-chat> via isChat(); the panel
            never renders for mode='ai'. This branch is a defensive
            no-op for any transient unknown mode. -->
       <div class="cb-empty">…</div>

@@ -1,5 +1,5 @@
 <div class="studio-view" data-test="studio-view">
-  <sui-studio-rail></sui-studio-rail>
+  <ship-studio-rail></ship-studio-rail>
   <main class="studio-content" data-test="studio-content">
     {#if loading()}
       <div class="sk-loading"><sui-spinner size="md" centered></sui-spinner></div>

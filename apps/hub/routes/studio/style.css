@@ -2,7 +2,7 @@
    The bundler statically imports this file for every route under /studio/
    (routes.gen.ts style_imports). All style.css files land as hashed
    <link> assets in index.html, so this file's selectors apply globally.
-   The rail itself (<sui-studio-rail>) carries its own styles in shadow DOM;
+   The rail itself (<ship-studio-rail>) carries its own styles in shadow DOM;
    this file owns only the surrounding frame.
 
    Height chain:
@@ -11,7 +11,7 @@
             └─ <ship-nav-top>     (display:contents → sui-nav-top flex item, height:40px)
             └─ <main.app-main>    (flex:1; min-height:0; display:flex flex-col; overflow:auto)
                  └─ [slot=route]
-                      └─ <sui-studio-chrome>  (slot="route" via controller; flex:1 min-height:0)
+                      └─ <ship-studio-chrome>  (slot="route" via controller; flex:1 min-height:0)
                            └─ <main.main>    (flex:1; min-height:0; display:flex flex-col)
                                 └─ [slot=route]
                                      └─ <div slot="route">   (router mount target)
@@ -46,7 +46,7 @@
   font-size: var(--text-base);
 }
 
-sui-studio-rail { grid-area: rail; min-height: 0; }
+ship-studio-rail { grid-area: rail; min-height: 0; }
 
 .studio-content {
   grid-area: content;

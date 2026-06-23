@@ -1,5 +1,5 @@
 <div class="studio-view" data-test="studio-view">
-  <sui-studio-rail></sui-studio-rail>
+  <ship-studio-rail></ship-studio-rail>
   <main class="studio-content" data-test="studio-content">
     <section class="studio-landing">
       <h1 class="studio-landing-h1">Studio</h1>

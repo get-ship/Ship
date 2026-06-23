@@ -1,5 +1,5 @@
 <div class="studio-view" data-test="studio-view">
-  <sui-studio-rail></sui-studio-rail>
+  <ship-studio-rail></ship-studio-rail>
   <main class="studio-content" data-test="studio-content">
     <div class="ship-view skills-view">
       <div class="skills-wrap">

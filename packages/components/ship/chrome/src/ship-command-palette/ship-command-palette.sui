@@ -1,11 +1,8 @@
 <!--
-  <sui-command-bar> — harness shell for the command palette.
-  Renders the trigger pill + sui-dialog. Wraps state in shared() so
-  <sui-command-palette> and <sui-command-chat> consume via useShared.
-
-  Hub port of apps/shell/src/components/sui-command-bar/sui-command-bar.sui.
-  Design delta: footer hints bar adopted from design bundle
-  (.artifacts/design-drop/design/components/ship/chrome/ship-command-bar.sui).
+  <ship-command-palette> — @ship/chrome · harness shell for the command
+  palette (the ⌘K experience). Renders the trigger pill + sui-dialog and
+  wraps state in shared() so <ship-command-panel> and <ship-command-chat>
+  consume it via useShared.
 
   Props   : open (bool, reflect), mode (string, reflect)
   Methods : show(mode?, query?), hide(), toggle(mode?), setMode(mode)
@@ -133,9 +130,9 @@
 >
   <div class="cb-wrap">
     {#if isChat()}
-      <sui-command-chat></sui-command-chat>
+      <ship-command-chat></ship-command-chat>
     {:else}
-      <sui-command-palette></sui-command-palette>
+      <ship-command-panel></ship-command-panel>
     {/if}
     <div class="cb-footer" aria-hidden="true">
       <span>Type <b>/</b> for actions<span class="cb-foot-sep"> · </span><b>></b> to find<span class="cb-foot-sep"> · </span><b>@</b> to mention<span class="cb-foot-sep"> · </span><b>+</b> to create</span>

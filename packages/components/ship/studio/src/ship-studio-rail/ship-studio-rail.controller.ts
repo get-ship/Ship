@@ -1,26 +1,22 @@
-// Studio rail controller — URL-driven nav state for the Studio surface.
-// (Hub port of `apps/shell/src/components/sui-studio-rail/
-// sui-studio-rail.controller.ts`. Body is byte-identical to the shell
-// except for two intentional changes:
-//   1. The import seam — the shell pulls `ops` from its `../../ops`
-//      wrapper, the hub has no `ops.ts` so it pulls the same
-//      `createShipConnectClient` singleton from `../../lib/client`.
-//   2. The listeners + count fetch moved out of the `scope:` block's
-//      `effect()` bodies and into a `mount:` block with an explicit
-//      cleanup return. The pre-fix shape (`effect(() => { addEventListener;
-//      return () => removeEventListener })`) leaks listeners across every
-//      studio nav: the chrome chain is rebuilt on every navigation
-//      (mountRouter → buildMountTarget), the studio chrome's mount
-//      runs a fresh rail, and the new rail's effect() has no tracked
-//      deps so the effect's internal cleanup (the only path that
-//      removes the listeners) never runs. `mount(): return cleanup`
-//      is wired to `cleanups[]` by the runtime's mount and fires on
-//      `handle.dispose()`.
+// <ship-studio-rail> controller — @ship/studio · URL-driven nav state for
+// the Studio surface.
+//
+// The listeners + agent-count fetch live in a `mount:` block with an
+// explicit cleanup return (not in a `scope:` `effect()`). The chrome chain
+// is rebuilt on every navigation (mountRouter → buildMountTarget), the
+// studio chrome's mount runs a fresh rail, and a `scope:` effect with no
+// tracked deps never re-runs — so its internal cleanup never fires and the
+// listeners leak. `mount(): return cleanup` is wired to `cleanups[]` by the
+// runtime's mount and fires on `handle.dispose()`.
 
 import { controller, signal, derived } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
-import type { Scope } from './sui-studio-rail.sui'
-import { ops } from '../../lib/client'
+import { createShipConnectClient } from '@ship/sdk/connect'
+import type { Scope } from './ship-studio-rail.sui'
+
+// Host-agnostic same-origin Connect client — cookies carry the session, so
+// no token plumbing. The pack owns its data plumbing; the host wires nothing.
+const ops = createShipConnectClient({ baseUrl: '' })
 
 interface RailEntry {
   id: string

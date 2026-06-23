@@ -34,7 +34,7 @@
   wrapper.
 -->
 <ship-app-chrome>
-  <sui-command-bar slot="command-bar" id="ship-command-bar"></sui-command-bar>
+  <ship-command-palette slot="command-bar" id="ship-command-palette"></ship-command-palette>
   <sui-error-boundary data-test="hub-route-boundary">
     <template slot="fallback">
       <ship-error-state

@@ -28,6 +28,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@ship/sdk": "workspace:*",
     "@ship/sdk-client": "workspace:*",
     "@ship/sui-dom": "file:/home/madvib/dev/sui/packages/sui/dom",
     "@ship/sui-primitives": "file:/home/madvib/dev/sui/packages/components/sui/primitives",

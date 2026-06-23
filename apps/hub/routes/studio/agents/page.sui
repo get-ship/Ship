@@ -1,7 +1,7 @@
 <data name="agents" source="ship.agents.summaries()" live />
 
 <div class="studio-view" data-test="studio-view">
-  <sui-studio-rail></sui-studio-rail>
+  <ship-studio-rail></ship-studio-rail>
   <main class="studio-content" data-test="studio-content">
 <div class="ship-view agents-view">
   <div class="agents-wrap">

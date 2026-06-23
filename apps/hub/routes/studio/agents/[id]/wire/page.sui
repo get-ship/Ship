@@ -1,5 +1,5 @@
 <div class="studio-view" data-test="studio-view">
-  <sui-studio-rail></sui-studio-rail>
+  <ship-studio-rail></ship-studio-rail>
   <main class="studio-content" data-test="studio-content">
 {#async wireCtx}
   {:loading}
@@ -10,7 +10,7 @@
 
   {:ok}
 {#if wireData()}
-  <sui-view-chrome title={wireData().agent.name}>
+  <ship-view-chrome title={wireData().agent.name}>
     <sui-toggle-group variant="segmented" type="single" slot="actions" value="wire" size="sm" on:sui-change={(e) => goTab(e.detail.value)}>
       <sui-toggle value="overview">Overview</sui-toggle>
       <sui-toggle value="wire">Wire</sui-toggle>
@@ -20,7 +20,7 @@
       <sui-icon slot="leading" name="chevron-left" size="xs"></sui-icon>
       Agents
     </sui-button>
-  </sui-view-chrome>
+  </ship-view-chrome>
 
   <div class="ship-view agents-wire">
 

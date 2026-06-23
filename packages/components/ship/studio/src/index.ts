@@ -24,5 +24,13 @@
 // The pack composes <sui-empty-state>, <sui-stack>, <sui-icon>,
 // <sui-card> from @ship/sui-primitives. No new primitives, no forked
 // layout — per the placement hard-rule (charter §Placement).
+//
+// Studio shell:
+//   <ship-studio-chrome>  the /studio/* layout wrapper (route slot + footer).
+//   <ship-studio-rail>    the studio navigation rail.
+//   <ship-view-chrome>    a view's declarative topbar + statusbar.
 import './ship-component-catalog/ship-component-catalog.compiled.js'
 import './ship-component-viewer/ship-component-viewer.compiled.js'
+import './ship-studio-chrome/ship-studio-chrome.compiled.js'
+import './ship-studio-rail/ship-studio-rail.compiled.js'
+import './ship-view-chrome/ship-view-chrome.compiled.js'

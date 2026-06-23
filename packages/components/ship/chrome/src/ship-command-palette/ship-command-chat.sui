@@ -1,5 +1,5 @@
 <!--
-  <sui-command-chat> — chat panel for the unified ai mode.
+  <ship-command-chat> — @ship/chrome · chat panel for the unified ai mode.
   Always rendered when bar.mode = 'ai'. Body branches:
     daemonOffline → "Daemon unreachable" empty state
     no agents     → "Set an active agent in /studio/agents"

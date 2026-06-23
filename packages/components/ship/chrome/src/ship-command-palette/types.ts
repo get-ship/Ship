@@ -1,14 +1,13 @@
-// Shared types, constants, and utilities for the sui-command-bar component family.
+// Shared types, constants, and utilities for the <ship-command-palette>
+// component family (palette · panel · chat).
 //
-// Hub port of apps/shell/src/components/sui-command-bar/types.ts.
-// Seam changes from shell:
-//   - `ops` sourced from '../../lib/client' (hub's shared Connect client)
-//   - `navigateTo` removed — callers import `navigate` from '@ship/deck/router' directly
-//   - `chrome` import removed (no chrome IPC in the hub; navigate() is the single path)
+// `searchEntities` drives the unified search Connect op; `ops` is the
+// pack-owned client (see ./client). Navigation routes through `navigate`
+// from '@ship/deck/router' at each call site.
 
 import type { Signal } from '@ship/sui-runtime'
 import { EntityKind, type SearchHit as ProtoSearchHit } from '@ship/sdk/connect'
-import { ops } from '../../lib/client'
+import { ops } from './client'
 
 export type BarMode = 'ai' | 'command' | 'find' | 'mention' | 'create'
 
@@ -226,9 +225,10 @@ export function detectMode(value: string, fallback: BarMode): BarMode {
   return 'ai'
 }
 
-// The shared reactive scope sui-command-bar provisions (via `shared(...)`) for
-// its sibling panels (palette, chat) to consume through
-// `useShared<CommandBarScope>(host, 'sui-command-bar')`.
+// The shared reactive scope <ship-command-palette> provisions (via
+// `shared(...)`) for its sibling panels (<ship-command-panel>,
+// <ship-command-chat>) to consume through
+// `useShared<CommandBarScope>(host, 'ship-command-palette')`.
 export interface CommandBarScope {
   open: Signal<boolean>
   mode: Signal<BarMode>

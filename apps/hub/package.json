@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@ship/agents": "workspace:*",
+    "@ship/chrome": "workspace:*",
     "@ship/home": "workspace:*",
     "@ship/studio": "workspace:*",
     "@ship/skills": "workspace:*"

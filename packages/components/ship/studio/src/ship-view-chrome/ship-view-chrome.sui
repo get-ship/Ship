@@ -1,41 +1,27 @@
 <!--
-  <sui-view-chrome> — hub-specific view chrome.
+  <ship-view-chrome> — @ship/studio · a view's declarative contribution to
+  the app's topbar + statusbar.
 
-  A view's declarative contribution to the app's topbar + statusbar.
-  Views never render their own breadcrumb or status bar — they emit
-  a single <sui-view-chrome> and the chrome paints the bar on their
-  behalf. Keeps first-party and third-party views symmetric.
+  Views never render their own breadcrumb or status bar — they emit a single
+  <ship-view-chrome> and the chrome paints the bar on their behalf. Keeps
+  first-party and third-party views symmetric.
 
-  This is the hub's port of the shell's <sui-view-chrome>. The shell
-  version moves its slot children into shell-owned containers
-  (#view-topbar-actions, #view-status-start, #view-status-end) and
-  writes attribute-driven fields into #breadcrumbs-title, #status-branch,
-  #status-ab, #status-dot. Those DOM IDs are shell internals — the
-  hub has no such layout, so the chrome is rendered inline as its own
-  topbar/statusbar pair, with named shadow slots for the subregions
-  the view wants to fill.
+  The chrome is a complete widget, not a forwarder: it renders its own
+  topbar/statusbar pair inline, with named shadow slots for the subregions
+  a view wants to fill. Attribute changes update the inline fields directly.
 
-  Prop / event parity vs the shell version
-  ─────────────────────────────────────────────────────────────────────────
-  Lit                          SUI                          Notes
-  ─────────────────────────────────────────────────────────────────────────
-  title  (string, '')          title  (string, '', reflect) breadcrumb leaf
-  branch (string, '')          branch (string, '', reflect) status branch name
-  ahead  (number, 0)           ahead  (number, 0,  reflect) ↑N commits
-  behind (number, 0)           behind (number, 0,  reflect) ↓N commits
-  tone   (union, 'default')    tone   (union, reflect)      status dot tint
-  busy   (bool, false)         busy   (bool, false, reflect) pulse dot
-  ─────────────────────────────────────────────────────────────────────────
+  Props (all reflect):
+    title  (string, '')        breadcrumb leaf
+    branch (string, '')        status branch name
+    ahead  (number, 0)         ↑N commits
+    behind (number, 0)         ↓N commits
+    tone   (union, 'default')  status dot tint
+    busy   (bool, false)       pulse dot
   Slots (shadow DOM, named):
     topbar-start  — left of the breadcrumb leaf
     actions       — right of the breadcrumb leaf (right-aligned cluster)
     status-start  — left of the status bar
     status-end    — right of the status bar
-  ─────────────────────────────────────────────────────────────────────────
-  No chrome.* calls, no document.querySelector lookups: the chrome is
-  a complete widget, not a forwarder. Attribute changes update the
-  inline fields directly; slot content is rendered in place.
-  ─────────────────────────────────────────────────────────────────────────
 -->
 
 <prop name="title" type="string" default="" reflect />
