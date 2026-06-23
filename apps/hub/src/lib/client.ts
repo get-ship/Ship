@@ -25,6 +25,17 @@
 // RUNTIME settings table so the theme choice persists across sessions.
 // Tier-4 localStorage is still the synchronous cache the boot script reads,
 // so the Connect round-trip never blocks paint.
+// Register the SUI primitive pack as a module side effect. The chrome pack
+// (`@ship/chrome`) and the app-local command-bar components COMPOSE generic
+// `<sui-*>` primitives (sui-dialog, sui-icon, sui-input, sui-portal, …) but do
+// not register them — by contract the HOST does, via `import
+// '@ship/sui-primitives'` (see packages/components/ship/chrome/src/index.ts).
+// The shell does this in apps/shell/src/main.ts; the hub has no main.ts, so its
+// single host-owned entry module (this clientsModule, imported by entry.gen.ts)
+// owns the registration. Without it the command palette's <sui-dialog> stays an
+// undefined element — the bar flips to `open` but never paints — and Studio
+// card icons render as blank boxes.
+import '@ship/sui-primitives'
 import { createClient } from '@ship/sdk-client'
 import { createShipConnectClient, SettingScope } from '@ship/sdk/connect'
 import { setThemeTransport, type ThemeId } from '@ship/tokens/themes'

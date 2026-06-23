@@ -49,6 +49,13 @@ op that has no registered resolver. The list/overview surfaces (`agents.summarie
 in scope on the *current* contract? Should the read be **unary** (`ops.*`, request/response)
 rather than live? Or is it a genuine new-op request? The ported code assumes the deprecated live shape.
 
+## REQ-6 · command-bar session-state surface (pty-sessions + agent.session/hook live) — NEEDS OPERATOR VALIDATION
+- **Surface:** `<sui-command-bar>` (cmdk), mounted hub-wide. The **core** palette (navigate, `ops.search.search`, `ops.agents.list`, `ops.agents.harnesses`) is fully wired and returns **200** — verified. This REQ is only the *session-state* sub-feature (active-agent dot + AI/chat lifecycle).
+- **Calls not on the contract (both degrade gracefully — caught → "offline"/empty; neither blocks the palette):**
+  - `GET /api/v1/pty-sessions` → **404**. `loadCurrentSession()` (controller) uses this raw REST path to find the active agent session. The endpoint is not served on the current daemon.
+  - `ship.onNamespace('agent.session.', …)` + `ship.onNamespace('hook.', …)` → the live mux (`/_deck/mux/subscribe`) **404s these namespaces** (the route exists — GET is 405 — but `agent.session.*`/`hook.*` have no registered live resolver). Same class as REQ-2..5: a live namespace not on the contract. The controller's own header comment (lines ~185-199) already documents that the per-chunk harness stream is not on the Connect surface today.
+- **Question for the operator (do NOT pre-answer by editing the backend):** is the active-session/AI-chat surface in scope on the current contract? If yes, what is the right shape on the *available* surface — a unary `ops.*` for the active session, and which (if any) kernel namespaces are subscribable via the mux? Until validated, the bar shows "No session" and the AI/chat lifecycle stays inert; the navigate/search/agents palette is unaffected.
+
 ---
 
 ### Notes
