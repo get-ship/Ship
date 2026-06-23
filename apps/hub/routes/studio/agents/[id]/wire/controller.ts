@@ -6,15 +6,15 @@ import { routes } from '../../../../../routes.gen'
 
 export default controller({
   scope: (ctx: ViewScope<Scope>) => {
-    const ship = ctx.clients.ship
+    const ops = ctx.clients.ops
     const { route } = ctx
     const agentId = derived(() => route.params.id() ?? '')
-    const wireCtx = live(() => ship.agents.wire({ id: agentId() }))
-    // ship.agents.wire is LiveSource<unknown> by SDK contract — the wire graph
-    // (agent + nodes + edges + catalogs) is dynamic, so the unwrapped value
-    // stays any for both the template and the mount effect below.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const wireData = derived<any>(() => unwrap(wireCtx as any) ?? null)
+    // Unary `agents.Wire` over the ambient `ops` client; `live()` wraps the
+    // promise so the template's `{#async}` block drives loading/error/ok.
+    // Response is `AgentWireResponse` { agent, nodes, edges, catalogs } with
+    // camelCase fields (mcpServers, pathD).
+    const wireCtx = live(() => ops.agents.wire({ id: agentId() }))
+    const wireData = derived(() => unwrap(wireCtx) ?? null)
     const selectedKind = signal('agent')
     const selectedId = signal('')
     const pickerOpen = signal(false)

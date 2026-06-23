@@ -45,15 +45,15 @@
       {/if}
       <div class="section-h" style="margin-top:16px">
         <sui-icon name="terminal" size="xs"></sui-icon>MCP Servers
-        <span class="count">{wireData().agent.mcp_servers.length}</span>
+        <span class="count">{wireData().agent.mcpServers.length}</span>
         <sui-button variant="ghost" size="sm" class="add-btn" aria-label="Add MCP server" on:click={() => openPicker('mcp')}>
           <sui-icon name="plus" size="xs"></sui-icon>
         </sui-button>
       </div>
-      {#if wireData().agent.mcp_servers.length === 0}
+      {#if wireData().agent.mcpServers.length === 0}
         <div class="palette-item" style="font-style:italic">no servers</div>
       {:else}
-        {#for m of wireData().agent.mcp_servers key={m}}
+        {#for m of wireData().agent.mcpServers key={m}}
           <div class="palette-item">
             <sui-icon name="check-circle" size="xs" style="color:var(--tone-info-fg)"></sui-icon>
             <span class="mono">{m}</span>
@@ -75,8 +75,8 @@
 
     <div class="wire-canvas">
       <svg class="wires" viewBox="0 0 1000 600" preserveAspectRatio="none">
-        {#for e of wireData().edges key={e.path_d}}
-          <path attr:d={e.path_d}
+        {#for e of wireData().edges key={e.pathD}}
+          <path attr:d={e.pathD}
             attr:stroke={'var(--tone-' + (e.kind === 'skill' ? 'success' : e.kind === 'mcp' ? 'info' : e.kind === 'rule' ? 'warning' : e.kind === 'perm' ? 'destructive' : 'accent') + '-fg)'}
             stroke-width="1.3" stroke-opacity="0.55" fill="none"
             attr:stroke-dasharray={e.dashed ? '4 3' : null} />
@@ -122,13 +122,6 @@
         <div class="insp-field"><label>ID</label><div class="mono">{wireData().agent.id}</div></div>
         <div class="insp-field"><label>Description</label><div style="font-size:var(--text-sm); line-height:1.5">{wireData().agent.description || 'No description'}</div></div>
         <div class="insp-field"><label>Source</label><div class="mono">{wireData().agent.source}</div></div>
-        <div class="insp-field"><label>Providers</label>
-          <div style="display:flex; gap:10px; flex-wrap:wrap">
-            {#for p of wireData().agent.providers key={p}}
-              <span class="wire-provider-logo">{p.slice(0,2).toUpperCase()}</span>
-            {/for}
-          </div>
-        </div>
         <p class="insp-help">Select any peripheral node on the canvas to inspect.</p>
         <sui-button size="sm" variant="outline" style="margin-top:var(--space-3); width:100%" on:click={goSettings}>
           <sui-icon slot="leading" name="edit" size="xs"></sui-icon>Edit settings

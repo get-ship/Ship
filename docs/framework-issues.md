@@ -32,11 +32,11 @@ Two kinds of entries:
 
 ---
 
-## REQ-1 · agent detail / settings / wire / create-context data  — NEEDS OPERATOR VALIDATION
-- **Surfaces (ported from shell):** `/studio/agents/[id]`, `[id]/settings`, `[id]/wire`, `create`.
-- **Ops the shell used:** `agents.wire`, `agents.settings`, `agents.create_ctx` (live/sse).
-- **Current contract (registered live resolvers):** `agents.summaries`, `collections.list`, `account.state`, `git.overview` — the agent-detail ops are **not** on it.
-- **Question for the operator (do NOT pre-answer by editing the backend):** Are these agent sub-surfaces in scope on the current contract? If yes, what is the right shape on the *available* surface (and unary vs live)? Until validated, these routes render chrome + an empty/error state. The ported code currently assumes the deprecated surface.
+## REQ-1 · agent detail / settings / wire / create-context data  — RESOLVED (unary)
+- **Surfaces:** `/studio/agents/[id]`, `[id]/settings`, `[id]/wire`, `create`.
+- **Resolution:** the agent-detail data IS on the contract — as **unary Connect** methods on `AgentsService`, not live resolvers. The surfaces read `ctx.clients.ops.agents.{wire,settings,createCtx,get}` wrapped in `live(() => …)` (the proven `ops.collections.get` pattern: a promise drives the `{#async}` loading/error/ok lifecycle). Bindings were re-mapped from the deprecated live shape (snake_case serde JSON) to the proto-es shape (**camelCase**: `mcpServers`, `pathD`, `toolPatterns`, `permissions.toolsAllow/toolsAsk/toolsDeny`). `CreateCtx` returns a `JsonResponse` ({ json }) decoded in the controller; its payload is serde snake_case (`templates`, `permission_presets`, `available_harnesses` — note: **`available_harnesses`**, not `available_providers`).
+- **Projection gap (observation, not a blocker):** the canonical `AgentDetail` projection (`ship-agents::view_state::AgentDetail`) carries **no `providers`, `default_provider`, or `hue`**, and the wire builder emits no `prov` nodes. Detail + settings source `providers`/`hue` from the **raw doc** via a second `agents.Get` read (parse `docJson`). A future pass could fold `providers`/`hue` into `AgentDetail` so the providers section + wire-inspector work from a single read (no second round-trip). Not changing the backend to do so — logged for the operator.
+- **Note:** `create` cannot be render-verified — `/studio/agents/create` still mis-routes to `[id]` per **FW-1**. The op + decode are correct and compile.
 
 ## REQ-2..5 · feature surfaces call live ops not on the contract — NEEDS OPERATOR VALIDATION
 Every hub *detail/feature* surface (ported from the shell) reads via a `ship.*` **live**

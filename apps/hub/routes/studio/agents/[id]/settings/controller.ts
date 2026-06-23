@@ -9,18 +9,30 @@ type ArrKey = 'pAllow' | 'pAsk' | 'pDeny'
 
 export default controller({
   scope: (ctx: ViewScope<Scope>) => {
-    const ship = ctx.clients.ship
+    // AMBIENT `ops` client (host-owned). `agents.Settings` carries the
+    // view-shaped agent + tiers + catalogs (camelCase: mcpServers,
+    // toolPatterns). Providers are not on that projection, so they come from
+    // the raw doc via `agents.Get`.
+    const ops = ctx.clients.ops
     const { route } = ctx
     const agentId = derived(() => route.params.id() ?? '')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const s = ship as any
-    const settings = live(() => s.agents.settings({ id: agentId() }))
+    const settings = live(() => ops.agents.settings({ id: agentId() }))
     const agent = derived(() => unwrap(settings)?.agent ?? null)
     const catalogs = derived(() => unwrap(settings)?.catalogs ?? null)
+    const docCtx = live(() => ops.agents.get({ id: agentId(), scope: '' }))
+    const docAgent = derived<{ providers?: string[]; default_provider?: string } | null>(() => {
+      const r = unwrap(docCtx)
+      if (!r) return null
+      try {
+        return (JSON.parse(r.docJson) as { agent?: { providers?: string[]; default_provider?: string } }).agent ?? null
+      } catch {
+        return null
+      }
+    })
     const providers = derived(() => {
-      const a = unwrap(settings) as { agent?: { providers?: string[]; default_provider?: string } } | undefined
-      const list = a?.agent?.providers ?? []
-      const def = a?.agent?.default_provider
+      const d = docAgent()
+      const list = Array.isArray(d?.providers) ? d!.providers : []
+      const def = d?.default_provider
       return list.map((id) => ({
         id,
         label: id.length > 0 ? id[0].toUpperCase() + id.slice(1) : id,
@@ -106,12 +118,12 @@ export default controller({
   },
   mount: (state, _el) => {
     const stop = effect(() => {
-      const a = state.agent as { permissions?: { tools_allow?: string[]; tools_ask?: string[]; tools_deny?: string[]; preset?: string } } | null
+      const a = state.agent as { permissions?: { toolsAllow?: string[]; toolsAsk?: string[]; toolsDeny?: string[]; preset?: string } } | null
       if (!a || state.pDirty) return
       const perms = a.permissions ?? {}
-      state.pAllow = perms.tools_allow ?? []
-      state.pAsk = perms.tools_ask ?? []
-      state.pDeny = perms.tools_deny ?? []
+      state.pAllow = perms.toolsAllow ?? []
+      state.pAsk = perms.toolsAsk ?? []
+      state.pDeny = perms.toolsDeny ?? []
       state.pPreset = perms.preset ?? ''
     })
     state._settStop = stop

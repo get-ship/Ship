@@ -33,7 +33,7 @@
       <h2 class="create-h">Start from a template</h2>
       <p class="create-sub">Templates pre-wire skills, MCP servers, and a sensible permission preset. You can change everything in the next steps.</p>
       <div class="tpl-grid">
-        {#for t of createCtx().value.templates key={t.id}}
+        {#for t of createData().templates key={t.id}}
           <sui-card padding="none" class="tpl-card"
             attr:data-selected={template() === t.id ? 'true' : null}
             on:click={() => selectTemplate(t)}
@@ -107,8 +107,8 @@
       <p class="create-sub">Which AI providers this agent compiles to, and what permission preset applies.</p>
       <div class="field">
         <label>Providers</label>
-        <div class="prov-grid" style:grid-template-columns={`repeat(${createCtx().value.available_providers.length}, 1fr)`}>
-          {#for p of createCtx().value.available_providers key={p}}
+        <div class="prov-grid" style:grid-template-columns={`repeat(${createData().available_harnesses.length}, 1fr)`}>
+          {#for p of createData().available_harnesses key={p}}
             <sui-card padding="sm" class="tpl-card prov-card"
               attr:data-selected={providers().includes(p) ? 'true' : null}
               on:click={() => toggleProvider(p)}
@@ -121,7 +121,7 @@
       <div class="field" style="margin-top: var(--space-5)">
         <label>Permission preset</label>
         <div class="preset-list">
-          {#for p of createCtx().value.permission_presets key={p.id}}
+          {#for p of createData().permission_presets key={p.id}}
             <sui-card padding="sm" class="preset-card"
               attr:data-selected={preset() === p.id ? 'true' : null}
               on:click={() => preset.set(p.id)}>

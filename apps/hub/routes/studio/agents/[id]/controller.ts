@@ -1,67 +1,32 @@
-// Hub version of `apps/shell/routes/studio/agents/[id]/controller.ts` —
-// the surface is byte-identical to the shell (the studio's detail view is
-// one of the surfaces this job ports verbatim) EXCEPT the client seam:
-// the shell pulls `ship` from its `../../../../ops` wrapper, the hub
-// pulls `ship` from the AMBIENT `ctx.clients.ship` injected by the
-// host's `entry.gen.ts` (deck-runtime maps `clients.<name>` into view
-// scope). The relative `src/lib/client` import is gone — the client
-// lives in the view mount context, not a per-view module path.
+// Agent detail (overview tab). Reads the unary `agents.*` Connect surface
+// through the ambient `ops` client (host-owned, injected as `clients.ops` by
+// entry.gen.ts): `agents.Wire` carries the view-shaped detail (skills, mcp,
+// rules, permissions, tags, source, version) and `agents.Get` carries the raw
+// agent doc, the source of the two fields the wire projection does NOT expose
+// — `providers` and `hue`. `live(() => ops.agents.x(…))` wraps each unary read
+// as a LiveSignal so the template's `{#async}` block drives loading/error/ok.
 //
-// Notes on the other seams:
-//   1. The `readSetting` / `writeSetting` helpers — the shell pulls them
-//      from `../../../../ops` (the same `ops.ts` file). The hub has no
-//      `ops.ts`; the helpers live in a sibling `settings.ts` shim that
-//      re-exports the same names with the same bodies.
-//   2. The `routes` import from `routes.gen` — the path is the same
-//      depth in both apps, so the relative path is unchanged. NOTE: the
-//      hub's generated `routes.gen.ts` does not include keys for the
-//      cut YAGNI sub-routes (create / settings / wire), so `goWire` /
-//      `goSettings` / `goTab` are RUNTIME dead-ends today. The page
-//      markup is verbatim; the navigation is inert until the sub-routes
-//      are ported (BACKEND-GAP, see .artifacts/port-studio-notes.md).
-//   3. The `navigate` import — the shell pulls it from
-//      `@ship/sui-runtime` (the host's runtime re-exports it from
-//      `@ship/deck/router`). The hub's deck-bundled `@ship/sui-runtime`
-//      does NOT re-export `navigate` (only the host-supplied one does).
-//      The controller imports `navigate` directly from `@ship/deck/router`
-//      so the hub's bundled runtime resolves it.
+// Seams: `navigate` comes from `@ship/deck/router` (the hub's bundled runtime
+// does not re-export it); `readSetting`/`writeSetting` live in the sibling
+// `settings.ts` shim; `routes` resolves the sibling wire/settings sub-routes.
 import { controller, derived, effect, live, signal, unwrap } from '@ship/sui-runtime'
-import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
+import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { routes } from '../../../../routes.gen'
 import { navigate } from '@ship/deck/router'
 import { HUES, pickHue, pickInitials } from './hue'
 import { readSetting, writeSetting } from './settings'
-import type { ShipConnectClient } from '@ship/sdk/connect'
+import type { AgentDetail, ShipConnectClient } from '@ship/sdk/connect'
 
-type Permissions = {
-  preset?: string
-  tools_allow?: string[]
-  tools_ask?: string[]
-  tools_deny?: string[]
-}
-
-type AgentDetail = {
-  id: string
-  name: string
-  description: string
-  letter: string
-  hue?: string | null
-  icon?: string | null
-  version?: string | null
-  tags?: string[]
-  skills: string[]
-  mcp_servers: string[]
-  rules: string[]
-  inline_rules?: string
-  providers: string[]
+// The raw agent-doc body (parsed from `AgentGetResponse.docJson`). Only the
+// fields the wire projection drops are read here — `agent.providers` and
+// `agent.hue` — so the shape stays intentionally loose.
+type DocAgent = {
+  providers?: string[]
   default_provider?: string | null
-  permissions_tier: string
-  permissions?: Permissions
-  source: string
-}
+  hue?: string | null
+} | null
 
-type WireResp = { agent?: AgentDetail } | null | undefined
 type Banner = { ok: true; msg: string } | { ok: false; msg: string } | null
 
 
@@ -73,35 +38,44 @@ async function readActiveAgent(ops: ShipConnectClient): Promise<string> {
 export default controller({
   scope: (ctx: ViewScope<Scope>) => {
     // AMBIENT client (host-owned): the entry.gen.ts bootstrap constructs
-    // `ship` from `src/lib/client.ts` and injects it as `clients.ship`.
+    // `ops` from `src/lib/client.ts` and injects it as `clients.ops`.
     const { route } = ctx
-    const ship = ctx.clients.ship
+    const ops = ctx.clients.ops
     const agentId = derived(() => route.params.id() ?? '')
-    const wireCtx = live(() => ship.agents.wire({ id: agentId() }))
-    // `wireCtx` emits as `unknown` (emitter gap); narrow to a LiveSignal.
-    const wireData = derived(() => (unwrap(wireCtx as LiveSignal<WireResp>) ?? null) as WireResp)
+    const wireCtx = live(() => ops.agents.wire({ id: agentId() }))
+    // Raw doc — sole source of `providers`/`hue` (absent from the wire
+    // projection). Empty scope walks Project → User.
+    const docCtx = live(() => ops.agents.get({ id: agentId(), scope: '' }))
+    const wireData = derived(() => unwrap(wireCtx) ?? null)
 
-    const agent = derived<AgentDetail | null>(() => {
-      const d = wireData()
-      return (d && d.agent) ? d.agent : null
+    const agent = derived<AgentDetail | null>(() => wireData()?.agent ?? null)
+
+    const docAgent = derived<DocAgent>(() => {
+      const r = unwrap(docCtx)
+      if (!r) return null
+      try {
+        const doc = JSON.parse(r.docJson) as { agent?: DocAgent }
+        return doc.agent ?? null
+      } catch {
+        return null
+      }
     })
 
     const notFound = derived(() => {
-      const ctx = unwrap(wireCtx as LiveSignal<WireResp>)
-      if (typeof ctx === 'undefined') return false
-      const d = ctx as WireResp
-      return !(d && d.agent && typeof d.agent.id === 'string')
+      const st = wireCtx()
+      if (st.kind !== 'ok') return false
+      const a = st.value?.agent
+      return !(a && typeof a.id === 'string')
     })
 
-    // Hue: prefer the value the author saved on the agent record so
-    // the keystone tile matches the tile that was picked during
-    // create. Fall back to a deterministic hash so older agents that
-    // pre-date the hue field still get a stable colour.
+    // Hue: prefer the value the author saved on the agent doc so the
+    // keystone tile matches the tile picked during create. Fall back to a
+    // deterministic hash so agents that declare no hue still get a stable
+    // colour.
     const hue = derived(() => {
-      const a = agent()
-      const saved = a && typeof a.hue === 'string' ? a.hue.trim() : ''
+      const saved = typeof docAgent()?.hue === 'string' ? (docAgent()!.hue as string).trim() : ''
       if (saved.length > 0 && (HUES as readonly string[]).includes(saved)) return saved
-      return pickHue(a?.id ?? agentId())
+      return pickHue(agent()?.id ?? agentId())
     })
 
     const initials = derived(() => {
@@ -123,7 +97,7 @@ export default controller({
     })
     const mcpList = derived<string[]>(() => {
       const a = agent()
-      return a && Array.isArray(a.mcp_servers) ? a.mcp_servers : []
+      return a && Array.isArray(a.mcpServers) ? a.mcpServers : []
     })
     const rulesList = derived<string[]>(() => {
       const a = agent()
@@ -131,16 +105,19 @@ export default controller({
     })
     const inlineRulesText = derived(() => {
       const a = agent()
-      return (a && typeof a.inline_rules === 'string') ? a.inline_rules : ''
+      return (a && typeof a.inlineRules === 'string') ? a.inlineRules : ''
     })
     const hasInlineRules = derived(() => inlineRulesText().trim().length > 0)
     const rulesTotal = derived(() => rulesList().length + (hasInlineRules() ? 1 : 0))
 
+    // Providers + default come from the raw doc (`agent.providers`), not the
+    // wire projection. Agents that declare none render the section's empty
+    // state.
     const providerList = derived<{ id: string; label: string; isDefault: boolean }[]>(() => {
-      const a = agent()
-      if (!a || !Array.isArray(a.providers)) return []
-      const def = a.default_provider || (a.providers.length > 0 ? a.providers[0] : '')
-      return a.providers.map((id) => ({
+      const d = docAgent()
+      if (!d || !Array.isArray(d.providers)) return []
+      const def = d.default_provider || (d.providers.length > 0 ? d.providers[0] : '')
+      return d.providers.map((id) => ({
         id,
         label: id.length > 0 ? id[0].toUpperCase() + id.slice(1) : id,
         isDefault: id === def,
@@ -159,16 +136,15 @@ export default controller({
       if (!a) return 'none'
       const p = a.permissions && typeof a.permissions.preset === 'string' ? a.permissions.preset : ''
       if (p.length > 0) return p
-      return a.permissions_tier || 'none'
+      return a.permissionsTier || 'none'
     })
 
     const permLists = derived(() => {
-      const a = agent()
-      const p = a?.permissions ?? {}
+      const p = agent()?.permissions
       return {
-        allow: Array.isArray(p.tools_allow) ? p.tools_allow : [],
-        ask: Array.isArray(p.tools_ask) ? p.tools_ask : [],
-        deny: Array.isArray(p.tools_deny) ? p.tools_deny : [],
+        allow: Array.isArray(p?.toolsAllow) ? p!.toolsAllow : [],
+        ask: Array.isArray(p?.toolsAsk) ? p!.toolsAsk : [],
+        deny: Array.isArray(p?.toolsDeny) ? p!.toolsDeny : [],
       }
     })
     const permTotalCount = derived(() => {

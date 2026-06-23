@@ -1,4 +1,4 @@
-import { controller, signal, derived, live } from '@ship/sui-runtime'
+import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { navigate } from '@ship/deck/router'
@@ -17,7 +17,9 @@ type TemplateEntry = {
 type CreateCtxValue = {
   templates: TemplateEntry[]
   permission_presets: Array<{ id: string; label: string; description: string }>
-  available_providers: string[]
+  // The backend serializes the selectable provider/harness list as
+  // `available_harnesses` (claude/codex/cursor/opencode).
+  available_harnesses: string[]
 }
 
 function slugify(input: string): string {
@@ -33,8 +35,21 @@ function isValidId(id: string): boolean {
 
 export default controller({
   scope: (ctx: ViewScope<Scope>) => {
-    const ship = ctx.clients.ship
-    const createCtx = live(() => ship.agents.create_ctx())
+    // AMBIENT `ops` client. `agents.CreateCtx` returns a `JsonResponse`
+    // ({ json }) wrapping the serialized create-wizard payload; `createData`
+    // decodes it. `createCtx` stays the LiveSignal that drives `{#async}`.
+    const ops = ctx.clients.ops
+    const createCtx = live(() => ops.agents.createCtx({}))
+    const createData = derived<CreateCtxValue>(() => {
+      const empty: CreateCtxValue = { templates: [], permission_presets: [], available_harnesses: [] }
+      const r = unwrap(createCtx)
+      if (!r) return empty
+      try {
+        return JSON.parse(r.json) as CreateCtxValue
+      } catch {
+        return empty
+      }
+    })
     const step = signal(0)
     const template = signal('blank')
     const templateSkills = signal<string[]>([])
@@ -86,7 +101,7 @@ export default controller({
     })
 
     return {
-      createCtx, step, template, templateSkills, hue, name, id, desc, providers, preset,
+      createCtx, createData, step, template, templateSkills, hue, name, id, desc, providers, preset,
       creating, err,
       resolvedDoc, reviewJson, idValid, idError, stepValid,
     }
