@@ -31,7 +31,8 @@ declare -A BUDGETS=(
 
 # Produce the framework bundles via the canonical in-process Rolldown bake
 # (#163) — the same engine the daemon runs. Output lands in .deck/framework/.
-cargo run -p deck-cli --quiet -- build-assets >/dev/null 2>&1
+# deck-cli lives in the external sui repo post-carve.
+cargo run --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli --quiet -- build-assets >/dev/null 2>&1
 
 failures=0
 echo "sui bundle sizes:"

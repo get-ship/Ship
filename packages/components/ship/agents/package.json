@@ -1,7 +1,7 @@
 {
   "name": "@ship/agents",
   "version": "0.1.0",
-  "description": "Ship Agents pack — <ship-agent-list>, <ship-agent-detail>, <ship-agent-card>, <ship-agents-table>, and the rest of the ship-agent-* domain. Pre-bound to ship.agents.* via the lazy `ship` Proxy; the host must call setShipClient() at startup.",
+  "description": "Ship Agents pack \u2014 <ship-agent-list>, <ship-agent-detail>, <ship-agent-card>, <ship-agents-table>, and the rest of the ship-agent-* domain. Pre-bound to ship.agents.* via the lazy `ship` Proxy; the host must call setShipClient() at startup.",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
@@ -14,7 +14,13 @@
       {
         "name": "ship-agents",
         "entry": "src/index.ts",
-        "externals": ["@ship/sui-runtime", "@ship/sui-dom", "@ship/sdk-client", "@ship/sui-primitives", "@ship/sui-chat-elements"],
+        "externals": [
+          "@ship/sui-runtime",
+          "@ship/sui-dom",
+          "@ship/sdk-client",
+          "@ship/sui-primitives",
+          "@ship/sui-chat-elements"
+        ],
         "lazy": true
       }
     ]
@@ -25,10 +31,10 @@
   },
   "dependencies": {
     "@ship/sdk-client": "workspace:*",
-    "@ship/sui-dom": "workspace:*",
-    "@ship/sui-runtime": "workspace:*",
-    "@ship/sui-primitives": "workspace:*",
-    "@ship/sui-chat-elements": "workspace:*"
+    "@ship/sui-dom": "file:/home/madvib/dev/sui/packages/sui/dom",
+    "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime",
+    "@ship/sui-primitives": "file:/home/madvib/dev/sui/packages/components/sui/primitives",
+    "@ship/sui-chat-elements": "file:/home/madvib/dev/sui/packages/components/sui/chat-elements"
   },
   "devDependencies": {
     "@ship/test-setup": "workspace:*",

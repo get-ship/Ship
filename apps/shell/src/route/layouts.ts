@@ -1,5 +1,5 @@
 // Layout chain resolution — host-side wiring for the LAYOUTS table
-// emitted by `crates/deck/deck-bundler/src/routes.rs::generate_routes`.
+// emitted by `/home/madvib/dev/sui//home/madvib/dev/sui/crates/deck/deck-bundler/src/routes.rs::generate_routes`.
 //
 // The runtime doesn't need a new feature: layouts are nested web
 // components with light-DOM slot distribution (see

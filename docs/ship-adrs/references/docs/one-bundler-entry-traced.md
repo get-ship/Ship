@@ -16,12 +16,12 @@ tags: [bundling, deck, rolldown, sui-build, islands]
 
 SUI components are bundled four overlapping ways today, by two different tools:
 
-- **deck-bundler** (rolldown, Rust, `crates/deck/deck-bundler`) — the canonical
+- **deck-bundler** (rolldown, Rust, `/home/madvib/dev/sui/crates/deck/deck-bundler`) — the canonical
   one. Produces the framework singletons (`sui-runtime`/`sui-dom`/`sui-sdk-client`),
   the `sui-components` **umbrella** (all of `ui-components/src`), the
   `sui-marketing` aggregate (a hardcoded `MARKETING_SOURCES` list), `sui-chrome`,
   per-component **islands** (`<bundle separate />`), and per-**view** bundles.
-- **`@ship/sui-build`** (esbuild, `packages/deck/build`) — a *parallel* bundler.
+  - **`@ship/sui-build`** (esbuild, `/home/madvib/dev/sui//home/madvib/dev/sui/packages/deck/build` post-carve) — a *parallel* bundler.
   Every component package runs `build: sui-build` → `dist/sui-<pack>.js`
   (consumed by apps via `import '@ship/<pack>/bundle'`) + `dist/custom-elements.json`
   + the `.ship/sui-out` test mirror.
@@ -29,7 +29,7 @@ SUI components are bundled four overlapping ways today, by two different tools:
 Views are already entry-traced (rolldown follows imports; the runtime is
 external). The mess is everything else: a second bundler, an "import everything"
 umbrella, a hand-curated marketing list, and a **hardcoded island table in the
-Rust compiler** (`SUI_ISLANDS` in `crates/sui/compiler/src/islands.rs`) that has
+Rust compiler** (`SUI_ISLANDS` in `/home/madvib/dev/sui/crates/sui/compiler/src/islands.rs`) that has
 already drifted from what the bundler produces (e.g. `sui-canvas` builds an island
 but isn't in the table, so views can't lazy-load it — a live bug).
 

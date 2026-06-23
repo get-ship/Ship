@@ -19,14 +19,17 @@
     // root node_modules. Map the package names to their on-disk
     // entries directly so tsc resolves the imports.
     "paths": {
-      "@ship/sui-runtime": ["../packages/sui/runtime/src/index.ts"],
-      "@ship/sui-runtime/*": ["../packages/sui/runtime/src/*"],
-      "@ship/sui-dom/test-utils": ["../packages/sui/dom/src/test-utils/index.ts"],
-      "@ship/sui-dom/test-utils/*": ["../packages/sui/dom/src/test-utils/*"],
-      "@ship/sdk-client": ["../packages/deck/sdk-client/src/index.ts"],
-      "@ship/sdk-client/*": ["../packages/deck/sdk-client/src/*"],
-      "@ship/sdk": ["../packages/deck/sdk/src/index.ts"],
-      "@ship/sdk/*": ["../packages/deck/sdk/src/*"],
+      // `@ship/sui-runtime*` + `@ship/sui-dom*` aliases now point at the
+      // external sui repo (post-carve). TEMP — relativized to `../sui/...`
+      // in the layout-reshuffle capstone.
+      "@ship/sui-runtime": ["/home/madvib/dev/sui/packages/sui/runtime/src/index.ts"],
+      "@ship/sui-runtime/*": ["/home/madvib/dev/sui/packages/sui/runtime/src/*"],
+      "@ship/sui-dom/test-utils": ["/home/madvib/dev/sui/packages/sui/dom/src/test-utils/index.ts"],
+      "@ship/sui-dom/test-utils/*": ["/home/madvib/dev/sui/packages/sui/dom/src/test-utils/*"],
+      "@ship/sdk-client": ["../packages/sdk-client/src/index.ts"],
+      "@ship/sdk-client/*": ["../packages/sdk-client/src/*"],
+      "@ship/sdk": ["../packages/sdk/src/index.ts"],
+      "@ship/sdk/*": ["../packages/sdk/src/*"],
     },
     // Controllers do `import type { Scope } from './page.sui'`. The
     // sui-compiler emits `page.sui.d.ts` into the project mirror tree

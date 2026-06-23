@@ -14,7 +14,9 @@ ship-artifacts = { path = "../ship-artifacts" }
 connectrpc = { version = "0.4", features = ["axum"] }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 # SUI compiler analysis facade (diagnostics / hover / dependencies).
-sui-compiler = { path = "../../../../sui/compiler" }
+# sui-compiler moved to the external sui repo post-carve.
+# TEMP: absolute → ../sui/... after layout reshuffle.
+sui-compiler = { path = "/home/madvib/dev/sui/crates/sui/compiler" }
 
 async-trait = { workspace = true }
 chrono = { workspace = true }

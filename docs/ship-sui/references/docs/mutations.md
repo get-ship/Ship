@@ -17,7 +17,7 @@ same typed SDK client; neither writes its own HTTP.
 Put `mutation="ship.<domain>.<op>"` on a `<form>` and the compiler wires submit
 interception for you. The runtime resolves the SDK chain against scope, calls it
 with the form's `FormData`, and drives a `loading → ok | error` lifecycle
-(`packages/sui/runtime/src/mutation.ts:38`).
+(`/home/madvib/dev/sui/packages/sui/runtime/src/mutation.ts:38`).
 
 ```html
 <!-- apps/shell/src/settings/page.sui:375 -->
@@ -70,7 +70,7 @@ on: {
 The `ship.<domain>.<op>` methods that return `Promise` are mutations (e.g.
 `ship.agents.create`, `ship.agents.update`, `ship.collections.create_item`,
 `ship.pipelines.dispatch`); the ones returning `LiveSource` are subscriptions
-and belong in `<data>` or a controller `live()` (`packages/deck/sdk-client/src/ship-sdk.ts`).
+and belong in `<data>` or a controller `live()` (`packages/sdk-client/src/ship-sdk.ts`).
 `await` the promise to sequence follow-up state changes; wrap in `try/catch`
 for error UX.
 
@@ -80,12 +80,12 @@ Deck still composes a `<form>` `action` URL so a no-JS submit has somewhere to
 go. The compiler emits a `mutation="bN"` marker but does **not** bake the URL;
 the host injects `action="/_deck/mutation/<view>?form=bN" method="post"` at
 SSR time, because only the host knows which daemon it runs
-(`crates/deck/deck-core/src/form_inject.rs:1`).
+(`/home/madvib/dev/sui/crates/deck/deck-core/src/form_inject.rs:1`).
 
 That endpoint is a deliberate **410 Gone tombstone**. The progressive-
 enhancement server handler was retired — JS-attached mutations call the SDK
 directly — but deck keeps the route registered so the no-JS fallback gets a 410,
-not a 404 (`crates/deck/deck-axum/src/lib.rs:122`):
+not a 404 (`/home/madvib/dev/sui/crates/deck/deck-axum/src/lib.rs:122`):
 
 ```rust
 .route(

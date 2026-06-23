@@ -25,19 +25,18 @@ import { scanTemplatePurity } from './template-purity'
 const RUN_ID = process.env.SHIP_PIPELINE_RUN_ID ?? `local-${process.env.SHIP_ACTOR_ID ?? 'unknown'}`
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 
-// The compiler binary. `cargo run -p sui-compiler` inside a lane worktree
-// would REBUILD the compiler per lane (slow, and racy against parallel
-// compiler work) — use the orchestrating repo's prebuilt binary and only
-// fall back to cargo when it doesn't exist.
+// The compiler binary. sui-compiler moved to the external sui repo
+// (`/home/madvib/dev/sui/crates/sui/compiler`) post-carve — the
+// orchestrating repo (ship) no longer carries it. A lane would have to
+// `cargo run` against the external sui checkout (slow, racy against
+// parallel compiler work). Use the prebuilt binary from the external
+// sui's target dir when present, then fall back to cargo there too.
 function resolveCompiler(): { cmd: string; preArgs: string[] } {
   const envBin = process.env.SUI_COMPILER
   if (envBin && existsSync(envBin)) return { cmd: envBin, preArgs: [] }
-  try {
-    const root = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim()
-    const bin = join(root, 'target/debug/sui-compiler')
-    if (existsSync(bin)) return { cmd: bin, preArgs: [] }
-  } catch { /* fall through to cargo */ }
-  return { cmd: 'cargo', preArgs: ['run', '-p', 'sui-compiler', '--'] }
+  const suiBin = '/home/madvib/dev/sui/target/debug/sui-compiler'
+  if (existsSync(suiBin)) return { cmd: suiBin, preArgs: [] }
+  return { cmd: 'cargo', preArgs: ['run', '--manifest-path', '/home/madvib/dev/sui/Cargo.toml', '-p', 'sui-compiler', '--'] }
 }
 const COMPILER = resolveCompiler()
 

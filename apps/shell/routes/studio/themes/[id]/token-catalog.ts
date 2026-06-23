@@ -1,9 +1,11 @@
 // Curated token catalog for the Theme Studio editor.
 //
-// Sourced from crates/sui/compiler/tokens.json (the canonical
-// machine-readable spec). Re-stating the relevant subset inline avoids a
-// runtime JSON fetch or a cross-package import that the view shell doesn't
-// resolve. The four layers mirror packages/sui/tokens/src/tokens.css
+// Sourced from `/home/madvib/dev/sui//home/madvib/dev/sui//home/madvib/dev/sui/crates/sui/compiler/tokens.json` (the
+// canonical machine-readable spec — the sui-compiler crate lives in the
+// external sui repo post-carve). Re-stating the relevant subset inline
+// avoids a runtime JSON fetch or a cross-package import that the view
+// shell doesn't resolve. The four layers mirror
+// `/home/madvib/dev/sui/packages/sui/tokens/src/tokens.css`
 // and the ship-design-system skill's layer table; "Palette" sits between
 // Layer 1 (Surfaces) and Layer 4 (Primitives) per that skill.
 

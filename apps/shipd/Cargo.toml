@@ -61,11 +61,12 @@ connectrpc = { version = "0.4", features = ["axum", "client"] }
 buffa = "0.5"
 buffa-descriptor = "0.5"
 http = "1"
-deck = { path = "../../crates/deck/deck" }
-deck-core = { path = "../../crates/deck/deck-core" }
-deck-ssr = { path = "../../crates/deck/deck-ssr", optional = true }
-sui-compiler = { path = "../../crates/sui/compiler" }
-sui-signals = { path = "../../crates/sui/signals" }
+# deck* + sui-compiler crates live in the external sui repo post-carve.
+# TEMP: absolute paths → ../sui/... after layout reshuffle.
+deck = { path = "/home/madvib/dev/sui/crates/deck/deck" }
+deck-core = { path = "/home/madvib/dev/sui/crates/deck/deck-core" }
+deck-ssr = { path = "/home/madvib/dev/sui/crates/deck/deck-ssr", optional = true }
+sui-compiler = { path = "/home/madvib/dev/sui/crates/sui/compiler" }
 chrono = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }

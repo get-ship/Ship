@@ -8,7 +8,10 @@
       {
         "name": "sui-marketing",
         "entry": "src/marketing/marketing-bundle.ts",
-        "externals": ["@ship/sui-runtime", "@ship/sui-dom"],
+        "externals": [
+          "@ship/sui-runtime",
+          "@ship/sui-dom"
+        ],
         "lazy": false
       }
     ]
@@ -29,10 +32,10 @@
     "@fontsource-variable/syne": "^5.2.7",
     "@ship/arcade": "workspace:*",
     "@ship/arcade-engine": "workspace:*",
-    "@ship/sui-compiler-wasm": "workspace:*",
-    "@ship/sui-lsp-browser": "workspace:*",
-    "@ship/sui-runtime": "workspace:*",
-    "@ship/tokens": "workspace:*",
+    "@ship/sui-compiler-wasm": "file:/home/madvib/dev/sui/packages/sui/compiler-wasm",
+    "@ship/sui-lsp-browser": "file:/home/madvib/dev/sui/packages/deck/lsp-browser",
+    "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime",
+    "@ship/tokens": "file:/home/madvib/dev/sui/packages/sui/tokens",
     "astro": "^6.1.1",
     "better-auth": "^1.6.11",
     "shiki": "^4.0.0"

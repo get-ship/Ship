@@ -81,10 +81,10 @@ pub fn classify(rel_dir: &str) -> Option<Layer> {
     {
         return Some(Layer::L1);
     }
-    // L2 — apps, deck, sui, packages, tests, examples, plus xtask + build-info tooling.
+    // L2 — apps, packages, tests, examples, plus xtask + build-info tooling.
+    // crates/deck/* + crates/sui/* moved to the external sui repo (post-carve);
+    // the xtask no longer classifies them in the ship layer graph.
     if rel_dir.starts_with("apps/")
-        || rel_dir.starts_with("crates/deck/")
-        || rel_dir.starts_with("crates/sui/")
         || rel_dir.starts_with("packages/")
         || rel_dir.starts_with("tests/")
         || rel_dir.starts_with("examples/")
@@ -93,9 +93,8 @@ pub fn classify(rel_dir: &str) -> Option<Layer> {
     {
         return Some(Layer::L2);
     }
-    None
-}
-
+     None
+ }
 // ── Raw `cargo metadata --format-version 1` shapes (only fields we read). ──────
 
 #[derive(Deserialize)]

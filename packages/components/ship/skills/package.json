@@ -1,7 +1,7 @@
 {
   "name": "@ship/skills",
   "version": "0.1.0",
-  "description": "Ship Skills pack — <ship-skill-list>, <ship-skill-detail>. The hub /studio/skills surface; reads the Connect SDK (ship.skills.list / ship.skills.detail) and composes <sui-stack> / <sui-card> / <sui-empty-state> / <sui-spinner> / <sui-icon> / <sui-badge> / <sui-cluster> / <sui-button> / <sui-skeleton> from @ship/sui-primitives. The list is grouped by SkillScopeTag (project/user); the detail page renders frontmatter, body, and files. Wired by `apps/hub/routes/studio/skills/`. Reuses the existing per-package `deck.bundles` self-declaration (the framework discovers it the same way as `@ship/home` and `@ship/studio`).",
+  "description": "Ship Skills pack \u2014 <ship-skill-list>, <ship-skill-detail>. The hub /studio/skills surface; reads the Connect SDK (ship.skills.list / ship.skills.detail) and composes <sui-stack> / <sui-card> / <sui-empty-state> / <sui-spinner> / <sui-icon> / <sui-badge> / <sui-cluster> / <sui-button> / <sui-skeleton> from @ship/sui-primitives. The list is grouped by SkillScopeTag (project/user); the detail page renders frontmatter, body, and files. Wired by `apps/hub/routes/studio/skills/`. Reuses the existing per-package `deck.bundles` self-declaration (the framework discovers it the same way as `@ship/home` and `@ship/studio`).",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
@@ -14,7 +14,11 @@
       {
         "name": "ship-skills",
         "entry": "src/index.ts",
-        "externals": ["@ship/sui-runtime", "@ship/sui-dom", "@ship/sdk-client"],
+        "externals": [
+          "@ship/sui-runtime",
+          "@ship/sui-dom",
+          "@ship/sdk-client"
+        ],
         "lazy": true
       }
     ]
@@ -25,9 +29,9 @@
   },
   "dependencies": {
     "@ship/sdk-client": "workspace:*",
-    "@ship/sui-dom": "workspace:*",
-    "@ship/sui-primitives": "workspace:*",
-    "@ship/sui-runtime": "workspace:*"
+    "@ship/sui-dom": "file:/home/madvib/dev/sui/packages/sui/dom",
+    "@ship/sui-primitives": "file:/home/madvib/dev/sui/packages/components/sui/primitives",
+    "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime"
   },
   "devDependencies": {
     "@ship/test-setup": "workspace:*",

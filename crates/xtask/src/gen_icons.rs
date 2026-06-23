@@ -1,6 +1,8 @@
 //! `cargo xtask gen-icons` — bake the lucide SVG set into
-//! `crates/deck/deck-core/assets/lucide-icons.json`, the embedded source the
-//! daemon reads to answer `/_deck/icons/{name}.svg` per-icon.
+//! `/home/madvib/dev/sui/crates/deck/deck-core/assets/lucide-icons.json`, the
+//! embedded source the daemon reads to answer `/_deck/icons/{name}.svg`
+//! per-icon. (The `crates/deck/deck-core/assets/` directory lives in the
+//! external sui repo post-carve; the assets are committed source there.)
 //!
 //! This replaces the retired `scripts/codegen/generate-lucide-registry.mjs`.
 //! It joins the `gen-*` family in this crate (gen-skills, gen-fixtures,
@@ -10,8 +12,7 @@
 //! Run after a `lucide-static` version bump:
 //!   bun install
 //!   cargo run -p xtask -- gen-icons
-//!   git add crates/deck/deck-core/assets/lucide-icons.json && git commit
-
+//!   git add /home/madvib/dev/sui/crates/deck/deck-core/assets/lucide-icons.json && git commit
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -97,7 +98,7 @@ fn extract_inner(svg: &str) -> Result<String> {
 
 pub fn run(repo_root: &Path) -> Result<()> {
     let icons_dir = locate_lucide_icons(repo_root)?;
-    let out_path = repo_root.join("crates/deck/deck-core/assets/lucide-icons.json");
+    let out_path = std::path::PathBuf::from("/home/madvib/dev/sui/crates/deck/deck-core/assets/lucide-icons.json");
     fs::create_dir_all(out_path.parent().unwrap())
         .with_context(|| format!("mkdir parent of {}", out_path.display()))?;
 

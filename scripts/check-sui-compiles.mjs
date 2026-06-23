@@ -113,7 +113,11 @@ for (const file of files) {
         ? file.slice(repoRoot.length + 1)
         : file;
     const tag = componentTag(file);
-    const args = ['run', '-q', '-p', 'sui-compiler', '--', 'build', file];
+    // sui-compiler lives in the external sui repo post-carve. Run via the
+    // explicit --manifest-path. The compiler reads files from any path
+    // (no per-worktree reservation), so cwd doesn't matter for build
+    // inputs — the ship worktree is fine to launch from.
+    const args = ['run', '-q', '--manifest-path', '/home/madvib/dev/sui/Cargo.toml', '-p', 'sui-compiler', '--', 'build', file];
     if (tag) args.push('--component-name', tag);
     const res = spawnSync('cargo', args, { cwd: repoRoot, encoding: 'utf8' });
     if (res.status === 0) {

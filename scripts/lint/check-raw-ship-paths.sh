@@ -33,12 +33,10 @@ for pat in "${PATTERNS[@]}"; do
         --glob '!**/tests_*.rs' \
         --glob '!**/*_fixtures.rs' \
         --glob '!**/fixtures/**' \
-        --glob '!crates/deck/deck/**' \
-        --glob '!crates/deck/deck-host/**' \
-        --glob '!crates/deck/deck-server/**' \
-        --glob '!crates/sui/compiler/**' \
-        --glob '!crates/sui/signals/**' \
-        --glob '!crates/sui/lint/**' \
+        # crates/deck/* + crates/sui/* moved to the external sui repo
+        # post-carve — their glob exclusions no longer apply here (they
+        # aren't part of the ship repo). If a future crate needs an
+        # exception, add its repo-relative path.
         "$pat" "${SEARCH_PATHS[@]}" 2>/dev/null || true)
     if [ -z "$matches" ]; then
         continue

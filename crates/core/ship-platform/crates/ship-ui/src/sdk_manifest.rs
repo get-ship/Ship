@@ -20,19 +20,19 @@ use serde_json::Value;
 // Six levels up reaches the workspace root.
 
 const SDK_URLS: &str = include_str!(
-    "../../../../../../packages/deck/sdk/src/generated/sdk-urls.json"
+    "../../../../../../packages/sdk/src/generated/sdk-urls.json"
 );
 const SDK_VIEW_CONTEXTS: &str = include_str!(
-    "../../../../../../packages/deck/sdk/src/generated/sdk-view-contexts.json"
+    "../../../../../../packages/sdk/src/generated/sdk-view-contexts.json"
 );
 const SDK_VIEWS: &str = include_str!(
-    "../../../../../../packages/deck/sdk/src/generated/sdk-views.json"
+    "../../../../../../packages/sdk/src/generated/sdk-views.json"
 );
 const SDK_COLLECTIONS: &str = include_str!(
-    "../../../../../../packages/deck/sdk/src/generated/sdk-collections.json"
+    "../../../../../../packages/sdk/src/generated/sdk-collections.json"
 );
 const SDK_TRIGGERS: &str = include_str!(
-    "../../../../../../packages/deck/sdk/src/generated/sdk-triggers.json"
+    "../../../../../../packages/sdk/src/generated/sdk-triggers.json"
 );
 
 struct Parsed {

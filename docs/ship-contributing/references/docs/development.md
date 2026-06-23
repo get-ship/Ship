@@ -113,10 +113,10 @@ structs via [specta](https://docs.rs/specta). Four files are produced:
 
 | Output | Source registration | Package |
 |--------|---------------------|---------|
-| `packages/deck/sdk/src/generated.ts` | `collect_types()` | `@ship/sdk` |
+| `packages/sdk/src/generated.ts` | `collect_types()` | `@ship/sdk` |
 | `packages/cloud-types/src/generated.ts` | `build_cloud_types()` | `@ship-cloud/types` (Cloudflare worker, cloud event router) |
-| `packages/sui/runtime/src/generated.ts` | `collect_framework_types()` | `@ship/sui-runtime` |
-| `packages/deck/sdk-client/src/generated.ts` | `collect_ship_data_types()` | `@ship/sdk-client` |
+| sui/runtime (in `/home/madvib/dev/sui`) | `collect_framework_types()` | `@ship/sui-runtime` |
+| `packages/sdk-client/src/generated.ts` | `collect_ship_data_types()` | `@ship/sdk-client` |
 
 **When you add a new Rust struct that crosses the daemon ↔ runtime
 boundary:**
@@ -134,7 +134,7 @@ boundary:**
    `collect_ship_data_types()` for daemon ↔ view data.
 3. Run `cargo xtask gen-types` and commit the regenerated `.ts` file.
 4. Import the generated type in TS via `@ship/sui-runtime` (re-exported
-   from `packages/sui/runtime/src/index.ts`) — never hand-write a
+   from `/home/madvib/dev/sui/packages/sui/runtime/src/index.ts`) — never hand-write a
    parallel `interface`.
 
 **CI gating.** `just test` runs `cargo xtask gen-types --check` before

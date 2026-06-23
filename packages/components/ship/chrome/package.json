@@ -1,7 +1,7 @@
 {
   "name": "@ship/chrome",
   "version": "0.1.0",
-  "description": "Ship Chrome pack — ship-* shell-chrome components (command bar, activity bar, file tree + tree item, status bar, dock + dock app). Presentational SUI; controllers emit the shell intents (ship-open/close, ship-mode-change, ship-submit, ship-select, ship-context-change, ship-toggle, ship-launch). The host owns wiring to the daemon.",
+  "description": "Ship Chrome pack \u2014 ship-* shell-chrome components (command bar, activity bar, file tree + tree item, status bar, dock + dock app). Presentational SUI; controllers emit the shell intents (ship-open/close, ship-mode-change, ship-submit, ship-select, ship-context-change, ship-toggle, ship-launch). The host owns wiring to the daemon.",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
@@ -14,12 +14,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ship/deck/route": "workspace:*",
     "@ship/sdk": "workspace:*",
     "@ship/sdk-client": "workspace:*",
-    "@ship/sui-dom": "workspace:*",
-    "@ship/sui-runtime": "workspace:*",
-    "@ship/sui-primitives": "workspace:*"
+    "@ship/sui-dom": "file:/home/madvib/dev/sui/packages/sui/dom",
+    "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime",
+    "@ship/sui-primitives": "file:/home/madvib/dev/sui/packages/components/sui/primitives",
+    "@ship/deck/router": "file:/home/madvib/dev/sui/packages/deck/router"
   },
   "devDependencies": {
     "@ship/test-setup": "workspace:*",

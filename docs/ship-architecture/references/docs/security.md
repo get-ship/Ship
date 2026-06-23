@@ -73,7 +73,7 @@ sensitive file is a runtime error — the SDK call is gated by the
 actor's tool gate, not by the view.
 
 The full subset rule is documented in the SUI compiler source
-under `crates/sui/compiler/src/check/expr_subset.rs`. It is the
+under `/home/madvib/dev/sui/crates/sui/compiler/src/check/expr_subset.rs`. It is the
 single piece of code that decides "can this view call this?". The
 rule is small on purpose — every line in the allowlist is one
 the maintainers have read.

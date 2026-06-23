@@ -8,8 +8,7 @@
 # Hosts that need to fetch from the daemon wire the transport into the
 # view (HostContext / data-port) — SUI stays URL-free.
 #
-# The sister Rust gate `crates/deck/deck-core/tests/boundary.rs` scans
-# deck's compiled output; this script is the SUI-side counterpart for
+# The sister Rust gate `/home/madvib/dev/sui/crates/deck/deck-core/tests/boundary.rs` scans
 # *runtime* TS (the leak class that slips past boundary_invariants, which
 # only sees the deck bundler output, not the sui runtime source).
 #
@@ -88,10 +87,11 @@ check_file() {
   fi
 }
 
+# packages/sui/ moved to the external sui repo post-carve. Scan there.
 while IFS= read -r -d '' f; do
   check_file "$f"
 done < <(
-  find packages/sui -type f -name '*.ts' \
+  find /home/madvib/dev/sui/packages/sui -type f -name '*.ts' \
     -not -path '*/node_modules/*' \
     -not -path '*/dist/*' \
     -not -path '*/example/*' \

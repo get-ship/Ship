@@ -17,11 +17,11 @@ mod view_contexts;
 const VERSION: &str = "0.1.0";
 const HEADER: &str = "just gen-sdk — DO NOT EDIT";
 
-/// Entry point. Creates `packages/deck/sdk/src/generated/` if missing and writes
+/// Entry point. Creates `packages/sdk/src/generated/` if missing and writes
 /// the JSON artifacts alongside the typed TS bindings. Each is a complete
 /// top-level object with `_generated`, `version`, and `$schema`.
 pub fn run(repo_root: &Path) -> Result<()> {
-    let out_dir = repo_root.join("packages/deck/sdk/src/generated");
+    let out_dir = repo_root.join("packages/sdk/src/generated");
     fs::create_dir_all(&out_dir)
         .with_context(|| format!("create {}", out_dir.display()))?;
 

@@ -1,7 +1,7 @@
 //! Dev-time task runner.
 //!
 //! Usage:
-//!   cargo xtask gen-types          # regenerate packages/deck/sdk/src/generated.ts
+//!   cargo xtask gen-types          # regenerate packages/sdk/src/generated.ts
 //!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
 
 mod check_topology;
@@ -18,8 +18,8 @@ mod gen_indexes_substrate;
 mod gen_routes_doc;
 mod gen_skills;
 mod gen_sdk;
-mod gen_tokens;
 mod lint_anti_theater;
+
 mod lint_imports;
 mod lint_layers;
 mod lint_residue;

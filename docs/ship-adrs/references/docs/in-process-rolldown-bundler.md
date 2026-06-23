@@ -15,10 +15,11 @@ tags: [bundler, rolldown, bun, toolchain, deployment, hmr]
 ## Context
 
 The daemon's asset bundler was a **long-lived `bun` worker** (`packages/deck/
-bundler/index.ts`, installed to the runtime dir as `bundler.ts`) that `shipd`
-spawned and drove over a JSON-line stdin/stdout protocol, supervised with
-exponential-backoff restarts. It used `Bun.build` + a `Bun.plugin` that compiled
-`.sui` on the fly (via `sui-compiler`).
+bundler/index.ts` in pre-carve ship, now `/home/madvib/dev/sui/packages/deck/
+bundler/index.ts` post-carve), installed to the runtime dir as `bundler.ts`
+that `shipd` spawned and drove over a JSON-line stdin/stdout protocol,
+supervised with exponential-backoff restarts. It used `Bun.build` + a
+`Bun.plugin` that compiled `.sui` on the fly (via `sui-compiler`).
 
 Two problems:
 
@@ -51,7 +52,7 @@ oxc uses `if let` guards, stabilized between our pin (1.93.1) and current stable
 ## Decision
 
 The daemon bundles **in-process via Rolldown**. The bundler is a deck crate
-(`crates/deck/deck-bundler/`, #167 — deck is the framework and owns serve +
+(`/home/madvib/dev/sui/crates/deck/deck-bundler/`, #167 — deck is the framework and owns serve +
 bundle; it originally landed in `ship-platform` and was moved):
 
 - A native Rust Rolldown `Plugin` (`rolldown_bundle.rs`): `resolve_id`

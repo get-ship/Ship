@@ -21,10 +21,12 @@ ship-platform = { path = "../core/ship-platform", features = ["specta"] }
 ship-agents = { path = "../core/ship-platform/crates/ship-agents" }
 ship-ui = { path = "../core/ship-platform/crates/ship-ui" }
 ship-pipeline-runtime = { path = "../ship-pipeline-runtime", features = ["specta"] }
+# Event envelope type for the cloud-side TS surface (build_cloud_types).
 ship-types = { path = "../core/ship-substrate/crates/ship-types", features = ["specta"] }
-deck = { path = "../deck/deck", features = ["specta"] }
+# `deck` is a thin re-export facade in the external sui repo post-carve.
+deck = { path = "/home/madvib/dev/sui/crates/deck/deck", features = ["specta"] }
+# `shipd` is in apps/, not crates/ — used for fixtures only.
 shipd = { path = "../../apps/shipd", features = ["specta"] }
-# Proto response types — gen-fixtures decodes the themed corpus into these to
 # validate fixtures against the wire SSOT.
 ship-ops-rpc = { path = "../core/ship-ops-rpc" }
 specta = { workspace = true, features = ["chrono", "serde_json"] }

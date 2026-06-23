@@ -1,7 +1,7 @@
 {
   "name": "@ship/markdown",
   "version": "0.1.0",
-  "description": "Ship Markdown pack — <ship-markdown-editor>, a form-associated TipTap v3 markdown editor with inline toolbar, selection bubble, and comment composer. Lazy-loads the editor engine on mount. No Ship SDK dep.",
+  "description": "Ship Markdown pack \u2014 <ship-markdown-editor>, a form-associated TipTap v3 markdown editor with inline toolbar, selection bubble, and comment composer. Lazy-loads the editor engine on mount. No Ship SDK dep.",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
@@ -14,9 +14,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ship/sui-runtime": "workspace:*",
-    "@ship/sui-dom": "workspace:*",
-    "@ship/sui-primitives": "workspace:*",
+    "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime",
+    "@ship/sui-dom": "file:/home/madvib/dev/sui/packages/sui/dom",
+    "@ship/sui-primitives": "file:/home/madvib/dev/sui/packages/components/sui/primitives",
     "@tiptap/core": "^3.21.0",
     "@tiptap/extension-code-block-lowlight": "^3.21.0",
     "@tiptap/extension-image": "^3.21.0",

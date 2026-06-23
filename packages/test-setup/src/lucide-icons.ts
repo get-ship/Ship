@@ -1,8 +1,9 @@
 // Lucide icon map loader for vitest setups. Reads the committed
-// `crates/deck/deck-core/assets/lucide-icons.json` (the SAME embed the daemon
-// serves at `/_deck/icons/{name}.svg`), wraps each fragment in the canonical
-// `<svg>` envelope, and returns a `Map<name, full-svg-markup>` for the
-// caller to push into `@ship/sui-primitives`'s per-icon cache.
+// `/home/madvib/dev/sui/crates/deck/deck-core/assets/lucide-icons.json` (the
+// SAME embed the daemon serves at `/_deck/icons/{name}.svg`), wraps each
+// fragment in the canonical `<svg>` envelope, and returns a
+// `Map<name, full-svg-markup>` for the caller to push into
+// `@ship/sui-primitives`'s per-icon cache.
 //
 // We do NOT depend on `@ship/sui-primitives` here — keeps test-setup free of
 // component-package cycles. Callers pass `primeIconCache` in or iterate
@@ -12,29 +13,22 @@ import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-/** Repo-relative location of the committed lucide registry. */
-const LUCIDE_REL = 'crates/deck/deck-core/assets/lucide-icons.json'
+/** Absolute location of the committed lucide registry — post-carve it lives
+ *  in the external sui repo (`/home/madvib/dev/sui/crates/deck/deck-core/
+ *  assets/lucide-icons.json` is committed source per sui's
+ *  MIGRATION-NOTES.md). TEMP: absolute → `../sui/...` after layout
+ *  reshuffle. */
+const LUCIDE_ABS = '/home/madvib/dev/sui/crates/deck/deck-core/assets/lucide-icons.json'
 
 /**
  * Resolve the committed `lucide-icons.json` independent of `process.cwd()`.
- *
- * Every vitest setup used to hand-roll a `resolve(process.cwd(), '../../..')`
- * hop whose depth depended on the package dir — so the same file ENOENT'd the
- * moment a runner was invoked from a different cwd. Walk up from THIS module's
- * own location (stable regardless of which package's tests are running) until
- * the registry is found. Throws a clear error if the repo layout is missing it.
+ * Post-carve the file lives at a fixed absolute path in the external sui
+ * repo (no relative walk needed).
  */
 export function defaultLucideIconsPath(): string {
-  let dir = dirname(fileURLToPath(import.meta.url))
-  for (let i = 0; i < 16; i++) {
-    const candidate = join(dir, LUCIDE_REL)
-    if (existsSync(candidate)) return candidate
-    const parent = dirname(dir)
-    if (parent === dir) break
-    dir = parent
-  }
+  if (existsSync(LUCIDE_ABS)) return LUCIDE_ABS
   throw new Error(
-    `lucide-icons.json not found in any ancestor of ${fileURLToPath(import.meta.url)} (looked for ${LUCIDE_REL})`,
+    `lucide-icons.json not found at ${LUCIDE_ABS} — the carve points at the external sui repo; run \`cd /home/madvib/dev/sui && ls crates/deck/deck-core/assets/lucide-icons.json\` to confirm the source is present.`,
   )
 }
 

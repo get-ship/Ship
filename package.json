@@ -7,13 +7,9 @@
       "apps/hub",
       "apps/spaces",
       "apps/site",
-      "apps/gateway",
       "packages/*",
       "packages/components/*",
-      "packages/components/sui/*",
       "packages/components/ship/*",
-      "packages/deck/*",
-      "packages/sui/*",
       "apps/workers/*"
     ],
     "catalog": {
@@ -27,7 +23,17 @@
   },
   "overrides": {
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime",
+
+    "@ship/sui-dom": "file:/home/madvib/dev/sui/packages/sui/dom",
+    "@ship/sui-primitives": "file:/home/madvib/dev/sui/packages/components/sui/primitives",
+    "@ship/sui-compiler-wasm": "file:/home/madvib/dev/sui/packages/sui/compiler-wasm",
+    "@ship/sui-lsp-browser": "file:/home/madvib/dev/sui/packages/deck/lsp-browser",
+    "@ship/sui-eval": "file:/home/madvib/dev/sui/packages/deck/eval",
+    "@ship/tokens": "file:/home/madvib/dev/sui/packages/sui/tokens",
+    "@ship/sdk": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk",
+    "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client"
   },
   "trustedDependencies": [
     "better-sqlite3",
@@ -37,10 +43,10 @@
     "workerd"
   ],
   "scripts": {
-    "build:bundles": "cargo run -p deck-cli -- build-assets",
+    "build:bundles": "cargo run --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli --quiet -- build-assets",
     "build:apps": "bun run --filter hub build && bun run --filter spaces build",
     "build": "bun run build:bundles && bun run build:apps",
-    "wasm": "wasm-pack build crates/sui/compiler --target web --out-dir ../../../packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm",
+    "wasm": "echo 'sui-wasm moved to the external sui repo — run `cd /home/madvib/dev/sui && wasm-pack build crates/sui/compiler --target web --out-dir packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm` (or the `just sui-wasm` recipe here for the same call)'",
     "lint": "vp lint",
     "lint:fix": "vp lint --fix",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",

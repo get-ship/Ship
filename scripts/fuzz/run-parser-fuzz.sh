@@ -10,9 +10,13 @@ set -euo pipefail
 DURATION="${1:-60}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
-FUZZ_DIR="$ROOT/crates/sui/compiler/fuzz"
+# `crates/sui/compiler/fuzz` lives in the external sui repo post-carve.
+# Run this script from the external sui checkout (or update the path
+# below to the carve-time absolute).
+FUZZ_DIR="/home/madvib/dev/sui/crates/sui/compiler/fuzz"
 CORPUS_DIR="$FUZZ_DIR/corpus/parse_fragment"
-SEED_DIR="$ROOT/packages/components"
+# Seeds: every .sui under the external sui repo's packages/components.
+SEED_DIR="/home/madvib/dev/sui/packages/components"
 
 if ! command -v cargo-fuzz >/dev/null 2>&1; then
     echo "cargo-fuzz not installed. Run: cargo install cargo-fuzz" >&2
@@ -31,8 +35,10 @@ while IFS= read -r -d '' sui; do
     cp -f "$sui" "$CORPUS_DIR/$name"
     seeded=$((seeded + 1))
 done < <(find "$SEED_DIR" -name '*.sui' -type f -print0)
-echo "[fuzz] seeded $seeded corpus inputs from $SEED_DIR"
-
-cd "$ROOT/crates/sui/compiler"
+# `crates/sui/compiler` lives in the external sui repo.
+cd /home/madvib/dev/sui/crates/sui/compiler
 echo "[fuzz] running parse_fragment for ${DURATION}s …"
 cargo +nightly fuzz run parse_fragment -- -max_total_time="$DURATION"
+echo "[fuzz] seeded $seeded corpus inputs from $SEED_DIR"
+
+

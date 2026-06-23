@@ -15,9 +15,9 @@
   },
   "dependencies": {
     "@ship/sdk-client": "workspace:*",
-    "@ship/sui-dom": "workspace:*",
-    "@ship/sui-runtime": "workspace:*",
-    "@ship/sui-primitives": "workspace:*"
+    "@ship/sui-dom": "file:/home/madvib/dev/sui/packages/sui/dom",
+    "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime",
+    "@ship/sui-primitives": "file:/home/madvib/dev/sui/packages/components/sui/primitives"
   },
   "devDependencies": {
     "@ship/test-setup": "workspace:*",

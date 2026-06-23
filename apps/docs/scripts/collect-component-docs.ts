@@ -34,9 +34,8 @@ const SUI_OUT = join(REPO_ROOT, ".ship/sui-out")
 /** Pack families — one sidebar group (and output subdir) per family. */
 const FAMILIES = ["sui", "ship"] as const
 const BAKE_HINT =
-  "Compile the packs first: 'cargo run -p sui-compiler -- build packages/components'."
-
-interface CemTyped { text?: string }
+  // Post-carve: sui-compiler lives in the external sui repo.
+  "Compile the packs first: 'cargo run --manifest-path /home/madvib/dev/sui/Cargo.toml -p sui-compiler -- build packages/components'."
 interface CemAttr { name?: string; description?: string; default?: string; type?: CemTyped }
 interface CemMember { kind?: string; attribute?: string; reflects?: boolean }
 interface CemNamed { name?: string; description?: string; type?: CemTyped; default?: string }
@@ -99,10 +98,9 @@ function renderTables(decl: CemDecl): string {
   const attrs = decl.attributes ?? []
   if (attrs.length > 0) {
     // The Description column appears only when at least one prop carries a
-    // description — today's CEM emitter (crates/sui/compiler/src/emit/cem.rs)
-    // only sets it when authored, and an all-empty column is noise.
+    // description — today's CEM emitter (`/home/madvib/dev/sui//home/madvib/dev/sui/crates/sui/compiler/src/emit/cem.rs`;
+    // only sets it when authored, and an all-empty column is noise).
     const withDesc = attrs.some((a) => (a.description ?? "") !== "")
-    body += withDesc
       ? "## Props\n\n| Name | Type | Default | Reflects | Description |\n|------|------|---------|----------|-------------|\n"
       : "## Props\n\n| Name | Type | Default | Reflects |\n|------|------|---------|----------|\n"
     for (const a of attrs) {

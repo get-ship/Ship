@@ -13,7 +13,7 @@
 //! generator's scope is the schema→types mapping only; the narrowed-Kysely
 //! facade is a separate slice.
 //!
-//! Output: `packages/deck/sdk/src/generated/collections.ts` (the gitignored
+//! Output: `packages/sdk/src/generated/collections.ts` (the gitignored
 //! codegen home alongside the other `gen-*` TS artifacts).
 //! Usage: `cargo xtask gen-collection-types [--check]`.
 
@@ -24,7 +24,7 @@ use ship_collection::types::{FieldKind, SchemaDoc};
 
 // ── Output path ────────────────────────────────────────────────────────────
 
-const OUTPUT_PATH: &str = "packages/deck/sdk/src/generated/collections.ts";
+const OUTPUT_PATH: &str = "packages/sdk/src/generated/collections.ts";
 const SCHEMAS_DIR: &str = ".ship/collections";
 // ── System columns ────────────────────────────────────────────────────────
 

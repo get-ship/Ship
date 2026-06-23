@@ -7,7 +7,7 @@ use specta_typescript::{BigIntExportBehavior, Typescript};
 
 use crate::{
     coverage, gen_audit_readme, gen_collection_types, gen_contract, gen_events, gen_fixtures,
-    gen_icons, gen_indexes, gen_routes_doc, gen_skills, gen_sdk, gen_tokens, lint_anti_theater,
+    gen_icons, gen_indexes, gen_routes_doc, gen_skills, gen_sdk, lint_anti_theater,
     lint_imports, lint_layers, lint_residue, port_descriptions, types,
 };
 
@@ -95,13 +95,6 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                 std::process::exit(1);
             }
         }
-        "gen-tokens" => {
-            let check = args.iter().any(|a| a == "--check");
-            if let Err(e) = gen_tokens::run(&repo_root(), check) {
-                eprintln!("gen-tokens failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
         "gen-routes-doc" => {
             let check = args.iter().any(|a| a == "--check");
             if let Err(e) = gen_routes_doc::run(&repo_root(), check) {
@@ -162,9 +155,9 @@ pub fn dispatch(cmd: &str, args: &[String]) {
 fn print_help() {
     eprintln!("Usage: cargo xtask <command>");
     eprintln!();
-    eprintln!("  gen-types             Regenerate packages/deck/sdk/src/generated.ts");
+    eprintln!("  gen-types             Regenerate packages/sdk/src/generated.ts");
     eprintln!("  gen-types --check     Verify generated file is up-to-date (CI)");
-    eprintln!("  gen-sdk               Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
+    eprintln!("  gen-sdk               Emit packages/sdk/src/generated/sdk-*.json + TS bindings");
     eprintln!("  gen-fixtures          Emit proto contract fixtures from proto/fixtures/fixture-seed.json");
     eprintln!("  gen-icons             Bake lucide-icons.json from node_modules/lucide-static");
     eprintln!("  lint-layers           Verify L0/L1/L2 boundaries from the resolved cargo-metadata graph (R0-R4)");
@@ -173,8 +166,6 @@ fn print_help() {
     eprintln!("  lint-residue          Catch orphan .rs files + byte-identical .rs copied across crates");
     eprintln!("  gen-events            Generate tier-filtered proto + TS from the event registry");
     eprintln!("  gen-events --check    Verify generated files are up-to-date (CI)");
-    eprintln!("  gen-tokens            Regenerate crates/sui/compiler/tokens.json from the canonical CSS token files");
-    eprintln!("  gen-tokens --check    Verify tokens.json matches the CSS (CI drift gate)");
     eprintln!("  gen-routes-doc        Regenerate skills/sdk/http-routes from @route annotations in apps/shipd/src/routes/mod.rs");
     eprintln!("  gen-routes-doc --check  Verify the route reference is up-to-date (CI drift gate)");
     eprintln!("  gen-contract          Generate docs/contract/<domain>.md consumer guides");
@@ -182,8 +173,7 @@ fn print_help() {
     eprintln!("  gen-audit-readme      Regenerate .artifacts/specs/module-audits/README.md");
     eprintln!("  gen-indexes           Regenerate emit-sites.md + substrate-fns.md indexes");
     eprintln!("  gen-indexes --check   Verify indexes are up-to-date (CI)");
-    eprintln!("  gen-collection-types  Emit packages/deck/sdk/src/generated/collections.ts (typed Database from .ship/collections)");
-    eprintln!("  gen-collection-types --check  Verify generated collection types are up-to-date (CI)");
+    eprintln!("  gen-collection-types  Emit packages/sdk/src/generated/collections.ts (typed Database from .ship/collections)");
     eprintln!("  coverage              Run workspace tests; emit .artifacts/coverage/report.md");
     eprintln!("  coverage --stdout     Print coverage report to stdout");
     eprintln!("  coverage --report-only  Skip test run; read test JSON from stdin");
@@ -199,7 +189,7 @@ fn gen_types(check: bool) {
         .framework_header("");
 
     let root = repo_root();
-    let ui_out = root.join("packages/deck/sdk/src/generated.ts");
+    let ui_out = root.join("packages/sdk/src/generated.ts");
     let ui_content = ts
         .export(&types::collect_types())
         .expect("specta-typescript export failed (ui)");
@@ -207,12 +197,10 @@ fn gen_types(check: bool) {
     let cloud_out = root.join("packages/cloud-types/src/generated.ts");
     let cloud_content = build_cloud_types(&ts, &root);
 
-    let framework_out = root.join("packages/sui/runtime/src/generated.ts");
-    let framework_content = ts
-        .export(&types::collect_framework_types())
-        .expect("specta-typescript export failed (framework)");
-
-    let ship_data_out = root.join("packages/deck/sdk-client/src/generated.ts");
+    // framework types (sui-runtime) — the runtime crate lives in the external
+    // sui repo post-carve. gen-types no longer emits this file; sui ships
+    // its own `cargo xtask gen-framework-types` against the sui workspace.
+    let ship_data_out = root.join("packages/sdk-client/src/generated.ts");
     let ship_data_content = ts
         .export(&types::collect_ship_data_types())
         .expect("specta-typescript export failed (ship-data)");
@@ -222,7 +210,6 @@ fn gen_types(check: bool) {
         for (path, expected) in [
             (&ui_out, &ui_content),
             (&cloud_out, &cloud_content),
-            (&framework_out, &framework_content),
             (&ship_data_out, &ship_data_content),
         ] {
             let existing = std::fs::read_to_string(path).unwrap_or_default();
@@ -231,21 +218,13 @@ fn gen_types(check: bool) {
                 stale = true;
             }
         }
-        if stale {
-            eprintln!("Run `cargo xtask gen-types` and commit the result.");
-            std::process::exit(1);
-        }
         eprintln!("Types are up-to-date.");
         return;
     }
-
     std::fs::write(&ui_out, &ui_content).expect("failed to write ui generated.ts");
     eprintln!("Wrote {}", ui_out.display());
     std::fs::write(&cloud_out, &cloud_content).expect("failed to write cloud generated.ts");
     eprintln!("Wrote {}", cloud_out.display());
-    std::fs::write(&framework_out, &framework_content)
-        .expect("failed to write framework generated.ts");
-    eprintln!("Wrote {}", framework_out.display());
     std::fs::write(&ship_data_out, &ship_data_content)
         .expect("failed to write ship-data generated.ts");
     eprintln!("Wrote {}", ship_data_out.display());

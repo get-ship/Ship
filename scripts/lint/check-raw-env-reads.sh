@@ -20,9 +20,8 @@ violations=0
 matches=$(rg -n --no-heading \
     --glob '!apps/docs/**' \
     --glob '!docs/**' \
-    --glob '!crates/deck/deck/**' \
-    --glob '!crates/deck/deck-host/**' \
-    --glob '!crates/deck/deck-server/**' \
+    # crates/deck/* moved to the external sui repo post-carve — no glob
+    # exceptions needed here.
     "$PATTERN" "${SEARCH_PATHS[@]}" 2>/dev/null || true)
 if [ -n "$matches" ]; then
     while IFS= read -r line; do

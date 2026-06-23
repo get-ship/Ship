@@ -260,7 +260,7 @@ The `kind === 'ok'` guard is **mandatory** before reading
 ## 5. Wiring to the daemon
 
 `ship.<domain>.<op>(args)` resolves through `@ship/sdk-client`
-(`packages/deck/sdk-client/src/index.ts`). Available domains today —
+(`packages/sdk-client/src/index.ts`). Available domains today —
 **exhaustively**, as of the SDK source:
 
 | Domain | Ops (live = SSE source; mutate = HTTP) |
@@ -285,7 +285,7 @@ short form:
 1. Registry entry in `apps/shipd/src/services/registry/<domain>.rs`
    (synchronous current-value resolver) + dispatcher row in
    `registry.rs` + schema row in `services/schema.rs`.
-2. SDK method in `packages/deck/sdk-client/src/index.ts`.
+2. SDK method in `packages/sdk-client/src/index.ts`.
 3. (Optional) signal-backed source in
    `apps/shipd/src/views/sui_data_resolvers/` for tighter wake-up than
    the default `config` kernel namespace; mirror `git_signal.rs`.

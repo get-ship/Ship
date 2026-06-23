@@ -46,16 +46,13 @@ ALLOW_LIST=(
 # Iterate every package.json directly under packages/deck/* (one level).
 # A package at packages/deck/eval/package.json is "owned by deck".
 packages=()
-while IFS= read -r -d '' pkg; do
-  packages+=("$pkg")
-done < <(
-  find packages/deck -mindepth 2 -maxdepth 2 -name 'package.json' -print0
-)
-
-if [ ${#packages[@]} -eq 0 ]; then
-  echo "check-deck-package-names: no packages/deck/*/package.json found" >&2
-  exit 1
-fi
+# packages/deck/ moved to the external sui repo (phase 2 carve) and
+# ship no longer owns it post-carve. This gate no longer has anything
+# to scan; kept as a no-op so any Justfile/CI recipe that still names
+# it stays a successful no-op. Delete the recipe + this script in a
+# follow-up once consumers are migrated.
+echo "check-deck-package-names: retired (packages/deck moved to sui repo post-carve)" >&2
+exit 0
 
 for pkg in "${packages[@]}"; do
   # Extract the top-level "name" field. Strip any optional quotes/whitespace.

@@ -12,7 +12,7 @@
 //! the real backends land.
 //!
 //!   TypeScript (`.ts`/`.tsx`)  -> `TsgoStub`    (real: tsgo)
-//!   SUI templates (`.sui`)     -> `SuiLspStub`  (real: `crates/sui/lsp`)
+//!   SUI templates (`.sui`)     -> `SuiLspStub`  (real: `/home/madvib/dev/sui/crates/sui/lsp`, post-carve)
 //!   anything else              -> `TsgoStub`    (permissive default; a real
 //!                                                 wiring will narrow this with
 //!                                                 a registry, not a panic)
@@ -50,7 +50,7 @@ pub enum LspError {
 }
 
 /// A language-service backend. Stubs implement this; the real tsgo and
-/// `crates/sui/lsp` adapters implement it too, with the SAME signature, so
+/// `/home/madvib/dev/sui/crates/sui/lsp` adapters implement it too, with the SAME signature, so
 /// the verify gate and the metadata tools share one engine.
 pub trait LspBackend {
     /// Return all current diagnostics for `src` (the on-disk contents of
@@ -121,7 +121,7 @@ impl LspBackend for TsgoStub {
     }
 }
 
-/// Stub for the SUI language server (`crates/sui/lsp` in the main repo).
+/// Stub for the SUI language server (`/home/madvib/dev/sui/crates/sui/lsp` post-carve).
 /// Where the real adapter lands: replace this with a struct that talks to the
 /// SUI LSP over its protocol.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

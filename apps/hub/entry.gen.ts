@@ -2,7 +2,7 @@
 // Host-owned entry bootstrap for the `hub` view tree. Imports the
 // data tables from `./routes.gen`, constructs the named `clients` map
 // from the host's `./src/lib/client.ts` factory, and hands everything to
-// the framework router `mountRouter` (@ship/deck/route), which owns
+// the framework router `mountRouter` (@ship/deck/router), which owns
 // history, route match, the layout chain, and SPA navigation. See ADR
 // `unified-deck-router`.
 //
@@ -13,7 +13,7 @@
 // the names declared in `deck.jsonc#entry.exposeNames`, and the runtime
 // exposes them to every view's `ctx.clients.<name>` (and the legacy
 // `ctx.<name>` alias, so pre-migration view code still resolves).
-import { mountRouter } from '@ship/deck/route';
+import { mountRouter } from '@ship/deck/router';
 import { ship, ops } from './src/lib/client.ts';
 import {
   DYNAMIC_ROUTE_PATTERNS,

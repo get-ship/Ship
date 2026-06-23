@@ -65,10 +65,12 @@ const PUBLIC_DIR = join(SCRIPT_DIR, "../public")
 // SUI bundles served as static assets. Mirror the names the daemon uses
 // under `/api/assets/` so the importmap in astro.config.mjs resolves the
 // same way against either the docs site or the daemon.
-const SUI_ASSETS_DIR = join(REPO_ROOT, "crates/deck/deck-core/assets")
-// The umbrella `sui-components.js` bundle is retired (per-view resolver,
-// #255/#267). The framework bundles below are what the deck bundler bakes
-// into crates/deck/deck-core/assets and what the importmap resolves against.
+// Post-carve: assets/ lives in the external sui repo (committed source).
+// TEMP: relative path → absolute `/home/madvib/dev/sui/...` after layout
+// reshuffle.
+const SUI_ASSETS_DIR = join(REPO_ROOT, "..", "..", "sui", "crates", "deck", "deck-core", "assets")
+// The framework bundles below are what the deck bundler bakes into
+// SUI_ASSETS_DIR and what the importmap resolves against.
 const SUI_BUNDLES = [
   "sui-runtime.js",
   "sui-dom.js",
@@ -76,14 +78,11 @@ const SUI_BUNDLES = [
 ] as const
 // The daemon serves a single pre-concatenated `/api/assets/view-tokens.css`
 // (tokens + themes), baked by the deck bundler to
-// crates/deck/deck-core/assets/view-tokens.css. Any SUI primitive that links
-// to that URL from its shadow root (notably `<sui-theme-picker>`, on every
-// docs page via the header) resolves against the same canonical file the
-// daemon serves at runtime.
+// SUI_ASSETS_DIR/view-tokens.css. Any SUI primitive that links to that URL
+// from its shadow root (notably `<sui-theme-picker>`, on every docs page
+// via the header) resolves against the same canonical file the daemon
+// serves at runtime.
 const VIEW_TOKENS_SOURCE = join(SUI_ASSETS_DIR, "view-tokens.css")
-// `agent-only` files never ship to any site. `internal` files are hidden from
-// the public (user) build but rendered in internal mode so contributors can
-// view internal-audience docs locally.
 const SKIP_AUDIENCES_USER = new Set(["internal", "agent-only"])
 const SKIP_AUDIENCES_INTERNAL = new Set(["agent-only"])
 

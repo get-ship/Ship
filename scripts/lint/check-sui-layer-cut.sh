@@ -50,19 +50,23 @@ check_rust() {
 }
 
 # Framework TS packages.
+# All the framework source roots (`packages/sui/...`, `packages/deck/...`,
+# `crates/sui/...`) moved to the external sui repo post-carve. This
+# gate now runs against the carve-time absolute. TEMP — relativizes
+# to `../sui/...` in the layout-reshuffle capstone.
 for d in \
-  packages/sui/runtime/src \
-  packages/sui/dom/src \
-  packages/deck/eval/src \
+  /home/madvib/dev/sui/packages/sui/runtime/src \
+  /home/madvib/dev/sui/packages/sui/dom/src \
+  /home/madvib/dev/sui/packages/deck/eval/src \
 ; do
   [ -d "$d" ] && check_ts "$d"
 done
 
 # Framework Rust crates.
 for d in \
-  crates/sui/compiler/src \
-  crates/sui/signals/src \
-  crates/sui/lint/src \
+  /home/madvib/dev/sui/crates/sui/compiler/src \
+  /home/madvib/dev/sui/crates/sui/signals/src \
+  /home/madvib/dev/sui/crates/sui/lint/src \
 ; do
   [ -d "$d" ] && check_rust "$d"
 done

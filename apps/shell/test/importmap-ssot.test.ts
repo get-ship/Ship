@@ -2,8 +2,8 @@
 // constant exported from `@ship/sdk-client` (co-located with the rest of the
 // client surface; mirrors `deck_core::routes::DECK_PREFIX` on the Rust side).
 // The browser import maps (apps/shell/index.html, apps/spaces/index.html,
-// crates/deck/deck-core/assets/view-host.html) are ordering-sensitive and must
-// stay hand-authored, but they must never DRIFT from the SSOT. This test fails
+// /home/madvib/dev/sui//home/madvib/dev/sui/crates/deck/deck-core/assets/view-host.html) are
+// ordering-sensitive and must
 // if they do — turning the duplication into a gated mirror rather than an
 // unguarded copy.
 //
@@ -40,15 +40,14 @@ describe('/_deck import-map SSOT', () => {
   for (const htmlPath of [
     'apps/shell/index.html',
     'apps/spaces/index.html',
-    'crates/deck/deck-core/assets/view-host.html',
-    ]) {
+    '/home/madvib/dev/sui//home/madvib/dev/sui/crates/deck/deck-core/assets/view-host.html',
+  ]) {
     it(`${htmlPath} import map matches the client DECK_PREFIX minter`, () => {
       const imports = importmapOf(htmlPath)
       for (const [spec, url] of Object.entries(SSOT)) {
         // view-host.html omits the /patch subpath; only assert specs it declares.
         if (spec in imports) expect(imports[spec], `${htmlPath} → ${spec}`).toBe(url)
       }
-      // No `/_deck/*` entry may point somewhere the minter doesn't sanction.
       const runtimeUrl = SSOT['@ship/sui-runtime']
       for (const [spec, url] of Object.entries(imports)) {
         if (url === runtimeUrl) expect(spec.startsWith('@ship/sui-runtime')).toBe(true)

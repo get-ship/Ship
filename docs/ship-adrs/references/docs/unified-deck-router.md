@@ -16,7 +16,7 @@ status: accepted
 Navigation is currently spread across six overlapping mechanisms with no single
 owner:
 
-1. Runtime `navigate()` (`packages/sui/runtime/src/route`) — `pushState` +
+1. Runtime `navigate()` (`/home/madvib/dev/sui/packages/sui/runtime/src/route`) — `pushState` +
    `__shipSetRouteUpdate`. Updates the reactive `route.*` signals but **does not
    mount a view**.
 2. Shell `mountRoute()` / `readRouteFromUrl()` — the only path that actually
@@ -109,7 +109,7 @@ mount path. The `SAME_SHELL_VIEWS` no-remount hack, the manual `fetch +
 runtime.mount(payload)` injection, the `payloadUrl()`/`readRoute()`/
 `readRouteFromUrl()`/`notifySameShellRouteChange()` helpers, and the dead
 `/artifacts/:id` + `/workspaces/:id` registrations are all removed.
-Step 3 (codegen) is shipped: `crates/deck/deck-bundler/src/routes.rs`
+Step 3 (codegen) is shipped: `/home/madvib/dev/sui/crates/deck/deck-bundler/src/routes.rs`
 walks the shell's full `src/` tree (every `[param]` dir, not just the
 studio sub-tree) and emits a single `apps/shell/src/routes.gen.ts` with
 `DYNAMIC_ROUTE_PATTERNS: RouteShape[]` plus namespaced path builders

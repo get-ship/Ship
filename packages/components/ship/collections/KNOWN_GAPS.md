@@ -1,7 +1,7 @@
 # Known gaps — @ship/collections
 
 The pack components ship against the live `ship.collections.*` surface in
-`@ship/sdk-client` (see `packages/deck/sdk-client/src/ship-sdk.ts:78-134`).
+`@ship/sdk-client` (see `packages/sdk-client/src/ship-sdk.ts:78-134`).
 A few of the spec's calls (per `.artifacts/design-drop/design/domains/collections/spec.md`)
 are not yet on the SDK — the components can still ship using the methods
 they have, but the gaps below are the follow-up SDK work that lands the
@@ -33,9 +33,9 @@ eventual consistency, not real-time — but it covers the demo path
 and lets us ship the rest of the pack now.
 
 **Follow-up:** add `watch(collection, cursor?)` to `ShipSDK.collections`
-in `packages/deck/sdk-client/src/ship-sdk.ts`, returning a `LiveSource`
+in `packages/sdk-client/src/ship-sdk.ts`, returning a `LiveSource`
 of patch frames. The runtime already supports SSE/patch streams
-(`packages/sui/runtime/src/live.ts:37-39`); the controller hooks
+(`@ship/sui-runtime`'s patch.ts:37-39, in the external sui repo); the controller hooks
 up `applyPatch` from `@ship/sui-runtime/patch` to mutate the rows
 signal in place.
 

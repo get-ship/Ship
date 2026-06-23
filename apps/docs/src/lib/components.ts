@@ -3,8 +3,8 @@
  *
  * Reads `.deck/catalogs/workspace.json` — the canonical catalog baked by the
  * deck bundler. It is produced by `deck::bundler::Bundler::refresh_catalog`
- * (crates/deck/deck-bundler/src/lib.rs), which runs on every asset bake
- * (`cargo run -p deck-cli -- build-assets`) and live while the daemon is
+ * (`/home/madvib/dev/sui//home/madvib/dev/sui/crates/deck/deck-bundler/src/lib.rs`), which runs on every asset bake
+ * (`cargo run --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli -- build-assets`) and live while the daemon is
  * running. The file is a build artifact (gitignored); when it is absent the
  * gallery renders empty rather than failing the docs build, so a clean
  * checkout without a bake still builds. Emits the typed record per

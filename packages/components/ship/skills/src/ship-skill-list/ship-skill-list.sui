@@ -5,7 +5,7 @@
   registered skills, grouped by SkillScopeTag (project/user/library).
   Empty/loading/error states are first-class; this is the live hub
   surface (no BACKEND-GAP — `ship.skills.list()` exists in the SDK,
-  see packages/deck/sdk-client/src/ship-sdk.ts:211).
+  see packages/sdk-client/src/ship-sdk.ts:211).
 
   Composes
     <sui-stack>        section stack

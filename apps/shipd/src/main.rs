@@ -2,7 +2,7 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 
 // jemalloc global allocator. Replaces the glibc malloc_trim(0) FFI the
 // bundler was calling per build (the band-aid lived in
-// crates/deck/deck-bundler/src/arena.rs, deleted as part of cut 4).
+// /home/madvib/dev/sui/crates/deck/deck-bundler/src/arena.rs, deleted as part of cut 4).
 // jemalloc returns freed arenas to the OS by default — no per-build
 // trim required. The earlier glibc leak would have manifested in the
 // daemon's RSS after sustained build/watch cycles; jemalloc keeps the

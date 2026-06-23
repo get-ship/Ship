@@ -1,6 +1,6 @@
 // build.rs for ship-views
 //
-// Seeds stub SDK manifest JSON files under packages/deck/sdk/src/generated/
+// Seeds stub SDK manifest JSON files under packages/sdk/src/generated/
 // when they are absent. The sdk_manifest module embeds these with include_str!
 // at compile time; in un-bootstrapped environments (fresh worktrees, CI that
 // has not run `just gen-sdk`) the directory doesn't exist because it is
@@ -30,11 +30,10 @@ fn main() {
         .nth(5)
         .expect("ship-views build.rs: could not locate workspace root (expected ≥5 ancestor dirs)")
         .to_path_buf();
-
-    let generated = workspace_root.join("packages/deck/sdk/src/generated");
+    let generated = workspace_root.join("packages/sdk/src/generated");
 
     std::fs::create_dir_all(&generated)
-        .expect("ship-views build.rs: failed to create packages/deck/sdk/src/generated/");
+        .expect("ship-views build.rs: failed to create packages/sdk/src/generated/");
 
     let stubs = [
         "sdk-urls.json",

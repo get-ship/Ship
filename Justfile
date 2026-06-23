@@ -32,9 +32,9 @@ bootstrap:
     # sdk-*.json bootstrap cycle: shipd include_str!s these, and gen-sdk runs
     # *through* shipd (via xtask). Seed empty placeholders so shipd compiles,
     # then gen-sdk overwrites them with real content.
-    mkdir -p packages/deck/sdk/src/generated
+    mkdir -p packages/sdk/src/generated
     for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
-        [ -s "packages/deck/sdk/src/generated/$f.json" ] || echo '{}' > "packages/deck/sdk/src/generated/$f.json"
+        [ -s "packages/sdk/src/generated/$f.json" ] || echo '{}' > "packages/sdk/src/generated/$f.json"
     done
     cargo run -p xtask --quiet -- gen-sdk
     # sui-compiler cdylib — the .so the bun asset builds load over FFI.
@@ -83,8 +83,8 @@ shell *ARGS:
 # entry) as its first step. The app list comes from `apps/shipd/apps.jsonc` —
 # the single registry (also read by shipd at startup), never duplicated here.
 [group('daily')]
-dev-build-all: _sui-compiler-lib
-    @cargo run -p deck-cli --quiet -- build-assets
+dev-build-all: _sui-compiler-lib _deck-cli
+    @cargo run --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli --quiet -- build-assets
     @just _build-apps
 
 # Build every app in the registry from its `root` via `deck build --project`.
@@ -93,7 +93,15 @@ dev-build-all: _sui-compiler-lib
 # (`route == "/"`) self-contains the /_deck/* framework surface
 # (`--bundle-framework`); every `deck build` self-generates that app's
 # `routes.gen.ts` entry as its first step. jq can't read JSONC, so strip `//`
-# line comments first (apps.jsonc holds no `//` inside any string).
+# line comments first (apps.jsonc holds no `//` inside any string). deck-cli
+# lives in the external sui repo post-carve, hence the explicit
+# --manifest-path. cwd stays in the ship worktree (deck-cli walks the
+# app's own root for entry discovery). `DECK_FRAMEWORK_ASSETS_DIR`
+# points the bundler at sui's `crates/deck/deck-core/assets/` (where
+# the staged framework bundles live post-carve) so cross-repo invocations
+# find the assets their `bundle_framework: true` step needs. The
+# path is TEMP — gets relativized to `../sui/...` in the layout-reshuffle
+# capstone.
 _build-apps:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -101,10 +109,13 @@ _build-apps:
         | jq -r '.apps[] | [.root, .route] | @tsv' \
         | while IFS=$'\t' read -r root route; do
             [ -z "$root" ] && continue
+            abs_root="$(realpath -m "$root")"
             if [ "$route" = "/" ]; then
-                cargo run -q -p deck-cli -- build --project "$root" --bundle-framework
+                DECK_FRAMEWORK_ASSETS_DIR=/home/madvib/dev/sui/crates/deck/deck-core/assets \
+                    cargo run -q --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli -- build --project "$abs_root" --bundle-framework
             else
-                cargo run -q -p deck-cli -- build --project "$root"
+                DECK_FRAMEWORK_ASSETS_DIR=/home/madvib/dev/sui/crates/deck/deck-core/assets \
+                    cargo run -q --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli -- build --project "$abs_root"
             fi
         done
 
@@ -342,30 +353,50 @@ docs-regen:
 docs-check-drift:
     cd apps/docs && bun run docs:check-drift
 
-# The sui-compiler cdylib that the deck bundler dlopens for FFI compilation.
-# A real build-graph dependency, not a remembered step — so a compiler/lint
-# source change always reaches every consumer (build, dev-build-all). cargo
-# no-ops in ~2s when fresh, so it's effectively free.
+# The sui-compiler cdylib lives in the external sui repo post-carve. The
+# deck bundler dlopens it for FFI compilation; the build needs the
+# debug .so at target/debug/libsui_compiler.so (or platform equivalent).
+# A real build-graph dependency, not a remembered step — so a
+# compiler/lint source change always reaches every consumer (build,
+# dev-build-all). cargo no-ops in ~2s when fresh, so it's effectively
+# free.
 _sui-compiler-lib:
-    cargo build -p sui-compiler
+    cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p sui-compiler
+
+# Same as _sui-compiler-lib for deck-cli (the build-assets + app-scaffold
+# runner that ship's `just build` invokes). Lives in the external sui
+# repo post-carve; ship runs it via the explicit manifest path.
+_deck-cli:
+    cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli
 
 # One-shot production build: gen-types, every pack + ui-components rebuild,
 # catalog regeneration, cargo --release, then verify outputs. Equivalent to
 # `ship build`.
 [group('daily')]
-build: _sui-compiler-lib
+build: _sui-compiler-lib _deck-cli
     #!/usr/bin/env bash
     set -euo pipefail
     command -v bun >/dev/null || { echo "build: bun not on PATH" >&2; exit 1; }
+    command -v jq >/dev/null || { echo "build: jq not on PATH" >&2; exit 1; }
+    command -v cargo >/dev/null || { echo "build: cargo not on PATH" >&2; exit 1; }
+    # Sui repo must be present for the deck-cli / sui-compiler invocations
+    # to resolve. TEMP absolute path — gets relativized to `../sui/...` in
+    # the layout-reshuffle capstone.
+    [ -f /home/madvib/dev/sui/Cargo.toml ] || {
+        echo "build: /home/madvib/dev/sui/Cargo.toml not found — clone sui alongside ship" >&2
+        exit 1
+    }
     echo "[1/7] gen-types"
     cargo run -p xtask --quiet -- gen-types
     echo "[2/7] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bundler loads)"
     # Steps 3-7 drive the SUI compiler over Bun FFI against this .so. Nothing
-    # out-of-band), so without this step it silently goes stale and bundles
-    # compile against an old token registry / lint set. Cheap no-op when fresh.
-    cargo build -p sui-compiler
-    echo "[3/7] framework + sui-* bundles + islands + views + catalog (cargo run -p deck-cli --quiet -- build-assets — in-process Rolldown; the only bundler AND the only catalog producer, → .deck/catalogs/workspace.json)"
-    cargo run -p deck-cli --quiet -- build-assets
+    # out-of-band — the explicit --manifest-path guarantees the .so is from
+    # the same sui checkout. Cheap no-op when fresh.
+    # Post-carve: deck-cli is in sui's repo, AND it walks UP from cwd to
+    # find its framework singletons (`packages/sui/runtime/...`,
+    # `packages/deck/router/...`). Run from the sui repo so the walk
+    # lands at sui's root, not ship's. cwd: /home/madvib/dev/sui.
+    (cd /home/madvib/dev/sui && cargo run -p deck-cli --quiet -- build-assets)
     echo "[4/7] catalog baked in [3/7] — the duplicate TS producer (@ship/sui-catalog) is retired; deck-bundler is the single source"
     # App scaffolds (the daemon-served / and /space/<id>). Built from the
     # `apps/shipd/apps.jsonc` registry — the single app list, never duplicated
@@ -399,11 +430,10 @@ build: _sui-compiler-lib
     done
     [ "$missing" = "0" ] || { echo "build: outputs incomplete" >&2; exit 1; }
     echo "build complete — release binaries at $target_dir/release/"
-
 # Build CLI + shipd (unstable dev build).
 [group('occasional')]
 build-dev:
-    cargo build --features unstable -p ship-cli -p shipd -p sui-lsp
+    cargo build --features unstable -p ship-cli -p shipd && cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p sui-lsp
 
 # Cargo-only release build (no front-end). Use `just build` for the full
 # production artifact set; this recipe is the cargo subset.
@@ -418,8 +448,7 @@ install-dev: build-dev
     set -euo pipefail
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     cp -f "$target/debug/ship" ~/.local/bin/ship.new && mv ~/.local/bin/ship.new ~/.local/bin/ship
-    cp -f "$target/debug/shipd" ~/.local/bin/shipd
-    cp -f "$target/debug/sui-lsp" ~/.local/bin/sui-lsp
+    cp -f /home/madvib/dev/sui/target/debug/sui-lsp ~/.local/bin/sui-lsp
     echo "Installed: ship + shipd + sui-lsp → ~/.local/bin"
 
 # Install stable binary to ~/.cargo/bin.
@@ -431,29 +460,30 @@ install: build-release
     cargo install --path apps/ship-cli
     cp -f "$target/release/shipd" ~/.local/bin/shipd
 
-# Rebuild the in-browser SUI template compiler. wasm-pack writes into
-# `packages/sui/compiler-wasm/pkg/` (gitignored) so the package's own
-# package.json + .gitignore stay intact; the workspace re-exports the
-# generated entry via `main` / `exports`. Required before
-# `bun run --filter @ship/docs build` — the docs playground imports
-# `@ship/sui-compiler-wasm/sui_compiler_bg.wasm?url` to compile `.sui`
-# edits without a server round-trip. ~640KB wasm + ~9KB JS shim.
+# Rebuild the in-browser SUI template compiler. The sui-compiler crate
+# lives in the external sui repo post-carve; wasm-pack writes into
+# `/home/madvib/dev/sui/packages/sui/compiler-wasm/pkg/` (gitignored
+# in that repo) so the package's own package.json + .gitignore stay
+# intact; the sui's bun workspace re-exports the generated entry via
+# `main` / `exports`. Required before
+# `cd /home/madvib/dev/sui && bun run build` — the docs playground
+# imports `@ship/sui-compiler-wasm/sui_compiler_bg.wasm?url` to compile
+# `.sui` edits without a server round-trip. ~640KB wasm + ~9KB JS shim.
 [group('occasional')]
 sui-wasm:
-    wasm-pack build crates/sui/compiler --target web --out-dir ../../../packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm
+    wasm-pack build /home/madvib/dev/sui/crates/sui/compiler --target web --out-dir packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm
 
 # Build the native Node-API addon the SUI test harness compiles through.
-# Unlike `sui-wasm`, this is rarely run by hand: the harness loads whatever
-# `cargo build` / `just build` already produced under `target/`, so a plain
-# build keeps it fresh. This recipe exists for an explicit, isolated rebuild
-# (e.g. after editing the compiler crate while iterating on tests) and is what
-# the drift guard in packages/sui/dom/src/test-utils/compile-sui.ts names. The
-# harness dlopen's the cdylib directly (it exports the N-API init symbol), so
-# there is no `.node` rename step. One cargo-current build feeds both the
-# daemon and the harness — the artifact-drift fix (#255).
+# The sui-compiler-napi crate moved to the external sui repo with
+# sui-compiler. Build it there. Unlike `sui-wasm`, this is rarely run
+# by hand: the harness loads whatever `cargo build` / `just build`
+# already produced under `/home/madvib/dev/sui/target/`, so a plain
+# build keeps it fresh. This recipe exists for an explicit, isolated
+# rebuild (e.g. after editing the compiler crate while iterating on
+# tests).
 [group('occasional')]
 sui-napi:
-    cargo build -p sui-compiler-napi
+    cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p sui-compiler-napi
 
 # Regenerate Specta types (Rust → generated TS bindings).
 [group('occasional')]
@@ -500,7 +530,7 @@ gen-indexes:
 gen-indexes-check:
     cargo run -p xtask -- gen-indexes --check
 
-# Regenerate packages/deck/sdk/src/generated/collections.ts — the typed
+# Regenerate packages/sdk/src/generated/collections.ts — the typed
 # Database interface derived from .ship/collections/*.jsonc (typed Kysely input).
 [group('occasional')]
 gen-collection-types:

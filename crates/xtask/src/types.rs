@@ -2,7 +2,7 @@
 
 use specta::TypeCollection;
 
-/// Types whose canonical home is `packages/deck/sdk/src/generated.ts`:
+/// Types whose canonical home is `packages/sdk/src/generated.ts`:
 /// project config, permissions, skills, agent profiles, runtime workspace +
 /// job/event projections. Consumers (sdk/types.ts) import from this file
 /// directly; do not move members out of this set without updating consumers.
@@ -183,7 +183,7 @@ pub fn collect_framework_types() -> TypeCollection {
 
 /// Ship daemon-domain data types (agents / account / skills). These belong to the
 /// SDK layer, NOT the framework — `@ship/sui-runtime` names no host concept.
-/// Output: `packages/deck/sdk-client/src/generated.ts`.
+/// Output: `packages/sdk-client/src/generated.ts`.
 pub fn collect_ship_data_types() -> TypeCollection {
     let mut c = TypeCollection::default();
 
@@ -204,7 +204,7 @@ pub fn collect_ship_data_types() -> TypeCollection {
 
     // collections — proto-only since #81. `CollectionSummary` and friends
     // ship from the buf-generated `ship_ops_rpc::collections` client; the TS
-    // shape lives in `packages/deck/sdk/src/gen/ship/ops/v1/collection_pb.ts`.
+    // shape lives in `packages/sdk/src/gen/ship/ops/v1/collection_pb.ts`.
     // Do not re-add a specta registration here without first confirming the
     // Rust definition is still specta-derived (it isn't).
 

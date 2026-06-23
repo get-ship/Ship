@@ -186,8 +186,8 @@ Connect, REST, and SSE coexist on one axum server (distinct paths) — so this i
 
 - `apps/shell` (GUI) — fetch + **two SSE streams**: terminal PTY bytes
   (`/sessions/{id}/stream`), view-edit compile events (`sui_view_edit_sse`).
-- `apps/mcp` (`network_client.rs`), `crates/sui/ship-sui-server` (browser runtime),
-  `apps/ship-cli` + hooks, `@ship/sdk` (`packages/deck/sdk` — now carries the
+- `apps/mcp` (`network_client.rs`), `/home/madvib/dev/sui//home/madvib/dev/sui/crates/sui/sui-server` (browser runtime),
+  `apps/ship-cli` + hooks, `@ship/sdk` (`packages/sdk` — now carries the
   generated Connect-Web client at `src/connect.ts`).
 
 None break under additive coexistence; only the CLI is force-migrated first, by

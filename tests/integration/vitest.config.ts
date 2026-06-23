@@ -16,23 +16,27 @@ const repoRoot = resolve(__dirname, '..', '..')
 export default defineConfig({
   resolve: {
     alias: {
+      // `@ship/sui-runtime*` aliases now point into the external sui repo.
+      // See the comment on the `@ship/sui-dom` block below.
       '@ship/sui-runtime/template-hooks': resolve(
-        repoRoot,
-        'packages/sui/runtime/src/template-hooks/index.ts',
+        '/home/madvib/dev/sui/packages/sui/runtime/src/template-hooks/index.ts',
       ),
       '@ship/sui-runtime/dev': resolve(
-        repoRoot,
-        'packages/sui/runtime/src/dev.ts',
+        '/home/madvib/dev/sui/packages/sui/runtime/src/dev.ts',
       ),
-      '@ship/sui-runtime': resolve(repoRoot, 'packages/sui/runtime/src/index.ts'),
+      '@ship/sui-runtime': resolve('/home/madvib/dev/sui/packages/sui/runtime/src/index.ts'),
+      // `@ship/sui-dom` + `@ship/sui-dom/test-utils` now live in the external
+      // sui repo (post-carve). Point the alias at the same source root
+      // (`/home/madvib/dev/sui/packages/sui/dom/src/...`) so this integration
+      // suite keeps testing the same module from the same single source. The
+      // path is TEMP — gets relativized to `../sui/packages/...` in capstone.
       '@ship/sui-dom/test-utils': resolve(
-        repoRoot,
-        'packages/sui/dom/src/test-utils/compile-sui.ts',
+        '/home/madvib/dev/sui/packages/sui/dom/src/test-utils/compile-sui.ts',
       ),
-      '@ship/sui-dom': resolve(repoRoot, 'packages/sui/dom/src/index.ts'),
+      '@ship/sui-dom': resolve('/home/madvib/dev/sui/packages/sui/dom/src/index.ts'),
       '@ship/sdk-client': resolve(
         repoRoot,
-        'packages/deck/sdk-client/src/index.ts',
+        'packages/sdk-client/src/index.ts',
       ),
     },
   },

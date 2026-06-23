@@ -15,7 +15,7 @@
 // Framework clients (`@ship/sdk-client` etc.) are NO LONGER host-declared
 // here — they are provider-declared in their own `package.json#deckFramework`
 // and discovered by walking the app's resolved dependency graph (see
-// `crates/deck/deck-bundler/src/app.rs::discover_deck_frameworks`). The
+// `/home/madvib/dev/sui//home/madvib/dev/sui/crates/deck/deck-bundler/src/app.rs::discover_deck_frameworks`). The
 // framework never hardcodes any ship path; every singleton owner names
 // itself.
 //

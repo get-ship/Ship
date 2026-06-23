@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "cargo run -q -p deck-cli -- build --project . --bundle-framework",
+    "build": "DECK_FRAMEWORK_ASSETS_DIR=/home/madvib/dev/sui/crates/deck/deck-core/assets cargo run --manifest-path /home/madvib/dev/sui/Cargo.toml -q -p deck-cli -- build --project . --bundle-framework",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
@@ -13,16 +13,16 @@
     "@ship/sui-canvas": "workspace:*",
     "@ship/agents": "workspace:*",
     "@ship/authority": "workspace:*",
-    "@ship/sui-charts": "workspace:*",
-    "@ship/deck-host": "workspace:*",
+    "@ship/sui-charts": "file:/home/madvib/dev/sui/packages/components/sui/charts",
+    "@ship/deck-host": "file:/home/madvib/dev/sui/packages/deck/host",
     "@ship/pipelines": "workspace:*",
-    "@ship/sui-primitives": "workspace:*",
+    "@ship/sui-primitives": "file:/home/madvib/dev/sui/packages/components/sui/primitives",
     "@ship/sdk": "workspace:*",
     "@ship/sdk-client": "workspace:*",
-    "@ship/sui-dom": "workspace:*",
-    "@ship/tokens": "workspace:*",
-    "@ship/sui-lsp-browser": "workspace:*",
-    "@ship/sui-runtime": "workspace:*"
+    "@ship/sui-dom": "file:/home/madvib/dev/sui/packages/sui/dom",
+    "@ship/tokens": "file:/home/madvib/dev/sui/packages/sui/tokens",
+    "@ship/sui-lsp-browser": "file:/home/madvib/dev/sui/packages/deck/lsp-browser",
+    "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime"
   },
   "devDependencies": {
     "@ship/test-setup": "workspace:*",

@@ -1,7 +1,7 @@
 {
   "name": "@ship/code",
   "version": "0.1.0",
-  "description": "Ship Code pack — ship-* components for code surfaces: <ship-code-editor> (CodeMirror 6), <ship-terminal> (xterm.js PTY), and the <ship-git-diff> unified-diff tree. Presentational wrappers over third-party engines; no Ship SDK dep.",
+  "description": "Ship Code pack \u2014 ship-* components for code surfaces: <ship-code-editor> (CodeMirror 6), <ship-terminal> (xterm.js PTY), and the <ship-git-diff> unified-diff tree. Presentational wrappers over third-party engines; no Ship SDK dep.",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
@@ -14,7 +14,10 @@
       {
         "name": "ship-code-editor",
         "entry": "src/index.ts",
-        "externals": ["@ship/sui-runtime", "@ship/sui-dom"],
+        "externals": [
+          "@ship/sui-runtime",
+          "@ship/sui-dom"
+        ],
         "lazy": true
       }
     ]
@@ -24,10 +27,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ship/sui-runtime": "workspace:*",
-    "@ship/sui-dom": "workspace:*",
-    "@ship/sui-primitives": "workspace:*",
-    "@ship/sui-lsp-browser": "workspace:*",
+    "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime",
+    "@ship/sui-dom": "file:/home/madvib/dev/sui/packages/sui/dom",
+    "@ship/sui-primitives": "file:/home/madvib/dev/sui/packages/components/sui/primitives",
+    "@ship/sui-lsp-browser": "file:/home/madvib/dev/sui/packages/deck/lsp-browser",
     "@codemirror/autocomplete": "^6",
     "@codemirror/commands": "^6",
     "@codemirror/lang-css": "^6",
