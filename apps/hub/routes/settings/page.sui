@@ -1,6 +1,9 @@
 <!-- <sui-settings> — CLI + studio config. First-party CHROME (apps/shell); rendered at /settings.
-     Styles live in the co-located style.css (the deck bundler auto-links it as a
-     global stylesheet); inline <style> blocks in a route template are dropped. -->
+     Composed from @ship/sui-primitives: sections are <sui-card>, rows are
+     <sui-cluster>/<sui-stack>, inputs are <sui-input>, the account avatar is
+     <sui-avatar>, the read-only endpoint is <sui-code>. The co-located
+     style.css carries only the residue primitives can't express; inline
+     <style> blocks in a route template are dropped (FW-4). -->
 
 <!-- Settings read shape (#298): the controller composes flat RUNTIME
      SettingsService rows into one derived per rendered setting. This template
@@ -18,441 +21,408 @@
       {:loading}
       <sui-stack gap="4" aria-busy="true" aria-label="Loading settings">
         {#for n of [0, 1, 2] key={n}}
-          <sui-stack class="s-skel-card" gap="3">
-            <sui-cluster gap="2" align="center">
-              <sui-skeleton shape="circle" size="sm"></sui-skeleton>
-              <sui-skeleton shape="line" size="md" style="width:120px"></sui-skeleton>
-            </sui-cluster>
-            <sui-stack gap="2">
-              <sui-skeleton shape="line" size="md"></sui-skeleton>
-              <sui-skeleton shape="line" size="md"></sui-skeleton>
+          <sui-card>
+            <sui-stack gap="3">
+              <sui-cluster gap="2" align="center">
+                <sui-skeleton shape="circle" size="sm"></sui-skeleton>
+                <sui-skeleton shape="line" size="md" style="width:120px"></sui-skeleton>
+              </sui-cluster>
+              <sui-stack gap="2">
+                <sui-skeleton shape="line" size="md"></sui-skeleton>
+                <sui-skeleton shape="line" size="md"></sui-skeleton>
+              </sui-stack>
             </sui-stack>
-          </sui-stack>
+          </sui-card>
         {/for}
       </sui-stack>
-    
+
       {:error err}
       <sui-error-state variant="default" size="md" title="Couldn't load settings">
         {err.message}
       </sui-error-state>
-    
+
       {:ok}
       <sui-stack gap="4">
 
         <!-- Account -->
         <sui-card id="account" padding="none">
-          <div slot="header" class="s-section-head">
-            <h2 class="s-section-title">
-              <sui-icon name="user"></sui-icon>Account
-            </h2>
+          <div slot="header" class="section-head">
+            <sui-cluster gap="2" align="center">
+              <sui-icon name="user" size="sm" tone="muted"></sui-icon>
+              <h2 class="section-title">Account</h2>
+            </sui-cluster>
           </div>
-          <div class="s-section-body s-account-body">
+          <sui-stack class="section-body" gap="3">
             {#if account().kind === 'loading'}
-              <div class="list-tile list-tile--compact">
-                <div class="list-tile-row">
-                  <span class="list-tile-primary s-row-label muted">Loading account…</span>
-                </div>
-              </div>
+              <span class="row-label muted">Loading account…</span>
             {:else if account().kind === 'error'}
-              <div class="list-tile list-tile--compact">
-                <div class="list-tile-row">
-                  <span class="list-tile-primary s-row-label">Ship Cloud</span>
-                </div>
-                <div class="list-tile-secondary">Daemon unreachable. Account features unavailable while offline.</div>
-              </div>
+              <sui-stack gap="1">
+                <span class="row-label">Ship Cloud</span>
+                <span class="row-desc">Daemon unreachable. Account features unavailable while offline.</span>
+              </sui-stack>
             {:else if accountIdentity().status === 'logged_in'}
-              <div class="list-tile list-tile--compact">
-                <div class="list-tile-row">
-                  {#if accountIdentity().me?.image}
-                    <img class="s-account-avatar"
-                      src={accountIdentity().me?.image ?? ''} alt="" />
-                  {:else}
-                    <span class="s-account-avatar-fallback">{accountInitials()}</span>
-                  {/if}
-                  <span class="list-tile-primary s-row-label">{accountName()}</span>
-                  <span class="s-row-trailing">
-                    {#if accountPlan()}
-                      <sui-badge tone="info" variant="soft" size="sm">{accountPlan()}</sui-badge>
-                    {/if}
-                  </span>
-                </div>
-                <div class="list-tile-secondary">
-                  {#if accountIdentity().me?.email}
-                    {accountIdentity().me?.email}
-                  {:else}
-                    Signed in to Ship Cloud
-                  {/if}
-                </div>
-              </div>
-              <div class="list-tile list-tile--compact">
-                <div class="list-tile-row">
-                  <span class="list-tile-primary s-row-label">Billing</span>
-                  <span class="s-row-trailing">
-                    <sui-button variant="outline" size="sm" on:click={() => openBilling()}>
-                      <sui-icon slot="leading" name="external-link" size="sm"></sui-icon>
-                      Open billing
-                    </sui-button>
-                  </span>
-                </div>
-                <div class="list-tile-secondary">Manage your plan and payment method</div>
-              </div>
-              <div class="list-tile list-tile--compact">
-                <div class="list-tile-row">
-                  <span class="list-tile-primary s-row-label">Session</span>
-                  <span class="s-row-trailing">
-                    <sui-button variant="outline" tone="destructive" size="sm"
-                      disabled={accountBusy()}
-                      on:click={onAccountSignOut}>
-                      Sign out
-                    </sui-button>
-                  </span>
-                </div>
-                <div class="list-tile-secondary">Sign out clears the API key stored by this daemon</div>
-              </div>
+              <sui-cluster gap="3" justify="between" align="center">
+                <sui-cluster class="row-main" gap="3" align="center">
+                  <sui-avatar size="sm" tone="primary"
+                    src={accountIdentity().me?.image ?? ''}
+                    name={accountName()}
+                    initials={accountInitials()}></sui-avatar>
+                  <sui-stack gap="0">
+                    <span class="row-label">{accountName()}</span>
+                    <span class="row-desc">{accountIdentity().me?.email ?? 'Signed in to Ship Cloud'}</span>
+                  </sui-stack>
+                </sui-cluster>
+                {#if accountPlan()}
+                  <sui-badge tone="info" variant="soft" size="sm">{accountPlan()}</sui-badge>
+                {/if}
+              </sui-cluster>
+              <sui-cluster gap="3" justify="between" align="center">
+                <sui-stack class="row-main" gap="1">
+                  <span class="row-label">Billing</span>
+                  <span class="row-desc">Manage your plan and payment method</span>
+                </sui-stack>
+                <sui-button variant="outline" size="sm" on:click={() => openBilling()}>
+                  <sui-icon slot="leading" name="external-link" size="sm"></sui-icon>
+                  Open billing
+                </sui-button>
+              </sui-cluster>
+              <sui-cluster gap="3" justify="between" align="center">
+                <sui-stack class="row-main" gap="1">
+                  <span class="row-label">Session</span>
+                  <span class="row-desc">Sign out clears the API key stored by this daemon</span>
+                </sui-stack>
+                <sui-button variant="outline" tone="destructive" size="sm"
+                  disabled={accountBusy()}
+                  on:click={onAccountSignOut}>
+                  Sign out
+                </sui-button>
+              </sui-cluster>
             {:else if accountIdentity().status === 'pending'}
-              <div class="list-tile list-tile--compact">
-                <div class="list-tile-row">
-                  <span class="s-account-avatar-fallback signed-out">
-                    <sui-icon name="loader" size="sm"></sui-icon>
-                  </span>
-                  <span class="list-tile-primary s-row-label">Completing sign-in…</span>
-                </div>
-                <div class="list-tile-secondary">Finish the flow in your browser, then return here.</div>
-              </div>
+              <sui-cluster gap="3" align="center">
+                <sui-spinner size="sm"></sui-spinner>
+                <sui-stack class="row-main" gap="1">
+                  <span class="row-label">Completing sign-in…</span>
+                  <span class="row-desc">Finish the flow in your browser, then return here.</span>
+                </sui-stack>
+              </sui-cluster>
             {:else}
-              <div class="list-tile list-tile--compact">
-                <div class="list-tile-row">
-                  <span class="s-account-avatar-fallback signed-out">
-                    <sui-icon name="user" size="sm"></sui-icon>
-                  </span>
-                  <span class="list-tile-primary s-row-label">Not signed in</span>
-                  <span class="s-row-trailing">
-                    <sui-button variant="solid" tone="primary" size="sm"
-                      disabled={accountBusy()}
-                      on:click={onAccountSignIn}>
-                      Sign in
-                    </sui-button>
-                  </span>
-                </div>
-                <div class="list-tile-secondary">Connect this workspace to Ship Cloud to unlock publish + sync.</div>
-              </div>
+              <sui-cluster gap="3" justify="between" align="center">
+                <sui-cluster class="row-main" gap="3" align="center">
+                  <sui-avatar size="sm" tone="muted"></sui-avatar>
+                  <sui-stack gap="1">
+                    <span class="row-label">Not signed in</span>
+                    <span class="row-desc">Connect this workspace to Ship Cloud to unlock publish + sync.</span>
+                  </sui-stack>
+                </sui-cluster>
+                <sui-button variant="solid" tone="primary" size="sm"
+                  disabled={accountBusy()}
+                  on:click={onAccountSignIn}>
+                  Sign in
+                </sui-button>
+              </sui-cluster>
             {/if}
             {#if accountError()}
-              <div class="list-tile list-tile--compact">
-                <div class="list-tile-row">
-                  <span class="list-tile-primary s-row-label err">{accountError()}</span>
-                </div>
-              </div>
+              <span class="row-label err">{accountError()}</span>
             {/if}
-          </div>
+          </sui-stack>
         </sui-card>
 
         <!-- Theme -->
         <sui-card padding="none">
-          <div slot="header" class="s-section-head">
-            <h2 class="s-section-title">
-              <sui-icon name="eye"></sui-icon>Theme
-            </h2>
+          <div slot="header" class="section-head">
+            <sui-cluster gap="2" align="center">
+              <sui-icon name="eye" size="sm" tone="muted"></sui-icon>
+              <h2 class="section-title">Theme</h2>
+            </sui-cluster>
           </div>
-          <div class="s-section-body">
-            <div class="list-tile list-tile--compact">
-              <div class="list-tile-row">
-                <span class="list-tile-primary s-row-label">Customize design tokens</span>
-                <span class="s-row-trailing">
-                  <sui-link href="/theme-studio" data-test="settings-theme-studio-link">
-                    Open Theme Studio
-                  </sui-link>
-                </span>
-              </div>
-              <div class="list-tile-secondary">Tweak palette, surfaces, motion, typography — overrides ride on top of the active pack.</div>
-            </div>
-          </div>
+          <sui-stack class="section-body" gap="3">
+            <sui-cluster gap="3" justify="between" align="center">
+              <sui-stack class="row-main" gap="1">
+                <span class="row-label">Customize design tokens</span>
+                <span class="row-desc">Tweak palette, surfaces, motion, typography — overrides ride on top of the active pack.</span>
+              </sui-stack>
+              <sui-link href="/theme-studio" data-test="settings-theme-studio-link">
+                Open Theme Studio
+              </sui-link>
+            </sui-cluster>
+          </sui-stack>
         </sui-card>
 
         <!-- Terminal -->
         <sui-card padding="none">
-          <div slot="header" class="s-section-head">
-            <h2 class="s-section-title">
-              <sui-icon name="terminal"></sui-icon>Terminal
-            </h2>
+          <div slot="header" class="section-head">
+            <sui-cluster gap="2" align="center">
+              <sui-icon name="terminal" size="sm" tone="muted"></sui-icon>
+              <h2 class="section-title">Terminal</h2>
+            </sui-cluster>
           </div>
-          <div class="s-section-body">
-            <div class="list-tile list-tile--compact">
-              <div class="list-tile-row">
-                <span class="list-tile-primary s-row-label" id="s-label-term">Terminal program</span>
-                <span class="s-row-trailing">
-                  <form mutation="ship.settings.update" on:success={() => flashSaved(savedTerminal)}>
-                    <input type="hidden" name="key" value="terminal.program" />
-                    <sui-badge tone="success" variant="soft" size="sm"
-                      class="s-save-badge" class:visible={savedTerminal()}>
-                      <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
-                    </sui-badge>
-                    <input class="s-input" type="text" name="value" aria-labelledby="s-label-term"
-                      prop:value={terminalProgram()}
-                      placeholder="tmux"
-                      on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
-                  </form>
-                </span>
-              </div>
-              <div class="list-tile-secondary">Used when launching sessions</div>
-            </div>
+          <sui-stack class="section-body" gap="3">
+            <sui-cluster gap="3" justify="between" align="center">
+              <sui-stack class="row-main" gap="1">
+                <span class="row-label">Terminal program</span>
+                <span class="row-desc">Used when launching sessions</span>
+              </sui-stack>
+              <form mutation="ship.settings.update" on:success={() => flashSaved(savedTerminal)}>
+                <input type="hidden" name="key" value="terminal.program" />
+                <sui-cluster gap="2" align="center" justify="end">
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="saved-badge" class:visible={savedTerminal()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-input class="set-input" name="value" size="sm" label="Terminal program"
+                    prop:value={terminalProgram()} placeholder="tmux"
+                    on:sui-input-change={(e) => e.target.closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                </sui-cluster>
+              </form>
+            </sui-cluster>
 
-            <div class="list-tile list-tile--compact">
-              <div class="list-tile-row">
-                <span class="list-tile-primary s-row-label" id="s-label-worktree">Worktree base directory</span>
-                <span class="s-row-trailing">
-                  <form mutation="ship.settings.update" on:success={() => flashSaved(savedWorktree)}>
-                    <input type="hidden" name="key" value="worktree.base_dir" />
-                    <sui-badge tone="success" variant="soft" size="sm"
-                      class="s-save-badge" class:visible={savedWorktree()}>
-                      <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
-                    </sui-badge>
-                    <input class="s-input" type="text" name="value" aria-labelledby="s-label-worktree"
-                      prop:value={worktreeBase()}
-                      placeholder="/path/to/worktrees"
-                      on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
-                  </form>
-                </span>
-              </div>
-              <div class="list-tile-secondary">Root for git worktrees</div>
-            </div>
-          </div>
+            <sui-cluster gap="3" justify="between" align="center">
+              <sui-stack class="row-main" gap="1">
+                <span class="row-label">Worktree base directory</span>
+                <span class="row-desc">Root for git worktrees</span>
+              </sui-stack>
+              <form mutation="ship.settings.update" on:success={() => flashSaved(savedWorktree)}>
+                <input type="hidden" name="key" value="worktree.base_dir" />
+                <sui-cluster gap="2" align="center" justify="end">
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="saved-badge" class:visible={savedWorktree()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-input class="set-input" name="value" size="sm" label="Worktree base directory"
+                    prop:value={worktreeBase()} placeholder="/path/to/worktrees"
+                    on:sui-input-change={(e) => e.target.closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                </sui-cluster>
+              </form>
+            </sui-cluster>
+          </sui-stack>
         </sui-card>
 
         <!-- Harness defaults -->
         <sui-card padding="none">
-          <div slot="header" class="s-section-head">
-            <h2 class="s-section-title">
-              <sui-icon name="cpu"></sui-icon>Harness defaults
-            </h2>
+          <div slot="header" class="section-head">
+            <sui-cluster gap="2" align="center">
+              <sui-icon name="cpu" size="sm" tone="muted"></sui-icon>
+              <h2 class="section-title">Harness defaults</h2>
+            </sui-cluster>
           </div>
-          <div class="s-section-body">
-            <div class="list-tile list-tile--compact">
-              <div class="list-tile-row">
-                <span class="list-tile-primary s-row-label" id="s-label-harness-default">Default harness</span>
-                <span class="s-row-trailing">
-                  <form mutation="ship.settings.update" on:success={() => flashSaved(savedHarnessDefault)}>
-                    <input type="hidden" name="key" value="harness.default" />
-                    <sui-badge tone="success" variant="soft" size="sm"
-                      class="s-save-badge" class:visible={savedHarnessDefault()}>
-                      <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
-                    </sui-badge>
-                    <input class="s-input" type="text" name="value" aria-labelledby="s-label-harness-default"
-                      prop:value={harnessDefault()}
-                      placeholder="e.g. claude, codex, gemini"
-                      on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
-                  </form>
-                </span>
-              </div>
-              <div class="list-tile-secondary">Harness used when `ship use --launch` runs with no `--harness` flag</div>
-            </div>
+          <sui-stack class="section-body" gap="3">
+            <sui-cluster gap="3" justify="between" align="center">
+              <sui-stack class="row-main" gap="1">
+                <span class="row-label">Default harness</span>
+                <span class="row-desc">Harness used when `ship use --launch` runs with no `--harness` flag</span>
+              </sui-stack>
+              <form mutation="ship.settings.update" on:success={() => flashSaved(savedHarnessDefault)}>
+                <input type="hidden" name="key" value="harness.default" />
+                <sui-cluster gap="2" align="center" justify="end">
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="saved-badge" class:visible={savedHarnessDefault()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-input class="set-input" name="value" size="sm" label="Default harness"
+                    prop:value={harnessDefault()} placeholder="e.g. claude, codex, gemini"
+                    on:sui-input-change={(e) => e.target.closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                </sui-cluster>
+              </form>
+            </sui-cluster>
 
-            <div class="list-tile list-tile--compact">
-              <div class="list-tile-row">
-                <span class="list-tile-primary s-row-label" id="s-label-harness-default-model">Default harness model</span>
-                <span class="s-row-trailing">
-                  <form mutation="ship.settings.update" on:success={() => flashSaved(savedHarnessModel)}>
-                    <input type="hidden" name="key" value="harness.default_model" />
-                    <sui-badge tone="success" variant="soft" size="sm"
-                      class="s-save-badge" class:visible={savedHarnessModel()}>
-                      <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
-                    </sui-badge>
-                    <input class="s-input" type="text" name="value" aria-labelledby="s-label-harness-default-model"
-                      prop:value={harnessDefaultModel()}
-                      placeholder="e.g. sonnet, opus"
-                      on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
-                  </form>
-                </span>
-              </div>
-              <div class="list-tile-secondary">Model passed to the launched harness when no `--model` flag is set</div>
-            </div>
-          </div>
+            <sui-cluster gap="3" justify="between" align="center">
+              <sui-stack class="row-main" gap="1">
+                <span class="row-label">Default harness model</span>
+                <span class="row-desc">Model passed to the launched harness when no `--model` flag is set</span>
+              </sui-stack>
+              <form mutation="ship.settings.update" on:success={() => flashSaved(savedHarnessModel)}>
+                <input type="hidden" name="key" value="harness.default_model" />
+                <sui-cluster gap="2" align="center" justify="end">
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="saved-badge" class:visible={savedHarnessModel()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-input class="set-input" name="value" size="sm" label="Default harness model"
+                    prop:value={harnessDefaultModel()} placeholder="e.g. sonnet, opus"
+                    on:sui-input-change={(e) => e.target.closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                </sui-cluster>
+              </form>
+            </sui-cluster>
+          </sui-stack>
         </sui-card>
 
         <!-- Sessions -->
         <sui-card padding="none">
-          <div slot="header" class="s-section-head">
-            <h2 class="s-section-title">
-              <sui-icon name="play"></sui-icon>Sessions
-            </h2>
+          <div slot="header" class="section-head">
+            <sui-cluster gap="2" align="center">
+              <sui-icon name="play" size="sm" tone="muted"></sui-icon>
+              <h2 class="section-title">Sessions</h2>
+            </sui-cluster>
           </div>
-          <div class="s-section-body">
-            <div class="list-tile list-tile--compact">
-              <div class="list-tile-row">
-                <span class="list-tile-primary s-row-label" id="s-label-auto-resume">Auto-resume agent sessions</span>
-                <span class="s-row-trailing">
-                  <form mutation="ship.settings.update" on:success={() => flashSaved(savedAutoResume)}>
-                    <input type="hidden" name="key" value="agent_session.auto_resume" />
-                    <sui-badge tone="success" variant="soft" size="sm"
-                      class="s-save-badge" class:visible={savedAutoResume()}>
-                      <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
-                    </sui-badge>
-                    <sui-switch name="value" size="sm" aria-labelledby="s-label-auto-resume"
-                      prop:checked={autoResume()}
-                      on:sui-change={(e) => e.target.closest('form')?.requestSubmit()}></sui-switch>
-                  </form>
-                </span>
-              </div>
-              <div class="list-tile-secondary">When on, `ship use --launch` re-enters an existing (agent, path) session instead of spawning fresh</div>
-            </div>
-          </div>
+          <sui-stack class="section-body" gap="3">
+            <sui-cluster gap="3" justify="between" align="center">
+              <sui-stack class="row-main" gap="1">
+                <span class="row-label" id="s-label-auto-resume">Auto-resume agent sessions</span>
+                <span class="row-desc">When on, `ship use --launch` re-enters an existing (agent, path) session instead of spawning fresh</span>
+              </sui-stack>
+              <form mutation="ship.settings.update" on:success={() => flashSaved(savedAutoResume)}>
+                <input type="hidden" name="key" value="agent_session.auto_resume" />
+                <sui-cluster gap="2" align="center" justify="end">
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="saved-badge" class:visible={savedAutoResume()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-switch name="value" size="sm" aria-labelledby="s-label-auto-resume"
+                    prop:checked={autoResume()}
+                    on:sui-change={(e) => e.target.closest('form')?.requestSubmit()}></sui-switch>
+                </sui-cluster>
+              </form>
+            </sui-cluster>
+          </sui-stack>
         </sui-card>
 
         <!-- Advanced (collapsible) -->
         <sui-card padding="none">
-          <sui-collapsible
-            on:sui-toggle={() => advancedOpen.set(!advancedOpen())}>
-            <div slot="trigger" class="s-collapse-trigger">
-              <h2 class="s-section-title">
-                <sui-icon name="settings"></sui-icon>Advanced
-              </h2>
-              <sui-icon name="chevron-down" class="s-chevron" class:open={advancedOpen()}></sui-icon>
+          <sui-collapsible on:sui-toggle={() => advancedOpen.set(!advancedOpen())}>
+            <div slot="trigger" class="collapse-trigger">
+              <sui-cluster gap="2" align="center">
+                <sui-icon name="settings" size="sm" tone="muted"></sui-icon>
+                <h2 class="section-title">Advanced</h2>
+              </sui-cluster>
+              <sui-icon name="chevron-down" size="sm" tone="muted"
+                class="chevron" class:open={advancedOpen()}></sui-icon>
             </div>
-            <div class="s-collapse-inner">
-              <div class="s-section-body">
-                <div class="list-tile list-tile--compact">
-                  <div class="list-tile-row">
-                    <span class="list-tile-primary s-row-label">Daemon status</span>
-                    <span class="s-row-trailing">
-                      <sui-status-dot
-                        tone={settings().kind === 'ok' ? 'success' : 'destructive'}
-                        label={settings().kind === 'ok' ? 'Connected' : 'Disconnected'}></sui-status-dot>
-                      <span class="s-status-text">{settings().kind === 'ok' ? 'Connected' : 'Disconnected'}</span>
-                    </span>
-                  </div>
-                </div>
-                <div class="list-tile list-tile--compact">
-                  <div class="list-tile-row">
-                    <span class="list-tile-primary s-row-label">Daemon endpoint</span>
-                    <span class="s-mono-val">{daemonEndpoint()}</span>
-                  </div>
-                </div>
-                <div class="list-tile list-tile--compact">
-                  <div class="list-tile-row">
-                    <span class="list-tile-primary s-row-label" id="s-label-registry">Registry endpoint</span>
-                    <span class="s-row-trailing">
-                      <form mutation="ship.settings.update" on:success={() => flashSaved(savedRegistry)}>
-                        <input type="hidden" name="key" value="registry.endpoint" />
-                        <sui-badge tone="success" variant="soft" size="sm"
-                          class="s-save-badge" class:visible={savedRegistry()}>
-                          <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
-                        </sui-badge>
-                        <input class="s-input" type="text" name="value" aria-labelledby="s-label-registry"
-                          prop:value={registryEndpoint()}
-                          placeholder="https://registry.getship.dev"
-                          on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                          on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
-                      </form>
-                    </span>
-                  </div>
-                  <div class="list-tile-secondary">Package registry URL</div>
-                </div>
-                <div class="list-tile list-tile--compact">
-                  <div class="list-tile-row">
-                    <span class="list-tile-primary s-row-label" id="s-label-watcher-debounce">Watcher debounce (ms)</span>
-                    <span class="s-row-trailing">
-                      <form mutation="ship.settings.update" on:success={() => flashSaved(savedWatcherDebounce)}>
-                        <input type="hidden" name="key" value="watcher.debounce_ms" />
-                        <sui-badge tone="success" variant="soft" size="sm"
-                          class="s-save-badge" class:visible={savedWatcherDebounce()}>
-                          <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
-                        </sui-badge>
-                        <input class="s-input" type="number" name="value" aria-labelledby="s-label-watcher-debounce"
-                          prop:value={watcherDebounceMs()}
-                          placeholder="200"
-                          on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                          on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
-                      </form>
-                    </span>
-                  </div>
-                  <div class="list-tile-secondary">Debounce window for the declarative `.ship/` file watcher</div>
-                </div>
-                <div class="list-tile list-tile--compact">
-                  <div class="list-tile-row">
-                    <span class="list-tile-primary s-row-label" id="s-label-git-log-limit">Git log limit</span>
-                    <span class="s-row-trailing">
-                      <form mutation="ship.settings.update" on:success={() => flashSaved(savedGitLogLimit)}>
-                        <input type="hidden" name="key" value="git.log_limit" />
-                        <sui-badge tone="success" variant="soft" size="sm"
-                          class="s-save-badge" class:visible={savedGitLogLimit()}>
-                          <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
-                        </sui-badge>
-                        <input class="s-input" type="number" name="value" aria-labelledby="s-label-git-log-limit"
-                          prop:value={gitLogLimit()}
-                          placeholder="50"
-                          on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                          on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
-                      </form>
-                    </span>
-                  </div>
-                  <div class="list-tile-secondary">Default row count for `git log` reads when callers omit a limit</div>
-                </div>
-                <div class="list-tile list-tile--compact">
-                  <div class="list-tile-row">
-                    <span class="list-tile-primary s-row-label" id="s-label-hooks-max-depth">Hooks max depth</span>
-                    <span class="s-row-trailing">
-                      <form mutation="ship.settings.update" on:success={() => flashSaved(savedHooksMaxDepth)}>
-                        <input type="hidden" name="key" value="hooks.max_depth" />
-                        <sui-badge tone="success" variant="soft" size="sm"
-                          class="s-save-badge" class:visible={savedHooksMaxDepth()}>
-                          <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
-                        </sui-badge>
-                        <input class="s-input" type="number" name="value" aria-labelledby="s-label-hooks-max-depth"
-                          prop:value={hooksMaxDepth()}
-                          placeholder="3"
-                          on:blur={(e) => e.target.closest('form')?.requestSubmit()}
-                          on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }} />
-                      </form>
-                    </span>
-                  </div>
-                  <div class="list-tile-secondary">Max hook recursion depth before the engine drops further events</div>
-                </div>
-              </div>
-            </div>
+            <sui-separator decorative></sui-separator>
+            <sui-stack class="section-body" gap="3">
+              <sui-cluster gap="3" justify="between" align="center">
+                <span class="row-label row-main">Daemon status</span>
+                <sui-cluster gap="2" align="center">
+                  <sui-status-dot
+                    tone={settings().kind === 'ok' ? 'success' : 'destructive'}
+                    label={settings().kind === 'ok' ? 'Connected' : 'Disconnected'}></sui-status-dot>
+                  <span class="status-text">{settings().kind === 'ok' ? 'Connected' : 'Disconnected'}</span>
+                </sui-cluster>
+              </sui-cluster>
+
+              <sui-cluster gap="3" justify="between" align="center">
+                <span class="row-label row-main">Daemon endpoint</span>
+                <sui-code>{daemonEndpoint()}</sui-code>
+              </sui-cluster>
+
+              <sui-cluster gap="3" justify="between" align="center">
+                <sui-stack class="row-main" gap="1">
+                  <span class="row-label">Registry endpoint</span>
+                  <span class="row-desc">Package registry URL</span>
+                </sui-stack>
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedRegistry)}>
+                  <input type="hidden" name="key" value="registry.endpoint" />
+                  <sui-cluster gap="2" align="center" justify="end">
+                    <sui-badge tone="success" variant="soft" size="sm"
+                      class="saved-badge" class:visible={savedRegistry()}>
+                      <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                    </sui-badge>
+                    <sui-input class="set-input" name="value" size="sm" label="Registry endpoint"
+                      prop:value={registryEndpoint()} placeholder="https://registry.getship.dev"
+                      on:sui-input-change={(e) => e.target.closest('form')?.requestSubmit()}
+                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                  </sui-cluster>
+                </form>
+              </sui-cluster>
+
+              <sui-cluster gap="3" justify="between" align="center">
+                <sui-stack class="row-main" gap="1">
+                  <span class="row-label">Watcher debounce (ms)</span>
+                  <span class="row-desc">Debounce window for the declarative `.ship/` file watcher</span>
+                </sui-stack>
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedWatcherDebounce)}>
+                  <input type="hidden" name="key" value="watcher.debounce_ms" />
+                  <sui-cluster gap="2" align="center" justify="end">
+                    <sui-badge tone="success" variant="soft" size="sm"
+                      class="saved-badge" class:visible={savedWatcherDebounce()}>
+                      <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                    </sui-badge>
+                    <sui-input class="set-input" type="number" name="value" size="sm" label="Watcher debounce (ms)"
+                      prop:value={watcherDebounceMs()} placeholder="200"
+                      on:sui-input-change={(e) => e.target.closest('form')?.requestSubmit()}
+                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                  </sui-cluster>
+                </form>
+              </sui-cluster>
+
+              <sui-cluster gap="3" justify="between" align="center">
+                <sui-stack class="row-main" gap="1">
+                  <span class="row-label">Git log limit</span>
+                  <span class="row-desc">Default row count for `git log` reads when callers omit a limit</span>
+                </sui-stack>
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedGitLogLimit)}>
+                  <input type="hidden" name="key" value="git.log_limit" />
+                  <sui-cluster gap="2" align="center" justify="end">
+                    <sui-badge tone="success" variant="soft" size="sm"
+                      class="saved-badge" class:visible={savedGitLogLimit()}>
+                      <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                    </sui-badge>
+                    <sui-input class="set-input" type="number" name="value" size="sm" label="Git log limit"
+                      prop:value={gitLogLimit()} placeholder="50"
+                      on:sui-input-change={(e) => e.target.closest('form')?.requestSubmit()}
+                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                  </sui-cluster>
+                </form>
+              </sui-cluster>
+
+              <sui-cluster gap="3" justify="between" align="center">
+                <sui-stack class="row-main" gap="1">
+                  <span class="row-label">Hooks max depth</span>
+                  <span class="row-desc">Max hook recursion depth before the engine drops further events</span>
+                </sui-stack>
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedHooksMaxDepth)}>
+                  <input type="hidden" name="key" value="hooks.max_depth" />
+                  <sui-cluster gap="2" align="center" justify="end">
+                    <sui-badge tone="success" variant="soft" size="sm"
+                      class="saved-badge" class:visible={savedHooksMaxDepth()}>
+                      <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                    </sui-badge>
+                    <sui-input class="set-input" type="number" name="value" size="sm" label="Hooks max depth"
+                      prop:value={hooksMaxDepth()} placeholder="3"
+                      on:sui-input-change={(e) => e.target.closest('form')?.requestSubmit()}
+                      on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                  </sui-cluster>
+                </form>
+              </sui-cluster>
+            </sui-stack>
           </sui-collapsible>
         </sui-card>
 
         <!-- About -->
         <sui-card padding="none">
-          <div slot="header" class="s-section-head">
-            <h2 class="s-section-title">
-              <sui-icon name="info"></sui-icon>About
-            </h2>
+          <div slot="header" class="section-head">
+            <sui-cluster gap="2" align="center">
+              <sui-icon name="info" size="sm" tone="muted"></sui-icon>
+              <h2 class="section-title">About</h2>
+            </sui-cluster>
           </div>
-          <div class="s-section-body">
-            <div class="list-tile list-tile--compact">
-              <div class="list-tile-row">
-                <span class="list-tile-primary s-row-label">Documentation</span>
-                <sui-link href="https://getship.dev/docs" external>getship.dev/docs</sui-link>
-              </div>
-            </div>
-            <div class="list-tile list-tile--compact">
-              <div class="list-tile-row">
-                <span class="list-tile-primary s-row-label">Source</span>
-                <sui-link href="https://github.com/madvib/Ship" external>GitHub</sui-link>
-              </div>
-            </div>
-            <div class="list-tile list-tile--compact">
-              <div class="list-tile-row">
-                <span class="list-tile-primary s-row-label">First-run setup</span>
-                <span class="s-row-trailing">
-                  <sui-button variant="outline" size="sm" data-test="settings-rerun-setup"
-                    on:click={rerunSetup}>
-                    Run setup again
-                  </sui-button>
-                </span>
-              </div>
-              <div class="list-tile-secondary">Run the welcome wizard again</div>
-            </div>
-          </div>
+          <sui-stack class="section-body" gap="3">
+            <sui-cluster gap="3" justify="between" align="center">
+              <span class="row-label row-main">Documentation</span>
+              <sui-link href="https://getship.dev/docs" external>getship.dev/docs</sui-link>
+            </sui-cluster>
+            <sui-cluster gap="3" justify="between" align="center">
+              <span class="row-label row-main">Source</span>
+              <sui-link href="https://github.com/madvib/Ship" external>GitHub</sui-link>
+            </sui-cluster>
+            <sui-cluster gap="3" justify="between" align="center">
+              <sui-stack class="row-main" gap="1">
+                <span class="row-label">First-run setup</span>
+                <span class="row-desc">Run the welcome wizard again</span>
+              </sui-stack>
+              <sui-button variant="outline" size="sm" data-test="settings-rerun-setup"
+                on:click={rerunSetup}>
+                Run setup again
+              </sui-button>
+            </sui-cluster>
+          </sui-stack>
         </sui-card>
 
       </sui-stack>
-    
+
     {/async}
   </main>
 </div>

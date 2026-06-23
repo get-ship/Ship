@@ -36,6 +36,13 @@ Two kinds of entries:
 - **Fixed (frontend):** settings now uses `apps/hub/routes/settings/style.css`. It was the only route doing inline `<style>`.
 - **Framework ask (sui):** a bundler/compiler **lint or diagnostic** for a dropped route-level `<style>` — silent drop is a footgun. Location: deck-bundler / sui-compiler.
 
+## FW-5 · `sui-cluster` default `align="center"` collides with the legacy HTML `align` attribute → silently centers text
+- **Symptom:** any raw text inheriting from inside a default `<sui-cluster>` renders centered. Hit while recomposing `/settings` from primitives — every label/description block (slotted text inside a `justify="between"` row cluster) rendered `text-align: center` instead of `start`.
+- **Cause:** `sui-cluster.sui` declares `<prop name="align" default="center" reflect />`. Reflection writes `align="center"` onto the host element, and browsers apply the **legacy `align` presentational attribute** as a `text-align` hint — even on a custom element (verified: removing the attribute flips computed `text-align` from `center`→`start`; re-adding flips it back; a fresh `document.createElement('sui-cluster')` with `align="center"` also computes `center`). Because the default is `center` AND reflected, *every* `sui-cluster` carries `align="center"` unless overridden, so the footgun is on by default.
+- **Blast radius:** any `sui-cluster` (or other layout primitive that reflects `align`/`valign`) wrapping inheriting text. Component children that set their own `text-align` (buttons, badges, inputs) mask it; raw `<span>`/text reveals it.
+- **Workaround (frontend, in-scope):** `/settings` `style.css` pins `text-align: start` on `.row-label` / `.row-desc` / `.status-text`.
+- **Fix (sui):** don't reflect `align` to an attribute named `align` — reflect to a non-presentational name (e.g. `data-align`) or drive alignment purely via the `:host([align=…])` selectors without a colliding attribute, or stop reflecting the default. Location: **sui repo** — `packages/components/sui/primitives/src/sui-cluster` (audit other layout primitives for the same pattern). Not modifying sui from the hub worktree.
+
 ---
 
 ## REQ-1 · agent detail / settings / wire / create-context data  — RESOLVED (unary)
