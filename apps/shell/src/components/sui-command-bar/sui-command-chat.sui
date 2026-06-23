@@ -2,7 +2,7 @@
   <sui-command-chat> — chat panel for the unified ai mode.
   Always rendered when bar.mode = 'ai'. Body branches:
     daemonOffline → "Daemon unreachable" empty state
-    no agents     → "Set an active agent in /studio/agents"
+    no agents     → prompt to add an agent before starting a session
     no session    → inline spawn picker (agent + harness + Start)
     session       → message thread
   Composer is always present so prefill text from `ship:bar:open`
@@ -335,7 +335,7 @@
   {:else if !hasAgents()}
     <div class="cb-chat-empty">
       <div class="title">No agents configured</div>
-      <div>Open <button class="link" type="button" on:click={goToAgents}>/studio/agents</button> to add one, then start a session.</div>
+      <div>Add an agent to this workspace, then start a session.</div>
     </div>
   {:else}
     <div class="cb-spawn-card">

@@ -50,15 +50,10 @@ export default controller({
       bar!.open.set(false)
     }
 
-    function goToAgents(): void {
-      void navigateTo('/studio/agents')
-      bar!.open.set(false)
-    }
-
     return {
       bar, headerDotBg, activeSessions,
       hasSession, hasAgents, hasProviders, daemonOffline,
-      endSession, selectSession, startNewSession, viewChats, goToAgents,
+      endSession, selectSession, startNewSession, viewChats,
     }
   },
 

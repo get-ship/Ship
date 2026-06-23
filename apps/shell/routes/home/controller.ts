@@ -19,7 +19,6 @@ interface AppLauncher { name: string; icon: string; href: string }
 const APPS: readonly AppLauncher[] = [
   { name: 'Canvas', icon: 'image', href: '/canvas' },
   { name: 'Pipelines', icon: 'workflow', href: '/studio/pipelines' },
-  { name: 'Collections', icon: 'database', href: '/studio/collections' },
   { name: 'Git', icon: 'git-branch', href: '/git' },
   { name: 'Studio', icon: 'sliders', href: '/studio' },
   { name: 'Library', icon: 'package', href: '/library' },

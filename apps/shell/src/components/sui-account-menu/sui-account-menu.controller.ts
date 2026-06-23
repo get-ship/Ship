@@ -5,7 +5,6 @@ import {
   effect,
   ref,
   unwrapOr,
-  chrome,
 } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import {
@@ -82,11 +81,6 @@ export default controller({
       internals.panel?.hidePopover?.()
     }
 
-    function openSettings(): void {
-      closePanel()
-      chrome.navigate('/settings#account')
-    }
-
     function openBillingAction(): void {
       closePanel()
       openAccountBilling()
@@ -132,7 +126,6 @@ export default controller({
       displayName,
       planLabel,
       togglePanel,
-      openSettings,
       openBillingAction,
       onSignIn,
       onSignOut,

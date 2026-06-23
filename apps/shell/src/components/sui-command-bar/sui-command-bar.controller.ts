@@ -365,7 +365,6 @@ export default controller({
       switch (cmd.key) {
         case 'new': mode.set('create'); break
         case 'chats': void navigateTo('/chats'); open.set(false); break
-        case 'settings': void navigateTo('/settings'); open.set(false); break
         case 'theme': void navigateTo('/theme-studio'); open.set(false); break
         case 'lint': void navigateTo('/lint'); open.set(false); break
         case 'end': if (session()) void endSession(session()!.id); open.set(false); break

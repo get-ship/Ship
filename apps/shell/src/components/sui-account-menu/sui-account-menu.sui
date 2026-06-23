@@ -293,10 +293,6 @@
 
   <div class="actions" role="none">
     {#if identity().status === 'logged_in'}
-      <button class="action" type="button" role="menuitem" on:click={openSettings}>
-        <sui-icon name="settings" size="sm"></sui-icon>
-        <span>Account settings</span>
-      </button>
       <button class="action" type="button" role="menuitem" on:click={openBillingAction}>
         <sui-icon name="credit-card" size="sm"></sui-icon>
         <span>Billing</span>
@@ -319,20 +315,12 @@
         local callback completes, you may need to run <code>ship login</code>
         in a terminal to finalize.
       </div>
-      <button class="action" type="button" role="menuitem" on:click={openSettings}>
-        <sui-icon name="settings" size="sm"></sui-icon>
-        <span>Account settings</span>
-      </button>
     {:else}
       <button class="action" type="button" role="menuitem"
         disabled={busy()}
         on:click={() => onSignIn()}>
         <sui-icon name="log-in" size="sm"></sui-icon>
         <span>Sign in with Ship Cloud</span>
-      </button>
-      <button class="action" type="button" role="menuitem" on:click={openSettings}>
-        <sui-icon name="settings" size="sm"></sui-icon>
-        <span>Account settings</span>
       </button>
     {/if}
   </div>

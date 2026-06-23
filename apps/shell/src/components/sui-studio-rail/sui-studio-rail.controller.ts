@@ -6,15 +6,12 @@
 // `location.pathname` and refreshing on popstate / sui:navigate — the same
 // events the shell fires on every SPA navigation.
 //
-// Counts come from the daemon REST API, not the SDK live channel, so the
-// rail stays dependency-light inside the eager chrome bundle. Only the
-// Agents section is backed by a deck view today; the rest are honest
-// "soon" placeholders (no href, no fabricated count).
+// The rail stays dependency-light inside the eager chrome bundle and renders
+// honest "soon" placeholders (no href) for sections without a deck view yet.
 
 import { controller, signal, derived, effect } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-studio-rail.sui'
-import { ops } from '../../ops'
 
 interface RailEntry {
   id: string
@@ -34,15 +31,12 @@ const PROJECT: ReadonlyArray<RailEntry> = [
   { id: 'isolation', label: 'Isolation', icon: 'box' },
 ]
 
-// Agents is the one section live as a deck view (views/studio/agents/**).
-// The others land as deck views in follow-ups; until then they're honest
-// placeholders rather than links into the void.
+// Components, themes, and pipelines are backed by real deck views and link
+// out. MCP servers and permissions stay honest placeholders until their
+// views land — no fabricated destinations.
 const CONFIGURE: ReadonlyArray<RailEntry> = [
-  { id: 'agents', label: 'Agents', icon: 'bot', href: '/studio/agents' },
-  { id: 'skills', label: 'Skills', icon: 'zap', href: '/studio/skills' },
   { id: 'components', label: 'Components', icon: 'layers', href: '/studio/components' },
   { id: 'themes', label: 'Themes', icon: 'palette', href: '/studio/themes' },
-  { id: 'collections', label: 'Collections', icon: 'database', href: '/studio/collections' },
   { id: 'pipelines', label: 'Pipelines', icon: 'workflow', href: '/studio/pipelines' },
   { id: 'mcp', label: 'MCP servers', icon: 'terminal' },
   { id: 'permissions', label: 'Permissions', icon: 'shield' },
@@ -61,7 +55,6 @@ function isActive(path: string, href: string): true | null {
 export default controller({
   scope: (_ctx: ViewScope<Scope>) => {
     const path = signal(typeof location !== 'undefined' ? location.pathname : '/studio')
-    const agentCount = signal<string>('')
 
     effect(() => {
       if (typeof window === 'undefined') return
@@ -74,25 +67,10 @@ export default controller({
       }
     })
 
-    // One-shot count fetch. Tolerant of shape + failure — a missing count
-    // simply hides the badge.
-    effect(() => {
-      let cancelled = false
-      void ops.agents
-        .list({})
-        .then((res) => {
-          if (cancelled) return
-          agentCount.set(String(res.items.length))
-        })
-        .catch(() => { /* leave the badge empty when the API is unreachable */ })
-      return () => { cancelled = true }
-    })
-
     const configureItems = derived<RailEntry[]>(() =>
       CONFIGURE.map((e) => ({
         ...e,
         active: e.href ? isActive(path(), e.href) : null,
-        count: e.id === 'agents' ? agentCount() : '',
       })),
     )
 

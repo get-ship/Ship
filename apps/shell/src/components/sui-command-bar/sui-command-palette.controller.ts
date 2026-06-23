@@ -179,7 +179,6 @@ export default controller({
       switch (key) {
         case 'new': bar!.mode.set('create'); break
         case 'chats': void navigateTo('/chats'); bar!.open.set(false); break
-        case 'settings': void navigateTo('/settings'); bar!.open.set(false); break
         case 'theme': void navigateTo('/theme-studio'); bar!.open.set(false); break
         case 'end':
           if (bar!.session()) endSession(bar!.session()!.id)
