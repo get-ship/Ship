@@ -81,6 +81,11 @@ export default controller({
     // `wireCtx` emits as `unknown` (emitter gap); narrow to a LiveSignal.
     const wireData = derived(() => (unwrap(wireCtx as LiveSignal<WireResp>) ?? null) as WireResp)
 
+    const agent = derived<AgentDetail | null>(() => {
+      const d = wireData()
+      return (d && d.agent) ? d.agent : null
+    })
+
     const notFound = derived(() => {
       const ctx = unwrap(wireCtx as LiveSignal<WireResp>)
       if (typeof ctx === 'undefined') return false
@@ -195,7 +200,7 @@ export default controller({
     const activeAgentId = signal('')
     const activating = signal(false)
     const banner = signal<Banner>(null)
-    void readActiveAgent().then((id) => activeAgentId.set(id))
+    void readActiveAgent(ctx.clients.ops).then((id) => activeAgentId.set(id))
 
     const isActive = derived(() => {
       const id = agentId()
