@@ -10,7 +10,7 @@
 
   Lives in @ship/chrome alongside <ship-nav-top>, which composes it. The
   controller owns the call surface (ship.space.* on a same-origin
-  @ship/sdk-client Connect handle) and `navigate('/')` from @ship/deck/route
+  @ship/sdk-client Connect handle) and `navigate('/')` from @ship/deck/router
   for the post-activate reload — no host `chrome` indirection. The "open as
   window" affordance routes through the pack-local open-space transport seam.
 

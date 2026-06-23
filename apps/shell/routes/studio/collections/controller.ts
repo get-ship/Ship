@@ -1,5 +1,5 @@
 import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
-import { route as routeFactory } from '@ship/deck/route'
+import { route as routeFactory } from '@ship/deck/router'
 import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 

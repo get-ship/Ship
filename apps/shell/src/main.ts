@@ -66,7 +66,7 @@ import { ops } from './ops'
 // Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
 // popover, tooltip, tabs, etc.) — are resolved per-tag from workspace source
 // that the per-tag resolver cannot trace.
-import { route as createRoute, defineRoutes, setEditMode, setRouterPort } from '@ship/deck/route'
+import { route as createRoute, defineRoutes, setEditMode, setRouterPort } from '@ship/deck/router'
 import { DYNAMIC_ROUTE_PATTERNS, LAYOUTS } from '../routes.gen'
 import { resolveLayoutChain } from './route/layouts'
 import { chrome, mount, notifyViewUnmount, setHostContext } from '@ship/sui-runtime'

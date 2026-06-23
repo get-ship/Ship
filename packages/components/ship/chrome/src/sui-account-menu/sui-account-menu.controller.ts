@@ -5,7 +5,7 @@
 // settings actions, and the live account-state subscription drives the
 // identity display.
 //
-// Navigation goes through `navigate()` from `@ship/deck/route` (the runtime's
+// Navigation goes through `navigate()` from `@ship/deck/router` (the runtime's
 // RouterPort, wired by the bundler entry) — no host `chrome` indirection, so
 // the component is host-agnostic.
 //
@@ -22,7 +22,7 @@ import {
   unwrapOr,
 } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
-import { navigate } from '@ship/deck/route'
+import { navigate } from '@ship/deck/router'
 import {
   accountDisplayName as deriveDisplayName,
   accountInitials as deriveInitials,

@@ -13,7 +13,7 @@
   The hub owns the chrome (the shell is being deprecated as the hub
   composes from packs), so this component lives under apps/hub/src/
   components/ rather than a shared pack. The controller is refactored
-  to call `navigate()` from `@ship/deck/route` directly and dispatches
+  to call `navigate()` from `@ship/deck/router` directly and dispatches
   `sui:notify` events on the document for failure toasts — the hub
   does not expose a `chrome` object (the runtime's RouterPort +
   NotifyPort are wired by the bundler entry, not a shell `chrome`

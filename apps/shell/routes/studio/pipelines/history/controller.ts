@@ -1,6 +1,6 @@
 import { controller, signal, derived, live, chrome } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
-import { route as routeFactory } from '@ship/deck/route'
+import { route as routeFactory } from '@ship/deck/router'
 import { ship } from '../../../../ops'
 import type { LiveSource } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'

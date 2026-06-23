@@ -3,7 +3,7 @@ import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-command-chat.sui'
 import { type SessionSummary, type CommandBarScope } from './types'
 import { ops } from '../../lib/client'
-import { navigate } from '@ship/deck/route'
+import { navigate } from '@ship/deck/router'
 
 const RECENT_MAX = 20
 

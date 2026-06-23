@@ -19,7 +19,7 @@
 
   The shell's chrome.* refactor lands here: the audit drops
   `chrome.navigate` and `window.ship?.navigate`; the pack uses
-  `navigate()` from `@ship/deck/route` instead.
+  `navigate()` from `@ship/deck/router` instead.
 -->
 
 <prop name="open" type="bool" default="false" reflect />

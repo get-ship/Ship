@@ -8,7 +8,7 @@ import {
   detectMode, isKebab,
 } from './types'
 import { ops } from '../../lib/client'
-import { navigate } from '@ship/deck/route'
+import { navigate } from '@ship/deck/router'
 
 export default controller({
   scope: (_ctx: ViewScope<Scope>, host?: Element) => {

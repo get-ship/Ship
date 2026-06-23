@@ -44,7 +44,7 @@
     --ship-top-bar-h (default 40px)  bar height; forwarded to the primitive's
                                      :host via the shared token
   ─────────────────────────────────────────────────────────────────────────────
-  Navigation: `navigate()` from @ship/deck/route — the chrome pack has no
+  Navigation: `navigate()` from @ship/deck/router — the chrome pack has no
   chrome import. The single source of navigation lives in the route module.
 
   Dock affordance: the shell previously polled `body.dock-open` via a

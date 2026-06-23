@@ -14,7 +14,7 @@
 // 1. The shell called `chrome.navigate(path)` (lines 93 + 245 of the
 //    shell source). The hub does not expose a `chrome` object — the
 //    bundler entry wires the runtime's RouterPort directly. Import
-//    `navigate` from `@ship/deck/route` (the same import the shell
+//    `navigate` from `@ship/deck/router` (the same import the shell
 //    uses — see the existing import at the top of the shell source).
 //
 // 2. The shell called `chrome.notify({ tone, title, description,
@@ -24,7 +24,7 @@
 //    the same event here is the audit-mandated equivalent. Same payload
 //    shape, same consumers — no new abstraction.
 import { controller, effect, signal, ref, bindNativeEvent } from '@ship/sui-runtime'
-import { navigate } from '@ship/deck/route'
+import { navigate } from '@ship/deck/router'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-view-picker.sui'
 import {

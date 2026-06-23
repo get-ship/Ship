@@ -2,7 +2,7 @@
 //
 // The @ship/test-setup factory's compiled-js-test-shim plugin is
 // the right home for the `<tag>.compiled.js` resolution, but the
-// factory hardcodes `require.resolve('@ship/deck/route')` + the
+// factory hardcodes `require.resolve('@ship/deck/router')` + the
 // `@ship/sui-runtime/route` + `@ship/sui-runtime/virtual` aliases
 // from the test-setup package's own node_modules — three sub-paths
 // that don't exist in this worktree (the deck/route package

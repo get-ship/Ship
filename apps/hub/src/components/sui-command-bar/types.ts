@@ -3,7 +3,7 @@
 // Hub port of apps/shell/src/components/sui-command-bar/types.ts.
 // Seam changes from shell:
 //   - `ops` sourced from '../../lib/client' (hub's shared Connect client)
-//   - `navigateTo` removed — callers import `navigate` from '@ship/deck/route' directly
+//   - `navigateTo` removed — callers import `navigate` from '@ship/deck/router' directly
 //   - `chrome` import removed (no chrome IPC in the hub; navigate() is the single path)
 
 import type { Signal } from '@ship/sui-runtime'

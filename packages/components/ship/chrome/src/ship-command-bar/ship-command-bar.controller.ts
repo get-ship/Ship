@@ -8,7 +8,7 @@
 //
 // Audit refactors applied:
 //   1. `chrome.navigate` and `window.ship?.navigate` are gone. Navigation
-//      routes through `navigate()` from `@ship/deck/route` (unified router).
+//      routes through `navigate()` from `@ship/deck/router` (unified router).
 //   2. The shell's `navigateTo` helper is gone — the pack calls `navigate`
 //      directly at each call site.
 //   3. The synthetic `sui:navigate` re-fire in the devtools controller was
@@ -28,7 +28,7 @@
 
 import { controller, signal, derived, effect, ref, shared, type Signal, type ViewScope } from '@ship/sui-runtime'
 import { createShipConnectClient, SettingScope } from '@ship/sdk/connect'
-import { navigate } from '@ship/deck/route'
+import { navigate } from '@ship/deck/router'
 import type { Scope } from './ship-command-bar.sui'
 import {
   type BarMode, type SessionSummary, type AgentSummary, type ThreadLine,

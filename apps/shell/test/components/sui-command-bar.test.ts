@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { setRouterPort } from '@ship/deck/route'
+import { setRouterPort } from '@ship/deck/router'
 import '../../src/components/sui-command-bar/sui-command-bar.compiled.js'
 import '../../src/components/sui-command-bar/sui-command-palette.compiled.js'
 import '../../src/components/sui-command-bar/sui-command-chat.compiled.js'

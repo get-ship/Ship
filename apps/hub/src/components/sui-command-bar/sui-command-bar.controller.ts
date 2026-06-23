@@ -12,7 +12,7 @@ import {
   searchEntities, detectMode,
 } from './types'
 import { ops, ship, readSetting } from '../../lib/client'
-import { navigate } from '@ship/deck/route'
+import { navigate } from '@ship/deck/router'
 
 export default controller({
   // `open`/`mode` are `<prop>`s the runtime injects onto the scope before

@@ -2285,127 +2285,145 @@
 
     "@rollup/pluginutils/estree-walker": ["estree-walker@2.0.2", "", {}, "sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w=="],
 
-    "@ship/agents/@ship/sui-chat-elements": ["@ship/sui-chat-elements@file:../../sui/packages/components/sui/chat-elements", { "dependencies": { "@ship/sui-dom": "workspace:*", "@ship/sui-primitives": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "vitest": "^4.1.5" } }],
+    "@ship/agents/@ship/sdk-client": ["@ship/sdk-client@file:../ship-worktrees/carve-ship/packages/sdk-client", { "dependencies": { "@ship/sdk": "workspace:*", "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime" }, "devDependencies": { "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/agents/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/agents/@ship/sui-chat-elements": ["@ship/sui-chat-elements@file:../sui/packages/components/sui/chat-elements", { "dependencies": { "@ship/sui-dom": "workspace:*", "@ship/sui-primitives": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "vitest": "^4.1.5" } }],
 
-    "@ship/agents/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/agents/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/agents/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/agents/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
 
-    "@ship/arcade/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/agents/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/arcade/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/arcade/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/artifacts/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/arcade/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/artifacts/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/artifacts/@ship/sdk-client": ["@ship/sdk-client@file:../ship-worktrees/carve-ship/packages/sdk-client", { "dependencies": { "@ship/sdk": "workspace:*", "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime" }, "devDependencies": { "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/artifacts/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/artifacts/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/authority/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/artifacts/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
 
-    "@ship/authority/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/artifacts/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/authority/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/authority/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/chrome/@ship/deck/router": ["@ship/deck/router@file:../../sui/packages/deck/router", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "typescript": "~5.8.3", "vitest": "^4.1.5" } }],
+    "@ship/authority/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
 
-    "@ship/chrome/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/authority/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/chrome/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/chrome/@ship/deck/router": ["@ship/deck/router@file:../sui/packages/deck/router", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "typescript": "~5.8.3", "vitest": "^4.1.5" } }],
 
-    "@ship/chrome/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/chrome/@ship/sdk": ["@ship/sdk@file:../ship-worktrees/carve-ship/packages/sdk", { "dependencies": { "@bufbuild/protobuf": "^2.5.2", "@connectrpc/connect": "^2.0.3", "@connectrpc/connect-web": "^2.0.3" }, "devDependencies": { "@tanstack/query-core": "^5.96.2", "typescript": "~5.8.3", "vitest": "^4.1.5" } }],
 
-    "@ship/code/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/chrome/@ship/sdk-client": ["@ship/sdk-client@file:../ship-worktrees/carve-ship/packages/sdk-client", { "dependencies": { "@ship/sdk": "workspace:*", "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime" }, "devDependencies": { "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/code/@ship/sui-lsp-browser": ["@ship/sui-lsp-browser@file:../../sui/packages/deck/lsp-browser", { "dependencies": { "@ship/sui-compiler-wasm": "workspace:*" }, "devDependencies": { "vitest": "^4.1.5" } }],
+    "@ship/chrome/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/code/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/chrome/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
 
-    "@ship/code/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/chrome/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/collections/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/code/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/collections/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/code/@ship/sui-lsp-browser": ["@ship/sui-lsp-browser@file:../sui/packages/deck/lsp-browser", { "dependencies": { "@ship/sui-compiler-wasm": "workspace:*" }, "devDependencies": { "vitest": "^4.1.5" } }],
 
-    "@ship/collections/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/code/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
 
-    "@ship/docs/@ship/tokens": ["@ship/tokens@file:../../sui/packages/sui/tokens", {}],
+    "@ship/code/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/home/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/collections/@ship/sdk-client": ["@ship/sdk-client@file:../ship-worktrees/carve-ship/packages/sdk-client", { "dependencies": { "@ship/sdk": "workspace:*", "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime" }, "devDependencies": { "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/home/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/collections/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/home/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/collections/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
 
-    "@ship/markdown/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/collections/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/markdown/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/docs/@ship/tokens": ["@ship/tokens@file:../sui/packages/sui/tokens", {}],
 
-    "@ship/markdown/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/home/@ship/sdk-client": ["@ship/sdk-client@file:../ship-worktrees/carve-ship/packages/sdk-client", { "dependencies": { "@ship/sdk": "workspace:*", "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime" }, "devDependencies": { "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/pdf/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/home/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/pdf/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/home/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
 
-    "@ship/pdf/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/home/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/pipelines/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/markdown/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/pipelines/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/markdown/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
 
-    "@ship/sdk-client/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/markdown/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/shared/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/pdf/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/shared/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/pdf/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
 
-    "@ship/shared/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/pdf/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/site/@ship/sui-compiler-wasm": ["@ship/sui-compiler-wasm@file:../../sui/packages/sui/compiler-wasm", {}],
+    "@ship/pipelines/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/site/@ship/sui-lsp-browser": ["@ship/sui-lsp-browser@file:../../sui/packages/deck/lsp-browser", { "dependencies": { "@ship/sui-compiler-wasm": "workspace:*" }, "devDependencies": { "vitest": "^4.1.5" } }],
+    "@ship/pipelines/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/site/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/sdk-client/@ship/sdk": ["@ship/sdk@file:../ship-worktrees/carve-ship/packages/sdk", { "dependencies": { "@bufbuild/protobuf": "^2.5.2", "@connectrpc/connect": "^2.0.3", "@connectrpc/connect-web": "^2.0.3" }, "devDependencies": { "@tanstack/query-core": "^5.96.2", "typescript": "~5.8.3", "vitest": "^4.1.5" } }],
 
-    "@ship/site/@ship/tokens": ["@ship/tokens@file:../../sui/packages/sui/tokens", {}],
+    "@ship/sdk-client/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/skills/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/shared/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/skills/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/shared/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
 
-    "@ship/skills/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/shared/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/spaces/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/site/@ship/sui-compiler-wasm": ["@ship/sui-compiler-wasm@file:../sui/packages/sui/compiler-wasm", {}],
 
-    "@ship/spaces/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/site/@ship/sui-lsp-browser": ["@ship/sui-lsp-browser@file:../sui/packages/deck/lsp-browser", { "dependencies": { "@ship/sui-compiler-wasm": "workspace:*" }, "devDependencies": { "vitest": "^4.1.5" } }],
 
-    "@ship/spaces/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/site/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/studio/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/site/@ship/tokens": ["@ship/tokens@file:../sui/packages/sui/tokens", {}],
 
-    "@ship/studio/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/skills/@ship/sdk-client": ["@ship/sdk-client@file:../ship-worktrees/carve-ship/packages/sdk-client", { "dependencies": { "@ship/sdk": "workspace:*", "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime" }, "devDependencies": { "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/studio/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/skills/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/sui-canvas/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/skills/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
 
-    "@ship/sui-canvas/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/skills/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/test-setup/@ship/sui-compiler-wasm": ["@ship/sui-compiler-wasm@file:../../sui/packages/sui/compiler-wasm", {}],
+    "@ship/spaces/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/test-setup/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/spaces/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
 
-    "@ship/test-setup/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/spaces/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/viewer/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/studio/@ship/sdk-client": ["@ship/sdk-client@file:../ship-worktrees/carve-ship/packages/sdk-client", { "dependencies": { "@ship/sdk": "workspace:*", "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime" }, "devDependencies": { "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/viewer/@ship/sui-media": ["@ship/sui-media@file:../../sui/packages/components/sui/media", { "dependencies": { "@ship/sui-dom": "workspace:*", "@ship/sui-primitives": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "happy-dom": "^20.9.0", "vitest": "^4.1.5" } }],
+    "@ship/studio/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "@ship/viewer/@ship/sui-primitives": ["@ship/sui-primitives@file:../../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+    "@ship/studio/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
 
-    "@ship/viewer/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "@ship/studio/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+
+    "@ship/sui-canvas/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+
+    "@ship/sui-canvas/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+
+    "@ship/test-setup/@ship/sui-compiler-wasm": ["@ship/sui-compiler-wasm@file:../sui/packages/sui/compiler-wasm", {}],
+
+    "@ship/test-setup/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+
+    "@ship/test-setup/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+
+    "@ship/viewer/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+
+    "@ship/viewer/@ship/sui-media": ["@ship/sui-media@file:../sui/packages/components/sui/media", { "dependencies": { "@ship/sui-dom": "workspace:*", "@ship/sui-primitives": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "happy-dom": "^20.9.0", "vitest": "^4.1.5" } }],
+
+    "@ship/viewer/@ship/sui-primitives": ["@ship/sui-primitives@file:../sui/packages/components/sui/primitives", { "dependencies": { "@ship/sdk-client": "file:/home/madvib/dev/Ship/packages/sdk-client", "@ship/sui-dom": "workspace:*", "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@types/node": "24.12.4", "fast-formula-parser": "1.0.19", "vitest": "^4.1.5" } }],
+
+    "@ship/viewer/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
     "@types/sax/@types/node": ["@types/node@24.12.4", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-GUUEShf+PBCGW2KaXwcIt3Yk+e3pkKwWKb9GSyM9WQVE+ep2jzmHdGsHzu4wgcZy5fN9FBdVzjpBQsYlpfpgLA=="],
 
@@ -2459,11 +2477,13 @@
 
     "source-map-support/source-map": ["source-map@0.6.1", "", {}, "sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g=="],
 
-    "spaces/@ship/deck-host": ["@ship/deck-host@file:../../sui/packages/deck/host", { "dependencies": { "ses": "^1.10.0" }, "devDependencies": { "typescript": "~5.8.3", "vitest": "^4.1.5" } }],
+    "spaces/@ship/deck-host": ["@ship/deck-host@file:../sui/packages/deck/host", { "dependencies": { "ses": "^1.10.0" }, "devDependencies": { "typescript": "~5.8.3", "vitest": "^4.1.5" } }],
 
-    "spaces/@ship/sui-dom": ["@ship/sui-dom@file:../../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "spaces/@ship/sdk-client": ["@ship/sdk-client@file:../ship-worktrees/carve-ship/packages/sdk-client", { "dependencies": { "@ship/sdk": "workspace:*", "@ship/sui-runtime": "file:/home/madvib/dev/sui/packages/sui/runtime" }, "devDependencies": { "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
-    "spaces/@ship/sui-runtime": ["@ship/sui-runtime@file:../../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+    "spaces/@ship/sui-dom": ["@ship/sui-dom@file:../sui/packages/sui/dom", { "dependencies": { "@ship/sui-runtime": "workspace:*" }, "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
+
+    "spaces/@ship/sui-runtime": ["@ship/sui-runtime@file:../sui/packages/sui/runtime", { "devDependencies": { "@ship/test-setup": "file:/home/madvib/dev/Ship/packages/test-setup", "@tanstack/virtual-core": "^3.16.1", "@vitest/browser": "^4.1.5", "axe-core": "^4.11.4", "jsdom": "^25.0.0", "typescript": "^5.5.0", "vitest": "^4.1.5" } }],
 
     "tsx/esbuild": ["esbuild@0.28.1", "", { "optionalDependencies": { "@esbuild/aix-ppc64": "0.28.1", "@esbuild/android-arm": "0.28.1", "@esbuild/android-arm64": "0.28.1", "@esbuild/android-x64": "0.28.1", "@esbuild/darwin-arm64": "0.28.1", "@esbuild/darwin-x64": "0.28.1", "@esbuild/freebsd-arm64": "0.28.1", "@esbuild/freebsd-x64": "0.28.1", "@esbuild/linux-arm": "0.28.1", "@esbuild/linux-arm64": "0.28.1", "@esbuild/linux-ia32": "0.28.1", "@esbuild/linux-loong64": "0.28.1", "@esbuild/linux-mips64el": "0.28.1", "@esbuild/linux-ppc64": "0.28.1", "@esbuild/linux-riscv64": "0.28.1", "@esbuild/linux-s390x": "0.28.1", "@esbuild/linux-x64": "0.28.1", "@esbuild/netbsd-arm64": "0.28.1", "@esbuild/netbsd-x64": "0.28.1", "@esbuild/openbsd-arm64": "0.28.1", "@esbuild/openbsd-x64": "0.28.1", "@esbuild/openharmony-arm64": "0.28.1", "@esbuild/sunos-x64": "0.28.1", "@esbuild/win32-arm64": "0.28.1", "@esbuild/win32-ia32": "0.28.1", "@esbuild/win32-x64": "0.28.1" }, "bin": { "esbuild": "bin/esbuild" } }, "sha512-HrJrvZv5ayxBzPfwphOoNzkzOIIlifzk0KJrGK2c8R4+LKpMtpYLQeUdjnwjWv/LZlkH2laZk+4w78pi99D4Vw=="],
 
@@ -2545,6 +2565,10 @@
 
     "@esbuild-kit/core-utils/esbuild/@esbuild/win32-x64": ["@esbuild/win32-x64@0.18.20", "", { "os": "win32", "cpu": "x64" }, "sha512-kTdfRcSiDfQca/y9QIkng02avJ+NCaQvrMejlsB3RRv5sE9rRoeBPISaZpKxHELzRxZyLvNts1P27W3wV+8geQ=="],
 
+    "@ship/agents/@ship/sdk-client/@ship/sdk": ["@ship/sdk@file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk", {}],
+
+    "@ship/agents/@ship/sdk-client/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
+
     "@ship/agents/@ship/sui-chat-elements/@ship/sui-dom": ["@ship/sui-dom@file:/home/madvib/dev/sui/packages/sui/dom", {}],
 
     "@ship/agents/@ship/sui-chat-elements/@ship/sui-primitives": ["@ship/sui-primitives@file:/home/madvib/dev/sui/packages/components/sui/primitives", {}],
@@ -2574,6 +2598,10 @@
     "@ship/arcade/@ship/sui-dom/@ship/test-setup": ["@ship/test-setup@file:packages/test-setup", {}],
 
     "@ship/arcade/@ship/sui-runtime/@ship/test-setup": ["@ship/test-setup@file:packages/test-setup", {}],
+
+    "@ship/artifacts/@ship/sdk-client/@ship/sdk": ["@ship/sdk@file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk", {}],
+
+    "@ship/artifacts/@ship/sdk-client/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
 
     "@ship/artifacts/@ship/sui-dom/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
 
@@ -2609,6 +2637,10 @@
 
     "@ship/chrome/@ship/deck/router/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
 
+    "@ship/chrome/@ship/sdk-client/@ship/sdk": ["@ship/sdk@file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk", {}],
+
+    "@ship/chrome/@ship/sdk-client/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
+
     "@ship/chrome/@ship/sui-dom/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
 
     "@ship/chrome/@ship/sui-dom/@ship/test-setup": ["@ship/test-setup@file:packages/test-setup", {}],
@@ -2643,6 +2675,10 @@
 
     "@ship/code/@ship/sui-runtime/@ship/test-setup": ["@ship/test-setup@file:packages/test-setup", {}],
 
+    "@ship/collections/@ship/sdk-client/@ship/sdk": ["@ship/sdk@file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk", {}],
+
+    "@ship/collections/@ship/sdk-client/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
+
     "@ship/collections/@ship/sui-dom/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
 
     "@ship/collections/@ship/sui-dom/@ship/test-setup": ["@ship/test-setup@file:packages/test-setup", {}],
@@ -2658,6 +2694,10 @@
     "@ship/collections/@ship/sui-primitives/@types/node": ["@types/node@24.12.4", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-GUUEShf+PBCGW2KaXwcIt3Yk+e3pkKwWKb9GSyM9WQVE+ep2jzmHdGsHzu4wgcZy5fN9FBdVzjpBQsYlpfpgLA=="],
 
     "@ship/collections/@ship/sui-runtime/@ship/test-setup": ["@ship/test-setup@file:packages/test-setup", {}],
+
+    "@ship/home/@ship/sdk-client/@ship/sdk": ["@ship/sdk@file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk", {}],
+
+    "@ship/home/@ship/sdk-client/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
 
     "@ship/home/@ship/sui-dom/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
 
@@ -2735,6 +2775,10 @@
 
     "@ship/site/@ship/sui-runtime/@ship/test-setup": ["@ship/test-setup@file:packages/test-setup", {}],
 
+    "@ship/skills/@ship/sdk-client/@ship/sdk": ["@ship/sdk@file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk", {}],
+
+    "@ship/skills/@ship/sdk-client/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
+
     "@ship/skills/@ship/sui-dom/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
 
     "@ship/skills/@ship/sui-dom/@ship/test-setup": ["@ship/test-setup@file:packages/test-setup", {}],
@@ -2766,6 +2810,10 @@
     "@ship/spaces/@ship/sui-primitives/@types/node": ["@types/node@24.12.4", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-GUUEShf+PBCGW2KaXwcIt3Yk+e3pkKwWKb9GSyM9WQVE+ep2jzmHdGsHzu4wgcZy5fN9FBdVzjpBQsYlpfpgLA=="],
 
     "@ship/spaces/@ship/sui-runtime/@ship/test-setup": ["@ship/test-setup@file:packages/test-setup", {}],
+
+    "@ship/studio/@ship/sdk-client/@ship/sdk": ["@ship/sdk@file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk", {}],
+
+    "@ship/studio/@ship/sdk-client/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
 
     "@ship/studio/@ship/sui-dom/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
 
@@ -2962,6 +3010,10 @@
     "prosemirror-markdown/@types/markdown-it/@types/mdurl": ["@types/mdurl@2.0.0", "", {}, "sha512-RGdgjQUZba5p6QEFAVx2OGb8rQDL/cPRG7GiedRzMcJ1tYnUANBncjbSB1NRGwbvjcPeikRABz2nshyPk1bhWg=="],
 
     "sitemap/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "spaces/@ship/sdk-client/@ship/sdk": ["@ship/sdk@file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk", {}],
+
+    "spaces/@ship/sdk-client/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
 
     "spaces/@ship/sui-dom/@ship/sui-runtime": ["@ship/sui-runtime@file:/home/madvib/dev/sui/packages/sui/runtime", {}],
 

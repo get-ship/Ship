@@ -3,7 +3,7 @@
 // key produce identical effects.
 
 import { controller } from '@ship/sui-runtime'
-import { navigate } from '@ship/deck/route'
+import { navigate } from '@ship/deck/router'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './sui-blank-canvas.sui'
 

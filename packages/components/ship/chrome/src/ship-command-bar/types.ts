@@ -3,7 +3,7 @@
 // Migrated from apps/shell/src/components/sui-command-bar/types.ts. The shell
 // version reached for `chrome.navigate` (an event-dispatch IPC) and
 // `window.ship.navigate` (a retired kernel-bus fallback) for its `navigateTo`
-// helper. Both paths collapse onto the unified `@ship/deck/route` here —
+// helper. Both paths collapse onto the unified `@ship/deck/router` here —
 // `navigate()` is the public surface; the chrome IPC is reserved for chrome
 // state (focus, dock, status) that needs the host bridge.
 //
@@ -238,12 +238,12 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { key: 'close',    label: '/close',    hint: 'Close the command bar'             },
 ]
 
-// The pack routes navigation through `@ship/deck/route`'s `navigate()`
+// The pack routes navigation through `@ship/deck/router`'s `navigate()`
 // directly — the unified router the audit demands. The shell's old
 // `navigateTo` helper (and its `window.ship?.navigate` kernel-bus
 // fallback) are gone: the chrome IPC and the kernel bus pre-dated the
 // deck-route cutover and remain dead paths in the hub world. Callers
-// `import { navigate } from '@ship/deck/route'` and pass the path
+// `import { navigate } from '@ship/deck/router'` and pass the path
 // through.
 
 const KEBAB_RE = /^[a-z][a-z0-9-]{0,48}$/

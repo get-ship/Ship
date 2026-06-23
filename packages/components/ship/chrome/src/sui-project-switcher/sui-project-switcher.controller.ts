@@ -1,6 +1,6 @@
 import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
 import type { ViewScope } from '@ship/sui-runtime'
-import { navigate } from '@ship/deck/route'
+import { navigate } from '@ship/deck/router'
 import { createShipConnectClient } from '@ship/sdk/connect'
 import type { Scope } from './sui-project-switcher.sui'
 import { openSpace } from './open-space'

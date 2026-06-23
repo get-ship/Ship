@@ -24,7 +24,7 @@
 //     adapt to the connect client internally and keep this controller
 //     from hand-rolling the `dataJson`/`schemaJson` bytes-encoding).
 import { controller, signal, derived, live } from '@ship/sui-runtime'
-import { route as routeFactory } from '@ship/deck/route'
+import { route as routeFactory } from '@ship/deck/router'
 import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 

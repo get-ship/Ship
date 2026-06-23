@@ -18,7 +18,7 @@ export default defineConfig({
         replacement: resolve(__dirname, '../sui/runtime/src/template-hooks/index.ts'),
       },
       {
-        find: '@ship/deck/route',
+        find: '@ship/deck/router',
         replacement: resolve(__dirname, '../deck/route/src/index.ts'),
       },
       {

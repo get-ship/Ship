@@ -21,15 +21,15 @@
 //      are ported (BACKEND-GAP, see .artifacts/port-studio-notes.md).
 //   3. The `navigate` import — the shell pulls it from
 //      `@ship/sui-runtime` (the host's runtime re-exports it from
-//      `@ship/deck/route`). The hub's deck-bundled `@ship/sui-runtime`
+//      `@ship/deck/router`). The hub's deck-bundled `@ship/sui-runtime`
 //      does NOT re-export `navigate` (only the host-supplied one does).
-//      The controller imports `navigate` directly from `@ship/deck/route`
+//      The controller imports `navigate` directly from `@ship/deck/router`
 //      so the hub's bundled runtime resolves it.
 import { controller, derived, effect, live, signal, unwrap } from '@ship/sui-runtime'
 import type { LiveSignal, ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 import { routes } from '../../../../routes.gen'
-import { navigate } from '@ship/deck/route'
+import { navigate } from '@ship/deck/router'
 import { HUES, pickHue, pickInitials } from './hue'
 import { readSetting, writeSetting } from './settings'
 import type { ShipConnectClient } from '@ship/sdk/connect'

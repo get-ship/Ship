@@ -10,7 +10,7 @@
 // trail to drive navigation.
 
 import { controller, derived, signal } from '@ship/sui-runtime'
-import { navigate } from '@ship/deck/route'
+import { navigate } from '@ship/deck/router'
 import type { ViewScope } from '@ship/sui-runtime'
 import type { Scope } from './ship-nav-top.sui'
 
