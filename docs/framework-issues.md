@@ -23,6 +23,13 @@ Two kinds of entries:
 ## FW-2 · component catalog gathers by relative path (dead end)
 - Old `workspace.json` / `/_deck/catalog` walked the workspace by relative path; broken cross-repo and in prod. The **registry** is the sanctioned replacement (no relative-path component gathering). Investment when ready; `/studio/components` stays empty until then.
 
+## FW-3 · Does deck belong in the live-data loop at all? (DataPort may be redundant)
+- **Today's asymmetry:** unary reads go SUI → `ctx.clients.ops` (Connect client) → shipd **directly, no deck**. Live reads go SUI `live()` / `<data live>` → deck DataPort → `/_deck/mux/subscribe` → shipd resolvers (deck **mediates**) — and *that* mediation is the entire source of REQ-1..6: every live op must have a deck-mux resolver registered.
+- **Hypothesis:** SUI can consume live data **directly from the SDK** too — a Connect **server-streaming** RPC fed into `live()` — with no deck mux and no per-op resolver. Then "unary vs live" collapses to "Connect unary vs Connect server-streaming," both straight on the contract, deck out of the data path. deck keeps the value it actually has: SSR of untrusted code, routing, bundling, the component/view system.
+- **What to weigh:** the mux's single-connection multiplexing vs Connect-over-HTTP/2's native stream multiplexing. If the transport is HTTP/2, the mux is likely redundant; on HTTP/1/SSE it earns its keep. Transport + framework call is the operator's.
+- **Consequence if deck exits the data loop:** REQ-1..6 reframe to "add a Connect streaming method to the contract," with no deck resolver layer to maintain.
+- **Decision: operator.** Not to be pre-answered by code.
+
 ---
 
 ## REQ-1 · agent detail / settings / wire / create-context data  — NEEDS OPERATOR VALIDATION
