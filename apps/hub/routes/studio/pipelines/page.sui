@@ -1,0 +1,140 @@
+<div class="studio-view" data-test="studio-view">
+  <sui-studio-rail></sui-studio-rail>
+  <main class="studio-content" data-test="studio-content">
+{#async summaries}
+  {:loading}
+  <div class="ship-pipelines-wrap" data-test="loading" role="status" aria-busy="true" aria-label="Loading pipelines">
+    <sui-stack gap="4">
+      <sui-skeleton shape="line" size="lg" style="width:14rem"></sui-skeleton>
+      <div class="ship-pipelines-def-list" aria-hidden="true">
+        {#for n of [0,1,2,3,4,5] key={n}}
+          <sui-skeleton shape="block" size="lg" style="height:6rem"></sui-skeleton>
+        {/for}
+      </div>
+    </sui-stack>
+  </div>
+
+  {:error err}
+  <div class="ship-pipelines-wrap">
+    <sui-error-state title="Couldn't load pipelines" data-test="error" role="alert">
+      {err.message}
+      <sui-button slot="action" tone="primary" variant="solid" on:click={() => window.location.reload()}>Retry</sui-button>
+    </sui-error-state>
+  </div>
+
+  {:ok}
+<div class="ship-view ship-view-pipelines">
+  <div class="ship-pipelines-wrap">
+    <header class="ship-pipelines-head">
+      <div>
+        <h1 class="ship-pipelines-title">Pipelines</h1>
+        <p class="ship-pipelines-sub">{statsSubtitle()}</p>
+      </div>
+      <sui-cluster gap="2">
+        <sui-button variant="outline" size="sm" on:click={() => navigate('/studio/pipelines/history')}>
+          <sui-icon slot="leading" name="list" size="sm"></sui-icon>History
+        </sui-button>
+        <sui-button variant="outline" size="sm" on:click={openNewPipe}>
+          <sui-icon slot="leading" name="plus" size="sm"></sui-icon>New pipeline
+        </sui-button>
+        <sui-button tone="primary" variant="solid" size="sm" on:click={openDispatch}>
+          <sui-icon slot="leading" name="play" size="sm"></sui-icon>Dispatch
+        </sui-button>
+      </sui-cluster>
+    </header>
+
+    {#if activeRuns().length > 0}
+    <div class="ship-pipelines-section">
+      <div class="ship-pipelines-section-head">
+        <h2 class="ship-pipelines-section-title">
+          <sui-icon name="play" size="sm" tone="info"></sui-icon>Active runs
+        </h2>
+        <sui-badge tone="info">{activeRuns().length}</sui-badge>
+      </div>
+      <sui-stack gap="3">
+        {#for run of activeRuns() key={run.slug}}
+          <sui-pipeline-run attr:state={run.stateAttr}>
+            {run.slug}
+            <span slot="meta" class="ship-run-meta">
+              <sui-badge attr:tone={run.tone} size="sm">{run.statusLabel}</sui-badge>
+              <time datetime={run.startedAt}>{run.startedLabel}</time>
+              <sui-button variant="ghost" size="sm" on:click={() => navigate('/studio/pipelines/run/' + run.slug)}>
+                <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
+              </sui-button>
+              <sui-button variant="outline" size="sm" tone="destructive" on:click={() => cancelRun(run.slug)}>
+                <sui-icon slot="leading" name="stop"></sui-icon>Cancel
+              </sui-button>
+            </span>
+          </sui-pipeline-run>
+        {/for}
+      </sui-stack>
+    </div>
+    {/if}
+
+    <div class="ship-pipelines-section">
+      <div class="ship-pipelines-section-head">
+        <h2 class="ship-pipelines-section-title">
+          <sui-icon name="git-merge" size="sm"></sui-icon>Pipelines
+        </h2>
+        <sui-badge tone="muted">{defs().length}</sui-badge>
+      </div>
+      {#if defs().length > 0}
+      <div class="ship-pipelines-def-list">
+        {#for def of defs() key={def.name}}
+          <sui-pipeline-card interactive on:click={() => openDispatchFor(def.name)}>
+            {def.name}
+            <span slot="steps">
+              <sui-chip size="sm" tone="muted">{def.scope}</sui-chip>
+            </span>
+          </sui-pipeline-card>
+        {/for}
+      </div>
+      {:else}
+      <sui-empty-state icon="git-merge" heading="No pipelines" description="Define a pipeline in .ship/pipelines/ to see it here."></sui-empty-state>
+      {/if}
+    </div>
+  </div>
+
+  <div class="ship-mobile-gate">
+    <sui-icon name="monitor" size="xl" tone="muted"></sui-icon>
+    <span>Best experienced on desktop</span>
+  </div>
+
+  <sui-dialog prop:open={dispatchOpen()} size="lg" on:sui-close={closeDispatch}>
+    <span slot="header">Dispatch pipeline run</span>
+    <sui-field label="Pipeline">
+      <sui-select bind:value={dispatchPipeline}>
+        {#for def of defs() key={def.name}}
+          <option attr:value={def.name}>{def.name}</option>
+        {/for}
+      </sui-select>
+    </sui-field>
+    <sui-field label="Spec" hint="Plain text or markdown — what the run should do.">
+      <sui-textarea bind:value={dispatchSpec} rows="10" placeholder="Describe the work in one or two paragraphs..."></sui-textarea>
+    </sui-field>
+    <sui-field><sui-checkbox bind:checked={dispatchHeadless}>Headless (run without tmux)</sui-checkbox></sui-field>
+    <div class="toolbar toolbar--footer" slot="footer">
+      <sui-button variant="outline" on:click={closeDispatch}>Cancel</sui-button>
+      <sui-button tone="primary" variant="solid" on:click={dispatchRun}>
+        <sui-icon slot="leading" name="play" size="sm"></sui-icon>Dispatch
+      </sui-button>
+    </div>
+  </sui-dialog>
+
+  <sui-dialog prop:open={newPipeOpen()} size="sm" on:sui-close={closeNewPipe}>
+    <span slot="header">New pipeline</span>
+    <sui-field label="Name" hint="Lowercase, kebab-case. Becomes the filename.">
+      <sui-input bind:value={newPipeName} placeholder="my-pipeline" autofocus></sui-input>
+    </sui-field>
+    {#if newPipeError()}<sui-alert tone="destructive" compact>{newPipeError()}</sui-alert>{/if}
+    <div class="toolbar toolbar--footer" slot="footer">
+      <sui-button variant="outline" on:click={closeNewPipe}>Cancel</sui-button>
+      <sui-button tone="primary" variant="solid" prop:loading={newPipeCreating()} prop:disabled={newPipeCreating()} on:click={createPipeline}>
+        <sui-icon slot="leading" name="plus" size="sm"></sui-icon>Create
+      </sui-button>
+    </div>
+  </sui-dialog>
+</div>
+{/async}
+  </main>
+</div>

@@ -48,7 +48,7 @@ op that has no registered resolver. The list/overview surfaces (`agents.summarie
 |---|---|---|---|
 | `studio/agents/[id]` (+settings/wire/create) | `ship.agents.wire`, `agents.create_ctx` | ❌ | `ops.agents.patch` |
 | `studio/collections/[id]` | `ship.collections.detail` | ✅ **RESOLVED (unary)** | `ops.collections.get` (read) + `ops.collections.{createItem,updateItem}` |
-| `studio/pipelines` | `ship.pipelines.{dispatch,focus,history,run}` | ❌ | `ops.pipelines.{put,end,delete}` |
+| `studio/pipelines` (+`history`, `run/[slug]`) | `ship.pipelines.{summaries,history,run}` | ✅ **RESOLVED (unary; focus + live-tail deferred)** | `ops.pipelines.{summaries,list,history,run,dispatch,put,cancel}` |
 | `activity` | `ship.mesh.snapshot` | ❌ | — |
 | `settings` | `ship.settings.update` | ✅ **RESOLVED (unary)** | `ops.settings.{list,watch,set}`, `ship.account.state` ✅ |
 
@@ -62,6 +62,31 @@ wrapped in `live(() => …)` so the promise drives the `{#async}` lifecycle.
 - `studio/collections/[id]`: read `ops.collections.get({ id })` → `CollectionDetail { id, schemaJson: bytes, itemCount }`. The schema arrives as JSON bytes (decode + project to `{ schema: { id, name, fields, builtin }, total_items }`, same decode the collections LIST controller does). Mutations are the camelCase Connect writes `ops.collections.{createItem,updateItem}({ collection, id?, dataJson })`. **Gap:** `Get` carries schema + `itemCount` only, never the rows (`Query` exposes rows but needs a Kysely AST the frontend doesn't build), so the **Rows tab degrades to its empty state** and a write won't reflect without a reload. A JS-friendly "all items" read (named query, or items on `Get`) would close it. Schema/meta/JSONC tabs + row count are fully populated.
 - `settings`: read `ops.settings.list({ scope: RUNTIME })` + `ops.settings.watch` (render trigger); write `ops.settings.set` (the contract verb — the template's `mutation="ship.settings.update"` resolves to a scope closure that calls `set`). `ship.account.state` stays LIVE (on-contract resolver) — verified 200.
 - `studio/agents` (list) run-status: the `agentEvents` feed switched from the dead live `ship.events.list({ event_type: 'agent.' })` (no resolver → `mux/subscribe` 404) to unary **`ops.events.poll({ namespace: 'agent', limit })`** → `EventsService.Poll` → `JsonResponse { json }` wrapping `{ events: EventEnvelope[] }` (snake_case fields: `event_type`, `actor`, `created_at`). `namespace` server-side filters to `agent.*`; the JSON is decoded in `agentStatus`. Degrades cleanly: empty feed → empty status map → cards render with no dots.
+
+**Resolution (REQ-3 · studio/pipelines list/history/run — same pattern):** the three core
+reads switched from the dead live `ship.pipelines.{summaries,history,run}` (no resolver →
+`mux/subscribe` 404) to the **typed unary** `ops.pipelines.{summaries,list,history,run}`
+wrapped in `live(() => …)`. The TYPED projection messages are camelCase proto-es:
+`PipelineRunRow { pipelineRunId, slug, status, startedAt, endedAt?, outcome? }`,
+`PipelineStepRunRow { stepId, status, startedAt?, completedAt?, dependsOn, stepType, attempt }`,
+and `PipelineRunHistoryResponse.{ runs, total, offset, limit }` where the count fields are
+**bigint** (uint64 — request `offset`/`limit` pass `BigInt(…)`, response reads `Number(…)`).
+The contract DELIBERATELY EXCLUDES the GUI view-model the live stream carried (def
+step_count/total_runs/success_rate, run agent/branch/provider/model, providers list,
+workspace_id, status_text/tone, step observations, event timeline) — the frontend is
+adapted: badge tone + `sui-pipeline-*` state derived from `status`; the definitions section
+reads `ops.pipelines.list` (`IndexEntry { id, scope }`, name+scope only); durations computed
+from startedAt→endedAt. Mutations stay on the unary writes: `dispatch` (run), `put` (create),
+and **`cancel`** (slug-keyed stop — the correct verb; the shell routed to `endTurn`, a likely
+no-op). **Deferred (not blockers):** (a) `focus/[name]` — the typed contract has no unary
+`focus`; rebuilding it needs `ops.pipelines.get` (raw doc) composed with run reads, so a
+definition card opens the Dispatch dialog (pre-filled) instead of a focus route; (b)
+**live-tail** — `SummariesLive`/`RunLive`/`Watch` server-streams (the concrete FW-3 case), the
+unary snapshot is the read for now; (c) run-detail's live log stream (a REST SSE endpoint,
+`/api/v1/pipelines/runs/{slug}/log/stream`, not a proto op). Render-verified (daemon 9392):
+list paints 6 real definitions (Summaries+List 200), history a clean empty-state (History 200),
+run-detail wired (Run called; a bogus slug renders the `not_found` error-state, no crash);
+zero `mux/subscribe`; the only 404s are the pre-existing `pty-sessions` chrome noise (REQ-6).
 
 ## REQ-6 · command-bar session-state surface (pty-sessions + agent.session/hook live) — NEEDS OPERATOR VALIDATION
 - **Surface:** `<sui-command-bar>` (cmdk), mounted hub-wide. The **core** palette (navigate, `ops.search.search`, `ops.agents.list`, `ops.agents.harnesses`) is fully wired and returns **200** — verified. This REQ is only the *session-state* sub-feature (active-agent dot + AI/chat lifecycle).
@@ -125,7 +150,7 @@ search (`Search`), space (`Add`/`List`/`Activate`), artifacts (`List`), and pipe
 | `routes/settings` | `ship.settings.update` | `SettingsService.{Get,List,Set,Watch}` exist (unary) | **REQ-5**; reads `ship.account.state` ✓ + `ops.settings.*` ✓ |
 | `routes/studio/skills` (+`[id]`) | `ship.skills.summaries`, `ship.skills.detail` | `SkillsService.{List,File,Summaries}` exist (unary) | REQ (new) — wanted draft, kept |
 | `routes/studio/collections/[id]` (+`partials`) | `ship.collections.detail` | `CollectionsService.Get` exists (unary) | **REQ-2** |
-| `routes/studio/pipelines` (+`history`, `focus/[name]`, `run/[slug]`) | `ship.pipelines.{dispatch,focus,history,run,summaries}` | `PipelinesService` has unary + `SummariesLive`/`RunLive`/`HistoryLive` **streams** | **REQ-3** (the FW-3 stream-vs-mux case is concrete here) |
+| `routes/studio/pipelines` (+`history`, `run/[slug]`) | `ship.pipelines.{dispatch,history,run,summaries}` | ✅ **RESOLVED (unary)** — `ops.pipelines.{summaries,list,history,run,dispatch,put,cancel}`; `focus/[name]` + live-tail deferred (FW-3) | **REQ-3** |
 | `routes/studio/agents/[id]` | `ship.agents.wire` | `AgentsService.Wire` exists (unary) | **REQ-1** |
 | `routes/studio/agents/[id]/settings` | `ship.agents.wire`/settings | `AgentsService.Settings` exists (unary) | **REQ-1** |
 | `routes/studio/agents/[id]/wire` | `ship.agents.wire` | `AgentsService.Wire` exists (unary) | **REQ-1** |
