@@ -31,6 +31,24 @@ Two kinds of entries:
 - **Current contract (registered live resolvers):** `agents.summaries`, `collections.list`, `account.state`, `git.overview` — the agent-detail ops are **not** on it.
 - **Question for the operator (do NOT pre-answer by editing the backend):** Are these agent sub-surfaces in scope on the current contract? If yes, what is the right shape on the *available* surface (and unary vs live)? Until validated, these routes render chrome + an empty/error state. The ported code currently assumes the deprecated surface.
 
+## REQ-2..5 · feature surfaces call live ops not on the contract — NEEDS OPERATOR VALIDATION
+Every hub *detail/feature* surface (ported from the shell) reads via a `ship.*` **live**
+op that has no registered resolver. The list/overview surfaces (`agents.summaries`,
+`collections.list`, `account.state`, `git.overview`) are the whole available live surface.
+`ops.*` are unary Connect calls (mutations mostly) and are a separate question.
+
+| Surface | live read it calls | on contract? | unary `ops.*` it also uses |
+|---|---|---|---|
+| `studio/agents/[id]` (+settings/wire/create) | `ship.agents.wire`, `agents.create_ctx` | ❌ | `ops.agents.patch` |
+| `studio/collections/[id]` | `ship.collections.detail` | ❌ | `ops.collections.create/update` |
+| `studio/pipelines` | `ship.pipelines.{dispatch,focus,history,run}` | ❌ | `ops.pipelines.{put,end,delete}` |
+| `activity` | `ship.mesh.snapshot` | ❌ | — |
+| `settings` | `ship.settings.update` | ❌ | `ops.settings.{list,watch}`, `ship.account.state` ✅ |
+
+**Operator decisions (do NOT pre-answer by editing the backend):** for each — is the surface
+in scope on the *current* contract? Should the read be **unary** (`ops.*`, request/response)
+rather than live? Or is it a genuine new-op request? The ported code assumes the deprecated live shape.
+
 ---
 
 ### Notes
