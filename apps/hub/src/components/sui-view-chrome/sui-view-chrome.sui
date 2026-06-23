@@ -119,12 +119,12 @@
     color: var(--muted-foreground);
     transition: background var(--duration-fast, 100ms) var(--ease-out, ease-out);
   }
-  .svc-dot[data-tone='success']      { color: var(--success, #16a34a); }
-  .svc-dot[data-tone='warning']      { color: var(--warning, #d97706); }
-  .svc-dot[data-tone='destructive']  { color: var(--destructive, #dc2626); }
-  .svc-dot[data-tone='accent']       { color: var(--accent, #7c3aed); }
-  .svc-dot[data-tone='muted']        { color: var(--muted-foreground, #6b7280); }
-  .svc-dot[data-tone='default']      { color: var(--muted-foreground, #6b7280); }
+  .svc-dot[data-tone='success']      { color: var(--success); }
+  .svc-dot[data-tone='warning']      { color: var(--warning); }
+  .svc-dot[data-tone='destructive']  { color: var(--destructive); }
+  .svc-dot[data-tone='accent']       { color: var(--accent); }
+  .svc-dot[data-tone='muted']        { color: var(--muted-foreground); }
+  .svc-dot[data-tone='default']      { color: var(--muted-foreground); }
   .svc-dot[data-busy] {
     animation: svc-pulse 1.4s var(--ease-in-out, ease-in-out) infinite;
   }
@@ -168,7 +168,7 @@
       part="dot"
       data-test="view-chrome-dot"
       attr:data-tone={tone() !== 'default' ? tone() : null}
-      attr:data-busy={busy() ? '' : null}
+      attr:data-busy={busy()}
       aria-hidden="true"
     ></span>
   {/if}
