@@ -124,8 +124,22 @@ impl SuiPlugin {
     /// file roundtrip, no version drift, no flag that a stale binary can reject.
     fn compile(&self, sui: &Path) -> Result<String> {
         let (mode, stem) = detect_mode(sui, &self.repo_root);
-        compile_sui(sui, mode, &stem, self.emit_component_imports)
-            .map_err(|e| anyhow!("compile {}: {e}", sui.display()))
+        match compile_sui(sui, mode, &stem, self.emit_component_imports) {
+            Ok(js) => Ok(js),
+            Err(e) => {
+                // SURFACE the inner error before anyhow! wraps it — Rolldown's
+                // BuildDiagnostic truncates plugin-error reasons to a fixed
+                // shape ("plugin `ship-sui` threw an error") and hides the
+                // underlying compile failure in `context.source`. Emitting the
+                // real message via tracing puts it on stderr where it isn't
+                // truncated, so the failure is debuggable.
+                tracing::error!(
+                    sui = %sui.display(),
+                    "deck-bundler: sui-compile failed: {e:#}"
+                );
+                Err(anyhow!("compile {}: {e}", sui.display()))
+            }
+        }
     }
 }
 
