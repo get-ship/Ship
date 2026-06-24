@@ -27,7 +27,7 @@
 // orchestration list + the directory basename + the bundler convention.
 {
   "apps": [
-    { "name": "hub", "root": "apps/hub", "route": "/" },
-    { "name": "spaces", "root": "apps/spaces", "route": "/space/{id}" }
+    { "name": "hub", "root": "/home/madvib/dev/ship-apps/apps/hub", "route": "/" },
+    { "name": "spaces", "root": "/home/madvib/dev/ship-apps/apps/spaces", "route": "/space/{id}" }
   ]
 }
