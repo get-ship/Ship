@@ -39,6 +39,12 @@ import '@ship/sui-primitives'
 import { createClient } from '@ship/sdk-client'
 import { createShipConnectClient, SettingScope } from '@ship/sdk/connect'
 import { setThemeTransport, type ThemeId } from '@ship/tokens/themes'
+// entry.gen.ts bundles only `@ship/tokens/tokens.css` (ship-light/ship-dark).
+// The other five themes (paper/halo/console/contrast/glass) live in
+// themes.css and only repaint if their `:root[data-theme=…]` blocks are
+// bundled. This host entry seam is already in the graph and owns the theme
+// JS catalog above, so it owns the theme CSS too.
+import '@ship/tokens/themes.css'
 import { navigate } from '@ship/deck/router'
 import { registerKeymap } from '../chrome/keymap'
 

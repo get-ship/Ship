@@ -131,6 +131,12 @@ zero `mux/subscribe`; the only 404s are the pre-existing `pty-sessions` chrome n
 - **Port decision:** the dead REST call was **dropped** in the hub port and the inert validation scaffolding it drove (`providerTestOk` / `providerTesting` / `providerError` / `providerOkLabel` signals + the Validating / Ready / error+Retry branches that could never fire) was **removed** — replaced with one honest note ("Choice saved. Ship validates provider CLIs in Settings."). The wizard captures the provider choice; credential / CLI validation defers to Settings.
 - **Question for the operator (do NOT pre-answer by editing the backend):** is live provider-CLI installed-detection in scope on the current contract? If yes, what is the right shape — a unary `ops.*` probe (detected CLIs on PATH), or does `ops.agents.harnesses` already carry an "installed / on-PATH" flag the wizard should read? Until validated, the setup wizard records the choice without detection.
 
+## REQ-10 · `sui-theme-picker` trigger paints `--primary` on the `app` surface — NEEDS OPERATOR VALIDATION
+- **Surface:** `<sui-theme-picker>` in the hub top nav (`ship-nav-top`), mounted with the default `app` surface.
+- **Symptom:** the picker's trigger renders with `--primary` (brand amber) on the `app` surface, so it reads as a primary CTA in the chrome strip rather than a neutral chrome control. The primitive's `marketing` surface is the de-primaried reference (SSOT) — the operator wants that de-primaried look applied to the `app` surface too.
+- **Fix (sui-side):** a primitive/token change inside `packages/components/sui/primitives/src/sui-theme-picker` (and/or the surface token it reads) so the `app` surface trigger is neutral, matching the `marketing` reference. Location: **sui repo** — not modifiable from the hub.
+- **Interim (NOT applied — semantically wrong for the hub):** a consumer could pass `surface="marketing"` to suppress the primary paint, but the hub chrome is an `app` surface, not marketing; mislabeling the surface to get a color is a lie about intent. Left on `app` pending the sui-side fix.
+
 ---
 
 ### Notes

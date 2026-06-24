@@ -7,8 +7,7 @@
   component only assembles the ship-specific slot contents:
 
     brand   → home-linked <sui-brand-mark>
-    default → project switcher, breadcrumb trail, per-view action slot,
-              command-bar slot
+    default → breadcrumb trail, per-view action slot, command-bar slot
     actions → theme picker, account menu, fullscreen toggle
 
   The three-slot layout primitive stays under <sui-nav-top>; this is the
@@ -37,7 +36,7 @@
     actions      per-view action buttons injected by the mounted view
     command-bar  command palette host — shell slots <sui-command-bar> here
   ─────────────────────────────────────────────────────────────────────────────
-  Parts: brand, project-switcher, crumbs, theme-picker, account-menu,
+  Parts: brand, crumbs, theme-picker, account-menu,
          fullscreen
   ─────────────────────────────────────────────────────────────────────────────
   CSS custom properties:
@@ -87,13 +86,6 @@
   .brand:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
-  }
-
-  .sep {
-    width: 1px;
-    height: 16px;
-    background: var(--border);
-    flex-shrink: 0;
   }
 
   .crumbs {
@@ -147,8 +139,6 @@
     <sui-brand-mark class="brand-mark"></sui-brand-mark>
   </a>
 
-  <sui-project-switcher part="project-switcher"></sui-project-switcher>
-  <span class="sep" aria-hidden="true"></span>
   <nav class="crumbs" part="crumbs" aria-label="Breadcrumbs">
     {#for c of crumbs() key={c.key}}
       {#if c.isLast}

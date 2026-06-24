@@ -256,7 +256,7 @@
     <span class="name muted" part="name">…</span>
   {/while-loading}
   {#while-error err of account}
-    <span class="name err" part="name">Offline</span>
+    <span class="name" part="name">{triggerLabel()}</span>
   {/while-error}
   {#if account().kind === 'ok'}
     <span class="name" part="name">{triggerLabel()}</span>

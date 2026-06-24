@@ -67,6 +67,10 @@
   }
 
   /* ── Dialog host override ─────────────────────────────────────── */
+  /* Give the panel an intrinsic height so the dialog's margin:auto centers
+     vertically as well as horizontally; the panel flex-fills and scrolls
+     internally. Width stays from --dlg-max-w. */
+  .cb-dialog::part(dialog) { height: min(70vh, 560px); }
   .cb-dialog::part(body) {
     padding: 0;
     overflow: hidden;
@@ -124,7 +128,6 @@
   no-footer
   no-close-button
   backdrop="blur"
-  size="full"
   style="--dlg-max-w: min(840px, 94vw)"
   bind:this={dialogRef}
 >
