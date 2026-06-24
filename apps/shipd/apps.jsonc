@@ -25,6 +25,13 @@
 // pieces (its URL-capture → window globals, its host-owned entry
 // bootstrap). Conventional defaults — name/route/source — come from this
 // orchestration list + the directory basename + the bundler convention.
+//
+// Post-carve (FW-7): the hub and spaces source moved to ship-apps
+// (/home/madvib/dev/ship-apps). `root` uses absolute paths so shipd
+// (run with --workspace pointing at this Ship repo) serves the
+// ship-apps build output, not a stale in-tree copy.
+// Rust PathBuf::join replaces the base when the joined path is absolute,
+// so absolute `root` values work correctly throughout the serve stack.
 {
   "apps": [
     { "name": "hub", "root": "/home/madvib/dev/ship-apps/apps/hub", "route": "/" },
