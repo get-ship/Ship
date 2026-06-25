@@ -1,40 +1,54 @@
 // apps.jsonc — the Ship monorepo's app ORCHESTRATION list: which apps to
-// serve and where each one's `deck.jsonc` lives. Read by shipd at startup,
-// which loads each app's `deck.jsonc` (if any) into its serve config and
-// pairs it with the host's bind (name/route/source) here. NOT read by
-// deck (L1) — deck is per-app, the host owns the list.
+// serve and which package each one resolves to. Read by shipd at startup,
+// which resolves each entry's `package` via the `AppSource` resolver
+// (Phase 1: node_modules; future phases: CDN / registry), then loads each
+// package's `deck.jsonc` (if any) into its serve config and pairs it
+// with the host's bind (name/route/source) here. NOT read by deck (L1) —
+// deck is per-app, the host owns the list.
 //
 // Schema (per entry):
-//   { "name": string,   // app handle (logging/orchestration). MUST match
-//                       // the directory basename (`apps/hub` ⇒ `hub`);
-//                       // the directory basename is authoritative for
-//                       // the URL namespace — the framework derives
-//                       // identity from the dir.
-//     "root": string,    // repo-relative dir holding the app's deck.jsonc
-//                        // (or just the app source, when the app's
-//                        // config is fully conventional and ships no
-//                        // deck.jsonc).
-//     "route": string }  // URL route pattern shipd mounts the app at.
-//                        // AUTHORITATIVE — the per-app `deck.jsonc`
-//                        // cannot override it (the host composes many
-//                        // apps; the app does not decide where it
-//                        // mounts). `{id}` is a path capture.
+//   { "name": string,   // app handle (logging/orchestration). The
+//                       // authoritative URL namespace is the RESOLVED
+//                       // PACKAGE DIR's basename (`@ship/hub` ⇒ `hub`);
+//                       // a mismatch with `name` is logged and the
+//                       // basename wins.
+//     "package": string,// Package reference resolved via AppSource
+//                       // (Phase 1: looks up `<base>/node_modules/<pkg>`).
+//                       // Scoped (`@ship/hub`) and unscoped (`spaces`)
+//                       // both supported.
+//     "route": string,  // URL route pattern shipd mounts the app at.
+//                       // AUTHORITATIVE — the per-app `deck.jsonc`
+//                       // cannot override it (the host composes many
+//                       // apps; the app does not decide where it
+//                       // mounts). `{id}` is a path capture.
+//     "source"?: string // OPTIONAL override for the convention
+//                       // `<resolved-pkg-dir-basename>/.deck`. When
+//                       // present, must be a path relative to the
+//                       // resolved package dir. Rare; default tracks
+//                       // the bundler's out_dir.
+//   }
 //
-// Per-app config (render, injectGlobals, entry) lives in each app's
-// `apps/<root>/deck.jsonc` — the app declares only the NON-conventional
+// Per-app config (render, injectGlobals, entry) lives in each package's
+// `<package>/deck.jsonc` — the package declares only the NON-conventional
 // pieces (its URL-capture → window globals, its host-owned entry
 // bootstrap). Conventional defaults — name/route/source — come from this
-// orchestration list + the directory basename + the bundler convention.
+// orchestration list + the resolved package dir's basename + the bundler
+// convention.
 //
-// Post-carve (FW-7): the hub and spaces source moved to ship-apps
-// (/home/madvib/dev/ship-apps). `root` uses absolute paths so shipd
-// (run with --workspace pointing at this Ship repo) serves the
-// ship-apps build output, not a stale in-tree copy.
-// Rust PathBuf::join replaces the base when the joined path is absolute,
-// so absolute `root` values work correctly throughout the serve stack.
+// Phase 1 (node resolution):
+//   The host sets `SHIP_APPS_BASE_DIR` (or `--apps-base-dir`) to a
+//   directory whose `node_modules/` contains the referenced packages.
+//   Dev: ship-apps workspace (`/home/madvib/dev/ship-apps`). The
+//   workspace's `package.json` self-declares `@ship/hub` + `spaces` as
+//   workspace dependencies so `bun install` materializes them as
+//   `node_modules/@ship/hub` and `node_modules/spaces` symlinks/dirs.
+//   The default in production is the host's installed `node_modules/`.
+//
+// Phase 2/3: a `Cdn { url, hash }` or `Registry { url }` resolver will
+//   slot into `AppSource` without touching this file or the serve chain.
 {
   "apps": [
-    { "name": "hub", "root": "/home/madvib/dev/ship-apps/apps/hub", "route": "/" },
-    { "name": "spaces", "root": "/home/madvib/dev/ship-apps/apps/spaces", "route": "/space/{id}" }
+    { "name": "hub", "package": "@ship/hub", "route": "/" },
+    { "name": "spaces", "package": "spaces", "route": "/space/{id}" }
   ]
 }

@@ -36,6 +36,11 @@ pub async fn run_network(
     workspace_dir: Option<std::path::PathBuf>,
     daemon_mode: deck::DaemonMode,
     apps_config_override: Option<std::path::PathBuf>,
+    // Base dir for the `AppSource` resolver. `None` ⇒ the project root
+    // (the workspace dir or `.`); in dev typically the ship-apps
+    // workspace so the resolver finds `<ship-apps>/node_modules/`.
+    // Override per launch via `--apps-base-dir` or `SHIP_APPS_BASE_DIR`.
+    apps_base_dir_override: Option<std::path::PathBuf>,
 ) -> Result<()> {
     if dev {
         tracing::warn!(
@@ -284,39 +289,58 @@ pub async fn run_network(
     // Enumerate the apps via shipd's app-registration port impl. `apps.jsonc`
     // is the Ship-monorepo orchestration list ("which apps ship, where each
     // one's `deck.jsonc` lives") — deck (L1) is per-app and names no path, so
-    // the list lives with shipd (its only reader). The registry reads it and
-    // loads each `apps/<app>/deck.jsonc` into an `AppServeConfig`. Default to
-    // `<worktree>/apps/shipd/apps.jsonc`; per-app config resolves under the
-    // worktree root.
+    // the list lives with shipd (its only reader). The registry reads it,
+    // resolves each entry's package via the `AppSource` resolver
+    // (`<base>/node_modules/<package>`), then loads the package's
+    // `deck.jsonc` into an `AppServeConfig`.
+    //
+    // Default: `<worktree>/apps/shipd/apps.jsonc`. Default base dir: the
+    // worktree root (when apps live alongside `apps/shipd/`) or, in dev,
+    // the ship-apps workspace when `SHIP_APPS_BASE_DIR` / `--apps-base-dir`
+    // points there. The dev `start.sh` script sets the env var so the
+    // resolver finds `<ship-apps>/node_modules/@ship/hub` etc.
     use deck_core::AppRegistry as _;
     let apps_config_path = apps_config_override
         .or_else(|| worktree_root.as_ref().map(|r| r.join("apps/shipd/apps.jsonc")))
         .unwrap_or_else(|| std::path::PathBuf::from("apps/shipd/apps.jsonc"));
-    let project_root_for_apps = worktree_root
-        .clone()
+    // Base dir precedence: explicit `--apps-base-dir` flag →
+    // `SHIP_APPS_BASE_DIR` env var → worktree root → `.` (cwd-relative).
+    // Both env var and flag share the typed `Var::AppsBaseDir` accessor;
+    // the flag wins when both are set.
+    let apps_base_dir = apps_base_dir_override
+        .or_else(|| {
+            ship_substrate::env::read(ship_substrate::env::Var::AppsBaseDir)
+                .map(std::path::PathBuf::from)
+        })
+        .or_else(|| worktree_root.clone())
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     let app_registry =
-        router::apps_config::ShipAppRegistry::new(project_root_for_apps, apps_config_path);
+        router::apps_config::ShipAppRegistry::new(apps_base_dir, apps_config_path);
     let apps = app_registry.serve_configs();
-    // Per-app view-output dir is CONVENTION (`<app>/.deck/views`) — every
-    // app gets it registered so deck's runtime serves compiled view
-    // bundles from the right per-app location (e.g.
-    // `apps/hub/.deck/views/<name>/view.js`) before falling back to the
-    // workspace-root output. The path is resolved against the project
-    // root the daemon already holds (`worktree_root`); an app with no
-    // built `.deck/` yet still gets the dir registered (the runtime
-    // gracefully 404s and falls back).
-    if let Some(root) = worktree_root.as_ref() {
-        for app in &apps {
-            // Convention: `<app.source>/views` (always `<app>/.deck/views`
-            // when the host binds source from the directory basename).
-            // The host constructs `app.source` via the convention
-            // `format!("{root}/.deck")` for first-party apps.
-            if !app.source.is_empty() {
-                let abs = root.join(&app.source).join("views");
-                deck::register_view_output(app.name.clone(), abs);
-            }
+    // Per-app view-output dir is CONVENTION (`<package>/<source>/views`) —
+    // every app gets it registered so deck's runtime serves compiled
+    // view bundles from the right per-app location (e.g.
+    // `<ship-apps>/node_modules/@ship/hub/hub/.deck/views/<name>/view.js`)
+    // before falling back to the workspace-root output. We resolve the
+    // absolute path through the registry's `package_dirs()` snapshot
+    // (the resolved package dir on disk) + the app's `source` (the
+    // convention `<dir-basename>/.deck`, overridable per-entry). The
+    // snapshot is host-private state — deck sees only the registered
+    // `Extension<Arc<PathBuf>>` per app, not how the host got it.
+    let package_dirs = app_registry.package_dirs();
+    for app in &apps {
+        if app.source.is_empty() {
+            continue;
         }
+        let Some(pkg_dir) = package_dirs.get(&app.name) else {
+            tracing::warn!(
+                app = %app.name,
+                "no resolved package dir for app; skipping view-output registration"
+            );
+            continue;
+        };
+        let abs = pkg_dir.join(&app.source).join("views");
+        deck::register_view_output(app.name.clone(), abs);
     }
     let app = router::build_router(
         rt.clone(),

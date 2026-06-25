@@ -78,6 +78,16 @@ pub enum Var {
     /// `platform.db`. Unset (the production and default-dev case) yields
     /// exactly the canonical path. Same disposition as `DevProjectDir`.
     DevDbDir,
+    /// `SHIP_APPS_BASE_DIR` — base directory the shipd `AppSource` resolver
+    /// searches for `<base>/node_modules/<package>`. Default: `<worktree>/`
+    /// (the ship repo root, where the project-root `node_modules/` is
+    /// expected to live once apps install via the registry). In dev
+    /// typically pointed at the ship-apps workspace (e.g.
+    /// `/home/madvib/dev/ship-apps`) so the resolver finds that repo's
+    /// `node_modules/@ship/hub` etc. without dragging the ship monorepo
+    /// into the package graph. Set by the dev start script; unset in
+    /// production (the host ships a `node_modules/` next to `apps.jsonc`).
+    AppsBaseDir,
 }
 
 impl Var {
@@ -107,6 +117,7 @@ impl Var {
             Var::RespectWorktree => "SHIP_RESPECT_WORKTREE",
             Var::DevProjectDir => "SHIP_DEV_PROJECT_DIR",
             Var::DevDbDir => "SHIP_DEV_DB_DIR",
+            Var::AppsBaseDir => "SHIP_APPS_BASE_DIR",
         }
     }
 
@@ -133,7 +144,8 @@ impl Var {
             | Var::TelegramChatId
             | Var::RespectWorktree
             | Var::DevProjectDir
-            | Var::DevDbDir => Category::DevDebug,
+            | Var::DevDbDir
+            | Var::AppsBaseDir => Category::DevDebug,
         }
     }
 }
@@ -181,6 +193,7 @@ mod tests {
         assert_eq!(Var::DaemonPath.as_str(), "SHIPD_PATH");
         assert_eq!(Var::DevProjectDir.as_str(), "SHIP_DEV_PROJECT_DIR");
         assert_eq!(Var::DevDbDir.as_str(), "SHIP_DEV_DB_DIR");
+        assert_eq!(Var::AppsBaseDir.as_str(), "SHIP_APPS_BASE_DIR");
     }
 
     #[test]
@@ -253,6 +266,7 @@ mod tests {
             Var::RespectWorktree,
             Var::DevProjectDir,
             Var::DevDbDir,
+            Var::AppsBaseDir,
         ];
         let mut seen = std::collections::HashSet::new();
         for v in names {
