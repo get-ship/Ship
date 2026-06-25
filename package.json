@@ -4,12 +4,7 @@
   "workspaces": {
     "packages": [
       "apps/docs",
-      "apps/hub",
-      "apps/spaces",
-      "apps/site",
       "packages/*",
-      "packages/components/*",
-      "packages/components/ship/*",
       "apps/workers/*"
     ],
     "catalog": {
