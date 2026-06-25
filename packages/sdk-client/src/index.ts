@@ -21,12 +21,23 @@ import { readSpaceConfig } from './spaces'
 import { MuxClient } from './mux-client'
 import { liveStream } from './live-stream'
 import { createShipConnectClient, resolveDaemonBase, SettingScope } from '@ship/sdk/connect'
+import type { ShipConnectClient, ShipConnectOptions } from '@ship/sdk/connect'
 // Re-export the URL constants from `./constants` so the existing surface
 // (`import { DECK_PREFIX, DECK_API_ASSETS } from '@ship/sdk-client'`) keeps
 // working unchanged. The mint point lives in `./constants`; that module's
 // source is what `ts_constants_pinned_to_rust` (in
 // `crates/deck/deck-core/src/routes.rs`) reads to assert Rust↔TS parity.
 export { DECK_API_ASSETS, DECK_PREFIX } from './constants'
+// Re-export the Connect transport symbols the SDK handle uses internally, so
+// consumers needing the raw Connect client (custom baseUrl, server-streaming
+// reads of `SettingsService.Watch` outside the SDK handle, custom interceptors)
+// don't have to reach across into `@ship/sdk/connect`. `@ship/sdk` is the
+// internal transport; `@ship/sdk-client` is the one public surface.
+export type { ShipConnectClient, ShipConnectOptions } from '@ship/sdk/connect'
+// `shipFetch` + `ShipApiError` were the only HTTP helpers in `@ship/sdk`;
+// they live here now so there is one HTTP surface (no parallel `shipFetch`
+// in two packages, no parallel `ShipApiError` class hierarchy).
+export { shipFetch, ShipApiError } from './http'
 
 // Bind the SUI runtime's host-agnostic `ShipHost` slot to the concrete
 // `ShipSDK` via declaration merging. The runtime types `ViewScope.ship` as

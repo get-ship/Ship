@@ -87,3 +87,41 @@ async function throwOnError<T>(
   if (ct.includes('application/json')) return (await resp.json()) as T
   return undefined as unknown as T
 }
+
+/**
+ * Thrown by {@link shipFetch} on non-2xx responses. Carries the HTTP status
+ * and the raw response body (the daemon's JSON error envelope when present,
+ * otherwise the status text) so callers can inspect the daemon's typed error.
+ */
+export class ShipApiError extends Error {
+  readonly status: number
+  readonly body: string
+  constructor(status: number, body: string) {
+    super(`Ship API ${status}: ${body}`)
+    this.status = status
+    this.body = body
+  }
+}
+
+/**
+ * Browser cookie-bound JSON fetch. Resolves with the parsed JSON body on
+ * 2xx; throws {@link ShipApiError} on non-2xx. `credentials: 'same-origin'`
+ * so the daemon auth middleware sees the browser session — same shape as
+ * `mutateJson`, but caller-driven (no method/path helpers) for callers that
+ * need to construct the URL themselves (e.g. legacy REST endpoints).
+ */
+export async function shipFetch<T>(
+  url: string,
+  init?: RequestInit,
+): Promise<T> {
+  const res = await fetch(url, {
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    ...init,
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new ShipApiError(res.status, text)
+  }
+  return res.json() as Promise<T>
+}

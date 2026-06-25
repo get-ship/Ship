@@ -5,7 +5,11 @@
 import type { AccountState, MeView } from './generated'
 import { createShipConnectClient } from '@ship/sdk/connect'
 
-export type AccountStatus = AccountState['state'] // 'logged_out' | 'pending' | 'logged_in'
+// Explicit union: the proto removed 'pending' from AccountState, but the
+// daemon may still emit it during in-flight logins (PKCE state). Keep it
+// here as a runtime-defensive variant so readIdentity's switch is not dead
+// code while a server/client version skew exists.
+export type AccountStatus = 'logged_out' | 'pending' | 'logged_in'
 
 export interface AccountIdentity {
   status: AccountStatus
@@ -13,6 +17,12 @@ export interface AccountIdentity {
   me: MeView | null
   state_id: string | null
 }
+// Wider local union that preserves the 'pending' variant the proto dropped.
+// The daemon may still emit it during in-flight PKCE logins; this lets the
+// discriminated-union switch below narrow correctly without an `any` cast.
+type WireAccountState =
+  | AccountState
+  | { state: 'pending'; state_id: string }
 
 /** Normalise the daemon's tagged-enum state into a flat shape that templates
  *  can read without re-doing the discriminant dance. `me` may be null even
@@ -20,11 +30,12 @@ export interface AccountIdentity {
  *  fresh login (no auto-refresh today). */
 export function readIdentity(state: AccountState | null | undefined): AccountIdentity {
   if (!state) return { status: 'logged_out', user_id: null, me: null, state_id: null }
-  switch (state.state) {
+  const s = state as WireAccountState
+  switch (s.state) {
     case 'logged_in':
-      return { status: 'logged_in', user_id: state.user_id, me: state.me ?? null, state_id: null }
+      return { status: 'logged_in', user_id: s.user_id, me: s.me ?? null, state_id: null }
     case 'pending':
-      return { status: 'pending', user_id: null, me: null, state_id: state.state_id }
+      return { status: 'pending', user_id: null, me: null, state_id: s.state_id }
     default:
       return { status: 'logged_out', user_id: null, me: null, state_id: null }
   }
