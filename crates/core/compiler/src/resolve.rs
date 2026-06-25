@@ -476,6 +476,19 @@ fn apply_agent_skill_filter(skills: &mut Vec<Skill>, agent: Option<&AgentConfig>
     if let Some(m) = agent
         && !m.skills.is_empty()
     {
+        // A skill ref that matches no pool skill used to be silently dropped by
+        // the `retain` below — broken/mis-targeted agent->skill delivery was
+        // invisible. Warn loudly (naming the ref + the consuming agent) before
+        // filtering so every future unmatched ref is caught instead of vanishing.
+        let agent_id = if m.id.is_empty() { m.name.as_str() } else { m.id.as_str() };
+        for skill_ref in &m.skills {
+            if !skills.iter().any(|s| &s.id == skill_ref) {
+                eprintln!(
+                    "warning: agent '{agent_id}' references skill '{skill_ref}' that matches no \
+                     skill in the pool; the skill will not be delivered to this agent"
+                );
+            }
+        }
         skills.retain(|s| m.skills.contains(&s.id));
     }
 }
@@ -527,6 +540,42 @@ mod tests {
             codex_disabled_tools: vec![],
             cursor_env_file: None,
         }
+    }
+
+    #[test]
+    fn agent_skill_filter_drops_unmatched_ref() {
+        // The agent references one real pool skill and one that matches nothing.
+        // The real one is delivered; the unmatched ref is dropped (and a loud
+        // warning is emitted to stderr naming the ref + agent — the regression
+        // this guards, where the drop used to be silent).
+        let agent = AgentConfig {
+            id: "shipwright".to_string(),
+            name: "Shipwright".to_string(),
+            skills: vec!["real-skill".to_string(), "ghost-skill".to_string()],
+            ..Default::default()
+        };
+        let mut skills = vec![make_skill("real-skill"), make_skill("other-skill")];
+        apply_agent_skill_filter(&mut skills, Some(&agent));
+        let ids: Vec<&str> = skills.iter().map(|s| s.id.as_str()).collect();
+        assert_eq!(
+            ids,
+            vec!["real-skill"],
+            "only the matched ref is delivered; the unmatched ref is dropped"
+        );
+    }
+
+    #[test]
+    fn agent_skill_filter_empty_refs_keeps_whole_pool() {
+        // Empty refs apply no filter — the agent inherits the entire pool, and
+        // no unmatched-ref warning fires.
+        let agent = AgentConfig {
+            id: "rust-lane".to_string(),
+            skills: vec![],
+            ..Default::default()
+        };
+        let mut skills = vec![make_skill("a"), make_skill("b")];
+        apply_agent_skill_filter(&mut skills, Some(&agent));
+        assert_eq!(skills.len(), 2, "empty refs apply no filter");
     }
 
     #[test]
