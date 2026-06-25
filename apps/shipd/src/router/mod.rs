@@ -208,19 +208,19 @@ pub fn build_router(
     let root = Router::new()
         .merge(public_routes)
         .merge(deck::pages::serve_index_route())
-        .merge(deck::pages::serve_setup_route())
         .merge(per_app)
         .merge(deck::router())
         .merge(webhook_source_route)
         .merge(authenticated_routes)
         .layer(axum::Extension(apps_ext.clone()))
         // Top-level DataPort Extension — same Arc as the multiplex's
-        // MultiplexState. deck's serve_index / serve_setup read this via
+        // MultiplexState. deck's serve_index reads this via
         // `Option<Extension<Arc<dyn DataPort>>>` to drive the first-run
         // flow (provisioned → serve the primary app, not provisioned →
-        // redirect to /setup). Adding it here, on `root`, covers every
-        // request — the per-app routes, the public catch-all, and the
-        // multiplex.
+        // redirect to /setup, which falls through to the SPA — deck
+        // dropped its built-in serve_setup route in favor of the SPA).
+        // Adding it here, on `root`, covers every request — the per-app
+        // routes, the public catch-all, and the multiplex.
         .layer(axum::Extension(data_port.clone()));
     // entire `/ship.ops.v1.*` surface from a `fallback_service`; merging it into
     // `root` makes it root's fallback (carrying its auth layer). A
