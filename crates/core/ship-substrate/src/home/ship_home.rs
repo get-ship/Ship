@@ -22,8 +22,6 @@ const SETTINGS_FILE: &str = "settings.jsonc";
 const LOCAL_FILE: &str = "local.jsonc";
 const CREDENTIALS_FILE: &str = "credentials.jsonc";
 const ACCOUNT_TOKEN_FILE: &str = "account.jsonc";
-const RUNTIME_DIR: &str = "runtime";
-const RUNTIME_SUI_COMPILER: &str = "sui-compiler";
 
 /// Which SQLite database file under `machine/db/`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -192,20 +190,6 @@ impl ShipHome {
     /// (cloud account token, optional MCP server bearer).
     pub fn credentials_path(&self) -> PathBuf {
         self.machine_dir().join(CREDENTIALS_FILE)
-    }
-
-    /// `~/.ship/runtime/` — the SUI toolchain. Since #163 the daemon bundles
-    /// in-process via Rolldown (in the binary), so this holds only the
-    /// `sui-compiler` binary the bundler spawns. Populated by `ship runtime
-    /// install`. Distinct from `machine/` (per Ship version vs machine-local).
-    pub fn runtime_dir(&self) -> PathBuf {
-        self.root.join(RUNTIME_DIR)
-    }
-
-    /// `~/.ship/runtime/sui-compiler` — the Rust sui-compiler binary, spawned
-    /// by the in-process bundler's `load` hook to compile `.sui`.
-    pub fn runtime_sui_compiler(&self) -> PathBuf {
-        self.runtime_dir().join(RUNTIME_SUI_COMPILER)
     }
 }
 
