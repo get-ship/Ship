@@ -20,7 +20,6 @@ pub(crate) const MACHINE_DB_DIR: &str = "db";
 const MACHINE_DAEMON_DIR: &str = "daemon";
 const SETTINGS_FILE: &str = "settings.jsonc";
 const LOCAL_FILE: &str = "local.jsonc";
-const CREDENTIALS_FILE: &str = "credentials.jsonc";
 const ACCOUNT_TOKEN_FILE: &str = "account.jsonc";
 
 /// Which SQLite database file under `machine/db/`.
@@ -186,11 +185,6 @@ impl ShipHome {
         self.machine_dir().join(LOCAL_FILE)
     }
 
-    /// `~/.ship/machine/credentials.jsonc` — machine-local secrets
-    /// (cloud account token, optional MCP server bearer).
-    pub fn credentials_path(&self) -> PathBuf {
-        self.machine_dir().join(CREDENTIALS_FILE)
-    }
 }
 
 #[cfg(test)]

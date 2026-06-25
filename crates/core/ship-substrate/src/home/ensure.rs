@@ -20,9 +20,6 @@ pub fn ensure_layout(home: &ShipHome) -> io::Result<()> {
         "daemon",
         "logs",
         "cache",
-        "sessions",
-        "actors",
-        "projects",
         "crashes",
     ] {
         fs::create_dir_all(machine.join(sub))?;
@@ -44,7 +41,7 @@ mod tests {
 
         assert!(home.library_dir().is_dir());
         assert!(home.machine_dir().is_dir());
-        for sub in ["db", "daemon", "logs", "cache", "sessions", "actors", "projects", "crashes"] {
+        for sub in ["db", "daemon", "logs", "cache", "crashes"] {
             assert!(
                 home.machine_dir().join(sub).is_dir(),
                 "machine/{sub} must exist"

@@ -47,9 +47,10 @@ pub struct PackageCache {
 
 impl PackageCache {
     /// Create a cache using the default location `~/.ship/cache/`.
+    /// Respects `SHIP_HOME` if set.
     pub fn new() -> anyhow::Result<Self> {
-        let home = home::home_dir().context("cannot determine home directory")?;
-        Ok(Self::with_root(ship_substrate::ShipHome::project_ship_dir(home).join("cache")))
+        let home = ship_substrate::ShipHome::from_env();
+        Ok(Self::with_root(home.root().join("cache")))
     }
 
     /// Create a cache at an explicit root (useful for testing).

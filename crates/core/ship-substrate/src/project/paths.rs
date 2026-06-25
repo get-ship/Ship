@@ -72,10 +72,11 @@ pub fn vision_template_path(ship_dir: &Path) -> PathBuf {
     ship_dir.join("TEMPLATE.md")
 }
 
-/// Global/shared skills store: `~/.ship/skills/`
+/// Global/shared skills store: `~/.ship/library/skills/`
 pub fn user_skills_dir() -> PathBuf {
     get_global_dir()
         .unwrap_or_else(|_| PathBuf::from(".ship"))
+        .join("library")
         .join("skills")
 }
 

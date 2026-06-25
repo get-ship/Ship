@@ -78,7 +78,7 @@ pub(super) fn mount(router: connectrpc::Router, state: &ApiState) -> connectrpc:
     // `ship ui set-roots`) can override. Multiple roots compose;
     // first match wins.
     let ship_dir = state.ship_dir().to_path_buf();
-    let views_root = ship_dir.join(".ship").join("views");
+    let views_root = ship_dir.join("views");
     let resolver: Arc<dyn ship_ui::registry::ComponentResolver> =
         Arc::new(ship_ui::registry::ChainResolver::new(vec![
             ship_ui::registry::Root::Workspace { dir: ship_dir },
