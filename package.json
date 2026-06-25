@@ -31,9 +31,7 @@
     "@ship/sui-compiler-wasm": "file:/home/madvib/dev/sui/packages/sui/compiler-wasm",
     "@ship/sui-lsp-browser": "file:/home/madvib/dev/sui/packages/deck/lsp-browser",
     "@ship/sui-eval": "file:/home/madvib/dev/sui/packages/deck/eval",
-    "@ship/tokens": "file:/home/madvib/dev/sui/packages/sui/tokens",
-    "@ship/sdk": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk",
-    "@ship/sdk-client": "file:/home/madvib/dev/ship-worktrees/carve-ship/packages/sdk-client"
+    "@ship/tokens": "file:/home/madvib/dev/sui/packages/sui/tokens"
   },
   "trustedDependencies": [
     "better-sqlite3",
