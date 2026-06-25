@@ -39,6 +39,16 @@ fn install_projects_projection() {
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
+/// Initialize a minimal project layout at `path` that `registry::add` and
+/// `resolve_active_space` require: a `.ship/` directory and a `ship.jsonc`
+/// with an `{}` body (no pre-set id).  The first call to `ensure_space_id` will
+/// mint and persist a nanoid into that file, making the path registerable.
+fn init_project(path: &std::path::Path) {
+    let ship_dir = path.join(".ship");
+    std::fs::create_dir_all(&ship_dir).unwrap();
+    std::fs::write(ship_dir.join("ship.jsonc"), "{}").unwrap();
+}
+
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
     install_projects_projection();
     let ship_dir = ShipHome::project_ship_dir(tmp.path());
@@ -94,6 +104,7 @@ async fn info_live_space_resolves_identity() {
 
     let space_path = tmp.path().join("acme");
     std::fs::create_dir_all(&space_path).unwrap();
+    init_project(&space_path);
     let record = svc.add(&space_path, Some("Acme")).await.unwrap();
     let space = record.id.clone();
 
@@ -115,6 +126,7 @@ async fn add_is_idempotent_same_id_name_preserved() {
 
     let path = tmp.path().join("proj");
     std::fs::create_dir_all(&path).unwrap();
+    init_project(&path);
     let r1 = svc.add(&path, Some("test")).await.unwrap();
     let r2 = svc.add(&path, Some("test-renamed")).await.unwrap();
     assert_eq!(r1.id, r2.id, "id stable across re-add");
@@ -131,6 +143,8 @@ async fn list_returns_spaces_newest_first() {
     let b = tmp.path().join("re-b");
     std::fs::create_dir_all(&a).unwrap();
     std::fs::create_dir_all(&b).unwrap();
+    init_project(&a);
+    init_project(&b);
     svc.add(&a, Some("re-a")).await.unwrap();
     tokio::time::sleep(Duration::from_millis(10)).await;
     svc.add(&b, Some("re-b")).await.unwrap();
@@ -150,6 +164,7 @@ async fn activate_switches_pointer_and_emits_switched() {
 
     let path = tmp.path().join("a");
     std::fs::create_dir_all(&path).unwrap();
+    init_project(&path);
     let r = svc.add(&path, Some("a")).await.unwrap();
 
     // Drain the add event(s).
@@ -194,6 +209,7 @@ async fn active_is_none_on_cold_boot_then_resolves_after_activate() {
 
     let path = tmp.path().join("p");
     std::fs::create_dir_all(&path).unwrap();
+    init_project(&path);
     let r = svc.add(&path, Some("p")).await.unwrap();
     svc.activate(&r.id).await.unwrap();
 
@@ -212,6 +228,7 @@ async fn list_surfaces_active_id_after_activate() {
 
     let path = tmp.path().join("p1");
     std::fs::create_dir_all(&path).unwrap();
+    init_project(&path);
     let r = svc.add(&path, Some("p1")).await.unwrap();
     assert_eq!(svc.active_id().await.unwrap(), None, "no active pointer pre-activate");
     svc.activate(&r.id).await.unwrap();
@@ -226,6 +243,7 @@ async fn add_derives_name_from_path_when_unnamed() {
     let kernel = make_kernel(&tmp);
     let path = tmp.path().join("my-space");
     std::fs::create_dir_all(&path).unwrap();
+    init_project(&path);
     let r = registry::add(&kernel, &path, None).await.unwrap();
     assert_eq!(r.name, "my-space", "name derived from final path segment");
 }
@@ -247,6 +265,7 @@ async fn project_registered_event_is_visible_in_both_async_registry_and_sync_sql
 
     let path = tmp.path().join("my-project");
     std::fs::create_dir_all(&path).unwrap();
+    init_project(&path);
 
     // Register the space — emits `project.registered`; ProjectsProjection folds
     // it into the `projects` SQL table inside the kernel transaction.

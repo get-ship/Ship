@@ -24,7 +24,7 @@
 
 use std::path::{Path, PathBuf};
 
-use ship_substrate::home::path_hash;
+use ship_substrate::ShipHome;
 use ship_substrate::ports::{DataStore, KernelLog};
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types::{PROJECT_REGISTERED, PROJECT_SEEN, PROJECT_SWITCHED};
@@ -102,10 +102,14 @@ pub async fn get(kernel: &KernelLog, id: &str) -> Result<Option<SpaceRecord>, Sp
 
 /// Idempotent register. Re-adding a known path returns the SAME id with its
 /// `last_seen_at` bumped and the original name preserved; a new path mints a
-/// `project.registered` event. The id is the path hash (stable across renames).
+/// `project.registered` event. The id is the CONTENT-ID from
+/// `<path>/.ship/ship.jsonc#id` — stable across path renames and shared by
+/// every linked worktree that redirects to the same `.ship/` tree. This is
+/// the umbrella model: register by content-id, map id→device-path.
 ///
-/// `path` is taken as the caller supplies it — canonicalization is a host
-/// concern the daemon performs before calling (the crate touches no fs).
+/// `path` is taken as the project root the caller supplies — canonicalization
+/// is a host concern the daemon performs before calling. The function reads
+/// (and possibly mints) the content-id from `<path>/.ship/ship.jsonc`.
 ///
 /// The write path is event-only: `ProjectsProjection` folds the emitted event
 /// into the `projects` SQL table inside the kernel transaction. The DataStore
@@ -115,7 +119,9 @@ pub async fn add(
     path: &Path,
     name: Option<&str>,
 ) -> Result<SpaceRecord, SpaceError> {
-    let id = path_hash(path);
+    let project_ship_dir = ShipHome::project_ship_dir(path);
+    let id = ship_substrate::project::ensure_space_id(&project_ship_dir)
+        .map_err(|e| SpaceError::Internal(format!("could not resolve content-id for {}: {e}", path.display())))?;
     let now = now_rfc3339();
 
     // Check for an existing registration by path via the SQL table.
