@@ -25,8 +25,8 @@ in earlier drafts — k8s baggage avoided).
 1. **Per-OS legs (mac/Windows) — in progress.**
    - **Lima (mac): 🟡 turnkey, pending a Mac run.** Isolator wired; Linux POC
      verified the launch/reap mechanics. Now drafted for the Mac:
-     `contrib/lima/ship-substrate.yaml` (explicit `portForwards`),
-     `lima_sidecar_live`, steps in `contrib/macos-substrates.md`. Remaining: the
+     `packaging/lima/ship-substrate.yaml` (explicit `portForwards`),
+     `lima_sidecar_live`, steps in `ship-ops/contrib/macos-substrates.md`. Remaining: the
      Mac run (transport green) + workspace/resource-cap application.
    - **Apple Container (mac arm): 🟡 draft backend, pending Apple Silicon.**
      Registered + recommendable; a draft `container`-CLI backend

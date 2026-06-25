@@ -130,7 +130,7 @@ jobs:
           cp "target/${{ matrix.target }}/release/shipd${{ matrix.exe }}" "dist/${stage}/shipd${{ matrix.exe }}"
           chmod +x "dist/${stage}/ship" "dist/${stage}/shipd"
           cp README.md "dist/${stage}/README.md"
-          cp contrib/installer-assets/LICENSE-INSTALLER.txt "dist/${stage}/LICENSE.txt" || true
+          cp packaging/installer-assets/LICENSE-INSTALLER.txt "dist/${stage}/LICENSE.txt" || true
           tar -czf "${stage}.tar.gz" -C dist "${stage}"
 
       - name: Package (Windows)
@@ -142,8 +142,8 @@ jobs:
           Copy-Item "target/${{ matrix.target }}/release/ship.exe" "dist/$stage/ship.exe"
           Copy-Item "target/${{ matrix.target }}/release/shipd.exe" "dist/$stage/shipd.exe"
           Copy-Item "README.md" "dist/$stage/README.md"
-          if (Test-Path "contrib/installer-assets/LICENSE-INSTALLER.txt") {
-            Copy-Item "contrib/installer-assets/LICENSE-INSTALLER.txt" "dist/$stage/LICENSE.txt"
+          if (Test-Path "packaging/installer-assets/LICENSE-INSTALLER.txt") {
+            Copy-Item "packaging/installer-assets/LICENSE-INSTALLER.txt" "dist/$stage/LICENSE.txt"
           }
           Compress-Archive -Path "dist/$stage/*" -DestinationPath "$stage.zip"
 

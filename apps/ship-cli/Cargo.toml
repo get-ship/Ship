@@ -65,13 +65,13 @@ priority = "optional"
 assets = [
     ["target/release/ship", "usr/bin/", "755"],
     ["target/release/shipd", "usr/bin/", "755"],
-    ["../../contrib/shipd.service", "usr/lib/systemd/user/", "644"],
-    ["../../contrib/launchers/linux/ship.desktop", "usr/share/applications/", "644"],
-    ["../../contrib/launchers/linux/shipd-autostart.desktop", "etc/xdg/autostart/", "644"],
-    ["../../contrib/installer-assets/ship-512.png", "usr/share/icons/hicolor/512x512/apps/ship.png", "644"],
-    ["../../contrib/installer-assets/LICENSE-INSTALLER.txt", "usr/share/doc/ship/", "644"],
+    ["../../packaging/shipd.service", "usr/lib/systemd/user/", "644"],
+    ["../../packaging/launchers/linux/ship.desktop", "usr/share/applications/", "644"],
+    ["../../packaging/launchers/linux/shipd-autostart.desktop", "etc/xdg/autostart/", "644"],
+    ["../../packaging/installer-assets/ship-512.png", "usr/share/icons/hicolor/512x512/apps/ship.png", "644"],
+    ["../../packaging/installer-assets/LICENSE-INSTALLER.txt", "usr/share/doc/ship/", "644"],
 ]
-maintainer-scripts = "../../contrib/postinst/deb/"
+maintainer-scripts = "../../packaging/postinst/deb/"
 # `postinst` → ship daemon install-service
 # `prerm`    → ship daemon uninstall-service
 
@@ -84,13 +84,13 @@ license = "MIT"
 assets = [
     { source = "target/release/ship", dest = "/usr/bin/ship", mode = "755" },
     { source = "target/release/shipd", dest = "/usr/bin/shipd", mode = "755" },
-    { source = "contrib/shipd.service", dest = "/usr/lib/systemd/user/shipd.service", mode = "644" },
-    { source = "contrib/launchers/linux/ship.desktop", dest = "/usr/share/applications/ship.desktop", mode = "644" },
-    { source = "contrib/launchers/linux/shipd-autostart.desktop", dest = "/etc/xdg/autostart/shipd-autostart.desktop", mode = "644" },
-    { source = "contrib/installer-assets/ship-512.png", dest = "/usr/share/icons/hicolor/512x512/apps/ship.png", mode = "644" },
-    { source = "contrib/installer-assets/LICENSE-INSTALLER.txt", dest = "/usr/share/doc/ship/LICENSE-INSTALLER.txt", mode = "644" },
-    { source = "contrib/postinst/rpm-post.sh", dest = "/usr/share/doc/ship/rpm-post.sh", mode = "755" },
-    { source = "contrib/postinst/rpm-preun.sh", dest = "/usr/share/doc/ship/rpm-preun.sh", mode = "755" },
+    { source = "packaging/shipd.service", dest = "/usr/lib/systemd/user/shipd.service", mode = "644" },
+    { source = "packaging/launchers/linux/ship.desktop", dest = "/usr/share/applications/ship.desktop", mode = "644" },
+    { source = "packaging/launchers/linux/shipd-autostart.desktop", dest = "/etc/xdg/autostart/shipd-autostart.desktop", mode = "644" },
+    { source = "packaging/installer-assets/ship-512.png", dest = "/usr/share/icons/hicolor/512x512/apps/ship.png", mode = "644" },
+    { source = "packaging/installer-assets/LICENSE-INSTALLER.txt", dest = "/usr/share/doc/ship/LICENSE-INSTALLER.txt", mode = "644" },
+    { source = "packaging/postinst/rpm-post.sh", dest = "/usr/share/doc/ship/rpm-post.sh", mode = "755" },
+    { source = "packaging/postinst/rpm-preun.sh", dest = "/usr/share/doc/ship/rpm-preun.sh", mode = "755" },
 ]
 post_install_script = """
 #!/bin/sh
@@ -105,7 +105,7 @@ set -eu
 
 # The scriptlets above are tiny wrappers around the richer shell
 # scripts we ship with the package — the RPM spec embeds them as
-# strings but the real logic lives in contrib/postinst/rpm-*.sh and
+# strings but the real logic lives in packaging/postinst/rpm-*.sh and
 # gets installed alongside the docs so admins can re-run it manually.
 
 [dev-dependencies]

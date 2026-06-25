@@ -32,9 +32,12 @@ packages/
   deck/sdk-client/       @ship/sdk-client -- view data client; Specta-generated types
   sui/runtime/           @ship/sui-runtime -- SUI framework runtime; Specta-generated types
   assets/                Shared static assets
-contrib/
-  ship-dev.sh            Dev container launcher (Podman)
-  Containerfile          Dev container image definition
+packaging/
+  shipd.service          systemd user service unit
+  launchers/             OS-specific launchers (macOS .app, Linux .desktop, Windows .cmd)
+  installer-assets/      Icons, license, signing docs
+  postinst/              Package manager post-install scripts (deb, rpm, pkg, msi)
+  # Dev-env files (Containerfile, ship-dev.sh) have moved to ~/dev/ship-ops/contrib/
 schemas/
   vars.schema.json       JSON Schema for skill variables
 ```
@@ -46,7 +49,7 @@ schemas/
 The dev container includes all dependencies pre-installed: Rust toolchain, Node via fnm, bun, wasm-pack, just, and standard dev tools. Uses Podman (Docker-compatible).
 
 ```bash
-cp contrib/ship-dev.sh ~/bin/ship-dev
+cp ~/dev/ship-ops/contrib/ship-dev.sh ~/bin/ship-dev
 chmod +x ~/bin/ship-dev
 ship-dev start
 ```

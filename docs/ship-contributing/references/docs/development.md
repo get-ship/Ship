@@ -10,13 +10,13 @@ audience: internal
 
 ## Dev Container
 
-Ship provides a Podman-based dev container via `contrib/ship-dev.sh`. It packages all build tooling into an Ubuntu 24.04 image with a non-root user.
+Ship provides a Podman-based dev container via `ship-ops/contrib/ship-dev.sh`. It packages all build tooling into an Ubuntu 24.04 image with a non-root user.
 
 ### Launcher commands
 
 | Command | Description |
 |---------|-------------|
-| `ship-dev build` | Build container image from `contrib/Containerfile` |
+| `ship-dev build` | Build container image from `ship-ops/contrib/Containerfile` |
 | `ship-dev start` | Start container and attach tmux (default action) |
 | `ship-dev shell` | Attach to a running container's tmux session |
 | `ship-dev exec <cmd>` | Run a single command inside the container |
@@ -28,7 +28,7 @@ Ship provides a Podman-based dev container via `contrib/ship-dev.sh`. It package
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SHIP_REPO` | `~/dev/Ship` | Path to Ship repo on host |
-| `SHIP_CONTAINERFILE` | `$SHIP_REPO/contrib/Containerfile` | Containerfile location |
+| `SHIP_CONTAINERFILE` | `$SHIP_OPS_REPO/contrib/Containerfile` | Containerfile location (lives in ship-ops) |
 | `SHIP_DOTFILES` | (unset) | Personal dotfiles directory for starship, helix, tmux, etc. |
 
 ### Volumes

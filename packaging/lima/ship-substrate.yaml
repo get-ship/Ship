@@ -4,7 +4,7 @@
 # sidecar runs inside (driven over ship.sidecar.v1, reached over a forwarded
 # loopback port). Start it as the Ship substrate instance:
 #
-#   limactl start --name ship-default contrib/lima/ship-substrate.yaml
+#   limactl start --name ship-default packaging/lima/ship-substrate.yaml
 #
 # Inherits the default Lima image + the home mount (so a host-built sidecar is
 # visible in the VM). DEV template — Phase F bakes a pinned substrate image

@@ -38,14 +38,14 @@ allow-dirty = ["ci"]
 
 # Extra files bundled into every tarball + referenced by the installers.
 include = [
-    "contrib/shipd.service",
-    "contrib/dev.getship.shipd.plist",
-    "contrib/installer-assets/LICENSE-INSTALLER.txt",
-    "contrib/installer-assets/ship-512.png",
-    "contrib/launchers/macos/Ship.app",
-    "contrib/launchers/windows/ship-launcher.cmd",
-    "contrib/postinst/pkg-postinstall.sh",
-    "contrib/postinst/msi-postinstall.ps1",
+    "packaging/shipd.service",
+    "packaging/dev.getship.shipd.plist",
+    "packaging/installer-assets/LICENSE-INSTALLER.txt",
+    "packaging/installer-assets/ship-512.png",
+    "packaging/launchers/macos/Ship.app",
+    "packaging/launchers/windows/ship-launcher.cmd",
+    "packaging/postinst/pkg-postinstall.sh",
+    "packaging/postinst/msi-postinstall.ps1",
 ]
 
 # ── macOS .pkg ──────────────────────────────────────────────────────────────
@@ -55,17 +55,17 @@ install-location = "/usr/local"
 # Invoked by productbuild after files land under install-location.
 # Copies Ship.app into /Applications and calls `ship daemon install-service`
 # in the console user's context.
-postinstall-script = "contrib/postinst/pkg-postinstall.sh"
+postinstall-script = "packaging/postinst/pkg-postinstall.sh"
 
 # ── Windows .msi ────────────────────────────────────────────────────────────
 [dist.msi-config]
 # cargo-dist injects a WiX CustomAction that runs this PowerShell file
 # at the end of the install sequence (deferred, impersonated) so the
 # scheduled task lands in the invoking user's session.
-postinstall-script = "contrib/postinst/msi-postinstall.ps1"
+postinstall-script = "packaging/postinst/msi-postinstall.ps1"
 # Start-menu shortcut launched by the user to open the Ship dashboard.
 # cargo-dist wires this into the MSI's `StartMenuFolder` feature.
-start-menu-shortcut = { target = "contrib/launchers/windows/ship-launcher.cmd", name = "Ship" }
+start-menu-shortcut = { target = "packaging/launchers/windows/ship-launcher.cmd", name = "Ship" }
 
 # ── Signing (gated on CI secrets; cargo-dist reads from env vars) ───────────
 [dist.macos-sign]
