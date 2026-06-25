@@ -1,29 +1,20 @@
 //! ConnectRPC surface for the Ship operation registry (`ship.ops.v1`).
 //!
-//! Generated from `proto/ship/ops/v1/*.proto` via `connectrpc-build` in
-//! `build.rs` — the single source of truth for op **shapes and policy**
-//! (decision #67, option a). `connectrpc-build` emits both the server-side
-//! `OpsService` trait (implemented by the daemon — compile-time 1-1 dispatch
-//! conformance) and a typed client (CLI/GUI). The daemon mounts the service on
-//! its existing axum router via `connectrpc`'s `axum` integration; the surface
-//! is additive beside the REST/SSE routes.
+//! The proto bindings are generated once in the published `ship-proto` crate
+//! (ship-contracts is the single source of truth for op **shapes and policy**,
+//! decision #67, option a) and re-exported here. `ship-proto` emits both the
+//! server-side `OpsService` trait (implemented by the daemon — compile-time
+//! 1-1 dispatch conformance) and a typed client (CLI/GUI). The daemon mounts
+//! the service on its existing axum router via `connectrpc`'s `axum` integration
+//! (enabled graph-wide by shipd via feature-unification); the surface is
+//! additive beside the REST/SSE routes. The hand-written `policy` + `catalog`
+//! modules below are Ship implementation, not contract, and stay here.
 
-// Generated code trips a few stylistic clippy lints (default-impl match
-// bindings, large descriptor blobs); allow on the module rather than patch the
-// generator output. Mirrors ship-gateway-client.
-// Generated code (connectrpc-build over proto/ship/ops/v1) is exempt from
-// lint policy wholesale — proto enum values legitimately generate
-// SCREAMING_CASE variants, and the generator's output is not ours to style.
-#[allow(clippy::all, non_camel_case_types)]
-pub mod ship {
-    pub mod ops {
-        pub mod v1 {
-            include!(concat!(env!("OUT_DIR"), "/ship.ops.v1.mod.rs"));
-        }
-    }
-}
-
-pub use ship::ops::v1::*;
+// Proto bindings are produced once in the published `ship-proto` crate
+// (ship-contracts is the SSOT) and re-exported here so existing consumers keep
+// importing `ship_ops_rpc::ship::ops::v1::*` and the crate-root glob unchanged.
+pub use ship_proto::ship;
+pub use ship_proto::ship::ops::v1::*;
 
 pub mod policy;
 pub use policy::BlastRadius;
@@ -35,5 +26,5 @@ pub use catalog::{OpDescriptor, ArgDescriptor, CommandDescriptor, COMMANDS, OPS}
 /// (`capability`, `blast_radius`, `op_sensitive`). The daemon gate reads policy
 /// from this at startup (buffa reflection) rather than from the generated Rust,
 /// since the runtime drops custom options in normal codegen — see #74.
-pub const FILE_DESCRIPTOR_SET: &[u8] =
-    include_bytes!(concat!(env!("OUT_DIR"), "/ops_descriptor.bin"));
+/// Re-exported from `ship-proto`, which embeds it via `--include_imports`.
+pub const FILE_DESCRIPTOR_SET: &[u8] = ship_proto::OPS_FILE_DESCRIPTOR_SET;

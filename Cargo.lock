@@ -8299,14 +8299,13 @@ version = "0.1.0"
 dependencies = [
  "buffa",
  "connectrpc",
- "connectrpc-build",
  "http",
  "http-body",
- "protoc-bin-vendored",
  "rustls",
  "rustls-native-certs",
  "serde",
  "serde_json",
+ "ship-proto",
  "thiserror 2.0.18",
 ]
 
@@ -8430,12 +8429,11 @@ dependencies = [
  "buffa",
  "buffa-descriptor",
  "connectrpc",
- "connectrpc-build",
  "http",
  "http-body",
- "protoc-bin-vendored",
  "serde",
  "serde_json",
+ "ship-proto",
  "thiserror 2.0.18",
 ]
 
@@ -8566,6 +8564,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-proto"
+version = "0.1.0"
+source = "git+file:///home/madvib/dev/ship-contracts?branch=master#6ef2eb2963f89baa6ece030e028a3da37c6f8d53"
+dependencies = [
+ "buffa",
+ "buffa-descriptor",
+ "connectrpc",
+ "connectrpc-build",
+ "http",
+ "http-body",
+ "protoc-bin-vendored",
+ "serde",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "ship-reactive"
 version = "0.1.0"
 dependencies = [
@@ -8635,11 +8649,10 @@ version = "0.1.0"
 dependencies = [
  "buffa",
  "connectrpc",
- "connectrpc-build",
  "http",
  "http-body",
- "protoc-bin-vendored",
  "serde",
+ "ship-proto",
 ]
 
 [[package]]

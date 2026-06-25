@@ -6,6 +6,10 @@ publish = false
 description = "Typed Connect-RPC client for the Ship gateway (apps/gateway). Codegen runs in build.rs from proto/ship/gateway/v1/*.proto."
 
 [dependencies]
+# Generated gateway bindings now live in the published `ship-proto` crate
+# (ship-contracts SSOT); this crate re-exports `ship::gateway::v1` and keeps the
+# hand-written TLS transport / auth_client helpers below.
+ship-proto = { git = "file:///home/madvib/dev/ship-contracts", branch = "master" }
 # Connect-RPC runtime. `client` is the unary/streaming client; `client-tls`
 # pulls in rustls so HttpClient::with_tls is available for the production
 # https://api.getship.dev gateway.
@@ -28,11 +32,6 @@ http = "1"
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 rustls-native-certs = "0.8"
 thiserror = { workspace = true }
-
-[build-dependencies]
-connectrpc-build = "0.4"
-# Bundles a protoc binary so fresh clones don't need a system-wide install.
-protoc-bin-vendored = "3"
 
 [dev-dependencies]
 serde_json = { workspace = true }
