@@ -141,12 +141,14 @@ impl ShipRuntime {
         // `ArtifactProjection` materialize the table into, so a query reads
         // exactly what the projection wrote.
         //
-        // The active space is the path-hash of the DISCOVERED project root — the
-        // identity the `projects` projection keys on. With NO discoverable project
-        // the daemon boots space-less: `space_id` is `None`, the ctx is NOT
-        // built, and a space-scoped op resolves the active space per-request and
-        // errors cleanly if there is none. There is NO daemon home space and NO
-        // `global` pseudo-space to fall back onto (S2 home-space kill).
+        // The active space is the CONTENT-ID (`ship.jsonc#id`) of the discovered
+        // project root — the single stable identity that the `projects`
+        // projection, event-partition, and space.db all key on. With NO
+        // discoverable project the daemon boots space-less: `space_id` is `None`,
+        // the ctx is NOT built, and a space-scoped op resolves the active space
+        // per-request and errors cleanly if there is none. There is NO daemon
+        // home space and NO `global` pseudo-space to fall back onto (S2
+        // home-space kill).
         let space_id = {
             let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
             probe

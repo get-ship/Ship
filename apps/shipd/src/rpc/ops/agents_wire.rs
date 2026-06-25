@@ -44,8 +44,14 @@ pub(super) fn mount(
                 let (ship_dir, space) = match scope {
                     Scope::Project => {
                         let Some(ws) = st.workspace_dir() else { return };
-                        let space = SpaceId::new(ship_substrate::home::path_hash(ws));
-                        (ShipHome::project_ship_dir(ws), Some(space))
+                        let project_ship_dir = ShipHome::project_ship_dir(ws);
+                        // Use the CONTENT-ID (ship.jsonc#id) as the space-id
+                        // so agent-def events route to the same
+                        // spaces/<content-id>/space.db every other path uses.
+                        let space = ship_substrate::project::ensure_space_id(&project_ship_dir)
+                            .ok()
+                            .map(SpaceId::new);
+                        (project_ship_dir, space)
                     }
                     Scope::User => (st.ship_dir().to_path_buf(), None),
                 };

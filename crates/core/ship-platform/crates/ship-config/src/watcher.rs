@@ -163,9 +163,17 @@ pub fn spawn_config_watcher(
 
     let library_dir = ShipHome::at(ship_dir).library_dir();
 
+    // The space-id for the project-scope watcher must be the CONTENT-ID (the
+    // `id` field from `<workspace>/.ship/ship.jsonc`), not the path-hash.
+    // This ensures config.file_changed events are routed to the same
+    // `spaces/<content-id>/space.db` that every other operational path uses.
     let project_space = workspace_dir
         .as_deref()
-        .map(|root| SpaceId::new(ship_substrate::home::path_hash(root)));
+        .and_then(|root| {
+            let ship_dir = ShipHome::project_ship_dir(root);
+            ship_substrate::project::ensure_space_id(&ship_dir).ok()
+        })
+        .map(SpaceId::new);
     let project_ship_dir = workspace_dir.map(ShipHome::project_ship_dir);
 
     let mut watcher = ConfigWatcher::new();

@@ -197,8 +197,38 @@ fn path_slug_from_ship_dir(ship_dir: &Path) -> String {
     }
 }
 
+/// Per-process lock that serialises concurrent `ensure_space_id` callers.
+///
+/// The double-checked pattern: check without the lock (fast path), acquire,
+/// re-check (another caller may have written the id while we waited), then
+/// generate + write. This eliminates the TOCTOU window where two goroutines
+/// both see "no id", both mint a nanoid, and the second atomic rename silently
+/// discards the first.  Cross-process races remain theoretically possible but
+/// are negligible pre-launch (single daemon per project); a follow-up can add
+/// POSIX flock(2) if multi-process minting becomes a real scenario.
+static ENSURE_ID_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Ensure a project has a persistent id in ship.jsonc and return it.
+///
+/// Atomic within a process: a global `Mutex` prevents two concurrent callers
+/// from each minting a distinct nanoid and racing the atomic rename. The
+/// double-checked pattern means callers that find an existing id skip the lock
+/// entirely on the fast path.
 pub fn ensure_space_id(ship_dir: &Path) -> Result<String> {
+    // Fast path: id already present — no lock needed.
+    if let Some(identity) = read_space_identity(ship_dir)
+        && let Some(id) = identity.id
+    {
+        return Ok(id);
+    }
+
+    // Slow path: acquire the process-wide lock, then re-check (another caller
+    // may have written the id while we were waiting).
+    let _guard = ENSURE_ID_LOCK
+        .lock()
+        .map_err(|_| anyhow!("ensure_space_id: internal lock poisoned"))?;
+
+    // Re-check under lock.
     if let Some(identity) = read_space_identity(ship_dir)
         && let Some(id) = identity.id
     {

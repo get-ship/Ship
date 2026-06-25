@@ -231,9 +231,9 @@ impl ShipRuntime {
             return;
         };
         let project_ship_dir = ship_substrate::ShipHome::project_ship_dir(&workspace);
-        // Active-space identity = path-hash of the DISCOVERED project root — the
-        // same resolution collection/artifact contexts use (init.rs). Space-less
-        // workspace → no index; the daemon owns no home space to fall back on.
+        // Active-space identity = CONTENT-ID (`ship.jsonc#id`) of the discovered
+        // project root — the same identity collection/artifact contexts use (init.rs).
+        // Space-less workspace → no index; the daemon owns no home space to fall back on.
         let Some(space_id) = ship_substrate::project::resolve_active_space(&workspace) else {
             tracing::info!("agent-def index: workspace is space-less — skipping live mount");
             return;
