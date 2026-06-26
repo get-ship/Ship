@@ -2,15 +2,21 @@
 // No external deps. Node 20+.
 
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export const BENCH_HOME = process.env.BENCH_HOME || resolve(homedir(), 'dev/js-framework-benchmark')
 export const CHROME_BINARY = process.env.CHROME_BINARY
   || resolve(homedir(), '.cache/ms-playwright/chromium-1217/chrome-linux64/chrome')
 
 export const SUI_FRAMEWORK_DIR = resolve(BENCH_HOME, 'frameworks/keyed/sui')
+
+// We own the keyed/sui bench app in-repo (rather than forking the whole
+// benchmark) and sync it into the external checkout before each build.
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
+export const VENDORED_SUI_DIR = resolve(REPO_ROOT, 'tests/perf/frameworks/keyed/sui')
 export const RUNNER = resolve(BENCH_HOME, 'webdriver-ts/dist/benchmarkRunner.js')
 export const RESULTS_DIR = resolve(BENCH_HOME, 'webdriver-ts/results')
 
@@ -75,9 +81,38 @@ export function tableForFramework(framework) {
   return out
 }
 
-// Rebuild the SUI bundle in the benchmark framework dir.
+// Copy the in-repo keyed/sui app into the external benchmark checkout. Only the
+// authored source is synced; node_modules / dist / bun.lock in the target are
+// left as the build's working state (the synced dir still needs `bun install`
+// once for esbuild — see tests/perf/frameworks/keyed/sui/README.md).
+const SYNCED_SUI_FILES = [
+  'package.json',
+  'package-lock.json',
+  'index.html',
+  'src/main.ts',
+  'src/sui-keyed.sui',
+  'src/sui-keyed.controller.ts',
+  'scripts/precompile.mjs',
+]
+export function syncSuiFramework() {
+  if (!existsSync(VENDORED_SUI_DIR)) {
+    throw new Error(`vendored keyed/sui app missing at ${VENDORED_SUI_DIR}`)
+  }
+  for (const rel of SYNCED_SUI_FILES) {
+    const from = resolve(VENDORED_SUI_DIR, rel)
+    if (!existsSync(from)) throw new Error(`vendored bench file missing: ${rel}`)
+    const to = resolve(SUI_FRAMEWORK_DIR, rel)
+    mkdirSync(dirname(to), { recursive: true })
+    cpSync(from, to)
+  }
+  console.log(`▸ synced keyed/sui app → ${SUI_FRAMEWORK_DIR}`)
+}
+
+// Rebuild the SUI bundle in the benchmark framework dir. Syncs the in-repo
+// source in first so the vendored copy is authoritative.
 // Throws on failure (build errors bubble up).
 export function rebuildSuiBundle() {
+  syncSuiFramework()
   execFileSync('npm', ['run', 'build-prod'], {
     cwd: SUI_FRAMEWORK_DIR,
     stdio: 'inherit',

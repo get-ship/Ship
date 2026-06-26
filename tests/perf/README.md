@@ -56,20 +56,27 @@ This rebuilds the SUI bench bundle, runs the benchmark against SUI plus
 comparison frameworks (solid, svelte, vue, vanillajs), and writes a fresh
 `<today>-baseline.json`. Commit it.
 
-The SUI bench app (`frameworks/keyed/sui`) and the comparison frameworks live
-in that external js-framework-benchmark checkout, **not in this repo**. The
-checkout's clone URL is not recorded in-tree — record it as the repo variable
-`SUI_BENCH_REPO` (and a pinned `SUI_BENCH_REF`) so the nightly CI gate
+The SUI bench app is **owned in this repo** at
+`tests/perf/frameworks/keyed/sui/` (see its README) and synced into the external
+checkout (`syncSuiFramework()` in `scripts/dev/bench-lib.mjs`) before each build
+— we maintain only those source files, not a fork of the whole benchmark. The
+comparison frameworks (solid, lit, svelte, vue, vanillajs) still live in the
+external checkout. Its clone URL is not recorded in-tree — record it as the repo
+variable `SUI_BENCH_REPO` (and a pinned `SUI_BENCH_REF`) so the nightly CI gate
 (`.github/workflows/bench.yml`) can clone it. Until that variable is set the CI
 `js-bench` job no-ops with an explanation.
 
 Requires:
-- `~/dev/js-framework-benchmark/` checked out with comparison frameworks
-  already built (`npm run build-prod` in each).
+- An external js-framework-benchmark checkout (default `~/dev/js-framework-benchmark`,
+  override with `BENCH_HOME=...`) with comparison frameworks already built
+  (`npm run build-prod` in each). On first use, `bun install` once inside the
+  synced `frameworks/keyed/sui` dir (esbuild).
 - Playwright Chromium installed at the path in `scripts/dev/bench-lib.mjs`
   (override with `CHROME_BINARY=...`).
-- A working `sui-compiler` in `~/dev/Ship-feat-sail/target/debug/`, which is
-  what `frameworks/keyed/sui/scripts/precompile.mjs` expects.
+- A sui checkout the vendored `precompile.mjs` can find — it resolves `SUI_REPO`
+  (env), then `SUI_COMPILER`/`SUI_RUNTIME` (env), then probes `~/dev/sui` and
+  `~/dev/Ship/sui`. Set `SUI_REPO` if the checkout lives elsewhere. Build the
+  compiler first: `cargo build -p sui-compiler` under that checkout.
 
 ## Checking against the baseline
 
