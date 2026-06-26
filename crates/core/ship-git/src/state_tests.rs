@@ -424,6 +424,121 @@ fn commit_diff_matches_commit_sha() {
     assert!(read::load_commit_diff(&r.root, "not-a-sha").is_empty());
 }
 
+// ── structured diff (the git modal's render-ready tree) ─────────────────────
+
+#[test]
+fn structured_working_diff_shapes_rows() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1\n");
+    initial_commit(&r.root);
+    write_file(&r.root, "a.txt", "v2\n");
+
+    // No ref → the working tree vs HEAD (the uncommitted change).
+    let view = read::structured_diff(&r.root, None, None).unwrap();
+    assert_eq!(view.files.len(), 1);
+    let f = &view.files[0];
+    assert_eq!(f.path, "a.txt");
+    assert_eq!(f.old_path, "a.txt");
+    assert_eq!(f.status, "modified");
+    assert_eq!(f.additions, 1);
+    assert_eq!(f.deletions, 1);
+    assert!(!f.binary);
+    assert_eq!(view.additions, 1);
+    assert_eq!(view.deletions, 1);
+    assert!(!view.truncated);
+
+    // First row is the hunk header; then a del row (v1) and an add row (v2).
+    assert!(f.rows[0].hunk, "first row is a hunk header");
+    assert!(f.rows[0].header.starts_with("@@"));
+    let del = f.rows.iter().find(|row| row.kind == "del").expect("a del row");
+    assert_eq!(del.text, "v1");
+    assert_eq!(del.new_line, "", "a del has no new-side number");
+    let add = f.rows.iter().find(|row| row.kind == "add").expect("an add row");
+    assert_eq!(add.text, "v2");
+    assert_eq!(add.old_line, "", "an add has no old-side number");
+    // Keys are unique across the diff (stable {#for} keys).
+    let keys: std::collections::BTreeSet<&str> = f.rows.iter().map(|row| row.key.as_str()).collect();
+    assert_eq!(keys.len(), f.rows.len(), "row keys are unique");
+}
+
+#[test]
+fn structured_diff_commit_ref_shows_own_change() {
+    let r = init_repo();
+    // First commit: a.txt only.
+    write_file(&r.root, "a.txt", "base\n");
+    initial_commit(&r.root);
+    // Second commit: adds b.txt — that commit's OWN change is just b.txt.
+    write_file(&r.root, "b.txt", "hello\n");
+    let sha = commit_on_head(&r.root, "add b");
+
+    let view = read::structured_diff(&r.root, None, Some(&sha)).unwrap();
+    assert_eq!(view.files.len(), 1, "the commit's own change is one file");
+    let f = &view.files[0];
+    assert_eq!(f.path, "b.txt");
+    assert_eq!(f.status, "added");
+    assert_eq!(f.additions, 1);
+    assert_eq!(f.deletions, 0);
+    assert!(f.rows.iter().any(|row| row.kind == "add" && row.text == "hello"));
+}
+
+#[test]
+fn structured_diff_clean_tree_is_empty() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1\n");
+    initial_commit(&r.root);
+
+    let view = read::structured_diff(&r.root, None, None).unwrap();
+    assert!(view.files.is_empty(), "clean tree has no changed files");
+    assert_eq!(view.additions, 0);
+    assert_eq!(view.deletions, 0);
+    assert!(!view.truncated);
+}
+
+#[test]
+fn structured_diff_scopes_to_pathspec() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "a1\n");
+    write_file(&r.root, "b.txt", "b1\n");
+    initial_commit(&r.root);
+    write_file(&r.root, "a.txt", "a2\n");
+    write_file(&r.root, "b.txt", "b2\n");
+
+    // Whole-repo diff sees both files; a pathspec scopes to one.
+    let all = read::structured_diff(&r.root, None, None).unwrap();
+    assert_eq!(all.files.len(), 2);
+    let scoped = read::structured_diff(&r.root, Some("b.txt"), None).unwrap();
+    assert_eq!(scoped.files.len(), 1);
+    assert_eq!(scoped.files[0].path, "b.txt");
+}
+
+#[test]
+fn structured_diff_truncates_past_the_cap() {
+    let r = init_repo();
+    // Commit an empty file, then fill it past the row cap so the working diff is
+    // all additions: one hunk-header row + N add rows > MAX_DIFF_ROWS.
+    write_file(&r.root, "big.txt", "");
+    initial_commit(&r.root);
+    let n = read::MAX_DIFF_ROWS + 100;
+    let body: String = (0..n).map(|i| format!("line {i}\n")).collect();
+    write_file(&r.root, "big.txt", &body);
+
+    let view = read::structured_diff(&r.root, None, None).unwrap();
+    assert!(view.truncated, "a diff past the cap is truncated");
+    let rows: usize = view.files.iter().map(|f| f.rows.len()).sum();
+    assert_eq!(rows, read::MAX_DIFF_ROWS, "rows are capped at MAX_DIFF_ROWS");
+    // Counts still reflect the FULL diff even though rows were dropped.
+    assert_eq!(view.additions as usize, n, "counts reflect the full diff");
+}
+
+#[test]
+fn structured_diff_bad_ref_errors() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1\n");
+    initial_commit(&r.root);
+    let err = read::structured_diff(&r.root, None, Some("not-a-real-ref")).unwrap_err();
+    assert!(matches!(err, super::state::GitError::BadRef(_)));
+}
+
 // ── checkout ─────────────────────────────────────────────────────────────
 
 #[test]

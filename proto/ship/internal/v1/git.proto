@@ -45,6 +45,16 @@ service GitService {
   // git-derived "who's touching what". Advisory only — overlap WARNS, never
   // blocks; there is no lock. A pure read: no index, no working tree, no writes.
   rpc Footprint(FootprintRequest) returns (FootprintResponse);
+
+  // Diff: the render-ready diff for Helm's git modal — the working tree vs HEAD
+  // (no `ref` — the in-flight, uncommitted change) or a single commit's own
+  // change vs its first parent (a `ref`), scoped to an optional `pathspec`. Maps
+  // to ship-git's `read::structured_diff`: a flat file/hunk/row tree that
+  // <ship-git-diff> renders directly (rows past a cap are dropped + `truncated`
+  // is set; the add/del counts still reflect the FULL diff). A pure read — no
+  // index, no working tree, no writes. This is the FIRST UI surface on dev-RPC:
+  // the browser dials this op DIRECTLY (the "second client", alongside Hono).
+  rpc Diff(DiffRequest) returns (DiffResponse);
 }
 
 message GitOverviewRequest {
@@ -140,4 +150,60 @@ message FootprintResponse {
   // de-duplicated. Empty when the branch is at (or behind) the base. Presence
   // derives overlap (a file in >=2 jobs' footprints) from this — a warning, not a lock.
   repeated string files = 1;
+}
+
+message DiffRequest {
+  // Absolute path to the repository working tree.
+  string repo_path = 1;
+  // Optional path/glob scope (a git pathspec); "" = the whole repo.
+  string pathspec = 2;
+  // "" = the working tree vs HEAD (the uncommitted change); else a commit/ref
+  // whose OWN change (vs its first parent) to render.
+  string ref = 3;
+}
+
+// One rendered row inside a file: a hunk-header row (`hunk` = true, only
+// `header` set) OR a single diff line (`hunk` = false). Maps 1:1 onto a
+// <ship-git-diff-hunk> / <ship-git-diff-line> child.
+message DiffRow {
+  // True → a hunk-header row; false → a line row.
+  bool hunk = 1;
+  // The `@@ -a,b +c,d @@ …` header (hunk rows only).
+  string header = 2;
+  // "add" | "del" | "context" (line rows); "" for hunk rows.
+  string kind = 3;
+  // Old-side line number ("" on an add).
+  string old_line = 4;
+  // New-side line number ("" on a del).
+  string new_line = 5;
+  // The line's code text (origin char stripped, trailing EOL trimmed).
+  string text = 6;
+  // Stable per-render key (a monotonic counter across the whole diff).
+  string key = 7;
+}
+
+// One changed file: its paths + status + counts + the row tree.
+message DiffFile {
+  // New path (or the old path for a delete).
+  string path = 1;
+  // Pre-rename path (== `path` when not renamed).
+  string old_path = 2;
+  // "added" | "deleted" | "modified" | "renamed".
+  string status = 3;
+  uint32 additions = 4;
+  uint32 deletions = 5;
+  // Binary files carry no rows.
+  bool binary = 6;
+  repeated DiffRow rows = 7;
+}
+
+message DiffResponse {
+  // The changed files in stable diff order, each with its render-ready rows.
+  repeated DiffFile files = 1;
+  // Total additions across all files (reflects the FULL diff even if truncated).
+  uint32 additions = 2;
+  // Total deletions across all files (reflects the FULL diff even if truncated).
+  uint32 deletions = 3;
+  // True when the row cap was hit and rows beyond it were dropped.
+  bool truncated = 4;
 }

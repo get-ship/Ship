@@ -4,6 +4,7 @@
 //! handle across calls (it's not `Send`). Opens are cheap.
 
 use git2::{BranchType, DiffFormat, DiffOptions, Repository, StatusOptions};
+use serde::Serialize;
 use std::path::Path;
 
 use super::state::{
@@ -451,4 +452,233 @@ pub fn load_commit_diff(root: &Path, sha: &str) -> String {
         Ok(diff) => diff_to_string(diff),
         Err(_) => String::new(),
     }
+}
+
+// ── structured diff (the git modal's render-ready tree) ──────────────────────
+//
+// A git2 patch-based diff producing the EXACT row tree `<ship-git-diff>` renders
+// (see ship-ops/src/git.ts `DiffRow`/`DiffFile`/`GitDiff` for the target shape):
+// a flat list of files, each a flat list of rows (a hunk-header row OR a single
+// add/del/context line row). No unified-text round-trip — we walk git2's own
+// `Patch` hunks/lines. This is the read half of helmd's `Diff` RPC; the daemon
+// maps `DiffView` straight onto the proto response.
+
+/// Render cap: a diff is a tree of DOM nodes, so bound it (a huge refactor must
+/// not freeze the page). Rows past the cap are dropped and `truncated` is set;
+/// the per-file/total add/del counts still reflect the FULL diff. Mirrors
+/// ship-ops/src/git.ts's `MAX_DIFF_ROWS`.
+pub const MAX_DIFF_ROWS: usize = 4000;
+
+/// One rendered row inside a file: a hunk-header row (`hunk: true`, only `header`
+/// set) OR a single diff line (`hunk: false`). Maps 1:1 to a
+/// `<ship-git-diff-hunk>` / `<ship-git-diff-line>` child.
+#[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
+pub struct DiffRow {
+    /// True → a hunk-header row; false → a line row.
+    pub hunk: bool,
+    /// The `@@ -a,b +c,d @@ …` header (hunk rows only).
+    pub header: String,
+    /// "add" | "del" | "context" (line rows); empty for hunk rows.
+    pub kind: String,
+    /// Old-side line number ("" on an add).
+    pub old_line: String,
+    /// New-side line number ("" on a del).
+    pub new_line: String,
+    /// The line's code text (the +/-/space origin stripped, trailing EOL trimmed).
+    pub text: String,
+    /// Stable per-render key (a monotonic counter across the whole diff).
+    pub key: String,
+}
+
+/// One changed file: its paths + status + counts + the row tree.
+#[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
+pub struct DiffFile {
+    /// New path (or the old path for a delete).
+    pub path: String,
+    /// Pre-rename path (== `path` when not renamed).
+    pub old_path: String,
+    /// "added" | "deleted" | "modified" | "renamed".
+    pub status: String,
+    pub additions: u32,
+    pub deletions: u32,
+    /// Binary files carry no rows.
+    pub binary: bool,
+    pub rows: Vec<DiffRow>,
+}
+
+/// A parsed diff — the render-ready payload `<ship-git-diff>` consumes.
+#[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
+pub struct DiffView {
+    pub files: Vec<DiffFile>,
+    pub additions: u32,
+    pub deletions: u32,
+    /// Hit `MAX_DIFF_ROWS` — rows beyond the cap were dropped.
+    pub truncated: bool,
+}
+
+/// Append `row` unless the cap is hit (then flip `truncated`). Stamps a stable
+/// key from `seq` only when the row is actually kept.
+fn push_diff_row(
+    rows: &mut Vec<DiffRow>,
+    mut row: DiffRow,
+    total: &mut usize,
+    truncated: &mut bool,
+    seq: &mut u64,
+) {
+    if *total >= MAX_DIFF_ROWS {
+        *truncated = true;
+        return;
+    }
+    row.key = seq.to_string();
+    *seq += 1;
+    rows.push(row);
+    *total += 1;
+}
+
+/// Walk a computed `git2::Diff` into the render-ready [`DiffView`] tree.
+fn build_diff_view(diff: &git2::Diff) -> DiffView {
+    use git2::{Delta, DiffFlags, Patch};
+
+    let mut view = DiffView::default();
+    let mut total_rows = 0usize;
+    let mut seq = 0u64;
+
+    let path_string = |p: &Path| p.to_string_lossy().into_owned();
+
+    for idx in 0..diff.deltas().len() {
+        let Some(delta) = diff.get_delta(idx) else { continue };
+
+        let status = match delta.status() {
+            Delta::Added | Delta::Untracked => "added",
+            Delta::Deleted => "deleted",
+            Delta::Renamed | Delta::Copied => "renamed",
+            _ => "modified",
+        };
+        let new_path = delta.new_file().path().map(path_string).unwrap_or_default();
+        let old_path = delta.old_file().path().map(path_string).unwrap_or_default();
+        // `path` = the new path (the old path for a delete, where new is /dev/null);
+        // `old_path` = the old path (== path when not renamed / for an add).
+        let path = if new_path.is_empty() { old_path.clone() } else { new_path.clone() };
+        let old_path = if old_path.is_empty() { new_path } else { old_path };
+        let binary = delta.flags().contains(DiffFlags::BINARY);
+
+        let mut file = DiffFile {
+            path,
+            old_path,
+            status: status.to_string(),
+            binary,
+            ..Default::default()
+        };
+
+        // Binary files (and `Patch::from_diff` -> None) carry no rows.
+        if !binary && let Ok(Some(patch)) = Patch::from_diff(diff, idx) {
+            for h in 0..patch.num_hunks() {
+                let Ok((hunk, _)) = patch.hunk(h) else { continue };
+                let header = std::str::from_utf8(hunk.header())
+                    .unwrap_or("")
+                    .trim_end_matches(['\n', '\r'])
+                    .to_string();
+                push_diff_row(
+                    &mut file.rows,
+                    DiffRow { hunk: true, header, ..Default::default() },
+                    &mut total_rows,
+                    &mut view.truncated,
+                    &mut seq,
+                );
+
+                let lines = patch.num_lines_in_hunk(h).unwrap_or(0);
+                for l in 0..lines {
+                    let Ok(line) = patch.line_in_hunk(h, l) else { continue };
+                    // Counts increment for EVERY +/- line even when its row is
+                    // dropped by the cap, so the summary stays honest.
+                    let kind = match line.origin() {
+                        '+' | '>' => {
+                            file.additions += 1;
+                            view.additions += 1;
+                            "add"
+                        }
+                        '-' | '<' => {
+                            file.deletions += 1;
+                            view.deletions += 1;
+                            "del"
+                        }
+                        ' ' | '=' => "context",
+                        // 'F' file header, 'H' hunk header, 'B' binary — not rows.
+                        _ => continue,
+                    };
+                    let text = std::str::from_utf8(line.content())
+                        .unwrap_or("")
+                        .trim_end_matches(['\n', '\r'])
+                        .to_string();
+                    let old_line = line.old_lineno().map(|n| n.to_string()).unwrap_or_default();
+                    let new_line = line.new_lineno().map(|n| n.to_string()).unwrap_or_default();
+                    push_diff_row(
+                        &mut file.rows,
+                        DiffRow {
+                            hunk: false,
+                            kind: kind.to_string(),
+                            old_line,
+                            new_line,
+                            text,
+                            ..Default::default()
+                        },
+                        &mut total_rows,
+                        &mut view.truncated,
+                        &mut seq,
+                    );
+                }
+            }
+        }
+
+        view.files.push(file);
+    }
+
+    view
+}
+
+/// The render-ready diff for the git modal: the working tree vs HEAD
+/// (`diff_ref` None — the in-flight, uncommitted change) or a single commit's
+/// own change vs its first parent (`diff_ref` Some), scoped to an optional
+/// `pathspec` ("" / None = the whole repo). git2 patch-based; renames detected
+/// so a move shows as one renamed file. A bad `diff_ref` is a typed
+/// [`GitError::BadRef`]; a non-repo / bad workdir surfaces as
+/// [`GitError::RepoUnavailable`] via [`open_repo`].
+pub fn structured_diff(
+    root: &Path,
+    pathspec: Option<&str>,
+    diff_ref: Option<&str>,
+) -> Result<DiffView, GitError> {
+    let repo = open_repo(root)?;
+
+    let mut opts = DiffOptions::new();
+    opts.context_lines(3);
+    if let Some(spec) = pathspec.filter(|s| !s.is_empty()) {
+        opts.pathspec(spec);
+    }
+
+    let mut diff = match diff_ref.filter(|s| !s.is_empty()) {
+        // A commit's own change: its first-parent tree -> its own tree.
+        Some(r) => {
+            use git2::ObjectType;
+            let commit = repo
+                .revparse_single(r)
+                .map_err(|e| GitError::BadRef(format!("ref `{r}`: {e}")))?
+                .peel(ObjectType::Commit)?
+                .into_commit()
+                .map_err(|_| GitError::BadRef(format!("ref `{r}` is not a commit")))?;
+            let commit_tree = commit.tree()?;
+            let parent_tree = commit.parents().next().and_then(|p| p.tree().ok());
+            repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&commit_tree), Some(&mut opts))?
+        }
+        // Working tree vs HEAD (index + workdir), i.e. `git diff HEAD`.
+        None => {
+            let head_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
+            repo.diff_tree_to_workdir_with_index(head_tree.as_ref(), Some(&mut opts))?
+        }
+    };
+
+    // Detect renames so a move surfaces as one renamed file, not add + delete.
+    let _ = diff.find_similar(None);
+
+    Ok(build_diff_view(&diff))
 }

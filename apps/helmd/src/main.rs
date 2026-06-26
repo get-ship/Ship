@@ -14,8 +14,13 @@
 //!   POST /ship.internal.v1.GitService/Land      — squash-merge (the `land` op)
 //!   POST /ship.internal.v1.GitService/Release   — squash integration->main + tag
 //!   POST /ship.internal.v1.GitService/Footprint — branch changed-files (presence)
+//!   POST /ship.internal.v1.GitService/Diff      — render-ready diff (the git modal)
 //! Auxiliary:
 //!   GET  /health  — liveness probe
+//!
+//! A CORS layer (tower-http) wraps the router so the browser — Helm's SPA, served
+//! by Hono on another origin in dev — can dial GitService DIRECTLY (the "second
+//! client" alongside Hono). The `Diff` op is the first UI surface on dev-RPC.
 //!
 //! Transport: plain TCP on a localhost port (default 2469, override with
 //! `--addr host:port`). TCP is the simplest thing that lets Helm dial it; a
@@ -42,9 +47,9 @@ use connectrpc::{RequestContext, Response, Router, ServiceResult};
 use tokio::net::TcpListener;
 
 use proto::{
-    FootprintResponse, GitOverviewResponse, GitService, GitServiceExt, LandResponse,
-    ReleaseResponse, OwnedFootprintRequestView, OwnedGitOverviewRequestView,
-    OwnedLandRequestView, OwnedReleaseRequestView,
+    DiffFile, DiffResponse, DiffRow, FootprintResponse, GitOverviewResponse, GitService,
+    GitServiceExt, LandResponse, ReleaseResponse, OwnedDiffRequestView, OwnedFootprintRequestView,
+    OwnedGitOverviewRequestView, OwnedLandRequestView, OwnedReleaseRequestView,
 };
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -164,6 +169,64 @@ impl GitService for GitImpl {
             Err(e) => Err(connectrpc::ConnectError::internal(e.to_string())),
         }
     }
+
+    #[allow(refining_impl_trait)]
+    async fn diff(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedDiffRequestView,
+    ) -> ServiceResult<DiffResponse> {
+        let root = PathBuf::from(req.repo_path.to_string());
+        let pathspec = req.pathspec.to_string();
+        let pathspec = (!pathspec.is_empty()).then_some(pathspec);
+        let diff_ref = req.r#ref.to_string();
+        let diff_ref = (!diff_ref.is_empty()).then_some(diff_ref);
+
+        // ship-git leaf read: a flat file/hunk/row tree (working tree vs HEAD, or
+        // a commit's own change), already in the shape <ship-git-diff> renders.
+        match ship_git::read::structured_diff(&root, pathspec.as_deref(), diff_ref.as_deref()) {
+            Ok(view) => Response::ok(map_diff_view(view)),
+            Err(e) => Err(connectrpc::ConnectError::internal(e.to_string())),
+        }
+    }
+}
+
+/// Map ship-git's `DiffView` onto the proto `DiffResponse` (field-for-field; the
+/// shapes were designed to mirror so this is a flat translation).
+fn map_diff_view(view: ship_git::read::DiffView) -> DiffResponse {
+    DiffResponse {
+        files: view
+            .files
+            .into_iter()
+            .map(|f| DiffFile {
+                path: f.path,
+                old_path: f.old_path,
+                status: f.status,
+                additions: f.additions,
+                deletions: f.deletions,
+                binary: f.binary,
+                rows: f
+                    .rows
+                    .into_iter()
+                    .map(|r| DiffRow {
+                        hunk: r.hunk,
+                        header: r.header,
+                        kind: r.kind,
+                        old_line: r.old_line,
+                        new_line: r.new_line,
+                        text: r.text,
+                        key: r.key,
+                        ..Default::default()
+                    })
+                    .collect(),
+                ..Default::default()
+            })
+            .collect(),
+        additions: view.additions,
+        deletions: view.deletions,
+        truncated: view.truncated,
+        ..Default::default()
+    }
 }
 
 #[tokio::main]
@@ -179,12 +242,23 @@ async fn main() -> anyhow::Result<()> {
     let connect = Router::new();
     let connect = Arc::new(GitImpl).register(connect);
 
+    // CORS so the browser — Helm's SPA, served by Hono on another origin (e.g.
+    // http://localhost:3000) — can dial GitService directly in dev. Connect-web
+    // sends `content-type` + `connect-protocol-version` headers, which trip a
+    // preflight; a permissive dev policy answers it. helmd binds localhost only,
+    // so this is a dev convenience, not a public exposure.
+    let cors = tower_http::cors::CorsLayer::new()
+        .allow_origin(tower_http::cors::Any)
+        .allow_methods(tower_http::cors::Any)
+        .allow_headers(tower_http::cors::Any);
+
     let app = axum::Router::new()
         .route("/health", routing::get(|| async { (StatusCode::OK, VERSION) }))
-        .fallback_service(connect.into_axum_service());
+        .fallback_service(connect.into_axum_service())
+        .layer(cors);
 
     let listener = TcpListener::bind(&addr).await?;
-    eprintln!("helmd listening on {addr} (POST /ship.internal.v1.GitService/{{Overview,Land,Release,Footprint}})");
+    eprintln!("helmd listening on {addr} (POST /ship.internal.v1.GitService/{{Overview,Land,Release,Footprint,Diff}}, CORS on)");
     axum::serve(listener, app)
         .with_graceful_shutdown(async {
             let _ = tokio::signal::ctrl_c().await;

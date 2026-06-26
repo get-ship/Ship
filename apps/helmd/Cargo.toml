@@ -37,6 +37,9 @@ http-body = "1"
 http = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
 axum = { version = "0.8", features = ["macros"] }
+# CORS so the browser (Helm's SPA, served by Hono on another origin) can dial
+# helmd's GitService directly in dev — the "second client" alongside Hono.
+tower-http = { version = "0.6", features = ["cors"] }
 anyhow = "1.0"
 
 [build-dependencies]
