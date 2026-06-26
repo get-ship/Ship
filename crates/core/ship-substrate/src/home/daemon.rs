@@ -10,34 +10,14 @@
 
 use std::path::{Path, PathBuf};
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
-/// One of the four well-known daemon handshake files.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum DaemonFile {
-    /// TCP port the daemon bound.
-    Port,
-    /// Authentication token for CLI/MCP/hook callers.
-    Token,
-    /// Daemon process ID.
-    Pid,
-    /// Optional Unix socket path (when used).
-    Socket,
-}
-
-impl DaemonFile {
-    /// On-disk file name under `machine/daemon/`.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            DaemonFile::Port => "port",
-            DaemonFile::Token => "token",
-            DaemonFile::Pid => "pid",
-            DaemonFile::Socket => "socket",
-        }
-    }
-}
+// `DaemonFile` (the handshake-file enum) lives in the compiler-free `ship-paths`
+// leaf so `ShipHome::daemon_file` can take it without the substrate frontier.
+// Re-exported here so `ship_substrate::home::daemon::DaemonFile` and the
+// `home::mod` / crate-root re-exports keep resolving unchanged.
+pub use ship_paths::DaemonFile;
 
 // ── Multi-daemon discovery (devx-04) ─────────────────────────────────────────
 

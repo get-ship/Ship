@@ -1,0 +1,18 @@
+[package]
+name = "ship-paths"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Compiler-free leaf: ShipHome path layout, project-dir discovery, and the typed SHIP_* env surface. Depends only on std + home + ship-types so leaf crates can resolve .ship/ paths without the substrate frontier."
+
+[dependencies]
+serde = { workspace = true }
+anyhow = { workspace = true }
+home = { workspace = true }
+ship-types = { path = "../ship-types" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

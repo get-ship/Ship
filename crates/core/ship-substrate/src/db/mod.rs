@@ -87,7 +87,7 @@ pub(crate) fn resolve_db_path(ship_dir: &Path, db: crate::Db) -> PathBuf {
     }
     crate::ShipHome::at(ship_dir.to_path_buf())
         .machine_dir()
-        .join(crate::home::ship_home::MACHINE_DB_DIR)
+        .join(crate::home::MACHINE_DB_DIR)
         .join(db.as_str())
 }
 

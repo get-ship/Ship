@@ -7,7 +7,7 @@ publish = false
 description = "Git domain — repository operations, status, diffs. git2-backed L0 capability."
 
 [dependencies]
-ship-substrate = { path = "../ship-substrate" }
+ship-paths = { path = "../ship-substrate/crates/ship-paths" }
 git2 = "0.19"
 serde = { workspace = true }
 serde_json = { workspace = true }

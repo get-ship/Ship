@@ -3,16 +3,23 @@
 //! L0 surface only. `init_project` and `init_project_with_registry` live in
 //! ship-platform / runtime (they depend on config schemas and registry).
 
-pub const SHIP_DIR_NAME: &str = ".ship";
 pub const PRIMARY_CONFIG_FILE: &str = "ship.jsonc";
 
-mod discovery;
+// `.ship/` discovery + `SHIP_DIR_NAME` now live in the compiler-free
+// `ship-paths` leaf so leaf crates can resolve project dirs without the
+// substrate frontier. Re-exported here so `ship_substrate::project::*` and
+// internal `crate::project::*` / `super::SHIP_DIR_NAME` consumers keep
+// resolving unchanged.
+pub use ship_paths::project::SHIP_DIR_NAME;
+
 mod global;
 mod identity;
 mod paths;
 mod space;
 
-pub use discovery::{BOUNDARY_FILE, get_project_dir, resolve_project_ship_dir, ship_dir_from_path};
+pub use ship_paths::project::{
+    BOUNDARY_FILE, get_project_dir, resolve_project_ship_dir, ship_dir_from_path,
+};
 pub use global::get_global_dir;
 pub use identity::{
     ensure_space_id, get_project_name, project_slug_from_ship_dir, sanitize_file_name,
@@ -30,185 +37,14 @@ mod tests {
     use super::*;
     use anyhow::Result;
     use std::fs;
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
     use tempfile::tempdir;
 
-    use super::discovery::{canonicalize_lossy, parse_main_worktree_root};
+    // `.ship/` discovery tests moved with the code to `ship-paths`
+    // (project::discovery). The tests below cover the global/identity
+    // submodules that remain in this crate.
     use super::global::{is_likely_rust_test_binary, parse_test_global_dir_pid};
     use super::identity::is_transient_project_root;
-
-    #[test]
-    fn resolve_project_ship_dir_follows_git_worktree_pointer() -> Result<()> {
-        let tmp = tempdir()?;
-        let main_root = tmp.path().join("main");
-        let main_ship = crate::ShipHome::project_ship_dir(&main_root);
-        let common_git = main_root.join(".git");
-        let worktree_git = common_git.join("worktrees").join("feature-auth");
-        let wt_root = tmp.path().join("worktrees").join("feature-auth");
-        let wt_nested = wt_root.join("src").join("app");
-
-        fs::create_dir_all(&main_ship)?;
-        fs::create_dir_all(&worktree_git)?;
-        fs::create_dir_all(&wt_nested)?;
-        fs::write(
-            wt_root.join(".git"),
-            format!("gitdir: {}\n", worktree_git.display()),
-        )?;
-
-        let resolved = resolve_project_ship_dir(&wt_nested).expect("expected .ship resolution");
-        assert_eq!(resolved, canonicalize_lossy(&main_ship));
-        Ok(())
-    }
-
-    #[test]
-    fn resolve_project_ship_dir_prefers_main_ship_over_worktree_copy() -> Result<()> {
-        let tmp = tempdir()?;
-        let main_root = tmp.path().join("main");
-        let main_ship = crate::ShipHome::project_ship_dir(&main_root);
-        let common_git = main_root.join(".git");
-        let worktree_git = common_git.join("worktrees").join("feature-auth");
-        let wt_root = tmp.path().join("worktrees").join("feature-auth");
-        let wt_nested = wt_root.join("src").join("app");
-
-        fs::create_dir_all(&main_ship)?;
-        fs::create_dir_all(&worktree_git)?;
-        fs::create_dir_all(crate::ShipHome::project_ship_dir(&wt_root))?;
-        fs::create_dir_all(&wt_nested)?;
-        fs::write(
-            wt_root.join(".git"),
-            format!("gitdir: {}\n", worktree_git.display()),
-        )?;
-
-        let resolved = resolve_project_ship_dir(&wt_nested).expect("expected .ship resolution");
-        assert_eq!(resolved, canonicalize_lossy(&main_ship));
-        Ok(())
-    }
-
-    #[test]
-    fn resolve_project_ship_dir_follows_relative_git_worktree_pointer() -> Result<()> {
-        let tmp = tempdir()?;
-        let main_root = tmp.path().join("main");
-        let main_ship = crate::ShipHome::project_ship_dir(&main_root);
-        let common_git = main_root.join(".git");
-        let worktree_git = common_git.join("worktrees").join("feature-auth");
-        let wt_root = tmp.path().join("worktrees").join("feature-auth");
-        let wt_nested = wt_root.join("src");
-
-        fs::create_dir_all(&main_ship)?;
-        fs::create_dir_all(&worktree_git)?;
-        fs::create_dir_all(&wt_nested)?;
-
-        fs::write(
-            wt_root.join(".git"),
-            "gitdir: ../../main/.git/worktrees/feature-auth\n",
-        )?;
-
-        let resolved = resolve_project_ship_dir(&wt_nested).expect("expected .ship resolution");
-        assert_eq!(resolved, canonicalize_lossy(&main_ship));
-        Ok(())
-    }
-
-    #[test]
-    fn parse_main_worktree_root_returns_none_for_main_checkout() {
-        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
-        let result = parse_main_worktree_root(porcelain, Path::new("/home/user/ship"));
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn parse_main_worktree_root_returns_main_for_linked_worktree() {
-        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
-        let result =
-            parse_main_worktree_root(porcelain, Path::new("/home/user/ship-worktrees/fix-auth"));
-        assert_eq!(result, Some(PathBuf::from("/home/user/ship")));
-    }
-
-    #[test]
-    fn parse_main_worktree_root_handles_subdirectory_of_linked_worktree() {
-        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
-        let result = parse_main_worktree_root(
-            porcelain,
-            Path::new("/home/user/ship-worktrees/fix-auth/src/app"),
-        );
-        assert_eq!(result, Some(PathBuf::from("/home/user/ship")));
-    }
-
-    #[test]
-    fn parse_main_worktree_root_returns_none_for_unrecognized_dir() {
-        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n";
-        let result = parse_main_worktree_root(porcelain, Path::new("/home/other/project"));
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn resolve_ship_dir_uses_git_worktree_list_for_linked_worktree() -> Result<()> {
-        let tmp = tempdir()?;
-        let main_root = tmp.path().join("main");
-        let wt_root = tmp.path().join("wt");
-
-        fs::create_dir_all(&main_root)?;
-
-        let status = std::process::Command::new("git")
-            .args(["init"])
-            .current_dir(&main_root)
-            .output();
-        if status.is_err() || !status.unwrap().status.success() {
-            return Ok(());
-        }
-
-        for (key, val) in [("user.email", "test@test.com"), ("user.name", "Test")] {
-            std::process::Command::new("git")
-                .args(["config", key, val])
-                .current_dir(&main_root)
-                .output()?;
-        }
-
-        fs::write(main_root.join("README"), "init")?;
-        std::process::Command::new("git")
-            .args(["add", "."])
-            .current_dir(&main_root)
-            .output()?;
-        std::process::Command::new("git")
-            .args(["commit", "-m", "init"])
-            .current_dir(&main_root)
-            .output()?;
-
-        std::process::Command::new("git")
-            .args(["branch", "fix-auth"])
-            .current_dir(&main_root)
-            .output()?;
-
-        let wt_out = std::process::Command::new("git")
-            .args([
-                "worktree",
-                "add",
-                wt_root.to_str().unwrap(),
-                "fix-auth",
-            ])
-            .current_dir(&main_root)
-            .output()?;
-        if !wt_out.status.success() {
-            return Ok(());
-        }
-
-        let main_ship = crate::ShipHome::project_ship_dir(&main_root);
-        fs::create_dir_all(&main_ship)?;
-
-        let wt_ship = crate::ShipHome::project_ship_dir(&wt_root);
-        fs::create_dir_all(&wt_ship)?;
-
-        let wt_nested = wt_root.join("src").join("deep");
-        fs::create_dir_all(&wt_nested)?;
-
-        let resolved =
-            resolve_project_ship_dir(&wt_nested).expect("must resolve to main .ship/");
-        assert_eq!(
-            resolved,
-            canonicalize_lossy(&main_ship),
-            "worktree must resolve to the main repo's .ship/, not the worktree copy"
-        );
-        Ok(())
-    }
 
     #[test]
     fn detects_rust_test_binaries_from_target_deps_path() {

@@ -12,6 +12,7 @@ unstable = []
 ship-kernel = { path = "crates/ship-kernel" }
 ship-substrate-host = { path = "crates/ship-substrate-host" }
 ship-types = { path = "crates/ship-types" }
+ship-paths = { path = "crates/ship-paths" }
 ship-pipelines = { path = "crates/ship-pipelines", features = ["specta"] }
 durable-execution = { path = "crates/durable-execution" }
 inventory = { workspace = true }

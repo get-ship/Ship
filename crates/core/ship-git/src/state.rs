@@ -135,11 +135,11 @@ pub fn resolve_root(
 ) -> Result<PathBuf, String> {
     if let Some(branch) = workspace_id.filter(|s| !s.is_empty() && *s != "project")
         && let Some(path) = worktree_path_for_branch(branch)
-        && (path.join(".git").exists() || ship_substrate::ShipHome::project_ship_dir(&path).exists())
+        && (path.join(".git").exists() || ship_paths::ShipHome::project_ship_dir(&path).exists())
     {
         return Ok(path);
     }
-    if let Ok(project_ship) = ship_substrate::project::get_project_dir(None) {
+    if let Ok(project_ship) = ship_paths::project::get_project_dir(None) {
         if let Some(root) = project_ship.parent() {
             return Ok(root.to_path_buf());
         }
@@ -158,7 +158,7 @@ pub fn resolve_root(
 /// plain `std::process::Command` because the `git worktree list` call is
 /// fast and bounded by the number of worktrees (small).
 fn worktree_path_for_branch(branch: &str) -> Option<PathBuf> {
-    let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
+    let project_ship = ship_paths::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
     let output = std::process::Command::new("git")
         .args(["worktree", "list", "--porcelain"])

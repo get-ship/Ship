@@ -7,7 +7,7 @@
 use std::fs;
 use std::io;
 
-use super::ship_home::ShipHome;
+use crate::ShipHome;
 
 /// Idempotent. Creates the canonical dir tree under the given home root.
 pub fn ensure_layout(home: &ShipHome) -> io::Result<()> {

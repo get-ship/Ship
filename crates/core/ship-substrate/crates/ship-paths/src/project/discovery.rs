@@ -267,3 +267,186 @@ pub fn get_project_dir(start_dir: Option<PathBuf>) -> Result<PathBuf> {
         "Project tracking not initialized in this directory or its parents. Run `ship init` to create a .ship directory."
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ShipHome;
+    use anyhow::Result;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use tempfile::tempdir;
+
+    #[test]
+    fn resolve_project_ship_dir_follows_git_worktree_pointer() -> Result<()> {
+        let tmp = tempdir()?;
+        let main_root = tmp.path().join("main");
+        let main_ship = ShipHome::project_ship_dir(&main_root);
+        let common_git = main_root.join(".git");
+        let worktree_git = common_git.join("worktrees").join("feature-auth");
+        let wt_root = tmp.path().join("worktrees").join("feature-auth");
+        let wt_nested = wt_root.join("src").join("app");
+
+        fs::create_dir_all(&main_ship)?;
+        fs::create_dir_all(&worktree_git)?;
+        fs::create_dir_all(&wt_nested)?;
+        fs::write(
+            wt_root.join(".git"),
+            format!("gitdir: {}\n", worktree_git.display()),
+        )?;
+
+        let resolved = resolve_project_ship_dir(&wt_nested).expect("expected .ship resolution");
+        assert_eq!(resolved, canonicalize_lossy(&main_ship));
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_project_ship_dir_prefers_main_ship_over_worktree_copy() -> Result<()> {
+        let tmp = tempdir()?;
+        let main_root = tmp.path().join("main");
+        let main_ship = ShipHome::project_ship_dir(&main_root);
+        let common_git = main_root.join(".git");
+        let worktree_git = common_git.join("worktrees").join("feature-auth");
+        let wt_root = tmp.path().join("worktrees").join("feature-auth");
+        let wt_nested = wt_root.join("src").join("app");
+
+        fs::create_dir_all(&main_ship)?;
+        fs::create_dir_all(&worktree_git)?;
+        fs::create_dir_all(ShipHome::project_ship_dir(&wt_root))?;
+        fs::create_dir_all(&wt_nested)?;
+        fs::write(
+            wt_root.join(".git"),
+            format!("gitdir: {}\n", worktree_git.display()),
+        )?;
+
+        let resolved = resolve_project_ship_dir(&wt_nested).expect("expected .ship resolution");
+        assert_eq!(resolved, canonicalize_lossy(&main_ship));
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_project_ship_dir_follows_relative_git_worktree_pointer() -> Result<()> {
+        let tmp = tempdir()?;
+        let main_root = tmp.path().join("main");
+        let main_ship = ShipHome::project_ship_dir(&main_root);
+        let common_git = main_root.join(".git");
+        let worktree_git = common_git.join("worktrees").join("feature-auth");
+        let wt_root = tmp.path().join("worktrees").join("feature-auth");
+        let wt_nested = wt_root.join("src");
+
+        fs::create_dir_all(&main_ship)?;
+        fs::create_dir_all(&worktree_git)?;
+        fs::create_dir_all(&wt_nested)?;
+
+        fs::write(
+            wt_root.join(".git"),
+            "gitdir: ../../main/.git/worktrees/feature-auth\n",
+        )?;
+
+        let resolved = resolve_project_ship_dir(&wt_nested).expect("expected .ship resolution");
+        assert_eq!(resolved, canonicalize_lossy(&main_ship));
+        Ok(())
+    }
+
+    #[test]
+    fn parse_main_worktree_root_returns_none_for_main_checkout() {
+        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
+        let result = parse_main_worktree_root(porcelain, Path::new("/home/user/ship"));
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn parse_main_worktree_root_returns_main_for_linked_worktree() {
+        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
+        let result =
+            parse_main_worktree_root(porcelain, Path::new("/home/user/ship-worktrees/fix-auth"));
+        assert_eq!(result, Some(PathBuf::from("/home/user/ship")));
+    }
+
+    #[test]
+    fn parse_main_worktree_root_handles_subdirectory_of_linked_worktree() {
+        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
+        let result = parse_main_worktree_root(
+            porcelain,
+            Path::new("/home/user/ship-worktrees/fix-auth/src/app"),
+        );
+        assert_eq!(result, Some(PathBuf::from("/home/user/ship")));
+    }
+
+    #[test]
+    fn parse_main_worktree_root_returns_none_for_unrecognized_dir() {
+        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n";
+        let result = parse_main_worktree_root(porcelain, Path::new("/home/other/project"));
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn resolve_ship_dir_uses_git_worktree_list_for_linked_worktree() -> Result<()> {
+        let tmp = tempdir()?;
+        let main_root = tmp.path().join("main");
+        let wt_root = tmp.path().join("wt");
+
+        fs::create_dir_all(&main_root)?;
+
+        let status = std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(&main_root)
+            .output();
+        if status.is_err() || !status.unwrap().status.success() {
+            return Ok(());
+        }
+
+        for (key, val) in [("user.email", "test@test.com"), ("user.name", "Test")] {
+            std::process::Command::new("git")
+                .args(["config", key, val])
+                .current_dir(&main_root)
+                .output()?;
+        }
+
+        fs::write(main_root.join("README"), "init")?;
+        std::process::Command::new("git")
+            .args(["add", "."])
+            .current_dir(&main_root)
+            .output()?;
+        std::process::Command::new("git")
+            .args(["commit", "-m", "init"])
+            .current_dir(&main_root)
+            .output()?;
+
+        std::process::Command::new("git")
+            .args(["branch", "fix-auth"])
+            .current_dir(&main_root)
+            .output()?;
+
+        let wt_out = std::process::Command::new("git")
+            .args([
+                "worktree",
+                "add",
+                wt_root.to_str().unwrap(),
+                "fix-auth",
+            ])
+            .current_dir(&main_root)
+            .output()?;
+        if !wt_out.status.success() {
+            return Ok(());
+        }
+
+        let main_ship = ShipHome::project_ship_dir(&main_root);
+        fs::create_dir_all(&main_ship)?;
+
+        let wt_ship = ShipHome::project_ship_dir(&wt_root);
+        fs::create_dir_all(&wt_ship)?;
+
+        let wt_nested = wt_root.join("src").join("deep");
+        fs::create_dir_all(&wt_nested)?;
+
+        let resolved =
+            resolve_project_ship_dir(&wt_nested).expect("must resolve to main .ship/");
+        assert_eq!(
+            resolved,
+            canonicalize_lossy(&main_ship),
+            "worktree must resolve to the main repo's .ship/, not the worktree copy"
+        );
+        Ok(())
+    }
+}

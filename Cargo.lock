@@ -8318,7 +8318,7 @@ dependencies = [
  "git2",
  "serde",
  "serde_json",
- "ship-substrate",
+ "ship-paths",
  "tempfile",
  "tracing",
 ]
@@ -8436,6 +8436,17 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "ship-paths"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "home",
+ "serde",
+ "ship-types",
+ "tempfile",
 ]
 
 [[package]]
@@ -8717,6 +8728,7 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "ship-kernel",
+ "ship-paths",
  "ship-pipelines",
  "ship-runner",
  "ship-substrate-host",

@@ -8,15 +8,15 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use super::daemon::DaemonFile;
-use ship_types::{Scope, Vector};
+use crate::DaemonFile;
 use crate::project::SHIP_DIR_NAME;
+use ship_types::{Scope, Vector};
 const LIBRARY_DIR: &str = "library";
 const MACHINE_DIR: &str = "machine";
 /// `machine/db/` subdirectory holding the SQLite stores. Exposed to the
 /// `db` module so the one canonical DB-path resolver can join it without
 /// re-deriving the layout.
-pub(crate) const MACHINE_DB_DIR: &str = "db";
+pub const MACHINE_DB_DIR: &str = "db";
 const MACHINE_DAEMON_DIR: &str = "daemon";
 const SETTINGS_FILE: &str = "settings.jsonc";
 const LOCAL_FILE: &str = "local.jsonc";
