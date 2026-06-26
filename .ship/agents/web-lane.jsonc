@@ -9,7 +9,7 @@
     "description": "Web-facing app code: apps/shell, apps/site, apps/docs. Uses SUI views and components but doesn't author them — that's ship-designer's lane.",
   },
   "skills": {
-    "refs": ["ship-views", "ship-components", "ship-design-system", "no-slop", "web-qa"],
+    "refs": ["ship-views", "ship-components", "ship-design-system", "web-qa"],
   },
   "mcp": {
     "servers": ["ship"],

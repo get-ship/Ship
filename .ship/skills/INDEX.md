@@ -39,7 +39,6 @@ Active framework contracts agents use when writing first-party code.
 
 | Skill | One-liner |
 | --- | --- |
-| [`no-slop`](no-slop/SKILL.md) | Ten commandments for building software with AI agents. Hard-won, opinionated, concise. |
 | [`ship-views`](../../skills/ship-views/SKILL.md) | (publish-ready) Author Ship views in SUI — `.sui` templates with optional paired `.controller.ts`, AOT-compiled, server-rendered first, hydrated by `attach()`. |
 | [`ship-components`](../../skills/ship-components/SKILL.md) | (publish-ready) Author Ship components in SUI — `<sui-*>` primitives compiled AOT from `.sui` source with optional paired `.controller.ts`. |
 | [`ship-design-system`](../../skills/ship-design-system/SKILL.md) | (publish-ready) Charter for Ship's design-system layer — tokens, themes, surfaces, tone ramps, motion, density. Read when editing `sui/packages/sui/tokens/src/tokens.css`/`themes.css` or adding a theme. |

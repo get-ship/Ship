@@ -10,7 +10,7 @@
     "tags": ["testing", "unit-tests", "integration", "quality"],
   },
   "skills": {
-    "refs": ["tdd", "no-slop"],
+    "refs": ["tdd"],
   },
   "mcp": {
     "servers": [],
