@@ -9,6 +9,7 @@
 //! Wire surface (see `proto/ship/internal/v1/git.proto`):
 //!   POST /ship.internal.v1.GitService/Overview
 //!   POST /ship.internal.v1.GitService/Land     — squash-merge (the `land` op)
+//!   POST /ship.internal.v1.GitService/Release  — squash integration->main + tag
 //! Auxiliary:
 //!   GET  /health  — liveness probe
 //!
@@ -37,8 +38,8 @@ use connectrpc::{RequestContext, Response, Router, ServiceResult};
 use tokio::net::TcpListener;
 
 use proto::{
-    GitOverviewResponse, GitService, GitServiceExt, LandResponse,
-    OwnedGitOverviewRequestView, OwnedLandRequestView,
+    GitOverviewResponse, GitService, GitServiceExt, LandResponse, ReleaseResponse,
+    OwnedGitOverviewRequestView, OwnedLandRequestView, OwnedReleaseRequestView,
 };
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -104,6 +105,41 @@ impl GitService for GitImpl {
             Err(e) => Err(connectrpc::ConnectError::internal(e.to_string())),
         }
     }
+
+    #[allow(refining_impl_trait)]
+    async fn release(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedReleaseRequestView,
+    ) -> ServiceResult<ReleaseResponse> {
+        let root = PathBuf::from(req.repo_path.to_string());
+        let integration = req.integration_branch.to_string();
+        let main = req.main_branch.to_string();
+        let version = req.version.to_string();
+        let message = req.message.to_string();
+        let author = req.author.to_string();
+        let author = if author.is_empty() { None } else { Some(author.as_str()) };
+
+        // Step 1: squash-merge the integration branch onto main (reuses the same
+        // leaf op as Land). A conflict writes NOTHING and short-circuits — no tag.
+        let sha = match ship_git::write::squash_merge(&root, &integration, &main, &message, author) {
+            Ok(ship_git::write::SquashOutcome::Committed { sha, .. }) => sha,
+            Ok(ship_git::write::SquashOutcome::Conflicts { paths }) => {
+                return Response::ok(ReleaseResponse { conflicts: paths, ..Default::default() });
+            }
+            Err(e) => return Err(connectrpc::ConnectError::internal(e.to_string())),
+        };
+
+        // Step 2: stamp the release commit with the version tag (annotated).
+        match ship_git::write::create_tag(&root, &version, Some(&sha), &message, author) {
+            Ok(tag) => Response::ok(ReleaseResponse {
+                committed: sha,
+                tag,
+                ..Default::default()
+            }),
+            Err(e) => Err(connectrpc::ConnectError::internal(e.to_string())),
+        }
+    }
 }
 
 #[tokio::main]
@@ -124,7 +160,7 @@ async fn main() -> anyhow::Result<()> {
         .fallback_service(connect.into_axum_service());
 
     let listener = TcpListener::bind(&addr).await?;
-    eprintln!("ship-git-rpc listening on {addr} (POST /ship.internal.v1.GitService/{{Overview,Land}})");
+    eprintln!("ship-git-rpc listening on {addr} (POST /ship.internal.v1.GitService/{{Overview,Land,Release}})");
     axum::serve(listener, app)
         .with_graceful_shutdown(async {
             let _ = tokio::signal::ctrl_c().await;

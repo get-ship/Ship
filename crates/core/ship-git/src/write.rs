@@ -406,6 +406,43 @@ pub fn squash_merge(
     })
 }
 
+// ── tag (release) ────────────────────────────────────────────────────────
+
+/// Create an ANNOTATED git tag named `name` at `target` and return the tag name.
+///
+/// This is the `release` tag step: after [`squash_merge`] consolidates a
+/// mission's integration branch onto `main`, we stamp the result with the
+/// version tag. `target` is a ref name or sha; `None`/empty tags the current
+/// HEAD (the just-written release commit). The tag is annotated (carries the
+/// `message` + tagger), not lightweight.
+///
+/// Refuses to clobber an existing tag (force=false) — a re-release with the same
+/// version is a [`GitError::BadRef`], not a silent move. `author` is the tagger
+/// `"Name <email>"`; `None` pulls from git config.
+pub fn create_tag(
+    root: &Path,
+    name: &str,
+    target: Option<&str>,
+    message: &str,
+    author: Option<&str>,
+) -> Result<String, GitError> {
+    let repo = open_repo(root)?;
+    // Resolve the object to tag: an explicit ref/sha, else current HEAD.
+    let obj = match target.filter(|t| !t.is_empty()) {
+        Some(t) => repo
+            .revparse_single(t)
+            .map_err(|e| GitError::BadRef(format!("tag target `{t}`: {e}")))?,
+        None => repo
+            .head()
+            .map_err(|e| GitError::BadRef(format!("no HEAD to tag: {e}")))?
+            .peel(ObjectType::Commit)?,
+    };
+    let sig = build_signature(&repo, author)?;
+    repo.tag(name, &obj, &sig, message, false)
+        .map_err(|e| GitError::BadRef(format!("tag `{name}`: {e}")))?;
+    Ok(name.to_string())
+}
+
 // ── checkout ─────────────────────────────────────────────────────────────
 
 /// Checkout a ref — branch name or commit sha. Fails fast on dirty working

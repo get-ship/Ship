@@ -397,3 +397,58 @@ fn checkout_unknown_ref_errors() {
     assert!(matches!(err, super::state::GitError::BadRef(_)));
 }
 
+// ── tag (release) ──────────────────────────────────────────────────────────
+
+#[test]
+fn create_tag_annotates_head() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    let sha = initial_commit(&r.root);
+
+    let name = write::create_tag(&r.root, "v0.0.1", None, "release v0.0.1", None).unwrap();
+    assert_eq!(name, "v0.0.1");
+
+    let repo = Repository::open(&r.root).unwrap();
+    // The annotated tag object carries the message and points at HEAD.
+    let obj = repo.revparse_single("v0.0.1").unwrap();
+    let tag = obj.as_tag().expect("annotated tag object");
+    assert_eq!(tag.message().unwrap().trim(), "release v0.0.1");
+    assert_eq!(tag.target().unwrap().id().to_string(), sha);
+
+    // It is discoverable as a tag ref.
+    let names = repo.tag_names(None).unwrap();
+    assert!(names.iter().flatten().any(|n| n == "v0.0.1"), "tag listed");
+}
+
+#[test]
+fn create_tag_at_explicit_sha() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    let first = initial_commit(&r.root);
+    // A second commit advances HEAD past `first`.
+    write_file(&r.root, "b.txt", "v2");
+    write::stage_paths(&r.root, &["b.txt".into()]).unwrap();
+    write::commit_staged(&r.root, "second", None).unwrap();
+
+    // Tag the FIRST commit explicitly, not HEAD.
+    write::create_tag(&r.root, "v0.0.1", Some(&first), "tag first", None).unwrap();
+    let repo = Repository::open(&r.root).unwrap();
+    let tag = repo.revparse_single("v0.0.1").unwrap();
+    assert_eq!(
+        tag.as_tag().unwrap().target().unwrap().id().to_string(),
+        first,
+        "tag points at the explicit sha, not HEAD"
+    );
+}
+
+#[test]
+fn create_tag_rejects_duplicate() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    initial_commit(&r.root);
+    write::create_tag(&r.root, "v0.0.1", None, "first", None).unwrap();
+    // A re-release with the same version is rejected (no silent clobber).
+    let err = write::create_tag(&r.root, "v0.0.1", None, "again", None).unwrap_err();
+    assert!(matches!(err, super::state::GitError::BadRef(_)));
+}
+

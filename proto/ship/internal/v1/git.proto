@@ -29,6 +29,14 @@ service GitService {
   // lander to resolve and retry (the workflow's land queue discipline; see
   // ship-ops/src/workflow/model.ts `land()` -> `{ok:false, conflicts}`).
   rpc Land(LandRequest) returns (LandResponse);
+
+  // Release: the operator-gated "ship this to main" step — the second half of
+  // the git workflow after Land. Squash-merge a mission's integration branch
+  // onto `main` (reuses `write::squash_merge`) then stamp the result with the
+  // version tag (`write::create_tag`). Integration->main should rarely conflict
+  // (the branch is already integrated), but Release surfaces the SAME conflict
+  // shape as Land: a conflict writes NOTHING and returns the conflicting paths.
+  rpc Release(ReleaseRequest) returns (ReleaseResponse);
 }
 
 message GitOverviewRequest {
@@ -78,4 +86,34 @@ message LandResponse {
   // Conflicting paths, on a conflict. Non-empty <=> the land was rejected and
   // the repo is untouched. The lander resolves these and retries.
   repeated string conflicts = 2;
+}
+
+message ReleaseRequest {
+  // Absolute path to the repository working tree.
+  string repo_path = 1;
+  // The mission's integration branch to squash-merge FROM, e.g. `feat/sui-rebuild`.
+  string integration_branch = 2;
+  // The release target to squash-merge ONTO + tag, e.g. `main`.
+  string main_branch = 3;
+  // The version to tag the release commit with, e.g. `v0.0.1`.
+  string version = 4;
+  // The single release (squash) commit's message.
+  string message = 5;
+  // Optional `"Name <email>"` for the commit + tag; falls back to git config.
+  string author = 6;
+}
+
+// Exactly one of (`committed`+`tag`) / `conflicts` is populated:
+//   - clean release -> `committed` = release squash commit sha on main,
+//                      `tag` = the annotated version tag, `conflicts` empty.
+//   - conflict      -> `conflicts` = conflicting paths, `committed`/`tag` empty,
+//                      and NOTHING was written (no commit, no tag).
+message ReleaseResponse {
+  // The release squash commit sha on `main`, on a clean release.
+  string committed = 1;
+  // The annotated version tag created at the release commit (== request version).
+  string tag = 2;
+  // Conflicting paths, on a conflict. Non-empty <=> the release was rejected and
+  // the repo is untouched (integration->main rarely conflicts, but it can).
+  repeated string conflicts = 3;
 }
