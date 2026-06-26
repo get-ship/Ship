@@ -1,0 +1,28 @@
+# Codegen for HELM (ship-ops, TS/Hono) — its OWN target, distinct from the
+# public @ship/sdk (buf.gen.sdk.yaml) and the gateway (buf.gen.yaml).
+#
+# SPIKE (session_01RP76PB8FAHirne921cx3Rg). This target INCLUDES the
+# launch-internal `ship/internal` package (ship.internal.v1.GitService) that
+# the public SDK excludes. Same proto/ tree, different generation target ->
+# Helm sees the internal ops, the SDK does not. That asymmetry is the proof.
+#
+# Output lands in the SIBLING ship-ops repo's `src/gen`. Helm consumes the
+# generated client directly (NOT a hand-written client) — see
+# ship-ops/scripts/git-overview-spike.ts.
+#
+# Scoped to `ship/internal` for the spike (one read op, minimal output). The
+# real Helm target would also include the public op packages Helm needs.
+#
+# Run from the ship repo root:
+#   buf generate --template buf.gen.helm.yaml
+version: v2
+inputs:
+  - directory: proto
+    paths:
+      - proto/ship/internal
+plugins:
+  - local: protoc-gen-es
+    out: ../ship-ops/src/gen
+    opt:
+      - target=ts
+      - import_extension=js

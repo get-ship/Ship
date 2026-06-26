@@ -1,0 +1,45 @@
+# SPIKE (session_01RP76PB8FAHirne921cx3Rg): leaf RPC service over ship-git.
+#
+# This is a *separate compositional root* — note the empty `[workspace]` table
+# at the bottom. It is deliberately NOT a member of the ship root workspace, so
+# proving the pattern required no edit to the (already-dirty) root Cargo.toml.
+# `cargo build`/`cargo tree` run from this directory resolve against this crate
+# as its own workspace; the path dep on `ship-git` still resolves its own
+# `workspace = true` inheritance against the ship root workspace it belongs to.
+#
+# LEAF PROOF: deps are ship-git + connectrpc/buffa/axum/tokio only. No
+# ship-substrate, no compiler, no kernel/runtime. `cargo tree` must stay clean.
+[package]
+name = "ship-git-rpc"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Leaf ConnectRPC service exposing ship.internal.v1.GitService over the compiler-free ship-git crate. Spike for Helm's internal codegen consumption."
+
+[[bin]]
+name = "ship-git-rpc"
+path = "src/main.rs"
+
+[dependencies]
+# The leaf domain crate — git2 + ship-paths + ship-types, no compiler/substrate.
+ship-git = { path = "../ship-git" }
+# Connect-RPC runtime: `axum` to serve, `client` so the generated client type
+# also compiles (handy for a future in-process test).
+connectrpc = { version = "0.4", features = ["client", "axum"] }
+# Must match the version connectrpc 0.4.x pulls transitively.
+buffa = { version = "0.5", features = ["json"] }
+# Generated code names ::serde:: / ::http_body:: / ::http:: paths directly.
+serde = { version = "1.0", features = ["derive"] }
+http-body = "1"
+http = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
+axum = { version = "0.8", features = ["macros"] }
+anyhow = "1.0"
+
+[build-dependencies]
+connectrpc-build = "0.4"
+# Bundles protoc so no system-wide install is needed.
+protoc-bin-vendored = "3"
+
+# Detach from the ship root workspace — this crate is its own compositional root.
+[workspace]

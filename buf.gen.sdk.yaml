@@ -5,7 +5,15 @@
 # Run: bun --cwd packages/sdk run proto:generate
 version: v2
 inputs:
+  # The public SDK ships the public packages only. `ship/internal` is the
+  # launch-internal surface (e.g. ship.internal.v1.GitService) — it is
+  # deliberately EXCLUDED here so @ship/sdk never carries internal ops. Helm
+  # picks it up via its own target (buf.gen.helm.yaml). This asymmetry is the
+  # whole proof of the internal/public codegen split (spike
+  # session_01RP76PB8FAHirne921cx3Rg).
   - directory: proto
+    exclude_paths:
+      - proto/ship/internal
 plugins:
   - local: protoc-gen-es
     out: packages/sdk/src/gen

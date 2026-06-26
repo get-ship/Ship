@@ -1,0 +1,48 @@
+// INTERNAL launch surface — ship.internal.v1.
+//
+// SPIKE (session_01RP76PB8FAHirne921cx3Rg): proves the "internal vs public"
+// codegen split. This package is *deliberately* not part of the public
+// @ship/sdk: `buf.gen.sdk.yaml` excludes `ship/internal`, while
+// `buf.gen.helm.yaml` (Helm's own codegen target) includes it. The asymmetry
+// — same proto/ tree, two generation targets, one of which sees the internal
+// ops — is the whole point.
+//
+// GitService is a LEAF RPC over the compiler-free `ship-git` crate. It is
+// served by a small standalone Rust binary (`crates/core/ship-git-rpc`) that
+// depends only on ship-git + connectrpc (no compiler/substrate). One read op
+// is enough to prove the pattern end to end.
+syntax = "proto3";
+
+package ship.internal.v1;
+
+// Read-only window onto a git repository, backed by `ship-git`'s git2 loaders.
+service GitService {
+  // Repo overview: current branch, short HEAD sha, ahead/behind vs upstream,
+  // and staged/unstaged/untracked counts. Maps from ship-git's
+  // `state::GitOverview` / `read::load_status_buckets`.
+  rpc Overview(GitOverviewRequest) returns (GitOverviewResponse);
+}
+
+message GitOverviewRequest {
+  // Absolute path to the repository working tree to inspect.
+  string repo_path = 1;
+}
+
+message GitOverviewResponse {
+  // Current branch shorthand, or short sha when HEAD is detached.
+  string branch = 1;
+  // Short (7-char) HEAD commit sha.
+  string head_short = 2;
+  // Commits ahead of the upstream (origin/<branch>); 0 when no upstream.
+  uint32 ahead = 3;
+  // Commits behind the upstream; 0 when no upstream.
+  uint32 behind = 4;
+  // Count of staged (index) entries.
+  uint32 staged = 5;
+  // Count of unstaged (working-tree modified/deleted) entries.
+  uint32 unstaged = 6;
+  // Count of untracked entries.
+  uint32 untracked = 7;
+  // True when the working tree has no staged/unstaged/untracked changes.
+  bool clean = 8;
+}
