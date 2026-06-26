@@ -7,7 +7,7 @@ use git2::{BranchType, DiffFormat, DiffOptions, Repository, StatusOptions};
 use std::path::Path;
 
 use super::state::{
-    BranchSummary, CommitSummary, StatusBuckets, StatusFile, basename_of,
+    BranchSummary, CommitSummary, GitError, StatusBuckets, StatusFile, basename_of,
     format_git_time, open_repo, status_tone,
 };
 
@@ -325,6 +325,71 @@ pub fn diff_paths(root: &Path, start_sha: &str) -> Vec<String> {
     )
     .ok();
     paths
+}
+
+/// The files `branch_ref` changed since its merge base with `base_ref` — the
+/// branch's footprint, i.e. `git diff --name-only base...branch` (three-dot /
+/// merge-base semantics). We diff the branch tip against the COMMON ANCESTOR of
+/// `base_ref` and `branch_ref`, so the result is only what the branch added on
+/// top of where it diverged — not unrelated work that landed on `base_ref` since.
+///
+/// This is the read half of PRESENCE: a job's footprint is its branch's changed
+/// files vs its integration base; overlap (a file in ≥ 2 jobs' footprints) WARNS
+/// but never blocks. It is a pure read — no index, no working tree, no writes.
+///
+/// Paths are returned sorted + de-duplicated. A `branch_ref` at (or behind) the
+/// base yields an empty list. A bad ref is a typed [`GitError::BadRef`].
+pub fn changed_files(
+    root: &Path,
+    base_ref: &str,
+    branch_ref: &str,
+) -> Result<Vec<String>, GitError> {
+    use git2::ObjectType;
+
+    let repo = open_repo(root)?;
+    let base_commit = repo
+        .revparse_single(base_ref)
+        .map_err(|e| GitError::BadRef(format!("base ref `{base_ref}`: {e}")))?
+        .peel(ObjectType::Commit)?
+        .into_commit()
+        .map_err(|_| GitError::BadRef(format!("base ref `{base_ref}` is not a commit")))?;
+    let branch_commit = repo
+        .revparse_single(branch_ref)
+        .map_err(|e| GitError::BadRef(format!("branch ref `{branch_ref}`: {e}")))?
+        .peel(ObjectType::Commit)?
+        .into_commit()
+        .map_err(|_| GitError::BadRef(format!("branch ref `{branch_ref}` is not a commit")))?;
+
+    // Three-dot: diff from the merge base, not from `base_ref`'s current tip. If
+    // there is no common ancestor (unrelated histories) fall back to base's tip.
+    let from_oid = repo
+        .merge_base(base_commit.id(), branch_commit.id())
+        .unwrap_or_else(|_| base_commit.id());
+    let from_tree = repo.find_commit(from_oid)?.tree()?;
+    let to_tree = branch_commit.tree()?;
+
+    let diff = repo.diff_tree_to_tree(
+        Some(&from_tree),
+        Some(&to_tree),
+        Some(&mut DiffOptions::new()),
+    )?;
+
+    let mut files = std::collections::BTreeSet::new();
+    diff.foreach(
+        &mut |delta, _| {
+            if let Some(p) = delta.new_file().path() {
+                files.insert(p.to_string_lossy().into_owned());
+            } else if let Some(p) = delta.old_file().path() {
+                files.insert(p.to_string_lossy().into_owned());
+            }
+            true
+        },
+        None,
+        None,
+        None,
+    )
+    .ok();
+    Ok(files.into_iter().collect())
 }
 
 /// Per-session diff metrics derived from the working-tree diff vs HEAD.

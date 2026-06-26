@@ -11,8 +11,9 @@
 //!
 //! Wire surface (see `proto/ship/internal/v1/git.proto`):
 //!   POST /ship.internal.v1.GitService/Overview
-//!   POST /ship.internal.v1.GitService/Land     — squash-merge (the `land` op)
-//!   POST /ship.internal.v1.GitService/Release  — squash integration->main + tag
+//!   POST /ship.internal.v1.GitService/Land      — squash-merge (the `land` op)
+//!   POST /ship.internal.v1.GitService/Release   — squash integration->main + tag
+//!   POST /ship.internal.v1.GitService/Footprint — branch changed-files (presence)
 //! Auxiliary:
 //!   GET  /health  — liveness probe
 //!
@@ -41,8 +42,9 @@ use connectrpc::{RequestContext, Response, Router, ServiceResult};
 use tokio::net::TcpListener;
 
 use proto::{
-    GitOverviewResponse, GitService, GitServiceExt, LandResponse, ReleaseResponse,
-    OwnedGitOverviewRequestView, OwnedLandRequestView, OwnedReleaseRequestView,
+    FootprintResponse, GitOverviewResponse, GitService, GitServiceExt, LandResponse,
+    ReleaseResponse, OwnedFootprintRequestView, OwnedGitOverviewRequestView,
+    OwnedLandRequestView, OwnedReleaseRequestView,
 };
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -143,6 +145,25 @@ impl GitService for GitImpl {
             Err(e) => Err(connectrpc::ConnectError::internal(e.to_string())),
         }
     }
+
+    #[allow(refining_impl_trait)]
+    async fn footprint(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedFootprintRequestView,
+    ) -> ServiceResult<FootprintResponse> {
+        let root = PathBuf::from(req.repo_path.to_string());
+        let base = req.base_ref.to_string();
+        let branch = req.branch_ref.to_string();
+
+        // ship-git leaf read: the files `branch` changed since its merge-base with
+        // `base` (`git diff --name-only base...branch`). Presence is git-derived;
+        // this op just surfaces the diff. Advisory — overlap WARNS, never blocks.
+        match ship_git::read::changed_files(&root, &base, &branch) {
+            Ok(files) => Response::ok(FootprintResponse { files, ..Default::default() }),
+            Err(e) => Err(connectrpc::ConnectError::internal(e.to_string())),
+        }
+    }
 }
 
 #[tokio::main]
@@ -163,7 +184,7 @@ async fn main() -> anyhow::Result<()> {
         .fallback_service(connect.into_axum_service());
 
     let listener = TcpListener::bind(&addr).await?;
-    eprintln!("helmd listening on {addr} (POST /ship.internal.v1.GitService/{{Overview,Land,Release}})");
+    eprintln!("helmd listening on {addr} (POST /ship.internal.v1.GitService/{{Overview,Land,Release,Footprint}})");
     axum::serve(listener, app)
         .with_graceful_shutdown(async {
             let _ = tokio::signal::ctrl_c().await;

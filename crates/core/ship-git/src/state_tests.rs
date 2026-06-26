@@ -351,6 +351,56 @@ fn squash_merge_unknown_source_errors() {
     assert!(matches!(err, super::state::GitError::BadRef(_)));
 }
 
+// ── changed-files (presence footprint) ──────────────────────────────────────
+
+#[test]
+fn changed_files_lists_branch_footprint() {
+    let r = init_repo();
+    // base: a.txt
+    write_file(&r.root, "a.txt", "base\n");
+    initial_commit(&r.root);
+    let base = read::load_branch(&r.root).unwrap(); // "main" or "master"
+
+    // job/x branches off base and touches b.txt + c.txt across two commits.
+    branch_and_checkout(&r.root, "job/x");
+    write_file(&r.root, "b.txt", "one\n");
+    commit_on_head(&r.root, "add b");
+    write_file(&r.root, "c.txt", "two\n");
+    commit_on_head(&r.root, "add c");
+
+    // Footprint = the files job/x changed since the merge base, sorted + deduped.
+    let files = read::changed_files(&r.root, &base, "job/x").unwrap();
+    assert_eq!(files, vec!["b.txt".to_string(), "c.txt".to_string()]);
+
+    // a.txt was untouched by the branch — it is NOT in the footprint.
+    assert!(!files.contains(&"a.txt".to_string()));
+}
+
+#[test]
+fn changed_files_empty_when_branch_at_base() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "base\n");
+    initial_commit(&r.root);
+    let base = read::load_branch(&r.root).unwrap();
+
+    // job/x has no commits beyond base → footprint is empty (nothing touched).
+    write::branch_create(&r.root, "job/x").unwrap();
+    let files = read::changed_files(&r.root, &base, "job/x").unwrap();
+    assert!(files.is_empty(), "expected empty footprint, got {files:?}");
+}
+
+#[test]
+fn changed_files_bad_ref_errors() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "base\n");
+    initial_commit(&r.root);
+    let base = read::load_branch(&r.root).unwrap();
+
+    // An unknown branch ref is a typed BadRef, not a silent empty list.
+    let err = read::changed_files(&r.root, &base, "job/missing").unwrap_err();
+    assert!(matches!(err, super::state::GitError::BadRef(_)));
+}
+
 // ── diff ─────────────────────────────────────────────────────────────────
 
 #[test]

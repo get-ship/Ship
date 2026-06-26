@@ -37,6 +37,14 @@ service GitService {
   // (the branch is already integrated), but Release surfaces the SAME conflict
   // shape as Land: a conflict writes NOTHING and returns the conflicting paths.
   rpc Release(ReleaseRequest) returns (ReleaseResponse);
+
+  // Footprint: the files a job's branch changed since its integration base —
+  // `git diff --name-only base...branch` (merge-base semantics). Maps to
+  // ship-git's `read::changed_files`. This is the read half of PRESENCE: a job's
+  // footprint vs the active set yields overlap (a file touched by >=2 jobs), the
+  // git-derived "who's touching what". Advisory only — overlap WARNS, never
+  // blocks; there is no lock. A pure read: no index, no working tree, no writes.
+  rpc Footprint(FootprintRequest) returns (FootprintResponse);
 }
 
 message GitOverviewRequest {
@@ -116,4 +124,20 @@ message ReleaseResponse {
   // Conflicting paths, on a conflict. Non-empty <=> the release was rejected and
   // the repo is untouched (integration->main rarely conflicts, but it can).
   repeated string conflicts = 3;
+}
+
+message FootprintRequest {
+  // Absolute path to the repository working tree.
+  string repo_path = 1;
+  // The integration base the branch diverged from, e.g. `feat/sui-rebuild` or `main`.
+  string base_ref = 2;
+  // The job's branch whose footprint to compute, e.g. `job/<slug>`.
+  string branch_ref = 3;
+}
+
+message FootprintResponse {
+  // The files `branch_ref` changed since its merge-base with `base_ref`, sorted +
+  // de-duplicated. Empty when the branch is at (or behind) the base. Presence
+  // derives overlap (a file in >=2 jobs' footprints) from this — a warning, not a lock.
+  repeated string files = 1;
 }
