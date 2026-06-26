@@ -117,7 +117,7 @@ Three tiers, smallest that fits:
 2. **Tier 2 — object-literal controller.** Most coordinated views. Multi-statement handlers require a paired `.controller.ts`.
 3. **Tier 3 — function-form controller.** When setup needs closure-scoped variables.
 
-A multi-statement `on:event` handler in a tier-1 file (no `.controller.ts`) is a compile error. Enforced by `/home/madvib/dev/sui/crates/sui/compiler/src/check/handler_complexity.rs`.
+A multi-statement `on:event` handler in a tier-1 file (no `.controller.ts`) is a compile error. Enforced by `sui/crates/sui/compiler/src/check/handler_complexity.rs`.
 
 ## Controller hooks (compose via `use:`)
 

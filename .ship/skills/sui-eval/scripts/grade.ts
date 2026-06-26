@@ -26,7 +26,7 @@ const RUN_ID = process.env.SHIP_PIPELINE_RUN_ID ?? `local-${process.env.SHIP_ACT
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 
 // The compiler binary. sui-compiler moved to the external sui repo
-// (`/home/madvib/dev/sui/crates/sui/compiler`) post-carve — the
+// (`sui/crates/sui/compiler`) post-carve — the
 // orchestrating repo (ship) no longer carries it. A lane would have to
 // `cargo run` against the external sui checkout (slow, racy against
 // parallel compiler work). Use the prebuilt binary from the external
@@ -34,9 +34,9 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 function resolveCompiler(): { cmd: string; preArgs: string[] } {
   const envBin = process.env.SUI_COMPILER
   if (envBin && existsSync(envBin)) return { cmd: envBin, preArgs: [] }
-  const suiBin = '/home/madvib/dev/sui/target/debug/sui-compiler'
+  const suiBin = 'sui/target/debug/sui-compiler'
   if (existsSync(suiBin)) return { cmd: suiBin, preArgs: [] }
-  return { cmd: 'cargo', preArgs: ['run', '--manifest-path', '/home/madvib/dev/sui/Cargo.toml', '-p', 'sui-compiler', '--'] }
+  return { cmd: 'cargo', preArgs: ['run', '--manifest-path', 'sui/Cargo.toml', '-p', 'sui-compiler', '--'] }
 }
 const COMPILER = resolveCompiler()
 

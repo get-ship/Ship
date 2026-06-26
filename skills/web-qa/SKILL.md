@@ -2,7 +2,7 @@
 name: web-qa
 audience: public
 stable-id: web-qa
-description: Systematic QA for a UI surface — every interactive element pressed, multi-theme, console + network captured, evidence written to .artifacts/web-qa/. Use before claiming any UI work "done". Gate-required when touching apps/shell, packages/components/{sui,ship}, views, or `/home/madvib/dev/sui/crates/sui`.
+description: Systematic QA for a UI surface — every interactive element pressed, multi-theme, console + network captured, evidence written to .artifacts/web-qa/. Use before claiming any UI work "done". Gate-required when touching apps/shell, packages/components/{sui,ship}, views, or `sui/crates/sui`.
 tags: [qa, testing, browser, playwright, gate-required]
 authors: [ship]
 license: MIT
@@ -53,7 +53,7 @@ Before touching the browser, write `$QA_DIR/plan.md` declaring:
 1. **Surface name** — `dev-panel/edit-mode/components-tab`, `views/agents/list`, etc. Use slashes for hierarchy.
 2. **Inventory** — every interactive element on the surface (button, input, tab, link, drag handle, keyboard shortcut). One per row. Include declared aria-labels.
 3. **States** — every state the surface can be in (empty, loading, populated, error, hover, focused, disabled, overflow). One per row.
-4. **Theme matrix** — at minimum `ship-light`, `ship-dark`, `console`. Other registered themes: `paper`, `halo`, `contrast`, `glass` (see `/home/madvib/dev/sui/packages/sui/tokens/src/themes.ts`). Add a theme to the matrix when the surface has theme-conditional CSS.
+4. **Theme matrix** — at minimum `ship-light`, `ship-dark`, `console`. Other registered themes: `paper`, `halo`, `contrast`, `glass` (see `sui/packages/sui/tokens/src/themes.ts`). Add a theme to the matrix when the surface has theme-conditional CSS.
 5. **Viewport matrix** — at minimum `1280x720` (desktop) and `375x812` (mobile-narrow). Add others when the surface is responsive-specific.
 
 If you cannot declare these without invention, you don't understand the surface
@@ -245,7 +245,7 @@ the gate will accept the touched surface for that commit window. The mapping:
 - `apps/shell/**` → surface name starts with `chrome/` or `shell/`
 - `packages/components/sui/primitives/src/sui-*/**` → surface name starts with `components/<tag>/`
 - `views/<name>/**` → surface name starts with `views/<name>/`
-- `/home/madvib/dev/sui/crates/sui/**` → surface name starts with `runtime/` or `compiler/`
+- `sui/crates/sui/**` → surface name starts with `runtime/` or `compiler/`
 
 The gate scans `.artifacts/web-qa/<surface>/<latest>/report.md`, checks the
 `run:` timestamp is newer than the latest commit touching the matched files,

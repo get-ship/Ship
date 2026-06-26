@@ -447,7 +447,7 @@ groupings + the LSP CLI + `@ship/sui-eval` scoring lives in
 
 | Tool | When |
 |---|---|
-| `/home/madvib/dev/sui/crates/sui/compiler/tokens.json` | The active theme's token registry. Read before authoring CSS so you stay token-locked. |
+| `sui/crates/sui/compiler/tokens.json` | The active theme's token registry. Read before authoring CSS so you stay token-locked. |
 | `ship ops call collections.list` | Schemas for project-defined `<data source="…">` collections. Use before writing a `<data>`. |
 | `ship ops call annotation.post --json '{"..."}'` | Pin a TODO/comment to a DOM node; surfaces in the dev panel. |
 
@@ -456,7 +456,7 @@ groupings + the LSP CLI + `@ship/sui-eval` scoring lives in
 **The gate is the compiler, and it is always available. Run it.** Do not skip
 this because an MCP tool is missing, and never substitute `tsc` — Ship does not
 bundle TypeScript. Controller checking is the oxc-based lint pass *inside* the
-compiler (`/home/madvib/dev/sui/crates/sui/lint`), so the compiler is the one source of truth for
+compiler (`sui/crates/sui/lint`), so the compiler is the one source of truth for
 both template and controller correctness.
 
 **Gate 0 — `sui-compiler build` (zero setup, no MCP, no daemon).** The compiler
@@ -494,7 +494,7 @@ language server.
 |---|---|
 | **CLI** (agents) | `ship sui diagnostics` / `hover` / `dependencies`. See above. |
 | **VS Code** | `apps/vscode/` auto-launches the `sui-lsp` binary on `.sui` open. |
-| **Any editor / Claude Code / opencode** | Point the LSP client at the `sui-lsp` binary (`/home/madvib/dev/sui/crates/sui/lsp/`, on PATH via `just install-dev`) over stdio. Claude Code uses the repo `.lsp.json`. |
+| **Any editor / Claude Code / opencode** | Point the LSP client at the `sui-lsp` binary (`sui/crates/sui/lsp/`, on PATH via `just install-dev`) over stdio. Claude Code uses the repo `.lsp.json`. |
 | **Browser** | `@ship/sui-lsp-browser` runs the WASM `analyze` (same Rust grammar) for diagnostics in the docs playground; hover/completion are static-dictionary for now. |
 
 ## Components

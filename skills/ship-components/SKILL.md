@@ -153,7 +153,7 @@ Authors don't call `component()` directly — the compiler emits it.
 
 ## Bundling + registration
 
-1. The daemon's in-process Rolldown bundler (#163) compiles every `.sui` source and bundles `/home/madvib/dev/sui/crates/deck/deck-core/assets/sui-components.js` (paired `.controller.ts` resolved + inlined by the bundler's load hook). `@ship/sui-build` produces the same tree at CI time.
+1. The daemon's in-process Rolldown bundler (#163) compiles every `.sui` source and bundles `sui/crates/deck/deck-core/assets/sui-components.js` (paired `.controller.ts` resolved + inlined by the bundler's load hook). `@ship/sui-build` produces the same tree at CI time.
 2. The shell loads `sui-components.js` once at boot via the importmap → all `<sui-*>` elements register globally.
 3. `<sui-button>` and friends are usable in any view.
 
@@ -176,7 +176,7 @@ Authors don't call `component()` directly — the compiler emits it.
 `sui-compiler build <tag.sui | component-dir>` after every edit — it ships on
 PATH (`~/.cargo/bin/sui-compiler`, `just install-dev`), needs no MCP and no
 daemon, and runs grammar + semantic checks **and the full lint pass** (the
-oxc-based controller lint in `/home/madvib/dev/sui/crates/sui/lint`, e.g. `sui-controller-purity`,
+oxc-based controller lint in `sui/crates/sui/lint`, e.g. `sui-controller-purity`,
 `sui-css-content-text`). A printed `Error:` is a hard fail. Never substitute
 `tsc` — Ship does not bundle TypeScript; the compiler's lint is the source of truth.
 
@@ -229,7 +229,7 @@ standalone language server.
 |---|---|
 | **CLI** (agents) | `ship sui diagnostics` / `hover` / `dependencies`. See above. |
 | **VS Code** | `apps/vscode/` auto-launches the `sui-lsp` binary on `.sui` open. |
-| **Any editor / Claude Code / opencode** | Point the LSP client at the `sui-lsp` binary (`/home/madvib/dev/sui/crates/sui/lsp/`, on PATH via `just install-dev`) over stdio. Claude Code uses the repo `.lsp.json`. |
+| **Any editor / Claude Code / opencode** | Point the LSP client at the `sui-lsp` binary (`sui/crates/sui/lsp/`, on PATH via `just install-dev`) over stdio. Claude Code uses the repo `.lsp.json`. |
 | **Browser** | `@ship/sui-lsp-browser` runs the WASM `analyze` (same Rust grammar) for diagnostics in the docs playground; hover/completion are static-dictionary for now. |
 
 ## What's available in a view

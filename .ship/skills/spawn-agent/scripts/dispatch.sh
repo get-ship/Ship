@@ -241,7 +241,7 @@ elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
     fi
     # deck's OWN baked product — sui-runtime/dom/sdk-client + the primitives
     # umbrella. Canonical bake target is now .deck/framework/ (Recommendation B1).
-    # build.rs copies .deck/framework/sui-*.js → /home/madvib/dev/sui/crates/deck/deck-core/assets/
+    # build.rs copies .deck/framework/sui-*.js → sui/crates/deck/deck-core/assets/
     # (the include_str! staging path) at compile time. We only need to ensure
     # .deck/framework/ is populated, which the .deck/ copy below handles.
     # No separate crate-assets copy needed — build.rs owns that step.
@@ -261,8 +261,8 @@ elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
          "$WORKTREE_PATH/packages/sdk/src/generated/" 2>/dev/null || true
     fi
     # tree-sitter outputs are now produced inside the external sui repo
-    # (/home/madvib/dev/sui/packages/sui/grammar lives there post-carve). The sui-compiler crate
-    # in /home/madvib/dev/sui is bootstrapped by `cd /home/madvib/dev/sui &&
+    # (sui/packages/sui/grammar lives there post-carve). The sui-compiler crate
+    # in sui is bootstrapped by `cd sui &&
     # cargo run -p deck-cli -- build-assets`; ship no longer owns the
     # grammar source, so the local copy/regen block is gone.
     echo "Copied generated artifacts from $LAUNCH_REPO_ROOT"
@@ -274,17 +274,17 @@ elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
   # worktree's framework from sui's baked output; bake sui first only if sui
   # itself is cold.
   if [[ ! -s "$WORKTREE_PATH/.deck/framework/sui-runtime.js" ]]; then
-    if [[ ! -s /home/madvib/dev/sui/.deck/framework/sui-runtime.js ]]; then
-      echo "Baking SUI framework in /home/madvib/dev/sui (cold)"
-      (cd /home/madvib/dev/sui && \
+    if [[ ! -s sui/.deck/framework/sui-runtime.js ]]; then
+      echo "Baking SUI framework in sui (cold)"
+      (cd sui && \
          cargo build -p sui-compiler && \
          cargo run -p deck-cli --quiet -- build-assets) 2>&1 | tail -20
     fi
-    echo "Seeding .deck/framework from /home/madvib/dev/sui"
+    echo "Seeding .deck/framework from sui"
     mkdir -p "$WORKTREE_PATH/.deck/framework"
-    cp -r /home/madvib/dev/sui/.deck/framework/. "$WORKTREE_PATH/.deck/framework/" 2>/dev/null || true
+    cp -r sui/.deck/framework/. "$WORKTREE_PATH/.deck/framework/" 2>/dev/null || true
   fi
-  # /home/madvib/dev/sui/packages/sui/grammar lived in ship pre-carve and was bootstrapped here.
+  # sui/packages/sui/grammar lived in ship pre-carve and was bootstrapped here.
   # Post-carve, the grammar source lives in the external sui repo; the
   # sui-compiler crate there is built as part of the deck-cli `build-assets`
   # bootstrap. No local regen step.
@@ -306,12 +306,12 @@ elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
   # sui-compiler/sui-compiler-napi/sui-lint live in the external sui repo post-carve;
   # build them there. The bundle script above is the only ship-side path that
   # compiles sui crates (for `build-assets` to dlopen the FFI .so).
-  echo "Building SUI compiler binaries (cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p sui-compiler -p sui-compiler-napi)"
-  if ! (cd "$WORKTREE_PATH" && cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p sui-compiler -p sui-compiler-napi 2>&1 | tail -15); then
+  echo "Building SUI compiler binaries (cargo build --manifest-path sui/Cargo.toml -p sui-compiler -p sui-compiler-napi)"
+  if ! (cd "$WORKTREE_PATH" && cargo build --manifest-path sui/Cargo.toml -p sui-compiler -p sui-compiler-napi 2>&1 | tail -15); then
     echo "Warning: cargo build of sui-compiler/sui-compiler-napi failed (offline?); agent must build before its edit loop" >&2
   fi
-  echo "Warming the sui-lint check example (cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p sui-lint --example check)"
-  if ! (cd "$WORKTREE_PATH" && cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p sui-lint --example check 2>&1 | tail -10); then
+  echo "Warming the sui-lint check example (cargo build --manifest-path sui/Cargo.toml -p sui-lint --example check)"
+  if ! (cd "$WORKTREE_PATH" && cargo build --manifest-path sui/Cargo.toml -p sui-lint --example check 2>&1 | tail -10); then
     echo "Warning: building the sui-lint check example failed (offline?); agent must build before its edit loop" >&2
   fi
 

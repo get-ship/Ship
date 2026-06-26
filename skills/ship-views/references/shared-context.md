@@ -49,6 +49,6 @@ Picking by tag name (not by string token) keeps the lookup deterministic: there'
 1. **No controller** — pure `.sui` with `<prop>` / `<data>` and single-expression inline handlers. No state, no derived, no hooks. Pure presentational.
 2. **Paired controller** — anything with state, derived, hooks, lifecycle, or multi-statement handlers.
 
-A multi-statement `on:event` in a tier-1 file (no `.controller.ts`) is a compile error. Enforced by `/home/madvib/dev/sui/crates/sui/compiler/src/check/handler_complexity.rs`.
+A multi-statement `on:event` in a tier-1 file (no `.controller.ts`) is a compile error. Enforced by `sui/crates/sui/compiler/src/check/handler_complexity.rs`.
 
 For controller-side hooks (`useFilteredList`, `useSelection`, `useForm`) and the live-data envelope, see `controller-tiers.md` (when it exists) or `template-surface.md` § "Controller hooks".

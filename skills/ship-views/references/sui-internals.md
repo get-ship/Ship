@@ -1,13 +1,13 @@
 # Working on the SUI codebase
 
-Read this when changing `/home/madvib/dev/sui/crates/sui/compiler/`, `/home/madvib/dev/sui/crates/sui/lint/`, `crates/lsp/`, `packages/ui-runtime/`, `packages/ui-dom/`, the daemon's SUI handlers (`apps/shipd/src/views/sui_*.rs`), or any `views/<name>/`. Authoring views? Use `template-surface.md`. This page is for framework internals.
+Read this when changing `sui/crates/sui/compiler/`, `sui/crates/sui/lint/`, `crates/lsp/`, `packages/ui-runtime/`, `packages/ui-dom/`, the daemon's SUI handlers (`apps/shipd/src/views/sui_*.rs`), or any `views/<name>/`. Authoring views? Use `template-surface.md`. This page is for framework internals.
 
 ## Crate map
 
 | Crate | Role |
 |---|---|
-| ``/home/madvib/dev/sui/crates/sui/compiler`` | Parses `.sui` → IR → emits `<stem>.compiled.js` + `<stem>.sui.d.ts` into a sibling `dist/`. Owns the `check/` phase (build-time hard walls). |
-| ``/home/madvib/dev/sui/crates/sui/lint`` | Lints `*.controller.ts`. Same rule walker drives editor diagnostics and the compiler check. |
+| ``sui/crates/sui/compiler`` | Parses `.sui` → IR → emits `<stem>.compiled.js` + `<stem>.sui.d.ts` into a sibling `dist/`. Owns the `check/` phase (build-time hard walls). |
+| ``sui/crates/sui/lint`` | Lints `*.controller.ts`. Same rule walker drives editor diagnostics and the compiler check. |
 | `crates/lsp` | Single LSP for both stacks. Dispatches by `Stack` enum — j2 → `lint`, SUI → `sui-lint`. Distributed as `ship lsp`. |
 | `packages/ui-runtime` | Signal engine (`signal`/`derived`/`effect`/`untrack`/`batch`), bindings (`bindText`/`bindAttr`/`bindClass`/`bindValue`/`bindHtml`/`bindIf`/`bindFor`), template hooks. |
 | `packages/ui-dom` | `attach()` — turns SSR markers into live bindings against the compiler-emitted manifest. |
@@ -16,18 +16,18 @@ Read this when changing `/home/madvib/dev/sui/crates/sui/compiler/`, `/home/madv
 
 ## Adding a SUI lint rule
 
-Rules live in `/home/madvib/dev/sui/crates/sui/lint/src/rules/`. The same rule definition powers two consumers: the LSP serves it live to the editor and the agent; the sui-compiler check phase escalates `Severity::Error` rules to build-time hard walls (`Severity::Warn` rules stay LSP-only).
+Rules live in `sui/crates/sui/lint/src/rules/`. The same rule definition powers two consumers: the LSP serves it live to the editor and the agent; the sui-compiler check phase escalates `Severity::Error` rules to build-time hard walls (`Severity::Warn` rules stay LSP-only).
 
 Two slices in the registry:
 
 - `CONTROLLER_RULES` — lints `*.controller.ts` (oxc-parsed JS/TS AST walking).
 - `SUI_TEMPLATE_RULES` — lints `*.sui` source (string-walking, char-boundary-safe).
 
-1. **Create the module** at `/home/madvib/dev/sui/crates/sui/lint/src/rules/<rule_id>.rs`. Export `RULE_ID: &str` and `check(path: &Path, source: &str) -> Vec<Finding>`. For controller rules: parse with `oxc_parser`, walk via `oxc_ast_visit::Visit`, skip parse errors silently — the compiler reports those. For template rules: walk char boundaries via `source.char_indices()` so multi-byte chars (em-dashes, entity-decoded symbols) don't trip str-slice panics.
+1. **Create the module** at `sui/crates/sui/lint/src/rules/<rule_id>.rs`. Export `RULE_ID: &str` and `check(path: &Path, source: &str) -> Vec<Finding>`. For controller rules: parse with `oxc_parser`, walk via `oxc_ast_visit::Visit`, skip parse errors silently — the compiler reports those. For template rules: walk char boundaries via `source.char_indices()` so multi-byte chars (em-dashes, entity-decoded symbols) don't trip str-slice panics.
 
 2. **Pick severity.** `Error` rejects the build; `Warn` surfaces only in the LSP (and the dispatcher filters by severity before deciding whether to fail compile).
 
-3. **Register** in `/home/madvib/dev/sui/crates/sui/lint/src/rules/mod.rs`:
+3. **Register** in `sui/crates/sui/lint/src/rules/mod.rs`:
 
    ```rust
    pub mod <rule_id>;
@@ -56,8 +56,8 @@ Two slices in the registry:
 JS bundle changes only land in the running daemon after:
 
 1. `sui-build` — compiles every `.sui` source in the touched package.
-2. `cargo run -p xtask -- build-assets` — rebakes the framework bundles (sui-runtime/dom/sdk-client/components) into `/home/madvib/dev/sui/crates/deck/deck-core/assets/` via the in-process Rolldown bundler (#163, #170).
-3. `cargo build -p shipd` — picks up the newly baked bundles via `include_str!` in `/home/madvib/dev/sui/crates/deck/deck-core/src/assets.rs`.
+2. `cargo run -p xtask -- build-assets` — rebakes the framework bundles (sui-runtime/dom/sdk-client/components) into `sui/crates/deck/deck-core/assets/` via the in-process Rolldown bundler (#163, #170).
+3. `cargo build -p shipd` — picks up the newly baked bundles via `include_str!` in `sui/crates/deck/deck-core/src/assets.rs`.
 4. `bash scripts/dev/restart.sh` — cycles the per-worktree daemon.
 
 Skipping any step ships stale bytes.
@@ -88,9 +88,9 @@ Each public symbol gets its own file in `packages/ui-runtime/src/<name>.ts` (mir
 
 `<prop ... form-value />` and `<prop ... form-disabled />` are the public surface; everything below is the implementation.
 
-- **Lower / IR** (`/home/madvib/dev/sui/crates/sui/compiler/src/ir/directive.rs`, `lower/directives.rs`): `form_value: bool` / `form_disabled: bool` on the prop IR. Lower validates: only one `form-value` per component, `form-value` rejected on `object` / `array`, `form-disabled` only on `bool`.
-- **Emit** (`/home/madvib/dev/sui/crates/sui/compiler/src/emit/js.rs`): when any prop carries either flag, the generated `component({...})` call gains `formAssociated: true` plus `formValue: '<prop>'` / `formDisabled: '<prop>'` keys declaring which prop drives each lifecycle.
-- **Runtime** (`/home/madvib/dev/sui/packages/sui/runtime/src/component-factory.ts`, `component-form.ts`, `component.ts`): `defineComponent` reads those keys, sets `static formAssociated = true` on the generated class, calls `host.attachInternals()` on connect, installs the four platform callbacks (`formResetCallback`, `formStateRestoreCallback`, `formDisabledCallback`, and the per-change `setFormValue` effect), and exposes `internals?: ElementInternals` in setup ctx for callers who need `setValidity()` / `checkValidity()`.
+- **Lower / IR** (`sui/crates/sui/compiler/src/ir/directive.rs`, `lower/directives.rs`): `form_value: bool` / `form_disabled: bool` on the prop IR. Lower validates: only one `form-value` per component, `form-value` rejected on `object` / `array`, `form-disabled` only on `bool`.
+- **Emit** (`sui/crates/sui/compiler/src/emit/js.rs`): when any prop carries either flag, the generated `component({...})` call gains `formAssociated: true` plus `formValue: '<prop>'` / `formDisabled: '<prop>'` keys declaring which prop drives each lifecycle.
+- **Runtime** (`sui/packages/sui/runtime/src/component-factory.ts`, `component-form.ts`, `component.ts`): `defineComponent` reads those keys, sets `static formAssociated = true` on the generated class, calls `host.attachInternals()` on connect, installs the four platform callbacks (`formResetCallback`, `formStateRestoreCallback`, `formDisabledCallback`, and the per-change `setFormValue` effect), and exposes `internals?: ElementInternals` in setup ctx for callers who need `setValidity()` / `checkValidity()`.
 - **Parallel emitters**: schema.json, custom-elements.json, and .sui.d.ts all mirror the form-value / form-disabled markers so docs, agents, and TypeScript consumers see the form-association contract.
 
 When adding new form lifecycle hooks (custom validity, willValidate-aware behavior), extend `component-form.ts` — not the controller. The controller's job stays "react to the prop change"; the runtime owns the platform contract.
@@ -109,7 +109,7 @@ When adding a new control-flow construct: parse → IR → lower → render walk
 
 ## Fixture / test-corpus maintenance
 
-Adding a parser feature means updating `/home/madvib/dev/sui/crates/sui/compiler/tests/fixtures/*.sui` and `*.expected.js` snapshots in the same change. The CLI smoke (`tests/cli.rs`) and snapshot tests (`tests/snapshot.rs`) gate the emit shape — keep them current.
+Adding a parser feature means updating `sui/crates/sui/compiler/tests/fixtures/*.sui` and `*.expected.js` snapshots in the same change. The CLI smoke (`tests/cli.rs`) and snapshot tests (`tests/snapshot.rs`) gate the emit shape — keep them current.
 
 ## Commit hygiene
 

@@ -96,10 +96,10 @@ export default controller<Scope>({
 
 Internals on the framework side:
 
-- `/home/madvib/dev/sui/crates/sui/compiler/src/ir/directive.rs` — `form_value` / `form_disabled` IR fields on `PropDirective`.
-- `/home/madvib/dev/sui/crates/sui/compiler/src/lower/directives.rs` — lowering + validation rules.
-- `/home/madvib/dev/sui/crates/sui/compiler/src/emit/js.rs` — emits `formAssociated: true` + `formValue` / `formDisabled` keys.
-- `/home/madvib/dev/sui/crates/sui/compiler/src/emit/schema.rs` / `emit/dts.rs` / `emit/cem.rs` — parallel emitters mirror the contract.
-- `/home/madvib/dev/sui/packages/sui/runtime/src/component-factory.ts` — reads the keys.
-- `/home/madvib/dev/sui/packages/sui/runtime/src/component-form.ts` — installs the lifecycle hooks.
-- `/home/madvib/dev/sui/packages/sui/runtime/src/component.ts` — `defineComponent` sets the static flag on the generated class.
+- `sui/crates/sui/compiler/src/ir/directive.rs` — `form_value` / `form_disabled` IR fields on `PropDirective`.
+- `sui/crates/sui/compiler/src/lower/directives.rs` — lowering + validation rules.
+- `sui/crates/sui/compiler/src/emit/js.rs` — emits `formAssociated: true` + `formValue` / `formDisabled` keys.
+- `sui/crates/sui/compiler/src/emit/schema.rs` / `emit/dts.rs` / `emit/cem.rs` — parallel emitters mirror the contract.
+- `sui/packages/sui/runtime/src/component-factory.ts` — reads the keys.
+- `sui/packages/sui/runtime/src/component-form.ts` — installs the lifecycle hooks.
+- `sui/packages/sui/runtime/src/component.ts` — `defineComponent` sets the static flag on the generated class.
