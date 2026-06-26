@@ -284,6 +284,128 @@ pub fn init_repo(root: &Path) -> Result<(), GitError> {
     Ok(())
 }
 
+// ── squash-merge (land) ────────────────────────────────────────────────────
+
+/// Outcome of a [`squash_merge`]. A conflict is NOT an error — it's a typed
+/// result the caller (the lander) handles by resolving and retrying. `GitError`
+/// is reserved for genuine failures (bad ref, nothing to land, io).
+#[derive(Debug, Clone)]
+pub enum SquashOutcome {
+    /// Clean squash-merge: one new commit on the target branch.
+    Committed {
+        /// The new (single-parent) squash commit sha on `target_branch`.
+        sha: String,
+        /// The branch that was advanced.
+        branch: String,
+    },
+    /// The three-way merge conflicted. Nothing was written; these are the
+    /// conflicting paths for the lander to resolve before retrying.
+    Conflicts { paths: Vec<String> },
+}
+
+/// Squash-merge `source_branch` into `target_branch` as a SINGLE commit.
+///
+/// This is the `land` operation: all of `source_branch`'s changes (relative to
+/// the merge base with `target_branch`) collapse into ONE new commit whose sole
+/// parent is the current `target_branch` tip — no merge parent, no per-commit
+/// history from the job branch. The branch ref is advanced to the new commit;
+/// if `target_branch` is the checked-out branch, the index + working tree are
+/// synced to match.
+///
+/// On a merge conflict we DO NOT auto-resolve and DO NOT write anything — we
+/// return [`SquashOutcome::Conflicts`] with the conflicting paths. Conflict
+/// resolution is the lander's job (see `ship-ops/src/workflow/model.ts`'s
+/// `land()` returning `{ok:false, conflicts}`).
+///
+/// `author` is `"Name <email>"`; `None` pulls from git config.
+pub fn squash_merge(
+    root: &Path,
+    source_branch: &str,
+    target_branch: &str,
+    message: &str,
+    author: Option<&str>,
+) -> Result<SquashOutcome, GitError> {
+    let repo = open_repo(root)?;
+
+    let source_commit = repo
+        .find_branch(source_branch, BranchType::Local)
+        .map_err(|e| GitError::BadRef(format!("source branch `{source_branch}`: {e}")))?
+        .get()
+        .peel_to_commit()?;
+    let target_commit = repo
+        .find_branch(target_branch, BranchType::Local)
+        .map_err(|e| GitError::BadRef(format!("target branch `{target_branch}`: {e}")))?
+        .get()
+        .peel_to_commit()?;
+
+    // Merge base for the three-way merge. If source is already an ancestor of
+    // target, it has already landed — nothing to do.
+    let base_oid = repo
+        .merge_base(target_commit.id(), source_commit.id())
+        .map_err(|e| GitError::Git(format!("no merge base for `{source_branch}`/`{target_branch}`: {e}")))?;
+    if base_oid == source_commit.id() {
+        return Err(GitError::NothingStaged); // source already merged into target
+    }
+    let base_commit = repo.find_commit(base_oid)?;
+
+    // Three-way tree merge: ancestor=base, ours=target, theirs=source. The
+    // resulting index lives in memory only (it is never written to the repo
+    // index), so a conflict leaves the repo completely untouched.
+    let mut merged = repo.merge_trees(
+        &base_commit.tree()?,
+        &target_commit.tree()?,
+        &source_commit.tree()?,
+        None,
+    )?;
+
+    if merged.has_conflicts() {
+        let mut paths = std::collections::BTreeSet::new();
+        for c in merged.conflicts()? {
+            let c = c?;
+            if let Some(entry) = c.our.or(c.their).or(c.ancestor) {
+                paths.insert(String::from_utf8_lossy(&entry.path).into_owned());
+            }
+        }
+        return Ok(SquashOutcome::Conflicts {
+            paths: paths.into_iter().collect(),
+        });
+    }
+
+    let tree_oid = merged.write_tree_to(&repo)?;
+    if tree_oid == target_commit.tree_id() {
+        // The merge produced no change against target — nothing to land.
+        return Err(GitError::NothingStaged);
+    }
+    let tree = repo.find_tree(tree_oid)?;
+
+    let sig = build_signature(&repo, author)?;
+    // Squash = ONE commit, sole parent = target tip (no merge parent). We pass
+    // `None` for the ref so we can advance the branch explicitly below.
+    let oid = repo.commit(None, &sig, &sig, message, &tree, &[&target_commit])?;
+
+    // Advance the target branch ref to the squash commit.
+    repo.reference(
+        &format!("refs/heads/{target_branch}"),
+        oid,
+        true,
+        &format!("squash-merge {source_branch} -> {target_branch}"),
+    )?;
+
+    // If target is the checked-out branch, sync index + working tree.
+    if current_branch_name(&repo).as_deref() == Some(target_branch) {
+        repo.checkout_tree(
+            tree.as_object(),
+            Some(git2::build::CheckoutBuilder::default().force()),
+        )?;
+        repo.set_head(&format!("refs/heads/{target_branch}"))?;
+    }
+
+    Ok(SquashOutcome::Committed {
+        sha: oid.to_string(),
+        branch: target_branch.to_string(),
+    })
+}
+
 // ── checkout ─────────────────────────────────────────────────────────────
 
 /// Checkout a ref — branch name or commit sha. Fails fast on dirty working

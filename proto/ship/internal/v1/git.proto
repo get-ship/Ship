@@ -15,12 +15,20 @@ syntax = "proto3";
 
 package ship.internal.v1;
 
-// Read-only window onto a git repository, backed by `ship-git`'s git2 loaders.
+// A window onto a git repository, backed by `ship-git`'s git2 ops. Reads
+// (Overview) and the first integration write (Land — squash-merge).
 service GitService {
   // Repo overview: current branch, short HEAD sha, ahead/behind vs upstream,
   // and staged/unstaged/untracked counts. Maps from ship-git's
   // `state::GitOverview` / `read::load_status_buckets`.
   rpc Overview(GitOverviewRequest) returns (GitOverviewResponse);
+
+  // Land: squash-merge a `job/<slug>` branch onto a mission's integration
+  // branch as ONE commit. Maps to ship-git's `write::squash_merge`. On a merge
+  // conflict NOTHING is written — the conflicting paths are returned for the
+  // lander to resolve and retry (the workflow's land queue discipline; see
+  // ship-ops/src/workflow/model.ts `land()` -> `{ok:false, conflicts}`).
+  rpc Land(LandRequest) returns (LandResponse);
 }
 
 message GitOverviewRequest {
@@ -45,4 +53,29 @@ message GitOverviewResponse {
   uint32 untracked = 7;
   // True when the working tree has no staged/unstaged/untracked changes.
   bool clean = 8;
+}
+
+message LandRequest {
+  // Absolute path to the repository working tree.
+  string repo_path = 1;
+  // The branch to squash-merge FROM, e.g. `job/<slug>`.
+  string source_branch = 2;
+  // The mission's integration branch to squash-merge ONTO, e.g. `feat/sui-rebuild`.
+  string target_branch = 3;
+  // The single squash commit's message.
+  string message = 4;
+  // Optional `"Name <email>"`; falls back to the repo's git config when empty.
+  string author = 5;
+}
+
+// Exactly one of `committed` / `conflicts` is populated:
+//   - clean land  -> `committed` = new squash commit sha, `conflicts` empty.
+//   - conflict    -> `conflicts` = conflicting paths, `committed` empty,
+//                    and NOTHING was written to the repo.
+message LandResponse {
+  // The new (single-parent) squash-merge commit sha, on a clean land.
+  string committed = 1;
+  // Conflicting paths, on a conflict. Non-empty <=> the land was rejected and
+  // the repo is untouched. The lander resolves these and retries.
+  repeated string conflicts = 2;
 }

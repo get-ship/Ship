@@ -221,6 +221,136 @@ fn commit_rejects_bad_author_string() {
     assert!(matches!(err, super::state::GitError::Git(_)));
 }
 
+// ── squash-merge (land) ────────────────────────────────────────────────────
+
+/// Commit the currently-staged tree onto HEAD with `message`. Returns the sha.
+fn commit_on_head(root: &Path, message: &str) -> String {
+    let repo = Repository::open(root).unwrap();
+    let mut index = repo.index().unwrap();
+    index.add_all(["."].iter(), git2::IndexAddOption::DEFAULT, None).unwrap();
+    index.write().unwrap();
+    let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+    let sig = Signature::now("Tester", "t@example.com").unwrap();
+    let parent = repo.head().unwrap().peel_to_commit().unwrap();
+    let oid = repo
+        .commit(Some("HEAD"), &sig, &sig, message, &tree, &[&parent])
+        .unwrap();
+    oid.to_string()
+}
+
+/// Create a branch at HEAD and check it out.
+fn branch_and_checkout(root: &Path, name: &str) {
+    write::branch_create(root, name).unwrap();
+    write::checkout(root, name).unwrap();
+}
+
+#[test]
+fn squash_merge_clean_lands_one_commit() {
+    let r = init_repo();
+    // main: a.txt
+    write_file(&r.root, "a.txt", "base\n");
+    initial_commit(&r.root);
+    let main = read::load_branch(&r.root).unwrap(); // "main" or "master"
+
+    // job/x branches off main, adds b.txt across TWO commits.
+    branch_and_checkout(&r.root, "job/x");
+    write_file(&r.root, "b.txt", "one\n");
+    commit_on_head(&r.root, "add b (1)");
+    write_file(&r.root, "b.txt", "one\ntwo\n");
+    commit_on_head(&r.root, "extend b (2)");
+
+    // Back on main, land job/x.
+    write::checkout(&r.root, &main).unwrap();
+    let before = read::load_log(&r.root, None, 50).len();
+
+    let out = write::squash_merge(&r.root, "job/x", &main, "land job/x", None).unwrap();
+    let sha = match out {
+        write::SquashOutcome::Committed { sha, branch } => {
+            assert_eq!(branch, main);
+            sha
+        }
+        write::SquashOutcome::Conflicts { paths } => panic!("unexpected conflicts: {paths:?}"),
+    };
+    assert_eq!(sha.len(), 40);
+
+    // Exactly ONE new commit on main, and it's a single-parent squash (not a
+    // merge commit) carrying ALL of job/x's changes.
+    let log = read::load_log(&r.root, None, 50);
+    assert_eq!(log.len(), before + 1, "exactly one squashed commit");
+    assert_eq!(log[0].subject, "land job/x");
+
+    let repo = Repository::open(&r.root).unwrap();
+    let head = repo.head().unwrap().peel_to_commit().unwrap();
+    assert_eq!(head.parent_count(), 1, "squash = single parent, not a merge");
+
+    // Working tree + index reflect the landed content (target was checked out).
+    assert_eq!(
+        fs::read_to_string(r.root.join("b.txt")).unwrap(),
+        "one\ntwo\n"
+    );
+    assert!(read::load_status_buckets(&r.root).clean, "tree clean after land");
+}
+
+#[test]
+fn squash_merge_conflict_returns_paths_and_writes_nothing() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "base\n");
+    initial_commit(&r.root);
+    let main = read::load_branch(&r.root).unwrap();
+
+    // job/x edits a.txt one way.
+    branch_and_checkout(&r.root, "job/x");
+    write_file(&r.root, "a.txt", "from-job\n");
+    commit_on_head(&r.root, "job edits a");
+
+    // main edits the SAME line a different way → conflict.
+    write::checkout(&r.root, &main).unwrap();
+    write_file(&r.root, "a.txt", "from-main\n");
+    let main_tip = commit_on_head(&r.root, "main edits a");
+    let log_before = read::load_log(&r.root, None, 50).len();
+
+    let out = write::squash_merge(&r.root, "job/x", &main, "land job/x", None).unwrap();
+    match out {
+        write::SquashOutcome::Conflicts { paths } => {
+            assert_eq!(paths, vec!["a.txt".to_string()]);
+        }
+        write::SquashOutcome::Committed { sha, .. } => {
+            panic!("expected conflict, got commit {sha}")
+        }
+    }
+
+    // NOTHING written: main tip unchanged, no new commit, working tree intact.
+    let repo = Repository::open(&r.root).unwrap();
+    let head = repo.head().unwrap().peel_to_commit().unwrap();
+    assert_eq!(head.id().to_string(), main_tip, "main tip unmoved");
+    assert_eq!(read::load_log(&r.root, None, 50).len(), log_before, "no new commit");
+    assert_eq!(fs::read_to_string(r.root.join("a.txt")).unwrap(), "from-main\n");
+    assert!(read::load_status_buckets(&r.root).clean, "tree untouched");
+}
+
+#[test]
+fn squash_merge_already_landed_is_nothing_staged() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "base\n");
+    initial_commit(&r.root);
+    let main = read::load_branch(&r.root).unwrap();
+
+    // job/x has no commits beyond main → already an ancestor.
+    write::branch_create(&r.root, "job/x").unwrap();
+    let err = write::squash_merge(&r.root, "job/x", &main, "noop", None).unwrap_err();
+    assert!(matches!(err, super::state::GitError::NothingStaged));
+}
+
+#[test]
+fn squash_merge_unknown_source_errors() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "base\n");
+    initial_commit(&r.root);
+    let main = read::load_branch(&r.root).unwrap();
+    let err = write::squash_merge(&r.root, "job/missing", &main, "x", None).unwrap_err();
+    assert!(matches!(err, super::state::GitError::BadRef(_)));
+}
+
 // ── diff ─────────────────────────────────────────────────────────────────
 
 #[test]
