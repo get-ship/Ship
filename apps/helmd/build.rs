@@ -6,9 +6,9 @@
 //! `protoc-bin-vendored` so a fresh clone needs no system install.
 
 fn main() {
-    // This crate lives at crates/core/ship-git-rpc; proto is at the repo root.
+    // helmd lives at apps/helmd; the shared proto tree is at the repo root.
     let proto_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../proto");
+        .join("../../proto");
 
     // SAFETY: build scripts run single-threaded before any user code; setting
     // process env here only affects this build script's protoc spawn.
@@ -25,5 +25,5 @@ fn main() {
         .compile()
         .expect("connectrpc-build codegen failed");
 
-    println!("cargo:rerun-if-changed=../../../proto/ship/internal/v1");
+    println!("cargo:rerun-if-changed=../../proto/ship/internal/v1");
 }

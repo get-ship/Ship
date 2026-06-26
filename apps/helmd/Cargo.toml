@@ -1,28 +1,31 @@
-# SPIKE (session_01RP76PB8FAHirne921cx3Rg): leaf RPC service over ship-git.
+# helmd — Helm's daemon: the compositional root that mounts Helm's dev-RPC
+# wires over compiler-free ship-core leaves. Today it serves one wire — the
+# git surface (`ship.internal.v1.GitService`) over `ship-git` — with more to
+# follow. Parallels `apps/shipd` (the heavy product daemon); helmd is the
+# leaf-backed dev daemon Helm (TS/Hono, in ship-ops) dials.
 #
-# This is a *separate compositional root* — note the empty `[workspace]` table
-# at the bottom. It is deliberately NOT a member of the ship root workspace, so
-# proving the pattern required no edit to the (already-dirty) root Cargo.toml.
-# `cargo build`/`cargo tree` run from this directory resolve against this crate
-# as its own workspace; the path dep on `ship-git` still resolves its own
-# `workspace = true` inheritance against the ship root workspace it belongs to.
+# DETACHED COMPOSITIONAL ROOT — note the empty `[workspace]` table at the
+# bottom. helmd is deliberately NOT a member of the ship root workspace, so it
+# resolves against itself as its own workspace. The path dep on `ship-git`
+# still resolves its own `workspace = true` inheritance against the ship root
+# workspace that `ship-git` belongs to.
 #
 # LEAF PROOF: deps are ship-git + connectrpc/buffa/axum/tokio only. No
 # ship-substrate, no compiler, no kernel/runtime. `cargo tree` must stay clean.
 [package]
-name = "ship-git-rpc"
+name = "helmd"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Leaf ConnectRPC service exposing ship.internal.v1.GitService over the compiler-free ship-git crate. Spike for Helm's internal codegen consumption."
+description = "Helm's daemon — leaf compositional root mounting dev-RPC wires (git now: ship.internal.v1.GitService over compiler-free ship-git; more later)."
 
 [[bin]]
-name = "ship-git-rpc"
+name = "helmd"
 path = "src/main.rs"
 
 [dependencies]
 # The leaf domain crate — git2 + ship-paths + ship-types, no compiler/substrate.
-ship-git = { path = "../ship-git" }
+ship-git = { path = "../../crates/core/ship-git" }
 # Connect-RPC runtime: `axum` to serve, `client` so the generated client type
 # also compiles (handy for a future in-process test).
 connectrpc = { version = "0.4", features = ["client", "axum"] }
@@ -41,5 +44,5 @@ connectrpc-build = "0.4"
 # Bundles protoc so no system-wide install is needed.
 protoc-bin-vendored = "3"
 
-# Detach from the ship root workspace — this crate is its own compositional root.
+# Detach from the ship root workspace — helmd is its own compositional root.
 [workspace]

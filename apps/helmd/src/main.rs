@@ -1,10 +1,13 @@
-//! `ship-git-rpc` — a LEAF ConnectRPC service exposing `ship.internal.v1.GitService`
-//! over the compiler-free `ship-git` crate.
+//! `helmd` — Helm's daemon. The compositional root that mounts Helm's dev-RPC
+//! wires over compiler-free ship-core leaves. Today it mounts ONE wire — the
+//! git surface (`ship.internal.v1.GitService`) over the `ship-git` crate — with
+//! more to follow. Parallels `apps/shipd` (the heavy product daemon); helmd is
+//! the leaf-backed dev daemon Helm (TS/Hono, in ship-ops) dials.
 //!
-//! SPIKE (session_01RP76PB8FAHirne921cx3Rg). The point: Helm (TS/Hono) consumes
-//! a leaf Rust RPC via its OWN codegen target that includes internal-marked ops.
-//! This binary is the server half. It depends on `ship-git` + connectrpc only —
-//! no ship-substrate, no compiler, no kernel/runtime (`cargo tree` proves it).
+//! It depends on `ship-git` + connectrpc only — no ship-substrate, no compiler,
+//! no kernel/runtime (`cargo tree` proves it). The point: Helm consumes a leaf
+//! Rust RPC via its OWN codegen target that includes internal-marked ops; this
+//! binary is the server half.
 //!
 //! Wire surface (see `proto/ship/internal/v1/git.proto`):
 //!   POST /ship.internal.v1.GitService/Overview
@@ -14,8 +17,8 @@
 //!   GET  /health  — liveness probe
 //!
 //! Transport: plain TCP on a localhost port (default 2469, override with
-//! `--addr host:port`). The daemon-vs-subprocess transport question is a
-//! follow-up; TCP is the simplest thing that lets Helm dial it for the spike.
+//! `--addr host:port`). TCP is the simplest thing that lets Helm dial it; a
+//! richer daemon transport is a follow-up.
 
 #[allow(
     clippy::all,
@@ -160,12 +163,12 @@ async fn main() -> anyhow::Result<()> {
         .fallback_service(connect.into_axum_service());
 
     let listener = TcpListener::bind(&addr).await?;
-    eprintln!("ship-git-rpc listening on {addr} (POST /ship.internal.v1.GitService/{{Overview,Land,Release}})");
+    eprintln!("helmd listening on {addr} (POST /ship.internal.v1.GitService/{{Overview,Land,Release}})");
     axum::serve(listener, app)
         .with_graceful_shutdown(async {
             let _ = tokio::signal::ctrl_c().await;
         })
         .await?;
-    eprintln!("ship-git-rpc shutting down");
+    eprintln!("helmd shutting down");
     Ok(())
 }
