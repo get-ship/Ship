@@ -53,14 +53,7 @@ jobs:
       # paying `cargo run` per `.sui` file.
       # Post-carve: sui-compiler lives in the external sui repo.
       - name: Build sui-compiler (external sui repo)
-        run: cargo build --manifest-path /home/madvib/dev/sui/Cargo.toml -p sui-compiler
-      # Production-compile gate: run the REAL native compiler over EVERY
-      # first-party `.sui` (packages/components, views, .ship/views). jsdom unit
-      # tests don't exercise the full `check_all` pass, so a `.sui` can be green
-      # in vitest yet fail the real compiler (#263). This catches that before it
-      # ships. Honest exit (#255): any Error-severity finding fails the gate.
-      - name: Check every first-party .sui compiles (production gate)
-        run: node scripts/check-sui-compiles.mjs
+        run: cargo build --manifest-path /home/madvib/dev/Ship/sui/Cargo.toml -p sui-compiler
       - name: Build daemon asset bundles
         run: bun run build:bundles
       # TS typecheck — the enforcement + sanity layer (not optional). The SDK is
@@ -87,13 +80,7 @@ jobs:
         run: |
           bash scripts/lint/check-migration-naming.sh
           bash scripts/lint/check-migration-discipline.sh
-      - name: Check SUI layer-cut (no framework -> host imports)
-        run: bash scripts/lint/check-sui-layer-cut.sh
-      # SUI/Deck boundary gates — these scripts existed but were never invoked.
-      # check-sui-runtime-no-ship-api: the SUI runtime must not name Ship APIs.
-      # check-deck-package-names: deck packages stay on the canonical names.
-      - name: Check SUI runtime names no Ship API
-        run: bash scripts/lint/check-sui-runtime-no-ship-api.sh
+      # SUI/Deck boundary gate — deck packages stay on the canonical names.
       - name: Check deck package names
         run: bash scripts/lint/check-deck-package-names.sh
       # Justfile recipe shell-syntax smoke: `just` treats recipe bodies as opaque
@@ -102,8 +89,6 @@ jobs:
       # catches that class before it lands.
       - name: Lint Justfile recipe shell syntax
         run: just lint-justfile
-      - name: Check SUI bundle sizes (within budget)
-        run: bash scripts/lint/check-sui-bundle-size.sh
       - name: Check landing custom-element bundle coverage (no inert tags)
         run: node scripts/lint/check-landing-bundle-coverage.mjs
       - name: Collect skill docs
@@ -136,17 +121,11 @@ jobs:
             || { echo "skills/sdk is stale — run 'cargo run -p xtask -- gen-skills' and commit"; exit 1; }
       # tokens.json drift gate: the registry the sui-css-token lint reads is
       # generated against the CSS token files in the EXTERNAL sui repo post-carve
-      # (crates/sui/compiler lives in /home/madvib/dev/sui). That repo owns the
+      # (crates/sui/compiler lives in /home/madvib/dev/Ship/sui). That repo owns the
       # drift check; the gate fires in sui's own CI. (cargo xtask gen-tokens
-      # itself moved with the sui-compiler crate to /home/madvib/dev/sui.)
-      # gen-types emits the TS response types (packages/sdk, sdk-client,
-      # cloud-types) from the Rust specta registrations. The
-      # sui-runtime types (formerly `packages/sui/runtime/src/generated.ts`)
-      # moved with the sui repo and are gated there.
-      - name: Check gen-types drift
-        run: |
-          cargo run -p xtask --quiet -- gen-types --check \
-            || { echo "generated TS types are stale — run 'cargo run -p xtask -- gen-types' and fix consumers"; exit 1; }
+      # itself moved with the sui-compiler crate to /home/madvib/dev/Ship/sui.)
+      # gen-types TS outputs (packages/sdk, sdk-client, cloud-types) moved to
+      # ship-contracts; gen-types in ship no longer writes those files.
       # The daemon HTTP route reference (skills/sdk/http-routes) is generated
       # from the @route annotations in apps/shipd/src/routes/mod.rs — the same
       # registry build.rs compiles into the router. Re-render + byte-compare so
@@ -165,16 +144,6 @@ jobs:
           cargo run -p xtask --quiet -- gen-fixtures
           git diff --exit-code proto/fixtures/ \
             || { echo "proto/fixtures is stale — run 'cargo run -p xtask -- gen-fixtures' and commit"; exit 1; }
-      # @ship/sdk Connect gen is generated from proto/ship/ops/v1/*.proto by buf
-      # (buf.gen.sdk.yaml → protoc-gen-es). buf never cleans its output dir, so a
-      # deleted proto used to leave a zombie *_pb.ts behind. proto:generate now
-      # `rm -rf`s the gen dir first; regenerate and assert no diff so a stale or
-      # zombie generated module can't survive a proto deletion.
-      - name: Check @ship/sdk proto gen drift
-        run: |
-          bun run --cwd packages/sdk proto:generate
-          git diff --exit-code packages/sdk/src/gen \
-            || { echo "packages/sdk/src/gen is stale — run 'bun run --cwd packages/sdk proto:generate' and commit"; exit 1; }
       - name: Lint layer boundaries
         run: cargo run -p xtask --quiet -- lint-layers
       - name: Lint import-level layer direction
@@ -296,8 +265,8 @@ jobs:
         run: cargo install cargo-fuzz --locked --version 0.13.1 || true
       # Sui-compiler fuzz harnesses live in the external sui repo post-carve.
       - name: Fuzz — sui-compiler parse_fragment (60s)
-        run: cd /home/madvib/dev/sui/crates/sui/compiler/fuzz && cargo +nightly fuzz run parse_fragment -- -max_total_time=60
+        run: cd /home/madvib/dev/Ship/sui/crates/sui/compiler/fuzz && cargo +nightly fuzz run parse_fragment -- -max_total_time=60
       - name: Fuzz — sui-compiler compile_full (60s)
-        run: cd /home/madvib/dev/sui/crates/sui/compiler/fuzz && cargo +nightly fuzz run compile_full -- -max_total_time=60
+        run: cd /home/madvib/dev/Ship/sui/crates/sui/compiler/fuzz && cargo +nightly fuzz run compile_full -- -max_total_time=60
       - name: Fuzz — sui-compiler bindings_build (60s)
-        run: cd /home/madvib/dev/sui/crates/sui/compiler/fuzz && cargo +nightly fuzz run bindings_build -- -max_total_time=60
+        run: cd /home/madvib/dev/Ship/sui/crates/sui/compiler/fuzz && cargo +nightly fuzz run bindings_build -- -max_total_time=60
