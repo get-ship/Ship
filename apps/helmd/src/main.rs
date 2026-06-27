@@ -1,26 +1,36 @@
 //! `helmd` — Helm's daemon. The compositional root that mounts Helm's dev-RPC
-//! wires over compiler-free ship-core leaves. Today it mounts ONE wire — the
-//! git surface (`ship.internal.v1.GitService`) over the `ship-git` crate — with
-//! more to follow. Parallels `apps/shipd` (the heavy product daemon); helmd is
-//! the leaf-backed dev daemon Helm (TS/Hono, in ship-ops) dials.
+//! wires over ship-core LEAF crates. Today it mounts TWO wires: the git surface
+//! (`ship.internal.v1.GitService`) over the `ship-git` crate, and the harness
+//! compiler (`ship.internal.v1.HarnessService`) over the `compiler` crate —
+//! with more to follow. Parallels `apps/shipd` (the heavy product daemon);
+//! helmd is the leaf-backed dev daemon Helm (TS/Hono, in ship-ops) dials.
 //!
-//! It depends on `ship-git` + connectrpc only — no ship-substrate, no compiler,
-//! no kernel/runtime (`cargo tree` proves it). The point: Helm consumes a leaf
-//! Rust RPC via its OWN codegen target that includes internal-marked ops; this
+//! It depends on the LEAF crates `ship-git` + `compiler` (plus connectrpc) —
+//! no ship-substrate proper, no kernel/runtime, no store/agent-def. `compiler`
+//! is itself an L0 pure transform (serde/minijinja/toml), so its wire keeps
+//! helmd leaf-clean (`cargo tree` proves it). The point: Helm consumes leaf Rust
+//! RPCs via its OWN codegen target that includes internal-marked ops; this
 //! binary is the server half.
 //!
-//! Wire surface (see `proto/ship/internal/v1/git.proto`):
-//!   POST /ship.internal.v1.GitService/Overview
-//!   POST /ship.internal.v1.GitService/Land      — squash-merge (the `land` op)
-//!   POST /ship.internal.v1.GitService/Release   — squash integration->main + tag
-//!   POST /ship.internal.v1.GitService/Footprint — branch changed-files (presence)
-//!   POST /ship.internal.v1.GitService/Diff      — render-ready diff (the git modal)
+//! Wire surface:
+//!   git.proto — `ship.internal.v1.GitService`:
+//!     POST /ship.internal.v1.GitService/Overview
+//!     POST /ship.internal.v1.GitService/Land      — squash-merge (the `land` op)
+//!     POST /ship.internal.v1.GitService/Release   — squash integration->main + tag
+//!     POST /ship.internal.v1.GitService/Footprint — branch changed-files (presence)
+//!     POST /ship.internal.v1.GitService/Diff      — render-ready diff (the git modal)
+//!   harness.proto — `ship.internal.v1.HarnessService`:
+//!     POST /ship.internal.v1.HarnessService/ListHarnesses — compile targets (real)
+//!     POST /ship.internal.v1.HarnessService/Compile       — `.ship/` → harness
+//!                                                            configs (the RPC form
+//!                                                            of `ship use`/`compile`)
 //! Auxiliary:
 //!   GET  /health  — liveness probe
 //!
 //! A CORS layer (tower-http) wraps the router so the browser — Helm's SPA, served
-//! by Hono on another origin in dev — can dial GitService DIRECTLY (the "second
-//! client" alongside Hono). The `Diff` op is the first UI surface on dev-RPC.
+//! by Hono on another origin in dev — can dial these services DIRECTLY (the
+//! "second client" alongside Hono). The `Diff` op is the first UI surface on
+//! dev-RPC; `HarnessService` is the second wire on the same dev-RPC daemon.
 //!
 //! Transport: plain TCP on a localhost port (default 2469, override with
 //! `--addr host:port`). TCP is the simplest thing that lets Helm dial it; a
@@ -50,6 +60,9 @@ use proto::{
     DiffFile, DiffResponse, DiffRow, FootprintResponse, GitOverviewResponse, GitService,
     GitServiceExt, LandResponse, ReleaseResponse, OwnedDiffRequestView, OwnedFootprintRequestView,
     OwnedGitOverviewRequestView, OwnedLandRequestView, OwnedReleaseRequestView,
+    // Harness-compiler wire (harness.proto).
+    CompileResponse, Harness, HarnessService, HarnessServiceExt, ListHarnessesResponse,
+    OwnedCompileRequestView, OwnedListHarnessesRequestView,
 };
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -229,6 +242,75 @@ fn map_diff_view(view: ship_git::read::DiffView) -> DiffResponse {
     }
 }
 
+/// Stateless handler for the harness-compiler wire. Backed by the `compiler`
+/// leaf — the same engine `ship use` / `ship compile` drive in the CLI.
+struct HarnessImpl;
+
+impl HarnessService for HarnessImpl {
+    // ListHarnesses — REAL, leaf-clean: a pure read off `compiler::list_harnesses()`
+    // (the static HARNESSES table). No `.ship/` load, no filesystem. This is the
+    // proof op: the harness compiler is reachable as a dev-RPC op on helmd while
+    // helmd stays leaf-clean (mirrors GitService.Overview).
+    #[allow(refining_impl_trait)]
+    async fn list_harnesses(
+        &self,
+        _ctx: RequestContext,
+        _req: OwnedListHarnessesRequestView,
+    ) -> ServiceResult<ListHarnessesResponse> {
+        let harnesses = compiler::list_harnesses()
+            .iter()
+            .map(|h| Harness {
+                id: h.id.to_string(),
+                name: h.name.to_string(),
+                supports_mcp: h.features.supports_mcp,
+                supports_hooks: h.features.supports_hooks,
+                supports_tool_permissions: h.features.supports_tool_permissions,
+                supports_memory: h.features.supports_memory,
+                mcp_config_path: h.mcp_config_path.unwrap_or_default().to_string(),
+                ..Default::default()
+            })
+            .collect();
+        Response::ok(ListHarnessesResponse { harnesses, ..Default::default() })
+    }
+
+    // Compile — the `.ship/` → harness-configs op (RPC form of `ship use`). The
+    // contract is locked and the wire is live; full execution is blocked on the
+    // `.ship/` → `compiler::ProjectLibrary` loader, which today lives in the
+    // substrate-coupled `agent-def` (`compile::loader::load_library`) and would
+    // pull ship-substrate/ship-store into helmd — breaking the leaf contract.
+    //
+    // EXACT NEXT STEP to make this real (kept out of this contained spike):
+    //   1. Carve a LEAF loader (e.g. `compiler::load`, or a `compiler-loader`
+    //      crate) — `load_library` is pure serde/std::fs EXCEPT one call,
+    //      `ship_config::agents::read_agent_profiles` via `LocalFsBroker`
+    //      (agent-def/compile/loader.rs ~L340); replace that with a std::fs walk
+    //      + `compiler::jsonc` so the loader has zero substrate deps.
+    //   2. Here: `let lib = compiler::load_library(repo.join(".ship"))?;`
+    //      `let resolved = compiler::resolve_library(&lib, None, active_agent);`
+    //      then `for h in harnesses { compiler::compile(&resolved, h) }`, flatten
+    //      each `CompileOutput` (context_content / *_settings_patch / skill_files
+    //      / agent_files / rule_files) into `CompiledFile { harness_id, path,
+    //      content }`, and write unless `dry_run`.
+    #[allow(refining_impl_trait)]
+    async fn compile(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedCompileRequestView,
+    ) -> ServiceResult<CompileResponse> {
+        let repo_path = req.repo_path.to_string();
+        if repo_path.is_empty() {
+            return Err(connectrpc::ConnectError::invalid_argument(
+                "repo_path is required",
+            ));
+        }
+        Err(connectrpc::ConnectError::unimplemented(
+            "HarnessService.Compile: contract live, execution pending the leaf \
+             `.ship/` loader carve (see handler doc + session report). Use \
+             ListHarnesses for the supported compile targets.",
+        ))
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let mut addr = DEFAULT_ADDR.to_string();
@@ -241,6 +323,9 @@ async fn main() -> anyhow::Result<()> {
 
     let connect = Router::new();
     let connect = Arc::new(GitImpl).register(connect);
+    // Second wire on the same dev-RPC daemon: the harness compiler over the
+    // `compiler` leaf. Helm dials this as a second client alongside GitService.
+    let connect = Arc::new(HarnessImpl).register(connect);
 
     // CORS so the browser — Helm's SPA, served by Hono on another origin (e.g.
     // http://localhost:3000) — can dial GitService directly in dev. Connect-web
@@ -258,7 +343,11 @@ async fn main() -> anyhow::Result<()> {
         .layer(cors);
 
     let listener = TcpListener::bind(&addr).await?;
-    eprintln!("helmd listening on {addr} (POST /ship.internal.v1.GitService/{{Overview,Land,Release,Footprint,Diff}}, CORS on)");
+    eprintln!(
+        "helmd listening on {addr} \
+         (POST /ship.internal.v1.GitService/{{Overview,Land,Release,Footprint,Diff}}, \
+         /ship.internal.v1.HarnessService/{{ListHarnesses,Compile}}, CORS on)"
+    );
     axum::serve(listener, app)
         .with_graceful_shutdown(async {
             let _ = tokio::signal::ctrl_c().await;

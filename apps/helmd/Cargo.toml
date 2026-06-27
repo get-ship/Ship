@@ -10,8 +10,12 @@
 # still resolves its own `workspace = true` inheritance against the ship root
 # workspace that `ship-git` belongs to.
 #
-# LEAF PROOF: deps are ship-git + connectrpc/buffa/axum/tokio only. No
-# ship-substrate, no compiler, no kernel/runtime. `cargo tree` must stay clean.
+# LEAF PROOF: domain deps are the LEAF crates ship-git + compiler (plus
+# connectrpc/buffa/axum/tokio). No ship-substrate proper, no kernel/runtime, no
+# store, no agent-def/ship-platform. `compiler` is itself an L0 pure transform
+# (serde/minijinja/toml), so mounting its wire keeps helmd leaf-clean — every
+# wire here is over a compiler-free OR pure-transform leaf. `cargo tree` proves
+# it: no ship-substrate/ship-kernel/ship-runtime/ship-store in the graph.
 [package]
 name = "helmd"
 version = "0.1.0"
@@ -26,6 +30,11 @@ path = "src/main.rs"
 [dependencies]
 # The leaf domain crate — git2 + ship-paths + ship-types, no compiler/substrate.
 ship-git = { path = "../../crates/core/ship-git" }
+# The harness-compiler leaf — L0 pure transform (serde / minijinja / toml /
+# semver / indexmap), NO ship-substrate, NO kernel/runtime/store. Backs the
+# ship.internal.v1.HarnessService wire. `cargo tree` must show only its pure
+# deps — the same leaf-clean contract ship-git holds.
+compiler = { path = "../../crates/core/compiler" }
 # Connect-RPC runtime: `axum` to serve, `client` so the generated client type
 # also compiles (handy for a future in-process test).
 connectrpc = { version = "0.4", features = ["client", "axum"] }

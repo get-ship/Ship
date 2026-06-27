@@ -20,7 +20,13 @@ fn main() {
     }
 
     connectrpc_build::Config::new()
-        .files(&[proto_root.join("ship/internal/v1/git.proto")])
+        .files(&[
+            proto_root.join("ship/internal/v1/git.proto"),
+            // The harness-compiler wire (ship.internal.v1.HarnessService) lands in
+            // the SAME package mod as GitService, so `src/main.rs`'s single
+            // `include!` of `ship.internal.v1.mod.rs` picks up both services.
+            proto_root.join("ship/internal/v1/harness.proto"),
+        ])
         .includes(std::slice::from_ref(&proto_root))
         .compile()
         .expect("connectrpc-build codegen failed");
