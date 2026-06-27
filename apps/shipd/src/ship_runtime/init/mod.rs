@@ -188,10 +188,13 @@ impl ShipRuntime {
         Ok(Self {
             config,
             kernel,
-            // Platform DB lives at ~/.ship/platform.db only. A workspace
-            // attachment does NOT fork a second db into <workspace>/.ship/.
-            // See crates/core/runtime/src/db/mod.rs:77 ("Never inside a project directory").
-            ship_dir: global_dir.clone(),
+            // Per-scope dbs live at the ship-home root (`runtime.db`,
+            // `account.db`, `spaces/<id>/space.db`); `data.db` + `kv.db`
+            // live under `~/.ship/machine/db/`. A workspace attachment does
+            // NOT fork a second db into `<workspace>/.ship/` — see
+            // `crates/core/ship-substrate/src/db/mod.rs`. `platform.db` was
+            // deleted in the Phase-4 storage partition; no boot step
+            // opens it.
             daemon_dir: {
                 // Pick the worktree daemon dir if launched from inside a
                 // git worktree, else the singleton. Mirrors lib.rs::run_network —

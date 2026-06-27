@@ -21,7 +21,7 @@ set -u
 cd "$(dirname "$0")/../.."
 
 # ship-application was folded into ship-platform; its migrations/ dir is
-# gone. platform.db migrations live under ship-substrate.
+# gone. Per-scope event db migrations live under ship-substrate.
 MIG_DIRS=(
     "crates/core/ship-substrate/migrations"
 )

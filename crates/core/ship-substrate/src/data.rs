@@ -26,11 +26,11 @@ pub struct DataService {
 
 impl DataService {
     /// Open or create `data.db` in the given `.ship/` directory and run
-    /// runtime startup — register built-in collection schemas and migrate
-    /// legacy user content from `platform.db`.
+    /// runtime startup — register built-in collection schemas.
     ///
     /// Startup is idempotent: schema registration is a no-op if tables
-    /// already exist, and migration is gated by a completion flag.
+    /// already exist. (`platform.db` was deleted in the Phase-4 storage
+    /// partition; there is no legacy migration to run.)
     pub fn open(ship_dir: &Path) -> Result<Self> {
         let mut svc = Self::open_raw(ship_dir)?;
         svc.run_startup(ship_dir)?;
