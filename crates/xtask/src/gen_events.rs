@@ -378,6 +378,13 @@ pub fn run(check: bool) -> Result<()> {
 
     std::fs::write(&proto_path, &proto_content)
         .with_context(|| format!("writing {}", proto_path.display()))?;
+    // packages/cloud-types moved to ship-contracts; create its directory on
+    // demand so gen-events doesn't crash on a fresh checkout where packages/
+    // is absent. The TS output reconciles when ship-contracts re-wires gen-events.
+    if let Some(parent) = ts_path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("create_dir_all {}", parent.display()))?;
+    }
     std::fs::write(&ts_path, &ts_content)
         .with_context(|| format!("writing {}", ts_path.display()))?;
 

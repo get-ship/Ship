@@ -1,8 +1,8 @@
 //! Dev-time task runner.
 //!
 //! Usage:
-//!   cargo xtask gen-types          # regenerate packages/sdk/src/generated.ts
-//!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
+//!   cargo xtask gen-types          # no-op: TS outputs moved to ship-contracts
+//!   cargo xtask gen-sdk            # regenerate sdk-*.json manifests
 
 mod check_topology;
 mod cli;
@@ -25,7 +25,6 @@ mod lint_layers;
 mod lint_residue;
 mod metadata;
 mod port_descriptions;
-mod types;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
