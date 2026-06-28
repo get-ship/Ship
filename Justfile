@@ -30,59 +30,13 @@ default:
 
 # ── Daily ────────────────────────────────────────────────────────────────────
 
-# One-shot fresh-clone setup. Order matters and is dependency-driven: the
-# gitignored generated assets (sdk-*.json, the FFI cdylib, the wasm pkg) must
-# exist before the cargo + bun builds that consume them, or a cold clone
-# fails at compile/bundle time. On dispatched worktrees these are copied from
-# the launch repo by dispatch.sh; this recipe generates them.
-# (lucide-icons.json is committed source — regenerate via
-# `cargo run -p xtask -- gen-icons` after a lucide-static version bump.)
-[group('daily')]
-bootstrap:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    command -v bun  >/dev/null || { echo "bun not on PATH — install via 'curl -fsSL https://bun.sh/install | bash'" >&2; exit 1; }
-    bun install
-    cargo run -p xtask --quiet -- gen-types
-    # sdk-*.json bootstrap cycle: shipd include_str!s these, and gen-sdk runs
-    # *through* shipd (via xtask). Seed empty placeholders so shipd compiles,
-    # then gen-sdk overwrites them with real content.
-    mkdir -p packages/sdk/src/generated
-    for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
-        [ -s "packages/sdk/src/generated/$f.json" ] || echo '{}' > "packages/sdk/src/generated/$f.json"
-    done
-    cargo run -p xtask --quiet -- gen-sdk
-    # sui-compiler cdylib — the .so the bun asset builds load over FFI.
-    cargo build -p sui-compiler
-    # sui-compiler-wasm pkg — the in-browser compiler the sui-code-editor
-    # component bundles against.
-    bun run wasm
-    cargo build -p ship-cli
-    # Deck is the only bundler: bake the framework singletons + sui-components
-    # umbrella + islands + marketing/arcade in-process (rolldown). No per-pack
-    # pre-compile step — components compile from source on demand.
-    cargo run -p deck-cli --quiet -- build-assets
-    # App scaffolds: the daemon-served `/` and `/space/<id>` HTML apps. The app
-    # list lives ONLY in `apps/shipd/apps.jsonc` (read by shipd at startup);
-    # build each from its registry `root` via the per-app bundler. The
-    # root-mounted app gets `--bundle-framework` so its `.deck/` is
-    # self-contained.
-    just _build-apps
-    just dev-runtime-install
-    echo "bootstrap complete — 'just dev' to start the daemon"
 
 # Build + stash + start the dev daemon for this worktree (headless / browser dev).
 [group('daily')]
 dev:
     @scripts/dev/start.sh
 
-# The whole desktop loop in ONE command: rebuild the hub scaffold, ensure the
-# dev daemon, build + launch the native shell window. Always rebuilds the
-# scaffold so a stale `.deck/hub-scaffold` can't silently blank the shell.
-# Pass `--app=<id>` to open a space window. Daemon-only loop: `just dev`.
-[group('daily')]
-shell *ARGS:
-    @scripts/dev/shell.sh {{ARGS}}
+
 
 # Bakes every bundle via the in-process Rolldown bundler (#163) — the same
 # engine shipd runs, and the ONLY bundler. Framework singletons + the
@@ -372,8 +326,9 @@ build: _sui-compiler-lib _deck-cli
         echo "build: SUI_PATH is unset or points to a non-sui directory — set SUI_PATH to the sui repo root" >&2
         exit 1
     }
-    echo "[1/7] gen-types"
-    cargo run -p xtask --quiet -- gen-types
+    echo "[1/7] gen-types (no-op: removed)"
+    # gen-types was a no-op (TS outputs moved to ship-contracts); the step
+    # is removed entirely. The remaining build chain does not depend on it.
     echo "[2/7] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bundler loads)"
     # Steps 3-7 drive the SUI compiler over Bun FFI against this .so. Nothing
     # out-of-band — the explicit --manifest-path guarantees the .so is from
@@ -469,14 +424,8 @@ sui-napi:
     cargo build --manifest-path {{sui_path()}}/Cargo.toml -p sui-compiler-napi
 
 # Regenerate Specta types (Rust → generated TS bindings).
-[group('occasional')]
-gen-types:
-    cargo run -p xtask -- gen-types
 
 # Regenerate the Ship SDK manifest.
-[group('occasional')]
-gen-sdk:
-    cargo run -p xtask -- gen-sdk
 
 # Generate per-domain consumer contract guides under docs/contract/.
 [group('occasional')]
@@ -494,14 +443,8 @@ gen-audit-readme:
     cargo run -p xtask -- gen-audit-readme
 
 # Regenerate tier-filtered event proto + TS from the event registry.
-[group('occasional')]
-gen-events:
-    cargo run -p xtask -- gen-events
 
 # Verify generated event artifacts are up-to-date (CI gate — exits 1 on drift).
-[group('occasional')]
-gen-events-check:
-    cargo run -p xtask -- gen-events --check
 
 # Regenerate emit-sites.md + substrate-fns.md citation indexes.
 [group('occasional')]
@@ -515,14 +458,8 @@ gen-indexes-check:
 
 # Regenerate packages/sdk/src/generated/collections.ts — the typed
 # Database interface derived from .ship/collections/*.jsonc (typed Kysely input).
-[group('occasional')]
-gen-collection-types:
-    cargo run -p xtask -- gen-collection-types
 
 # Verify generated collection types are up-to-date (CI gate — exits 1 on drift).
-[group('occasional')]
-gen-collection-types-check:
-    cargo run -p xtask -- gen-collection-types --check
 
 # Compile the active agent for the current project.
 [group('occasional')]
@@ -636,8 +573,3 @@ publish repo:
       -H "Content-Type: application/json" \
       -H "Cookie: ${AUTH_COOKIE}" \
       -d '{"repo_url": "{{ repo }}"}' | jq .
-
-# TypeScript type check (shell app).
-[group('occasional')]
-typecheck:
-    bun run --filter shell typecheck
