@@ -30,9 +30,13 @@ pub fn run_with_args(args: &[&str]) -> Result<()> {
         .find(|w| w[0] == "--event")
         .map(|w| w[1]);
 
+    // SMELL: this tool's input (proto/fixtures) is in ship-contracts
+    // post-multi-repo-cleanup. The path `proto/fixtures` does not
+    // exist in ship anymore. gen-fixtures should move to ship-contracts
+    // as `xtask-contracts/gen-fixtures` so the read path is the in-repo
+    // SSOT. Until then, the tool is broken when run from ship.
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let fixtures_dir = root.join("proto/fixtures");
-
     if report_missing {
         return report_missing_fixtures(&fixtures_dir);
     }

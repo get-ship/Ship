@@ -24,7 +24,10 @@ ship-pipeline-runtime = { path = "../ship-pipeline-runtime", features = ["specta
 # Event envelope type for the cloud-side TS surface (build_cloud_types).
 ship-types = { path = "../core/ship-substrate/crates/ship-types", features = ["specta"] }
 # `deck` is a thin re-export facade in the external sui repo post-carve.
-deck = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck", features = ["specta"] }
+# Path-dep smell: build only worked if sui was at a specific local
+# path. Replaced with a version pin (0.1.0-dev) to draw attention
+# to the smell. See .artifacts/handoff-post-cleanup.md.
+deck = { version = "0.1.0-dev", features = ["specta"] }
 # `shipd` is in apps/, not crates/ — used for fixtures only.
 shipd = { path = "../../apps/shipd", features = ["specta"] }
 # validate fixtures against the wire SSOT.

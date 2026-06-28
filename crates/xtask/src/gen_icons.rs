@@ -96,24 +96,14 @@ fn extract_inner(svg: &str) -> Result<String> {
     Ok(out.trim().to_string())
 }
 
-/// Entry point. Walks the ship repo's `node_modules/lucide-static/icons`
-/// (or the bun-store variant) and writes the icon registry to
-/// `out_dir/lucide-icons.json` (defaults to the in-repo path the
-/// ship-side build chain previously wrote — the suirepo relative path
-/// to `crates/deck/deck-core/assets/lucide-icons.json` for the historical
-/// single-machine dev environment).
-///
-/// `--out <path>` redirects the output to any absolute or relative path —
-/// typically `../sui/crates/deck/deck-core/assets/` (suirepo's own tree) so
-/// the icon registry is committed to the repo that consumes it, not
-/// written into a sibling checkout from a different repo's tool.
-///
-/// Cross-repo: the same pattern as `gen-sdk --out`. The hardcoded
-/// default is preserved for back-compat with operator scripts that
-/// pre-date the multi-repo split.
-pub fn run(repo_root: &Path, args: &[String]) -> Result<()> {
+pub fn run(repo_root: &Path) -> Result<()> {
     let icons_dir = locate_lucide_icons(repo_root)?;
-    let out_path = out_dir_from_args(args);
+    // SMELL: hardcoded path to suirepo local. The gen-icons tool lives in
+    // ship; its output is a sui asset. Pre-multi-repo-split this was an
+    // internal path; post-split it should be in a published deck crate or
+    // behind a SUI_PATH env var. For now the smell is loud on purpose
+    // until gen-icons moves to suirepo (where the asset is committed).
+    let out_path = std::path::PathBuf::from("/home/madvib/dev/Ship/sui/crates/deck/deck-core/assets/lucide-icons.json");
     fs::create_dir_all(out_path.parent().unwrap())
         .with_context(|| format!("mkdir parent of {}", out_path.display()))?;
 
@@ -153,20 +143,6 @@ pub fn run(repo_root: &Path, args: &[String]) -> Result<()> {
         format_size(fs::metadata(&out_path)?.len()),
     );
     Ok(())
-}
-
-fn out_dir_from_args(args: &[String]) -> PathBuf {
-    let mut iter = args.iter();
-    while let Some(arg) = iter.next() {
-        if arg == "--out" {
-            if let Some(value) = iter.next() {
-                return PathBuf::from(value);
-            }
-            eprintln!("gen-icons: --out requires a path argument; using default");
-            break;
-        }
-    }
-    PathBuf::from("/home/madvib/dev/Ship/sui/crates/deck/deck-core/assets/lucide-icons.json")
 }
 
 fn format_size(bytes: u64) -> String {

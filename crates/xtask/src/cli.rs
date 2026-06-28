@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     coverage, gen_audit_readme, gen_collection_types, gen_contract, gen_events, gen_fixtures,
     gen_icons, gen_indexes, gen_routes_doc, gen_skills, gen_sdk, lint_anti_theater,
-    lint_imports, lint_layers, lint_residue, port_descriptions,
+    lint_imports, lint_layers, lint_residue,
 };
 
 pub fn repo_root() -> PathBuf {
@@ -23,7 +23,7 @@ pub fn dispatch(cmd: &str, args: &[String]) {
             gen_types(check);
         }
         "gen-sdk" => {
-            if let Err(e) = gen_sdk::run(&repo_root(), args) {
+            if let Err(e) = gen_sdk::run(&repo_root()) {
                 eprintln!("gen-sdk failed: {e:#}");
                 std::process::exit(1);
             }
@@ -81,7 +81,7 @@ pub fn dispatch(cmd: &str, args: &[String]) {
             }
         }
         "gen-icons" => {
-            if let Err(e) = gen_icons::run(&repo_root(), &args) {
+            if let Err(e) = gen_icons::run(&repo_root()) {
                 eprintln!("gen-icons failed: {e:#}");
                 std::process::exit(1);
             }
@@ -126,12 +126,6 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                 std::process::exit(1);
             }
         }
-        "port-descriptions" => {
-            if let Err(e) = port_descriptions::run() {
-                eprintln!("port-descriptions failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
         "coverage" => {
             let trailing: Vec<&str> = args.iter().map(String::as_str).collect();
             if let Err(e) = coverage::run(&trailing) {
@@ -154,7 +148,7 @@ fn print_help() {
     eprintln!();
     eprintln!("  gen-types             (no-op: TS outputs moved to ship-contracts)");
     eprintln!("  gen-sdk               Emit packages/sdk/src/generated/sdk-*.json + TS bindings");
-    eprintln!("  gen-fixtures          Emit proto contract fixtures from proto/fixtures/fixture-seed.json");
+    eprintln!("  gen-fixtures          Emit proto contract fixtures from <PROTO_ROOT>/fixtures/fixture-seed.json (SMELL: tool lives in ship; output is ship-contracts; see .artifacts/handoff-post-cleanup.md)");
     eprintln!("  gen-icons             Bake lucide-icons.json from node_modules/lucide-static");
     eprintln!("  lint-layers           Verify L0/L1/L2 boundaries from the resolved cargo-metadata graph (R0-R4)");
     eprintln!("  lint-imports          Verify layer-direction rules at the `use`-statement level");

@@ -62,11 +62,18 @@ buffa = "0.5"
 buffa-descriptor = "0.5"
 http = "1"
 # deck* + sui-compiler crates live in the external sui repo post-carve.
-# TEMP: absolute paths → ../sui/... after layout reshuffle.
-deck = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck" }
-deck-core = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck-core" }
-deck-ssr = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck-ssr", optional = true }
-sui-compiler = { path = "/home/madvib/dev/Ship/sui/crates/sui/compiler" }
+# Path-dep smell: this build only works if sui is checked out at a
+# specific local path. Replaced with version pins (0.1.0-dev) to draw
+# attention to the smell — the build is broken on any machine until
+# sui publishes these crates to a registry. See
+# .artifacts/handoff-post-cleanup.md for the disposition.
+# Once sui publishes, the version pin here tracks the consumed sui
+# release; the path-dep version is recorded in git history for
+# trace (commit 82909ba18 chore: phase 3 — carve deck+sui out).
+deck = "0.1.0-dev"
+deck-core = "0.1.0-dev"
+deck-ssr = { version = "0.1.0-dev", optional = true }
+sui-compiler = "0.1.0-dev"
 chrono = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }
