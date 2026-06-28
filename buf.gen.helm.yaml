@@ -1,18 +1,25 @@
-# Codegen for HELM (helm, TS/Hono) — its OWN target, distinct from the
-# public @ship/sdk (buf.gen.sdk.yaml) and the gateway (buf.gen.yaml).
+# Codegen for HELM (helm, TS/Hono) — the only remaining buf.gen.* target
+# in this repo. Post-multi-repo-cleanup (feat/next):
+#   - buf.gen.yaml     DELETED. Output target was apps/gateway/src/proto/
+#                      gen, but apps/gateway is gone (gateway lives in
+#                      ship-edge now). No consumer.
+#   - buf.gen.sdk.yaml DELETED. Output target was packages/sdk/src/gen,
+#                      but packages/sdk is gone (SDK lives in
+#                      ship-contracts now). The SDK's source-of-truth
+#                      codegen runs from ship-contracts using its own
+#                      buf.gen.yaml, not from here.
 #
-# SPIKE (session_01RP76PB8FAHirne921cx3Rg). This target INCLUDES the
-# launch-internal `ship/internal` package (ship.internal.v1.GitService) that
-# the public SDK excludes. Same proto/ tree, different generation target ->
-# Helm sees the internal ops, the SDK does not. That asymmetry is the proof.
+# This target INCLUDES the launch-internal `ship/internal` package
+# (ship.internal.v1.GitService) that the public SDK excludes. Same
+# proto/ tree, different generation target -> Helm sees the internal
+# Post-P3 (the helm/web → ship-apps move): the descriptor is consumed by
+# the SPA — `apps/helm/src/git-client.ts` calls `createClient(GitService, …)`
+# — so the gen output lands in the SPA's source tree, not the helm
+# server's. The Hono server in helm/ dials Connect on the server side
+# using Connect's generics (`routes/dispatch.ts` reaches helmd via
+# `helmdRpc`); no generated client is needed server-side.
 #
-# Output lands in the SIBLING helm repo's `src/gen`. Helm consumes the
-# generated client directly (NOT a hand-written client) — see
-# helm/scripts/git-overview-spike.ts.
-#
-# Scoped to `ship/internal` for the spike (one read op, minimal output). The
-# real Helm target would also include the public op packages Helm needs.
-#
+# Output: `../ship-apps/apps/helm/src/gen/ship/internal/v1/`
 # Run from the ship repo root:
 #   buf generate --template buf.gen.helm.yaml
 version: v2
@@ -22,7 +29,7 @@ inputs:
       - proto/ship/internal
 plugins:
   - local: protoc-gen-es
-    out: ../helm/src/gen
+    out: ../ship-apps/apps/helm/src/gen
     opt:
       - target=ts
       - import_extension=js

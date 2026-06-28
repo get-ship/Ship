@@ -81,7 +81,7 @@ pub fn dispatch(cmd: &str, args: &[String]) {
             }
         }
         "gen-icons" => {
-            if let Err(e) = gen_icons::run(&repo_root()) {
+            if let Err(e) = gen_icons::run(&repo_root(), &args) {
                 eprintln!("gen-icons failed: {e:#}");
                 std::process::exit(1);
             }
