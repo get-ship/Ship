@@ -23,7 +23,7 @@ pub fn dispatch(cmd: &str, args: &[String]) {
             gen_types(check);
         }
         "gen-sdk" => {
-            if let Err(e) = gen_sdk::run(&repo_root()) {
+            if let Err(e) = gen_sdk::run(&repo_root(), args) {
                 eprintln!("gen-sdk failed: {e:#}");
                 std::process::exit(1);
             }

@@ -17,11 +17,18 @@ mod view_contexts;
 const VERSION: &str = "0.1.0";
 const HEADER: &str = "just gen-sdk — DO NOT EDIT";
 
-/// Entry point. Creates `packages/sdk/src/generated/` if missing and writes
-/// the JSON artifacts alongside the typed TS bindings. Each is a complete
-/// top-level object with `_generated`, `version`, and `$schema`.
-pub fn run(repo_root: &Path) -> Result<()> {
-    let out_dir = repo_root.join("packages/sdk/src/generated");
+/// Entry point. Creates `packages/sdk/src/generated/` (or the directory named
+/// by `--out <path>`) and writes the JSON artifacts alongside the typed TS
+/// bindings. Each is a complete top-level object with `_generated`, `version`,
+/// and `$schema`.
+///
+/// The `--out` flag redirects output to a sibling repo (e.g. ship-contracts),
+/// letting the codegen run from this repo's source (apps/shipd/src/routes,
+/// .ship/{collections,triggers,views}, framework surface) but land the
+/// JSON + TS artifacts in the consumer's package. Defaults to the in-repo
+/// path used by shipd's include_str! bootstrap.
+pub fn run(repo_root: &Path, args: &[String]) -> Result<()> {
+    let out_dir = out_dir_from_args(repo_root, args);
     fs::create_dir_all(&out_dir)
         .with_context(|| format!("create {}", out_dir.display()))?;
 
@@ -209,4 +216,22 @@ fn collect_view_manifests(views_dir: &Path) -> Result<Value> {
         }
     }
     Ok(Value::Object(out))
+}
+
+/// Resolve the output directory for gen-sdk. Defaults to the in-repo
+/// `packages/sdk/src/generated/` (the path shipd's include_str! expects).
+/// `--out <path>` redirects to any absolute or relative path — typically
+/// a sibling repo like `../ship-contracts/packages/sdk/src/generated/`.
+fn out_dir_from_args(repo_root: &Path, args: &[String]) -> PathBuf {
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        if arg == "--out" {
+            if let Some(value) = iter.next() {
+                return PathBuf::from(value);
+            }
+            eprintln!("gen-sdk: --out requires a path argument; using default");
+            break;
+        }
+    }
+    repo_root.join("packages/sdk/src/generated")
 }
