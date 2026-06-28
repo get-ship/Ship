@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use ship_reactive::{ReactiveRegistry, ResolverSpec, WatchKey};
-use ship_substrate::events::EventFilter;
-use ship_substrate::ports::{KernelLog, SpaceContext};
+use ship_substrate_core::events::EventFilter;
+use ship_substrate_core::{KernelLog, SpaceContext};
 
 use ship_ops_rpc::{
     CollectionDetail, CollectionList, CollectionsService as CollectionServiceTrait,

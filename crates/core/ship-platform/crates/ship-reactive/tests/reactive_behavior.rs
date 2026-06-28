@@ -12,11 +12,11 @@ use serde_json::json;
 use ship_reactive::{
     diff, Patch, PatchOp, ReactiveRegistry, Resolver, ResolverSpec, WatchKey,
 };
-use ship_substrate::events::{new_isolated_for_test, EventFilter};
-use ship_substrate::events::validator::EmitContext;
-use ship_substrate::events::CallerKind;
-use ship_substrate::home::ShipHome;
-use ship_substrate::ports::KernelLog;
+use ship_substrate_core::events::{new_isolated_for_test, EventFilter};
+use ship_substrate_core::events::validator::EmitContext;
+use ship_substrate_core::events::CallerKind;
+use ship_substrate_core::home::ShipHome;
+use ship_substrate_core::ports::KernelLog;
 use ship_types::envelope::EventEnvelope;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────

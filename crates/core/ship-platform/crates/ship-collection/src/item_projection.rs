@@ -21,9 +21,9 @@ use anyhow::{anyhow, Result};
 use serde_json::Value;
 use sqlx::SqliteConnection;
 
-use ship_substrate::db::block_on;
-use ship_substrate::ports::{is_safe_ident, ColumnKind};
-use ship_substrate::projections::Projection;
+use ship_substrate_core::db::block_on;
+use ship_substrate_core::{is_safe_ident, ColumnKind};
+use ship_substrate_core::projections::Projection;
 use ship_types::envelope::EventEnvelope;
 
 use crate::events::{

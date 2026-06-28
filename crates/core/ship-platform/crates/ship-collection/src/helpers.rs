@@ -1,15 +1,15 @@
 //! Row conversion helpers for the collection service.
 
-use ship_substrate::ports::Row;
+use ship_substrate_core::ports::Row;
 
 use crate::types::ItemRecord;
 
-pub(crate) fn emit_ctx(space_id: &str) -> ship_substrate::events::validator::EmitContext {
+pub(crate) fn emit_ctx(space_id: &str) -> ship_substrate_core::events::validator::EmitContext {
     // `collection.*` events are Space-scoped and the kernel fail-closes a
     // space-unbound caller (`ScopeViolation::NoSpaceForSpaceEvent`). Bind the
     // service's `SpaceContext` space so the daemon-internal mint carries the
     // right scope key.
-    ship_substrate::events::validator::EmitContext::daemon_internal(Some(
+    ship_substrate_core::events::validator::EmitContext::daemon_internal(Some(
         ship_types::SpaceId::new(space_id),
     ))
 }

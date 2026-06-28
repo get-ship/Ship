@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use ship_substrate::ports::{
+use ship_substrate_core::{
     ColumnKind, ColumnSpec, CountQuery, DataStore, DataStoreError, Row, TableSchema,
 };
 

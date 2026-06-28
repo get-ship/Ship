@@ -9,12 +9,12 @@ use serde_json::json;
 use ship_collection::projection::SchemaRegistry;
 use ship_collection::service::CollectionService;
 use ship_reactive::{ReactiveRegistry, WatchKey};
-use ship_substrate::data::DataService;
-use ship_substrate::events::{new_isolated_for_test, EventFilter};
-use ship_substrate::events::validator::EmitContext;
-use ship_substrate::events::CallerKind;
-use ship_substrate::home::ShipHome;
-use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate_core::data::DataService;
+use ship_substrate_core::{new_isolated_for_test, EventFilter};
+use ship_substrate_core::events::validator::EmitContext;
+use ship_substrate_core::events::CallerKind;
+use ship_substrate_core::home::ShipHome;
+use ship_substrate_core::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
 mod common;
 
@@ -41,7 +41,7 @@ fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext
     // Collections are event-sourced: bind the data store to the SAME per-scope
     // `spaces/test/space.db` the kernel routes `collection.*` (Space-scoped)
     // events to, so the `CollectionProjection`'s writes are read back here.
-    let space_db = ship_substrate::db::space_db_path(&ship_dir, "test");
+    let space_db = ship_substrate_core::db::space_db_path(&ship_dir, "test");
     let svc = DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(svc, "test"));
     Arc::new(SpaceContext::new(SpaceId::new("test"), store, kernel))
@@ -112,7 +112,7 @@ async fn create_then_query_returns_item() {
     let data = serde_json::to_vec(&json!({ "title": "Task One", "done": false })).unwrap();
     let item = svc.create_item("tasks", &data).await.unwrap();
 
-    let q = ship_substrate::ports::Query::new("collection_tasks");
+    let q = ship_substrate_core::ports::Query::new("collection_tasks");
     let (items, _) = svc.query_items_by_query(q).await.unwrap();
 
     assert_eq!(items.len(), 1);
@@ -227,7 +227,7 @@ async fn query_cursor_paginates_without_drift() {
         svc.create_item("tasks", &data).await.unwrap();
     }
 
-    let q1 = ship_substrate::ports::Query { table: "collection_tasks".into(), limit: 3, ..Default::default() };
+    let q1 = ship_substrate_core::ports::Query { table: "collection_tasks".into(), limit: 3, ..Default::default() };
     let (page1, cursor) = svc.query_items_by_query(q1).await.unwrap();
     assert_eq!(page1.len(), 3);
     let cursor = cursor.unwrap();
@@ -238,7 +238,7 @@ async fn query_cursor_paginates_without_drift() {
         svc.create_item("tasks", &data).await.unwrap();
     }
 
-    let q2 = ship_substrate::ports::Query {
+    let q2 = ship_substrate_core::ports::Query {
         table: "collection_tasks".into(),
         limit: 10,
         after: Some(cursor.clone()),
@@ -355,7 +355,7 @@ async fn watch_first_frame_is_root_set_then_patch_on_event() {
         snapshot: Box::new(move || {
             let ctx = ctx2.clone();
             Box::pin(async move {
-                let q = ship_substrate::ports::Query::new("collection_tasks");
+                let q = ship_substrate_core::ports::Query::new("collection_tasks");
                 let rows = ctx.data().query(q).await.ok().map(|r| r.rows).unwrap_or_default();
                 let items: Vec<serde_json::Value> = rows.into_iter()
                     .map(|r| json!({ "id": r.id }))
@@ -442,7 +442,7 @@ async fn update_schema_reprojects_items() {
     svc.update_schema("tasks", &new_schema).await.unwrap();
 
     // Items must still be queryable (no data loss).
-    let q = ship_substrate::ports::Query::new("collection_tasks");
+    let q = ship_substrate_core::ports::Query::new("collection_tasks");
     let (items, _) = svc.query_items_by_query(q).await.unwrap();
     assert_eq!(items.len(), 1, "item must survive schema update");
     assert_eq!(items[0].data.get("title").and_then(|v| v.as_str()), Some("before"));
@@ -458,7 +458,7 @@ async fn update_schema_reprojects_items() {
         "done": true
     })).unwrap()).await.unwrap();
 
-    let q2 = ship_substrate::ports::Query::new("collection_tasks");
+    let q2 = ship_substrate_core::ports::Query::new("collection_tasks");
     let (items2, _) = svc.query_items_by_query(q2).await.unwrap();
     assert_eq!(items2.len(), 2, "both items present after schema update");
 }

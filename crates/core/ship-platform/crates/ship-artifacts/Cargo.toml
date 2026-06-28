@@ -6,7 +6,7 @@ publish = false
 description = "ArtifactsService — content-addressed blob store + metadata projection (L1). Implements artifacts.proto's 5 RPCs via DataStore + KernelLog; blob bytes stay on a private FS backend until the substrate BlobStore port lands."
 
 [dependencies]
-ship-substrate = { path = "../../../ship-substrate" }
+ship-substrate-core = { path = "../../../ship-substrate-core" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-reactive = { path = "../ship-reactive" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
@@ -28,7 +28,7 @@ anyhow = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
 tempfile = { workspace = true }
-ship-substrate = { path = "../../../ship-substrate" }
+ship-substrate-core = { path = "../../../ship-substrate-core" }
 
 [lints]
 workspace = true

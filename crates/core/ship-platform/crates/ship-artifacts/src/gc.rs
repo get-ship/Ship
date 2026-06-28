@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use ship_substrate::ports::SpaceContext;
+use ship_substrate_core::ports::SpaceContext;
 
 use crate::error::ArtifactError;
 use crate::projection::query_artifacts;
