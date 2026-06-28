@@ -650,3 +650,78 @@ fn existing_worktree_branch(worktree_path: &Path) -> Option<String> {
     }
     Some(s)
 }
+
+
+// ── branch delete (guarded) ───────────────────────────────────────────────
+//
+// The TEARDOWN gate's delete op: a thin wrapper around [`branch_delete`]
+// that adds a job-branch prefix guard. The gate only cleans `job/*` branches
+// (the workflow's job-branch namespace — matches `dispatch.ts`'s
+// `job/<slug>` convention). `main` / `feat/*` / `feat/next` are protected:
+// the operator must pass `force=true` to delete them. `force=true` is also
+// required to delete an unmerged branch (delegated to the inner
+// `branch_delete`).
+//
+// Returns `Ok(name)` on success. On a guard failure, returns a typed
+// `GitError::BadRef` with a human-readable reason — the handler maps it to
+// a 400 with `error` populated, mirroring the rest of the leaf's
+// typed-error surface.
+pub fn delete_branch(root: &Path, name: &str, force: bool) -> Result<String, GitError> {
+    if name.is_empty() {
+        return Err(GitError::BadRef("branch name is required".to_string()));
+    }
+    // Guard: refuse non-`job/*` branches unless the operator passes
+    // `force=true`. The prefix check is `name.starts_with("job/")` — bare
+    // `job` (no slash) is NOT a job branch.
+    if !force && !name.starts_with("job/") {
+        return Err(GitError::BadRef(format!(
+            "refusing to delete `{name}` — not a `job/*` branch (pass force=true to override)"
+        )));
+    }
+    branch_delete(root, name, force)
+}
+
+// ── worktree remove ───────────────────────────────────────────────────────
+//
+// The TEARDOWN gate's worktree cleanup op: `git worktree remove [--force]`
+// for a worktree path. Subprocess-backed for the same reason as
+// [`create_worktree`] — libgit2 0.19's worktree-remove surface is fragile
+// (it requires the worktree's HEAD to be clean + several bookkeeping steps
+// that `git worktree remove` handles). Marked explicitly as the second
+// subprocess exception in the leaf.
+//
+// `force` is a pass-through to `git worktree remove --force` for worktrees
+// with local modifications. The leaf does NOT prune the per-worktree
+// administrative dir (`.git/worktrees/<name>`) — `git worktree remove`
+// does that for us; the caller does not need to clean up.
+pub fn remove_worktree(root: &Path, worktree_path: &Path, force: bool) -> Result<(), GitError> {
+    if worktree_path.as_os_str().is_empty() {
+        return Err(GitError::BadRef("worktree_path is required".to_string()));
+    }
+    let mut args: Vec<String> = vec![
+        "-C".into(),
+        root.display().to_string(),
+        "worktree".into(),
+        "remove".into(),
+    ];
+    if force {
+        args.push("--force".into());
+    }
+    args.push(worktree_path.display().to_string());
+    let output = std::process::Command::new("git").args(&args).output();
+    match output {
+        Ok(out) if out.status.success() => Ok(()),
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            let detail = if !stderr.is_empty() { stderr } else { stdout };
+            let detail = if detail.is_empty() {
+                "git worktree remove failed".to_string()
+            } else {
+                detail
+            };
+            Err(GitError::Git(detail))
+        }
+        Err(e) => Err(GitError::Git(format!("failed to spawn `git worktree remove`: {e}"))),
+    }
+}

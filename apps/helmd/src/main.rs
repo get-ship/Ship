@@ -35,6 +35,21 @@
 //!                                                      audit, src/dispatch.ts:183 row #10).
 //!                                                      Idempotent — REUSED on hit, FAILED
 //!                                                      on branch mismatch.
+//!     POST /ship.internal.v1.GitService/JobBranches    — `job/*` branches with the
+//!                                                      TEARDOWN-gate verdict bits
+//!                                                      (ahead/behind vs integration,
+//!                                                      has-worktree, merged-into-
+//!                                                      integration). The read half of
+//!                                                      the land-or-clean gate.
+//!     POST /ship.internal.v1.GitService/DeleteBranch   — `git branch -d` for the
+//!                                                      TEARDOWN gate. Refuses non-`job/*`
+//!                                                      branches unless `force=true` —
+//!                                                      `main` / `feat/*` / `feat/next`
+//!                                                      are protected.
+//!     POST /ship.internal.v1.GitService/RemoveWorktree — `git worktree remove` for the
+//!                                                      TEARDOWN gate. `force` is a
+//!                                                      pass-through to
+//!                                                      `git worktree remove --force`.
 //!     POST /ship.internal.v1.HarnessService/ListHarnesses — compile targets (real)
 //!     POST /ship.internal.v1.HarnessService/Compile       — `.ship/` → harness
 //!                                                            configs (the RPC form
@@ -84,6 +99,18 @@ use proto::{
     create_worktree_response::Status as CreateWorktreeStatus,
     list_worktrees_response::WorktreeEntry as ListWorktreeEntry,
     CreateWorktreeResponse, ListWorktreesResponse,
+    // JobBranches + DeleteBranch + RemoveWorktree — the workflow's TEARDOWN
+    // gate RPCs (see spec-git-consolidation §3.6–§3.8). JobBranches is the
+    // read half: enumerates `job/*` branches with verdict bits. DeleteBranch
+    // + RemoveWorktree are the writes; both are leaf-backed and shell out
+    // only for `git worktree remove` (mirrors `create_worktree`'s documented
+    // subprocess exception). The view types follow the same `OwnedXxxRequestView`
+    // pattern; the `Status` re-exports mirror the create_worktree_response
+    // pattern above.
+    OwnedDeleteBranchRequestView, OwnedJobBranchesRequestView, OwnedRemoveWorktreeRequestView,
+    job_branches_response::JobBranchEntry as JobBranchEntry,
+    remove_worktree_response::Status as RemoveWorktreeStatus,
+    DeleteBranchResponse, JobBranchesResponse, RemoveWorktreeResponse,
     // Harness-compiler wire (harness.proto).
     CompileResponse, Harness, HarnessService, HarnessServiceExt, ListHarnessesResponse,
     OwnedCompileRequestView, OwnedListHarnessesRequestView,
@@ -339,6 +366,107 @@ impl GitService for GitImpl {
         };
         Response::ok(resp)
     }
+
+    // JobBranches — the read half of the workflow's TEARDOWN gate. Lists
+    // `job/*` branches with the per-branch verdict bits the operator needs
+    // to render the land-or-clean decision: ahead/behind vs integration,
+    // has-worktree, merged-into-integration, is-current. Mirrors
+    // `repo_status`'s read-only posture (never errors on a non-repo — returns
+    // an empty list, matching the read-only tolerance of `ListWorktrees`).
+    // The integration branch is the repo's current HEAD (echoed back on
+    // the response so the caller can render `vs <integration>` without a
+    // second round-trip).
+    #[allow(refining_impl_trait)]
+    async fn job_branches(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedJobBranchesRequestView,
+    ) -> ServiceResult<JobBranchesResponse> {
+        let root = PathBuf::from(req.repo_path.to_string());
+        let entries = ship_git::read::list_job_branches(&root);
+        let branch_count = entries.len() as u32;
+        let branches: Vec<JobBranchEntry> = entries
+            .into_iter()
+            .map(|e| JobBranchEntry {
+                name: e.name,
+                is_current: e.is_current,
+                has_worktree: e.has_worktree,
+                merged_into_integration: e.merged_into_integration,
+                ahead: e.ahead,
+                behind: e.behind,
+                ..Default::default()
+            })
+            .collect();
+        // Integration = HEAD's branch short refname (matches the loader's
+        // own integration probe). Echoed so the caller doesn't have to
+        // call Overview / RepoStatus just to label the row.
+        let integration = ship_git::read::load_branch(&root).unwrap_or_default();
+        Response::ok(JobBranchesResponse {
+            branches,
+            integration,
+            branch_count,
+            ..Default::default()
+        })
+    }
+
+    // DeleteBranch — the TEARDOWN gate's branch-cleanup op. The leaf's
+    // `delete_branch` enforces the `job/*` guard (refuses non-job branches
+    // unless `force=true`) and the merged-into-HEAD check (mirrors the
+    // existing `branch_delete`); the handler is a flat translation. A
+    // guard failure surfaces as a typed 200 with `deleted=false` and
+    // `error` populated — this is the documented shape the caller uses
+    // to render the refusal without parsing a 5xx.
+    #[allow(refining_impl_trait)]
+    async fn delete_branch(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedDeleteBranchRequestView,
+    ) -> ServiceResult<DeleteBranchResponse> {
+        let root = PathBuf::from(req.repo_path.to_string());
+        let branch = req.branch.to_string();
+        let force = req.force;
+        match ship_git::write::delete_branch(&root, &branch, force) {
+            Ok(name) => Response::ok(DeleteBranchResponse {
+                deleted: true,
+                branch: name,
+                ..Default::default()
+            }),
+            Err(e) => Response::ok(DeleteBranchResponse {
+                deleted: false,
+                branch: String::new(),
+                error: e.to_string(),
+                ..Default::default()
+            }),
+        }
+    }
+
+    // RemoveWorktree — the TEARDOWN gate's worktree-cleanup op. Mirrors
+    // `create_worktree`'s typed-result shape (REMOVED on success, FAILED
+    // with `error` populated on refusal). Subprocess-backed (the second
+    // subprocess exception in the leaf — see `write.rs` for the rationale).
+    #[allow(refining_impl_trait)]
+    async fn remove_worktree(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedRemoveWorktreeRequestView,
+    ) -> ServiceResult<RemoveWorktreeResponse> {
+        let root = PathBuf::from(req.repo_path.to_string());
+        let worktree_path = PathBuf::from(req.worktree_path.to_string());
+        let force = req.force;
+        match ship_git::write::remove_worktree(&root, &worktree_path, force) {
+            Ok(()) => Response::ok(RemoveWorktreeResponse {
+                status: ::buffa::EnumValue::from(RemoveWorktreeStatus::REMOVED),
+                worktree_path: worktree_path.display().to_string(),
+                ..Default::default()
+            }),
+            Err(e) => Response::ok(RemoveWorktreeResponse {
+                status: ::buffa::EnumValue::from(RemoveWorktreeStatus::FAILED),
+                worktree_path: worktree_path.display().to_string(),
+                error: e.to_string(),
+                ..Default::default()
+            }),
+        }
+    }
 }
 
 /// Map ship-git's `DiffView` onto the proto `DiffResponse` (field-for-field; the
@@ -525,7 +653,7 @@ async fn main() -> anyhow::Result<()> {
     eprintln!(
         "helmd listening on {addr} \
          (POST /ship.internal.v1.GitService/{{Overview,Land,Release,Footprint,Diff,\
-         RepoStatus,ListWorktrees,CreateWorktree}}, \
+         RepoStatus,ListWorktrees,CreateWorktree,JobBranches,DeleteBranch,RemoveWorktree}}, \
          /ship.internal.v1.HarnessService/{{ListHarnesses,Compile}}, CORS on)"
     );
     axum::serve(listener, app)

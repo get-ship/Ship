@@ -8,8 +8,8 @@ use serde::Serialize;
 use std::path::Path;
 
 use super::state::{
-    BranchRow, BranchSummary, CommitSummary, GitError, RepoStatus, StatusBuckets, StatusFile,
-    WorktreeRow, basename_of, format_git_time, open_repo, status_tone,
+    BranchRow, BranchSummary, CommitSummary, GitError, JobBranchEntry, RepoStatus, StatusBuckets,
+    StatusFile, WorktreeRow, basename_of, format_git_time, open_repo, status_tone,
 };
 
 pub fn load_branch(root: &Path) -> Option<String> {
@@ -953,5 +953,90 @@ pub fn repo_status(root: &Path) -> RepoStatus {
         })
         .collect();
 
+    out
+}
+
+// ── JobBranches (the TEARDOWN gate's read) ────────────────────────────────
+//
+// Lists the repo's `job/*` branches with verdict bits the workflow's land-or-
+// clean gate renders. Mirrors the verdict pieces of [`repo_status`] (ahead/
+// behind vs integration, merged-into-integration, has-worktree, is-current)
+// but is filtered to the `job/*` prefix — TEARDOWN only cleans jobs.
+//
+// A non-repo `root` returns an empty list (matches the read-only posture of
+// `repo_status` / `list_worktrees`).
+pub fn list_job_branches(root: &Path) -> Vec<JobBranchEntry> {
+    let repo = match open_repo(root) {
+        Ok(r) => r,
+        Err(_) => return Vec::new(),
+    };
+    // Integration is HEAD's branch short refname (or "" on detached HEAD —
+    // matches the empty-fallback pattern of `load_branch` / `repo_status`).
+    let integration = load_branch(root).unwrap_or_default();
+
+    // Worktree branches let us flag `has_worktree` on each row without a
+    // second `git worktree list` walk. The main worktree is implicit in
+    // `repo.worktrees()` — we add it the same way `list_worktrees` does
+    // (HEAD's short refname when HEAD is a branch, "" otherwise).
+    let mut worktree_branches: Vec<String> = Vec::new();
+    if let Some(name) = repo
+        .head()
+        .ok()
+        .filter(|h| h.is_branch())
+        .and_then(|h| h.shorthand().map(str::to_string))
+    {
+        worktree_branches.push(name);
+    }
+    if let Ok(worktrees) = repo.worktrees() {
+        for i in 0..worktrees.len() {
+            let Some(name) = worktrees.get(i) else { continue };
+            if name.is_empty() {
+                continue;
+            }
+            if let Ok(wt) = repo.find_worktree(name) {
+                if let Ok(sub) = Repository::open(wt.path()) {
+                    if let Some(branch) = sub
+                        .head()
+                        .ok()
+                        .and_then(|h| h.shorthand().map(str::to_string))
+                    {
+                        worktree_branches.push(branch);
+                    }
+                }
+            }
+        }
+    }
+
+    // Enumerate local branches, keep `job/*`, enrich with verdict bits.
+    let head_oid = repo.head().ok().and_then(|h| h.target());
+    let mut out: Vec<JobBranchEntry> = repo
+        .branches(Some(BranchType::Local))
+        .into_iter()
+        .flatten()
+        .filter_map(|r| r.ok())
+        .filter_map(|(branch, _)| {
+            let name = branch.name().ok()??.to_string();
+            // `job/*` is the workflow's job-branch prefix (matches
+            // `dispatch.ts`'s `job/<slug>` and the operator's expectation).
+            // Bare `job` is NOT a job branch (no slash, no slug).
+            if !name.starts_with("job/") {
+                return None;
+            }
+            let active = head_oid == branch.get().target();
+            let has_worktree = worktree_branches.iter().any(|b| b == &name);
+            let merged = merged_into_integration(root, &name, &integration);
+            let (ahead, behind) = branch_ahead_behind(root, &name, &integration);
+            Some(JobBranchEntry {
+                name,
+                is_current: active,
+                has_worktree,
+                merged_into_integration: merged,
+                ahead,
+                behind,
+            })
+        })
+        .collect();
+    // Stable, alphabetical order so the render is deterministic.
+    out.sort_by(|a, b| a.name.cmp(&b.name));
     out
 }

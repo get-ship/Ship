@@ -125,6 +125,22 @@ pub struct BranchRow {
     pub behind: i32,
 }
 
+/// One `job/*` branch with the verdict bits the workflow's TEARDOWN gate
+/// needs (landed vs needs-merge). Mirrors [`BranchRow`] but is filtered to
+/// `job/*` only — the operator's TEARDOWN decision is about jobs, not
+/// `main` / `feat/*` / etc. The integration branch is the one currently
+/// checked out (the leaf records it on the response so the caller can
+/// render `vs <integration>` without a second round-trip).
+#[derive(Clone, Debug, Default, Serialize)]
+ pub struct JobBranchEntry {
+    pub name: String,
+    pub is_current: bool,
+    pub has_worktree: bool,
+    pub merged_into_integration: bool,
+    pub ahead: i32,
+    pub behind: i32,
+}
+
 /// Consolidated Repos-pane read. Returned by [`crate::read::repo_status`].
 /// `branch`/`head_short` may be empty on a non-repo / unborn-HEAD path;
 /// `clean` mirrors `StatusBuckets::clean` (false on any dirt); `release_branch`

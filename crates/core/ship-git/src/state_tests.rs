@@ -1023,3 +1023,343 @@ fn create_worktree_propagates_git_failure() {
         other => panic!("expected Failed, got {other:?}"),
     }
 }
+
+
+// ── JobBranches (leaf for GitService.JobBranches) ────────────────────────
+//
+// These tests pin the shape of `read::list_job_branches` — the read half
+// of the workflow's TEARDOWN gate. Mirrors the `list_worktrees_*` pattern:
+// temp repo via git2, run the loader, assert against the structured
+// `JobBranchEntry` shape.
+
+#[test]
+fn list_job_branches_on_non_repo_yields_empty() {
+    // A non-git path must not panic / error — return vec![] (matches the
+    // read-only tolerance of `list_worktrees` / `repo_status`).
+    let tmp = tempdir().unwrap();
+    let rows = read::list_job_branches(tmp.path());
+    assert!(rows.is_empty());
+}
+
+#[test]
+fn list_job_branches_filters_to_job_prefix() {
+    // The fixture has `main`, `feat/integration`, `job/foo`. Only `job/foo`
+    // should be returned — `main` and `feat/*` are not job branches.
+    let (r, ..) = init_repo_with_branches();
+    let rows = read::list_job_branches(&r.root);
+    assert_eq!(rows.len(), 1, "only job/foo is a job branch; got: {:?}", rows);
+    let row = &rows[0];
+    assert_eq!(row.name, "job/foo");
+    assert!(!row.is_current, "HEAD is on feat/integration, not job/foo");
+    assert!(!row.has_worktree, "no worktree was added");
+    assert!(!row.merged_into_integration, "job/foo is 1 ahead of integration");
+    // `ahead` = commits `integration` is ahead of the branch (BranchRow /
+    // `branch_ahead_behind` convention). `job/foo` is 1 ahead of integ,
+    // so integ is 0 ahead of job/foo → ahead=0; the branch is 1 ahead
+    // of integ → behind=1.
+    assert_eq!(row.ahead, 0);
+    assert_eq!(row.behind, 1);
+}
+
+#[test]
+fn list_job_branches_marks_merged_and_ahead_correctly() {
+    // Build a fixture with two `job/*` branches at different states vs
+    // integration:
+    //   - job/bar: at integration tip → ahead=0, merged=true
+    //   - job/foo: 1 commit ahead of integration → ahead=1, merged=false
+    // The repo is built directly (not via `init_repo_with_branches`) so we
+    // can control both job branches' tip positions in one fixture.
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    let _ = initial_commit(&r.root);
+    let repo = Repository::open(&r.root).unwrap();
+    let head = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.branch("main", &head, true).unwrap();
+    repo.branch("feat/integration", &head, false).unwrap();
+    repo.set_head("refs/heads/feat/integration").unwrap();
+    repo.checkout_head(Some(
+        git2::build::CheckoutBuilder::default().force(),
+    ))
+    .unwrap();
+    // Both job branches at integration tip.
+    let head = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.branch("job/bar", &head, false).unwrap();
+    repo.branch("job/foo", &head, false).unwrap();
+    // Advance job/foo by 1 commit; leave job/bar at the tip.
+    repo.set_head("refs/heads/job/foo").unwrap();
+    repo.checkout_head(Some(
+        git2::build::CheckoutBuilder::default().force(),
+    ))
+    .unwrap();
+    write_file(&r.root, "c.txt", "v3");
+    {
+        let mut idx = repo.index().unwrap();
+        idx.add_path(Path::new("c.txt")).unwrap();
+        idx.write().unwrap();
+        let tree = repo.find_tree(idx.write_tree().unwrap()).unwrap();
+        let sig = Signature::now("T", "t@e").unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "job work", &tree, &[&head])
+            .unwrap();
+        drop(head);
+    }
+    // Park HEAD back on `feat/integration` so the leaf's `load_branch` (which
+    // uses HEAD's short refname as the integration branch) reports the
+    // expected integration for the verdict bits.
+    {
+        repo.set_head("refs/heads/feat/integration").unwrap();
+        repo.checkout_head(Some(
+            git2::build::CheckoutBuilder::default().force(),
+        ))
+        .unwrap();
+    }
+    let rows = read::list_job_branches(&r.root);
+    assert_eq!(rows.len(), 2, "job/foo + job/bar; got: {:?}", rows);
+    // job/bar: at integration tip → ahead=0, behind=0, merged=true.
+    // `ahead`/`behind` follow the BranchRow convention (ahead = how far
+    // integration is ahead of the branch; behind = how far the branch
+    // is ahead of integration).
+    assert!(rows[0].merged_into_integration);
+    assert_eq!(rows[0].ahead, 0);
+    assert_eq!(rows[0].behind, 0);
+    // job/foo: 1 ahead of integration → integ is 0 ahead, branch is
+    // 1 ahead → ahead=0, behind=1, merged=false.
+    assert!(!rows[1].merged_into_integration);
+    assert_eq!(rows[1].ahead, 0);
+    assert_eq!(rows[1].behind, 1);
+}
+#[test]
+fn list_job_branches_flags_has_worktree() {
+    // Add a linked worktree on `job/foo`; the loader must surface
+    // `has_worktree=true` on the `job/foo` row.
+    let (r, ..) = init_repo_with_branches();
+    let wt_path = r._tmp.path().join("wt-job");
+    let out = std::process::Command::new("git")
+        .args([
+            "-C",
+            &r.root.display().to_string(),
+            "worktree",
+            "add",
+            "-b",
+            "job/wt-test",
+            &wt_path.display().to_string(),
+            "feat/integration",
+        ])
+        .output()
+        .expect("git worktree add");
+    assert!(out.status.success(), "git worktree add failed: {:?}", out);
+    drop(out);
+
+    let rows = read::list_job_branches(&r.root);
+    // Now two job branches: job/foo (no worktree) + job/wt-test (linked wt).
+    assert_eq!(rows.len(), 2, "got: {:?}", rows);
+    let foo = rows.iter().find(|r| r.name == "job/foo").expect("job/foo");
+    let wt = rows.iter().find(|r| r.name == "job/wt-test").expect("job/wt-test");
+    assert!(!foo.has_worktree, "job/foo has no worktree");
+    assert!(wt.has_worktree, "job/wt-test has the linked worktree");
+}
+
+// ── DeleteBranch (leaf for GitService.DeleteBranch) ──────────────────────
+//
+// These tests pin `write::delete_branch` — the TEARDOWN-gate write that
+// wraps `branch_delete` with a `job/*` prefix guard. The guard refuses any
+// non-`job/*` branch unless `force=true`; `force=true` is also passed
+// through to `branch_delete` (allowing unmerged deletes).
+
+#[test]
+fn delete_branch_removes_a_merged_job_branch() {
+    // Build a repo where `job/foo` is a strict ancestor of
+    // `feat/integration` (HEAD): the cleanest "fully merged" state for
+    // the leaf's `branch_delete` merge check. `squash_merge` collapses
+    // the source into a NEW commit (not on `job/foo`), so the branch
+    // isn't a true ancestor after a squash; here we instead fast-forward
+    // `feat/integration` to `job/foo` so `job/foo` is exactly HEAD.
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    let _ = initial_commit(&r.root);
+    let repo = Repository::open(&r.root).unwrap();
+    let head = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.branch("main", &head, true).unwrap();
+    repo.branch("feat/integration", &head, false).unwrap();
+    // Create job/foo on top, commit one change, then ff integration to it.
+    let head = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.branch("job/foo", &head, false).unwrap();
+    repo.set_head("refs/heads/job/foo").unwrap();
+    repo.checkout_head(Some(
+        git2::build::CheckoutBuilder::default().force(),
+    ))
+    .unwrap();
+    write_file(&r.root, "c.txt", "v3");
+    {
+        let mut idx = repo.index().unwrap();
+        idx.add_path(Path::new("c.txt")).unwrap();
+        idx.write().unwrap();
+        let tree = repo.find_tree(idx.write_tree().unwrap()).unwrap();
+        let sig = Signature::now("T", "t@e").unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "job work", &tree, &[&head])
+            .unwrap();
+    }
+    // Park HEAD on integration and fast-forward it to job/foo.
+    repo.set_head("refs/heads/feat/integration").unwrap();
+    let job_oid = repo
+        .find_branch("job/foo", git2::BranchType::Local)
+        .unwrap()
+        .get()
+        .target()
+        .unwrap();
+    repo.reference("refs/heads/feat/integration", job_oid, true, "ff")
+        .unwrap();
+    repo.checkout_head(Some(
+        git2::build::CheckoutBuilder::default().force(),
+    ))
+    .unwrap();
+
+    // Now `job/foo` is a strict ancestor of HEAD (= feat/integration).
+    // `delete_branch` (with `force=false`) should succeed: the branch
+    // is `job/*`, and the merge check sees `br_ahead_of_head = 0`.
+    let name = write::delete_branch(&r.root, "job/foo", false)
+        .expect("delete_branch should succeed on a merged job/* branch");
+    assert_eq!(name, "job/foo");
+    let repo = Repository::open(&r.root).unwrap();
+    assert!(
+        repo.find_branch("job/foo", git2::BranchType::Local).is_err(),
+        "job/foo should be deleted"
+    );
+}
+
+#[test]
+fn delete_branch_refuses_non_job_branch_without_force() {
+    // The guard: deleting `feat/integration` (a non-`job/*` branch) without
+    // `force` must fail with a typed `BadRef` whose message names the branch
+    // and the `job/*` expectation.
+    let (r, ..) = init_repo_with_branches();
+    let err = write::delete_branch(&r.root, "feat/integration", false)
+        .expect_err("delete_branch must refuse non-job branch without force");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("feat/integration"),
+        "error must name the branch; got `{msg}`"
+    );
+    assert!(
+        msg.contains("job/*") || msg.contains("job/"),
+        "error must reference the job/* guard; got `{msg}`"
+    );
+    // The branch must still exist.
+    let repo = Repository::open(&r.root).unwrap();
+    assert!(
+        repo.find_branch("feat/integration", git2::BranchType::Local).is_ok(),
+        "feat/integration must still exist after the refused delete"
+    );
+}
+
+#[test]
+fn delete_branch_allows_non_job_branch_with_force() {
+    // `force=true` lifts the `job/*` guard: deleting `feat/integration`
+    // succeeds (it's merged into HEAD's integration tip, so `branch_delete`
+    // is happy with `force=true`).
+    let (r, ..) = init_repo_with_branches();
+    // Make HEAD on integration so deleting integration isn't "current".
+    let repo = Repository::open(&r.root).unwrap();
+    repo.set_head("refs/heads/main").unwrap();
+    repo.checkout_head(Some(
+        git2::build::CheckoutBuilder::default().force(),
+    ))
+    .unwrap();
+    drop(repo);
+
+    let name = write::delete_branch(&r.root, "feat/integration", true)
+        .expect("force=true should let delete_branch through");
+    assert_eq!(name, "feat/integration");
+    let repo = Repository::open(&r.root).unwrap();
+    assert!(repo.find_branch("feat/integration", git2::BranchType::Local).is_err());
+}
+
+#[test]
+fn delete_branch_refuses_unmerged_without_force() {
+    // `job/foo` is 1 ahead of integration in the base fixture. The
+    // `branch_delete` half refuses it (not fully merged); the guard-level
+    // test is that the typed error mentions the merge status.
+    let (r, ..) = init_repo_with_branches();
+    let err = write::delete_branch(&r.root, "job/foo", false)
+        .expect_err("delete_branch must refuse unmerged job/* without force");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("not fully merged") || msg.contains("force=true"),
+        "error must reflect the merge check; got `{msg}`"
+    );
+    // Branch must still exist.
+    let repo = Repository::open(&r.root).unwrap();
+    assert!(repo.find_branch("job/foo", git2::BranchType::Local).is_ok());
+}
+
+#[test]
+fn delete_branch_rejects_empty_name() {
+    let r = init_repo();
+    let err = write::delete_branch(&r.root, "", false)
+        .expect_err("empty branch name must be rejected");
+    assert!(err.to_string().contains("required"));
+}
+
+// ── RemoveWorktree (leaf for GitService.RemoveWorktree) ──────────────────
+//
+// These tests pin `write::remove_worktree` — the TEARDOWN-gate write that
+// shells out to `git worktree remove [--force]`. Subprocess-backed (the
+// second subprocess exception in the leaf — see `write.rs` for the
+// rationale).
+
+#[test]
+fn remove_worktree_removes_a_linked_worktree() {
+    // Pre-create a worktree via `git worktree add`, then remove it via
+    // the leaf and assert the worktree dir is gone + `list_worktrees`
+    // no longer surfaces it.
+    let (r, ..) = init_repo_with_branches();
+    let wt_path = r._tmp.path().join("wt-rm");
+    let add_out = std::process::Command::new("git")
+        .args([
+            "-C",
+            &r.root.display().to_string(),
+            "worktree",
+            "add",
+            "-b",
+            "job/rm-test",
+            &wt_path.display().to_string(),
+            "feat/integration",
+        ])
+        .output()
+        .expect("git worktree add");
+    assert!(add_out.status.success(), "git worktree add failed: {:?}", add_out);
+    assert!(wt_path.exists(), "precondition: worktree dir must exist");
+
+    write::remove_worktree(&r.root, &wt_path, false).expect("remove_worktree");
+
+    assert!(!wt_path.exists(), "worktree dir must be gone after remove");
+    let rows = read::list_worktrees(&r.root);
+    assert!(
+        rows.iter().all(|w| w.path != wt_path.display().to_string()),
+        "list_worktrees must not include the removed worktree; got: {:?}",
+        rows
+    );
+}
+
+#[test]
+fn remove_worktree_fails_when_path_is_not_a_worktree() {
+    // Asking `git worktree remove` on a non-worktree path is a real
+    // failure (the binary exits non-zero). The leaf must surface the
+    // error, NOT silently no-op.
+    let (r, ..) = init_repo_with_branches();
+    let bogus = r._tmp.path().join("not-a-worktree");
+    std::fs::create_dir_all(&bogus).unwrap();
+    let err = write::remove_worktree(&r.root, &bogus, false)
+        .expect_err("remove_worktree on a non-worktree path must error");
+    assert!(!err.to_string().is_empty());
+}
+
+#[test]
+fn remove_worktree_rejects_empty_path() {
+    let r = init_repo();
+    let empty = std::path::PathBuf::new();
+    let err = write::remove_worktree(&r.root, &empty, false)
+        .expect_err("empty worktree_path must be rejected");
+    assert!(err.to_string().contains("required"));
+}
