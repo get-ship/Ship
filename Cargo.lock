@@ -8589,7 +8589,6 @@ dependencies = [
 [[package]]
 name = "ship-proto"
 version = "0.1.0"
-source = "git+file:///home/madvib/dev/ship-contracts?branch=master#6ef2eb2963f89baa6ece030e028a3da37c6f8d53"
 dependencies = [
  "buffa",
  "buffa-descriptor",

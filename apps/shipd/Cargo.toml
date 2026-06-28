@@ -70,10 +70,10 @@ http = "1"
 # Once sui publishes, the version pin here tracks the consumed sui
 # release; the path-dep version is recorded in git history for
 # trace (commit 82909ba18 chore: phase 3 — carve deck+sui out).
-deck = "0.1.0-dev"
-deck-core = "0.1.0-dev"
-deck-ssr = { version = "0.1.0-dev", optional = true }
-sui-compiler = "0.1.0-dev"
+deck = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck", features = ["specta"] }
+deck-core = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck-core" }
+deck-ssr = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck-ssr", optional = true }
+sui-compiler = { path = "/home/madvib/dev/Ship/sui/crates/sui/compiler" }
 chrono = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }

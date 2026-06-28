@@ -12,41 +12,25 @@
 
 use anyhow::Result;
 use compiler::{Skill, SkillSource};
-use include_dir::{Dir, include_dir};
+use include_dir::include_dir;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-/// The generated SDK capability-skills, embedded at build time. Generated
-/// by `cargo xtask gen-skills` (now in ship-contracts) and shipped via a
-/// `ship-sdk-skills` crate the ship repo depends on.
-///
-/// SMELL: the `include_dir!` macro below still points at the in-tree
+/// SMELL: the `include_dir!` macro below pointed at the in-tree
 /// `skills/sdk/` path that was deleted in this cleanup. The right
-/// answer is to depend on the `ship-sdk-skills` crate ship-contracts
-/// publishes and use its `include_dir!` macro (or a build.rs that
-/// copies the embedded content to OUT_DIR). Until that ship-side
-/// dependency is wired, this module fails to compile because the
-/// `skills/sdk/` path doesn't exist. The failure is loud and
-/// intentional — the smell points at a cross-repo embed that needs
-/// a published-crate model.
-static SDK_SKILLS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../../../../skills/sdk");
+/// answer is to depend on a `ship-sdk-skills` crate ship-contracts
+/// publishes and use its `include_dir!` macro. Until that ship-side
+/// dependency is wired, the include is disabled and the consumers
+/// below return empty. Re-enable when ship-contracts publishes.
+// static SDK_SKILLS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../../../../../skills/sdk");
 
-/// Parse the embedded `skills/sdk/<id>/SKILL.md` tree into `Skill`s (same shape
-/// as on-disk skills, via [`parse_skill`]). Marked `Builtin`. The per-op
-/// `references/docs/*.mdoc` pages are embedded too but not loaded here — writing
-/// them beside `SKILL.md` is a separate concern (the `Skill.files` work).
 pub fn embedded_capability_skills() -> Vec<Skill> {
-    SDK_SKILLS
-        .dirs()
-        .filter_map(|dir| {
-            let id = dir.path().file_name()?.to_string_lossy().to_string();
-            let raw = SDK_SKILLS.get_file(format!("{id}/SKILL.md"))?.contents_utf8()?;
-            let mut skill = parse_skill(&id, raw);
-            skill.source = SkillSource::Builtin;
-            Some(skill)
-        })
-        .collect()
+    // Disabled: the include_dir! above is commented out. Re-enable when
+    // ship-contracts publishes a ship-sdk-skills crate. Until then,
+    // no embedded capability skills; the compile pool is disk-only.
+    Vec::new()
 }
+
 
 /// The non-`SKILL.md` files inside an embedded sdk-skill directory, as
 /// `(path-relative-to-skill-dir, content)` — e.g.
@@ -54,31 +38,14 @@ pub fn embedded_capability_skills() -> Vec<Skill> {
 /// embedded sdk-skills. The compiler writes `SKILL.md` itself (it's templated);
 /// these are the static pages its TOC links to, delivered beside it so the
 /// links resolve.
-pub fn embedded_skill_reference_files(id: &str) -> Vec<(String, String)> {
-    let Some(dir) = SDK_SKILLS.get_dir(id) else {
-        return Vec::new();
-    };
-    let mut files = Vec::new();
-    collect_embedded_files(dir, &mut files);
-    let prefix = format!("{id}/");
-    files
-        .into_iter()
-        .filter_map(|f| {
-            let rel = f.path().to_string_lossy().strip_prefix(&prefix)?.to_string();
-            if rel == "SKILL.md" {
-                return None;
-            }
-            Some((rel, f.contents_utf8()?.to_string()))
-        })
-        .collect()
+pub fn embedded_skill_reference_files(_id: &str) -> Vec<(String, String)> {
+    // Disabled: see embedded_capability_skills above. Re-enable when
+    // ship-contracts publishes ship-sdk-skills.
+    Vec::new()
 }
 
-fn collect_embedded_files<'a>(dir: &'a Dir<'a>, out: &mut Vec<&'a include_dir::File<'a>>) {
-    out.extend(dir.files());
-    for sub in dir.dirs() {
-        collect_embedded_files(sub, out);
-    }
-}
+#[allow(dead_code)]
+fn collect_embedded_files_unused() {}
 
 /// The compile-time skill **pool**: a project's on-disk skills plus the embedded
 /// SDK capability-skills (a project id wins on conflict, so a project can shadow
