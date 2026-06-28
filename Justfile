@@ -265,22 +265,10 @@ clean-deep:
     cargo clean
     rm -rf node_modules apps/*/node_modules packages/*/node_modules
 
-# Capture a fresh perf baseline. Rebuilds the SUI bench bundle, runs the
-# js-framework-benchmark suite against SUI + comparison frameworks, and
-# writes tests/perf/baselines/<date>-<label>.json. Commit the result.
-# `label` is required — pass e.g. `just bench baseline` or `just bench post-d5`
-# (passes through to `--label`). No implicit overwrite of the date's anchor.
-[group('occasional')]
-bench label:
-    @scripts/dev/bench-run.mjs --label {{label}}
-
-# Compare current SUI perf vs the latest committed baseline. Exits non-zero
-# if any op regresses by more than 15% (override with
-# BENCH_REGRESSION_THRESHOLD). Manual gate before merging large runtime
-# changes.
-[group('occasional')]
-bench-check:
-    @scripts/dev/bench-check.mjs
+# bench + bench-check — moved to the sui repo's Justfile. tests/perf/ +
+# the keyed/sui bench app live there now (sui owns the framework; the
+# perf harness exercises sui against comparison frameworks). Run from
+# the sui repo: `just bench <label>` and `just bench-check`.
 
 # Format Rust.
 [group('occasional')]
@@ -333,25 +321,9 @@ lint-imports:
 lint-anti-theater:
     cargo run -p xtask --quiet -- lint-anti-theater
 
-# Build docs site (Astro static).
-[group('occasional')]
-docs:
-    cd apps/docs && bun scripts/collect-skill-docs.ts && bun run build
-
-# Dev docs site.
-[group('occasional')]
-docs-dev:
-    cd apps/docs && bun run dev --port 4321 --host
-
-# Regenerate the Astro reference tree from docs/<skill>/references/docs/.
-[group('occasional')]
-docs-regen:
-    cd apps/docs && AUDIENCE=internal bun run collect
-
-# Fail if the on-disk Astro reference tree disagrees with the collector.
-[group('occasional')]
-docs-check-drift:
-    cd apps/docs && bun run docs:check-drift
+# docs site recipes (docs, docs-dev, docs-regen, docs-check-drift) — moved
+# to ship-apps Justfile. apps/docs lives there now (the Astro site is an
+# app-tier concern). Run from the ship-apps repo: `just docs` etc.
 
 # The sui-compiler cdylib lives in the external sui repo post-carve. The
 # deck bundler dlopens it for FFI compilation; the build needs the
