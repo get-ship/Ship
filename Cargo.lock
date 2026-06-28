@@ -1738,6 +1738,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "deck-config",
+ "deck-core",
  "libc",
  "notify",
  "rolldown",
@@ -1773,7 +1774,6 @@ dependencies = [
  "serde_json",
  "specta",
  "sui-compiler",
- "sui-signals",
  "tempfile",
  "tracing",
  "ulid",
@@ -1787,7 +1787,6 @@ dependencies = [
  "serde_json",
  "specta",
  "sui-compiler",
- "sui-signals",
  "tempfile",
 ]
 
@@ -1802,7 +1801,7 @@ dependencies = [
  "rolldown_common",
  "serde",
  "serde_json",
- "ship-js",
+ "ship-js 0.1.0 (git+file:///home/madvib/dev/Ship/ship?rev=82909ba18371d702f3ae83fe7222ec009685f753)",
  "sui-compiler",
  "tokio",
 ]
@@ -2251,7 +2250,7 @@ dependencies = [
  "futures-util",
  "serde",
  "serde_json",
- "ship-js",
+ "ship-js 0.1.0",
  "thiserror 2.0.18",
  "tokio",
 ]
@@ -2533,7 +2532,7 @@ dependencies = [
  "rig-core",
  "serde",
  "serde_json",
- "ship-js",
+ "ship-js 0.1.0",
  "ship-kernel",
  "ship-ops-rpc",
  "thiserror 2.0.18",
@@ -8074,7 +8073,7 @@ dependencies = [
  "serde_json",
  "ship-ops-rpc",
  "ship-reactive",
- "ship-substrate",
+ "ship-substrate-core",
  "ship-types",
  "sqlx",
  "tempfile",
@@ -8212,7 +8211,7 @@ dependencies = [
  "serde_json",
  "ship-ops-rpc",
  "ship-reactive",
- "ship-substrate",
+ "ship-substrate-core",
  "ship-types",
  "sqlx",
  "tempfile",
@@ -8385,6 +8384,20 @@ dependencies = [
 [[package]]
 name = "ship-js"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "deno_core",
+ "deno_error",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "ship-js"
+version = "0.1.0"
+source = "git+file:///home/madvib/dev/Ship/ship?rev=82909ba18371d702f3ae83fe7222ec009685f753#82909ba18371d702f3ae83fe7222ec009685f753"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8582,7 +8595,7 @@ dependencies = [
  "futures-util",
  "serde",
  "serde_json",
- "ship-substrate",
+ "ship-substrate-core",
  "ship-types",
  "tempfile",
  "tokio",
@@ -8712,7 +8725,6 @@ dependencies = [
  "compiler",
  "durable-execution",
  "futures-util",
- "home",
  "indexmap 2.14.0",
  "inventory",
  "libc",
@@ -8729,13 +8741,48 @@ dependencies = [
  "sha2",
  "ship-kernel",
  "ship-paths",
- "ship-pipelines",
  "ship-runner",
+ "ship-substrate-core",
  "ship-substrate-host",
  "ship-types",
  "specta",
  "sqlx",
- "sysinfo",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "ulid",
+ "walkdir",
+]
+
+[[package]]
+name = "ship-substrate-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bytes",
+ "chrono",
+ "compiler",
+ "futures-util",
+ "home",
+ "indexmap 2.14.0",
+ "inventory",
+ "libc",
+ "nanoid",
+ "proptest",
+ "rmp-serde",
+ "sea-query",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "ship-kernel",
+ "ship-paths",
+ "ship-pipelines",
+ "ship-types",
+ "specta",
+ "sqlx",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -9502,15 +9549,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sui-build-info"
+version = "0.1.0"
+
+[[package]]
 name = "sui-compiler"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "build-info",
  "clap",
  "libc",
  "serde",
  "serde_json",
+ "sui-build-info",
  "sui-lint",
  "thiserror 2.0.18",
 ]
@@ -9527,10 +9578,6 @@ dependencies = [
  "serde",
  "serde_json",
 ]
-
-[[package]]
-name = "sui-signals"
-version = "0.1.0"
 
 [[package]]
 name = "swift-rs"

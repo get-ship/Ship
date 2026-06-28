@@ -1,115 +1,92 @@
-//! ship-substrate — L0 kernel infrastructure.
+//! `ship-substrate` (L0) — substrate facade + heavy back-end machinery.
 //!
-//! Contains the event bus, persistence, DB, actor model, projections,
-//! supervisor, sessions, mesh, home/project path resolution, and
-//! related low-level substrate. No L1 domain logic and — post keystone-A —
-//! no domain event registrations: domain families (collection.*, artifact.*,
-//! studio.*, skill.*, auth.*, session.*, op.*, dispatch.*) register in their
-//! owning L1 crates; this crate registers only runtime mechanics (actor.*,
-//! process.*, executor.*, daemon.*, kernel.actor.*, mesh.*, pipeline.*,
-//! supervisor.shutting_down, settings.changed, sync.*†). The retired
-//! agent.session.* module survives only as an unregistered deserialization
-//! shim (#26). †sync.* is queued to move to ship-cloud.
+//! Post-carve (2026-06-28), this crate is a back-compat facade over
+//! [`ship_substrate_core`] (the shared collection/reactive slice, used by both
+//! shipd AND the lightweight L1 consumers `ship-collection`/`ship-reactive`/
+//! `ship-artifacts`) plus the heavy back-end machinery that lives only on the
+//! daemon side:
+//!
+//! - [`ports::s3_blob_store::S3BlobStore`] + `BlobBackendConfig` (S3 object_store)
+//! - [`ports::fs_watch`] + [`ports::local_fs_watch`] (notify)
+//! - [`services`] — actor mesh, server-side session services, dispatch ports
+//! - [`supervisor`] — daemon supervisor runtime
+//! - [`isolation`] — sandbox decision layer
+//! - [`persistence::journal_store`] — durable-execution journal store
+//! - [`access`] — runtime-access sub-traits used by shipd's API state
+//! - [`events::pipeline`] / [`events::payload_registry`] — these moved INTO
+//!   `ship-substrate-core` (they depend on `ship-pipelines` types only, which
+//!   is itself a clean crate — see [`ship_substrate_core::events::pipeline`]
+//!   and [`ship_substrate_core::events::payload_registry`]). Re-exported here
+//!   so `ship_substrate::events::pipeline` and `ship_substrate::events::payload_registry`
+//!   keep resolving unchanged.
+//!
+//! L0 registers only runtime mechanics (actor.*, process.*, executor.*,
+//! daemon.*, kernel.actor.*, mesh.*, supervisor.shutting_down,
+//! settings.changed, sync.*†). Domain families (collection.*, artifact.*,
+//! studio.*, skill.*, auth.*, session.*, op.*, dispatch.*) register in
+//! their owning L1 crates. †sync.* is queued to move to ship-cloud.
 
+// ── Heavy back-end modules that physically live in the facade ───────────────
 pub mod access;
-pub mod config_doc;
-pub mod data;
-pub mod ports;
-pub mod db;
-pub mod env;
-pub mod errors;
-pub mod events;
-pub mod fs_util;
-pub mod spawn_bounded;
-pub mod task_health;
-pub mod home;
 pub mod isolation;
-pub mod locate;
-pub mod persistence;
-pub mod project;
-pub mod projections;
-pub mod security;
-pub mod query;
 pub mod services;
 pub mod supervisor;
-pub mod trash;
-pub mod path_layout;
-pub mod runtime_reads;
+// ── Ports facade ───────────────────────────────────────────────────────────
+//
+// `blob_store`/`data_store`/`fs_broker`/`kernel_log`/`local_fs_{broker,blob_store}`/
+// `single_backend`/`space_context`/`step_executor` live in `ship-substrate-core`;
+// `fs_watch`/`local_fs_watch`/`s3_blob_store` + the blob-trait conformance suite
+// live here (object_store/notify deps).
+pub mod ports;
 
-pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
+// ── Events facade ───────────────────────────────────────────────────────────
+//
+// Everything L0-event-related (types / validator / kernel_router / global_kernel_router
+// / kernel_lifecycle / filter / payload_schema / payload_registry / pipeline /
+// daemon / executor / process) lives in `ship-substrate-core` — they depend
+// on `ship-pipelines` types only, which is itself a clean crate (no
+// object_store / notify / portable-pty), so the carve invariant holds without
+// per-facade shims.
+pub mod events {
+    pub use ship_substrate_core::events::*;
+}
 
-pub use ports::{
-    is_safe_ident, AccountId, BlobBackendConfig, BlobError, BlobHash, BlobScope, BlobStore,
-    ByteStream, ColumnKind, ColumnSpec, CountQuery, Cursor, DataStore, DataStoreError, FilterOp,
+// ── Persistence facade ─────────────────────────────────────────────────────
+//
+// `actor_store`/`event_store`/`partitioned_sink` live in core;
+// `journal_store` (durable-execution) lives here.
+pub mod persistence {
+    pub use ship_substrate_core::persistence::*;
+
+    pub mod journal_store;
+    pub use journal_store::SqliteJournalStore;
+}
+
+// ── Other core modules (re-exported whole) ──────────────────────────────────
+//
+// Everything below is owned by `ship-substrate-core`; the facade exposes
+// each at the original `ship_substrate::<path>` for back-compat.
+pub use ship_substrate_core::{
+    config_doc, data, db, env, errors, fs_util, home, locate, path_layout,
+    project, projections, query, runtime_reads, security, spawn_bounded,
+    task_health, trash, testutil,
+};
+
+// ── Public re-exports at the crate root for back-compat ─────────────────────
+pub use ship_substrate_core::{
+    gen_nanoid, gen_slug_suffix, gen_ulid, DaemonFile, Db, EventEnvelope,
+    KernelError, Scope, ShipHome, TrashEntry, Vector, WorkspaceError,
+    list_events_since, list_trash, purge_old_trash, query_events_since, read_events,
+    read_recent_events, restore_file, trash_file,
+    is_safe_ident, AccountId, BlobError, BlobHash, BlobScope, BlobStore, ByteStream,
+    ColumnKind, ColumnSpec, CountQuery, Cursor, DataStore, DataStoreError, FilterOp,
     FsBroker, FsCap, FsError, FsMode, FsRoot, KernelLog, LocalFsBlobStore, LocalFsBroker,
-    Predicate, PrimaryKey, Query, QueryResult, Row, S3BlobStore, SingleBackendDataStore, Sort,
+    Predicate, PrimaryKey, Query, QueryResult, Row, SingleBackendDataStore, Sort,
     SpaceContext, SpaceId, StepExecutor, StepExecutorError, StepOutput, TableSchema,
+    ActorStore, EventStore, SqliteEventStore, PartitionedSink, EventFilter,
+    init_kernel_router, kernel_router, new_isolated_for_test, KernelRouter,
+    PayloadSchemaValidator, ElevatedValidator, EventValidator, KERNEL_NAMESPACES,
+    NamespaceValidator, PLATFORM_ONLY_NAMESPACES, RESERVED_NAMESPACES,
+    ReservedNamespaceValidator, ValidationError, is_kernel_event,
+    // types::event_types re-export
 };
-
-pub use events::{
-    EventEnvelope, list_events_since, query_events_since, read_events, read_recent_events,
-};
-pub use errors::{KernelError, WorkspaceError};
-pub use trash::{TrashEntry, list_trash, purge_old_trash, restore_file, trash_file};
-
-pub mod testutil;
-
-/// Generate a monotonic ULID string. Thread-safe via thread-local generator.
-pub fn gen_ulid() -> String {
-    use std::cell::RefCell;
-    use std::time::SystemTime;
-    thread_local! {
-        static GEN: RefCell<ulid::Generator> = const { RefCell::new(ulid::Generator::new()) };
-    }
-    GEN.with(|g| {
-        let now = SystemTime::now();
-        let mut generator = g.borrow_mut();
-        // Monotonic overflow within a single ms — reset the generator so the
-        // counter starts fresh at the new timestamp and try again.
-        generator
-            .generate_from_datetime(now)
-            .unwrap_or_else(|_| {
-                *generator = ulid::Generator::new();
-                ulid::Ulid::from_datetime(now)
-            })
-            .to_string()
-    })
-}
-
-/// Generate a short, collision-free lowercase slug suffix (8 chars).
-///
-/// Drawn from the ULID's RANDOM tail, never its timestamp head. A
-/// ULID's first 10 chars encode the millisecond timestamp, so any
-/// prefix slice (`gen_ulid()[..8]`) is pure time — rapid dispatches in
-/// the same workspace land in the same ms bucket and collide. The last
-/// 8 chars are the random component, so suffixes are unique even for
-/// back-to-back generation. Use this for `<workspace>-<suffix>` slugs.
-pub fn gen_slug_suffix() -> String {
-    let ulid = gen_ulid();
-    ulid[ulid.len() - 8..].to_lowercase()
-}
-
-// SD-1: authoritative definition lives in `compiler`; delegate to it so there
-// is exactly one copy of the Ship 56-char alphabet.
-pub use compiler::gen_nanoid;
-
-#[cfg(test)]
-mod slug_suffix_tests {
-    use super::gen_slug_suffix;
-    use std::collections::HashSet;
-
-    #[test]
-    fn rapid_suffixes_are_unique() {
-        // Regression: slugs were built from gen_ulid()[..8] (the
-        // millisecond-timestamp head), so back-to-back same-ms dispatches
-        // collided, sharing a worktree + tmux session. Drawing from the
-        // random tail must make tight loops collision-free.
-        let mut seen = HashSet::new();
-        for _ in 0..1000 {
-            let s = gen_slug_suffix();
-            assert_eq!(s.len(), 8, "suffix must be 8 chars: {s}");
-            assert_eq!(s, s.to_lowercase(), "suffix must be lowercase: {s}");
-            assert!(seen.insert(s.clone()), "duplicate suffix in tight loop: {s}");
-        }
-    }
-}

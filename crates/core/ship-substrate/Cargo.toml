@@ -13,8 +13,8 @@ ship-kernel = { path = "crates/ship-kernel" }
 ship-substrate-host = { path = "crates/ship-substrate-host" }
 ship-types = { path = "crates/ship-types" }
 ship-paths = { path = "crates/ship-paths" }
-ship-pipelines = { path = "crates/ship-pipelines", features = ["specta"] }
 durable-execution = { path = "crates/durable-execution" }
+ship-substrate-core = { path = "../ship-substrate-core" }
 inventory = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
@@ -37,8 +37,6 @@ tracing = { workspace = true }
 sea-query = { version = "0.32.7", features = ["backend-sqlite"] }
 indexmap = { workspace = true, features = ["serde"] }
 rmp-serde = "1"
-home = { workspace = true }
-sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 serde_yaml = { workspace = true }
 notify = { workspace = true }
 # Pure path-layout helper for composed traveling-artifact overlays. No ship
