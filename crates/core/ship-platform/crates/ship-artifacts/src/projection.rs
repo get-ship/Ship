@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use ship_substrate::ports::{
+use ship_substrate_core::{
     ColumnKind, ColumnSpec, DataStore, DataStoreError, Predicate, Query, Row, TableSchema,
 };
 
@@ -136,7 +136,7 @@ pub async fn count_by_filter(
     store: &dyn DataStore,
     filter: BTreeMap<String, serde_json::Value>,
 ) -> Result<usize, ArtifactError> {
-    use ship_substrate::ports::CountQuery;
+    use ship_substrate_core::ports::CountQuery;
     let q = CountQuery { table: TABLE.to_string(), filters: Predicate::eq_all(filter) };
     Ok(store.count(q).await?)
 }

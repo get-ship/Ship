@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, Weak};
 use tokio::sync::broadcast;
 
-use ship_substrate::events::EventFilter;
-use ship_substrate::ports::KernelLog;
+use ship_substrate_core::events::EventFilter;
+use ship_substrate_core::ports::KernelLog;
 
 use crate::patch::PatchFrame;
 use crate::resolver::{Resolver, ResolverSpec};

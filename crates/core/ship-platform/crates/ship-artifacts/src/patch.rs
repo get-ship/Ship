@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use ship_ops_rpc::{
     Patch as ProtoPatch, PatchFrame as ProtoPatchFrame, PatchOp as ProtoPatchOp, WatchEvent,
 };
-use ship_substrate::ports::SpaceContext;
+use ship_substrate_core::ports::SpaceContext;
 
 use crate::projection::{TABLE, ensure_artifacts_table, row_to_record};
 
@@ -65,9 +65,9 @@ pub async fn snapshot_for_artifacts(
         filter.insert("mime".into(), serde_json::Value::String(mime_filter.to_string()));
     }
 
-    let q = ship_substrate::ports::Query {
+    let q = ship_substrate_core::ports::Query {
         table: TABLE.to_string(),
-        filters: ship_substrate::ports::Predicate::eq_all(filter),
+        filters: ship_substrate_core::ports::Predicate::eq_all(filter),
         limit: 500,
         ..Default::default()
     };

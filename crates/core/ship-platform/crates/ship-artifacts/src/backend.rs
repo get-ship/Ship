@@ -1,4 +1,4 @@
-//! Private blob storage backend — delegates to `ship_substrate::ports::LocalFsBlobStore`.
+//! Private blob storage backend — delegates to `ship_substrate_core::ports::LocalFsBlobStore`.
 //!
 //! `BlobBackend` is a narrow sync seam so the service's atomicity story
 //! (emit event → GC on failure) is not entangled with async executor details.
@@ -9,7 +9,7 @@ use std::io;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use ship_substrate::ports::{BlobHash, BlobScope, BlobStore, LocalFsBlobStore, SpaceId};
+use ship_substrate_core::{BlobHash, BlobScope, BlobStore, LocalFsBlobStore, SpaceId};
 
 use crate::types::ArtifactScope;
 
@@ -43,7 +43,7 @@ fn to_blob_scope(scope: &ArtifactScope) -> BlobScope {
     }
 }
 
-/// Blob backend that delegates to `ship_substrate::ports::LocalFsBlobStore`.
+/// Blob backend that delegates to `ship_substrate_core::ports::LocalFsBlobStore`.
 /// Blobs live at `{root}/spaces/<space_id>/blobs/<hash[:2]>/<hash>`.
 pub(crate) struct SubstrateBlobBackend {
     store: LocalFsBlobStore,
@@ -83,7 +83,7 @@ impl BlobBackend for SubstrateBlobBackend {
         let blob_scope = to_blob_scope(scope);
         let hash = BlobHash::parse(key).map_err(|e| anyhow::anyhow!("{e}"))?;
         Self::block(self.store.get(&blob_scope, &hash)).map_err(|e| {
-            if matches!(e, ship_substrate::ports::BlobError::NotFound(_)) {
+            if matches!(e, ship_substrate_core::ports::BlobError::NotFound(_)) {
                 anyhow::anyhow!(io::Error::new(io::ErrorKind::NotFound, e.to_string()))
             } else {
                 anyhow::anyhow!("{e}")

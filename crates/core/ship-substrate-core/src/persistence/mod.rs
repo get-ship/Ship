@@ -1,7 +1,7 @@
 pub mod actor_store;
 pub mod event_store;
-pub mod journal_store;
 pub mod partitioned_sink;
+// `journal_store` (durable-execution) lives in the heavy facade.
 #[cfg(test)]
 mod append_enforce_tests;
 #[cfg(test)]
@@ -13,7 +13,6 @@ mod tx_atomicity_tests;
 
 pub use actor_store::ActorStore;
 pub use event_store::{EventStore, SqliteEventStore};
-pub use journal_store::SqliteJournalStore;
 pub use partitioned_sink::PartitionedSink;
 
 use anyhow::Result;
