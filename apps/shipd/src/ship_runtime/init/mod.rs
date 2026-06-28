@@ -188,6 +188,18 @@ impl ShipRuntime {
         Ok(Self {
             config,
             kernel,
+            // The struct gained a `ship_dir: PathBuf` field after the
+            // production ctor was last edited. The test ctor already
+            // passes it through (apps/shipd/src/ship_runtime/test_ctors.rs);
+            // the production ctor must do the same or it fails E0063.
+            // The ship's home root is the natural value here — every
+            // downstream accessor (`build_space_db_context_arc`, the
+            // daemon_dir computation, the workspace derivation) already
+            // takes the same path. Test ctor takes it as an argument so
+            // the test can use a tmpdir; production ctor derives it from
+            // `meta.global_dir` (the canonical ship home per the docs at
+            // `crates/core/ship-substrate/src/project/global.rs`).
+            ship_dir: global_dir.clone(),
             // Per-scope dbs live at the ship-home root (`runtime.db`,
             // `account.db`, `spaces/<id>/space.db`); `data.db` + `kv.db`
             // live under `~/.ship/machine/db/`. A workspace attachment does
