@@ -5,14 +5,13 @@
 
 use std::path::{Path, PathBuf};
 
-/// Locate the `proto/fixtures/` directory relative to this crate.
+/// Locate the `fixtures/` directory under the proto SSOT (ship-contracts
+/// repo). The path is baked at build time by tests/contract/build.rs from
+/// the `SHIP_PROTO_DIR` env var (default = ship-contracts sibling-repo
+/// absolute path). Post-multi-repo-cleanup, the fixtures live in
+/// ship-contracts/proto, not in the ship repo.
 pub fn fixtures_dir() -> PathBuf {
-    // tests/contract/ → tests/ → repo root → proto/fixtures/
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent() // tests/
-        .and_then(|p| p.parent()) // repo root
-        .expect("cannot locate repo root from tests/contract/")
-        .join("proto/fixtures")
+    Path::new(env!("PROTO_ROOT")).join("fixtures")
 }
 
 /// Load + parse a fixture JSON file. Panics with a clear message on failure.

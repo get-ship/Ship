@@ -52,7 +52,7 @@ fn stability_str(s: &Stability) -> &'static str {
 fn event_fixtures_roundtrip_and_metadata() {
     let dir = fixtures_dir().join("events");
     if !dir.exists() {
-        panic!("proto/fixtures/events/ does not exist — run `cargo xtask gen-fixtures` first");
+        panic!("<PROTO_ROOT>/fixtures/events/ does not exist — set SHIP_PROTO_DIR or rely on the build.rs default to the ship-contracts SSOT");
     }
 
     let registry_map: std::collections::HashMap<&str, _> = registry()

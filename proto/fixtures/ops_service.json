@@ -1,9 +1,0 @@
-{
-  "Meta": {
-    "response_ok": {
-      "version": "0.1.0",
-      "build": "a1b2c3d"
-    },
-    "request": {}
-  }
-}

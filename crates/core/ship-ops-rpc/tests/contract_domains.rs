@@ -13,18 +13,18 @@ use ship_ops_rpc::{
     ToolPatternsResponse,
 };
 
-const ARTIFACTS: &str = include_str!("../../../../proto/fixtures/artifacts_service.json");
-const COLLECTIONS: &str = include_str!("../../../../proto/fixtures/collections_service.json");
-const EVENTS: &str = include_str!("../../../../proto/fixtures/events_service.json");
-const MCP: &str = include_str!("../../../../proto/fixtures/mcp_service.json");
-const PERMISSIONS: &str = include_str!("../../../../proto/fixtures/permissions_service.json");
-const PIPELINES: &str = include_str!("../../../../proto/fixtures/pipelines_service.json");
-const SPACE: &str = include_str!("../../../../proto/fixtures/space_service.json");
-const RUNTIME: &str = include_str!("../../../../proto/fixtures/runtime_service.json");
+const ARTIFACTS: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/artifacts_service.json"));
+const COLLECTIONS: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/collections_service.json"));
+const EVENTS: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/events_service.json"));
+const MCP: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/mcp_service.json"));
+const PERMISSIONS: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/permissions_service.json"));
+const PIPELINES: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/pipelines_service.json"));
+const SPACE: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/space_service.json"));
+const RUNTIME: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/runtime_service.json"));
 // sessions folded into AgentsService (agents-arc E6: sessions.list → agents.sessions).
-const AGENTS: &str = include_str!("../../../../proto/fixtures/agents_service.json");
-const SKILLS: &str = include_str!("../../../../proto/fixtures/skills_service.json");
-const SPECS: &str = include_str!("../../../../proto/fixtures/specs_service.json");
+const AGENTS: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/agents_service.json"));
+const SKILLS: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/skills_service.json"));
+const SPECS: &str = include_str!(concat!(env!("PROTO_ROOT"), "/fixtures/specs_service.json"));
 
 fn response_ok(fixtures_json: &str, method: &str) -> String {
     let v: Value = serde_json::from_str(fixtures_json).expect("fixtures parse");

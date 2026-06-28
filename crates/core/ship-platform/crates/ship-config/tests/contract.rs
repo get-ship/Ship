@@ -109,8 +109,12 @@ fn settings_service_has_exactly_four_rpcs() {
 fn settings_fixtures_deserialize_against_their_proto_types() {
     use ship_ops_rpc::WatchEvent;
 
-    let theme_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../../../proto/fixtures/fixture-seed.json");
+    // The proto SSOT is the ship-contracts repo; PROTO_ROOT is baked by
+    // build.rs from the SHIP_PROTO_DIR env var (default = ship-contracts
+    // sibling-repo absolute path). Post-multi-repo-cleanup, the contract
+    // fixtures live there, not in the ship repo.
+    let theme_path = std::path::Path::new(env!("PROTO_ROOT"))
+        .join("fixtures/fixture-seed.json");
     let theme: serde_json::Value = serde_json::from_slice(
         &std::fs::read(&theme_path).expect("read fixture-seed.json"),
     )

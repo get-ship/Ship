@@ -67,15 +67,13 @@ jobs:
       # License audit: walk the resolved dep tree and fail on copyleft.
       - name: License audit (no copyleft)
         run: node scripts/check-licenses.mjs
-      # Proto contract fixtures are generated from proto/fixtures/theme.json
-      # and validated against the ship.ops.v1 proto types. Drift here means
-      # a proto shape change outran its fixture, which the Rust + TS suites
-      # both depend on for roundtrip coverage.
-      - name: Check proto fixtures drift
-        run: |
-          cargo run -p xtask --quiet -- gen-fixtures
-          git diff --exit-code proto/fixtures/ \
-            || { echo "proto/fixtures is stale — run 'cargo run -p xtask -- gen-fixtures' and commit"; exit 1; }
+      # Proto contract fixtures now live in the ship-contracts repo (the
+      # proto SSOT post-multi-repo-cleanup). Drift detection for them
+      # moved to ship-contracts CI; the contract tests in this repo
+      # read fixtures via the `PROTO_ROOT` env var (set by build.rs from
+      # `SHIP_PROTO_DIR`, default = ship-contracts sibling-repo). Each
+      # test crate has its own build.rs that re-bakes the env var and
+      # tracks the fixtures dir for incremental rebuilds.
       # In-repo lints: layer boundaries + import direction + anti-theater.
       - name: Lint layer boundaries
         run: cargo run -p xtask --quiet -- lint-layers
