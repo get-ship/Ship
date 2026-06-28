@@ -1,0 +1,17 @@
+{
+  "agent": {
+    "id": "test-agent",
+    "name": "Test Agent",
+    "version": "0.1.0",
+    "description": "An agent used by the helmd Compile integration test."
+  },
+  "skills": {
+    "refs": ["example-skill"]
+  },
+  "mcp": {
+    "servers": ["test-server"]
+  },
+  "rules": {
+    "inline": "Test rule body for helmd Compile integration test."
+  }
+}

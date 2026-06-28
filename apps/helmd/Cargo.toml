@@ -42,14 +42,31 @@ connectrpc = { version = "0.4", features = ["client", "axum"] }
 buffa = { version = "0.5", features = ["json"] }
 # Generated code names ::serde:: / ::http_body:: / ::http:: paths directly.
 serde = { version = "1.0", features = ["derive"] }
+# The compile handler flattens `compiler::CompileOutput` (Json / Option<Json>)
+# to wire `CompiledFile { path, content }` rows — needs `serde_json` to
+# pretty-print the JSON fields. Helmd is detached from the ship workspace
+# (see `[workspace]` at the bottom) so this must be a direct dep, not a
+# `workspace = true` inheritance.
+serde_json = { version = "1.0", features = ["preserve_order"] }
+# Generated code names ::http:: / ::http_body:: as top-level crates.
 http-body = "1"
 http = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
 axum = { version = "0.8", features = ["macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
 # CORS so the browser (Helm's SPA, served by Hono on another origin) can dial
-# helmd's GitService directly in dev — the "second client" alongside Hono.
 tower-http = { version = "0.6", features = ["cors"] }
 anyhow = "1.0"
+
+[dev-dependencies]
+# The integration test (`tests/compile.rs`) mounts the ConnectRPC router
+# in-process via the generated `HarnessServiceExt::register`. Needs the
+# axum tower::ServiceExt::oneshot, http_body_util for body collection, and
+# serde_json for request/response shapes.
+axum = { version = "0.8", features = ["macros"] }
+http-body-util = "0.1"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+tower = { version = "0.5", features = ["util"] }
+tempfile = "3"
 
 [build-dependencies]
 connectrpc-build = "0.4"

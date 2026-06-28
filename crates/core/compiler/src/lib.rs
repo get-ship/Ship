@@ -13,6 +13,7 @@ pub mod compile;
 pub mod decompile;
 pub mod events;
 pub mod jsonc;
+pub mod loader;
 pub mod lockfile;
 pub mod manifest;
 pub mod output;
@@ -24,6 +25,7 @@ pub mod vars;
 
 // ─── Top-level re-exports ─────────────────────────────────────────────────────
 
+pub use loader::load_library;
 pub use output::{ensure_parent, merge_json, merge_json_file, write_output};
 
 pub use compile::{
@@ -31,11 +33,12 @@ pub use compile::{
     ProviderFeatureFlags, SkillsDir, agents::compile_agent_profiles, build_claude_settings_patch,
     compile, get_harness, list_harnesses, translate_to_cursor_permission,
 };
+
+pub use resolve::{ProjectLibrary, ResolvedConfig, WorkspaceOverrides, resolve, resolve_library};
 pub use decompile::{
     DetectedProviders, decompile_all, decompile_claude, decompile_codex, decompile_cursor,
     decompile_opencode, detect_harnesses,
 };
-pub use resolve::{ProjectLibrary, ResolvedConfig, WorkspaceOverrides, resolve, resolve_library};
 pub use schemas::{HARNESS_MANAGED_KEYS, HARNESS_SCHEMAS, managed_keys, schema_url};
 pub use types::{
     AgentBundle, AgentLayerConfig, AgentLimits, AgentProfile, ArtifactType, BlastRadius, Capability,

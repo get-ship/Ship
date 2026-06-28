@@ -626,10 +626,14 @@ dependencies = [
  "connectrpc-build",
  "http",
  "http-body",
+ "http-body-util",
  "protoc-bin-vendored",
  "serde",
+ "serde_json",
  "ship-git",
+ "tempfile",
  "tokio",
+ "tower",
  "tower-http",
 ]
 

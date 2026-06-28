@@ -1,0 +1,23 @@
+{
+  // Test agent fixture for load_library.
+  "agent": {
+    "id": "test-agent",
+    "name": "Test Agent",
+    "version": "0.1.0",
+    "description": "An agent used by the load_library test fixture."
+  },
+  "skills": {
+    "refs": ["example-skill"]
+  },
+  "mcp": {
+    "servers": ["test-server"]
+  },
+  "permissions": {
+    "preset": "ship-readonly",
+    "tools_allow": ["Read", "Glob"],
+    "tools_deny": ["Write(*)"]
+  },
+  "rules": {
+    "inline": "Test rule body."
+  }
+}
