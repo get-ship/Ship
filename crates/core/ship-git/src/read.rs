@@ -696,9 +696,12 @@ pub fn structured_diff(
 /// not migrated in this job, but the loader here is what the seam will call
 /// next).
 ///
-/// The main worktree is always first; linked worktrees follow in
-/// `git worktree list` order. `WorktreeRow.branch` is empty for the main
-/// worktree on a detached HEAD. A non-repo `root` returns `vec![]`.
+/// The main worktree is always first with `is_current = true`; linked
+/// worktrees follow in `git worktree list` order with `is_current = false`.
+/// `WorktreeRow.branch` is empty for the main worktree on a detached HEAD.
+/// `WorktreeRow.head_short` is the worktree's 7-char HEAD sha ("" when not
+/// resolvable — a non-readable worktree, unborn HEAD, or a libgit2 failure).
+/// A non-repo `root` returns `vec![]`.
 pub fn list_worktrees(root: &Path) -> Vec<WorktreeRow> {
     let repo = match open_repo(root) {
         Ok(r) => r,
@@ -709,15 +712,33 @@ pub fn list_worktrees(root: &Path) -> Vec<WorktreeRow> {
     // the main one, so the leaf must too (otherwise `has_worktree` is never
     // true for the integration branch and the verdict bits are wrong).
     // The main slot is identified by `repo.workdir()` — the canonical main
-    // worktree path — and `current_branch_name` for the checked-out branch.
+    // worktree path — and HEAD's short refname for the checked-out branch.
     let main_path = repo
         .workdir()
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_default();
-    let main_branch = load_branch(root).unwrap_or_default();
+    // The main worktree's `branch` is the checked-out branch SHORT refname
+    // (e.g. `feat/integration`), or `""` on a detached HEAD. We check
+    // `is_branch()` directly because `load_branch` falls back to the
+    // short sha for detached — that would be wrong here (the worktree
+    // row should signal "detached" with empty `branch`).
+    let main_branch = repo
+        .head()
+        .ok()
+        .filter(|h| h.is_branch())
+        .and_then(|h| h.shorthand().map(str::to_string))
+        .unwrap_or_default();
+    let main_head: String = repo
+        .head()
+        .ok()
+        .and_then(|r| r.target())
+        .map(|oid| oid.to_string().chars().take(7).collect())
+        .unwrap_or_default();
     let mut rows: Vec<WorktreeRow> = vec![WorktreeRow {
         path: main_path.clone(),
         branch: main_branch,
+        head_short: main_head,
+        is_current: true,
     }];
     let worktrees = match repo.worktrees() {
         Ok(w) => w,
@@ -730,13 +751,49 @@ pub fn list_worktrees(root: &Path) -> Vec<WorktreeRow> {
         if name.is_empty() {
             continue;
         }
-        // libgit2 0.19 doesn't surface per-worktree paths directly through
-        // this call, so linked-worktree rows get the workdir as a fallback
-        // (informational; the verdict bits don't depend on per-worktree
-        // absolute paths).
+        // For each linked worktree, look up the per-worktree path AND the
+        // branch its HEAD is on. libgit2's `repo.worktrees()` returns the
+        // worktree's ADMINISTRATIVE NAME (e.g. `wt-new`) — that's the name
+        // of the directory under `.git/worktrees/`, NOT the branch the
+        // worktree has checked out. To get the real branch we have to open
+        // the worktree as a Repository and read its HEAD (shorthand of the
+        // branch ref, or empty on detached). Failure modes (worktree deleted
+        // underneath us, unborn HEAD) leave the row well-formed with empty
+        // `branch` / `head_short` — the worktree name (`wt-new` style)
+        // is never substituted for the branch.
+        let (path, branch, head_short) = match repo.find_worktree(name) {
+            Ok(wt) => match Repository::open(wt.path()) {
+                Ok(sub) => {
+                    let p = wt.path().to_string_lossy().into_owned();
+                    let head_ref = sub.head().ok();
+                    // The OID is owned; only the `head()` ref is borrowed.
+                    let head_short: String = head_ref
+                        .as_ref()
+                        .and_then(|r| r.target())
+                        .map(|oid| oid.to_string().chars().take(7).collect())
+                        .unwrap_or_default();
+                    // `head().shorthand()` returns the short refname for a
+                    // branch (e.g. `job/foo`) and `None` on a detached HEAD
+                    // — which is exactly the "" we want to surface.
+                    let branch: String = head_ref
+                        .as_ref()
+                        .and_then(|r| r.shorthand().map(str::to_string))
+                        .unwrap_or_default();
+                    (p, branch, head_short)
+                }
+                Err(_) => (
+                    wt.path().to_string_lossy().into_owned(),
+                    String::new(),
+                    String::new(),
+                ),
+            },
+            Err(_) => (main_path.clone(), String::new(), String::new()),
+        };
         rows.push(WorktreeRow {
-            path: main_path.clone(),
-            branch: name.to_string(),
+            path,
+            branch,
+            head_short,
+            is_current: false,
         });
     }
     rows

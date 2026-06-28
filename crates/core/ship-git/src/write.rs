@@ -469,3 +469,184 @@ pub fn checkout(root: &Path, refname: &str) -> Result<String, GitError> {
     repo.set_head_detached(obj.id())?;
     Ok(obj.id().to_string())
 }
+
+// ── worktree (create) ─────────────────────────────────────────────────────
+//
+// The single subprocess exception in the leaf: `git worktree add -b <branch>
+// <path> <base>` is implemented via `std::process::Command`, not libgit2.
+// libgit2 0.19's `Repository::worktree()` requires `GIT_DIR`/`GIT_COMMON_DIR`
+// in the environment and several bookkeeping steps (`.git/worktrees/<name>`,
+// per-worktree HEAD, etc.) that `git worktree add` handles for us; the
+// subprocess path matches what `dispatch.sh` runs in shell, so semantics are
+// identical (including the worktree's HEAD ref, .git pointer file, and
+// gitdir entry). Marked explicitly so the audit knows the one place that
+// breaks the libgit2-direct invariant.
+
+/// Outcome of [`create_worktree`]. The leaf returns a typed result, not a
+/// `Result<_, GitError>`, because a `Reused` is NOT an error — it's a normal
+/// idempotent hit the caller (the dispatch workflow) records as success.
+/// `Failed` carries the failure reason; the caller translates to a 5xx.
+#[derive(Debug, Clone)]
+pub enum WorktreeOutcome {
+    /// New worktree + branch were created.
+    Created {
+        branch: String,
+        worktree_path: std::path::PathBuf,
+        base_ref: String,
+    },
+    /// Idempotent hit: the worktree already exists on `branch`; nothing was
+    /// written. Mirrors `src/dispatch.ts:175-181`'s "worktree already on
+    /// `job/<slug>`" reuse check.
+    Reused {
+        branch: String,
+        worktree_path: std::path::PathBuf,
+    },
+    /// The write was refused. `error` is a human-readable reason; `branch`
+    /// and `worktree_path` echo back the request fields for logging.
+    Failed {
+        branch: String,
+        worktree_path: std::path::PathBuf,
+        error: String,
+    },
+}
+
+/// Create a new git worktree at `worktree_path` on a new `branch` starting
+/// from `base_ref`. Mirrors the operator's `git worktree add -b <branch>
+/// <path> <base>` invocation (see `src/dispatch.ts:183`, audit row #10) and
+/// is idempotent when the worktree already exists on `branch`.
+///
+/// Behavior:
+/// - `worktree_path` is empty / doesn't exist → CREATED. Runs
+///   `git -C <root> worktree add -b <branch> <worktree_path> <base_ref>`
+///   via subprocess (see module-level note). Empty `base_ref` falls back to
+///   HEAD (matching `git worktree add -b <branch> <path>` without a base).
+/// - `worktree_path` exists AND its HEAD is on `branch` → REUSED (idempotent
+///   success; the dispatch caller records "already there" and moves on).
+/// - `worktree_path` exists AND its HEAD is on a DIFFERENT branch → FAILED
+///   with an `error` like "worktree at <path> is on branch `<other>`, not
+///   `<branch>`". The dispatch caller translates to a 5xx so the operator
+///   resolves the conflict (remove the worktree, pick a different slug, …).
+/// - A `git worktree add` failure (bad ref, branch already exists, etc.)
+///   bubbles up as FAILED with the underlying stderr in `error`.
+///
+/// The worktree's HEAD branch is read with `git -C <wt> rev-parse
+/// --abbrev-ref HEAD` (the same call helm's `src/dispatch.ts:176-181` uses
+/// for the reuse check) — also a subprocess, scoped to the existing path
+/// only on the idempotent path.
+pub fn create_worktree(
+    root: &Path,
+    worktree_path: &Path,
+    branch: &str,
+    base_ref: &str,
+    idempotent: bool,
+) -> WorktreeOutcome {
+    if branch.is_empty() {
+        return WorktreeOutcome::Failed {
+            branch: branch.to_string(),
+            worktree_path: worktree_path.to_path_buf(),
+            error: "branch name is required".to_string(),
+        };
+    }
+
+    // ── Idempotent hit: path exists and HEAD branch matches ──────────────
+    if worktree_path.exists() {
+        let existing_branch = existing_worktree_branch(worktree_path);
+        if let Some(existing) = existing_branch {
+            if existing == branch {
+                return WorktreeOutcome::Reused {
+                    branch: branch.to_string(),
+                    worktree_path: worktree_path.to_path_buf(),
+                };
+            }
+            // Path exists on a different branch — refuse.
+            let msg = format!(
+                "worktree at `{}` is on branch `{}`, not `{}`",
+                worktree_path.display(),
+                existing,
+                branch
+            );
+            return WorktreeOutcome::Failed {
+                branch: branch.to_string(),
+                worktree_path: worktree_path.to_path_buf(),
+                error: msg,
+            };
+        }
+        // Path exists but is not a git worktree (or HEAD isn't readable).
+        // On idempotent=true we still refuse — the caller picked a path
+        // that's occupied by something else.
+        if idempotent {
+            return WorktreeOutcome::Failed {
+                branch: branch.to_string(),
+                worktree_path: worktree_path.to_path_buf(),
+                error: format!(
+                    "path `{}` exists but is not a git worktree",
+                    worktree_path.display()
+                ),
+            };
+        }
+    }
+
+    // ── Create: `git worktree add -b <branch> <path> <base_ref?>` ─────────
+    let mut args: Vec<String> = vec![
+        "-C".into(),
+        root.display().to_string(),
+        "worktree".into(),
+        "add".into(),
+        "-b".into(),
+        branch.to_string(),
+    ];
+    args.push(worktree_path.display().to_string());
+    if !base_ref.is_empty() {
+        args.push(base_ref.to_string());
+    }
+    let output = std::process::Command::new("git").args(&args).output();
+    match output {
+        Ok(out) if out.status.success() => WorktreeOutcome::Created {
+            branch: branch.to_string(),
+            worktree_path: worktree_path.to_path_buf(),
+            base_ref: base_ref.to_string(),
+        },
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            let detail = if !stderr.is_empty() { stderr } else { stdout };
+            let detail = if detail.is_empty() { "git worktree add failed".to_string() } else { detail };
+            WorktreeOutcome::Failed {
+                branch: branch.to_string(),
+                worktree_path: worktree_path.to_path_buf(),
+                error: detail,
+            }
+        }
+        Err(e) => WorktreeOutcome::Failed {
+            branch: branch.to_string(),
+            worktree_path: worktree_path.to_path_buf(),
+            error: format!("failed to spawn `git worktree add`: {e}"),
+        },
+    }
+}
+
+/// Read the HEAD branch of an existing worktree at `worktree_path` via
+/// `git -C <path> rev-parse --abbrev-ref HEAD`. Returns `None` on any
+/// failure (path not a worktree, no HEAD, etc.) — the caller treats
+/// `None` as "not an idempotent hit" and falls through to create.
+fn existing_worktree_branch(worktree_path: &Path) -> Option<String> {
+    let out = std::process::Command::new("git")
+        .args([
+            "-C",
+            &worktree_path.display().to_string(),
+            "rev-parse",
+            "--abbrev-ref",
+            "HEAD",
+        ])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if s.is_empty() || s == "HEAD" {
+        // Detached HEAD — not a match for any named branch.
+        return None;
+    }
+    Some(s)
+}

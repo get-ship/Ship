@@ -830,3 +830,196 @@ fn repo_status_non_repo_does_not_panic() {
     assert!(status.branches.is_empty());
     assert_eq!(status.worktree_count, 0);
 }
+
+// ── ListWorktrees (leaf for GitService.ListWorktrees) ─────────────────────
+//
+// Mirrors the `repo_status_*` test pattern: spin up a temp repo via git2,
+// run the loader, assert against the structured WorktreeRow shape (path,
+// branch, head_short, is_current). The `list_worktrees` loader is the leaf
+// half of the new `ListWorktrees` RPC; these tests pin its shape so the
+// helmd handler is a flat translation.
+
+#[test]
+fn list_worktrees_on_non_repo_yields_empty() {
+    // A non-git path must not panic / error — return vec![].
+    let tmp = tempdir().unwrap();
+    let rows = read::list_worktrees(tmp.path());
+    assert!(rows.is_empty());
+}
+
+#[test]
+fn list_worktrees_main_only_returns_one_row_marked_current() {
+    // The fixture has the main worktree only (no linked worktrees). The
+    // main row is always first, marked `is_current`, and carries the
+    // HEAD's short sha.
+    let (r, ..) = init_repo_with_branches();
+    let rows = read::list_worktrees(&r.root);
+    assert_eq!(rows.len(), 1, "no linked worktrees yet, got: {:?}", rows);
+    let main = &rows[0];
+    assert!(main.is_current, "main worktree must be is_current");
+    assert!(!main.path.is_empty());
+    assert_eq!(main.branch, "feat/integration", "HEAD is feat/integration");
+    assert_eq!(main.head_short.len(), 7, "head_short is the 7-char sha");
+    assert!(!main.head_short.is_empty());
+}
+
+#[test]
+fn list_worktrees_includes_linked_worktree() {
+    // Add a linked worktree at `<tmp>/wt-job` on `job/wt-test`. The list
+    // must include it as a non-current row whose `branch` is the actual
+    // branch name (`job/wt-test`), not the worktree's admin name.
+    let (r, ..) = init_repo_with_branches();
+    let wt_path = r._tmp.path().join("wt-job");
+    let out = std::process::Command::new("git")
+        .args([
+            "-C",
+            &r.root.display().to_string(),
+            "worktree",
+            "add",
+            "-b",
+            "job/wt-test",
+            &wt_path.display().to_string(),
+            "job/foo",
+        ])
+        .output()
+        .expect("git worktree add");
+    assert!(out.status.success(), "git worktree add failed: {:?}", out);
+
+    let rows = read::list_worktrees(&r.root);
+    assert_eq!(rows.len(), 2, "main + linked worktree; got: {:?}", rows);
+
+    // Main first, is_current=true.
+    assert!(rows[0].is_current);
+    assert_eq!(rows[0].branch, "feat/integration");
+
+    // Linked second, is_current=false, branch == job/wt-test (the actual
+    // checked-out branch, not the worktree's admin name `wt-job`).
+    let linked = &rows[1];
+    assert!(!linked.is_current, "linked worktree is never is_current");
+    assert_eq!(linked.branch, "job/wt-test");
+    assert!(
+        linked.path.ends_with("wt-job"),
+        "linked worktree path should end in wt-job; got `{}`",
+        linked.path
+    );
+    assert_eq!(
+        linked.head_short.len(),
+        7,
+        "linked head_short is the 7-char sha"
+    );
+}
+
+#[test]
+fn list_worktrees_empty_branch_for_detached_main() {
+    // Detach HEAD on the main worktree; the main row's `branch` should
+    // be empty (matches `git worktree list --porcelain` behavior on
+    // detached HEAD). `is_current` and `head_short` stay populated.
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    let _ = initial_commit(&r.root);
+    {
+        let repo = Repository::open(&r.root).unwrap();
+        repo.set_head_detached(repo.head().unwrap().target().unwrap())
+            .unwrap();
+    }
+    let rows = read::list_worktrees(&r.root);
+    assert_eq!(rows.len(), 1);
+    let main = &rows[0];
+    assert!(main.is_current);
+    assert!(main.branch.is_empty(), "detached HEAD -> empty branch");
+    assert_eq!(main.head_short.len(), 7);
+}
+
+// ── CreateWorktree (leaf for GitService.CreateWorktree) ────────────────────
+//
+// These tests pin `write::create_worktree` (subprocess-backed, the one
+// libgit2-direct exception in the leaf) across the CREATED / REUSED /
+// FAILED tri-state. They use a real `git` binary because the leaf
+// deliberately shells out (see `write.rs` module doc for the rationale).
+
+#[test]
+fn create_worktree_creates_new_worktree_and_branch() {
+    let (r, ..) = init_repo_with_branches();
+    let wt_path = r._tmp.path().join("wt-new");
+    let outcome = write::create_worktree(&r.root, &wt_path, "job/new", "main", false);
+    match outcome {
+        write::WorktreeOutcome::Created { branch, worktree_path, base_ref } => {
+            assert_eq!(branch, "job/new");
+            assert_eq!(worktree_path, wt_path);
+            assert_eq!(base_ref, "main");
+        }
+        other => panic!("expected Created, got {other:?}"),
+    }
+    // Sanity: the worktree exists, is on job/new, and lists in `list_worktrees`.
+    assert!(wt_path.exists());
+    let rows = read::list_worktrees(&r.root);
+    assert!(
+        rows.iter().any(|w| w.branch == "job/new" && !w.is_current),
+        "list_worktrees should include the new linked worktree; got: {:?}",
+        rows
+    );
+}
+
+#[test]
+fn create_worktree_reuses_existing_on_same_branch() {
+    // Add a worktree once, then call create_worktree again with the same
+    // args and idempotent=true — second call should return Reused, not
+    // fail with "branch already used" or "worktree already exists".
+    let (r, ..) = init_repo_with_branches();
+    let wt_path = r._tmp.path().join("wt-reuse");
+    let first = write::create_worktree(&r.root, &wt_path, "job/reuse", "main", false);
+    assert!(matches!(first, write::WorktreeOutcome::Created { .. }));
+    let second = write::create_worktree(&r.root, &wt_path, "job/reuse", "main", true);
+    assert!(
+        matches!(second, write::WorktreeOutcome::Reused { .. }),
+        "expected Reused, got {second:?}"
+    );
+}
+
+#[test]
+fn create_worktree_fails_when_path_is_on_different_branch() {
+    // Pre-create a worktree on `job/other`, then ask for the same path
+    // on `job/wanted` with idempotent=true — must fail with an error
+    // naming the actual branch.
+    let (r, ..) = init_repo_with_branches();
+    let wt_path = r._tmp.path().join("wt-collision");
+    let first = write::create_worktree(&r.root, &wt_path, "job/other", "main", false);
+    assert!(matches!(first, write::WorktreeOutcome::Created { .. }));
+    let second = write::create_worktree(&r.root, &wt_path, "job/wanted", "main", true);
+    match second {
+        write::WorktreeOutcome::Failed { error, branch, .. } => {
+            assert_eq!(branch, "job/wanted");
+            assert!(
+                error.contains("job/other"),
+                "error should name the actual branch; got `{error}`"
+            );
+        }
+        other => panic!("expected Failed, got {other:?}"),
+    }
+}
+
+#[test]
+fn create_worktree_rejects_empty_branch() {
+    let r = init_repo();
+    let wt_path = r._tmp.path().join("wt-empty");
+    let outcome = write::create_worktree(&r.root, &wt_path, "", "main", false);
+    assert!(matches!(outcome, write::WorktreeOutcome::Failed { .. }));
+}
+
+#[test]
+fn create_worktree_propagates_git_failure() {
+    // Asking for a branch that already exists at HEAD (without `-B`)
+    // makes `git worktree add` fail; the leaf must surface FAILED with
+    // a non-empty error, not Created or Reused.
+    let (r, ..) = init_repo_with_branches();
+    // `main` already exists in the fixture — using it as the new branch
+    // name will fail because the leaf doesn't pass `-B`.
+    let wt_path = r._tmp.path().join("wt-fail");
+    let outcome = write::create_worktree(&r.root, &wt_path, "main", "main", false);
+    match outcome {
+        write::WorktreeOutcome::Failed { error, .. } => {
+            assert!(!error.is_empty(), "error must be populated");
+        }
+        other => panic!("expected Failed, got {other:?}"),
+    }
+}

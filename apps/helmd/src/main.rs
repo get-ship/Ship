@@ -15,14 +15,26 @@
 //! Wire surface:
 //!   git.proto — `ship.internal.v1.GitService`:
 //!     POST /ship.internal.v1.GitService/Overview
-//!     POST /ship.internal.v1.GitService/Land      — squash-merge (the `land` op)
-//!     POST /ship.internal.v1.GitService/Release   — squash integration->main + tag
-//!     POST /ship.internal.v1.GitService/Footprint — branch changed-files (presence)
-//!     POST /ship.internal.v1.GitService/Diff      — render-ready diff (the git modal)
-//!     POST /ship.internal.v1.GitService/RepoStatus — consolidated Repos-pane read
-//!                                                  (branch + dirty + worktrees +
-//!                                                  release target + branch list with
-//!                                                  per-branch verdict bits)
+//!     POST /ship.internal.v1.GitService/Land          — squash-merge (the `land` op)
+//!     POST /ship.internal.v1.GitService/Release       — squash integration->main + tag
+//!     POST /ship.internal.v1.GitService/Footprint     — branch changed-files (presence)
+//!     POST /ship.internal.v1.GitService/Diff          — render-ready diff (the git modal)
+//!     POST /ship.internal.v1.GitService/RepoStatus    — consolidated Repos-pane read
+//!                                                      (branch + dirty + worktrees +
+//!                                                      release target + branch list with
+//!                                                      per-branch verdict bits)
+//!     POST /ship.internal.v1.GitService/ListWorktrees — repo worktrees (path, branch,
+//!                                                      head, is_current); replaces the
+//!                                                      shell-out at helm/src/repos.ts:191
+//!                                                      and unblocks removal of the
+//!                                                      documented exception in ship-git's
+//!                                                      `worktree_path_for_branch`.
+//!     POST /ship.internal.v1.GitService/CreateWorktree — `git worktree add -b` for the
+//!                                                      operator (the only production
+//!                                                      write shell-out in the helm git
+//!                                                      audit, src/dispatch.ts:183 row #10).
+//!                                                      Idempotent — REUSED on hit, FAILED
+//!                                                      on branch mismatch.
 //!     POST /ship.internal.v1.HarnessService/ListHarnesses — compile targets (real)
 //!     POST /ship.internal.v1.HarnessService/Compile       — `.ship/` → harness
 //!                                                            configs (the RPC form
@@ -65,6 +77,13 @@ use proto::{
     OwnedGitOverviewRequestView, OwnedLandRequestView, OwnedRepoStatusRequestView,
     OwnedReleaseRequestView, ReleaseResponse, RepoStatusResponse,
     repo_status_response::{BranchRow as RepoStatusBranchRow, Worktree as RepoStatusWorktree},
+    // ListWorktrees + CreateWorktree (the new git RPCs — see spec-git-consolidation
+    // §3.5 and §3.8). The view types come from the generated `__view` module
+    // and follow the same `OwnedXxxRequestView` pattern as the other ops.
+    OwnedCreateWorktreeRequestView, OwnedListWorktreesRequestView,
+    create_worktree_response::Status as CreateWorktreeStatus,
+    list_worktrees_response::WorktreeEntry as ListWorktreeEntry,
+    CreateWorktreeResponse, ListWorktreesResponse,
     // Harness-compiler wire (harness.proto).
     CompileResponse, Harness, HarnessService, HarnessServiceExt, ListHarnessesResponse,
     OwnedCompileRequestView, OwnedListHarnessesRequestView,
@@ -224,6 +243,101 @@ impl GitService for GitImpl {
         let root = PathBuf::from(req.repo_path.to_string());
         let status = ship_git::read::repo_status(&root);
         Response::ok(map_repo_status(status))
+    }
+
+    // ListWorktrees — the repo's worktrees (path + branch + head + is_current),
+    // the leaf-clean replacement for helm's `git worktree list --porcelain`
+    // shell-out at `src/repos.ts:191`. Also unblocks removal of the documented
+    // subprocess exception in `ship-git::state::worktree_path_for_branch`
+    // (`state.rs:200-236`); the seam still calls git today, but the leaf now
+    // has a libgit2 path (`read::list_worktrees`) that is what the seam will
+    // call next. Never errors — a non-repo `root` returns an empty `worktrees`
+    // list, matching the read-only `Overview` / `RepoStatus` tolerance.
+    #[allow(refining_impl_trait)]
+    async fn list_worktrees(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedListWorktreesRequestView,
+    ) -> ServiceResult<ListWorktreesResponse> {
+        let root = PathBuf::from(req.repo_path.to_string());
+        let rows = ship_git::read::list_worktrees(&root);
+        let worktree_count = rows.len() as u32;
+        let worktrees: Vec<ListWorktreeEntry> = rows
+            .into_iter()
+            .map(|w| ListWorktreeEntry {
+                path: w.path,
+                branch: w.branch,
+                head_short: w.head_short,
+                is_current: w.is_current,
+                ..Default::default()
+            })
+            .collect();
+        Response::ok(ListWorktreesResponse {
+            worktrees,
+            worktree_count,
+            ..Default::default()
+        })
+    }
+
+    // CreateWorktree — the operator's `git worktree add` (the only production
+    // write shell-out in the helm git audit, `src/dispatch.ts:183` row #10).
+    // Delegates to `ship_git::write::create_worktree`, which shells out to
+    // `git worktree add -b <branch> <path> <base_ref>` — the one subprocess
+    // exception in the leaf (see `write.rs` module doc for the rationale).
+    // Maps the leaf's `WorktreeOutcome` (Created / Reused / Failed) onto the
+    // proto's `Status` enum, surfacing `error` to the caller on FAILED so the
+    // dispatch workflow can record the failure reason. FAILED is NOT a 5xx
+    // here — it's a typed result the caller decides how to handle.
+    #[allow(refining_impl_trait)]
+    async fn create_worktree(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedCreateWorktreeRequestView,
+    ) -> ServiceResult<CreateWorktreeResponse> {
+        let root = PathBuf::from(req.repo_path.to_string());
+        let worktree_path = PathBuf::from(req.worktree_path.to_string());
+        let branch = req.branch.to_string();
+        let base_ref = req.base_ref.to_string();
+        let idempotent = req.idempotent;
+
+        let outcome = ship_git::write::create_worktree(
+            &root,
+            &worktree_path,
+            &branch,
+            &base_ref,
+            idempotent,
+        );
+        let resp = match outcome {
+            ship_git::write::WorktreeOutcome::Created {
+                branch,
+                worktree_path,
+                base_ref,
+            } => CreateWorktreeResponse {
+                status: ::buffa::EnumValue::from(CreateWorktreeStatus::CREATED),
+                current_branch: branch,
+                worktree_path: worktree_path.display().to_string(),
+                base_ref,
+                ..Default::default()
+            },
+            ship_git::write::WorktreeOutcome::Reused {
+                branch,
+                worktree_path,
+            } => CreateWorktreeResponse {
+                status: ::buffa::EnumValue::from(CreateWorktreeStatus::REUSED),
+                current_branch: branch,
+                worktree_path: worktree_path.display().to_string(),
+                ..Default::default()
+            },
+            ship_git::write::WorktreeOutcome::Failed {
+                error, branch, ..
+            } => CreateWorktreeResponse {
+                status: ::buffa::EnumValue::from(CreateWorktreeStatus::FAILED),
+                current_branch: branch,
+                error,
+                ..Default::default()
+            },
+        };
+        Response::ok(resp)
     }
 }
 
@@ -410,7 +524,8 @@ async fn main() -> anyhow::Result<()> {
     let listener = TcpListener::bind(&addr).await?;
     eprintln!(
         "helmd listening on {addr} \
-         (POST /ship.internal.v1.GitService/{{Overview,Land,Release,Footprint,Diff}}, \
+         (POST /ship.internal.v1.GitService/{{Overview,Land,Release,Footprint,Diff,\
+         RepoStatus,ListWorktrees,CreateWorktree}}, \
          /ship.internal.v1.HarnessService/{{ListHarnesses,Compile}}, CORS on)"
     );
     axum::serve(listener, app)

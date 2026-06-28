@@ -97,11 +97,17 @@ pub struct GitDiff {
 // one-for-one so `helmd`'s handler is a flat translation.
 
 /// One worktree (`git worktree list --porcelain` row). `branch` is empty for
-/// the main worktree on a detached HEAD.
-#[derive(Clone, Default, Serialize)]
+/// the main worktree on a detached HEAD. `head_short` is the worktree's
+/// 7-char HEAD sha ("" when not resolvable — non-readable worktree, unborn
+/// HEAD). `is_current` is true only for the main worktree (the repo's
+/// canonical `workdir()`); linked worktrees are always `is_current = false`
+/// because the main worktree is where HEAD normally lives in libgit2's view.
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct WorktreeRow {
     pub path: String,
     pub branch: String,
+    pub head_short: String,
+    pub is_current: bool,
 }
 
 /// One local branch with the verdict bits the Repos pane renders directly
