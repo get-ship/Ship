@@ -1,5 +1,4 @@
 {
-  // Shared MCP server definitions — referenced by agent configs via "servers": ["ship", ...]
   "$schema": "../schemas/mcp.schema.json",
   "mcp": {
     "servers": {
@@ -7,11 +6,13 @@
         "id": "",
         "name": "Antigravity",
         "command": "antigravity",
-        "args": ["mcp"],
+        "args": [
+          "mcp"
+        ],
         "scope": "project",
         "server_type": "stdio",
         "disabled": true,
-        "env": {},
+        "env": {}
       },
       "rust-docs": {
         "id": "",
@@ -22,7 +23,7 @@
         "server_type": "http",
         "url": "http://127.0.0.1:7771/mcp",
         "disabled": true,
-        "env": {},
+        "env": {}
       },
       "frontend-docs": {
         "id": "",
@@ -33,7 +34,7 @@
         "server_type": "http",
         "url": "http://127.0.0.1:7772/mcp",
         "disabled": true,
-        "env": {},
+        "env": {}
       },
       "mcp-docs": {
         "id": "",
@@ -44,18 +45,32 @@
         "server_type": "http",
         "url": "http://127.0.0.1:7773/mcp",
         "disabled": true,
-        "env": {},
+        "env": {}
       },
       "ship": {
         "id": "",
         "name": "Ship",
         "command": "ship",
-        "args": ["mcp", "serve"],
+        "args": [
+          "mcp",
+          "serve"
+        ],
         "scope": "project",
         "server_type": "stdio",
         "disabled": false,
         "timeout_secs": 30,
-        "env": {},
+        "env": {}
+      },
+      "helm": {
+        "id": "",
+        "name": "Helm",
+        "command": "",
+        "args": [],
+        "scope": "project",
+        "server_type": "http",
+        "url": "http://localhost:3000/mcp",
+        "disabled": false,
+        "env": {}
       },
       "github": {
         "id": "",
@@ -63,25 +78,30 @@
         "command": "npx",
         "args": [
           "-y",
-          "@modelcontextprotocol/server-github",
+          "@modelcontextprotocol/server-github"
         ],
         "scope": "project",
         "server_type": "stdio",
         "disabled": true,
         "env": {
-          "GITHUB_TOKEN": "${GITHUB_TOKEN}",
-        },
+          "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+        }
       },
       "playwright": {
         "id": "",
         "name": "Playwright MCP",
         "command": "npx",
-        "args": ["@playwright/mcp@latest"],
+        "args": [
+          "@playwright/mcp@latest"
+        ],
         "scope": "project",
         "server_type": "stdio",
         "disabled": true,
-        "env": {},
+        "env": {}
       },
-    },
-  },
+      "probe": {
+        "command": "echo"
+      }
+    }
+  }
 }

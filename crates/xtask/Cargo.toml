@@ -24,7 +24,7 @@ ship-pipeline-runtime = { path = "../ship-pipeline-runtime", features = ["specta
 # Event envelope type for the cloud-side TS surface (build_cloud_types).
 ship-types = { path = "../core/ship-substrate/crates/ship-types", features = ["specta"] }
 # `deck` is a thin re-export facade in the external sui repo post-carve.
-deck = { path = "/home/madvib/dev/sui/crates/deck/deck", features = ["specta"] }
+deck = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck", features = ["specta"] }
 # `shipd` is in apps/, not crates/ — used for fixtures only.
 shipd = { path = "../../apps/shipd", features = ["specta"] }
 # validate fixtures against the wire SSOT.

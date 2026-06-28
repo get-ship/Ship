@@ -16,7 +16,7 @@ ship-ops-rpc = { path = "../../../ship-ops-rpc" }
 # SUI compiler analysis facade (diagnostics / hover / dependencies).
 # sui-compiler moved to the external sui repo post-carve.
 # TEMP: absolute → ../sui/... after layout reshuffle.
-sui-compiler = { path = "/home/madvib/dev/sui/crates/sui/compiler" }
+sui-compiler = { path = "/home/madvib/dev/Ship/sui/crates/sui/compiler" }
 
 async-trait = { workspace = true }
 chrono = { workspace = true }

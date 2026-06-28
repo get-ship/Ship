@@ -45,7 +45,7 @@ pub enum Root {
     Workspace { dir: PathBuf },
     /// Per-space views (`<space>/.ship/views/**/page.sui`). The host
     /// already knows this directory marker — see
-    /// `/home/madvib/dev/sui/crates/deck/deck-core/src/resolver.rs::detection_accepts_dot_ship_views_marker`
+    /// `/home/madvib/dev/Ship/sui/crates/deck/deck-core/src/resolver.rs::detection_accepts_dot_ship_views_marker`
     /// (post-carve; the deck-core crate moved to the external sui repo).
     ViewsDir { dir: PathBuf },
     /// Future ship-store / npm-equivalent resolver. Carries a
@@ -177,7 +177,7 @@ struct WorkspacePackage {
 
 /// Walk `<dir>/package.json` `workspaces.packages` globs and return
 /// every package with a parseable manifest carrying a `name`. Mirrors
-/// the algorithm in `/home/madvib/dev/sui/crates/deck/deck-bundler/src/catalog/workspace.rs`
+/// the algorithm in `/home/madvib/dev/Ship/sui/crates/deck/deck-bundler/src/catalog/workspace.rs`
 /// (the deck-bundler crate moved to the external sui repo post-carve)
 /// — duplicated here so the resolver chain doesn't have to depend on
 /// the bundler (the bundler depends on `ship-ui`, not the other way
@@ -240,7 +240,7 @@ fn read_json(path: &Path) -> Option<serde_json::Value> {
 /// Recursively walk `<pkg>/src/` for `.sui` files whose stem contains
 /// a hyphen and is not "page" or "index" — the HTML custom-element
 /// tag-name rule. Same guard as
-/// `/home/madvib/dev/sui/crates/deck/deck-bundler/src/catalog/workspace.rs::scan_sui_components`
+/// `/home/madvib/dev/Ship/sui/crates/deck/deck-bundler/src/catalog/workspace.rs::scan_sui_components`
 /// (post-carve).
 fn source_tags_for_package(pkg_root: &Path) -> Vec<(String, PathBuf)> {
     let src = pkg_root.join("src");

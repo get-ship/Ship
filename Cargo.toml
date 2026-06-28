@@ -43,7 +43,7 @@ members = [
     "crates/core/ship-platform/crates/ship-isolation/bin/ship-sidecar",
     "crates/core/ship-sidecar-proto",
     # crates/sui/* + crates/deck/* moved to the external sui repo (phase 2 carve);
-    # repointed via path = "/home/madvib/dev/sui/..." in consumer Cargo.toml files.
+    # repointed via path = "/home/madvib/dev/Ship/sui/..." in consumer Cargo.toml files.
     "crates/xtask",
     "apps/shipd",
     "apps/ship-cli",

@@ -16,9 +16,9 @@ cd "$(dirname "$0")/../.."
 echo "[1/3] rebuild hub + space apps (the daemon-served / and /space/<id>)"
 # deck-cli lives in the external sui repo post-carve — explicit
 # --manifest-path. cwd stays in the ship worktree.
-cargo run -q --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli -- build \
+cargo run -q --manifest-path /home/madvib/dev/Ship/sui/Cargo.toml -p deck-cli -- build \
     --project apps/hub --bundle-framework
-cargo run -q --manifest-path /home/madvib/dev/sui/Cargo.toml -p deck-cli -- build \
+cargo run -q --manifest-path /home/madvib/dev/Ship/sui/Cargo.toml -p deck-cli -- build \
     --project apps/spaces
 echo "[2/3] ensure dev daemon (idempotent — reuses a live one)"
 scripts/dev/start.sh

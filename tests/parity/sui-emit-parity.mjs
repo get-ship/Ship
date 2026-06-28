@@ -44,16 +44,16 @@ const FIXTURES = [
   { name: 'shadow-tones',          mode: 'component', componentName: 'shadow-tones-test' },
 ]
 
-const fixturesDir = join('/home/madvib/dev/sui', 'crates', 'sui', 'compiler', 'tests', 'fixtures')
+const fixturesDir = join('/home/madvib/dev/Ship/sui', 'crates', 'sui', 'compiler', 'tests', 'fixtures')
 const tmp = mkdtempSync(join(tmpdir(), 'sui-emit-parity-'))
 
 function compileFixture(fx) {
   // Post-carve: sui-compiler lives in the external sui repo. Run via
   // the explicit --manifest-path. The fixtures source dir below also
-  // moved (`/home/madvib/dev/sui/crates/sui/compiler/tests/fixtures/`)
+  // moved (`/home/madvib/dev/Ship/sui/crates/sui/compiler/tests/fixtures/`)
   // — see fixturesDir below.
   const src = join(fixturesDir, `${fx.name}.sui`)
-  const args = ['run', '-q', '--manifest-path', '/home/madvib/dev/sui/Cargo.toml', '-p', 'sui-compiler', '--', 'build', src, '--out', tmp, '--no-dts']
+  const args = ['run', '-q', '--manifest-path', '/home/madvib/dev/Ship/sui/Cargo.toml', '-p', 'sui-compiler', '--', 'build', src, '--out', tmp, '--no-dts']
   if (fx.mode === 'component' && fx.componentName) {
     args.push('--component-name', fx.componentName)
   }

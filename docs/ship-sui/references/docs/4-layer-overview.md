@@ -11,17 +11,17 @@ SUI splits cleanly into four layers. Each owns one concern and exposes a narrow 
 
 ```
 page.sui + controller.ts     (authoring — what humans write)
-    ↓ /home/madvib/dev/sui/crates/sui/compiler/ (AOT compile — emits ESM + .d.ts + .ssr.html)
+    ↓ /home/madvib/dev/Ship/sui/crates/sui/compiler/ (AOT compile — emits ESM + .d.ts + .ssr.html)
 .js + .sui.d.ts + .ssr.html  (compiler output — gitignored under dist/)
-    ↓ /home/madvib/dev/sui/packages/sui/runtime/  (reactive primitives + DOM bindings + attach())
+    ↓ /home/madvib/dev/Ship/sui/packages/sui/runtime/  (reactive primitives + DOM bindings + attach())
 runtime in the browser       (signals, control-flow, transitions, error-boundary)
-    ↓ /home/madvib/dev/sui/crates/deck/deck-core (daemon view-host — resolver + assets + SSR + SSE)
+    ↓ /home/madvib/dev/Ship/sui/crates/deck/deck-core (daemon view-host — resolver + assets + SSR + SSE)
 HTTP /_deck/* + /view-host    (apps/shipd routes wire it together)
 ```
 
-## Layer 1 — Compiler (`/home/madvib/dev/sui/crates/sui/compiler/`)
+## Layer 1 — Compiler (`/home/madvib/dev/Ship/sui/crates/sui/compiler/`)
 
-Pure transformation. No filesystem walk, no daemon, no network. Library entry: `/home/madvib/dev/sui/crates/sui/compiler/src/lib.rs`.
+Pure transformation. No filesystem walk, no daemon, no network. Library entry: `/home/madvib/dev/Ship/sui/crates/sui/compiler/src/lib.rs`.
 
 ```rust
 pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, CompileError>
@@ -43,11 +43,11 @@ pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, Compile
 
 Pipeline (`src/lib.rs:185` `compile()`): `parse::parse` → `check::run` → `bindings::build` → `lower::lower` → `emit::js::emit_module` (+ `emit::cem`, `emit::schema`, `emit::dts`, `emit::meta`, `emit::ssr`). Diagnostics carry byte spans (`src/diagnostics.rs`).
 
-Binary: `/home/madvib/dev/sui/crates/sui/compiler/src/bin/sui-compiler.rs` (the `sui-compiler` Cargo bin). Used by the deck bundler and editor extensions for one-shot compiles.
+Binary: `/home/madvib/dev/Ship/sui/crates/sui/compiler/src/bin/sui-compiler.rs` (the `sui-compiler` Cargo bin). Used by the deck bundler and editor extensions for one-shot compiles.
 
-## Layer 2 — Runtime (`/home/madvib/dev/sui/packages/sui/runtime/`)
+## Layer 2 — Runtime (`/home/madvib/dev/Ship/sui/packages/sui/runtime/`)
 
-Public API barrel: `/home/madvib/dev/sui/packages/sui/runtime/src/index.ts`. Anything not re-exported there is internal.
+Public API barrel: `/home/madvib/dev/Ship/sui/packages/sui/runtime/src/index.ts`. Anything not re-exported there is internal.
 
 | Surface | Symbols |
 |---|---|
@@ -75,9 +75,9 @@ The dev-only leak detector lives at the subpath `@ship/sui-runtime/dev` so it do
 
 `<sui-if>`, `<sui-for>`, `<sui-match>` custom elements register on module load (`import './boundary-elements'` at the bottom of `index.ts`).
 
-## Layer 3 — Daemon view-host (`/home/madvib/dev/sui/crates/deck/deck-core/`, `/home/madvib/dev/sui/crates/deck/deck-axum/`, `apps/shipd/`)
+## Layer 3 — Daemon view-host (`/home/madvib/dev/Ship/sui/crates/deck/deck-core/`, `/home/madvib/dev/Ship/sui/crates/deck/deck-axum/`, `apps/shipd/`)
 
-The view-host is split into a transport-agnostic core and an HTTP adapter. Core layout (`/home/madvib/dev/sui/crates/deck/deck-core/src/`):
+The view-host is split into a transport-agnostic core and an HTTP adapter. Core layout (`/home/madvib/dev/Ship/sui/crates/deck/deck-core/src/`):
 
 | File | Owns |
 |---|---|
@@ -87,7 +87,7 @@ The view-host is split into a transport-agnostic core and an HTTP adapter. Core 
 | `view_host.rs` | The view-host HTML shell that hydrates the payload (`serve_view_host`). |
 | `meta.rs` | Drift-detection metadata (`GET /api/_meta`). |
 
-The HTTP adapter (`/home/madvib/dev/sui/crates/deck/deck-axum/src/handlers.rs`) wires the core functions to Axum routes. Ship wiring lives in `apps/shipd/src/views/sui_*.rs`.
+The HTTP adapter (`/home/madvib/dev/Ship/sui/crates/deck/deck-axum/src/handlers.rs`) wires the core functions to Axum routes. Ship wiring lives in `apps/shipd/src/views/sui_*.rs`.
 
 The core crate exposes `DaemonMode::{Development, Production}` — drives cache headers, HMR availability, and the SSR cache.
 
@@ -95,11 +95,11 @@ Daemon-side route table (`apps/shipd/src/router.rs`) mounts the surface:
 
 | Route | Handler |
 |---|---|
-| `GET /_deck/runtime.js` / `dom.js` / `sdk-client.js` / `components.js` | `/home/madvib/dev/sui/crates/deck/deck-core/src/assets.rs` |
-| `GET /_deck/icons/{name}.svg` | `/home/madvib/dev/sui/crates/deck/deck-core/src/assets.rs` (per-icon lucide; daemon embeds the set) |
+| `GET /_deck/runtime.js` / `dom.js` / `sdk-client.js` / `components.js` | `/home/madvib/dev/Ship/sui/crates/deck/deck-core/src/assets.rs` |
+| `GET /_deck/icons/{name}.svg` | `/home/madvib/dev/Ship/sui/crates/deck/deck-core/src/assets.rs` (per-icon lucide; daemon embeds the set) |
 | `GET /_deck/sui-components/{name}.js` | separate-bundle component |
-| `GET /_deck/views/{name}/view.sui` / `view.js` / `view.css` | `/home/madvib/dev/sui/crates/deck/deck-core/src/view.rs` (route segment stems are `view.*` regardless of on-disk `page.sui`/`controller.ts`/`style.css`) |
-| `GET /_deck/views/{name}` | `/home/madvib/dev/sui/crates/deck/deck-core/src/view_payload.rs` |
+| `GET /_deck/views/{name}/view.sui` / `view.js` / `view.css` | `/home/madvib/dev/Ship/sui/crates/deck/deck-core/src/view.rs` (route segment stems are `view.*` regardless of on-disk `page.sui`/`controller.ts`/`style.css`) |
+| `GET /_deck/views/{name}` | `/home/madvib/dev/Ship/sui/crates/deck/deck-core/src/view_payload.rs` |
 | `GET /_deck/views/{name}/sse` | `apps/shipd/src/views/sui_patch_channel.rs` |
 | `GET /_deck/hmr` / `hmr-client.js` / `dev/hmr` | `apps/shipd/src/views/sui_hmr.rs` |
 | `GET /_deck/data` | `apps/shipd/src/views/sui_data.rs` (the `<data live>` SSE channel) |

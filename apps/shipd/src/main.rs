@@ -2,7 +2,7 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 
 // jemalloc global allocator. Replaces the glibc malloc_trim(0) FFI the
 // bundler was calling per build (the band-aid lived in
-// /home/madvib/dev/sui/crates/deck/deck-bundler/src/arena.rs, deleted as part of cut 4).
+// /home/madvib/dev/Ship/sui/crates/deck/deck-bundler/src/arena.rs, deleted as part of cut 4).
 // jemalloc returns freed arenas to the OS by default — no per-build
 // trim required. The earlier glibc leak would have manifested in the
 // daemon's RSS after sustained build/watch cycles; jemalloc keeps the
@@ -94,11 +94,28 @@ fn main() -> anyhow::Result<()> {
     // shipd install that doesn't ship the Ship apps).
     let apps_config_override = extract_str_arg(&args, "--apps-config")
         .map(std::path::PathBuf::from);
+    // `--apps-base-dir <path>` — base dir for the `AppSource` resolver
+    // (Phase 1 node resolution). Default: the project root. In dev the
+    // `start.sh` script sets this to the ship-apps workspace so the
+    // resolver finds `<ship-apps>/node_modules/@ship/hub` without
+    // dragging the ship monorepo into the package graph. The flag is
+    // for ops that ship apps via a non-default layout (a customer
+    // install whose `node_modules/` lives outside the worktree).
+    let apps_base_dir_override = extract_str_arg(&args, "--apps-base-dir")
+        .map(std::path::PathBuf::from);
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
-    rt.block_on(shipd::run_network(host, port, dev, workspace, daemon_mode, apps_config_override))
+    rt.block_on(shipd::run_network(
+        host,
+        port,
+        dev,
+        workspace,
+        daemon_mode,
+        apps_config_override,
+        apps_base_dir_override,
+    ))
 }
 
 fn extract_u16_arg(args: &[String], flag: &str) -> Option<u16> {
@@ -139,6 +156,9 @@ OPTIONS:
                                    details redacted. Env var: SHIP_DAEMON_MODE
     --workspace <PATH>             Project root to scope this daemon to
     --dev-worktree <PATH>          (Dev) per-worktree IPC dir override
+    --apps-config <PATH>           Override apps.jsonc path (default: <worktree>/apps/shipd/apps.jsonc)
+    --apps-base-dir <PATH>         Base dir for AppSource node_modules resolver
+                                   (default: worktree; env: SHIP_APPS_BASE_DIR)
     -h, --help                     Print this help
 "
     );
