@@ -156,8 +156,7 @@ fn print_help() {
     eprintln!("  lint-residue          Catch orphan .rs files + byte-identical .rs copied across crates");
     eprintln!("  gen-events            Generate tier-filtered proto + TS from the event registry");
     eprintln!("  gen-events --check    Verify generated files are up-to-date (CI)");
-    eprintln!("  gen-routes-doc        Regenerate skills/sdk/http-routes from @route annotations in apps/shipd/src/routes/mod.rs");
-    eprintln!("  gen-routes-doc --check  Verify the route reference is up-to-date (CI drift gate)");
+    eprintln!("  gen-routes-doc        SMELL: regenerates the route ref (output moves to ship-contracts)");
     eprintln!("  gen-contract          Generate docs/contract/<domain>.md consumer guides");
     eprintln!("  gen-contract --check  Verify generated contract docs are up-to-date (CI)");
     eprintln!("  gen-audit-readme      Regenerate .artifacts/specs/module-audits/README.md");

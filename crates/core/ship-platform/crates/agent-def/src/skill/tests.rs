@@ -389,25 +389,26 @@ body
         );
     }
 
-    /// Enforce the published/internal skill split by directory.
-    /// `skills/` (top-level) is the PUBLISHED tree — every skill there is
-    /// `public` or `agent-only`. `.ship/skills/` is the INTERNAL tree —
-    /// operator/dev skills, always `internal`. The directory and the
-    /// `audience:` field must agree; a misplaced skill fails here.
+    /// Per-skill audience check. Post-multi-repo-cleanup all skills live
+    /// under `.ship/skills/` (the publish-ready + project-local split
+    /// collapsed). The `audience:` frontmatter in each SKILL.md must
+    /// be one of the valid values. The directory location no longer
+    /// encodes the audience — the SKILL.md metadata does.
     #[test]
     fn skill_audience_matches_published_internal_split() {
         let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let root = manifest
             .ancestors()
-            .find(|p| p.join("skills").is_dir() && p.join(".ship/skills").is_dir())
-            .expect("workspace root with skills/ + .ship/skills/ not found");
+            .find(|p| p.join(".ship/skills").is_dir())
+            .expect("workspace root with .ship/skills/ not found");
 
-        // (dir, allowed audiences) — directory dictates the published boundary.
-        let trees: [(std::path::PathBuf, &[&str]); 2] = [
-            (root.join("skills"), &["public", "agent-only"]),
-            (root.join(".ship/skills"), &["internal"]),
+        // (dir, allowed audiences) — the SKILL.md frontmatter dictates
+        // the published boundary. .ship/skills/ holds both public
+        // skills (shipped as @ship/skill-* packages) and internal skills
+        // (project-local, marked `internal`).
+        let trees: [(std::path::PathBuf, &[&str]); 1] = [
+            (root.join(".ship/skills"), &["public", "agent-only", "internal"]),
         ];
-
         let audience_of = |skill_md: &std::path::Path| -> Option<String> {
             let body = fs::read_to_string(skill_md).ok()?;
             body.lines()

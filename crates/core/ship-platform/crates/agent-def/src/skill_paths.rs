@@ -5,8 +5,8 @@
 
 use std::path::{Path, PathBuf};
 
-/// Default skill path — always anchored to `.ship/`.
-const DEFAULT_SKILL_DIR: &str = "skills/";
+/// Default skill path — always anchored to `.ship/skills/`.
+const DEFAULT_SKILL_DIR: &str = ".ship/skills/";
 
 /// Read `project.skill_paths` from the manifest and return resolved absolute
 /// directory paths.
@@ -78,7 +78,7 @@ mod tests {
 
         let paths = read_skill_paths(&ship_dir, project_root);
         assert_eq!(paths.len(), 1);
-        assert_eq!(paths[0], ship_dir.join("skills/"));
+        assert_eq!(paths[0], ship_dir.join(".ship/skills/"));
     }
 
     #[test]
@@ -90,7 +90,7 @@ mod tests {
 
         let paths = read_skill_paths(&ship_dir, project_root);
         assert_eq!(paths.len(), 1);
-        assert_eq!(paths[0], ship_dir.join("skills/"));
+        assert_eq!(paths[0], ship_dir.join(".ship/skills/"));
     }
 
     #[test]
@@ -105,7 +105,7 @@ mod tests {
 
         let paths = read_skill_paths(&ship_dir, project_root);
         assert_eq!(paths.len(), 3);
-        assert_eq!(paths[0], ship_dir.join("skills/"));
+        assert_eq!(paths[0], ship_dir.join(".ship/skills/"));
         assert_eq!(paths[1], project_root.join("docs/"));
         assert_eq!(paths[2], project_root.join("internal/skills/"));
     }
@@ -122,7 +122,7 @@ mod tests {
 
         let paths = read_skill_paths(&ship_dir, project_root);
         assert_eq!(paths.len(), 1);
-        assert_eq!(paths[0], ship_dir.join("skills/"));
+        assert_eq!(paths[0], ship_dir.join(".ship/skills/"));
     }
 
     #[test]

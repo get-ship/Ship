@@ -9,7 +9,7 @@
     "license": "MIT",
   },
   "project": {
-    "skill_paths": ["docs/", "skills/"],
+    "skill_paths": [".ship/skills/"],
   },
   "dependencies": {
     "github.com/better-auth/skills": "main",

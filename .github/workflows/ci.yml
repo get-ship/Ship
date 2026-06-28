@@ -100,23 +100,12 @@ jobs:
         run: cargo build -p ship-cli -p shipd
       - name: Build (unstable)
         run: cargo build --features unstable -p ship-cli -p shipd
-      # sdk-skills are generated from the op registry (schema::OPS/COMMANDS)
-      # and tracked. Re-render + diff so an op change can't land without its
-      # skill + API-doc page being refreshed.
-      - name: Check sdk-skills drift
-        run: |
-          cargo run -p xtask --quiet -- gen-skills
-          git diff --exit-code skills/sdk/ \
-            || { echo "skills/sdk is stale — run 'cargo run -p xtask -- gen-skills' and commit"; exit 1; }
-      # The daemon HTTP route reference (skills/sdk/http-routes) is
-      # generated from the @route annotations in apps/shipd/src/routes/
-      # mod.rs — the same registry build.rs compiles into the router.
-      # Re-render + byte-compare so a route add/remove/auth change can't
-      # land without the reference page being refreshed.
-      - name: Check route reference drift
-        run: |
-          cargo run -p xtask --quiet -- gen-routes-doc --check \
-            || { echo "skills/sdk/http-routes is stale — run 'cargo run -p xtask -- gen-routes-doc' and commit"; exit 1; }
+      # gen-skills + gen-routes-doc now run from ship-contracts (the SDK
+      # output SSOT post-multi-repo-cleanup). Their drift checks live in
+      # ship-contracts CI. The ship repo no longer tracks `skills/sdk/`.
+      # The op registry in this repo (`schema::OPS/COMMANDS`) is unchanged;
+      # the contract crate consumes the same Rust types and rebuilds the
+      # skills on the consumer side.
       # Contract conformance: every event fixture roundtrips Rust↔JSON
       # and matches the registry's metadata (scope/retention/stability).
       - name: Contract conformance
