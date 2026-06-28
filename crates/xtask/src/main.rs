@@ -1,30 +1,25 @@
 //! Dev-time task runner.
 //!
-//! Usage:
-//!   cargo xtask gen-types          # no-op: TS outputs moved to ship-contracts
-//!   cargo xtask gen-sdk            # regenerate sdk-*.json manifests
+//! Post-multi-repo-cleanup, this crate hosts only the in-ship
+//! auditing + linting tools. The cross-repo codegen tools
+//! (gen-sdk, gen-collection-types, gen-events, gen-routes-doc,
+//! gen-skills, gen-fixtures, gen-icons) were removed; they are
+//! reconstructed in their consumer repos (ship-contracts, sui) when
+//! the input source crates are published. See cli.rs for the full
+//! help text.
 
 mod check_topology;
 mod cli;
 mod coverage;
 mod gen_audit_readme;
-mod gen_collection_types;
 mod gen_contract;
-mod gen_events;
-mod gen_fixtures;
-mod gen_icons;
 mod gen_indexes;
 mod gen_indexes_substrate;
-mod gen_routes_doc;
-mod gen_skills;
-mod gen_sdk;
 mod lint_anti_theater;
-
 mod lint_imports;
 mod lint_layers;
 mod lint_residue;
 mod metadata;
-mod port_descriptions;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

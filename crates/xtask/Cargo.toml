@@ -3,47 +3,19 @@ name = "xtask"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Dev-time tasks: type generation, code-gen, etc."
+description = "Ship-internal dev tasks: layer + import + anti-theater + residue lints, topology check, audit generators, and coverage. The cross-repo codegen tools (gen-sdk, gen-events, etc.) were removed in commit <this commit's hash> — they live with their output SSOT in ship-contracts / sui once the input source crates are published."
 
 [[bin]]
 name = "xtask"
 path = "src/main.rs"
 
 [dependencies]
-compiler = { path = "../core/compiler", features = ["specta"] }
-ship-substrate = { path = "../core/ship-substrate" }
-# Collection schema parser SSOT — gen-collection-types reuses SchemaDoc/FieldKind
-# so the codegen never re-implements schema parsing.
-ship-collection = { path = "../core/ship-platform/crates/ship-collection" }
-# Account value types (AccountState / MeView) for the deck SDK TS codegen.
-ship-account = { path = "../core/ship-platform/crates/ship-account", features = ["specta"] }
-ship-platform = { path = "../core/ship-platform", features = ["specta"] }
-ship-agents = { path = "../core/ship-platform/crates/ship-agents" }
-ship-ui = { path = "../core/ship-platform/crates/ship-ui" }
-ship-pipeline-runtime = { path = "../ship-pipeline-runtime", features = ["specta"] }
-# Event envelope type for the cloud-side TS surface (build_cloud_types).
-ship-types = { path = "../core/ship-substrate/crates/ship-types", features = ["specta"] }
-# `deck` is a thin re-export facade in the external sui repo post-carve.
-# Path-dep smell: build only worked if sui was at a specific local
-# path. Replaced with a version pin (0.1.0-dev) to draw attention
-# to the smell. See .artifacts/handoff-post-cleanup.md.
-deck = { version = "0.1.0-dev", features = ["specta"] }
-# `shipd` is in apps/, not crates/ — used for fixtures only.
-shipd = { path = "../../apps/shipd", features = ["specta"] }
-# validate fixtures against the wire SSOT.
-ship-ops-rpc = { path = "../core/ship-ops-rpc" }
-specta = { workspace = true, features = ["chrono", "serde_json"] }
-specta-typescript = "0.0.9"
+# Lean post-cleanup: only deps the in-ship lints + audit tools need.
 serde = { workspace = true }
 serde_json = { workspace = true }
 regex = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
-
-[features]
-# Compile the `example()` fixture constructors into ship-platform so
-# `cargo xtask gen-fixtures` can serialize them to committed JSON.
-fixtures = ["ship-platform/fixtures", "shipd/fixtures"]
 
 [lints]
 workspace = true
