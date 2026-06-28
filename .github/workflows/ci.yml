@@ -1,8 +1,35 @@
 name: CI
 
+# Post-multi-repo split (chore/umbrella-resolution phase 1, 2026-06-28).
+# This CI is scoped to the **ship** repo's owned surfaces only:
+#   - The Rust daemon (shipd, ship-cli, ship-host, helmd) and the L0/L1
+#     platform (crates/*).
+#   - The xtask codegen that operates on this repo's source (gen-skills,
+#     gen-routes-doc, gen-fixtures, the lints).
+#   - The contract-conformance Rust test (tests/contract).
+#   - The agents Bun test (tests/agents) — boots shipd and exercises
+#     its ConnectRPC + harness adapter registry.
+#
+# Gates that moved to other repos' CI:
+#
+#   ship-apps  — apps/hub/test/e2e/* (Playwright), apps/hub/test/*,
+#                apps/spaces/*, packages/components/ship/*,
+#                packages/arcade-engine, apps/docs, the Astro site build,
+#                skill-docs drift, deck package names, landing bundle
+#                coverage, apps/shell typecheck (and the shell's vitest
+#                suites).
+#   sui        — tests/integration/* (resource symmetry), tests/parity/*,
+#                tests/perf/*, packages/{sui,deck,components/sui}/* vitest
+#                suites, sui-compiler fuzz harnesses, tokens.json drift,
+#                shape-conformance integration test.
+#   ship-contracts — packages/{sdk,sdk-client,cloud-types,gateway-sdk}/*
+#                  typecheck, proto codegen, SDK manifest gen.
+#
+# See ARCHITECTURE.md in this repo's rules/ for the bounded-context map.
+
 on:
   push:
-    branches: [main]
+    branches: [main, 'chore/**', 'job/**', 'feat/**', 'fix/**']
   pull_request:
     branches: [main]
 
@@ -20,152 +47,86 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      - name: Install JS deps
-        run: bun install --frozen-lockfile
-      # sdk-*.json bootstrap cycle (mirrors Justfile `bootstrap`): ship-views
-      # `include_str!`s packages/sdk/src/generated/sdk-*.json, and gen-sdk
-      # runs *through* shipd (via xtask) — so shipd can't compile until the
-      # files exist. Seed empty placeholders so the xtask build links, run
-      # gen-sdk to overwrite them with real content, then assert each exists and
-      # is non-empty. Without this, a cold-cache runner fails the first
-      # `cargo build -p shipd` on a missing include_str! target.
-      - name: Seed + generate SDK manifests (cold-cache include_str! unblock)
+      - name: Install JS deps (apps/host only; no in-repo test workspaces)
+        run: bun install --frozen-lockfile || bun install
+      # The cold-cache include_str! cycle: shipd include_str!s
+      # `packages/sdk/src/generated/sdk-*.json` (committed fixtures the
+      # ship-contracts SDK build drops in for ship to consume). The
+      # xtask gen-sdk step is now a no-op for ship (it writes to
+      # ship-contracts) — the files are committed placeholders. If a
+      # future ship-contracts refactor breaks the contract include_str!
+      # path, this gate fails before the daemon build pays a full rebuild.
+      - name: Assert SDK manifests present (shipd include_str! unblock)
         run: |
           set -euo pipefail
           mkdir -p packages/sdk/src/generated
           for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
-            [ -s "packages/sdk/src/generated/$f.json" ] || echo '{}' > "packages/sdk/src/generated/$f.json"
+            [ -s "packages/sdk/src/generated/$f.json" ] || \
+              { echo "sdk manifest $f.json missing or empty — ship-contracts SDK build did not populate" >&2; exit 1; }
           done
-          cargo run -p xtask --quiet -- gen-sdk
-          for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
-            test -s "packages/sdk/src/generated/$f.json" \
-              || { echo "sdk manifest $f.json missing or empty after gen-sdk" >&2; exit 1; }
-          done
-      # License audit: walk the resolved dep tree and fail on copyleft
-      # (GPL/AGPL/LGPL/EPL/MPL/CDDL…). Replaces hand-copied vendor LICENSE
-      # files now that third-party engines are declared deps inlined at build
-      # (see docs/ship-adrs/.../ship-component-architecture.md). Pre-approved
-      # build-time-only exceptions are documented in the script's ALLOW map.
+      # License audit: walk the resolved dep tree and fail on copyleft.
       - name: License audit (no copyleft)
         run: node scripts/check-licenses.mjs
-      # Build sui-compiler upfront so the deck asset bake + the vitest
-      # on-demand `.sui` compile find target/debug/sui-compiler instead of
-      # paying `cargo run` per `.sui` file.
-      # Post-carve: sui-compiler lives in the external sui repo.
-      - name: Build sui-compiler (external sui repo)
-        run: cargo build --manifest-path /home/madvib/dev/Ship/sui/Cargo.toml -p sui-compiler
-      - name: Build daemon asset bundles
-        run: bun run build:bundles
-      # TS typecheck — the enforcement + sanity layer (not optional). The SDK is
-      # the typecheck SSOT: a call to a deleted/quarantined op (e.g. ops.discovery.*
-      # after the backend service was culled, or `(ship as any).foo`) is a COMPILE
-      # ERROR here, caught instantly — not a silent runtime 404 surfaced a week
-      # later. Runs after the .sui → .sui.d.ts bundle bake so view/controller
-      # imports resolve. If this is red, the frontend is calling a surface that
-      # does not exist; fix the caller (deleted stays deleted) — never silence it.
-      - name: Typecheck shell (dead-op / surface-drift gate)
-        run: bun run --cwd apps/shell typecheck
-      # Primitives pack is the foundation of every ship-* component and the
-      # first place a runtime contract drift surfaces. The current 171 errors
-      # are a known-acceptable workstream (see .artifacts/pre-launch-checklist.md
-      # P0.3) and will be driven to 0 in subsequent PRs. CI is wired NOW so
-      # the count cannot regress.
-      - name: Typecheck SUI primitives (foundation-surface drift gate)
-        run: bun run --cwd packages/components/sui/primitives typecheck
-      - name: Typecheck spaces
-        run: bun run --cwd apps/spaces typecheck
-      - name: Check silent-error patterns
-        run: bash scripts/lint/check-silent-errors.sh
-      - name: Check migration discipline (naming + immutability)
-        run: |
-          bash scripts/lint/check-migration-naming.sh
-          bash scripts/lint/check-migration-discipline.sh
-      # SUI/Deck boundary gate — deck packages stay on the canonical names.
-      - name: Check deck package names
-        run: bash scripts/lint/check-deck-package-names.sh
-      # Justfile recipe shell-syntax smoke: `just` treats recipe bodies as opaque
-      # text, so a bash typo (e.g. a dropped `if … then`) parses fine at the just
-      # layer yet breaks `just build` at runtime. `bash -n` over each recipe body
-      # catches that class before it lands.
-      - name: Lint Justfile recipe shell syntax
-        run: just lint-justfile
-      - name: Check landing custom-element bundle coverage (no inert tags)
-        run: node scripts/lint/check-landing-bundle-coverage.mjs
-      - name: Collect skill docs
-        run: cd apps/docs && AUDIENCE=internal bun run collect
-      - name: Check skill-docs drift
-        run: cd apps/docs && bun run docs:check-drift
-      # Build the Astro site so a red docs build can never ship. Runs after the
-      # collect/drift gates: the build's own prebuild re-runs the collector, so
-      # a sourceless sidebar section or a broken page fails here loudly.
-      - name: Build docs site (astro build)
-        run: bun run --filter @ship/docs build
-      # ship-host (apps/host) is Ship's single native host — Tauri webview
-      # wrapping a daemon-served scaffold. Needs webkit2gtk/libsoup that this
-      # runner doesn't provision (only release.yml's tauri-action does).
-      # Excluded from the framework clippy/test sweep; the host is built on
-      # the release runners.
-      - name: Clippy
-        run: cargo clippy --workspace --exclude ship-host --features unstable -- -D warnings
-      - name: Build (stable)
-        run: cargo build -p ship-cli -p shipd
-      - name: Build (unstable)
-        run: cargo build --features unstable -p ship-cli -p shipd
-      # sdk-skills are generated from the op registry (schema::OPS/COMMANDS) and
-      # tracked, like reads.gen.proto. Regenerate and assert no diff so an op
-      # change can't land without its skill + API-doc page being refreshed.
-      - name: Check sdk-skills drift
-        run: |
-          cargo run -p xtask --quiet -- gen-skills
-          git diff --exit-code skills/sdk/ \
-            || { echo "skills/sdk is stale — run 'cargo run -p xtask -- gen-skills' and commit"; exit 1; }
-      # tokens.json drift gate: the registry the sui-css-token lint reads is
-      # generated against the CSS token files in the EXTERNAL sui repo post-carve
-      # (crates/sui/compiler lives in /home/madvib/dev/Ship/sui). That repo owns the
-      # drift check; the gate fires in sui's own CI. (cargo xtask gen-tokens
-      # itself moved with the sui-compiler crate to /home/madvib/dev/Ship/sui.)
-      # gen-types TS outputs (packages/sdk, sdk-client, cloud-types) moved to
-      # ship-contracts; gen-types in ship no longer writes those files.
-      # The daemon HTTP route reference (skills/sdk/http-routes) is generated
-      # from the @route annotations in apps/shipd/src/routes/mod.rs — the same
-      # registry build.rs compiles into the router. Re-render + byte-compare so
-      # a route add/remove/auth change can't land without the reference page
-      # (which the docs site harvests into Reference → SDK (Ops) → http) being
-      # refreshed.
-      - name: Check route reference drift
-        run: |
-          cargo run -p xtask --quiet -- gen-routes-doc --check \
-            || { echo "skills/sdk/http-routes is stale — run 'cargo run -p xtask -- gen-routes-doc' and commit"; exit 1; }
-      # Proto contract fixtures are generated from proto/fixtures/theme.json and
-      # validated against the ship.ops.v1 proto types. Regenerate + assert no
-      # diff so a proto shape change can't outrun its fixture (which the Rust +
+      # Proto contract fixtures are generated from proto/fixtures/theme.json
+      # and validated against the ship.ops.v1 proto types. Drift here means
+      # a proto shape change outran its fixture, which the Rust + TS suites
+      # both depend on for roundtrip coverage.
       - name: Check proto fixtures drift
         run: |
           cargo run -p xtask --quiet -- gen-fixtures
           git diff --exit-code proto/fixtures/ \
             || { echo "proto/fixtures is stale — run 'cargo run -p xtask -- gen-fixtures' and commit"; exit 1; }
+      # In-repo lints: layer boundaries + import direction + anti-theater.
       - name: Lint layer boundaries
         run: cargo run -p xtask --quiet -- lint-layers
       - name: Lint import-level layer direction
         run: cargo run -p xtask --quiet -- lint-imports
       - name: Lint test-theater (R18 — no source-grep in tests)
         run: cargo run -p xtask --quiet -- lint-anti-theater
-      # Contract conformance: every event fixture roundtrips Rust↔JSON and matches
-      # the registry's metadata (scope/retention/stability). Fixtures themselves
-      # are gated by the "Check proto fixtures drift" step above.
+      - name: Check silent-error patterns
+        run: bash scripts/lint/check-silent-errors.sh
+      - name: Check migration discipline (naming + immutability)
+        run: |
+          bash scripts/lint/check-migration-naming.sh
+          bash scripts/lint/check-migration-discipline.sh
+      # Justfile recipe shell-syntax smoke (recipe bodies are opaque to
+      # `just`, so a bash typo parses fine at the just layer yet breaks
+      # `just <recipe>` at runtime).
+      - name: Lint Justfile recipe shell syntax
+        run: just lint-justfile
+      # ship-host excluded: needs webkit2gtk/libsoup (release.yml
+      # tauri-action provisions it).
+      - name: Clippy
+        run: cargo clippy --workspace --exclude ship-host --features unstable -- -D warnings
+      - name: Build (stable)
+        run: cargo build -p ship-cli -p shipd
+      - name: Build (unstable)
+        run: cargo build --features unstable -p ship-cli -p shipd
+      # sdk-skills are generated from the op registry (schema::OPS/COMMANDS)
+      # and tracked. Re-render + diff so an op change can't land without its
+      # skill + API-doc page being refreshed.
+      - name: Check sdk-skills drift
+        run: |
+          cargo run -p xtask --quiet -- gen-skills
+          git diff --exit-code skills/sdk/ \
+            || { echo "skills/sdk is stale — run 'cargo run -p xtask -- gen-skills' and commit"; exit 1; }
+      # The daemon HTTP route reference (skills/sdk/http-routes) is
+      # generated from the @route annotations in apps/shipd/src/routes/
+      # mod.rs — the same registry build.rs compiles into the router.
+      # Re-render + byte-compare so a route add/remove/auth change can't
+      # land without the reference page being refreshed.
+      - name: Check route reference drift
+        run: |
+          cargo run -p xtask --quiet -- gen-routes-doc --check \
+            || { echo "skills/sdk/http-routes is stale — run 'cargo run -p xtask -- gen-routes-doc' and commit"; exit 1; }
+      # Contract conformance: every event fixture roundtrips Rust↔JSON
+      # and matches the registry's metadata (scope/retention/stability).
       - name: Contract conformance
         run: cargo test -p ship-contract-tests
-      # Shape-conformance integration test runs as part of
-      # `cargo test --workspace` (it's a normal integration test under
-      # `crates/sui/compiler/tests/shape_conformance.rs`). The tsc gate
-      # inside that test depends on the earlier `bun install` step
-      # populating `node_modules/.bin/tsc`.
-      # Isolation live cells (T1/T2) run as part of `cargo test --workspace`
-      # but skip without a substrate. Installing podman + building the sidecar
-      # bin makes the Linux podman cells (podman_sidecar/fs/zero_egress/pids,
-      # container_reach, docker_lifecycle) execute for real — cheap, reusing
-      # the compile this job already pays for. T3 (Firecracker/KVM) and
-      # mac/Windows stay manual: no nested KVM / expensive runners here.
+      # Isolation live cells (T1/T2) run as part of `cargo test
+      # --workspace` but skip without a substrate. Installing podman +
+      # building the sidecar bin makes the Linux podman cells execute
+      # for real. T3 (Firecracker/KVM) and mac/Windows stay manual.
       - name: Install podman + pull test image (isolation live cells)
         run: |
           sudo apt-get update && sudo apt-get install -y podman
@@ -174,99 +135,9 @@ jobs:
         run: cargo build -p ship-sidecar
       - name: Cargo test
         run: cargo test --workspace --exclude ship-host --features unstable
-      # Resource symmetry: every checked-in view mounts + disposes in
-      # jsdom with zero leaked EventSources / Observers / intervals.
-      # See `tests/integration/resource-symmetry.test.ts`.
-      - name: Integration test (resource symmetry)
-        run: bunx vitest run --config tests/integration/vitest.config.ts
-      # The vitest factory compiles each `.sui` on demand through the
-      # sui-compiler, exercising every framework check baked into the
-      # pipeline: controller-purity, css-token, bind-this-ref, on-callable,
-      # and the rest of the type-strengthening passes. The earlier
-      # `bun run build:bundles` step covers the same checks for views/*.
-      # Zero-collection guard: a `*.test.ts` that collects no tests passes
-      # vacuously (green while proving nothing). Static half — every test file
-      # must declare at least one it()/test(); the runtime half is
-      # `passWithNoTests:false` in the shared vitest defaults.
-      - name: Check no test file collects zero tests
-        run: node scripts/check-zero-collection.mjs
-      # Workspace JS suites — the SUI framework runtime + every component pack.
-      # The vitest factory compiles each `.sui` on demand (mirroring to .ship/sui-out),
-      # so this exercises the real compile -> register -> render path for every tag.
-      # Scope is built from POSITIVE path-glob filters only — bun's `!`-negation filters
-      # silently break path-scoping (they pull in apps/*, e.g. apps/gateway), so any
-      # exclusion is expressed by omission, never by `!`:
-      #   ./packages/sui/**   -> @ship/sui-runtime, @ship/sui-dom, tree-sitter-sui (grammar)
-      #   ./packages/deck/**  -> @ship/sdk, @ship/sdk-client, @ship/deck-host, @ship/sui-eval, @ship/sui-lsp-browser
-      #   every healthy component pack under packages/components/{sui,ship}/*
-      # Runs --sequential with VITEST_MAX_FORKS=2: parallel cross-package execution
-      # oversubscribes the runner and flakes timing-sensitive suites (the GC leak gate,
-      # the scroll-anchor test, compile-timeouts); sequential keeps them deterministically green.
-      # apps/shell is not under packages/** so it gets its own step below.
-      - name: JS tests — SUI framework + component packs (compiles SUI on demand via the vitest factory)
-        run: |
-          set -eo pipefail
-          VITEST_MAX_FORKS=2 bun run \
-            --filter './packages/sui/**' \
-            --filter './packages/deck/**' \
-            --filter './packages/components/sui/charts' \
-            --filter './packages/components/sui/chat-elements' \
-            --filter './packages/components/sui/media' \
-            --filter './packages/components/sui/primitives' \
-            --filter './packages/components/sui/viewer' \
-            --filter './packages/components/ship/agents' \
-            --filter './packages/components/ship/arcade' \
-            --filter './packages/components/ship/authority' \
-            --filter './packages/components/ship/canvas' \
-            --filter './packages/components/ship/chrome' \
-            --filter './packages/components/ship/code' \
-            --filter './packages/components/ship/markdown' \
-            --filter './packages/components/ship/pdf' \
-            --filter './packages/components/ship/pipelines' \
-            --filter './packages/components/ship/spaces' \
-            --filter './packages/components/ship/viewer' \
-            --sequential test 2>&1 | tee js-test.log
-          # bun exits 0 on "No packages matched the filter" — turn an empty match or a
-          # zero-suite run into a hard failure so this gate can never pass vacuously.
-          grep -q "No packages matched the filter" js-test.log && { echo "::error::JS test filter matched no packages"; exit 1; }
-          [ "$(grep -cE '^[^|]+:test +\|' js-test.log)" -gt 0 ] || { echo "::error::JS test step ran zero package suites"; exit 1; }
-      # The shell's component suites (19 files) live outside packages/**, so the
-      # path-glob step above never matches them. Same vacuous-pass guard applies.
-      - name: JS tests — apps/shell
-        run: |
-          set -eo pipefail
-          VITEST_MAX_FORKS=2 bun run --filter './apps/shell' test 2>&1 | tee shell-test.log
-          grep -q "No packages matched the filter" shell-test.log && { echo "::error::shell test filter matched no packages"; exit 1; }
-          [ "$(grep -cE '^[^|]+:test +\|' shell-test.log)" -gt 0 ] || { echo "::error::shell test step ran zero suites"; exit 1; }
-      - name: Bundle sui-runtime
-        run: bun run --filter '@ship/sui-runtime' bundle
-      # Hermetic browser e2e (tests/e2e, `hermetic` project only). The
-      # full-loop spec boots its own debug `shipd` (built by the cargo steps
-      # above) against a temp SHIP_HOME and drives the deck-served shell in
-      # real chromium: hermeticity guard, daemon→UI live git read, theme
-      # mutation persisted over Connect, and the settings-form mutation
-      # round-trip (#298). The `dev-environment` project (every other spec)
-      # needs a `just dev` daemon or the shell vite server and is projected
-      # out — see tests/e2e/playwright.config.ts for the per-spec triage.
-      - name: Build hub scaffold (deck-served shell for the hermetic e2e)
-        run: bun run build:hub-scaffold
-      - name: Install Playwright chromium
-        run: bunx playwright install --with-deps chromium
-      - name: E2E — hermetic full loop (real browser against a hermetic shipd)
-        run: bunx playwright test --config tests/e2e/playwright.config.ts --project=hermetic
-      # SUI rendering fuzz gate. Three targets, 60s each — keeps PR
-      # wall-time small while catching the panic class that surfaced
-      # six bugs in `crates/sui/compiler/src/{render/eval/lex,check/
-      # expr_subset,emit/expr_rewrite,parse/template/blocks/for_header}.rs`.
-      # Nightly Rust required (libfuzzer-sys).
-      - name: Install Rust nightly for fuzz
-        run: rustup toolchain install nightly --profile minimal && rustup +nightly component add rust-src
-      - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz --locked --version 0.13.1 || true
-      # Sui-compiler fuzz harnesses live in the external sui repo post-carve.
-      - name: Fuzz — sui-compiler parse_fragment (60s)
-        run: cd /home/madvib/dev/Ship/sui/crates/sui/compiler/fuzz && cargo +nightly fuzz run parse_fragment -- -max_total_time=60
-      - name: Fuzz — sui-compiler compile_full (60s)
-        run: cd /home/madvib/dev/Ship/sui/crates/sui/compiler/fuzz && cargo +nightly fuzz run compile_full -- -max_total_time=60
-      - name: Fuzz — sui-compiler bindings_build (60s)
-        run: cd /home/madvib/dev/Ship/sui/crates/sui/compiler/fuzz && cargo +nightly fuzz run bindings_build -- -max_total_time=60
+      # Daemon correctness: boot shipd and exercise its ConnectRPC +
+      # harness adapter registry from the client side. Needs a running
+      # shipd; the suite is self-contained (boots its own, against a
+      # temp SHIP_HOME).
+      - name: Agents test (shipd ConnectRPC + harness compat)
+        run: bun test tests/agents
