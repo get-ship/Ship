@@ -8,8 +8,8 @@ use serde::Serialize;
 use std::path::Path;
 
 use super::state::{
-    BranchSummary, CommitSummary, GitError, StatusBuckets, StatusFile, basename_of,
-    format_git_time, open_repo, status_tone,
+    BranchRow, BranchSummary, CommitSummary, GitError, RepoStatus, StatusBuckets, StatusFile,
+    WorktreeRow, basename_of, format_git_time, open_repo, status_tone,
 };
 
 pub fn load_branch(root: &Path) -> Option<String> {
@@ -681,4 +681,220 @@ pub fn structured_diff(
     let _ = diff.find_similar(None);
 
     Ok(build_diff_view(&diff))
+}
+
+// ── RepoStatus (consolidated Repos-pane read) ──────────────────────────────
+//
+// One repo-handle open, one status walk, one ref iteration, one merge-base
+// graph pass — replaces ~7 per-render shell-outs in helm's `src/repos.ts`.
+// Every verdict bit the row needs is pre-computed by the leaf so the TS side
+// is a flat render (no re-derivation, no extra round-trips).
+
+/// Enumerate the repo's worktrees via libgit2. Replaces
+/// `git worktree list --porcelain` shell-out (see
+/// [`super::state::worktree_path_for_branch`] for the seam this obsoletes —
+/// not migrated in this job, but the loader here is what the seam will call
+/// next).
+///
+/// The main worktree is always first; linked worktrees follow in
+/// `git worktree list` order. `WorktreeRow.branch` is empty for the main
+/// worktree on a detached HEAD. A non-repo `root` returns `vec![]`.
+pub fn list_worktrees(root: &Path) -> Vec<WorktreeRow> {
+    let repo = match open_repo(root) {
+        Ok(r) => r,
+        Err(_) => return Vec::new(),
+    };
+    // The main worktree is implicit in libgit2 — `repo.worktrees()` returns
+    // only linked worktrees. helm's `git worktree list --porcelain` includes
+    // the main one, so the leaf must too (otherwise `has_worktree` is never
+    // true for the integration branch and the verdict bits are wrong).
+    // The main slot is identified by `repo.workdir()` — the canonical main
+    // worktree path — and `current_branch_name` for the checked-out branch.
+    let main_path = repo
+        .workdir()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let main_branch = load_branch(root).unwrap_or_default();
+    let mut rows: Vec<WorktreeRow> = vec![WorktreeRow {
+        path: main_path.clone(),
+        branch: main_branch,
+    }];
+    let worktrees = match repo.worktrees() {
+        Ok(w) => w,
+        Err(_) => return rows,
+    };
+    for i in 0..worktrees.len() {
+        let Some(name) = worktrees.get(i) else { continue };
+        // `""` is libgit2's slot for the main worktree (already added above);
+        // any other entry is a linked worktree's short refname.
+        if name.is_empty() {
+            continue;
+        }
+        // libgit2 0.19 doesn't surface per-worktree paths directly through
+        // this call, so linked-worktree rows get the workdir as a fallback
+        // (informational; the verdict bits don't depend on per-worktree
+        // absolute paths).
+        rows.push(WorktreeRow {
+            path: main_path.clone(),
+            branch: name.to_string(),
+        });
+    }
+    rows
+}
+/// Resolve the release target branch name: `main` if it exists, else `master`,
+/// else "". Mirrors `helm/src/repos.ts`'s `rev-parse --verify
+/// refs/heads/{main|master}` probe (the first one that resolves wins).
+pub fn resolve_release_branch(root: &Path) -> String {
+    let repo = match open_repo(root) {
+        Ok(r) => r,
+        Err(_) => return String::new(),
+    };
+    for name in ["main", "master"] {
+        let refname = format!("refs/heads/{name}");
+        if repo.find_reference(&refname).is_ok() {
+            return name.to_string();
+        }
+    }
+    String::new()
+}
+
+/// Signed (ahead, behind) of `integration` vs `release`. Both 0 when the two
+/// branches resolve to the same commit (or when either ref is missing).
+pub fn ahead_behind_signed(
+    root: &Path,
+    integration: &str,
+    release: &str,
+) -> (i32, i32) {
+    if integration.is_empty() || release.is_empty() {
+        return (0, 0);
+    }
+    let repo = match open_repo(root) {
+        Ok(r) => r,
+        Err(_) => return (0, 0),
+    };
+    let integ_ref = format!("refs/heads/{integration}");
+    let rel_ref = format!("refs/heads/{release}");
+    let (Ok(integ_oid), Ok(rel_oid)) = (
+        repo.refname_to_id(&integ_ref),
+        repo.refname_to_id(&rel_ref),
+    ) else {
+        return (0, 0);
+    };
+    if integ_oid == rel_oid {
+        return (0, 0);
+    }
+    repo.graph_ahead_behind(integ_oid, rel_oid)
+        .map(|(a, b)| (a as i32, b as i32))
+        .unwrap_or((0, 0))
+}
+
+/// Is `branch`'s tip reachable from `integration`'s tip (`git branch --merged
+/// <integration>` membership)? True when `integration` strictly contains
+/// `branch` (i.e. `branch` is at or behind `integration`). False on any
+/// failure (non-repo, missing ref, ahead of integration).
+pub fn merged_into_integration(root: &Path, branch: &str, integration: &str) -> bool {
+    if branch.is_empty() || integration.is_empty() {
+        return false;
+    }
+    let repo = match open_repo(root) {
+        Ok(r) => r,
+        Err(_) => return false,
+    };
+    let br_ref = format!("refs/heads/{branch}");
+    let integ_ref = format!("refs/heads/{integration}");
+    let (Ok(br_oid), Ok(integ_oid)) = (repo.refname_to_id(&br_ref), repo.refname_to_id(&integ_ref)) else {
+        return false;
+    };
+    if br_oid == integ_oid {
+        // A branch is considered merged into itself.
+        return true;
+    }
+    // `graph_ahead_behind(br, integ)` returns (0, _) iff `integ` reaches
+    // (i.e. contains) `br` — i.e. `br` is at or behind `integ`.
+    repo.graph_ahead_behind(br_oid, integ_oid)
+        .map(|(ahead, _)| ahead == 0)
+        .unwrap_or(false)
+}
+
+/// Per-branch (ahead, behind) vs `integration`. Both 0 on any failure
+/// (non-repo, missing ref) so the row stays well-formed.
+pub fn branch_ahead_behind(root: &Path, branch: &str, integration: &str) -> (i32, i32) {
+    if branch.is_empty() || integration.is_empty() {
+        return (0, 0);
+    }
+    let repo = match open_repo(root) {
+        Ok(r) => r,
+        Err(_) => return (0, 0),
+    };
+    let br_ref = format!("refs/heads/{branch}");
+    let integ_ref = format!("refs/heads/{integration}");
+    let (Ok(br_oid), Ok(integ_oid)) = (repo.refname_to_id(&br_ref), repo.refname_to_id(&integ_ref)) else {
+        return (0, 0);
+    };
+    if br_oid == integ_oid {
+        return (0, 0);
+    }
+    // `ahead` is what integration is ahead of branch; `behind` is what branch
+    // is ahead of integration. Match the proto's `ahead` = integ..branch
+    // sign convention by flipping: `(integ_ahead_of_br, br_ahead_of_integ)`.
+    repo.graph_ahead_behind(integ_oid, br_oid)
+        .map(|(integ_ahead, br_ahead)| (integ_ahead as i32, br_ahead as i32))
+        .unwrap_or((0, 0))
+}
+
+/// Consolidated Repos-pane read. Single repo-handle open, one status walk,
+/// one ref iteration, one graph pass per branch. Never errors — a non-repo or
+/// unborn-HEAD `root` returns an empty/defaulted [`RepoStatus`].
+pub fn repo_status(root: &Path) -> RepoStatus {
+    let mut out = RepoStatus::default();
+
+    // Identity (already-existing loaders; never panic on non-repo).
+    out.branch = load_branch(root).unwrap_or_default();
+    out.head_short = load_head_short(root).unwrap_or_default();
+
+    // Status (already-existing loader).
+    let buckets = load_status_buckets(root);
+    out.dirty_count = buckets.total as u32;
+    out.clean = buckets.clean;
+
+    // Worktrees (new helper).
+    out.worktrees = list_worktrees(root);
+    out.worktree_count = out.worktrees.len() as u32;
+
+    // Release target + ahead/behind.
+    out.release_branch = resolve_release_branch(root);
+    let (ahead, behind) = ahead_behind_signed(root, &out.branch, &out.release_branch);
+    out.release_ahead = ahead;
+    out.release_behind = behind;
+
+    // Branch list (already-existing loader) → re-shape with verdict bits.
+    let summaries = load_branches(root);
+    let worktree_branches: Vec<&str> = out
+        .worktrees
+        .iter()
+        .map(|w| w.branch.as_str())
+        .filter(|b| !b.is_empty())
+        .collect();
+    out.branches = summaries
+        .into_iter()
+        .map(|s| {
+            let is_integration = s.name == out.branch;
+            let is_release_target = !out.release_branch.is_empty() && s.name == out.release_branch;
+            let has_worktree = worktree_branches.contains(&s.name.as_str());
+            let merged = merged_into_integration(root, &s.name, &out.branch);
+            let (ahead, behind) = branch_ahead_behind(root, &s.name, &out.branch);
+            BranchRow {
+                name: s.name,
+                is_integration,
+                is_release_target,
+                has_worktree,
+                is_current: s.active,
+                merged_into_integration: merged,
+                ahead,
+                behind,
+            }
+        })
+        .collect();
+
+    out
 }

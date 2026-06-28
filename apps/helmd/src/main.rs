@@ -19,7 +19,10 @@
 //!     POST /ship.internal.v1.GitService/Release   — squash integration->main + tag
 //!     POST /ship.internal.v1.GitService/Footprint — branch changed-files (presence)
 //!     POST /ship.internal.v1.GitService/Diff      — render-ready diff (the git modal)
-//!   harness.proto — `ship.internal.v1.HarnessService`:
+//!     POST /ship.internal.v1.GitService/RepoStatus — consolidated Repos-pane read
+//!                                                  (branch + dirty + worktrees +
+//!                                                  release target + branch list with
+//!                                                  per-branch verdict bits)
 //!     POST /ship.internal.v1.HarnessService/ListHarnesses — compile targets (real)
 //!     POST /ship.internal.v1.HarnessService/Compile       — `.ship/` → harness
 //!                                                            configs (the RPC form
@@ -58,8 +61,10 @@ use tokio::net::TcpListener;
 
 use proto::{
     DiffFile, DiffResponse, DiffRow, FootprintResponse, GitOverviewResponse, GitService,
-    GitServiceExt, LandResponse, ReleaseResponse, OwnedDiffRequestView, OwnedFootprintRequestView,
-    OwnedGitOverviewRequestView, OwnedLandRequestView, OwnedReleaseRequestView,
+    GitServiceExt, LandResponse, OwnedDiffRequestView, OwnedFootprintRequestView,
+    OwnedGitOverviewRequestView, OwnedLandRequestView, OwnedRepoStatusRequestView,
+    OwnedReleaseRequestView, ReleaseResponse, RepoStatusResponse,
+    repo_status_response::{BranchRow as RepoStatusBranchRow, Worktree as RepoStatusWorktree},
     // Harness-compiler wire (harness.proto).
     CompileResponse, Harness, HarnessService, HarnessServiceExt, ListHarnessesResponse,
     OwnedCompileRequestView, OwnedListHarnessesRequestView,
@@ -202,6 +207,24 @@ impl GitService for GitImpl {
             Err(e) => Err(connectrpc::ConnectError::internal(e.to_string())),
         }
     }
+
+    // Consolidated Repos-pane read. One repo-handle open + one status walk +
+    // one ref iteration + one graph pass per branch — replaces ~7 per-render
+    // shell-outs in helm's `src/repos.ts`. The leaf's `repo_status` returns
+    // a flat shape mirroring the proto's `RepoStatusResponse`; this handler
+    // is the field-for-field translation. Never errors — a non-repo / unborn
+    // HEAD yields the leaf's default (empty strings, zero counts, empty
+    // worktrees/branches), matching `Overview`'s tolerant shape.
+    #[allow(refining_impl_trait)]
+    async fn repo_status(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedRepoStatusRequestView,
+    ) -> ServiceResult<RepoStatusResponse> {
+        let root = PathBuf::from(req.repo_path.to_string());
+        let status = ship_git::read::repo_status(&root);
+        Response::ok(map_repo_status(status))
+    }
 }
 
 /// Map ship-git's `DiffView` onto the proto `DiffResponse` (field-for-field; the
@@ -238,6 +261,48 @@ fn map_diff_view(view: ship_git::read::DiffView) -> DiffResponse {
         additions: view.additions,
         deletions: view.deletions,
         truncated: view.truncated,
+        ..Default::default()
+    }
+}
+
+/// Map ship-git's `RepoStatus` onto the proto `RepoStatusResponse`
+/// (field-for-field; the shapes mirror so this is a flat translation).
+/// Both `branch` / `head_short` / `release_branch` are kept as `String`
+/// defaults (empty) when the leaf returns "" — no separate Option needed.
+fn map_repo_status(status: ship_git::state::RepoStatus) -> RepoStatusResponse {
+    RepoStatusResponse {
+        branch: status.branch,
+        head_short: status.head_short,
+        dirty_count: status.dirty_count,
+        clean: status.clean,
+        worktrees: status
+            .worktrees
+            .into_iter()
+            .map(|w| RepoStatusWorktree {
+                path: w.path,
+                branch: w.branch,
+                ..Default::default()
+            })
+            .collect(),
+        worktree_count: status.worktree_count,
+        release_branch: status.release_branch,
+        release_ahead: status.release_ahead,
+        release_behind: status.release_behind,
+        branches: status
+            .branches
+            .into_iter()
+            .map(|b| RepoStatusBranchRow {
+                name: b.name,
+                is_integration: b.is_integration,
+                is_release_target: b.is_release_target,
+                has_worktree: b.has_worktree,
+                is_current: b.is_current,
+                merged_into_integration: b.merged_into_integration,
+                ahead: b.ahead,
+                behind: b.behind,
+                ..Default::default()
+            })
+            .collect(),
         ..Default::default()
     }
 }

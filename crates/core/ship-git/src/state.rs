@@ -90,6 +90,53 @@ pub struct GitDiff {
     pub parsed: super::diff::ParsedDiff,
 }
 
+// ── RepoStatus RPC shape (consolidated Repos-pane read) ────────────────────
+//
+// One repo-handle open + one walk replaces ~7 per-render shell-outs in
+// helm's `src/repos.ts`. The fields here mirror the proto `RepoStatusResponse`
+// one-for-one so `helmd`'s handler is a flat translation.
+
+/// One worktree (`git worktree list --porcelain` row). `branch` is empty for
+/// the main worktree on a detached HEAD.
+#[derive(Clone, Default, Serialize)]
+pub struct WorktreeRow {
+    pub path: String,
+    pub branch: String,
+}
+
+/// One local branch with the verdict bits the Repos pane renders directly
+/// (no client-side re-derivation). `merged_into_integration` and
+/// `ahead`/`behind` are pre-computed against the integration branch.
+#[derive(Clone, Default, Serialize)]
+pub struct BranchRow {
+    pub name: String,
+    pub is_integration: bool,
+    pub is_release_target: bool,
+    pub has_worktree: bool,
+    pub is_current: bool,
+    pub merged_into_integration: bool,
+    pub ahead: i32,
+    pub behind: i32,
+}
+
+/// Consolidated Repos-pane read. Returned by [`crate::read::repo_status`].
+/// `branch`/`head_short` may be empty on a non-repo / unborn-HEAD path;
+/// `clean` mirrors `StatusBuckets::clean` (false on any dirt); `release_branch`
+/// is `""` when neither `main` nor `master` resolves.
+#[derive(Clone, Default, Serialize)]
+pub struct RepoStatus {
+    pub branch: String,
+    pub head_short: String,
+    pub dirty_count: u32,
+    pub clean: bool,
+    pub worktrees: Vec<WorktreeRow>,
+    pub worktree_count: u32,
+    pub release_branch: String,
+    pub release_ahead: i32,
+    pub release_behind: i32,
+    pub branches: Vec<BranchRow>,
+}
+
 // ── error type for write ops ─────────────────────────────────────────────
 
 #[derive(Debug)]

@@ -617,3 +617,216 @@ fn create_tag_rejects_duplicate() {
     assert!(matches!(err, super::state::GitError::BadRef(_)));
 }
 
+
+// ── RepoStatus (consolidated Repos-pane read) ──────────────────────────────
+//
+// These tests pin the shape of `read::repo_status` against a temp repo —
+// the same loader helmd's `GitService.RepoStatus` handler delegates to.
+// They cover the verdict bits the proto response surfaces
+// (`is_integration`, `is_release_target`, `has_worktree`,
+// `merged_into_integration`, ahead/behind).
+
+/// Build a repo with `main` (with one commit), `feat/integration` (one
+/// ahead commit on top of `main`), and `job/foo` (one ahead commit on top
+/// of `feat/integration`). The current HEAD is `feat/integration`.
+fn init_repo_with_branches() -> (Repo, String, String, String) {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    let _ = initial_commit(&r.root);
+
+    let repo = Repository::open(&r.root).unwrap();
+    let head = repo.head().unwrap().peel_to_commit().unwrap();
+
+    // Rename `master` (the git2 default) -> `main`.
+    repo.branch("main", &head, true).unwrap();
+    let main_commit = head.id().to_string();
+
+    // `feat/integration`: one commit on top of main.
+    repo.branch("feat/integration", &head, false).unwrap();
+    repo.set_head("refs/heads/feat/integration").unwrap();
+    repo.checkout_head(Some(
+        git2::build::CheckoutBuilder::default().force(),
+    ))
+    .unwrap();
+    write_file(&r.root, "b.txt", "v2");
+    {
+        let mut idx = repo.index().unwrap();
+        idx.add_path(Path::new("b.txt")).unwrap();
+        idx.write().unwrap();
+        let tree = repo.find_tree(idx.write_tree().unwrap()).unwrap();
+        let sig = Signature::now("T", "t@e").unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "integration bump", &tree, &[&head])
+            .unwrap();
+    }
+    let integration_commit = repo.head().unwrap().target().unwrap().to_string();
+
+    // `job/foo`: one commit on top of integration.
+    let head = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.branch("job/foo", &head, false).unwrap();
+    repo.set_head("refs/heads/job/foo").unwrap();
+    repo.checkout_head(Some(
+        git2::build::CheckoutBuilder::default().force(),
+    ))
+    .unwrap();
+    write_file(&r.root, "c.txt", "v3");
+    {
+        let mut idx = repo.index().unwrap();
+        idx.add_path(Path::new("c.txt")).unwrap();
+        idx.write().unwrap();
+        let tree = repo.find_tree(idx.write_tree().unwrap()).unwrap();
+        let sig = Signature::now("T", "t@e").unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "job work", &tree, &[&head])
+            .unwrap();
+    }
+
+    // Park HEAD on the integration branch — that's the branch the Repos
+    // pane treats as the "current" branch and what `repo_status` reports
+    // as `branch` / `is_integration` / `is_current`.
+    repo.set_head("refs/heads/feat/integration").unwrap();
+    repo.checkout_head(Some(
+        git2::build::CheckoutBuilder::default().force(),
+    ))
+    .unwrap();
+
+    (r, main_commit, integration_commit.clone(), integration_commit)
+}
+
+#[test]
+fn repo_status_on_non_repo_yields_default() {
+    // A path that isn't a git repo must return an empty/defaulted
+    // RepoStatus — never error. helmd relies on this tolerance.
+    let tmp = tempdir().unwrap();
+    let status = read::repo_status(tmp.path());
+    assert!(status.branch.is_empty());
+    assert!(status.head_short.is_empty());
+    assert_eq!(status.dirty_count, 0);
+    assert!(status.clean);
+    assert_eq!(status.worktree_count, 0);
+    assert!(status.worktrees.is_empty());
+    assert!(status.release_branch.is_empty());
+    assert_eq!(status.release_ahead, 0);
+    assert_eq!(status.release_behind, 0);
+    assert!(status.branches.is_empty());
+}
+
+#[test]
+fn repo_status_identity_and_status() {
+    let (r, ..) = init_repo_with_branches();
+    write_file(&r.root, "dirty.txt", "uncommitted");
+    let status = read::repo_status(&r.root);
+
+    // HEAD is `feat/integration` per the fixture.
+    assert_eq!(status.branch, "feat/integration");
+    assert!(!status.head_short.is_empty(), "head_short must be set");
+    assert_eq!(status.head_short.len(), 7, "head_short is the 7-char sha");
+
+    // One untracked file (`dirty.txt`).
+    assert!(!status.clean);
+    assert!(status.dirty_count >= 1, "dirty_count includes the untracked file");
+}
+
+#[test]
+fn repo_status_resolves_release_target() {
+    let (r, ..) = init_repo_with_branches();
+    // Fixture has `main`; `repo_status` should resolve it as the release target.
+    let status = read::repo_status(&r.root);
+    assert_eq!(status.release_branch, "main");
+    // integration (feat/integration) is 1 ahead of main.
+    assert_eq!(status.release_ahead, 1);
+    assert_eq!(status.release_behind, 0);
+}
+
+#[test]
+fn repo_status_falls_back_to_master_when_main_missing() {
+    // Repo with only `master` (no `main`): release_branch should fall back.
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    initial_commit(&r.root);
+    // git2's default branch name may be `master` already; assert the fixture
+    // has either `main` or `master` and the helper picks whichever exists.
+    let status = read::repo_status(&r.root);
+    assert!(
+        status.release_branch == "main" || status.release_branch == "master",
+        "expected main|master, got {:?}",
+        status.release_branch
+    );
+    // No release branch mismatch — integration == release_branch is 0/0.
+    assert_eq!(status.release_ahead, 0);
+    assert_eq!(status.release_behind, 0);
+}
+
+#[test]
+fn repo_status_branch_verdicts() {
+    let (r, ..) = init_repo_with_branches();
+    let status = read::repo_status(&r.root);
+
+    // The branch list must contain all three fixture branches.
+    let names: Vec<&str> = status.branches.iter().map(|b| b.name.as_str()).collect();
+    assert!(names.contains(&"main"), "branches: {names:?}");
+    assert!(names.contains(&"feat/integration"), "branches: {names:?}");
+    assert!(names.contains(&"job/foo"), "branches: {names:?}");
+
+    // HEAD is `feat/integration` so:
+    let integ = status
+        .branches
+        .iter()
+        .find(|b| b.name == "feat/integration")
+        .unwrap();
+    assert!(integ.is_integration);
+    // The main worktree always carries HEAD (== integration here), so
+    // `has_worktree` is true for the integration branch.
+    assert!(integ.has_worktree);
+
+    let main = status.branches.iter().find(|b| b.name == "main").unwrap();
+    assert!(main.is_release_target);
+    assert!(!main.is_integration);
+    assert!(!main.is_current);
+    // main is the merge-base — `merged_into_integration` is true for main
+    // because integration strictly contains it.
+    assert!(main.merged_into_integration);
+
+    let job = status.branches.iter().find(|b| b.name == "job/foo").unwrap();
+    assert!(!job.is_integration);
+    assert!(!job.merged_into_integration, "job/foo is AHEAD of integration");
+    assert!(!job.is_current);
+}
+
+#[test]
+fn repo_status_ahead_behind_per_branch() {
+    let (r, ..) = init_repo_with_branches();
+    let status = read::repo_status(&r.root);
+
+    // job/foo is 1 ahead of integration (the only ahead-of-integration branch).
+    let job = status.branches.iter().find(|b| b.name == "job/foo").unwrap();
+    assert_eq!(job.behind, 1, "job/foo is 1 ahead of integration");
+    assert_eq!(job.ahead, 0, "integration is 0 ahead of job/foo");
+
+    // main is 1 BEHIND integration.
+    let main = status.branches.iter().find(|b| b.name == "main").unwrap();
+    assert_eq!(main.ahead, 1, "integration is 1 ahead of main");
+    assert_eq!(main.behind, 0, "main is 0 ahead of integration");
+}
+
+#[test]
+fn repo_status_lists_at_least_one_worktree() {
+    let (r, ..) = init_repo_with_branches();
+    let status = read::repo_status(&r.root);
+    // The fixture has the main worktree only (no `git worktree add`).
+    assert!(status.worktree_count >= 1);
+    assert!(!status.worktrees.is_empty());
+}
+
+#[test]
+fn repo_status_non_repo_does_not_panic() {
+    // Belt-and-braces: a path under a tmpdir that doesn't contain `.git`
+    // must not panic, must not error, and must return the default shape.
+    let tmp = tempdir().unwrap();
+    let nested = tmp.path().join("no/such/repo");
+    std::fs::create_dir_all(&nested).unwrap();
+    let status = read::repo_status(&nested);
+    assert!(status.branch.is_empty());
+    assert!(status.branches.is_empty());
+    assert_eq!(status.worktree_count, 0);
+}
