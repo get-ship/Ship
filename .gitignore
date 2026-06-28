@@ -222,3 +222,17 @@ apps/site/public/sui-components/
 
 # Spikes — scratch directories, never tracked
 /spikes
+
+# Local helmd build output (Rust, similar to /target but scoped).
+apps/helmd/target/
+
+# Codex local IDE scratch — config.toml, agents/, hooks.json. Per-user
+# tool state, never committed. (`.codex/` shows up in fresh clones as a
+# stale empty dir from a prior local dev run.)
+.codex/
+
+# Local loop-test results — dev-time probe scratch only. tests/loops/
+# itself was untracked and dropped from source in the post-multi-repo
+# cleanup (the loops harness lives elsewhere); the `results/` is the
+# final untracked residue.
+tests/loops/
