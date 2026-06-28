@@ -1,32 +1,39 @@
 # tests/
 
-Polyglot end-to-end and integration tests that drive a running Ship system
-across multiple binaries. Not Cargo tests — these are TS/Node tests (Vitest +
-Playwright) that exercise the daemon, MCP server, and shell as a whole.
+In-repo test suites for the Ship daemon. In-crate tests (`crates/*/tests/`,
+`apps/*/tests/`) cover their own crate's public API; this directory covers
+the daemon's behavior that no single crate owns.
 
-In-crate tests (`crates/*/tests/`, `apps/*/tests/`) cover their own crate's
-public API; this directory covers behavior that no single crate owns.
+Post-multi-repo split (see `chore/umbrella-resolution` phase 1), the test
+suites for other bounded contexts have moved out:
 
-## Subdirs
+- `tests/e2e/` — moved to **ship-apps** at `apps/hub/test/e2e/`. Owns
+  Playwright UI tests against the ship-apps views (hub, spaces, etc.).
+- `tests/integration/` — moved to **sui** at `tests/integration/`. Owns
+  SUI mount/dispose resource symmetry against the framework's source.
+- `tests/parity/` — moved to **sui** at `tests/parity/`. Sui emit
+  byte-equivalence against the Rust reference.
+- `tests/perf/` — moved to **sui** at `tests/perf/`. Vendored keyed/sui
+  bench harness + baselines.
+- `tests/loops/` — dropped (was untracked scratch from local dev).
+- `tests/_shared/prod-guard.mjs` — duplicated to ship-apps at
+  `apps/hub/test/_shared/`. Long-term, both consumers should import from
+  a single source in ship-contracts.
+
+## What stays here
 
 | Dir | Job | Runner |
 |---|---|---|
-| `e2e/` | Playwright UI tests against the daemon's served views — clicks, navigation, network round-trips. | Playwright |
-| `integration/` | Vitest tests crossing crate boundaries via HTTP — exercises shipd's REST + MCP without a browser. | Vitest |
-| `parity/` | Output-equivalence tests — verify the Rust SUI compiler emits byte-identical output to the TS reference. | Node script |
-
-## Slicing rules
-
-- **Needs a browser?** → `e2e/`.
-- **HTTP-only, no browser?** → `integration/`.
-- **Comparing two implementations' output?** → `parity/`.
+| `agents/` | Vitest tests exercising shipd's ConnectRPC + harness adapter registry against a real daemon. | Vitest |
+| `contract/` | Rust contract conformance: every proto/fixtures/{events,ops} JSON roundtrips Rust↔JSON, and registry metadata (scope/retention/stability) matches. | `cargo test -p ship-contract-tests` |
+| `_shared/` | Shared test utilities. Currently just `prod-guard.mjs` (asserts the test daemon is not the operator's prod `~/.ship`). | — |
 
 ## Running
 
 ```bash
-pnpm -F tests test            # all
-pnpm exec vitest run tests/integration
-pnpm exec playwright test tests/e2e
+cargo test -p ship-contract-tests           # tests/contract
+bunx vitest run tests/agents                # tests/agents (needs a running shipd)
 ```
 
-In-crate Rust tests run via `cargo test`; nothing in this directory is invoked by `cargo test`.
+Tests for other repos are run by their own CI; see `.github/workflows/ci.yml`
+in `sui` and `ship-apps` for the dispatcher steps.
