@@ -144,7 +144,7 @@ fn build_about() -> AboutInfo {
         ship_version: v.clone(), daemon_version: v.clone(), cli_version: v,
         license: "MIT".into(), homepage: "https://getship.dev".into(),
         docs: "https://getship.dev/docs".into(),
-        source: "https://github.com/madvib/Ship".into(),
+        source: "https://github.com/<ship-repo-org>/ship".into(),
     }
 }
 

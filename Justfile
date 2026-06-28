@@ -10,6 +10,21 @@
 
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
+# Path resolution for cross-repo dev layouts. The ship repo consumes
+# crates from the sui repo (deck, sui-compiler) and the proto/ tree
+# from the ship-contracts repo. Both are pinned to the right path via
+# these helpers. Set SUI_PATH / SHIP_CONTRACTS_PATH env vars to
+# override; otherwise the recipes assume the canonical sibling layout
+# (sui/, ship-contracts/ as siblings of ship/).
+#
+# The repo no longer has a hardcoded /home/madvib/dev/Ship/sui default;
+# these are env-var-only. The operator must set SUI_PATH for any
+# recipe that needs the sui binary (deck-cli, sui-compiler, sui-lsp).
+# Recipes that need sui will fail loudly with 'sui_path() returned
+# empty' if SUI_PATH is unset.
+sui_path := env_var_or_default('SUI_PATH', '')
+ship_contracts_path := env_var_or_default('SHIP_CONTRACTS_PATH', '')
+
 default:
     @just --list
 
@@ -84,7 +99,7 @@ shell *ARGS:
 # the single registry (also read by shipd at startup), never duplicated here.
 [group('daily')]
 dev-build-all: _sui-compiler-lib _deck-cli
-    @cargo run --manifest-path /home/madvib/dev/Ship/sui/Cargo.toml -p deck-cli --quiet -- build-assets
+    @cargo run --manifest-path {{sui_path()}}/Cargo.toml -p deck-cli --quiet -- build-assets
     @just _build-apps
 
 # Build every app in the registry from its `root` via `deck build --project`.
@@ -111,11 +126,11 @@ _build-apps:
             [ -z "$root" ] && continue
             abs_root="$(realpath -m "$root")"
             if [ "$route" = "/" ]; then
-                DECK_FRAMEWORK_ASSETS_DIR=/home/madvib/dev/Ship/sui/crates/deck/deck-core/assets \
-                    cargo run -q --manifest-path /home/madvib/dev/Ship/sui/Cargo.toml -p deck-cli -- build --project "$abs_root" --bundle-framework
+                DECK_FRAMEWORK_ASSETS_DIR={{sui_path()}}/crates/deck/deck-core/assets \
+                    cargo run -q --manifest-path {{sui_path()}}/Cargo.toml -p deck-cli -- build --project "$abs_root" --bundle-framework
             else
-                DECK_FRAMEWORK_ASSETS_DIR=/home/madvib/dev/Ship/sui/crates/deck/deck-core/assets \
-                    cargo run -q --manifest-path /home/madvib/dev/Ship/sui/Cargo.toml -p deck-cli -- build --project "$abs_root"
+                DECK_FRAMEWORK_ASSETS_DIR={{sui_path()}}/crates/deck/deck-core/assets \
+                    cargo run -q --manifest-path {{sui_path()}}/Cargo.toml -p deck-cli -- build --project "$abs_root"
             fi
         done
 
@@ -333,13 +348,13 @@ lint-anti-theater:
 # dev-build-all). cargo no-ops in ~2s when fresh, so it's effectively
 # free.
 _sui-compiler-lib:
-    cargo build --manifest-path /home/madvib/dev/Ship/sui/Cargo.toml -p sui-compiler
+    cargo build --manifest-path {{sui_path()}}/Cargo.toml -p sui-compiler
 
 # Same as _sui-compiler-lib for deck-cli (the build-assets + app-scaffold
 # runner that ship's `just build` invokes). Lives in the external sui
 # repo post-carve; ship runs it via the explicit manifest path.
 _deck-cli:
-    cargo build --manifest-path /home/madvib/dev/Ship/sui/Cargo.toml -p deck-cli
+    cargo build --manifest-path {{sui_path()}}/Cargo.toml -p deck-cli
 
 # One-shot production build: gen-types, every pack + ui-components rebuild,
 # catalog regeneration, cargo --release, then verify outputs. Equivalent to
@@ -352,10 +367,9 @@ build: _sui-compiler-lib _deck-cli
     command -v jq >/dev/null || { echo "build: jq not on PATH" >&2; exit 1; }
     command -v cargo >/dev/null || { echo "build: cargo not on PATH" >&2; exit 1; }
     # Sui repo must be present for the deck-cli / sui-compiler invocations
-    # to resolve. TEMP absolute path — gets relativized to `../sui/...` in
-    # the layout-reshuffle capstone.
-    [ -f /home/madvib/dev/Ship/sui/Cargo.toml ] || {
-        echo "build: /home/madvib/dev/Ship/sui/Cargo.toml not found — clone sui alongside ship" >&2
+    # to resolve. The SUI_PATH env var points at the sui repo root.
+    [ -n "{{sui_path()}}" ] && [ -f "{{sui_path()}}/Cargo.toml" ] || {
+        echo "build: SUI_PATH is unset or points to a non-sui directory — set SUI_PATH to the sui repo root" >&2
         exit 1
     }
     echo "[1/7] gen-types"
@@ -367,9 +381,8 @@ build: _sui-compiler-lib _deck-cli
     # Post-carve: deck-cli is in sui's repo, AND it walks UP from cwd to
     # find its framework singletons (`packages/sui/runtime/...`,
     # `packages/deck/router/...`). Run from the sui repo so the walk
-    # lands at sui's root, not ship's. cwd: /home/madvib/dev/Ship/sui.
-    (cd /home/madvib/dev/Ship/sui && cargo run -p deck-cli --quiet -- build-assets)
-    echo "[4/7] catalog baked in [3/7] — the duplicate TS producer (@ship/sui-catalog) is retired; deck-bundler is the single source"
+    # lands at sui's root, not ship's. cwd: the SUI_PATH directory.
+
     # App scaffolds (the daemon-served / and /space/<id>). Built from the
     # `apps/shipd/apps.jsonc` registry — the single app list, never duplicated
     # in a recipe; the root-mounted app self-contains the /_deck/* framework
@@ -405,7 +418,7 @@ build: _sui-compiler-lib _deck-cli
 # Build CLI + shipd (unstable dev build).
 [group('occasional')]
 build-dev:
-    cargo build --features unstable -p ship-cli -p shipd && cargo build --manifest-path /home/madvib/dev/Ship/sui/Cargo.toml -p sui-lsp
+    cargo build --features unstable -p ship-cli -p shipd && cargo build --manifest-path {{sui_path()}}/Cargo.toml -p sui-lsp
 
 # Cargo-only release build (no front-end). Use `just build` for the full
 # production artifact set; this recipe is the cargo subset.
@@ -420,7 +433,7 @@ install-dev: build-dev
     set -euo pipefail
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     cp -f "$target/debug/ship" ~/.local/bin/ship.new && mv ~/.local/bin/ship.new ~/.local/bin/ship
-    cp -f /home/madvib/dev/Ship/sui/target/debug/sui-lsp ~/.local/bin/sui-lsp
+    cp -f "{{sui_path()}}/target/debug/sui-lsp" ~/.local/bin/sui-lsp
     echo "Installed: ship + shipd + sui-lsp → ~/.local/bin"
 
 # Install stable binary to ~/.cargo/bin.
@@ -434,28 +447,26 @@ install: build-release
 
 # Rebuild the in-browser SUI template compiler. The sui-compiler crate
 # lives in the external sui repo post-carve; wasm-pack writes into
-# `/home/madvib/dev/Ship/sui/packages/sui/compiler-wasm/pkg/` (gitignored
-# in that repo) so the package's own package.json + .gitignore stay
-# intact; the sui's bun workspace re-exports the generated entry via
+# `<SUI_PATH>/packages/sui/compiler-wasm/pkg/` (gitignored in that
+# repo) so the package's own package.json + .gitignore stay intact;
+# the sui's bun workspace re-exports the generated entry via
 # `main` / `exports`. Required before
-# `cd /home/madvib/dev/Ship/sui && bun run build` — the docs playground
-# imports `@ship/sui-compiler-wasm/sui_compiler_bg.wasm?url` to compile
+# `cd $SUI_PATH && bun run build` — the docs playground imports
 # `.sui` edits without a server round-trip. ~640KB wasm + ~9KB JS shim.
 [group('occasional')]
 sui-wasm:
-    wasm-pack build /home/madvib/dev/Ship/sui/crates/sui/compiler --target web --out-dir packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm
+    wasm-pack build {{sui_path()}}/crates/sui/compiler --target web --out-dir packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm
 
 # Build the native Node-API addon the SUI test harness compiles through.
 # The sui-compiler-napi crate moved to the external sui repo with
 # sui-compiler. Build it there. Unlike `sui-wasm`, this is rarely run
 # by hand: the harness loads whatever `cargo build` / `just build`
-# already produced under `/home/madvib/dev/Ship/sui/target/`, so a plain
-# build keeps it fresh. This recipe exists for an explicit, isolated
+# already produced under `<SUI_PATH>/target/`, so a plain build
 # rebuild (e.g. after editing the compiler crate while iterating on
 # tests).
 [group('occasional')]
 sui-napi:
-    cargo build --manifest-path /home/madvib/dev/Ship/sui/Cargo.toml -p sui-compiler-napi
+    cargo build --manifest-path {{sui_path()}}/Cargo.toml -p sui-compiler-napi
 
 # Regenerate Specta types (Rust → generated TS bindings).
 [group('occasional')]

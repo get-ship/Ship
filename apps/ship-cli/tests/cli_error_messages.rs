@@ -46,7 +46,7 @@ fn scaffold_ship_dir(root: &Path) {
         root,
         ".ship/agents/dev.jsonc",
         r#"{
-  "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/agent.schema.json",
+  "$schema": "https://raw.githubusercontent.com/<ship-repo-org>/ship/main/schemas/agent.schema.json",
   "agent": {
     "id": "dev",
     "name": "Dev",

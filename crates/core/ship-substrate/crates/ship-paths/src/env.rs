@@ -82,9 +82,7 @@ pub enum Var {
     /// searches for `<base>/node_modules/<package>`. Default: `<worktree>/`
     /// (the ship repo root, where the project-root `node_modules/` is
     /// expected to live once apps install via the registry). In dev
-    /// typically pointed at the ship-apps workspace (e.g.
-    /// `/home/madvib/dev/Ship/ship-apps`) so the resolver finds that repo's
-    /// `node_modules/@ship/hub` etc. without dragging the ship monorepo
+    /// typically pointed at the ship-apps sibling workspace so the
     /// into the package graph. Set by the dev start script; unset in
     /// production (the host ships a `node_modules/` next to `apps.jsonc`).
     AppsBaseDir,

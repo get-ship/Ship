@@ -50,9 +50,7 @@ pub fn resolve_alias(dep_path: &str) -> anyhow::Result<String> {
 ///
 /// Resolves `@scope/name` by looking up `@scope` in `namespaces` and
 /// returning the repo path. The skill suffix is appended downstream.
-fn try_static_alias(dep_path: &str) -> Option<String> {
-    let url = "https://raw.githubusercontent.com/madvib/ship/main/registry/aliases.json";
-    let resp = ureq::get(url)
+    let url = "https://raw.githubusercontent.com/<ship-repo-org>/ship/main/registry/aliases.json";
         .header("User-Agent", "ship-pkg/0.1")
         .call()
         .ok()?;

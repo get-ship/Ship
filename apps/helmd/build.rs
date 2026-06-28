@@ -1,10 +1,7 @@
 //! Codegen for the launch-internal RPC surface. The proto SSOT lives in
-//! the ship-contracts repo (`/home/madvib/dev/Ship/ship-contracts/proto/`),
-//! so the proto root is read from the `SHIP_PROTO_DIR` env var when set
-//! (or a relative path when the env var is not set, for in-tree dev).
-//! Default: a relative path to the ship-contracts SSOT for the common
-//! case where ship-contracts is checked out as a sibling of ship. The
-//! env var is the supported override for CI / non-standard layouts.
+//! the ship-contracts sibling repo. The proto root is read from the
+//! `SHIP_PROTO_DIR` env var when set (else a sibling-relative default
+//! for in-tree dev). The env var is the supported override for CI
 //!
 //! Output (service trait + client + message types) lands in OUT_DIR;
 //! `src/main.rs` `include!`s it. Same pattern as `ship-sidecar-proto` /

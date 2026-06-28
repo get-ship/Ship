@@ -49,7 +49,7 @@ pub(crate) fn read_raw_manifest(dir: &std::path::Path) -> Option<ManifestFile> {
             manifest = %path.display(),
             error = %err,
             "view manifest parse failed — view will render without manifest metadata. \
-             Check schema at https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json"
+             Check schema at https://raw.githubusercontent.com/<ship-repo-org>/ship/main/schemas/view-manifest.schema.json"
         );
     }
 

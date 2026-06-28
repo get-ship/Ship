@@ -44,9 +44,10 @@ pub enum Root {
     /// contributes its `.sui` source). NO hardcoded `packages/` path.
     Workspace { dir: PathBuf },
     /// Per-space views (`<space>/.ship/views/**/page.sui`). The host
-    /// already knows this directory marker — see
-    /// `/home/madvib/dev/Ship/sui/crates/deck/deck-core/src/resolver.rs::detection_accepts_dot_ship_views_marker`
-    /// (post-carve; the deck-core crate moved to the external sui repo).
+    /// already knows this directory marker — see the
+    /// `detection_accepts_dot_ship_views_marker` function in
+    /// sui's deck-core (post-carve; the deck-core crate moved to the
+    /// external sui repo).
     ViewsDir { dir: PathBuf },
     /// Future ship-store / npm-equivalent resolver. Carries a
     /// closure the host has implemented; the wire is agnostic to
@@ -177,9 +178,9 @@ struct WorkspacePackage {
 
 /// Walk `<dir>/package.json` `workspaces.packages` globs and return
 /// every package with a parseable manifest carrying a `name`. Mirrors
-/// the algorithm in `/home/madvib/dev/Ship/sui/crates/deck/deck-bundler/src/catalog/workspace.rs`
-/// (the deck-bundler crate moved to the external sui repo post-carve)
-/// — duplicated here so the resolver chain doesn't have to depend on
+/// the algorithm in the deck-bundler's catalog/workspace.rs (the
+/// the deck-bundler crate moved to the external sui repo post-carve) —
+/// duplicated here so the resolver chain doesn't have to depend on
 /// the bundler (the bundler depends on `ship-ui`, not the other way
 /// around). The two implementations must stay in sync.
 fn discover_workspace_packages(workspace_dir: &Path) -> Result<Vec<WorkspacePackage>, String> {
@@ -239,9 +240,8 @@ fn read_json(path: &Path) -> Option<serde_json::Value> {
 
 /// Recursively walk `<pkg>/src/` for `.sui` files whose stem contains
 /// a hyphen and is not "page" or "index" — the HTML custom-element
-/// tag-name rule. Same guard as
-/// `/home/madvib/dev/Ship/sui/crates/deck/deck-bundler/src/catalog/workspace.rs::scan_sui_components`
-/// (post-carve).
+/// tag-name rule. Same guard as the `scan_sui_components` function
+/// in the deck-bundler's catalog/workspace.rs (post-carve).
 fn source_tags_for_package(pkg_root: &Path) -> Vec<(String, PathBuf)> {
     let src = pkg_root.join("src");
     if !src.is_dir() {

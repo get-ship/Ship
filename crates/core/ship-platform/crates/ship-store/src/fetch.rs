@@ -361,8 +361,8 @@ mod tests {
 
     #[test]
     fn parse_github_url_standard() {
-        let (owner, repo) = parse_github_url("https://github.com/madvib/ship.git").unwrap();
-        assert_eq!(owner, "madvib");
+        let (owner, repo) = parse_github_url("https://github.com/example-org/ship.git").unwrap();
+        assert_eq!(owner, "example-org");
         assert_eq!(repo, "ship");
     }
 
@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn find_ship_segment_in_tarball_path() {
-        let path = "madvib-ship-abc1234/.ship/agents/backend.jsonc";
+        let path = "owner-ship-abc1234/.ship/agents/backend.jsonc";
         let pos = find_ship_segment(path).unwrap();
         assert_eq!(&path[pos..], ".ship/agents/backend.jsonc");
     }

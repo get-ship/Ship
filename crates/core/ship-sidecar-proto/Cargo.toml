@@ -9,7 +9,7 @@ description = "Generated ConnectRPC bindings for the ship.sidecar.v1 protocol. S
 # Generated sidecar bindings now live in the published `ship-proto` crate
 # (ship-contracts SSOT); this crate is a thin re-export so consumers keep
 # importing `ship_sidecar_proto::*`.
-ship-proto = { git = "file:///home/madvib/dev/ship-contracts", branch = "master" }
+ship-proto = { git = "https://github.com/ship-lang/ship-contracts.git", tag = "v0.1.0-dev" }
 connectrpc = { version = "0.4", features = ["client"] }
 buffa = { version = "0.5", features = ["json"] }
 serde = { workspace = true }

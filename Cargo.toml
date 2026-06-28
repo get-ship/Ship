@@ -42,8 +42,10 @@ members = [
     "crates/core/ship-platform/crates/ship-isolation",
     "crates/core/ship-platform/crates/ship-isolation/bin/ship-sidecar",
     "crates/core/ship-sidecar-proto",
-    # crates/sui/* + crates/deck/* moved to the external sui repo (phase 2 carve);
-    # repointed via path = "/home/madvib/dev/Ship/sui/..." in consumer Cargo.toml files.
+    # crates/sui/* + crates/deck/* moved to the external sui repo (phase 2 carve).
+    # Consumers that used to depend on them via path-deps now use version
+    # pins (see apps/shipd, ship-ui, xtask Cargo.toml) — the build is
+    # broken until sui publishes the deck + sui-compiler crates.
     "crates/xtask",
     "apps/shipd",
     "apps/ship-cli",
