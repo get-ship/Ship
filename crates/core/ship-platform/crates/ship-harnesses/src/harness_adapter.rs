@@ -22,6 +22,7 @@ const REGISTRY: &[&dyn HarnessAdapter] = &[
     &crate::harnesses::cursor::CursorAdapter,
     &crate::harnesses::opencode::OpenCodeAdapter,
     &crate::harnesses::pi::PiAdapter,
+    &crate::harnesses::omp::OmpAdapter,
 ];
 
 /// Comma-separated list of canonical harness ids, for error messages.
@@ -64,7 +65,7 @@ mod adapter_for_tests {
 
     #[test]
     fn all_harnesses_advertise_persistent_session() {
-        for name in ["claude", "codex", "cursor", "opencode", "pi"] {
+        for name in ["claude", "codex", "cursor", "opencode", "pi", "omp"] {
             let adapter = adapter_for(name).unwrap();
             assert!(
                 adapter.caps().persistent_session,
@@ -82,6 +83,7 @@ mod adapter_for_tests {
             ("cursor", Stdin),
             ("opencode", Stdin),
             ("pi", Stdin),
+            ("omp", Stdin),
         ];
         for (name, want) in expected {
             assert_eq!(
@@ -105,6 +107,15 @@ mod adapter_for_tests {
     #[test]
     fn adapter_for_opencode_returns_opencode_adapter() {
         assert_eq!(adapter_for("opencode").unwrap().id(), "opencode");
+    }
+
+    #[test]
+    fn adapter_for_omp_returns_omp_adapter() {
+        // omp is the pi fork; it must resolve to its own adapter (binary `omp`),
+        // not silently fall through to pi.
+        let adapter = adapter_for("omp").unwrap();
+        assert_eq!(adapter.id(), "omp");
+        assert_eq!(adapter.binary(), "omp");
     }
 
     #[test]
@@ -150,7 +161,7 @@ mod adapter_for_tests {
     fn capabilities_lists_registered_harnesses() {
         let caps = capabilities();
         let ids: Vec<&str> = caps.iter().map(|(id, _)| *id).collect();
-        assert_eq!(ids, vec!["claude", "codex", "cursor", "opencode", "pi"]);
+        assert_eq!(ids, vec!["claude", "codex", "cursor", "opencode", "pi", "omp"]);
     }
 
     #[test]

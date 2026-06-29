@@ -4,6 +4,7 @@ pub mod codex_session;
 pub mod cursor;
 pub mod opencode;
 pub mod pi;
+pub mod omp;
 pub mod opencode_session;
 pub mod session_file;
 
