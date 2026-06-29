@@ -81,6 +81,11 @@ pub mod proto {
 // The `ship.ops.v1.AgentsService` read surface — helmd's first substrate-backed
 // wire (see module + Cargo.toml LEAF PROOF note).
 mod agents;
+// Real agent-dispatch runtime (spine 2b) — the ship-code consumer construction
+// that actually spawns agents. Gated: the lean read path in `agents` works with
+// the feature OFF (NoopDispatch + dispatch_handle == None).
+#[cfg(feature = "ship-code")]
+mod dispatch;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -874,7 +879,17 @@ async fn main() -> anyhow::Result<()> {
     // `AgentsHost` trait and calls the LEAN mount — no grant (ship-auth), no
     // watch (ship-reactive), no dispatch. This is the first substrate-backed
     // wire on helmd; see `agents.rs` + Cargo.toml LEAF PROOF.
-    let connect = agents::mount(connect)?;
+    // Derive helmd's reachable origin from the bind addr (0.0.0.0 → localhost),
+    // mirroring shipd's `daemon_origin`. Feeds the dispatch `studio_url` + the
+    // spawned agent's `$SHIP_DAEMON_URL`.
+    let daemon_origin = {
+        let shown = addr.strip_prefix("0.0.0.0:").map_or_else(
+            || addr.clone(),
+            |port| format!("localhost:{port}"),
+        );
+        format!("http://{shown}")
+    };
+    let connect = agents::mount(connect, daemon_origin)?;
 
     // CORS so the browser — Helm's SPA, served by Hono on another origin (e.g.
     // http://localhost:3000) — can dial GitService directly in dev. Connect-web
