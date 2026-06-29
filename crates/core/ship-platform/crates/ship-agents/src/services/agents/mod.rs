@@ -19,6 +19,7 @@ pub mod watch;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;
 pub mod wire;
+pub mod host;
 pub mod wire_types;
 
 pub use annotation::{CollectionPersistPort, CollectionError, post_annotation};
