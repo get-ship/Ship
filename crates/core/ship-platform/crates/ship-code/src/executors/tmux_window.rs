@@ -218,19 +218,32 @@ impl SessionExecutor for TmuxWindowExecutor {
 
         let adapter = adapter_for_or_default(ctx.launch.harness.as_deref())
             .map_err(|e| anyhow!("tmux-window executor: {e}"))?;
+        // A bare dispatch (no pipeline step) is an INTERACTIVE agent session:
+        // run the harness TUI directly in the window so an operator who
+        // `tmux attach`es gets a live, drivable agent. A pipeline step is
+        // headless: a one-shot command tee'd to its step log.
+        let interactive = ctx.step.is_none();
         let cmd = if let Some(ref sid) = ctx.launch.resume_session {
             adapter
                 .build_resume_args(&ctx.slug, sid, &ctx.launch)
                 .map_err(|e| anyhow!("tmux-window: build_resume_args failed: {e}"))?
+        } else if interactive {
+            adapter.build_interactive(&ctx.slug, &ctx.launch)
         } else {
             adapter.build_headless(&ctx.slug, &ctx.launch)
         };
         let shell_cmd = cmd.to_shell_string();
         let log_rel = step_log_rel(step_idx, &step_id);
-        let teed = format!("{shell_cmd} 2>&1 | tee -a {log_rel}");
+        // Never pipe an interactive TUI through `tee` — it needs the window's
+        // tty. Headless steps tee to capture their run log.
+        let run_cmd = if interactive {
+            shell_cmd
+        } else {
+            format!("{shell_cmd} 2>&1 | tee -a {log_rel}")
+        };
 
         let status = ship_substrate::spawn_bounded::Cmd::new("tmux")
-            .args(["send-keys", "-t", &window_target, &teed, "Enter"])
+            .args(["send-keys", "-t", &window_target, &run_cmd, "Enter"])
             .status()
             .map_err(|e| anyhow!("tmux send-keys failed: {e}"))?;
         if !status.success() {

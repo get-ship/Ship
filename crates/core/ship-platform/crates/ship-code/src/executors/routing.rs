@@ -270,6 +270,11 @@ impl SessionExecutor for RoutingExecutor {
         {
             return tmux_window.spawn(ctx).await;
         }
+        if ctx.invocation == InvocationMode::Pty {
+            tracing::warn!(slug = ctx.slug,
+                "routing: Pty requested but tmux is unavailable — falling back to \
+                 headless Process (no terminal tab will open)");
+        }
         self.process.spawn(ctx).await
     }
 
