@@ -100,16 +100,21 @@ ENDPOINT="${HELMD_URL%/}/ship.ops.v1.AgentsService/Dispatch"
 # helmd applies its own `job/<slug>` convention. --base is accepted for CLI
 # back-compat but is advisory only (not forwarded — sending it as `branch` would
 # make helmd check out the integration branch instead of a fresh job branch).
+#
+# keepalive:false → this CLI dispatch routes to the TmuxWindow executor: an
+# interactive agent in a tmux tab you can `tmux attach -t ship-<slug>` to.
+# keepalive:true would force the ProcessExecutor (the WS-attach / helm-UI
+# surface) and no terminal tab would open. The SPA picks its own surface.
 if command -v jq >/dev/null 2>&1; then
   BODY="$(jq -n \
     --arg agent "$AGENT" --arg harness "$HARNESS" --arg model "$MODEL" \
     --arg spec "$SPEC_FILE" --arg slug "$SLUG" --arg workspace "$WORKSPACE" \
     '{agent:$agent, harness:$harness, model:$model, spec:$spec,
       sourceSpecPath:$spec, slug:$slug, branch:"", workspace:$workspace,
-      invocation:"pty", keepalive:true, prompt:""}')"
+      invocation:"pty", keepalive:false, prompt:""}')"
 else
   BODY="$(cat <<JSON
-{"agent":"$AGENT","harness":"$HARNESS","model":"$MODEL","spec":"$SPEC_FILE","sourceSpecPath":"$SPEC_FILE","slug":"$SLUG","branch":"","workspace":"$WORKSPACE","invocation":"pty","keepalive":true,"prompt":""}
+{"agent":"$AGENT","harness":"$HARNESS","model":"$MODEL","spec":"$SPEC_FILE","sourceSpecPath":"$SPEC_FILE","slug":"$SLUG","branch":"","workspace":"$WORKSPACE","invocation":"pty","keepalive":false,"prompt":""}
 JSON
 )"
 fi
