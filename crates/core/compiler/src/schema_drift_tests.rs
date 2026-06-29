@@ -283,7 +283,7 @@ fn agent_schema_harness_settings_exclude_managed_keys() {
     let schema = load_schema("agent.schema.json");
     for (harness_id, expected_keys) in crate::HARNESS_MANAGED_KEYS {
         if expected_keys.is_empty() {
-            continue; // Cursor has no exclusion (no upstream schema)
+            continue; // a harness with no managed keys has no exclusion block
         }
         // Navigate to harness_settings.<harness>.allOf[1].properties
         let allof = &schema["properties"]["harness_settings"]["properties"][harness_id]["allOf"];

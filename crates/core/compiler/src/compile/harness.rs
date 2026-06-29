@@ -25,7 +25,7 @@ pub type BuildSettingsFn = fn(&HarnessDescriptor, &ResolvedConfig, &mut CompileO
 /// How MCP servers are keyed in the target config file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum McpKey {
-    /// `"mcpServers"` — Claude, Cursor
+    /// `"mcpServers"` — Claude
     McpServers,
     /// `"mcp_servers"` — Codex/OpenAI
     McpServersUnderscored,
@@ -69,10 +69,8 @@ impl ContextFile {
 pub enum SkillsDir {
     /// `.claude/skills/<id>/SKILL.md`
     Claude,
-    /// `.agents/skills/<id>/SKILL.md` (Codex, Pi, Cursor fallback, universal)
+    /// `.agents/skills/<id>/SKILL.md` (Codex, Pi, universal)
     Agents,
-    /// `.cursor/skills/<id>/SKILL.md`
-    Cursor,
     /// `.opencode/skills/<id>/SKILL.md`
     OpenCode,
     None,
@@ -83,7 +81,6 @@ impl SkillsDir {
         match self {
             Self::Claude => Some(".claude/skills"),
             Self::Agents => Some(".agents/skills"),
-            Self::Cursor => Some(".cursor/skills"),
             Self::OpenCode => Some(".opencode/skills"),
             Self::None => None,
         }
@@ -97,8 +94,6 @@ pub enum AgentsDir {
     Claude,
     /// `.codex/agents/<id>.toml`
     Codex,
-    /// `.cursor/agents/<id>.md`
-    Cursor,
     /// `.opencode/agents/<id>.md` — markdown form (OpenCode also supports
     /// inline definition under `opencode.json` `agent` key; file form is
     /// chosen here to parallel the other harnesses).
@@ -111,7 +106,6 @@ impl AgentsDir {
         match self {
             Self::Claude => Some(".claude/agents"),
             Self::Codex => Some(".codex/agents"),
-            Self::Cursor => Some(".cursor/agents"),
             Self::OpenCode => Some(".opencode/agents"),
             Self::None => None,
         }
@@ -121,7 +115,6 @@ impl AgentsDir {
         match self {
             Self::Claude => Some("md"),
             Self::Codex => Some("toml"),
-            Self::Cursor => Some("md"),
             Self::OpenCode => Some("md"),
             Self::None => None,
         }
@@ -163,8 +156,8 @@ pub struct HarnessDescriptor {
     pub features: ProviderFeatureFlags,
     /// Compile an agent profile into this harness's native agent file.
     pub compile_agent: CompileAgentFn,
-    /// Build this harness's MCP server config (most use the shared builder;
-    /// cursor has a per-server-field variant).
+    /// Build this harness's MCP server config (all current harnesses use the
+    /// shared builder).
     pub build_mcp: BuildMcpFn,
     /// Populate this harness's settings/policy/hook outputs on CompileOutput.
     pub build_settings: BuildSettingsFn,
@@ -218,29 +211,6 @@ pub(super) static HARNESSES: &[HarnessDescriptor] = &[
         compile_agent: super::agents::compile_codex_agent,
         build_mcp: super::mcp::build_mcp_servers,
         build_settings: super::codex::build_settings,
-    },
-    HarnessDescriptor {
-        id: "cursor",
-        name: "Cursor",
-        // Source: https://cursor.com/docs/context/skills
-        mcp_key: McpKey::McpServers,
-        // Cursor uses per-file .mdc rules in .cursor/rules/ — not a single context file
-        context_file: ContextFile::None,
-        skills_dir: SkillsDir::Cursor,
-        agents_dir: AgentsDir::Cursor,
-        emit_type_field: false,
-        sse_url_field: "url",
-        http_url_field: "url",
-        mcp_config_path: Some(".cursor/mcp.json"),
-        features: ProviderFeatureFlags {
-            supports_mcp: true,
-            supports_hooks: true,
-            supports_tool_permissions: true,
-            supports_memory: false,
-        },
-        compile_agent: super::agents::compile_cursor_agent,
-        build_mcp: super::cursor::build_cursor_mcp_servers,
-        build_settings: super::cursor::build_settings,
     },
     HarnessDescriptor {
         id: "opencode",

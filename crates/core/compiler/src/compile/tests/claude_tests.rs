@@ -412,7 +412,7 @@ fn ask_tier_not_emitted_for_other_harnesses() {
             .is_none()
     );
     assert!(
-        compile(&r, "cursor")
+        compile(&r, "opencode")
             .unwrap()
             .claude_settings_patch
             .is_none()

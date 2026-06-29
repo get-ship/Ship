@@ -30,7 +30,7 @@ so Tier-1 live verification is a *new* test against `wrap_launch`, not the
 deleted `srt_live`.
 
 Scope: harnesses are the three darlings — **claude, codex, opencode**
-(gemini/cursor deprioritized, see harness strategy). OS = macOS / Linux /
+(cursor deprioritized, see harness strategy). OS = macOS / Linux /
 Windows. Tiers per `substrate.md`.
 
 ## Grid 1 — Tier 1 (host OS-level): harness × OS

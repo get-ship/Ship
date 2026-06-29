@@ -61,7 +61,7 @@ fn compile_is_idempotent() {
 //
 // These iterate `list_harnesses()` so adding or dropping a harness updates
 // coverage with zero test edits — the registry is the single source of truth.
-// (Replaces the old hardcoded `["claude","codex","cursor"]` loops, which both
+// (Replaces the old hardcoded `["claude","codex"]` loops, which both
 // duplicated the roster and re-asserted properties already covered elsewhere.)
 
 /// Exercises every output channel — MCP servers, a skill, a rule, a hook, and a
@@ -94,8 +94,8 @@ fn conformance_config() -> ResolvedConfig {
 }
 
 /// Each harness emits its declared context file (CLAUDE.md / AGENTS.md / …)
-/// when rules are present. A harness with no context file (cursor) emits
-/// per-file rules instead.
+/// when rules are present. A harness with no context file emits per-file
+/// rules instead.
 #[test]
 fn conformance_context_output_matches_descriptor() {
     let r = conformance_config();
@@ -159,13 +159,6 @@ fn conformance_patch_outputs_are_owner_exclusive() {
         ("opencode_config_patch", "opencode", |o| {
             o.opencode_config_patch.is_some()
         }),
-        ("cursor_hooks_patch", "cursor", |o| {
-            o.cursor_hooks_patch.is_some()
-        }),
-        ("cursor_cli_permissions", "cursor", |o| {
-            o.cursor_cli_permissions.is_some()
-        }),
-        ("rule_files", "cursor", |o| !o.rule_files.is_empty()),
     ];
 
     for (label, owner, present) in owned {

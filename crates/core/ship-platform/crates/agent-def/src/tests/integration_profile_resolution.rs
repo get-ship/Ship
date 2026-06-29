@@ -55,7 +55,7 @@ fn agents_profile_resolution_workspace_harness_overrides_project() -> Result<()>
 
     std::fs::write(
         ship_dir.join("ship.jsonc"),
-        "{\"harnesses\": [\"claude\", \"cursor\"]}\n",
+        "{\"harnesses\": [\"claude\", \"opencode\"]}\n",
     )?;
 
     let wa = WorkspaceAgentSettings {

@@ -7,7 +7,7 @@ use serde_json::json;
 use tempfile::TempDir;
 
 use crate::decompile::{
-    decompile_claude, decompile_codex, decompile_cursor, decompile_opencode,
+    decompile_claude, decompile_codex, decompile_opencode,
     test_helpers::write_file,
 };
 use crate::resolve::ProjectLibrary;
@@ -187,62 +187,6 @@ fn codex_roundtrip_preserves_model_and_mcp() {
     assert!(!decompiled.rules.is_empty());
 }
 
-
-#[test]
-fn cursor_roundtrip_preserves_mcp_and_rules() {
-    let library = test_library();
-    let resolved = resolve_library(&library, None, None);
-    let output = compile(&resolved, "cursor").unwrap();
-
-    let tmp = TempDir::new().unwrap();
-
-    // .cursor/mcp.json
-    let mcp_json = json!({ "mcpServers": output.mcp_servers });
-    write_file(
-        &tmp,
-        ".cursor/mcp.json",
-        &serde_json::to_string_pretty(&mcp_json).unwrap(),
-    );
-
-    // .cursor/rules/*.mdc
-    for (path, content) in &output.rule_files {
-        write_file(&tmp, path, content);
-    }
-
-    // .cursor/hooks.json
-    if let Some(hooks) = &output.cursor_hooks_patch {
-        write_file(
-            &tmp,
-            ".cursor/hooks.json",
-            &serde_json::to_string_pretty(hooks).unwrap(),
-        );
-    }
-
-    // .cursor/cli.json
-    if let Some(cli) = &output.cursor_cli_permissions {
-        write_file(
-            &tmp,
-            ".cursor/cli.json",
-            &serde_json::to_string_pretty(cli).unwrap(),
-        );
-    }
-
-    let decompiled = decompile_cursor(tmp.path());
-
-    assert!(decompiled.mcp_servers.iter().any(|s| s.id == "ship"));
-    assert!(!decompiled.rules.is_empty());
-    // Permissions round-trip through Cursor's Shell/Read/Write format
-    if !decompiled.permissions.tools.allow.is_empty() {
-        assert!(
-            decompiled
-                .permissions
-                .tools
-                .allow
-                .iter()
-                .any(|p| p.contains("Bash") || p.contains("Read"))
-        );
-    }
-}
 
 // ── OpenCode round-trip ──────────────────────────────────────────────────────
 

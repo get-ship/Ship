@@ -16,7 +16,7 @@ fn full_agent() -> ResolvedConfig {
     github.timeout_secs = Some(30);
 
     ResolvedConfig {
-        harnesses: vec!["claude".into(), "codex".into(), "cursor".into()],
+        harnesses: vec!["claude".into(), "codex".into()],
         model: Some("claude-opus-4-6".into()),
         max_cost_per_session: Some(10.0),
         max_turns: Some(50),
@@ -166,16 +166,6 @@ fn realistic_agent_all_harnesses_have_context_with_rules() {
         assert!(ctx.contains("Use explicit type annotations"), "{harness}");
         assert!(ctx.contains("Never commit secrets"), "{harness}");
     }
-    // Cursor uses rule_files instead
-    let cursor = compile(&r, "cursor").unwrap();
-    assert!(cursor.context_content.is_none());
-    assert!(
-        cursor
-            .rule_files
-            .values()
-            .any(|c| c.contains("Use explicit type annotations")),
-        "cursor rule_files must contain style rule"
-    );
 }
 
 #[test]
@@ -184,7 +174,6 @@ fn realistic_agent_all_harnesses_have_skill_files() {
     let paths: HashMap<&str, &str> = [
         ("claude", ".claude/skills"),
         ("codex", ".agents/skills"),
-        ("cursor", ".cursor/skills"),
     ]
     .into();
     for (harness, base) in &paths {
@@ -200,7 +189,7 @@ fn realistic_agent_all_harnesses_have_skill_files() {
 fn realistic_agent_all_harnesses_have_mcp_servers() {
     // Ship-internal MCP removed (#236): only user-defined servers appear.
     let r = full_agent();
-    for harness in &["claude", "codex", "cursor"] {
+    for harness in &["claude", "codex"] {
         let obj = compile(&r, harness).unwrap().mcp_servers;
         let mcp = obj.as_object().unwrap();
         assert!(mcp.get("ship").is_none(), "{harness}: no ship injection");
@@ -225,7 +214,7 @@ fn realistic_agent_harness_patches_are_exclusive() {
             .is_none()
     );
     assert!(
-        compile(&r, "cursor")
+        compile(&r, "opencode")
             .unwrap()
             .claude_settings_patch
             .is_none()
@@ -264,25 +253,12 @@ fn permission_deny_only_no_allow_leak_claude() {
     assert_eq!(p["deny"].as_array().unwrap().len(), 2);
 }
 
-#[test]
-fn permission_deny_only_no_allow_leak_cursor() {
-    let patch = compile(&deny_only_config(), "cursor")
-        .unwrap()
-        .cursor_cli_permissions
-        .unwrap();
-    assert!(
-        patch["permissions"].get("allow").is_none(),
-        "deny-only must not leak allow in cursor"
-    );
-    assert!(!patch["permissions"]["deny"].as_array().unwrap().is_empty());
-}
-
 // ── Test 4: Empty agent compiles without errors ──────────────────────────────
 
 #[test]
 fn empty_agent_compiles_for_all_harnesses() {
     let r = empty_agent();
-    for harness in &["claude", "codex", "cursor"] {
+    for harness in &["claude", "codex", "opencode"] {
         let out = compile(&r, harness).unwrap();
         assert!(
             out.mcp_servers.get("ship").is_none(),
@@ -318,28 +294,3 @@ fn both_stop_hooks_emit_to_claude_settings() {
     assert_eq!(sub_inner[0]["command"], "ship log 'subagent done'");
 }
 
-#[test]
-fn stop_hook_maps_to_cursor_session_end() {
-    let r = ResolvedConfig {
-        hooks: vec![make_hook(HookTrigger::Stop, "ship end-session", None)],
-        ..empty_agent()
-    };
-    let patch = compile(&r, "cursor").unwrap().cursor_hooks_patch.unwrap();
-    assert!(patch["sessionEnd"].is_array());
-}
-
-#[test]
-fn subagent_stop_dropped_for_non_claude_harnesses() {
-    let r = ResolvedConfig {
-        hooks: vec![make_hook(
-            HookTrigger::SubagentStop,
-            "ship log subagent",
-            None,
-        )],
-        ..empty_agent()
-    };
-    // SubagentStop is dropped, but lifecycle hooks are still present.
-    let cursor_patch = compile(&r, "cursor").unwrap().cursor_hooks_patch
-        .expect("lifecycle hooks must exist");
-    assert!(cursor_patch.get("SubagentStop").is_none());
-}

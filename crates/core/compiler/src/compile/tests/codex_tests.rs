@@ -121,7 +121,7 @@ fn codex_no_json_mcp_key_confusion() {
     let r = resolved(vec![make_server("x")]);
     assert!(compile(&r, "codex").unwrap().codex_config_patch.is_some());
     assert!(compile(&r, "claude").unwrap().codex_config_patch.is_none());
-    assert!(compile(&r, "cursor").unwrap().codex_config_patch.is_none());
+    assert!(compile(&r, "opencode").unwrap().codex_config_patch.is_none());
 }
 
 #[test]

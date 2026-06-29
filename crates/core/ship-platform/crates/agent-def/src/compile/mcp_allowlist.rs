@@ -69,14 +69,3 @@ pub fn ensure_ship_mcp_allowed_claude() -> Result<()> {
         ensure_json_array_entry(s, &["permissions", "allow"], "mcp__ship__*")
     })
 }
-
-/// Cursor: write `Mcp(ship:*)` to project `.cursor/cli.json` permissions.allow.
-pub fn ensure_ship_mcp_allowed_cursor(project_root: &std::path::Path) -> Result<()> {
-    let path = project_root.join(".cursor").join("cli.json");
-    update_json_settings(&path, |s| {
-        if s.get("version").is_none() {
-            s["version"] = serde_json::json!(1);
-        }
-        ensure_json_array_entry(s, &["permissions", "allow"], "Mcp(ship:*)")
-    })
-}

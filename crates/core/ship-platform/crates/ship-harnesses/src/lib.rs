@@ -1,6 +1,6 @@
 //! ship-harnesses — L1 harness registry.
 //!
-//! Concrete adapter structs (ClaudeAdapter, CodexAdapter, CursorAdapter,
+//! Concrete adapter structs (ClaudeAdapter, CodexAdapter,
 //! OpenCodeAdapter, PiAdapter) + the resolver helpers (adapter_for,
 //! capabilities, REGISTRY). The HarnessAdapter trait lives in
 //! ship_runner::harness_adapter (L0).

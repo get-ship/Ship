@@ -41,7 +41,7 @@ fn agents_harness_routing_get_harness_returns_none_for_unknown() {
 
 #[test]
 fn agents_harness_routing_adapter_for_resolves_all_registered() {
-    for id in ["claude", "codex", "cursor", "opencode", "pi"] {
+    for id in ["claude", "codex", "opencode", "pi", "omp"] {
         match adapter_for(id) {
             Ok(adapter) => assert_eq!(
                 adapter.id(),

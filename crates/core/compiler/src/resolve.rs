@@ -54,7 +54,6 @@ pub struct ResolvedConfig {
     pub claude: crate::compile::ClaudeSettings,
     pub codex: crate::compile::CodexSettings,
     pub opencode: crate::compile::OpenCodeSettings,
-    pub cursor: crate::compile::CursorSettings,
     /// The capability grants the resolved skill set REQUESTS (the union of the
     /// auto-included capability-skills' `grants:`). A **request, not authority** —
     /// the daemon mints only the operator-approved subset; this is what an
@@ -166,7 +165,8 @@ pub struct ProjectLibrary {
     // ── OpenCode harness settings ────────────────────────────────────────────
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub opencode_settings_extra: Option<serde_json::Value>,
-    // ── Cursor harness settings ───────────────────────────────────────────────
+    // ── Legacy cursor fields (cursor harness removed; retained so existing
+    //    project libraries / agent-def deserialize without error) ───────────────
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cursor_environment: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -269,13 +269,6 @@ pub fn resolve_library(
         settings_extra: merge_harness_extra(
             library.harness_defaults.get("opencode"),
             library.opencode_settings_extra.as_ref(),
-        ),
-    };
-    resolved.cursor = crate::compile::CursorSettings {
-        environment: library.cursor_environment.clone(),
-        settings_extra: merge_harness_extra(
-            library.harness_defaults.get("cursor"),
-            library.cursor_settings_extra.as_ref(),
         ),
     };
     resolved
@@ -387,7 +380,6 @@ pub fn resolve(
         claude: crate::compile::ClaudeSettings::default(),
         codex: crate::compile::CodexSettings::default(),
         opencode: crate::compile::OpenCodeSettings::default(),
-        cursor: crate::compile::CursorSettings::default(),
         requested_grants,
         unmet_capability_requirements,
         ship_home_dir: None,
@@ -435,7 +427,7 @@ fn normalize_harnesses(ids: &[String]) -> Vec<String> {
         }
         if !matches!(
             id.as_str(),
-            "claude" | "codex" | "cursor" | "opencode" | "pi"
+            "claude" | "codex" | "opencode" | "pi"
         ) {
             continue;
         }
@@ -676,7 +668,7 @@ mod tests {
     #[test]
     fn feature_overrides_harnesses() {
         let config = ProjectConfig {
-            harnesses: vec!["cursor".to_string()],
+            harnesses: vec!["claude".to_string()],
             ..Default::default()
         };
         let feature = WorkspaceOverrides {
@@ -793,7 +785,7 @@ mod tests {
             agents: vec![AgentConfig {
                 id: "any-agent".to_string(),
                 name: "Any Agent".to_string(),
-                target_agents: vec!["cursor".to_string()],
+                target_agents: vec!["some-target".to_string()],
                 ..Default::default()
             }],
             ..Default::default()
@@ -1141,8 +1133,5 @@ mod tests {
         // Codex: agent override only, no defaults
         let codex = resolved.codex.settings_extra.unwrap();
         assert_eq!(codex["policy"], "suggest");
-
-        // Cursor: neither defaults nor agent — should be None
-        assert!(resolved.cursor.settings_extra.is_none());
     }
 }

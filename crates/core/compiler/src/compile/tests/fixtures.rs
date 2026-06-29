@@ -101,7 +101,6 @@ pub fn resolved(servers: Vec<McpServerConfig>) -> ResolvedConfig {
         claude: Default::default(),
         codex: Default::default(),
         opencode: Default::default(),
-        cursor: Default::default(),
         requested_grants: vec![],
         unmet_capability_requirements: vec![],
         ship_home_dir: None,

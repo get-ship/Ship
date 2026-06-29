@@ -22,7 +22,7 @@ agent**. Specifically:
     knowing.
   - Hostile by design — a community agent installed from a
     registry that turns out to be malware. Edge case but real.
-- **The harness** (claude, codex, gemini, ...) is treated as
+- **The harness** (claude, codex, ...) is treated as
   trusted code. We rely on harness-native sandbox flags when they
   exist. A harness that lies about its sandbox flag is a separate
   trust problem — we surface it via `Handshake.Hello` capability
@@ -52,7 +52,6 @@ which categories that tier defends against.
 | 0 | Noop | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | 1 | HarnessNative (Claude `--sandbox`) | ⚠️ | ⚠️ | ⚠️ | ❌ | ❌ | ❌ |
 | 1 | HarnessNative (Codex Seatbelt) | ⚠️ | ⚠️ | ⚠️ | ❌ | ❌ | ❌ |
-| 1 | HarnessNative (Gemini `--yolo`) | ⚠️ | ⚠️ | ⚠️ | ❌ | ❌ | ❌ |
 | 1 | SrtWrapper | ⚠️ | ⚠️ | ⚠️ | ❌ | ❌ | ❌ |
 | 2 | DockerEngine | ✅ | ✅ | ✅ | ✅[1] | ⚠️ | ✅[2] |
 | 2 | YoukiRootless | ✅ | ✅ | ✅ | ⚠️ | ⚠️ | ⚠️ |
@@ -82,8 +81,7 @@ Reading the matrix:
 - **Tier 1 (process sandboxes) blocks the obvious shell breakouts
   via filesystem ACLs and syscall filters.** Claude `--sandbox`
   uses macOS Seatbelt or bubblewrap; Codex on macOS uses Seatbelt
-  directly; Gemini `--yolo` runs in a Linux user-namespace
-  sandbox; SRT (`@anthropic-ai/sandbox-runtime`) wraps the
+  directly; SRT (`@anthropic-ai/sandbox-runtime`) wraps the
   harness in `bwrap` on Linux or sandbox-exec on macOS. **All
   share the host network namespace**, so T-NET-EGRESS is
   undefended. **All run as the host user**, so anything the user
@@ -148,9 +146,8 @@ syscall filter that denies path-traversal (Tier 1).
   workspace → host files invisible) + the credential broker. The test pins
   the Tier-1 read-open boundary so a future posture change is noticed.
 - **Known gaps**: harness-native sandboxes vary in strength.
-  Claude `--sandbox` and codex Seatbelt are well-tested; Gemini
-  `--yolo` is documented as a developer-preview "trust the
-  user-namespace" sandbox.
+  Claude `--sandbox` and codex Seatbelt are well-tested; other
+  harness-native mechanisms are weaker or less verified.
 - **Deferred**: ephemeral credentials. `ship-isolation::helpers::
   EphemeralFile` copies a credential into a Ship-owned scratch
   dir + bind-mounts it; a container exploit during the session

@@ -50,7 +50,7 @@ fn augment_with_sdk_references(output: &mut CompileOutput) {
 use ship_store::dep_skills::{resolve_dep_agents, resolve_dep_skills};
 
 use agent::{apply_agent_to_library, collect_all_skill_refs};
-use mcp_allowlist::{ensure_ship_mcp_allowed_claude, ensure_ship_mcp_allowed_cursor};
+use mcp_allowlist::ensure_ship_mcp_allowed_claude;
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -187,7 +187,6 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
         for harness_id in &harnesses {
             let result = match harness_id.as_str() {
                 "claude" => ensure_ship_mcp_allowed_claude(),
-                "cursor" => ensure_ship_mcp_allowed_cursor(output_root),
                 _ => Ok(()),
             };
             if let Err(e) = result {

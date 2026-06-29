@@ -40,8 +40,8 @@ fn adapter_for_unknown_errors_with_known_list() {
     assert!(err.contains("unknown harness"), "err: {err}");
     assert!(err.contains("claude"), "err: {err}");
     assert!(err.contains("codex"), "err: {err}");
-    assert!(err.contains("cursor"), "err: {err}");
     assert!(err.contains("opencode"), "err: {err}");
+    assert!(err.contains("omp"), "err: {err}");
 }
 
 // ── Trait contract: every adapter produces valid LaunchCommands ──────────────

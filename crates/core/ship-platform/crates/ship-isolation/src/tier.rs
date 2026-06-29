@@ -93,7 +93,7 @@ impl fmt::Display for IsolationTier {
 ///
 /// Tier 1 split (see `docs/strategy.md` §3.1):
 ///   - `HarnessNative` — harness sandboxes itself (claude `--sandbox`,
-///     codex Seatbelt, gemini `--yolo`). Preferred where supported.
+///     codex Seatbelt). Preferred where supported.
 ///   - `SrtWrapper` — Ship wraps with `@anthropic-ai/sandbox-runtime`
 ///     when the harness has no native mechanism.
 ///   - `HarnessSandbox` (legacy alias) — kept for backwards

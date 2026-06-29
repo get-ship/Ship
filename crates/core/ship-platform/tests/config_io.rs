@@ -75,7 +75,7 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     fs::create_dir_all(&ship_dir)?;
 
     let config = ProjectConfig {
-        harnesses: vec!["cursor".to_string()],
+        harnesses: vec!["opencode".to_string()],
         agents: vec![AgentProfile {
             id: "focus".to_string(),
             name: "Focus".to_string(),
@@ -98,10 +98,10 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     };
 
     save_config(&config, Some(ship_dir.clone()))?;
-    fs::write(ship_dir.join("ship.jsonc"), "{\"harnesses\": [\"cursor\"]}\n")?;
+    fs::write(ship_dir.join("ship.jsonc"), "{\"harnesses\": [\"opencode\"]}\n")?;
     let loaded = get_config(Some(ship_dir))?;
 
-    assert_eq!(loaded.harnesses, vec!["cursor".to_string()]);
+    assert_eq!(loaded.harnesses, vec!["opencode".to_string()]);
     assert!(loaded.agent.skills.is_empty());
     assert_eq!(loaded.agents.len(), 1);
     assert_eq!(loaded.agents[0].id, "focus");

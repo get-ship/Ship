@@ -205,7 +205,7 @@ fn harness_settings_seam_matches_registry() {
 
     // Authoritative harness id set — derived from the Rust REGISTRY via
     // `capabilities()` (single source of truth), NOT hardcoded. Future
-    // gemini/pi-class drift between the schema and the registry fails here.
+    // pi-class drift between the schema and the registry fails here.
     let registry_ids: BTreeSet<String> =
         capabilities().into_iter().map(|(id, _)| id.to_string()).collect();
     let schema_harness_keys = property_keys(harness_node);

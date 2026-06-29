@@ -484,18 +484,6 @@ fn compile_codex_writes_agents_md_with_rules() {
 }
 
 #[test]
-fn compile_cursor_writes_mdc_rule_files() {
-    let tmp = TempDir::new().unwrap();
-    setup_minimal_project(&tmp);
-    compile_project(&opts_for(&tmp, "cursor")).unwrap();
-    let mdc = tmp.path().join(".cursor/rules/style.mdc");
-    assert!(mdc.exists(), ".cursor/rules/style.mdc must be written");
-    let content = std::fs::read_to_string(&mdc).unwrap();
-    assert!(content.contains("Use explicit types."));
-    assert!(content.starts_with("---\n"), "must have frontmatter");
-}
-
-#[test]
 fn compile_with_deny_writes_claude_settings() {
     let tmp = TempDir::new().unwrap();
     write(tmp.path(), ".ship/permissions.jsonc", r#"{ "tools": { "deny": ["Bash(rm -rf *)"] } }"#);

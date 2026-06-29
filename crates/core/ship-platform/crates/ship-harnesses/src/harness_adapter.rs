@@ -19,7 +19,6 @@ pub use ship_runner::harness_adapter::{
 const REGISTRY: &[&dyn HarnessAdapter] = &[
     &crate::harnesses::claude::ClaudeAdapter,
     &crate::harnesses::codex::CodexAdapter,
-    &crate::harnesses::cursor::CursorAdapter,
     &crate::harnesses::opencode::OpenCodeAdapter,
     &crate::harnesses::pi::PiAdapter,
     &crate::harnesses::omp::OmpAdapter,
@@ -65,7 +64,7 @@ mod adapter_for_tests {
 
     #[test]
     fn all_harnesses_advertise_persistent_session() {
-        for name in ["claude", "codex", "cursor", "opencode", "pi", "omp"] {
+        for name in ["claude", "codex", "opencode", "pi", "omp"] {
             let adapter = adapter_for(name).unwrap();
             assert!(
                 adapter.caps().persistent_session,
@@ -80,7 +79,6 @@ mod adapter_for_tests {
         let expected: &[(&str, PushMechanism)] = &[
             ("claude", Channel),
             ("codex", Stdin),
-            ("cursor", Stdin),
             ("opencode", Stdin),
             ("pi", Stdin),
             ("omp", Stdin),
@@ -92,11 +90,6 @@ mod adapter_for_tests {
                 "harness '{name}' push_mechanism drifted"
             );
         }
-    }
-
-    #[test]
-    fn adapter_for_cursor_returns_cursor_adapter() {
-        assert_eq!(adapter_for("cursor").unwrap().id(), "cursor");
     }
 
     #[test]
@@ -139,10 +132,9 @@ mod adapter_for_tests {
     }
 
     #[test]
-    fn binary_defaults_to_id_except_cursor() {
+    fn binary_defaults_to_id() {
         for (id, _) in capabilities() {
-            let want = if id == "cursor" { "cursor-agent" } else { id };
-            assert_eq!(adapter_for(id).unwrap().binary(), want, "binary() wrong for {id}");
+            assert_eq!(adapter_for(id).unwrap().binary(), id, "binary() wrong for {id}");
         }
     }
 
@@ -161,7 +153,7 @@ mod adapter_for_tests {
     fn capabilities_lists_registered_harnesses() {
         let caps = capabilities();
         let ids: Vec<&str> = caps.iter().map(|(id, _)| *id).collect();
-        assert_eq!(ids, vec!["claude", "codex", "cursor", "opencode", "pi", "omp"]);
+        assert_eq!(ids, vec!["claude", "codex", "opencode", "pi", "omp"]);
     }
 
     #[test]

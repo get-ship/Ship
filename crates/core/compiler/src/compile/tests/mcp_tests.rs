@@ -12,7 +12,7 @@ fn no_ship_entry_in_mcp_output() {
     // was deleted from the CLI in commit 22fb0cd49 and the daemon has no /mcp
     // route. Harnesses must not auto-inject a "ship" entry.
     let r = resolved(vec![]);
-    for harness_id in &["claude", "codex", "cursor", "opencode"] {
+    for harness_id in &["claude", "codex", "opencode"] {
         let out = compile(&r, harness_id).unwrap();
         assert!(
             out.mcp_servers.get("ship").is_none(),
@@ -58,7 +58,7 @@ fn codex_uses_mcp_servers_key() {
 #[test]
 fn no_harness_emits_type_field_for_stdio() {
     let r = resolved(vec![make_server("github")]);
-    for harness_id in &["claude", "codex", "cursor"] {
+    for harness_id in &["claude", "codex"] {
         let out = compile(&r, harness_id).unwrap();
         assert!(
             out.mcp_servers["github"].get("type").is_none(),

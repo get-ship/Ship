@@ -2,7 +2,6 @@
 //!
 //! Each harness has its own agent definition format:
 //! - **Claude**: `.claude/agents/<id>.md` — YAML frontmatter + Markdown body
-//! - **Cursor**: `.cursor/agents/<id>.md` — YAML frontmatter + Markdown body
 //! - **Codex**: `.codex/agents/<id>.toml` — TOML agent config
 //! - **OpenCode**: `.opencode/agents/<id>.md` — YAML frontmatter + Markdown body
 //!   (OpenCode also supports inline `agent` key in opencode.json; file form
@@ -91,26 +90,6 @@ pub(super) fn compile_claude_agent(profile: &AgentProfile) -> String {
     format!("---\n{}\n---\n\n{}\n", fm.join("\n"), body.trim())
 }
 
-// ─── Cursor ──────────────────────────────────────────────────────────────────
-// Format: `.cursor/agents/<id>.md`
-// Frontmatter: name, description, model
-
-pub(super) fn compile_cursor_agent(profile: &AgentProfile) -> String {
-    let mut fm = Vec::new();
-    fm.push(format!("name: {}", profile.agent.id));
-    if let Some(desc) = &profile.agent.description {
-        fm.push(format!("description: {}", yaml_quote(desc)));
-    }
-
-    // Model — Cursor uses "fast" | "default" or model name
-    if let Some(model) = cursor_setting(profile, "model") {
-        fm.push(format!("model: {model}"));
-    }
-
-    let body = profile.rules.inline.as_deref().unwrap_or_default();
-    format!("---\n{}\n---\n\n{}\n", fm.join("\n"), body.trim())
-}
-
 // ─── Codex CLI ───────────────────────────────────────────────────────────────
 // Format: `.codex/agents/<id>.toml`
 // Schema: name, model, description + config keys
@@ -172,10 +151,6 @@ pub(super) fn compile_opencode_agent(profile: &AgentProfile) -> String {
 
 fn claude_setting(profile: &AgentProfile, key: &str) -> Option<String> {
     harness_setting(profile, "claude", key)
-}
-
-fn cursor_setting(profile: &AgentProfile, key: &str) -> Option<String> {
-    harness_setting(profile, "cursor", key)
 }
 
 fn codex_setting(profile: &AgentProfile, key: &str) -> Option<String> {

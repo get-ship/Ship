@@ -5,7 +5,6 @@ use tempfile::TempDir;
 
 use super::claude::decompile_claude;
 use super::codex::decompile_codex;
-use super::cursor::decompile_cursor;
 use super::opencode::decompile_opencode;
 use super::{decompile_all, detect_harnesses};
 use super::test_helpers::write_file;
@@ -51,9 +50,9 @@ fn detect_multiple_harnesses() {
     let tmp = TempDir::new().unwrap();
     write_file(&tmp, "CLAUDE.md", "# Claude rules");
     std::fs::create_dir_all(tmp.path().join(".codex")).unwrap();
-    std::fs::create_dir_all(tmp.path().join(".cursor")).unwrap();
+    std::fs::create_dir_all(tmp.path().join(".opencode")).unwrap();
     let detected = detect_harnesses(tmp.path());
-    assert_eq!(detected.as_list(), vec!["claude", "codex", "cursor"]);
+    assert_eq!(detected.as_list(), vec!["claude", "codex", "opencode"]);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -392,139 +391,6 @@ custom_flag = true
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Cursor
-// ══════════════════════════════════════════════════════════════════════════════
-
-#[test]
-fn cursor_mcp_servers() {
-    let tmp = TempDir::new().unwrap();
-    let mcp = json!({
-        "mcpServers": {
-            "ship": {
-                "command": "ship",
-                "args": ["mcp", "serve"],
-                "envFile": ".env.local"
-            }
-        }
-    });
-    write_file(
-        &tmp,
-        ".cursor/mcp.json",
-        &serde_json::to_string(&mcp).unwrap(),
-    );
-
-    let lib = decompile_cursor(tmp.path());
-
-    assert_eq!(lib.mcp_servers.len(), 1);
-    assert_eq!(lib.mcp_servers[0].id, "ship");
-    assert_eq!(
-        lib.mcp_servers[0].cursor_env_file.as_deref(),
-        Some(".env.local")
-    );
-}
-
-#[test]
-fn cursor_rules_parsed() {
-    let tmp = TempDir::new().unwrap();
-    let rule =
-        "---\ndescription: \"Style guide\"\nalwaysApply: true\n---\n\nUse functional components.";
-    write_file(&tmp, ".cursor/rules/style.mdc", rule);
-
-    let lib = decompile_cursor(tmp.path());
-
-    assert_eq!(lib.rules.len(), 1);
-    assert_eq!(lib.rules[0].file_name, "style.mdc");
-    assert!(lib.rules[0].content.contains("Use functional components."));
-    assert!(lib.rules[0].always_apply);
-    assert_eq!(lib.rules[0].description.as_deref(), Some("Style guide"));
-}
-
-#[test]
-fn cursor_hooks_parsed() {
-    let tmp = TempDir::new().unwrap();
-    let hooks = json!({
-        "beforeShellExecution": [
-            {"command": "echo pre-shell", "matcher": "npm *"}
-        ],
-        "sessionEnd": [
-            {"command": "echo done"}
-        ]
-    });
-    write_file(
-        &tmp,
-        ".cursor/hooks.json",
-        &serde_json::to_string(&hooks).unwrap(),
-    );
-
-    let lib = decompile_cursor(tmp.path());
-
-    assert_eq!(lib.hooks.len(), 2);
-}
-
-#[test]
-fn cursor_cli_json_permissions() {
-    let tmp = TempDir::new().unwrap();
-    let cli = json!({
-        "version": 1,
-        "permissions": {
-            "allow": ["Shell(git *)", "Read(*)", "Write(src/*)"],
-            "deny": ["Shell(rm -rf *)"]
-        },
-        "experimentalFeature": true
-    });
-    write_file(
-        &tmp,
-        ".cursor/cli.json",
-        &serde_json::to_string(&cli).unwrap(),
-    );
-
-    let lib = decompile_cursor(tmp.path());
-
-    assert!(
-        lib.permissions
-            .tools
-            .allow
-            .contains(&"Bash(git *)".to_string())
-    );
-    assert!(lib.permissions.tools.allow.contains(&"Read(*)".to_string()));
-    assert!(
-        lib.permissions
-            .tools
-            .allow
-            .contains(&"Write(src/*)".to_string())
-    );
-    assert!(
-        lib.permissions
-            .tools
-            .deny
-            .contains(&"Bash(rm -rf *)".to_string())
-    );
-
-    // Unknown keys → harness_defaults
-    let defaults = lib.harness_defaults.get("cursor").unwrap();
-    assert_eq!(defaults["experimentalFeature"], true);
-}
-
-#[test]
-fn cursor_environment_json() {
-    let tmp = TempDir::new().unwrap();
-    let env = json!({"variables": {"NODE_ENV": "development"}});
-    write_file(
-        &tmp,
-        ".cursor/environment.json",
-        &serde_json::to_string(&env).unwrap(),
-    );
-
-    let lib = decompile_cursor(tmp.path());
-
-    assert!(lib.cursor_environment.is_some());
-    assert_eq!(
-        lib.cursor_environment.unwrap()["variables"]["NODE_ENV"],
-        "development"
-    );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
 // decompile_all — multi-harness merge
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -545,32 +411,27 @@ fn decompile_all_merges_harnesses() {
         .unwrap(),
     );
 
-    // Cursor
+    // Codex
+    write_file(&tmp, "AGENTS.md", "# Codex rules");
+    std::fs::create_dir_all(tmp.path().join(".codex")).unwrap();
     write_file(
         &tmp,
-        ".cursor/mcp.json",
-        &serde_json::to_string(&json!({
-            "mcpServers": {
-                "ship": {"command": "ship", "args": ["mcp", "serve"]},
-                "cursor-only": {"command": "cursor-mcp"}
-            }
-        }))
-        .unwrap(),
+        ".codex/config.toml",
+        "[mcp_servers.ship]\ncommand = \"ship\"\nargs = [\"mcp\", \"serve\"]\n\n\
+         [mcp_servers.codex-only]\ncommand = \"codex-mcp\"\n",
     );
-    let rule = "---\nalwaysApply: true\n---\n\nCursor style rule.";
-    write_file(&tmp, ".cursor/rules/style.mdc", rule);
 
     let lib = decompile_all(tmp.path());
 
     // Rules from both harnesses
     assert_eq!(lib.rules.len(), 2);
     assert!(lib.rules.iter().any(|r| r.file_name == "CLAUDE.md"));
-    assert!(lib.rules.iter().any(|r| r.file_name == "style.mdc"));
+    assert!(lib.rules.iter().any(|r| r.file_name == "AGENTS.md"));
 
-    // MCP servers — "ship" deduped, "cursor-only" kept
+    // MCP servers — "ship" deduped, "codex-only" kept
     assert_eq!(lib.mcp_servers.len(), 2);
     assert!(lib.mcp_servers.iter().any(|s| s.id == "ship"));
-    assert!(lib.mcp_servers.iter().any(|s| s.id == "cursor-only"));
+    assert!(lib.mcp_servers.iter().any(|s| s.id == "codex-only"));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

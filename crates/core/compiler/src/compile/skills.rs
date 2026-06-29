@@ -52,7 +52,7 @@ pub(super) fn build_skill_files(
 /// | Key | Type | Description |
 /// |-----|------|-------------|
 /// | `runtime.agents` | array of `{id, name, description}` | Agent profiles from `.ship/agents/*.toml` |
-/// | `runtime.harnesses` | array of strings | Active harness IDs (e.g. `["claude", "cursor"]`) |
+/// | `runtime.harnesses` | array of strings | Active harness IDs (e.g. `["claude", "codex"]`) |
 /// | `runtime.model` | string or `""` | Configured model override, empty if not set |
 /// | `runtime.skills` | array of `{id, name, description}` | All skills active in this compile |
 fn build_runtime_vars(resolved: &ResolvedConfig) -> serde_json::Value {

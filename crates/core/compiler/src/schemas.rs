@@ -17,16 +17,11 @@ pub const CODEX_SCHEMA_URL: &str =
 /// OpenCode config JSON Schema (official site).
 pub const OPENCODE_SCHEMA_URL: &str = "https://opencode.ai/config.json";
 
-/// Cursor has no published JSON Schema. Config is file-based:
-/// `.cursor/rules/*.mdc`, `.cursor/mcp.json`, `.cursor/cli.json`, `.cursor/hooks.json`.
-pub const CURSOR_SCHEMA_URL: Option<&str> = None;
-
 /// All harness schema URLs, keyed by harness ID.
 /// Returns `(harness_id, Option<schema_url>)`.
 pub const HARNESS_SCHEMAS: &[(&str, Option<&str>)] = &[
     ("claude", Some(CLAUDE_SCHEMA_URL)),
     ("codex", Some(CODEX_SCHEMA_URL)),
-    ("cursor", None),
     ("opencode", Some(OPENCODE_SCHEMA_URL)),
     // Pi has no settings-file schema (model/tools are CLI/env; config is
     // user-authored TS extensions). Source: pi.dev/docs.
@@ -63,7 +58,6 @@ pub const HARNESS_MANAGED_KEYS: &[(&str, &[&str])] = &[
         ],
     ),
     ("codex", &["mcp_servers"]),
-    ("cursor", &[]),
     ("opencode", &["mcp", "permission"]),
 ];
 
@@ -85,7 +79,6 @@ mod tests {
         assert!(schema_url("claude").is_some());
         assert!(schema_url("codex").is_some());
         assert!(schema_url("opencode").is_some());
-        assert!(schema_url("cursor").is_none());
     }
 
     #[test]

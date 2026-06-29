@@ -45,7 +45,7 @@ that requires Docker won't be picked on a host without Docker.
 | Strategy id | Tier | Substrate | Bundle add | Notes |
 |---|---|---|---|---|
 | `Noop` | 0 | host process | 0 | Baseline; for tests and "opt out". |
-| `HarnessNative` | 1 | harness's own sandbox flag | 0 | The harness sandboxes itself — claude `--sandbox`, codex Seatbelt, gemini `--yolo`. Ship trusts the harness's claim and does no wrapping. **Preferred Tier 1 when the harness supports it.** |
+| `HarnessNative` | 1 | harness's own sandbox flag | 0 | The harness sandboxes itself — claude `--sandbox`, codex Seatbelt. Ship trusts the harness's claim and does no wrapping. **Preferred Tier 1 when the harness supports it.** |
 | `SrtWrapper` | 1 | `@anthropic-ai/sandbox-runtime` (srt) | npm dep | Gap-fill — we wrap with srt when the harness has no native sandbox (e.g. opencode, cursor-agent, codex on Linux). |
 | `DockerEngine` | 2 | host `docker` or `podman` + our agent-runner image | 0 (BYO) | Container with our sidecar baked in. Smallest surface when user has Docker. |
 | `YoukiRootless` | 2 | bundled `youki` + our agent-runner rootfs | 6 MB binary + ~500 MB image lazy-fetched | Gap-fill for Linux/WSL2 users without Docker. |
@@ -66,7 +66,6 @@ different in practice. The recommender's per-(harness, OS) table picks:
 |---|---|---|---|---|
 | claude | HarnessNative | HarnessNative | HarnessNative | n/a |
 | codex | HarnessNative (Seatbelt) | SrtWrapper | SrtWrapper | n/a |
-| gemini | HarnessNative (`--yolo`) | HarnessNative | HarnessNative | n/a |
 | opencode | SrtWrapper | SrtWrapper | SrtWrapper | SrtWrapper |
 | cursor-agent | SrtWrapper | SrtWrapper | SrtWrapper | SrtWrapper |
 
@@ -267,7 +266,7 @@ feature, status is one of `direct-mount` / `sidecar-endpoint` / `gap`.
 
 Hard requirements:
 
-- **Harness CLI** (claude / codex / opencode / gemini / cursor-agent):
+- **Harness CLI** (claude / codex / opencode / cursor-agent):
   exec via sidecar `/v1/exec` with full env passthrough. Done for
   claude via `run_claude_sidecar` example.
 - **MCP servers**: stdio MCP servers run *inside* the sidecar container

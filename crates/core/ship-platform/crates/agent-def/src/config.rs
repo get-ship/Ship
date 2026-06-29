@@ -226,7 +226,7 @@ mod tests {
     use tempfile::tempdir;
 
     /// Regression gate: normalize_harness_ids must accept exactly the 5
-    /// registered harnesses (claude, codex, cursor, opencode, pi) and reject
+    /// registered harnesses (claude, codex, opencode, pi, omp) and reject
     /// unknown IDs. Both lists derive from harness_adapter::REGISTRY — this
     /// test pins that they agree, so drift between any two lists surfaces here.
     #[test]
@@ -235,9 +235,9 @@ mod tests {
         let all_five: Vec<String> = vec![
             "claude".to_string(),
             "codex".to_string(),
-            "cursor".to_string(),
             "opencode".to_string(),
             "pi".to_string(),
+            "omp".to_string(),
         ];
         let normalized = normalize_harness_ids(&all_five);
         assert_eq!(
@@ -246,7 +246,7 @@ mod tests {
         );
         assert_eq!(normalized.len(), 5, "expected exactly 5 registered harnesses");
         // Unknown IDs must be rejected.
-        let with_unknown: Vec<String> = vec!["claude".to_string(), "gemini".to_string()];
+        let with_unknown: Vec<String> = vec!["claude".to_string(), "nonexistent-harness".to_string()];
         let filtered = normalize_harness_ids(&with_unknown);
         assert_eq!(filtered, vec!["claude".to_string()]);
     }
@@ -275,7 +275,7 @@ mod tests {
         create_skill(&ship_dir, "rt-beta-skill", "Beta", "beta body")?;
 
         let config = ProjectConfig {
-            harnesses: vec!["claude".to_string(), "cursor".to_string()],
+            harnesses: vec!["claude".to_string(), "opencode".to_string()],
             mcp_servers: vec![stdio_server("github", "github-bin")],
             ..Default::default()
         };
@@ -474,7 +474,7 @@ mod tests {
         // exercise the project-harnesses fallback path.
         std::fs::write(
             ship_dir.join("ship.jsonc"),
-            "{\"harnesses\": [\"claude\", \"cursor\"]}\n",
+            "{\"harnesses\": [\"claude\", \"codex\"]}\n",
         )?;
 
         let feature_agent = WorkspaceAgentSettings {
@@ -487,7 +487,7 @@ mod tests {
         let resolved = resolve_harness_settings(&ship_dir, Some(&feature_agent))?;
         assert_eq!(
             resolved.harnesses,
-            vec!["claude".to_string(), "cursor".to_string()]
+            vec!["claude".to_string(), "codex".to_string()]
         );
         assert_eq!(resolved.model.as_deref(), Some("feature-model"));
         Ok(())
@@ -499,7 +499,7 @@ mod tests {
         let ship_dir = init_project(tmp.path())?;
 
         let config = ProjectConfig {
-            harnesses: vec!["cursor".to_string()],
+            harnesses: vec!["opencode".to_string()],
             ..Default::default()
         };
         save_config(&config, Some(ship_dir.clone()))?;
@@ -530,7 +530,7 @@ mod tests {
         let ship_dir = init_project(tmp.path())?;
 
         let config = ProjectConfig {
-            harnesses: vec!["cursor".to_string(), "claude".to_string()],
+            harnesses: vec!["opencode".to_string(), "claude".to_string()],
             ..Default::default()
         };
         save_config(&config, Some(ship_dir.clone()))?;

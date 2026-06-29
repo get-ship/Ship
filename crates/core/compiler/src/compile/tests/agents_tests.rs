@@ -57,18 +57,6 @@ fn claude_agent_output() {
 }
 
 #[test]
-fn cursor_agent_output() {
-    let p = make_profile("reviewer", "Code Reviewer");
-    let files = compile_agent_profiles(&[p], "cursor");
-    assert_eq!(files.len(), 1);
-    let content = &files[".cursor/agents/reviewer.md"];
-    assert!(content.starts_with("---\n"));
-    assert!(content.contains("name: reviewer"));
-    assert!(content.contains("description: Code Reviewer agent"));
-    assert!(content.contains("You are a specialist."));
-}
-
-#[test]
 fn codex_agent_output() {
     let p = make_profile("reviewer", "Code Reviewer");
     let files = compile_agent_profiles(&[p], "codex");
@@ -117,7 +105,7 @@ fn yaml_quoting() {
 #[test]
 fn profile_with_no_harnesses_field_compiles_for_every_harness() {
     let p = make_profile("anything", "Anything");
-    for harness in ["claude", "cursor", "codex", "opencode"] {
+    for harness in ["claude", "codex", "opencode"] {
         let files = compile_agent_profiles(std::slice::from_ref(&p), harness);
         assert_eq!(
             files.len(),
@@ -129,7 +117,7 @@ fn profile_with_no_harnesses_field_compiles_for_every_harness() {
 
 // ── harness_settings is the per-agent OVERRIDE mechanism (acceptance #7).
 // A profile with `harness_settings.codex.model = "X"` emits `model: X`
-// ONLY in the codex file — not claude/cursor/opencode.
+// ONLY in the codex file — not claude/opencode.
 
 #[test]
 fn harness_settings_model_override_only_lands_in_matching_harness() {
@@ -150,7 +138,6 @@ fn harness_settings_model_override_only_lands_in_matching_harness() {
     // Other harnesses MUST NOT carry the codex-only override.
     let expected_paths: &[(&str, &str)] = &[
         ("claude", ".claude/agents/specialist.md"),
-        ("cursor", ".cursor/agents/specialist.md"),
         ("opencode", ".opencode/agents/specialist.md"),
     ];
     for (harness, path) in expected_paths {

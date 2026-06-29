@@ -4,7 +4,6 @@ pub mod harness;
 mod claude;
 mod codex;
 mod context;
-mod cursor;
 mod mcp;
 mod opencode;
 mod pi;
@@ -13,7 +12,6 @@ mod pi;
 // re-export so `resolve::ResolvedConfig` can hold them as typed fields.
 pub(crate) use claude::ClaudeSettings;
 pub(crate) use codex::CodexSettings;
-pub(crate) use cursor::CursorSettings;
 pub(crate) use opencode::OpenCodeSettings;
 mod plugins;
 mod skills;
@@ -31,7 +29,6 @@ use crate::types::PluginsManifest;
 // ─── Re-exports for lib.rs public surface ─────────────────────────────────────
 
 pub use claude::build_claude_settings_patch;
-pub use cursor::{CURSOR_PERMISSIVE_ALLOW, translate_to_cursor_permission};
 pub use harness::{
     AgentsDir, ContextFile, McpKey, HarnessDescriptor, ProviderFeatureFlags, SkillsDir,
     get_harness, list_harnesses,
@@ -79,7 +76,7 @@ pub struct CompileOutput {
     pub mcp_servers: Json,
 
     /// Project-relative path where the MCP config file should be written,
-    /// e.g. `".mcp.json"` for Claude or `".cursor/mcp.json"` for Cursor.
+    /// e.g. `".mcp.json"` for Claude.
     /// `None` when the harness merges MCP into a larger settings file.
     pub mcp_config_path: Option<String>,
 
@@ -100,20 +97,19 @@ pub struct CompileOutput {
     /// Merge into `.codex/config.toml`.
     pub codex_config_patch: Option<String>,
 
-    /// Cursor hooks file: full `.cursor/hooks.json` content.
-    /// Only populated for the `cursor` harness when hooks are present.
+    /// Legacy cursor hooks file output. The cursor harness was removed; this
+    /// field is retained for output-writer compatibility and is never populated.
     pub cursor_hooks_patch: Option<Json>,
 
-    /// Cursor permissions: `{ "version": 1, "permissions": { "allow": [...], "deny": [...] } }`
-    /// Written to `.cursor/cli.json` (project) or `~/.cursor/cli-config.json` (global).
-    /// Applies to both Cursor IDE agents and the Cursor CLI.
-    /// Only populated when permissions are non-default. Never emits a permissive allow-all
-    /// unless the user explicitly supplies the typed wildcard patterns.
+    /// Legacy cursor CLI permissions output. The cursor harness was removed;
+    /// this field is retained for output-writer compatibility and is never
+    /// populated.
     pub cursor_cli_permissions: Option<Json>,
 
     /// Per-file rule output for harnesses that use individual rule files.
-    /// Key = relative path (e.g. `.cursor/rules/style.mdc`), value = file content.
-    /// Populated for Cursor (per-file .mdc). Other harnesses use `context_content`.
+    /// Key = relative path, value = file content. No current harness emits
+    /// per-file rules (cursor harness removed); other harnesses use
+    /// `context_content`.
     pub rule_files: HashMap<String, String>,
 
     /// Plugin install intent declared by the active preset.
@@ -126,8 +122,8 @@ pub struct CompileOutput {
     /// Value = file content. Written verbatim by the CLI.
     pub agent_files: HashMap<String, String>,
 
-    /// Cursor-only: `.cursor/environment.json` content.
-    /// Only populated when `cursor_environment` is set in the resolved config.
+    /// Legacy cursor environment output. The cursor harness was removed; this
+    /// field is retained for output-writer compatibility and is never populated.
     pub cursor_environment_json: Option<Json>,
 
     /// Claude-only: `.claude/lsp.json` content registering the Ship LSP.
@@ -167,8 +163,8 @@ pub fn compile(resolved: &ResolvedConfig, harness_id: &str) -> Option<CompileOut
 
     // Only emit MCP config for harnesses that support it.
     if flags.supports_mcp {
-        // MCP builder is carried on the descriptor (cursor has a per-server-
-        // field variant; the rest share mcp::build_mcp_servers).
+        // MCP builder is carried on the descriptor; all current harnesses
+        // share mcp::build_mcp_servers.
         out.mcp_servers = (desc.build_mcp)(desc, &resolved.mcp_servers);
         out.mcp_config_path = desc.mcp_config_path.map(String::from);
     } else {

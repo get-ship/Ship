@@ -6,8 +6,6 @@
 mod claude;
 mod claude_mcp;
 mod codex;
-mod cursor;
-mod cursor_helpers;
 mod opencode;
 mod opencode_agents;
 
@@ -58,7 +56,6 @@ pub(super) fn json_string_array(val: Option<&Json>) -> Vec<String> {
 
 pub use claude::decompile_claude;
 pub use codex::decompile_codex;
-pub use cursor::decompile_cursor;
 pub use opencode::decompile_opencode;
 
 /// Which harnesses were detected in a project directory.
@@ -66,13 +63,12 @@ pub use opencode::decompile_opencode;
 pub struct DetectedProviders {
     pub claude: bool,
     pub codex: bool,
-    pub cursor: bool,
     pub opencode: bool,
 }
 
 impl DetectedProviders {
     pub fn any(&self) -> bool {
-        self.claude || self.codex || self.cursor || self.opencode
+        self.claude || self.codex || self.opencode
     }
 
     pub fn as_list(&self) -> Vec<&'static str> {
@@ -82,9 +78,6 @@ impl DetectedProviders {
         }
         if self.codex {
             v.push("codex");
-        }
-        if self.cursor {
-            v.push("cursor");
         }
         if self.opencode {
             v.push("opencode");
@@ -100,7 +93,6 @@ pub fn detect_harnesses(project_root: &Path) -> DetectedProviders {
             || project_root.join("CLAUDE.md").exists()
             || project_root.join(".mcp.json").exists(),
         codex: project_root.join(".codex").is_dir() || project_root.join("AGENTS.md").exists(),
-        cursor: project_root.join(".cursor").is_dir(),
         opencode: project_root.join(".opencode").is_dir()
             || project_root.join("opencode.json").exists(),
     }
@@ -123,11 +115,6 @@ pub fn decompile_all(project_root: &Path) -> ProjectLibrary {
     if detected.codex {
         let partial = decompile_codex(project_root);
         merge_into(&mut library, partial, "codex");
-    }
-
-    if detected.cursor {
-        let partial = decompile_cursor(project_root);
-        merge_into(&mut library, partial, "cursor");
     }
 
     if detected.opencode {
@@ -209,11 +196,6 @@ fn merge_into(target: &mut ProjectLibrary, source: ProjectLibrary, harness_id: &
         target.codex_notify = source.codex_notify;
     }
 
-    // Cursor-specific fields
-    if harness_id == "cursor" {
-        target.cursor_settings_extra = source.cursor_settings_extra;
-        target.cursor_environment = source.cursor_environment;
-    }
 }
 
 /// Merge source permissions into target. Appends tool lists rather than replacing.

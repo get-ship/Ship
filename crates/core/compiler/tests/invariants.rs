@@ -69,11 +69,11 @@ fn rich_library() -> ProjectLibrary {
 // ─── Determinism ──────────────────────────────────────────────────────────────
 
 /// Same ProjectLibrary compiled 10× must produce identical output every time.
-/// Tests all four harnesses to catch any per-harness non-determinism.
+/// Tests all harnesses to catch any per-harness non-determinism.
 #[test]
 fn compile_is_deterministic() {
     let library = rich_library();
-    let harnesses = ["claude", "codex", "cursor"];
+    let harnesses = ["claude", "codex", "opencode"];
 
     for harness in harnesses {
         let resolved = resolve_library(&library, None, None);
@@ -149,29 +149,6 @@ fn claude_output_contains_context_file() {
     );
 }
 
-/// Compiling for `cursor` must produce per-file rule entries in `.cursor/rules/`.
-#[test]
-fn cursor_output_contains_rule_files() {
-    let library = rich_library();
-    let resolved = resolve_library(&library, None, None);
-    let output = compile(&resolved, "cursor").unwrap();
-
-    assert!(
-        !output.rule_files.is_empty(),
-        "cursor must emit rule_files when rules are present"
-    );
-    for path in output.rule_files.keys() {
-        assert!(
-            path.starts_with(".cursor/rules/"),
-            "cursor rule path must be under .cursor/rules/; got {path}"
-        );
-        assert!(
-            path.ends_with(".mdc"),
-            "cursor rule file must use .mdc extension; got {path}"
-        );
-    }
-}
-
 /// Compiling for `codex` must emit an AGENTS.md context and a TOML config patch.
 #[test]
 fn codex_output_has_agents_md_and_config_patch() {
@@ -194,7 +171,7 @@ fn codex_output_has_agents_md_and_config_patch() {
 /// This invariant guards against re-introduction of the broken injection.
 #[test]
 fn mcp_servers_never_includes_ship_injection() {
-    let harnesses = ["claude", "codex", "cursor"];
+    let harnesses = ["claude", "codex", "opencode"];
     let library = ProjectLibrary::default();
     let resolved = resolve_library(&library, None, None);
 

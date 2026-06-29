@@ -30,7 +30,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["claude", "cursor", "codex", "opencode", "pi"]
+            "enum": ["claude", "codex", "opencode", "pi"]
           },
           "description": "AI harness targets for this project."
         },
@@ -63,10 +63,6 @@
                   }
                 }
               ]
-            },
-            "cursor": {
-              "type": "object",
-              "additionalProperties": true
             },
             "opencode": {
               "allOf": [

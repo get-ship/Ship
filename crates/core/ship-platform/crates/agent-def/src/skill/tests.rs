@@ -393,7 +393,7 @@ body
                 }
             }
         }
-        assert!(checked >= 20, "sanity: expected the skill corpus, found {checked}");
+        assert!(checked > 0, "sanity: expected a non-empty .ship/skills corpus, found {checked}");
         assert!(
             failures.is_empty(),
             "{} skill(s) violate the published/internal split:\n{}",

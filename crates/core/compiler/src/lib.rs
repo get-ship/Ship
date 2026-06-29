@@ -29,14 +29,14 @@ pub use loader::load_library;
 pub use output::{ensure_parent, merge_json, merge_json_file, write_output};
 
 pub use compile::{
-    AgentsDir, CURSOR_PERMISSIVE_ALLOW, CompileOutput, ContextFile, McpKey, HarnessDescriptor,
+    AgentsDir, CompileOutput, ContextFile, McpKey, HarnessDescriptor,
     ProviderFeatureFlags, SkillsDir, agents::compile_agent_profiles, build_claude_settings_patch,
-    compile, get_harness, list_harnesses, translate_to_cursor_permission,
+    compile, get_harness, list_harnesses,
 };
 
 pub use resolve::{ProjectLibrary, ResolvedConfig, WorkspaceOverrides, resolve, resolve_library};
 pub use decompile::{
-    DetectedProviders, decompile_all, decompile_claude, decompile_codex, decompile_cursor,
+    DetectedProviders, decompile_all, decompile_claude, decompile_codex,
     decompile_opencode, detect_harnesses,
 };
 pub use schemas::{HARNESS_MANAGED_KEYS, HARNESS_SCHEMAS, managed_keys, schema_url};

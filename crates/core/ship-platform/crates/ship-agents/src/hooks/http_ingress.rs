@@ -40,7 +40,7 @@ pub trait PtyBroadcastPort: Send + Sync {
 /// Normalized hook event sent by Claude HTTP hooks or the `ship hook` adapter.
 ///
 /// Aliases let a RAW harness hook payload deserialize directly — Claude is
-/// already snake_case; codex/gemini/opencode use camelCase / short variants.
+/// already snake_case; codex/opencode use camelCase / short variants.
 #[derive(Debug, Deserialize)]
 pub struct ShipHookEvent {
     #[serde(default, alias = "toolName", alias = "name")]

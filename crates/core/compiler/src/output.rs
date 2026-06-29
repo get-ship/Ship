@@ -7,7 +7,7 @@ use crate::compile::{CompileOutput, get_harness};
 
 /// Write a compiled harness output to the filesystem at `root`.
 ///
-/// For `.mcp.json` (Claude / Cursor): reads existing file, preserves
+/// For `.mcp.json` (Claude): reads existing file, preserves
 /// user-authored entries that don't carry `_ship.managed: true`, then writes
 /// Ship-managed entries with the marker. All other files are written directly.
 pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Result<()> {
@@ -26,7 +26,7 @@ pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Re
         if harness_id == "codex" {
             // Codex: TOML patch written separately — skip JSON write here
         } else {
-            // All other harnesses (Claude, Cursor): merge preserving user entries
+            // All other harnesses (Claude): merge preserving user entries
             let path = root.join(mcp_path);
             ensure_parent(&path)?;
             write_mcp_preserving_user_entries(&path, desc.mcp_key.as_str(), &output.mcp_servers)?;
@@ -40,7 +40,7 @@ pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Re
         std::fs::write(&path, content)?;
     }
 
-    // Rule files (Cursor .mdc)
+    // Per-file rule outputs (no current harness emits these)
     for (rel_path, content) in &output.rule_files {
         let path = root.join(rel_path);
         ensure_parent(&path)?;
@@ -85,27 +85,6 @@ pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Re
         None => {
             let _ = std::fs::remove_file(&rules_path);
         }
-    }
-
-    // Cursor hooks → .cursor/hooks.json
-    if let Some(hooks) = &output.cursor_hooks_patch {
-        let path = root.join(".cursor/hooks.json");
-        ensure_parent(&path)?;
-        std::fs::write(&path, serde_json::to_string_pretty(hooks)?)?;
-    }
-
-    // Cursor CLI permissions → .cursor/cli.json
-    if let Some(perms) = &output.cursor_cli_permissions {
-        let path = root.join(".cursor/cli.json");
-        ensure_parent(&path)?;
-        std::fs::write(&path, serde_json::to_string_pretty(perms)?)?;
-    }
-
-    // Cursor environment → .cursor/environment.json
-    if let Some(env) = &output.cursor_environment_json {
-        let path = root.join(".cursor/environment.json");
-        ensure_parent(&path)?;
-        std::fs::write(&path, serde_json::to_string_pretty(env)?)?;
     }
 
     // OpenCode config → opencode.json

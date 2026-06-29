@@ -76,15 +76,6 @@ fn codex_feature_flags() {
 }
 
 #[test]
-fn cursor_feature_flags() {
-    let flags = get_harness("cursor").unwrap().feature_flags();
-    assert!(flags.supports_mcp);
-    assert!(flags.supports_hooks);
-    assert!(flags.supports_tool_permissions);
-    assert!(!flags.supports_memory);
-}
-
-#[test]
 fn feature_flags_govern_mcp_emission() {
     let r = resolved(vec![make_server("github")]);
     for desc in list_harnesses() {
@@ -200,7 +191,7 @@ fn plugins_manifest_is_same_across_harnesses() {
         plugins: manifest.clone(),
         ..resolved(vec![])
     };
-    for harness in &["claude", "codex", "cursor"] {
+    for harness in &["claude", "codex", "opencode"] {
         let out = compile(&r, harness).unwrap();
         assert_eq!(
             out.plugins_manifest.install.len(),

@@ -291,11 +291,6 @@
           ],
           "description": "Codex CLI config pass-through. Ship-managed keys (mcp_servers) must be set via Ship's own fields. Set `model` here."
         },
-        "cursor": {
-          "type": "object",
-          "description": "Cursor settings. No upstream schema published.",
-          "additionalProperties": true
-        },
         "opencode": {
           "allOf": [
             { "$ref": "https://opencode.ai/config.json" },
@@ -311,6 +306,11 @@
         "pi": {
           "type": "object",
           "description": "Pi settings. No upstream schema published — open pass-through.",
+          "additionalProperties": true
+        },
+        "omp": {
+          "type": "object",
+          "description": "omp settings (pi fork). No upstream schema published — open pass-through.",
           "additionalProperties": true
         }
       },

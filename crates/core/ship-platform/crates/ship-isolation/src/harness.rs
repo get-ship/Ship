@@ -4,7 +4,7 @@
 //! is split:
 //!
 //!   - `HarnessNative` — the harness sandboxes itself (claude `--sandbox`,
-//!     codex Seatbelt on macOS, gemini `--yolo`). Ship passes a CLI flag
+//!     codex Seatbelt on macOS). Ship passes a CLI flag
 //!     (if any) and trusts the harness.
 //!   - `SrtWrapper` — we wrap with `@anthropic-ai/sandbox-runtime` when
 //!     the harness has no native sandbox (opencode, cursor-agent, codex
@@ -23,7 +23,7 @@ use crate::capabilities::HostOs;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HarnessSandboxMechanism {
     /// Harness sandboxes itself. We pass `flag` if `Some` (e.g.
-    /// `--sandbox` for claude, `--yolo` for gemini); otherwise the
+    /// `--sandbox` for claude); otherwise the
     /// harness sandboxes by default and there's no flag to pass
     /// (codex on macOS via Seatbelt — handled internally).
     Native {
@@ -53,7 +53,6 @@ impl HarnessSandboxMechanism {
         match harness_id {
             "claude" | "claude-code" => vec!["api.anthropic.com", "console.anthropic.com"],
             "codex" => vec!["api.openai.com", "chatgpt.com"],
-            "gemini" => vec!["generativelanguage.googleapis.com", "aiplatform.googleapis.com"],
             "opencode" => vec![
                 "api.anthropic.com",
                 "api.openai.com",
@@ -94,16 +93,6 @@ pub fn tier1_mechanism_for(harness_id: &str, os: HostOs) -> HarnessSandboxMechan
         },
         ("codex", HostOs::Windows | HostOs::Unknown) => Unavailable {
             reason: "Codex has no Linux/Windows sandbox; install srt for SrtWrapper",
-        },
-
-        // ── gemini — `--yolo` is the closest analogue (relaxed
-        // permission gate; relies on harness sandboxing internally).
-        ("gemini", HostOs::MacosArm | HostOs::MacosIntel | HostOs::Linux | HostOs::Wsl2) => Native {
-            flag: Some("--yolo"),
-            label: "Sandboxed by Gemini",
-        },
-        ("gemini", HostOs::Windows | HostOs::Unknown) => Unavailable {
-            reason: "Gemini's --yolo sandbox doesn't ship for Windows",
         },
 
         // ── opencode — no native sandbox; always srt.
@@ -180,15 +169,6 @@ mod tests {
     }
 
     #[test]
-    fn gemini_native_uses_yolo() {
-        let m = tier1_mechanism_for("gemini", HostOs::MacosArm);
-        match m {
-            HarnessSandboxMechanism::Native { flag, .. } => assert_eq!(flag, Some("--yolo")),
-            _ => panic!("expected Native"),
-        }
-    }
-
-    #[test]
     fn opencode_always_srt() {
         for os in [HostOs::MacosArm, HostOs::Linux, HostOs::Wsl2] {
             let m = tier1_mechanism_for("opencode", os);
@@ -198,7 +178,7 @@ mod tests {
 
     #[test]
     fn windows_is_unavailable_for_all_harnesses() {
-        for h in ["claude", "codex", "gemini", "opencode", "cursor"] {
+        for h in ["claude", "codex", "opencode", "cursor"] {
             let m = tier1_mechanism_for(h, HostOs::Windows);
             assert!(
                 matches!(m, HarnessSandboxMechanism::Unavailable { .. }),
@@ -230,11 +210,6 @@ mod tests {
         assert!(
             HarnessSandboxMechanism::default_allowlist("codex")
                 .contains(&"api.openai.com")
-        );
-        assert!(
-            HarnessSandboxMechanism::default_allowlist("gemini")
-                .iter()
-                .any(|h| h.contains("googleapis"))
         );
     }
 

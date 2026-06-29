@@ -15,7 +15,7 @@ Status legend:
 ## 1. Harness CLI execution
 
 The orchestrator spawns a harness binary (claude / codex / opencode /
-gemini / cursor-agent). Each binary needs its install path, its config
+cursor-agent). Each binary needs its install path, its config
 dir, an MCP config, optional model selection, env vars, working
 directory, stdio, exit code.
 

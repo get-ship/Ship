@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Defines a specialist agent that the compiler emits as a
 /// harness-native subagent definition (`.claude/agents/`,
-/// `.cursor/agents/`, `.codex/agents/`, `.opencode/agents/`). The
+/// `.codex/agents/`, `.opencode/agents/`). The
 /// canonical schema lives in `schemas/agent.schema.json` — every
 /// JSONC field declared there should have a matching Rust field
 /// here. The top-level key is `agent`.

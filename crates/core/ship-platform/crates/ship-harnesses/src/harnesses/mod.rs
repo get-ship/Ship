@@ -1,7 +1,6 @@
 pub mod claude;
 pub mod codex;
 pub mod codex_session;
-pub mod cursor;
 pub mod opencode;
 pub mod pi;
 pub mod omp;
