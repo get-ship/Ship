@@ -3,9 +3,13 @@
 //!
 //! `ship-agents` owns the wiring (closure construction + port adapters +
 //! `AgentsWire::new` + `AgentsServiceExt::register`). Shipd's only job here is
-//! to (a) implement [`AgentsHost`] (the trait lives in ship-agents) and
-//! (b) expose a `mount(router, &state, gate)` that forwards to the crate-side
-//! entry point.
+//! to (a) implement [`AgentsHost`] (the core trait), plus the opt-in
+//! capability traits [`AgentsGrantHost`] (for `agent.grant`) and
+//! [`AgentsWatchHost`] (for `agent.*.Watch`), and (b) expose a
+//! `mount(router, &state, gate)` that forwards to the crate-side entry point.
+//! Shipd always calls [`ship_agents::services::agents::host::mount_full`] —
+//! a read-only consumer (e.g. helmd) would call `mount` instead and only
+//! implement the core trait.
 //!
 //! All 23 methods, the C3 grant gate, and the ship-code on/off arms are
 //! preserved verbatim — they live in `ship-agents` now.
@@ -18,11 +22,12 @@ use ship_agents::services::agents::annotation::CollectionPersistPort;
 use ship_agents::services::agents::dispatch_core::AgentDispatchPort;
 use ship_agents::services::agents::feedback::ViewBroadcastPort;
 use ship_agents::services::agents::host::{
-    AgentsHost, DispatchHandlePort, mount as host_mount,
+    AgentsGrantHost, AgentsHost, AgentsWatchHost, DispatchHandlePort,
 };
 use ship_agents::services::agents::rpc_wire::FeedbackAuthPort;
 use ship_agents::services::agents::service::AgentsService;
 use ship_agents::services::rules::wire::GateFn;
+use ship_agents::services::agents::host::mount_full as host_mount_full;
 use ship_reactive::ReactiveRegistry;
 use ship_substrate::events::KernelRouter;
 use ship_substrate::ports::KernelLog;
@@ -40,7 +45,9 @@ pub(super) fn mount(
     state: &ApiState,
     gate: GateFn,
 ) -> ConnectRouter {
-    host_mount(&StateHost(state.clone()), gate, router)
+    // shipd keeps full behavior — identical to the prior single-mount body —
+    // so we wire mount_full here, not the lean `mount`.
+    host_mount_full(&StateHost(state.clone()), gate, router)
 }
 
 /// Newtype around `ApiState` so we can `impl AgentsHost for StateHost` —
@@ -69,14 +76,6 @@ impl AgentsHost for StateHost {
 
     fn agent_def_kernel(&self) -> Option<Arc<KernelLog>> {
         self.0.agent_def_kernel().map(|a| a.clone())
-    }
-
-    fn agent_reactive(&self) -> Option<Arc<ReactiveRegistry>> {
-        self.0.agent_reactive().map(|a| a.clone())
-    }
-
-    fn session_registry(&self) -> SessionRegistry {
-        self.0.session_registry().clone()
     }
 
     fn dispatch_port(&self) -> Arc<dyn AgentDispatchPort> {
@@ -111,6 +110,18 @@ impl AgentsHost for StateHost {
     fn dispatch_handle(&self) -> Option<Arc<dyn DispatchHandlePort>> {
         ShipCodeDispatchHandle::from_runtime(&self.0)
             .map(|h| Arc::new(h) as Arc<dyn DispatchHandlePort>)
+    }
+}
+
+impl AgentsGrantHost for StateHost {
+    fn session_registry(&self) -> SessionRegistry {
+        self.0.session_registry().clone()
+    }
+}
+
+impl AgentsWatchHost for StateHost {
+    fn agent_reactive(&self) -> Option<Arc<ReactiveRegistry>> {
+        self.0.agent_reactive().map(|a| a.clone())
     }
 }
 

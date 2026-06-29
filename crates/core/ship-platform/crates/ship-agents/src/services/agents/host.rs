@@ -13,8 +13,31 @@
 //! `ViewBroadcastPort`, `CollectionPersistPort`) are re-exposed here as the
 //! `Host`-returning types so the host bundle reads as a single surface.
 //!
-//! No behavior change: every closure + port is identical to the prior
-//! `apps/shipd/src/rpc/ops/agents_wire.rs` body — only the location moved.
+//! Capability split:
+//!  * `AgentsHost` — the *core* trait that exposes only ship-agents /
+//!    ship-substrate types. Implementing it does NOT require ship-auth or
+//!    ship-reactive in scope.
+//!  * [`AgentsGrantHost`] — opt-in capability for the `agent.grant`
+//!    path. Depends on `ship-auth` because the grant closure calls
+//!    `ship_auth::scopes::provision_grants` and reads
+//!    `ship_auth::scopes::SessionRegistry`.
+//!  * [`AgentsWatchHost`] — opt-in capability for the `agent.*.Watch`
+//!    stream. Depends on `ship-reactive` because it returns
+//!    `Option<Arc<ReactiveRegistry>>`.
+//!
+//! Two mount fns:
+//!  * [`mount`] — the *lean* mount a read-only consumer (e.g. helmd) calls.
+//!    Requires only `AgentsHost`. The grant path returns
+//!    `ConnectError::unimplemented` and the watch path sees
+//!    `agent_reactive: None` (which `AgentsWire::watch` already translates
+//!    into `ConnectError::unavailable`).
+//!  * [`mount_full`] — the *full* mount shipd calls. Requires
+//!    `AgentsHost + AgentsGrantHost + AgentsWatchHost` and wires the real
+//!    closures identical to the prior single-mount body.
+//!
+//! No behavior change on the shipd (full) path: every closure + port is
+//! identical to the prior `apps/shipd/src/rpc/ops/agents_wire.rs::mount` —
+//! only the location and trait split changed.
 
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -32,7 +55,6 @@ use crate::services::agents::rpc_wire::{
     SteerFn, StopFn,
 };
 use crate::services::agents::service::AgentsService;
-use ship_reactive::ReactiveRegistry;
 use ship_substrate::events::KernelRouter;
 use ship_substrate::ports::KernelLog;
 
@@ -50,12 +72,12 @@ pub trait DispatchHandlePort: Send + Sync {
     fn steer(&self, slug: &str, message: &str) -> BoxFuture<'_, Result<Value, ConnectError>>;
 }
 
-/// Shipd-side accessor surface used by `mount`.
+/// Lean, ship-agents/ship-substrate-only accessor surface used by [`mount`].
 ///
-/// `mount` reads these accessors to build the six async closures + four port
-/// adapters that `AgentsWire::new(AgentsWireConfig { … })` consumes. The trait
-/// is `Clone + Send + Sync + 'static` because every closure and adapter is
-/// `Arc`-cloned across the wire.
+/// Every implementor of `AgentsHost` can be wired into [`mount`] without
+/// pulling in `ship-auth` or `ship-reactive` in scope. To also handle
+/// `agent.grant` or `agent.*.Watch`, opt in to [`AgentsGrantHost`] and/or
+/// [`AgentsWatchHost`] and use [`mount_full`].
 pub trait AgentsHost: Clone + Send + Sync + 'static {
     /// The agent domain service — `AgentsWire::svc`.
     fn agents_arc(&self) -> Arc<dyn AgentsService>;
@@ -74,12 +96,6 @@ pub trait AgentsHost: Clone + Send + Sync + 'static {
     /// reactive registry is up. `None` for a space-less boot.
     fn agent_def_kernel(&self) -> Option<Arc<KernelLog>>;
 
-    /// The agent `Watch` reactive registry — `None` when space-less.
-    fn agent_reactive(&self) -> Option<Arc<ReactiveRegistry>>;
-
-    /// Per-process session registry — `agent.grant` mutates grants here.
-    fn session_registry(&self) -> ship_auth::scopes::SessionRegistry;
-
     /// The dispatch port — agent dispatch writes events through this.
     fn dispatch_port(&self) -> Arc<dyn AgentDispatchPort>;
 
@@ -96,6 +112,11 @@ pub trait AgentsHost: Clone + Send + Sync + 'static {
     /// Extract the verified approver (`agent_id`) from the auth context for
     /// `agent.grant`. Returns `Err(unauthenticated)` when the auth extension
     /// is missing; `Ok(None)` for anonymous / daemon-token requests.
+    ///
+    /// This is ship-auth-*free*: it operates on the ConnectRPC
+    /// `RequestContext`, not on any ship-auth type. It is part of the core
+    /// trait because the lean `grant_fn` closure still extracts an approver
+    /// (or bails the same way) so wire contract is uniform across mounts.
     fn extract_approver(&self, ctx: &RequestContext) -> Result<Option<String>, ConnectError>;
 
     /// Dispatch handle — `Some` only when ship-code built the process
@@ -107,14 +128,50 @@ pub trait AgentsHost: Clone + Send + Sync + 'static {
     }
 }
 
+/// Capability trait for the `agent.grant` path. Brings `ship-auth` types into
+/// scope on the host implementor. [`mount_full`] requires this.
+pub trait AgentsGrantHost: AgentsHost {
+    /// Per-process session registry — `agent.grant` mutates grants here.
+    fn session_registry(&self) -> ship_auth::scopes::SessionRegistry;
+}
+
+/// Capability trait for the `agent.*.Watch` stream. Brings `ship-reactive`
+/// types into scope on the host implementor. [`mount_full`] requires this.
+pub trait AgentsWatchHost: AgentsHost {
+    /// The agent `Watch` reactive registry — `None` when space-less.
+    fn agent_reactive(&self) -> Option<Arc<ship_reactive::ReactiveRegistry>>;
+}
+
 // ── mount ────────────────────────────────────────────────────────────────────
 
-/// Mount `AgentsWire` onto `router`. `host` supplies every closure captured
-/// in the wire config; `gate` is the C0/C2/C3 gate supplied by shipd from the
-/// proto descriptor.
+/// The non-capability half of an `AgentsWireConfig` — holds the shared
+/// closures + readers that neither mount depends on `ship-auth` or
+/// `ship-reactive` for. The two capability-shaped fields (`grant_fn`,
+/// `agent_reactive`) are filled in by the caller: [`mount`] substitutes a
+/// lean stub + `None`; [`mount_full`] uses the live values.
+struct AgentsWireCoreConfig {
+    svc:              Arc<dyn AgentsService>,
+    ship_dir:         PathBuf,
+    kernel:           Arc<KernelLog>,
+    gate:             GateFn,
+    sessions_fn:      SessionsFn,
+    notify_saved:     NotifySavedFn,
+    dispatch_port:    Arc<dyn AgentDispatchPort>,
+    stop_fn:          StopFn,
+    steer_fn:         SteerFn,
+    feedback_auth:    Arc<dyn FeedbackAuthPort>,
+    view_broadcast:   Arc<dyn ViewBroadcastPort>,
+    collection:       Arc<dyn CollectionPersistPort>,
+}
+
+/// Build the ship-agents + ship-substrate portion of an `AgentsWireConfig`.
 ///
-/// Behavior is identical to the prior `apps/shipd/src/rpc/ops/agents_wire.rs::mount`.
-pub fn mount<H: AgentsHost>(host: &H, gate: GateFn, router: ConnectRouter) -> ConnectRouter {
+/// Pulls every accessor / closure that does NOT require `ship-auth` or
+/// `ship-reactive` — i.e. the closure-half of `AgentsHost`. The two
+/// capability-shaped closures / fields (`grant_fn`, `agent_reactive`) are
+/// filled in by the caller. [`mount`] substitutes lean stubs; [`mount_full`]
+/// uses the real values.
+fn build_core<H: AgentsHost>(host: &H, gate: GateFn) -> AgentsWireCoreConfig {
     // The shared Live-Watch kernel — same `KernelLog` the agent reactive
     // registry subscribes to.
     let agents_kernel = Arc::new(KernelLog::new(host.kernel_router()));
@@ -199,6 +256,83 @@ pub fn mount<H: AgentsHost>(host: &H, gate: GateFn, router: ConnectRouter) -> Co
         })
     });
 
+    AgentsWireCoreConfig {
+        svc: host.agents_arc(),
+        ship_dir: host.ship_dir(),
+        kernel: agents_kernel,
+        gate,
+        sessions_fn: agents_sessions_fn,
+        notify_saved: notify_saved_fn,
+        dispatch_port: host.dispatch_port(),
+        stop_fn,
+        steer_fn,
+        feedback_auth: host.feedback_auth(),
+        view_broadcast: host.view_broadcast(),
+        collection: host.collection(),
+    }
+}
+/// Lean stub `grant_fn`: every call returns `unimplemented`. Lets a consumer
+/// that has no `ship-auth` capability still mount the full `AgentsWire`
+/// surface; calls to `agent.grant` reject with a well-typed error.
+fn lean_grant_fn() -> GrantFn {
+    Arc::new(
+        move |_agent: String, _new_grants: Vec<String>, _ctx: RequestContext| {
+            Box::pin(async move {
+                Err(ConnectError::unimplemented(
+                    "agent.grant not available on this consumer",
+                ))
+            })
+        },
+    )
+}
+
+/// Mount `AgentsWire` onto `router` — the LEAN mount.
+///
+/// `host` supplies every ship-agents/ship-substrate accessor (core
+/// `AgentsHost`). The grant path is stubbed to
+/// `ConnectError::unimplemented("agent.grant not available on this consumer")`
+/// and the watch path is wired with `agent_reactive: None` (which
+/// `AgentsWire::watch` already translates into
+/// `ConnectError::unavailable("agent watch unavailable: no active space")`).
+/// A lean consumer like helmd can implement just `AgentsHost` and mount
+/// without importing `ship-auth` or `ship-reactive`.
+pub fn mount<H: AgentsHost>(host: &H, gate: GateFn, router: ConnectRouter) -> ConnectRouter {
+    let core = build_core(host, gate);
+    let agents_wire = Arc::new(AgentsWire::new(AgentsWireConfig {
+        svc:              core.svc,
+        ship_dir:         core.ship_dir,
+        kernel:           core.kernel,
+        gate:             core.gate,
+        sessions_fn:      core.sessions_fn,
+        notify_saved:     core.notify_saved,
+        dispatch_port:    core.dispatch_port,
+        stop_fn:          core.stop_fn,
+        steer_fn:         core.steer_fn,
+        grant_fn:         lean_grant_fn(),
+        agent_reactive:   None,
+        feedback_auth:    core.feedback_auth,
+        view_broadcast:   core.view_broadcast,
+        collection:       core.collection,
+    }));
+    ship_ops_rpc::AgentsServiceExt::register(agents_wire, router)
+}
+
+/// Mount `AgentsWire` onto `router` — the FULL mount.
+///
+/// `host` must implement the core trait *plus* [`AgentsGrantHost`] (for
+/// `agent.grant`) and [`AgentsWatchHost`] (for the `Watch` stream). This is
+/// what shipd uses; behavior is byte-for-byte identical to the prior single
+/// `mount` body.
+pub fn mount_full<H>(
+    host: &H,
+    gate: GateFn,
+    router: ConnectRouter,
+) -> ConnectRouter
+where
+    H: AgentsHost + AgentsGrantHost + AgentsWatchHost,
+{
+    let core = build_core(host, gate);
+
     // grant_fn: live-session upgrade + baseline grants persistence. The C3
     // gate is enforced by `gate` before this runs; this closure carries
     // only the two-effect domain logic.
@@ -254,20 +388,20 @@ pub fn mount<H: AgentsHost>(host: &H, gate: GateFn, router: ConnectRouter) -> Co
     );
 
     let agents_wire = Arc::new(AgentsWire::new(AgentsWireConfig {
-        svc: host.agents_arc(),
-        ship_dir: host.ship_dir(),
-        kernel: agents_kernel,
-        gate,
-        sessions_fn: agents_sessions_fn,
-        notify_saved: notify_saved_fn,
-        dispatch_port: host.dispatch_port(),
-        stop_fn,
-        steer_fn,
+        svc:              core.svc,
+        ship_dir:         core.ship_dir,
+        kernel:           core.kernel,
+        gate:             core.gate,
+        sessions_fn:      core.sessions_fn,
+        notify_saved:     core.notify_saved,
+        dispatch_port:    core.dispatch_port,
+        stop_fn:          core.stop_fn,
+        steer_fn:         core.steer_fn,
         grant_fn,
-        agent_reactive: host.agent_reactive(),
-        feedback_auth: host.feedback_auth(),
-        view_broadcast: host.view_broadcast(),
-        collection: host.collection(),
+        agent_reactive:   host.agent_reactive(),
+        feedback_auth:    core.feedback_auth,
+        view_broadcast:   core.view_broadcast,
+        collection:       core.collection,
     }));
     ship_ops_rpc::AgentsServiceExt::register(agents_wire, router)
 }
