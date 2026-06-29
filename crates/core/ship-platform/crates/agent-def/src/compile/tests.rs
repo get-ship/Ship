@@ -147,7 +147,7 @@ fn loads_skill_from_skill_md() {
     std::fs::create_dir_all(&ship_dir).unwrap();
     write(
         &ship_dir,
-        ".ship/skills/my-skill/SKILL.md",
+        "skills/my-skill/SKILL.md",
         "---\nname: My Skill\ndescription: Does stuff\n---\n\nInstructions here.",
     );
     let lib = load_library(&ship_dir).unwrap();
@@ -166,7 +166,7 @@ fn loads_skill_from_flat_md() {
     std::fs::create_dir_all(&ship_dir).unwrap();
     write(
         &ship_dir,
-        ".ship/skills/ship-coordination.md",
+        "skills/ship-coordination.md",
         "---\nname: Ship Coordination\ndescription: Coordination skill\n---\n\nContent here.",
     );
     let lib = load_library(&ship_dir).unwrap();
@@ -181,8 +181,8 @@ fn loads_skills_mixed_formats() {
     let tmp = TempDir::new().unwrap();
     let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
-    write(&ship_dir, ".ship/skills/flat-skill.md", "---\nname: Flat\n---\n\nFlat content.");
-    write(&ship_dir, ".ship/skills/dir-skill/SKILL.md", "---\nname: Dir\n---\n\nDir content.");
+    write(&ship_dir, "skills/flat-skill.md", "---\nname: Flat\n---\n\nFlat content.");
+    write(&ship_dir, "skills/dir-skill/SKILL.md", "---\nname: Dir\n---\n\nDir content.");
     let lib = load_library(&ship_dir).unwrap();
     assert_eq!(disk_skills(&lib.skills).len(), 2);
 }

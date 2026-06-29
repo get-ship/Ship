@@ -183,6 +183,7 @@ mod sdk_skill_tests {
     use super::*;
 
     #[test]
+    #[ignore = "embedded SDK skills disabled until ship-contracts publishes a ship-sdk-skills crate; see embedded_capability_skills() and the commented include_dir!"]
     fn embedded_capability_skills_present_and_parsed() {
         let skills = embedded_capability_skills();
         assert!(
@@ -201,6 +202,7 @@ mod sdk_skill_tests {
     }
 
     #[test]
+    #[ignore = "embedded SDK skills disabled until ship-contracts publishes a ship-sdk-skills crate; see embedded_skill_reference_files()"]
     fn embedded_skill_reference_pages_are_available() {
         let refs = embedded_skill_reference_files("ship-pipelines");
         assert!(!refs.is_empty(), "ship-pipelines ships per-op reference pages");
@@ -217,6 +219,7 @@ mod sdk_skill_tests {
     }
 
     #[test]
+    #[ignore = "embedded SDK skills disabled until ship-contracts publishes a ship-sdk-skills crate; the compile pool is disk-only until then"]
     fn compile_pool_includes_embedded_for_a_clean_project() {
         // A project with no skills on disk still gets the capability-skills in
         // its compile pool — the bundling that makes `ship ops` work outside the

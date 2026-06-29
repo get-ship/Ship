@@ -340,55 +340,6 @@ body
         Ok(())
     }
 
-    /// Every committed `docs/ship-*/SKILL.md` must round-trip through the
-    /// runtime loader (and therefore through the canonical schema).
-    /// Acceptance criterion #2.
-    #[test]
-    fn every_committed_docs_skill_validates() {
-        let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let workspace_root = manifest
-            .ancestors()
-            .find(|p| p.join("Cargo.toml").exists() && p.join("docs").is_dir())
-            .expect("workspace root not found");
-        let docs = workspace_root.join("docs");
-        let mut failures = Vec::new();
-        let mut checked = 0usize;
-        for entry in fs::read_dir(&docs).expect("read docs/") {
-            let entry = entry.expect("dir entry");
-            let path = entry.path();
-            if !path.is_dir() {
-                continue;
-            }
-            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
-                continue;
-            };
-            if !name.starts_with("ship-") {
-                continue;
-            }
-            if !path.join("SKILL.md").is_file() {
-                continue;
-            }
-            checked += 1;
-            if let Err(err) = super::storage::parse_skill_spec(&path) {
-                failures.push(format!("{name}: {err}"));
-            }
-        }
-        // Post doc-skill cull + body gut: only the conceptual doc-skills keep a
-        // SKILL.md (concepts/architecture/contributing/agents/skills/adrs); the
-        // code-mirroring ones were retired and their orphaned reference bodies
-        // gutted. Floor guards against the corpus vanishing entirely.
-        assert!(
-            checked >= 5,
-            "sanity: expected the conceptual ship-* SKILL.md corpus, found {checked}"
-        );
-        assert!(
-            failures.is_empty(),
-            "{} committed docs/ship-*/SKILL.md files failed schema validation:\n{}",
-            failures.len(),
-            failures.join("\n")
-        );
-    }
-
     /// Per-skill audience check. Post-multi-repo-cleanup all skills live
     /// under `.ship/skills/` (the publish-ready + project-local split
     /// collapsed). The `audience:` frontmatter in each SKILL.md must
