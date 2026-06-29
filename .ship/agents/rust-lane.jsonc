@@ -11,8 +11,9 @@
   "skills": {
     // ship-coordination never existed on this line; ship-schema-reference was a
     // code-mirror doc-skill retired in the docs cull. Rust Lane drives off its
-    // inline rules + the bundled SDK capability-skills + the `ship` MCP server.
-    "refs": [],
+    // inline rules + the bundled SDK capability-skills + the `ship` MCP server,
+    // plus working-in-helm (the shared workflow methodology every agent carries).
+    "refs": ["working-in-helm"],
   },
   "mcp": {
     "servers": ["ship"],

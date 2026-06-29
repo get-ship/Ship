@@ -11,10 +11,8 @@
   },
   "skills": {
     "refs": [
+      "working-in-helm",
       "ship-views",
-      "ship-skills",
-      "ship-agents",
-      "ship-pipelines",
       "trigger-authoring",
       "ship-design-system",
       "ship-components"

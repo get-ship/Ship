@@ -10,7 +10,7 @@
     "tags": ["testing", "unit-tests", "integration", "quality"],
   },
   "skills": {
-    "refs": ["tdd"],
+    "refs": ["working-in-helm", "tdd"],
   },
   "mcp": {
     "servers": [],
