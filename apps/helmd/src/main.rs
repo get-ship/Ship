@@ -78,6 +78,10 @@ pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/ship.internal.v1.mod.rs"));
 }
 
+// The `ship.ops.v1.AgentsService` read surface — helmd's first substrate-backed
+// wire (see module + Cargo.toml LEAF PROOF note).
+mod agents;
+
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -865,6 +869,12 @@ async fn main() -> anyhow::Result<()> {
     // Second wire on the same dev-RPC daemon: the harness compiler over the
     // `compiler` leaf. Helm dials this as a second client alongside GitService.
     let connect = Arc::new(HarnessImpl).register(connect);
+    // Third wire: the `ship.ops.v1.AgentsService` READ surface (List/Get/
+    // Sessions) over the `ship-agents` substrate. helmd implements the core
+    // `AgentsHost` trait and calls the LEAN mount — no grant (ship-auth), no
+    // watch (ship-reactive), no dispatch. This is the first substrate-backed
+    // wire on helmd; see `agents.rs` + Cargo.toml LEAF PROOF.
+    let connect = agents::mount(connect)?;
 
     // CORS so the browser — Helm's SPA, served by Hono on another origin (e.g.
     // http://localhost:3000) — can dial GitService directly in dev. Connect-web
@@ -886,7 +896,8 @@ async fn main() -> anyhow::Result<()> {
         "helmd listening on {addr} \
          (POST /ship.internal.v1.GitService/{{Overview,Land,Release,Footprint,Diff,\
          RepoStatus,ListWorktrees,CreateWorktree,JobBranches,DeleteBranch,RemoveWorktree}}, \
-         /ship.internal.v1.HarnessService/{{ListHarnesses,Compile}}, CORS on)"
+         /ship.internal.v1.HarnessService/{{ListHarnesses,Compile}}, \
+         /ship.ops.v1.AgentsService/{{List,Get,Sessions}} (reads), CORS on)"
     );
     axum::serve(listener, app)
         .with_graceful_shutdown(async {

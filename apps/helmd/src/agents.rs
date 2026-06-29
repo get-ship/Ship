@@ -1,0 +1,213 @@
+//! `ship.ops.v1.AgentsService` read surface for helmd — the moment helmd stops
+//! being leaf-clean and becomes a real SECOND consumer of the ship substrate.
+//!
+//! Unlike the git + harness wires (which ride compiler-free / pure-transform
+//! leaves), AgentsService is owned by `ship-agents` (L1), so mounting it pulls
+//! the substrate into helmd's graph. helmd serves only the **read** methods
+//! (List / Get / Sessions) by implementing the *core* [`AgentsHost`] trait and
+//! calling the **lean** [`mount`](ship_agents::services::agents::host::mount).
+//!
+//! The lean mount means helmd does NOT implement `AgentsGrantHost`
+//! (ship-auth) or `AgentsWatchHost` (ship-reactive): the grant path returns
+//! `unimplemented`, the watch path returns `unavailable`, and the four
+//! daemon-side ports (`AgentDispatchPort` / `FeedbackAuthPort` /
+//! `ViewBroadcastPort` / `CollectionPersistPort`) are trivial no-op adapters —
+//! reads never call them. `AgentsServiceImpl` reads agent-profile FILES only;
+//! it touches no db.
+
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use async_trait::async_trait;
+use connectrpc::{ConnectError, RequestContext, Router as ConnectRouter};
+use tokio::sync::Mutex;
+
+use ship_agents::services::agents::annotation::{CollectionError, CollectionPersistPort};
+use ship_agents::services::agents::dispatch_core::AgentDispatchPort;
+use ship_agents::services::agents::feedback::{ViewBroadcastError, ViewBroadcastPort};
+use ship_agents::services::agents::host::{AgentsHost, mount as mount_agents_wire};
+use ship_agents::services::agents::rpc_wire::FeedbackAuthPort;
+use ship_agents::services::agents::service::{AgentsService, AgentsServiceImpl};
+use ship_agents::services::rules::wire::GateFn;
+use ship_substrate_core::ShipHome;
+use ship_substrate_core::events::validator::EmitContext;
+use ship_substrate_core::events::{EventEnvelope, KernelRouter, init_kernel_router};
+use ship_substrate_core::ports::KernelLog;
+
+/// Lean `AgentsHost` for helmd — backs the read methods only.
+#[derive(Clone)]
+pub struct HelmAgentsHost {
+    agents:        Arc<dyn AgentsService>,
+    ship_dir:      PathBuf,
+    workspace_dir: Option<PathBuf>,
+    kernel:        Arc<Mutex<KernelRouter>>,
+}
+
+impl HelmAgentsHost {
+    /// Build the host from the substrate's path helpers.
+    ///
+    /// * user root  — `~/.ship` (or `$SHIP_HOME`) via [`ShipHome::from_env`].
+    /// * project    — the enclosing project's `.ship/` discovered from cwd
+    ///   (the ship repo when helmd is launched inside it). `None` → user-only.
+    pub fn new() -> anyhow::Result<Self> {
+        // User scope: resolve `~/.ship` via the substrate home helper — never
+        // hardcode the literal path.
+        let ship_dir = ShipHome::from_env().root().to_path_buf();
+
+        // Project scope: the enclosing project's `.ship/` dir (walks ancestors
+        // from cwd, follows worktree pointers). `with_roots` wants the project
+        // `.ship` dir; `workspace_dir()` wants the repo root above it.
+        let project_ship_dir = ship_substrate_core::project::get_project_dir(None).ok();
+        let workspace_dir = project_ship_dir
+            .as_deref()
+            .and_then(|p| p.parent().map(PathBuf::from));
+
+        let agents: Arc<dyn AgentsService> =
+            Arc::new(AgentsServiceImpl::with_roots(ship_dir.clone(), project_ship_dir));
+
+        // The core trait REQUIRES a `KernelRouter` even though the read methods
+        // never emit. The only public constructor eagerly provisions
+        // `runtime.db` under `base_dir`, so we root it at the user ship dir —
+        // the same db shipd uses. (Friction: a read-only consumer still pays
+        // the kernel/db provisioning cost — see the LEAF PROOF note in
+        // Cargo.toml.)
+        let kernel = init_kernel_router(ship_dir.clone())
+            .map_err(|e| anyhow::anyhow!("helmd kernel router init failed: {e}"))?;
+
+        Ok(Self { agents, ship_dir, workspace_dir, kernel })
+    }
+}
+
+impl AgentsHost for HelmAgentsHost {
+    fn agents_arc(&self) -> Arc<dyn AgentsService> {
+        self.agents.clone()
+    }
+
+    fn ship_dir(&self) -> PathBuf {
+        self.ship_dir.clone()
+    }
+
+    fn kernel_router(&self) -> Arc<Mutex<KernelRouter>> {
+        self.kernel.clone()
+    }
+
+    fn workspace_dir(&self) -> Option<PathBuf> {
+        self.workspace_dir.clone()
+    }
+
+    fn agent_def_kernel(&self) -> Option<Arc<KernelLog>> {
+        // No agent reactive registry on helmd — the write-path notifier falls
+        // back to a fresh `KernelLog` over `kernel_router()`. Reads never reach
+        // this.
+        None
+    }
+
+    fn dispatch_port(&self) -> Arc<dyn AgentDispatchPort> {
+        Arc::new(NoopDispatch)
+    }
+
+    fn feedback_auth(&self) -> Arc<dyn FeedbackAuthPort> {
+        Arc::new(NoopFeedbackAuth)
+    }
+
+    fn view_broadcast(&self) -> Arc<dyn ViewBroadcastPort> {
+        Arc::new(NoopViewBroadcast)
+    }
+
+    fn collection(&self) -> Arc<dyn CollectionPersistPort> {
+        Arc::new(NoopCollection)
+    }
+
+    fn extract_approver(&self, _ctx: &RequestContext) -> Result<Option<String>, ConnectError> {
+        // helmd serves no grant path; anonymous is fine.
+        Ok(None)
+    }
+
+    // `dispatch_handle` is left as the trait default (`None`).
+}
+
+/// Mount the `ship.ops.v1.AgentsService` read surface onto `router` via the
+/// lean mount. A permissive gate is used — helmd is operator-local dev and
+/// serves reads only.
+pub fn mount(router: ConnectRouter) -> anyhow::Result<ConnectRouter> {
+    let host = HelmAgentsHost::new()?;
+    let gate: GateFn = Arc::new(|_ctx: &RequestContext, _op: &str| Ok(()));
+    Ok(mount_agents_wire(&host, gate, router))
+}
+
+// ── No-op daemon-side ports ────────────────────────────────────────────────
+//
+// All four ports are part of the core `AgentsHost` surface but are only
+// touched by write / orchestration / feedback / annotation methods, none of
+// which helmd serves. They return "not available" so a misrouted call fails
+// loudly rather than silently no-op'ing.
+
+/// Agent dispatch port — helmd serves no dispatch.
+struct NoopDispatch;
+
+#[async_trait]
+impl AgentDispatchPort for NoopDispatch {
+    async fn persist_and_route(&self, _envelope: &EventEnvelope) -> anyhow::Result<()> {
+        anyhow::bail!("agent dispatch not available on helmd")
+    }
+
+    fn daemon_origin(&self) -> String {
+        String::new()
+    }
+
+    fn worktrees_dir(&self) -> PathBuf {
+        PathBuf::new()
+    }
+
+    fn check_workspace_violation(
+        &self,
+        _ctx: &RequestContext,
+        _claimed_workspace: Option<&str>,
+    ) -> Option<String> {
+        None
+    }
+
+    fn space_id_for_workspace(&self, _workspace_label: &str) -> Option<String> {
+        None
+    }
+}
+
+/// Feedback auth port — helmd serves no feedback emit.
+struct NoopFeedbackAuth;
+
+impl FeedbackAuthPort for NoopFeedbackAuth {
+    fn extract(
+        &self,
+        _ctx: &RequestContext,
+    ) -> Result<(Option<String>, EmitContext), ConnectError> {
+        Err(ConnectError::unimplemented("feedback not available on helmd"))
+    }
+}
+
+/// View broadcast port — helmd serves no live view fan-out.
+struct NoopViewBroadcast;
+
+#[async_trait]
+impl ViewBroadcastPort for NoopViewBroadcast {
+    async fn broadcast_feedback(
+        &self,
+        _view_id: &str,
+        _payload: &serde_json::Value,
+    ) -> Result<(), ViewBroadcastError> {
+        Err(ViewBroadcastError::Other(
+            "view broadcast not available on helmd".to_string(),
+        ))
+    }
+}
+
+/// Collection persist port — helmd serves no annotation writes.
+struct NoopCollection;
+
+#[async_trait]
+impl CollectionPersistPort for NoopCollection {
+    async fn persist_annotation(&self, _row_bytes: &[u8]) -> Result<(), CollectionError> {
+        Err(CollectionError::PersistFailed(
+            "collections not available on helmd".to_string(),
+        ))
+    }
+}
