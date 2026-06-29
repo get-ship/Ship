@@ -2,27 +2,26 @@
 name: spawn-agent
 audience: internal
 stable-id: spawn-agent
-description: Dispatch a job to a specialist agent in a git worktree. Write the spec, create the worktree, launch the agent.
+description: Dispatch a specialist agent through Helm — helmd compiles, provisions the worktree, and launches the harness. A self-contained script is the fallback when the daemon is down.
 tags: [commander, dispatch, worktree]
 authors: [ship]
 ---
 
 # Dispatch
 
-Launch a specialist agent in a git worktree to execute a job. One command does everything.
+Dispatch a specialist agent to a job. **helmd owns dispatch** — it compiles the agent, provisions the worktree + branch, and launches the harness into a tmux tab you can attach to. Commander, the Launch UI, and the CLI are all clients of it.
 
 ## Hard rule for dispatched agents
 
 **NEVER push to a remote.** Agents commit locally to their branch. The orchestrator gates by reading the local worktree state. `git push` is a side-effect on a shared remote that requires explicit human authorization — never assume it. If a job spec ever says "push", treat it as a typo and stop at commit.
 
-## Usage
+## How to dispatch
 
-```bash
-bash .ship/skills/spawn-agent/scripts/dispatch.sh \
-  --slug <name> \
-  --agent <agent> \
-  --spec <path-to-spec>
-```
+**Primary — through Helm.** Call the `dispatch_job` MCP tool (or the Launch UI, or the `dispatch-portable.sh` CLI — all POST helmd). helmd compiles the agent, provisions the worktree, and launches the harness. You never create worktrees or compile configs yourself.
+
+**Fallback — only if helmd is down.** `scripts/dispatch.sh` does it all locally (worktree + compile + launch, no daemon). A degraded backup, not a parallel system — prefer Helm.
+
+The job params (MCP tool fields, or CLI flags on either script):
 
 | Flag | What |
 |------|------|
@@ -54,10 +53,9 @@ These are personal configuration — set in your shell profile, not in project f
 
 ## Workflow
 
-1. Write the job spec to `.artifacts/job-spec-<slug>.md`
-2. Run dispatch: `bash scripts/dispatch.sh --slug <slug> --agent <agent> --spec <path>`
-3. Dispatch creates worktree, compiles agent config, opens terminal
-4. Agent picks up `.artifacts/job-spec.md` on start and works autonomously
+1. Write the job spec — pass it to `dispatch_job`; for a working file use the mission scratch (`write_mission_scratch`), not a loose path.
+2. Call `dispatch_job` (or the CLI). helmd provisions the worktree + branch, compiles the agent config, and launches the harness.
+3. Watch it: `tmux attach -t ship-<slug>`, or in Mission Control. The agent picks up its spec and works autonomously.
 
 ## Job Spec Template
 
