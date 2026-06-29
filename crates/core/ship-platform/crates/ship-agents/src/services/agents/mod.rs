@@ -28,3 +28,4 @@ pub use dispatch_request::{DispatchRequest, billing_warning_for_axes, default_in
 pub use dispatch_resume::{ResumeOutcome, ResumeResolveError, load_and_validate_session_file, resolve_resume};
 pub use feedback::{FeedbackGuard, FeedbackError, ViewBroadcastPort, ViewBroadcastError, shared_guard, post_feedback};
 pub use rpc_wire::AgentsWire;
+pub use host::{AgentsGrantHost, AgentsHost, AgentsWatchHost, DispatchHandlePort};
