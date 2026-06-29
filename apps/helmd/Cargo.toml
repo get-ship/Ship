@@ -10,12 +10,26 @@
 # still resolves its own `workspace = true` inheritance against the ship root
 # workspace that `ship-git` belongs to.
 #
-# LEAF PROOF: domain deps are the LEAF crates ship-git + compiler (plus
-# connectrpc/buffa/axum/tokio). No ship-substrate proper, no kernel/runtime, no
-# store, no agent-def/ship-platform. `compiler` is itself an L0 pure transform
-# (serde/minijinja/toml), so mounting its wire keeps helmd leaf-clean — every
-# wire here is over a compiler-free OR pure-transform leaf. `cargo tree` proves
-# it: no ship-substrate/ship-kernel/ship-runtime/ship-store in the graph.
+# SUBSTRATE CONSUMER (was LEAF PROOF): two of helmd's wires are still over the
+# LEAF crates ship-git + compiler (compiler-free / pure-transform). The THIRD
+# wire — `ship.ops.v1.AgentsService` (read methods List/Get/Sessions) — is a
+# DELIBERATE substrate consumption: it is owned by `ship-agents` (L1), so
+# mounting it pulls the substrate into helmd's graph. helmd implements only the
+# *core* `AgentsHost` trait and calls the LEAN `mount` (no ship-auth/grant, no
+# ship-reactive/watch, no ship-code/dispatch). The lean trait keeps helmd's
+# DIRECT substrate dep at `ship-substrate-core` (not the heavy `ship-substrate`
+# facade) — see below.
+#
+# MONOLITH MEASUREMENT (spine 2a.1): although helmd only wants the lean read
+# path, `ship-agents`'s own Cargo.toml depends on the FULL `ship-substrate`
+# facade plus `ship-reactive`, `ship-auth`, `ship-device`, `ship-isolation`,
+# `ship-store`, `ship-terminal`, `ship-config`, `agent-def`, `ship-ops-rpc`,
+# `compiler`, … — so the heavy facade lands in helmd's TRANSITIVE graph
+# regardless of helmd's lean direct deps. The leaf-clean claim above is
+# therefore retired for the agents wire: `cargo tree` now shows
+# ship-substrate(-core)/ship-kernel/ship-store in the graph. Honest finding:
+# the substrate is too monolithic for a truly lean read-only consumer to stay
+# off the facade today; the split would need to reach UP into ship-agents.
 [package]
 name = "helmd"
 version = "0.1.0"
@@ -35,6 +49,23 @@ ship-git = { path = "../../crates/core/ship-git" }
 # ship.internal.v1.HarnessService wire. `cargo tree` must show only its pure
 # deps — the same leaf-clean contract ship-git holds.
 compiler = { path = "../../crates/core/compiler" }
+# Substrate consumer (spine 2a.1): the agent domain (L1). Backs the
+# `ship.ops.v1.AgentsService` read wire. NO `harness-drivers` feature — helmd
+# serves reads only, so the ship-code dispatch stack stays out. NOTE: this dep
+# transitively pulls the full `ship-substrate` facade + ship-reactive/ship-auth
+# (see MONOLITH MEASUREMENT in the header) even though helmd implements only the
+# lean `AgentsHost` core trait.
+ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
+# Lean substrate core (NOT the heavy `ship-substrate` facade) — for the types
+# helmd must name in its `AgentsHost` impl: `KernelRouter`, `KernelLog`,
+# `ShipHome`, `init_kernel_router`, `project::get_project_dir`. These are the
+# SAME types the facade re-exports, so naming them via the core keeps helmd's
+# direct dep lean. (The facade still arrives transitively via ship-agents.)
+ship-substrate-core = { path = "../../crates/core/ship-substrate-core" }
+# Forced by the daemon-side port traits (AgentDispatchPort / ViewBroadcastPort /
+# CollectionPersistPort are `#[async_trait]`); helmd implements trivial no-op
+# adapters for them. Pinned to the workspace version.
+async-trait = "0.1"
 # Connect-RPC runtime: `axum` to serve, `client` so the generated client type
 # also compiles (handy for a future in-process test).
 connectrpc = { version = "0.4", features = ["client", "axum"] }
@@ -52,7 +83,9 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 http-body = "1"
 http = "1"
 axum = { version = "0.8", features = ["macros"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
+# `sync` added for spine 2a.1: the `AgentsHost::kernel_router` accessor returns
+# `Arc<tokio::sync::Mutex<KernelRouter>>`, which helmd must name in its impl.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "sync"] }
 # CORS so the browser (Helm's SPA, served by Hono on another origin) can dial
 tower-http = { version = "0.6", features = ["cors"] }
 anyhow = "1.0"
