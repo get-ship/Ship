@@ -82,7 +82,7 @@ These are personal configuration — set in your shell profile, not in project f
 
 ## Constraints
 - Key constraints the agent must honor: <hard rules: never weaken guards/tests, never push, gate commands — or "none">
-- (Charter 2026-06-11: ADR/architecture-decision content is operator material — do NOT inject it into agent payloads. Constraints travel; rationale doesn't.)
+- (Operator rationale and architecture decisions are not agent payload — constraints travel; rationale doesn't.)
 
 ## Acceptance criteria
 

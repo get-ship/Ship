@@ -25,7 +25,7 @@ For HTML-blob cases (markdown rendering, third-party SVG generators, icon-pack s
 
 ## File layout
 
-The canonical view directory shape (see ADR `view-directory-convention`):
+The canonical view directory shape:
 
 ```
 views/<name>/                 # first-party view, baked into shipd
