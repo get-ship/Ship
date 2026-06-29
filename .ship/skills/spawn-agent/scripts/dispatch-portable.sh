@@ -57,6 +57,15 @@ NOBOOTSTRAP=false
 # in-tree toolchain. Opt in when the dispatched agent will edit ship source.
 SHIP_BOOTSTRAP=false
 
+# ── Build feedback: enable sccache so dispatched agents get fast incremental
+# Rust builds. Each worktree resolves its own ./target, so without a shared
+# cache an agent cold-builds the whole dep tree and can't self-verify within a
+# command timeout. sccache is installed but nothing wired it in. Respects a
+# pre-set RUSTC_WRAPPER; harmless for non-Rust agents.
+if command -v sccache >/dev/null 2>&1; then
+  export RUSTC_WRAPPER="${RUSTC_WRAPPER:-sccache}"
+fi
+
 # ── Parse args ────────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case "$1" in
