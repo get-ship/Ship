@@ -1,0 +1,33 @@
+// Claim collection — Helm's claim entity, repointed onto ship collections.
+//
+// Mirrors the shape of helm/data/claims/*.json (47 records). One row per claim
+// raised by a user, agent, or external system against a target. Claims can be
+// reconciled (a verdict + optional note + reference back to a downstream
+// intent) or archived (without reconciliation). The typed columns cover the
+// fields the spec lists as queryable; the nested `reconciliation` object rides
+// in the data payload as JSON (not flattened into columns) — see
+// `crates/core/ship-platform/crates/ship-collection/src/item_projection.rs` for
+// the object-as-JSON-text storage convention.
+//
+// Naming note: Helm's source field is `createdAt` (epoch ms). The substrate
+// reserves `created_at` / `updated_at` / `id` / `space_id` as base columns on
+// every collection table and `ship_collection::helpers::row_to_item` filters
+// those keys out of the read-back data, so a user-declared `created_at` field
+// is silently dropped on read. We use `claimed_at` here (same type & meaning)
+// to keep the epoch-ms column round-trippable. The Helm→Ship transform at
+// write time will map `createdAt` → `claimed_at`.
+{
+  "id": "claim",
+  "name": "Claims",
+  "fields": {
+    "kind":         { "type": "enum",   "values": ["bug", "request", "observation", "hitl"], "required": true, "filterable": true },
+    "by":           { "type": "enum",   "values": ["user", "agent", "external"], "required": true, "filterable": true },
+    "target":       { "type": "string", "required": true, "filterable": true },
+    "version":      { "type": "string", "required": true, "filterable": true },
+    "body":         { "type": "string", "required": true },
+    "status":       { "type": "enum",   "values": ["open", "reconciled", "archived"], "required": true, "filterable": true, "default": "open" },
+    "claimed_at":   { "type": "number", "required": true, "filterable": true, "sortable": true },
+    "archived_at":  { "type": "string" },
+    "reconciliation": { "type": "object" }
+  }
+}
