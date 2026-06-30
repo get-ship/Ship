@@ -105,8 +105,9 @@ ship-substrate = { path = "../../crates/core/ship-substrate", optional = true }
 # L0 event/identity types — `SpaceId` (the event-scope identity, distinct from
 # the substrate `ports::SpaceId`) named by the dispatch port's persist+route.
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types", optional = true }
-# Structured logging on the platform cleanup/mint paths (mirrors shipd).
-tracing = { version = "0.1", optional = true }
+# Structured logging — non-optional since the always-on collections wire
+# (and the spine-2b dispatch paths) log through it.
+tracing = { version = "0.1" }
 
 # Forced by the daemon-side port traits (AgentDispatchPort / ViewBroadcastPort /
 # CollectionPersistPort are `#[async_trait]`); helmd implements trivial no-op
@@ -169,7 +170,6 @@ ship-code = [
     "dep:ship-auth-types",
     "dep:ship-substrate",
     "dep:ship-types",
-    "dep:tracing",
     "ship-agents/harness-drivers",
 ]
 

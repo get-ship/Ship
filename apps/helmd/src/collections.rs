@@ -86,3 +86,56 @@ pub fn mount(router: ConnectRouter) -> anyhow::Result<ConnectRouter> {
     tracing::info!(space = %space_id, "helmd: mounting ship.ops.v1.CollectionsService (space.db-backed)");
     Ok(ship_ops_rpc::CollectionsServiceExt::register(wire, router))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::install_collection_projection;
+    use std::sync::Arc;
+
+    use ship_collection::projection::SchemaRegistry;
+    use ship_collection::service::CollectionService;
+    use ship_substrate_core::data::DataService;
+    use ship_substrate_core::events::new_isolated_for_test;
+    use ship_substrate_core::testutil::init_project_minimal;
+    use ship_substrate_core::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+
+    /// Slice-0 gate: a `notes` item written through helmd's collection path
+    /// (its `install_collection_projection` + a space.db-bound `CollectionService`)
+    /// is read back immediately — the same emit-only round-trip helmd's
+    /// `CollectionsService` wire serves. Fully isolated: `init_project_minimal` +
+    /// `new_isolated_for_test` never touch `~/.ship`.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn notes_round_trips_through_helmd_collection_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ship_dir = init_project_minimal(tmp.path()).unwrap();
+
+        // helmd's production projection registration — the bit that makes
+        // collection.* events materialize their rows.
+        install_collection_projection();
+
+        let router = new_isolated_for_test(ship_dir.clone()).unwrap();
+        let kernel = Arc::new(KernelLog::new(router));
+        let space_db = ship_substrate_core::db::space_db_path(&ship_dir, "space-a");
+        let svc = DataService::open_at(&space_db).unwrap();
+        let store = Arc::new(SingleBackendDataStore::new(svc, "space-a"));
+        let ctx = Arc::new(SpaceContext::new(SpaceId::new("space-a"), store, kernel));
+        let cs = CollectionService { ctx, schemas: Arc::new(SchemaRegistry::new()) };
+
+        // `notes` is a built-in schema (title required).
+        let created = cs
+            .create_item("notes", br#"{"title":"slice0","content":"hello from helmd"}"#)
+            .await
+            .expect("create_item notes");
+        let got = cs
+            .get_item("notes", &created.id)
+            .await
+            .expect("get_item round-trips the just-written row");
+
+        assert_eq!(got.id, created.id);
+        assert_eq!(
+            got.data.get("title").and_then(|v| v.as_str()),
+            Some("slice0"),
+            "data_json round-trips through space.db"
+        );
+    }
+}
