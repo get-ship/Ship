@@ -813,20 +813,9 @@ mod tests {
     }
 
     // ── SQL-backed tests ─────────────────────────────────────────────────────
-    //
-    // IGNORED pending #59 (session model). The S5 storage scope-split surfaced a
-    // pre-existing bug: these tests write+read canonical_sessions through
-    // `open_runtime_db` (runtime.db), but session.* events are Space-scoped and
-    // route to `spaces/<id>/space.db`, where the projection actually writes (and
-    // where scope_schema now places the table). The runtime reader has therefore
-    // been reading an empty table in production all along. Re-point the reader
-    // (and these tests) to space.db, or remodel sessions as Runtime, under #59 —
-    // then drop the #[ignore]s below.
-    const _CANONICAL_SCOPE_NOTE: () = ();
 
     /// Full SQL round-trip: started -> turn.started -> turn.ended -> completed.
     #[test]
-    #[ignore = "pre-existing canonical_sessions reader scope bug — see section note + #59"]
     fn sql_full_lifecycle() {
         let mut conn = fresh_conn();
         let proj = CanonicalSessionProjection;
@@ -854,7 +843,6 @@ mod tests {
 
     /// SQL: suspended session has NULL ended_at.
     #[test]
-    #[ignore = "pre-existing canonical_sessions reader scope bug — see section note + #59"]
     fn sql_suspended_has_no_ended_at() {
         let mut conn = fresh_conn();
         let proj = CanonicalSessionProjection;
@@ -878,7 +866,6 @@ mod tests {
 
     /// SQL: idempotent insert — second started with same session_id is a no-op.
     #[test]
-    #[ignore = "pre-existing canonical_sessions reader scope bug — see section note + #59"]
     fn sql_started_idempotent() {
         let mut conn = fresh_conn();
         let proj = CanonicalSessionProjection;
@@ -903,7 +890,6 @@ mod tests {
 
     /// SQL: truncate clears the table.
     #[test]
-    #[ignore = "pre-existing canonical_sessions reader scope bug — see section note + #59"]
     fn sql_truncate_clears() {
         let mut conn = fresh_conn();
         let proj = CanonicalSessionProjection;
@@ -963,7 +949,6 @@ mod tests {
     /// canonical_sessions and is queryable by parent (canonical_emitter_migration
     /// requirement: load_canonical_sessions_by_parent must return composed sessions).
     #[test]
-    #[ignore = "pre-existing canonical_sessions reader scope bug — see section note + #59"]
     fn sql_pipeline_composed_session_folds_with_parent() {
         let mut conn = fresh_conn();
         let proj = CanonicalSessionProjection;
@@ -1003,7 +988,6 @@ mod tests {
 
     /// SQL: session without slug has None in slug column (backward-compat).
     #[test]
-    #[ignore = "pre-existing canonical_sessions reader scope bug — see section note + #59"]
     fn sql_session_without_slug_has_none() {
         let mut conn = fresh_conn();
         let proj = CanonicalSessionProjection;

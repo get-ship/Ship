@@ -23,8 +23,13 @@
 //!   runtime.db) and `durable_journals` (pipeline journal store).
 //! - Account: `auth_sessions` (auth.session.*), `daemon_owner` (daemon.owner.*),
 //!   `provisioned_grants` (agent.grants.provisioned).
-//! - Space: `canonical_sessions` (session.started/completed/failed/cancelled/
-//!   suspended), `project_compile_state` (compile.completed).
+//! - Space: `project_compile_state` (compile.completed).
+//!
+//! ONE exception to "scope = event primary_scope": `canonical_sessions` aggregates
+//! BOTH Space `session.*` and Runtime `session.turn.*` events, so its projection
+//! bypasses the bus's per-scope conn and opens its OWN runtime.db connection for
+//! every write (and its reader reads runtime.db). It is therefore classified by
+//! where `apply()` WRITES — Runtime — not by its (mixed) event scopes.
 //!
 //! Self-provisioning projections are deliberately ABSENT here: `collection_<id>`
 //! and the artifact metadata table are created on demand inside their own `apply`
@@ -269,6 +274,33 @@ END"#,
 )"#,
     "CREATE INDEX IF NOT EXISTS idx_projects_last_seen ON projects(last_seen_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path)",
+    // ── canonical_sessions ──────────────────────────────────────────────────────
+    // The agent-session ledger. Special case: it aggregates BOTH Space-scoped
+    // session.* AND Runtime-scoped session.turn.* events, so CanonicalSessionProjection
+    // deliberately bypasses the per-scope bus conn (which may be a space.db) and
+    // opens its OWN runtime.db connection for every write. Its reader reads
+    // runtime.db. So the table is Runtime — classified by where apply() WRITES,
+    // not by the (mixed) scope of its events.
+    r#"CREATE TABLE IF NOT EXISTS canonical_sessions (
+  session_id   TEXT PRIMARY KEY NOT NULL,
+  space_id     TEXT NOT NULL,
+  agent_id     TEXT NOT NULL,
+  harness      TEXT NOT NULL,
+  model        TEXT,
+  status       TEXT NOT NULL,
+  input        TEXT,
+  parent       TEXT,
+  turn_count   INTEGER NOT NULL DEFAULT 0,
+  started_at   TEXT NOT NULL,
+  ended_at     TEXT,
+  outcome      TEXT,
+  reason       TEXT,
+  slug TEXT
+)"#,
+    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_agent  ON canonical_sessions(agent_id)",
+    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_slug   ON canonical_sessions(slug)",
+    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_space  ON canonical_sessions(space_id)",
+    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_status ON canonical_sessions(status)",
 ];
 
 /// Account projections — applied ONLY to `account.db`. The portable identity
@@ -305,31 +337,11 @@ pub const ACCOUNT_DDL: &[&str] = &[
 )"#,
 ];
 
-/// Space projections — applied to every `spaces/<id>/space.db`. Per-space agent
-/// session ledger and the per-space compile state. (Collections + artifact
-/// metadata are NOT here — their projections self-provision their tables.)
+/// Space projections — applied to every `spaces/<id>/space.db`. The per-space
+/// compile state. (canonical_sessions is NOT here: its projection bypasses the
+/// per-scope bus conn and writes to runtime.db — see RUNTIME_DDL. Collections +
+/// artifact metadata are NOT here either — their projections self-provision.)
 pub const SPACE_DDL: &[&str] = &[
-    // canonical_sessions (session.started/completed/failed/cancelled/suspended)
-    r#"CREATE TABLE IF NOT EXISTS canonical_sessions (
-  session_id   TEXT PRIMARY KEY NOT NULL,
-  space_id     TEXT NOT NULL,
-  agent_id     TEXT NOT NULL,
-  harness      TEXT NOT NULL,
-  model        TEXT,
-  status       TEXT NOT NULL,
-  input        TEXT,
-  parent       TEXT,
-  turn_count   INTEGER NOT NULL DEFAULT 0,
-  started_at   TEXT NOT NULL,
-  ended_at     TEXT,
-  outcome      TEXT,
-  reason       TEXT,
-  slug TEXT
-)"#,
-    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_agent  ON canonical_sessions(agent_id)",
-    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_slug   ON canonical_sessions(slug)",
-    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_space  ON canonical_sessions(space_id)",
-    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_status ON canonical_sessions(status)",
     // project_compile_state (compile.completed)
     r#"CREATE TABLE IF NOT EXISTS project_compile_state (
   space_id          TEXT PRIMARY KEY NOT NULL,
@@ -400,11 +412,12 @@ mod tests {
             "pipeline_runs",
             "pipeline_step_runs",
             "projects",
+            "canonical_sessions",
         ] {
             assert!(tables.contains(&expected.to_string()), "runtime missing {expected}; got {tables:?}");
         }
         // Account/Space tables must NOT leak into runtime.db.
-        for forbidden in ["auth_sessions", "daemon_owner", "provisioned_grants", "canonical_sessions", "project_compile_state", "kv_state"] {
+        for forbidden in ["auth_sessions", "daemon_owner", "provisioned_grants", "project_compile_state", "kv_state"] {
             assert!(!tables.contains(&forbidden.to_string()), "{forbidden} must not be in runtime.db");
         }
     }
@@ -424,9 +437,9 @@ mod tests {
         let mut tables = tables_for(EventScope::Space).await;
         tables.sort();
         let mut want = base();
-        want.extend(["canonical_sessions", "project_compile_state"].map(String::from));
+        want.extend(["project_compile_state"].map(String::from));
         want.sort();
-        assert_eq!(tables, want, "space.db = base + canonical_sessions/project_compile_state only");
+        assert_eq!(tables, want, "space.db = base + project_compile_state only");
     }
 
     #[tokio::test]
