@@ -16,7 +16,6 @@ pub mod projects;
 pub mod envelope;
 pub mod events;
 pub mod integrity;
-mod migrate;
 pub mod scope_schema;
 pub mod events_scope_reconcile;
 #[cfg(test)]
@@ -205,35 +204,51 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     block_on(async { sqlx::query("PRAGMA busy_timeout = 5000").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
 
-    // Pre-migration column reconcile. The `events` partition column lives in
-    // the living 0001 baseline (edited in place, not a forward migration), so
-    // existing DBs carry a legacy single key column (`space_id`, or the older
-    // `project_id`/`workspace_id`). Add + backfill the `(scope, scope_key)`
-    // tuple here, before sqlx_migrate inspects schema, so the canonical insert
-    // path (`INSERT INTO events (... scope, scope_key ...)`) succeeds on
-    // existing installs without touching user data.
+    // Apply the per-scope schema. `scope_schema` is the single source of truth:
+    // the universal base (events log + cursors) for every db, plus the runtime
+    // projections when (and only when) this is `runtime.db`. The scope is
+    // recovered losslessly from the canonical db filename — the same filenames
+    // `PartitionedSink::route` writes to — so this round-trips the scope the
+    // writer started with. The DDL is idempotent (`CREATE ... IF NOT EXISTS`)
+    // and re-applied on every open: there is NO `_sqlx_migrations` version log,
+    // so there is nothing to drift (this replaced the tolerant migrate runner).
+    // `kv.db` is not an event db; it keeps its own `migrations_kv/` dir.
+    let scope = scope_for_path(path);
+    for stmt in scope_schema::scope_schema(scope) {
+        block_on(async { sqlx::query(stmt).execute(&mut conn).await })
+            .with_context(|| format!("apply scope schema on {} ({scope:?})", path.display()))?;
+    }
+
+    // Existing-db reconcile, AFTER the idempotent DDL so it always sees an
+    // `events` table. The `(scope, scope_key)` tuple and the Phase-2 author/
+    // signature columns live in the living base DDL — a fresh db already has
+    // them (both reconciles no-op), while an older db created from a legacy
+    // baseline (`space_id`/`project_id`/`workspace_id`, or a 15-col events
+    // table) gets the columns added + backfilled here without touching data.
     events_scope_reconcile::reconcile_events_scope_columns(&mut conn).with_context(|| {
         format!("events scope/scope_key reconcile failed on {}", path.display())
     })?;
-
-    // Additive Phase-2 author-identity + signature columns. Same living-baseline
-    // posture as the scope reconcile: add the columns to a pre-existing events
-    // table if absent (fresh DBs already have them from the 0001 DDL).
     events_scope_reconcile::reconcile_events_author_columns(&mut conn).with_context(|| {
         format!("events author-columns reconcile failed on {}", path.display())
     })?;
 
-    // Tolerant migration pass — see `db::migrate`. It relaxes a `_sqlx_migrations`
-    // log that is ahead of this binary, and — while PRE_LAUNCH_REBASELINE is true
-    // — re-baselines an edited applied migration's checksum with a WARN. A dirty
-    // (partially-applied) migration still hard-errors. On failure, refuse to
-    // start; never delete user data.
-    if let Err(e) = block_on_anyhow(migrate::run_tolerant(&mut conn)) {
-        tracing::error!("migration failed on {}: {e}", path.display());
-        return Err(anyhow!("migration failed on {}: {e}", path.display()));
-    }
-
     Ok(())
+}
+
+/// Recover the [`EventScope`](crate::events::EventScope) of an event db from its
+/// canonical filename. The per-scope resolvers (`runtime_db_path` /
+/// `account_db_path` / `space_db_path`) and `PartitionedSink::route` produce
+/// exactly these three filenames, so this round-trips the scope the writer
+/// started with — no signature threading required. Any other path defaults to
+/// Runtime (the full schema): a fail-safe so an arbitrary-path caller (e.g. a
+/// test db at `scope.db`) is never under-provisioned.
+fn scope_for_path(path: &Path) -> crate::events::EventScope {
+    use crate::events::EventScope;
+    match path.file_name().and_then(|n| n.to_str()) {
+        Some(name) if name == ACCOUNT_DB_FILE => EventScope::Account,
+        Some(name) if name == SPACE_DB_FILE => EventScope::Space,
+        _ => EventScope::Runtime,
+    }
 }
 
 /// Open a connection to a specific database path (no migration run, never

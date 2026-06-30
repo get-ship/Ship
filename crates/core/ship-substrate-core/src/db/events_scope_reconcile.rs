@@ -1,19 +1,20 @@
-//! One-shot pre-migration fixup: bring an existing `events` table up to the
+//! Existing-DB column fixup: bring an older `events` table up to the
 //! `(scope, scope_key)` partition tuple (D0).
 //!
-//! Why this lives outside `migrations/`: the `events` partition column is part
-//! of the *living* `0001` baseline — its shape is edited in place rather than
-//! appended as a versioned migration, which would trip the strict runner's
-//! "applied migration was modified" guard (see `db::migrate`). Existing DBs
-//! created from an older baseline carry the legacy single column
-//! (`space_id`, or the even older `project_id`/`workspace_id`); they need the
-//! `scope`/`scope_key` columns added and backfilled before `sqlx::migrate!`
-//! and the canonical `INSERT INTO events (... scope, scope_key ...)` run.
+//! Why this is needed alongside [`scope_schema`](crate::db::scope_schema): the
+//! base DDL creates the `events` table with the full column set, but only with
+//! `CREATE TABLE IF NOT EXISTS` — so a db created from an older baseline (which
+//! carries the legacy single key column `space_id`, or the even older
+//! `project_id`/`workspace_id`) is left untouched by the DDL and still lacks the
+//! tuple. This module adds + backfills the `scope`/`scope_key` columns so the
+//! canonical `INSERT INTO events (... scope, scope_key ...)` succeeds on such a
+//! db. It runs in `ensure_db_at_path` AFTER the idempotent DDL, so the `events`
+//! table is always present.
 //!
 //! Contract:
-//! * No-op when the `events` table is absent (fresh DB — sqlx_migrate creates
-//!   it from the canonical 0001 schema, which already has the tuple).
-//! * No-op when `events.scope` already exists.
+//! * No-op when the `events` table is absent (DDL not yet applied).
+//! * No-op when `events.scope` already exists (fresh DB — the base DDL gave it
+//!   the tuple).
 //! * Otherwise: add `scope` + `scope_key`, map the legacy key column
 //!   (`space_id`/`project_id`/`workspace_id`) → `(Space, <key>)`, and infer the
 //!   scope of keyless rows from the event-type registry (Account events;
