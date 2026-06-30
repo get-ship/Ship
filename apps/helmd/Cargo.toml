@@ -63,6 +63,17 @@ ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 # direct dep lean. (The facade still arrives transitively via ship-agents.)
 ship-substrate-core = { path = "../../crates/core/ship-substrate-core" }
 
+# ── collections (S5 dogfood cutover, Slice 0): helmd serves CollectionsService ──
+# helmd's next substrate service after AgentsService — event-sourced typed
+# collections over the active space's `spaces/<id>/space.db`. ship-collection
+# owns CollectionWire + CollectionItemProjection; ship-store hydrates the
+# user `.ship/collections/*.jsonc` schemas; ship-ops-rpc carries the generated
+# CollectionsServiceExt. All already in helmd's transitive graph via ship-agents;
+# named directly here to register the projection + mount the wire.
+ship-collection = { path = "../../crates/core/ship-platform/crates/ship-collection" }
+ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
+ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
+
 # ── spine 2b: REAL agent dispatch (the ship-code consumer construction) ──────
 # All gated behind the `ship-code` feature (default ON). With the feature OFF
 # every one of these is absent and helmd is back to the lean 2a.1 read path.

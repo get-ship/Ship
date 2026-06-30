@@ -81,6 +81,9 @@ pub mod proto {
 // The `ship.ops.v1.AgentsService` read surface — helmd's first substrate-backed
 // wire (see module + Cargo.toml LEAF PROOF note).
 mod agents;
+// ship.ops.v1.CollectionsService — helmd's next substrate service (S5 dogfood
+// cutover, Slice 0): event-sourced typed collections over the active space.db.
+mod collections;
 // Real agent-dispatch runtime (spine 2b) — the ship-code consumer construction
 // that actually spawns agents. Gated: the lean read path in `agents` works with
 // the feature OFF (NoopDispatch + dispatch_handle == None).
@@ -870,6 +873,11 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
+    // Register the collection projection BEFORE any kernel store is constructed,
+    // so `collection.*` events materialize their rows (the per-scope bus reads
+    // the projection factory when it first opens a store).
+    collections::install_collection_projection();
+
     let connect = Router::new();
     let connect = Arc::new(GitImpl).register(connect);
     // Second wire on the same dev-RPC daemon: the harness compiler over the
@@ -891,6 +899,10 @@ async fn main() -> anyhow::Result<()> {
         format!("http://{shown}")
     };
     let connect = agents::mount(connect, daemon_origin)?;
+    // Fourth wire: `ship.ops.v1.CollectionsService` over the active space's
+    // `space.db` (S5 dogfood cutover, Slice 0). Skipped (with a WARN) when no
+    // active space is discoverable.
+    let connect = collections::mount(connect)?;
 
     // CORS so the browser — Helm's SPA, served by Hono on another origin (e.g.
     // http://localhost:3000) — can dial GitService directly in dev. Connect-web
