@@ -17,6 +17,7 @@ pub mod envelope;
 pub mod events;
 pub mod integrity;
 mod migrate;
+pub mod scope_schema;
 pub mod events_scope_reconcile;
 #[cfg(test)]
 mod events_tests;
