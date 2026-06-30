@@ -3,34 +3,44 @@
 //!
 //! ## Why this exists
 //! Historically one `migrations/` dir was applied identically to every event db
-//! (`runtime.db`, `account.db`, every `spaces/<id>/space.db`). So each space.db
-//! carried the full ~18-table kitchen sink — ~15 of them runtime projections
-//! sitting permanently empty (The Storage Blueprint headline). This module
-//! replaces that with an explicit per-scope split: every event db gets the
-//! universal [`BASE_DDL`] (the `events` log + `cursors`), and only `runtime.db`
-//! additionally gets [`RUNTIME_DDL`] (the runtime projections). `account.db` and
-//! every `space.db` are base-only.
+//! (`runtime.db`, `account.db`, every `spaces/<id>/space.db`). So each db carried
+//! the full ~18-table kitchen sink — most of it projection tables sitting in the
+//! wrong db, permanently empty (The Storage Blueprint headline). This module
+//! replaces that with an explicit per-scope split.
+//!
+//! ## The classification rule
+//! All projections register into EVERY store's bus (`default_bus`); a projection's
+//! `apply` only fires in the db where a matching event *lands*. An event lands in
+//! its `primary_scope`'s db (via `PartitionedSink::route`). So:
+//!
+//!   **a projection table belongs in the scope(s) whose events its projection
+//!   consumes** — NOT "where it happened to sit before".
+//!
+//! Worked from the event registry (`register_event!`):
+//! - Runtime: `actors` (actor.*), `analytics_*` (op.tool_use_*, session.turn.ended,
+//!   actor.*), `projects` (project.registered/seen), `pipeline_runs`/
+//!   `pipeline_step_runs` (pipeline.*); plus `daemon_settings` (direct-write to
+//!   runtime.db) and `durable_journals` (pipeline journal store).
+//! - Account: `auth_sessions` (auth.session.*), `daemon_owner` (daemon.owner.*),
+//!   `provisioned_grants` (agent.grants.provisioned).
+//! - Space: `canonical_sessions` (session.started/completed/failed/cancelled/
+//!   suspended), `project_compile_state` (compile.completed).
+//!
+//! Self-provisioning projections are deliberately ABSENT here: `collection_<id>`
+//! and the artifact metadata table are created on demand inside their own `apply`
+//! (`CREATE TABLE IF NOT EXISTS`), so they materialize in whichever space.db their
+//! Space-scoped events land in. (S5.2 will move the static tables above to the
+//! same self-provisioning pattern; until then they are declared here.)
+//!
+//! `kv_state` is intentionally absent: it is the L2+ KV plane and lives in
+//! `kv.db`, not an event db.
 //!
 //! ## Mechanism
 //! The DDL is **idempotent** (`CREATE … IF NOT EXISTS`) and applied directly on
 //! every open, with no `_sqlx_migrations` version log — so there is nothing to
-//! drift, and a fresh db lands scope-correct in one pass. (`kv.db` keeps its own
-//! `migrations_kv/` dir; it is not an event db.) The DDL here is transcribed
+//! drift, and a fresh db lands scope-correct in one pass. The DDL is transcribed
 //! verbatim from the final assembled schema (post-migration shape), so projection
 //! writers see exactly the columns they wrote against before the squash.
-//!
-//! ## Scope ownership (mirrors `EventScope`)
-//! - **base** (every db): `events` (+ its 5 indexes + `events_immutable` trigger)
-//!   and `cursors`. The projection cursor table exists in EVERY per-scope db.
-//! - **runtime** (`runtime.db` only): actors, analytics×3, auth_sessions,
-//!   canonical_sessions, daemon_owner, daemon_settings, durable_journals,
-//!   pipeline_runs, pipeline_step_runs, project_compile_state, projects,
-//!   provisioned_grants — plus their indexes and the two `bump_actor_*` triggers.
-//! - **account** / **space**: base only. (Space read-model — `collection_<id>`,
-//!   `collection_artifacts` — is created dynamically by its projections, not here.)
-//!
-//! `kv_state` is intentionally absent: it is the L2+ KV plane and lives in
-//! `kv.db` (the former leak of it into every event db is cut here).
 //!
 //! Upholds inv-db-scope-partition (a scope's db carries only its scope's tables)
 //! and inv-db-per-scope-only.
@@ -86,11 +96,11 @@ END"#,
 )"#,
 ];
 
-/// Runtime projections — applied ONLY to `runtime.db`. These are the per-machine
-/// execution-state read-models (actors, sessions, pipelines, analytics, daemon
-/// config, grants). They were the kitchen-sink leak in account/space dbs.
+/// Runtime projections — applied ONLY to `runtime.db`. Per-machine execution
+/// state: actors, analytics, pipelines, the project registry; plus the
+/// direct-write `daemon_settings` and the pipeline `durable_journals` store.
 pub const RUNTIME_DDL: &[&str] = &[
-    // ── actors ────────────────────────────────────────────────────────────────
+    // ── actors (actor.* events) ─────────────────────────────────────────────────
     r#"CREATE TABLE IF NOT EXISTS actors (
   id                  TEXT PRIMARY KEY NOT NULL,
   kind                TEXT NOT NULL,
@@ -124,7 +134,8 @@ pub const RUNTIME_DDL: &[&str] = &[
     "CREATE INDEX IF NOT EXISTS idx_actors_status     ON actors(status)",
     "CREATE INDEX IF NOT EXISTS idx_actors_workspace  ON actors(workspace_id)",
     // The two actor activity-bump triggers fire on event append; they UPDATE
-    // `actors`, which is why both they and the table are runtime-scoped.
+    // `actors`, so they belong wherever actor.* events land (runtime.db) and
+    // nowhere else (account/space dbs have no `actors` table).
     r#"CREATE TRIGGER IF NOT EXISTS bump_actor_last_event_on_actor_id
 AFTER INSERT ON events
 WHEN NEW.actor_id IS NOT NULL
@@ -137,7 +148,7 @@ WHEN NEW.target_actor_id IS NOT NULL
 BEGIN
   UPDATE actors SET last_event_at = NEW.created_at WHERE id = NEW.target_actor_id;
 END"#,
-    // ── analytics ───────────────────────────────────────────────────────────────
+    // ── analytics (op.tool_use_*, session.turn.ended, actor.*) ───────────────────
     r#"CREATE TABLE IF NOT EXISTS analytics_sessions (
   session_key      TEXT PRIMARY KEY NOT NULL,
   actor_id         TEXT NOT NULL,
@@ -185,59 +196,19 @@ END"#,
     "CREATE INDEX IF NOT EXISTS idx_analytics_turns_model    ON analytics_turns(model)",
     "CREATE INDEX IF NOT EXISTS idx_analytics_turns_observed ON analytics_turns(observed_at)",
     "CREATE INDEX IF NOT EXISTS idx_analytics_turns_session  ON analytics_turns(session_key)",
-    // ── auth_sessions ───────────────────────────────────────────────────────────
-    r#"CREATE TABLE IF NOT EXISTS auth_sessions (
-  token            TEXT PRIMARY KEY NOT NULL,
-  agent_id         TEXT NOT NULL,
-  scopes_json      TEXT NOT NULL,
-  space_id       TEXT,
-  created_at_unix  INTEGER NOT NULL,
-  expires_at_unix  INTEGER NOT NULL,
-  revoked_at_unix  INTEGER,
-  source           TEXT NOT NULL,
-  updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
-)"#,
-    "CREATE INDEX IF NOT EXISTS idx_auth_sessions_active ON auth_sessions(token) WHERE revoked_at_unix IS NULL",
-    // ── canonical_sessions ──────────────────────────────────────────────────────
-    r#"CREATE TABLE IF NOT EXISTS canonical_sessions (
-  session_id   TEXT PRIMARY KEY NOT NULL,
-  space_id     TEXT NOT NULL,
-  agent_id     TEXT NOT NULL,
-  harness      TEXT NOT NULL,
-  model        TEXT,
-  status       TEXT NOT NULL,
-  input        TEXT,
-  parent       TEXT,
-  turn_count   INTEGER NOT NULL DEFAULT 0,
-  started_at   TEXT NOT NULL,
-  ended_at     TEXT,
-  outcome      TEXT,
-  reason       TEXT,
-  slug TEXT
-)"#,
-    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_agent  ON canonical_sessions(agent_id)",
-    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_slug   ON canonical_sessions(slug)",
-    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_space  ON canonical_sessions(space_id)",
-    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_status ON canonical_sessions(status)",
-    // ── daemon_owner / daemon_settings ──────────────────────────────────────────
-    r#"CREATE TABLE IF NOT EXISTS daemon_owner (
-  user_id        TEXT PRIMARY KEY NOT NULL,
-  bound_at_unix  INTEGER NOT NULL,
-  source         TEXT NOT NULL,
-  updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
-)"#,
+    // ── daemon_settings (direct-write, runtime.db) ───────────────────────────────
     r#"CREATE TABLE IF NOT EXISTS daemon_settings (
   key         TEXT PRIMARY KEY NOT NULL,
   value_json  TEXT NOT NULL,
   updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 )"#,
-    // ── durable_journals ────────────────────────────────────────────────────────
+    // ── durable_journals (pipeline journal store) ────────────────────────────────
     r#"CREATE TABLE IF NOT EXISTS durable_journals (
   run_id       TEXT PRIMARY KEY,
   journal_json TEXT NOT NULL,
   updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
 )"#,
-    // ── pipeline_runs / pipeline_step_runs ──────────────────────────────────────
+    // ── pipeline_runs / pipeline_step_runs (pipeline.* events) ───────────────────
     // `pipeline_runs` is a quoted identifier and its indexes keep their legacy
     // `idx_jobs_*` names (renamed-table lineage); preserved verbatim.
     r#"CREATE TABLE IF NOT EXISTS "pipeline_runs" (
@@ -286,16 +257,7 @@ END"#,
     "CREATE INDEX IF NOT EXISTS idx_pipeline_step_runs_run     ON pipeline_step_runs(run_id)",
     "CREATE INDEX IF NOT EXISTS idx_pipeline_step_runs_session ON pipeline_step_runs(session_id)",
     "CREATE INDEX IF NOT EXISTS idx_pipeline_step_runs_status  ON pipeline_step_runs(status)",
-    // ── project_compile_state / projects ────────────────────────────────────────
-    r#"CREATE TABLE IF NOT EXISTS project_compile_state (
-  space_id          TEXT PRIMARY KEY NOT NULL,
-  active_agent        TEXT,
-  compiled_at         TEXT NOT NULL,
-  ship_version        TEXT NOT NULL,
-  harness            TEXT,
-  plugins_installed_json TEXT NOT NULL DEFAULT '[]',
-  updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
-)"#,
+    // ── projects (project.registered / project.seen) ─────────────────────────────
     r#"CREATE TABLE IF NOT EXISTS projects (
   id            TEXT PRIMARY KEY NOT NULL,
   path          TEXT NOT NULL,
@@ -307,7 +269,33 @@ END"#,
 )"#,
     "CREATE INDEX IF NOT EXISTS idx_projects_last_seen ON projects(last_seen_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path)",
-    // ── provisioned_grants ──────────────────────────────────────────────────────
+];
+
+/// Account projections — applied ONLY to `account.db`. The portable identity
+/// plane (cloud-synced): auth sessions, daemon ownership binding, and the
+/// provisioned restricted-domain grants.
+pub const ACCOUNT_DDL: &[&str] = &[
+    // auth_sessions (auth.session.created/revoked/expired)
+    r#"CREATE TABLE IF NOT EXISTS auth_sessions (
+  token            TEXT PRIMARY KEY NOT NULL,
+  agent_id         TEXT NOT NULL,
+  scopes_json      TEXT NOT NULL,
+  space_id       TEXT,
+  created_at_unix  INTEGER NOT NULL,
+  expires_at_unix  INTEGER NOT NULL,
+  revoked_at_unix  INTEGER,
+  source           TEXT NOT NULL,
+  updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+)"#,
+    "CREATE INDEX IF NOT EXISTS idx_auth_sessions_active ON auth_sessions(token) WHERE revoked_at_unix IS NULL",
+    // daemon_owner (daemon.owner.bound/unbound)
+    r#"CREATE TABLE IF NOT EXISTS daemon_owner (
+  user_id        TEXT PRIMARY KEY NOT NULL,
+  bound_at_unix  INTEGER NOT NULL,
+  source         TEXT NOT NULL,
+  updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+)"#,
+    // provisioned_grants (agent.grants.provisioned)
     r#"CREATE TABLE IF NOT EXISTS provisioned_grants (
   agent_id     TEXT PRIMARY KEY NOT NULL,
   grants_json  TEXT NOT NULL,
@@ -317,15 +305,55 @@ END"#,
 )"#,
 ];
 
-/// The ordered, idempotent DDL for a given event scope: the universal base,
-/// plus the runtime projections when (and only when) the scope is `Runtime`.
-/// `Account` and `Space` are base-only. Order is dependency-safe (tables precede
-/// their indexes/triggers; `actors` precedes the `bump_actor_*` triggers).
+/// Space projections — applied to every `spaces/<id>/space.db`. Per-space agent
+/// session ledger and the per-space compile state. (Collections + artifact
+/// metadata are NOT here — their projections self-provision their tables.)
+pub const SPACE_DDL: &[&str] = &[
+    // canonical_sessions (session.started/completed/failed/cancelled/suspended)
+    r#"CREATE TABLE IF NOT EXISTS canonical_sessions (
+  session_id   TEXT PRIMARY KEY NOT NULL,
+  space_id     TEXT NOT NULL,
+  agent_id     TEXT NOT NULL,
+  harness      TEXT NOT NULL,
+  model        TEXT,
+  status       TEXT NOT NULL,
+  input        TEXT,
+  parent       TEXT,
+  turn_count   INTEGER NOT NULL DEFAULT 0,
+  started_at   TEXT NOT NULL,
+  ended_at     TEXT,
+  outcome      TEXT,
+  reason       TEXT,
+  slug TEXT
+)"#,
+    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_agent  ON canonical_sessions(agent_id)",
+    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_slug   ON canonical_sessions(slug)",
+    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_space  ON canonical_sessions(space_id)",
+    "CREATE INDEX IF NOT EXISTS idx_canonical_sessions_status ON canonical_sessions(status)",
+    // project_compile_state (compile.completed)
+    r#"CREATE TABLE IF NOT EXISTS project_compile_state (
+  space_id          TEXT PRIMARY KEY NOT NULL,
+  active_agent        TEXT,
+  compiled_at         TEXT NOT NULL,
+  ship_version        TEXT NOT NULL,
+  harness            TEXT,
+  plugins_installed_json TEXT NOT NULL DEFAULT '[]',
+  updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+)"#,
+];
+
+/// The ordered, idempotent DDL for a given event scope: the universal base, plus
+/// exactly that scope's projection tables. Order is dependency-safe (tables
+/// precede their indexes/triggers; `actors` precedes the `bump_actor_*`
+/// triggers).
 pub fn scope_schema(scope: EventScope) -> Vec<&'static str> {
     let mut ddl: Vec<&'static str> = BASE_DDL.to_vec();
-    if matches!(scope, EventScope::Runtime) {
-        ddl.extend_from_slice(RUNTIME_DDL);
-    }
+    let scoped = match scope {
+        EventScope::Runtime => RUNTIME_DDL,
+        EventScope::Account => ACCOUNT_DDL,
+        EventScope::Space => SPACE_DDL,
+    };
+    ddl.extend_from_slice(scoped);
     ddl
 }
 
@@ -334,8 +362,8 @@ mod tests {
     use super::*;
     use sqlx::{Connection, Row, SqliteConnection};
 
-    /// Apply a scope's DDL to a fresh in-memory db and return the set of
-    /// user table names (excludes sqlite internal + index/trigger objects).
+    /// Apply a scope's DDL to a fresh in-memory db and return the set of user
+    /// table names (excludes sqlite internal + index/trigger objects).
     async fn tables_for(scope: EventScope) -> Vec<String> {
         let mut conn = SqliteConnection::connect("sqlite::memory:").await.unwrap();
         for stmt in scope_schema(scope) {
@@ -353,66 +381,83 @@ mod tests {
         rows.into_iter().map(|r| r.get::<String, _>("name")).collect()
     }
 
-    #[tokio::test]
-    async fn base_scopes_are_events_log_only() {
-        // Account and Space carry ONLY the base: events + cursors. No runtime
-        // projection table may leak in (the kitchen-sink fix).
-        for scope in [EventScope::Account, EventScope::Space] {
-            let tables = tables_for(scope).await;
-            assert_eq!(
-                tables,
-                vec!["cursors".to_string(), "events".to_string()],
-                "{scope:?} must be base-only (events + cursors)"
-            );
-        }
+    fn base() -> Vec<String> {
+        vec!["cursors".to_string(), "events".to_string()]
     }
 
     #[tokio::test]
-    async fn runtime_carries_all_projections() {
+    async fn runtime_carries_runtime_projections_only() {
         let tables = tables_for(EventScope::Runtime).await;
-        // base
-        assert!(tables.contains(&"events".to_string()));
-        assert!(tables.contains(&"cursors".to_string()));
-        // every runtime projection
         for expected in [
+            "events",
+            "cursors",
             "actors",
             "analytics_sessions",
             "analytics_tool_uses",
             "analytics_turns",
-            "auth_sessions",
-            "canonical_sessions",
-            "daemon_owner",
             "daemon_settings",
             "durable_journals",
             "pipeline_runs",
             "pipeline_step_runs",
-            "project_compile_state",
             "projects",
-            "provisioned_grants",
         ] {
-            assert!(
-                tables.contains(&expected.to_string()),
-                "runtime.db missing projection table {expected}; got {tables:?}"
-            );
+            assert!(tables.contains(&expected.to_string()), "runtime missing {expected}; got {tables:?}");
         }
-        // kv_state is NOT an event-db table — it lives in kv.db. Cut from here.
-        assert!(
-            !tables.contains(&"kv_state".to_string()),
-            "kv_state must not leak into runtime.db (it belongs in kv.db)"
-        );
+        // Account/Space tables must NOT leak into runtime.db.
+        for forbidden in ["auth_sessions", "daemon_owner", "provisioned_grants", "canonical_sessions", "project_compile_state", "kv_state"] {
+            assert!(!tables.contains(&forbidden.to_string()), "{forbidden} must not be in runtime.db");
+        }
     }
 
     #[tokio::test]
-    async fn schema_is_idempotent() {
-        // Applying the full runtime schema twice must succeed (every statement
-        // is CREATE … IF NOT EXISTS) — the mechanism re-applies on every open.
-        let mut conn = SqliteConnection::connect("sqlite::memory:").await.unwrap();
-        for _pass in 0..2 {
-            for stmt in scope_schema(EventScope::Runtime) {
-                sqlx::query(stmt)
-                    .execute(&mut conn)
-                    .await
-                    .unwrap_or_else(|e| panic!("re-apply failed: {e}\n{stmt}"));
+    async fn account_carries_account_projections_only() {
+        let mut tables = tables_for(EventScope::Account).await;
+        tables.sort();
+        let mut want = base();
+        want.extend(["auth_sessions", "daemon_owner", "provisioned_grants"].map(String::from));
+        want.sort();
+        assert_eq!(tables, want, "account.db = base + auth_sessions/daemon_owner/provisioned_grants only");
+    }
+
+    #[tokio::test]
+    async fn space_carries_space_projections_only() {
+        let mut tables = tables_for(EventScope::Space).await;
+        tables.sort();
+        let mut want = base();
+        want.extend(["canonical_sessions", "project_compile_state"].map(String::from));
+        want.sort();
+        assert_eq!(tables, want, "space.db = base + canonical_sessions/project_compile_state only");
+    }
+
+    #[tokio::test]
+    async fn no_table_is_in_two_scopes() {
+        // Each projection table belongs to exactly one scope (base excepted) —
+        // catches a copy-paste leak across the per-scope DDL sets.
+        let runtime: std::collections::HashSet<_> = tables_for(EventScope::Runtime).await.into_iter().collect();
+        let account: std::collections::HashSet<_> = tables_for(EventScope::Account).await.into_iter().collect();
+        let space: std::collections::HashSet<_> = tables_for(EventScope::Space).await.into_iter().collect();
+        let base: std::collections::HashSet<_> = base().into_iter().collect();
+        let r = &runtime - &base;
+        let a = &account - &base;
+        let s = &space - &base;
+        assert!(r.is_disjoint(&a), "runtime/account overlap: {:?}", &r & &a);
+        assert!(r.is_disjoint(&s), "runtime/space overlap: {:?}", &r & &s);
+        assert!(a.is_disjoint(&s), "account/space overlap: {:?}", &a & &s);
+    }
+
+    #[tokio::test]
+    async fn schema_is_idempotent_for_every_scope() {
+        // Applying each scope's schema twice must succeed (every statement is
+        // CREATE … IF NOT EXISTS) — the mechanism re-applies on every open.
+        for scope in [EventScope::Runtime, EventScope::Account, EventScope::Space] {
+            let mut conn = SqliteConnection::connect("sqlite::memory:").await.unwrap();
+            for _pass in 0..2 {
+                for stmt in scope_schema(scope) {
+                    sqlx::query(stmt)
+                        .execute(&mut conn)
+                        .await
+                        .unwrap_or_else(|e| panic!("re-apply failed for {scope:?}: {e}\n{stmt}"));
+                }
             }
         }
     }
