@@ -8389,7 +8389,7 @@ dependencies = [
  "deno_core",
  "deno_error",
  "serde_json",
- "thiserror 2.0.18",
+ "thiserror 1.0.69",
  "tokio",
 ]
 

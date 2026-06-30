@@ -12,7 +12,7 @@ workspace = true
 # The L0 engines Floki runs on. durable-execution journals/resumes; ship-js
 # executes code-mode in a locked-down V8 isolate behind the `Dispatch` seam.
 durable-execution = { path = "../../../ship-substrate/crates/durable-execution" }
-ship-js = { path = "../../../ship-substrate/crates/ship-js", features = ["deno"] }
+ship-js = { path = "../../../../../../../Ship/ship-exec/crates/ship-js", features = ["deno"] }
 # The ONE agent definition both runtimes read.
 agent-def = { path = "../agent-def" }
 

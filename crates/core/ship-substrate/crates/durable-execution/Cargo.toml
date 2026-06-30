@@ -18,7 +18,10 @@ futures-util = { workspace = true }
 # engine — durable-execution CONSUMES ship-js. `default-features = false` takes
 # only the dispatch seam (no deno/V8); code-mode (deno) is activated by the
 # consumer (floki), not by a feature on this crate.
-ship-js = { path = "../ship-js", default-features = false }
+# ship-js now lives in the standalone ship-exec repo (#61 cutover): one canonical
+# home, no duplicate workspace member. Relative path anchored at ~/dev so it
+# resolves identically from the main checkout and an omp worktree (same depth).
+ship-js = { path = "../../../../../../../Ship/ship-exec/crates/ship-js", default-features = false }
 
 [dev-dependencies]
 # Only the tests need a runtime (`#[tokio::test]`); the engine itself is
