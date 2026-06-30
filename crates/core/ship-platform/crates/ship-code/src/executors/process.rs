@@ -592,7 +592,7 @@ impl SessionExecutor for ProcessExecutor {
         // (HarnessSandbox today). Container/VM strategies need an
         // Isolator lifecycle (prepare/shutdown) that the supervisor
         // doesn't own yet — they fall through with a warning.
-        let ship_dir = ctx.work_dir.join(".ship");
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(&ctx.work_dir);
         // Resolve this agent's optional `isolation:` override from
         // .ship/agents/<id>.jsonc here — L1 owns the config read so L0's
         // `decide()` stays config-free (closes the ship-isolation→ship-config

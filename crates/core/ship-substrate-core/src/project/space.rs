@@ -53,7 +53,7 @@ mod tests {
         // (ship.jsonc#id), NOT the path-hash.
         let tmp = tempdir().unwrap();
         let root = tmp.path().join("proj");
-        let ship_dir = root.join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(&root);
         fs::create_dir_all(&ship_dir).unwrap();
         fs::write(ship_dir.join("ship.jsonc"), r#"{"id": "test-content-id-abc"}"#).unwrap();
         fs::create_dir_all(root.join("src")).unwrap();
@@ -70,7 +70,7 @@ mod tests {
         // nanoid, writes it to ship.jsonc, and returns it.
         let tmp = tempdir().unwrap();
         let root = tmp.path().join("proj");
-        let ship_dir = root.join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(&root);
         fs::create_dir_all(&ship_dir).unwrap();
         fs::write(ship_dir.join("ship.jsonc"), "{}").unwrap();
         fs::create_dir_all(root.join("src")).unwrap();
@@ -112,7 +112,7 @@ mod tests {
         // return None (space-less) rather than panic or use the path-hash.
         let tmp = tempdir().unwrap();
         let root = tmp.path().join("proj");
-        fs::create_dir_all(root.join(".ship")).unwrap();
+        fs::create_dir_all(crate::ShipHome::project_ship_dir(&root)).unwrap();
         // Deliberately no ship.jsonc.
 
         assert_eq!(

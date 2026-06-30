@@ -93,6 +93,7 @@ use std::sync::Arc;
 use axum::http::StatusCode;
 use axum::routing;
 use connectrpc::{RequestContext, Response, Router, ServiceResult};
+use ship_substrate_core::ShipHome;
 use tokio::net::TcpListener;
 
 use proto::{
@@ -594,7 +595,7 @@ impl HarnessService for HarnessImpl {
     //
     // Pipeline (mirrors `ListHarnesses`'s use of the `compiler` leaf):
     //   1. Validate `repo_path` (the absolute path to the project tree).
-    //   2. `compiler::load_library(repo.join(".ship"))` — the leaf,
+    //   2. `compiler::load_library(ship_dir)` — the leaf,
     //      substrate-free loader added in this carve. Returns a
     //      `ProjectLibrary` (agents, mcp, skills, rules, permissions, hooks).
     //   3. `compiler::resolve_library(&lib, None, active_agent)` — turns
@@ -622,7 +623,7 @@ impl HarnessService for HarnessImpl {
             ));
         }
         let repo = PathBuf::from(&repo_path);
-        let ship_dir = repo.join(".ship");
+        let ship_dir = ShipHome::project_ship_dir(&repo);
 
         // Step 1: load the project library (LEAF — no substrate).
         let lib = compiler::load_library(&ship_dir).map_err(|e| {

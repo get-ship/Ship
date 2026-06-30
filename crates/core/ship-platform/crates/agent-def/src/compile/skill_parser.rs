@@ -225,7 +225,7 @@ mod sdk_skill_tests {
         // its compile pool — the bundling that makes `ship ops` work outside the
         // dev checkout.
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
 
         let pool = load_compile_skills(&ship_dir).unwrap();

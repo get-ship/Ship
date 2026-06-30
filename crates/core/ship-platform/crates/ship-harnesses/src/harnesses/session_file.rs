@@ -43,7 +43,7 @@ pub fn write_session_file(
     session_id: &str,
     agent: &str,
 ) -> std::io::Result<std::path::PathBuf> {
-    let ship_dir = work_dir.join(".ship");
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(work_dir);
     std::fs::create_dir_all(&ship_dir)?;
     let path = ship_dir.join("session.json");
     let file = SessionFile {
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn read_errors_on_malformed_file() {
         let tmp = TempDir::new().unwrap();
-        std::fs::create_dir_all(tmp.path().join(".ship")).unwrap();
+        std::fs::create_dir_all(ship_substrate::ShipHome::project_ship_dir(tmp.path())).unwrap();
         std::fs::write(tmp.path().join(SESSION_FILE_REL), "not json {").unwrap();
         let err = read_session_file(tmp.path()).unwrap_err();
         assert!(err.to_string().contains("malformed"), "got: {err}");

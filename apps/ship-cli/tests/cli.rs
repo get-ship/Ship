@@ -676,14 +676,14 @@ fn e2e_compile_with_dependency_skills() {
     // Set HOME to tmp so the cache is found at tmp/.ship/cache/objects/<hex>/
     write(
         tmp.path(),
-        &format!(".ship/cache/objects/{}/skills/cool-skill/SKILL.md", hex),
+        &format!("cache/objects/{}/skills/cool-skill/SKILL.md", hex),
         "---\nname: Cool Skill\ndescription: A cool dependency skill\n---\n\nYou are a cool skill. Follow best practices.",
     );
 
-    // Use ship_in for DB isolation and set HOME for cache resolution.
-    // Both SHIP_HOME (for the per-scope event dbs) and HOME (for cache) point to tmp.
+    // Use ship_in for DB isolation. SHIP_HOME is the `.ship` root (not its
+    // parent), so the cache lives at <tmp>/cache/... — dep_skills now routes
+    // through `ShipHome::from_env()` per datasafety-shiphome.
     ship_in(&tmp)
-        .env("HOME", tmp.path())
         .args(["use", "with-deps", "--path", p])
         .assert()
         .success();

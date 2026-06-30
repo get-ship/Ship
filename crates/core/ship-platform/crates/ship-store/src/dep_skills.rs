@@ -254,8 +254,11 @@ pub fn resolve_dep_skills(
     let cache_root = match cache_root {
         Some(p) => p,
         None => {
-            let home = home::home_dir().context("cannot determine home directory")?;
-            default_cache = ship_substrate::ShipHome::project_ship_dir(home).join("cache");
+            // Route through `ShipHome::from_env` so SHIP_HOME is honored and
+            // the test-context isolation gate kicks in. A raw `home::home_dir()`
+            // bypass here would let a non-isolated test resolve the operator's
+            // real `~/.ship/cache/` — see datasafety-shiphome.
+            default_cache = ship_substrate::ShipHome::from_env().root().join("cache");
             &default_cache
         }
     };
@@ -302,8 +305,9 @@ pub fn resolve_dep_agents(
     let cache_root = match cache_root {
         Some(p) => p,
         None => {
-            let home = home::home_dir().context("cannot determine home directory")?;
-            default_cache = ship_substrate::ShipHome::project_ship_dir(home).join("cache");
+            // See `resolve_dep_skills`: route through ShipHome so SHIP_HOME
+            // and the test-context isolation gate are honored.
+            default_cache = ship_substrate::ShipHome::from_env().root().join("cache");
             &default_cache
         }
     };
@@ -376,8 +380,9 @@ pub fn transitive_capabilities(
     let cache_root = match cache_root {
         Some(p) => p,
         None => {
-            let home = home::home_dir().context("cannot determine home directory")?;
-            default_cache = ship_substrate::ShipHome::project_ship_dir(home).join("cache");
+            // See `resolve_dep_skills`: route through ShipHome so SHIP_HOME
+            // and the test-context isolation gate are honored.
+            default_cache = ship_substrate::ShipHome::from_env().root().join("cache");
             &default_cache
         }
     };

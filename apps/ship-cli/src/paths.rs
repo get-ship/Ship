@@ -104,7 +104,7 @@ mod tests {
         // not end in `.ship`. Pin the env to a deterministic value for the
         // duration of this assertion (the guard restores on drop).
         let tmp = tempfile::tempdir().unwrap();
-        let ship_home = tmp.path().join(".ship");
+        let ship_home = ShipHome::project_ship_dir(tmp.path());
         let _guard = crate::test_env::isolated_ship_home(&ship_home);
         let g = global_dir();
         assert!(g.to_string_lossy().ends_with(".ship"));
