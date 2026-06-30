@@ -294,10 +294,12 @@ pub fn maybe_open_setup(ship_dir: &Path, port: u16) {
     spawn_open(&url);
 }
 
-/// True when the user-content DB does not exist yet. A fresh install has no
-/// `data.db`, which is what first-run UX keys on.
+/// True when the daemon has not initialized this ship-home before. A fresh
+/// install has no `runtime.db` (the daemon materializes it on its first event);
+/// this is the first-run sentinel after `data.db` was removed (it carried the
+/// same "has the daemon started before" lifecycle).
 fn is_first_run(ship_dir: &Path) -> bool {
-    !ship_substrate::db::data_db_path(ship_dir).exists()
+    !ship_substrate::db::runtime_db_path(ship_dir).exists()
 }
 
 #[cfg(target_os = "linux")]
@@ -348,15 +350,15 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn is_first_run_true_when_data_db_missing() {
+    fn is_first_run_true_when_runtime_db_missing() {
         let tmp = TempDir::new().unwrap();
         assert!(is_first_run(tmp.path()));
     }
 
     #[test]
-    fn is_first_run_false_when_data_db_exists() {
+    fn is_first_run_false_when_runtime_db_exists() {
         let tmp = TempDir::new().unwrap();
-        let path = ship_substrate::db::data_db_path(tmp.path());
+        let path = ship_substrate::db::runtime_db_path(tmp.path());
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, b"").unwrap();
         assert!(!is_first_run(tmp.path()));

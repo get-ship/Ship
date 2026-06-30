@@ -33,8 +33,6 @@ const ACCOUNT_TOKEN_FILE: &str = "account.jsonc";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Db {
-    /// `data.db` — collection / content data.
-    Data,
     /// `kv.db` — durable key-value store (separated from event log in Phase 3).
     Kv,
 }
@@ -43,7 +41,6 @@ impl Db {
     /// On-disk filename.
     pub fn as_str(&self) -> &'static str {
         match self {
-            Db::Data => "data.db",
             Db::Kv => "kv.db",
         }
     }

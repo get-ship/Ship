@@ -17,9 +17,7 @@ use ship_types::envelope::EventEnvelope;
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
 fn open_data_svc(tmp: &tempfile::TempDir) -> DataService {
-    let ship_dir = ShipHome::project_ship_dir(tmp.path());
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    DataService::open(&ship_dir).unwrap()
+    DataService::open_at(&tmp.path().join("test-data.db")).unwrap()
 }
 
 fn test_store(tmp: &tempfile::TempDir, space_id: &str) -> SingleBackendDataStore {

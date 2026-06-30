@@ -110,8 +110,9 @@ impl ShipRuntime {
          let kernel = tokio::task::spawn_blocking(move || {
              ship_substrate::home::ensure_layout(&ship_substrate::ShipHome::at(dir.clone()))
                  .context("ensure ship home layout")?;
-             // Open data.db + run the per-collection schema migrations.
-             let _ = ship_substrate::data::DataService::open(&dir)?;
+             // data.db is gone (S5.3): the active data plane (collections,
+             // _schema_registry) lives per-scope in space.db via
+             // DataService::open_at; there is no machine-wide data.db to provision.
              ship_substrate::events::init_kernel_router(dir)
                  .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
          })

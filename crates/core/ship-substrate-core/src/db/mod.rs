@@ -92,12 +92,6 @@ pub(crate) fn resolve_db_path(ship_dir: &Path, db: crate::Db) -> PathBuf {
 }
 
 
-/// Resolve the data database path under a given ship-home root.
-/// Thin typed wrapper over [`resolve_db_path`].
-pub fn data_db_path(ship_dir: &Path) -> PathBuf {
-    resolve_db_path(ship_dir, crate::Db::Data)
-}
-
 /// Resolve the KV database path under a given ship-home root.
 /// Thin typed wrapper over [`resolve_db_path`].
 pub fn kv_db_path(ship_dir: &Path) -> PathBuf {

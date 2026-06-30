@@ -1,8 +1,11 @@
 //! Data service — managed SQLite for Ship extensions.
 //!
-//! The daemon manages `.ship/data.db`. Authenticated callers can execute
-//! queries against it. Collections, views, and custom extensions all share
-//! this database.
+//! `DataService::open_at(db_path)` binds a managed connection to an explicit
+//! per-scope db file — collections, views, and extensions all run their
+//! `DataStore` against the SAME `spaces/<id>/space.db` (or runtime/account db)
+//! that the projection bus materializes their tables into, so a query reads
+//! exactly what the projection wrote. There is no machine-wide `data.db` (it
+//! was removed in S5.3 — the data plane is per-scope).
 //!
 //! The service handles connection lifecycle, WAL mode, busy timeout, and
 //! connection reuse. Callers work with `DataService` — they never open
@@ -16,7 +19,7 @@ use std::str::FromStr;
 
 /// Managed SQLite connection to `.ship/data.db`.
 ///
-/// Created via `DataService::open()`. Callers use `execute()` for writes
+/// Created via `DataService::open_at()`. Callers use `execute()` for writes
 /// and `query()` for reads. The connection is configured with WAL mode
 /// and a 5-second busy timeout.
 pub struct DataService {
@@ -25,29 +28,6 @@ pub struct DataService {
 }
 
 impl DataService {
-    /// Open or create `data.db` in the given `.ship/` directory and run
-    /// runtime startup — register built-in collection schemas.
-    ///
-    /// Startup is idempotent: schema registration is a no-op if tables
-    /// already exist. (`platform.db` was deleted in the Phase-4 storage
-    /// partition; there is no legacy migration to run.)
-    pub fn open(ship_dir: &Path) -> Result<Self> {
-        let mut svc = Self::open_raw(ship_dir)?;
-        svc.run_startup(ship_dir)?;
-        Ok(svc)
-    }
-
-    /// Open `data.db` without running startup. Exposed for startup code
-    /// that manages registration and migration itself (e.g. the migration
-    /// module's own tests).
-    pub fn open_raw(ship_dir: &Path) -> Result<Self> {
-        let db_path = crate::db::data_db_path(ship_dir);
-        if let Some(parent) = db_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let conn = open_connection(&db_path)?;
-        Ok(Self { conn, db_path })
-    }
 
     /// Open a managed SQLite connection at an explicit db-file path (no
     /// startup). This is the seam for the event-sourced data plane: collections
@@ -58,13 +38,6 @@ impl DataService {
     pub fn open_at(db_path: &Path) -> Result<Self> {
         let conn = open_connection(db_path)?;
         Ok(Self { conn, db_path: db_path.to_path_buf() })
-    }
-
-    /// Register built-in schemas. Idempotent — safe to call on every open.
-    /// The actual schema registrations are injected by ship-platform via
-    /// `DataService::register_schema`; this is a no-op at the substrate level.
-    pub fn run_startup(&mut self, _ship_dir: &Path) -> Result<()> {
-        Ok(())
     }
 
     /// Access the underlying connection for direct SQL operations.
@@ -289,9 +262,7 @@ mod tests {
 
     fn test_service() -> (DataService, tempfile::TempDir) {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
-        std::fs::create_dir_all(&ship_dir).unwrap();
-        let svc = DataService::open(&ship_dir).unwrap();
+        let svc = DataService::open_at(&tmp.path().join("test-data.db")).unwrap();
         (svc, tmp)
     }
 
