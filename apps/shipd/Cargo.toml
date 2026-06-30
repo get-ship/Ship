@@ -70,13 +70,15 @@ http = "1"
 # Once sui publishes, the version pin here tracks the consumed sui
 # release; the path-dep version is recorded in git history for
 # trace (commit 82909ba18 chore: phase 3 — carve deck+sui out).
-# Relative (was absolute /home/madvib/...) so the path tracks the worktree —
-# #61. Anchored at ~/dev (4x.. from apps/shipd) → resolves to Ship/sui from both
-# the main checkout and an omp worktree (same depth under ~/dev).
-deck = { path = "../../../../Ship/sui/crates/deck/deck", features = ["specta"] }
-deck-core = { path = "../../../../Ship/sui/crates/deck/deck-core" }
-deck-ssr = { path = "../../../../Ship/sui/crates/deck/deck-ssr", optional = true }
-sui-compiler = { path = "../../../../Ship/sui/crates/sui/compiler" }
+# Absolute paths to the SHARED sui repo (NOT worktreed; only `ship` is). #61:
+# sui — like ship-exec — is a fixed shared sibling, so absolute paths resolve from
+# the main checkout AND any helmd worktree depth (Ship/worktrees/<n>). The
+# duplicate ship-js member removal (not the path style) is what killed the
+# lockfile collision; with deck-ssr → ship-exec there is one ship-js for everyone.
+deck = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck", features = ["specta"] }
+deck-core = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck-core" }
+deck-ssr = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck-ssr", optional = true }
+sui-compiler = { path = "/home/madvib/dev/Ship/sui/crates/sui/compiler" }
 chrono = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }
