@@ -129,6 +129,21 @@ fn diff_identical_snapshots_emits_nothing() {
     assert!(diff(&v, &v, "").is_empty());
 }
 
+#[test]
+fn diff_moved_list_item_emits_move() {
+    // Three siblings, no adds/removes, no field changes — the only_moves path
+    // in `diff_arrays` is the one that runs, exercising `emit_moves` directly.
+    let old = json!([{"id": "a"}, {"id": "b"}, {"id": "c"}]);
+    let new = json!([{"id": "b"}, {"id": "a"}, {"id": "c"}]);
+    let patches = diff(&old, &new, "items");
+
+    let moves: Vec<&Patch> = patches.iter().filter(|p| p.op == PatchOp::Move).collect();
+    assert_eq!(moves.len(), 1, "expected exactly one move patch, got {patches:?}");
+    assert_eq!(moves[0].path, "items");
+    assert_eq!(moves[0].from, Some(1), "moved from old index 1 ('b')");
+    assert_eq!(moves[0].to, Some(0), "moved to new index 0");
+}
+
 // ── Resolver tests ────────────────────────────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
