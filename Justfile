@@ -53,7 +53,7 @@ dev:
 # the single registry (also read by shipd at startup), never duplicated here.
 [group('daily')]
 dev-build-all: _sui-compiler-lib _deck-cli
-    @cargo run --manifest-path {{sui_path()}}/Cargo.toml -p deck-cli --quiet -- build-assets
+    @cargo run --manifest-path {{sui_path}}/Cargo.toml -p deck-cli --quiet -- build-assets
     @just _build-apps
 
 # Build every app in the registry from its `root` via `deck build --project`.
@@ -80,11 +80,11 @@ _build-apps:
             [ -z "$root" ] && continue
             abs_root="$(realpath -m "$root")"
             if [ "$route" = "/" ]; then
-                DECK_FRAMEWORK_ASSETS_DIR={{sui_path()}}/crates/deck/deck-core/assets \
-                    cargo run -q --manifest-path {{sui_path()}}/Cargo.toml -p deck-cli -- build --project "$abs_root" --bundle-framework
+                DECK_FRAMEWORK_ASSETS_DIR={{sui_path}}/crates/deck/deck-core/assets \
+                    cargo run -q --manifest-path {{sui_path}}/Cargo.toml -p deck-cli -- build --project "$abs_root" --bundle-framework
             else
-                DECK_FRAMEWORK_ASSETS_DIR={{sui_path()}}/crates/deck/deck-core/assets \
-                    cargo run -q --manifest-path {{sui_path()}}/Cargo.toml -p deck-cli -- build --project "$abs_root"
+                DECK_FRAMEWORK_ASSETS_DIR={{sui_path}}/crates/deck/deck-core/assets \
+                    cargo run -q --manifest-path {{sui_path}}/Cargo.toml -p deck-cli -- build --project "$abs_root"
             fi
         done
 
@@ -302,13 +302,13 @@ lint-anti-theater:
 # dev-build-all). cargo no-ops in ~2s when fresh, so it's effectively
 # free.
 _sui-compiler-lib:
-    cargo build --manifest-path {{sui_path()}}/Cargo.toml -p sui-compiler
+    cargo build --manifest-path {{sui_path}}/Cargo.toml -p sui-compiler
 
 # Same as _sui-compiler-lib for deck-cli (the build-assets + app-scaffold
 # runner that ship's `just build` invokes). Lives in the external sui
 # repo post-carve; ship runs it via the explicit manifest path.
 _deck-cli:
-    cargo build --manifest-path {{sui_path()}}/Cargo.toml -p deck-cli
+    cargo build --manifest-path {{sui_path}}/Cargo.toml -p deck-cli
 
 # One-shot production build: gen-types, every pack + ui-components rebuild,
 # catalog regeneration, cargo --release, then verify outputs. Equivalent to
@@ -322,7 +322,7 @@ build: _sui-compiler-lib _deck-cli
     command -v cargo >/dev/null || { echo "build: cargo not on PATH" >&2; exit 1; }
     # Sui repo must be present for the deck-cli / sui-compiler invocations
     # to resolve. The SUI_PATH env var points at the sui repo root.
-    [ -n "{{sui_path()}}" ] && [ -f "{{sui_path()}}/Cargo.toml" ] || {
+    [ -n "{{sui_path}}" ] && [ -f "{{sui_path}}/Cargo.toml" ] || {
         echo "build: SUI_PATH is unset or points to a non-sui directory — set SUI_PATH to the sui repo root" >&2
         exit 1
     }
@@ -373,7 +373,7 @@ build: _sui-compiler-lib _deck-cli
 # Build CLI + shipd (unstable dev build).
 [group('occasional')]
 build-dev:
-    cargo build --features unstable -p ship-cli -p shipd && cargo build --manifest-path {{sui_path()}}/Cargo.toml -p sui-lsp
+    cargo build --features unstable -p ship-cli -p shipd && cargo build --manifest-path {{sui_path}}/Cargo.toml -p sui-lsp
 
 # Cargo-only release build (no front-end). Use `just build` for the full
 # production artifact set; this recipe is the cargo subset.
@@ -388,7 +388,7 @@ install-dev: build-dev
     set -euo pipefail
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     cp -f "$target/debug/ship" ~/.local/bin/ship.new && mv ~/.local/bin/ship.new ~/.local/bin/ship
-    cp -f "{{sui_path()}}/target/debug/sui-lsp" ~/.local/bin/sui-lsp
+    cp -f "{{sui_path}}/target/debug/sui-lsp" ~/.local/bin/sui-lsp
     echo "Installed: ship + shipd + sui-lsp → ~/.local/bin"
 
 # Install stable binary to ~/.cargo/bin.
@@ -410,7 +410,7 @@ install: build-release
 # `.sui` edits without a server round-trip. ~640KB wasm + ~9KB JS shim.
 [group('occasional')]
 sui-wasm:
-    wasm-pack build {{sui_path()}}/crates/sui/compiler --target web --out-dir packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm
+    wasm-pack build {{sui_path}}/crates/sui/compiler --target web --out-dir packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm
 
 # Build the native Node-API addon the SUI test harness compiles through.
 # The sui-compiler-napi crate moved to the external sui repo with
@@ -421,7 +421,7 @@ sui-wasm:
 # tests).
 [group('occasional')]
 sui-napi:
-    cargo build --manifest-path {{sui_path()}}/Cargo.toml -p sui-compiler-napi
+    cargo build --manifest-path {{sui_path}}/Cargo.toml -p sui-compiler-napi
 
 # Regenerate Specta types (Rust → generated TS bindings).
 
