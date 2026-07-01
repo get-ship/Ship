@@ -12375,7 +12375,6 @@ dependencies = [
  "serde_json",
  "ship-account",
  "ship-agents",
- "ship-collection",
  "ship-ops-rpc",
  "ship-pipeline-runtime",
  "ship-platform",

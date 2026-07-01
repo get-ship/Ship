@@ -219,4 +219,5 @@ fn collect_view_manifests(views_dir: &Path) -> Result<Value> {
             );
         }
     }
+    Ok(Value::Object(out))
 }

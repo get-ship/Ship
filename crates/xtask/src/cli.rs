@@ -3,8 +3,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    coverage, gen_audit_readme, gen_collection_types, gen_contract, gen_events, gen_fixtures,
-    gen_icons, gen_indexes, gen_routes_doc, gen_skills, gen_sdk, lint_anti_theater,
+    coverage, gen_audit_readme, gen_contract, gen_events, gen_fixtures,
+    gen_icons, gen_indexes, gen_skills, gen_sdk, lint_anti_theater,
     lint_imports, lint_layers, lint_residue,
 };
 
@@ -92,13 +92,6 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                 std::process::exit(1);
             }
         }
-        "gen-routes-doc" => {
-            let check = args.iter().any(|a| a == "--check");
-            if let Err(e) = gen_routes_doc::run(&repo_root(), check) {
-                eprintln!("gen-routes-doc failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
         "gen-contract" => {
             let check = args.iter().any(|a| a == "--check");
             if let Err(e) = gen_contract::run(&repo_root(), check) {
@@ -116,13 +109,6 @@ pub fn dispatch(cmd: &str, args: &[String]) {
             let check = args.iter().any(|a| a == "--check");
             if let Err(e) = gen_indexes::run(&repo_root(), check) {
                 eprintln!("gen-indexes failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
-        "gen-collection-types" => {
-            let check = args.iter().any(|a| a == "--check");
-            if let Err(e) = gen_collection_types::run(&repo_root(), check) {
-                eprintln!("gen-collection-types failed: {e:#}");
                 std::process::exit(1);
             }
         }
@@ -156,13 +142,11 @@ fn print_help() {
     eprintln!("  lint-residue          Catch orphan .rs files + byte-identical .rs copied across crates");
     eprintln!("  gen-events            Generate tier-filtered proto + TS from the event registry");
     eprintln!("  gen-events --check    Verify generated files are up-to-date (CI)");
-    eprintln!("  gen-routes-doc        SMELL: regenerates the route ref (output moves to ship-contracts)");
     eprintln!("  gen-contract          Generate docs/contract/<domain>.md consumer guides");
     eprintln!("  gen-contract --check  Verify generated contract docs are up-to-date (CI)");
     eprintln!("  gen-audit-readme      Regenerate .artifacts/specs/module-audits/README.md");
     eprintln!("  gen-indexes           Regenerate emit-sites.md + substrate-fns.md indexes");
     eprintln!("  gen-indexes --check   Verify indexes are up-to-date (CI)");
-    eprintln!("  gen-collection-types  Emit packages/sdk/src/generated/collections.ts (typed Database from .ship/collections)");
     eprintln!("  coverage              Run workspace tests; emit .artifacts/coverage/report.md");
     eprintln!("  coverage --stdout     Print coverage report to stdout");
     eprintln!("  coverage --report-only  Skip test run; read test JSON from stdin");

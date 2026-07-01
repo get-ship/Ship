@@ -5,7 +5,7 @@ name: CI
 #   - The Rust daemon (shipd, ship-cli, ship-host, helmd) and the L0/L1
 #     platform (crates/*).
 #   - The xtask codegen that operates on this repo's source (gen-skills,
-#     gen-routes-doc, gen-fixtures, the lints).
+#     gen-fixtures, the lints).
 #   - The contract-conformance Rust test (tests/contract).
 #   - The agents Bun test (tests/agents) — boots shipd and exercises
 #     its ConnectRPC + harness adapter registry.
@@ -100,9 +100,9 @@ jobs:
         run: cargo build -p ship-cli -p shipd
       - name: Build (unstable)
         run: cargo build --features unstable -p ship-cli -p shipd
-      # gen-skills + gen-routes-doc now run from ship-contracts (the SDK
-      # output SSOT post-multi-repo-cleanup). Their drift checks live in
-      # ship-contracts CI. The ship repo no longer tracks `skills/sdk/`.
+      # gen-skills runs from ship-contracts (the SDK output SSOT). Its
+      # drift check lives in ship-contracts CI. The ship repo no longer
+      # tracks `skills/sdk/`.
       # The op registry in this repo (`schema::OPS/COMMANDS`) is unchanged;
       # the contract crate consumes the same Rust types and rebuilds the
       # skills on the consumer side.
