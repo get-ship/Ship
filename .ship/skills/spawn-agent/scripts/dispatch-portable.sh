@@ -22,7 +22,12 @@
 set -euo pipefail
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
-WORKTREE_BASE="${SHIP_WORKTREE_DIR:-${HOME}/dev/ship-worktrees}"
+# Resolve worktree base via the shared helper sourced from this script's dir.
+# Helpers: scripts/_worktree-base.sh — defines resolve_worktree_base()
+_SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=_worktree-base.sh
+source "${_SELF_DIR}/_worktree-base.sh"
+WORKTREE_BASE="$(resolve_worktree_base)"
 WORKTREE_BASE="${WORKTREE_BASE/#\~/$HOME}"
 BASE_BRANCH=""
 DRY_RUN=false

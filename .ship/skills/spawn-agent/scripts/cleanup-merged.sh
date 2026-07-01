@@ -22,7 +22,13 @@
 # again after to actually tear them down.
 set -u
 
-WORKTREE_BASE="${SHIP_WORKTREE_DIR:-$HOME/dev/ship-worktrees}"
+# Resolve worktree base via the shared helper sourced from this script's dir.
+# Helpers: scripts/_worktree-base.sh — defines resolve_worktree_base()
+_SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=_worktree-base.sh
+source "${_SELF_DIR}/_worktree-base.sh"
+WORKTREE_BASE="$(resolve_worktree_base)"
+WORKTREE_BASE="${WORKTREE_BASE/#\~/$HOME}"
 DAEMONS_DIR="$HOME/.ship/machine/daemons"
 
 if [[ $# -lt 1 ]]; then
@@ -61,7 +67,7 @@ cleanup_one() {
   fi
 
   # 4. Vite dev servers anchored to this worktree's path.
-  for pid in $(pgrep -f "ship-worktrees/${slug}/.*vite/bin/vite" 2>/dev/null); do
+  for pid in $(pgrep -f "${wt}/.*vite/bin/vite" 2>/dev/null); do
     kill "$pid" 2>/dev/null && echo "  vite ${pid} killed"
   done
 
