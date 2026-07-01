@@ -17,21 +17,14 @@ mod view_contexts;
 const VERSION: &str = "0.1.0";
 const HEADER: &str = "just gen-sdk — DO NOT EDIT";
 
-/// Entry point. Writes the JSON artifacts + typed TS bindings to the
-/// in-repo path `packages/sdk/src/generated/` (the path shipd's
-/// include_str! expects; see the bootstrap assert in
-/// `.github/workflows/ci.yml`).
-///
-/// SMELL: this gen-* tool lives in ship but its output (the SDK) lives
-/// in ship-contracts post-multi-repo-cleanup. The default path
-/// `packages/sdk/src/generated/` does not exist in ship anymore —
-/// gen-sdk is one of the cross-repo codegen tools that the architecture
-/// rule says should live with its output SSOT (i.e. ship-contracts).
-/// It still runs in ship because the input (apps/shipd routes, the
-/// schemas, the framework surface) is ship-side; the right answer is
-/// to move it AND publish the input sources as ship crates. Until
-/// then, the build is broken because the default output path doesn't
-/// exist.
+/// Entry point. Writes the JSON artifacts + typed TS bindings to
+/// `packages/sdk/src/generated/` — an untracked, build-materialized dir:
+/// `ship-ui/build.rs` seeds stub files there and
+/// `ship-ui/src/sdk_manifest.rs` embeds them at compile time (the `/sdk`
+/// and per-view `/meta` daemon endpoints). Run gen-sdk to refresh the
+/// real content. Inputs are `.ship/` config, the shipd view Ctx structs,
+/// and the hand-authored framework manifest — all ship-side, so the tool
+/// is ship-internal, not contracts codegen.
 pub fn run(repo_root: &Path) -> Result<()> {
     let out_dir = repo_root.join("packages/sdk/src/generated");
     fs::create_dir_all(&out_dir)

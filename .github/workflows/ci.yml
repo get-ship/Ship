@@ -4,8 +4,8 @@ name: CI
 # This CI is scoped to the **ship** repo's owned surfaces only:
 #   - The Rust daemon (shipd, ship-cli, ship-host, helmd) and the L0/L1
 #     platform (crates/*).
-#   - The xtask codegen that operates on this repo's source (gen-skills,
-#     gen-fixtures, the lints).
+#   - The xtask codegen that operates on this repo's source (gen-sdk,
+#     gen-fixtures, gen-events, the lints).
 #   - The contract-conformance Rust test (tests/contract).
 #   - The agents Bun test (tests/agents) — boots shipd and exercises
 #     its ConnectRPC + harness adapter registry.
@@ -100,12 +100,9 @@ jobs:
         run: cargo build -p ship-cli -p shipd
       - name: Build (unstable)
         run: cargo build --features unstable -p ship-cli -p shipd
-      # gen-skills runs from ship-contracts (the SDK output SSOT). Its
-      # drift check lives in ship-contracts CI. The ship repo no longer
-      # tracks `skills/sdk/`.
-      # The op registry in this repo (`schema::OPS/COMMANDS`) is unchanged;
-      # the contract crate consumes the same Rust types and rebuilds the
-      # skills on the consumer side.
+      # gen-skills is native in ship-contracts (xtask-contracts): it reads
+      # ship-proto's descriptor + proto/fixtures and writes skills/sdk/
+      # there. The ship repo no longer tracks `skills/sdk/`.
       # Contract conformance: every event fixture roundtrips Rust↔JSON
       # and matches the registry's metadata (scope/retention/stability).
       - name: Contract conformance

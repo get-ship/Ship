@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     coverage, gen_audit_readme, gen_contract, gen_events, gen_fixtures,
-    gen_icons, gen_indexes, gen_skills, gen_sdk, lint_anti_theater,
+    gen_icons, gen_indexes, gen_sdk, lint_anti_theater,
     lint_imports, lint_layers, lint_residue,
 };
 
@@ -83,12 +83,6 @@ pub fn dispatch(cmd: &str, args: &[String]) {
         "gen-icons" => {
             if let Err(e) = gen_icons::run(&repo_root()) {
                 eprintln!("gen-icons failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
-        "gen-skills" => {
-            if let Err(e) = gen_skills::run() {
-                eprintln!("gen-skills failed: {e:#}");
                 std::process::exit(1);
             }
         }

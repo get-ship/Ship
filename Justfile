@@ -456,11 +456,6 @@ gen-indexes:
 gen-indexes-check:
     cargo run -p xtask -- gen-indexes --check
 
-# Regenerate packages/sdk/src/generated/collections.ts — the typed
-# Database interface derived from .ship/collections/*.jsonc (typed Kysely input).
-
-# Verify generated collection types are up-to-date (CI gate — exits 1 on drift).
-
 # Compile the active agent for the current project.
 [group('occasional')]
 compile:
