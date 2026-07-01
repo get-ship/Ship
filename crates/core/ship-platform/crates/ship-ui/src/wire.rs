@@ -186,7 +186,7 @@ impl UiServiceTrait for UiWire {
     ) -> ServiceResult<JsonResponse> {
         let (abs, source) =
             read_sui_source(request.file).map_err(ConnectError::invalid_argument)?;
-        let analysis = sui_compiler::analyze(&source, Some(abs.as_path()));
+        let analysis = sui_compiler::analyze(&source, Some(abs.as_path()), &[]);
         json_ok(json!({ "diagnostics": analysis.diagnostics }))
     }
 
@@ -210,7 +210,7 @@ impl UiServiceTrait for UiWire {
     ) -> ServiceResult<JsonResponse> {
         let (abs, source) =
             read_sui_source(request.file).map_err(ConnectError::invalid_argument)?;
-        let analysis = sui_compiler::analyze(&source, Some(abs.as_path()));
+        let analysis = sui_compiler::analyze(&source, Some(abs.as_path()), &[]);
         json_ok(json!({
             "tags": analysis.tags,
             "events": analysis.events,
