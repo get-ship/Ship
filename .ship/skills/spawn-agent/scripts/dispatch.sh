@@ -15,17 +15,12 @@ set -euo pipefail
 # ── Defaults ──────────────────────────────────────────────────────────────────
 SHIP_GLOBAL_DIR="${SHIP_GLOBAL_DIR:-$HOME/.ship}"
 
-# Resolve worktree base. Precedence: --dir flag > SHIP_WORKTREE_DIR env >
-# `ship config get worktrees.dir` > legacy HOME default.
-resolve_worktree_base() {
-  if [[ -n "${SHIP_WORKTREE_DIR:-}" ]]; then echo "$SHIP_WORKTREE_DIR"; return; fi
-  local cfg=""
-  if command -v ship &>/dev/null; then
-    cfg="$(ship config get worktrees.dir 2>/dev/null | tail -n1 | tr -d '[:space:]')"
-  fi
-  if [[ -n "$cfg" && "$cfg" != "(unset)" ]]; then echo "$cfg"; return; fi
-  echo "${HOME}/dev/ship-worktrees"
-}
+# Resolve worktree base via the shared helper sourced from this script's dir
+# (works regardless of the caller's cwd). Helpers:
+#   scripts/_worktree-base.sh — defines resolve_worktree_base()
+_SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=_worktree-base.sh
+source "${_SELF_DIR}/_worktree-base.sh"
 WORKTREE_BASE="$(resolve_worktree_base)"
 WORKTREE_BASE="${WORKTREE_BASE/#\~/$HOME}"
 BASE_BRANCH=""
@@ -232,6 +227,11 @@ elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
   # copy from the launch repo because it's instant and almost always populated
   # by the developer's running daemon; the slow rebuild path is a fallback.
   LAUNCH_REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  # Post-carve, sui lives as a SIBLING repo of ship, not a subdir. Resolve
+  # via SHIP_SUI_DIR or fall back to <ship-parent>/sui; every sui bootstrap
+  # site below keys off $SUI_REPO instead of a relative `sui/` path so
+  # non-`--no-bootstrap` dispatches can find the external repo.
+  SUI_REPO="${SHIP_SUI_DIR:-$(dirname "$LAUNCH_REPO_ROOT")/sui}"
   if [[ -n "$LAUNCH_REPO_ROOT" ]]; then
     # Lit `<ship-*>` bundles emitted by `bun run --filter '@ship/set' build` and embedded
     # by apps/shipd/src/views/assets.rs.
@@ -274,15 +274,15 @@ elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
   # worktree's framework from sui's baked output; bake sui first only if sui
   # itself is cold.
   if [[ ! -s "$WORKTREE_PATH/.deck/framework/sui-runtime.js" ]]; then
-    if [[ ! -s sui/.deck/framework/sui-runtime.js ]]; then
+    if [[ ! -s "$SUI_REPO/.deck/framework/sui-runtime.js" ]]; then
       echo "Baking SUI framework in sui (cold)"
-      (cd sui && \
+      (cd "$SUI_REPO" && \
          cargo build -p sui-compiler && \
          cargo run -p deck-cli --quiet -- build-assets) 2>&1 | tail -20
     fi
     echo "Seeding .deck/framework from sui"
     mkdir -p "$WORKTREE_PATH/.deck/framework"
-    cp -r sui/.deck/framework/. "$WORKTREE_PATH/.deck/framework/" 2>/dev/null || true
+    cp -r "$SUI_REPO/.deck/framework/." "$WORKTREE_PATH/.deck/framework/" 2>/dev/null || true
   fi
   # sui/packages/sui/grammar lived in ship pre-carve and was bootstrapped here.
   # Post-carve, the grammar source lives in the external sui repo; the
@@ -306,12 +306,12 @@ elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
   # sui-compiler/sui-compiler-napi/sui-lint live in the external sui repo post-carve;
   # build them there. The bundle script above is the only ship-side path that
   # compiles sui crates (for `build-assets` to dlopen the FFI .so).
-  echo "Building SUI compiler binaries (cargo build --manifest-path sui/Cargo.toml -p sui-compiler -p sui-compiler-napi)"
-  if ! (cd "$WORKTREE_PATH" && cargo build --manifest-path sui/Cargo.toml -p sui-compiler -p sui-compiler-napi 2>&1 | tail -15); then
+  echo "Building SUI compiler binaries (cargo build --manifest-path $SUI_REPO/Cargo.toml -p sui-compiler -p sui-compiler-napi)"
+  if ! (cd "$WORKTREE_PATH" && cargo build --manifest-path "$SUI_REPO/Cargo.toml" -p sui-compiler -p sui-compiler-napi 2>&1 | tail -15); then
     echo "Warning: cargo build of sui-compiler/sui-compiler-napi failed (offline?); agent must build before its edit loop" >&2
   fi
-  echo "Warming the sui-lint check example (cargo build --manifest-path sui/Cargo.toml -p sui-lint --example check)"
-  if ! (cd "$WORKTREE_PATH" && cargo build --manifest-path sui/Cargo.toml -p sui-lint --example check 2>&1 | tail -10); then
+  echo "Warming the sui-lint check example (cargo build --manifest-path $SUI_REPO/Cargo.toml -p sui-lint --example check)"
+  if ! (cd "$WORKTREE_PATH" && cargo build --manifest-path "$SUI_REPO/Cargo.toml" -p sui-lint --example check 2>&1 | tail -10); then
     echo "Warning: building the sui-lint check example failed (offline?); agent must build before its edit loop" >&2
   fi
 
