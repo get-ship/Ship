@@ -3859,7 +3859,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "serde_json",
- "thiserror 2.0.18",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
