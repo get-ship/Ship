@@ -65,8 +65,8 @@ impl ViewToolPort for ViewToolAdapter {
         self.state.collections()
     }
 
-    fn project_slug(&self) -> Option<String> {
-        self.state.project_slug()
+    fn active_space_id(&self) -> Option<String> {
+        self.state.active_space_id()
     }
 
     fn resolve_theme_css(&self) -> String {

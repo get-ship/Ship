@@ -55,6 +55,10 @@ impl ship_code::dispatch_ports::AgentPlatform for NoopPlatform {
 
 // ── Harness helpers ──────────────────────────────────────────────────────────
 
+/// The run's space CONTENT-ID — what the host resolves via the `projects`
+/// pointer and hands the orchestrator (`OrchestratorContext::space_id`).
+pub const TEST_SPACE: &str = "space-test-content-id";
+
 pub fn fresh_ship_dir() -> std::path::PathBuf {
     // The artifact/collection/auth projections moved off the L0 default bus
     // to the platform factory (keystone-A): install the SAME production set
@@ -88,6 +92,7 @@ pub fn make_octx() -> OrchestratorContext {
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
         journal_store: Arc::new(durable_execution::InMemoryJournalStore::new()),
+        space_id: Some(TEST_SPACE.to_string()),
     }
 }
 

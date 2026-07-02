@@ -21,21 +21,20 @@ fn permissions_content_hash_hex(content: &str) -> String {
     out
 }
 
-/// Resolve the entity_id for a permissions write. Project-scoped writes
-/// use the space_id (when resolvable); user-scope or unresolvable
-/// project paths fall back to "global".
-fn permissions_entity_id(ship_dir: &Path) -> (String, String) {
-    use ship_substrate::project::ensure_space_id;
-    match ensure_space_id(ship_dir) {
-        Ok(pid) if !pid.is_empty() => (pid, "project".to_string()),
-        _ => ("global".to_string(), "global".to_string()),
-    }
-}
-
 fn emit_permissions_updated(ship_dir: &Path, json: &str) {
-    let (entity, scope) = permissions_entity_id(ship_dir);
+    // The entity is the space CONTENT-ID from the `projects` pointer. A
+    // space-less (unregistered) project gets NO audit event — never a
+    // fabricated `"global"` entity (see `project::space`'s contract).
+    let probe = ship_dir.parent().unwrap_or(ship_dir);
+    let Some(entity) = ship_substrate::project::resolve_active_space(probe) else {
+        tracing::warn!(
+            ship_dir = %ship_dir.display(),
+            "permissions.updated: no active space — audit event skipped"
+        );
+        return;
+    };
     let payload = PermissionsUpdated {
-        scope,
+        scope: "project".to_string(),
         content_hash: permissions_content_hash_hex(json),
         permissions_json: json.to_string(),
     };

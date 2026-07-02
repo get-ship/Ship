@@ -287,7 +287,7 @@ pub(crate) async fn dispatch_step(
 
                 // Resolve consumes before dispatch — fail fast if inputs are missing.
                 let resolved_inputs = if let Some(pipeline) = &job.steps {
-                    match resolve_consumes(kernel, step, pipeline, &job.pipeline_run_id, worktree_path).await {
+                    match resolve_consumes(kernel, step, pipeline, &job.pipeline_run_id, worktree_path, octx.space_id.as_deref()).await {
                         Ok(inputs) => inputs,
                         Err(e) => {
                             tracing::error!(

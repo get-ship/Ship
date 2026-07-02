@@ -31,13 +31,12 @@ impl ProjectState {
     pub fn load(ship_dir: &Path) -> Self {
         // The read is `compile_state::load` → `open_space_db`, which opens (and
         // self-provisions) the bounded `spaces/<id>/space.db` where the
-        // Space-scoped `project_compile_state` projection lives.
-        let space_id = match ship_substrate::project::ensure_space_id(ship_dir) {
-            Ok(id) => id,
-            Err(e) => {
-                eprintln!("warning: could not resolve project id: {}", e);
-                return ProjectState::default();
-            }
+        // Space-scoped `project_compile_state` projection lives. The space id
+        // comes from the `projects` pointer; an unregistered project has no
+        // compile state (space-less → default).
+        let probe = ship_dir.parent().unwrap_or(ship_dir);
+        let Some(space_id) = ship_substrate::project::resolve_active_space(probe) else {
+            return ProjectState::default();
         };
         match ship_agents::services::compile::projection::load(&space_id) {
             Ok(Some(row)) => ProjectState {

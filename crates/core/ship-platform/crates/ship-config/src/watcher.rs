@@ -163,16 +163,13 @@ pub fn spawn_config_watcher(
 
     let library_dir = ShipHome::at(ship_dir).library_dir();
 
-    // The space-id for the project-scope watcher must be the CONTENT-ID (the
-    // `id` field from `<workspace>/.ship/ship.jsonc`), not the path-hash.
-    // This ensures config.file_changed events are routed to the same
-    // `spaces/<content-id>/space.db` that every other operational path uses.
+    // The space-id for the project-scope watcher is the CONTENT-ID from the
+    // `projects` pointer (never a path-hash or tree file), so
+    // config.file_changed events route to the same `spaces/<content-id>/space.db`
+    // every other operational path uses. Unregistered workspace → no space id.
     let project_space = workspace_dir
         .as_deref()
-        .and_then(|root| {
-            let ship_dir = ShipHome::project_ship_dir(root);
-            ship_substrate::project::ensure_space_id(&ship_dir).ok()
-        })
+        .and_then(ship_substrate::project::resolve_active_space)
         .map(SpaceId::new);
     let project_ship_dir = workspace_dir.map(ShipHome::project_ship_dir);
 

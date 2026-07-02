@@ -191,22 +191,6 @@ pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
     }
 }
 
-/// Workspace id = current git branch at the project root.
-pub fn current_project_workspace_id() -> Option<String> {
-    let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
-    let root = project_ship.parent()?;
-    let out = ship_substrate::spawn_bounded::Cmd::new("git")
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .current_dir(root)
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let branch = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    if branch.is_empty() { None } else { Some(branch) }
-}
-
 pub fn harnesses_on_path() -> Vec<String> {
     ship_agents::agent_domain::harnesses::HARNESSES
         .iter()

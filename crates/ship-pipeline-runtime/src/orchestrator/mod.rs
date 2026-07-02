@@ -193,4 +193,10 @@ pub struct OrchestratorContext {
     /// Wired to SqliteJournalStore in production (shipd); InMemoryJournalStore in tests.
     /// Used by C2+ to save post-hoc shadow journals; read by C3+ reconcile for restart confirmation.
     pub journal_store: Arc<dyn JournalStore>,
+    /// The active space CONTENT-ID for the artifact plane (run inputs/outputs,
+    /// failed markers, promotes). Resolved by the host at construction via the
+    /// `projects` pointer (`resolve_active_space`). `None` = space-less daemon:
+    /// artifact-plane pipeline features error/skip cleanly — never a fabricated
+    /// partition key.
+    pub space_id: Option<String>,
 }

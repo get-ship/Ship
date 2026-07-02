@@ -231,7 +231,7 @@ pub fn resolve_project_ship_dir(start_dir: &Path) -> Option<PathBuf> {
 }
 
 /// Resolves the `.ship` directory by searching upwards from the given
-/// directory. Supports the `SHIP_DIR` environment variable override.
+/// directory. Supports the `SHIP_DEV_PROJECT_DIR` override (`Var::DevProjectDir`).
 pub fn get_project_dir(start_dir: Option<PathBuf>) -> Result<PathBuf> {
     // 1. Check for environment variable override.
     //

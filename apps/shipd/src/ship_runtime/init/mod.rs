@@ -142,9 +142,9 @@ impl ShipRuntime {
         // `ArtifactProjection` materialize the table into, so a query reads
         // exactly what the projection wrote.
         //
-        // The active space is the CONTENT-ID (`ship.jsonc#id`) of the discovered
-        // project root — the single stable identity that the `projects`
-        // projection, event-partition, and space.db all key on. With NO
+        // The active space is the `projects` pointer content-id of the
+        // discovered project root — the single stable identity that the
+        // event-partition and space.db key on. With NO
         // discoverable project the daemon boots space-less: `space_id` is `None`,
         // the ctx is NOT built, and a space-scoped op resolves the active space
         // per-request and errors cleanly if there is none. There is NO daemon

@@ -24,8 +24,8 @@ use crate::orchestrator::fanout_aggregate::{
 };
 use crate::orchestrator::step_io::{parse_lane_scoped_ref, resolve_consumes};
 use crate::orchestrator::tests_fanout_harness::{
-    fresh_ship_dir, make_octx, mk_lane, mk_lane_ref, mk_observed, mk_pipeline_with_three_lanes,
-    mk_step, seed_pipeline_run_started, seed_lane_success,
+    TEST_SPACE, fresh_ship_dir, make_octx, mk_lane, mk_lane_ref, mk_observed,
+    mk_pipeline_with_three_lanes, mk_step, seed_pipeline_run_started, seed_lane_success,
 };
 use crate::orchestrator::LaneOutcome;
 
@@ -35,10 +35,11 @@ use crate::orchestrator::LaneOutcome;
 async fn fanout_all_lanes_succeed_judge_sees_every_lane_output() {
     let ship_dir = fresh_ship_dir();
     let pipeline_run_id = "job-fanout-all-ok";
-    // Store under the same space the orchestrator's read-side derives (the
-    // project slug) so the DataStore partition matches on lookup.
+    // Store under the run's space CONTENT-ID — the same id the orchestrator
+    // receives from the host (`OrchestratorContext::space_id`) — so the
+    // DataStore partition matches on lookup.
     let run_scope = ArtifactScope::Run {
-        space_id: ship_substrate::project::project_slug_from_ship_dir(&ship_dir),
+        space_id: TEST_SPACE.into(),
         run_id: pipeline_run_id.into(),
     };
 
@@ -79,7 +80,7 @@ async fn fanout_all_lanes_succeed_judge_sees_every_lane_output() {
     // Judge resolves its three lane-scoped consumes.
     let wt = tempfile::tempdir().unwrap();
     let judge = pipeline.steps.iter().find(|s| s.id == "choose").unwrap();
-    let resolved = resolve_consumes(&kernel, judge, &pipeline, pipeline_run_id, wt.path())
+    let resolved = resolve_consumes(&kernel, judge, &pipeline, pipeline_run_id, wt.path(), Some(TEST_SPACE))
         .await
         .expect("judge must resolve all three lane outputs");
 
@@ -107,7 +108,7 @@ async fn fanout_one_lane_fails_judge_sees_survivors_plus_failed_marker() {
     let ship_dir = fresh_ship_dir();
     let pipeline_run_id = "job-fanout-one-fails";
     let run_scope = ArtifactScope::Run {
-        space_id: ship_substrate::project::project_slug_from_ship_dir(&ship_dir),
+        space_id: TEST_SPACE.into(),
         run_id: pipeline_run_id.into(),
     };
 
@@ -189,7 +190,7 @@ async fn fanout_one_lane_fails_judge_sees_survivors_plus_failed_marker() {
     // The failure path slots into the same resolve_consumes mechanism.
     let wt = tempfile::tempdir().unwrap();
     let judge = pipeline.steps.iter().find(|s| s.id == "choose").unwrap();
-    let resolved = resolve_consumes(&kernel, judge, &pipeline, pipeline_run_id, wt.path())
+    let resolved = resolve_consumes(&kernel, judge, &pipeline, pipeline_run_id, wt.path(), Some(TEST_SPACE))
         .await
         .expect("judge must resolve survivors + failed marker");
 
@@ -263,7 +264,7 @@ async fn fanout_all_lanes_fail_aggregator_fails_fanout_judge_skipped() {
     // never dispatch in production when the aggregator emits step_failed.
     let wt = tempfile::tempdir().unwrap();
     let judge = pipeline.steps.iter().find(|s| s.id == "choose").unwrap();
-    let err = match resolve_consumes(&kernel, judge, &pipeline, pipeline_run_id, wt.path()).await {
+    let err = match resolve_consumes(&kernel, judge, &pipeline, pipeline_run_id, wt.path(), Some(TEST_SPACE)).await {
         Err(e) => e,
         Ok(_) => panic!("judge must not resolve when all lanes failed and it consumes .draft"),
     };

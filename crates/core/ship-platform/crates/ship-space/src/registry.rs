@@ -24,7 +24,6 @@
 
 use std::path::{Path, PathBuf};
 
-use ship_substrate::ShipHome;
 use ship_substrate::ports::{DataStore, KernelLog};
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types::{PROJECT_REGISTERED, PROJECT_SEEN, PROJECT_SWITCHED};
@@ -100,33 +99,33 @@ pub async fn get(kernel: &KernelLog, id: &str) -> Result<Option<SpaceRecord>, Sp
         .map_err(|e| SpaceError::Internal(e.to_string()))
 }
 
-/// Idempotent register. Re-adding a known path returns the SAME id with its
-/// `last_seen_at` bumped and the original name preserved; a new path mints a
-/// `project.registered` event. The id is the CONTENT-ID from
-/// `<path>/.ship/ship.jsonc#id` — stable across path renames and shared by
-/// every linked worktree that redirects to the same `.ship/` tree. This is
-/// the umbrella model: register by content-id, map id→device-path.
+/// Idempotent register — the SOLE birthplace of a space id.
 ///
-/// `path` is taken as the project root the caller supplies — canonicalization
-/// is a host concern the daemon performs before calling. The function reads
-/// (and possibly mints) the content-id from `<path>/.ship/ship.jsonc`.
+/// A new canonical path mints a nanoid and emits `project.registered`; the
+/// `projects` row (id ↔ canonical path) IS the identity. Re-adding a known
+/// path returns the SAME id with its `last_seen_at` bumped and the original
+/// name preserved. No project tree is required and nothing is ever written
+/// into one — `ship.jsonc` plays no identity role.
+///
+/// Idempotency keys on [`canonical_path_key`] — the same canonicalization the
+/// `find_by_path*` readers apply — so two spellings of one directory can
+/// never mint two ids.
 ///
 /// The write path is event-only: `ProjectsProjection` folds the emitted event
-/// into the `projects` SQL table inside the kernel transaction. The DataStore
-/// port is no longer used for record writes.
+/// into the `projects` SQL table inside the kernel transaction.
+///
+/// [`canonical_path_key`]: ship_substrate::db::projects::canonical_path_key
 pub async fn add(
     kernel: &KernelLog,
     path: &Path,
     name: Option<&str>,
 ) -> Result<SpaceRecord, SpaceError> {
-    let project_ship_dir = ShipHome::project_ship_dir(path);
-    let id = ship_substrate::project::ensure_space_id(&project_ship_dir)
-        .map_err(|e| SpaceError::Internal(format!("could not resolve content-id for {}: {e}", path.display())))?;
+    let path_key = ship_substrate::db::projects::canonical_path_key(path);
     let now = now_rfc3339();
 
-    // Check for an existing registration by path via the SQL table.
+    // Existing registration for this canonical path?
     let existing = match ship_dir(kernel) {
-        Some(dir) => ship_substrate::db::projects::get_at(&dir, &id)
+        Some(dir) => ship_substrate::db::projects::find_by_path_at(&dir, &path_key)
             .map(|opt| opt.map(SpaceRecord::from))
             .map_err(|e| SpaceError::Internal(e.to_string()))?,
         None => None,
@@ -136,26 +135,26 @@ pub async fn add(
         // Known path → cheap `project.seen` (bump last_seen_at, keep name).
         // The fold writes to `projects` SQL; no DataStore write needed.
         let envelope =
-            EventEnvelope::new(PROJECT_SEEN, &id, &ProjectSeen { seen_at: now.clone() })
+            EventEnvelope::new(PROJECT_SEEN, &existing.id, &ProjectSeen { seen_at: now.clone() })
                 .map_err(|e| SpaceError::Internal(e.to_string()))?;
         kernel.emit(envelope, &runtime_emit_ctx()).await?;
         return Ok(SpaceRecord { last_seen_at: now, ..existing });
     }
 
+    let id = ship_substrate::gen_nanoid();
     let resolved_name = name
         .map(str::to_string)
         .unwrap_or_else(|| derive_name(path));
-    let path_str = path.to_string_lossy().to_string();
     let record = SpaceRecord {
         id: id.clone(),
-        path: path_str.clone(),
+        path: path_key.clone(),
         name: resolved_name.clone(),
         created_at: now.clone(),
         last_seen_at: now.clone(),
     };
 
     let payload = ProjectRegistered {
-        path: path_str,
+        path: path_key,
         name: resolved_name,
         created_at: now.clone(),
     };

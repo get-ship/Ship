@@ -72,6 +72,7 @@ fn make_octx_with_store(journal_store: Arc<dyn JournalStore>) -> Arc<Orchestrato
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         journal_store,
+        space_id: None,
     })
 }
 

@@ -41,13 +41,12 @@ impl ShipRuntime {
         })
     }
 
-    /// Stable project slug for the attached workspace. `None` when the daemon
-    /// is in global-only mode — callers that need a project scope should
-    /// surface a clear error rather than inventing one.
-    pub fn project_slug(&self) -> Option<String> {
+    /// The attached workspace's space CONTENT-ID from the `projects` pointer.
+    /// `None` when the daemon is global-only or the workspace is unregistered —
+    /// callers that need a space surface a clear error rather than inventing one.
+    pub fn active_space_id(&self) -> Option<String> {
         let ws = self.workspace_dir.as_ref()?;
-        let project_ship = ship_substrate::project::get_project_dir(Some(ws.clone())).ok()?;
-        Some(ship_substrate::project::project_slug_from_ship_dir(&project_ship))
+        ship_substrate::project::resolve_active_space(ws)
     }
 
     /// Spawn the artifact GC loop. Runs immediately on startup then every hour.
@@ -231,9 +230,10 @@ impl ShipRuntime {
             return;
         };
         let project_ship_dir = ship_substrate::ShipHome::project_ship_dir(&workspace);
-        // Active-space identity = CONTENT-ID (`ship.jsonc#id`) of the discovered
-        // project root — the same identity collection/artifact contexts use (init.rs).
-        // Space-less workspace → no index; the daemon owns no home space to fall back on.
+        // Active-space identity = the `projects` pointer content-id of the
+        // discovered root — the same identity collection/artifact contexts use
+        // (init.rs). Space-less workspace → no index; the daemon owns no home
+        // space to fall back on.
         let Some(space_id) = ship_substrate::project::resolve_active_space(&workspace) else {
             tracing::info!("agent-def index: workspace is space-less — skipping live mount");
             return;

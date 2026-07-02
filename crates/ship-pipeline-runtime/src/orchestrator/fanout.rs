@@ -51,7 +51,7 @@ pub async fn dispatch_fanout_step(
     // Resolve shared inputs once — all lanes read the same upstream artifacts.
     let shared_inputs = if let Some(pipeline) = &job.steps {
         let parent_wt = wt_root.join(slug);
-        match super::step_io::resolve_consumes(kernel, step, pipeline, &job.pipeline_run_id, &parent_wt).await {
+        match super::step_io::resolve_consumes(kernel, step, pipeline, &job.pipeline_run_id, &parent_wt, octx.space_id.as_deref()).await {
             Ok(inputs) => inputs,
             Err(e) => {
                 tracing::error!(slug, step_id = step.id, "fanout: consumes resolution failed: {e}");

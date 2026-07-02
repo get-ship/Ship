@@ -190,13 +190,20 @@ pub async fn reconcile_fanout_lanes(
         // the runtime uses for ordinary lane failures, so the judge's
         // `consumes: [<lane_id>.failed]` resolves identically.
         let reason = "daemon restart: lane orphaned";
+        let Some(space_id) = octx.space_id.as_deref() else {
+            tracing::warn!(
+                pipeline_run_id = lane.pipeline_run_id, lane_slug = lane.lane_slug,
+                "fanout-recover: no active space — synthetic failed marker not stored"
+            );
+            continue;
+        };
         tracing::info!(
             pipeline_run_id = lane.pipeline_run_id, lane_slug = lane.lane_slug,
             "fanout-recover: parent live — emitting synthetic failed marker"
         );
         let _ = emit_failed_marker(
             kernel, &lane.pipeline_run_id, &lane.parent_slug,
-            &lane.lane_step_id, &lane.lane_id, reason,
+            &lane.lane_step_id, &lane.lane_id, reason, space_id,
         ).await;
     }
 }

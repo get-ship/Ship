@@ -96,6 +96,7 @@ fn make_octx(
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
         journal_store: Arc::new(durable_execution::InMemoryJournalStore::new()),
+        space_id: None,
     }
 }
 

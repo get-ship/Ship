@@ -236,7 +236,7 @@ pub async fn handle_orchestrator_event(
                         "job-dispatch: step evidence → advance"
                     );
                     // Run promotes before advancing — failures are non-fatal.
-                    run_promotes_for_step(kernel, &payload).await;
+                    run_promotes_for_step(kernel, &payload, octx.space_id.as_deref()).await;
                     if !advance_pipeline(kernel, envelope, octx).await {
                         finalize_pipeline_if_done(kernel, envelope).await;
                         super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
@@ -350,6 +350,7 @@ async fn check_and_fail_missing_outputs(
 async fn run_promotes_for_step(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     payload: &PipelineStepObservedPayload,
+    space_id: Option<&str>,
 ) {
     let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&payload.pipeline_run_id)
         .ok()
@@ -362,7 +363,7 @@ async fn run_promotes_for_step(
         return;
     };
     if !step.promotes.is_empty() {
-        run_step_promotes(kernel, &payload.pipeline_run_id, step).await;
+        run_step_promotes(kernel, &payload.pipeline_run_id, step, space_id).await;
     }
 }
 

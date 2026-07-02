@@ -207,11 +207,10 @@ fn build_core<H: AgentsHost>(host: &H, gate: GateFn) -> AgentsWireCoreConfig {
                         return;
                     };
                     let project_ship_dir = ShipHome::project_ship_dir(&ws);
-                    // Use the CONTENT-ID (ship.jsonc#id) as the space-id
-                    // so agent-def events route to the same
+                    // The CONTENT-ID from the `projects` pointer is the
+                    // space-id, so agent-def events route to the same
                     // spaces/<content-id>/space.db every other path uses.
-                    let space = ship_substrate::project::ensure_space_id(&project_ship_dir)
-                        .ok()
+                    let space = ship_substrate::project::resolve_active_space(&ws)
                         .map(SpaceId::new);
                     (project_ship_dir, space)
                 }

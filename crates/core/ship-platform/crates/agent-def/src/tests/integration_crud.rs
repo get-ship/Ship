@@ -201,10 +201,33 @@ fn agents_rule_crud_rejects_reserved_readme() -> Result<()> {
 
 // ── Permissions CRUD ──────────────────────────────────────────────────────────
 
+/// Register the project in the `projects` pointer (runtime.db) — the seam the
+/// space-id resolver reads. Production writes this row via ship-space's
+/// `ProjectsProjection`; agent-def cannot depend on ship-space, so the test
+/// seeds the read model directly.
+fn register_project(project_root: &std::path::Path, id: &str) -> Result<()> {
+    let key = ship_substrate::db::projects::canonical_path_key(project_root);
+    let global = ship_substrate::project::get_global_dir()?;
+    let mut conn = ship_substrate::db::open_runtime_db(&global)?;
+    ship_substrate::db::block_on(async {
+        sqlx::query(
+            "INSERT INTO projects (id, path, name, created_at, last_seen_at) \
+             VALUES (?, ?, 'test', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+        )
+        .bind(id)
+        .bind(key)
+        .execute(&mut conn)
+        .await
+        .map(|_| ())
+    })?;
+    Ok(())
+}
+
 #[test]
 fn agents_permissions_crud_save_emits_permissions_updated() -> Result<()> {
     let tmp = tempdir()?;
     let ship_dir = init_project(tmp.path())?;
+    register_project(tmp.path(), "perm-test-space")?;
 
     let perms = Permissions::default();
     save_permissions(ship_dir.clone(), &perms)?;
@@ -213,6 +236,27 @@ fn agents_permissions_crud_save_emits_permissions_updated() -> Result<()> {
     assert!(
         !events.is_empty(),
         "expected permissions.updated event after save_permissions; got none"
+    );
+    assert_eq!(
+        events[0].entity_id, "perm-test-space",
+        "the event entity must be the pointer content-id"
+    );
+    Ok(())
+}
+
+#[test]
+fn agents_permissions_crud_save_skips_event_when_unregistered() -> Result<()> {
+    // Space-less contract: an unregistered project saves the file but emits
+    // NO audit event — never a fabricated `global` entity.
+    let tmp = tempdir()?;
+    let ship_dir = init_project(tmp.path())?;
+
+    let perms = Permissions::default();
+    save_permissions(ship_dir.clone(), &perms)?;
+
+    assert!(
+        query_events(PERMISSIONS_UPDATED).is_empty(),
+        "unregistered project must not emit permissions.updated"
     );
     Ok(())
 }

@@ -13,7 +13,7 @@ pub struct AuthContext {
     pub caller_kind: CallerKind,
     pub agent_id: Option<String>,
     pub workspace_id: Option<String>,
-    /// The space this request belongs to (path-hash space identity), carried
+    /// The space this request belongs to (the pointer content-id), carried
     /// from the authenticated session. A space-window session carries its OWN
     /// space here; operator/agent/daemon-token requests leave it `None`, which
     /// the binding keys as `None` (Phase 2 fail-soft — no home-space fallback on

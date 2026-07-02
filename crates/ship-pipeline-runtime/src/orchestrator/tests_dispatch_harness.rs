@@ -125,6 +125,7 @@ fn octx_with_journal_store(
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         journal_store,
+        space_id: None,
     }
 }
 

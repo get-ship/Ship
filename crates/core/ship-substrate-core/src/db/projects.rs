@@ -47,6 +47,20 @@ fn open_projects_conn() -> Result<SqliteConnection> {
     open_runtime_db(&ship_dir)
 }
 
+/// The canonical string key for a project path — the exact value the
+/// `projects.path` column stores and every path lookup queries with.
+///
+/// `registry::add` (the id mint) and the `find_by_path*` readers both route
+/// through here, so a registered space can never silently read as
+/// unregistered because one side canonicalized and the other did not.
+/// Falls back to the raw path when canonicalization fails (path gone).
+pub fn canonical_path_key(path: &Path) -> String {
+    std::fs::canonicalize(path)
+        .unwrap_or_else(|_| path.to_path_buf())
+        .to_string_lossy()
+        .into_owned()
+}
+
 fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> SpaceRecord {
     SpaceRecord {
         id: row.get(0),
@@ -86,15 +100,17 @@ pub fn get(id: &str) -> Result<Option<SpaceRecord>> {
     Ok(row.as_ref().map(row_to_record))
 }
 
-/// Look up a project by filesystem path.
+/// Look up a project by filesystem path. The query is canonicalized to the
+/// same key `registry::add` stores (see [`canonical_path_key`]).
 pub fn find_by_path(path: &str) -> Result<Option<SpaceRecord>> {
     let mut conn = open_projects_conn()?;
+    let key = canonical_path_key(Path::new(path));
     let row = block_on(async {
         sqlx::query(
             "SELECT id, path, name, created_at, last_seen_at \
              FROM projects WHERE path = ?",
         )
-        .bind(path)
+        .bind(key)
         .fetch_optional(&mut conn)
         .await
     })?;
@@ -141,15 +157,18 @@ pub fn get_at(ship_dir: &Path, id: &str) -> Result<Option<SpaceRecord>> {
     Ok(row.as_ref().map(row_to_record))
 }
 
-/// Look up a project by filesystem path under `ship_dir`.
+/// Look up a project by filesystem path under `ship_dir`. The query is
+/// canonicalized to the same key `registry::add` stores (see
+/// [`canonical_path_key`]).
 pub fn find_by_path_at(ship_dir: &Path, path: &str) -> Result<Option<SpaceRecord>> {
     let mut conn = open_runtime_conn_at(ship_dir)?;
+    let key = canonical_path_key(Path::new(path));
     let row = block_on(async {
         sqlx::query(
             "SELECT id, path, name, created_at, last_seen_at \
              FROM projects WHERE path = ?",
         )
-        .bind(path)
+        .bind(key)
         .fetch_optional(&mut conn)
         .await
     })?;

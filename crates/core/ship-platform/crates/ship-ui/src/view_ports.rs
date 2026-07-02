@@ -70,8 +70,9 @@ pub trait ViewToolPort: Send + Sync {
     /// space is set on the daemon.
     fn collections(&self) -> anyhow::Result<ship_collection::service::CollectionService>;
 
-    /// Active project slug (used as `space_id` for snapshot scoping).
-    fn project_slug(&self) -> Option<String>;
+    /// The active space CONTENT-ID (pointer-resolved) — the `space_id` for
+    /// snapshot scoping. `None` = space-less daemon.
+    fn active_space_id(&self) -> Option<String>;
 
     /// Resolved active-theme CSS — parses custom properties for `theme_tokens`.
     fn resolve_theme_css(&self) -> String;

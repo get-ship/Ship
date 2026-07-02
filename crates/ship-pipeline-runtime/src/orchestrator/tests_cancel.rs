@@ -145,6 +145,7 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         journal_store: Arc::new(durable_execution::InMemoryJournalStore::new()),
+        space_id: None,
     };
 
     let pipeline_run_id = "j-cancel-1";
@@ -210,6 +211,7 @@ async fn cancel_without_registered_handle_still_cleans_and_emits() {
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         journal_store: Arc::new(durable_execution::InMemoryJournalStore::new()),
+        space_id: None,
     };
 
     let pipeline_run_id = "j-cancel-2";

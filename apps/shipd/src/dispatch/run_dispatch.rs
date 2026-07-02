@@ -118,6 +118,13 @@ pub async fn subscribe_job_events(
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
         journal_store: Arc::new(journal_store),
+        // The runs' space: pointer-resolved from the daemon's workspace probe
+        // (`Var::DevProjectDir` honors `--workspace`; cwd otherwise). `None` =
+        // space-less daemon — artifact-plane pipeline features error cleanly.
+        space_id: std::env::current_dir()
+            .ok()
+            .as_deref()
+            .and_then(ship_substrate::project::resolve_active_space),
     });
 
     // The agent-session actor's ports — the SAME concrete impls + the SAME

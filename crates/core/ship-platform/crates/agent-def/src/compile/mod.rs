@@ -220,12 +220,16 @@ fn emit_compile_completed(
     use ship_substrate::events::types::{CompileCompleted, event_types::COMPILE_COMPLETED};
     use ship_substrate::persistence::event_store::SqliteEventStore;
 
-    let space_id = match ship_substrate::project::ensure_space_id(ship_dir) {
-        Ok(id) => id,
-        Err(e) => {
-            tracing::warn!("compile: cannot resolve project id: {e}");
-            return;
-        }
+    // The space id comes from the `projects` pointer. An unregistered project
+    // records no compile state (space-less) — the daemon registers its
+    // workspace at boot, so the normal flow always resolves.
+    let probe = ship_dir.parent().unwrap_or(ship_dir);
+    let Some(space_id) = ship_substrate::project::resolve_active_space(probe) else {
+        tracing::warn!(
+            ship_dir = %ship_dir.display(),
+            "compile: workspace is not a registered space — compile.completed not recorded"
+        );
+        return;
     };
     let payload = CompileCompleted {
         active_agent: active_agent.map(str::to_string),

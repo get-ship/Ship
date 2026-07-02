@@ -24,8 +24,14 @@ use ship_substrate::events::{EventEnvelope, EventSink};
 use ship_substrate::persistence::event_store::SqliteEventStore;
 use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 use crate::orchestrator::step_io::{
-    check_required_outputs, find_artifact_id_in_events, run_step_promotes,
+    check_required_outputs, find_artifact_id_in_events, resolve_consumes, run_step_promotes,
 };
+
+/// The run's space CONTENT-ID. The orchestrator receives it from the host
+/// (`OrchestratorContext::space_id`, resolved via the `projects` pointer);
+/// every artifact written or read for a run keys off this exact id — never
+/// a path/slug derivation.
+const TEST_SPACE: &str = "space-test-content-id";
 
 /// Build an `ArtifactService` over a `SpaceContext` for the test's space.
 fn art_service(
@@ -122,11 +128,10 @@ async fn three_step_flow_resolves_consumes_and_promotes_patch() {
     let ship_dir = fresh_ship_dir();
 
     // The orchestrator's read-side `artifact_service` binds its `SpaceContext`
-    // to the run's space, which it derives as `project_slug_from_ship_dir`.
-    // The `SingleBackendDataStore` partitions rows by that space, so the store
-    // side must use the SAME space for the row to be readable by id.
-    let space_id = ship_substrate::project::project_slug_from_ship_dir(&ship_dir);
-    let space_id = space_id.as_str();
+    // to the run's space content-id (passed in by the host). The
+    // `SingleBackendDataStore` partitions rows by that space, so the store
+    // side must use the SAME id for the row to be readable by id.
+    let space_id = TEST_SPACE;
     let pipeline_run_id = "job-three-step";
     let run_id = "run-001";
     let run_scope = ArtifactScope::Run {
@@ -201,7 +206,7 @@ async fn three_step_flow_resolves_consumes_and_promotes_patch() {
     };
     emit_pipeline_run_started(&ship_dir, pipeline_run_id, &pipeline);
 
-    run_step_promotes(&kernel, pipeline_run_id, &gate_step).await;
+    run_step_promotes(&kernel, pipeline_run_id, &gate_step, Some(TEST_SPACE)).await;
 
     // Verify the patch now lives in project scope with the same bytes.
     let filter: std::collections::BTreeMap<String, serde_json::Value> = [
@@ -212,6 +217,34 @@ async fn three_step_flow_resolves_consumes_and_promotes_patch() {
     let promoted = art_svc.list(filter, 10).await.unwrap();
     assert_eq!(promoted.len(), 1, "patch must have been promoted to project scope");
     assert_eq!(promoted[0].scope, "project");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn space_less_run_fails_consumes_cleanly() {
+    // A consuming step with NO active space must error cleanly — never
+    // fabricate a partition key (no `global`, no home-slug bucket).
+    let ship_dir = fresh_ship_dir();
+    let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
+        ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).expect("kernel"),
+    ));
+
+    let mut consumer = step("gate", "reviewer");
+    consumer.consumes = vec!["patch".into()];
+    let pipeline = Pipeline { steps: vec![consumer.clone()], auto_merge: false };
+
+    let wt = tempfile::tempdir().unwrap();
+    let err = resolve_consumes(&kernel, &consumer, &pipeline, "job-space-less", wt.path(), None)
+        .await
+        .expect_err("consuming step with no active space must fail cleanly");
+    assert!(
+        err.contains("space"),
+        "error must name the space-less cause: {err}"
+    );
+
+    // Promotes without a space are a non-fatal skip (nothing to key on).
+    let mut promoter = step("gate2", "reviewer");
+    promoter.promotes = vec![StepPromote { name: "patch".into(), target_scope: OutputScope::Project }];
+    run_step_promotes(&kernel, "job-space-less", &promoter, None).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

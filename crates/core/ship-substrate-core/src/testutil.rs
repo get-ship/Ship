@@ -13,16 +13,13 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 pub use crate::project::{PRIMARY_CONFIG_FILE, SHIP_DIR_NAME};
 
 /// Create a minimal `.ship/` directory under `base_dir` suitable for L0 tests.
-/// Writes only the `ship.jsonc` id field; no config schemas or skills.
+/// Presence-only: an empty `ship.jsonc` config scaffold — identity lives in
+/// the `projects` pointer, never in the tree.
 pub fn init_project_minimal(base_dir: impl AsRef<Path>) -> Result<PathBuf> {
     let base_dir = base_dir.as_ref();
     let ship_dir = base_dir.join(SHIP_DIR_NAME);
     std::fs::create_dir_all(&ship_dir)?;
-    let id = crate::gen_nanoid();
-    std::fs::write(
-        ship_dir.join(PRIMARY_CONFIG_FILE),
-        format!("{{\"id\": \"{id}\"}}\n"),
-    )?;
+    std::fs::write(ship_dir.join(PRIMARY_CONFIG_FILE), "{}\n")?;
     Ok(ship_dir)
 }
 

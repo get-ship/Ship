@@ -85,6 +85,9 @@ fn make_octx(platform: Arc<CountingPlatform>) -> OrchestratorContext {
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
         journal_store: Arc::new(durable_execution::InMemoryJournalStore::new()),
+        // The marker path stores artifacts under the run's space — give the
+        // reconciler a real content-id (space-less skip is not the subject).
+        space_id: Some("space-test-recover".to_string()),
     }
 }
 

@@ -197,6 +197,7 @@ async fn pipeline_advances_through_all_steps() {
     let executor = Arc::new(MockExecutor::new());
     let dctx = OrchestratorContext {
         journal_store: std::sync::Arc::new(durable_execution::InMemoryJournalStore::new()),
+        space_id: None,
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
@@ -452,6 +453,7 @@ async fn run_step_advances_to_agent_step() {
     let executor = Arc::new(MockExecutor::new());
     let dctx = OrchestratorContext {
         journal_store: std::sync::Arc::new(durable_execution::InMemoryJournalStore::new()),
+        space_id: None,
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
@@ -545,6 +547,7 @@ async fn first_step_run_executes_without_agent() {
     let executor = Arc::new(MockExecutor::new());
     let dctx = OrchestratorContext {
         journal_store: std::sync::Arc::new(durable_execution::InMemoryJournalStore::new()),
+        space_id: None,
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),

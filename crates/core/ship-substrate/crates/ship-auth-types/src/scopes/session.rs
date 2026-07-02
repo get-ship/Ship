@@ -24,7 +24,7 @@ pub struct DaemonSession {
     /// route-auth + artifacts). See `.artifacts/capability-provisioning-and-approval.md`.
     pub grants: Vec<String>,
     pub workspace_id: Option<String>,
-    /// The space this session belongs to (path-hash space identity). Authoritative
+    /// The space this session belongs to (the pointer content-id). Authoritative
     /// per-connection space for the emit path: a space-window session carries its
     /// OWN space here (`space_window_session`), so events it emits are stamped with
     /// that space. `None` for sessions with no resolvable space — keyed `None` at

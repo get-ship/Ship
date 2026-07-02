@@ -46,20 +46,32 @@ pub struct ResolvedInput {
 /// 4. Writes the blob to `<worktree>/.artifacts/input/<name>` (hardlink or copy).
 ///
 /// Returns `Err` with a human-readable message when any input cannot be resolved.
+///
+/// `space_id` is the run's space CONTENT-ID (`OrchestratorContext::space_id`,
+/// pointer-resolved by the host). A consuming step with no active space errors
+/// cleanly — no fabricated partition key.
 pub async fn resolve_consumes(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     step: &PipelineStep,
     pipeline: &ship_substrate::events::pipeline::Pipeline,
     pipeline_run_id: &str,
     worktree_path: &Path,
+    space_id: Option<&str>,
 ) -> Result<Vec<ResolvedInput>, String> {
     if step.consumes.is_empty() {
         return Ok(vec![]);
     }
+    let Some(space_id) = space_id else {
+        return Err(format!(
+            "step '{}' consumes artifacts but the daemon has no active space \
+             (register the workspace before running artifact-consuming steps)",
+            step.id
+        ));
+    };
 
     let ship_dir = ship_substrate::project::get_global_dir()
         .map_err(|e| format!("resolve_consumes: cannot get ship dir: {e}"))?;
-    let art_svc = artifact_service(kernel, &ship_dir);
+    let art_svc = artifact_service(kernel, &ship_dir, space_id);
 
     let mut resolved = Vec::new();
 
@@ -158,14 +170,26 @@ pub fn check_required_outputs(
 ///
 /// Failures are non-fatal: each failure emits a warning and the next
 /// promote entry is attempted. The pipeline advances regardless.
+///
+/// `space_id` is the run's space CONTENT-ID (`OrchestratorContext::space_id`).
+/// Space-less runs skip promotion (nothing to key on) with a warning.
 pub async fn run_step_promotes(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     pipeline_run_id: &str,
     step: &PipelineStep,
+    space_id: Option<&str>,
 ) {
     if step.promotes.is_empty() {
         return;
     }
+    let Some(space_id) = space_id else {
+        tracing::warn!(
+            pipeline_run_id,
+            step_id = step.id,
+            "promotes: no active space — skipping (register the workspace)"
+        );
+        return;
+    };
 
     let ship_dir = match ship_substrate::project::get_global_dir() {
         Ok(d) => d,
@@ -174,8 +198,7 @@ pub async fn run_step_promotes(
             return;
         }
     };
-    let art_svc = artifact_service(kernel, &ship_dir);
-    let space_id = ship_substrate::project::project_slug_from_ship_dir(&ship_dir);
+    let art_svc = artifact_service(kernel, &ship_dir, space_id);
 
     // This step's own outputs (for promotes of self-produced artifacts).
     let own_outputs = get_step_outputs_from_events(pipeline_run_id, &step.id);
@@ -200,7 +223,7 @@ pub async fn run_step_promotes(
             continue;
         };
 
-        let target = match output_scope_to_artifact_scope(&promote.target_scope, &space_id) {
+        let target = match output_scope_to_artifact_scope(&promote.target_scope, space_id) {
             Ok(s) => s,
             Err(e) => {
                 tracing::warn!(
@@ -230,19 +253,20 @@ pub async fn run_step_promotes(
 /// Artifact METADATA is event-sourced (ADR D6/D7): `artifact.*` events route to
 /// `spaces/<space_id>/space.db`, where `ArtifactProjection` materializes the
 /// metadata row. The read ctx must bind to that SAME per-scope db (consumer
-/// consistency), with its partition key set to the run's space. The global ship
-/// dir is the blob root (blobs stay on the content-addressed plane).
+/// consistency), with its partition key set to the run's space CONTENT-ID.
+/// The global ship dir is the blob root (blobs stay on the content-addressed
+/// plane).
 fn artifact_service(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     ship_dir: &Path,
+    space_id: &str,
 ) -> ArtifactService {
-    let space_id = ship_substrate::project::project_slug_from_ship_dir(ship_dir);
-    let space_db = ship_substrate::db::space_db_path(ship_dir, &space_id);
+    let space_db = ship_substrate::db::space_db_path(ship_dir, space_id);
     let data_svc = ship_substrate::data::DataService::open_at(&space_db)
         .expect("orchestrator artifact service: open space.db");
-    let store = Arc::new(SingleBackendDataStore::new(data_svc, &space_id));
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
     let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
-    let ctx = Arc::new(SpaceContext::new(SpaceId::new(&space_id), store, kernel_log));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel_log));
     ArtifactService::new(ctx, ship_dir.to_path_buf())
 }
 

@@ -38,16 +38,10 @@ fn install_projects_projection() {
 }
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
-
-/// Initialize a minimal project layout at `path` that `registry::add` and
-/// `resolve_active_space` require: a `.ship/` directory and a `ship.jsonc`
-/// with an `{}` body (no pre-set id).  The first call to `ensure_space_id` will
-/// mint and persist a nanoid into that file, making the path registerable.
-fn init_project(path: &std::path::Path) {
-    let ship_dir = path.join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    std::fs::write(ship_dir.join("ship.jsonc"), "{}").unwrap();
-}
+//
+// Registration needs NO project tree: `registry::add` mints the space id
+// itself (nanoid keyed to the canonical path) and persists it as the
+// `projects` row. Tests register bare directories.
 
 fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
     install_projects_projection();
@@ -104,7 +98,6 @@ async fn info_live_space_resolves_identity() {
 
     let space_path = tmp.path().join("acme");
     std::fs::create_dir_all(&space_path).unwrap();
-    init_project(&space_path);
     let record = svc.add(&space_path, Some("Acme")).await.unwrap();
     let space = record.id.clone();
 
@@ -126,7 +119,6 @@ async fn add_is_idempotent_same_id_name_preserved() {
 
     let path = tmp.path().join("proj");
     std::fs::create_dir_all(&path).unwrap();
-    init_project(&path);
     let r1 = svc.add(&path, Some("test")).await.unwrap();
     let r2 = svc.add(&path, Some("test-renamed")).await.unwrap();
     assert_eq!(r1.id, r2.id, "id stable across re-add");
@@ -143,8 +135,6 @@ async fn list_returns_spaces_newest_first() {
     let b = tmp.path().join("re-b");
     std::fs::create_dir_all(&a).unwrap();
     std::fs::create_dir_all(&b).unwrap();
-    init_project(&a);
-    init_project(&b);
     svc.add(&a, Some("re-a")).await.unwrap();
     tokio::time::sleep(Duration::from_millis(10)).await;
     svc.add(&b, Some("re-b")).await.unwrap();
@@ -164,7 +154,6 @@ async fn activate_switches_pointer_and_emits_switched() {
 
     let path = tmp.path().join("a");
     std::fs::create_dir_all(&path).unwrap();
-    init_project(&path);
     let r = svc.add(&path, Some("a")).await.unwrap();
 
     // Drain the add event(s).
@@ -209,7 +198,6 @@ async fn active_is_none_on_cold_boot_then_resolves_after_activate() {
 
     let path = tmp.path().join("p");
     std::fs::create_dir_all(&path).unwrap();
-    init_project(&path);
     let r = svc.add(&path, Some("p")).await.unwrap();
     svc.activate(&r.id).await.unwrap();
 
@@ -228,7 +216,6 @@ async fn list_surfaces_active_id_after_activate() {
 
     let path = tmp.path().join("p1");
     std::fs::create_dir_all(&path).unwrap();
-    init_project(&path);
     let r = svc.add(&path, Some("p1")).await.unwrap();
     assert_eq!(svc.active_id().await.unwrap(), None, "no active pointer pre-activate");
     svc.activate(&r.id).await.unwrap();
@@ -243,9 +230,87 @@ async fn add_derives_name_from_path_when_unnamed() {
     let kernel = make_kernel(&tmp);
     let path = tmp.path().join("my-space");
     std::fs::create_dir_all(&path).unwrap();
-    init_project(&path);
     let r = registry::add(&kernel, &path, None).await.unwrap();
     assert_eq!(r.name, "my-space", "name derived from final path segment");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn register_mints_id_without_a_tree() {
+    // `registry::add` is the SOLE birthplace of a space id: a bare directory
+    // (no `.ship/`, no `ship.jsonc`) registers and gets a stable id. No write
+    // ever touches the project tree.
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel = make_kernel(&tmp);
+    let path = tmp.path().join("bare");
+    std::fs::create_dir_all(&path).unwrap();
+
+    let r = registry::add(&kernel, &path, None).await.unwrap();
+    assert!(!r.id.trim().is_empty(), "add mints a non-empty id");
+    assert!(
+        !path.join(".ship").exists(),
+        "register must not scaffold a project tree"
+    );
+
+    let r2 = registry::add(&kernel, &path, None).await.unwrap();
+    assert_eq!(r.id, r2.id, "re-add returns the same id");
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn add_is_idempotent_by_canonical_path() {
+    // The pointer keys by CANONICAL path: registering the same directory
+    // through a symlinked alias must resolve to the existing row, not mint
+    // a second id.
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel = make_kernel(&tmp);
+    let path = tmp.path().join("proj");
+    std::fs::create_dir_all(&path).unwrap();
+    let alias = tmp.path().join("alias");
+    std::os::unix::fs::symlink(&path, &alias).unwrap();
+
+    let r1 = registry::add(&kernel, &path, Some("orig")).await.unwrap();
+    let r2 = registry::add(&kernel, &alias, Some("renamed")).await.unwrap();
+    assert_eq!(r1.id, r2.id, "one canonical path → one id");
+    assert_eq!(r2.name, "orig", "re-add keeps the original name");
+}
+
+// ── resolve_active_space rides the pointer ────────────────────────────────────
+//
+// `worker_threads = 1` keeps `get_global_dir()`'s per-thread test isolation on
+// ONE thread, so the kernel (pointer writer) and `resolve_active_space`
+// (pointer reader) share the same runtime.db.
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn resolve_active_space_reads_the_pointer() {
+    install_projects_projection();
+    let global = ship_substrate::project::get_global_dir().unwrap();
+    std::fs::create_dir_all(&global).unwrap();
+    let router = new_isolated_for_test(global).unwrap();
+    let kernel = Arc::new(KernelLog::new(router));
+
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("proj");
+    std::fs::create_dir_all(ShipHome::project_ship_dir(&root)).unwrap(); // presence only
+    std::fs::create_dir_all(root.join("src")).unwrap();
+
+    // Discoverable but unregistered → space-less.
+    assert_eq!(
+        ship_substrate::project::resolve_active_space(&root.join("src")),
+        None,
+        "unregistered root resolves to no active space"
+    );
+
+    let canonical = std::fs::canonicalize(&root).unwrap();
+    let rec = registry::add(&kernel, &canonical, None).await.unwrap();
+
+    assert_eq!(
+        ship_substrate::project::resolve_active_space(&root.join("src")),
+        Some(rec.id),
+        "resolution must read the projects pointer"
+    );
+    assert!(
+        !ShipHome::project_ship_dir(&root).join("ship.jsonc").exists(),
+        "resolution/registration must never write identity into the tree"
+    );
 }
 
 // ── Behavioral proof: single table (dual-read-model dissolution) ─────────────
@@ -265,7 +330,6 @@ async fn project_registered_event_is_visible_in_both_async_registry_and_sync_sql
 
     let path = tmp.path().join("my-project");
     std::fs::create_dir_all(&path).unwrap();
-    init_project(&path);
 
     // Register the space — emits `project.registered`; ProjectsProjection folds
     // it into the `projects` SQL table inside the kernel transaction.

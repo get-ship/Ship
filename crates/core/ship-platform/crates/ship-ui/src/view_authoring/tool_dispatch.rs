@@ -145,12 +145,12 @@ async fn op_write_source(
         Err(e) => return DispatchResult::NotFound { code: "view_not_found", message: e },
     };
 
-    let space_id = match port.project_slug() {
+    let space_id = match port.active_space_id() {
         Some(s) if !s.is_empty() => s,
         _ => {
             return DispatchResult::Internal {
                 code: "no_project",
-                message: "daemon has no active project".into(),
+                message: "daemon has no active space".into(),
             }
         }
     };
@@ -507,7 +507,7 @@ mod tests {
             fn collections(&self) -> anyhow::Result<ship_collection::service::CollectionService> {
                 Err(anyhow::anyhow!("mock: no active space"))
             }
-            fn project_slug(&self) -> Option<String> {
+            fn active_space_id(&self) -> Option<String> {
                 None
             }
             fn resolve_theme_css(&self) -> String {

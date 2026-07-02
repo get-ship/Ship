@@ -43,7 +43,7 @@ pub fn install_collection_projection() {
 pub fn mount(router: ConnectRouter) -> anyhow::Result<ConnectRouter> {
     let ship_dir = ship_substrate_core::ShipHome::from_env().root().to_path_buf();
 
-    // Active space = the content-id (`.ship/ship.jsonc#id`) of the discovered
+    // Active space = the `projects` pointer content-id of the discovered
     // project root. Probe from the enclosing workspace (helmd's cwd / the repo
     // it was launched in), falling back to cwd — mirrors shipd's `probe`.
     let project_ship_dir = ship_substrate_core::project::get_project_dir(None).ok();

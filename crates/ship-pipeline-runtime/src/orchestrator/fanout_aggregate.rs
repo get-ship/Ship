@@ -55,11 +55,18 @@ pub async fn complete_fanout_lane(
         // so the judge step's `consumes` resolves through the same mechanism
         // used for successful outputs. No special-casing required downstream.
         let reason = payload.reason.clone().unwrap_or_else(|| "lane failed".to_string());
-        if let Some(marker_id) = emit_failed_marker(
-            kernel, &lane_ref.pipeline_run_id, &lane_ref.parent_slug,
-            &lane_step_id, &lane_ref.lane_id, &reason,
-        ).await {
-            outputs.insert(FAILED_MARKER_NAME.to_string(), marker_id);
+        if let Some(space_id) = octx.space_id.as_deref() {
+            if let Some(marker_id) = emit_failed_marker(
+                kernel, &lane_ref.pipeline_run_id, &lane_ref.parent_slug,
+                &lane_step_id, &lane_ref.lane_id, &reason, space_id,
+            ).await {
+                outputs.insert(FAILED_MARKER_NAME.to_string(), marker_id);
+            }
+        } else {
+            tracing::warn!(
+                pipeline_run_id = lane_ref.pipeline_run_id, lane_id = lane_ref.lane_id,
+                "fanout: no active space — failed marker not stored"
+            );
         }
     } else {
         tracing::info!(
@@ -101,6 +108,7 @@ pub(crate) async fn emit_failed_marker(
     lane_step_id: &str,
     lane_id: &str,
     reason: &str,
+    space_id: &str,
 ) -> Option<String> {
     let ship_dir = match ship_substrate::project::get_global_dir() {
         Ok(d) => d,
@@ -109,11 +117,11 @@ pub(crate) async fn emit_failed_marker(
             return None;
         }
     };
-    let space_id = ship_substrate::project::project_slug_from_ship_dir(&ship_dir);
     // Artifact METADATA is event-sourced (ADR D6/D7): the read ctx binds to the
     // per-scope `spaces/<space_id>/space.db` where `ArtifactProjection` writes,
-    // not the shared data.db.
-    let space_db = ship_substrate::db::space_db_path(&ship_dir, &space_id);
+    // not the shared data.db. `space_id` is the run's space CONTENT-ID
+    // (`OrchestratorContext::space_id`).
+    let space_db = ship_substrate::db::space_db_path(&ship_dir, space_id);
     let data_svc = match ship_substrate::data::DataService::open_at(&space_db) {
         Ok(d) => d,
         Err(e) => {
@@ -121,12 +129,12 @@ pub(crate) async fn emit_failed_marker(
             return None;
         }
     };
-    let store = Arc::new(SingleBackendDataStore::new(data_svc, &space_id));
+    let store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
     let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
-    let ctx = Arc::new(SpaceContext::new(SpaceId::new(&space_id), store, kernel_log));
+    let ctx = Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel_log));
     let art_svc = ArtifactService::new(ctx, ship_dir.clone());
     let scope = ArtifactScope::Run {
-        space_id: space_id.clone(),
+        space_id: space_id.to_string(),
         run_id: pipeline_run_id.to_string(),
     };
     let body = format!(
