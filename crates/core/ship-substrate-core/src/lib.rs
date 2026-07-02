@@ -40,7 +40,6 @@ pub mod fs_util;
 pub mod spawn_bounded;
 pub mod task_health;
 pub mod home;
-pub mod locate;
 pub mod persistence;
 pub mod project;
 pub mod projections;

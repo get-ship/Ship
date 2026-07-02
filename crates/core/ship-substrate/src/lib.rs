@@ -67,7 +67,7 @@ pub mod persistence {
 // Everything below is owned by `ship-substrate-core`; the facade exposes
 // each at the original `ship_substrate::<path>` for back-compat.
 pub use ship_substrate_core::{
-    config_doc, data, db, env, errors, fs_util, home, locate, path_layout,
+    config_doc, data, db, env, errors, fs_util, home, path_layout,
     project, projections, query, runtime_reads, security, spawn_bounded,
     task_health, testutil,
 };
