@@ -51,18 +51,6 @@ impl DataService {
         &self.db_path
     }
 
-    /// Execute a write from a sea-query built statement.
-    pub fn execute_sea(&mut self, sql: &str, values: sea_query::Values) -> Result<u64> {
-        let params: Vec<SqlParam> = values.0.into_iter().map(sea_value_to_param).collect();
-        self.execute(sql, &params)
-    }
-
-    /// Execute a read from a sea-query built statement.
-    pub fn query_sea(&mut self, sql: &str, values: sea_query::Values) -> Result<Vec<DataRow>> {
-        let params: Vec<SqlParam> = values.0.into_iter().map(sea_value_to_param).collect();
-        self.query(sql, &params)
-    }
-
     /// Execute a write statement (CREATE, INSERT, UPDATE, DELETE).
     /// Returns the number of rows affected.
     pub fn execute(&mut self, sql: &str, params: &[SqlParam]) -> Result<u64> {
@@ -226,30 +214,6 @@ fn bind_param<'q>(
         SqlParam::Float(n) => query.bind(*n),
         SqlParam::Bool(b) => query.bind(*b),
         SqlParam::Null => query.bind(None::<String>),
-    }
-}
-
-fn sea_value_to_param(v: sea_query::Value) -> SqlParam {
-    match v {
-        sea_query::Value::String(Some(s)) => SqlParam::Text(*s),
-        sea_query::Value::String(None) => SqlParam::Null,
-        sea_query::Value::Int(Some(i)) => SqlParam::Int(i as i64),
-        sea_query::Value::Int(None) => SqlParam::Null,
-        sea_query::Value::BigInt(Some(i)) => SqlParam::Int(i),
-        sea_query::Value::BigInt(None) => SqlParam::Null,
-        sea_query::Value::Float(Some(f)) => SqlParam::Float(f as f64),
-        sea_query::Value::Float(None) => SqlParam::Null,
-        sea_query::Value::Double(Some(f)) => SqlParam::Float(f),
-        sea_query::Value::Double(None) => SqlParam::Null,
-        sea_query::Value::Bool(Some(b)) => SqlParam::Bool(b),
-        sea_query::Value::Bool(None) => SqlParam::Null,
-        sea_query::Value::TinyInt(Some(i)) => SqlParam::Int(i as i64),
-        sea_query::Value::SmallInt(Some(i)) => SqlParam::Int(i as i64),
-        sea_query::Value::TinyUnsigned(Some(i)) => SqlParam::Int(i as i64),
-        sea_query::Value::SmallUnsigned(Some(i)) => SqlParam::Int(i as i64),
-        sea_query::Value::Unsigned(Some(i)) => SqlParam::Int(i as i64),
-        sea_query::Value::BigUnsigned(Some(i)) => SqlParam::Int(i as i64),
-        _ => SqlParam::Null,
     }
 }
 

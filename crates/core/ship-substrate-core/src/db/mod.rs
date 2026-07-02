@@ -26,7 +26,6 @@ mod tests_envelope;
 #[cfg(test)]
 mod property_tests;
 pub mod rebuild;
-pub mod types;
 
 #[cfg(test)]
 mod tests_db_paths;

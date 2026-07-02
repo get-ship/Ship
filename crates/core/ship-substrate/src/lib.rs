@@ -69,15 +69,15 @@ pub mod persistence {
 pub use ship_substrate_core::{
     config_doc, data, db, env, errors, fs_util, home, locate, path_layout,
     project, projections, query, runtime_reads, security, spawn_bounded,
-    task_health, trash, testutil,
+    task_health, testutil,
 };
 
 // ── Public re-exports at the crate root for back-compat ─────────────────────
 pub use ship_substrate_core::{
     gen_nanoid, gen_slug_suffix, gen_ulid, DaemonFile, Db, EventEnvelope,
-    KernelError, Scope, ShipHome, TrashEntry, Vector, WorkspaceError,
-    list_events_since, list_trash, purge_old_trash, query_events_since, read_events,
-    read_recent_events, restore_file, trash_file,
+    KernelError, Scope, ShipHome, Vector, WorkspaceError,
+    list_events_since, query_events_since, read_events,
+    read_recent_events,
     is_safe_ident, AccountId, BlobError, BlobHash, BlobScope, BlobStore, ByteStream,
     ColumnKind, ColumnSpec, CountQuery, Cursor, DataStore, DataStoreError, FilterOp,
     FsBroker, FsCap, FsError, FsMode, FsRoot, KernelLog, LocalFsBlobStore, LocalFsBroker,

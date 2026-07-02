@@ -124,13 +124,6 @@ impl ShipRuntime {
         // a known-good baseline is the first signal of database trouble).
         log_event_log_summary(global_dir);
 
-        // Best-effort auto-purge: remove trash entries older than 24 hours.
-        match ship_substrate::trash::purge_old_trash(std::time::Duration::from_secs(86400)) {
-            Ok(0) => {}
-            Ok(n) => tracing::info!("auto-purged {n} expired trash entries"),
-            Err(e) => tracing::warn!("trash auto-purge failed: {e}"),
-        }
-
         // Build the single active-space `SpaceContext`
         // and the ONE shared schema registry, here (C-2 §3.1 / UD-7). The
         // `collections()`/`artifacts()` accessors construct stateless services

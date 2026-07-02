@@ -26,7 +26,7 @@
 //!   register domain projections.
 //! - `data` — `DataService` (sqlx-backed `DataStore` impl).
 //! - `home`, `project`, `env`, `path_layout`, `errors`, `query`, `config_doc`,
-//!   `runtime_reads`, `security`, `trash`, `fs_util`, `spawn_bounded`,
+//!   `runtime_reads`, `security`, `fs_util`, `spawn_bounded`,
 //!   `task_health`, `locate` — substrate-side utilities, all std-only.
 
 pub mod config_doc;
@@ -49,7 +49,6 @@ pub mod query;
 pub mod path_layout;
 pub mod runtime_reads;
 pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
-pub mod trash;
 
 pub mod testutil;
 
@@ -67,8 +66,6 @@ pub use events::{
     EventEnvelope, list_events_since, query_events_since, read_events, read_recent_events,
 };
 pub use errors::{KernelError, WorkspaceError};
-
-pub use trash::{TrashEntry, list_trash, purge_old_trash, restore_file, trash_file};
 
 
 // Persistence + event-router aliases surfaced at the crate root for callers
