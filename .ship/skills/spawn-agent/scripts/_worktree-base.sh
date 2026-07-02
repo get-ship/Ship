@@ -20,5 +20,5 @@ resolve_worktree_base() {
     cfg="$(ship config get worktrees.dir 2>/dev/null | tail -n1 | tr -d '[:space:]')"
   fi
   if [[ -n "$cfg" && "$cfg" != "(unset)" ]]; then echo "$cfg"; return; fi
-  echo "${HOME}/dev/ship-worktrees"
+  echo "${HOME}/dev/Ship/worktrees"
 }

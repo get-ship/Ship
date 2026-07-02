@@ -10,7 +10,7 @@
   },
   "worktree_dir": {
     "type": "string",
-    "default": "~/dev/ship-worktrees",
+    "default": "~/dev/Ship/worktrees",
     "storage-hint": "global",
     "label": "Worktree base directory",
     "description": "Base directory where git worktrees live."

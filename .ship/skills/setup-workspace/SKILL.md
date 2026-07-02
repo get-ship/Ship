@@ -33,10 +33,10 @@ Create `.artifacts/pod.md` to define your agent pod. The file is gitignored.
 agents:
   - name: rust
     agent: rust-lane
-    path: ~/dev/ship-worktrees/rust-work
+    path: ~/dev/Ship/worktrees/rust-work
   - name: web
     agent: web-lane
-    path: ~/dev/ship-worktrees/web-work
+    path: ~/dev/Ship/worktrees/web-work
 ```
 
 `path` defaults to `$SHIP_WORKTREE_DIR/<name>` if omitted.
@@ -47,7 +47,7 @@ Save the file once, reuse every session.
 
 ```bash
 ship vars set setup-workspace terminal tmux        # force terminal type
-ship vars set setup-workspace worktree_dir ~/dev/ship-worktrees
+ship vars set setup-workspace worktree_dir ~/dev/Ship/worktrees
 ```
 
 Falls back to `SHIP_DEFAULT_TERMINAL` / `SHIP_WORKTREE_DIR` env vars if vars are not set.
@@ -55,7 +55,7 @@ Falls back to `SHIP_DEFAULT_TERMINAL` / `SHIP_WORKTREE_DIR` env vars if vars are
 | Var | Default | What |
 |-----|---------|------|
 | `terminal` | auto-detected | `tmux`, `wt`, `iterm`, `warp`, `manual` |
-| `worktree_dir` | `~/dev/ship-worktrees` | Base path for agent worktrees |
+| `worktree_dir` | `~/dev/Ship/worktrees` | Base path for agent worktrees |
 
 ## Terminal support
 
@@ -76,6 +76,6 @@ set inside tmux (WSL) and you want tmux windows instead.
 tmux kill-session -t ship
 
 # or close tabs manually — worktrees persist until gate passes or manual cleanup
-git worktree remove ~/dev/ship-worktrees/<slug>
+git worktree remove ~/dev/Ship/worktrees/<slug>
 git branch -d job/<slug>
 ```

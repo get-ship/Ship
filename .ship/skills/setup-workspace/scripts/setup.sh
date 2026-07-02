@@ -43,7 +43,7 @@ TERMINAL=$(detect_terminal)
 #   agents:
 #     - name: rust
 #       agent: rust-lane
-#       path: /home/user/dev/ship-worktrees/rust-work
+#       path: /home/user/dev/Ship/worktrees/rust-work
 
 declare -a AGENT_NAMES=()
 declare -a AGENT_PROFILES=()
@@ -88,10 +88,10 @@ else
 agents:
   - name: rust
     agent: rust-lane
-    path: ~/dev/ship-worktrees/rust-work
+    path: ~/dev/Ship/worktrees/rust-work
   - name: web
     agent: web-lane
-    path: ~/dev/ship-worktrees/web-work
+    path: ~/dev/Ship/worktrees/web-work
 EXAMPLE
   exit 0
 fi

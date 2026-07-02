@@ -59,7 +59,7 @@ done
 if [[ -z "$SLUG" || -z "$AGENT" || -z "$SPEC_FILE" ]]; then
   echo "Usage: dispatch.sh --slug <name> --agent <agent> --spec <file>" >&2
   echo "  --base <branch>   Branch to fork from (default: current)" >&2
-  echo "  --dir <path>      Worktree base dir (default: ~/dev/ship-worktrees)" >&2
+  echo "  --dir <path>      Worktree base dir (default: ~/dev/Ship/worktrees)" >&2
   echo "  --skill <id>      Extra skill to inject at compile time (repeatable)" >&2
   echo "  --no-open         Print launch command instead of opening terminal" >&2
   echo "  --confirm         Show spec and ask y/n before launching" >&2

@@ -62,7 +62,7 @@ cd <main-repo> && git merge --no-ff job/<slug> -m "merge: <slug> — <goal>"
 just gate                      # re-verify on the merged tree
 # CLEANUP (mandatory — additive crates are parallel impls until cutover; never leak worktrees):
 tmux kill-session -t <slug> 2>/dev/null
-git worktree remove ~/dev/ship-worktrees/<slug> --force
+git worktree remove ~/dev/Ship/worktrees/<slug> --force
 git branch -d job/<slug>
 ```
 

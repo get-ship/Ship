@@ -3,7 +3,7 @@
 #
 # Run AFTER `git merge --no-ff job/<slug>` lands cleanly on the integration
 # branch. Tears down everything dispatch.sh and the agent created:
-#   1. The worktree at ~/dev/ship-worktrees/<slug> (force, in case the
+#   1. The worktree at ~/dev/Ship/worktrees/<slug> (force, in case the
 #      agent left untracked files like package-lock.json from an
 #      accidental npm invocation)
 #   2. The local branch job/<slug>

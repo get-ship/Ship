@@ -44,7 +44,7 @@ These are personal configuration — set in your shell profile, not in project f
 | Variable | What |
 |----------|------|
 | `SHIP_DEFAULT_TERMINAL` | Force terminal: `tmux`, `wt`, `iterm`, `vscode`, `warp`, `manual` |
-| `SHIP_WORKTREE_DIR` | Base directory for worktrees (default: `~/dev/ship-worktrees`) |
+| `SHIP_WORKTREE_DIR` | Base directory for worktrees (default: `~/dev/Ship/worktrees`) |
 | `SHIP_GLOBAL_DIR` | Ship global data dir (default: `~/.ship`) |
 | `SHIP_AGENT_MODEL` | Default model for spawned agents |
 | `SHIP_DISPATCH_CONFIRM` | Set to `1` to always prompt before dispatch |
