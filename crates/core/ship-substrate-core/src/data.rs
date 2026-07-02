@@ -17,7 +17,8 @@ use sqlx::{Column, Connection, Row, SqliteConnection};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-/// Managed SQLite connection to `.ship/data.db`.
+/// Managed SQLite connection to an explicit per-scope db file
+/// (`spaces/<id>/space.db`, `runtime.db`, or `account.db`).
 ///
 /// Created via `DataService::open_at()`. Callers use `execute()` for writes
 /// and `query()` for reads. The connection is configured with WAL mode

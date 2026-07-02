@@ -58,9 +58,7 @@ pub fn check_integrity(db_path: &std::path::Path) -> Result<IntegrityStatus> {
     // covers the substrate projections plus the platform-layer projections that
     // share the scope dbs.
     let projection_tables = [
-        "sessions",
         "actors",
-        "processes",
         "canonical_sessions",
         "pipeline_runs",
         "projects",

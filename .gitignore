@@ -110,7 +110,8 @@ opencode.json
 test-results/
 
 # Canvas agent scratch — canvas artifacts live in the artifacts collection
-# (data.db + ~/.ship/artifacts/<project>/blobs/), never on disk under .ship/.
+# (per-space space.db + ~/.ship/artifacts/<project>/blobs/), never on disk
+# under .ship/.
 .artifacts/canvas/
 
 .ship/views/datastar.min.js

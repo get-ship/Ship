@@ -1,6 +1,6 @@
 //! SQLite db layer: the per-scope event-log openers (`runtime.db` /
 //! `account.db` / `spaces/<id>/space.db`) that production reads and writes go
-//! through, plus the schema/migration plumbing shared by every db file.
+//! through, plus the DDL-on-open schema plumbing shared by every db file.
 //!
 //! Production never creates or reads `platform.db` (it was deleted in the
 //! 4d/B per-scope arc). Every scope owns its own db file with its own
@@ -16,6 +16,7 @@ pub mod projects;
 pub mod envelope;
 pub mod events;
 pub mod integrity;
+pub mod kv_schema;
 pub mod scope_schema;
 pub mod events_scope_reconcile;
 #[cfg(test)]
@@ -28,7 +29,11 @@ pub mod rebuild;
 pub mod types;
 
 #[cfg(test)]
+mod tests_db_paths;
+#[cfg(test)]
 mod tests_integrity;
+#[cfg(test)]
+mod tests_kv;
 #[cfg(test)]
 mod tests_rebuild;
 
@@ -133,7 +138,7 @@ pub fn account_db_path(ship_dir: &Path) -> PathBuf {
 /// Ensure the events schema is initialized at an explicit per-scope db path.
 ///
 /// Creates parent directories and applies the full `events`-table schema
-/// (reconcile + migrations) via the shared [`ensure_db_at_path`].
+/// (idempotent DDL + reconcile) via the shared [`ensure_db_at_path`].
 /// Idempotent. Used by `PartitionedSink` on cache miss to lazily provision
 /// a scope's db file.
 pub fn ensure_events_db_at_path(path: &Path) -> Result<()> {
@@ -165,10 +170,11 @@ fn ensure_kv_db_at_path(path: &Path) -> Result<()> {
     block_on(async { sqlx::query("PRAGMA busy_timeout = 5000").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
 
-    if let Err(e) = block_on_migrate(async {
-        sqlx::migrate!("./migrations_kv").run(&mut conn).await
-    }) {
-        return Err(anyhow!("kv migration failed on {}: {e}", path.display()));
+    // Idempotent DDL-on-open, same mechanism as the per-scope event dbs
+    // (`scope_schema`): no `_sqlx_migrations` version log, nothing to drift.
+    for stmt in kv_schema::KV_DDL {
+        block_on(async { sqlx::query(stmt).execute(&mut conn).await })
+            .with_context(|| format!("apply kv schema on {}", path.display()))?;
     }
     Ok(())
 }
@@ -206,7 +212,7 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     // writer started with. The DDL is idempotent (`CREATE ... IF NOT EXISTS`)
     // and re-applied on every open: there is NO `_sqlx_migrations` version log,
     // so there is nothing to drift (this replaced the tolerant migrate runner).
-    // `kv.db` is not an event db; it keeps its own `migrations_kv/` dir.
+    // `kv.db` is not an event db; it applies its own DDL (`kv_schema::KV_DDL`).
     let scope = scope_for_path(path);
     for stmt in scope_schema::scope_schema(scope) {
         block_on(async { sqlx::query(stmt).execute(&mut conn).await })
@@ -337,25 +343,5 @@ where
         .build()
         .map_err(|e| anyhow!("Failed to create runtime: {e}"))?;
     rt.block_on(future)
-}
-
-/// Like `block_on` but for sqlx::migrate::MigrateError instead of sqlx::Error.
-fn block_on_migrate<F>(future: F) -> Result<()>
-where
-    F: std::future::Future<Output = std::result::Result<(), sqlx::migrate::MigrateError>>,
-{
-    if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        return tokio::task::block_in_place(|| {
-            handle
-                .block_on(future)
-                .map_err(|e| anyhow!("Migration failed: {e}"))
-        });
-    }
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_time()
-        .build()
-        .map_err(|e| anyhow!("Failed to create SQLite runtime: {e}"))?;
-    rt.block_on(future)
-        .map_err(|e| anyhow!("Migration failed: {e}"))
 }
 

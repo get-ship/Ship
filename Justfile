@@ -494,6 +494,7 @@ check-gates:
 [group('occasional')]
 check-raw:
     @scripts/lint/check-raw-ship-paths.sh
+    @scripts/lint/check-dead-db-names.sh
     @scripts/lint/check-raw-env-reads.sh
     @scripts/lint/check-leaf-portability.sh
     @scripts/lint/check-runtime-access.sh
