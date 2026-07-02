@@ -4,6 +4,13 @@
 //! resolves the typed `IsolationProfile`, probes host capabilities, and
 //! recommends a concrete `IsolationStrategy` for an agent run.
 //!
+//! INFRACTION (deferred): this reads/writes config directly to
+//! `daemon_settings`, bypassing the `SettingsService` (the sole settings
+//! path). isolation.* is domain-level config that should route through the
+//! service. ship-isolation is experimental ship-code, so this is left as a
+//! flagged exception (see `scripts/lint/check-settings-single-owner.sh`)
+//! until the ship-code isolation work resumes.
+//!
 //! Does NOT spawn the backend — that's the supervisor's job. This
 //! module is the *decision layer*; the supervisor consults it before
 //! launching.

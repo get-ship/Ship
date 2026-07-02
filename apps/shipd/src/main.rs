@@ -56,8 +56,8 @@ fn main() -> anyhow::Result<()> {
         .with(stderr_layer)
         .init();
 
-    // --port is optional — None means "auto-derive from path_hash, honoring
-    // local.jsonc:worktrees.ports pins". See `ship_substrate::home::worktree_port_for`.
+    // --port is optional — None means "auto-derive from path_hash".
+    // See `ship_substrate::home::worktree_port_for`.
     let port = extract_u16_arg(&args, "--port");
     let host = extract_str_arg(&args, "--host").unwrap_or_else(|| "127.0.0.1".to_string());
     let dev = args.iter().any(|a| a == "--dev");

@@ -91,29 +91,22 @@ gitignored.
 const TOPIC_CONFIG: &str = "\
 Configuration
 
-User preferences live in two JSONC files per the home-layout ADR:
-
-  ~/.ship/library/settings.jsonc   Portable: identity, defaults, cloud.
-  ~/.ship/machine/local.jsonc      Machine-local: worktrees.dir,
-                                   terminal.program, dispatch.confirm.
-
-Read and write them with:
+Settings are stored by shipd per scope — account (portable, syncs across
+your devices) and runtime (machine-local). There is no config file; set
+and read them through the running daemon:
 
   ship config get <key>       Read a value
   ship config set <key> <val> Write a value
   ship config list            Show all set values
-  ship config path            Show config file location
 
 Available keys:
 
   terminal.program    Terminal for dispatch: wt, iterm, tmux, gnome, vscode, manual
   dispatch.confirm    Show spec and ask y/n before launching agent (true/false)
-  worktrees.dir       Base directory for worktrees (default: ~/dev/<project>-worktrees)
   defaults.harness   Default compilation harness (claude, codex, cursor, opencode)
   defaults.mode       Default agent permission mode
   identity.name       Your display name
   identity.email      Your email
-  cloud.base_url      Ship API base URL
 
 Environment variables override config values when set:
 

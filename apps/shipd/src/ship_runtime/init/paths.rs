@@ -46,9 +46,8 @@ pub struct DaemonConfig {
     /// Host string (CLI arg, with dev-mode override already applied).
     pub host: String,
     /// Caller-supplied `--port` wins; otherwise derived from the worktree
-    /// root via `worktree_port_for` (honors `worktrees.ports[<branch>]`
-    /// pins, otherwise hashes the project root into `9315 + N % 100`).
-    /// Outside any project, the default is 9315.
+    /// root via `worktree_port_for` (hashes the project root into
+    /// `9315 + N % 100`). Outside any project, the default is 9315.
     pub desired_port: u16,
     /// `true` iff the operator passed `--port` explicitly. The bind-retry
     /// path treats a user-pinned port as a hard failure when busy (no
@@ -196,11 +195,10 @@ pub fn apply_path_env_vars(paths: &DaemonPaths) -> Result<()> {
 /// Resolve the listening host + port. The host comes from the L2 caller
 /// (CLI arg + `--dev` override). The port is caller-supplied `--port` if
 /// present, otherwise derived from the worktree root via
-/// `worktree_port_for` (which honors `~/.ship/machine/local.jsonc:
-/// worktrees.ports[<branch>]` pins and otherwise hashes the project root
-/// into `9315 + N % 100`). Using the worktree root rather than the
-/// redirected main project root means each linked worktree gets its own
-/// derived port slot. Outside any project, the historical default is 9315.
+/// `worktree_port_for` (hashes the project root into `9315 + N % 100`).
+/// Using the worktree root rather than the redirected main project root
+/// means each linked worktree gets its own derived port slot. Outside any
+/// project, the historical default is 9315.
 pub fn resolve_daemon_config(
     paths: &DaemonPaths,
     host: String,

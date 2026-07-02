@@ -3,7 +3,6 @@ mod ops_cmd;
 mod build;
 mod cli;
 mod compile;
-mod config;
 #[cfg(test)]
 mod test_env;
 mod daemon;
@@ -15,6 +14,7 @@ mod logging;
 
 mod paths;
 mod profile;
+mod settings_client;
 mod use_command;
 
 use anyhow::Result;
@@ -160,38 +160,29 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
 
 fn dispatch_config(action: ConfigCommands) -> Result<()> {
     match action {
-        ConfigCommands::Get { key } => {
-            let cfg = config::ShipConfig::load();
-            match cfg.get(&key) {
-                Some(v) => println!("{}", v),
-                None => {
-                    eprintln!("{} is not set", key);
-                    std::process::exit(1);
-                }
+        ConfigCommands::Get { key } => match settings_client::get(&key)? {
+            Some(v) => println!("{v}"),
+            None => {
+                eprintln!("{key} is not set");
+                std::process::exit(1);
             }
-        }
+        },
         ConfigCommands::Set { key, value } => {
-            let mut cfg = config::ShipConfig::load();
-            cfg.set(&key, &value)?;
-            cfg.save()?;
-            println!("{} = {}", key, value);
+            settings_client::set(&key, &value)?;
+            println!("{key} = {value}");
         }
         ConfigCommands::List => {
-            let cfg = config::ShipConfig::load();
-            let entries = cfg.list();
+            let entries = settings_client::list()?;
             if entries.is_empty() {
-                println!(
-                    "No config set. File: {}",
-                    config::ShipConfig::path().display()
-                );
+                println!("No config set.");
             } else {
                 for (k, v) in &entries {
-                    println!("{} = {}", k, v);
+                    println!("{k} = {v}");
                 }
             }
         }
         ConfigCommands::Path => {
-            println!("{}", config::ShipConfig::path().display());
+            println!("settings are stored by shipd per scope; use `ship config list`");
         }
     }
     Ok(())

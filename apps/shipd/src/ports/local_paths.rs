@@ -6,10 +6,10 @@
 //! This replicates the logic of `ship_code::helpers::worktrees_dir()`:
 //!   1. Read `SHIP_REPO_DIR` env var; fall back to CWD.
 //!   2. Take the directory's file-name as the project name.
-//!   3. Call `ship_config::local::worktrees_dir(project_name)`.
+//!   3. Call `ship_config::worktrees::worktrees_dir(project_name)`.
 //!
 //! Behaviour is identical to the ship_code helper since both delegate to the
-//! same `ship_config::local::worktrees_dir` call.
+//! same `ship_config::worktrees::worktrees_dir` call.
 
 use std::path::PathBuf;
 
@@ -28,5 +28,5 @@ pub fn worktrees_dir() -> PathBuf {
         .and_then(|n| n.to_str())
         .unwrap_or("ship")
         .to_string();
-    ship_config::local::worktrees_dir(&project)
+    ship_config::worktrees::worktrees_dir(&project)
 }

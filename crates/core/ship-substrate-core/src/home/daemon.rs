@@ -10,7 +10,6 @@
 
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
 // `DaemonFile` (the handshake-file enum) lives in the compiler-free `ship-paths`
@@ -198,61 +197,10 @@ pub fn derive_worktree_port(hash: &str) -> u16 {
     BASE + ((n % 100) as u16)
 }
 
-/// Resolve the port shipd should bind for a given project root.
-///
-/// Lookup order:
-/// 1. `~/.ship/machine/local.jsonc:worktrees.ports[<current_branch>]` —
-///    user-pinned override; useful for stable browser-extension ports.
-/// 2. `derive_worktree_port(path_hash(project_root))` — hash-derived default.
-///
-/// `current_branch` is the branch checked out at `project_root`; resolved
-/// via `git symbolic-ref --short HEAD`. A detached HEAD or non-git tree
-/// skips the pin and falls through to derivation.
-/// Minimal local-settings shape for port-pin lookup only.
-/// Full `LocalSettings` lives in `config::local` (L1); this avoids that dep.
-#[derive(Default, Deserialize)]
-struct PortPinSettings {
-    worktrees: Option<PortPinWorktrees>,
-}
-
-#[derive(Default, Deserialize)]
-struct PortPinWorktrees {
-    #[serde(default)]
-    ports: std::collections::HashMap<String, u16>,
-}
-
+/// Resolve the port shipd binds for a given project root: a deterministic
+/// hash of the root, stable per worktree.
 pub fn worktree_port_for(project_root: &Path) -> u16 {
-    if let Some(branch) = current_branch(project_root) {
-        let home = crate::ShipHome::from_env();
-        if let Ok(raw) = std::fs::read_to_string(home.local_path()) {
-            let stripped = crate::fs_util::strip_jsonc_comments(&raw);
-            if let Ok(s) = serde_json::from_str::<PortPinSettings>(&stripped)
-                && let Some(wt) = s.worktrees
-                    && let Some(&port) = wt.ports.get(&branch)
-                {
-                    return port;
-                }
-        }
-    }
     derive_worktree_port(&path_hash(project_root))
-}
-
-fn current_branch(project_root: &Path) -> Option<String> {
-    let out = std::process::Command::new("git")
-        .args(["symbolic-ref", "--short", "HEAD"])
-        .current_dir(project_root)
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let s = String::from_utf8(out.stdout).ok()?;
-    let trimmed = s.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
-    }
 }
 
 fn read_trim<P: AsRef<Path>>(path: P) -> Option<String> {

@@ -75,8 +75,6 @@ const RUNTIME_DAEMON_DIR: &str = "daemon";
 /// Replaces the old `MACHINE_DB_DIR` (which used to be `machine/db/`).
 pub const DATA_DB_DIR: &str = "db";
 
-const SETTINGS_FILE: &str = "settings.jsonc";
-const LOCAL_FILE: &str = "local.jsonc";
 const ACCOUNT_TOKEN_FILE: &str = "account.jsonc";
 
 /// Which SQLite database file under `data/db/`.
@@ -448,18 +446,6 @@ impl ShipHome {
         SHIP_DIR_NAME
     }
 
-    /// `config/settings.jsonc` — portable user preferences. The legacy
-    /// `~/.ship/library/settings.jsonc` is dead.
-    pub fn settings_path(&self) -> PathBuf {
-        self.config.join(SETTINGS_FILE)
-    }
-
-    /// `config/local.jsonc` — machine-specific overrides. The legacy
-    /// `~/.ship/machine/local.jsonc` is dead.
-    pub fn local_path(&self) -> PathBuf {
-        self.config.join(LOCAL_FILE)
-    }
-
     /// `state/device-id` — the stable per-install device identity, minted
     /// once at first daemon boot by `read_or_generate_device_id` and
     /// loaded by `ship_types::set_local_device_id` on every subsequent
@@ -674,20 +660,6 @@ mod tests {
         assert_eq!(
             h.daemon_file(DaemonFile::Socket),
             tmp.path().join(".ship/state/daemon/socket")
-        );
-    }
-
-    #[test]
-    fn settings_and_local_paths() {
-        let tmp = tempdir().unwrap();
-        let h = home(tmp.path());
-        assert_eq!(
-            h.settings_path(),
-            tmp.path().join(".ship/config/settings.jsonc")
-        );
-        assert_eq!(
-            h.local_path(),
-            tmp.path().join(".ship/config/local.jsonc")
         );
     }
 

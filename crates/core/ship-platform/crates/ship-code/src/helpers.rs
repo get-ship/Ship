@@ -9,7 +9,7 @@ pub fn worktrees_dir() -> PathBuf {
         .and_then(|n| n.to_str())
         .map(|s| s.to_string())
         .unwrap_or_else(|| "ship".to_string());
-    ship_config::local::worktrees_dir(&project)
+    ship_config::worktrees::worktrees_dir(&project)
 }
 
 pub fn repo_dir() -> PathBuf {

@@ -24,11 +24,10 @@ use crate::{auth, router, ship_runtime};
 /// behavior. Default is `Development`, which preserves all existing behaviour.
 ///
 /// `port = None` means "auto-derive": pick the port via
-/// `ship_substrate::home::worktree_port_for(project_root)`, which honors
-/// `~/.ship/machine/local.jsonc:worktrees.ports[<branch>]` pins and
-/// otherwise hashes the project root into `9315 + N % 100`. If the
-/// derived port is busy, increments up to 10 times before giving up.
-/// Outside any project, the default falls back to 9315.
+/// `ship_substrate::home::worktree_port_for(project_root)`, which hashes
+/// the project root into `9315 + N % 100`. If the derived port is busy,
+/// increments up to 10 times before giving up. Outside any project, the
+/// default falls back to 9315.
 pub async fn run_network(
     host: String,
     port: Option<u16>,
@@ -148,9 +147,9 @@ pub async fn run_network(
      }
 
     // Resolve the desired port. Caller-supplied --port wins; otherwise we
-    // derive from the worktree root (path-hash + local.jsonc:worktrees.ports
-    // pin, see ship_substrate::home::worktree_port_for). Using the worktree
-    // root rather than the redirected main project root means each linked
+    // derive from the worktree root (path-hash, see
+    // ship_substrate::home::worktree_port_for). Using the worktree root
+    // rather than the redirected main project root means each linked
     // worktree gets its own derived port slot. Outside any project, use the
     // historical default.
     let desired_port = port.unwrap_or_else(|| match worktree_root.as_ref() {

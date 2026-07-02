@@ -12,7 +12,6 @@
 /// Platform config facade — thin re-export shim over `ship-config` (SSOT).
 pub mod config {
     // Core trait
-    pub use ship_config::DiskBackedConfig;
 
     // Types (live in ship_config::project, not ::types)
     pub use ship_config::project::{
@@ -57,11 +56,7 @@ pub mod config {
         set_setting_and_emit, setting_default,
     };
 
-    // File-backed config types
-    pub use ship_config::library::LibrarySettings;
-    pub use ship_config::local::{worktrees_dir, LocalSettings};
-    pub use ship_config::library;
-    pub use ship_config::local;
+    pub use ship_config::worktrees::worktrees_dir;
 
     // Settings view-state helpers (display structs for the Settings page).
     // Relocated from shipd::services::settings::view_state (L2 → L1).
