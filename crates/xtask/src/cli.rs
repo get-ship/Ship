@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     coverage, gen_audit_readme, gen_contract, gen_events, gen_fixtures,
-    gen_icons, gen_indexes, gen_sdk, lint_anti_theater,
+    gen_indexes, gen_sdk, lint_anti_theater,
     lint_imports, lint_layers, lint_residue,
 };
 
@@ -80,12 +80,6 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                 std::process::exit(1);
             }
         }
-        "gen-icons" => {
-            if let Err(e) = gen_icons::run(&repo_root()) {
-                eprintln!("gen-icons failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
         "gen-contract" => {
             let check = args.iter().any(|a| a == "--check");
             if let Err(e) = gen_contract::run(&repo_root(), check) {
@@ -129,7 +123,6 @@ fn print_help() {
     eprintln!("  gen-types             (no-op: TS outputs moved to ship-contracts)");
     eprintln!("  gen-sdk               Emit packages/sdk/src/generated/sdk-*.json + TS bindings");
     eprintln!("  gen-fixtures          Emit proto contract fixtures from <PROTO_ROOT>/fixtures/fixture-seed.json (SMELL: tool lives in ship; output is ship-contracts; see .artifacts/handoff-post-cleanup.md)");
-    eprintln!("  gen-icons             Bake lucide-icons.json from node_modules/lucide-static");
     eprintln!("  lint-layers           Verify L0/L1/L2 boundaries from the resolved cargo-metadata graph (R0-R4)");
     eprintln!("  lint-imports          Verify layer-direction rules at the `use`-statement level");
     eprintln!("  lint-anti-theater     Ban source-grep-in-tests (R18): include_str!/read_to_string of a .rs + .contains/.find");
