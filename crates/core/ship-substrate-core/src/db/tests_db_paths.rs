@@ -26,26 +26,29 @@ fn machine_db_enum_is_kv_only() {
 
 #[test]
 fn db_path_constructors_expose_only_the_sanctioned_set() {
-    let ship_dir = Path::new("/home/x/.ship");
+    // `ship_dir` here is the *data* root: the canonical accessor
+    // `get_global_dir()` returns this for the four XDG roots
+    // (or, in SHIP_HOME mode, the collapsed `<base>/data`).
+    let data_dir = Path::new("/home/x/.local/share/ship");
     assert_eq!(
-        runtime_db_path(ship_dir),
-        Path::new("/home/x/.ship/runtime.db")
+        runtime_db_path(data_dir),
+        Path::new("/home/x/.local/share/ship/runtime.db")
     );
     assert_eq!(
-        account_db_path(ship_dir),
-        Path::new("/home/x/.ship/account.db")
+        account_db_path(data_dir),
+        Path::new("/home/x/.local/share/ship/account.db")
     );
     assert_eq!(
-        space_db_path(ship_dir, "s1"),
-        Path::new("/home/x/.ship/spaces/s1/space.db")
+        space_db_path(data_dir, "s1"),
+        Path::new("/home/x/.local/share/ship/spaces/s1/space.db")
     );
-    // kv.db routes through the canonical machine-db resolver. The exact-path
+    // kv.db routes through the canonical data-db resolver. The exact-path
     // assertion only holds without the workflow-only SHIP_DEV_DB_DIR override
     // (never set in production; a parallel test could set it), so it is
     // guarded; the filename assertion is unconditional.
-    let kv = kv_db_path(ship_dir);
+    let kv = kv_db_path(data_dir);
     assert_eq!(kv.file_name().and_then(|n| n.to_str()), Some("kv.db"));
     if crate::env::read(crate::env::Var::DevDbDir).is_none() {
-        assert_eq!(kv, Path::new("/home/x/.ship/machine/db/kv.db"));
+        assert_eq!(kv, Path::new("/home/x/.local/share/ship/db/kv.db"));
     }
 }

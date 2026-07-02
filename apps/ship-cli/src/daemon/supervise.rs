@@ -27,12 +27,12 @@ pub(super) fn daemon_supervise(host: String, dev: bool) -> Result<()> {
     let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
     let global_dir = ship_dir()?;
     // Per devx-04, the supervisor co-locates with its daemon — picks the
-    // per-worktree daemons/<hash>/ when launched from a project root, else
-    // falls back to the singleton. Crashes still live under machine/crashes
-    // because they're not per-worktree.
+    // per-worktree runtime/daemons/<hash>/ when launched from a project
+    // root, else falls back to the singleton. Crashes still live under
+    // state/crashes because they're not per-worktree.
     let daemon_dir = ship_substrate::home::current_daemon_dir();
-    let crashes_dir = ship_substrate::ShipHome::at(global_dir.clone())
-        .machine_dir()
+    let crashes_dir = ship_substrate::ShipHome::from_env()
+        .state_dir()
         .join("crashes");
     // Dev mode forces localhost bind.
     let host = if dev { "127.0.0.1".to_string() } else { host };

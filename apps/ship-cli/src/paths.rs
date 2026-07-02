@@ -10,7 +10,11 @@ fn home() -> ShipHome {
 }
 
 pub fn global_dir() -> PathBuf {
-    home().root().to_path_buf()
+    // The XDG layout's closest analogue to the legacy `~/.ship` root:
+    // the SHIP_HOME base (or the data root when XDG is in play). Tests
+    // that need the base pin SHIP_HOME explicitly; production callers
+    // pick the specific root they need.
+    home().base().unwrap_or_else(|| home().data_dir().to_path_buf())
 }
 
 pub fn global_skills_dir() -> PathBuf {
@@ -18,7 +22,7 @@ pub fn global_skills_dir() -> PathBuf {
 }
 /// User-scope MCP config file: `~/.ship/library/mcp.jsonc`.
 pub fn global_cache_dir() -> PathBuf {
-    home().machine_dir().join("cache")
+    home().cache_dir().to_path_buf()
 }
 
 pub fn ensure_global_dirs() -> anyhow::Result<()> {
@@ -109,7 +113,7 @@ mod tests {
         let g = global_dir();
         assert!(g.to_string_lossy().ends_with(".ship"));
         // Per home-layout ADR, user-scope vectors live under `library/`.
-        assert_eq!(global_skills_dir(), g.join("library").join("skills"));
+        assert_eq!(global_skills_dir(), g.join("data").join("library").join("skills"));
     }
 
     #[test]

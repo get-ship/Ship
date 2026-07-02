@@ -13,7 +13,7 @@ pub(crate) fn pid_file() -> Result<PathBuf> {
 
 pub(crate) fn log_file() -> Result<PathBuf> {
     Ok(ship_substrate::ShipHome::from_env()
-        .machine_dir()
+        .state_dir()
         .join("logs")
         .join("shipd.log"))
 }

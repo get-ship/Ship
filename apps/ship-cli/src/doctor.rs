@@ -19,11 +19,23 @@ pub fn run() -> Result<()> {
     kv("build", &cli.full());
 
     section("ship home");
-    kv("root", &home.root().display().to_string());
+    kv("data/", &home.data_dir().display().to_string());
+    kv("config/", &home.config_dir().display().to_string());
+    kv("state/", &home.state_dir().display().to_string());
+    kv("cache/", &home.cache_dir().display().to_string());
+    kv("runtime/", &home.runtime_dir().display().to_string());
     let library_ok = home.library_dir().is_dir();
-    let machine_ok = home.machine_dir().is_dir();
-    kv("library/", if library_ok { "ok" } else { "MISSING" });
-    kv("machine/", if machine_ok { "ok" } else { "MISSING" });
+    let data_ok = home.data_dir().is_dir();
+    let config_ok = home.config_dir().is_dir();
+    let state_ok = home.state_dir().is_dir();
+    let cache_ok = home.cache_dir().is_dir();
+    let runtime_ok = home.runtime_dir().is_dir();
+    kv("data/library/", if library_ok { "ok" } else { "MISSING" });
+    kv("data/", if data_ok { "ok" } else { "MISSING" });
+    kv("config/", if config_ok { "ok" } else { "MISSING" });
+    kv("state/", if state_ok { "ok" } else { "MISSING" });
+    kv("cache/", if cache_ok { "ok" } else { "MISSING" });
+    kv("runtime/", if runtime_ok { "ok" } else { "MISSING" });
 
     section("daemon");
     match probe_daemon() {
@@ -58,7 +70,7 @@ pub fn run() -> Result<()> {
     }
 
     section("recommended next steps");
-    if !library_ok || !machine_ok {
+    if !data_ok || !config_ok || !state_ok || !cache_ok || !runtime_ok {
         println!(
             "  ! home layout incomplete — start `shipd` once to populate (ensure_layout will mkdir -p)"
         );

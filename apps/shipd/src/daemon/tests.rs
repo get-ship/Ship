@@ -165,8 +165,8 @@ mod stale_cleanup_tests {
 
 mod path_layout_tests {
     //! Validate that daemon writes land in the directory the caller passes —
-    //! either the singleton `<root>/machine/daemon/` or a per-worktree
-    //! `<root>/machine/daemons/<hash>/` (devx-04). The helpers treat
+    //! either the singleton `<runtime>/daemon/` or a per-worktree
+    //! `<runtime>/daemons/<hash>/` (devx-04). The helpers treat
     //! `daemon_dir` as opaque; policy lives in the caller.
     use crate::ship_runtime::init::identity_files::{remove_liveness_files, write_pid_file, write_port_file, write_workspace_file};
     use ship_substrate::ShipHome;

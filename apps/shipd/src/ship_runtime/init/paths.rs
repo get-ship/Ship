@@ -78,7 +78,7 @@ pub fn resolve_daemon_paths(workspace_dir: &Option<PathBuf>) -> Result<DaemonPat
         .as_ref()
         .and_then(|p| ship_substrate::home::worktree_root_for(p))
         .or_else(|| project_root.as_ref().map(|r| r.path().to_path_buf()));
-    let home = ship_substrate::ShipHome::at(global_dir.clone());
+    let home = ship_substrate::ShipHome::from_env();
     let daemon_dir = match worktree_root.as_ref() {
         Some(root) => home.worktree_daemon_dir(&ship_substrate::home::path_hash(root)),
         None => home.daemon_dir(),

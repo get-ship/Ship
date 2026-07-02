@@ -61,12 +61,12 @@ mod tests {
 
     #[test]
     fn parses_test_global_dir_pid() -> Result<()> {
-        assert_eq!(parse_test_global_dir_pid("ship-test-global-123"), Some(123));
+        assert_eq!(parse_test_global_dir_pid("ship-test-ship-home-123"), Some(123));
         assert_eq!(
-            parse_test_global_dir_pid("ship-test-global-123-ThreadId9"),
+            parse_test_global_dir_pid("ship-test-ship-home-123-ThreadId9"),
             Some(123)
         );
-        assert_eq!(parse_test_global_dir_pid("ship-test-global-abc"), None);
+        assert_eq!(parse_test_global_dir_pid("ship-test-ship-home-abc"), None);
         assert_eq!(parse_test_global_dir_pid("other-prefix-123"), None);
         Ok(())
     }

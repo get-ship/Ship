@@ -12,7 +12,7 @@ use tempfile::tempdir;
 /// ADR. `scopes_from` resolves the global dir through `ShipHome::vector_dir`
 /// which knows the layout; tests must write to the same location.
 fn write_agent(ship_dir: &Path, id: &str, body: &str) {
-    let d = ship_dir.join("library").join("agents");
+    let d = ship_dir.join("data").join("library").join("agents");
     std::fs::create_dir_all(&d).unwrap();
     std::fs::write(d.join(format!("{id}.jsonc")), body).unwrap();
 }

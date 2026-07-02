@@ -28,8 +28,8 @@ fn main() -> anyhow::Result<()> {
 
     let global_dir = ship_substrate::project::get_global_dir()?;
 
-    let logs_dir = ship_substrate::ShipHome::at(global_dir.clone())
-        .machine_dir()
+    let logs_dir = ship_substrate::ShipHome::from_env()
+        .state_dir()
         .join("logs");
     let _ = std::fs::create_dir_all(&logs_dir);
 
@@ -199,8 +199,8 @@ fn install_panic_hook() {
         // crash is the artifact — get it onto disk even if we have
         // to do it badly.
         if let Ok(global_dir) = ship_substrate::project::get_global_dir() {
-            let logs_dir = ship_substrate::ShipHome::at(global_dir)
-                .machine_dir()
+            let logs_dir = ship_substrate::ShipHome::from_env()
+                .state_dir()
                 .join("logs");
             let _ = std::fs::create_dir_all(&logs_dir);
             let crash_path = logs_dir.join("shipd.crash.json");

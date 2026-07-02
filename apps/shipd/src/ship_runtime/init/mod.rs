@@ -223,7 +223,7 @@ impl ShipRuntime {
                             .and_then(|p| ship_substrate::home::ProjectRoot::discover(p))
                             .map(|r| r.path().to_path_buf())
                     });
-                let home = ship_substrate::ShipHome::at(global_dir.clone());
+                let home = ship_substrate::ShipHome::from_env();
                 match wt_root.as_ref() {
                     Some(r) => home.worktree_daemon_dir(&ship_substrate::home::path_hash(r)),
                     None => home.daemon_dir(),

@@ -260,10 +260,9 @@ pub(super) fn emit_daemon_event<P: serde::Serialize>(
 /// Best-effort lookup of the pid currently holding `port`, sourced from the
 /// supervisor's lock-based pidfile. Returns None if the file is missing,
 /// unparseable, or records a different port.
-fn pidfile_pid_for_port(global_dir: &std::path::Path, port: u16) -> Option<u32> {
-    let path = ship_substrate::ShipHome::at(global_dir.to_path_buf())
-        .machine_dir()
-        .join("daemon")
+fn pidfile_pid_for_port(_global_dir: &std::path::Path, port: u16) -> Option<u32> {
+    let path = ship_substrate::ShipHome::from_env()
+        .daemon_dir()
         .join("shipd.pid");
     let data = std::fs::read_to_string(&path).ok()?;
     let v: serde_json::Value = serde_json::from_str(data.trim()).ok()?;

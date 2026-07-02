@@ -37,11 +37,10 @@ pub(crate) fn daemon_start_inner(host: &str, dev: bool) -> Result<()> {
 
     // Ensure ~/.ship/ and machine/crashes/ exist.
     std::fs::create_dir_all(&global_dir).context("cannot create ~/.ship/ directory")?;
-    let crashes_dir = ship_substrate::ShipHome::at(global_dir.clone())
-        .machine_dir()
+    let crashes_dir = ship_substrate::ShipHome::from_env()
+        .state_dir()
         .join("crashes");
-    std::fs::create_dir_all(&crashes_dir).context("cannot create ~/.ship/machine/crashes/ directory")?;
-
+    std::fs::create_dir_all(&crashes_dir).context("cannot create state/crashes/ directory")?;
     // Fork the supervisor into the background.
     // The supervisor process watches the daemon child and restarts on crash.
     let log_handle = std::fs::OpenOptions::new()

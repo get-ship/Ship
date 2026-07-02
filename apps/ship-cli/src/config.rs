@@ -295,7 +295,10 @@ mod tests {
 
     #[test]
     fn list_returns_only_set_values() {
-        let tmp = fresh_home();
+        // list() calls get() on daemon-KV keys (harness.*), which read the
+        // SHIP_HOME-resolved kv db. Pin SHIP_HOME under the process-global lock
+        // so a parallel daemon-KV test can't leak its value into this one.
+        let (tmp, _guard) = isolated_home();
         let mut cfg = ShipConfig::default();
         // list() for JSONC-only keys works on the in-memory struct.
         assert!(cfg.list().is_empty());

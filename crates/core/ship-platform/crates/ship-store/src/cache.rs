@@ -50,7 +50,7 @@ impl PackageCache {
     /// Respects `SHIP_HOME` if set.
     pub fn new() -> anyhow::Result<Self> {
         let home = ship_substrate::ShipHome::from_env();
-        Ok(Self::with_root(home.root().join("cache")))
+        Ok(Self::with_root(home.cache_dir().to_path_buf()))
     }
 
     /// Create a cache at an explicit root (useful for testing).

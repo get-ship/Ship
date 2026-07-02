@@ -75,28 +75,27 @@ pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
 }
 
 /// The one canonical DB-path resolver. Every path-returning helper in this
-/// module routes through here; nothing computes a `machine/db/...` path
+/// module routes through here; nothing computes a `db/...` path
 /// independently. The resolution rule lives in exactly this function:
 ///
-/// - if `Var::DevDbDir` is set (workflow-set, never production) the machine
+/// - `ship_dir` is a *data* root (e.g. `$XDG_DATA_HOME/ship` in production,
+///   the SHIP_HOME-collapsed `data/` in tests). It comes from
+///   `ShipHome::from_env().data_dir()` or `get_global_dir()` (the DB-opener
+///   canonical accessor).
+/// - if `Var::DevDbDir` is set (workflow-set, never production) the
 ///   stores live at `<that dir>/<name>` — the dev workflow's isolated
 ///   scratch DB for a worktree iterating on migration code;
-/// - otherwise the canonical `<ship_dir>/machine/db/<name>`, exactly as
-///   before — so an unset override yields today's behaviour for every
-///   customer.
+/// - otherwise the canonical `<ship_dir>/db/<name>`, where `<ship_dir>`
+///   is the data root — so an unset override yields today's behaviour
+///   for every customer.
 ///
 /// `Var::DevDbDir` is read here and nowhere else.
 pub(crate) fn resolve_db_path(ship_dir: &Path, db: crate::Db) -> PathBuf {
     if let Some(dir) = crate::env::read(crate::env::Var::DevDbDir) {
         return PathBuf::from(dir).join(db.as_str());
     }
-    crate::ShipHome::at(ship_dir.to_path_buf())
-        .machine_dir()
-        .join(crate::home::MACHINE_DB_DIR)
-        .join(db.as_str())
+    ship_dir.join(crate::home::DATA_DB_DIR).join(db.as_str())
 }
-
-
 /// Resolve the KV database path under a given ship-home root.
 /// Thin typed wrapper over [`resolve_db_path`].
 pub fn kv_db_path(ship_dir: &Path) -> PathBuf {

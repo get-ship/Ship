@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # check-raw-ship-paths.sh
 #
-# Flag raw `~/.ship/` path construction outside the canonical accessors
-# in `crates/core/ship-substrate-core/src/home/` (L0 surface, re-exported
-# from `crates/core/ship-substrate/crates/ship-paths/src/`). Per ADR
+# Flag raw XDG/SHIP path construction outside the canonical accessors
+# in `crates/core/ship-substrate-core/src/home/` and
+# `crates/core/ship-substrate/crates/ship-paths/src/`. Per ADR
 # `home-layout-and-scope-convention`, `ShipHome` is the only permitted
-# origin of paths under `~/.ship/`.
+# origin of paths under any of the four XDG roots or the legacy
+# `~/.ship/` fallback.
 #
 # Enforcement: exits non-zero on ANY matching file/line outside the
 # allow-list. The script is intentionally NOT warn-only — `data-safety`
@@ -28,11 +29,22 @@ ALLOW_PREFIXES=(
     "crates/core/ship-substrate/crates/ship-paths/src/"
 )
 
-# Patterns we treat as raw-`~/.ship/` path construction.
+# Patterns we treat as raw-XDG / raw-~/.ship/ path construction.
+# Covers the legacy ~/.ship/ root (no migration — pre-launch) plus the
+# four XDG dirs Ship's layout now uses.
 PATTERNS=(
     'home_dir\(\)\.join\("\.ship'
     '\.join\("\.ship[/"]'
     '"~/\.ship'
+    '"\$XDG_CONFIG_HOME/ship'
+    '"\$XDG_DATA_HOME/ship'
+    '"\$XDG_STATE_HOME/ship'
+    '"\$XDG_CACHE_HOME/ship'
+    '"\$XDG_RUNTIME_DIR/ship'
+    'join\("\.config/ship'
+    'join\("\.local/share/ship'
+    'join\("\.local/state/ship'
+    'join\("\.cache/ship'
 )
 
 # crates/deck/* + crates/sui/* moved to the external sui repo post-carve —
@@ -67,7 +79,7 @@ for pat in "${PATTERNS[@]}"; do
         done
         if [ "$allowed" -eq 0 ]; then
             if [ "$violations" -eq 0 ]; then
-                echo "check-raw-ship-paths: raw ~/.ship/ path construction outside the sanctioned accessor:" >&2
+                echo "check-raw-ship-paths: raw XDG/ship path construction outside the sanctioned accessor:" >&2
             fi
             echo "  $line" >&2
             violations=$((violations + 1))
