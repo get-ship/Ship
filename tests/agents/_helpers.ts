@@ -252,20 +252,11 @@ export async function dispatch(input: DispatchInput): Promise<Dispatched> {
   };
 }
 
-// ── Mesh / actor polling ───────────────────────────────────────────────────
+// ── Actor polling ──────────────────────────────────────────────────────────
 //
-// The per-actor read (`GET /api/v1/actors/{slug}`) and the mesh roster
-// (`GET /api/v1/mesh`) were culled with the mesh op surface (see
-// apps/shipd/src/routes.rs). The surviving REST read is the list
-// projection `GET /api/v1/actors` — each row carries `id` (the actor id,
-// == dispatch slug), `live`, and the harness/transport/pid fields. Find
-// the row by `id === slug`; that IS "on the mesh + reachable."
-
-export interface MeshActor {
-  actor_id: string;
-  kind?: string;
-  live?: boolean;
-}
+// The list projection `GET /api/v1/actors` is the read surface — each row
+// carries `id` (the actor id, == dispatch slug), `live`, and the
+// harness/transport/pid fields. Find the row by `id === slug`.
 
 // Raw row shape from `GET /api/v1/actors` — mirrors
 // ship_substrate::projections::actor::ActorRow (only the fields the
@@ -290,19 +281,6 @@ async function findActor(slug: string): Promise<ActorListRow | null> {
   );
   if (status !== 200) return null;
   return body.data?.actors?.find((a) => a.id === slug) ?? null;
-}
-
-export async function waitForMeshActor(
-  slug: string,
-  opts: { maxAttempts?: number } = {},
-): Promise<MeshActor | null> {
-  const max = opts.maxAttempts ?? POLL_MAX_ATTEMPTS;
-  for (let i = 0; i < max; i++) {
-    const hit = await findActor(slug);
-    if (hit) return { actor_id: hit.id, kind: hit.kind, live: hit.live };
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-  }
-  return null;
 }
 
 export interface ActorRow {
@@ -389,19 +367,6 @@ export async function waitForActorGone(
     if (!row || row.live === false) return;
     await new Promise((r) => setTimeout(r, 250));
   }
-}
-
-export async function waitForMeshClear(
-  slug: string,
-  opts: { maxAttempts?: number } = {},
-): Promise<boolean> {
-  const max = opts.maxAttempts ?? 40; // 10s
-  for (let i = 0; i < max; i++) {
-    const present = (await findActor(slug)) !== null;
-    if (!present) return true;
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-  }
-  return false;
 }
 
 // ── Cleanup ────────────────────────────────────────────────────────────────

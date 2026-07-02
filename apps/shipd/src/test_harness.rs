@@ -4,11 +4,9 @@
 //! directory. Requests go through tower::ServiceExt (no TCP listener
 //! needed).
 
-use axum::{Router, body::Body, http::Request};
-use http_body_util::BodyExt;
+use axum::Router;
 use std::sync::Arc;
 use tempfile::TempDir;
-use tower::ServiceExt;
 
 use crate::auth::AuthContext;
 use crate::ship_runtime::{ApiState, SharedKernel};
@@ -22,12 +20,6 @@ pub struct TestDaemon {
 }
 
 // Note: state is Arc<ShipRuntime>, so .clone() gives another Arc handle.
-
-/// Parsed JSON response.
-pub struct TestResponse {
-    pub status: u16,
-    pub body: serde_json::Value,
-}
 
 impl TestDaemon {
     /// Create a fully wired TestDaemon with temp dir, DB, kernel, and router.
@@ -94,144 +86,4 @@ impl TestDaemon {
         }
     }
 
-    /// Create an MCP AuthContext with the given agent_id.
-    pub fn mcp_auth(agent_id: &str) -> AuthContext {
-        AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Mcp,
-            agent_id: Some(agent_id.to_string()),
-            workspace_id: None,
-            space_id: None,
-            session_id: None,
-            scopes: vec![crate::auth::Scope::Full],
-            grants: vec![],
-            operator_cred: false,
-        }
-    }
-
-    /// Send a GET request and parse the JSON body.
-    pub async fn get(&self, path: &str) -> TestResponse {
-        let req = Request::builder()
-            .method("GET")
-            .uri(path)
-            .body(Body::empty())
-            .unwrap();
-        let resp = self.router.clone().oneshot(req).await.unwrap();
-        let status = resp.status().as_u16();
-        let body = resp.into_body().collect().await.unwrap().to_bytes();
-        let body: serde_json::Value = serde_json::from_slice(&body)
-            .unwrap_or(serde_json::Value::Null);
-        TestResponse { status, body }
-    }
-
-    /// Send a POST request with a JSON body and parse the response.
-    pub async fn post(&self, path: &str, body: &impl serde::Serialize) -> TestResponse {
-        let body_bytes = serde_json::to_vec(body).unwrap();
-        let req = Request::builder()
-            .method("POST")
-            .uri(path)
-            .header("content-type", "application/json")
-            .body(Body::from(body_bytes))
-            .unwrap();
-        let resp = self.router.clone().oneshot(req).await.unwrap();
-        let status = resp.status().as_u16();
-        let body = resp.into_body().collect().await.unwrap().to_bytes();
-        let body: serde_json::Value = serde_json::from_slice(&body)
-            .unwrap_or(serde_json::Value::Null);
-        TestResponse { status, body }
-    }
-
-    /// Alias for `post` — clearer name for JSON body requests.
-    pub async fn post_json(&self, path: &str, body: &impl serde::Serialize) -> TestResponse {
-        self.post(path, body).await
-    }
-
-    /// Send a PUT request with a JSON body and parse the response.
-    pub async fn put_json(&self, path: &str, body: &impl serde::Serialize) -> TestResponse {
-        let body_bytes = serde_json::to_vec(body).unwrap();
-        let req = Request::builder()
-            .method("PUT")
-            .uri(path)
-            .header("content-type", "application/json")
-            .body(Body::from(body_bytes))
-            .unwrap();
-        let resp = self.router.clone().oneshot(req).await.unwrap();
-        let status = resp.status().as_u16();
-        let body = resp.into_body().collect().await.unwrap().to_bytes();
-        let body: serde_json::Value = serde_json::from_slice(&body)
-            .unwrap_or(serde_json::Value::Null);
-        TestResponse { status, body }
-    }
-
-    /// Send a DELETE request and parse the response.
-    pub async fn delete(&self, path: &str) -> TestResponse {
-        let req = Request::builder()
-            .method("DELETE")
-            .uri(path)
-            .body(Body::empty())
-            .unwrap();
-        let resp = self.router.clone().oneshot(req).await.unwrap();
-        let status = resp.status().as_u16();
-        let body = resp.into_body().collect().await.unwrap().to_bytes();
-        let body: serde_json::Value = serde_json::from_slice(&body)
-            .unwrap_or(serde_json::Value::Null);
-        TestResponse { status, body }
-    }
-
-    /// Send a multipart POST. `parts` is a list of (name, filename-or-empty,
-    /// content-type-or-empty, bytes) tuples. Returns the parsed JSON body.
-    pub async fn post_multipart(
-        &self,
-        path: &str,
-        parts: &[(&str, &str, &str, &[u8])],
-    ) -> TestResponse {
-        let boundary = "----testboundary";
-        let mut body: Vec<u8> = Vec::new();
-        for (name, filename, ctype, content) in parts {
-            body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
-            if !filename.is_empty() {
-                body.extend_from_slice(
-                    format!(
-                        "Content-Disposition: form-data; name=\"{name}\"; filename=\"{filename}\"\r\n"
-                    )
-                    .as_bytes(),
-                );
-            } else {
-                body.extend_from_slice(
-                    format!("Content-Disposition: form-data; name=\"{name}\"\r\n").as_bytes(),
-                );
-            }
-            if !ctype.is_empty() {
-                body.extend_from_slice(format!("Content-Type: {ctype}\r\n").as_bytes());
-            }
-            body.extend_from_slice(b"\r\n");
-            body.extend_from_slice(content);
-            body.extend_from_slice(b"\r\n");
-        }
-        body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
-        let req = Request::builder()
-            .method("POST")
-            .uri(path)
-            .header(
-                "content-type",
-                format!("multipart/form-data; boundary={boundary}"),
-            )
-            .body(Body::from(body))
-            .unwrap();
-        let resp = self.router.clone().oneshot(req).await.unwrap();
-        let status = resp.status().as_u16();
-        let body = resp.into_body().collect().await.unwrap().to_bytes();
-        let body: serde_json::Value = serde_json::from_slice(&body)
-            .unwrap_or(serde_json::Value::Null);
-        TestResponse { status, body }
-    }
-
-    /// Send a GET request and return the raw response (for SSE streams).
-    pub async fn get_raw(&self, path: &str) -> axum::response::Response {
-        let req = Request::builder()
-            .method("GET")
-            .uri(path)
-            .body(Body::empty())
-            .unwrap();
-        self.router.clone().oneshot(req).await.unwrap()
-    }
 }

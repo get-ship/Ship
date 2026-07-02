@@ -49,12 +49,6 @@ impl UserDefaults {
 /// CI / container runners can pin a tier without writing to the KV.
 pub const ENV_DEFAULT_TIER: &str = "SHIP_ISOLATION_TIER";
 pub const ENV_DEFAULT_STRATEGY: &str = "SHIP_ISOLATION_STRATEGY";
-pub const ENV_CACHE_DIR: &str = "SHIP_ISOLATION_CACHE_DIR";
-pub const ENV_YOUKI_BIN: &str = "SHIP_YOUKI_BIN";
-pub const ENV_YOUKI_ROOTFS: &str = "SHIP_AGENT_ROOTFS";
-pub const ENV_LIMA_BIN: &str = "SHIP_LIMA_BIN";
-pub const ENV_FLY_ORG: &str = "SHIP_FLY_ORG";
-pub const ENV_FLY_APP: &str = "SHIP_FLY_APP";
 
 /// Convert user-default strings into a profile suitable for the
 /// recommender's `user_pref` slot.
