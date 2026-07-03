@@ -41,7 +41,7 @@ use ship_isolation::backends::{Docker, DockerConfig};
 use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::{Isolator, NetworkPolicy, SandboxPolicy};
 use isolation_port::ResourceLimits;
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
+use process_supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 /// Comfortably above the sidecar's tokio thread count (the pids controller
 /// counts tasks, not just processes) yet far below the burst below.

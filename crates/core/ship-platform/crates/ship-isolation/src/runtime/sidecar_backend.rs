@@ -19,7 +19,7 @@ use ship_sidecar_proto::{
     ProcessGetRequest, ProcessResizeTerminalRequest, ProcessState,
     ProcessStopRequest, ProcessWriteInputRequest, ProcessesClient, PtySize,
 };
-use ship_substrate::supervisor::ChildBackend;
+use process_supervisor::ChildBackend;
 
 /// Sidecar-backed [`ChildBackend`]. Holds:
 ///

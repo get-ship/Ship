@@ -67,7 +67,7 @@ pub struct SessionMeta {
 pub mod private {
     use super::*;
     use ship_harnesses::harness_adapter::HarnessEvent;
-    use ship_substrate::supervisor::ChildHandle;
+    use process_supervisor::ChildHandle;
 
     use std::path::PathBuf;
     use std::sync::{Arc, Mutex};

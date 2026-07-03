@@ -162,8 +162,8 @@ pub fn spawn_process(profile: ProcessProfile) -> Result<ProcessHandle> {
     // the historical best-effort warning so a missing global kernel
     // (e.g. in tests) doesn't fail their spawn.
     let is_agent = profile.kind == ProcessKind::Agent;
-    if let Some(kr) = crate::events::kernel_router() {
-        let kernel_config = crate::events::ActorConfig {
+    if let Some(kr) = ship_substrate_core::events::kernel_router() {
+        let kernel_config = ship_substrate_core::events::ActorConfig {
             namespace: actor_id.clone(),
             write_namespaces: vec!["".to_string()],
             read_namespaces: vec!["agent.".to_string()],
@@ -171,7 +171,7 @@ pub fn spawn_process(profile: ProcessProfile) -> Result<ProcessHandle> {
             see_directed_events: false,
         };
         let actor_id_for_kr = actor_id.clone();
-        let res: Result<()> = crate::db::block_on_anyhow(async move {
+        let res: Result<()> = ship_substrate_core::db::block_on_anyhow(async move {
             let mut kernel = kr.lock().await;
             if !kernel.has_actor(&actor_id_for_kr) {
                 kernel
@@ -215,7 +215,7 @@ pub fn spawn_process(profile: ProcessProfile) -> Result<ProcessHandle> {
     std::thread::spawn(move || {
         let cwd = emit_profile.work_dir.to_string_lossy().to_string();
         let space_id = resolve_space_id(&emit_profile.work_dir);
-        let payload = crate::events::types::ActorCreated {
+        let payload = ship_substrate_core::events::types::ActorCreated {
             kind: emit_profile.kind.as_str().to_string(),
             environment_type: "local".to_string(),
             workspace_id: emit_profile.workspace_id.clone(),
@@ -228,7 +228,7 @@ pub fn spawn_process(profile: ProcessProfile) -> Result<ProcessHandle> {
             pid: emit_pid,
             ..Default::default()
         };
-        if let Err(e) = crate::db::actor_events::emit_actor_created(
+        if let Err(e) = ship_substrate_core::db::actor_events::emit_actor_created(
             &emit_actor_id,
             &payload,
             emit_profile.workspace_id.as_deref(),
@@ -261,7 +261,7 @@ impl ProcessHandle {
 /// Convenience: where children write their logs by default. Callers
 /// can override via `ProcessProfile::log_dir`.
 pub fn default_log_dir() -> Result<PathBuf> {
-    Ok(crate::project::get_global_dir()?.join("logs/actors"))
+    Ok(ship_substrate_core::project::get_global_dir()?.join("logs/actors"))
 }
 
 #[cfg(test)]

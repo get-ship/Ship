@@ -22,7 +22,7 @@ use ship_isolation::backends::{AppleContainer, AppleContainerConfig};
 use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::Isolator;
 use isolation_port::SandboxPolicy;
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
+use process_supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn actor_runs_inside_apple_container() {

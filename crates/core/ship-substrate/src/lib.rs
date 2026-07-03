@@ -8,7 +8,6 @@
 //!
 //! - [`ports::fs_watch`] + [`ports::local_fs_watch`] (notify)
 //! - [`services`] — `spawn_service` background-actor primitive (mesh + access deleted as dead)
-//! - [`supervisor`] — daemon supervisor runtime
 //! - [`events::pipeline`] / [`events::payload_registry`] — these moved INTO
 //!   `ship-substrate-core` (they depend on `ship-pipelines` types only, which
 //!   is itself a clean crate — see [`ship_substrate_core::events::pipeline`]
@@ -24,7 +23,6 @@
 
 // ── Heavy back-end modules that physically live in the facade ───────────────
 pub mod services;
-pub mod supervisor;
 // ── Ports facade ───────────────────────────────────────────────────────────
 //
 // `blob_store`/`data_store`/`fs_broker`/`kernel_log`/`local_fs_{broker,blob_store}`/

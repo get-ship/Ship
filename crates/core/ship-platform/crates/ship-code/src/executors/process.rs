@@ -33,7 +33,7 @@ use crate::dispatch_ports::{
 };
 use ship_runner::emit::persist_and_route;
 use ship_harnesses::harness_adapter::{adapter_for_or_default, HarnessAdapter};
-use ship_substrate::supervisor::{spawn_process, ProcessHandle, ProcessKind, ProcessProfile, TransportKind};
+use process_supervisor::{spawn_process, ProcessHandle, ProcessKind, ProcessProfile, TransportKind};
 
 /// Default prompt injected when the caller didn't supply one.
 /// Kept in ProcessExecutor (the headless spawn path) because only
@@ -84,7 +84,7 @@ impl ProcessExecutor {
 /// State held in the ExecutorHandle for process-based execution.
 ///
 /// Since 1.1.d, the actual child + PTY mechanics live in
-/// `ship_substrate::supervisor::ProcessHandle`. This struct is just metadata
+/// `process_supervisor::ProcessHandle`. This struct is just metadata
 /// the executor's `is_alive` / `stop` / event emission needs.
 pub(crate) struct ProcessState {
     slug: String,
@@ -475,7 +475,7 @@ async fn wire_sidecar_sandbox<F, Fut>(
     scheme: &'static str,
     daemon_url: fn(&str) -> Option<String>,
     prepare: F,
-) -> Result<Option<(std::sync::Arc<dyn ship_substrate::supervisor::ProcessRuntime>, Option<String>)>>
+) -> Result<Option<(std::sync::Arc<dyn process_supervisor::ProcessRuntime>, Option<String>)>>
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<
@@ -621,7 +621,7 @@ impl SessionExecutor for ProcessExecutor {
         // spawn_process path. The harness runs inside the sandbox's
         // container; control flows over ship.sidecar.v1.
         let mut remote_runtime: Option<
-            std::sync::Arc<dyn ship_substrate::supervisor::ProcessRuntime>,
+            std::sync::Arc<dyn process_supervisor::ProcessRuntime>,
         > = None;
         // Per-process scoped token for a sandboxed actor — minted host-side
         // and pushed via env (never the root daemon token). Captured here so
@@ -1342,7 +1342,7 @@ mod tests {
         assert!(msg.contains("does not support session resume"), "got: {msg}");
     }
 
-    // PTY mechanics are tested at the source — `ship_substrate::supervisor::tests`
+    // PTY mechanics are tested at the source — `process_supervisor::tests`
     // (spawn_pty_minimal, stop_terminates_child) exercises the substrate
     // end-to-end. ProcessExecutor's job is to compose the substrate +
     // executor-specific event emission, which the next test pins.

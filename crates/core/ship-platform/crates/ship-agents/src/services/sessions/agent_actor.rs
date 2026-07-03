@@ -2,7 +2,7 @@
 //!
 //! Replaces `lifecycle::spawn_long_lived_agent` for channels-capable
 //! harnesses (Claude). Builds an `ProcessProfile` from the harness
-//! adapter's `build_interactive`, calls `ship_substrate::supervisor::spawn_process`,
+//! adapter's `build_interactive`, calls `process_supervisor::spawn_process`,
 //! and attaches a reader-middleware thread that:
 //!
 //! 1. Auto-dismisses Claude's `--dangerously-load-development-channels`
@@ -27,7 +27,7 @@ use anyhow::{anyhow, Result};
 use chrono::Utc;
 use harness_adapter::dispatch_ports::LaunchProfile;
 use ship_harnesses::harness_adapter::{adapter_for, HarnessEvent};
-use ship_substrate::supervisor::{spawn_process, ProcessKind, ProcessProfile, TransportKind};
+use process_supervisor::{spawn_process, ProcessKind, ProcessProfile, TransportKind};
 use tokio::sync::broadcast;
 
 use super::actor_registry::{ActorEntry, ActorRegistry};
@@ -415,7 +415,7 @@ struct MenuState {
 }
 
 fn try_dismiss_menu(
-    handle: &ship_substrate::supervisor::ProcessHandle,
+    handle: &process_supervisor::ProcessHandle,
     state: &Arc<Mutex<MenuState>>,
     chunk: &[u8],
 ) -> bool {

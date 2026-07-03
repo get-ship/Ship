@@ -1,8 +1,8 @@
 //! Sidecar-backed implementations of the substrate runtime traits.
 //!
 //! The substrate defines:
-//!   - [`ship_substrate::supervisor::ProcessRuntime`] — produces actors
-//!   - [`ship_substrate::supervisor::ChildBackend`] — services the
+//!   - [`process_supervisor::ProcessRuntime`] — produces actors
+//!   - [`process_supervisor::ChildBackend`] — services the
 //!     control surface (write_input / stop / pid / resize)
 //!
 //! In-process implementations of both live in substrate today

@@ -2,7 +2,7 @@
 //! that turns a `SessionContext` into a running harness process.
 //!
 //! Lifted out of the L0 `ship-supervisor` crate (the supervisor split): the
-//! OS-level process primitive (`ship_substrate::supervisor::spawn_process`,
+//! OS-level process primitive (`process_supervisor::spawn_process`,
 //! PTY/signals/wait) stays in L0, while everything that *assembles* an agent
 //! run — harness selection (`ship-harnesses`), isolation decision + sandbox
 //! dispatch (`ship-isolation` / `ship-device`), per-process token minting

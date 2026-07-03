@@ -6367,6 +6367,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "process-supervisor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "isolation-port",
+ "portable-pty",
+ "ship-substrate-core",
+ "ship-substrate-host",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "proptest"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8048,6 +8064,7 @@ dependencies = [
  "libc",
  "minijinja",
  "nanoid",
+ "process-supervisor",
  "semver",
  "serde",
  "serde_json",
@@ -8221,6 +8238,7 @@ dependencies = [
  "harness-adapter",
  "isolation-port",
  "libc",
+ "process-supervisor",
  "serde",
  "serde_json",
  "ship-auth",
@@ -8417,6 +8435,7 @@ dependencies = [
  "isolation-port",
  "libc",
  "nanoid",
+ "process-supervisor",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -8573,6 +8592,7 @@ dependencies = [
  "minijinja",
  "nanoid",
  "portable-pty",
+ "process-supervisor",
  "reqwest 0.12.28",
  "semver",
  "serde",
@@ -8779,7 +8799,6 @@ dependencies = [
  "isolation-port",
  "libc",
  "nanoid",
- "portable-pty",
  "proptest",
  "serde",
  "serde_json",
@@ -8856,6 +8875,7 @@ dependencies = [
  "chrono",
  "harness-adapter",
  "libc",
+ "process-supervisor",
  "serde",
  "ship-harnesses",
  "ship-substrate",

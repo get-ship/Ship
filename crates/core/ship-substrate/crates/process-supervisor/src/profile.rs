@@ -52,7 +52,7 @@ impl ProcessProfile {
     pub fn resolve_actor_id(&self) -> String {
         match self.actor_id_hint.as_deref() {
             Some(id) if is_ulid_shape(id) => id.to_string(),
-            _ => crate::gen_ulid(),
+            _ => ship_substrate_core::gen_ulid(),
         }
     }
 

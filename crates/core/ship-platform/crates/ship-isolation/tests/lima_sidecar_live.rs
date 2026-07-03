@@ -27,7 +27,7 @@ use ship_isolation::backends::{Lima, LimaConfig};
 use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::Isolator;
 use isolation_port::SandboxPolicy;
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
+use process_supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 /// First existing Linux-musl sidecar across both arches / profiles. Lima
 /// mirrors the host home into the VM, so the host path doubles as the

@@ -6,13 +6,13 @@
 
 use std::collections::HashMap;
 
-use ship_substrate::events::{init_kernel_router, kernel_router};
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, TransportKind, spawn_process};
+use ship_substrate_core::events::{init_kernel_router, kernel_router};
+use process_supervisor::{ProcessKind, ProcessProfile, TransportKind, spawn_process};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agent_pre_register_visible_in_kernel_before_mcp() {
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = ship_substrate_core::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     init_kernel_router(ship_dir).expect("init kernel router");
 

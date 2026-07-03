@@ -27,7 +27,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use ship_isolation::backends::{Firecracker, FirecrackerConfig};
 use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::{FsMount, Isolator, MountMode, NetworkPolicy, SandboxPolicy};
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
+use process_supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 fn fc_base() -> PathBuf {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

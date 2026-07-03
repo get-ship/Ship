@@ -1,5 +1,5 @@
 //! `SidecarRuntime` — the spawn-side of the sidecar runtime
-//! pair. Implements [`ship_substrate::supervisor::ProcessRuntime`] by
+//! pair. Implements [`process_supervisor::ProcessRuntime`] by
 //! routing `spawn(profile)` through `Processes.Create` against an
 //! in-sandbox runtime's v1 endpoint.
 //!
@@ -33,7 +33,7 @@ use tokio::sync::broadcast;
 use ship_sidecar_proto::{
     EventsClient, ProcessAttachPtyRequest, ProcessCreateRequest, ProcessesClient, PtySize,
 };
-use ship_substrate::supervisor::{
+use process_supervisor::{
     ProcessHandle, ProcessProfile, ProcessRuntime, ChildHandle, TransportKind,
 };
 

@@ -10,7 +10,7 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use ship_isolation::runtime::SidecarRuntime;
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
+use process_supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;

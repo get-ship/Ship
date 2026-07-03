@@ -22,7 +22,7 @@ use std::time::Duration;
 use ship_isolation::backends::{Docker, DockerConfig};
 use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::{FsMount, Isolator, MountMode, NetworkPolicy, SandboxPolicy};
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
+use process_supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 fn podman_available() -> bool {
     Command::new("podman")

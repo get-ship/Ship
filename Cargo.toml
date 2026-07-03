@@ -22,6 +22,7 @@ members = [
     "crates/core/ship-substrate/crates/fs-watch",
     "crates/core/ship-substrate/crates/fs-cap",
     "crates/core/ship-substrate/crates/isolation-port",
+    "crates/core/ship-substrate/crates/process-supervisor",
     "crates/core/ship-platform",
     "crates/core/ship-git",
     "crates/core/ship-cloud",

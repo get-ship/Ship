@@ -15,6 +15,7 @@ sidecar-mode = ["dep:reqwest"]
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
+process-supervisor = { path = "../../../ship-substrate/crates/process-supervisor" }
 isolation-port = { path = "../../../ship-substrate/crates/isolation-port" }
 ship-sidecar-proto = { path = "../../../ship-sidecar-proto" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }

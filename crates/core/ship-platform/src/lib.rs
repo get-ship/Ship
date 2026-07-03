@@ -127,7 +127,7 @@ fn install_defaults_inner() {
             Box::new(ship_analytics::AnalyticsProjection::new()),
         ]
     }));
-    ship_substrate::supervisor::install_space_id_resolver(Box::new(|path| {
+    process_supervisor::install_space_id_resolver(Box::new(|path| {
         let path_str = path.to_string_lossy();
         ship_substrate::db::projects::find_by_path(&path_str).ok().flatten().map(|p| p.id)
     }));

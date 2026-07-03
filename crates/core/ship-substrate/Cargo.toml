@@ -28,7 +28,6 @@ ulid = { workspace = true }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "macros"] }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
-portable-pty = "0.9"
 async-trait = { workspace = true }
 bytes = "1"
 futures-util = { workspace = true }

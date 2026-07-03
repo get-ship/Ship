@@ -34,7 +34,7 @@ pub(crate) use tmux_window::TmuxWindowExecutor;
 /// "not PTY-attachable" and respond with `409 Conflict`.
 pub fn pty_actor_handle(
     eh: &crate::dispatch_ports::ExecutorHandle,
-) -> Option<ship_substrate::supervisor::ProcessHandle> {
+) -> Option<process_supervisor::ProcessHandle> {
     process::ProcessState::actor_handle_from(&eh.inner)
 }
 
@@ -57,7 +57,7 @@ pub(crate) fn real_spawn_guard() -> std::sync::MutexGuard<'static, ()> {
 /// path. The resulting handle round-trips through `pty_actor_handle`.
 pub fn pty_executor_handle_for_test(
     slug: &str,
-    actor: ship_substrate::supervisor::ProcessHandle,
+    actor: process_supervisor::ProcessHandle,
 ) -> crate::dispatch_ports::ExecutorHandle {
     process::ProcessState::executor_handle_for_test(slug, actor)
 }
