@@ -26,8 +26,8 @@
 //!   register domain projections.
 //! - `data` — `DataService` (sqlx-backed `DataStore` impl).
 //! - `home`, `project`, `env`, `path_layout`, `errors`, `query`, `config_doc`,
-//!   `runtime_reads`, `security`, `fs_util`, `spawn_bounded`,
-//!   `task_health`, `locate` — substrate-side utilities, all std-only.
+//!   `runtime_reads`, `spawn_bounded`, `task_health` — substrate-side
+//!   utilities, all std-only.
 
 pub mod config_doc;
 pub mod data;
@@ -36,7 +36,7 @@ pub mod db;
 pub mod env;
 pub mod errors;
 pub mod events;
-pub mod fs_util;
+pub use fs_util;
 pub mod spawn_bounded;
 pub mod task_health;
 pub mod home;

@@ -13,6 +13,7 @@ unstable = []
 ship-kernel = { path = "../ship-substrate/crates/ship-kernel" }
 ship-types = { path = "../ship-substrate/crates/ship-types" }
 ship-paths = { path = "../ship-substrate/crates/ship-paths" }
+fs-util = { path = "../ship-substrate/crates/fs-util" }
 ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines", features = ["specta"] }
 
 inventory = { workspace = true }
