@@ -8737,6 +8737,7 @@ dependencies = [
  "ship-types",
  "specta",
  "sqlx",
+ "task-health",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -9743,6 +9744,15 @@ name = "target-lexicon"
 version = "0.12.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
+
+[[package]]
+name = "task-health"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "tauri"
