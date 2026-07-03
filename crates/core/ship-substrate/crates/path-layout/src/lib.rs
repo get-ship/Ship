@@ -120,7 +120,7 @@ fn resolve_cache_root(cache_root: Option<&Path>) -> Result<PathBuf> {
             // the test-context isolation gate kicks in (datasafety-shiphome).
             // A raw `home::home_dir()` bypass here would let a non-isolated
             // test resolve the operator's real `~/.cache/ship/`.
-            let home = crate::ShipHome::from_env();
+            let home = ship_paths::ShipHome::from_env();
             Ok(home.cache_dir().to_path_buf())
         }
     }

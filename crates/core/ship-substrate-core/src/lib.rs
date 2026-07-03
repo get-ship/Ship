@@ -44,7 +44,7 @@ pub mod persistence;
 pub mod project;
 pub mod projections;
 pub mod query;
-pub mod path_layout;
+pub use path_layout;
 pub mod runtime_reads;
 pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
 
