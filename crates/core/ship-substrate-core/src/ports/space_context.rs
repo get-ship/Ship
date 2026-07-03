@@ -5,25 +5,9 @@ use super::data_store::DataStore;
 use super::kernel_log::KernelLog;
 use super::single_backend::SingleBackendDataStore;
 
-/// Opaque per-space identifier.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SpaceId(pub String);
-
-impl SpaceId {
-    pub fn new(id: impl Into<String>) -> Self {
-        Self(id.into())
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Display for SpaceId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
+/// Opaque per-space identifier — the canonical scope-id, owned by `ship-types`
+/// (re-exported here so `ports::SpaceId` keeps resolving). One SpaceId, not two.
+pub use ship_types::SpaceId;
 
 /// Per-request handle bundling space identity, data access, and event log.
 ///
