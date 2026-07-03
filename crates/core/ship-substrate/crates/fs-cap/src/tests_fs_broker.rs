@@ -1,7 +1,7 @@
 //! LocalFsBroker confinement + durability suite.
 
-use super::fs_broker::{FsBroker, FsCap, FsError, FsMode, FsRoot};
-use super::local_fs_broker::LocalFsBroker;
+use crate::fs_broker::{FsBroker, FsCap, FsError, FsMode, FsRoot};
+use crate::local_fs_broker::LocalFsBroker;
 
 fn cap(mode: FsMode) -> (FsCap, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();

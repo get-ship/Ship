@@ -1,0 +1,17 @@
+[package]
+name = "fs-cap"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "The gated disk door: an unforgeable filesystem capability (`FsCap`) + the `FsBroker` contract that confines every path to a cap's root/scope/mode, plus the on-disk `LocalFsBroker`. Capability, not mechanism — callers name access, the broker owns the IO."
+
+[dependencies]
+ship-types = { path = "../ship-types" }
+fs-util = { path = "../fs-util" }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

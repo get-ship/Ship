@@ -11,7 +11,7 @@
 
 use std::path::PathBuf;
 
-use super::space_context::SpaceId;
+use ship_types::SpaceId;
 
 /// The confinement root kind a cap grants access to.
 #[derive(Debug, Clone, PartialEq, Eq)]

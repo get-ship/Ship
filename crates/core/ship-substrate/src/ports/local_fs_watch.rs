@@ -1,6 +1,6 @@
 //! Local-filesystem implementation of the [`FsWatch`] change-notification door.
 //!
-//! Confinement mirrors [`LocalFsBroker`](super::local_fs_broker::LocalFsBroker):
+//! Confinement mirrors [`LocalFsBroker`](fs_cap::LocalFsBroker):
 //! the watched `rel` is resolved against the cap root and rejected pre-IO if it
 //! escapes. `notify` is wired on a background thread; its callback feeds a tokio
 //! task that filters to Create/Modify/Remove, strips paths back to cap-relative,
@@ -14,7 +14,7 @@ use std::path::{Component, Path, PathBuf};
 use notify::{Event, EventKind, RecursiveMode, Watcher};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
-use super::fs_broker::{FsCap, FsError};
+use fs_cap::{FsCap, FsError};
 use super::fs_watch::{ChangeKind, FsDelta, FsWatch, WatchOpts};
 
 /// A [`FsWatch`] that confines each watch to its cap's `root` on the local disk.

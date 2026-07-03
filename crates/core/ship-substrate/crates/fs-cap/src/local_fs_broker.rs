@@ -9,7 +9,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
 
-use super::fs_broker::{FsBroker, FsCap, FsError, FsMode};
+use crate::fs_broker::{FsBroker, FsCap, FsError, FsMode};
 
 /// A [`FsBroker`] that confines access to each cap's `root` on the local disk.
 pub struct LocalFsBroker;
@@ -89,7 +89,7 @@ impl FsBroker for LocalFsBroker {
     fn write_atomic(&self, cap: &FsCap, rel: &str, bytes: &[u8]) -> Result<(), FsError> {
         Self::require_writable(cap)?;
         let path = Self::confine(cap, rel)?;
-        crate::fs_util::write_atomic(&path, bytes)
+        fs_util::write_atomic(&path, bytes)
             .map_err(|e| FsError::Io(e.to_string()))
     }
 

@@ -1,6 +1,6 @@
 //! FsWatch — the change-notification face of the gated disk door (L0 port).
 //!
-//! [`FsBroker`](super::fs_broker::FsBroker) is the SYNC read/write contract; its
+//! [`FsBroker`](fs_cap::FsBroker) is the SYNC read/write contract; its
 //! sibling [`FsWatch`] is the streaming/subscription concern. They share the same
 //! unforgeable [`FsCap`] and the same path-confinement convention: a watch is
 //! rooted at the cap, and every [`FsDelta`] reports paths RELATIVE to that root.
@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use super::fs_broker::{FsCap, FsError};
+use fs_cap::{FsCap, FsError};
 
 /// The kind of filesystem change a delta reports. Notify's richer event taxonomy
 /// is collapsed to the three kinds every domain consumer cares about.
@@ -59,7 +59,7 @@ impl WatchOpts {
 }
 
 /// The change-notification face of the disk door. `rel` is relative to the cap
-/// root, mirroring [`FsBroker`](super::fs_broker::FsBroker)'s convention.
+/// root, mirroring [`FsBroker`](fs_cap::FsBroker)'s convention.
 pub trait FsWatch: Send + Sync {
     /// Begin watching `rel` (a directory relative to the cap root). Returns a
     /// receiver of confined [`FsDelta`] batches. Dropping the receiver stops the
