@@ -27,7 +27,7 @@ pub mod runtime;
 pub mod transport;
 
 pub use profile::{ProcessKind, ProcessProfile, Transport as TransportKind};
-pub use runtime::{ActorRuntime, InProcessActorRuntime};
+pub use runtime::{ProcessRuntime, InProcessRuntime};
 pub use transport::{
     ChildBackend, ChildHandle, HeadlessChildBackend, HeadlessTransport, PtyChildBackend,
     PtyTransport, Transport,

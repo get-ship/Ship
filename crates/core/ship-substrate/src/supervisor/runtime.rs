@@ -1,4 +1,4 @@
-//! `ActorRuntime` — the seam between "spawn this actor in-process"
+//! `ProcessRuntime` — the seam between "spawn this actor in-process"
 //! (today) and "spawn this actor inside a sandbox via the v1 wire"
 //! (Chunk C2).
 //!
@@ -13,9 +13,9 @@
 //! the spawn on its behalf, and a sidecar-backed [`ProcessHandle`]
 //! routes control + observation through the v1 wire.
 //!
-//! This trait is the seam. Same `ActorRuntime` shape, two
+//! This trait is the seam. Same `ProcessRuntime` shape, two
 //! implementations:
-//!   - [`InProcessActorRuntime`] — today's behavior; in-process fork.
+//!   - [`InProcessRuntime`] — today's behavior; in-process fork.
 //!   - sidecar-backed runtime (Chunk C2) — RPC to the sandbox.
 //!
 //! Returning [`super::ProcessHandle`] keeps the public actor surface
@@ -26,7 +26,7 @@
 //! This file does not change any existing call site. Callers keep
 //! calling [`super::spawn_actor`] directly. Future callers (the
 //! SandboxRegistry-driven dispatch path) accept
-//! `Arc<dyn ActorRuntime>` and dispatch by sandbox.
+//! `Arc<dyn ProcessRuntime>` and dispatch by sandbox.
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -39,7 +39,7 @@ use super::{ProcessHandle, ProcessProfile};
 /// The returned [`ProcessHandle`] is the existing concrete actor type;
 /// the runtime is the policy + topology layer that produces it.
 #[async_trait]
-pub trait ActorRuntime: Send + Sync {
+pub trait ProcessRuntime: Send + Sync {
     /// Spawn an actor matching `profile`; return its handle.
     async fn spawn(&self, profile: ProcessProfile) -> Result<ProcessHandle>;
 
@@ -52,22 +52,22 @@ pub trait ActorRuntime: Send + Sync {
 /// This is what shipd uses today for every actor; adopting this
 /// runtime changes no behavior.
 #[derive(Default)]
-pub struct InProcessActorRuntime;
+pub struct InProcessRuntime;
 
-impl InProcessActorRuntime {
+impl InProcessRuntime {
     pub fn new() -> Self {
         Self
     }
 
     /// Wrap as a trait object — convenience for callers that hold
-    /// `Arc<dyn ActorRuntime>` keyed by sandbox.
-    pub fn shared() -> Arc<dyn ActorRuntime> {
+    /// `Arc<dyn ProcessRuntime>` keyed by sandbox.
+    pub fn shared() -> Arc<dyn ProcessRuntime> {
         Arc::new(Self::new())
     }
 }
 
 #[async_trait]
-impl ActorRuntime for InProcessActorRuntime {
+impl ProcessRuntime for InProcessRuntime {
     async fn spawn(&self, profile: ProcessProfile) -> Result<ProcessHandle> {
         // `super::spawn_actor` is sync (forks + emits events on the
         // calling thread). Run it on a blocking pool so the async
@@ -89,15 +89,15 @@ mod tests {
 
     #[test]
     fn in_process_runtime_name_is_stable() {
-        let rt = InProcessActorRuntime::new();
+        let rt = InProcessRuntime::new();
         assert_eq!(rt.name(), "in-process");
     }
 
     #[test]
     fn trait_object_compiles() {
         // Compile-time check: trait is object-safe so the registry
-        // can hold `Arc<dyn ActorRuntime>` keyed by sandbox.
-        fn _accepts(_rt: Arc<dyn ActorRuntime>) {}
-        _accepts(InProcessActorRuntime::shared());
+        // can hold `Arc<dyn ProcessRuntime>` keyed by sandbox.
+        fn _accepts(_rt: Arc<dyn ProcessRuntime>) {}
+        _accepts(InProcessRuntime::shared());
     }
 }

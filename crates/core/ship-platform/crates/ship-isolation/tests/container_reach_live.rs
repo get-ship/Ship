@@ -3,7 +3,7 @@
 //!
 //! Stands up a throwaway TCP listener on the host (the stand-in for the
 //! daemon), prepares a podman container in sidecar mode with a network,
-//! then drives the production `SidecarActorRuntime` to spawn an actor
+//! then drives the production `SidecarRuntime` to spawn an actor
 //! that connects back to the host via the URL the production rewrite
 //! produces (`Docker::container_reachable_url` → `host.docker.internal`,
 //! resolved by the `--add-host=...:host-gateway` the backend now sets).
@@ -24,9 +24,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use ship_isolation::backends::{Docker, DockerConfig};
-use ship_isolation::runtime::SidecarActorRuntime;
+use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::{Isolator, NetworkPolicy, SandboxPolicy};
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 fn podman_available() -> bool {
     Command::new("podman")
@@ -117,7 +117,7 @@ async fn container_actor_reaches_host_daemon_plane() {
         .expect("prepare (podman sidecar mode)");
     let endpoint = Docker::sidecar_endpoint(&handle).expect("sidecar v1 endpoint");
 
-    let runtime = SidecarActorRuntime::new(endpoint);
+    let runtime = SidecarRuntime::new(endpoint);
     let log_dir = std::env::temp_dir().join("ship-podman-reach-live");
     std::fs::create_dir_all(&log_dir).ok();
     let profile = ProcessProfile {

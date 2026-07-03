@@ -22,9 +22,9 @@ use std::process::Command;
 use std::time::Duration;
 
 use ship_isolation::backends::{Docker, DockerConfig};
-use ship_isolation::runtime::SidecarActorRuntime;
+use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::{Isolator, NetworkPolicy, SandboxPolicy};
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 fn podman_available() -> bool {
     Command::new("podman")
@@ -83,7 +83,7 @@ async fn deny_all_blocks_egress_yet_sidecar_reachable() {
         .await
         .expect("prepare must succeed over the unix socket even with --network none");
     let endpoint = Docker::sidecar_endpoint(&handle).expect("sidecar endpoint");
-    let runtime = SidecarActorRuntime::new(endpoint);
+    let runtime = SidecarRuntime::new(endpoint);
 
     let log_dir = std::env::temp_dir().join("ship-podman-zeroegress");
     std::fs::create_dir_all(&log_dir).ok();

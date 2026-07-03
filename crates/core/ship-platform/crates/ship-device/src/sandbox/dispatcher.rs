@@ -1,6 +1,6 @@
 //! `SandboxDispatcher` — the orchestrator's view of the sandbox
 //! layer. Wraps a [`SandboxRegistry`] and routes actor-spawn requests
-//! to the right [`ActorRuntime`] based on each sandbox's
+//! to the right [`ProcessRuntime`] based on each sandbox's
 //! [`RuntimeEndpoint`].
 //!
 //! Single concurrency story: registry sits behind an `RwLock`; the
@@ -226,7 +226,7 @@ impl SandboxDispatcher {
 
     /// Pair: sandbox's runtime endpoint + the actor runtime for it
     /// (when resolvable). For callers that need both — typically to
-    /// construct a `SidecarActorRuntime` themselves when the endpoint
+    /// construct a `SidecarRuntime` themselves when the endpoint
     /// is Remote.
     pub async fn endpoint_for(
         &self,

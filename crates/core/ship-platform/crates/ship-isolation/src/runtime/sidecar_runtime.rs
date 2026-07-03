@@ -1,5 +1,5 @@
-//! `SidecarActorRuntime` — the spawn-side of the sidecar runtime
-//! pair. Implements [`ship_substrate::supervisor::ActorRuntime`] by
+//! `SidecarRuntime` — the spawn-side of the sidecar runtime
+//! pair. Implements [`ship_substrate::supervisor::ProcessRuntime`] by
 //! routing `spawn(profile)` through `Processes.Create` against an
 //! in-sandbox runtime's v1 endpoint.
 //!
@@ -21,7 +21,7 @@
 //!   - Emit kernel events (`actor.created` etc.) — substrate's
 //!     in-process `spawn_actor` does that for its path. Sidecar-side
 //!     event emission folds in when the orchestrator dispatches
-//!     uniformly through `Arc<dyn ActorRuntime>`.
+//!     uniformly through `Arc<dyn ProcessRuntime>`.
 
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
@@ -34,7 +34,7 @@ use ship_sidecar_proto::{
     EventsClient, ProcessAttachPtyRequest, ProcessCreateRequest, ProcessesClient, PtySize,
 };
 use ship_substrate::supervisor::{
-    ProcessHandle, ProcessProfile, ActorRuntime, ChildHandle, TransportKind,
+    ProcessHandle, ProcessProfile, ProcessRuntime, ChildHandle, TransportKind,
 };
 
 use super::sidecar_backend::SidecarChildBackend;
@@ -44,12 +44,12 @@ const OUTPUT_CAP: usize = 1024;
 /// Spawn-side runtime for sidecar-backed actors. Holds the wire
 /// configuration; opens connections per-actor (cheap — they're
 /// pooled by the HTTP/2 connection layer internally).
-pub struct SidecarActorRuntime {
+pub struct SidecarRuntime {
     endpoint: String,
     label: String,
 }
 
-impl SidecarActorRuntime {
+impl SidecarRuntime {
     /// Create a runtime that spawns actors against a remote
     /// in-sandbox runtime at `endpoint` (e.g. `"http://127.0.0.1:2468"`
     /// or `"http://host.docker.internal:2468"`).
@@ -61,7 +61,7 @@ impl SidecarActorRuntime {
 
     /// Convenience: wrap as a trait object for the
     /// SandboxRegistry-driven dispatch path (Chunk C3).
-    pub fn shared(endpoint: impl Into<String>) -> Arc<dyn ActorRuntime> {
+    pub fn shared(endpoint: impl Into<String>) -> Arc<dyn ProcessRuntime> {
         Arc::new(Self::new(endpoint))
     }
 
@@ -154,7 +154,7 @@ impl SidecarActorRuntime {
 }
 
 #[async_trait]
-impl ActorRuntime for SidecarActorRuntime {
+impl ProcessRuntime for SidecarRuntime {
     async fn spawn(&self, profile: ProcessProfile) -> Result<ProcessHandle> {
         let actor_id = profile.resolve_actor_id();
         let (procs, _events) = self.build_clients()?;
@@ -260,13 +260,13 @@ mod tests {
 
     #[test]
     fn runtime_label_includes_endpoint() {
-        let rt = SidecarActorRuntime::new("http://127.0.0.1:2468");
+        let rt = SidecarRuntime::new("http://127.0.0.1:2468");
         assert_eq!(rt.name(), "sidecar:http://127.0.0.1:2468");
     }
 
     #[test]
     fn shared_returns_trait_object() {
-        let _rt: Arc<dyn ActorRuntime> = SidecarActorRuntime::shared("http://localhost:9999");
+        let _rt: Arc<dyn ProcessRuntime> = SidecarRuntime::shared("http://localhost:9999");
     }
 }
 

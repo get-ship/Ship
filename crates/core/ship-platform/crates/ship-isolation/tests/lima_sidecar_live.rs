@@ -24,10 +24,10 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use ship_isolation::backends::{Lima, LimaConfig};
-use ship_isolation::runtime::SidecarActorRuntime;
+use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::Isolator;
 use ship_substrate::isolation::SandboxPolicy;
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 /// First existing Linux-musl sidecar across both arches / profiles. Lima
 /// mirrors the host home into the VM, so the host path doubles as the
@@ -68,7 +68,7 @@ async fn actor_runs_inside_lima_substrate() {
     let policy = SandboxPolicy { label: "lima-live".into(), ..SandboxPolicy::default() };
     let handle = backend.prepare(&policy).await.expect("prepare");
     let endpoint = Lima::sidecar_endpoint(&handle).expect("sidecar endpoint");
-    let runtime = SidecarActorRuntime::new(endpoint);
+    let runtime = SidecarRuntime::new(endpoint);
 
     let log_dir = std::env::temp_dir().join("ship-lima-live");
     std::fs::create_dir_all(&log_dir).ok();

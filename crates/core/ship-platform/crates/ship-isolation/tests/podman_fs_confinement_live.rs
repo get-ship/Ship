@@ -20,9 +20,9 @@ use std::process::Command;
 use std::time::Duration;
 
 use ship_isolation::backends::{Docker, DockerConfig};
-use ship_isolation::runtime::SidecarActorRuntime;
+use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::{FsMount, Isolator, MountMode, NetworkPolicy, SandboxPolicy};
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 fn podman_available() -> bool {
     Command::new("podman")
@@ -95,7 +95,7 @@ async fn container_isolates_host_filesystem() {
 
     let handle = backend.prepare(&policy).await.expect("prepare");
     let endpoint = Docker::sidecar_endpoint(&handle).expect("sidecar endpoint");
-    let runtime = SidecarActorRuntime::new(endpoint);
+    let runtime = SidecarRuntime::new(endpoint);
 
     // Single assertion: the inside file is readable AND the outside secret
     // is NOT. `cat inside && ! cat outside` exits 0 iff confinement holds.

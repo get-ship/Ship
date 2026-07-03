@@ -101,7 +101,7 @@ impl Docker {
     /// The sidecar's v1 endpoint as a `unix:<host-socket-path>` URL.
     /// `None` only when the sandbox wasn't prepared by this backend
     /// (downcast miss). The supervisor reads this to build a
-    /// `SidecarActorRuntime`, which dials the bind-mounted socket.
+    /// `SidecarRuntime`, which dials the bind-mounted socket.
     pub fn sidecar_endpoint(sandbox: &SandboxHandle) -> Option<String> {
         let st = sandbox.state.downcast_ref::<DockerState>()?;
         Some(format!("unix:{}", st.sock_dir.join(SIDECAR_SOCK_NAME).display()))

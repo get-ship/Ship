@@ -38,10 +38,10 @@ use std::process::Command;
 use std::time::Duration;
 
 use ship_isolation::backends::{Docker, DockerConfig};
-use ship_isolation::runtime::SidecarActorRuntime;
+use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::{Isolator, NetworkPolicy, SandboxPolicy};
 use ship_substrate::isolation::ResourceLimits;
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 /// Comfortably above the sidecar's tokio thread count (the pids controller
 /// counts tasks, not just processes) yet far below the burst below.
@@ -101,7 +101,7 @@ async fn pids_limit_actually_caps_process_count() {
 
     let handle = backend.prepare(&policy).await.expect("prepare");
     let endpoint = Docker::sidecar_endpoint(&handle).expect("sidecar endpoint");
-    let runtime = SidecarActorRuntime::new(endpoint);
+    let runtime = SidecarRuntime::new(endpoint);
 
     // Read the cgroup cap (builtin read — fork-free, survives the pids cap),
     // confirm it equals what we configured, then try to blow past it and

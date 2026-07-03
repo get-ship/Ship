@@ -20,10 +20,10 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use ship_isolation::backends::{Wsl, WslConfig};
-use ship_isolation::runtime::SidecarActorRuntime;
+use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::Isolator;
 use ship_substrate::isolation::SandboxPolicy;
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn actor_runs_inside_wsl_substrate() {
@@ -51,7 +51,7 @@ async fn actor_runs_inside_wsl_substrate() {
     };
     let handle = backend.prepare(&policy).await.expect("prepare");
     let endpoint = Wsl::sidecar_endpoint(&handle).expect("sidecar endpoint");
-    let runtime = SidecarActorRuntime::new(endpoint);
+    let runtime = SidecarRuntime::new(endpoint);
 
     let log_dir = std::env::temp_dir().join("ship-wsl-live");
     std::fs::create_dir_all(&log_dir).ok();

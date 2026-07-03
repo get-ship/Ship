@@ -3,7 +3,7 @@
 //!
 //! Boots a Firecracker microVM through the `Firecracker` Isolator
 //! (kernel + pre-baked rootfs with `ship-sidecar` as init on vsock), then
-//! drives the production `SidecarActorRuntime` against the
+//! drives the production `SidecarRuntime` against the
 //! `fcvsock:<port>:<uds>` endpoint to spawn an actor and assert it exits
 //! cleanly inside the guest. The Tier-3 compat-matrix cell
 //! "Linux × T3(firecracker) × sidecar".
@@ -25,9 +25,9 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use ship_isolation::backends::{Firecracker, FirecrackerConfig};
-use ship_isolation::runtime::SidecarActorRuntime;
+use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::{FsMount, Isolator, MountMode, NetworkPolicy, SandboxPolicy};
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 fn fc_base() -> PathBuf {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -88,7 +88,7 @@ async fn actor_runs_inside_firecracker_microvm() {
     let endpoint = Firecracker::sidecar_endpoint(&handle).expect("fcvsock endpoint");
     assert!(endpoint.starts_with("fcvsock:"), "endpoint: {endpoint}");
 
-    let runtime = SidecarActorRuntime::new(endpoint);
+    let runtime = SidecarRuntime::new(endpoint);
     let log_dir = std::env::temp_dir().join("ship-fc-live");
     std::fs::create_dir_all(&log_dir).ok();
     // /bin/sh is busybox in the baked rootfs.
@@ -178,7 +178,7 @@ async fn microvm_workspace_round_trips() {
 
     let handle = backend.prepare(&policy).await.expect("boot microVM w/ workspace");
     let endpoint = Firecracker::sidecar_endpoint(&handle).unwrap();
-    let runtime = SidecarActorRuntime::new(endpoint);
+    let runtime = SidecarRuntime::new(endpoint);
 
     let log_dir = std::env::temp_dir().join("ship-fcws-live");
     std::fs::create_dir_all(&log_dir).ok();
@@ -291,7 +291,7 @@ async fn microvm_agent_reaches_daemon_over_app_plane() {
 
     let handle = backend.prepare(&policy).await.expect("boot microVM w/ app-plane");
     let endpoint = Firecracker::sidecar_endpoint(&handle).unwrap();
-    let runtime = SidecarActorRuntime::new(endpoint);
+    let runtime = SidecarRuntime::new(endpoint);
 
     let log_dir = std::env::temp_dir().join("ship-fcap-live");
     std::fs::create_dir_all(&log_dir).ok();

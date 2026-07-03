@@ -1,4 +1,4 @@
-//! End-to-end test for `SidecarActorRuntime` against the real
+//! End-to-end test for `SidecarRuntime` against the real
 //! `ship-sidecar` binary. Spawns the binary on a free port,
 //! constructs the runtime, dispatches a Headless spawn, asserts
 //! the actor handle's output broadcast receives bytes and the
@@ -9,8 +9,8 @@
 
 #![allow(clippy::field_reassign_with_default)]
 
-use ship_isolation::runtime::SidecarActorRuntime;
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
+use ship_isolation::runtime::SidecarRuntime;
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -75,7 +75,7 @@ async fn sidecar_runtime_spawn_headless_writes_output_to_broadcast() {
         return;
     };
 
-    let runtime = SidecarActorRuntime::new(format!("http://{addr}"));
+    let runtime = SidecarRuntime::new(format!("http://{addr}"));
 
     let log_dir = std::env::temp_dir().join("ship-sidecar-runtime-test");
     std::fs::create_dir_all(&log_dir).ok();
@@ -96,7 +96,7 @@ async fn sidecar_runtime_spawn_headless_writes_output_to_broadcast() {
         subscribe_namespaces: vec![],
     };
 
-    let handle = runtime.spawn(profile).await.expect("spawn via SidecarActorRuntime");
+    let handle = runtime.spawn(profile).await.expect("spawn via SidecarRuntime");
     // Substrate's `resolve_actor_id` mints a fresh ULID when the
     // hint isn't ULID-shaped — so we just confirm an id was minted.
     assert!(!handle.actor_id.is_empty(), "actor_id must be assigned");
@@ -120,7 +120,7 @@ async fn sidecar_runtime_spawn_pty_streams_attach_pty_to_broadcast() {
         return;
     };
 
-    let runtime = SidecarActorRuntime::new(format!("http://{addr}"));
+    let runtime = SidecarRuntime::new(format!("http://{addr}"));
 
     let log_dir = std::env::temp_dir().join("ship-sidecar-runtime-pty-test");
     std::fs::create_dir_all(&log_dir).ok();
@@ -141,7 +141,7 @@ async fn sidecar_runtime_spawn_pty_streams_attach_pty_to_broadcast() {
         subscribe_namespaces: vec![],
     };
 
-    let handle = runtime.spawn(profile).await.expect("spawn pty via SidecarActorRuntime");
+    let handle = runtime.spawn(profile).await.expect("spawn pty via SidecarRuntime");
     let mut rx = handle.child.subscribe_output();
 
     // Give the AttachPty background task time to start.

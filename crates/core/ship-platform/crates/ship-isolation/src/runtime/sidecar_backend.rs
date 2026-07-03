@@ -24,7 +24,7 @@ use ship_substrate::supervisor::ChildBackend;
 /// Sidecar-backed [`ChildBackend`]. Holds:
 ///
 ///   - the `ProcessesClient` that owns the wire to the in-sandbox
-///     runtime (shared with the [`super::SidecarActorRuntime`] that
+///     runtime (shared with the [`super::SidecarRuntime`] that
 ///     spawned this actor)
 ///   - the remote process id (opaque to the host)
 ///   - the tokio Handle used to bridge sync trait → async RPC

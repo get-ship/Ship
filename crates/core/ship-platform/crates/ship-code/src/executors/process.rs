@@ -177,7 +177,7 @@ fn write_srt_settings(path: &std::path::Path, work_dir: &std::path::Path) -> any
 /// Result of `prepare_docker_sandbox` — the live isolator + its handle
 /// + the sidecar's v1 endpoint. The orchestrator wraps the isolator +
 /// handle in a SandboxOwner (per-sandbox lifetime) and builds a
-/// SidecarActorRuntime against `endpoint` to spawn the actor over
+/// SidecarRuntime against `endpoint` to spawn the actor over
 /// ship.sidecar.v1 — same mechanism as youki_sidecar.
 struct PreparedSandbox {
     isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator>,
@@ -286,7 +286,7 @@ async fn prepare_docker_sandbox(
 /// settings + the agent's work dir (work-unit-copy data drive), call
 /// available(), prepare(). Linux/KVM only; `available()` refuses if KVM or
 /// the kernel/rootfs assets are missing. The endpoint is `fcvsock:<port>:<uds>`
-/// — the host dials the firecracker vsock uds (see `SidecarActorRuntime`).
+/// — the host dials the firecracker vsock uds (see `SidecarRuntime`).
 #[cfg(target_os = "linux")]
 async fn prepare_firecracker_sandbox(
     ctx: &SessionContext,
@@ -456,7 +456,7 @@ pub(crate) async fn mint_scoped_token(
 /// Common control-plane wiring for any sidecar-backed substrate (container
 /// or microVM): ensure the project's sandbox, reuse-or-prepare it, attach
 /// the owner so its Drop reaps the substrate, mark it running, and return a
-/// `SidecarActorRuntime` + the minted scoped token (env already applied to
+/// `SidecarRuntime` + the minted scoped token (env already applied to
 /// `launch`: `SHIP_DAEMON_URL` via `daemon_url`, `SHIP_TOKEN`).
 ///
 /// `prepare` is the strategy-specific boot; `scheme` labels the endpoint
@@ -475,7 +475,7 @@ async fn wire_sidecar_sandbox<F, Fut>(
     scheme: &'static str,
     daemon_url: fn(&str) -> Option<String>,
     prepare: F,
-) -> Result<Option<(std::sync::Arc<dyn ship_substrate::supervisor::ActorRuntime>, Option<String>)>>
+) -> Result<Option<(std::sync::Arc<dyn ship_substrate::supervisor::ProcessRuntime>, Option<String>)>>
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<
@@ -535,7 +535,7 @@ where
         endpoint
     };
 
-    let runtime = ship_isolation::runtime::SidecarActorRuntime::shared(endpoint);
+    let runtime = ship_isolation::runtime::SidecarRuntime::shared(endpoint);
     // App-plane reachability: hand the actor the daemon URL, rewritten so the
     // sandboxed agent resolves the host. With SHIP_TOKEN this is the agent's
     // authenticated path to MCP / hooks / log_progress. None when there's no
@@ -621,7 +621,7 @@ impl SessionExecutor for ProcessExecutor {
         // spawn_actor path. The harness runs inside the sandbox's
         // container; control flows over ship.sidecar.v1.
         let mut remote_runtime: Option<
-            std::sync::Arc<dyn ship_substrate::supervisor::ActorRuntime>,
+            std::sync::Arc<dyn ship_substrate::supervisor::ProcessRuntime>,
         > = None;
         // Per-process scoped token for a sandboxed actor — minted host-side
         // and pushed via env (never the root daemon token). Captured here so
@@ -910,7 +910,7 @@ impl SessionExecutor for ProcessExecutor {
         };
 
         // Spawn through the resolved runtime. Tier 2+ (DockerEngine,
-        // future youki/lima/fly) routes through a SidecarActorRuntime —
+        // future youki/lima/fly) routes through a SidecarRuntime —
         // the harness runs inside the sandbox's container, controlled
         // over ship.sidecar.v1. Tier 0/1 forks in-process via
         // spawn_actor. Either way the returned ProcessHandle has the

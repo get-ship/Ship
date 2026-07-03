@@ -17,7 +17,7 @@
 //! The two existing backends ([`PtyChildBackend`],
 //! [`HeadlessChildBackend`]) keep the legacy behavior verbatim;
 //! they're the "in-process" path. A sidecar-backed backend lands in
-//! Chunk C2 alongside the SidecarActorRuntime.
+//! Chunk C2 alongside the SidecarRuntime.
 
 use anyhow::{Context, Result, anyhow};
 use chrono::Utc;

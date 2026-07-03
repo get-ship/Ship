@@ -12,7 +12,7 @@
 //! binds `0.0.0.0:<port>` in the guest — Lima forwards guest `0.0.0.0` ports
 //! to the host's `127.0.0.1`, but treats `127.0.0.1` guest ports as private
 //! and does NOT forward them. That maps onto the sidecar's TCP listener and
-//! `SidecarActorRuntime`'s plaintext-http client — no vsock shim. Ship's
+//! `SidecarRuntime`'s plaintext-http client — no vsock shim. Ship's
 //! Lima substrate template MUST declare an explicit `portForwards` range
 //! covering the sidecar ports: the event-driven auto-forward is environment
 //! dependent (fine on native macOS, unreliable under nested virt — verified

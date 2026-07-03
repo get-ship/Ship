@@ -19,10 +19,10 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use ship_isolation::backends::{AppleContainer, AppleContainerConfig};
-use ship_isolation::runtime::SidecarActorRuntime;
+use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::Isolator;
 use ship_substrate::isolation::SandboxPolicy;
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn actor_runs_inside_apple_container() {
@@ -40,7 +40,7 @@ async fn actor_runs_inside_apple_container() {
     let policy = SandboxPolicy { label: "apple-live".into(), ..SandboxPolicy::default() };
     let handle = backend.prepare(&policy).await.expect("prepare (check ip_from_inspect if this fails)");
     let endpoint = AppleContainer::sidecar_endpoint(&handle).expect("sidecar endpoint");
-    let runtime = SidecarActorRuntime::new(endpoint);
+    let runtime = SidecarRuntime::new(endpoint);
 
     let log_dir = std::env::temp_dir().join("ship-apple-live");
     std::fs::create_dir_all(&log_dir).ok();

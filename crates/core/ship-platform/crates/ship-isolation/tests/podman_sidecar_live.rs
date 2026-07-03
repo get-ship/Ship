@@ -3,7 +3,7 @@
 //!
 //! Prepares a podman container with the host `ship-sidecar` binary
 //! bind-mounted in as PID 1 (v1 listener published to a host port), then
-//! drives the production `SidecarActorRuntime` against that endpoint to
+//! drives the production `SidecarRuntime` against that endpoint to
 //! spawn an actor and assert it exits cleanly. This is the compat-matrix
 //! cell "Linux × T2(podman) × sidecar".
 //!
@@ -21,9 +21,9 @@ use std::process::Command;
 use std::time::Duration;
 
 use ship_isolation::backends::{Docker, DockerConfig};
-use ship_isolation::runtime::SidecarActorRuntime;
+use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::{Isolator, NetworkPolicy, SandboxPolicy};
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 fn podman_available() -> bool {
     Command::new("podman")
@@ -92,7 +92,7 @@ async fn actor_runs_inside_real_podman_container_over_v1() {
         .expect("sidecar mode must publish a v1 endpoint");
 
     // Drive the PRODUCTION runtime against the in-container sidecar.
-    let runtime = SidecarActorRuntime::new(endpoint);
+    let runtime = SidecarRuntime::new(endpoint);
     let log_dir = std::env::temp_dir().join("ship-podman-sidecar-live");
     std::fs::create_dir_all(&log_dir).ok();
     let profile = ProcessProfile {

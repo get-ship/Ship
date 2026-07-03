@@ -12,7 +12,7 @@
 //! Transport: plain TCP. The sidecar binds `0.0.0.0:<port>` in the distro;
 //! WSL2 forwards distro ports to the Windows host's `127.0.0.1`, so the
 //! supervisor (shipd, native on Windows) reaches it there. Maps onto the
-//! sidecar's TCP listener and `SidecarActorRuntime`'s plaintext-http client —
+//! sidecar's TCP listener and `SidecarRuntime`'s plaintext-http client —
 //! no vsock shim.
 //!
 //! POC-verified on a WSL2 box: `wsl.exe -d <distro> -- ship-sidecar` runs the

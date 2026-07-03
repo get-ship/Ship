@@ -10,7 +10,7 @@
 //! sidecar baked into a rootfs as init on `vsock:<PORT>`; firecracker
 //! booted with kernel + rootfs + a vsock device; the host dials the
 //! firecracker uds with a `CONNECT <port>` preamble (see
-//! `SidecarActorRuntime`'s `fcvsock:` transport).
+//! `SidecarRuntime`'s `fcvsock:` transport).
 //!
 //! The rootfs baking + a pinned/signed image are a follow-up — today the
 //! kernel + pre-baked rootfs paths are supplied via `FirecrackerConfig`.
@@ -98,7 +98,7 @@ impl Firecracker {
     }
 
     /// Host endpoint for the in-guest sidecar: `fcvsock:<port>:<uds>`. The
-    /// supervisor's `SidecarActorRuntime` dials it via the uds + CONNECT
+    /// supervisor's `SidecarRuntime` dials it via the uds + CONNECT
     /// preamble. `None` on a downcast miss.
     pub fn sidecar_endpoint(sandbox: &SandboxHandle) -> Option<String> {
         let st = sandbox.state.downcast_ref::<FcState>()?;

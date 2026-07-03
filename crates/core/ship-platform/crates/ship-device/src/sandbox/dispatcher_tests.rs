@@ -1,6 +1,6 @@
 //! Tests for `SandboxDispatcher` — the surface the orchestrator uses
 //! to route actor spawns through the registry + the right
-//! ActorRuntime. Written first; impl follows.
+//! ProcessRuntime. Written first; impl follows.
 
 use super::dispatcher::SandboxDispatcher;
 use super::types::{RuntimeEndpoint, SandboxLifetime, SandboxName, SandboxState};
