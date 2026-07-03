@@ -33,7 +33,7 @@ pub use config_doc;
 pub mod data;
 pub mod ports;
 pub mod db;
-pub mod env;
+pub use ship_paths::env;
 pub mod errors;
 pub mod events;
 pub use fs_util;
