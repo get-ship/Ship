@@ -56,8 +56,8 @@ pub use ports::{
     Predicate, PrimaryKey, Query, QueryResult, Row, SingleBackendDataStore, Sort,
     SpaceContext, SpaceId, StepExecutor, StepExecutorError, StepOutput, TableSchema,
 };
-// `S3BlobStore` and `BlobBackendConfig` live in the heavy facade (object_store/aws dep).
-// They are reachable at `ship_substrate::ports::{S3BlobStore, BlobBackendConfig}`.
+// `S3BlobStore` + `BlobBackendConfig` (object_store/aws) are the `blob-s3` leaf —
+// reach them at `blob_s3::{S3BlobStore, BlobBackendConfig}`, not through the engine.
 
 pub use events::{
     EventEnvelope, list_events_since, query_events_since, read_events, read_recent_events,

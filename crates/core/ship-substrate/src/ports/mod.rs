@@ -4,12 +4,11 @@ pub mod single_backend;
 pub mod space_context;
 pub mod step_executor;
 
-// Heavy impls live in the facade `ship-substrate` (carved out of substrate-core
-// for the lighter L1 consumers):
-// - `fs_watch` + `local_fs_watch` carry the `notify` dependency
-// - `s3_blob_store` carries the `object_store` + aws dependency
-// Re-exports of those types live in the facade at
-// `ship_substrate::ports::{FsWatch, LocalFsWatch, S3BlobStore, BlobBackendConfig}`.
+// Heavy port impls are their own leaves so their deps stay off callers that
+// don't need them — reached directly, NOT re-exported here:
+// - the `notify` watcher is the `fs-watch` leaf (`fs_watch::{FsWatch, LocalFsWatch}`)
+// - the `object_store`/aws S3 backend is the `blob-s3` leaf
+//   (`blob_s3::{S3BlobStore, BlobBackendConfig}`)
 
 // The content-addressed byte plane (`blobstore`) and the gated disk door
 // (`fs-cap`) are their own leaves. Re-exported here so

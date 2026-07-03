@@ -19,33 +19,34 @@
 use std::path::Path;
 
 use async_trait::async_trait;
-use sqlx::SqlitePool;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
+use sqlx::{Connection, SqliteConnection};
+use tokio::sync::Mutex;
 
 use durable_execution::{Journal, JournalStore, JournalStoreError};
 
 /// SQLite-backed [`JournalStore`].
 ///
-/// Backed by a `durable_journals` table (schema at
-/// `migrations/202606100001_durable_journals.sql`). The table is ensured on
-/// [`open`](SqliteJournalStore::open) via `CREATE TABLE IF NOT EXISTS`, so the
-/// store is usable against both:
-/// - the production `runtime.db` (the migration has already created the table), and
-/// - fresh temp dbs in tests (no full migration chain required).
+/// Holds a single WAL-mode `SqliteConnection` (behind a `Mutex`) — NOT a pool.
+/// The ship-substrate db layer is single-connection throughout; the journal is
+/// the one direct-write store on `runtime.db`, so it matches that model instead
+/// of standing up a private pool. The `durable_journals` table comes from the
+/// ONE shared DDL ([`ship_substrate::db::scope_schema::DURABLE_JOURNALS_DDL`]),
+/// so a fresh test db works without the full runtime migration and production
+/// `runtime.db` (which already has the table via `RUNTIME_DDL`) is unaffected.
 pub struct SqliteJournalStore {
-    pool: SqlitePool,
+    conn: Mutex<SqliteConnection>,
 }
 
 impl SqliteJournalStore {
     /// Open (or create) a journal store at `db_path`.
     ///
-    /// Creates the parent directory and the db file if absent. Enables WAL mode
-    /// and a 5-second busy timeout — matching the rest of the ship-substrate db
-    /// layer. Ensures `durable_journals` schema idempotently before returning.
-    pub async fn open(db_path: &Path) -> Result<Self, sqlx::Error> {
+    /// Creates the parent directory and the db file if absent, in WAL mode with
+    /// a 5-second busy timeout — the standard ship-substrate db-layer config.
+    /// Ensures `durable_journals` from the shared DDL before returning.
+    pub async fn open(db_path: &Path) -> anyhow::Result<Self> {
         if let Some(parent) = db_path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| sqlx::Error::Io(e))?;
+            std::fs::create_dir_all(parent)?;
         }
         let opts = SqliteConnectOptions::new()
             .filename(db_path)
@@ -53,21 +54,12 @@ impl SqliteJournalStore {
             .journal_mode(SqliteJournalMode::Wal)
             .busy_timeout(std::time::Duration::from_secs(5));
 
-        let pool = SqlitePool::connect_with(opts).await?;
+        let mut conn = SqliteConnection::connect_with(&opts).await?;
+        sqlx::query(ship_substrate::db::scope_schema::DURABLE_JOURNALS_DDL)
+            .execute(&mut conn)
+            .await?;
 
-        // Idempotent schema — production runtime.db has this from the migration;
-        // fresh test dbs get it here without needing the full migration chain.
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS durable_journals (
-                run_id       TEXT PRIMARY KEY,
-                journal_json TEXT NOT NULL,
-                updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
-            )",
-        )
-        .execute(&pool)
-        .await?;
-
-        Ok(Self { pool })
+        Ok(Self { conn: Mutex::new(conn) })
     }
 }
 
@@ -88,7 +80,7 @@ impl JournalStore for SqliteJournalStore {
         )
         .bind(run_id)
         .bind(&json)
-        .execute(&self.pool)
+        .execute(&mut *self.conn.lock().await)
         .await
         .map_err(|e| JournalStoreError::Backend(e.to_string()))?;
         Ok(())
@@ -101,7 +93,7 @@ impl JournalStore for SqliteJournalStore {
         let json: Option<String> =
             sqlx::query_scalar("SELECT journal_json FROM durable_journals WHERE run_id = ?")
                 .bind(run_id)
-                .fetch_optional(&self.pool)
+                .fetch_optional(&mut *self.conn.lock().await)
                 .await
                 .map_err(|e| JournalStoreError::Backend(e.to_string()))?;
         match json {
@@ -120,7 +112,7 @@ impl JournalStore for SqliteJournalStore {
         // with their runs); revisit with a `suspended` column if that changes.
         let rows: Vec<(String, String)> =
             sqlx::query_as("SELECT run_id, journal_json FROM durable_journals ORDER BY run_id")
-                .fetch_all(&self.pool)
+                .fetch_all(&mut *self.conn.lock().await)
                 .await
                 .map_err(|e| JournalStoreError::Backend(e.to_string()))?;
         let mut out = Vec::new();

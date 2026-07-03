@@ -101,6 +101,15 @@ END"#,
 )"#,
 ];
 
+/// The `durable_journals` table DDL — the single source. Part of `RUNTIME_DDL`
+/// (materialized in `runtime.db`) AND ensured directly by the `journal-sqlite`
+/// leaf on fresh test dbs, so the schema is defined once.
+pub const DURABLE_JOURNALS_DDL: &str = r#"CREATE TABLE IF NOT EXISTS durable_journals (
+  run_id       TEXT PRIMARY KEY,
+  journal_json TEXT NOT NULL,
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+)"#;
+
 /// Runtime projections — applied ONLY to `runtime.db`. Per-machine execution
 /// state: actors, analytics, pipelines, the project registry; plus the
 /// direct-write `daemon_settings` and the pipeline `durable_journals` store.
@@ -208,11 +217,9 @@ END"#,
   updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 )"#,
     // ── durable_journals (pipeline journal store) ────────────────────────────────
-    r#"CREATE TABLE IF NOT EXISTS durable_journals (
-  run_id       TEXT PRIMARY KEY,
-  journal_json TEXT NOT NULL,
-  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
-)"#,
+    // DDL lives in `DURABLE_JOURNALS_DDL` (below) so the `journal-sqlite` leaf can
+    // ensure the same table on fresh test dbs from ONE source.
+    DURABLE_JOURNALS_DDL,
     // ── pipeline_runs / pipeline_step_runs (pipeline.* events) ───────────────────
     // `pipeline_runs` is a quoted identifier and its indexes keep their legacy
     // `idx_jobs_*` names (renamed-table lineage); preserved verbatim.

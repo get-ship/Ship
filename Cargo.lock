@@ -3945,9 +3945,11 @@ dependencies = [
 name = "journal-sqlite"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "durable-execution",
  "serde_json",
+ "ship-substrate",
  "sqlx",
  "tempfile",
  "tokio",

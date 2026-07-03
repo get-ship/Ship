@@ -1,13 +1,13 @@
 //! journal-sqlite — the sqlx/SQLite-backed durable-execution `JournalStore`.
 //!
-//! The heavy (sqlx) journal backend for durable execution. Its own leaf so sqlx
-//! compiles only for the crates that persist journals (shipd), and off the
-//! facade's other consumers.
+//! The journal backend for durable execution. Its own leaf because it pulls
+//! `durable-execution` (→ ship-js) — which must NOT reach the substrate engine —
+//! so it can't fold into `ship-substrate`'s `persistence` module.
 //!
-//! NOTE (one-sqlx follow-up): `open` currently connects to `runtime.db` with its
-//! OWN `SqlitePool` and manages the `durable_journals` table directly — a second
-//! sqlx path into runtime.db alongside the storage engine. Routing this through
-//! the storage engine is a separate, deliberate refactor.
+//! It does route through the engine for storage, though: a single WAL-mode
+//! `SqliteConnection` (no private pool, matching the engine's single-connection
+//! model) and the `durable_journals` table from the ONE shared DDL in
+//! `ship_substrate::db::scope_schema`.
 
 pub mod journal_store;
 pub use journal_store::SqliteJournalStore;
