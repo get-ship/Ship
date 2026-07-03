@@ -26,7 +26,7 @@ use std::time::Duration;
 use ship_isolation::backends::{Lima, LimaConfig};
 use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::Isolator;
-use ship_substrate::isolation::SandboxPolicy;
+use isolation_port::SandboxPolicy;
 use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 /// First existing Linux-musl sidecar across both arches / profiles. Lima

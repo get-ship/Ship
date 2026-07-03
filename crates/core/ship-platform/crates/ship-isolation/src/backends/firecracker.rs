@@ -24,7 +24,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 
-use ship_substrate::isolation::{Isolator, IsolatorError, SandboxHandle, SandboxId, SandboxPolicy};
+use isolation_port::{Isolator, IsolatorError, SandboxHandle, SandboxId, SandboxPolicy};
 
 /// vsock port the in-guest sidecar listens on — matches the baked rootfs
 /// init (`--addr vsock:2468`).

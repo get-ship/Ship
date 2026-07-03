@@ -40,7 +40,7 @@ use std::time::Duration;
 use ship_isolation::backends::{Docker, DockerConfig};
 use ship_isolation::runtime::SidecarRuntime;
 use ship_isolation::{Isolator, NetworkPolicy, SandboxPolicy};
-use ship_substrate::isolation::ResourceLimits;
+use isolation_port::ResourceLimits;
 use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ProcessRuntime, TransportKind};
 
 /// Comfortably above the sidecar's tokio thread count (the pids controller

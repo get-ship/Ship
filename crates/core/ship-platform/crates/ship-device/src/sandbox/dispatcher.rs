@@ -28,7 +28,7 @@ use super::types::{
     RuntimeEndpoint, SandboxId, SandboxLifetime, SandboxName, SandboxState,
 };
 use ship_isolation::tier::{IsolationProfile, IsolationTier};
-use ship_substrate::isolation::SandboxOwner;
+use isolation_port::SandboxOwner;
 
 pub struct SandboxDispatcher {
     registry: Arc<RwLock<SandboxRegistry>>,

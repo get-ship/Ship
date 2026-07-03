@@ -31,9 +31,9 @@ use std::time::Duration;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
-use ship_substrate::isolation::{SandboxHandle, SandboxId};
-use ship_substrate::isolation::{MountMode, NetworkPolicy, SandboxPolicy};
-use ship_substrate::isolation::{Isolator, IsolatorError};
+use isolation_port::{SandboxHandle, SandboxId};
+use isolation_port::{MountMode, NetworkPolicy, SandboxPolicy};
+use isolation_port::{Isolator, IsolatorError};
 
 /// The path the host `ship-sidecar` binary is bind-mounted to inside
 /// the container. Matches the youki sidecar convention.
@@ -372,7 +372,7 @@ fn mount_args(policy: &SandboxPolicy) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ship_substrate::isolation::{FsMount, ResourceLimits};
+    use isolation_port::{FsMount, ResourceLimits};
     use std::collections::HashMap;
     use std::path::PathBuf;
 

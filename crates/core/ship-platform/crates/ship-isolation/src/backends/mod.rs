@@ -23,7 +23,7 @@ pub use wsl::{Wsl, WslConfig};
 pub use firecracker::{Firecracker, FirecrackerConfig};
 // Noop now lives in substrate alongside the trait — re-export so
 // existing call sites keep working.
-pub use ship_substrate::isolation::Noop;
+pub use isolation_port::Noop;
 
 #[cfg(all(feature = "youki-backend", target_os = "linux"))]
 pub use youki::{Youki, YoukiConfig};

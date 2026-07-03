@@ -1,7 +1,7 @@
 //! Ship-specific isolation strategies.
 //!
 //! The abstraction (the `Isolator` trait + `SandboxPolicy` + the
-//! lifetime-bound `SandboxHandle`) lives in `ship_substrate::isolation`
+//! lifetime-bound `SandboxHandle`) lives in `isolation_port`
 //! so an `ProcessHandle` can own its sandbox. This crate provides the
 //! concrete L1 pieces:
 //!
@@ -43,7 +43,7 @@ pub use tier::{IsolationProfile, IsolationStrategy, IsolationTier};
 // `ship_isolation::Isolator` etc. don't change. These are the same
 // types — substrate is the canonical location now because ProcessHandle
 // owns the sandbox lifetime.
-pub use ship_substrate::isolation::{
+pub use isolation_port::{
     FsMount, Isolator, IsolatorError, LaunchCommand, MountMode, NetworkPolicy,
     ResourceLimits, SandboxHandle, SandboxId, SandboxPolicy,
 };
@@ -51,9 +51,9 @@ pub use ship_substrate::isolation::{
 /// `policy` was a top-level module here pre-L0-move. Callers that
 /// imported `ship_isolation::policy::SandboxPolicy` still work via this
 /// re-export; new code should use `ship_isolation::SandboxPolicy` (or
-/// `ship_substrate::isolation::SandboxPolicy`) directly.
+/// `isolation_port::SandboxPolicy`) directly.
 pub mod policy {
-    pub use ship_substrate::isolation::{
+    pub use isolation_port::{
         FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy,
     };
 }

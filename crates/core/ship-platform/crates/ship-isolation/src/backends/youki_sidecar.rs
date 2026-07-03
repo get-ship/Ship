@@ -37,7 +37,7 @@ use crate::backends::youki::{Youki, YoukiConfig, patch_spec};
 use crate::net::{HostMatcher, ProxyHandle, spawn_allowlist_proxy};
 use crate::sidecar::proto::*;
 use crate::sidecar::proto::__buffa::view::oneof::envelope as env_view;
-use ship_substrate::isolation::{
+use isolation_port::{
     FsMount, IsolatorError, MountMode, NetworkPolicy, SandboxId, SandboxPolicy,
 };
 
@@ -175,7 +175,7 @@ impl SidecarSandbox {
             sidecar_env.insert("NO_PROXY".into(), "localhost,127.0.0.1,::1".into());
         }
 
-        let sidecar_cmd = ship_substrate::isolation::LaunchCommand {
+        let sidecar_cmd = isolation_port::LaunchCommand {
             bin: PathBuf::from(SIDECAR_INSIDE),
             args: vec![
                 "--addr".into(),

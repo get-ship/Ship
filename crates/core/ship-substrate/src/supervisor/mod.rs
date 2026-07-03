@@ -70,7 +70,7 @@ pub struct ProcessHandle {
     pub actor_id: String,
     pub kind: ProcessKind,
     pub child: Arc<ChildHandle>,
-    pub sandbox: Option<Arc<crate::isolation::SandboxOwner>>,
+    pub sandbox: Option<Arc<isolation_port::SandboxOwner>>,
 }
 
 impl ProcessHandle {
@@ -252,7 +252,7 @@ impl ProcessHandle {
     /// isolator. Returns a new handle (shares the same child + actor
     /// id) with the sandbox owner attached. The owner's `Drop` fires
     /// shutdown when the last clone of this handle is gone.
-    pub fn with_sandbox(mut self, sandbox: Arc<crate::isolation::SandboxOwner>) -> Self {
+    pub fn with_sandbox(mut self, sandbox: Arc<isolation_port::SandboxOwner>) -> Self {
         self.sandbox = Some(sandbox);
         self
     }

@@ -23,7 +23,7 @@ use std::path::PathBuf;
 use ship_isolation::backends::render_settings;
 use ship_isolation::settings::{wrap_launch, WrapContext};
 use ship_isolation::tier::IsolationStrategy;
-use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
+use isolation_port::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
 
 fn which(name: &str) -> Option<PathBuf> {
     std::env::var_os("PATH").and_then(|paths| {

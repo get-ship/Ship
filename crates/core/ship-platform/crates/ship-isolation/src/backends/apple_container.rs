@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::process::Command;
 
-use ship_substrate::isolation::{Isolator, IsolatorError, SandboxHandle, SandboxId, SandboxPolicy};
+use isolation_port::{Isolator, IsolatorError, SandboxHandle, SandboxId, SandboxPolicy};
 
 /// Port the in-container sidecar binds. The container has its own IP, so this
 /// is fixed (no host-port collision — one sidecar per microVM).

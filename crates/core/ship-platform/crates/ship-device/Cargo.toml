@@ -7,6 +7,7 @@ description = "DeviceService — window management + device/isolation surface ov
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
+isolation-port = { path = "../../../ship-substrate/crates/isolation-port" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 # Isolation types + recommender. The sandbox module (sandbox/dispatcher.rs)
 # consumes `ship_isolation::tier::{IsolationProfile, IsolationTier}` to

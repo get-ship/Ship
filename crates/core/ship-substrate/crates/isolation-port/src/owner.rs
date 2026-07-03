@@ -19,8 +19,8 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use super::handle::SandboxHandle;
-use super::trait_def::Isolator;
+use crate::handle::SandboxHandle;
+use crate::trait_def::Isolator;
 
 /// Holds the prepared sandbox + the isolator that prepared it. Drop
 /// fires shutdown on the active tokio runtime. Cheap to clone via Arc
@@ -87,9 +87,9 @@ impl Drop for SandboxOwner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::isolation::handle::SandboxId;
-    use crate::isolation::policy::SandboxPolicy;
-    use crate::isolation::trait_def::IsolatorError;
+    use crate::handle::SandboxId;
+    use crate::policy::SandboxPolicy;
+    use crate::trait_def::IsolatorError;
     use async_trait::async_trait;
     use std::sync::atomic::{AtomicUsize, Ordering};
 

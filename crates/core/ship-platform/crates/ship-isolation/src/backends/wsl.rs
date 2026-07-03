@@ -38,7 +38,7 @@ use std::time::Duration;
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 
-use ship_substrate::isolation::{Isolator, IsolatorError, SandboxHandle, SandboxId, SandboxPolicy};
+use isolation_port::{Isolator, IsolatorError, SandboxHandle, SandboxId, SandboxPolicy};
 
 #[derive(Debug, Clone)]
 pub struct WslConfig {

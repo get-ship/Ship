@@ -9,7 +9,6 @@
 //! - [`ports::fs_watch`] + [`ports::local_fs_watch`] (notify)
 //! - [`services`] — `spawn_service` background-actor primitive (mesh + access deleted as dead)
 //! - [`supervisor`] — daemon supervisor runtime
-//! - [`isolation`] — sandbox decision layer
 //! - [`events::pipeline`] / [`events::payload_registry`] — these moved INTO
 //!   `ship-substrate-core` (they depend on `ship-pipelines` types only, which
 //!   is itself a clean crate — see [`ship_substrate_core::events::pipeline`]
@@ -24,7 +23,6 @@
 //! their owning L1 crates. †sync.* is queued to move to ship-cloud.
 
 // ── Heavy back-end modules that physically live in the facade ───────────────
-pub mod isolation;
 pub mod services;
 pub mod supervisor;
 // ── Ports facade ───────────────────────────────────────────────────────────

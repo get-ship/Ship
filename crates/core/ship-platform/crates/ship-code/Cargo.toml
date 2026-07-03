@@ -11,6 +11,7 @@ workspace = true
 [dependencies]
 agent-def = { path = "../agent-def" }
 ship-substrate = { path = "../../../ship-substrate" }
+isolation-port = { path = "../../../ship-substrate/crates/isolation-port" }
 harness-adapter = { path = "../harness-adapter" }
 ship-runner = { path = "../../../ship-substrate/crates/ship-runner" }
 ship-harnesses = { path = "../ship-harnesses" }

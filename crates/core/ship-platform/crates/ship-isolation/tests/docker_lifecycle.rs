@@ -10,7 +10,7 @@ use std::process::Command;
 use std::sync::Arc;
 
 use ship_isolation::backends::{Docker, DockerConfig};
-use ship_substrate::isolation::{Isolator, SandboxOwner, SandboxPolicy};
+use isolation_port::{Isolator, SandboxOwner, SandboxPolicy};
 
 fn engine_available(bin: &str) -> bool {
     Command::new(bin)
@@ -65,10 +65,10 @@ async fn dropping_owner_tears_down_container() {
     std::fs::create_dir_all(&workspace).unwrap();
     let policy = SandboxPolicy {
         label: "lifecycle".into(),
-        mounts: vec![ship_substrate::isolation::FsMount {
+        mounts: vec![isolation_port::FsMount {
             host_path: workspace.clone(),
             sandbox_path: PathBuf::from("/work"),
-            mode: ship_substrate::isolation::MountMode::ReadWrite,
+            mode: isolation_port::MountMode::ReadWrite,
         }],
         ..SandboxPolicy::default()
     };

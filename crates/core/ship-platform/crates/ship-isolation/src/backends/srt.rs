@@ -26,7 +26,7 @@
 
 use serde::Serialize;
 
-use ship_substrate::isolation::{MountMode, NetworkPolicy, SandboxPolicy};
+use isolation_port::{MountMode, NetworkPolicy, SandboxPolicy};
 
 #[derive(Debug, Serialize)]
 pub struct SrtSettings {

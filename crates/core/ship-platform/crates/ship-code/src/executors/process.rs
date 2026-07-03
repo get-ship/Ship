@@ -156,7 +156,7 @@ fn resolve_srt_entry() -> Option<std::path::PathBuf> {
 /// the Anthropic API; per-agent overrides land when the agent profile's
 /// isolation.policy field is plumbed through.
 fn write_srt_settings(path: &std::path::Path, work_dir: &std::path::Path) -> anyhow::Result<()> {
-    use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
+    use isolation_port::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -180,8 +180,8 @@ fn write_srt_settings(path: &std::path::Path, work_dir: &std::path::Path) -> any
 /// SidecarRuntime against `endpoint` to spawn the actor over
 /// ship.sidecar.v1 — same mechanism as youki_sidecar.
 struct PreparedSandbox {
-    isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator>,
-    sandbox: ship_substrate::isolation::SandboxHandle,
+    isolator: std::sync::Arc<dyn isolation_port::Isolator>,
+    sandbox: isolation_port::SandboxHandle,
     /// `http://127.0.0.1:<port>` for the in-container sidecar's v1
     /// listener. None only if the backend was misconfigured without a
     /// sidecar binary (treated as an error by the caller).
@@ -218,12 +218,12 @@ fn resolve_sidecar_bin() -> std::path::PathBuf {
 /// `daemon_settings :: isolation.strategies = {...}`.
 async fn prepare_docker_sandbox(
     ctx: &SessionContext,
-) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
+) -> Result<PreparedSandbox, isolation_port::IsolatorError> {
     use ship_isolation::backends::{Docker, DockerConfig};
-    use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
+    use isolation_port::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
 
     let settings = ship_isolation::decision::strategies_settings()
-        .map_err(ship_substrate::isolation::IsolatorError::Other)?;
+        .map_err(isolation_port::IsolatorError::Other)?;
     let cfg = DockerConfig {
         engine_bin: settings.docker.engine_bin.clone(),
         image: settings.docker.image.clone(),
@@ -237,7 +237,7 @@ async fn prepare_docker_sandbox(
         // mechanism youki_sidecar uses.
         sidecar_bin: resolve_sidecar_bin(),
     };
-    let isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator> =
+    let isolator: std::sync::Arc<dyn isolation_port::Isolator> =
         std::sync::Arc::new(Docker::new(cfg));
     isolator.available().await?;
 
@@ -290,12 +290,12 @@ async fn prepare_docker_sandbox(
 #[cfg(target_os = "linux")]
 async fn prepare_firecracker_sandbox(
     ctx: &SessionContext,
-) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
+) -> Result<PreparedSandbox, isolation_port::IsolatorError> {
     use ship_isolation::backends::{Firecracker, FirecrackerConfig};
-    use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
+    use isolation_port::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
 
     let settings = ship_isolation::decision::strategies_settings()
-        .map_err(ship_substrate::isolation::IsolatorError::Other)?;
+        .map_err(isolation_port::IsolatorError::Other)?;
     let fc = &settings.firecracker;
     let firecracker_bin = if !fc.bin.is_empty() {
         std::path::PathBuf::from(&fc.bin)
@@ -320,7 +320,7 @@ async fn prepare_firecracker_sandbox(
         rootfs: std::path::PathBuf::from(&fc.rootfs),
         app_plane_daemon,
     };
-    let isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator> =
+    let isolator: std::sync::Arc<dyn isolation_port::Isolator> =
         std::sync::Arc::new(Firecracker::new(cfg));
     isolator.available().await?;
 
@@ -357,19 +357,19 @@ async fn prepare_firecracker_sandbox(
 /// host home; per-run caps are a follow-up).
 async fn prepare_lima_sandbox(
     ctx: &SessionContext,
-) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
+) -> Result<PreparedSandbox, isolation_port::IsolatorError> {
     use ship_isolation::backends::{Lima, LimaConfig};
-    use ship_substrate::isolation::SandboxPolicy;
+    use isolation_port::SandboxPolicy;
 
     let settings = ship_isolation::decision::strategies_settings()
-        .map_err(ship_substrate::isolation::IsolatorError::Other)?;
+        .map_err(isolation_port::IsolatorError::Other)?;
     let lima = &settings.lima;
     let cfg = LimaConfig {
         limactl_bin: std::path::PathBuf::from(&lima.bin),
         instance: lima.instance.clone(),
         sidecar_path: lima.sidecar_path.clone(),
     };
-    let isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator> =
+    let isolator: std::sync::Arc<dyn isolation_port::Isolator> =
         std::sync::Arc::new(Lima::new(cfg));
     isolator.available().await?;
 
@@ -389,19 +389,19 @@ async fn prepare_lima_sandbox(
 /// resource caps are not yet applied (follow-up).
 async fn prepare_wsl_sandbox(
     ctx: &SessionContext,
-) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
+) -> Result<PreparedSandbox, isolation_port::IsolatorError> {
     use ship_isolation::backends::{Wsl, WslConfig};
-    use ship_substrate::isolation::SandboxPolicy;
+    use isolation_port::SandboxPolicy;
 
     let settings = ship_isolation::decision::strategies_settings()
-        .map_err(ship_substrate::isolation::IsolatorError::Other)?;
+        .map_err(isolation_port::IsolatorError::Other)?;
     let wsl = &settings.wsl;
     let cfg = WslConfig {
         wsl_bin: std::path::PathBuf::from(&wsl.bin),
         distro: wsl.distro.clone(),
         sidecar_path: wsl.sidecar_path.clone(),
     };
-    let isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator> =
+    let isolator: std::sync::Arc<dyn isolation_port::Isolator> =
         std::sync::Arc::new(Wsl::new(cfg));
     isolator.available().await?;
 
@@ -479,7 +479,7 @@ async fn wire_sidecar_sandbox<F, Fut>(
 where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<
-        Output = Result<PreparedSandbox, ship_substrate::isolation::IsolatorError>,
+        Output = Result<PreparedSandbox, isolation_port::IsolatorError>,
     >,
 {
     let project_key = ctx.work_dir.to_string_lossy().to_string();
@@ -519,7 +519,7 @@ where
         let Some(endpoint) = prepared.endpoint.clone() else {
             return Err(anyhow::anyhow!("{strategy} prepared without a sidecar endpoint"));
         };
-        let owner = std::sync::Arc::new(ship_substrate::isolation::SandboxOwner::new(
+        let owner = std::sync::Arc::new(isolation_port::SandboxOwner::new(
             prepared.isolator.clone(),
             prepared.sandbox.clone(),
         ));
@@ -614,7 +614,7 @@ impl SessionExecutor for ProcessExecutor {
         // Optional sandbox owner — attached to ProcessHandle after spawn
         // so its Drop fires isolator.shutdown() when the actor dies.
         // (Tier 1 wrap path only; Tier 2+ owner lives on the dispatcher.)
-        let mut sandbox_owner: Option<std::sync::Arc<ship_substrate::isolation::SandboxOwner>> =
+        let mut sandbox_owner: Option<std::sync::Arc<isolation_port::SandboxOwner>> =
             None;
         // When set, the actor is spawned through this runtime (a
         // sidecar-backed runtime for Tier 2+) instead of the in-process

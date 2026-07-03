@@ -7,7 +7,7 @@ use super::types::{RuntimeEndpoint, SandboxLifetime, SandboxName, SandboxState};
 use async_trait::async_trait;
 use chrono::Utc;
 use ship_isolation::tier::{IsolationProfile, IsolationStrategy, IsolationTier};
-use ship_substrate::isolation::{
+use isolation_port::{
     Isolator, IsolatorError, SandboxHandle, SandboxId, SandboxOwner, SandboxPolicy,
 };
 use std::sync::Arc;

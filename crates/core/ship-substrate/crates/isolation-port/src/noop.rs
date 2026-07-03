@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use super::handle::{SandboxHandle, SandboxId};
-use super::policy::SandboxPolicy;
-use super::trait_def::{Isolator, IsolatorError};
+use crate::handle::{SandboxHandle, SandboxId};
+use crate::policy::SandboxPolicy;
+use crate::trait_def::{Isolator, IsolatorError};
 
 #[derive(Debug, Default, Clone)]
 pub struct Noop;

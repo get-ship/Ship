@@ -7,7 +7,7 @@ use std::time::Duration;
 use thiserror::Error;
 
 use ship_isolation::tier::IsolationProfile;
-use ship_substrate::isolation::SandboxOwner;
+use isolation_port::SandboxOwner;
 
 /// Opaque, stable id for a sandbox. Minted by the registry; survives
 /// shipd restart (Chunk F adds the persistence).

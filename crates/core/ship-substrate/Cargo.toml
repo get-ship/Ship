@@ -16,6 +16,7 @@ ship-paths = { path = "crates/ship-paths" }
 ship-substrate-core = { path = "../ship-substrate-core" }
 blobstore = { path = "crates/blobstore" }
 fs-cap = { path = "crates/fs-cap" }
+isolation-port = { path = "crates/isolation-port" }
 inventory = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
