@@ -1,0 +1,15 @@
+[package]
+name = "config-doc"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L0 JSONC config-document seam — typed read/write/clear over comment-preserving JSONC. The path L1 routes through instead of raw std::fs for config files."
+
+[dependencies]
+fs-util = { path = "../fs-util" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+
+[lints]
+workspace = true

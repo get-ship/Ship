@@ -47,7 +47,7 @@ pub fn read_doc_or_default<T: DeserializeOwned + Default>(path: &Path) -> T {
 
 /// Parse a JSONC string into `T` by stripping comments first.
 pub fn parse_doc<T: DeserializeOwned>(raw: &str) -> Result<T> {
-    let stripped = crate::fs_util::strip_jsonc_comments(raw);
+    let stripped = fs_util::strip_jsonc_comments(raw);
     Ok(serde_json::from_str(&stripped)?)
 }
 
@@ -57,7 +57,7 @@ pub fn parse_doc<T: DeserializeOwned>(raw: &str) -> Result<T> {
 /// file. A trailing newline is appended to match editor conventions.
 pub fn write_doc<T: Serialize>(path: &Path, value: &T) -> Result<()> {
     let body = serde_json::to_string_pretty(value)?;
-    crate::fs_util::write_atomic(path, format!("{body}\n"))
+    fs_util::write_atomic(path, format!("{body}\n"))
 }
 
 /// Like [`write_doc`], then restrict the file to owner-only (`chmod 600`) on
@@ -155,7 +155,7 @@ mod tests {
     fn read_or_default_on_corrupt() {
         let tmp = tempdir().unwrap();
         let path = tmp.path().join("corrupt.jsonc");
-        crate::fs_util::write_atomic(&path, "{ this is not json").unwrap();
+        fs_util::write_atomic(&path, "{ this is not json").unwrap();
         let doc: Doc = read_doc_or_default(&path);
         assert_eq!(doc, Doc::default());
     }
@@ -164,7 +164,7 @@ mod tests {
     fn read_doc_errors_on_corrupt_existing() {
         let tmp = tempdir().unwrap();
         let path = tmp.path().join("corrupt.jsonc");
-        crate::fs_util::write_atomic(&path, "{ nope").unwrap();
+        fs_util::write_atomic(&path, "{ nope").unwrap();
         let got: Result<Option<Doc>> = read_doc(&path);
         assert!(got.is_err());
     }

@@ -1213,6 +1213,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "config-doc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "fs-util",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "connectrpc"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8685,6 +8695,7 @@ dependencies = [
  "bytes",
  "chrono",
  "compiler",
+ "config-doc",
  "fs-util",
  "futures-util",
  "home",

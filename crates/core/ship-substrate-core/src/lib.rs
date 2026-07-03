@@ -29,7 +29,7 @@
 //!   `runtime_reads`, `spawn_bounded`, `task_health` — substrate-side
 //!   utilities, all std-only.
 
-pub mod config_doc;
+pub use config_doc;
 pub mod data;
 pub mod ports;
 pub mod db;
