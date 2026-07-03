@@ -43,6 +43,7 @@ pub mod home;
 pub mod persistence;
 pub mod project;
 pub mod projections;
+pub mod services;
 pub mod query;
 pub use path_layout;
 pub mod runtime_reads;
@@ -76,6 +77,7 @@ pub use events::{
     ReservedNamespaceValidator, ValidationError, is_kernel_event,
 };
 pub use persistence::{ActorStore, EventStore, SqliteEventStore, PartitionedSink};
+pub use services::{HealthStatus, ServiceHandle, ServiceHandler, run_service, spawn_service};
 /// Generate a monotonic ULID string. Thread-safe via thread-local generator.
 pub fn gen_ulid() -> String {
     use std::cell::RefCell;
