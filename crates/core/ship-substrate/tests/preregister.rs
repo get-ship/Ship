@@ -7,9 +7,7 @@
 use std::collections::HashMap;
 
 use ship_substrate::events::{init_kernel_router, kernel_router};
-use ship_substrate::supervisor::{
-    ActorKind, ActorProfile, TransportKind, spawn_actor, take_pre_registered_mailbox,
-};
+use ship_substrate::supervisor::{ActorKind, ActorProfile, TransportKind, spawn_actor};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agent_pre_register_visible_in_kernel_before_mcp() {
@@ -46,16 +44,6 @@ async fn agent_pre_register_visible_in_kernel_before_mcp() {
         "kernel router must observe the Agent actor immediately after spawn_actor returns"
     );
     drop(kernel);
-
-    // Substrate stashed the Mailbox so the MCP-side refine path can
-    // drain it into agent_mailboxes for SSE delivery. Take it now to
-    // prove it was stashed; otherwise the SSE drain would 404 once
-    // the MCP child connects.
-    let stashed = take_pre_registered_mailbox(&handle.actor_id);
-    assert!(
-        stashed.is_some(),
-        "Agent pre-register must stash a Mailbox for the MCP-side refine path to drain"
-    );
 
     handle.stop().unwrap();
 }

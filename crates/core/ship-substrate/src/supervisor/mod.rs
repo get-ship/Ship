@@ -52,45 +52,8 @@ fn resolve_space_id(path: &Path) -> Option<String> {
 }
 
 use anyhow::{Context, Result};
-use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex as StdMutex};
-
-use crate::events::Mailbox;
-
-/// Stash of Mailboxes for actors that substrate pre-registered with the
-/// kernel router before any MCP child connected. The MCP `actor_spawn`
-/// HTTP endpoint drains this on its refine path so the per-actor SSE
-/// stream (`/mesh/events/{actor_id}`) has a receiver to drain. Cleared
-/// when the consumer takes it.
-static PRE_REGISTERED_MAILBOXES: OnceLock<StdMutex<HashMap<String, Mailbox>>> = OnceLock::new();
-
-fn mailbox_stash() -> &'static StdMutex<HashMap<String, Mailbox>> {
-    PRE_REGISTERED_MAILBOXES.get_or_init(|| StdMutex::new(HashMap::new()))
-}
-
-/// Remove and return the Mailbox stashed by `spawn_actor` for `actor_id`.
-/// Returns `None` if there isn't one (already taken, or the actor was
-/// registered outside substrate).
-pub fn take_pre_registered_mailbox(actor_id: &str) -> Option<Mailbox> {
-    mailbox_stash().lock().ok()?.remove(actor_id)
-}
-
-/// leak-193 diagnostics: count of mailboxes pre-registered by `spawn_actor`
-/// but not yet drained by an MCP refine. A monotonic climb here means
-/// Agent-kind spawns whose MCP child never connected are stranding kernel
-/// mailboxes.
-pub fn pre_registered_mailbox_count() -> usize {
-    mailbox_stash().lock().map(|s| s.len()).unwrap_or(0)
-}
-
-/// Drop any stashed Mailbox for `actor_id` without consuming it. Called
-/// when an actor is being torn down before its consumer has arrived.
-pub fn discard_pre_registered_mailbox(actor_id: &str) {
-    if let Ok(mut stash) = mailbox_stash().lock() {
-        let _ = stash.remove(actor_id);
-    }
-}
+use std::sync::Arc;
 
 /// A live spawn — the supervisor owns the child process; the caller
 /// holds this handle for input/observation/lifecycle. Drop semantics:
@@ -211,19 +174,9 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
         let res: Result<()> = crate::db::block_on_anyhow(async move {
             let mut kernel = kr.lock().await;
             if !kernel.has_actor(&actor_id_for_kr) {
-                let (_store, mailbox) = kernel
+                kernel
                     .spawn_actor(&actor_id_for_kr, kernel_config)
                     .map_err(|e| anyhow::anyhow!("{e}"))?;
-                if is_agent {
-                    // Stash so the MCP-side `actor_spawn` refine path can
-                    // drain it into `agent_mailboxes` for SSE delivery.
-                    // Non-Agent kinds don't consume their mailbox today —
-                    // drop it (same as before this change).
-                    mailbox_stash()
-                        .lock()
-                        .unwrap_or_else(|e| e.into_inner())
-                        .insert(actor_id_for_kr.clone(), mailbox);
-                }
                 Ok(())
             } else {
                 Ok(())

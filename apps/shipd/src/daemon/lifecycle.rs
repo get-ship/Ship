@@ -101,12 +101,10 @@ pub(super) fn spawn_leak_diag(rt: &Arc<ShipRuntime>) {
             let per_turn = diag_per_turn.lock().await.len();
             tracing::info!(
                 target: "leak193",
-                "DIAG rss={:.1}MB actor_sessions={} per_turn_sessions={} \
-                 pre_reg_mailboxes={} {kline}",
+                "DIAG rss={:.1}MB actor_sessions={} per_turn_sessions={} {kline}",
                 rss_mb(),
                 diag_sessions.len(),
                 per_turn,
-                ship_substrate::supervisor::pre_registered_mailbox_count(),
             );
         }
     });
