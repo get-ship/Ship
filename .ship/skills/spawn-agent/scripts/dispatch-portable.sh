@@ -110,17 +110,35 @@ ENDPOINT="${HELMD_URL%/}/ship.ops.v1.AgentsService/Dispatch"
 # interactive agent in a tmux tab you can `tmux attach -t ship-<slug>` to.
 # keepalive:true would force the ProcessExecutor (the WS-attach / helm-UI
 # surface) and no terminal tab would open. The SPA picks its own surface.
+# The spec CONTENT is the dispatch PROMPT. helmd feeds `prompt` to the harness's
+# `autostart_prompt`, and the tmux/pty adapter send-keys it once the TUI's ready
+# pattern matches — so the agent starts with the job in hand, no `.artifacts`
+# file required. (Previously `prompt` was hardcoded "" and the spec was passed as
+# a PATH that staged an empty `.artifacts/job-spec.md`; the agent booted idle.)
+# `spec` carries the same content so anything still reading `.artifacts/job-spec.md`
+# gets the real body during the transition; `sourceSpecPath` keeps the origin
+# path for re-dispatch. `--rawfile` JSON-escapes the multi-KB markdown safely.
 if command -v jq >/dev/null 2>&1; then
   BODY="$(jq -n \
     --arg agent "$AGENT" --arg harness "$HARNESS" --arg model "$MODEL" \
-    --arg spec "$SPEC_FILE" --arg slug "$SLUG" --arg workspace "$WORKSPACE" \
-    '{agent:$agent, harness:$harness, model:$model, spec:$spec,
-      sourceSpecPath:$spec, slug:$slug, branch:"", workspace:$workspace,
-      invocation:"pty", keepalive:false, prompt:""}')"
+    --arg srcpath "$SPEC_FILE" --arg slug "$SLUG" --arg workspace "$WORKSPACE" \
+    --rawfile body "$SPEC_FILE" \
+    '{agent:$agent, harness:$harness, model:$model, spec:$body,
+      sourceSpecPath:$srcpath, slug:$slug, branch:"", workspace:$workspace,
+      invocation:"pty", keepalive:false, prompt:$body}')"
 else
-  BODY="$(cat <<JSON
-{"agent":"$AGENT","harness":"$HARNESS","model":"$MODEL","spec":"$SPEC_FILE","sourceSpecPath":"$SPEC_FILE","slug":"$SLUG","branch":"","workspace":"$WORKSPACE","invocation":"pty","keepalive":false,"prompt":""}
-JSON
+  # No jq: build the JSON with python3 (safe escaping of the spec body).
+  BODY="$(python3 - "$AGENT" "$HARNESS" "$MODEL" "$SPEC_FILE" "$SLUG" "$WORKSPACE" <<'PY'
+import json, sys
+agent, harness, model, spec_file, slug, workspace = sys.argv[1:7]
+body = open(spec_file, encoding="utf-8").read()
+print(json.dumps({
+    "agent": agent, "harness": harness, "model": model,
+    "spec": body, "sourceSpecPath": spec_file, "slug": slug,
+    "branch": "", "workspace": workspace,
+    "invocation": "pty", "keepalive": False, "prompt": body,
+}))
+PY
 )"
 fi
 
