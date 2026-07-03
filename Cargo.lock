@@ -1295,6 +1295,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
+name = "content-scan"
+version = "0.1.0"
+dependencies = [
+ "walkdir",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8606,6 +8613,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "compiler",
+ "content-scan",
  "flate2",
  "home",
  "indexmap 2.14.0",

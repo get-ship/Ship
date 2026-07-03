@@ -43,7 +43,6 @@ pub mod home;
 pub mod persistence;
 pub mod project;
 pub mod projections;
-pub mod security;
 pub mod query;
 pub mod path_layout;
 pub mod runtime_reads;

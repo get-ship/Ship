@@ -41,11 +41,11 @@ pub fn fetch_and_store(
     };
 
     // Security scan: block packages with critical hidden Unicode characters.
-    let findings = ship_substrate::security::scan_dir(content_dir);
-    if ship_substrate::security::has_critical(&findings) {
+    let findings = content_scan::scan_dir(content_dir);
+    if content_scan::has_critical(&findings) {
         let critical_findings: Vec<_> = findings
             .iter()
-            .filter(|f| f.severity == ship_substrate::security::Severity::Critical)
+            .filter(|f| f.severity == content_scan::Severity::Critical)
             .collect();
         let details: Vec<String> = critical_findings.iter().map(|f| f.to_string()).collect();
         anyhow::bail!(

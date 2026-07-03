@@ -68,7 +68,7 @@ pub mod persistence {
 // each at the original `ship_substrate::<path>` for back-compat.
 pub use ship_substrate_core::{
     config_doc, data, db, env, errors, fs_util, home, path_layout,
-    project, projections, query, runtime_reads, security, spawn_bounded,
+    project, projections, query, runtime_reads, spawn_bounded,
     task_health, testutil,
 };
 
