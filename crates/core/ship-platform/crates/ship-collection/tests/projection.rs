@@ -18,12 +18,12 @@ use std::sync::Arc;
 use serde_json::json;
 use ship_collection::projection::SchemaRegistry;
 use ship_collection::service::CollectionService;
-use ship_substrate_core::data::DataService;
-use ship_substrate_core::events::new_isolated_for_test;
-use ship_substrate_core::{
+use ship_substrate::data::DataService;
+use ship_substrate::events::new_isolated_for_test;
+use ship_substrate::{
     KernelLog, Predicate, Query, SingleBackendDataStore, SpaceContext, SpaceId,
 };
-use ship_substrate_core::testutil::init_project_minimal;
+use ship_substrate::testutil::init_project_minimal;
 
 mod common;
 
@@ -38,7 +38,7 @@ fn make_service(ship_dir: &std::path::Path, space_id: &str) -> CollectionService
     let router = new_isolated_for_test(ship_dir.to_path_buf()).unwrap();
     let kernel = Arc::new(KernelLog::new(router));
 
-    let space_db = ship_substrate_core::db::space_db_path(ship_dir, space_id);
+    let space_db = ship_substrate::db::space_db_path(ship_dir, space_id);
     let svc = DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(svc, space_id));
     let ctx = Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel));
@@ -113,8 +113,8 @@ async fn distinct_spaces_are_isolated() {
     assert!(b_items.is_empty(), "space B must not see space A's item");
 
     // And the per-space db files are physically distinct.
-    let a_db = ship_substrate_core::db::space_db_path(&ship_dir, "space-a");
-    let b_db = ship_substrate_core::db::space_db_path(&ship_dir, "space-b");
+    let a_db = ship_substrate::db::space_db_path(&ship_dir, "space-a");
+    let b_db = ship_substrate::db::space_db_path(&ship_dir, "space-b");
     assert!(a_db.exists(), "space-a db must exist");
     assert!(b_db.exists(), "space-b db must exist");
     assert_ne!(a_db, b_db);

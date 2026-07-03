@@ -96,7 +96,7 @@ use std::sync::Arc;
 use axum::http::StatusCode;
 use axum::routing;
 use connectrpc::{RequestContext, Response, Router, ServiceResult};
-use ship_substrate_core::ShipHome;
+use ship_substrate::ShipHome;
 use tokio::net::TcpListener;
 
 use proto::{

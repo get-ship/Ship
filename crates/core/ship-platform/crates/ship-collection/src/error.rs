@@ -31,14 +31,14 @@ impl From<CollectionError> for ConnectError {
     }
 }
 
-impl From<ship_substrate_core::ports::DataStoreError> for CollectionError {
-    fn from(e: ship_substrate_core::ports::DataStoreError) -> Self {
+impl From<ship_substrate::ports::DataStoreError> for CollectionError {
+    fn from(e: ship_substrate::ports::DataStoreError) -> Self {
         CollectionError::Internal(e.to_string())
     }
 }
 
-impl From<ship_substrate_core::errors::KernelError> for CollectionError {
-    fn from(e: ship_substrate_core::errors::KernelError) -> Self {
+impl From<ship_substrate::errors::KernelError> for CollectionError {
+    fn from(e: ship_substrate::errors::KernelError) -> Self {
         CollectionError::Internal(e.to_string())
     }
 }

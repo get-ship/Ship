@@ -24,10 +24,10 @@ use std::sync::Arc;
 
 use ship_artifacts::service::ArtifactService;
 use ship_artifacts::types::ArtifactScope;
-use ship_substrate_core::data::DataService;
-use ship_substrate_core::events::new_isolated_for_test;
-use ship_substrate_core::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
-use ship_substrate_core::testutil::init_project_minimal;
+use ship_substrate::data::DataService;
+use ship_substrate::events::new_isolated_for_test;
+use ship_substrate::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::testutil::init_project_minimal;
 
 mod common;
 
@@ -46,7 +46,7 @@ fn make_service(ship_dir: &std::path::Path, scope_space: &str) -> ArtifactServic
     let router = new_isolated_for_test(ship_dir.to_path_buf()).unwrap();
     let kernel = Arc::new(KernelLog::new(router));
 
-    let space_db = ship_substrate_core::db::space_db_path(ship_dir, scope_space);
+    let space_db = ship_substrate::db::space_db_path(ship_dir, scope_space);
     let svc = DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(svc, scope_space));
     let ctx = Arc::new(SpaceContext::new(SpaceId::new(scope_space), store, kernel));
@@ -123,8 +123,8 @@ async fn distinct_spaces_are_isolated() {
     assert!(svc_b.get_record(&a_rec.id).await.unwrap().is_none());
 
     // And the per-space db files are physically distinct.
-    let a_db = ship_substrate_core::db::space_db_path(&ship_dir, SPACE_A);
-    let b_db = ship_substrate_core::db::space_db_path(&ship_dir, SPACE_B);
+    let a_db = ship_substrate::db::space_db_path(&ship_dir, SPACE_A);
+    let b_db = ship_substrate::db::space_db_path(&ship_dir, SPACE_B);
     assert!(a_db.exists(), "space-a db must exist");
     assert_ne!(a_db, b_db);
 }

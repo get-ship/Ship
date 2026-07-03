@@ -20,11 +20,11 @@ use ship_collection::projection::{SchemaRegistry, ensure_collection_table};
 use ship_collection::schema::{is_safe_identifier, parse_schema_doc, validate_item};
 use ship_collection::service::CollectionService;
 use ship_collection::types::{FieldKind, SchemaDoc, RESERVED_IDS};
-use ship_substrate_core::data::DataService;
-use ship_substrate_core::db::open_space_db;
-use ship_substrate_core::events::new_isolated_for_test;
-use ship_substrate_core::home::ShipHome;
-use ship_substrate_core::{KernelLog, Query, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::data::DataService;
+use ship_substrate::db::open_space_db;
+use ship_substrate::events::new_isolated_for_test;
+use ship_substrate::home::ShipHome;
+use ship_substrate::{KernelLog, Query, SingleBackendDataStore, SpaceContext, SpaceId};
 use sqlx::Row;
 
 mod common;
@@ -44,7 +44,7 @@ fn make_ctx(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>) -> Arc<SpaceContext
     // Collections are event-sourced: bind the data store to the SAME per-scope
     // `spaces/test/space.db` the kernel routes `collection.*` events to, so the
     // `CollectionProjection`'s writes are read back here (emit-only path).
-    let space_db = ship_substrate_core::db::space_db_path(&ship_dir, "test");
+    let space_db = ship_substrate::db::space_db_path(&ship_dir, "test");
     let svc = DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(svc, "test"));
     Arc::new(SpaceContext::new(SpaceId::new("test"), store, kernel))

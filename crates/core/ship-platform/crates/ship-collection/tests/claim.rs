@@ -8,7 +8,7 @@
 //! their native types; the nested object is stored as JSON-serialized text by
 //! the projection (`item_projection::scalar_text` for `Value::Object`) and the
 //! substrate's read path re-parses text columns as JSON first
-//! (`ship_substrate_core::data::DataService::query`), so the nested object
+//! (`ship_substrate::data::DataService::query`), so the nested object
 //! re-emerges as a `serde_json::Value::Object` — i.e. it survives the
 //! round-trip without flattening its sub-fields into columns.
 //!
@@ -22,10 +22,10 @@ use std::sync::Arc;
 use serde_json::json;
 use ship_collection::projection::SchemaRegistry;
 use ship_collection::service::CollectionService;
-use ship_substrate_core::data::DataService;
-use ship_substrate_core::events::new_isolated_for_test;
-use ship_substrate_core::{KernelLog, Query, SingleBackendDataStore, SpaceContext, SpaceId};
-use ship_substrate_core::testutil::init_project_minimal;
+use ship_substrate::data::DataService;
+use ship_substrate::events::new_isolated_for_test;
+use ship_substrate::{KernelLog, Query, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::testutil::init_project_minimal;
 
 mod common;
 
@@ -38,7 +38,7 @@ fn make_service(ship_dir: &std::path::Path, space_id: &str) -> CollectionService
     let router = new_isolated_for_test(ship_dir.to_path_buf()).unwrap();
     let kernel = Arc::new(KernelLog::new(router));
 
-    let space_db = ship_substrate_core::db::space_db_path(ship_dir, space_id);
+    let space_db = ship_substrate::db::space_db_path(ship_dir, space_id);
     let svc = DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(svc, space_id));
     let ctx = Arc::new(SpaceContext::new(SpaceId::new(space_id), store, kernel));

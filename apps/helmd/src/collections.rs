@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use connectrpc::{RequestContext, Router as ConnectRouter};
-use ship_substrate_core::ports::{SpaceContext, SpaceId};
+use ship_substrate::ports::{SpaceContext, SpaceId};
 
 /// Register `CollectionItemProjection` so `collection.*` events materialize their
 /// `collection_<id>` rows inside the append transaction. Must run before the
@@ -28,7 +28,7 @@ pub fn install_collection_projection() {
     use std::sync::Once;
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
-        ship_substrate_core::projections::install_extra_projections_factory(Box::new(|| {
+        ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
             vec![Box::new(
                 ship_collection::item_projection::CollectionItemProjection,
             )]
@@ -41,19 +41,19 @@ pub fn install_collection_projection() {
 /// space is discoverable — collections then return Unimplemented rather than
 /// fabricate a partition (mirrors shipd's space-less mode; no `global` fallback).
 pub fn mount(router: ConnectRouter) -> anyhow::Result<ConnectRouter> {
-    let ship_dir = ship_substrate_core::ShipHome::from_env().root().to_path_buf();
+    let ship_dir = ship_substrate::ShipHome::from_env().root().to_path_buf();
 
     // Active space = the `projects` pointer content-id of the discovered
     // project root. Probe from the enclosing workspace (helmd's cwd / the repo
     // it was launched in), falling back to cwd — mirrors shipd's `probe`.
-    let project_ship_dir = ship_substrate_core::project::get_project_dir(None).ok();
+    let project_ship_dir = ship_substrate::project::get_project_dir(None).ok();
     let probe = project_ship_dir
         .as_deref()
         .and_then(|p| p.parent().map(PathBuf::from))
         .or_else(|| std::env::current_dir().ok());
     let Some(space_id) = probe
         .as_deref()
-        .and_then(ship_substrate_core::project::resolve_active_space)
+        .and_then(ship_substrate::project::resolve_active_space)
     else {
         tracing::warn!(
             "helmd: no active space discovered — CollectionsService not mounted (space-less)"
@@ -94,10 +94,10 @@ mod tests {
 
     use ship_collection::projection::SchemaRegistry;
     use ship_collection::service::CollectionService;
-    use ship_substrate_core::data::DataService;
-    use ship_substrate_core::events::new_isolated_for_test;
-    use ship_substrate_core::testutil::init_project_minimal;
-    use ship_substrate_core::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
+    use ship_substrate::data::DataService;
+    use ship_substrate::events::new_isolated_for_test;
+    use ship_substrate::testutil::init_project_minimal;
+    use ship_substrate::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
     /// Slice-0 gate: a `notes` item written through helmd's collection path
     /// (its `install_collection_projection` + a space.db-bound `CollectionService`)
@@ -115,7 +115,7 @@ mod tests {
 
         let router = new_isolated_for_test(ship_dir.clone()).unwrap();
         let kernel = Arc::new(KernelLog::new(router));
-        let space_db = ship_substrate_core::db::space_db_path(&ship_dir, "space-a");
+        let space_db = ship_substrate::db::space_db_path(&ship_dir, "space-a");
         let svc = DataService::open_at(&space_db).unwrap();
         let store = Arc::new(SingleBackendDataStore::new(svc, "space-a"));
         let ctx = Arc::new(SpaceContext::new(SpaceId::new("space-a"), store, kernel));

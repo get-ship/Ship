@@ -10,7 +10,7 @@ use std::sync::Mutex as StdMutex;
 
 use tokio::sync::Mutex;
 
-use ship_substrate_core::ports::SpaceContext;
+use ship_substrate::ports::SpaceContext;
 use ship_types::envelope::EventEnvelope;
 use crate::events::{ArtifactCreated, ArtifactDeleted, ArtifactMoved, ArtifactUpdated};
 

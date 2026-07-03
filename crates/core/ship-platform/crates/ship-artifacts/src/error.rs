@@ -23,14 +23,14 @@ impl From<ArtifactError> for ConnectError {
     }
 }
 
-impl From<ship_substrate_core::ports::DataStoreError> for ArtifactError {
-    fn from(e: ship_substrate_core::ports::DataStoreError) -> Self {
+impl From<ship_substrate::ports::DataStoreError> for ArtifactError {
+    fn from(e: ship_substrate::ports::DataStoreError) -> Self {
         ArtifactError::Internal(e.to_string())
     }
 }
 
-impl From<ship_substrate_core::errors::KernelError> for ArtifactError {
-    fn from(e: ship_substrate_core::errors::KernelError) -> Self {
+impl From<ship_substrate::errors::KernelError> for ArtifactError {
+    fn from(e: ship_substrate::errors::KernelError) -> Self {
         ArtifactError::Internal(e.to_string())
     }
 }

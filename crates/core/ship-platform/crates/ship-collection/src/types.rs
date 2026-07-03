@@ -44,8 +44,8 @@ pub enum FieldKind {
 
 impl FieldKind {
     /// Map to `ColumnKind` for DataStore table creation.
-    pub fn to_column_kind(self) -> ship_substrate_core::ports::ColumnKind {
-        use ship_substrate_core::ports::ColumnKind;
+    pub fn to_column_kind(self) -> ship_substrate::ports::ColumnKind {
+        use ship_substrate::ports::ColumnKind;
         match self {
             FieldKind::Number => ColumnKind::Real,
             FieldKind::Boolean => ColumnKind::Boolean,

@@ -6,6 +6,7 @@ publish = false
 description = "CollectionService — schema registry + thin RPC facade over substrate ports (L1). Implements collection.proto's 10 RPCs via DataStore + KernelLog; no direct sqlite access."
 
 [dependencies]
+ship-substrate = { path = "../../../ship-substrate" }
 ship-substrate-core = { path = "../../../ship-substrate-core" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-reactive = { path = "../ship-reactive" }
@@ -31,6 +32,7 @@ ulid = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
 tempfile = { workspace = true }
+ship-substrate = { path = "../../../ship-substrate" }
 ship-substrate-core = { path = "../../../ship-substrate-core" }
 
 [lints]

@@ -1,4 +1,4 @@
-use ship_substrate_core::events::validator::EmitContext;
+use ship_substrate::events::validator::EmitContext;
 
 /// `artifact.*` events are Space-scoped; the kernel fail-closes a space-unbound
 /// caller (`ScopeViolation::NoSpaceForSpaceEvent`). Bind the artifact scope's

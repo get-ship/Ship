@@ -6,7 +6,7 @@ use std::sync::Arc;
 use ship_ops_rpc::{
     Patch as ProtoPatch, PatchFrame as ProtoPatchFrame, PatchOp as ProtoPatchOp, WatchEvent,
 };
-use ship_substrate_core::{Query, SpaceContext};
+use ship_substrate::{Query, SpaceContext};
 
 use crate::projection::SchemaRegistry;
 

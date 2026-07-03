@@ -15,7 +15,7 @@
 //!
 //! Lives at L0 (substrate) because it consumes substrate events and writes the
 //! relational read-model through the same SQLite layout as
-//! [`ship_substrate_core::ports::SingleBackendDataStore`] (`id` PK, `space_id` NOT NULL, then
+//! [`ship_substrate::ports::SingleBackendDataStore`] (`id` PK, `space_id` NOT NULL, then
 //! the metadata columns), so the read path (`ctx.data()`, bound to the same
 //! per-scope db) queries exactly what this projection wrote. It depends only on
 //! the `ship_types::payload` artifact structs — no platform-layer types — so it
@@ -32,8 +32,8 @@ use anyhow::Result;
 use serde_json::Value;
 use sqlx::SqliteConnection;
 
-use ship_substrate_core::db::block_on;
-use ship_substrate_core::projections::registry::Projection;
+use ship_substrate::db::block_on;
+use ship_substrate::projections::registry::Projection;
 use ship_types::envelope::EventEnvelope;
 use crate::events::{ArtifactCreated, ArtifactDeleted, ArtifactMoved, ArtifactUpdated};
 

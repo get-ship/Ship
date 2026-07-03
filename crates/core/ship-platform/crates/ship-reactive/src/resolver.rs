@@ -7,8 +7,8 @@ use std::sync::Arc;
 use futures_util::future::BoxFuture;
 use tokio::sync::broadcast;
 
-use ship_substrate_core::events::EventFilter;
-use ship_substrate_core::ports::KernelLog;
+use ship_substrate::events::EventFilter;
+use ship_substrate::ports::KernelLog;
 use ship_types::envelope::EventEnvelope;
 
 use crate::diff::diff;

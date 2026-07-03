@@ -31,14 +31,14 @@ use ship_agents::services::agents::host::DispatchHandlePort;
 use ship_agents::services::agents::rpc_wire::FeedbackAuthPort;
 use ship_agents::services::agents::service::{AgentsService, AgentsServiceImpl};
 use ship_agents::services::rules::wire::GateFn;
-use ship_substrate_core::ShipHome;
-use ship_substrate_core::events::validator::EmitContext;
-use ship_substrate_core::events::{KernelRouter, init_kernel_router};
+use ship_substrate::ShipHome;
+use ship_substrate::events::validator::EmitContext;
+use ship_substrate::events::{KernelRouter, init_kernel_router};
 // Only the OFF-path `NoopDispatch` names `EventEnvelope`; the real adapter lives
 // in `dispatch.rs`.
 #[cfg(not(feature = "ship-code"))]
-use ship_substrate_core::events::EventEnvelope;
-use ship_substrate_core::ports::KernelLog;
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::ports::KernelLog;
 
 /// `AgentsHost` for helmd — backs the read methods (List/Get/Sessions) and,
 /// with `ship-code` ON, the REAL write path (Dispatch/Stop/Steer).
@@ -78,7 +78,7 @@ impl HelmAgentsHost {
         // Project scope: the enclosing project's `.ship/` dir (walks ancestors
         // from cwd, follows worktree pointers). `with_roots` wants the project
         // `.ship` dir; `workspace_dir()` wants the repo root above it.
-        let project_ship_dir = ship_substrate_core::project::get_project_dir(None).ok();
+        let project_ship_dir = ship_substrate::project::get_project_dir(None).ok();
         let workspace_dir = project_ship_dir
             .as_deref()
             .and_then(|p| p.parent().map(PathBuf::from));

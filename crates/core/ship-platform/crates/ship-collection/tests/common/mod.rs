@@ -11,7 +11,7 @@ pub fn install_collection_projection() {
     use std::sync::Once;
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
-        ship_substrate_core::projections::install_extra_projections_factory(Box::new(|| {
+        ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
             vec![Box::new(
                 ship_collection::item_projection::CollectionItemProjection,
             )]

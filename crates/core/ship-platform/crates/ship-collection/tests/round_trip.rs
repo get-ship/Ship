@@ -35,8 +35,8 @@ use serde_json::json;
 use ship_collection::projection::SchemaRegistry;
 use ship_collection::service::CollectionService;
 use ship_reactive::{PatchOp, ReactiveRegistry, ResolverSpec, WatchKey};
-use ship_substrate_core::events::EventFilter;
-use ship_substrate_core::ports::{SpaceContext, SpaceId};
+use ship_substrate::events::EventFilter;
+use ship_substrate::ports::{SpaceContext, SpaceId};
 
 mod common;
 
@@ -51,7 +51,7 @@ const COLL: &str = "rt_notes";
 /// holds one `KernelLog` over the one router.)
 fn make_kernel_and_ctx(
     tmp: &tempfile::TempDir,
-) -> (Arc<ship_substrate_core::ports::KernelLog>, Arc<SpaceContext>) {
+) -> (Arc<ship_substrate::ports::KernelLog>, Arc<SpaceContext>) {
     // Install the collection projection BEFORE the SpaceContext (and the
     // KernelLog/PartitionedSink it holds) is constructed. The factory seam is
     // the only legal way to plug an L1 projection into the per-scope bus.
@@ -60,10 +60,10 @@ fn make_kernel_and_ctx(
     // process-global OnceLock that other parallel tests may already have set
     // to a now-dropped tempdir; the isolated builder sidesteps the race and
     // mirrors what `tests/behavior.rs::make_kernel` does.
-    let ship_dir = ship_substrate_core::home::ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = ship_substrate::home::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    let router = ship_substrate_core::events::new_isolated_for_test(ship_dir.clone()).unwrap();
-    let kernel = Arc::new(ship_substrate_core::ports::KernelLog::new(router));
+    let router = ship_substrate::events::new_isolated_for_test(ship_dir.clone()).unwrap();
+    let kernel = Arc::new(ship_substrate::ports::KernelLog::new(router));
     // The SpaceContext must bind its `DataService` to the SAME per-scope
     // `spaces/<id>/space.db` the kernel routes `collection.*` (Space-scoped)
     // events to, so the `CollectionItemProjection`'s same-TX writes are
@@ -71,9 +71,9 @@ fn make_kernel_and_ctx(
     // `build_space_db_context_arc` pattern — open `space_db_path` explicitly
     // and wrap with `SingleBackendDataStore` rather than `for_space` (which
     // would re-init the global router and miss our isolated kernel).
-    let space_db = ship_substrate_core::db::space_db_path(&ship_dir, "rt");
-    let svc = ship_substrate_core::data::DataService::open_at(&space_db).unwrap();
-    let store = std::sync::Arc::new(ship_substrate_core::SingleBackendDataStore::new(svc, "rt"));
+    let space_db = ship_substrate::db::space_db_path(&ship_dir, "rt");
+    let svc = ship_substrate::data::DataService::open_at(&space_db).unwrap();
+    let store = std::sync::Arc::new(ship_substrate::SingleBackendDataStore::new(svc, "rt"));
     let ctx = SpaceContext::new(SpaceId::new("rt"), store, kernel.clone());
     (kernel, Arc::new(ctx))
 }
@@ -230,7 +230,7 @@ async fn round_trip_no_daemon_no_ports() {
         snapshot: Box::new(move || {
             let c = ctx_for_snapshot.clone();
             Box::pin(async move {
-                let q = ship_substrate_core::ports::Query::new(format!("collection_{COLL}"));
+                let q = ship_substrate::ports::Query::new(format!("collection_{COLL}"));
                 let rows = c
                     .data()
                     .query(q)

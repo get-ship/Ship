@@ -15,10 +15,10 @@ use ship_artifacts::error::ArtifactError;
 use ship_artifacts::gc::collect_expired;
 use ship_artifacts::service::ArtifactService;
 use ship_artifacts::types::ArtifactScope;
-use ship_substrate_core::data::DataService;
-use ship_substrate_core::events::new_isolated_for_test;
-use ship_substrate_core::home::ShipHome;
-use ship_substrate_core::{KernelLog, Row, SingleBackendDataStore, SpaceContext, SpaceId};
+use ship_substrate::data::DataService;
+use ship_substrate::events::new_isolated_for_test;
+use ship_substrate::home::ShipHome;
+use ship_substrate::{KernelLog, Row, SingleBackendDataStore, SpaceContext, SpaceId};
 
 mod common;
 
@@ -43,7 +43,7 @@ fn make_kernel(tmp: &tempfile::TempDir) -> Arc<KernelLog> {
 
 fn make_ctx_for(tmp: &tempfile::TempDir, kernel: Arc<KernelLog>, space: &str) -> Arc<SpaceContext> {
     let ship_dir = ShipHome::project_ship_dir(tmp.path());
-    let space_db = ship_substrate_core::db::space_db_path(&ship_dir, space);
+    let space_db = ship_substrate::db::space_db_path(&ship_dir, space);
     let svc = DataService::open_at(&space_db).unwrap();
     let store = Arc::new(SingleBackendDataStore::new(svc, space));
     Arc::new(SpaceContext::new(SpaceId::new(space), store, kernel))

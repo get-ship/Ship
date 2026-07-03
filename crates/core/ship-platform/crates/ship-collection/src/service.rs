@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use ship_substrate_core::{Predicate, Query, SpaceContext};
+use ship_substrate::{Predicate, Query, SpaceContext};
 use ship_types::envelope::EventEnvelope;
 use crate::events::{
     CollectionCreated, CollectionItemCreated, CollectionItemDeleted, CollectionItemUpdated,
@@ -85,7 +85,7 @@ impl CollectionService {
         cursor: Option<String>,
         limit: u32,
     ) -> Result<(Vec<ItemRecord>, Option<String>), CollectionError> {
-        let mut q = ship_substrate_core::query::translate_ast(ast_bytes, cursor, limit)
+        let mut q = ship_substrate::query::translate_ast(ast_bytes, cursor, limit)
             .map_err(|e| CollectionError::UnsupportedQuery(e.to_string()))?;
         // The translator returns the logical table name; map it to the physical
         // collection table here (the executor no longer applies the prefix).
