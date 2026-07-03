@@ -727,6 +727,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c"
 
 [[package]]
+name = "bounded-spawn"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "boxed_error"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8692,6 +8701,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bounded-spawn",
  "bytes",
  "chrono",
  "compiler",

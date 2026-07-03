@@ -1,0 +1,14 @@
+[package]
+name = "bounded-spawn"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L0 bounded subprocess spawn — runs a child under a memory cap (setrlimit) + wall-clock timeout (SIGKILL on breach). The one primitive substrate uses to run untrusted external commands safely."
+
+[dependencies]
+libc = { workspace = true }
+tokio = { workspace = true, features = ["process", "time", "rt", "macros"] }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

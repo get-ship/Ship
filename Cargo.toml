@@ -13,6 +13,7 @@ members = [
     "crates/core/ship-substrate/crates/content-scan",
     "crates/core/ship-substrate/crates/fs-util",
     "crates/core/ship-substrate/crates/config-doc",
+    "crates/core/ship-substrate/crates/bounded-spawn",
     "crates/core/ship-platform",
     "crates/core/ship-git",
     "crates/core/ship-cloud",

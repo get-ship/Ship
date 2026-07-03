@@ -37,7 +37,7 @@ pub mod env;
 pub mod errors;
 pub mod events;
 pub use fs_util;
-pub mod spawn_bounded;
+pub use bounded_spawn as spawn_bounded;
 pub mod task_health;
 pub mod home;
 pub mod persistence;
