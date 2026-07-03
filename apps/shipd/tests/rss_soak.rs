@@ -94,15 +94,11 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use ship_substrate::events::kernel_router::KernelRouter;
-use ship_substrate::events::permissions::{
-    ActorPermissions, DeliveryScope, PermittedSubscription,
-};
 use ship_substrate::events::validator::{CallerKind, EmitContext};
 use ship_substrate::events::EventFilter;
 use ship_substrate::events::{ActorConfig, EventEnvelope};
 use ship_substrate::gen_ulid;
 use ship_substrate::ShipHome;
-use ship_types::identity::{ActorIdentity, ActorType};
 
 // ── Safety + measurement constants ──────────────────────────────────────────
 
@@ -130,9 +126,6 @@ const SAMPLE_EVERY: u64 = 50;
 /// Run a projection-rebuild (event-log read-back) round every this many cycles.
 const REBUILD_EVERY: u64 = 100;
 
-/// Spawn a permissioned/restartable actor (the legitimate cursor-retain path)
-/// every this many cycles.
-const PERMISSIONED_EVERY: u64 = 250;
 
 /// Fraction of samples (from the front) discarded as warmup before fitting.
 const WARMUP_FRACTION: f64 = 0.20;
@@ -419,32 +412,6 @@ async fn daemon_rss_slope_is_flat_under_connection_churn() {
             }
         }
 
-        // ── 5. Occasionally a PERMISSIONED/restartable actor (bounded id pool):
-        //       spawn with permissions, stop it. This MUST retain a cursor.
-        //       Reusing a SMALL pool keeps the legitimate retain set flat —
-        //       minting unbounded permissioned ids would be a real (intended)
-        //       growth source that would mask the leak we test for. ──
-        if cycle % PERMISSIONED_EVERY == PERMISSIONED_EVERY - 1 {
-            let pool_id = format!("agent-restartable-{}", cycle % 4);
-            let identity = ActorIdentity {
-                instance_id: pool_id.clone(),
-                label: pool_id.clone(),
-                actor_type: ActorType::Agent,
-            };
-            let permissions = ActorPermissions {
-                emit: vec!["agent.".into()],
-                subscribe: vec![PermittedSubscription {
-                    namespace: "agent.".into(),
-                    scope: DeliveryScope::Global,
-                }],
-            };
-            if router
-                .spawn_actor_with_permissions(identity, permissions)
-                .is_ok()
-            {
-                let _ = router.stop_actor(&pool_id);
-            }
-        }
 
         cycles_run = cycle + 1;
 

@@ -1,7 +1,7 @@
 //! `ship-types` — foundational identity, event-envelope, and scope types (L0).
 //!
 //! The lowest crate in the stack: no runtime deps (the test in this crate
-//! asserts this). Defines `AccountId`, `DeviceId`, `SpaceId`, `ActorIdentity`,
+//! asserts this). Defines `AccountId`, `DeviceId`, `SpaceId`,
 //! `EventEnvelope`, `ScopeBinding` (the sole-minter auth seam), `Decision`,
 //! `EventScope`, the event registry, and the `Vector` / `Scope` types used
 //! across all layers.
@@ -31,7 +31,7 @@ pub use enforce::{enforce_scope, stamp_author};
 pub use envelope::EventEnvelope;
 pub use hash::sha256_hex;
 pub use identity::{
-    local_device_id, set_local_device_id, AccountId, ActorIdentity, ActorType, DeviceId,
+    local_device_id, set_local_device_id, AccountId, DeviceId,
     SpaceId,
 };
 pub use scope::Scope;

@@ -67,18 +67,3 @@ pub fn local_device_id() -> DeviceId {
     LOCAL_DEVICE_ID.get().cloned().unwrap_or_else(|| DeviceId::new("local-device"))
 }
 
-/// Actor identity — unique instance IDs and stable labels.
-#[derive(Debug, Clone)]
-pub struct ActorIdentity {
-    pub instance_id: String,
-    pub label: String,
-    pub actor_type: ActorType,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ActorType {
-    Agent,
-    Service,
-    App,
-    Cli,
-}
