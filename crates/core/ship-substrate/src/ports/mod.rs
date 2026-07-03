@@ -1,14 +1,28 @@
-//! `ports` facade — collection/reactive slice + heavy back-end impls.
-//!
-//! Most port types live in [`ship_substrate_core::ports`] (re-exported here
-//! via `super`). The heavy impls `fs_watch`, `local_fs_watch`, and
-//! `s3_blob_store` (which pull in `notify` / `object_store`+aws respectively)
-//! live in this crate.
+pub mod data_store;
+pub mod kernel_log;
+pub mod single_backend;
+pub mod space_context;
+pub mod step_executor;
 
-pub use ship_substrate_core::ports::*;
+// Heavy impls live in the facade `ship-substrate` (carved out of substrate-core
+// for the lighter L1 consumers):
+// - `fs_watch` + `local_fs_watch` carry the `notify` dependency
+// - `s3_blob_store` carries the `object_store` + aws dependency
+// Re-exports of those types live in the facade at
+// `ship_substrate::ports::{FsWatch, LocalFsWatch, S3BlobStore, BlobBackendConfig}`.
 
-// Heavy backends now live in their own leaves so their deps stay off the
-// facade's ~27 consumers:
-// - `fs-watch` (`FsWatch`/`LocalFsWatch`) carries `notify`
-// - `blob-s3` (`S3BlobStore`/`BlobBackendConfig`) carries `object_store`/aws
-// Consumers that watch or store to S3 depend on those leaves directly.
+// The content-addressed byte plane (`blobstore`) and the gated disk door
+// (`fs-cap`) are their own leaves. Re-exported here so
+// `ports::{BlobStore, FsBroker, ...}` keeps resolving for callers.
+pub use blobstore::{
+    AccountId, BlobError, BlobHash, BlobScope, BlobStore, ByteStream, LocalFsBlobStore,
+};
+pub use fs_cap::{FsBroker, FsCap, FsError, FsMode, FsRoot, LocalFsBroker};
+pub use data_store::{
+    is_safe_ident, ColumnKind, ColumnSpec, CountQuery, DataStore, DataStoreError, FilterOp,
+    Predicate, PrimaryKey, Query, QueryResult, Row, Sort, TableSchema,
+};
+pub use kernel_log::{Cursor, KernelLog};
+pub use single_backend::SingleBackendDataStore;
+pub use space_context::{SpaceContext, SpaceId};
+pub use step_executor::{StepExecutor, StepExecutorError, StepOutput};

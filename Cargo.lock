@@ -6375,7 +6375,7 @@ dependencies = [
  "chrono",
  "isolation-port",
  "portable-pty",
- "ship-substrate-core",
+ "ship-substrate",
  "ship-substrate-host",
  "tempfile",
  "tokio",
@@ -8133,7 +8133,6 @@ dependencies = [
  "ship-ops-rpc",
  "ship-reactive",
  "ship-substrate",
- "ship-substrate-core",
  "ship-types",
  "sqlx",
  "tempfile",
@@ -8275,7 +8274,6 @@ dependencies = [
  "ship-ops-rpc",
  "ship-reactive",
  "ship-substrate",
- "ship-substrate-core",
  "ship-types",
  "sqlx",
  "tempfile",
@@ -8666,7 +8664,6 @@ dependencies = [
  "serde",
  "serde_json",
  "ship-substrate",
- "ship-substrate-core",
  "ship-types",
  "tempfile",
  "tokio",
@@ -8787,43 +8784,6 @@ dependencies = [
 
 [[package]]
 name = "ship-substrate"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "blobstore",
- "bytes",
- "chrono",
- "compiler",
- "fs-cap",
- "futures-util",
- "indexmap 2.14.0",
- "inventory",
- "isolation-port",
- "libc",
- "nanoid",
- "proptest",
- "serde",
- "serde_json",
- "sha2",
- "ship-kernel",
- "ship-paths",
- "ship-runner",
- "ship-substrate-core",
- "ship-substrate-host",
- "ship-types",
- "specta",
- "sqlx",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "ulid",
- "walkdir",
-]
-
-[[package]]
-name = "ship-substrate-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",

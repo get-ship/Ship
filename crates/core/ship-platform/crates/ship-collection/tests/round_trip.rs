@@ -1,4 +1,4 @@
-//! `round_trip` — proves the carved `ship-substrate-core` serves collections
+//! `round_trip` — proves the carved `ship-substrate` serves collections
 //! end-to-end WITHOUT a daemon, without a network port, and without any of
 //! the heavy substrate machinery (object_store / portable-pty / notify).
 //!

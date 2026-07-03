@@ -7,7 +7,6 @@ description = "Generic snapshot-diff resolver — turns kernel events into live 
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
-ship-substrate-core = { path = "../../../ship-substrate-core" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 
 futures-util = { workspace = true }

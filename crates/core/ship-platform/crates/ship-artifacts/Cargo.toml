@@ -7,7 +7,6 @@ description = "ArtifactsService — content-addressed blob store + metadata proj
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
-ship-substrate-core = { path = "../../../ship-substrate-core" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-reactive = { path = "../ship-reactive" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }
@@ -30,7 +29,6 @@ anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
 tempfile = { workspace = true }
 ship-substrate = { path = "../../../ship-substrate" }
-ship-substrate-core = { path = "../../../ship-substrate-core" }
 
 [lints]
 workspace = true

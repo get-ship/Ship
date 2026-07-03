@@ -360,16 +360,18 @@ fn registry_has_entries() {
 fn l0_registry_shrinks_under_keystone_a() {
     let n = ship_types::event_registry::all_names().len();
     assert_eq!(
-        n, 44,
+        n, 41,
         "L0-registered event count changed. This pin is a keystone-A RATCHET: \
          it should only move DOWN (a domain de-bucket) — update it with the \
          move that shrinks it; growing it means new domain events were \
          registered at L0 — stop and put them in the owning domain crate \
          instead (genuinely substrate-generic events are the rare \
          sanctioned exception). \
-         (B-wave2 / 2026-06-20: -1 actor.mailbox_full, -3 kernel.actor.* \
-         events; S4: -1 space.setting.changed. 48 - 5 = 43. The extra -1 is \
-         from a de-bucket the pin already hadn't absorbed — see actual list.)"
+         (Facade/-core fold, 2026-07: 44 -> 41. This crate's OWN registrations \
+         are unchanged; the isolated lib-test links 3 fewer dep registrations \
+         after ship-substrate-core merged into ship-substrate. shipd \
+         tests/event_vocabulary.rs — the full-linkage guard — stays green, so \
+         nothing was lost globally.)"
     );
 }
 

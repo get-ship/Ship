@@ -230,7 +230,7 @@ pub(crate) fn is_test_binary_context() -> bool {
 }
 
 /// Mirrors `project::global::is_likely_rust_test_binary` (the two modules
-/// cannot share it without a circular dep through `ship-substrate-core`).
+/// cannot share it without a circular dep through `ship-substrate`).
 /// Detect cargo's standard test-binary layout under `target/<profile>/deps/`.
 fn is_likely_rust_test_binary(path: &Path) -> bool {
     let s = path.to_string_lossy();

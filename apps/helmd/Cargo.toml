@@ -61,7 +61,6 @@ ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 # `ShipHome`, `init_kernel_router`, `project::get_project_dir`. These are the
 # SAME types the facade re-exports, so naming them via the core keeps helmd's
 # direct dep lean. (The facade still arrives transitively via ship-agents.)
-ship-substrate-core = { path = "../../crates/core/ship-substrate-core" }
 
 # ── collections (S5 dogfood cutover, Slice 0): helmd serves CollectionsService ──
 # helmd's next substrate service after AgentsService — event-sourced typed

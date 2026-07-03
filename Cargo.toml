@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "crates/core/ship-substrate",
-    "crates/core/ship-substrate-core",
     "crates/core/ship-substrate/crates/ship-substrate-host",
     "crates/core/ship-substrate/crates/ship-types",
     "crates/core/ship-substrate/crates/ship-paths",
@@ -72,7 +71,6 @@ members = [
 default-members = [
     "crates/build-info",
     "crates/core/ship-substrate",
-    "crates/core/ship-substrate-core",
     "crates/core/ship-substrate/crates/ship-substrate-host",
     "crates/core/ship-substrate/crates/ship-types",
     "crates/core/ship-substrate/crates/ship-paths",

@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 fn tmp_log_dir() -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("ship-supervisor-test-{}", ship_substrate_core::gen_ulid()));
+    let dir = std::env::temp_dir().join(format!("ship-supervisor-test-{}", ship_substrate::gen_ulid()));
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
