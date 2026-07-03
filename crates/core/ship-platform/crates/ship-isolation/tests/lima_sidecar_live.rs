@@ -27,7 +27,7 @@ use ship_isolation::backends::{Lima, LimaConfig};
 use ship_isolation::runtime::SidecarActorRuntime;
 use ship_isolation::Isolator;
 use ship_substrate::isolation::SandboxPolicy;
-use ship_substrate::supervisor::{ActorKind, ActorProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
 
 /// First existing Linux-musl sidecar across both arches / profiles. Lima
 /// mirrors the host home into the VM, so the host path doubles as the
@@ -72,9 +72,9 @@ async fn actor_runs_inside_lima_substrate() {
 
     let log_dir = std::env::temp_dir().join("ship-lima-live");
     std::fs::create_dir_all(&log_dir).ok();
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: Some("lima-actor".into()),
-        kind: ActorKind::PipelineStep,
+        kind: ProcessKind::PipelineStep,
         transport: TransportKind::Headless,
         one_shot: true,
         bin: "/bin/sh".into(),

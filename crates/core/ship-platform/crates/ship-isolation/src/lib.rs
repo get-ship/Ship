@@ -2,7 +2,7 @@
 //!
 //! The abstraction (the `Isolator` trait + `SandboxPolicy` + the
 //! lifetime-bound `SandboxHandle`) lives in `ship_substrate::isolation`
-//! so an `ActorHandle` can own its sandbox. This crate provides the
+//! so an `ProcessHandle` can own its sandbox. This crate provides the
 //! concrete L1 pieces:
 //!
 //! - **Backends** — Docker / Podman, youki rootless, sandbox-runtime,
@@ -41,7 +41,7 @@ pub use tier::{IsolationProfile, IsolationStrategy, IsolationTier};
 
 // Re-export the substrate-owned abstraction so existing callers using
 // `ship_isolation::Isolator` etc. don't change. These are the same
-// types — substrate is the canonical location now because ActorHandle
+// types — substrate is the canonical location now because ProcessHandle
 // owns the sandbox lifetime.
 pub use ship_substrate::isolation::{
     FsMount, Isolator, IsolatorError, LaunchCommand, MountMode, NetworkPolicy,

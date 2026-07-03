@@ -253,7 +253,7 @@ impl SessionExecutor for RoutingExecutor {
         // Keepalive sessions need PTY for the harness to recognize a
         // TTY (claude/codex/etc downgrade output when there isn't one)
         // AND need the WS attach surface (only ProcessExecutor exposes
-        // the substrate ActorHandle the attach endpoint upgrades to).
+        // the substrate ProcessHandle the attach endpoint upgrades to).
         // TmuxWindow can't serve attach today; Server mode is its own
         // beast. Force ProcessExecutor here regardless of `headless`.
         if ctx.keepalive {

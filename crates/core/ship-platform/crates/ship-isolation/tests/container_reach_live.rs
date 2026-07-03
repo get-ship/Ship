@@ -26,7 +26,7 @@ use std::time::Duration;
 use ship_isolation::backends::{Docker, DockerConfig};
 use ship_isolation::runtime::SidecarActorRuntime;
 use ship_isolation::{Isolator, NetworkPolicy, SandboxPolicy};
-use ship_substrate::supervisor::{ActorKind, ActorProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
 
 fn podman_available() -> bool {
     Command::new("podman")
@@ -120,9 +120,9 @@ async fn container_actor_reaches_host_daemon_plane() {
     let runtime = SidecarActorRuntime::new(endpoint);
     let log_dir = std::env::temp_dir().join("ship-podman-reach-live");
     std::fs::create_dir_all(&log_dir).ok();
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: Some("reach-actor".into()),
-        kind: ActorKind::PipelineStep,
+        kind: ProcessKind::PipelineStep,
         transport: TransportKind::Headless,
         one_shot: true,
         bin: "/usr/bin/bash".into(),

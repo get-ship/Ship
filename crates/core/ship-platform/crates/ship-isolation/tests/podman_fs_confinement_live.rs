@@ -22,7 +22,7 @@ use std::time::Duration;
 use ship_isolation::backends::{Docker, DockerConfig};
 use ship_isolation::runtime::SidecarActorRuntime;
 use ship_isolation::{FsMount, Isolator, MountMode, NetworkPolicy, SandboxPolicy};
-use ship_substrate::supervisor::{ActorKind, ActorProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
 
 fn podman_available() -> bool {
     Command::new("podman")
@@ -101,9 +101,9 @@ async fn container_isolates_host_filesystem() {
     // is NOT. `cat inside && ! cat outside` exits 0 iff confinement holds.
     let log_dir = std::env::temp_dir().join("ship-podman-fsconf");
     std::fs::create_dir_all(&log_dir).ok();
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: Some("fsconf-actor".into()),
-        kind: ActorKind::PipelineStep,
+        kind: ProcessKind::PipelineStep,
         transport: TransportKind::Headless,
         one_shot: true,
         bin: "/bin/sh".into(),

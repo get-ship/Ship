@@ -1241,6 +1241,7 @@ dependencies = [
  "fs-util",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

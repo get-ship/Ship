@@ -10,7 +10,7 @@
 //!
 //! Tier 2+ moves the harness behind a sandbox boundary. The
 //! orchestrator can't fork directly; the in-sandbox runtime does
-//! the spawn on its behalf, and a sidecar-backed [`ActorHandle`]
+//! the spawn on its behalf, and a sidecar-backed [`ProcessHandle`]
 //! routes control + observation through the v1 wire.
 //!
 //! This trait is the seam. Same `ActorRuntime` shape, two
@@ -18,8 +18,8 @@
 //!   - [`InProcessActorRuntime`] — today's behavior; in-process fork.
 //!   - sidecar-backed runtime (Chunk C2) — RPC to the sandbox.
 //!
-//! Returning [`super::ActorHandle`] keeps the public actor surface
-//! unchanged. The sidecar variant will populate the same `ActorHandle`
+//! Returning [`super::ProcessHandle`] keeps the public actor surface
+//! unchanged. The sidecar variant will populate the same `ProcessHandle`
 //! struct with a child handle whose backing flips to RPC — that's
 //! the C2 work; this chunk just lands the seam.
 //!
@@ -32,16 +32,16 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use super::{ActorHandle, ActorProfile};
+use super::{ProcessHandle, ProcessProfile};
 
 /// Spawn-and-supervise an actor's process tree.
 ///
-/// The returned [`ActorHandle`] is the existing concrete actor type;
+/// The returned [`ProcessHandle`] is the existing concrete actor type;
 /// the runtime is the policy + topology layer that produces it.
 #[async_trait]
 pub trait ActorRuntime: Send + Sync {
     /// Spawn an actor matching `profile`; return its handle.
-    async fn spawn(&self, profile: ActorProfile) -> Result<ActorHandle>;
+    async fn spawn(&self, profile: ProcessProfile) -> Result<ProcessHandle>;
 
     /// Human-readable identifier for telemetry / logs
     /// (`"in-process"`, `"sidecar:unix:///var/run/ship/sbx-abc"`).
@@ -68,7 +68,7 @@ impl InProcessActorRuntime {
 
 #[async_trait]
 impl ActorRuntime for InProcessActorRuntime {
-    async fn spawn(&self, profile: ActorProfile) -> Result<ActorHandle> {
+    async fn spawn(&self, profile: ProcessProfile) -> Result<ProcessHandle> {
         // `super::spawn_actor` is sync (forks + emits events on the
         // calling thread). Run it on a blocking pool so the async
         // surface holds. The function returns quickly; the fork

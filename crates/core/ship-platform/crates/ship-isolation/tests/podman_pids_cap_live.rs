@@ -41,7 +41,7 @@ use ship_isolation::backends::{Docker, DockerConfig};
 use ship_isolation::runtime::SidecarActorRuntime;
 use ship_isolation::{Isolator, NetworkPolicy, SandboxPolicy};
 use ship_substrate::isolation::ResourceLimits;
-use ship_substrate::supervisor::{ActorKind, ActorProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
 
 /// Comfortably above the sidecar's tokio thread count (the pids controller
 /// counts tasks, not just processes) yet far below the burst below.
@@ -127,9 +127,9 @@ exit 0
 
     let log_dir = std::env::temp_dir().join("ship-podman-pidscap");
     std::fs::create_dir_all(&log_dir).ok();
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: Some("pidscap-actor".into()),
-        kind: ActorKind::PipelineStep,
+        kind: ProcessKind::PipelineStep,
         transport: TransportKind::Headless,
         one_shot: true,
         bin: "/bin/sh".into(),

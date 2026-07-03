@@ -1,12 +1,12 @@
 //! Actor-backed session registry.
 //!
-//! Holds [`ship_substrate::supervisor::ActorHandle`] (the unified spawn primitive)
+//! Holds [`ship_substrate::supervisor::ProcessHandle`] (the unified spawn primitive)
 //! plus a session-flavored [`SessionMeta`] sidecar. This is the destination
 //! registry — `SessionRegistry` is the legacy parallel system being retired
 //! kind-by-kind. When the last consumer flips, this is renamed to
 //! `Registry` and `SessionRegistry` is deleted.
 //!
-//! Shape: `actor_id -> (ActorHandle, Arc<Mutex<SessionMeta>>)`. The handle
+//! Shape: `actor_id -> (ProcessHandle, Arc<Mutex<SessionMeta>>)`. The handle
 //! owns process I/O (write_input, subscribe_output, stop). The sidecar
 //! holds session-flavored state the HTTP layer reports — workspace,
 //! agent/harness, status, exit code, harness_session_id — which doesn't
@@ -16,7 +16,7 @@
 //! agents, raw passthrough for shells) into the sidecar via the entry's
 //! `meta` mutex.
 //!
-//! Insert is keyed by `ActorHandle::actor_id`; the meta's `id` field must
+//! Insert is keyed by `ProcessHandle::actor_id`; the meta's `id` field must
 //! match. Lookup, list, and find-by-* mirror `SessionRegistry` so HTTP
 //! handlers can query whichever registry holds the session without
 //! restructuring routes.
@@ -26,7 +26,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use ship_harnesses::harness_adapter::HarnessEvent;
-use ship_substrate::supervisor::ActorHandle;
+use ship_substrate::supervisor::ProcessHandle;
 use std::path::PathBuf;
 use tokio::sync::broadcast;
 
@@ -34,7 +34,7 @@ use ship_terminal::types::{SessionId, SessionMeta};
 
 #[derive(Clone)]
 pub struct ActorEntry {
-    pub handle: ActorHandle,
+    pub handle: ProcessHandle,
     pub meta: Arc<Mutex<SessionMeta>>,
     /// Harness-event broadcast for agent kinds. Reader middleware
     /// (harness adapter `parse_output`) publishes here; SSE consumers
@@ -90,13 +90,13 @@ impl ActorRegistry {
         Self::default()
     }
 
-    pub fn insert(&self, handle: ActorHandle, meta: SessionMeta) -> ActorEntry {
+    pub fn insert(&self, handle: ProcessHandle, meta: SessionMeta) -> ActorEntry {
         self.insert_with(handle, meta, None)
     }
 
     pub fn insert_with(
         &self,
-        handle: ActorHandle,
+        handle: ProcessHandle,
         meta: SessionMeta,
         event_tx: Option<broadcast::Sender<HarnessEvent>>,
     ) -> ActorEntry {

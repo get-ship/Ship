@@ -9,7 +9,7 @@
 //!
 //!   - [`Transport`] — how a child process is held. PTY today; headless,
 //!     tmux, server-session arrive as the migration progresses.
-//!   - [`ActorProfile`] — what the actor IS. Kind, transport, agent id,
+//!   - [`ProcessProfile`] — what the actor IS. Kind, transport, agent id,
 //!     harness, env, work dir. The orchestrator wires Transport +
 //!     metadata + lifecycle events together.
 //!   - [`spawn_actor`] — the orchestrator. Mints the actor id, opens
@@ -26,7 +26,7 @@ pub mod profile;
 pub mod runtime;
 pub mod transport;
 
-pub use profile::{ActorKind, ActorProfile, Transport as TransportKind};
+pub use profile::{ProcessKind, ProcessProfile, Transport as TransportKind};
 pub use runtime::{ActorRuntime, InProcessActorRuntime};
 pub use transport::{
     ChildBackend, ChildHandle, HeadlessChildBackend, HeadlessTransport, PtyChildBackend,
@@ -66,14 +66,14 @@ use std::sync::Arc;
 /// `SandboxOwner::Drop` fires the isolator's `shutdown()` when the
 /// last clone goes away. Stays `None` for unsandboxed actors.
 #[derive(Clone)]
-pub struct ActorHandle {
+pub struct ProcessHandle {
     pub actor_id: String,
-    pub kind: ActorKind,
+    pub kind: ProcessKind,
     pub child: Arc<ChildHandle>,
     pub sandbox: Option<Arc<crate::isolation::SandboxOwner>>,
 }
 
-impl ActorHandle {
+impl ProcessHandle {
     pub fn id(&self) -> &str {
         &self.actor_id
     }
@@ -132,7 +132,7 @@ impl ActorHandle {
 /// container (`ship_substrate_host::containerize`). No-op for non-agent profiles and on
 /// hosts without a container backend. Stdio/env/cwd are untouched — only the
 /// program and its leading args change (Linux: a `systemd-run --scope` prefix).
-fn containerize_agent(profile: ActorProfile) -> ActorProfile {
+fn containerize_agent(profile: ProcessProfile) -> ProcessProfile {
     let Some(agent_id) = profile.agent_id.clone() else {
         return profile;
     };
@@ -140,16 +140,16 @@ fn containerize_agent(profile: ActorProfile) -> ActorProfile {
     if bin != profile.bin {
         tracing::info!(agent_id = %agent_id, "supervisor: spawning agent into its process container");
     }
-    ActorProfile { bin, args, ..profile }
+    ProcessProfile { bin, args, ..profile }
 }
 
-pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
+pub fn spawn_actor(profile: ProcessProfile) -> Result<ProcessHandle> {
     let actor_id = profile.resolve_actor_id();
 
     // Place agent processes in their own kernel process container so the daemon
     // can identify them by peer credentials over the host socket (the inverse
     // of `peer_identity::resolve`). Keyed on `agent_id`: any spawn that belongs
-    // to an agent gets containerized, regardless of ActorKind. Best-effort — on
+    // to an agent gets containerized, regardless of ProcessKind. Best-effort — on
     // a host with no container backend `containerize` returns the command
     // unchanged and the process resolves as the operator.
     let profile = containerize_agent(profile);
@@ -161,7 +161,7 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
     // child so the caller sees the failure. For other kinds we keep
     // the historical best-effort warning so a missing global kernel
     // (e.g. in tests) doesn't fail their spawn.
-    let is_agent = profile.kind == ActorKind::Agent;
+    let is_agent = profile.kind == ProcessKind::Agent;
     if let Some(kr) = crate::events::kernel_router() {
         let kernel_config = crate::events::ActorConfig {
             namespace: actor_id.clone(),
@@ -238,7 +238,7 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
         }
     });
 
-    Ok(ActorHandle {
+    Ok(ProcessHandle {
         actor_id,
         kind: profile.kind,
         child,
@@ -246,7 +246,7 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
     })
 }
 
-impl ActorHandle {
+impl ProcessHandle {
     /// Attach a sandbox to this handle. Called by the supervisor right
     /// after `spawn_actor` returns when the agent runs inside an
     /// isolator. Returns a new handle (shares the same child + actor
@@ -259,7 +259,7 @@ impl ActorHandle {
 }
 
 /// Convenience: where children write their logs by default. Callers
-/// can override via `ActorProfile::log_dir`.
+/// can override via `ProcessProfile::log_dir`.
 pub fn default_log_dir() -> Result<PathBuf> {
     Ok(crate::project::get_global_dir()?.join("logs/actors"))
 }

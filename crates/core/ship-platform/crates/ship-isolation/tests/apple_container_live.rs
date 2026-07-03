@@ -22,7 +22,7 @@ use ship_isolation::backends::{AppleContainer, AppleContainerConfig};
 use ship_isolation::runtime::SidecarActorRuntime;
 use ship_isolation::Isolator;
 use ship_substrate::isolation::SandboxPolicy;
-use ship_substrate::supervisor::{ActorKind, ActorProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn actor_runs_inside_apple_container() {
@@ -44,9 +44,9 @@ async fn actor_runs_inside_apple_container() {
 
     let log_dir = std::env::temp_dir().join("ship-apple-live");
     std::fs::create_dir_all(&log_dir).ok();
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: Some("apple-actor".into()),
-        kind: ActorKind::PipelineStep,
+        kind: ProcessKind::PipelineStep,
         transport: TransportKind::Headless,
         one_shot: true,
         bin: "/bin/sh".into(),

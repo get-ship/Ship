@@ -1,7 +1,7 @@
 //! Process-spawn isolation primitives.
 //!
 //! The trait + types every backend implements. Substrate owns the
-//! abstraction because the lifecycle binds to `ActorHandle` — when an
+//! abstraction because the lifecycle binds to `ProcessHandle` — when an
 //! actor is dropped, its sandbox is dropped too. The concrete
 //! strategies (Docker, youki, srt, Fly, etc.) live in `ship-isolation`
 //! at L1, alongside the capability probe and recommender.

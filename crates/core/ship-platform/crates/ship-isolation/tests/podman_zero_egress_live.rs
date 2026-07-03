@@ -24,7 +24,7 @@ use std::time::Duration;
 use ship_isolation::backends::{Docker, DockerConfig};
 use ship_isolation::runtime::SidecarActorRuntime;
 use ship_isolation::{Isolator, NetworkPolicy, SandboxPolicy};
-use ship_substrate::supervisor::{ActorKind, ActorProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
 
 fn podman_available() -> bool {
     Command::new("podman")
@@ -88,9 +88,9 @@ async fn deny_all_blocks_egress_yet_sidecar_reachable() {
     let log_dir = std::env::temp_dir().join("ship-podman-zeroegress");
     std::fs::create_dir_all(&log_dir).ok();
     // Attempt an outbound TCP connection — must fail with no network.
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: Some("zeroegress-actor".into()),
-        kind: ActorKind::PipelineStep,
+        kind: ProcessKind::PipelineStep,
         transport: TransportKind::Headless,
         one_shot: true,
         bin: "/usr/bin/bash".into(),

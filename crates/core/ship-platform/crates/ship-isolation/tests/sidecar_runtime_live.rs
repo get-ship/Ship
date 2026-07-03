@@ -10,7 +10,7 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use ship_isolation::runtime::SidecarActorRuntime;
-use ship_substrate::supervisor::{ActorKind, ActorProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -79,9 +79,9 @@ async fn sidecar_runtime_spawn_headless_writes_output_to_broadcast() {
 
     let log_dir = std::env::temp_dir().join("ship-sidecar-runtime-test");
     std::fs::create_dir_all(&log_dir).ok();
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: Some("test-actor".into()),
-        kind: ActorKind::PipelineStep,
+        kind: ProcessKind::PipelineStep,
         transport: TransportKind::Headless,
         one_shot: true,
         bin: "/bin/sh".into(),
@@ -124,9 +124,9 @@ async fn sidecar_runtime_spawn_pty_streams_attach_pty_to_broadcast() {
 
     let log_dir = std::env::temp_dir().join("ship-sidecar-runtime-pty-test");
     std::fs::create_dir_all(&log_dir).ok();
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: Some("pty-actor".into()),
-        kind: ActorKind::PipelineStep,
+        kind: ProcessKind::PipelineStep,
         transport: TransportKind::Pty,
         one_shot: false,
         bin: "/bin/cat".into(),

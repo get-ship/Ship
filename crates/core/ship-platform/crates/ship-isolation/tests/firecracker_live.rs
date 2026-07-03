@@ -27,7 +27,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use ship_isolation::backends::{Firecracker, FirecrackerConfig};
 use ship_isolation::runtime::SidecarActorRuntime;
 use ship_isolation::{FsMount, Isolator, MountMode, NetworkPolicy, SandboxPolicy};
-use ship_substrate::supervisor::{ActorKind, ActorProfile, ActorRuntime, TransportKind};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, ActorRuntime, TransportKind};
 
 fn fc_base() -> PathBuf {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -92,9 +92,9 @@ async fn actor_runs_inside_firecracker_microvm() {
     let log_dir = std::env::temp_dir().join("ship-fc-live");
     std::fs::create_dir_all(&log_dir).ok();
     // /bin/sh is busybox in the baked rootfs.
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: Some("fc-actor".into()),
-        kind: ActorKind::PipelineStep,
+        kind: ProcessKind::PipelineStep,
         transport: TransportKind::Headless,
         one_shot: true,
         bin: "/bin/sh".into(),
@@ -183,9 +183,9 @@ async fn microvm_workspace_round_trips() {
     let log_dir = std::env::temp_dir().join("ship-fcws-live");
     std::fs::create_dir_all(&log_dir).ok();
     // Read the seeded file AND write a new one — both inside the microVM.
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: Some("fcws-actor".into()),
-        kind: ActorKind::PipelineStep,
+        kind: ProcessKind::PipelineStep,
         transport: TransportKind::Headless,
         one_shot: true,
         bin: "/bin/sh".into(),
@@ -297,9 +297,9 @@ async fn microvm_agent_reaches_daemon_over_app_plane() {
     std::fs::create_dir_all(&log_dir).ok();
     // Agent has no network, but the app-plane proxy (127.0.0.1:8088) reaches
     // the host daemon over vsock. Write the response into the workspace.
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: Some("fcap-actor".into()),
-        kind: ActorKind::PipelineStep,
+        kind: ProcessKind::PipelineStep,
         transport: TransportKind::Headless,
         one_shot: true,
         bin: "/bin/sh".into(),

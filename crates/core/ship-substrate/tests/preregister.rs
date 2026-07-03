@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 use ship_substrate::events::{init_kernel_router, kernel_router};
-use ship_substrate::supervisor::{ActorKind, ActorProfile, TransportKind, spawn_actor};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, TransportKind, spawn_actor};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agent_pre_register_visible_in_kernel_before_mcp() {
@@ -18,9 +18,9 @@ async fn agent_pre_register_visible_in_kernel_before_mcp() {
 
     let log_dir = tmp.path().join("logs");
     std::fs::create_dir_all(&log_dir).unwrap();
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: None,
-        kind: ActorKind::Agent,
+        kind: ProcessKind::Agent,
         transport: TransportKind::Pty,
         one_shot: false,
         bin: "/bin/cat".into(),

@@ -1,7 +1,7 @@
 //! Long-lived agent sessions on the supervisor primitive.
 //!
 //! Replaces `lifecycle::spawn_long_lived_agent` for channels-capable
-//! harnesses (Claude). Builds an `ActorProfile` from the harness
+//! harnesses (Claude). Builds an `ProcessProfile` from the harness
 //! adapter's `build_interactive`, calls `ship_substrate::supervisor::spawn_actor`,
 //! and attaches a reader-middleware thread that:
 //!
@@ -27,7 +27,7 @@ use anyhow::{anyhow, Result};
 use chrono::Utc;
 use ship_substrate::services::dispatch_ports::LaunchProfile;
 use ship_harnesses::harness_adapter::{adapter_for, HarnessEvent};
-use ship_substrate::supervisor::{spawn_actor, ActorKind, ActorProfile, TransportKind};
+use ship_substrate::supervisor::{spawn_actor, ProcessKind, ProcessProfile, TransportKind};
 use tokio::sync::broadcast;
 
 use super::actor_registry::{ActorEntry, ActorRegistry};
@@ -76,9 +76,9 @@ pub fn spawn_or_attach(
     };
     let launch = adapter.build_interactive(&slug_prefix, &lp);
 
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: None,
-        kind: ActorKind::Agent,
+        kind: ProcessKind::Agent,
         transport: TransportKind::Pty,
         one_shot: false,
         bin: launch.bin,
@@ -253,7 +253,7 @@ fn spawn_reader_middleware(
 ///
 /// Per-turn "sessions" (metadata + event_tx) keep living on the legacy
 /// `SessionRegistry` — they have no persistent child between turns, so
-/// they don't fit ActorRegistry's "live ActorHandle" model. But the
+/// they don't fit ActorRegistry's "live ProcessHandle" model. But the
 /// child for each turn now spawns through the supervisor: fresh actor
 /// id per turn, Headless transport, lifetime bounded by the turn.
 ///
@@ -268,9 +268,9 @@ pub fn run_headless_turn(
     harness_id: String,
     work_dir: PathBuf,
 ) -> Result<()> {
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: None,
-        kind: ActorKind::Agent,
+        kind: ProcessKind::Agent,
         transport: TransportKind::Headless,
         one_shot: true,
         bin: launch.bin,
@@ -415,7 +415,7 @@ struct MenuState {
 }
 
 fn try_dismiss_menu(
-    handle: &ship_substrate::supervisor::ActorHandle,
+    handle: &ship_substrate::supervisor::ProcessHandle,
     state: &Arc<Mutex<MenuState>>,
     chunk: &[u8],
 ) -> bool {

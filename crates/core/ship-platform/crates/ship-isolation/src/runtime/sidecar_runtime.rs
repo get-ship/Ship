@@ -4,7 +4,7 @@
 //! in-sandbox runtime's v1 endpoint.
 //!
 //! Spawn flow:
-//!   1. Build a `ProcessCreateRequest` from the [`ActorProfile`]
+//!   1. Build a `ProcessCreateRequest` from the [`ProcessProfile`]
 //!      (bin, args, env, cwd, pty flag from `TransportKind`).
 //!   2. Call `Processes.Create` to allocate the remote process.
 //!   3. Build a [`SidecarChildBackend`] holding the client + remote
@@ -13,7 +13,7 @@
 //!      (for PTY-backed actors) or `Events.Stream` (for the rest),
 //!      feeding bytes into the broadcast channel that
 //!      [`ChildHandle`] owns.
-//!   5. Wrap everything in [`ChildHandle`] and an [`ActorHandle`].
+//!   5. Wrap everything in [`ChildHandle`] and an [`ProcessHandle`].
 //!
 //! What this does NOT do (yet):
 //!   - Use `SandboxRegistry` for endpoint discovery — caller passes
@@ -34,7 +34,7 @@ use ship_sidecar_proto::{
     EventsClient, ProcessAttachPtyRequest, ProcessCreateRequest, ProcessesClient, PtySize,
 };
 use ship_substrate::supervisor::{
-    ActorHandle, ActorProfile, ActorRuntime, ChildHandle, TransportKind,
+    ProcessHandle, ProcessProfile, ActorRuntime, ChildHandle, TransportKind,
 };
 
 use super::sidecar_backend::SidecarChildBackend;
@@ -155,7 +155,7 @@ impl SidecarActorRuntime {
 
 #[async_trait]
 impl ActorRuntime for SidecarActorRuntime {
-    async fn spawn(&self, profile: ActorProfile) -> Result<ActorHandle> {
+    async fn spawn(&self, profile: ProcessProfile) -> Result<ProcessHandle> {
         let actor_id = profile.resolve_actor_id();
         let (procs, _events) = self.build_clients()?;
         let procs = Arc::new(procs);
@@ -241,7 +241,7 @@ impl ActorRuntime for SidecarActorRuntime {
         );
         let child = ChildHandle::new(actor_id.clone(), Box::new(backend), output_tx, log_path);
 
-        Ok(ActorHandle {
+        Ok(ProcessHandle {
             actor_id,
             kind: profile.kind,
             child: Arc::new(child),

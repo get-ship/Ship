@@ -115,7 +115,7 @@ pub fn emit_actor_created_simple(
 /// actor projection reads), not just the envelope.
 pub fn register_window(actor_id: &str, space_id: &str, pid: u32) -> Result<()> {
     let payload = ActorCreated {
-        kind: "window".to_string(), // ActorKind::Window — projection treats kind as a string
+        kind: "window".to_string(), // ProcessKind::Window — projection treats kind as a string
         environment_type: "local".to_string(),
         space_id: Some(space_id.to_string()),
         pid: Some(pid),
@@ -154,7 +154,7 @@ pub fn deregister_window(actor_id: &str, space_id: &str) -> Result<()> {
 pub fn reap_dead_windows() -> Result<Vec<String>> {
     use crate::projections::actor::{list_actors, pid_alive, ListActorsFilter};
 
-    // "window" == ActorKind::Window.as_str(); the projection treats kind as a
+    // "window" == ProcessKind::Window.as_str(); the projection treats kind as a
     // string throughout, so we filter on the string (no supervisor dep here).
     let windows = list_actors(&ListActorsFilter {
         kind: Some("window".to_string()),

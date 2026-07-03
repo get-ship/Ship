@@ -17,9 +17,9 @@ fn spawn_pty_minimal() {
     // we kill it. Exercises PTY open + writer + log file + reader
     // thread + ChildHandle drop semantics.
     let log_dir = tmp_log_dir();
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: None,
-        kind: ActorKind::Shell,
+        kind: ProcessKind::Shell,
         transport: TransportKind::Pty,
         one_shot: false,
         bin: "/bin/cat".into(),
@@ -75,9 +75,9 @@ fn spawn_pty_minimal() {
 #[test]
 fn spawn_honours_ulid_hint() {
     let hint = "01ABCDEFGHJKMNPQRSTVWXYZ23"; // 26 chars, valid alphabet
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: Some(hint.to_string()),
-        kind: ActorKind::Shell,
+        kind: ProcessKind::Shell,
         transport: TransportKind::Pty,
         one_shot: false,
         bin: "/bin/cat".into(),
@@ -99,9 +99,9 @@ fn spawn_honours_ulid_hint() {
 #[test]
 fn spawn_rejects_non_ulid_hint() {
     // Synthesized "agent.X.Y" style ids get a fresh ULID instead.
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: Some("agent.synth.feat-x".to_string()),
-        kind: ActorKind::Shell,
+        kind: ProcessKind::Shell,
         transport: TransportKind::Pty,
         one_shot: false,
         bin: "/bin/cat".into(),
@@ -128,9 +128,9 @@ fn spawn_headless_drains_stdout_and_exits() {
     // captures bytes on the broadcast and the child exits within a
     // beat. Exercises stdout reader thread + ChildProcess::try_wait.
     let log_dir = tmp_log_dir();
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: None,
-        kind: ActorKind::Agent,
+        kind: ProcessKind::Agent,
         transport: TransportKind::Headless,
         one_shot: true,
         bin: "/bin/echo".into(),
@@ -179,9 +179,9 @@ fn spawn_headless_drains_stdout_and_exits() {
 
 #[test]
 fn stop_terminates_child() {
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: None,
-        kind: ActorKind::Shell,
+        kind: ProcessKind::Shell,
         transport: TransportKind::Pty,
         one_shot: false,
         bin: "/bin/sh".into(),

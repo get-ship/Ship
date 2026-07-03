@@ -28,7 +28,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tokio::sync::broadcast;
 
-use super::profile::ActorProfile;
+use super::profile::ProcessProfile;
 
 const OUTPUT_CAP: usize = 1024;
 
@@ -47,7 +47,7 @@ fn pinned_path_env() -> Option<String> {
 /// long-lived interactive children, Headless for one-shot per-turn /
 /// pipeline runs. Future variants (tmux, server-session) bolt on here.
 pub trait Transport: Send + Sync {
-    fn spawn(&self, actor_id: &str, profile: &ActorProfile) -> Result<ChildHandle>;
+    fn spawn(&self, actor_id: &str, profile: &ProcessProfile) -> Result<ChildHandle>;
 }
 
 /// Type-erased child process — both portable_pty::Child and
@@ -291,7 +291,7 @@ impl ChildBackend for HeadlessChildBackend {
 }
 
 impl Transport for PtyTransport {
-    fn spawn(&self, actor_id: &str, profile: &ActorProfile) -> Result<ChildHandle> {
+    fn spawn(&self, actor_id: &str, profile: &ProcessProfile) -> Result<ChildHandle> {
         let log_dir = match &profile.log_dir {
             Some(p) => p.clone(),
             None => super::default_log_dir()?,
@@ -362,7 +362,7 @@ impl Transport for PtyTransport {
 }
 
 impl Transport for HeadlessTransport {
-    fn spawn(&self, actor_id: &str, profile: &ActorProfile) -> Result<ChildHandle> {
+    fn spawn(&self, actor_id: &str, profile: &ProcessProfile) -> Result<ChildHandle> {
         use std::process::{Command, Stdio};
 
         let log_dir = match &profile.log_dir {

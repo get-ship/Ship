@@ -7,7 +7,7 @@
 //!   out of `ship-agents` in Phase 2) — chat / pipelines / per-turn agent
 //!   sessions whose child is owned by the substrate supervisor.
 //! - `ship_agents::services::sessions::ActorRegistry` — long-lived agent
-//!   sessions that own a live `ActorHandle` (the destination of the
+//!   sessions that own a live `ProcessHandle` (the destination of the
 //!   supervisor-primitive migration; persistent-session harnesses).
 //!
 //! Either registry can hold the session id a request names; the wire
@@ -218,7 +218,7 @@ impl TerminalService for TerminalWire {
 
     // ── Resize ───────────────────────────────────────────────────────────
     // Persistent-harness agents on the actor registry resize via
-    // `ActorHandle::resize`. The PTY-registry per-turn path exposes no
+    // `ProcessHandle::resize`. The PTY-registry per-turn path exposes no
     // master handle (the supervisor's portable-pty lives inside `Inner`),
     // so per-turn sessions answer NOT_IMPLEMENTED — one-shot turn
     // processes don't need it.

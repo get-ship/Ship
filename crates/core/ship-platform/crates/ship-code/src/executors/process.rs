@@ -33,7 +33,7 @@ use crate::dispatch_ports::{
 };
 use ship_runner::emit::persist_and_route;
 use ship_harnesses::harness_adapter::{adapter_for_or_default, HarnessAdapter};
-use ship_substrate::supervisor::{spawn_actor, ActorHandle, ActorKind, ActorProfile, TransportKind};
+use ship_substrate::supervisor::{spawn_actor, ProcessHandle, ProcessKind, ProcessProfile, TransportKind};
 
 /// Default prompt injected when the caller didn't supply one.
 /// Kept in ProcessExecutor (the headless spawn path) because only
@@ -84,29 +84,29 @@ impl ProcessExecutor {
 /// State held in the ExecutorHandle for process-based execution.
 ///
 /// Since 1.1.d, the actual child + PTY mechanics live in
-/// `ship_substrate::supervisor::ActorHandle`. This struct is just metadata
+/// `ship_substrate::supervisor::ProcessHandle`. This struct is just metadata
 /// the executor's `is_alive` / `stop` / event emission needs.
 pub(crate) struct ProcessState {
     slug: String,
     pid: Option<u32>,
-    pub(crate) handle: ActorHandle,
+    pub(crate) handle: ProcessHandle,
 }
 
 impl ProcessState {
-    /// Downcast an opaque `ExecutorHandle.inner` to a substrate `ActorHandle`
+    /// Downcast an opaque `ExecutorHandle.inner` to a substrate `ProcessHandle`
     /// when the inner is a `ProcessState`. Returns `None` for any other
     /// executor's state — the WebSocket attach route uses this to map a
     /// registered slug to its PTY-backed handle (or 409 when it isn't one).
     pub(crate) fn actor_handle_from(
         inner: &Box<dyn std::any::Any + Send + Sync>,
-    ) -> Option<ActorHandle> {
+    ) -> Option<ProcessHandle> {
         inner.downcast_ref::<ProcessState>().map(|s| s.handle.clone())
     }
 
-    /// Wrap a substrate `ActorHandle` in an `ExecutorHandle` so tests can
+    /// Wrap a substrate `ProcessHandle` in an `ExecutorHandle` so tests can
     /// push a PTY child into `ProcessRegistry` without driving the full
     /// orchestrator. Mirrors what `spawn()` returns.
-    pub(crate) fn executor_handle_for_test(slug: &str, handle: ActorHandle) -> ExecutorHandle {
+    pub(crate) fn executor_handle_for_test(slug: &str, handle: ProcessHandle) -> ExecutorHandle {
         let pid = handle.pid();
         ExecutorHandle {
             pid,
@@ -581,7 +581,7 @@ impl SessionExecutor for ProcessExecutor {
         // Per-step log under .artifacts/. The supervisor primitive owns
         // the actual log file lifecycle; we just point it at the right
         // directory and the slug-derived filename comes from
-        // ActorHandle::log_path() afterwards.
+        // ProcessHandle::log_path() afterwards.
         let log_dir = ctx.work_dir.join(".artifacts");
         std::fs::create_dir_all(&log_dir)?;
 
@@ -611,7 +611,7 @@ impl SessionExecutor for ProcessExecutor {
             });
         let decision = ship_isolation::decision::decide(agent_override.as_ref(), None);
         let enforce = ship_isolation::decision::enforcement_enabled();
-        // Optional sandbox owner — attached to ActorHandle after spawn
+        // Optional sandbox owner — attached to ProcessHandle after spawn
         // so its Drop fires isolator.shutdown() when the actor dies.
         // (Tier 1 wrap path only; Tier 2+ owner lives on the dispatcher.)
         let mut sandbox_owner: Option<std::sync::Arc<ship_substrate::isolation::SandboxOwner>> =
@@ -884,9 +884,9 @@ impl SessionExecutor for ProcessExecutor {
             );
         }
 
-        let profile = ActorProfile {
+        let profile = ProcessProfile {
             actor_id_hint: Some(ctx.slug.clone()),
-            kind: ActorKind::PipelineStep,
+            kind: ProcessKind::PipelineStep,
             // Real PTY so claude/codex see isatty() and stay in their
             // structured-output mode. Headless transport would pipe-
             // capture stdout but harnesses detect the lack of a TTY
@@ -913,7 +913,7 @@ impl SessionExecutor for ProcessExecutor {
         // future youki/lima/fly) routes through a SidecarActorRuntime —
         // the harness runs inside the sandbox's container, controlled
         // over ship.sidecar.v1. Tier 0/1 forks in-process via
-        // spawn_actor. Either way the returned ActorHandle has the
+        // spawn_actor. Either way the returned ProcessHandle has the
         // same surface.
         let handle = if let Some(runtime) = remote_runtime.take() {
             runtime.spawn(profile).await?
@@ -1369,9 +1369,9 @@ mod tests {
         std::fs::create_dir_all(&log_dir).unwrap();
         let mut env = std::collections::HashMap::new();
         env.insert("SHIP_TEST".to_string(), "1".to_string());
-        let profile = ActorProfile {
+        let profile = ProcessProfile {
             actor_id_hint: None,
-            kind: ActorKind::PipelineStep,
+            kind: ProcessKind::PipelineStep,
             transport: TransportKind::Pty,
             one_shot: true,
             bin: "sh".into(),

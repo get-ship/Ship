@@ -1,7 +1,7 @@
 //! Shell sessions on the supervisor primitive.
 //!
 //! Replaces `lifecycle::spawn_shell` for the Shell kind. Builds an
-//! `ActorProfile`, calls `ship_substrate::supervisor::spawn_actor`, and inserts
+//! `ProcessProfile`, calls `ship_substrate::supervisor::spawn_actor`, and inserts
 //! into the PTY `SessionRegistry` (the ship-terminal one). The supervisor
 //! primitive owns the kernel registration, PTY hold, log file, and
 //! `actor.created` emission — this function's only job is shell-specific
@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex as StdMutex};
 
 use anyhow::Result;
 use chrono::Utc;
-use ship_substrate::supervisor::{spawn_actor, ActorKind, ActorProfile, TransportKind};
+use ship_substrate::supervisor::{spawn_actor, ProcessKind, ProcessProfile, TransportKind};
 use tokio::sync::broadcast;
 
 use crate::registry::SessionRegistry;
@@ -36,9 +36,9 @@ pub fn spawn_shell(
 ) -> Result<PtySession> {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
 
-    let profile = ActorProfile {
+    let profile = ProcessProfile {
         actor_id_hint: None,
-        kind: ActorKind::Shell,
+        kind: ProcessKind::Shell,
         transport: TransportKind::Pty,
         one_shot: false,
         bin: shell,

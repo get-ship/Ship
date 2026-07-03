@@ -15,7 +15,7 @@
 //! * `registry`        — legacy in-memory `SessionRegistry` for per-turn
 //!                       harnesses (no persistent child between turns).
 //! * `actor_registry`  — `ActorRegistry` + `ActorEntry` keyed on the
-//!                       supervisor's `ActorHandle`. Destination registry.
+//!                       supervisor's `ProcessHandle`. Destination registry.
 //! * `lifecycle`       — spawn/stop/write-stdin/send-message glue for the
 //!                       legacy registry; idle reaper.
 //! * `agent_actor`     — long-lived agent spawn + per-turn headless spawn

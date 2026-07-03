@@ -2,7 +2,7 @@
 //!
 //! # Isolation
 //!
-//! No explicit isolation axis on `ActorProfile` today — we trust each harness's
+//! No explicit isolation axis on `ProcessProfile` today — we trust each harness's
 //! own sandboxing (Claude Code's permission system, Codex/Cursor equivalents).
 //! When explicit isolation lands (bubblewrap, seatbelt, docker, future VMs),
 //! it will be an orthogonal axis on this struct alongside `transport` and the
@@ -13,13 +13,13 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
-pub struct ActorProfile {
+pub struct ProcessProfile {
     /// Optional id hint. ULID-shape values are honoured; anything else
     /// is ignored and a fresh ULID is minted. The daemon is the
     /// authoritative minter.
     pub actor_id_hint: Option<String>,
 
-    pub kind: ActorKind,
+    pub kind: ProcessKind,
     pub transport: Transport,
 
     /// `None` = persist as long as the connection is alive (chat,
@@ -48,7 +48,7 @@ pub struct ActorProfile {
     pub subscribe_namespaces: Vec<String>,
 }
 
-impl ActorProfile {
+impl ProcessProfile {
     pub fn resolve_actor_id(&self) -> String {
         match self.actor_id_hint.as_deref() {
             Some(id) if is_ulid_shape(id) => id.to_string(),
@@ -62,7 +62,7 @@ impl ActorProfile {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ActorKind {
+pub enum ProcessKind {
     Agent,
     PipelineStep,
     Shell,
@@ -74,13 +74,13 @@ pub enum ActorKind {
     Window,
 }
 
-impl ActorKind {
+impl ProcessKind {
     pub fn as_str(&self) -> &'static str {
         match self {
-            ActorKind::Agent => "agent",
-            ActorKind::PipelineStep => "pipeline-step",
-            ActorKind::Shell => "shell",
-            ActorKind::Window => "window",
+            ProcessKind::Agent => "agent",
+            ProcessKind::PipelineStep => "pipeline-step",
+            ProcessKind::Shell => "shell",
+            ProcessKind::Window => "window",
         }
     }
 }
@@ -99,7 +99,7 @@ pub enum Transport {
     /// Used by per-turn agent runs (codex, opencode, cursor)
     /// and pipeline jobs. Output broadcasts merged stdout+stderr;
     /// input is not supported (caller writes via stdin pipe at spawn
-    /// time via `ActorProfile.stdin`). Terminates when the child
+    /// time via `ProcessProfile.stdin`). Terminates when the child
     /// exits, then auto-deregisters from its registry.
     Headless,
 }

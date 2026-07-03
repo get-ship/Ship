@@ -1,7 +1,7 @@
 //! Lifecycle integration: SandboxOwner::Drop fires Docker shutdown.
 //!
 //! Auto-skips when docker/podman isn't reachable. Covers the contract
-//! that ActorHandle ownership of the sandbox handle Just Works — the
+//! that ProcessHandle ownership of the sandbox handle Just Works — the
 //! supervisor needs nothing more than `handle.with_sandbox(owner)` to
 //! get clean teardown on agent exit.
 

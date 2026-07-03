@@ -1,6 +1,6 @@
 //! `SandboxOwner` — binds a sandbox lifetime to an actor handle.
 //!
-//! When an `ActorHandle` is dropped (last clone gone, no more attaches,
+//! When an `ProcessHandle` is dropped (last clone gone, no more attaches,
 //! orchestrator released it), the `Arc<SandboxOwner>` it carries drops
 //! too, and `Drop` spawns the isolator's `shutdown()` on the active
 //! tokio runtime. This is what makes option (a) from the

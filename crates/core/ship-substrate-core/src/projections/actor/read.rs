@@ -62,10 +62,10 @@ pub fn list_windows() -> Result<Vec<ActorRow>> {
 
 /// `window`-kind actor hosting `space_id`, if any. The launcher consults this
 /// to focus an existing window instead of spawning a duplicate. Windows are
-/// self-registering lifecycle actors (`ActorKind::Window`); `live` is the
+/// self-registering lifecycle actors (`ProcessKind::Window`); `live` is the
 /// supervisor's pid probe.
 pub fn find_live_window_for_space(space_id: &str) -> Result<Option<ActorRow>> {
-    // "window" == ActorKind::Window.as_str(); the projection treats kind as a
+    // "window" == ProcessKind::Window.as_str(); the projection treats kind as a
     // string throughout, so we filter on the string (no supervisor dep here).
     let windows = list_actors(&ListActorsFilter {
         kind: Some("window".to_string()),
