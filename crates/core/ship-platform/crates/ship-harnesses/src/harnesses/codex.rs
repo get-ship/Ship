@@ -3,8 +3,8 @@
 use std::collections::HashMap;
 
 
-use ship_substrate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use ship_runner::harness_adapter::{
+use harness_adapter::dispatch_ports::{LaunchCommand, LaunchProfile};
+use harness_adapter::{
     HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError,
 };
 
@@ -19,7 +19,7 @@ impl HarnessAdapter for CodexAdapter {
     /// one-shot `codex exec` path.
     async fn spawn_server_session(
         &self,
-    ) -> Option<std::sync::Arc<dyn ship_substrate::services::server_session::ServerSession>> {
+    ) -> Option<std::sync::Arc<dyn harness_adapter::server_session::ServerSession>> {
         match crate::harnesses::codex_session::CodexSession::spawn().await {
             Ok(session) => Some(std::sync::Arc::new(session)),
             Err(err) => {
@@ -39,7 +39,7 @@ impl HarnessAdapter for CodexAdapter {
             hooks: true,
             session_resume: true,
             persistent_session: true,
-            push_mechanism: ship_runner::harness_adapter::PushMechanism::Stdin,
+            push_mechanism: harness_adapter::PushMechanism::Stdin,
         }
     }
 

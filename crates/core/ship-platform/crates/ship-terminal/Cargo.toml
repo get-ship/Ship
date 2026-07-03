@@ -8,6 +8,7 @@ description = "Terminal domain (L1) — PTY session registry + shell spawn over 
 [dependencies]
 # L0 substrate — supervisor primitive (spawn_actor, ActorHandle, ActorProfile).
 ship-substrate = { path = "../../../ship-substrate" }
+harness-adapter = { path = "../harness-adapter" }
 # L0 harness adapter — PtySession's event_tx carries HarnessEvent.
 ship-harnesses = { path = "../ship-harnesses" }
 

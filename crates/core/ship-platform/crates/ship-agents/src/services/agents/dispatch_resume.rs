@@ -201,7 +201,7 @@ pub fn load_and_validate_session_file(
             status: 400,
             message: format!("resume: {e}"),
         })?;
-    let profile = ship_substrate::services::dispatch_ports::LaunchProfile {
+    let profile = harness_adapter::dispatch_ports::LaunchProfile {
         harness: Some(session_file.harness.clone()),
         persist_session: true,
         ..Default::default()

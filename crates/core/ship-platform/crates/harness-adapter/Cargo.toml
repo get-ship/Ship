@@ -1,0 +1,20 @@
+[package]
+name = "harness-adapter"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "L1 harness-adapter contract: the `HarnessAdapter` trait + its value types (LaunchCommand/LaunchProfile, ServerSession). The seam every third-party agent harness implements and ship-code drives. A contract leaf below ship-harnesses/ship-code so both reach it without a cycle — and so harness concerns live in L1, out of the substrate."
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["sync", "macros", "rt"] }
+
+[lints]
+workspace = true

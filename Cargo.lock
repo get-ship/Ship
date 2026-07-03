@@ -30,6 +30,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "compiler",
+ "harness-adapter",
  "home",
  "include_dir",
  "inventory",
@@ -3199,6 +3200,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "harness-adapter"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3912,6 +3925,18 @@ checksum = "9afb3de4395d6b3e67a780b6de64b51c978ecf11cb9a462c66be7d4ca9039d33"
 dependencies = [
  "getrandom 0.3.4",
  "libc",
+]
+
+[[package]]
+name = "journal-sqlite"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "durable-execution",
+ "serde_json",
+ "sqlx",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]
@@ -8000,6 +8025,7 @@ dependencies = [
  "connectrpc",
  "futures-util",
  "globset",
+ "harness-adapter",
  "home",
  "include_dir",
  "indexmap 2.14.0",
@@ -8178,6 +8204,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "futures-util",
+ "harness-adapter",
  "libc",
  "serde",
  "serde_json",
@@ -8288,6 +8315,7 @@ name = "ship-files"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "harness-adapter",
  "json-patch 4.2.0",
  "serde",
  "serde_json",
@@ -8331,6 +8359,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "harness-adapter",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -8516,6 +8545,7 @@ dependencies = [
  "getrandom 0.2.17",
  "git2",
  "globset",
+ "harness-adapter",
  "home",
  "include_dir",
  "indexmap 2.14.0",
@@ -8725,7 +8755,6 @@ dependencies = [
  "bytes",
  "chrono",
  "compiler",
- "durable-execution",
  "fs-cap",
  "futures-util",
  "indexmap 2.14.0",
@@ -8807,6 +8836,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "harness-adapter",
  "libc",
  "serde",
  "ship-harnesses",
@@ -8905,9 +8935,11 @@ dependencies = [
  "futures-util",
  "getrandom 0.2.17",
  "git2",
+ "harness-adapter",
  "http",
  "http-body-util",
  "include_dir",
+ "journal-sqlite",
  "json-patch 4.2.0",
  "jsonschema",
  "jsonwebtoken",

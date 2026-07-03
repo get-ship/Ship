@@ -1,6 +1,6 @@
 //! Tests for the harness adapter registry and trait contract.
 
-use ship_substrate::services::dispatch_ports::LaunchProfile;
+use harness_adapter::dispatch_ports::LaunchProfile;
 use ship_harnesses::harness_adapter::{adapter_for, adapter_for_or_default};
 
 fn default_profile() -> LaunchProfile {

@@ -5,8 +5,8 @@
 //! (`pi` → `omp`). Keeping it a delegation (not a fork of pi's logic) means
 //! pi's flag/parse behavior stays the single source of truth.
 
-use ship_substrate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use ship_runner::harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError};
+use harness_adapter::dispatch_ports::{LaunchCommand, LaunchProfile};
+use harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError};
 
 use super::pi::PiAdapter;
 

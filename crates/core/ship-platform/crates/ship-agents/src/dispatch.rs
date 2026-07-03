@@ -31,7 +31,7 @@ use ship_substrate::events::EventEnvelope;
 #[cfg(feature = "harness-drivers")]
 use ship_code::dispatch_ports::SessionContext;
 #[cfg(feature = "harness-drivers")]
-use ship_substrate::services::dispatch_ports::LaunchProfile;
+use harness_adapter::dispatch_ports::LaunchProfile;
 use tokio::sync::Mutex;
 
 use crate::ports::AgentPorts;

@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex as StdMutex};
 
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::Utc;
-use ship_substrate::services::dispatch_ports::LaunchProfile;
+use harness_adapter::dispatch_ports::LaunchProfile;
 use ship_harnesses::harness_adapter::adapter_for;
 use tokio::sync::broadcast;
 

@@ -97,7 +97,7 @@ pub async fn subscribe_job_events(
     let projections: Arc<dyn ship_code::dispatch_ports::ProjectionReader> =
         Arc::new(ship_pipeline_runtime::orchestrator::projection_reader::ProjectionsReader);
 
-    let journal_store = ship_substrate::persistence::SqliteJournalStore::open(
+    let journal_store = journal_sqlite::SqliteJournalStore::open(
         &ship_dir.join("runtime.db"),
     )
     .await

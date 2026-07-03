@@ -12,7 +12,7 @@ use std::time::Duration;
 use stub::{Response, StubServer, handler_with_events};
 
 use super::opencode_session::OpenCodeSession;
-use ship_substrate::services::server_session::{ServerSession, SessionEvent};
+use harness_adapter::server_session::{ServerSession, SessionEvent};
 
 #[tokio::test]
 async fn start_turn_posts_to_session_then_message_endpoint() {

@@ -25,7 +25,7 @@ use std::sync::Mutex;
 
 use anyhow::{anyhow, Result};
 use chrono::Utc;
-use ship_substrate::services::dispatch_ports::LaunchProfile;
+use harness_adapter::dispatch_ports::LaunchProfile;
 use ship_harnesses::harness_adapter::{adapter_for, HarnessEvent};
 use ship_substrate::supervisor::{spawn_process, ProcessKind, ProcessProfile, TransportKind};
 use tokio::sync::broadcast;
@@ -264,7 +264,7 @@ fn spawn_reader_middleware(
 /// back to Idle.
 pub fn run_headless_turn(
     session: ship_terminal::types::PtySession,
-    launch: ship_substrate::services::dispatch_ports::LaunchCommand,
+    launch: harness_adapter::dispatch_ports::LaunchCommand,
     harness_id: String,
     work_dir: PathBuf,
 ) -> Result<()> {

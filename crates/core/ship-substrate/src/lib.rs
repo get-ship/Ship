@@ -10,7 +10,6 @@
 //! - [`services`] — `spawn_service` background-actor primitive (mesh + access deleted as dead)
 //! - [`supervisor`] — daemon supervisor runtime
 //! - [`isolation`] — sandbox decision layer
-//! - [`persistence::journal_store`] — durable-execution journal store
 //! - [`events::pipeline`] / [`events::payload_registry`] — these moved INTO
 //!   `ship-substrate-core` (they depend on `ship-pipelines` types only, which
 //!   is itself a clean crate — see [`ship_substrate_core::events::pipeline`]
@@ -54,9 +53,7 @@ pub mod events {
 // `journal_store` (durable-execution) lives here.
 pub mod persistence {
     pub use ship_substrate_core::persistence::*;
-
-    pub mod journal_store;
-    pub use journal_store::SqliteJournalStore;
+    // `SqliteJournalStore` moved to the `journal-sqlite` leaf (sqlx backend).
 }
 
 // ── Other core modules (re-exported whole) ──────────────────────────────────

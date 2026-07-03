@@ -27,7 +27,7 @@ use floki::dispatch::GatewayDispatch;
 use floki::provider::{Byok, CredentialSource};
 use agent_def::dispatch_intent::DispatchRequestedPayload;
 use durable_execution::{Journal, JournalStore, execute};
-use ship_substrate::persistence::SqliteJournalStore;
+use journal_sqlite::SqliteJournalStore;
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, EventSink};
 use ship_types::{Authority, ScopeBinding};
 

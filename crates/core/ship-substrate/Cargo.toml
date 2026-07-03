@@ -13,7 +13,6 @@ ship-kernel = { path = "crates/ship-kernel" }
 ship-substrate-host = { path = "crates/ship-substrate-host" }
 ship-types = { path = "crates/ship-types" }
 ship-paths = { path = "crates/ship-paths" }
-durable-execution = { path = "crates/durable-execution" }
 ship-substrate-core = { path = "../ship-substrate-core" }
 blobstore = { path = "crates/blobstore" }
 fs-cap = { path = "crates/fs-cap" }

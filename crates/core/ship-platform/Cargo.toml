@@ -8,6 +8,7 @@ description = "L1 platform primitives — agents, collections, artifacts, trigge
 
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
+harness-adapter = { path = "crates/harness-adapter" }
 ship-substrate-host = { path = "../ship-substrate/crates/ship-substrate-host" }
 # Device domain — the isolation-execution sandbox (moved from this crate
 # as part of the supervisor→platform cycle break, c2-sandbox-device) plus

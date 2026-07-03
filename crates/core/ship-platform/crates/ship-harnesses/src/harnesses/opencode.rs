@@ -3,8 +3,8 @@
 use std::collections::HashMap;
 
 
-use ship_substrate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use ship_runner::harness_adapter::{
+use harness_adapter::dispatch_ports::{LaunchCommand, LaunchProfile};
+use harness_adapter::{
     HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError,
 };
 
@@ -20,7 +20,7 @@ impl HarnessAdapter for OpenCodeAdapter {
     /// is rewritten for the new prompt API — see `caps`.)
     async fn spawn_server_session(
         &self,
-    ) -> Option<std::sync::Arc<dyn ship_substrate::services::server_session::ServerSession>> {
+    ) -> Option<std::sync::Arc<dyn harness_adapter::server_session::ServerSession>> {
         match super::opencode_session::OpenCodeSession::spawn().await {
             Ok(session) => Some(std::sync::Arc::new(session)),
             Err(err) => {
@@ -48,7 +48,7 @@ impl HarnessAdapter for OpenCodeAdapter {
             hooks: false,
             session_resume: true,
             persistent_session: true,
-            push_mechanism: ship_runner::harness_adapter::PushMechanism::Stdin,
+            push_mechanism: harness_adapter::PushMechanism::Stdin,
         }
     }
 

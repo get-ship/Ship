@@ -3,8 +3,8 @@
 use std::collections::HashMap;
 
 
-use ship_substrate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use ship_runner::harness_adapter::{
+use harness_adapter::dispatch_ports::{LaunchCommand, LaunchProfile};
+use harness_adapter::{
     HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError,
 };
 
@@ -126,7 +126,7 @@ impl HarnessAdapter for ClaudeAdapter {
             // job corrects it now that build_resume_args is wired.
             session_resume: true,
             persistent_session: true,
-            push_mechanism: ship_runner::harness_adapter::PushMechanism::Channel,
+            push_mechanism: harness_adapter::PushMechanism::Channel,
         }
     }
 

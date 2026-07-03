@@ -26,7 +26,7 @@ use ship_substrate::events::KernelRouter;
 use crate::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor,
 };
-use ship_substrate::services::server_session::{ServerSession, SessionEvent};
+use harness_adapter::server_session::{ServerSession, SessionEvent};
 use tokio::sync::Mutex as TokioMutex;
 
 /// Default prompt used when `.artifacts/job-spec.md` is missing — mirrors

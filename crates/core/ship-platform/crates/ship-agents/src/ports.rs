@@ -6,7 +6,7 @@
 //!
 //! Every field is an L0 type:
 //!   - the core dispatch ports come from
-//!     [`ship_substrate::services::dispatch_ports`] (isolation / executor /
+//!     [`harness_adapter::dispatch_ports`] (isolation / executor /
 //!     platform / registry / spawn-policy / projection-reader);
 //!   - `event_dedup` is the L0 runner's [`EventDedup`].
 //!

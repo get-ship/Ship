@@ -1,12 +1,12 @@
 //! Harness adapter registry — maps harness names to their adapters.
 //!
-//! The trait/types live in `ship_runner::harness_adapter` (L0). This module
+//! The trait/types live in `harness_adapter` (L0). This module
 //! owns the REGISTRY slice that references the concrete adapter structs and
 //! exposes the resolver helpers (`adapter_for`, `capabilities`). It re-exports
 //! all L0 types so existing `ship_harnesses::harness_adapter::*` consumers
 //! continue to compile without change.
 
-pub use ship_runner::harness_adapter::{
+pub use harness_adapter::{
     HarnessAdapter, HarnessCapabilities, HarnessEvent, PushMechanism, ResumeError,
 };
 

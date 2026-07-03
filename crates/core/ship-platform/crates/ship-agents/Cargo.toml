@@ -14,6 +14,7 @@ async-stream = "0.3"
 buffa = "0.5"
 # L0 substrate
 ship-substrate = { path = "../../../ship-substrate" }
+harness-adapter = { path = "../harness-adapter" }
 # L0 git capability — git2-backed; single git implementation.
 ship-git = { path = "../../../ship-git" }
 ship-runner = { path = "../../../ship-substrate/crates/ship-runner" }

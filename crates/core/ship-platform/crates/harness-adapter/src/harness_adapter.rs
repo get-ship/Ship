@@ -15,8 +15,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use ship_substrate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use ship_substrate::services::server_session::ServerSession;
+use crate::dispatch_ports::{LaunchCommand, LaunchProfile};
+use crate::server_session::ServerSession;
 
 /// Errors returned from `HarnessAdapter::build_resume_args`.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
