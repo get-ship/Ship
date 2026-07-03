@@ -18,6 +18,7 @@ config-doc = { path = "../ship-substrate/crates/config-doc" }
 bounded-spawn = { path = "../ship-substrate/crates/bounded-spawn" }
 path-layout = { path = "../ship-substrate/crates/path-layout" }
 task-health = { path = "../ship-substrate/crates/task-health" }
+blobstore = { path = "../ship-substrate/crates/blobstore" }
 ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines", features = ["specta"] }
 
 inventory = { workspace = true }

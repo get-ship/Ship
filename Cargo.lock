@@ -681,6 +681,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "blobstore"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "fs-util",
+ "futures-util",
+ "ship-types",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8675,6 +8687,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "blobstore",
  "bytes",
  "chrono",
  "compiler",
@@ -8713,6 +8726,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "blobstore",
  "bounded-spawn",
  "bytes",
  "chrono",

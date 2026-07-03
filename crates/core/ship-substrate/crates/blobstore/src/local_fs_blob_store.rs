@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 
-use super::blob_store::{BlobError, BlobHash, BlobScope, BlobStore};
+use crate::blob_store::{BlobError, BlobHash, BlobScope, BlobStore};
 
 /// A [`BlobStore`] rooted at a local directory.
 pub struct LocalFsBlobStore {
@@ -33,7 +33,7 @@ impl LocalFsBlobStore {
     }
 
     fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> Result<(), BlobError> {
-        crate::fs_util::write_atomic(path, bytes)
+        fs_util::write_atomic(path, bytes)
             .map_err(|e| BlobError::Io(e.to_string()))
     }
 }

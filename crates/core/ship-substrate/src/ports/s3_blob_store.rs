@@ -13,7 +13,7 @@ use bytes::Bytes;
 use object_store::path::Path as ObjPath;
 use object_store::{ObjectStore, ObjectStoreExt, PutPayload};
 
-use super::blob_store::{BlobError, BlobHash, BlobScope, BlobStore};
+use blobstore::{BlobError, BlobHash, BlobScope, BlobStore};
 
 /// Which concrete `object_store` backend to construct.
 #[derive(Debug, Clone)]

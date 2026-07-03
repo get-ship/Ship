@@ -4,8 +4,7 @@
 
 use std::sync::Arc;
 
-use super::blob_store::{AccountId, BlobError, BlobHash, BlobScope, BlobStore};
-use super::local_fs_blob_store::LocalFsBlobStore;
+use blobstore::{AccountId, BlobError, BlobHash, BlobScope, BlobStore, LocalFsBlobStore};
 use super::s3_blob_store::S3BlobStore;
 use super::space_context::SpaceId;
 
@@ -188,7 +187,6 @@ fn blob_hash_parse_validates_hex() {
 
 #[test]
 fn scope_prefix_partitions() {
-    use super::blob_store::AccountId;
     assert_eq!(
         BlobScope::Space(SpaceId::new("s1")).prefix(),
         "spaces/s1/blobs"

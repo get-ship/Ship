@@ -16,6 +16,7 @@ members = [
     "crates/core/ship-substrate/crates/bounded-spawn",
     "crates/core/ship-substrate/crates/path-layout",
     "crates/core/ship-substrate/crates/task-health",
+    "crates/core/ship-substrate/crates/blobstore",
     "crates/core/ship-platform",
     "crates/core/ship-git",
     "crates/core/ship-cloud",

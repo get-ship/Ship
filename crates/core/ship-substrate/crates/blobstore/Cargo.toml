@@ -1,0 +1,18 @@
+[package]
+name = "blobstore"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Content-addressed byte plane: the `BlobStore` contract + on-disk `LocalFsBlobStore` backend. SHA-256-addressed, scope-partitioned, backend-agnostic. The S3/object_store backend lives in the heavy facade."
+
+[dependencies]
+ship-types = { path = "../ship-types" }
+fs-util = { path = "../fs-util" }
+
+async-trait = { workspace = true }
+bytes = "1"
+futures-util = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

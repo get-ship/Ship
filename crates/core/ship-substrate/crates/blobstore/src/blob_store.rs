@@ -5,9 +5,9 @@
 //! the second write is a no-op. Blobs are partitioned by [`BlobScope`] so a
 //! space, an account, or the device each address an isolated namespace.
 //!
-//! This module defines the contract only. Concrete backends live in
-//! [`super::local_fs_blob_store`] (on-disk) and [`super::s3_blob_store`]
-//! (`object_store`-backed: S3/R2/MinIO/in-memory).
+//! This module defines the contract only. The on-disk backend lives in
+//! [`crate::local_fs_blob_store`]; the `object_store`-backed S3/R2/MinIO
+//! backend lives in the heavy `ship-substrate` facade (`s3_blob_store`).
 
 use std::pin::Pin;
 
@@ -15,8 +15,8 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use futures_util::Stream;
 
-use super::space_context::SpaceId;
-
+/// Opaque per-space identifier — the canonical scope-id, owned by `ship-types`.
+pub use ship_types::SpaceId;
 /// Opaque per-account identifier — the canonical scope-id, owned by `ship-types`.
 /// One AccountId, not two.
 pub use ship_types::AccountId;
