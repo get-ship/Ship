@@ -17,25 +17,9 @@ use futures_util::Stream;
 
 use super::space_context::SpaceId;
 
-/// Opaque per-account identifier (mirrors [`SpaceId`]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AccountId(pub String);
-
-impl AccountId {
-    pub fn new(id: impl Into<String>) -> Self {
-        Self(id.into())
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Display for AccountId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
+/// Opaque per-account identifier — the canonical scope-id, owned by `ship-types`.
+/// One AccountId, not two.
+pub use ship_types::AccountId;
 
 /// Content address of a blob: the lowercase hex SHA-256 of its bytes.
 ///
