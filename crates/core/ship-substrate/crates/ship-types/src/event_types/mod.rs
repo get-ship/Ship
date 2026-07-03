@@ -1,10 +1,8 @@
 pub mod canonical_session;
 pub mod daemon;
-pub mod mesh;
 pub mod pipeline;
 pub mod skill;
 pub mod supervisor;
-pub use mesh::*;
 
 // All lines below are constant definitions; no logic present. The constants are
 // NAME REFERENCES only — the vocabulary's source of truth is the inventory

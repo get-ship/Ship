@@ -146,8 +146,6 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
 
 
         // ── Mesh events ──────────────────────────────────────────────────────
-        "MeshMessage" => json!({ "from": "actor-a", "to": "actor-b", "message_type": "test.msg" }),
-        "MeshRegister" => json!({ "actor_id": "test-actor", "namespace": "test-ns" }),
 
         // ── Permission events ────────────────────────────────────────────────
         "PermissionsUpdated" => json!({

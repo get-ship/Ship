@@ -21,7 +21,6 @@ mod compile;
 mod config;
 mod crud;
 mod daemon;
-mod mesh;
 mod process;
 mod project;
 mod skill;
@@ -49,7 +48,6 @@ pub use daemon::{
     SupervisorShuttingDown,
 };
 // KernelActor* retired (B2, 2026-06-20).
-pub use mesh::{MeshDeregister, MeshMessage, MeshRegister};
 pub use skill::{SkillCompleted, SkillFailed, SkillStarted};
 pub use spec6::{AgentTaskComplete, HumanResponse, PipelineStepRetry};
 // StudioAnnotationCreated / StudioChatTurn / StudioFeedbackCreated / StudioReply

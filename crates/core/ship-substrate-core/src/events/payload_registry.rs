@@ -152,12 +152,6 @@ register_event!("executor.window_destroyed", [EventScope::Runtime], Retention::D
 // registered / deregistered / send / send.failed / status /
 // discover.response — zero live emitters; see shipd/lib.rs "MeshService was
 // killed"). The LIVE mesh mechanism is exactly: mesh.register +
-// mesh.deregister (actor connect/disconnect facts) + mesh.message (the
-// kernel directed-delivery vehicle).
-register_event!("mesh.deregister", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "MeshDeregister", crate::events::types::MeshDeregister);
-register_event!("mesh.message", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "MeshMessage", crate::events::types::MeshMessage);
-register_event!("mesh.register", [EventScope::Runtime], Retention::Ephemeral, Stability::Stable, "MeshRegister", crate::events::types::MeshRegister);
-
 // ── permissions.* ───────────────────────────────────────────────────────────
 // Runtime audit emit: the agent-file CRUD helper takes a ship_dir but no
 // space_id and has no read-back projection (Phase 4d §6.3 resolution) → the
