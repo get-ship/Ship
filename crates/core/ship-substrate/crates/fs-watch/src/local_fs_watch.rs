@@ -15,7 +15,7 @@ use notify::{Event, EventKind, RecursiveMode, Watcher};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
 use fs_cap::{FsCap, FsError};
-use super::fs_watch::{ChangeKind, FsDelta, FsWatch, WatchOpts};
+use crate::fs_watch::{ChangeKind, FsDelta, FsWatch, WatchOpts};
 
 /// A [`FsWatch`] that confines each watch to its cap's `root` on the local disk.
 pub struct LocalFsWatch;

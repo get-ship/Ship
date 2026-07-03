@@ -16,9 +16,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use serde_json::json;
-use ship_substrate::ports::{
-    ChangeKind, FsCap, FsMode, FsRoot, FsWatch, LocalFsWatch, SpaceId, WatchOpts,
-};
+use ship_substrate::ports::{FsCap, FsMode, FsRoot, SpaceId};
+use fs_watch::{ChangeKind, FsWatch, LocalFsWatch, WatchOpts};
 use tokio::sync::mpsc::UnboundedSender;
 
 use ship_substrate::events::{EmitContext, EventEnvelope, KernelRouter};

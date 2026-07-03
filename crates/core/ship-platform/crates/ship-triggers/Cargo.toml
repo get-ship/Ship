@@ -7,6 +7,7 @@ description = "Reactive trigger engine — JSONC triggers that match Ship events
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
+fs-watch = { path = "../../../ship-substrate/crates/fs-watch" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-config = { path = "../ship-config" }
 ship-collection = { path = "../ship-collection" }
@@ -27,6 +28,7 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros", "test-util"
 tempfile = { workspace = true }
 serde_json = { workspace = true }
 ship-substrate = { path = "../../../ship-substrate" }
+fs-watch = { path = "../../../ship-substrate/crates/fs-watch" }
 # hydrate_registry lives in ship-store; consumed only in integration tests.
 ship-store = { path = "../ship-store" }
 

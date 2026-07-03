@@ -11,7 +11,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-use ship_substrate::ports::{FsCap, FsMode, FsRoot, FsWatch, LocalFsWatch, SpaceId, WatchOpts};
+use ship_substrate::ports::{FsCap, FsMode, FsRoot, SpaceId};
+use fs_watch::{FsWatch, LocalFsWatch, WatchOpts};
 
 use super::engine::HookEngine;
 

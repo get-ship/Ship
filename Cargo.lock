@@ -2662,6 +2662,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs-watch"
+version = "0.1.0"
+dependencies = [
+ "fs-cap",
+ "notify",
+ "tokio",
+]
+
+[[package]]
 name = "fs_extra"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8226,6 +8235,7 @@ dependencies = [
  "chrono",
  "compiler",
  "connectrpc",
+ "fs-watch",
  "futures-util",
  "home",
  "serde",
@@ -8722,7 +8732,6 @@ dependencies = [
  "inventory",
  "libc",
  "nanoid",
- "notify",
  "portable-pty",
  "proptest",
  "serde",
@@ -8814,6 +8823,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "cron",
+ "fs-watch",
  "globset",
  "jsonschema",
  "minijinja",

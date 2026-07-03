@@ -36,7 +36,6 @@ sha2 = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
-notify = { workspace = true }
 # Pure path-layout helper for composed traveling-artifact overlays. No ship
 # deps — compiler depends only on serde/serde_json/anyhow/minijinja/etc.
 compiler = { path = "../compiler" }

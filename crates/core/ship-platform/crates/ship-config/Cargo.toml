@@ -7,6 +7,7 @@ description = "SettingsService home — unified scope-discriminated settings (SP
 
 [dependencies]
 ship-substrate = { path = "../../../ship-substrate" }
+fs-watch = { path = "../../../ship-substrate/crates/fs-watch" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-reactive = { path = "../ship-reactive" }
 ship-ops-rpc = { path = "../../../ship-ops-rpc" }

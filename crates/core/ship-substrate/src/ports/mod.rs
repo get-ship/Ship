@@ -7,12 +7,8 @@
 
 pub use ship_substrate_core::ports::*;
 
-pub mod fs_watch;
-pub mod local_fs_watch;
-
-pub use fs_watch::{ChangeKind, FsDelta, FsWatch, WatchOpts};
-pub use local_fs_watch::LocalFsWatch;
-
-// The object_store-backed S3/R2 blob backend lives in the `blob-s3` leaf
-// (`blob_s3::{S3BlobStore, BlobBackendConfig}`) so `object_store`/aws stays off
-// every facade consumer. The blob-backend conformance suite moved with it.
+// Heavy backends now live in their own leaves so their deps stay off the
+// facade's ~27 consumers:
+// - `fs-watch` (`FsWatch`/`LocalFsWatch`) carries `notify`
+// - `blob-s3` (`S3BlobStore`/`BlobBackendConfig`) carries `object_store`/aws
+// Consumers that watch or store to S3 depend on those leaves directly.

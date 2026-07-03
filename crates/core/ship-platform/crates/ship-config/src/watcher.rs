@@ -27,10 +27,8 @@ use anyhow::Result;
 
 use ship_substrate::ShipHome;
 use ship_substrate::events::EmitContext;
-use ship_substrate::ports::{
-    FsBroker, FsCap, FsDelta, FsMode, FsRoot, FsWatch, KernelLog, LocalFsBroker, LocalFsWatch,
-    WatchOpts,
-};
+use ship_substrate::ports::{FsBroker, FsCap, FsMode, FsRoot, KernelLog, LocalFsBroker};
+use fs_watch::{FsDelta, FsWatch, LocalFsWatch, WatchOpts};
 use ship_types::SpaceId;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types;
