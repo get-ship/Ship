@@ -77,7 +77,7 @@ fn collection_service(ctx: Arc<SpaceContext>) -> CollectionService {
 /// `CollectionProjection`/`ArtifactProjection` materialize their tables, not the
 /// shared data.db (consumer consistency).
 pub fn space_context_for(
-    kernel: ship_substrate::access::SharedKernel,
+    kernel: Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
     ship_dir: &std::path::Path,
     space_id: &str,
 ) -> Arc<SpaceContext> {
