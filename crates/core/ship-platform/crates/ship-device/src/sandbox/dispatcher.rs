@@ -13,7 +13,7 @@
 //!     `ensure_default_sandbox` marks Tier 0/1 sandboxes Running
 //!     with `RuntimeEndpoint::InProcess` immediately; Tier 2+ paths
 //!     return them in `Pending` for the orchestrator to drive
-//!   - `spawn_actor(profile)` end-to-end with runtime dispatch. The
+//!   - `spawn_process(profile)` end-to-end with runtime dispatch. The
 //!     orchestrator holds the spawn call site; the dispatcher exposes
 //!     `endpoint_for(sandbox_id)` and the caller resolves the sidecar
 //!     runtime itself when the endpoint is Remote (lives in

@@ -2,7 +2,7 @@
 //!
 //! Replaces `lifecycle::spawn_long_lived_agent` for channels-capable
 //! harnesses (Claude). Builds an `ProcessProfile` from the harness
-//! adapter's `build_interactive`, calls `ship_substrate::supervisor::spawn_actor`,
+//! adapter's `build_interactive`, calls `ship_substrate::supervisor::spawn_process`,
 //! and attaches a reader-middleware thread that:
 //!
 //! 1. Auto-dismisses Claude's `--dangerously-load-development-channels`
@@ -27,7 +27,7 @@ use anyhow::{anyhow, Result};
 use chrono::Utc;
 use ship_substrate::services::dispatch_ports::LaunchProfile;
 use ship_harnesses::harness_adapter::{adapter_for, HarnessEvent};
-use ship_substrate::supervisor::{spawn_actor, ProcessKind, ProcessProfile, TransportKind};
+use ship_substrate::supervisor::{spawn_process, ProcessKind, ProcessProfile, TransportKind};
 use tokio::sync::broadcast;
 
 use super::actor_registry::{ActorEntry, ActorRegistry};
@@ -98,7 +98,7 @@ pub fn spawn_or_attach(
         subscribe_namespaces: vec![],
     };
 
-    let handle = spawn_actor(profile)?;
+    let handle = spawn_process(profile)?;
     let (event_tx, _) = broadcast::channel::<HarnessEvent>(EVENT_CAP);
 
     let now = Utc::now();
@@ -285,7 +285,7 @@ pub fn run_headless_turn(
         subscribe_namespaces: vec![],
     };
 
-    let handle = spawn_actor(profile)?;
+    let handle = spawn_process(profile)?;
     let mut rx = handle.subscribe_output();
     let session_clone = session.clone();
     let handle_for_wait = handle.clone();

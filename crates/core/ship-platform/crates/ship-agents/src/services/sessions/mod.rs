@@ -1,6 +1,6 @@
 //! PTY session registry + actor-backed primitives.
 //!
-//! Wraps the L0 `ship_substrate::supervisor::spawn_actor` primitive with
+//! Wraps the L0 `ship_substrate::supervisor::spawn_process` primitive with
 //! session-flavored sidecar metadata (workspace, agent, harness, status)
 //! and harness-adapter wiring (stream-json parsing, channels delivery).
 //! Per the charter: actor lifecycle + supervision are L0; agent profiles

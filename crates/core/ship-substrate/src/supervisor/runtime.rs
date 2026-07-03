@@ -2,7 +2,7 @@
 //! (today) and "spawn this actor inside a sandbox via the v1 wire"
 //! (Chunk C2).
 //!
-//! Today the orchestrator calls [`super::spawn_actor`] directly,
+//! Today the orchestrator calls [`super::spawn_process`] directly,
 //! which forks the harness via [`super::PtyTransport`] or
 //! [`super::HeadlessTransport`]. That's the "in-process" path — actor
 //! lives in shipd's address space (modulo OS sandbox flags applied
@@ -24,7 +24,7 @@
 //! the C2 work; this chunk just lands the seam.
 //!
 //! This file does not change any existing call site. Callers keep
-//! calling [`super::spawn_actor`] directly. Future callers (the
+//! calling [`super::spawn_process`] directly. Future callers (the
 //! SandboxRegistry-driven dispatch path) accept
 //! `Arc<dyn ProcessRuntime>` and dispatch by sandbox.
 
@@ -48,7 +48,7 @@ pub trait ProcessRuntime: Send + Sync {
     fn name(&self) -> &str;
 }
 
-/// In-process runtime — delegates to [`super::spawn_actor`].
+/// In-process runtime — delegates to [`super::spawn_process`].
 /// This is what shipd uses today for every actor; adopting this
 /// runtime changes no behavior.
 #[derive(Default)]
@@ -69,13 +69,13 @@ impl InProcessRuntime {
 #[async_trait]
 impl ProcessRuntime for InProcessRuntime {
     async fn spawn(&self, profile: ProcessProfile) -> Result<ProcessHandle> {
-        // `super::spawn_actor` is sync (forks + emits events on the
+        // `super::spawn_process` is sync (forks + emits events on the
         // calling thread). Run it on a blocking pool so the async
         // surface holds. The function returns quickly; the fork
         // itself blocks on its own internal calls.
-        tokio::task::spawn_blocking(move || super::spawn_actor(profile))
+        tokio::task::spawn_blocking(move || super::spawn_process(profile))
             .await
-            .map_err(|e| anyhow::anyhow!("spawn_actor task panicked: {e}"))?
+            .map_err(|e| anyhow::anyhow!("spawn_process task panicked: {e}"))?
     }
 
     fn name(&self) -> &str {

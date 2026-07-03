@@ -91,7 +91,7 @@ pub mod private {
         /// Absolute path to the tee'd log file for replay.
         pub log_path: PathBuf,
         /// Substrate-owned child handle for the spawned actor. `Some` when
-        /// the supervisor's `spawn_actor` returned a live handle (the
+        /// the supervisor's `spawn_process` returned a live handle (the
         /// shell-spawn path); `None` for per-turn agent sessions whose
         /// child is spawned fresh on every turn and torn down on completion
         /// (the registry holds the metadata only — see

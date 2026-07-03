@@ -34,7 +34,7 @@ fn spawn_pty_minimal() {
         subscribe_namespaces: vec![],
     };
 
-    let handle = spawn_actor(profile).expect("spawn_actor failed");
+    let handle = spawn_process(profile).expect("spawn_process failed");
 
     // Daemon-minted ULID — 26 chars, Crockford alphabet.
     assert_eq!(handle.actor_id.len(), 26);
@@ -91,7 +91,7 @@ fn spawn_honours_ulid_hint() {
         log_dir: Some(tmp_log_dir()),
         subscribe_namespaces: vec![],
     };
-    let handle = spawn_actor(profile).expect("spawn");
+    let handle = spawn_process(profile).expect("spawn");
     assert_eq!(handle.actor_id, hint);
     handle.stop().unwrap();
 }
@@ -115,7 +115,7 @@ fn spawn_rejects_non_ulid_hint() {
         log_dir: Some(tmp_log_dir()),
         subscribe_namespaces: vec![],
     };
-    let handle = spawn_actor(profile).expect("spawn");
+    let handle = spawn_process(profile).expect("spawn");
     assert_ne!(handle.actor_id, "agent.synth.feat-x");
     assert_eq!(handle.actor_id.len(), 26);
     handle.stop().unwrap();
@@ -145,7 +145,7 @@ fn spawn_headless_drains_stdout_and_exits() {
         subscribe_namespaces: vec![],
     };
 
-    let handle = spawn_actor(profile).expect("spawn_actor failed");
+    let handle = spawn_process(profile).expect("spawn_process failed");
     assert_eq!(handle.actor_id.len(), 26);
     assert!(handle.pid().is_some());
 
@@ -195,7 +195,7 @@ fn stop_terminates_child() {
         log_dir: Some(tmp_log_dir()),
         subscribe_namespaces: vec![],
     };
-    let handle = spawn_actor(profile).expect("spawn");
+    let handle = spawn_process(profile).expect("spawn");
     let pid = handle.pid().expect("pid");
     assert!(handle.is_alive());
 

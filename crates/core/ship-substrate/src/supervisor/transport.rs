@@ -1,7 +1,7 @@
 //! Transport — how a child process is held.
 //!
 //! Each transport owns the platform mechanics (PTY mastery, pipe
-//! parsing, tmux window management). The orchestrator (`spawn_actor`)
+//! parsing, tmux window management). The orchestrator (`spawn_process`)
 //! never inspects transport internals; it just calls `spawn` and
 //! holds the resulting [`ChildHandle`].
 //!

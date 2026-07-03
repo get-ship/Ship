@@ -19,7 +19,7 @@
 //!   - Use `SandboxRegistry` for endpoint discovery — caller passes
 //!     the URL directly. Chunk C3 wires the registry-driven dispatch.
 //!   - Emit kernel events (`actor.created` etc.) — substrate's
-//!     in-process `spawn_actor` does that for its path. Sidecar-side
+//!     in-process `spawn_process` does that for its path. Sidecar-side
 //!     event emission folds in when the orchestrator dispatches
 //!     uniformly through `Arc<dyn ProcessRuntime>`.
 

@@ -1,4 +1,4 @@
-//! Substrate Agent pre-register — `spawn_actor` must register every
+//! Substrate Agent pre-register — `spawn_process` must register every
 //! kind, including Agent, with the kernel before the child starts.
 //!
 //! This file is a single integration-test binary so the
@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 use ship_substrate::events::{init_kernel_router, kernel_router};
-use ship_substrate::supervisor::{ProcessKind, ProcessProfile, TransportKind, spawn_actor};
+use ship_substrate::supervisor::{ProcessKind, ProcessProfile, TransportKind, spawn_process};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agent_pre_register_visible_in_kernel_before_mcp() {
@@ -35,13 +35,13 @@ async fn agent_pre_register_visible_in_kernel_before_mcp() {
         subscribe_namespaces: vec![],
     };
 
-    let handle = spawn_actor(profile).expect("spawn_actor must not error on Agent pre-register");
+    let handle = spawn_process(profile).expect("spawn_process must not error on Agent pre-register");
 
     let kr = kernel_router().expect("kernel router initialized");
     let kernel = kr.lock().await;
     assert!(
         kernel.has_actor(&handle.actor_id),
-        "kernel router must observe the Agent actor immediately after spawn_actor returns"
+        "kernel router must observe the Agent actor immediately after spawn_process returns"
     );
     drop(kernel);
 

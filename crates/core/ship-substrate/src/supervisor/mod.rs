@@ -1,18 +1,18 @@
 //! `runtime::supervisor` — the single spawn primitive.
 //!
-//! All supervised processes flow through `spawn_actor(profile)` and one
+//! All supervised processes flow through `spawn_process(profile)` and one
 //! transport trait. The legacy `spawn_command` path in
 //! `apps/shipd/src/sessions/lifecycle.rs` was removed in mr-05; shell
 //! sessions go via `shell_actor::spawn_shell`, agent sessions via
 //! `agent_actor::*`, and pipeline jobs via `ProcessExecutor` — every
-//! one of them eventually calls `spawn_actor` here. Currently exposed:
+//! one of them eventually calls `spawn_process` here. Currently exposed:
 //!
 //!   - [`Transport`] — how a child process is held. PTY today; headless,
 //!     tmux, server-session arrive as the migration progresses.
 //!   - [`ProcessProfile`] — what the actor IS. Kind, transport, agent id,
 //!     harness, env, work dir. The orchestrator wires Transport +
 //!     metadata + lifecycle events together.
-//!   - [`spawn_actor`] — the orchestrator. Mints the actor id, opens
+//!   - [`spawn_process`] — the orchestrator. Mints the actor id, opens
 //!     the transport, holds the child, emits `actor.created`, returns
 //!     a handle the caller can write input to / observe output from.
 //!
@@ -38,7 +38,7 @@ use std::sync::OnceLock;
 
 /// Optional resolver that maps a working-directory path to a project id.
 /// Installed by the platform crate (`ship_platform::projects`); used by
-/// `spawn_actor` to attribute the emitted `actor.created` event to a
+/// `spawn_process` to attribute the emitted `actor.created` event to a
 /// project. When unset, space_id is left None.
 type ProjectIdResolver = Box<dyn Fn(&Path) -> Option<String> + Send + Sync>;
 static PROJECT_ID_RESOLVER: OnceLock<ProjectIdResolver> = OnceLock::new();
@@ -143,7 +143,7 @@ fn containerize_agent(profile: ProcessProfile) -> ProcessProfile {
     ProcessProfile { bin, args, ..profile }
 }
 
-pub fn spawn_actor(profile: ProcessProfile) -> Result<ProcessHandle> {
+pub fn spawn_process(profile: ProcessProfile) -> Result<ProcessHandle> {
     let actor_id = profile.resolve_actor_id();
 
     // Place agent processes in their own kernel process container so the daemon
@@ -248,7 +248,7 @@ pub fn spawn_actor(profile: ProcessProfile) -> Result<ProcessHandle> {
 
 impl ProcessHandle {
     /// Attach a sandbox to this handle. Called by the supervisor right
-    /// after `spawn_actor` returns when the agent runs inside an
+    /// after `spawn_process` returns when the agent runs inside an
     /// isolator. Returns a new handle (shares the same child + actor
     /// id) with the sandbox owner attached. The owner's `Drop` fires
     /// shutdown when the last clone of this handle is gone.

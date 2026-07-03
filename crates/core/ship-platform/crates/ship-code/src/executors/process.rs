@@ -33,7 +33,7 @@ use crate::dispatch_ports::{
 };
 use ship_runner::emit::persist_and_route;
 use ship_harnesses::harness_adapter::{adapter_for_or_default, HarnessAdapter};
-use ship_substrate::supervisor::{spawn_actor, ProcessHandle, ProcessKind, ProcessProfile, TransportKind};
+use ship_substrate::supervisor::{spawn_process, ProcessHandle, ProcessKind, ProcessProfile, TransportKind};
 
 /// Default prompt injected when the caller didn't supply one.
 /// Kept in ProcessExecutor (the headless spawn path) because only
@@ -618,7 +618,7 @@ impl SessionExecutor for ProcessExecutor {
             None;
         // When set, the actor is spawned through this runtime (a
         // sidecar-backed runtime for Tier 2+) instead of the in-process
-        // spawn_actor path. The harness runs inside the sandbox's
+        // spawn_process path. The harness runs inside the sandbox's
         // container; control flows over ship.sidecar.v1.
         let mut remote_runtime: Option<
             std::sync::Arc<dyn ship_substrate::supervisor::ProcessRuntime>,
@@ -913,12 +913,12 @@ impl SessionExecutor for ProcessExecutor {
         // future youki/lima/fly) routes through a SidecarRuntime —
         // the harness runs inside the sandbox's container, controlled
         // over ship.sidecar.v1. Tier 0/1 forks in-process via
-        // spawn_actor. Either way the returned ProcessHandle has the
+        // spawn_process. Either way the returned ProcessHandle has the
         // same surface.
         let handle = if let Some(runtime) = remote_runtime.take() {
             runtime.spawn(profile).await?
         } else {
-            spawn_actor(profile)?
+            spawn_process(profile)?
         };
         // Attach the sandbox owner if we prepared one (Tier 1 wrap
         // path). For Tier 2+ the owner lives on the dispatcher's
@@ -1385,7 +1385,7 @@ mod tests {
             log_dir: Some(log_dir),
             subscribe_namespaces: vec![],
         };
-        let handle = spawn_actor(profile).expect("supervisor spawn");
+        let handle = spawn_process(profile).expect("supervisor spawn");
         let pid = handle.pid();
         let state = ProcessState {
             slug: slug.to_string(),

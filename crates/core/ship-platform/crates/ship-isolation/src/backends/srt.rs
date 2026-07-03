@@ -3,7 +3,7 @@
 //!
 //! This is **not a backend.** Tier 1 (host OS-level srt/bubblewrap) runs
 //! as an argv transformation at spawn (`settings::wrap_launch` +
-//! `spawn_actor`), not through the container-shaped `Isolator` trait —
+//! `spawn_process`), not through the container-shaped `Isolator` trait —
 //! there is no container to `prepare`/`shutdown`. What's shared across
 //! the Tier-1 path is the *settings rendering*: turn a `SandboxPolicy`
 //! into the JSON `srt --settings` expects. That's this module.
