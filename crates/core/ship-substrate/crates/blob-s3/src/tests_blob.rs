@@ -5,8 +5,8 @@
 use std::sync::Arc;
 
 use blobstore::{AccountId, BlobError, BlobHash, BlobScope, BlobStore, LocalFsBlobStore};
-use super::s3_blob_store::S3BlobStore;
-use super::space_context::SpaceId;
+use crate::s3_blob_store::S3BlobStore;
+use ship_types::SpaceId;
 
 fn scope() -> BlobScope {
     BlobScope::Space(SpaceId::new("space-1"))

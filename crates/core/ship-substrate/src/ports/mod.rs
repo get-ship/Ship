@@ -9,13 +9,10 @@ pub use ship_substrate_core::ports::*;
 
 pub mod fs_watch;
 pub mod local_fs_watch;
-pub mod s3_blob_store;
 
 pub use fs_watch::{ChangeKind, FsDelta, FsWatch, WatchOpts};
 pub use local_fs_watch::LocalFsWatch;
-pub use s3_blob_store::{BlobBackendConfig, S3BlobStore};
 
-// Conformance test for both blob backends; stays here because the S3 impl
-// is in this crate.
-#[cfg(test)]
-mod tests_blob;
+// The object_store-backed S3/R2 blob backend lives in the `blob-s3` leaf
+// (`blob_s3::{S3BlobStore, BlobBackendConfig}`) so `object_store`/aws stays off
+// every facade consumer. The blob-backend conformance suite moved with it.

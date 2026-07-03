@@ -17,6 +17,7 @@ members = [
     "crates/core/ship-substrate/crates/path-layout",
     "crates/core/ship-substrate/crates/task-health",
     "crates/core/ship-substrate/crates/blobstore",
+    "crates/core/ship-substrate/crates/blob-s3",
     "crates/core/ship-substrate/crates/fs-cap",
     "crates/core/ship-platform",
     "crates/core/ship-git",

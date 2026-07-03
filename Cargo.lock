@@ -681,6 +681,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "blob-s3"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "blobstore",
+ "bytes",
+ "object_store",
+ "ship-types",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "blobstore"
 version = "0.1.0"
 dependencies = [
@@ -8710,7 +8723,6 @@ dependencies = [
  "libc",
  "nanoid",
  "notify",
- "object_store",
  "portable-pty",
  "proptest",
  "serde",

@@ -6,7 +6,6 @@
 //! `ship-artifacts`) plus the heavy back-end machinery that lives only on the
 //! daemon side:
 //!
-//! - [`ports::s3_blob_store::S3BlobStore`] + `BlobBackendConfig` (S3 object_store)
 //! - [`ports::fs_watch`] + [`ports::local_fs_watch`] (notify)
 //! - [`services`] — actor mesh, server-side session services, dispatch ports
 //! - [`supervisor`] — daemon supervisor runtime
@@ -35,8 +34,8 @@ pub mod supervisor;
 //
 // `blob_store`/`data_store`/`fs_broker`/`kernel_log`/`local_fs_{broker,blob_store}`/
 // `single_backend`/`space_context`/`step_executor` live in `ship-substrate-core`;
-// `fs_watch`/`local_fs_watch`/`s3_blob_store` + the blob-trait conformance suite
-// live here (object_store/notify deps).
+// `fs_watch`/`local_fs_watch` live here (notify dep). The object_store-backed
+// `s3_blob_store` + the blob conformance suite are the `blob-s3` leaf.
 pub mod ports;
 
 // ── Events facade ───────────────────────────────────────────────────────────

@@ -1,0 +1,20 @@
+[package]
+name = "blob-s3"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "object_store-backed BlobStore backend — S3 / R2 / MinIO / in-memory. The heavy (aws) blob backend, carved off the light `blobstore` contract so consumers that only need the byte plane don't compile object_store."
+
+[dependencies]
+blobstore = { path = "../blobstore" }
+object_store = { version = "0.13", features = ["aws"] }
+async-trait = { workspace = true }
+bytes = "1"
+
+[dev-dependencies]
+ship-types = { path = "../ship-types" }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+
+[lints]
+workspace = true
