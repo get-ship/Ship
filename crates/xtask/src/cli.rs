@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    coverage, gen_audit_readme, gen_contract, gen_events, gen_fixtures,
+    coverage, gen_agent_sdk, gen_audit_readme, gen_contract, gen_events, gen_fixtures,
     gen_indexes, gen_sdk, lint_anti_theater,
     lint_imports, lint_layers, lint_residue,
 };
@@ -25,6 +25,13 @@ pub fn dispatch(cmd: &str, args: &[String]) {
         "gen-sdk" => {
             if let Err(e) = gen_sdk::run(&repo_root()) {
                 eprintln!("gen-sdk failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
+        "gen-agent-sdk" => {
+            let check = args.iter().any(|a| a == "--check");
+            if let Err(e) = gen_agent_sdk::run(&repo_root(), check) {
+                eprintln!("gen-agent-sdk failed: {e:#}");
                 std::process::exit(1);
             }
         }
@@ -122,6 +129,8 @@ fn print_help() {
     eprintln!();
     eprintln!("  gen-types             (no-op: TS outputs moved to ship-contracts)");
     eprintln!("  gen-sdk               Emit packages/sdk/src/generated/sdk-*.json + TS bindings");
+    eprintln!("  gen-agent-sdk         Emit packages/sdk/src/generated/agent-config.ts from AgentConfig (specta)");
+    eprintln!("  gen-agent-sdk --check Verify the generated AgentConfig TS is up-to-date (CI)");
     eprintln!("  gen-fixtures          Emit proto contract fixtures from <PROTO_ROOT>/fixtures/fixture-seed.json (SMELL: tool lives in ship; output is ship-contracts; see .artifacts/handoff-post-cleanup.md)");
     eprintln!("  lint-layers           Verify L0/L1/L2 boundaries from the resolved cargo-metadata graph (R0-R4)");
     eprintln!("  lint-imports          Verify layer-direction rules at the `use`-statement level");

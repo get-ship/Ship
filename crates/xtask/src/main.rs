@@ -7,6 +7,7 @@
 mod check_topology;
 mod cli;
 mod coverage;
+mod gen_agent_sdk;
 mod gen_audit_readme;
 mod gen_contract;
 mod gen_events;
