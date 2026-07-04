@@ -12,7 +12,7 @@
     "refs": ["working-in-helm", "cmdr", "spawn-agent", "web-qa"]
   },
   "mcp": {
-    "servers": ["ship"],
+    "servers": ["ship", "helm"],
     "active_tools": []
   },
   "permissions": {
