@@ -15,6 +15,16 @@ compiler = { path = "../compiler" }
 # durable-execution). `deno` pulls the V8 runtime; the closed-world eval lives
 # behind it.
 ship-js = { path = "/home/madvib/dev/Ship/ship-exec/crates/ship-js", features = ["deno"] }
+# oxc — the one-shot TypeScript type-strip (real `.ts` → JS before eval). Already
+# vendored at 0.133.0 in the workspace lock (transitive via rolldown), so these
+# direct deps reuse the locked copies and pull no new tree. The strip is a pure
+# transform: annotations/`import type`/`satisfies` out, runtime semantics kept.
+oxc_allocator = "0.133"
+oxc_parser = "0.133"
+oxc_span = "0.133"
+oxc_semantic = "0.133"
+oxc_transformer = "0.133"
+oxc_codegen = "0.133"
 anyhow = { workspace = true }
 serde_json = { workspace = true }
 async-trait = { workspace = true }
