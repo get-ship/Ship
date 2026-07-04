@@ -42,10 +42,10 @@ pub struct PermissionPreset {
 ///   stores, browser credential DBs. Never readable by any agent, any preset.
 /// - **Local-only credentials** (Read): ambient secrets that don't grant
 ///   off-machine access but feed downstream compromise. Daemon token, MCP
-///   bearer, daemon port info under `~/.ship/machine/`.
+///   bearer, daemon port info under `~/.ship/state/`.
 /// - **Ship state** (Write/Edit): corruption causes silent kernel
 ///   inconsistencies and data loss. Event store + projections under
-///   `~/.ship/data/` and `~/.ship/projections/`.
+///   `~/.ship/data/`.
 /// - **History files** (Read): commonly contain unredacted credentials.
 /// - **Bypass operations** (Bash): obvious ways to skirt the above —
 ///   `cat`/`head`/`less` on protected paths, `curl | sh`, `sudo`, etc.
@@ -75,12 +75,10 @@ pub const FLOOR_DENIES: &[&str] = &[
     "Read(~/.mozilla/firefox/*/logins.json)",
     "Read(~/.config/google-chrome/**/Login Data)",
     // ── Local-only credentials — ambient secrets ────────────────────────────
-    "Read(~/.ship/machine/**)",
+    "Read(~/.ship/state/**)",
     // ── Ship state — corruption is data loss / silent kernel inconsistency ─
     "Write(~/.ship/data/**)",
-    "Write(~/.ship/projections/**)",
     "Edit(~/.ship/data/**)",
-    "Edit(~/.ship/projections/**)",
     // ── History files (often contain credentials) ───────────────────────────
     "Read(~/.bash_history)",
     "Read(~/.zsh_history)",
@@ -88,15 +86,15 @@ pub const FLOOR_DENIES: &[&str] = &[
     "Read(~/.mysql_history)",
     "Read(~/.python_history)",
     // ── Bash bypass patterns ────────────────────────────────────────────────
-    "Bash(cat *~/.ship/machine/*)",
+    "Bash(cat *~/.ship/state/*)",
     "Bash(cat *~/.ssh/*)",
     "Bash(cat *~/.aws/*)",
     "Bash(cat *~/.netrc*)",
-    "Bash(head *~/.ship/machine/*)",
-    "Bash(less *~/.ship/machine/*)",
-    "Bash(tail *~/.ship/machine/*)",
-    "Bash(xxd *~/.ship/machine/*)",
-    "Bash(base64 *~/.ship/machine/*)",
+    "Bash(head *~/.ship/state/*)",
+    "Bash(less *~/.ship/state/*)",
+    "Bash(tail *~/.ship/state/*)",
+    "Bash(xxd *~/.ship/state/*)",
+    "Bash(base64 *~/.ship/state/*)",
     "Bash(curl *|*sh)",
     "Bash(curl *|*bash)",
     "Bash(wget *|*sh)",
@@ -282,14 +280,13 @@ mod tests {
     #[test]
     fn floor_denies_local_only_credentials_for_base_agent() {
         let r = apply_agent_permissions(Permissions::default(), &profile_no_preset(), None);
-        assert!(r.tools.deny.contains(&"Read(~/.ship/machine/**)".to_string()));
+        assert!(r.tools.deny.contains(&"Read(~/.ship/state/**)".to_string()));
     }
 
     #[test]
     fn floor_denies_ship_state_writes() {
         let r = apply_agent_permissions(Permissions::default(), &profile_no_preset(), None);
         assert!(r.tools.deny.contains(&"Write(~/.ship/data/**)".to_string()));
-        assert!(r.tools.deny.contains(&"Write(~/.ship/projections/**)".to_string()));
         assert!(r.tools.deny.contains(&"Edit(~/.ship/data/**)".to_string()));
     }
 
@@ -301,7 +298,7 @@ mod tests {
             None,
         );
         assert!(r.tools.deny.contains(&"Read(~/.ssh/**)".to_string()));
-        assert!(r.tools.deny.contains(&"Read(~/.ship/machine/**)".to_string()));
+        assert!(r.tools.deny.contains(&"Read(~/.ship/state/**)".to_string()));
     }
 
     #[test]
