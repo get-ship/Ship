@@ -3,8 +3,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    coverage, gen_agent_sdk, gen_audit_readme, gen_contract, gen_events, gen_fixtures,
-    gen_indexes, gen_sdk, lint_anti_theater,
+    coverage, gen_audit_readme, gen_contract, gen_events, gen_fixtures,
+    gen_indexes, lint_anti_theater,
     lint_imports, lint_layers, lint_residue,
 };
 
@@ -18,23 +18,6 @@ pub fn repo_root() -> PathBuf {
 
 pub fn dispatch(cmd: &str, args: &[String]) {
     match cmd {
-        "gen-types" => {
-            let check = args.iter().any(|a| a == "--check");
-            gen_types(check);
-        }
-        "gen-sdk" => {
-            if let Err(e) = gen_sdk::run(&repo_root()) {
-                eprintln!("gen-sdk failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
-        "gen-agent-sdk" => {
-            let check = args.iter().any(|a| a == "--check");
-            if let Err(e) = gen_agent_sdk::run(&repo_root(), check) {
-                eprintln!("gen-agent-sdk failed: {e:#}");
-                std::process::exit(1);
-            }
-        }
         "lint-layers" => {
             if let Err(e) = lint_layers::run(&repo_root()) {
                 eprintln!("lint-layers failed: {e}");
@@ -127,10 +110,6 @@ pub fn dispatch(cmd: &str, args: &[String]) {
 fn print_help() {
     eprintln!("Usage: cargo xtask <command>");
     eprintln!();
-    eprintln!("  gen-types             (no-op: TS outputs moved to ship-contracts)");
-    eprintln!("  gen-sdk               Emit packages/sdk/src/generated/sdk-*.json + TS bindings");
-    eprintln!("  gen-agent-sdk         Emit packages/sdk/src/generated/agent-config.ts from AgentConfig (specta)");
-    eprintln!("  gen-agent-sdk --check Verify the generated AgentConfig TS is up-to-date (CI)");
     eprintln!("  gen-fixtures          Emit proto contract fixtures from <PROTO_ROOT>/fixtures/fixture-seed.json (SMELL: tool lives in ship; output is ship-contracts; see .artifacts/handoff-post-cleanup.md)");
     eprintln!("  lint-layers           Verify L0/L1/L2 boundaries from the resolved cargo-metadata graph (R0-R4)");
     eprintln!("  lint-imports          Verify layer-direction rules at the `use`-statement level");
@@ -148,17 +127,5 @@ fn print_help() {
     eprintln!("  coverage --report-only  Skip test run; read test JSON from stdin");
     eprintln!("  coverage --format json  JSON output instead of markdown");
     eprintln!("  coverage --filter <svc>  Scope to one service/namespace prefix");
-}
-
-
-fn gen_types(_check: bool) {
-    // packages/sdk, packages/cloud-types, and packages/sdk-client were removed
-    // from ship (they belong in ship-contracts). gen-types no longer writes TS
-    // outputs from this repo.
-    //
-    // Reconcile path: in ship-contracts, re-wire gen-types to write the three
-    // generated.ts files (sdk, cloud-types, sdk-client) into the contracts repo.
-    // proto/ outputs (gen-events, gen-fixtures) stay in ship and are unaffected.
-    eprintln!("gen-types: TS outputs removed (packages/ moved to ship-contracts). No files written.");
 }
 

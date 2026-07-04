@@ -14,13 +14,6 @@ step "cargo build"
 cargo build || fail "cargo build"
 pass "cargo build"
 
-# Specta-driven type bindings: ship-set/cloud-types/sui-runtime each
-# import a sibling `generated.ts` that is .gitignored and produced by
-# the xtask. Without it the bun build fails to resolve.
-step "gen-types"
-cargo run -p xtask --quiet -- gen-types || fail "gen-types"
-pass "gen-types"
-
 step "bun install"
 bun install --frozen-lockfile || fail "bun install"
 pass "bun install"

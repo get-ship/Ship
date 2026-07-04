@@ -9,7 +9,6 @@
 //! — no reach back into ship-platform.
 
 pub mod registry;
-pub mod sdk_manifest;
 pub mod themes_contrast;
 pub mod view_authoring;
 pub mod view_errors;

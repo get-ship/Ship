@@ -1,20 +1,14 @@
 //! Dev-time task runner.
-//!
-//! Usage:
-//!   cargo xtask gen-types          # no-op: TS outputs moved to ship-contracts
-//!   cargo xtask gen-sdk            # regenerate sdk-*.json manifests
 
 mod check_topology;
 mod cli;
 mod coverage;
-mod gen_agent_sdk;
 mod gen_audit_readme;
 mod gen_contract;
 mod gen_events;
 mod gen_fixtures;
 mod gen_indexes;
 mod gen_indexes_substrate;
-mod gen_sdk;
 mod lint_anti_theater;
 
 mod lint_imports;

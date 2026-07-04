@@ -310,7 +310,7 @@ _sui-compiler-lib:
 _deck-cli:
     cargo build --manifest-path {{sui_path}}/Cargo.toml -p deck-cli
 
-# One-shot production build: gen-types, every pack + ui-components rebuild,
+# One-shot production build: every pack + ui-components rebuild,
 # catalog regeneration, cargo --release, then verify outputs. Equivalent to
 # `ship build`.
 [group('daily')]
@@ -326,11 +326,8 @@ build: _sui-compiler-lib _deck-cli
         echo "build: SUI_PATH is unset or points to a non-sui directory — set SUI_PATH to the sui repo root" >&2
         exit 1
     }
-    echo "[1/7] gen-types (no-op: removed)"
-    # gen-types was a no-op (TS outputs moved to ship-contracts); the step
-    # is removed entirely. The remaining build chain does not depend on it.
-    echo "[2/7] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bundler loads)"
-    # Steps 3-7 drive the SUI compiler over Bun FFI against this .so. Nothing
+    echo "[1/4] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bundler loads)"
+    # The remaining steps drive the SUI compiler over Bun FFI against this .so. Nothing
     # out-of-band — the explicit --manifest-path guarantees the .so is from
     # the same sui checkout. Cheap no-op when fresh.
     # Post-carve: deck-cli is in sui's repo, AND it walks UP from cwd to
@@ -342,11 +339,11 @@ build: _sui-compiler-lib _deck-cli
     # `apps/shipd/apps.jsonc` registry — the single app list, never duplicated
     # in a recipe; the root-mounted app self-contains the /_deck/* framework
     # surface (`--bundle-framework`).
-    echo "[5/7] app scaffolds (from apps/shipd/apps.jsonc)"
+    echo "[2/4] app scaffolds (from apps/shipd/apps.jsonc)"
     just _build-apps
-    echo "[6/7] cargo build --release (ship-cli + shipd)"
+    echo "[3/4] cargo build --release (ship-cli + shipd)"
     cargo build --release -p ship-cli -p shipd
-    echo "[7/7] verify outputs"
+    echo "[4/4] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
     for bin in ship shipd; do
@@ -422,10 +419,6 @@ sui-wasm:
 [group('occasional')]
 sui-napi:
     cargo build --manifest-path {{sui_path}}/Cargo.toml -p sui-compiler-napi
-
-# Regenerate Specta types (Rust → generated TS bindings).
-
-# Regenerate the Ship SDK manifest.
 
 # Generate per-domain consumer contract guides under docs/contract/.
 [group('occasional')]

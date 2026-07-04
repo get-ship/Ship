@@ -4,8 +4,8 @@ name: CI
 # This CI is scoped to the **ship** repo's owned surfaces only:
 #   - The Rust daemon (shipd, ship-cli, ship-host, helmd) and the L0/L1
 #     platform (crates/*).
-#   - The xtask codegen that operates on this repo's source (gen-sdk,
-#     gen-fixtures, gen-events, the lints).
+#   - The xtask codegen that operates on this repo's source (gen-fixtures,
+#     gen-events, the lints).
 #   - The contract-conformance Rust test (tests/contract).
 #   - The agents Bun test (tests/agents) — boots shipd and exercises
 #     its ConnectRPC + harness adapter registry.
@@ -49,21 +49,6 @@ jobs:
           bun-version: latest
       - name: Install JS deps (apps/host only; no in-repo test workspaces)
         run: bun install --frozen-lockfile || bun install
-      # The cold-cache include_str! cycle: shipd include_str!s
-      # `packages/sdk/src/generated/sdk-*.json` (committed fixtures the
-      # ship-contracts SDK build drops in for ship to consume). The
-      # xtask gen-sdk step is now a no-op for ship (it writes to
-      # ship-contracts) — the files are committed placeholders. If a
-      # future ship-contracts refactor breaks the contract include_str!
-      # path, this gate fails before the daemon build pays a full rebuild.
-      - name: Assert SDK manifests present (shipd include_str! unblock)
-        run: |
-          set -euo pipefail
-          mkdir -p packages/sdk/src/generated
-          for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
-            [ -s "packages/sdk/src/generated/$f.json" ] || \
-              { echo "sdk manifest $f.json missing or empty — ship-contracts SDK build did not populate" >&2; exit 1; }
-          done
       # License audit: walk the resolved dep tree and fail on copyleft.
       - name: License audit (no copyleft)
         run: node scripts/check-licenses.mjs

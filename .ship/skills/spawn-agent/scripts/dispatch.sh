@@ -253,13 +253,6 @@ elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
       mkdir -p "$WORKTREE_PATH/.deck"
       cp -r "$LAUNCH_REPO_ROOT"/.deck/. "$WORKTREE_PATH/.deck/" 2>/dev/null || true
     fi
-    # SDK manifests emitted by `cargo run -p xtask -- gen-sdk`, embedded by
-    # apps/shipd/src/routes/sdk_manifest.rs.
-    if [[ -d "$LAUNCH_REPO_ROOT/packages/sdk/src/generated" ]]; then
-      mkdir -p "$WORKTREE_PATH/packages/sdk/src/generated"
-      cp "$LAUNCH_REPO_ROOT"/packages/sdk/src/generated/sdk-*.json \
-         "$WORKTREE_PATH/packages/sdk/src/generated/" 2>/dev/null || true
-    fi
     # tree-sitter outputs are now produced inside the external sui repo
     # (sui/packages/sui/grammar lives there post-carve). The sui-compiler crate
     # in sui is bootstrapped by `cd sui &&
@@ -288,14 +281,6 @@ elif [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
   # Post-carve, the grammar source lives in the external sui repo; the
   # sui-compiler crate there is built as part of the deck-cli `build-assets`
   # bootstrap. No local regen step.
-  # sdk-urls.json is the sentinel — sdk-macros.json was retired in the
-  # j2-vestigials sweep (macros pipeline deleted). Regenerate only when
-  # urls is missing AND we couldn't copy from the launch repo.
-  if [[ ! -s "$WORKTREE_PATH/packages/sdk/src/generated/sdk-urls.json" ]]; then
-    echo "Regenerating SDK manifests (cargo run -p xtask -- gen-sdk)"
-    (cd "$WORKTREE_PATH" && cargo run -p xtask --quiet -- gen-sdk) 2>&1 | tail -10
-  fi
-
   # Build the SUI compiler binaries into this worktree's target/. Without this,
   # the daemon + per-edit harness fall back to the stale installed
   # ~/.ship/runtime/sui-compiler instead of the worktree's current source, so a

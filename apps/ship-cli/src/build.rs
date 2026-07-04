@@ -38,7 +38,6 @@ pub fn run(dry_run: bool) -> anyhow::Result<()> {
     // Manual fallback. Keep the steps in sync with the `build` recipe
     // in the workspace Justfile.
     let steps: &[(&str, &[&str])] = &[
-        ("cargo", &["run", "-p", "xtask", "--quiet", "--", "gen-types"]),
         ("bun", &["install", "--frozen-lockfile"]),
         ("bun", &["run", "--filter", "@ship/ui-components", "build"]),
         ("cargo", &["build", "--release"]),
