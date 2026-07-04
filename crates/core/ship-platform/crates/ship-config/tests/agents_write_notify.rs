@@ -19,6 +19,15 @@ use std::sync::Arc;
 
 use ship_config::agents_write::{notify_agent_def_saved, save_agents_config};
 use ship_config::types::AgentProfile;
+use compiler::ProfileMeta;
+
+/// A minimal profile with just an id + name.
+fn profile(id: &str, name: &str) -> AgentProfile {
+    AgentProfile {
+        agent: ProfileMeta { id: id.into(), name: name.into(), ..Default::default() },
+        ..Default::default()
+    }
+}
 use ship_substrate::events::EventFilter;
 use ship_substrate::events::new_isolated_for_test;
 use ship_substrate::home::ShipHome;
@@ -81,8 +90,7 @@ async fn gated_write_then_notify_emits_one_def_updated_with_new_hash() {
     let space = SpaceId::new("sp-1");
 
     // The gated FsBroker write door — writes `.ship/agents/alpha.jsonc`.
-    let profile = AgentProfile { id: "alpha".into(), name: "Alpha".into(), ..Default::default() };
-    save_agents_config(&fs, &dir, &[profile]).unwrap();
+    save_agents_config(&fs, &dir, &[profile("alpha", "Alpha")]).unwrap();
 
     // The file exists on disk (the write landed).
     let path = ship_substrate::project::agents_ns(&dir).join("alpha.jsonc");
@@ -109,22 +117,12 @@ async fn edit_then_notify_carries_a_changed_hash() {
     let fs = LocalFsBroker::new();
     let space = SpaceId::new("sp-1");
 
-    save_agents_config(
-        &fs,
-        &dir,
-        &[AgentProfile { id: "alpha".into(), name: "Alpha".into(), ..Default::default() }],
-    )
-    .unwrap();
+    save_agents_config(&fs, &dir, &[profile("alpha", "Alpha")]).unwrap();
     notify_agent_def_saved(&kernel, &fs, &dir, "alpha", Some(space.clone())).await;
     let hash_before = def_events(&dir, "sp-1")[0].content_hash.clone();
 
     // Re-save with a changed name → new file content → the notify hash changes.
-    save_agents_config(
-        &fs,
-        &dir,
-        &[AgentProfile { id: "alpha".into(), name: "Alpha Prime".into(), ..Default::default() }],
-    )
-    .unwrap();
+    save_agents_config(&fs, &dir, &[profile("alpha", "Alpha Prime")]).unwrap();
     notify_agent_def_saved(&kernel, &fs, &dir, "alpha", Some(space)).await;
 
     let events = def_events(&dir, "sp-1");
@@ -143,12 +141,7 @@ async fn delete_then_notify_carries_empty_hash_marker() {
     let space = SpaceId::new("sp-1");
 
     // Write then prune via re-save with an empty set (the gated delete path).
-    save_agents_config(
-        &fs,
-        &dir,
-        &[AgentProfile { id: "gone".into(), name: "Gone".into(), ..Default::default() }],
-    )
-    .unwrap();
+    save_agents_config(&fs, &dir, &[profile("gone", "Gone")]).unwrap();
     save_agents_config(&fs, &dir, &[]).unwrap();
     let path = ship_substrate::project::agents_ns(&dir).join("gone.jsonc");
     assert!(!path.exists(), "the prune removed the def file");

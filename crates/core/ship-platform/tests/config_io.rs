@@ -2,6 +2,7 @@ use ship_platform::config::{
     AgentLayerConfig, AgentProfile, McpServerConfig, McpServerType, ProjectConfig,
     PRIMARY_CONFIG_FILE, get_config, save_config,
 };
+use compiler::{McpRefs, ProfileMeta};
 use std::collections::HashMap;
 use std::fs;
 use tempfile::tempdir;
@@ -20,8 +21,11 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
             context: vec!["project/README.md".to_string()],
         },
         agents: vec![AgentProfile {
-            id: "planning".to_string(),
-            name: "Planning".to_string(),
+            agent: ProfileMeta {
+                id: "planning".to_string(),
+                name: "Planning".to_string(),
+                ..Default::default()
+            },
             ..Default::default()
         }],
         mcp_servers: vec![McpServerConfig {
@@ -77,9 +81,12 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     let config = ProjectConfig {
         harnesses: vec!["opencode".to_string()],
         agents: vec![AgentProfile {
-            id: "focus".to_string(),
-            name: "Focus".to_string(),
-            mcp_servers: vec!["github".to_string()],
+            agent: ProfileMeta {
+                id: "focus".to_string(),
+                name: "Focus".to_string(),
+                ..Default::default()
+            },
+            mcp: McpRefs { servers: vec!["github".to_string()] },
             ..Default::default()
         }],
         mcp_servers: vec![McpServerConfig {
@@ -104,7 +111,7 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     assert_eq!(loaded.harnesses, vec!["opencode".to_string()]);
     assert!(loaded.agent.skills.is_empty());
     assert_eq!(loaded.agents.len(), 1);
-    assert_eq!(loaded.agents[0].id, "focus");
+    assert_eq!(loaded.agents[0].agent.id, "focus");
     assert_eq!(loaded.mcp_servers.len(), 1);
     assert_eq!(loaded.mcp_servers[0].id, "github");
     Ok(())

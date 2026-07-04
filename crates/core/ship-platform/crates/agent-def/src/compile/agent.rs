@@ -2,11 +2,11 @@
 //! project library. The library has already been populated with every
 //! `.ship/agents/*.jsonc` by [`super::loader::load_library`]; this step
 //! pulls the active one out and merges its permissions / hooks / plugins /
-//! harness settings, then injects a flat `AgentConfig` so `resolve()` can
-//! filter harnesses and MCP/skill refs against it.
+//! harness settings, then registers the active profile in `library.agents` so
+//! `resolve()` can filter MCP / skill / rule refs against it.
 
 use anyhow::Result;
-use compiler::{HookConfig, HookTrigger, PluginEntry, PluginsManifest, ProjectLibrary};
+use compiler::{PluginEntry, PluginsManifest, ProjectLibrary};
 use std::path::Path;
 
 use super::permissions::apply_agent_permissions;
@@ -45,11 +45,11 @@ pub fn apply_agent_to_library(
         }
     }
 
-    // Inject a flat AgentConfig so resolve() can apply MCP / skill / rule
-    // filtering from the active profile.
-    let mut cfg = profile.to_config();
-    cfg.id = agent_id.to_string();
-    library.agents.push(cfg);
+    // Register the active profile in `library.agents` so resolve() can apply
+    // its MCP / skill / rule filtering.
+    let mut active = profile.clone();
+    active.agent.id = agent_id.to_string();
+    library.agents.push(active);
 
     if !profile.plugins.install.is_empty() {
         library.plugins = PluginsManifest {
@@ -66,16 +66,13 @@ pub fn apply_agent_to_library(
         };
     }
 
-    if let Some(cmd) = &profile.hooks.stop {
-        push_hook(library, format!("{agent_id}-stop"), HookTrigger::Stop, cmd);
-    }
-    if let Some(cmd) = &profile.hooks.subagent_stop {
-        push_hook(
-            library,
-            format!("{agent_id}-subagent-stop"),
-            HookTrigger::SubagentStop,
-            cmd,
-        );
+    // Merge the profile's lifecycle hooks into the library (dedup by id) so the
+    // active agent's Stop / SubagentStop / etc. hooks reach the harness emitters.
+    for hook in &profile.hooks {
+        if library.hooks.iter().any(|h| h.id == hook.id) {
+            continue;
+        }
+        library.hooks.push(hook.clone());
     }
 
     if let Some(v) = profile.harness_settings.get("claude") {
@@ -91,19 +88,6 @@ pub fn apply_agent_to_library(
     library.claude_team_agents = load_team_agents(project_root, "claude");
 
     Ok(())
-}
-
-fn push_hook(library: &mut ProjectLibrary, id: String, trigger: HookTrigger, command: &str) {
-    if library.hooks.iter().any(|h| h.id == id) {
-        return;
-    }
-    library.hooks.push(HookConfig {
-        id,
-        trigger,
-        command: command.to_string(),
-        matcher: None,
-        cursor_event: None,
-    });
 }
 
 // ── Team agents ──────────────────────────────────────────────────────────────
@@ -152,7 +136,7 @@ pub fn collect_all_skill_refs(library: &ProjectLibrary) -> Vec<String> {
     }
 
     for agent in &library.agents {
-        for r in &agent.skills {
+        for r in &agent.skills.refs {
             if !refs.contains(r) {
                 refs.push(r.clone());
             }

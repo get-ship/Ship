@@ -34,8 +34,8 @@ impl ConfigSpawnPolicy {
 fn agent_role(cfg: &ProjectConfig, agent: &str) -> Option<String> {
     cfg.agents
         .iter()
-        .find(|a| a.id == agent)
-        .and_then(|a| a.role.clone())
+        .find(|a| a.agent.id == agent)
+        .and_then(|a| a.agent.role.clone())
 }
 
 /// The principal's identity for role resolution. Today only the agent
@@ -102,12 +102,16 @@ mod role_tests {
     use super::*;
     use ship_auth::scopes::{scopes_for_role, Scope};
     use ship_platform::config::AgentProfile;
+    use compiler::ProfileMeta;
 
     fn cfg_with(id: &str, role: Option<&str>) -> ProjectConfig {
         ProjectConfig {
             agents: vec![AgentProfile {
-                id: id.to_string(),
-                role: role.map(str::to_string),
+                agent: ProfileMeta {
+                    id: id.to_string(),
+                    role: role.map(str::to_string),
+                    ..Default::default()
+                },
                 ..Default::default()
             }],
             ..Default::default()

@@ -280,6 +280,7 @@ fn make_agent_profile(id: &str, description: &str) -> AgentProfile {
         permissions: ProfilePermissions::default(),
         rules: ProfileRules::default(),
         hooks: Default::default(),
+        target_agents: Vec::new(),
         apps: Default::default(),
         harness_settings: Default::default(),
     }

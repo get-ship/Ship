@@ -16,8 +16,8 @@ pub use catalog::{
     CatalogCategory, CatalogEntry, CatalogKind, list_catalog, list_catalog_by_kind, search_catalog,
 };
 pub use config::{
-    AgentConfig, AgentLayerConfig, HookConfig, HookTrigger, McpServerConfig,
-    McpServerType, NamespaceConfig, PermissionConfig, ProjectConfig,
+    AgentLayerConfig, HookConfig, HookTrigger, McpServerConfig,
+    McpServerType, NamespaceConfig, ProjectConfig,
 };
 pub use permissions::{
     AgentLimits, CommandPermissions, FsPermissions, NetworkPermissions, NetworkPolicy, Permissions,

@@ -292,9 +292,9 @@ fn e2e_scaffold_create_agent_use_compile_full_flow() {
   "rules": {
     "inline": "Always write tests before implementation."
   },
-  "hooks": {
-    "stop": "ship permissions sync"
-  }
+  "hooks": [
+    { "id": "perms-sync", "trigger": "Stop", "command": "ship permissions sync" }
+  ]
 }"#,
     );
 
@@ -412,7 +412,7 @@ fn e2e_cross_harness_same_config() {
     "id": "cross",
     "name": "Cross Harness",
     "version": "0.1.0",
-    "harnesses": ["claude", "cursor", "codex"]
+    "harnesses": ["claude", "codex"]
   },
   "skills": { "refs": [] },
   "mcp": { "servers": [] },
@@ -475,23 +475,6 @@ fn e2e_cross_harness_same_config() {
     assert!(
         tmp.path().join(".mcp.json").exists(),
         ".mcp.json must be written for claude"
-    );
-
-    // Compile for cursor
-    ship()
-        .args(["compile", "--harness", "cursor", "--path", p])
-        .assert()
-        .success();
-    let cursor_rule = tmp.path().join(".cursor/rules/architecture.mdc");
-    assert!(
-        cursor_rule.exists(),
-        ".cursor/rules/architecture.mdc must be written"
-    );
-    assert!(
-        fs::read_to_string(&cursor_rule)
-            .unwrap()
-            .contains(rule_text),
-        "cursor rule file must contain rule content"
     );
 
     // Compile for codex

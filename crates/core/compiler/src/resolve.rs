@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::types::{
-    AgentConfig, AgentProfile, HookConfig, McpServerConfig, Permissions, PluginsManifest,
+    AgentProfile, HookConfig, McpServerConfig, Permissions, PluginsManifest,
     ProjectConfig, Rule, Skill,
 };
 
@@ -96,7 +96,7 @@ pub struct ResolvedConfig {
 pub struct ProjectLibrary {
     /// Agent definitions from `agents/*.jsonc`.
     #[serde(default)]
-    pub agents: Vec<AgentConfig>,
+    pub agents: Vec<AgentProfile>,
     /// Active agent for this resolve (e.g. workspace override).
     #[serde(default)]
     pub active_agent: Option<String>,
@@ -287,11 +287,11 @@ pub fn resolve(
     let active_agent = active_agent_override
         .map(str::trim)
         .filter(|v| !v.is_empty())
-        .filter(|v| config.agents.iter().any(|a| a.id == *v))
+        .filter(|v| config.agents.iter().any(|a| a.agent.id == *v))
         .map(str::to_string);
     let agent = active_agent
         .as_deref()
-        .and_then(|id| config.agents.iter().find(|a| a.id == id));
+        .and_then(|id| config.agents.iter().find(|a| a.agent.id == id));
 
     // ── Harnesses ─────────────────────────────────────────────────────────────
     // Resolution priority (highest wins):
@@ -354,9 +354,10 @@ pub fn resolve(
     // ── Rules ─────────────────────────────────────────────────────────────────
     let mut resolved_rules = rules.to_vec();
     if let Some(m) = agent
-        && !m.rules.is_empty()
+        && !m.rules.refs.is_empty()
     {
-        let allowed: HashSet<String> = m.rules.iter().map(|id| normalize_rule_id(id)).collect();
+        let allowed: HashSet<String> =
+            m.rules.refs.iter().map(|id| normalize_rule_id(id)).collect();
         resolved_rules.retain(|rule| allowed.contains(&normalize_rule_id(&rule.file_name)));
     }
 
@@ -449,11 +450,11 @@ fn normalize_rule_id(id: &str) -> String {
     normalized.to_string()
 }
 
-fn apply_agent_server_filter(servers: &mut Vec<McpServerConfig>, agent: Option<&AgentConfig>) {
+fn apply_agent_server_filter(servers: &mut Vec<McpServerConfig>, agent: Option<&AgentProfile>) {
     if let Some(m) = agent
-        && !m.mcp_servers.is_empty()
+        && !m.mcp.servers.is_empty()
     {
-        servers.retain(|s| m.mcp_servers.contains(&s.id));
+        servers.retain(|s| m.mcp.servers.contains(&s.id));
     }
 }
 
@@ -464,16 +465,20 @@ fn apply_workspace_server_filter(servers: &mut Vec<McpServerConfig>, feature: &W
     }
 }
 
-fn apply_agent_skill_filter(skills: &mut Vec<Skill>, agent: Option<&AgentConfig>) {
+fn apply_agent_skill_filter(skills: &mut Vec<Skill>, agent: Option<&AgentProfile>) {
     if let Some(m) = agent
-        && !m.skills.is_empty()
+        && !m.skills.refs.is_empty()
     {
         // A skill ref that matches no pool skill used to be silently dropped by
         // the `retain` below — broken/mis-targeted agent->skill delivery was
         // invisible. Warn loudly (naming the ref + the consuming agent) before
         // filtering so every future unmatched ref is caught instead of vanishing.
-        let agent_id = if m.id.is_empty() { m.name.as_str() } else { m.id.as_str() };
-        for skill_ref in &m.skills {
+        let agent_id = if m.agent.id.is_empty() {
+            m.agent.name.as_str()
+        } else {
+            m.agent.id.as_str()
+        };
+        for skill_ref in &m.skills.refs {
             if !skills.iter().any(|s| &s.id == skill_ref) {
                 eprintln!(
                     "warning: agent '{agent_id}' references skill '{skill_ref}' that matches no \
@@ -481,7 +486,7 @@ fn apply_agent_skill_filter(skills: &mut Vec<Skill>, agent: Option<&AgentConfig>
                 );
             }
         }
-        skills.retain(|s| m.skills.contains(&s.id));
+        skills.retain(|s| m.skills.refs.contains(&s.id));
     }
 }
 
@@ -495,7 +500,8 @@ fn apply_workspace_skill_filter(skills: &mut Vec<Skill>, feature: &WorkspaceOver
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{AgentConfig, ProjectConfig};
+    use crate::types::ProjectConfig;
+    use crate::types::agent_profile::{McpRefs, ProfileMeta, ProfileRules, SkillRefs};
 
     fn make_skill(id: &str) -> Skill {
         Skill {
@@ -540,10 +546,15 @@ mod tests {
         // The real one is delivered; the unmatched ref is dropped (and a loud
         // warning is emitted to stderr naming the ref + agent — the regression
         // this guards, where the drop used to be silent).
-        let agent = AgentConfig {
-            id: "shipwright".to_string(),
-            name: "Shipwright".to_string(),
-            skills: vec!["real-skill".to_string(), "ghost-skill".to_string()],
+        let agent = AgentProfile {
+            agent: ProfileMeta {
+                id: "shipwright".to_string(),
+                name: "Shipwright".to_string(),
+                ..Default::default()
+            },
+            skills: SkillRefs {
+                refs: vec!["real-skill".to_string(), "ghost-skill".to_string()],
+            },
             ..Default::default()
         };
         let mut skills = vec![make_skill("real-skill"), make_skill("other-skill")];
@@ -560,9 +571,12 @@ mod tests {
     fn agent_skill_filter_empty_refs_keeps_whole_pool() {
         // Empty refs apply no filter — the agent inherits the entire pool, and
         // no unmatched-ref warning fires.
-        let agent = AgentConfig {
-            id: "rust-lane".to_string(),
-            skills: vec![],
+        let agent = AgentProfile {
+            agent: ProfileMeta {
+                id: "rust-lane".to_string(),
+                ..Default::default()
+            },
+            skills: SkillRefs { refs: vec![] },
             ..Default::default()
         };
         let mut skills = vec![make_skill("a"), make_skill("b")];
@@ -583,10 +597,13 @@ mod tests {
         // capability granted by a capability-skill in the pool (not in the
         // agent's own list). Resolution auto-includes it and reports the request.
         let config = ProjectConfig {
-            agents: vec![AgentConfig {
-                id: "lead".to_string(),
-                name: "Lead".to_string(),
-                skills: vec!["workflow".to_string()],
+            agents: vec![AgentProfile {
+                agent: ProfileMeta {
+                    id: "lead".to_string(),
+                    name: "Lead".to_string(),
+                    ..Default::default()
+                },
+                skills: SkillRefs { refs: vec!["workflow".to_string()] },
                 ..Default::default()
             }],
             ..Default::default()
@@ -622,10 +639,13 @@ mod tests {
         // No capability-skill grants what the workflow requires → unmet (a
         // compile error the caller enforces), and nothing is requested.
         let config = ProjectConfig {
-            agents: vec![AgentConfig {
-                id: "lead".to_string(),
-                name: "Lead".to_string(),
-                skills: vec!["workflow".to_string()],
+            agents: vec![AgentProfile {
+                agent: ProfileMeta {
+                    id: "lead".to_string(),
+                    name: "Lead".to_string(),
+                    ..Default::default()
+                },
+                skills: SkillRefs { refs: vec!["workflow".to_string()] },
                 ..Default::default()
             }],
             ..Default::default()
@@ -691,11 +711,14 @@ mod tests {
     fn mode_filters_servers_and_skills() {
         let config = ProjectConfig {
             mcp_servers: vec![make_server("github"), make_server("linear")],
-            agents: vec![AgentConfig {
-                id: "planning".to_string(),
-                name: "Planning".to_string(),
-                mcp_servers: vec!["github".to_string()],
-                skills: vec!["alpha".to_string()],
+            agents: vec![AgentProfile {
+                agent: ProfileMeta {
+                    id: "planning".to_string(),
+                    name: "Planning".to_string(),
+                    ..Default::default()
+                },
+                mcp: McpRefs { servers: vec!["github".to_string()] },
+                skills: SkillRefs { refs: vec!["alpha".to_string()] },
                 ..Default::default()
             }],
             ..Default::default()
@@ -782,9 +805,12 @@ mod tests {
     fn agent_target_agents_does_not_override_project_harnesses() {
         let config = ProjectConfig {
             harnesses: vec!["codex".to_string()],
-            agents: vec![AgentConfig {
-                id: "any-agent".to_string(),
-                name: "Any Agent".to_string(),
+            agents: vec![AgentProfile {
+                agent: ProfileMeta {
+                    id: "any-agent".to_string(),
+                    name: "Any Agent".to_string(),
+                    ..Default::default()
+                },
                 target_agents: vec!["some-target".to_string()],
                 ..Default::default()
             }],
@@ -799,10 +825,13 @@ mod tests {
     #[test]
     fn mode_rules_strip_numeric_prefix_and_md_suffix() {
         let config = ProjectConfig {
-            agents: vec![AgentConfig {
-                id: "strict".to_string(),
-                name: "Strict".to_string(),
-                rules: vec!["style".to_string()],
+            agents: vec![AgentProfile {
+                agent: ProfileMeta {
+                    id: "strict".to_string(),
+                    name: "Strict".to_string(),
+                    ..Default::default()
+                },
+                rules: ProfileRules { refs: vec!["style".to_string()], ..Default::default() },
                 ..Default::default()
             }],
             ..Default::default()
@@ -936,13 +965,16 @@ mod tests {
     fn mode_with_empty_filters_passes_all_through() {
         let config = ProjectConfig {
             mcp_servers: vec![make_server("a"), make_server("b")],
-            agents: vec![AgentConfig {
-                id: "open".to_string(),
-                name: "Open".to_string(),
+            agents: vec![AgentProfile {
+                agent: ProfileMeta {
+                    id: "open".to_string(),
+                    name: "Open".to_string(),
+                    ..Default::default()
+                },
                 // All filter arrays empty — should not restrict anything
-                mcp_servers: vec![],
-                skills: vec![],
-                rules: vec![],
+                mcp: McpRefs { servers: vec![] },
+                skills: SkillRefs { refs: vec![] },
+                rules: ProfileRules { refs: vec![], ..Default::default() },
                 ..Default::default()
             }],
             ..Default::default()
@@ -971,10 +1003,13 @@ mod tests {
         // override resolves to "no active agent" rather than silently
         // selecting some project-level default.
         let config = ProjectConfig {
-            agents: vec![AgentConfig {
-                id: "planning".to_string(),
-                name: "Planning".to_string(),
-                skills: vec!["plan-skill".to_string()],
+            agents: vec![AgentProfile {
+                agent: ProfileMeta {
+                    id: "planning".to_string(),
+                    name: "Planning".to_string(),
+                    ..Default::default()
+                },
+                skills: SkillRefs { refs: vec!["plan-skill".to_string()] },
                 ..Default::default()
             }],
             ..Default::default()
@@ -997,7 +1032,7 @@ mod tests {
     #[test]
     fn resolve_library_passes_through_all_fields() {
         use crate::types::agent_profile::*;
-        use crate::types::{AgentProfile, PluginEntry, PluginsManifest};
+        use crate::types::{PluginEntry, PluginsManifest};
 
         let library = super::ProjectLibrary {
             plugins: PluginsManifest {
@@ -1027,6 +1062,7 @@ mod tests {
                 permissions: ProfilePermissions::default(),
                 rules: ProfileRules::default(),
                 hooks: Default::default(),
+                target_agents: Vec::new(),
                 apps: Default::default(),
                 harness_settings: Default::default(),
             }],
@@ -1057,16 +1093,22 @@ mod tests {
     fn workspace_mode_override_takes_precedence() {
         let config = ProjectConfig {
             agents: vec![
-                AgentConfig {
-                    id: "planning".to_string(),
-                    name: "Planning".to_string(),
-                    skills: vec!["plan-skill".to_string()],
+                AgentProfile {
+                    agent: ProfileMeta {
+                        id: "planning".to_string(),
+                        name: "Planning".to_string(),
+                        ..Default::default()
+                    },
+                    skills: SkillRefs { refs: vec!["plan-skill".to_string()] },
                     ..Default::default()
                 },
-                AgentConfig {
-                    id: "code".to_string(),
-                    name: "Code".to_string(),
-                    skills: vec!["code-skill".to_string()],
+                AgentProfile {
+                    agent: ProfileMeta {
+                        id: "code".to_string(),
+                        name: "Code".to_string(),
+                        ..Default::default()
+                    },
+                    skills: SkillRefs { refs: vec!["code-skill".to_string()] },
                     ..Default::default()
                 },
             ],

@@ -1,9 +1,8 @@
 //! `Agent` — the unified agent definition (Floki carve D2b).
 //!
 //! The ONE keystone both runtimes read: Floki (embedded code-mode) and ship-code
-//! (third-party-harness drivers). It collapses the old split between the nested
-//! file-format profile ([`compiler::AgentProfile`]) and the flat runtime config
-//! ([`compiler::AgentConfig`]) into a single settled shape.
+//! (third-party-harness drivers). It is the harness-facing projection of the
+//! single agent-definition type ([`compiler::AgentProfile`]).
 //!
 //! ```text
 //! Agent {

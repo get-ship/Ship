@@ -44,7 +44,7 @@ pub use types::{
     AgentBundle, AgentLayerConfig, AgentLimits, AgentProfile, ArtifactType, BlastRadius, Capability,
     CatalogCategory, CatalogEntry, CatalogKind, CommandPermissions, FsPermissions,
     HookConfig, HookTrigger, ListAgentsResponse, McpRefs, McpServerConfig, McpServerType,
-    AgentConfig, NamespaceConfig, NetworkPermissions, NetworkPolicy, PermissionConfig, Permissions,
+    NamespaceConfig, NetworkPermissions, NetworkPolicy, Permissions,
     PluginEntry, PluginRefs, PluginsManifest, ProfileMeta, ProfilePermissions, ProfileRules,
     ProjectConfig, PullAgent, PullMcpServer, PullProfile, PullResponse, PullRule, PullSkill, Rule,
     Skill, SkillBundle, SkillRefs, SkillSource, ToolPermissions, TransferBundle,

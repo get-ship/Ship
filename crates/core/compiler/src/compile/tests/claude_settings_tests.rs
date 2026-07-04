@@ -222,8 +222,10 @@ fn agent_profiles_compiled_into_agent_files() {
         permissions: ProfilePermissions::default(),
         rules: ProfileRules {
             inline: Some("Review carefully.".to_string()),
+            refs: vec![],
         },
         hooks: Default::default(),
+        target_agents: Vec::new(),
         apps: Default::default(),
         harness_settings: Default::default(),
     };

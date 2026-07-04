@@ -14,6 +14,7 @@ use crate::config::{
 use crate::rule::create_rule;
 use crate::skill::create_skill;
 use ship_config::project::{AgentProfile, McpServerConfig, McpServerType, ProjectConfig, save_config};
+use compiler::{McpRefs, ProfileMeta, SkillRefs};
 use crate::testutil::init_project;
 use std::collections::HashMap;
 
@@ -80,9 +81,12 @@ fn agents_profile_resolution_agent_profile_filters_mcp_servers() -> Result<()> {
             stdio_server("linear", "linear-bin"),
         ],
         agents: vec![AgentProfile {
-            id: "focus".to_string(),
-            name: "Focus".to_string(),
-            mcp_servers: vec!["github".to_string()],
+            agent: ProfileMeta {
+                id: "focus".to_string(),
+                name: "Focus".to_string(),
+                ..Default::default()
+            },
+            mcp: McpRefs { servers: vec!["github".to_string()] },
             ..Default::default()
         }],
         ..Default::default()
@@ -106,9 +110,12 @@ fn agents_profile_resolution_agent_profile_filters_skills() -> Result<()> {
 
     let config = ProjectConfig {
         agents: vec![AgentProfile {
-            id: "narrow".to_string(),
-            name: "Narrow".to_string(),
-            skills: vec!["skill-a".to_string()],
+            agent: ProfileMeta {
+                id: "narrow".to_string(),
+                name: "Narrow".to_string(),
+                ..Default::default()
+            },
+            skills: SkillRefs { refs: vec!["skill-a".to_string()] },
             ..Default::default()
         }],
         ..Default::default()

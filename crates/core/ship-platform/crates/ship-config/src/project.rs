@@ -87,45 +87,10 @@ pub fn is_agent_layer_empty(config: &AgentLayerConfig) -> bool {
 
 // ─── Agent / MCP / Project types ─────────────────────────────────────────────
 
-/// Platform runtime view of an agent profile.
-///
-/// Richer than the write-view [`crate::types::AgentProfile`]: includes
-/// hooks, permissions, and the isolation override that the platform UI
-/// surfaces but that the agent-def write door preserves on disk separately.
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct AgentProfile {
-    pub id: String,
-    pub name: String,
-    #[serde(default)]
-    pub description: Option<String>,
-    #[serde(default)]
-    pub role: Option<String>,
-    #[serde(default)]
-    pub tools_preset: Option<String>,
-    #[serde(default)]
-    pub active_tools: Vec<String>,
-    /// MCP server IDs active in this mode (empty = all)
-    #[serde(default)]
-    pub mcp_servers: Vec<String>,
-    /// Skill IDs active in this mode (empty = all)
-    #[serde(default)]
-    pub skills: Vec<String>,
-    /// Rule IDs active in this mode (empty = all).
-    #[serde(default)]
-    pub rules: Vec<String>,
-    /// Hooks to apply when this mode is active
-    #[serde(default)]
-    pub hooks: Vec<HookConfig>,
-    /// Permission overrides for this mode
-    #[serde(default)]
-    pub permissions: PermissionConfig,
-    /// Which agent targets to sync to (e.g. ["claude", "codex"])
-    #[serde(default)]
-    pub target_agents: Vec<String>,
-    /// Optional per-agent isolation override.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub isolation: Option<serde_json::Value>,
-}
+/// The single agent-definition type. Re-exported from the compiler crate (the
+/// file-canonical nested schema) so `ship_config::project::AgentProfile` and
+/// `compiler::AgentProfile` are one type — no parallel runtime view.
+pub use compiler::AgentProfile;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[serde(rename_all = "lowercase")]
@@ -322,7 +287,7 @@ pub(crate) fn merge_string_lists(base: &[String], overlay: &[String]) -> Vec<Str
 pub(crate) fn merge_agents(base: &[AgentProfile], overlay: &[AgentProfile]) -> Vec<AgentProfile> {
     let mut merged = base.to_vec();
     for agent in overlay {
-        if let Some(existing) = merged.iter_mut().find(|a| a.id == agent.id) {
+        if let Some(existing) = merged.iter_mut().find(|a| a.agent.id == agent.agent.id) {
             *existing = agent.clone();
         } else {
             merged.push(agent.clone());
@@ -361,57 +326,14 @@ pub(crate) fn write_project_core_config(path: &std::path::Path, config: &Project
 
 // ─── Config IO ───────────────────────────────────────────────────────────────
 
-/// Project the FULL nested `compiler::AgentProfile` into the flat
-/// [`AgentProfile`] runtime view. Lossy by design.
-fn project_canonical(src: &compiler::AgentProfile) -> AgentProfile {
-    AgentProfile {
-        id: src.agent.id.clone(),
-        name: src.agent.name.clone(),
-        description: src.agent.description.clone(),
-        role: src.agent.role.clone(),
-        tools_preset: src.agent.tools_preset.clone(),
-        active_tools: src.agent.active_tools.clone(),
-        mcp_servers: src.mcp.servers.clone(),
-        skills: src.skills.refs.clone(),
-        rules: Vec::new(),
-        hooks: Vec::new(),
-        permissions: PermissionConfig::default(),
-        target_agents: Vec::new(),
-        isolation: None,
-    }
-}
-
 fn read_project_agents(config_dir: &std::path::Path) -> Result<Vec<AgentProfile>> {
     let fs = ship_substrate::ports::LocalFsBroker::new();
-    Ok(crate::agents::read_agent_profiles(&fs, config_dir)?
-        .iter()
-        .map(project_canonical)
-        .collect())
-}
-
-fn to_config_write_profile(p: &AgentProfile) -> crate::types::AgentProfile {
-    crate::types::AgentProfile {
-        id: p.id.clone(),
-        name: p.name.clone(),
-        description: p.description.clone(),
-        role: p.role.clone(),
-        tools_preset: p.tools_preset.clone(),
-        active_tools: p.active_tools.clone(),
-        mcp_servers: p.mcp_servers.clone(),
-        skills: p.skills.clone(),
-        rules: p.rules.clone(),
-        target_agents: p.target_agents.clone(),
-        // project::AgentProfile does not carry capabilities — the flat view
-        // is a config-page projection; capabilities survive via passthrough
-        // in merge_flat_into_canonical on re-save.
-        capabilities: vec![],
-    }
+    Ok(crate::agents::read_agent_profiles(&fs, config_dir)?)
 }
 
 fn save_project_agents(config_dir: &std::path::Path, agents: &[AgentProfile]) -> Result<()> {
     let fs = ship_substrate::ports::LocalFsBroker::new();
-    let mapped: Vec<_> = agents.iter().map(to_config_write_profile).collect();
-    crate::agents_write::save_agents_config(&fs, config_dir, &mapped)?;
+    crate::agents_write::save_agents_config(&fs, config_dir, agents)?;
     Ok(())
 }
 

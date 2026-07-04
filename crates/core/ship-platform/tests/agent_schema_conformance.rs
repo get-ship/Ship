@@ -24,10 +24,11 @@
 use std::collections::BTreeSet;
 
 use compiler::types::agent_profile::{
-    AgentProfile, McpRefs, PluginRefs, ProfileApps, ProfileHooks, ProfileMeta,
+    AgentProfile, McpRefs, PluginRefs, ProfileApps, ProfileMeta,
     ProfilePermissions, ProfileRules, SkillRefs,
 };
 use compiler::types::capability::{BlastRadius, Capability};
+use compiler::{HookConfig, HookTrigger};
 use serde_json::Value;
 use ship_isolation::{IsolationStrategy, IsolationTier};
 use ship_harnesses::harness_adapter::capabilities;
@@ -105,11 +106,24 @@ fn full_profile() -> AgentProfile {
             tools_deny: vec!["WebFetch".into()],
             default_mode: Some("acceptEdits".into()),
         },
-        rules: ProfileRules { inline: Some("Be precise.".into()) },
-        hooks: ProfileHooks {
-            stop: Some("ship session end".into()),
-            subagent_stop: Some("ship subagent end".into()),
-        },
+        rules: ProfileRules { inline: Some("Be precise.".into()), refs: vec!["style".into()] },
+        hooks: vec![
+            HookConfig {
+                id: "session-end".into(),
+                trigger: HookTrigger::Stop,
+                matcher: None,
+                command: "ship session end".into(),
+                cursor_event: None,
+            },
+            HookConfig {
+                id: "subagent-end".into(),
+                trigger: HookTrigger::SubagentStop,
+                matcher: None,
+                command: "ship subagent end".into(),
+                cursor_event: None,
+            },
+        ],
+        target_agents: vec!["claude".into()],
         apps: ProfileApps { studio: true },
         harness_settings: [(
             "claude".to_string(),

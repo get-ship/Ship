@@ -20,6 +20,7 @@ use std::sync::Arc;
 use ship_config::agents_index::{AgentDefIndex, AgentDefQuery};
 use ship_config::agents_write::{notify_agent_def_saved, save_agents_config};
 use ship_config::types::AgentProfile;
+use compiler::ProfileMeta;
 use ship_platform::config::agent_index::{apply_def_updated, build_def_index, spawn_def_index_consumer};
 use ship_substrate::data::DataService;
 use ship_substrate::events::new_isolated_for_test;
@@ -251,7 +252,10 @@ async fn write_then_emit_then_spawned_consumer_indexes_the_row() {
     save_agents_config(
         &fs,
         &dir,
-        &[AgentProfile { id: "live".into(), name: "Live".into(), ..Default::default() }],
+        &[AgentProfile {
+            agent: ProfileMeta { id: "live".into(), name: "Live".into(), ..Default::default() },
+            ..Default::default()
+        }],
     )
     .unwrap();
     notify_agent_def_saved(&kernel, &fs, &dir, "live", Some(SpaceId::new("idx-test"))).await;

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::config::HookConfig;
+
 /// An agent parsed from `.ship/agents/<id>.jsonc`.
 ///
 /// Defines a specialist agent that the compiler emits as a
@@ -9,7 +11,7 @@ use serde::{Deserialize, Serialize};
 /// JSONC field declared there should have a matching Rust field
 /// here. The top-level key is `agent`.
 #[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AgentProfile {
     pub agent: ProfileMeta,
     /// Authority grants for the ship-op control plane (`{domain, blast}` pairs).
@@ -27,8 +29,14 @@ pub struct AgentProfile {
     pub permissions: ProfilePermissions,
     #[serde(default)]
     pub rules: ProfileRules,
+    /// Lifecycle hook commands declared on the agent. The general
+    /// [`HookConfig`] form (carrying a [`super::HookTrigger`]); compile emits
+    /// each into the active harness's hook registration.
     #[serde(default)]
-    pub hooks: ProfileHooks,
+    pub hooks: Vec<HookConfig>,
+    /// Harness targets to sync this agent to (e.g. `["claude", "codex"]`).
+    #[serde(default)]
+    pub target_agents: Vec<String>,
     /// App integrations for this agent profile.
     #[serde(default)]
     pub apps: ProfileApps,
@@ -50,7 +58,7 @@ pub struct ProfileApps {
 }
 
 #[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ProfileMeta {
     pub id: String,
     pub name: String,
@@ -130,44 +138,10 @@ pub struct ProfileRules {
     /// Inline rules body — becomes the agent's system prompt.
     #[serde(default)]
     pub inline: Option<String>,
-}
-
-/// Hook commands declared on the agent. Compile emits each into the active
-/// harness's hook registration (e.g. `.claude/settings.json:hooks`).
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ProfileHooks {
-    /// Command to run when the agent session ends (Claude Code Stop hook).
+    /// Rule IDs to filter the project rule pool to (file names without the
+    /// `NNNN-` prefix / `.md` suffix). Empty = inherit the whole pool.
     #[serde(default)]
-    pub stop: Option<String>,
-    /// Command to run when a sub-agent session ends (SubagentStop hook).
-    #[serde(default)]
-    pub subagent_stop: Option<String>,
-}
-
-impl AgentProfile {
-    /// Project this nested file-format profile to the flat runtime form
-    /// the resolver and harness compilers consume (`compiler::AgentConfig`).
-    /// This is the single canonical nested → flat mapping.
-    pub fn to_config(&self) -> super::AgentConfig {
-        use super::config::PermissionConfig;
-        super::AgentConfig {
-            id: self.agent.id.clone(),
-            name: self.agent.name.clone(),
-            description: self.agent.description.clone(),
-            role: self.agent.role.clone(),
-            tools_preset: self.agent.tools_preset.clone(),
-            active_tools: self.agent.active_tools.clone(),
-            // Floki D2b: thread capabilities through — do NOT cement the loss.
-            capabilities: self.capabilities.clone(),
-            mcp_servers: self.mcp.servers.clone(),
-            skills: self.skills.refs.clone(),
-            rules: Vec::new(),
-            hooks: Vec::new(),
-            permissions: PermissionConfig::default(),
-            target_agents: Vec::new(),
-        }
-    }
+    pub refs: Vec<String>,
 }
 
 #[cfg(test)]
@@ -208,7 +182,7 @@ mod tests {
     "default_mode": "acceptEdits"
   },
   "rules": { "inline": "You are a senior code reviewer.\nFocus on correctness." },
-  "hooks": { "stop": "ship session end" },
+  "hooks": [{ "id": "session-end", "trigger": "Stop", "command": "ship session end" }],
   "harness_settings": {
     "claude": { "model": "opus", "temperature": 0.2 }
   }
@@ -221,7 +195,8 @@ mod tests {
         assert_eq!(profile.skills.refs, vec!["review-pr", "lint-fix", "test-runner"]);
         assert_eq!(profile.mcp.servers, vec!["github", "linear"]);
         assert_eq!(profile.permissions.preset.as_deref(), Some("ship-standard"));
-        assert_eq!(profile.hooks.stop.as_deref(), Some("ship session end"));
+        assert_eq!(profile.hooks.len(), 1);
+        assert_eq!(profile.hooks[0].command, "ship session end");
         let claude = profile.harness_settings.get("claude").expect("claude");
         assert_eq!(claude.get("model").and_then(|v| v.as_str()), Some("opus"));
     }
@@ -259,22 +234,5 @@ mod tests {
         assert!(profile.mcp.servers.is_empty());
         assert!(profile.permissions.tools_allow.is_empty());
         assert!(profile.harness_settings.is_empty());
-    }
-
-    #[test]
-    fn to_config_projects_nested_to_flat() {
-        let src = r#"{
-  "agent": { "id": "rev", "name": "Reviewer", "role": "worker" },
-  "skills": { "refs": ["a", "b"] },
-  "mcp": { "servers": ["github"] }
-}"#;
-        let profile: AgentProfile = serde_json::from_str(src).expect("parse");
-        let config = profile.to_config();
-        assert_eq!(config.id, "rev");
-        assert_eq!(config.name, "Reviewer");
-        assert_eq!(config.role.as_deref(), Some("worker"));
-        assert_eq!(config.skills, vec!["a", "b"]);
-        assert_eq!(config.mcp_servers, vec!["github"]);
-        assert!(config.target_agents.is_empty());
     }
 }

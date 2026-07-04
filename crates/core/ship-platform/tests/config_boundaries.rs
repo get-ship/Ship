@@ -22,15 +22,18 @@ fn project_config_roundtrips_json() {
 #[test]
 fn agent_profile_has_required_fields() {
     let profile = AgentProfile {
-        id: "test".to_string(),
-        name: "Test".to_string(),
+        agent: compiler::ProfileMeta {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            ..Default::default()
+        },
         ..Default::default()
     };
-    assert_eq!(profile.id, "test");
-    assert_eq!(profile.name, "Test");
-    assert!(profile.active_tools.is_empty());
-    assert!(profile.skills.is_empty());
-    assert!(profile.rules.is_empty());
+    assert_eq!(profile.agent.id, "test");
+    assert_eq!(profile.agent.name, "Test");
+    assert!(profile.agent.active_tools.is_empty());
+    assert!(profile.skills.refs.is_empty());
+    assert!(profile.rules.refs.is_empty());
 }
 
 #[test]

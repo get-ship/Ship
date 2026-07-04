@@ -29,56 +29,6 @@ pub struct HookConfig {
     pub cursor_event: Option<String>,
 }
 
-// ─── Modes ────────────────────────────────────────────────────────────────────
-
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct PermissionConfig {
-    #[serde(default)]
-    pub allow: Vec<String>,
-    #[serde(default)]
-    pub deny: Vec<String>,
-}
-
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct AgentConfig {
-    pub id: String,
-    pub name: String,
-    #[serde(default)]
-    pub description: Option<String>,
-    /// DEPRECATED (Floki D2b): superseded by `capabilities`. The gate enforces
-    /// capability, not role. Retained only so existing harness emitters / config
-    /// readers keep compiling during the carve; the unified `Agent` keystone does
-    /// not carry it. Legacy mapping (worker → "worker"; lead|commander →
-    /// "orchestrator") still honored by the local stdio gate until ripped out.
-    #[serde(default)]
-    pub role: Option<String>,
-    /// DEPRECATED (Floki D2b): superseded by `capabilities`. See `role`.
-    #[serde(default)]
-    pub tools_preset: Option<String>,
-    /// DEPRECATED (Floki D2b): superseded by `capabilities`. See `role`.
-    #[serde(default)]
-    pub active_tools: Vec<String>,
-    /// Authority grants for the ship-op control plane (`{domain, blast}` pairs).
-    /// Gate-enforced; replaces the dying `role`/`tools_preset` derivation. C0/C1
-    /// are an implicit baseline; C3 is operator-only and never agent-settable.
-    #[serde(default)]
-    pub capabilities: Vec<super::capability::Capability>,
-    #[serde(default)]
-    pub mcp_servers: Vec<String>,
-    #[serde(default)]
-    pub skills: Vec<String>,
-    #[serde(default)]
-    pub rules: Vec<String>,
-    #[serde(default)]
-    pub hooks: Vec<HookConfig>,
-    #[serde(default)]
-    pub permissions: PermissionConfig,
-    #[serde(default)]
-    pub target_agents: Vec<String>,
-}
-
 // ─── MCP servers ──────────────────────────────────────────────────────────────
 
 #[cfg_attr(feature = "specta", derive(specta::Type))]
@@ -164,7 +114,7 @@ pub struct ProjectConfig {
     #[serde(default)]
     pub harnesses: Vec<String>,
     #[serde(default)]
-    pub agents: Vec<AgentConfig>,
+    pub agents: Vec<super::agent_profile::AgentProfile>,
     #[serde(default)]
     pub mcp_servers: Vec<McpServerConfig>,
     #[serde(default)]

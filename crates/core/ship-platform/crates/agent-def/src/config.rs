@@ -111,12 +111,12 @@ pub fn resolve_harness_settings_with_agent_override(
     let active_agent = active_agent_override
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .filter(|value| config.agents.iter().any(|agent| agent.id == *value))
+        .filter(|value| config.agents.iter().any(|agent| agent.agent.id == *value))
         .map(str::to_string);
     let agent = config
         .agents
         .iter()
-        .find(|a| active_agent.as_deref() == Some(a.id.as_str()));
+        .find(|a| active_agent.as_deref() == Some(a.agent.id.as_str()));
 
     // ── Harnesses ─────────────────────────────────────────────────────────────
     // Resolution priority (highest wins):
@@ -161,9 +161,9 @@ pub fn resolve_harness_settings_with_agent_override(
 
     // Agent profile filter: if profile restricts servers, retain only allowed IDs.
     if let Some(m) = agent
-        && !m.mcp_servers.is_empty()
+        && !m.mcp.servers.is_empty()
     {
-        mcp_servers.retain(|s| m.mcp_servers.contains(&s.id));
+        mcp_servers.retain(|s| m.mcp.servers.contains(&s.id));
     }
 
     // Workspace filter: if workspace specifies server IDs, retain only those.
@@ -179,9 +179,9 @@ pub fn resolve_harness_settings_with_agent_override(
 
     // Agent profile filter: if profile restricts skills, retain only allowed IDs.
     if let Some(m) = agent
-        && !m.skills.is_empty()
+        && !m.skills.refs.is_empty()
     {
-        skills.retain(|s| m.skills.contains(&s.id));
+        skills.retain(|s| m.skills.refs.contains(&s.id));
     }
 
     // Workspace filter: if workspace specifies skill IDs, retain only those.
@@ -195,9 +195,10 @@ pub fn resolve_harness_settings_with_agent_override(
     // ── Rules ─────────────────────────────────────────────────────────────────
     let mut rules = list_rules(ship_dir.to_path_buf())?;
     if let Some(m) = agent
-        && !m.rules.is_empty()
+        && !m.rules.refs.is_empty()
     {
-        let allowed: HashSet<String> = m.rules.iter().map(|id| normalize_rule_id(id)).collect();
+        let allowed: HashSet<String> =
+            m.rules.refs.iter().map(|id| normalize_rule_id(id)).collect();
         rules.retain(|rule| allowed.contains(&normalize_rule_id(&rule.file_name)));
     }
 
@@ -219,6 +220,7 @@ pub fn resolve_harness_settings_with_agent_override(
 mod tests {
     use super::*;
     use ship_config::project::{AgentProfile, McpServerType, ProjectConfig, save_config};
+    use compiler::{McpRefs, ProfileMeta, ProfileRules, SkillRefs};
     use crate::testutil::init_project;
     use crate::rule::create_rule;
     use crate::skill::create_skill;
@@ -339,9 +341,12 @@ mod tests {
                 stdio_server("linear", "linear-bin"),
             ],
             agents: vec![AgentProfile {
-                id: "planning".to_string(),
-                name: "Planning".to_string(),
-                mcp_servers: vec!["github".to_string()],
+                agent: ProfileMeta {
+                    id: "planning".to_string(),
+                    name: "Planning".to_string(),
+                    ..Default::default()
+                },
+                mcp: McpRefs { servers: vec!["github".to_string()] },
                 ..Default::default()
             }],
             // active_agent removed — pass via override
@@ -432,9 +437,14 @@ mod tests {
                 stdio_server("figma", "figma-bin"),
             ],
             agents: vec![AgentProfile {
-                id: "planning".to_string(),
-                name: "Planning".to_string(),
-                mcp_servers: vec!["github".to_string(), "linear".to_string()],
+                agent: ProfileMeta {
+                    id: "planning".to_string(),
+                    name: "Planning".to_string(),
+                    ..Default::default()
+                },
+                mcp: McpRefs {
+                    servers: vec!["github".to_string(), "linear".to_string()],
+                },
                 ..Default::default()
             }],
             // active_agent removed — pass via override
@@ -581,10 +591,16 @@ mod tests {
         let config = ProjectConfig {
             // active_agent removed — pass via override
             agents: vec![AgentProfile {
-                id: "planning".to_string(),
-                name: "Planning".to_string(),
-                skills: vec!["rt-alpha-skill".to_string()],
-                rules: vec!["010-runtime-hardening".to_string()],
+                agent: ProfileMeta {
+                    id: "planning".to_string(),
+                    name: "Planning".to_string(),
+                    ..Default::default()
+                },
+                skills: SkillRefs { refs: vec!["rt-alpha-skill".to_string()] },
+                rules: ProfileRules {
+                    refs: vec!["010-runtime-hardening".to_string()],
+                    ..Default::default()
+                },
                 ..Default::default()
             }],
             ..Default::default()
@@ -624,15 +640,21 @@ mod tests {
             // active_agent removed — pass via override
             agents: vec![
                 AgentProfile {
-                    id: "planning".to_string(),
-                    name: "Planning".to_string(),
-                    skills: vec!["rt-plan-skill".to_string()],
+                    agent: ProfileMeta {
+                        id: "planning".to_string(),
+                        name: "Planning".to_string(),
+                        ..Default::default()
+                    },
+                    skills: SkillRefs { refs: vec!["rt-plan-skill".to_string()] },
                     ..Default::default()
                 },
                 AgentProfile {
-                    id: "code".to_string(),
-                    name: "Code".to_string(),
-                    skills: vec!["rt-code-skill".to_string()],
+                    agent: ProfileMeta {
+                        id: "code".to_string(),
+                        name: "Code".to_string(),
+                        ..Default::default()
+                    },
+                    skills: SkillRefs { refs: vec!["rt-code-skill".to_string()] },
                     ..Default::default()
                 },
             ],

@@ -4,6 +4,7 @@
 
 use super::*;
 use crate::agents::read_agent_profiles;
+use compiler::{ProfileMeta, ProfileRules, SkillRefs};
 use ship_substrate::ports::LocalFsBroker;
 use std::path::PathBuf;
 use tempfile::tempdir;
@@ -127,8 +128,14 @@ fn save_agents_config_prunes_dropped_agents() {
     let dir = ship_dir(&tmp);
     let fs = LocalFsBroker::new();
 
-    let a = AgentProfile { id: "alpha".into(), name: "Alpha".into(), ..Default::default() };
-    let b = AgentProfile { id: "beta".into(), name: "Beta".into(), ..Default::default() };
+    let a = AgentProfile {
+        agent: ProfileMeta { id: "alpha".into(), name: "Alpha".into(), ..Default::default() },
+        ..Default::default()
+    };
+    let b = AgentProfile {
+        agent: ProfileMeta { id: "beta".into(), name: "Beta".into(), ..Default::default() },
+        ..Default::default()
+    };
     save_agents_config(&fs, &dir, &[a.clone(), b.clone()]).unwrap();
     // Read back through THE reader — the save wrote canonical-shape files.
     assert_eq!(read_agent_profiles(&fs, &dir).unwrap().len(), 2);
@@ -163,9 +170,8 @@ fn save_preserves_hand_authored_canonical_fields_on_resave() {
 
     // Re-save the platform-managed view (changes skills only).
     let profile = AgentProfile {
-        id: "alpha".into(),
-        name: "Alpha".into(),
-        skills: vec!["rust".into()],
+        agent: ProfileMeta { id: "alpha".into(), name: "Alpha".into(), ..Default::default() },
+        skills: SkillRefs { refs: vec!["rust".into()] },
         ..Default::default()
     };
     save_agents_config(&fs, &dir, &[profile]).unwrap();
@@ -187,9 +193,8 @@ fn save_normalizes_rule_ids_on_disk() {
     let dir = ship_dir(&tmp);
     let fs = LocalFsBroker::new();
     let profile = AgentProfile {
-        id: "alpha".into(),
-        name: "Alpha".into(),
-        rules: vec!["0001-rust.md".into()],
+        agent: ProfileMeta { id: "alpha".into(), name: "Alpha".into(), ..Default::default() },
+        rules: ProfileRules { refs: vec!["0001-rust.md".into()], ..Default::default() },
         ..Default::default()
     };
     // The save path normalizes rule ids; the file must round-trip cleanly.

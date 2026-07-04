@@ -69,7 +69,10 @@ const FULL_DEF: &str = r#"{
     "default_mode": "acceptEdits"
   },
   "rules": { "inline": "You are a senior code reviewer." },
-  "hooks": { "stop": "ship session end", "subagent_stop": "ship sub end" },
+  "hooks": [
+    { "id": "session-end", "trigger": "Stop", "command": "ship session end" },
+    { "id": "sub-end", "trigger": "SubagentStop", "command": "ship sub end" }
+  ],
   "apps": { "studio": true },
   "harness_settings": { "claude": { "model": "opus", "temperature": 0.2 } }
 }"#;
@@ -108,8 +111,9 @@ fn read_agent_profiles_returns_full_nested_profile_no_field_loss() {
     assert_eq!(p.permissions.tools_deny, vec!["WebFetch"]);
     assert_eq!(p.permissions.default_mode.as_deref(), Some("acceptEdits"));
     assert_eq!(p.rules.inline.as_deref(), Some("You are a senior code reviewer."));
-    assert_eq!(p.hooks.stop.as_deref(), Some("ship session end"));
-    assert_eq!(p.hooks.subagent_stop.as_deref(), Some("ship sub end"));
+    assert_eq!(p.hooks.len(), 2);
+    assert_eq!(p.hooks[0].command, "ship session end");
+    assert_eq!(p.hooks[1].command, "ship sub end");
     assert!(p.apps.studio);
     let claude = p.harness_settings.get("claude").expect("claude settings");
     assert_eq!(claude.get("model").and_then(|v| v.as_str()), Some("opus"));

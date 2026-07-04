@@ -133,12 +133,12 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
             );
         }
         if let Some(agent_id) = opts.active_agent.as_deref()
-            && let Some(agent) = library.agents.iter_mut().find(|a| a.id == agent_id)
-            && !agent.skills.is_empty()
+            && let Some(agent) = library.agents.iter_mut().find(|a| a.agent.id == agent_id)
+            && !agent.skills.refs.is_empty()
         {
             for skill_id in &opts.extra_skills {
-                if !agent.skills.contains(skill_id) {
-                    agent.skills.push(skill_id.clone());
+                if !agent.skills.refs.contains(skill_id) {
+                    agent.skills.refs.push(skill_id.clone());
                 }
             }
         }

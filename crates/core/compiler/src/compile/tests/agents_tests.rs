@@ -31,8 +31,10 @@ fn make_profile(id: &str, name: &str) -> AgentProfile {
         },
         rules: ProfileRules {
             inline: Some("You are a specialist.".to_string()),
+            refs: vec![],
         },
         hooks: Default::default(),
+        target_agents: Vec::new(),
         apps: Default::default(),
         harness_settings: Default::default(),
     }

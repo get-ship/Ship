@@ -181,7 +181,7 @@ pub fn save_agents_config(
     let (cap, agents_dir) = agents_cap(ship_dir, FsMode::ReadWrite);
     fs.create_dir_all(&cap, &agents_dir)?;
 
-    let keep: HashSet<String> = agents.iter().map(|a| a.id.clone()).collect();
+    let keep: HashSet<String> = agents.iter().map(|a| a.agent.id.clone()).collect();
 
     // Prune files for agents no longer in the desired set.
     let entries = match fs.list_dir(&cap, &agents_dir) {
@@ -203,12 +203,13 @@ pub fn save_agents_config(
 
     for agent in agents {
         let mut profile = agent.clone();
-        profile.rules = profile
+        profile.rules.refs = profile
             .rules
+            .refs
             .iter()
             .map(|id| normalize_rule_external_id(id))
             .collect();
-        let rel = agent_rel(&agents_dir, &agent.id);
+        let rel = agent_rel(&agents_dir, &agent.agent.id);
         let existing = fs.read_string(&cap, &rel).ok();
         let content = render_agent_file(existing.as_deref(), &profile)?;
         fs.write_atomic(&cap, &rel, content.as_bytes())?;
@@ -289,12 +290,12 @@ fn render_agent_file(existing: Option<&str>, flat: &AgentProfile) -> Result<Stri
             .map_err(|e| ConfigError::Internal(e.to_string()))?;
         Ok(format!("{json}\n"))
     } else {
-        let mut agent_block = serde_json::json!({ "id": flat.id, "name": flat.name });
+        let mut agent_block = serde_json::json!({ "id": flat.agent.id, "name": flat.agent.name });
         set_meta_fields(&mut agent_block, flat);
         let mut canonical = serde_json::json!({
             "agent": agent_block,
-            "skills": { "refs": flat.skills },
-            "mcp": { "servers": flat.mcp_servers },
+            "skills": { "refs": flat.skills.refs },
+            "mcp": { "servers": flat.mcp.servers },
         });
         // Thread capabilities when the flat view carries them (Gap C).
         if !flat.capabilities.is_empty() {
@@ -312,17 +313,17 @@ fn set_meta_fields(block: &mut serde_json::Value, flat: &AgentProfile) {
     let Some(a) = block.as_object_mut() else {
         return;
     };
-    if let Some(desc) = &flat.description {
+    if let Some(desc) = &flat.agent.description {
         a.insert("description".into(), serde_json::Value::String(desc.clone()));
     }
-    if let Some(role) = &flat.role {
+    if let Some(role) = &flat.agent.role {
         a.insert("role".into(), serde_json::Value::String(role.clone()));
     }
-    if let Some(preset) = &flat.tools_preset {
+    if let Some(preset) = &flat.agent.tools_preset {
         a.insert("tools_preset".into(), serde_json::Value::String(preset.clone()));
     }
-    if !flat.active_tools.is_empty() {
-        a.insert("active_tools".into(), to_str_array(&flat.active_tools));
+    if !flat.agent.active_tools.is_empty() {
+        a.insert("active_tools".into(), to_str_array(&flat.agent.active_tools));
     }
     if !flat.target_agents.is_empty() {
         a.insert("harnesses".into(), to_str_array(&flat.target_agents));
@@ -340,8 +341,8 @@ fn merge_flat_into_canonical(doc: &mut serde_json::Value, flat: &AgentProfile) {
         .entry("agent".to_string())
         .or_insert_with(|| serde_json::json!({}));
     if let Some(a) = agent_obj.as_object_mut() {
-        a.insert("id".into(), serde_json::Value::String(flat.id.clone()));
-        a.insert("name".into(), serde_json::Value::String(flat.name.clone()));
+        a.insert("id".into(), serde_json::Value::String(flat.agent.id.clone()));
+        a.insert("name".into(), serde_json::Value::String(flat.agent.name.clone()));
     }
     set_meta_fields(agent_obj, flat);
 
@@ -349,14 +350,14 @@ fn merge_flat_into_canonical(doc: &mut serde_json::Value, flat: &AgentProfile) {
         .entry("skills".to_string())
         .or_insert_with(|| serde_json::json!({}));
     if let Some(s) = skills_obj.as_object_mut() {
-        s.insert("refs".into(), to_str_array(&flat.skills));
+        s.insert("refs".into(), to_str_array(&flat.skills.refs));
     }
 
     let mcp_obj = root
         .entry("mcp".to_string())
         .or_insert_with(|| serde_json::json!({}));
     if let Some(m) = mcp_obj.as_object_mut() {
-        m.insert("servers".into(), to_str_array(&flat.mcp_servers));
+        m.insert("servers".into(), to_str_array(&flat.mcp.servers));
     }
 
     // capabilities — only written when the flat view carries them; absent means
