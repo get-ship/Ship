@@ -232,3 +232,83 @@ fn scope_skipped_when_project_matches_global() {
     assert_eq!(out.len(), 1);
     assert_eq!(out[0].source, SOURCE_GLOBAL);
 }
+
+// ── Index-backed reads: the AGENTS domain owns its config ─────────────────────
+//
+// After a boot rebuild, remove the project `.ship/agents/*.jsonc` file. The
+// list, detail, and session-spawn (`rules.inline`) reads must STILL serve —
+// from the `AgentDefIndex` DataStore snapshot, not the (deleted) file.
+
+use std::sync::Arc;
+use ship_config::agents_index::AgentDefIndex;
+use ship_substrate::data::DataService;
+use ship_substrate::home::ShipHome;
+use ship_substrate::ports::{DataStore, LocalFsBroker, SingleBackendDataStore};
+
+/// Build an index over a fresh per-test space.db and reindex the project dir.
+async fn build_project_index(ship_dir: &Path) -> AgentDefIndex {
+    let db = ship_substrate::db::space_db_path(ship_dir, "vs-idx-test");
+    let svc = DataService::open_at(&db).unwrap();
+    let store: Arc<dyn DataStore> = Arc::new(SingleBackendDataStore::new(svc, "vs-idx-test"));
+    let index = AgentDefIndex::new(store);
+    index.ensure_table().await.unwrap();
+    index
+        .reindex_dir(&LocalFsBroker::new(), ship_dir, "project")
+        .await
+        .unwrap();
+    index
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn index_backed_reads_serve_after_project_file_removed() {
+    // Canonicalize: the FsBroker symlink-escape guard needs a canonical root.
+    let tmp = tempdir().unwrap();
+    let base = std::fs::canonicalize(tmp.path()).unwrap();
+    let ship_dir = ShipHome::project_ship_dir(base);
+    let agents_dir = ship_dir.join("agents");
+    std::fs::create_dir_all(&agents_dir).unwrap();
+    std::fs::write(
+        agents_dir.join("reviewer.jsonc"),
+        r#"{
+            "agent": { "id": "reviewer", "name": "Reviewer", "description": "Reviews code" },
+            "skills": { "refs": ["review-pr", "lint"] },
+            "rules": { "inline": "Focus on correctness." }
+        }"#,
+    )
+    .unwrap();
+
+    let index = build_project_index(&ship_dir).await;
+
+    // Remove the project def file — the cold-load seed is gone.
+    std::fs::remove_file(agents_dir.join("reviewer.jsonc")).unwrap();
+    assert!(!agents_dir.join("reviewer.jsonc").exists());
+
+    // list serves from the index snapshot.
+    let list = list_agents_from_index(&index, &ship_dir).await;
+    assert_eq!(list.len(), 1, "list serves from index after file removed");
+    assert_eq!(list[0].id, "reviewer");
+    assert_eq!(list[0].skills_count, 2);
+    assert_eq!(list[0].source, SOURCE_PROJECT);
+
+    // detail serves from the index snapshot.
+    let detail = load_agent_from_index(&index, &ship_dir, "reviewer")
+        .await
+        .expect("detail serves from index");
+    assert_eq!(detail.name, "Reviewer");
+    assert_eq!(detail.skills, vec!["review-pr", "lint"]);
+    assert_eq!(detail.inline_rules, "Focus on correctness.");
+    assert_eq!(detail.source, SOURCE_PROJECT);
+
+    // session-spawn `rules.inline` serves from the index snapshot.
+    let rules = crate::services::sessions::lifecycle::load_agent_rules(
+        Some(&index),
+        &ship_dir,
+        "reviewer",
+    )
+    .await
+    .expect("rules.inline serves from index");
+    assert!(
+        rules.contains("Focus on correctness."),
+        "spawn preamble carries the index-served inline rules: {rules}"
+    );
+}

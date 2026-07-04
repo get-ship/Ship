@@ -320,6 +320,10 @@ pub struct AgentDefSource {
     pub harness: Vec<String>,
     pub path: String,
     pub content_hash: String,
+    /// The FULL parsed def value (canonical top-level `agent` block + siblings).
+    /// The read-only index stores this so list/detail/spawn can project their
+    /// views from the snapshot without a second file read.
+    pub doc: serde_json::Value,
 }
 
 /// Project a [`DefDoc`] to the index summary. Reads off the same parsed value +
@@ -337,6 +341,7 @@ fn to_source(doc: &DefDoc) -> AgentDefSource {
         harness: str_array(agent_obj, "harnesses"),
         path: format!("{}.jsonc", doc.stem),
         content_hash: ship_types::sha256_hex(&doc.raw),
+        doc: doc.value.clone(),
     }
 }
 

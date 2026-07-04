@@ -155,6 +155,7 @@ impl AgentDefIndex {
                 col("role", ColumnKind::Text, false),
                 col("harness", ColumnKind::Text, false),
                 col("tags", ColumnKind::Text, false),
+                col("doc_json", ColumnKind::Text, false),
             ],
         };
         self.store.ensure_table(&schema).await.map_err(Into::into)
@@ -211,6 +212,36 @@ impl AgentDefIndex {
         Ok(result.rows.iter().map(row_to_record).collect())
     }
 
+    /// List every indexed def in `scope` as `(agent_id, full doc value)` — the
+    /// live READ surface the daemon's list view projects its summaries from,
+    /// served from the DataStore snapshot with NO file read. Rows missing a
+    /// stored doc (e.g. pre-`doc_json` rows) are skipped.
+    pub async fn list_docs(
+        &self,
+        scope: &str,
+    ) -> Result<Vec<(String, serde_json::Value)>, ConfigError> {
+        let mut q = Query::new(TABLE).with_eq("scope", json_str(scope));
+        q.limit = 500;
+        let result = self.store.query(q).await?;
+        Ok(result.rows.iter().filter_map(row_doc).collect())
+    }
+
+    /// Get one def's full doc value by `id` within `scope`, from the snapshot.
+    /// `Ok(None)` when the id is not indexed. Serves detail + session-spawn
+    /// (`rules.inline`) reads without touching the file.
+    pub async fn get_doc(
+        &self,
+        id: &str,
+        scope: &str,
+    ) -> Result<Option<serde_json::Value>, ConfigError> {
+        let mut q = Query::new(TABLE)
+            .with_eq("agent_id", json_str(id))
+            .with_eq("scope", json_str(scope));
+        q.limit = 1;
+        let result = self.store.query(q).await?;
+        Ok(result.rows.first().and_then(row_doc).map(|(_, doc)| doc))
+    }
+
     /// Insert-or-replace the row for `(scope, def)`.
     async fn upsert(&self, scope: &str, src: &AgentDefSource) -> Result<(), ConfigError> {
         let row = Row::new(row_key(scope, &file_stem(&src.path)))
@@ -221,7 +252,8 @@ impl AgentDefIndex {
             .with("content_hash", json_str(&src.content_hash))
             .with("role", src.role.clone().map(json_str).unwrap_or(serde_json::Value::Null))
             .with("harness", json_str(&join_csv(&src.harness)))
-            .with("tags", json_str(&join_csv(&src.tags)));
+            .with("tags", json_str(&join_csv(&src.tags)))
+            .with("doc_json", json_str(serde_json::to_string(&src.doc).unwrap_or_default()));
         self.store.insert(TABLE, row).await.map_err(Into::into)
     }
 }
@@ -256,6 +288,21 @@ fn split_csv(s: &str) -> Vec<String> {
     } else {
         s.split('\n').map(str::to_string).collect()
     }
+}
+
+/// Extract `(agent_id, doc)` from a row. `doc_json` holds the serialized def
+/// value; the DataStore may return it as the raw string OR (since it is itself
+/// valid JSON) re-parsed into a value — accept both. `None` when the id or doc
+/// is absent.
+fn row_doc(row: &Row) -> Option<(String, serde_json::Value)> {
+    let id = row.fields.get("agent_id").and_then(|v| v.as_str())?.to_string();
+    let doc = match row.fields.get("doc_json")? {
+        serde_json::Value::Null => return None,
+        serde_json::Value::String(s) if s.is_empty() => return None,
+        serde_json::Value::String(s) => serde_json::from_str(s).ok()?,
+        other => other.clone(),
+    };
+    Some((id, doc))
 }
 
 fn row_to_record(row: &Row) -> AgentDefRecord {

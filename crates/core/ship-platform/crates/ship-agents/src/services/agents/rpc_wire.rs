@@ -33,6 +33,7 @@ use ship_ops_rpc::{
     PermissionPresetsResponse, ScopedMutation, SessionsListResponse, SteerResult, StopResult,
     WatchEvent,
 };
+use ship_config::agents_index::AgentDefIndex;
 use ship_reactive::{ReactiveRegistry, ResolverSpec, WatchKey};
 use ship_substrate::events::EventFilter;
 use ship_substrate::ports::KernelLog;
@@ -102,6 +103,10 @@ pub struct AgentsWire {
     steer_fn:         SteerFn,
     grant_fn:         GrantFn,
     agent_reactive:   Option<Arc<ReactiveRegistry>>,
+    /// The live agent-def index (project scope). When present, the profile
+    /// READ handlers serve list/detail from the DataStore snapshot instead of
+    /// re-reading `.ship/agents/*.jsonc`. `None` in space-less / lean mounts.
+    def_index:        Option<Arc<AgentDefIndex>>,
     feedback_auth:    Arc<dyn FeedbackAuthPort>,
     view_broadcast:   Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
     collection:       Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
@@ -122,6 +127,7 @@ pub struct AgentsWireConfig {
     pub steer_fn:         SteerFn,
     pub grant_fn:         GrantFn,
     pub agent_reactive:   Option<Arc<ReactiveRegistry>>,
+    pub def_index:        Option<Arc<AgentDefIndex>>,
     pub feedback_auth:    Arc<dyn FeedbackAuthPort>,
     pub view_broadcast:   Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
     pub collection:       Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
@@ -132,12 +138,12 @@ impl AgentsWire {
         let AgentsWireConfig {
             svc, ship_dir, kernel, gate, sessions_fn, notify_saved,
             dispatch_port, stop_fn, steer_fn, grant_fn, agent_reactive,
-            feedback_auth, view_broadcast, collection,
+            def_index, feedback_auth, view_broadcast, collection,
         } = config;
         Self {
             svc, ship_dir, kernel, gate, sessions_fn, notify_saved,
             dispatch_port, stop_fn, steer_fn, grant_fn, agent_reactive,
-            feedback_auth, view_broadcast, collection,
+            def_index, feedback_auth, view_broadcast, collection,
         }
     }
 }
@@ -302,7 +308,12 @@ impl AgentsServiceTrait for AgentsWire {
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedListAgentsSummariesRequestView,
     ) -> ServiceResult<AgentsSummariesResponse> {
-        let items = view_state::list_agents(&self.ship_dir);
+        // Serve project scope from the index snapshot when mounted; the file
+        // reader is the space-less / lean fallback.
+        let items = match self.def_index.as_ref() {
+            Some(index) => view_state::list_agents_from_index(index, &self.ship_dir).await,
+            None => view_state::list_agents(&self.ship_dir),
+        };
         serde_json::from_value::<AgentsSummariesResponse>(json!({ "items": items }))
             .map(Response::new)
             .map_err(|e| ConnectError::internal(format!("agents.summaries decode: {e}")))
@@ -314,8 +325,11 @@ impl AgentsServiceTrait for AgentsWire {
         request: ship_ops_rpc::OwnedGetAgentDetailRequestView,
     ) -> ServiceResult<AgentDetail> {
         let id = request.id;
-        let detail = view_state::load_agent(&self.ship_dir, id)
-            .ok_or_else(|| ConnectError::not_found(format!("agent `{id}`")))?;
+        let detail = match self.def_index.as_ref() {
+            Some(index) => view_state::load_agent_from_index(index, &self.ship_dir, id).await,
+            None => view_state::load_agent(&self.ship_dir, id),
+        }
+        .ok_or_else(|| ConnectError::not_found(format!("agent `{id}`")))?;
         serde_json::from_value::<AgentDetail>(
             serde_json::to_value(detail)
                 .map_err(|e| ConnectError::internal(format!("agents.detail serialize: {e}")))?,

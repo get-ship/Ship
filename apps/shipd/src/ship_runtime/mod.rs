@@ -95,6 +95,13 @@ pub struct ShipRuntime {
     /// never mounts it).
     pub(super) agent_def_kernel:
         std::sync::OnceLock<std::sync::Arc<ship_substrate::ports::KernelLog>>,
+    /// The live agent-def index (project scope), retained so the profile READ
+    /// handlers serve list/detail/spawn from the DataStore snapshot instead of
+    /// re-reading `.ship/agents/*.jsonc`. Set by `start_agent_def_index` (a
+    /// clone of the Arc the change consumer owns); `None` until the index is
+    /// mounted (space-less boot never mounts it).
+    pub(super) agent_def_index:
+        std::sync::OnceLock<std::sync::Arc<ship_platform::config::AgentDefIndex>>,
     /// Reactive registry for the unified agent `Watch` (agents-arc E5). Built
     /// from the SAME shared `agent_def_kernel` the live def-index rides — N
     /// subscribers on one `WatchKey` share one resolver + one kernel

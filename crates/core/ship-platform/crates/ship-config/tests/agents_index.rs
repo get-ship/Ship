@@ -242,3 +242,70 @@ async fn index_is_read_only_over_files() {
     let after = std::fs::read(agents_dir.join("alpha.jsonc")).unwrap();
     assert_eq!(before, after, "index operations never write back to the def file");
 }
+
+// ── Test 6: the domain owns its config — live READS serve from the snapshot ────
+//
+// After a boot rebuild, REMOVE the def files. `list_docs` (the list view) and
+// `get_doc` (detail + session-spawn `rules.inline`) must still serve from the
+// DataStore snapshot with the files gone — proving the AGENTS domain owns its
+// config and `.ship/agents/*.jsonc` is only a cold-load seed.
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn index_serves_docs_after_files_removed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = ship_dir(&tmp);
+    let fs = LocalFsBroker::new();
+    let (cap, agents_dir) = agents_cap(&dir);
+
+    write_def(
+        &fs,
+        &cap,
+        "code-reviewer",
+        serde_json::json!({
+            "agent": { "id": "code-reviewer", "name": "Code Reviewer", "description": "Reviews PRs" },
+            "skills": { "refs": ["review-pr"] },
+            "rules": { "inline": "Be terse and precise." }
+        }),
+    );
+    write_def(
+        &fs,
+        &cap,
+        "planner",
+        serde_json::json!({ "agent": { "id": "planner", "name": "Planner" } }),
+    );
+
+    let index = make_index(&dir).await;
+    index.reindex_dir(&fs, &dir, "project").await.unwrap();
+
+    // Remove BOTH def files from disk — the cold-load seed is gone.
+    std::fs::remove_file(agents_dir.join("code-reviewer.jsonc")).unwrap();
+    std::fs::remove_file(agents_dir.join("planner.jsonc")).unwrap();
+    assert!(!agents_dir.join("code-reviewer.jsonc").exists());
+
+    // list_docs still returns both, projected from the snapshot.
+    let mut docs = index.list_docs("project").await.unwrap();
+    docs.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(docs.len(), 2, "list serves from the index after files removed");
+    assert_eq!(docs[0].0, "code-reviewer");
+    assert_eq!(docs[1].0, "planner");
+
+    // get_doc serves the FULL doc — including rules.inline (session-spawn read).
+    let doc = index
+        .get_doc("code-reviewer", "project")
+        .await
+        .unwrap()
+        .expect("indexed doc served from snapshot");
+    assert_eq!(
+        doc.get("agent").and_then(|a| a.get("description")).and_then(|v| v.as_str()),
+        Some("Reviews PRs"),
+        "detail fields serve from the snapshot"
+    );
+    assert_eq!(
+        doc.get("rules").and_then(|r| r.get("inline")).and_then(|v| v.as_str()),
+        Some("Be terse and precise."),
+        "rules.inline serves from the snapshot, not the (deleted) file"
+    );
+
+    // A def that was never indexed is absent — the snapshot never fabricates.
+    assert!(index.get_doc("ghost", "project").await.unwrap().is_none());
+}

@@ -282,6 +282,10 @@ impl ShipRuntime {
             tracing::warn!("agent-def index: boot rebuild failed: {e}");
         }
 
+        // Retain the index Arc for the READ path (list/detail/spawn) — a clone,
+        // since `spawn_def_index_consumer` takes ownership of `index` below.
+        let _ = self.agent_def_index.set(index.clone());
+
         // Spawn the live consumer over the shared KernelLog's broadcast.
         ship_platform::config::agent_index::spawn_def_index_consumer(
             index,
@@ -297,6 +301,15 @@ impl ShipRuntime {
     /// broadcast subscription.
     pub fn agent_def_kernel(&self) -> Option<&std::sync::Arc<ship_substrate::ports::KernelLog>> {
         self.agent_def_kernel.get()
+    }
+
+    /// The live agent-def index, when mounted. The profile READ handlers serve
+    /// list/detail/spawn from its DataStore snapshot instead of re-reading the
+    /// `.ship/agents/*.jsonc` files. `None` in space-less boot.
+    pub fn agent_def_index(
+        &self,
+    ) -> Option<&std::sync::Arc<ship_platform::config::AgentDefIndex>> {
+        self.agent_def_index.get()
     }
 
     /// The agent `Watch` reactive registry (agents-arc E5), when the live

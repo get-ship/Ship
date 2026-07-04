@@ -14,6 +14,7 @@ use harness_adapter::dispatch_ports::LaunchProfile;
 use ship_harnesses::harness_adapter::adapter_for;
 use tokio::sync::broadcast;
 
+use ship_config::agents_index::AgentDefIndex;
 use ship_terminal::SessionRegistry;
 use ship_terminal::types::{
     Inner, PtySession, SessionHandle, SessionId, SessionKind, SessionMeta, SessionStatus,
@@ -105,11 +106,12 @@ pub fn spawn_agent(
 /// with stream-json output, parses events line-by-line, broadcasts
 /// `HarnessEvent`s on the session's event_tx, and captures the
 /// harness's session id for subsequent `--resume` calls.
-pub fn send_agent_message(
+pub async fn send_agent_message(
     registry: &SessionRegistry,
     session_id: &str,
     text: &str,
     work_dir: PathBuf,
+    index: Option<&AgentDefIndex>,
 ) -> Result<()> {
     let session = registry
         .get(session_id)
@@ -136,9 +138,10 @@ pub fn send_agent_message(
     tracing::info!(session = %slug, harness = %harness, "send_agent_message: per-turn headless");
 
     let agent_id_opt = session.0.meta.lock().unwrap().agent_id.clone();
-    let append_system_prompt = agent_id_opt
-        .as_deref()
-        .and_then(|aid| load_agent_rules(&work_dir, aid));
+    let append_system_prompt = match agent_id_opt.as_deref() {
+        Some(aid) => load_agent_rules(index, &work_dir, aid).await,
+        None => None,
+    };
     let profile = LaunchProfile {
         harness: Some(harness.clone()),
         resume_session: resume,
@@ -207,21 +210,21 @@ pub fn sweep_idle(registry: &SessionRegistry) {
     }
 }
 
-/// Load an agent's `rules.inline` from `.ship/agents/<agent_id>.jsonc` in
-/// the work directory. Prepended with a Ship-specific preamble so the agent
-/// knows which session id to reply into. Returns `None` if the file is
-/// absent, unreadable, or has no inline rules — callers fall back to vanilla
-/// harness behaviour.
-pub fn load_agent_rules(work_dir: &std::path::Path, agent_id: &str) -> Option<String> {
-    // THE agent-def reader (FsBroker, ship-config) is the one door — no raw
-    // `std::fs` read of the def here. `rules.inline` lives on the FULL nested
-    // profile.
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(work_dir);
-    let fs = ship_substrate::ports::LocalFsBroker::new();
-    let profile = ship_config::agents::read_agent_profile(&fs, &ship_dir, agent_id)
-        .ok()
-        .flatten()?;
-    let inline = profile.rules.inline.as_deref()?;
+/// Load an agent's `rules.inline`, prepended with a Ship-specific preamble so
+/// the agent knows which session id to reply into. Returns `None` when the def
+/// is absent or has no inline rules — callers fall back to vanilla harness
+/// behaviour.
+///
+/// When an [`AgentDefIndex`] is supplied, the inline rules are served from the
+/// DataStore snapshot (project scope) — so a running spawn does NOT depend on
+/// the `.ship/agents/*.jsonc` file. The file reader is the cold / cross-space
+/// fallback (no index, or an agent that lives outside the indexed space).
+pub async fn load_agent_rules(
+    index: Option<&AgentDefIndex>,
+    work_dir: &std::path::Path,
+    agent_id: &str,
+) -> Option<String> {
+    let inline = load_inline_rules(index, work_dir, agent_id).await?;
     if inline.trim().is_empty() {
         return None;
     }
@@ -230,5 +233,30 @@ pub fn load_agent_rules(work_dir: &std::path::Path, agent_id: &str) -> Option<St
          Your chat session id is in the SHIP_ACTOR_ID environment variable — \
          pass it to the chat_reply MCP tool to reply to the user.\n\n{inline}"
     ))
+}
+
+/// Resolve `rules.inline` for `agent_id`: index snapshot first, file fallback.
+async fn load_inline_rules(
+    index: Option<&AgentDefIndex>,
+    work_dir: &std::path::Path,
+    agent_id: &str,
+) -> Option<String> {
+    if let Some(idx) = index
+        && let Ok(Some(doc)) = idx.get_doc(agent_id, "project").await
+    {
+        return doc
+            .get("rules")
+            .and_then(|r| r.get("inline"))
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+    }
+    // Cold / cross-space fallback: THE agent-def reader (FsBroker, ship-config)
+    // is the one file door — `rules.inline` lives on the FULL nested profile.
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(work_dir);
+    let fs = ship_substrate::ports::LocalFsBroker::new();
+    ship_config::agents::read_agent_profile(&fs, &ship_dir, agent_id)
+        .ok()
+        .flatten()
+        .and_then(|p| p.rules.inline)
 }
 

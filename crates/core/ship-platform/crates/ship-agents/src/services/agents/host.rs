@@ -96,6 +96,16 @@ pub trait AgentsHost: Clone + Send + Sync + 'static {
     /// reactive registry is up. `None` for a space-less boot.
     fn agent_def_kernel(&self) -> Option<Arc<KernelLog>>;
 
+    /// The live agent-def index (project scope) when mounted. When present, the
+    /// profile READ handlers serve list/detail from its DataStore snapshot
+    /// instead of re-reading `.ship/agents/*.jsonc`. `None` for a space-less
+    /// boot or a host that does not run the index.
+    fn agent_def_index(
+        &self,
+    ) -> Option<Arc<ship_config::agents_index::AgentDefIndex>> {
+        None
+    }
+
     /// The dispatch port — agent dispatch writes events through this.
     fn dispatch_port(&self) -> Arc<dyn AgentDispatchPort>;
 
@@ -309,6 +319,7 @@ pub fn mount<H: AgentsHost>(host: &H, gate: GateFn, router: ConnectRouter) -> Co
         steer_fn:         core.steer_fn,
         grant_fn:         lean_grant_fn(),
         agent_reactive:   None,
+        def_index:        host.agent_def_index(),
         feedback_auth:    core.feedback_auth,
         view_broadcast:   core.view_broadcast,
         collection:       core.collection,
@@ -398,6 +409,7 @@ where
         steer_fn:         core.steer_fn,
         grant_fn,
         agent_reactive:   host.agent_reactive(),
+        def_index:        host.agent_def_index(),
         feedback_auth:    core.feedback_auth,
         view_broadcast:   core.view_broadcast,
         collection:       core.collection,

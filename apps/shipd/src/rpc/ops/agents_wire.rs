@@ -78,6 +78,10 @@ impl AgentsHost for StateHost {
         self.0.agent_def_kernel().map(|a| a.clone())
     }
 
+    fn agent_def_index(&self) -> Option<Arc<ship_platform::config::AgentDefIndex>> {
+        self.0.agent_def_index().map(|a| a.clone())
+    }
+
     fn dispatch_port(&self) -> Arc<dyn AgentDispatchPort> {
         Arc::new(AgentDispatchAdapter::new(self.0.clone()))
     }

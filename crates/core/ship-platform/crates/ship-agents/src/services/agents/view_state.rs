@@ -11,6 +11,7 @@
 use serde::Serialize;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use ship_config::agents_index::AgentDefIndex;
 use super::agents_jsonc::{first_letter, resolve_array_field};
 
 // Re-export `strip_jsonc` so the sibling test file can pull it in via
@@ -129,40 +130,46 @@ fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
     let Ok(docs) = ship_config::agents::read_agent_docs_in(&fs, dir) else {
         return Vec::new();
     };
-    let mut out = Vec::new();
-    for (id, parsed) in docs {
-        let Some(agent_obj) = parsed.get("agent") else { continue };
-        let name = agent_obj
-            .get("name")
-            .and_then(|v| v.as_str())
-            .unwrap_or(&id)
-            .to_string();
-        let description = agent_obj
-            .get("description")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-        let skills = resolve_array_field(&parsed, &["skills"], &["refs"]);
-        let mcp = resolve_array_field(&parsed, &["mcp"], &["servers"]);
-        // Schema/UI mismatch: schema says `rules.inline: string`; UI still
-        // wants a list. Reading `rules.refs` until the UI redesign lands.
-        let rules = resolve_array_field(&parsed, &["rules"], &["refs"]);
-        let tags = resolve_array_field(agent_obj, &["tags"], &[]);
-        let letter = first_letter(&name);
-        out.push(AgentSummary {
-            id,
-            name,
-            description,
-            skills_count: skills.len(),
-            mcp_count: mcp.len(),
-            rules_count: rules.len(),
-            letter,
-            source: source.to_string(),
-            tags,
-            active: false,
-        });
-    }
-    out
+    docs.into_iter()
+        .filter_map(|(id, parsed)| summary_from_value(id, source, &parsed))
+        .collect()
+}
+
+/// Project a raw agent-def value into a summary. The ONE projection shared by
+/// the file scan and the index-backed read — the def value has the same
+/// canonical shape whether it comes off disk or out of the index snapshot.
+/// `None` when the value lacks the top-level `agent` block.
+fn summary_from_value(id: String, source: &str, parsed: &serde_json::Value) -> Option<AgentSummary> {
+    let agent_obj = parsed.get("agent")?;
+    let name = agent_obj
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or(&id)
+        .to_string();
+    let description = agent_obj
+        .get("description")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let skills = resolve_array_field(parsed, &["skills"], &["refs"]);
+    let mcp = resolve_array_field(parsed, &["mcp"], &["servers"]);
+    // Schema/UI mismatch: schema says `rules.inline: string`; UI still
+    // wants a list. Reading `rules.refs` until the UI redesign lands.
+    let rules = resolve_array_field(parsed, &["rules"], &["refs"]);
+    let tags = resolve_array_field(agent_obj, &["tags"], &[]);
+    let letter = first_letter(&name);
+    Some(AgentSummary {
+        id,
+        name,
+        description,
+        skills_count: skills.len(),
+        mcp_count: mcp.len(),
+        rules_count: rules.len(),
+        letter,
+        source: source.to_string(),
+        tags,
+        active: false,
+    })
 }
 
 fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
@@ -171,6 +178,13 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
     // yields the raw value the detail projects from.
     let fs = ship_substrate::ports::LocalFsBroker::new();
     let (file_id, parsed) = ship_config::agents::read_agent_doc_in(&fs, dir, id).ok().flatten()?;
+    detail_from_value(file_id, source, &parsed)
+}
+
+/// Project a raw agent-def value into a detail. Shared by the file lookup and
+/// the index-backed read (same canonical shape from either source). `None` when
+/// the value lacks the top-level `agent` block.
+fn detail_from_value(file_id: String, source: &str, parsed: &serde_json::Value) -> Option<AgentDetail> {
     {
         let agent_obj = parsed.get("agent")?;
         let name = agent_obj
@@ -183,9 +197,9 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let skills = resolve_array_field(&parsed, &["skills"], &["refs"]);
-        let mcp_servers = resolve_array_field(&parsed, &["mcp"], &["servers"]);
-        let rules = resolve_array_field(&parsed, &["rules"], &["refs"]);
+        let skills = resolve_array_field(parsed, &["skills"], &["refs"]);
+        let mcp_servers = resolve_array_field(parsed, &["mcp"], &["servers"]);
+        let rules = resolve_array_field(parsed, &["rules"], &["refs"]);
         let inline_rules = parsed
             .get("rules")
             .and_then(|r| r.get("inline"))
@@ -302,6 +316,58 @@ pub(crate) fn load_agent_with_scopes(
             return Some(d);
         }
     }
+    load_from_dir(&scopes.global_dir, id, SOURCE_GLOBAL)
+}
+
+// ─── Index-backed reads (AGENTS domain owns its config) ───────────────────────
+//
+// The project scope is served from the `AgentDefIndex` DataStore snapshot — the
+// read model kept live by `agent.def.updated` events — so a running daemon does
+// NOT re-read `.ship/agents/*.jsonc` on every list/detail call. The user library
+// scope has no index and stays on its file reader (those defs live under
+// `~/.ship/library/agents/`, not the project `.ship/agents/` this invariant
+// covers). Project shadows user on id collision, matching the file path.
+
+/// List agents with the project scope served from the index snapshot and the
+/// user scope from files. Project shadows user on id collision.
+pub async fn list_agents_from_index(index: &AgentDefIndex, ship_dir: &Path) -> Vec<AgentSummary> {
+    let scopes = resolve_scopes(ship_dir);
+    let active = active_agent_id();
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut out = Vec::new();
+    if let Ok(docs) = index.list_docs("project").await {
+        for (id, doc) in docs {
+            if let Some(mut a) = summary_from_value(id, SOURCE_PROJECT, &doc) {
+                if seen.insert(a.id.clone()) {
+                    a.active = active.as_deref() == Some(a.id.as_str());
+                    out.push(a);
+                }
+            }
+        }
+    }
+    for mut a in scan_agents_dir(&scopes.global_dir, SOURCE_GLOBAL) {
+        if seen.insert(a.id.clone()) {
+            a.active = active.as_deref() == Some(a.id.as_str());
+            out.push(a);
+        }
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
+}
+
+/// Load one agent by id: project scope from the index snapshot, else the user
+/// scope from files. Project wins on collision.
+pub async fn load_agent_from_index(
+    index: &AgentDefIndex,
+    ship_dir: &Path,
+    id: &str,
+) -> Option<AgentDetail> {
+    if let Ok(Some(doc)) = index.get_doc(id, "project").await {
+        if let Some(d) = detail_from_value(id.to_string(), SOURCE_PROJECT, &doc) {
+            return Some(d);
+        }
+    }
+    let scopes = resolve_scopes(ship_dir);
     load_from_dir(&scopes.global_dir, id, SOURCE_GLOBAL)
 }
 
