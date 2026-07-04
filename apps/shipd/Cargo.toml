@@ -55,6 +55,11 @@ ship-device = { path = "../../crates/core/ship-platform/crates/ship-device" }
 ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 ship-account = { path = "../../crates/core/ship-platform/crates/ship-account" }
 compiler = { path = "../../crates/core/compiler" }
+# `.ts` agent-config eval — evaluates `.ship/agents/<id>.ts` (defineAgent) in a
+# locked-down ship-js isolate. Pulls V8 (deno_core), which is WHY the eval is
+# confined to this ingest layer and never reaches the V8-free config/compiler
+# crates. Only shipd (which populates the AgentDefIndex) deps it.
+agent-config-eval = { path = "../../crates/core/agent-config-eval" }
 build-info = { path = "../../crates/build-info" }
 ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 ship-reactive = { path = "../../crates/core/ship-platform/crates/ship-reactive" }

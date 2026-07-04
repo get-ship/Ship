@@ -282,6 +282,46 @@ impl ShipRuntime {
             tracing::warn!("agent-def index: boot rebuild failed: {e}");
         }
 
+        // Also ingest `.ts` agent configs (authored with `defineAgent`). Their
+        // evaluation pulls V8 (agent-config-eval → ship-js isolate), which is why
+        // it lives HERE at the ingest layer and not in the V8-free config/compiler
+        // crates. The isolate future is `!Send`, so each eval runs on a dedicated
+        // current-thread runtime via `spawn_blocking` — a block-on at the runtime
+        // boundary. Resolved profiles feed the SAME `upsert` path as `.jsonc`, so
+        // `.ts` and `.jsonc` agents coexist in the index.
+        match ship_platform::config::read_agent_ts_sources(&fs, &project_ship_dir) {
+            Ok(sources) => {
+                for (stem, source) in sources {
+                    let profiles = match tokio::task::spawn_blocking(move || {
+                        tokio::runtime::Builder::new_current_thread()
+                            .enable_all()
+                            .build()
+                            .map_err(anyhow::Error::from)
+                            .and_then(|rt| rt.block_on(agent_config_eval::resolve_agents(&source)))
+                    })
+                    .await
+                    {
+                        Ok(Ok(profiles)) => profiles,
+                        Ok(Err(e)) => {
+                            tracing::warn!("agent-def index: `.ts` eval failed for {stem}.ts: {e}");
+                            continue;
+                        }
+                        Err(e) => {
+                            tracing::warn!("agent-def index: `.ts` eval task panicked for {stem}.ts: {e}");
+                            continue;
+                        }
+                    };
+                    for profile in profiles {
+                        let id = profile.agent.id.clone();
+                        if let Err(e) = index.upsert_profile("project", &profile).await {
+                            tracing::warn!("agent-def index: `.ts` upsert failed for {id}: {e}");
+                        }
+                    }
+                }
+            }
+            Err(e) => tracing::warn!("agent-def index: `.ts` scan failed: {e}"),
+        }
+
         // Retain the index Arc for the READ path (list/detail/spawn) — a clone,
         // since `spawn_def_index_consumer` takes ownership of `index` below.
         let _ = self.agent_def_index.set(index.clone());

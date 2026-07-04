@@ -175,6 +175,21 @@ impl AgentDefIndex {
         Ok(())
     }
 
+    /// Upsert one agent def resolved from a `.ts` config (a compiler
+    /// [`compiler::AgentProfile`]) into `scope`, through the SAME row projection
+    /// the `.jsonc` reader uses ([`AgentDefSource`] → row). The `.ts` EVAL (which
+    /// pulls V8) is the ingest layer's job — this crate stays V8-free; here the
+    /// already-resolved profile is just indexed. Keyed by the profile's agent id,
+    /// so `.ts` and `.jsonc` agents coexist in one scope.
+    pub async fn upsert_profile(
+        &self,
+        scope: &str,
+        profile: &compiler::AgentProfile,
+    ) -> Result<(), ConfigError> {
+        let src = crate::agents_ts::source_from_profile(profile);
+        self.upsert(scope, &src).await
+    }
+
     /// Re-index one def after a change notification: file present → re-read +
     /// upsert; file absent → drop the row. `rel` is the def's rel file name
     /// (`<stem>.jsonc`); the row key is derived from `(scope, stem)` so a delete
@@ -269,7 +284,11 @@ fn row_key(scope: &str, stem: &str) -> String {
 }
 
 fn file_stem(rel: &str) -> String {
-    rel.rsplit('/').next().unwrap_or(rel).trim_end_matches(".jsonc").to_string()
+    let name = rel.rsplit('/').next().unwrap_or(rel);
+    name.strip_suffix(".jsonc")
+        .or_else(|| name.strip_suffix(".ts"))
+        .unwrap_or(name)
+        .to_string()
 }
 
 fn json_str(s: impl Into<String>) -> serde_json::Value {

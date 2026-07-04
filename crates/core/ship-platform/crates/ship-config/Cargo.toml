@@ -37,5 +37,8 @@ ship-reactive = { path = "../ship-reactive" }
 # space-scope assertion depends on the registry view, the way the runtime
 # shipd binary sees it). Cargo permits the dev-dep cycle through agent-def.
 agent-def = { path = "../agent-def" }
+# Test-only: drives the `.ts` ingest path end-to-end (defineAgent eval → index).
+# Pulls V8 into the TEST binary only — the crate's runtime graph stays V8-free.
+agent-config-eval = { path = "../../../agent-config-eval" }
 [lints]
 workspace = true

@@ -139,10 +139,10 @@ pub(crate) fn agent_rel(agents_dir: &str, id: &str) -> String {
 // ── Raw doc access (one byte-read, one Value parse) ─────────────────────────────
 
 /// One def's raw bytes + parsed value + file stem, off a single read.
-struct DefDoc {
-    stem: String,
-    raw: Vec<u8>,
-    value: serde_json::Value,
+pub(crate) struct DefDoc {
+    pub(crate) stem: String,
+    pub(crate) raw: Vec<u8>,
+    pub(crate) value: serde_json::Value,
 }
 
 /// Default def extensions. The canonical authoring format is `.jsonc`; `.json`
@@ -329,7 +329,7 @@ pub struct AgentDefSource {
 /// Project a [`DefDoc`] to the index summary. Reads off the same parsed value +
 /// raw bytes (no second read). `harness` comes from the raw value (the nested
 /// profile drops it).
-fn to_source(doc: &DefDoc) -> AgentDefSource {
+pub(crate) fn to_source(doc: &DefDoc) -> AgentDefSource {
     let agent_obj = doc.value.get("agent").unwrap_or(&doc.value);
     let id = str_field(agent_obj, "id").unwrap_or_else(|| doc.stem.clone());
     let name = str_field(agent_obj, "name").unwrap_or_else(|| id.clone());

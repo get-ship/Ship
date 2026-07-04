@@ -8307,6 +8307,7 @@ dependencies = [
 name = "ship-config"
 version = "0.1.0"
 dependencies = [
+ "agent-config-eval",
  "agent-def",
  "anyhow",
  "async-stream",
@@ -8930,6 +8931,7 @@ dependencies = [
 name = "shipd"
 version = "0.2.0"
 dependencies = [
+ "agent-config-eval",
  "agent-def",
  "ammonia",
  "anyhow",

@@ -36,6 +36,8 @@ pub mod config {
         read_agent_doc_in, read_agent_docs_in, read_agent_profile, read_agent_profile_at,
         read_agent_profiles, read_agent_profiles_in,
     };
+    // `.ts`-config ingest seam (V8-free ends; eval lives in shipd)
+    pub use ship_config::agents_ts::read_agent_ts_sources;
 
     // Agent def index + consumer
     pub use ship_config::agents_index::{
