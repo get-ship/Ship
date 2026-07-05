@@ -48,20 +48,6 @@
         "disabled": true,
         "env": {}
       },
-      "ship": {
-        "id": "",
-        "name": "Ship",
-        "command": "ship",
-        "args": [
-          "mcp",
-          "serve"
-        ],
-        "scope": "project",
-        "server_type": "stdio",
-        "disabled": false,
-        "timeout_secs": 30,
-        "env": {}
-      },
       "helm": {
         "id": "",
         "name": "Helm",
