@@ -8,11 +8,11 @@
 //!
 //! JSONC parsing lives in the sibling `agents_jsonc` module.
 
+use super::agents_jsonc::{first_letter, resolve_array_field};
 use serde::Serialize;
+use ship_config::agents_index::AgentDefIndex;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use ship_config::agents_index::AgentDefIndex;
-use super::agents_jsonc::{first_letter, resolve_array_field};
 
 // Re-export `strip_jsonc` so the sibling test file can pull it in via
 // `super::*` (the comment-stripping itself still delegates to
@@ -109,16 +109,19 @@ fn resolve_scopes(ship_dir: &Path) -> AgentScopes {
 /// `ship_dir` is the user-scope home (`~/.ship/`); user-scope agents live
 /// at `library/agents/` per the home-layout ADR. `project_ship_dir` is the
 /// project-scope `.ship/` directly (no `library/` prefix at project scope).
-pub(crate) fn scopes_from(
-    ship_dir: &Path,
-    project_ship_dir: Option<&Path>,
-) -> AgentScopes {
-    let global_dir = ship_substrate::ShipHome::at(ship_dir.to_path_buf())
-        .vector_dir(ship_types::Scope::User, ship_types::Vector::Agents, None);
+pub(crate) fn scopes_from(ship_dir: &Path, project_ship_dir: Option<&Path>) -> AgentScopes {
+    let global_dir = ship_substrate::ShipHome::at(ship_dir.to_path_buf()).vector_dir(
+        ship_types::Scope::User,
+        ship_types::Vector::Agents,
+        None,
+    );
     let project_dir = project_ship_dir
         .filter(|p| *p != ship_dir)
         .map(|p| p.join("agents"));
-    AgentScopes { global_dir, project_dir }
+    AgentScopes {
+        global_dir,
+        project_dir,
+    }
 }
 
 fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
@@ -139,7 +142,11 @@ fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
 /// the file scan and the index-backed read — the def value has the same
 /// canonical shape whether it comes off disk or out of the index snapshot.
 /// `None` when the value lacks the top-level `agent` block.
-fn summary_from_value(id: String, source: &str, parsed: &serde_json::Value) -> Option<AgentSummary> {
+fn summary_from_value(
+    id: String,
+    source: &str,
+    parsed: &serde_json::Value,
+) -> Option<AgentSummary> {
     let agent_obj = parsed.get("agent")?;
     let name = agent_obj
         .get("name")
@@ -177,14 +184,20 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
     // `std::fs` lookup here. It resolves `<id>.jsonc` then `<id>.json` and
     // yields the raw value the detail projects from.
     let fs = ship_substrate::ports::LocalFsBroker::new();
-    let (file_id, parsed) = ship_config::agents::read_agent_doc_in(&fs, dir, id).ok().flatten()?;
+    let (file_id, parsed) = ship_config::agents::read_agent_doc_in(&fs, dir, id)
+        .ok()
+        .flatten()?;
     detail_from_value(file_id, source, &parsed)
 }
 
 /// Project a raw agent-def value into a detail. Shared by the file lookup and
 /// the index-backed read (same canonical shape from either source). `None` when
 /// the value lacks the top-level `agent` block.
-fn detail_from_value(file_id: String, source: &str, parsed: &serde_json::Value) -> Option<AgentDetail> {
+fn detail_from_value(
+    file_id: String,
+    source: &str,
+    parsed: &serde_json::Value,
+) -> Option<AgentDetail> {
     {
         let agent_obj = parsed.get("agent")?;
         let name = agent_obj
@@ -220,10 +233,16 @@ fn detail_from_value(file_id: String, source: &str, parsed: &serde_json::Value) 
         // with a `ship-<tier>` prefix. Strip the prefix to canonicalize.
         let permissions_obj = parsed.get("permissions");
         let permissions_tier = permissions_obj
-            .and_then(|p: &serde_json::Value| p.get("tier").and_then(|t: &serde_json::Value| t.as_str()).map(|s: &str| s.to_string()))
+            .and_then(|p: &serde_json::Value| {
+                p.get("tier")
+                    .and_then(|t: &serde_json::Value| t.as_str())
+                    .map(|s: &str| s.to_string())
+            })
             .or_else(|| {
                 permissions_obj
-                    .and_then(|p: &serde_json::Value| p.get("preset").and_then(|t: &serde_json::Value| t.as_str()))
+                    .and_then(|p: &serde_json::Value| {
+                        p.get("preset").and_then(|t: &serde_json::Value| t.as_str())
+                    })
                     .map(|s: &str| s.trim_start_matches("ship-").to_string())
             })
             .unwrap_or_else(|| "standard".to_string());
@@ -234,15 +253,27 @@ fn detail_from_value(file_id: String, source: &str, parsed: &serde_json::Value) 
                 .to_string(),
             tools_allow: permissions_obj
                 .and_then(|p| p.get("tools_allow").and_then(|v| v.as_array()))
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default(),
             tools_ask: permissions_obj
                 .and_then(|p| p.get("tools_ask").and_then(|v| v.as_array()))
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default(),
             tools_deny: permissions_obj
                 .and_then(|p| p.get("tools_deny").and_then(|v| v.as_array()))
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default(),
         };
         Some(AgentDetail {
@@ -307,16 +338,43 @@ pub fn load_agent(ship_dir: &Path, id: &str) -> Option<AgentDetail> {
     load_agent_with_scopes(&resolve_scopes(ship_dir), id)
 }
 
-pub(crate) fn load_agent_with_scopes(
-    scopes: &AgentScopes,
-    id: &str,
-) -> Option<AgentDetail> {
+pub(crate) fn load_agent_with_scopes(scopes: &AgentScopes, id: &str) -> Option<AgentDetail> {
     if let Some(dir) = scopes.project_dir.as_ref() {
         if let Some(d) = load_from_dir(dir, id, SOURCE_PROJECT) {
             return Some(d);
         }
     }
     load_from_dir(&scopes.global_dir, id, SOURCE_GLOBAL)
+}
+
+/// True when `id` resolves to a known agent in either scope (project wins).
+/// Used by the dispatch wire to reject requests that name an unknown agent
+/// BEFORE any side effect (c-2026-07-05T12-33-00-000Z-a1b2c3d4). The check
+/// itself is cheap — a directory scan per scope — and final (no retry /
+/// degraded path; an agent that doesn't exist cannot be dispatched).
+pub fn agent_id_exists(ship_dir: &Path, id: &str) -> bool {
+    let scopes = resolve_scopes(ship_dir);
+    if let Some(dir) = scopes.project_dir.as_ref() {
+        if load_from_dir(dir, id, SOURCE_PROJECT).is_some() {
+            return true;
+        }
+    }
+    load_from_dir(&scopes.global_dir, id, SOURCE_GLOBAL).is_some()
+}
+
+/// True when `id` resolves to a known agent in the project scope served from
+/// the [`AgentDefIndex`] snapshot, or in the user scope served from files.
+/// Companion to [`agent_id_exists`] for daemons that keep the project index
+/// in-memory (so they don't have to re-read the on-disk config on every
+/// dispatch validation).
+pub async fn agent_id_exists_in_index(index: &AgentDefIndex, id: &str) -> bool {
+    if let Ok(Some(_)) = index.get_doc(id, "project").await {
+        return true;
+    }
+    if let Ok(Some(_)) = index.get_doc(id, "user").await {
+        return true;
+    }
+    false
 }
 
 // ─── Index-backed reads (AGENTS domain owns its config) ───────────────────────
@@ -370,7 +428,6 @@ pub async fn load_agent_from_index(
     let scopes = resolve_scopes(ship_dir);
     load_from_dir(&scopes.global_dir, id, SOURCE_GLOBAL)
 }
-
 
 // ─── Catalogs (available skills / mcp / rules) ────────────────────────
 //
@@ -441,7 +498,11 @@ fn list_permission_presets(ship_dir: &Path) -> Vec<CatalogEntry> {
     for e in entries {
         let description = crate::services::permissions::state::load_entry(&files, &e.id, None)
             .ok()
-            .and_then(|(_, v)| v.get("description").and_then(|d| d.as_str()).map(String::from));
+            .and_then(|(_, v)| {
+                v.get("description")
+                    .and_then(|d| d.as_str())
+                    .map(String::from)
+            });
         out.push(CatalogEntry {
             id: e.id.clone(),
             name: e.id,
@@ -481,8 +542,16 @@ fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
 
     // Harness builtins — invariant across projects.
     for t in &[
-        "Read", "Write", "Edit", "Glob", "Grep", "Bash",
-        "NotebookEdit", "WebFetch", "WebSearch", "Task",
+        "Read",
+        "Write",
+        "Edit",
+        "Glob",
+        "Grep",
+        "Bash",
+        "NotebookEdit",
+        "WebFetch",
+        "WebSearch",
+        "Task",
     ] {
         out.push(ToolPatternEntry {
             pattern: t.to_string(),
@@ -495,7 +564,10 @@ fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
     for (p, l) in &[
         ("Bash(git *)", "Bash git · all git subcommands"),
         ("Bash(git reset*)", "Bash git · reset (destructive)"),
-        ("Bash(git push --force*)", "Bash git · force push (destructive)"),
+        (
+            "Bash(git push --force*)",
+            "Bash git · force push (destructive)",
+        ),
         ("Bash(npm *)", "Bash npm · all npm subcommands"),
         ("Bash(bun *)", "Bash bun · all bun subcommands"),
         ("Bash(cargo *)", "Bash cargo"),
@@ -529,7 +601,11 @@ pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
         .map(|s| CatalogEntry {
             id: s.id,
             name: s.name,
-            description: if s.description.is_empty() { None } else { Some(s.description) },
+            description: if s.description.is_empty() {
+                None
+            } else {
+                Some(s.description)
+            },
         })
         .collect();
     let mcp_files = ship_files::files::FilesService::resolve_roots(ship_dir);
@@ -541,13 +617,23 @@ pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
                 .ok()
                 .and_then(|(_, v)| v.get("name").and_then(|n| n.as_str()).map(String::from))
                 .unwrap_or_else(|| e.id.clone());
-            CatalogEntry { id: e.id, name, description: None }
+            CatalogEntry {
+                id: e.id,
+                name,
+                description: None,
+            }
         })
         .collect();
     let rules = list_rule_files(ship_dir);
     let presets = list_permission_presets(ship_dir);
     let tool_patterns = list_tool_patterns(ship_dir);
-    AgentCatalogs { skills, mcp, rules, presets, tool_patterns }
+    AgentCatalogs {
+        skills,
+        mcp,
+        rules,
+        presets,
+        tool_patterns,
+    }
 }
 
 #[cfg(test)]

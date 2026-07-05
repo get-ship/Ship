@@ -18,7 +18,6 @@
 //! two-effect domain logic (live-session upgrade + baseline persistence).
 // FILE_CAP_OVERRIDE: AgentsService has 23 RPC methods across 4 planes; one impl block.
 
-
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -26,6 +25,7 @@ use std::sync::Arc;
 
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use serde_json::{Value, json};
+use ship_config::agents_index::AgentDefIndex;
 use ship_ops_rpc::{
     AgentCatalogsResponse, AgentDetail, AgentDoc, AgentIndexResponse, AgentSettingsResponse,
     AgentTemplatesResponse, AgentWireResponse, AgentsService as AgentsServiceTrait,
@@ -33,7 +33,6 @@ use ship_ops_rpc::{
     PermissionPresetsResponse, ScopedMutation, SessionsListResponse, SteerResult, StopResult,
     WatchEvent,
 };
-use ship_config::agents_index::AgentDefIndex;
 use ship_reactive::{ReactiveRegistry, ResolverSpec, WatchKey};
 use ship_substrate::events::EventFilter;
 use ship_substrate::ports::KernelLog;
@@ -43,8 +42,8 @@ use crate::services::agents::dispatch_core::{
 };
 use crate::services::agents::dispatch_request::DispatchRequest;
 use crate::services::agents::service::AgentsService;
-use crate::services::agents::{state, view_state};
 use crate::services::agents::watch as agent_watch;
+use crate::services::agents::{state, view_state};
 
 // ── Closure type aliases ──────────────────────────────────────────────────────
 
@@ -59,12 +58,10 @@ pub type SessionsFn = Arc<dyn Fn() -> Value + Send + Sync>;
 
 /// Notify the agent-def reactive index after a profile write.
 /// Signature: (id: String, scope_str: String) where scope_str is "project" | "user".
-pub type NotifySavedFn =
-    Arc<dyn Fn(String, String) -> BoxFuture<()> + Send + Sync>;
+pub type NotifySavedFn = Arc<dyn Fn(String, String) -> BoxFuture<()> + Send + Sync>;
 
 /// Async stop closure: (slug) → Result<StopResult JSON, ConnectError>.
-pub type StopFn =
-    Arc<dyn Fn(String) -> BoxFuture<Result<Value, ConnectError>> + Send + Sync>;
+pub type StopFn = Arc<dyn Fn(String) -> BoxFuture<Result<Value, ConnectError>> + Send + Sync>;
 
 /// Async steer closure: (slug, message) → Result<SteerResult JSON, ConnectError>.
 pub type SteerFn =
@@ -73,8 +70,11 @@ pub type SteerFn =
 /// Async grant closure: (agent_id, grants) → Result<GrantResult JSON, ConnectError>.
 /// Captures auth state (session registry) from shipd. The C3 gate is enforced by
 /// the `gate` closure before this runs; this fn carries only domain logic.
-pub type GrantFn =
-    Arc<dyn Fn(String, Vec<String>, RequestContext) -> BoxFuture<Result<Value, ConnectError>> + Send + Sync>;
+pub type GrantFn = Arc<
+    dyn Fn(String, Vec<String>, RequestContext) -> BoxFuture<Result<Value, ConnectError>>
+        + Send
+        + Sync,
+>;
 
 /// Extracts feedback/annotation auth info from a ConnectRPC `RequestContext`.
 /// Shipd implements this; ship-agents calls it to get the emit context and agent
@@ -85,65 +85,95 @@ pub trait FeedbackAuthPort: Send + Sync {
     fn extract(
         &self,
         ctx: &RequestContext,
-    ) -> Result<(Option<String>, ship_substrate::events::validator::EmitContext), ConnectError>;
+    ) -> Result<
+        (
+            Option<String>,
+            ship_substrate::events::validator::EmitContext,
+        ),
+        ConnectError,
+    >;
 }
 
 // ── Wire struct ───────────────────────────────────────────────────────────────
 
 /// ConnectRPC wire for `AgentsService`.
 pub struct AgentsWire {
-    svc:              Arc<dyn AgentsService>,
-    ship_dir:         PathBuf,
-    kernel:           Arc<KernelLog>,
-    gate:             GateFn,
-    sessions_fn:      SessionsFn,
-    notify_saved:     NotifySavedFn,
-    dispatch_port:    Arc<dyn AgentDispatchPort>,
-    stop_fn:          StopFn,
-    steer_fn:         SteerFn,
-    grant_fn:         GrantFn,
-    agent_reactive:   Option<Arc<ReactiveRegistry>>,
+    svc: Arc<dyn AgentsService>,
+    ship_dir: PathBuf,
+    kernel: Arc<KernelLog>,
+    gate: GateFn,
+    sessions_fn: SessionsFn,
+    notify_saved: NotifySavedFn,
+    dispatch_port: Arc<dyn AgentDispatchPort>,
+    stop_fn: StopFn,
+    steer_fn: SteerFn,
+    grant_fn: GrantFn,
+    agent_reactive: Option<Arc<ReactiveRegistry>>,
     /// The live agent-def index (project scope). When present, the profile
     /// READ handlers serve list/detail from the DataStore snapshot instead of
     /// re-reading `.ship/agents/*.jsonc`. `None` in space-less / lean mounts.
-    def_index:        Option<Arc<AgentDefIndex>>,
-    feedback_auth:    Arc<dyn FeedbackAuthPort>,
-    view_broadcast:   Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
-    collection:       Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
+    def_index: Option<Arc<AgentDefIndex>>,
+    feedback_auth: Arc<dyn FeedbackAuthPort>,
+    view_broadcast: Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
+    collection: Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
 }
 
 /// Named-field constructor input for [`AgentsWire`] — replaces the former
 /// 14-positional-argument `new` (every sibling wire takes a config or a
 /// handful of args; a positional list this long invited transposition bugs).
 pub struct AgentsWireConfig {
-    pub svc:              Arc<dyn AgentsService>,
-    pub ship_dir:         PathBuf,
-    pub kernel:           Arc<KernelLog>,
-    pub gate:             GateFn,
-    pub sessions_fn:      SessionsFn,
-    pub notify_saved:     NotifySavedFn,
-    pub dispatch_port:    Arc<dyn AgentDispatchPort>,
-    pub stop_fn:          StopFn,
-    pub steer_fn:         SteerFn,
-    pub grant_fn:         GrantFn,
-    pub agent_reactive:   Option<Arc<ReactiveRegistry>>,
-    pub def_index:        Option<Arc<AgentDefIndex>>,
-    pub feedback_auth:    Arc<dyn FeedbackAuthPort>,
-    pub view_broadcast:   Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
-    pub collection:       Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
+    pub svc: Arc<dyn AgentsService>,
+    pub ship_dir: PathBuf,
+    pub kernel: Arc<KernelLog>,
+    pub gate: GateFn,
+    pub sessions_fn: SessionsFn,
+    pub notify_saved: NotifySavedFn,
+    pub dispatch_port: Arc<dyn AgentDispatchPort>,
+    pub stop_fn: StopFn,
+    pub steer_fn: SteerFn,
+    pub grant_fn: GrantFn,
+    pub agent_reactive: Option<Arc<ReactiveRegistry>>,
+    pub def_index: Option<Arc<AgentDefIndex>>,
+    pub feedback_auth: Arc<dyn FeedbackAuthPort>,
+    pub view_broadcast: Arc<dyn crate::services::agents::feedback::ViewBroadcastPort>,
+    pub collection: Arc<dyn crate::services::agents::annotation::CollectionPersistPort>,
 }
 
 impl AgentsWire {
     pub fn new(config: AgentsWireConfig) -> Self {
         let AgentsWireConfig {
-            svc, ship_dir, kernel, gate, sessions_fn, notify_saved,
-            dispatch_port, stop_fn, steer_fn, grant_fn, agent_reactive,
-            def_index, feedback_auth, view_broadcast, collection,
+            svc,
+            ship_dir,
+            kernel,
+            gate,
+            sessions_fn,
+            notify_saved,
+            dispatch_port,
+            stop_fn,
+            steer_fn,
+            grant_fn,
+            agent_reactive,
+            def_index,
+            feedback_auth,
+            view_broadcast,
+            collection,
         } = config;
         Self {
-            svc, ship_dir, kernel, gate, sessions_fn, notify_saved,
-            dispatch_port, stop_fn, steer_fn, grant_fn, agent_reactive,
-            def_index, feedback_auth, view_broadcast, collection,
+            svc,
+            ship_dir,
+            kernel,
+            gate,
+            sessions_fn,
+            notify_saved,
+            dispatch_port,
+            stop_fn,
+            steer_fn,
+            grant_fn,
+            agent_reactive,
+            def_index,
+            feedback_auth,
+            view_broadcast,
+            collection,
         }
     }
 }
@@ -189,7 +219,11 @@ fn agents_err(e: state::Error) -> ConnectError {
 }
 
 fn scoped(id: &str, resolved: ship_files::files::Scope) -> ScopedMutation {
-    ScopedMutation { id: id.to_string(), scope: scope_str(resolved), ..Default::default() }
+    ScopedMutation {
+        id: id.to_string(),
+        scope: scope_str(resolved),
+        ..Default::default()
+    }
 }
 
 // ── Snapshot helpers for Watch ─────────────────────────────────────────────────
@@ -277,9 +311,12 @@ pub fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEvent {
         })
         .collect();
     WatchEvent {
-        body: Some(ship_ops_rpc::__buffa::oneof::watch_event::Body::Patches(Box::new(
-            ProtoFrame { patches, ..Default::default() },
-        ))),
+        body: Some(ship_ops_rpc::__buffa::oneof::watch_event::Body::Patches(
+            Box::new(ProtoFrame {
+                patches,
+                ..Default::default()
+            }),
+        )),
         ..Default::default()
     }
 }
@@ -444,11 +481,9 @@ impl AgentsServiceTrait for AgentsWire {
         _request: ship_ops_rpc::OwnedListAgentHarnessesRequestView,
     ) -> ServiceResult<HarnessesResponse> {
         use crate::services::agents::create;
-        serde_json::from_value::<HarnessesResponse>(
-            json!({ "items": create::builtin_harnesses() }),
-        )
-        .map(Response::new)
-        .map_err(|e| ConnectError::internal(format!("agents.harnesses decode: {e}")))
+        serde_json::from_value::<HarnessesResponse>(json!({ "items": create::builtin_harnesses() }))
+            .map(Response::new)
+            .map_err(|e| ConnectError::internal(format!("agents.harnesses decode: {e}")))
     }
 
     async fn create_ctx(
@@ -460,7 +495,10 @@ impl AgentsServiceTrait for AgentsWire {
         let ctx = create::build_create_ctx();
         let json_str = serde_json::to_string(&ctx)
             .map_err(|e| ConnectError::internal(format!("agents.create_ctx serialize: {e}")))?;
-        Ok(Response::new(JsonResponse { json: json_str, ..Default::default() }))
+        Ok(Response::new(JsonResponse {
+            json: json_str,
+            ..Default::default()
+        }))
     }
 
     // ── Runtime reads (C0) ────────────────────────────────────────────────────
@@ -523,7 +561,11 @@ impl AgentsServiceTrait for AgentsWire {
             .map_err(|e| ConnectError::invalid_argument(format!("doc_json: {e}")))?;
         let resolved = self
             .svc
-            .create(CreateArgs { id: id.to_string(), doc, scope })
+            .create(CreateArgs {
+                id: id.to_string(),
+                doc,
+                scope,
+            })
             .map_err(agents_err)?;
         (self.notify_saved)(id.to_string(), scope_str(resolved)).await;
         Ok(Response::new(scoped(id, resolved)))
@@ -542,7 +584,11 @@ impl AgentsServiceTrait for AgentsWire {
             .map_err(|e| ConnectError::invalid_argument(format!("doc_json: {e}")))?;
         let resolved = self
             .svc
-            .put(PutArgs { id: id.to_string(), doc, scope })
+            .put(PutArgs {
+                id: id.to_string(),
+                doc,
+                scope,
+            })
             .map_err(agents_err)?;
         (self.notify_saved)(id.to_string(), scope_str(resolved)).await;
         Ok(Response::new(scoped(id, resolved)))
@@ -651,12 +697,46 @@ impl AgentsServiceTrait for AgentsWire {
         } else {
             Some(request.workspace)
         };
-        if let Some(msg) = self.dispatch_port.check_workspace_violation(&ctx, claimed_workspace) {
+        if let Some(msg) = self
+            .dispatch_port
+            .check_workspace_violation(&ctx, claimed_workspace)
+        {
             return Err(ConnectError::permission_denied(msg));
         }
 
+        // Agent-in-index check (c-2026-07-05T12-33-00-000Z-a1b2c3d4): a
+        // dispatch that names an agent the daemon has never heard of is
+        // guaranteed to fail downstream — the harness launch will hang on
+        // a missing config and the operator will see a session boot into
+        // a blank terminal. Reject HERE, before persist_and_route emits
+        // the dispatch.requested event and the actor does the spawn
+        // atom. Cheap and final.
+        //
+        // When the daemon wires the in-memory AgentDefIndex (shipd's normal
+        // posture), consult the index FIRST (the canonical, live read
+        // model) and fall back to the file reader only when the index
+        // doesn't carry this scope entry. The file reader covers the lean
+        // (no-index) helmd posture and any scope the index hasn't seeded
+        // yet.
+        let agent_in_index = if let Some(index) = self.def_index.as_ref() {
+            crate::services::agents::view_state::agent_id_exists_in_index(index, request.agent)
+                .await
+        } else {
+            crate::services::agents::view_state::agent_id_exists(&self.ship_dir, request.agent)
+        };
+        if !agent_in_index {
+            return Err(ConnectError::invalid_argument(format!(
+                "agent {:?} not found in agent index",
+                request.agent
+            )));
+        }
+
         fn opt_str(s: &str) -> Option<String> {
-            if s.is_empty() { None } else { Some(s.to_string()) }
+            if s.is_empty() {
+                None
+            } else {
+                Some(s.to_string())
+            }
         }
 
         let invocation = match request.invocation {
@@ -668,7 +748,8 @@ impl AgentsServiceTrait for AgentsWire {
             let v: Vec<String> = request.depends_on.iter().map(|s| s.to_string()).collect();
             (!v.is_empty()).then_some(v)
         };
-        let vars: std::collections::HashMap<String, String> = request.vars
+        let vars: std::collections::HashMap<String, String> = request
+            .vars
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
@@ -778,11 +859,10 @@ impl AgentsServiceTrait for AgentsWire {
             }
         };
 
-        let registry = self
-            .agent_reactive
-            .as_ref()
-            .cloned()
-            .ok_or_else(|| ConnectError::unavailable("agent watch unavailable: no active space"))?;
+        let registry =
+            self.agent_reactive.as_ref().cloned().ok_or_else(|| {
+                ConnectError::unavailable("agent watch unavailable: no active space")
+            })?;
 
         // space_id is used for WatchKey cache partitioning only; fall back to empty
         // string when auth context is not injected (e.g. test environments).
@@ -820,7 +900,11 @@ impl AgentsServiceTrait for AgentsWire {
             }
         };
 
-        let key = WatchKey { space_id, scope: scope_key, query_hash: 0 };
+        let key = WatchKey {
+            space_id,
+            scope: scope_key,
+            query_hash: 0,
+        };
         let mut rx = registry.watch(key, EventFilter::default(), spec);
         let stream = async_stream::stream! {
             loop {
@@ -841,9 +925,8 @@ impl AgentsServiceTrait for AgentsWire {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedPostFeedbackRequestView,
     ) -> ServiceResult<ship_ops_rpc::PostFeedbackResponse> {
-        let ev: crate::feedback::FeedbackEvent =
-            serde_json::from_str(&request.event_json)
-                .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
+        let ev: crate::feedback::FeedbackEvent = serde_json::from_str(&request.event_json)
+            .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
         let (agent_id, emit_ctx) = self.feedback_auth.extract(&ctx)?;
         let guard = crate::services::agents::feedback::shared_guard();
         let id = crate::services::agents::feedback::post_feedback(
@@ -856,7 +939,10 @@ impl AgentsServiceTrait for AgentsWire {
         )
         .await
         .map_err(feedback_err_to_connect)?;
-        Ok(Response::new(ship_ops_rpc::PostFeedbackResponse { id, ..Default::default() }))
+        Ok(Response::new(ship_ops_rpc::PostFeedbackResponse {
+            id,
+            ..Default::default()
+        }))
     }
 
     async fn post_annotation(
@@ -864,9 +950,8 @@ impl AgentsServiceTrait for AgentsWire {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedPostAnnotationRequestView,
     ) -> ServiceResult<ship_ops_rpc::PostAnnotationResponse> {
-        let ev: crate::annotation::AnnotationEvent =
-            serde_json::from_str(&request.event_json)
-                .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
+        let ev: crate::annotation::AnnotationEvent = serde_json::from_str(&request.event_json)
+            .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
         let (_agent_id, emit_ctx) = self.feedback_auth.extract(&ctx)?;
         let id = crate::services::agents::annotation::post_annotation(
             &self.kernel,
@@ -877,7 +962,10 @@ impl AgentsServiceTrait for AgentsWire {
         )
         .await
         .map_err(annotation_err_to_connect)?;
-        Ok(Response::new(ship_ops_rpc::PostAnnotationResponse { id, ..Default::default() }))
+        Ok(Response::new(ship_ops_rpc::PostAnnotationResponse {
+            id,
+            ..Default::default()
+        }))
     }
 }
 
@@ -900,7 +988,9 @@ fn feedback_err_to_connect(e: crate::services::agents::feedback::FeedbackError) 
     }
 }
 
-fn annotation_err_to_connect(e: crate::services::agents::annotation::AnnotationError) -> ConnectError {
+fn annotation_err_to_connect(
+    e: crate::services::agents::annotation::AnnotationError,
+) -> ConnectError {
     use crate::services::agents::annotation::AnnotationError;
     match e {
         AnnotationError::SelectorRequired

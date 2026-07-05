@@ -18,7 +18,7 @@ use agent_def::dispatch_intent::{DispatchRequestedPayload, event_types as dispat
 use ship_substrate::events::EventEnvelope;
 
 use super::dispatch_request::{
-    DispatchRequest, billing_warning_for_axes, validate_axes,
+    DispatchRequest, billing_warning_for_axes, validate_axes, validate_dispatch_request,
 };
 use super::dispatch_resume::{ResumeResolveError, resolve_resume};
 
@@ -91,15 +91,18 @@ pub async fn dispatch_agent_session_core(
     port: &dyn AgentDispatchPort,
     req: DispatchRequest,
 ) -> Result<DispatchOutcome, DispatchCoreError> {
-    // Validate the (open_tab × invocation × keepalive) matrix.
+    // Shape validation FIRST — before any side effect (resume resolve,
+    // persist_and_route, event emits). The "agent is in the index" check is
+    // enforced at the wire boundary (rpc_wire::dispatch) since it needs the
+    // ship_dir to consult the index.
+    if let Err(message) = validate_dispatch_request(&req) {
+        return Err(DispatchCoreError::BadRequest(message));
+    }
     if let Err(message) = validate_axes(&req) {
         return Err(DispatchCoreError::BadRequest(message));
     }
 
-    let workspace_label = req
-        .workspace
-        .clone()
-        .unwrap_or_else(|| req.agent.clone());
+    let workspace_label = req.workspace.clone().unwrap_or_else(|| req.agent.clone());
 
     // Resume: resolve an existing (agent, workspace) session and reuse
     // its slug/branch. With no match, error clearly per the spec.
@@ -140,7 +143,9 @@ pub async fn dispatch_agent_session_core(
         .or_else(|| resume_outcome.as_ref().map(|s| s.branch.clone()))
         .unwrap_or_else(|| format!("job/{slug}"));
     let resume_harness = resume_outcome.as_ref().map(|o| o.session.harness.clone());
-    let resume_session_id = resume_outcome.as_ref().map(|o| o.session.session_id.clone());
+    let resume_session_id = resume_outcome
+        .as_ref()
+        .map(|o| o.session.session_id.clone());
     let session_id = ship_substrate::gen_ulid();
 
     // Build the dispatch intent payload. This is the hard-failing spawn
@@ -203,7 +208,10 @@ pub async fn dispatch_agent_session_core(
         &SessionStarted {
             session_id: session_id.clone(),
             agent_id: dispatch_payload.agent_id.clone(),
-            harness: dispatch_payload.harness.clone().unwrap_or_else(|| "claude".into()),
+            harness: dispatch_payload
+                .harness
+                .clone()
+                .unwrap_or_else(|| "claude".into()),
             model: dispatch_payload.model.clone(),
             space_id,
             slug: Some(slug.clone()),
@@ -241,4 +249,183 @@ fn resolve_project_head_sha() -> Option<String> {
     let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
     ship_git::read::resolve_head_sha(project_root)
+}
+
+#[cfg(test)]
+mod tests {
+    //! Validation-gate tests for `dispatch_agent_session_core`. The point of
+    //! these is the wire-contract claim c-2026-07-05T12-33-00-000Z-a1b2c3d4:
+    //! a malformed request must be rejected with `BadRequest` BEFORE any
+    //! event is emitted — the test doubles below count `persist_and_route`
+    //! calls and assert they stay at zero for every rejected request.
+
+    use super::*;
+    use crate::services::agents::dispatch_request::{DispatchRequest, default_invocation};
+    use agent_def::InvocationMode;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// `AgentDispatchPort` test double that counts `persist_and_route` calls
+    /// and rejects nothing — exercises the real validation gate in
+    /// `dispatch_agent_session_core`. The other accessors are not exercised
+    /// on the rejected paths (validation short-circuits first); we provide
+    /// trivial impls so the type is constructible.
+    struct CountingPort {
+        persist_calls: AtomicUsize,
+    }
+
+    #[async_trait]
+    impl AgentDispatchPort for CountingPort {
+        async fn persist_and_route(&self, _envelope: &EventEnvelope) -> anyhow::Result<()> {
+            self.persist_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+        fn daemon_origin(&self) -> String {
+            "http://127.0.0.1:0".to_string()
+        }
+        fn worktrees_dir(&self) -> std::path::PathBuf {
+            std::path::PathBuf::from("/tmp")
+        }
+        fn check_workspace_violation(
+            &self,
+            _ctx: &RequestContext,
+            _claimed_workspace: Option<&str>,
+        ) -> Option<String> {
+            None
+        }
+        fn space_id_for_workspace(&self, _workspace_label: &str) -> Option<String> {
+            None
+        }
+    }
+
+    fn req_with(
+        agent: &str,
+        spec: Option<&str>,
+        prompt: Option<&str>,
+        slug: Option<&str>,
+    ) -> DispatchRequest {
+        DispatchRequest {
+            agent: agent.to_string(),
+            spec: spec.map(str::to_string),
+            prompt: prompt.map(str::to_string),
+            resume: false,
+            harness: None,
+            model: None,
+            open_tab: true,
+            invocation: default_invocation(),
+            keepalive: true,
+            workspace: None,
+            slug: slug.map(str::to_string),
+            branch: None,
+            source_spec_path: None,
+            depends_on: None,
+            vars: None,
+        }
+    }
+
+    /// The headline test (c-2026-07-05T12-33-00-000Z-a1b2c3d4): a
+    /// literal `{}` shape — empty agent, no spec, no prompt, no slug —
+    /// must be rejected as `BadRequest` and must NOT emit a single event.
+    #[tokio::test]
+    async fn empty_request_rejected_with_no_side_effects() {
+        let port = CountingPort {
+            persist_calls: AtomicUsize::new(0),
+        };
+        let req = req_with("", None, None, None);
+        // Avoid `expect_err` (which needs `Debug` on the Ok arm) — match the
+        // outcome and assert the Err variant instead.
+        let outcome = dispatch_agent_session_core(&port, req).await;
+        let err = match outcome {
+            Ok(_) => panic!("empty request must be rejected, got Ok"),
+            Err(e) => e,
+        };
+        match err {
+            DispatchCoreError::BadRequest(m) => {
+                assert!(m.contains("`agent` is required"), "got: {m}");
+            }
+            other => panic!("expected BadRequest, got {other:?}"),
+        }
+        assert_eq!(
+            port.persist_calls.load(Ordering::SeqCst),
+            0,
+            "empty request must not emit any event"
+        );
+    }
+
+    #[tokio::test]
+    async fn missing_agent_rejected_no_side_effects() {
+        let port = CountingPort {
+            persist_calls: AtomicUsize::new(0),
+        };
+        let req = req_with("", Some("spec body"), None, None);
+        let outcome = dispatch_agent_session_core(&port, req).await;
+        let err = match outcome {
+            Ok(_) => panic!("empty agent must be rejected, got Ok"),
+            Err(e) => e,
+        };
+        assert!(matches!(err, DispatchCoreError::BadRequest(_)));
+        assert_eq!(port.persist_calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn both_inputs_blank_rejected_no_side_effects() {
+        let port = CountingPort {
+            persist_calls: AtomicUsize::new(0),
+        };
+        // Agent is set, slug is None — passes the first two checks; both
+        // spec and prompt blank trips the third check.
+        let req = req_with("rust-lane", None, None, None);
+        let outcome = dispatch_agent_session_core(&port, req).await;
+        let err = match outcome {
+            Ok(_) => panic!("blank spec+prompt must be rejected, got Ok"),
+            Err(e) => e,
+        };
+        match err {
+            DispatchCoreError::BadRequest(m) => assert!(m.contains("at least one of"), "got: {m}"),
+            other => panic!("expected BadRequest, got {other:?}"),
+        }
+        assert_eq!(port.persist_calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn bad_slug_rejected_no_side_effects() {
+        let port = CountingPort {
+            persist_calls: AtomicUsize::new(0),
+        };
+        let req = req_with("rust-lane", Some("spec"), None, Some("-bad-slug"));
+        let outcome = dispatch_agent_session_core(&port, req).await;
+        let err = match outcome {
+            Ok(_) => panic!("bad slug must be rejected, got Ok"),
+            Err(e) => e,
+        };
+        match err {
+            DispatchCoreError::BadRequest(m) => assert!(m.contains("does not match"), "got: {m}"),
+            other => panic!("expected BadRequest, got {other:?}"),
+        }
+        assert_eq!(port.persist_calls.load(Ordering::SeqCst), 0);
+    }
+
+    /// Sanity: a well-formed request DOES proceed past the validation
+    /// gate and the actor-side helper at least runs through (the test
+    /// double counts the `persist_and_route` call so the gate is
+    /// proven non-blocking on the happy path).
+    #[tokio::test]
+    async fn well_formed_request_proceeds_past_validation() {
+        let port = CountingPort {
+            persist_calls: AtomicUsize::new(0),
+        };
+        let req = req_with(
+            "rust-lane",
+            Some("spec body"),
+            None,
+            Some("dispatch-consolidation"),
+        );
+        // We don't care if the full path succeeds (it depends on a real
+        // session) — only that the validation gate is permissive and the
+        // dispatch.requested event lands.
+        let _ = dispatch_agent_session_core(&port, req).await;
+        assert!(
+            port.persist_calls.load(Ordering::SeqCst) >= 1,
+            "well-formed request must emit at least the dispatch.requested event"
+        );
+    }
 }

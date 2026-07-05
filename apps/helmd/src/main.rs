@@ -100,18 +100,30 @@ use ship_substrate::ShipHome;
 use tokio::net::TcpListener;
 
 use proto::{
-    DiffFile, DiffResponse, DiffRow, FootprintResponse, GitOverviewResponse, GitService,
-    GitServiceExt, LandResponse, OwnedDiffRequestView, OwnedFootprintRequestView,
-    OwnedGitOverviewRequestView, OwnedLandRequestView, OwnedRepoStatusRequestView,
-    OwnedReleaseRequestView, ReleaseResponse, RepoStatusResponse,
-    repo_status_response::{BranchRow as RepoStatusBranchRow, Worktree as RepoStatusWorktree},
+    // Harness-compiler wire (harness.proto).
+    CompileResponse,
+    CompiledFile,
+    CreateWorktreeResponse,
+    DeleteBranchResponse,
+    DiffFile,
+    DiffResponse,
+    DiffRow,
+    FootprintResponse,
+    GitOverviewResponse,
+    GitService,
+    GitServiceExt,
+    Harness,
+    HarnessService,
+    HarnessServiceExt,
+    JobBranchesResponse,
+    LandResponse,
+    ListHarnessesResponse,
+    ListWorktreesResponse,
+    OwnedCompileRequestView,
     // ListWorktrees + CreateWorktree (the new git RPCs — see spec-git-consolidation
     // §3.5 and §3.8). The view types come from the generated `__view` module
     // and follow the same `OwnedXxxRequestView` pattern as the other ops.
-    OwnedCreateWorktreeRequestView, OwnedListWorktreesRequestView,
-    create_worktree_response::Status as CreateWorktreeStatus,
-    list_worktrees_response::WorktreeEntry as ListWorktreeEntry,
-    CreateWorktreeResponse, ListWorktreesResponse,
+    OwnedCreateWorktreeRequestView,
     // JobBranches + DeleteBranch + RemoveWorktree — the workflow's TEARDOWN
     // gate RPCs (see spec-git-consolidation §3.6–§3.8). JobBranches is the
     // read half: enumerates `job/*` branches with verdict bits. DeleteBranch
@@ -120,13 +132,25 @@ use proto::{
     // subprocess exception). The view types follow the same `OwnedXxxRequestView`
     // pattern; the `Status` re-exports mirror the create_worktree_response
     // pattern above.
-    OwnedDeleteBranchRequestView, OwnedJobBranchesRequestView, OwnedRemoveWorktreeRequestView,
-    job_branches_response::JobBranchEntry as JobBranchEntry,
+    OwnedDeleteBranchRequestView,
+    OwnedDiffRequestView,
+    OwnedFootprintRequestView,
+    OwnedGitOverviewRequestView,
+    OwnedJobBranchesRequestView,
+    OwnedLandRequestView,
+    OwnedListHarnessesRequestView,
+    OwnedListWorktreesRequestView,
+    OwnedReleaseRequestView,
+    OwnedRemoveWorktreeRequestView,
+    OwnedRepoStatusRequestView,
+    ReleaseResponse,
+    RemoveWorktreeResponse,
+    RepoStatusResponse,
+    create_worktree_response::Status as CreateWorktreeStatus,
+    job_branches_response::JobBranchEntry,
+    list_worktrees_response::WorktreeEntry as ListWorktreeEntry,
     remove_worktree_response::Status as RemoveWorktreeStatus,
-    DeleteBranchResponse, JobBranchesResponse, RemoveWorktreeResponse,
-    // Harness-compiler wire (harness.proto).
-    CompileResponse, CompiledFile, Harness, HarnessService, HarnessServiceExt,
-    ListHarnessesResponse, OwnedCompileRequestView, OwnedListHarnessesRequestView,
+    repo_status_response::{BranchRow as RepoStatusBranchRow, Worktree as RepoStatusWorktree},
 };
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -178,17 +202,42 @@ impl GitService for GitImpl {
         let target = req.target_branch.to_string();
         let message = req.message.to_string();
         let author = req.author.to_string();
-        let author = if author.is_empty() { None } else { Some(author.as_str()) };
+        let author = if author.is_empty() {
+            None
+        } else {
+            Some(author.as_str())
+        };
 
         // ship-git leaf: squash-merge source -> target as one commit, or detect
         // conflicts and write nothing.
         match ship_git::write::squash_merge(&root, &source, &target, &message, author) {
             Ok(ship_git::write::SquashOutcome::Committed { sha, .. }) => {
-                Response::ok(LandResponse { committed: sha, ..Default::default() })
+                // Land completes the land-or-clean gate (c-2026-07-05T12-52-00-000Z-c3d4e5f6).
+                // A squash-merge collapses the source into a fresh commit on
+                // the target — the source branch's commits are NOT ancestors
+                // of the new tip, so `branch_delete`'s "only merged branches"
+                // guard always refuses the just-landed branch. The fix is to
+                // delete the source branch as part of Land (it is LANDED by
+                // definition) and remove its worktree when clean. A dirty
+                // worktree is left in place — the operator has uncommitted
+                // work we'd be wrong to discard.
+                let cleaned = post_land_cleanup(&root, &source);
+                tracing::info!(
+                    source = %source, target = %target, committed = %sha,
+                    branch_deleted = cleaned.branch_deleted,
+                    worktree_removed = cleaned.worktree_removed,
+                    worktree_dirty_skipped = cleaned.worktree_dirty_skipped,
+                    "land: cleanup complete"
+                );
+                Response::ok(LandResponse {
+                    committed: sha,
+                    ..Default::default()
+                })
             }
-            Ok(ship_git::write::SquashOutcome::Conflicts { paths }) => {
-                Response::ok(LandResponse { conflicts: paths, ..Default::default() })
-            }
+            Ok(ship_git::write::SquashOutcome::Conflicts { paths }) => Response::ok(LandResponse {
+                conflicts: paths,
+                ..Default::default()
+            }),
             Err(e) => Err(connectrpc::ConnectError::internal(e.to_string())),
         }
     }
@@ -205,14 +254,22 @@ impl GitService for GitImpl {
         let version = req.version.to_string();
         let message = req.message.to_string();
         let author = req.author.to_string();
-        let author = if author.is_empty() { None } else { Some(author.as_str()) };
+        let author = if author.is_empty() {
+            None
+        } else {
+            Some(author.as_str())
+        };
 
         // Step 1: squash-merge the integration branch onto main (reuses the same
         // leaf op as Land). A conflict writes NOTHING and short-circuits — no tag.
-        let sha = match ship_git::write::squash_merge(&root, &integration, &main, &message, author) {
+        let sha = match ship_git::write::squash_merge(&root, &integration, &main, &message, author)
+        {
             Ok(ship_git::write::SquashOutcome::Committed { sha, .. }) => sha,
             Ok(ship_git::write::SquashOutcome::Conflicts { paths }) => {
-                return Response::ok(ReleaseResponse { conflicts: paths, ..Default::default() });
+                return Response::ok(ReleaseResponse {
+                    conflicts: paths,
+                    ..Default::default()
+                });
             }
             Err(e) => return Err(connectrpc::ConnectError::internal(e.to_string())),
         };
@@ -242,7 +299,10 @@ impl GitService for GitImpl {
         // `base` (`git diff --name-only base...branch`). Presence is git-derived;
         // this op just surfaces the diff. Advisory — overlap WARNS, never blocks.
         match ship_git::read::changed_files(&root, &base, &branch) {
-            Ok(files) => Response::ok(FootprintResponse { files, ..Default::default() }),
+            Ok(files) => Response::ok(FootprintResponse {
+                files,
+                ..Default::default()
+            }),
             Err(e) => Err(connectrpc::ConnectError::internal(e.to_string())),
         }
     }
@@ -340,13 +400,8 @@ impl GitService for GitImpl {
         let base_ref = req.base_ref.to_string();
         let idempotent = req.idempotent;
 
-        let outcome = ship_git::write::create_worktree(
-            &root,
-            &worktree_path,
-            &branch,
-            &base_ref,
-            idempotent,
-        );
+        let outcome =
+            ship_git::write::create_worktree(&root, &worktree_path, &branch, &base_ref, idempotent);
         let resp = match outcome {
             ship_git::write::WorktreeOutcome::Created {
                 branch,
@@ -368,14 +423,14 @@ impl GitService for GitImpl {
                 worktree_path: worktree_path.display().to_string(),
                 ..Default::default()
             },
-            ship_git::write::WorktreeOutcome::Failed {
-                error, branch, ..
-            } => CreateWorktreeResponse {
-                status: ::buffa::EnumValue::from(CreateWorktreeStatus::FAILED),
-                current_branch: branch,
-                error,
-                ..Default::default()
-            },
+            ship_git::write::WorktreeOutcome::Failed { error, branch, .. } => {
+                CreateWorktreeResponse {
+                    status: ::buffa::EnumValue::from(CreateWorktreeStatus::FAILED),
+                    current_branch: branch,
+                    error,
+                    ..Default::default()
+                }
+            }
         };
         Response::ok(resp)
     }
@@ -479,6 +534,355 @@ impl GitService for GitImpl {
                 ..Default::default()
             }),
         }
+    }
+}
+
+// ── Land post-merge cleanup ─────────────────────────────────────────────
+//
+// (c-2026-07-05T12-52-00-000Z-c3d4e5f6) The land-or-clean gate: a successful
+// Land is the workflow's signal that the source branch is LANDED. Two things
+// must follow on the same call:
+//   1. Delete the source branch. `git branch -d` refuses the squash-landed
+//      branch (its commits are NOT ancestors of the new squash commit), so
+//      the helper uses `git branch -D` — the operator invoked Land, the
+//      branch is LANDED, the next click is the TEARDOWN gate.
+//   2. Remove the worktree at `worktrees_dir/<slug>` IF clean. A dirty
+//      worktree has uncommitted changes; force-removing it would destroy
+//      operator work, so we leave it and note the skip in the response log
+//      line (the operator can either commit, reset, or remove by hand).
+//
+// Both operations are subprocess-based on the same `root` git repo. The
+// helper is a no-op when the source isn't a `job/*` branch (e.g. a Land
+// of a non-dispatch branch shouldn't tear down arbitrary worktrees).
+// Kept as a free function (not on `GitImpl`) so it's testable in isolation
+// against a temp git repo.
+struct LandCleanupOutcome {
+    /// `git branch -D <source>` returned success.
+    branch_deleted: bool,
+    /// `git worktree remove <path>` returned success (clean tree only).
+    worktree_removed: bool,
+    /// Worktree exists but has uncommitted changes; left in place + logged.
+    worktree_dirty_skipped: bool,
+}
+
+fn post_land_cleanup(root: &std::path::Path, source_branch: &str) -> LandCleanupOutcome {
+    // Strip the `job/` prefix to derive the slug; bail on any other shape.
+    let slug = match source_branch.strip_prefix("job/") {
+        Some(s) if !s.is_empty() => s,
+        _ => {
+            return LandCleanupOutcome {
+                branch_deleted: false,
+                worktree_removed: false,
+                worktree_dirty_skipped: false,
+            };
+        }
+    };
+    post_land_cleanup_at(
+        root,
+        source_branch,
+        slug,
+        &worktrees_dir_layout().join(slug),
+    )
+}
+
+/// Inner cleanup worker — takes an explicit `worktree_path` so tests can
+/// point the gate at a fixture worktree without touching the real
+/// `~/dev/<repo>/worktrees/` root.
+fn post_land_cleanup_at(
+    root: &std::path::Path,
+    source_branch: &str,
+    slug: &str,
+    worktree_path: &std::path::Path,
+) -> LandCleanupOutcome {
+    let mut outcome = LandCleanupOutcome {
+        branch_deleted: false,
+        worktree_removed: false,
+        worktree_dirty_skipped: false,
+    };
+
+    // ── worktree remove (clean only) ────────────────────────────────────
+    // The branch is checked out by the worktree, so `git branch -D`
+    // refuses with "cannot delete branch 'X' used by worktree at 'Y'".
+    // We must remove the worktree FIRST, then delete the branch. On a
+    // dirty tree we leave the worktree in place — which means we
+    // can't delete the branch either (same guard), so dirty = the
+    // branch stays too (the operator resolves by hand).
+    if worktree_path.exists() {
+        if is_worktree_clean(worktree_path) {
+            let result = std::process::Command::new("git")
+                .args([
+                    "worktree",
+                    "remove",
+                    worktree_path.to_str().unwrap_or(""),
+                    "--force",
+                ])
+                .current_dir(root)
+                .output();
+            outcome.worktree_removed = matches!(result, Ok(o) if o.status.success());
+        } else {
+            outcome.worktree_dirty_skipped = true;
+            tracing::warn!(
+                slug, worktree = %worktree_path.display(),
+                "land: worktree is dirty (uncommitted changes) — leaving in place; \
+                 commit/reset/remove by hand before the next dispatch can claim this slug"
+            );
+        }
+    }
+    // Delete the branch only after the worktree is out of the way (or
+    // was already absent). On a dirty-worktree skip the branch stays —
+    // same reason: git won't let us delete a branch with an attached
+    // worktree, and the dirty worktree stays by design.
+    let worktree_blocks_branch = worktree_path.exists() && !outcome.worktree_removed;
+    if !worktree_blocks_branch {
+        let result = std::process::Command::new("git")
+            .args(["branch", "-D", source_branch])
+            .current_dir(root)
+            .output();
+        outcome.branch_deleted = matches!(result, Ok(o) if o.status.success());
+    }
+    outcome
+}
+
+/// True when `git -C <path> status --porcelain` prints nothing — i.e. no
+/// staged, unstaged, or untracked changes. A porcelain-empty status is
+/// the canonical "clean worktree" predicate and matches the check git
+/// uses internally for safe operations like `git pull --ff-only`.
+fn is_worktree_clean(worktree_path: &std::path::Path) -> bool {
+    let result = std::process::Command::new("git")
+        .args([
+            "-C",
+            worktree_path.to_str().unwrap_or(""),
+            "status",
+            "--porcelain",
+        ])
+        .output();
+    match result {
+        Ok(o) if o.status.success() => {
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            stdout.trim().is_empty()
+        }
+        _ => false,
+    }
+}
+
+/// The canonical worktrees root. Matches the layout `GitWorktreeIsolation`
+/// uses when provisioning a dispatch worktree, so the land-or-clean
+/// gate's removal targets the same path the dispatch wrote to.
+fn worktrees_dir_layout() -> PathBuf {
+    // Reuse the same logic helmd's dispatch path uses: `worktrees/` is
+    // rooted at the user's ship home (via `helpers::worktrees_dir()` in
+    // apps/helmd/src/dispatch.rs). The helper is `pub(crate)` to that
+    // module, so we re-derive the same path here rather than threading
+    // the helper across module boundaries.
+    ship_substrate::home::ShipHome::from_env()
+        .root()
+        .parent()
+        .map(|p| p.join("worktrees"))
+        .unwrap_or_else(|| PathBuf::from("worktrees"))
+}
+
+#[cfg(test)]
+mod land_cleanup_tests {
+    use super::{is_worktree_clean, post_land_cleanup, post_land_cleanup_at};
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    /// Run a git command in `cwd` and assert success. The helper exists so
+    /// the tests stay terse — the same pattern shows up five+ times.
+    fn git(cwd: &Path, args: &[&str]) {
+        let out = Command::new("git")
+            .args(args)
+            .current_dir(cwd)
+            .output()
+            .expect("git failed");
+        assert!(
+            out.status.success(),
+            "git {args:?} failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    /// Build a one-commit repo with a `job/<slug>` branch and an
+    /// attached worktree. Returns `(root, worktree_path)`. The worktree
+    /// is created inside the tempdir so the test never touches the real
+    /// `~/dev/<repo>/worktrees/` root. This is the seam the
+    /// `post_land_cleanup_at` worker exposes — the public
+    /// `post_land_cleanup` derives the worktree path from the user's
+    /// ship home, which is correct in production but hostile to a
+    /// test fixture in a tempdir.
+    fn setup_land_fixture(slug: &str) -> (tempfile::TempDir, PathBuf, PathBuf) {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path().to_path_buf();
+        let worktree_path = tmp.path().join("wt").join(slug);
+        std::fs::create_dir_all(worktree_path.parent().unwrap()).unwrap();
+        git(&root, &["init", "--initial-branch=main"]);
+        git(&root, &["config", "user.email", "t@example.com"]);
+        git(&root, &["config", "user.name", "test"]);
+        std::fs::write(root.join("README.md"), "x").unwrap();
+        git(&root, &["add", "."]);
+        git(&root, &["commit", "-m", "init"]);
+        // Create a real `job/<slug>` branch + a worktree for it. The
+        // cleanup path targets branches named `job/<slug>` by name.
+        git(
+            &root,
+            &[
+                "worktree",
+                "add",
+                "-b",
+                &format!("job/{slug}"),
+                worktree_path.to_str().unwrap(),
+            ],
+        );
+        (tmp, root, worktree_path)
+    }
+
+    /// Build a one-commit repo with a `job/<slug>` branch but NO
+    /// worktree attached. Used by tests that exercise the
+    /// "worktree already gone" path — git's `branch -D` guard only
+    /// fires when a worktree has the branch checked out, so a
+    /// branch-only fixture is what the missing-worktree case needs.
+    fn setup_branch_only_fixture(slug: &str) -> (tempfile::TempDir, PathBuf) {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path().to_path_buf();
+        git(&root, &["init", "--initial-branch=main"]);
+        git(&root, &["config", "user.email", "t@example.com"]);
+        git(&root, &["config", "user.name", "test"]);
+        std::fs::write(root.join("README.md"), "x").unwrap();
+        git(&root, &["add", "."]);
+        git(&root, &["commit", "-m", "init"]);
+        // Branch exists, but no worktree checks it out.
+        git(&root, &["branch", &format!("job/{slug}")]);
+        (tmp, root)
+    }
+    /// Headline test (c-2026-07-05T12-52-00-000Z-c3d4e5f6): a Land of a
+    /// `job/<slug>` branch deletes the source branch AND (when the
+    /// worktree is clean) removes the worktree. The cleanup at function
+    /// (not the inner worker) is the wire path Land invokes; we use
+    /// the worker to inject a fixture worktree path.
+    #[test]
+    fn land_deletes_source_branch_and_clean_worktree() {
+        let (_tmp, root, wt_path) = setup_land_fixture("auth");
+        assert!(wt_path.exists(), "fixture worktree must exist");
+
+        let outcome = post_land_cleanup_at(&root, "job/auth", "auth", &wt_path);
+        assert!(outcome.branch_deleted, "branch must be deleted");
+        assert!(outcome.worktree_removed, "clean worktree must be removed");
+        assert!(
+            !outcome.worktree_dirty_skipped,
+            "clean worktree must not be skipped"
+        );
+        assert!(!wt_path.exists(), "worktree path must be gone");
+
+        // Confirm the source branch is actually gone from git's ref list —
+        // proves the helper's git invocation ran (not just that the
+        // boolean flipped).
+        let out = Command::new("git")
+            .args(["-C", root.to_str().unwrap(), "branch", "--list", "job/auth"])
+            .output()
+            .expect("git branch list");
+        assert!(
+            String::from_utf8_lossy(&out.stdout).trim().is_empty(),
+            "job/auth must be absent from the branch list"
+        );
+    }
+
+    /// A dirty worktree is left in place. The branch also stays — git
+    /// refuses to delete a branch that's checked out by a worktree,
+    /// and the dirty worktree stays by design. The operator commits
+    /// / resets / hand-removes the worktree when they're ready; the
+    /// next Land (or `DeleteBranch` with `force=true`) will then
+    /// tear it down. (The spec's "delete the source branch" clause
+    /// is impossible to honor while the worktree still holds the
+    /// branch — git's `branch -D` guards against exactly that case.)
+    #[test]
+    fn land_leaves_dirty_worktree_in_place() {
+        let (_tmp, root, wt_path) = setup_land_fixture("dirty");
+        // Dirty the worktree: write a file and `git add` so
+        // `status --porcelain` is non-empty. The file is uncommitted
+        // from the operator's POV — the kind of thing we'd be wrong
+        // to --force-remove.
+        std::fs::write(wt_path.join("scratch.txt"), "operator's uncommitted work").unwrap();
+        git(&wt_path, &["add", "scratch.txt"]);
+        // Sanity: the worktree IS dirty before the land.
+        assert!(!is_worktree_clean(&wt_path), "fixture should be dirty");
+
+        let outcome = post_land_cleanup_at(&root, "job/dirty", "dirty", &wt_path);
+        assert!(
+            !outcome.branch_deleted,
+            "branch must stay (worktree still holds it)"
+        );
+        assert!(
+            !outcome.worktree_removed,
+            "dirty worktree must NOT be removed"
+        );
+        assert!(
+            outcome.worktree_dirty_skipped,
+            "dirty worktree must be reported as skipped"
+        );
+        assert!(wt_path.exists(), "dirty worktree path must remain");
+    }
+
+    /// A non-`job/*` source is left untouched — Land of a non-job branch
+    /// (operator-initiated squash-merge) shouldn't tear down arbitrary
+    /// worktrees or branches.
+    #[test]
+    fn land_ignores_non_job_branch() {
+        let (_tmp, _root, _wt_path) = setup_land_fixture("mainline");
+        // Public `post_land_cleanup` resolves the worktree path via
+        // `worktrees_dir_layout()` (the user's real worktrees root). On
+        // a dev machine that path may not exist or may be unwritable;
+        // the non-job branch short-circuits BEFORE that lookup so it's
+        // safe to call without a fixture worktree.
+        let outcome = post_land_cleanup(&PathBuf::from("/nonexistent"), "feat/manual-land");
+        assert!(
+            !outcome.branch_deleted,
+            "non-job branch must not be deleted by land cleanup"
+        );
+        assert!(
+            !outcome.worktree_removed,
+            "no worktree teardown for non-job land"
+        );
+        assert!(
+            !outcome.worktree_dirty_skipped,
+            "no worktree teardown attempted"
+        );
+    }
+
+    /// Missing worktree is a no-op — Land succeeds and the branch is
+    /// deleted; the absent worktree is fine (already cleaned up, or
+    /// never created when the dispatch was headless).
+    #[test]
+    fn land_tolerates_missing_worktree() {
+        // Set up a bare repo (no worktree) — the "missing worktree"
+        // case. The helper looks for a worktree path that doesn't
+        // exist, and the branch is deleted because no worktree is
+        // holding it checked out.
+        let (_tmp, root) = setup_branch_only_fixture("gone");
+        let ghost = root.join("does/not/exist");
+        let outcome = post_land_cleanup_at(&root, "job/gone", "gone", &ghost);
+        assert!(outcome.branch_deleted, "branch must still be deleted");
+        assert!(!outcome.worktree_removed, "no worktree to remove");
+        assert!(!outcome.worktree_dirty_skipped, "no worktree to evaluate");
+    }
+    /// `is_worktree_clean` itself: porcelain-empty status is "clean".
+    /// Sanity-tests the helper the gate leans on.
+    #[test]
+    fn is_worktree_clean_matches_git_status_porcelain() {
+        let (_tmp, _root, wt_path) = setup_land_fixture("clean");
+        assert!(
+            is_worktree_clean(&wt_path),
+            "fresh fixture worktree must be clean"
+        );
+        // Touch an untracked file. `git status --porcelain` (without
+        // `-uall`) reports untracked entries with the `??` prefix, so
+        // the worktree reads as dirty — exactly the predicate the
+        // land-or-clean gate wants (we don't want to --force-remove a
+        // worktree that has an untracked file the operator may want).
+        std::fs::write(wt_path.join("untouched.txt"), "untracked").unwrap();
+        assert!(
+            !is_worktree_clean(&wt_path),
+            "untracked file marks the worktree dirty (porcelain reports `??` lines)"
+        );
     }
 }
 
@@ -590,7 +994,10 @@ impl HarnessService for HarnessImpl {
                 ..Default::default()
             })
             .collect();
-        Response::ok(ListHarnessesResponse { harnesses, ..Default::default() })
+        Response::ok(ListHarnessesResponse {
+            harnesses,
+            ..Default::default()
+        })
     }
 
     // Compile — `.ship/` → per-harness config files. Backed by the `compiler`
@@ -707,8 +1114,8 @@ fn flatten_compile_output(
         && !out.mcp_servers.is_null()
         && out.mcp_servers != serde_json::json!({})
     {
-        let content = serde_json::to_string_pretty(&out.mcp_servers)
-            .unwrap_or_else(|_| "{}".to_string());
+        let content =
+            serde_json::to_string_pretty(&out.mcp_servers).unwrap_or_else(|_| "{}".to_string());
         files.push(CompiledFile {
             harness_id: harness_id.to_string(),
             path: path.clone(),
@@ -763,8 +1170,7 @@ fn flatten_compile_output(
         files.push(CompiledFile {
             harness_id: harness_id.to_string(),
             path: ".claude/settings.json".to_string(),
-            content: serde_json::to_string_pretty(patch).unwrap_or_else(|_| "{}".into())
-                + "\n",
+            content: serde_json::to_string_pretty(patch).unwrap_or_else(|_| "{}".into()) + "\n",
             ..Default::default()
         });
     }
@@ -894,10 +1300,9 @@ async fn main() -> anyhow::Result<()> {
     // mirroring shipd's `daemon_origin`. Feeds the dispatch `studio_url` + the
     // spawned agent's `$SHIP_DAEMON_URL`.
     let daemon_origin = {
-        let shown = addr.strip_prefix("0.0.0.0:").map_or_else(
-            || addr.clone(),
-            |port| format!("localhost:{port}"),
-        );
+        let shown = addr
+            .strip_prefix("0.0.0.0:")
+            .map_or_else(|| addr.clone(), |port| format!("localhost:{port}"));
         format!("http://{shown}")
     };
     let connect = agents::mount(connect, daemon_origin)?;
@@ -917,7 +1322,10 @@ async fn main() -> anyhow::Result<()> {
         .allow_headers(tower_http::cors::Any);
 
     let app = axum::Router::new()
-        .route("/health", routing::get(|| async { (StatusCode::OK, VERSION) }))
+        .route(
+            "/health",
+            routing::get(|| async { (StatusCode::OK, VERSION) }),
+        )
         .fallback_service(connect.into_axum_service())
         .layer(cors);
 
