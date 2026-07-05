@@ -44,7 +44,13 @@ impl HarnessAdapter for OmpAdapter {
         PiAdapter.build_resume_args(slug, session_id, profile).map(rebin)
     }
 
-    fn ready_pattern(&self) -> &str { PiAdapter.ready_pattern() }
+    // omp's interactive prompt renders the pi glyph (`π`) — pi-coding-agent
+    // theme `icon.pi` — followed by a space; pi's is the chevron (`›`). Same
+    // delegate-to-pi shape as the rest of the adapter, but the ready marker
+    // is the one field the two harnesses do NOT share. See
+    // c-2026-07-05T12-36-00-000Z-b2c3d4e5 — matching pi's pattern made
+    // every omp dispatch time out at the 60s readiness poll.
+    fn ready_pattern(&self) -> &str { "π " }
     fn autostart_input(&self) -> &str { PiAdapter.autostart_input() }
     fn exit_command(&self) -> &str { PiAdapter.exit_command() }
 
@@ -116,5 +122,31 @@ mod tests {
         let line = r#"{"type":"session","version":3,"id":"abc-123","cwd":"/x"}"#;
         assert_eq!(OmpAdapter.parse_output(line), PiAdapter.parse_output(line));
         assert!(OmpAdapter.parse_output("not json").is_none());
+    }
+
+    // The omp TUI prompts with the pi glyph (`π`) followed by a space — NOT
+    // the chevron (`›`) that pi uses. The harness-launcher polls a tmux pane
+    // for this exact marker before firing the autostart prompt; if the
+    // pattern is wrong, every omp dispatch times out
+    // (c-2026-07-05T12-36-00-000Z-b2c3d4e5). This test pins the per-harness
+    // discipline: omp's ready marker is its own — not delegated to pi.
+    #[test]
+    fn ready_pattern_is_omp_specific_pi_glyph() {
+        let omp_pattern = OmpAdapter.ready_pattern();
+        let pi_pattern = PiAdapter.ready_pattern();
+        assert_ne!(
+            omp_pattern, pi_pattern,
+            "omp must have its own ready pattern, not reuse pi's \
+             (the autostart race in c-2026-07-05T12-36-00-000Z-b2c3d4e5 \
+              started because these were equal)"
+        );
+        // omp's TUI renders `π ` (pi glyph + space) at the input prompt
+        // (theme `icon.pi` defaults to U+03C0). The substring must contain
+        // the pi glyph so `wait_for_ready` polls match at the actual prompt
+        // rather than at any other place the chevron might appear.
+        assert!(
+            omp_pattern.contains('\u{03C0}'),
+            "omp ready pattern must contain the pi glyph, got {omp_pattern:?}"
+        );
     }
 }

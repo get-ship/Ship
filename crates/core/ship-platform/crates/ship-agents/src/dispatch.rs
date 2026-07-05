@@ -271,11 +271,23 @@ pub(crate) async fn emit_session_failed(
         session_id: session_id.to_string(),
         reason: reason.to_string(),
     };
-    if let Ok(env) = EventEnvelope::new(
+    if let Ok(mut env) = EventEnvelope::new(
         canonical_session_event_types::SESSION_FAILED,
         session_id,
         &payload,
     ) {
+        // session.* coarse events are Space-scoped. The kernel router's
+        // `enforce_scope` reject-closes the space-unbound case
+        // (`NoSpaceForSpaceEvent`) — and `persist_and_route` derives the
+        // binding's space from the envelope's `(scope, scope_key)`, so a
+        // Space event without a scope_key produces a space-unbound binding
+        // and gets dropped on the floor. Mirrors the canonical builder's
+        // discipline (agent_def::emit::build_space_envelope): stamp the
+        // session_id onto the envelope as scope_key so the binding
+        // carries the same space and the kernel accepts the emit. Closes
+        // c-2026-07-05T20-30-00-000Z-b8c9d0e1.
+        env.scope_key = Some(session_id.to_string());
+        env.session_id = Some(session_id.to_string());
         let env = env.with_actor_id("service.agents");
         persist_and_route(kernel, env, slug).await;
     }

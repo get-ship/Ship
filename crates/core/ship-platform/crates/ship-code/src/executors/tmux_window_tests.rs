@@ -379,3 +379,61 @@ fn wait_for_ready_sticks_when_pattern_already_in_pane() {
     );
     assert!(result.is_ok());
 }
+
+/// Per-harness ready pattern — omp's pi glyph. Closes the
+/// "omp dispatch time out at 60s" race in c-2026-07-05T12-36-00-000Z-b2c3d4e5
+/// (the old OmpAdapter returned `PiAdapter::ready_pattern()`, which is `› `,
+/// not the `π ` glyph the omp TUI actually renders). The fake pane emits
+/// a frame containing `π ` and the poll must accept it; the prior behavior
+/// (matching on `› `) would have refused and timed out.
+#[test]
+fn wait_for_ready_matches_omp_pi_glyph_ready_pattern() {
+    use ship_harnesses::harnesses::omp::OmpAdapter;
+    use harness_adapter::HarnessAdapter;
+
+    let mut reader = FakePaneReader {
+        buf: vec![
+            "loading…\n".to_string(),
+            "still loading…\n".to_string(),
+            format!("\u{03C0} \n"),
+        ],
+        idx: 0,
+    };
+    let result = wait_for_ready(
+        "ship-omp-foo:@1",
+        OmpAdapter.ready_pattern(),
+        std::time::Duration::from_secs(2),
+        std::time::Duration::from_millis(10),
+        &mut reader,
+    );
+    assert!(
+        result.is_ok(),
+        "wait_for_ready must accept the omp-ready pattern \u{03C0} (c-2026-07-05T12-36-00)"
+    );
+}
+
+/// Per-harness ready pattern — claude's bypass-permissions marker, still
+/// matched correctly. The omp fix must not regress the existing harnesses:
+/// pinning the per-harness discipline on both ends of the registry proves
+/// claude's `bypass permissions on` marker still drives the poll.
+#[test]
+fn wait_for_ready_matches_claude_bypass_permissions_marker() {
+    use ship_harnesses::harnesses::claude::ClaudeAdapter;
+    use harness_adapter::HarnessAdapter;
+
+    let mut reader = FakePaneReader {
+        buf: vec![format!(
+            "claude \u{203A} hello\n{}\n",
+            ClaudeAdapter.ready_pattern()
+        )],
+        idx: 0,
+    };
+    let result = wait_for_ready(
+        "ship-claude-foo:@1",
+        ClaudeAdapter.ready_pattern(),
+        std::time::Duration::from_secs(2),
+        std::time::Duration::from_millis(10),
+        &mut reader,
+    );
+    assert!(result.is_ok(), "claude path unchanged: bypass permissions on still drives the poll");
+}

@@ -817,3 +817,124 @@ async fn stop_rpc_session_cancelled_actor_tears_down_and_projection_shows_cancel
     );
     assert!(after.ended_at.is_some(), "ended_at must be populated on cancellation");
 }
+
+// ── session.failed emit scope ───────────────────────────────────────────────
+//
+// Closes c-2026-07-05T20-30-00-000Z-b8c9d0e1. The dispatch actor's
+// `emit_session_failed` (in src/dispatch.rs) builds an EventEnvelope
+// for the Space-scoped `session.failed` event and hands it to
+// `persist_and_route`. If the envelope lacks a `scope_key`, the kernel
+// router's `enforce_scope` rejects it as "space-unbound caller cannot
+// emit a Space-scoped event" (NoSpaceForSpaceEvent) — failed sessions
+// leave no event trail.
+//
+// The discipline: the canonical session.* family uses the session_id
+// itself as the scope_key (see agent-def/src/emit.rs::build_space_envelope
+// — Space, scope_key=session_id, session_id=session_id). The dispatch
+// actor must follow the same discipline so the binding derived from the
+// envelope is space-bound and the kernel accepts the emit.
+fn read_session_failed_from_space_db(
+    ship_dir: &std::path::Path,
+    session_id: &str,
+) -> Option<EventEnvelope> {
+    use ship_substrate::persistence::EventStore;
+    let path = ship_substrate::db::space_db_path(ship_dir, session_id);
+    if !path.exists() {
+        return None;
+    }
+    let store = ship_substrate::persistence::SqliteEventStore::new_at_db_path(&path).ok()?;
+    let mut found = store
+        .query(&ship_substrate::events::EventFilter {
+            event_type: Some(canonical_session_event_types::SESSION_FAILED.to_string()),
+            entity_id: Some(session_id.to_string()),
+            ..Default::default()
+        })
+        .ok()?;
+    found.pop()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn failed_dispatch_emits_session_failed_with_space_bound_envelope() {
+    // The `agent_session_failed_nonzero_keys_on_session_id` test (in
+    // ship-code) covers the post-spawn case. This test covers the
+    // prep-failure path in the dispatch actor specifically: isolation
+    // succeeds, executor.spawn errors → the actor must emit
+    // `session.failed` AND the kernel must accept it (no
+    // space-unbound reject).
+    let tmp = tempfile::TempDir::new().unwrap();
+    let ship_dir = ship_substrate::project::get_global_dir().unwrap();
+    let session_id = "s-sf-bug-1";
+    let slug = "sf-bug-1";
+
+    // Clean any prior state for this session.
+    let _ = block_on(async {
+        let mut conn = ship_substrate::db::open_runtime_db(&ship_dir).unwrap();
+        sqlx::query("DELETE FROM canonical_sessions WHERE session_id = ?")
+            .bind(session_id)
+            .execute(&mut conn)
+            .await
+    });
+    let space_path = ship_substrate::db::space_db_path(&ship_dir, session_id);
+    if space_path.exists() {
+        std::fs::remove_file(&space_path).ok();
+    }
+
+    let kernel = kernel_with_actor();
+    let ports = ports_with(
+        Arc::new(OkIsolation(tmp.path().join("worktrees/sf-bug-1"))),
+        Arc::new(RecordingExecutor {
+            // RecordingExecutor errors on spawn → triggers the
+            // `executor spawn failed` branch in dispatch_agent_session_internal
+            // which calls emit_session_failed.
+            captured: Arc::new(StdMutex::new(None)),
+            spawn_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+        Arc::new(NoopRegistry),
+        Arc::new(TestPlatform {
+            worktrees: tmp.path().join("worktrees"),
+            cleanup_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+    );
+
+    let payload = started_payload(session_id, slug, Some("codex"), Some("gpt-5-codex"), None);
+    let envelope = EventEnvelope::new(
+        dispatch_event_types::DISPATCH_REQUESTED,
+        session_id,
+        &payload,
+    )
+    .unwrap()
+    .with_actor_id("test");
+    ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
+
+    // The dispatch prep is detached under DISPATCH_GATE. Poll the
+    // per-space db until the session.failed lands (or we time out).
+    let mut found = false;
+    for _ in 0..50 {
+        if read_session_failed_from_space_db(&ship_dir, session_id).is_some() {
+            found = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert!(
+        found,
+        "session.failed for {session_id} must land in spaces/{session_id}/space.db — \
+         a failing dispatch leaves no event trail when the dispatch actor's \
+         emit_session_failed is rejected by the kernel as a space-unbound caller \
+         (c-2026-07-05T20-30-00-000Z-b8c9d0e1)"
+    );
+
+    // The event itself carries the canonical discipline: Space scope,
+    // scope_key=session_id, session_id=session_id. Pinning these
+    // guarantees the actor stays aligned with the canonical builder.
+    let env = read_session_failed_from_space_db(&ship_dir, session_id)
+        .expect("just observed the event");
+    assert_eq!(
+        env.event_type,
+        canonical_session_event_types::SESSION_FAILED
+    );
+    assert_eq!(env.entity_id, session_id);
+    assert_eq!(env.scope, ship_types::event_registry::EventScope::Space);
+    assert_eq!(env.scope_key.as_deref(), Some(session_id));
+    assert_eq!(env.session_id.as_deref(), Some(session_id));
+}
