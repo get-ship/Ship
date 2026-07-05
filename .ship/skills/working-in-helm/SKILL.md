@@ -15,20 +15,20 @@ The words below are precise. When in doubt, read the glossary (`get_wiki`) — i
 
 ## The model
 
-- **System → Component → Feature** — the intent hierarchy. Your work targets a Component or a Feature.
+- **System → Subsystem → Feature** — the intent hierarchy. Your work targets a Subsystem or a Feature.
 - **Clause** — the provable unit of intent: a **requirement** (something the unit must do) or an **invariant** (a rule that must always hold). Shape: a statement, its declared evidence, and a `gap` flag. *(In the schema a clause is a `condition` — same thing.)*
-- **Claim** — an **issue**: a bug, an observation, a request, or a HITL decision. A claim is a message in the inbox. **A claim is NOT proof and NOT a requirement.** Do not confuse it with a clause.
+- **Claim** — an **issue**: a bug, a request, an observation, or an annotation. A claim is a message in the inbox. **A claim is NOT proof and NOT a requirement.** Do not confuse it with a clause.
 - **Proof** — **derived, never hand-set.** A clause is proven by a **run** (a test/bench/eval result) measured against its evidence. Status is observed: passing / failing / stale / untested / gap.
 
 ## Your job: align actual with intent
 
-1. **Read your intent.** `get_component` / `list_features` / `list_gaps` — find the clauses your slice must satisfy. If the intent is unclear, that is a HITL claim, not a guess.
+1. **Read your intent.** `get_subsystem` / `list_features` / `list_gaps` — find the clauses your slice must satisfy. If the intent is unclear, file a `request` claim for the operator — do not guess.
 2. **Prove each clause with a test in the living suite.** Write the test that *states* the clause, watch it fail, make it pass, leave it. **The test is the only proof artifact.** Do not write a proof document, do not file a claim that says "done," do not leave a comment asserting it works. A clause is satisfied when a run proves it — nothing else counts.
 3. **The gate is the suite, not your word.** The operator (or commander) re-runs it. **Never self-report "done."** Your report is the green suite.
 
 ## Claims are issues — file sparingly, and clear them
 
-- File a claim (`file_claim`) only for a real **finding** (a bug or observation worth surfacing), a **blocker**, or a **HITL** decision you need. Pick the right `kind`: `bug` / `observation` / `request` / `hitl`.
+- File a claim (`file_claim`) only for a real **finding** (a bug or observation worth surfacing), a **blocker**, or a decision you need from the operator (`request`). Pick the right `kind`: `bug` / `request` / `observation` / `annotation`.
 - **Do not narrate your work as claims.** "I refactored X", "I added a test" — none of that. The diff and the suite are the record.
 - **Clear what you handle.** A claim leaves the inbox one of two ways: `reconcile_claim` (substantive — kept with a verdict) or `delete_claim` (trivial, handled, or misfiled — cleared outright). An inbox that only grows is a dump bucket. Leave it smaller than you found it where you can.
 
