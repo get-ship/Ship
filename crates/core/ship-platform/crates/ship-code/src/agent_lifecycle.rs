@@ -11,10 +11,13 @@ pub async fn graceful_agent_exit(slug: &str, harness: Option<&str>) {
         .map(|a| a.exit_command().to_string())
         .unwrap_or_default();
 
+    // `.output()` (not `.status()`): a missing session makes tmux print
+    // "can't find session: <name>" on stderr, which `.status()` would
+    // inherit into the daemon log as phantom-failure noise.
     let has_session = ship_substrate::spawn_bounded::Cmd::new("tmux")
         .args(["has-session", "-t", &tmux_session])
-        .status()
-        .map(|s| s.success())
+        .output()
+        .map(|o| o.status.success())
         .unwrap_or(false);
 
     if !has_session {

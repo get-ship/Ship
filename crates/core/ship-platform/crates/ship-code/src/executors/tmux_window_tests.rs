@@ -437,3 +437,115 @@ fn wait_for_ready_matches_claude_bypass_permissions_marker() {
     );
     assert!(result.is_ok(), "claude path unchanged: bypass permissions on still drives the poll");
 }
+
+// ── Autostart content selection ─────────────────────────────────────────────
+//
+// The live-path bug in c-2026-07-05T12-36-00-000Z-b2c3d4e5: after the
+// readiness poll, the interactive path sent the adapter's STATIC
+// `autostart_input()` ("go" for pi/omp) instead of the dispatch's actual
+// content. `select_autostart` is the fix's decision seam: pointer to the
+// spec source file first (typing a reference into a TUI is robust; typing
+// a multi-line body fragments on every newline), then a single-line
+// prompt verbatim, then a hard error for undeliverable multi-line
+// content, then the adapter's static kick as last resort.
+
+#[test]
+fn select_autostart_prefers_spec_pointer_when_source_file_exists() {
+    let got = select_autostart(
+        "/helm/data/missions/m-x/scratch/spec.md",
+        true,
+        Some("# Spec\nmulti\nline\nbody"),
+        "go",
+    )
+    .expect("pointer is deliverable");
+    let msg = got.expect("must send something");
+    assert!(
+        msg.contains("/helm/data/missions/m-x/scratch/spec.md"),
+        "pointer must name the spec source path, got: {msg}"
+    );
+    assert!(
+        !msg.contains('\n'),
+        "the pointer must be a single line — newlines submit mid-prompt in a TUI"
+    );
+    assert_ne!(msg, "go", "the static kick must not shadow real content");
+}
+
+#[test]
+fn select_autostart_sends_single_line_prompt_verbatim_without_pointer() {
+    let got = select_autostart("", false, Some("fix the failing test\n"), "go")
+        .expect("single-line prompt is deliverable");
+    assert_eq!(
+        got.as_deref(),
+        Some("fix the failing test"),
+        "a one-line prompt is typed directly (trailing newline trimmed)"
+    );
+}
+
+#[test]
+fn select_autostart_errors_on_multiline_prompt_with_no_pointer() {
+    let err = select_autostart("", false, Some("line one\nline two"), "go")
+        .expect_err("multi-line content cannot be typed into a TUI pane");
+    assert!(
+        err.contains("multi-line"),
+        "error must explain the fragmentation hazard, got: {err}"
+    );
+    assert!(
+        err.contains("source_spec_path") || err.contains("spec"),
+        "error must tell the caller the fix (pass the spec source path), got: {err}"
+    );
+}
+
+#[test]
+fn select_autostart_missing_spec_file_falls_through_to_prompt_rules() {
+    // Path present but the file is gone (typo, moved scratch): do NOT
+    // point the agent at a dead file — fall through to the prompt rules.
+    let got = select_autostart("/gone/spec.md", false, Some("one line prompt"), "go")
+        .expect("single-line fallback");
+    assert_eq!(got.as_deref(), Some("one line prompt"));
+
+    let err = select_autostart("/gone/spec.md", false, Some("multi\nline"), "go")
+        .expect_err("dead pointer + multi-line prompt is undeliverable");
+    assert!(err.contains("/gone/spec.md"), "error should name the missing file: {err}");
+}
+
+#[test]
+fn select_autostart_falls_back_to_adapter_static_kick() {
+    let got = select_autostart("", false, None, "go").expect("fallback is fine");
+    assert_eq!(
+        got.as_deref(),
+        Some("go"),
+        "no content anywhere → the adapter's static kick (pre-fix behavior) survives"
+    );
+    let none = select_autostart("", false, None, "").expect("nothing to send");
+    assert!(none.is_none(), "no content and no kick → send nothing");
+}
+
+// ── Step-log gating (.artifacts is retired for bare dispatches) ────────────
+//
+// The executor unconditionally created `.artifacts/pipeline/` even for
+// bare interactive dispatches that never tee a log. Only headless
+// pipeline steps get a step log; interactive sessions create nothing.
+
+#[test]
+fn prepare_step_logging_creates_dir_and_path_for_headless_steps() {
+    let tmp = tempfile::tempdir().unwrap();
+    let log_rel = prepare_step_logging(tmp.path(), false, 0, "smoke")
+        .expect("headless logging setup succeeds");
+    assert_eq!(log_rel.as_deref(), Some(".artifacts/pipeline/01-smoke.log"));
+    assert!(
+        tmp.path().join(".artifacts/pipeline").is_dir(),
+        "headless steps need the log dir so tee doesn't race"
+    );
+}
+
+#[test]
+fn prepare_step_logging_creates_nothing_for_interactive_sessions() {
+    let tmp = tempfile::tempdir().unwrap();
+    let log_rel = prepare_step_logging(tmp.path(), true, 0, "smoke")
+        .expect("interactive setup is a no-op");
+    assert!(log_rel.is_none(), "interactive sessions have no step log");
+    assert!(
+        !tmp.path().join(".artifacts").exists(),
+        "a bare interactive dispatch must not create the retired .artifacts dir"
+    );
+}

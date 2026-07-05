@@ -64,6 +64,7 @@ struct Captured {
     branch: String,
     env: HashMap<String, String>,
     spec_path: String,
+    autostart_prompt: Option<String>,
 }
 
 struct RecordingExecutor {
@@ -81,6 +82,7 @@ impl SessionExecutor for RecordingExecutor {
             branch: ctx.branch.clone(),
             env: ctx.env.clone(),
             spec_path: ctx.spec_path.clone(),
+            autostart_prompt: ctx.launch.autostart_prompt.clone(),
         });
         Err(anyhow::anyhow!("recording executor: refusing to spawn"))
     }
@@ -378,7 +380,10 @@ async fn bare_session_dispatch_threads_harness_model_branch_and_spawn_env() {
     assert_eq!(got.harness.as_deref(), Some("codex"), "harness threads into LaunchProfile");
     assert_eq!(got.model.as_deref(), Some("gpt-5-codex"), "model threads into LaunchProfile");
     assert_eq!(got.branch, "job/sess-1", "branch threads from payload");
-    assert_eq!(got.spec_path, ".artifacts/job-spec.md", "bare session uses the job-spec path");
+    assert_eq!(
+        got.spec_path, "",
+        "no source_spec_path on the payload → no spec pointer for the executor"
+    );
     // The Authority::Agent principal must reach the SpawnPolicy port verbatim.
     assert_eq!(
         got.env.get("SHIP_AGENT_PRINCIPAL").map(String::as_str),
@@ -389,6 +394,91 @@ async fn bare_session_dispatch_threads_harness_model_branch_and_spawn_env() {
         got.env.get("SHIP_ACTOR_ID").map(String::as_str),
         Some("sess-1"),
         "target slug threads as the actor id"
+    );
+}
+
+/// SPEC (c-2026-07-05T12-36-00-000Z-b2c3d4e5, live-path trace): the dispatch
+/// wire carries the spec body as `prompt` and its origin file as
+/// `source_spec_path`. Both MUST reach the executor — `prompt` as
+/// `launch.autostart_prompt` (the content channel for headless/argv
+/// transports) and `source_spec_path` as `SessionContext.spec_path` (the
+/// pointer channel for interactive TUI panes). The bug: the handler built
+/// the LaunchProfile with `..Default::default()`, dropping the prompt, so
+/// the tmux executor had nothing to send but the adapter's static "go".
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn bare_session_dispatch_threads_prompt_and_spec_source_to_executor() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let kernel = kernel_with_actor();
+    let captured = Arc::new(StdMutex::new(None));
+    let spawn_calls = Arc::new(AtomicUsize::new(0));
+    let ports = ports_with(
+        Arc::new(OkIsolation(tmp.path().join("worktrees/sess-p1"))),
+        Arc::new(RecordingExecutor {
+            captured: captured.clone(),
+            spawn_calls: spawn_calls.clone(),
+        }),
+        Arc::new(NoopRegistry),
+        Arc::new(TestPlatform {
+            worktrees: tmp.path().join("worktrees"),
+            cleanup_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+    );
+
+    let spec_body = "# Job Spec\n\nDo the real work.\nThen commit.";
+    let mut payload = started_payload("s-prompt-1", "sess-p1", Some("omp"), None, None);
+    payload.prompt = Some(spec_body.to_string());
+    payload.spec = Some(spec_body.to_string());
+    payload.source_spec_path =
+        Some("/home/op/dev/Ship/helm/data/missions/m-x/scratch/spec.md".to_string());
+
+    let got = dispatch_and_capture(&kernel, &ports, &captured, &payload)
+        .await
+        .expect("executor.spawn called");
+
+    assert_eq!(
+        got.autostart_prompt.as_deref(),
+        Some(spec_body),
+        "the dispatch prompt must reach the executor as launch.autostart_prompt \
+         — this is the content the agent works on, not the adapter's static kick"
+    );
+    assert_eq!(
+        got.spec_path, "/home/op/dev/Ship/helm/data/missions/m-x/scratch/spec.md",
+        "source_spec_path must reach the executor as the spec pointer for TUI delivery"
+    );
+}
+
+/// SPEC: callers that send only `spec` (no `prompt`) still get content
+/// delivery — spec is the fallback body for autostart_prompt.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn bare_session_dispatch_falls_back_to_spec_body_for_prompt() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let kernel = kernel_with_actor();
+    let captured = Arc::new(StdMutex::new(None));
+    let spawn_calls = Arc::new(AtomicUsize::new(0));
+    let ports = ports_with(
+        Arc::new(OkIsolation(tmp.path().join("worktrees/sess-p2"))),
+        Arc::new(RecordingExecutor {
+            captured: captured.clone(),
+            spawn_calls: spawn_calls.clone(),
+        }),
+        Arc::new(NoopRegistry),
+        Arc::new(TestPlatform {
+            worktrees: tmp.path().join("worktrees"),
+            cleanup_calls: Arc::new(AtomicUsize::new(0)),
+        }),
+    );
+
+    let mut payload = started_payload("s-prompt-2", "sess-p2", Some("omp"), None, None);
+    payload.spec = Some("spec-only body".to_string());
+
+    let got = dispatch_and_capture(&kernel, &ports, &captured, &payload)
+        .await
+        .expect("executor.spawn called");
+
+    assert_eq!(
+        got.autostart_prompt.as_deref(),
+        Some("spec-only body"),
+        "with no prompt, the spec body is the autostart content"
     );
 }
 

@@ -62,6 +62,64 @@ pub(crate) fn step_log_rel(index: usize, step_id: &str) -> String {
     format!(".artifacts/pipeline/{:02}-{}.log", index + 1, step_id)
 }
 
+/// Create the step-log dir and return the tee target for HEADLESS pipeline
+/// steps. Interactive sessions get no step log (the TUI owns the tty;
+/// nothing is tee'd) and must not create the `.artifacts` tree in a bare
+/// dispatch worktree — `.artifacts` is retired for everything but the
+/// pipeline step logs, which keep it until the pipeline runtime picks
+/// their new home.
+pub(crate) fn prepare_step_logging(
+    work_dir: &std::path::Path,
+    interactive: bool,
+    index: usize,
+    step_id: &str,
+) -> Result<Option<String>> {
+    if interactive {
+        return Ok(None);
+    }
+    std::fs::create_dir_all(work_dir.join(".artifacts/pipeline"))?;
+    Ok(Some(step_log_rel(index, step_id)))
+}
+
+/// Choose the autostart text typed into the TUI pane once the harness is
+/// ready (c-2026-07-05T12-36-00-000Z-b2c3d4e5). The pane is a keystroke
+/// transport: a multi-line body fragments into one submitted turn per
+/// line, so content is delivered by REFERENCE — a one-line pointer to the
+/// spec source file (the mission-scratch path the dispatch carried) —
+/// whenever one is available. A single-line prompt is typed verbatim.
+/// Multi-line content with no readable pointer is undeliverable and
+/// surfaces as an error rather than fragmenting silently. With no content
+/// at all, the adapter's static kick keeps promptless dispatches working.
+pub(crate) fn select_autostart(
+    spec_path: &str,
+    spec_file_exists: bool,
+    autostart_prompt: Option<&str>,
+    adapter_kick: &str,
+) -> std::result::Result<Option<String>, String> {
+    if !spec_path.is_empty() && spec_file_exists {
+        return Ok(Some(format!("Read {spec_path} and execute it.")));
+    }
+    if let Some(p) = autostart_prompt.map(str::trim).filter(|p| !p.is_empty()) {
+        if !p.contains('\n') {
+            return Ok(Some(p.to_string()));
+        }
+        let hint = if spec_path.is_empty() {
+            "pass source_spec_path so the agent can read the spec from disk".to_string()
+        } else {
+            format!("spec source {spec_path} does not exist on this host")
+        };
+        return Err(format!(
+            "multi-line prompt cannot be typed into a TUI pane \
+             (each newline submits a partial turn); {hint}"
+        ));
+    }
+    if adapter_kick.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(adapter_kick.to_string()))
+    }
+}
+
 /// Is the tmux binary on PATH and responsive to `-V`?
 ///
 /// Retries with backoff before concluding tmux is unusable. Under heavy
@@ -91,11 +149,16 @@ pub(crate) fn tmux_available() -> bool {
 }
 
 /// Does a tmux session by this name already exist?
+///
+/// `.output()` (not `.status()`): a missing session makes tmux print
+/// "can't find session: <name>" on stderr, and `.status()` inherits the
+/// daemon's stderr — the probe's expected first-dispatch miss would land
+/// in the daemon log looking like a delivery failure.
 fn session_exists(name: &str) -> bool {
     ship_substrate::spawn_bounded::Cmd::new("tmux")
         .args(["has-session", "-t", name])
-        .status()
-        .map(|s| s.success())
+        .output()
+        .map(|o| o.status.success())
         .unwrap_or(false)
 }
 
@@ -355,20 +418,20 @@ impl SessionExecutor for TmuxWindowExecutor {
             .ok_or_else(|| anyhow!("worktree path is not valid UTF-8"))?
             .to_string();
 
-        // Ensure the pipeline log dir exists so `tee -a` doesn't race.
-        let log_dir = ctx.work_dir.join(".artifacts/pipeline");
-        std::fs::create_dir_all(&log_dir)?;
+        // A bare dispatch (no pipeline step) is an INTERACTIVE agent session:
+        // run the harness TUI directly in the window so an operator who
+        // `tmux attach`es gets a live, drivable agent. A pipeline step is
+        // headless: a one-shot command tee'd to its step log.
+        let interactive = ctx.step.is_none();
+        // Headless steps get a log dir so `tee -a` doesn't race; interactive
+        // sessions create nothing.
+        let log_rel = prepare_step_logging(&ctx.work_dir, interactive, step_idx, &step_id)?;
 
         let window_id = create_window(&session, &step_id, &work_dir)?;
         let window_target = format!("{session}:{window_id}");
 
         let adapter = adapter_for_or_default(ctx.launch.harness.as_deref())
             .map_err(|e| anyhow!("tmux-window executor: {e}"))?;
-        // A bare dispatch (no pipeline step) is an INTERACTIVE agent session:
-        // run the harness TUI directly in the window so an operator who
-        // `tmux attach`es gets a live, drivable agent. A pipeline step is
-        // headless: a one-shot command tee'd to its step log.
-        let interactive = ctx.step.is_none();
         let cmd = match &ctx.launch.resume_session {
             Some(sid) => adapter
                 .build_resume_args(&ctx.slug, sid, &ctx.launch)
@@ -377,7 +440,6 @@ impl SessionExecutor for TmuxWindowExecutor {
             None => adapter.build_headless(&ctx.slug, &ctx.launch),
         };
         let shell_cmd = cmd.to_shell_string();
-        let log_rel = step_log_rel(step_idx, &step_id);
         // Per-dispatch env reaches the harness shell via `tmux
         // set-environment` so the pane inherits it before the first
         // send-keys. This is the tmux side of the `SHIP_MISSION_SCRATCH`
@@ -400,10 +462,9 @@ impl SessionExecutor for TmuxWindowExecutor {
         }
         // Never pipe an interactive TUI through `tee` — it needs the
         // window's tty. Headless steps tee to capture their run log.
-        let run_cmd = if interactive {
-            shell_cmd
-        } else {
-            format!("{shell_cmd} 2>&1 | tee -a {log_rel}")
+        let run_cmd = match &log_rel {
+            None => shell_cmd,
+            Some(log) => format!("{shell_cmd} 2>&1 | tee -a {log}"),
         };
         let status = ship_substrate::spawn_bounded::Cmd::new("tmux")
             .args(["send-keys", "-t", &window_target, &run_cmd, "Enter"])
@@ -443,14 +504,26 @@ impl SessionExecutor for TmuxWindowExecutor {
                          failed for session {session}: {msg}"
                     ));
                 }
-                // Send the autostart prompt now that the TUI is at its
-                // idle prompt. Headless steps don't get a separate
-                // autostart — `build_headless` already inlines the
-                // prompt into the harness command.
-                let autostart = adapter.autostart_input();
-                if !autostart.is_empty() {
+                // Send the autostart now that the TUI is at its idle
+                // prompt. The dispatch's own content wins — a pointer to
+                // the spec source file, or a single-line prompt — and the
+                // adapter's static kick is the last resort. Headless steps
+                // don't get a separate autostart; `build_headless` already
+                // inlines the prompt into the harness command.
+                let spec_file_exists = !ctx.spec_path.is_empty()
+                    && std::path::Path::new(&ctx.spec_path).is_file();
+                let autostart = select_autostart(
+                    &ctx.spec_path,
+                    spec_file_exists,
+                    ctx.launch.autostart_prompt.as_deref(),
+                    adapter.autostart_input(),
+                )
+                .map_err(|e| {
+                    anyhow!("tmux-window executor: autostart for session {session}: {e}")
+                })?;
+                if let Some(msg) = autostart {
                     let status = ship_substrate::spawn_bounded::Cmd::new("tmux")
-                        .args(["send-keys", "-t", &window_target, autostart, "Enter"])
+                        .args(["send-keys", "-t", &window_target, &msg, "Enter"])
                         .status()
                         .map_err(|e| anyhow!("tmux autostart send-keys failed: {e}"))?;
                     if !status.success() {
@@ -465,7 +538,7 @@ impl SessionExecutor for TmuxWindowExecutor {
             session,
             window = window_id,
             window_name = step_id,
-            log = log_rel,
+            log = log_rel.as_deref().unwrap_or("(interactive — no step log)"),
             "tmux-window-executor: step launched"
         );
 

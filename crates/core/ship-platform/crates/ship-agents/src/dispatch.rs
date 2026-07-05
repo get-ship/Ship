@@ -152,7 +152,10 @@ async fn dispatch_agent_session_internal(
         slug: slug.clone(),
         agent: payload.agent_id.clone(),
         branch: branch.clone(),
-        spec_path: ".artifacts/job-spec.md".to_string(),
+        // The spec's source file (mission scratch by convention) — the
+        // executor's pointer channel for interactive TUI delivery. Empty
+        // when the dispatch carried no path.
+        spec_path: payload.source_spec_path.clone().unwrap_or_default(),
         spec_content: payload.spec.clone(),
         work_dir: ports.platform.worktrees_dir().join(slug),
         env: build_spawn_env(slug, &payload.agent_id, ports.spawn_policy.as_ref()).await,
@@ -162,6 +165,12 @@ async fn dispatch_agent_session_internal(
             model: payload.model.clone(),
             persist_session: true,
             resume_session: payload.resume_session_id.clone(),
+            // The dispatch's content channel: the wire's `prompt` (spec
+            // body per the dispatch clients), falling back to `spec` for
+            // callers that send only the inline body. Without this the
+            // executors have nothing to deliver but their static kick
+            // (c-2026-07-05T12-36-00-000Z-b2c3d4e5's "go").
+            autostart_prompt: payload.prompt.clone().or_else(|| payload.spec.clone()),
             ..Default::default()
         },
         step: None,
