@@ -111,13 +111,16 @@ doctor:
 # Populate ~/.ship/runtime/ from local sources for dev: bun from $BUN_PATH
 # (defaulting to a `bun` on PATH), sui-compiler from target/release/.
 # Idempotent. Run once after a fresh clone.
+#
+# helmd installs the pre-push + pre-commit guards into the shared
+# git-common-dir at dispatch and on every `GitService/Overview` call, so
+# no `core.hooksPath` setup is needed here. If you need to install the
+# guards on a fresh clone before helmd has booted, run
+# `helmd --install-hooks <repo-path>`.
 [group('daily')]
 dev-runtime-install:
     #!/usr/bin/env bash
     set -euo pipefail
-    # Activate the tracked git hooks (.artifacts boundary guard). Local config,
-    # so a fresh clone needs this once — hence here.
-    git config core.hooksPath .githooks
     cargo build -p sui-compiler --release
     cargo build -p ship-cli
     BUN_BIN="${BUN_PATH:-$(command -v bun || true)}"

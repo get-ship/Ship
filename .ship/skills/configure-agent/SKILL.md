@@ -62,25 +62,8 @@ tools_deny = ["Bash(rm -rf*)"]
 | test-writer | `ship-autonomous` | Tests only, low blast radius |
 | default | `ship-standard` | Interactive human-paired sessions |
 
-## Worktree Setup
-
-Canonical path: read `~/.ship/machine/local.jsonc:worktrees.dir`.
-Default if not set: `~/dev/<project-name>-worktrees/`
-
-```bash
-# worktree path
-WORKTREE_BASE=$(ship config get worktrees.dir 2>/dev/null || echo ~/dev/$(basename "$PWD")-worktrees)
-WORKTREE_PATH="$WORKTREE_BASE/<slug>"
-
-git worktree add "$WORKTREE_PATH" -b job/<job-id>
-cd "$WORKTREE_PATH"
-ship use <agent>
-```
-
-Never use `../<branch>` — always use the configured path.
-Never use Claude Code's native worktree UI — it won't respect the config.
-
 ## Scope Constraints
+
 
 Always set explicit file scope in the job spec. The agent constrains capability
 (what the agent knows how to do). Scope constrains authority (what it's allowed to touch).
@@ -96,8 +79,13 @@ Agents WILL respect explicit scope instructions. Don't rely on preset alone.
 
 - [ ] Correct agent for the domain?
 - [ ] Permission preset matched to blast radius (default to ship-autonomous for worktrees)?
-- [ ] Worktree created at canonical path?
-- [ ] `ship use <agent>` run IN the worktree?
 - [ ] Job spec includes scope + off-limits?
 - [ ] Acceptance criteria written (not just "make it work")?
 - [ ] Dependencies noted (what must already be true)?
+
+**Worktree + agent setup are no longer checklist items.** helmd's
+`ship.ops.v1.AgentsService/Dispatch` provisions the worktree, branch,
+and agent config in one RPC. The dispatch-portable.sh CLI (or the MCP
+`dispatch_job` tool, or the Launch UI) is the operator-facing entry
+point; from this skill's perspective the worktree path and the
+`ship use <agent>` step are helmd's job, not yours.

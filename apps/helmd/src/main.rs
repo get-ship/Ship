@@ -89,6 +89,12 @@ mod collections;
 // the feature OFF (NoopDispatch + dispatch_handle == None).
 #[cfg(feature = "ship-code")]
 mod dispatch;
+// Git hook guards (pre-push + pre-commit). No feature gate — these are
+// helmd's contract with the operator regardless of which features are on.
+// Dispatch installs on every dispatch; Overview installs on every repo the
+// SPA opens; the `--install-hooks` CLI flag installs on a path the operator
+// names explicitly.
+pub mod guards;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -169,6 +175,17 @@ impl GitService for GitImpl {
         req: OwnedGitOverviewRequestView,
     ) -> ServiceResult<GitOverviewResponse> {
         let root = PathBuf::from(req.repo_path.to_string());
+
+        // Install the pre-push + pre-commit guards in this repo's shared
+        if let Err(e) = guards::install_repo_guards(&root) {
+            tracing::warn!(error = %e, repo = %root.display(), "git hook install skipped");
+        }
+        // main checkout" path: every repo the SPA opens in the
+        // workspace is guarded on first touch, even if no dispatch
+        // has happened yet.
+        if let Err(e) = dispatch::install_repo_guards(&root) {
+            tracing::warn!(error = %e, repo = %root.display(), "git hook install skipped");
+        }
 
         // ── ship-git leaf loaders (git2-backed; no subprocess) ──────────────
         let buckets = ship_git::read::load_status_buckets(&root);
@@ -1305,9 +1322,31 @@ async fn main() -> anyhow::Result<()> {
         .try_init();
     let mut addr = DEFAULT_ADDR.to_string();
     let mut args = std::env::args().skip(1);
+    let mut install_hooks_path: Option<String> = None;
     while let Some(a) = args.next() {
-        if a == "--addr" {
-            addr = args.next().unwrap_or_else(|| DEFAULT_ADDR.to_string());
+        match a.as_str() {
+            "--addr" => addr = args.next().unwrap_or_else(|| DEFAULT_ADDR.to_string()),
+            // `--install-hooks <repo-path>` — operator escape hatch: install
+            // the pre-push + pre-commit guards in `<repo-path>/.git/hooks/`
+            // and exit without starting the server. Used to set up a fresh
+            // clone that hasn't been opened in Helm yet.
+            "--install-hooks" => {
+                install_hooks_path = Some(args.next().unwrap_or_default());
+            }
+            _ => {}
+        }
+    }
+    if let Some(path) = install_hooks_path.as_deref() {
+        let repo = PathBuf::from(path);
+        match guards::install_repo_guards(&repo) {
+            Ok((pre_push, pre_commit)) => {
+                eprintln!("installed: {pre_push:?}\ninstalled: {pre_commit:?}");
+                return Ok(());
+            }
+            Err(e) => {
+                eprintln!("install-hooks failed: {e}");
+                std::process::exit(1);
+            }
         }
     }
 

@@ -9,6 +9,20 @@ authors: [ship]
 
 # Workspace Setup
 
+> **RETIRE-CANDIDATE (operator to confirm).** This skill is on the retire
+> list per `census-sources.md` Part 1. The "agent pod" model is gone —
+> helmd's `Dispatch` RPC already provisions the worktree + branch +
+> agent config and opens a terminal tab in one call. The `pod.md`
+> layout and the `SHIP_DEFAULT_TERMINAL` / `SHIP_WORKTREE_DIR` env
+> contract are now the dispatch-portable.sh's contract, not this
+> skill's. The `.artifacts/pod.md` write target is retired (per
+> `working-in-helm`, no `.artifacts/`). Do not invoke until the
+> operator confirms the retire call.
+
+> **For now, until the operator confirms the retire call:** if you
+> absolutely need to pre-stage multiple agents (the rare case helmd
+> doesn't cover), the `pod.md` and `setup.sh` path still works.
+
 Launch your agent pod in one command. Reads the pod layout from the
 evidence home (`${POD_DIR:-$(git rev-parse --show-toplevel)/.artifacts}/pod.md`)
 and opens a terminal tab for each agent in its worktree. `POD_DIR` falls

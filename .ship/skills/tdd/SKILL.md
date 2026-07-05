@@ -27,11 +27,11 @@ Write an **end-to-end test** — full user flow through real endpoints. HTTP, br
 Write a **unit test** — isolated, no I/O, fast. Mock external dependencies. One function per test.
 {% endif %}
 
-Check `${EVIDENCE_DIR:-.}/spec-from-tests.md` for the planned test list if it
-exists. (The historical path is `.artifacts/spec-from-tests.md`; today the
-evidence lives in the mission scratch root, falling back to the repo-local
-`.artifacts/` when no mission is in scope. The SKILL also accepts a
-plain-relative path if that's what your shell chose.)
+Check `${EVIDENCE_DIR:-${SHIP_MISSION_SCRATCH:-.}/}spec-from-tests.md` for the
+planned test list if it exists. The evidence home is the **mission scratch**
+when a dispatch is in scope (the spec travels with the mission), else the
+job's working dir root. The historical `.artifacts/spec-from-tests.md`
+location is retired — do not write there.
 {% elif phase == "green" %}
 # Green Phase
 
@@ -120,10 +120,20 @@ Unit tests — isolated, no I/O, fast. Mock external dependencies. One function 
 
 ## Spec Artifact
 
-After 5–8 tests, write the spec artifact to the evidence home:
+After 5–8 tests, write the spec artifact to the **mission scratch** (or the
+job's working dir root if no mission is in scope). The historical
+`.artifacts/` write target is retired — do not write there.
 
 ```bash
-EVIDENCE_DIR="${SHIP_MISSION_SCRATCH:-$(git rev-parse --show-toplevel)/.artifacts}"
+# Evidence home: mission scratch first (so the spec travels with the
+# mission), else the working dir root. Hard-fail-soft when a dispatch is
+# in scope and SHIP_MISSION_SCRATCH is unset — fall back to writing into
+# the wrong place and the next dispatch's report never lines up.
+if [[ -n "${SHIP_MISSION_SCRATCH:-}" ]]; then
+    EVIDENCE_DIR="$SHIP_MISSION_SCRATCH"
+else
+    EVIDENCE_DIR="$(pwd)"
+fi
 mkdir -p "$EVIDENCE_DIR"
 cat > "$EVIDENCE_DIR/spec-from-tests.md" <<'EOF'
 # Spec (from tests)

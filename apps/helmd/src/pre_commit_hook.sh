@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Ship pre-commit guard. The .artifacts boundary, enforced — not left to
-# agent goodwill. .artifacts is ephemeral scratch: gitignored, used to get
-# work done, deleted with the branch. The durable output is code. Agents do
+# ship-dispatch:pre-commit v1
+# Refuses to commit .artifacts/ paths and any .gitignore change that weakens
+# the .artifacts ignore. .artifacts is ephemeral scratch: gitignored, used to
+# get work done, deleted with the branch. The durable output is code. Agents do
 # not commit it and do not weaken the ignore that protects it. The only
 # exception is a human running `git commit --no-verify`.
 set -euo pipefail

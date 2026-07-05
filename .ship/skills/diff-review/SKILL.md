@@ -9,9 +9,17 @@ authors: [ship]
 
 # Diff Review
 
-Render git diffs as an interactive review surface in Ship Studio's Session page.
-
-## Usage
+> **RETIRE-CANDIDATE (operator to confirm, defensive).** Per
+> `census-sources.md` Part 1, diff review is a Studio UI surface — there's
+> no code path that depends on the skill text, only the Studio view. The
+> skill text's only job was to point at `.artifacts/canvas.html` /
+> `.artifacts/annotations.json` / `.artifacts/review.md`, all retired.
+> The Studio diff view embeds its own instructions; this skill is
+> dead-letter. **Retire; if the Studio surface needs skill-text updates,
+> those are the Studio view's own docs, not a `.ship/skills/` skill.**
+> Banner added defensively in this job — land-hardening re-pointed the
+> evidence home to the mission scratch, but the underlying skill remains
+> a retire candidate.
 
 Invoked as `/diff` or triggered when reviewing changes.
 

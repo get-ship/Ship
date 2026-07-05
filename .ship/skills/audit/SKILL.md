@@ -9,7 +9,14 @@ authors: [ship]
 
 # Audit Skill
 
-## When to use this skill
+> **RETIRE-CANDIDATE (operator to confirm).** This skill is on the retire
+> list per `census-sources.md` Part 1. The new world audits via
+> `kind: observation` claims filed against Subsystem/Feature records in
+> Helm; no live dispatcher invokes this skill. The artifact paths it
+> teaches (`.artifacts/specs/op-surface-audit/_indexes/`,
+> `.artifacts/specs/module-audits/`, `.ship/collections/architecture-observations.rows.jsonl`)
+> are all retired concepts. Do not invoke until the operator confirms
+> the retire call. If you must audit, do it as a series of claims.
 
 Invoke this skill when you need to audit a single module's public API, events,
 wire integration, and layer-direction discipline. The unit of work is exactly

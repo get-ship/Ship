@@ -388,56 +388,10 @@ impl AgentPlatform for HelmdPlatform {
 /// main repo index during `worktree add`). Mirror of shipd's static guard.
 static WORKTREE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-/// Marker embedded in the pre-push hook so a re-install is a no-op.
-const PRE_PUSH_HOOK_MARK: &str = "ship-dispatch:pre-push v1";
-
-/// Install the pre-push guard that blocks pushes of `refs/heads/job/*` from
-/// any worktree in this repo. Returns the path to the installed hook.
-///
-/// Git resolves a worktree's hooks from the *main* repo's git-common-dir, not
-/// the per-worktree one — installing once at `<common-dir>/hooks/pre-push`
-/// covers every worktree. The hook is a static script (`pre_push_hook.sh`)
-/// embedded at compile time; the only `ship`-side logic is idempotency
-/// (re-running on a hook that already carries the marker is a no-op) and the
-/// executable bit.
-pub(crate) fn install_pre_push_hook(worktree_path: &Path) -> Result<PathBuf> {
-    let common_out = std::process::Command::new("git")
-        .args([
-            "-C",
-            worktree_path
-                .to_str()
-                .ok_or_else(|| anyhow::anyhow!("worktree path is not valid UTF-8"))?,
-            "rev-parse",
-            "--git-common-dir",
-        ])
-        .output()
-        .map_err(|e| anyhow::anyhow!("git rev-parse failed: {e}"))?;
-    if !common_out.status.success() {
-        return Err(anyhow::anyhow!(
-            "git rev-parse --git-common-dir failed: {}",
-            String::from_utf8_lossy(&common_out.stderr).trim()
-        ));
-    }
-    let common = PathBuf::from(String::from_utf8_lossy(&common_out.stdout).trim());
-    let hook_dir = common.join("hooks");
-    std::fs::create_dir_all(&hook_dir)?;
-    let hook_file = hook_dir.join("pre-push");
-    let needs_install = match std::fs::read_to_string(&hook_file) {
-        Ok(content) => !content.contains(PRE_PUSH_HOOK_MARK),
-        Err(_) => true,
-    };
-    if needs_install {
-        std::fs::write(&hook_file, include_str!("pre_push_hook.sh"))?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = std::fs::metadata(&hook_file)?.permissions();
-            perms.set_mode(0o755);
-            std::fs::set_permissions(&hook_file, perms)?;
-        }
-    }
-    Ok(hook_file)
-}
+/// Install BOTH the pre-push and pre-commit guards via the shared installer
+/// in `crate::guards`. Re-exported here so the rest of the dispatch flow
+/// (and any legacy callers) keep working without a name change.
+pub(crate) use crate::guards::install_repo_guards;
 
 /// Isolation strategy that creates git worktrees and compiles agent configs.
 /// Reimplementation of `GitWorktreeIsolation` (stuck in
@@ -452,13 +406,15 @@ impl IsolationStrategy for GitWorktreeIsolation {
             let _guard = WORKTREE_LOCK.lock().await;
             helpers::create_worktree(&worktree_path, &job.branch, None)?;
         }
-        // Install the pre-push guard at the main repo's shared hooks dir so
-        // the dispatched agent (running with bypassPermissions) cannot push
-        // its own branch to a remote. Git uses git-common-dir/hooks for every
-        // worktree, so installing once here covers all of them. A failure
-        // here must not block dispatch — the operator can re-run by hand.
-        if let Err(e) = install_pre_push_hook(&worktree_path) {
-            tracing::warn!(error = %e, "pre-push hook install skipped");
+        // Install BOTH the pre-push guard (blocks pushes of refs/heads/job/*
+        // from the dispatched agent running with bypassPermissions) and the
+        // pre-commit guard (refuses .artifacts/ paths and .gitignore changes
+        // that weaken the .artifacts ignore). Git resolves a worktree's
+        // hooks from the main repo's git-common-dir, so installing once
+        // here covers every worktree in the repo. A failure here must not
+        // block dispatch — the operator can re-run by hand.
+        if let Err(e) = install_repo_guards(&worktree_path) {
+            tracing::warn!(error = %e, "git hook install skipped");
         }
         let session_dir = worktree_path.join(".artifacts");
         std::fs::create_dir_all(&session_dir)?;
@@ -485,104 +441,5 @@ impl IsolationStrategy for GitWorktreeIsolation {
 }
 
 
-#[cfg(test)]
-mod tests {
-    use super::install_pre_push_hook;
-    use std::path::{Path, PathBuf};
-    use std::process::Command;
-
-    /// Build a one-commit repo with a worktree at `<tmp>/<wt>` on a
-    /// `job/<slug>` branch. Returns the worktree path.
-    fn setup_repo_with_worktree(tmp: &Path, wt_subdir: &str, slug: &str) -> PathBuf {
-        let main = tmp;
-        let run = |args: &[&str]| {
-            let out = Command::new("git")
-                .args(args)
-                .current_dir(main)
-                .output()
-                .expect("git failed");
-            assert!(
-                out.status.success(),
-                "git {args:?} failed: {}",
-                String::from_utf8_lossy(&out.stderr)
-            );
-        };
-        run(&["init", "--initial-branch=main"]);
-        run(&["config", "user.email", "t@example.com"]);
-        run(&["config", "user.name", "test"]);
-        std::fs::write(main.join("README.md"), "x").unwrap();
-        run(&["add", "."]);
-        run(&["commit", "-m", "init"]);
-        let wt = main.join(wt_subdir);
-        run(&[
-            "worktree",
-            "add",
-            "-b",
-            &format!("job/{slug}"),
-            wt.to_str().unwrap(),
-        ]);
-        wt
-    }
-
-    /// After `install_pre_push_hook` runs, the hook file exists at the
-    /// shared git-common-dir/hooks/pre-push, is executable, and contains the
-    /// guard that blocks pushes of `refs/heads/job/*`. This is the clause the
-    /// helmd pre-push lift from `dispatch.sh` must satisfy.
-    #[test]
-    fn install_pre_push_hook_writes_executable_guard() {
-        let tmp = tempfile::tempdir().expect("tempdir");
-        let wt = setup_repo_with_worktree(tmp.path(), "wt", "auth");
-        let hook_path = install_pre_push_hook(&wt).expect("install");
-
-        assert!(hook_path.exists(), "hook file should exist at {hook_path:?}");
-        let content = std::fs::read_to_string(&hook_path).expect("read hook");
-        assert!(
-            content.contains("ship-dispatch:pre-push v1"),
-            "marker missing in hook content"
-        );
-        assert!(
-            content.contains("refs/heads/job/*"),
-            "ref guard missing in hook content"
-        );
-        assert!(
-            content.contains("SHIP_ALLOW_PUSH"),
-            "bypass env guard missing"
-        );
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mode = std::fs::metadata(&hook_path)
-                .expect("metadata")
-                .permissions()
-                .mode();
-            assert!(
-                mode & 0o111 != 0,
-                "hook should be executable, got mode {mode:o}"
-            );
-        }
-    }
-
-    /// Re-running the installer on an already-marked hook is a no-op: the
-    /// content is preserved verbatim (no clobbering of unrelated edits by
-    /// either us or a future re-dispatch).
-    #[test]
-    fn install_pre_push_hook_is_idempotent() {
-        let tmp = tempfile::tempdir().expect("tempdir");
-        let wt = setup_repo_with_worktree(tmp.path(), "wt", "idem");
-        install_pre_push_hook(&wt).expect("first install");
-        let hook_path = install_pre_push_hook(&wt).expect("second install");
-
-        let content = std::fs::read_to_string(&hook_path).expect("read hook");
-        assert!(content.contains("ship-dispatch:pre-push v1"));
-        let len = content.len();
-        // third call should be a no-op
-        install_pre_push_hook(&wt).expect("third install");
-        let content2 = std::fs::read_to_string(&hook_path).expect("read hook");
-        assert_eq!(
-            content2.len(),
-            len,
-            "hook should not grow on re-install (would clobber user edits)"
-        );
-    }
-}
+// Hook tests live in `crate::guards` — same installer, same markers, plus
+// a real-git end-to-end refusal test that this file used to host.

@@ -53,26 +53,63 @@ GATE FAIL: <job> · job/<slug>
   What needs to change: <actionable>
 ```
 
-## The merge (on PASS)
+## The merge (on PASS) — Land, never raw git merge
 
-Gate owns the merge; the dispatcher never touches git mid-job.
+The merge is owned by helmd's `GitService/Land` RPC. **No raw `git merge`.**
+A raw merge can never hit the integration branch correctly (it would have
+to know the operator's current integration target, and a manual
+`git worktree remove` + `git branch -D` would race with helmd's own
+dispatch lifecycle). Land is the one path that squash-merges onto the
+integration branch, deletes the source branch (it is LANDED by
+definition), and removes the worktree if clean — all atomic, all logged.
 
 ```bash
-cd <main-repo> && git merge --no-ff job/<slug> -m "merge: <slug> — <goal>"
-just gate                      # re-verify on the merged tree
-# CLEANUP (mandatory — additive crates are parallel impls until cutover; never leak worktrees):
-tmux kill-session -t <slug> 2>/dev/null
-git worktree remove ~/dev/Ship/worktrees/<slug> --force
-git branch -d job/<slug>
+# Resolve the integration branch (ask the operator or check the worktree
+# you were dispatched from — never assume `main`).
+TARGET=$(git -C <main-repo> symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+    | sed 's@^refs/remotes/origin/@@' || echo "feat/next")
+
+# Land the job onto the integration branch. On a clean Land the source
+# branch + worktree are already gone; on conflict the RPC reports the
+# conflicting paths and writes nothing.
+ship ops call git.land --json "$(cat <<EOF
+{
+  "repo_path": "<main-repo>",
+  "source_branch": "job/<slug>",
+  "target_branch": "$TARGET",
+  "message": "<slug> — <one-line goal>"
+}
+EOF
+)"
+
+# Re-verify on the merged tree (the integration branch tip).
+just gate
 ```
 
-Target branch is the CURRENT integration branch (ask the operator or check the worktree you were dispatched from — do not assume), not `main`. Record the verdict in the job's tracking doc.
+Target branch is the **CURRENT integration branch** (typically `feat/next`),
+not `main`. `main` is a release cut, not an integration point. The
+`Release` RPC (separate from `Land`) is the squash that promotes
+integration → main; the operator runs it at release time, not at gate
+time. Record the verdict in the job's tracking doc after Land.
+
+**Why no `git worktree remove` + `git branch -d` here:** Land does the
+cleanup itself as part of the same RPC. Doing it by hand first is a race
+(the cmdr might be dispatching another job into that worktree) and is
+almost always wrong — Land's cleanup is gated on a CLEAN worktree, so
+uncommitted work is preserved exactly once.
 
 ## Replacement discipline (cutover, not accretion)
 
-The #1 agentic failure is building-over instead of replacing. An additive new crate is only the FIRST half of a move; the cutover that deletes the old impl is the committed second half. When gating a service rewrite:
-- New impl proven (parity tests green) → the old impl + its competing proto + REST remnant go on `${SHIP_MISSION_SCRATCH:-$(git rev-parse --show-toplevel)/.artifacts}/services/_deprecations.md` with an owner.
-- A FAIL if the diff *adds* a third way to do something instead of replacing.
+The #1 agentic failure is building-over instead of replacing. An additive
+new crate is only the FIRST half of a move; the cutover that deletes the
+old impl is the committed second half. When gating a service rewrite:
+- New impl proven (parity tests green) → file a `kind: annotation` claim
+  (non-blocking) or `kind: observation` (must-fix) against the affected
+  Subsystem/Feature. The deprecation is tracked in the claim inbox, not
+  in a `.artifacts/services/_deprecations.md` file (the artifacts concept
+  is retired — everything goes through Helm).
+- A FAIL if the diff *adds* a third way to do something instead of
+  replacing.
 
 ## Banned-vocabulary gate
 
@@ -106,3 +143,4 @@ not a caught regression.
 ## Notes
 - `just gate` is the source of truth for the objective bar. If a check is missing from it, add the check to xtask/scripts/lint and compose it into the recipe — never hand-grep in the gate instead.
 - UI surfaces still require a fresh `web-qa` artifact (see `web-qa` skill) — that gate is unchanged.
+- The cmdr skill's Gate Protocol section is the companion to this one; it owns the operator-facing merge step (Land), this skill owns the objective+taste verdict that authorizes it.

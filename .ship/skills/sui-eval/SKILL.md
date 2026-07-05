@@ -2,9 +2,8 @@
 name: sui-eval
 stable-id: sui-eval
 audience: internal
-description: Run the SUI authoring eval. Dispatch lane agents to build a view from a spec, watch their tmux panes for idle (not commits), grade compile + lint + structure, record scores to the sui-eval-runs collection. Off-pipeline — uses dispatch-portable.sh → helmd, not pipelines.
+description: Run the SUI authoring eval. Dispatch lane agents to build a view from a spec via dispatch-portable.sh → helmd, watch their tmux panes for idle (not commits), grade compile + lint + structure, record scores into the sui-eval-runs collection. Off-pipeline — uses helmd's bare single-agent dispatch, not pipelines.
 tags: [eval, sui, dispatch, grading]
-audience: internal
 authors: [ship]
 ---
 
@@ -16,16 +15,36 @@ helmd (boots helmd first if it's down), helmd spawns it in its own worktree +
 tmux tab, a poll loop waits for lanes to idle, then `grade.ts` scores each
 worktree and `record.ts` makes the scores queryable in `views/eval`.
 
+**One dispatch path, no fallback.** Always use `dispatch-portable.sh` — the
+`dispatch.sh` legacy spawner was deleted. The CLI is a thin
+client of helmd's `ship.ops.v1.AgentsService/Dispatch`; every consumer
+(this skill, the SPA, the MCP `dispatch_job` tool) routes through it.
+
 Why off-pipeline: the pipeline fanout path is unreliable (the supervisor sweep
 can murder live lanes). helmd's bare single-agent dispatch survives daemon
 hiccups and is fully observable in a real PTY.
+
 ## Files
 
 - `scripts/dispatch-eval.sh` — fork N lanes (one per model) from the current branch
 - `scripts/lane-watch.sh` — peer into each lane's tmux pane, detect idle, auto-grade
-- `scripts/grade.ts` — compile + lint + structural rubric → `.artifacts/sui-eval-runs/<run-id>.jsonl`
+- `scripts/grade.ts` — compile + lint + structural rubric; writes scores to
+  the run's home (mission scratch when in scope, else `data/runs/sui-eval/<run-id>.jsonl`)
 - `scripts/record.ts` — jsonl → `collections.create_item` into `sui-eval-runs`
 - `task-spec.md` + `mockups/` — the authoring task the lanes build
+
+## Where run output lives
+
+Eval runs are **derived, gitignored** — the durable record is the
+`sui-eval-runs` collection row, not a per-run artifact file. The local
+JSONL the scripts write is a working copy that `record.ts` consumes.
+
+When a mission is in scope, the JSONL lands in the mission scratch
+(`${SHIP_MISSION_SCRATCH}/sui-eval-runs/<run-id>.jsonl`). Otherwise the
+canonical derived-run home is `data/runs/sui-eval/<run-id>.jsonl` (the
+ship-meta spec calls `data/runs/` out as the observed-run root). The
+historical `.artifacts/sui-eval-runs/` location is retired — nothing
+writes there any more.
 
 ## Run it
 
@@ -52,7 +71,7 @@ bash .ship/skills/sui-eval/scripts/lane-watch.sh <RUN_ID>
 It blocks until every lane is idle (120s quiet + no spinner) or the 40m timeout,
 then grades each worktree and records — no external `/loop`, no `git` dependency.
 Run it in a tmux pane of your own (or background it) so it survives. Pass
-`--no-grade` to only signal (writes `.artifacts/sui-eval-runs/.watch/<RUN_ID>/<slug>.done`).
+`--no-grade` to only signal (writes the per-run done file alongside the jsonl).
 
 If a lane goes idle with **uncommitted work** on disk — the case that burns you
 downstream (idle agent, real work, no commit → cleanup assumes nothing happened) —
@@ -65,7 +84,7 @@ A lane that's idle but doesn't compile still gets graded — grade is a measurem
 not a gate. Low score is signal, not error.
 
 **3. Read results** in `views/eval` (grouped by run_id) or the raw jsonl under
-`.artifacts/sui-eval-runs/`.
+the run's home.
 
 ### Manual / headless grade (override the task)
 
@@ -95,8 +114,7 @@ bun .ship/skills/sui-eval/scripts/behavior-grade.ts <lane-dir> <view-path> <spec
 
 ## Cleanup
 
-After scoring, remove lane worktrees + branches:
-```bash
-for wt in ~/dev/Ship/worktrees/eval-*-<id>; do git worktree remove --force "$wt"; done
-git branch | grep "job/eval-.*-<id>" | xargs -r git branch -D
-```
+helmd's dispatch lifecycle owns lane teardown: worktrees, branches, and
+the post-run `.artifacts/` were never yours to clean up. If a lane is
+still alive at the end of a run, `tmux kill-session -t <slug>` is the
+only operator-side cleanup; everything else is helmd's.
