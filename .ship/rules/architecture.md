@@ -10,4 +10,4 @@
 * Group capabilities by what callers want, not what things are.
 * ConnectRPC is the only surface Ship exposes — a new capability is a Connect op or it doesn't exist; no new REST/CLI/MCP endpoints. (Integrating an external surface, e.g. an MCP server, is a capability; exposing a second one is not.)
 * Consumers (UI, CLI, agents) compose capabilities; they never cause a backend surface to exist. A new op is justified by a capability, not a consumer's convenience.
-* Architectural decisions that constrain future work go in `docs/ship-adrs/` as a new ADR. Smaller decisions update a rule file in `.ship/rules/`.
+* No ADR convention exists — don't suggest writing one. Architectural decisions that constrain future work live in the Helm blueprint (system/subsystem charters); smaller decisions update a rule file in `.ship/rules/`.

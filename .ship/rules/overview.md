@@ -21,5 +21,4 @@ Substrate (L0) is fat — it holds the logic and the truth. Logic moves down, no
 
 * Binding rules: `architecture.md`, `engineering.md`, `agent-discipline.md`, `job-protocol.md`.
 * How it fits together: the `ship-architecture` doc-skill (`docs/ship-architecture/`).
-* Decisions already made (don't relitigate): ADRs in `docs/ship-adrs/`.
 * How we document / agent memory: the `ship-docs` and `memento` skills.
