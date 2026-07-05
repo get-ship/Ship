@@ -9,8 +9,12 @@ authors: [ship]
 
 # Workspace Setup
 
-Launch your agent pod in one command. Reads `.artifacts/pod.md` and opens a
-terminal tab for each agent in its worktree.
+Launch your agent pod in one command. Reads the pod layout from the
+evidence home (`${POD_DIR:-$(git rev-parse --show-toplevel)/.artifacts}/pod.md`)
+and opens a terminal tab for each agent in its worktree. `POD_DIR` falls
+back to the repo-local `.artifacts/`; honor `SHIP_MISSION_SCRATCH` when
+the pod is launched under a mission so the layout travels with the
+other evidence.
 
 ## Usage
 
@@ -18,17 +22,18 @@ terminal tab for each agent in its worktree.
 bash .ship/skills/setup-workspace/scripts/setup.sh
 ```
 
-Reads `.artifacts/pod.md` by default. Pass `--pod <file>` to use a different layout.
+Reads `${POD_DIR}/pod.md` by default. Pass `--pod <file>` to use a different layout.
 
 ```bash
-bash .ship/skills/setup-workspace/scripts/setup.sh --pod .artifacts/pod.md
+POD_DIR="${SHIP_MISSION_SCRATCH:-$(git rev-parse --show-toplevel)/.artifacts}" \
+  bash .ship/skills/setup-workspace/scripts/setup.sh --pod "$POD_DIR/pod.md"
 bash .ship/skills/setup-workspace/scripts/setup.sh --dry-run  # preview without opening
 ```
 
 ## Pod layout file
 
-Create `.artifacts/pod.md` to define your agent pod. The file is gitignored.
-
+Create `${POD_DIR}/pod.md` to define your agent pod. The repo-local
+file is gitignored; under a mission, the path lives in the scratch root.
 ```yaml
 agents:
   - name: rust

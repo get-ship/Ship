@@ -25,12 +25,11 @@ cross-cutting refactor candidates without any up-front sweep.
 2. **Layer indicator** — one of `L0`, `L1`, `shared`, `apps`. Determines which
    section shape and which checks apply.
 3. **Citation indexes** — the authoritative emit-site and substrate-fn indexes.
-   Read these before writing a single row:
-   - `.artifacts/specs/op-surface-audit/_indexes/emit-sites.md`
-   - `.artifacts/specs/op-surface-audit/_indexes/substrate-fns.md`
-4. **Prior audit docs** (optional) — if the module has been audited before, read
-   the prior doc to understand what changed.
-
+   Read these before writing a single row. Path resolution honors
+   `$SHIP_MISSION_SCRATCH` (mission scratch) when set, falling back to
+   `<repo-root>/.artifacts/specs/...` for ad-hoc local runs:
+   - `${AUDIT_DIR:-.artifacts}/specs/op-surface-audit/_indexes/emit-sites.md`
+   - `${AUDIT_DIR:-.artifacts}/specs/op-surface-audit/_indexes/substrate-fns.md`
 ## The citation contract
 
 > **Every row in audit output cites `file:line` from the codebase. No citation,
@@ -167,11 +166,17 @@ Layer shape determines which sections appear and which checks dominate.
 
 ## Write-back instructions
 
-Every audit pass produces three artifacts.
+Every audit pass produces three artifacts. Write into the same evidence
+home as `web-qa` / `diff-review`:
+
+```bash
+EVIDENCE_DIR="${SHIP_MISSION_SCRATCH:-$(git rev-parse --show-toplevel)/.artifacts}"
+mkdir -p "$EVIDENCE_DIR/specs/module-audits"
+```
 
 ### 1. Per-module audit doc
 
-Path: `.artifacts/specs/module-audits/<layer>/<module>.md`
+Path: `${EVIDENCE_DIR}/specs/module-audits/<layer>/<module>.md`
 
 Use the canonical 10-section shape for the appropriate layer (defined in the
 per-layer sub-docs). Do not customize per module — the uniform shape is what
@@ -184,7 +189,7 @@ makes the collection machine-tractable. Carry the header block:
 ### 2. Observations log entry
 
 Append a `### <module> — <YYYY-MM-DD>` entry to
-`.artifacts/specs/module-audits/_observations.md`. Each cross-cutting pattern
+`${EVIDENCE_DIR}/specs/module-audits/_observations.md`. Each cross-cutting pattern
 gets one bullet per module sighting. The log accumulates across passes; after
 3 sightings a candidate tag becomes confirmed and a promoted refactor candidate.
 
@@ -207,7 +212,7 @@ Row schema (all fields from the collection JSONC — include all required fields
   "citation_line": "<line-or-range>",
   "description": "<one-sentence citation-backed description>",
   "status": "pending",
-  "audit_doc": ".artifacts/specs/module-audits/<layer>/<module>.md",
+  "audit_doc": "${EVIDENCE_DIR}/specs/module-audits/<layer>/<module>.md",
   "task_id": null,
   "pass_date": "<YYYY-MM-DD>",
   "notes": null
@@ -217,9 +222,8 @@ Row schema (all fields from the collection JSONC — include all required fields
 ### 4. README coverage table
 
 Until `xtask gen-audit-readme` (Spec 5) exists, update the coverage table in
-`.artifacts/specs/module-audits/README.md` manually: add a row for the module
+`${EVIDENCE_DIR}/specs/module-audits/README.md` manually: add a row for the module
 with pass date, LOC, status.
-
 ## Failure mode checklist
 
 Before declaring the audit done, verify each item:

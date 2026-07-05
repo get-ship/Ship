@@ -32,8 +32,8 @@
 //! way to reuse them from helmd, so they are copied here (the only "reimplement
 //! a type stuck in apps/shipd" cost). Everything else (`RoutingExecutor`,
 //! `ProcessRegistry`, `ConfigSpawnPolicy`, `ProjectionsReader`, `EventDedup`,
-//! `write_phase_spec_from_context`, `AgentPorts`, `start_agents`) comes from
-//! the shared crates and is consumed directly.
+//! `AgentPorts`, `start_agents`) comes from the shared crates and is consumed
+//! directly.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -58,7 +58,6 @@ use ship_code::helpers;
 use ship_code::process_registry::{ProcessRegistry, SharedRegistry};
 use ship_code::runner::dedup::EventDedup;
 
-use ship_pipeline_runtime::orchestrator::isolation::write_phase_spec_from_context;
 use ship_pipeline_runtime::orchestrator::projection_reader::ProjectionsReader;
 use ship_pipeline_runtime::orchestrator::spawn_policy::ConfigSpawnPolicy;
 
@@ -467,7 +466,6 @@ impl IsolationStrategy for GitWorktreeIsolation {
         // dispatched agent when SHIP_ACTOR_ID gets stripped by the harness's
         // MCP subprocess spawn. Worktree-scoped.
         let _ = std::fs::write(session_dir.join(".dispatched"), &job.slug);
-        write_phase_spec_from_context(&worktree_path, job)?;
         // Run steps (pure shell) carry no agent — nothing to compile. Only
         // compile when a real agent is named (every bare dispatch sets one).
         if !job.agent.is_empty() {

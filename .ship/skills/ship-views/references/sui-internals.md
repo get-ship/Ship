@@ -70,8 +70,7 @@ Skipping any step ships stale bytes.
 | Runtime | `bun run --filter @ship/sui-runtime test` |
 | DOM / attach | `bun run --filter @ship/ui-dom test` |
 | LSP | `bun run --filter @ship/ui-lsp test` |
-| Browser smoke | `node .artifacts/sui-counter-probe.mjs` (Playwright probe; daemon must be up) |
-
+| Browser smoke | `node "${SUI_PROBE_PATH:-$(git rev-parse --show-toplevel)/.artifacts}/sui-counter-probe.mjs"` (Playwright probe; daemon must be up; honored for missions by `${SUI_PROBE_PATH:-$SHIP_MISSION_SCRATCH}`) |
 ## Generated artifacts (gitignored, emitted under `dist/`)
 
 Don't commit. Don't be surprised by:

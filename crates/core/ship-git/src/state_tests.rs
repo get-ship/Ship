@@ -351,6 +351,72 @@ fn squash_merge_unknown_source_errors() {
     assert!(matches!(err, super::state::GitError::BadRef(_)));
 }
 
+#[test]
+fn squash_merge_refuses_dirty_tracked_tree_when_target_checked_out() {
+    // Land must NEVER silently destroy operator WIP in the target's working
+    // tree (c-2026-07-05T18-10-00-000Z-a7b8c9d0). With target checked out and
+    // tracked modifications present, squash_merge returns typed refusal —
+    // the repo (refs, index, working tree) is untouched.
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "base\n");
+    initial_commit(&r.root);
+    let main = read::load_branch(&r.root).unwrap();
+    let head_before = read::load_log(&r.root, None, 50);
+    let log_before = head_before.len();
+
+    // job/x adds b.txt.
+    branch_and_checkout(&r.root, "job/x");
+    write_file(&r.root, "b.txt", "one\n");
+    commit_on_head(&r.root, "add b");
+
+    // Back on main. Operator has an uncommitted TRACKED edit on a.txt.
+    write::checkout(&r.root, &main).unwrap();
+    write_file(&r.root, "a.txt", "operator-wip\n");
+
+    // Land must REFUSE — typed error listing the dirty tracked path.
+    let err = write::squash_merge(&r.root, "job/x", &main, "land", None).unwrap_err();
+    let paths = match err {
+        super::state::GitError::DirtyWorkingTree { paths } => paths,
+        other => panic!("expected DirtyWorkingTree, got {other:?}"),
+    };
+    assert_eq!(paths, vec!["a.txt".to_string()]);
+
+    // Repo untouched: main tip unchanged, WIP bytes preserved.
+    let repo = Repository::open(&r.root).unwrap();
+    let head_after = repo.head().unwrap().peel_to_commit().unwrap().id().to_string();
+    assert_eq!(head_after, head_before[0].sha, "main tip unmoved");
+    assert_eq!(read::load_log(&r.root, None, 50).len(), log_before, "no new commit");
+    assert_eq!(fs::read_to_string(r.root.join("a.txt")).unwrap(), "operator-wip\n");
+}
+
+#[test]
+fn squash_merge_allows_untracked_files_when_target_checked_out() {
+    // Untracked files are NOT work (c-2026-07-05T18-10-00-000Z-a7b8c9d0) — land
+    // proceeds even when target is checked out and only untracked files are
+    // present.
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "base\n");
+    initial_commit(&r.root);
+    let main = read::load_branch(&r.root).unwrap();
+
+    // job/x adds b.txt.
+    branch_and_checkout(&r.root, "job/x");
+    write_file(&r.root, "b.txt", "one\n");
+    commit_on_head(&r.root, "add b");
+
+    // Back on main with an untracked scratch file.
+    write::checkout(&r.root, &main).unwrap();
+    write_file(&r.root, "scratch.txt", "untracked\n");
+
+    let out = write::squash_merge(&r.root, "job/x", &main, "land", None).unwrap();
+    assert!(matches!(
+        out,
+        write::SquashOutcome::Committed { .. }
+    ));
+    // Untracked file survives (REMOVE_UNTRACKED is not set on the checkout).
+    assert_eq!(fs::read_to_string(r.root.join("scratch.txt")).unwrap(), "untracked\n");
+}
+
 // ── changed-files (presence footprint) ──────────────────────────────────────
 
 #[test]

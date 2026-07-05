@@ -157,7 +157,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_ADDR: &str = "127.0.0.1:2469";
 
 /// Stateless handler — every op opens the repo fresh via `ship-git`.
-struct GitImpl;
+pub struct GitImpl;
 
 impl GitService for GitImpl {
     // The trait's `-> impl Encodable<…>` is refined to the concrete response by
@@ -209,7 +209,10 @@ impl GitService for GitImpl {
         };
 
         // ship-git leaf: squash-merge source -> target as one commit, or detect
-        // conflicts and write nothing.
+        // conflicts and write nothing. A `DirtyWorkingTree` from the leaf is
+        // a typed refusal the operator MUST see — c-2026-07-05T18-10 — surface
+        // as a `failed_precondition` with the dirty paths so the caller knows
+        // where to look.
         match ship_git::write::squash_merge(&root, &source, &target, &message, author) {
             Ok(ship_git::write::SquashOutcome::Committed { sha, .. }) => {
                 // Land completes the land-or-clean gate (c-2026-07-05T12-52-00-000Z-c3d4e5f6).
@@ -221,13 +224,21 @@ impl GitService for GitImpl {
                 // definition) and remove its worktree when clean. A dirty
                 // worktree is left in place — the operator has uncommitted
                 // work we'd be wrong to discard.
+                //
+                // The cleanup gate's log line is `eprintln!`d directly (not
+                // `tracing::info!`) so it appears unconditionally on helmd's
+                // stderr — c-2026-07-05T17-30-00-000Z-f6a7b8c9 saw the leaf
+                // test pass while live calls emitted nothing because no
+                // tracing subscriber was attached.
                 let cleaned = post_land_cleanup(&root, &source);
-                tracing::info!(
-                    source = %source, target = %target, committed = %sha,
-                    branch_deleted = cleaned.branch_deleted,
-                    worktree_removed = cleaned.worktree_removed,
-                    worktree_dirty_skipped = cleaned.worktree_dirty_skipped,
-                    "land: cleanup complete"
+                eprintln!(
+                    "land: cleanup branch_deleted={} worktree_removed={} worktree_dirty_skipped={} source={} target={} sha={}",
+                    cleaned.branch_deleted,
+                    cleaned.worktree_removed,
+                    cleaned.worktree_dirty_skipped,
+                    source,
+                    target,
+                    sha,
                 );
                 Response::ok(LandResponse {
                     committed: sha,
@@ -238,6 +249,12 @@ impl GitService for GitImpl {
                 conflicts: paths,
                 ..Default::default()
             }),
+            Err(ship_git::state::GitError::DirtyWorkingTree { paths }) => Err(
+                connectrpc::ConnectError::failed_precondition(format!(
+                    "refused: target branch has tracked modifications in working tree ({}); commit or stash before landing",
+                    paths.join(", ")
+                )),
+            ),
             Err(e) => Err(connectrpc::ConnectError::internal(e.to_string())),
         }
     }
@@ -618,21 +635,28 @@ fn post_land_cleanup_at(
                 ])
                 .current_dir(root)
                 .output();
-            outcome.worktree_removed = matches!(result, Ok(o) if o.status.success());
+            outcome.worktree_removed = matches!(&result, Ok(o) if o.status.success());
+            if !outcome.worktree_removed {
+                let stderr = match &result {
+                    Ok(o) => String::from_utf8_lossy(&o.stderr).into_owned(),
+                    Err(_) => String::new(),
+                };
+                eprintln!(
+                    "land: cleanup worktree_remove_failed slug={slug} worktree={} stderr={stderr}",
+                    worktree_path.display(),
+                );
+            }
         } else {
             outcome.worktree_dirty_skipped = true;
-            tracing::warn!(
-                slug, worktree = %worktree_path.display(),
-                "land: worktree is dirty (uncommitted changes) — leaving in place; \
-                 commit/reset/remove by hand before the next dispatch can claim this slug"
+            eprintln!(
+                "land: cleanup worktree_dirty_skipped slug={slug} worktree={} — leaving in place",
+                worktree_path.display()
             );
         }
     }
-    // Delete the branch only after the worktree is out of the way (or
+    let worktree_blocks_branch = worktree_path.exists() && !outcome.worktree_removed;
     // was already absent). On a dirty-worktree skip the branch stays —
     // same reason: git won't let us delete a branch with an attached
-    // worktree, and the dirty worktree stays by design.
-    let worktree_blocks_branch = worktree_path.exists() && !outcome.worktree_removed;
     if !worktree_blocks_branch {
         let result = std::process::Command::new("git")
             .args(["branch", "-D", source_branch])
@@ -665,20 +689,18 @@ fn is_worktree_clean(worktree_path: &std::path::Path) -> bool {
     }
 }
 
-/// The canonical worktrees root. Matches the layout `GitWorktreeIsolation`
-/// uses when provisioning a dispatch worktree, so the land-or-clean
-/// gate's removal targets the same path the dispatch wrote to.
+/// The canonical worktrees root. Mirrors `ship_code::helpers::worktrees_dir`
+/// (the dispatcher writes here, the lander reads here); honors
+/// `SHIP_WORKTREE_DIR` so tests + multi-root layouts can pin the root.
 fn worktrees_dir_layout() -> PathBuf {
-    // Reuse the same logic helmd's dispatch path uses: `worktrees/` is
-    // rooted at the user's ship home (via `helpers::worktrees_dir()` in
-    // apps/helmd/src/dispatch.rs). The helper is `pub(crate)` to that
-    // module, so we re-derive the same path here rather than threading
-    // the helper across module boundaries.
-    ship_substrate::home::ShipHome::from_env()
-        .root()
-        .parent()
-        .map(|p| p.join("worktrees"))
-        .unwrap_or_else(|| PathBuf::from("worktrees"))
+    let project = std::path::PathBuf::from(
+        ship_paths::env::read_raw(ship_paths::env::Var::RepoDir).unwrap_or_default(),
+    )
+    .file_name()
+    .and_then(|n| n.to_str())
+    .map(|s| s.to_string())
+    .unwrap_or_else(|| "ship".to_string());
+    ship_config::worktrees::worktrees_dir(&project)
 }
 
 #[cfg(test)]
@@ -1271,6 +1293,16 @@ fn context_path_for(harness_id: &str) -> String {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Initialize the tracing subscriber so `tracing::info!` / `tracing::warn!`
+    // calls (e.g. the Land-cleanup gate's booleans, dispatch warn lines) reach
+    // stderr. Best-effort — helmd still works without it (the gate's
+    // direct `eprintln!` carries the load-bearing signal regardless).
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("helmd=info,ship=info,warn")),
+        )
+        .try_init();
     let mut addr = DEFAULT_ADDR.to_string();
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
@@ -1278,11 +1310,6 @@ async fn main() -> anyhow::Result<()> {
             addr = args.next().unwrap_or_else(|| DEFAULT_ADDR.to_string());
         }
     }
-
-    // Register the collection projection BEFORE any kernel store is constructed,
-    // so `collection.*` events materialize their rows (the per-scope bus reads
-    // the projection factory when it first opens a store).
-    collections::install_collection_projection();
 
     let connect = Router::new();
     let connect = Arc::new(GitImpl).register(connect);

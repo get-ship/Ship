@@ -69,3 +69,7 @@ mod tests_server;
 #[cfg(test)]
 #[path = "mint_token_tests.rs"]
 mod mint_token_tests;
+
+#[cfg(test)]
+#[path = "mission_scratch_tests.rs"]
+mod mission_scratch_tests;

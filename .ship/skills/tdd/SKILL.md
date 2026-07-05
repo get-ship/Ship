@@ -27,10 +27,11 @@ Write an **end-to-end test** — full user flow through real endpoints. HTTP, br
 Write a **unit test** — isolated, no I/O, fast. Mock external dependencies. One function per test.
 {% endif %}
 
-**Process:** Understand the behavior → write the test → run it → confirm it fails for the right reason → stop.
-
-Check `.artifacts/spec-from-tests.md` for the planned test list if it exists.
-
+Check `${EVIDENCE_DIR:-.}/spec-from-tests.md` for the planned test list if it
+exists. (The historical path is `.artifacts/spec-from-tests.md`; today the
+evidence lives in the mission scratch root, falling back to the repo-local
+`.artifacts/` when no mission is in scope. The SKILL also accepts a
+plain-relative path if that's what your shell chose.)
 {% elif phase == "green" %}
 # Green Phase
 
@@ -119,10 +120,13 @@ Unit tests — isolated, no I/O, fast. Mock external dependencies. One function 
 
 ## Spec Artifact
 
-After 5–8 tests, write `.artifacts/spec-from-tests.md`:
+After 5–8 tests, write the spec artifact to the evidence home:
 
-```markdown
-## Spec (from tests)
+```bash
+EVIDENCE_DIR="${SHIP_MISSION_SCRATCH:-$(git rev-parse --show-toplevel)/.artifacts}"
+mkdir -p "$EVIDENCE_DIR"
+cat > "$EVIDENCE_DIR/spec-from-tests.md" <<'EOF'
+# Spec (from tests)
 
 Behaviors confirmed:
 - [x] <behavior> — <test name>
@@ -132,10 +136,10 @@ Open questions:
 
 Next tests:
 - <next behavior to write>
+EOF
 ```
 
 This is the deliverable of the spec phase. Implementation agents use it as their brief.
-
 ## Interactive Spec-Building
 
 For collaborative test design — proposing tests one at a time, discussing implications, checkpointing specs — see `references/docs/interactive-workflow.md`.

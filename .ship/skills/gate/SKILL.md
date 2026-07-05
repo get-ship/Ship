@@ -71,7 +71,7 @@ Target branch is the CURRENT integration branch (ask the operator or check the w
 ## Replacement discipline (cutover, not accretion)
 
 The #1 agentic failure is building-over instead of replacing. An additive new crate is only the FIRST half of a move; the cutover that deletes the old impl is the committed second half. When gating a service rewrite:
-- New impl proven (parity tests green) → the old impl + its competing proto + REST remnant go on `.artifacts/services/_deprecations.md` with an owner.
+- New impl proven (parity tests green) → the old impl + its competing proto + REST remnant go on `${SHIP_MISSION_SCRATCH:-$(git rev-parse --show-toplevel)/.artifacts}/services/_deprecations.md` with an owner.
 - A FAIL if the diff *adds* a third way to do something instead of replacing.
 
 ## Banned-vocabulary gate

@@ -28,7 +28,7 @@ git diff main..HEAD
 Build a change map:
 
 ```markdown
-<!-- .artifacts/review-map.md -->
+<!-- ${REVIEW_DIR}/review-map.md -->
 # Review Map
 
 | File | Type | Risk | Reviewer focus |
@@ -37,6 +37,10 @@ Build a change map:
 | src/utils.ts | refactor | low | behavior preservation |
 | migrations/001.sql | schema | high | data safety, rollback |
 ```
+
+`REVIEW_DIR` resolves from `${SHIP_MISSION_SCRATCH:-$(git rev-parse --show-toplevel)/.artifacts}`
+(mission scratch first, repo-local fallback). The same evidence home as
+`web-qa` / `diff-review` / `audit`.
 
 ### 3. Review each file
 
@@ -71,9 +75,7 @@ For each changed file, check in order:
 - Unnecessary complexity
 
 ### 4. Write the review
-
-```markdown
-<!-- .artifacts/review.md -->
+<!-- ${REVIEW_DIR}/review.md -->
 # Review: <PR title or branch>
 
 ## Verdict: APPROVE | REQUEST_CHANGES | COMMENT
@@ -99,12 +101,7 @@ For each changed file, check in order:
 {% if post_to_github %}
 Post to GitHub:
 ```bash
-gh pr review <number> --request-changes --body-file .artifacts/review.md
+gh pr review <number> --request-changes --body-file "${REVIEW_DIR}/review.md"
 # or
-gh pr review <number> --approve --body-file .artifacts/review.md
+gh pr review <number> --approve --body-file "${REVIEW_DIR}/review.md"
 ```
-{% else %}
-Surface the review inline or to mission-control. Blockers = gate fail. Suggestions = pass with notes.
-
-To post directly to GitHub: `ship vars set code-review post_to_github true`
-{% endif %}

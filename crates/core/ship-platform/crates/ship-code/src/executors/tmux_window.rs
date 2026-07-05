@@ -304,6 +304,41 @@ fn find_unique_window_by_name(session: &str, name: &str) -> Option<String> {
     Some(first)
 }
 
+/// Emit `tmux set-environment` for each entry in `env` so a pane started in
+/// the session inherits the value before its first command. Mirrors the
+/// process-side `merge_session_env_into_launch` on `launch.env`. The
+/// `runner` indirection lets tests assert the exact argv without driving a
+/// real tmux server — production code passes a closure that shells out
+/// to `tmux` via `ship_substrate::spawn_bounded::Cmd`.
+///
+/// The function is best-effort: the first failed call short-circuits the
+/// rest and surfaces an error string for the caller to log. `SHIP_MISSION_SCRATCH`
+/// (the helm-side mission scratch path) reaches the pane here — the same
+/// seam the process executor implements.
+pub(crate) fn emit_tmux_env<R, I, K, V>(
+    session: &str,
+    env: I,
+    runner: R,
+) -> std::result::Result<(), String>
+where
+    I: IntoIterator<Item = (K, V)>,
+    K: AsRef<str>,
+    V: AsRef<str>,
+    R: Fn(&[&str]) -> std::result::Result<(), String>,
+{
+    for (name, value) in env {
+        runner(&[
+            "set-environment",
+            "-t",
+            session,
+            name.as_ref(),
+            value.as_ref(),
+        ])
+        .map_err(|e| format!("tmux set-environment {} failed: {e}", name.as_ref()))?;
+    }
+    Ok(())
+}
+
 #[async_trait]
 impl SessionExecutor for TmuxWindowExecutor {
     async fn spawn(&self, ctx: &SessionContext) -> Result<ExecutorHandle> {
@@ -343,14 +378,33 @@ impl SessionExecutor for TmuxWindowExecutor {
         };
         let shell_cmd = cmd.to_shell_string();
         let log_rel = step_log_rel(step_idx, &step_id);
-        // Never pipe an interactive TUI through `tee` — it needs the window's
-        // tty. Headless steps tee to capture their run log.
+        // Per-dispatch env reaches the harness shell via `tmux
+        // set-environment` so the pane inherits it before the first
+        // send-keys. This is the tmux side of the `SHIP_MISSION_SCRATCH`
+        // seam — the process executor folds the same map into
+        // `launch.env`. A failure here logs a warning rather than failing
+        // the dispatch (mirrors the best-effort posture the rest of
+        // tmux_window takes with harness-missing). See `emit_tmux_env`
+        // for the testable form.
+        if let Err(e) = emit_tmux_env(&session, &ctx.env, |argv| {
+            ship_substrate::spawn_bounded::Cmd::new("tmux")
+                .args(argv)
+                .status()
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        }) {
+            tracing::warn!(
+                slug = ctx.slug, session,
+                "tmux set-environment encountered a non-fatal failure: {e}"
+            );
+        }
+        // Never pipe an interactive TUI through `tee` — it needs the
+        // window's tty. Headless steps tee to capture their run log.
         let run_cmd = if interactive {
             shell_cmd
         } else {
             format!("{shell_cmd} 2>&1 | tee -a {log_rel}")
         };
-
         let status = ship_substrate::spawn_bounded::Cmd::new("tmux")
             .args(["send-keys", "-t", &window_target, &run_cmd, "Enter"])
             .status()

@@ -26,7 +26,22 @@ Determine what to diff:
 
 ### 2. Render to Session canvas
 
-Write `.artifacts/canvas.html` with an interactive diff view:
+Write the diff review artifacts to the mission scratch root when one is
+in scope (the typical dispatched-agent case), else to the repo-local
+`.artifacts/`. Hard-fail when a dispatch expects an evidence home and
+`SHIP_MISSION_SCRATCH` is unset — the wrong dir makes the review
+unreadable end to end.
+
+```bash
+if [[ -n "${SHIP_MISSION_SCRATCH:-}" ]]; then
+    ART_DIR="$SHIP_MISSION_SCRATCH"
+else
+    ART_DIR="$(git rev-parse --show-toplevel)/.artifacts"
+fi
+mkdir -p "$ART_DIR"
+```
+
+Write `$ART_DIR/canvas.html` with an interactive diff view:
 
 - File list at the top, clickable, scrolls to that file's diff
 - Per-file sections with line numbers, green additions, red deletions
@@ -42,15 +57,14 @@ Include review action buttons:
 
 ### 3. Read annotations
 
-After the reviewer annotates in Studio, read `.artifacts/annotations.json`:
+After the reviewer annotates in Studio, read `$ART_DIR/annotations.json`:
 - Click annotations on diff lines = inline review comments
 - Action annotations = the review decision
 - Box annotations = section-level feedback
 
 ### 4. Write review summary
 
-Output to `.artifacts/review.md` with the decision, per-file comments, and referenced line numbers.
-
+Output to `$ART_DIR/review.md` with the decision, per-file comments, and referenced line numbers.
 ## Styling
 
 Dark theme with light mode support. Use CSS variables:

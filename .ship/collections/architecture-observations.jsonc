@@ -1,6 +1,7 @@
 // Architecture observations collection.
-// Promoted from .artifacts/specs/module-audits/_observations.md (2026-05-29).
 // Each row is one citation-backed finding from a per-module audit pass.
+// (Originally seeded from a markdown corpus on 2026-05-29; the corpus
+// itself now lives under the operator's evidence home — never here.)
 // Row data: .ship/collections/architecture-observations.rows.jsonl
 // (JSONL chosen over a data/ subdir because this is a static corpus seeded
 //  from the markdown migration; dynamic collection items live in data.db.

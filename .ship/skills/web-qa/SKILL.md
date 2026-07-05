@@ -2,7 +2,7 @@
 name: web-qa
 audience: public
 stable-id: web-qa
-description: Systematic QA for a UI surface — every interactive element pressed, multi-theme, console + network captured, evidence written to .artifacts/web-qa/. Use before claiming any UI work "done". Gate-required when touching apps/shell, packages/components/{sui,ship}, views, or `sui/crates/sui`.
+description: Systematic QA for a UI surface — every interactive element pressed, multi-theme, console + network captured, evidence written to `${SHIP_MISSION_SCRATCH}/web-qa/` (or `.artifacts/web-qa/` when no mission scratch is set). Use before claiming any UI work "done". Gate-required when touching apps/shell, packages/components/{sui,ship}, views, or `sui/crates/sui`.
 tags: [qa, testing, browser, playwright, gate-required]
 authors: [ship]
 license: MIT
@@ -33,7 +33,16 @@ If you skip this skill, the gate will reject your branch.
 REPO="$(git rev-parse --show-toplevel)"
 QA_RUN="$(date -u +%Y-%m-%dT%H-%M)"
 QA_SURFACE="${1:?surface name required, e.g. dev-panel/edit-mode/components-tab}"
-QA_DIR="$REPO/.artifacts/web-qa/$QA_SURFACE/$QA_RUN"
+# Evidence homes — mission scratch when one is in scope, repo-local .artifacts/
+# otherwise. The gate reads from this exact path; rotating the dir breaks the
+# gate scan. Hard-fail when the dispatch carried a mission but
+# SHIP_MISSION_SCRATCH is unset — fall back to writing into the wrong place
+# silently and the next dispatch's report never lines up.
+if [[ -n "${SHIP_MISSION_SCRATCH:-}" ]]; then
+    QA_DIR="$SHIP_MISSION_SCRATCH/web-qa/$QA_SURFACE/$QA_RUN"
+else
+    QA_DIR="$REPO/.artifacts/web-qa/$QA_SURFACE/$QA_RUN"
+fi
 mkdir -p "$QA_DIR/screenshots"
 
 # Resolve playwright-cli — see references/runtime.md for fallback walk
@@ -238,27 +247,10 @@ Lying — declaring DONE when there are unprobed elements or unaddressed
 findings — is a worse failure than honest `DONE_WITH_CONCERNS`.
 
 ## Gate contract
-
-When this skill writes a report with `status: DONE` or `DONE_WITH_CONCERNS`,
-the gate will accept the touched surface for that commit window. The mapping:
-
-- `apps/shell/**` → surface name starts with `chrome/` or `shell/`
-- `packages/components/sui/primitives/src/sui-*/**` → surface name starts with `components/<tag>/`
-- `views/<name>/**` → surface name starts with `views/<name>/`
-- `sui/crates/sui/**` → surface name starts with `runtime/` or `compiler/`
-
-The gate scans `.artifacts/web-qa/<surface>/<latest>/report.md`, checks the
+The gate scans the evidence home — `${SHIP_MISSION_SCRATCH}/web-qa/<surface>/<latest>/report.md` when a dispatch carried a mission, else `.artifacts/web-qa/<surface>/<latest>/report.md`. The gate checks the
 `run:` timestamp is newer than the latest commit touching the matched files,
 and parses `status:` + `console_errors:` + `network_failures:` from the
 frontmatter. Missing or stale artifact = gate FAIL.
-
-## Anti-patterns (do not do)
-
-- Taking one screenshot of one tab and committing
-- Probing only `ship-light`
-- Probing only one viewport
-- Asserting on DOM presence without checking computed styles
-- Calling `.click()` on an element you haven't snapshot-ref'd (drag/drop and
   composed-event paths don't fire from synthetic `.click()` in shadow DOM)
 - Marking DONE when console has unwaived errors
 - Marking DONE when the score is < 90 without justifying every dropped point

@@ -66,9 +66,8 @@ Next tests to write:
 - Permission checks (can agent X modify agent Y?)
 ```
 
-Write this to `.artifacts/spec-from-tests.md`.
-
-## Phase 4: Implement
+Write this to `${EVIDENCE_DIR:-$(git rev-parse --show-toplevel)/.artifacts}/spec-from-tests.md`
+(the mission scratch root when `SHIP_MISSION_SCRATCH` is set).
 
 Once the user says "spec is good, implement it":
 

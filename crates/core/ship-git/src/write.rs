@@ -327,6 +327,28 @@ pub fn squash_merge(
 ) -> Result<SquashOutcome, GitError> {
     let repo = open_repo(root)?;
 
+    // c-2026-07-05T18-10-00-000Z-a7b8c9d0: refuse to silently destroy operator
+    // WIP. A land whose target branch is the checked-out branch AND the
+    // working tree has tracked modifications (staged or unstaged — untracked
+    // files don't count) returns a typed error BEFORE any write; the caller
+    // gets the dirty paths and the repo is untouched. The force-checkout
+    // below is reached ONLY when the target tree is clean.
+    if current_branch_name(&repo).as_deref() == Some(target_branch) {
+        let buckets = super::read::load_status_buckets(root);
+        let mut dirty: Vec<String> = buckets
+            .staged
+            .iter()
+            .chain(buckets.modified.iter())
+            .map(|f| f.path.clone())
+            .collect();
+        dirty.sort();
+        dirty.dedup();
+        if !dirty.is_empty() {
+            return Err(GitError::DirtyWorkingTree { paths: dirty });
+        }
+    }
+
+
     let source_commit = repo
         .find_branch(source_branch, BranchType::Local)
         .map_err(|e| GitError::BadRef(format!("source branch `{source_branch}`: {e}")))?

@@ -44,18 +44,12 @@ path = "src/main.rs"
 [dependencies]
 # The leaf domain crate — git2 + ship-paths + ship-types, no compiler/substrate.
 ship-git = { path = "../../crates/core/ship-git" }
-# The harness-compiler leaf — L0 pure transform (serde / minijinja / toml /
-# semver / indexmap), NO ship-substrate, NO kernel/runtime/store. Backs the
-# ship.internal.v1.HarnessService wire. `cargo tree` must show only its pure
-# deps — the same leaf-clean contract ship-git holds.
-compiler = { path = "../../crates/core/compiler" }
-# Substrate consumer (spine 2a.1 → 2b): the agent domain (L1). Backs the
-# `ship.ops.v1.AgentsService` wire. As of spine 2b helmd serves the REAL
-# write path (Dispatch/Stop/Steer) too, so the `ship-code` feature below
-# forwards `ship-agents/harness-drivers` (pulling `dep:ship-code` into
-# ship-agents and lighting up `ship_agents::runtime` + the cancel module).
-# With `--no-default-features` helmd reverts to the lean read-only 2a.1 posture.
+# Env vars (SHIP_REPO_DIR, SHIP_WORKTREE_DIR, etc.) read by the canonical
+# worktrees-root resolver. Leaf-level dep; same shape as ship-git above.
+ship-paths = { path = "../../crates/core/ship-substrate/crates/ship-paths" }
+# The substrate domain crate (L1). Backs the `ship.ops.v1.AgentsService` wire.
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
+compiler = { path = "../../crates/core/compiler" }
 # Lean substrate core (NOT the heavy `ship-substrate` facade) — for the types
 # helmd must name in its `AgentsHost` impl: `KernelRouter`, `KernelLog`,
 # `ShipHome`, `init_kernel_router`, `project::get_project_dir`. These are the
@@ -72,6 +66,11 @@ ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-collection = { path = "../../crates/core/ship-platform/crates/ship-collection" }
 ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
+# Canonical worktrees-root resolver (ship_config::worktrees::worktrees_dir).
+# Honors SHIP_WORKTREE_DIR; named directly so the Land handler's worktree
+# teardown path reads from the same root the dispatcher writes to
+# (mirrors `ship_code::helpers::worktrees_dir`).
+ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 
 # ── spine 2b: REAL agent dispatch (the ship-code consumer construction) ──────
 # All gated behind the `ship-code` feature (default ON). With the feature OFF
@@ -107,23 +106,17 @@ ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types", opti
 # Structured logging — non-optional since the always-on collections wire
 # (and the spine-2b dispatch paths) log through it.
 tracing = { version = "0.1" }
-
-# Forced by the daemon-side port traits (AgentDispatchPort / ViewBroadcastPort /
-# CollectionPersistPort are `#[async_trait]`); helmd implements trivial no-op
-# adapters for them. Pinned to the workspace version.
-async-trait = "0.1"
-# Connect-RPC runtime: `axum` to serve, `client` so the generated client type
+# Subscriber for `tracing::*!` events. Initialized once in main() so the
+# Land-cleanup gate's `tracing::info!` / `tracing::warn!` lines reach
+# helmd's stderr (c-2026-07-05T17-30-00-000Z-f6a7b8c9).
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # also compiles (handy for a future in-process test).
 connectrpc = { version = "0.4", features = ["client", "axum"] }
+async-trait = "0.1"
 # Must match the version connectrpc 0.4.x pulls transitively.
 buffa = { version = "0.5", features = ["json"] }
 # Generated code names ::serde:: / ::http_body:: / ::http:: paths directly.
 serde = { version = "1.0", features = ["derive"] }
-# The compile handler flattens `compiler::CompileOutput` (Json / Option<Json>)
-# to wire `CompiledFile { path, content }` rows — needs `serde_json` to
-# pretty-print the JSON fields. Helmd is detached from the ship workspace
-# (see `[workspace]` at the bottom) so this must be a direct dep, not a
-# `workspace = true` inheritance.
 serde_json = { version = "1.0", features = ["preserve_order"] }
 # Generated code names ::http:: / ::http_body:: as top-level crates.
 http-body = "1"

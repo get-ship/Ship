@@ -31,11 +31,25 @@ use ship_substrate::events::{EventEnvelope, KernelRouter};
 use crate::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor, LaunchCommand, LaunchProfile,
 };
+
+/// Fold the dispatch-supplied spawn env (carried on `SessionContext.env` by
+/// the dispatcher / SpawnPolicy) into `launch.env` so it reaches the child
+/// process. This is the seam for `SHIP_MISSION_SCRATCH` (the helm-side
+/// mission scratch path) and similar per-dispatch vars the caller wants to
+/// surface to the harness — any entry the adapter already wrote wins on
+/// conflict (so adapter-claimed names like `PATH` are not clobbered by a
+/// caller-supplied value).
+pub(crate) fn merge_session_env_into_launch(
+    ctx: &SessionContext,
+    launch: &mut LaunchCommand,
+) {
+    for (k, v) in &ctx.env {
+        launch.env.entry(k.clone()).or_insert_with(|| v.clone());
+    }
+}
 use ship_runner::emit::persist_and_route;
 use ship_harnesses::harness_adapter::{adapter_for_or_default, HarnessAdapter};
 use process_supervisor::{spawn_process, ProcessHandle, ProcessKind, ProcessProfile, TransportKind};
-
-/// Default prompt injected when the caller didn't supply one.
 /// Kept in ProcessExecutor (the headless spawn path) because only
 /// non-interactive runs need an autostart; interactive tmux sessions are
 /// driven by the adapter's `autostart_input` after a ready pattern match.
@@ -577,7 +591,12 @@ impl SessionExecutor for ProcessExecutor {
         } else {
             build_headless_with_default_prompt(adapter, &ctx.slug, &ctx.launch)?
         };
-
+        // Fold the dispatch-supplied spawn env into `launch.env` so it
+        // reaches the child. This is the `SHIP_MISSION_SCRATCH` seam —
+        // the helm-side mission scratch path reaches the harness via the
+        // caller-supplied `SessionContext.env`. See
+        // `merge_session_env_into_launch` for conflict resolution.
+        merge_session_env_into_launch(ctx, &mut launch);
         // Per-step log under .artifacts/. The supervisor primitive owns
         // the actual log file lifecycle; we just point it at the right
         // directory and the slug-derived filename comes from

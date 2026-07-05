@@ -8258,6 +8258,7 @@ dependencies = [
  "harness-adapter",
  "isolation-port",
  "libc",
+ "parking_lot",
  "process-supervisor",
  "serde",
  "serde_json",

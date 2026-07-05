@@ -55,7 +55,7 @@ pub struct HelmAgentsHost {
     /// Live dispatch runtime (process registry + executor). `start_agents` is
     /// already running over `kernel` when this is set; stop/steer act on it.
     #[cfg(feature = "ship-code")]
-    dispatch:      Arc<crate::dispatch::DispatchHandle>,
+    dispatch:      Arc<super::dispatch::DispatchHandle>,
 }
 
 impl HelmAgentsHost {
@@ -103,7 +103,7 @@ impl HelmAgentsHost {
         // helmd's `#[tokio::main]`.
         #[cfg(feature = "ship-code")]
         let dispatch =
-            Arc::new(crate::dispatch::start_dispatch_runtime(kernel.clone(), daemon_origin.clone()));
+            Arc::new(super::dispatch::start_dispatch_runtime(kernel.clone(), daemon_origin.clone()));
 
         Ok(Self {
             agents,
@@ -147,7 +147,7 @@ impl AgentsHost for HelmAgentsHost {
         // kernel the `service.agents` actor subscribes to (= a real spawn).
         #[cfg(feature = "ship-code")]
         {
-            Arc::new(crate::dispatch::HelmDispatchAdapter::new(
+            Arc::new(super::dispatch::HelmDispatchAdapter::new(
                 self.kernel.clone(),
                 self.daemon_origin.clone(),
             ))
@@ -181,7 +181,7 @@ impl AgentsHost for HelmAgentsHost {
     // (the wire's stop/steer return "dispatch not available").
     #[cfg(feature = "ship-code")]
     fn dispatch_handle(&self) -> Option<Arc<dyn DispatchHandlePort>> {
-        Some(Arc::new(crate::dispatch::HelmDispatchHandle::new(&self.dispatch))
+        Some(Arc::new(super::dispatch::HelmDispatchHandle::new(&self.dispatch))
             as Arc<dyn DispatchHandlePort>)
     }
 }
@@ -203,7 +203,7 @@ pub fn mount(router: ConnectRouter, daemon_origin: String) -> anyhow::Result<Con
 // loudly rather than silently no-op'ing.
 
 /// Agent dispatch port — helmd serves no dispatch when `ship-code` is OFF.
-/// With the feature ON the real [`crate::dispatch::HelmDispatchAdapter`] is
+/// With the feature ON the real [`super::dispatch::HelmDispatchAdapter`] is
 /// used instead and this stub is compiled out.
 #[cfg(not(feature = "ship-code"))]
 struct NoopDispatch;

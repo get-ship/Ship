@@ -26,12 +26,7 @@ You are writing a failing test. This test defines a behavior that does not exist
 
 ## Process
 
-1. Check `.artifacts/spec-from-tests.md` for the next planned test if it exists
-2. Write a test that asserts the behavior exists
-3. Run it
-4. Confirm it fails **for the right reason**
-5. Stop. Hand off to Green.
-
+1. Check `${EVIDENCE_DIR:-$(git rev-parse --show-toplevel)/.artifacts}/spec-from-tests.md` (or its `SHIP_MISSION_SCRATCH` equivalent under a mission) for the next planned test if it exists
 ## Phase lock
 
 To constrain an agent to Red only:

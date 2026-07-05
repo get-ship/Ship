@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 # Ship workspace setup — configure a multi-agent terminal environment.
-# Reads .artifacts/pod.md if it exists, otherwise prompts for agents.
-# Usage: bash .ship/skills/setup-workspace/scripts/setup.sh [--pod <file>] [--dry-run]
+# Reads the pod layout from $POD_FILE; honors $POD_DIR so the dispatcher
+# can redirect to the mission scratch root. Usage:
+#   bash .ship/skills/setup-workspace/scripts/setup.sh [--pod <file>] [--dry-run]
 set -euo pipefail
 
 WORKTREE_BASE="{{ worktree_dir | default: '' }}"
 if [[ -z "$WORKTREE_BASE" ]]; then WORKTREE_BASE="${SHIP_WORKTREE_DIR:-}"; fi
 if [[ -z "$WORKTREE_BASE" ]]; then echo "Error: set SHIP_WORKTREE_DIR or run: ship vars set setup-workspace worktree_dir <path>" >&2; exit 1; fi
 WORKTREE_BASE="${WORKTREE_BASE/#\~/$HOME}"
-POD_FILE=".artifacts/pod.md"
+# POD_DIR is the evidence home. Mission scratch first (matches web-qa /
+# diff-review / audit), repo-local fallback when no mission is in scope.
+if [[ -z "${POD_DIR:-}" ]]; then
+    if [[ -n "${SHIP_MISSION_SCRATCH:-}" ]]; then
+        POD_DIR="$SHIP_MISSION_SCRATCH"
+    else
+        POD_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    fi
+fi
+POD_FILE="${POD_DIR}/pod.md"
 DRY_RUN=false
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -81,8 +90,8 @@ if [[ -f "$POD_FILE" ]]; then
 else
   echo "No pod file found at $POD_FILE"
   echo "Create one to save your layout, or pass agent names:"
-  echo "  bash .ship/skills/setup-workspace/scripts/setup.sh --pod .artifacts/pod.md"
-  echo ""
+  echo "  POD_DIR=\"$POD_DIR\" bash \\"
+  echo "    .ship/skills/setup-workspace/scripts/setup.sh --pod \"\$POD_DIR/pod.md\""
   echo "Example pod.md:"
   cat << 'EXAMPLE'
 agents:

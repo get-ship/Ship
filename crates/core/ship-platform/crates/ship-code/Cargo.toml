@@ -38,7 +38,10 @@ thiserror = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time", "test-util"] }
-
+# Locking in tests where the result is immediately unwrapped — `parking_lot`
+# skips the poisoned-mutex error path and keeps call sites focused on the
+# data, not the error-handling boilerplate. Mirrors rule `rs-parking-lot`.
+parking_lot = { workspace = true }
 [features]
 # harness-drivers: includes the full executor/harness driver machinery
 # (executors, process_registry, process_tree_probe, terminal_launcher).

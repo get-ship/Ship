@@ -166,6 +166,11 @@ pub enum GitError {
     RepoUnavailable(String),
     BadRef(String),
     NothingStaged,
+    /// Land refused: the target branch is the checked-out branch and the
+    /// working tree has TRACKED modifications (staged or unstaged; untracked
+    /// files do NOT count). The merge did not run; the repo is untouched.
+    /// `paths` is the dirty tracked paths in the target checkout.
+    DirtyWorkingTree { paths: Vec<String> },
     NonFastForward { ahead: usize, behind: usize },
     Git(String),
     Io(String),
@@ -177,6 +182,11 @@ impl std::fmt::Display for GitError {
             Self::RepoUnavailable(m) => write!(f, "repo unavailable: {m}"),
             Self::BadRef(m) => write!(f, "bad ref: {m}"),
             Self::NothingStaged => write!(f, "no staged changes"),
+            Self::DirtyWorkingTree { paths } => write!(
+                f,
+                "refused: target branch has tracked modifications in working tree ({}) — commit or stash before landing",
+                paths.join(", ")
+            ),
             Self::NonFastForward { ahead, behind } => {
                 write!(f, "non-fast-forward: ahead {ahead}, behind {behind}")
             }
