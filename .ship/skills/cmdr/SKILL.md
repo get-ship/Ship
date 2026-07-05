@@ -93,7 +93,7 @@ at the shell) is a client of the same one path.
 
 ```bash
 bash .ship/skills/spawn-agent/scripts/dispatch-portable.sh \
-  --slug <name> --agent <agent> --spec .artifacts/job-spec-<name>.md
+  --slug <name> --agent <agent> --spec <mission scratch>/job-spec-<name>.md
 ```
 
 `dispatch-portable.sh` boots helmd locally if it isn't already running
@@ -122,7 +122,7 @@ For each completed job:
 
 1. **Check git state.** `git -C <wt> status --short` + `git log --oneline main..HEAD` + `git diff main --stat`. Agents frequently:
    - Never commit (working-tree dirty, no commits ahead of main) — you must commit on their behalf
-   - Add `.artifacts/` to `.gitignore` (recurring auto-fixup) — `git checkout main -- .gitignore` before staging anything
+   - Create or write into a `.artifacts/` dir — the concept is RETIRED; delete the dir, working files belong in the mission's scratch
    - Touch files outside their spec scope — flag, decide to keep or revert
 2. **Run the acceptance commands from the spec.** Not "did the agent claim they passed" — run them yourself. `cargo check --workspace --features unstable`, `bun run --filter @ship/<x> test`, the named e2e specs, etc.
 3. **Smoke the user-facing loop** for jobs that change UX/CLI behaviour. Path-convention mismatches (e.g. `page.sui` vs `index.sui`) compile clean but break the actual loop. A 30-second `tmpdir + ship init + curl` is cheap insurance.
@@ -136,7 +136,7 @@ On **FAIL**: surface specific failures with file:line. Either fix in the worktre
 
 These recur. Watch for them every gate:
 
-- **`.gitignore` add of `.artifacts/`** — agents auto-add this on init. CLAUDE.md says `.artifacts/` is workflow staging, not gitignored. Revert with `git checkout main -- .gitignore` before commit.
+- **A `.artifacts/` dir appears** — the concept is retired; nothing writes there. Delete it and re-point the agent at its mission scratch.
 - **Agent never commits.** Working tree dirty, `git log main..HEAD` empty. You commit on their behalf with a `feat/fix/refactor/...` prefix per CLAUDE.md.
 - **No attribution in commits.** No `Co-Authored-By:` lines. Ever.
 - **Spec acceptance criteria misread.** "Tests pass" ≠ user loop works. Always smoke when the loop changes.
