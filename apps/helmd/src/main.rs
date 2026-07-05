@@ -580,10 +580,17 @@ impl GitService for GitImpl {
 //      branch (its commits are NOT ancestors of the new squash commit), so
 //      the helper uses `git branch -D` — the operator invoked Land, the
 //      branch is LANDED, the next click is the TEARDOWN gate.
-//   2. Remove the worktree at `worktrees_dir/<slug>` IF clean. A dirty
-//      worktree has uncommitted changes; force-removing it would destroy
-//      operator work, so we leave it and note the skip in the response log
-//      line (the operator can either commit, reset, or remove by hand).
+//   2. Remove the worktree git reports for the source branch IF clean. The
+//      worktree is resolved via `git worktree list --porcelain` (not a
+//      path convention), so dispatchers writing to either
+//      `worktrees/<slug>` (flat) or `worktrees/<repo>/<slug>` (nested,
+//      multi-project) both clean up. A dirty worktree has uncommitted
+//      changes; force-removing it would destroy operator work, so we
+//      leave it and note the skip in the response log line (the operator
+//      can either commit, reset, or remove by hand). When no worktree
+//      has the branch checked out (the dispatch was headless, or the
+//      worktree was already torn down) the gate falls through to the
+//      flat-path convention so the branch still gets deleted.
 //
 // Both operations are subprocess-based on the same `root` git repo. The
 // helper is a no-op when the source isn't a `job/*` branch (e.g. a Land
@@ -611,12 +618,38 @@ fn post_land_cleanup(root: &std::path::Path, source_branch: &str) -> LandCleanup
             };
         }
     };
-    post_land_cleanup_at(
-        root,
-        source_branch,
-        slug,
-        &worktrees_dir_layout().join(slug),
-    )
+    // Resolve the worktree via git, not the convention. The dispatch path
+    // can write to either `worktrees/<slug>` (helmd's own provisioning)
+    // or `worktrees/<repo>/<slug>` (e.g. when the dispatch ran from a
+    // multi-project helm root, or via the Justfile + per-project prefix);
+    // the convention `worktrees_dir_layout().join(slug)` only matches the
+    // flat case and silently no-ops on the nested case — the symptom
+    // c-2026-07-06T00-30-00-000Z-d0e1f2a3 reported (all three gate flags
+    // false, no dirty skip). `git worktree list --porcelain` is the
+    // authoritative source for the branch's actual checked-out worktree;
+    // fall back to the convention when no worktree is attached so the
+    // missing-worktree case (branch exists, no checkout) still tears the
+    // branch down.
+    let worktree_path = find_worktree_for_branch(root, source_branch)
+        .unwrap_or_else(|| worktrees_dir_layout().join(slug));
+    post_land_cleanup_at(root, source_branch, slug, &worktree_path)
+}
+
+/// Resolve a branch's actual worktree path via `git worktree list
+/// --porcelain` (the only authoritative source). Returns `None` when no
+/// worktree has the branch checked out — the dispatch was headless, the
+/// worktree was already torn down, or the branch was just created.
+/// Used by `post_land_cleanup` to find worktrees the path convention
+/// `worktrees/<slug>` would miss (nested `worktrees/<repo>/<slug>`
+/// layouts, multi-project roots). c-2026-07-06T00-30-00-000Z-d0e1f2a3.
+fn find_worktree_for_branch(
+    root: &std::path::Path,
+    source_branch: &str,
+) -> Option<PathBuf> {
+    ship_git::read::list_worktrees(root)
+        .into_iter()
+        .find(|row| row.branch == source_branch)
+        .map(|row| PathBuf::from(row.path))
 }
 
 /// Inner cleanup worker — takes an explicit `worktree_path` so tests can
@@ -749,10 +782,24 @@ mod land_cleanup_tests {
     /// `post_land_cleanup` derives the worktree path from the user's
     /// ship home, which is correct in production but hostile to a
     /// test fixture in a tempdir.
-    fn setup_land_fixture(slug: &str) -> (tempfile::TempDir, PathBuf, PathBuf) {
+    ///
+    /// `wt_layout` controls where the worktree sits on disk relative to
+    /// the tempdir. The flat case (`"flat"` → `tmp/wt/<slug>`) is the
+    /// layout the `worktrees_dir_layout()` convention matches. The
+    /// nested case (`"nested"` → `tmp/wt/<repo>/<slug>`) is what the
+    /// convention MISSES — the bug fixed by `find_worktree_for_branch`
+    /// (c-2026-07-06T00-30-00-000Z-d0e1f2a3): a dispatch that landed at
+    /// `worktrees/<repo>/<slug>` was silently skipped by cleanup because
+    /// the helper guessed `worktrees/<slug>` and the worktree wasn't
+    /// there. Resolved by asking git instead of guessing.
+    fn setup_land_fixture(slug: &str, wt_layout: &str) -> (tempfile::TempDir, PathBuf, PathBuf) {
         let tmp = tempfile::tempdir().expect("tempdir");
         let root = tmp.path().to_path_buf();
-        let worktree_path = tmp.path().join("wt").join(slug);
+        let worktree_path = match wt_layout {
+            "flat" => tmp.path().join("wt").join(slug),
+            "nested" => tmp.path().join("wt").join("repo").join(slug),
+            other => panic!("unknown wt_layout {other:?}; use \"flat\" or \"nested\""),
+        };
         std::fs::create_dir_all(worktree_path.parent().unwrap()).unwrap();
         git(&root, &["init", "--initial-branch=main"]);
         git(&root, &["config", "user.email", "t@example.com"]);
@@ -800,7 +847,7 @@ mod land_cleanup_tests {
     /// the worker to inject a fixture worktree path.
     #[test]
     fn land_deletes_source_branch_and_clean_worktree() {
-        let (_tmp, root, wt_path) = setup_land_fixture("auth");
+        let (_tmp, root, wt_path) = setup_land_fixture("auth", "flat");
         assert!(wt_path.exists(), "fixture worktree must exist");
 
         let outcome = post_land_cleanup_at(&root, "job/auth", "auth", &wt_path);
@@ -835,7 +882,7 @@ mod land_cleanup_tests {
     /// branch — git's `branch -D` guards against exactly that case.)
     #[test]
     fn land_leaves_dirty_worktree_in_place() {
-        let (_tmp, root, wt_path) = setup_land_fixture("dirty");
+        let (_tmp, root, wt_path) = setup_land_fixture("dirty", "flat");
         // Dirty the worktree: write a file and `git add` so
         // `status --porcelain` is non-empty. The file is uncommitted
         // from the operator's POV — the kind of thing we'd be wrong
@@ -866,7 +913,7 @@ mod land_cleanup_tests {
     /// worktrees or branches.
     #[test]
     fn land_ignores_non_job_branch() {
-        let (_tmp, _root, _wt_path) = setup_land_fixture("mainline");
+        let (_tmp, _root, _wt_path) = setup_land_fixture("mainline", "flat");
         // Public `post_land_cleanup` resolves the worktree path via
         // `worktrees_dir_layout()` (the user's real worktrees root). On
         // a dev machine that path may not exist or may be unwritable;
@@ -907,7 +954,7 @@ mod land_cleanup_tests {
     /// Sanity-tests the helper the gate leans on.
     #[test]
     fn is_worktree_clean_matches_git_status_porcelain() {
-        let (_tmp, _root, wt_path) = setup_land_fixture("clean");
+        let (_tmp, _root, wt_path) = setup_land_fixture("clean", "flat");
         assert!(
             is_worktree_clean(&wt_path),
             "fresh fixture worktree must be clean"
@@ -923,6 +970,142 @@ mod land_cleanup_tests {
             "untracked file marks the worktree dirty (porcelain reports `??` lines)"
         );
     }
+
+    /// Resolver unit test (c-2026-07-06T00-30-00-000Z-d0e1f2a3): the cleanup
+    /// path's worktree discovery must return git's authoritative path for
+    /// the branch, regardless of whether it lives at the flat
+    /// `worktrees/<slug>` layout helmd's own dispatcher writes or the
+    /// nested `worktrees/<repo>/<slug>` layout other dispatchers produce.
+    #[test]
+    fn find_worktree_for_branch_returns_actual_path_for_flat_and_nested_layouts() {
+        let (_tmp, root, flat_wt) = setup_land_fixture("flat-slug", "flat");
+        let resolved = super::find_worktree_for_branch(&root, "job/flat-slug")
+            .expect("flat-layout worktree must resolve via git");
+        assert_eq!(
+            resolved, flat_wt,
+            "resolver must return git's authoritative path for the flat layout"
+        );
+
+        let (_tmp, root, nested_wt) = setup_land_fixture("nested-slug", "nested");
+        let resolved = super::find_worktree_for_branch(&root, "job/nested-slug")
+            .expect("nested-layout worktree must resolve via git");
+        assert_eq!(
+            resolved, nested_wt,
+            "resolver must return git's authoritative path for the nested layout \
+             (the path the convention would have GUESSED wrong)"
+        );
+    }
+
+    /// Resolver negative case: a branch that isn't checked out by any
+    /// worktree (e.g. the dispatch was headless, or the worktree was
+    /// already torn down) must resolve to None. The cleanup gate then
+    /// falls through to its missing-worktree behavior — branch gets
+    /// deleted because no worktree is holding it.
+    #[test]
+    fn find_worktree_for_branch_returns_none_when_no_worktree_attached() {
+        let (_tmp, root) = setup_branch_only_fixture("detached");
+        assert!(
+            super::find_worktree_for_branch(&root, "job/detached").is_none(),
+            "branch with no attached worktree must resolve to None"
+        );
+    }
+
+    /// The headline fix for c-2026-07-06T00-30-00-000Z-d0e1f2a3: a Land of
+    /// a `job/<slug>` branch whose worktree sits at a NESTED path
+    /// (`worktrees/<repo>/<slug>`) cleans the worktree end-to-end via
+    /// the PUBLIC `post_land_cleanup` — the one the Land handler
+    /// invokes, the one that DERIVES the worktree path and silently
+    /// no-ops today when the worktree is nested. The worker seam
+    /// (`post_land_cleanup_at`) takes the path as an argument, so it
+    /// never exercised the bug; only the public fn does. We pin
+    /// `SHIP_WORKTREE_DIR` to the fixture's worktree root so the flat
+    /// convention (`<wt_root>/<slug>`) misses the nested fixture at
+    /// `<wt_root>/repo/<slug>`, and assert the public cleanup still
+    /// tears it down — proving the resolver now finds git's
+    /// authoritative path.
+    #[test]
+    fn land_cleans_nested_worktree_via_public_cleanup() {
+        let (tmp, root, wt_path) = setup_land_fixture("autostart-livepath", "nested");
+        assert!(wt_path.exists(), "fixture worktree must exist at nested path");
+
+        // Pin the worktrees root so `worktrees_dir_layout()` (which
+        // honors `SHIP_WORKTREE_DIR`) resolves to `<tmp>/wt` — the
+        // same root the nested fixture lives under, but with the flat
+        // convention it would join `<slug>` directly, missing the
+        // `<repo>/` segment the fixture uses.
+        let wt_root = tmp.path().join("wt");
+        // SAFETY: cargo-test serializes the module's tests; setting
+        // the env var is the supported seam for `worktrees_dir_layout`.
+        unsafe {
+            std::env::set_var("SHIP_WORKTREE_DIR", &wt_root);
+        }
+
+        let outcome = post_land_cleanup(&root, "job/autostart-livepath");
+        assert!(
+            outcome.branch_deleted,
+            "branch must be deleted (nested layout must not change the outcome)"
+        );
+        assert!(
+            outcome.worktree_removed,
+            "nested-path worktree must be removed — the bug was silent no-op here"
+        );
+        assert!(
+            !outcome.worktree_dirty_skipped,
+            "clean nested worktree must not be reported as dirty"
+        );
+        assert!(
+            !wt_path.exists(),
+            "nested-path worktree directory must be gone"
+        );
+    }
+
+    /// Dirty-skip must keep working under the nested layout
+    /// (c-2026-07-06T00-30-00-000Z-d0e1f2a3 acceptance clause): the
+    /// resolver finds the worktree via git, `is_worktree_clean` flags
+    /// it dirty, the worktree stays in place, the branch stays
+    /// checked-out (and so the branch also stays — git refuses to
+    /// delete a branch with an attached worktree). The dirty flag
+    /// flips so the operator sees the skip in the gate's `eprintln!`.
+    /// Exercises the public `post_land_cleanup` so the bug would be
+    /// observable here too — without the resolver, the cleanup would
+    /// short-circuit on the missing convention path and report
+    /// `worktree_dirty_skipped=false` (the silent no-op we're fixing).
+    #[test]
+    fn land_leaves_dirty_nested_worktree_in_place_via_public_cleanup() {
+        let (tmp, root, wt_path) = setup_land_fixture("dirty-nested", "nested");
+        // Dirty the nested worktree so `is_worktree_clean` is false.
+        std::fs::write(wt_path.join("scratch.txt"), "operator's uncommitted work").unwrap();
+        git(&wt_path, &["add", "scratch.txt"]);
+        assert!(
+            !is_worktree_clean(&wt_path),
+            "nested fixture should be dirty before the land"
+        );
+
+        let wt_root = tmp.path().join("wt");
+        unsafe {
+            std::env::set_var("SHIP_WORKTREE_DIR", &wt_root);
+        }
+
+        let outcome = post_land_cleanup(&root, "job/dirty-nested");
+        assert!(
+            !outcome.branch_deleted,
+            "branch must stay (worktree still holds it)"
+        );
+        assert!(
+            !outcome.worktree_removed,
+            "dirty nested worktree must NOT be removed"
+        );
+        assert!(
+            outcome.worktree_dirty_skipped,
+            "dirty nested worktree must be reported as skipped (resolver finds it, \
+             then is_worktree_clean says dirty, then the skip flag flips)"
+        );
+        assert!(
+            wt_path.exists(),
+            "dirty nested worktree path must remain"
+        );
+    }
+
 }
 
 /// Map ship-git's `DiffView` onto the proto `DiffResponse` (field-for-field; the
