@@ -9,7 +9,7 @@
 # Callers should still apply tilde expansion (`${VAR/#\~/$HOME}`) to the
 # returned value, since `ship config` returns the path verbatim.
 #
-# Sourced by dispatch.sh, dispatch-portable.sh, and cleanup-merged.sh.
+# Sourced by dispatch-portable.sh and cleanup-merged.sh.
 # Defines resolve_worktree_base() and leaves WORKTREE_BASE unset —
 # callers bind the result themselves so they control the tilde step
 # and the `set -u` interaction.

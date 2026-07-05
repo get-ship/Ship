@@ -8,10 +8,20 @@
 # every consumer (the helm SPA, the MCP dispatch_job tool via helm's dispatch
 # lib, an operator at the shell) is an RPC CLIENT of the ONE dispatch path.
 #
+# If helmd is unreachable at the default endpoint (no HELMD_URL / HELMD_ADDR
+# override), this script tries to boot a local helmd from
+# `<repo>/target/debug/helmd` (the dev build) or `helmd` on PATH, polls for
+# readiness, and retries the POST once. Override HELMD_URL to point at a
+# remote daemon when you don't want this fallback.
+#
 # Usage: bash dispatch-portable.sh --slug <name> --agent <agent> --spec <file> [options]
 #   --harness <cli>   Harness to launch: claude (default) | omp | codex | ...
 #   --model <id>      Model id (empty = harness default)
-#   --base <branch>   Branch to fork from (default: current branch)
+#   --base <branch>   Advisory only (back-compat). helmd always applies its
+#                     own `job/<slug>` convention; the value is recorded in
+#                     the dispatch log but NOT forwarded to helmd (sending
+#                     it as `branch` would make helmd check out the
+#                     integration branch instead of a fresh job branch).
 #   --dir <path>      Worktree base dir (informational; helmd resolves its own)
 #   --no-open         Accepted for back-compat (helmd manages the terminal)
 #   --dry-run         Resolve + print the plan; do NOT POST helmd / spawn
@@ -85,7 +95,7 @@ if $DRY_RUN; then
   echo "  agent:           $AGENT"
   echo "  harness:         $HARNESS"
   echo "  spec:            $SPEC_FILE"
-  echo "  base:            $BASE_BRANCH"
+  echo "  base:            $BASE_BRANCH  (advisory only — helmd applies job/<slug>)"
   echo "  worktree:        $WORKTREE_PATH"
   echo "  branch:          $BRANCH_NAME"
   echo ""
@@ -97,6 +107,7 @@ fi
 # ── POST helmd.AgentsService/Dispatch ──────────────────────────────────────────
 HELMD_URL="${HELMD_URL:-http://${HELMD_ADDR:-127.0.0.1:2469}}"
 ENDPOINT="${HELMD_URL%/}/ship.ops.v1.AgentsService/Dispatch"
+LIST_ENDPOINT="${HELMD_URL%/}/ship.ops.v1.AgentsService/List"
 
 # Build the Connect-JSON request body (camelCase per the proto JSON mapping).
 # Prefer jq for correct escaping; fall back to a heredoc when jq is absent.
@@ -142,20 +153,103 @@ PY
 )"
 fi
 
-RESP="$(curl -sS -w $'\n%{http_code}' -X POST "$ENDPOINT" \
-  -H "content-type: application/json" -d "$BODY")" || {
-  echo "helmd dispatch failed: could not reach $ENDPOINT" >&2
-  exit 1
+# POST and return "code\nbody" on stdout. The two-arg stdout-from-curl trick
+# preserves the body even on 4xx/5xx (curl by default drops the body on error
+# in --fail mode; we use the manual code-strip below to keep both).
+post_dispatch() {
+  # curl emits the body, then a trailing newline, then the HTTP code on its
+  # own last line. We print it verbatim so callers can split with
+  #   CODE="${RAW##*$'\n'}"; PAYLOAD="${RAW%$'\n'*}"
+  # which is robust to bodies that contain embedded newlines.
+  curl -sS -w $'\n%{http_code}' -X POST "$ENDPOINT" \
+      -H "content-type: application/json" --data "$BODY" || {
+    echo "helmd dispatch failed: could not reach $ENDPOINT" >&2
+    return 1
+  }
 }
-CODE="${RESP##*$'\n'}"
-PAYLOAD="${RESP%$'\n'*}"
 
+# Poll helmd for readiness on the ListAgents op. Returns 0 when a 2xx
+# arrives (or ANY HTTP response — the daemon is up and answering), 1
+# after the deadline elapses without any response.
+wait_for_helmd() {
+  local deadline=$((SECONDS + 10))
+  while (( SECONDS < deadline )); do
+    if curl -sS -o /dev/null -w '%{http_code}' --max-time 1 \
+         -X POST "$LIST_ENDPOINT" \
+         -H "content-type: application/json" -d '{}' 2>/dev/null \
+         | grep -qE '^[0-9]{3}$'; then
+      return 0
+    fi
+    sleep 0.5
+  done
+  return 1
+}
+
+# Try to start a local helmd. Looks for the dev build first, then PATH.
+# Returns 0 if a candidate binary was launched, 1 if nothing was found.
+boot_local_helmd() {
+  local repo_root
+  repo_root="$(git rev-parse --show-toplevel 2>/dev/null || echo "")"
+  local candidate=""
+  if [[ -n "$repo_root" && -x "$repo_root/target/debug/helmd" ]]; then
+    candidate="$repo_root/target/debug/helmd"
+  elif command -v helmd >/dev/null 2>&1; then
+    candidate="$(command -v helmd)"
+  fi
+  if [[ -z "$candidate" ]]; then
+    echo "no helmd binary found (looked for <repo>/target/debug/helmd, then 'helmd' on PATH)" >&2
+    return 1
+  fi
+  local log="${TMPDIR:-/tmp}/helmd-$$.log"
+  nohup "$candidate" --addr "127.0.0.1:2469" >"$log" 2>&1 &
+  disown || true
+  echo "helmd was down; launched $candidate (logs: $log)" >&2
+  return 0
+}
+
+# ── First attempt ─────────────────────────────────────────────────────────────
+ATTEMPT=1
+# First attempt. A non-zero exit here means curl couldn't reach the socket
+# (DNS / connection refused / timeout). helmd returned a 4xx/5xx → curl
+# exits 0 and we look at the code further down.
+ATTEMPT=1
+if ! RAW="$(post_dispatch 2>&1)"; then
+  FIRST_ERR="$RAW"
+  if [[ "$HELMD_URL" != "http://127.0.0.1:2469" ]]; then
+    echo "helmd dispatch failed (operator-overridden HELMD_URL=$HELMD_URL, no local-boot fallback):" >&2
+    echo "$FIRST_ERR" >&2
+    exit 1
+  fi
+  if ! boot_local_helmd; then
+    echo "first error: $FIRST_ERR" >&2
+    exit 1
+  fi
+  if ! wait_for_helmd; then
+    echo "helmd did not become ready within 10s; aborting" >&2
+    exit 1
+  fi
+  echo "helmd is up; retrying dispatch" >&2
+  ATTEMPT=2
+  if ! RAW="$(post_dispatch 2>&1)"; then
+    echo "helmd dispatch still failed after boot — check ${TMPDIR:-/tmp}/helmd-*.log" >&2
+    echo "$RAW" >&2
+    exit 1
+  fi
+fi
+CODE="${RAW##*$'\n'}"
+PAYLOAD="${RAW%$'\n'*}"
+
+# Server returned a non-2xx. No retry — helmd rejected the request.
 if [[ "$CODE" != 2* ]]; then
   echo "helmd dispatch error (HTTP $CODE): $PAYLOAD" >&2
   exit 1
 fi
 
-echo "Dispatched via helmd ($ENDPOINT):"
+if [[ $ATTEMPT -gt 1 ]]; then
+  echo "Dispatched via helmd ($ENDPOINT) on attempt $ATTEMPT:"
+else
+  echo "Dispatched via helmd ($ENDPOINT):"
+fi
 echo "  $PAYLOAD"
 echo ""
 echo "Launch manually:"

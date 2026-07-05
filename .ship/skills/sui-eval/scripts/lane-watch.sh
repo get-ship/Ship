@@ -26,8 +26,9 @@ DO_GRADE=1
 [[ "${1:-}" == "--no-grade" ]] && DO_GRADE=0
 
 # Resolve a lane's worktree path from git itself — robust against whatever base
-# dir dispatch.sh used (~/dev/ship-worktrees vs ~/.ship/worktrees differ per
-# machine). git knows where every worktree lives; we just match by slug.
+# dir the dispatch flow used (~/dev/Ship/worktrees is the canonical default;
+# older `ship config get worktrees.dir` values differ per machine). git knows
+# where every worktree lives; we just match by slug.
 wt_path() {
   git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null \
     | awk '/^worktree /{print $2}' | grep -E "/$1$" | head -1

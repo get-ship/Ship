@@ -86,19 +86,34 @@ Mesh events push to you via channel notifications. React to:
 
 ## Dispatch Protocol
 
-**Always invoke dispatch.sh directly. Never reinvent.** The script handles worktree, compile, MCP wiring, terminal opening.
+**Always invoke dispatch-portable.sh directly. Never reinvent.** The CLI is
+a thin Connect-JSON client of helmd's `ship.ops.v1.AgentsService/Dispatch`
+RPC — every consumer (the helm SPA, the MCP dispatch_job tool, an operator
+at the shell) is a client of the same one path.
 
 ```bash
-bash .ship/skills/spawn-agent/scripts/dispatch.sh \
+bash .ship/skills/spawn-agent/scripts/dispatch-portable.sh \
   --slug <name> --agent <agent> --spec .artifacts/job-spec-<name>.md
 ```
 
-**Do NOT pass `--no-open`.** It suppresses the terminal-opening logic and leaves the user blind — they cannot see the agent run. The script auto-detects terminal (`$TMUX`, `$WT_SESSION`, `$TERM_PROGRAM`) and opens a visible window. If the user can't see the agent, they can't observe the work.
+`dispatch-portable.sh` boots helmd locally if it isn't already running
+(looks for `target/debug/helmd` relative to the repo root, else `helmd` on
+PATH), so it works the same from a fresh shell. Override the daemon URL via
+`HELMD_URL=http://host:port` (or the shorthand `HELMD_ADDR=host:port`).
 
-If the user explicitly sets `SHIP_DEFAULT_TERMINAL=manual`, respect it — otherwise let detection run.
+**Do NOT pass `--no-open`.** It suppresses helmd's terminal-opening logic
+and leaves the user blind — they cannot see the agent run. helmd
+auto-detects terminal (`$TMUX`, `$WT_SESSION`, `$TERM_PROGRAM`) and opens
+a visible window. If the user can't see the agent, they can't observe the
+work.
 
-**Parallel dispatches:** issue dispatch.sh calls in the same tool-batch when jobs are independent — `worktree_dir`/branch isolation handles concurrency.
+If the user explicitly sets `SHIP_DEFAULT_TERMINAL=manual`, respect it —
+otherwise let detection run.
 
+**Parallel dispatches:** issue dispatch-portable.sh calls in the same
+tool-batch when jobs are independent — worktree/branch isolation handles
+concurrency. `--base` is accepted but advisory-only; helmd applies its own
+`job/<slug>` convention.
 ## Gate Protocol — verify, don't trust
 
 **An agent's tail-pane summary is not evidence.** "✅ all green" in chat is a claim. Until you've *run* the acceptance commands, the job is unverified.

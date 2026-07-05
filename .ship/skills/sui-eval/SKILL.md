@@ -2,7 +2,7 @@
 name: sui-eval
 stable-id: sui-eval
 audience: internal
-description: Run the SUI authoring eval. Dispatch lane agents to build a view from a spec, watch their tmux panes for idle (not commits), grade compile + lint + structure, record scores to the sui-eval-runs collection. Off-daemon — uses dispatch.sh, not pipelines.
+description: Run the SUI authoring eval. Dispatch lane agents to build a view from a spec, watch their tmux panes for idle (not commits), grade compile + lint + structure, record scores to the sui-eval-runs collection. Off-pipeline — uses dispatch-portable.sh → helmd, not pipelines.
 tags: [eval, sui, dispatch, grading]
 audience: internal
 authors: [ship]
@@ -11,14 +11,14 @@ authors: [ship]
 # SUI authoring eval
 
 Measures how well an agent config authors a SUI view from a spec. One lane per
-model. No pipeline, no daemon fanout — `dispatch.sh` spawns each lane in its own
-worktree + wt tab, a poll loop waits for them to commit, then `grade.ts` scores
-each worktree and `record.ts` makes the scores queryable in `views/eval`.
+model. No pipeline orchestrator — `dispatch-portable.sh` POSTs each lane to
+helmd (boots helmd first if it's down), helmd spawns it in its own worktree +
+tmux tab, a poll loop waits for lanes to idle, then `grade.ts` scores each
+worktree and `record.ts` makes the scores queryable in `views/eval`.
 
-Why off-daemon: the daemon fanout path is unreliable (supervisor sweep murders
-live lanes — #189 recurred; installed binary hardcodes :9315). dispatch.sh lanes
-survive daemon hiccups and are fully observable in a real PTY.
-
+Why off-pipeline: the pipeline fanout path is unreliable (the supervisor sweep
+can murder live lanes). helmd's bare single-agent dispatch survives daemon
+hiccups and is fully observable in a real PTY.
 ## Files
 
 - `scripts/dispatch-eval.sh` — fork N lanes (one per model) from the current branch
@@ -96,8 +96,7 @@ bun .ship/skills/sui-eval/scripts/behavior-grade.ts <lane-dir> <view-path> <spec
 ## Cleanup
 
 After scoring, remove lane worktrees + branches:
-
 ```bash
-for wt in ~/.ship/worktrees/eval-*-<id>; do git worktree remove --force "$wt"; done
+for wt in ~/dev/Ship/worktrees/eval-*-<id>; do git worktree remove --force "$wt"; done
 git branch | grep "job/eval-.*-<id>" | xargs -r git branch -D
 ```

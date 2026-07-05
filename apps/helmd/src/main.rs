@@ -883,11 +883,13 @@ async fn main() -> anyhow::Result<()> {
     // Second wire on the same dev-RPC daemon: the harness compiler over the
     // `compiler` leaf. Helm dials this as a second client alongside GitService.
     let connect = Arc::new(HarnessImpl).register(connect);
-    // Third wire: the `ship.ops.v1.AgentsService` READ surface (List/Get/
-    // Sessions) over the `ship-agents` substrate. helmd implements the core
-    // `AgentsHost` trait and calls the LEAN mount — no grant (ship-auth), no
-    // watch (ship-reactive), no dispatch. This is the first substrate-backed
-    // wire on helmd; see `agents.rs` + Cargo.toml LEAF PROOF.
+    // Third wire: the `ship.ops.v1.AgentsService` wire over the `ship-agents`
+    // substrate. helmd implements the core `AgentsHost` trait and mounts
+    // through `agents::mount` — which serves the read methods (List / Get /
+    // Sessions) and, with the `ship-code` feature ON, the write path
+    // (Dispatch / Stop / Steer). With the feature OFF helmd is the lean
+    // read-only posture: no grant, no watch, no dispatch. This is the first
+    // substrate-backed wire on helmd; see `agents.rs` + Cargo.toml LEAF PROOF.
     // Derive helmd's reachable origin from the bind addr (0.0.0.0 → localhost),
     // mirroring shipd's `daemon_origin`. Feeds the dispatch `studio_url` + the
     // spawned agent's `$SHIP_DAEMON_URL`.

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# dispatch-eval.sh — fire a sui-eval run via dispatch.sh instead of the
-# daemon's fanout path.
+# dispatch-eval.sh — fire a sui-eval run via helmd instead of the
+# daemon's pipeline fanout path. Calls dispatch-portable.sh per model,
+# which POSTs to helmd (or boots helmd first if it's down).
 #
-# Why: the daemon's fanout dispatch currently leaks badly (#193) and
-# loses lane worktrees if the daemon is bounced mid-run. dispatch.sh
-# spawns each agent as a one-off in a real PTY (interactive claude,
-# NOT `-p --output-format stream-json`), so:
+# Why off-pipeline: the pipeline fanout dispatch path is unreliable
+# (the supervisor sweep can murder live lanes). helmd's bare single-
+# agent dispatch serves the lane in its own worktree + tmux tab so:
 #   - lanes are fully observable (real TUI, not raw JSON)
-#   - lanes survive daemon hiccups (no fanout coordinator)
-#   - dispatch.sh opens a wt tab per lane automatically
+#   - lanes survive daemon hiccups (no pipeline orchestrator)
+#   - helmd opens a wt tab per lane automatically
 #
 # What we give up: the automatic step-done → grade → record chain.
 # Score by hand after both lanes finish (or write a wrapper that
@@ -18,7 +18,6 @@
 # Usage:
 #   bash .ship/skills/sui-eval/scripts/dispatch-eval.sh
 #   bash .ship/skills/sui-eval/scripts/dispatch-eval.sh --models haiku,sonnet,opus
-
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -73,21 +72,19 @@ for label in "${MODELS[@]}"; do
     SLUGS+=("$slug")
     model="$(model_id "$label")"
     echo "── dispatching $label ($model) → $slug"
-    # SHIP_DEFAULT_TERMINAL=wt forces dispatch.sh's wt branch even when
-    # invoked from a non-wt shell (e.g. a Claude Code bash session
-    # where WT_SESSION isn't propagated). That branch creates a tmux
-    # session AND opens a wt tab attached to it via `wt.exe -w 0
-    # new-tab` — targeting the focused wt window so all lanes land
-    # as tabs in the same window, no copy/paste required.
+    # SHIP_DEFAULT_TERMINAL=wt forces helmd's tmux-in-wt branch even when
+    # invoked from a non-wt shell (e.g. a Claude Code bash session where
+    # WT_SESSION isn't propagated). helmd creates a tmux session and opens
+    # a wt tab attached to it via `wt.exe -w 0 new-tab` — targeting the
+    # focused wt window so all lanes land as tabs in the same window.
     SHIP_DEFAULT_TERMINAL=wt \
     SHIP_AGENT_MODEL="$model" \
-        bash "$REPO_ROOT/.ship/skills/spawn-agent/scripts/dispatch.sh" \
+        bash "$REPO_ROOT/.ship/skills/spawn-agent/scripts/dispatch-portable.sh" \
             --slug "$slug" \
             --agent ship-designer \
             --spec "$SPEC"
     echo
 done
-
 echo "════════════════════════════════════════════════════════════════"
 echo "RUN_ID:    $RUN_ID"
 echo "lanes:     ${#SLUGS[@]}  (${SLUGS[*]})"
@@ -95,7 +92,5 @@ echo "wt tabs:   should now be open in your focused wt window"
 echo
 echo "Score (after both finish) — grade per worktree, then record:"
 for slug in "${SLUGS[@]}"; do
-    echo "  (cd $HOME/.ship/worktrees/$slug && SHIP_PIPELINE_RUN_ID='$RUN_ID' bun $REPO_ROOT/.ship/skills/sui-eval/scripts/grade.ts)"
+    echo "  (cd $HOME/dev/Ship/worktrees/$slug && SHIP_PIPELINE_RUN_ID='$RUN_ID' bun $REPO_ROOT/.ship/skills/sui-eval/scripts/grade.ts)"
 done
-echo "  SHIP_PIPELINE_RUN_ID='$RUN_ID' bun $REPO_ROOT/.ship/skills/sui-eval/scripts/record.ts"
-echo "════════════════════════════════════════════════════════════════"

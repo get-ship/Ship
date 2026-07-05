@@ -2,17 +2,15 @@
 # Post-merge cleanup for a dispatched agent's slug.
 #
 # Run AFTER `git merge --no-ff job/<slug>` lands cleanly on the integration
-# branch. Tears down everything dispatch.sh and the agent created:
+# branch. Tears down everything helmd provisioned for the agent:
 #   1. The worktree at ~/dev/Ship/worktrees/<slug> (force, in case the
 #      agent left untracked files like package-lock.json from an
 #      accidental npm invocation)
 #   2. The local branch job/<slug>
-#   3. The tmux session named <slug> (where dispatch.sh launched the agent)
+#   3. The tmux session named <slug> (where helmd launched the agent)
 #   4. Any vite dev server whose cwd is the worktree path
 #   5. Any shipd daemon whose ~/.ship/machine/daemons/<id>/workspace points
 #      at the worktree, plus the daemon dir itself
-#   6. Any orphaned `claude --model …` process whose cwd is the (now
-#      deleted) worktree
 #
 # Usage:
 #   bash .ship/skills/spawn-agent/scripts/cleanup-merged.sh <slug> [<slug>...]

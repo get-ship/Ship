@@ -88,10 +88,11 @@ interface LaneScore {
 }
 
 function findLaneWorktrees(): { laneId: string; path: string }[] {
-  // Discover lane worktrees from git itself — robust against whatever base dir
-  // dispatch.sh used (~/dev/ship-worktrees vs ~/.ship/worktrees differ per
-  // machine). git knows every worktree; we match the eval-lane shape by its
-  // `-haiku` / `-sonnet` suffix.
+  // Discover lane worktrees from git itself — robust against whatever base
+  // dir the dispatch flow used (~/dev/Ship/worktrees is the canonical
+  // default; older `ship config get worktrees.dir` values differ per
+  // machine). git knows every worktree; we match the eval-lane shape by
+  // its `-haiku` / `-sonnet` suffix.
   const cwd = process.cwd()
   const lanes: { laneId: string; path: string }[] = []
   let listing = ''
