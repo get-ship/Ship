@@ -40,7 +40,7 @@ pub fn install_collection_projection() {
 /// space's `space.db`. Returns the router unchanged (with a WARN) when no active
 /// space is discoverable — collections then return Unimplemented rather than
 /// fabricate a partition (mirrors shipd's space-less mode; no `global` fallback).
-pub fn mount(router: ConnectRouter) -> anyhow::Result<ConnectRouter> {
+pub async fn mount(router: ConnectRouter) -> anyhow::Result<ConnectRouter> {
     let ship_dir = ship_substrate::ShipHome::from_env().root().to_path_buf();
 
     // Active space = the `projects` pointer content-id of the discovered
@@ -66,10 +66,22 @@ pub fn mount(router: ConnectRouter) -> anyhow::Result<ConnectRouter> {
     // captured `collection_ctx`.
     let ctx = Arc::new(SpaceContext::for_space(&ship_dir, SpaceId::new(space_id.clone()))?);
 
-    // One shared `SchemaRegistry`: built-ins (notes/feedback/annotations/
-    // decisions) + the user-authored `.ship/collections/*.jsonc` overlay, so a
-    // wire-created schema is visible to internal callers (C-2 §3.1 / UD-7).
+    // One shared `SchemaRegistry` — built-ins are code-defined
+    // (`all_builtin_schemas`); API-created schemas hydrate from this space's
+    // `_schema_registry` table (per-space, Storage Blueprint
+    // `ship-substrate-db.md`); the `.ship/collections/*.jsonc` file overlay
+    // layers on top. Order is meaningful: each subsequent call overrides
+    // by id, so the file overlay is the source of last word (matches
+    // today's `hydrate_registry` semantics).
     let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
+    if let Err(e) = ship_collection::projection::hydrate_from_store(
+        &schemas,
+        ctx.data(),
+    )
+    .await
+    {
+        tracing::warn!(error = %e, "helmd: failed to hydrate _schema_registry for {space_id}");
+    }
     ship_store::collection_schemas::hydrate_registry(
         &schemas,
         &ship_dir,

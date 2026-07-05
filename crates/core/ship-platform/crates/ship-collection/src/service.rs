@@ -17,7 +17,7 @@ use crate::error::CollectionError;
 use crate::helpers::{emit_ctx, new_ulid, now_rfc3339, row_to_item};
 use crate::projection::{
     SchemaRegistry, count_items, ensure_collection_table, ensure_registry_table,
-    update_schema_persistent,
+    persist_schema, update_schema_persistent,
 };
 use crate::types::{ItemRecord, SchemaDoc};
 
@@ -255,6 +255,12 @@ impl CollectionService {
         )
         .map_err(|e| CollectionError::Internal(e.to_string()))?;
         self.ctx.kernel().emit(envelope, &emit_ctx(&self.ctx.space_id().to_string())).await?;
+        // Durable mirror of the in-memory insert below — the registry's
+        // read path (`hydrate_from_store`) restores this row on daemon open.
+        // `_schema_registry` lives per-space (Storage Blueprint
+        // ship-substrate-db.md); same `self.ctx.data()` the projection and
+        // the item-table DDL write to.
+        persist_schema(self.ctx.data(), &doc).await?;
 
         self.schemas.insert(doc.clone());
         Ok(doc)

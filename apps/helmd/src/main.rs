@@ -1375,7 +1375,7 @@ async fn main() -> anyhow::Result<()> {
     // Fourth wire: `ship.ops.v1.CollectionsService` over the active space's
     // `space.db` (S5 dogfood cutover, Slice 0). Skipped (with a WARN) when no
     // active space is discoverable.
-    let connect = collections::mount(connect)?;
+    let connect = collections::mount(connect).await?;
 
     // CORS so the browser — Helm's SPA, served by Hono on another origin (e.g.
     // http://localhost:3000) — can dial GitService directly in dev. Connect-web

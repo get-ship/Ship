@@ -18,7 +18,6 @@ pub mod events;
 pub mod integrity;
 pub mod kv_schema;
 pub mod scope_schema;
-pub mod events_scope_reconcile;
 #[cfg(test)]
 mod events_tests;
 #[cfg(test)]
@@ -216,19 +215,6 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
         block_on(async { sqlx::query(stmt).execute(&mut conn).await })
             .with_context(|| format!("apply scope schema on {} ({scope:?})", path.display()))?;
     }
-
-    // Existing-db reconcile, AFTER the idempotent DDL so it always sees an
-    // `events` table. The `(scope, scope_key)` tuple and the Phase-2 author/
-    // signature columns live in the living base DDL — a fresh db already has
-    // them (both reconciles no-op), while an older db created from a legacy
-    // baseline (`space_id`/`project_id`/`workspace_id`, or a 15-col events
-    // table) gets the columns added + backfilled here without touching data.
-    events_scope_reconcile::reconcile_events_scope_columns(&mut conn).with_context(|| {
-        format!("events scope/scope_key reconcile failed on {}", path.display())
-    })?;
-    events_scope_reconcile::reconcile_events_author_columns(&mut conn).with_context(|| {
-        format!("events author-columns reconcile failed on {}", path.display())
-    })?;
 
     Ok(())
 }

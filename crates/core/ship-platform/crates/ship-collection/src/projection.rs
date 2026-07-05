@@ -92,6 +92,42 @@ pub async fn update_schema_persistent(
     store.update(REGISTRY_TABLE, row).await.map_err(CollectionError::from)
 }
 
+/// Hydrate `registry` from the durable `_schema_registry` rows in `store`,
+/// inserting every schema the API or an Update path persisted. The
+/// in-memory map already carries built-ins; rows with a reserved id
+/// (built-ins, system tables like `view_snapshots`) are skipped — a
+/// late row shadowing a built-in is rejected here rather than overwriting
+/// the code-defined shape.
+///
+/// Per-space: `_schema_registry` lives in this scope's db only —
+/// `Storage Blueprint (ship-substrate-db.md)` "Fold `_schema_registry`
+/// per-space". Built-ins stay code-defined (`all_builtin_schemas`); the
+/// API-persisted rows layer ON TOP, file-overlay rows layer ON TOP of
+/// those via the caller (`ship_store::collection_schemas::hydrate_registry`).
+pub async fn hydrate_from_store(
+    registry: &SchemaRegistry,
+    store: &dyn DataStore,
+) -> Result<(), CollectionError> {
+    use crate::types::RESERVED_IDS;
+    let q = ship_substrate::Query::new(REGISTRY_TABLE);
+    let result = store.query(q).await.map_err(CollectionError::from)?;
+    for row in result.rows {
+        let id = row.id.clone();
+        if RESERVED_IDS.contains(&id.as_str()) {
+            continue;
+        }
+        let Some(json) = row.fields.get("schema_json") else {
+            continue;
+        };
+        let Ok(doc) = serde_json::from_value::<SchemaDoc>(json.clone()) else {
+            tracing::warn!(id = %id, "hydrate_from_store: skipping malformed schema_json row");
+            continue;
+        };
+        registry.insert(doc);
+    }
+    Ok(())
+}
+
 /// Ensure a collection's item table exists with the correct columns.
 pub async fn ensure_collection_table(
     store: &dyn DataStore,

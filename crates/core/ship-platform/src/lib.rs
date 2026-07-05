@@ -104,6 +104,13 @@ fn install_defaults_inner() {
             // 2026-06-10). The SQL read helpers stay in ship_substrate::db::projects.
             Box::new(ship_space::ProjectsProjection),
             Box::new(ship_auth::AuthSessionsProjection),
+            // Single-row daemon-owner projection — folds `daemon.owner.*`
+            // events into the `daemon_owner` table `current_owner()` reads.
+            // Was only registered by `ship-auth::testutil`; production
+            // (shipd via `install_defaults`) silently skipped it, so
+            // `current_owner()` was always None outside tests (claim
+            // c-2026-07-02T01-40-29, 2026-07-02 schema assessment).
+            Box::new(ship_auth::DaemonOwnerProjection),
             // Per-agent approved grant baseline the mint path reads.
             // ProvisionedGrantsProjection moved to ship-auth (keystone-A
             // Phase A bundle 2, 2026-06-10): the AUTH domain owns it at L1.
