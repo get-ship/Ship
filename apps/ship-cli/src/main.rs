@@ -245,3 +245,4 @@ fn run_compile_cmd(harness: Option<&str>, dry_run: bool, path: Option<PathBuf>) 
         scoped_launch: false,
         default_effort: None,
     })
+}
