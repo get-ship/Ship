@@ -198,12 +198,12 @@ fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<Stri
             let sd = ship_substrate::ShipHome::project_ship_dir(std::fs::canonicalize(p)?);
             anyhow::ensure!(
                 sd.exists(),
-                ".ship/ not found in {}. Run `ship use` from a project with .ship/ scaffolded.",
+                ".ship/ not found in {}. Run `ship use` from a source directory with .ship/ scaffolded.",
                 p.display()
             );
             sd
         }
-        None => paths::project_ship_dir_required()?,
+        None => paths::space_ship_dir_required()?,
     };
     let space_root = ship_dir.parent().unwrap().to_path_buf();
 
@@ -230,10 +230,10 @@ fn run_compile_cmd(harness: Option<&str>, dry_run: bool, path: Option<PathBuf>) 
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
     if !ship_substrate::ShipHome::project_ship_dir(&space_root).exists() {
-        anyhow::bail!(".ship/ not found. Run `ship use <agent>` from a project with .ship/ scaffolded.");
+        anyhow::bail!(".ship/ not found. Run `ship use <agent>` from a source directory with .ship/ scaffolded.");
     }
 
-    let state = profile::ProjectState::load(&ship_substrate::ShipHome::project_ship_dir(&space_root));
+    let state = profile::SpaceState::load(&ship_substrate::ShipHome::project_ship_dir(&space_root));
     compile::run_compile(compile::CompileOptions {
         space_root: &space_root,
         output_root: None,

@@ -4,50 +4,49 @@
 //! by the `compile.completed` event the compiler emits at the end of every
 //! successful run, materialized into the `project_compile_state` projection.
 //! `ship status` and the daemon read from there. No filesystem state file
-//! and no per-project KV namespace.
-
+//! and no per-space KV namespace.
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
 use compiler::AgentProfile;
 use crate::compile::{CompileOptions, run_compile};
 
-// ── ProjectState ─────────────────────────────────────────────────────────────
+// ── SpaceState ────────────────────────────────────────────────────────────────
 
-/// Read view of `project_compile_state` for a given project. Fields are the
+/// Read view of `project_compile_state` for a given space. Fields are the
 /// shape the CLI wants to display (`ship status`); the projection layer
 /// stores whatever the latest `compile.completed` event carried.
 #[derive(Debug, Clone, Default)]
-pub struct ProjectState {
+pub struct SpaceState {
     pub active_agent: Option<String>,
     pub compiled_at: Option<String>,
     pub plugins_installed: Vec<String>,
 }
 
-impl ProjectState {
-    /// Read the latest compile state for the project at `ship_dir`.
-    /// Returns the default (all-None) when the project has never been
+impl SpaceState {
+    /// Read the latest compile state for the space at `ship_dir`.
+    /// Returns the default (all-None) when the space has never been
     /// compiled.
     pub fn load(ship_dir: &Path) -> Self {
         // The read is `compile_state::load` → `open_space_db`, which opens (and
         // self-provisions) the bounded `spaces/<id>/space.db` where the
         // Space-scoped `project_compile_state` projection lives. The space id
-        // comes from the `projects` pointer; an unregistered project has no
+        // comes from the `projects` pointer; an unregistered space has no
         // compile state (space-less → default).
         let probe = ship_dir.parent().unwrap_or(ship_dir);
         let Some(space_id) = ship_substrate::project::resolve_active_space(probe) else {
-            return ProjectState::default();
+            return SpaceState::default();
         };
         match ship_agents::services::compile::projection::load(&space_id) {
-            Ok(Some(row)) => ProjectState {
+            Ok(Some(row)) => SpaceState {
                 active_agent: row.active_agent,
                 compiled_at: Some(row.compiled_at),
                 plugins_installed: row.plugins_installed,
             },
-            Ok(None) => ProjectState::default(),
+            Ok(None) => SpaceState::default(),
             Err(e) => {
                 eprintln!("warning: could not read compile state: {}", e);
-                ProjectState::default()
+                SpaceState::default()
             }
         }
     }
@@ -58,8 +57,6 @@ impl ProjectState {
 /// Activate an agent: compile + install plugins. Compile state (active_agent,
 /// plugins) is recorded by the `compile.completed` event into the Space-scoped
 /// `project_compile_state` projection — no state file involved.
-/// If `agent_id` is None, re-runs the active agent read from that projection.
-/// `extra_skills` are injected at compile time on top of the agent's declared skill refs.
 pub fn activate_agent(
     agent_id: Option<&str>,
     space_root: &Path,
@@ -68,7 +65,7 @@ pub fn activate_agent(
     scoped: bool,
 ) -> Result<()> {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
-    let state = ProjectState::load(&ship_dir);
+    let state = SpaceState::load(&ship_dir);
     let id = agent_id
         .map(str::to_string)
         .or_else(|| state.active_agent.clone())
@@ -152,7 +149,7 @@ fn run_plugin_lifecycle(now: &[String], prev: &[String], scope: &str) {
     }
 }
 
-/// Resolve `<agent_id>.jsonc` under `.ship/agents/` (project first, then
+/// Resolve `<agent_id>.jsonc` under `.ship/agents/` (space first, then
 /// user home). JSONC is the only accepted format — the TOML and
 /// `profiles/`, `presets/`, `modes/` compat paths were retired with the
 /// agent-schema unification.
@@ -160,9 +157,9 @@ pub fn find_agent_file(agent_id: &str, space_root: &Path) -> Option<PathBuf> {
     let ship = ship_substrate::ShipHome::project_ship_dir(space_root);
     let file = format!("{agent_id}.jsonc");
 
-    let project_path = ship.join("agents").join(&file);
-    if project_path.exists() {
-        return Some(project_path);
+    let space_path = ship.join("agents").join(&file);
+    if space_path.exists() {
+        return Some(space_path);
     }
 
     let home = home::home_dir()?;
@@ -242,10 +239,10 @@ mod tests {
     }
 
     #[test]
-    fn project_state_load_missing_returns_default() {
+    fn space_state_load_missing_returns_default() {
         let tmp = TempDir::new().unwrap();
         let ship_dir = setup_ship_dir(&tmp);
-        let state = ProjectState::load(&ship_dir);
+        let state = SpaceState::load(&ship_dir);
         assert!(state.active_agent.is_none());
         assert!(state.plugins_installed.is_empty());
     }

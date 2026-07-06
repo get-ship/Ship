@@ -33,7 +33,7 @@ fn write(dir: &Path, rel: &str, content: &str) {
 
 /// Manually scaffold the bare-minimum `.ship/` tree that `ship use` and
 /// `ship compile` need. Mirrors what the (now-removed) `ship init` produced
-/// for a fresh project. Adds a `dev` agent at `.ship/agents/dev.jsonc` so
+/// for a fresh source directory. Adds a `dev` agent at `.ship/agents/dev.jsonc` so
 /// `ship use dev` resolves.
 fn scaffold_ship_dir(root: &Path) {
     write(

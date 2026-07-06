@@ -95,7 +95,7 @@ fn use_nonexistent_agent_names_agent_and_suggests_fix() {
 fn use_nonexistent_agent_with_no_agents_dir_suggests_create() {
     let tmp = TempDir::new().unwrap();
     scaffold_ship_dir(tmp.path());
-    // Remove agents dir to simulate empty project
+    // Remove agents dir to simulate empty source directory
     let _ = fs::remove_dir_all(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("agents"));
 
     let output = ship_in(&tmp)

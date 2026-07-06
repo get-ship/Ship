@@ -137,7 +137,7 @@ pub enum Commands {
         /// Preview output without writing any files
         #[arg(long)]
         dry_run: bool,
-        /// Path to project root (defaults to current directory)
+        /// Path to source directory (defaults to current directory)
         #[arg(long)]
         path: Option<PathBuf>,
     },
@@ -208,7 +208,7 @@ pub enum DaemonCommands {
     Status,
     /// Print the daemon IPC directory for the current cwd. Per devx-04,
     /// resolves to `<SHIP_HOME>/machine/daemons/<hash>/` when inside a
-    /// project root and `<SHIP_HOME>/machine/daemon/` otherwise. Used by
+    /// source directory and `<SHIP_HOME>/machine/daemon/` otherwise. Used by
     /// just recipes and scripts/dev/* to avoid hashing paths in shell.
     Dir,
     /// Remove orphaned worktrees for merged and failed jobs

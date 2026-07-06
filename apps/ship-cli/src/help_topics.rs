@@ -77,7 +77,7 @@ const TOPIC_COMPILE: &str = "\
 Compilation
 
 `ship compile` reads the active agent from .ship/ and writes harness-native
-config files to the project root (e.g. CLAUDE.md, .cursor/, .mcp.json).
+config files to the source directory (e.g. CLAUDE.md, .cursor/, .mcp.json).
 
   Compile all harnesses:    ship compile
   Single harness:          ship compile --harness claude
@@ -151,7 +151,7 @@ assets/vars.json (typed variables) and references/docs/ (reference material).
 const TOPIC_WORKFLOW: &str = "\
 Typical Workflow
 
-1. Scaffold .ship/ in a new project (or copy from an existing one):
+1. Scaffold .ship/ in a new source directory (or copy from an existing one):
    mkdir -p .ship/agents && cat > .ship/agents/dev.jsonc <<'JSON'
    { \"agent\": { \"id\": \"dev\", \"name\": \"Dev\", \"harnesses\": [\"claude\"] } }
    JSON

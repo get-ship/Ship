@@ -32,9 +32,9 @@ pub fn ensure_global_dirs() -> anyhow::Result<()> {
     Ok(())
 }
 
-// ── Project (.ship/) ──────────────────────────────────────────────────────────
+// ── Space (.ship/) ────────────────────────────────────────────────────────────
 
-pub fn project_dir() -> PathBuf {
+pub fn space_dir() -> PathBuf {
     PathBuf::from(ShipHome::ship_dir_name())
 }
 pub fn agents_dir() -> PathBuf {
@@ -47,18 +47,18 @@ pub fn skills_dir() -> PathBuf {
     ShipHome::from_env().vector_dir(ship_substrate::home::Scope::Project, Vector::Skills, None)
 }
 pub fn views_dir() -> PathBuf {
-    project_dir().join("views")
+    space_dir().join("views")
 }
-/// Project-scope MCP config file: `<project>/.ship/mcp.jsonc`.
+/// Space-scope MCP config file: `<space_root>/.ship/mcp.jsonc`.
 ///
 /// MCP is intentionally a file at every scope (per ADR cleanup; see
 /// `crates/core/runtime/src/home/vector.rs`). The directory-symmetry
 /// the original migrator wanted was overengineering.
 pub fn mcp_path() -> PathBuf {
-    project_dir().join("mcp.jsonc")
+    space_dir().join("mcp.jsonc")
 }
-pub fn project_ship_jsonc() -> PathBuf {
-    project_dir().join("ship.jsonc")
+pub fn space_ship_jsonc() -> PathBuf {
+    space_dir().join("ship.jsonc")
 }
 
 /// Returns true if the path has a .jsonc or .json extension.
@@ -79,15 +79,15 @@ pub fn is_agent_config(path: &std::path::Path) -> bool {
     stem != "mcp" && stem != "permissions"
 }
 
-/// Returns the absolute path to `.ship/` for the current project, or errors.
+/// Returns the absolute path to `.ship/` for the current space, or errors.
 /// Uses git-worktree-aware traversal so this works from subdirs and worktrees.
-pub fn project_ship_dir_required() -> anyhow::Result<std::path::PathBuf> {
+pub fn space_ship_dir_required() -> anyhow::Result<std::path::PathBuf> {
     ship_substrate::project::get_project_dir(None)
 }
 
-pub fn ensure_project_dirs() -> anyhow::Result<()> {
+pub fn ensure_space_dirs() -> anyhow::Result<()> {
     for dir in [
-        project_dir(),
+        space_dir(),
         agents_dir(),
         rules_dir(),
         skills_dir(),
@@ -117,8 +117,8 @@ mod tests {
     }
 
     #[test]
-    fn project_paths_are_relative() {
-        assert_eq!(project_dir(), PathBuf::from(".ship"));
+    fn space_paths_are_relative() {
+        assert_eq!(space_dir(), PathBuf::from(".ship"));
         assert_eq!(agents_dir(), PathBuf::from(".ship/agents"));
         assert_eq!(views_dir(), PathBuf::from(".ship/views"));
         assert_eq!(mcp_path(), PathBuf::from(".ship/mcp.jsonc"));
