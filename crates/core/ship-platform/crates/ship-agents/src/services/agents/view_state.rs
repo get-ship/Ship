@@ -1,10 +1,14 @@
 //! Agent discovery helpers for the `agents` daemon-rendered view.
 //!
-//! Reads agent configs from `<ship_dir>/agents/*.{jsonc,json}` across two
-//! scopes and merges them — project (discovered from cwd via
-//! `ship_substrate::project::get_project_dir`) wins over global on id collision.
+//! The live daemon path (`list_agents_from_index` / `load_agent_from_index`)
+//! reads the project scope's composed roll-up snapshot only — see
+//! "Index-backed reads" below. `<ship_dir>/agents/*.{jsonc,json}` two-scope
+//! scan-and-merge (`list_agents` / `load_agent`) survives as the space-less
+//! fallback for when no index is mounted at all.
+//!
 //! Each summary/detail carries a `source` field so the view can group the
-//! rail by scope.
+//! rail; for index-backed reads it comes from the row's roll-up provenance,
+//! not an invented scope label.
 //!
 //! JSONC parsing lives in the sibling `agents_jsonc` module.
 
@@ -379,54 +383,59 @@ pub async fn agent_id_exists_in_index(index: &AgentDefIndex, id: &str) -> bool {
 
 // ─── Index-backed reads (AGENTS domain owns its config) ───────────────────────
 //
-// The project scope is served from the `AgentDefIndex` DataStore snapshot — the
-// read model kept live by `agent.def.updated` events — so a running daemon does
-// NOT re-read `.ship/agents/*.jsonc` on every list/detail call. The user library
-// scope has no index and stays on its file reader (those defs live under
-// `~/.ship/library/agents/`, not the project `.ship/agents/` this invariant
-// covers). Project shadows user on id collision, matching the file path.
+// Served ENTIRELY from the `AgentDefIndex` DataStore snapshot — no re-read of
+// `.ship/agents/*.jsonc` or `~/.ship/library/agents/*.jsonc` per call.
+// `list_docs`'s "project" scope IS `compiler::compose_space`'s composed
+// answer (`AgentDefIndex::upsert_composed`): a same-id loser is already
+// excluded there, so no precedence law is re-derived here — id set and
+// ranking are entirely the index's. `ship_dir` stays a parameter (unused)
+// only because the wire call site passes it.
 
-/// List agents with the project scope served from the index snapshot and the
-/// user scope from files. Project shadows user on id collision.
-pub async fn list_agents_from_index(index: &AgentDefIndex, ship_dir: &Path) -> Vec<AgentSummary> {
-    let scopes = resolve_scopes(ship_dir);
+/// Map a doc's merged `_provenance.ext_source` (the `ExtSource` tag JSON
+/// `list_docs`/`get_doc` merge in, e.g. `{"kind":"space"}`) to the rail's
+/// `source` label — the extension kind verbatim, never an invented
+/// "project"/"user-global" string. No provenance (pre-roll-up ingest) keeps
+/// `fallback`.
+fn source_from_provenance(doc: &serde_json::Value, fallback: &str) -> String {
+    doc.get("_provenance")
+        .and_then(|p| p.get("ext_source"))
+        .and_then(|v| v.as_str())
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+        .and_then(|v| v.get("kind").and_then(|k| k.as_str()).map(str::to_string))
+        .unwrap_or_else(|| fallback.to_string())
+}
+
+/// List agents from the project scope's composed roll-up snapshot.
+pub async fn list_agents_from_index(
+    index: &AgentDefIndex,
+    _ship_dir: &Path,
+) -> Vec<AgentSummary> {
     let active = active_agent_id();
-    let mut seen: HashSet<String> = HashSet::new();
-    let mut out = Vec::new();
-    if let Ok(docs) = index.list_docs("project").await {
-        for (id, doc) in docs {
-            if let Some(mut a) = summary_from_value(id, SOURCE_PROJECT, &doc) {
-                if seen.insert(a.id.clone()) {
-                    a.active = active.as_deref() == Some(a.id.as_str());
-                    out.push(a);
-                }
-            }
-        }
-    }
-    for mut a in scan_agents_dir(&scopes.global_dir, SOURCE_GLOBAL) {
-        if seen.insert(a.id.clone()) {
+    let Ok(docs) = index.list_docs("project").await else {
+        return Vec::new();
+    };
+    let mut out: Vec<AgentSummary> = docs
+        .into_iter()
+        .filter_map(|(id, doc)| {
+            let source = source_from_provenance(&doc, SOURCE_PROJECT);
+            let mut a = summary_from_value(id, &source, &doc)?;
             a.active = active.as_deref() == Some(a.id.as_str());
-            out.push(a);
-        }
-    }
+            Some(a)
+        })
+        .collect();
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out
 }
 
-/// Load one agent by id: project scope from the index snapshot, else the user
-/// scope from files. Project wins on collision.
+/// Load one agent by id from the project scope's composed roll-up snapshot.
 pub async fn load_agent_from_index(
     index: &AgentDefIndex,
-    ship_dir: &Path,
+    _ship_dir: &Path,
     id: &str,
 ) -> Option<AgentDetail> {
-    if let Ok(Some(doc)) = index.get_doc(id, "project").await {
-        if let Some(d) = detail_from_value(id.to_string(), SOURCE_PROJECT, &doc) {
-            return Some(d);
-        }
-    }
-    let scopes = resolve_scopes(ship_dir);
-    load_from_dir(&scopes.global_dir, id, SOURCE_GLOBAL)
+    let doc = index.get_doc(id, "project").await.ok().flatten()?;
+    let source = source_from_provenance(&doc, SOURCE_PROJECT);
+    detail_from_value(id.to_string(), &source, &doc)
 }
 
 // ─── Catalogs (available skills / mcp / rules) ────────────────────────

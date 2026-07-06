@@ -240,7 +240,7 @@ fn scope_skipped_when_project_matches_global() {
 // from the `AgentDefIndex` DataStore snapshot, not the (deleted) file.
 
 use std::sync::Arc;
-use ship_config::agents_index::AgentDefIndex;
+use ship_config::agents_index::{AgentDefIndex, AgentDefQuery};
 use ship_substrate::data::DataService;
 use ship_substrate::home::ShipHome;
 use ship_substrate::ports::{DataStore, LocalFsBroker, SingleBackendDataStore};
@@ -310,5 +310,128 @@ async fn index_backed_reads_serve_after_project_file_removed() {
     assert!(
         rules.contains("Focus on correctness."),
         "spawn preamble carries the index-served inline rules: {rules}"
+    );
+}
+
+// ── `source` from provenance (unit) ────────────────────────────────────────
+
+#[test]
+fn source_from_provenance_prefers_ext_source_kind_over_fallback() {
+    let doc = serde_json::json!({
+        "agent": { "name": "X" },
+        "_provenance": {
+            "ext_source": serde_json::to_string(&serde_json::json!({"kind": "user_global"})).unwrap(),
+        },
+    });
+    assert_eq!(source_from_provenance(&doc, SOURCE_PROJECT), "user_global");
+}
+
+#[test]
+fn source_from_provenance_falls_back_when_no_provenance() {
+    let doc = serde_json::json!({ "agent": { "name": "X" } });
+    assert_eq!(source_from_provenance(&doc, SOURCE_PROJECT), SOURCE_PROJECT);
+}
+
+// ── Shadowing surfaced from provenance ──────────────────────────────────────
+//
+// A same-id collision across two roll-up tiers: the composed index row set
+// carries the WINNER as the active row (what list/detail serve) and the
+// LOSER as a separate shadow row (`AgentDefIndex::query`, the audit surface
+// `ship-config` already exposes — no new read path added here). Built
+// directly via `compiler::compose_space`, the same fixture shape
+// `ship-config`'s `agents_index_provenance.rs` uses (ship-resolver is out of
+// this job's file fence).
+
+use compiler::{
+    compose_space, AgentProfile, ExtSource, ExtensionDescriptor, ExtensionLibrary, ProfileMeta,
+    RollupInputs,
+};
+
+fn agent_profile(id: &str, name: &str) -> AgentProfile {
+    AgentProfile {
+        agent: ProfileMeta { id: id.to_string(), name: name.to_string(), ..Default::default() },
+        ..Default::default()
+    }
+}
+
+fn ext_descriptor(
+    source: ExtSource,
+    hash: &str,
+    descriptor: ExtensionLibrary,
+) -> ExtensionDescriptor {
+    ExtensionDescriptor {
+        source,
+        space_root: std::path::PathBuf::from("/fixture"),
+        descriptor,
+        content_hash: hash.to_string(),
+    }
+}
+
+/// A cached-package agent (`UserGlobal`, rank 0) colliding by id with the
+/// space's own same-id agent (`Space`, rank 1000) — the space wins per
+/// `RollupInputs::default_precedence`.
+fn space_beats_cached_package() -> compiler::ComposedLibrary {
+    let cached = ExtensionLibrary {
+        agent_profiles: vec![agent_profile("reviewer", "Cached Reviewer")],
+        ..Default::default()
+    };
+    let source = ExtensionLibrary {
+        agent_profiles: vec![agent_profile("reviewer", "Space Reviewer")],
+        ..Default::default()
+    };
+    let inputs = RollupInputs {
+        extensions: vec![
+            ext_descriptor(ExtSource::UserGlobal, "hash-cached", cached),
+            ext_descriptor(ExtSource::Space, "hash-source", source),
+        ],
+        precedence: RollupInputs::default_precedence(),
+    };
+    let mut composed = compose_space(&inputs).expect("compose must succeed");
+    composed.library.rollup_inputs = Some(inputs);
+    composed
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn composed_row_source_reflects_provenance_and_shadow_is_queryable() {
+    let tmp = tempdir().unwrap();
+    let base = std::fs::canonicalize(tmp.path()).unwrap();
+    let ship_dir = ShipHome::project_ship_dir(base);
+
+    let db = ship_substrate::db::space_db_path(&ship_dir, "vs-idx-shadow-test");
+    let svc = DataService::open_at(&db).unwrap();
+    let store: Arc<dyn DataStore> = Arc::new(SingleBackendDataStore::new(svc, "vs-idx-shadow-test"));
+    let index = AgentDefIndex::new(store);
+    index.ensure_table().await.unwrap();
+    index.upsert_composed("project", &space_beats_cached_package()).await;
+
+    // The rail shows only the winner — its `source` reflects the winning
+    // extension's kind, not an invented "project" label.
+    let list = list_agents_from_index(&index, &ship_dir).await;
+    assert_eq!(list.len(), 1, "the shadow row never surfaces as a selectable agent");
+    assert_eq!(list[0].name, "Space Reviewer", "the source tier wins on id collision");
+    assert_eq!(list[0].source, "space");
+
+    let detail = load_agent_from_index(&index, &ship_dir, "reviewer")
+        .await
+        .expect("detail serves the winner");
+    assert_eq!(detail.name, "Space Reviewer");
+    assert_eq!(detail.source, "space");
+
+    // The shadowed row's existence is still surfaceable from provenance —
+    // via the SAME `AgentDefIndex` audit surface this file already imports,
+    // not a parallel merge law re-derived here.
+    let rows = index
+        .query(AgentDefQuery { scope: Some("project".to_string()), name: None })
+        .await
+        .unwrap();
+    let shadow = rows
+        .iter()
+        .find(|r| r.id == "reviewer" && r.shadowed_by.is_some())
+        .expect("the losing tier's row is retained, not discarded");
+    assert_eq!(shadow.name, "Cached Reviewer");
+    assert_eq!(
+        shadow.ext_source.as_deref().and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+            .and_then(|v| v.get("kind").and_then(|k| k.as_str()).map(str::to_string)),
+        Some("user_global".to_string()),
     );
 }
