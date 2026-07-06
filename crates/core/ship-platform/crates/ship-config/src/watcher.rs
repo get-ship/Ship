@@ -18,6 +18,21 @@
 //! watches (agents, skills, views, pipelines, rules, collections) for both
 //! user-scope and project-scope, drive the `author_*` helpers above from each
 //! domain's delta stream, and tear the whole thing down on drop.
+//!
+//! ## Source-root coverage (Phase-3 J-event-channel)
+//!
+//! The six domain dirs above don't reach `ship.ts` (the space-root manifest)
+//! or a `space.skill_paths` entry that lives outside `.ship/skills/`. The
+//! retired ship-resolver private watcher used to cover that surface off its
+//! own `tokio::sync::watch` channel; per the operator ruling (2026-07-06,
+//! `job-spec-p3-event-channel.md`) reactivity flows through the kernel log
+//! only, so [`spawn_config_watcher`] extends its watch set to the union:
+//! [`spawn_source_root_watch`] opens a watch on `ship.ts` plus every
+//! `space.skill_paths` entry past the default `.ship/skills/` (already
+//! covered by the `skills` domain watch — excluded here so the same file
+//! never double-fires), authoring the SAME `config.file_changed` shape
+//! under one `source` domain label. ONE observer, ONE authored signal, N
+//! subscribers.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -25,6 +40,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 
+use compiler::loader::{DEFAULT_SPACE_SKILL_PATH, read_space_skill_paths};
 use ship_substrate::ShipHome;
 use ship_substrate::events::EmitContext;
 use ship_substrate::ports::{FsBroker, FsCap, FsMode, FsRoot, KernelLog, LocalFsBroker};
@@ -169,7 +185,7 @@ pub fn spawn_config_watcher(
         .as_deref()
         .and_then(ship_substrate::project::resolve_active_space)
         .map(SpaceId::new);
-    let project_ship_dir = workspace_dir.map(ShipHome::project_ship_dir);
+    let project_ship_dir = workspace_dir.as_deref().map(ShipHome::project_ship_dir);
 
     let mut watcher = ConfigWatcher::new();
     let debounce = resolve_watcher_debounce();
@@ -194,7 +210,127 @@ pub fn spawn_config_watcher(
         }
     }
 
+    // Source-root coverage: `ship.ts` + `space.skill_paths` extras, the
+    // surface the six domain dirs above don't reach. User-scope has no
+    // notion of a space-root `ship.ts`, so this only runs when a project
+    // is registered.
+    if let (Some(ws_dir), Some(ref proj_ship_dir)) =
+        (workspace_dir.as_deref(), project_ship_dir.as_deref())
+    {
+        spawn_source_root_watch(
+            &mut watcher,
+            kernel.clone(),
+            ws_dir,
+            proj_ship_dir,
+            project_space.clone(),
+            debounce,
+        );
+    }
+
     Ok(watcher)
+}
+
+/// The domain label the source-root watches author `config.file_changed`
+/// under. Distinct from the six [`DOMAINS`] labels — `ship.ts` and the
+/// `space.skill_paths` extras live at (or below) the space root, not
+/// inside a `.ship/<domain>/` dir.
+const SOURCE_ROOT_DOMAIN: &str = "source";
+
+/// Cover the space-shape surface the six declarative domain watches don't
+/// reach: `ship.ts` at the space root, and any `space.skill_paths` entry
+/// past the default `.ship/skills/` (already covered by the `skills`
+/// domain watch spawned in [`spawn_config_watcher`] — excluded here so the
+/// same file never authors two `config.file_changed` events).
+///
+/// Authors the SAME `config.file_changed` shape the domain watches use
+/// ([`author_file_changed_router`]) under the one [`SOURCE_ROOT_DOMAIN`]
+/// label. No coarse `<domain>.changed` ping is authored — no event type
+/// exists for "source changed" and none is added here; `config.file_changed`
+/// is the only signal a resolver-descriptor-cache-shaped consumer needs.
+fn spawn_source_root_watch(
+    watcher: &mut ConfigWatcher,
+    kernel: Arc<KernelLog>,
+    space_root: &Path,
+    project_ship_dir: &Path,
+    space: Option<SpaceId>,
+    debounce: Duration,
+) {
+    // `ship.ts` — a single file at the space root. The watch is rooted at
+    // the space root itself (non-recursive: siblings like Cargo.toml or
+    // README.md are noise), filtered to the one file so unrelated
+    // top-level churn never authors a signal.
+    if space_root.exists() {
+        let cap = FsCap::new_unchecked(
+            space_root.to_path_buf(),
+            FsRoot::Space(ship_substrate::ports::SpaceId::new("config")),
+            FsMode::ReadOnly,
+        );
+        let opts = WatchOpts::non_recursive(Some(debounce));
+        if let Ok(rx) = LocalFsWatch::new().watch(&cap, ".", opts) {
+            watcher.push(spawn_filtered_file_consumer(
+                kernel.clone(),
+                rx,
+                space_root.to_path_buf(),
+                space.clone(),
+                |rel| rel == "ship.ts",
+            ));
+        }
+    }
+
+    // `space.skill_paths` extras. Dedup against the `skills` domain here,
+    // not with a broader consumer-side filter: a duplicate entry would
+    // open a SECOND watch on the same dir and double-author every change
+    // under it.
+    for extra in read_space_skill_paths(project_ship_dir) {
+        if extra == DEFAULT_SPACE_SKILL_PATH {
+            continue;
+        }
+        let dir = space_root.join(extra.trim_end_matches('/'));
+        if !dir.exists() {
+            continue;
+        }
+        let cap = FsCap::new_unchecked(
+            dir.clone(),
+            FsRoot::Space(ship_substrate::ports::SpaceId::new("config")),
+            FsMode::ReadOnly,
+        );
+        let opts = WatchOpts::recursive(Some(debounce));
+        if let Ok(rx) = LocalFsWatch::new().watch(&cap, ".", opts) {
+            watcher.push(spawn_filtered_file_consumer(
+                kernel.clone(),
+                rx,
+                dir,
+                space.clone(),
+                |_| true,
+            ));
+        }
+    }
+}
+
+/// Like [`spawn_domain_consumer`] but authors ONLY `config.file_changed`
+/// under [`SOURCE_ROOT_DOMAIN`] (no coarse `<domain>.changed` ping) and
+/// applies `filter` to each touched rel before authoring — the
+/// source-root watches' roots aren't a whole domain dir, so not every
+/// delta under the watched root is necessarily in scope (the `ship.ts`
+/// watch, in particular, shares its root with unrelated top-level files).
+fn spawn_filtered_file_consumer(
+    kernel: Arc<KernelLog>,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<FsDelta>,
+    dir: PathBuf,
+    space: Option<SpaceId>,
+    filter: fn(&str) -> bool,
+) -> tokio::task::JoinHandle<()> {
+    let fs = LocalFsBroker::new();
+    tokio::spawn(async move {
+        while let Some(delta) = rx.recv().await {
+            for rel in &delta.rel {
+                if filter(rel) {
+                    author_file_changed_router(&kernel, &fs, SOURCE_ROOT_DOMAIN, &dir, rel, space.clone())
+                        .await;
+                }
+            }
+        }
+    })
 }
 
 fn spawn_domain_watch(

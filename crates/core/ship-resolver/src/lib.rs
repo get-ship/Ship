@@ -26,9 +26,13 @@
 //!
 //! ## What this crate does NOT do
 //!
-//! - **No cache.** J5 (descriptor cache) is a separate job that subscribes
-//!   to this crate's [`watcher`] module. The cache key is
-//!   [`descriptor::extension_library_content_hash`].
+//! - **No private invalidation channel.** The descriptor cache ([`cache`])
+//!   subscribes to the KERNEL-LOG BROADCAST (`ship_substrate::ports::KernelLog`)
+//!   and invalidates on `config.file_changed` — the same pattern
+//!   `ship-config`'s `spawn_def_index_consumer` uses. There is no
+//!   resolver-private `FsWatch` subscription; reactivity flows through the
+//!   kernel log like everything else (operator ruling 2026-07-06,
+//!   `job-spec-p3-event-channel.md`).
 //! - **No caller migration.** J6 (helmd dispatch), J7 (shipd ingest), J8
 //!   (helmd wire) replace their existing call sites with this crate's API.
 //!   Out of scope here.
@@ -48,25 +52,22 @@
 //! - [`ts_resolver`] — V8 eval fan-out. `!Send` boundary on `spawn_blocking`.
 //! - [`descriptor`] — canonical sorted-key JSON helpers. The determinism
 //!   invariant the cache relies on (`inv-fmt-deterministic-eval`).
-//! - [`watcher`] — the J4 FsWatch consumer over the space root (and,
-//!   when constructed via [`ResolverWatcher::spawn_with_cache`], the XDG
-//!   cache root's `objects/` tree). Pushes `ResolverInvalidation` onto a
-//!   `tokio::sync::watch` channel the cache subscribes to. Event-free per
-//!   the FsWatch port's contract; the cache (J5) is the only consumer.
+//! - [`cache`] — the descriptor cache. Subscribes directly to a
+//!   `ship_substrate::ports::KernelLog`'s broadcast and invalidates on
+//!   `config.file_changed`; no resolver-private watch channel.
 //!
 //! ## Authority
 //!
 //! - Spec: `helm/data/missions/m-ship-stack-cutover/scratch/job-spec-p2-J3-resolver.md`
-//!   (J3) + `job-spec-p2-J4J5-watch-cache.md` (J4+J5; J5 is still pending).
-//! - Census: `census-phase2-resolver.md` Part 4 + Part 5 J3 (and J4/J5 once
-//!   J5 lands).
+//!   (J3) + `job-spec-p3-event-channel.md` (the kernel-log-only cache
+//!   invalidation this module now implements).
+//! - Census: `census-phase2-resolver.md` Part 4 + Part 5 J3.
 //! - F1 decision: `decision-f1-loader.md` (Option A — the superset is the
 //!   architecture, no code moves).
 pub mod descriptor;
 pub mod space_loader;
 pub mod ts_resolver;
 pub mod cache;
-pub mod watcher;
 
 use std::path::Path;
 

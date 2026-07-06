@@ -226,3 +226,110 @@ async fn watcher_never_authors_durable_agent_def_updated() {
         "watcher must not persist `agent.def.updated` to runtime.db"
     );
 }
+
+// ── Source-root coverage (Phase-3 J-event-channel) ──────────────────────────────
+//
+// `ship.ts` sits outside the six declarative `.ship/<domain>/` dirs
+// `spawn_config_watcher` watches by default (job-spec-p3-event-channel.md).
+// `spawn_source_root_watch` adds a dedicated, filtered watch for it; a
+// single edit must author exactly ONE `config.file_changed` — no
+// double-fire from an overlapping watch.
+#[tokio::test(flavor = "multi_thread")]
+async fn ship_ts_edit_authors_exactly_one_config_file_changed() {
+    let (_tmp, ship_dir, kernel) = setup().await;
+    let workspace_dir = ship_dir.parent().unwrap().to_path_buf();
+    std::fs::write(workspace_dir.join("ship.ts"), "export const x = 0;").unwrap();
+
+    let mut rx = kernel.subscribe();
+    let _watcher = ship_config::watcher::spawn_config_watcher(
+        kernel.clone(),
+        ship_dir.clone(),
+        Some(workspace_dir.clone()),
+    )
+    .unwrap();
+
+    // Let the watch open before editing.
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+    std::fs::write(workspace_dir.join("ship.ts"), "export const x = 1;").unwrap();
+
+    // Collect every config.file_changed touching ship.ts over a window
+    // comfortably past the 200ms default debounce.
+    let mut count = 0;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(1200);
+    loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        match tokio::time::timeout(remaining, rx.recv()).await {
+            Ok(Ok(ev)) if ev.event_type == event_types::CONFIG_FILE_CHANGED => {
+                let payload: ship_types::payload::ConfigFileChanged =
+                    serde_json::from_str(&ev.payload_json).unwrap();
+                if payload.path == "ship.ts" {
+                    count += 1;
+                }
+            }
+            Ok(Ok(_)) => continue,
+            _ => break,
+        }
+    }
+    assert_eq!(
+        count, 1,
+        "a single ship.ts edit must author exactly one config.file_changed"
+    );
+}
+
+// A `space.skill_paths` entry past the default `.ship/skills/` is also
+// outside the six domain dirs. `spawn_source_root_watch` opens a watch for
+// it too, authored under the same `source` domain label.
+#[tokio::test(flavor = "multi_thread")]
+async fn skill_paths_extra_dir_edit_authors_config_file_changed() {
+    let (_tmp, ship_dir, kernel) = setup().await;
+    let workspace_dir = ship_dir.parent().unwrap().to_path_buf();
+
+    // Declare the extra skill_paths dir BEFORE spawning the watcher — the
+    // manifest is read once, at spawn time.
+    std::fs::write(
+        ship_dir.join("ship.jsonc"),
+        r#"{"space": {"skill_paths": ["extra-skills/"]}}"#,
+    )
+    .unwrap();
+    let extra_dir = workspace_dir.join("extra-skills");
+    std::fs::create_dir_all(&extra_dir).unwrap();
+
+    let mut rx = kernel.subscribe();
+    let _watcher = ship_config::watcher::spawn_config_watcher(
+        kernel.clone(),
+        ship_dir.clone(),
+        Some(workspace_dir.clone()),
+    )
+    .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+    std::fs::write(extra_dir.join("SKILL.md"), "---\nname: extra\n---\nBody.\n").unwrap();
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(1200);
+    let mut found = false;
+    loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        match tokio::time::timeout(remaining, rx.recv()).await {
+            Ok(Ok(ev)) if ev.event_type == event_types::CONFIG_FILE_CHANGED => {
+                let payload: ship_types::payload::ConfigFileChanged =
+                    serde_json::from_str(&ev.payload_json).unwrap();
+                if payload.domain == "source" && payload.path.contains("SKILL.md") {
+                    found = true;
+                    break;
+                }
+            }
+            Ok(Ok(_)) => continue,
+            _ => break,
+        }
+    }
+    assert!(
+        found,
+        "an edit under a space.skill_paths extra dir must author config.file_changed under the source domain"
+    );
+}

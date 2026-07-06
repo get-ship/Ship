@@ -37,14 +37,11 @@ ship-substrate = { path = "../ship-substrate" }
 # but `agent-config-eval` re-exports ship-js and we keep the dep explicit
 # so the resolver's `ts_resolver` module can name the engine in its docs.
 ship-js = { path = "/home/madvib/dev/Ship/ship-exec/crates/ship-js", features = ["deno"] }
-# The `notify`/`inotify`-backed change-notification port (J4). Lives in the
-# substrate's `fs-watch` leaf (the L0 port that pairs with `fs-cap`'s
-# `FsBroker`). The resolver's watcher spawns an FsWatch over the project
-# root at 50ms debounce (the same primitive the ship-config watcher uses;
-# the 50ms window is the spec's value for the resolver, smaller than the
-# 200ms ship-config default because the cache invalidation is the cheap,
-# non-event-authoring half — the rest of the policy sits in J5).
-fs-watch = { path = "../ship-substrate/crates/fs-watch" }
+# `EventEnvelope` + `event_types` — the descriptor cache subscribes to the
+# `ship_substrate::ports::KernelLog` broadcast and filters on
+# `event_types::CONFIG_FILE_CHANGED`, the same pattern ship-config's
+# `spawn_def_index_consumer` uses (`ship-config/src/agents_index.rs`).
+ship-types = { path = "../ship-substrate/crates/ship-types" }
 
 # Plumbing
 anyhow = { workspace = true }

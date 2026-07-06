@@ -2,9 +2,15 @@
 //!
 //! Per-harness `CompileOutput` cache, keyed by `(space_id, content_hash, harness_id)`,
 //! stored at `<runtime_cache_root>/resolver/<space_id>/<content_hash>__<harness_id>.json`
-//! via FsBroker (gated). Subscribes to the J4 [`watcher::ResolverWatcher`]'s
-//! invalidation channel; on a tick, evicts the in-memory index for the
-//! affected `space_id`.
+//! via FsBroker (gated). Subscribes directly to the KERNEL-LOG BROADCAST
+//! (`ship_substrate::ports::KernelLog::subscribe`) and evicts the in-memory
+//! index on `config.file_changed` — the same pattern ship-config's
+//! `spawn_def_index_consumer` uses (`ship-config/src/agents_index.rs`:
+//! broadcast receiver, filter by event type, `Lagged` gap logged and
+//! skipped). There is no resolver-private watch channel; the kernel log is
+//! the one authored signal every reactive consumer (this cache, the
+//! agent-def index, Studio) subscribes to (operator ruling 2026-07-06,
+//! `job-spec-p3-event-channel.md`).
 //!
 //! ## The contract
 //!
@@ -17,24 +23,26 @@
 //!   so a concurrent reader either sees the previous file (the rename
 //!   hasn't happened) or the new file (rename completed) — never a
 //!   torn file. This is the R5 ordering invariant the spec calls out.
-//! - Invalidation: the subscriber holds a `watch::Receiver<ResolverInvalidation>`
-//!   from the J4 channel. Each tick clears the in-memory index for every
-//!   known `space_id`. The on-disk files remain (best-effort cleanup is
-//!   a Phase-3 follow-on; today a stale file at `<hash_v1>__claude.json`
-//!   is harmless because the next read with `<hash_v2>` is a miss).
+//! - Invalidation: the subscriber holds a `broadcast::Receiver<EventEnvelope>`
+//!   from the kernel log. Every `config.file_changed` tick clears the
+//!   in-memory index for every known `space_id`. The on-disk files remain
+//!   (best-effort cleanup is a Phase-3 follow-on; today a stale file at
+//!   `<hash_v1>__claude.json` is harmless because the next read with
+//!   `<hash_v2>` is a miss).
 //! - Eviction is per-space (coarse). The cache does NOT know which
 //!   entries are stale on any given tick; it clears the whole space's
 //!   index. This is the safe over-eviction; the next read repopulates.
 //!   A future cell could narrow this to per-hash eviction by carrying
-//!   the new hash on the invalidation channel — out of scope for
-//!   Phase 2.
+//!   the new hash on the event payload — out of scope for Phase 3.
+//! - A `Lagged` gap on the broadcast is logged and skipped, not treated
+//!   as an error: the cache key already embeds the content hash, so a
+//!   missed invalidation tick costs at most a stale entry sitting unused
+//!   in memory until the next real change evicts it — never a wrong read.
 //!
 //! ## What this module does NOT do
 //!
-//! - **No kernel events.** The cache is the only consumer of the
-//!   watcher's invalidation channel today; no transient
-//!   `resolver.cache_evicted` event is authored. A future cell may
-//!   add one for compile reactivity.
+//! - **No new event types.** The cache filters on the existing
+//!   `config.file_changed` (`Retention::Ephemeral`); it authors nothing.
 //! - **No on-disk cleanup.** Stale `<old_hash>__harness.json` files
 //!   accumulate. The next read with the matching hash hits; a
 //!   different hash misses. The blast radius is bounded by the
@@ -44,8 +52,7 @@
 //!
 //! ## Authority
 //!
-//! - Spec: `helm/data/missions/m-ship-stack-cutover/scratch/job-spec-p2-J4J5-watch-cache.md`
-//!   (J5 cell).
+//! - Spec: `helm/data/missions/m-ship-stack-cutover/scratch/job-spec-p3-event-channel.md`.
 //! - Census: `census-phase2-resolver.md` Part 3e-3g (cache today) + Part 5 J5
 //!   (this module's scope).
 //! - Determinism: `inv-fmt-deterministic-eval` (`ship-stack-format.json:30-33`).
@@ -59,12 +66,11 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use compiler::CompileOutput;
-use ship_substrate::ports::{FsBroker, FsCap, FsMode, FsRoot, LocalFsBroker, SpaceId};
+use ship_substrate::ports::{FsBroker, FsCap, FsMode, FsRoot, KernelLog, LocalFsBroker, SpaceId};
 use tokio::sync::Mutex;
-use tokio::sync::watch;
+use tokio::sync::broadcast;
+use ship_types::event_types;
 use tracing::warn;
-
-use crate::watcher::{ResolverInvalidation, ResolverWatcher};
 
 /// The descriptor cache. Holds an in-memory index of (space, hash, harness)
 /// → `Arc<CompileOutput>` (so a hit doesn't have to round-trip the disk)
@@ -76,16 +82,17 @@ use crate::watcher::{ResolverInvalidation, ResolverWatcher};
 /// with other consumers).
 ///
 /// The cache is `Clone`-cheap: the inner state is wrapped in
-/// `Arc<Mutex<...>>` so all clones share the same index. The watch
-/// receiver is per-clone — each `DescriptorCache` value owns one
-/// receiver; the test surface typically has one cache, but the
-/// design supports N subscribers.
+/// `Arc<Mutex<...>>` so all clones share the same index. The `kernel`
+/// handle is an `Arc` clone too — each call to
+/// [`spawn_invalidation_subscriber`](Self::spawn_invalidation_subscriber)
+/// mints a fresh `broadcast::Receiver` off it, so the design supports N
+/// subscribers without the cache itself holding a receiver.
 #[derive(Clone)]
 pub struct DescriptorCache {
     inner: Arc<Mutex<CacheState>>,
     cache_root: PathBuf,
     broker: Arc<dyn FsBroker>,
-    _watcher_handle: Option<watch::Receiver<ResolverInvalidation>>,
+    kernel: Option<Arc<KernelLog>>,
 }
 
 use std::path::PathBuf;
@@ -106,27 +113,24 @@ struct CacheKey {
 }
 
 impl DescriptorCache {
-    /// Open a cache rooted at `cache_root`. The cache subscribes to
-    /// `watcher`'s invalidation channel; on every tick, the
-    /// in-memory index is cleared (per-space eviction).
+    /// Open a cache rooted at `cache_root`. When `kernel` is `Some`, the
+    /// cache invalidates on the kernel log's `config.file_changed`
+    /// broadcast once [`spawn_invalidation_subscriber`](Self::spawn_invalidation_subscriber)
+    /// is called.
     ///
-    /// `watcher` is optional: pass `None` for tests that don't
-    /// need invalidation, or for the "cache-only" mode where the
-    /// caller manages invalidation externally.
-    pub fn open(
-        cache_root: impl Into<PathBuf>,
-        watcher: Option<&ResolverWatcher>,
-    ) -> Result<Self> {
+    /// `kernel` is optional: pass `None` for tests that don't need
+    /// invalidation, or for the "cache-only" mode where the caller
+    /// manages invalidation externally.
+    pub fn open(cache_root: impl Into<PathBuf>, kernel: Option<Arc<KernelLog>>) -> Result<Self> {
         let cache_root = cache_root.into();
         let broker: Arc<dyn FsBroker> = Arc::new(LocalFsBroker::new());
-        let _watcher_handle = watcher.map(|w| w.subscribe());
         Ok(Self {
             inner: Arc::new(Mutex::new(CacheState {
                 entries: HashMap::new(),
             })),
             cache_root,
             broker,
-            _watcher_handle,
+            kernel,
         })
     }
 
@@ -232,52 +236,57 @@ impl DescriptorCache {
         }
     }
 
-    /// Drive the invalidation subscriber. For each tick on the watch
-    /// channel, evicts the in-memory index for every known
-    /// `space_id`. Returns a `JoinHandle` so the caller can
-    /// `abort()` it (e.g. on shutdown).
+    /// Drive the invalidation subscriber. Subscribes fresh to the kernel
+    /// log's broadcast and, for every `config.file_changed` event,
+    /// evicts the in-memory index for every known `space_id`. Returns a
+    /// `JoinHandle` so the caller can `abort()` it (e.g. on shutdown).
     ///
-    /// Without a watcher (the `cache_root` was opened with
-    /// `None`), the subscriber is a no-op: it returns an immediately-
-    /// completed `JoinHandle`.
+    /// Without a kernel (the cache was opened with `None`), the
+    /// subscriber is a no-op: it returns an immediately-completed
+    /// `JoinHandle`.
+    ///
+    /// A `Lagged` gap is logged and the loop continues — the cache key
+    /// already embeds the content hash, so a missed tick costs at most a
+    /// stale entry sitting unused until the next real change evicts it
+    /// (never a wrong read). Mirrors `spawn_def_index_consumer`'s
+    /// `RecvError` handling (`ship-config/src/agents_index.rs`).
     pub fn spawn_invalidation_subscriber(&self) -> tokio::task::JoinHandle<()> {
         let cache = self.clone();
-        let mut rx = match self._watcher_handle.as_ref() {
-            Some(rx) => rx.clone(),
-            None => {
-                return tokio::spawn(async move {});
-            }
+        let Some(kernel) = self.kernel.clone() else {
+            return tokio::spawn(async move {});
         };
+        let mut rx = kernel.subscribe();
         tokio::spawn(async move {
-            // The first `borrow_and_update` returns the initial
-            // value (seq=0, empty paths). We treat this as "no
-            // invalidation yet" and skip it.
-            let _ = rx.borrow_and_update();
-            while rx.changed().await.is_ok() {
-                let tick = rx.borrow_and_update().clone();
-                if tick.paths.is_empty() {
-                    // Out-of-scope change (the J4 watcher filters
-                    // these out for the cache anyway, but the
-                    // tick's `paths` is the contract).
-                    continue;
-                }
-                // The tick's `paths` is project-root-relative;
-                // we don't know the `space_id` from the path
-                // alone. The conservative choice: invalidate
-                // every space we know about. Today the cache is
-                // per-process and serves one project; we iterate
-                // the known spaces from the in-memory index.
-                let known_spaces: Vec<SpaceId> = {
-                    let state = cache.inner.lock().await;
-                    let mut set: std::collections::HashSet<SpaceId> =
-                        std::collections::HashSet::new();
-                    for k in state.entries.keys() {
-                        set.insert(SpaceId::new(&k.space));
+            loop {
+                match rx.recv().await {
+                    Ok(event) => {
+                        if event.event_type != event_types::CONFIG_FILE_CHANGED {
+                            continue;
+                        }
+                        // The event doesn't carry a space_id (it's
+                        // Runtime-scoped, one signal for every watched
+                        // config path). The conservative choice:
+                        // invalidate every space we know about. Today
+                        // the cache is per-process and serves one
+                        // project; we iterate the known spaces from
+                        // the in-memory index.
+                        let known_spaces: Vec<SpaceId> = {
+                            let state = cache.inner.lock().await;
+                            let mut set: std::collections::HashSet<SpaceId> =
+                                std::collections::HashSet::new();
+                            for k in state.entries.keys() {
+                                set.insert(SpaceId::new(&k.space));
+                            }
+                            set.into_iter().collect()
+                        };
+                        for space in known_spaces {
+                            cache.invalidate(&space).await;
+                        }
                     }
-                    set.into_iter().collect()
-                };
-                for space in known_spaces {
-                    cache.invalidate(&space).await;
+                    Err(broadcast::error::RecvError::Lagged(n)) => {
+                        warn!("descriptor cache: lagged by {n} events, continuing");
+                    }
+                    Err(broadcast::error::RecvError::Closed) => break,
                 }
             }
         })
@@ -294,7 +303,7 @@ impl std::fmt::Debug for DescriptorCache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DescriptorCache")
             .field("cache_root", &self.cache_root)
-            .field("has_watcher", &self._watcher_handle.is_some())
+            .field("has_kernel", &self.kernel.is_some())
             .finish()
     }
 }
@@ -355,6 +364,8 @@ async fn write_entry(
 mod tests {
     use super::*;
     use serde_json::json;
+    use ship_types::EventEnvelope;
+    use ship_types::payload::ConfigFileChanged;
     use tempfile::TempDir;
 
     /// A `CompileOutput` with a few fields populated, so the
@@ -389,15 +400,36 @@ mod tests {
         (tmp, cache)
     }
 
-    /// Build a cache + watcher pair. The space root the watcher
-    /// watches is a sibling of the cache root.
-    fn make_cache_with_watcher() -> (TempDir, DescriptorCache, ResolverWatcher) {
+    /// Build a cache + kernel pair. The cache subscribes to the kernel's
+    /// broadcast; a test injects a synthetic `config.file_changed` via
+    /// [`synthetic_config_file_changed`] and `kernel.broadcast(..)` — no
+    /// inotify, the same keystone pattern ship-config's watcher tests use
+    /// (`ship-config/tests/watcher.rs`).
+    fn make_cache_with_kernel() -> (TempDir, DescriptorCache, Arc<KernelLog>) {
         let tmp = tempfile::tempdir().unwrap();
-        let space_root = tmp.path().join("proj");
-        std::fs::create_dir_all(&space_root).unwrap();
-        let watcher = ResolverWatcher::spawn(&space_root).unwrap();
-        let cache = DescriptorCache::open(tmp.path().join("cache"), Some(&watcher)).unwrap();
-        (tmp, cache, watcher)
+        let ship_dir = tmp.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        let router = ship_substrate::events::new_isolated_for_test(ship_dir).unwrap();
+        let kernel = Arc::new(KernelLog::new(router));
+        let cache = DescriptorCache::open(tmp.path().join("cache"), Some(kernel.clone())).unwrap();
+        (tmp, cache, kernel)
+    }
+
+    /// One synthetic `config.file_changed` envelope — the shape
+    /// `ship-config`'s watcher module authors for a changed source file.
+    /// Injected via `KernelLog::broadcast` (bypasses persistence/validation
+    /// entirely; the cache subscriber only reads `event_type`).
+    fn synthetic_config_file_changed() -> EventEnvelope {
+        EventEnvelope::new(
+            event_types::CONFIG_FILE_CHANGED,
+            "ship.ts",
+            &ConfigFileChanged {
+                domain: "source".to_string(),
+                path: "ship.ts".to_string(),
+                content_hash: "deadbeef".to_string(),
+            },
+        )
+        .unwrap()
     }
 
     // ── Test 1: hit returns identical bytes ──────────────────────────────
@@ -507,9 +539,9 @@ mod tests {
 
     // ── Test 3: invalidation evicts stale ────────────────────────────────
 
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test(flavor = "multi_thread")]
     async fn invalidation_evicts_stale() {
-        let (_tmp, cache, watcher) = make_cache_with_watcher();
+        let (_tmp, cache, kernel) = make_cache_with_kernel();
         let space = make_space("s3");
         let hash_v1 = "hash-v1";
         let hash_v2 = "hash-v2";
@@ -527,23 +559,19 @@ mod tests {
 
         // Drive the subscriber.
         let sub = cache.spawn_invalidation_subscriber();
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        tokio::task::yield_now().await;
 
-        // Trigger an invalidation by writing a real file in the
-        // watched project root.
-        std::fs::write(
-            _tmp.path().join("proj").join("ship.ts"),
-            "export const x = 1;",
-        )
-        .unwrap();
+        // Trigger an invalidation with a synthetic kernel event — no
+        // inotify, not flaky.
+        kernel.broadcast(synthetic_config_file_changed());
 
-        // Wait for the debounce + the subscriber to act.
-        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(800);
+        // Wait for the subscriber to act.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
         while std::time::Instant::now() < deadline {
             if cache._len().await == 0 {
                 break;
             }
-            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
         assert_eq!(
             cache._len().await,
@@ -572,20 +600,56 @@ mod tests {
         assert_eq!(cache._len().await, 2);
 
         sub.abort();
-        drop(watcher);
+    }
+
+    /// A non-`config.file_changed` event on the same broadcast must NOT
+    /// evict the cache — the subscriber filters by event type, exactly
+    /// like `spawn_def_index_consumer` filters on `agent.def.updated`.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn unrelated_event_type_does_not_evict() {
+        let (_tmp, cache, kernel) = make_cache_with_kernel();
+        let space = make_space("s3b");
+        let hash = "hash-v1";
+        let harness = "claude";
+
+        cache
+            .get_or_load(&space, hash, harness, || async { Ok(sample_output("v1")) })
+            .await
+            .unwrap();
+        assert_eq!(cache._len().await, 1);
+
+        let sub = cache.spawn_invalidation_subscriber();
+        tokio::task::yield_now().await;
+
+        kernel.broadcast(
+            EventEnvelope::new(
+                "agent.def.updated",
+                "agents/x.jsonc",
+                &serde_json::json!({ "path": "agents/x.jsonc" }),
+            )
+            .unwrap(),
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        assert_eq!(
+            cache._len().await,
+            1,
+            "an unrelated event type must not evict the cache"
+        );
+        sub.abort();
     }
 
     // ── Test 4: R5 ordering invariant ───────────────────────────────────
 
-    #[tokio::test(flavor = "current_thread")]
-    async fn r5_concurrent_fsdelta_and_read_does_not_tear() {
+    #[tokio::test(flavor = "multi_thread")]
+    async fn r5_concurrent_kernel_event_and_read_does_not_tear() {
         // The invariant: a reader either gets the stale cache
         // (and a fresh load) OR sees the new cache, NEVER a torn
         // cache (a half-written file, a payload that doesn't
         // match its on-disk form, etc).
-        let (_tmp, cache, watcher) = make_cache_with_watcher();
+        let (_tmp, cache, kernel) = make_cache_with_kernel();
         let sub = cache.spawn_invalidation_subscriber();
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        tokio::task::yield_now().await;
         let space = make_space("s5");
         let hash = "h5";
         let harness = "claude";
@@ -601,17 +665,13 @@ mod tests {
         assert_eq!(cache._len().await, 1);
 
         // 2. Force an invalidation tick.
-        std::fs::write(
-            _tmp.path().join("proj").join("ship.ts"),
-            "export const x = 2;",
-        )
-        .unwrap();
-        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(800);
+        kernel.broadcast(synthetic_config_file_changed());
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
         while std::time::Instant::now() < deadline {
             if cache._len().await == 0 {
                 break;
             }
-            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
         assert_eq!(cache._len().await, 0);
 
@@ -631,11 +691,7 @@ mod tests {
             })
         };
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-        std::fs::write(
-            _tmp.path().join("proj").join("ship.ts"),
-            "export const x = 3;",
-        )
-        .unwrap();
+        kernel.broadcast(synthetic_config_file_changed());
         let reader_value = reader.await.unwrap().unwrap();
         assert_eq!(reader_value.context_content.as_deref(), Some("// reader\n"));
         // The reader's value is byte-stable through serde_json.
@@ -647,6 +703,5 @@ mod tests {
         assert!(cache._len().await >= 1);
 
         sub.abort();
-        drop(watcher);
     }
 }
