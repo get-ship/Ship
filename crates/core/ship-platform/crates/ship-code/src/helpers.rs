@@ -64,31 +64,27 @@ pub fn compile_agent_config(
     worktree_path: &std::path::Path,
     agent_id: &str,
 ) -> Result<()> {
-    // Invoke the `ship` CLI sitting next to `shipd`. Using current_exe()
-    // directly spawns another daemon (shipd has no `use` subcommand and
-    // ignores argv) — that produced a fork bomb in the supervisor.
-    let self_exe = std::env::current_exe()
-        .map_err(|e| anyhow::anyhow!("current_exe failed: {e}"))?;
-    let ship_bin = self_exe
-        .parent()
-        .map(|dir| dir.join("ship"))
-        .unwrap_or_else(|| std::path::PathBuf::from("ship"));
-    // `--scoped`: this is a daemon-spawned launch, so the dispatcher injects
-    // $SHIP_TOKEN + $SHIP_DAEMON_URL into the agent's env. Compile the
-    // daemon-hosted authed-HTTP `ship` MCP entry (scope-enforced) rather than
-    // the trusted-local stdio shim.
-    let output = std::process::Command::new(&ship_bin)
-        .args(["use", agent_id, "--scoped"])
-        .current_dir(worktree_path)
-        .output()
-        .map_err(|e| anyhow::anyhow!("failed to run ship: {e}"))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
+    // In-process compile via the agent-def engine — the same
+    // `compile_project` the CLI's `ship use` wraps. `scoped_launch`: this is
+    // a daemon-spawned launch, so the dispatcher injects $SHIP_TOKEN +
+    // $SHIP_DAEMON_URL into the agent's env; the compile emits the
+    // daemon-hosted authed-HTTP `ship` MCP entry (scope-enforced) rather
+    // than the trusted-local stdio shim.
+    let summary = agent_def::compile::compile_project(&agent_def::compile::CompileOptions {
+        project_root: worktree_path.to_path_buf(),
+        output_root: None,
+        harness: None,
+        active_agent: Some(agent_id.to_string()),
+        extra_skills: vec![],
+        plugins_installed: vec![],
+        scoped_launch: true,
+        dry_run: false,
+    })
+    .map_err(|e| anyhow::anyhow!("compile failed for agent '{agent_id}': {e}"))?;
+    if summary.harnesses.is_empty() {
         return Err(anyhow::anyhow!(
-            "exit {}: {}",
-            output.status.code().unwrap_or(-1),
-            stderr.trim()
+            "compile for agent '{agent_id}' produced no harness outputs — \
+             no harnesses configured in the worktree's .ship/"
         ));
     }
     Ok(())
@@ -143,3 +139,34 @@ pub fn delete_branch(branch: &str) -> Result<()> {
     Ok(())
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The dispatch-compile behavior: an in-process compile of a worktree
+    /// with a `.ship/` agent produces the harness-native outputs the old
+    /// `ship use <id> --scoped` shell-out produced (CLAUDE.md at the root).
+    #[test]
+    fn compile_agent_config_writes_harness_outputs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let write = |rel: &str, content: &str| {
+            let p = root.join(rel);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(p, content).unwrap();
+        };
+        write(".ship/rules/style.md", "Use explicit types.\n");
+        write(
+            ".ship/agents/demo.jsonc",
+            r#"{ "agent": { "id": "demo", "name": "Demo", "harnesses": ["claude"] } }"#,
+        );
+
+        compile_agent_config(root, "demo").unwrap();
+        assert!(
+            root.join("CLAUDE.md").exists(),
+            "scoped compile must write the harness-native output"
+        );
+    }
+
+}
