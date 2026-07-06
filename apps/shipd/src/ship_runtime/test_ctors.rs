@@ -14,10 +14,36 @@ impl ShipRuntime {
     pub fn new_test(ship_dir: std::path::PathBuf, kernel: SharedKernel) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = ship_substrate::ShipHome::at(ship_dir.clone()).daemon_dir();
-        let rules = ship_agents::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
-        let mcp = ship_agents::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
-        let skills = ship_agents::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
-        let agents = ship_agents::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
+        // `with_roots(.., Some(ship_dir))` pins BOTH scopes to the harness's own
+        // temp dir. `::arc()` leaves project scope unset, so `FilesService`
+        // falls back to `get_project_dir`'s real ancestor walk — which, run
+        // from inside a git worktree, redirects to the MAIN checkout's
+        // `.ship/`. A test that fully dispatches a project-scope write (not
+        // gate-stubbed) then lands real files on the operator's checkout.
+        let rules = std::sync::Arc::new(
+            ship_agents::services::rules::service::RulesServiceImpl::with_roots(
+                ship_dir.clone(),
+                Some(ship_dir.clone()),
+            ),
+        );
+        let mcp = std::sync::Arc::new(
+            ship_agents::services::mcp::service::McpServiceImpl::with_roots(
+                ship_dir.clone(),
+                Some(ship_dir.clone()),
+            ),
+        );
+        let skills = std::sync::Arc::new(
+            ship_agents::services::skills::service::SkillsServiceImpl::with_roots(
+                ship_dir.clone(),
+                Some(ship_dir.clone()),
+            ),
+        );
+        let agents = std::sync::Arc::new(
+            ship_agents::services::agents::service::AgentsServiceImpl::with_roots(
+                ship_dir.clone(),
+                Some(ship_dir.clone()),
+            ),
+        );
         let pipelines =
             ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         // Test fixture binds a concrete space (`test-space`) — there is no daemon
