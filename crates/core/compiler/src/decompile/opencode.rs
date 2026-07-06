@@ -1,4 +1,4 @@
-//! OpenCode decompiler — parse `opencode.json` and `AGENTS.md` into a [`SpaceLibrary`].
+//! OpenCode decompiler — parse `opencode.json` and `AGENTS.md` into a [`ExtensionLibrary`].
 //!
 //! Source: https://opencode.ai/docs/plugins/
 //! Config schema: https://opencode.ai/config.json
@@ -8,7 +8,7 @@ use std::path::Path;
 
 use serde_json::Value as Json;
 
-use crate::SpaceLibrary;
+use crate::ExtensionLibrary;
 use crate::types::{McpServerConfig, McpServerType, Rule};
 
 use super::json_string_array;
@@ -24,13 +24,13 @@ const KNOWN_CONFIG_KEYS: &[&str] = &[
     "$schema",
 ];
 
-/// Parse OpenCode native config files and produce a partial [`SpaceLibrary`].
+/// Parse OpenCode native config files and produce a partial [`ExtensionLibrary`].
 ///
 /// Reads (if present):
 /// - `opencode.json` → MCP servers, model, harness_defaults
 /// - `AGENTS.md` → rules
-pub fn decompile_opencode(space_root: &Path) -> SpaceLibrary {
-    let mut library = SpaceLibrary::default();
+pub fn decompile_opencode(space_root: &Path) -> ExtensionLibrary {
+    let mut library = ExtensionLibrary::default();
 
     // ── opencode.json ────────────────────────────────────────────────────────
     let config_path = space_root.join("opencode.json");
@@ -67,7 +67,7 @@ pub fn decompile_opencode(space_root: &Path) -> SpaceLibrary {
     library
 }
 
-fn parse_opencode_config(library: &mut SpaceLibrary, config: &Json) {
+fn parse_opencode_config(library: &mut ExtensionLibrary, config: &Json) {
     let obj = match config.as_object() {
         Some(o) => o,
         None => return,

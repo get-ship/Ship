@@ -133,7 +133,7 @@ pub struct ResolverInvalidation {
 /// clone. To listen for invalidations, call [`ResolverWatcher::subscribe`]
 /// (clones the `watch::Receiver` cheaply) BEFORE the handle drops.
 pub struct ResolverWatcher {
-    task: JoinHandle<()>,
+    tasks: Vec<JoinHandle<()>>,
     invalidation: watch::Sender<ResolverInvalidation>,
 }
 
@@ -230,9 +230,87 @@ impl ResolverWatcher {
         });
 
         Ok(Self {
-            task,
+            tasks: vec![task],
             invalidation: tx,
         })
+    }
+
+    /// Spawn a watcher that ALSO observes the cache tier's content
+    /// (`ShipHome::cache_dir()/objects/`). The cache is the source of
+    /// truth for downloaded packages (the #122 dep loader reads
+    /// `<cache_root>/objects/<hex>/ship.jsonc`); a `ship install` (or
+    /// any other change to the cache) must invalidate the roll-up's
+    /// content hash so the J5 cache evicts the stale entry.
+    ///
+    /// Implementation: a second `LocalFsWatch` task on the cache root
+    /// feeds the same `watch::Sender<ResolverInvalidation>` channel the
+    /// space-root watch feeds. The cache subscriber (J5) sees ticks
+    /// from either source and evicts on any non-empty `paths`.
+    ///
+    /// The cache-root watch fires on the recursive `notify` over the
+    /// `objects/` tree; the `WATCHED_ROOTS` scope check still applies
+    /// to space-root deltas (cache deltas bypass the scope check —
+    /// ANY change under `objects/` is in scope for the roll-up).
+    pub fn spawn_with_cache(space_root: &Path) -> Result<Self> {
+        let mut watcher = Self::spawn(space_root)?;
+        let cache_root = ship_substrate::ShipHome::from_env()
+            .cache_dir()
+            .join("objects");
+        if cache_root.exists() {
+            watcher.spawn_extra_watch(&cache_root)?;
+        }
+        Ok(watcher)
+    }
+
+    /// Spawn an additional watch on `extra_root`. The extra watch's
+    /// deltas are fed into the same invalidation channel as the
+    /// primary watch. The extra watch's deltas bypass the
+    /// `WATCHED_ROOTS` scope check — ANY change under `extra_root`
+    /// is in scope (used for the cache tier where every file is
+    /// content-addressed and every change is a potential roll-up
+    /// invalidation).
+    fn spawn_extra_watch(&mut self, extra_root: &Path) -> Result<()> {
+        let root = extra_root.to_path_buf();
+        let cap = FsCap::new_unchecked(
+            root.clone(),
+            FsRoot::Space(SpaceId::new("resolver-cache-watcher")),
+            FsMode::ReadOnly,
+        );
+        let opts = WatchOpts::recursive(Some(RESOLVER_DEBOUNCE));
+        let watch_impl = LocalFsWatch::new();
+        let mut rx = watch_impl
+            .watch(&cap, ".", opts)
+            .with_context(|| format!("resolver watcher: open cache watch at {}", root.display()))?;
+
+        let tx = self.invalidation.clone();
+        let task = tokio::spawn(async move {
+            // Cache-tier deltas bypass the `WATCHED_ROOTS` scope check:
+            // every change under the cache is in scope. The watcher's
+            // contract is "something in the cache changed → roll-up
+            // invalidation".
+            let mut seq: u64 = 0;
+            while let Some(delta) = rx.recv().await {
+                seq += 1;
+                // `FsDelta::rel` is a `Vec<String>` of distinct touched
+                // paths (cap-relative). The cache subscriber treats
+                // any non-empty tick as an invalidation.
+                if delta.rel.is_empty() {
+                    continue;
+                }
+                let tick = ResolverInvalidation {
+                    paths: delta.rel,
+                    kind: delta.kind,
+                    seq,
+                };
+                if tx.send(tick).is_err() {
+                    return;
+                }
+            }
+        });
+        // The handle holds every spawned watch task; Drop aborts them
+        // all so the underlying `notify` watchers release cleanly.
+        self.tasks.push(task);
+        Ok(())
     }
 
     /// Borrow a fresh receiver on the invalidation channel. Cheap
@@ -245,12 +323,11 @@ impl ResolverWatcher {
 
 impl Drop for ResolverWatcher {
     fn drop(&mut self) {
-        self.task.abort();
+        for task in &self.tasks {
+            task.abort();
+        }
     }
 }
-
-/// Filter one `FsDelta`'s rel paths to the watched surface. Returns
-/// the in-scope paths (cap-relative, project-root-relative here).
 ///
 /// The cap is rooted at the project root, so `rel` is the
 /// project-relative path verbatim. An in-scope path is one whose
@@ -444,6 +521,30 @@ mod tests {
             outcome.is_err(),
             "watcher fired on out-of-scope change (expected no tick)"
         );
+        drop(w);
+    }
+
+    /// `spawn_with_cache` adds a second watch on the XDG cache's
+    /// `objects/` dir. The spec requires the watcher extend over the
+    /// cache tier's content hashes — a `ship install` (which adds a
+    /// new `<hex>/` to the cache) must trigger an invalidation.
+    ///
+    /// Test: the cache root may not exist (XDG home unset, no
+    /// `~/.ship/cache/objects/` yet), and `spawn_with_cache` must
+    /// still succeed (degraded to the space-root-only watch).
+    #[tokio::test(flavor = "current_thread")]
+    async fn spawn_with_cache_succeeds_when_cache_root_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join(".ship")).unwrap();
+        // The cache root won't exist under `ShipHome::for_test` with
+        // an isolated home; `spawn_with_cache` should still succeed.
+        let w = ResolverWatcher::spawn_with_cache(tmp.path())
+            .expect("spawn_with_cache must succeed even without cache");
+        // Subscribe to verify the channel is still functional.
+        let mut rx = w.subscribe();
+        let initial = rx.borrow_and_update().clone();
+        assert_eq!(initial.seq, 0);
+        assert!(initial.paths.is_empty());
         drop(w);
     }
 }

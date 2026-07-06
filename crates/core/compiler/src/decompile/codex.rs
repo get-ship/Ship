@@ -1,11 +1,11 @@
-//! Codex CLI decompiler — parse `.codex/config.toml` and `AGENTS.md` into a [`SpaceLibrary`].
+//! Codex CLI decompiler — parse `.codex/config.toml` and `AGENTS.md` into a [`ExtensionLibrary`].
 
 use std::collections::HashMap;
 use std::path::Path;
 
 use serde_json::Value as Json;
 
-use crate::SpaceLibrary;
+use crate::ExtensionLibrary;
 use crate::types::{McpServerConfig, McpServerType, Rule};
 
 /// Known top-level keys in `.codex/config.toml` that map to structured Ship fields.
@@ -20,13 +20,13 @@ const KNOWN_CONFIG_KEYS: &[&str] = &[
     "mcp_servers",
 ];
 
-/// Parse Codex CLI native config files and produce a partial [`SpaceLibrary`].
+/// Parse Codex CLI native config files and produce a partial [`ExtensionLibrary`].
 ///
 /// Reads (if present):
 /// - `.codex/config.toml` → model, codex settings, MCP servers, harness_defaults
 /// - `AGENTS.md` → rules
-pub fn decompile_codex(space_root: &Path) -> SpaceLibrary {
-    let mut library = SpaceLibrary::default();
+pub fn decompile_codex(space_root: &Path) -> ExtensionLibrary {
+    let mut library = ExtensionLibrary::default();
 
     // ── .codex/config.toml ───────────────────────────────────────────────────
     let config_path = space_root.join(".codex").join("config.toml");
@@ -54,7 +54,7 @@ pub fn decompile_codex(space_root: &Path) -> SpaceLibrary {
     library
 }
 
-fn parse_codex_config(library: &mut SpaceLibrary, table: &toml::Table) {
+fn parse_codex_config(library: &mut ExtensionLibrary, table: &toml::Table) {
     // ── Model ────────────────────────────────────────────────────────────────
     if let Some(toml::Value::String(m)) = table.get("model") {
         library.model = Some(m.clone());

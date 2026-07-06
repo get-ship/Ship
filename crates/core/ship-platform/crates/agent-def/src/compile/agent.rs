@@ -6,7 +6,7 @@
 //! `resolve()` can filter MCP / skill / rule refs against it.
 
 use anyhow::Result;
-use compiler::{PluginEntry, PluginsManifest, SpaceLibrary};
+use compiler::{PluginEntry, PluginsManifest, ExtensionLibrary};
 use std::path::Path;
 
 use super::permissions::apply_agent_permissions;
@@ -14,7 +14,7 @@ use super::permissions::apply_agent_permissions;
 // ── Agent → library ──────────────────────────────────────────────────────────
 
 pub fn apply_agent_to_library(
-    library: &mut SpaceLibrary,
+    library: &mut ExtensionLibrary,
     agent_id: &str,
     space_root: &Path,
 ) -> Result<()> {
@@ -124,7 +124,7 @@ fn load_team_agents(space_root: &Path, harness_id: &str) -> Vec<(String, String)
 /// `library`. Only dep refs (those starting with `github.com/`) will be resolved
 /// by the caller; local refs are included in the list but filtered in
 /// [`resolve_dep_skills`](ship_store::dep_skills::resolve_dep_skills).
-pub fn collect_all_skill_refs(library: &SpaceLibrary) -> Vec<String> {
+pub fn collect_all_skill_refs(library: &ExtensionLibrary) -> Vec<String> {
     let mut refs: Vec<String> = Vec::new();
 
     for profile in &library.agent_profiles {

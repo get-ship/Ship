@@ -3,13 +3,13 @@ name = "ship-resolver"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Phase-2 space-shape resolver — composes the compiler leaf (config types) with agent-config-eval (TS eval) over the FsBroker gated door. Emits a canonical SpaceLibrary + ResolvedConfig descriptor."
+description = "Phase-2 space-shape resolver — composes the compiler leaf (config types) with agent-config-eval (TS eval) over the FsBroker gated door. Emits a canonical ExtensionLibrary + ResolvedConfig descriptor."
 
 [dependencies]
 # The L0 leaf — config types, the `load_library` walk over `.ship/`, the
 # `resolve_library` pure transform, and the Phase-2 field set the descriptor
 # carries (skills_dir, rules_dir, skill_paths, per_agent_skills, modules,
-# globals, space_rollup_inputs). The new resolver composes with `load_library`
+# globals, rollup_inputs). The new resolver composes with `load_library`
 # for the bulk of the read path; the additive `read_space_skill_paths`
 # landing in the leaf per the F1 brief (option A: embrace the superset) is
 # the only leaf change.
@@ -20,6 +20,13 @@ compiler = { path = "../compiler" }
 # a `spawn_blocking` boundary here, exactly as shipd's ingest does today
 # (`apps/shipd/src/ship_runtime/tasks.rs:285-304`).
 agent-config-eval = { path = "../agent-config-eval" }
+# The #122 dep-skill / dep-agent cache reader (composition engine).
+# `load_cached_extensions` (Phase-3 J2) returns per-package bundles that
+# the resolver turns into `ExtensionDescriptor`s; the bundling reuses the
+# same ship.lock + cache layout as the agent-def compile path's
+# `resolve_dep_agents` / `resolve_dep_skills`. The new fn is additive —
+# no code motion in ship-store.
+ship-store = { path = "../ship-platform/crates/ship-store" }
 # The gated disk door (R1). All reads route through FsBroker; no `std::fs` /
 # `tokio::fs` in this crate's read path (mirrors ship-config's grep-gate
 # invariant at `ship-config/src/agents.rs:1-7`). `fs-cap` lives in

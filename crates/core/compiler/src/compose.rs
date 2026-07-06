@@ -1,7 +1,7 @@
 //! `compose` — the space roll-up law (Phase-3 composition).
 //!
 //! One pure fn: [`compose_space`] takes [`RollupInputs`] (tier descriptors +
-//! precedence table) and emits ONE composed [`SpaceLibrary`] plus the
+//! precedence table) and emits ONE composed [`ExtensionLibrary`] plus the
 //! [`ShadowRecord`]s for every id an outranked tier lost. No IO, no runtime
 //! deps — the law is a transformation, callers own where descriptors come
 //! from and where the result goes.
@@ -28,12 +28,12 @@
 
 use std::collections::HashMap;
 
-use crate::resolve::{ExtSource, ExtensionDescriptor, SpaceLibrary, RollupInputs};
+use crate::resolve::{ExtSource, ExtensionDescriptor, ExtensionLibrary, RollupInputs};
 
 /// The composed result: the winning library + who lost where.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComposedLibrary {
-    pub library: SpaceLibrary,
+    pub library: ExtensionLibrary,
     /// One record per id collision the composition resolved, in resolution
     /// order. Consumers (the def index) persist these as provenance.
     pub shadows: Vec<ShadowRecord>,
@@ -125,7 +125,7 @@ fn compose_noun<'a, T: Clone + 'a>(
     ordered: &[(u32, &'a ExtensionDescriptor)],
     shadows: &mut Vec<ShadowRecord>,
     noun: NounKind,
-    items: impl Fn(&'a SpaceLibrary) -> &'a [T],
+    items: impl Fn(&'a ExtensionLibrary) -> &'a [T],
     id_of: impl Fn(&T) -> &str,
 ) -> Vec<T> {
     let mut out: Vec<T> = Vec::new();

@@ -44,6 +44,147 @@ fn resolve_dep_agents_empty_without_lockfile() {
     assert!(agents.is_empty(), "no lockfile => no dep agents");
 }
 
+// ── load_cached_extensions (Phase-3 J2) ─────────────────────────────
+
+/// Per-package bundle: each locked package gets its own `CachedExtension` with
+/// the namespaced agents + skills. Two packages, distinct content hashes,
+/// distinct bundles. The roll-up uses these to build per-package
+/// `ExtensionDescriptor`s.
+#[test]
+fn load_cached_extensions_bundles_per_package() {
+    let tmp = TempDir::new().unwrap();
+    let cache_root = tmp.path().join("cache");
+
+    // Package 1: one agent, no skills.
+    let hex1 = "abc123def456";
+    let obj1 = cache_root.join("objects").join(hex1);
+    std::fs::create_dir_all(obj1.join("agents")).unwrap();
+    std::fs::write(
+        obj1.join("ship.jsonc"),
+        r#"{ "id": "p1", "module": { "name": "github.com/x/y", "version": "1.0.0" },
+             "exports": { "skills": [], "agents": ["agents/helper.jsonc"] } }"#,
+    )
+    .unwrap();
+    std::fs::write(
+        obj1.join("agents/helper.jsonc"),
+        r#"{ "agent": { "id": "helper", "name": "Helper" } }"#,
+    )
+    .unwrap();
+
+    // Package 2: one skill (namespace dir = a single skill under `skills/foo`).
+    let hex2 = "feedface0000";
+    let obj2 = cache_root.join("objects").join(hex2);
+    std::fs::create_dir_all(obj2.join("skills").join("foo")).unwrap();
+    std::fs::write(
+        obj2.join("ship.jsonc"),
+        r#"{ "id": "p2", "module": { "name": "github.com/o/p", "version": "0.1.0" },
+             "exports": { "skills": ["skills/foo"], "agents": [] } }"#,
+    )
+    .unwrap();
+    std::fs::write(
+        obj2.join("skills").join("foo").join("SKILL.md"),
+        "---\nname: Foo\n---\nFoo content.",
+    )
+    .unwrap();
+
+    // Lockfile with both packages.
+    let lock = ShipLock {
+        version: 1,
+        packages: vec![
+            LockPackage {
+                path: "github.com/x/y".to_string(),
+                version: "1.0.0".to_string(),
+                commit: "deadbeef".to_string(),
+                hash: format!("sha256:{hex1}"),
+                export_hashes: Default::default(),
+            },
+            LockPackage {
+                path: "github.com/o/p".to_string(),
+                version: "0.1.0".to_string(),
+                commit: "cafebabe".to_string(),
+                hash: format!("sha256:{hex2}"),
+                export_hashes: Default::default(),
+            },
+        ],
+    };
+    let lock_path = tmp.path().join("ship.lock");
+    lock.write_atomic(&lock_path).unwrap();
+
+    let bundles = load_cached_extensions(&lock_path, Some(&cache_root)).unwrap();
+    assert_eq!(bundles.len(), 2, "one bundle per locked package");
+
+    // `write_atomic` sorts packages by path (lockfile determinism), so the
+    // bundle order is alphabetical by `pkg_path`, not the original struct
+    // declaration order.
+    let p_op = &bundles[0];
+    assert_eq!(p_op.pkg_path, "github.com/o/p");
+    assert_eq!(p_op.content_hash, hex2);
+    assert!(p_op.agent_profiles.is_empty());
+    assert_eq!(p_op.skills.len(), 1, "one dep skill from exports.skills");
+    assert_eq!(p_op.skills[0].id, "github.com/o/p/skills/foo");
+
+    let p_xy = &bundles[1];
+    assert_eq!(p_xy.pkg_path, "github.com/x/y");
+    assert_eq!(p_xy.content_hash, hex1);
+    assert_eq!(p_xy.agent_profiles.len(), 1);
+    assert_eq!(p_xy.agent_profiles[0].agent.id, "github.com/x/y/helper");
+    assert!(p_xy.skills.is_empty());
+}
+
+#[test]
+fn load_cached_extensions_empty_without_lockfile() {
+    let tmp = TempDir::new().unwrap();
+    let bundles = load_cached_extensions(&tmp.path().join("absent.lock"), Some(tmp.path())).unwrap();
+    assert!(bundles.is_empty(), "no lockfile => no bundles");
+}
+
+/// A package whose cache object dir is missing must be skipped silently —
+/// partial install is a recoverable state, not a hard error. The remaining
+/// packages still surface in the bundle vec.
+#[test]
+fn load_cached_extensions_skips_missing_manifest() {
+    let tmp = TempDir::new().unwrap();
+    let cache_root = tmp.path().join("cache");
+
+    // Package 1: present in cache.
+    let hex1 = "11111111";
+    let obj1 = cache_root.join("objects").join(hex1);
+    std::fs::create_dir_all(obj1.join("agents")).unwrap();
+    std::fs::write(
+        obj1.join("ship.jsonc"),
+        r#"{ "id": "p1", "exports": { "skills": [], "agents": ["agents/a.jsonc"] } }"#,
+    )
+    .unwrap();
+    std::fs::write(obj1.join("agents/a.jsonc"), r#"{ "agent": { "id": "a", "name": "A" } }"#).unwrap();
+
+    // Package 2: NOT in cache (object dir absent).
+    let lock = ShipLock {
+        version: 1,
+        packages: vec![
+            LockPackage {
+                path: "github.com/p/one".to_string(),
+                version: "0.0.1".to_string(),
+                commit: "a".repeat(40),
+                hash: format!("sha256:{hex1}"),
+                export_hashes: Default::default(),
+            },
+            LockPackage {
+                path: "github.com/p/two".to_string(),
+                version: "0.0.1".to_string(),
+                commit: "b".repeat(40),
+                hash: "sha256:missing".to_string(),
+                export_hashes: Default::default(),
+            },
+        ],
+    };
+    let lock_path = tmp.path().join("ship.lock");
+    lock.write_atomic(&lock_path).unwrap();
+
+    let bundles = load_cached_extensions(&lock_path, Some(&cache_root)).unwrap();
+    assert_eq!(bundles.len(), 1, "missing-cache package is skipped");
+    assert_eq!(bundles[0].pkg_path, "github.com/p/one");
+}
+
 // ── transitive_capabilities (#119) ────────────────────────────────────
 
 #[test]

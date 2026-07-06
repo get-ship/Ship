@@ -428,6 +428,138 @@ pub fn transitive_capabilities(
     Ok(TransitiveCapabilities { required, granted, unmet })
 }
 
+// ── Per-package composition bundle (Phase-3 J2) ──────────────────────────────
+
+/// One locked package's contribution to the extension roll-up, loaded from the
+/// content-addressed cache. Each `CachedExtension` is a self-contained bundle
+/// the resolver turns into a single [`compiler::ExtensionDescriptor`].
+///
+/// The Phase-3 roll-up wants per-package data (each package becomes its own
+/// extension descriptor so the shadow records can identify which package lost
+/// on an id collision). The existing [`resolve_dep_agents`] /
+/// [`resolve_dep_skills`] flatten every package's contribution into one vec —
+/// fine for the compile path, lossy for the roll-up's provenance. This
+/// function is the additive per-package surface; the existing flatteners stay
+/// in place for the compile path (no motion).
+///
+/// Fields mirror the nouns the composition law composes per package:
+/// `agent_profiles` (id namespaced by `pkg_path`), `skills` (id namespaced),
+/// and `content_hash` (the package's sha256 hex from `ShipLock::hash`, the
+/// tier-level identity the shadow record carries on collision).
+#[derive(Debug, Clone)]
+pub struct CachedExtension {
+    /// The package's path in the lockfile, e.g. `github.com/owner/pkg`.
+    pub pkg_path: String,
+    /// The package's `sha256:<hex>` content hash from the lockfile — the
+    /// cache tier's content hash the roll-up's cache key covers.
+    pub content_hash: String,
+    /// Agent profiles from the package's `exports.agents`, namespaced by
+    /// `pkg_path` so dep agents never collide with the on-disk source or
+    /// with other packages.
+    pub agent_profiles: Vec<compiler::AgentProfile>,
+    /// Skills from the package's `exports.skills`, namespaced by `pkg_path`.
+    pub skills: Vec<compiler::Skill>,
+}
+
+/// Load every locked package's exports as a per-package bundle, suitable for
+/// the Phase-3 roll-up's `ExtensionDescriptor` construction.
+///
+/// Returns an empty vec when there is no lockfile (no deps installed). Skips
+/// packages whose `ship.jsonc` is missing or malformed (the same lenient
+/// contract [`resolve_dep_agents`] has — bad packages get a `tracing::warn`
+/// and the roll-up continues with the rest).
+///
+/// `lock_path`  — `.ship/ship.lock`
+/// `cache_root` — `~/.ship/cache/` (pass `None` to use the default)
+pub fn load_cached_extensions(
+    lock_path: &Path,
+    cache_root: Option<&Path>,
+) -> Result<Vec<CachedExtension>> {
+    if !lock_path.exists() {
+        return Ok(vec![]);
+    }
+    let lock =
+        ShipLock::from_file(lock_path).with_context(|| format!("reading {}", lock_path.display()))?;
+
+    let default_cache: PathBuf;
+    let cache_root = match cache_root {
+        Some(p) => p,
+        None => {
+            // See `resolve_dep_skills`: route through ShipHome so SHIP_HOME is
+            // honored and the test-context isolation gate kicks in.
+            default_cache = ship_substrate::ShipHome::from_env().cache_dir().to_path_buf();
+            &default_cache
+        }
+    };
+
+    let mut out = Vec::new();
+    for pkg in &lock.packages {
+        let hex = pkg.hash.strip_prefix("sha256:").unwrap_or(&pkg.hash).to_string();
+        let cache_dir = cache_root.join("objects").join(&hex);
+        let manifest_path = cache_dir.join("ship.jsonc");
+        if !manifest_path.exists() {
+            // No manifest in the cache — the package may be partially
+            // installed; skip silently so the roll-up continues. A
+            // follow-on `ship install` fills the gap.
+            continue;
+        }
+        let manifest = match compiler::manifest::ShipManifest::from_file(&manifest_path) {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::warn!(
+                    "load_cached_extensions: skipping {} — manifest parse: {e}",
+                    pkg.path
+                );
+                continue;
+            }
+        };
+
+        let mut agent_profiles = Vec::new();
+        for agent_rel in &manifest.exports.agents {
+            let agent_path = cache_dir.join(agent_rel);
+            let content = match std::fs::read_to_string(&agent_path) {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::warn!(
+                        "load_cached_extensions: {}::{agent_rel} unreadable: {e}",
+                        pkg.path
+                    );
+                    continue;
+                }
+            };
+            match compiler::jsonc::from_jsonc_str::<compiler::AgentProfile>(&content) {
+                Ok(mut profile) => {
+                    profile.agent.id = format!("{}/{}", pkg.path, profile.agent.id);
+                    agent_profiles.push(profile);
+                }
+                Err(e) => tracing::warn!(
+                    "load_cached_extensions: {}::{agent_rel} parse: {e}",
+                    pkg.path
+                ),
+            }
+        }
+
+        let mut skills = Vec::new();
+        for skill_export in &manifest.exports.skills {
+            let ref_str = format!("{}/{}", pkg.path, skill_export);
+            match resolve_dep_skill(&ref_str, &lock, cache_root) {
+                Ok(skilled) => skills.extend(skilled),
+                Err(e) => tracing::warn!(
+                    "load_cached_extensions: {ref_str}: {e}"
+                ),
+            }
+        }
+
+        out.push(CachedExtension {
+            pkg_path: pkg.path.clone(),
+            content_hash: hex,
+            agent_profiles,
+            skills,
+        });
+    }
+    Ok(out)
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

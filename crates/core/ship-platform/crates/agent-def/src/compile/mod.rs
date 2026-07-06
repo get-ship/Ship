@@ -4,7 +4,7 @@
 //! native compile one shared home so the daemon can run it in-process.
 //!
 //! The compiler crate (transform) stays WASM-safe and has no platform deps.
-//! This module owns the native-only loader (disk → `compiler::SpaceLibrary`)
+//! This module owns the native-only loader (disk → `compiler::ExtensionLibrary`)
 //! and the full compile pipeline (library → written harness files).
 
 pub mod agent;

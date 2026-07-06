@@ -57,7 +57,7 @@ impl RollupInputs {
 pub struct ExtensionDescriptor {
     pub source: ExtSource,
     pub space_root: PathBuf,
-    pub descriptor: SpaceLibrary,
+    pub descriptor: ExtensionLibrary,
     pub content_hash: String,
 }
 
@@ -137,7 +137,7 @@ pub struct ResolvedConfig {
     pub hooks: Vec<HookConfig>,
     pub active_agent: Option<String>,
     /// Plugin install intent declared by the active preset.
-    /// Passed through unchanged from `SpaceLibrary::plugins`.
+    /// Passed through unchanged from `ExtensionLibrary::plugins`.
     pub plugins: PluginsManifest,
     /// Agent profiles parsed from `.ship/agents/*.toml`.
     /// Compiled into harness-native subagent definitions.
@@ -189,7 +189,7 @@ pub struct ResolvedConfig {
     /// Phase-3 composition seam. Phase 2 always carries `None`; Phase 3
     /// populates this with the per-space extension set when the space
     /// roll-up fn runs.
-    pub space_rollup_inputs: Option<RollupInputs>,
+    pub rollup_inputs: Option<RollupInputs>,
 }
 
 /// Resolve the effective agent config from pre-loaded project data.
@@ -204,7 +204,7 @@ pub struct ResolvedConfig {
 /// The manifest holds identity only; the library holds everything the compiler needs.
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct SpaceLibrary {
+pub struct ExtensionLibrary {
     /// Agent definitions from `agents/*.jsonc`.
     #[serde(default)]
     pub agents: Vec<AgentProfile>,
@@ -329,7 +329,7 @@ pub struct SpaceLibrary {
     /// Phase-3 composition seam. Phase 2 always carries `None`; the resolver
     /// never populates this — Phase 3's roll-up fn does.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub space_rollup_inputs: Option<RollupInputs>,
+    pub rollup_inputs: Option<RollupInputs>,
 }
 
 /// Merge harness_defaults (base) with *_settings_extra (agent override).
@@ -351,10 +351,10 @@ fn merge_harness_extra(
     }
 }
 
-/// Resolve a [`SpaceLibrary`] directly — the new-model entry point.
+/// Resolve a [`ExtensionLibrary`] directly — the new-model entry point.
 /// No `SpaceManifest` or filesystem access required.
 pub fn resolve_library(
-    library: &SpaceLibrary,
+    library: &ExtensionLibrary,
     feature: Option<&WorkspaceOverrides>,
     active_agent_override: Option<&str>,
 ) -> ResolvedConfig {
@@ -422,7 +422,7 @@ pub fn resolve_library(
     // the resolved view. Today these are sourced from the library verbatim;
     // future work (J3+) may project/filter before they reach a consumer.
     resolved.imported_modules = library.imported_modules.clone();
-    resolved.space_rollup_inputs = library.space_rollup_inputs.clone();
+    resolved.rollup_inputs = library.rollup_inputs.clone();
     resolved
 }
 
@@ -529,7 +529,7 @@ pub fn resolve(
         env: std::collections::HashMap::new(),
         available_models: Vec::new(),
         // Per-harness deltas default to empty here; resolve_library() fills
-        // them from the flat SpaceLibrary fields.
+        // them from the flat ExtensionLibrary fields.
         claude: crate::compile::ClaudeSettings::default(),
         codex: crate::compile::CodexSettings::default(),
         opencode: crate::compile::OpenCodeSettings::default(),
@@ -537,11 +537,11 @@ pub fn resolve(
         unmet_capability_requirements,
         ship_home_dir: None,
         scoped_launch: false,
-        // Phase-2: the leaf `resolve()` has no SpaceLibrary to source these
+        // Phase-2: the leaf `resolve()` has no ExtensionLibrary to source these
         // from. Defaults match the leaf's serde defaults so the round-trip is
         // stable; resolve_library() threads the library's values when present.
         imported_modules: Vec::new(),
-        space_rollup_inputs: None,
+        rollup_inputs: None,
     }
 }
 
@@ -1191,7 +1191,7 @@ mod tests {
         use crate::types::agent_profile::*;
         use crate::types::{PluginEntry, PluginsManifest};
 
-        let library = super::SpaceLibrary {
+        let library = super::ExtensionLibrary {
             plugins: PluginsManifest {
                 install: vec![PluginEntry {
                     id: "test-plugin".to_string(),
@@ -1308,7 +1308,7 @@ mod tests {
             json!({"theme": "dark", "autoUpdates": true, "nested": {"a": 1, "b": 2}}),
         );
 
-        let library = SpaceLibrary {
+        let library = ExtensionLibrary {
             harness_defaults: defaults,
             claude_settings_extra: Some(
                 json!({"theme": "light", "newKey": "hello", "nested": {"b": 99, "c": 3}}),

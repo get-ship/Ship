@@ -12,7 +12,7 @@
 //!   reads `space.skill_paths` from `ship.jsonc` (the additive F1
 //!   manifest read) and the default `.ship/skills/` is walked by the leaf's
 //!   `load_skills`. The resolver walks the EXTRA paths and merges into
-//!   `SpaceLibrary::skills`, space winning on id conflict (so a
+//!   `ExtensionLibrary::skills`, space winning on id conflict (so a
 //!   space-defined skill shadows an extension's).
 //!
 //! ## FsBroker for new code (R1)
@@ -45,7 +45,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use compiler::{Skill, SkillSource, SpaceLibrary};
+use compiler::{Skill, SkillSource, ExtensionLibrary};
 use ship_substrate::ports::{FsBroker, FsCap, FsError, FsMode, FsRoot, SpaceId};
 
 /// The canonical `.ship` dir name, mirrored from
@@ -81,7 +81,7 @@ impl SpaceCap {
     }
 }
 /// Read the space root + the FsBroker, and return a fully-populated
-/// `SpaceLibrary`.
+/// `ExtensionLibrary`.
 ///
 /// The bulk of the read (`mcp.jsonc`, `permissions.jsonc`, `hooks.jsonc`,
 /// `rules/`, `.ship/skills/`, `agents/`) is delegated to the leaf's
@@ -98,7 +98,7 @@ impl SpaceCap {
 pub async fn load_space_library(
     fs: &dyn FsBroker,
     space_root: &Path,
-) -> Result<SpaceLibrary> {
+) -> Result<ExtensionLibrary> {
 
     // 1. Delegate to the leaf for the bulk of the read. The leaf is sync
     //    `std::fs`; it's the canonical phase-0 surface and ships on its
@@ -145,7 +145,7 @@ pub async fn load_space_library(
     if let Some(module) = read_ship_ts(fs, &cap.cap, space_root)
         .with_context(|| format!("read ship.ts under {}", space_root.display()))?
     {
-        let content_hash = space_library_module_hash(&module);
+        let content_hash = extension_library_module_hash(&module);
         let mut module = module;
         module.content_hash = content_hash;
         library.imported_modules.push(module);
@@ -247,7 +247,7 @@ fn read_ship_ts(
 /// SHA-256 hex of a `ModuleDescriptor`'s raw source. Standalone so the
 /// resolver can store it on the descriptor (the cache key) without
 /// re-reading the file.
-fn space_library_module_hash(module: &compiler::ModuleDescriptor) -> String {
+fn extension_library_module_hash(module: &compiler::ModuleDescriptor) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(module.source.as_bytes());

@@ -1,10 +1,10 @@
-//! Load a [`SpaceLibrary`] from the `.ship/` directory tree.
+//! Load a [`ExtensionLibrary`] from the `.ship/` directory tree.
 //! No compilation or resolution occurs here — pure filesystem loading.
 
 use anyhow::Result;
 use compiler::{
     AgentProfile, HookConfig, HookTrigger, McpServerConfig, McpServerType, Permissions,
-    SpaceLibrary, Rule,
+    ExtensionLibrary, Rule,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -114,13 +114,13 @@ impl McpFile {
 
 // ── Top-level entry point ─────────────────────────────────────────────────────
 
-/// Load a [`SpaceLibrary`] from a `.ship/` directory (flat layout).
+/// Load a [`ExtensionLibrary`] from a `.ship/` directory (flat layout).
 ///
 /// Looks for mcp, permissions, hooks, rules, skills at the `.ship/` root,
 /// and agent profiles under `.ship/agents/`.
 /// Missing files and dirs are silently skipped — an empty library is valid.
-pub fn load_library(ship_dir: &Path) -> Result<SpaceLibrary> {
-    Ok(SpaceLibrary {
+pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
+    Ok(ExtensionLibrary {
         mcp_servers: load_mcp_servers(ship_dir)?,
         permissions: load_permissions(ship_dir)?,
         hooks: load_hooks(ship_dir)?,

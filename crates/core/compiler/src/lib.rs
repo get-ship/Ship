@@ -37,7 +37,7 @@ pub use compile::{
 
 pub use compose::{ComposedLibrary, NounKind, ShadowRecord, compose_space};
 pub use resolve::{
-    ExtensionDescriptor, ExtSource, ExtSourceKind, ModuleDescriptor, PrecedenceRow, SpaceLibrary,
+    ExtensionDescriptor, ExtSource, ExtSourceKind, ModuleDescriptor, PrecedenceRow, ExtensionLibrary,
     ResolvedConfig, RollupInputs, WorkspaceOverrides, resolve, resolve_library,
 };
 pub use decompile::{

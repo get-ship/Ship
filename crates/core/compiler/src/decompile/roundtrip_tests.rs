@@ -1,6 +1,6 @@
 //! Round-trip tests: compile → write → decompile → assert key fields preserved.
 //!
-//! These tests verify that compiling a SpaceLibrary to harness-native configs
+//! These tests verify that compiling a ExtensionLibrary to harness-native configs
 //! and then decompiling back produces equivalent results for fields we support.
 
 use serde_json::json;
@@ -10,14 +10,14 @@ use crate::decompile::{
     decompile_claude, decompile_codex, decompile_opencode,
     test_helpers::write_file,
 };
-use crate::resolve::SpaceLibrary;
+use crate::resolve::ExtensionLibrary;
 use crate::types::{
     HookConfig, HookTrigger, McpServerConfig, McpServerType, Permissions, Rule, ToolPermissions,
 };
 use crate::{compile, resolve_library};
 
-fn test_library() -> SpaceLibrary {
-    SpaceLibrary {
+fn test_library() -> ExtensionLibrary {
+    ExtensionLibrary {
         mcp_servers: vec![McpServerConfig {
             id: "ship".to_string(),
             name: "ship".to_string(),

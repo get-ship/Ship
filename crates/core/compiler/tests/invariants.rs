@@ -4,7 +4,7 @@
 /// No `proptest`/`quickcheck` in Cargo.toml, so these are deterministic
 /// parameterised tests as permitted by the job spec.
 use compiler::{
-    AgentProfile, McpServerConfig, ProfileMeta, SpaceLibrary, Rule, Skill, SkillRefs, McpRefs,
+    AgentProfile, McpServerConfig, ProfileMeta, ExtensionLibrary, Rule, Skill, SkillRefs, McpRefs,
     PluginRefs, ProfilePermissions, ProfileRules, compile, list_harnesses, resolve_library,
 };
 
@@ -57,8 +57,8 @@ fn make_server(id: &str) -> McpServerConfig {
     }
 }
 
-fn rich_library() -> SpaceLibrary {
-    SpaceLibrary {
+fn rich_library() -> ExtensionLibrary {
+    ExtensionLibrary {
         skills: vec![make_skill("deploy"), make_skill("review")],
         rules: vec![make_rule("style.md"), make_rule("testing.md")],
         mcp_servers: vec![make_server("github"), make_server("linear")],
@@ -68,7 +68,7 @@ fn rich_library() -> SpaceLibrary {
 
 // ─── Determinism ──────────────────────────────────────────────────────────────
 
-/// Same SpaceLibrary compiled 10× must produce identical output every time.
+/// Same ExtensionLibrary compiled 10× must produce identical output every time.
 /// Tests all harnesses to catch any per-harness non-determinism.
 #[test]
 fn compile_is_deterministic() {
@@ -172,7 +172,7 @@ fn codex_output_has_agents_md_and_config_patch() {
 #[test]
 fn mcp_servers_never_includes_ship_injection() {
     let harnesses = ["claude", "codex", "opencode"];
-    let library = SpaceLibrary::default();
+    let library = ExtensionLibrary::default();
     let resolved = resolve_library(&library, None, None);
 
     for harness in harnesses {
@@ -190,11 +190,11 @@ fn mcp_servers_never_includes_ship_injection() {
 
 // ─── Empty input ──────────────────────────────────────────────────────────────
 
-/// Empty SpaceLibrary must compile for every known harness without panicking
+/// Empty ExtensionLibrary must compile for every known harness without panicking
 /// and must produce structurally valid output.
 #[test]
 fn empty_library_compiles_for_all_harnesses() {
-    let library = SpaceLibrary::default();
+    let library = ExtensionLibrary::default();
 
     for desc in list_harnesses() {
         let resolved = resolve_library(&library, None, None);
@@ -214,11 +214,11 @@ fn empty_library_compiles_for_all_harnesses() {
     }
 }
 
-/// resolve_library on an empty SpaceLibrary must not panic and must default
+/// resolve_library on an empty ExtensionLibrary must not panic and must default
 /// harness to "claude".
 #[test]
 fn empty_library_resolves_to_claude_default() {
-    let library = SpaceLibrary::default();
+    let library = ExtensionLibrary::default();
     let resolved = resolve_library(&library, None, None);
     assert_eq!(
         resolved.harnesses,
@@ -307,7 +307,7 @@ fn runtime_agents_injected_into_skill_template() {
         requires: vec![],
     };
 
-    let library = SpaceLibrary {
+    let library = ExtensionLibrary {
         skills: vec![skill],
         agent_profiles: vec![
             make_agent_profile("rust-compiler", "Compiles Rust"),
@@ -355,7 +355,7 @@ fn runtime_harnesses_injected_into_skill_template() {
         requires: vec![],
     };
 
-    let library = SpaceLibrary {
+    let library = ExtensionLibrary {
         skills: vec![skill],
         ..Default::default()
     };
@@ -395,7 +395,7 @@ fn runtime_skills_injected_into_skill_template() {
         requires: vec![],
     };
 
-    let library = SpaceLibrary {
+    let library = ExtensionLibrary {
         skills: vec![
             meta_skill,
             make_skill("deploy"),
@@ -427,7 +427,7 @@ fn runtime_skills_injected_into_skill_template() {
 /// Unknown harness IDs must return None rather than panicking.
 #[test]
 fn compile_unknown_harness_returns_none() {
-    let library = SpaceLibrary::default();
+    let library = ExtensionLibrary::default();
     let resolved = resolve_library(&library, None, None);
 
     assert!(

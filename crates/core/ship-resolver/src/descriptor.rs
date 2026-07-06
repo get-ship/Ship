@@ -9,20 +9,20 @@
 //!
 //! This module is the canonical-JSON sink. Two surface helpers:
 //!
-//! - [`to_canonical_json`] — serialize a `SpaceLibrary` with sorted keys,
+//! - [`to_canonical_json`] — serialize a `ExtensionLibrary` with sorted keys,
 //!   no whitespace, so two runs over the same input yield the same bytes.
 //!   The shape of the value is the resolver's wire contract.
-//! - [`space_library_content_hash`] — the resolver's content-hash helper,
+//! - [`extension_library_content_hash`] — the resolver's content-hash helper,
 //!   used both for the cache key (J5) and for the
 //!   `ModuleDescriptor::content_hash` field the descriptor carries. SHA-256
 //!   hex of the canonical bytes; the descriptor treats it as an opaque
 //!   string so the leaf stays hash-agnostic (per
 //!   `compiler::ModuleDescriptor` doc).
 //!
-//! Note: only `SpaceLibrary` has a canonical form here. `ResolvedConfig`
+//! Note: only `ExtensionLibrary` has a canonical form here. `ResolvedConfig`
 //! is a runtime value (it doesn't derive `Serialize` — the resolved
 //! config is what the harness compiles, not a wire format). The
-//! descriptor cache (J5) keys on the `SpaceLibrary`'s content hash;
+//! descriptor cache (J5) keys on the `ExtensionLibrary`'s content hash;
 //! the `ResolvedConfig` is built from the cached library on each read.
 //!
 //! No `std::env` / no fs — pure functions over the input value. The
@@ -30,7 +30,7 @@
 //! in `ts_resolver::resolve_ts_files`; by the time values reach THIS module
 //! they are plain data.
 
-use compiler::SpaceLibrary;
+use compiler::{ComposedLibrary, ExtensionLibrary};
 #[cfg(test)]
 use compiler::RollupInputs;
 use serde::Serialize;
@@ -50,25 +50,44 @@ pub fn to_canonical_json<T: Serialize>(value: &T) -> serde_json::Result<Vec<u8>>
     serde_json::to_vec(&sorted)
 }
 
-/// Serialize a `SpaceLibrary` specifically, surfacing the typed error
+/// Serialize a `ExtensionLibrary` specifically, surfacing the typed error
 /// shape that callers (the cache writer, the test fixtures) prefer.
 ///
 /// Equivalent to [`to_canonical_json`] — this is the resolver's stable
 /// surface for the space library's canonical form.
-pub fn space_library_canonical(library: &SpaceLibrary) -> serde_json::Result<Vec<u8>> {
+pub fn extension_library_canonical(library: &ExtensionLibrary) -> serde_json::Result<Vec<u8>> {
     to_canonical_json(library)
 }
 
-/// SHA-256 hex digest of a `SpaceLibrary`'s canonical JSON form.
+/// SHA-256 hex digest of a `ExtensionLibrary`'s canonical JSON form.
 ///
 /// The exact algorithm is the resolver's choice (the descriptor carries the
 /// hash as an opaque string per `compiler::ModuleDescriptor::content_hash`
 /// doc). SHA-256 matches the existing `content_hash` in `AgentDefRecord`
 /// (`ship-config/src/agents_index.rs:111-125`) so the cache invalidation
 /// key is consistent with the rest of the config tier.
-pub fn space_library_content_hash(library: &SpaceLibrary) -> serde_json::Result<String> {
-    let bytes = space_library_canonical(library)?;
+pub fn extension_library_content_hash(library: &ExtensionLibrary) -> serde_json::Result<String> {
+    let bytes = extension_library_canonical(library)?;
     Ok(sha256_hex(&bytes))
+}
+
+/// SHA-256 hex digest of a [`ComposedLibrary`]'s canonical JSON form —
+/// the cache key the J5 descriptor cache uses for the roll-up.
+///
+/// Because the composed `ExtensionLibrary.library.rollup_inputs` is
+/// populated (Phase-3 J2) and that field embeds every extension's
+/// `content_hash`, hashing the composed library's canonical form
+/// transitively covers the source's contents AND every cached
+/// package's content hash. A change to ANY extension's content
+/// invalidates this hash; the cache subscriber evicts on the next
+/// invalidation tick.
+///
+/// This is the roll-up's cache key — the spec's "Cache key extends
+/// over the cache tier's content hashes" acceptance is this fn.
+pub fn composed_library_content_hash(
+    composed: &ComposedLibrary,
+) -> serde_json::Result<String> {
+    extension_library_content_hash(&composed.library)
 }
 
 // ─── Internals ────────────────────────────────────────────────────────────────
@@ -113,7 +132,7 @@ fn sort_value_keys(value: serde_json::Value) -> serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use compiler::SpaceLibrary;
+    use compiler::ExtensionLibrary;
     use serde_json::json;
 
     #[test]
@@ -143,34 +162,34 @@ mod tests {
     }
 
     #[test]
-    fn space_library_canonical_is_byte_stable_across_runs() {
-        let mut lib = SpaceLibrary::default();
+    fn extension_library_canonical_is_byte_stable_across_runs() {
+        let mut lib = ExtensionLibrary::default();
         lib.skills_dir = Some("skills/".to_string());
         lib.rules_dir = None;
         lib.skill_paths = vec![".ship/skills/".to_string(), "docs/".to_string()];
-        let a = space_library_canonical(&lib).unwrap();
-        let b = space_library_canonical(&lib).unwrap();
+        let a = extension_library_canonical(&lib).unwrap();
+        let b = extension_library_canonical(&lib).unwrap();
         assert_eq!(a, b, "two reads of the same library must be byte-identical");
     }
 
     #[test]
-    fn space_library_content_hash_is_stable() {
-        let mut lib = SpaceLibrary::default();
+    fn extension_library_content_hash_is_stable() {
+        let mut lib = ExtensionLibrary::default();
         lib.skills_dir = Some("custom-skills/".to_string());
         lib.skill_paths = vec![".ship/skills/".to_string(), "docs/".to_string()];
-        let h1 = space_library_content_hash(&lib).unwrap();
-        let h2 = space_library_content_hash(&lib).unwrap();
+        let h1 = extension_library_content_hash(&lib).unwrap();
+        let h2 = extension_library_content_hash(&lib).unwrap();
         assert_eq!(h1, h2);
         assert_eq!(h1.len(), 64, "SHA-256 hex is 64 chars");
     }
 
     #[test]
-    fn space_library_content_hash_changes_with_field() {
-        let mut a = SpaceLibrary::default();
-        let b = SpaceLibrary::default();
+    fn extension_library_content_hash_changes_with_field() {
+        let mut a = ExtensionLibrary::default();
+        let b = ExtensionLibrary::default();
         a.skills_dir = Some("custom/".to_string());
-        let ha = space_library_content_hash(&a).unwrap();
-        let hb = space_library_content_hash(&b).unwrap();
+        let ha = extension_library_content_hash(&a).unwrap();
+        let hb = extension_library_content_hash(&b).unwrap();
         assert_ne!(ha, hb, "content hash must change when the library changes");
     }
 
@@ -178,13 +197,13 @@ mod tests {
     fn phase3_rollup_placeholder_omitted_when_none() {
         // The Phase-3 seam stays `None` in Phase 2 — the field is
         // `#[serde(default, skip_serializing_if = "Option::is_none")]` on
-        // SpaceLibrary, so the canonical JSON must not contain a
-        // `"space_rollup_inputs": null` entry.
-        let lib = SpaceLibrary::default();
-        let bytes = space_library_canonical(&lib).unwrap();
+        // ExtensionLibrary, so the canonical JSON must not contain a
+        // `"rollup_inputs": null` entry.
+        let lib = ExtensionLibrary::default();
+        let bytes = extension_library_canonical(&lib).unwrap();
         let text = std::str::from_utf8(&bytes).unwrap();
         assert!(
-            !text.contains("space_rollup_inputs"),
+            !text.contains("rollup_inputs"),
             "RollupInputs placeholder must not appear in Phase-2 output, got: {text}",
         );
     }

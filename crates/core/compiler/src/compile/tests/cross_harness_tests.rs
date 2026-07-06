@@ -194,12 +194,12 @@ fn conformance_no_ship_injection_any_harness() {
     }
 }
 
-/// compile_library_all via SpaceLibrary round-trip.
+/// compile_library_all via ExtensionLibrary round-trip.
 #[test]
 fn library_round_trip_via_resolve() {
-    use crate::resolve::{SpaceLibrary, resolve_library};
+    use crate::resolve::{ExtensionLibrary, resolve_library};
 
-    let library = SpaceLibrary {
+    let library = ExtensionLibrary {
         mcp_servers: vec![make_server("github")],
         skills: vec![make_skill("workflow")],
         rules: vec![Rule {

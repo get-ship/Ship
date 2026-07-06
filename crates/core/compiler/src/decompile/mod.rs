@@ -1,6 +1,6 @@
-//! Decompile — reverse-compile harness-native configs into a [`SpaceLibrary`].
+//! Decompile — reverse-compile harness-native configs into a [`ExtensionLibrary`].
 //!
-//! [`SpaceLibrary`]. The caller merges results from multiple harnesses.
+//! [`ExtensionLibrary`]. The caller merges results from multiple harnesses.
 
 mod claude;
 mod claude_mcp;
@@ -39,7 +39,7 @@ use std::path::Path;
 
 use serde_json::Value as Json;
 
-use crate::SpaceLibrary;
+use crate::ExtensionLibrary;
 
 /// Extract a JSON array of strings from an optional JSON value.
 /// Shared by multiple decompile modules.
@@ -97,14 +97,14 @@ pub fn detect_harnesses(space_root: &Path) -> DetectedProviders {
     }
 }
 
-/// Decompile all detected harnesses in a directory into a single [`SpaceLibrary`].
+/// Decompile all detected harnesses in a directory into a single [`ExtensionLibrary`].
 ///
 /// MCP servers, rules, permissions, and hooks are merged. Harness-specific
 /// settings go into `harness_defaults`. The caller should write the result
 /// to `.ship/`.
-pub fn decompile_all(space_root: &Path) -> SpaceLibrary {
+pub fn decompile_all(space_root: &Path) -> ExtensionLibrary {
     let detected = detect_harnesses(space_root);
-    let mut library = SpaceLibrary::default();
+    let mut library = ExtensionLibrary::default();
 
     if detected.claude {
         let partial = decompile_claude(space_root);
@@ -125,7 +125,7 @@ pub fn decompile_all(space_root: &Path) -> SpaceLibrary {
 }
 
 /// Merge a harness-specific partial library into the accumulator.
-fn merge_into(target: &mut SpaceLibrary, source: SpaceLibrary, harness_id: &str) {
+fn merge_into(target: &mut ExtensionLibrary, source: ExtensionLibrary, harness_id: &str) {
     // MCP servers — deduplicate by id
     for server in source.mcp_servers {
         if !target.mcp_servers.iter().any(|s| s.id == server.id) {

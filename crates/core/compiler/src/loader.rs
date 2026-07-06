@@ -1,4 +1,4 @@
-//! `.ship/` → [`SpaceLibrary`] loader. Leaf, substrate-free.
+//! `.ship/` → [`ExtensionLibrary`] loader. Leaf, substrate-free.
 //!
 //! This is the LEAF loader — the same surface `agent-def::compile::loader`
 //! served, minus every dep on `ship-substrate` / `ship-config` / `ship-store`.
@@ -35,7 +35,7 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 
 use crate::jsonc::from_jsonc_str;
-use crate::resolve::SpaceLibrary;
+use crate::resolve::ExtensionLibrary;
 use crate::skill_parser::parse_skill;
 use crate::types::{
     AgentProfile, HookConfig, HookTrigger, McpServerConfig, McpServerType, Permissions, Rule,
@@ -112,16 +112,16 @@ struct HooksEntry {
 
 // ─── Top-level entry point ────────────────────────────────────────────────────
 
-/// Load a [`SpaceLibrary`] from a `.ship/` directory (flat layout).
+/// Load a [`ExtensionLibrary`] from a `.ship/` directory (flat layout).
 ///
 /// Looks for mcp, permissions, hooks, rules, skills at the `.ship/` root,
 /// and agent profiles under `.ship/agents/`. Missing files and dirs are
 /// silently skipped — an empty library is valid. The leaf has no dep on
 /// `ship-substrate`; everything is plain `std::fs` + the crate's own
 /// `jsonc` + `skill_parser` modules.
-pub fn load_library(ship_dir: &Path) -> Result<SpaceLibrary> {
+pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
     let skill_paths = read_space_skill_paths(ship_dir);
-    Ok(SpaceLibrary {
+    Ok(ExtensionLibrary {
         mcp_servers: load_mcp_servers(ship_dir)?,
         permissions: load_permissions(ship_dir),
         hooks: load_hooks(ship_dir)?,

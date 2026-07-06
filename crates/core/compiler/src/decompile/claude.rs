@@ -1,24 +1,24 @@
 //! Claude Code decompiler — parse `.claude/settings.json`, `CLAUDE.md`, `.mcp.json`
-//! into a [`SpaceLibrary`].
+//! into a [`ExtensionLibrary`].
 
 use std::path::Path;
 
 use serde_json::Value as Json;
 
-use crate::SpaceLibrary;
+use crate::ExtensionLibrary;
 use crate::types::{AgentLimits, HookConfig, HookTrigger, Permissions, Rule, ToolPermissions};
 
 use super::claude_mcp::parse_mcp_json;
 use super::json_string_array;
 
-/// Parse Claude Code native config files and produce a partial [`SpaceLibrary`].
+/// Parse Claude Code native config files and produce a partial [`ExtensionLibrary`].
 ///
 /// Reads (if present):
 /// - `.claude/settings.json` → permissions, hooks, model, env, agent limits, harness_defaults
 /// - `CLAUDE.md` → rules
 /// - `.mcp.json` → mcp_servers
-pub fn decompile_claude(space_root: &Path) -> SpaceLibrary {
-    let mut library = SpaceLibrary::default();
+pub fn decompile_claude(space_root: &Path) -> ExtensionLibrary {
+    let mut library = ExtensionLibrary::default();
 
     // ── .claude/settings.json ────────────────────────────────────────────────
     let settings_path = space_root.join(".claude").join("settings.json");
@@ -71,7 +71,7 @@ const KNOWN_SETTINGS_KEYS: &[&str] = &[
     "autoMemoryEnabled",
 ];
 
-fn parse_claude_settings(library: &mut SpaceLibrary, settings: &Json) {
+fn parse_claude_settings(library: &mut ExtensionLibrary, settings: &Json) {
     let obj = match settings.as_object() {
         Some(o) => o,
         None => return,

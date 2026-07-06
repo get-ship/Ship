@@ -49,9 +49,9 @@
 //! - Census: `census-phase2-resolver.md` Part 3e-3g (cache today) + Part 5 J5
 //!   (this module's scope).
 //! - Determinism: `inv-fmt-deterministic-eval` (`ship-stack-format.json:30-33`).
-//! - Resolver surface: `descriptor::space_library_content_hash` is the
+//! - Resolver surface: `descriptor::extension_library_content_hash` is the
 //!   hash the cache keys on (the caller of `get_or_load` computes it from
-//!   the `SpaceLibrary`).
+//!   the `ExtensionLibrary`).
 
 use std::collections::HashMap;
 use std::path::Path;
