@@ -105,5 +105,7 @@ pub fn resolved(servers: Vec<McpServerConfig>) -> ResolvedConfig {
         unmet_capability_requirements: vec![],
         ship_home_dir: None,
         scoped_launch: false,
+        imported_modules: vec![],
+        space_rollup_inputs: None,
     }
 }

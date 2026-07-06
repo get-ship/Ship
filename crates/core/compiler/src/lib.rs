@@ -34,7 +34,10 @@ pub use compile::{
     compile, get_harness, list_harnesses,
 };
 
-pub use resolve::{ProjectLibrary, ResolvedConfig, WorkspaceOverrides, resolve, resolve_library};
+pub use resolve::{
+    ExtensionDescriptor, ExtSource, ModuleDescriptor, PrecedenceRow, ProjectLibrary, ResolvedConfig,
+    RollupInputs, WorkspaceOverrides, resolve, resolve_library,
+};
 pub use decompile::{
     DetectedProviders, decompile_all, decompile_claude, decompile_codex,
     decompile_opencode, detect_harnesses,

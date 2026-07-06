@@ -1,9 +1,76 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
+use std::path::PathBuf;
 
 use crate::types::{
     AgentProfile, HookConfig, McpServerConfig, Permissions, PluginsManifest,
     ProjectConfig, Rule, Skill,
 };
+
+// ─── Phase-2 descriptor types ────────────────────────────────────────────────
+// Project-shape extension: a TS source module resolved by the new resolver.
+// `source` is the raw `.ts` text; `content_hash` is the canonical hex digest
+// of that text (the exact algorithm is decided in the resolver crate — the
+// descriptor carries it as an opaque string so the leaf stays hash-agnostic).
+// `exports` is the list of named exports the resolver harvested at load time.
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct ModuleDescriptor {
+    pub path: PathBuf,
+    pub source: String,
+    pub content_hash: String,
+    pub exports: Vec<String>,
+}
+
+// Phase-3 composition seam. Today this is type-only: every site populates
+// `space_rollup_inputs: None`. Phase 3 (agents-domain consolidation with
+// layered roll-up) wires the roll-up fn that consumes `RollupInputs` and
+// emits ONE composed descriptor. The fields below are the Phase-3 contract;
+// they are not populated in Phase 2.
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct RollupInputs {
+    /// Every extension in the space, in their declared order. Precedence:
+    /// user-global < space < per-agent.
+    pub extensions: Vec<ExtensionDescriptor>,
+    /// The precedence rows the roll-up applies, in order. The exact law is
+    /// Phase 3's "composition/precedence" review.
+    pub precedence: Vec<PrecedenceRow>,
+}
+
+/// One extension in the roll-up set (Phase 3).
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct ExtensionDescriptor {
+    pub source: ExtSource,
+    pub project_root: PathBuf,
+    pub descriptor: ProjectLibrary,
+    pub content_hash: String,
+}
+
+/// Where an extension came from (Phase 3).
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ExtSource {
+    UserGlobal,
+    Space,
+    Agent(String),
+}
+
+impl Default for ExtSource {
+    fn default() -> Self {
+        ExtSource::Space
+    }
+}
+
+/// One row in the precedence table (Phase 3). Placeholder — fields are
+/// decided by the composition-law review.
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct PrecedenceRow {
+    pub source: ExtSource,
+    pub rank: u32,
+}
 
 /// Thin overrides that a feature branch can apply on top of project defaults.
 /// Maps to the `[agent]` block in a feature's TOML frontmatter.
@@ -79,6 +146,16 @@ pub struct ResolvedConfig {
     /// trusted-local stdio shim — the human is the host, full local access
     /// is fine and there is no spawner to provision the token env.
     pub scoped_launch: bool,
+    // ── Phase-2 project-shape passthrough ─────────────────────────────────────
+    /// Resolved TS modules from the multi-file `ship.ts` import graph. The
+    /// Phase-0 leaf never produced this; Phase-2's resolver populates it on
+    /// the TS path. The leaf's `resolve()` returns an empty vec — the
+    /// `.jsonc` path doesn't have TS modules to surface.
+    pub imported_modules: Vec<ModuleDescriptor>,
+    /// Phase-3 composition seam. Phase 2 always carries `None`; Phase 3
+    /// populates this with the per-space extension set when the space
+    /// roll-up fn runs.
+    pub space_rollup_inputs: Option<RollupInputs>,
 }
 
 /// Resolve the effective agent config from pre-loaded project data.
@@ -183,6 +260,42 @@ pub struct ProjectLibrary {
     /// declares `[apps] studio = true` to emit the correct HTTP transport URL.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub studio_port: Option<u16>,
+    // ── Phase-2 project-shape fields ───────────────────────────────────────────
+    /// Override the skills dir (project-relative path). `None` means use the
+    /// default `.ship/skills/`. The `skills_dir` key in `ship.ts` lands here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skills_dir: Option<String>,
+    /// Override the rules dir (project-relative path). `None` means use the
+    /// default `.ship/rules/`. The `rules_dir` key in `ship.ts` lands here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rules_dir: Option<String>,
+    /// Additional skill paths from `project.skill_paths` in `ship.jsonc`
+    /// (migrated from agent-def's `skill_paths.rs`). Paths are project-relative;
+    /// absolute paths are rejected at the call site. The first entry is always
+    /// the default `.ship/skills/` (preserves today's behavior).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub skill_paths: Vec<String>,
+    /// Per-agent skills from the `agents/<id>/{SKILL.md,*.md}` convention walk
+    /// (`req-fmt-agent-surface-convention`). BTreeMap so the resolved view is
+    /// byte-stable across runs — the descriptor cache key is a content hash,
+    /// but the in-memory form needs a stable order for diff/snapshot tests.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub per_agent_skills: BTreeMap<String, Vec<Skill>>,
+    /// Resolved multi-file TS import graph: `ship.ts` + `agents.ts` + any
+    /// per-domain modules. Populated by the Phase-2 resolver; the leaf
+    /// `load_library` produces an empty vec.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub imported_modules: Vec<ModuleDescriptor>,
+    /// Injected globals baked into the SDK at resolve time (the same value
+    /// `agent_config_eval::resolve_agents_with_globals` accepts). The
+    /// leaf's `load_library` produces `Value::Null` — the `.jsonc` path
+    /// doesn't have TS to inject globals into.
+    #[serde(default, skip_serializing_if = "serde_json::Value::is_null")]
+    pub globals: serde_json::Value,
+    /// Phase-3 composition seam. Phase 2 always carries `None`; the resolver
+    /// never populates this — Phase 3's roll-up fn does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub space_rollup_inputs: Option<RollupInputs>,
 }
 
 /// Merge harness_defaults (base) with *_settings_extra (agent override).
@@ -271,6 +384,11 @@ pub fn resolve_library(
             library.opencode_settings_extra.as_ref(),
         ),
     };
+    // Phase-2: thread the project-shape passthroughs from the library into
+    // the resolved view. Today these are sourced from the library verbatim;
+    // future work (J3+) may project/filter before they reach a consumer.
+    resolved.imported_modules = library.imported_modules.clone();
+    resolved.space_rollup_inputs = library.space_rollup_inputs.clone();
     resolved
 }
 
@@ -385,6 +503,11 @@ pub fn resolve(
         unmet_capability_requirements,
         ship_home_dir: None,
         scoped_launch: false,
+        // Phase-2: the leaf `resolve()` has no ProjectLibrary to source these
+        // from. Defaults match the leaf's serde defaults so the round-trip is
+        // stable; resolve_library() threads the library's values when present.
+        imported_modules: Vec::new(),
+        space_rollup_inputs: None,
     }
 }
 
