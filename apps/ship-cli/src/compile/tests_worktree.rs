@@ -44,6 +44,7 @@ fn compile_worktree_output_root_separates_from_space_root() {
         extra_skills: vec![],
             plugins_installed: vec![],
             scoped_launch: false,
+            default_effort: None,
     })
     .unwrap();
 

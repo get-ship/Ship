@@ -14,8 +14,8 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 tracing = { workspace = true }
+libc = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "time", "macros"] }
-
 [dev-dependencies]
 tempfile = { workspace = true }
 

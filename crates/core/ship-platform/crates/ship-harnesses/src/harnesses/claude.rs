@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use harness_adapter::dispatch_ports::{LaunchCommand, LaunchProfile};
 use harness_adapter::{
-    HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError,
+    HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError, SubmitMode,
 };
 
 pub struct ClaudeAdapter;
@@ -180,6 +180,15 @@ impl HarnessAdapter for ClaudeAdapter {
     }
     fn exit_command(&self) -> &str { "/exit" }
 
+    // Gap 1: claude's TUI has a frame boundary between text input and
+    // the submit gesture. A single `tmux send-keys -t <target> <msg> Enter`
+    // burst lands as a paste-like frame and the trailing Enter is
+    // swallowed as a paste-newline — six sessions sat at the prompt for
+    // 40+ minutes until the orchestrator sent Enter manually
+    // (c-2026-07-06T15-30-00-000Z-claude-harness-autostart). Spaced mode
+    // splits the call: <msg> first, 150ms sleep, then Enter as a
+    // separate `tmux send-keys` call.
+    fn submit_mode(&self) -> SubmitMode { SubmitMode::Spaced }
     fn parse_output(&self, line: &str) -> Option<HarnessEvent> {
         let v: serde_json::Value = serde_json::from_str(line).ok()?;
         let ty = v.get("type")?.as_str()?;

@@ -29,6 +29,13 @@ pub struct CompileOptions<'a> {
     pub plugins_installed: Vec<String>,
     /// Compile for a daemon-spawned scoped launch.
     pub scoped_launch: bool,
+    /// `effortLevel` written to the worktree's `.claude/settings.json` when
+    /// neither the active agent profile nor the library overrides it.
+    /// `None` for the manual `ship compile` path (preserves legacy
+    /// behavior); the dispatch path passes `Some("medium")`. Mirrors
+    /// `agent_def::compile::CompileOptions::default_effort` — the
+    /// wrapper passes it through verbatim.
+    pub default_effort: Option<String>,
 }
 
 pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
@@ -45,6 +52,7 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
         plugins_installed: opts.plugins_installed,
         scoped_launch: opts.scoped_launch,
         dry_run: opts.dry_run,
+        default_effort: opts.default_effort,
     })?;
 
     if summary.harnesses.is_empty() {

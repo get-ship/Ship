@@ -243,5 +243,5 @@ fn run_compile_cmd(harness: Option<&str>, dry_run: bool, path: Option<PathBuf>) 
         extra_skills: vec![],
         plugins_installed: state.plugins_installed.clone(),
         scoped_launch: false,
+        default_effort: None,
     })
-}

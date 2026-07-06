@@ -321,12 +321,16 @@ pub struct ExtensionLibrary {
     pub claude_auto_updates: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claude_include_co_authored_by: Option<bool>,
-    // ── Studio integration ─────────────────────────────────────────────────────
-    /// Port Studio listens on. Defaults to 51741. Used when an agent profile
-    /// declares `[apps] studio = true` to emit the correct HTTP transport URL.
+    /// Project-scope `effortLevel` written to `.claude/settings.json`.
+    /// When the active agent profile does NOT override via
+    /// `harness_settings.claude.effort`, this is the value the compile
+    /// emits. The dispatcher's `CompileOptions::default_effort` is the
+    /// ultimate fallback (defaults to `Some("medium")` for job agents —
+    /// the operator's user-scope `xhigh` never leaks into a dispatched
+    /// session). `None` preserves the legacy "no override" behavior for
+    /// the manual `ship use` path.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub studio_port: Option<u16>,
-    // ── Phase-2 project-shape fields ───────────────────────────────────────────
+    pub claude_effort: Option<String>,
     /// Override the skills dir (project-relative path). `None` means use the
     /// default `.ship/skills/`. The `skills_dir` key in `ship.ts` lands here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -429,6 +433,7 @@ pub fn resolve_library(
         theme: library.claude_theme.clone(),
         auto_updates: library.claude_auto_updates,
         include_co_authored_by: library.claude_include_co_authored_by,
+        effort: library.claude_effort.clone(),
     };
     resolved.codex = crate::compile::CodexSettings {
         sandbox: library.codex_sandbox.clone(),

@@ -16,9 +16,12 @@
 use crate::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor,
 };
+use crate::helpers;
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
-use ship_harnesses::harness_adapter::adapter_for_or_default;
+#[cfg(unix)]
+use libc;
+use ship_harnesses::harness_adapter::{SubmitMode, adapter_for_or_default};
 
 /// Job executor that runs each pipeline step inside a tmux window.
 pub(crate) struct TmuxWindowExecutor;
@@ -133,7 +136,7 @@ pub(crate) fn select_autostart(
 /// first-try success.
 pub(crate) fn tmux_available() -> bool {
     fn check() -> bool {
-        ship_substrate::spawn_bounded::Cmd::new("tmux")
+        tmux_cmd()
             .arg("-V")
             .output()
             .map(|o| o.status.success())
@@ -148,6 +151,19 @@ pub(crate) fn tmux_available() -> bool {
     check()
 }
 
+/// Build a `tmux` command with the per-mission socket prefix.
+/// Gap 4: every `tmux` call in this module routes through this
+/// helper so a helmd boot with `HELMD_TMUX_SOCKET` (or
+/// `SHIP_TMUX_SOCKET`) targets a separate server. The helper
+/// preserves the same return type as `Cmd::new("tmux")` so the
+pub(crate) fn tmux_cmd() -> ship_substrate::spawn_bounded::Cmd {
+    helpers::tmux_args()
+        .into_iter()
+        .fold(ship_substrate::spawn_bounded::Cmd::new("tmux"), |cmd, arg| {
+            cmd.arg(arg)
+        })
+}
+
 /// Does a tmux session by this name already exist?
 ///
 /// `.output()` (not `.status()`): a missing session makes tmux print
@@ -155,7 +171,7 @@ pub(crate) fn tmux_available() -> bool {
 /// daemon's stderr — the probe's expected first-dispatch miss would land
 /// in the daemon log looking like a delivery failure.
 fn session_exists(name: &str) -> bool {
-    ship_substrate::spawn_bounded::Cmd::new("tmux")
+    tmux_cmd()
         .args(["has-session", "-t", name])
         .output()
         .map(|o| o.status.success())
@@ -204,7 +220,7 @@ fn create_window(session: &str, step_id: &str, work_dir: &str) -> Result<String>
             "tmux new-window",
         )
     };
-    let out = ship_substrate::spawn_bounded::Cmd::new("tmux")
+    let out = tmux_cmd()
         .args(args)
         .output()
         .map_err(|e| anyhow!("{label} failed: {e}"))?;
@@ -220,7 +236,7 @@ fn create_window(session: &str, step_id: &str, work_dir: &str) -> Result<String>
 
 /// True if `window_id` (e.g. `@29`) is still listed in `session`.
 fn window_id_exists(session: &str, window_id: &str) -> bool {
-    let Ok(out) = ship_substrate::spawn_bounded::Cmd::new("tmux")
+    let Ok(out) = tmux_cmd()
         .args(["list-windows", "-t", session, "-F", "#{window_id}"])
         .output()
     else {
@@ -239,7 +255,7 @@ fn window_id_exists(session: &str, window_id: &str) -> bool {
 /// `None` if tmux can't report it — callers fall back to activity-based
 /// liveness, exactly as before.
 fn pane_pid(window_target: &str) -> Option<u32> {
-    let out = ship_substrate::spawn_bounded::Cmd::new("tmux")
+    let out = tmux_cmd()
         .args(["list-panes", "-t", window_target, "-F", "#{pane_pid}"])
         .output()
         .ok()?;
@@ -261,7 +277,7 @@ fn pane_pid(window_target: &str) -> Option<u32> {
 /// Multi-byte UTF-8 from the harness is preserved (we slice by line, not
 /// by byte index, so a half-char at the boundary is impossible).
 pub(crate) fn capture_pane(window_target: &str) -> String {
-    let out = ship_substrate::spawn_bounded::Cmd::new("tmux")
+    let out = tmux_cmd()
         .args(["capture-pane", "-p", "-t", window_target, "-S", "-200"])
         .output();
     match out {
@@ -333,7 +349,7 @@ pub(crate) fn wait_for_ready(
 /// zero or multiple matches — on rehydration we would rather mark the job
 /// failed than risk attaching to the wrong window.
 fn find_unique_window_by_name(session: &str, name: &str) -> Option<String> {
-    let out = ship_substrate::spawn_bounded::Cmd::new("tmux")
+    let out = tmux_cmd()
         .args([
             "list-windows",
             "-t",
@@ -449,7 +465,7 @@ impl SessionExecutor for TmuxWindowExecutor {
         // tmux_window takes with harness-missing). See `emit_tmux_env`
         // for the testable form.
         if let Err(e) = emit_tmux_env(&session, &ctx.env, |argv| {
-            ship_substrate::spawn_bounded::Cmd::new("tmux")
+            tmux_cmd()
                 .args(argv)
                 .status()
                 .map(|_| ())
@@ -466,7 +482,7 @@ impl SessionExecutor for TmuxWindowExecutor {
             None => shell_cmd,
             Some(log) => format!("{shell_cmd} 2>&1 | tee -a {log}"),
         };
-        let status = ship_substrate::spawn_bounded::Cmd::new("tmux")
+        let status = tmux_cmd()
             .args(["send-keys", "-t", &window_target, &run_cmd, "Enter"])
             .status()
             .map_err(|e| anyhow!("tmux send-keys failed: {e}"))?;
@@ -522,12 +538,47 @@ impl SessionExecutor for TmuxWindowExecutor {
                     anyhow!("tmux-window executor: autostart for session {session}: {e}")
                 })?;
                 if let Some(msg) = autostart {
-                    let status = ship_substrate::spawn_bounded::Cmd::new("tmux")
-                        .args(["send-keys", "-t", &window_target, &msg, "Enter"])
-                        .status()
-                        .map_err(|e| anyhow!("tmux autostart send-keys failed: {e}"))?;
-                    if !status.success() {
-                        return Err(anyhow!("tmux autostart send-keys returned non-zero"));
+                    // Gap 1: harness-aware submit mode. Claude's TUI
+                    // has a frame boundary between text input and the
+                    // submit gesture; the inline `<msg> Enter`
+                    // `tmux send-keys` burst lands as a single
+                    // paste-like frame and the trailing Enter is
+                    // swallowed as a paste-newline. Spaced mode splits
+                    // the call: <msg> first, then a sleep, then
+                    // `send-keys Enter` as a separate call. The
+                    // 150ms gap is enough for the TUI to settle into
+                    // a fresh input frame; omp keeps the default
+                    // (Inline) and pays no cost.
+                    match adapter.submit_mode() {
+                        SubmitMode::Inline => {
+                            let status = tmux_cmd()
+                                .args(["send-keys", "-t", &window_target, &msg, "Enter"])
+                                .status()
+                                .map_err(|e| anyhow!("tmux autostart send-keys failed: {e}"))?;
+                            if !status.success() {
+                                return Err(anyhow!("tmux autostart send-keys returned non-zero"));
+                            }
+                        }
+                        SubmitMode::Spaced => {
+                            let status = tmux_cmd()
+                                .args(["send-keys", "-t", &window_target, &msg])
+                                .status()
+                                .map_err(|e| anyhow!("tmux autostart (msg) send-keys failed: {e}"))?;
+                            if !status.success() {
+                                return Err(anyhow!("tmux autostart (msg) send-keys returned non-zero"));
+                            }
+                            // 150ms — claude's TUI refresh rate is ~60ms;
+                            // 150ms leaves a clear frame boundary for the
+                            // submit Enter to land in a fresh input frame.
+                            tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+                            let status = tmux_cmd()
+                                .args(["send-keys", "-t", &window_target, "Enter"])
+                                .status()
+                                .map_err(|e| anyhow!("tmux autostart (Enter) send-keys failed: {e}"))?;
+                            if !status.success() {
+                                return Err(anyhow!("tmux autostart (Enter) send-keys returned non-zero"));
+                            }
+                        }
                     }
                 }
             }
@@ -582,7 +633,18 @@ impl SessionExecutor for TmuxWindowExecutor {
             None => return Ok(()),
         };
         let target = format!("{}:{}", state.session, state.window);
-        let _ = ship_substrate::spawn_bounded::Cmd::new("tmux")
+        // Gap 5: reap the pane's process group before killing the
+        // window. `kill-window` only kills tmux; the harness
+        // process and its descendants (claude's tool subagents,
+        // bash subshells, etc.) survive as orphans — 17 claude
+        // processes (3.3GB) were found after session kills. The
+        // pane's pid IS the session leader for the harness's
+        // process group (tmux's default), so `kill(-pgid, SIGTERM)`
+        // reaches every descendant. Best-effort: the kill may
+        if let Some(pid) = pane_pid(&target) {
+            helpers::kill_process_group(pid, libc::SIGTERM);
+        }
+        let _ = tmux_cmd()
             .args(["kill-window", "-t", &target])
             .status();
         Ok(())
@@ -594,7 +656,7 @@ impl SessionExecutor for TmuxWindowExecutor {
             None => return Ok(()),
         };
         let target = format!("{}:{}", state.session, state.window);
-        let status = ship_substrate::spawn_bounded::Cmd::new("tmux")
+        let status = tmux_cmd()
             .args(["send-keys", "-t", &target, message, "Enter"])
             .status()
             .map_err(|e| anyhow!("tmux send-keys failed: {e}"))?;

@@ -74,8 +74,33 @@ pub struct CompileOptions {
     /// tools, or emit `compile.completed`. Outputs are included in the returned
     /// summary so callers can dry-run-print them.
     pub dry_run: bool,
+    /// Default `effortLevel` for the worktree's `.claude/settings.json`.
+    /// Applied only when neither the active agent profile's
+    /// `harness_settings.claude.effortLevel` nor the library's
+    /// `claude_effort` is set. The dispatch path passes
+    /// `Some("medium")` so a daemon-spawned agent never inherits the
+    /// operator's user-scope `xhigh` default; the manual `ship use`
+    /// path passes `None` and preserves the legacy no-override
+    /// behavior. The agent profile's `harness_settings.claude.*`
+    /// passthrough still wins on conflict (it's merged LAST into the
+    /// settings patch).
+    pub default_effort: Option<String>,
 }
-
+impl Default for CompileOptions {
+    fn default() -> Self {
+        Self {
+            space_root: PathBuf::new(),
+            output_root: None,
+            harness: None,
+            active_agent: None,
+            extra_skills: Vec::new(),
+            plugins_installed: Vec::new(),
+            scoped_launch: false,
+            dry_run: false,
+            default_effort: None,
+        }
+    }
+}
 #[derive(Debug)]
 pub struct CompileSummary {
     /// Capability grants the resolved skill set requests.
@@ -170,12 +195,18 @@ fn compile_from_library(
     }
 
     // 5. Resolve (agent filtering, harness selection)
+    // Seed the project-scope `effortLevel` from `default_effort` only when
+    // the library doesn't already carry an explicit value. The agent
+    // profile's `harness_settings.claude.effortLevel` (passthrough) still
+    // wins on conflict — it's merged LAST into the settings patch by
+    // `build_claude_settings_patch`. Gap 2: a daemon-spawned compile
+    // passes `Some("medium")` so a dispatched agent never inherits the
+    // operator's user-scope `xhigh` default.
+    if library.claude_effort.is_none() {
+        library.claude_effort = opts.default_effort.clone();
+    }
     let mut resolved =
         compiler::resolve_library(&library, None, opts.active_agent.as_deref());
-    let ship_home = ship_substrate::ShipHome::from_env();
-    resolved.ship_home_dir = Some(ship_home.root().to_string_lossy().into_owned());
-    resolved.scoped_launch = opts.scoped_launch;
-
     let requested_grants = resolved.requested_grants.clone();
 
     // 6. Determine harnesses

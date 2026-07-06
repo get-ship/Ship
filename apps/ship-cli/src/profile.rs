@@ -112,6 +112,7 @@ pub fn activate_agent(
         extra_skills: extra_skills.clone(),
         plugins_installed: now_plugins,
         scoped_launch: scoped,
+        default_effort: None,
     })?;
     if extra_skills.is_empty() {
         println!("✓ activated agent '{}'", id);

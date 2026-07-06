@@ -13,6 +13,6 @@ pub mod server_session;
 
 pub use dispatch_ports::{LaunchCommand, LaunchProfile};
 pub use harness_adapter::{
-    HarnessAdapter, HarnessCapabilities, HarnessEvent, PushMechanism, ResumeError,
+    HarnessAdapter, HarnessCapabilities, HarnessEvent, PushMechanism, ResumeError, SubmitMode,
 };
 pub use server_session::{ServerSession, SessionEvent, StubSession};

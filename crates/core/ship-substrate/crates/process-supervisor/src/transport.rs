@@ -26,8 +26,9 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
 use tokio::sync::broadcast;
-
 use super::profile::ProcessProfile;
 
 const OUTPUT_CAP: usize = 1024;
@@ -394,13 +395,31 @@ impl Transport for HeadlessTransport {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
+        // Gap 5 (headless): place the child in its own process
+        // group so `kill(-pgid, SIGTERM)` reaches every descendant
+        // (claude's tool subagents, bash subshells). The PTY
+        // transport already calls `setsid(2)` inside portable_pty
+        // (the slave is its own session + pgid leader), so this
+        // is the headless-only companion. `pre_exec` runs in the
+        // forked child between fork and exec; failures abort the
+        // spawn. Unix-only; Windows already creates a job object
+        // per process so process-tree reaping is the OS's job.
+        #[cfg(unix)]
+        unsafe {
+            cmd.pre_exec(|| {
+                if libc::setpgid(0, 0) != 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+
         let mut child = cmd
             .spawn()
             .with_context(|| format!("spawn {}", profile.bin))?;
         let pid = child.id();
         let stdout = child.stdout.take().ok_or_else(|| anyhow!("no stdout"))?;
         let stderr = child.stderr.take().ok_or_else(|| anyhow!("no stderr"))?;
-
         let (output_tx, _) = broadcast::channel(OUTPUT_CAP);
 
         let backend = HeadlessChildBackend {

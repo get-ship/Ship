@@ -1191,16 +1191,21 @@ impl SessionExecutor for ProcessExecutor {
         let Some(state) = handle.inner.downcast_ref::<ProcessState>() else {
             return Ok(());
         };
-
         // Graceful-first shutdown: SIGTERM, then poll for exit up to 30s,
         // then SIGKILL. The reliability contract in
         // tests_graceful_shutdown.rs pins this sequence.
+        //
+        // Gap 5: SIGTERM goes to the process group, not just the
+        // harness pid. `libc::kill(-pgid, SIGTERM)` reaches every
+        // descendant (claude's tool subagents, bash subshells),
+        // closing the orphan-process gap that left 17 claude
+        // processes (3.3GB) behind after `state.handle.stop()`.
         let pid = state.pid;
         #[cfg(unix)]
         if let Some(pid) = pid {
-            unsafe { libc::kill(pid as i32, libc::SIGTERM) };
+            crate::helpers::kill_process_group(pid, libc::SIGTERM);
         }
-        tracing::debug!(pid, "process-executor: sent SIGTERM, waiting up to 30s");
+        tracing::debug!(pid, "process-executor: sent SIGTERM (process group), waiting up to 30s");
 
         emit_process_killed(
             self.kernel.as_ref(),
@@ -1220,7 +1225,6 @@ impl SessionExecutor for ProcessExecutor {
         }
 
         tracing::warn!(pid, "process-executor: process did not exit after 30s, sending SIGKILL");
-        let _ = state.handle.stop();
 
         emit_process_killed(
             self.kernel.as_ref(),

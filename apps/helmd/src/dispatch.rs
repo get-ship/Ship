@@ -196,6 +196,28 @@ impl AgentDispatchPort for HelmDispatchAdapter {
             .flatten()
             .map(|p| p.id)
     }
+
+    fn valid_workspaces(&self) -> Vec<String> {
+        // The helm ingest path populates the projects read model with
+        // the repos `discover()` enumerates under the umbrella. The
+        // dispatch path's registry check uses the same set so a
+        // `workspace: "X"` request is refused when X is not a known
+        // repo (gap 3: never silently substitute). The list returns
+        // id + name + path so any of the three is a valid `workspace`
+        // value on the wire — a request naming the helm repo's
+        // human-readable name or absolute path resolves to the
+        // registered record; a request naming an unknown value is
+        // refused with a 400. A best-effort read; an empty list
+        // short-circuits the check (legacy behavior preserved).
+        ship_substrate::db::projects::list_active()
+            .ok()
+            .map(|recs| {
+                recs.into_iter()
+                    .flat_map(|r| [r.id, r.name, r.path])
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
 }
 
 // ── DispatchHandlePort (real) — mirror of shipd's ShipCodeDispatchHandle ─────

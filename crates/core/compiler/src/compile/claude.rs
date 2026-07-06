@@ -19,6 +19,13 @@ pub fn build_claude_settings_patch(
     theme: Option<&str>,
     auto_updates: Option<bool>,
     include_co_authored_by: Option<bool>,
+    // Project-scope `effortLevel` written verbatim. When `Some`, the
+    // worktree's settings.json overrides the operator's user-scope value
+    // (Claude merges project over user, project wins on conflict) — the
+    // gap-2 fix: dispatched agents no longer inherit the human's `xhigh`
+    // effort. `None` is a no-op: the worktree doesn't override and the
+    // operator's user value applies unchanged.
+    effort: Option<&str>,
 ) -> Option<Json> {
     let has_perms = has_permission_overrides(permissions);
     let has_hooks = !hooks.is_empty();
@@ -128,13 +135,25 @@ pub fn build_claude_settings_patch(
         patch["autoUpdates"] = serde_json::json!(au);
     }
 
+    // Ship is the memory layer. Always disable Claude's built-in memories.
+    patch["autoMemoryEnabled"] = serde_json::json!(false);
+
+    // Project-scope effort level. When set, the worktree's settings.json
+    // overrides the operator's user-scope `effortLevel` on merge (Claude
+    // merges project over user, project wins on conflict) — gap 2: a
+    // dispatched agent never inherits the human's `xhigh` default. The
+    // harness rejects empty / unknown values; we pass them through
+    // unchanged so the agent's startup error surfaces to the operator
+    // rather than being silently swallowed. `None` is the no-op case
+    // (the worktree doesn't override; the operator's user value applies).
+    if let Some(e) = effort {
+        patch["effortLevel"] = Json::String(e.to_string());
+    }
+
     // Include co-authored-by.
     if let Some(co) = include_co_authored_by {
         patch["includeCoAuthoredBy"] = serde_json::json!(co);
     }
-
-    // Ship is the memory layer. Always disable Claude's built-in memories.
-    patch["autoMemoryEnabled"] = serde_json::json!(false);
 
     // Extra harness-specific settings — pass through verbatim (must be last).
     // Source: `[harness_settings.claude]` in the active preset TOML.
@@ -264,8 +283,9 @@ pub(super) fn build_settings(
         resolved.claude.theme.as_deref(),
         resolved.claude.auto_updates,
         resolved.claude.include_co_authored_by,
+        resolved.claude.effort.as_deref(),
     );
-    if let Some(ref mut patch) = out.claude_settings_patch {
+    if let Some(patch) = &mut out.claude_settings_patch {
         inject_ship_lifecycle_hooks(patch);
     }
     out.claude_lsp_config = Some(build_claude_lsp_config());
@@ -277,6 +297,7 @@ pub(super) fn build_settings(
     }
 }
 
+
 /// Claude's typed settings delta from the Ship agent.
 #[derive(Debug, Clone, Default)]
 pub struct ClaudeSettings {
@@ -286,4 +307,11 @@ pub struct ClaudeSettings {
     pub theme: Option<String>,
     pub auto_updates: Option<bool>,
     pub include_co_authored_by: Option<bool>,
+    /// Reasoning effort written as `effortLevel` in `.claude/settings.json`.
+    /// Project-scope override of the operator's `~/.claude/settings.json`
+    /// `effortLevel`; the worktree value wins on merge, so a dispatched
+    /// agent never inherits the human's `xhigh` default. Claude rejects
+    /// empty / unknown values — the compile path is permissive; the
+    /// harness validates.
+    pub effort: Option<String>,
 }

@@ -382,3 +382,69 @@ fn claude_hooks_wrapped_in_hooks_array() {
         "command must be nested inside hooks array"
     );
 }
+// ── effort ─────────────────────────────────────────────────────────────────────
+
+/// Gap 2: a typed `effort` value (sourced from
+/// `library.claude_effort`, which the dispatcher seeds from
+/// `CompileOptions::default_effort`) is written verbatim as
+/// `effortLevel` in the settings patch. This is what guarantees
+/// that a daemon-spawned (job) agent's worktree carries
+/// `effortLevel: medium` and overrides the operator's user-scope
+/// `xhigh` setting.
+#[test]
+fn claude_typed_effort_emits_effort_level() {
+    let r = ResolvedConfig {
+        claude: crate::compile::ClaudeSettings {
+            effort: Some("medium".to_string()),
+            ..Default::default()
+        },
+        ..resolved(vec![])
+    };
+    let out = compile(&r, "claude").unwrap();
+    let patch = out.claude_settings_patch.expect("effort must emit a patch");
+    assert_eq!(patch["effortLevel"], "medium");
+}
+
+/// When `effort` is None, the patch must NOT include `effortLevel`.
+/// The worktree's settings.json doesn't override the operator's
+/// user-scope value — preserved legacy behavior for the manual
+/// `ship use` path.
+#[test]
+fn claude_typed_effort_none_omits_effort_level() {
+    let r = ResolvedConfig {
+        claude: crate::compile::ClaudeSettings {
+            effort: None,
+            ..Default::default()
+        },
+        ..resolved(vec![])
+    };
+    let out = compile(&r, "claude").unwrap();
+    let patch = out.claude_settings_patch.expect("patch must exist (autoMemoryEnabled)");
+    assert!(
+        patch.get("effortLevel").is_none(),
+        "effortLevel must be omitted when typed effort is None; got: {patch}"
+    );
+}
+
+/// A per-agent profile's `harness_settings.claude.effortLevel` (which
+/// reaches the patch via `settings_extra` / passthrough) must win
+/// over the typed `effort` value. The agent's profile is a more
+/// specific override than the project's default.
+#[test]
+fn claude_harness_settings_extra_overrides_typed_effort() {
+    let r = ResolvedConfig {
+        claude: crate::compile::ClaudeSettings {
+            effort: Some("medium".to_string()),
+            settings_extra: Some(serde_json::json!({ "effortLevel": "xhigh" })),
+            ..Default::default()
+        },
+        ..resolved(vec![])
+    };
+    let out = compile(&r, "claude").unwrap();
+    let patch = out.claude_settings_patch.expect("patch must exist");
+    assert_eq!(
+        patch["effortLevel"], "xhigh",
+        "per-agent harness_settings.claude.effortLevel must override the typed default"
+    );
+}
+

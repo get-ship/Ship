@@ -6215,6 +6215,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "isolation-port",
+ "libc",
  "portable-pty",
  "ship-substrate",
  "ship-substrate-host",

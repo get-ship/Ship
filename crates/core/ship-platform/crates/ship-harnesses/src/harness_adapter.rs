@@ -7,10 +7,10 @@
 //! continue to compile without change.
 
 pub use harness_adapter::{
-    HarnessAdapter, HarnessCapabilities, HarnessEvent, PushMechanism, ResumeError,
+    HarnessAdapter, HarnessCapabilities, HarnessEvent, PushMechanism, ResumeError, SubmitMode,
 };
 
-/// The single source of truth for which harnesses exist. `adapter_for`, the
+/// The single source of truth for which harnesses exist.
 /// `Known:` error string, and `capabilities()` all derive from this slice —
 /// adding or dropping a harness is one edit here plus the adapter module, not
 /// a sweep across parallel match arms and enumerations. Adapters are zero-

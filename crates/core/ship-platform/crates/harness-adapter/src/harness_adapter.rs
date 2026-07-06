@@ -112,6 +112,24 @@ pub enum PushMechanism {
     Respawn,
 }
 
+/// How the autostart message + Enter should reach the harness TUI.
+/// See [`HarnessAdapter::submit_mode`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum SubmitMode {
+    /// Type `<msg> Enter` as a single `tmux send-keys` argv burst.
+    /// Fine for input-line-friendly TUIs that don't have a frame
+    /// boundary between text input and the submit gesture (omp).
+    #[default]
+    Inline,
+    /// Split the argv: type `<msg>` first, then sleep 150ms, then a
+    /// separate `tmux send-keys Enter`. Required for harnesses whose
+    /// input box swallows a fast trailing `Enter` as a paste-newline
+    /// (claude's TUI has a frame boundary between text input and the
+    /// submit gesture; the inline burst lands as a single paste-like
+    /// frame and the submit never fires).
+    Spaced,
+}
+
 impl HarnessCapabilities {
     /// Conservative defaults — headless + interactive only, no
     /// persistence story (every turn respawns).
@@ -185,9 +203,23 @@ pub trait HarnessAdapter: Send + Sync {
     /// Command to send for graceful shutdown.
     fn exit_command(&self) -> &str;
 
+    /// How the autostart message + Enter should reach the harness TUI.
+    /// `Inline` (default) types `<msg>` and `Enter` as a single
+    /// `tmux send-keys` argv burst — fine for input-line-friendly TUIs
+    /// (omp). `Spaced` (claude) splits the argv: the message is sent
+    /// first, then a 150ms sleep, then a separate `tmux send-keys
+    /// Enter` call. The split is required for harnesses whose input
+    /// box swallows a fast trailing `Enter` as a paste-newline
+    /// (claude's TUI has a frame boundary between the message text
+    /// and the submit gesture; the inline burst lands as a single
+    /// paste-like frame and the submit never fires — see
+    /// c-2026-07-06T15-30-00-000Z-claude-harness-autostart).
+    fn submit_mode(&self) -> SubmitMode {
+        SubmitMode::Inline
+    }
+
     /// Parse a line of stdout from the harness process.
     fn parse_output(&self, _line: &str) -> Option<HarnessEvent> { None }
-
     /// Extract session metadata from the work directory after launch.
     fn extract_session_meta(&self, _work_dir: &Path) -> Option<serde_json::Value> { None }
 
