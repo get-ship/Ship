@@ -102,36 +102,40 @@ fn settings_service_has_exactly_four_rpcs() {
 // validator_and_fixture`, which cannot run in this worktree (xtask → deck →
 // deck-core needs bootstrapped SUI bundle assets — the "deck wall"). This is the
 // SAME check, scoped to SettingsService and runnable without deck: every typed
-// `settings.*` method's fixture-seed.json corpus value must DESERIALIZE against its
-// generated proto response type. Proves the fixtures S3 added are contract-valid.
+// `settings.*` method's per-service fixture value must DESERIALIZE against its
+// generated proto response type. Proves the settings_service.json fixture
+// S3 added is contract-valid. ship-contracts CI gates codegen drift but does
+// NOT gate this decode check; no other Rust test covers SettingsService
+// contract deserialization (ship-ops-rpc's contract.rs reads agents/analytics/
+// rules only).
 
 #[test]
 fn settings_fixtures_deserialize_against_their_proto_types() {
     use ship_ops_rpc::WatchEvent;
 
     // The proto SSOT is the ship-contracts repo; PROTO_ROOT is baked by
-    // build.rs from the SHIP_PROTO_DIR env var (default = ship-contracts
-    // sibling-repo absolute path). Post-multi-repo-cleanup, the contract
-    // fixtures live there, not in the ship repo.
-    let theme_path = std::path::Path::new(env!("PROTO_ROOT"))
-        .join("fixtures/fixture-seed.json");
-    let theme: serde_json::Value = serde_json::from_slice(
-        &std::fs::read(&theme_path).expect("read fixture-seed.json"),
+    // build.rs from the MANDATORY SHIP_PROTO_DIR env var, which points at
+    // ship-contracts' proto/ dir itself — the same contract the other three
+    // PROTO_ROOT consumers use. Per-service contract fixtures live under
+    // `<proto>/fixtures/`.
+    let settings_path = std::path::Path::new(env!("PROTO_ROOT"))
+        .join("fixtures/settings_service.json");
+    let settings: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(&settings_path).expect("read settings_service.json"),
     )
     .unwrap();
-    let responses = theme.get("responses").and_then(|v| v.as_object()).expect("responses object");
 
-    // Each typed SettingsService method ⇒ its corpus value parses as the response
-    // type the descriptor declares (the gate's per-method check).
-    let get: &serde_json::Value = responses.get("settings.get").expect("settings.get corpus");
+    // Each typed SettingsService method ⇒ its `response_ok` body parses as
+    // the response type the descriptor declares (the gate's per-method check).
+    let get = &settings["Get"]["response_ok"];
     serde_json::from_value::<Setting>(get.clone()).expect("settings.get matches Setting");
 
-    let list = responses.get("settings.list").expect("settings.list corpus");
+    let list = &settings["List"]["response_ok"];
     serde_json::from_value::<SettingList>(list.clone()).expect("settings.list matches SettingList");
 
-    let set = responses.get("settings.set").expect("settings.set corpus");
+    let set = &settings["Set"]["response_ok"];
     serde_json::from_value::<Setting>(set.clone()).expect("settings.set matches Setting");
 
-    let watch = responses.get("settings.watch").expect("settings.watch corpus");
+    let watch = &settings["Watch"]["response_ok"];
     serde_json::from_value::<WatchEvent>(watch.clone()).expect("settings.watch matches WatchEvent");
 }
