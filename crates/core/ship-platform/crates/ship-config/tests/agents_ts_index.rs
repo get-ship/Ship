@@ -55,7 +55,7 @@ async fn ingest_ts(index: &AgentDefIndex, fs: &LocalFsBroker, dir: &Path) {
     for (_stem, source) in read_agent_ts_sources(fs, dir).unwrap() {
         let profiles = resolve_agents(&source).await.expect("`.ts` config evaluates");
         for profile in profiles {
-            index.upsert_profile("project", &profile).await.unwrap();
+            index.upsert_profile("project", &profile, None).await.unwrap();
         }
     }
 }

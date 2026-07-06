@@ -12,6 +12,9 @@
 //! THE def reader is [`crate::agents`] (the FsBroker reader). This module reuses
 //! its `.ship/agents` confinement (one cap definition, no parallel scan) and
 //! adds the index source record + the DataStore-backed query surface.
+//!
+//! [`provenance`] layers a Phase-3 roll-up ingest on top (which extension
+//! supplied a row, and whether it lost composition to another one).
 
 use std::path::Path;
 use std::sync::Arc;
@@ -28,6 +31,10 @@ use ship_types::payload::AgentDefUpdated;
 
 use crate::agents::{read_agent_def, read_agent_defs, AgentDefSource};
 use crate::error::ConfigError;
+
+mod provenance;
+pub use provenance::DefProvenance;
+use provenance::{is_shadow_row, row_doc_with_provenance, row_opt_str};
 
 /// Boot rebuild for one scope: read every def file via the reader and upsert its
 /// index row. One-way (files → index), read-only over the files. Called at
@@ -122,6 +129,16 @@ pub struct AgentDefRecord {
     /// Target harnesses (canonical `agent.harnesses`).
     pub harness: Vec<String>,
     pub tags: Vec<String>,
+    /// The extension that supplied this row, as [`compiler::compose_space`]
+    /// emits it (JSON `ExtSource`, verbatim — never a hand-rolled label).
+    /// `None` for a row from the plain per-scope `.jsonc`/`.ts` reindex.
+    pub ext_source: Option<String>,
+    /// The supplying extension's content hash. `None` alongside `ext_source`.
+    pub tier_content_hash: Option<String>,
+    /// `Some(<winning ExtSource JSON>)` when THIS row's def lost composition
+    /// (a shadow row — see [`AgentDefIndex::upsert_composed`]); `None` for
+    /// the active row.
+    pub shadowed_by: Option<String>,
 }
 
 /// Filter for [`AgentDefIndex::query`]. Both predicates are optional and AND-ed.
@@ -156,6 +173,9 @@ impl AgentDefIndex {
                 col("harness", ColumnKind::Text, false),
                 col("tags", ColumnKind::Text, false),
                 col("doc_json", ColumnKind::Text, false),
+                col("ext_source", ColumnKind::Text, false),
+                col("tier_content_hash", ColumnKind::Text, false),
+                col("shadowed_by", ColumnKind::Text, false),
             ],
         };
         self.store.ensure_table(&schema).await.map_err(Into::into)
@@ -170,24 +190,26 @@ impl AgentDefIndex {
         scope: &str,
     ) -> Result<(), ConfigError> {
         for src in read_agent_defs(fs, ship_dir)? {
-            self.upsert(scope, &src).await?;
+            let key = row_key(scope, &file_stem(&src.path));
+            self.upsert(key, scope, &src, None).await?;
         }
         Ok(())
     }
 
     /// Upsert one agent def resolved from a `.ts` config (a compiler
-    /// [`compiler::AgentProfile`]) into `scope`, through the SAME row projection
-    /// the `.jsonc` reader uses ([`AgentDefSource`] → row). The `.ts` EVAL (which
-    /// pulls V8) is the ingest layer's job — this crate stays V8-free; here the
-    /// already-resolved profile is just indexed. Keyed by the profile's agent id,
-    /// so `.ts` and `.jsonc` agents coexist in one scope.
+    /// [`compiler::AgentProfile`]), through the SAME row projection the
+    /// `.jsonc` reader uses. `provenance` is `Some` only for a Phase-3
+    /// roll-up winner ([`Self::upsert_composed`]); plain ingest passes `None`
+    /// (no behavior change there).
     pub async fn upsert_profile(
         &self,
         scope: &str,
         profile: &compiler::AgentProfile,
+        provenance: Option<&DefProvenance>,
     ) -> Result<(), ConfigError> {
         let src = crate::agents_ts::source_from_profile(profile);
-        self.upsert(scope, &src).await
+        let key = row_key(scope, &file_stem(&src.path));
+        self.upsert(key, scope, &src, provenance).await
     }
 
     /// Re-index one def after a change notification: file present → re-read +
@@ -203,7 +225,10 @@ impl AgentDefIndex {
     ) -> Result<(), ConfigError> {
         let stem = file_stem(rel);
         match read_agent_def(fs, ship_dir, &stem)? {
-            Some(src) => self.upsert(scope, &src).await,
+            Some(src) => {
+                let key = row_key(scope, &stem);
+                self.upsert(key, scope, &src, None).await
+            }
             None => {
                 self.store
                     .delete(TABLE, PrimaryKey(row_key(scope, &stem)))
@@ -214,6 +239,8 @@ impl AgentDefIndex {
     }
 
     /// Query the index, filtering by scope and/or name. Rows sorted by id.
+    /// This is the provenance AUDIT surface — unlike [`Self::list_docs`] /
+    /// [`Self::get_doc`], it also returns shadow rows (`shadowed_by: Some(_)`).
     pub async fn query(&self, filter: AgentDefQuery) -> Result<Vec<AgentDefRecord>, ConfigError> {
         let mut q = Query::new(TABLE);
         if let Some(scope) = filter.scope {
@@ -227,10 +254,11 @@ impl AgentDefIndex {
         Ok(result.rows.iter().map(row_to_record).collect())
     }
 
-    /// List every indexed def in `scope` as `(agent_id, full doc value)` — the
-    /// live READ surface the daemon's list view projects its summaries from,
-    /// served from the DataStore snapshot with NO file read. Rows missing a
-    /// stored doc (e.g. pre-`doc_json` rows) are skipped.
+    /// List every ACTIVE def in `scope` as `(agent_id, full doc value)` — the
+    /// live READ surface the daemon's list view projects from, served with NO
+    /// file read. A def SHADOWED by a roll-up ([`Self::upsert_composed`]) is
+    /// excluded — not a real, selectable def. Each doc gains a `_provenance`
+    /// object for audit without a second read.
     pub async fn list_docs(
         &self,
         scope: &str,
@@ -238,12 +266,17 @@ impl AgentDefIndex {
         let mut q = Query::new(TABLE).with_eq("scope", json_str(scope));
         q.limit = 500;
         let result = self.store.query(q).await?;
-        Ok(result.rows.iter().filter_map(row_doc).collect())
+        Ok(result
+            .rows
+            .iter()
+            .filter(|row| !is_shadow_row(row))
+            .filter_map(row_doc_with_provenance)
+            .collect())
     }
 
-    /// Get one def's full doc value by `id` within `scope`, from the snapshot.
-    /// `Ok(None)` when the id is not indexed. Serves detail + session-spawn
-    /// (`rules.inline`) reads without touching the file.
+    /// Get one def's full ACTIVE doc value by `id` within `scope`. `Ok(None)`
+    /// when not indexed (or only present as a shadow row). `_provenance` is
+    /// merged in, as in [`Self::list_docs`].
     pub async fn get_doc(
         &self,
         id: &str,
@@ -252,14 +285,29 @@ impl AgentDefIndex {
         let mut q = Query::new(TABLE)
             .with_eq("agent_id", json_str(id))
             .with_eq("scope", json_str(scope));
-        q.limit = 1;
+        // Room for the active row PLUS any shadow rows a roll-up recorded for
+        // the same id — `find` below picks the active one; `limit = 1` would
+        // risk grabbing a shadow row nondeterministically.
+        q.limit = 50;
         let result = self.store.query(q).await?;
-        Ok(result.rows.first().and_then(row_doc).map(|(_, doc)| doc))
+        Ok(result
+            .rows
+            .iter()
+            .find(|row| !is_shadow_row(row))
+            .and_then(row_doc_with_provenance)
+            .map(|(_, doc)| doc))
     }
 
-    /// Insert-or-replace the row for `(scope, def)`.
-    async fn upsert(&self, scope: &str, src: &AgentDefSource) -> Result<(), ConfigError> {
-        let row = Row::new(row_key(scope, &file_stem(&src.path)))
+    /// Insert-or-replace the row at `key`, tagged `scope`, stamping
+    /// `provenance` when the caller has any ([`Self::upsert_composed`]).
+    async fn upsert(
+        &self,
+        key: String,
+        scope: &str,
+        src: &AgentDefSource,
+        provenance: Option<&DefProvenance>,
+    ) -> Result<(), ConfigError> {
+        let row = Row::new(key)
             .with("agent_id", json_str(&src.id))
             .with("name", json_str(&src.name))
             .with("scope", json_str(scope))
@@ -268,7 +316,22 @@ impl AgentDefIndex {
             .with("role", src.role.clone().map(json_str).unwrap_or(serde_json::Value::Null))
             .with("harness", json_str(&join_csv(&src.harness)))
             .with("tags", json_str(&join_csv(&src.tags)))
-            .with("doc_json", json_str(serde_json::to_string(&src.doc).unwrap_or_default()));
+            .with("doc_json", json_str(serde_json::to_string(&src.doc).unwrap_or_default()))
+            .with(
+                "ext_source",
+                provenance.map(|p| json_str(p.ext_source.clone())).unwrap_or(serde_json::Value::Null),
+            )
+            .with(
+                "tier_content_hash",
+                provenance.map(|p| json_str(p.tier_hash.clone())).unwrap_or(serde_json::Value::Null),
+            )
+            .with(
+                "shadowed_by",
+                provenance
+                    .and_then(|p| p.shadowed_by.clone())
+                    .map(json_str)
+                    .unwrap_or(serde_json::Value::Null),
+            );
         self.store.insert(TABLE, row).await.map_err(Into::into)
     }
 }
@@ -309,37 +372,19 @@ fn split_csv(s: &str) -> Vec<String> {
     }
 }
 
-/// Extract `(agent_id, doc)` from a row. `doc_json` holds the serialized def
-/// value; the DataStore may return it as the raw string OR (since it is itself
-/// valid JSON) re-parsed into a value — accept both. `None` when the id or doc
-/// is absent.
-fn row_doc(row: &Row) -> Option<(String, serde_json::Value)> {
-    let id = row.fields.get("agent_id").and_then(|v| v.as_str())?.to_string();
-    let doc = match row.fields.get("doc_json")? {
-        serde_json::Value::Null => return None,
-        serde_json::Value::String(s) if s.is_empty() => return None,
-        serde_json::Value::String(s) => serde_json::from_str(s).ok()?,
-        other => other.clone(),
-    };
-    Some((id, doc))
-}
-
 fn row_to_record(row: &Row) -> AgentDefRecord {
     let get = |k: &str| row.fields.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let role = row
-        .fields
-        .get("role")
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
     AgentDefRecord {
         id: get("agent_id"),
         name: get("name"),
         scope: get("scope"),
         path: get("path"),
         content_hash: get("content_hash"),
-        role,
+        role: row_opt_str(row, "role"),
         harness: split_csv(&get("harness")),
         tags: split_csv(&get("tags")),
+        ext_source: row_opt_str(row, "ext_source"),
+        tier_content_hash: row_opt_str(row, "tier_content_hash"),
+        shadowed_by: row_opt_str(row, "shadowed_by"),
     }
 }

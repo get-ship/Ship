@@ -282,21 +282,16 @@ impl ShipRuntime {
             tracing::warn!("agent-def index: boot rebuild failed: {e}");
         }
 
-        // Ingest the project's resolved agent profiles (`agents/` defs merged
-        // with `.ts` `defineAgent` roll-ups, id-deduped) via ship-resolver —
-        // the one resolve path. The resolver owns the V8 `!Send` crossing
-        // internally; shipd upserts the plain-data result, so `.ts` and
-        // `.jsonc` agents coexist in the index.
-        match ship_resolver::resolve_space(&workspace).await {
-            Ok(resolved) => {
-                for profile in &resolved.agent_profiles {
-                    let id = profile.agent.id.clone();
-                    if let Err(e) = index.upsert_profile("project", profile).await {
-                        tracing::warn!("agent-def index: resolver upsert failed for {id}: {e}");
-                    }
-                }
-            }
-            Err(e) => tracing::warn!("agent-def index: project resolve failed: {e}"),
+        // Ingest the project's Phase-3 extension roll-up (`agents/` defs +
+        // `.ts` `defineAgent` sources + locked cached packages, composed by
+        // the precedence law) via ship-resolver's `roll_up` — the resolver
+        // owns the V8 `!Send` crossing internally; shipd upserts the
+        // plain-data result. `upsert_composed` indexes both the winning
+        // profiles AND the shadow records the law recorded, so the index can
+        // answer "where did this def come from" and "why is it not active".
+        match ship_resolver::roll_up(&workspace, None).await {
+            Ok(composed) => index.upsert_composed("project", &composed).await,
+            Err(e) => tracing::warn!("agent-def index: project roll-up failed: {e}"),
         }
 
         // Retain the index Arc for the READ path (list/detail/spawn) — a clone,
