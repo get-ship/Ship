@@ -17,7 +17,7 @@ pub use catalog::{
 };
 pub use config::{
     AgentLayerConfig, HookConfig, HookTrigger, McpServerConfig,
-    McpServerType, NamespaceConfig, ProjectConfig,
+    McpServerType, NamespaceConfig, SpaceManifest,
 };
 pub use permissions::{
     AgentLimits, CommandPermissions, FsPermissions, NetworkPermissions, NetworkPolicy, Permissions,

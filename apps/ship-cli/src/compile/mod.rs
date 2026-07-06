@@ -12,9 +12,9 @@ use std::path::Path;
 // ── Entry point ──────────────────────────────────────────────────────────────
 
 pub struct CompileOptions<'a> {
-    /// Source root — where .ship/ lives (may be the main repo for worktrees).
-    pub project_root: &'a Path,
-    /// Output root — where compiled files go. Defaults to project_root.
+    /// Source root — the source directory on disk.
+    pub space_root: &'a Path,
+    /// Output root — where compiled files go. Defaults to `space_root`.
     pub output_root: Option<&'a Path>,
     /// Optionally restrict to a single harness.
     pub harness: Option<&'a str>,
@@ -37,7 +37,7 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
     let extra_skills = opts.extra_skills.clone();
 
     let summary = svc::compile_project(&svc::CompileOptions {
-        project_root: opts.project_root.to_path_buf(),
+        space_root: opts.space_root.to_path_buf(),
         output_root: opts.output_root.map(|p| p.to_path_buf()),
         harness: opts.harness.map(str::to_string),
         active_agent: opts.active_agent.map(str::to_string),
@@ -57,7 +57,7 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
             output::print_dry_run(harness_id, output);
         }
     } else {
-        output::ensure_session_gitignored(opts.output_root.unwrap_or(opts.project_root))?;
+        output::ensure_session_gitignored(opts.output_root.unwrap_or(opts.space_root))?;
         if extra_skills.is_empty() {
             println!("✓ compiled for: {}", summary.harnesses.join(", "));
         } else {

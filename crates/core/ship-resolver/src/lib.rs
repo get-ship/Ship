@@ -1,11 +1,11 @@
-//! `ship-resolver` — the Phase-2 project-shape resolver.
+//! `ship-resolver` — the Phase-2 space-shape resolver.
 //!
 //! ## What this crate does
 //!
 //! Generalizes the Phase-0 resolver (compiler leaf + agent-config-eval) from
-//! single-manifest to **project shape**: a `ship.ts` at the project root, a
-//! `skills/` + `rules/` directory convention, a `project.skill_paths` manifest
-//! read. The result is a fully-populated [`compiler::ProjectLibrary`] (disk
+//! single-manifest to **space shape**: a `ship.ts` at the space root, a
+//! `skills/` + `rules/` directory convention, a `space.skill_paths` manifest
+//! read. The result is a fully-populated [`compiler::SpaceLibrary`] (disk
 //! state) and a [`compiler::ResolvedConfig`] (resolved state) — the canonical
 //! descriptors the rest of the platform compiles and runs against.
 //!
@@ -15,7 +15,7 @@
 //! compiler leaf's `load_library` (per the F1 decision, `decision-f1-loader.md`
 //! Option A: "embrace the superset"). The leaf's `load_library` keeps walking
 //! `.ship/{mcp,permissions,hooks,rules,skills,agents}/` with its `std::fs`
-//! surface; this crate layers the Phase-2 project-shape pieces on top via the
+//! surface; this crate layers the Phase-2 space-shape pieces on top via the
 //! [`ship_substrate::ports::FsBroker`] gated door (R1 — new code goes through
 //! FsBroker, not raw `std::fs`).
 //!
@@ -28,7 +28,7 @@
 //!
 //! - **No cache.** J5 (descriptor cache) is a separate job that subscribes
 //!   to this crate's [`watcher`] module. The cache key is
-//!   [`descriptor::project_library_content_hash`].
+//!   [`descriptor::space_library_content_hash`].
 //! - **No caller migration.** J6 (helmd dispatch), J7 (shipd ingest), J8
 //!   (helmd wire) replace their existing call sites with this crate's API.
 //!   Out of scope here.
@@ -38,13 +38,13 @@
 //!
 //! ## Module layout
 //!
-//! - [`project_loader`] — the disk walk over project shape → `ProjectLibrary`.
-//!   Composes with the leaf; the additive `project.skill_paths` manifest read
+//! - [`space_loader`] — the disk walk over space shape → `SpaceLibrary`.
+//!   Composes with the leaf; the additive `space.skill_paths` manifest read
 //!   lives in the leaf (per F1).
 //! - [`ts_resolver`] — V8 eval fan-out. `!Send` boundary on `spawn_blocking`.
 //! - [`descriptor`] — canonical sorted-key JSON helpers. The determinism
 //!   invariant the cache relies on (`inv-fmt-deterministic-eval`).
-//! - [`watcher`] — the J4 FsWatch consumer over the project root. Pushes
+//! - [`watcher`] — the J4 FsWatch consumer over the space root. Pushes
 //!   `ResolverInvalidation` onto a `tokio::sync::watch` channel the cache
 //!   subscribes to. Event-free per the FsWatch port's contract; the cache
 //!   (J5) is the only consumer today.
@@ -58,7 +58,7 @@
 //! - F1 decision: `decision-f1-loader.md` (Option A — the superset is the
 //!   architecture, no code moves).
 pub mod descriptor;
-pub mod project_loader;
+pub mod space_loader;
 pub mod ts_resolver;
 pub mod cache;
 pub mod watcher;
@@ -66,31 +66,31 @@ pub mod watcher;
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use compiler::{ProjectLibrary, ResolvedConfig};
+use compiler::{ResolvedConfig, SpaceLibrary};
 use serde_json::Value;
 use ship_substrate::ports::{FsBroker, LocalFsBroker};
 
-/// Resolve a project's full descriptor: disk walk + TS eval + resolve.
+/// Resolve a space's full descriptor: disk walk + TS eval + resolve.
 ///
-/// `project_root` is the directory containing `ship.ts` (preferred) or
+/// `space_root` is the directory containing `ship.ts` (preferred) or
 /// `<.ship>/ship.ts` (legacy), plus `.ship/` for the bulk of the config
 /// shape. Returns the resolved config — a pure, in-memory view of the
-/// project's effective configuration.
+/// space's effective configuration.
 ///
 /// The bulk of the disk read is delegated to the compiler leaf's
-/// `load_library`; the Phase-2 project-shape pieces (`ship.ts`,
-/// `project.skill_paths` extra dirs) are layered on top via FsBroker.
+/// `load_library`; the Phase-2 space-shape pieces (`ship.ts`,
+/// `space.skill_paths` extra dirs) are layered on top via FsBroker.
 /// The TS eval is one `defineAgent` roll-up per `imported_modules`
 /// entry, run in the V8 isolate with the `!Send` boundary crossed on a
 /// dedicated current-thread runtime (R2).
 ///
-/// Thin wrapper over [`resolve_project_with_globals`] with no injected
+/// Thin wrapper over [`resolve_space_with_globals`] with no injected
 /// globals — every `defineAgent` call lands without operator defaults.
-pub async fn resolve_project(project_root: &Path) -> Result<ResolvedConfig> {
-    resolve_project_with_globals(project_root, Value::Null).await
+pub async fn resolve_space(space_root: &Path) -> Result<ResolvedConfig> {
+    resolve_space_with_globals(space_root, Value::Null).await
 }
 
-/// Resolve a project's full descriptor with pre-fetched operator defaults
+/// Resolve a space's full descriptor with pre-fetched operator defaults
 /// injected into the TS eval as the `globals` export.
 ///
 /// `globals` is part of the closed-world input — a plain JSON value
@@ -103,31 +103,31 @@ pub async fn resolve_project(project_root: &Path) -> Result<ResolvedConfig> {
 /// `defineAgent({ ...globals.agentDefaults, agent: {...} })` (the
 /// pattern the agent-config-eval tests pin down at
 /// `agent-config-eval/tests/resolve_agents.rs:127-164`).
-pub async fn resolve_project_with_globals(
-    project_root: &Path,
+pub async fn resolve_space_with_globals(
+    space_root: &Path,
     globals: Value,
 ) -> Result<ResolvedConfig> {
     let fs = LocalFsBroker::new();
-    resolve_project_with_broker(&fs, project_root, globals).await
+    resolve_space_with_broker(&fs, space_root, globals).await
 }
 
-/// Same as [`resolve_project_with_globals`] but with an injected
+/// Same as [`resolve_space_with_globals`] but with an injected
 /// [`FsBroker`]. Tests and a future FsBroker-with-extra-context world
 /// (e.g. cap-bootstrapping) use this; production goes through
-/// [`resolve_project`] / [`resolve_project_with_globals`].
-pub async fn resolve_project_with_broker(
+/// [`resolve_space`] / [`resolve_space_with_globals`].
+pub async fn resolve_space_with_broker(
     fs: &dyn FsBroker,
-    project_root: &Path,
+    space_root: &Path,
     globals: Value,
 ) -> Result<ResolvedConfig> {
-    // 1. Disk walk — the bulk via the leaf, the project-shape pieces via
-    //    FsBroker. The result is a `ProjectLibrary` with skills
+    // 1. Disk walk — the bulk via the leaf, the space-shape pieces via
+    //    FsBroker. The result is a `SpaceLibrary` with skills
     //    (default + extra), rules, mcp, hooks, permissions, and the
     //    `imported_modules` from `ship.ts`.
-    let mut library = project_loader::load_project_library(fs, project_root)
+    let mut library = space_loader::load_space_library(fs, space_root)
         .await
         .with_context(|| {
-            format!("resolver: project load failed for {}", project_root.display())
+            format!("resolver: space load failed for {}", space_root.display())
         })?;
 
     // 2. TS eval fan-out — one `defineAgent` roll-up per module. Empty
@@ -144,7 +144,7 @@ pub async fn resolve_project_with_broker(
         // passthrough (`library.agent_profiles`).
         //
         // - `library.agents` is what `resolve_library` feeds into
-        //   `ProjectConfig.agents`, which the resolve step filters by
+        //   `SpaceManifest.agents`, which the resolve step filters by
         //   the active-agent selection.
         // - `library.agent_profiles` is the passthrough that
         //   `ResolvedConfig::agent_profiles` carries — the consumer-
@@ -175,21 +175,21 @@ pub async fn resolve_project_with_broker(
         library.globals = globals;
     }
 
-    // 4. Pure transform: `ProjectLibrary` → `ResolvedConfig`. No fs,
+    // 4. Pure transform: `SpaceLibrary` → `ResolvedConfig`. No fs,
     //    no async. The leaf's `resolve_library` is the canonical impl.
     let resolved = compiler::resolve_library(&library, None, None);
     Ok(resolved)
 }
 
-/// Load + return the `ProjectLibrary` only (skip the resolve step +
-/// TS eval). Useful for callers that need the raw project shape (the
+/// Load + return the `SpaceLibrary` only (skip the resolve step +
+/// TS eval). Useful for callers that need the raw space shape (the
 /// descriptor cache in J5, for instance — the cache key is the
-/// `ProjectLibrary`'s content hash, not the resolved config's).
-pub async fn load_project_library(
-    project_root: &Path,
-) -> Result<ProjectLibrary> {
+/// `SpaceLibrary`'s content hash, not the resolved config's).
+pub async fn load_space_library(
+    space_root: &Path,
+) -> Result<SpaceLibrary> {
     let fs = LocalFsBroker::new();
-    project_loader::load_project_library(&fs, project_root).await
+    space_loader::load_space_library(&fs, space_root).await
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -200,7 +200,7 @@ mod tests {
     use serde_json::json;
     use tempfile::TempDir;
 
-    fn write_minimal_project() -> (TempDir, std::path::PathBuf) {
+    fn write_minimal_space() -> (TempDir, std::path::PathBuf) {
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path().to_path_buf();
 
@@ -213,7 +213,7 @@ mod tests {
         )
         .unwrap();
 
-        // ship.ts at the project root
+        // ship.ts at the space root
         std::fs::write(
             root.join("ship.ts"),
             r#"
@@ -230,9 +230,9 @@ defineAgent({
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn resolve_project_with_no_globals_yields_resolved_config() {
-        let (_tmp, root) = write_minimal_project();
-        let resolved = resolve_project(&root).await.unwrap();
+    async fn resolve_space_with_no_globals_yields_resolved_config() {
+        let (_tmp, root) = write_minimal_space();
+        let resolved = resolve_space(&root).await.unwrap();
         // The TS-defined agent lands in the resolved config's agent list.
         let ids: Vec<&str> = resolved.agent_profiles.iter().map(|a| a.agent.id.as_str()).collect();
         // Phase-2 contract: TS agents appear in the active-agent-shaped
@@ -257,7 +257,7 @@ defineAgent({
     /// loop with no format awareness.
     #[tokio::test(flavor = "current_thread")]
     async fn jsonc_and_ts_agents_coexist_in_agent_profiles() {
-        let (_tmp, root) = write_minimal_project();
+        let (_tmp, root) = write_minimal_space();
         let agents_dir = root.join(".ship").join("agents");
         std::fs::create_dir_all(&agents_dir).unwrap();
         std::fs::write(
@@ -266,7 +266,7 @@ defineAgent({
         )
         .unwrap();
 
-        let resolved = resolve_project(&root).await.unwrap();
+        let resolved = resolve_space(&root).await.unwrap();
         let ids: Vec<&str> = resolved
             .agent_profiles
             .iter()
@@ -277,46 +277,46 @@ defineAgent({
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn resolve_project_with_globals_injects_defaults() {
+    async fn resolve_space_with_globals_injects_defaults() {
         // The agent-config-eval tests pin down the globals-injection
         // contract; this one verifies the resolver composes the value
         // end-to-end (the `globals` lands in `library.globals` so audit
         // consumers can see it).
-        let (_tmp, root) = write_minimal_project();
+        let (_tmp, root) = write_minimal_space();
         let globals = json!({ "agentDefaults": { "harness": "claude" } });
-        let resolved = resolve_project_with_globals(&root, globals).await.unwrap();
+        let resolved = resolve_space_with_globals(&root, globals).await.unwrap();
         // The resolved config carries the .ts-defined agent and the rule.
         assert_eq!(resolved.rules.len(), 1);
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn resolve_project_is_deterministic_across_two_runs() {
+    async fn resolve_space_is_deterministic_across_two_runs() {
         // The byte-identical-output invariant the cache relies on:
-        // two reads of the same project produce byte-identical
-        // canonical-JSON `ProjectLibrary` descriptors. The cache key
+        // two reads of the same space produce byte-identical
+        // canonical-JSON `SpaceLibrary` descriptors. The cache key
         // (J5) is the content hash of this form.
-        let (_tmp, root) = write_minimal_project();
-        let a = load_project_library(&root).await.unwrap();
-        let b = load_project_library(&root).await.unwrap();
-        let a_bytes = descriptor::project_library_canonical(&a).unwrap();
-        let b_bytes = descriptor::project_library_canonical(&b).unwrap();
+        let (_tmp, root) = write_minimal_space();
+        let a = load_space_library(&root).await.unwrap();
+        let b = load_space_library(&root).await.unwrap();
+        let a_bytes = descriptor::space_library_canonical(&a).unwrap();
+        let b_bytes = descriptor::space_library_canonical(&b).unwrap();
         assert_eq!(
             a_bytes, b_bytes,
-            "two project loads must be byte-identical"
+            "two space loads must be byte-identical"
         );
         // The content hash is the same across two runs of the same input.
-        let a_hash = descriptor::project_library_content_hash(&a).unwrap();
-        let b_hash = descriptor::project_library_content_hash(&b).unwrap();
+        let a_hash = descriptor::space_library_content_hash(&a).unwrap();
+        let b_hash = descriptor::space_library_content_hash(&b).unwrap();
         assert_eq!(a_hash, b_hash);
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn load_project_library_omits_resolve_step() {
-        // `load_project_library` returns a `ProjectLibrary` (not a
+    async fn load_space_library_omits_resolve_step() {
+        // `load_space_library` returns a `SpaceLibrary` (not a
         // `ResolvedConfig`); the caller does the resolve. The raw
-        // project shape is what J5's cache keys on.
-        let (_tmp, root) = write_minimal_project();
-        let lib = load_project_library(&root).await.unwrap();
+        // space shape is what J5's cache keys on.
+        let (_tmp, root) = write_minimal_space();
+        let lib = load_space_library(&root).await.unwrap();
         assert_eq!(lib.rules.len(), 1);
         assert_eq!(lib.imported_modules.len(), 1);
         assert!(lib.imported_modules[0].source.contains("defineAgent"));

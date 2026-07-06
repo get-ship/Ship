@@ -37,7 +37,7 @@ pub use compile::{
 
 pub use compose::{ComposedLibrary, NounKind, ShadowRecord, compose_space};
 pub use resolve::{
-    ExtensionDescriptor, ExtSource, ExtSourceKind, ModuleDescriptor, PrecedenceRow, ProjectLibrary,
+    ExtensionDescriptor, ExtSource, ExtSourceKind, ModuleDescriptor, PrecedenceRow, SpaceLibrary,
     ResolvedConfig, RollupInputs, WorkspaceOverrides, resolve, resolve_library,
 };
 pub use decompile::{
@@ -51,7 +51,7 @@ pub use types::{
     HookConfig, HookTrigger, ListAgentsResponse, McpRefs, McpServerConfig, McpServerType,
     NamespaceConfig, NetworkPermissions, NetworkPolicy, Permissions,
     PluginEntry, PluginRefs, PluginsManifest, ProfileMeta, ProfilePermissions, ProfileRules,
-    ProjectConfig, PullAgent, PullMcpServer, PullProfile, PullResponse, PullRule, PullSkill, Rule,
+    SpaceManifest, PullAgent, PullMcpServer, PullProfile, PullResponse, PullRule, PullSkill, Rule,
     Skill, SkillBundle, SkillRefs, SkillSource, ToolPermissions, TransferBundle,
     list_catalog, list_catalog_by_kind, search_catalog,
 };

@@ -4,7 +4,7 @@
 //! native compile one shared home so the daemon can run it in-process.
 //!
 //! The compiler crate (transform) stays WASM-safe and has no platform deps.
-//! This module owns the native-only loader (disk → `compiler::ProjectLibrary`)
+//! This module owns the native-only loader (disk → `compiler::SpaceLibrary`)
 //! and the full compile pipeline (library → written harness files).
 
 pub mod agent;
@@ -55,9 +55,9 @@ use mcp_allowlist::ensure_ship_mcp_allowed_claude;
 // ── Public types ─────────────────────────────────────────────────────────────
 
 pub struct CompileOptions {
-    /// Source root — where `.ship/` lives.
-    pub project_root: PathBuf,
-    /// Output root — where compiled files go. Defaults to `project_root`.
+    /// Source root — the source directory on disk.
+    pub space_root: PathBuf,
+    /// Output root — where compiled files go. Defaults to `space_root`.
     pub output_root: Option<PathBuf>,
     /// Optionally restrict to a single harness.
     pub harness: Option<String>,
@@ -90,15 +90,15 @@ pub struct CompileSummary {
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&opts.project_root);
-    let output_root = opts.output_root.as_deref().unwrap_or(&opts.project_root);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&opts.space_root);
+    let output_root = opts.output_root.as_deref().unwrap_or(&opts.space_root);
 
     // 1. Load raw library from .ship/ (flat layout)
     let mut library = load_library(&ship_dir).context("failed to load .ship/")?;
 
     // 2. Apply agent overrides (permissions, inline rules, harness list, plugins)
     if let Some(agent_id) = opts.active_agent.as_deref() {
-        apply_agent_to_library(&mut library, agent_id, &opts.project_root)?;
+        apply_agent_to_library(&mut library, agent_id, &opts.space_root)?;
     }
     library.active_agent = opts.active_agent.clone();
 
@@ -128,7 +128,7 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
         for skill_id in &opts.extra_skills {
             anyhow::ensure!(
                 library.skills.iter().any(|s| &s.id == skill_id),
-                "skill not found: {} — check skill_paths in ship.jsonc",
+                "skill not found: {} — check space.skill_paths in ship.jsonc",
                 skill_id
             );
         }

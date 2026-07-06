@@ -1,4 +1,4 @@
-//! Tests for `compiler::load_library` — the LEAF `.ship/` → `ProjectLibrary`
+//! Tests for `compiler::load_library` — the LEAF `.ship/` → `SpaceLibrary`
 //! loader. The compiler crate is L0 / substrate-free, so this loader uses
 //! only `std::fs` + the crate's own `jsonc` + `skill_parser` modules.
 //!
@@ -9,7 +9,7 @@
 
 use std::path::PathBuf;
 
-use compiler::{load_library, ProjectLibrary};
+use compiler::{load_library, SpaceLibrary};
 
 fn fixture_ship_dir() -> PathBuf {
     // CARGO_MANIFEST_DIR points at crates/core/compiler; the fixture sits
@@ -23,7 +23,7 @@ fn fixture_ship_dir() -> PathBuf {
 #[test]
 fn load_library_reads_agents_mcp_skills_rules() {
     let ship_dir = fixture_ship_dir();
-    let lib: ProjectLibrary =
+    let lib: SpaceLibrary =
         load_library(&ship_dir).expect("load_library must succeed against the fixture .ship/");
 
     // 1. Agent profile loaded from .ship/agents/test-agent.jsonc.

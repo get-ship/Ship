@@ -62,22 +62,22 @@ impl ProjectState {
 /// `extra_skills` are injected at compile time on top of the agent's declared skill refs.
 pub fn activate_agent(
     agent_id: Option<&str>,
-    project_root: &Path,
+    space_root: &Path,
     output_root: Option<&Path>,
     extra_skills: Vec<String>,
     scoped: bool,
 ) -> Result<()> {
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_root);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
     let state = ProjectState::load(&ship_dir);
     let id = agent_id
         .map(str::to_string)
         .or_else(|| state.active_agent.clone())
         .ok_or_else(|| anyhow::anyhow!("No agent specified and no active agent set. Run: ship use <agent-id>"))?;
 
-    let agent_path = match find_agent_file(&id, project_root) {
+    let agent_path = match find_agent_file(&id, space_root) {
         Some(p) => p,
         None => {
-            let available = list_available_agents(project_root);
+            let available = list_available_agents(space_root);
             if available.is_empty() {
                 anyhow::bail!(
                     "Agent '{}' not found in .ship/agents/. No agents found.\n\
@@ -104,7 +104,7 @@ pub fn activate_agent(
     run_plugin_lifecycle(&now_plugins, &prev_plugins, scope);
 
     run_compile(CompileOptions {
-        project_root,
+        space_root,
         output_root,
         harness: None,
         dry_run: false,
@@ -155,8 +155,8 @@ fn run_plugin_lifecycle(now: &[String], prev: &[String], scope: &str) {
 /// user home). JSONC is the only accepted format — the TOML and
 /// `profiles/`, `presets/`, `modes/` compat paths were retired with the
 /// agent-schema unification.
-pub fn find_agent_file(agent_id: &str, project_root: &Path) -> Option<PathBuf> {
-    let ship = ship_substrate::ShipHome::project_ship_dir(project_root);
+pub fn find_agent_file(agent_id: &str, space_root: &Path) -> Option<PathBuf> {
+    let ship = ship_substrate::ShipHome::project_ship_dir(space_root);
     let file = format!("{agent_id}.jsonc");
 
     let project_path = ship.join("agents").join(&file);
@@ -204,8 +204,8 @@ pub(crate) fn load_agent_profile(path: &Path) -> Result<AgentProfile> {
 
 /// List agent IDs available in .ship/agents/ (for error messages). Sourced
 /// through THE agent-def reader (FsBroker) — no raw `std::fs` walk.
-fn list_available_agents(project_root: &Path) -> Vec<String> {
-    let agents_dir = ship_substrate::ShipHome::project_ship_dir(project_root).join("agents");
+fn list_available_agents(space_root: &Path) -> Vec<String> {
+    let agents_dir = ship_substrate::ShipHome::project_ship_dir(space_root).join("agents");
     let fs = ship_substrate::ports::LocalFsBroker::new();
     let mut ids: Vec<String> = ship_platform::config::read_agent_docs_in(&fs, &agents_dir)
         .unwrap_or_default()

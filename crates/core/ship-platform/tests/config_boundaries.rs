@@ -1,6 +1,6 @@
 use ship_platform::config::{
     AgentProfile, HookConfig, McpConfig, McpSection, McpServerConfig, PermissionConfig,
-    ProjectConfig, discover_projects, get_config, save_config,
+    SpaceManifest, discover_projects, get_config, save_config,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -8,13 +8,13 @@ use tempfile::tempdir;
 
 #[test]
 fn project_config_roundtrips_json() {
-    let config = ProjectConfig {
+    let config = SpaceManifest {
         name: Some("test-project".to_string()),
         description: Some("boundary test".to_string()),
         ..Default::default()
     };
     let json = serde_json::to_string(&config).expect("serialize");
-    let restored: ProjectConfig = serde_json::from_str(&json).expect("deserialize");
+    let restored: SpaceManifest = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(restored.name.as_deref(), Some("test-project"));
     assert_eq!(restored.description.as_deref(), Some("boundary test"));
 }
@@ -50,7 +50,7 @@ fn get_config_returns_default_for_missing_file() -> anyhow::Result<()> {
 #[test]
 fn save_then_get_config_roundtrips() -> anyhow::Result<()> {
     let tmp_a = tempdir()?;
-    let config_a = ProjectConfig {
+    let config_a = SpaceManifest {
         name: Some("project-a".to_string()),
         description: Some("roundtrip test".to_string()),
         harnesses: vec!["boundary-harness".to_string()],
@@ -74,7 +74,7 @@ fn save_then_get_config_roundtrips() -> anyhow::Result<()> {
 #[test]
 fn save_config_creates_ship_jsonc() -> anyhow::Result<()> {
     let tmp = tempdir()?;
-    save_config(&ProjectConfig::default(), Some(tmp.path().to_path_buf()))?;
+    save_config(&SpaceManifest::default(), Some(tmp.path().to_path_buf()))?;
     assert!(
         tmp.path().join("ship.jsonc").exists(),
         "save_config must create ship.jsonc"
@@ -134,7 +134,7 @@ fn public_types_are_exported() {
     fn _check(
         _: AgentProfile,
         _: HookConfig,
-        _: ProjectConfig,
+        _: SpaceManifest,
         _: McpConfig,
         _: McpSection,
         _: McpServerConfig,

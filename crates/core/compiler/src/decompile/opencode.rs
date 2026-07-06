@@ -1,4 +1,4 @@
-//! OpenCode decompiler — parse `opencode.json` and `AGENTS.md` into a [`ProjectLibrary`].
+//! OpenCode decompiler — parse `opencode.json` and `AGENTS.md` into a [`SpaceLibrary`].
 //!
 //! Source: https://opencode.ai/docs/plugins/
 //! Config schema: https://opencode.ai/config.json
@@ -8,7 +8,7 @@ use std::path::Path;
 
 use serde_json::Value as Json;
 
-use crate::ProjectLibrary;
+use crate::SpaceLibrary;
 use crate::types::{McpServerConfig, McpServerType, Rule};
 
 use super::json_string_array;
@@ -24,16 +24,16 @@ const KNOWN_CONFIG_KEYS: &[&str] = &[
     "$schema",
 ];
 
-/// Parse OpenCode native config files and produce a partial [`ProjectLibrary`].
+/// Parse OpenCode native config files and produce a partial [`SpaceLibrary`].
 ///
 /// Reads (if present):
 /// - `opencode.json` → MCP servers, model, harness_defaults
 /// - `AGENTS.md` → rules
-pub fn decompile_opencode(project_root: &Path) -> ProjectLibrary {
-    let mut library = ProjectLibrary::default();
+pub fn decompile_opencode(space_root: &Path) -> SpaceLibrary {
+    let mut library = SpaceLibrary::default();
 
     // ── opencode.json ────────────────────────────────────────────────────────
-    let config_path = project_root.join("opencode.json");
+    let config_path = space_root.join("opencode.json");
     if let Ok(content) = std::fs::read_to_string(&config_path)
         && let Ok(json) = serde_json::from_str::<Json>(&content)
     {
@@ -41,7 +41,7 @@ pub fn decompile_opencode(project_root: &Path) -> ProjectLibrary {
     }
 
     // ── .opencode/config.json (alternate location) ───────────────────────────
-    let alt_config = project_root.join(".opencode").join("config.json");
+    let alt_config = space_root.join(".opencode").join("config.json");
     if library.mcp_servers.is_empty()
         && let Ok(content) = std::fs::read_to_string(&alt_config)
         && let Ok(json) = serde_json::from_str::<Json>(&content)
@@ -50,7 +50,7 @@ pub fn decompile_opencode(project_root: &Path) -> ProjectLibrary {
     }
 
     // ── AGENTS.md ────────────────────────────────────────────────────────────
-    let agents_md = project_root.join("AGENTS.md");
+    let agents_md = space_root.join("AGENTS.md");
     if let Ok(content) = std::fs::read_to_string(&agents_md) {
         let trimmed = content.trim();
         if !trimmed.is_empty() {
@@ -67,7 +67,7 @@ pub fn decompile_opencode(project_root: &Path) -> ProjectLibrary {
     library
 }
 
-fn parse_opencode_config(library: &mut ProjectLibrary, config: &Json) {
+fn parse_opencode_config(library: &mut SpaceLibrary, config: &Json) {
     let obj = match config.as_object() {
         Some(o) => o,
         None => return,

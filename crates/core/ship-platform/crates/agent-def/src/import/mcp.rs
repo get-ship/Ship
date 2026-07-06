@@ -1,8 +1,8 @@
 //! Import MCP server entries from a harness's config file (Claude / Cursor /
-//! Codex). The project-scope file wins if it exists; the
-//! global-scope fallback runs when no project file is present. Imported
+//! Codex). The source-directory file wins if it exists; the
+//! global-scope fallback runs when no source file is present. Imported
 //! servers are normalized (id trimmed, "ship" reserved, stdio vs http
-//! split on `type`) and merged into the project's MCP config, skipping
+//! split on `type`) and merged into the space's MCP config, skipping
 //! ids that already exist.
 
 use ship_config::project::{McpServerConfig, McpServerType, get_config};
@@ -14,17 +14,17 @@ use std::path::{Path, PathBuf};
 use super::super::harnesses::{ConfigFormat, HarnessDescriptor, require_harness};
 use super::home;
 
-pub fn import_from_harness(harness_id: &str, project_dir: PathBuf) -> Result<usize> {
+pub fn import_from_harness(harness_id: &str, source_dir: PathBuf) -> Result<usize> {
     let desc = require_harness(harness_id)?;
-    let mut config = get_config(Some(project_dir.clone()))?;
+    let mut config = get_config(Some(source_dir.clone()))?;
     let mut added = 0usize;
-    let import_paths = harness_import_paths(desc, &project_dir)?;
+    let import_paths = harness_import_paths(desc, &source_dir)?;
 
     for path in import_paths {
         if !path.exists() {
             continue;
         }
-        let imported_scope = import_scope_for_path(desc, &project_dir, &path);
+        let imported_scope = import_scope_for_path(desc, &source_dir, &path);
         let imported_servers = import_mcp_servers(desc, &path)?;
 
         for server in imported_servers {
@@ -45,13 +45,13 @@ pub fn import_from_harness(harness_id: &str, project_dir: PathBuf) -> Result<usi
     }
 
     if added > 0 {
-        ship_config::project::save_config(&config, Some(project_dir))?;
+        ship_config::project::save_config(&config, Some(source_dir))?;
     }
     Ok(added)
 }
 
-fn import_scope_for_path(desc: &HarnessDescriptor, project_dir: &Path, path: &Path) -> String {
-    let project_scope_path = project_dir
+fn import_scope_for_path(desc: &HarnessDescriptor, source_dir: &Path, path: &Path) -> String {
+    let project_scope_path = source_dir
         .parent()
         .map(|root| root.join(desc.project_config));
     if project_scope_path.as_ref().is_some_and(|p| p == path) {
@@ -101,11 +101,11 @@ fn normalize_imported_server(mut server: McpServerConfig) -> Option<McpServerCon
 
 pub(super) fn harness_import_paths(
     desc: &HarnessDescriptor,
-    project_dir: &Path,
+    source_dir: &Path,
 ) -> Result<Vec<PathBuf>> {
-    let project_path_opt = project_dir
+    let project_path_opt = source_dir
         .parent()
-        .map(|project_root| project_root.join(desc.project_config));
+        .map(|space_root| space_root.join(desc.project_config));
     let global_path = home()?.join(desc.global_config);
     if let Some(project_path) = project_path_opt.as_ref()
         && project_path.exists()

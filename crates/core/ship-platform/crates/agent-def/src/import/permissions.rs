@@ -27,26 +27,26 @@ use std::path::{Path, PathBuf};
 
 use super::home;
 
-pub fn import_permissions_from_harness(harness_id: &str, project_dir: PathBuf) -> Result<bool> {
+pub fn import_permissions_from_harness(harness_id: &str, source_dir: PathBuf) -> Result<bool> {
     let imported = match harness_id {
-        "claude" => import_permissions_from_claude(&project_dir)?,
-        "codex" => import_permissions_from_codex(&project_dir)?,
+        "claude" => import_permissions_from_claude(&source_dir)?,
+        "codex" => import_permissions_from_codex(&source_dir)?,
         _ => return Err(anyhow!("Unsupported harness '{}'", harness_id)),
     };
 
     if let Some(permissions) = imported {
-        save_permissions(project_dir, &permissions)?;
+        save_permissions(source_dir, &permissions)?;
         Ok(true)
     } else {
         Ok(false)
     }
 }
 
-fn import_permissions_from_claude(project_dir: &Path) -> Result<Option<Permissions>> {
-    let Some(project_root) = project_dir.parent() else {
+fn import_permissions_from_claude(source_dir: &Path) -> Result<Option<Permissions>> {
+    let Some(space_root) = source_dir.parent() else {
         return Ok(None);
     };
-    let project_path = project_root.join(".claude").join("settings.json");
+    let project_path = space_root.join(".claude").join("settings.json");
     let global_path = home()?.join(".claude").join("settings.json");
     let path = if project_path.exists() {
         project_path
@@ -84,11 +84,11 @@ fn import_permissions_from_claude(project_dir: &Path) -> Result<Option<Permissio
 }
 
 
-fn import_permissions_from_codex(project_dir: &Path) -> Result<Option<Permissions>> {
-    let Some(project_root) = project_dir.parent() else {
+fn import_permissions_from_codex(source_dir: &Path) -> Result<Option<Permissions>> {
+    let Some(space_root) = source_dir.parent() else {
         return Ok(None);
     };
-    let path = project_root.join(".codex").join("config.toml");
+    let path = space_root.join(".codex").join("config.toml");
     if !path.exists() {
         return Ok(None);
     }
@@ -131,7 +131,7 @@ fn import_permissions_from_codex(project_dir: &Path) -> Result<Option<Permission
         }
     }
 
-    let rules_dir = project_root.join(".codex").join("rules");
+    let rules_dir = space_root.join(".codex").join("rules");
     if rules_dir.is_dir()
         && let Ok(entries) = fs::read_dir(&rules_dir)
     {

@@ -64,7 +64,7 @@ use serde_json::Value;
 ///
 /// `imported_modules` is the same `Vec<ModuleDescriptor>` the descriptor
 /// carries in `ResolvedConfig::imported_modules` (and in
-/// `ProjectLibrary::imported_modules`). An empty slice is the
+/// `SpaceLibrary::imported_modules`). An empty slice is the
 /// "no TS modules" case — the resolver on a `.jsonc`-only project; this
 /// fn returns an empty vec.
 pub async fn resolve_ts_files(

@@ -1,5 +1,5 @@
 use ship_platform::config::{
-    AgentLayerConfig, AgentProfile, McpServerConfig, McpServerType, ProjectConfig,
+    AgentLayerConfig, AgentProfile, McpServerConfig, McpServerType, SpaceManifest,
     PRIMARY_CONFIG_FILE, get_config, save_config,
 };
 use compiler::{McpRefs, ProfileMeta};
@@ -13,7 +13,7 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
     fs::create_dir_all(&ship_dir)?;
 
-    let config = ProjectConfig {
+    let config = SpaceManifest {
         harnesses: vec!["claude".to_string(), "codex".to_string()],
         agent: AgentLayerConfig {
             skills: vec!["task-policy".to_string()],
@@ -78,7 +78,7 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
     fs::create_dir_all(&ship_dir)?;
 
-    let config = ProjectConfig {
+    let config = SpaceManifest {
         harnesses: vec!["opencode".to_string()],
         agents: vec![AgentProfile {
             agent: ProfileMeta {

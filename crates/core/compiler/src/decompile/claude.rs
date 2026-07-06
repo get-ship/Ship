@@ -1,27 +1,27 @@
 //! Claude Code decompiler — parse `.claude/settings.json`, `CLAUDE.md`, `.mcp.json`
-//! into a [`ProjectLibrary`].
+//! into a [`SpaceLibrary`].
 
 use std::path::Path;
 
 use serde_json::Value as Json;
 
-use crate::ProjectLibrary;
+use crate::SpaceLibrary;
 use crate::types::{AgentLimits, HookConfig, HookTrigger, Permissions, Rule, ToolPermissions};
 
 use super::claude_mcp::parse_mcp_json;
 use super::json_string_array;
 
-/// Parse Claude Code native config files and produce a partial [`ProjectLibrary`].
+/// Parse Claude Code native config files and produce a partial [`SpaceLibrary`].
 ///
 /// Reads (if present):
 /// - `.claude/settings.json` → permissions, hooks, model, env, agent limits, harness_defaults
 /// - `CLAUDE.md` → rules
 /// - `.mcp.json` → mcp_servers
-pub fn decompile_claude(project_root: &Path) -> ProjectLibrary {
-    let mut library = ProjectLibrary::default();
+pub fn decompile_claude(space_root: &Path) -> SpaceLibrary {
+    let mut library = SpaceLibrary::default();
 
     // ── .claude/settings.json ────────────────────────────────────────────────
-    let settings_path = project_root.join(".claude").join("settings.json");
+    let settings_path = space_root.join(".claude").join("settings.json");
     if let Ok(content) = std::fs::read_to_string(&settings_path)
         && let Ok(json) = serde_json::from_str::<Json>(&content)
     {
@@ -29,7 +29,7 @@ pub fn decompile_claude(project_root: &Path) -> ProjectLibrary {
     }
 
     // ── CLAUDE.md ────────────────────────────────────────────────────────────
-    let claude_md = project_root.join("CLAUDE.md");
+    let claude_md = space_root.join("CLAUDE.md");
     if let Ok(content) = std::fs::read_to_string(&claude_md) {
         let trimmed = content.trim();
         if !trimmed.is_empty() {
@@ -44,7 +44,7 @@ pub fn decompile_claude(project_root: &Path) -> ProjectLibrary {
     }
 
     // ── .mcp.json ────────────────────────────────────────────────────────────
-    let mcp_path = project_root.join(".mcp.json");
+    let mcp_path = space_root.join(".mcp.json");
     if let Ok(content) = std::fs::read_to_string(&mcp_path)
         && let Ok(json) = serde_json::from_str::<Json>(&content)
     {
@@ -71,7 +71,7 @@ const KNOWN_SETTINGS_KEYS: &[&str] = &[
     "autoMemoryEnabled",
 ];
 
-fn parse_claude_settings(library: &mut ProjectLibrary, settings: &Json) {
+fn parse_claude_settings(library: &mut SpaceLibrary, settings: &Json) {
     let obj = match settings.as_object() {
         Some(o) => o,
         None => return,

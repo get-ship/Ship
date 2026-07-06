@@ -59,7 +59,7 @@ pub struct HarnessDescriptor {
     pub name: &'static str,
     /// Binary name for PATH detection.
     pub binary: &'static str,
-    /// Config file path relative to project root.
+    /// Config file path relative to the space root.
     pub project_config: &'static str,
     /// Config file path relative to home directory.
     pub global_config: &'static str,
@@ -314,7 +314,7 @@ pub fn autodetect_harnesses(project_dir: &std::path::Path) -> Result<Vec<String>
 /// Return models for a specific harness by ID.
 pub fn list_models(harness_id: &str) -> Result<Vec<ModelInfo>> {
     let d = require_harness(harness_id)?;
-    Ok(discover_models(d, resolve_project_dir_for_models().as_deref()))
+    Ok(discover_models(d, resolve_space_dir_for_models().as_deref()))
 }
 
 pub(crate) fn require_harness(id: &str) -> Result<&'static HarnessDescriptor> {
@@ -324,7 +324,7 @@ pub(crate) fn require_harness(id: &str) -> Result<&'static HarnessDescriptor> {
     })
 }
 
-fn resolve_project_dir_for_models() -> Option<PathBuf> {
+fn resolve_space_dir_for_models() -> Option<PathBuf> {
     let cwd = std::env::current_dir().ok()?;
     if cwd
         .file_name()
@@ -388,9 +388,9 @@ fn harness_model_env_keys(harness_id: &str) -> &'static [&'static str] {
 fn harness_model_config_paths(desc: &HarnessDescriptor, project_dir: Option<&Path>) -> Vec<PathBuf> {
     let mut paths = Vec::new();
     if let Some(project_dir) = project_dir
-        && let Some(project_root) = project_dir.parent()
+        && let Some(space_root) = project_dir.parent()
     {
-        paths.push(project_root.join(desc.project_config));
+        paths.push(space_root.join(desc.project_config));
     }
     // Fallback to HOME for harnesses whose global config is not under ~/.ship.
     if let Some(home) = std::env::var_os("HOME") {

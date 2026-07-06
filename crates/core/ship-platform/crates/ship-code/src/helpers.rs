@@ -71,7 +71,7 @@ pub fn compile_agent_config(
     // daemon-hosted authed-HTTP `ship` MCP entry (scope-enforced) rather
     // than the trusted-local stdio shim.
     let summary = agent_def::compile::compile_project(&agent_def::compile::CompileOptions {
-        project_root: worktree_path.to_path_buf(),
+        space_root: worktree_path.to_path_buf(),
         output_root: None,
         harness: None,
         active_agent: Some(agent_id.to_string()),

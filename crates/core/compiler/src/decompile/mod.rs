@@ -1,7 +1,6 @@
-//! Decompile — reverse-compile harness-native configs into a [`ProjectLibrary`].
+//! Decompile — reverse-compile harness-native configs into a [`SpaceLibrary`].
 //!
-//! Each harness module parses its native config files and produces a partial
-//! [`ProjectLibrary`]. The caller merges results from multiple harnesses.
+//! [`SpaceLibrary`]. The caller merges results from multiple harnesses.
 
 mod claude;
 mod claude_mcp;
@@ -40,7 +39,7 @@ use std::path::Path;
 
 use serde_json::Value as Json;
 
-use crate::ProjectLibrary;
+use crate::SpaceLibrary;
 
 /// Extract a JSON array of strings from an optional JSON value.
 /// Shared by multiple decompile modules.
@@ -86,39 +85,39 @@ impl DetectedProviders {
     }
 }
 
-/// Detect which harness configs exist in a project directory.
-pub fn detect_harnesses(project_root: &Path) -> DetectedProviders {
+/// Detect which harness configs exist in a space directory.
+pub fn detect_harnesses(space_root: &Path) -> DetectedProviders {
     DetectedProviders {
-        claude: project_root.join(".claude").is_dir()
-            || project_root.join("CLAUDE.md").exists()
-            || project_root.join(".mcp.json").exists(),
-        codex: project_root.join(".codex").is_dir() || project_root.join("AGENTS.md").exists(),
-        opencode: project_root.join(".opencode").is_dir()
-            || project_root.join("opencode.json").exists(),
+        claude: space_root.join(".claude").is_dir()
+            || space_root.join("CLAUDE.md").exists()
+            || space_root.join(".mcp.json").exists(),
+        codex: space_root.join(".codex").is_dir() || space_root.join("AGENTS.md").exists(),
+        opencode: space_root.join(".opencode").is_dir()
+            || space_root.join("opencode.json").exists(),
     }
 }
 
-/// Decompile all detected harnesses in a directory into a single [`ProjectLibrary`].
+/// Decompile all detected harnesses in a directory into a single [`SpaceLibrary`].
 ///
 /// MCP servers, rules, permissions, and hooks are merged. Harness-specific
 /// settings go into `harness_defaults`. The caller should write the result
 /// to `.ship/`.
-pub fn decompile_all(project_root: &Path) -> ProjectLibrary {
-    let detected = detect_harnesses(project_root);
-    let mut library = ProjectLibrary::default();
+pub fn decompile_all(space_root: &Path) -> SpaceLibrary {
+    let detected = detect_harnesses(space_root);
+    let mut library = SpaceLibrary::default();
 
     if detected.claude {
-        let partial = decompile_claude(project_root);
+        let partial = decompile_claude(space_root);
         merge_into(&mut library, partial, "claude");
     }
 
     if detected.codex {
-        let partial = decompile_codex(project_root);
+        let partial = decompile_codex(space_root);
         merge_into(&mut library, partial, "codex");
     }
 
     if detected.opencode {
-        let partial = decompile_opencode(project_root);
+        let partial = decompile_opencode(space_root);
         merge_into(&mut library, partial, "opencode");
     }
 
@@ -126,7 +125,7 @@ pub fn decompile_all(project_root: &Path) -> ProjectLibrary {
 }
 
 /// Merge a harness-specific partial library into the accumulator.
-fn merge_into(target: &mut ProjectLibrary, source: ProjectLibrary, harness_id: &str) {
+fn merge_into(target: &mut SpaceLibrary, source: SpaceLibrary, harness_id: &str) {
     // MCP servers — deduplicate by id
     for server in source.mcp_servers {
         if !target.mcp_servers.iter().any(|s| s.id == server.id) {

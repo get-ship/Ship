@@ -241,8 +241,8 @@ fn codex_sandbox_not_emitted_for_other_harnesses() {
 /// Model from library flows through to codex config as `model = "..."`.
 #[test]
 fn library_model_flows_to_codex_config() {
-    use crate::resolve::{ProjectLibrary, resolve_library};
-    let library = ProjectLibrary {
+    use crate::resolve::{SpaceLibrary, resolve_library};
+    let library = SpaceLibrary {
         model: Some("o4-mini".to_string()),
         ..Default::default()
     };

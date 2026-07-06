@@ -20,8 +20,8 @@ fn setup_minimal_project(tmp: &TempDir) {
 }
 
 #[test]
-fn compile_worktree_output_root_separates_from_project_root() {
-    // Simulates the actual worktree case: .ship/ config lives in project_root
+fn compile_worktree_output_root_separates_from_space_root() {
+    // Simulates the actual worktree case: .ship/ config lives in space_root
     // but compiled output (CLAUDE.md, .mcp.json) goes to a separate output_root.
     // SHIP_HOME pinned via the shared lock — config tests in another module
     // mutate the same env var; without coordination they'd race and the
@@ -36,7 +36,7 @@ fn compile_worktree_output_root_separates_from_project_root() {
     setup_minimal_project(&project);
 
     run_compile(CompileOptions {
-        project_root: project.path(),
+        space_root: project.path(),
         output_root: Some(output.path()),
         harness: Some("claude"),
         dry_run: false,
@@ -47,11 +47,11 @@ fn compile_worktree_output_root_separates_from_project_root() {
     })
     .unwrap();
 
-    // Output files must be in output_root, not project_root.
+    // Output files must be in output_root, not space_root.
     assert!(output.path().join(".mcp.json").exists(), ".mcp.json must be written to output_root");
-    assert!(!project.path().join(".mcp.json").exists(), ".mcp.json must NOT be written to project_root");
+    assert!(!project.path().join(".mcp.json").exists(), ".mcp.json must NOT be written to space_root");
     assert!(output.path().join("CLAUDE.md").exists(), "CLAUDE.md must be written to output_root");
-    assert!(!project.path().join("CLAUDE.md").exists(), "CLAUDE.md must NOT be written to project_root");
+    assert!(!project.path().join("CLAUDE.md").exists(), "CLAUDE.md must NOT be written to space_root");
 
     // Verify .mcp.json content: the ship-internal MCP server is NOT injected
     // (ripped in #236 — MCP was culled). User-provided external servers

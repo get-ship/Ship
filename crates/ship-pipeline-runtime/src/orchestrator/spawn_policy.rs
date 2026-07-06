@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use ship_platform::config::ProjectConfig;
+use ship_platform::config::SpaceManifest;
 use ship_code::dispatch_ports::{AgentPlatform, Authority, SpawnPolicy};
 
 /// The current behavior, behind the port: resolve the agent's declared role
@@ -31,7 +31,7 @@ impl ConfigSpawnPolicy {
 /// The declared role of `agent` in the project config, if any. Drives the
 /// scoped token's capabilities at spawn. Pure (takes the loaded config) so the
 /// mapping is unit-testable without touching the process-global cwd.
-fn agent_role(cfg: &ProjectConfig, agent: &str) -> Option<String> {
+fn agent_role(cfg: &SpaceManifest, agent: &str) -> Option<String> {
     cfg.agents
         .iter()
         .find(|a| a.agent.id == agent)
@@ -104,8 +104,8 @@ mod role_tests {
     use ship_platform::config::AgentProfile;
     use compiler::ProfileMeta;
 
-    fn cfg_with(id: &str, role: Option<&str>) -> ProjectConfig {
-        ProjectConfig {
+    fn cfg_with(id: &str, role: Option<&str>) -> SpaceManifest {
+        SpaceManifest {
             agents: vec![AgentProfile {
                 agent: ProfileMeta {
                     id: id.to_string(),

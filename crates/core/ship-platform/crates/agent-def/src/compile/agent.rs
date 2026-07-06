@@ -6,7 +6,7 @@
 //! `resolve()` can filter MCP / skill / rule refs against it.
 
 use anyhow::Result;
-use compiler::{PluginEntry, PluginsManifest, ProjectLibrary};
+use compiler::{PluginEntry, PluginsManifest, SpaceLibrary};
 use std::path::Path;
 
 use super::permissions::apply_agent_permissions;
@@ -14,9 +14,9 @@ use super::permissions::apply_agent_permissions;
 // ── Agent → library ──────────────────────────────────────────────────────────
 
 pub fn apply_agent_to_library(
-    library: &mut ProjectLibrary,
+    library: &mut SpaceLibrary,
     agent_id: &str,
-    project_root: &Path,
+    space_root: &Path,
 ) -> Result<()> {
     let Some(profile) = library
         .agent_profiles
@@ -27,7 +27,7 @@ pub fn apply_agent_to_library(
         return Ok(());
     };
 
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_root);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
 
     library.permissions =
         apply_agent_permissions(library.permissions.clone(), &profile, Some(&ship_dir));
@@ -85,15 +85,15 @@ pub fn apply_agent_to_library(
         library.cursor_settings_extra = Some(v.clone());
     }
 
-    library.claude_team_agents = load_team_agents(project_root, "claude");
+    library.claude_team_agents = load_team_agents(space_root, "claude");
 
     Ok(())
 }
 
 // ── Team agents ──────────────────────────────────────────────────────────────
 
-fn load_team_agents(project_root: &Path, harness_id: &str) -> Vec<(String, String)> {
-    let teams_dir = ship_substrate::ShipHome::project_ship_dir(project_root)
+fn load_team_agents(space_root: &Path, harness_id: &str) -> Vec<(String, String)> {
+    let teams_dir = ship_substrate::ShipHome::project_ship_dir(space_root)
         .join("agents")
         .join("teams")
         .join(harness_id);
@@ -124,7 +124,7 @@ fn load_team_agents(project_root: &Path, harness_id: &str) -> Vec<(String, Strin
 /// `library`. Only dep refs (those starting with `github.com/`) will be resolved
 /// by the caller; local refs are included in the list but filtered in
 /// [`resolve_dep_skills`](ship_store::dep_skills::resolve_dep_skills).
-pub fn collect_all_skill_refs(library: &ProjectLibrary) -> Vec<String> {
+pub fn collect_all_skill_refs(library: &SpaceLibrary) -> Vec<String> {
     let mut refs: Vec<String> = Vec::new();
 
     for profile in &library.agent_profiles {

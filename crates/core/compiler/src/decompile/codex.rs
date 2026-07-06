@@ -1,11 +1,11 @@
-//! Codex CLI decompiler — parse `.codex/config.toml` and `AGENTS.md` into a [`ProjectLibrary`].
+//! Codex CLI decompiler — parse `.codex/config.toml` and `AGENTS.md` into a [`SpaceLibrary`].
 
 use std::collections::HashMap;
 use std::path::Path;
 
 use serde_json::Value as Json;
 
-use crate::ProjectLibrary;
+use crate::SpaceLibrary;
 use crate::types::{McpServerConfig, McpServerType, Rule};
 
 /// Known top-level keys in `.codex/config.toml` that map to structured Ship fields.
@@ -20,16 +20,16 @@ const KNOWN_CONFIG_KEYS: &[&str] = &[
     "mcp_servers",
 ];
 
-/// Parse Codex CLI native config files and produce a partial [`ProjectLibrary`].
+/// Parse Codex CLI native config files and produce a partial [`SpaceLibrary`].
 ///
 /// Reads (if present):
 /// - `.codex/config.toml` → model, codex settings, MCP servers, harness_defaults
 /// - `AGENTS.md` → rules
-pub fn decompile_codex(project_root: &Path) -> ProjectLibrary {
-    let mut library = ProjectLibrary::default();
+pub fn decompile_codex(space_root: &Path) -> SpaceLibrary {
+    let mut library = SpaceLibrary::default();
 
     // ── .codex/config.toml ───────────────────────────────────────────────────
-    let config_path = project_root.join(".codex").join("config.toml");
+    let config_path = space_root.join(".codex").join("config.toml");
     if let Ok(content) = std::fs::read_to_string(&config_path)
         && let Ok(table) = content.parse::<toml::Table>()
     {
@@ -37,7 +37,7 @@ pub fn decompile_codex(project_root: &Path) -> ProjectLibrary {
     }
 
     // ── AGENTS.md ────────────────────────────────────────────────────────────
-    let agents_md = project_root.join("AGENTS.md");
+    let agents_md = space_root.join("AGENTS.md");
     if let Ok(content) = std::fs::read_to_string(&agents_md) {
         let trimmed = content.trim();
         if !trimmed.is_empty() {
@@ -54,7 +54,7 @@ pub fn decompile_codex(project_root: &Path) -> ProjectLibrary {
     library
 }
 
-fn parse_codex_config(library: &mut ProjectLibrary, table: &toml::Table) {
+fn parse_codex_config(library: &mut SpaceLibrary, table: &toml::Table) {
     // ── Model ────────────────────────────────────────────────────────────────
     if let Some(toml::Value::String(m)) = table.get("model") {
         library.model = Some(m.clone());

@@ -287,7 +287,7 @@ impl ShipRuntime {
         // the one resolve path. The resolver owns the V8 `!Send` crossing
         // internally; shipd upserts the plain-data result, so `.ts` and
         // `.jsonc` agents coexist in the index.
-        match ship_resolver::resolve_project(&workspace).await {
+        match ship_resolver::resolve_space(&workspace).await {
             Ok(resolved) => {
                 for profile in &resolved.agent_profiles {
                     let id = profile.agent.id.clone();

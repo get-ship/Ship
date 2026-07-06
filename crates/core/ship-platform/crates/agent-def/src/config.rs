@@ -219,7 +219,7 @@ pub fn resolve_harness_settings_with_agent_override(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ship_config::project::{AgentProfile, McpServerType, ProjectConfig, save_config};
+    use ship_config::project::{AgentProfile, McpServerType, SpaceManifest, save_config};
     use compiler::{McpRefs, ProfileMeta, ProfileRules, SkillRefs};
     use crate::testutil::init_project;
     use crate::rule::create_rule;
@@ -276,7 +276,7 @@ mod tests {
         create_skill(&ship_dir, "rt-alpha-skill", "Alpha", "alpha body")?;
         create_skill(&ship_dir, "rt-beta-skill", "Beta", "beta body")?;
 
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             harnesses: vec!["claude".to_string(), "opencode".to_string()],
             mcp_servers: vec![stdio_server("github", "github-bin")],
             ..Default::default()
@@ -335,7 +335,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = init_project(tmp.path())?;
 
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             mcp_servers: vec![
                 stdio_server("github", "github-bin"),
                 stdio_server("linear", "linear-bin"),
@@ -366,7 +366,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = init_project(tmp.path())?;
 
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             mcp_servers: vec![stdio_server("github", "ship-toml-command")],
             ..Default::default()
         };
@@ -430,7 +430,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = init_project(tmp.path())?;
 
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             mcp_servers: vec![
                 stdio_server("github", "github-bin"),
                 stdio_server("linear", "linear-bin"),
@@ -508,7 +508,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = init_project(tmp.path())?;
 
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             harnesses: vec!["opencode".to_string()],
             ..Default::default()
         };
@@ -539,7 +539,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = init_project(tmp.path())?;
 
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             harnesses: vec!["opencode".to_string(), "claude".to_string()],
             ..Default::default()
         };
@@ -564,7 +564,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = init_project(tmp.path())?;
 
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             harnesses: vec!["unknown-harness".to_string(), "   ".to_string()],
             ..Default::default()
         };
@@ -588,7 +588,7 @@ mod tests {
             "# Runtime Hardening\n",
         )?;
 
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             // active_agent removed — pass via override
             agents: vec![AgentProfile {
                 agent: ProfileMeta {
@@ -636,7 +636,7 @@ mod tests {
         create_skill(&ship_dir, "rt-plan-skill", "Plan Skill", "plan body")?;
         create_skill(&ship_dir, "rt-code-skill", "Code Skill", "code body")?;
 
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             // active_agent removed — pass via override
             agents: vec![
                 AgentProfile {
@@ -663,7 +663,7 @@ mod tests {
         save_config(&config, Some(ship_dir.clone()))?;
 
         // Baseline (no project active_agent — the field no longer exists in
-        // ProjectConfig — and no override): no agent is selected, no skills
+        // SpaceManifest — and no override): no agent is selected, no skills
         // get filtered in.
         let baseline = resolve_harness_settings(&ship_dir, None)?;
         assert_eq!(baseline.active_agent, None);

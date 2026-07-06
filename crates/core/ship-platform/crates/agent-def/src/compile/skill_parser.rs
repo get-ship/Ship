@@ -1,5 +1,5 @@
 //! Parse SKILL.md frontmatter per the agentskills.io spec, and load skills
-//! from all directories declared in `project.skill_paths`.
+//! from all directories declared in `space.skill_paths`.
 //!
 //! This is the compile-pipeline skill loader. The parser itself is the
 //! CANONICAL one in `compiler::skill_parser` (single source for both the
@@ -73,12 +73,12 @@ pub use compiler::skill_parser::parse_skill;
 
 // ── Skill loader ─────────────────────────────────────────────────────────────
 
-/// Load skills from all directories declared in `project.skill_paths`.
+/// Load skills from all directories declared in `space.skill_paths`.
 /// Always scans `.ship/skills/` (primary); other dirs resolve relative to the
-/// project root (parent of `.ship/`).
+/// space root (parent of `.ship/`).
 pub fn load_skills(ship_dir: &Path) -> Result<Vec<Skill>> {
-    let project_root = ship_dir.parent().unwrap_or(ship_dir);
-    let skill_dirs = crate::skill_paths::read_skill_paths(ship_dir, project_root);
+    let space_root = ship_dir.parent().unwrap_or(ship_dir);
+    let skill_dirs = crate::skill_paths::read_skill_paths(ship_dir, space_root);
     let primary = skill_dirs.first().cloned();
 
     let mut skills = Vec::new();

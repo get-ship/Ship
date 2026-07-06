@@ -100,11 +100,11 @@ pub struct NamespaceConfig {
     pub owner: String,
 }
 
-// ─── Root project config (ship.toml) ─────────────────────────────────────────
+// ─── Root space manifest (ship.toml) ─────────────────────────────────────────
 
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ProjectConfig {
+pub struct SpaceManifest {
     #[serde(default = "default_version")]
     pub version: String,
     #[serde(default)]
@@ -125,7 +125,7 @@ pub struct ProjectConfig {
     pub agent: AgentLayerConfig,
 }
 
-impl Default for ProjectConfig {
+impl Default for SpaceManifest {
     fn default() -> Self {
         Self {
             version: default_version(),

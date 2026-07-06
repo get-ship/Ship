@@ -35,7 +35,7 @@ fn setup_minimal_project(tmp: &TempDir) {
 
 fn opts_for(tmp: &TempDir, harness: &str) -> CompileOptions {
     CompileOptions {
-        project_root: tmp.path().to_path_buf(),
+        space_root: tmp.path().to_path_buf(),
         output_root: None,
         harness: Some(harness.to_string()),
         active_agent: None,
@@ -442,7 +442,7 @@ fn compile_dry_run_writes_nothing() {
     let tmp = TempDir::new().unwrap();
     setup_minimal_project(&tmp);
     compile_project(&CompileOptions {
-        project_root: tmp.path().to_path_buf(),
+        space_root: tmp.path().to_path_buf(),
         output_root: None,
         harness: Some("claude".to_string()),
         active_agent: None,
@@ -461,7 +461,7 @@ fn dry_run_outputs_present_in_summary() {
     let tmp = TempDir::new().unwrap();
     setup_minimal_project(&tmp);
     let summary = compile_project(&CompileOptions {
-        project_root: tmp.path().to_path_buf(),
+        space_root: tmp.path().to_path_buf(),
         output_root: None,
         harness: Some("claude".to_string()),
         active_agent: None,
@@ -507,7 +507,7 @@ fn compile_with_mode_applies_permissions() {
 }"#,
     );
     compile_project(&CompileOptions {
-        project_root: tmp.path().to_path_buf(),
+        space_root: tmp.path().to_path_buf(),
         output_root: None,
         harness: Some("claude".to_string()),
         active_agent: Some("readonly".to_string()),
@@ -537,7 +537,7 @@ fn compile_with_mode_inline_rules_adds_to_context() {
 }"#,
     );
     compile_project(&CompileOptions {
-        project_root: tmp.path().to_path_buf(),
+        space_root: tmp.path().to_path_buf(),
         output_root: None,
         harness: Some("claude".to_string()),
         active_agent: Some("strict".to_string()),
@@ -570,7 +570,7 @@ fn compile_with_mode_uses_permissions_jsonc_preset() {
         r#"{ "agent": { "id": "fast", "name": "Fast", "harnesses": ["claude"] }, "permissions": { "preset": "ship-fast" } }"#,
     );
     compile_project(&CompileOptions {
-        project_root: tmp.path().to_path_buf(),
+        space_root: tmp.path().to_path_buf(),
         output_root: None,
         harness: Some("claude".to_string()),
         active_agent: Some("fast".to_string()),
@@ -602,7 +602,7 @@ fn extra_skill_included_in_output() {
     write(tmp.path(), ".ship/skills/base-skill/SKILL.md", "---\nname: base-skill\n---\nBase skill content.");
     write(tmp.path(), ".ship/skills/compiler-docs/SKILL.md", "---\nname: compiler-docs\n---\nCompiler docs content.");
     compile_project(&CompileOptions {
-        project_root: tmp.path().to_path_buf(),
+        space_root: tmp.path().to_path_buf(),
         output_root: None,
         harness: Some("claude".to_string()),
         active_agent: Some("rust-lane".to_string()),
@@ -625,7 +625,7 @@ fn extra_skill_included_in_output() {
 fn nonexistent_extra_skill_returns_clear_error() {
     let tmp = TempDir::new().unwrap();
     let err = compile_project(&CompileOptions {
-        project_root: tmp.path().to_path_buf(),
+        space_root: tmp.path().to_path_buf(),
         output_root: None,
         harness: Some("claude".to_string()),
         active_agent: None,
@@ -652,7 +652,7 @@ fn no_extra_skills_behaviour_unchanged() {
     write(tmp.path(), ".ship/skills/base-skill/SKILL.md", "---\nname: base-skill\n---\nBase skill content.");
     write(tmp.path(), ".ship/skills/other/SKILL.md", "---\nname: other\n---\nOther content.");
     compile_project(&CompileOptions {
-        project_root: tmp.path().to_path_buf(),
+        space_root: tmp.path().to_path_buf(),
         output_root: None,
         harness: Some("claude".to_string()),
         active_agent: Some("rust-lane".to_string()),
@@ -674,12 +674,12 @@ fn no_extra_skills_behaviour_unchanged() {
 // ── output_root separation ────────────────────────────────────────────────────
 
 #[test]
-fn compile_output_root_separates_from_project_root() {
+fn compile_output_root_separates_from_space_root() {
     let project = TempDir::new().unwrap();
     let output = TempDir::new().unwrap();
     setup_minimal_project(&project);
     compile_project(&CompileOptions {
-        project_root: project.path().to_path_buf(),
+        space_root: project.path().to_path_buf(),
         output_root: Some(output.path().to_path_buf()),
         harness: Some("claude".to_string()),
         active_agent: None,
@@ -690,9 +690,9 @@ fn compile_output_root_separates_from_project_root() {
     })
     .unwrap();
     assert!(output.path().join(".mcp.json").exists(), ".mcp.json must be in output_root");
-    assert!(!project.path().join(".mcp.json").exists(), ".mcp.json must NOT be in project_root");
+    assert!(!project.path().join(".mcp.json").exists(), ".mcp.json must NOT be in space_root");
     assert!(output.path().join("CLAUDE.md").exists(), "CLAUDE.md must be in output_root");
-    assert!(!project.path().join("CLAUDE.md").exists(), "CLAUDE.md must NOT be in project_root");
+    assert!(!project.path().join("CLAUDE.md").exists(), "CLAUDE.md must NOT be in space_root");
 }
 
 // ── McpFile round-trip ────────────────────────────────────────────────────────

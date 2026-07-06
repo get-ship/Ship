@@ -13,7 +13,7 @@ use crate::config::{
 };
 use crate::rule::create_rule;
 use crate::skill::create_skill;
-use ship_config::project::{AgentProfile, McpServerConfig, McpServerType, ProjectConfig, save_config};
+use ship_config::project::{AgentProfile, McpServerConfig, McpServerType, SpaceManifest, save_config};
 use compiler::{McpRefs, ProfileMeta, SkillRefs};
 use crate::testutil::init_project;
 use std::collections::HashMap;
@@ -75,7 +75,7 @@ fn agents_profile_resolution_agent_profile_filters_mcp_servers() -> Result<()> {
     let tmp = tempdir()?;
     let ship_dir = init_project(tmp.path())?;
 
-    let config = ProjectConfig {
+    let config = SpaceManifest {
         mcp_servers: vec![
             stdio_server("github", "github-bin"),
             stdio_server("linear", "linear-bin"),
@@ -108,7 +108,7 @@ fn agents_profile_resolution_agent_profile_filters_skills() -> Result<()> {
     create_skill(&ship_dir, "skill-a", "A", "body a")?;
     create_skill(&ship_dir, "skill-b", "B", "body b")?;
 
-    let config = ProjectConfig {
+    let config = SpaceManifest {
         agents: vec![AgentProfile {
             agent: ProfileMeta {
                 id: "narrow".to_string(),

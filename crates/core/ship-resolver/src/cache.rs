@@ -49,9 +49,9 @@
 //! - Census: `census-phase2-resolver.md` Part 3e-3g (cache today) + Part 5 J5
 //!   (this module's scope).
 //! - Determinism: `inv-fmt-deterministic-eval` (`ship-stack-format.json:30-33`).
-//! - Resolver surface: `descriptor::project_library_content_hash` is the
+//! - Resolver surface: `descriptor::space_library_content_hash` is the
 //!   hash the cache keys on (the caller of `get_or_load` computes it from
-//!   the `ProjectLibrary`).
+//!   the `SpaceLibrary`).
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -389,13 +389,13 @@ mod tests {
         (tmp, cache)
     }
 
-    /// Build a cache + watcher pair. The project root the watcher
+    /// Build a cache + watcher pair. The space root the watcher
     /// watches is a sibling of the cache root.
     fn make_cache_with_watcher() -> (TempDir, DescriptorCache, ResolverWatcher) {
         let tmp = tempfile::tempdir().unwrap();
-        let project_root = tmp.path().join("proj");
-        std::fs::create_dir_all(&project_root).unwrap();
-        let watcher = ResolverWatcher::spawn(&project_root).unwrap();
+        let space_root = tmp.path().join("proj");
+        std::fs::create_dir_all(&space_root).unwrap();
+        let watcher = ResolverWatcher::spawn(&space_root).unwrap();
         let cache = DescriptorCache::open(tmp.path().join("cache"), Some(&watcher)).unwrap();
         (tmp, cache, watcher)
     }

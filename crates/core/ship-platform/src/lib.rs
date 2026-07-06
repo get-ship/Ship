@@ -22,7 +22,7 @@ pub mod config {
     // Project config
     pub use ship_config::project::{
         AgentProfile, HarnessProjectOverrides, McpConfig, McpSection, McpServerConfig,
-        McpServerType, ProjectConfig, ProjectDiscovery,
+        McpServerType, ProjectDiscovery, SpaceManifest,
     };
 
     // MCP

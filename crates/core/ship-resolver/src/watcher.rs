@@ -138,8 +138,8 @@ pub struct ResolverWatcher {
 }
 
 impl ResolverWatcher {
-    /// Spawn a watcher over `project_root`. The watch is rooted at
-    /// the project root with a recursive `WatchOpts::recursive(50ms)`,
+    /// Spawn a watcher over `space_root`. The watch is rooted at
+    /// the space root with a recursive `WatchOpts::recursive(50ms)`,
     /// the spec's value. Returns an RAII handle; the consumer task
     /// lives for the handle's lifetime.
     ///
@@ -149,8 +149,8 @@ impl ResolverWatcher {
     /// to the unwatched path; the cache (J5) is the only consumer
     /// that requires a watcher, and it works without one (the cache
     /// just never sees an invalidation tick).
-    pub fn spawn(project_root: &Path) -> Result<Self> {
-        let root = project_root.to_path_buf();
+    pub fn spawn(space_root: &Path) -> Result<Self> {
+        let root = space_root.to_path_buf();
         if !root.exists() {
             anyhow::bail!(
                 "resolver watcher: project root does not exist: {}",

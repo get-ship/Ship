@@ -278,7 +278,7 @@ Referenced from `[agents.<name>]` in `.codex/config.toml`.
 
 ## Harness-Specific Settings
 
-These settings affect **how the agent runs** (model, sandbox, approval policy, telemetry) rather than what it can do — orthogonal to workspace modes. They require a `harness_config: HashMap<String, Value>` concept in `ProjectLibrary` (not yet implemented).
+These settings affect **how the agent runs** (model, sandbox, approval policy, telemetry) rather than what it can do — orthogonal to workspace modes. They require a `harness_config: HashMap<String, Value>` concept in `SpaceLibrary` (not yet implemented).
 
 <!-- verified: 2026-03-14 source: https://developers.openai.com/codex/config-advanced -->
 

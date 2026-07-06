@@ -3,14 +3,14 @@ name = "ship-resolver"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Phase-2 project-shape resolver — composes the compiler leaf (config types) with agent-config-eval (TS eval) over the FsBroker gated door. Emits a canonical ProjectLibrary + ResolvedConfig descriptor."
+description = "Phase-2 space-shape resolver — composes the compiler leaf (config types) with agent-config-eval (TS eval) over the FsBroker gated door. Emits a canonical SpaceLibrary + ResolvedConfig descriptor."
 
 [dependencies]
 # The L0 leaf — config types, the `load_library` walk over `.ship/`, the
 # `resolve_library` pure transform, and the Phase-2 field set the descriptor
 # carries (skills_dir, rules_dir, skill_paths, per_agent_skills, modules,
 # globals, space_rollup_inputs). The new resolver composes with `load_library`
-# for the bulk of the read path; the additive `read_project_skill_paths`
+# for the bulk of the read path; the additive `read_space_skill_paths`
 # landing in the leaf per the F1 brief (option A: embrace the superset) is
 # the only leaf change.
 compiler = { path = "../compiler" }

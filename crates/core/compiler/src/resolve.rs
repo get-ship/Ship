@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use crate::types::{
     AgentProfile, HookConfig, McpServerConfig, Permissions, PluginsManifest,
-    ProjectConfig, Rule, Skill,
+    SpaceManifest, Rule, Skill,
 };
 
 // ─── Phase-2 descriptor types ────────────────────────────────────────────────
@@ -56,8 +56,8 @@ impl RollupInputs {
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct ExtensionDescriptor {
     pub source: ExtSource,
-    pub project_root: PathBuf,
-    pub descriptor: ProjectLibrary,
+    pub space_root: PathBuf,
+    pub descriptor: SpaceLibrary,
     pub content_hash: String,
 }
 
@@ -137,7 +137,7 @@ pub struct ResolvedConfig {
     pub hooks: Vec<HookConfig>,
     pub active_agent: Option<String>,
     /// Plugin install intent declared by the active preset.
-    /// Passed through unchanged from `ProjectLibrary::plugins`.
+    /// Passed through unchanged from `SpaceLibrary::plugins`.
     pub plugins: PluginsManifest,
     /// Agent profiles parsed from `.ship/agents/*.toml`.
     /// Compiled into harness-native subagent definitions.
@@ -204,7 +204,7 @@ pub struct ResolvedConfig {
 /// The manifest holds identity only; the library holds everything the compiler needs.
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct ProjectLibrary {
+pub struct SpaceLibrary {
     /// Agent definitions from `agents/*.jsonc`.
     #[serde(default)]
     pub agents: Vec<AgentProfile>,
@@ -303,7 +303,7 @@ pub struct ProjectLibrary {
     /// default `.ship/rules/`. The `rules_dir` key in `ship.ts` lands here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rules_dir: Option<String>,
-    /// Additional skill paths from `project.skill_paths` in `ship.jsonc`
+    /// Additional skill paths from `space.skill_paths` in `ship.jsonc`
     /// (migrated from agent-def's `skill_paths.rs`). Paths are project-relative;
     /// absolute paths are rejected at the call site. The first entry is always
     /// the default `.ship/skills/` (preserves today's behavior).
@@ -351,14 +351,14 @@ fn merge_harness_extra(
     }
 }
 
-/// Resolve a [`ProjectLibrary`] directly — the new-model entry point.
-/// No `ProjectConfig` or filesystem access required.
+/// Resolve a [`SpaceLibrary`] directly — the new-model entry point.
+/// No `SpaceManifest` or filesystem access required.
 pub fn resolve_library(
-    library: &ProjectLibrary,
+    library: &SpaceLibrary,
     feature: Option<&WorkspaceOverrides>,
     active_agent_override: Option<&str>,
 ) -> ResolvedConfig {
-    let config = ProjectConfig {
+    let config = SpaceManifest {
         agents: library.agents.clone(),
         mcp_servers: library.mcp_servers.clone(),
         ..Default::default()
@@ -427,7 +427,7 @@ pub fn resolve_library(
 }
 
 pub fn resolve(
-    config: &ProjectConfig,
+    config: &SpaceManifest,
     skills: &[Skill],
     rules: &[Rule],
     permissions: &Permissions,
@@ -529,7 +529,7 @@ pub fn resolve(
         env: std::collections::HashMap::new(),
         available_models: Vec::new(),
         // Per-harness deltas default to empty here; resolve_library() fills
-        // them from the flat ProjectLibrary fields.
+        // them from the flat SpaceLibrary fields.
         claude: crate::compile::ClaudeSettings::default(),
         codex: crate::compile::CodexSettings::default(),
         opencode: crate::compile::OpenCodeSettings::default(),
@@ -537,7 +537,7 @@ pub fn resolve(
         unmet_capability_requirements,
         ship_home_dir: None,
         scoped_launch: false,
-        // Phase-2: the leaf `resolve()` has no ProjectLibrary to source these
+        // Phase-2: the leaf `resolve()` has no SpaceLibrary to source these
         // from. Defaults match the leaf's serde defaults so the round-trip is
         // stable; resolve_library() threads the library's values when present.
         imported_modules: Vec::new(),
@@ -657,7 +657,7 @@ fn apply_workspace_skill_filter(skills: &mut Vec<Skill>, feature: &WorkspaceOver
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::ProjectConfig;
+    use crate::types::SpaceManifest;
     use crate::types::agent_profile::{McpRefs, ProfileMeta, ProfileRules, SkillRefs};
 
     fn make_skill(id: &str) -> Skill {
@@ -743,7 +743,7 @@ mod tests {
 
     #[test]
     fn default_harness_is_claude() {
-        let config = ProjectConfig::default();
+        let config = SpaceManifest::default();
         let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, None);
         assert_eq!(resolved.harnesses, vec!["claude"]);
     }
@@ -753,7 +753,7 @@ mod tests {
         // The agent declares only a workflow skill; that skill `requires:` a
         // capability granted by a capability-skill in the pool (not in the
         // agent's own list). Resolution auto-includes it and reports the request.
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             agents: vec![AgentProfile {
                 agent: ProfileMeta {
                     id: "lead".to_string(),
@@ -795,7 +795,7 @@ mod tests {
     fn unsatisfiable_requires_is_reported_unmet() {
         // No capability-skill grants what the workflow requires → unmet (a
         // compile error the caller enforces), and nothing is requested.
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             agents: vec![AgentProfile {
                 agent: ProfileMeta {
                     id: "lead".to_string(),
@@ -830,7 +830,7 @@ mod tests {
     #[test]
     fn no_requires_means_no_requested_grants() {
         let r = resolve(
-            &ProjectConfig::default(),
+            &SpaceManifest::default(),
             &[make_skill("plain")],
             &[],
             &Permissions::default(),
@@ -844,7 +844,7 @@ mod tests {
 
     #[test]
     fn feature_overrides_harnesses() {
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             harnesses: vec!["claude".to_string()],
             ..Default::default()
         };
@@ -866,7 +866,7 @@ mod tests {
 
     #[test]
     fn mode_filters_servers_and_skills() {
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             mcp_servers: vec![make_server("github"), make_server("linear")],
             agents: vec![AgentProfile {
                 agent: ProfileMeta {
@@ -900,7 +900,7 @@ mod tests {
 
     #[test]
     fn harnesses_normalized_to_lowercase() {
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             harnesses: vec!["CLAUDE".to_string(), "Codex".to_string()],
             ..Default::default()
         };
@@ -910,7 +910,7 @@ mod tests {
 
     #[test]
     fn duplicate_harnesses_deduplicated() {
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             harnesses: vec![
                 "claude".to_string(),
                 "Claude".to_string(),
@@ -924,7 +924,7 @@ mod tests {
 
     #[test]
     fn unknown_harnesses_dropped() {
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             harnesses: vec!["claude".to_string(), "unknown-ai".to_string()],
             ..Default::default()
         };
@@ -934,7 +934,7 @@ mod tests {
 
     #[test]
     fn empty_and_whitespace_harnesses_dropped() {
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             harnesses: vec!["".to_string(), "  ".to_string(), "claude".to_string()],
             ..Default::default()
         };
@@ -944,7 +944,7 @@ mod tests {
 
     #[test]
     fn all_invalid_harnesses_falls_back_to_claude() {
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             harnesses: vec!["invalid".to_string(), "".to_string()],
             ..Default::default()
         };
@@ -960,7 +960,7 @@ mod tests {
 
     #[test]
     fn agent_target_agents_does_not_override_project_harnesses() {
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             harnesses: vec!["codex".to_string()],
             agents: vec![AgentProfile {
                 agent: ProfileMeta {
@@ -981,7 +981,7 @@ mod tests {
 
     #[test]
     fn mode_rules_strip_numeric_prefix_and_md_suffix() {
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             agents: vec![AgentProfile {
                 agent: ProfileMeta {
                     id: "strict".to_string(),
@@ -1026,7 +1026,7 @@ mod tests {
 
     #[test]
     fn feature_overrides_filter_servers() {
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             mcp_servers: vec![
                 make_server("github"),
                 make_server("linear"),
@@ -1054,7 +1054,7 @@ mod tests {
     #[test]
     fn feature_overrides_filter_skills() {
         let skills = vec![make_skill("alpha"), make_skill("beta"), make_skill("gamma")];
-        let config = ProjectConfig::default();
+        let config = SpaceManifest::default();
         let feature = WorkspaceOverrides {
             skills: vec!["beta".to_string()],
             ..Default::default()
@@ -1075,7 +1075,7 @@ mod tests {
     #[test]
     fn empty_feature_filter_does_not_restrict() {
         let skills = vec![make_skill("alpha"), make_skill("beta")];
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             mcp_servers: vec![make_server("github")],
             ..Default::default()
         };
@@ -1097,9 +1097,9 @@ mod tests {
 
     #[test]
     fn feature_model_overrides_project_model() {
-        // ProjectConfig.ai was removed — there's no project-level model
+        // SpaceManifest.ai was removed — there's no project-level model
         // anymore. Feature/workspace model override stands alone.
-        let config = ProjectConfig::default();
+        let config = SpaceManifest::default();
         let feature = WorkspaceOverrides {
             model: Some("feature-model".to_string()),
             ..Default::default()
@@ -1120,7 +1120,7 @@ mod tests {
 
     #[test]
     fn mode_with_empty_filters_passes_all_through() {
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             mcp_servers: vec![make_server("a"), make_server("b")],
             agents: vec![AgentProfile {
                 agent: ProfileMeta {
@@ -1154,12 +1154,12 @@ mod tests {
 
     #[test]
     fn nonexistent_agent_override_yields_no_active() {
-        // ProjectConfig no longer carries `active_agent` — that lives in
+        // SpaceManifest no longer carries `active_agent` — that lives in
         // the `project_compile_state` projection, sourced from
         // `compile.completed` events. With no implicit fallback, a bogus
         // override resolves to "no active agent" rather than silently
         // selecting some project-level default.
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             agents: vec![AgentProfile {
                 agent: ProfileMeta {
                     id: "planning".to_string(),
@@ -1191,7 +1191,7 @@ mod tests {
         use crate::types::agent_profile::*;
         use crate::types::{PluginEntry, PluginsManifest};
 
-        let library = super::ProjectLibrary {
+        let library = super::SpaceLibrary {
             plugins: PluginsManifest {
                 install: vec![PluginEntry {
                     id: "test-plugin".to_string(),
@@ -1248,7 +1248,7 @@ mod tests {
 
     #[test]
     fn workspace_mode_override_takes_precedence() {
-        let config = ProjectConfig {
+        let config = SpaceManifest {
             agents: vec![
                 AgentProfile {
                     agent: ProfileMeta {
@@ -1308,7 +1308,7 @@ mod tests {
             json!({"theme": "dark", "autoUpdates": true, "nested": {"a": 1, "b": 2}}),
         );
 
-        let library = ProjectLibrary {
+        let library = SpaceLibrary {
             harness_defaults: defaults,
             claude_settings_extra: Some(
                 json!({"theme": "light", "newKey": "hello", "nested": {"b": 99, "c": 3}}),

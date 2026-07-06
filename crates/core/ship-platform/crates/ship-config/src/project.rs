@@ -1,4 +1,4 @@
-//! Project-config types and IO — the canonical home for the six symbols that
+//! Space-manifest types and IO — the canonical home for the six symbols that
 //! `ship-agents` (C8) needs without pulling in all of `ship-platform`.
 //!
 //! These types were formerly in `ship-platform/src/config/{project,types,io}.rs`.
@@ -164,7 +164,7 @@ fn is_harness_overrides_empty(h: &Option<HarnessProjectOverrides>) -> bool {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ProjectConfig {
+pub struct SpaceManifest {
     #[serde(default = "default_version")]
     pub version: String,
     /// Stable project identity.
@@ -203,7 +203,7 @@ pub fn default_harnesses() -> Vec<String> {
     vec!["claude".to_string()]
 }
 
-impl Default for ProjectConfig {
+impl Default for SpaceManifest {
     fn default() -> Self {
         Self {
             version: default_version(),
@@ -311,7 +311,7 @@ pub(crate) fn merge_mcp_servers(
     merged
 }
 
-pub(crate) fn write_project_core_config(path: &std::path::Path, config: &ProjectConfig) -> Result<()> {
+pub(crate) fn write_space_core_config(path: &std::path::Path, config: &SpaceManifest) -> Result<()> {
     use ship_substrate::fs_util::write_atomic;
     let core = ProjectCoreFile {
         version: config.version.clone(),
@@ -338,7 +338,7 @@ fn save_project_agents(config_dir: &std::path::Path, agents: &[AgentProfile]) ->
 }
 
 /// Read the project config from `project_dir` (or global if `None`).
-pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
+pub fn get_config(project_dir: Option<PathBuf>) -> Result<SpaceManifest> {
     use ship_substrate::config_doc;
     let is_project = project_dir.is_some();
     let config_dir = match project_dir {
@@ -347,7 +347,7 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
     };
 
     let primary_path = config_dir.join(PRIMARY_CONFIG_FILE);
-    let mut config: ProjectConfig = config_doc::read_doc(&primary_path)?.unwrap_or_default();
+    let mut config: SpaceManifest = config_doc::read_doc(&primary_path)?.unwrap_or_default();
 
     if is_project {
         let agents = read_project_agents(&config_dir)?;
@@ -366,7 +366,7 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
 
 /// Returns a merged view of global + project config.
 /// Project values win; missing project AI/agent/MCP values inherit from global.
-pub fn get_effective_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
+pub fn get_effective_config(project_dir: Option<PathBuf>) -> Result<SpaceManifest> {
     let global = get_config(None)?;
     let Some(project_dir) = project_dir else {
         return Ok(global);
@@ -391,7 +391,7 @@ pub fn get_effective_config(project_dir: Option<PathBuf>) -> Result<ProjectConfi
 }
 
 /// Persist project config to `project_dir` (or global if `None`).
-pub fn save_config(config: &ProjectConfig, project_dir: Option<PathBuf>) -> Result<()> {
+pub fn save_config(config: &SpaceManifest, project_dir: Option<PathBuf>) -> Result<()> {
     use ship_substrate::config_doc;
     let config_dir = if let Some(p_dir) = project_dir.clone() {
         p_dir
@@ -420,13 +420,11 @@ pub fn save_config(config: &ProjectConfig, project_dir: Option<PathBuf>) -> Resu
     if effective.id.trim().is_empty() {
         effective.id = ship_substrate::gen_nanoid();
     }
-
     if !path.exists() {
-        write_project_core_config(&path, &effective)?;
+        write_space_core_config(&path, &effective)?;
     }
-
     save_mcp_config(&config_dir, &effective.mcp_servers)?;
     save_project_agents(&config_dir, &effective.agents)?;
-    write_project_core_config(&path, &effective)?;
+    write_space_core_config(&path, &effective)?;
     Ok(())
 }

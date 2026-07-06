@@ -205,37 +205,37 @@ fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<Stri
         }
         None => paths::project_ship_dir_required()?,
     };
-    let project_root = ship_dir.parent().unwrap().to_path_buf();
+    let space_root = ship_dir.parent().unwrap().to_path_buf();
 
-    // When --path is not given and project_root was resolved via worktree pointer,
-    // the cwd (worktree) differs from project_root (main repo). Compiled output
+    // When --path is not given and space_root was resolved via worktree pointer,
+    // the cwd (worktree) differs from space_root (main repo). Compiled output
     // (CLAUDE.md, .claude/settings.json) must go to the cwd, not the main repo.
     let output_root = if path.is_none() {
         let cwd = std::env::current_dir()?;
-        if cwd != project_root { Some(cwd) } else { None }
+        if cwd != space_root { Some(cwd) } else { None }
     } else {
         None
     };
 
-    profile::activate_agent(agent_id, &project_root, output_root.as_deref(), extra_skills, scoped)
+    profile::activate_agent(agent_id, &space_root, output_root.as_deref(), extra_skills, scoped)
 }
 
 // ── Compile ──────────────────────────────────────────────────────────────────
 
 fn run_compile_cmd(harness: Option<&str>, dry_run: bool, path: Option<PathBuf>) -> Result<()> {
-    let project_root = path
+    let space_root = path
         .as_deref()
         .map(std::fs::canonicalize)
         .transpose()?
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
-    if !ship_substrate::ShipHome::project_ship_dir(&project_root).exists() {
+    if !ship_substrate::ShipHome::project_ship_dir(&space_root).exists() {
         anyhow::bail!(".ship/ not found. Run `ship use <agent>` from a project with .ship/ scaffolded.");
     }
 
-    let state = profile::ProjectState::load(&ship_substrate::ShipHome::project_ship_dir(&project_root));
+    let state = profile::ProjectState::load(&ship_substrate::ShipHome::project_ship_dir(&space_root));
     compile::run_compile(compile::CompileOptions {
-        project_root: &project_root,
+        space_root: &space_root,
         output_root: None,
         harness,
         dry_run,

@@ -1229,7 +1229,7 @@ impl HarnessService for HarnessImpl {
     //   1. Validate `repo_path` (the absolute path to the project tree).
     //   2. `compiler::load_library(ship_dir)` — the leaf,
     //      substrate-free loader added in this carve. Returns a
-    //      `ProjectLibrary` (agents, mcp, skills, rules, permissions, hooks).
+    //      `SpaceLibrary` (agents, mcp, skills, rules, permissions, hooks).
     //   3. `compiler::resolve_library(&lib, None, active_agent)` — turns
     //      the library into the resolved runtime config.
     //   4. For each requested harness (or the resolved config's selected

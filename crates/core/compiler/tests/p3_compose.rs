@@ -7,7 +7,7 @@
 
 use compiler::compose::{ComposedLibrary, NounKind, compose_space};
 use compiler::resolve::{
-    ExtSource, ExtensionDescriptor, ProjectLibrary, RollupInputs,
+    ExtSource, ExtensionDescriptor, SpaceLibrary, RollupInputs,
 };
 use compiler::types::{
     AgentProfile, HookConfig, McpServerConfig, Permissions, ProfileMeta, Rule, Skill,
@@ -37,10 +37,10 @@ fn hook(id: &str, command: &str) -> HookConfig {
     serde_json::from_value(json!({"id": id, "trigger": "PreToolUse", "command": command})).unwrap()
 }
 
-fn ext(source: ExtSource, hash: &str, descriptor: ProjectLibrary) -> ExtensionDescriptor {
+fn ext(source: ExtSource, hash: &str, descriptor: SpaceLibrary) -> ExtensionDescriptor {
     ExtensionDescriptor {
         source,
-        project_root: std::path::PathBuf::from("/x"),
+        space_root: std::path::PathBuf::from("/x"),
         descriptor,
         content_hash: hash.to_string(),
     }
@@ -58,11 +58,11 @@ fn compose(extensions: Vec<ExtensionDescriptor>) -> ComposedLibrary {
 
 #[test]
 fn space_shadows_user_global_on_id_collision() {
-    let user = ProjectLibrary {
+    let user = SpaceLibrary {
         agents: vec![agent("writer", "User Writer"), agent("planner", "User Planner")],
         ..Default::default()
     };
-    let space = ProjectLibrary {
+    let space = SpaceLibrary {
         agents: vec![agent("writer", "Space Writer")],
         ..Default::default()
     };
@@ -93,10 +93,10 @@ fn space_shadows_user_global_on_id_collision() {
 
 #[test]
 fn agent_overlay_wins_over_space_and_user_global() {
-    let user = ProjectLibrary { skills: vec![skill("lint", "user lint")], ..Default::default() };
-    let space = ProjectLibrary { skills: vec![skill("lint", "space lint")], ..Default::default() };
+    let user = SpaceLibrary { skills: vec![skill("lint", "user lint")], ..Default::default() };
+    let space = SpaceLibrary { skills: vec![skill("lint", "space lint")], ..Default::default() };
     let overlay =
-        ProjectLibrary { skills: vec![skill("lint", "overlay lint")], ..Default::default() };
+        SpaceLibrary { skills: vec![skill("lint", "overlay lint")], ..Default::default() };
     let composed = compose(vec![
         // Declared order deliberately scrambled — rank decides, not position.
         ext(ExtSource::Agent("writer".into()), "hash-overlay", overlay),
@@ -113,12 +113,12 @@ fn agent_overlay_wins_over_space_and_user_global() {
 
 #[test]
 fn rules_shadow_by_file_name_and_mcp_by_id() {
-    let user = ProjectLibrary {
+    let user = SpaceLibrary {
         rules: vec![rule("style.md", "user style")],
         mcp_servers: vec![mcp("server-a", "user server-a")],
         ..Default::default()
     };
-    let space = ProjectLibrary {
+    let space = SpaceLibrary {
         rules: vec![rule("style.md", "space style")],
         mcp_servers: vec![mcp("server-a", "space server-a")],
         ..Default::default()
@@ -142,7 +142,7 @@ fn rules_shadow_by_file_name_and_mcp_by_id() {
 fn permissions_and_hooks_pass_through_space_tier_verbatim() {
     let mut user_permissions = Permissions::default();
     user_permissions.tools.allow = vec!["everything".to_string()];
-    let user = ProjectLibrary {
+    let user = SpaceLibrary {
         permissions: user_permissions,
         hooks: vec![hook("h-user", "user-hook")],
         ..Default::default()
@@ -150,7 +150,7 @@ fn permissions_and_hooks_pass_through_space_tier_verbatim() {
 
     let mut space_permissions = Permissions::default();
     space_permissions.tools.allow = vec!["read".to_string()];
-    let space = ProjectLibrary {
+    let space = SpaceLibrary {
         permissions: space_permissions,
         hooks: vec![hook("h-space", "space-hook")],
         ..Default::default()
@@ -177,7 +177,7 @@ fn permissions_and_hooks_pass_through_space_tier_verbatim() {
 
 #[test]
 fn space_tier_alone_composes_to_itself_unchanged() {
-    let space = ProjectLibrary {
+    let space = SpaceLibrary {
         agents: vec![agent("writer", "Writer")],
         skills: vec![skill("lint", "lint")],
         rules: vec![rule("style.md", "style")],
@@ -196,7 +196,7 @@ fn no_extensions_compose_to_the_empty_library() {
     let composed = compose(vec![]);
     assert_eq!(
         serde_json::to_string(&composed.library).unwrap(),
-        serde_json::to_string(&ProjectLibrary::default()).unwrap(),
+        serde_json::to_string(&SpaceLibrary::default()).unwrap(),
     );
     assert!(composed.shadows.is_empty());
 }
@@ -204,7 +204,7 @@ fn no_extensions_compose_to_the_empty_library() {
 #[test]
 fn missing_precedence_row_is_an_error_not_a_default() {
     let bad = RollupInputs {
-        extensions: vec![ext(ExtSource::UserGlobal, "h", ProjectLibrary::default())],
+        extensions: vec![ext(ExtSource::UserGlobal, "h", SpaceLibrary::default())],
         precedence: vec![], // no rows at all
     };
     assert!(compose_space(&bad).is_err());
@@ -214,12 +214,12 @@ fn missing_precedence_row_is_an_error_not_a_default() {
 
 #[test]
 fn identical_inputs_compose_to_identical_bytes() {
-    let user = ProjectLibrary {
+    let user = SpaceLibrary {
         agents: vec![agent("a", "ua"), agent("b", "ub"), agent("c", "uc")],
         skills: vec![skill("s1", "u1"), skill("s2", "u2")],
         ..Default::default()
     };
-    let space = ProjectLibrary {
+    let space = SpaceLibrary {
         agents: vec![agent("b", "sb")],
         skills: vec![skill("s2", "s2-space"), skill("s3", "s3-space")],
         ..Default::default()

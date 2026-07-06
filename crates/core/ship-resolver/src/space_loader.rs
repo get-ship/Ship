@@ -1,19 +1,19 @@
-//! Project-shape disk walk — the resolver's `load_project_library` entry.
+//! Space-shape disk walk — the resolver's `load_space_library` entry.
 //!
 //! Composes with the compiler leaf's [`compiler::load_library`] for the
 //! bulk of the read (`.ship/{mcp,permissions,hooks,rules,skills,agents}/`),
-//! then layers the Phase-2 project-shape pieces on top:
+//! then layers the Phase-2 space-shape pieces on top:
 //!
-//! - `ship.ts` at the project root — the canonical TS manifest, also
-//!   reachable as `<.ship>/ship.ts` for legacy/SDK-shipped projects. The
+//! - `ship.ts` at the space root — the canonical TS manifest, also
+//!   reachable as `<.ship>/ship.ts` for legacy/SDK-shipped spaces. The
 //!   leaf's `load_library` doesn't read it today (the Phase-0 resolver
 //!   never went through `ship.ts`); the resolver owns the read.
-//! - Skills from the additional `project.skill_paths` — the leaf already
-//!   reads `project.skill_paths` from `ship.jsonc` (the additive F1
+//! - Skills from the additional `space.skill_paths` — the leaf already
+//!   reads `space.skill_paths` from `ship.jsonc` (the additive F1
 //!   manifest read) and the default `.ship/skills/` is walked by the leaf's
 //!   `load_skills`. The resolver walks the EXTRA paths and merges into
-//!   `ProjectLibrary::skills`, project winning on id conflict (so a
-//!   project-defined skill shadows an extension's).
+//!   `SpaceLibrary::skills`, space winning on id conflict (so a
+//!   space-defined skill shadows an extension's).
 //!
 //! ## FsBroker for new code (R1)
 //!
@@ -26,83 +26,84 @@
 //!
 //! ## The cap
 //!
-//! The cap is rooted at the project root with no fixed prefix; callers
+//! The cap is rooted at the space root with no fixed prefix; callers
 //! compose the rel path explicitly. The same
-//! cap serves both the `.ship/...` reads and the project-root `ship.ts`
+//! cap serves both the `.ship/...` reads and the space-root `ship.ts`
 //! read. The bootstrap posture mirrors `ship-config::agents::cap_root_and_dir`
 //! (`ship-config/src/agents.rs:39-50`): root at a directory that always
-//! exists (the project root) and use explicit two-segment rels.
+//! exists (the space root) and use explicit two-segment rels.
 //!
 //! ## Authority
 //!
 //! - Spec: `helm/data/missions/m-ship-stack-cutover/scratch/job-spec-p2-J3-resolver.md`.
-//! - Census: `census-phase2-resolver.md` Part 4 (project shape) + Part 5 J3
+//! - Census: `census-phase2-resolver.md` Part 4 (space shape) + Part 5 J3
 //!   (this crate's scope).
 //! - F1 decision: `decision-f1-loader.md` — Option A, the superset is
-//!   the architecture. The leaf grows `project.skill_paths`; this crate
+//!   the architecture. The leaf grows `space.skill_paths`; this crate
 //!   composes with the leaf.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use compiler::{ProjectLibrary, Skill, SkillSource};
+use compiler::{Skill, SkillSource, SpaceLibrary};
 use ship_substrate::ports::{FsBroker, FsCap, FsError, FsMode, FsRoot, SpaceId};
 
 /// The canonical `.ship` dir name, mirrored from
 /// `ship_substrate::project::SHIP_DIR_NAME`. The resolver's cap is rooted
-/// at the project root, so the rel path is always `<.ship>/...`.
+/// at the space root, so the rel path is always `<.ship>/...`.
 const SHIP_DIR_NAME: &str = ".ship";
 
-/// The default project ship sub-dir name, used when a project authors
-/// `ship.ts` at the project root (the Phase-2 default) and when it puts
+/// The default space ship sub-dir name, used when a space authors
+/// `ship.ts` at the space root (the Phase-2 default) and when it puts
 /// the manifest inside `<.ship>/ship.ts` (the legacy / SDK-shipped shape).
 const SHIP_TS_FILENAME: &str = "ship.ts";
 
-/// The cap the resolver uses for project reads. No fixed prefix — callers
+/// The cap the resolver uses for space reads. No fixed prefix — callers
 /// compose the rel path explicitly.
-pub(crate) struct ProjectCap {
+pub(crate) struct SpaceCap {
     pub cap: FsCap,
 }
 
-impl ProjectCap {
-    /// Mint a RO cap over the project root.
+impl SpaceCap {
+    /// Mint a RO cap over the space root.
     ///
     /// `SpaceId::new("resolver")` is the resolver's read surface — it
     /// shares the SpaceId namespace with other platform ports (config,
     /// agents, etc.) without colliding.
-    pub fn read_only(project_root: &Path) -> Self {
+    pub fn read_only(space_root: &Path) -> Self {
         Self {
             cap: FsCap::new_unchecked(
-                project_root,
+                space_root,
                 FsRoot::Space(SpaceId::new("resolver")),
                 FsMode::ReadOnly,
             ),
         }
     }
 }
-/// Read the project root + the FsBroker, and return a fully-populated
-/// `ProjectLibrary`.
+/// Read the space root + the FsBroker, and return a fully-populated
+/// `SpaceLibrary`.
 ///
 /// The bulk of the read (`mcp.jsonc`, `permissions.jsonc`, `hooks.jsonc`,
 /// `rules/`, `.ship/skills/`, `agents/`) is delegated to the leaf's
 /// [`compiler::load_library`]; this fn layers the Phase-2 pieces on top:
 ///
-/// 1. Walk the additional `project.skill_paths` (everything past the
+/// 1. Walk the additional `space.skill_paths` (everything past the
 ///    default `.ship/skills/`) and merge skills into `library.skills`.
 ///    The leaf's `load_library` already populated the default path's
-///    skills; this fn appends the others, project winning on id.
-/// 2. Read `ship.ts` (at the project root OR at `<.ship>/ship.ts`) and
+///    skills; this fn appends the others, space winning on id.
+/// 2. Read `ship.ts` (at the space root OR at `<.ship>/ship.ts`) and
 ///    return its `ModuleDescriptor` in `imported_modules` (Phase-3
 ///    multi-file shape is the consumer's; the descriptor carries one
 ///    module in Phase 2 since the loader still admits only `"ship"`).
-pub async fn load_project_library(
+pub async fn load_space_library(
     fs: &dyn FsBroker,
-    project_root: &Path,
-) -> Result<ProjectLibrary> {
+    space_root: &Path,
+) -> Result<SpaceLibrary> {
+
     // 1. Delegate to the leaf for the bulk of the read. The leaf is sync
     //    `std::fs`; it's the canonical phase-0 surface and ships on its
     //    own contract (`compiler::load_library`).
-    let ship_dir = project_root.join(SHIP_DIR_NAME);
+    let ship_dir = space_root.join(SHIP_DIR_NAME);
     let mut library = compiler::load_library(&ship_dir)
         .with_context(|| format!("compiler::load_library failed for {}", ship_dir.display()))?;
 
@@ -110,13 +111,13 @@ pub async fn load_project_library(
     //    The leaf's `load_library` already populated `library.skill_paths`
     //    (the additive F1 manifest read) and `library.skills` (the
     //    default-path skills). We walk the extras here, via FsBroker.
-    let cap = ProjectCap::read_only(project_root);
+    let cap = SpaceCap::read_only(space_root);
     if !library.skill_paths.is_empty() {
         let mut seen_ids: std::collections::HashSet<String> =
             library.skills.iter().map(|s| s.id.clone()).collect();
         for path in library.skill_paths.iter() {
             // The default `.ship/skills/` is already walked by the leaf —
-            // skip the dup. The leaf's `read_project_skill_paths` is the
+            // skip the dup. The leaf's `read_space_skill_paths` is the
             // single source of truth for the default entry.
             if path == ".ship/skills/" {
                 continue;
@@ -127,9 +128,9 @@ pub async fn load_project_library(
                 if seen_ids.insert(skill.id.clone()) {
                     library.skills.push(skill);
                 }
-                // Conflict: project-defined skill (already in `library.skills`)
+                // Conflict: space-defined skill (already in `library.skills`)
                 // wins; the extension's skill is silently dropped. This is
-                // agent-def's "project id wins on conflict" rule, per
+                // agent-def's "space id wins on conflict" rule, per
                 // `compile/skill_parser.rs:50-64`.
             }
         }
@@ -139,12 +140,12 @@ pub async fn load_project_library(
     }
 
     // 3. Read the TS manifest (one module in Phase 2; Phase 3 extends
-    //    the closed-world loader to admit project-relative imports and
+    //    the closed-world loader to admit space-relative imports and
     //    the fan-out grows).
-    if let Some(module) = read_ship_ts(fs, &cap.cap, project_root)
-        .with_context(|| format!("read ship.ts under {}", project_root.display()))?
+    if let Some(module) = read_ship_ts(fs, &cap.cap, space_root)
+        .with_context(|| format!("read ship.ts under {}", space_root.display()))?
     {
-        let content_hash = project_library_module_hash(&module);
+        let content_hash = space_library_module_hash(&module);
         let mut module = module;
         module.content_hash = content_hash;
         library.imported_modules.push(module);
@@ -157,21 +158,22 @@ pub async fn load_project_library(
 /// dir name, source = `Custom`). Missing dir → empty. Malformed
 /// `SKILL.md` → skip the entry (lenient contract).
 ///
-/// `project_rel` is the project-relative path (a value from
-/// `project.skill_paths`); the cap is rooted at the project root, so the
-/// rel path under the cap is the project-relative path verbatim. This
+/// `space_rel` is the space-relative path (a value from
+/// `space.skill_paths`); the cap is rooted at the space root, so the
+/// rel path under the cap is the space-relative path verbatim. This
 /// matches agent-def's [`read_skill_paths`](
 /// ship_platform/crates/agent-def/src/skill_paths.rs) which joins the
-/// manifest value onto the project root — `extra-skills/` lands at
+/// manifest value onto the space root — `extra-skills/` lands at
 /// `<root>/extra-skills/`, the default `.ship/skills/` lands at
 /// `<root>/.ship/skills/`. The first case is what this fn walks; the
 /// second is what the leaf's `load_skills` already covered.
 fn walk_skills_dir(
     fs: &dyn FsBroker,
     cap: &FsCap,
-    project_rel: &str,
+    space_rel: &str,
 ) -> Result<Vec<Skill>> {
-    let rel = project_rel.trim_start_matches('/').trim_end_matches('/');
+    let rel = space_rel.trim_start_matches('/').trim_end_matches('/');
+
     let entries = match fs.list_dir(cap, &rel) {
         Ok(e) => e,
         Err(FsError::NotFound) => return Ok(Vec::new()),
@@ -203,20 +205,21 @@ fn walk_skills_dir(
     Ok(skills)
 }
 
-/// Read the project's `ship.ts` manifest. Returns `Ok(None)` when
+/// Read the space's `ship.ts` manifest. Returns `Ok(None)` when
 /// neither `<root>/ship.ts` nor `<root>/.ship/ship.ts` exists.
 ///
-/// The cap is rooted at the project root with no fixed prefix, so
-/// project-root `ship.ts` is read as `ship.ts` (no `.ship/` segment);
+/// The cap is rooted at the space root with no fixed prefix, so
+/// space-root `ship.ts` is read as `ship.ts` (no `.ship/` segment);
 /// the legacy `<.ship>/ship.ts` is read with the explicit two-segment
 /// rel. The content hash is filled in by the caller.
 fn read_ship_ts(
     fs: &dyn FsBroker,
     cap: &FsCap,
-    _project_root: &Path,
+    _space_root: &Path,
 ) -> Result<Option<compiler::ModuleDescriptor>> {
-    // Prefer project-root `ship.ts` (Phase-2 default); fall back to
-    // `<.ship>/ship.ts` (legacy / SDK-shipped projects).
+    // Prefer space-root `ship.ts` (Phase-2 default); fall back to
+    // `<.ship>/ship.ts` (legacy / SDK-shipped spaces).
+
     let rels: [&str; 2] = ["ship.ts", ".ship/ship.ts"];
     for (i, rel) in rels.iter().enumerate() {
         match fs.read(cap, rel) {
@@ -244,7 +247,7 @@ fn read_ship_ts(
 /// SHA-256 hex of a `ModuleDescriptor`'s raw source. Standalone so the
 /// resolver can store it on the descriptor (the cache key) without
 /// re-reading the file.
-fn project_library_module_hash(module: &compiler::ModuleDescriptor) -> String {
+fn space_library_module_hash(module: &compiler::ModuleDescriptor) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(module.source.as_bytes());
@@ -265,10 +268,11 @@ mod tests {
     use ship_substrate::ports::LocalFsBroker;
     use tempfile::TempDir;
 
-    /// Build a project root with `.ship/{mcp,permissions,hooks,agents}` +
-    /// a `skills/` dir + a `rules/` dir + a `ship.ts` at the project root.
+    /// Build a space root with `.ship/{mcp,permissions,hooks,agents}` +
+    /// a `skills/` dir + a `rules/` dir + a `ship.ts` at the space root.
     /// Returns the temp dir so the caller can keep it alive.
-    fn write_project() -> (TempDir, PathBuf) {
+    fn write_space() -> (TempDir, PathBuf) {
+
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path().to_path_buf();
 
@@ -292,7 +296,7 @@ mod tests {
         )
         .unwrap();
 
-        // Extra skill dir at project root (a `project.skill_paths` value)
+        // Extra skill dir at space root (a `space.skill_paths` value)
         let extra_skills = root.join("extra-skills");
         std::fs::create_dir_all(extra_skills.join("extra-skill")).unwrap();
         std::fs::write(
@@ -308,7 +312,7 @@ mod tests {
         )
         .unwrap();
 
-        // ship.ts at the project root
+        // ship.ts at the space root
         std::fs::write(
             root.join("ship.ts"),
             r#"
@@ -324,7 +328,7 @@ defineAgent({
         // Add the extra path to the manifest so the resolver walks it.
         std::fs::write(
             ship.join("ship.jsonc"),
-            r#"{"id": "demo", "project": {"skill_paths": ["extra-skills/"]}}"#,
+            r#"{"id": "demo", "space": {"skill_paths": ["extra-skills/"]}}"#,
         )
         .unwrap();
 
@@ -332,10 +336,10 @@ defineAgent({
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn load_project_library_composes_with_leaf_and_adds_extras() {
-        let (_tmp, root) = write_project();
+    async fn load_space_library_composes_with_leaf_and_adds_extras() {
+        let (_tmp, root) = write_space();
         let fs = LocalFsBroker::new();
-        let lib = load_project_library(&fs, &root).await.unwrap();
+        let lib = load_space_library(&fs, &root).await.unwrap();
 
         // The leaf's bulk: mcp server + default skill + rule + agent
         // profile (none here, but the field defaults to empty).
@@ -362,25 +366,25 @@ defineAgent({
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn load_project_library_omits_ship_ts_when_absent() {
+    async fn load_space_library_omits_ship_ts_when_absent() {
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path().to_path_buf();
         // .ship/ exists (the leaf needs it), but no ship.ts at the root.
         std::fs::create_dir_all(root.join(".ship")).unwrap();
         let fs = LocalFsBroker::new();
-        let lib = load_project_library(&fs, &root).await.unwrap();
+        let lib = load_space_library(&fs, &root).await.unwrap();
         assert!(lib.imported_modules.is_empty());
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn load_project_library_empty_when_no_ship_dir() {
+    async fn load_space_library_empty_when_no_ship_dir() {
         // The leaf's `load_library` on a missing `.ship/` returns an
         // empty library (its own lenient contract). The resolver inherits
         // that — no panic, no error.
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path().to_path_buf();
         let fs = LocalFsBroker::new();
-        let lib = load_project_library(&fs, &root).await.unwrap();
+        let lib = load_space_library(&fs, &root).await.unwrap();
         assert!(lib.mcp_servers.is_empty());
         assert!(lib.skills.is_empty());
         assert!(lib.rules.is_empty());
@@ -388,7 +392,7 @@ defineAgent({
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn load_project_library_uses_ship_ts_fallback() {
+    async fn load_space_library_uses_ship_ts_fallback() {
         // Legacy / SDK-shipped shape: ship.ts lives at `<.ship>/ship.ts`.
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path().to_path_buf();
@@ -398,17 +402,17 @@ defineAgent({
             r#"
 import { defineAgent } from "ship";
 defineAgent({ agent: { id: "legacy", name: "Legacy" } });
-"#,
+:"#,
         )
         .unwrap();
         let fs = LocalFsBroker::new();
-        let lib = load_project_library(&fs, &root).await.unwrap();
+        let lib = load_space_library(&fs, &root).await.unwrap();
         assert_eq!(lib.imported_modules.len(), 1);
         assert_eq!(lib.imported_modules[0].path, PathBuf::from(".ship/ship.ts"));
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn project_winning_id_takes_precedence_over_extension() {
+    async fn space_winning_id_takes_precedence_over_extension() {
         // A skill in the leaf's default path and a SAME-ID skill in an
         // extra path: the leaf's version wins. The resolver's merge
         // honors that — the extra is dropped.
@@ -434,25 +438,25 @@ defineAgent({ agent: { id: "legacy", name: "Legacy" } });
 
         std::fs::write(
             ship.join("ship.jsonc"),
-            r#"{"project": {"skill_paths": ["extra-skills/"]}}"#,
+            r#"{"space": {"skill_paths": ["extra-skills/"]}}"#,
         )
         .unwrap();
 
         let fs = LocalFsBroker::new();
-        let lib = load_project_library(&fs, &root).await.unwrap();
+        let lib = load_space_library(&fs, &root).await.unwrap();
         let shared: Vec<&Skill> = lib.skills.iter().filter(|s| s.id == "shared").collect();
         assert_eq!(shared.len(), 1, "exactly one skill named 'shared'");
         assert_eq!(
             shared[0].description.as_deref(),
             Some("From default path"),
-            "the default-path (project) version wins on id conflict"
+            "the default-path (space) version wins on id conflict"
         );
     }
 
     #[test]
-    fn project_cap_uses_resolver_spaceid() {
+    fn space_cap_uses_resolver_spaceid() {
         let tmp = tempfile::tempdir().unwrap();
-        let cap = ProjectCap::read_only(tmp.path());
+        let cap = SpaceCap::read_only(tmp.path());
         assert!(matches!(cap.cap.mode(), FsMode::ReadOnly));
         assert_eq!(cap.cap.root(), tmp.path());
     }
