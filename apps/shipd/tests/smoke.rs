@@ -18,7 +18,7 @@ impl TestDaemon {
 
         let bin = env!("CARGO_BIN_EXE_shipd");
         // Set cwd to the tempdir so ProjectRoot::discover() returns None and
-        // shipd writes to the singleton machine/daemon/. Otherwise shipd
+        // shipd writes to the singleton state/daemon/. Otherwise shipd
         // would inherit the test process's cwd (the Ship repo) and write to
         // a per-worktree daemons/<hash>/ dir.
         let child = Command::new(bin)
@@ -32,10 +32,12 @@ impl TestDaemon {
             .spawn()
             .expect("spawn shipd");
 
-        // Per home-layout ADR, daemon IPC files live in machine/daemon/.
-        // Wait for the port file (written *after* HTTP bind) — token is
-        // written earlier and isn't a reliable readiness signal.
-        let daemon_dir = global_dir.path().join("machine").join("daemon");
+        // Per the XDG base-dir split, daemon IPC files live under
+        // runtime/daemon/, which collapses to state/daemon/ under a
+        // SHIP_HOME-scoped base (see ShipHome::at). Wait for the port file
+        // (written *after* HTTP bind) — token is written earlier and isn't
+        // a reliable readiness signal.
+        let daemon_dir = global_dir.path().join("state").join("daemon");
         let port_path = daemon_dir.join("port");
         let token_path = daemon_dir.join("token");
         let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
