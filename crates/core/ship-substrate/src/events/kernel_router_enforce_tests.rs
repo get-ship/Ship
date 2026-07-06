@@ -94,7 +94,7 @@ async fn emit_stamps_space_key_and_author_from_binding() {
 async fn emit_rejects_cross_space_and_does_not_persist() {
     let (tmp, mut router) = setup();
     // Subscribe an actor so we can also assert non-delivery.
-    let (_store, mut mb) = router.spawn_actor("studio", studio_config()).unwrap();
+    let mut mb = router.spawn_actor("studio", studio_config()).unwrap();
 
     // Space event keyed to space-B, but binding is space-A → CrossSpace reject.
     let event = ev("studio.canvas_updated").with_scope(EventScope::Space, Some("space-B"));

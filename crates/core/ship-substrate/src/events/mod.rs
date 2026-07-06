@@ -23,10 +23,8 @@ pub use ship_kernel::KernelError as PureKernelError;
 pub use ship_kernel::Mailbox;
 
 // Persistence (re-exported from crate::persistence)
-pub use crate::persistence::{
-    ActorStore, EventStore, SqliteEventStore,
-};
-// Backward-compatible module aliases for consumers.
+pub use crate::persistence::{EventStore, SqliteEventStore};
+// Backward-compatible module alias for the canonical event store.
 pub use crate::persistence::event_store as store;
 // Modules kept here (implement runtime-specific logic)
 // annotation.rs + feedback.rs moved to ship-agents (keystone-A de-bucket,
@@ -49,7 +47,7 @@ pub mod validator;
 
 pub use filter::EventFilter;
 pub use kernel_router::KernelRouter;
-pub use payload_schema::PayloadSchemaValidator;
+pub use payload_schema::{apply_stamp_chokepoint, off_kernel_ctx, PayloadSchemaValidator, StampError};
 pub use validator::{
     ElevatedValidator, EventValidator, KERNEL_NAMESPACES,
     NamespaceValidator, PLATFORM_ONLY_NAMESPACES, RESERVED_NAMESPACES,

@@ -56,7 +56,7 @@ pub async fn start_agents(kernel: Kernel, ports: Arc<AgentPorts>) {
     let mailbox = {
         let mut k = kernel.lock().await;
         match k.spawn_actor(&actor_id, config) {
-            Ok((_store, mb)) => mb,
+            Ok(mb) => mb,
             Err(e) => {
                 tracing::warn!("service.agents: failed to spawn actor: {e}");
                 return;

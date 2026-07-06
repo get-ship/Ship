@@ -47,7 +47,7 @@ pub async fn start_orchestrator(
     let mailbox = {
         let mut k = kernel.lock().await;
         match k.spawn_actor(&actor_id, config) {
-            Ok((_store, mb)) => mb,
+            Ok(mb) => mb,
             Err(e) => {
                 tracing::warn!("job-dispatch: failed to spawn actor: {e}");
                 return;

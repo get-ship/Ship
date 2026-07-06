@@ -92,7 +92,7 @@ impl ChangeSource for ShipChangeSource {
                 let mut kernel = state.kernel().lock().await;
                 kernel
                     .spawn_actor(&actor_id, config)
-                    .map(|(_store, mb)| mb)
+                    .map(|mb| mb)
                     .map_err(|e| format!("spawn multiplex actor: {e}"))?
             };
             let guard = ActorGuard {

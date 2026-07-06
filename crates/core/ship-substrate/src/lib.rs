@@ -17,8 +17,7 @@
 //!   schema, payload_registry, pipeline.
 //! - `db` — sqlite engine + per-scope event-log openers (`runtime.db` /
 //!   `account.db` / `spaces/<id>/space.db`).
-//! - `persistence` — `EventStore`, `ActorStore`, `PartitionedSink`. The
-//!   durable-execution `SqliteJournalStore` is the `journal-sqlite` leaf.
+//! - `persistence` — `EventStore`, `SqliteEventStore`, `PartitionedSink`. The
 //! - `projections` — the `EventBus` + the L0 default projection set, plus the
 //!   `install_extra_projections_factory` extension point L1 crates use to
 //!   register domain projections.
@@ -74,7 +73,7 @@ pub use events::{
     NamespaceValidator, PLATFORM_ONLY_NAMESPACES, RESERVED_NAMESPACES,
     ReservedNamespaceValidator, ValidationError, is_kernel_event,
 };
-pub use persistence::{ActorStore, EventStore, SqliteEventStore, PartitionedSink};
+pub use persistence::{EventStore, SqliteEventStore, PartitionedSink};
 pub use services::{HealthStatus, ServiceHandle, ServiceHandler, run_service, spawn_service};
 /// Generate a monotonic ULID string. Thread-safe via thread-local generator.
 pub fn gen_ulid() -> String {

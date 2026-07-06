@@ -64,7 +64,7 @@ fn stop_then_respawn_succeeds() {
 async fn stop_removes_from_subscriptions() {
     let dir = TempDir::new().unwrap();
     let mut kernel = make_kernel(&dir);
-    let (_store, mut mailbox) = kernel
+    let mut mailbox = kernel
         .spawn_actor("agent.sub", actor_config("agent.sub"))
         .unwrap();
     kernel.stop_actor("agent.sub").unwrap();
@@ -106,7 +106,7 @@ async fn stop_actor_cleans_subscriptions_completely() {
     };
     kernel.spawn_actor("agent.dup", config.clone()).unwrap();
     kernel.stop_actor("agent.dup").unwrap();
-    let (_store, mut mailbox) = kernel.spawn_actor("agent.dup", config).unwrap();
+    let mut mailbox = kernel.spawn_actor("agent.dup", config).unwrap();
 
     let ev = EventEnvelope::new("mesh.ping", "src", &serde_json::json!({})).unwrap();
     let _ = kernel.emit(ev, &cli_ctx()).await;

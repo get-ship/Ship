@@ -191,7 +191,7 @@ async fn pipeline_advances_through_all_steps() {
 
     // Set up kernel + dispatch context with mock executor
     let mut router = KernelRouter::new(ship_dir.clone()).unwrap();
-    let (_s, _mb) = router.spawn_actor("service.orchestrator", dispatch_config()).unwrap();
+    let _mb = router.spawn_actor("service.orchestrator", dispatch_config()).unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
     let executor = Arc::new(MockExecutor::new());
@@ -447,7 +447,7 @@ async fn run_step_advances_to_agent_step() {
 
     // Set up kernel and dispatch context
     let mut router = KernelRouter::new(ship_dir.clone()).unwrap();
-    let (_s, _mb) = router.spawn_actor("service.orchestrator", dispatch_config()).unwrap();
+    let _mb = router.spawn_actor("service.orchestrator", dispatch_config()).unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
     let executor = Arc::new(MockExecutor::new());
@@ -541,7 +541,7 @@ async fn first_step_run_executes_without_agent() {
 
     // Set up kernel + dispatch context with mock executor
     let mut router = KernelRouter::new(ship_dir.clone()).unwrap();
-    let (_s, _mb) = router.spawn_actor("service.orchestrator", dispatch_config()).unwrap();
+    let _mb = router.spawn_actor("service.orchestrator", dispatch_config()).unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
     let executor = Arc::new(MockExecutor::new());

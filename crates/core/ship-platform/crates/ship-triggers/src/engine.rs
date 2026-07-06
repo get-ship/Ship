@@ -8,7 +8,7 @@ use anyhow::{Result, anyhow};
 use serde_json::{Value, json};
 use tokio::sync::{Mutex, RwLock};
 
-use ship_substrate::events::{ActorConfig, EventEnvelope, KernelRouter};
+use ship_substrate::events::{ActorConfig, EventEnvelope, KernelRouter, SqliteEventStore};
 use ship_substrate::services::ServiceHandler;
 
 use super::actions::{ActionCtx, dispatch};
@@ -248,7 +248,7 @@ impl ServiceHandler for HookService {
         "hooks"
     }
 
-    fn handle(&mut self, event: &EventEnvelope, _store: &ship_substrate::events::ActorStore) -> Result<()> {
+    fn handle(&mut self, event: &EventEnvelope, _store: &SqliteEventStore) -> Result<()> {
         let engine = self.engine.clone();
         let envelope = event.clone();
         self.runtime.spawn(async move {

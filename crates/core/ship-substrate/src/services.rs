@@ -12,7 +12,7 @@
 //! struct MySvc;
 //! impl ServiceHandler for MySvc {
 //!     fn name(&self) -> &str { "my-svc" }
-//!     fn handle(&mut self, event: &EventEnvelope, _store: &ActorStore) -> Result<()> { Ok(()) }
+//!     fn handle(&mut self, event: &EventEnvelope, _store: &SqliteEventStore) -> Result<()> { Ok(()) }
 //! }
 //! ```
 //!
@@ -21,34 +21,43 @@
 //! ```rust,ignore
 //! spawn_service(&mut kernel, "my-svc", config, Box::new(MySvc))?;
 //! ```
+//!
+//! The `&SqliteEventStore` argument is the kernel's Runtime-scope store
+//! (`runtime.db`); service handlers route their own writes through it via
+//! `append_enforced`. The previous `&ActorStore` argument was removed with
+//! the E1 fossil (job/actorstore-deletion, 2026-07-06).
 
 use std::time::Duration;
-
-use anyhow::Result;
 use tokio::task::JoinHandle;
 
+use anyhow::Result;
+
 use crate::events::kernel_router::{ActorConfig, KernelRouter};
-use crate::events::{ActorStore, EventEnvelope, Mailbox};
+use crate::events::{EventEnvelope, Mailbox, SqliteEventStore};
 
 /// Trait implemented by headless service actors.
 ///
 /// The service runner calls `on_start` once, then drives the event loop —
 /// calling `handle` for each mailbox event and `on_tick` on the configured
 /// interval. When the mailbox closes, `on_stop` is called and the task exits.
+///
+/// The `&SqliteEventStore` argument is the kernel's Runtime-scope store
+/// (`runtime.db`); service handlers route their own writes through
+/// `SqliteEventStore::append_enforced`.
 pub trait ServiceHandler: Send + 'static {
     /// Stable identifier used in log output.
     fn name(&self) -> &str;
 
     /// Process one event delivered to the service's mailbox.
-    fn handle(&mut self, event: &EventEnvelope, store: &ActorStore) -> Result<()>;
+    fn handle(&mut self, event: &EventEnvelope, store: &SqliteEventStore) -> Result<()>;
 
     /// Called once before the event loop starts. Errors abort the service.
-    fn on_start(&mut self, _store: &ActorStore) -> Result<()> {
+    fn on_start(&mut self, _store: &SqliteEventStore) -> Result<()> {
         Ok(())
     }
 
     /// Called once after the mailbox closes.
-    fn on_stop(&mut self, _store: &ActorStore) -> Result<()> {
+    fn on_stop(&mut self, _store: &SqliteEventStore) -> Result<()> {
         Ok(())
     }
 
@@ -70,7 +79,7 @@ pub trait ServiceHandler: Send + 'static {
     }
 
     /// Called on each timer tick. Only invoked when `tick_interval` returns `Some`.
-    fn on_tick(&mut self, _store: &ActorStore) -> Result<()> {
+    fn on_tick(&mut self, _store: &SqliteEventStore) -> Result<()> {
         Ok(())
     }
 }
@@ -91,8 +100,9 @@ pub struct ServiceHandle {
 
 /// Spawn a headless service actor and start its event loop.
 ///
-/// Creates the actor's store and mailbox via `router`, then spawns `run_service`
-/// as a tokio task. Returns a `ServiceHandle` containing the `JoinHandle`.
+/// Creates the actor's mailbox via `router`, opens the kernel's Runtime-scope
+/// `SqliteEventStore`, and spawns `run_service` as a tokio task. Returns a
+/// `ServiceHandle` containing the `JoinHandle`.
 pub fn spawn_service(
     router: &mut KernelRouter,
     id: &str,
@@ -100,7 +110,8 @@ pub fn spawn_service(
     handler: Box<dyn ServiceHandler>,
 ) -> Result<ServiceHandle> {
     let name = handler.name().to_string();
-    let (store, mailbox) = router.spawn_actor(id, config)?;
+    let mailbox = router.spawn_actor(id, config)?;
+    let store = SqliteEventStore::new_at_db_path(&router.kernel_store_path())?;
     let handle = tokio::spawn(run_service(handler, store, mailbox));
     Ok(ServiceHandle { name, handle })
 }
@@ -111,7 +122,7 @@ pub fn spawn_service(
 /// tick interval is configured; otherwise blocks only on the mailbox.
 pub async fn run_service(
     mut handler: Box<dyn ServiceHandler>,
-    store: ActorStore,
+    store: SqliteEventStore,
     mut mailbox: Mailbox,
 ) {
     if let Err(e) = handler.on_start(&store) {

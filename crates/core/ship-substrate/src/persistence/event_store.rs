@@ -77,27 +77,34 @@ impl SqliteEventStore {
     ///
     /// Every off-kernel emit site (the `db::*_events` helpers, `log`, the
     /// platform CRUD/audit emitters) writes through here, NOT through the raw
-    /// `EventStore::append`. It runs the SAME stamp-or-reject rule the emit
-    /// chokepoint runs — `ship_types::stamp_author` then `ship_types::enforce_scope`
-    /// against the authoritative `binding` — BEFORE the row is persisted, so a
-    /// rejected (cross-space / space-unbound) event is never half-written.
+    /// `EventStore::append`. It runs the SAME stamp-or-reject rule the kernel
+    /// `emit` chokepoint runs — `apply_stamp_chokepoint` (stamp author,
+    /// enforce scope, validate payload schema) against the authoritative
+    /// `binding` — BEFORE the row is persisted, so a rejected
+    /// (cross-space / space-unbound / malformed-payload) event is never
+    /// half-written. Closing blueprint #91 by construction: if the kernel
+    /// path validates payloads, so does everyone.
     ///
     /// Returns the stamped envelope so callers deliver exactly the enforced row
     /// (scope_key + author) to actor mailboxes rather than the pre-stamp draft.
     ///
-    /// `enforce_scope` rejects on:
+    /// `apply_stamp_chokepoint` rejects on:
     /// - chosen scope ∉ the type's allowed-set (`ScopeNotAllowed`),
     /// - a Space event whose key ≠ the binding's space (`CrossSpace`),
-    /// - a Space event from a space-unbound binding (`NoSpaceForSpaceEvent`).
+    /// - a Space event from a space-unbound binding (`NoSpaceForSpaceEvent`),
+    /// - a malformed payload for a known event type (`SchemaViolation`).
     pub fn append_enforced(
         &self,
         event: &EventEnvelope,
         binding: &ship_types::ScopeBinding,
     ) -> Result<EventEnvelope> {
         let mut stamped = event.clone();
-        ship_types::stamp_author(&mut stamped, binding);
-        ship_types::enforce_scope(&mut stamped, binding)
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        crate::events::apply_stamp_chokepoint(
+            &mut stamped,
+            binding,
+            &crate::events::off_kernel_ctx(binding.clone()),
+        )
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
         self.append(&stamped)?;
         Ok(stamped)
     }
@@ -260,6 +267,32 @@ mod event_sink_tests {
         let sink: std::sync::Arc<dyn EventSink> = std::sync::Arc::new(store);
         let event = EventEnvelope::new("test.trait", "entity-2", &serde_json::json!({})).unwrap();
         sink.persist(&event).unwrap();
+    }
+
+    #[test]
+    fn append_enforced_rejects_malformed_payload_for_known_event_type() {
+        // Blueprint #91: off-kernel writes used to skip the payload
+        // validator. The shared chokepoint now runs the SAME gate the
+        // kernel emit path runs — so a malformed payload for a known
+        // event type is rejected before persist.
+
+        let tmp = tempdir().unwrap();
+        let store =
+            SqliteEventStore::new_at_db_path(&crate::db::runtime_db_path(tmp.path())).unwrap();
+        let event = EventEnvelope::new(
+            "actor.created",
+            "actor-1",
+            &serde_json::json!({ "garbage": true }),
+        )
+        .unwrap();
+        let binding = ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk);
+        let err = store.append_enforced(&event, &binding).unwrap_err();
+        assert!(
+            err.to_string().contains("schema")
+                || err.to_string().contains("Schema")
+                || err.to_string().contains("missing field"),
+            "unexpected error: {err}"
+        );
     }
 }
 

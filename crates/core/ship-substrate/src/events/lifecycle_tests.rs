@@ -94,8 +94,7 @@ async fn crash_updates_actor_projection() {
 #[test]
 fn crash_removes_mailbox_and_emits_event() {
     let (_tmp, mut router) = setup();
-    let (store, _mb) = router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
-    store.append(&ev("dispatch.started")).unwrap();
+    let _mb = router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
 
     router.handle_actor_crash("dispatch", "task panicked").unwrap();
 
@@ -107,17 +106,9 @@ fn crash_removes_mailbox_and_emits_event() {
     );
 }
 
-#[test]
-fn crash_retains_event_store() {
-    let (_tmp, mut router) = setup();
-    let (store, _mb) = router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
-    let db_path = store.db_path().to_path_buf();
-    store.append(&ev("dispatch.started")).unwrap();
-
-    router.handle_actor_crash("dispatch", "panic").unwrap();
-
-    assert!(db_path.exists(), "actor event store must be retained after crash");
-}
+// `crash_retains_event_store` is retired with the per-actor `ActorStore`.
+// Every actor now reads from the shared `runtime.db`; there is no per-actor
+// file to retain. Crash cleanup is a no-op on the storage layer.
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn crash_removes_subscriptions() {
@@ -134,7 +125,7 @@ async fn crash_removes_subscriptions() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn crash_closes_mailbox() {
     let (_tmp, mut router) = setup();
-    let (_store, mut mb) = router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
+    let mut mb = router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
 
     router.handle_actor_crash("dispatch", "panic").unwrap();
 
@@ -167,8 +158,43 @@ fn crash_payload_contains_reason() {
     })
     .unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
-    assert_eq!(parsed["reason"], "task panicked: division by zero");
-    assert_eq!(parsed["actor_id"], "dispatch");
+    // The crash event now uses the registered ActorCrashed payload
+    // shape (`error` + `restart_count`) — the universal stamp/scope/
+    // schema chokepoint validates it before persist, so the reason
+    // lands in the schema's `error` field. `actor_id` is the entity
+    // id, NOT a payload field.
+    assert_eq!(parsed["error"], "task panicked: division by zero");
+    assert_eq!(parsed["restart_count"], 0);
+}
+
+#[test]
+fn crash_event_is_stamped_and_scoped() {
+    // The shared chokepoint stamps the crash event with author
+    // identity and the Runtime scope key — the same gate every other
+    // write path runs. A reconciliation that filters by author or
+    // scope must include kernel-lifecycle crash events.
+    let (_tmp, mut router) = setup();
+    router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
+
+    router.handle_actor_crash("dispatch", "boom").unwrap();
+
+    let mut conn = open_db_at(&router.kernel_store_path()).unwrap();
+    let (scope, scope_key, author_device_id): (String, Option<String>, Option<String>) =
+        block_on(async {
+            sqlx::query_as(
+                "SELECT scope, scope_key, author_device_id \
+                 FROM events WHERE event_type = 'actor.crashed'",
+            )
+            .fetch_one(&mut conn)
+            .await
+        })
+        .unwrap();
+    assert_eq!(scope, "runtime");
+    assert!(scope_key.is_some(), "Runtime scope must be stamped with a key");
+    assert!(
+        author_device_id.is_some(),
+        "crash event must be stamped with author_device_id"
+    );
 }
 
 // ── Mailbox overflow in stable path ─────────────────────────────────────────
@@ -180,7 +206,7 @@ fn crash_payload_contains_reason() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stable_path_mailbox_full_drops_silently() {
     let (_tmp, mut router) = setup();
-    let (_store, _mb) = router.spawn_actor("studio", ActorConfig {
+    let _mb = router.spawn_actor("studio", ActorConfig {
         namespace: "studio".into(),
         write_namespaces: vec!["studio.".into()],
         read_namespaces: vec!["studio.".into()],

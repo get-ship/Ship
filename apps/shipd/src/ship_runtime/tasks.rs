@@ -397,7 +397,7 @@ impl ShipRuntime {
         let mailbox = {
             let mut kernel = self.kernel.lock().await;
             match kernel.spawn_actor(&actor_id, config) {
-                Ok((_store, mb)) => mb,
+                Ok(mb) => mb,
                 Err(e) => {
                     tracing::warn!("pipeline-watch bridge: actor spawn failed: {e}");
                     return;

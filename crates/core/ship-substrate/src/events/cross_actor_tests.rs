@@ -66,11 +66,12 @@ async fn studio_visual_message_reaches_agent_mailbox() {
     let tmp = tempdir().unwrap();
     let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let (_studio_store, _studio_mb) = router.spawn_actor("studio", studio_config()).unwrap();
-    let (_agent_store, mut agent_mb) =
-        router.spawn_actor("agent.mcp", agent_config("agent.mcp")).unwrap();
+    let _studio_mb = router.spawn_actor("studio", studio_config()).unwrap();
+    let mut agent_mb = router
+        .spawn_actor("agent.mcp", agent_config("agent.mcp"))
+        .unwrap();
 
-    // Studio appends and routes a visual message.
+    // Studio emits a visual message.
     let event = ev("studio.message.visual");
     router.emit(event.clone(), &mcp_ctx()).await.unwrap();
 
@@ -86,9 +87,10 @@ async fn agent_event_reaches_studio_mailbox() {
     let tmp = tempdir().unwrap();
     let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let (_studio_store, mut studio_mb) = router.spawn_actor("studio", studio_config()).unwrap();
-    let (_agent_store, _agent_mb) =
-        router.spawn_actor("agent.mcp", agent_config("agent.mcp")).unwrap();
+    let mut studio_mb = router.spawn_actor("studio", studio_config()).unwrap();
+    let _agent_mb = router
+        .spawn_actor("agent.mcp", agent_config("agent.mcp"))
+        .unwrap();
 
     // Agent emits an event in its own namespace (simulating the event tool).
     // write_namespaces is [""] so any event_type is accepted.
@@ -100,46 +102,62 @@ async fn agent_event_reaches_studio_mailbox() {
     assert_eq!(received.event_type, "agent.task_started");
 }
 
-// ── store isolation ──────────────────────────────────────────────────────────
+// ── store isolation (mediated by KernelRouter) ───────────────────────────────
 
-#[test]
-fn two_agents_cannot_read_each_others_stores() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn two_agents_cannot_read_each_others_stores() {
     let tmp = tempdir().unwrap();
     let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let (store_a, _mb_a) =
-        router.spawn_actor("agent.alice", agent_config("agent.alice")).unwrap();
-    let (store_b, _mb_b) =
-        router.spawn_actor("agent.bob", agent_config("agent.bob")).unwrap();
+    let _mb_a = router
+        .spawn_actor("agent.alice", agent_config("agent.alice"))
+        .unwrap();
+    let _mb_b = router
+        .spawn_actor("agent.bob", agent_config("agent.bob"))
+        .unwrap();
 
-    store_a.append(&ev("agent.task_a")).unwrap();
+    // Alice emits an event with her actor_id stamped.
+    let mut event = ev("agent.task_a");
+    event.actor_id = Some("agent.alice".into());
+    router.emit(event, &mcp_ctx()).await.unwrap();
 
-    // Bob's store is empty — he has no access to Alice's events.
-    let results = store_b.query(&EventFilter::default()).unwrap();
+    // Bob's query for events scoped to his own actor_id is empty —
+    // query_actor_events forces actor_id = "agent.bob" in the filter.
+    let results = router
+        .query_actor_events("agent.bob", &EventFilter::default())
+        .unwrap();
     assert!(results.is_empty(), "agent B must not see agent A's events");
 
     // Alice can see her own event.
-    let results = store_a.query(&EventFilter::default()).unwrap();
+    let results = router
+        .query_actor_events("agent.alice", &EventFilter::default())
+        .unwrap();
     assert_eq!(results.len(), 1);
 }
 
-#[test]
-fn agent_cannot_read_studio_events() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn agent_cannot_read_studio_events() {
     let tmp = tempdir().unwrap();
     let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let (studio_store, _mb) = router.spawn_actor("studio", studio_config()).unwrap();
-    let (agent_store, _agent_mb) =
-        router.spawn_actor("agent.mcp", agent_config("agent.mcp")).unwrap();
+    let _studio_mb = router.spawn_actor("studio", studio_config()).unwrap();
+    let _agent_mb = router
+        .spawn_actor("agent.mcp", agent_config("agent.mcp"))
+        .unwrap();
 
-    studio_store.append(&ev("studio.message.visual")).unwrap();
+    // Studio emits an event.
+    let mut event = ev("studio.message.visual");
+    event.actor_id = Some("studio".into());
+    router.emit(event, &mcp_ctx()).await.unwrap();
 
     // Agent tries to query studio events — read_namespaces = ["agent."]
     let filter = EventFilter {
         event_type: Some("studio.message.visual".into()),
         ..Default::default()
     };
-    let err = agent_store.query(&filter).unwrap_err();
+    let err = router
+        .query_actor_events("agent.mcp", &filter)
+        .unwrap_err();
     assert!(
         err.to_string().contains("read namespace violation"),
         "agent must not be able to query studio events: {err}"
@@ -171,9 +189,10 @@ async fn agent_skill_event_reaches_studio_mailbox() {
         ],
         see_directed_events: false,
     };
-    let (_studio_store, mut studio_mb) = router.spawn_actor("studio", studio_cfg).unwrap();
-    let (_agent_store, _agent_mb) =
-        router.spawn_actor("agent.mcp", agent_config("agent.mcp")).unwrap();
+    let mut studio_mb = router.spawn_actor("studio", studio_cfg).unwrap();
+    let _agent_mb = router
+        .spawn_actor("agent.mcp", agent_config("agent.mcp"))
+        .unwrap();
 
     // Agent emits canvas.artifact_created (prefixed with skill id at emit time).
     let event = ev("canvas.artifact_created");
@@ -196,9 +215,10 @@ async fn studio_feedback_reaches_agent_mailbox() {
     let tmp = tempdir().unwrap();
     let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let (_studio_store, _studio_mb) = router.spawn_actor("studio", studio_config()).unwrap();
-    let (_agent_store, mut agent_mb) =
-        router.spawn_actor("agent.mcp", agent_config("agent.mcp")).unwrap();
+    let _studio_mb = router.spawn_actor("studio", studio_config()).unwrap();
+    let mut agent_mb = router
+        .spawn_actor("agent.mcp", agent_config("agent.mcp"))
+        .unwrap();
 
     let event = ev("studio.feedback");
     router.emit(event.clone(), &mcp_ctx()).await.unwrap();
@@ -218,7 +238,12 @@ async fn kernel_store_records_system_events_for_audit() {
     let tmp = tempdir().unwrap();
     let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let event = ev("actor.created");
+    let event = EventEnvelope::new(
+        "actor.created",
+        "entity-1",
+        &serde_json::json!({ "kind": "test", "environment_type": "local" }),
+    )
+    .unwrap();
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let mut conn = open_db_at(&router.kernel_store_path()).unwrap();

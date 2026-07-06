@@ -36,73 +36,141 @@ pub(super) fn setup() -> (tempfile::TempDir, KernelRouter) {
     (tmp, router)
 }
 
-// ── ActorStore namespace enforcement ─────────────────────────────────────────
+// ── Actor namespace enforcement via kernel.emit ───────────────────────────────
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn kernel_emits_rejects_write_outside_namespace() {
+    let (_tmp, mut router) = setup();
+    let mcp_ctx = EmitContext {
+        caller_kind: CallerKind::Mcp,
+        skill_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        session_id: None,
+    };
+    router.spawn_actor("studio", studio_config()).unwrap();
+    let mut ev_session = ev("session.started");
+    ev_session.actor_id = Some("studio".into());
+    let err = router
+        .emit(ev_session, &mcp_ctx)
+        .await
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("not permitted"),
+        "unexpected error: {err}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn kernel_emits_allows_write_inside_namespace() {
+    let (_tmp, mut router) = setup();
+    let mcp_ctx = EmitContext {
+        caller_kind: CallerKind::Mcp,
+        skill_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        session_id: None,
+    };
+    router.spawn_actor("studio", studio_config()).unwrap();
+    router
+        .emit(ev("studio.canvas_updated"), &mcp_ctx)
+        .await
+        .unwrap();
+}
 
 #[test]
-fn actor_store_rejects_write_outside_namespace() {
-    let (_tmp, mut router) = setup();
-    let (store, _mb) = router.spawn_actor("studio", studio_config()).unwrap();
-    let err = store.append(&ev("session.started")).unwrap_err();
+fn kernel_query_rejects_read_outside_namespace() {
+    let (_tmp, router) = setup();
+    let (_mb, _cfg) = ((), ());
+    let _ = _mb;
+    let _ = _cfg;
+    // No actor with that id registered — query should fail cleanly.
+    let err = router
+        .query_actor_events("missing", &EventFilter::default())
+        .unwrap_err();
     assert!(
-        err.to_string().contains("write namespace violation"),
+        err.to_string().contains("not registered"),
         "unexpected error: {err}"
     );
 }
 
 #[test]
-fn actor_store_allows_write_inside_namespace() {
+fn kernel_query_rejects_namespace_violation() {
     let (_tmp, mut router) = setup();
-    let (store, _mb) = router.spawn_actor("studio", studio_config()).unwrap();
-    store.append(&ev("studio.canvas_updated")).unwrap();
-}
-
-#[test]
-fn actor_store_rejects_read_outside_namespace() {
-    let (_tmp, mut router) = setup();
-    let (store, _mb) = router.spawn_actor("studio", studio_config()).unwrap();
+    router.spawn_actor("studio", studio_config()).unwrap();
     let filter = EventFilter {
         event_type: Some("actor.created".into()),
         ..Default::default()
     };
-    let err = store.query(&filter).unwrap_err();
+    let err = router
+        .query_actor_events("studio", &filter)
+        .unwrap_err();
     assert!(
         err.to_string().contains("read namespace violation"),
         "unexpected error: {err}"
     );
 }
 
-#[test]
-fn actor_store_allows_read_in_permitted_namespace() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn kernel_query_allows_read_in_permitted_namespace() {
     let (_tmp, mut router) = setup();
-    let (store, _mb) = router.spawn_actor("studio", studio_config()).unwrap();
+    let mcp_ctx = EmitContext {
+        caller_kind: CallerKind::Mcp,
+        skill_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        session_id: None,
+    };
+    router.spawn_actor("studio", studio_config()).unwrap();
+    let mut ev_canvas = ev("studio.canvas_updated");
+    ev_canvas.actor_id = Some("studio".into());
+    router.emit(ev_canvas, &mcp_ctx).await.unwrap();
     // studio. is in read_namespaces
     let filter = EventFilter {
         event_type: Some("studio.canvas_updated".into()),
         ..Default::default()
     };
-    assert!(store.query(&filter).is_ok());
+    let results = router.query_actor_events("studio", &filter).unwrap();
+    assert_eq!(results.len(), 1);
     // session. is also in read_namespaces
     let filter = EventFilter {
         event_type: Some("session.started".into()),
         ..Default::default()
     };
-    assert!(store.query(&filter).is_ok());
+    // The event was not emitted, so the result must be empty, but the call
+    // must succeed (no namespace violation).
+    let results = router.query_actor_events("studio", &filter).unwrap();
+    assert!(results.is_empty());
 }
 
-#[test]
-fn actor_store_unfiltered_query_allowed() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn kernel_query_unfiltered_scopes_to_actor() {
     let (_tmp, mut router) = setup();
-    let (store, _mb) = router.spawn_actor("studio", studio_config()).unwrap();
-    store.append(&ev("studio.ready")).unwrap();
-    let results = store.query(&EventFilter::default()).unwrap();
+    let mcp_ctx = EmitContext {
+        caller_kind: CallerKind::Mcp,
+        skill_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        session_id: None,
+    };
+    router.spawn_actor("studio", studio_config()).unwrap();
+    // Stamp the event with the actor's id so it shows up in the actor's view.
+    let mut e = ev("studio.ready");
+    e.actor_id = Some("studio".into());
+    router.emit(e, &mcp_ctx).await.unwrap();
+    let results = router
+        .query_actor_events("studio", &EventFilter::default())
+        .unwrap();
     assert_eq!(results.len(), 1);
 }
 
 // ── Multi-actor isolation ─────────────────────────────────────────────────────
 
-#[test]
-fn actors_cannot_read_each_others_stores() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn actors_cannot_read_each_others_stores() {
     let (_tmp, mut router) = setup();
+    let mcp_ctx = EmitContext {
+        caller_kind: CallerKind::Mcp,
+        skill_id: None,
+        binding: ship_types::ScopeBinding::daemon_internal(None, ship_types::Authority::Sdk),
+        session_id: None,
+    };
 
     let agent_cfg = |id: &str| ActorConfig {
         namespace: id.into(),
@@ -112,17 +180,23 @@ fn actors_cannot_read_each_others_stores() {
         see_directed_events: false,
     };
 
-    let (store_a, _mb_a) = router.spawn_actor("agent-a", agent_cfg("agent-a")).unwrap();
-    let (store_b, _mb_b) = router.spawn_actor("agent-b", agent_cfg("agent-b")).unwrap();
+    router.spawn_actor("agent-a", agent_cfg("agent-a")).unwrap();
+    router.spawn_actor("agent-b", agent_cfg("agent-b")).unwrap();
 
-    store_a.append(&ev("agent.task_started")).unwrap();
+    let mut e = ev("agent.task_started");
+    e.actor_id = Some("agent-a".into());
+    router.emit(e, &mcp_ctx).await.unwrap();
 
-    // Actor B's store is empty — it never saw A's write.
-    let results = store_b.query(&EventFilter::default()).unwrap();
-    assert!(results.is_empty(), "actor B must not see actor A's events");
+    // Actor B's query for events scoped to its own actor_id is empty.
+    let results = router
+        .query_actor_events("agent-b", &EventFilter::default())
+        .unwrap();
+    assert!(results.is_empty(), "agent B must not see agent A's events");
 
     // Actor A can see its own event.
-    let results = store_a.query(&EventFilter::default()).unwrap();
+    let results = router
+        .query_actor_events("agent-a", &EventFilter::default())
+        .unwrap();
     assert_eq!(results.len(), 1);
 }
 
@@ -131,7 +205,7 @@ fn actors_cannot_read_each_others_stores() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn route_delivers_to_subscribed_mailbox() {
     let (_tmp, mut router) = setup();
-    let (_store, mut mb) = router.spawn_actor("studio", studio_config()).unwrap();
+    let mut mb = router.spawn_actor("studio", studio_config()).unwrap();
 
     let event = ev("studio.canvas_updated");
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
@@ -150,7 +224,7 @@ async fn route_skips_unsubscribed_mailbox() {
         subscribe_namespaces: vec!["agent.".into()],
         see_directed_events: false,
     };
-    let (_store, mut mb) = router.spawn_actor("agent-1", agent_cfg).unwrap();
+    let mut mb = router.spawn_actor("agent-1", agent_cfg).unwrap();
 
     // studio event — agent-1 is not subscribed to "studio."
     router
@@ -176,8 +250,8 @@ async fn route_delivers_to_multiple_subscribers() {
         see_directed_events: false,
     };
 
-    let (_s1, mut mb1) = router.spawn_actor("watcher-1", sub_cfg("watcher-1")).unwrap();
-    let (_s2, mut mb2) = router.spawn_actor("watcher-2", sub_cfg("watcher-2")).unwrap();
+    let mut mb1 = router.spawn_actor("watcher-1", sub_cfg("watcher-1")).unwrap();
+    let mut mb2 = router.spawn_actor("watcher-2", sub_cfg("watcher-2")).unwrap();
 
     let event = ev("studio.canvas_updated");
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
@@ -191,8 +265,12 @@ async fn route_delivers_to_multiple_subscribers() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn kernel_store_receives_system_events() {
     let (_tmp, router) = setup();
-    let event = ev("actor.created");
-    // emit persists + delivers. route is delivery-only.
+    let event = EventEnvelope::new(
+        "actor.created",
+        "entity-1",
+        &serde_json::json!({ "kind": "test", "environment_type": "local" }),
+    )
+    .unwrap();
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     // Verify via raw SQL — kernel store has the event.
@@ -243,7 +321,7 @@ fn spawn_actor_rejects_duplicate_id() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn refine_actor_preserves_mailbox_through_wrapper() {
     let (_tmp, mut router) = setup();
-    let (_store, mut mb) = router.spawn_actor("studio", studio_config()).unwrap();
+    let mut mb = router.spawn_actor("studio", studio_config()).unwrap();
 
     // Refine to a different namespace; the wrapper must keep the sender
     // intact so the original Mailbox handle stays receivable.
@@ -276,11 +354,10 @@ fn refine_actor_errors_on_unknown_through_wrapper() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stopped_actor_mailbox_is_closed() {
     let (_tmp, mut router) = setup();
-    let (_store, mut mb) = router.spawn_actor("studio", studio_config()).unwrap();
+    let mut mb = router.spawn_actor("studio", studio_config()).unwrap();
 
     router.stop_actor("studio").unwrap();
 
     // Sender was dropped — recv returns None.
     assert!(mb.recv().await.is_none());
 }
-

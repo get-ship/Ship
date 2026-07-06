@@ -11,7 +11,7 @@ use std::time::Duration;
 use anyhow::Result;
 
 use ship_substrate::db::cursors;
-use ship_substrate::events::{ActorStore, EventEnvelope, query_events_since};
+use ship_substrate::events::{EventEnvelope, SqliteEventStore, query_events_since};
 use ship_substrate::services::ServiceHandler;
 use ship_types::payload::SyncPushCompleted;
 use crate::{PushResponse, SyncClient};
@@ -93,7 +93,7 @@ impl SyncServiceHandler {
         format!("{PUSH_SCOPE_PREFIX}:{}", self.config.space_id)
     }
 
-    fn push_cycle(&mut self, store: &ActorStore) -> Result<()> {
+    fn push_cycle(&mut self, store: &SqliteEventStore) -> Result<()> {
         let push_start = std::time::Instant::now();
         let scope = self.push_scope();
         let cursor = cursors::get(&scope)?;
@@ -125,7 +125,7 @@ impl ServiceHandler for SyncServiceHandler {
         "sync"
     }
 
-    fn handle(&mut self, event: &EventEnvelope, store: &ActorStore) -> Result<()> {
+    fn handle(&mut self, event: &EventEnvelope, store: &SqliteEventStore) -> Result<()> {
         if event.event_type == "sync.trigger.push" {
             return self.push_cycle(store);
         }
@@ -138,7 +138,7 @@ impl ServiceHandler for SyncServiceHandler {
         Ok(())
     }
 
-    fn on_start(&mut self, store: &ActorStore) -> Result<()> {
+    fn on_start(&mut self, store: &SqliteEventStore) -> Result<()> {
         store.append_enforced(
             &EventEnvelope::new(
                 "sync.started",
@@ -150,7 +150,7 @@ impl ServiceHandler for SyncServiceHandler {
         Ok(())
     }
 
-    fn on_stop(&mut self, store: &ActorStore) -> Result<()> {
+    fn on_stop(&mut self, store: &SqliteEventStore) -> Result<()> {
         store.append_enforced(
             &EventEnvelope::new(
                 "sync.stopped",
@@ -166,7 +166,7 @@ impl ServiceHandler for SyncServiceHandler {
         Some(Duration::from_secs(self.config.push_interval_secs))
     }
 
-    fn on_tick(&mut self, store: &ActorStore) -> Result<()> {
+    fn on_tick(&mut self, store: &SqliteEventStore) -> Result<()> {
         if let Err(e) = self.push_cycle(store) {
             tracing::warn!("sync push_cycle error: {e}");
             let payload = serde_json::json!({"error": e.to_string()});
@@ -248,14 +248,13 @@ mod tests {
         .unwrap();
     }
 
-    fn make_store(_tmp: &tempfile::TempDir) -> ActorStore {
+    fn make_store(_tmp: &tempfile::TempDir) -> SqliteEventStore {
         // Backed by the already-initialised global runtime.db (setup_global_db).
-        ActorStore::new(
-            "sync",
-            test_runtime_db(),
-            vec!["sync.".into()],
-            vec![],
-        )
+        // ActorStore is gone (job/actorstore-deletion, 2026-07-06) — the
+        // service now writes through `SqliteEventStore::append_enforced`,
+        // which runs the same stamp/scope/schema gate every other writer
+        // uses.
+        SqliteEventStore::new_at_db_path(&test_runtime_db()).unwrap()
     }
 
     #[test]

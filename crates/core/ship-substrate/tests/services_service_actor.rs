@@ -1,6 +1,6 @@
 //! Tests for the service actor infrastructure and sync service config.
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -8,8 +8,8 @@ use tempfile::tempdir;
 use tokio::sync::mpsc;
 
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
-use ship_substrate::events::{ActorStore, EventEnvelope, Mailbox};
-use ship_substrate::services::{ServiceHandle, ServiceHandler, spawn_service, run_service};
+use ship_substrate::events::{EventEnvelope, Mailbox, SqliteEventStore};
+use ship_substrate::services::{ServiceHandle, ServiceHandler, run_service, spawn_service};
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -27,31 +27,31 @@ fn sync_actor_config() -> ActorConfig {
     }
 }
 
- fn setup_router() -> (tempfile::TempDir, KernelRouter) {
-     let tmp = tempdir().unwrap();
-     let base = ship_substrate::ShipHome::project_ship_dir(tmp.path());
-     std::fs::create_dir_all(&base).unwrap();
-     let router = KernelRouter::new(base).unwrap();
-     (tmp, router)
- }
- 
- fn setup_store(actor_id: &str, write_ns: Vec<String>, read_ns: Vec<String>) -> (tempfile::TempDir, ActorStore) {
-     let tmp = tempdir().unwrap();
-     let db_path = ship_substrate::db::runtime_db_path(tmp.path());
-     ship_substrate::db::ensure_events_db_at_path(&db_path).unwrap();
-     let store = ActorStore::new(actor_id, db_path, write_ns, read_ns);
-     (tmp, store)
- }
+fn setup_router() -> (tempfile::TempDir, KernelRouter) {
+    let tmp = tempdir().unwrap();
+    let base = ship_substrate::ShipHome::project_ship_dir(tmp.path());
+    std::fs::create_dir_all(&base).unwrap();
+    let router = KernelRouter::new(base).unwrap();
+    (tmp, router)
+}
+
+fn setup_store() -> (tempfile::TempDir, SqliteEventStore) {
+    let tmp = tempdir().unwrap();
+    let db_path = ship_substrate::db::runtime_db_path(tmp.path());
+    ship_substrate::db::ensure_events_db_at_path(&db_path).unwrap();
+    let store = SqliteEventStore::new_at_db_path(&db_path).unwrap();
+    (tmp, store)
+}
 
 /// Minimal service handler that records lifecycle calls for inspection.
 struct RecordingHandler {
     name: String,
-    calls: Arc<Mutex<Vec<String>>>,
+    calls: Arc<std::sync::Mutex<Vec<String>>>,
 }
 
 impl RecordingHandler {
-    fn new(name: &str) -> (Self, Arc<Mutex<Vec<String>>>) {
-        let calls = Arc::new(Mutex::new(Vec::new()));
+    fn new(name: &str) -> (Self, Arc<std::sync::Mutex<Vec<String>>>) {
+        let calls = Arc::new(std::sync::Mutex::new(Vec::new()));
         let handler = Self { name: name.to_string(), calls: calls.clone() };
         (handler, calls)
     }
@@ -62,7 +62,7 @@ impl ServiceHandler for RecordingHandler {
         &self.name
     }
 
-    fn handle(&mut self, event: &EventEnvelope, _store: &ActorStore) -> Result<()> {
+    fn handle(&mut self, event: &EventEnvelope, _store: &SqliteEventStore) -> Result<()> {
         self.calls
             .lock()
             .unwrap()
@@ -70,12 +70,12 @@ impl ServiceHandler for RecordingHandler {
         Ok(())
     }
 
-    fn on_start(&mut self, _store: &ActorStore) -> Result<()> {
+    fn on_start(&mut self, _store: &SqliteEventStore) -> Result<()> {
         self.calls.lock().unwrap().push("on_start".into());
         Ok(())
     }
 
-    fn on_stop(&mut self, _store: &ActorStore) -> Result<()> {
+    fn on_stop(&mut self, _store: &SqliteEventStore) -> Result<()> {
         self.calls.lock().unwrap().push("on_stop".into());
         Ok(())
     }
@@ -86,7 +86,8 @@ impl ServiceHandler for RecordingHandler {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn service_on_start_and_on_stop_called() {
     let (_tmp, mut router) = setup_router();
-    let (store, mailbox) = router.spawn_actor("svc", sync_actor_config()).unwrap();
+    let mailbox = router.spawn_actor("svc", sync_actor_config()).unwrap();
+    let store = SqliteEventStore::new_at_db_path(&router.kernel_store_path()).unwrap();
 
     let (handler, calls) = RecordingHandler::new("test");
     let task = tokio::spawn(run_service(Box::new(handler), store, mailbox));
@@ -104,7 +105,7 @@ async fn service_handle_called_for_each_mailbox_event() {
     let (tx, rx) = mpsc::channel(10);
     let mailbox = Mailbox::from_receiver(rx);
 
-    let (_tmp, store) = setup_store("test-svc", vec!["sync.".into()], vec![]);
+    let (_tmp, store) = setup_store();
 
     let (handler, calls) = RecordingHandler::new("test");
     let task = tokio::spawn(run_service(Box::new(handler), store, mailbox));
@@ -126,7 +127,7 @@ async fn service_exits_cleanly_when_mailbox_closes() {
     let (tx, rx) = mpsc::channel(4);
     let mailbox = Mailbox::from_receiver(rx);
 
-    let (_tmp, store) = setup_store("test-svc", vec!["sync.".into()], vec![]);
+    let (_tmp, store) = setup_store();
 
     let (handler, _calls) = RecordingHandler::new("test");
     let task = tokio::spawn(run_service(Box::new(handler), store, mailbox));
@@ -156,4 +157,3 @@ async fn spawn_service_wires_actor_and_task() {
     assert!(calls.contains(&"on_start".to_string()));
     assert!(calls.contains(&"on_stop".to_string()));
 }
-

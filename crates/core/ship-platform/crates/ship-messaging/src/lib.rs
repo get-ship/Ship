@@ -39,7 +39,7 @@ use async_trait::async_trait;
 
 use ship_substrate::events::pipeline::event_types::PIPELINE_RUN_BLOCKED;
 use ship_substrate::events::pipeline::PipelineRunBlockedPayload;
-use ship_substrate::events::{ActorStore, EventEnvelope};
+use ship_substrate::events::{EventEnvelope, SqliteEventStore};
 use ship_substrate::services::ServiceHandler;
 
 // ── Adapter trait ─────────────────────────────────────────────────────────────
@@ -181,7 +181,7 @@ impl ServiceHandler for HumanGatewayService {
         "human-gateway"
     }
 
-    fn handle(&mut self, event: &EventEnvelope, _store: &ActorStore) -> Result<()> {
+    fn handle(&mut self, event: &EventEnvelope, _store: &SqliteEventStore) -> Result<()> {
         if event.event_type == PIPELINE_RUN_BLOCKED {
             self.handle_job_blocked(event);
         }

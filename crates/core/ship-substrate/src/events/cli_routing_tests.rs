@@ -61,7 +61,12 @@ async fn system_event_reaches_kernel_store() {
     let tmp = tempdir().unwrap();
     let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let event = ev(event_types::ACTOR_CREATED);
+    let event = EventEnvelope::new(
+        event_types::ACTOR_CREATED,
+        "entity-cli",
+        &serde_json::json!({ "kind": "test", "environment_type": "local" }),
+    )
+    .unwrap();
     // emit persists + delivers. route is delivery-only.
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
@@ -83,7 +88,7 @@ async fn session_event_delivered_to_subscribed_mailbox() {
     let tmp = tempdir().unwrap();
     let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let (_store, mut mailbox) = router.spawn_actor("agent.mcp", agent_config()).unwrap();
+    let mut mailbox = router.spawn_actor("agent.mcp", agent_config()).unwrap();
 
     let event = session_ev();
     router.emit(event.clone(), &runtime_ctx()).await.unwrap();
@@ -122,7 +127,7 @@ async fn cli_context_event_delivered_to_subscribed_mailbox() {
     let tmp = tempdir().unwrap();
     let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let (_store, mut mailbox) = router.spawn_actor("agent.mcp", agent_config()).unwrap();
+    let mut mailbox = router.spawn_actor("agent.mcp", agent_config()).unwrap();
 
     let event = session_ev();
     router.emit(event.clone(), &cli_ctx()).await.unwrap();

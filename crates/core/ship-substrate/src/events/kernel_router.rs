@@ -6,9 +6,11 @@
 //! - `base_dir` + the held `PartitionedSink` for filesystem helpers (per-scope
 //!   WAL flush, mailbox-overflow events)
 //! - Runtime validators that carry `EmitContext` (caller kind, skill ID, etc.)
-//! - `spawn_actor` → returns `(ActorStore, Mailbox)` instead of just `Mailbox`
-//! - `emit` / `route` with `EmitContext`-aware validation and write-namespace
-//!   enforcement
+//! - `spawn_actor` → returns the actor's `Mailbox`; queries / writes are
+//!   mediated by the router (`query_actor_events`, `emit`)
+//! - `emit` / `route` with `EmitContext`-aware validation, write-namespace
+//!   enforcement, and the shared `apply_stamp_chokepoint` stamp-or-reject
+//!   gate
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -17,11 +19,10 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 
 use crate::errors::KernelError;
-use crate::persistence::PartitionedSink;
-use crate::persistence::actor_store::ActorStore;
-use ship_types::envelope::EventEnvelope;
-use ship_kernel::Mailbox;
 use crate::events::validator::{EmitContext, EventValidator};
+use crate::persistence::{EventStore, PartitionedSink, SqliteEventStore};
+use ship_kernel::Mailbox;
+use ship_types::envelope::EventEnvelope;
 
 pub use ship_types::ActorConfig;
 
@@ -136,25 +137,15 @@ impl KernelRouter {
         &mut self,
         actor_id: &str,
         config: ActorConfig,
-    ) -> Result<(ActorStore, Mailbox), KernelError> {
-        // Actors are Runtime-scoped: every actor queries the shared
-        // `runtime.db` events table filtered by its own actor_id. No per-actor
-        // file is created.
-        let db_path = crate::db::runtime_db_path(&self.base_dir);
-
-        let write_ns = config.write_namespaces.clone();
-        let read_ns = config.read_namespaces.clone();
-
+    ) -> Result<Mailbox, KernelError> {
         // Delegate registration to inner — it owns mailboxes and subscriptions.
-        let mailbox = self.inner.spawn_actor(actor_id, config)?;
-
-        let store = ActorStore::new(
-            actor_id,
-            db_path,
-            write_ns,
-            read_ns,
-        );
-        Ok((store, mailbox))
+        // Actor isolation is by `actor_id` column in the shared runtime.db
+        // events table; queries and writes are mediated by `KernelRouter`
+        // (`query_actor_events` / `emit`) which enforce the actor's
+        // read/write namespaces against `ActorConfig`. The previously
+        // returned `ActorStore` handle was deleted with the E1 fossil
+        // (job/actorstore-deletion, 2026-07-06).
+        self.inner.spawn_actor(actor_id, config).map_err(Into::into)
     }
 
     /// Replace an existing actor's config in place without disturbing
@@ -198,11 +189,11 @@ impl KernelRouter {
         }
         self.enforce_write_namespaces(&event, ctx)?;
 
-        // Author + scope chokepoint: stamp author identity, then stamp-or-reject
-        // the scope key from the authoritative binding. Runs BEFORE persist so a
-        // rejected (cross-space / space-unbound) event is never half-written.
-        ship_types::stamp_author(&mut event, &ctx.binding);
-        ship_types::enforce_scope(&mut event, &ctx.binding).map_err(|e| anyhow!("{e}"))?;
+        // Shared stamp/scope/schema chokepoint — the same gate
+        // `SqliteEventStore::append_enforced` runs off-kernel. If the
+        // kernel path validates payloads, so does everyone.
+        crate::events::apply_stamp_chokepoint(&mut event, &ctx.binding, ctx)
+            .map_err(|e| anyhow!("{e}"))?;
 
         // Bump per-actor rate counters before delivery — best-effort,
         // mutex contention is bounded (six 10s buckets, single hashmap
@@ -242,6 +233,38 @@ impl KernelRouter {
             flush_wal(&db_path)?;
         }
         Ok(())
+    }
+
+    /// Query the actor's view of the shared `runtime.db` event log.
+    ///
+    /// The actor's isolation is by `actor_id` column, not by file (every
+    /// actor reads from the same `runtime.db`); this method enforces the
+    /// `read_namespaces` declared in the actor's config AND scopes the
+    /// filter to the actor's own `actor_id`. `filter.event_type`, if set,
+    /// must start with one of the actor's `read_namespaces`.
+    pub fn query_actor_events(
+        &self,
+        actor_id: &str,
+        filter: &crate::events::EventFilter,
+    ) -> Result<Vec<EventEnvelope>> {
+        let config = self.inner.get_actor_config(actor_id).ok_or_else(|| {
+            anyhow!("query_actor_events: actor '{}' not registered", actor_id)
+        })?;
+        if let Some(event_type) = &filter.event_type
+            && !config.read_namespaces.iter().any(|ns| event_type.starts_with(ns.as_str()))
+        {
+            return Err(anyhow!(
+                "read namespace violation: '{}' not permitted for actor '{}'",
+                event_type,
+                actor_id
+            ));
+        }
+        let mut scoped = filter.clone();
+        // Override any caller-supplied actor_id filter with our own — the
+        // query is the actor's view, not a general query API.
+        scoped.actor_id = Some(actor_id.to_string());
+        let store = SqliteEventStore::new_at_db_path(&self.kernel_store_path())?;
+        store.query(&scoped)
     }
 
     pub fn actor_count(&self) -> usize {

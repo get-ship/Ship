@@ -5,25 +5,27 @@
 //! `init_kernel_router` get `None` from `kernel_router()` — routing is skipped
 //! and only off-kernel per-scope db persistence happens (runtime.db /
 //! account.db / spaces/<id>/space.db via `SqliteEventStore::append_enforced`).
-
+//!
+//! The standard validator chain is namespace + reserved-namespace + elevated.
+//! Payload-schema validation lives in the shared `apply_stamp_chokepoint`
+//! function every write path runs, so registering it here would double-fire.
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 
 use crate::events::kernel_router::KernelRouter;
-use crate::events::payload_schema::PayloadSchemaValidator;
 use crate::events::validator::{ElevatedValidator, NamespaceValidator, ReservedNamespaceValidator};
 
 static KERNEL_ROUTER: OnceLock<Arc<Mutex<KernelRouter>>> = OnceLock::new();
 
 /// Build a KernelRouter rooted at `base_dir` with the standard validator chain
-/// (namespace + reserved-namespace + elevated + payload-schema).
+/// (namespace + reserved-namespace + elevated). Payload-schema runs inside
+/// `apply_stamp_chokepoint` after the chain returns Ok.
 fn build_router(base_dir: PathBuf) -> anyhow::Result<KernelRouter> {
     Ok(KernelRouter::new(base_dir)?
         .with_validator(Box::new(NamespaceValidator))
         .with_validator(Box::new(ReservedNamespaceValidator))
-        .with_validator(Box::new(ElevatedValidator))
-        .with_validator(Box::new(PayloadSchemaValidator)))
+        .with_validator(Box::new(ElevatedValidator)))
 }
 
 /// Initialize the global KernelRouter rooted at `base_dir`.
