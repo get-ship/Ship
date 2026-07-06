@@ -26,9 +26,9 @@
 //!
 //! ## What this crate does NOT do
 //!
-//! - **No watch, no cache.** J4 (watch) and J5 (descriptor cache) are
-//!   separate jobs. This crate is the entry point J4/J5 subscribe to; the
-//!   cache's key is [`descriptor::project_library_content_hash`].
+//! - **No cache.** J5 (descriptor cache) is a separate job that subscribes
+//!   to this crate's [`watcher`] module. The cache key is
+//!   [`descriptor::project_library_content_hash`].
 //! - **No caller migration.** J6 (helmd dispatch), J7 (shipd ingest), J8
 //!   (helmd wire) replace their existing call sites with this crate's API.
 //!   Out of scope here.
@@ -44,17 +44,24 @@
 //! - [`ts_resolver`] — V8 eval fan-out. `!Send` boundary on `spawn_blocking`.
 //! - [`descriptor`] — canonical sorted-key JSON helpers. The determinism
 //!   invariant the cache relies on (`inv-fmt-deterministic-eval`).
+//! - [`watcher`] — the J4 FsWatch consumer over the project root. Pushes
+//!   `ResolverInvalidation` onto a `tokio::sync::watch` channel the cache
+//!   subscribes to. Event-free per the FsWatch port's contract; the cache
+//!   (J5) is the only consumer today.
 //!
 //! ## Authority
 //!
-//! - Spec: `helm/data/missions/m-ship-stack-cutover/scratch/job-spec-p2-J3-resolver.md`.
-//! - Census: `census-phase2-resolver.md` Part 4 + Part 5 J3.
+//! - Spec: `helm/data/missions/m-ship-stack-cutover/scratch/job-spec-p2-J3-resolver.md`
+//!   (J3) + `job-spec-p2-J4J5-watch-cache.md` (J4+J5; J5 is still pending).
+//! - Census: `census-phase2-resolver.md` Part 4 + Part 5 J3 (and J4/J5 once
+//!   J5 lands).
 //! - F1 decision: `decision-f1-loader.md` (Option A — the superset is the
 //!   architecture, no code moves).
-
 pub mod descriptor;
 pub mod project_loader;
 pub mod ts_resolver;
+pub mod cache;
+pub mod watcher;
 
 use std::path::Path;
 

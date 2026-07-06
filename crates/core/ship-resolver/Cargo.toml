@@ -30,12 +30,20 @@ ship-substrate = { path = "../ship-substrate" }
 # but `agent-config-eval` re-exports ship-js and we keep the dep explicit
 # so the resolver's `ts_resolver` module can name the engine in its docs.
 ship-js = { path = "/home/madvib/dev/Ship/ship-exec/crates/ship-js", features = ["deno"] }
+# The `notify`/`inotify`-backed change-notification port (J4). Lives in the
+# substrate's `fs-watch` leaf (the L0 port that pairs with `fs-cap`'s
+# `FsBroker`). The resolver's watcher spawns an FsWatch over the project
+# root at 50ms debounce (the same primitive the ship-config watcher uses;
+# the 50ms window is the spec's value for the resolver, smaller than the
+# 200ms ship-config default because the cache invalidation is the cheap,
+# non-event-authoring half — the rest of the policy sits in J5).
+fs-watch = { path = "../ship-substrate/crates/fs-watch" }
 
 # Plumbing
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "fs"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "fs", "sync", "time"] }
 tracing = { workspace = true }
 
 # Content-hash helpers — the descriptor's `content_hash` field + the

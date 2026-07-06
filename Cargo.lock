@@ -8698,6 +8698,7 @@ dependencies = [
  "agent-config-eval",
  "anyhow",
  "compiler",
+ "fs-watch",
  "serde",
  "serde_json",
  "sha2",
