@@ -25,6 +25,7 @@ use ship_substrate::events::{EventFilter, EventStore, SqliteEventStore};
 use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
 /// An artifact resolved from a prior step's `produces` declaration.
+#[derive(Debug)]
 pub struct ResolvedInput {
     pub name: String,
     pub artifact_id: String,

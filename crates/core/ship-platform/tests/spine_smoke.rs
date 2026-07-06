@@ -144,7 +144,7 @@ async fn resolve_claude_output(
     space_root: &Path,
     cache_root: &Path,
 ) -> anyhow::Result<compiler::CompileOutput> {
-    let composed = roll_up(space_root, Some(cache_root)).await?;
+    let composed = roll_up(space_root, Some(cache_root), None).await?;
     let resolved = resolve_library(&composed.library, None, None);
     compile(&resolved, "claude").ok_or_else(|| anyhow::anyhow!("compile: no output for claude"))
 }
@@ -157,12 +157,12 @@ async fn spine_roll_up_index_and_view_agree_on_the_collision() {
     let ship_dir = ShipHome::project_ship_dir(&space_root);
 
     // 1+2. `roll_up` composes: source wins, shadow record present.
-    let composed = roll_up(&space_root, Some(&cache_root)).await.unwrap();
+    let composed = roll_up(&space_root, Some(&cache_root), None).await.unwrap();
     assert_eq!(composed.shadows.len(), 1, "one collision recorded");
     let shadow = &composed.shadows[0];
     assert_eq!(shadow.id, COLLIDING_ID);
     assert_eq!(shadow.winning_source, ExtSource::Space);
-    assert_eq!(shadow.losing_source, ExtSource::UserGlobal);
+    assert_eq!(shadow.losing_source, ExtSource::Cache);
     assert_eq!(shadow.losing_tier_hash, PKG_HEX);
     let winner = composed
         .library
@@ -230,7 +230,7 @@ async fn spine_config_file_changed_invalidates_cache_and_recompose_sees_the_edit
     // Resolve once, pre-edit. The load_fn IS the production pipeline
     // (roll_up → resolve_library → compile), not a stand-in.
     let hash_before = {
-        let composed = roll_up(&space_root, Some(&cache_root)).await.unwrap();
+        let composed = roll_up(&space_root, Some(&cache_root), None).await.unwrap();
         extension_library_content_hash(&composed.library).unwrap()
     };
     let before = cache
@@ -273,7 +273,7 @@ async fn spine_config_file_changed_invalidates_cache_and_recompose_sees_the_edit
 
     // The next resolve recomposes with the edit visible.
     let hash_after = {
-        let composed = roll_up(&space_root, Some(&cache_root)).await.unwrap();
+        let composed = roll_up(&space_root, Some(&cache_root), None).await.unwrap();
         extension_library_content_hash(&composed.library).unwrap()
     };
     assert_ne!(hash_after, hash_before, "the edit changes the roll-up's content hash");
@@ -295,8 +295,8 @@ async fn spine_config_file_changed_invalidates_cache_and_recompose_sees_the_edit
 async fn spine_roll_up_compose_is_deterministic_across_two_runs() {
     let (_tmp, space_root, cache_root) = write_colliding_fixture();
 
-    let a = roll_up(&space_root, Some(&cache_root)).await.unwrap();
-    let b = roll_up(&space_root, Some(&cache_root)).await.unwrap();
+    let a = roll_up(&space_root, Some(&cache_root), None).await.unwrap();
+    let b = roll_up(&space_root, Some(&cache_root), None).await.unwrap();
 
     let a_bytes = extension_library_canonical(&a.library).unwrap();
     let b_bytes = extension_library_canonical(&b.library).unwrap();

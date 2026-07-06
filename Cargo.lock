@@ -8351,6 +8351,7 @@ dependencies = [
  "async-trait",
  "buffa",
  "chrono",
+ "compiler",
  "connectrpc",
  "durable-execution",
  "http",

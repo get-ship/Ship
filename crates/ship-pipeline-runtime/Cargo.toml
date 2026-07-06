@@ -75,6 +75,7 @@ sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runti
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 
 [dev-dependencies]
+compiler = { path = "../core/compiler" }
 tokio = { workspace = true, features = ["test-util"] }
 ship-substrate = { path = "../core/ship-substrate" }
 # Gate tests construct RequestContext which takes http::HeaderMap.

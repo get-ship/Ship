@@ -40,8 +40,6 @@ pub mod gate_rules;
 pub mod handlers;
 pub mod pipeline;
 pub mod pipeline_specs;
-#[cfg(test)]
-mod pipeline_specs_tests;
 pub mod projection_reader;
 pub mod prompt_composer;
 pub mod replay;
