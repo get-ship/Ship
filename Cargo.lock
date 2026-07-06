@@ -8628,6 +8628,7 @@ dependencies = [
  "ship-kernel",
  "ship-pipelines",
  "ship-platform",
+ "ship-resolver",
  "ship-runner",
  "ship-space",
  "ship-store",

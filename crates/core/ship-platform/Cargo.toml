@@ -145,6 +145,12 @@ tokio = { workspace = true, features = ["test-util"] }
 # unification happened to enable the flag — i.e. never under
 # `cargo test -p ship-platform` (the test target silently never ran).
 ship-platform = { path = ".", features = ["testutil"] }
+# Test-only reach for the spine smoke (tests/spine_smoke.rs): `roll_up` +
+# the descriptor cache live in ship-resolver, which no production code in
+# this crate depends on. ship-resolver has no dependency back on
+# ship-platform (it depends on ship-store/ship-substrate/compiler directly),
+# so this is a one-way dev-only edge, not a cycle.
+ship-resolver = { path = "../ship-resolver" }
 
 [lints]
 workspace = true
