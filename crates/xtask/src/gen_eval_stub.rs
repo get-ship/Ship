@@ -30,6 +30,13 @@
 //! that lands, the rules shape here is hand-specified, not generated;
 //! see `ts_resolver.rs`'s `RuleDeclare`.
 //!
+//! `defineView` is ALSO EXCLUDED from stack-derived fingerprinting
+//! (Phase-4 J2) for the same J1-provisional-pending-sail/deck-alignment
+//! reason documented in `decision-views-deck-boundary.md`. The shape
+//! here is the thinnest one that round-trips through J1's
+//! `ViewDescriptor`: a local `route` plus a `component_ref`. The
+//! per-extension `prefix` is set by the roll-up, not by the author.
+//!
 //! Usage:
 //!   cargo xtask gen-eval-stub          # regenerate the committed file
 //!   cargo xtask gen-eval-stub --check  # diff vs on-disk; exit 1 on drift
@@ -104,8 +111,17 @@ const NOUN_TYPES: &[NounType] = &[
 
 /// Declare-forms injected as `"ship"` module exports: (JS function name,
 /// `__kind` discriminant tag). `defineAgent` is the pre-existing form
-/// (Phase 0); the rest are Wave 3's additions. All seven share one
+/// (Phase 0); the rest are Wave 3's additions. Eight forms share one
 /// generic collector body — see [`render_sdk_stub`].
+///
+/// `defineView` is the Phase-4 J2 addition. The hand-specified
+/// field set (no stack fingerprint) follows the same precedent
+/// `defineRule` set per `decision-morning-answers.md` §2: J1's
+/// `ViewDescriptor` is PROVISIONAL pending sail/deck alignment
+/// (`decision-views-deck-boundary.md`), so we don't bind a stack shape
+/// that may pass through one more pass before the deck update lands.
+/// The hand-specified field set is asserted stable in
+/// `agent-config-eval/src/declarations.rs::drift_tests`.
 const DECLARE_FORMS: &[(&str, &str)] = &[
     ("defineAgent", "agent"),
     ("defineMcpServer", "mcp_server"),
@@ -114,6 +130,7 @@ const DECLARE_FORMS: &[(&str, &str)] = &[
     ("defineTrigger", "trigger"),
     ("defineCollection", "collection"),
     ("defineRule", "rule"),
+    ("defineView", "view"),
 ];
 
 pub fn run(repo_root: &Path, check: bool) -> Result<()> {
@@ -227,7 +244,13 @@ fn render(fields: &[(&str, Vec<String>)]) -> String {
          // `defineRule` is EXCLUDED from generation — decision-morning-answers.md §2\n\
          // rules the rules declare-form down to the thinnest hand-specified shape\n\
          // (id + content + apply scope), not stack's (richer) `RuleDef` — see\n\
-         // `ts_resolver.rs`'s `RuleDeclare` for the documented exception.\n\n",
+         // `ts_resolver.rs`'s `RuleDeclare` for the documented exception.\n\
+         //\n\
+         // `defineView` is ALSO EXCLUDED from generation (Phase-4 J2) for the\n\
+         // same J1-provisional-pending-deck-alignment reason — see\n\
+         // `decision-views-deck-boundary.md`. Its field set is asserted\n\
+         // stable by a hand-written-against-itself unit test in\n\
+         // `declarations.rs::drift_tests`.\n\n",
     );
 
     out.push_str("pub const SDK_STUB: &str = r#\"\n");

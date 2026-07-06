@@ -10,6 +10,12 @@
 // rules the rules declare-form down to the thinnest hand-specified shape
 // (id + content + apply scope), not stack's (richer) `RuleDef` — see
 // `ts_resolver.rs`'s `RuleDeclare` for the documented exception.
+//
+// `defineView` is ALSO EXCLUDED from generation (Phase-4 J2) for the
+// same J1-provisional-pending-deck-alignment reason — see
+// `decision-views-deck-boundary.md`. Its field set is asserted
+// stable by a hand-written-against-itself unit test in
+// `declarations.rs::drift_tests`.
 
 pub const SDK_STUB: &str = r#"
 // --- determinism guard: config eval must be pure -------------------------
@@ -64,6 +70,9 @@ export function defineCollection(config) {
 }
 export function defineRule(config) {
   return __emit("rule", config);
+}
+export function defineView(config) {
+  return __emit("view", config);
 }
 "#;
 

@@ -10,6 +10,12 @@ pub struct ViewDescriptor {
     /// owning package's path). Composition keys on `(prefix, route)`, not
     /// `route` alone — two extensions' views coexist under distinct
     /// prefixes even when `route` is identical.
+    ///
+    /// Absent from an author's `defineView` call — the source tier has no
+    /// package path, so it defaults to empty. The roll-up sets `prefix`
+    /// for cached/dep tiers explicitly (`pkg_path`); source-tier views
+    /// keep the empty default.
+    #[serde(default)]
     pub prefix: String,
     /// The route/segment local to `prefix` (e.g. `/dashboard`).
     pub route: String,

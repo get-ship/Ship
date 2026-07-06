@@ -37,7 +37,11 @@ fn local_only_mirrors_traveling_dirs() {
     let ship_dir = tmp.path().join(".ship");
     let cache_root = tmp.path().join("cache");
 
-    // Local traveling dirs across two of the four composed types.
+    // `views/` is intentionally NOT in COMPOSED_TYPES — the resolver owns
+    // view composition (`compiler::compose::compose_space` /
+    // `ComposedLibrary::route_tree`), not this file materializer. So
+    // this test exercises one of the OTHER traveling dirs (pipelines) and
+    // confirms a local `views/` is NOT mirrored into the composed overlay.
     write_file(&ship_dir, "pipelines/build.jsonc", r#"{ "id": "build" }"#);
     write_file(&ship_dir, "views/dashboard/page.sui", "<view/>");
     // No lockfile → depless space.
@@ -49,9 +53,11 @@ fn local_only_mirrors_traveling_dirs() {
         composed.join("pipelines/build.jsonc").is_file(),
         "local pipeline mirrored verbatim"
     );
+    // Local `views/` is NOT mirrored — `views` was removed from
+    // COMPOSED_TYPES in J2 (resolver-owned, not file-materialized).
     assert!(
-        composed.join("views/dashboard/page.sui").is_file(),
-        "local view dir mirrored verbatim"
+        !composed.join("views/dashboard/page.sui").exists(),
+        "views/ is composed by the resolver, not mirrored into the file overlay"
     );
     // No dep namespace dirs created for absent types.
     assert!(!composed.join("triggers").exists());

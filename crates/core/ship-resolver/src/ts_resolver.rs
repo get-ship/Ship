@@ -59,6 +59,7 @@ fn merge_declarations(all: &mut Declarations, module: Declarations) {
     all.pipelines.extend(module.pipelines);
     all.triggers.extend(module.triggers);
     all.collections.extend(module.collections);
+    all.views.extend(module.views);
 }
 
 /// Evaluate every TS module in `imported_modules` and return the merged
@@ -273,6 +274,7 @@ import {
   defineTrigger,
   defineCollection,
   defineRule,
+  defineView,
 } from "ship";
 
 defineAgent({ agent: { id: "demo", name: "Demo" } });
@@ -319,6 +321,11 @@ defineRule({
   content: "Be terse.",
   applyScope: "always",
 });
+
+defineView({
+  route: "/hello",
+  component_ref: "Hello.sui",
+});
 "#,
         );
         let declarations = resolve_ts_files(&[module], &Value::Null).await.unwrap();
@@ -344,5 +351,9 @@ defineRule({
         assert_eq!(declarations.rules.len(), 1);
         assert_eq!(declarations.rules[0].file_name, "style");
         assert!(declarations.rules[0].always_apply);
+
+        assert_eq!(declarations.views.len(), 1);
+        assert_eq!(declarations.views[0].route, "/hello");
+        assert_eq!(declarations.views[0].component_ref, "Hello.sui");
     }
 }

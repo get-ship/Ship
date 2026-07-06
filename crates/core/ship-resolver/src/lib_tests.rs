@@ -779,3 +779,386 @@ defineRule({ id: "style", content: "Be terse.", applyScope: "always" });
     assert_eq!(lib.rules[0].file_name, "style");
     assert!(lib.rules[0].always_apply);
 }
+
+
+// ── Phase-4 J2: view source change invalidates the roll-up's cache key ─────────
+
+/// R-series acceptance: a view source change (a cached package's
+/// `view.jsonc` sidecar) must invalidate the composed library's
+/// content hash, so the next `roll_up`'s cache key differs and the
+/// descriptor cache invalidates correctly on the next kernel tick.
+///
+/// The mechanism: `load_cached_extensions` re-reads `<view_dir>/view.jsonc`
+/// on every `roll_up` call (the same lenient re-read every other noun
+/// loader does), populates `descriptor.views`, and `compose_space`
+/// surfaces the merged views in `composed.library.views`. The composed
+/// library's `rollup_inputs` field also embeds every extension's
+/// `descriptor.views`. Both feed the canonical-JSON form
+/// `composed_library_content_hash` hashes, so a mutated sidecar reaches
+/// the cache key without detouring through any other channel.
+#[tokio::test(flavor = "current_thread")]
+async fn roll_up_content_hash_changes_when_a_dep_view_source_changes() {
+    let (_tmp, root) = write_minimal_space();
+    let cache_root = root.join("cache");
+    let hex = "cafebabe";
+    let obj = cache_root.join("objects").join(hex);
+    std::fs::create_dir_all(obj.join("views").join("dashboard")).unwrap();
+    std::fs::write(
+        obj.join("ship.jsonc"),
+        r#"{ "id": "p", "module": { "name": "github.com/d/views-pkg", "version": "0.1.0" },
+             "exports": { "skills": [], "agents": [], "views": ["views/dashboard"] } }"#,
+    )
+    .unwrap();
+    std::fs::write(
+        obj.join("views").join("dashboard").join("view.jsonc"),
+        r#"{ "route": "/dashboard", "component_ref": "Dashboard.sui" }"#,
+    )
+    .unwrap();
+    std::fs::write(
+        root.join(".ship").join("ship.lock"),
+        format!(
+            r#"{{ "version": 1, "packages": [
+                 {{ "path": "github.com/d/views-pkg", "version": "0.1.0",
+                    "commit": "{}", "hash": "sha256:{}" }}
+             ] }}"#,
+            "e".repeat(40),
+            hex,
+        ),
+    )
+    .unwrap();
+
+    let library_root = root.join("empty_library");
+
+    // Roll-up 1: baseline. The view lands with `prefix =
+    // github.com/d/views-pkg` (per `load_cached_extensions`) so the
+    // composed library's `views` carries exactly that one descriptor.
+    let a = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
+    assert_eq!(a.library.views.len(), 1);
+    assert_eq!(a.library.views[0].prefix, "github.com/d/views-pkg");
+    assert_eq!(a.library.views[0].route, "/dashboard");
+
+    // Mutate the sidecar — same cache dir + same lockfile, but the
+    // view's data (`route`, then `component_ref`) differs. The cache
+    // tier's content hash (`hex`) is unchanged; only the dep-side
+    // descriptor content moved.
+    std::fs::write(
+        obj.join("views").join("dashboard").join("view.jsonc"),
+        r#"{ "route": "/dash-v2", "component_ref": "Dashboard.sui" }"#,
+    )
+    .unwrap();
+
+    let b = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
+
+    assert_ne!(
+        a_hash, b_hash,
+        "view source change must change the composed library's content hash \
+         (the descriptor cache key)"
+    );
+    assert_eq!(b.library.views.len(), 1);
+    assert_eq!(b.library.views[0].route, "/dash-v2");
+}
+
+/// R-series acceptance: adding a brand-new dep view also changes the
+/// composed library's cache key, so the descriptor cache invalidates
+/// when the view set grows. Complements the mutate-sidecar test
+/// above — both shapes (mutate / add) must invalidate.
+#[tokio::test(flavor = "current_thread")]
+async fn roll_up_content_hash_changes_when_a_dep_view_is_added() {
+    let (_tmp, root) = write_minimal_space();
+    let cache_root = root.join("cache");
+    let hex = "feedface";
+    let obj = cache_root.join("objects").join(hex);
+    std::fs::create_dir_all(obj.join("views").join("first")).unwrap();
+    std::fs::write(
+        obj.join("ship.jsonc"),
+        r#"{ "id": "p", "module": { "name": "github.com/d/view-grow", "version": "0.1.0" },
+             "exports": { "skills": [], "agents": [], "views": ["views/first"] } }"#,
+    )
+    .unwrap();
+    std::fs::write(
+        obj.join("views").join("first").join("view.jsonc"),
+        r#"{ "route": "/first", "component_ref": "First.sui" }"#,
+    )
+    .unwrap();
+    std::fs::write(
+        root.join(".ship").join("ship.lock"),
+        format!(
+            r#"{{ "version": 1, "packages": [
+                 {{ "path": "github.com/d/view-grow", "version": "0.1.0",
+                    "commit": "{}", "hash": "sha256:{}" }}
+             ] }}"#,
+            "f".repeat(40),
+            hex,
+        ),
+    )
+    .unwrap();
+
+    let library_root = root.join("empty_library");
+    let a = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
+    assert_eq!(a.library.views.len(), 1);
+
+    // Add a SECOND view export to the same package. Ship the sidecar
+    // and add the directory to `exports.views`. The lockfile still
+    // pinpoints the same `hex`, so the cache-tier identity is stable
+    // — only the dep's per-view data grew.
+    std::fs::create_dir_all(obj.join("views").join("second")).unwrap();
+    std::fs::write(
+        obj.join("views").join("second").join("view.jsonc"),
+        r#"{ "route": "/second", "component_ref": "Second.sui" }"#,
+    )
+    .unwrap();
+    std::fs::write(
+        obj.join("ship.jsonc"),
+        r#"{ "id": "p", "module": { "name": "github.com/d/view-grow", "version": "0.1.0" },
+             "exports": { "skills": [], "agents": [], "views": ["views/first", "views/second"] } }"#,
+    )
+    .unwrap();
+
+    let b = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
+
+    assert_ne!(a_hash, b_hash, "adding a view must change the cache key");
+    assert_eq!(b.library.views.len(), 2, "both views survive the merge");
+    let routes: std::collections::HashSet<&str> =
+        b.library.views.iter().map(|v| v.route.as_str()).collect();
+    assert!(routes.contains("/first"));
+    assert!(routes.contains("/second"));
+}
+
+/// R-series acceptance: the cache key is sensitive to EVERY defineView
+/// site (cached dep view, source on-disk view, source `defineView` TS),
+/// not just dep changes. Source `defineView` TS is exercised through
+/// `merge_ts_declarations`+`compose_space`. Source on-disk views land
+/// in `source_library.views` via `space_loader` (the `defineView`-without-TS
+/// author path; the on-disk view format is its own future design pass,
+/// so this test pins the TS path only).
+///
+/// Two source `defineView` TSs — one mounted to `/alpha`, one to `/beta`
+/// — read as TWO views in the composed library; removing one (mutating
+/// `ship.ts`) shifts the view set, and the content hash moves. The
+/// `defineView` passthrough (the J2 TS contract) is what we're proving
+/// INVALIDATES the cache.
+#[tokio::test(flavor = "current_thread")]
+async fn roll_up_content_hash_changes_when_a_source_define_view_changes() {
+    let (tmp, root) = write_minimal_space();
+    // Replace the minimal space's `ship.ts` with one that defines
+    // exactly one view, so the on-disk source library's views field
+    // is non-empty after merge.
+    std::fs::write(
+        root.join("ship.ts"),
+        r#"
+import { defineAgent, defineView } from "ship";
+
+defineAgent({
+  agent: { id: "demo", name: "Demo" },
+});
+
+defineView({
+  route: "/alpha",
+  component_ref: "Alpha.sui",
+});
+"#,
+    )
+    .unwrap();
+
+    let cache_root = tmp.path().join("empty_cache");
+    std::fs::create_dir_all(&cache_root).unwrap();
+    let library_root = tmp.path().join("empty_library");
+    let a = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
+    let a_view_routes: std::collections::HashSet<String> =
+        a.library.views.iter().map(|v| v.route.clone()).collect();
+    assert!(a_view_routes.contains("/alpha"),
+        "the source's /alpha view must be in the composed library: {a_view_routes:?}");
+
+    // Mutate `ship.ts` — change `/alpha` to `/beta`. The on-disk
+    // source descriptor's content hash moves; the composed
+    // library's cache key must follow.
+    std::fs::write(
+        root.join("ship.ts"),
+        r#"
+import { defineAgent, defineView } from "ship";
+
+defineAgent({
+  agent: { id: "demo", name: "Demo" },
+});
+
+defineView({
+  route: "/beta",
+  component_ref: "Alpha.sui",
+});
+"#,
+    )
+    .unwrap();
+
+    let b = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
+
+    assert_ne!(
+        a_hash, b_hash,
+        "source defineView change must change the cache key"
+    );
+    let b_view_routes: std::collections::HashSet<String> =
+        b.library.views.iter().map(|v| v.route.clone()).collect();
+    assert!(b_view_routes.contains("/beta"));
+    assert!(!b_view_routes.contains("/alpha"), "/alpha gone, /beta present");
+}
+
+/// R-series acceptance: two extensions' views compose deterministically —
+/// the same `route` under two different prefixes claims two distinct
+/// slots, both survive the roll-up, and the composed library's canonical
+/// form is byte-identical across two runs (the cache key invariant). This
+/// is the J1 namespace-prefix merge, exercised end-to-end through
+/// `roll_up`'s `compose_space` + `compose_route_tree`.
+#[tokio::test(flavor = "current_thread")]
+async fn roll_up_two_extensions_views_compose_deterministically_under_distinct_prefixes() {
+    let (_tmp, root) = write_minimal_space();
+    let cache_root = root.join("cache");
+
+    // Cache tier: package A exports `/dashboard`.
+    let hex_a = "aaaa1111";
+    let obj_a = cache_root.join("objects").join(hex_a);
+    std::fs::create_dir_all(obj_a.join("views").join("dashboard")).unwrap();
+    std::fs::write(
+        obj_a.join("ship.jsonc"),
+        r#"{ "id": "pa", "module": { "name": "github.com/a/views", "version": "0.1.0" },
+             "exports": { "skills": [], "agents": [], "views": ["views/dashboard"] } }"#,
+    )
+    .unwrap();
+    std::fs::write(
+        obj_a.join("views").join("dashboard").join("view.jsonc"),
+        r#"{ "route": "/dashboard", "component_ref": "A.dashboard" }"#,
+    )
+    .unwrap();
+
+    // Cache tier: package B exports `/dashboard` (same local route,
+    // distinct prefix — the J1 namespace-prefix merge case).
+    let hex_b = "bbbb2222";
+    let obj_b = cache_root.join("objects").join(hex_b);
+    std::fs::create_dir_all(obj_b.join("views").join("dashboard")).unwrap();
+    std::fs::write(
+        obj_b.join("ship.jsonc"),
+        r#"{ "id": "pb", "module": { "name": "github.com/b/views", "version": "0.1.0" },
+             "exports": { "skills": [], "agents": [], "views": ["views/dashboard"] } }"#,
+    )
+    .unwrap();
+    std::fs::write(
+        obj_b.join("views").join("dashboard").join("view.jsonc"),
+        r#"{ "route": "/dashboard", "component_ref": "B.dashboard" }"#,
+    )
+    .unwrap();
+
+    std::fs::write(
+        root.join(".ship").join("ship.lock"),
+        format!(
+            r#"{{ "version": 1, "packages": [
+                 {{ "path": "github.com/a/views", "version": "0.1.0",
+                    "commit": "{}", "hash": "sha256:{}" }},
+                 {{ "path": "github.com/b/views", "version": "0.1.0",
+                    "commit": "{}", "hash": "sha256:{}" }}
+             ] }}"#,
+            "a".repeat(40), hex_a, "b".repeat(40), hex_b,
+        ),
+    )
+    .unwrap();
+
+    let library_root = root.join("empty_library");
+
+    // Two roll-ups, same input — the composed descriptor must be
+    // byte-identical (the cache key invariant) and contain BOTH views
+    // under their distinct prefixes.
+    let a = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let b = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let a_bytes = descriptor::extension_library_canonical(&a.library).unwrap();
+    let b_bytes = descriptor::extension_library_canonical(&b.library).unwrap();
+    assert_eq!(a_bytes, b_bytes, "two roll-ups of two views must be byte-identical");
+
+    let a_hash = descriptor::composed_library_content_hash(&a).unwrap();
+    let b_hash = descriptor::composed_library_content_hash(&b).unwrap();
+    assert_eq!(a_hash, b_hash);
+
+    // Both views survive the namespace-prefix merge — `prefix`
+    // distinguishes the slot, `route` is the local under-prefix path.
+    let routes: std::collections::HashSet<(String, String)> = a.library
+        .views
+        .iter()
+        .map(|v| (v.prefix.clone(), v.route.clone()))
+        .collect();
+    assert_eq!(a.library.views.len(), 2, "two distinct-prefix views coexist");
+    assert!(routes.contains(&("github.com/a/views".into(), "/dashboard".into())));
+    assert!(routes.contains(&("github.com/b/views".into(), "/dashboard".into())));
+
+    // The composed route tree mirrors the prefix-scoped subtrees. Per
+    // `compose_route_tree`'s law, `prefix + route` is split into segments
+    // like any other path — `github.com/a/views` and `github.com/b/views`
+    // share the `github.com` ancestor and diverge at `a` / `b`, each
+    // reaching its own `/dashboard` mount under `views`.
+    assert_eq!(a.route_tree.root.children.len(), 1, "shared `github.com` ancestor");
+    let github = &a.route_tree.root.children[0];
+    assert_eq!(github.segment, "github.com");
+    let mut owners: Vec<String> = github.children.iter().map(|c| c.segment.clone()).collect();
+    owners.sort();
+    assert_eq!(owners, vec!["a", "b"]);
+    for owner in ["a", "b"] {
+        let owner_node = github.children.iter().find(|c| c.segment == owner).unwrap();
+        assert_eq!(owner_node.children.len(), 1);
+        let views_node = &owner_node.children[0];
+        assert_eq!(views_node.segment, "views");
+        assert_eq!(views_node.children.len(), 1);
+        let dashboard = &views_node.children[0];
+        assert_eq!(dashboard.segment, "dashboard");
+        assert!(dashboard.view.is_some(), "the `dashboard` node mounts the view");
+    }
+}
+
+/// R-series acceptance: prefix subtrees are correct — the
+/// `compose_route_tree` projection places each view's `prefix + route`
+/// under its own subtree, and nested routes produce nested nodes
+/// (parent segments show the prefix; child segments show the local
+/// path). One source `defineView` mounts a 3-segment route; the
+/// composed tree's mount path is `prefix / a / b`.
+#[tokio::test(flavor = "current_thread")]
+async fn roll_up_view_prefix_subtree_is_correct() {
+    let (tmp, root) = write_minimal_space();
+    std::fs::write(
+        root.join("ship.ts"),
+        r#"
+import { defineView } from "ship";
+
+defineView({
+  route: "/a/b",
+  component_ref: "Nested.sui",
+});
+"#,
+    )
+    .unwrap();
+
+    let cache_root = tmp.path().join("empty_cache");
+    std::fs::create_dir_all(&cache_root).unwrap();
+    let library_root = tmp.path().join("empty_library");
+
+    let composed = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+
+    // One view, three path segments after prefix-stripping: the route
+    // is `/a/b` so the composed tree under the source's prefix
+    // (empty prefix for source tier) has segments `a` then `b`.
+    assert_eq!(composed.library.views.len(), 1);
+    let view = &composed.library.views[0];
+    assert_eq!(view.prefix, ""); // source tier mounts under the root
+    assert_eq!(view.route, "/a/b");
+
+    // The tree's root has a single child `a`; `a` has a single child `b`;
+    // `b` carries the view.
+    assert_eq!(composed.route_tree.root.children.len(), 1);
+    let a = &composed.route_tree.root.children[0];
+    assert_eq!(a.segment, "a");
+    assert!(a.view.is_none(), "the `a` node is a path segment, not a view");
+    assert_eq!(a.children.len(), 1);
+    let b = &a.children[0];
+    assert_eq!(b.segment, "b");
+    assert!(b.view.is_some(), "the `b` node mounts the view");
+    assert_eq!(b.view.as_ref().unwrap().component_ref, "Nested.sui");
+}

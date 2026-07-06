@@ -1,26 +1,36 @@
 //! Path-layout helpers for composed traveling-artifact overlays.
 //!
-//! The five non-library traveling types (views / pipelines / triggers /
-//! collections / components) read from a *composed root* rather than raw
-//! `.ship/` when the space has locked deps. This module provides the resolver
+//! The non-library traveling types (pipelines / triggers / collections /
+//! components) read from a *composed root* rather than raw `.ship/` when
+//! the space has locked deps. This module provides the resolver
 //! (`composed_root_for`) so L1 crates can call it without depending on
 //! `ship_platform::registry`.
+//!
+//! `views` is no longer a materializer type — it's composed by the
+//! resolver (`compiler::compose::compose_space`'s namespace-prefix merge
+//! on `ExtensionLibrary::views`) and exposed as
+//! `compiler::ComposedLibrary::route_tree`, superseding the file-copy
+//! materializer's views handling per `census-views.md` Part 3 / J2.
 //!
 //! The materializer is the same algorithm as `registry/compose.rs` — it lives
 //! here so `ship-triggers` (and future sibling crates) do not pull in the
 //! platform registry.
 // FILE_CAP_OVERRIDE: full materialization logic (~270 lines) moved from
 // ship-platform/src/registry/compose.rs; cannot split without duplicating types.
-
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use compiler::lockfile::ShipLock;
 use compiler::manifest::ShipManifest;
 
-/// The five non-library traveling types.
+/// The four non-library traveling types — `views` was a fifth and is now
+/// composed by the resolver (`compiler::compose::compose_space`'s
+/// namespace-prefix merge on `ExtensionLibrary::views`) and exposed as
+/// `compiler::ComposedLibrary::route_tree`, superseding the file-copy
+/// materializer's views handling per `census-views.md` Part 3 / the
+/// J2 acceptance. Deck (the consumer) reads the composed tree, not a
+/// materialized on-disk `views/` dir.
 const COMPOSED_TYPES: &[ComposedType] = &[
-    ComposedType { dir: "views",       granularity: Granularity::Dir  },
     ComposedType { dir: "pipelines",   granularity: Granularity::File },
     ComposedType { dir: "triggers",    granularity: Granularity::File },
     ComposedType { dir: "collections", granularity: Granularity::File },

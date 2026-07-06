@@ -97,6 +97,14 @@ use ship_substrate::ShipHome;
 /// before this merge) wins over a same-id `.ts` declare-form — the
 /// existing agent-def loader's lenient "space format read first wins"
 /// contract, generalized to every noun this crate now harvests from TS.
+///
+/// Views are the one exception: the composition law keys on
+/// `(prefix, route)`, not a bare id, so the merge can simply APPEND
+/// harvested views to `library.views` — the same prefix's duplicate
+/// `route` and a different prefix's identical `route` are both
+/// legitimate cases, and dedup by anything narrower would silently
+/// drop one. `compose_space`'s `compose_views` is the single source
+/// of truth for view resolution; the merge here just gathers.
 fn merge_ts_declarations(library: &mut ExtensionLibrary, declarations: Declarations) {
     if !declarations.agents.is_empty() {
         let mut seen: HashSet<String> =
@@ -115,6 +123,7 @@ fn merge_ts_declarations(library: &mut ExtensionLibrary, declarations: Declarati
     merge_by_key(&mut library.pipelines, declarations.pipelines, |p| p.name.as_str());
     merge_by_key(&mut library.triggers, declarations.triggers, |t| t.id.as_str());
     merge_by_key(&mut library.collections, declarations.collections, |c| c.id.as_str());
+    library.views.extend(declarations.views);
 }
 
 /// Append `incoming` items into `existing`, skipping any whose key is
@@ -337,6 +346,12 @@ pub async fn roll_up(
         let mut descriptor = ExtensionLibrary::default();
         descriptor.agent_profiles = bundle.agent_profiles.clone();
         descriptor.skills = bundle.skills.clone();
+        // Dep views: each bundle's `views` are already prefixed with
+        // `pkg_path` by `load_cached_extensions`, so they're ready for
+        // `compose_views`'s namespace-prefix merge. An empty vec is the
+        // common case (no view exports in this package) — composing an
+        // empty collection is a no-op, not an error.
+        descriptor.views = bundle.views.clone();
         extensions.push(ExtensionDescriptor {
             source: ExtSource::Cache,
             space_root: space_root.to_path_buf(),

@@ -36,15 +36,25 @@
 use std::collections::HashMap;
 
 use crate::resolve::{ExtSource, ExtensionDescriptor, ExtensionLibrary, RollupInputs};
+use crate::route_tree::{RouteTree, compose_route_tree};
 use crate::types::ViewDescriptor;
 
-/// The composed result: the winning library + who lost where.
+/// The composed result: the winning library + who lost where + the
+/// route tree derived from the composed `views: Vec<ViewDescriptor>`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ComposedLibrary {
     pub library: ExtensionLibrary,
     /// One record per id collision the composition resolved, in resolution
     /// order. Consumers (the def index) persist these as provenance.
     pub shadows: Vec<ShadowRecord>,
+    /// The composed route tree, derived from `library.views` via
+    /// [`compose_route_tree`]. Populated by [`compose_space`] so every
+    /// consumer that holds a `ComposedLibrary` reads the tree from the
+    /// same source — no second pass, no recompute, no drift between
+    /// `library.views` and the tree. Phase-4 J3's exposed output lives
+    /// here (the J2 acceptance: "expose the composed route tree on the
+    /// resolved output").
+    pub route_tree: RouteTree,
 }
 
 /// Which noun collection a shadow happened in.
@@ -124,8 +134,13 @@ pub fn compose_space(inputs: &RollupInputs) -> anyhow::Result<ComposedLibrary> {
         |m| m.id.as_str(),
     );
     library.views = compose_views(&ordered, &mut shadows);
+    // The route tree is a pure projection of the composed views — same
+    // data, different shape. Building it here (not in callers) is the
+    // single source of truth for the "what the roll-up produced, as a
+    // tree" view; `compose_route_tree` is the documented J3 law.
+    let route_tree = compose_route_tree(&library.views);
 
-    Ok(ComposedLibrary { library, shadows })
+    Ok(ComposedLibrary { library, shadows, route_tree })
 }
 
 /// Compose ONE noun collection across the rank-ordered tiers. First

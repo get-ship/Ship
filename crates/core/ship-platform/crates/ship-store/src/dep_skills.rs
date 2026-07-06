@@ -441,11 +441,15 @@ pub fn transitive_capabilities(
 /// fine for the compile path, lossy for the roll-up's provenance. This
 /// function is the additive per-package surface; the existing flatteners stay
 /// in place for the compile path (no motion).
-///
 /// Fields mirror the nouns the composition law composes per package:
 /// `agent_profiles` (id namespaced by `pkg_path`), `skills` (id namespaced),
-/// and `content_hash` (the package's sha256 hex from `ShipLock::hash`, the
-/// tier-level identity the shadow record carries on collision).
+/// `views` (route/component_ref per the dep's `view.jsonc` sidecar,
+/// `prefix` set to `pkg_path` so dep views mount under the package's own
+/// namespace and never collide with the on-disk source or with other
+/// packages — `compose_space`'s namespace-prefix merge keys on
+/// `(prefix, route)`), and `content_hash` (the package's sha256 hex from
+/// `ShipLock::hash`, the tier-level identity the shadow record carries on
+/// collision).
 #[derive(Debug, Clone)]
 pub struct CachedExtension {
     /// The package's path in the lockfile, e.g. `github.com/owner/pkg`.
@@ -459,6 +463,11 @@ pub struct CachedExtension {
     pub agent_profiles: Vec<compiler::AgentProfile>,
     /// Skills from the package's `exports.skills`, namespaced by `pkg_path`.
     pub skills: Vec<compiler::Skill>,
+    /// Views from the package's `exports.views`, each `prefix` set to
+    /// `pkg_path`. The per-view data (`route`, `component_ref`) reads from
+    /// `<view_dir>/view.jsonc` (the dep sidecar; absent → silently
+    /// skipped, the same lenient contract the other noun loaders have).
+    pub views: Vec<compiler::types::ViewDescriptor>,
 }
 
 /// Load every locked package's exports as a per-package bundle, suitable for
@@ -550,14 +559,66 @@ pub fn load_cached_extensions(
             }
         }
 
+        // Views: each `exports.views` entry is a directory holding the
+        // view's SUI template; the per-view data the roll-up needs
+        // (`route`, `component_ref`) lives in a `view.jsonc` sidecar. The
+        // `prefix` is set to `pkg.path` so dep views mount under the
+        // package's own namespace and never collide with the on-disk
+        // source or with other packages — `compose_space`'s namespace-
+        // prefix merge keys on `(prefix, route)`. A sidecar that doesn't
+        // exist is silently skipped (the same lenient contract agents +
+        // skills have: a dep is partial-installable; missing sidecars
+        // don't break the roll-up).
+        let mut views = Vec::new();
+        for view_rel in &manifest.exports.views {
+            let sidecar_path = cache_dir.join(view_rel).join("view.jsonc");
+            let content = match std::fs::read_to_string(&sidecar_path) {
+                Ok(c) => c,
+                Err(_) => {
+                    // No sidecar — the view directory is the .sui bundle
+                    // only; skip silently. The future on-disk view format
+                    // is its own design pass.
+                    continue;
+                }
+            };
+            match compiler::jsonc::from_jsonc_str::<ViewSidecar>(&content) {
+                Ok(sidecar) => {
+                    views.push(compiler::types::ViewDescriptor {
+                        prefix: pkg.path.clone(),
+                        route: sidecar.route,
+                        component_ref: sidecar.component_ref,
+                    });
+                }
+                Err(e) => tracing::warn!(
+                    "load_cached_extensions: {}::{}/view.jsonc parse: {e}",
+                    pkg.path, view_rel
+                ),
+            }
+        }
+
         out.push(CachedExtension {
             pkg_path: pkg.path.clone(),
             content_hash: hex,
             agent_profiles,
             skills,
+            views,
         });
     }
     Ok(out)
+}
+
+/// The `<view_dir>/view.jsonc` sidecar a dep package ships to name a view
+/// at composition time. Only the fields the composition law needs land
+/// here — the bundle bytes (`.sui` template) are still read by deck at
+/// render time, not at compose time.
+#[derive(serde::Deserialize)]
+struct ViewSidecar {
+    /// The local route under the package's namespace (e.g. `/dashboard`).
+    /// The full mount path is `prefix + route` per `compose_route_tree`.
+    route: String,
+    /// Which `.sui` bundle/element backs the route — a path/tag
+    /// reference, not the bundle bytes.
+    component_ref: String,
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

@@ -31,6 +31,7 @@ use compiler::{
     AgentProfile, CollectionDef, McpServerConfig, McpServerType, PipelineDef, Rule, Skill,
     SkillSource, TriggerDef,
 };
+use compiler::types::ViewDescriptor;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -47,6 +48,13 @@ pub struct Declarations {
     pub pipelines: Vec<PipelineDef>,
     pub triggers: Vec<TriggerDef>,
     pub collections: Vec<CollectionDef>,
+    /// Views harvested from `defineView` calls. The composition law
+    /// (`compiler::compose::compose_space`) merges these by namespace-prefix
+    /// merge, not id-replace — see `ViewDescriptor` and the phase-4 J1/J2
+    /// roll-up. Hand-spec'd shape (per `defineRule` precedent): no
+    /// `@ship/stack` counterpart yet (`ViewDescriptor` is provisional
+    /// pending sail/deck alignment, `decision-views-deck-boundary.md`).
+    pub views: Vec<ViewDescriptor>,
 }
 
 /// The `{ __kind, value }` shape every declare-form's collector
@@ -100,6 +108,16 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
             let def: CollectionDef = serde_json::from_value(envelope.value)
                 .with_context(|| format!("defineCollection call #{index} did not match the collection shape"))?;
             out.collections.push(def);
+        }
+        "view" => {
+            // The `defineView` value is the compiler's `ViewDescriptor` shape
+            // (route/prefix/component_ref) — a pass-through, mirroring
+            // `definePipeline` / `defineCollection`. The composition law
+            // (`compiler::compose::compose_space`) merges the resulting
+            // `out.views` by namespace-prefix merge.
+            let def: ViewDescriptor = serde_json::from_value(envelope.value)
+                .with_context(|| format!("defineView call #{index} did not match ViewDescriptor"))?;
+            out.views.push(def);
         }
         other => bail!("declare-form call #{index}: unrecognized kind `{other}`"),
     }
@@ -326,6 +344,12 @@ const TRIGGER_SOURCE_FILE_DECLARE_FIELDS: &[&str] = &["glob", "kind"];
 const TRIGGER_SOURCE_CRON_DECLARE_FIELDS: &[&str] = &["kind", "schedule"];
 const COLLECTION_FIELD_DEF_DECLARE_FIELDS: &[&str] =
     &["default", "filterable", "name", "required", "sortable", "type", "values"];
+// `defineView` is HAND-SPEC (precedent: `defineRule`, see decision-morning-answers.md §2):
+// `ViewDescriptor` is provisional pending sail/deck alignment (decision-views-deck-boundary.md),
+// so the fingerprint constant here mirrors the compiler type's field set directly.
+// The drift-test arm below cross-checks against `compiler::types::ViewDescriptor`'s
+// exported fields, not a stack-derived fingerprint.
+const VIEW_DESCRIPTOR_DECLARE_FIELDS: &[&str] = &["component_ref", "prefix", "route"];
 
 #[cfg(test)]
 mod drift_tests {
@@ -398,6 +422,32 @@ mod drift_tests {
             "CollectionFieldDef",
             COLLECTION_FIELD_DEF_DECLARE_FIELDS,
             stub::COLLECTION_FIELD_DEF_FIELDS,
+        );
+    }
+
+    /// `defineView` is a hand-spec shape (no stack fingerprint — the
+    /// `defineRule` precedent applies). The drift check pins the harvest's
+    /// field set to `compiler::types::ViewDescriptor`'s serialized fields:
+    /// changing one without the other breaks the `defineView` pass-through
+    /// harvest in a non-obvious way. The compiler type is the source of
+    /// truth; this list mirrors it. A future stack-fingerprinted version
+    /// replaces this with `assert_fields_match(..., stub::VIEW_FIELDS)`.
+    #[test]
+    fn view_descriptor_hand_spec_matches_compiler_type() {
+        let serialized = serde_json::to_value(ViewDescriptor::default()).unwrap();
+        let fields: std::collections::BTreeSet<&str> = serialized
+            .as_object()
+            .expect("ViewDescriptor serializes to a JSON object")
+            .keys()
+            .map(String::as_str)
+            .collect();
+        let expected: std::collections::BTreeSet<&str> =
+            VIEW_DESCRIPTOR_DECLARE_FIELDS.iter().copied().collect();
+        assert_eq!(
+            fields, expected,
+            "ViewDescriptor hand-spec drift: the compiler type's serialized field set \
+             must match VIEW_DESCRIPTOR_DECLARE_FIELDS — update the harvest list when \
+             ViewDescriptor gains/loses a field"
         );
     }
 }
