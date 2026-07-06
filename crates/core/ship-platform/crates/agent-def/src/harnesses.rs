@@ -1,5 +1,5 @@
 use ship_config::project::get_config;
-use ship_substrate::project::{SHIP_DIR_NAME, ship_dir_from_path};
+use ship_substrate::project::resolve_project_ship_dir;
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -326,18 +326,7 @@ pub(crate) fn require_harness(id: &str) -> Result<&'static HarnessDescriptor> {
 
 fn resolve_space_dir_for_models() -> Option<PathBuf> {
     let cwd = std::env::current_dir().ok()?;
-    if cwd
-        .file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name == SHIP_DIR_NAME)
-    {
-        return Some(cwd);
-    }
-    let direct = cwd.join(SHIP_DIR_NAME);
-    if direct.is_dir() {
-        return Some(direct);
-    }
-    ship_dir_from_path(&cwd)
+    resolve_project_ship_dir(&cwd)
 }
 
 fn discover_models(desc: &HarnessDescriptor, project_dir: Option<&Path>) -> Vec<ModelInfo> {

@@ -229,10 +229,10 @@ pub(crate) fn is_test_binary_context() -> bool {
             .is_some_and(is_likely_rust_test_binary)
 }
 
-/// Mirrors `project::global::is_likely_rust_test_binary` (the two modules
-/// cannot share it without a circular dep through `ship-substrate`).
 /// Detect cargo's standard test-binary layout under `target/<profile>/deps/`.
-fn is_likely_rust_test_binary(path: &Path) -> bool {
+/// `pub` so `ship-substrate` (a `ship-paths` dependent, not the reverse —
+/// no circular dep) can share this instead of carrying its own copy.
+pub fn is_likely_rust_test_binary(path: &Path) -> bool {
     let s = path.to_string_lossy();
     let in_deps = s.contains("/debug/deps/")
         || s.contains("/release/deps/")
@@ -557,6 +557,22 @@ mod tests {
 
     fn home(tmp: &Path) -> ShipHome {
         ShipHome::at(tmp.join(".ship"))
+    }
+
+    #[test]
+    fn detects_rust_test_binaries_from_target_deps_path() {
+        assert!(is_likely_rust_test_binary(Path::new(
+            "/tmp/repo/target/debug/deps/runtime-abc123"
+        )));
+        assert!(is_likely_rust_test_binary(Path::new(
+            "C:\\repo\\target\\release\\deps\\runtime-abc123.exe"
+        )));
+        assert!(!is_likely_rust_test_binary(Path::new(
+            "/tmp/repo/target/debug/ship"
+        )));
+        assert!(!is_likely_rust_test_binary(Path::new(
+            "/tmp/repo/target/debug/deps/ship"
+        )));
     }
 
     #[test]
