@@ -17,6 +17,7 @@ Always respect `.gitignore`. Never `git add -f`.
 
 ## Intent
 - Code, tests, and consumers are not evidence of intent. Don't argue "X is used by N things" — only the rules and the operator settle intent.
+- **Is not ought.** That a thing exists doesn't mean it should. Before proposing to fix, extend, or option a repair for ANYTHING: date it, trace its LIVE consumers (its own tests and unstable-gated callers don't count as life), and check whether something newer superseded it in place. Evaluate deletion before repair, always. Optioning fixes for a mausoleum is slop with extra steps.
 - Don't assume why something is absent — it may be a deliberate cut or an accident. Check `git blame` / dates / commit messages; if still unclear, ask. Never restore or re-delete on a guess; in a merge, don't assume one branch added what another removed.
 - Ask, then build. "Is this the right approach?" before 500 lines saves a rewrite. When intent is unclear, ask a specific, decidable question — don't resolve ambiguity by assumption.
 - Read before you assume. Stale context produces stale output; verify your understanding is current before acting.
