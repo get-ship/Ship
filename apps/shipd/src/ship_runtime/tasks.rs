@@ -282,44 +282,21 @@ impl ShipRuntime {
             tracing::warn!("agent-def index: boot rebuild failed: {e}");
         }
 
-        // Also ingest `.ts` agent configs (authored with `defineAgent`). Their
-        // evaluation pulls V8 (agent-config-eval → ship-js isolate), which is why
-        // it lives HERE at the ingest layer and not in the V8-free config/compiler
-        // crates. The isolate future is `!Send`, so each eval runs on a dedicated
-        // current-thread runtime via `spawn_blocking` — a block-on at the runtime
-        // boundary. Resolved profiles feed the SAME `upsert` path as `.jsonc`, so
-        // `.ts` and `.jsonc` agents coexist in the index.
-        match ship_platform::config::read_agent_ts_sources(&fs, &project_ship_dir) {
-            Ok(sources) => {
-                for (stem, source) in sources {
-                    let profiles = match tokio::task::spawn_blocking(move || {
-                        tokio::runtime::Builder::new_current_thread()
-                            .enable_all()
-                            .build()
-                            .map_err(anyhow::Error::from)
-                            .and_then(|rt| rt.block_on(agent_config_eval::resolve_agents(&source)))
-                    })
-                    .await
-                    {
-                        Ok(Ok(profiles)) => profiles,
-                        Ok(Err(e)) => {
-                            tracing::warn!("agent-def index: `.ts` eval failed for {stem}.ts: {e}");
-                            continue;
-                        }
-                        Err(e) => {
-                            tracing::warn!("agent-def index: `.ts` eval task panicked for {stem}.ts: {e}");
-                            continue;
-                        }
-                    };
-                    for profile in profiles {
-                        let id = profile.agent.id.clone();
-                        if let Err(e) = index.upsert_profile("project", &profile).await {
-                            tracing::warn!("agent-def index: `.ts` upsert failed for {id}: {e}");
-                        }
+        // Ingest the project's resolved agent profiles (`agents/` defs merged
+        // with `.ts` `defineAgent` roll-ups, id-deduped) via ship-resolver —
+        // the one resolve path. The resolver owns the V8 `!Send` crossing
+        // internally; shipd upserts the plain-data result, so `.ts` and
+        // `.jsonc` agents coexist in the index.
+        match ship_resolver::resolve_project(&workspace).await {
+            Ok(resolved) => {
+                for profile in &resolved.agent_profiles {
+                    let id = profile.agent.id.clone();
+                    if let Err(e) = index.upsert_profile("project", profile).await {
+                        tracing::warn!("agent-def index: resolver upsert failed for {id}: {e}");
                     }
                 }
             }
-            Err(e) => tracing::warn!("agent-def index: `.ts` scan failed: {e}"),
+            Err(e) => tracing::warn!("agent-def index: project resolve failed: {e}"),
         }
 
         // Retain the index Arc for the READ path (list/detail/spawn) — a clone,

@@ -251,6 +251,31 @@ defineAgent({
         assert_eq!(resolved.rules[0].file_name, "style.md");
     }
 
+    /// The shipd-ingest contract: `.jsonc` agents (the `agents/` dir) and
+    /// `.ts` agents (`defineAgent` in ship.ts) coexist in ONE
+    /// `agent_profiles` list — the consumer upserts them through a single
+    /// loop with no format awareness.
+    #[tokio::test(flavor = "current_thread")]
+    async fn jsonc_and_ts_agents_coexist_in_agent_profiles() {
+        let (_tmp, root) = write_minimal_project();
+        let agents_dir = root.join(".ship").join("agents");
+        std::fs::create_dir_all(&agents_dir).unwrap();
+        std::fs::write(
+            agents_dir.join("writer.jsonc"),
+            r#"{ "agent": { "id": "writer", "name": "Writer" } }"#,
+        )
+        .unwrap();
+
+        let resolved = resolve_project(&root).await.unwrap();
+        let ids: Vec<&str> = resolved
+            .agent_profiles
+            .iter()
+            .map(|a| a.agent.id.as_str())
+            .collect();
+        assert!(ids.contains(&"writer"), "jsonc agent missing: {ids:?}");
+        assert!(ids.contains(&"demo"), "ts agent missing: {ids:?}");
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn resolve_project_with_globals_injects_defaults() {
         // The agent-config-eval tests pin down the globals-injection
