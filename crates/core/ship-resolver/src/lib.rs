@@ -19,7 +19,8 @@
 //! [`ship_substrate::ports::FsBroker`] gated door (R1 — new code goes through
 //! FsBroker, not raw `std::fs`).
 //!
-//! The V8 TS-eval seam is `agent_config_eval::resolve_agents_with_globals`,
+//! The V8 TS-eval seam is `agent_config_eval::resolve_declarations_with_globals`
+//! (every declare-form, not just `defineAgent` — format-migration Wave 3),
 //! wrapped by `ts_resolver::resolve_ts_files` with the `!Send` isolate
 //! crossing a `spawn_blocking` boundary — the same pattern shipd's ingest
 //! uses today (`apps/shipd/src/ship_runtime/tasks.rs:285-304`, R2).
@@ -71,13 +72,64 @@ pub mod space_loader;
 pub mod ts_resolver;
 pub mod cache;
 
+use std::collections::HashSet;
 use std::path::Path;
 
+use agent_config_eval::Declarations;
 use anyhow::{Context, Result};
 use compiler::{ComposedLibrary, ExtensionDescriptor, ExtSource, ExtensionLibrary, ResolvedConfig, RollupInputs};
 use serde_json::Value;
 use ship_substrate::ports::{FsBroker, LocalFsBroker};
 use ship_substrate::ShipHome;
+
+/// Merge one eval's harvested [`Declarations`] into `library`'s noun
+/// collections — the shared merge both [`resolve_space_with_broker`] and
+/// [`roll_up`] apply after their TS eval fan-out.
+///
+/// Agents append to TWO lists in lockstep: `library.agents` (what
+/// `resolve_library` feeds into `SpaceManifest.agents`, filtered by the
+/// active-agent selection) and `library.agent_profiles` (the consumer-
+/// visible passthrough `ResolvedConfig::agent_profiles` carries). Every
+/// other noun has exactly one `ExtensionLibrary` field to land in.
+///
+/// Every noun uses the same id-collision policy: a `.jsonc`/`.md`-authored
+/// entry (already in `library` from the leaf's disk walk, which runs
+/// before this merge) wins over a same-id `.ts` declare-form — the
+/// existing agent-def loader's lenient "space format read first wins"
+/// contract, generalized to every noun this crate now harvests from TS.
+fn merge_ts_declarations(library: &mut ExtensionLibrary, declarations: Declarations) {
+    if !declarations.agents.is_empty() {
+        let mut seen: HashSet<String> =
+            library.agent_profiles.iter().map(|a| a.agent.id.clone()).collect();
+        for profile in declarations.agents {
+            if !seen.insert(profile.agent.id.clone()) {
+                continue;
+            }
+            library.agent_profiles.push(profile.clone());
+            library.agents.push(profile);
+        }
+    }
+    merge_by_key(&mut library.mcp_servers, declarations.mcp_servers, |m| m.id.as_str());
+    merge_by_key(&mut library.skills, declarations.skills, |s| s.id.as_str());
+    merge_by_key(&mut library.rules, declarations.rules, |r| r.file_name.as_str());
+    merge_by_key(&mut library.pipelines, declarations.pipelines, |p| p.name.as_str());
+    merge_by_key(&mut library.triggers, declarations.triggers, |t| t.id.as_str());
+    merge_by_key(&mut library.collections, declarations.collections, |c| c.id.as_str());
+}
+
+/// Append `incoming` items into `existing`, skipping any whose key is
+/// already taken — by an `existing` entry OR by an earlier item in
+/// `incoming` itself (two declare-forms with the same id in one eval;
+/// the first wins).
+fn merge_by_key<T>(existing: &mut Vec<T>, incoming: Vec<T>, key: impl Fn(&T) -> &str) {
+    let mut seen: HashSet<String> = existing.iter().map(|item| key(item).to_string()).collect();
+    for item in incoming {
+        if !seen.insert(key(&item).to_string()) {
+            continue;
+        }
+        existing.push(item);
+    }
+}
 
 /// Resolve a space's full descriptor: disk walk + TS eval + resolve.
 ///
@@ -139,44 +191,15 @@ pub async fn resolve_space_with_broker(
             format!("resolver: space load failed for {}", space_root.display())
         })?;
 
-    // 2. TS eval fan-out — one `defineAgent` roll-up per module. Empty
-    //    module list → no V8 work. The eval crosses the `!Send` boundary
-    //    inside `ts_resolver`; the resulting `Vec<AgentProfile>` is plain
-    //    data, safe to merge.
-    let module_profiles =
-        ts_resolver::resolve_ts_files(&library.imported_modules, &globals)
-            .await
-            .context("resolver: TS eval failed")?;
-    if !module_profiles.is_empty() {
-        // Phase-2: append the TS-authored profiles to BOTH the active-
-        // agent-shaped list (`library.agents`) AND the consumer-visible
-        // passthrough (`library.agent_profiles`).
-        //
-        // - `library.agents` is what `resolve_library` feeds into
-        //   `SpaceManifest.agents`, which the resolve step filters by
-        //   the active-agent selection.
-        // - `library.agent_profiles` is the passthrough that
-        //   `ResolvedConfig::agent_profiles` carries — the consumer-
-        //   visible list (the harness compile inputs).
-        //
-        // Same id dedup as the skill merge: a `.jsonc` profile with
-        // the same id as a TS profile wins (the leaf read it first
-        // and the TS profile is appended after — a `.jsonc` author
-        // beats a `.ts` author on id conflict, the lenient contract
-        // the existing agent-def loader has).
-        let seen: std::collections::HashSet<String> = library
-            .agent_profiles
-            .iter()
-            .map(|a| a.agent.id.clone())
-            .collect();
-        for profile in module_profiles {
-            if seen.contains(&profile.agent.id) {
-                continue;
-            }
-            library.agent_profiles.push(profile.clone());
-            library.agents.push(profile);
-        }
-    }
+    // 2. TS eval fan-out — every declare-form roll-up per module (Wave 3:
+    //    agents, mcp servers, skills, rules, pipelines, triggers,
+    //    collections). Empty module list → no V8 work. The eval crosses
+    //    the `!Send` boundary inside `ts_resolver`; the resulting
+    //    `Declarations` is plain data, safe to merge.
+    let declarations = ts_resolver::resolve_ts_files(&library.imported_modules, &globals)
+        .await
+        .context("resolver: TS eval failed")?;
+    merge_ts_declarations(&mut library, declarations);
     // 3. Surface the resolve-time globals on the descriptor for
     //    audit / debug consumers. The TS eval already used the value;
     //    the field is for visibility.
@@ -246,28 +269,15 @@ pub async fn roll_up(
             format!("roll_up: space load failed for {}", space_root.display())
         })?;
 
-    // 2. TS-eval the `imported_modules` and merge into the source's profile
-    //    lists. Same flow as `resolve_space_with_broker` — we don't need the
-    //    `ResolvedConfig` (the roll-up is descriptor-shaped, not runtime-
-    //    shaped), only the merged library.
-    let module_profiles =
+    // 2. TS-eval the `imported_modules` and merge into the source's noun
+    //    collections. Same flow as `resolve_space_with_broker` — we don't
+    //    need the `ResolvedConfig` (the roll-up is descriptor-shaped, not
+    //    runtime-shaped), only the merged library.
+    let declarations =
         ts_resolver::resolve_ts_files(&source_library.imported_modules, &Value::Null)
             .await
             .context("roll_up: TS eval failed")?;
-    if !module_profiles.is_empty() {
-        let seen: std::collections::HashSet<String> = source_library
-            .agent_profiles
-            .iter()
-            .map(|a| a.agent.id.clone())
-            .collect();
-        for profile in module_profiles {
-            if seen.contains(&profile.agent.id) {
-                continue;
-            }
-            source_library.agent_profiles.push(profile.clone());
-            source_library.agents.push(profile);
-        }
-    }
+    merge_ts_declarations(&mut source_library, declarations);
 
     // 3. Source's per-extension content hash. The cache key (J5) is the
     //    COMPOSED library's hash, which embeds this via `rollup_inputs`,

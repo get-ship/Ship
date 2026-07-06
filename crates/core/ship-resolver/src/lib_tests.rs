@@ -679,3 +679,103 @@ async fn roll_up_covers_every_case_resolve_dep_agents_covers() {
         "no lockfile => roll_up must not compose any cache-tier agent either: {source_ids:?}"
     );
 }
+
+// ── Format-migration Wave 3: every declare-form round-trips ────────────
+
+/// A `ship.ts` using every declare-form (`defineAgent`, `defineMcpServer`,
+/// `defineSkill`, `definePipeline`, `defineTrigger`, `defineCollection`,
+/// `defineRule`) resolves → composes → produces a byte-identical
+/// descriptor across two `roll_up` runs, with each noun landing in its
+/// matching `ExtensionLibrary` field.
+#[tokio::test(flavor = "current_thread")]
+async fn every_declare_form_round_trips_through_resolve_compose_descriptor() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().to_path_buf();
+    std::fs::create_dir_all(root.join(".ship")).unwrap();
+    std::fs::write(
+        root.join("ship.ts"),
+        r#"
+import {
+  defineAgent,
+  defineMcpServer,
+  defineSkill,
+  definePipeline,
+  defineTrigger,
+  defineCollection,
+  defineRule,
+} from "ship";
+
+defineAgent({ agent: { id: "demo", name: "Demo" } });
+
+defineMcpServer({
+  id: "search",
+  server_type: "stdio",
+  command: "search-mcp",
+  args: [],
+  env: null,
+  url: null,
+  scope: "project",
+});
+
+defineSkill({
+  frontmatter: { name: "review-pr", description: "Reviews a pull request." },
+  body: "Do the review.",
+  assets: [],
+});
+
+definePipeline({
+  name: "ci",
+  steps: [{ id: "build", after: [], step_specs: [] }],
+  auto_merge: false,
+});
+
+defineTrigger({
+  id: "on-push",
+  trigger: { event: "git.push" },
+  actions: [{ type: "event.emit" }],
+});
+
+defineCollection({
+  id: "notes",
+  name: "Notes",
+  fields: [{ name: "title", type: "string", required: true, values: [] }],
+});
+
+defineRule({ id: "style", content: "Be terse.", applyScope: "always" });
+"#,
+    )
+    .unwrap();
+
+    let cache_root = root.join("empty_cache");
+    std::fs::create_dir_all(&cache_root).unwrap();
+    let library_root = root.join("empty_library");
+
+    let a = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+    let b = roll_up(&root, Some(&cache_root), Some(&library_root)).await.unwrap();
+
+    // Determinism: byte-identical canonical form + content hash.
+    let a_bytes = descriptor::extension_library_canonical(&a.library).unwrap();
+    let b_bytes = descriptor::extension_library_canonical(&b.library).unwrap();
+    assert_eq!(a_bytes, b_bytes, "two roll-ups of every declare-form must be byte-identical");
+    let a_hash = descriptor::extension_library_content_hash(&a.library).unwrap();
+    let b_hash = descriptor::extension_library_content_hash(&b.library).unwrap();
+    assert_eq!(a_hash, b_hash);
+
+    // Every noun landed in its matching field.
+    let lib = &a.library;
+    assert!(lib.agent_profiles.iter().any(|p| p.agent.id == "demo"));
+    assert_eq!(lib.mcp_servers.len(), 1);
+    assert_eq!(lib.mcp_servers[0].id, "search");
+    assert_eq!(lib.skills.len(), 1);
+    assert_eq!(lib.skills[0].name, "review-pr");
+    assert_eq!(lib.pipelines.len(), 1);
+    assert_eq!(lib.pipelines[0].name, "ci");
+    assert_eq!(lib.pipelines[0].steps[0].id, "build");
+    assert_eq!(lib.triggers.len(), 1);
+    assert_eq!(lib.triggers[0].id, "on-push");
+    assert_eq!(lib.collections.len(), 1);
+    assert_eq!(lib.collections[0].id, "notes");
+    assert_eq!(lib.rules.len(), 1);
+    assert_eq!(lib.rules[0].file_name, "style");
+    assert!(lib.rules[0].always_apply);
+}

@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    coverage, gen_audit_readme, gen_contract, gen_events, gen_fixtures,
+    coverage, gen_audit_readme, gen_contract, gen_eval_stub, gen_events, gen_fixtures,
     gen_indexes, gen_sdk, lint_anti_theater,
     lint_imports, lint_layers, lint_residue,
 };
@@ -84,6 +84,13 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                 std::process::exit(1);
             }
         }
+        "gen-eval-stub" => {
+            let check = args.iter().any(|a| a == "--check");
+            if let Err(e) = gen_eval_stub::run(&repo_root(), check) {
+                eprintln!("gen-eval-stub failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
         "gen-audit-readme" => {
             if let Err(e) = gen_audit_readme::run(&repo_root()) {
                 eprintln!("gen-audit-readme failed: {e:#}");
@@ -127,6 +134,8 @@ fn print_help() {
     eprintln!("  gen-sdk               Emit 5 JSON manifests + 1 TS typed-FrameworkManifest to packages/sdk/src/manifests/ (view-contexts, collections, triggers, views, framework)");
     eprintln!("  gen-sdk --check       Verify generated manifests are up-to-date (CI)");
     eprintln!("  gen-contract          Generate docs/contract/<domain>.md consumer guides");
+    eprintln!("  gen-eval-stub         Regenerate agent-config-eval's SDK stub + field fingerprints from @ship/stack");
+    eprintln!("  gen-eval-stub --check Verify the generated stub is up-to-date (CI)");
     eprintln!("  gen-audit-readme      Regenerate .artifacts/specs/module-audits/README.md");
     eprintln!("  gen-indexes           Regenerate emit-sites.md + substrate-fns.md indexes");
     eprintln!("  gen-indexes --check   Verify indexes are up-to-date (CI)");

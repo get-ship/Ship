@@ -1,15 +1,18 @@
-//! Evaluate a `ship.ts` agent config — authored with `defineAgent` — in a
-//! locked-down ship-js isolate and harvest the result as
-//! [`compiler::AgentProfile`]s.
+//! Evaluate a `ship.ts` config — authored with `defineAgent` and, per
+//! format-migration Wave 3, the sibling declare-forms (`defineMcpServer`,
+//! `defineSkill`, `definePipeline`, `defineTrigger`, `defineCollection`,
+//! `defineRule`) — in a locked-down ship-js isolate and harvest the result
+//! as [`Declarations`].
 //!
 //! # The boundary
 //!
 //! `ship-js` is a standalone JS engine with **zero** knowledge of ship's config
 //! types. THIS crate supplies everything ship-specific — the TypeScript strip
-//! ([`strip_types`]), the `@ship/sdk` stub ([`SDK_STUB`]), and the
-//! [`AgentProfile`] harvest. The engine only runs a closed-world module and
-//! returns the values it emits. The SDK is a *string parameter* to the engine,
-//! never vendored into it.
+//! ([`strip_types`]), the `@ship/sdk` stub ([`SDK_STUB`], GENERATED from
+//! `@ship/stack`'s noun shapes — see [`generated_stub`] and
+//! `cargo xtask gen-eval-stub`), and the [`declarations::harvest`]. The engine
+//! only runs a closed-world module and returns the values it emits. The SDK is
+//! a *string parameter* to the engine, never vendored into it.
 //!
 //! # TypeScript in, JavaScript to the engine
 //!
@@ -51,6 +54,12 @@ use oxc_semantic::SemanticBuilder;
 use oxc_span::SourceType;
 use oxc_transformer::{TransformOptions, Transformer};
 use ship_js::{Dispatch, DispatchError};
+
+mod declarations;
+mod generated_stub;
+
+pub use declarations::Declarations;
+pub use generated_stub::SDK_STUB;
 
 /// Strip TypeScript types from `source`, returning equivalent JavaScript.
 ///
@@ -102,50 +111,6 @@ pub fn strip_types(source: &str) -> anyhow::Result<String> {
     Ok(Codegen::new().build(&program).code)
 }
 
-/// The ship-supplied `@ship/sdk` module body — served to `import … from "ship"`.
-///
-/// It has two jobs, both at module top level so they run before the entry
-/// module's body:
-///
-/// 1. Install the determinism guard.
-/// 2. Export `defineAgent`, the collector: each call emits one config into the
-///    engine's collector registry, harvested back on the Rust side after eval.
-///
-/// The injected `globals` export is prepended by [`sdk_module`] — see there.
-pub const SDK_STUB: &str = r#"
-// --- determinism guard: config eval must be pure -------------------------
-// Runs at SDK-module load, before the entry module's body (ES modules evaluate
-// imports first), so authored config never observes an un-guarded clock/RNG.
-const __block = (what) => () => {
-  throw new Error(what + " is blocked in ship config eval — config must be deterministic");
-};
-Math.random = __block("Math.random()");
-Date.now = __block("Date.now()");
-{
-  const _Date = Date;
-  globalThis.Date = new Proxy(_Date, {
-    construct(target, args) {
-      if (args.length === 0) {
-        throw new Error("new Date() is blocked in ship config eval — config must be deterministic");
-      }
-      return Reflect.construct(target, args);
-    },
-    apply() {
-      throw new Error("Date() is blocked in ship config eval — config must be deterministic");
-    },
-  });
-}
-
-// --- defineAgent: the collector ------------------------------------------
-// Each call harvests one agent definition into the engine's collector registry
-// (op_emit), read back on the Rust side once the module settles. N calls — e.g.
-// in a loop — collect N entries, in call order.
-export function defineAgent(config) {
-  Deno.core.ops.op_emit(config);
-  return config;
-}
-"#;
-
 /// Build the served `@ship/sdk` module: the injected `globals` export followed
 /// by [`SDK_STUB`].
 ///
@@ -189,11 +154,28 @@ pub async fn resolve_agents(source: &str) -> anyhow::Result<Vec<AgentProfile>> {
 /// Like [`resolve_agents`], but with pre-fetched global defaults injected into
 /// the eval as an exported `globals` object (see the crate docs). `globals` is
 /// part of the closed-world input — no live fetch — so the eval stays
-/// deterministic.
+/// deterministic. Thin filter over [`resolve_declarations_with_globals`]'s
+/// `.agents` — every other declare-form kind is still evaluated (the isolate
+/// doesn't know which nouns a caller wants), just not returned here.
 pub async fn resolve_agents_with_globals(
     source: &str,
     globals: serde_json::Value,
 ) -> anyhow::Result<Vec<AgentProfile>> {
+    Ok(resolve_declarations_with_globals(source, globals).await?.agents)
+}
+
+/// Evaluate a `ship.ts` config module and harvest every declare-form call
+/// (`defineAgent`, `defineMcpServer`, `defineSkill`, `definePipeline`,
+/// `defineTrigger`, `defineCollection`, `defineRule`) into a
+/// [`Declarations`], in call order per noun.
+///
+/// `source` is real TypeScript — [`strip_types`] lowers it to JavaScript
+/// before eval. `globals` is the same closed-world injection
+/// [`resolve_agents_with_globals`] accepts.
+pub async fn resolve_declarations_with_globals(
+    source: &str,
+    globals: serde_json::Value,
+) -> anyhow::Result<Declarations> {
     let js = strip_types(source).context("TypeScript type-strip failed")?;
     let sdk = sdk_module(&globals)?;
 
@@ -202,11 +184,9 @@ pub async fn resolve_agents_with_globals(
         .await
         .context("config eval failed")?;
 
-    let mut profiles = Vec::with_capacity(emitted.len());
+    let mut declarations = Declarations::default();
     for (i, value) in emitted.into_iter().enumerate() {
-        let profile: AgentProfile = serde_json::from_value(value)
-            .with_context(|| format!("defineAgent call #{i} did not match AgentProfile"))?;
-        profiles.push(profile);
+        declarations::harvest(&mut declarations, i, value)?;
     }
-    Ok(profiles)
+    Ok(declarations)
 }

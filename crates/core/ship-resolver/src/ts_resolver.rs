@@ -43,16 +43,33 @@
 //! `&[ModuleDescriptor]` so the Phase-3 call site is the same shape; the
 //! Phase-2 implementation simply iterates with a single entry.
 
+use agent_config_eval::Declarations;
 use anyhow::{Context, Result};
-use compiler::{AgentProfile, ModuleDescriptor};
+use compiler::ModuleDescriptor;
 use serde_json::Value;
 
+/// Merge one module's [`Declarations`] into the running total, in
+/// declared order — every noun vector appends, per-noun call order
+/// within a module preserved.
+fn merge_declarations(all: &mut Declarations, module: Declarations) {
+    all.agents.extend(module.agents);
+    all.mcp_servers.extend(module.mcp_servers);
+    all.skills.extend(module.skills);
+    all.rules.extend(module.rules);
+    all.pipelines.extend(module.pipelines);
+    all.triggers.extend(module.triggers);
+    all.collections.extend(module.collections);
+}
+
 /// Evaluate every TS module in `imported_modules` and return the merged
-/// `defineAgent` roll-up across all of them, in declared order.
+/// declare-form roll-up across all of them, in declared order — every
+/// noun a `ship.ts` can declare (`defineAgent`, `defineMcpServer`,
+/// `defineSkill`, `definePipeline`, `defineTrigger`, `defineCollection`,
+/// `defineRule`), not just agents (format-migration Wave 3).
 ///
 /// The default `globals` (operator pre-fetched defaults, baked into the
 /// SDK module as a closed-world input) is the same value
-/// `agent-config-eval::resolve_agents_with_globals` accepts. The closed
+/// `agent-config-eval::resolve_declarations_with_globals` accepts. The closed
 /// world holds: `globals` is part of the eval input, no live fetch.
 ///
 /// The `!Send` V8 boundary is crossed per-module inside this fn — each
@@ -66,19 +83,19 @@ use serde_json::Value;
 /// carries in `ResolvedConfig::imported_modules` (and in
 /// `ExtensionLibrary::imported_modules`). An empty slice is the
 /// "no TS modules" case — the resolver on a `.jsonc`-only project; this
-/// fn returns an empty vec.
+/// fn returns an empty [`Declarations`].
 pub async fn resolve_ts_files(
     imported_modules: &[ModuleDescriptor],
     globals: &Value,
-) -> Result<Vec<AgentProfile>> {
+) -> Result<Declarations> {
+    let mut all = Declarations::default();
     if imported_modules.is_empty() {
-        return Ok(Vec::new());
+        return Ok(all);
     }
 
-    let mut all_profiles: Vec<AgentProfile> = Vec::new();
     for module in imported_modules {
         match eval_one_module(module, globals).await {
-            Ok(profiles) => all_profiles.extend(profiles),
+            Ok(declarations) => merge_declarations(&mut all, declarations),
             Err(e) => {
                 // Phase-2 contract: a single module's eval failure is
                 // logged and the fan-out continues. The descriptor cache
@@ -91,38 +108,35 @@ pub async fn resolve_ts_files(
             }
         }
     }
-    Ok(all_profiles)
+    Ok(all)
 }
 
-/// Resolve a single TS module's `defineAgent` calls, crossing the
+/// Resolve a single TS module's declare-form calls, crossing the
 /// `!Send` V8 boundary on a dedicated current-thread runtime.
 ///
 /// This is the same `spawn_blocking` + `new_current_thread` pattern
 /// shipd's ingest uses (`apps/shipd/src/ship_runtime/tasks.rs:295-300`).
 /// The closure is `Send + 'static` (it owns the source + globals + sdk
 /// path), the V8 future lives on the inner thread, and the resolved
-/// `Vec<AgentProfile>` is `Send` so it flows back to the multi-threaded
+/// `Declarations` is `Send` so it flows back to the multi-threaded
 /// executor without re-crossing the V8 boundary.
-async fn eval_one_module(
-    module: &ModuleDescriptor,
-    globals: &Value,
-) -> Result<Vec<AgentProfile>> {
+async fn eval_one_module(module: &ModuleDescriptor, globals: &Value) -> Result<Declarations> {
     let source = module.source.clone();
     let globals = globals.clone();
 
     // Move the V8 work onto the blocking thread pool; inside the closure
     // we mint a fresh current-thread runtime for the eval.
-    let profiles = tokio::task::spawn_blocking(move || -> Result<Vec<AgentProfile>> {
+    let declarations = tokio::task::spawn_blocking(move || -> Result<Declarations> {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .context("ts_resolver: failed to build current-thread runtime for V8 eval")?;
-        rt.block_on(agent_config_eval::resolve_agents_with_globals(&source, globals))
+        rt.block_on(agent_config_eval::resolve_declarations_with_globals(&source, globals))
     })
     .await
     .context("ts_resolver: V8 eval task join failed (panic?)")??;
 
-    Ok(profiles)
+    Ok(declarations)
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -142,9 +156,15 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn empty_module_list_yields_no_profiles() {
-        let profiles = resolve_ts_files(&[], &Value::Null).await.unwrap();
-        assert!(profiles.is_empty());
+    async fn empty_module_list_yields_no_declarations() {
+        let declarations = resolve_ts_files(&[], &Value::Null).await.unwrap();
+        assert!(declarations.agents.is_empty());
+        assert!(declarations.mcp_servers.is_empty());
+        assert!(declarations.skills.is_empty());
+        assert!(declarations.rules.is_empty());
+        assert!(declarations.pipelines.is_empty());
+        assert!(declarations.triggers.is_empty());
+        assert!(declarations.collections.is_empty());
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -162,9 +182,9 @@ defineAgent({
 });
 "#,
         );
-        let profiles = resolve_ts_files(&[module], &Value::Null).await.unwrap();
-        assert_eq!(profiles.len(), 1);
-        assert_eq!(profiles[0].agent.id, "demo");
+        let declarations = resolve_ts_files(&[module], &Value::Null).await.unwrap();
+        assert_eq!(declarations.agents.len(), 1);
+        assert_eq!(declarations.agents[0].agent.id, "demo");
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -183,8 +203,8 @@ for (const id of ["a", "b", "c"]) {
 }
 "#,
         );
-        let profiles = resolve_ts_files(&[module], &Value::Null).await.unwrap();
-        let ids: Vec<&str> = profiles.iter().map(|p| p.agent.id.as_str()).collect();
+        let declarations = resolve_ts_files(&[module], &Value::Null).await.unwrap();
+        let ids: Vec<&str> = declarations.agents.iter().map(|p| p.agent.id.as_str()).collect();
         assert_eq!(ids, vec!["a", "b", "c"]);
     }
 
@@ -202,10 +222,10 @@ defineAgent({ agent: { id: "y", name: "Y" } });
 "#;
         let m1 = empty_module("ship.ts", source);
         let m2 = empty_module("ship.ts", source);
-        let p1 = resolve_ts_files(&[m1], &Value::Null).await.unwrap();
-        let p2 = resolve_ts_files(&[m2], &Value::Null).await.unwrap();
-        let ids1: Vec<&str> = p1.iter().map(|p| p.agent.id.as_str()).collect();
-        let ids2: Vec<&str> = p2.iter().map(|p| p.agent.id.as_str()).collect();
+        let d1 = resolve_ts_files(&[m1], &Value::Null).await.unwrap();
+        let d2 = resolve_ts_files(&[m2], &Value::Null).await.unwrap();
+        let ids1: Vec<&str> = d1.agents.iter().map(|p| p.agent.id.as_str()).collect();
+        let ids2: Vec<&str> = d2.agents.iter().map(|p| p.agent.id.as_str()).collect();
         assert_eq!(ids1, ids2);
     }
 
@@ -232,8 +252,97 @@ defineAgent({ agent: { id: "b1", name: "B1" } });
 defineAgent({ agent: { id: "b2", name: "B2" } });
 "#,
         );
-        let profiles = resolve_ts_files(&[m1, m2], &Value::Null).await.unwrap();
-        let ids: Vec<&str> = profiles.iter().map(|p| p.agent.id.as_str()).collect();
+        let declarations = resolve_ts_files(&[m1, m2], &Value::Null).await.unwrap();
+        let ids: Vec<&str> = declarations.agents.iter().map(|p| p.agent.id.as_str()).collect();
         assert_eq!(ids, vec!["a1", "b1", "b2"]);
+    }
+
+    /// Format-migration Wave 3: a `ship.ts` using every declare-form
+    /// (agent, mcp server, skill, pipeline, trigger, collection, rule)
+    /// harvests into the matching `Declarations` field.
+    #[tokio::test(flavor = "current_thread")]
+    async fn every_declare_form_lands_in_its_noun_field() {
+        let module = empty_module(
+            "ship.ts",
+            r#"
+import {
+  defineAgent,
+  defineMcpServer,
+  defineSkill,
+  definePipeline,
+  defineTrigger,
+  defineCollection,
+  defineRule,
+} from "ship";
+
+defineAgent({ agent: { id: "demo", name: "Demo" } });
+
+defineMcpServer({
+  id: "search",
+  server_type: "stdio",
+  command: "search-mcp",
+  args: [],
+  env: null,
+  url: null,
+  scope: "project",
+});
+
+defineSkill({
+  frontmatter: {
+    name: "review-pr",
+    description: "Reviews a pull request.",
+  },
+  body: "Do the review.",
+  assets: [],
+});
+
+definePipeline({
+  name: "ci",
+  steps: [{ id: "build", after: [], step_specs: [] }],
+  auto_merge: false,
+});
+
+defineTrigger({
+  id: "on-push",
+  trigger: { event: "git.push" },
+  actions: [{ type: "event.emit" }],
+});
+
+defineCollection({
+  id: "notes",
+  name: "Notes",
+  fields: [{ name: "title", type: "string", required: true, values: [] }],
+});
+
+defineRule({
+  id: "style",
+  content: "Be terse.",
+  applyScope: "always",
+});
+"#,
+        );
+        let declarations = resolve_ts_files(&[module], &Value::Null).await.unwrap();
+
+        assert_eq!(declarations.agents.len(), 1);
+        assert_eq!(declarations.agents[0].agent.id, "demo");
+
+        assert_eq!(declarations.mcp_servers.len(), 1);
+        assert_eq!(declarations.mcp_servers[0].id, "search");
+
+        assert_eq!(declarations.skills.len(), 1);
+        assert_eq!(declarations.skills[0].name, "review-pr");
+
+        assert_eq!(declarations.pipelines.len(), 1);
+        assert_eq!(declarations.pipelines[0].name, "ci");
+
+        assert_eq!(declarations.triggers.len(), 1);
+        assert_eq!(declarations.triggers[0].id, "on-push");
+
+        assert_eq!(declarations.collections.len(), 1);
+        assert_eq!(declarations.collections[0].id, "notes");
+
+        assert_eq!(declarations.rules.len(), 1);
+        assert_eq!(declarations.rules[0].file_name, "style");
+        assert!(declarations.rules[0].always_apply);
     }
 }

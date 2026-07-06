@@ -36,6 +36,13 @@ serde_json = { workspace = true }
 regex = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
+# gen-eval-stub: reads @ship/stack's noun shapes (TS) to regenerate
+# agent-config-eval's SDK stub. Same oxc version agent-config-eval already
+# pins for its type-strip; here used to walk the AST instead of codegen.
+oxc_allocator = "0.133"
+oxc_ast = "0.133"
+oxc_parser = "0.133"
+oxc_span = "0.133"
 
 [features]
 # Compile the `example()` fixture constructors into ship-platform so

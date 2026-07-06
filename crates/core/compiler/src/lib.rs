@@ -49,12 +49,15 @@ pub use decompile::{
 pub use schemas::{HARNESS_MANAGED_KEYS, HARNESS_SCHEMAS, managed_keys, schema_url};
 pub use types::{
     AgentBundle, AgentLayerConfig, AgentLimits, AgentProfile, ArtifactType, BlastRadius, Capability,
-    CatalogCategory, CatalogEntry, CatalogKind, CommandPermissions, FsPermissions,
+    CatalogCategory, CatalogEntry, CatalogKind, CollectionDef, CollectionFieldDef,
+    CollectionFieldType, CommandPermissions, FsPermissions,
     HookConfig, HookTrigger, ListAgentsResponse, McpRefs, McpServerConfig, McpServerType,
     NamespaceConfig, NetworkPermissions, NetworkPolicy, Permissions,
+    PipelineDef, PipelineGate, PipelineStep, PipelineStepSpec,
     PluginEntry, PluginRefs, PluginsManifest, ProfileMeta, ProfilePermissions, ProfileRules,
     SpaceManifest, PullAgent, PullMcpServer, PullProfile, PullResponse, PullRule, PullSkill, Rule,
     Skill, SkillBundle, SkillRefs, SkillSource, ToolPermissions, TransferBundle,
+    TriggerAction, TriggerDef, TriggerEventMatch, TriggerSourceDef,
     list_catalog, list_catalog_by_kind, search_catalog,
 };
 

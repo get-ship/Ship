@@ -5,6 +5,7 @@ mod cli;
 mod coverage;
 mod gen_audit_readme;
 mod gen_contract;
+mod gen_eval_stub;
 mod gen_events;
 mod gen_fixtures;
 mod gen_indexes;

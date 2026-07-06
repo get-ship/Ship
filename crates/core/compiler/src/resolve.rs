@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
 
 use crate::types::{
-    AgentProfile, HookConfig, McpServerConfig, Permissions, PluginsManifest,
-    SpaceManifest, Rule, Skill, ViewDescriptor,
+    AgentProfile, CollectionDef, HookConfig, McpServerConfig, Permissions, PipelineDef,
+    PluginsManifest, SpaceManifest, Rule, Skill, TriggerDef, ViewDescriptor,
 };
 
 // ─── Phase-2 descriptor types ────────────────────────────────────────────────
@@ -231,6 +231,22 @@ pub struct ExtensionLibrary {
     /// Rules from `rules/`.
     #[serde(default)]
     pub rules: Vec<Rule>,
+    /// Pipeline definitions — from `pipelines/*.jsonc` today, from
+    /// `definePipeline` declare-forms in `ship.ts` per format-migration
+    /// Wave 3. Not yet cross-extension composed (`compose_space` passes
+    /// the space tier's set through verbatim; see `compose.rs`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pipelines: Vec<PipelineDef>,
+    /// Trigger definitions — from `triggers/*.jsonc` today, from
+    /// `defineTrigger` declare-forms in `ship.ts` per format-migration
+    /// Wave 3. Not yet cross-extension composed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub triggers: Vec<TriggerDef>,
+    /// Collection definitions — from `collections/*.jsonc` today, from
+    /// `defineCollection` declare-forms in `ship.ts` per format-migration
+    /// Wave 3. Not yet cross-extension composed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub collections: Vec<CollectionDef>,
     /// View routes carried by this extension. Composed by namespace-prefix
     /// merge, not id-replace — see [`crate::compose::compose_space`]'s views
     /// handling.
