@@ -10,6 +10,7 @@
 //! `schemas` (harness managed-key sets + schema URLs).
 
 pub mod compile;
+pub mod compose;
 pub mod decompile;
 pub mod events;
 pub mod jsonc;
@@ -34,9 +35,10 @@ pub use compile::{
     compile, get_harness, list_harnesses,
 };
 
+pub use compose::{ComposedLibrary, NounKind, ShadowRecord, compose_space};
 pub use resolve::{
-    ExtensionDescriptor, ExtSource, ModuleDescriptor, PrecedenceRow, ProjectLibrary, ResolvedConfig,
-    RollupInputs, WorkspaceOverrides, resolve, resolve_library,
+    ExtensionDescriptor, ExtSource, ExtSourceKind, ModuleDescriptor, PrecedenceRow, ProjectLibrary,
+    ResolvedConfig, RollupInputs, WorkspaceOverrides, resolve, resolve_library,
 };
 pub use decompile::{
     DetectedProviders, decompile_all, decompile_claude, decompile_codex,

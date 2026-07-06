@@ -21,20 +21,34 @@ pub struct ModuleDescriptor {
     pub exports: Vec<String>,
 }
 
-// Phase-3 composition seam. Today this is type-only: every site populates
-// `space_rollup_inputs: None`. Phase 3 (agents-domain consolidation with
-// layered roll-up) wires the roll-up fn that consumes `RollupInputs` and
-// emits ONE composed descriptor. The fields below are the Phase-3 contract;
-// they are not populated in Phase 2.
+// Phase-3 composition seam. The roll-up law consuming this is
+// [`crate::compose::compose_space`]; the resolver's space orchestration
+// builds the inputs and carries the composed result.
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct RollupInputs {
-    /// Every extension in the space, in their declared order. Precedence:
-    /// user-global < space < per-agent.
+    /// Every extension in the space, in their declared order. Declared order
+    /// breaks precedence-rank ties: later wins.
     pub extensions: Vec<ExtensionDescriptor>,
-    /// The precedence rows the roll-up applies, in order. The exact law is
-    /// Phase 3's "composition/precedence" review.
+    /// The precedence rows the roll-up applies. Kind-level: every extension
+    /// whose source kind matches a row composes at that row's rank; an
+    /// extension with no matching row is a compose error, never a silent
+    /// default. [`RollupInputs::default_precedence`] is the standing law.
     pub precedence: Vec<PrecedenceRow>,
+}
+
+impl RollupInputs {
+    /// The standing composition law (census-phase3-agents.md Part 5):
+    /// user-global < space < per-agent overlay. Ranks are spaced so a future
+    /// tier (e.g. dep packages, #122) can slot between existing ones without
+    /// renumbering.
+    pub fn default_precedence() -> Vec<PrecedenceRow> {
+        vec![
+            PrecedenceRow { kind: ExtSourceKind::UserGlobal, rank: 0 },
+            PrecedenceRow { kind: ExtSourceKind::Space, rank: 1000 },
+            PrecedenceRow { kind: ExtSourceKind::Agent, rank: 2000 },
+        ]
+    }
 }
 
 /// One extension in the roll-up set (Phase 3).
@@ -49,7 +63,7 @@ pub struct ExtensionDescriptor {
 
 /// Where an extension came from (Phase 3).
 #[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ExtSource {
     UserGlobal,
@@ -63,12 +77,32 @@ impl Default for ExtSource {
     }
 }
 
-/// One row in the precedence table (Phase 3). Placeholder — fields are
-/// decided by the composition-law review.
+impl ExtSource {
+    pub fn kind(&self) -> ExtSourceKind {
+        match self {
+            ExtSource::UserGlobal => ExtSourceKind::UserGlobal,
+            ExtSource::Space => ExtSourceKind::Space,
+            ExtSource::Agent(_) => ExtSourceKind::Agent,
+        }
+    }
+}
+
+/// The kind of an [`ExtSource`] — the unit precedence rows rank at.
 #[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExtSourceKind {
+    UserGlobal,
+    Space,
+    Agent,
+}
+
+/// One row in the precedence table. Higher rank wins on id collision;
+/// equal ranks resolve by declared extension order, later wins.
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PrecedenceRow {
-    pub source: ExtSource,
+    pub kind: ExtSourceKind,
     pub rank: u32,
 }
 

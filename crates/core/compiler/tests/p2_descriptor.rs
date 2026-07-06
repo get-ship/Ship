@@ -22,7 +22,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use compiler::{
-    load_library, ExtensionDescriptor, ExtSource, ModuleDescriptor, PrecedenceRow,
+    load_library, ExtensionDescriptor, ExtSource, ModuleDescriptor,
     ProjectLibrary, RollupInputs,
 };
 use serde_json::json;
@@ -75,9 +75,12 @@ fn fixture_round_trips_byte_unchanged() {
 
     // Defaults for every new field must be the leaf's "absent" value:
     // empty strings/vecs, Value::Null for globals, None for Options.
+    // `skill_paths` is the exception: the leaf's manifest read guarantees
+    // the default project path is always present, even with no `ship.jsonc`
+    // ("an empty manifest yields exactly the default").
     assert!(lib.skills_dir.is_none());
     assert!(lib.rules_dir.is_none());
-    assert!(lib.skill_paths.is_empty());
+    assert_eq!(lib.skill_paths, vec![compiler::loader::DEFAULT_PROJECT_SKILL_PATH.to_string()]);
     assert!(lib.per_agent_skills.is_empty());
     assert!(lib.imported_modules.is_empty());
     assert!(lib.globals.is_null());
@@ -182,10 +185,7 @@ fn space_rollup_inputs_placeholder_round_trips() {
             descriptor: ProjectLibrary::default(),
             content_hash: "blake3:0000".to_string(),
         }],
-        precedence: vec![PrecedenceRow {
-            source: ExtSource::UserGlobal,
-            rank: 0,
-        }],
+        precedence: RollupInputs::default_precedence(),
     });
     assert_byte_identical(&lib, "ProjectLibrary::space_rollup_inputs");
 }

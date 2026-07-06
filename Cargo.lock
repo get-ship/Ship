@@ -8950,7 +8950,6 @@ dependencies = [
 name = "shipd"
 version = "0.2.0"
 dependencies = [
- "agent-config-eval",
  "agent-def",
  "ammonia",
  "anyhow",
@@ -9016,6 +9015,7 @@ dependencies = [
  "ship-pipelines",
  "ship-platform",
  "ship-reactive",
+ "ship-resolver",
  "ship-runner",
  "ship-search",
  "ship-space",
