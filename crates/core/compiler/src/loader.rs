@@ -120,6 +120,7 @@ struct HooksEntry {
 /// `ship-substrate`; everything is plain `std::fs` + the crate's own
 /// `jsonc` + `skill_parser` modules.
 pub fn load_library(ship_dir: &Path) -> Result<ProjectLibrary> {
+    let skill_paths = read_project_skill_paths(ship_dir);
     Ok(ProjectLibrary {
         mcp_servers: load_mcp_servers(ship_dir)?,
         permissions: load_permissions(ship_dir),
@@ -127,6 +128,7 @@ pub fn load_library(ship_dir: &Path) -> Result<ProjectLibrary> {
         rules: load_rules(ship_dir)?,
         skills: load_skills(ship_dir),
         agent_profiles: load_agent_profiles(ship_dir),
+        skill_paths,
         ..Default::default()
     })
 }
@@ -306,6 +308,65 @@ fn parse_rule(file_name: &str, raw: &str) -> Rule {
     }
 }
 
+// ── skill_paths (Phase-2 additive manifest read) ────────────────────────────────
+
+/// The default skill dir path, relative to the project root (`<root>/.ship/skills/`).
+///
+/// Matches agent-def's [`read_skill_paths`](
+/// ship_platform/crates/agent-def/src/skill_paths.rs) so a project that lands
+/// `project.skill_paths` in its `ship.jsonc` sees the same effective skill
+/// discovery the agent-def consumers do. The string is project-RELATIVE — the
+/// resolver joins it onto the project root when walking.
+pub const DEFAULT_PROJECT_SKILL_PATH: &str = ".ship/skills/";
+
+/// Read `project.skill_paths` from `<ship_dir>/ship.jsonc` and return the
+/// project-relative paths as strings.
+///
+/// - Always includes the default `.ship/skills/` as the first entry (preserves
+///   today's behavior: an empty manifest yields exactly the default).
+/// - Custom paths from `project.skill_paths` are appended IN ORDER, duplicates
+///   of the default skipped.
+/// - Absolute paths are rejected and skipped (no fs escape).
+/// - Missing or unreadable `ship.jsonc` → `vec![DEFAULT_PROJECT_SKILL_PATH]`
+///   (lenient contract — a missing manifest is "no project customization").
+/// - JSONC comments are tolerated (the `ship.jsonc` file uses the same
+///   format the agents config uses; the leaf's own `jsonc` module strips
+///   `//` / `/* */` comments + trailing commas before parse).
+pub fn read_project_skill_paths(ship_dir: &Path) -> Vec<String> {
+    let mut result = vec![DEFAULT_PROJECT_SKILL_PATH.to_string()];
+
+    let primary = ship_dir.join("ship.jsonc");
+    let content = match fs::read_to_string(&primary) {
+        Ok(c) => c,
+        Err(_) => return result,
+    };
+    let parsed: serde_json::Value = match from_jsonc_str(&content) {
+        Ok(v) => v,
+        Err(_) => return result,
+    };
+    let paths = parsed
+        .get("project")
+        .and_then(|p| p.get("skill_paths"))
+        .and_then(|v| v.as_array());
+
+    if let Some(arr) = paths {
+        for v in arr {
+            let Some(s) = v.as_str() else { continue };
+            if std::path::Path::new(s).is_absolute() {
+                // Absolute paths are rejected and skipped — same posture as
+                // agent-def's `read_skill_paths` (the b2f75a7b2 bug class).
+                continue;
+            }
+            if s == DEFAULT_PROJECT_SKILL_PATH {
+                // Already the first entry; skip the duplicate.
+                continue;
+            }
+            result.push(s.to_string());
+        }
+    }
+
+    result
+}
 // ─── Skills ───────────────────────────────────────────────────────────────────
 
 /// Load every `.ship/skills/<id>/SKILL.md` (plus any flat `.ship/skills/<id>.md`).
@@ -480,5 +541,163 @@ mod tests {
         assert!(lib.skills.is_empty());
         assert!(lib.rules.is_empty());
         assert!(lib.hooks.is_empty());
+    }
+
+    // ── read_project_skill_paths (Phase-2 additive manifest read) ──────────────
+
+    #[test]
+    fn read_skill_paths_defaults_to_ship_skills_when_manifest_absent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ship_dir = tmp.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        let paths = read_project_skill_paths(&ship_dir);
+        assert_eq!(paths, vec![".ship/skills/".to_string()]);
+    }
+
+    #[test]
+    fn read_skill_paths_defaults_when_manifest_lacks_skill_paths() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ship_dir = tmp.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        std::fs::write(
+            ship_dir.join("ship.jsonc"),
+            r#"{"id": "demo", "project": {}}"#,
+        )
+        .unwrap();
+        let paths = read_project_skill_paths(&ship_dir);
+        assert_eq!(paths, vec![".ship/skills/".to_string()]);
+    }
+
+    #[test]
+    fn read_skill_paths_appends_custom_project_relative_paths() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ship_dir = tmp.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        std::fs::write(
+            ship_dir.join("ship.jsonc"),
+            r#"{"project": {"skill_paths": ["docs/", "extra/skills/"]}}"#,
+        )
+        .unwrap();
+        let paths = read_project_skill_paths(&ship_dir);
+        assert_eq!(
+            paths,
+            vec![
+                ".ship/skills/".to_string(),
+                "docs/".to_string(),
+                "extra/skills/".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn read_skill_paths_rejects_absolute_paths() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ship_dir = tmp.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        std::fs::write(
+            ship_dir.join("ship.jsonc"),
+            r#"{"project": {"skill_paths": ["/abs/path", "rel/path/"]}}"#,
+        )
+        .unwrap();
+        let paths = read_project_skill_paths(&ship_dir);
+        assert_eq!(
+            paths,
+            vec![
+                ".ship/skills/".to_string(),
+                "rel/path/".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn read_skill_paths_empty_array_falls_back_to_default() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ship_dir = tmp.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        std::fs::write(
+            ship_dir.join("ship.jsonc"),
+            r#"{"project": {"skill_paths": []}}"#,
+        )
+        .unwrap();
+        let paths = read_project_skill_paths(&ship_dir);
+        assert_eq!(paths, vec![".ship/skills/".to_string()]);
+    }
+
+    #[test]
+    fn read_skill_paths_duplicates_of_default_are_skipped() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ship_dir = tmp.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        std::fs::write(
+            ship_dir.join("ship.jsonc"),
+            r#"{"project": {"skill_paths": [".ship/skills/", "other/"]}}"#,
+        )
+        .unwrap();
+        let paths = read_project_skill_paths(&ship_dir);
+        assert_eq!(
+            paths,
+            vec![
+                ".ship/skills/".to_string(),
+                "other/".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn read_skill_paths_tolerates_jsonc_comments() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ship_dir = tmp.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        std::fs::write(
+            ship_dir.join("ship.jsonc"),
+            r#"{
+                // project-level skill discovery
+                "project": {
+                    "skill_paths": ["docs/"] /* extra skills */,
+                }
+            }"#,
+        )
+        .unwrap();
+        let paths = read_project_skill_paths(&ship_dir);
+        assert_eq!(
+            paths,
+            vec![".ship/skills/".to_string(), "docs/".to_string()]
+        );
+    }
+
+    #[test]
+    fn read_skill_paths_unreadable_manifest_falls_back_to_default() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ship_dir = tmp.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        std::fs::write(ship_dir.join("ship.jsonc"), "not valid jsonc {").unwrap();
+        let paths = read_project_skill_paths(&ship_dir);
+        assert_eq!(paths, vec![".ship/skills/".to_string()]);
+    }
+
+    #[test]
+    fn load_library_populates_skill_paths_from_manifest() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ship_dir = tmp.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        std::fs::write(
+            ship_dir.join("ship.jsonc"),
+            r#"{"project": {"skill_paths": ["docs/"]}}"#,
+        )
+        .unwrap();
+        let lib = load_library(&ship_dir).unwrap();
+        assert_eq!(
+            lib.skill_paths,
+            vec![".ship/skills/".to_string(), "docs/".to_string()]
+        );
+    }
+
+    #[test]
+    fn load_library_default_skill_paths_when_manifest_absent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ship_dir = tmp.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        let lib = load_library(&ship_dir).unwrap();
+        assert_eq!(lib.skill_paths, vec![".ship/skills/".to_string()]);
     }
 }

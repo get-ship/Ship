@@ -8692,6 +8692,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-resolver"
+version = "0.1.0"
+dependencies = [
+ "agent-config-eval",
+ "anyhow",
+ "compiler",
+ "serde",
+ "serde_json",
+ "sha2",
+ "ship-js",
+ "ship-substrate",
+ "tempfile",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "ship-runner"
 version = "0.1.0"
 dependencies = [

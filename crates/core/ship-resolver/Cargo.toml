@@ -1,0 +1,52 @@
+[package]
+name = "ship-resolver"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Phase-2 project-shape resolver — composes the compiler leaf (config types) with agent-config-eval (TS eval) over the FsBroker gated door. Emits a canonical ProjectLibrary + ResolvedConfig descriptor."
+
+[dependencies]
+# The L0 leaf — config types, the `load_library` walk over `.ship/`, the
+# `resolve_library` pure transform, and the Phase-2 field set the descriptor
+# carries (skills_dir, rules_dir, skill_paths, per_agent_skills, modules,
+# globals, space_rollup_inputs). The new resolver composes with `load_library`
+# for the bulk of the read path; the additive `read_project_skill_paths`
+# landing in the leaf per the F1 brief (option A: embrace the superset) is
+# the only leaf change.
+compiler = { path = "../compiler" }
+# The V8 isolate glue — `resolve_agents_with_globals` is the only call site
+# for ship.ts eval. V8 is feature-gated on the `deno` feature; the resolver
+# always pulls it (TS eval is the whole point). The `!Send` isolate crosses
+# a `spawn_blocking` boundary here, exactly as shipd's ingest does today
+# (`apps/shipd/src/ship_runtime/tasks.rs:285-304`).
+agent-config-eval = { path = "../agent-config-eval" }
+# The gated disk door (R1). All reads route through FsBroker; no `std::fs` /
+# `tokio::fs` in this crate's read path (mirrors ship-config's grep-gate
+# invariant at `ship-config/src/agents.rs:1-7`). `fs-cap` lives in
+# ship-substrate, so this is the one place the resolver pulls a substrate
+# dep — the resolver is the FsBroker consumer for project reads.
+ship-substrate = { path = "../ship-substrate" }
+# Closed-world TS strip + SDK stub — re-exported through `agent-config-eval`,
+# but `agent-config-eval` re-exports ship-js and we keep the dep explicit
+# so the resolver's `ts_resolver` module can name the engine in its docs.
+ship-js = { path = "/home/madvib/dev/Ship/ship-exec/crates/ship-js", features = ["deno"] }
+
+# Plumbing
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "fs"] }
+tracing = { workspace = true }
+
+# Content-hash helpers — the descriptor's `content_hash` field + the
+# cache key (J5) are SHA-256 hex of the canonical-JSON form. Match the
+# existing `content_hash` in `AgentDefRecord`
+# (`ship-config/src/agents_index.rs:111-125`) so the cache invalidation
+# key is consistent with the rest of the config tier.
+sha2 = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
