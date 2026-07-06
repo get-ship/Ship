@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use crate::types::{
     AgentProfile, HookConfig, McpServerConfig, Permissions, PluginsManifest,
-    SpaceManifest, Rule, Skill,
+    SpaceManifest, Rule, Skill, ViewDescriptor,
 };
 
 // ─── Phase-2 descriptor types ────────────────────────────────────────────────
@@ -220,6 +220,11 @@ pub struct ExtensionLibrary {
     /// Rules from `rules/`.
     #[serde(default)]
     pub rules: Vec<Rule>,
+    /// View routes carried by this extension. Composed by namespace-prefix
+    /// merge, not id-replace — see [`crate::compose::compose_space`]'s views
+    /// handling.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub views: Vec<ViewDescriptor>,
     /// Permissions from `agents/permissions.toml`.
     #[serde(default)]
     pub permissions: Permissions,

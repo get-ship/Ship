@@ -7,6 +7,7 @@ pub mod plugin;
 pub mod rule;
 pub mod skill;
 pub mod transfer;
+pub mod view;
 
 pub use agent_profile::{
     AgentProfile, McpRefs, PluginRefs, ProfileMeta, ProfilePermissions, ProfileRules, SkillRefs,
@@ -30,3 +31,4 @@ pub use transfer::{
     AgentBundle, ArtifactType, ListAgentsResponse, PullAgent, PullMcpServer, PullProfile,
     PullResponse, PullRule, PullSkill, SkillBundle, TransferBundle,
 };
+pub use view::ViewDescriptor;

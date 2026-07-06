@@ -25,10 +25,18 @@
 //!   pass through untouched; other tiers' permissions/hooks are ignored.
 //!   Cross-tier permission/hook merge belongs to the permissions/hooks
 //!   format cell (HARD-gated design pass), not this law.
+//! - **Views compose by namespace-prefix merge, not id-replace.** Every
+//!   other noun collides on a bare id; a view collides only on
+//!   `(prefix, route)` together. The same local `route` from two
+//!   extensions under different prefixes is not a collision — both survive
+//!   side by side. Only a genuine same-prefix collision resolves by rank,
+//!   same as any other noun (higher rank wins, loser recorded as a
+//!   [`ShadowRecord`]).
 
 use std::collections::HashMap;
 
 use crate::resolve::{ExtSource, ExtensionDescriptor, ExtensionLibrary, RollupInputs};
+use crate::types::ViewDescriptor;
 
 /// The composed result: the winning library + who lost where.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -48,6 +56,7 @@ pub enum NounKind {
     Skill,
     Rule,
     McpServer,
+    View,
 }
 
 /// An id collision the law resolved: `losing_source`'s item was replaced by
@@ -114,6 +123,7 @@ pub fn compose_space(inputs: &RollupInputs) -> anyhow::Result<ComposedLibrary> {
         |d| &d.mcp_servers,
         |m| m.id.as_str(),
     );
+    library.views = compose_views(&ordered, &mut shadows);
 
     Ok(ComposedLibrary { library, shadows })
 }
@@ -151,6 +161,47 @@ fn compose_noun<'a, T: Clone + 'a>(
                 None => {
                     index.insert(id.to_string(), out.len());
                     out.push(item.clone());
+                    owners.push((ext.source.clone(), ext.content_hash.clone()));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Compose the views noun by namespace-prefix merge. Unlike
+/// [`compose_noun`]'s bare-id key, a view's slot is keyed on
+/// `(prefix, route)` together: the same `route` under two different
+/// prefixes claims two distinct slots and both survive. Only a genuine
+/// same-prefix collision replaces in place and records a [`ShadowRecord`],
+/// same resolution order (rank, then declared order) as every other noun.
+fn compose_views<'a>(
+    ordered: &[(u32, &'a ExtensionDescriptor)],
+    shadows: &mut Vec<ShadowRecord>,
+) -> Vec<ViewDescriptor> {
+    let mut out: Vec<ViewDescriptor> = Vec::new();
+    // Parallel to `out`: the source + tier hash currently occupying the slot.
+    let mut owners: Vec<(ExtSource, String)> = Vec::new();
+    let mut index: HashMap<(String, String), usize> = HashMap::new();
+    for (_, ext) in ordered {
+        for view in &ext.descriptor.views {
+            let key = (view.prefix.clone(), view.route.clone());
+            match index.get(&key) {
+                Some(&slot) => {
+                    let (losing_source, losing_tier_hash) = owners[slot].clone();
+                    shadows.push(ShadowRecord {
+                        noun: NounKind::View,
+                        id: format!("{}{}", view.prefix, view.route),
+                        losing_source,
+                        losing_tier_hash,
+                        winning_source: ext.source.clone(),
+                    });
+                    out[slot] = view.clone();
+                    owners[slot] = (ext.source.clone(), ext.content_hash.clone());
+                }
+                None => {
+                    index.insert(key, out.len());
+                    out.push(view.clone());
                     owners.push((ext.source.clone(), ext.content_hash.clone()));
                 }
             }
