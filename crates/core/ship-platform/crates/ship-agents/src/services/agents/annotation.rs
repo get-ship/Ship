@@ -65,7 +65,7 @@ pub async fn post_annotation(
     mut ev: AnnotationEvent,
 ) -> Result<String, AnnotationError> {
     if Ulid::from_string(&ev.id).is_err() {
-        ev.id = Ulid::new().to_string();
+        ev.id = ship_substrate::gen_ulid();
     }
     validate(&ev)?;
 

@@ -6,7 +6,6 @@
       "apps/host"
     ],
     "catalog": {
-      "drizzle-orm": "0.45.1",
       "hono": "4.10.8",
       "zod": "4.3.6"
     }
@@ -36,7 +35,6 @@
     "test:agents": "bun test tests/agents"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.8",
     "lucide-static": "1.14.0",
     "typescript": "~5.8.3",
     "vite": "^7.3.1",

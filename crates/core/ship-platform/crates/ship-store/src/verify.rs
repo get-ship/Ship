@@ -25,16 +25,17 @@ pub fn fetch_registry_hash(package_path: &str, version: &str) -> Option<String> 
     let encoded = percent_encode(package_path);
     let url = format!("{}/api/registry/{}", base_url, encoded);
 
-    let resp = ureq::get(&url)
+    let resp = reqwest::blocking::Client::new()
+        .get(&url)
         .header("User-Agent", "ship-pkg/0.1")
-        .call()
+        .send()
         .ok()?;
 
     if resp.status() != 200 {
         return None;
     }
 
-    let body: serde_json::Value = resp.into_body().read_json().ok()?;
+    let body: serde_json::Value = resp.json().ok()?;
     find_version_hash(&body, version)
 }
 

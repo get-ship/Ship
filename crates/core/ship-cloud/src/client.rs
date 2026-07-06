@@ -7,14 +7,14 @@ use crate::types::{PullResponse, PushRequest, PushResponse};
 
 pub struct SyncClient {
     base_url: String,
-    agent: ureq::Agent,
+    agent: reqwest::blocking::Client,
 }
 
 impl SyncClient {
     pub fn new(base_url: &str) -> Self {
         Self {
             base_url: base_url.trim_end_matches('/').to_string(),
-            agent: ureq::Agent::new_with_defaults(),
+            agent: reqwest::blocking::Client::new(),
         }
     }
 
@@ -43,10 +43,10 @@ impl SyncClient {
             .agent
             .post(&url)
             .header("x-project-id", space_id)
-            .send_json(&body)
+            .json(&body)
+            .send()
             .context("sync push request failed")?
-            .body_mut()
-            .read_json()
+            .json()
             .context("sync push response parse failed")?;
         Ok(resp)
     }
@@ -65,10 +65,9 @@ impl SyncClient {
             .agent
             .get(&url)
             .header("x-project-id", space_id)
-            .call()
+            .send()
             .context("sync pull request failed")?
-            .body_mut()
-            .read_json()
+            .json()
             .context("sync pull response parse failed")?;
         Ok(resp)
     }
@@ -96,10 +95,10 @@ impl SyncClient {
             .agent
             .post(&url)
             .header("x-project-id", space_id)
-            .send_json(&body)
+            .json(&body)
+            .send()
             .context("workspace sync push failed")?
-            .body_mut()
-            .read_json()
+            .json()
             .context("workspace sync push response parse failed")?;
         Ok(resp)
     }
@@ -122,10 +121,9 @@ impl SyncClient {
             .agent
             .get(&url)
             .header("x-project-id", space_id)
-            .call()
+            .send()
             .context("workspace sync pull failed")?
-            .body_mut()
-            .read_json()
+            .json()
             .context("workspace sync pull response parse failed")?;
         Ok(resp)
     }

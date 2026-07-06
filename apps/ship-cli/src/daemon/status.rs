@@ -49,16 +49,14 @@ pub(super) fn print_live_status(port: u16, token: &str, supervision: &Supervisio
     // /api/health carries the full status payload (pid/version/uptime/jobs/
     // sweep) — the former authenticated /daemon/status route folded into it.
     let url = format!("http://127.0.0.1:{port}/api/health");
-    let mut resp = ureq::get(&url)
-        .header("Authorization", &format!("Bearer {token}"))
-        .config()
-        .http_status_as_error(false)
-        .build()
-        .call()
+    let resp = crate::http::daemon_client()
+        .get(&url)
+        .header("Authorization", format!("Bearer {token}"))
+        .send()
         .map_err(|e| anyhow::anyhow!("status request failed: {e}"))?;
+    crate::http::check_skew(resp.headers());
     let value: serde_json::Value = resp
-        .body_mut()
-        .read_json()
+        .json()
         .map_err(|e| anyhow::anyhow!("status: malformed response body: {e}"))?;
 
     // `healthy: false` means a supervised background task died — still a

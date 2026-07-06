@@ -148,7 +148,6 @@ futures-util = "0.3"
 # HTTP / RPC (members add features as needed)
 axum = { version = "0.8" }
 reqwest = { version = "0.12", default-features = false }
-ureq = "3"
 rmcp = "0.16.0"
 
 # CLI

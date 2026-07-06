@@ -31,19 +31,12 @@ ship-store = { path = "../ship-store" }
 # L1 sibling — PTY session registry + shell spawn, carved from this crate.
 ship-terminal = { path = "../ship-terminal" }
 # Agent-run assembly deps (supervisor split — `runtime::executors`):
-#   ship-auth     — per-process scoped token mint/drop on the spawn path.
-#   ship-device   — isolation-execution sandbox dispatcher bookkeeping.
-#   ship-isolation — isolation decision + sandbox backends (L0; default-off
-#                    keeps the youki/sidecar backends opt-in, matching the
-#                    daemon's feature wiring).
+#   ship-auth — per-process scoped token mint/drop on the spawn path.
 ship-auth = { path = "../ship-auth" }
-ship-device = { path = "../ship-device" }
-ship-isolation = { path = "../ship-isolation", default-features = false }
 # compiler crate (the engine; services/compile is only the wrapper)
 compiler = { path = "../../../compiler", features = ["specta"] }
-jsonschema = { version = "0.46", default-features = false }
 
-ulid = "1"
+ulid = { workspace = true }
 
 async-trait = { workspace = true }
 serde = { workspace = true }
@@ -53,25 +46,13 @@ tracing = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "time", "macros", "process", "io-util"] }
 chrono = { workspace = true }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
-indexmap = { workspace = true, features = ["serde"] }
-nanoid = { workspace = true }
-serde_yaml = { workspace = true }
-toml = { workspace = true, features = ["preserve_order"] }
 home = { workspace = true }
 thiserror = { workspace = true }
 shell-words = { workspace = true }
-futures-util = { workspace = true }
-walkdir = "2.3"
-globset = "0.4"
-minijinja = { workspace = true }
-sha2 = { workspace = true }
 base64 = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
 tempfile = { workspace = true }
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
-# SIGTERM/SIGKILL on the headless ProcessExecutor stop path (unix only).
-libc = { workspace = true }
-include_dir = "0.7"
 # RFC 6902 JSON Patch
 json-patch = "4"
 

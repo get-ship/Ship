@@ -22,21 +22,18 @@ agent-def = { path = "../../crates/core/ship-platform/crates/agent-def" }
 ship-resolver = { path = "../../crates/core/ship-resolver" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 journal-sqlite = { path = "../../crates/core/ship-substrate/crates/journal-sqlite" }
-harness-adapter = { path = "../../crates/core/ship-platform/crates/harness-adapter" }
 ship-platform = { path = "../../crates/core/ship-platform" }
 ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", features = ["harness-drivers"], optional = true }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
 ship-terminal = { path = "../../crates/core/ship-platform/crates/ship-terminal" }
 ship-files = { path = "../../crates/core/ship-platform/crates/ship-files" }
-ship-harnesses = { path = "../../crates/core/ship-platform/crates/ship-harnesses" }
 ship-messaging = { path = "../../crates/core/ship-platform/crates/ship-messaging" }
 ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }
 ship-ui = { path = "../../crates/core/ship-platform/crates/ship-ui" }
 ship-isolation = { path = "../../crates/core/ship-platform/crates/ship-isolation", default-features = false }
 ship-substrate-host = { path = "../../crates/core/ship-substrate/crates/ship-substrate-host" }
-ship-pipelines = { path = "../../crates/core/ship-substrate/crates/ship-pipelines" }
 ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
 # Dispatch composition root (supervisor split — `shipd::dispatch`):
 #   ship-runner      — process/executor lifecycle emit helpers used by
@@ -64,9 +61,6 @@ build-info = { path = "../../crates/build-info" }
 ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 ship-reactive = { path = "../../crates/core/ship-platform/crates/ship-reactive" }
 connectrpc = { version = "0.4", features = ["axum", "client"] }
-# Descriptor decode for the op-policy gate (reads proto custom options).
-buffa = "0.5"
-buffa-descriptor = "0.5"
 http = "1"
 # deck* + sui-compiler crates live in the external sui repo post-carve.
 # Path-dep smell: this build only works if sui is checked out at a
@@ -85,12 +79,9 @@ http = "1"
 deck = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck", features = ["specta"] }
 deck-core = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck-core" }
 deck-ssr = { path = "/home/madvib/dev/Ship/sui/crates/deck/deck-ssr", optional = true }
-sui-compiler = { path = "/home/madvib/dev/Ship/sui/crates/sui/compiler" }
 chrono = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }
-tokio-stream = { version = "0.1", features = ["sync"] }
-futures-util = { workspace = true }
 anyhow = { workspace = true }
 getrandom = { workspace = true }
 libc = { workspace = true }
@@ -102,7 +93,6 @@ libc = { workspace = true }
 tikv-jemallocator = "0.6"
 serde = { workspace = true }
 base64 = { workspace = true }
-serde_yaml = { workspace = true }
 serde_json = { workspace = true }
 # RFC 6902 JSON Patch — FilesService.patch_jsonc applies these against
 # the current document. No shims; callers that want partial edits use
@@ -115,7 +105,6 @@ axum = { workspace = true, features = ["http1", "tokio", "ws", "multipart"] }
 async-trait = { workspace = true }
 async-stream = "0.3"
 futures = "0.3"
-notify = { workspace = true }
 tower = { version = "0.5", features = ["timeout", "util"] }
 # L1 floki agent runtime — shipd (L2) implements floki::Gateway via ShipdGateway.
 # The floki crate gains no shipd dependency; this is the sole seam.
@@ -124,24 +113,8 @@ floki = { path = "../../crates/core/ship-platform/crates/floki" }
 # by dispatch_floki_session to drive FlokiProgram durably.
 durable-execution = { path = "../../crates/core/ship-substrate/crates/durable-execution" }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }
-jsonwebtoken = "9"
 reqwest = { workspace = true, features = ["rustls-tls", "json"] }
-minijinja = { workspace = true, features = ["loader", "builtins", "json"] }
-ulid = { workspace = true }
-thiserror = { workspace = true }
-# HTML sanitizer — allowlist-based DOM cleaner used for agent-supplied
-# canvas HTML (see apps/shipd/src/views/sanitize.rs).
-ammonia = "4"
-form_urlencoded = "1"
 git2 = { version = "0.19" }
-include_dir = "0.7"
-# JSON Schema validator (Draft 2020-12). Used to validate pipeline
-# documents on write — catches structural errors beyond parse errors.
-jsonschema = { version = "0.46", default-features = false }
-# Regex used by the SFC pipeline (apps/shipd/src/views/sfc) for block
-# splitting and signal-attribute rewriting. The patterns are small and
-# anchored — full PCRE features are not required.
-regex = { workspace = true }
 # Enable derive(Type) on every public daemon data struct so xtask can
 # emit TypeScript bindings via `cargo xtask gen-types`. Production
 # binaries omit this feature; specta isn't pulled into the daemon.
@@ -194,7 +167,6 @@ cookie = "0.18"
 reqwest = { workspace = true, features = ["json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 tokio-tungstenite = "0.28"
-futures-util = "0.3"
 serde_json = { workspace = true }
 # first-light smoke tests: mock model + mock event sink
 rig = { version = "0.38.1", package = "rig-core", features = ["test-utils"] }

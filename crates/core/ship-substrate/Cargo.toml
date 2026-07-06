@@ -28,7 +28,6 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
-nanoid = { workspace = true }
 ulid = { workspace = true }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "macros"] }

@@ -19,7 +19,7 @@ pub(crate) fn now_rfc3339() -> String {
 }
 
 pub(crate) fn new_ulid() -> String {
-    ulid::Ulid::new().to_string()
+    ship_substrate::gen_ulid()
 }
 
 pub(crate) fn row_to_item(row: Row, collection: &str) -> ItemRecord {

@@ -10,7 +10,6 @@ description = "L1 platform primitives — agents, collections, artifacts, trigge
 ship-substrate = { path = "../ship-substrate" }
 process-supervisor = { path = "../ship-substrate/crates/process-supervisor" }
 harness-adapter = { path = "crates/harness-adapter" }
-ship-substrate-host = { path = "../ship-substrate/crates/ship-substrate-host" }
 # Device domain — the isolation-execution sandbox (moved from this crate
 # as part of the supervisor→platform cycle break, c2-sandbox-device) plus
 # the window-management service. Re-exported below for back-compat with
@@ -37,7 +36,6 @@ ship-triggers = { path = "crates/ship-triggers" }
 ship-kernel = { path = "../ship-substrate/crates/ship-kernel" }
 ship-auth-types = { path = "../ship-substrate/crates/ship-auth-types" }
 ship-types = { path = "../ship-substrate/crates/ship-types" }
-ship-pipelines = { path = "../ship-substrate/crates/ship-pipelines", features = ["specta"] }
 # L0 runner mechanism (agents-arc S2). The orchestrator MECHANISM (router gate,
 # event dedup, exit-signal routing, kernel-emit plumbing, invocation-mode
 # resolution) lives here; ship-platform keeps only the policy and drives the
@@ -64,8 +62,8 @@ ship-gateway-client = { path = "../ship-gateway-client" }
 # live in the `ship-cloud` crate. ship-cloud is a non-optional dep so its
 # event_registrations module (sync.* events) is always linked into the binary;
 # `ship-cloud/unstable` (the SyncServiceHandler actor) is gated behind the
-# `unstable` feature. ureq + ship-gateway-client are already direct deps here,
-# so this adds no new transitive HTTP-client footprint.
+# `unstable` feature. reqwest + ship-gateway-client are already direct deps
+# here, so this adds no new transitive HTTP-client footprint.
 ship-git = { path = "../ship-git" }
 ship-cloud = { path = "../ship-cloud" }
 # Isolation types + recommender. Default-features off — youki and
@@ -74,15 +72,12 @@ ship-isolation = { path = "crates/ship-isolation", default-features = false }
 compiler = { path = "../compiler", features = ["specta"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
-serde_yaml = { workspace = true }
 toml = { workspace = true, features = ["preserve_order"] }
 home = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
 shell-words = { workspace = true }
-nanoid = { workspace = true }
-ulid = { workspace = true }
 walkdir = "2.3"
 futures-util = { workspace = true }
 getrandom = { workspace = true }
@@ -91,7 +86,6 @@ jsonwebtoken = "9"
 # write_api handlers. No partial-edit shims; patch() is the canonical
 # partial-update path.
 json-patch = "4"
-git2 = "0.19"
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
@@ -101,7 +95,6 @@ base64 = { workspace = true }
 urlencoding = "2"
 semver = { workspace = true, features = ["serde"] }
 tempfile = { workspace = true }
-ureq = { workspace = true, features = ["json"] }
 reqwest = { workspace = true, features = ["json", "rustls-tls"] }
 flate2 = "1"
 tar = "0.4"

@@ -8,7 +8,7 @@ Depth reference for `ship-views`. The contract lives in `../SKILL.md`.
 .ship/views/<name>/                # project-local extension-point view
   index.sui                        # template
   index.controller.ts              # paired controller (optional)
-  manifest.yaml                    # name, type: sui, rail, events
+  manifest.jsonc                   # name, type: sui, rail, events
   [param]/index.sui                # parameterised sub-routes
   partials/                        # reusable fragments
 
@@ -144,19 +144,16 @@ unwrapOr(sig, fallback)   // T              — returns fallback when loading/er
 {/if}
 ```
 
-## Manifest (`.ship/views/<name>/manifest.yaml`)
+## Manifest (`.ship/views/<name>/manifest.jsonc`)
 
-```yaml
-name: my-view
-type: sui                        # discriminates from j2
-rail:                            # optional — exposes the view in the shell rail
-  label: My View
-  icon: sparkles
-events:
-  - config.changed
-  - workspace.
-packs:
-  - editor                       # heavy-island bundles loaded on demand
+```jsonc
+{
+  "name": "my-view",
+  "type": "sui",
+  "rail": { "label": "My View", "icon": "sparkles" }, // optional — exposes the view in the shell rail
+  "events": ["config.changed", "workspace."],
+  "packs": ["editor"] // heavy-island bundles loaded on demand
+}
 ```
 
 ## Daemon route shapes

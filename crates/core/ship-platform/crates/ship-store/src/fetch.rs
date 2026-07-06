@@ -64,10 +64,11 @@ enum PackageShape {
 fn try_github_tarball(owner: &str, repo: &str, commit: &str, dest: &Path) -> anyhow::Result<()> {
     let url = format!("https://api.github.com/repos/{owner}/{repo}/tarball/{commit}");
 
-    let resp = ureq::get(&url)
+    let resp = reqwest::blocking::Client::new()
+        .get(&url)
         .header("Accept", "application/vnd.github+json")
         .header("User-Agent", "ship-pkg/0.1")
-        .call()
+        .send()
         .map_err(|e| anyhow::anyhow!("GitHub tarball request failed: {e}"))?;
 
     if resp.status() != 200 {
@@ -75,9 +76,9 @@ fn try_github_tarball(owner: &str, repo: &str, commit: &str, dest: &Path) -> any
     }
 
     let body = resp
-        .into_body()
-        .read_to_vec()
-        .context("reading tarball body")?;
+        .bytes()
+        .context("reading tarball body")?
+        .to_vec();
 
     // First pass: detect package shape by scanning entry paths.
     let shape = detect_shape_from_tarball(&body)?;

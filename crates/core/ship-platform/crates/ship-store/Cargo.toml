@@ -26,7 +26,7 @@ semver = { workspace = true, features = ["serde"] }
 sha2 = { workspace = true }
 base64 = { workspace = true }
 tempfile = { workspace = true }
-ureq = { workspace = true, features = ["json"] }
+reqwest = { workspace = true, features = ["blocking", "json", "rustls-tls"] }
 jsonwebtoken = "9"
 walkdir = "2.3"
 tracing = { workspace = true }

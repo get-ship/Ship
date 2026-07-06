@@ -23,7 +23,6 @@ tracing = { workspace = true }
 futures-util = { workspace = true }
 tokio = { workspace = true, features = ["sync", "rt"] }
 chrono = { workspace = true }
-ulid = { workspace = true }
 anyhow = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }

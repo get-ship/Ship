@@ -156,7 +156,7 @@ pub async fn post_feedback(
         && ev.kind == FeedbackKind::Action
         && Ulid::from_string(&ev.id).is_err()
     {
-        ev.id = Ulid::new().to_string();
+        ev.id = ship_substrate::gen_ulid();
     }
     validate(&ev)?;
 
