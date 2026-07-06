@@ -19,6 +19,7 @@ pub mod lockfile;
 pub mod manifest;
 pub mod output;
 pub mod resolve;
+pub mod route_tree;
 pub mod schemas;
 pub mod skill_parser;
 pub mod types;
@@ -36,6 +37,7 @@ pub use compile::{
 };
 
 pub use compose::{ComposedLibrary, NounKind, ShadowRecord, compose_space};
+pub use route_tree::{RouteNode, RouteTree, compose_route_tree};
 pub use resolve::{
     ExtensionDescriptor, ExtSource, ExtSourceKind, ModuleDescriptor, PrecedenceRow, ExtensionLibrary,
     ResolvedConfig, RollupInputs, WorkspaceOverrides, resolve, resolve_library,
