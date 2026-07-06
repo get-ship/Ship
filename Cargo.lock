@@ -1706,18 +1706,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4ae5f15dda3c708c0ade84bfee31ccab44a3da4f88015ed22f63732abe300c8"
 
 [[package]]
-name = "datastar"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0805c542838bb4c0769e26e1cdf70ff913e43e146b7e7563241fe95f32606643"
-dependencies = [
- "axum",
- "chrono",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "dbus"
 version = "0.9.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8966,7 +8954,6 @@ dependencies = [
  "connectrpc",
  "cookie",
  "ctor 0.2.9",
- "datastar",
  "deck",
  "deck-core",
  "deck-ssr",

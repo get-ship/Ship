@@ -7,7 +7,7 @@
 //! types.rs`, projected into `packages/sui/runtime/src/generated.ts`).
 //!
 //! Deleted as purge residue: the agent-canvas `ViewSessionRegistry`
-//! (`session`/`session_types`), its Datastar SSE plumbing (`stream`), the
+//! (`session`/`session_types`), the
 //! HTML sanitizer it fed (`sanitize`), and the `state` re-export shim — no
 //! surface could create or watch a session once `view.open` and the SSE
 //! subscribe route were cut.

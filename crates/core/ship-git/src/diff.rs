@@ -8,8 +8,9 @@
 
 use serde::Serialize;
 
-/// HTML-escape diff line content so that when Datastar morphs via innerHTML,
-/// the decoded entities still render as text (not parsed as HTML elements).
+/// HTML-escape diff line content so that when the client morphs it via
+/// innerHTML, the decoded entities still render as text (not parsed as HTML
+/// elements).
 fn escape_html(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")

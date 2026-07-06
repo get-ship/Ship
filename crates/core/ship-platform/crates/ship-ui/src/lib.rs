@@ -11,6 +11,5 @@
 pub mod registry;
 pub mod themes_contrast;
 pub mod view_authoring;
-pub mod view_errors;
 pub mod view_ports;
 pub mod wire;

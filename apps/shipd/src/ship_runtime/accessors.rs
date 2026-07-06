@@ -45,9 +45,10 @@ impl ShipRuntime {
 
     /// Absolute origin (scheme+host+port) the daemon is reachable at.
     ///
-    /// Used by HTML view templates so Datastar `@get`/`@post` calls resolve
-    /// against the daemon regardless of whether the page is inline-mounted
-    /// into another origin (e.g. Studio at :3000).
+    /// Feeds dispatch's `studio_url` and the isolation decision's process-plane
+    /// origin — callers that need an absolute daemon address regardless of
+    /// whether the page is inline-mounted into another origin (e.g. Studio at
+    /// :3000).
     pub fn daemon_origin(&self) -> String {
         let host = if self.config.host == "0.0.0.0" {
             "localhost".to_string()

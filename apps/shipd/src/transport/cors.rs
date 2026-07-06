@@ -78,7 +78,7 @@ pub async fn cors_middleware(req: Request<Body>, next: Next) -> Response {
         );
         h.insert(
             "access-control-allow-headers",
-            HeaderValue::from_static("content-type, authorization, accept, mcp-session-id, x-ship-caller, x-ship-agent-id, x-ship-workspace-id, x-ship-session-id, datastar-request"),
+            HeaderValue::from_static("content-type, authorization, accept, mcp-session-id, x-ship-caller, x-ship-agent-id, x-ship-workspace-id, x-ship-session-id"),
         );
         h.insert(
             "access-control-expose-headers",

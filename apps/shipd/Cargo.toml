@@ -124,7 +124,6 @@ floki = { path = "../../crates/core/ship-platform/crates/floki" }
 # by dispatch_floki_session to drive FlokiProgram durably.
 durable-execution = { path = "../../crates/core/ship-substrate/crates/durable-execution" }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }
-datastar = { version = "=0.3.1", features = ["axum"] }
 jsonwebtoken = "9"
 reqwest = { workspace = true, features = ["rustls-tls", "json"] }
 minijinja = { workspace = true, features = ["loader", "builtins", "json"] }
