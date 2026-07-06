@@ -37,12 +37,14 @@
 //!   (helmd wire) replace their existing call sites with this crate's API.
 //!   Out of scope here.
 //! - **Phase-3 composition lives here.** [`roll_up`] composes the on-disk
-//!   source + every locked cached package into a single
+//!   source + every locked cached package + the operator-enabled library
+//!   tier (`ShipHome::library_dir()`) into a single
 //!   [`compiler::ComposedLibrary`]. The composed library carries
 //!   `rollup_inputs: Some(...)` so J3 (def index) + J4 (view) can audit
 //!   what composed into the result. Cached packages are tagged
-//!   `ExtSource::UserGlobal` (the standing rank-0 tier; the source
-//!   `ExtSource::Space` rank-1000 wins on id collision).
+//!   `ExtSource::Cache` (rank 0), the enabled library tier
+//!   `ExtSource::UserGlobal` (rank 500) — the source `ExtSource::Space`
+//!   (rank 1000) wins on id collision over both.
 //!
 //! ## Module layout
 //!
@@ -216,23 +218,24 @@ pub async fn load_space_library(
 /// Roots come from the caller or `ShipHome` typed accessors — no hardcoded
 /// paths. `cache_root` defaults to `ShipHome::cache_dir()` (the XDG cache
 /// root, where the `#122` dep loader reads `<cache>/objects/<hex>/`).
+/// `library_root` defaults to `ShipHome::library_dir()` (the per-user
+/// globally-enabled extension tier — `data/library/{agents,skills,...}`).
 ///
 /// ## The tier model
 ///
-/// `default_precedence` defines: user-global (rank 0) < space (rank 1000) <
-/// agent overlay (rank 2000). Cached packages are tagged `ExtSource::UserGlobal`
-/// in this phase — they live in the XDG cache, not in the space — so a
-/// cached package's id collision with a same-id source agent is recorded as
-/// `losing_source: UserGlobal, winning_source: Space`. The `losing_tier_hash`
-/// is the cached package's `sha256` hex from the lockfile, so the index
-/// audit can identify which package lost.
-///
-/// Phase 6 surface work may add a dedicated `ExtSourceKind::Cache` variant
-/// to distinguish cached packages from operator-enabled extensions. Until
-/// then, `UserGlobal` is the carrier.
+/// `default_precedence` defines: cache (rank 0) < user-global (rank 500) <
+/// space (rank 1000) < agent overlay (rank 2000). Cached packages (locked
+/// via `ship.lock`) are tagged `ExtSource::Cache`; the operator-enabled
+/// library tier is tagged `ExtSource::UserGlobal` — the two were one
+/// overloaded tier before the format-migration Wave 2 split (census Part
+/// 3.4). A cached package's id collision with a same-id source agent is
+/// recorded as `losing_source: Cache, winning_source: Space`. The
+/// `losing_tier_hash` is the losing extension's content hash, so the index
+/// audit can identify which tier lost.
 pub async fn roll_up(
     space_root: &Path,
     cache_root: Option<&Path>,
+    library_root: Option<&Path>,
 ) -> Result<ComposedLibrary> {
     let fs = LocalFsBroker::new();
 
@@ -292,24 +295,51 @@ pub async fn roll_up(
     )
     .with_context(|| format!("roll_up: cached extensions for {}", lock_path.display()))?;
 
+    // 4b. Load the enabled tier: extensions the operator enabled globally,
+    // via `ShipHome::library_dir()` (`data/library/{agents,skills,rules,...}`
+    // — the same flat layout `compiler::load_library` reads for a space's
+    // `.ship/`). A missing or empty library dir composes to an empty tier,
+    // not an error — every sub-loader already treats a missing dir as empty.
+    let default_library_root;
+    let resolved_library_root: &Path = match library_root {
+        Some(p) => p,
+        None => {
+            default_library_root = ShipHome::from_env().library_dir();
+            &default_library_root
+        }
+    };
+    let enabled_library = compiler::load_library(resolved_library_root).with_context(|| {
+        format!(
+            "roll_up: enabled-tier load failed for {}",
+            resolved_library_root.display()
+        )
+    })?;
+    let enabled_content_hash = descriptor::extension_library_content_hash(&enabled_library)
+        .context("roll_up: enabled-tier content hash")?;
+
     // 5. Build the extension set. Cached packages come FIRST in declared
     //    order so the source — also `ExtSource::Space` (rank 1000) at the
     //    same rank — wins on equal-rank ties (the `compose_space` law:
-    //    "later declared wins"). For cached packages at `UserGlobal` (rank
-    //    0), the source outranks them outright; the declared order is
-    //    irrelevant when ranks differ.
-    let mut extensions: Vec<ExtensionDescriptor> = Vec::with_capacity(bundles.len() + 1);
+    //    "later declared wins"). Every other tier has a distinct rank, so
+    //    declared order is otherwise irrelevant.
+    let mut extensions: Vec<ExtensionDescriptor> = Vec::with_capacity(bundles.len() + 2);
     for bundle in &bundles {
         let mut descriptor = ExtensionLibrary::default();
         descriptor.agent_profiles = bundle.agent_profiles.clone();
         descriptor.skills = bundle.skills.clone();
         extensions.push(ExtensionDescriptor {
-            source: ExtSource::UserGlobal,
+            source: ExtSource::Cache,
             space_root: space_root.to_path_buf(),
             descriptor,
             content_hash: bundle.content_hash.clone(),
         });
     }
+    extensions.push(ExtensionDescriptor {
+        source: ExtSource::UserGlobal,
+        space_root: space_root.to_path_buf(),
+        descriptor: enabled_library,
+        content_hash: enabled_content_hash,
+    });
     extensions.push(ExtensionDescriptor {
         source: ExtSource::Space,
         space_root: space_root.to_path_buf(),
@@ -337,476 +367,31 @@ pub async fn roll_up(
     Ok(composed)
 }
 
-// ─── Tests ───────────────────────────────────────────────────────────────────
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-    use tempfile::TempDir;
-
-    fn write_minimal_space() -> (TempDir, std::path::PathBuf) {
-        let tmp = tempfile::tempdir().unwrap();
-        let root = tmp.path().to_path_buf();
-
-        // .ship/ with a single rule
-        let ship = root.join(".ship");
-        std::fs::create_dir_all(ship.join("rules")).unwrap();
-        std::fs::write(
-            ship.join("rules").join("style.md"),
-            "---\nalwaysApply: true\n---\nBe terse.\n",
-        )
-        .unwrap();
-
-        // ship.ts at the space root
-        std::fs::write(
-            root.join("ship.ts"),
-            r#"
-import { defineAgent } from "ship";
-
-defineAgent({
-  agent: { id: "demo", name: "Demo" },
-});
-"#,
-        )
-        .unwrap();
-
-        (tmp, root)
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn resolve_space_with_no_globals_yields_resolved_config() {
-        let (_tmp, root) = write_minimal_space();
-        let resolved = resolve_space(&root).await.unwrap();
-        // The TS-defined agent lands in the resolved config's agent list.
-        let ids: Vec<&str> = resolved.agent_profiles.iter().map(|a| a.agent.id.as_str()).collect();
-        // Phase-2 contract: TS agents appear in the active-agent-shaped
-        // list (the leaf's resolve step pulls from `library.agents`).
-        // The .ts path populates that list via this crate's merge step.
-        assert!(
-            resolved.agent_profiles.iter().any(|a| a.agent.id == "demo")
-                || resolved
-                    .agent_profiles
-                    .iter()
-                    .any(|a| a.agent.id == "demo"),
-            "expected the TS-defined demo agent in the resolved config: {ids:?}"
-        );
-        // The rule from .ship/rules/ reaches the resolved config.
-        assert_eq!(resolved.rules.len(), 1);
-        assert_eq!(resolved.rules[0].file_name, "style.md");
-    }
-
-    /// The shipd-ingest contract: `.jsonc` agents (the `agents/` dir) and
-    /// `.ts` agents (`defineAgent` in ship.ts) coexist in ONE
-    /// `agent_profiles` list — the consumer upserts them through a single
-    /// loop with no format awareness.
-    #[tokio::test(flavor = "current_thread")]
-    async fn jsonc_and_ts_agents_coexist_in_agent_profiles() {
-        let (_tmp, root) = write_minimal_space();
-        let agents_dir = root.join(".ship").join("agents");
-        std::fs::create_dir_all(&agents_dir).unwrap();
-        std::fs::write(
-            agents_dir.join("writer.jsonc"),
-            r#"{ "agent": { "id": "writer", "name": "Writer" } }"#,
-        )
-        .unwrap();
-
-        let resolved = resolve_space(&root).await.unwrap();
-        let ids: Vec<&str> = resolved
-            .agent_profiles
-            .iter()
-            .map(|a| a.agent.id.as_str())
-            .collect();
-        assert!(ids.contains(&"writer"), "jsonc agent missing: {ids:?}");
-        assert!(ids.contains(&"demo"), "ts agent missing: {ids:?}");
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn resolve_space_with_globals_injects_defaults() {
-        // The agent-config-eval tests pin down the globals-injection
-        // contract; this one verifies the resolver composes the value
-        // end-to-end (the `globals` lands in `library.globals` so audit
-        // consumers can see it).
-        let (_tmp, root) = write_minimal_space();
-        let globals = json!({ "agentDefaults": { "harness": "claude" } });
-        let resolved = resolve_space_with_globals(&root, globals).await.unwrap();
-        // The resolved config carries the .ts-defined agent and the rule.
-        assert_eq!(resolved.rules.len(), 1);
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn resolve_space_is_deterministic_across_two_runs() {
-        // The byte-identical-output invariant the cache relies on:
-        // two reads of the same space produce byte-identical
-        // canonical-JSON `ExtensionLibrary` descriptors. The cache key
-        // (J5) is the content hash of this form.
-        let (_tmp, root) = write_minimal_space();
-        let a = load_space_library(&root).await.unwrap();
-        let b = load_space_library(&root).await.unwrap();
-        let a_bytes = descriptor::extension_library_canonical(&a).unwrap();
-        let b_bytes = descriptor::extension_library_canonical(&b).unwrap();
-        assert_eq!(
-            a_bytes, b_bytes,
-            "two space loads must be byte-identical"
-        );
-        // The content hash is the same across two runs of the same input.
-        let a_hash = descriptor::extension_library_content_hash(&a).unwrap();
-        let b_hash = descriptor::extension_library_content_hash(&b).unwrap();
-        assert_eq!(a_hash, b_hash);
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn load_space_library_omits_resolve_step() {
-        // `load_space_library` returns a `ExtensionLibrary` (not a
-        // `ResolvedConfig`); the caller does the resolve. The raw
-        // space shape is what J5's cache keys on.
-        let (_tmp, root) = write_minimal_space();
-        let lib = load_space_library(&root).await.unwrap();
-        assert_eq!(lib.rules.len(), 1);
-        assert_eq!(lib.imported_modules.len(), 1);
-        assert!(lib.imported_modules[0].source.contains("defineAgent"));
-    }
-
-    // ── roll_up tests (Phase-3 J2) ─────────────────────────────────────
-
-    /// The basic empty-cache contract: no `ship.lock` → no cached packages,
-    /// the roll-up degenerates to the source-only identity. The composed
-    /// library IS the source's library; `shadows` is empty; `rollup_inputs`
-    /// carries the single-extension `RollupInputs`.
-    #[tokio::test(flavor = "current_thread")]
-    async fn roll_up_without_lockfile_is_source_only_identity() {
-        let (_tmp, root) = write_minimal_space();
-        // Point `cache_root` at an empty dir so `load_cached_extensions`
-        // can't accidentally read from the host's `~/.ship/cache/`.
-        let cache_root = root.join("empty_cache");
-        std::fs::create_dir_all(&cache_root).unwrap();
-
-        let composed = roll_up(&root, Some(&cache_root)).await.unwrap();
-
-        // No shadows (no collision possible with one extension).
-        assert!(composed.shadows.is_empty(), "no shadows for a single extension");
-
-        // The composed library is the source's library.
-        let lib = &composed.library;
-        assert_eq!(lib.rules.len(), 1, "the source's rule survives");
-        // The TS-defined `demo` agent is in the merged source.
-        assert!(lib.agent_profiles.iter().any(|a| a.agent.id == "demo"));
-
-        // `rollup_inputs` carries the audit trail — exactly one extension
-        // (the source) and the default precedence.
-        let rollup = lib
-            .rollup_inputs
-            .as_ref()
-            .expect("roll_up must populate rollup_inputs");
-        assert_eq!(rollup.extensions.len(), 1, "one extension (the source)");
-        assert_eq!(rollup.precedence.len(), RollupInputs::default_precedence().len());
-        for (got, want) in rollup.precedence.iter().zip(RollupInputs::default_precedence().iter()) {
-            assert_eq!(got.kind, want.kind);
-            assert_eq!(got.rank, want.rank);
-        }
-    }
-
-    /// Cached package's agent shadowed by a same-id source agent: the source
-    /// wins on id collision (source `Space` rank 1000 > cache `UserGlobal`
-    /// rank 0). The `ShadowRecord` identifies the cached package via its
-    /// `content_hash` (the lockfile's `sha256:<hex>`), not just its source
-    /// label — so the index can audit which package lost.
-    #[tokio::test(flavor = "current_thread")]
-    async fn roll_up_source_shadows_cached_agent_on_id_collision() {
-        let (_tmp, root) = write_minimal_space();
-
-        // Source declares a same-id agent via .jsonc (one of the leaf's
-        // shapes — `agents/writer.jsonc` lands in `agent_profiles`).
-        let agents_dir = root.join(".ship").join("agents");
-        std::fs::create_dir_all(&agents_dir).unwrap();
-        std::fs::write(
-            agents_dir.join("writer.jsonc"),
-            r#"{ "agent": { "id": "writer", "name": "Source Writer" } }"#,
-        )
-        .unwrap();
-
-        // Cache: one package with a same-id agent (namespaced by pkg_path
-        // to `github.com/x/y/writer` — DIFFERENT id, no collision). To
-        // exercise the shadow path, add a second dep agent that collides
-        // on the namespaced id with the source's plain `writer` — i.e.
-        // the cached package contributes an agent that, after namespacing,
-        // matches the source. That's a different shape; for the spec
-        // acceptance "cached package's agent shadowed by a same-id source
-        // agent" we need: same NAMESPACE-PREFIXED id, two sources.
-        //
-        // The spec's exact contract: a cached package's agent id matches
-        // a source agent's id (post-namespacing). The cached agent is
-        // namespaced to `<pkg>/<id>`. For the collision, give the source
-        // an agent whose id EQUALS the cached package's full namespaced
-        // id. That's pathological authoring but proves the law.
-        std::fs::write(
-            agents_dir.join("gh_writer.jsonc"),
-            r#"{ "agent": { "id": "github.com/x/y/writer", "name": "Source Mirror" } }"#,
-        )
-        .unwrap();
-
-        // Set up the cache with one package whose `exports.agents` is
-        // `agents/writer.jsonc` (id = `helper`, namespaced to
-        // `github.com/x/y/writer` after the dep loader runs).
-        let cache_root = root.join("cache");
-        let hex = "abc123def456";
-        let obj = cache_root.join("objects").join(hex);
-        std::fs::create_dir_all(obj.join("agents")).unwrap();
-        std::fs::write(
-            obj.join("ship.jsonc"),
-            r#"{ "id": "p", "module": { "name": "github.com/x/y", "version": "1.0.0" },
-                 "exports": { "skills": [], "agents": ["agents/writer.jsonc"] } }"#,
-        )
-        .unwrap();
-        std::fs::write(
-            obj.join("agents/writer.jsonc"),
-            r#"{ "agent": { "id": "writer", "name": "Cached Writer" } }"#,
-        )
-        .unwrap();
-
-        // ship.lock with the one package.
-        std::fs::write(
-            root.join(".ship").join("ship.lock"),
-            format!(
-                r#"{{ "version": 1, "packages": [
-                     {{ "path": "github.com/x/y", "version": "1.0.0",
-                        "commit": "{}", "hash": "sha256:{}" }}
-                 ] }}"#,
-                "a".repeat(40),
-                hex,
-            ),
-        )
-        .unwrap();
-
-        let composed = roll_up(&root, Some(&cache_root)).await.unwrap();
-
-        // The source's `github.com/x/y/writer` wins (Space rank 1000 >
-        // UserGlobal rank 0). The cached package's namespaced agent is
-        // shadowed.
-        let lib = &composed.library;
-        let gh_writer = lib
-            .agent_profiles
-            .iter()
-            .find(|a| a.agent.id == "github.com/x/y/writer")
-            .expect("source's `github.com/x/y/writer` agent must win");
-        assert_eq!(gh_writer.agent.name, "Source Mirror", "source wins on collision");
-
-        // The shadow record identifies the cached package by its
-        // content_hash (the lockfile's sha256 hex, stripped of prefix).
-        assert_eq!(composed.shadows.len(), 1, "one collision recorded");
-        let shadow = &composed.shadows[0];
-        assert_eq!(shadow.losing_source, ExtSource::UserGlobal);
-        assert_eq!(shadow.winning_source, ExtSource::Space);
-        assert_eq!(shadow.losing_tier_hash, hex, "loser identified by cache content hash");
-    }
-
-    /// Empty cache (cache dir exists but no `ship.lock` in the space) →
-    /// the roll-up degenerates to source-only, no shadows, no errors.
-    #[tokio::test(flavor = "current_thread")]
-    async fn roll_up_with_empty_cache_is_source_only() {
-        let (_tmp, root) = write_minimal_space();
-        let cache_root = root.join("cache");
-        std::fs::create_dir_all(&cache_root).unwrap();
-        // No ship.lock → `load_cached_extensions` returns `vec![]` early.
-
-        let composed = roll_up(&root, Some(&cache_root)).await.unwrap();
-        assert!(composed.shadows.is_empty());
-        let rollup = composed.library.rollup_inputs.as_ref().unwrap();
-        assert_eq!(rollup.extensions.len(), 1, "no cached packages");
-        assert_eq!(rollup.extensions[0].source, ExtSource::Space);
-    }
-
-    /// Determinism: two `roll_up` calls over the same inputs produce
-    /// byte-identical composed descriptors (the cache key invariant).
-    #[tokio::test(flavor = "current_thread")]
-    async fn roll_up_is_deterministic_across_two_runs() {
-        let (_tmp, root) = write_minimal_space();
-        let agents_dir = root.join(".ship").join("agents");
-        std::fs::create_dir_all(&agents_dir).unwrap();
-        std::fs::write(
-            agents_dir.join("writer.jsonc"),
-            r#"{ "agent": { "id": "writer", "name": "Writer" } }"#,
-        )
-        .unwrap();
-
-        let cache_root = root.join("cache");
-        let hex = "feedface0000";
-        let obj = cache_root.join("objects").join(hex);
-        std::fs::create_dir_all(obj.join("agents")).unwrap();
-        std::fs::write(
-            obj.join("ship.jsonc"),
-            r#"{ "id": "p", "module": { "name": "github.com/o/p", "version": "0.1.0" },
-                 "exports": { "skills": [], "agents": ["agents/helper.jsonc"] } }"#,
-        )
-        .unwrap();
-        std::fs::write(
-            obj.join("agents/helper.jsonc"),
-            r#"{ "agent": { "id": "helper", "name": "Helper" } }"#,
-        )
-        .unwrap();
-        std::fs::write(
-            root.join(".ship").join("ship.lock"),
-            format!(
-                r#"{{ "version": 1, "packages": [
-                     {{ "path": "github.com/o/p", "version": "0.1.0",
-                        "commit": "{}", "hash": "sha256:{}" }}
-                 ] }}"#,
-                "b".repeat(40),
-                hex,
-            ),
-        )
-        .unwrap();
-
-        let a = roll_up(&root, Some(&cache_root)).await.unwrap();
-        let b = roll_up(&root, Some(&cache_root)).await.unwrap();
-
-        // The composed library's canonical form is byte-identical.
-        let a_bytes = descriptor::extension_library_canonical(&a.library).unwrap();
-        let b_bytes = descriptor::extension_library_canonical(&b.library).unwrap();
-        assert_eq!(a_bytes, b_bytes, "two roll-ups must be byte-identical");
-
-        // The content hash is the same.
-        let a_hash = descriptor::extension_library_content_hash(&a.library).unwrap();
-        let b_hash = descriptor::extension_library_content_hash(&b.library).unwrap();
-        assert_eq!(a_hash, b_hash);
-
-        // The shadow set is the same.
-        assert_eq!(a.shadows.len(), b.shadows.len());
-    }
-
-    /// Cache key covers the cache tier's content hashes: a change to a
-    /// cached package's contents invalidates the roll-up's content hash.
-    /// The spec's "Cache key + watcher extend over the cache tier's
-    /// content hashes" acceptance.
-    #[tokio::test(flavor = "current_thread")]
-    async fn roll_up_content_hash_changes_with_cached_package() {
-        let (_tmp, root) = write_minimal_space();
-        let cache_root = root.join("cache");
-        let hex = "11111111";
-        let obj = cache_root.join("objects").join(hex);
-        std::fs::create_dir_all(obj.join("agents")).unwrap();
-        std::fs::write(
-            obj.join("ship.jsonc"),
-            r#"{ "id": "p", "module": { "name": "github.com/p/q", "version": "0.1.0" },
-                 "exports": { "skills": [], "agents": ["agents/a.jsonc"] } }"#,
-        )
-        .unwrap();
-        std::fs::write(
-            obj.join("agents/a.jsonc"),
-            r#"{ "agent": { "id": "a", "name": "A" } }"#,
-        )
-        .unwrap();
-        std::fs::write(
-            root.join(".ship").join("ship.lock"),
-            format!(
-                r#"{{ "version": 1, "packages": [
-                     {{ "path": "github.com/p/q", "version": "0.1.0",
-                        "commit": "{}", "hash": "sha256:{}" }}
-                 ] }}"#,
-                "c".repeat(40),
-                hex,
-            ),
-        )
-        .unwrap();
-
-        // Roll-up 1: baseline.
-        let a = roll_up(&root, Some(&cache_root)).await.unwrap();
-        let a_hash = descriptor::extension_library_content_hash(&a.library).unwrap();
-
-        // Mutate the cached package's content. The `load_cached_extensions`
-        // helper re-reads on every roll-up call, so the next roll-up sees
-        // the new content.
-        std::fs::write(
-            obj.join("agents/a.jsonc"),
-            r#"{ "agent": { "id": "a", "name": "A v2" } }"#,
-        )
-        .unwrap();
-
-        let b = roll_up(&root, Some(&cache_root)).await.unwrap();
-        let b_hash = descriptor::extension_library_content_hash(&b.library).unwrap();
-
-        assert_ne!(
-            a_hash, b_hash,
-            "cache tier content change must invalidate the roll-up's content hash"
-        );
-    }
-
-    /// Tear test (the spec's "tear test still green"): a space with all
-    /// three tiers (source + cached package + nothing else) composes
-    /// without error and produces a sane `ComposedLibrary` shape.
-    #[tokio::test(flavor = "current_thread")]
-    async fn roll_up_tear_test_full_composition() {
-        let (_tmp, root) = write_minimal_space();
-        // Source: one .ts agent (`demo`) + one rule.
-        // Cache: one package with one agent + one skill, both namespaced.
-        let cache_root = root.join("cache");
-        let hex = "deadbeef";
-        let obj = cache_root.join("objects").join(hex);
-        std::fs::create_dir_all(obj.join("agents")).unwrap();
-        std::fs::create_dir_all(obj.join("skills").join("lint")).unwrap();
-        std::fs::write(
-            obj.join("ship.jsonc"),
-            r#"{ "id": "p", "module": { "name": "github.com/d/b", "version": "0.1.0" },
-                 "exports": { "skills": ["skills/lint"], "agents": ["agents/cached.jsonc"] } }"#,
-        )
-        .unwrap();
-        std::fs::write(
-            obj.join("agents/cached.jsonc"),
-            r#"{ "agent": { "id": "cached", "name": "Cached" } }"#,
-        )
-        .unwrap();
-        std::fs::write(
-            obj.join("skills/lint/SKILL.md"),
-            "---\nname: Lint\n---\nLint content.",
-        )
-        .unwrap();
-        std::fs::write(
-            root.join(".ship").join("ship.lock"),
-            format!(
-                r#"{{ "version": 1, "packages": [
-                     {{ "path": "github.com/d/b", "version": "0.1.0",
-                        "commit": "{}", "hash": "sha256:{}" }}
-                 ] }}"#,
-                "d".repeat(40),
-                hex,
-            ),
-        )
-        .unwrap();
-
-        let composed = roll_up(&root, Some(&cache_root)).await.unwrap();
-
-        // Both the source's `demo` and the cached `github.com/d/b/cached`
-        // are present (no collision → both win).
-        let lib = &composed.library;
-        let ids: std::collections::HashSet<&str> = lib
-            .agent_profiles
-            .iter()
-            .map(|a| a.agent.id.as_str())
-            .collect();
-        assert!(ids.contains("demo"), "source's `demo` survives: {ids:?}");
-        assert!(
-            ids.contains("github.com/d/b/cached"),
-            "cached agent namespaced survives: {ids:?}"
-        );
-
-        // The cached skill is in the composed library.
-        let skill_ids: std::collections::HashSet<&str> =
-            lib.skills.iter().map(|s| s.id.as_str()).collect();
-        assert!(
-            skill_ids.contains("github.com/d/b/skills/lint"),
-            "cached skill namespaced survives: {skill_ids:?}"
-        );
-
-        // The source's rule still passes through (permissions/hooks
-        // pass-through is the J1 contract — the source's verb is `Space`).
-        assert_eq!(lib.rules.len(), 1);
-        assert_eq!(lib.rules[0].file_name, "style.md");
-
-        // The roll-up audit carries BOTH extensions.
-        let rollup = lib.rollup_inputs.as_ref().unwrap();
-        assert_eq!(rollup.extensions.len(), 2, "source + one cached package");
-        let sources: Vec<_> = rollup.extensions.iter().map(|e| e.source.clone()).collect();
-        assert!(sources.iter().any(|s| matches!(s, ExtSource::UserGlobal)));
-        assert!(sources.iter().any(|s| matches!(s, ExtSource::Space)));
+/// Synchronous bridge over [`roll_up`] for callers that cannot `.await` —
+/// e.g. `ship-code`'s `AgentPlatform::compile_agent_config`, a sync trait
+/// method the dispatch path calls from inside the daemon's (multi-thread)
+/// Tokio runtime. Reuses the calling runtime via `block_in_place` when one
+/// is already current; falls back to a throwaway current-thread runtime for
+/// plain sync callers (e.g. a `#[test]` with no ambient runtime).
+pub fn roll_up_blocking(
+    space_root: &Path,
+    cache_root: Option<&Path>,
+    library_root: Option<&Path>,
+) -> Result<ComposedLibrary> {
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => tokio::task::block_in_place(|| {
+            handle.block_on(roll_up(space_root, cache_root, library_root))
+        }),
+        Err(_) => tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .context("roll_up_blocking: building fallback runtime")?
+            .block_on(roll_up(space_root, cache_root, library_root)),
     }
 }
+
+// ─── Tests ─────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+#[path = "lib_tests.rs"]
+mod tests;

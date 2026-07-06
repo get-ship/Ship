@@ -1,9 +1,11 @@
 //! Golden tests for the Phase-3 composition law (`compiler::compose`).
 //!
-//! The law under test (census-phase3-agents.md Parts 3 + 5): id-keyed
-//! shadowing per noun, user-global < space < per-agent overlay, losers
-//! retained as ShadowRecords, permissions/hooks pass through from the space
-//! tier verbatim and are NEVER composed across tiers.
+//! The law under test (census-phase3-agents.md Parts 3 + 5; tier split per
+//! the format-migration Wave 2 census Part 3.4): id-keyed shadowing per
+//! noun, cache < user-global (operator-enabled) < space < per-agent
+//! overlay, losers retained as ShadowRecords, permissions/hooks pass
+//! through from the space tier verbatim and are NEVER composed across
+//! tiers.
 
 use compiler::compose::{ComposedLibrary, NounKind, compose_space};
 use compiler::resolve::{
@@ -89,6 +91,53 @@ fn space_shadows_user_global_on_id_collision() {
     assert_eq!(shadow.losing_source, ExtSource::UserGlobal);
     assert_eq!(shadow.losing_tier_hash, "hash-user");
     assert_eq!(shadow.winning_source, ExtSource::Space);
+}
+
+#[test]
+fn user_global_shadows_cache_on_id_collision() {
+    let cache = ExtensionLibrary {
+        agents: vec![agent("writer", "Cached Writer")],
+        ..Default::default()
+    };
+    let user_global = ExtensionLibrary {
+        agents: vec![agent("writer", "Enabled Writer")],
+        ..Default::default()
+    };
+    let composed = compose(vec![
+        ext(ExtSource::Cache, "hash-cache", cache),
+        ext(ExtSource::UserGlobal, "hash-enabled", user_global),
+    ]);
+
+    assert_eq!(composed.library.agents.len(), 1);
+    assert_eq!(composed.library.agents[0].agent.name, "Enabled Writer");
+    assert_eq!(composed.shadows.len(), 1);
+    let shadow = &composed.shadows[0];
+    assert_eq!(shadow.losing_source, ExtSource::Cache);
+    assert_eq!(shadow.winning_source, ExtSource::UserGlobal);
+}
+
+#[test]
+fn full_tier_stack_shadows_cache_then_user_global_then_space() {
+    // cached < enabled (user-global) < space < agent overlay — every tier
+    // declares the same id; the law resolves strictly by rank, and the
+    // shadow chain records each step in resolution order.
+    let cache = ExtensionLibrary { skills: vec![skill("lint", "cache lint")], ..Default::default() };
+    let user_global =
+        ExtensionLibrary { skills: vec![skill("lint", "enabled lint")], ..Default::default() };
+    let space = ExtensionLibrary { skills: vec![skill("lint", "space lint")], ..Default::default() };
+    let composed = compose(vec![
+        ext(ExtSource::Cache, "hash-cache", cache),
+        ext(ExtSource::UserGlobal, "hash-enabled", user_global),
+        ext(ExtSource::Space, "hash-space", space),
+    ]);
+
+    assert_eq!(composed.library.skills.len(), 1);
+    assert_eq!(composed.library.skills[0].name, "space lint");
+    assert_eq!(composed.shadows.len(), 2, "cache→enabled, enabled→space");
+    assert_eq!(composed.shadows[0].losing_source, ExtSource::Cache);
+    assert_eq!(composed.shadows[0].winning_source, ExtSource::UserGlobal);
+    assert_eq!(composed.shadows[1].losing_source, ExtSource::UserGlobal);
+    assert_eq!(composed.shadows[1].winning_source, ExtSource::Space);
 }
 
 #[test]

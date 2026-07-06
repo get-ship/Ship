@@ -64,22 +64,35 @@ pub fn compile_agent_config(
     worktree_path: &std::path::Path,
     agent_id: &str,
 ) -> Result<()> {
-    // In-process compile via the agent-def engine — the same
-    // `compile_project` the CLI's `ship use` wraps. `scoped_launch`: this is
-    // a daemon-spawned launch, so the dispatcher injects $SHIP_TOKEN +
-    // $SHIP_DAEMON_URL into the agent's env; the compile emits the
-    // daemon-hosted authed-HTTP `ship` MCP entry (scope-enforced) rather
-    // than the trusted-local stdio shim.
-    let summary = agent_def::compile::compile_project(&agent_def::compile::CompileOptions {
-        space_root: worktree_path.to_path_buf(),
-        output_root: None,
-        harness: None,
-        active_agent: Some(agent_id.to_string()),
-        extra_skills: vec![],
-        plugins_installed: vec![],
-        scoped_launch: true,
-        dry_run: false,
-    })
+    // Roll up the worktree's full composed world — cache tier + the
+    // operator-enabled library tier + the space's own source, precedence-
+    // law composed — the same `ship_resolver::roll_up` shipd's boot index
+    // ingests, so a dispatch-compiled agent sees what the index sees
+    // instead of a single-source `.ship/` read. `roll_up` is async
+    // (V8 TS eval); `roll_up_blocking` bridges the sync trait boundary.
+    let composed = ship_resolver::roll_up_blocking(worktree_path, None, None)
+        .map_err(|e| anyhow::anyhow!("roll-up failed for agent '{agent_id}': {e}"))?;
+
+    // In-process compile via the agent-def engine — the same pipeline
+    // `compile_project` (the CLI's `ship use` wrapper) runs, minus the
+    // single-source load + `#122` flat merge the roll-up already
+    // superseded. `scoped_launch`: this is a daemon-spawned launch, so the
+    // dispatcher injects $SHIP_TOKEN + $SHIP_DAEMON_URL into the agent's
+    // env; the compile emits the daemon-hosted authed-HTTP `ship` MCP entry
+    // (scope-enforced) rather than the trusted-local stdio shim.
+    let summary = agent_def::compile::compile_project_from_library(
+        &agent_def::compile::CompileOptions {
+            space_root: worktree_path.to_path_buf(),
+            output_root: None,
+            harness: None,
+            active_agent: Some(agent_id.to_string()),
+            extra_skills: vec![],
+            plugins_installed: vec![],
+            scoped_launch: true,
+            dry_run: false,
+        },
+        composed.library,
+    )
     .map_err(|e| anyhow::anyhow!("compile failed for agent '{agent_id}': {e}"))?;
     if summary.harnesses.is_empty() {
         return Err(anyhow::anyhow!(

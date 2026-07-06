@@ -10,6 +10,10 @@ workspace = true
 
 [dependencies]
 agent-def = { path = "../agent-def" }
+# The Phase-3 roll-up composer (`roll_up_blocking`) — routes dispatch-compiled
+# agents through the same cache/enabled/space precedence law shipd's boot
+# index composes over, instead of the single-source `.ship/` library.
+ship-resolver = { path = "../../../ship-resolver" }
 ship-substrate = { path = "../../../ship-substrate" }
 process-supervisor = { path = "../../../ship-substrate/crates/process-supervisor" }
 isolation-port = { path = "../../../ship-substrate/crates/isolation-port" }

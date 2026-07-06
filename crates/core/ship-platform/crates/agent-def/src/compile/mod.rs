@@ -91,10 +91,42 @@ pub struct CompileSummary {
 
 pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(&opts.space_root);
-    let output_root = opts.output_root.as_deref().unwrap_or(&opts.space_root);
 
     // 1. Load raw library from .ship/ (flat layout)
     let mut library = load_library(&ship_dir).context("failed to load .ship/")?;
+
+    // 1b. Compose dep agents from cache (each locked package's exports.agents),
+    // namespaced by package path. Auto-compose: an installed dep's agents become
+    // available in the space. (Composition engine #122; mirrors dep skills.)
+    let dep_agents = resolve_dep_agents(&ship_dir.join("ship.lock"), None)
+        .context("composing dep agents from cache")?;
+    library.agent_profiles.extend(dep_agents);
+
+    compile_from_library(opts, library)
+}
+
+/// Compile from an already-composed [`compiler::ExtensionLibrary`] — the
+/// Phase-3 roll-up path (`ship_resolver::roll_up` / `compiler::compose_space`)
+/// already merged the cache tier, the operator-enabled library tier, and the
+/// space's own source under the precedence law, so the `#122` flat merge
+/// ([`resolve_dep_agents`]) is skipped here — running it again would
+/// double-add the same namespaced ids. `ship-code`'s dispatch-compile path
+/// uses this so dispatch-compiled agents see the same composed world
+/// shipd's boot index sees, instead of the single-source `.ship/` library
+/// [`compile_project`] loads.
+pub fn compile_project_from_library(
+    opts: &CompileOptions,
+    library: compiler::ExtensionLibrary,
+) -> Result<CompileSummary> {
+    compile_from_library(opts, library)
+}
+
+fn compile_from_library(
+    opts: &CompileOptions,
+    mut library: compiler::ExtensionLibrary,
+) -> Result<CompileSummary> {
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&opts.space_root);
+    let output_root = opts.output_root.as_deref().unwrap_or(&opts.space_root);
 
     // 2. Apply agent overrides (permissions, inline rules, harness list, plugins)
     if let Some(agent_id) = opts.active_agent.as_deref() {
@@ -115,13 +147,6 @@ pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
         .context("resolving dep skills from cache")?;
         library.skills.extend(dep_skills);
     }
-
-    // 3b. Compose dep agents from cache (each locked package's exports.agents),
-    // namespaced by package path. Auto-compose: an installed dep's agents become
-    // available in the space. (Composition engine #122; mirrors dep skills.)
-    let dep_agents = resolve_dep_agents(&ship_dir.join("ship.lock"), None)
-        .context("composing dep agents from cache")?;
-    library.agent_profiles.extend(dep_agents);
 
     // 4. Inject extra skills into the active agent's skill filter
     if !opts.extra_skills.is_empty() {
