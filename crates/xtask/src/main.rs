@@ -9,6 +9,7 @@ mod gen_events;
 mod gen_fixtures;
 mod gen_indexes;
 mod gen_indexes_substrate;
+mod gen_sdk;
 mod lint_anti_theater;
 
 mod lint_imports;

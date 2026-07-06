@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     coverage, gen_audit_readme, gen_contract, gen_events, gen_fixtures,
-    gen_indexes, lint_anti_theater,
+    gen_indexes, gen_sdk, lint_anti_theater,
     lint_imports, lint_layers, lint_residue,
 };
 
@@ -70,6 +70,13 @@ pub fn dispatch(cmd: &str, args: &[String]) {
                 std::process::exit(1);
             }
         }
+        "gen-sdk" => {
+            let check = args.iter().any(|a| a == "--check");
+            if let Err(e) = gen_sdk::run(check) {
+                eprintln!("gen-sdk failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
         "gen-contract" => {
             let check = args.iter().any(|a| a == "--check");
             if let Err(e) = gen_contract::run(&repo_root(), check) {
@@ -117,8 +124,9 @@ fn print_help() {
     eprintln!("  lint-residue          Catch orphan .rs files + byte-identical .rs copied across crates");
     eprintln!("  gen-events            Generate tier-filtered proto + TS from the event registry");
     eprintln!("  gen-events --check    Verify generated files are up-to-date (CI)");
+    eprintln!("  gen-sdk               Emit 5 JSON manifests + 1 TS typed-FrameworkManifest to packages/sdk/src/manifests/ (view-contexts, collections, triggers, views, framework)");
+    eprintln!("  gen-sdk --check       Verify generated manifests are up-to-date (CI)");
     eprintln!("  gen-contract          Generate docs/contract/<domain>.md consumer guides");
-    eprintln!("  gen-contract --check  Verify generated contract docs are up-to-date (CI)");
     eprintln!("  gen-audit-readme      Regenerate .artifacts/specs/module-audits/README.md");
     eprintln!("  gen-indexes           Regenerate emit-sites.md + substrate-fns.md indexes");
     eprintln!("  gen-indexes --check   Verify indexes are up-to-date (CI)");
