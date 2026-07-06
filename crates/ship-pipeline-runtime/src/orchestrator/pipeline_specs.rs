@@ -105,12 +105,20 @@ pub fn prepare_step_for_dispatch(
     resolved_inputs: &[ResolvedInput],
 ) {
     let ctx = super::prompt_composer::load_job_context(pipeline_run_id);
-    let step_specs = ctx
-        .pipeline_name
-        .as_deref()
-        .and_then(crate::loader::pipeline_loader::load_step_specs_by_name);
+    // UNMAPPED COUPLING (Wave 4 phase A stop-rule): the per-pipeline
+    // `step_specs` (the positional prompt bodies, one per step) used to
+    // arrive via `pipeline_loader::load_step_specs_by_name` (JSONC file
+    // read). That entry point is gone. Until the descriptor's
+    // `PipelineDef` → runtime `Pipeline` converter lands, the per-step
+    // prompt bodies must be carried on the `PipelineRunStartedPayload`
+    // (the `step_specs: Option<Vec<String>>` field that
+    // `load_pipeline_def_by_name` previously populated via
+    // `merge_meta_vars`). For now, no descriptor-sourced `step_specs`
+    // are added — `write_pipeline_specs` falls back to per-step empty
+    // bodies, the same as the pre-JSONC baseline.
+    let step_specs: Option<&[String]> = None;
     if let Err(e) = write_pipeline_specs(
-        worktree_path, slug, pipeline, &ctx.user_spec_body, step_specs.as_deref(),
+        worktree_path, slug, pipeline, &ctx.user_spec_body, step_specs,
     ) {
         tracing::error!(slug, step_id = current.id, "pipeline: failed to write pipeline specs: {e}");
     }

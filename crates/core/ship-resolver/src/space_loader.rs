@@ -1,13 +1,17 @@
 //! Space-shape disk walk — the resolver's `load_space_library` entry.
 //!
 //! Composes with the compiler leaf's [`compiler::load_library`] for the
-//! bulk of the read (`.ship/{mcp,permissions,hooks,rules,skills,agents}/`),
-//! then layers the Phase-2 space-shape pieces on top:
+//! bulk of the read (`.ship/{permissions,hooks,skills,agents}/`; mcp
+//! servers and rules no longer have a file form — see
+//! `compiler::loader`), then layers the Phase-2 space-shape pieces on
+//! top:
 //!
-//! - `ship.ts` at the space root — the canonical TS manifest, also
-//!   reachable as `<.ship>/ship.ts` for legacy/SDK-shipped spaces. The
-//!   leaf's `load_library` doesn't read it today (the Phase-0 resolver
-//!   never went through `ship.ts`); the resolver owns the read.
+//! - `ship.config.ts` at the space root — the canonical TS manifest and
+//!   the ONLY valid manifest filename (no legacy `<.ship>/ship.ts`
+//!   fallback, retired in format-migration Wave 4 phase A). The leaf's
+//!   `load_library` doesn't read it — the resolver owns the read, and a
+//!   separate eval step (`ship_resolver::merge_ts_declarations`) harvests
+//!   its declare-forms (`defineMcpServer`, `defineRule`, etc.).
 //! - Skills from the additional `space.skill_paths` — the leaf already
 //!   reads `space.skill_paths` from `ship.jsonc` (the additive F1
 //!   manifest read) and the default `.ship/skills/` is walked by the leaf's
@@ -28,7 +32,7 @@
 //!
 //! The cap is rooted at the space root with no fixed prefix; callers
 //! compose the rel path explicitly. The same
-//! cap serves both the `.ship/...` reads and the space-root `ship.ts`
+//! cap serves both the `.ship/...` reads and the space-root `ship.config.ts`
 //! read. The bootstrap posture mirrors `ship-config::agents::cap_root_and_dir`
 //! (`ship-config/src/agents.rs:39-50`): root at a directory that always
 //! exists (the space root) and use explicit two-segment rels.
@@ -53,10 +57,10 @@ use ship_substrate::ports::{FsBroker, FsCap, FsError, FsMode, FsRoot, SpaceId};
 /// at the space root, so the rel path is always `<.ship>/...`.
 const SHIP_DIR_NAME: &str = ".ship";
 
-/// The default space ship sub-dir name, used when a space authors
-/// `ship.ts` at the space root (the Phase-2 default) and when it puts
-/// the manifest inside `<.ship>/ship.ts` (the legacy / SDK-shipped shape).
-const SHIP_TS_FILENAME: &str = "ship.ts";
+/// The extension-source manifest filename at the space root, per
+/// `decision-space-scan.md` (one TS file per extension: manifest identity
+/// via the W1 `ExtensionManifest` export + content entry via declare-forms).
+const SHIP_CONFIG_FILENAME: &str = "ship.config.ts";
 
 /// The cap the resolver uses for space reads. No fixed prefix — callers
 /// compose the rel path explicitly.
@@ -91,10 +95,12 @@ impl SpaceCap {
 ///    default `.ship/skills/`) and merge skills into `library.skills`.
 ///    The leaf's `load_library` already populated the default path's
 ///    skills; this fn appends the others, space winning on id.
-/// 2. Read `ship.ts` (at the space root OR at `<.ship>/ship.ts`) and
-///    return its `ModuleDescriptor` in `imported_modules` (Phase-3
-///    multi-file shape is the consumer's; the descriptor carries one
-///    module in Phase 2 since the loader still admits only `"ship"`).
+/// 2. Read `ship.config.ts` at the space root and return its
+///    `ModuleDescriptor` in `imported_modules` (Phase-3 multi-file shape
+///    is the consumer's; the descriptor carries one module in Phase 2
+///    since the loader still admits only `"ship"`). No dual filename
+///    support — the legacy `<.ship>/ship.ts` shape is retired along
+///    with the format-migration Wave 4 JSONC/MD cutover.
 pub async fn load_space_library(
     fs: &dyn FsBroker,
     space_root: &Path,
@@ -141,9 +147,11 @@ pub async fn load_space_library(
 
     // 3. Read the TS manifest (one module in Phase 2; Phase 3 extends
     //    the closed-world loader to admit space-relative imports and
-    //    the fan-out grows).
-    if let Some(module) = read_ship_ts(fs, &cap.cap, space_root)
-        .with_context(|| format!("read ship.ts under {}", space_root.display()))?
+    //    the fan-out grows). W4 phase A retires the legacy
+    //    `<.ship>/ship.ts` shape — `ship.config.ts` at the space root
+    //    is the only valid manifest.
+    if let Some(module) = read_ship_config_ts(fs, &cap.cap, space_root)
+        .with_context(|| format!("read ship.config.ts under {}", space_root.display()))?
     {
         let content_hash = extension_library_module_hash(&module);
         let mut module = module;
@@ -159,8 +167,8 @@ pub async fn load_space_library(
 /// `SKILL.md` → skip the entry (lenient contract).
 ///
 /// `space_rel` is the space-relative path (a value from
-/// `space.skill_paths`); the cap is rooted at the space root, so the
-/// rel path under the cap is the space-relative path verbatim. This
+/// `space.skill_paths`); the cap is rooted at the space root, so
+/// the rel path under the cap is the space-relative path verbatim. This
 /// matches agent-def's [`read_skill_paths`](
 /// ship_platform/crates/agent-def/src/skill_paths.rs) which joins the
 /// manifest value onto the space root — `extra-skills/` lands at
@@ -205,43 +213,31 @@ fn walk_skills_dir(
     Ok(skills)
 }
 
-/// Read the space's `ship.ts` manifest. Returns `Ok(None)` when
-/// neither `<root>/ship.ts` nor `<root>/.ship/ship.ts` exists.
+/// Read the space's `ship.config.ts` manifest. Returns `Ok(None)` when
+/// no manifest exists — every pre-W4 author (`.jsonc`-only or
+/// `.ts`+`<.ship>/ship.ts` legacy) is now retired; the TS form is the
+/// only read (census-format-migration.md §4 row 3).
 ///
-/// The cap is rooted at the space root with no fixed prefix, so
-/// space-root `ship.ts` is read as `ship.ts` (no `.ship/` segment);
-/// the legacy `<.ship>/ship.ts` is read with the explicit two-segment
-/// rel. The content hash is filled in by the caller.
-fn read_ship_ts(
+/// The cap is rooted at the space root with no fixed prefix, so the
+/// rel path is verbatim. The content hash is filled in by the caller.
+fn read_ship_config_ts(
     fs: &dyn FsBroker,
     cap: &FsCap,
     _space_root: &Path,
 ) -> Result<Option<compiler::ModuleDescriptor>> {
-    // Prefer space-root `ship.ts` (Phase-2 default); fall back to
-    // `<.ship>/ship.ts` (legacy / SDK-shipped spaces).
-
-    let rels: [&str; 2] = ["ship.ts", ".ship/ship.ts"];
-    for (i, rel) in rels.iter().enumerate() {
-        match fs.read(cap, rel) {
-            Ok(bytes) => {
-                let source = String::from_utf8_lossy(&bytes).into_owned();
-                let path = if i == 0 {
-                    PathBuf::from(SHIP_TS_FILENAME)
-                } else {
-                    PathBuf::from(*rel)
-                };
-                return Ok(Some(compiler::ModuleDescriptor {
-                    path,
-                    source,
-                    content_hash: String::new(), // filled in by caller
-                    exports: Vec::new(),
-                }));
-            }
-            Err(FsError::NotFound) => continue,
-            Err(e) => return Err(e.into()),
+    match fs.read(cap, SHIP_CONFIG_FILENAME) {
+        Ok(bytes) => {
+            let source = String::from_utf8_lossy(&bytes).into_owned();
+            Ok(Some(compiler::ModuleDescriptor {
+                path: PathBuf::from(SHIP_CONFIG_FILENAME),
+                source,
+                content_hash: String::new(), // filled in by caller
+                exports: Vec::new(),
+            }))
         }
+        Err(FsError::NotFound) => Ok(None),
+        Err(e) => Err(e.into()),
     }
-    Ok(None)
 }
 
 /// SHA-256 hex of a `ModuleDescriptor`'s raw source. Standalone so the
@@ -268,8 +264,8 @@ mod tests {
     use ship_substrate::ports::LocalFsBroker;
     use tempfile::TempDir;
 
-    /// Build a space root with `.ship/{mcp,permissions,hooks,agents}` +
-    /// a `skills/` dir + a `rules/` dir + a `ship.ts` at the space root.
+    /// Build a space root with `.ship/{agents,skills}` + an extra
+    /// `space.skill_paths` dir + a `ship.config.ts` at the space root.
     /// Returns the temp dir so the caller can keep it alive.
     fn write_space() -> (TempDir, PathBuf) {
 
@@ -279,13 +275,7 @@ mod tests {
         // .ship/ structure (the leaf's surface)
         let ship = root.join(".ship");
         std::fs::create_dir_all(ship.join("skills")).unwrap();
-        std::fs::create_dir_all(ship.join("rules")).unwrap();
         std::fs::create_dir_all(ship.join("agents")).unwrap();
-        std::fs::write(
-            ship.join("mcp.jsonc"),
-            r#"{"mcp": {"servers": {"stub": {"id": "stub", "command": "echo", "args": []}}}}"#,
-        )
-        .unwrap();
 
         // Default skill in .ship/skills/
         let default_skill = ship.join("skills").join("default-skill");
@@ -305,16 +295,14 @@ mod tests {
         )
         .unwrap();
 
-        // A rule in .ship/rules/
+        // ship.config.ts at the space root. `load_space_library` only
+        // stores the raw module source in `imported_modules` here — TS
+        // eval + declare-form harvest (defineMcpServer/defineRule/etc.)
+        // happens one layer up, in `resolve_space_with_broker`/`roll_up`
+        // (`lib.rs::merge_ts_declarations`), so mcp/rule content has no
+        // effect on THIS function's output and is omitted.
         std::fs::write(
-            ship.join("rules").join("01-style.md"),
-            "---\nalwaysApply: true\n---\nBe terse.\n",
-        )
-        .unwrap();
-
-        // ship.ts at the space root
-        std::fs::write(
-            root.join("ship.ts"),
+            root.join("ship.config.ts"),
             r#"
 import { defineAgent } from "ship";
 
@@ -341,16 +329,16 @@ defineAgent({
         let fs = LocalFsBroker::new();
         let lib = load_space_library(&fs, &root).await.unwrap();
 
-        // The leaf's bulk: mcp server + default skill + rule + agent
-        // profile (none here, but the field defaults to empty).
-        assert_eq!(lib.mcp_servers.len(), 1, "mcp.jsonc from .ship/");
-        assert_eq!(lib.mcp_servers[0].id, "stub");
+        // The leaf's bulk: default skill + agent profile (none here, but
+        // the field defaults to empty). mcp servers and rules are no
+        // longer sourced from files at all — `load_space_library` doesn't
+        // evaluate the TS manifest (that's `merge_ts_declarations`, one
+        // layer up), so both stay empty here.
+        assert!(lib.mcp_servers.is_empty());
         // Skills: default + extra merged.
         let ids: Vec<&str> = lib.skills.iter().map(|s| s.id.as_str()).collect();
         assert_eq!(ids, vec!["default-skill", "extra-skill"]);
-        // Rule from .ship/rules/.
-        assert_eq!(lib.rules.len(), 1);
-        assert_eq!(lib.rules[0].file_name, "01-style.md");
+        assert!(lib.rules.is_empty());
         // skill_paths carries both the default and the extra — the leaf
         // populates the field, the resolver consults it.
         assert_eq!(
@@ -360,7 +348,7 @@ defineAgent({
         // ship.ts: one module, content hash non-empty.
         assert_eq!(lib.imported_modules.len(), 1);
         let module = &lib.imported_modules[0];
-        assert_eq!(module.path, PathBuf::from("ship.ts"));
+        assert_eq!(module.path, PathBuf::from("ship.config.ts"));
         assert!(module.source.contains("defineAgent"));
         assert_eq!(module.content_hash.len(), 64, "SHA-256 hex");
     }
@@ -389,26 +377,6 @@ defineAgent({
         assert!(lib.skills.is_empty());
         assert!(lib.rules.is_empty());
         assert!(lib.imported_modules.is_empty());
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn load_space_library_uses_ship_ts_fallback() {
-        // Legacy / SDK-shipped shape: ship.ts lives at `<.ship>/ship.ts`.
-        let tmp = tempfile::tempdir().unwrap();
-        let root = tmp.path().to_path_buf();
-        std::fs::create_dir_all(root.join(".ship")).unwrap();
-        std::fs::write(
-            root.join(".ship").join("ship.ts"),
-            r#"
-import { defineAgent } from "ship";
-defineAgent({ agent: { id: "legacy", name: "Legacy" } });
-:"#,
-        )
-        .unwrap();
-        let fs = LocalFsBroker::new();
-        let lib = load_space_library(&fs, &root).await.unwrap();
-        assert_eq!(lib.imported_modules.len(), 1);
-        assert_eq!(lib.imported_modules[0].path, PathBuf::from(".ship/ship.ts"));
     }
 
     #[tokio::test(flavor = "current_thread")]

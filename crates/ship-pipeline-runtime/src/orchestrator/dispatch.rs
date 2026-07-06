@@ -62,7 +62,7 @@ pub async fn handle_pipeline_run_started(
     }
 
     let slug_for_err = payload.slug.clone();
-    let payload = match ensure_pipeline(payload) {
+    let payload = match ensure_pipeline(payload, &[]) {
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug = slug_for_err, "pipeline: load failed: {e}");

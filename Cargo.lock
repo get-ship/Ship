@@ -8694,6 +8694,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "compiler",
  "cron",
  "fs-watch",
  "globset",

@@ -61,7 +61,7 @@ fn missing_agent_on_agent_step_fails_at_load() {
         auto_merge: false,
     });
 
-    let err = ensure_pipeline(payload).expect_err("agent step without agent must fail");
+    let err = ensure_pipeline(payload, &[]).expect_err("agent step without agent must fail");
     assert!(err.contains("orphan"), "error must name the step id: {err}");
     assert!(err.to_lowercase().contains("agent"), "error must mention agent: {err}");
 }
@@ -109,14 +109,14 @@ fn missing_agent_on_review_step_fails_at_load() {
         auto_merge: false,
     });
 
-    let err = ensure_pipeline(payload).expect_err("review step without agent must fail");
+    let err = ensure_pipeline(payload, &[]).expect_err("review step without agent must fail");
     assert!(err.contains("naked-gate"), "error must name the step id: {err}");
 }
 
 #[test]
 fn no_pipeline_declared_yields_single_agent_step() {
     let payload = base_payload("coder");
-    let resolved = ensure_pipeline(payload).expect("single-step default must validate");
+    let resolved = ensure_pipeline(payload, &[]).expect("single-step default must validate");
     let pipeline = resolved.steps.expect("steps must be populated");
 
     assert_eq!(pipeline.steps.len(), 1, "exactly one step — no review, no merge");
@@ -158,7 +158,7 @@ fn run_step_without_agent_is_fine() {
         }],
         auto_merge: false,
     });
-    ensure_pipeline(payload).expect("run steps need no agent");
+    ensure_pipeline(payload, &[]).expect("run steps need no agent");
 }
 
 // ── I/O validation tests ──────────────────────────────────────────────────────
@@ -189,7 +189,7 @@ fn consumes_unknown_name_fails_at_load() {
     let mut step = agent_step("impl", "coder");
     step.consumes = vec!["nonexistent".into()];
     payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
-    let err = ensure_pipeline(payload).expect_err("unknown consume must fail");
+    let err = ensure_pipeline(payload, &[]).expect_err("unknown consume must fail");
     assert!(err.contains("nonexistent"), "error must name the missing output: {err}");
 }
 
@@ -200,7 +200,7 @@ fn consumes_own_output_fails_at_load() {
     step.produces = vec![StepOutput { name: "patch".into(), scope: OutputScope::Run, required: false }];
     step.consumes = vec!["patch".into()];
     payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
-    let err = ensure_pipeline(payload).expect_err("self-consume must fail");
+    let err = ensure_pipeline(payload, &[]).expect_err("self-consume must fail");
     assert!(err.contains("patch"), "error must mention the output name: {err}");
 }
 
@@ -220,7 +220,7 @@ fn consumes_with_valid_producer_passes() {
         steps: vec![producer, consumer],
         auto_merge: false,
     });
-    ensure_pipeline(payload).expect("valid producer must pass");
+    ensure_pipeline(payload, &[]).expect("valid producer must pass");
 }
 
 #[test]
@@ -232,7 +232,7 @@ fn promotes_unknown_name_fails_at_load() {
         target_scope: OutputScope::Project,
     }];
     payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
-    let err = ensure_pipeline(payload).expect_err("unknown promote name must fail");
+    let err = ensure_pipeline(payload, &[]).expect_err("unknown promote name must fail");
     assert!(err.contains("nonexistent"), "error must name the bad promote: {err}");
 }
 
@@ -250,7 +250,7 @@ fn promotes_valid_name_and_scope_passes() {
         target_scope: OutputScope::Project,
     }];
     payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
-    ensure_pipeline(payload).expect("valid promote must pass");
+    ensure_pipeline(payload, &[]).expect("valid promote must pass");
 }
 
 #[test]
@@ -267,7 +267,7 @@ fn promotes_invalid_scope_transition_fails_at_load() {
         target_scope: OutputScope::Run, // Project → Run is invalid
     }];
     payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
-    let err = ensure_pipeline(payload).expect_err("invalid scope transition must fail");
+    let err = ensure_pipeline(payload, &[]).expect_err("invalid scope transition must fail");
     assert!(err.to_lowercase().contains("scope") || err.contains("transition"),
         "error must mention scope transition: {err}");
 }
@@ -285,7 +285,7 @@ fn produces_name_with_path_traversal_fails_at_load() {
         required: false,
     }];
     payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
-    let err = ensure_pipeline(payload).expect_err("traversal in produces must fail");
+    let err = ensure_pipeline(payload, &[]).expect_err("traversal in produces must fail");
     assert!(
         err.contains("..") || err.to_lowercase().contains("traversal") || err.contains("disallowed"),
         "error must cite traversal/disallowed chars: {err}"
@@ -298,7 +298,7 @@ fn consumes_with_path_traversal_fails_at_load() {
     let mut step = agent_step("consumer", "coder");
     step.consumes = vec!["../../secret".into()];
     payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
-    let err = ensure_pipeline(payload).expect_err("traversal in consumes must fail");
+    let err = ensure_pipeline(payload, &[]).expect_err("traversal in consumes must fail");
     assert!(
         err.contains("..") || err.to_lowercase().contains("traversal") || err.contains("disallowed"),
         "error must cite traversal: {err}"
@@ -315,7 +315,7 @@ fn produces_name_leading_dot_rejected() {
         required: false,
     }];
     payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
-    let err = ensure_pipeline(payload).expect_err("leading dot must be rejected");
+    let err = ensure_pipeline(payload, &[]).expect_err("leading dot must be rejected");
     assert!(err.to_lowercase().contains("."), "error must name the offending char: {err}");
 }
 
@@ -329,7 +329,7 @@ fn produces_name_with_slash_rejected() {
         required: false,
     }];
     payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
-    let err = ensure_pipeline(payload).expect_err("slash must be rejected");
+    let err = ensure_pipeline(payload, &[]).expect_err("slash must be rejected");
     assert!(err.to_lowercase().contains("disallowed"), "error must flag disallowed chars: {err}");
 }
 
@@ -351,7 +351,7 @@ fn duplicate_produces_name_across_steps_fails_at_load() {
         required: false,
     }];
     payload.steps = Some(Pipeline { steps: vec![s1, s2], auto_merge: false });
-    let err = ensure_pipeline(payload).expect_err("duplicate produces name must fail");
+    let err = ensure_pipeline(payload, &[]).expect_err("duplicate produces name must fail");
     assert!(err.contains("patch"), "error must name the duplicated output: {err}");
     assert!(err.contains("lane-a") && err.contains("lane-b"),
         "error must list both offending steps: {err}");
@@ -374,5 +374,5 @@ fn multiple_producers_are_indexed_correctly() {
         steps: vec![s1, s2, s3],
         auto_merge: false,
     });
-    ensure_pipeline(payload).expect("3-step TDD pipeline must pass validation");
+    ensure_pipeline(payload, &[]).expect("3-step TDD pipeline must pass validation");
 }

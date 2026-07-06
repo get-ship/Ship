@@ -2,10 +2,15 @@
 //! loader. The compiler crate is L0 / substrate-free, so this loader uses
 //! only `std::fs` + the crate's own `jsonc` + `skill_parser` modules.
 //!
-//! RED → GREEN development: the test was authored before the loader
-//! implementation, and asserted a known surface area (agents, mcp, skills,
-//! rules). The implementation lives in `compiler::loader` and walks
-//! `.ship/agents/`, `.ship/mcp.jsonc`, `.ship/skills/`, and `.ship/rules/`.
+//! Post format-migration Wave 4 phase A: the leaf no longer reads
+//! `.ship/mcp.jsonc` or `.ship/rules/*.md` — those nouns arrive via
+//! `defineMcpServer` / `defineRule` declare-forms in the space's
+//! `ship.config.ts`, harvested by the resolver's TS eval and merged into
+//! `ExtensionLibrary` (see
+//! `crates/core/ship-resolver/src/lib_tests.rs::every_declare_form_round_trips_through_resolve_compose_descriptor`
+//! for the full descriptor test). This file covers the LEAF half:
+//! agents + skills from disk, mcp_servers + rules explicitly empty,
+//! permissions / hooks from disk (unchanged), missing-dir contract.
 
 use std::path::PathBuf;
 
@@ -21,7 +26,7 @@ fn fixture_ship_dir() -> PathBuf {
 }
 
 #[test]
-fn load_library_reads_agents_mcp_skills_rules() {
+fn load_library_reads_agents_and_skills_leaves_mcp_rules_empty() {
     let ship_dir = fixture_ship_dir();
     let lib: ExtensionLibrary =
         load_library(&ship_dir).expect("load_library must succeed against the fixture .ship/");
@@ -36,18 +41,7 @@ fn load_library_reads_agents_mcp_skills_rules() {
     assert_eq!(agent.mcp.servers, vec!["test-server".to_string()]);
     assert_eq!(agent.rules.inline.as_deref(), Some("Test rule body."));
 
-    // 2. MCP server loaded from .ship/mcp.jsonc.
-    assert_eq!(lib.mcp_servers.len(), 1);
-    let mcp = &lib.mcp_servers[0];
-    assert_eq!(mcp.id, "test-server");
-    assert_eq!(mcp.command, "npx");
-    assert_eq!(mcp.args, vec!["-y", "@test/mcp"]);
-    assert!(matches!(
-        mcp.server_type,
-        compiler::McpServerType::Stdio
-    ));
-
-    // 3. Skill loaded from .ship/skills/example-skill/SKILL.md.
+    // 2. Skill loaded from .ship/skills/example-skill/SKILL.md.
     assert_eq!(lib.skills.len(), 1, "expected one skill in the fixture");
     let skill = &lib.skills[0];
     assert_eq!(skill.id, "example-skill");
@@ -58,21 +52,21 @@ fn load_library_reads_agents_mcp_skills_rules() {
     );
     assert!(skill.content.contains("Example Skill"));
 
-    // 4. Rule loaded from .ship/rules/01-style.md.
-    assert_eq!(lib.rules.len(), 1);
-    let rule = &lib.rules[0];
-    assert_eq!(rule.file_name, "01-style.md");
-    assert!(rule.content.contains("Style"));
-    assert_eq!(
-        rule.description.as_deref(),
-        Some("A test rule".to_string()).as_deref()
+    // 3. MCP server and rule vectors are EMPTY post W4 — the leaf
+    //    no longer reads .ship/mcp.jsonc or .ship/rules/*.md. Both
+    //    arrive via defineMcpServer / defineRule declare-forms in
+    //    ship.config.ts and land through the resolver's merge step.
+    //    The full descriptor path is exercised in ship-resolver.
+    assert!(
+        lib.mcp_servers.is_empty(),
+        "mcp_servers must be empty — the leaf no longer reads .ship/mcp.jsonc"
+    );
+    assert!(
+        lib.rules.is_empty(),
+        "rules must be empty — the leaf no longer reads .ship/rules/*.md"
     );
 
-    // 5. Permissions loaded from .ship/permissions.jsonc if present
-    //    (fixture does not include it; default empty Permissions is valid).
-    // No assertion needed; the load call's success covers the path.
-
-    // 6. Hooks loaded from .ship/hooks.jsonc (fixture does not include it).
+    // 4. Hooks loaded from .ship/hooks.jsonc (fixture does not include it).
     assert!(
         lib.hooks.is_empty(),
         "fixture has no hooks.jsonc, library must default to empty"

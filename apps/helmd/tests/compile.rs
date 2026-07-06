@@ -161,7 +161,14 @@ async fn compile_dry_run_does_not_write_files() {
     let repo = tmp.path();
     let ship_dir = repo.join(".ship");
     std::fs::create_dir_all(&ship_dir).expect("create .ship");
-    // Mirror the fixture files into the temp repo so load_library succeeds.
+    // Mirror the fixture files into the temp repo so the roll-up succeeds.
+    // The .ship/ contents (agents + skills) plus `ship.config.ts` at the
+    // space root — the format-migration Wave 4 phase A surface. The fixture
+    // no longer carries `.ship/mcp.jsonc` / `.ship/rules/01-style.md`
+    // (those moved to `ship.config.ts` declare-forms).
+    let fixture_root = fixture_ship_dir().parent().unwrap().to_path_buf();
+    std::fs::copy(fixture_root.join("ship.config.ts"), repo.join("ship.config.ts"))
+        .expect("copy ship.config.ts");
     let fixture_ship = fixture_ship_dir();
     for entry in std::fs::read_dir(&fixture_ship).expect("read fixture") {
         let entry = entry.expect("entry");

@@ -15,9 +15,11 @@
 //!   view_state`) → a `config.file_changed` kernel event → the descriptor
 //!   cache invalidates → the next resolve recomposes with an edit visible.
 //!
-//! No `ship.ts` in the fixture: an empty `imported_modules` short-circuits
-//! `roll_up`'s TS-eval fan-out (`ship_resolver::roll_up`'s own doc — "Empty
-//! module list → no V8 work"), so this file never touches the V8 isolate.
+//! The fixture's rule is authored via `ship.config.ts`'s `defineRule`
+//! declare-form (format-migration Wave 4 phase A — `.ship/rules/*.md` is
+//! no longer read), so this file does touch the V8 isolate for the one
+//! `imported_modules` entry; every other noun (agents, skills) stays a
+//! plain `std::fs` fixture.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -53,7 +55,7 @@ const COLLIDING_ID: &str = "example.test/acme/kit/helper";
 /// - `.ship/agents/helper.jsonc` — source agent, id = the cached package's
 ///   post-namespace id (the collision; source wins per default precedence).
 /// - `.ship/skills/review/SKILL.md` — a source skill.
-/// - `.ship/rules/style.md` — a source rule (the change leg edits this).
+/// - `ship.config.ts` (`defineRule`) — a source rule (the change leg edits this).
 /// - `.ship/ship.lock` + `<cache_root>/objects/<hex>/...` — one cached
 ///   package exporting a same-bare-id `helper` agent.
 ///
@@ -82,8 +84,7 @@ fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
     )
     .unwrap();
 
-    std::fs::create_dir_all(ship_dir.join("rules")).unwrap();
-    write_rule_file(&ship_dir, "Be terse.");
+    write_rule_file(&space_root, "Be terse.");
 
     let cache_root = space_root.join("cache");
     let obj = cache_root.join("objects").join(PKG_HEX);
@@ -120,10 +121,23 @@ fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
 /// (Re)write the source rule file — an `alwaysApply` rule with `body` as its
 /// content. The change leg calls this a second time to prove an edit is
 /// visible after recompose.
-fn write_rule_file(ship_dir: &Path, body: &str) {
+/// Write the space-root `ship.config.ts` with one `defineRule` call — the
+/// only source of rules post format-migration Wave 4 phase A. Called twice
+/// in the change leg (pre-edit and post-edit) with a different `body`, so
+/// each call fully overwrites the file rather than appending.
+fn write_rule_file(space_root: &Path, body: &str) {
     std::fs::write(
-        ship_dir.join("rules").join("style.md"),
-        format!("---\nalwaysApply: true\n---\n{body}\n"),
+        space_root.join("ship.config.ts"),
+        format!(
+            r#"import {{ defineRule }} from "ship";
+
+defineRule({{
+  id: "style",
+  content: {body:?},
+  applyScope: "always",
+}});
+"#
+        ),
     )
     .unwrap();
 }
@@ -244,20 +258,21 @@ async fn spine_config_file_changed_invalidates_cache_and_recompose_sees_the_edit
     assert!(!before_context.contains("Ship it."), "{before_context}");
     assert_eq!(cache._len().await, 1);
 
-    // Edit the source rule file — the "edited source file" the change leg
-    // exercises.
-    write_rule_file(&ship_dir, "Be terse. Ship it.");
+    // Edit the source's `ship.config.ts` — the "edited source file" the
+    // change leg exercises.
+    write_rule_file(&space_root, "Be terse. Ship it.");
 
     // Author + broadcast the synthetic `config.file_changed` — the keystone
     // pattern (no inotify, not flaky), the same shape `ship-resolver`'s own
-    // `cache.rs` tests inject.
+    // `cache.rs` tests inject. `ship.config.ts` is the source-root watch's
+    // target (`ship-config::watcher::spawn_source_root_watch`), domain "source".
     kernel.broadcast(
         EventEnvelope::new(
             event_types::CONFIG_FILE_CHANGED,
-            "rules/style.md",
+            "ship.config.ts",
             &ConfigFileChanged {
                 domain: "source".to_string(),
-                path: "rules/style.md".to_string(),
+                path: "ship.config.ts".to_string(),
                 content_hash: "edited".to_string(),
             },
         )

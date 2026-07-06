@@ -14,20 +14,23 @@
 //! flaky).
 //!
 //! The spawner ([`spawn_config_watcher`]) and its RAII handle ([`ConfigWatcher`])
-//! live in this module too: they open the six declarative `.ship/<domain>/`
-//! watches (agents, skills, views, pipelines, rules, collections) for both
-//! user-scope and project-scope, drive the `author_*` helpers above from each
-//! domain's delta stream, and tear the whole thing down on drop.
+//! live in this module too: they open the three declarative `.ship/<domain>/`
+//! watches (agents, skills, views) for both user-scope and project-scope,
+//! drive the `author_*` helpers above from each domain's delta stream, and
+//! tear the whole thing down on drop. (Post format-migration Wave 4
+//! phase A: `pipelines`, `rules`, and `collections` are gone — those
+//! nouns move exclusively into `ship.config.ts` declare-forms and
+//! the resolver's merge step, not the file watcher set.)
 //!
 //! ## Source-root coverage (Phase-3 J-event-channel)
 //!
-//! The six domain dirs above don't reach `ship.ts` (the space-root manifest)
+//! The three domain dirs above don't reach `ship.config.ts` (the space-root manifest)
 //! or a `space.skill_paths` entry that lives outside `.ship/skills/`. The
 //! retired ship-resolver private watcher used to cover that surface off its
 //! own `tokio::sync::watch` channel; per the operator ruling (2026-07-06,
 //! `job-spec-p3-event-channel.md`) reactivity flows through the kernel log
 //! only, so [`spawn_config_watcher`] extends its watch set to the union:
-//! [`spawn_source_root_watch`] opens a watch on `ship.ts` plus every
+//! [`spawn_source_root_watch`] opens a watch on `ship.config.ts` plus every
 //! `space.skill_paths` entry past the default `.ship/skills/` (already
 //! covered by the `skills` domain watch — excluded here so the same file
 //! never double-fires), authoring the SAME `config.file_changed` shape
@@ -153,21 +156,20 @@ struct DomainCfg {
     recursive: bool,
 }
 
+// Post format-migration Wave 4 phase A: the `pipelines`, `rules`, and
+// `collections` entries die — those nouns move exclusively into
+// `ship.config.ts` declare-forms and the resolver's merge step. The
+// three remaining domains (agents, skills, views) stay — they carry
+// live dual-path file traffic in W4 phase A, fully cut in W5.
+// (census-format-migration.md §4 row 3.)
 const DOMAINS: &[DomainCfg] = &[
     DomainCfg { dir_name: "agents", event_type: event_types::AGENT_CHANGED, recursive: false },
     DomainCfg { dir_name: "skills", event_type: event_types::SKILL_CHANGED, recursive: true },
     DomainCfg { dir_name: "views", event_type: event_types::VIEW_CHANGED, recursive: true },
-    DomainCfg { dir_name: "pipelines", event_type: event_types::PIPELINE_CHANGED, recursive: false },
-    DomainCfg { dir_name: "rules", event_type: event_types::RULE_CHANGED, recursive: false },
-    DomainCfg {
-        dir_name: "collections",
-        event_type: event_types::COLLECTION_CHANGED,
-        recursive: false,
-    },
 ];
 
-/// Spawn watchers for the six declarative config domains, both at user-scope
-/// and (when present) project-scope.
+/// Spawn watchers for the three declarative config domains (agents,
+/// skills, views), both at user-scope and (when present) project-scope.
 pub fn spawn_config_watcher(
     kernel: Arc<KernelLog>,
     ship_dir: PathBuf,
@@ -210,9 +212,9 @@ pub fn spawn_config_watcher(
         }
     }
 
-    // Source-root coverage: `ship.ts` + `space.skill_paths` extras, the
-    // surface the six domain dirs above don't reach. User-scope has no
-    // notion of a space-root `ship.ts`, so this only runs when a project
+    // Source-root coverage: `ship.config.ts` + `space.skill_paths` extras, the
+    // surface the three domain dirs above don't reach. User-scope has no
+    // notion of a space-root `ship.config.ts`, so this only runs when a project
     // is registered.
     if let (Some(ws_dir), Some(ref proj_ship_dir)) =
         (workspace_dir.as_deref(), project_ship_dir.as_deref())
@@ -231,13 +233,13 @@ pub fn spawn_config_watcher(
 }
 
 /// The domain label the source-root watches author `config.file_changed`
-/// under. Distinct from the six [`DOMAINS`] labels — `ship.ts` and the
+/// under. Distinct from the three [`DOMAINS`] labels — `ship.config.ts` and the
 /// `space.skill_paths` extras live at (or below) the space root, not
 /// inside a `.ship/<domain>/` dir.
 const SOURCE_ROOT_DOMAIN: &str = "source";
 
-/// Cover the space-shape surface the six declarative domain watches don't
-/// reach: `ship.ts` at the space root, and any `space.skill_paths` entry
+/// Cover the space-shape surface the three declarative domain watches don't
+/// reach: `ship.config.ts` at the space root, and any `space.skill_paths` entry
 /// past the default `.ship/skills/` (already covered by the `skills`
 /// domain watch spawned in [`spawn_config_watcher`] — excluded here so the
 /// same file never authors two `config.file_changed` events).
@@ -255,7 +257,7 @@ fn spawn_source_root_watch(
     space: Option<SpaceId>,
     debounce: Duration,
 ) {
-    // `ship.ts` — a single file at the space root. The watch is rooted at
+    // `ship.config.ts` — a single file at the space root. The watch is rooted at
     // the space root itself (non-recursive: siblings like Cargo.toml or
     // README.md are noise), filtered to the one file so unrelated
     // top-level churn never authors a signal.
@@ -272,7 +274,7 @@ fn spawn_source_root_watch(
                 rx,
                 space_root.to_path_buf(),
                 space.clone(),
-                |rel| rel == "ship.ts",
+                |rel| rel == "ship.config.ts",
             ));
         }
     }
@@ -311,7 +313,7 @@ fn spawn_source_root_watch(
 /// under [`SOURCE_ROOT_DOMAIN`] (no coarse `<domain>.changed` ping) and
 /// applies `filter` to each touched rel before authoring — the
 /// source-root watches' roots aren't a whole domain dir, so not every
-/// delta under the watched root is necessarily in scope (the `ship.ts`
+/// delta under the watched root is necessarily in scope (the `ship.config.ts`
 /// watch, in particular, shares its root with unrelated top-level files).
 fn spawn_filtered_file_consumer(
     kernel: Arc<KernelLog>,

@@ -192,7 +192,7 @@ pub struct ResolvedConfig {
     /// is fine and there is no spawner to provision the token env.
     pub scoped_launch: bool,
     // ── Phase-2 project-shape passthrough ─────────────────────────────────────
-    /// Resolved TS modules from the multi-file `ship.ts` import graph. The
+    /// Resolved TS modules from the multi-file `ship.config.ts` import graph. The
     /// Phase-0 leaf never produced this; Phase-2's resolver populates it on
     /// the TS path. The leaf's `resolve()` returns an empty vec — the
     /// `.jsonc` path doesn't have TS modules to surface.
@@ -232,18 +232,18 @@ pub struct ExtensionLibrary {
     #[serde(default)]
     pub rules: Vec<Rule>,
     /// Pipeline definitions — from `pipelines/*.jsonc` today, from
-    /// `definePipeline` declare-forms in `ship.ts` per format-migration
+    /// `definePipeline` declare-forms in `ship.config.ts` per format-migration
     /// Wave 3. Not yet cross-extension composed (`compose_space` passes
     /// the space tier's set through verbatim; see `compose.rs`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pipelines: Vec<PipelineDef>,
     /// Trigger definitions — from `triggers/*.jsonc` today, from
-    /// `defineTrigger` declare-forms in `ship.ts` per format-migration
+    /// `defineTrigger` declare-forms in `ship.config.ts` per format-migration
     /// Wave 3. Not yet cross-extension composed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub triggers: Vec<TriggerDef>,
     /// Collection definitions — from `collections/*.jsonc` today, from
-    /// `defineCollection` declare-forms in `ship.ts` per format-migration
+    /// `defineCollection` declare-forms in `ship.config.ts` per format-migration
     /// Wave 3. Not yet cross-extension composed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub collections: Vec<CollectionDef>,
@@ -332,11 +332,11 @@ pub struct ExtensionLibrary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claude_effort: Option<String>,
     /// Override the skills dir (project-relative path). `None` means use the
-    /// default `.ship/skills/`. The `skills_dir` key in `ship.ts` lands here.
+    /// default `.ship/skills/`. The `skills_dir` key in `ship.config.ts` lands here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub skills_dir: Option<String>,
     /// Override the rules dir (project-relative path). `None` means use the
-    /// default `.ship/rules/`. The `rules_dir` key in `ship.ts` lands here.
+    /// default `.ship/rules/`. The `rules_dir` key in `ship.config.ts` lands here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rules_dir: Option<String>,
     /// Additional skill paths from `space.skill_paths` in `ship.jsonc`
@@ -351,7 +351,7 @@ pub struct ExtensionLibrary {
     /// but the in-memory form needs a stable order for diff/snapshot tests.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub per_agent_skills: BTreeMap<String, Vec<Skill>>,
-    /// Resolved multi-file TS import graph: `ship.ts` + `agents.ts` + any
+    /// Resolved multi-file TS import graph: `ship.config.ts` + `agents.ts` + any
     /// per-domain modules. Populated by the Phase-2 resolver; the leaf
     /// `load_library` produces an empty vec.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

@@ -11,6 +11,7 @@ fs-watch = { path = "../../../ship-substrate/crates/fs-watch" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-config = { path = "../ship-config" }
 ship-collection = { path = "../ship-collection" }
+compiler = { path = "../../../compiler" }
 
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

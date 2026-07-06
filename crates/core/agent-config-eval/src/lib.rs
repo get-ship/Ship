@@ -1,4 +1,4 @@
-//! Evaluate a `ship.ts` config — authored with `defineAgent` and, per
+//! Evaluate a `ship.config.ts` config — authored with `defineAgent` and, per
 //! format-migration Wave 3, the sibling declare-forms (`defineMcpServer`,
 //! `defineSkill`, `definePipeline`, `defineTrigger`, `defineCollection`,
 //! `defineRule`) — in a locked-down ship-js isolate and harvest the result
@@ -39,7 +39,7 @@
 //! as a plain value via [`resolve_agents_with_globals`]. The value is baked into
 //! the SDK module as an exported `globals` object before any user code runs — no
 //! fs/net/RPC — so the closed world and determinism hold: the globals are part
-//! of the input. A `ship.ts` composes them with
+//! of the input. A `ship.config.ts` composes them with
 //! `defineAgent({ ...globals.agentDefaults, agent: { id, name: id } })`.
 
 use std::path::Path;
@@ -71,9 +71,9 @@ pub use generated_stub::SDK_STUB;
 /// no ES downleveling — only types come out. Comments are dropped.
 pub fn strip_types(source: &str) -> anyhow::Result<String> {
     let allocator = Allocator::default();
-    // `ship.ts` — non-JSX TypeScript. `<T>x` is a type assertion here, not JSX.
+    // `ship.config.ts` — non-JSX TypeScript. `<T>x` is a type assertion here, not JSX.
     let source_type = SourceType::ts();
-    let path = Path::new("ship.ts");
+    let path = Path::new("ship.config.ts");
 
     let parsed = Parser::new(&allocator, source, source_type).parse();
     if !parsed.errors.is_empty() {
@@ -140,7 +140,7 @@ impl Dispatch for DenyAll {
     }
 }
 
-/// Evaluate a `ship.ts` config module and harvest its `defineAgent` calls as
+/// Evaluate a `ship.config.ts` config module and harvest its `defineAgent` calls as
 /// [`AgentProfile`]s, in call order.
 ///
 /// `source` is real TypeScript — [`strip_types`] lowers it to JavaScript before
@@ -164,7 +164,7 @@ pub async fn resolve_agents_with_globals(
     Ok(resolve_declarations_with_globals(source, globals).await?.agents)
 }
 
-/// Evaluate a `ship.ts` config module and harvest every declare-form call
+/// Evaluate a `ship.config.ts` config module and harvest every declare-form call
 /// (`defineAgent`, `defineMcpServer`, `defineSkill`, `definePipeline`,
 /// `defineTrigger`, `defineCollection`, `defineRule`) into a
 /// [`Declarations`], in call order per noun.

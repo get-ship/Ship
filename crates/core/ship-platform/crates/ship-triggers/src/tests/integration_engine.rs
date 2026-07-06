@@ -38,9 +38,13 @@ pub(super) fn test_kernel(ship_dir: &Path) -> Arc<Mutex<KernelRouter>> {
     Arc::new(Mutex::new(kr))
 }
 
-pub(super) fn write_hook(ship_dir: &Path, filename: &str, content: &str) {
-    let path = ship_dir.join("triggers").join(filename);
-    std::fs::write(path, content).unwrap();
+/// Parse a `compiler::TriggerDef` from its JSON authoring shape (the
+/// `defineTrigger` declare-form's serialized form — `id`/`trigger`/`source`/
+/// `actions`). Replaces the old `write_hook` JSONC-file helper post
+/// format-migration Wave 4 phase A: triggers are descriptor values now, not
+/// files.
+pub(super) fn trigger_def(json: &str) -> compiler::TriggerDef {
+    serde_json::from_str(json).unwrap_or_else(|e| panic!("invalid trigger def json: {e}\n{json}"))
 }
 
 pub(super) fn recent_hook_events(ship_dir: &Path) -> Vec<EventEnvelope> {
@@ -74,41 +78,48 @@ fn run_failed_envelope() -> EventEnvelope {
     .with_scope(EventScope::Space, Some(TEST_SPACE))
 }
 
-fn run_completed_envelope() -> EventEnvelope {
-    EventEnvelope::new(
-        "pipeline.run.completed",
-        "job-1",
-        &json!({ "pipeline_run_id": "job-1", "slug": "job-1", "status": "ok" }),
-    )
-    .unwrap()
-    .with_scope(EventScope::Space, Some(TEST_SPACE))
+fn tasks_collection_def(id: &str) -> compiler::CollectionDef {
+    compiler::CollectionDef {
+        id: id.to_string(),
+        name: None,
+        fields: vec![
+            compiler::types::CollectionFieldDef {
+                name: "title".to_string(),
+                field_type: compiler::types::CollectionFieldType::String,
+                required: false,
+                values: vec![],
+                default: None,
+                filterable: None,
+                sortable: None,
+            },
+            compiler::types::CollectionFieldDef {
+                name: "body".to_string(),
+                field_type: compiler::types::CollectionFieldType::Markdown,
+                required: false,
+                values: vec![],
+                default: None,
+                filterable: None,
+                sortable: None,
+            },
+            compiler::types::CollectionFieldDef {
+                name: "status".to_string(),
+                field_type: compiler::types::CollectionFieldType::String,
+                required: false,
+                values: vec![],
+                default: None,
+                filterable: None,
+                sortable: None,
+            },
+        ],
+    }
 }
 
-fn write_schema(ship_dir: &Path, id: &str) {
-    let schema = format!(
-        r#"{{
-            "id": "{id}",
-            "fields": {{
-                "title": {{ "type": "string" }},
-                "body": {{ "type": "markdown" }},
-                "status": {{ "type": "string" }}
-            }}
-        }}"#
-    );
-    std::fs::create_dir_all(ship_dir.join("collections")).unwrap();
-    std::fs::write(
-        ship_dir.join("collections").join(format!("{id}.jsonc")),
-        schema,
-    )
-    .unwrap();
-}
-
-/// Build a schema registry hydrated from the `.ship/collections/*.jsonc`
-/// overlay — mirrors the daemon's shared-registry hydration (C-2 UD-7) so a
-/// trigger insert into a file-authored collection validates + lands.
-fn hydrated_registry(ship_dir: &Path) -> Arc<ship_collection::projection::SchemaRegistry> {
+/// Build a schema registry hydrated from a descriptor `CollectionDef` —
+/// mirrors the daemon's shared-registry hydration (C-2 UD-7) so a trigger
+/// insert into a descriptor-authored collection validates + lands.
+fn hydrated_registry(id: &str) -> Arc<ship_collection::projection::SchemaRegistry> {
     let registry = Arc::new(ship_collection::projection::SchemaRegistry::new());
-    ship_store::collection_schemas::hydrate_registry(&registry, ship_dir, None);
+    ship_store::collection_schemas::hydrate_registry(&registry, &[tasks_collection_def(id)]);
     registry
 }
 
@@ -117,32 +128,30 @@ fn hydrated_registry(ship_dir: &Path) -> Arc<ship_collection::projection::Schema
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn triggers_engine_dispatch_matching_hook_fires() {
     let (_tmp, ship_dir) = tmp_ship_dir();
-    write_hook(
-        &ship_dir,
-        "fail.jsonc",
-        r#"{
-            "name": "on-fail",
+    let defs = vec![
+        trigger_def(
+            r#"{
+            "id": "on-fail",
             "trigger": { "event": "pipeline.run.failed" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "fail" } }
             ]
         }"#,
-    );
-    write_hook(
-        &ship_dir,
-        "done.jsonc",
-        r#"{
-            "name": "on-done",
+        ),
+        trigger_def(
+            r#"{
+            "id": "on-done",
             "trigger": { "event": "pipeline.run.completed" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "done" } }
             ]
         }"#,
-    );
+        ),
+    ];
 
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
-    engine.reload().await;
+    engine.reload(&defs).await;
     assert_eq!(engine.snapshot().await.len(), 2);
 
     let before = recent_hook_events(&ship_dir);
@@ -155,53 +164,30 @@ async fn triggers_engine_dispatch_matching_hook_fires() {
     assert_eq!(payload["from"], "fail");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn triggers_engine_dispatch_filter_excludes_non_matching_payload() {
-    let (_tmp, ship_dir) = tmp_ship_dir();
-    write_hook(
-        &ship_dir,
-        "only-failed.jsonc",
-        r#"{
-            "name": "only-failed",
-            "trigger": {
-                "event": "pipeline.run.completed",
-                "filter": { "payload.status": "failed" }
-            },
-            "actions": [
-                { "type": "event.emit", "event_type": "hook.tripped", "payload": {} }
-            ]
-        }"#,
-    );
-
-    let kernel = test_kernel(&ship_dir);
-    let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
-    engine.reload().await;
-
-    let before = recent_hook_events(&ship_dir);
-    engine.dispatch_event(&run_completed_envelope()).await;
-    let after = recent_hook_events(&ship_dir);
-    assert!(diff(&before, &after).is_empty());
-}
+// `triggers_engine_dispatch_filter_excludes_non_matching_payload` (the
+// descriptor-driven filter-exclusion case) is retired: `compiler::TriggerDef`
+// has no TS shape for the dot-path payload filter yet (def.rs's
+// `convert_trigger_match` always emits `filter: None`), so there is no
+// descriptor input left to build it from. `filter::matches`'s own dot-path
+// matching logic is still covered directly in `integration_filter.rs`.
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn triggers_engine_dispatch_jinja_renders_event_fields() {
     let (_tmp, ship_dir) = tmp_ship_dir();
-    write_hook(
-        &ship_dir,
-        "mirror.jsonc",
+    let defs = vec![trigger_def(
         r#"{
-            "name": "mirror",
+            "id": "mirror",
             "trigger": { "event": "pipeline.run.failed" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped",
                   "payload": { "entity": "{{ event.entity_id }}" } }
             ]
         }"#,
-    );
+    )];
 
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
-    engine.reload().await;
+    engine.reload(&defs).await;
 
     let before = recent_hook_events(&ship_dir);
     engine.dispatch_event(&run_failed_envelope()).await;
@@ -215,22 +201,20 @@ async fn triggers_engine_dispatch_jinja_renders_event_fields() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn triggers_engine_dispatch_when_condition_skips_action() {
     let (_tmp, ship_dir) = tmp_ship_dir();
-    write_hook(
-        &ship_dir,
-        "skip.jsonc",
+    let defs = vec![trigger_def(
         r#"{
-            "name": "skip",
+            "id": "skip",
             "trigger": { "event": "pipeline.run.failed" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "when": "1 == 2",
                   "payload": {} }
             ]
         }"#,
-    );
+    )];
 
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
-    engine.reload().await;
+    engine.reload(&defs).await;
 
     let before = recent_hook_events(&ship_dir);
     engine.dispatch_event(&run_failed_envelope()).await;
@@ -241,11 +225,9 @@ async fn triggers_engine_dispatch_when_condition_skips_action() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn triggers_engine_dispatch_results_chain_across_actions() {
     let (_tmp, ship_dir) = tmp_ship_dir();
-    write_hook(
-        &ship_dir,
-        "chain.jsonc",
+    let defs = vec![trigger_def(
         r#"{
-            "name": "chain",
+            "id": "chain",
             "trigger": { "event": "pipeline.run.failed" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "step": 1 } },
@@ -253,11 +235,11 @@ async fn triggers_engine_dispatch_results_chain_across_actions() {
                   "payload": { "prev_event_id": "{{ results[0].event_id }}" } }
             ]
         }"#,
-    );
+    )];
 
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
-    engine.reload().await;
+    engine.reload(&defs).await;
 
     let before = recent_hook_events(&ship_dir);
     engine.dispatch_event(&run_failed_envelope()).await;
@@ -275,20 +257,17 @@ async fn triggers_engine_dispatch_results_chain_across_actions() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn triggers_engine_dispatch_template_file_is_rendered() {
     let (_tmp, ship_dir) = tmp_ship_dir();
-    // `tasks` is a user (non-reserved) collection authored on the file overlay;
+    // `tasks` is a user (non-reserved) collection authored on the descriptor;
     // the trigger insert validates against it via the hydrated shared registry.
-    write_schema(&ship_dir, "tasks");
     std::fs::create_dir_all(ship_dir.join("triggers/templates")).unwrap();
     std::fs::write(
         ship_dir.join("triggers/templates/note.j2"),
         r#"{ "title": "{{ event.entity_id }}", "body": "failed", "status": "open" }"#,
     )
     .unwrap();
-    write_hook(
-        &ship_dir,
-        "record.jsonc",
+    let defs = vec![trigger_def(
         r#"{
-            "name": "record",
+            "id": "record",
             "trigger": { "event": "pipeline.run.failed" },
             "actions": [
                 { "type": "collection.insert",
@@ -296,12 +275,12 @@ async fn triggers_engine_dispatch_template_file_is_rendered() {
                   "template_file": "triggers/templates/note.j2" }
             ]
         }"#,
-    );
+    )];
 
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone())
-        .with_schemas(hydrated_registry(&ship_dir));
-    engine.reload().await;
+        .with_schemas(hydrated_registry("tasks"));
+    engine.reload(&defs).await;
     assert_eq!(engine.snapshot().await.len(), 1);
 
     engine.dispatch_event(&run_failed_envelope()).await;
@@ -340,11 +319,9 @@ async fn read_collection(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn triggers_engine_dispatch_recursion_guard_blocks_deep_hooks() {
     let (_tmp, ship_dir) = tmp_ship_dir();
-    write_hook(
-        &ship_dir,
-        "loop.jsonc",
+    let defs = vec![trigger_def(
         r#"{
-            "name": "loop",
+            "id": "loop",
             "trigger": { "event": "pipeline.run.failed" },
             "actions": [
                 { "type": "event.emit", "event_type": "pipeline.run.failed", "payload": {
@@ -352,11 +329,11 @@ async fn triggers_engine_dispatch_recursion_guard_blocks_deep_hooks() {
                 } }
             ]
         }"#,
-    );
+    )];
 
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
-    engine.reload().await;
+    engine.reload(&defs).await;
 
     let mut envelope = run_failed_envelope();
     let mut payload: Value = serde_json::from_str(&envelope.payload_json).unwrap();
@@ -389,7 +366,7 @@ async fn triggers_wire_created_schema_visible_to_trigger_insert() {
     // wire must share ONE Arc<SchemaRegistry>. A schema created over the wire
     // (CollectionService::create_schema — the exact call the wire RPC makes)
     // must be visible to a trigger `collection.insert`. `wire_notes` is neither
-    // a built-in nor file-authored, so the insert can only succeed if the
+    // a built-in nor descriptor-authored, so the insert can only succeed if the
     // engine holds the SAME registry the wire mutated.
     let (_tmp, ship_dir) = tmp_ship_dir();
     let kernel = test_kernel(&ship_dir);
@@ -409,11 +386,9 @@ async fn triggers_wire_created_schema_visible_to_trigger_insert() {
         "wire create_schema must land in the shared registry"
     );
 
-    write_hook(
-        &ship_dir,
-        "record.jsonc",
+    let defs = vec![trigger_def(
         r#"{
-            "name": "record",
+            "id": "record",
             "trigger": { "event": "pipeline.run.failed" },
             "actions": [
                 { "type": "collection.insert",
@@ -421,12 +396,12 @@ async fn triggers_wire_created_schema_visible_to_trigger_insert() {
                   "data": { "title": "{{ event.entity_id }}", "body": "failed", "status": "open" } }
             ]
         }"#,
-    );
+    )];
 
     // Engine holds the SAME shared registry — proves the wiring, not a re-hydrate.
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone())
         .with_schemas(shared.clone());
-    engine.reload().await;
+    engine.reload(&defs).await;
     assert_eq!(engine.snapshot().await.len(), 1);
 
     engine.dispatch_event(&run_failed_envelope()).await;

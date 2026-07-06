@@ -94,19 +94,26 @@ impl HookEngine {
         self.sources.as_ref().map(|s| s.webhook.clone())
     }
 
-    /// Replace the registered hook set by rescanning the triggers directory.
-    /// Also notifies all source adapters of the updated definitions.
-    pub async fn reload(&self) {
-        // Load triggers from the composed overlay (local + dep exports) when the
-        // space has deps; raw `.ship/` otherwise. The watcher still watches the
-        // local dir for hot-reload — dep triggers are static (from the cache).
-        let root = ship_substrate::path_layout::composed_root_for(&self.ship_dir);
-        let report = super::loader::load_triggers_dir(&root);
-        let mut map = HashMap::with_capacity(report.hooks.len());
-        for hook in report.hooks {
-            map.insert(hook.name.clone(), hook);
+    /// Replace the registered hook set from the descriptor's current trigger
+    /// definitions. Also notifies all source adapters of the updated
+    /// definitions. Invalid entries are logged and skipped — one bad
+    /// trigger never discards the rest (mirrors the retired JSONC loader's
+    /// error-tolerant behavior).
+    pub async fn reload(&self, triggers: &[compiler::TriggerDef]) {
+        let mut map = HashMap::with_capacity(triggers.len());
+        let mut errors = 0usize;
+        for def in triggers {
+            match HookDef::try_from_def(def, &self.ship_dir) {
+                Ok(hook) => {
+                    map.insert(hook.name.clone(), hook);
+                }
+                Err(e) => {
+                    errors += 1;
+                    tracing::warn!(trigger = def.id, reason = %e, "triggers: invalid trigger skipped");
+                }
+            }
         }
-        tracing::info!(count = map.len(), errors = report.errors.len(), "hooks: reloaded");
+        tracing::info!(count = map.len(), errors, "hooks: reloaded");
         let defs: Vec<HookDef> = map.values().cloned().collect();
         *self.hooks.write().await = map;
 
@@ -264,10 +271,17 @@ impl ServiceHandler for HookService {
 /// `schemas` is the daemon's ONE shared collection schema registry (the same
 /// `Arc` the collection wire is mounted with). Threading it here is what makes
 /// a wire-created user schema visible to a trigger insert (C-2 UD-7).
+///
+/// `triggers` is the caller's current descriptor trigger set (e.g. the
+/// active project's `ExtensionLibrary::triggers` from `ship_resolver::roll_up`).
+/// There is no live re-roll-up on change — the caller re-calls `reload` when
+/// the source changes (format-migration Wave 4 phase A retired the
+/// dedicated file-watcher; see the crate doc comment).
 pub async fn spawn_hook_service(
     kernel: Arc<Mutex<KernelRouter>>,
     ship_dir: PathBuf,
     schemas: Arc<ship_collection::projection::SchemaRegistry>,
+    triggers: Vec<compiler::TriggerDef>,
 ) -> Result<Arc<HookEngine>> {
     let source_mgr = Arc::new(SourceManager::new(ship_dir.clone()));
     source_mgr.start_all(kernel.clone());
@@ -276,7 +290,7 @@ pub async fn spawn_hook_service(
         HookEngine::new_with_sources(kernel.clone(), ship_dir, source_mgr)
             .with_schemas(schemas),
     );
-    engine.reload().await;
+    engine.reload(&triggers).await;
 
     let runtime = tokio::runtime::Handle::current();
     let service = Box::new(HookService::new(engine.clone(), runtime));

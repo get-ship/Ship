@@ -1257,14 +1257,20 @@ impl HarnessService for HarnessImpl {
         let repo = PathBuf::from(&repo_path);
         let ship_dir = ShipHome::project_ship_dir(&repo);
 
-        // Step 1: load the project library (LEAF — no substrate).
-        let lib = compiler::load_library(&ship_dir).map_err(|e| {
-            connectrpc::ConnectError::invalid_argument(format!(
-                "load_library({}) failed: {e}",
-                ship_dir.display()
-            ))
-        })?;
-
+        // Step 1: roll up the project (cache + enabled-library + space tier).
+        // The V8 TS eval inside `roll_up_blocking` merges every declare-form
+        // (mcp server, rule, collection, trigger, pipeline) into the
+        // `ExtensionLibrary` the compile pipeline consumes — the leaf
+        // `compiler::load_library` no longer reads `.ship/mcp.jsonc` or
+        // `.ship/rules/*.md` (format-migration Wave 4 phase A).
+        let lib = ship_resolver::roll_up_blocking(&repo, None, None)
+            .map(|composed| composed.library)
+            .map_err(|e| {
+                connectrpc::ConnectError::invalid_argument(format!(
+                    "roll_up({}) failed: {e}",
+                    repo.display()
+                ))
+            })?;
         // Step 2: resolve into the runtime config.
         let active_agent_override: Option<String> = if req.active_agent.is_empty() {
             None

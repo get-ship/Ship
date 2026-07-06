@@ -150,31 +150,51 @@ impl ShipRuntime {
         );
     }
 
-    /// Start the hook engine: spawns external source adapters (webhook, file, cron)
-    /// and the hot-reload watcher. Idempotent — subsequent calls are no-ops.
+    /// Start the hook engine: spawns external source adapters (webhook, file,
+    /// cron) and reloads the trigger set from the active project's descriptor.
+    /// Idempotent — subsequent calls are no-ops.
+    ///
+    /// Format-migration Wave 4 phase A: triggers are sourced from the
+    /// descriptor (`defineTrigger` in `ship.config.ts`), not
+    /// `.ship/triggers/*.jsonc`. There is no live re-roll-up on change —
+    /// hot-reload for triggers is deferred alongside the same gap for
+    /// rules/collections/pipelines (see `ConfigWatcher`'s DOMAINS comment).
+    /// A space-less boot (no workspace) starts with an empty trigger set —
+    /// "globally enabled" (user-scope library) triggers have no roll-up path
+    /// yet (`ship_resolver::roll_up`'s deferred `library_dir` wiring, census
+    /// Phase 6), so they aren't loaded either; a real, pre-existing gap, not
+    /// introduced by this cutover.
     pub async fn start_hook_engine(&self) {
         if self.hook_engine.get().is_some() {
             return;
         }
-        // Pass the user-scope library/ dir; engine joins `triggers/` for the
-        // user-scope vector. Project-scope triggers are loaded by the hook
-        // engine when a project workspace activates.
-        let library_dir = ship_substrate::ShipHome::at(self.ship_dir.clone()).library_dir();
+        // `template_file` on a `collection.insert` action resolves relative to
+        // the trigger's own space — the project `.ship/` when a workspace is
+        // attached, the daemon's home root otherwise (matches
+        // `start_agent_def_index`'s `project_ship_dir` derivation).
+        let (hook_ship_dir, triggers) = match &self.workspace_dir {
+            Some(workspace) => {
+                let project_ship_dir = ship_substrate::ShipHome::project_ship_dir(workspace);
+                let triggers = match ship_resolver::roll_up(workspace, None, None).await {
+                    Ok(composed) => composed.library.triggers,
+                    Err(e) => {
+                        tracing::warn!("hooks: project roll-up failed, starting with no triggers: {e}");
+                        Vec::new()
+                    }
+                };
+                (project_ship_dir, triggers)
+            }
+            None => (self.ship_dir.clone(), Vec::new()),
+        };
         match ship_triggers::engine::spawn_hook_service(
             self.kernel.clone(),
-            library_dir,
+            hook_ship_dir,
             self.schemas.clone(),
+            triggers,
         )
         .await
         {
             Ok(engine) => {
-                // Also start the filesystem watcher for hot-reload. Bind it to a
-                // long-lived field — dropping the HookWatcher aborts the reload task,
-                // so it MUST live for the daemon's lifetime.
-                match ship_triggers::watcher::spawn_watcher(engine.clone()) {
-                    Ok(w) => { let _ = self.hook_watcher.set(w); }
-                    Err(e) => tracing::warn!("hook watcher failed to start: {e}"),
-                }
                 let _ = self.hook_engine.set(engine);
                 tracing::info!("hooks: engine started");
             }

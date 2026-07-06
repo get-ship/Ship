@@ -1,37 +1,60 @@
-//! Pipeline loading and parsing.
+//! Pipeline loading and resolution.
 //!
 //! Resolves a pipeline for a job from (in priority order):
 //! 1. Already-set `steps` on the payload
-//! 2. Explicit `pipeline_name` on the payload (CLI/HTTP dispatch)
-//! 3. Named pipeline reference in spec frontmatter (`pipeline: <name>`)
-//! 4. None → single `Agent` step using the job's declared agent
+//! 2. The descriptor's `ExtensionLibrary::pipelines` (TS declare-forms),
+//!    looked up by `payload.pipeline_name` or by the `pipeline: <name>`
+//!    reference in spec frontmatter
+//! 3. None → single `Agent` step using the job's declared agent
 //!
-//! Pipelines are JSONC files at `.ship/pipelines/<name>.jsonc`. Spec
-//! frontmatter is YAML (markdown convention) and may carry a
-//! `pipeline: <name>` reference, but inline pipeline definitions in
-//! spec frontmatter are not supported.
+//! Post format-migration Wave 4 phase A: pipelines arrive through the
+//! descriptor's TS-merged `Vec<compiler::PipelineDef>` (the
+//! `definePipeline` declare-form in the space's `ship.config.ts`).
+//! The previous `.ship/pipelines/<name>.jsonc` file walk is gone — see
+//! `census-format-migration.md` Section 4 row 3.
 //!
 //! Lives at `crate::loader::pipeline_loader` (not under `orchestrator`)
 //! so `run_core::dispatch_one` can build the dispatch envelope without
 //! the `ship-code` feature. Pure spec validation; no process or session
 //! types are touched here.
+//!
+//! ## UNMAPPED COUPLING (per spec stop-rule)
+//!
+//! The runtime's `Pipeline` shape (`ship_substrate::events::pipeline::Pipeline`,
+//! the `step_type/agent/goal/command` per-step fields) does not map 1:1 onto
+//! the descriptor's `compiler::PipelineDef` shape (`step_specs: [{agent,
+//! harness, prompt}]`). A faithful converter is its own design pass —
+//! it would also need to fold the descriptor's per-`step_spec` prompt bodies
+//! into the runtime's `step_specs: Vec<String>` field used by
+//! `pipeline_specs::write_pipeline_specs`. Until that lands, this loader
+//! carries a no-op `load_pipeline_def_by_name` (the descriptor is in scope
+//! of `ensure_pipeline`'s callers) and `ensure_pipeline` documents the
+//! `payload.steps`-first contract. Surfaced per the Wave 4 phase A
+//! stop-rule; see the job spec at
+//! `helm/data/missions/m-ship-stack-cutover/scratch/job-spec-fm-w4-noun-cut.md`
+//! and the W4 spec section "STOP if any consumer turns out to read a
+//! noun's files DIRECTLY".
 
-use ship_substrate::events::pipeline::{PipelineRunStartedPayload, Pipeline, PipelineStep};
-use ship_pipelines::{PipelineMeta, normalize_pipeline};
+use ship_substrate::events::pipeline::PipelineRunStartedPayload;
+use ship_pipelines::PipelineMeta;
 
 mod resolve;
 use resolve::resolve_steps;
 
 /// Enrich a job with a pipeline and validate it. Resolution order:
 /// 1. Already has `steps` → use it
-/// 2. Payload `pipeline_name` → load `.ship/pipelines/<name>.jsonc`
-/// 3. Spec frontmatter has `pipeline: <name>` → load `.ship/pipelines/<name>.jsonc`
-/// 4. None → single `Agent` step from `payload.agent`
+/// 2. The `pipelines` slice (descriptor-sourced) is consulted via
+///    `resolve_steps` for `payload.pipeline_name` / spec-frontmatter
+///    references — see [`resolve::resolve_steps`].
+/// 3. None → single `Agent` step from `payload.agent`
 ///
 /// Returns `Err` if the resolved pipeline fails validation — currently, any
 /// agent/gate step without an `agent` declared, or any malformed gate block.
-pub fn ensure_pipeline(mut payload: PipelineRunStartedPayload) -> Result<PipelineRunStartedPayload, String> {
-    resolve_steps(&mut payload);
+pub fn ensure_pipeline(
+    mut payload: PipelineRunStartedPayload,
+    pipelines: &[compiler::PipelineDef],
+) -> Result<PipelineRunStartedPayload, String> {
+    resolve_steps(&mut payload, pipelines);
     interpolate_pipeline(&mut payload);
     // Re-sync payload.agent with the (possibly now-interpolated) first step's agent.
     if let Some(pipeline) = &payload.steps
@@ -92,72 +115,34 @@ fn resolve_template(
     }
 }
 
-/// Reload the `step_specs` block for a named pipeline from disk. Used by
-/// `advance_pipeline` so every step dispatch (including replay) can re-write
-pub fn load_step_specs_by_name(name: &str) -> Option<Vec<String>> {
-    let (_, meta) = load_pipeline_file(name).ok()??;
-    meta.step_specs
-}
-
-/// Load a named pipeline from `.ship/pipelines/<name>.jsonc` in the project
-/// root. JSONC is the only supported format.
+/// Look up a named pipeline from the descriptor's
+/// `ExtensionLibrary::pipelines`. Returns `None` when the name isn't
+/// present — the caller falls through to its single-step default.
 ///
-/// Returns:
-/// - `Ok(Some(..))` — file found and parsed.
-/// - `Ok(None)` — no `.ship/` dir found or no pipeline file of that name exists.
-/// - `Err(msg)` — file exists but could not be read or parsed. The error
-///   message includes the source path so a JSONC typo surfaces with context
-///   rather than being misreported as "pipeline not found".
-///
-/// Supports both old format (explicit id/type/agent) and new format (agents list,
-/// simplified steps).
-pub fn load_pipeline_file(name: &str) -> Result<Option<(Pipeline, PipelineMeta)>, String> {
-    let mut dir = std::env::current_dir().map_err(|e| format!("cwd lookup failed: {e}"))?;
-    loop {
-        let ship_dir = ship_substrate::ShipHome::project_ship_dir(&dir);
-        if ship_dir.is_dir() {
-            // Read pipelines from the composed overlay (local base + dep exports)
-            // when the space has deps; the raw `.ship/` otherwise (depless spaces
-            // resolve to `ship_dir` unchanged — behavior-preserving).
-            let root = ship_store::compose::composed_root_for(&ship_dir);
-            let path = root.join("pipelines").join(format!("{name}.jsonc"));
-            if !path.exists() {
-                return Ok(None);
-            }
-            let content = std::fs::read_to_string(&path)
-                .map_err(|e| format!("failed to read pipeline file '{}': {e}", path.display()))?;
-            return parse_pipeline_content(&content)
-                .map(Some)
-                .map_err(|e| format!("failed to parse pipeline file '{}': {e}", path.display()));
-        }
-        if !dir.pop() {
-            return Ok(None);
-        }
-    }
-}
-
-/// Parse JSONC pipeline content into a Pipeline and metadata.
-/// Handles both old and new formats via ship_jobs normalization.
-///
-/// Returns a human-readable error string on any parse failure — the caller
-/// is responsible for prefixing the source path.
-pub fn parse_pipeline_content(content: &str) -> Result<(Pipeline, PipelineMeta), String> {
-    let (normalized, meta) = normalize_pipeline(content)
-        .map_err(|e| format!("pipeline normalization failed: {e}"))?;
-    let steps_val = normalized
-        .get("steps")
-        .ok_or_else(|| "pipeline content has no `steps` field after normalization".to_string())?;
-    let steps: Vec<PipelineStep> = serde_json::from_value(steps_val.clone())
-        .map_err(|e| format!("failed to deserialize steps: {e}"))?;
-    for step in &steps {
-        if let Some(gate) = &step.gate
-            && let Err(e) = ship_pipelines::gate::validate(gate)
-        {
-            return Err(format!("step '{}' has malformed gate block: {e}", step.id));
-        }
-    }
-    let auto_merge = meta.auto_merge.unwrap_or(false);
-    Ok((Pipeline { steps, auto_merge }, meta))
+/// The runtime `Pipeline` shape conversion is a separate design pass
+/// (see the `UNMAPPED COUPLING` note at the top of this file); this
+/// stub returns the descriptor's `PipelineMeta` projection so the
+/// `merge_meta_vars` flow stays intact until the full converter lands.
+pub fn load_pipeline_def_by_name(
+    pipelines: &[compiler::PipelineDef],
+    name: &str,
+) -> Option<(PipelineMeta, String)> {
+    let def = pipelines.iter().find(|p| p.name == name)?;
+    let step_specs: Vec<String> = def
+        .steps
+        .iter()
+        .flat_map(|s| s.step_specs.iter().map(|spec| spec.prompt.clone().unwrap_or_default()))
+        .collect();
+    let meta = PipelineMeta {
+        name: Some(def.name.clone()),
+        description: None,
+        vars: None,
+        timeout: None,
+        max_retries: None,
+        auto_merge: Some(def.auto_merge),
+        step_specs: if step_specs.is_empty() { None } else { Some(step_specs) },
+    };
+    Some((meta, def.name.clone()))
 }
 
 /// Merge pipeline-level default vars into the job payload.

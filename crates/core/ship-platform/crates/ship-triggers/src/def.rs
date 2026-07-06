@@ -1,6 +1,13 @@
-//! Hook definition types — shape of a `.ship/triggers/*.jsonc` document.
+//! Hook definition types — the trigger engine's internal shape. Post
+//! format-migration Wave 4 phase A, populated from the descriptor's
+//! `Vec<compiler::TriggerDef>` (the `defineTrigger` declare-form in
+//! `ship.config.ts`) via [`HookDef::try_from_def`] — not from
+//! `.ship/triggers/*.jsonc` files (census-format-migration.md §4 row 3).
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use ship_types::event_registry;
 
 /// A single hook definition loaded from `.ship/triggers/<name>.jsonc`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -189,4 +196,163 @@ impl HookActionType {
             Self::PipelineTrigger { .. } => "pipeline.trigger",
         }
     }
+}
+
+// ── Descriptor conversion (format-migration Wave 4 phase A) ─────────────────
+//
+// `compiler::TriggerDef` is the `defineTrigger` declare-form's Rust shape
+// (census-format-migration.md Wave 3); `try_from_def` maps it onto this
+// module's `HookDef`, applying the same validation the retired JSONC loader
+// ran at load time (unknown-event rejection, source shape checks, cron
+// expression parsing, per-action field checks, template_file existence).
+
+impl HookDef {
+    /// Convert one descriptor trigger into the engine's internal shape.
+    /// `ship_dir` resolves a `collection.insert` action's `template_file`
+    /// (relative paths are checked for existence, same as the old loader).
+    pub fn try_from_def(def: &compiler::TriggerDef, ship_dir: &std::path::Path) -> Result<Self, String> {
+        if def.id.trim().is_empty() {
+            return Err("trigger id is required".to_string());
+        }
+        let trigger = convert_trigger_match(def)?;
+        let mut actions = Vec::with_capacity(def.actions.len());
+        for (idx, a) in def.actions.iter().enumerate() {
+            let action = convert_action(a).map_err(|e| format!("action[{idx}]: {e}"))?;
+            validate_converted_action(&action, idx, ship_dir)?;
+            actions.push(action);
+        }
+        Ok(HookDef { name: def.id.clone(), description: None, trigger, actions })
+    }
+}
+
+/// `compiler::TriggerEventMatch.event` is a required string in the TS-facing
+/// shape — there is no way to author a source-only trigger (cron/file/webhook,
+/// no `event`) from `ship.config.ts` today. That's a real gap in Wave 1/3's
+/// shape, not something this cutover can fix; when a `source` is present it
+/// wins and `event` is dropped, so a descriptor author who sets both gets
+/// source-triggered behavior rather than a hard validation error.
+fn convert_trigger_match(def: &compiler::TriggerDef) -> Result<HookTrigger, String> {
+    if let Some(source_def) = &def.source {
+        return Ok(HookTrigger {
+            event: None,
+            source: Some(convert_source(source_def)?),
+            filter: None,
+        });
+    }
+    if def.trigger.event.trim().is_empty() {
+        return Err("trigger.event must not be empty".to_string());
+    }
+    if event_registry::lookup(&def.trigger.event).is_none() {
+        return Err(format!("unknown event type '{}'", def.trigger.event));
+    }
+    Ok(HookTrigger {
+        event: Some(def.trigger.event.clone()),
+        source: None,
+        // No TS shape for the dot-path payload filter yet — every
+        // descriptor-sourced trigger fires unfiltered.
+        filter: None,
+    })
+}
+
+fn convert_source(s: &compiler::TriggerSourceDef) -> Result<TriggerSourceDef, String> {
+    match s {
+        compiler::TriggerSourceDef::Webhook { path, secret } => {
+            if !path.starts_with("/webhooks/") {
+                return Err(format!(
+                    "webhook source path must start with '/webhooks/', got '{path}'"
+                ));
+            }
+            Ok(TriggerSourceDef::Webhook(WebhookSourceDef {
+                path: path.clone(),
+                secret: secret.clone(),
+            }))
+        }
+        compiler::TriggerSourceDef::File { glob } => {
+            if glob.trim().is_empty() {
+                return Err("file source: 'glob' is required".to_string());
+            }
+            Ok(TriggerSourceDef::File(FileSourceDef {
+                watch: glob.clone(),
+                events: vec![],
+                debounce_ms: default_debounce_ms(),
+            }))
+        }
+        compiler::TriggerSourceDef::Cron { schedule } => {
+            if schedule.trim().is_empty() {
+                return Err("cron source: 'schedule' is required".to_string());
+            }
+            normalize_and_parse_cron(schedule)
+                .map_err(|e| format!("cron source: invalid expression '{schedule}': {e}"))?;
+            Ok(TriggerSourceDef::Cron(CronSourceDef {
+                expression: schedule.clone(),
+                timezone: default_timezone(),
+            }))
+        }
+    }
+}
+
+fn convert_action(a: &compiler::TriggerAction) -> Result<HookAction, String> {
+    let mut payload = a.payload.clone();
+    let when = payload
+        .remove("when")
+        .and_then(|v| v.as_str().map(|s| s.to_string()));
+    let mut value = serde_json::to_value(&payload).map_err(|e| e.to_string())?;
+    if let Value::Object(map) = &mut value {
+        map.insert("type".to_string(), Value::String(a.action_type.clone()));
+    }
+    let action_type: HookActionType = serde_json::from_value(value)
+        .map_err(|e| format!("action type '{}': {e}", a.action_type))?;
+    Ok(HookAction { action_type, when })
+}
+
+fn validate_converted_action(action: &HookAction, idx: usize, ship_dir: &std::path::Path) -> Result<(), String> {
+    match &action.action_type {
+        HookActionType::CollectionInsert { collection, template_file, .. } => {
+            if collection.trim().is_empty() {
+                return Err(format!("action[{idx}] collection.insert: collection is required"));
+            }
+            if let Some(tf) = template_file {
+                let path = ship_dir.join(tf);
+                if !path.is_file() {
+                    return Err(format!(
+                        "action[{idx}] collection.insert: template_file not found: {tf}"
+                    ));
+                }
+            }
+            Ok(())
+        }
+        HookActionType::CollectionUpdate { collection, filter, .. } => {
+            if collection.trim().is_empty() {
+                return Err(format!("action[{idx}] collection.update: collection is required"));
+            }
+            if !filter.is_object() {
+                return Err(format!("action[{idx}] collection.update: filter must be an object"));
+            }
+            Ok(())
+        }
+        HookActionType::EventEmit { event_type, .. } => {
+            if event_type.trim().is_empty() {
+                return Err(format!("action[{idx}] event.emit: event_type is required"));
+            }
+            Ok(())
+        }
+        HookActionType::PipelineTrigger { pipeline, .. } => {
+            if pipeline.trim().is_empty() {
+                return Err(format!("action[{idx}] pipeline.trigger: pipeline is required"));
+            }
+            Ok(())
+        }
+    }
+}
+
+/// Normalize a 5-field cron expression to 6 fields (prepend seconds=0),
+/// then parse it.
+pub(crate) fn normalize_and_parse_cron(expr: &str) -> Result<cron::Schedule, String> {
+    use std::str::FromStr;
+    let normalized = if expr.split_whitespace().count() == 5 {
+        format!("0 {}", expr)
+    } else {
+        expr.to_string()
+    };
+    cron::Schedule::from_str(&normalized).map_err(|e| e.to_string())
 }

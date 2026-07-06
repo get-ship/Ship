@@ -24,7 +24,12 @@ ship-pipelines = { path = "../core/ship-substrate/crates/ship-pipelines", featur
 ship-runner = { path = "../core/ship-substrate/crates/ship-runner" }
 # L0 types — Authority principal carried on dispatch events.
 ship-types = { path = "../core/ship-substrate/crates/ship-types" }
-# L1 platform code — dispatch_ports, process_registry, process_tree_probe,
+# Format-migration Wave 4 phase A: the runtime-shape conversion from
+# `compiler::PipelineDef` (descriptor) to `ship_substrate::events::pipeline::Pipeline`
+# (runtime) is unmapped; `ensure_pipeline` accepts a `&[compiler::PipelineDef]`
+# argument so the orchestrator's by-name lookup can match against the
+# descriptor's `ExtensionLibrary::pipelines` once the seam is plumbed.
+compiler = { path = "../core/compiler" }
 # runner orchestration helpers (dedup, exit_handler, router, etc.). The
 # orchestrator runtime and step-execution paths depend on ship-code; gated
 # behind the `ship-code` feature so the harness-free build (cargo

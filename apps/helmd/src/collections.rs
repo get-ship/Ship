@@ -67,12 +67,16 @@ pub async fn mount(router: ConnectRouter) -> anyhow::Result<ConnectRouter> {
     let ctx = Arc::new(SpaceContext::for_space(&ship_dir, SpaceId::new(space_id.clone()))?);
 
     // One shared `SchemaRegistry` — built-ins are code-defined
-    // (`all_builtin_schemas`); API-created schemas hydrate from this space's
-    // `_schema_registry` table (per-space, Storage Blueprint
-    // `ship-substrate-db.md`); the `.ship/collections/*.jsonc` file overlay
-    // layers on top. Order is meaningful: each subsequent call overrides
-    // by id, so the file overlay is the source of last word (matches
-    // today's `hydrate_registry` semantics).
+    // (`all_builtin_schemas`); API-created schemas hydrate from this
+    // space's `_schema_registry` table (per-space, Storage Blueprint
+    // `ship-substrate-db.md`); the descriptor-sourced collections
+    // (TS declare-forms in `ship.config.ts`, hydrated by shipd's
+    // boot path against the same per-space db) layer on top via
+    // `hydrate_from_store`. Post format-migration Wave 4 phase A
+    // there's no file overlay here — the descriptor is the only
+    // source, and the runtime is responsible for projecting it
+    // into the per-space db. helmd's mirror reads the projection
+    // alongside shipd's; no direct file read in either.
     let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
     if let Err(e) = ship_collection::projection::hydrate_from_store(
         &schemas,
@@ -82,11 +86,6 @@ pub async fn mount(router: ConnectRouter) -> anyhow::Result<ConnectRouter> {
     {
         tracing::warn!(error = %e, "helmd: failed to hydrate _schema_registry for {space_id}");
     }
-    ship_store::collection_schemas::hydrate_registry(
-        &schemas,
-        &ship_dir,
-        project_ship_dir.as_deref(),
-    );
 
     let kernel = ctx.kernel.clone();
     let ctx_for_wire = ctx.clone();

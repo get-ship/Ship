@@ -1,10 +1,10 @@
-//! The linchpin: a `ship.ts` authored with `defineAgent`, evaluated in a
+//! The linchpin: a `ship.config.ts` authored with `defineAgent`, evaluated in a
 //! locked-down ship-js isolate, produces `compiler::AgentProfile`s — and a
 //! program defining N agents in a loop rolls up to N profiles.
 
 use agent_config_eval::{resolve_agents, resolve_agents_with_globals};
 
-/// A real `ship.ts` that defines agents in a `for` loop.
+/// A real `ship.config.ts` that defines agents in a `for` loop.
 const ROLLUP: &str = include_str!("fixtures/rollup.ship.ts");
 /// Genuine TypeScript: `import type`, a `Partial<…>` annotation, `satisfies`,
 /// typed params, `as const`. Proves the oxc strip.

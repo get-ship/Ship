@@ -27,7 +27,15 @@ pub async fn dispatch_one(
     payload: PipelineRunStartedPayload,
     pipeline_run_id: &str,
 ) -> Result<DispatchOneOutcome, DispatchOneError> {
-    let payload = crate::loader::pipeline_loader::ensure_pipeline(payload)
+    // UNMAPPED COUPLING (Wave 4 phase A stop-rule, see
+    // `loader::pipeline_loader`): pipelines arrive via the descriptor's
+    // `ExtensionLibrary::pipelines`; the `dispatch_one` envelope-builder
+    // does not yet carry one (a follow-up seam). The empty slice here means
+    // `ensure_pipeline`'s by-name path always falls through to the
+    // `payload.steps`-first contract; `payload.steps` is what populates
+    // the runtime `Pipeline` until the orchestrator context learns to
+    // carry the descriptor.
+    let payload = crate::loader::pipeline_loader::ensure_pipeline(payload, &[])
         .map_err(DispatchOneError::BadRequest)?;
 
     let slug = payload.slug.clone();
@@ -117,106 +125,34 @@ pub enum RunPipelineCoreError {
     Internal(String),
 }
 
-/// Core logic for `POST /api/v1/pipelines/run`. Locates and parses the pipeline
-/// JSONC, builds the `PipelineRunStartedPayload`, then delegates to `dispatch_one`.
+/// Core logic for `POST /api/v1/pipelines/run`. Resolves a named pipeline
+/// from the descriptor (TS declare-forms in the space's `ship.config.ts`)
+/// and builds the `PipelineRunStartedPayload`, then delegates to
+/// `dispatch_one`.
+///
+/// UNMAPPED COUPLING (Wave 4 phase A stop-rule): pipelines arrive via
+/// the descriptor's `ExtensionLibrary::pipelines`, but the runtime-shape
+/// conversion (descriptor `compiler::PipelineDef` → runtime
+/// `ship_substrate::events::pipeline::Pipeline`) is a separate design pass
+/// — the descriptor's `step_specs: [{agent, harness, prompt}]` shape does
+/// not map 1:1 onto the runtime's `step_type/agent/goal/command` per-step
+/// fields. Until that converter lands, this function surfaces the
+/// coupling: the request's pipeline name cannot be resolved through the
+/// deleted JSONC file path. Surfaced per the Wave 4 phase A spec
+/// stop-rule; the follow-up seam is on the orchestrator context (carry
+/// the descriptor in `OrchestratorContext` and route through
+/// `ensure_pipeline`'s `pipelines: &[PipelineDef]` argument).
 ///
 /// The scope gate (`Scope::CreateRuns`) must be enforced by the caller before
 /// invoking this function.
 pub async fn run_pipeline_core(
-    port: &dyn PipelineDispatchPort,
+    _port: &dyn PipelineDispatchPort,
     req: PipelineRunRequest,
 ) -> Result<DispatchOneOutcome, RunPipelineCoreError> {
-    // Locate the pipeline JSONC. Matches the resolution strategy used by
-    // `pipeline_loader::load_pipeline_file` so `ensure_pipeline` will find
-    // the same file.
-    let pipeline_path = locate_pipeline_file(&req.pipeline);
-    let Some(pipeline_path) = pipeline_path else {
-        return Err(RunPipelineCoreError::NotFound(format!(
-            "pipeline '{}' not found",
-            req.pipeline
-        )));
-    };
-
-    let raw = std::fs::read_to_string(&pipeline_path)
-        .map_err(|e| RunPipelineCoreError::Internal(format!("read pipeline: {e}")))?;
-
-    let (normalized, meta) = ship_pipelines::normalize_pipeline(&raw)
-        .map_err(|e| RunPipelineCoreError::BadRequest(format!("pipeline parse: {e}")))?;
-
-    let steps = normalized
-        .get("steps")
-        .and_then(|v| v.as_array())
-        .ok_or_else(|| RunPipelineCoreError::BadRequest("pipeline has no steps".into()))?;
-
-    // Run-level default agent = first step's agent. Pure-shell (run) first
-    // steps have none; leave it empty — worktree prep skips agent compilation
-    // for empty agents (a real agent step always names one).
-    let first_agent = steps
-        .first()
-        .and_then(|s| s.get("agent"))
-        .and_then(|a| a.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    let pipeline_name = meta.name.clone().unwrap_or_else(|| req.pipeline.clone());
-    let workspace_label = req.workspace.unwrap_or_else(|| pipeline_name.clone());
-    let slug = req.slug.unwrap_or_else(|| {
-        format!("{}-{}", workspace_label, ship_substrate::gen_slug_suffix())
-    });
-    let branch = format!("job/{slug}");
-    let pipeline_run_id = ship_substrate::gen_ulid();
-
-    let payload = PipelineRunStartedPayload {
-        pipeline_run_id: pipeline_run_id.clone(),
-        slug,
-        agent: first_agent,
-        branch,
-        spec_path: ".artifacts/job-spec.md".to_string(),
-        source_spec_path: req.source_spec_path,
-        plan_id: None,
-        model: req.model,
-        harness: req.harness,
-        depends_on: None,
-        pipeline: None,
-        steps: None,
-        pipeline_name: Some(pipeline_name),
-        vars: req.vars,
-        spec_content: req.spec,
-        step_specs: None,
-        headless: req.auto,
-        keepalive: false,
-        prompt: None,
-        resume: false,
-        resume_session_id: None,
-        baseline_sha: resolve_project_head_sha(),
-    };
-
-    dispatch_one(port, payload, &pipeline_run_id)
-        .await
-        .map_err(|e| match e {
-            DispatchOneError::BadRequest(m) => RunPipelineCoreError::BadRequest(m),
-            DispatchOneError::Internal(m) => RunPipelineCoreError::Internal(m),
-        })
-}
-
-/// Locate the pipeline JSONC by walking upward from cwd. Matches
-/// `pipeline_loader::load_pipeline_file` resolution so `ensure_pipeline`
-/// finds the same file.
-fn locate_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
-    let mut dir = std::env::current_dir().ok();
-    while let Some(d) = dir.as_ref() {
-        let ship = ship_substrate::ShipHome::project_ship_dir(d);
-        let pipelines_dir = ship_store::compose::composed_root_for(&ship).join("pipelines");
-        if pipelines_dir.is_dir() {
-            let candidate = pipelines_dir.join(format!("{name}.jsonc"));
-            if candidate.exists() {
-                return Some(candidate);
-            }
-            break;
-        }
-        dir = d.parent().map(|p| p.to_path_buf());
-    }
-    None
+    Err(RunPipelineCoreError::NotFound(format!(
+        "pipeline resolution unmapped: descriptor → runtime Pipeline conversion is a separate design pass (Wave 4 phase A stop-rule). Pipeline '{}' cannot be loaded via the deleted JSONC file path; populate `payload.steps` through a descriptor-aware seam.",
+        req.pipeline
+    )))
 }
 
 /// Resolve HEAD SHA of the active project root. Used at job-created time to

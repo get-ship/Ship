@@ -79,12 +79,10 @@ pub struct ShipRuntime {
     pub(super) workspace_dir: Option<PathBuf>,
     /// Wall-clock instant the daemon process started — used for uptime.
     pub(super) started_at: std::time::Instant,
-    /// Hook engine (external source adapters + hot-reload watcher).
+    /// Hook engine (external source adapters; trigger set reloaded from the
+    /// descriptor at boot — no dedicated file-watcher post format-migration
+    /// Wave 4 phase A).
     pub(super) hook_engine: std::sync::OnceLock<std::sync::Arc<ship_triggers::engine::HookEngine>>,
-    /// Hot-reload watcher for the triggers directory; the JoinHandle lives here so
-    /// the spawn is not dropped at end of `start_hook_engine` (B4 F7). Dropping
-    /// the HookWatcher aborts the reload task.
-    pub(super) hook_watcher: std::sync::OnceLock<ship_triggers::watcher::HookWatcher>,
     /// Declarative-tier config watcher (Phase 4) — emits domain.changed events.
     pub(super) config_watcher: std::sync::OnceLock<ship_platform::config::ConfigWatcher>,
     /// Shared event-log handle for the live agent-def index (agents arc S5).

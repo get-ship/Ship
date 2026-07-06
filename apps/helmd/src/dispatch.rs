@@ -413,7 +413,7 @@ static WORKTREE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(())
 /// Install BOTH the pre-push and pre-commit guards via the shared installer
 /// in `crate::guards`. Re-exported here so the rest of the dispatch flow
 /// (and any legacy callers) keep working without a name change.
-pub(crate) use crate::guards::install_repo_guards;
+pub(crate) use super::guards::install_repo_guards;
 
 /// Isolation strategy that creates git worktrees and compiles agent configs.
 /// Reimplementation of `GitWorktreeIsolation` (stuck in

@@ -159,18 +159,36 @@ impl ShipRuntime {
             .as_deref()
             .map(|id| build_space_db_context_arc(kernel.clone(), global_dir, id));
         let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
-        // Hydrate user-authored `.ship/collections/*.jsonc` schemas into the
-        // shared registry so they are queryable alongside the built-ins.
+        // Hydrate user-authored collection schemas from the descriptor into
+        // the shared registry so they are queryable alongside the built-ins.
+        // Post format-migration Wave 4 phase A: collections arrive via
+        // `defineCollection` declare-forms in the space's `ship.config.ts`
+        // and land in the descriptor's `library.collections` (a
+        // `Vec<compiler::CollectionDef>`). `hydrate_registry` converts
+        // those to `SchemaDoc` and registers them; the previous
+        // `.ship/collections/*.jsonc` file walk is gone — see
+        // `census-format-migration.md` Section 4 row 3.
         {
-            let project_ship = ship_substrate::project::get_project_dir(
-                workspace_dir.clone(),
-            )
-            .ok();
-            ship_store::collection_schemas::hydrate_registry(
-                &schemas,
-                global_dir,
-                project_ship.as_deref(),
-            );
+            // Probe the active workspace; a missing one yields an empty
+            // hydrate (built-ins only). The descriptor's own roll-up
+            // is also done at `start_agent_def_index` time; we re-roll
+            // here so the schema registry is seeded before any
+            // collection op lands.
+            let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
+            if let Some(workspace) = probe.as_deref() {
+                match ship_resolver::roll_up(workspace, None, None).await {
+                    Ok(composed) => {
+                        ship_store::collection_schemas::hydrate_registry(
+                            &schemas,
+                            &composed.library.collections,
+                        );
+                    }
+                    Err(e) => tracing::warn!(
+                        error = %e,
+                        "shipd: descriptor roll-up for collection hydration failed"
+                    ),
+                }
+            }
         }
         let global_blob_dir = global_dir.clone();
 
@@ -253,7 +271,6 @@ impl ShipRuntime {
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
-            hook_watcher: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
             agent_def_kernel: std::sync::OnceLock::new(),
             agent_def_index: std::sync::OnceLock::new(),

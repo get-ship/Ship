@@ -6,23 +6,27 @@ fn write_minimal_space() -> (TempDir, std::path::PathBuf) {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().to_path_buf();
 
-    // .ship/ with a single rule
+    // `.ship/` is empty post format-migration Wave 4 phase A — rules,
+    // collections, triggers, MCP all live in `ship.config.ts` as
+    // declare-forms. `.ship/agents/` is still file-based (Wave 5 cuts it).
     let ship = root.join(".ship");
-    std::fs::create_dir_all(ship.join("rules")).unwrap();
-    std::fs::write(
-        ship.join("rules").join("style.md"),
-        "---\nalwaysApply: true\n---\nBe terse.\n",
-    )
-    .unwrap();
+    std::fs::create_dir_all(&ship).unwrap();
 
-    // ship.ts at the space root
+    // ship.config.ts at the space root — defines one agent and one
+    // rule (id = "style", the previously-file-borne rule).
     std::fs::write(
-        root.join("ship.ts"),
+        root.join("ship.config.ts"),
         r#"
-import { defineAgent } from "ship";
+import { defineAgent, defineRule } from "ship";
 
 defineAgent({
   agent: { id: "demo", name: "Demo" },
+});
+
+defineRule({
+  id: "style",
+  content: "Be terse.",
+  applyScope: "always",
 });
 "#,
     )
@@ -40,17 +44,14 @@ async fn resolve_space_with_no_globals_yields_resolved_config() {
     // Phase-2 contract: TS agents appear in the active-agent-shaped
     // list (the leaf's resolve step pulls from `library.agents`).
     // The .ts path populates that list via this crate's merge step.
-    assert!(
-        resolved.agent_profiles.iter().any(|a| a.agent.id == "demo")
-            || resolved
-                .agent_profiles
-                .iter()
-                .any(|a| a.agent.id == "demo"),
-        "expected the TS-defined demo agent in the resolved config: {ids:?}"
-    );
-    // The rule from .ship/rules/ reaches the resolved config.
+    // The rule from `ship.config.ts` `defineRule` reaches the resolved
+    // config. The W3 harvest maps `id` → `file_name` and `applyScope`
+    // → `always_apply` (the `applyScope: "always"` tag is the always-apply
+    // case; a `globs: [...]` object is the conditional case).
     assert_eq!(resolved.rules.len(), 1);
-    assert_eq!(resolved.rules[0].file_name, "style.md");
+    assert_eq!(resolved.rules[0].file_name, "style");
+    assert!(resolved.rules[0].always_apply);
+    assert_eq!(resolved.rules[0].content, "Be terse.");
 }
 
 /// The shipd-ingest contract: `.jsonc` agents (the `agents/` dir) and
@@ -119,7 +120,11 @@ async fn load_space_library_omits_resolve_step() {
     // space shape is what J5's cache keys on.
     let (_tmp, root) = write_minimal_space();
     let lib = load_space_library(&root).await.unwrap();
-    assert_eq!(lib.rules.len(), 1);
+    // The rule lives in `ship.config.ts`'s `defineRule` — this loader
+    // skips the TS eval entirely, so it stays unmerged here (the raw
+    // disk shape has no file-borne rules to find post format-migration
+    // Wave 4 phase A).
+    assert!(lib.rules.is_empty());
     assert_eq!(lib.imported_modules.len(), 1);
     assert!(lib.imported_modules[0].source.contains("defineAgent"));
 }
@@ -473,7 +478,7 @@ async fn roll_up_tear_test_full_composition() {
     // The source's rule still passes through (permissions/hooks
     // pass-through is the J1 contract — the source's verb is `Space`).
     assert_eq!(lib.rules.len(), 1);
-    assert_eq!(lib.rules[0].file_name, "style.md");
+    assert_eq!(lib.rules[0].file_name, "style");
 
     // The roll-up audit carries all three extensions: source, cached
     // package, and the (empty) enabled tier.
@@ -682,7 +687,7 @@ async fn roll_up_covers_every_case_resolve_dep_agents_covers() {
 
 // ── Format-migration Wave 3: every declare-form round-trips ────────────
 
-/// A `ship.ts` using every declare-form (`defineAgent`, `defineMcpServer`,
+/// A `ship.config.ts` using every declare-form (`defineAgent`, `defineMcpServer`,
 /// `defineSkill`, `definePipeline`, `defineTrigger`, `defineCollection`,
 /// `defineRule`) resolves → composes → produces a byte-identical
 /// descriptor across two `roll_up` runs, with each noun landing in its
@@ -693,7 +698,7 @@ async fn every_declare_form_round_trips_through_resolve_compose_descriptor() {
     let root = tmp.path().to_path_buf();
     std::fs::create_dir_all(root.join(".ship")).unwrap();
     std::fs::write(
-        root.join("ship.ts"),
+        root.join("ship.config.ts"),
         r#"
 import {
   defineAgent,

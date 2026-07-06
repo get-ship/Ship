@@ -88,8 +88,6 @@ mod tests_heartbeat;
 #[cfg(test)]
 mod tests_step_io;
 #[cfg(test)]
-mod tests_pipeline_load;
-#[cfg(test)]
 mod tests_fanout;
 #[cfg(test)]
 mod tests_fanout_journal;

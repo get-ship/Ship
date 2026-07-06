@@ -8,7 +8,7 @@ use ship_substrate::events::EventEnvelope;
 use crate::engine::HookEngine;
 
 use super::integration_engine::{
-    diff, recent_hook_events, test_kernel, tmp_ship_dir, write_hook,
+    diff, recent_hook_events, test_kernel, tmp_ship_dir, trigger_def,
 };
 
 fn run_failed_envelope() -> EventEnvelope {
@@ -34,32 +34,30 @@ fn run_completed_envelope() -> EventEnvelope {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn triggers_fan_out_two_triggers_same_event_both_fire() {
     let (_tmp, ship_dir) = tmp_ship_dir();
-    write_hook(
-        &ship_dir,
-        "hook-a.jsonc",
-        r#"{
-            "name": "hook-a",
+    let defs = vec![
+        trigger_def(
+            r#"{
+            "id": "hook-a",
             "trigger": { "event": "pipeline.run.failed" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "a" } }
             ]
         }"#,
-    );
-    write_hook(
-        &ship_dir,
-        "hook-b.jsonc",
-        r#"{
-            "name": "hook-b",
+        ),
+        trigger_def(
+            r#"{
+            "id": "hook-b",
             "trigger": { "event": "pipeline.run.failed" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "b" } }
             ]
         }"#,
-    );
+        ),
+    ];
 
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
-    engine.reload().await;
+    engine.reload(&defs).await;
     assert_eq!(engine.snapshot().await.len(), 2);
 
     let before = recent_hook_events(&ship_dir);
@@ -82,26 +80,24 @@ async fn triggers_fan_out_two_triggers_same_event_both_fire() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn triggers_fan_out_three_triggers_same_event_all_fire() {
     let (_tmp, ship_dir) = tmp_ship_dir();
-    for name in ["hook-1", "hook-2", "hook-3"] {
-        write_hook(
-            &ship_dir,
-            &format!("{name}.jsonc"),
-            &format!(
+    let defs: Vec<compiler::TriggerDef> = ["hook-1", "hook-2", "hook-3"]
+        .iter()
+        .map(|name| {
+            trigger_def(&format!(
                 r#"{{
-                    "name": "{name}",
+                    "id": "{name}",
                     "trigger": {{ "event": "pipeline.run.failed" }},
                     "actions": [
                         {{ "type": "event.emit", "event_type": "hook.tripped",
                            "payload": {{ "from": "{name}" }} }}
                     ]
                 }}"#
-            ),
-        );
-    }
-
+            ))
+        })
+        .collect();
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
-    engine.reload().await;
+    engine.reload(&defs).await;
     assert_eq!(engine.snapshot().await.len(), 3);
 
     let before = recent_hook_events(&ship_dir);
@@ -116,32 +112,30 @@ async fn triggers_fan_out_three_triggers_same_event_all_fire() {
 async fn triggers_fan_out_disjoint_event_types_only_matching_fires() {
     // Two triggers on different events. Dispatching one event fires exactly one.
     let (_tmp, ship_dir) = tmp_ship_dir();
-    write_hook(
-        &ship_dir,
-        "on-fail.jsonc",
-        r#"{
-            "name": "on-fail",
+    let defs = vec![
+        trigger_def(
+            r#"{
+            "id": "on-fail",
             "trigger": { "event": "pipeline.run.failed" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "fail" } }
             ]
         }"#,
-    );
-    write_hook(
-        &ship_dir,
-        "on-done.jsonc",
-        r#"{
-            "name": "on-done",
+        ),
+        trigger_def(
+            r#"{
+            "id": "on-done",
             "trigger": { "event": "pipeline.run.completed" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "done" } }
             ]
         }"#,
-    );
+        ),
+    ];
 
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
-    engine.reload().await;
+    engine.reload(&defs).await;
 
     let before = recent_hook_events(&ship_dir);
     // Dispatch completed — only on-done must fire.
@@ -157,10 +151,10 @@ async fn triggers_fan_out_disjoint_event_types_only_matching_fires() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn triggers_fan_out_no_triggers_produces_no_actions() {
     let (_tmp, ship_dir) = tmp_ship_dir();
-    // No trigger files written — engine starts empty.
+    // No triggers loaded — engine starts empty.
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
-    engine.reload().await;
+    engine.reload(&[]).await;
     assert!(engine.snapshot().await.is_empty());
 
     let before = recent_hook_events(&ship_dir);
@@ -177,31 +171,27 @@ async fn triggers_fan_out_mixed_subscriptions_independent() {
     // Three triggers: two on failed, one on completed.
     // Dispatching failed fires 2; dispatching completed fires 1.
     let (_tmp, ship_dir) = tmp_ship_dir();
-    write_hook(
-        &ship_dir,
-        "fail-1.jsonc",
-        r#"{ "name": "fail-1", "trigger": { "event": "pipeline.run.failed" },
+    let defs = vec![
+        trigger_def(
+            r#"{ "id": "fail-1", "trigger": { "event": "pipeline.run.failed" },
             "actions": [{ "type": "event.emit", "event_type": "hook.tripped",
                           "payload": {"t":"f1"} }] }"#,
-    );
-    write_hook(
-        &ship_dir,
-        "fail-2.jsonc",
-        r#"{ "name": "fail-2", "trigger": { "event": "pipeline.run.failed" },
+        ),
+        trigger_def(
+            r#"{ "id": "fail-2", "trigger": { "event": "pipeline.run.failed" },
             "actions": [{ "type": "event.emit", "event_type": "hook.tripped",
                           "payload": {"t":"f2"} }] }"#,
-    );
-    write_hook(
-        &ship_dir,
-        "done-1.jsonc",
-        r#"{ "name": "done-1", "trigger": { "event": "pipeline.run.completed" },
+        ),
+        trigger_def(
+            r#"{ "id": "done-1", "trigger": { "event": "pipeline.run.completed" },
             "actions": [{ "type": "event.emit", "event_type": "hook.tripped",
                           "payload": {"t":"d1"} }] }"#,
-    );
+        ),
+    ];
 
     let kernel = test_kernel(&ship_dir);
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
-    engine.reload().await;
+    engine.reload(&defs).await;
     assert_eq!(engine.snapshot().await.len(), 3);
 
     let before_fail = recent_hook_events(&ship_dir);

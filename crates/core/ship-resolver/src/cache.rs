@@ -422,10 +422,10 @@ mod tests {
     fn synthetic_config_file_changed() -> EventEnvelope {
         EventEnvelope::new(
             event_types::CONFIG_FILE_CHANGED,
-            "ship.ts",
+            "ship.config.ts",
             &ConfigFileChanged {
                 domain: "source".to_string(),
-                path: "ship.ts".to_string(),
+                path: "ship.config.ts".to_string(),
                 content_hash: "deadbeef".to_string(),
             },
         )

@@ -1,4 +1,4 @@
-//! Harvest every declare-form kind emitted by a `ship.ts` eval — not just
+//! Harvest every declare-form kind emitted by a `ship.config.ts` eval — not just
 //! `defineAgent`. [`generated_stub::SDK_STUB`] tags each declare-form's
 //! emitted value with a `__kind` discriminant (`{ __kind, value }`); this
 //! module routes each tagged value to its noun's harvest shape.
@@ -35,7 +35,7 @@ use compiler::types::ViewDescriptor;
 use serde::Deserialize;
 use serde_json::Value;
 
-/// Every declare-form's harvested output from one `ship.ts` eval, merged
+/// Every declare-form's harvested output from one `ship.config.ts` eval, merged
 /// in call order. [`crate::resolve_agents_with_globals`] is a thin filter
 /// over `.agents`; `ts_resolver::resolve_ts_files` merges these again
 /// across multiple modules.

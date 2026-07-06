@@ -3,7 +3,7 @@
 //! ## What this crate does
 //!
 //! Generalizes the Phase-0 resolver (compiler leaf + agent-config-eval) from
-//! single-manifest to **space shape**: a `ship.ts` at the space root, a
+//! single-manifest to **space shape**: a `ship.config.ts` at the space root, a
 //! `skills/` + `rules/` directory convention, a `space.skill_paths` manifest
 //! read. The result is a fully-populated [`compiler::ExtensionLibrary`] (disk
 //! state) and a [`compiler::ResolvedConfig`] (resolved state) — the canonical
@@ -142,13 +142,13 @@ fn merge_by_key<T>(existing: &mut Vec<T>, incoming: Vec<T>, key: impl Fn(&T) -> 
 
 /// Resolve a space's full descriptor: disk walk + TS eval + resolve.
 ///
-/// `space_root` is the directory containing `ship.ts` (preferred) or
+/// `space_root` is the directory containing `ship.config.ts` (preferred) or
 /// `<.ship>/ship.ts` (legacy), plus `.ship/` for the bulk of the config
 /// shape. Returns the resolved config — a pure, in-memory view of the
 /// space's effective configuration.
 ///
 /// The bulk of the disk read is delegated to the compiler leaf's
-/// `load_library`; the Phase-2 space-shape pieces (`ship.ts`,
+/// `load_library`; the Phase-2 space-shape pieces (`ship.config.ts`,
 /// `space.skill_paths` extra dirs) are layered on top via FsBroker.
 /// The TS eval is one `defineAgent` roll-up per `imported_modules`
 /// entry, run in the V8 isolate with the `!Send` boundary crossed on a
@@ -169,7 +169,7 @@ pub async fn resolve_space(space_root: &Path) -> Result<ResolvedConfig> {
 /// `Date.now` / `Math.random` (the SDK stub's guard runs at module top
 /// level, before user code; see `agent-config-eval/src/lib.rs:105-158`).
 ///
-/// A `ship.ts` composes the defaults with
+/// A `ship.config.ts` composes the defaults with
 /// `defineAgent({ ...globals.agentDefaults, agent: {...} })` (the
 /// pattern the agent-config-eval tests pin down at
 /// `agent-config-eval/tests/resolve_agents.rs:127-164`).
@@ -193,7 +193,7 @@ pub async fn resolve_space_with_broker(
     // 1. Disk walk — the bulk via the leaf, the space-shape pieces via
     //    FsBroker. The result is a `ExtensionLibrary` with skills
     //    (default + extra), rules, mcp, hooks, permissions, and the
-    //    `imported_modules` from `ship.ts`.
+    //    `imported_modules` from `ship.config.ts`.
     let mut library = space_loader::load_space_library(fs, space_root)
         .await
         .with_context(|| {

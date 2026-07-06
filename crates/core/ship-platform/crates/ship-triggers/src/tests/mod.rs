@@ -6,8 +6,7 @@
 ///
 /// Test naming follows `triggers_<subdomain>_<scenario>` so the Track A
 /// coverage tool matches them via the `<service>_<method>_*` pattern.
-mod integration_loader;
-mod integration_subscription_validation;
+mod descriptor_conversion;
 mod integration_fan_out;
 mod integration_filter;
 mod integration_reload;

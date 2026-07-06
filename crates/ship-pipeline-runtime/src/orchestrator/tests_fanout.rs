@@ -146,7 +146,7 @@ fn duplicate_lane_ids_fail_validation() {
         ..agent_step("choose", "judge")
     };
     let payload = base_payload("slug", vec![fanout_step, judge]);
-    let err = ensure_pipeline(payload).unwrap_err();
+    let err = ensure_pipeline(payload, &[]).unwrap_err();
     assert!(err.contains("duplicate lane id"), "got: {err}");
 }
 
@@ -164,7 +164,7 @@ fn judge_step_not_found_fails_validation() {
         ..agent_step("draft", "implementer")
     };
     let payload = base_payload("slug", vec![fanout_step]);
-    let err = ensure_pipeline(payload).unwrap_err();
+    let err = ensure_pipeline(payload, &[]).unwrap_err();
     assert!(err.contains("nonexistent"), "got: {err}");
 }
 
@@ -187,7 +187,7 @@ fn judge_step_missing_after_dependency_fails_validation() {
         ..agent_step("choose", "judge-agent")
     };
     let payload = base_payload("slug", vec![fanout_step, judge]);
-    let err = ensure_pipeline(payload).unwrap_err();
+    let err = ensure_pipeline(payload, &[]).unwrap_err();
     assert!(err.contains("draft") || err.contains("after"), "got: {err}");
 }
 
@@ -210,7 +210,7 @@ fn valid_fanout_pipeline_passes_validation() {
         ..agent_step("choose", "judge-agent")
     };
     let payload = base_payload("slug", vec![fanout_step, judge]);
-    assert!(ensure_pipeline(payload).is_ok(), "valid fanout pipeline must pass");
+    assert!(ensure_pipeline(payload, &[]).is_ok(), "valid fanout pipeline must pass");
 }
 
 // ── lane-scoped output naming ─────────────────────────────────────────────────
@@ -243,7 +243,7 @@ fn lane_scoped_consume_validates_lane_existence() {
         ..agent_step("choose", "judge-agent")
     };
     let payload = base_payload("slug", vec![fanout_step, judge]);
-    let err = ensure_pipeline(payload).unwrap_err();
+    let err = ensure_pipeline(payload, &[]).unwrap_err();
     assert!(err.contains("unknown") || err.contains("lane"), "got: {err}");
 }
 
@@ -267,7 +267,7 @@ fn lane_scoped_consume_validates_output_exists_on_fanout_step() {
         ..agent_step("choose", "judge-agent")
     };
     let payload = base_payload("slug", vec![fanout_step, judge]);
-    let err = ensure_pipeline(payload).unwrap_err();
+    let err = ensure_pipeline(payload, &[]).unwrap_err();
     assert!(err.contains("nonexistent"), "got: {err}");
 }
 
@@ -291,6 +291,6 @@ fn lane_with_empty_agent_fails_validation() {
         ..agent_step("choose", "judge-agent")
     };
     let payload = base_payload("slug", vec![fanout_step, judge]);
-    let err = ensure_pipeline(payload).unwrap_err();
+    let err = ensure_pipeline(payload, &[]).unwrap_err();
     assert!(err.contains("agent"), "got: {err}");
 }

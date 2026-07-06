@@ -49,8 +49,14 @@ ship-git = { path = "../../crates/core/ship-git" }
 ship-paths = { path = "../../crates/core/ship-substrate/crates/ship-paths" }
 # The substrate domain crate (L1). Backs the `ship.ops.v1.AgentsService` wire.
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
+# Format-migration Wave 4 phase A: the `HarnessService.Compile` RPC routes
+# through `ship_resolver::roll_up_blocking` so the V8 TS eval populates the
+# `ExtensionLibrary`'s mcp_servers + rules + collections + triggers + pipelines
+# (the leaf `compiler::load_library` no longer reads `.ship/mcp.jsonc` or
+# `.ship/rules/*.md`). Without this dep, the compiled `.mcp.json` and
+# `CLAUDE.md` outputs are empty.
+ship-resolver = { path = "../../crates/core/ship-resolver" }
 compiler = { path = "../../crates/core/compiler" }
-# Lean substrate core (NOT the heavy `ship-substrate` facade) — for the types
 # helmd must name in its `AgentsHost` impl: `KernelRouter`, `KernelLog`,
 # `ShipHome`, `init_kernel_router`, `project::get_project_dir`. These are the
 # SAME types the facade re-exports, so naming them via the core keeps helmd's

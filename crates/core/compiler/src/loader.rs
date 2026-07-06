@@ -27,7 +27,6 @@
 //! `// TODO: dep-skill cache resolution` seam — the existing `lockfile` module
 //! already parses the lockfile; the dep cache itself is a substrate concern.
 
-use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -38,60 +37,18 @@ use crate::jsonc::from_jsonc_str;
 use crate::resolve::ExtensionLibrary;
 use crate::skill_parser::parse_skill;
 use crate::types::{
-    AgentProfile, HookConfig, HookTrigger, McpServerConfig, McpServerType, Permissions, Rule,
-    Skill, SkillSource,
+    AgentProfile, HookConfig, HookTrigger, Permissions, Skill, SkillSource,
 };
 
-// ─── MCP file types ───────────────────────────────────────────────────────────
-
-/// One entry in `.ship/mcp.jsonc` — canonical keyed form. The key on disk
-/// is the canonical id (filled in if the entry's own `id` is empty).
-#[derive(Debug, Clone, Deserialize)]
-pub struct McpEntry {
-    #[serde(default)]
-    pub id: String,
-    #[serde(default)]
-    pub name: Option<String>,
-    #[serde(default)]
-    pub command: Option<String>,
-    #[serde(default)]
-    pub args: Vec<String>,
-    #[serde(default)]
-    pub env: HashMap<String, String>,
-    #[serde(default)]
-    pub url: Option<String>,
-    #[serde(default = "default_mcp_scope")]
-    pub scope: String,
-    /// Lowercase: "stdio" | "http" | "sse" — matches `McpServerType`.
-    #[serde(default)]
-    pub server_type: Option<String>,
-    #[serde(default)]
-    pub disabled: bool,
-    #[serde(default)]
-    pub timeout_secs: Option<u32>,
-    #[serde(default)]
-    pub codex_enabled_tools: Vec<String>,
-    #[serde(default)]
-    pub codex_disabled_tools: Vec<String>,
-    #[serde(default)]
-    pub cursor_env_file: Option<String>,
-}
-
-fn default_mcp_scope() -> String {
-    "project".to_string()
-}
-
-#[derive(Debug, Clone, Deserialize, Default)]
-struct RawMcpFile {
-    #[serde(default)]
-    mcp: RawMcpSection,
-}
-
-#[derive(Debug, Clone, Deserialize, Default)]
-struct RawMcpSection {
-    #[serde(default)]
-    servers: HashMap<String, McpEntry>,
-}
+// (`.ship/mcp.jsonc` is no longer read by the leaf loader. Post format-
+// migration Wave 4 phase A, MCP server definitions arrive via
+// `defineMcpServer` declare-forms in the space's `ship.config.ts` and
+// land in `ExtensionLibrary::mcp_servers` through
+// `ship_resolver::merge_ts_declarations` — see
+// `census-format-migration.md` Section 4 row 3. The compile path
+// consumes the resulting `Vec<McpServerConfig>` from `library`
+// without ever touching the source file, so the leaf's MCP walk dies
+// with the cutover.)
 
 // ─── Hooks file types ─────────────────────────────────────────────────────────
 
@@ -114,18 +71,27 @@ struct HooksEntry {
 
 /// Load a [`ExtensionLibrary`] from a `.ship/` directory (flat layout).
 ///
-/// Looks for mcp, permissions, hooks, rules, skills at the `.ship/` root,
-/// and agent profiles under `.ship/agents/`. Missing files and dirs are
-/// silently skipped — an empty library is valid. The leaf has no dep on
-/// `ship-substrate`; everything is plain `std::fs` + the crate's own
-/// `jsonc` + `skill_parser` modules.
+/// Post format-migration Wave 4 phase A: looks for permissions, hooks,
+/// skills, and `agents/`, returning the populated vectors; MCP-server
+/// and rule vectors (`ExtensionLibrary::mcp_servers`,
+/// `ExtensionLibrary::rules`) are no longer populated from files
+/// (`.ship/mcp.jsonc`, `.ship/rules/*.md`). They arrive via the
+/// space's `ship.config.ts` declare-forms (`defineMcpServer`,
+/// `defineRule`) and the resolver's merge step
+/// (`ship_resolver::merge_ts_declarations`). The leaf returns them
+/// empty so the TS-resolver merge is the single source of truth — see
+/// `census-format-migration.md` Section 4 row 3.
+///
+/// Missing files and dirs are silently skipped — an empty library is
+/// valid. The leaf has no dep on `ship-substrate`; everything is
+/// plain `std::fs` + the crate's own `jsonc` + `skill_parser` modules.
 pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
     let skill_paths = read_space_skill_paths(ship_dir);
     Ok(ExtensionLibrary {
-        mcp_servers: load_mcp_servers(ship_dir)?,
+        mcp_servers: Vec::new(),
         permissions: load_permissions(ship_dir),
         hooks: load_hooks(ship_dir)?,
-        rules: load_rules(ship_dir)?,
+        rules: Vec::new(),
         skills: load_skills(ship_dir),
         agent_profiles: load_agent_profiles(ship_dir),
         skill_paths,
@@ -133,63 +99,7 @@ pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
     })
 }
 
-// ─── MCP servers ──────────────────────────────────────────────────────────────
-
-fn load_mcp_servers(ship_dir: &Path) -> Result<Vec<McpServerConfig>> {
-    let path = ship_dir.join("mcp.jsonc");
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-    let text = fs::read_to_string(&path)
-        .with_context(|| format!("Cannot read {}", path.display()))?;
-    let raw: RawMcpFile = from_jsonc_str(&text)
-        .with_context(|| format!("Cannot parse {}", path.display()))?;
-
-    let mut servers: Vec<McpServerConfig> = raw
-        .mcp
-        .servers
-        .into_iter()
-        .map(|(key, mut entry)| {
-            if entry.id.is_empty() {
-                entry.id = key;
-            }
-            let id = entry.id.clone();
-            let server_type = parse_mcp_server_type(&entry);
-            McpServerConfig {
-                id: id.clone(),
-                name: entry.name.unwrap_or_else(|| id.clone()),
-                command: entry.command.unwrap_or_default(),
-                args: entry.args,
-                env: entry.env,
-                scope: entry.scope,
-                server_type,
-                url: entry.url,
-                disabled: entry.disabled,
-                timeout_secs: entry.timeout_secs,
-                codex_enabled_tools: entry.codex_enabled_tools,
-                codex_disabled_tools: entry.codex_disabled_tools,
-                cursor_env_file: entry.cursor_env_file,
-            }
-        })
-        .collect();
-    // Stable order by id so the library is deterministic across reads.
-    servers.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(servers)
-}
-
-fn parse_mcp_server_type(entry: &McpEntry) -> McpServerType {
-    match entry.server_type.as_deref() {
-        Some("http") => McpServerType::Http,
-        Some("sse") => McpServerType::Sse,
-        _ => {
-            if entry.url.is_some() && entry.command.as_deref().unwrap_or("").is_empty() {
-                McpServerType::Http
-            } else {
-                McpServerType::Stdio
-            }
-        }
-    }
-}
+// ─── Permissions ──────────────────────────────────────────────────────────────
 
 // ─── Permissions ──────────────────────────────────────────────────────────────
 
@@ -248,65 +158,15 @@ fn load_hooks(ship_dir: &Path) -> Result<Vec<HookConfig>> {
         .collect())
 }
 
-// ─── Rules ────────────────────────────────────────────────────────────────────
-
-fn load_rules(ship_dir: &Path) -> Result<Vec<Rule>> {
-    let rules_dir = ship_dir.join("rules");
-    if !rules_dir.exists() {
-        return Ok(Vec::new());
-    }
-    let mut entries: Vec<_> = fs::read_dir(&rules_dir)
-        .with_context(|| format!("Cannot read_dir {}", rules_dir.display()))?
-        .flatten()
-        .filter(|e| e.path().extension().is_some_and(|x| x == "md"))
-        .collect();
-    entries.sort_by_key(|e| e.file_name());
-    let mut rules = Vec::with_capacity(entries.len());
-    for e in entries {
-        let file_name = e.file_name().to_string_lossy().to_string();
-        let raw = fs::read_to_string(e.path())
-            .with_context(|| format!("Cannot read rule {}", e.path().display()))?;
-        rules.push(parse_rule(&file_name, &raw));
-    }
-    Ok(rules)
-}
-
-/// Parse a rule `.md` file, stripping YAML frontmatter if present.
-/// Frontmatter fields: `description`, `globs` (list), `alwaysApply` (bool).
-fn parse_rule(file_name: &str, raw: &str) -> Rule {
-    if let Some(rest) = raw.strip_prefix("---\n")
-        && let Some(end) = rest.find("\n---\n")
-    {
-        let fm = &rest[..end];
-        let body = &rest[end + 5..];
-        let mut always_apply = true;
-        let mut globs: Vec<String> = Vec::new();
-        let mut description: Option<String> = None;
-        for line in fm.lines() {
-            if let Some(v) = line.strip_prefix("alwaysApply:") {
-                always_apply = v.trim() != "false";
-            } else if let Some(v) = line.strip_prefix("description:") {
-                description = Some(v.trim().trim_matches('"').to_string());
-            } else if line.trim_start().starts_with("- ") {
-                globs.push(line.trim().trim_start_matches("- ").to_string());
-            }
-        }
-        return Rule {
-            file_name: file_name.to_string(),
-            content: body.trim().to_string(),
-            always_apply,
-            globs,
-            description,
-        };
-    }
-    Rule {
-        file_name: file_name.to_string(),
-        content: raw.trim().to_string(),
-        always_apply: true,
-        globs: Vec::new(),
-        description: None,
-    }
-}
+// `.ship/rules/*.md` is no longer read by the leaf loader. Post format-
+// migration Wave 4 phase A, rule definitions arrive via `defineRule`
+// declare-forms in the space's `ship.config.ts` and land in
+// `ExtensionLibrary::rules` through
+// `ship_resolver::merge_ts_declarations` — see
+// `census-format-migration.md` Section 4 row 3. The compile path
+// consumes the resulting `Vec<Rule>` from `library` without ever
+// touching the source files, so the leaf's rules walk dies with the
+// cutover.
 
 // ── skill_paths (Phase-2 additive manifest read) ────────────────────────────────
 
@@ -450,86 +310,6 @@ fn load_agent_profiles(ship_dir: &Path) -> Vec<AgentProfile> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn parse_rule_strips_frontmatter_and_extracts_fields() {
-        let raw = "---\nalwaysApply: false\ndescription: A rule\nglobs:\n  - **/*.rs\n  - Cargo.toml\n---\n\nThe body.\n";
-        let r = parse_rule("style.md", raw);
-        assert_eq!(r.file_name, "style.md");
-        assert_eq!(r.content, "The body.");
-        assert!(!r.always_apply);
-        assert_eq!(r.globs, vec!["**/*.rs", "Cargo.toml"]);
-        assert_eq!(r.description.as_deref(), Some("A rule"));
-    }
-
-    #[test]
-    fn parse_rule_no_frontmatter_keeps_body_verbatim() {
-        let r = parse_rule("plain.md", "# Body\n\nPlain rule.");
-        assert!(r.always_apply);
-        assert!(r.globs.is_empty());
-        assert!(r.description.is_none());
-        assert_eq!(r.content, "# Body\n\nPlain rule.");
-    }
-
-    #[test]
-    fn parse_mcp_server_type_defaults_to_stdio() {
-        let e = McpEntry {
-            id: "x".into(),
-            name: None,
-            command: Some("npx".into()),
-            args: vec![],
-            env: Default::default(),
-            url: None,
-            scope: "project".into(),
-            server_type: None,
-            disabled: false,
-            timeout_secs: None,
-            codex_enabled_tools: vec![],
-            codex_disabled_tools: vec![],
-            cursor_env_file: None,
-        };
-        assert!(matches!(parse_mcp_server_type(&e), McpServerType::Stdio));
-    }
-
-    #[test]
-    fn parse_mcp_server_type_url_only_is_http() {
-        let e = McpEntry {
-            id: "x".into(),
-            name: None,
-            command: None,
-            args: vec![],
-            env: Default::default(),
-            url: Some("http://localhost:3000".into()),
-            scope: "project".into(),
-            server_type: None,
-            disabled: false,
-            timeout_secs: None,
-            codex_enabled_tools: vec![],
-            codex_disabled_tools: vec![],
-            cursor_env_file: None,
-        };
-        assert!(matches!(parse_mcp_server_type(&e), McpServerType::Http));
-    }
-
-    #[test]
-    fn parse_mcp_server_type_explicit_string() {
-        let e = McpEntry {
-            id: "x".into(),
-            name: None,
-            command: None,
-            args: vec![],
-            env: Default::default(),
-            url: Some("http://x".into()),
-            scope: "project".into(),
-            server_type: Some("sse".into()),
-            disabled: false,
-            timeout_secs: None,
-            codex_enabled_tools: vec![],
-            codex_disabled_tools: vec![],
-            cursor_env_file: None,
-        };
-        assert!(matches!(parse_mcp_server_type(&e), McpServerType::Sse));
-    }
 
     #[test]
     fn load_library_on_missing_dir_yields_empty_library() {
