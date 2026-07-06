@@ -46,21 +46,23 @@ pub use harness::{
 ///   `curl`s its harness-native payload straight at the daemon — no `ship`
 ///   CLI in the container. The daemon derives identity from the token and
 ///   deserializes the raw payload via `ShipHookEvent`'s field aliases.
-/// - **On the host** `$SHIP_DAEMON_URL` is unset → falls back to
-///   `ship hook <phase>` (CLI + `~/.ship/daemon.token`), unchanged.
+/// - **On the host** `$SHIP_DAEMON_URL` is unset → the hook is a NO-OP
+///   (`true`). No `hook` subcommand exists in ship-cli; a failing lifecycle
+///   hook blocks the harness's turn-end and death-spirals the agent
+///   (operator ruling 2026-07-06: emit nothing that can fail until the
+///   hooks mechanism is redesigned).
 ///
 /// Shared by every harness that emits command-style lifecycle hooks
 /// (claude `.mcp`/settings, codex `hooks.json`). Note: `before-tool`
 /// *blocking* is observability-only in the curl branch (raw curl can't
-/// translate the daemon's allow/block into a harness hook-block protocol);
-/// host blocking via `ship hook` is intact.
+/// translate the daemon's allow/block into a harness hook-block protocol).
 pub(super) fn ship_hook_command(endpoint: &str) -> String {
     format!(
         "if [ -n \"$SHIP_DAEMON_URL\" ]; then \
 curl -sS -X POST \"$SHIP_DAEMON_URL/hooks/{endpoint}\" \
 -H \"Authorization: Bearer $SHIP_TOKEN\" -H \"Content-Type: application/json\" \
 --data-binary @- >/dev/null 2>&1; \
-else ship hook {endpoint}; fi"
+else true; fi"
     )
 }
 

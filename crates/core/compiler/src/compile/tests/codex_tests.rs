@@ -22,7 +22,7 @@ fn codex_hooks_are_pod_and_host_hybrid() {
         .expect("command string");
     assert!(cmd.contains("$SHIP_DAEMON_URL/hooks/before-tool"), "got: {cmd}");
     assert!(cmd.contains("Authorization: Bearer $SHIP_TOKEN"), "got: {cmd}");
-    assert!(cmd.contains("ship hook before-tool"), "host fallback: {cmd}");
+    assert!(cmd.contains("else true; fi"), "host fallback must be a no-op: {cmd}");
 }
 
 /// Source: https://developers.openai.com/codex/mcp
