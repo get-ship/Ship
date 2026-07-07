@@ -4,6 +4,7 @@
 //! injects two transport-/runtime-owned capabilities as ports. The daemon
 //! supplies the concrete impls here:
 //!
+//!   - [`RegistryWindowSessions`] — mints / revokes the pid-bound C2 window
 //!     token against the daemon's in-memory `SessionRegistry`. The mint/revoke
 //!     mechanism the retired space-window seam used, now sole-owned here against
 //!     the device crate's `WindowSessions` trait.
