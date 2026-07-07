@@ -4385,6 +4385,7 @@ dependencies = [
  "ship-kernel",
  "ship-ops-rpc",
  "ship-reactive",
+ "ship-resolver",
  "ship-runner",
  "ship-store",
  "ship-substrate",
