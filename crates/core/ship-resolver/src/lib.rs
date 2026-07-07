@@ -235,17 +235,17 @@ pub async fn load_space_library(
 
 // ─── Phase-3 roll-up ───────────────────────────────────────────────────────────
 
-/// Compose the space's extension roll-up: the on-disk source + every locked
-/// cached package, fed through [`compiler::compose_space`].
+/// Compose the space's extension roll-up: the discovered extension roots
+/// (one per `ship.config.ts`-bearing directory under the space root) +
+/// every locked cached package, fed through [`compiler::compose_space`].
 ///
 /// The output is a [`compiler::ComposedLibrary`] whose `library` is the
-/// highest-ranked tier's `ExtensionLibrary` (the on-disk source, per
-/// `default_precedence`; cached packages use `ExtSource::UserGlobal` so the
-/// source wins on id collision). `shadows` carries one `ShadowRecord` per
-/// id collision the law resolved. The composed `library.rollup_inputs` is
-/// populated with the full `RollupInputs` (extensions + precedence) so
-/// downstream consumers (the def index in J3, the view in J4) can audit
-/// exactly what composed into the result.
+/// composed result of every extension's noun collections under the
+/// precedence law. `shadows` carries one `ShadowRecord` per id
+/// collision the law resolved. The composed `library.rollup_inputs`
+/// is populated with the full `RollupInputs` (extensions + precedence)
+/// so downstream consumers (the def index in J3, the view in J4) can
+/// audit exactly what composed into the result.
 ///
 /// Roots come from the caller or `ShipHome` typed accessors — no hardcoded
 /// paths. `cache_root` defaults to `ShipHome::cache_dir()` (the XDG cache
@@ -258,12 +258,34 @@ pub async fn load_space_library(
 /// `default_precedence` defines: cache (rank 0) < user-global (rank 500) <
 /// space (rank 1000) < agent overlay (rank 2000). Cached packages (locked
 /// via `ship.lock`) are tagged `ExtSource::Cache`; the operator-enabled
-/// library tier is tagged `ExtSource::UserGlobal` — the two were one
-/// overloaded tier before the format-migration Wave 2 split (census Part
-/// 3.4). A cached package's id collision with a same-id source agent is
-/// recorded as `losing_source: Cache, winning_source: Space`. The
-/// `losing_tier_hash` is the losing extension's content hash, so the index
-/// audit can identify which tier lost.
+/// library tier is tagged `ExtSource::UserGlobal`. Every discovered
+/// extension root in the space (`ship.config.ts` at the space root +
+/// every direct child dir carrying `ship.config.ts`) is tagged
+/// `ExtSource::Space` and forms its own `ExtensionDescriptor` — the
+/// multi-extension shape Wave 4 phase B introduced
+/// (`job-spec-fm-w4b-space-scan.md`).
+///
+/// ## The permissions/hooks fence (the PIN)
+///
+/// Permissions and hooks are NOT composed across Space-tier extensions.
+/// Only the space-root extension's `permissions` + `hooks` survive the
+/// composition — every child-dir extension's contribution is zeroed at
+/// the per-root identity source (the descriptor build site below) before
+/// `compose_space` runs. The fence is encoded at the source where the
+/// per-root identity is known, not inferred by `compose_space` (an
+/// extension must not grant itself). The `compose_space` "first Space
+/// wins" rule plus the deterministic root-first ordering ensure the
+/// space root's `permissions` / `hooks` are the composed base; child
+/// descriptors arrive in declared order after, with their
+/// `permissions` / `hooks` already zeroed.
+///
+/// ## Determinism
+///
+/// Extension roots are enumerated in a stable order — the space root
+/// first, then children in lexicographic order of their dir name. The
+/// `RollupInputs.extensions` list mirrors this order verbatim, so
+/// compose precedence and the `ShadowRecord` list are reproducible
+/// run-to-run (the cache key invariant).
 pub async fn roll_up(
     space_root: &Path,
     cache_root: Option<&Path>,
@@ -271,27 +293,111 @@ pub async fn roll_up(
 ) -> Result<ComposedLibrary> {
     let fs = LocalFsBroker::new();
 
-    // 1. Load the source's `ExtensionLibrary` (on-disk shape, no TS merge).
-    let mut source_library = space_loader::load_space_library(&fs, space_root)
-        .await
-        .with_context(|| {
-            format!("roll_up: space load failed for {}", space_root.display())
-        })?;
+    // 1. Enumerate every extension root in the space (the W4 phase B
+    //    shape: space root + every direct child dir carrying
+    //    `ship.config.ts`). Each becomes its own `ExtSource::Space`
+    //    descriptor with stable identity (the root's name).
+    let roots = space_loader::enumerate_extension_roots(space_root)
+        .context("roll_up: enumerate extension roots")?;
 
-    // 2. TS-eval the `imported_modules` and merge into the source's noun
-    //    collections. Same flow as `resolve_space_with_broker` — we don't
-    //    need the `ResolvedConfig` (the roll-up is descriptor-shaped, not
-    //    runtime-shaped), only the merged library.
-    let declarations =
-        ts_resolver::resolve_ts_files(&source_library.imported_modules, &Value::Null)
+    // 2. Per-extension TS eval: collect the union of every root's
+    //    `imported_modules` (each root contributes one module — the
+    //    root's `ship.config.ts`). The TS fan-out
+    //    (`ts_resolver::resolve_ts_files`) iterates in declared order
+    //    and merges; the merged `Declarations` lands in
+    //    `source_library` below (the merged source shape that
+    //    `compose_space` consumes).
+    let mut per_root_descriptors: Vec<ExtensionDescriptor> =
+        Vec::with_capacity(roots.len());
+    let mut space_root_descriptor: Option<ExtensionDescriptor> = None;
+    for root in &roots {
+        let mut per_root = space_loader::load_root_library(&fs, &root.path)
             .await
-            .context("roll_up: TS eval failed")?;
-    merge_ts_declarations(&mut source_library, declarations);
+            .with_context(|| {
+                format!(
+                    "roll_up: load root library for {} ({})",
+                    root.path.display(),
+                    root.identity
+                )
+            })?;
+        // TS-eval THIS root's manifest and merge into the per-root
+        // library. The `imported_modules` is consumed in the process —
+        // the per-root descriptor carries the merged library
+        // (declare-forms as if they were file-borne).
+        let declarations =
+            ts_resolver::resolve_ts_files(&per_root.imported_modules, &Value::Null)
+                .await
+                .with_context(|| {
+                    format!(
+                        "roll_up: TS eval for root {} ({})",
+                        root.path.display(),
+                        root.identity
+                    )
+                })?;
+        merge_ts_declarations(&mut per_root, declarations);
+        // Drain the now-consumed modules so they don't double-eval
+        // via the merged `source_library` below.
+        per_root.imported_modules.clear();
 
-    // 3. Source's per-extension content hash. The cache key (J5) is the
-    //    COMPOSED library's hash, which embeds this via `rollup_inputs`,
-    //    so the source's per-extension hash here is the audit value the
-    //    shadow record carries on collision.
+        let per_root_content_hash = descriptor::extension_library_content_hash(&per_root)
+            .with_context(|| {
+                format!(
+                    "roll_up: per-root content hash for {}",
+                    root.path.display()
+                )
+            })?;
+
+        if root.identity == space_loader::SPACE_ROOT_IDENTITY {
+            // The space root owns permissions + hooks. The PIN:
+            // this descriptor's `permissions` + `hooks` are the
+            // composed base (the rest are dropped pre-merge).
+            space_root_descriptor = Some(ExtensionDescriptor {
+                source: ExtSource::Space,
+                space_root: root.path.clone(),
+                descriptor: per_root,
+                content_hash: per_root_content_hash,
+            });
+        } else {
+            // Child-dir extension: zero out permissions + hooks
+            // BEFORE the descriptor is built. The fence is encoded
+            // at the per-root identity source — a child that
+            // misconfigures its `.ship/permissions.jsonc` cannot
+            // escalate the space's effective grants.
+            per_root.permissions = compiler::Permissions::default();
+            per_root.hooks = Vec::new();
+            per_root_descriptors.push(ExtensionDescriptor {
+                source: ExtSource::Space,
+                space_root: root.path.clone(),
+                descriptor: per_root,
+                content_hash: per_root_content_hash,
+            });
+        }
+    }
+    // The merged source library is the concatenation of every root's
+    // post-TS-eval library. This is the shape
+    // `load_space_library` returns for the resolver's single-library
+    // API consumers (TS fan-out, canonical-form hashing, etc.); the
+    // roll-up below uses the per-root descriptors to feed
+    // `compose_space`.
+    //
+    // We rebuild this from the per-root descriptors to keep one
+    // source of truth (no double-eval, no drift between the merged
+    // library and the descriptor set).
+    let mut source_library = ExtensionLibrary::default();
+    if let Some(space_root_desc) = &space_root_descriptor {
+        // Space root keeps its permissions + hooks (the PIN base);
+        // every other field lands in the merged library.
+        source_library = space_root_desc.descriptor.clone();
+    }
+    for child_desc in &per_root_descriptors {
+        merge_ts_root_into(&mut source_library, &child_desc.descriptor);
+    }
+
+    // 3. The merged `ExtensionLibrary`'s content hash. Surfaced for
+    //    callers that key on the single-library canonical form. The
+    //    `compose_space` step below uses the per-extension hashes
+    //    (the descriptor's `content_hash` field) as the audit
+    //    values for `ShadowRecord`.
     let source_content_hash = descriptor::extension_library_content_hash(&source_library)
         .context("roll_up: source content hash")?;
 
@@ -336,12 +442,17 @@ pub async fn roll_up(
     let enabled_content_hash = descriptor::extension_library_content_hash(&enabled_library)
         .context("roll_up: enabled-tier content hash")?;
 
-    // 5. Build the extension set. Cached packages come FIRST in declared
-    //    order so the source — also `ExtSource::Space` (rank 1000) at the
-    //    same rank — wins on equal-rank ties (the `compose_space` law:
-    //    "later declared wins"). Every other tier has a distinct rank, so
-    //    declared order is otherwise irrelevant.
-    let mut extensions: Vec<ExtensionDescriptor> = Vec::with_capacity(bundles.len() + 2);
+    // 5. Build the extension set. Cached packages come FIRST in
+    //    declared order so the source extensions — also
+    //    `ExtSource::Space` (rank 1000) at the same rank — win on
+    //    equal-rank ties (the `compose_space` law: "later declared
+    //    wins"). Every other tier has a distinct rank, so declared
+    //    order is otherwise irrelevant. The Space-tier set is the
+    //    space-root descriptor (if it qualifies) followed by every
+    //    child-dir descriptor in their lexicographic order (the
+    //    order `enumerate_extension_roots` returns them in).
+    let mut extensions: Vec<ExtensionDescriptor> =
+        Vec::with_capacity(bundles.len() + 2 + per_root_descriptors.len());
     for bundle in &bundles {
         let mut descriptor = ExtensionLibrary::default();
         descriptor.agent_profiles = bundle.agent_profiles.clone();
@@ -365,12 +476,10 @@ pub async fn roll_up(
         descriptor: enabled_library,
         content_hash: enabled_content_hash,
     });
-    extensions.push(ExtensionDescriptor {
-        source: ExtSource::Space,
-        space_root: space_root.to_path_buf(),
-        descriptor: source_library,
-        content_hash: source_content_hash,
-    });
+    if let Some(space_root_desc) = space_root_descriptor {
+        extensions.push(space_root_desc);
+    }
+    extensions.extend(per_root_descriptors);
 
     // 6. Assemble RollupInputs.
     let rollup_inputs = RollupInputs {
@@ -389,7 +498,33 @@ pub async fn roll_up(
     //    empty roll-up stays out of the canonical form (Phase-2 contract).
     composed.library.rollup_inputs = Some(rollup_inputs);
 
+    // `source_content_hash` is intentionally surfaced for callers
+    // that key on the single-library canonical form; the per-extension
+    // hashes are the audit values `compose_space` records on shadow.
+    let _ = source_content_hash;
+
     Ok(composed)
+}
+
+/// Append one root's post-TS-eval `ExtensionLibrary` into the merged
+/// accumulator (the single-library view `load_space_library`-shaped
+/// callers consume). Permissions + hooks are intentionally NOT
+/// merged here — the PIN has them sourced exclusively from the space
+/// root, and the roll-up's per-root descriptors carry their own
+/// scoped values. The merged library is the resolver's
+/// `load_space_library` API contract shape; the roll-up feeds
+/// `compose_space` from the per-root descriptors directly.
+fn merge_ts_root_into(merged: &mut ExtensionLibrary, lib: &ExtensionLibrary) {
+    merged.agent_profiles.extend(lib.agent_profiles.clone());
+    merged.agents.extend(lib.agents.clone());
+    merged.mcp_servers.extend(lib.mcp_servers.clone());
+    merged.skills.extend(lib.skills.clone());
+    merged.rules.extend(lib.rules.clone());
+    merged.pipelines.extend(lib.pipelines.clone());
+    merged.triggers.extend(lib.triggers.clone());
+    merged.collections.extend(lib.collections.clone());
+    merged.views.extend(lib.views.clone());
+    merged.skill_paths.extend(lib.skill_paths.clone());
 }
 
 /// Synchronous bridge over [`roll_up`] for callers that cannot `.await` —

@@ -100,11 +100,17 @@ pub fn compose_space(inputs: &RollupInputs) -> anyhow::Result<ComposedLibrary> {
     // Stable sort: equal ranks keep declared order, so later-declared wins.
     ordered.sort_by_key(|(rank, _)| *rank);
 
-    // Base = the highest-ranked space tier verbatim (permissions, hooks, and
-    // every config field ride through untouched). Absent → empty library.
+    // Base = the space-root tier verbatim (permissions, hooks, and
+    // every config field ride through untouched). The multi-extension
+    // shape (Wave 4 phase B) declared the space-root descriptor FIRST
+    // in declared order, so the first Space in declared order is
+    // the space root. Every child-dir Space descriptor is a
+    // sibling; the resolver zeroed their permissions + hooks at
+    // the per-root identity source (the `roll_up` orchestrator), so
+    // the fence is the FIRST Space's permissions/hooks regardless
+    // of how many children exist. Absent → empty library.
     let mut library = ordered
         .iter()
-        .rev()
         .find(|(_, ext)| ext.source == ExtSource::Space)
         .map(|(_, ext)| ext.descriptor.clone())
         .unwrap_or_default();

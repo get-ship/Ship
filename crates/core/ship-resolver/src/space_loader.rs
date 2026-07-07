@@ -1,23 +1,22 @@
 //! Space-shape disk walk — the resolver's `load_space_library` entry.
 //!
-//! Composes with the compiler leaf's [`compiler::load_library`] for the
-//! bulk of the read (`.ship/{permissions,hooks,skills,agents}/`; mcp
-//! servers and rules no longer have a file form — see
-//! `compiler::loader`), then layers the Phase-2 space-shape pieces on
-//! top:
+//! ## Wave 4 phase B: multi-extension space scan
 //!
-//! - `ship.config.ts` at the space root — the canonical TS manifest and
-//!   the ONLY valid manifest filename (no legacy `<.ship>/ship.ts`
-//!   fallback, retired in format-migration Wave 4 phase A). The leaf's
-//!   `load_library` doesn't read it — the resolver owns the read, and a
-//!   separate eval step (`ship_resolver::merge_ts_declarations`) harvests
-//!   its declare-forms (`defineMcpServer`, `defineRule`, etc.).
-//! - Skills from the additional `space.skill_paths` — the leaf already
-//!   reads `space.skill_paths` from `ship.jsonc` (the additive F1
-//!   manifest read) and the default `.ship/skills/` is walked by the leaf's
-//!   `load_skills`. The resolver walks the EXTRA paths and merges into
-//!   `ExtensionLibrary::skills`, space winning on id conflict (so a
-//!   space-defined skill shadows an extension's).
+//! The space root is a DIRECTORY (operator ruling, `decision-space-scan.md`).
+//! Enumeration scans the space root for `ship.config.ts` at candidate
+//! roots: the space root itself (reserved identity `"root"`) and each
+//! direct child directory that carries `ship.config.ts` (identity =
+//! child dir name). No TS eval during enumeration, no git awareness, no
+//! recursion past depth 1, no symlink following. Missing or empty space
+//! dir → empty enumeration, not an error.
+//!
+//! Each discovered root is loaded as its own `ExtensionLibrary` (the
+//! per-root loader is [`load_root_library`]). The space-root descriptor
+//! is the SOLE contributor of permissions + hooks (the PIN — an
+//! extension must not grant itself; the fence survives multi-extension).
+//! Every other noun (agents, mcp, rules, skills, pipelines, triggers,
+//! collections, views) flows through `compose_space` and resolves
+//! deterministically: root first, then children lexicographic.
 //!
 //! ## FsBroker for new code (R1)
 //!
@@ -26,7 +25,11 @@
 //! continues to use its `std::fs` walk (the leaf-clean invariant
 //! `cargo tree` proves; see `compiler/src/loader.rs:1-7`). The two read
 //! surfaces are deliberately orthogonal: leaf = substrate-free, resolver
-//! = substrate-broker-gated.
+//! = substrate-broker-gated. The enumeration scan itself is a one-pass
+//! `std::fs::read_dir` — it needs metadata (file vs directory vs
+//! symlink) that the `FsBroker` trait does not expose; the scan does not
+//! read content, only the immediate entries' metadata, and feeds the
+//! results to the FsBroker-gated per-root loaders.
 //!
 //! ## The cap
 //!
@@ -35,13 +38,15 @@
 //! cap serves both the `.ship/...` reads and the space-root `ship.config.ts`
 //! read. The bootstrap posture mirrors `ship-config::agents::cap_root_and_dir`
 //! (`ship-config/src/agents.rs:39-50`): root at a directory that always
-//! exists (the space root) and use explicit two-segment rels.
+//! exists (the space root) and use explicit two-segment rels. Per-root
+//! caps mirror this for each discovered child root.
 //!
 //! ## Authority
 //!
-//! - Spec: `helm/data/missions/m-ship-stack-cutover/scratch/job-spec-p2-J3-resolver.md`.
-//! - Census: `census-phase2-resolver.md` Part 4 (space shape) + Part 5 J3
-//!   (this crate's scope).
+//! - Spec: `helm/data/missions/m-ship-stack-cutover/scratch/job-spec-fm-w4b-space-scan.md`.
+//! - Decision: `decision-space-scan.md` (space = DIRECTORY, filename
+//!   scan, no eval, no git) + `decision-morning-answers.md` §4 (the
+//!   polyrepo is ONE space; repos own EXTENSIONS).
 //! - F1 decision: `decision-f1-loader.md` — Option A, the superset is
 //!   the architecture. The leaf grows `space.skill_paths`; this crate
 //!   composes with the leaf.
@@ -84,47 +89,167 @@ impl SpaceCap {
         }
     }
 }
-/// Read the space root + the FsBroker, and return a fully-populated
-/// `ExtensionLibrary`.
+/// One discovered extension root inside a space.
 ///
-/// The bulk of the read (`mcp.jsonc`, `permissions.jsonc`, `hooks.jsonc`,
-/// `rules/`, `.ship/skills/`, `agents/`) is delegated to the leaf's
-/// [`compiler::load_library`]; this fn layers the Phase-2 pieces on top:
+/// `identity` is the stable name compose precedence keys on — the
+/// reserved `"root"` for the space root itself, the child dir basename
+/// for every other direct child directory carrying `ship.config.ts`.
+/// `path` is the absolute directory the per-root loader reads. The
+/// resolver mints one `ExtensionDescriptor::Space` per root in
+/// deterministic order (root first, then children lexicographic).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExtensionRoot {
+    pub identity: String,
+    pub path: PathBuf,
+}
+
+/// The reserved identity for the space-root extension — the directory
+/// the caller passed as `space_root` itself. Compose uses this as the
+/// first descriptor in declared order; the PIN sources
+/// permissions/hooks from THIS descriptor and from no other.
+pub const SPACE_ROOT_IDENTITY: &str = "root";
+
+/// Discover every extension root inside a space directory.
+///
+/// Filename scan only — no TS eval, no git awareness, no recursion past
+/// depth 1, no symlink following. The space root itself is included
+/// when it carries `ship.config.ts` (the common case for a ship repo
+/// acting as its own space root — the regression fence the spec
+/// requires). Every direct child directory that carries
+/// `ship.config.ts` is included, with `identity = child_dir_name`.
+/// Children that are not directories (files, symlinks) are skipped
+/// outright; symlinks are detected via `symlink_metadata` so a
+/// well-named symlink-to-outside does not count as an extension.
+///
+/// Order is deterministic: the space root (when it qualifies) is
+/// always first, then the children in lexicographic order of their
+/// dir name. Compose precedence reads this order verbatim — the
+/// spec's "root first, then children lexicographic" mandate.
+///
+/// Missing space dir → empty enumeration, not an error. An existing
+/// space dir that is itself a file (or otherwise unreadable) is
+/// returned as empty too, consistent with the lenient contract
+/// `load_space_library` inherits from the leaf.
+pub fn enumerate_extension_roots(space_root: &Path) -> Result<Vec<ExtensionRoot>> {
+    // First, confirm the space root itself exists + is a real
+    // directory (not a file, not a symlink — the spec is firm about
+    // "symlinks not followed" at the scan boundary). A missing or
+    // degenerate space root is an empty enumeration, not an error:
+    // the spec's "missing/empty space dir → empty enumeration, not an
+    // error" is the contract.
+    let root_meta = match std::fs::symlink_metadata(space_root) {
+        Ok(m) => m,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(_) => return Ok(Vec::new()),
+    };
+    if !root_meta.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut roots: Vec<ExtensionRoot> = Vec::new();
+
+    // Space root qualifies iff it carries `ship.config.ts` at its top
+    // level. We test the file's existence directly via `symlink_metadata`
+    // (no symlink follow), matching the spec's directive.
+    if std::fs::symlink_metadata(space_root.join(SHIP_CONFIG_FILENAME)).is_ok() {
+        roots.push(ExtensionRoot {
+            identity: SPACE_ROOT_IDENTITY.to_string(),
+            path: space_root.to_path_buf(),
+        });
+    }
+
+    // Enumerate direct children. Depth 1 only — no recursion. The
+    // entry is an extension iff it is a directory (not a file, not a
+    // symlink) and it carries `ship.config.ts` at its top level.
+    let entries = match std::fs::read_dir(space_root) {
+        Ok(e) => e,
+        Err(_) => return Ok(roots),
+    };
+    let mut child_dirs: Vec<(String, PathBuf)> = Vec::new();
+    for entry in entries {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        let file_type = match entry.file_type() {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        if !file_type.is_dir() {
+            // Includes symlinks-to-directory: `file_type.is_dir()` is
+            // false for symlinks (no follow), exactly what the spec
+            // asks for.
+            continue;
+        }
+        let name = match entry.file_name().into_string() {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let child_path = entry.path();
+        if std::fs::symlink_metadata(child_path.join(SHIP_CONFIG_FILENAME)).is_err() {
+            continue;
+        }
+        child_dirs.push((name, child_path));
+    }
+
+    // Lexicographic child order — compose precedence is reproducible
+    // run-to-run and insensitive to `read_dir` ordering.
+    child_dirs.sort_by(|a, b| a.0.cmp(&b.0));
+    roots.extend(child_dirs.into_iter().map(|(name, path)| ExtensionRoot {
+        identity: name,
+        path,
+    }));
+
+    Ok(roots)
+}
+
+/// Read ONE extension root and return its `ExtensionLibrary` (raw
+/// disk shape; no TS merge).
+///
+/// The bulk of the read (permissions, hooks, the additive
+/// `space.skill_paths` default walk) is delegated to the leaf's
+/// [`compiler::load_library`] at `<root>/.ship/`. The Phase-2 pieces
+/// layered on top:
 ///
 /// 1. Walk the additional `space.skill_paths` (everything past the
 ///    default `.ship/skills/`) and merge skills into `library.skills`.
 ///    The leaf's `load_library` already populated the default path's
-///    skills; this fn appends the others, space winning on id.
-/// 2. Read `ship.config.ts` at the space root and return its
-///    `ModuleDescriptor` in `imported_modules` (Phase-3 multi-file shape
-///    is the consumer's; the descriptor carries one module in Phase 2
-///    since the loader still admits only `"ship"`). No dual filename
-///    support — the legacy `<.ship>/ship.ts` shape is retired along
-///    with the format-migration Wave 4 JSONC/MD cutover.
-pub async fn load_space_library(
+///    skills; this fn appends the others, dedup-on-id (the
+///    `compose_space` law is the only collision authority at the
+///    roll-up level; within ONE root, simple id-dedup suffices).
+/// 2. Read `ship.config.ts` at the root and append a
+///    `ModuleDescriptor` to `imported_modules`. No dual filename
+///    support — the legacy `<.ship>/ship.ts` shape is retired
+///    (format-migration Wave 4 phase A).
+///
+/// Permissions + hooks are loaded from disk and returned verbatim —
+/// the PIN is applied one layer up in [`load_space_library`] / the
+/// `roll_up` orchestrator (only the space-root descriptor's
+/// permissions/hooks survive the composition).
+pub(crate) async fn load_root_library(
     fs: &dyn FsBroker,
-    space_root: &Path,
+    root: &Path,
 ) -> Result<ExtensionLibrary> {
-
-    // 1. Delegate to the leaf for the bulk of the read. The leaf is sync
-    //    `std::fs`; it's the canonical phase-0 surface and ships on its
-    //    own contract (`compiler::load_library`).
-    let ship_dir = space_root.join(SHIP_DIR_NAME);
+    // 1. Delegate to the leaf for the bulk of the read. The leaf is
+    //    sync `std::fs`; it's the canonical phase-0 surface and ships
+    //    on its own contract (`compiler::load_library`).
+    let ship_dir = root.join(SHIP_DIR_NAME);
     let mut library = compiler::load_library(&ship_dir)
         .with_context(|| format!("compiler::load_library failed for {}", ship_dir.display()))?;
 
-    // 2. Add the additional skill paths on top of the leaf's default walk.
-    //    The leaf's `load_library` already populated `library.skill_paths`
-    //    (the additive F1 manifest read) and `library.skills` (the
-    //    default-path skills). We walk the extras here, via FsBroker.
-    let cap = SpaceCap::read_only(space_root);
+    // 2. Add the additional skill paths on top of the leaf's default
+    //    walk. The leaf's `load_library` already populated
+    //    `library.skill_paths` (the additive F1 manifest read) and
+    //    `library.skills` (the default-path skills). We walk the
+    //    extras here, via FsBroker.
+    let cap = SpaceCap::read_only(root);
     if !library.skill_paths.is_empty() {
         let mut seen_ids: std::collections::HashSet<String> =
             library.skills.iter().map(|s| s.id.clone()).collect();
         for path in library.skill_paths.iter() {
-            // The default `.ship/skills/` is already walked by the leaf —
-            // skip the dup. The leaf's `read_space_skill_paths` is the
-            // single source of truth for the default entry.
+            // The default `.ship/skills/` is already walked by the
+            // leaf — skip the dup. The leaf's `read_space_skill_paths`
+            // is the single source of truth for the default entry.
             if path == ".ship/skills/" {
                 continue;
             }
@@ -134,24 +259,20 @@ pub async fn load_space_library(
                 if seen_ids.insert(skill.id.clone()) {
                     library.skills.push(skill);
                 }
-                // Conflict: space-defined skill (already in `library.skills`)
-                // wins; the extension's skill is silently dropped. This is
-                // agent-def's "space id wins on conflict" rule, per
-                // `compile/skill_parser.rs:50-64`.
             }
         }
-        // Stable order — the descriptor cache's content hash depends on
-        // a stable iteration order.
+        // Stable order — the descriptor cache's content hash depends
+        // on a stable iteration order.
         library.skills.sort_by(|a, b| a.id.cmp(&b.id));
     }
 
-    // 3. Read the TS manifest (one module in Phase 2; Phase 3 extends
-    //    the closed-world loader to admit space-relative imports and
-    //    the fan-out grows). W4 phase A retires the legacy
-    //    `<.ship>/ship.ts` shape — `ship.config.ts` at the space root
-    //    is the only valid manifest.
-    if let Some(module) = read_ship_config_ts(fs, &cap.cap, space_root)
-        .with_context(|| format!("read ship.config.ts under {}", space_root.display()))?
+    // 3. Read the TS manifest. W4 phase A retired the legacy
+    //    `<.ship>/ship.ts` shape — `ship.config.ts` at the root is
+    //    the only valid manifest. Phase 3 extends the closed-world
+    //    loader to admit project-relative imports; until then, every
+    //    root contributes one module.
+    if let Some(module) = read_ship_config_ts(fs, &cap.cap, root)
+        .with_context(|| format!("read ship.config.ts under {}", root.display()))?
     {
         let content_hash = extension_library_module_hash(&module);
         let mut module = module;
@@ -160,6 +281,103 @@ pub async fn load_space_library(
     }
 
     Ok(library)
+}
+
+/// Read the space root + the FsBroker, enumerate every extension root
+/// it contains, and return a single merged `ExtensionLibrary`.
+///
+/// The Wave 4 phase B shape (`decision-space-scan.md` +
+/// `job-spec-fm-w4b-space-scan.md`): the space root's `ship.config.ts`
+/// + every direct child directory's `ship.config.ts` is loaded as its
+/// own `ExtensionLibrary`, then composed into one descriptor by
+/// [`super::roll_up`] (which builds the per-root `ExtSource::Space`
+/// descriptors and runs `compose_space`). At THIS level we only
+/// collect: the per-root libraries are concatenated — noun vectors
+/// append, `imported_modules` concatenate — and the merged result is
+/// returned. The PIN for permissions/hooks is the SPACE ROOT's
+/// contribution; child descriptors' `permissions` / `hooks` are
+/// dropped before the merge so the composed library carries only the
+/// space-root grants.
+pub async fn load_space_library(
+    fs: &dyn FsBroker,
+    space_root: &Path,
+) -> Result<ExtensionLibrary> {
+    let roots = enumerate_extension_roots(space_root)
+        .with_context(|| format!("enumerate extension roots for {}", space_root.display()))?;
+
+    // No roots → no space. The roll-up collapses to whatever the
+    // cache + enabled tiers bring in (a degenerate case; the
+    // spec's "missing/empty space dir → empty enumeration" is the
+    // contract for this branch).
+    if roots.is_empty() {
+        return Ok(ExtensionLibrary::default());
+    }
+
+    // Load each root as its own `ExtensionLibrary` and merge. The
+    // root itself (identity `"root"`) is always the first entry per
+    // `enumerate_extension_roots`'s order, so we know it when we see
+    // it. The PIN: only the space root's permissions + hooks survive
+    // the merge. Every child root's permissions/hooks are dropped
+    // here so a misconfigured child cannot grant itself or pull more
+    // access than the space root allowed (the fence survives
+    // multi-extension).
+    let mut merged = ExtensionLibrary::default();
+    for (idx, root) in roots.iter().enumerate() {
+        let mut lib = load_root_library(fs, &root.path).await.with_context(|| {
+            format!("load root library for {} ({})", root.path.display(), root.identity)
+        })?;
+        let is_space_root = idx == 0;
+        // Defense-in-depth: even though `is_space_root` is what gates
+        // the PIN below, also zero out a child root's permissions /
+        // hooks before the merge. A child that misconfigures its
+        // `.ship/permissions.jsonc` cannot escalate the space's
+        // effective grants — the FENCE is encoded at the source
+        // where the per-root identity is known, not just inferred
+        // by `is_space_root` later.
+        if !is_space_root {
+            lib.permissions = compiler::Permissions::default();
+            lib.hooks = Vec::new();
+        }
+        merge_root_into(&mut merged, lib, is_space_root);
+    }
+    Ok(merged)
+}
+
+/// Append one root's `ExtensionLibrary` into the merged accumulator.
+///
+/// Noun vectors concatenate; duplicate ids are tolerated here and
+/// resolved one layer up by [`crate::roll_up`] → [`compiler::compose_space`]
+/// (the law's job). `imported_modules` concatenate in declared order
+/// so the TS-eval fan-out (`ts_resolver::resolve_ts_files`) iterates
+/// root-first, children-next. `skill_paths` concatenate; the default
+/// `.ship/skills/` filter still applies per root in
+/// [`load_root_library`]. `permissions` + `hooks` are already
+/// zeroed on every child root by [`load_space_library`] before this
+/// is called; the space-root's contribution is the first write and
+/// the only one that lands non-default.
+fn merge_root_into(merged: &mut ExtensionLibrary, lib: ExtensionLibrary, is_space_root: bool) {
+    merged.agent_profiles.extend(lib.agent_profiles);
+    merged.agents.extend(lib.agents);
+    merged.mcp_servers.extend(lib.mcp_servers);
+    merged.skills.extend(lib.skills);
+    merged.rules.extend(lib.rules);
+    merged.pipelines.extend(lib.pipelines);
+    merged.triggers.extend(lib.triggers);
+    merged.collections.extend(lib.collections);
+    merged.views.extend(lib.views);
+    merged.imported_modules.extend(lib.imported_modules);
+    merged.skill_paths.extend(lib.skill_paths);
+    // Permissions + hooks: the PIN says only the space root can
+    // grant them. The space root's value is the authoritative value
+    // (whether the leaf found an explicit `permissions.jsonc` /
+    // `hooks.jsonc` or fell through to the default). Children are
+    // structurally incapable of contributing — a child that
+    // misconfigures its `.ship/permissions.jsonc` cannot escalate
+    // the space's effective grants.
+    if is_space_root {
+        merged.permissions = lib.permissions;
+        merged.hooks = lib.hooks;
+    }
 }
 
 /// Walk one skill dir and return its `Skill` records (id derived from the
@@ -409,4 +627,143 @@ defineAgent({
         assert_eq!(cap.cap.root(), tmp.path());
     }
 
+    // ── Wave 4 phase B: multi-extension discovery + per-root load ──────────
+
+    /// A space with `ship.config.ts` at the root enumerates ONE root
+    /// (the space root, identity `"root"`). No child dirs in the
+    /// fixture — the empty-children branch.
+    #[test]
+    fn enumerate_finds_only_space_root_when_no_children() {
+        let (_tmp, root) = write_space();
+        let roots = enumerate_extension_roots(&root).unwrap();
+        assert_eq!(roots.len(), 1, "only the space root carries a manifest");
+        assert_eq!(roots[0].identity, SPACE_ROOT_IDENTITY);
+        assert_eq!(roots[0].path, root);
+    }
+
+    /// The space root does NOT carry a manifest → empty enumeration
+    /// (the spec's "missing/empty space dir → empty enumeration, not
+    /// an error" contract). The leaf still loads permissions/hooks
+    /// from `.ship/` if present, but without a manifest the root is
+    /// not a discoverable extension source.
+    #[test]
+    fn enumerate_returns_empty_when_no_manifest_present() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().to_path_buf();
+        std::fs::create_dir_all(root.join(".ship")).unwrap();
+        // No `ship.config.ts` at the root, no children.
+        let roots = enumerate_extension_roots(&root).unwrap();
+        assert!(roots.is_empty(), "no manifest ⇒ empty enumeration");
+    }
+
+    /// A space root + two child dirs carrying `ship.config.ts` →
+    /// three roots, in deterministic order: root first, then
+    /// children lexicographic. Non-manifest children are skipped.
+    #[test]
+    fn enumerate_finds_root_plus_children_in_lexicographic_order() {
+        let (_tmp, root) = write_space();
+        // Add two child dirs in NON-lexicographic write order to
+        // prove the sort dominates `read_dir`'s native order.
+        for (name, body) in [
+            ("zeta", "import { defineAgent } from \"ship\";\ndefineAgent({ agent: { id: \"zeta-agent\", name: \"Zeta\" } });\n"),
+            ("alpha", "import { defineAgent } from \"ship\";\ndefineAgent({ agent: { id: \"alpha-agent\", name: \"Alpha\" } });\n"),
+        ] {
+            let child = root.join(name);
+            std::fs::create_dir_all(child.join(".ship")).unwrap();
+            std::fs::write(child.join("ship.config.ts"), body).unwrap();
+        }
+        // A non-manifest child — must NOT be enumerated.
+        let no_manifest = root.join("no-manifest");
+        std::fs::create_dir_all(&no_manifest).unwrap();
+        // A file at the top level — also NOT enumerated.
+        std::fs::write(root.join("README.md"), "# notes\n").unwrap();
+        // A symlink to a dir with a manifest — must NOT be enumerated
+        // (the spec's "symlinks not followed" rule).
+        #[cfg(unix)]
+        {
+            let real = tempfile::tempdir().unwrap();
+            std::fs::write(real.path().join("ship.config.ts"), "x").unwrap();
+            std::os::unix::fs::symlink(real.path(), root.join("symlink-child")).unwrap();
+        }
+
+        let roots = enumerate_extension_roots(&root).unwrap();
+        let identities: Vec<&str> = roots.iter().map(|r| r.identity.as_str()).collect();
+        assert_eq!(
+            identities,
+            vec![SPACE_ROOT_IDENTITY, "alpha", "zeta"],
+            "root first, children lexicographic; non-manifest + symlink skipped"
+        );
+    }
+
+    /// A missing space root is empty enumeration, not an error. The
+    /// spec is explicit: "missing/empty space dir → empty enumeration,
+    /// not an error."
+    #[test]
+    fn enumerate_returns_empty_for_missing_space_root() {
+        let tmp = tempfile::tempdir().unwrap();
+        let missing = tmp.path().join("does-not-exist");
+        let roots = enumerate_extension_roots(&missing).unwrap();
+        assert!(roots.is_empty());
+    }
+
+    /// The PIN: a child-dir extension's permissions + hooks are
+    /// dropped during the merge, so the merged library carries only
+    /// the space root's contributions. The fixture gives both
+    /// roots a `.ship/hooks.jsonc` (the leaf parses hooks verbatim
+    /// — permissions are a presets document the leaf leaves to
+    /// caller-side preset resolution). The assertion: the merged
+    /// library's hooks come from the ROOT, never the child, even
+    /// when the child tries to grant more.
+    #[tokio::test(flavor = "current_thread")]
+    async fn load_space_library_drops_child_hooks() {
+        let (_tmp, root) = write_space();
+        // Add a child dir carrying both a manifest AND a hook
+        // grant that must be ignored post-merge.
+        let child = root.join("child-with-grants");
+        std::fs::create_dir_all(child.join(".ship")).unwrap();
+        std::fs::write(
+            child.join(".ship").join("hooks.jsonc"),
+            r#"{"hooks": [{"id": "child-hook", "trigger": "PreToolUse", "command": "child-cmd"}]}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            child.join("ship.config.ts"),
+            r#"import { defineAgent } from "ship";
+defineAgent({ agent: { id: "child-agent", name: "Child" } });
+"#,
+        )
+        .unwrap();
+
+        // Give the space root its own hook so we can assert the
+        // merged library matches the ROOT's value, not the
+        // child's.
+        std::fs::create_dir_all(root.join(".ship")).unwrap();
+        std::fs::write(
+            root.join(".ship").join("hooks.jsonc"),
+            r#"{"hooks": [{"id": "root-hook", "trigger": "PreToolUse", "command": "root-cmd"}]}"#,
+        )
+        .unwrap();
+
+        let fs = LocalFsBroker::new();
+        let lib = load_space_library(&fs, &root).await.unwrap();
+
+        // Hooks: the child extension's hook is gone, the root's
+        // hook survives.
+        let hook_ids: Vec<&str> = lib.hooks.iter().map(|h| h.id.as_str()).collect();
+        assert!(
+            hook_ids.contains(&"root-hook"),
+            "merged library carries the space root's hooks: {hook_ids:?}"
+        );
+        assert!(
+            !hook_ids.contains(&"child-hook"),
+            "child extension's hooks must be dropped: {hook_ids:?}"
+        );
+        // Permissions: leaf treats `permissions.jsonc` as a
+        // presence-only check (it returns `Permissions::default()`
+        // either way — the file is a presets document, not a
+        // direct permissions blob). The PIN is therefore encoded
+        // at the descriptor build site, not the leaf. Test the
+        // stronger side via the `roll_up` integration test
+        // (`roll_up_pin_drops_child_permissions_and_hooks`).
+    }
 }

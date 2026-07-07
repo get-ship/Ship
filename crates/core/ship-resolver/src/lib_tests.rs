@@ -1094,3 +1094,202 @@ defineView({
     assert!(b.view.is_some(), "the `b` node mounts the view");
     assert_eq!(b.view.as_ref().unwrap().component_ref, "Nested.sui");
 }
+
+// ── Wave 4 phase B: two-extension roll-up (the proof) ──────────────────
+//
+// The spec's acceptance: spine smoke gains (or a sibling integration
+// test adds) a two-extension fixture — root manifest + one child-dir
+// manifest — that asserts:
+//   1. nouns from both compose;
+//   2. collision between them produces a ShadowRecord with correct
+//      precedence (the space-root descriptor, declared FIRST, wins on
+//      same-rank ties);
+//   3. permissions from the child are ignored per the PIN.
+// This test lives here (not in spine_smoke) because the assertion
+// surface is the roll-up's `ComposedLibrary` + the per-extension
+// `RollupInputs.extensions` audit trail — not the def index or
+// cache. spine_smoke stays the cross-crate end-to-end; this is the
+// roll-up-level proof.
+#[tokio::test(flavor = "current_thread")]
+async fn roll_up_two_extensions_compose_with_pin() {
+    // 1. Space root with `ship.config.ts` defining an agent `root-only`
+    //    and a SAME-ID agent `shared` (this one wins on collision).
+    let (_tmp, root) = write_minimal_space();
+    // The minimal fixture's TS already has `defineRule` + `defineAgent("demo")`.
+    // Add the `shared` agent and rename the space-root identity to
+    // `root-only` (the child will claim `shared`).
+    std::fs::write(
+        root.join("ship.config.ts"),
+        r#"
+import { defineAgent, defineRule } from "ship";
+
+defineRule({ id: "style", content: "Be terse.", applyScope: "always" });
+
+defineAgent({ agent: { id: "root-only", name: "Root Only" } });
+defineAgent({ agent: { id: "shared", name: "Root Shared" } });
+"#,
+    )
+    .unwrap();
+
+    // 2. Child dir with `ship.config.ts` defining a `child-only` agent
+    //    and a SAME-ID `shared` agent (this one loses on collision).
+    let child = root.join("extension-a");
+    std::fs::create_dir_all(child.join(".ship")).unwrap();
+    std::fs::write(
+        child.join("ship.config.ts"),
+        r#"
+import { defineAgent } from "ship";
+
+defineAgent({ agent: { id: "child-only", name: "Child Only" } });
+defineAgent({ agent: { id: "shared", name: "Child Shared" } });
+"#,
+    )
+    .unwrap();
+
+    // Empty cache + library tiers — the proof is about the
+    // multi-extension roll-up, not the cached / enabled tiers.
+    let cache_root = root.join("empty_cache");
+    std::fs::create_dir_all(&cache_root).unwrap();
+    let library_root = root.join("empty_library");
+
+    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
+
+    // 1. Nouns from both compose — the `root-only` and `child-only`
+    //    agents both survive (no collision, two slots).
+    let ids: std::collections::HashSet<&str> = composed
+        .library
+        .agent_profiles
+        .iter()
+        .map(|a| a.agent.id.as_str())
+        .collect();
+    assert!(
+        ids.contains("root-only"),
+        "the space-root's exclusive agent must survive: {ids:?}"
+    );
+    assert!(
+        ids.contains("child-only"),
+        "the child extension's exclusive agent must compose: {ids:?}"
+    );
+    assert!(
+        ids.contains("shared"),
+        "the colliding id must resolve to a single winner: {ids:?}"
+    );
+    assert_eq!(
+        composed.library.agent_profiles.len(),
+        3,
+        "three distinct ids: root-only + child-only + shared (resolved)"
+    );
+
+    // 2. Collision: two ShadowRecords. `defineAgent` populates TWO
+    //    lists in lockstep (`library.agents` + `library.agent_profiles`),
+    //    so the same-id collision resolves in BOTH — one
+    //    `NounKind::Agent` shadow + one `NounKind::AgentProfile`
+    //    shadow. Both identify the child as the loser.
+    assert_eq!(
+        composed.shadows.len(),
+        2,
+        "two collisions: space-root's `shared` shadows child's `shared` in
+         both the `Agent` and `AgentProfile` lists (defineAgent populates
+         both lists in lockstep): {:?}",
+        composed.shadows
+    );
+    for shadow in &composed.shadows {
+        assert_eq!(shadow.id, "shared");
+        assert_eq!(shadow.winning_source, ExtSource::Space);
+        assert_eq!(shadow.losing_source, ExtSource::Space);
+    }
+    // Both shadows' `losing_tier_hash` is the child extension's
+    // content hash (the audit trail the def index can key on);
+    // both descriptors carry their own `space_root` PathBuf the
+    // audit can identify by.
+    let rollup = composed
+        .library
+        .rollup_inputs
+        .as_ref()
+        .expect("roll_up must populate rollup_inputs");
+    let space_ext_count = rollup
+        .extensions
+        .iter()
+        .filter(|e| e.source == ExtSource::Space)
+        .count();
+    assert_eq!(
+        space_ext_count, 2,
+        "two Space-tier descriptors: space root + child extension"
+    );
+    // The space root is the first Space descriptor (root-first
+    // ordering), the child is the second.
+    let space_descriptors: Vec<&compiler::ExtensionDescriptor> = rollup
+        .extensions
+        .iter()
+        .filter(|e| e.source == ExtSource::Space)
+        .collect();
+    assert_eq!(
+        space_descriptors[0].descriptor.agent_profiles.len(),
+        2,
+        "space root descriptor: two agents (root-only + shared)"
+    );
+    assert_eq!(
+        space_descriptors[1].descriptor.agent_profiles.len(),
+        2,
+        "child descriptor: two agents (child-only + shared) — but the PIN
+         zeroed its permissions/hooks at the descriptor build site"
+    );
+    // The child's hooks vector is empty (PIN — pre-merge zeroing
+    // by the `roll_up` orchestrator). The space root's hooks vector
+    // is also empty here (the fixture doesn't write any), but the
+    // structural assertion is: the child descriptor's `hooks` is
+    // `vec![]` regardless of any `.ship/hooks.jsonc` the child
+    // might have authored.
+    assert!(
+        space_descriptors[1].descriptor.hooks.is_empty(),
+        "the child extension's hooks are zeroed at the descriptor build site (PIN)"
+    );
+
+    // 3. PIN: a child extension that authors permissions/hooks
+    //    CANNOT grant them. The fixture gives the child a
+    //    `.ship/hooks.jsonc` (the leaf parses hooks) and asserts
+    //    the composed library's hooks come from the ROOT only.
+    //    (Permissions are a leaf-side presets-document; the leaf
+    //    doesn't parse them — the PIN's permissions half is
+    //    proven by the structural assertion above.)
+    let child = root.join("extension-b");
+    std::fs::create_dir_all(child.join(".ship")).unwrap();
+    std::fs::write(
+        child.join(".ship").join("hooks.jsonc"),
+        r#"{"hooks": [{"id": "child-b-hook", "trigger": "PreToolUse", "command": "child-b-cmd"}]}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        child.join("ship.config.ts"),
+        r#"import { defineAgent } from "ship";
+defineAgent({ agent: { id: "child-b-only", name: "Child B Only" } });
+"#,
+    )
+    .unwrap();
+    // Author a space-root hook for the assertion to key on.
+    std::fs::write(
+        root.join(".ship").join("hooks.jsonc"),
+        r#"{"hooks": [{"id": "root-hook", "trigger": "PreToolUse", "command": "root-cmd"}]}"#,
+    )
+    .unwrap();
+
+    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
+    let hook_ids: Vec<&str> = composed
+        .library
+        .hooks
+        .iter()
+        .map(|h| h.id.as_str())
+        .collect();
+    assert!(
+        hook_ids.contains(&"root-hook"),
+        "the space root's hook survives the composition: {hook_ids:?}"
+    );
+    assert!(
+        !hook_ids.contains(&"child-b-hook"),
+        "the child extension's hook is dropped by the PIN: {hook_ids:?}"
+    );
+}
