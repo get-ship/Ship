@@ -8,7 +8,8 @@ description = "The notify-backed filesystem watch capability: `FsWatch` + `Local
 [dependencies]
 fs-cap = { path = "../fs-cap" }
 notify = { workspace = true }
-tokio = { workspace = true, features = ["sync"] }
+tokio = { workspace = true, features = ["sync", "rt", "time"] }
+tracing = { workspace = true }
 
 [lints]
 workspace = true

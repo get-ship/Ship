@@ -176,7 +176,13 @@ fn copy_scaffold_view(
         if ty.is_dir() {
             copy_scaffold_view(&from, &to, title, name)?;
         } else if ty.is_file() {
-            let body = std::fs::read_to_string(&from).unwrap_or_default();
+            let body = std::fs::read_to_string(&from).map_err(|e| {
+                // hardening-r2 §5.7: do NOT silently substitute an empty
+                // string for an unreadable scaffold template — an empty-but-
+                // present file replaces a real one with a useless stub. Fail
+                // the scaffold op so the operator sees the cause.
+                ConnectError::internal(format!("read scaffold template {}: {}", from.display(), e))
+            })?;
             let substituted = body.replace("{{TITLE}}", title).replace("{{NAME}}", name);
             std::fs::write(&to, substituted)
                 .map_err(|e| ConnectError::internal(format!("write file: {e}")))?;

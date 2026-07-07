@@ -40,15 +40,27 @@ impl LocalFsBroker {
 
     /// Reject if the deepest existing ancestor of `joined` canonicalizes
     /// outside the cap root (i.e. a symlink crosses the boundary).
+    ///
+    /// FAIL-CLOSED: a canonicalize failure on either side is treated as a
+    /// containment violation, never as "no containment". A symlink-escape
+    /// check that cannot resolve the root it is comparing against cannot
+    /// prove the path is safe, and "trust the uncanonicalized root" is the
+    /// unsafe default we explicitly reject (census-substrate-reliability §5.2).
     fn reject_symlink_escape(root: &Path, joined: &Path) -> Result<(), FsError> {
-        let canon_root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+        // FAIL-CLOSED: canonicalize failures are containment failures, never
+        // benign fallbacks. A check that cannot resolve the root it compares
+        // against cannot prove the path is safe (census-substrate-reliability §5.2).
+        let canon_root = root
+            .canonicalize()
+            .map_err(|e| FsError::Io(format!("canonicalize root {}: {}", root.display(), e)))?;
         let mut cur: &Path = joined;
         loop {
             if fs::symlink_metadata(cur).is_ok() {
-                if let Ok(canon) = cur.canonicalize() {
-                    if !canon.starts_with(&canon_root) {
-                        return Err(FsError::PathEscape);
-                    }
+                let canon = cur.canonicalize().map_err(|e| {
+                    FsError::Io(format!("canonicalize {}: {}", cur.display(), e))
+                })?;
+                if !canon.starts_with(&canon_root) {
+                    return Err(FsError::PathEscape);
                 }
                 return Ok(());
             }

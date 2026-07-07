@@ -161,6 +161,44 @@ mod stale_cleanup_tests {
         let _ = child.kill();
         let _ = child.wait();
     }
+
+    /// hardening-r2 §5.9: a transient/non-NotFound read error on the pidfile
+    /// must REFUSE the boot, not silently fall through to "no other daemon".
+    /// On Linux this is reproducible by chmod-ing the pid file 0o000.
+    #[cfg(unix)]
+    #[test]
+    fn unreadable_pidfile_blocks_startup() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = TempDir::new().unwrap();
+        write_pid(dir.path(), "99999999"); // any well-formed pid; we never get to parse
+        let pid_file = pid_path(dir.path());
+        // Drop read perms so read_to_string hits PermissionDenied.
+        std::fs::set_permissions(&pid_file, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+        // Restore on scope exit so TempDir can clean up.
+        let restore = std::fs::Permissions::from_mode(0o644);
+        struct Restore {
+            path: std::path::PathBuf,
+            perms: std::fs::Permissions,
+        }
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                let _ = std::fs::set_permissions(&self.path, self.perms.clone());
+            }
+        }
+        let _restore = Restore {
+            path: pid_file.clone(),
+            perms: restore,
+        };
+
+        let err = cleanup_stale_daemon_files(dir.path())
+            .expect_err("non-NotFound pidfile error must surface as Err — refusal to boot a 2nd daemon");
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("could not read pidfile") || msg.contains("read failed"),
+            "expected fail-closed refusal, got: {msg}"
+        );
+    }
 }
 
 mod path_layout_tests {

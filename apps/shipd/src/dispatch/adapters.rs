@@ -36,7 +36,17 @@ impl IsolationStrategy for GitWorktreeIsolation {
         // serving a dispatched agent when SHIP_ACTOR_ID env gets stripped
         // by the harness's MCP subprocess spawn. Worktree-scoped; the
         // project root never has this marker.
-        let _ = std::fs::write(session_dir.join(".dispatched"), &job.slug);
+        std::fs::write(session_dir.join(".dispatched"), &job.slug).map_err(|e| {
+            // hardening-r2 §5.4: the .dispatched marker is what the MCP tool
+            // gate reads to detect a dispatched context (vs interactive).
+            // A silent miss leaves the agent gated as interactive with no
+            // record why — propagate so the dispatch aborts loudly.
+            anyhow::anyhow!(
+                "write .dispatched marker (slug={}) failed: {}",
+                job.slug,
+                e
+            )
+        })?;
         write_phase_spec_from_context(&worktree_path, job)?;
         // Run steps (pure shell) carry no agent — there's nothing to
         // compile, and an empty/placeholder agent would fail profile

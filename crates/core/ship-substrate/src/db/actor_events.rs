@@ -51,11 +51,22 @@ fn emit_actor_event<P: serde::Serialize>(
 
     // Deliver to mailboxes if a kernel router is running. Persistence
     // already happened above, so this is a delivery-only step.
+    // hardening-r2 §5.8: a mailbox-deliver failure is NOT a durable-writE
+    // failure (the event row + projection already committed) — but the
+    // silent loss of a websocket/HUD notification is invisible. Log loudly.
     if let Some(kr) = crate::events::kernel_router() {
-        let _ = block_on_anyhow(async {
+        let deliver_result = block_on_anyhow(async {
             kr.lock().await.deliver(&stamped);
             Ok(())
         });
+        if let Err(e) = deliver_result {
+            tracing::warn!(
+                actor_id = %actor_id,
+                event_type = event_type,
+                error = ?e,
+                "actor mailbox: live deliver failed; durable record was committed but subscribers may miss this event"
+            );
+        }
     }
 
     Ok(())

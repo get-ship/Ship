@@ -53,7 +53,15 @@ fn open_projects_conn() -> Result<SqliteConnection> {
 /// `registry::add` (the id mint) and the `find_by_path*` readers both route
 /// through here, so a registered space can never silently read as
 /// unregistered because one side canonicalized and the other did not.
-/// Falls back to the raw path when canonicalization fails (path gone).
+///
+/// TODO(hardening-r3): the `unwrap_or_else(|_| path.to_path_buf())` below
+/// is the census §5.12 silent-fallback. R2 STOP'd this fix because the
+/// canonical-call chain (`resolve_active_space`) fans out to 11 call
+/// sites that would swallow the new error — see
+/// `job-spec-hardening-r2-STOP-5.12.md` for the full audit. Until R3
+/// lands, a transient canonicalize failure can still key one write on
+/// the raw path while a later read keys on the resolved path, splitting
+/// a physical space into two `projects` rows.
 pub fn canonical_path_key(path: &Path) -> String {
     std::fs::canonicalize(path)
         .unwrap_or_else(|_| path.to_path_buf())

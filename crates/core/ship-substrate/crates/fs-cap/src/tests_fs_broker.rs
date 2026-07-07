@@ -184,3 +184,41 @@ fn link_into_requires_writable_dst() {
     broker.link_into(&src, "f.txt", &dst_rw, "linked.txt").unwrap();
     assert_eq!(broker.read(&dst_rw, "linked.txt").unwrap(), b"shared");
 }
+
+#[test]
+fn canonicalize_failure_on_root_is_fail_closed() {
+    // hardening-r2 §5.2: a canonicalize() failure on the cap root must
+    // be surfaced as Err, never silently swallowed back to the
+    // uncanonicalized root.
+    //
+    // We exercise the only reliably-cross-platform canonicalize-failure:
+    // a root whose deepest existing component has been removed, so
+    // canonicalize() returns NotFound (which the new fail-closed
+    // map_err turns into FsError::Io — c-2026-07-07-...c-fscap-fail-open).
+    //
+    // Note: chmod 0o000 alone does NOT trigger canonicalize failure on
+    // Linux — canonicalize walks the path with O_SEARCH perms and only
+    // needs execute on each dir, not read. The absent-root case below is
+    // what reliably fails canonicalize across platforms.
+    let broker = LocalFsBroker::new();
+    let dir = tempfile::tempdir().unwrap();
+    let absent_root = dir.path().join("this-was-removed");
+    let cap_absent = FsCap::new_unchecked(&absent_root, FsRoot::Device, FsMode::ReadWrite);
+    match broker.read(&cap_absent, "anything") {
+        Err(FsError::Io(msg)) => assert!(
+            msg.contains("canonicalize"),
+            "expected canonicalize failure surfaced via FsError::Io, got {msg}"
+        ),
+        other => panic!("expected Io(canonicalize...) on absent root, got {other:?}"),
+    }
+
+    // Other operations on a missing root are also refused, not
+    // silently passed.
+    match broker.write_atomic(&cap_absent, "anything", b"x") {
+        Err(FsError::Io(msg)) => assert!(
+            msg.contains("canonicalize"),
+            "expected canonicalize failure on write_atomic, got {msg}"
+        ),
+        other => panic!("expected Io(canonicalize...) on write_atomic, got {other:?}"),
+    }
+}

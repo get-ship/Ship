@@ -10,12 +10,22 @@
 
 use std::collections::BTreeSet;
 use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use notify::{Event, EventKind, RecursiveMode, Watcher};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
 use fs_cap::{FsCap, FsError};
 use crate::fs_watch::{ChangeKind, FsDelta, FsWatch, WatchOpts};
+
+// hardening-r2 §5.11: a dropped delta (notify→raw_tx send fails, typically
+// when the forwarding task is wedged or the receiver was dropped while a
+// burst queued) was previously silent. Track a per-watch counter and
+// emit a rate-limited warn on every DROP_LOG_EVERY-th drop so a stuck
+// forwarder is observable without flooding stderr on the common
+// teardown-during-shutdown case.
+const DROP_LOG_EVERY: u64 = 100;
+static DROPS: AtomicU64 = AtomicU64::new(0);
 
 /// A [`FsWatch`] that confines each watch to its cap's `root` on the local disk.
 pub struct LocalFsWatch;
@@ -88,7 +98,20 @@ impl FsWatch for LocalFsWatch {
             if let Ok(ev) = res
                 && let Some(kind) = classify(&ev.kind)
             {
-                let _ = raw_tx.send(RawDelta { kind, paths: ev.paths });
+                if raw_tx.send(RawDelta { kind, paths: ev.paths }).is_err() {
+                    // Receiver dropped — count toward a rate-limited warn
+                    // so the operator can see a wedged forwarder / dropped
+                    // receiver even though the event is intentionally lost
+                    // here (the durable state is already gone, this is a
+                    // live-notification failure only — hardening-r2 §5.11).
+                    let dropped = DROPS.fetch_add(1, Ordering::Relaxed) + 1;
+                    if dropped == 1 || dropped % DROP_LOG_EVERY == 0 {
+                        tracing::warn!(
+                            dropped_total = dropped,
+                            "fs-watch: notify-callback delta dropped; forwarding task may be wedged or receiver gone"
+                        );
+                    }
+                }
             }
         })
         .map_err(|e| FsError::Io(e.to_string()))?;

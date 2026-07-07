@@ -2625,6 +2625,7 @@ dependencies = [
  "fs-cap",
  "notify",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

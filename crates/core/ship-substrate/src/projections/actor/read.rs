@@ -125,21 +125,48 @@ pub fn list_actor_events(
         }
         q = q.bind(limit);
         let rows = q.fetch_all(&mut conn).await?;
+        // hardening-r2 §5.6: a failed column decode on an event row becomes
+        // a silently-wrong empty value (especially payload_json → "{}"),
+        // indistinguishable from a legitimate event. Keep the fallback —
+        // this is a reconnect/replay path; we'd rather return the row than
+        // drop it — but warn with the row id + column so torn writes and
+        // forward-incompatible shapes are visible.
         Ok(rows
             .iter()
             .map(|r| {
                 use sqlx::Row;
+                let id: String = r.try_get("id").unwrap_or_else(|e| {
+                    tracing::warn!(column = "id", error = %e, "actor_event row: id decode failed");
+                    String::new()
+                });
                 ActorEventRow {
-                    id: r.try_get("id").unwrap_or_default(),
-                    event_type: r.try_get("event_type").unwrap_or_default(),
-                    entity_id: r.try_get("entity_id").unwrap_or_default(),
+                    id: id.clone(),
+                    event_type: r.try_get("event_type").unwrap_or_else(|e| {
+                        tracing::warn!(row_id = %id, column = "event_type", error = %e,
+                            "actor_event row decode failed");
+                        String::new()
+                    }),
+                    entity_id: r.try_get("entity_id").unwrap_or_else(|e| {
+                        tracing::warn!(row_id = %id, column = "entity_id", error = %e,
+                            "actor_event row decode failed");
+                        String::new()
+                    }),
                     actor_id: r.try_get("actor_id").ok(),
                     target_actor_id: r.try_get("target_actor_id").ok(),
                     workspace_id: r.try_get("workspace_id").ok(),
                     session_id: r.try_get("session_id").ok(),
                     parent_actor_id: r.try_get("parent_actor_id").ok(),
-                    payload_json: r.try_get("payload_json").unwrap_or_else(|_| "{}".into()),
-                    created_at: r.try_get("created_at").unwrap_or_default(),
+                    payload_json: r.try_get("payload_json").unwrap_or_else(|e| {
+                        tracing::warn!(row_id = %id, column = "payload_json", error = %e,
+                            "actor_event row: payload_json decode failed; \
+                             history will show empty payload for this event");
+                        "{}".into()
+                    }),
+                    created_at: r.try_get("created_at").unwrap_or_else(|e| {
+                        tracing::warn!(row_id = %id, column = "created_at", error = %e,
+                            "actor_event row decode failed");
+                        String::new()
+                    }),
                 }
             })
             .collect())

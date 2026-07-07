@@ -50,17 +50,42 @@ pub(super) const SELECT_COLS: &str =
 
 pub(super) fn row_to_actor(row: &sqlx::sqlite::SqliteRow) -> ActorRow {
     use sqlx::Row;
+    // hardening-r2 §5.5: a failed column decode is a silently-wrong empty
+    // value. Keep the fallback (never panic on read) but warn with row id +
+    // column so a torn/forward-incompatible row doesn't masquerade as a
+    // legitimate "no value".
+    let id: String = row
+        .try_get("id")
+        .unwrap_or_else(|e| {
+            tracing::warn!(column = "id", error = %e, "actor row: id decode failed");
+            String::new()
+        });
     let caps_json: String = row
         .try_get("capabilities_json")
-        .unwrap_or_else(|_| "[]".into());
-    let capabilities: Vec<String> = serde_json::from_str(&caps_json).unwrap_or_default();
+        .unwrap_or_else(|e| {
+            tracing::warn!(row_id = %id, column = "capabilities_json", error = %e, "actor row decode failed");
+            "[]".into()
+        });
+    let capabilities: Vec<String> = match serde_json::from_str(&caps_json) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!(row_id = %id, column = "capabilities_json", error = %e,
+                "actor row: capabilities_json parse failed");
+            Vec::new()
+        }
+    };
     // SQLite + sqlx sometimes surfaces a NULL pid column as `Some(0)`
     // here (the binding side writes NULL, but the read path collapses).
     // pid 0 is the kernel swapper, never a real child — treat it as
     // "no pid recorded" so `activity_live` can take over for actors
     // whose pid hasn't been wired into the projection yet (Task #14).
     let pid: Option<i64> = row.try_get("pid").ok().filter(|&p| p > 0);
-    let status: String = row.try_get("status").unwrap_or_default();
+    let status: String = row
+        .try_get("status")
+        .unwrap_or_else(|e| {
+            tracing::warn!(row_id = %id, column = "status", error = %e, "actor row decode failed");
+            String::new()
+        });
     let last_event_at: Option<String> = row.try_get("last_event_at").ok();
     // Liveness sources, in order of confidence:
     //   1. pid recorded → /proc probe (definitive for daemon-spawned actors)
@@ -78,8 +103,13 @@ pub(super) fn row_to_actor(row: &sqlx::sqlite::SqliteRow) -> ActorRow {
         && status != "stopped"
         && status != "crashed";
     ActorRow {
-        id: row.try_get("id").unwrap_or_default(),
-        kind: row.try_get("kind").unwrap_or_default(),
+        id: id.clone(),
+        kind: row
+            .try_get("kind")
+            .unwrap_or_else(|e| {
+                tracing::warn!(column = "kind", error = %e, "actor row: kind decode failed");
+                String::new()
+            }),
         status,
         workspace_id: row.try_get("workspace_id").ok(),
         space_id: row.try_get("space_id").ok(),
@@ -94,12 +124,30 @@ pub(super) fn row_to_actor(row: &sqlx::sqlite::SqliteRow) -> ActorRow {
         pid,
         capabilities,
         parent_actor_id: row.try_get("parent_actor_id").ok(),
-        restart_count: row.try_get("restart_count").unwrap_or(0),
+        restart_count: row
+            .try_get("restart_count")
+            .unwrap_or_else(|e| {
+                tracing::warn!(row_id = %id, column = "restart_count", error = %e,
+                    "actor row decode failed");
+                0
+            }),
         exit_code: row.try_get("exit_code").ok(),
         exit_reason: row.try_get("exit_reason").ok(),
         duration_ms: row.try_get("duration_ms").ok(),
-        created_at: row.try_get("created_at").unwrap_or_default(),
-        updated_at: row.try_get("updated_at").unwrap_or_default(),
+        created_at: row
+            .try_get("created_at")
+            .unwrap_or_else(|e| {
+                tracing::warn!(row_id = %id, column = "created_at", error = %e,
+                    "actor row decode failed");
+                String::new()
+            }),
+        updated_at: row
+            .try_get("updated_at")
+            .unwrap_or_else(|e| {
+                tracing::warn!(row_id = %id, column = "updated_at", error = %e,
+                    "actor row decode failed");
+                String::new()
+            }),
         last_event_at: row.try_get("last_event_at").ok(),
         live,
     }

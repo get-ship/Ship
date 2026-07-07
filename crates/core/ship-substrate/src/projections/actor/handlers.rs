@@ -152,7 +152,7 @@ pub(super) fn apply_process_spawned(payload_json: &str, conn: &mut SqliteConnect
         // row doesn't exist yet, INSERT a stub with the pid; the later
         // actor.created lands via ON CONFLICT DO UPDATE (apply_created)
         // and fills in the metadata without trampling pid.
-        let _ = sqlx::query(
+        sqlx::query(
             "INSERT INTO actors (id, kind, pid, status, environment_type, capabilities_json) \
              VALUES (?, 'pipeline-step', ?, 'created', 'local', '[]') \
              ON CONFLICT(id) DO UPDATE SET pid = excluded.pid, updated_at = datetime('now')"
