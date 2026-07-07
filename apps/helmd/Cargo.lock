@@ -418,6 +418,7 @@ dependencies = [
  "futures-util",
  "ship-types",
  "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]
@@ -1429,6 +1430,7 @@ dependencies = [
  "fs-cap",
  "notify",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
