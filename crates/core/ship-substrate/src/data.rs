@@ -184,6 +184,12 @@ fn open_connection(db_path: &Path) -> Result<SqliteConnection> {
         .with_context(|| format!("invalid sqlite url: {url}"))?
         .create_if_missing(true)
         .busy_timeout(std::time::Duration::from_secs(5))
+        // NORMAL (not FULL) is WAL-appropriate (see ship_substrate::db::mod
+        // for the full rationale). Set via SqliteConnectOptions so every
+        // open_at() call re-issues it on the fresh connection —
+        // `synchronous` is per-connection and unconfigured leaves it at the
+        // sqlite version-dependent default (census §2 finding).
+        .synchronous(sqlx::sqlite::SqliteSynchronous::Normal)
         // Collections are event-sourced: the `CollectionProjection` mutates a
         // collection table (ADD COLUMN on additive schema change) from the
         // event-store's OWN connection, while this long-lived `DataService`
@@ -199,6 +205,13 @@ fn open_connection(db_path: &Path) -> Result<SqliteConnection> {
 
     crate::db::block_on(async {
         sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await
+    })?;
+    // `foreign_keys` is a per-connection pragma in sqlite (NOT persisted in
+    // the file header like `journal_mode`); re-issue on every fresh
+    // connection so FK constraints are enforced (census §2 finding: only set
+    // at creation-time).
+    crate::db::block_on(async {
+        sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await
     })?;
 
     Ok(conn)
@@ -325,5 +338,31 @@ mod tests {
         svc.ensure_table("CREATE TABLE IF NOT EXISTS empty (id TEXT PRIMARY KEY)").unwrap();
         let rows = svc.query("SELECT * FROM empty", &[]).unwrap();
         assert!(rows.is_empty());
+    }
+
+    // Census §2: every sqlite open must re-issue `synchronous = NORMAL`
+    // (WAL-appropriate, the version-dependent default is unstable) and
+    // `foreign_keys = ON` (per-connection pragma, not persisted in file
+    // header). Query both back to assert the live connection has them set.
+    #[test]
+    fn open_at_sets_synchronous_normal_and_foreign_keys_on() {
+        let (mut svc, _tmp) = test_service();
+        let rows = svc
+            .query("PRAGMA synchronous", &[])
+            .expect("PRAGMA synchronous query");
+        let synchronous = rows[0]
+            .get("synchronous")
+            .and_then(|v| v.as_i64())
+            .expect("synchronous column");
+        assert_eq!(synchronous, 1, "synchronous must be NORMAL (1)");
+
+        let rows = svc
+            .query("PRAGMA foreign_keys", &[])
+            .expect("PRAGMA foreign_keys query");
+        let fk = rows[0]
+            .get("foreign_keys")
+            .and_then(|v| v.as_i64())
+            .expect("foreign_keys column");
+        assert_eq!(fk, 1, "foreign_keys must be ON (1)");
     }
 }

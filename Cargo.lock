@@ -710,7 +710,9 @@ dependencies = [
  "fs-util",
  "futures-util",
  "ship-types",
+ "tempfile",
  "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]

@@ -177,3 +177,27 @@ fn drop_guard_removes_file() {
     drop(guard);
     assert!(!path.exists(), "drop should remove the pidfile");
 }
+
+// Census §2: `acquire` previously discarded the `write_all(b"\n")` and
+// `sync_all` results. The fix propagates them; assert the happy path
+// still commits the record (and fsyncs it) end-to-end. A failure
+// (e.g. ENOSPC) would now surface as `Err(...)` from `acquire` rather
+// than as a silently half-written pidfile.
+#[test]
+fn acquire_propagates_write_and_sync_errors() {
+    let tmp = TempDir::new().unwrap();
+    // Match the result on the discriminant — `Fresh` and `StaleTaken` both
+    // exercise the new error-propagating write+sync path; only `Held`
+    // would mean a competing process owns the lock.
+    let guard = match acquire(tmp.path(), sample_record(444)).expect("acquire must propagate, not swallow") {
+        AcquireResult::Fresh(g) => g,
+        AcquireResult::StaleTaken { guard, .. } => guard,
+        AcquireResult::Held => panic!("expected lock to be acquirable in a fresh dir"),
+    };
+
+    // The record round-trips through the new error-propagating path.
+    let (record, _) = read(tmp.path()).unwrap().expect("should read");
+    assert_eq!(record.pid, 444);
+
+    drop(guard);
+}

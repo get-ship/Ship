@@ -37,6 +37,44 @@ fn test_write_pid_creates_parent_dirs() {
     write_pid(&pid_path, 99).unwrap();
     let pid = read_pid(&pid_path).unwrap();
     assert_eq!(pid, Some(99));
+    write_pid(&pid_path, 99).unwrap();
+    let pid = read_pid(&pid_path).unwrap();
+    assert_eq!(pid, Some(99));
+}
+
+// Census §2: pid_io::write_pid is the weaker of the two pid-tracking
+// mechanisms (the supervisor uses `pidfile::acquire` with flock); the
+// legacy write was a non-atomic `std::fs::write` that could leave a
+// truncated file behind on an interrupt. The new implementation goes
+// through a `.tmp-*` sibling + rename — assert: (a) no `.tmp-*` file
+// remains in the directory after a successful write, (b) a second
+// write fully replaces the file's content (no truncation residue).
+#[test]
+fn write_pid_is_atomic_no_tmp_residue_no_truncation_residue() {
+    let dir = TempDir::new().unwrap();
+    let pid_path = dir.path().join("daemon.pid");
+
+    // First write: short content.
+    write_pid(&pid_path, 1).unwrap();
+    assert_eq!(read_pid(&pid_path).unwrap(), Some(1));
+
+    // Second write: longer content (e.g. more digits). The destination
+    // must contain the new value, not the old value truncated to the
+    // shorter length.
+    write_pid(&pid_path, 999_999).unwrap();
+    assert_eq!(read_pid(&pid_path).unwrap(), Some(999_999));
+
+    // No `.tmp-*` siblings leaked.
+    let leaked: Vec<_> = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            e.file_name()
+                .to_string_lossy()
+                .starts_with(".tmp-daemon.pid-")
+        })
+        .collect();
+    assert!(leaked.is_empty(), "atomic write must not leak tmp files");
 }
 
 #[test]

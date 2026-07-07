@@ -127,8 +127,14 @@ pub fn acquire(daemon_dir: &Path, mut record: PidfileRecord) -> Result<AcquireRe
     let json = serde_json::to_vec_pretty(&record).context("serialize pidfile record")?;
     file.write_all(&json)
         .with_context(|| format!("write pidfile {}", path.display()))?;
-    let _ = file.write_all(b"\n");
-    let _ = file.sync_all();
+    file.write_all(b"\n")
+        .with_context(|| format!("write newline to pidfile {}", path.display()))?;
+    // Census §2: sync the pidfile to stable storage before declaring the
+    // lock held. The previous form `let _ = file.sync_all()` silently
+    // dropped the result — a sync failure (e.g. ENOSPC) would leave a
+    // committed-looking pidfile that never reached disk.
+    file.sync_all()
+        .with_context(|| format!("sync pidfile {}", path.display()))?;
 
     let guard = PidfileGuard {
         file: Some(file),

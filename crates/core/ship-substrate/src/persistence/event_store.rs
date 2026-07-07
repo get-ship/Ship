@@ -187,12 +187,37 @@ impl EventStore for SqliteEventStore {
         block_on(async { sqlx::query("BEGIN IMMEDIATE").execute(&mut conn).await })?;
 
         if let Err(e) = insert_event_row(event, &mut conn) {
-            let _ = block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await });
+            // Census §2: a ROLLBACK failure here is NOT the same as the
+            // original event-insert failure, but it deserves an error-level
+            // breadcrumb — the kernel has now been told the transaction is
+            // in flight, and a stuck BEGIN is a stuck writer. Surface both
+            // errors (the original `e` and the rollback error) so the caller
+            // can log them with full context, and never silently drop the
+            // rollback outcome.
+            if let Err(rollback_err) =
+                block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await })
+            {
+                tracing::error!(
+                    error = %e,
+                    rollback_error = %rollback_err,
+                    db_path = %self.db_path.display(),
+                    "ROLLBACK failed after event-insert error; transaction may be stuck"
+                );
+            }
             return Err(e);
         }
 
         if let Err(e) = self.bus.dispatch(event, &mut conn) {
-            let _ = block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await });
+            if let Err(rollback_err) =
+                block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await })
+            {
+                tracing::error!(
+                    error = %e,
+                    rollback_error = %rollback_err,
+                    db_path = %self.db_path.display(),
+                    "ROLLBACK failed after projection-dispatch error; transaction may be stuck"
+                );
+            }
             return Err(e);
         }
 

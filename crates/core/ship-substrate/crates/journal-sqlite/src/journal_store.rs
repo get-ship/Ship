@@ -44,6 +44,12 @@ impl SqliteJournalStore {
     /// Creates the parent directory and the db file if absent, in WAL mode with
     /// a 5-second busy timeout — the standard ship-substrate db-layer config.
     /// Ensures `durable_journals` from the shared DDL before returning.
+    ///
+    /// Pragma discipline (census §2):
+    /// - `synchronous = NORMAL` (WAL-appropriate; sqlite's version-dependent
+    ///   default is unstable so this is set explicitly).
+    /// - `foreign_keys = ON` re-issued per connection (it is a per-connection
+    ///   pragma in sqlite, NOT persisted in the file header like WAL).
     pub async fn open(db_path: &Path) -> anyhow::Result<Self> {
         if let Some(parent) = db_path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -52,9 +58,11 @@ impl SqliteJournalStore {
             .filename(db_path)
             .create_if_missing(true)
             .journal_mode(SqliteJournalMode::Wal)
-            .busy_timeout(std::time::Duration::from_secs(5));
+            .busy_timeout(std::time::Duration::from_secs(5))
+            .synchronous(sqlx::sqlite::SqliteSynchronous::Normal);
 
         let mut conn = SqliteConnection::connect_with(&opts).await?;
+        sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await?;
         sqlx::query(ship_substrate::db::scope_schema::DURABLE_JOURNALS_DDL)
             .execute(&mut conn)
             .await?;
@@ -403,5 +411,29 @@ mod tests {
             3,
             "3 entries: read, suspend-resolved, put"
         );
+    }
+
+    // Census §2: every sqlite open must re-issue `synchronous = NORMAL`
+    // (WAL-appropriate, the version-dependent default is unstable) and
+    // `foreign_keys = ON` (per-connection pragma, not persisted in the file
+    // header like WAL). Query both back on the journal store's connection to
+    // assert the live connection has them set.
+    #[tokio::test]
+    async fn open_sets_synchronous_normal_and_foreign_keys_on() {
+        let (dir, store) = temp_store().await;
+        let _ = dir;
+        let mut guard = store.conn.lock().await;
+
+        let synchronous: i64 = sqlx::query_scalar("PRAGMA synchronous")
+            .fetch_one(&mut *guard)
+            .await
+            .expect("PRAGMA synchronous");
+        assert_eq!(synchronous, 1, "synchronous must be NORMAL (1)");
+
+        let fk: i64 = sqlx::query_scalar("PRAGMA foreign_keys")
+            .fetch_one(&mut *guard)
+            .await
+            .expect("PRAGMA foreign_keys");
+        assert_eq!(fk, 1, "foreign_keys must be ON (1)");
     }
 }

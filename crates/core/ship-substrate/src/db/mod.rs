@@ -33,6 +33,8 @@ mod tests_integrity;
 #[cfg(test)]
 mod tests_kv;
 #[cfg(test)]
+mod tests_pragma;
+#[cfg(test)]
 mod tests_rebuild;
 
 use anyhow::{Context, Result, anyhow};
@@ -163,6 +165,12 @@ fn ensure_kv_db_at_path(path: &Path) -> Result<()> {
         .create_if_missing(true);
     let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
 
+    // NORMAL (not FULL) is WAL-appropriate: WAL's fsync of the WAL file before
+    // commit covers crash safety; the extra full fsync on the main db that FULL
+    // adds is unnecessary overhead in WAL. Set explicitly because sqlite's
+    // version-dependent default for WAL is unstable (census §2 finding:
+    // unconfigured = sqlite version-dependent default).
+    block_on(async { sqlx::query("PRAGMA synchronous = NORMAL").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA busy_timeout = 5000").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
@@ -196,7 +204,10 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
         .with_context(|| format!("invalid sqlite url: {url}"))?
         .create_if_missing(true);
     let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
-
+    // NORMAL (not FULL) is WAL-appropriate (see ensure_kv_db_at_path for the
+    // full rationale). Set explicitly to avoid the sqlite version-dependent
+    // default per census §2.
+    block_on(async { sqlx::query("PRAGMA synchronous = NORMAL").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA busy_timeout = 5000").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
@@ -266,7 +277,6 @@ pub fn open_account_db(ship_dir: &Path) -> Result<SqliteConnection> {
 }
 
 /// Open the per-space `spaces/<space_id>/space.db`, ensuring its schema first.
-/// The `space_id` is the bounded scope key the reader already carries.
 pub fn open_space_db(ship_dir: &Path, space_id: &str) -> Result<SqliteConnection> {
     let path = space_db_path(ship_dir, space_id);
     ensure_events_db_at_path(&path)?;
@@ -277,8 +287,20 @@ fn connect(path: &Path) -> Result<SqliteConnection> {
     let url = sqlite_url(path);
     let opts = SqliteConnectOptions::from_str(&url)
         .with_context(|| format!("invalid sqlite url: {url}"))?
-        .busy_timeout(std::time::Duration::from_secs(5));
-    block_on(async { SqliteConnection::connect_with(&opts).await })
+        .busy_timeout(std::time::Duration::from_secs(5))
+        // NORMAL (not FULL) is WAL-appropriate (see ensure_kv_db_at_path). Set
+        // via SqliteConnectOptions so every connect() call re-issues it on a
+        // fresh connection — `synchronous` is a per-connection pragma and
+        // unconfigured leaves it at the sqlite version-dependent default
+        // (census §2 finding).
+        .synchronous(sqlx::sqlite::SqliteSynchronous::Normal);
+    let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
+    // `foreign_keys` is a per-connection pragma in sqlite (NOT persisted in
+    // the file header like `journal_mode`); re-issue on every fresh connect
+    // so a connection opened via the `open_*_db` paths enforces FK constraints
+    // (census §2 finding: only set at creation-time).
+    block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
+    Ok(conn)
 }
 
 fn sqlite_url(path: &Path) -> String {
