@@ -8,9 +8,6 @@
     "description": "Compiler and runtime for AI agent configuration",
     "license": "MIT",
   },
-  "project": {
-    "skill_paths": [".ship/skills/"],
-  },
   "dependencies": {
     "github.com/better-auth/skills": "main",
   },

@@ -525,7 +525,7 @@ lint-justfile:
     echo "lint-justfile: all bash recipe bodies parse"
 
 # Banned-vocabulary gate. Fails when a banned term (deleted concept) appears
-# in hand-authored source/proto/tests. Ban-list: .ship/lint/banned-vocab.txt
+# in hand-authored source/proto/tests. Ban-list: scripts/lint/banned-vocab.txt
 # — a refactor step appends a term only once its last real use is deleted.
 # Empty list ⟹ no-op.
 [group('occasional')]
