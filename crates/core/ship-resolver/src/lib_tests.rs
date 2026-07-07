@@ -953,7 +953,7 @@ async fn roll_up_content_hash_changes_when_a_source_define_view_changes() {
     // exactly one view, so the on-disk source library's views field
     // is non-empty after merge.
     std::fs::write(
-        root.join("ship.ts"),
+        root.join("ship.config.ts"),
         r#"
 import { defineAgent, defineView } from "ship";
 
@@ -983,7 +983,7 @@ defineView({
     // source descriptor's content hash moves; the composed
     // library's cache key must follow.
     std::fs::write(
-        root.join("ship.ts"),
+        root.join("ship.config.ts"),
         r#"
 import { defineAgent, defineView } from "ship";
 
@@ -1129,7 +1129,7 @@ async fn roll_up_two_extensions_views_compose_deterministically_under_distinct_p
 async fn roll_up_view_prefix_subtree_is_correct() {
     let (tmp, root) = write_minimal_space();
     std::fs::write(
-        root.join("ship.ts"),
+        root.join("ship.config.ts"),
         r#"
 import { defineView } from "ship";
 
