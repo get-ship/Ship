@@ -35,6 +35,9 @@ ship-terminal = { path = "../ship-terminal" }
 ship-auth = { path = "../ship-auth" }
 # compiler crate (the engine; services/compile is only the wrapper)
 compiler = { path = "../../../compiler", features = ["specta"] }
+# Phase-3 space roll-up — the no-index agent read composes through the SAME
+# world `compile_project`/dispatch-compile do (format-migration W5 follow-up).
+ship-resolver = { path = "../../../ship-resolver" }
 
 ulid = { workspace = true }
 

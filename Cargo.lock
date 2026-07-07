@@ -7914,6 +7914,7 @@ dependencies = [
  "ship-ops-rpc",
  "ship-platform",
  "ship-reactive",
+ "ship-resolver",
  "ship-runner",
  "ship-store",
  "ship-substrate",

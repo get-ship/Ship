@@ -714,10 +714,12 @@ impl AgentsServiceTrait for AgentsWire {
         //
         // When the daemon wires the in-memory AgentDefIndex (shipd's normal
         // posture), consult the index FIRST (the canonical, live read
-        // model) and fall back to the file reader only when the index
-        // doesn't carry this scope entry. The file reader covers the lean
-        // (no-index) helmd posture and any scope the index hasn't seeded
-        // yet.
+        // model) and fall back to the composed-roll-up check only when the
+        // index doesn't carry this scope entry. That fallback (`with_roots`,
+        // no `AgentDefIndex` — helmd's lean posture) resolves through
+        // `ship_resolver::roll_up_blocking`, the SAME composed world the
+        // index itself is seeded from — NOT a `.ship/agents/*.jsonc`
+        // directory scan (format-migration W5 follow-up).
         let agent_in_index = if let Some(index) = self.def_index.as_ref() {
             crate::services::agents::view_state::agent_id_exists_in_index(index, request.agent)
                 .await

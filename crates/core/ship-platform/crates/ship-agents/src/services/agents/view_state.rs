@@ -1,21 +1,29 @@
 //! Agent discovery helpers for the `agents` daemon-rendered view.
 //!
 //! The live daemon path (`list_agents_from_index` / `load_agent_from_index`)
-//! reads the project scope's composed roll-up snapshot only — see
-//! "Index-backed reads" below. `<ship_dir>/agents/*.{jsonc,json}` two-scope
-//! scan-and-merge (`list_agents` / `load_agent`) survives as the space-less
-//! fallback for when no index is mounted at all.
+//! reads the project scope's composed roll-up snapshot from the in-memory
+//! `AgentDefIndex` — see "Index-backed reads" below. `list_agents` /
+//! `load_agent` / `agent_id_exists` are the no-index fallback for a daemon
+//! (helmd) that constructs its `AgentsService` via `with_roots` and never
+//! mounts an `AgentDefIndex`. Post format-migration Wave 5 there is no
+//! `.ship/agents/*.jsonc` two-scope directory scan to fall back to — agents
+//! only exist as `defineAgent` declare-forms in `ship.config.ts`, so the
+//! no-index fallback resolves through the SAME composed world as the
+//! index-backed path: `ship_resolver::roll_up_blocking` from the project
+//! space root (the `compile_project` W5 pattern). The UserGlobal-tier
+//! (operator-enabled library) rides the SAME roll-up (W2) — there is no
+//! separate global-scope read here.
 //!
 //! Each summary/detail carries a `source` field so the view can group the
-//! rail; for index-backed reads it comes from the row's roll-up provenance,
-//! not an invented scope label.
+//! rail; for both the index-backed and no-index paths it is derived from
+//! the roll-up's own precedence resolution, never an invented scope label.
 //!
 //! JSONC parsing lives in the sibling `agents_jsonc` module.
 
 use super::agents_jsonc::{first_letter, resolve_array_field};
+use compiler::{ComposedLibrary, ExtSource};
 use serde::Serialize;
 use ship_config::agents_index::AgentDefIndex;
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 // Re-export `strip_jsonc` so the sibling test file can pull it in via
@@ -94,58 +102,68 @@ pub const SOURCE_PROJECT: &str = "PROJECT AGENTS";
 /// Source label for user-scope agents (`~/.ship/library/agents/`).
 pub const SOURCE_GLOBAL: &str = "USER AGENTS";
 
-/// Resolved search roots for the two scopes.
-pub(crate) struct AgentScopes {
-    pub global_dir: PathBuf,
-    pub project_dir: Option<PathBuf>,
+/// Resolve the enclosing project's space root (the parent of its `.ship/`),
+/// walking up from the current working directory. `None` outside a Ship
+/// project — the no-index posture then has no space to compose (there is no
+/// longer a "global-only, no project" case: the operator-enabled library
+/// tier only reaches a caller THROUGH a space's roll-up).
+fn resolve_space_root() -> Option<PathBuf> {
+    let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
+    project_ship.parent().map(Path::to_path_buf)
 }
 
-fn resolve_scopes(ship_dir: &Path) -> AgentScopes {
-    let project_ship = ship_substrate::project::get_project_dir(None)
+/// Compose the project's space root into an [`ExtensionLibrary`][compiler::ExtensionLibrary]
+/// snapshot — the same `ship_resolver::roll_up_blocking` call `compile_project`
+/// makes (format-migration W5). This IS the no-index fallback's read: no
+/// `.ship/agents/*.jsonc` directory scan survives it. `None` on a roll-up
+/// failure (e.g. a TS eval error) — callers treat that the same as "nothing
+/// composed", matching the old scan's "missing dir" tolerance.
+fn compose_space_library(space_root: &Path) -> Option<ComposedLibrary> {
+    ship_resolver::roll_up_blocking(space_root, None, None)
+        .inspect_err(|e| tracing::warn!("agents view_state: roll_up failed for {space_root:?}: {e}"))
         .ok()
-        .filter(|p| p != ship_dir);
-    scopes_from(ship_dir, project_ship.as_deref())
 }
 
-/// Build scopes for an explicit (global, project) pair. Tests call this to
-/// inject both sides without touching the process-global `SHIP_DEV_PROJECT_DIR` env var.
-///
-/// `ship_dir` is the user-scope home (`~/.ship/`); user-scope agents live
-/// at `library/agents/` per the home-layout ADR. `project_ship_dir` is the
-/// project-scope `.ship/` directly (no `library/` prefix at project scope).
-pub(crate) fn scopes_from(ship_dir: &Path, project_ship_dir: Option<&Path>) -> AgentScopes {
-    let global_dir = ship_substrate::ShipHome::at(ship_dir.to_path_buf()).vector_dir(
-        ship_types::Scope::User,
-        ship_types::Vector::Agents,
-        None,
-    );
-    let project_dir = project_ship_dir
-        .filter(|p| *p != ship_dir)
-        .map(|p| p.join("agents"));
-    AgentScopes {
-        global_dir,
-        project_dir,
+/// The rail's `source` label for `id` within a composed roll-up: re-applies
+/// the SAME rank-then-declared-order rule `compiler::compose_space` used to
+/// pick the winner (mirrors `ship_config::agents_index::provenance`'s
+/// `agent_profile_owners`, which does the identical re-derivation for the
+/// DataStore-backed index — no parallel precedence law invented here, just
+/// the same read without a DataStore row to carry it in). `Space` (or no
+/// roll-up-inputs audit trail at all) reads as project; every other tier
+/// reads as the (now roll-up-composed) global/user tier.
+fn agent_source_label(composed: &ComposedLibrary, id: &str) -> &'static str {
+    let Some(rollup) = composed.library.rollup_inputs.as_ref() else {
+        return SOURCE_PROJECT;
+    };
+    let mut ranked: Vec<_> = rollup
+        .extensions
+        .iter()
+        .filter_map(|ext| {
+            rollup
+                .precedence
+                .iter()
+                .find(|row| row.kind == ext.source.kind())
+                .map(|row| (row.rank, ext))
+        })
+        .collect();
+    ranked.sort_by_key(|(rank, _)| *rank);
+    let winner = ranked
+        .into_iter()
+        .filter(|(_, ext)| ext.descriptor.agents.iter().any(|a| a.agent.id == id))
+        .next_back()
+        .map(|(_, ext)| ext.source.clone());
+    match winner {
+        None | Some(ExtSource::Space) => SOURCE_PROJECT,
+        Some(_) => SOURCE_GLOBAL,
     }
 }
 
-fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
-    // THE agent-def reader (FsBroker, ship-config) is the one door — no raw
-    // `std::fs` walk here. It yields `(id, value)` for each def; the summary
-    // is projected from the raw value (fields the nested profile drops, e.g.
-    // `rules.refs`, survive).
-    let fs = ship_substrate::ports::LocalFsBroker::new();
-    let Ok(docs) = ship_config::agents::read_agent_docs_in(&fs, dir) else {
-        return Vec::new();
-    };
-    docs.into_iter()
-        .filter_map(|(id, parsed)| summary_from_value(id, source, &parsed))
-        .collect()
-}
-
 /// Project a raw agent-def value into a summary. The ONE projection shared by
-/// the file scan and the index-backed read — the def value has the same
-/// canonical shape whether it comes off disk or out of the index snapshot.
-/// `None` when the value lacks the top-level `agent` block.
+/// the composed roll-up read and the index-backed read — the def value has
+/// the same canonical shape whether it comes off a `serde_json::to_value`'d
+/// [`compiler::AgentProfile`] or out of the index snapshot. `None` when the
+/// value lacks the top-level `agent` block.
 fn summary_from_value(
     id: String,
     source: &str,
@@ -183,20 +201,9 @@ fn summary_from_value(
     })
 }
 
-fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
-    // THE agent-def reader (FsBroker, ship-config) is the one door — no raw
-    // `std::fs` lookup here. It resolves `<id>.jsonc` then `<id>.json` and
-    // yields the raw value the detail projects from.
-    let fs = ship_substrate::ports::LocalFsBroker::new();
-    let (file_id, parsed) = ship_config::agents::read_agent_doc_in(&fs, dir, id)
-        .ok()
-        .flatten()?;
-    detail_from_value(file_id, source, &parsed)
-}
-
-/// Project a raw agent-def value into a detail. Shared by the file lookup and
-/// the index-backed read (same canonical shape from either source). `None` when
-/// the value lacks the top-level `agent` block.
+/// Project a raw agent-def value into a detail. Shared by the composed
+/// roll-up read and the index-backed read (same canonical shape from either
+/// source). `None` when the value lacks the top-level `agent` block.
 fn detail_from_value(
     file_id: String,
     source: &str,
@@ -299,10 +306,18 @@ fn detail_from_value(
     }
 }
 
-/// List agents from project (if inside a Ship project) and global scopes.
-/// Project entries shadow global on id collision.
+/// List agents visible to the no-index posture: the project space's composed
+/// roll-up (source + cache tier + operator-enabled library tier). `ship_dir`
+/// stays a parameter (unused) only because the wire call site passes it —
+/// same rationale as [`list_agents_from_index`]'s `_ship_dir`; the composed
+/// world already covers the user/global tier (W2), so there is nothing left
+/// for `ship_dir` to add.
 pub fn list_agents(ship_dir: &Path) -> Vec<AgentSummary> {
-    list_agents_with_scopes(&resolve_scopes(ship_dir))
+    let _ = ship_dir;
+    match resolve_space_root() {
+        Some(root) => list_agents_from_space(&root),
+        None => Vec::new(),
+    }
 }
 
 /// Read the workspace-active agent id from `daemon_settings`. The
@@ -315,55 +330,65 @@ pub fn active_agent_id() -> Option<String> {
         .and_then(|v| v.as_str().map(String::from))
 }
 
-pub(crate) fn list_agents_with_scopes(scopes: &AgentScopes) -> Vec<AgentSummary> {
+/// Test/injection seam for [`list_agents`] — takes the space root directly
+/// instead of walking up from the cwd, so parallel tests don't race on the
+/// process-global project-discovery path.
+pub(crate) fn list_agents_from_space(space_root: &Path) -> Vec<AgentSummary> {
+    let Some(composed) = compose_space_library(space_root) else {
+        return Vec::new();
+    };
     let active = active_agent_id();
-    let mut seen: HashSet<String> = HashSet::new();
-    let mut out = Vec::new();
-    if let Some(dir) = scopes.project_dir.as_ref() {
-        for mut a in scan_agents_dir(dir, SOURCE_PROJECT) {
-            if seen.insert(a.id.clone()) {
-                a.active = active.as_deref() == Some(a.id.as_str());
-                out.push(a);
-            }
-        }
-    }
-    for mut a in scan_agents_dir(&scopes.global_dir, SOURCE_GLOBAL) {
-        if seen.insert(a.id.clone()) {
+    let mut out: Vec<AgentSummary> = composed
+        .library
+        .agents
+        .iter()
+        .filter_map(|profile| {
+            let source = agent_source_label(&composed, &profile.agent.id);
+            let value = serde_json::to_value(profile).unwrap_or(serde_json::Value::Null);
+            let mut a = summary_from_value(profile.agent.id.clone(), source, &value)?;
             a.active = active.as_deref() == Some(a.id.as_str());
-            out.push(a);
-        }
-    }
+            Some(a)
+        })
+        .collect();
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out
 }
 
-/// Load a single agent by id. Project scope wins on collision.
+/// Load a single agent by id from the no-index posture's composed roll-up.
+/// `ship_dir` is unused for the same reason as [`list_agents`].
 pub fn load_agent(ship_dir: &Path, id: &str) -> Option<AgentDetail> {
-    load_agent_with_scopes(&resolve_scopes(ship_dir), id)
+    let _ = ship_dir;
+    load_agent_from_space(&resolve_space_root()?, id)
 }
 
-pub(crate) fn load_agent_with_scopes(scopes: &AgentScopes, id: &str) -> Option<AgentDetail> {
-    if let Some(dir) = scopes.project_dir.as_ref() {
-        if let Some(d) = load_from_dir(dir, id, SOURCE_PROJECT) {
-            return Some(d);
-        }
-    }
-    load_from_dir(&scopes.global_dir, id, SOURCE_GLOBAL)
+/// Test/injection seam for [`load_agent`] — see [`list_agents_from_space`].
+pub(crate) fn load_agent_from_space(space_root: &Path, id: &str) -> Option<AgentDetail> {
+    let composed = compose_space_library(space_root)?;
+    let profile = composed.library.agents.iter().find(|p| p.agent.id == id)?;
+    let source = agent_source_label(&composed, id);
+    let value = serde_json::to_value(profile).unwrap_or(serde_json::Value::Null);
+    detail_from_value(id.to_string(), source, &value)
 }
 
-/// True when `id` resolves to a known agent in either scope (project wins).
-/// Used by the dispatch wire to reject requests that name an unknown agent
-/// BEFORE any side effect (c-2026-07-05T12-33-00-000Z-a1b2c3d4). The check
-/// itself is cheap — a directory scan per scope — and final (no retry /
-/// degraded path; an agent that doesn't exist cannot be dispatched).
+/// True when `id` resolves to a known agent in the no-index posture's
+/// composed roll-up. Used by the dispatch wire to reject requests that name
+/// an unknown agent BEFORE any side effect
+/// (c-2026-07-05T12-33-00-000Z-a1b2c3d4). Final (no retry / degraded path;
+/// an agent that doesn't exist cannot be dispatched).
 pub fn agent_id_exists(ship_dir: &Path, id: &str) -> bool {
-    let scopes = resolve_scopes(ship_dir);
-    if let Some(dir) = scopes.project_dir.as_ref() {
-        if load_from_dir(dir, id, SOURCE_PROJECT).is_some() {
-            return true;
-        }
-    }
-    load_from_dir(&scopes.global_dir, id, SOURCE_GLOBAL).is_some()
+    let _ = ship_dir;
+    let Some(root) = resolve_space_root() else {
+        return false;
+    };
+    agent_exists_in_space(&root, id)
+}
+
+/// Test/injection seam for [`agent_id_exists`] — see [`list_agents_from_space`].
+pub(crate) fn agent_exists_in_space(space_root: &Path, id: &str) -> bool {
+    let Some(composed) = compose_space_library(space_root) else {
+        return false;
+    };
+    composed.library.agents.iter().any(|p| p.agent.id == id)
 }
 
 /// True when `id` resolves to a known agent in the project scope served from

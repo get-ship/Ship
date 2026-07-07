@@ -1,8 +1,8 @@
 //! JSONC value helpers for agent config projection.
 //!
 //! These helpers operate on already-parsed `serde_json::Value`s — the
-//! file READ + JSONC parse is the caller's job
-//! (`ship_config::agents`, `view_state::load_from_dir`). The
+//! read (composed roll-up or index snapshot) is the caller's job
+//! (`view_state::compose_space_library`, `ship_config::agents_index`). The
 //! comment-stripping itself delegates to
 //! `ship_substrate::fs_util::strip_jsonc_comments` (one canonical parser).
 //!

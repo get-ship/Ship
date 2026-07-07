@@ -1,86 +1,110 @@
 //! Tests for `views::agents_state`. Kept in a sibling file so the module
 //! itself stays under the 300-line cap.
 //!
-//! These drive `scopes_from` + `*_with_scopes` variants directly so
-//! parallel tests don't race on the process-global `SHIP_DEV_PROJECT_DIR` env var.
+//! These drive the `*_from_space` variants directly, passing an explicit
+//! `space_root` so parallel tests don't race on the process-global
+//! project-discovery walk `list_agents`/`load_agent`/`agent_id_exists` do.
 
 use crate::services::agents::view_state::*;
 use std::path::Path;
 use tempfile::tempdir;
 
-/// User-scope agents live at `<ship>/library/agents/` per the home-layout
-/// ADR. `scopes_from` resolves the global dir through `ShipHome::vector_dir`
-/// which knows the layout; tests must write to the same location.
-fn write_agent(ship_dir: &Path, id: &str, body: &str) {
-    let d = ship_dir.join("data").join("library").join("agents");
-    std::fs::create_dir_all(&d).unwrap();
-    std::fs::write(d.join(format!("{id}.jsonc")), body).unwrap();
+// `write_agent` / `write_project_agent` (the `.ship/agents/*.jsonc` and
+// `<ship>/library/agents/*.jsonc` two-scope scan fixtures) retired with the
+// format-migration Wave 5 follow-up (job-spec-fm-w5b-dispatch-index.md):
+// the no-index posture no longer scans either directory — agents arrive
+// exclusively as `defineAgent` declare-forms in `ship.config.ts`, composed
+// via `ship_resolver::roll_up_blocking` (see `write_ts_space` below).
+
+/// A minimal Ship space: `.ship/` (required for `ShipHome::project_ship_dir`
+/// discovery) plus a `ship.config.ts` at the space root. `ts_body` is the
+/// FULL `ship.config.ts` source (import + `defineAgent(...)` calls) — the
+/// no-index posture's only agent-authoring surface post format-migration
+/// Wave 5.
+fn write_ts_space(root: &Path, ts_body: &str) {
+    std::fs::create_dir_all(root.join(".ship")).unwrap();
+    std::fs::write(root.join("ship.config.ts"), ts_body).unwrap();
 }
 
-/// Project-scope agents (when caller passes a `project_ship_dir`) live at
-/// `<project>/.ship/agents/` (no `library/` prefix at project scope, see
-/// `scopes_from`). Tests that exercise the project scope use this helper.
-fn write_project_agent(project_ship_dir: &Path, id: &str, body: &str) {
-    let d = project_ship_dir.join("agents");
-    std::fs::create_dir_all(&d).unwrap();
-    std::fs::write(d.join(format!("{id}.jsonc")), body).unwrap();
-}
-
+/// Regression (job-spec-fm-w5b-dispatch-index.md acceptance): a `with_roots`
+/// (no `AgentDefIndex`) service resolves an agent declared ONLY in
+/// `ship.config.ts` — there is no `.ship/agents/` directory anywhere on
+/// disk. Exercises the exact shape `agent_id_exists` (the dispatch-gate
+/// check) and the summary/detail reads use.
 #[test]
-fn empty_dir_returns_empty_vec() {
+fn composed_space_resolves_agent_declared_only_in_ts_config() {
     let tmp = tempdir().unwrap();
-    let scopes = scopes_from(tmp.path(), None);
-    assert!(list_agents_with_scopes(&scopes).is_empty());
-}
-
-#[test]
-fn parses_canonical_nested_shape() {
-    let tmp = tempdir().unwrap();
-    // Mirrors .ship/agents/commander.jsonc — the canonical shape per
-    // schemas/agent.schema.json: `agent` wrapper, nested collections.
-    write_agent(
+    write_ts_space(
         tmp.path(),
-        "commander",
-        r#"{
-            "agent": { "name": "Commander" },
-            "skills": { "refs": ["cmdr", "write-adr", "ship-agents"] },
-            "mcp":    { "servers": ["ship", "typescript"] },
-            "rules":  { "refs": ["discipline"] },
-            "permissions": { "preset": "ship-autonomous" }
-        }"#,
+        r#"
+import { defineAgent } from "ship";
+
+defineAgent({
+  agent: { id: "commander", name: "Commander" },
+  skills: { refs: ["cmdr", "write-adr", "ship-agents"] },
+  mcp: { servers: ["ship", "typescript"] },
+  rules: { refs: ["discipline"] },
+  permissions: { preset: "ship-autonomous" },
+});
+"#,
     );
-    let scopes = scopes_from(tmp.path(), None);
-    let out = list_agents_with_scopes(&scopes);
+    assert!(
+        !tmp.path().join(".ship").join("agents").exists(),
+        "fixture must have no .ship/agents/ dir — the whole point of the regression"
+    );
+
+    assert!(agent_exists_in_space(tmp.path(), "commander"));
+    assert!(!agent_exists_in_space(tmp.path(), "nope"));
+
+    let out = list_agents_from_space(tmp.path());
     assert_eq!(out.len(), 1);
     let commander = &out[0];
     assert_eq!(commander.name, "Commander");
     assert_eq!(commander.skills_count, 3);
     assert_eq!(commander.mcp_count, 2);
     assert_eq!(commander.rules_count, 1);
+    assert_eq!(commander.source, SOURCE_PROJECT);
 
-    let detail = load_agent_with_scopes(&scopes, "commander").unwrap();
+    let detail = load_agent_from_space(tmp.path(), "commander").unwrap();
     assert_eq!(detail.skills.len(), 3);
     assert_eq!(detail.mcp_servers, vec!["ship", "typescript"]);
     assert_eq!(detail.permissions_tier, "autonomous");
 }
 
 #[test]
+fn empty_space_returns_empty_vec() {
+    let tmp = tempdir().unwrap();
+    std::fs::create_dir_all(tmp.path().join(".ship")).unwrap();
+    assert!(list_agents_from_space(tmp.path()).is_empty());
+    assert!(!agent_exists_in_space(tmp.path(), "anything"));
+}
+
+#[test]
 fn load_agent_returns_none_for_missing() {
     let tmp = tempdir().unwrap();
-    let scopes = scopes_from(tmp.path(), None);
-    assert!(load_agent_with_scopes(&scopes, "nope").is_none());
+    write_ts_space(
+        tmp.path(),
+        r#"
+import { defineAgent } from "ship";
+defineAgent({ agent: { id: "coder", name: "Coder" } });
+"#,
+    );
+    assert!(load_agent_from_space(tmp.path(), "nope").is_none());
 }
 
 #[test]
 fn load_agent_returns_detail_with_defaults() {
     let tmp = tempdir().unwrap();
-    write_agent(
+    write_ts_space(
         tmp.path(),
-        "coder",
-        r#"{ "agent": { "id": "coder", "name": "Coder", "description": "Writes code." } }"#,
+        r#"
+import { defineAgent } from "ship";
+defineAgent({
+  agent: { id: "coder", name: "Coder", description: "Writes code." },
+});
+"#,
     );
-    let scopes = scopes_from(tmp.path(), None);
-    let d = load_agent_with_scopes(&scopes, "coder").unwrap();
+    let d = load_agent_from_space(tmp.path(), "coder").unwrap();
     assert_eq!(d.name, "Coder");
     assert_eq!(d.permissions_tier, "standard");
     assert_eq!(d.letter, "C");
@@ -94,14 +118,15 @@ fn load_agent_returns_detail_with_defaults() {
 #[test]
 fn agent_without_harnesses_field_serializes_without_harnesses_keys() {
     let tmp = tempdir().unwrap();
-    write_agent(
+    write_ts_space(
         tmp.path(),
-        "lean",
-        r#"{ "agent": { "id": "lean", "name": "Lean" } }"#,
+        r#"
+import { defineAgent } from "ship";
+defineAgent({ agent: { id: "lean", name: "Lean" } });
+"#,
     );
-    let scopes = scopes_from(tmp.path(), None);
 
-    let summaries = list_agents_with_scopes(&scopes);
+    let summaries = list_agents_from_space(tmp.path());
     assert_eq!(summaries.len(), 1);
     let summary_json = serde_json::to_value(&summaries[0]).unwrap();
     assert!(
@@ -113,7 +138,7 @@ fn agent_without_harnesses_field_serializes_without_harnesses_keys() {
         "AgentSummary must not surface a harnesses_count field: {summary_json}"
     );
 
-    let detail = load_agent_with_scopes(&scopes, "lean").unwrap();
+    let detail = load_agent_from_space(tmp.path(), "lean").unwrap();
     let detail_json = serde_json::to_value(&detail).unwrap();
     assert!(
         detail_json.get("harnesses").is_none(),
@@ -125,14 +150,27 @@ fn agent_without_harnesses_field_serializes_without_harnesses_keys() {
     );
 }
 
-#[test]
-fn malformed_files_without_agent_wrapper_are_skipped() {
-    let tmp = tempdir().unwrap();
-    write_agent(tmp.path(), "flat", r#"{ "name": "Flat" }"#);
-    let scopes = scopes_from(tmp.path(), None);
-    assert!(list_agents_with_scopes(&scopes).is_empty());
-    assert!(load_agent_with_scopes(&scopes, "flat").is_none());
-}
+// `malformed_files_without_agent_wrapper_are_skipped` retired with the
+// format-migration Wave 5 follow-up: it pinned that a `.jsonc` file lacking
+// the `agent` wrapper is silently skipped by the directory scan. There is
+// no directory scan left to skip anything in — `AgentProfile` deserializes
+// straight off the `defineAgent(...)` call's JSON argument (a malformed
+// shape is a TS-eval-time deserialize error, `ship_resolver`'s concern, not
+// this module's projection layer). `summary_from_value` / `detail_from_value`
+// still guard on the `agent` key for the shared index-backed-read path
+// (`composed_row_source_reflects_provenance_and_shadow_is_queryable` below
+// exercises that guard through the index).
+
+// `merges_project_and_global_scopes` / `scope_skipped_when_project_matches_global`
+// retired with the format-migration Wave 5 follow-up: they pinned the
+// two-scope (`<ship>/library/agents/`, `<project>/.ship/agents/`) directory
+// scan-and-merge precedence. That precedence law is now
+// `compiler::compose_space`'s (Space > UserGlobal > Cache, `RollupInputs::
+// default_precedence`) — already covered by `ship-resolver`'s own roll-up
+// tests (out of this job's file fence) and by
+// `composed_row_source_reflects_provenance_and_shadow_is_queryable` below,
+// which exercises the identical precedence law through the index-backed
+// read this module's no-index path is required to match.
 
 #[test]
 fn strip_jsonc_handles_comments() {
@@ -163,74 +201,6 @@ fn strip_jsonc_preserves_multibyte_utf8() {
     let v: serde_json::Value = serde_json::from_str(&stripped).unwrap();
     assert_eq!(v["desc"], "orchestrator — captures intent");
     assert_eq!(v["list"], serde_json::json!([1, 2]));
-}
-
-#[test]
-fn merges_project_and_global_scopes() {
-    // Global ship_dir with one unique + one shared.
-    let global_tmp = tempdir().unwrap();
-    let global_ship = global_tmp.path().to_path_buf();
-    write_agent(
-        &global_ship,
-        "g-only",
-        r#"{ "agent": { "id": "g-only", "name": "Globalist" } }"#,
-    );
-    write_agent(
-        &global_ship,
-        "shared",
-        r#"{ "agent": { "id": "shared", "name": "SharedGlobal", "description": "global copy" } }"#,
-    );
-
-    // Project ship_dir with one unique + one shared — project wins.
-    let project_tmp = tempdir().unwrap();
-    let project_root = project_tmp.path();
-    let project_ship = ship_substrate::ShipHome::project_ship_dir(project_root);
-    std::fs::create_dir_all(&project_ship).unwrap();
-    std::fs::write(project_ship.join("ship.jsonc"), r#"{"id": "pr1"}"#).unwrap();
-    write_project_agent(
-        &project_ship,
-        "p-only",
-        r#"{ "agent": { "id": "p-only", "name": "Projector" } }"#,
-    );
-    write_project_agent(
-        &project_ship,
-        "shared",
-        r#"{ "agent": { "id": "shared", "name": "SharedProject", "description": "project copy" } }"#,
-    );
-
-    let scopes = scopes_from(&global_ship, Some(&project_ship));
-    let out = list_agents_with_scopes(&scopes);
-    let detail = load_agent_with_scopes(&scopes, "shared").unwrap();
-
-    let ids: Vec<&str> = out.iter().map(|a| a.id.as_str()).collect();
-    assert!(ids.contains(&"g-only"), "global agent visible: {ids:?}");
-    assert!(ids.contains(&"p-only"), "project agent visible: {ids:?}");
-    assert_eq!(
-        out.iter().filter(|a| a.id == "shared").count(),
-        1,
-        "dedup keeps one shared"
-    );
-
-    let g = out.iter().find(|a| a.id == "g-only").unwrap();
-    assert_eq!(g.source, SOURCE_GLOBAL);
-    let p = out.iter().find(|a| a.id == "p-only").unwrap();
-    assert_eq!(p.source, SOURCE_PROJECT);
-    let shared = out.iter().find(|a| a.id == "shared").unwrap();
-    assert_eq!(shared.name, "SharedProject", "project copy wins");
-    assert_eq!(shared.source, SOURCE_PROJECT);
-
-    assert_eq!(detail.name, "SharedProject");
-    assert_eq!(detail.source, SOURCE_PROJECT);
-}
-
-#[test]
-fn scope_skipped_when_project_matches_global() {
-    let tmp = tempdir().unwrap();
-    write_agent(tmp.path(), "solo", r#"{ "agent": { "id": "solo", "name": "Solo" } }"#);
-    let scopes = scopes_from(tmp.path(), Some(tmp.path()));
-    let out = list_agents_with_scopes(&scopes);
-    assert_eq!(out.len(), 1);
-    assert_eq!(out[0].source, SOURCE_GLOBAL);
 }
 
 // ── Index-backed reads: the AGENTS domain owns its config ─────────────────────
