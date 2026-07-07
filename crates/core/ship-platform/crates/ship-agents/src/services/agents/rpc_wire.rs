@@ -332,9 +332,11 @@ impl AgentsServiceTrait for AgentsWire {
         _ctx: RequestContext,
         _request: ship_ops_rpc::OwnedListAgentsRequestView,
     ) -> ServiceResult<AgentIndexResponse> {
-        use ship_files::files::FilesService;
-        let files = FilesService::resolve_roots(&self.ship_dir);
-        let items = state::list(&files);
+        // The C0 List read goes through the composed roll-up — no
+        // `.ship/agents/*.jsonc` directory scan survives the W5 follow-up
+        // (W5b migrated `view_state`; this completes the loop for the
+        // wire). `None` → cwd-walked space root (`view_state::resolve_space_root`).
+        let items = state::list(None);
         serde_json::from_value::<AgentIndexResponse>(json!({ "items": items }))
             .map(Response::new)
             .map_err(|e| ConnectError::internal(format!("agents.list decode: {e}")))
@@ -394,11 +396,16 @@ impl AgentsServiceTrait for AgentsWire {
         _ctx: RequestContext,
         request: ship_ops_rpc::OwnedGetAgentRequestView,
     ) -> ServiceResult<AgentDoc> {
-        use ship_files::files::FilesService;
         let id = request.id;
         let scope = parse_scope_opt(request.scope)?;
-        let files = FilesService::resolve_roots(&self.ship_dir);
-        let (resolved, doc) = state::load_doc(&files, id, scope).map_err(|e| match e {
+        // The C0 Get read goes through the composed roll-up — the
+        // `with_roots` (no-index) path the helmd posture mounts. The
+        // prior `state::load_doc` reached `.ship/agents/*.jsonc` and
+        // mapped `state::Error::NotFound(id.into())` to a bare-`id`
+        // ConnectError; the composed read formats the NotFound as
+        // `agent \`id\`` matching the canonical `view_state::load_agent`
+        // shape `rpc_wire::detail` uses.
+        let (resolved, doc) = state::load_doc(None, id, scope).map_err(|e| match e {
             state::Error::NotFound(m) => ConnectError::not_found(m),
             other => ConnectError::internal(other.to_string()),
         })?;

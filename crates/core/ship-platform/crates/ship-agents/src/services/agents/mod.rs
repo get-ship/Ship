@@ -3,7 +3,6 @@
 //! HTTP handlers binding axum to this trait live in
 //! `apps/shipd/src/services/agents/mod.rs`.
 
-pub mod agents_jsonc;
 pub mod annotation;
 pub mod create;
 pub mod dispatch_core;

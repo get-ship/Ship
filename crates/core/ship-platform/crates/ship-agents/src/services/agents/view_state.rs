@@ -14,17 +14,27 @@
 //! (operator-enabled library) rides the SAME roll-up (W2) — there is no
 //! separate global-scope read here.
 //!
+//! `state::list` and `state::load_doc` (the C0 Get/List read surface the
+//! `AgentsWire::list` / `AgentsWire::get` handlers ride) go through the
+//! SAME composed roll-up — W5b follow-up. They share the projection
+//! helpers and the resolve/compose helpers below (made `pub(crate)` for
+//! that).
+//!
 //! Each summary/detail carries a `source` field so the view can group the
 //! rail; for both the index-backed and no-index paths it is derived from
 //! the roll-up's own precedence resolution, never an invented scope label.
 //!
-//! JSONC parsing lives in the sibling `agents_jsonc` module.
+//! Projection helpers (avatar letter + collection-field array) live as
+//! private fns in this module — the old sibling `agents_jsonc.rs` is
+//! retired: its only consumers were the migrated paths (this module's
+//! `summary_from_value` / `detail_from_value`).
 
-use super::agents_jsonc::{first_letter, resolve_array_field};
 use compiler::{ComposedLibrary, ExtSource};
 use serde::Serialize;
 use ship_config::agents_index::AgentDefIndex;
 use std::path::{Path, PathBuf};
+
+use super::state::ScopeTag;
 
 // Re-export `strip_jsonc` so the sibling test file can pull it in via
 // `super::*` (the comment-stripping itself still delegates to
@@ -101,13 +111,12 @@ pub struct Permissions {
 pub const SOURCE_PROJECT: &str = "PROJECT AGENTS";
 /// Source label for user-scope agents (`~/.ship/library/agents/`).
 pub const SOURCE_GLOBAL: &str = "USER AGENTS";
-
 /// Resolve the enclosing project's space root (the parent of its `.ship/`),
 /// walking up from the current working directory. `None` outside a Ship
 /// project — the no-index posture then has no space to compose (there is no
 /// longer a "global-only, no project" case: the operator-enabled library
 /// tier only reaches a caller THROUGH a space's roll-up).
-fn resolve_space_root() -> Option<PathBuf> {
+pub(crate) fn resolve_space_root() -> Option<PathBuf> {
     let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
     project_ship.parent().map(Path::to_path_buf)
 }
@@ -118,7 +127,7 @@ fn resolve_space_root() -> Option<PathBuf> {
 /// `.ship/agents/*.jsonc` directory scan survives it. `None` on a roll-up
 /// failure (e.g. a TS eval error) — callers treat that the same as "nothing
 /// composed", matching the old scan's "missing dir" tolerance.
-fn compose_space_library(space_root: &Path) -> Option<ComposedLibrary> {
+pub(crate) fn compose_space_library(space_root: &Path) -> Option<ComposedLibrary> {
     ship_resolver::roll_up_blocking(space_root, None, None)
         .inspect_err(|e| tracing::warn!("agents view_state: roll_up failed for {space_root:?}: {e}"))
         .ok()
@@ -132,9 +141,15 @@ fn compose_space_library(space_root: &Path) -> Option<ComposedLibrary> {
 /// the same read without a DataStore row to carry it in). `Space` (or no
 /// roll-up-inputs audit trail at all) reads as project; every other tier
 /// reads as the (now roll-up-composed) global/user tier.
-fn agent_source_label(composed: &ComposedLibrary, id: &str) -> &'static str {
+///
+/// The `ScopeTag` form is the typed return [`state::list`] /
+/// [`state::load_doc`] use to populate `IndexEntry.scope` (and to enforce
+/// the explicit-scope branch of [`state::load_doc`]) — they want the
+/// rank-derived scope as a typed enum, not as a UI string. The
+/// string-form `agent_source_label` derives from this.
+pub(crate) fn agent_source_scope(composed: &ComposedLibrary, id: &str) -> ScopeTag {
     let Some(rollup) = composed.library.rollup_inputs.as_ref() else {
-        return SOURCE_PROJECT;
+        return ScopeTag::Project;
     };
     let mut ranked: Vec<_> = rollup
         .extensions
@@ -154,11 +169,71 @@ fn agent_source_label(composed: &ComposedLibrary, id: &str) -> &'static str {
         .next_back()
         .map(|(_, ext)| ext.source.clone());
     match winner {
-        None | Some(ExtSource::Space) => SOURCE_PROJECT,
-        Some(_) => SOURCE_GLOBAL,
+        None | Some(ExtSource::Space) => ScopeTag::Project,
+        Some(_) => ScopeTag::User,
     }
 }
 
+/// The string-form `source` label (rail-grouping string surfaced in the
+/// `source` field of the wire response) — derived from
+/// [`agent_source_scope`].
+fn agent_source_label(composed: &ComposedLibrary, id: &str) -> &'static str {
+    match agent_source_scope(composed, id) {
+        ScopeTag::Project => SOURCE_PROJECT,
+        ScopeTag::User => SOURCE_GLOBAL,
+    }
+}
+
+
+/// First character of `s`, upper-cased (or `"?"` for an empty string).
+/// Powers the agent-row "letter avatar" badge.
+fn first_letter(s: &str) -> String {
+    s.chars()
+        .next()
+        .map(|c| c.to_ascii_uppercase().to_string())
+        .unwrap_or_else(|| "?".to_string())
+}
+
+/// Extract a flat `Vec<String>` from a JSON value: string entries of an
+/// array, or empty for anything else.
+fn extract_str_array(v: &serde_json::Value) -> Vec<String> {
+    v.as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|item| item.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Resolve a collection field from an agent config. Reads either the
+/// top-level array (when `nested_keys` is empty) or a nested sub-key
+/// (e.g. `skills.refs`, `mcp.servers`).
+///
+/// The `nested_keys` parameter lists candidate sub-keys to inspect when the
+/// top-level value is an object; the first one that contains an array wins.
+fn resolve_array_field(
+    obj: &serde_json::Value,
+    top_keys: &[&str],
+    nested_keys: &[&str],
+) -> Vec<String> {
+    for key in top_keys {
+        let Some(v) = obj.get(*key) else { continue };
+        if v.is_array() {
+            return extract_str_array(v);
+        }
+        if let Some(inner) = v.as_object() {
+            for nk in nested_keys {
+                if let Some(arr) = inner.get(*nk)
+                    && arr.is_array()
+                {
+                    return extract_str_array(arr);
+                }
+            }
+        }
+    }
+    Vec::new()
+}
 /// Project a raw agent-def value into a summary. The ONE projection shared by
 /// the composed roll-up read and the index-backed read — the def value has
 /// the same canonical shape whether it comes off a `serde_json::to_value`'d
@@ -506,9 +581,18 @@ pub struct ToolPatternEntry {
 }
 
 /// Enumerate rules via RuleService state. Returns project+user, project-wins.
+///
+/// PRE-EXISTING BUG: this calls `super::state::list_jsonc` (the agents
+/// domain's jsonc directory scan) instead of the rules service's own
+/// state — the rules catalog gets populated with agent ids, not rule
+/// ids. Predates this work (the original PR confused the two modules
+/// when both got their `state` submodules). Out of scope here; we just
+/// point it at the jsonc door (the new composed `state::list` would
+/// return composed agent profiles, which is no closer to "rules"). A
+/// future fix replaces this with the rules service's own reader.
 fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
     let files = ship_files::files::FilesService::resolve_roots(ship_dir);
-    super::state::list(&files)
+    super::state::list_jsonc(&files)
         .into_iter()
         .map(|e| CatalogEntry {
             id: e.id.clone(),
