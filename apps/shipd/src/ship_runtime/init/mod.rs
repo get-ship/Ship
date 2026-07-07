@@ -14,7 +14,7 @@ pub mod identity_files;
 
 pub use paths::{DaemonPaths, DaemonConfig, resolve_daemon_paths, resolve_daemon_config, apply_path_env_vars};
 pub use startup::{
-    start_runtime_subsystems, register_active_space, write_identity_files, install_session_subsystems,
+    start_runtime_subsystems, write_identity_files, install_session_subsystems,
 };
 pub use identity_files::*;
 
@@ -157,7 +157,7 @@ impl ShipRuntime {
         // `KernelLog` instances — collapsed here.
         let space_ctx = space_id
             .as_deref()
-            .map(|id| build_space_db_context_arc(kernel.clone(), global_dir, id));
+            .and_then(|id| build_space_db_context_arc(kernel.clone(), global_dir, id));
         let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
         // Hydrate user-authored collection schemas from the descriptor into
         // the shared registry so they are queryable alongside the built-ins.
@@ -348,20 +348,42 @@ impl ShipRuntime {
 /// `CollectionProjection` / `ArtifactProjection` write their tables into that
 /// per-scope db inside the append transaction, so the read path must query the
 /// SAME file (ADR D6/D7).
+///
+/// Returns `None` if the per-scope `space.db` couldn't be opened (locked,
+/// corrupt, permission-denied, missing parent dir, etc.). The caller treats
+/// `None` as "daemon boots space-less" — the same posture it already takes
+/// when no active space is resolvable (see `ShipRuntime::new`). The daemon
+/// continues to serve runtime-scope RPCs; space-scoped ops error cleanly via
+/// the existing space-less accessors (`collections()`/`artifacts()`
+/// return `anyhow::Error`, search fan-out degrades per-space to a stub
+/// context, agent stack still runs). The loss is loud: a `tracing::error!`
+/// at the open failure so it shows up in any daemon log ahead of the
+/// health endpoint going unhealthy.
 pub fn build_space_db_context_arc(
     kernel: super::SharedKernel,
     ship_dir: &Path,
     space_id: &str,
-) -> Arc<ship_substrate::ports::SpaceContext> {
+) -> Option<Arc<ship_substrate::ports::SpaceContext>> {
     use ship_substrate::data::DataService;
     use ship_substrate::ports::{KernelLog, SingleBackendDataStore, SpaceContext, SpaceId};
 
     let space_db = ship_substrate::db::space_db_path(ship_dir, space_id);
-    let data_svc =
-        DataService::open_at(&space_db).expect("data service over space.db");
+    let data_svc = match DataService::open_at(&space_db) {
+        Ok(svc) => svc,
+        Err(e) => {
+            tracing::error!(
+                space_id = %space_id,
+                space_db = %space_db.display(),
+                error = %e,
+                "shipd: failed to open space.db at boot — daemon is degrading to space-less mode; \
+                 space-scoped ops (collections/artifacts/items/search) will error until space.db is repaired"
+            );
+            return None;
+        }
+    };
     let data_store = Arc::new(SingleBackendDataStore::new(data_svc, space_id));
     let kernel_log = Arc::new(KernelLog::new(kernel));
-    Arc::new(SpaceContext::new(SpaceId::new(space_id), data_store, kernel_log))
+    Some(Arc::new(SpaceContext::new(SpaceId::new(space_id), data_store, kernel_log)))
 }
 
 /// Emit a single INFO line with event-log health at startup. Gives operators

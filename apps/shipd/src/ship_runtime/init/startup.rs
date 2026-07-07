@@ -4,8 +4,6 @@
 //! - `start_runtime_subsystems` — boot every background task the runtime
 //!   owns (artifact GC, reapers, hook engine, config watcher, agent-def
 //!   index, pipeline reactive registry).
-//! - `register_active_space` — register the discovered project root as
-//!   the active space in the space registry (idempotent).
 //! - `write_identity_files` — write the pid/workspace/sha files into
 //!   `<daemon_dir>/` so external tooling (`just status`, `ship doctor`)
 //!   can introspect the running daemon.
@@ -19,7 +17,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
-use ship_substrate::home::{read_or_generate_device_id, ProjectRoot};
+use ship_substrate::home::read_or_generate_device_id;
 use ship_substrate::ShipHome;
 use ship_types::set_local_device_id;
 
@@ -59,38 +57,12 @@ pub async fn start_runtime_subsystems(
     Ok(())
 }
 
-/// Register the launch-time project (if any) into the space registry so
-/// the launcher / shell sees it on first list. Idempotent — ship-space
-/// emits `project.seen` if already known.
-///
-/// A discoverable project root IS the active space; the daemon has no
-/// separate "home space" to stamp into a process-global (S2 home-space
-/// kill). The active space is resolved per-request / at boot from the
-/// probe path via `ship_substrate::project::resolve_active_space`. With
-/// no discoverable project the daemon boots space-less. See spec
-/// `.artifacts/specs/space/116-event-partition.md`.
-pub async fn register_active_space(
-    rt: &Arc<ShipRuntime>,
-    global_dir: &Path,
-    project_root: &Option<ProjectRoot>,
-) -> Result<()> {
-    if let Some(root) = project_root.as_ref() {
-        use ship_substrate::ports::{KernelLog, SingleBackendDataStore};
-        use ship_substrate::data::DataService;
-        let runtime_db = ship_substrate::db::runtime_db_path(global_dir);
-        let store = {
-            let svc = DataService::open_at(&runtime_db).expect("data service over runtime.db");
-            std::sync::Arc::new(SingleBackendDataStore::new(svc, "runtime"))
-                as std::sync::Arc<dyn ship_substrate::ports::DataStore>
-        };
-        let kernel = std::sync::Arc::new(KernelLog::new(rt.kernel().clone()));
-        let canonical = std::fs::canonicalize(root.path()).unwrap_or_else(|_| root.path().to_path_buf());
-        if let Err(e) = ship_space::registry::add(&kernel, &canonical, None).await {
-            tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
-        }
-    }
-    Ok(())
-}
+/// The launch-time project-registration step is now performed INLINE at
+/// `daemon/run.rs` (the optionB-era `register_active_space` helper that used
+/// to live here was deleted: the registry is event-only and folds the
+/// `project.registered` event into the kernel's `projects` SQL projection in
+/// the same transaction, so no `DataStore` argument is needed — wiring one
+/// back in would re-introduce a load-bearing `.expect` over runtime.db).
 
 /// Write the daemon identity files (pid, workspace, build sha) into
 /// `<daemon_dir>/`. The runtime's own `daemon_dir` accessor returns the

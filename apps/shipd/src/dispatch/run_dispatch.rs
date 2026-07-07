@@ -97,11 +97,39 @@ pub async fn subscribe_job_events(
     let projections: Arc<dyn ship_code::dispatch_ports::ProjectionReader> =
         Arc::new(ship_pipeline_runtime::orchestrator::projection_reader::ProjectionsReader);
 
-    let journal_store = journal_sqlite::SqliteJournalStore::open(
+    let journal_store = match journal_sqlite::SqliteJournalStore::open(
         &ship_dir.join("runtime.db"),
     )
     .await
-    .expect("pipeline journal store");
+    {
+        Ok(store) => store,
+        Err(e) => {
+            // Posture: degrade the dispatch lane to disabled (return `None`)
+            // rather than aborting the daemon. Chosen over propagating an
+            // error because runtime.db has ALREADY been integrity-checked +
+            // opened via the checked path earlier in `ShipRuntime::new` —
+            // a failure here means runtime.db is genuinely broken
+            // (permission-flip, mid-flight disk fault, concurrent writer
+            // wedged), and aborting the whole daemon to exclude the dispatch
+            // lane is the wrong tradeoff. The runtime + event-log + RPC +
+            // health surfaces stay up; pipelines and harness sessions
+            // cannot start (no journal ⇒ no durable re-entry), which is
+            // observably the same as the no-ship-code build. The caller at
+            // `daemon/lifecycle.rs:56` already handles `None` by skipping
+            // `set_dispatch_handle` — `rt.dispatch_handle()` then returns
+            // `None` ⇒ `ports/pipeline.rs::signal_turn_ended` early-returns
+            // false.
+            tracing::error!(
+                error = %e,
+                ship_dir = %ship_dir.display(),
+                "shipd: failed to open pipeline journal store over runtime.db — \
+                 dispatch lane is DISABLED for this lifetime; pipelines / agent \
+                 sessions will not start. Repair runtime.db (perms/lock) and \
+                 restart to re-enable the dispatch lane."
+            );
+            return None;
+        }
+    };
 
     let octx = Arc::new(OrchestratorContext {
         isolation: isolation.clone(),

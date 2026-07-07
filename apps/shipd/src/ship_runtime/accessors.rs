@@ -172,6 +172,10 @@ impl ShipRuntime {
         self.space_ctx.clone()
     }
 
+    // No `active_space_id` here — see `tasks.rs::active_space_id` (the
+    // workspace-derived one). Adding a second source of truth would force
+    // every call site to disambiguate.
+
     /// Blob root for artifacts (global ship dir).
     pub fn global_blob_dir(&self) -> &std::path::Path {
         &self.global_blob_dir

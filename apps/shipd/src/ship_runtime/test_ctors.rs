@@ -52,8 +52,15 @@ impl ShipRuntime {
         // home space / `global` partition to fall back onto (S2). Production boot
         // leaves these `None` in space-less mode. Both collection + artifact wire
         // mounts share the SAME ctx (single per-scope db).
-        let space_ctx =
-            Some(super::init::build_space_db_context_arc(kernel.clone(), &ship_dir, "test-space"));
+        // Test fixture binds a concrete space (`test-space`). The ctor is only
+        // reachable from test paths that always pass a writable tmpdir, so the
+        // open can't fail in practice; an open failure here would be a
+        // genuine test-env bug, surface it loudly rather than silently booting
+        // space-less and writing a test that masks the failure.
+        let space_ctx = Some(
+            super::init::build_space_db_context_arc(kernel.clone(), &ship_dir, "test-space")
+                .expect("test space.db open must succeed"),
+        );
         let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
         let global_blob_dir = ship_dir.clone();
         // Permissions reaches into Mcp via the trait for tool_patterns.
