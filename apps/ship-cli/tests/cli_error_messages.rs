@@ -113,26 +113,15 @@ fn use_nonexistent_agent_with_no_agents_dir_suggests_create() {
 }
 
 // ── 2. ship compile with broken MCP config ──────────────────────────────────
-
-#[test]
-fn compile_broken_mcp_warns_about_file() {
-    let tmp = TempDir::new().unwrap();
-    write(tmp.path(), ".ship/rules/style.md", "Use types.");
-    write(tmp.path(), ".ship/mcp.jsonc", "{ invalid json {{{{");
-
-    let output = ship()
-        .args(["compile", "--harness", "claude", "--path", tmp.path().to_str().unwrap()])
-        .output()
-        .unwrap();
-    let stderr = String::from_utf8_lossy(&output.stderr);
-
-    // Compile should still succeed but warn about the broken MCP file
-    assert!(output.status.success());
-    assert!(
-        stderr.contains("mcp") || stderr.contains("MCP"),
-        "compile must warn about broken MCP config: {stderr}"
-    );
-}
+//
+// `compile_broken_mcp_warns_about_file` retired with format-migration Wave 4
+// phase A (`3bf8bd82e`): `.ship/mcp.jsonc` is no longer parsed by the compile
+// pipeline at all — MCP servers are authored ONLY as `defineMcpServer`
+// declare-forms in `ship.config.ts`, harvested by `ship_resolver`'s TS eval.
+// There is no raw-file reader left to be lenient about a broken raw file;
+// the leniency behavior this test pinned down has no equivalent in the
+// current architecture. Deleted, not "fixed," per
+// `census-format-migration.md` §4 row 3's rule for retired dual-path tests.
 
 // ── Exit codes ──────────────────────────────────────────────────────────────
 

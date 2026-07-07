@@ -33,8 +33,7 @@ fn write(dir: &Path, rel: &str, content: &str) {
 
 /// Manually scaffold the bare-minimum `.ship/` tree that `ship use` and
 /// `ship compile` need. Mirrors what the (now-removed) `ship init` produced
-/// for a fresh source directory. Adds a `dev` agent at `.ship/agents/dev.jsonc` so
-/// `ship use dev` resolves.
+/// for a fresh source directory.
 fn scaffold_ship_dir(root: &Path) {
     write(
         root,
@@ -47,22 +46,45 @@ fn scaffold_ship_dir(root: &Path) {
 }
 "#,
     );
+}
+
+/// Write a `ship.config.ts` at the space root. Post format-migration Wave 4
+/// phase A + Wave 5, rules/MCP/collections/triggers/agents/skills are
+/// composed into the compile pipeline ONLY as declare-forms here — the raw
+/// `.ship/rules/*.md`, `.ship/mcp.jsonc`, and `.ship/agents/*.jsonc` readers
+/// the compiler/resolver side used were deleted. `.ship/permissions.jsonc`
+/// (preset bodies) and `.ship/ship.jsonc` are untouched by that migration
+/// and still read from disk.
+fn write_ship_config(root: &Path, body: &str) {
     write(
         root,
-        ".ship/agents/dev.jsonc",
-        r#"{
-  "$schema": "https://raw.githubusercontent.com/<ship-repo-org>/ship/main/schemas/agent.schema.json",
-  "agent": {
-    "id": "dev",
-    "name": "Dev",
-    "version": "0.1.0",
-    "description": "General-purpose development agent"
-  },
-  "skills": { "refs": [] },
-  "mcp": { "servers": [] },
-  "permissions": { "preset": "ship-standard" }
+        "ship.config.ts",
+        &format!(
+            r#"
+import {{
+  defineAgent,
+  defineMcpServer,
+  defineRule,
+}} from "ship";
+
+{body}
+"#
+        ),
+    );
 }
-"#,
+
+/// `ship use <id>` still gates on a raw `.ship/agents/<id>.jsonc` file
+/// (`apps/ship-cli/src/profile.rs::find_agent_file`/`load_agent_profile`) —
+/// that lookup was never migrated onto the ts-declare-form roll-up the
+/// compile pipeline itself uses. The stub only needs to exist for the
+/// activation gate + plugin-lifecycle read; the agent's real skills/mcp/
+/// rules/permissions effect comes from the matching `defineAgent` in
+/// `ship.config.ts` (composed by `compile_project`'s roll-up).
+fn write_agent_stub(root: &Path, id: &str, name: &str) {
+    write(
+        root,
+        &format!(".ship/agents/{id}.jsonc"),
+        &format!(r#"{{ "agent": {{ "id": "{id}", "name": "{name}" }} }}"#),
     );
 }
 
@@ -73,12 +95,17 @@ fn use_activates_agent_writes_claude_md_and_state() {
     let tmp = TempDir::new().unwrap();
     let p = tmp.path().to_str().unwrap();
     scaffold_ship_dir(tmp.path());
-    write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
-    write(
+    write_ship_config(
         tmp.path(),
-        ".ship/agents/my-agent.jsonc",
-        r#"{ "agent": { "name": "My Agent", "id": "my-agent", "harnesses": ["claude"] } }"#,
+        r#"
+defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });
+
+defineAgent({
+  agent: { name: "My Agent", id: "my-agent" },
+});
+"#,
     );
+    write_agent_stub(tmp.path(), "my-agent", "My Agent");
 
     ship_in(&tmp)
         .args(["use", "my-agent", "--path", p])
@@ -97,12 +124,17 @@ fn use_same_agent_twice_is_idempotent() {
     let tmp = TempDir::new().unwrap();
     let p = tmp.path().to_str().unwrap();
     scaffold_ship_dir(tmp.path());
-    write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
-    write(
+    write_ship_config(
         tmp.path(),
-        ".ship/agents/my-agent.jsonc",
-        r#"{ "agent": { "name": "My Agent", "id": "my-agent", "harnesses": ["claude"] } }"#,
+        r#"
+defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });
+
+defineAgent({
+  agent: { name: "My Agent", id: "my-agent" },
+});
+"#,
     );
+    write_agent_stub(tmp.path(), "my-agent", "My Agent");
 
     let args = ["use", "my-agent", "--path", p];
     ship_in(&tmp).args(args).assert().success();
@@ -137,7 +169,11 @@ fn use_fails_for_unknown_agent() {
 #[test]
 fn compile_writes_claude_md() {
     let tmp = TempDir::new().unwrap();
-    write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
+    scaffold_ship_dir(tmp.path());
+    write_ship_config(
+        tmp.path(),
+        r#"defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });"#,
+    );
 
     ship()
         .args([
@@ -157,7 +193,11 @@ fn compile_writes_claude_md() {
 #[test]
 fn compile_dry_run_writes_nothing() {
     let tmp = TempDir::new().unwrap();
-    write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
+    scaffold_ship_dir(tmp.path());
+    write_ship_config(
+        tmp.path(),
+        r#"defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });"#,
+    );
 
     ship()
         .args([
@@ -194,7 +234,11 @@ fn compile_fails_without_ship_dir() {
 #[test]
 fn compile_harness_codex_writes_agents_md() {
     let tmp = TempDir::new().unwrap();
-    write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
+    scaffold_ship_dir(tmp.path());
+    write_ship_config(
+        tmp.path(),
+        r#"defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });"#,
+    );
 
     ship()
         .args(["compile", "--harness", "codex"])
@@ -213,7 +257,11 @@ fn compile_harness_codex_writes_agents_md() {
 #[test]
 fn compile_harness_codex_writes_codex_config_toml() {
     let tmp = TempDir::new().unwrap();
-    write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
+    scaffold_ship_dir(tmp.path());
+    write_ship_config(
+        tmp.path(),
+        r#"defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });"#,
+    );
 
     ship()
         .args(["compile", "--harness", "codex"])
@@ -238,7 +286,11 @@ fn compile_harness_codex_writes_codex_config_toml() {
 #[test]
 fn compile_is_idempotent() {
     let tmp = TempDir::new().unwrap();
-    write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
+    scaffold_ship_dir(tmp.path());
+    write_ship_config(
+        tmp.path(),
+        r#"defineRule({ id: "style", content: "Use explicit types.", applyScope: "always" });"#,
+    );
 
     let args = [
         "compile",
@@ -271,61 +323,52 @@ fn e2e_scaffold_create_agent_use_compile_full_flow() {
     let p = tmp.path().to_str().unwrap();
     scaffold_ship_dir(tmp.path());
 
-    // Write a realistic agent JSONC with permissions preset, skills ref, hooks
-    write(
+    // Write a realistic agent, rule, and MCP server as ship.config.ts
+    // declare-forms (post format-migration Wave 4/5 — the raw
+    // `.ship/agents/*.jsonc`, `.ship/rules/*.md`, `.ship/mcp.jsonc` loaders
+    // were deleted).
+    write_ship_config(
         tmp.path(),
-        ".ship/agents/fullstack.jsonc",
-        r#"{
-  "agent": {
-    "id": "fullstack",
-    "name": "Fullstack Dev",
-    "version": "0.1.0",
-    "description": "Full-stack development agent",
-    "harnesses": ["claude"]
+        r#"
+defineAgent({
+  agent: {
+    id: "fullstack",
+    name: "Fullstack Dev",
+    version: "0.1.0",
+    description: "Full-stack development agent",
   },
-  "skills": { "refs": [] },
-  "mcp": { "servers": [] },
-  "permissions": {
-    "preset": "ship-autonomous",
-    "tools_deny": ["Bash(docker rm*)"]
+  skills: { refs: [] },
+  mcp: { servers: [] },
+  permissions: {
+    preset: "ship-autonomous",
+    tools_deny: ["Bash(docker rm*)"],
   },
-  "rules": {
-    "inline": "Always write tests before implementation."
+  rules: {
+    inline: "Always write tests before implementation.",
   },
-  "hooks": [
-    { "id": "perms-sync", "trigger": "Stop", "command": "ship permissions sync" }
-  ]
-}"#,
-    );
+  hooks: [
+    { id: "perms-sync", trigger: "Stop", command: "ship permissions sync" },
+  ],
+});
 
-    // Write a rule file
-    write(
-        tmp.path(),
-        ".ship/rules/style.md",
-        "Prefer composition over inheritance. Use explicit return types.",
-    );
+defineRule({
+  id: "style",
+  content: "Prefer composition over inheritance. Use explicit return types.",
+  applyScope: "always",
+});
 
-    // Write MCP config with a server
-    write(
-        tmp.path(),
-        ".ship/mcp.jsonc",
-        r#"{
-  "mcp": {
-    "servers": {
-      "github": {
-        "id": "",
-        "name": "GitHub MCP",
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-github"],
-        "scope": "project",
-        "server_type": "stdio",
-        "disabled": false,
-        "env": {}
-      }
-    }
-  }
-}"#,
+defineMcpServer({
+  id: "github",
+  server_type: "stdio",
+  command: "npx",
+  args: ["-y", "@modelcontextprotocol/server-github"],
+  env: {},
+  url: null,
+  scope: "project",
+});
+"#,
     );
+    write_agent_stub(tmp.path(), "fullstack", "Fullstack Dev");
 
     // Write permissions.jsonc with ship-autonomous preset
     write(
@@ -403,56 +446,34 @@ fn e2e_cross_harness_same_config() {
     let p = tmp.path().to_str().unwrap();
     scaffold_ship_dir(tmp.path());
 
-    // Set up a realistic .ship/ with agent, rules, permissions, MCP
-    write(
+    // Set up a realistic space: rules + MCP server as ship.config.ts
+    // declare-forms (post format-migration Wave 4/5); permissions preset
+    // bodies stay in `.ship/permissions.jsonc` (untouched by that migration).
+    write_ship_config(
         tmp.path(),
-        ".ship/agents/cross.jsonc",
-        r#"{
-  "agent": {
-    "id": "cross",
-    "name": "Cross Harness",
-    "version": "0.1.0",
-    "harnesses": ["claude", "codex"]
-  },
-  "skills": { "refs": [] },
-  "mcp": { "servers": [] },
-  "permissions": {
-    "preset": "ship-standard"
-  },
-  "rules": {}
-}"#,
-    );
+        r#"
+defineRule({
+  id: "architecture",
+  content: "Keep modules under 300 lines. Prefer pure functions.",
+  applyScope: "always",
+});
 
-    write(
-        tmp.path(),
-        ".ship/rules/architecture.md",
-        "Keep modules under 300 lines. Prefer pure functions.",
+defineMcpServer({
+  id: "test-server",
+  server_type: "stdio",
+  command: "echo",
+  args: ["hello"],
+  env: {},
+  url: null,
+  scope: "project",
+});
+"#,
     );
 
     write(
         tmp.path(),
         ".ship/permissions.jsonc",
         r#"{ "ship-standard": { "default_mode": "default" } }"#,
-    );
-
-    write(
-        tmp.path(),
-        ".ship/mcp.jsonc",
-        r#"{
-  "mcp": {
-    "servers": {
-      "test-server": {
-        "id": "",
-        "command": "echo",
-        "args": ["hello"],
-        "scope": "project",
-        "server_type": "stdio",
-        "disabled": false,
-        "env": {}
-      }
-    }
-  }
-}"#,
     );
 
     let rule_text = "Keep modules under 300 lines";
@@ -525,25 +546,21 @@ fn e2e_permission_preset_plus_agent_override() {
     );
 
     // Agent uses preset AND adds its own tools_deny entries
-    write(
+    write_ship_config(
         tmp.path(),
-        ".ship/agents/strict-auto.jsonc",
-        r#"{
-  "agent": {
-    "id": "strict-auto",
-    "name": "Strict Autonomous",
-    "version": "0.1.0",
-    "harnesses": ["claude"]
+        r#"
+defineAgent({
+  agent: { id: "strict-auto", name: "Strict Autonomous", version: "0.1.0" },
+  skills: { refs: [] },
+  mcp: { servers: [] },
+  permissions: {
+    preset: "ship-autonomous",
+    tools_deny: ["Bash(docker rm*)", "Bash(cargo publish*)"],
   },
-  "skills": { "refs": [] },
-  "mcp": { "servers": [] },
-  "permissions": {
-    "preset": "ship-autonomous",
-    "tools_deny": ["Bash(docker rm*)", "Bash(cargo publish*)"]
-  },
-  "rules": {}
-}"#,
+});
+"#,
     );
+    write_agent_stub(tmp.path(), "strict-auto", "Strict Autonomous");
 
     // ship use compiles with the agent active, applying preset + overrides
     ship_in(&tmp)
@@ -600,19 +617,6 @@ fn e2e_compile_with_dependency_skills() {
     let hex = "a1b2c3d4e5f6";
     scaffold_ship_dir(tmp.path());
 
-    // ship.jsonc referencing a dependency
-    write(
-        tmp.path(),
-        ".ship/ship.jsonc",
-        r#"{
-  "$schema": "../schemas/ship.schema.json",
-  "project": {
-    "harnesses": ["claude"],
-  },
-}
-"#,
-    );
-
     // ship.lock with a matching entry
     write(
         tmp.path(),
@@ -635,24 +639,17 @@ fn e2e_compile_with_dependency_skills() {
     );
 
     // Agent referencing the dep skill
-    write(
+    write_ship_config(
         tmp.path(),
-        ".ship/agents/with-deps.jsonc",
-        r#"{
-  "agent": {
-    "id": "with-deps",
-    "name": "With Deps",
-    "version": "0.1.0",
-    "harnesses": ["claude"]
-  },
-  "skills": {
-    "refs": ["github.com/example/skills-pkg/skills/cool-skill"]
-  },
-  "mcp": { "servers": [] },
-  "permissions": {},
-  "rules": {}
-}"#,
+        r#"
+defineAgent({
+  agent: { id: "with-deps", name: "With Deps", version: "0.1.0" },
+  skills: { refs: ["github.com/example/skills-pkg/skills/cool-skill"] },
+  mcp: { servers: [] },
+});
+"#,
     );
+    write_agent_stub(tmp.path(), "with-deps", "With Deps");
 
     // Simulate installed package cache at $HOME/.ship/cache/objects/<hex>/
     // The dep_skills resolver uses home::home_dir() for the cache path.

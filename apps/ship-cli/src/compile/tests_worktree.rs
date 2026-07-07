@@ -11,11 +11,32 @@ fn write(dir: &Path, rel: &str, content: &str) {
 }
 
 fn setup_minimal_space(tmp: &TempDir) {
-    write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
+    // Post format-migration Wave 4 phase A (`3bf8bd82e`), rules + MCP
+    // servers are authored ONLY as `ship.config.ts` declare-forms — the
+    // raw `.ship/rules/*.md` / `.ship/mcp.jsonc` file loaders were
+    // deleted. Mirror the shape `ship_resolver::lib_tests` pins down.
     write(
         tmp.path(),
-        ".ship/mcp.jsonc",
-        r#"{ "mcp": { "servers": { "github": { "id": "github", "command": "npx", "args": ["-y", "@mcp/github"] } } } }"#,
+        "ship.config.ts",
+        r#"
+import { defineMcpServer, defineRule } from "ship";
+
+defineRule({
+  id: "style",
+  content: "Use explicit types.",
+  applyScope: "always",
+});
+
+defineMcpServer({
+  id: "github",
+  server_type: "stdio",
+  command: "npx",
+  args: ["-y", "@mcp/github"],
+  env: {},
+  url: null,
+  scope: "project",
+});
+"#,
     );
 }
 
