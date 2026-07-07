@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use compiler::{
-    AgentProfile, HookConfig, HookTrigger, McpServerConfig, McpServerType, Permissions,
+    HookConfig, HookTrigger, McpServerConfig, McpServerType, Permissions,
     ExtensionLibrary, Rule,
 };
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,6 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use super::permissions::PermissionPreset;
-use super::skill_parser::load_compile_skills;
 
 // ── MCP file types ────────────────────────────────────────────────────────────
 
@@ -116,17 +115,26 @@ impl McpFile {
 
 /// Load a [`ExtensionLibrary`] from a `.ship/` directory (flat layout).
 ///
-/// Looks for mcp, permissions, hooks, rules, skills at the `.ship/` root,
-/// and agent profiles under `.ship/agents/`.
-/// Missing files and dirs are silently skipped — an empty library is valid.
+/// Post format-migration Wave 5: reads mcp, permissions, hooks, rules
+/// from disk. Agent profiles and skills no longer arrive from disk —
+/// they land via `ship.config.ts` declare-forms (`defineAgent` /
+/// `defineSkill`) through the resolver's `merge_ts_declarations` step
+/// (census-format-migration.md §4 row 3, last paragraph). The leaf
+/// returns the two noun vectors empty; the roll-up is the only door
+/// for them. Tests that need a pre-merge library should call this fn
+/// to get the disk-side bulk (mcp/permissions/hooks/rules) and merge
+/// in the TS-declared agents/skills separately.
+///
+/// Missing files and dirs are silently skipped — an empty library is
+/// valid (the lenient contract this loader has had).
 pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
     Ok(ExtensionLibrary {
         mcp_servers: load_mcp_servers(ship_dir)?,
         permissions: load_permissions(ship_dir)?,
         hooks: load_hooks(ship_dir)?,
         rules: load_rules(ship_dir)?,
-        skills: load_compile_skills(ship_dir)?,
-        agent_profiles: load_agent_profiles(ship_dir)?,
+        skills: Vec::new(),
+        agent_profiles: Vec::new(),
         ..Default::default()
     })
 }
@@ -330,13 +338,13 @@ pub fn parse_rule(file_name: &str, raw: &str) -> Rule {
     }
 }
 
-// ── Agent profiles ────────────────────────────────────────────────────────────
-
-fn load_agent_profiles(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
-    // THE agent-def reader (FsBroker, ship-config) is the one door for
-    // `.ship/agents/*.jsonc` — no raw `std::fs` walk here. It returns the FULL
-    // nested `compiler::AgentProfile`, sorted by `agent.id`, skipping malformed
-    // files (the same lenient contract this loader had).
-    let fs = ship_substrate::ports::LocalFsBroker::new();
-    Ok(ship_config::agents::read_agent_profiles(&fs, ship_dir)?)
-}
+// `.ship/agents/*.jsonc` is no longer read by this loader. Post
+// format-migration Wave 5, agent profiles arrive via `defineAgent`
+// declare-forms in the space's `ship.config.ts` and land in
+// `ExtensionLibrary::agent_profiles` through
+// `ship_resolver::merge_ts_declarations` — see
+// `census-format-migration.md` §4 row 3 (last paragraph). The
+// ship_config reader (`ship_config::agents::read_agent_profiles`)
+// stays in place — it is the S2 READ door for the agent-def write
+// surface (`AgentsService` + the `agents_write` door), not a
+// `.ship/`-shape loader anymore. Disk-authoring is gone.

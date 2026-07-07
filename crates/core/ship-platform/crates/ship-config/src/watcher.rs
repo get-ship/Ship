@@ -156,20 +156,23 @@ struct DomainCfg {
     recursive: bool,
 }
 
-// Post format-migration Wave 4 phase A: the `pipelines`, `rules`, and
-// `collections` entries die — those nouns move exclusively into
-// `ship.config.ts` declare-forms and the resolver's merge step. The
-// three remaining domains (agents, skills, views) stay — they carry
-// live dual-path file traffic in W4 phase A, fully cut in W5.
+// Post format-migration Wave 5: only `views` remains. The `pipelines`,
+// `rules`, and `collections` entries died in Wave 4 phase A (moved
+// exclusively to `ship.config.ts` declare-forms). The `agents` and
+// `skills` entries die with this wave — those nouns now arrive via
+// `defineAgent` / `defineSkill` declare-forms in `ship.config.ts`,
+// and the `ship.config.ts`-rooted source-root watch already covers
+// their only authoring surface. Domain watches for non-existent
+// directories are dead weight.
 // (census-format-migration.md §4 row 3.)
 const DOMAINS: &[DomainCfg] = &[
-    DomainCfg { dir_name: "agents", event_type: event_types::AGENT_CHANGED, recursive: false },
-    DomainCfg { dir_name: "skills", event_type: event_types::SKILL_CHANGED, recursive: true },
     DomainCfg { dir_name: "views", event_type: event_types::VIEW_CHANGED, recursive: true },
 ];
 
-/// Spawn watchers for the three declarative config domains (agents,
-/// skills, views), both at user-scope and (when present) project-scope.
+/// Spawn watchers for the one remaining declarative config domain
+/// (`views` post Wave 5; `agents` and `skills` died with this wave,
+/// `pipelines`/`rules`/`collections` in Wave 4), both at user-scope
+/// and (when present) project-scope.
 pub fn spawn_config_watcher(
     kernel: Arc<KernelLog>,
     ship_dir: PathBuf,
@@ -238,11 +241,11 @@ pub fn spawn_config_watcher(
 /// inside a `.ship/<domain>/` dir.
 const SOURCE_ROOT_DOMAIN: &str = "source";
 
-/// Cover the space-shape surface the three declarative domain watches don't
-/// reach: `ship.config.ts` at the space root, and any `space.skill_paths` entry
-/// past the default `.ship/skills/` (already covered by the `skills`
-/// domain watch spawned in [`spawn_config_watcher`] — excluded here so the
-/// same file never authors two `config.file_changed` events).
+/// Cover the space-shape surface the one remaining declarative domain
+/// watch (`views`) doesn't reach: `ship.config.ts` at the space root,
+/// and any `space.skill_paths` entry past the default `.ship/skills/`
+/// (the default path is now skill-marker-only; the extras are still
+/// disk-resident and need to fire on edit).
 ///
 /// Authors the SAME `config.file_changed` shape the domain watches use
 /// ([`author_file_changed_router`]) under the one [`SOURCE_ROOT_DOMAIN`]

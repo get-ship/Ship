@@ -20,6 +20,14 @@ ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
 ship-config = { path = "../ship-config" }
 ship-harnesses = { path = "../ship-harnesses" }
 ship-store = { path = "../ship-store" }
+# Compose the on-disk source + locked cached packages + the operator-
+# enabled library tier into a single `ComposedLibrary` (Phase-3 roll-up).
+# `compile_project` routes through this so the post-Wave-5 single-source
+# CLI path (`ship use`) sees the same composed world shipd's index and
+# the dispatch path already see. Wave 5: the leaf no longer reads
+# `.ship/agents/*.jsonc` / `.ship/skills/<id>/SKILL.md` — the roll-up is
+# the only door for those nouns; `compile_project` has to walk it.
+ship-resolver = { path = "../../../ship-resolver" }
 # the compiler engine — services/compile is the wrapper
 compiler = { path = "../../../compiler", features = ["specta"] }
 inventory = { workspace = true }

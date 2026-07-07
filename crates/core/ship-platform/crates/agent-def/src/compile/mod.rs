@@ -21,7 +21,14 @@ mod tests;
 
 pub use loader::{load_library, load_permission_preset, McpEntry, McpFile};
 pub use permissions::PermissionPreset;
-pub use skill_parser::load_skills;
+// `load_skills` (the agent-def disk-authoring loader) retired with
+// Wave 5 — project skills arrive via `defineSkill` declare-forms in
+// the space's `ship.config.ts` and land in `ExtensionLibrary::skills`
+// through `ship_resolver::merge_ts_declarations`. The `SkillService`
+// CRUD surface in `ship-agents` still writes `SKILL.md` files (the
+// authoring path the Studio/db-scope gate owns; Phase-6's question) —
+// the read side that compiled those files into the agent-def pipeline
+// is gone.
 pub use projection::{CompileStateProjection, ProjectCompileState};
 
 use anyhow::{Context, Result};
@@ -47,7 +54,7 @@ fn augment_with_sdk_references(output: &mut CompileOutput) {
     }
 }
 
-use ship_store::dep_skills::{resolve_dep_agents, resolve_dep_skills};
+use ship_store::dep_skills::resolve_dep_skills;
 
 use agent::{apply_agent_to_library, collect_all_skill_refs};
 use mcp_allowlist::ensure_ship_mcp_allowed_claude;
@@ -115,19 +122,21 @@ pub struct CompileSummary {
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 pub fn compile_project(opts: &CompileOptions) -> Result<CompileSummary> {
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&opts.space_root);
-
-    // 1. Load raw library from .ship/ (flat layout)
-    let mut library = load_library(&ship_dir).context("failed to load .ship/")?;
-
-    // 1b. Compose dep agents from cache (each locked package's exports.agents),
-    // namespaced by package path. Auto-compose: an installed dep's agents become
-    // available in the space. (Composition engine #122; mirrors dep skills.)
-    let dep_agents = resolve_dep_agents(&ship_dir.join("ship.lock"), None)
-        .context("composing dep agents from cache")?;
-    library.agent_profiles.extend(dep_agents);
-
-    compile_from_library(opts, library)
+    // 1. Compose the on-disk source + locked cached packages + the
+    //    operator-enabled library tier into a single `ComposedLibrary`
+    //    (the Phase-3 roll-up). Post format-migration Wave 5 the leaf
+    //    no longer reads `.ship/agents/*.jsonc` / `.ship/skills/<id>/SKILL.md`
+    //    — those nouns only arrive via `ship.config.ts` declare-forms,
+    //    harvested by the resolver's TS eval and merged into the
+    //    composed library. The `#122` flat dep-agents merge
+    //    (`ship_store::dep_skills::resolve_dep_agents`) is subsumed by
+    //    `compose_space`'s precedence law (roll_up covers every case it
+    //    did — the W2 regression test pinned that). The `library` the
+    //    downstream compile consumes is the COMPOSED result, not the
+    //    leaf's single-source read.
+    let composed = ship_resolver::roll_up_blocking(&opts.space_root, None, None)
+        .context("compile_project: roll_up failed")?;
+    compile_project_from_library(opts, composed.library)
 }
 
 /// Compile from an already-composed [`compiler::ExtensionLibrary`] — the

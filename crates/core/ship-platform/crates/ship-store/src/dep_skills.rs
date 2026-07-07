@@ -284,70 +284,16 @@ pub fn resolve_dep_skills(
     Ok(dep_skills)
 }
 
-/// Compose dep AGENTS into the consuming space (composition engine, #122).
-///
-/// Auto-compose model: each locked package's `exports.agents` are loaded from the
-/// content-addressed cache and made available in the space. Each agent's id is
-/// namespaced by the package path so dep agents never collide with local agents
-/// or with each other. Mirrors `resolve_dep_skills`'s lock + cache resolution.
-/// Returns an empty vec when there is no lockfile (no deps installed).
-pub fn resolve_dep_agents(
-    lock_path: &Path,
-    cache_root: Option<&Path>,
-) -> Result<Vec<compiler::AgentProfile>> {
-    if !lock_path.exists() {
-        return Ok(vec![]);
-    }
-    let lock =
-        ShipLock::from_file(lock_path).with_context(|| format!("reading {}", lock_path.display()))?;
-
-    let default_cache: PathBuf;
-    let cache_root = match cache_root {
-        Some(p) => p,
-        None => {
-            // See `resolve_dep_skills`: route through ShipHome so SHIP_HOME
-            // and the test-context isolation gate are honored.
-            default_cache = ship_substrate::ShipHome::from_env().cache_dir().to_path_buf();
-            &default_cache
-        }
-    };
-
-    let mut out = Vec::new();
-    for pkg in &lock.packages {
-        let hex = pkg.hash.strip_prefix("sha256:").unwrap_or(&pkg.hash);
-        let cache_dir = cache_root.join("objects").join(hex);
-        let manifest_path = cache_dir.join("ship.jsonc");
-        if !manifest_path.exists() {
-            continue;
-        }
-        let manifest = match compiler::manifest::ShipManifest::from_file(&manifest_path) {
-            Ok(m) => m,
-            Err(e) => {
-                tracing::warn!("dep agents: skipping {} — manifest parse: {e}", pkg.path);
-                continue;
-            }
-        };
-        for agent_rel in &manifest.exports.agents {
-            let agent_path = cache_dir.join(agent_rel);
-            let content = match std::fs::read_to_string(&agent_path) {
-                Ok(c) => c,
-                Err(e) => {
-                    tracing::warn!("dep agents: {}::{agent_rel} unreadable: {e}", pkg.path);
-                    continue;
-                }
-            };
-            match compiler::jsonc::from_jsonc_str::<compiler::AgentProfile>(&content) {
-                Ok(mut profile) => {
-                    // Namespace by package path — collision-safe + deterministic.
-                    profile.agent.id = format!("{}/{}", pkg.path, profile.agent.id);
-                    out.push(profile);
-                }
-                Err(e) => tracing::warn!("dep agents: {}::{agent_rel} parse: {e}", pkg.path),
-            }
-        }
-    }
-    Ok(out)
-}
+// `resolve_dep_agents` retired with format-migration Wave 5. The
+// `#122` flat dep-agents merge (each locked package's `exports.agents`
+// namespaced by package path, flat-`extend`ed into the compile path)
+// is subsumed by `compose_space`'s precedence law — the
+// `ship_resolver::roll_up` flow composes the cache tier, the
+// operator-enabled library tier, and the space's own source under one
+// law (census-format-migration.md §3.1 + §3.2). The W2 coverage test
+// (`ship-resolver/src/lib_tests.rs::roll_up_covers_every_case_resolve_dep_agents_covers`)
+// pinned the equivalence. Dep-agent namespacing + shadow tracking
+// both come for free from `compose_space`.
 
 /// Transitive capability surface of the installed dep tree (#119).
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -436,11 +382,12 @@ pub fn transitive_capabilities(
 ///
 /// The Phase-3 roll-up wants per-package data (each package becomes its own
 /// extension descriptor so the shadow records can identify which package lost
-/// on an id collision). The existing [`resolve_dep_agents`] /
-/// [`resolve_dep_skills`] flatten every package's contribution into one vec —
-/// fine for the compile path, lossy for the roll-up's provenance. This
-/// function is the additive per-package surface; the existing flatteners stay
-/// in place for the compile path (no motion).
+/// on an id collision). The previous flat dep-loader
+/// ([`resolve_dep_skills`]) flattened every package's contribution into
+/// one vec — fine for the compile path, lossy for the roll-up's
+/// provenance. This function is the additive per-package surface; the
+/// dep-skills flattener stays in place for the compile path (the
+/// dep-agents flattener was retired with Wave 5).
 /// Fields mirror the nouns the composition law composes per package:
 /// `agent_profiles` (id namespaced by `pkg_path`), `skills` (id namespaced),
 /// `views` (route/component_ref per the dep's `view.jsonc` sidecar,
@@ -474,9 +421,8 @@ pub struct CachedExtension {
 /// the Phase-3 roll-up's `ExtensionDescriptor` construction.
 ///
 /// Returns an empty vec when there is no lockfile (no deps installed). Skips
-/// packages whose `ship.jsonc` is missing or malformed (the same lenient
-/// contract [`resolve_dep_agents`] has — bad packages get a `tracing::warn`
-/// and the roll-up continues with the rest).
+/// packages whose `ship.jsonc` is missing or malformed — bad packages get
+/// a `tracing::warn` and the roll-up continues with the rest.
 ///
 /// `lock_path`  — `.ship/ship.lock`
 /// `cache_root` — `~/.ship/cache/` (pass `None` to use the default)

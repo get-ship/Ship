@@ -47,21 +47,15 @@ pub fn embedded_skill_reference_files(_id: &str) -> Vec<(String, String)> {
 #[allow(dead_code)]
 fn collect_embedded_files_unused() {}
 
-/// The compile-time skill **pool**: a project's on-disk skills plus the embedded
-/// SDK capability-skills (a project id wins on conflict, so a project can shadow
-/// a generated skill). Distinct from [`load_skills`], which is disk-only and
-/// drives the skills-listing UI — capability-skills belong in the compile pool,
-/// not the user's authored-skill list.
-pub fn load_compile_skills(ship_dir: &Path) -> Result<Vec<Skill>> {
-    let mut skills = load_skills(ship_dir)?;
-    let have: HashSet<String> = skills.iter().map(|s| s.id.clone()).collect();
-    for cap in embedded_capability_skills() {
-        if !have.contains(&cap.id) {
-            skills.push(cap);
-        }
-    }
-    Ok(skills)
-}
+// `load_compile_skills` retired with Wave 5. The compile-time skill
+// pool used to be disk + embedded; post format-migration Wave 5 the
+// project-side skills arrive via `defineSkill` declare-forms in the
+// space's `ship.config.ts` and land in
+// `ExtensionLibrary::skills` through
+// `ship_resolver::merge_ts_declarations`. The embedded SDK
+// capability-skills path stays (the future ship-sdk-skills dep wires
+// it back in — see the `embedded_capability_skills` doc comment above
+// for the deferred `include_dir!` / `ship-sdk-skills` migration).
 
 // ── Skill parser ─────────────────────────────────────────────────────────────
 //
@@ -71,65 +65,17 @@ pub fn load_compile_skills(ship_dir: &Path) -> Result<Vec<Skill>> {
 // the embedded SDK skills + the disk loader for compile.
 pub use compiler::skill_parser::parse_skill;
 
-// ── Skill loader ─────────────────────────────────────────────────────────────
-
-/// Load skills from all directories declared in `space.skill_paths`.
-/// Always scans `.ship/skills/` (primary); other dirs resolve relative to the
-/// space root (parent of `.ship/`).
-pub fn load_skills(ship_dir: &Path) -> Result<Vec<Skill>> {
-    let space_root = ship_dir.parent().unwrap_or(ship_dir);
-    let skill_dirs = crate::skill_paths::read_skill_paths(ship_dir, space_root);
-    let primary = skill_dirs.first().cloned();
-
-    let mut skills = Vec::new();
-    let mut seen_ids: HashSet<String> = HashSet::new();
-
-    for skills_path in &skill_dirs {
-        if !skills_path.exists() {
-            continue;
-        }
-        let is_primary = primary.as_ref().is_some_and(|p| p == skills_path);
-        for entry in std::fs::read_dir(skills_path)?.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                let skill_md = path.join("SKILL.md");
-                if !skill_md.exists() {
-                    continue;
-                }
-                let id = entry.file_name().to_string_lossy().to_string();
-                if !seen_ids.insert(id.clone()) {
-                    continue;
-                }
-                let raw = std::fs::read_to_string(&skill_md)?;
-                let mut skill = parse_skill(&id, &raw);
-                let vars_path = path.join("assets").join("vars.json");
-                if vars_path.exists() {
-                    let state_key = skill.stable_id.as_deref().unwrap_or(id.as_str());
-                    match load_skill_vars(ship_dir, state_key, &vars_path) {
-                        Ok(state) => skill.vars = state,
-                        Err(e) => {
-                            eprintln!("warning: skill '{}': failed to read vars.json: {}", id, e);
-                        }
-                    }
-                }
-                skills.push(skill);
-            } else if is_primary && path.extension().is_some_and(|x| x == "md") {
-                // Flat `<id>.md` only accepted in the primary `.ship/skills/` dir.
-                let id = path
-                    .file_stem()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string();
-                if !seen_ids.insert(id.clone()) {
-                    continue;
-                }
-                let raw = std::fs::read_to_string(&path)?;
-                skills.push(parse_skill(&id, &raw));
-            }
-        }
-    }
-    Ok(skills)
-}
+// `load_skills` (the agent-def disk-authoring skill walker) retired
+// with Wave 5. The skill bodies now arrive via `defineSkill`
+// declare-forms in the space's `ship.config.ts` and land in
+// `ExtensionLibrary::skills` through
+// `ship_resolver::merge_ts_declarations`. The `SkillService` CRUD
+// surface in `ship-agents` still writes `SKILL.md` files (the
+// authoring path the Studio/db-scope gate owns; Phase-6's question) —
+// the read side that compiled those files into the agent-def pipeline
+// is gone. The `SkillService::list_*_skills` callers (read-side
+// listing UI) read their own `ship_config::skill` storage, not this
+// fn.
 
 // ── Vars loading ─────────────────────────────────────────────────────────────
 
@@ -218,20 +164,11 @@ mod sdk_skill_tests {
         assert!(embedded_skill_reference_files("not-an-sdk-skill").is_empty());
     }
 
-    #[test]
-    #[ignore = "embedded SDK skills disabled until ship-contracts publishes a ship-sdk-skills crate; the compile pool is disk-only until then"]
-    fn compile_pool_includes_embedded_for_a_clean_project() {
-        // A project with no skills on disk still gets the capability-skills in
-        // its compile pool — the bundling that makes `ship ops` work outside the
-        // dev checkout.
-        let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
-        std::fs::create_dir_all(&ship_dir).unwrap();
-
-        let pool = load_compile_skills(&ship_dir).unwrap();
-        assert!(
-            pool.iter().any(|s| s.id == "ship-pipelines"),
-            "embedded capability-skills must be in the compile pool for a clean project"
-        );
-    }
+    // `compile_pool_includes_embedded_for_a_clean_project` retired
+    // with Wave 5: the `load_compile_skills` compile-pool fn is gone
+    // (project skills now arrive via `defineSkill` declare-forms in
+    // `ship.config.ts`; the embedded capability-skills path is the
+    // future `ship-sdk-skills` dep — see the `embedded_capability_skills`
+    // doc comment above for the deferred `include_dir!` /
+    // `ship-sdk-skills` migration).
 }

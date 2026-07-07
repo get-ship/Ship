@@ -5,44 +5,10 @@ use compiler::lockfile::{LockPackage, ShipLock};
 use compiler::{Skill, SkillSource};
 use tempfile::TempDir;
 
-// ── resolve_dep_agents (composition engine #122) ──────────────────────
-
-#[test]
-fn resolve_dep_agents_namespaces_and_loads_from_cache() {
-    let tmp = TempDir::new().unwrap();
-    let cache_root = tmp.path().join("cache");
-    let hex = "abc123def456";
-    let obj = cache_root.join("objects").join(hex);
-    std::fs::create_dir_all(obj.join("agents")).unwrap();
-    std::fs::write(
-        obj.join("ship.jsonc"),
-        r#"{ "id": "dep1", "module": { "name": "github.com/x/y", "version": "1.0.0" }, "exports": { "skills": [], "agents": ["agents/helper.jsonc"] } }"#,
-    )
-    .unwrap();
-    std::fs::write(
-        obj.join("agents/helper.jsonc"),
-        r#"{ "agent": { "id": "helper", "name": "Helper" } }"#,
-    )
-    .unwrap();
-
-    let lock = make_lock("github.com/x/y", &format!("sha256:{hex}"));
-    let lock_path = tmp.path().join("ship.lock");
-    lock.write_atomic(&lock_path).unwrap();
-
-    let agents = resolve_dep_agents(&lock_path, Some(&cache_root)).unwrap();
-    assert_eq!(agents.len(), 1, "one dep agent composed from exports.agents");
-    assert_eq!(
-        agents[0].agent.id, "github.com/x/y/helper",
-        "agent id namespaced by package path"
-    );
-}
-
-#[test]
-fn resolve_dep_agents_empty_without_lockfile() {
-    let tmp = TempDir::new().unwrap();
-    let agents = resolve_dep_agents(&tmp.path().join("absent.lock"), Some(tmp.path())).unwrap();
-    assert!(agents.is_empty(), "no lockfile => no dep agents");
-}
+// `resolve_dep_agents` retired with format-migration Wave 5. The
+// coverage test that pinned the equivalence with the new
+// `ship_resolver::roll_up` flow lives in
+// `ship-resolver/src/lib_tests.rs::roll_up_covers_every_case_resolve_dep_agents_covers`.
 
 // ── load_cached_extensions (Phase-3 J2) ─────────────────────────────
 

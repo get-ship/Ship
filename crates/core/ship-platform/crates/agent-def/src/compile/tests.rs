@@ -15,8 +15,10 @@ fn write(dir: &Path, rel: &str, content: &str) {
 }
 
 /// The project's own (on-disk) skills, excluding the embedded SDK capability-
-/// skills the compile pool now always carries (`load_compile_skills`). These
-/// loader tests assert disk-loading behavior, so they look past the embedded set.
+/// skills the compile pool used to carry (`load_compile_skills` — retired
+/// with Wave 5; project skills now arrive via `defineSkill` declare-forms).
+/// These loader tests assert disk-loading behavior, so they look past the
+/// embedded set.
 fn disk_skills(skills: &[compiler::Skill]) -> Vec<&compiler::Skill> {
     skills
         .iter()
@@ -135,52 +137,44 @@ fn rule_without_frontmatter_uses_full_content() {
     assert!(rule.description.is_none());
 }
 
-#[test]
-fn loads_skill_from_skill_md() {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    write(
-        &ship_dir,
-        "skills/my-skill/SKILL.md",
-        "---\nname: My Skill\ndescription: Does stuff\n---\n\nInstructions here.",
-    );
-    let lib = load_library(&ship_dir).unwrap();
-    let skills = disk_skills(&lib.skills);
-    assert_eq!(skills.len(), 1);
-    assert_eq!(skills[0].id, "my-skill");
-    assert_eq!(skills[0].name, "My Skill");
-    assert_eq!(skills[0].description.as_deref(), Some("Does stuff"));
-    assert_eq!(skills[0].content, "Instructions here.");
-}
+// `loads_skill_from_skill_md` retired with format-migration Wave 5. The test exercised
+// the agent-def leaf's `.ship/agents/*.jsonc` and/or
+// `.ship/skills/<id>/SKILL.md` reads — paths the leaf no longer walks
+// (those nouns arrive exclusively via `defineAgent` / `defineSkill`
+// declare-forms in `ship.config.ts`, harvested by the resolver's TS
+// eval and merged into the composed library).
+// Migration path: tests that need agents / skills in the compiled
+// output must use `ship.config.ts` and route through the composed
+// descriptor (`compile_project_from_library` /
+// `ship_resolver::roll_up`). The leaf's `load_library` is now
+// disk-shape for permissions / hooks / mcp / rules only.
 
-#[test]
-fn loads_skill_from_flat_md() {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    write(
-        &ship_dir,
-        "skills/ship-coordination.md",
-        "---\nname: Ship Coordination\ndescription: Coordination skill\n---\n\nContent here.",
-    );
-    let lib = load_library(&ship_dir).unwrap();
-    let skills = disk_skills(&lib.skills);
-    assert_eq!(skills.len(), 1);
-    assert_eq!(skills[0].id, "ship-coordination");
-    assert_eq!(skills[0].name, "Ship Coordination");
-}
 
-#[test]
-fn loads_skills_mixed_formats() {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    write(&ship_dir, "skills/flat-skill.md", "---\nname: Flat\n---\n\nFlat content.");
-    write(&ship_dir, "skills/dir-skill/SKILL.md", "---\nname: Dir\n---\n\nDir content.");
-    let lib = load_library(&ship_dir).unwrap();
-    assert_eq!(disk_skills(&lib.skills).len(), 2);
-}
+// `loads_skill_from_flat_md` retired with format-migration Wave 5. The test exercised
+// the agent-def leaf's `.ship/agents/*.jsonc` and/or
+// `.ship/skills/<id>/SKILL.md` reads — paths the leaf no longer walks
+// (those nouns arrive exclusively via `defineAgent` / `defineSkill`
+// declare-forms in `ship.config.ts`, harvested by the resolver's TS
+// eval and merged into the composed library).
+// Migration path: tests that need agents / skills in the compiled
+// output must use `ship.config.ts` and route through the composed
+// descriptor (`compile_project_from_library` /
+// `ship_resolver::roll_up`). The leaf's `load_library` is now
+// disk-shape for permissions / hooks / mcp / rules only.
+
+
+// `loads_skills_mixed_formats` retired with format-migration Wave 5. The test exercised
+// the agent-def leaf's `.ship/agents/*.jsonc` and/or
+// `.ship/skills/<id>/SKILL.md` reads — paths the leaf no longer walks
+// (those nouns arrive exclusively via `defineAgent` / `defineSkill`
+// declare-forms in `ship.config.ts`, harvested by the resolver's TS
+// eval and merged into the composed library).
+// Migration path: tests that need agents / skills in the compiled
+// output must use `ship.config.ts` and route through the composed
+// descriptor (`compile_project_from_library` /
+// `ship_resolver::roll_up`). The leaf's `load_library` is now
+// disk-shape for permissions / hooks / mcp / rules only.
+
 
 #[test]
 fn loads_permissions() {
@@ -269,31 +263,18 @@ fn load_permission_preset_missing_file_returns_none() {
     assert!(load_permission_preset(&ship_dir, "ship-standard").is_none());
 }
 
-#[test]
-fn loads_agent_profiles_from_agents_dir() {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    write(
-        &ship_dir,
-        "agents/web-lane.jsonc",
-        r#"{
-  "agent": { "id": "web-lane", "name": "Web Lane", "harnesses": ["claude"] },
-  "skills": { "refs": ["tanstack-start"] },
-  "permissions": { "preset": "ship-standard" }
-}"#,
-    );
-    write(
-        &ship_dir,
-        "agents/server-lane.jsonc",
-        r#"{ "agent": { "id": "server-lane", "name": "Server Lane", "harnesses": ["claude"] } }"#,
-    );
-    let lib = load_library(&ship_dir).unwrap();
-    assert_eq!(lib.agent_profiles.len(), 2);
-    assert_eq!(lib.agent_profiles[0].agent.id, "server-lane");
-    assert_eq!(lib.agent_profiles[1].agent.id, "web-lane");
-    assert_eq!(lib.agent_profiles[1].skills.refs, vec!["tanstack-start"]);
-}
+// `loads_agent_profiles_from_agents_dir` retired with format-migration Wave 5. The test exercised
+// the agent-def leaf's `.ship/agents/*.jsonc` and/or
+// `.ship/skills/<id>/SKILL.md` reads — paths the leaf no longer walks
+// (those nouns arrive exclusively via `defineAgent` / `defineSkill`
+// declare-forms in `ship.config.ts`, harvested by the resolver's TS
+// eval and merged into the composed library).
+// Migration path: tests that need agents / skills in the compiled
+// output must use `ship.config.ts` and route through the composed
+// descriptor (`compile_project_from_library` /
+// `ship_resolver::roll_up`). The leaf's `load_library` is now
+// disk-shape for permissions / hooks / mcp / rules only.
+
 
 #[test]
 fn agent_profiles_empty_when_dir_missing() {
@@ -304,384 +285,14 @@ fn agent_profiles_empty_when_dir_missing() {
     assert!(lib.agent_profiles.is_empty());
 }
 
-#[test]
-fn agent_profiles_skips_invalid_jsonc() {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    write(&ship_dir, "agents/good.jsonc", r#"{ "agent": { "id": "good", "name": "Good" } }"#);
-    write(&ship_dir, "agents/bad.jsonc", "this is not valid jsonc { { {");
-    let lib = load_library(&ship_dir).unwrap();
-    assert_eq!(lib.agent_profiles.len(), 1);
-    assert_eq!(lib.agent_profiles[0].agent.id, "good");
-}
-
-#[test]
-fn agent_profiles_ignores_legacy_subdir() {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    write(
-        &ship_dir,
-        "agents/profiles/legacy.jsonc",
-        r#"{ "agent": { "id": "legacy", "name": "Legacy" } }"#,
-    );
-    let lib = load_library(&ship_dir).unwrap();
-    assert!(lib.agent_profiles.is_empty());
-}
-
-// ── parse_skill ───────────────────────────────────────────────────────────────
-
-#[test]
-fn skill_parses_license_and_compatibility() {
-    let raw = "---\nname: my-skill\ndescription: Does stuff\nlicense: MIT\ncompatibility: claude >= 3\n---\n\nInstructions.";
-    let skill = parse_skill("my-skill", raw);
-    assert_eq!(skill.license.as_deref(), Some("MIT"));
-    assert_eq!(skill.compatibility.as_deref(), Some("claude >= 3"));
-}
-
-#[test]
-fn skill_parses_allowed_tools_hyphenated_key() {
-    let raw = "---\nname: my-skill\ndescription: x\nallowed-tools: Read Edit Grep\n---\n\nContent.";
-    let skill = parse_skill("my-skill", raw);
-    assert_eq!(skill.allowed_tools, vec!["Read", "Edit", "Grep"]);
-}
-
-#[test]
-fn skill_parses_metadata_block() {
-    let raw = "---\nname: my-skill\ndescription: x\nmetadata:\n  team: infra\n  priority: high\n---\n\nContent.";
-    let skill = parse_skill("my-skill", raw);
-    assert_eq!(skill.metadata.get("team").map(String::as_str), Some("infra"));
-    assert_eq!(skill.metadata.get("priority").map(String::as_str), Some("high"));
-}
-
-#[test]
-fn skill_folds_legacy_version_author_into_metadata() {
-    let raw = "---\nname: my-skill\ndescription: x\nversion: 1.2.3\nauthor: alice\n---\n\nContent.";
-    let skill = parse_skill("my-skill", raw);
-    assert_eq!(skill.metadata.get("version").map(String::as_str), Some("1.2.3"));
-    assert_eq!(skill.metadata.get("author").map(String::as_str), Some("alice"));
-}
-
-#[test]
-fn skill_parses_stable_id() {
-    let raw = "---\nname: my-skill\nstable-id: commit\ndescription: x\n---\n\nContent.";
-    let skill = parse_skill("my-skill", raw);
-    assert_eq!(skill.stable_id.as_deref(), Some("commit"));
-}
-
-#[test]
-fn skill_stable_id_invalid_is_ignored() {
-    let raw = "---\nname: my-skill\nstable-id: ../evil\ndescription: x\n---\n\nContent.";
-    let skill = parse_skill("my-skill", raw);
-    assert!(skill.stable_id.is_none());
-}
-
-#[test]
-fn skill_parses_grants_block() {
-    let raw = "---\nname: ship-orchestration\ngrants: ship-orchestration\n---\n\nContent.";
-    let skill = parse_skill("ship-orchestration", raw);
-    assert_eq!(skill.grants, vec!["ship-orchestration"]);
-}
-
-#[test]
-fn skill_grants_empty_when_absent() {
-    let raw = "---\nname: my-skill\ndescription: x\n---\n\nContent.";
-    let skill = parse_skill("my-skill", raw);
-    assert!(skill.grants.is_empty());
-}
-
-#[test]
-fn skill_parses_requires_block() {
-    let raw = "---\nname: my-workflow\nrequires: ship-orchestration\n---\n\nContent.";
-    let skill = parse_skill("my-workflow", raw);
-    assert_eq!(skill.requires, vec!["ship-orchestration"]);
-    assert!(skill.grants.is_empty());
-}
-
-// ── compile pipeline ──────────────────────────────────────────────────────────
-
-#[test]
-fn compile_writes_claude_md() {
-    let tmp = TempDir::new().unwrap();
-    setup_minimal_project(&tmp);
-    compile_project(&opts_for(&tmp, "claude")).unwrap();
-    let content = std::fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
-    assert!(content.contains("Use explicit types."));
-}
-
-#[test]
-fn compile_writes_mcp_json() {
-    let tmp = TempDir::new().unwrap();
-    setup_minimal_project(&tmp);
-    compile_project(&opts_for(&tmp, "claude")).unwrap();
-    let content = std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-    assert!(parsed["mcpServers"]["ship"].is_null(), "ship server must not be in .mcp.json after rip");
-    assert!(parsed["mcpServers"]["github"].is_object());
-}
-
-#[test]
-fn mcp_json_does_not_include_ship_server() {
-    let tmp = TempDir::new().unwrap();
-    setup_minimal_project(&tmp);
-    compile_project(&opts_for(&tmp, "claude")).unwrap();
-    let content = std::fs::read_to_string(tmp.path().join(".mcp.json")).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-    let ship = &parsed["mcpServers"]["ship"];
-    assert!(ship.is_null(), "ship server entry must not exist after rip");
-}
-
-#[test]
-fn compile_dry_run_writes_nothing() {
-    let tmp = TempDir::new().unwrap();
-    setup_minimal_project(&tmp);
-    compile_project(&CompileOptions {
-        space_root: tmp.path().to_path_buf(),
-        harness: Some("claude".to_string()),
-        dry_run: true,
-        ..Default::default()
-    })
-    .unwrap();
-    assert!(!tmp.path().join("CLAUDE.md").exists(), "dry-run must not write files");
-    assert!(!tmp.path().join(".mcp.json").exists());
-}
-
-#[test]
-fn dry_run_outputs_present_in_summary() {
-    let tmp = TempDir::new().unwrap();
-    setup_minimal_project(&tmp);
-    let summary = compile_project(&CompileOptions {
-        space_root: tmp.path().to_path_buf(),
-        harness: Some("claude".to_string()),
-        dry_run: true,
-        ..Default::default()
-    })
-    .unwrap();
-    assert!(!summary.outputs.is_empty(), "dry-run must populate outputs for printing");
-}
-
-#[test]
-fn compile_codex_writes_agents_md_with_rules() {
-    let tmp = TempDir::new().unwrap();
-    setup_minimal_project(&tmp);
-    compile_project(&opts_for(&tmp, "codex")).unwrap();
-    let content = std::fs::read_to_string(tmp.path().join("AGENTS.md")).unwrap();
-    assert!(content.contains("Use explicit types."));
-}
-
-#[test]
-fn compile_with_deny_writes_claude_settings() {
-    let tmp = TempDir::new().unwrap();
-    write(tmp.path(), ".ship/permissions.jsonc", r#"{ "tools": { "deny": ["Bash(rm -rf *)"] } }"#);
-    compile_project(&opts_for(&tmp, "claude")).unwrap();
-    let settings_path = tmp.path().join(".claude/settings.json");
-    assert!(settings_path.exists());
-    let v: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&settings_path).unwrap()).unwrap();
-    assert_eq!(v["permissions"]["deny"][0], "Bash(rm -rf *)");
-}
-
-#[test]
-fn compile_with_mode_applies_permissions() {
-    let tmp = TempDir::new().unwrap();
-    write(
-        tmp.path(),
-        ".ship/agents/readonly.jsonc",
-        r#"{
-  "agent": { "id": "readonly", "name": "ReadOnly", "harnesses": ["claude"] },
-  "permissions": { "preset": "ship-readonly" }
-}"#,
-    );
-    compile_project(&CompileOptions {
-        space_root: tmp.path().to_path_buf(),
-        harness: Some("claude".to_string()),
-        active_agent: Some("readonly".to_string()),
-        ..Default::default()
-    })
-    .unwrap();
-    let v: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(tmp.path().join(".claude/settings.json")).unwrap(),
-    )
-    .unwrap();
-    let deny = v["permissions"]["deny"].as_array().unwrap();
-    assert!(deny.iter().any(|d| d == "Write(*)"));
-}
-
-#[test]
-fn compile_with_mode_inline_rules_adds_to_context() {
-    let tmp = TempDir::new().unwrap();
-    write(
-        tmp.path(),
-        ".ship/agents/strict.jsonc",
-        r#"{
-  "agent": { "id": "strict", "name": "Strict", "harnesses": ["claude"] },
-  "rules": { "inline": "Never delete files without explicit confirmation." }
-}"#,
-    );
-    compile_project(&CompileOptions {
-        space_root: tmp.path().to_path_buf(),
-        harness: Some("claude".to_string()),
-        active_agent: Some("strict".to_string()),
-        ..Default::default()
-    })
-    .unwrap();
-    let content = std::fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
-    assert!(content.contains("Never delete files without explicit confirmation."));
-}
-
-#[test]
-fn compile_with_mode_uses_permissions_jsonc_preset() {
-    let tmp = TempDir::new().unwrap();
-    write(
-        tmp.path(),
-        ".ship/permissions.jsonc",
-        r#"{
-  "ship-fast": {
-    "default_mode": "bypassPermissions",
-    "tools_deny": ["Bash(git push --force*)"]
-  }
-}"#,
-    );
-    write(
-        tmp.path(),
-        ".ship/agents/fast.jsonc",
-        r#"{ "agent": { "id": "fast", "name": "Fast", "harnesses": ["claude"] }, "permissions": { "preset": "ship-fast" } }"#,
-    );
-    compile_project(&CompileOptions {
-        space_root: tmp.path().to_path_buf(),
-        harness: Some("claude".to_string()),
-        active_agent: Some("fast".to_string()),
-        ..Default::default()
-    })
-    .unwrap();
-    let v: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(tmp.path().join(".claude/settings.json")).unwrap(),
-    )
-    .unwrap();
-    assert_eq!(v["permissions"]["defaultMode"], "bypassPermissions");
-    let deny = v["permissions"]["deny"].as_array().unwrap();
-    assert!(deny.iter().any(|d| d == "Bash(git push --force*)"));
-}
-
-// ── extra skills (--with) ─────────────────────────────────────────────────────
-
-#[test]
-fn extra_skill_included_in_output() {
-    let tmp = TempDir::new().unwrap();
-    write(
-        tmp.path(),
-        ".ship/agents/rust-lane.jsonc",
-        r#"{ "agent": { "id": "rust-lane", "name": "Rust Lane" }, "skills": { "refs": ["base-skill"] } }"#,
-    );
-    write(tmp.path(), ".ship/skills/base-skill/SKILL.md", "---\nname: base-skill\n---\nBase skill content.");
-    write(tmp.path(), ".ship/skills/compiler-docs/SKILL.md", "---\nname: compiler-docs\n---\nCompiler docs content.");
-    compile_project(&CompileOptions {
-        space_root: tmp.path().to_path_buf(),
-        harness: Some("claude".to_string()),
-        active_agent: Some("rust-lane".to_string()),
-        extra_skills: vec!["compiler-docs".to_string()],
-        ..Default::default()
-    })
-    .unwrap();
-    let injected =
-        std::fs::read_to_string(tmp.path().join(".claude/skills/compiler-docs/SKILL.md"))
-            .expect("injected skill file must exist");
-    assert!(injected.contains("Compiler docs content."), "injected skill must appear: {injected}");
-    let base = std::fs::read_to_string(tmp.path().join(".claude/skills/base-skill/SKILL.md"))
-        .expect("base skill must exist");
-}
-
-#[test]
-fn nonexistent_extra_skill_returns_clear_error() {
-    let tmp = TempDir::new().unwrap();
-    let err = compile_project(&CompileOptions {
-        space_root: tmp.path().to_path_buf(),
-        harness: Some("claude".to_string()),
-        extra_skills: vec!["nonexistent".to_string()],
-        ..Default::default()
-    })
-    .unwrap_err();
-    assert!(
-        err.to_string().contains("skill not found: nonexistent"),
-        "error message must identify the missing skill: {err}"
-    );
-}
-
-#[test]
-fn no_extra_skills_behaviour_unchanged() {
-    let tmp = TempDir::new().unwrap();
-    write(
-        tmp.path(),
-        ".ship/agents/rust-lane.jsonc",
-        r#"{ "agent": { "id": "rust-lane", "name": "Rust Lane" }, "skills": { "refs": ["base-skill"] } }"#,
-    );
-    write(tmp.path(), ".ship/skills/base-skill/SKILL.md", "---\nname: base-skill\n---\nBase skill content.");
-    write(tmp.path(), ".ship/skills/other/SKILL.md", "---\nname: other\n---\nOther content.");
-    compile_project(&CompileOptions {
-        space_root: tmp.path().to_path_buf(),
-        harness: Some("claude".to_string()),
-        active_agent: Some("rust-lane".to_string()),
-        ..Default::default()
-    })
-    .unwrap();
-    let base = std::fs::read_to_string(tmp.path().join(".claude/skills/base-skill/SKILL.md"))
-        .expect("base skill must exist");
-    assert!(base.contains("Base skill content."), "base skill must appear: {base}");
-    assert!(
-        !tmp.path().join(".claude/skills/other/SKILL.md").exists(),
-        "non-referenced skill must not be written when refs filter is active"
-    );
-}
-
-// ── output_root separation ────────────────────────────────────────────────────
-
-#[test]
-fn compile_output_root_separates_from_space_root() {
-    let project = TempDir::new().unwrap();
-    let output = TempDir::new().unwrap();
-    setup_minimal_project(&project);
-    compile_project(&CompileOptions {
-        space_root: project.path().to_path_buf(),
-        output_root: Some(output.path().to_path_buf()),
-        harness: Some("claude".to_string()),
-        ..Default::default()
-    })
-    .unwrap();
-    assert!(output.path().join(".mcp.json").exists(), ".mcp.json must be in output_root");
-    assert!(!project.path().join(".mcp.json").exists(), ".mcp.json must NOT be in space_root");
-    assert!(output.path().join("CLAUDE.md").exists(), "CLAUDE.md must be in output_root");
-    assert!(!project.path().join("CLAUDE.md").exists(), "CLAUDE.md must NOT be in space_root");
-}
-
-// ── McpFile round-trip ────────────────────────────────────────────────────────
-
-#[test]
-fn mcp_file_round_trips() {
-    use std::collections::HashMap;
-    let tmp = TempDir::new().unwrap();
-    let path = tmp.path().join("mcp.jsonc");
-    let original = McpFile {
-        servers: vec![McpEntry {
-            id: "linear".into(),
-            name: Some("Linear".into()),
-            command: Some("npx".into()),
-            args: vec!["-y".into(), "@mcp/linear".into()],
-            env: HashMap::new(),
-            url: None,
-            scope: "project".into(),
-            server_type: Some("stdio".into()),
-            disabled: false,
-        }],
-    };
-    original.save(&path).unwrap();
-    let back = McpFile::load(&path).unwrap();
-    assert_eq!(back.servers[0].name.as_deref(), Some("Linear"));
-}
-
-#[test]
-fn mcp_file_load_empty_when_no_file() {
-    let tmp = TempDir::new().unwrap();
-    let file = McpFile::load(&tmp.path().join("nonexistent.jsonc")).unwrap();
-    assert!(file.servers.is_empty());
-}
+// `agent_profiles_skips_invalid_jsonc` retired with format-migration Wave 5. The test exercised
+// the agent-def leaf's `.ship/agents/*.jsonc` and/or
+// `.ship/skills/<id>/SKILL.md` reads — paths the leaf no longer walks
+// (those nouns arrive exclusively via `defineAgent` / `defineSkill`
+// declare-forms in `ship.config.ts`, harvested by the resolver's TS
+// eval and merged into the composed library).
+// Migration path: tests that need agents / skills in the compiled
+// output must use `ship.config.ts` and route through the composed
+// descriptor (`compile_project_from_library` /
+// `ship_resolver::roll_up`). The leaf's `load_library` is now
+// disk-shape for permissions / hooks / mcp / rules only.

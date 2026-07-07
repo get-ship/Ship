@@ -329,23 +329,36 @@ defineAgent({
         let fs = LocalFsBroker::new();
         let lib = load_space_library(&fs, &root).await.unwrap();
 
-        // The leaf's bulk: default skill + agent profile (none here, but
-        // the field defaults to empty). mcp servers and rules are no
-        // longer sourced from files at all — `load_space_library` doesn't
-        // evaluate the TS manifest (that's `merge_ts_declarations`, one
-        // layer up), so both stay empty here.
+        // Post format-migration Wave 5: the leaf no longer reads
+        // `.ship/agents/*.jsonc` or `.ship/skills/<id>/SKILL.md` —
+        // those nouns land in `agent_profiles` / `skills` through
+        // `ship_resolver::merge_ts_declarations` (one layer up).
+        // `load_space_library` returns them empty here; the test
+        // exercises the disk-shape side: the default-path skills
+        // walk + the extra-path walk + the `ship.config.ts` source
+        // read + the `skill_paths` field population.
         assert!(lib.mcp_servers.is_empty());
-        // Skills: default + extra merged.
+        // Post Wave 5: the leaf no longer reads `.ship/skills/<id>/SKILL.md`
+        // (the default path). The leaf still walks `space.skill_paths`
+        // EXTRAS (the FsBroker-gated path) — so `library.skills` has the
+        // extra-skill from `extra-skills/`, not the default-skill (the
+        // fixture writes `extra-skills/extra-skill/SKILL.md` but no
+        // `.ship/skills/default-skill/SKILL.md`). The post-merge roll-up
+        // then layers the TS-declared `defineSkill` on top via
+        // `ship_resolver::merge_ts_declarations` (one layer up).
         let ids: Vec<&str> = lib.skills.iter().map(|s| s.id.as_str()).collect();
-        assert_eq!(ids, vec!["default-skill", "extra-skill"]);
+        assert_eq!(ids, vec!["extra-skill"]);
         assert!(lib.rules.is_empty());
         // skill_paths carries both the default and the extra — the leaf
-        // populates the field, the resolver consults it.
+        // populates the field, the resolver consults it (extra-skills/
+        // is still walked by `walk_skills_dir` for the additional
+        // `space.skill_paths` entries; the post-merge roll-up pulls
+        // those into `library.skills`).
         assert_eq!(
             lib.skill_paths,
             vec![".ship/skills/".to_string(), "extra-skills/".to_string()]
         );
-        // ship.ts: one module, content hash non-empty.
+        // ship.config.ts: one module, content hash non-empty.
         assert_eq!(lib.imported_modules.len(), 1);
         let module = &lib.imported_modules[0];
         assert_eq!(module.path, PathBuf::from("ship.config.ts"));
@@ -379,47 +392,14 @@ defineAgent({
         assert!(lib.imported_modules.is_empty());
     }
 
-    #[tokio::test(flavor = "current_thread")]
-    async fn space_winning_id_takes_precedence_over_extension() {
-        // A skill in the leaf's default path and a SAME-ID skill in an
-        // extra path: the leaf's version wins. The resolver's merge
-        // honors that — the extra is dropped.
-        let tmp = tempfile::tempdir().unwrap();
-        let root = tmp.path().to_path_buf();
-        let ship = root.join(".ship");
-        std::fs::create_dir_all(ship.join("skills")).unwrap();
-        let default_skill = ship.join("skills").join("shared");
-        std::fs::create_dir_all(&default_skill).unwrap();
-        std::fs::write(
-            default_skill.join("SKILL.md"),
-            "---\ndescription: From default path\n---\nDEFAULT\n",
-        )
-        .unwrap();
-
-        let extra = root.join("extra-skills");
-        std::fs::create_dir_all(extra.join("shared")).unwrap();
-        std::fs::write(
-            extra.join("shared").join("SKILL.md"),
-            "---\ndescription: From extra path\n---\nEXTRA\n",
-        )
-        .unwrap();
-
-        std::fs::write(
-            ship.join("ship.jsonc"),
-            r#"{"space": {"skill_paths": ["extra-skills/"]}}"#,
-        )
-        .unwrap();
-
-        let fs = LocalFsBroker::new();
-        let lib = load_space_library(&fs, &root).await.unwrap();
-        let shared: Vec<&Skill> = lib.skills.iter().filter(|s| s.id == "shared").collect();
-        assert_eq!(shared.len(), 1, "exactly one skill named 'shared'");
-        assert_eq!(
-            shared[0].description.as_deref(),
-            Some("From default path"),
-            "the default-path (space) version wins on id conflict"
-        );
-    }
+    // The "space winning id takes precedence over extension" merge
+    // test retired with Wave 5: the leaf no longer reads
+    // `.ship/skills/<id>/SKILL.md` (or `.ship/agents/<id>.jsonc`), so
+    // there's no leaf-side merge to test. The same precedence is
+    // exercised at the roll-up / compose level by
+    // `tests::roll_up_source_shadows_cached_agent_on_id_collision`
+    // and the agent/skill roll-up coverage tests — they pin the
+    // precedence law from the composed-descriptor side.
 
     #[test]
     fn space_cap_uses_resolver_spaceid() {

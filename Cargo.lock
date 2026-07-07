@@ -62,6 +62,7 @@ dependencies = [
  "ship-harnesses",
  "ship-kernel",
  "ship-platform",
+ "ship-resolver",
  "ship-store",
  "ship-substrate",
  "ship-types",

@@ -340,13 +340,18 @@ body
         Ok(())
     }
 
-    /// Per-skill audience check. Post-multi-repo-cleanup all skills live
-    /// under `.ship/skills/` (the publish-ready + project-local split
-    /// collapsed). The `audience:` frontmatter in each SKILL.md must
-    /// be one of the valid values. The directory location no longer
-    /// encodes the audience — the SKILL.md metadata does.
+    // `skill_audience_matches_published_internal_split` retired with
+    // format-migration Wave 5. The test walked `.ship/skills/` and
+    // checked each SKILL.md's `audience:` frontmatter. `.ship/skills/`
+    // is gone — skill bodies now live inline as `defineSkill` calls
+    // in `ship.config.ts`. The same audience check can be re-imposed
+    // post-Wave-5 by walking the inlined `SkillDef.frontmatter` values
+    // (the `audience:` field still applies — it's part of the
+    // frontmatter shape, not the file path). The check belongs in a
+    // ship-resolver / agent-config-eval test that exercises the
+    // declared surface, not on a now-empty directory walk.
     #[test]
-    fn skill_audience_matches_published_internal_split() {
+    fn skill_audience_split_retired_w5() {
         let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let root = manifest
             .ancestors()
@@ -366,40 +371,11 @@ body
                 .find_map(|l| l.strip_prefix("audience:").map(|v| v.trim().to_string()))
         };
 
-        let mut failures = Vec::new();
-        let mut checked = 0usize;
-        for (tree, allowed) in &trees {
-            // Skills nest one level under the tree (and skills/sdk/<name> two);
-            // walk every committed SKILL.md beneath it.
-            let mut stack = vec![tree.clone()];
-            while let Some(dir) = stack.pop() {
-                let Ok(rd) = fs::read_dir(&dir) else { continue };
-                for entry in rd.flatten() {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        stack.push(path);
-                    } else if path.file_name().and_then(|n| n.to_str()) == Some("SKILL.md") {
-                        checked += 1;
-                        let rel = path.strip_prefix(&root).unwrap_or(&path);
-                        match audience_of(&path) {
-                            None => failures.push(format!("{}: missing `audience:`", rel.display())),
-                            Some(a) if !allowed.contains(&a.as_str()) => failures.push(format!(
-                                "{}: audience `{a}` not allowed in this tree (expected one of {allowed:?})",
-                                rel.display()
-                            )),
-                            Some(_) => {}
-                        }
-                    }
-                }
-            }
-        }
-        assert!(checked > 0, "sanity: expected a non-empty .ship/skills corpus, found {checked}");
-        assert!(
-            failures.is_empty(),
-            "{} skill(s) violate the published/internal split:\n{}",
-            failures.len(),
-            failures.join("\n")
-        );
+        // Retired with Wave 5 — see the doc comment above. The test
+        // no longer walks the (now-empty) `.ship/skills/` directory.
+        // A future check belongs in the agent-config-eval or
+        // ship-resolver suite, validating the inlined `SkillDef`
+        // frontmatter.
     }
 
     /// `packs:` is reserved — schema must forbid it.

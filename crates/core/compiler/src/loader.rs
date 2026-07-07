@@ -7,26 +7,25 @@
 //! proves; see `apps/helmd/Cargo.toml`).
 //!
 //! File-system surface walked:
-//! - `mcp.jsonc`             → `McpServerConfig` entries (canonical keyed form)
 //! - `permissions.jsonc`     → `Permissions` (the project's resolved defaults
 //!                             — preset resolution is the caller's job, e.g.
 //!                             the active agent's `permissions.preset` ref)
 //! - `hooks.jsonc`           → `HookConfig` entries
-//! - `rules/*.md`            → `Rule` entries (YAML-frontmatter aware)
-//! - `skills/<id>/SKILL.md`  → `Skill` entries (via `skill_parser::parse_skill`)
-//! - `agents/<id>.jsonc`     → `AgentProfile` entries (canonical nested shape
-//!                             with the top-level `agent` block).
+//!
+//! mcp / rules / skills / agents used to be read from this leaf. They now
+//! arrive via `defineMcpServer` / `defineRule` / `defineSkill` / `defineAgent`
+//! declare-forms in the space's `ship.config.ts`, harvested by the
+//! Phase-2 resolver (`ship_resolver::merge_ts_declarations`). The leaf returns
+//! them empty so the TS-resolver merge is the single source of truth — see
+//! `census-format-migration.md` Section 4 row 3 + Wave 5.
 //!
 //! Missing files / dirs are silently skipped. An empty library is valid — this
 //! is the existing agent-def loader contract; the leaf loader must match.
 //!
-//! ## Dep-skill resolution (github refs)
-//! Out of scope for this job. The leaf form reads LOCAL skills only. When a
-//! future spike needs to resolve `github.com/.../skill` refs via
-//! `ship.lock` + the dep-skill cache, the surface lives here behind a
-//! `// TODO: dep-skill cache resolution` seam — the existing `lockfile` module
-//! already parses the lockfile; the dep cache itself is a substrate concern.
-
+// (the dep-skill cache itself is a substrate concern, surfaced by
+// `ship_store::dep_skills::resolve_dep_skill` — the leaf no longer
+// reads `.ship/skills/` at all, so the dep-skill seam is moot here
+// post Wave 5).
 use std::fs;
 use std::path::Path;
 
@@ -35,20 +34,26 @@ use serde::Deserialize;
 
 use crate::jsonc::from_jsonc_str;
 use crate::resolve::ExtensionLibrary;
-use crate::skill_parser::parse_skill;
 use crate::types::{
-    AgentProfile, HookConfig, HookTrigger, Permissions, Skill, SkillSource,
+    HookConfig, HookTrigger, Permissions,
 };
 
-// (`.ship/mcp.jsonc` is no longer read by the leaf loader. Post format-
-// migration Wave 4 phase A, MCP server definitions arrive via
-// `defineMcpServer` declare-forms in the space's `ship.config.ts` and
-// land in `ExtensionLibrary::mcp_servers` through
+// (`.ship/mcp.jsonc` and `.ship/rules/*.md` are no longer read by the
+// leaf loader. Post format-migration Wave 4 phase A, MCP server and
+// rule definitions arrive via `defineMcpServer` / `defineRule`
+// declare-forms in the space's `ship.config.ts` and land in
+// `ExtensionLibrary::mcp_servers` / `ExtensionLibrary::rules` through
 // `ship_resolver::merge_ts_declarations` — see
-// `census-format-migration.md` Section 4 row 3. The compile path
-// consumes the resulting `Vec<McpServerConfig>` from `library`
-// without ever touching the source file, so the leaf's MCP walk dies
-// with the cutover.)
+// `census-format-migration.md` Section 4 row 3.)
+//
+// (`.ship/agents/*.jsonc` and `.ship/skills/<id>/SKILL.md` are no
+// longer read by the leaf loader. Post format-migration Wave 5,
+// agent and skill definitions arrive via `defineAgent` / `defineSkill`
+// declare-forms in the space's `ship.config.ts` and land in
+// `ExtensionLibrary::agent_profiles` / `ExtensionLibrary::skills`
+// through the same resolver merge. The duplicate walk the leaf kept
+// for the disk-authoring fallback dies with this wave — see
+// `census-format-migration.md` Section 4 row 3 (last paragraph).)
 
 // ─── Hooks file types ─────────────────────────────────────────────────────────
 
@@ -71,20 +76,20 @@ struct HooksEntry {
 
 /// Load a [`ExtensionLibrary`] from a `.ship/` directory (flat layout).
 ///
-/// Post format-migration Wave 4 phase A: looks for permissions, hooks,
-/// skills, and `agents/`, returning the populated vectors; MCP-server
-/// and rule vectors (`ExtensionLibrary::mcp_servers`,
-/// `ExtensionLibrary::rules`) are no longer populated from files
-/// (`.ship/mcp.jsonc`, `.ship/rules/*.md`). They arrive via the
-/// space's `ship.config.ts` declare-forms (`defineMcpServer`,
-/// `defineRule`) and the resolver's merge step
-/// (`ship_resolver::merge_ts_declarations`). The leaf returns them
-/// empty so the TS-resolver merge is the single source of truth — see
-/// `census-format-migration.md` Section 4 row 3.
+/// Post format-migration Wave 5: the leaf only reads permissions +
+/// hooks from disk. The four `ExtensionLibrary` noun vectors that
+/// the resolver composes (`mcp_servers`, `rules`, `skills`,
+/// `agent_profiles`) all arrive via the space's `ship.config.ts`
+/// declare-forms (`defineMcpServer`, `defineRule`, `defineSkill`,
+/// `defineAgent`) and land through
+/// `ship_resolver::merge_ts_declarations`. The leaf returns them
+/// empty so the TS-resolver merge is the single source of truth —
+/// see `census-format-migration.md` Section 4 row 3 (last
+/// paragraph) + Wave 5.
 ///
 /// Missing files and dirs are silently skipped — an empty library is
 /// valid. The leaf has no dep on `ship-substrate`; everything is
-/// plain `std::fs` + the crate's own `jsonc` + `skill_parser` modules.
+/// plain `std::fs` + the crate's own `jsonc` module.
 pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
     let skill_paths = read_space_skill_paths(ship_dir);
     Ok(ExtensionLibrary {
@@ -92,8 +97,8 @@ pub fn load_library(ship_dir: &Path) -> Result<ExtensionLibrary> {
         permissions: load_permissions(ship_dir),
         hooks: load_hooks(ship_dir)?,
         rules: Vec::new(),
-        skills: load_skills(ship_dir),
-        agent_profiles: load_agent_profiles(ship_dir),
+        skills: Vec::new(),
+        agent_profiles: Vec::new(),
         skill_paths,
         ..Default::default()
     })
@@ -227,85 +232,16 @@ pub fn read_space_skill_paths(ship_dir: &Path) -> Vec<String> {
 
     result
 }
-// ─── Skills ───────────────────────────────────────────────────────────────────
-
-/// Load every `.ship/skills/<id>/SKILL.md` (plus any flat `.ship/skills/<id>.md`).
-/// Local skills only — dep-skill cache resolution from `ship.lock` is a
-/// substrate concern and is intentionally out of scope for this leaf form.
-fn load_skills(ship_dir: &Path) -> Vec<Skill> {
-    let skills_dir = ship_dir.join("skills");
-    if !skills_dir.exists() {
-        return Vec::new();
-    }
-    let Ok(entries) = fs::read_dir(&skills_dir) else {
-        return Vec::new();
-    };
-    let mut skills: Vec<Skill> = Vec::new();
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_dir() {
-            continue;
-        }
-        let id = entry.file_name().to_string_lossy().to_string();
-        let skill_md = path.join("SKILL.md");
-        if !skill_md.exists() {
-            continue;
-        }
-        let Ok(raw) = fs::read_to_string(&skill_md) else {
-            continue;
-        };
-        let mut skill = parse_skill(&id, &raw);
-        // SkillSource::Custom is the local-project default; builtin is
-        // reserved for SDK-embedded skills (a future ship-sdk-skills dep).
-        skill.source = SkillSource::Custom;
-        skills.push(skill);
-    }
-    // Stable order by id so the library is deterministic.
-    skills.sort_by(|a, b| a.id.cmp(&b.id));
-    skills
-}
-
-// ─── Agent profiles ──────────────────────────────────────────────────────────
-
-/// Load every `.ship/agents/<id>.jsonc` as a full nested [`AgentProfile`].
-/// Sorted by `agent.id`. Malformed files (no `agent:` block, or not parseable
-/// as `AgentProfile`) are SKIPPED, never hard-errored — the lenient contract
-/// the existing agent-def loader has. Pure `std::fs` walk + the crate's own
-/// `jsonc` module — no `ship_config::agents::read_agent_profiles` (substrate).
-fn load_agent_profiles(ship_dir: &Path) -> Vec<AgentProfile> {
-    let agents_dir = ship_dir.join("agents");
-    if !agents_dir.exists() {
-        return Vec::new();
-    }
-    let Ok(entries) = fs::read_dir(&agents_dir) else {
-        return Vec::new();
-    };
-    let mut profiles: Vec<AgentProfile> = Vec::new();
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("jsonc") {
-            continue;
-        }
-        let Ok(text) = fs::read_to_string(&path) else {
-            continue;
-        };
-        let Ok(value) = from_jsonc_str::<serde_json::Value>(&text) else {
-            continue;
-        };
-        // Lenient contract: only files that contain a top-level `agent` block
-        // (the canonical authoring shape) get parsed. Everything else is
-        // skipped — the existing agent-def reader's behavior, replicated.
-        if value.get("agent").is_none() {
-            continue;
-        }
-        let Ok(profile) = serde_json::from_value::<AgentProfile>(value) else {
-            continue;
-        };
-        profiles.push(profile);
-    }
-    profiles.sort_by(|a, b| a.agent.id.cmp(&b.agent.id));
-    profiles
-}
+// `.ship/skills/<id>/SKILL.md` and `.ship/agents/<id>.jsonc` are no
+// longer read by the leaf loader. Post format-migration Wave 5,
+// skill + agent definitions arrive via `defineSkill` / `defineAgent`
+// declare-forms in the space's `ship.config.ts` and land in
+// `ExtensionLibrary::skills` / `ExtensionLibrary::agent_profiles`
+// through `ship_resolver::merge_ts_declarations` — see
+// `census-format-migration.md` Section 4 row 3 (last paragraph).
+// The leaf's `load_skills` + `load_agent_profiles` walks die with
+// this wave; the leaf has no disk-authoring fallback for these
+// nouns — the TS-resolver merge is the single source of truth.
 
 #[cfg(test)]
 mod tests {

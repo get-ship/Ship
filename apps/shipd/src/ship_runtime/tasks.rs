@@ -302,11 +302,16 @@ impl ShipRuntime {
             tracing::warn!("agent-def index: boot rebuild failed: {e}");
         }
 
-        // Ingest the project's Phase-3 extension roll-up (`agents/` defs +
-        // `.ts` `defineAgent` sources + locked cached packages + the
-        // operator-enabled library tier, composed by the precedence law)
-        // via ship-resolver's `roll_up` — the resolver owns the V8 `!Send`
-        // crossing internally; shipd upserts the plain-data result.
+        // Ingest the project's Phase-3 extension roll-up (`ship.config.ts`
+        // `defineAgent` / `defineSkill` / `defineMcpServer` / `defineRule`
+        // / `defineCollection` / `defineTrigger` / `definePipeline`
+        // sources + locked cached packages + the operator-enabled library
+        // tier, composed by the precedence law) via ship-resolver's
+        // `roll_up` — the resolver owns the V8 `!Send` crossing
+        // internally; shipd upserts the plain-data result. Post Wave 5:
+        // no `.jsonc` agent authoring (the leaf no longer reads it; the
+        // CRUD write door — `agents_write.rs` — is the STOP-point for the
+        // Studio/db-scope authoring surface, Phase-6's question).
         // `upsert_composed` indexes both the winning profiles AND the
         // shadow records the law recorded, so the index can answer "where
         // did this def come from" and "why is it not active". `None, None`

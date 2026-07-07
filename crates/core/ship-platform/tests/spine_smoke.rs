@@ -50,41 +50,60 @@ const PKG_HEX: &str = "f00dcafe";
 /// same shape `ship-resolver`'s own
 /// `roll_up_source_shadows_cached_agent_on_id_collision` test uses.
 const COLLIDING_ID: &str = "example.test/acme/kit/helper";
-
 /// One space root with a colliding source + cached-package fixture:
-/// - `.ship/agents/helper.jsonc` — source agent, id = the cached package's
-///   post-namespace id (the collision; source wins per default precedence).
-/// - `.ship/skills/review/SKILL.md` — a source skill.
-/// - `ship.config.ts` (`defineRule`) — a source rule (the change leg edits this).
+/// - `ship.config.ts` (`defineRule` + `defineAgent` + `defineSkill`) —
+///   source authoring for the rule, the source's colliding `helper`
+///   agent, and a `review` skill. The change leg edits only the rule
+///   body; the agent + skill declarations are stable across edits.
 /// - `.ship/ship.lock` + `<cache_root>/objects/<hex>/...` — one cached
-///   package exporting a same-bare-id `helper` agent.
+///   package exporting a same-bare-id `helper` agent from its own
+///   `agents/helper.jsonc` (cache-tree path, NOT `.ship/agents/` —
+///   that file form is dead post Wave 5).
 ///
 /// Every fixture file is authored via plain `std::fs`, mirroring
-/// `ship-resolver`'s own `roll_up` test fixtures (`compiler::load_library`,
-/// the leaf `roll_up` delegates to for the source read, is itself a raw
-/// `std::fs` reader — no FsBroker in this path).
+/// `ship-resolver`'s own `roll_up` test fixtures. `ship.config.ts`
+/// is the source's authoring surface; the V8 eval happens inside
+/// `ship_resolver::resolve_ts_files` during `roll_up`.
+/// Body of the rule is interpolated from `{rule_body}`.
+const SPINE_CONFIG_TS_TEMPLATE: &str = r#"import { defineAgent, defineRule, defineSkill } from "ship";
+
+defineRule({
+  id: "style",
+  content: "{rule_body}",
+  applyScope: "always",
+});
+
+defineAgent({
+  agent: {
+    id: "{COLLIDING_ID}",
+    name: "Source Helper",
+  },
+});
+
+defineSkill({
+  frontmatter: {
+    "name": "review",
+    "description": "Review skill fixture",
+  },
+  body: "Review content.",
+});
+"#;
+
 fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
     let tmp = tempfile::tempdir().unwrap();
     let space_root = std::fs::canonicalize(tmp.path()).unwrap();
     let ship_dir = ShipHome::project_ship_dir(&space_root);
+    // The `.ship/` dir is needed for `ship.lock` (and for any
+    // permissions/hooks reads the leaf still does). Source authoring
+    // for agents/skills no longer touches it (Wave 5: those nouns
+    // arrive via `ship.config.ts`).
+    std::fs::create_dir_all(&ship_dir).unwrap();
 
-    let agents_dir = ship_dir.join("agents");
-    std::fs::create_dir_all(&agents_dir).unwrap();
-    std::fs::write(
-        agents_dir.join("helper.jsonc"),
-        format!(r#"{{ "agent": {{ "id": "{COLLIDING_ID}", "name": "Source Helper" }} }}"#),
-    )
-    .unwrap();
-
-    let skill_dir = ship_dir.join("skills").join("review");
-    std::fs::create_dir_all(&skill_dir).unwrap();
-    std::fs::write(
-        skill_dir.join("SKILL.md"),
-        "---\nname: Review\n---\nReview content.",
-    )
-    .unwrap();
-
-    write_rule_file(&space_root, "Be terse.");
+    // Source authoring: the leaf's `.ship/agents/*.jsonc` and
+    // `.ship/skills/<id>/SKILL.md` walks are gone (Wave 5). All source
+    // authoring lives in `ship.config.ts` (rule + agent + skill, all
+    // built into `SPINE_CONFIG_TS_TEMPLATE`).
+    write_config_ts(&space_root, SPINE_CONFIG_TS_TEMPLATE, "Be terse.");
 
     let cache_root = space_root.join("cache");
     let obj = cache_root.join("objects").join(PKG_HEX);
@@ -118,28 +137,17 @@ fn write_colliding_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
     (tmp, space_root, cache_root)
 }
 
-/// (Re)write the source rule file — an `alwaysApply` rule with `body` as its
-/// content. The change leg calls this a second time to prove an edit is
-/// visible after recompose.
-/// Write the space-root `ship.config.ts` with one `defineRule` call — the
-/// only source of rules post format-migration Wave 4 phase A. Called twice
-/// in the change leg (pre-edit and post-edit) with a different `body`, so
-/// each call fully overwrites the file rather than appending.
-fn write_rule_file(space_root: &Path, body: &str) {
-    std::fs::write(
-        space_root.join("ship.config.ts"),
-        format!(
-            r#"import {{ defineRule }} from "ship";
-
-defineRule({{
-  id: "style",
-  content: {body:?},
-  applyScope: "always",
-}});
-"#
-        ),
-    )
-    .unwrap();
+/// Write the space-root `ship.config.ts` with the full fixture
+/// declaration set (rule + agent + skill) for the source. Called twice
+/// in the change leg (pre-edit and post-edit) with a different `rule_body`,
+/// so each call fully overwrites the file rather than appending. The
+/// agent and skill declarations are stable across edits — only the rule
+/// body changes to prove the recompose is visible.
+fn write_config_ts(space_root: &Path, template: &str, rule_body: &str) {
+    let rendered = template
+        .replace("{rule_body}", rule_body)
+        .replace("{COLLIDING_ID}", COLLIDING_ID);
+    std::fs::write(space_root.join("ship.config.ts"), rendered).unwrap();
 }
 
 async fn make_index(ship_dir: &Path, db_name: &str) -> AgentDefIndex {
@@ -260,7 +268,7 @@ async fn spine_config_file_changed_invalidates_cache_and_recompose_sees_the_edit
 
     // Edit the source's `ship.config.ts` — the "edited source file" the
     // change leg exercises.
-    write_rule_file(&space_root, "Be terse. Ship it.");
+    write_config_ts(&space_root, SPINE_CONFIG_TS_TEMPLATE, "Be terse. Ship it.");
 
     // Author + broadcast the synthetic `config.file_changed` — the keystone
     // pattern (no inotify, not flaky), the same shape `ship-resolver`'s own
