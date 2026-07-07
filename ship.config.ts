@@ -792,8 +792,8 @@ definePipeline({
       after: ["verify"],
       step_specs: [{ id: "review", agent: "gatekeeper", harness: "claude" }],
       gate: {
-        require_changed: [{ match: ["**/*.rs"], min: 1 }],
-        forbid_changed: [{ match: [".artifacts/**"], min: 0 }],
+        require_changed: ["**/*.rs"],
+        forbid_changed: [".artifacts/**"],
       },
     },
   ],
@@ -817,8 +817,8 @@ definePipeline({
       after: ["verify"],
       step_specs: [{ id: "review", agent: "gatekeeper", harness: "claude" }],
       gate: {
-        require_changed: [{ match: ["**/*.rs"], min: 1 }],
-        forbid_changed: [{ match: [".artifacts/**"], min: 0 }],
+        require_changed: ["**/*.rs"],
+        forbid_changed: [".artifacts/**"],
       },
     },
   ],
@@ -842,8 +842,8 @@ definePipeline({
       after: ["verify"],
       step_specs: [{ id: "review", agent: "gatekeeper" }],
       gate: {
-        require_changed: [{ match: ["**/*.rs"], min: 1 }],
-        forbid_changed: [{ match: [".artifacts/**"], min: 0 }],
+        require_changed: ["**/*.rs"],
+        forbid_changed: [".artifacts/**"],
       },
     },
   ],
