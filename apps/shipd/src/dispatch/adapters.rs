@@ -3,14 +3,20 @@
 //! `GitWorktreeIsolation` — creates git worktrees, writes phase specs, compiles agent config.
 //! The git/tmux/worktree subprocess helpers it calls live in
 //! `ship_agents::runtime::helpers`; the executors in `ship_agents::runtime::executors`.
+//!
+//! `prepare` delegates the worktree-create step to `ship_git::write::create_worktree`
+//! (the libgit2-direct leaf also backing the `ship.internal.v1.GitService/CreateWorktree`
+//! RPC). ship-code's older `create_worktree` helper was removed — its reimplementation
+//! of `git worktree add` shell logic is subsumed by the leaf.
 
 use anyhow::Result;
 use async_trait::async_trait;
 use ship_code::dispatch_ports::{IsolationStrategy, SessionContext};
+use ship_git::write::{self, WorktreeOutcome};
 use ship_pipeline_runtime::orchestrator::isolation::write_phase_spec_from_context;
 use std::path::PathBuf;
 
-use ship_agents::runtime::helpers::{compile_agent_config, create_worktree, worktrees_dir};
+use ship_agents::runtime::helpers::{compile_agent_config, repo_dir, worktrees_dir};
 
 /// Serializes `git worktree add` across concurrent dispatches. git takes a
 /// lock on the main repo's index/worktrees during `worktree add`, so two
@@ -28,7 +34,24 @@ impl IsolationStrategy for GitWorktreeIsolation {
         let worktree_path = worktrees_dir().join(&job.slug);
         {
             let _guard = WORKTREE_LOCK.lock().await;
-            create_worktree(&worktree_path, &job.branch, None)?;
+            // Dispatch retries should be idempotent: a worktree at the same
+            // path on the same branch re-uses cleanly (Reused); a path occupied
+            // by a different branch refuses loudly (Failed → bubble up). The
+            // leaf's `WorktreeOutcome` matches the `Created / Reused / Failed`
+            // shape the helmd GitService RPC already maps.
+            let outcome = write::create_worktree(
+                &repo_dir(),
+                &worktree_path,
+                &job.branch,
+                "",
+                true,
+            );
+            if let WorktreeOutcome::Failed { error, .. } = outcome {
+                return Err(anyhow::anyhow!(
+                    "git worktree add failed for '{}': {error}",
+                    worktree_path.display()
+                ));
+            }
         }
         let session_dir = worktree_path.join(".artifacts");
         std::fs::create_dir_all(&session_dir)?;

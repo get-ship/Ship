@@ -54,7 +54,9 @@ use ship_code::dispatch_ports::{
     SessionExecutor, SpawnPolicy,
 };
 use ship_code::executors::RoutingExecutor;
+use ship_git::write::{self as git_write, WorktreeOutcome};
 use ship_code::helpers;
+
 use ship_code::process_registry::{ProcessRegistry, SharedRegistry};
 use ship_code::runner::dedup::EventDedup;
 
@@ -197,27 +199,6 @@ impl AgentDispatchPort for HelmDispatchAdapter {
             .map(|p| p.id)
     }
 
-    fn valid_workspaces(&self) -> Vec<String> {
-        // The helm ingest path populates the projects read model with
-        // the repos `discover()` enumerates under the umbrella. The
-        // dispatch path's registry check uses the same set so a
-        // `workspace: "X"` request is refused when X is not a known
-        // repo (gap 3: never silently substitute). The list returns
-        // id + name + path so any of the three is a valid `workspace`
-        // value on the wire — a request naming the helm repo's
-        // human-readable name or absolute path resolves to the
-        // registered record; a request naming an unknown value is
-        // refused with a 400. A best-effort read; an empty list
-        // short-circuits the check (legacy behavior preserved).
-        ship_substrate::db::projects::list_active()
-            .ok()
-            .map(|recs| {
-                recs.into_iter()
-                    .flat_map(|r| [r.id, r.name, r.path])
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
 }
 
 // ── DispatchHandlePort (real) — mirror of shipd's ShipCodeDispatchHandle ─────
@@ -426,7 +407,23 @@ impl IsolationStrategy for GitWorktreeIsolation {
         let worktree_path = helpers::worktrees_dir().join(&job.slug);
         {
             let _guard = WORKTREE_LOCK.lock().await;
-            helpers::create_worktree(&worktree_path, &job.branch, None)?;
+            // Mirror of shipd's GitWorktreeIsolation::prepare — delegate to
+            // the same ship_git leaf so helmd and shipd share the worktree
+            // creation code path. Failed outcomes bubble up; Created / Reused
+            // both proceed to the hook / marker / phase-spec / compile steps.
+            let outcome = git_write::create_worktree(
+                &helpers::repo_dir(),
+                &worktree_path,
+                &job.branch,
+                "",
+                true,
+            );
+            if let WorktreeOutcome::Failed { error, .. } = outcome {
+                return Err(anyhow::anyhow!(
+                    "git worktree add failed for '{}': {error}",
+                    worktree_path.display()
+                ));
+            }
         }
         // Install BOTH the pre-push guard (blocks pushes of refs/heads/job/*
         // from the dispatched agent running with bypassPermissions) and the

@@ -112,27 +112,6 @@ impl AgentDispatchPort for AgentDispatchAdapter {
             .flatten()
             .map(|p| p.id)
     }
-
-    fn valid_workspaces(&self) -> Vec<String> {
-        // shipd serves one project — the active one — so the registry
-        // is the single active project's id. An empty list (DB
-        // unreachable, no project registered) preserves the legacy
-        // "no validation" behavior. The active project is the SOLE
-        // valid workspace when present; gap 3 stops a request naming
-        // a different workspace from silently substituting. The
-        // list returns id + name + path so any of the three is a
-        // valid `workspace` value on the wire (the dispatch core
-        // looks up by name OR path via the projects registry and
-        // fails loudly when neither matches).
-        ship_substrate::db::projects::list_active()
-            .ok()
-            .map(|recs| {
-                recs.into_iter()
-                    .flat_map(|r| [r.id, r.name, r.path])
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
 }
 
 // ── FeedbackAuthPort ──────────────────────────────────────────────────────────

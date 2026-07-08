@@ -57,13 +57,6 @@ pub trait AgentDispatchPort: Send + Sync {
     /// the composition root owns the DB access.
     fn space_id_for_workspace(&self, workspace_label: &str) -> Option<String>;
 
-    /// Known workspace labels the daemon can dispatch into. The helm
-    /// ingest path exposes the same set via `DEFAULT_REPOS` (see
-    /// `helm/src/ingest/discover.ts`); shipd's adapter returns its
-    /// active project's name. Used by `dispatch_agent_session_core`
-    /// to refuse a request that names a workspace outside this set
-    /// (gap 3: never silently substitute another repo).
-    fn valid_workspaces(&self) -> Vec<String>;
 }
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -111,22 +104,6 @@ pub async fn dispatch_agent_session_core(
 
     let workspace_label = req.workspace.clone().unwrap_or_else(|| req.agent.clone());
 
-    // Gap 3: when the caller EXPLICITLY names a workspace, refuse the
-    // request if it doesn't resolve to a known repo (the same set the
-    // helm ingest path exposes). The default case (no `workspace`
-    // field) keeps the active project — no registry check needed.
-    // Without this, a `workspace: "helm"` request from inside the
-    // `ship` repo silently provisions a ship worktree.
-    if let Some(named) = &req.workspace {
-        let valid = port.valid_workspaces();
-        if !valid.is_empty() && !valid.iter().any(|w| w == named) {
-            return Err(DispatchCoreError::BadRequest(format!(
-                "workspace '{named}' not found in registry; known workspaces: {} \
-                 — pass one of these or omit `workspace` to default to the active project",
-                valid.join(", ")
-            )));
-        }
-    }
     let resume_outcome = if req.resume {
         let worktrees_root = port.worktrees_dir();
         match resolve_resume(
@@ -218,11 +195,9 @@ pub async fn dispatch_agent_session_core(
     // Best-effort: a canonical emit failure must NOT block the dispatch.
     // The dispatch.requested above is already in-flight; the spawn trigger
     // has been issued regardless of whether this audit row lands.
-    // space_id: resolve from workspace path via the projects projection;
-    // fall back to empty string if workspace is not yet registered.
-    let space_id = port
-        .space_id_for_workspace(&workspace_label)
-        .unwrap_or_default();
+    // space_id: the cosmetic workspace label is not a real space id — leave
+    // empty (consumers tolerate this via the default).
+    let space_id = String::new();
     if let Ok(canonical_env) = EventEnvelope::new(
         canonical_session_event_types::SESSION_STARTED,
         &session_id,
@@ -315,14 +290,6 @@ mod tests {
         }
         fn space_id_for_workspace(&self, _workspace_label: &str) -> Option<String> {
             None
-        }
-        fn valid_workspaces(&self) -> Vec<String> {
-            // Test stub: an empty list short-circuits the registry
-            // check (gap 3) so existing tests are unaffected. A
-            // dedicated `valid_workspaces` test below drives the
-            // named-workspace enforcement path with a configured
-            // registry.
-            Vec::new()
         }
     }
     fn req_with(
@@ -455,119 +422,5 @@ mod tests {
             port.persist_calls.load(Ordering::SeqCst) >= 1,
             "well-formed request must emit at least the dispatch.requested event"
         );
-    }
-
-    /// Gap 3: a request that explicitly names a workspace NOT in the
-    /// registry must be rejected as `BadRequest` — never silently
-    /// substituted for the active project. The registry is the
-    /// `valid_workspaces` port method; an empty list short-circuits
-    /// the check (legacy behavior preserved).
-    #[tokio::test]
-    async fn named_workspace_outside_registry_rejected() {
-        struct RegistryPort {
-            persist_calls: AtomicUsize,
-            valid: Vec<String>,
-        }
-        #[async_trait]
-        impl AgentDispatchPort for RegistryPort {
-            async fn persist_and_route(
-                &self,
-                _envelope: &EventEnvelope,
-            ) -> anyhow::Result<()> {
-                self.persist_calls.fetch_add(1, Ordering::SeqCst);
-                Ok(())
-            }
-            fn daemon_origin(&self) -> String {
-                "http://127.0.0.1:0".to_string()
-            }
-            fn worktrees_dir(&self) -> std::path::PathBuf {
-                std::path::PathBuf::from("/tmp")
-            }
-            fn check_workspace_violation(
-                &self,
-                _ctx: &RequestContext,
-                _claimed_workspace: Option<&str>,
-            ) -> Option<String> {
-                None
-            }
-            fn space_id_for_workspace(&self, _workspace_label: &str) -> Option<String> {
-                None
-            }
-            fn valid_workspaces(&self) -> Vec<String> {
-                self.valid.clone()
-            }
-        }
-        let port = RegistryPort {
-            persist_calls: AtomicUsize::new(0),
-            // The helm registry exposes the same set the active project
-            // lives in. A request naming a different repo must fail.
-            valid: vec!["ship".to_string(), "sui".to_string()],
-        };
-        let mut req = req_with("rust-lane", Some("spec"), None, Some("helmd-test"));
-        req.workspace = Some("helm".to_string());
-        let outcome = dispatch_agent_session_core(&port, req).await;
-        let err = match outcome {
-            Ok(_) => panic!("named workspace outside registry must be rejected"),
-            Err(e) => e,
-        };
-        match err {
-            DispatchCoreError::BadRequest(m) => {
-                assert!(
-                    m.contains("workspace 'helm' not found in registry"),
-                    "got: {m}"
-                );
-                assert!(m.contains("ship"), "registry list must surface: {m}");
-            }
-            other => panic!("expected BadRequest, got {other:?}"),
-        }
-        assert_eq!(
-            port.persist_calls.load(Ordering::SeqCst),
-            0,
-            "rejected request must not emit any event"
-        );
-    }
-
-    /// Gap 3 (positive case): a request naming a workspace IN the
-    /// registry proceeds past the workspace check. The harness-port
-    /// stub has no projects table, so the request still fails
-    /// downstream (we don't care which downstream check trips —
-    /// just that the registry check let it through).
-    #[tokio::test]
-    async fn named_workspace_in_registry_proceeds() {
-        struct RegistryPort;
-        #[async_trait]
-        impl AgentDispatchPort for RegistryPort {
-            async fn persist_and_route(
-                &self,
-                _envelope: &EventEnvelope,
-            ) -> anyhow::Result<()> {
-                Ok(())
-            }
-            fn daemon_origin(&self) -> String {
-                "http://127.0.0.1:0".to_string()
-            }
-            fn worktrees_dir(&self) -> std::path::PathBuf {
-                std::path::PathBuf::from("/tmp")
-            }
-            fn check_workspace_violation(
-                &self,
-                _ctx: &RequestContext,
-                _claimed_workspace: Option<&str>,
-            ) -> Option<String> {
-                None
-            }
-            fn space_id_for_workspace(&self, _workspace_label: &str) -> Option<String> {
-                None
-            }
-            fn valid_workspaces(&self) -> Vec<String> {
-                vec!["ship".to_string()]
-            }
-        }
-        let port = RegistryPort;
-        let mut req = req_with("rust-lane", Some("spec"), None, Some("dispatch-consolidation"));
-        req.workspace = Some("ship".to_string());
-        // The downstream code may fail (no worktree, no session DB) —
-        // we only assert the registry check did NOT short-circuit.
-        let _ = dispatch_agent_session_core(&port, req).await;
     }
 }

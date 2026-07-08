@@ -234,12 +234,6 @@ impl AgentDispatchPort for NoopDispatch {
         None
     }
 
-    fn valid_workspaces(&self) -> Vec<String> {
-        // Noop stub returns empty — the dispatch path short-circuits
-        // the registry check on an empty list, preserving the legacy
-        // "no validation" behavior for the read-only helmd build.
-        Vec::new()
-    }
 }
 /// Feedback auth port — helmd serves no feedback emit.
 struct NoopFeedbackAuth;
