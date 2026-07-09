@@ -140,3 +140,40 @@ Two bounded storage fixes:
   `SpaceContext::for_space` construction. This greens the two
   `triggers_engine_dispatch_*` integration tests that previously read
   the inserted item back from a different file.
+
+## Unreleased — XDG cutover (job/xdg-for-real)
+
+The XDG split is now the only production on-disk layout. The
+`home_dir().join(".ship")` legacy fallback in `ShipHome::from_env` is
+DEAD. Fresh installs on a normal machine (no XDG vars set) land on
+`$HOME/.config/ship` / `…/share/ship` / `…/state/ship` /
+`~/.cache/ship`; the operator's data moves by hand at land time.
+
+- **`ShipHome::from_env` is now exactly the spec.** Two branches,
+  exhaustive: `SHIP_HOME` set → collapsed base; unset → XDG
+  resolution. The "only consult XDG when a var is set" condition
+  and the `home_dir().join(".ship")` fallback are gone. No third
+  branch.
+- **`resolve_xdg_roots` is now a thin env wrapper over a pure
+  resolver.** `resolve_xdg_roots_from(config, data, state, cache,
+  runtime, home)` is the testable surface — every per-root
+  env-set / env-unset combination is exercised as a pure-function
+  test. The process-env wrapper is one test.
+- **`ShipHome::root()` is deleted.** The legacy `~/.ship` analogue
+  has no live callers any more. The 5 production call sites
+  (helmd agents, helmd collections, ship-cli daemon paths, ship-cli
+  macos service registration, ship-cli supervision tests) flip to
+  `data_dir()`. All five access the data root for DB openers and
+  kernel-router init; that's the correct typed accessor.
+- **Tests are behavior tests.** XDG per-root coverage lives in
+  pure-function form (no env mutation). The `resolve_xdg_roots()`
+  process-env wrapper has one thin test. The isolation-guard
+  tests (no SHIP_HOME / no disable, explicit SHIP_HOME pinned to
+  real production path) still exercise `from_env` directly — they
+  cover the wrapper, not the resolver. A new
+  `db_files_resolve_under_data_root` test pins the spec's
+  root-mapping contract.
+- **`scripts/lint/check-raw-ship-paths.sh` patterns** cover the
+  four XDG roots plus the `~/.ship` fossil-defense. The XDG
+  cutover retired the legacy branch; the lint keeps the patterns
+  to prevent re-introduction.

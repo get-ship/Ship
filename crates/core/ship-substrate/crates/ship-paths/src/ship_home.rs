@@ -9,25 +9,36 @@
 //! any raw `~/.config/ship` / `~/.local/share/ship` / `~/.local/state/ship` /
 //! `~/.cache/ship` / `~/.ship` join outside the sanctioned accessor).
 //!
-//! ## Resolution
+//! ## Resolution (cutover — `home_dir().join(".ship")` is DEAD)
 //!
 //! - `SHIP_HOME` set → that path is the *base*; the four roots
 //!   (`config` / `data` / `state` / `cache`) live at
 //!   `<base>/{config,data,state,cache}` and `runtime` collapses to
-//!   `<base>/state`. The SHIP_HOME collapse is the pinnings tests + dev
+//!   `<base>/state`. The SHIP_HOME collapse is the pinning tests + dev
 //!   tooling use; production hosts use the XDG branch.
-//! - `SHIP_HOME` unset → read the XDG env vars directly
-//!   (`XDG_CONFIG_HOME` / `XDG_DATA_HOME` / `XDG_STATE_HOME` /
-//!   `XDG_CACHE_HOME` / `XDG_RUNTIME_DIR`). `runtime` falls back to
-//!   `state` when `XDG_RUNTIME_DIR` is unset (test/pinned installs).
-//! - `home_dir().join(".ship")` is the production fallback when neither
-//!   `SHIP_HOME` nor XDG vars are set; it goes through the same five-root
-//!   collapse so legacy callers' `root()` still resolves to a real
-//!   directory on disk.
+//! - `SHIP_HOME` unset → read the XDG env vars directly. Each root
+//!   falls back to its own XDG-standard default (`$XDG_CONFIG_HOME` or
+//!   `~/.config` for config; `$XDG_DATA_HOME` or `~/.local/share` for
+//!   data; `$XDG_STATE_HOME` or `~/.local/state` for state;
+//!   `$XDG_CACHE_HOME` or `~/.cache` for cache; `$XDG_RUNTIME_DIR` or
+//!   `state` for runtime). There is no third branch — the previous
+//!   `home_dir().join(".ship")` fallback was retired with this cutover.
+//!   First install on a fresh machine writes to the XDG defaults; data
+//!   migrates by hand.
 //!
 //! `XDG_*` are OS-standard env vars and are NOT SHIP_* variables — they
 //! are read directly with `std::env::var_os` here and are not promoted to
 //! the `Var` enum.
+//!
+//! ## Pure XDG resolver
+//!
+//! The XDG-resolution logic is split out as
+//! [`resolve_xdg_roots_from`]: a pure function that takes the five XDG
+//! values (or `None` for the unset ones) and returns a `ShipHome`. The
+//! process-env wrapper [`resolve_xdg_roots`] is a thin layer that reads
+//! `std::env::var_os(...)` and calls into it. Tests use the pure form to
+//! pin every per-root env-set / env-unset combination without mutating
+//! process state.
 //!
 //! ## Test-context isolation (data-safety gate — UNCHANGED in force)
 //!
@@ -110,9 +121,16 @@ pub struct ShipHome {
 }
 
 impl ShipHome {
-    /// Construct from the `SHIP_HOME` environment variable, the XDG
-    /// env vars, or the operator's `~/.ship` fallback. This is the
-    /// production constructor.
+    /// Construct from the `SHIP_HOME` environment variable, then from
+    /// the XDG env vars (each with its own XDG-standard default). This
+    /// is the production constructor.
+    ///
+    /// The two branches are exhaustive — there is no third
+    /// `home_dir().join(".ship")` branch. The cutover retired the
+    /// legacy fallback: a fresh install on a normal machine (no XDG
+    /// vars set) lands on `$HOME/.config/ship` / `…/share/ship` /
+    /// `…/state/ship` / `~/.cache/ship`; data migrates by hand at
+    /// land time, never by code.
     ///
     /// **Test-context isolation (data-safety gate).** When invoked inside
     /// a Rust test binary (or under the `SHIP_TEST` marker), this
@@ -173,20 +191,11 @@ impl ShipHome {
                  unset SHIP_DISABLE_AUTO_TEST_SHIP_HOME so the per-thread tmp home is allocated."
             );
         }
-        // XDG: read the OS-standard env vars directly. We only consult
-        // XDG when at least one XDG_*_HOME is set; the production
-        // fallback below handles the all-unset case.
-        if let Some(xdg) = resolve_xdg_roots() {
-            return xdg;
-        }
-
-        // Production fallback: ~/.ship. The five roots collapse under
-        // the legacy single root so existing on-disk trees keep
-        // working.
-        let base = home::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join(SHIP_DIR_NAME);
-        Self::at(base)
+        // XDG: read the OS-standard env vars directly. Each root gets
+        // its own XDG-standard default when its env var is unset
+        // (the cutover retired the `home_dir().join(".ship")` legacy
+        // fallback; there is no third branch).
+        resolve_xdg_roots()
     }
 
     /// Construct at an explicit base. The five roots collapse under
@@ -344,18 +353,6 @@ impl ShipHome {
         }
     }
 
-    /// Backwards-compat alias for `data_dir` (the legacy `~/.ship` root).
-    /// Returns the data root, which is the closest analogue to the
-    /// previous single root for callers that previously asked "where is
-    /// `~/.ship`?".
-    ///
-    /// NOTE: this is the typed-accessor escape hatch for code that
-    /// genuinely needs to know "the base"; new code should call
-    /// `config_dir` / `data_dir` / `state_dir` / `cache_dir` /
-    /// `runtime_dir` directly.
-    pub fn root(&self) -> PathBuf {
-        self.data.clone()
-    }
 
     /// `data/library/` — portable user scope.
     ///
@@ -464,68 +461,100 @@ impl ShipHome {
     }
 }
 
-/// Resolve the XDG roots from the live environment. Used by
-/// `from_env` when `SHIP_HOME` is unset.
+/// Resolve the four XDG roots + the runtime slot to a `ShipHome` from
+/// the supplied per-root XDG values.
 ///
-/// `XDG_*` are OS-standard env vars and are read directly via
-/// `std::env::var_os` here (NOT through the `Var` enum) — they are not
-/// SHIP_* variables.
-pub fn resolve_xdg_roots() -> Option<ShipHome> {
-    // Need at least one of the four XDG_*_HOME vars (config / data /
-    // state / cache) to anchor. XDG_RUNTIME_DIR is optional (falls back
-    // to state). If nothing is set, the production caller falls through
-    // to the `~/.ship` legacy root.
-    let config_home = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .filter(|p| !p.as_os_str().is_empty());
-    let data_home = std::env::var_os("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .filter(|p| !p.as_os_str().is_empty());
-    let state_home = std::env::var_os("XDG_STATE_HOME")
-        .map(PathBuf::from)
-        .filter(|p| !p.as_os_str().is_empty());
-    let cache_home = std::env::var_os("XDG_CACHE_HOME")
-        .map(PathBuf::from)
-        .filter(|p| !p.as_os_str().is_empty());
-    if config_home.is_none()
-        && data_home.is_none()
-        && state_home.is_none()
-        && cache_home.is_none()
-    {
-        return None;
-    }
-    let home = home::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    // XDG namespacing: spec mandates the literal `/ship` segment
-    // (no leading dot). XDG roots are already XDG-namespaced; the
-    // SHIP_DIR_NAME `.ship` is the legacy single-root convention.
-    let config = config_home
+/// Pure function — no process env reads. Each root falls back to its
+/// XDG-standard default when the corresponding `Option` is `None`:
+///
+/// - `config` → `~/.config`
+/// - `data`   → `~/.local/share`
+/// - `state`  → `~/.local/state`
+/// - `cache`  → `~/.cache`
+///
+/// Runtime (`XDG_RUNTIME_DIR`) falls back to `state` when unset; tests
+/// and pinned installs without a per-user runtime dir rely on this.
+///
+/// The `/ship` suffix is the XDG-namespaced application directory (per
+/// the XDG base-directory spec, this is the literal segment Ship owns
+/// under each base). The legacy `.ship` (with leading dot) was retired
+/// with the XDG cutover.
+///
+/// The caller is responsible for choosing the home dir used to fill the
+/// XDG defaults — production code passes `home::home_dir()`, tests pass
+/// a temp dir. This makes the function deterministic.
+pub fn resolve_xdg_roots_from(
+    config: Option<PathBuf>,
+    data: Option<PathBuf>,
+    state: Option<PathBuf>,
+    cache: Option<PathBuf>,
+    runtime: Option<PathBuf>,
+    home: &Path,
+) -> ShipHome {
+    let config = config
         .unwrap_or_else(|| home.join(".config"))
         .join("ship");
-    let data = data_home
+    let data = data
         .unwrap_or_else(|| home.join(".local").join("share"))
         .join("ship");
-    let state = state_home
+    let state = state
         .unwrap_or_else(|| home.join(".local").join("state"))
         .join("ship");
-    let cache = cache_home
+    let cache = cache
         .unwrap_or_else(|| home.join(".cache"))
         .join("ship");
-    let runtime = std::env::var_os("XDG_RUNTIME_DIR")
-        .map(PathBuf::from)
-        .filter(|p| !p.as_os_str().is_empty())
-        .map(|p| p.join("ship"))
-        .unwrap_or_else(|| state.clone());
-    Some(ShipHome {
+    let runtime = runtime.map(|p| p.join("ship")).unwrap_or_else(|| state.clone());
+    ShipHome {
         config,
         data,
         state,
         cache,
         runtime,
-    })
+    }
 }
 
-/// Public re-export of the XDG resolver so callers/tests can pin a
-/// specific XDG scenario without going through the process env.
+/// Read the XDG env vars from the live process env and resolve them
+/// into a `ShipHome`. Thin wrapper over [`resolve_xdg_roots_from`].
+///
+/// Each unset / empty env var is filled in with its XDG-standard
+/// default — there is no third branch. The cutover retired the
+/// `home_dir().join(".ship")` legacy fallback: a fresh install on a
+/// normal machine (no XDG vars set) lands on `$HOME/.config/ship` /
+/// `…/share/ship` / `…/state/ship` / `~/.cache/ship`.
+///
+/// `XDG_*` are OS-standard env vars and are read directly via
+/// `std::env::var_os` here (NOT through the `Var` enum) — they are not
+/// SHIP_* variables.
+pub fn resolve_xdg_roots() -> ShipHome {
+    let home = home::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    resolve_xdg_roots_from(
+        std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .filter(|p| !p.as_os_str().is_empty()),
+        std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .filter(|p| !p.as_os_str().is_empty()),
+        std::env::var_os("XDG_STATE_HOME")
+            .map(PathBuf::from)
+            .filter(|p| !p.as_os_str().is_empty()),
+        std::env::var_os("XDG_CACHE_HOME")
+            .map(PathBuf::from)
+            .filter(|p| !p.as_os_str().is_empty()),
+        std::env::var_os("XDG_RUNTIME_DIR")
+            .map(PathBuf::from)
+            .filter(|p| !p.as_os_str().is_empty()),
+        &home,
+    )
+}
+
+/// Construct a `ShipHome` from explicit per-root XDG values. Each
+/// root is taken verbatim; only `runtime` falls back to `state` when
+/// `None`. The thin test / public-config constructor.
+///
+/// For the per-root XDG-default semantics (where each unset value
+/// falls back to its XDG-standard base), use
+/// [`resolve_xdg_roots_from`]. For the process-env wrapper, use
+/// [`resolve_xdg_roots`].
 pub fn from_xdg(
     config: PathBuf,
     data: PathBuf,
@@ -542,6 +571,8 @@ pub fn from_xdg(
     }
 }
 
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -555,8 +586,10 @@ mod tests {
     /// this lock is purely a test-orchestration concern.
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
+    /// SHIP_HOME-collapsed base for tests that want the four roots to
+    /// live under `<tmp>/.ship/{config,data,state,cache}`.
     fn home(tmp: &Path) -> ShipHome {
-        ShipHome::at(tmp.join(".ship"))
+        ShipHome::at(tmp.join(SHIP_DIR_NAME))
     }
 
     #[test]
@@ -575,6 +608,9 @@ mod tests {
         )));
     }
 
+    /// `ShipHome::at(base)` collapses the four roots to
+    /// `<base>/{config,data,state,cache}` with `runtime` collapsing to
+    /// `<base>/state`. `base()` exposes the collapsed base.
     #[test]
     fn at_collapses_five_roots_under_base() {
         let tmp = tempdir().unwrap();
@@ -588,6 +624,8 @@ mod tests {
         assert_eq!(h.base().as_deref(), Some(tmp.path().join(".ship").as_path()));
     }
 
+    /// `for_test` is the blessed test helper: every test that wants
+    /// the SHIP_HOME-collapsed layout under a temp dir calls this.
     #[test]
     fn for_test_helper_roots_under_tmp() {
         let tmp = tempdir().unwrap();
@@ -602,6 +640,8 @@ mod tests {
         );
     }
 
+    /// `vector_dir` for `Scope::User` lives under `data/library/<vector>/`;
+    /// `Scope::Project` lives under the project root's `.ship/<vector>/`.
     #[test]
     fn for_test_vector_dirs_match_user_scope() {
         let tmp = tempdir().unwrap();
@@ -625,6 +665,9 @@ mod tests {
         assert_eq!(h.state_dir(), tmp.path().join(".ship/state"));
     }
 
+    /// Every canonical vector's user-scope dir lands under
+    /// `data/library/<vector>/` — the data-root layout the XDG
+    /// cutover standardised on.
     #[test]
     fn user_scope_vector_dirs_cover_every_canonical_vector() {
         let tmp = tempdir().unwrap();
@@ -657,6 +700,9 @@ mod tests {
         assert_eq!(p, PathBuf::from(".ship/agents"));
     }
 
+    /// Daemon IPC handshake files live under `state/daemon/`. The
+    /// four named slots (port / token / pid / socket) are exactly the
+    /// files `daemon` writes on start.
     #[test]
     fn daemon_files() {
         let tmp = tempdir().unwrap();
@@ -679,6 +725,10 @@ mod tests {
         );
     }
 
+    /// `state/device-id` (per-install identity), `state/daemon/account.jsonc`
+    /// (daemon-owned cloud token), per-worktree daemons under
+    /// `state/daemons/<hash>/`, and `data/db/kv.db` — the layout the
+    /// spec root mapping pins.
     #[test]
     fn device_id_account_token_and_worktree_paths() {
         let tmp = tempdir().unwrap();
@@ -698,6 +748,29 @@ mod tests {
         );
     }
 
+    // ── DB files resolve under data (spec root mapping) ──────────────────
+    //
+    // The spec's "db files → data" mapping is the canonical place DB
+    // openers route. The accessor `data_db_path` is the typed seam
+    // every kv.db / runtime.db / account.db / space.db opener must
+    // use. This is the behaviour test.
+    #[test]
+    fn db_files_resolve_under_data_root() {
+        let tmp = tempdir().unwrap();
+        let h = ShipHome::for_test(tmp.path());
+        // kv.db is the sanctioned machine db (Phase-3, separated from
+        // the event log).
+        assert_eq!(
+            h.data_db_path(Db::Kv),
+            tmp.path().join(".ship/data/db/kv.db"),
+            "kv.db must live under data/db/"
+        );
+    }
+
+    /// `from_xdg` is the explicit-values constructor: each root is
+    /// taken verbatim, runtime falls back to state when `None`. Used
+    /// by callers / tests that want to pin a layout without reading
+    /// the process env.
     #[test]
     fn from_xdg_routes_each_root_to_its_xdg_base() {
         let h = from_xdg(
@@ -728,14 +801,102 @@ mod tests {
         assert_eq!(h.runtime_dir(), h.state_dir());
     }
 
-    // ── XDG env-var resolution ────────────────────────────────────────────
-    // The XDG env-var read in `resolve_xdg_roots` is process-global, so
-    // these tests acquire the same ENV_LOCK the isolation tests use to
-    // avoid racing each other on a parallel `set_var`.
-    /// `XDG_CONFIG_HOME` set → config root lives at `$XDG_CONFIG_HOME/ship`,
-    /// unset → defaults to `~/.config/ship`.
+    // ── Pure XDG resolver (no process env reads) ──────────────────────
+    // The XDG-resolution logic is the public surface
+    // [`resolve_xdg_roots_from`]: callers (and tests) hand in the
+    // per-root env values they want pinned and get back a `ShipHome`.
+    // No process-env mutation, no race surface.
+
+    /// All four `XDG_*_HOME` set, `XDG_RUNTIME_DIR` set: every root
+    /// lives at the supplied XDG base, runtime gets the
+    /// `$XDG_RUNTIME_DIR/ship` value verbatim.
     #[test]
-    fn resolve_xdg_roots_routes_config_via_xdg_config_home() {
+    fn xdg_resolver_all_set_uses_each_xdg_base() {
+        let h = resolve_xdg_roots_from(
+            Some(PathBuf::from("/srv/cfg")),
+            Some(PathBuf::from("/srv/data")),
+            Some(PathBuf::from("/srv/state")),
+            Some(PathBuf::from("/srv/cache")),
+            Some(PathBuf::from("/run/user/42")),
+            Path::new("/home/u"),
+        );
+        assert_eq!(h.config_dir(), PathBuf::from("/srv/cfg/ship"));
+        assert_eq!(h.data_dir(), PathBuf::from("/srv/data/ship"));
+        assert_eq!(h.state_dir(), PathBuf::from("/srv/state/ship"));
+        assert_eq!(h.cache_dir(), PathBuf::from("/srv/cache/ship"));
+        assert_eq!(h.runtime_dir(), PathBuf::from("/run/user/42/ship"));
+    }
+
+    /// `XDG_CONFIG_HOME` set, the rest unset: config follows the env
+    /// var; data / state / cache fall back to the XDG-standard bases
+    /// under `home`; runtime falls back to the resolved state.
+    #[test]
+    fn xdg_resolver_per_root_unset_falls_back_to_xdg_default() {
+        let h = resolve_xdg_roots_from(
+            Some(PathBuf::from("/srv/xdg-cfg")),
+            None,
+            None,
+            None,
+            None,
+            Path::new("/home/u"),
+        );
+        assert_eq!(h.config_dir(), PathBuf::from("/srv/xdg-cfg/ship"));
+        assert_eq!(h.data_dir(), PathBuf::from("/home/u/.local/share/ship"));
+        assert_eq!(h.state_dir(), PathBuf::from("/home/u/.local/state/ship"));
+        assert_eq!(h.cache_dir(), PathBuf::from("/home/u/.cache/ship"));
+        // No XDG_RUNTIME_DIR → runtime collapses to state.
+        assert_eq!(h.runtime_dir(), h.state_dir());
+    }
+
+    /// Every `XDG_*` unset: the resolver still returns a valid
+    /// `ShipHome` — each root lands on its XDG-standard base under
+    /// `home`. This is the cutover's "fresh install, no XDG vars"
+    /// case: a normal machine (the common case) gets the XDG defaults,
+    /// not a `~/.ship` legacy root. There is no third branch.
+    #[test]
+    fn xdg_resolver_all_unset_uses_xdg_defaults() {
+        let h = resolve_xdg_roots_from(
+            None, None, None, None, None,
+            Path::new("/home/u"),
+        );
+        assert_eq!(h.config_dir(), PathBuf::from("/home/u/.config/ship"));
+        assert_eq!(h.data_dir(), PathBuf::from("/home/u/.local/share/ship"));
+        assert_eq!(h.state_dir(), PathBuf::from("/home/u/.local/state/ship"));
+        assert_eq!(h.cache_dir(), PathBuf::from("/home/u/.cache/ship"));
+        // No XDG_RUNTIME_DIR → runtime falls back to state.
+        assert_eq!(h.runtime_dir(), h.state_dir());
+        // Different parents on every root → no single base.
+        assert!(h.base().is_none());
+    }
+
+    /// `XDG_RUNTIME_DIR` set, every `XDG_*_HOME` unset: runtime lives
+    /// at the supplied runtime dir; the four XDG bases fall back to
+    /// the XDG defaults under `home`. Confirms the runtime fallback is
+    /// independent of the four XDG_*_HOME fallback chain.
+    #[test]
+    fn xdg_resolver_runtime_set_independently() {
+        let h = resolve_xdg_roots_from(
+            None,
+            None,
+            None,
+            None,
+            Some(PathBuf::from("/run/user/42")),
+            Path::new("/home/u"),
+        );
+        assert_eq!(h.runtime_dir(), PathBuf::from("/run/user/42/ship"));
+        // The XDG-*_HOME defaults remain under `home`.
+        assert_eq!(h.config_dir(), PathBuf::from("/home/u/.config/ship"));
+        assert_eq!(h.data_dir(), PathBuf::from("/home/u/.local/share/ship"));
+        assert_eq!(h.state_dir(), PathBuf::from("/home/u/.local/state/ship"));
+        assert_eq!(h.cache_dir(), PathBuf::from("/home/u/.cache/ship"));
+    }
+
+    /// Sanity guard: the `resolve_xdg_roots()` process-env wrapper
+    /// reads each `XDG_*` var and routes it into the pure resolver.
+    /// One thin test exercises it; the per-root coverage lives in the
+    /// pure tests above.
+    #[test]
+    fn resolve_xdg_roots_process_env_wrapper_routes_via_xdg_vars() {
         let _env_lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let prev_cfg = std::env::var_os("XDG_CONFIG_HOME");
         let prev_data = std::env::var_os("XDG_DATA_HOME");
@@ -745,10 +906,10 @@ mod tests {
         // SAFETY: ENV_LOCK held; restore via XdgEnvGuard on drop.
         unsafe {
             std::env::set_var("XDG_CONFIG_HOME", "/srv/xdg-cfg");
-            std::env::remove_var("XDG_DATA_HOME");
-            std::env::remove_var("XDG_STATE_HOME");
-            std::env::remove_var("XDG_CACHE_HOME");
-            std::env::remove_var("XDG_RUNTIME_DIR");
+            std::env::set_var("XDG_DATA_HOME", "/srv/xdg-data");
+            std::env::set_var("XDG_STATE_HOME", "/srv/xdg-state");
+            std::env::set_var("XDG_CACHE_HOME", "/srv/xdg-cache");
+            std::env::set_var("XDG_RUNTIME_DIR", "/run/user/42");
         }
         let _guard = XdgEnvGuard {
             prev_cfg,
@@ -758,49 +919,17 @@ mod tests {
             prev_runtime,
         };
 
-        let h = resolve_xdg_roots().expect("XDG_CONFIG_HOME set → resolve");
+        let h = resolve_xdg_roots();
         assert_eq!(h.config_dir(), PathBuf::from("/srv/xdg-cfg/ship"));
-        // The unset ones default to ~/.config / ~/.local/share / etc.
-        let home = home::home_dir().unwrap();
-        assert_eq!(h.data_dir(), home.join(".local/share/ship"));
-        assert_eq!(h.state_dir(), home.join(".local/state/ship"));
-        assert_eq!(h.cache_dir(), home.join(".cache/ship"));
-        // No XDG_RUNTIME_DIR → runtime falls back to state.
-        assert_eq!(h.runtime_dir(), h.state_dir());
+        assert_eq!(h.data_dir(), PathBuf::from("/srv/xdg-data/ship"));
+        assert_eq!(h.state_dir(), PathBuf::from("/srv/xdg-state/ship"));
+        assert_eq!(h.cache_dir(), PathBuf::from("/srv/xdg-cache/ship"));
+        assert_eq!(h.runtime_dir(), PathBuf::from("/run/user/42/ship"));
     }
 
-    /// All XDG_*_HOME unset → `resolve_xdg_roots` returns `None` so the
-    /// caller falls through to the `~/.ship` legacy root. (This is the
-    /// "env unset" branch the spec asks us to pin.)
-    #[test]
-    fn resolve_xdg_roots_returns_none_when_all_xdg_home_unset() {
-        let _env_lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let prev_cfg = std::env::var_os("XDG_CONFIG_HOME");
-        let prev_data = std::env::var_os("XDG_DATA_HOME");
-        let prev_state = std::env::var_os("XDG_STATE_HOME");
-        let prev_cache = std::env::var_os("XDG_CACHE_HOME");
-        // SAFETY: ENV_LOCK held; restore via XdgEnvGuard on drop.
-        unsafe {
-            std::env::remove_var("XDG_CONFIG_HOME");
-            std::env::remove_var("XDG_DATA_HOME");
-            std::env::remove_var("XDG_STATE_HOME");
-            std::env::remove_var("XDG_CACHE_HOME");
-        }
-        let _guard = XdgEnvGuard {
-            prev_cfg,
-            prev_data,
-            prev_state,
-            prev_cache,
-            prev_runtime: std::env::var_os("XDG_RUNTIME_DIR"),
-        };
-        assert!(
-            resolve_xdg_roots().is_none(),
-            "all XDG_*_HOME unset must yield None; the caller falls through to ~/.ship"
-        );
-    }
-
-    /// Tiny RAII helper that restores XDG env vars on drop. Pairs with
-    /// the `EnvGuard` above (which only covers SHIP_*).
+    /// RAII helper: restores the five XDG env vars the wrapper test
+    /// (and any future XDG-env-reading test) mutates. Serialised via
+    /// the same `ENV_LOCK` the isolation tests use.
     struct XdgEnvGuard {
         prev_cfg: Option<std::ffi::OsString>,
         prev_data: Option<std::ffi::OsString>,
@@ -811,8 +940,8 @@ mod tests {
 
     impl Drop for XdgEnvGuard {
         fn drop(&mut self) {
-            // SAFETY: these vars belong to this test; ENV_LOCK serialises
-            // mutations across the test suite.
+            // SAFETY: ENV_LOCK held while the guard is in scope; the
+            // wrapped test never yields to other threads.
             unsafe {
                 restore_var("XDG_CONFIG_HOME", self.prev_cfg.take());
                 restore_var("XDG_DATA_HOME", self.prev_data.take());
@@ -824,8 +953,8 @@ mod tests {
     }
 
     fn restore_var(name: &str, prev: Option<std::ffi::OsString>) {
-        // SAFETY: serialised under ENV_LOCK; helpers above document the
-        // safety contract.
+        // SAFETY: serialised under ENV_LOCK; helpers above document
+        // the safety contract.
         unsafe {
             match prev {
                 Some(v) => std::env::set_var(name, v),
@@ -834,22 +963,23 @@ mod tests {
         }
     }
 
-
     // ── Data-safety gate: real on-disk state must never be reachable
     //    under a test context, no matter what path the test forgot to
-    //    set up.
+    //    set up. The cutover retired the `~/.ship` legacy fallback;
+    //    the gate's invariant is now "the resolved home lives under
+    //    `std::env::temp_dir()`, never under the operator's
+    //    `home::home_dir()`-anchored XDG defaults".
     //
     // The four isolation tests below mutate the same global env state
     // (`SHIP_HOME` + `SHIP_DISABLE_AUTO_TEST_SHIP_HOME`), so they each
     // acquire `ENV_LOCK` to serialise against each other. Otherwise a
-    // parallel `set_var` on one thread can race `remove_var` on another
-    // and produce false-positive panics inside the gate that mask real
-    // regressions.
+    // parallel `set_var` on one thread can race `remove_var` on
+    // another and produce false-positive panics inside the gate that
+    // mask real regressions.
 
-    /// Invariant: any code path that resolves the user's home directory
-    /// via `home::home_dir()` must be unreachable under a test context.
-    /// This is the structural proof the `datasafety-shiphome` gate
-    /// requires.
+    /// `from_env` under auto (no SHIP_HOME, no disable) lands under
+    /// `std::env::temp_dir()` — never the operator's XDG data dir.
+    /// The cutover's contract: a test never sees production state.
     #[test]
     fn from_env_auto_path_never_returns_real_home() {
         let _env_lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -863,14 +993,19 @@ mod tests {
         let _guard = EnvGuard::new(prev_home, prev_disable);
 
         let h = ShipHome::from_env();
-        let real_home = home::home_dir().unwrap().join(SHIP_DIR_NAME);
-        // `data_dir()` is the closest analogue to the legacy `~/.ship`
-        // root in the new layout; the gate is "this dir is never the
-        // operator's real on-disk state".
+        // Cutover: there is no `home_dir().join(".ship")` legacy root
+        // any more. The contract is "under a test binary, the
+        // auto-allocated home lives under `std::env::temp_dir()` and
+        // never points at the operator's on-disk state".
+        let real_xdg_data = home::home_dir()
+            .unwrap_or_default()
+            .join(".local")
+            .join("share")
+            .join("ship");
         assert_ne!(
             h.data_dir(),
-            real_home,
-            "test-context auto home must never equal `home_dir().join(.ship)`; \
+            real_xdg_data,
+            "test-context auto home must never equal the operator's XDG data dir; \
              gate regressed"
         );
         assert!(
@@ -881,34 +1016,42 @@ mod tests {
         );
     }
 
+    /// A test pointing `SHIP_HOME` at a real production path
+    /// (the operator's actual home) panics, never silently resolves
+    /// the operator's data.
     #[test]
     fn from_env_rejects_ship_home_pointing_at_real_home_under_test() {
         let _env_lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let real_home = home::home_dir().unwrap();
         // Some sandboxed envs return empty `home::home_dir()` — skip
-        // rather than test nothing. Production hosts always have a real
-        // home.
+        // rather than test nothing. Production hosts always have a
+        // real home.
         if real_home.as_os_str().is_empty() {
             return;
         }
-        let real_ship_home = real_home.join(SHIP_DIR_NAME);
+        // Cutover: there is no `~/.ship` legacy path any more. Point
+        // SHIP_HOME at the operator's real HOME (the closest
+        // production-rooted path) and confirm the gate fires.
+        let real_production_path = real_home.join(".local").join("state").join("ship");
         let _guard = EnvGuard::new(
             std::env::var_os("SHIP_HOME"),
             std::env::var_os("SHIP_DISABLE_AUTO_TEST_SHIP_HOME"),
         );
         // SAFETY: EnvGuard restores at scope exit. We are inside `cfg(test)`.
         unsafe {
-            std::env::set_var("SHIP_HOME", &real_ship_home);
+            std::env::set_var("SHIP_HOME", &real_production_path);
             std::env::remove_var("SHIP_DISABLE_AUTO_TEST_SHIP_HOME");
         }
         let result = std::panic::catch_unwind(|| ShipHome::from_env());
         assert!(
             result.is_err(),
-            "ShipHome::from_env must panic when a test points SHIP_HOME at the real ~/.ship; \
+            "ShipHome::from_env must panic when a test points SHIP_HOME at a real production path; \
              got root without panic"
         );
     }
 
+    /// A test that disables the auto home AND leaves `SHIP_HOME` unset
+    /// panics — the fail-loud net for a test that forgot to isolate.
     #[test]
     fn from_env_panics_when_test_misses_isolation() {
         let _env_lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -954,7 +1097,10 @@ mod tests {
         if real_home.as_os_str().is_empty() {
             return;
         }
-        let real_ship = real_home.join(SHIP_DIR_NAME);
+        // The would-be production data root under XDG defaults — the
+        // closest analogue to the legacy `~/.ship` the cutover
+        // retired. The auto branch must not land here.
+        let real_xdg_data = real_home.join(".local").join("share").join("ship");
         let _guard = EnvGuard::new(
             std::env::var_os("SHIP_HOME"),
             std::env::var_os("SHIP_DISABLE_AUTO_TEST_SHIP_HOME"),
@@ -968,8 +1114,8 @@ mod tests {
         let h = ShipHome::from_env();
         assert_ne!(
             h.data_dir(),
-            real_ship,
-            "auto branch leaked real ~/.ship"
+            real_xdg_data,
+            "auto branch leaked the operator's XDG data dir"
         );
         assert!(
             h.data_dir().starts_with(std::env::temp_dir())
@@ -985,20 +1131,24 @@ mod tests {
         let h = ShipHome::from_env();
         assert_eq!(h.data_dir(), pinned.join("data"), "explicit SHIP_HOME honored");
         assert_eq!(h.base().as_deref(), Some(pinned.as_path()));
-        assert_ne!(h.data_dir(), real_ship, "tmp pin still equals real ~/.ship?!");
+        assert_ne!(h.data_dir(), real_xdg_data, "tmp pin still equals real XDG data?!");
 
-        // Branch 3: explicit SHIP_HOME pinned at real home → panic.
+        // Branch 3: explicit SHIP_HOME pinned at a real production
+        // path → panic. The path is the operator's XDG state dir;
+        // anything that lives outside `std::env::temp_dir()` (and
+        // outside the per-test `ship-test-global-` slot) trips the
+        // gate.
         unsafe {
-            std::env::set_var("SHIP_HOME", &real_ship);
+            std::env::set_var("SHIP_HOME", &real_xdg_data);
         }
         let panic = std::panic::catch_unwind(|| ShipHome::from_env());
-        assert!(panic.is_err(), "real-home SHIP_HOME must panic in test ctx");
+        assert!(panic.is_err(), "production SHIP_HOME must panic in test ctx");
     }
 
-    /// Tiny RAII helper that restores two env vars on drop. The three
-    /// isolation tests above each mutate the same global env state, so
-    /// they MUST run with this guard in scope to avoid contaminating
-    /// siblings.
+    /// Tiny RAII helper that restores two env vars on drop. The four
+    /// isolation tests above each mutate the same global env state,
+    /// so they MUST run with this guard in scope to avoid
+    /// contaminating siblings.
     struct EnvGuard {
         prev_home: Option<std::ffi::OsString>,
         prev_disable: Option<std::ffi::OsString>,
@@ -1017,7 +1167,7 @@ mod tests {
         fn drop(&mut self) {
             // SAFETY: these vars belong to this test; no other thread
             // mutates them in parallel (each isolation test runs
-            // serially).
+            // serially under ENV_LOCK).
             unsafe {
                 match self.prev_home.take() {
                     Some(v) => std::env::set_var("SHIP_HOME", v),

@@ -41,7 +41,7 @@ pub fn install_collection_projection() {
 /// space is discoverable — collections then return Unimplemented rather than
 /// fabricate a partition (mirrors shipd's space-less mode; no `global` fallback).
 pub async fn mount(router: ConnectRouter) -> anyhow::Result<ConnectRouter> {
-    let ship_dir = ship_substrate::ShipHome::from_env().root().to_path_buf();
+    let ship_dir = ship_substrate::ShipHome::from_env().data_dir().to_path_buf();
 
     // Active space = the `projects` pointer content-id of the discovered
     // project root. Probe from the enclosing workspace (helmd's cwd / the repo

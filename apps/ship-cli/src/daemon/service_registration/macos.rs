@@ -76,7 +76,7 @@ fn user_plist_path() -> Result<PathBuf> {
 }
 
 fn ship_home() -> Result<PathBuf> {
-    Ok(ship_substrate::ShipHome::from_env().root().to_path_buf())
+    Ok(ship_substrate::ShipHome::from_env().data_dir().to_path_buf())
 }
 
 fn render_plist(shipd: &Path, ship_home: &Path, log_dir: &Path) -> String {

@@ -61,7 +61,9 @@ pub struct HelmAgentsHost {
 impl HelmAgentsHost {
     /// Build the host from the substrate's path helpers.
     ///
-    /// * user root  — `~/.ship` (or `$SHIP_HOME`) via [`ShipHome::from_env`].
+    /// * user root  — the XDG `data` root (or `$SHIP_HOME`'s `data/`
+    ///   subdir in dev) via [`ShipHome::from_env`]. The DB-backed
+    ///   agent kernel lives here.
     /// * project    — the enclosing project's `.ship/` discovered from cwd
     ///   (the ship repo when helmd is launched inside it). `None` → user-only.
     ///
@@ -71,9 +73,10 @@ impl HelmAgentsHost {
     /// the dispatch path stays the no-op stubs.
     #[cfg_attr(not(feature = "ship-code"), allow(unused_variables))]
     pub fn new(daemon_origin: String) -> anyhow::Result<Self> {
-        // User scope: resolve `~/.ship` via the substrate home helper — never
+        // User scope: resolve the XDG data root (or SHIP_HOME's
+        // `data/` subdir in dev) via the substrate home helper — never
         // hardcode the literal path.
-        let ship_dir = ShipHome::from_env().root().to_path_buf();
+        let ship_dir = ShipHome::from_env().data_dir().to_path_buf();
 
         // Project scope: the enclosing project's `.ship/` dir (walks ancestors
         // from cwd, follows worktree pointers). `with_roots` wants the project

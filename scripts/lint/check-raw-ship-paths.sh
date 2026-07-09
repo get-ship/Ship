@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # check-raw-ship-paths.sh
 #
-# Flag raw XDG/SHIP path construction outside the canonical accessors
-# in `crates/core/ship-substrate/src/home/` and
-# `crates/core/ship-substrate/crates/ship-paths/src/`. Per ADR
-# `home-layout-and-scope-convention`, `ShipHome` is the only permitted
-# origin of paths under any of the four XDG roots or the legacy
-# `~/.ship/` fallback.
+# Flag raw XDG / `~/.ship` path construction outside the canonical
+# accessor [`ShipHome`](crates/core/ship-substrate/crates/ship-paths/src/ship_home.rs).
+# Per ADR `home-layout-and-scope-convention`, `ShipHome` is the only
+# permitted origin of paths under any of the four XDG roots or the
+# project-scope `.ship/` directory.
+#
+# XDG cutover (2026-07-09): the legacy `home_dir().join(".ship")` branch
+# in `ShipHome::from_env` was retired. The four XDG roots are the only
+# production layout; `~/.ship` only survives as a fossil marker in
+# allowed-list test code (see `EXCLUDE_GLOBS` for the test-only
+# patterns). The lint is the upstream guard that keeps production code
+# from re-introducing the legacy path.
 #
 # Enforcement: exits non-zero on ANY matching file/line outside the
 # allow-list. The script is intentionally NOT warn-only — `data-safety`
@@ -29,9 +35,12 @@ ALLOW_PREFIXES=(
     "crates/core/ship-substrate/crates/ship-paths/src/"
 )
 
-# Patterns we treat as raw-XDG / raw-~/.ship/ path construction.
-# Covers the legacy ~/.ship/ root (no migration — pre-launch) plus the
-# four XDG dirs Ship's layout now uses.
+# Patterns we treat as raw-XDG / raw-`~/.ship` path construction.
+# The XDG cutover retired the `home_dir().join(".ship")` legacy
+# fallback; the four XDG roots (`config` / `data` / `state` / `cache`)
+# plus the runtime slot are the only production layout. `~/.ship` is
+# still flagged as a fossil-defense — no production code path may
+# re-introduce the legacy single-root.
 PATTERNS=(
     'home_dir\(\)\.join\("\.ship'
     '\.join\("\.ship[/"]'
