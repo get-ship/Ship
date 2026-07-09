@@ -24,14 +24,13 @@ mod helmd_main;
 // Bring the proto + handlers into scope via the helmd binary's main module.
 use helmd_main::{proto::HarnessServiceExt, HarnessImpl};
 
-/// Path to the fixture `.ship/` dir checked into the test tree. The fixture
-/// has one agent (test-agent), one skill (example-skill), one mcp server
-/// (test-server), and a rule.
-fn fixture_ship_dir() -> PathBuf {
+/// Path to the fixture space root checked into the test tree. The fixture is
+/// a single `ship.config.ts` declaring one agent (test-agent), one skill
+/// (example-skill), and one mcp server (test-server).
+fn fixture_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("compile_fixture")
-        .join(".ship")
 }
 
 /// Build the ConnectRPC router the helmd binary serves, with the harness
@@ -65,14 +64,16 @@ async fn call_compile(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn compile_emits_claude_files_for_fixture() {
     let app = build_router();
-    let ship_dir = fixture_ship_dir();
-    assert!(ship_dir.exists(), "fixture .ship/ must exist at {ship_dir:?}");
+    let root = fixture_root();
+    let config = root.join("ship.config.ts");
+    assert!(config.exists(), "fixture ship.config.ts must exist at {config:?}");
 
     let (status, body) = call_compile(
         &app,
         serde_json::json!({
-            "repoPath": ship_dir.parent().unwrap().to_string_lossy(),
+            "repoPath": root.to_string_lossy(),
             "harness": "claude",
+            "activeAgent": "test-agent",
             "dryRun": true,
         }),
     )
@@ -159,27 +160,10 @@ async fn compile_dry_run_does_not_write_files() {
     // written under it. Compile with dry_run=true.
     let tmp = tempfile::tempdir().expect("tempdir");
     let repo = tmp.path();
-    let ship_dir = repo.join(".ship");
-    std::fs::create_dir_all(&ship_dir).expect("create .ship");
-    // Mirror the fixture files into the temp repo so the roll-up succeeds.
-    // The .ship/ contents (agents + skills) plus `ship.config.ts` at the
-    // space root — the format-migration Wave 4 phase A surface. The fixture
-    // no longer carries `.ship/mcp.jsonc` / `.ship/rules/01-style.md`
-    // (those moved to `ship.config.ts` declare-forms).
-    let fixture_root = fixture_ship_dir().parent().unwrap().to_path_buf();
-    std::fs::copy(fixture_root.join("ship.config.ts"), repo.join("ship.config.ts"))
+    // Seed the temp space root with the fixture's `ship.config.ts` — the
+    // whole authored surface the roll-up reads.
+    std::fs::copy(fixture_root().join("ship.config.ts"), repo.join("ship.config.ts"))
         .expect("copy ship.config.ts");
-    let fixture_ship = fixture_ship_dir();
-    for entry in std::fs::read_dir(&fixture_ship).expect("read fixture") {
-        let entry = entry.expect("entry");
-        let from = entry.path();
-        let to = ship_dir.join(entry.file_name());
-        if from.is_dir() {
-            copy_dir_recursive(&from, &to).expect("copy dir");
-        } else {
-            std::fs::copy(&from, &to).expect("copy file");
-        }
-    }
 
     let app = build_router();
     let (status, body) = call_compile(
@@ -203,20 +187,4 @@ async fn compile_dry_run_does_not_write_files() {
         !repo.join(".claude/skills/example-skill/SKILL.md").exists(),
         "dry_run=true must not write skill files to disk"
     );
-}
-
-fn copy_dir_recursive(src: &PathBuf, dst: &PathBuf) -> std::io::Result<()> {
-    std::fs::create_dir_all(dst)?;
-    for entry in std::fs::read_dir(src)? {
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        let from = entry.path();
-        let to = dst.join(entry.file_name());
-        if ty.is_dir() {
-            copy_dir_recursive(&from, &to)?;
-        } else {
-            std::fs::copy(&from, &to)?;
-        }
-    }
-    Ok(())
 }
