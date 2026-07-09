@@ -14,17 +14,20 @@ use crate::ShipHome;
 /// subdirs. Layout:
 ///
 /// - `data/library/`
-/// - `data/db/`
 /// - `data/spaces/`
 /// - `state/logs/`
 /// - `state/crashes/`
 /// - `state/daemon/`
 /// - `cache/trash/`
 /// - `runtime/daemon/`
+///
+/// Per XDG slice B, db files (`runtime.db` / `account.db` / `kv.db` /
+/// `spaces/<id>/space.db`) live flat at the data root — no `data/db/`
+/// subdir. The db openers provision their files on first write; this
+/// helper does not manufacture base-shaped subdirs inside data.
 pub fn ensure_layout(home: &ShipHome) -> io::Result<()> {
     // Data root.
     fs::create_dir_all(home.library_dir())?;
-    fs::create_dir_all(home.data_dir().join("db"))?;
     fs::create_dir_all(home.data_dir().join("spaces"))?;
     // State root.
     fs::create_dir_all(home.state_dir().join("logs"))?;
@@ -48,11 +51,12 @@ mod tests {
         let home = ShipHome::for_test(tmp.path());
         ensure_layout(&home).unwrap();
 
-        // Data root: library + db + spaces.
+        // Data root: library + spaces (db files live flat at the data
+        // root, NOT under data/db/ — the openers provision on first
+        // write; the layout helper does not manufacture base-shaped
+        // subdirs inside data).
         assert!(home.library_dir().is_dir());
-        assert!(home.data_dir().join("db").is_dir());
         assert!(home.data_dir().join("spaces").is_dir());
-        // State root: logs + crashes + daemon.
         assert!(home.state_dir().join("logs").is_dir());
         assert!(home.state_dir().join("crashes").is_dir());
         assert!(home.state_dir().join("daemon").is_dir());

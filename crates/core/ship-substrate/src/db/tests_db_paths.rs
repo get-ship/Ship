@@ -49,6 +49,6 @@ fn db_path_constructors_expose_only_the_sanctioned_set() {
     let kv = kv_db_path(data_dir);
     assert_eq!(kv.file_name().and_then(|n| n.to_str()), Some("kv.db"));
     if crate::env::read(crate::env::Var::DevDbDir).is_none() {
-        assert_eq!(kv, Path::new("/home/x/.local/share/ship/db/kv.db"));
+        assert_eq!(kv, Path::new("/home/x/.local/share/ship/kv.db"));
     }
 }

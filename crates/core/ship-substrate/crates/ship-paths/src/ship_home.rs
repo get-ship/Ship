@@ -82,13 +82,10 @@ const LIBRARY_DIR: &str = "library";
 /// without re-deriving the layout.
 const RUNTIME_DAEMON_DIR: &str = "daemon";
 
-/// `data/db/` — flat under `data`, not under any `machine/` legacy dir.
-/// Replaces the old `MACHINE_DB_DIR` (which used to be `machine/db/`).
-pub const DATA_DB_DIR: &str = "db";
-
 const ACCOUNT_TOKEN_FILE: &str = "account.jsonc";
 
-/// Which SQLite database file under `data/db/`.
+/// Which SQLite database file at the data root (flat — same layout as
+/// `runtime.db` / `account.db` / `spaces/<id>/space.db`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Db {
@@ -454,10 +451,11 @@ impl ShipHome {
         self.state.join("device-id")
     }
 
-    /// Resolve a DB file under `data/db/`. Used by the canonical
-    /// DB-path resolver.
+    /// Resolve a machine DB file flat at the data root (same layout as
+    /// `runtime.db` / `account.db` / `spaces/<id>/space.db`). Used by
+    /// the canonical DB-path resolver.
     pub fn data_db_path(&self, db: crate::Db) -> PathBuf {
-        self.data.join(DATA_DB_DIR).join(db.as_str())
+        self.data.join(db.as_str())
     }
 }
 
@@ -727,8 +725,8 @@ mod tests {
 
     /// `state/device-id` (per-install identity), `state/daemon/account.jsonc`
     /// (daemon-owned cloud token), per-worktree daemons under
-    /// `state/daemons/<hash>/`, and `data/db/kv.db` — the layout the
-    /// spec root mapping pins.
+    /// `state/daemons/<hash>/`, and the machine db at the data root
+    /// (`data/kv.db`) — the layout the spec root mapping pins.
     #[test]
     fn device_id_account_token_and_worktree_paths() {
         let tmp = tempdir().unwrap();
@@ -744,7 +742,7 @@ mod tests {
         );
         assert_eq!(
             h.data_db_path(Db::Kv),
-            tmp.path().join(".ship/data/db/kv.db")
+            tmp.path().join(".ship/data/kv.db")
         );
     }
 
@@ -759,11 +757,12 @@ mod tests {
         let tmp = tempdir().unwrap();
         let h = ShipHome::for_test(tmp.path());
         // kv.db is the sanctioned machine db (Phase-3, separated from
-        // the event log).
+        // the event log). Sits flat at the data root alongside the
+        // per-scope event-log stores (slice B).
         assert_eq!(
             h.data_db_path(Db::Kv),
-            tmp.path().join(".ship/data/db/kv.db"),
-            "kv.db must live under data/db/"
+            tmp.path().join(".ship/data/kv.db"),
+            "kv.db must live flat at the data root"
         );
     }
 

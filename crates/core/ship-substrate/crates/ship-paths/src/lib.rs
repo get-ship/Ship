@@ -16,4 +16,4 @@ mod daemon_file;
 mod ship_home;
 
 pub use daemon_file::DaemonFile;
-pub use ship_home::{Db, DATA_DB_DIR, ShipHome, from_xdg};
+pub use ship_home::{Db, ShipHome, from_xdg};

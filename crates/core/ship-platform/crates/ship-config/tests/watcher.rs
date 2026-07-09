@@ -243,7 +243,6 @@ async fn ship_ts_edit_authors_exactly_one_config_file_changed() {
     let mut rx = kernel.subscribe();
     let _watcher = ship_config::watcher::spawn_config_watcher(
         kernel.clone(),
-        ship_dir.clone(),
         Some(workspace_dir.clone()),
     )
     .unwrap();
@@ -300,7 +299,6 @@ async fn skill_paths_extra_dir_edit_authors_config_file_changed() {
     let mut rx = kernel.subscribe();
     let _watcher = ship_config::watcher::spawn_config_watcher(
         kernel.clone(),
-        ship_dir.clone(),
         Some(workspace_dir.clone()),
     )
     .unwrap();

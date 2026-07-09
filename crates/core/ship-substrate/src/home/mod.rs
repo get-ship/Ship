@@ -20,7 +20,7 @@ pub use project::ProjectRoot;
 // compiler-free `ship-paths` leaf; re-exported so `ship_substrate::ShipHome`,
 // `ship_substrate::home::ShipHome`, and internal `crate::ShipHome` consumers
 // keep resolving unchanged.
-pub use ship_paths::{Db, DATA_DB_DIR, ShipHome};
+pub use ship_paths::{Db, ShipHome};
 pub use device_id::read_or_generate_device_id;
 // Per modular-runtime-01, `Scope` and `Vector` live in `ship_types`. The
 // home/{scope,vector}.rs shim files have been deleted; callers should

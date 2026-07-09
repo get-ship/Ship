@@ -121,7 +121,7 @@ pub async fn install_session_subsystems(
     // `~/.ship/machine/device-id` (mode 0600). Propagating IO errors so a
     // mint failure blocks boot — mirrors `read_or_generate_token`'s posture
     // (the device id is a per-machine secret, not per-daemon).
-    let home = ShipHome::at(rt.ship_dir().to_path_buf());
+    let home = ShipHome::from_env();
     let device_id = read_or_generate_device_id(&home)
         .map_err(|e| anyhow::anyhow!("mint device id at {}: {e}", home.device_id_path().display()))?;
     set_local_device_id(device_id);

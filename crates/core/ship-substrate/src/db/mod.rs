@@ -75,7 +75,7 @@ pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
 }
 
 /// The one canonical DB-path resolver. Every path-returning helper in this
-/// module routes through here; nothing computes a `db/...` path
+/// module routes through here; nothing computes a db path
 /// independently. The resolution rule lives in exactly this function:
 ///
 /// - `ship_dir` is a *data* root (e.g. `$XDG_DATA_HOME/ship` in production,
@@ -85,16 +85,18 @@ pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
 /// - if `Var::DevDbDir` is set (workflow-set, never production) the
 ///   stores live at `<that dir>/<name>` — the dev workflow's isolated
 ///   scratch DB for a worktree iterating on migration code;
-/// - otherwise the canonical `<ship_dir>/db/<name>`, where `<ship_dir>`
-///   is the data root — so an unset override yields today's behaviour
-///   for every customer.
+/// - otherwise the canonical `<ship_dir>/<name>`, flat under the data
+///   root — same layout as `runtime.db` / `account.db` /
+///   `spaces/<id>/space.db` so every creator agrees on one location per
+///   file (XDG slice B). The historic `data/db/` subdir is dead; the
+///   kv.db file sits at the data root alongside the other stores.
 ///
 /// `Var::DevDbDir` is read here and nowhere else.
 pub(crate) fn resolve_db_path(ship_dir: &Path, db: crate::Db) -> PathBuf {
     if let Some(dir) = crate::env::read(crate::env::Var::DevDbDir) {
         return PathBuf::from(dir).join(db.as_str());
     }
-    ship_dir.join(crate::home::DATA_DB_DIR).join(db.as_str())
+    ship_dir.join(db.as_str())
 }
 /// Resolve the KV database path under a given ship-home root.
 /// Thin typed wrapper over [`resolve_db_path`].

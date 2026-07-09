@@ -14,8 +14,11 @@
 //! flaky).
 //!
 //! The spawner ([`spawn_config_watcher`]) and its RAII handle ([`ConfigWatcher`])
-//! live in this module too: they open the three declarative `.ship/<domain>/`
-//! watches (agents, skills, views) for both user-scope and project-scope,
+//! live in this module too: they open the remaining declarative `<domain>/`
+//! watches (`views` post Wave 5; the others moved into `ship.config.ts`
+//! declare-forms) for both user-scope (the XDG `data/library/<domain>/` per
+//! the home-layout ADR) and project-scope (under
+//! `<workspace>/.ship/<domain>/`),
 //! drive the `author_*` helpers above from each domain's delta stream, and
 //! tear the whole thing down on drop. (Post format-migration Wave 4
 //! phase A: `pipelines`, `rules`, and `collections` are gone — those
@@ -175,12 +178,11 @@ const DOMAINS: &[DomainCfg] = &[
 /// and (when present) project-scope.
 pub fn spawn_config_watcher(
     kernel: Arc<KernelLog>,
-    ship_dir: PathBuf,
     workspace_dir: Option<PathBuf>,
 ) -> Result<ConfigWatcher> {
     use crate::settings::resolve_watcher_debounce;
 
-    let library_dir = ShipHome::at(ship_dir).library_dir();
+    let library_dir = ShipHome::from_env().library_dir();
 
     // The space-id for the project-scope watcher is the CONTENT-ID from the
     // `projects` pointer (never a path-hash or tree file), so

@@ -106,9 +106,10 @@ impl ShipRuntime {
          ship_platform::install_defaults();
          ship_pipeline_runtime::install_projections();
  
-         let dir = global_dir.clone();
+         let home = ship_substrate::ShipHome::from_env();
+         let dir = home.data_dir().to_path_buf();
          let kernel = tokio::task::spawn_blocking(move || {
-             ship_substrate::home::ensure_layout(&ship_substrate::ShipHome::at(dir.clone()))
+             ship_substrate::home::ensure_layout(&home)
                  .context("ensure ship home layout")?;
              // data.db is gone (S5.3): the active data plane (collections,
              // _schema_registry) lives per-scope in space.db via

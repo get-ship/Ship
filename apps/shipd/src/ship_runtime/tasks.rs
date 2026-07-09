@@ -220,7 +220,6 @@ impl ShipRuntime {
         let kernel_log = std::sync::Arc::new(ship_substrate::ports::KernelLog::new(self.kernel.clone()));
         match ship_platform::config::spawn_config_watcher(
             kernel_log,
-            self.ship_dir.clone(),
             self.workspace_dir.clone(),
         ) {
             Ok(w) => {
