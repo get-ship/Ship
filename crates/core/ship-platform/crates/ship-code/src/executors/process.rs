@@ -1016,8 +1016,8 @@ impl SessionExecutor for ProcessExecutor {
         // Harnesses without a hook config (opencode is plugins-only; the
         // plugin bridge isn't wired) need hook.* synthesis from their
         // structured output stream. Today: opencode only. Others
-        // (claude/codex/cursor) fire hook.* via their own hook config
-        // — synthesizing here would double-count.
+        // fire hook.* via their own hook config — synthesizing here
+        // would double-count.
         let synth_hooks_from_stream = harness_for_session == "opencode";
         let synth_actor_id = ctx.slug.clone();
         let synth_harness = harness_for_session.clone();
@@ -1345,24 +1345,6 @@ mod tests {
         let cmd = build_headless_with_default_prompt(adapter, "slug-x", &profile).unwrap();
         let idx = cmd.args.iter().position(|a| a == "--resume").expect("--resume flag");
         assert_eq!(cmd.args[idx + 1], "sess-resume-1");
-    }
-
-    #[test]
-    fn dispatch_surfaces_resume_unsupported_error() {
-        // Cursor has no resume — the adapter returns Err and the executor
-        // bubbles that up rather than silently falling back to a fresh
-        // launch.
-        let profile = LaunchProfile {
-            harness: Some("cursor".to_string()),
-            resume_session: Some("anything".to_string()),
-            persist_session: true,
-            ..Default::default()
-        };
-        let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let err = build_headless_with_default_prompt(adapter, "s", &profile)
-            .expect_err("cursor resume must fail");
-        let msg = err.to_string();
-        assert!(msg.contains("does not support session resume"), "got: {msg}");
     }
 
     // PTY mechanics are tested at the source — `process_supervisor::tests`

@@ -234,3 +234,75 @@ pub trait HarnessAdapter: Send + Sync {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Stub adapter that does NOT override `build_resume_args`. Lets the
+    /// trait's default implementation exercise its real body so we know
+    /// the contract ("returns `ResumeError::Unsupported`") lives at the
+    /// trait leaf and can't drift with the executor registry.
+    struct StubAdapter;
+
+    #[async_trait]
+    impl HarnessAdapter for StubAdapter {
+        fn id(&self) -> &str {
+            "stub"
+        }
+        fn caps(&self) -> HarnessCapabilities {
+            HarnessCapabilities::MINIMAL
+        }
+        fn build_interactive(
+            &self,
+            _slug: &str,
+            _profile: &LaunchProfile,
+        ) -> LaunchCommand {
+            LaunchCommand {
+                bin: String::new(),
+                args: Vec::new(),
+                env: std::collections::HashMap::new(),
+            }
+        }
+        fn build_headless(
+            &self,
+            _slug: &str,
+            _profile: &LaunchProfile,
+        ) -> LaunchCommand {
+            LaunchCommand {
+                bin: String::new(),
+                args: Vec::new(),
+                env: std::collections::HashMap::new(),
+            }
+        }
+        fn ready_pattern(&self) -> &str {
+            ""
+        }
+        fn autostart_input(&self) -> &str {
+            ""
+        }
+        fn exit_command(&self) -> &str {
+            ""
+        }
+    }
+
+    #[test]
+    fn build_resume_args_default_returns_unsupported() {
+        let adapter = StubAdapter;
+        let profile = LaunchProfile::default();
+        let err = adapter
+            .build_resume_args("slug", "sess-1", &profile)
+            .expect_err("default must reject resume with Unsupported");
+        assert_eq!(
+            err,
+            ResumeError::Unsupported {
+                harness: "stub".to_string(),
+            },
+            "default must surface Unsupported keyed to the adapter's id",
+        );
+        assert!(
+            err.to_string().contains("does not support session resume"),
+            "got: {err}",
+        );
+    }
+}
