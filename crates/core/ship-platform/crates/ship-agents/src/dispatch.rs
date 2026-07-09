@@ -232,6 +232,13 @@ async fn dispatch_agent_session_internal(
         step: None,
         invocation,
         keepalive: payload.keepalive,
+        // Per-call fork source. `None` falls back to the daemon's
+        // default repo / that repo's HEAD — the same fallback the
+        // floki path always took. Consumed in-call by
+        // `GitWorktreeIsolation::prepare`; never persisted; never
+        // exported to env.
+        repo_path: payload.repo_path.as_ref().map(std::path::PathBuf::from),
+        base_ref: payload.base_ref.clone(),
     };
 
     let worktree_path = match ports.isolation.prepare(&session_ctx).await {

@@ -102,6 +102,9 @@ pub async fn dispatch_fanout_step(
             ),
             // Fanout lanes are pipeline steps, never long-running.
             keepalive: false,
+            // Pipeline path does not yet carry `repo_path` / `base_ref`.
+            repo_path: None,
+            base_ref: None,
         };
 
         let lane_wt = match octx.isolation.prepare(&lane_ctx).await {

@@ -47,6 +47,10 @@ fn fresh_ctx(harness: Option<&str>) -> SessionContext {
         step: None,
         invocation: crate::dispatch_ports::InvocationMode::Print,
         keepalive: false,
+        // Test fixture — no per-call fork source; the worktree
+        // adapter defaults apply.
+        repo_path: None,
+        base_ref: None,
     }
 }
 

@@ -47,19 +47,6 @@ pub trait AgentDispatchPort: Send + Sync {
     #[cfg(feature = "harness-drivers")]
     fn worktrees_dir(&self) -> Option<std::path::PathBuf>;
 
-    /// Per-project workspace isolation guard. Returns a violation message when
-    /// an MCP session bound to project A claims to act on project B; `None`
-    /// when the caller is trusted or the workspace is consistent.
-    ///
-    /// This is an auth-context concern that the dispatch port exposes so the
-    /// ConnectRPC dispatch handler can enforce it without importing shipd's
-    /// `AuthContext` type directly. The REST handler enforces it before calling
-    /// `dispatch_agent_session_core`.
-    fn check_workspace_violation(
-        &self,
-        ctx: &RequestContext,
-        claimed_workspace: Option<&str>,
-    ) -> Option<String>;
 }
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -105,7 +92,13 @@ pub async fn dispatch_agent_session_core(
         return Err(DispatchCoreError::BadRequest(message));
     }
 
-    let workspace_label = req.workspace.clone().unwrap_or_else(|| req.agent.clone());
+    // The slug-fallback label — the dispatch core derives
+    // `<agent>-<ulid>` when the caller omits an explicit slug. The
+    // field-10 `workspace` slug label is dead and was removed from
+    // the wire; the resume resolver's `workspace` argument is a
+    // legacy string key, not a real space id (the comment on
+    // resolve_resume says so), so it gets the empty default.
+    let slug_label = req.agent.clone();
 
     // Resume is harness-only (the resume target is always a prior coding-agent
     // session — a floki session has nothing to resume). The sligntly-
@@ -129,7 +122,11 @@ pub async fn dispatch_agent_session_core(
         })?;
         match resolve_resume(
             &req.agent,
-            &workspace_label,
+            // Empty `workspace` key — the legacy field-10 slug label is
+            // dead; resume matches by `agent` only. The string stays a
+            // label so the projection can still key on it for back-compat
+            // with any pre-cutover session rows.
+            "",
             req.harness.as_deref(),
             &worktrees_root,
         ) {
@@ -160,8 +157,8 @@ pub async fn dispatch_agent_session_core(
         .unwrap_or_else(|| {
             // Collision-free suffix from the ULID's random tail — a
             // `[..8]` prefix is pure timestamp and collides for rapid
-            // same-workspace dispatches. See gen_slug_suffix.
-            format!("{}-{}", workspace_label, ship_substrate::gen_slug_suffix())
+            // same-agent dispatches. See gen_slug_suffix.
+            format!("{}-{}", slug_label, ship_substrate::gen_slug_suffix())
         });
     let branch = req
         .branch
@@ -176,8 +173,8 @@ pub async fn dispatch_agent_session_core(
 
     // Build the dispatch intent payload. This is the hard-failing spawn
     // trigger that drives the `service.agents` actor. It carries all
-    // driver-edge fields (branch, source_spec_path, baseline_sha) that
-    // MUST NOT appear in canonical session.* payloads.
+    // driver-edge fields (branch, repo_path, base_ref, source_spec_path,
+    // baseline_sha) that MUST NOT appear in canonical session.* payloads.
     //
     // Pipeline composition (multi-step) uses pipeline_run.rs which emits
     // PIPELINE_RUN_STARTED + sets parent_pipeline_run_id on each step's
@@ -189,8 +186,13 @@ pub async fn dispatch_agent_session_core(
         agent_id: req.agent.clone(),
         harness: req.harness.or(resume_harness),
         model: req.model,
-        workspace: workspace_label.clone(),
         branch: branch.clone(),
+        // Per-call fork source: the wire's `repo_path` field 16 (empty
+        // = daemon default) and `base_ref` field 17 (empty = that
+        // repo's HEAD). Consumed in-call by `GitWorktreeIsolation::prepare`
+        // — never persisted, never exported to env.
+        repo_path: opt_nonempty(req.repo_path.as_deref()),
+        base_ref: opt_nonempty(req.base_ref.as_deref()),
         source_spec_path: req.source_spec_path,
         // Ship-standard is git-free by ruling (decisions-2026-07-09 §"Git
         // surface"). The floki dispatch closure ignores `baseline_sha`;
@@ -291,6 +293,14 @@ fn resolve_project_head_sha() -> Option<String> {
     ship_git::read::resolve_head_sha(project_root)
 }
 
+/// Normalize a per-call string option: `Some("")` collapses to `None` so
+/// the wire's "empty = default" convention survives the JSON round-trip
+/// without a sentinel value. Used for `repo_path` / `base_ref` on the
+/// dispatch payload.
+fn opt_nonempty(s: Option<&str>) -> Option<String> {
+    s.filter(|s| !s.is_empty()).map(str::to_string)
+}
+
 #[cfg(test)]
 mod tests {
     //! Validation-gate tests for `dispatch_agent_session_core`. The point of
@@ -312,7 +322,6 @@ mod tests {
     struct CountingPort {
         persist_calls: AtomicUsize,
     }
-
     #[async_trait]
     impl AgentDispatchPort for CountingPort {
         async fn persist_and_route(&self, _envelope: &EventEnvelope) -> anyhow::Result<()> {
@@ -325,13 +334,6 @@ mod tests {
         #[cfg(feature = "harness-drivers")]
         fn worktrees_dir(&self) -> Option<std::path::PathBuf> {
             Some(std::path::PathBuf::from("/tmp"))
-        }
-        fn check_workspace_violation(
-            &self,
-            _ctx: &RequestContext,
-            _claimed_workspace: Option<&str>,
-        ) -> Option<String> {
-            None
         }
     }
     fn req_with(
@@ -350,12 +352,13 @@ mod tests {
             open_tab: true,
             invocation: default_invocation(),
             keepalive: true,
-            workspace: None,
             slug: slug.map(str::to_string),
             branch: None,
             source_spec_path: None,
             depends_on: None,
             vars: None,
+            repo_path: None,
+            base_ref: None,
         }
     }
 

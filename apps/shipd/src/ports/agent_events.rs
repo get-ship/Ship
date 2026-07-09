@@ -97,15 +97,6 @@ impl AgentDispatchPort for AgentDispatchAdapter {
     fn worktrees_dir(&self) -> Option<std::path::PathBuf> {
         Some(crate::ports::local_paths::worktrees_dir())
     }
-
-    fn check_workspace_violation(
-        &self,
-        ctx: &RequestContext,
-        claimed_workspace: Option<&str>,
-    ) -> Option<String> {
-        let auth = ctx.extensions.get::<AuthContext>()?;
-        crate::auth::identity::mcp_workspace_violation(auth, claimed_workspace)
-    }
 }
 
 // ── FeedbackAuthPort ──────────────────────────────────────────────────────────

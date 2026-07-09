@@ -37,6 +37,9 @@ fn ctx_with_mission_scratch(value: &str) -> SessionContext {
         step: None,
         invocation: InvocationMode::Print,
         keepalive: false,
+        // Test fixture — no per-call fork source.
+        repo_path: None,
+        base_ref: None,
     }
 }
 

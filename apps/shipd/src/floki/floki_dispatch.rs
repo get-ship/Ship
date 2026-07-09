@@ -136,7 +136,11 @@ pub async fn dispatch_floki_session(
     let tool_ctx = ToolCtx {
         session_sink,
         session_id: payload.session_id.clone(),
-        space_id: payload.workspace.clone(),
+        // space_id: the cosmetic workspace label is not a real space id —
+        // the floki path always left this empty (the field-10 `workspace`
+        // slug label was never a space id; see `dispatch_intent` and the
+        // `SessionStarted.space_id` rule).
+        space_id: String::new(),
         approver: Arc::new(HeadlessApprover),
         steer: Steer::new(),
         cancel: Cancel::new(),
@@ -144,7 +148,6 @@ pub async fn dispatch_floki_session(
     };
     let executor = Arc::new(ScriptExecutor::spawn());
     let gw: Arc<dyn floki::Gateway> = gateway;
-
     // ── Journal store: the PERSISTED store (P1.0b) so a suspended floki
     // session survives a daemon restart. (Verifier+fresh-eyes caught the
     // committed Stage-2 constructing InMemoryJournalStore per call — no

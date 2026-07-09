@@ -225,15 +225,6 @@ impl AgentDispatchPort for NoopDispatch {
     fn worktrees_dir(&self) -> Option<PathBuf> {
         None
     }
-
-    fn check_workspace_violation(
-        &self,
-        _ctx: &RequestContext,
-        _claimed_workspace: Option<&str>,
-    ) -> Option<String> {
-        None
-    }
-
 }
 /// Feedback auth port — helmd serves no feedback emit.
 struct NoopFeedbackAuth;

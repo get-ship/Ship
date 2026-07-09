@@ -697,27 +697,14 @@ impl AgentsServiceTrait for AgentsWire {
         use agent_def::InvocationMode;
         (self.gate)(&ctx, "agents.dispatch")?;
 
-        // Per-project workspace isolation: MCP session bound to project A cannot
-        // dispatch into project B. Trusted (CLI/SDK) callers pass through.
-        let claimed_workspace = if request.workspace.is_empty() {
-            None
-        } else {
-            Some(request.workspace)
-        };
-        if let Some(msg) = self
-            .dispatch_port
-            .check_workspace_violation(&ctx, claimed_workspace)
-        {
-            return Err(ConnectError::permission_denied(msg));
-        }
 
-        // Agent-in-index check (c-2026-07-05T12-33-00-000Z-a1b2c3d4): a
-        // dispatch that names an agent the daemon has never heard of is
-        // guaranteed to fail downstream — the harness launch will hang on
-        // a missing config and the operator will see a session boot into
-        // a blank terminal. Reject HERE, before persist_and_route emits
-        // the dispatch.requested event and the actor does the spawn
-        // atom. Cheap and final.
+        // Per-project workspace isolation was a per-MCP-session check
+        // that died with the field-10 `workspace` slug label (census:
+        // unreachable from any current RPC once `DispatchAgentRequest`
+        // stopped carrying it). The dispatch port's `check_workspace_violation`
+        // surface was removed in the same cutover; the `AuthContext.workspace_id`
+        // field itself stays — separate ruling pending.
+
         //
         // When the daemon wires the in-memory AgentDefIndex (shipd's normal
         // posture), consult the index FIRST (the canonical, live read
@@ -774,12 +761,17 @@ impl AgentsServiceTrait for AgentsWire {
             open_tab: request.open_tab.unwrap_or(true),
             invocation,
             keepalive: request.keepalive.unwrap_or(true),
-            workspace: claimed_workspace.map(str::to_string),
             slug: opt_str(request.slug),
             branch: opt_str(request.branch),
             source_spec_path: opt_str(request.source_spec_path),
             depends_on,
             vars,
+            // Per-call fork source. Empty strings are the wire's
+            // "default" sentinel; the dispatch core collapses them to
+            // `None` so `GitWorktreeIsolation::prepare` falls back to
+            // the daemon default repo / that repo's HEAD.
+            repo_path: opt_str(request.repo_path),
+            base_ref: opt_str(request.base_ref),
         };
 
         let outcome = dispatch_agent_session_core(self.dispatch_port.as_ref(), dreq)

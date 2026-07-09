@@ -343,6 +343,9 @@ pub(crate) async fn dispatch_step(
                     ),
                     // Pipeline steps are always per-turn, never keepalive.
                     keepalive: false,
+                    // Pipeline path does not yet carry `repo_path` / `base_ref`.
+                    repo_path: None,
+                    base_ref: None,
                 };
                 match octx.executor.spawn(&session_ctx).await {
                     Ok(handle) => {

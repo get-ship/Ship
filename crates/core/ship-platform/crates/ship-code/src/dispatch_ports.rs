@@ -64,6 +64,18 @@ pub struct SessionContext {
     pub step: Option<StepInfo>,
     pub invocation: InvocationMode,
     pub keepalive: bool,
+    /// Absolute path to the repo working tree the job's worktree forks
+    /// from. Per-call; meaningful to the coding-agent execution class
+    /// only — floki sessions ignore it. `None` falls back to the
+    /// daemon's default repo (the same value `repo_dir()` resolves
+    /// to). Not persisted; not exported to env; consumed in-call by
+    /// `GitWorktreeIsolation::prepare` and then dropped.
+    pub repo_path: Option<PathBuf>,
+    /// Ref the job's worktree branches from. Per-call; same lifetime
+    /// rules as `repo_path` (consumed in-call, not persisted). Empty
+    /// `None` falls back to the repo's HEAD — matches the
+    /// `git worktree add -b <branch> <path>` default (no base).
+    pub base_ref: Option<String>,
 }
 
 /// Handle returned by a `SessionExecutor` after spawning an agent.

@@ -28,7 +28,16 @@
 # Env:
 #   HELMD_URL         helmd base URL (default: http://${HELMD_ADDR:-127.0.0.1:2469})
 #   HELMD_ADDR        host:port shorthand when HELMD_URL is unset
-#   SHIP_WORKSPACE    optional workspace id forwarded to helmd
+#
+# Per-call fork source (NEW — the legacy SHIP_WORKSPACE env is gone, the
+# field-10 `workspace` slug label died with the cutover):
+#   --repo <path>     absolute path to the repo working tree the worktree
+#                    forks from. Maps to the wire's `repoPath` (field 16).
+#                    Empty = helmd's `repo_dir()` is the fallback.
+#   --base-ref <ref>  ref the new branch starts from. Maps to the wire's
+#                    `baseRef` (field 17). Empty / omitted = that repo's
+#                    HEAD — matches `git worktree add -b <branch> <path>`
+#                    with no base.
 set -euo pipefail
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
@@ -46,7 +55,8 @@ AGENT=""
 SPEC_FILE=""
 HARNESS="${SHIP_PROVIDER_CLI:-}"
 MODEL="${SHIP_AGENT_MODEL:-}"
-WORKSPACE="${SHIP_WORKSPACE:-}"
+REPO_PATH=""
+BASE_REF=""
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 # Preserve the historical CLI. Flags that only mattered to the old in-script
@@ -58,6 +68,8 @@ while [[ $# -gt 0 ]]; do
     --agent)    AGENT="$2"; shift 2 ;;
     --spec)     SPEC_FILE="$2"; shift 2 ;;
     --base)     BASE_BRANCH="$2"; shift 2 ;;
+    --repo)     REPO_PATH="$2"; shift 2 ;;
+    --base-ref) BASE_REF="$2"; shift 2 ;;
     --dir)      WORKTREE_BASE="$2"; shift 2 ;;
     --model)    MODEL="$2"; shift 2 ;;
     --harness)  HARNESS="$2"; shift 2 ;;
@@ -73,7 +85,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$SLUG" || -z "$AGENT" || -z "$SPEC_FILE" ]]; then
-  echo "Usage: dispatch-portable.sh --slug <name> --agent <agent> --spec <file> [--harness <cli>] [--model <id>] [--base <branch>] [--dir <path>] [--dry-run]" >&2
+  echo "Usage: dispatch-portable.sh --slug <name> --agent <agent> --spec <file> [--harness <cli>] [--model <id>] [--base <branch>] [--repo <path>] [--base-ref <ref>] [--dir <path>] [--dry-run]" >&2
   exit 1
 fi
 if [[ ! -f "$SPEC_FILE" ]]; then
@@ -132,21 +144,24 @@ LIST_ENDPOINT="${HELMD_URL%/}/ship.ops.v1.AgentsService/List"
 if command -v jq >/dev/null 2>&1; then
   BODY="$(jq -n \
     --arg agent "$AGENT" --arg harness "$HARNESS" --arg model "$MODEL" \
-    --arg srcpath "$SPEC_FILE" --arg slug "$SLUG" --arg workspace "$WORKSPACE" \
+    --arg srcpath "$SPEC_FILE" --arg slug "$SLUG" \
+    --arg repoPath "$REPO_PATH" --arg baseRef "$BASE_REF" \
     --rawfile body "$SPEC_FILE" \
     '{agent:$agent, harness:$harness, model:$model, spec:$body,
-      sourceSpecPath:$srcpath, slug:$slug, branch:"", workspace:$workspace,
+      sourceSpecPath:$srcpath, slug:$slug, branch:"",
+      repoPath:$repoPath, baseRef:$baseRef,
       invocation:"pty", keepalive:false, prompt:$body}')"
 else
   # No jq: build the JSON with python3 (safe escaping of the spec body).
-  BODY="$(python3 - "$AGENT" "$HARNESS" "$MODEL" "$SPEC_FILE" "$SLUG" "$WORKSPACE" <<'PY'
+  BODY="$(python3 - "$AGENT" "$HARNESS" "$MODEL" "$SPEC_FILE" "$SLUG" "$REPO_PATH" "$BASE_REF" <<'PY'
 import json, sys
-agent, harness, model, spec_file, slug, workspace = sys.argv[1:7]
+agent, harness, model, spec_file, slug, repo_path, base_ref = sys.argv[1:8]
 body = open(spec_file, encoding="utf-8").read()
 print(json.dumps({
     "agent": agent, "harness": harness, "model": model,
     "spec": body, "sourceSpecPath": spec_file, "slug": slug,
-    "branch": "", "workspace": workspace,
+    "branch": "",
+    "repoPath": repo_path, "baseRef": base_ref,
     "invocation": "pty", "keepalive": False, "prompt": body,
 }))
 PY

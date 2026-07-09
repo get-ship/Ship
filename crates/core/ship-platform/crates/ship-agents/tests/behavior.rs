@@ -238,8 +238,10 @@ fn started_payload(
         agent_id: "rust-lane".into(),
         harness: harness.map(str::to_string),
         model: model.map(str::to_string),
-        workspace: slug.into(),
         branch: format!("job/{slug}"),
+        // Test fixture — no per-call fork source.
+        repo_path: None,
+        base_ref: None,
         source_spec_path: None,
         baseline_sha: None,
         open_tab: false,

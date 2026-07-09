@@ -23,8 +23,8 @@ pub struct DispatchRequest {
     #[serde(default)]
     pub prompt: Option<String>,
 
-    /// Continue the last session for this (agent, workspace) pair. Errors
-    /// with 400 when no matching session exists.
+    /// Continue the last session for this agent. Errors with 400 when no
+    /// matching session exists.
     #[serde(default)]
     pub resume: bool,
 
@@ -67,11 +67,7 @@ pub struct DispatchRequest {
     #[serde(default = "default_keepalive")]
     pub keepalive: bool,
 
-    /// Workspace label (used for slug generation). Power-user override.
-    #[serde(default)]
-    pub workspace: Option<String>,
-
-    /// Explicit slug. When `None`, derived from `workspace` + a ULID suffix.
+    /// Explicit slug. When `None`, derived from `agent` + a ULID suffix.
     #[serde(default)]
     pub slug: Option<String>,
 
@@ -91,6 +87,22 @@ pub struct DispatchRequest {
     /// dispatch via the pipeline-run endpoint.
     #[serde(default)]
     pub vars: Option<std::collections::HashMap<String, String>>,
+
+    /// Absolute path to the repo working tree the job's worktree forks
+    /// from. Per-call; meaningful to the coding-agent execution class
+    /// only. Replaces the field-10 `workspace` slug label (a dead
+    /// concept that confused "workspace" with "repo" and "project"
+    /// alike). `None` falls back to the daemon's default repo.
+    /// Mirrors the wire's `repo_path` (field 16).
+    #[serde(default)]
+    pub repo_path: Option<String>,
+
+    /// Ref the job's worktree branches from. Per-call; same lifetime
+    /// rules as `repo_path`. `None` / empty falls back to the repo's
+    /// HEAD — matches `git worktree add -b <branch> <path>` with no
+    /// base. Mirrors the wire's `base_ref` (field 17).
+    #[serde(default)]
+    pub base_ref: Option<String>,
 }
 
 pub fn default_open_tab() -> bool {
@@ -162,7 +174,7 @@ pub fn billing_warning_for_axes(
 /// Slug shape: `[a-z][a-z0-9-]*` — must start with a lowercase ASCII letter,
 /// followed by zero or more lowercase ASCII letters / digits / dashes.
 /// Bare `job` (no slash) is NOT covered here; the dispatch core derives a
-/// `<workspace>-<ulid>` slug when the caller passes `None`, so this rule
+/// `<agent>-<ulid>` slug when the caller passes `None`, so this rule
 /// only fires against an explicit, caller-supplied slug.
 pub fn is_valid_slug(s: &str) -> bool {
     let mut chars = s.chars();
@@ -237,12 +249,13 @@ mod tests {
             open_tab: true,
             invocation: agent_def::InvocationMode::Pty,
             keepalive: true,
-            workspace: None,
             slug: slug.map(str::to_string),
             branch: None,
             source_spec_path: None,
             depends_on: None,
             vars: None,
+            repo_path: None,
+            base_ref: None,
         }
     }
 

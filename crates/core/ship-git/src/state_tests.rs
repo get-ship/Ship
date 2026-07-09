@@ -1429,3 +1429,170 @@ fn remove_worktree_rejects_empty_path() {
         .expect_err("empty worktree_path must be rejected");
     assert!(err.to_string().contains("required"));
 }
+
+// ── find_repos (per-call repo discovery, the ListRepos RPC leaf) ─────────
+//
+// The walker's contract: one RepoFacts per discovered repository, sorted by
+// absolute path, with `.git` internals + `node_modules` + `target` skipped.
+// Each test builds a tempdir tree, calls `find_repos` once, and asserts the
+// shape the `helmd::GitService.ListRepos` handler will translate to the wire.
+// The same patterns the new `ListWorktrees` tests use (state_tests.rs) — temp
+// git repos via git2, then a single `find_repos` call against a hand-built
+// layout — apply here.
+
+/// Build a tempdir holding a `git init` repo at `rel` (a path RELATIVE to
+/// the tempdir root, may include `/` for nested layout). Returns the
+/// absolute path to the new repo. The tempdir is leaked (the test's TempDir
+/// is the caller-owned keeper); `find_repos` does not depend on it.
+fn init_repo_at(tmp: &Path, rel: &str) -> PathBuf {
+    let abs = tmp.join(rel);
+    fs::create_dir_all(&abs).unwrap();
+    Repository::init(&abs).unwrap();
+    let repo = Repository::open(&abs).unwrap();
+    let mut config = repo.config().unwrap();
+    config.set_str("user.name", "Tester").unwrap();
+    config.set_str("user.email", "t@example.com").unwrap();
+    abs
+}
+
+/// Normalize a path: drop any trailing separator (`Repository::open` may or
+/// may not emit one depending on git's init.defaultBranch + the OS's path
+/// canonicalization). The leaf reports the canonicalized workdir; the test
+/// compares via the same form so platform quirks don't flake the assertion.
+fn norm(p: &Path) -> String {
+    let s = p.canonicalize().unwrap().to_string_lossy().into_owned();
+    s.trim_end_matches('/').to_string()
+}
+
+#[test]
+fn find_repos_on_non_existent_root_returns_empty() {
+    let tmp = tempdir().unwrap();
+    let bogus = tmp.path().join("definitely-not-here");
+    let repos = read::find_repos(&bogus);
+    assert!(repos.is_empty(), "non-existent root must yield no repos");
+}
+
+#[test]
+fn find_repos_on_empty_directory_returns_empty() {
+    let tmp = tempdir().unwrap();
+    let repos = read::find_repos(tmp.path());
+    assert!(repos.is_empty(), "empty dir must yield no repos");
+}
+
+#[test]
+fn find_repos_discovers_top_level_repo() {
+    let tmp = tempdir().unwrap();
+    let root = tmp.path().to_path_buf();
+    let repo_path = init_repo_at(&root, "outer");
+
+    let repos = read::find_repos(&root);
+    assert_eq!(repos.len(), 1, "one top-level repo");
+    let facts = &repos[0];
+    // Canonicalized workdir — exact match to the repo's workdir. We compare
+    // the normalized form (trailing-separator trimmed) so the assertion is
+    // platform-stable.
+    assert_eq!(facts.path, norm(&repo_path));
+    // The empty initial repo has no HEAD commit yet → current_branch empty,
+    // head_sha empty, dirty false (clean).
+    assert_eq!(facts.current_branch, "");
+    assert_eq!(facts.head_sha, "");
+    assert!(!facts.dirty);
+}
+
+#[test]
+fn find_repos_finds_nested_repos() {
+    let tmp = tempdir().unwrap();
+    let root = tmp.path().to_path_buf();
+    let outer = init_repo_at(&root, "outer");
+    let inner = init_repo_at(&root, "outer/sub/inner");
+    let sibling = init_repo_at(&root, "sibling");
+
+    let repos = read::find_repos(&root);
+    // Every fact's `path` is the canonicalized workdir. We compare against
+    // the normalized form of the helper's return so the assertion holds
+    // whether libgit2's path resolution emits a trailing separator or not.
+    assert_eq!(repos.len(), 3, "outer + inner + sibling");
+    assert_eq!(repos[0].path, norm(&outer));
+    assert_eq!(repos[1].path, norm(&inner));
+    assert_eq!(repos[2].path, norm(&sibling));
+    // Sorted by absolute path — the wire's stable order. We re-check by
+    // pairwise comparison so the test breaks loudly if a future change
+    // perturbs the sort.
+    assert!(repos.windows(2).all(|w| w[0].path <= w[1].path));
+    // Sanity: outer / inner / sibling are distinct paths.
+    assert_ne!(outer, inner);
+    assert_ne!(inner, sibling);
+}
+
+#[test]
+fn find_repos_skips_node_modules_and_target() {
+    let tmp = tempdir().unwrap();
+    let root = tmp.path().to_path_buf();
+    init_repo_at(&root, "real");
+    // A `node_modules/<lib>/.git` MUST NOT surface — `node_modules` is in
+    // the skip list. Same for `target/`. These repos are placebos.
+    init_repo_at(&root, "node_modules/dep");
+    init_repo_at(&root, "target/build/dist");
+
+    let repos = read::find_repos(&root);
+    assert_eq!(repos.len(), 1, "only the real repo should surface");
+    assert_eq!(repos[0].path, norm(&root.join("real")));
+}
+
+#[test]
+fn find_repos_finds_nested_repos_inside_outer() {
+    // A nested repo is its OWN repo, not the outer repo's interior. The
+    // walker descends through `outer/` to find `outer/sub/inner/` — the
+    // `.git` skip list keeps it from descending INTO `.git` itself, but it
+    // still walks `outer/sub/inner/`'s children as a normal directory.
+    let tmp = tempdir().unwrap();
+    let root = tmp.path().to_path_buf();
+    let outer = init_repo_at(&root, "outer");
+    let inner = init_repo_at(&outer, "sub/inner");
+
+    let repos = read::find_repos(&root);
+    assert_eq!(repos.len(), 2, "outer + outer/sub/inner both surface");
+    assert_eq!(repos[0].path, norm(&outer));
+    assert_eq!(repos[1].path, norm(&inner));
+}
+
+#[test]
+fn find_repos_respects_depth_cap() {
+    // The depth cap is 6 — root is depth 0, so a 6-deep chain (d0..d5 + repo)
+    // still surfaces. A 7-deep chain (d0..d6 + repo) is past the cap and
+    // must NOT surface.
+    let tmp = tempdir().unwrap();
+    let root = tmp.path().to_path_buf();
+    init_repo_at(&root, "d0/d1/d2/d3/d4/d5");
+    init_repo_at(&root, "d0/d1/d2/d3/d4/d5/d6");
+
+    let repos = read::find_repos(&root);
+    assert_eq!(
+        repos.len(),
+        1,
+        "depth-6 (d0..d5 + repo) hits, depth-7 (d0..d6 + repo) doesn't"
+    );
+    assert!(
+        repos[0].path.contains("/d5"),
+        "the surface-able repo lives at d0/d1/d2/d3/d4/d5"
+    );
+}
+
+#[test]
+fn find_repos_reports_clean_after_initial_commit() {
+    let tmp = tempdir().unwrap();
+    let root = tmp.path().to_path_buf();
+    let repo_path = init_repo_at(&root, "committed");
+    write_file(&repo_path, "a.txt", "v1");
+    initial_commit(&repo_path);
+    // Initial commit + no further work = clean working tree.
+
+    let repos = read::find_repos(&root);
+    assert_eq!(repos.len(), 1);
+    assert!(!repos[0].dirty, "after the initial commit, no dirty state");
+    // The fresh commit's SHA is the head_sha; the default branch is the
+    // one git2 picks on a brand-new init (master or main depending on
+    // init.defaultBranch — we only assert the field is non-empty).
+    assert!(!repos[0].head_sha.is_empty(), "HEAD must resolve to a sha");
+    assert!(!repos[0].current_branch.is_empty(), "a non-orphan HEAD must name a branch");
+}

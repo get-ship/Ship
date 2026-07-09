@@ -41,7 +41,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use connectrpc::{ConnectError, RequestContext};
+use connectrpc::ConnectError;
 use tokio::sync::Mutex;
 
 use ship_agents::services::agents::dispatch_core::AgentDispatchPort;
@@ -177,24 +177,11 @@ impl AgentDispatchPort for HelmDispatchAdapter {
     fn daemon_origin(&self) -> String {
         self.daemon_origin.clone()
     }
-
-    #[cfg(feature = "ship-code")]
     fn worktrees_dir(&self) -> Option<PathBuf> {
         Some(helpers::worktrees_dir())
     }
-
-    fn check_workspace_violation(
-        &self,
-        _ctx: &RequestContext,
-        _claimed_workspace: Option<&str>,
-    ) -> Option<String> {
-        // helmd serves no MCP-bound workspace isolation (no AuthContext on the
-        // request) — trusted operator-local dev. Never a violation.
-        None
-    }
-
-
 }
+
 
 // ── DispatchHandlePort (real) — mirror of shipd's ShipCodeDispatchHandle ─────
 
@@ -400,17 +387,27 @@ struct GitWorktreeIsolation;
 impl IsolationStrategy for GitWorktreeIsolation {
     async fn prepare(&self, job: &SessionContext) -> Result<PathBuf> {
         let worktree_path = helpers::worktrees_dir().join(&job.slug);
+
         {
             let _guard = WORKTREE_LOCK.lock().await;
             // Mirror of shipd's GitWorktreeIsolation::prepare — delegate to
             // the same ship_git leaf so helmd and shipd share the worktree
             // creation code path. Failed outcomes bubble up; Created / Reused
             // both proceed to the hook / marker / phase-spec / compile steps.
+            //
+            // Per-call fork source: the dispatch's `repo_path` is the
+            // absolute path the worktree forks from; `base_ref` is the
+            // ref the new branch starts from. `None` / empty falls back
+            // to the daemon default + that repo's HEAD, matching the
+            // proto's empty-string = default convention. Consumed
+            // in-call; never persisted.
+            let repo_root = job.repo_path.clone().unwrap_or_else(helpers::repo_dir);
+            let base_ref = job.base_ref.as_deref().unwrap_or("");
             let outcome = git_write::create_worktree(
-                &helpers::repo_dir(),
+                &repo_root,
                 &worktree_path,
                 &job.branch,
-                "",
+                base_ref,
                 true,
             );
             if let WorktreeOutcome::Failed { error, .. } = outcome {

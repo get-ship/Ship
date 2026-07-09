@@ -38,12 +38,19 @@ impl IsolationStrategy for GitWorktreeIsolation {
             // path on the same branch re-uses cleanly (Reused); a path occupied
             // by a different branch refuses loudly (Failed → bubble up). The
             // leaf's `WorktreeOutcome` matches the `Created / Reused / Failed`
-            // shape the helmd GitService RPC already maps.
+            // Per-call fork source: the dispatch's `repo_path` is the
+            // absolute path the worktree forks from; `base_ref` is the
+            // ref the new branch starts from. `None` / empty falls back
+            // to the daemon default + that repo's HEAD, matching the
+            // proto's empty-string = default convention. Consumed
+            // in-call; never persisted.
+            let repo_root = job.repo_path.clone().unwrap_or_else(repo_dir);
+            let base_ref = job.base_ref.as_deref().unwrap_or("");
             let outcome = write::create_worktree(
-                &repo_dir(),
+                &repo_root,
                 &worktree_path,
                 &job.branch,
-                "",
+                base_ref,
                 true,
             );
             if let WorktreeOutcome::Failed { error, .. } = outcome {

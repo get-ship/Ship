@@ -166,6 +166,14 @@ pub async fn dispatch_pipeline_run_internal(
             payload.headless,
         ),
         keepalive: payload.keepalive,
+        // Per-call fork source — `PipelineRunStartedPayload` does not
+        // carry `repo_path` / `base_ref` in this cutover (the
+        // `DispatchPipelineReq` proto still has the field-7 `workspace`
+        // label; its `repo_path` plumbing is a separate ruling). The
+        // pipeline path falls back to the daemon default repo / that
+        // repo's HEAD — same as before the cutover.
+        repo_path: None,
+        base_ref: None,
     };
 
     let worktree_path = match octx.isolation.prepare(&session_ctx).await {
@@ -562,6 +570,11 @@ async fn dispatch_first_run_step_inner(
             persist_session: true,
             ..Default::default()
         },
+        keepalive: payload.keepalive,
+        // See the parallel construction above — the pipeline payload
+        // does not yet carry `repo_path` / `base_ref`.
+        repo_path: None,
+        base_ref: None,
         step: Some(ship_code::dispatch_ports::StepInfo {
             index: 0,
             id: step_id.to_string(),
@@ -570,9 +583,7 @@ async fn dispatch_first_run_step_inner(
         // executor field is moot, but derive from the run-level flag
         // for the executor-routing label.
         invocation: resolve_step_invocation(None, payload.headless),
-        keepalive: payload.keepalive,
     };
-
     let worktree_path = match octx.isolation.prepare(&session_ctx).await {
         Ok(p) => p,
         Err(e) => {

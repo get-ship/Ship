@@ -1,3 +1,4 @@
+
 //! GitService read loaders — status / log / branches / diffs.
 //!
 //! All loaders open the repository fresh; none cache the `git2::Repository`
@@ -8,8 +9,8 @@ use serde::Serialize;
 use std::path::Path;
 
 use super::state::{
-    BranchRow, BranchSummary, CommitSummary, GitError, JobBranchEntry, RepoStatus, StatusBuckets,
-    StatusFile, WorktreeRow, basename_of, format_git_time, open_repo, status_tone,
+    BranchRow, BranchSummary, CommitSummary, GitError, JobBranchEntry, RepoFacts, RepoStatus,
+    StatusBuckets, StatusFile, WorktreeRow, basename_of, format_git_time, open_repo, status_tone,
 };
 
 pub fn load_branch(root: &Path) -> Option<String> {
@@ -1065,4 +1066,142 @@ pub fn list_job_branches(root: &Path) -> Vec<JobBranchEntry> {
     // Stable, alphabetical order so the render is deterministic.
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out
+}
+// ── find_repos (per-call repo discovery, the ListRepos RPC leaf) ─────────
+//
+// Walks `root` for git repositories, returning one `RepoFacts` per discovered
+// repo. libgit2-direct; no subprocess. Bounded depth so an accidental `/` or
+// `~` scan terminates. Skips directories we never want to recurse into:
+//
+//   - `.git` internals — that's the repo's own pointer directory, not a
+//     nested repo. Descending would loop or pick up linked worktrees' `.git`
+//     files, which is not a separate repo to enumerate.
+//   - `node_modules` — npm/yarn/jsr dependency trees; deep, many MBs of
+//     entries, never contain a real repo.
+//   - `target` — Rust build output; no repos live there.
+//
+// Detection: a directory whose `.git` child is a directory or a file (git's
+// linked-worktree pointer file). `Repository::open` then resolves the
+// canonical working tree (`workdir()`) — the path the leaf reports. A repo
+// whose `workdir()` resolves to a different absolute path (the common linked-
+// worktree case) still emits ONE fact — the canonical worktree root, not the
+// linked path.
+//
+// A non-existent `root` returns `vec![]`; a path that exists but is not a
+// directory returns `vec![]`. A repo that fails to open via libgit2 is
+// silently skipped — the caller gets the well-formed ones. (We never want a
+// malformed `.git` to abort the whole scan; this is a discovery RPC, not a
+// per-repo validator.)
+use std::collections::{HashSet, VecDeque};
+use std::path::PathBuf;
+
+/// Maximum depth the walker recurses. Six covers the common nested layouts
+/// (a monorepo with a `vendor/` of git submodules) without scanning a full
+/// filesystem. Tuned in `state_tests.rs::find_repos_respects_depth_cap`.
+const FIND_REPOS_MAX_DEPTH: usize = 6;
+
+/// Directories the walker does NOT descend into. Lowercase exact match against
+/// the entry's file name. `.git` and `node_modules` and `target` are
+/// universally noise here; the rule is intentionally NOT configurable — the
+/// scan is a leaf, not a policy surface.
+const FIND_REPOS_SKIP_DIRS: &[&str] = &[".git", "node_modules", "target"];
+
+pub fn find_repos(root: &Path) -> Vec<RepoFacts> {
+    let mut out: Vec<RepoFacts> = Vec::new();
+    let mut visited: HashSet<PathBuf> = HashSet::new();
+    let mut queue: VecDeque<(PathBuf, usize)> = VecDeque::new();
+    queue.push_back((root.to_path_buf(), 0));
+
+    while let Some((dir, depth)) = queue.pop_front() {
+        if !dir.is_dir() {
+            continue;
+        }
+        // Canonicalize so the visited set reliably dedupes across symlinks /
+        // `/private/var` -> `/var` aliases on macOS. Canonicalize failures
+        // (a vanished dir mid-walk) just fall through — the entry is dropped.
+        let canon = dir.canonicalize().unwrap_or(dir.clone());
+        if !visited.insert(canon) {
+            continue;
+        }
+        if depth > FIND_REPOS_MAX_DEPTH {
+            continue;
+        }
+
+        // A `.git` entry here means `dir` is a repository. Open it and emit
+        // the canonical worktree path. We do NOT short-circuit here — a
+        // walker that stops at the first repo misses NESTED repos (the
+        // `outer/sub/inner` shape). The `.git` directory itself is in the
+        // skip list below, so we never descend into it; we just keep
+        // walking the repo's other children to find any sibling repos.
+        if dir.join(".git").exists() {
+            if let Some(facts) = read_repo_facts(&dir) {
+                out.push(facts);
+            }
+            // fall through to enqueue children
+        }
+
+        // Recurse one level down into non-skip entries.
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = match entry.file_name().into_string() {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            if FIND_REPOS_SKIP_DIRS.iter().any(|s| *s == name.as_str()) {
+                continue;
+            }
+            let ft = match entry.file_type() {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+            if !ft.is_dir() && !ft.is_symlink() {
+                continue;
+            }
+            queue.push_back((path, depth + 1));
+        }
+    }
+
+    // Stable order: by absolute path. The walker is BFS so the natural order
+    // is parent-before-child; sorting here makes the wire payload
+    // deterministic (no shell re-ordering on a caller reload).
+    out.sort_by(|a, b| a.path.cmp(&b.path));
+    out
+}
+
+/// Read the facts for ONE repo at `dir`. `dir` is the directory that contains
+/// a `.git` child; `Repository::open` resolves the canonical workdir so a
+/// linked-worktree walk reports the main worktree's path (not the linked
+/// pointer file). Any failure (non-repo, libgit2 error) returns `None` — the
+/// caller skips the entry; this is a discovery RPC, not a validator.
+fn read_repo_facts(dir: &Path) -> Option<RepoFacts> {
+    let repo = Repository::open(dir).ok()?;
+    // `Repository::workdir()` is libgit2's resolved path. On some platforms
+    // (Linux, macOS) it emits a TRAILING separator (`outer/`); on others it
+    // doesn't. Strip it so the wire payload is uniform — clients comparing
+    // paths against a hand-rolled string never see a flaky trailing slash.
+    let raw = repo.workdir().map(Path::to_path_buf).unwrap_or_else(|| dir.to_path_buf());
+    let workdir = PathBuf::from(raw.to_string_lossy().trim_end_matches('/'));
+    let current_branch = super::state::current_branch_name(&repo).unwrap_or_default();
+    let head_sha = repo
+        .head()
+        .ok()
+        .and_then(|h| h.target())
+        .map(|o| o.to_string())
+        .unwrap_or_default();
+    let mut opts = StatusOptions::new();
+    opts.include_untracked(true).recurse_untracked_dirs(true);
+    let dirty = repo
+        .statuses(Some(&mut opts))
+        .map(|s| s.iter().any(|e| !e.status().is_empty()))
+        .unwrap_or(false);
+    Some(RepoFacts {
+        path: workdir.to_string_lossy().into_owned(),
+        current_branch,
+        head_sha,
+        dirty,
+    })
 }

@@ -86,8 +86,10 @@ async fn tmux_window_spawn_captures_window_id_and_survives_name_collision() {
         }),
         invocation: crate::dispatch_ports::InvocationMode::Pty,
         keepalive: false,
+        // Test fixture — no per-call fork source.
+        repo_path: None,
+        base_ref: None,
     };
-
     let exec = TmuxWindowExecutor::new().unwrap();
 
     // First spawn: creates session + first "tests" window.
@@ -165,6 +167,9 @@ async fn resume_handle_refuses_ambiguous_name() {
         }),
         invocation: crate::dispatch_ports::InvocationMode::Pty,
         keepalive: false,
+        // Test fixture — no per-call fork source.
+        repo_path: None,
+        base_ref: None,
     };
 
     let exec = TmuxWindowExecutor::new().unwrap();

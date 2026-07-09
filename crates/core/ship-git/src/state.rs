@@ -158,6 +158,26 @@ pub struct RepoStatus {
     pub release_behind: i32,
     pub branches: Vec<BranchRow>,
 }
+// ── RepoFacts (per-call discovery, the ListRepos RPC shape) ───────────────
+//
+// Facts about ONE git repository, read via libgit2 at scan time. Maps 1:1 onto
+// the proto `ship.internal.v1.RepoFacts` so `helmd`'s `GitService.ListRepos`
+// handler is a flat translation. `find_repos` (in `read.rs`) walks a tree and
+// emits one of these per discovered repo — no state, no cache, no registry.
+// `path` is the absolute working-tree root; `current_branch` is empty on a
+// detached HEAD; `head_sha` is the full 40-char OID, empty for an unborn HEAD;
+// `dirty` is true when ANY tracked or untracked status bit fires.
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct RepoFacts {
+    /// Absolute path to the repository working tree.
+    pub path: String,
+    /// Current branch name (empty when HEAD is detached).
+    pub current_branch: String,
+    /// Full HEAD sha (empty for an unborn HEAD).
+    pub head_sha: String,
+    /// True when the working tree has staged/unstaged/untracked changes.
+    pub dirty: bool,
+}
 
 // ── error type for write ops ─────────────────────────────────────────────
 

@@ -124,6 +124,7 @@ use proto::{
     JobBranchesResponse,
     LandResponse,
     ListHarnessesResponse,
+    ListReposResponse,
     ListWorktreesResponse,
     OwnedCompileRequestView,
     // ListWorktrees + CreateWorktree (the new git RPCs — see spec-git-consolidation
@@ -145,12 +146,18 @@ use proto::{
     OwnedJobBranchesRequestView,
     OwnedLandRequestView,
     OwnedListHarnessesRequestView,
+    // ListRepos — the per-call discovery RPC (no state, no cache). The
+    // handler walks `req.root` for git repos via `ship_git::read::find_repos`
+    // and translates each fact to a `RepoFacts` proto message. Mirrors the
+    // other read handlers' shape: open fresh, no daemon state.
+    OwnedListReposRequestView,
     OwnedListWorktreesRequestView,
     OwnedReleaseRequestView,
     OwnedRemoveWorktreeRequestView,
     OwnedRepoStatusRequestView,
     ReleaseResponse,
     RemoveWorktreeResponse,
+    RepoFacts,
     RepoStatusResponse,
     create_worktree_response::Status as CreateWorktreeStatus,
     job_branches_response::JobBranchEntry,
@@ -568,6 +575,35 @@ impl GitService for GitImpl {
                 ..Default::default()
             }),
         }
+    }
+
+    // ListRepos — per-call repo discovery under a tree. Mirrors the other
+    // read handlers' shape: open fresh via ship-git, no daemon state, no
+    // cache, no registry. The walk is bounded (depth 6, skip `.git` /
+    // `node_modules` / `target`) and emits one `RepoFacts` per discovered
+    // repo. A non-existent or empty `root` returns an empty list — never
+    // an error (the caller renders the empty state honestly).
+    #[allow(refining_impl_trait)]
+    async fn list_repos(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedListReposRequestView,
+    ) -> ServiceResult<ListReposResponse> {
+        let root = PathBuf::from(req.root.to_string());
+        let facts: Vec<RepoFacts> = ship_git::read::find_repos(&root)
+            .into_iter()
+            .map(|f| RepoFacts {
+                path: f.path,
+                current_branch: f.current_branch,
+                head_sha: f.head_sha,
+                dirty: f.dirty,
+                ..Default::default()
+            })
+            .collect();
+        Response::ok(ListReposResponse {
+            repos: facts,
+            ..Default::default()
+        })
     }
 }
 
