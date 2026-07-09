@@ -208,29 +208,6 @@ pub async fn run_network(
             }
         })
     };
-    // Register the launch-time project (if any) into the space registry so the
-    // launcher / shell sees it on first list. Idempotent — ship-space emits
-    // `project.seen` if already known.
-    //
-    // A discoverable project root IS the active space; the daemon has no separate
-    // "home space" to stamp into a process-global (S2 home-space kill). The active
-    // space is resolved per-request / at boot from the probe path via
-    // `ship_substrate::project::resolve_active_space`. With no discoverable
-    // project the daemon boots space-less. See spec
-    // `.artifacts/specs/space/116-event-partition.md`.
-    //
-    // The unified registry is event-only: it folds the `project.registered`
-    // event into the kernel's `projects` SQL projection inside the same
-    // transaction, so no DataStore argument is needed (the optionB-era
-    // store-aware path was retired with the projection layer cutover).
-    if let Some(root) = project_root.as_ref() {
-        use ship_substrate::ports::KernelLog;
-        let kernel = std::sync::Arc::new(KernelLog::new(rt.kernel().clone()));
-        let canonical = std::fs::canonicalize(root.path()).unwrap_or_else(|_| root.path().to_path_buf());
-        if let Err(e) = ship_space::registry::add(&kernel, &canonical, None).await {
-            tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
-        }
-    }
 
     let token = match auth::read_token(&daemon_dir) {
         Ok(existing) if !existing.is_empty() => Arc::new(existing),

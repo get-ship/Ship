@@ -230,9 +230,6 @@ impl AgentDispatchPort for NoopDispatch {
     ) -> Option<String> {
         None
     }
-    fn space_id_for_workspace(&self, _workspace_label: &str) -> Option<String> {
-        None
-    }
 
 }
 /// Feedback auth port — helmd serves no feedback emit.

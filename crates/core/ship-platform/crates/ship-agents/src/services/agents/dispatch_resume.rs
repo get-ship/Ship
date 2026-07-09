@@ -22,13 +22,13 @@ pub enum ResumeResolveError {
 }
 
 /// Locate the prior session for `(agent, workspace)`:
-/// 1. Derive `space_id` from the workspace path via the `projects` projection.
-/// 2. Query `canonical_sessions` for the most recent resumable session for
-///    `(agent_id, space_id)`.
-/// 3. Scan `worktrees_root` for a worktree whose `.ship/session.json` matches
+/// 1. Query `canonical_sessions` for the most recent resumable session for
+///    `agent_id` (the workspace label is not a real space id — empty default,
+///    same as `dispatch_core`'s `SessionStarted.space_id`).
+/// 2. Scan `worktrees_root` for a worktree whose `.ship/session.json` matches
 ///    the found `session_id`.
-/// 4. Derive the current branch via `git rev-parse --abbrev-ref HEAD`.
-/// 5. Return `ResumeOutcome { slug: session_id, branch, session }`.
+/// 3. Derive the current branch via `git rev-parse --abbrev-ref HEAD`.
+/// 4. Return `ResumeOutcome { slug: session_id, branch, session }`.
 ///
 /// Every failure path returns a typed error the caller renders as
 /// a 400 (the spec forbids silent fresh launches).
@@ -38,22 +38,13 @@ pub fn resolve_resume(
     requested_harness: Option<&str>,
     worktrees_root: &std::path::Path,
 ) -> Result<ResumeOutcome, ResumeResolveError> {
-    // 1. Resolve space_id from the workspace path.
-    let space_record =
-        ship_substrate::db::projects::find_by_path(workspace).map_err(|e| {
-            ResumeResolveError::Status {
-                status: 500,
-                message: format!("resume: projects lookup failed: {e}"),
-            }
-        })?;
-    let space_id = space_record
-        .ok_or_else(|| ResumeResolveError::Status {
-            status: 400,
-            message: "resume: workspace is not a registered Ship project".to_string(),
-        })?
-        .id;
+    // space_id: the cosmetic workspace label is not a real space id — leave
+    // empty (consumers tolerate this via the default; see dispatch_core
+    // SessionStarted emit for the same treatment).
+    let _ = workspace;
+    let space_id = String::new();
 
-    // 2. Query canonical_sessions for the most recent resumable session.
+    // Query canonical_sessions for the most recent resumable session.
     let canonical_session =
         crate::services::sessions::canonical_projection::load_latest_resumable_session(
             agent, &space_id,
@@ -71,15 +62,15 @@ pub fn resolve_resume(
 
     let session_id = &canonical_session.session_id;
 
-    // 3. Scan worktrees_root for a worktree whose .ship/session.json matches.
+    // 2. Scan worktrees_root for a worktree whose .ship/session.json matches.
     let worktree_dir = find_worktree_for_session(session_id, worktrees_root)?;
 
-    // 4. Load + validate the session file (harness check + build_resume_args).
+    // 3. Load + validate the session file (harness check + build_resume_args).
     // slug = session_id in the canonical schema (no separate slug field).
     let session_file =
         load_and_validate_session_file(&worktree_dir, session_id, requested_harness)?;
 
-    // 5. Derive branch.
+    // 4. Derive branch.
     let branch = derive_branch(&worktree_dir)?;
 
     Ok(ResumeOutcome {

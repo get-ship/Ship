@@ -50,13 +50,6 @@ pub trait AgentDispatchPort: Send + Sync {
         ctx: &RequestContext,
         claimed_workspace: Option<&str>,
     ) -> Option<String>;
-
-    /// Resolve a workspace label to its space id via the projects read model.
-    /// `None` when the workspace is not yet registered. Lives on the port so
-    /// dispatch_core (L1) never reaches into the L0 projects table directly —
-    /// the composition root owns the DB access.
-    fn space_id_for_workspace(&self, workspace_label: &str) -> Option<String>;
-
 }
 // ── Result type ───────────────────────────────────────────────────────────────
 
@@ -286,9 +279,6 @@ mod tests {
             _ctx: &RequestContext,
             _claimed_workspace: Option<&str>,
         ) -> Option<String> {
-            None
-        }
-        fn space_id_for_workspace(&self, _workspace_label: &str) -> Option<String> {
             None
         }
     }
