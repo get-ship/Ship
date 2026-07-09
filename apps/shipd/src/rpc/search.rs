@@ -138,10 +138,10 @@ impl ShipdSearchWire {
         let svc = SpaceService::new(self.runtime_ctx().map_err(|e| {
             connectrpc::ConnectError::internal(format!("runtime context: {e}"))
         })?);
-        let records = svc.list().await.map_err(|e| {
+        let records = svc.list().map_err(|e| {
             connectrpc::ConnectError::internal(format!("SpaceService.List: {e}"))
         })?;
-        let ids: Vec<String> = records.into_iter().map(|r| r.id).collect();
+        let ids: Vec<String> = records.into_iter().map(|r| r.space_id).collect();
         Ok(Response::new(ids))
     }
 

@@ -74,12 +74,10 @@ pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::p
             &rt.health_registry(),
             rt.session_registry().clone(),
             rt.daemon_origin(),
+            rt.active_space_id(),
             Some(floki_run_fn),
         )
         .await;
-        if let Some(dh) = dispatch_handle {
-            rt.set_dispatch_handle(dh);
-        }
     }
     #[cfg(not(feature = "ship-code"))]
     {

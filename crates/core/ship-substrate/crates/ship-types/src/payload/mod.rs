@@ -22,7 +22,7 @@ mod config;
 mod crud;
 mod daemon;
 mod process;
-mod project;
+mod space;
 mod skill;
 
 mod spec6;
@@ -56,7 +56,7 @@ pub use sync::{SyncPushCompleted, SyncPushFailed, SyncStarted, SyncStopped};
 pub use watcher::{
     AgentChanged, AgentDefUpdated, PipelineChanged, RuleChanged, SkillChanged, ViewChanged,
 };
-pub use project::{ProjectArchived, ProjectRegistered, ProjectSeen, ProjectSwitched};
+pub use space::{SpaceOpened, SpaceSeen};
 pub use process::ProcessOrphaned;
 
 

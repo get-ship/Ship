@@ -41,12 +41,14 @@ impl ShipRuntime {
         })
     }
 
-    /// The attached workspace's space CONTENT-ID from the `projects` pointer.
-    /// `None` when the daemon is global-only or the workspace is unregistered —
-    /// callers that need a space surface a clear error rather than inventing one.
+    /// The served-space identity — the mint-once `space_id` the runtime
+    /// assigned at boot through `ship_space::identity::ensure_identity_for_root`
+    /// (or `None` when the daemon booted space-less). Cached: never re-mints,
+    /// never re-resolves per-call. Use this for any reader that wants "what
+    /// space is this daemon serving right now"; use `spaces::list` for the
+    /// full Runtime-scoped device record.
     pub fn active_space_id(&self) -> Option<String> {
-        let ws = self.workspace_dir.as_ref()?;
-        ship_substrate::project::resolve_active_space(ws)
+        self.served_space_id.get().cloned().flatten()
     }
 
     /// Spawn the artifact GC loop. Runs immediately on startup then every hour.
@@ -249,11 +251,14 @@ impl ShipRuntime {
             return;
         };
         let project_ship_dir = ship_substrate::ShipHome::project_ship_dir(&workspace);
-        // Active-space identity = the `projects` pointer content-id of the
-        // discovered root — the same identity collection/artifact contexts use
-        // (init.rs). Space-less workspace → no index; the daemon owns no home
-        // space to fall back on.
-        let Some(space_id) = ship_substrate::project::resolve_active_space(&workspace) else {
+        // Served-space identity = the mint-once `space_id` the runtime
+        // assigned at boot through `ship_space::identity::ensure_identity_for_root`.
+        // Space-less workspace → no index; the daemon owns no home space
+        // to fall back on. The cached identity is the SOLE source of truth
+        // here — never re-resolve through `project::resolve_active_space`
+        // (the read-side resolver exists for callers outside the runtime
+        // like helmd's CollectionsService mount; shipd reads its own cache).
+        let Some(space_id) = self.active_space_id() else {
             tracing::info!("agent-def index: workspace is space-less — skipping live mount");
             return;
         };

@@ -167,7 +167,7 @@ pub fn router(state: ApiState) -> axum::Router {
     let device_sessions: std::sync::Arc<dyn ship_device::WindowSessions> =
         Arc::new(crate::ports::device::OwnedRegistryWindowSessions::new(state.session_registry().clone()));
     let device_space_reg: std::sync::Arc<dyn ship_device::SpaceRegistry> =
-        Arc::new(crate::ports::device::ProjectsSpaceRegistry);
+        Arc::new(crate::ports::device::LiveSpaceRegistry::new(state.clone()));
     let device_pid: ship_device::wire::PidFn = Arc::new(pid_from_ctx);
     let device_space_fn: ship_device::wire::SpaceFn = Arc::new(|ctx: &connectrpc::RequestContext| {
         ctx.extensions

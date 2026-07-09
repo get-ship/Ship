@@ -3,7 +3,7 @@ use ship_types::envelope::EventEnvelope;
 use crate::events::filter::EventFilter;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
-use crate::events::types::ProjectRegistered;
+use crate::events::types::SpaceOpened;
 use crate::testutil::init_project_minimal as init_project;
 use tempfile::tempdir;
 use serde::{Serialize, Deserialize};
@@ -105,12 +105,12 @@ fn test_elevated_filter() -> anyhow::Result<()> {
         .elevate();
     store.append(&ev_end)?;
     let ev_ws = EventEnvelope::new(
-        event_types::PROJECT_REGISTERED,
+        event_types::SPACE_OPENED,
         entity,
-        &ProjectRegistered {
+        &SpaceOpened {
             path: "/test/path".into(),
             name: "test".into(),
-            created_at: "2026-01-01T00:00:00Z".into(),
+            opened_at: "2026-01-01T00:00:00Z".into(),
         },
     )?
     .elevate();
@@ -167,12 +167,12 @@ fn test_hierarchy_traversal_via_parent_actor_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
 
     let ws_ev = EventEnvelope::new(
-        event_types::PROJECT_REGISTERED,
+        event_types::SPACE_OPENED,
         "ws-entity",
-        &ProjectRegistered {
+        &SpaceOpened {
             path: "/test/path".into(),
             name: "ws-entity".into(),
-            created_at: "2026-01-01T00:00:00Z".into(),
+            opened_at: "2026-01-01T00:00:00Z".into(),
         },
     )?
     .with_actor_id("actor-ws-1");

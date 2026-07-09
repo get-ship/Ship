@@ -57,7 +57,7 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(ListProcsResponse), v!(SessionsListResponse), v!(SettingValue),
         v!(SkillsIndexResponse), v!(SkillFileResponse),
         // space.* (clean SpaceService — ship-space crate): typed identity +
-        v!(Space), v!(SpaceList), v!(ActiveSpace), v!(SpaceInfo),
+        v!(Space), v!(SpaceList), v!(SpaceInfo),
         // settings.* (unified, scope-discriminated SettingsService — ship-config
         // crate): the settings keystone. Replaces the retired ConfigService.
         v!(Setting), v!(SettingList),

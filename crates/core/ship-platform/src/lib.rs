@@ -22,7 +22,7 @@ pub mod config {
     // Project config
     pub use ship_config::project::{
         AgentProfile, HarnessProjectOverrides, McpConfig, McpSection, McpServerConfig,
-        McpServerType, ProjectDiscovery, SpaceManifest,
+        McpServerType, SpaceManifest,
     };
 
     // MCP
@@ -67,7 +67,6 @@ pub mod config {
     // Relocated from platform-internal crud/discover/watcher
     pub use ship_config::crud::{add_mcp_server, ensure_standard_dirs, list_mcp_servers, remove_mcp_server};
 
-    pub use ship_config::discover::discover_projects;
     pub use ship_config::watcher::{spawn_config_watcher, ConfigWatcher};
 }
 
@@ -100,9 +99,12 @@ fn install_defaults_inner() {
             // separately from `ship-pipeline-runtime` (it depends on this
             // crate, so it can't be referenced from here).
             Box::new(ship_agents::services::compile::CompileStateProjection),
-            // ProjectsProjection moved to ship-space (keystone-A Phase A bundle 4,
-            // 2026-06-10). The SQL read helpers stay in ship_substrate::db::projects.
-            Box::new(ship_space::ProjectsProjection),
+            // SpacesProjection (keystone-A's ProjectsProjection rewritten for
+            // the 2026-07-09 space cutover) folds `space.opened` and
+            // `space.seen` events into the runtime-scoped `spaces` projection
+            // table. Identity is owned by the space, never derived from the
+            // path — see `ship_space::identity::ensure_identity_for_root`.
+            Box::new(ship_space::SpacesProjection),
             Box::new(ship_auth::AuthSessionsProjection),
             // Single-row daemon-owner projection — folds `daemon.owner.*`
             // events into the `daemon_owner` table `current_owner()` reads.

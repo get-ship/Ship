@@ -94,6 +94,7 @@ impl ShipRuntime {
             skills,
             agents,
             pipelines,
+            served_space_id: std::sync::OnceLock::from(Some("test-space".to_string())),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),

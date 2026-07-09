@@ -99,8 +99,7 @@ ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime", features 
 #   ship-auth        — `scopes::resolve_grants` for the minted session token.
 #   ship-auth-types  — `DaemonSession` + session-token mint in HelmdPlatform.
 #   ship-substrate   — the FULL facade (spawn_bounded / events::executor /
-#                      EmitContext / db::projects) the platform + adapter name.
-#                      Already in helmd's transitive graph via ship-agents; named
+#                      EmitContext / db::spaces) the platform + adapter name.
 #                      directly here so dispatch.rs mirrors shipd byte-for-byte.
 ship-runner = { path = "../../crates/core/ship-substrate/crates/ship-runner", optional = true }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth", optional = true }

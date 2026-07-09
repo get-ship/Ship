@@ -4,28 +4,37 @@
 //! go through `SpaceContext.kernel()` (KernelLog port). No sqlite/sqlx/rusqlite
 //! types and no raw fs here.
 //!
-//! Scope split: the registry (`projects` + active pointer) is Runtime-scoped, so
-//! `ctx` binds the Runtime store (runtime.db) — it owns list/active/add/activate
-//! and is the kernel handle for every emit. `info` is identity-only; per-space
-//! settings live on the unified `settings_overlay` (S4) and are owned by
-//! `SettingsService`.
+//! The spoke model after the 2026-07-09 cutover:
 //!
-//! After the dual-read-model dissolution (2026-06-10), record reads go through
-//! `registry::list/get` which use `kernel.try_ship_dir()` to open the `projects`
-//! SQL table; only the active pointer still uses `ctx.data()`.
+//! - **registry** is the `spaces` Runtime-scoped projection — the device-local
+//!   record of opened spaces (LaunchServices analogy). Identity lives in the
+//!   projection, never at the path. The single `Add` RPC is CREATE-new-at-
+//!   location: it mints identity once (through `identity::ensure_identity_for_root`).
+//! - **identity** is the served-space read: `Info` returns the runtime's
+//!   served space's identity and name (today resolved through the live
+//!   `ctx`'s `SpaceId`). Per-space settings are read through the unified
+//!   `settings_overlay` (S4) — owned by `SettingsService`.
+//!
+//! `Activate` is GONE (multi-window kills the open-one-at-a-time world).
+//! The active pointer table that supported it was retired; only
+//! per-space projection rows remain.
 
 use std::sync::Arc;
 
 use ship_substrate::ports::SpaceContext;
 
 use crate::error::SpaceError;
+use crate::identity;
+use crate::spaces;
 use crate::types::{SpaceInfo, SpaceRecord};
-use crate::{info, registry};
 
 /// Core service — stateless; all state lives in `SpaceContext`.
 pub struct SpaceService {
-    /// Runtime-scoped context: the `projects` registry + active pointer store,
-    /// and the kernel handle for every `project.*` emit.
+    /// The ctx carries the served-space `SpaceId` (entity id) the runtime
+    /// minted at boot via `identity::ensure_identity_for_root`. All reads of
+    /// identity reach through this id; the wire layer wires the request's
+    /// `SpaceContext` per-request so a future per-window model stays
+    /// coherent.
     pub ctx: Arc<SpaceContext>,
 }
 
@@ -34,46 +43,62 @@ impl SpaceService {
         Self { ctx }
     }
 
-    // ── registry (Runtime-scoped) ───────────────────────────────────────────
+    // ── opened-spaces list (Runtime-scoped) ─────────────────────────────────
 
-    /// List all live (non-archived) spaces, newest first.
-    pub async fn list(&self) -> Result<Vec<SpaceRecord>, SpaceError> {
-        registry::list(self.ctx.kernel()).await
+    /// List every space currently open on this device.
+    pub fn list(&self) -> Result<Vec<SpaceRecord>, SpaceError> {
+        spaces::list(self.ctx.kernel())
     }
 
-    /// The currently-active space, or `None` on cold boot.
-    pub async fn active(&self) -> Result<Option<SpaceRecord>, SpaceError> {
-        registry::active(self.ctx.data(), self.ctx.kernel()).await
+    // ── served-space identity (per-request) ──────────────────────────────────
+
+    /// Compose the served-space identity for THIS request's ctx. Returns an
+    /// empty identity when the ctx is the global/space-less Runtime slot
+    /// (no served space) — the wire then emits an empty `SpaceInfo`.
+    pub fn info(&self) -> Result<SpaceInfo, SpaceError> {
+        // The per-request `SpaceContext` carries the served space's id via
+        // its `SpaceId` slot. Globally-scoped requests (the Runtime
+        // partition) carry an empty id; the wire returns an empty identity
+        // so the FE never invents a `global` pseudo-space.
+        let id = self.ctx.space_id().as_str();
+        if id.is_empty() {
+            Ok(SpaceInfo {
+                space_id: None,
+                root: None,
+                name: None,
+            })
+        } else {
+            // The served-space row lives in the Runtime-scoped `spaces`
+            // projection. Fetch it so the Info reply carries the canonical
+            // path + the projection's recorded name (the user-given name,
+            // not the path-derived default).
+            let rec = spaces::get(self.ctx.kernel(), id)?;
+            Ok(match rec {
+                Some(r) => SpaceInfo {
+                    space_id: Some(r.space_id),
+                    root: Some(r.path),
+                    name: Some(r.name),
+                },
+                None => SpaceInfo {
+                    space_id: Some(id.to_string()),
+                    root: None,
+                    name: None,
+                },
+            })
+        }
     }
 
-    /// The active-space id, or `None` on cold boot (used by `list` to surface
-    /// the active pointer alongside the registry).
-    pub async fn active_id(&self) -> Result<Option<String>, SpaceError> {
-        Ok(crate::projection::get_active_id(self.ctx.data()).await?)
-    }
+    // ── add (CREATE-new-at-location) ───────────────────────────────────────
 
-    /// Register a directory as a space (idempotent). See [`registry::add`].
+    /// CREATE a new space at the location `path`. Mints identity once (an
+    /// already-open path re-emits `space.seen`; a fresh one mints a
+    /// nanoid + emits `space.opened`). Idempotent: re-opening an existing
+    /// space returns its existing identity with a bumped `last_seen_at`.
     pub async fn add(
         &self,
         path: &std::path::Path,
         name: Option<&str>,
     ) -> Result<SpaceRecord, SpaceError> {
-        registry::add(self.ctx.kernel(), path, name).await
-    }
-
-    /// Switch the active space. See [`registry::activate`].
-    pub async fn activate(&self, id: &str) -> Result<SpaceRecord, SpaceError> {
-        registry::activate(self.ctx.data(), self.ctx.kernel(), id).await
-    }
-
-    // ── info (identity only) ────────────────────────────────────────────────
-
-    /// Compose identity (id/root/name from `projects`). Per-space settings
-    /// moved to `SettingsService` (S4). See [`info::compose`].
-    pub async fn info(
-        &self,
-        space_id: Option<&str>,
-    ) -> Result<SpaceInfo, SpaceError> {
-        info::compose(self.ctx.kernel(), space_id).await
+        identity::ensure_identity_for_root(self.ctx.kernel(), path, name).await
     }
 }

@@ -19,29 +19,29 @@ fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
     (tmp, ship_dir)
 }
 
-fn project_registered_event(branch: &str) -> EventEnvelope {
+fn space_opened_event(branch: &str) -> EventEnvelope {
     EventEnvelope::new(
-        event_types::PROJECT_REGISTERED,
+        event_types::SPACE_OPENED,
         branch,
         &serde_json::json!({
             "path": branch,
             "name": branch,
-            "created_at": "2026-01-01T00:00:00Z"
+            "opened_at": "2026-01-01T00:00:00Z"
         }),
     )
     .unwrap()
-    .with_scope(EventScope::Space, Some(branch))
+    .with_scope(EventScope::Runtime, None)
     .elevate()
 }
 
-fn project_archived_event(branch: &str) -> EventEnvelope {
+fn space_seen_event(branch: &str) -> EventEnvelope {
     EventEnvelope::new(
-        event_types::PROJECT_ARCHIVED,
+        event_types::SPACE_SEEN,
         branch,
-        &serde_json::json!({ "archived_at": "2026-01-01T00:00:00Z" }),
+        &serde_json::json!({ "seen_at": "2026-01-01T00:00:00Z" }),
     )
     .unwrap()
-    .with_scope(EventScope::Space, Some(branch))
+    .with_scope(EventScope::Runtime, None)
     .elevate()
 }
 
@@ -49,12 +49,12 @@ fn project_archived_event(branch: &str) -> EventEnvelope {
 fn rebuild_replays_events_without_panic() {
     let (_tmp, ship_dir) = setup();
     let store = SqliteEventStore::new_for_scope(&ship_dir, EventScope::Runtime, None).unwrap();
-    // project.* events are folded by ProjectsProjection; verify rebuild
-    // completes cleanly with project lifecycle events present.
+    // space.* events are folded by SpacesProjection; verify rebuild
+    // completes cleanly with space lifecycle events present.
     let events = vec![
-        project_registered_event("feature/rebuild-a"),
-        project_registered_event("feature/rebuild-b"),
-        project_archived_event("feature/rebuild-b"),
+        space_opened_event("feature/rebuild-a"),
+        space_opened_event("feature/rebuild-b"),
+        space_seen_event("feature/rebuild-b"),
     ];
     for ev in &events {
         store.append(ev).unwrap();

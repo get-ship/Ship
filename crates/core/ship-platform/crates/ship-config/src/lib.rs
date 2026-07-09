@@ -36,7 +36,6 @@ pub mod agents_index;
 pub mod agents_ts;
 pub mod agents_write;
 pub mod crud;
-pub mod discover;
 pub mod error;
 pub mod event_registrations;
 pub mod overlay;

@@ -199,22 +199,30 @@ fn agents_rule_crud_rejects_reserved_readme() -> Result<()> {
     Ok(())
 }
 
-// ── Permissions CRUD ──────────────────────────────────────────────────────────
-
-/// Register the project in the `projects` pointer (runtime.db) — the seam the
-/// space-id resolver reads. Production writes this row via ship-space's
-/// `ProjectsProjection`; agent-def cannot depend on ship-space, so the test
-/// seeds the read model directly.
-fn register_project(project_root: &std::path::Path, id: &str) -> Result<()> {
-    let key = ship_substrate::db::projects::canonical_path_key(project_root);
+/// Seed a `spaces` projection row directly into the test-isolated runtime.db
+/// so the space-id resolver finds the test fixture. Production writes this
+/// row via ship-space's `SpacesProjection` (it folds `space.opened` events);
+/// agent-def cannot depend on ship-space at L1, so the test seeds the read
+/// model directly.
+///
+/// Identity's canonical home is the `spaces` table — this helper mirrors
+/// `ship_space::identity::ensure_identity_for_root`'s canonicalize-at-mint
+/// behaviour so the seeded row is findable by the resolver at lookup time.
+fn register_space(space_id: &str, project_root: &std::path::Path) -> Result<()> {
+    let key = std::fs::canonicalize(project_root)
+        .unwrap_or_else(|_| project_root.to_path_buf())
+        .to_string_lossy()
+        .into_owned();
     let global = ship_substrate::project::get_global_dir()?;
     let mut conn = ship_substrate::db::open_runtime_db(&global)?;
     ship_substrate::db::block_on(async {
         sqlx::query(
-            "INSERT INTO projects (id, path, name, created_at, last_seen_at) \
-             VALUES (?, ?, 'test', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+            "INSERT INTO spaces (space_id, path, name, opened_at, last_seen_at) \
+             VALUES (?, ?, 'test', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z') \
+             ON CONFLICT(space_id) DO UPDATE SET path = excluded.path, \
+               last_seen_at = excluded.last_seen_at, updated_at = datetime('now')",
         )
-        .bind(id)
+        .bind(space_id)
         .bind(key)
         .execute(&mut conn)
         .await
@@ -227,7 +235,7 @@ fn register_project(project_root: &std::path::Path, id: &str) -> Result<()> {
 fn agents_permissions_crud_save_emits_permissions_updated() -> Result<()> {
     let tmp = tempdir()?;
     let ship_dir = init_project(tmp.path())?;
-    register_project(tmp.path(), "perm-test-space")?;
+    register_space("perm-test-space", tmp.path())?;
 
     let perms = Permissions::default();
     save_permissions(ship_dir.clone(), &perms)?;

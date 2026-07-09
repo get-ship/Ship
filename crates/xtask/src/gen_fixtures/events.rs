@@ -177,11 +177,9 @@ fn payload_stub(payload_type: &str, event_name: &str) -> Value {
         // ── Process events ───────────────────────────────────────────────────
         "ProcessOrphaned" => json!({ "pid": 99999, "cmd": "claude", "last_known_slug": null, "detected_by": "sweep" }),
 
-        // ── Project events ───────────────────────────────────────────────────
-        "ProjectRegistered" => json!({ "path": "/home/user/projects/test", "name": "test", "created_at": "2026-01-01T00:00:00Z" }),
-        "ProjectSeen" => json!({ "seen_at": "2026-01-01T00:00:00Z" }),
-        "ProjectArchived" => json!({ "archived_at": "2026-01-01T00:00:00Z" }),
-        "ProjectSwitched" => json!({ "space_id": "test-space", "name": "test", "path": "/home/user/projects/test", "at": "2026-01-01T00:00:00Z" }),
+        // ── Space events ─────────────────────────────────────────────────────
+        "SpaceOpened" => json!({ "path": "/home/user/spaces/test", "name": "test", "opened_at": "2026-01-01T00:00:00Z" }),
+        "SpaceSeen" => json!({ "seen_at": "2026-01-01T00:00:00Z" }),
 
         // ── Rule events ──────────────────────────────────────────────────────
         "RuleCreated" => json!({ "file_name": "test-rule.md", "content_hash": "sha256-test" }),

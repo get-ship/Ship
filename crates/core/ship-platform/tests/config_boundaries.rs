@@ -1,6 +1,6 @@
 use ship_platform::config::{
     AgentProfile, HookConfig, McpConfig, McpSection, McpServerConfig, PermissionConfig,
-    SpaceManifest, discover_projects, get_config, save_config,
+    SpaceManifest, get_config, save_config,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -82,51 +82,6 @@ fn save_config_creates_ship_jsonc() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[test]
-fn discover_ignores_unregistered_ship_dirs() -> anyhow::Result<()> {
-    // Enumeration reads the `projects` pointer, not the filesystem: a `.ship/`
-    // directory on disk that was never registered is NOT a space.
-    let tmp = tempdir()?;
-    let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path().join("unregistered"));
-    fs::create_dir_all(&ship_dir)?;
-    fs::write(ship_dir.join("ship.jsonc"), b"{}")?;
-
-    let projects = discover_projects(tmp.path().to_path_buf())?;
-    assert!(
-        projects.is_empty(),
-        "unregistered .ship/ dirs must not enumerate as spaces"
-    );
-    Ok(())
-}
-
-// `worker_threads = 1` keeps `get_global_dir()`'s per-thread test isolation on
-// ONE thread so the registering kernel and `discover_projects`' pointer read
-// share the same runtime.db.
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-async fn discover_returns_registered_spaces_under_root() -> anyhow::Result<()> {
-    ship_platform::install_defaults();
-    let global = ship_substrate::project::get_global_dir()?;
-    fs::create_dir_all(&global)?;
-    let router = ship_substrate::events::new_isolated_for_test(global)?;
-    let kernel = std::sync::Arc::new(ship_substrate::ports::KernelLog::new(router));
-
-    let tmp = tempdir()?;
-    let root = tmp.path().join("proj");
-    fs::create_dir_all(&root)?;
-    let canonical = fs::canonicalize(&root)?;
-    let record = ship_space::registry::add(&kernel, &canonical, Some("proj")).await?;
-
-    let projects = discover_projects(tmp.path().to_path_buf())?;
-    assert_eq!(projects.len(), 1, "the registered space must enumerate");
-    assert_eq!(projects[0].name, "proj");
-    assert_eq!(projects[0].path, PathBuf::from(&record.path));
-
-    // A root that does not enclose the registered path sees nothing.
-    let elsewhere = tempdir()?;
-    let none = discover_projects(elsewhere.path().to_path_buf())?;
-    assert!(none.is_empty(), "enumeration is scoped to the given root");
-    Ok(())
-}
 
 #[test]
 fn public_types_are_exported() {

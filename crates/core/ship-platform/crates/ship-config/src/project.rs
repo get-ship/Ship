@@ -219,11 +219,6 @@ impl Default for SpaceManifest {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ProjectDiscovery {
-    pub name: String,
-    pub path: PathBuf,
-}
 // ─── MCP IO ───────────────────────────────────────────────────────────────────
 
 pub fn get_mcp_config(ship_dir: &std::path::Path) -> Result<Vec<McpServerConfig>> {

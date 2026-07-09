@@ -135,20 +135,51 @@ impl ShipRuntime {
         // per-scope `spaces/<id>/space.db` that the `CollectionProjection` /
         // `ArtifactProjection` materialize the table into, so a query reads
         // exactly what the projection wrote.
+        // The active space is the daemon's served space — its mint-once
+        // `space_id` (a nanoid) the runtime assigns at boot through
+        // `ship_space::identity::ensure_identity_for_root`. Identity's
+        // canonical home is the `spaces` Runtime-scoped projection (folded
+        // from `space.opened`); the daemon caches the identity here so
+        // every reader (`active_space_id`, `SpaceService.Info`, the
+        // dispatch chain's `spaces/<id>/space.db` partition) reaches one
+        // source of truth. With NO discoverable project the daemon boots
+        // space-less: `served_space_id = None`, the ctx is NOT built, and
+        // a space-scoped op errors cleanly. There is NO daemon home space
+        // and NO `global` pseudo-space to fall back onto (S2 home-space
+        // kill).
         //
-        // The active space is the `projects` pointer content-id of the
-        // discovered project root — the single stable identity that the
-        // event-partition and space.db key on. With NO
-        // discoverable project the daemon boots space-less: `space_id` is `None`,
-        // the ctx is NOT built, and a space-scoped op resolves the active space
-        // per-request and errors cleanly if there is none. There is NO daemon
-        // home space and NO `global` pseudo-space to fall back onto (S2
-        // home-space kill).
-        let space_id = {
+        // The accessor takes a `&KernelLog` (the broadcast-on-emit wrapper
+        // ship-space's space-service seam expects). The underlying router is
+        // shared across reads; the `KernelLog` constructor just attaches a
+        // broadcast channel.
+        let served_space_id: Option<String> = {
+            let kernel_log =
+                std::sync::Arc::new(ship_substrate::ports::KernelLog::new(kernel.clone()));
             let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
-            probe
-                .as_deref()
-                .and_then(ship_substrate::project::resolve_active_space)
+            match probe.as_deref() {
+                Some(p) => {
+                    match ship_space::identity::ensure_identity_for_root(
+                        &kernel_log, p, None,
+                    )
+                    .await
+                    {
+                        Ok(rec) => Some(rec.space_id),
+                        Err(e) => {
+                            // No `.ship/` presence-walk match, or kernel emit
+                            // failed. Both are loud-but-non-fatal: shipd
+                            // boots space-less (the S2 posture). The log
+                            // carries a single warn for the operator.
+                            tracing::warn!(
+                                error = %e,
+                                probe = %p.display(),
+                                "shipd: identity mint-or-read failed; booting space-less"
+                            );
+                            None
+                        }
+                    }
+                }
+                None => None,
+            }
         };
         // One `SpaceContext` for both collections AND artifacts — they share
         // the same per-scope `spaces/<id>/space.db` (ADR D6/D7), so binding
@@ -156,7 +187,7 @@ impl ShipRuntime {
         // correct. The previous code opened two `DataService` connections
         // over the same file (collection_ctx + artifact_ctx) and stood up two
         // `KernelLog` instances — collapsed here.
-        let space_ctx = space_id
+        let space_ctx = served_space_id
             .as_deref()
             .and_then(|id| build_space_db_context_arc(kernel.clone(), global_dir, id));
         let schemas = Arc::new(ship_collection::projection::SchemaRegistry::new());
@@ -269,6 +300,7 @@ impl ShipRuntime {
             skills: ship_agents::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
             agents: ship_agents::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
             pipelines: ship_pipeline_runtime::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
+            served_space_id: std::sync::OnceLock::from(served_space_id),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),

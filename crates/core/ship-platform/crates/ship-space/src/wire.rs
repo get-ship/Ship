@@ -1,16 +1,23 @@
 //! ConnectRPC wire layer for `SpaceService`.
 //!
 //! `SpaceWire<F>` wraps the service with one per-request factory:
-//! - `make_ctx` builds the Runtime-scoped `SpaceContext` (registry + kernel).
+//! - `make_ctx` builds the per-request `SpaceContext` (its identity slot is
+//!   the served space's id; for globally-scoped requests it's empty).
 //!
 //! It implements the generated `ship_ops_rpc::SpaceService` trait so shipd can
 //! mount it via `SpaceServiceExt::register`.
 //!
-//! Per-space settings live on the unified `settings_overlay` (S4) and are
-//! served by `SettingsService`. The `SpaceService.Watch` stream covers the
-//! registry (list + active pointer) AND, on its `space` variant, per-space
-//! `settings.changed` events. The per-space reactive prefix was repointed
-//! from the legacy `space.setting.` to `settings.changed` in S4.
+//! Space-event coverage:
+//! - `List` reads the Runtime-scoped `spaces` projection directly.
+//! - `Info` returns the request's ctx-bound served space (or empty for
+//!   globally-scoped requests) plus the projection's name + canonical path.
+//! - `Add` is CREATE-new-at-location (a mint-once identity on first open;
+//!   re-open = identity read + `space.seen` bump).
+//! - `Watch(registry)` streams `space.*` events (opened/seen) folded into
+//!   the projection.
+//!
+//! `Activate` and the `SpaceList.active_id` field are GONE (multi-window
+//! kills the open-one-at-a-time world).
 
 use std::sync::Arc;
 
@@ -19,14 +26,12 @@ use ship_reactive::{ReactiveRegistry, ResolverSpec, WatchKey};
 use ship_substrate::events::EventFilter;
 use ship_substrate::ports::{KernelLog, SpaceContext};
 
-use ship_ops_rpc::{
-    ActiveSpace, Space, SpaceInfo, SpaceList, SpaceService as SpaceServiceTrait, WatchEvent,
-};
+use ship_ops_rpc::{Space, SpaceInfo, SpaceList, SpaceService as SpaceServiceTrait, WatchEvent};
 
 use crate::service::SpaceService;
 use crate::types::SpaceRecord;
 
-/// Wraps SpaceService with the per-request Runtime-scoped context factory.
+/// Wraps SpaceService with the per-request context factory.
 pub struct SpaceWire<F> {
     make_ctx: F,
     reactive: Arc<ReactiveRegistry>,
@@ -44,16 +49,18 @@ where
     }
 
     fn make_svc(&self, rctx: &RequestContext) -> Result<SpaceService, ConnectError> {
-        Ok(SpaceService { ctx: (self.make_ctx)(rctx)? })
+        Ok(SpaceService {
+            ctx: (self.make_ctx)(rctx)?,
+        })
     }
 }
 
 fn record_to_proto(r: SpaceRecord) -> Space {
     Space {
-        id: r.id,
+        id: r.space_id,
         path: r.path,
         name: r.name,
-        created_at: r.created_at,
+        created_at: r.opened_at,
         last_seen_at: r.last_seen_at,
         ..Default::default()
     }
@@ -72,24 +79,9 @@ where
         _request: ship_ops_rpc::OwnedSpaceListReqView,
     ) -> ServiceResult<SpaceList> {
         let svc = self.make_svc(&ctx)?;
-        let spaces = svc.list().await.map_err(ConnectError::from)?;
-        let active_id = svc.active_id().await.map_err(ConnectError::from)?;
+        let spaces = svc.list().map_err(ConnectError::from)?;
         Ok(Response::new(SpaceList {
             spaces: spaces.into_iter().map(record_to_proto).collect(),
-            active_id,
-            ..Default::default()
-        }))
-    }
-
-    async fn active(
-        &self,
-        ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedSpaceActiveReqView,
-    ) -> ServiceResult<ActiveSpace> {
-        let svc = self.make_svc(&ctx)?;
-        let active = svc.active().await.map_err(ConnectError::from)?;
-        Ok(Response::new(ActiveSpace {
-            active: active.map(record_to_proto).into(),
             ..Default::default()
         }))
     }
@@ -100,12 +92,7 @@ where
         _request: ship_ops_rpc::OwnedSpaceInfoReqView,
     ) -> ServiceResult<SpaceInfo> {
         let svc = self.make_svc(&ctx)?;
-        let bound = svc.ctx.space_id().as_str();
-        let composed = svc
-            .info(if bound.is_empty() { None } else { Some(bound) })
-            .await
-        .map_err(ConnectError::from)?;
-
+        let composed = svc.info().map_err(ConnectError::from)?;
         Ok(Response::new(SpaceInfo {
             space_id: composed.space_id,
             root: composed.root,
@@ -121,22 +108,13 @@ where
     ) -> ServiceResult<Space> {
         let svc = self.make_svc(&ctx)?;
         let path = std::path::Path::new(request.path);
-        let name = if request.name.is_empty() { None } else { Some(request.name) };
+        let name = if request.name.is_empty() {
+            None
+        } else {
+            Some(request.name)
+        };
         let record = svc.add(path, name).await.map_err(ConnectError::from)?;
         Ok(Response::new(record_to_proto(record)))
-    }
-
-    async fn activate(
-        &self,
-        ctx: RequestContext,
-        request: ship_ops_rpc::OwnedActivateSpaceReqView,
-    ) -> ServiceResult<ActiveSpace> {
-        let svc = self.make_svc(&ctx)?;
-        let record = svc.activate(request.id).await.map_err(ConnectError::from)?;
-        Ok(Response::new(ActiveSpace {
-            active: Some(record_to_proto(record)).into(),
-            ..Default::default()
-        }))
     }
 
     async fn watch(
@@ -150,7 +128,8 @@ where
 
         let (scope, prefix) = match owned.scope {
             Some(ship_ops_rpc::__buffa::oneof::space_watch_req::Scope::Registry(_)) => {
-                ("registry".to_string(), "project.")
+                // Stream the `spaces` Runtime-scoped projection's events.
+                ("registry".to_string(), "space.")
             }
             Some(ship_ops_rpc::__buffa::oneof::space_watch_req::Scope::Space(id)) => {
                 // Per-space stream — `settings.changed` (Space scope) for that
@@ -163,7 +142,11 @@ where
             }
         };
 
-        let key = WatchKey { space_id, scope: scope.clone(), query_hash: 0 };
+        let key = WatchKey {
+            space_id,
+            scope: scope.clone(),
+            query_hash: 0,
+        };
         let resolver_ctx = ctx_arc.clone();
         let spec = ResolverSpec {
             prefilter: Box::new(move |env| env.event_type.starts_with(prefix)),
@@ -187,27 +170,26 @@ where
     }
 }
 
-/// Snapshot the registry (list + active pointer) for the Watch root frame.
-/// The per-space settings overlay snapshot was removed in S4 — settings changes
-/// stream on `SettingsService.Watch`. The FE re-fetches `Info` on a frame.
+/// Snapshot the `spaces` projection for the Watch root frame. Per-space
+/// settings changes stream on `SettingsService.Watch`; the FE re-fetches
+/// `Info` on a frame.
 async fn registry_snapshot(ctx: Arc<SpaceContext>) -> serde_json::Value {
     use serde_json::json;
     let svc = SpaceService { ctx };
-    let spaces = svc.list().await.unwrap_or_default();
-    let active_id = svc.active_id().await.unwrap_or_default();
+    let spaces = svc.list().unwrap_or_default();
     let spaces_json: Vec<_> = spaces
         .into_iter()
         .map(|r| {
             json!({
-                "id": r.id,
+                "id": r.space_id,
                 "path": r.path,
                 "name": r.name,
-                "created_at": r.created_at,
+                "opened_at": r.opened_at,
                 "last_seen_at": r.last_seen_at,
             })
         })
         .collect();
-    json!({ "spaces": spaces_json, "active_id": active_id })
+    json!({ "spaces": spaces_json })
 }
 
 fn patch_op_to_proto(op: &ship_reactive::PatchOp) -> ship_ops_rpc::PatchOp {
@@ -248,9 +230,11 @@ pub(crate) fn patch_frame_to_proto(frame: ship_reactive::PatchFrame) -> WatchEve
         .collect();
     WatchEvent {
         body: Some(ship_ops_rpc::__buffa::oneof::watch_event::Body::Patches(Box::new(
-            ProtoFrame { patches, ..Default::default() },
+            ProtoFrame {
+                patches,
+                ..Default::default()
+            },
         ))),
         ..Default::default()
     }
 }
-

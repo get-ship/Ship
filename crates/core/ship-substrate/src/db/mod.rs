@@ -12,7 +12,7 @@
 pub mod actor_events;
 pub mod cursors;
 pub mod daemon_settings;
-pub mod projects;
+pub mod spaces;
 pub mod envelope;
 pub mod events;
 pub mod integrity;

@@ -74,12 +74,20 @@ pub struct ShipRuntime {
     /// primitive migration. Shells live here today; agents and pipelines
     /// follow as 1.1.c / 1.1.d land.
     pub(super) actor_sessions: ship_agents::services::sessions::ActorRegistry,
+    /// The space this daemon is currently serving — its mint-once
+    /// `space_id` (an owned string, NOT a `SpaceId` newtype). Cached at boot
+    /// from `ship_space::identity::ensure_identity_for_root`; never re-minted,
+    /// never re-registered, never `resolve_active_space`-recomputed. `None`
+    /// when the daemon is space-less (no `--workspace`, or no project root
+    /// it can attach to). Every reader that needs "the served space"
+    /// — `active_space_id`, `SpaceService.Info`, the dispatch chain's
+    /// `spaces/<id>/space.db` partition — reaches for this.
+    pub(super) served_space_id: std::sync::OnceLock<Option<String>>,
     /// Project workspace dir (e.g. `/path/to/repo`) when the daemon was
     /// started with `--workspace`. Drives project-scoped artifact storage.
     pub(super) workspace_dir: Option<PathBuf>,
     /// Wall-clock instant the daemon process started — used for uptime.
     pub(super) started_at: std::time::Instant,
-    /// Hook engine (external source adapters; trigger set reloaded from the
     /// descriptor at boot — no dedicated file-watcher post format-migration
     /// Wave 4 phase A).
     pub(super) hook_engine: std::sync::OnceLock<std::sync::Arc<ship_triggers::engine::HookEngine>>,

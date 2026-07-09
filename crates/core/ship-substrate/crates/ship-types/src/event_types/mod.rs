@@ -65,17 +65,17 @@ pub const STUDIO_REPLY: &str = "studio.reply";
 /// `project_compile_state` projection. `entity_id` is the space_id.
 pub const COMPILE_COMPLETED: &str = "compile.completed";
 
-/// Project registry — first time a project path is seen by the daemon.
-/// `entity_id` is the space_id (stable hash of the canonical path).
-pub const PROJECT_REGISTERED: &str = "project.registered";
-/// Project registry — `last_seen_at` bump (re-open, switch, reattach).
-pub const PROJECT_SEEN: &str = "project.seen";
-/// Project registry — user removed the project from their registry.
-pub const PROJECT_ARCHIVED: &str = "project.archived";
-/// Active-project switch. `entity_id` is the newly-active space_id.
-/// Payload carries the new + previous ids so chrome subscribers can
-/// distinguish a no-op set from a true context change.
-pub const PROJECT_SWITCHED: &str = "project.switched";
+/// Space location — the runtime opened a directory path as a space. The
+/// `spaces` Runtime-scoped projection (folded from this event in
+/// `ship-space::spaces_projection`) materializes one row per opened space;
+/// `entity_id` is the mint-once space_id (a nanoid, never derived from the
+/// path — the space owns its identity, the path is just where it currently
+/// lives). Payload: `SpaceOpened`.
+pub const SPACE_OPENED: &str = "space.opened";
+/// Space location — last-seen bump (a re-open of a known space). The runtime
+/// emits this on every boot of a previously-opened space. Payload:
+/// `SpaceSeen`.
+pub const SPACE_SEEN: &str = "space.seen";
 
 /// Auth — a daemon session (CLI / MCP / Studio-local) was issued.
 /// `entity_id` is the session token. The auth_sessions projection

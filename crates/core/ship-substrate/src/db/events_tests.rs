@@ -6,7 +6,7 @@ use super::events::{
 use ship_types::envelope::EventEnvelope;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
-use crate::events::types::ProjectSeen;
+use crate::events::types::SpaceSeen;
 use crate::testutil::init_project_minimal as init_project;
 use chrono::Utc;
 use tempfile::tempdir;
@@ -30,9 +30,9 @@ fn runtime_store() -> SqliteEventStore {
 
 fn make_seen_event(seen_at: &str) -> EventEnvelope {
     EventEnvelope::new(
-        event_types::PROJECT_SEEN,
-        "project",
-        &ProjectSeen {
+        event_types::SPACE_SEEN,
+        "space",
+        &SpaceSeen {
             seen_at: seen_at.to_string(),
         },
     )
@@ -55,8 +55,8 @@ fn append_and_list_all() {
 
     let all = list_all_events().unwrap();
     assert_eq!(all.len(), 2);
-    assert_eq!(all[0].event_type, event_types::PROJECT_SEEN);
-    assert_eq!(all[1].event_type, event_types::PROJECT_SEEN);
+    assert_eq!(all[0].event_type, event_types::SPACE_SEEN);
+    assert_eq!(all[1].event_type, event_types::SPACE_SEEN);
 }
 
 #[test]
@@ -142,19 +142,19 @@ fn query_events_since_latest_cursor_returns_empty() {
 
 #[test]
 fn query_events_since_elevated_only() {
-    use crate::events::types::{ProjectRegistered, event_types as et};
+    use crate::events::types::{SpaceOpened, event_types as et};
     let (_tmp, _ship_dir) = setup();
     let store = runtime_store();
     // Non-elevated event
     store.append(&make_seen_event("noise")).unwrap();
     // Elevated event
     let elevated = EventEnvelope::new(
-        et::PROJECT_REGISTERED,
+        et::SPACE_OPENED,
         "ws-1",
-        &ProjectRegistered {
+        &SpaceOpened {
             path: "/test/path".into(),
             name: "test".into(),
-            created_at: "2026-01-01T00:00:00Z".into(),
+            opened_at: "2026-01-01T00:00:00Z".into(),
         },
     )
     .unwrap()
@@ -164,5 +164,5 @@ fn query_events_since_elevated_only() {
     assert_eq!(all.len(), 2);
     let elevated_only = query_events_since(None, true).unwrap();
     assert_eq!(elevated_only.len(), 1);
-    assert_eq!(elevated_only[0].event_type, et::PROJECT_REGISTERED);
+    assert_eq!(elevated_only[0].event_type, et::SPACE_OPENED);
 }

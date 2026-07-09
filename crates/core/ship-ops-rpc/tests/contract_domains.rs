@@ -6,7 +6,7 @@
 
 use serde_json::Value;
 use ship_ops_rpc::{
-    ActiveSpace, ArtifactsListResponse, CollectionItem, Deletion,
+    ArtifactsListResponse, CollectionItem, Deletion,
     EventsListResponse, ListProcsResponse, McpIndexResponse, PermissionsIndexResponse,
     PipelinesIndexResponse, SessionsListResponse, SkillFileResponse, SkillsIndexResponse, Space,
     SpaceInfo, SpaceList, SpecDetail, SpecGetResponse, SpecsListResponse,
@@ -103,11 +103,13 @@ fn space_add_parses_record() {
 }
 
 #[test]
-fn space_list_parses_spaces_and_active() {
+fn space_list_parses_spaces() {
+    // S1 cutover: `SpaceList.active_id` is GONE (multi-window kills the
+    // open-one-at-a-time world). The list is now just the opened-spaces
+    // record; identity of the served space ships in `SpaceService.Info`.
     let r: SpaceList = serde_json::from_str(&response_ok(SPACE, "List")).expect("parse SpaceList");
     assert_eq!(r.spaces.len(), 1);
     assert_eq!(r.spaces[0].id, "harbor");
-    assert_eq!(r.active_id.as_deref(), Some("harbor"));
 }
 
 #[test]
@@ -184,13 +186,4 @@ fn space_info_parses_identity_only() {
     assert!(r.space_id.is_some());
 }
 
-// Window contract tests moved to the device topic (DeviceService) — the space
-// surface no longer carries window RPCs after the cutover.
 
-#[test]
-fn space_active_parses_active_record() {
-    let r: ActiveSpace =
-        serde_json::from_str(&response_ok(SPACE, "Active")).expect("parse ActiveSpace");
-    let active = r.active.as_option().expect("an active space is set in the fixture");
-    assert_eq!(active.id, "harbor");
-}

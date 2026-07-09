@@ -18,9 +18,7 @@
 //!
 //! Worked from the event registry (`register_event!`):
 //! - Runtime: `actors` (actor.*), `analytics_*` (op.tool_use_*, session.turn.ended,
-//!   actor.*), `projects` (project.registered/seen), `pipeline_runs`/
-//!   `pipeline_step_runs` (pipeline.*); plus `daemon_settings` (direct-write to
-//!   runtime.db) and `durable_journals` (pipeline journal store).
+//!   actor.*), `spaces` (space.opened/space.seen), `pipeline_runs`/
 //! - Account: `auth_sessions` (auth.session.*), `daemon_owner` (daemon.owner.*),
 //!   `provisioned_grants` (agent.grants.provisioned).
 //! - Space: `project_compile_state` (compile.completed).
@@ -269,18 +267,24 @@ END"#,
     "CREATE INDEX IF NOT EXISTS idx_pipeline_step_runs_run     ON pipeline_step_runs(run_id)",
     "CREATE INDEX IF NOT EXISTS idx_pipeline_step_runs_session ON pipeline_step_runs(session_id)",
     "CREATE INDEX IF NOT EXISTS idx_pipeline_step_runs_status  ON pipeline_step_runs(status)",
-    // ── projects (project.registered / project.seen) ─────────────────────────────
-    r#"CREATE TABLE IF NOT EXISTS projects (
-  id            TEXT PRIMARY KEY NOT NULL,
+    // ── spaces (space.opened / space.seen) ─────────────────────────────────
+    // The runtime-scoped `spaces` projection — the device-local record of opened
+    // spaces, folded from the `space.*` events ship-space emits. Identity
+    // (space_id) lives here, minted ONCE in ship-space::identity from a
+    // nanoid, never derived from the path. `path` is the location on this
+    // device (the projection's existing columns are the LaunchServices
+    // analogy); it can change with a future `space.moved` event without
+    // changing identity.
+    r#"CREATE TABLE IF NOT EXISTS spaces (
+  space_id      TEXT PRIMARY KEY NOT NULL,
   path          TEXT NOT NULL,
   name          TEXT NOT NULL,
-  created_at    TEXT NOT NULL,
+  opened_at     TEXT NOT NULL,
   last_seen_at  TEXT NOT NULL,
-  archived_at   TEXT,
   updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 )"#,
-    "CREATE INDEX IF NOT EXISTS idx_projects_last_seen ON projects(last_seen_at DESC)",
-    "CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path)",
+    "CREATE INDEX IF NOT EXISTS idx_spaces_last_seen ON spaces(last_seen_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_spaces_path      ON spaces(path)",
     // ── canonical_sessions ──────────────────────────────────────────────────────
     // The agent-session ledger. Special case: it aggregates BOTH Space-scoped
     // session.* AND Runtime-scoped session.turn.* events, so CanonicalSessionProjection
@@ -418,7 +422,7 @@ mod tests {
             "durable_journals",
             "pipeline_runs",
             "pipeline_step_runs",
-            "projects",
+            "spaces",
             "canonical_sessions",
         ] {
             assert!(tables.contains(&expected.to_string()), "runtime missing {expected}; got {tables:?}");
