@@ -20,10 +20,12 @@
 //! write namespaces. `session.*` is in `write_namespaces` because the dispatch
 //! path emits `session.failed` on prep errors.
 
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 #[cfg(feature = "harness-drivers")]
-use ship_code::runner::router::{terminal_guard, Admit};
+use ship_runner::router::{terminal_guard, Admit};
 use ship_substrate::events::EventEnvelope;
 use tokio::sync::Mutex;
 
@@ -86,9 +88,18 @@ pub async fn handle_agents_event(kernel: &Kernel, envelope: &EventEnvelope, port
     // Gate: terminal_guard + EventDedup are ship_code-backed; with
     // harness-drivers OFF these are absent.
     #[cfg(feature = "harness-drivers")]
-    match terminal_guard(&ports.event_dedup, &*ports.projections, envelope).await {
-        Admit::Proceed => {}
-        Admit::Duplicate | Admit::Terminal => return,
+    {
+        let projections: Arc<dyn ship_code::dispatch_ports::ProjectionReader> =
+            Arc::clone(&ports.projections);
+        let is_terminal = move |entity_id: &str| -> Pin<Box<dyn Future<Output = bool> + Send>> {
+            let p = Arc::clone(&projections);
+            let entity_id = entity_id.to_string();
+            Box::pin(async move { p.is_run_terminal(&entity_id).await })
+        };
+        match terminal_guard(&ports.event_dedup, is_terminal, envelope).await {
+            Admit::Proceed => {}
+            Admit::Duplicate | Admit::Terminal => return,
+        }
     }
 
     match envelope.event_type.as_str() {

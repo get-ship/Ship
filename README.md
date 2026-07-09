@@ -8,8 +8,11 @@ Ship is a runtime for AI agent teams. Not a harness — a runtime. It gives agen
 
 One `.ship/` directory. Every provider.
 
-```
-.ship/agents/my-agent.jsonc    →    CLAUDE.md + .mcp.json
+- `orchestrator::emit` — re-export of the L0 `ship-runner` emit mechanism.
+- `orchestrator::exit_handler` — re-export of the L1 `ship_code::runner::exit_handler`
+  (harness-driver-specific exit commands). `dedup` / `router` / `DISPATCH_GATE` /
+  `terminal_guard` live at L0 `ship_runner` and are imported directly from there
+  as part of the seam-leak eviction.
                                      .cursor/rules + .cursor/mcp.json
                                      GEMINI.md + .gemini/settings.json
                                      AGENTS.md + .codex/config.toml

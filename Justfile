@@ -344,8 +344,8 @@ build: _sui-compiler-lib _deck-cli
     # surface (`--bundle-framework`).
     echo "[2/4] app scaffolds (from apps/shipd/apps.jsonc)"
     just _build-apps
-    echo "[3/4] cargo build --release (ship-cli + shipd)"
-    cargo build --release -p ship-cli -p shipd
+    echo "[3/4] cargo build --release (ship-cli + shipd --features ship-code)"
+    cargo build --release --features ship-code -p ship-cli -p shipd
     echo "[4/4] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
@@ -370,16 +370,17 @@ build: _sui-compiler-lib _deck-cli
     done
     [ "$missing" = "0" ] || { echo "build: outputs incomplete" >&2; exit 1; }
     echo "build complete — release binaries at $target_dir/release/"
-# Build CLI + shipd (unstable dev build).
+# Build CLI + shipd (unstable dev build). shipd defaults to ship-standard
+# (no harness-driver stack); opt in with `--features ship-code` for
+# coding-agent dispatch — see apps/shipd/Cargo.toml.
 [group('occasional')]
 build-dev:
-    cargo build --features unstable -p ship-cli -p shipd && cargo build --manifest-path {{sui_path}}/Cargo.toml -p sui-lsp
+    cargo build --features unstable,ship-code -p ship-cli -p shipd && cargo build --manifest-path {{sui_path}}/Cargo.toml -p sui-lsp
 
 # Cargo-only release build (no front-end). Use `just build` for the full
 # production artifact set; this recipe is the cargo subset.
-[group('occasional')]
 build-release:
-    cargo build --release -p ship-cli -p shipd
+    cargo build --release --features ship-code -p ship-cli -p shipd
 
 # Install dev binaries to ~/.local/bin (ship + shipd).
 [group('occasional')]
@@ -474,11 +475,14 @@ logs:
     fi
     tail -f "$log"
 
-# Verify both stable and unstable compile (CI gate).
+# Verify both stable and unstable compile (CI gate). shipd defaults to
+# ship-standard (no harness-driver stack); opt in with `--features ship-code`
+# for the full dispatch path.
 [group('occasional')]
 check-gates:
-    cargo build -p ship-cli -p shipd
-    cargo build --features unstable -p ship-cli -p shipd
+    cargo build -p ship-cli
+    cargo build --features ship-code -p ship-cli -p shipd
+    cargo build --features unstable,ship-code -p ship-cli -p shipd
     just check-no-set-var-global-dir
     @echo "Both gates compile ✓"
 

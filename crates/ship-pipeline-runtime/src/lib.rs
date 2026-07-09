@@ -17,10 +17,11 @@
 //!   step_monitor, projection_reader, spawn_policy, prompt_composer,
 //!   gate_rules, pipeline. Gated behind the `ship-code` feature — the
 //!   orchestrator depends on process/session types from `ship-code`.
-//! - [`orchestrator::emit`] — re-export of the L0 `ship-runner` emit mechanism;
-//!   [`orchestrator::dedup`], [`orchestrator::exit_handler`] — re-exports of the
-//!   L1 `ship_code::runner` mechanism. Historic `services::orchestrator::*`
-//!   import paths keep working for consumers built with `ship-code` on.
+//! - [`orchestrator::emit`] — re-export of the L0 `ship-runner` emit
+//!   mechanism; [`orchestrator::exit_handler`] — re-export of the L1
+//!   `ship_code::runner::exit_handler` (harness-driver-specific exit
+//!   commands). `dedup` / `router` moved to L0 `ship_runner` and are
+//!   imported directly from there as part of the seam-leak eviction.
 
 pub mod sweep_events;
 pub mod log_stream;

@@ -4,13 +4,15 @@
 //! The `agent.session.*` subscription was retired in #26 — the orchestrator
 //! no longer subscribes to or acts on any `agent.session.*` events.
 
-use ship_code::runner::router::{extract_slug, terminal_guard, Admit};
+use ship_runner::router::{extract_slug, terminal_guard, Admit};
 use ship_substrate::events::pipeline::{PipelineStepDoneDeclaredPayload, PipelineStepObservedPayload};
 use ship_substrate::events::EventEnvelope;
 use ship_types::event_types as et;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use std::future::Future;
+use std::pin::Pin;
 
 use super::dispatch::handle_pipeline_run_started;
 use super::emit::emit_step_failed;
@@ -99,9 +101,13 @@ pub async fn handle_orchestrator_event(
     // racing live delivery, test replays — from advancing twice) AND the
     // terminal-state guard (once a job is Failed/Merged/Cancelled, late
     // pipeline events can't resurrect it; operator events are exempt). The
-    // terminal check goes through the ProjectionReader port (primitive `bool`)
-    // so the runner never names the projection status enum.
-    match terminal_guard(&octx.event_dedup, &*octx.projections, envelope).await {
+    let projections: Arc<dyn ship_code::dispatch_ports::ProjectionReader> = Arc::clone(&octx.projections);
+    let is_terminal = move |entity_id: &str| -> Pin<Box<dyn Future<Output = bool> + Send>> {
+        let p = Arc::clone(&projections);
+        let entity_id = entity_id.to_string();
+        Box::pin(async move { p.is_run_terminal(&entity_id).await })
+    };
+    match terminal_guard(&octx.event_dedup, is_terminal, envelope).await {
         Admit::Proceed => {}
         Admit::Duplicate | Admit::Terminal => return,
     }

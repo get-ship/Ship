@@ -79,25 +79,7 @@ pub async fn read_chunk(path: &PathBuf, from: u64, to: u64) -> Option<Vec<u8>> {
 
 /// Strip ANSI CSI escape sequences from a byte buffer, returning a
 /// UTF-8 string. Invalid bytes are lossy-converted.
+
 pub fn strip_ansi(input: &[u8]) -> String {
-    let s = String::from_utf8_lossy(input);
-    let mut out = String::with_capacity(s.len());
-    let mut chars = s.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '\x1b' {
-            if chars.peek() == Some(&'[') {
-                chars.next();
-                for nc in chars.by_ref() {
-                    if matches!(nc, '\x40'..='\x7E') {
-                        break;
-                    }
-                }
-                continue;
-            }
-            chars.next();
-            continue;
-        }
-        out.push(c);
-    }
-    out
+    ship_substrate::text::strip_ansi_bytes(input)
 }

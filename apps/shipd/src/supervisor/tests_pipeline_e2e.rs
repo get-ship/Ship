@@ -208,7 +208,7 @@ async fn pipeline_advances_through_all_steps() {
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        event_dedup: Arc::new(ship_pipeline_runtime::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_runner::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
@@ -464,7 +464,7 @@ async fn run_step_advances_to_agent_step() {
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        event_dedup: Arc::new(ship_pipeline_runtime::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_runner::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
@@ -558,7 +558,7 @@ async fn first_step_run_executes_without_agent() {
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        event_dedup: Arc::new(ship_pipeline_runtime::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_runner::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };

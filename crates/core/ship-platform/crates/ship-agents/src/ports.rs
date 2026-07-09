@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use agent_def::dispatch_intent::DispatchRequestedPayload;
 #[cfg(feature = "harness-drivers")]
-use ship_code::runner::dedup::EventDedup;
+use ship_runner::dedup::EventDedup;
 #[cfg(feature = "harness-drivers")]
 use ship_code::dispatch_ports::{
     AgentPlatform, IsolationStrategy, ProcessRegistryPort, ProjectionReader, SessionExecutor,

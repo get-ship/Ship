@@ -121,8 +121,15 @@ git2 = { version = "0.19" }
 specta = { workspace = true, features = ["chrono", "serde_json"], optional = true }
 
 [features]
-# Default feature set — normal daemon build with full harness machinery.
-default = ["ship-code"]
+# Default feature set — ship-standard shipd (seam-leak fix). Builds without
+# the harness-driver stack: dispatch goes through the floki closure only; any
+# coding-agent `dispatch.requested` fails loudly with `session.failed` (see
+# `daemon::lifecycle::start_agent_stack` for the boot-time posture
+# announcement). To run shipd with the harness-driver stack — coding-agent
+# dispatch, worktree management, hooks — opt in with
+# `--features ship-code`. The operator-facing docs (changelog, R5+) cite this
+# as the canonical posture.
+default = []
 # ship-code: harness-driver stack (dispatch, sessions, hooks, job routes).
 # Turn off with --no-default-features to get a harness-free shipd build.
 # Forwarded into ship-pipeline-runtime so the orchestrator (which depends on

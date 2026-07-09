@@ -108,7 +108,7 @@ fn octx(executor: Arc<TrackingExecutor>, worktrees: PathBuf) -> OrchestratorCont
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        event_dedup: Arc::new(crate::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_runner::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         journal_store: Arc::new(durable_execution::InMemoryJournalStore::new()),
@@ -269,7 +269,7 @@ async fn operator_events_bypass_terminal_guard() {
     // router and asserted only that the status didn't change — an assertion
     // that holds whether the guard admits OR swallows. This asserts the
     // Admit decision itself.
-    use ship_code::runner::router::{Admit, terminal_guard};
+    use ship_runner::router::{Admit, terminal_guard};
 
     let tmp = TempDir::new().unwrap();
     let executor = Arc::new(TrackingExecutor::default());
@@ -284,8 +284,25 @@ async fn operator_events_bypass_terminal_guard() {
         &serde_json::json!({ "pipeline_run_id": pipeline_run_id, "slug": "guard-operator" }),
     )
     .unwrap();
+    // Two closures need a shared `Arc`; clone once at the callsite so
+    // each closure borrows an independent reference (the move would
+    // otherwise be a use-after-move once the second closure runs).
+    let projections: Arc<dyn ship_code::dispatch_ports::ProjectionReader> =
+        Arc::clone(&ctx.projections);
+    let op = Arc::clone(&projections);
+    let is_terminal_op = move |entity_id: &str| -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>> {
+        let p = op.clone();
+        let entity_id = entity_id.to_string();
+        Box::pin(async move { p.is_run_terminal(&entity_id).await })
+    };
+    let late = Arc::clone(&projections);
+    let is_terminal_late = move |entity_id: &str| -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>> {
+        let p = late.clone();
+        let entity_id = entity_id.to_string();
+        Box::pin(async move { p.is_run_terminal(&entity_id).await })
+    };
     assert_eq!(
-        terminal_guard(&ctx.event_dedup, &*ctx.projections, &cancel).await,
+        terminal_guard(&ctx.event_dedup, is_terminal_op, &cancel).await,
         Admit::Proceed,
         "operator cancel on a terminal job must bypass the guard"
     );
@@ -297,7 +314,7 @@ async fn operator_events_bypass_terminal_guard() {
     )
     .unwrap();
     assert_eq!(
-        terminal_guard(&ctx.event_dedup, &*ctx.projections, &late).await,
+        terminal_guard(&ctx.event_dedup, is_terminal_late, &late).await,
         Admit::Terminal,
         "a late non-operator event on a terminal job must be rejected"
     );

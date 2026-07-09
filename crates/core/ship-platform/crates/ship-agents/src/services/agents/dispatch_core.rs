@@ -20,6 +20,7 @@ use ship_substrate::events::EventEnvelope;
 use super::dispatch_request::{
     DispatchRequest, billing_warning_for_axes, validate_axes, validate_dispatch_request,
 };
+#[cfg(feature = "harness-drivers")]
 use super::dispatch_resume::{ResumeResolveError, resolve_resume};
 
 // ── Port trait ────────────────────────────────────────────────────────────────
@@ -35,7 +36,16 @@ pub trait AgentDispatchPort: Send + Sync {
     fn daemon_origin(&self) -> String;
 
     /// Absolute path to the worktrees root directory.
-    fn worktrees_dir(&self) -> std::path::PathBuf;
+    ///
+    /// `None` when the daemon has no harness-driver backend wired (the
+    /// floki path of ship-standard builds; the harness-only `resume: true`
+    /// flow refuses in that case at the wire boundary). The dispatch
+    /// core's resume branch is `#[cfg(feature = "harness-drivers")]`-gated,
+    /// so the only producer of `None` here is shipd's NoopDispatch port in
+    /// `--no-default-features` builds. Production shipd/helmd always
+    /// supply `Some`.
+    #[cfg(feature = "harness-drivers")]
+    fn worktrees_dir(&self) -> Option<std::path::PathBuf>;
 
     /// Per-project workspace isolation guard. Returns a violation message when
     /// an MCP session bound to project A claims to act on project B; `None`
@@ -97,15 +107,38 @@ pub async fn dispatch_agent_session_core(
 
     let workspace_label = req.workspace.clone().unwrap_or_else(|| req.agent.clone());
 
-    let resume_outcome = if req.resume {
-        let worktrees_root = port.worktrees_dir();
+    // Resume is harness-only (the resume target is always a prior coding-agent
+    // session — a floki session has nothing to resume). The sligntly-
+    // downcasted `ResumeFields` projection lives here so the function body
+    // can stay readable under both `harness-drivers` branches without
+    // referring to the gated `ResumeOutcome` type from the off-branch.
+    struct ResumeFields {
+        slug: String,
+        branch: String,
+        resume_harness: Option<String>,
+        resume_session_id: Option<String>,
+    }
+    #[cfg(feature = "harness-drivers")]
+    let resume: Option<ResumeFields> = if req.resume {
+        let worktrees_root = port.worktrees_dir().ok_or_else(|| {
+            DispatchCoreError::Internal(
+                "resume: no worktree root available — dispatch backend has no \
+                 harness-driver support (build shipd with --features ship-code)"
+                    .to_string(),
+            )
+        })?;
         match resolve_resume(
             &req.agent,
             &workspace_label,
             req.harness.as_deref(),
             &worktrees_root,
         ) {
-            Ok(o) => Some(o),
+            Ok(o) => Some(ResumeFields {
+                slug: o.slug,
+                branch: o.branch,
+                resume_harness: Some(o.session.harness),
+                resume_session_id: Some(o.session.session_id),
+            }),
             Err(ResumeResolveError::Status { status, message }) => {
                 return Err(if status == 400 {
                     DispatchCoreError::BadRequest(message)
@@ -117,11 +150,13 @@ pub async fn dispatch_agent_session_core(
     } else {
         None
     };
+    #[cfg(not(feature = "harness-drivers"))]
+    let resume: Option<ResumeFields> = None;
 
     let slug = req
         .slug
         .clone()
-        .or_else(|| resume_outcome.as_ref().map(|s| s.slug.clone()))
+        .or_else(|| resume.as_ref().map(|r| r.slug.clone()))
         .unwrap_or_else(|| {
             // Collision-free suffix from the ULID's random tail — a
             // `[..8]` prefix is pure timestamp and collides for rapid
@@ -131,12 +166,12 @@ pub async fn dispatch_agent_session_core(
     let branch = req
         .branch
         .clone()
-        .or_else(|| resume_outcome.as_ref().map(|s| s.branch.clone()))
+        .or_else(|| resume.as_ref().map(|r| r.branch.clone()))
         .unwrap_or_else(|| format!("job/{slug}"));
-    let resume_harness = resume_outcome.as_ref().map(|o| o.session.harness.clone());
-    let resume_session_id = resume_outcome
+    let resume_harness = resume.as_ref().and_then(|r| r.resume_harness.clone());
+    let resume_session_id = resume
         .as_ref()
-        .map(|o| o.session.session_id.clone());
+        .and_then(|r| r.resume_session_id.clone());
     let session_id = ship_substrate::gen_ulid();
 
     // Build the dispatch intent payload. This is the hard-failing spawn
@@ -157,7 +192,16 @@ pub async fn dispatch_agent_session_core(
         workspace: workspace_label.clone(),
         branch: branch.clone(),
         source_spec_path: req.source_spec_path,
+        // Ship-standard is git-free by ruling (decisions-2026-07-09 §"Git
+        // surface"). The floki dispatch closure ignores `baseline_sha`;
+        // a coding-agent dispatch captures the SHIP-git HEAD via
+        // `resolve_project_head_sha` only when the harness-driver stack is
+        // wired. With `harness-drivers` off, `baseline_sha = None` is the
+        // intended design — NOT a regression.
+        #[cfg(feature = "harness-drivers")]
         baseline_sha: resolve_project_head_sha(),
+        #[cfg(not(feature = "harness-drivers"))]
+        baseline_sha: None,
         open_tab: req.open_tab,
         invocation: req.invocation,
         keepalive: req.keepalive,
@@ -234,6 +278,13 @@ pub async fn dispatch_agent_session_core(
 /// Resolve HEAD SHA of the active project root. Used at dispatch time to
 /// capture the session's baseline — the point every future worktree branches
 /// from. `None` when the project dir can't be resolved or git fails.
+///
+/// Gated: ship-standard is git-free by ruling (decisions-2026-07-09 §"Git
+/// surface"), so the floki path carries `baseline_sha = None`. The
+/// harness-driver stack reaches the SHIP-git leaf here; absent the
+/// feature, the call site has `baseline_sha = None` and this function
+/// is not compiled.
+#[cfg(feature = "harness-drivers")]
 fn resolve_project_head_sha() -> Option<String> {
     let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
@@ -271,8 +322,9 @@ mod tests {
         fn daemon_origin(&self) -> String {
             "http://127.0.0.1:0".to_string()
         }
-        fn worktrees_dir(&self) -> std::path::PathBuf {
-            std::path::PathBuf::from("/tmp")
+        #[cfg(feature = "harness-drivers")]
+        fn worktrees_dir(&self) -> Option<std::path::PathBuf> {
+            Some(std::path::PathBuf::from("/tmp"))
         }
         fn check_workspace_violation(
             &self,

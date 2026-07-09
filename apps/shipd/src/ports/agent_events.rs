@@ -93,9 +93,9 @@ impl AgentDispatchPort for AgentDispatchAdapter {
     fn daemon_origin(&self) -> String {
         self.state.daemon_origin()
     }
-
-    fn worktrees_dir(&self) -> std::path::PathBuf {
-        crate::ports::local_paths::worktrees_dir()
+    #[cfg(feature = "harness-drivers")]
+    fn worktrees_dir(&self) -> Option<std::path::PathBuf> {
+        Some(crate::ports::local_paths::worktrees_dir())
     }
 
     fn check_workspace_violation(

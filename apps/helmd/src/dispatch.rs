@@ -58,7 +58,7 @@ use ship_git::write::{self as git_write, WorktreeOutcome};
 use ship_code::helpers;
 
 use ship_code::process_registry::{ProcessRegistry, SharedRegistry};
-use ship_code::runner::dedup::EventDedup;
+use ship_runner::dedup::EventDedup;
 
 use ship_pipeline_runtime::orchestrator::projection_reader::ProjectionsReader;
 use ship_pipeline_runtime::orchestrator::spawn_policy::ConfigSpawnPolicy;
@@ -178,8 +178,9 @@ impl AgentDispatchPort for HelmDispatchAdapter {
         self.daemon_origin.clone()
     }
 
-    fn worktrees_dir(&self) -> PathBuf {
-        helpers::worktrees_dir()
+    #[cfg(feature = "ship-code")]
+    fn worktrees_dir(&self) -> Option<PathBuf> {
+        Some(helpers::worktrees_dir())
     }
 
     fn check_workspace_violation(

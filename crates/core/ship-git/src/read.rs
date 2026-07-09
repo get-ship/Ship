@@ -279,6 +279,32 @@ pub fn resolve_head_sha(root: &Path) -> Option<String> {
     let head = repo.head().ok()?;
     head.target().map(|oid| oid.to_string())
 }
+/// Count commits reachable from HEAD but not from `start_sha` — i.e. the
+/// `git rev-list --count <start_sha>..HEAD` number, used by the step
+/// monitor's git-evidence accumulator to decide whether a step produced
+/// new commits. Returns `0` for non-repos, bad SHAs, or branches where
+/// `start_sha` is already at HEAD (or a descendant of HEAD) — the
+/// empty/zero case is always safe for the caller to treat as "nothing new".
+///
+/// Implemented via libgit2 `graph_ahead_behind` so no subprocess is spawned
+/// (matches the rest of the leaf's libgit2-direct invariant).
+pub fn count_commits_ahead(root: &Path, start_sha: &str) -> u32 {
+    let repo = match open_repo(root) {
+        Ok(r) => r,
+        Err(_) => return 0,
+    };
+    let head = match repo.head().ok().and_then(|h| h.target()) {
+        Some(o) => o,
+        None => return 0,
+    };
+    let start_oid = match git2::Oid::from_str(start_sha) {
+        Ok(o) => o,
+        Err(_) => return 0,
+    };
+    repo.graph_ahead_behind(head, start_oid)
+        .map(|(ahead, _)| ahead as u32)
+        .unwrap_or(0)
+}
 
 /// Compute the file paths changed between `start_sha` and HEAD.
 /// Returns an empty list when `start_sha` is invalid or the repo cannot be

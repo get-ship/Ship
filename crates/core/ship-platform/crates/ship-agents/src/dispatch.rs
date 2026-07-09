@@ -21,8 +21,7 @@ use ship_runner::emit::emit_process_spawned;
 #[cfg(feature = "harness-drivers")]
 use ship_code::runner::exit_handler::{self, ExitVocabulary};
 #[cfg(feature = "harness-drivers")]
-use ship_code::runner::router::DISPATCH_GATE;
-#[cfg(feature = "harness-drivers")]
+use ship_runner::router::DISPATCH_GATE;
 use agent_def::canonical_session::{SessionFailed, event_types as canonical_session_event_types};
 use agent_def::dispatch_intent::DispatchRequestedPayload;
 #[cfg(feature = "harness-drivers")]
@@ -58,23 +57,81 @@ pub async fn handle_dispatch_requested(
         }
     };
 
-    // Floki-harness fast path: when harness == "floki" and the closure is wired,
-    // spawn it off the mailbox loop (same detach pattern as the harness path
-    // below) and return immediately. The harness-driver stack is skipped — no
-    // worktree prep, no executor spawn, no process registry.
-    if payload.harness.as_deref() == Some("floki") {
-        if let Some(ref run_fn) = ports.floki_run_fn {
-            let run_fn = run_fn.clone();
-            let payload = payload.clone();
-            tokio::spawn(run_fn(payload));
+    // Loud refusal per seam-leak fix §6: a `dispatch.requested` that
+    // cannot be served by any present backend produces a typed
+    // `session.failed` event rather than silently dropping the envelope.
+    // The actor reaches this path for three reasons:
+    //   (a) the request is a floki dispatch but no floki closure is wired
+    //       (floki path: ship-standard with no `agent-session.actor`
+    //       floki gateway plumbed; the `lifecycle::start_agent_stack`
+    //       flag-off branch always builds AgentPorts with `floki_run_fn:
+    //       Some(...)` today, so this is the "future-proof" guard);
+    //   (b) the request targets a coding harness but `harness-drivers`
+    //       is OFF (the build is ship-standard; the daemon's only dispatch
+    //       backend is floki, never the harness driver stack) — under
+    //       this build the `cfg(harness-drivers)` arm is absent, so we
+    //       route through the refusal path explicitly here;
+    //   (c) the request is for a non-floki harness with no harness fields
+    //       wired (the AgentPorts.connector construction never selects the
+    //       harness path).
+    // All three are observable: a `session.failed` event with a reason
+    // lands in the kernel so the canonical_sessions projection
+    // transitions the session to `Failed` and the dashboard surfaces the
+    // reason to the operator.
+    let is_floki = payload.harness.as_deref() == Some("floki");
+
+    if is_floki {
+        // Case (a): floki dispatch, but no closure wired.
+        if ports.floki_run_fn.is_none() {
+            tracing::warn!(
+                slug = payload.slug,
+                session_id = payload.session_id,
+                "service.agents: floki dispatch.requested but no floki closure \
+                 wired — emitting typed session.failed"
+            );
+            emit_session_failed(
+                kernel,
+                &payload.session_id,
+                &payload.slug,
+                "no floki dispatch backend wired (shipd was built/started \
+                 without a floki gateway)",
+            )
+            .await;
             return;
         }
+        // Fast path: harness == "floki" + closure wired → spawn it.
+        let run_fn = ports.floki_run_fn.as_ref().expect("checked above").clone();
+        let payload = payload.clone();
+        tokio::spawn(run_fn(payload));
+        return;
     }
 
-    // The rest of this function is harness-driver machinery. With flag-off,
-    // only the floki path above is reachable; non-floki sessions (and floki
-    // sessions with no closure wired) are silently no-op'd here — no process
-    // to spawn, no worktree to prep.
+    // From here, the request targets a coding harness (or no harness
+    // was specified — which the dispatch core's validation should
+    // already reject). With harness-drivers OFF, there is no backend
+    // at all; refuse loudly.
+    #[cfg(not(feature = "harness-drivers"))]
+    {
+        tracing::warn!(
+            slug = payload.slug,
+            session_id = payload.session_id,
+            harness = ?payload.harness,
+            "service.agents: coding-agent dispatch.requested but shipd is \
+             ship-standard (no harness-drivers) — emitting typed \
+             session.failed"
+        );
+        emit_session_failed(
+            kernel,
+            &payload.session_id,
+            &payload.slug,
+            "no harness dispatch backend wired (shipd was built without \
+             the `ship-code` feature; rebuild with --features ship-code \
+             for coding agents)",
+        )
+        .await;
+        return;
+    }
+
     #[cfg(feature = "harness-drivers")]
     {
         // Pipeline-composed sessions: the pipeline runner spawns the harness itself
@@ -118,7 +175,6 @@ pub async fn handle_dispatch_requested(
         });
     }
 }
-
 #[cfg(feature = "harness-drivers")]
 async fn dispatch_agent_session_internal(
     kernel: &Kernel,
@@ -268,8 +324,11 @@ async fn dispatch_agent_session_internal(
 //
 // Canonical payloads (session.*) + EventEnvelope + persist_and_route.
 // No driver-edge fields (pid, worktree, exit_code, stage).
-
-#[cfg(feature = "harness-drivers")]
+// Canonical session emit helpers — ungated so the loud-refusal path can
+// reach them in ship-standard (no harness-drivers) builds. The floki
+// closure-missing case + the harness-backend-missing case BOTH fail
+// the dispatch with a typed `session.failed` event instead of silently
+// dropping the envelope.
 pub(crate) async fn emit_session_failed(
     kernel: &Kernel,
     session_id: &str,

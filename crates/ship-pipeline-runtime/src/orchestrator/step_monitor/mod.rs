@@ -43,7 +43,7 @@ use super::StepActivity;
 use super::coordinator_programs::{AgentStepProgram, StepEvidence};
 
 use evidence::{AgentStepDispatch, kill_spawned_process};
-use ship_code::runner::observe::{resolve_head_sha, scan_git_evidence};
+use crate::loader::git_helpers::{resolve_head_sha, scan_git_evidence};
 
 /// Primary kill signal: no subprocess CPU progress for this long → stuck.
 pub(crate) const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(5 * 60);

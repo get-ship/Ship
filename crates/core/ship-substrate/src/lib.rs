@@ -39,6 +39,7 @@ pub use task_health;
 pub mod home;
 pub mod persistence;
 pub mod project;
+pub mod text;
 pub mod projections;
 pub mod services;
 pub mod query;

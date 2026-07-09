@@ -28,7 +28,7 @@ use ship_agents::services::sessions::{
 use ship_substrate::projections::Projection;
 use ship_substrate::db::block_on;
 use ship_agents::ports::AgentPorts;
-use ship_code::runner::dedup::EventDedup;
+use ship_runner::dedup::EventDedup;
 use agent_def::InvocationMode;
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::process::event_types as process_event_types;
@@ -729,11 +729,13 @@ async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
     );
 }
 
-/// SPEC: a floki-harness session with NO `floki_run_fn` wired falls through to
-/// the regular dispatch path (which calls the executor). This ensures the
-/// guard is `payload.harness == "floki" AND floki_run_fn.is_some()`.
+/// Loud refusal per seam-leak fix §6: when `harness == "floki"` and no floki
+/// closure is wired, the dispatch was previously *silently* routed to the
+/// harness executor (a footgun — floki's whole point is to skip worktree /
+/// sandbox). After the fix the actor emits a typed `session.failed` event
+/// and the call returns without touching the executor.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn floki_harness_without_closure_falls_through_to_executor() {
+async fn floki_harness_without_closure_emits_session_failed() {
     let tmp = tempfile::TempDir::new().unwrap();
     let kernel = kernel_with_actor();
     let spawn_calls = Arc::new(AtomicUsize::new(0));
@@ -766,19 +768,16 @@ async fn floki_harness_without_closure_falls_through_to_executor() {
     .with_actor_id("test");
 
     ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
-    // Give the dispatch task a moment.
-    for _ in 0..50 {
-        if spawn_calls.load(Ordering::SeqCst) > 0 {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-    }
+    // emit_session_failed runs synchronously on the actor's mailbox loop —
+    // no detached task, no need to poll.
 
     assert_eq!(
         spawn_calls.load(Ordering::SeqCst),
-        1,
-        "with no floki_run_fn, harness='floki' falls through to executor.spawn",
+        0,
+        "no floki closure + harness='floki' must NOT route to executor — \
+         the loud-refusal fix lands a typed `session.failed` instead",
     );
+
 }
 
 /// SPEC: `session.cancelled` emitted by the Stop RPC is consumed by TWO

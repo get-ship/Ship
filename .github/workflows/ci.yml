@@ -80,11 +80,16 @@ jobs:
       # ship-host excluded: needs webkit2gtk/libsoup (release.yml
       # tauri-action provisions it).
       - name: Clippy
-        run: cargo clippy --workspace --exclude ship-host --features unstable -- -D warnings
-      - name: Build (stable)
+        run: cargo clippy --workspace --exclude ship-host --features unstable,ship-code -- -D warnings
+      - name: Build shipd (stable, ship-standard)
+        # shipd defaults to ship-standard — no harness-driver stack.
+        # The harness-on dispatch path is exercised by the `Build (unstable)`
+        # arm below.
         run: cargo build -p ship-cli -p shipd
-      - name: Build (unstable)
-        run: cargo build --features unstable -p ship-cli -p shipd
+      - name: Build shipd (unstable, harness-on)
+        run: cargo build --features unstable,ship-code -p ship-cli -p shipd
+      - name: Build shipd (stable, harness-on)
+        run: cargo build --features ship-code -p ship-cli -p shipd
       # gen-skills is native in ship-contracts (xtask-contracts): it reads
       # ship-proto's descriptor + proto/fixtures and writes skills/sdk/
       # there. The ship repo no longer tracks `skills/sdk/`.

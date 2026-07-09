@@ -88,7 +88,7 @@ pub fn make_octx() -> OrchestratorContext {
             tokio::sync::mpsc::UnboundedSender<StepActivity>,
         >::new())),
         run_locks: Arc::new(Mutex::new(HashMap::new())),
-        event_dedup: Arc::new(crate::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_runner::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
         journal_store: Arc::new(durable_execution::InMemoryJournalStore::new()),

@@ -13,20 +13,18 @@
 //! the orchestration logic testable without a real supervisor (tmux, git
 //! worktree, etc.).
 
-// Runner MECHANISM: emit (kernel-emit primitives) stays in L0 ship-runner;
-// dedup/exit_handler/router/observe/spawn_env moved to L1 ship_code::runner.
-// Re-exported at the historic `orchestrator::{dedup, emit, exit_handler}` paths
-// so the L1 policy below and shipd resolve them unchanged.
-//
-// All three re-exports are gated by `ship-code`: `dedup` / `exit_handler` pull
-// from ship-code, and `emit` is kept alongside them so the harness-free build
-// (`cargo check -p shipd --no-default-features`) doesn't have to drag ship-code
-// in just for the re-export surface. The L0 `ship_runner::emit` module itself
-// stays compiled by the runtime crate; only the historical re-export is gated.
-#[cfg(feature = "ship-code")]
+// Runner MECHANISM: emit (kernel-emit primitives) lives in L0 ship-runner and
+// is always available. The dedup/router L0 mechanism (entry gate) lives in
+// ship-runner too; the old `ship_code::runner::{dedup, router}` squatters
+// are gone. exit_handler stays in ship_code::runner because it's a
+// harness-driver concern (specific exit commands per harness).
+// Re-exports at the historical `orchestrator::{emit, exit_handler}` paths so
+// the L1 policy modules below keep resolving with zero churn. `emit` is
+// always-on (L0 mechanism). `exit_handler` stays gated behind `ship-code`
+// because it touches harness-specific exit commands.
 pub use ship_runner::emit;
 #[cfg(feature = "ship-code")]
-pub use ship_code::runner::{dedup, exit_handler};
+pub use ship_code::runner::exit_handler;
 pub mod coordinator;
 pub mod coordinator_programs;
 pub mod isolation;
@@ -179,7 +177,7 @@ pub struct OrchestratorContext {
     /// Event-id dedup at the router entry point. Prevents a replayed
     /// envelope (mailbox redelivery, startup replay race, test replay)
     /// from advancing the pipeline twice.
-    pub event_dedup: Arc<dedup::EventDedup>,
+    pub event_dedup: Arc<ship_runner::dedup::EventDedup>,
     /// Maps lane_slug → oneshot sender. When a lane's step.observed fires,
     /// the router sends the lane outcome here instead of calling advance_pipeline.
     pub fanout_lane_txs: Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<LaneOutcome>>>>,

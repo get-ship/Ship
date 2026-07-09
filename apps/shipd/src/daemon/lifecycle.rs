@@ -25,6 +25,30 @@ use crate::ship_runtime::ShipRuntime;
 /// Agent-stack startup: the floki dispatch closure + the agent-sessions actor
 /// (full orchestrator with `ship-code`, floki-only without).
 pub(super) async fn start_agent_stack(rt: &Arc<ShipRuntime>, global_dir: &std::path::Path) {
+    // Boot-time posture announcement (seam-leak fix §6 — boot warn!).
+    // The warning is intent-preserving: under ship-standard, dispatched
+    // coding-agent requests fail loudly with `session.failed`; with the
+    // `ship-code` feature on, the harness driver stack is wired and any
+    // request shape is reachable. Making this visible at boot means a
+    // misconfigured production shipd can't silently no-op the first
+    // coding dispatch that lands.
+    if cfg!(feature = "ship-code") {
+        tracing::info!(
+            "shipd: ship-code feature enabled; harness driver stack is \
+             wired for coding-agent dispatch."
+        );
+    } else {
+        // Today (after this fix) the flag-off branch always builds
+        // `AgentPorts::floki_only(Some(floki_run_fn))`, so floki is
+        // reachable. Future refactors (a helmd-mode shipd that wires
+        // neither) would change this — re-check at the call site if
+        // that becomes the case.
+        tracing::info!(
+            "shipd: ship-standard (no harness-drivers); floki dispatch \
+             is the only route — `dispatch.requested` events for \
+             non-floki harnesses will produce a typed `session.failed`."
+        );
+    }
     let ops_router = crate::rpc::ops::router(rt.clone());
     let floki_gateway = std::sync::Arc::new(crate::floki::gateway::ShipdGateway::new(ops_router));
     let floki_kernel = rt.kernel().clone();

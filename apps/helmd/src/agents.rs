@@ -222,8 +222,8 @@ impl AgentDispatchPort for NoopDispatch {
         String::new()
     }
 
-    fn worktrees_dir(&self) -> PathBuf {
-        PathBuf::new()
+    fn worktrees_dir(&self) -> Option<PathBuf> {
+        None
     }
 
     fn check_workspace_violation(

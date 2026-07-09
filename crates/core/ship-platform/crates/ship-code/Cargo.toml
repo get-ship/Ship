@@ -26,6 +26,7 @@ ship-device = { path = "../ship-device" }
 ship-files = { path = "../ship-files" }
 ship-config = { path = "../ship-config" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
+ship-git = { path = "../../../ship-git" }
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }

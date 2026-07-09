@@ -6,9 +6,10 @@
 //! op here (C5 / P2.3): the emission now happens exactly once under journal
 //! replay, because a completed op is never re-dispatched.
 //!
-//! The git/log/string scanning utilities that used to live here are pure L0
-//! mechanism and live in [`ship_runner::observe`]; the kill-on-timeout
-//! teardown is the L0 [`ship_code::runner::stop_by_slug`] primitive.
+//! The git/log/string scanning utilities that used to live here are L0
+//! pipeline-runtime mechanism and live in
+//! [`crate::loader::git_helpers`]; the kill-on-timeout teardown is the L0
+//! [`ship_code::runner::stop_by_slug`] primitive.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -25,7 +26,7 @@ use ship_substrate::events::pipeline::{
 use ship_substrate::events::{EventEnvelope, KernelRouter};
 use ship_code::dispatch_ports::{SessionExecutor, ProcessRegistryPort};
 
-use ship_code::runner::observe::scan_agent_log_tail;
+use crate::loader::git_helpers::scan_agent_log_tail;
 
 use crate::orchestrator::coordinator_programs::StepEvidence;
 

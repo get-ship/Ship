@@ -1,5 +1,99 @@
 # Changelog
 
+## Unreleased — seam-leak fix (job/seam-leakfix)
+
+Ship becomes honestly git/agent-free by default. The eight seam
+leaks identified by the seam + workspace censuses are closed: three
+harness-driver methods that shell-out to `git` in ungated code,
+two L0 mechanism primitives that squared away in `ship-code`, two
+`dispatch_resume` / `baseline_sha` callers that survived without a
+harness-driver path, and the silent-skip dispatch failure mode that
+edits into a typed `session.failed`.
+
+### What's in this slice
+
+- **L0 leaf consolidation (`ship_runner::dedup`, `ship_runner::router`).
+  **`EventDedup`**, **`terminal_guard`**, **`Admit`**, and **`DISPATCH_GATE`**
+  move from `ship_code::runner` back to L0 `ship-runner` so both
+  `ship-agents` (`service.agents` actor) and `ship-pipeline-runtime`
+  (orchestrator) depend on them without a cargo cycle. The closure
+  type that `terminal_guard` accepts is now an `Fn(&str) -> Pin<Box<dyn
+  Future<Output=bool> + Send>` (per census §4.3 — port-typed to `bool`),
+  freeing the gate from a `ProjectionReader` trait import.
+  `ship_code::runner` keeps only `exit_handler` / `teardown` /
+  `spawn_env` / `invocation` (harness-driver concerns). **Spec target
+  diverged from ship-pipeline-runtime → ship-runner** because the
+  `ship-agents ↔ ship-pipeline-runtime` cycle blocks any other L1
+  home; the R13 keystone work breaks that cycle. Documented in the
+  ship-agents / ship-pipeline-runtime README and the runner module
+  docs.
+- **Domain-free ANSI / git-evidence utilities leave `ship-code`.**
+  `runner::observe::strip_ansi` → `ship_substrate::text::strip_ansi`
+  (new L0 leaf; `strip_ansi_bytes` for byte-buffer callers; the
+  `runner/mod.rs::compute_step_invocation` and `log_stream::strip_ansi`
+  near-duplicates route through the leaf). `scan_git_evidence`,
+  `resolve_head_sha`, and `scan_agent_log_tail` → `ship_pipeline_runtime
+  ::loader::git_helpers`. New L1 helper `count_commits_ahead` on the
+  ship-git leaf replaces the raw `git rev-list --count` shell-out.
+- **ship-code has zero direct `git` calls.** `helpers::remove_worktree`
+  and `helpers::delete_branch` (the last two `Command::new("git")`
+  shell-outs in `ship-code`) now delegate to `ship_git::write
+  ::{remove_worktree, delete_branch}` (already on the L1 leaf, with
+  the job-branch prefix guard preserving the dispatch-path contract).
+  `ship-code` gains a direct `ship-git` dep.
+- **`AgentDispatchPort::worktrees_dir() -> Option<PathBuf>`.** Harness
+  impls return `Some(...)`; the dispatch-only paths (resume-only)
+  consume it. The dispatch-only branch + `resolve_resume` + the
+  whole `dispatch_resume` module are gated behind `harness-drivers`;
+  shipd's NoopDispatch / flag-off impls return `None`. shipd's
+  `apps/shipd/src/ports/local_paths.rs::worktrees_dir` is the single
+  surviving definition (helmd's parallel `helpers::worktrees_dir`
+  reads through `ship_config::worktrees::worktrees_dir` — same answer,
+  same env).
+- **`resolve_project_head_sha` gates + floki = `baseline_sha: None`.
+  The function is `#[cfg(feature = "harness-drivers")]`-gated; the
+  `DispatchRequestedPayload.baseline_sha` field reads `None` when
+  the flag is off — the intended design (ship-standard is git-free
+  by ruling, decisions-2026-07-09 §"Git surface"), NOT a regression.
+- **Loud refusal, never silent drop.** `service.agents::actor
+  ::handle_dispatch_requested` now emits a typed canonical
+  `session.failed` event in two previously-silent cases: (a) a
+  floki `dispatch.requested` arrives with `floki_run_fn == None`,
+  (b) a coding-agent `dispatch.requested` arrives with
+  `harness-drivers` off. Both paths feed the canonical_sessions
+  projection (Failed status), produce an audit row, and return
+  without touching the executor. The boot-time posture announcement
+  in `daemon::lifecycle::start_agent_stack` logs an `info` line at
+  startup declaring whether harness-driver is wired.
+- **shipd default = ship-standard (`default = []`).** shipd's
+  default build no longer drags in the harness driver stack —
+  `cargo build -p shipd` produces the floki-only ship-standard
+  build. Coding-agent dispatch requires `--features ship-code`.
+  The Justfile recipes (`build`, `build-dev`, `build-release`,
+  `install-dev`, `install`, `check-gates`) and `.github/workflows
+  /ci.yml` (the `Build shipd` arms) now pass `--features ship-code`
+  explicitly. `helmd`'s `Cargo.toml` is unchanged (default still
+  includes `ship-code` per the helix testbed role).
+
+### STOPs carried into the next slice
+
+- **Pre-existing flake:** `orchestrator::tests_terminal_guard
+  ::step_observed_ignored_when_job_cancelled` fails on `cargo test
+  -p ship-pipeline-runtime` today on the parent commit; this slice
+  does not regress it (confirmed by `git stash && cargo test
+  …` + `cargo test … -- --skip`). The test seeds a terminal event
+  and asserts the projection reflects it; a stale global DB /
+  cross-test state is the suspected root cause. Tracked outside
+  this commit.
+- **R13 keystone work** (separate commit) breaks the
+  `ship-agents ↔ ship-pipeline-runtime` cycle so the L0 mechanism
+  primitives can live in the L1 runner crate as the spec
+  requested. Today's stop note in ship-runner's `lib.rs` and
+  ship-pipeline-runtime's README and `orchestrator/router.rs`
+  documents the divergence.
+
+
+
 ## v0.1.0 — 2026-03-19
 
 First release of the Ship CLI and MCP server.
