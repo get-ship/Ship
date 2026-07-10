@@ -125,6 +125,8 @@ use proto::{
     HarnessServiceExt,
     JobBranchesResponse,
     LandResponse,
+    SquashMergeResponse,
+    CreateTagResponse,
     ListHarnessesResponse,
     ListReposResponse,
     ListWorktreesResponse,
@@ -147,6 +149,8 @@ use proto::{
     OwnedGitOverviewRequestView,
     OwnedJobBranchesRequestView,
     OwnedLandRequestView,
+    OwnedSquashMergeRequestView,
+    OwnedCreateTagRequestView,
     OwnedListHarnessesRequestView,
     // ListRepos — the per-call discovery RPC (no state, no cache). The
     // handler walks `req.root` for git repos via `ship_git::read::find_repos`
@@ -212,6 +216,71 @@ impl GitService for GitImpl {
         resp.clean = buckets.clean;
 
         Response::ok(resp)
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn squash_merge(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedSquashMergeRequestView,
+    ) -> ServiceResult<SquashMergeResponse> {
+        let root = PathBuf::from(req.repo_path.to_string());
+        let source = req.source_ref.to_string();
+        let target = req.target_branch.to_string();
+        let message = req.message.to_string();
+        let author = req.author.to_string();
+        let author = if author.is_empty() {
+            None
+        } else {
+            Some(author.as_str())
+        };
+        // The PRIMITIVE: one squash commit or a conflict report. No branch
+        // deletion, no worktree cleanup, no tagging — workflow verbs compose
+        // this client-side (decisions doc: git service stays git).
+        match ship_git::write::squash_merge(&root, &source, &target, &message, author) {
+            Ok(ship_git::write::SquashOutcome::Committed { sha, .. }) => {
+                Response::ok(SquashMergeResponse {
+                    committed: sha,
+                    ..Default::default()
+                })
+            }
+            Ok(ship_git::write::SquashOutcome::Conflicts { paths }) => {
+                Response::ok(SquashMergeResponse {
+                    conflicts: paths,
+                    ..Default::default()
+                })
+            }
+            Err(ship_git::state::GitError::DirtyWorkingTree { paths }) => Err(
+                connectrpc::ConnectError::failed_precondition(format!(
+                    "refused: target branch has tracked modifications in working tree ({}); commit or stash first",
+                    paths.join(", ")
+                )),
+            ),
+            Err(e) => Err(connectrpc::ConnectError::internal(e.to_string())),
+        }
+    }
+
+    #[allow(refining_impl_trait)]
+    async fn create_tag(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedCreateTagRequestView,
+    ) -> ServiceResult<CreateTagResponse> {
+        let root = PathBuf::from(req.repo_path.to_string());
+        let tag = req.tag.to_string();
+        let r = req.r#ref.to_string();
+        let target = if r.is_empty() { None } else { Some(r.as_str()) };
+        let message = req.message.to_string();
+        let author = req.author.to_string();
+        let author = if author.is_empty() {
+            None
+        } else {
+            Some(author.as_str())
+        };
+        match ship_git::write::create_tag(&root, &tag, target, &message, author) {
+            Ok(sha) => Response::ok(CreateTagResponse { tag, sha }),
+            Err(e) => Err(connectrpc::ConnectError::internal(e.to_string())),
+        }
     }
 
     #[allow(refining_impl_trait)]
