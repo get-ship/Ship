@@ -117,17 +117,6 @@ pub struct ShipRuntime {
     /// parallel registry (one-way-to-do-things; mirrors collection/space).
     pub(super) agent_reactive:
         std::sync::OnceLock<std::sync::Arc<ship_reactive::ReactiveRegistry>>,
-    /// Reactive registry for the typed pipeline `Watch` (pipelines P0.4). Built
-    /// from a dedicated `KernelLog` fed by a bridge actor that taps the kernel
-    /// router's `pipeline.*` + `session.*` mailbox stream (the orchestrator emits
-    /// through the raw `KernelRouter`, not a shared log) — so the Watch resolvers
-    /// wake on run/step lifecycle. `None` until `start_pipeline_reactive` runs.
-    pub(super) pipeline_reactive:
-        std::sync::OnceLock<std::sync::Arc<ship_reactive::ReactiveRegistry>>,
-    /// The shared `KernelLog` the pipeline Watch registry rides — held so the
-    /// bridge task can `broadcast()` tapped router events into it.
-    pub(super) pipeline_watch_kernel:
-        std::sync::OnceLock<std::sync::Arc<ship_substrate::ports::KernelLog>>,
     /// In-process Rolldown bundler (#163) — owned here, lazily started on
     /// first access. `Bundler::start` is synchronous (it locates the
     /// `sui-compiler` binary and sets up channels, no child process), so

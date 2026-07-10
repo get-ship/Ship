@@ -31,7 +31,7 @@ fn fresh_ctx(harness: Option<&str>) -> SessionContext {
     // /tmp entries eventually; tests are short-lived.
     let work_dir = tmp.keep();
     SessionContext {
-        pipeline_run_id: "job-test".to_string(),
+        session_id: "job-test".to_string(),
         slug: "slug-test".to_string(),
         agent: "test-agent".to_string(),
         branch: "main".to_string(),

@@ -28,7 +28,6 @@ ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
 ship-terminal = { path = "../../crates/core/ship-platform/crates/ship-terminal" }
 ship-files = { path = "../../crates/core/ship-platform/crates/ship-files" }
-ship-messaging = { path = "../../crates/core/ship-platform/crates/ship-messaging" }
 ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-triggers = { path = "../../crates/core/ship-platform/crates/ship-triggers" }
 ship-ui = { path = "../../crates/core/ship-platform/crates/ship-ui" }
@@ -138,7 +137,7 @@ default = []
 # (run_core::dispatch_one + loader::{pipeline_loader, git_helpers}) stays
 # compiled without ship-code so the pipeline envelope can still be built and
 # persisted.
-ship-code = ["dep:ship-code", "harness-drivers", "ship-pipeline-runtime/ship-code"]
+ship-code = ["dep:ship-code", "harness-drivers"]
 # harness-drivers: propagate down to ship-agents and ship-platform so their
 # cfg gates align with shipd's ship-code gate. When ship-code is ON, both
 # ship-agents and ship-platform get harness-drivers. With --no-default-features
@@ -157,7 +156,7 @@ ship-js-ssr = ["dep:deck-ssr"]
 # in the kernel router, so `soak` forwards to `unstable`.
 #   cargo test -p shipd --features soak --test rss_soak -- --nocapture
 soak = ["unstable"]
-specta = ["dep:specta", "deck/specta", "ship-pipeline-runtime/specta"]
+specta = ["dep:specta", "deck/specta"]
 # Compile the `example()` fixture constructors for the daemon-side wire
 # shapes so `cargo xtask gen-fixtures` can serialize them to committed JSON.
 # Forwards to ship-platform/fixtures so shared builders (e.g.

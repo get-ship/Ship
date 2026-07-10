@@ -594,12 +594,12 @@ impl SessionExecutor for TmuxWindowExecutor {
         );
 
         let slug = ctx.slug.clone();
-        let pipeline_run_id = ctx.pipeline_run_id.clone();
+        let session_id = ctx.session_id.clone();
         let exit_tx = ctx.exit_tx.clone();
         let session_mon = session.clone();
         let window_mon = window_id.clone();
         std::thread::spawn(move || {
-            monitor_window(&session_mon, &window_mon, &slug, &pipeline_run_id, exit_tx);
+            monitor_window(&session_mon, &window_mon, &slug, &session_id, exit_tx);
         });
 
         // Record the pane's pid so the actor projection's /proc liveness probe
@@ -691,7 +691,7 @@ fn monitor_window(
     session: &str,
     window_id: &str,
     slug: &str,
-    pipeline_run_id: &str,
+    session_id: &str,
     exit_tx: Option<tokio::sync::mpsc::UnboundedSender<ExitSignal>>,
 ) {
     loop {
@@ -706,7 +706,7 @@ fn monitor_window(
             if let Some(tx) = exit_tx {
                 let _ = tx.send(ExitSignal {
                     slug: slug.to_string(),
-                    pipeline_run_id: pipeline_run_id.to_string(),
+                    session_id: session_id.to_string(),
                     exit_code: None,
                     cause: ExitCause::SessionDestroyed,
                 });

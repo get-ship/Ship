@@ -21,7 +21,7 @@ use super::process::mint_scoped_token;
 fn ctx_for(agent: &str) -> SessionContext {
     let tmp = tempfile::tempdir().expect("tempdir");
     SessionContext {
-        pipeline_run_id: "job-tok".into(),
+        session_id: "job-tok".into(),
         slug: "slug-tok".into(),
         agent: agent.into(),
         branch: "main".into(),

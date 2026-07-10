@@ -8305,21 +8305,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-messaging"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "ship-substrate",
- "ship-types",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "ship-ops-rpc"
 version = "0.1.0"
 dependencies = [
@@ -8349,36 +8334,25 @@ dependencies = [
 name = "ship-pipeline-runtime"
 version = "0.1.0"
 dependencies = [
- "agent-def",
  "anyhow",
- "async-stream",
  "async-trait",
- "buffa",
  "chrono",
  "compiler",
  "connectrpc",
- "durable-execution",
- "http",
  "json-patch 4.2.0",
  "minijinja",
  "serde",
  "serde_json",
  "serde_yaml",
  "ship-agents",
- "ship-artifacts",
  "ship-auth",
  "ship-code",
  "ship-files",
- "ship-git",
  "ship-ops-rpc",
  "ship-pipelines",
  "ship-platform",
- "ship-reactive",
- "ship-store",
  "ship-substrate",
  "ship-types",
- "specta",
- "sqlx",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -8782,7 +8756,6 @@ dependencies = [
  "ship-git",
  "ship-isolation",
  "ship-kernel",
- "ship-messaging",
  "ship-ops-rpc",
  "ship-pipeline-runtime",
  "ship-platform",

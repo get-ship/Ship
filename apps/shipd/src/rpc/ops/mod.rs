@@ -12,8 +12,6 @@ mod agents_wire;
 mod pipelines_wire;
 pub mod policy;
 mod terminal_wire;
-#[cfg(test)]
-mod tests;
 mod ui_wire;
 
 pub use policy::{OP_POLICY, OpPolicy, policy_for};

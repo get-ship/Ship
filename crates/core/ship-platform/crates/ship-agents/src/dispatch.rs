@@ -134,21 +134,10 @@ pub async fn handle_dispatch_requested(
 
     #[cfg(feature = "harness-drivers")]
     {
-        // Pipeline-composed sessions: the pipeline runner spawns the harness itself
-        // (it has step-monitor concerns this handler doesn't cover — gates, retries,
-        // output promotion, fanout). The dispatch.requested emitted by the
-        // composer is purely for observability/back-compat — the shared read model
-        // is the canonical_sessions projection, fed by the canonical session.* family.
-        // Skip the spawn here to avoid double-spawn.
-        if payload.parent_pipeline_run_id.is_some() {
-            tracing::debug!(
-                slug = payload.slug, session_id = payload.session_id,
-                parent = ?payload.parent_pipeline_run_id,
-                "service.agents: composed by pipeline — skip spawn (composer owns it)"
-            );
-            return;
-        }
-
+        // (Engine cut 2026-07-10: the `parent_pipeline_run_id` skip is
+        // gone — composed sessions (a multi-step pipeline-run concept)
+        // do not exist post-cut. service.agents owns every dispatch it
+        // sees; the bare `dispatch.requested` path is the only path.)
         if let Some(deps) = &payload.depends_on
             && !deps.is_empty()
         {
@@ -203,8 +192,7 @@ async fn dispatch_agent_session_internal(
     let invocation = payload.invocation;
 
     let session_ctx = SessionContext {
-        // routes use session_id as the pipeline_run_id-shape ulid
-        pipeline_run_id: payload.session_id.clone(),
+        session_id: payload.session_id.clone(),
         slug: slug.clone(),
         agent: payload.agent_id.clone(),
         branch: branch.clone(),

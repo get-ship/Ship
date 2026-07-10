@@ -60,8 +60,8 @@ use ship_code::helpers;
 use ship_code::process_registry::{ProcessRegistry, SharedRegistry};
 use ship_substrate::dispatch_gate::EventDedup;
 
-use ship_pipeline_runtime::orchestrator::projection_reader::ProjectionsReader;
-use ship_pipeline_runtime::orchestrator::spawn_policy::ConfigSpawnPolicy;
+use ship_pipeline_runtime::ports::projection_reader::ProjectionsReader;
+use ship_pipeline_runtime::ports::spawn_policy::ConfigSpawnPolicy;
 
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::{EventEnvelope, KernelRouter};

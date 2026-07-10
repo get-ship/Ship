@@ -48,10 +48,10 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(McpIndexResponse), v!(MetaResponse),
         v!(PermissionsIndexResponse), v!(GetPermissionResponse), v!(ToolPatternsResponse),
         v!(PipelinesIndexResponse),
-        // pipelines.* typed run-level reads (P0.3) + typed control results.
-        v!(PipelineRunSummariesResponse), v!(PipelineRunDetailResponse),
-        v!(PipelineRunHistoryResponse), v!(ListPipelineRunsResponse),
-        v!(CancelRunResult), v!(ResolveStepResult),
+        // engine cut 2026-07-10: pipelines.* typed run-level reads retired
+        // (Summaries / Run / History / ListRuns / Cancel / ResolveStep);
+        // the proto's PipelinesService now exposes List/Get/Put/Patch/Delete
+        // only. PipelinesIndexResponse (List) remains.
         v!(WorkspaceActiveResponse), v!(ProjectRecord),
         v!(RulesIndexResponse), v!(RuleGetResponse),
         v!(ListProcsResponse), v!(SessionsListResponse), v!(SettingValue),

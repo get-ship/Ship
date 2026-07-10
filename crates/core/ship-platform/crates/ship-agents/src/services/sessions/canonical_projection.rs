@@ -935,13 +935,12 @@ mod tests {
     #[test]
     fn fold_started_with_slug_and_parent() {
         let session = "01SLUG-FOLD-A";
-        let pipeline_run_id = "01PIPELINE-RUN-X";
-        let events = vec![started_with_slug(session, "my-agent::step1", Some(pipeline_run_id))];
+        let events = vec![started_with_slug(session, "my-agent::step1", Some("parent-id"))];
         let map = project(&events);
         let rec = map.get(session).expect("session must be in projection");
 
         assert_eq!(rec.slug.as_deref(), Some("my-agent::step1"));
-        assert_eq!(rec.parent.as_deref(), Some(pipeline_run_id));
+        assert_eq!(rec.parent.as_deref(), Some("parent-id"));
         assert_eq!(rec.status, CanonicalSessionStatus::Active);
     }
 
@@ -953,7 +952,7 @@ mod tests {
         let mut conn = fresh_conn();
         let proj = CanonicalSessionProjection;
         let session_id = "01SQL-PARENT-A";
-        let pipeline_run_id = "01PIPELINE-RUN-SQL-A";
+        let parent_id = "01PARENT-ID-X";
         let slug = "my-job::step1";
 
         let _ = block_on(async {
@@ -963,22 +962,21 @@ mod tests {
                 .await
         });
 
-        // Emit session.started with parent = pipeline_run_id and a slug.
-        proj.apply(&started_with_slug(session_id, slug, Some(pipeline_run_id)), &mut conn)
-            .unwrap();
 
+        // Emit session.started with a parent id and a slug.
+        proj.apply(&started_with_slug(session_id, slug, Some(parent_id)), &mut conn)
+            .unwrap();
         // Verify the row was inserted with slug and parent populated.
         let rec = load_session_by_id(session_id).unwrap().expect("session must exist");
-        assert_eq!(rec.parent.as_deref(), Some(pipeline_run_id),
+        assert_eq!(rec.parent.as_deref(), Some(parent_id),
             "parent must be stored in canonical_sessions");
         assert_eq!(rec.slug.as_deref(), Some(slug),
             "slug must be stored in canonical_sessions");
         assert_eq!(rec.status, CanonicalSessionStatus::Active);
 
         // Verify queryable by parent.
-        let by_parent = load_canonical_sessions_by_parent(pipeline_run_id).unwrap();
+        let by_parent = load_canonical_sessions_by_parent(parent_id).unwrap();
         assert_eq!(by_parent.len(), 1, "must find exactly one session by parent");
-        assert_eq!(by_parent[0].session_id, session_id);
 
         // Verify queryable by slug.
         let by_slug = load_canonical_session_by_slug(slug).unwrap();

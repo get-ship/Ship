@@ -100,11 +100,11 @@ impl ShipRuntime {
          // startup so the per-collection schema migrations run (no-op on a
          // fresh install). platform.db is dead — no boot step touches it.
          //
-         // Use spawn_blocking because the DB layer uses block_in_place internally.
          // Install platform-level projections + supervisor hooks before
          // any SqliteEventStore is constructed.
+         // (Engine cut 2026-07-10: the pipeline-run projection is gone;
+         // install_projections() is now a no-op and dropped from the boot path.)
          ship_platform::install_defaults();
-         ship_pipeline_runtime::install_projections();
  
          let home = ship_substrate::ShipHome::from_env();
          let dir = home.data_dir().to_path_buf();
@@ -308,8 +308,6 @@ impl ShipRuntime {
             agent_def_kernel: std::sync::OnceLock::new(),
             agent_def_index: std::sync::OnceLock::new(),
             agent_reactive: std::sync::OnceLock::new(),
-            pipeline_reactive: std::sync::OnceLock::new(),
-            pipeline_watch_kernel: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
             shutdown_token: std::sync::OnceLock::new(),
             live_resolvers: Arc::new(crate::ship_runtime::live_resolvers::build()),

@@ -45,11 +45,11 @@ fn triggers_filter_missing_path_rejected() {
 #[test]
 fn triggers_filter_multi_key_all_must_match() {
     let ctx = json!({
-        "event_type": "pipeline.run.completed",
+        "event_type": "pipeline.run.started",
         "payload": { "status": "failed" }
     });
     let filter_val = json!({
-        "event_type": "pipeline.run.completed",
+        "event_type": "pipeline.run.started",
         "payload.status": "failed",
     });
     assert!(filter::matches(Some(&filter_val), &ctx));
@@ -58,11 +58,11 @@ fn triggers_filter_multi_key_all_must_match() {
 #[test]
 fn triggers_filter_multi_key_partial_match_rejected() {
     let ctx = json!({
-        "event_type": "pipeline.run.completed",
+        "event_type": "pipeline.run.started",
         "payload": { "status": "ok" }
     });
     let filter_val = json!({
-        "event_type": "pipeline.run.completed",
+        "event_type": "pipeline.run.started",
         "payload.status": "failed",
     });
     // Both keys must match; payload.status doesn't, so whole filter fails.
@@ -85,7 +85,7 @@ fn triggers_filter_array_index_path() {
 #[test]
 fn triggers_filter_build_event_context_exposes_envelope_fields() {
     let env = EventEnvelope::new(
-        "pipeline.run.failed",
+        "pipeline.run.started",
         "job-1",
         &json!({ "pipeline_run_id": "job-1", "error": "boom", "status": "failed" }),
     )
@@ -101,7 +101,7 @@ fn triggers_filter_build_event_context_exposes_envelope_fields() {
     ));
     // Envelope-level fields are accessible via dot-path.
     assert!(filter::matches(
-        Some(&json!({ "event_type": "pipeline.run.failed" })),
+        Some(&json!({ "event_type": "pipeline.run.started" })),
         &ctx
     ));
     assert!(filter::matches(

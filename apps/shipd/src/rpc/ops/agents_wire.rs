@@ -139,17 +139,6 @@ impl AgentsWatchHost for StateHost {
 struct ShipCodeDispatchHandle {
     registry: Arc<Mutex<ship_code::process_registry::ProcessRegistry>>,
     executor: Arc<dyn ship_code::dispatch_ports::SessionExecutor>,
-    #[allow(dead_code)]
-    activity_txs: Arc<
-        Mutex<
-            std::collections::HashMap<
-                String,
-                tokio::sync::mpsc::UnboundedSender<
-                    ship_pipeline_runtime::orchestrator::StepActivity,
-                >,
-            >,
-        >,
-    >,
 }
 
 #[cfg(feature = "ship-code")]
@@ -159,7 +148,6 @@ impl ShipCodeDispatchHandle {
         Some(Self {
             registry: dh.registry.clone(),
             executor: dh.executor.clone(),
-            activity_txs: dh.activity_txs.clone(),
         })
     }
 }

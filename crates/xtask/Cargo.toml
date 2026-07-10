@@ -17,7 +17,7 @@ ship-account = { path = "../core/ship-platform/crates/ship-account", features = 
 ship-platform = { path = "../core/ship-platform", features = ["specta"] }
 ship-agents = { path = "../core/ship-platform/crates/ship-agents" }
 ship-ui = { path = "../core/ship-platform/crates/ship-ui" }
-ship-pipeline-runtime = { path = "../ship-pipeline-runtime", features = ["specta"] }
+ship-pipeline-runtime = { path = "../ship-pipeline-runtime" }
 # Event envelope type for the cloud-side TS surface (build_cloud_types).
 ship-types = { path = "../core/ship-substrate/crates/ship-types", features = ["specta"] }
 # `deck` is a thin re-export facade in the external sui repo post-carve.

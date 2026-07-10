@@ -48,11 +48,6 @@ const SINGLE_CONSUMER_ALLOWLIST: &[(&str, &str)] = &[
     // Floki — the durable-execution runtime. Sole non-dev consumer today is
     // `shipd`; ship-pipeline-runtime dissolution (R13/#27) may add consumers.
     ("floki", "Durable-execution runtime; R13/#27 dissolution expected to add consumers"),
-    // ship-messaging — DOCUMENTED OPERATOR EXCEPTION to Rule C2.
-    // Intended extension-point crate; sole consumer today is `shipd` but
-    // `ship-triggers` + Slack/WhatsApp adapters are expected consumers.
-    // Cited in .artifacts/topology-proposal.md. Re-reviewed at next audit.
-    ("ship-messaging", "Documented operator exception (topology-proposal.md): intended extension-point; expected consumers: ship-triggers, Slack, WhatsApp adapters"),
     // ship-search — dedicated search crate consumed only by `shipd`.
     // Kept separate so search indexing can be tested and extended independently.
     ("ship-search", "Search crate; single consumer shipd; deliberate separation for testability"),

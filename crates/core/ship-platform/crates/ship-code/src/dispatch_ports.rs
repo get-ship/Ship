@@ -36,7 +36,7 @@ pub enum ExitCause {
 #[derive(Debug)]
 pub struct ExitSignal {
     pub slug: String,
-    pub pipeline_run_id: String,
+    pub session_id: String,
     pub exit_code: Option<i32>,
     pub cause: ExitCause,
 }
@@ -51,7 +51,9 @@ pub struct StepInfo {
 /// Context for a job being dispatched.
 #[derive(Clone, Debug)]
 pub struct SessionContext {
-    pub pipeline_run_id: String,
+    /// ULID. The session id is the routing key for the session's
+    /// canonical `session.*` events (started/completed/failed).
+    pub session_id: String,
     pub slug: String,
     pub agent: String,
     pub branch: String,
@@ -65,16 +67,10 @@ pub struct SessionContext {
     pub invocation: InvocationMode,
     pub keepalive: bool,
     /// Absolute path to the repo working tree the job's worktree forks
-    /// from. Per-call; meaningful to the coding-agent execution class
-    /// only — floki sessions ignore it. `None` falls back to the
-    /// daemon's default repo (the same value `repo_dir()` resolves
-    /// to). Not persisted; not exported to env; consumed in-call by
-    /// `GitWorktreeIsolation::prepare` and then dropped.
+    /// from. Per-call; consumed in-call by `GitWorktreeIsolation::prepare`.
     pub repo_path: Option<PathBuf>,
     /// Ref the job's worktree branches from. Per-call; same lifetime
-    /// rules as `repo_path` (consumed in-call, not persisted). Empty
-    /// `None` falls back to the repo's HEAD — matches the
-    /// `git worktree add -b <branch> <path>` default (no base).
+    /// rules as `repo_path`.
     pub base_ref: Option<String>,
 }
 

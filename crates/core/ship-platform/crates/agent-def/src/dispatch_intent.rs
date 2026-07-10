@@ -107,17 +107,15 @@ pub struct DispatchRequestedPayload {
     pub resume: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resume_session_id: Option<String>,
-    /// Session slugs this dispatch waits on. The orchestrator defers dispatch
-    /// until all listed sessions reach a terminal state.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depends_on: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vars: Option<HashMap<String, String>>,
-    /// When this session is one step of a multi-step pipeline run, points back
-    /// at the composing `pipeline.run` entity id. `None` for bare single-agent
-    /// dispatches.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent_pipeline_run_id: Option<String>,
+    // (Engine cut 2026-07-10: `parent_pipeline_run_id` retired with the
+    // orchestrator. Per the code-mode ruling, sessions never carry
+    // pipeline identity — a step-run "parent run" concept does not
+    // exist post-cut. The no-double-spawn check in service.agents
+    // (which keyed on this field) is gone too.)
 }
 
 #[cfg(test)]
@@ -146,7 +144,6 @@ mod tests {
             resume_session_id: None,
             depends_on: None,
             vars: None,
-            parent_pipeline_run_id: None,
         };
         let json = serde_json::to_string(&payload).unwrap();
         let parsed: DispatchRequestedPayload = serde_json::from_str(&json).unwrap();
@@ -154,9 +151,6 @@ mod tests {
         assert_eq!(parsed.agent_id, "rust-lane");
         assert_eq!(parsed.branch, "job/auth-feature-abc12345");
         assert_eq!(parsed.repo_path.as_deref(), Some("/host/abs/repo"));
-        assert_eq!(parsed.base_ref.as_deref(), Some("feat/next"));
-        assert_eq!(parsed.invocation, InvocationMode::Pty);
-        assert!(parsed.keepalive);
     }
     #[test]
     fn dispatch_requested_event_type_is_namespaced() {
@@ -191,7 +185,6 @@ mod tests {
             resume_session_id: None,
             depends_on: None,
             vars: None,
-            parent_pipeline_run_id: None,
         };
         let json = serde_json::to_string(&payload).unwrap();
         assert!(json.contains("branch"), "branch must appear in dispatch payload JSON");

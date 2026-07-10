@@ -157,34 +157,24 @@ register_event!("executor.window_destroyed", [EventScope::Runtime], Retention::D
 // space_id and has no read-back projection (Phase 4d §6.3 resolution) → the
 // daemon-wide runtime.db, where the off-kernel write lands.
 
-// ── pipeline.* ──────────────────────────────────────────────────────────────
-// pipeline.changed — moved to ship-config/src/event_registrations.rs (keystone-A
-// Phase A bundle 3, 2026-06-10): watcher-ping family co-locates with its emitter.
-register_event!("pipeline.gate.failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineGateFailedPayload", crate::events::pipeline::PipelineGateFailedPayload);
-register_event!("pipeline.gate.passed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineGatePassedPayload", crate::events::pipeline::PipelineGatePassedPayload);
-register_event!("pipeline.gate.requested", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineGateRequestedPayload", crate::events::pipeline::PipelineGateRequestedPayload);
-register_event!("pipeline.run.blocked", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineRunBlockedPayload", crate::events::pipeline::PipelineRunBlockedPayload);
+// ── pipeline.* (engine cut, 2026-07-10) ──────────────────────────────────────
+// pipeline.changed lives in ship-config (config-watcher ping). The
+// orchestrator's engine-emitted `pipeline.*` events all die with the
+// engine (zero consumers, zero emitters). The three `run.started`,
+// `run.cancelled`, `step.done_declared` registrations stay — code-mode
+// will re-emit them when it lands (the verbs are reusable). The
+// `pipeline.step.observed` registration stays for backward-compat
+// (the canonical signal in code-mode is `session.{completed,failed,cancelled}`).
 register_event!("pipeline.run.cancelled", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineRunCancelledPayload", crate::events::pipeline::PipelineRunCancelledPayload);
-register_event!("pipeline.run.completed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineRunCompletedPayload", crate::events::pipeline::PipelineRunCompletedPayload);
-register_event!("pipeline.run.dispatched", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineRunDispatchedPayload", crate::events::pipeline::PipelineRunDispatchedPayload);
-register_event!("pipeline.run.failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineRunFailedPayload", crate::events::pipeline::PipelineRunFailedPayload);
-register_event!("pipeline.run.merged", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineRunMergedPayload", crate::events::pipeline::PipelineRunMergedPayload);
 register_event!("pipeline.run.started", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineRunStartedPayload", crate::events::pipeline::PipelineRunStartedPayload);
-register_event!("pipeline.step.completed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepCompletedPayload", crate::events::pipeline::PipelineStepCompletedPayload);
 register_event!("pipeline.step.done_declared", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepDoneDeclaredPayload", crate::events::pipeline::PipelineStepDoneDeclaredPayload);
-register_event!("pipeline.step.failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepFailedPayload", crate::events::pipeline::PipelineStepFailedPayload);
-// Reclassified to Durable (job/transient-events). The
-// `pipeline_step_runs` projection in `ship-pipeline-runtime` already
-// anchors step lifecycle on `started/completed/failed/retry/...` and
-// "deliberately does not anchor on `pipeline.step.observed`" (per the
-// module doc), so the projection's correctness is unchanged. Reclassifying
-// these as Durable preserves the post-mortem audit trail ("we observed
-// step X at time T with reason R") the orchestrator tests query for.
+// Reclassified to Durable (job/transient-events). The pipeline_step_runs
+// projection (engine cut, 2026-07-10) no longer anchors on this event
+// — the canonical signal in code-mode is the canonical_sessions family
+// — but the registration stays for backward-compat (existing post-mortem
+// queries key off it; the durable audit trail of "we observed step X at
+// time T with reason R" is preserved).
 register_event!("pipeline.step.observed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepObservedPayload", crate::events::pipeline::PipelineStepObservedPayload);
-register_event!("pipeline.step.output", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepOutputPayload", crate::events::pipeline::PipelineStepOutputPayload);
-register_event!("pipeline.step.retry", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepRetry", crate::events::types::PipelineStepRetry);
-register_event!("pipeline.step.spawn_failed", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepSpawnFailedPayload", crate::events::pipeline::PipelineStepSpawnFailedPayload);
-register_event!("pipeline.step.started", [EventScope::Runtime], Retention::Durable, Stability::Stable, "PipelineStepStartedPayload", crate::events::pipeline::PipelineStepStartedPayload);
 // Reclassified to Durable (job/transient-events): the `ActorProjection`
 // backfills the actor's pid from `process.spawned` (the projection
 // code path is documented as "apply the pid from `process.spawned` to
@@ -238,15 +228,10 @@ register_event!("supervisor.shutting_down", [EventScope::Runtime], Retention::Du
 // Phase A bundle 3, 2026-06-10): watcher-ping family co-locates with its emitter.
 
 // ── legacy/deprecated (kept for backward compat, fail-closed classification) ─
-// Reclassified to Durable (job/transient-events): the per-step
-// projection in `ship-pipeline-runtime` still anchors on
-// `pipeline.run.updated` (see `STEP_EVENT_TYPES` in
-// `pipeline_step_run.rs`); the event carries a human-to-agent message
-// for the running step, which is the durable audit trail. The event is
-// `Stability::Deprecated` (the new path is direct mailbox messaging to
-// the step) but the existing anchor is still correct as long as the
-// event flows.
-register_event!("pipeline.run.updated", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "PipelineRunUpdatedPayload", crate::events::pipeline::PipelineRunUpdatedPayload);
+// pipeline.run.updated was retired with the engine (2026-07-10) — the
+// `pipeline_step_run` projection that anchored on it is gone; code-mode
+// drops the deprecated human-to-step mailbox in favor of the canonical
+// `session.*` family.
 register_event!("daemon.crashed", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonCrashed", crate::events::daemon::CrashedPayload);
 register_event!("daemon.pidfile_acquired", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonPidfileAcquired", crate::events::daemon::PidfileAcquiredPayload);
 register_event!("daemon.pidfile_stale_taken", [EventScope::Runtime], Retention::Durable, Stability::Deprecated, "DaemonPidfileStaleTaken", crate::events::daemon::PidfileStaleTakenPayload);

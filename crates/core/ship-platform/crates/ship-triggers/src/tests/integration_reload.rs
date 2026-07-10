@@ -13,7 +13,7 @@ use super::integration_engine::{
 
 fn run_failed_envelope() -> EventEnvelope {
     EventEnvelope::new(
-        "pipeline.run.failed",
+        "pipeline.run.started",
         "run-1",
         &json!({ "pipeline_run_id": "run-1", "error": "boom", "status": "failed" }),
     )
@@ -36,7 +36,7 @@ async fn triggers_reload_added_trigger_becomes_live() {
     let defs = vec![trigger_def(
         r#"{
             "id": "new",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "added": true } }
             ]
@@ -65,7 +65,7 @@ async fn triggers_reload_removed_trigger_stops_firing() {
     let defs = vec![trigger_def(
         r#"{
             "id": "removable",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": {} }
             ]
@@ -101,7 +101,7 @@ async fn triggers_reload_empty_dir_clears_all_triggers() {
         .iter()
         .map(|name| {
             trigger_def(&format!(
-                r#"{{ "id": "{name}", "trigger": {{ "event": "pipeline.run.failed" }},
+                r#"{{ "id": "{name}", "trigger": {{ "event": "pipeline.run.started" }},
                        "actions": [] }}"#
             ))
         })
@@ -127,7 +127,7 @@ async fn triggers_reload_replaced_trigger_fires_new_definition() {
     let v1 = vec![trigger_def(
         r#"{
             "id": "mutable",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "version": "v1" } }
             ]
@@ -148,7 +148,7 @@ async fn triggers_reload_replaced_trigger_fires_new_definition() {
     let v2 = vec![trigger_def(
         r#"{
             "id": "mutable",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "version": "v2" } }
             ]
@@ -175,7 +175,7 @@ async fn triggers_reload_invalid_hook_does_not_discard_valid_hooks() {
 
     let defs = vec![
         trigger_def(
-            r#"{ "id": "good", "trigger": { "event": "pipeline.run.failed" }, "actions": [] }"#,
+            r#"{ "id": "good", "trigger": { "event": "pipeline.run.started" }, "actions": [] }"#,
         ),
         // Unknown event type — invalid, must be skipped, not fatal.
         trigger_def(

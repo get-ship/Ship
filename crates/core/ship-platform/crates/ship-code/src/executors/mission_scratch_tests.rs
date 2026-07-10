@@ -24,7 +24,7 @@ fn ctx_with_mission_scratch(value: &str) -> SessionContext {
     let mut env = HashMap::new();
     env.insert("SHIP_MISSION_SCRATCH".to_string(), value.to_string());
     SessionContext {
-        pipeline_run_id: "mission-scratch".into(),
+        session_id: "mission-scratch".into(),
         slug: "mission-slug".into(),
         agent: "agent-under-test".into(),
         branch: "main".into(),

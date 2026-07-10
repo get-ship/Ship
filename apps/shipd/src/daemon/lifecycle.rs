@@ -132,50 +132,6 @@ pub(super) fn spawn_leak_diag(rt: &Arc<ShipRuntime>) {
     });
 }
 
-/// Spawn `HumanGatewayService` if Telegram env vars are present.
-/// Silently skips if `SHIP_TELEGRAM_TOKEN` or `SHIP_TELEGRAM_CHAT_ID` is absent.
-pub async fn spawn_human_gateway(
-    kernel: &Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
-) {
-    use ship_messaging::{HumanGatewayService, TelegramAdapter};
-    use ship_substrate::events::ActorConfig;
-    use ship_substrate::services::spawn_service;
-    use std::sync::Arc as StdArc;
-
-    let adapter = match TelegramAdapter::from_env() {
-        Some(a) => a,
-        None => {
-            tracing::info!("shipd: SHIP_TELEGRAM_TOKEN/CHAT_ID not set — human gateway disabled");
-            return;
-        }
-    };
-
-    // Adapter-only: the inbound outbox was removed with the dark
-    // `human.response` registration (theme-A contain A8). When the
-    // inbound fast-follow lands it will own its own channel + drain.
-    let config = ActorConfig {
-        namespace: "service.human-gateway".to_string(),
-        write_namespaces: vec!["human.".to_string()],
-        // Pipeline-run + canonical session lifecycle. The pre-inversion "job."
-        // namespace is dead; agent.session.* is retired (#26 spawn-intent).
-        // Events are now pipeline.run.* / session.* (canonical session family).
-        read_namespaces: vec!["pipeline.".to_string(), "session.".to_string()],
-        subscribe_namespaces: vec!["pipeline.".to_string(), "session.".to_string()],
-        see_directed_events: false,
-    };
-
-    let handler: Box<dyn ship_substrate::services::ServiceHandler> = Box::new(
-        HumanGatewayService::new(StdArc::new(adapter)),
-    );
-
-    match spawn_service(&mut *kernel.lock().await, "service.human-gateway", config, handler) {
-        Ok(_) => tracing::info!("shipd: human gateway service started (telegram)"),
-        Err(e) => {
-            tracing::warn!("shipd: failed to spawn human gateway: {e}");
-        }
-    }
-}
-
 // ── I/O: listener binding + daemon.* event emit ──────────────────────────
 
 /// Bind the listener with collision retry. On EADDRINUSE we increment

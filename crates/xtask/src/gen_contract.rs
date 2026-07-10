@@ -87,7 +87,7 @@ fn domain_catalog() -> Vec<DomainMeta> {
             display: "Pipelines",
             event_prefixes: vec!["pipeline."],
             services: vec!["PipelinesService"],
-            description: "Pipeline runtime (orchestrator): dispatch atom, DAG advancement, fan-out/recover/replay, and per-step monitoring.",
+            description: "Pipeline definition CRUD (file-tree). The orchestrator and run/step reads retired 2026-07-10; run verbs return when code-mode lands (scripts on ship-js + durable-execution).",
             coverage_audit_docs: vec![],
         },
         DomainMeta {

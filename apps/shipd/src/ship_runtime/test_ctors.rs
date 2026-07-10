@@ -102,8 +102,6 @@ impl ShipRuntime {
             agent_def_kernel: std::sync::OnceLock::new(),
             agent_def_index: std::sync::OnceLock::new(),
             agent_reactive: std::sync::OnceLock::new(),
-            pipeline_reactive: std::sync::OnceLock::new(),
-            pipeline_watch_kernel: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
             shutdown_token: std::sync::OnceLock::new(),
             live_resolvers: Arc::new(crate::ship_runtime::live_resolvers::build()),

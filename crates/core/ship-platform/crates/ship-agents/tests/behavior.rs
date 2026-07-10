@@ -230,7 +230,6 @@ fn started_payload(
     slug: &str,
     harness: Option<&str>,
     model: Option<&str>,
-    parent: Option<&str>,
 ) -> DispatchRequestedPayload {
     DispatchRequestedPayload {
         session_id: session_id.into(),
@@ -253,7 +252,6 @@ fn started_payload(
         resume_session_id: None,
         depends_on: None,
         vars: None,
-        parent_pipeline_run_id: parent.map(str::to_string),
     }
 }
 
@@ -374,7 +372,7 @@ async fn bare_session_dispatch_threads_harness_model_branch_and_spawn_env() {
         }),
     );
 
-    let payload = started_payload("s-bare-1", "sess-1", Some("codex"), Some("gpt-5-codex"), None);
+    let payload = started_payload("s-bare-1", "sess-1", Some("codex"), Some("gpt-5-codex"));
     let got = dispatch_and_capture(&kernel, &ports, &captured, &payload)
         .await
         .expect("executor.spawn called");
@@ -427,7 +425,7 @@ async fn bare_session_dispatch_threads_prompt_and_spec_source_to_executor() {
     );
 
     let spec_body = "# Job Spec\n\nDo the real work.\nThen commit.";
-    let mut payload = started_payload("s-prompt-1", "sess-p1", Some("omp"), None, None);
+    let mut payload = started_payload("s-prompt-1", "sess-p1", Some("omp"), None);
     payload.prompt = Some(spec_body.to_string());
     payload.spec = Some(spec_body.to_string());
     payload.source_spec_path =
@@ -470,7 +468,7 @@ async fn bare_session_dispatch_falls_back_to_spec_body_for_prompt() {
         }),
     );
 
-    let mut payload = started_payload("s-prompt-2", "sess-p2", Some("omp"), None, None);
+    let mut payload = started_payload("s-prompt-2", "sess-p2", Some("omp"), None);
     payload.spec = Some("spec-only body".to_string());
 
     let got = dispatch_and_capture(&kernel, &ports, &captured, &payload)
@@ -483,46 +481,12 @@ async fn bare_session_dispatch_falls_back_to_spec_body_for_prompt() {
         "with no prompt, the spec body is the autostart content"
     );
 }
+// (Engine cut 2026-07-10: `composed_session_is_not_spawned_here` retired
+// with the engine. The no-double-spawn invariant that
+// `parent_pipeline_run_id` set → `service.agents` skips the spawn is gone
+// — sessions never carry pipeline identity post-cut. The bare
+// `dispatch.requested` path is the only path.)
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn composed_session_is_not_spawned_here() {
-    // The no-double-spawn invariant: a session carrying parent_pipeline_run_id
-    // is owned by the pipeline composer. service.agents must NOT spawn it.
-    let tmp = tempfile::TempDir::new().unwrap();
-    let kernel = kernel_with_actor();
-    let captured = Arc::new(StdMutex::new(None));
-    let spawn_calls = Arc::new(AtomicUsize::new(0));
-    let ports = ports_with(
-        Arc::new(OkIsolation(tmp.path().join("worktrees/sess-2"))),
-        Arc::new(RecordingExecutor {
-            captured: captured.clone(),
-            spawn_calls: spawn_calls.clone(),
-        }),
-        Arc::new(NoopRegistry),
-        Arc::new(TestPlatform {
-            worktrees: tmp.path().join("worktrees"),
-            cleanup_calls: Arc::new(AtomicUsize::new(0)),
-        }),
-    );
-
-    let payload = started_payload("s-comp-1", "sess-2", None, None, Some("run-parent-1"));
-    let envelope = EventEnvelope::new(
-        dispatch_event_types::DISPATCH_REQUESTED,
-        &payload.session_id,
-        &payload,
-    )
-    .unwrap()
-    .with_actor_id("test");
-    ship_agents::handle_agents_event(&kernel, &envelope, &ports).await;
-    // Give any (erroneously) detached task a chance to run.
-    tokio::time::sleep(std::time::Duration::from_millis(80)).await;
-
-    assert_eq!(
-        spawn_calls.load(Ordering::SeqCst),
-        0,
-        "composed session (parent_pipeline_run_id set) must not be spawned by service.agents"
-    );
-}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn dispatch_emits_process_spawned_on_success() {
@@ -556,7 +520,7 @@ async fn dispatch_emits_process_spawned_on_success() {
         }),
     );
 
-    let payload = started_payload("s-disp-1", "sess-3", None, None, None);
+    let payload = started_payload("s-disp-1", "sess-3", None, None);
     let envelope = EventEnvelope::new(
         dispatch_event_types::DISPATCH_REQUESTED,
         &payload.session_id,
@@ -701,7 +665,7 @@ async fn floki_harness_routes_to_floki_run_fn_and_skips_executor() {
     };
 
     // harness == "floki" is the routing key.
-    let payload = started_payload("s-floki-1", "fl-sess", Some("floki"), None, None);
+    let payload = started_payload("s-floki-1", "fl-sess", Some("floki"), None);
     let envelope = EventEnvelope::new(
         dispatch_event_types::DISPATCH_REQUESTED,
         &payload.session_id,
@@ -760,7 +724,7 @@ async fn floki_harness_without_closure_emits_session_failed() {
         event_dedup: Arc::new(EventDedup::new()),
     };
 
-    let payload = started_payload("s-floki-2", "fl-no-fn", Some("floki"), None, None);
+    let payload = started_payload("s-floki-2", "fl-no-fn", Some("floki"), None);
     let envelope = EventEnvelope::new(
         dispatch_event_types::DISPATCH_REQUESTED,
         &payload.session_id,
@@ -987,7 +951,7 @@ async fn failed_dispatch_emits_session_failed_with_space_bound_envelope() {
         }),
     );
 
-    let payload = started_payload(session_id, slug, Some("codex"), Some("gpt-5-codex"), None);
+    let payload = started_payload(session_id, slug, Some("codex"), Some("gpt-5-codex"));
     let envelope = EventEnvelope::new(
         dispatch_event_types::DISPATCH_REQUESTED,
         session_id,

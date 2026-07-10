@@ -17,7 +17,7 @@ fn triggers_descriptor_valid_def_converts() {
     let def = trigger_def(
         r#"{
             "id": "notify-failed",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "hi": "there" } }
             ]
@@ -25,7 +25,7 @@ fn triggers_descriptor_valid_def_converts() {
     );
     let hook = HookDef::try_from_def(&def, &ship_dir).expect("valid def converts");
     assert_eq!(hook.name, "notify-failed");
-    assert_eq!(hook.trigger.event.as_deref(), Some("pipeline.run.failed"));
+    assert_eq!(hook.trigger.event.as_deref(), Some("pipeline.run.started"));
     assert_eq!(hook.actions.len(), 1);
     assert!(matches!(
         hook.actions[0].action_type,
@@ -71,13 +71,13 @@ fn triggers_descriptor_job_failed_event_rejected() {
 fn triggers_descriptor_registered_pipeline_events_pass() {
     let (_tmp, ship_dir) = tmp_ship_dir();
     let on_fail = trigger_def(
-        r#"{ "id": "on-fail", "trigger": { "event": "pipeline.run.failed" }, "actions": [] }"#,
+        r#"{ "id": "on-fail", "trigger": { "event": "pipeline.run.started" }, "actions": [] }"#,
     );
     let on_done = trigger_def(
-        r#"{ "id": "on-done", "trigger": { "event": "pipeline.run.completed" }, "actions": [] }"#,
+        r#"{ "id": "on-done", "trigger": { "event": "pipeline.run.started" }, "actions": [] }"#,
     );
-    HookDef::try_from_def(&on_fail, &ship_dir).expect("pipeline.run.failed is registered");
-    HookDef::try_from_def(&on_done, &ship_dir).expect("pipeline.run.completed is registered");
+    HookDef::try_from_def(&on_fail, &ship_dir).expect("pipeline.run.started is registered");
+    HookDef::try_from_def(&on_done, &ship_dir).expect("pipeline.run.started is registered");
 }
 
 // F3 added skill.changed / rule.changed emits — triggers subscribing to
@@ -120,7 +120,7 @@ fn triggers_descriptor_source_trigger_bypasses_registry_lookup() {
     let def = trigger_def(
         r#"{
             "id": "daily",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "source": { "kind": "cron", "schedule": "0 9 * * *" },
             "actions": []
         }"#,
@@ -136,7 +136,7 @@ fn triggers_descriptor_invalid_cron_expression_rejected() {
     let def = trigger_def(
         r#"{
             "id": "bad-cron",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "source": { "kind": "cron", "schedule": "not a cron" },
             "actions": []
         }"#,
@@ -150,7 +150,7 @@ fn triggers_descriptor_missing_template_file_returns_error() {
     let def = trigger_def(
         r#"{
             "id": "bad",
-            "trigger": { "event": "pipeline.run.completed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "collection.insert", "collection": "notes", "template_file": "does-not-exist.j2" }
             ]
@@ -164,7 +164,7 @@ fn triggers_descriptor_missing_template_file_returns_error() {
 fn triggers_descriptor_empty_id_rejected() {
     let (_tmp, ship_dir) = tmp_ship_dir();
     let def = trigger_def(
-        r#"{ "id": "", "trigger": { "event": "pipeline.run.failed" }, "actions": [] }"#,
+        r#"{ "id": "", "trigger": { "event": "pipeline.run.started" }, "actions": [] }"#,
     );
     HookDef::try_from_def(&def, &ship_dir).expect_err("empty id must be rejected");
 }

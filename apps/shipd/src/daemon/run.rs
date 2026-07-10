@@ -181,17 +181,19 @@ pub async fn run_network(
     // Per-sandbox backend teardown folds in once SandboxOwner moves
     // from per-actor to per-sandbox.
     rt.start_sandbox_reaper();
-    super::lifecycle::spawn_human_gateway(rt.kernel()).await;
+    // (Engine cut 2026-07-10: `spawn_human_gateway` retired with the
+    // engine. The `HumanGatewayService` listened for `pipeline.run.blocked`
+    // (now deregistered); the spec's "not assumed a drop-in" rule means
+    // code-mode will own its own channel + drain when it lands.)
     rt.start_hook_engine().await;
     rt.start_config_watcher();
     // Live agent-def index (agents arc S5): build the read-only index from the
     // def files at boot, then keep it live on `agent.def.updated`. Shares the
     // gated-write NOTIFY's `KernelLog` so op-writes re-index deterministically.
     rt.start_agent_def_index().await;
-    // Typed pipeline `Watch` (pipelines P0.4): stand up the reactive registry +
-    // the bridge that taps the orchestrator's pipeline.* / session.* router
-    // events into the Watch log so run/step update streams wake.
-    rt.start_pipeline_reactive().await;
+    // (Engine cut 2026-07-10: pipeline `Watch` registry retired with the
+    // orchestrator. The reactive registry + bridge are gone; the only
+    // remaining reactive surface is the agent `Watch` above.)
     // leak-193 diagnostics (SHIP_LEAK_DIAG=1) — see `super::lifecycle::spawn_leak_diag`.
     super::lifecycle::spawn_leak_diag(&rt);
 

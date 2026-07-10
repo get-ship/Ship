@@ -22,7 +22,6 @@ use ship_cloud as _;
 #[ctor::ctor]
 fn install_test_platform_defaults() {
     ship_platform::install_defaults();
-    ship_pipeline_runtime::install_projections();
 }
 
 pub mod auth;
@@ -53,16 +52,11 @@ pub mod dispatch;
 // in `apps/shipd/src/router/mod.rs`.)
 pub mod views;
 pub mod ship_runtime;
-// Tests for supervisor + shipd-internal integration (use ApiState,
-// ShipRuntime, etc.) live under `apps/shipd/src/supervisor/`.
-// Gated: these tests use ship-code types directly (dispatch_ports, process_registry).
+// (former `supervisor` integration tests deleted with the engine cut, 2026-07-10
+// — the per-run pipeline projection + the engine-emitted integration coverage
+// are gone; bare-agent integration coverage lives in ship-agents' own tests).
 #[cfg(test)]
 mod test_harness;
-
-#[cfg(all(test, feature = "ship-code"))]
-#[path = "supervisor/mod.rs"]
-mod supervisor_tests;
-
 pub use daemon::run_network;
 
 pub use deck::DaemonMode;

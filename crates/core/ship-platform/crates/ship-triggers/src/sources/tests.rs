@@ -76,7 +76,7 @@ fn reject_webhook_path_without_prefix() {
     let def = trigger_def(
         r#"{
         "id": "bad-webhook",
-        "trigger": { "event": "pipeline.run.failed" },
+        "trigger": { "event": "pipeline.run.started" },
         "source": { "kind": "webhook", "path": "/api/some-path" },
         "actions": []
     }"#,
@@ -91,7 +91,7 @@ fn accept_valid_webhook_trigger() {
     let def = trigger_def(
         r#"{
         "id": "gh-webhook",
-        "trigger": { "event": "pipeline.run.failed" },
+        "trigger": { "event": "pipeline.run.started" },
         "source": { "kind": "webhook", "path": "/webhooks/github", "secret": "env:GH_SECRET" },
         "actions": [
             { "type": "event.emit", "event_type": "hook.tripped", "payload": {} }
@@ -107,7 +107,7 @@ fn accept_valid_file_trigger() {
     let def = trigger_def(
         r#"{
         "id": "watch-src",
-        "trigger": { "event": "pipeline.run.failed" },
+        "trigger": { "event": "pipeline.run.started" },
         "source": { "kind": "file", "glob": "src/**/*.rs" },
         "actions": [
             { "type": "event.emit", "event_type": "hook.tripped", "payload": {} }
@@ -123,7 +123,7 @@ fn accept_valid_cron_trigger() {
     let def = trigger_def(
         r#"{
         "id": "daily",
-        "trigger": { "event": "pipeline.run.failed" },
+        "trigger": { "event": "pipeline.run.started" },
         "source": { "kind": "cron", "schedule": "0 9 * * *" },
         "actions": [
             { "type": "event.emit", "event_type": "hook.tripped", "payload": {} }
@@ -139,7 +139,7 @@ fn reject_invalid_cron_expression() {
     let def = trigger_def(
         r#"{
         "id": "bad-cron",
-        "trigger": { "event": "pipeline.run.failed" },
+        "trigger": { "event": "pipeline.run.started" },
         "source": { "kind": "cron", "schedule": "not a cron" },
         "actions": []
     }"#,
@@ -152,7 +152,7 @@ fn reject_invalid_cron_expression() {
 #[test]
 fn existing_event_triggers_still_convert() {
     let def = trigger_def(
-        r#"{ "id": "on-fail", "trigger": { "event": "pipeline.run.failed" }, "actions": [] }"#,
+        r#"{ "id": "on-fail", "trigger": { "event": "pipeline.run.started" }, "actions": [] }"#,
     );
     let (_tmp, ship_dir) = tmp_ship_dir();
     HookDef::try_from_def(&def, &ship_dir).unwrap();
@@ -432,7 +432,7 @@ async fn engine_dispatches_webhook_event_to_source_trigger() {
     let def = trigger_def(
         r#"{
             "id": "on-gh-push",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "source": { "kind": "webhook", "path": "/webhooks/github" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "webhook" } }

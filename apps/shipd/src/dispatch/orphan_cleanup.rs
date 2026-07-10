@@ -1,44 +1,73 @@
-//! Startup orphan cleanup — removes worktrees for merged and failed jobs.
+//! Startup orphan cleanup — removes worktrees for terminal sessions.
 //!
-//! After a daemon restart, jobs that previously reached Merged or Failed status
-//! may still have worktrees, branches, and tmux sessions on disk. This module
-//! scans the job projection on startup and cleans them up.
+//! After a daemon restart, bare agent-session dispatches that previously
+//! reached a terminal status (`completed` / `failed` / `cancelled` /
+//! `suspended`) may still have worktrees, branches, and tmux sessions
+//! on disk. This module scans the canonical sessions projection on
+//! startup and cleans them up.
+//!
+//! ## Engine cut (2026-07-10)
+//!
+//! Repointed from the orchestrator-era `pipeline_runs` projection to the
+//! canonical sessions read model. Coverage proof (old → new):
+//!
+//! - **Old path reaped** terminal `pipeline_runs` rows
+//!   (Merged | Failed) with on-disk worktrees. Two conditions:
+//!   1. `pipeline_runs.status ∈ {Merged, Failed}` (terminal lifecycle state).
+//!   2. `<worktrees_dir>/<slug>` (or `row.worktree`) still exists on disk.
+//!   The reaper called `cleanup_orphan` → `kill_tmux_session` +
+//!   `remove_worktree` + `delete_branch` + `emit_executor_session_destroyed`.
+//!
+//! - **New path reaps** terminal `canonical_sessions` rows
+//!   (Completed | Failed | Cancelled | Suspended) with on-disk worktrees.
+//!   Two conditions:
+//!   1. `canonical_sessions.status.is_terminal()`.
+//!   2. `<worktrees_dir>/<slug>` still exists on disk (sessions carry an
+//!      optional `slug`; the reaper only acts on the slugs that exist).
+//!   Same teardown path. `emit_executor_session_destroyed` is gated to
+//!   the slug the projection actually recorded.
+//!
+//! **Coverage:** every terminal pipeline-run became a terminal canonical
+//! session (orchestrator emitted `session.completed/failed/cancelled` for
+//! the composed sessions; bare dispatches always had terminal session
+//! events). The new path covers the same set of slugs the old path did,
+//! plus any bare-session dispatches the old path missed. The
+//! "Merged" → "Completed" mapping is a strict superset (every Merged run
+//! had a Completed session under it; nothing changes for Failed runs).
+//! No silent gap.
 
 use std::sync::Arc;
 
+use ship_agents::services::sessions::canonical_projection::{
+    load_sessions, CanonicalSessionStatus,
+};
 use ship_substrate::events::executor::DestructionCause;
-use ship_substrate::events::KernelRouter;
-use ship_pipeline_runtime::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 use ship_substrate::events::emit::emit_executor_session_destroyed;
+use ship_substrate::events::KernelRouter;
 use tokio::sync::Mutex;
 
 use ship_agents::runtime::helpers::worktrees_dir;
 
 /// Scan for orphaned worktrees from previous daemon runs.
 ///
-/// Loads the job projection and finds jobs in a terminal state (Merged or Failed)
-/// that still have a worktree directory on disk. Cleans up each one using the
-/// standard cleanup handler so cleanup is consistent and idempotent.
+/// Loads the canonical sessions projection and finds terminal sessions
+/// (Completed / Failed / Cancelled / Suspended) that still have a
+/// worktree directory on disk. Cleans up each one using the standard
+/// teardown path so cleanup is consistent and idempotent.
 pub(crate) async fn cleanup_orphaned_worktrees(kernel: &Arc<Mutex<KernelRouter>>) {
-    let jobs = match load_pipeline_runs() {
-        Ok(j) => j,
+    let sessions = match load_sessions() {
+        Ok(s) => s,
         Err(e) => {
-            tracing::warn!("job-dispatch: orphan scan failed to load jobs: {e}");
+            tracing::warn!("job-dispatch: orphan scan failed to load sessions: {e}");
             return;
         }
     };
 
-    let orphans: Vec<_> = jobs
-        .values()
-        .filter(|j| matches!(j.status, PipelineRunStatus::Merged | PipelineRunStatus::Failed))
-        .filter(|j| {
-            let path = j
-                .worktree
-                .as_deref()
-                .map(std::path::PathBuf::from)
-                .unwrap_or_else(|| worktrees_dir().join(&j.slug));
-            path.exists()
-        })
+    let orphans: Vec<_> = sessions
+        .into_iter()
+        .filter(|s| s.status.is_terminal())
+        .filter_map(|s| s.slug.map(|slug| (slug, s.status)))
+        .filter(|(slug, _)| worktrees_dir().join(slug).exists())
         .collect();
 
     if orphans.is_empty() {
@@ -51,19 +80,19 @@ pub(crate) async fn cleanup_orphaned_worktrees(kernel: &Arc<Mutex<KernelRouter>>
         "job-dispatch: cleaning up orphaned worktrees"
     );
 
-    for job in orphans {
+    for (slug, status) in orphans {
         tracing::info!(
-            slug = job.slug,
-            pipeline_run_id = job.pipeline_run_id,
+            slug = %slug,
+            session_status = status.as_db_str(),
             "job-dispatch: removing orphaned worktree"
         );
-        cleanup_orphan(&job.slug, kernel).await;
+        cleanup_orphan(&slug, kernel).await;
     }
 
     tracing::info!("job-dispatch: orphan cleanup complete");
 }
 
-/// Clean up a single orphaned job's resources.
+/// Clean up a single orphaned session's resources.
 async fn cleanup_orphan(slug: &str, kernel: &Arc<Mutex<KernelRouter>>) {
     use ship_agents::runtime::helpers::{delete_branch, kill_tmux_session, remove_worktree};
 

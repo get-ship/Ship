@@ -4,60 +4,34 @@ version = "0.1.0"
 edition = "2024"
 license-file = "LICENSE"
 publish = false
-description = "L1 pipeline runtime — CRUD over the pipeline spec tree plus the job advancement / step dispatch / fanout / sweep / merge runtime. Sits above `ship-pipelines` (pure-logic types), `ship-substrate` (L0 ports + events; `events::emit` and `dispatch_gate` for the runner mechanism), and the L1 `ship-code` leaf. The orchestrator is NOT a service: it owns no orchestrator.* events, only pipeline.*."
+description = "L1 pipeline runtime — definition CRUD for the pipeline spec tree. The orchestrator (run/step engine) was retired 2026-07-10; the bare agent-session wiring in this crate is the L1 port-impl layer shared with helmd."
 
 [dependencies]
-# L0 durable-execution — journaling engine (JournalStore seam, InMemoryJournalStore for tests).
-durable-execution = { path = "../core/ship-substrate/crates/durable-execution" }
-# L1 domain — canonical session event payloads and event-type constants.
-agent-def = { path = "../core/ship-platform/crates/agent-def" }
-# L0 — events, ports, projections registry, persistence, fs_util.
+# L0 — events, ports, projections registry, persistence, text utils, dispatch gate.
 ship-substrate = { path = "../core/ship-substrate" }
-# L0 git capability — git2-backed; single git implementation.
-ship-git = { path = "../core/ship-git" }
 # L0 data — pure-logic pipeline spec types (no fs/process/tokio).
-ship-pipelines = { path = "../core/ship-substrate/crates/ship-pipelines", features = ["specta"] }
-# L0 mechanism — kernel-emit plumbing, event dedup, exit-signal routing,
-# router gate, spawn-env builder, invocation-mode resolution. Re-exported
-# by this crate at the historic `orchestrator::{dedup, emit, exit_handler}`
-# paths so consumers stay on the same surface.
+ship-pipelines = { path = "../core/ship-substrate/crates/ship-pipelines" }
 # L0 types — Authority principal carried on dispatch events.
 ship-types = { path = "../core/ship-substrate/crates/ship-types" }
-# Format-migration Wave 4 phase A: the runtime-shape conversion from
-# `compiler::PipelineDef` (descriptor) to `ship_substrate::events::pipeline::Pipeline`
-# (runtime) is unmapped; `ensure_pipeline` accepts a `&[compiler::PipelineDef]`
-# argument so the orchestrator's by-name lookup can match against the
-# descriptor's `ExtensionLibrary::pipelines` once the seam is plumbed.
-compiler = { path = "../core/compiler" }
-# runner orchestration helpers (dedup, exit_handler, router, etc.). The
-# orchestrator runtime and step-execution paths depend on ship-code; gated
-# behind the `ship-code` feature so the harness-free build (cargo
-# --no-default-features on shipd) compiles without dragging ship-code in.
-ship-code = { path = "../core/ship-platform/crates/ship-code", optional = true }
-# L1 platform — `FilesService` (file-tree helper) and the live SQL-backed
-# `pipeline_run` / `agent_session` projections the runtime reads. This
-# crate is a DOWNSTREAM consumer of `ship-platform`; `ship-platform` does
-# not depend on us, so no cycle.
-ship-platform = { path = "../core/ship-platform" }
-ship-agents = { path = "../core/ship-platform/crates/ship-agents" }
-ship-auth = { path = "../core/ship-platform/crates/ship-auth" }
+# L1 file tree — `FilesService` backing the `PipelinesService` CRUD.
 ship-files = { path = "../core/ship-platform/crates/ship-files" }
-ship-store = { path = "../core/ship-platform/crates/ship-store" }
-# L1 artifacts service — fanout/step_io use ArtifactService + ArtifactScope
-# (typed artifact metadata) for step-input/output wiring.
-ship-artifacts = { path = "../core/ship-platform/crates/ship-artifacts" }
-# ConnectRPC wire layer (wire.rs) — implements PipelinesService for shipd mount.
-connectrpc = { version = "0.4", features = ["axum"] }
+# Connect-RPC generated server traits (`PipelinesService`, request/response
+# types) for the L1 wire layer.
 ship-ops-rpc = { path = "../core/ship-ops-rpc" }
-# Reactive snapshot-diff resolver + ReactiveRegistry for the typed Watch verb
-# (P0.4) — same infra the agents Watch rides. No cycle: ship-reactive depends
-# only on ship-substrate + ship-types, both already upstream of this crate.
-ship-reactive = { path = "../core/ship-platform/crates/ship-reactive" }
-# Server-streaming bodies for the Watch RPC handler.
-async-stream = "0.3"
-# Generated proto enum wrapper (`EnumValue`) for the WatchEvent patch conversion.
-# Version tracks ship-ops-rpc's buffa.
-buffa = "0.5"
+connectrpc = { version = "0.4", features = ["axum"] }
+# Bare-agent wiring (load_sessions) — the canonical sessions projection read
+# is the only remaining "projection" surface after the engine cut.
+ship-agents = { path = "../core/ship-platform/crates/ship-agents" }
+# L1 dispatch ports (SpawnPolicy / ProjectionReader / AgentPlatform / Authority)
+# implemented in this crate's `ports/` module; the bare-agent wiring in
+# shipd and helmd thread through them.
+ship-code = { path = "../core/ship-platform/crates/ship-code" }
+# Config — SpaceManifest read by `ConfigSpawnPolicy` to resolve the agent's
+# declared role at spawn time.
+ship-platform = { path = "../core/ship-platform" }
+# Auth — role → scope resolution used by `ConfigSpawnPolicy` for the
+# spawned agent's session token.
+ship-auth = { path = "../core/ship-platform/crates/ship-auth" }
 
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
@@ -71,34 +45,11 @@ chrono = { workspace = true }
 tempfile = { workspace = true }
 json-patch = "4"
 minijinja = { workspace = true }
-# SQL-backed `pipeline_run` projection (relocated here from the
-# ship-platform projections grab-bag — the pipeline domain owns its read
-# model now). Same feature set ship-platform uses.
-sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
-# `pipeline_run` view types derive `specta::Type` for the TS client codegen.
-specta = { workspace = true, features = ["chrono", "serde_json"] }
 
 [dev-dependencies]
 compiler = { path = "../core/compiler" }
 tokio = { workspace = true, features = ["test-util"] }
 ship-substrate = { path = "../core/ship-substrate" }
-# Gate tests construct RequestContext which takes http::HeaderMap.
-http = "1"
-
-[features]
-default = []
-# Enable the orchestrator + step-execution paths that depend on ship-code.
-# Off under `--no-default-features` so `cargo check -p shipd --no-default-features`
-# (the harness-free build) excludes ship-code from the dep tree. The minimal
-# dispatch entry path (`run_core::dispatch_one` → `loader::ensure_pipeline` →
-# `loader::git_helpers::resolve_head_sha`) stays compiled without this feature
-# so the dispatch envelope can still be built and persisted when no code-mode
-# engine is wired up.
-ship-code = ["dep:ship-code"]
-# Enable derive(Type) on the `PipelinesService` view types so xtask can emit
-# TypeScript bindings via `cargo xtask gen-types`. Off by default; on
-# automatically under `cfg(test)`. Mirrors the flag in `ship-platform`.
-specta = ["ship-pipelines/specta"]
 
 [lints]
 workspace = true

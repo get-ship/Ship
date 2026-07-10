@@ -326,7 +326,7 @@ fn registry_has_entries() {
     // floor is just a smoke check that the binary isn't empty.
     // Keep WELL below the pin so domain de-buckets never trip the smoke
     // check — only an inventory/linker catastrophe should.
-    assert!(count >= 40, "registry must have at least 40 events; got {count}");
+    assert!(count >= 20, "registry must have at least 20 events; got {count}");
 }
 
 /// L0 registration ratchet — the successor of the retired `ALL`-mirror test.
@@ -347,18 +347,18 @@ fn registry_has_entries() {
 fn l0_registry_shrinks_under_keystone_a() {
     let n = ship_types::event_registry::all_names().len();
     assert_eq!(
-        n, 41,
+        n, 26,
         "L0-registered event count changed. This pin is a keystone-A RATCHET: \
          it should only move DOWN (a domain de-bucket) — update it with the \
          move that shrinks it; growing it means new domain events were \
          registered at L0 — stop and put them in the owning domain crate \
          instead (genuinely substrate-generic events are the rare \
          sanctioned exception). \
-         (Facade/-core fold, 2026-07: 44 -> 41. This crate's OWN registrations \
-         are unchanged; the isolated lib-test links 3 fewer dep registrations \
-         after ship-substrate-core merged into ship-substrate. shipd \
-         tests/event_vocabulary.rs — the full-linkage guard — stays green, so \
-         nothing was lost globally.)"
+         (Facade/-core fold, 2026-07: 44 -> 41. 2026-07-10 engine cut: 41 -> 26. \
+         The engine-emitted `pipeline.*` events were at L0 in payload_registry.rs \
+         and are gone with the orchestrator; the substrate's own registrations \
+         are unchanged. shipd tests/event_vocabulary.rs — the full-linkage guard \
+         — stays green, so nothing was lost globally.)"
     );
 }
 

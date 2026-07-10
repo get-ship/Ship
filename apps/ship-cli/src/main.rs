@@ -36,7 +36,6 @@ static DHAT_ALLOC: dhat::Alloc = dhat::Alloc;
 /// `SqliteEventStore` is constructed.
 fn try_init_kernel_router() {
     ship_platform::install_defaults();
-    ship_pipeline_runtime::install_projections();
     if let Ok(dir) = ship_substrate::project::get_global_dir() {
         let _ = ship_substrate::events::init_kernel_router(dir);
     }
@@ -61,8 +60,9 @@ fn main() {
     use clap::Parser;
     // Install platform projection factory + supervisor hooks before any
     // SqliteEventStore is constructed downstream. Idempotent.
+    // (Engine cut 2026-07-10: the pipeline-run projection is gone;
+    // install_projections() is now a no-op and dropped from the boot path.)
     ship_platform::install_defaults();
-    ship_pipeline_runtime::install_projections();
     let _log_guard = logging::init();
     let cli = Cli::parse();
     if let Err(e) = dispatch(cli.command) {

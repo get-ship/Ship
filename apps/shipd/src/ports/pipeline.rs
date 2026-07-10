@@ -1,97 +1,19 @@
-//! Shipd implementations of the ship-pipeline-runtime port traits.
+//! Shipd implementations of the surviving `ship-pipeline-runtime` port
+//! trait.
 //!
-//! Bridges `ApiState` and the daemon's `DispatchHandle` to the abstract ports
-//! declared in `ship_pipeline_runtime::pipeline_ports`. Follows the same
-//! pattern as `agent_event_ports.rs`.
+//! The orchestrator-era `PipelineDispatchPort` and `TurnSignalPort` are
+//! gone (2026-07-10 engine cut). The only remaining port from the
+//! pipeline runtime is [`WorktreesDirPort`] — used by the live agent-log
+//! tail (`log_stream::resolve_log_path`).
+//!
+//! Follows the same pattern as `agent_event_ports.rs` for the agents
+//! runtime.
 
-use async_trait::async_trait;
-use ship_pipeline_runtime::pipeline_ports::{
-    PipelineDispatchPort, TurnSignalPort, WorktreesDirPort,
-};
-use ship_substrate::events::EventEnvelope;
 use std::path::{Path, PathBuf};
 
-use crate::ship_runtime::ApiState;
+use ship_pipeline_runtime::pipeline_ports::WorktreesDirPort;
 
-// ── PipelineDispatchPort ──────────────────────────────────────────────────────
-
-pub struct PipelineDispatchAdapter {
-    state: ApiState,
-}
-
-impl PipelineDispatchAdapter {
-    pub fn new(state: ApiState) -> Self {
-        Self { state }
-    }
-}
-
-#[async_trait]
-impl PipelineDispatchPort for PipelineDispatchAdapter {
-    async fn persist_and_route(&self, envelope: &EventEnvelope) -> anyhow::Result<()> {
-        self.state.persist_and_route(envelope).await
-    }
-
-    fn ship_dir(&self) -> &Path {
-        self.state.ship_dir()
-    }
-}
-
-// ── TurnSignalPort ────────────────────────────────────────────────────────────
-//
-// With feature = "ship-code": signals the live orchestrator activity channel
-// via the dispatch handle.
-// Without: no-op (always returns false — no dispatch, nothing to signal).
-
-#[cfg(feature = "ship-code")]
-pub struct TurnSignalAdapter {
-    state: ApiState,
-}
-
-#[cfg(feature = "ship-code")]
-impl TurnSignalAdapter {
-    pub fn new(state: ApiState) -> Self {
-        Self { state }
-    }
-}
-
-#[cfg(feature = "ship-code")]
-#[async_trait]
-impl TurnSignalPort for TurnSignalAdapter {
-    async fn signal_turn_ended(&self, slug: &str) -> bool {
-        let Some(dh) = self.state.dispatch_handle() else {
-            return false;
-        };
-        let txs = dh.activity_txs.lock().await;
-        if let Some(tx) = txs.get(slug) {
-            tx.send(ship_pipeline_runtime::orchestrator::StepActivity::TurnEnded)
-                .is_ok()
-        } else {
-            false
-        }
-    }
-}
-
-// No-op stub when ship-code feature is off.
-#[cfg(not(feature = "ship-code"))]
-pub struct TurnSignalAdapter;
-
-#[cfg(not(feature = "ship-code"))]
-impl TurnSignalAdapter {
-    pub fn new(_state: ApiState) -> Self {
-        Self
-    }
-}
-
-#[cfg(not(feature = "ship-code"))]
-#[async_trait]
-impl TurnSignalPort for TurnSignalAdapter {
-    async fn signal_turn_ended(&self, _slug: &str) -> bool {
-        false
-    }
-}
-
-// ── WorktreesDirPort ──────────────────────────────────────────────────────────
-
+/// Adapter for [`WorktreesDirPort`] backed by shipd's local paths.
 pub struct WorktreesDirAdapter;
 
 impl WorktreesDirPort for WorktreesDirAdapter {
@@ -99,3 +21,8 @@ impl WorktreesDirPort for WorktreesDirAdapter {
         crate::ports::local_paths::worktrees_dir()
     }
 }
+
+// `Path` is referenced by the trait method receivers; keep the import
+// live so the file's `use` block mirrors the other ports modules.
+#[allow(dead_code)]
+fn _path_anchor(_: &Path) {}

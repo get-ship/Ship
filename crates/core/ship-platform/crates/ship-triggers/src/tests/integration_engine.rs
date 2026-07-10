@@ -70,7 +70,7 @@ const TEST_SPACE: &str = "test-space";
 
 fn run_failed_envelope() -> EventEnvelope {
     EventEnvelope::new(
-        "pipeline.run.failed",
+        "pipeline.run.started",
         "job-1",
         &json!({ "pipeline_run_id": "job-1", "error": "boom", "status": "failed" }),
     )
@@ -132,7 +132,7 @@ async fn triggers_engine_dispatch_matching_hook_fires() {
         trigger_def(
             r#"{
             "id": "on-fail",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "fail" } }
             ]
@@ -141,7 +141,7 @@ async fn triggers_engine_dispatch_matching_hook_fires() {
         trigger_def(
             r#"{
             "id": "on-done",
-            "trigger": { "event": "pipeline.run.completed" },
+            "trigger": { "event": "pipeline.run.cancelled" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "done" } }
             ]
@@ -177,7 +177,7 @@ async fn triggers_engine_dispatch_jinja_renders_event_fields() {
     let defs = vec![trigger_def(
         r#"{
             "id": "mirror",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped",
                   "payload": { "entity": "{{ event.entity_id }}" } }
@@ -204,7 +204,7 @@ async fn triggers_engine_dispatch_when_condition_skips_action() {
     let defs = vec![trigger_def(
         r#"{
             "id": "skip",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "when": "1 == 2",
                   "payload": {} }
@@ -228,7 +228,7 @@ async fn triggers_engine_dispatch_results_chain_across_actions() {
     let defs = vec![trigger_def(
         r#"{
             "id": "chain",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "step": 1 } },
                 { "type": "event.emit", "event_type": "hook.tripped",
@@ -268,7 +268,7 @@ async fn triggers_engine_dispatch_template_file_is_rendered() {
     let defs = vec![trigger_def(
         r#"{
             "id": "record",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "collection.insert",
                   "collection": "tasks",
@@ -322,9 +322,9 @@ async fn triggers_engine_dispatch_recursion_guard_blocks_deep_hooks() {
     let defs = vec![trigger_def(
         r#"{
             "id": "loop",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
-                { "type": "event.emit", "event_type": "pipeline.run.failed", "payload": {
+                { "type": "event.emit", "event_type": "pipeline.run.started", "payload": {
                     "pipeline_run_id": "child", "error": "x", "status": "failed"
                 } }
             ]
@@ -389,7 +389,7 @@ async fn triggers_wire_created_schema_visible_to_trigger_insert() {
     let defs = vec![trigger_def(
         r#"{
             "id": "record",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "collection.insert",
                   "collection": "wire_notes",

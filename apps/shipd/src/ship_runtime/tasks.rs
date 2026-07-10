@@ -355,73 +355,11 @@ impl ShipRuntime {
     ) -> Option<&std::sync::Arc<ship_platform::config::AgentDefIndex>> {
         self.agent_def_index.get()
     }
-
     /// The agent `Watch` reactive registry (agents-arc E5), when the live
     /// def-index has been mounted. `None` in space-less boot — the Watch RPC
     /// then returns Unavailable rather than fabricate a registry.
     pub fn agent_reactive(&self) -> Option<&std::sync::Arc<ship_reactive::ReactiveRegistry>> {
         self.agent_reactive.get()
-    }
-
-    /// Stand up the typed pipeline `Watch` reactive registry (pipelines P0.4)
-    /// and its bridge.
-    ///
-    /// The pipeline orchestrator emits `pipeline.*` events through the raw
-    /// `KernelRouter` (no shared `KernelLog`), and child-step `session.*`
-    /// terminals likewise. The registry's resolvers, however, wake off a
-    /// `KernelLog` broadcast. This method bridges the two: it builds a dedicated
-    /// `KernelLog`, mounts a `ReactiveRegistry` on it, and spawns a kernel actor
-    /// subscribed to the `pipeline.` + `session.` namespaces whose mailbox drain
-    /// re-`broadcast()`s each event into the log. N Watch subscribers on one
-    /// `WatchKey` then share one resolver + one kernel subscription. Idempotent;
-    /// non-fatal on actor-spawn failure (the Watch RPC then returns Unavailable).
-    pub async fn start_pipeline_reactive(&self) {
-        use ship_substrate::events::ActorConfig;
-        use ship_substrate::ports::KernelLog;
-
-        let kernel_log = std::sync::Arc::new(KernelLog::new(self.kernel.clone()));
-        if self.pipeline_watch_kernel.set(kernel_log.clone()).is_err() {
-            return; // already started
-        }
-        let _ = self
-            .pipeline_reactive
-            .set(std::sync::Arc::new(ship_reactive::ReactiveRegistry::new(kernel_log.clone())));
-
-        let actor_id = format!("pipeline-watch-bridge-{}", ship_substrate::gen_ulid());
-        let config = ActorConfig {
-            namespace: actor_id.clone(),
-            write_namespaces: vec![],
-            read_namespaces: vec![],
-            // Prefix-matched against event_type (`starts_with`): the run/step
-            // lifecycle + the child-session terminals the projections fold.
-            subscribe_namespaces: vec!["pipeline.".to_string(), "session.".to_string()],
-            // session.* terminals are directed events — opt in to see them.
-            see_directed_events: true,
-        };
-        let mailbox = {
-            let mut kernel = self.kernel.lock().await;
-            match kernel.spawn_actor(&actor_id, config) {
-                Ok(mb) => mb,
-                Err(e) => {
-                    tracing::warn!("pipeline-watch bridge: actor spawn failed: {e}");
-                    return;
-                }
-            }
-        };
-        tokio::spawn(async move {
-            let mut mb = mailbox;
-            while let Some(event) = mb.recv().await {
-                kernel_log.broadcast(event);
-            }
-        });
-        tracing::info!("pipeline Watch reactive registry + bridge started");
-    }
-
-    /// The pipeline `Watch` reactive registry (pipelines P0.4), when mounted.
-    /// `None` until `start_pipeline_reactive` runs — the Watch RPC then returns
-    /// Unavailable rather than fabricate a registry.
-    pub fn pipeline_reactive(&self) -> Option<&std::sync::Arc<ship_reactive::ReactiveRegistry>> {
-        self.pipeline_reactive.get()
     }
 
     /// Persist event to its scope db and deliver through the kernel.

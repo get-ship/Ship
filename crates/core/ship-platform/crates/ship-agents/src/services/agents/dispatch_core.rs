@@ -213,7 +213,6 @@ pub async fn dispatch_agent_session_core(
         resume_session_id,
         depends_on: req.depends_on,
         vars: req.vars,
-        parent_pipeline_run_id: None,
     };
 
     // dispatch.requested: the hard-failing spawn trigger. The service.agents

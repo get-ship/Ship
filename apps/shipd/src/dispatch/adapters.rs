@@ -8,12 +8,10 @@
 //! (the libgit2-direct leaf also backing the `ship.internal.v1.GitService/CreateWorktree`
 //! RPC). ship-code's older `create_worktree` helper was removed — its reimplementation
 //! of `git worktree add` shell logic is subsumed by the leaf.
-
 use anyhow::Result;
 use async_trait::async_trait;
 use ship_code::dispatch_ports::{IsolationStrategy, SessionContext};
 use ship_git::write::{self, WorktreeOutcome};
-use ship_pipeline_runtime::orchestrator::isolation::write_phase_spec_from_context;
 use std::path::PathBuf;
 
 use ship_agents::runtime::helpers::{compile_agent_config, repo_dir, worktrees_dir};
@@ -77,11 +75,11 @@ impl IsolationStrategy for GitWorktreeIsolation {
                 e
             )
         })?;
-        write_phase_spec_from_context(&worktree_path, job)?;
+        // Per-step "phase spec" writer was retired with the engine cut
+        // (2026-07-10): code-mode steps author their own artifacts. The
+        // bare agent-session dispatch leaves only the worktree + .dispatched
+        // marker as the dispatch evidence.
         // Run steps (pure shell) carry no agent — there's nothing to
-        // compile, and an empty/placeholder agent would fail profile
-        // resolution. Only compile when a real agent is named (every
-        // agent step and bare dispatch sets one).
         if !job.agent.is_empty() {
             compile_agent_config(&worktree_path, &job.agent)?;
         }

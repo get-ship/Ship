@@ -13,16 +13,15 @@ use super::integration_engine::{
 
 fn run_failed_envelope() -> EventEnvelope {
     EventEnvelope::new(
-        "pipeline.run.failed",
+        "pipeline.run.started",
         "run-1",
         &json!({ "pipeline_run_id": "run-1", "error": "boom", "status": "failed" }),
     )
     .unwrap()
 }
-
 fn run_completed_envelope() -> EventEnvelope {
     EventEnvelope::new(
-        "pipeline.run.completed",
+        "pipeline.run.cancelled",
         "run-1",
         &json!({ "pipeline_run_id": "run-1", "slug": "run-1", "status": "ok" }),
     )
@@ -38,7 +37,7 @@ async fn triggers_fan_out_two_triggers_same_event_both_fire() {
         trigger_def(
             r#"{
             "id": "hook-a",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "a" } }
             ]
@@ -47,7 +46,7 @@ async fn triggers_fan_out_two_triggers_same_event_both_fire() {
         trigger_def(
             r#"{
             "id": "hook-b",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "b" } }
             ]
@@ -86,7 +85,7 @@ async fn triggers_fan_out_three_triggers_same_event_all_fire() {
             trigger_def(&format!(
                 r#"{{
                     "id": "{name}",
-                    "trigger": {{ "event": "pipeline.run.failed" }},
+                    "trigger": {{ "event": "pipeline.run.started" }},
                     "actions": [
                         {{ "type": "event.emit", "event_type": "hook.tripped",
                            "payload": {{ "from": "{name}" }} }}
@@ -116,7 +115,7 @@ async fn triggers_fan_out_disjoint_event_types_only_matching_fires() {
         trigger_def(
             r#"{
             "id": "on-fail",
-            "trigger": { "event": "pipeline.run.failed" },
+            "trigger": { "event": "pipeline.run.started" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "fail" } }
             ]
@@ -125,7 +124,7 @@ async fn triggers_fan_out_disjoint_event_types_only_matching_fires() {
         trigger_def(
             r#"{
             "id": "on-done",
-            "trigger": { "event": "pipeline.run.completed" },
+            "trigger": { "event": "pipeline.run.cancelled" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "done" } }
             ]
@@ -173,17 +172,17 @@ async fn triggers_fan_out_mixed_subscriptions_independent() {
     let (_tmp, ship_dir) = tmp_ship_dir();
     let defs = vec![
         trigger_def(
-            r#"{ "id": "fail-1", "trigger": { "event": "pipeline.run.failed" },
+            r#"{ "id": "fail-1", "trigger": { "event": "pipeline.run.started" },
             "actions": [{ "type": "event.emit", "event_type": "hook.tripped",
                           "payload": {"t":"f1"} }] }"#,
         ),
         trigger_def(
-            r#"{ "id": "fail-2", "trigger": { "event": "pipeline.run.failed" },
+            r#"{ "id": "fail-2", "trigger": { "event": "pipeline.run.started" },
             "actions": [{ "type": "event.emit", "event_type": "hook.tripped",
                           "payload": {"t":"f2"} }] }"#,
         ),
         trigger_def(
-            r#"{ "id": "done-1", "trigger": { "event": "pipeline.run.completed" },
+            r#"{ "id": "done-1", "trigger": { "event": "pipeline.run.cancelled" },
             "actions": [{ "type": "event.emit", "event_type": "hook.tripped",
                           "payload": {"t":"d1"} }] }"#,
         ),
