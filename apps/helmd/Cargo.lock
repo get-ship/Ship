@@ -4486,6 +4486,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "harness-adapter",
+ "home",
  "isolation-port",
  "libc",
  "process-supervisor",
