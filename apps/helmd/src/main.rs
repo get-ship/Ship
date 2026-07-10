@@ -1591,6 +1591,15 @@ async fn main() -> anyhow::Result<()> {
     // service uses, so a coding-class dispatch and a floki-class
     // dispatch go through the same `service.agents` actor.
     let connect = code::mount(connect, dispatch_port, None)?;
+    // Register the collection item projection BEFORE mounting the
+    // wire — without this, the projection factory installed by
+    // helmd never runs, and `collection.*` events land in the
+    // append-only event log but never materialize the per-
+    // collection `collection_<id>` table (the `internal storage
+    // error: querying: SELECT * FROM collection_helm_xxx` seen
+    // when this is missing). The collections module owns this
+    // registration as a one-shot; we just need to call it here.
+    collections::install_collection_projection();
     // `space.db` (S5 dogfood cutover, Slice 0). Skipped (with a WARN) when no
     // active space is discoverable.
     let connect = collections::mount(connect).await?;
