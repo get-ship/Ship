@@ -121,7 +121,7 @@ fn octx_with_journal_store(
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        event_dedup: Arc::new(ship_runner::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_substrate::dispatch_gate::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         journal_store,
@@ -200,7 +200,7 @@ async fn run_dispatch(
     let created = ship_substrate::events::EventEnvelope::new(
         event_types::PIPELINE_RUN_STARTED, &payload.pipeline_run_id, payload,
     ).unwrap();
-    ship_runner::emit::persist_and_route(
+    ship_substrate::events::emit::persist_and_route(
         &kernel, created, &payload.slug,
     ).await;
 
@@ -299,7 +299,7 @@ async fn test_agent_spawn_creates_three_entry_journal() {
     let created = ship_substrate::events::EventEnvelope::new(
         event_types::PIPELINE_RUN_STARTED, &payload.pipeline_run_id, &payload,
     ).unwrap();
-    ship_runner::emit::persist_and_route(&kernel, created, &payload.slug).await;
+    ship_substrate::events::emit::persist_and_route(&kernel, created, &payload.slug).await;
 
     let worktree = tmp.path().join(format!("worktrees/{}", payload.slug));
     let ctx = octx_with_journal_store(
@@ -355,7 +355,7 @@ async fn test_failed_spawn_does_not_save_journal() {
     let created = ship_substrate::events::EventEnvelope::new(
         event_types::PIPELINE_RUN_STARTED, &payload.pipeline_run_id, &payload,
     ).unwrap();
-    ship_runner::emit::persist_and_route(&kernel, created, &payload.slug).await;
+    ship_substrate::events::emit::persist_and_route(&kernel, created, &payload.slug).await;
 
     // RecordingExecutor always returns Err — simulates a failing spawn.
     let captured = Arc::new(StdMutex::new(None));

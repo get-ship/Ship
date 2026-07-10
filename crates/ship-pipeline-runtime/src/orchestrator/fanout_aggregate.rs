@@ -16,7 +16,7 @@ use ship_substrate::events::pipeline::{
     PipelineStepDoneDeclaredPayload, PipelineStepObservedPayload, StepVerdict, event_types,
 };
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use ship_runner::emit::persist_and_route;
+use ship_substrate::events::emit::persist_and_route;
 use crate::orchestrator::step_io::get_step_outputs_from_events;
 use crate::orchestrator::{FanoutLaneRef, LaneOutcome, OrchestratorContext};
 

@@ -212,7 +212,7 @@ fn octx(
         done_flags: Arc::new(Mutex::new(HashMap::new())),
         activity_txs: Arc::new(Mutex::new(HashMap::new())),
         run_locks: Arc::new(Mutex::new(HashMap::new())),
-        event_dedup: Arc::new(ship_runner::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_substrate::dispatch_gate::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
         journal_store: Arc::new(durable_execution::InMemoryJournalStore::new()),
@@ -296,7 +296,7 @@ async fn dispatch_threads_agent_as_domain_free_authority_through_spawn_policy() 
     let created =
         EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &payload.pipeline_run_id, &payload)
             .unwrap();
-    ship_runner::emit::persist_and_route(&kernel, created, &payload.slug)
+    ship_substrate::events::emit::persist_and_route(&kernel, created, &payload.slug)
         .await;
 
     dispatch_pipeline_run_internal(&kernel, &payload, &ctx).await;

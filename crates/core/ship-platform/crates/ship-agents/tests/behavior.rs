@@ -28,7 +28,7 @@ use ship_agents::services::sessions::{
 use ship_substrate::projections::Projection;
 use ship_substrate::db::block_on;
 use ship_agents::ports::AgentPorts;
-use ship_runner::dedup::EventDedup;
+use ship_substrate::dispatch_gate::EventDedup;
 use agent_def::InvocationMode;
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::process::event_types as process_event_types;

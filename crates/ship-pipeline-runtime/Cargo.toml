@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 license-file = "LICENSE"
 publish = false
-description = "L1 pipeline runtime — CRUD over the pipeline spec tree plus the job advancement / step dispatch / fanout / sweep / merge runtime. Sits above `ship-pipelines` (pure-logic types), `ship-runner` (L0 mechanism), and `ship-substrate` (ports + events). The orchestrator is NOT a service: it owns no orchestrator.* events, only pipeline.*."
+description = "L1 pipeline runtime — CRUD over the pipeline spec tree plus the job advancement / step dispatch / fanout / sweep / merge runtime. Sits above `ship-pipelines` (pure-logic types), `ship-substrate` (L0 ports + events; `events::emit` and `dispatch_gate` for the runner mechanism), and the L1 `ship-code` leaf. The orchestrator is NOT a service: it owns no orchestrator.* events, only pipeline.*."
 
 [dependencies]
 # L0 durable-execution — journaling engine (JournalStore seam, InMemoryJournalStore for tests).
@@ -21,7 +21,6 @@ ship-pipelines = { path = "../core/ship-substrate/crates/ship-pipelines", featur
 # router gate, spawn-env builder, invocation-mode resolution. Re-exported
 # by this crate at the historic `orchestrator::{dedup, emit, exit_handler}`
 # paths so consumers stay on the same surface.
-ship-runner = { path = "../core/ship-substrate/crates/ship-runner" }
 # L0 types — Authority principal carried on dispatch events.
 ship-types = { path = "../core/ship-substrate/crates/ship-types" }
 # Format-migration Wave 4 phase A: the runtime-shape conversion from

@@ -37,17 +37,21 @@ ship-kernel = { path = "../ship-substrate/crates/ship-kernel" }
 ship-auth-types = { path = "../ship-substrate/crates/ship-auth-types" }
 ship-types = { path = "../ship-substrate/crates/ship-types" }
 # L0 runner mechanism (agents-arc S2). The orchestrator MECHANISM (router gate,
-# event dedup, exit-signal routing, kernel-emit plumbing, invocation-mode
-# resolution) lives here; ship-platform keeps only the policy and drives the
-# mechanism through the runner ports. No cycle: ship-runner depends on
-# ship-substrate/ship-types, not on ship-platform.
-ship-runner = { path = "../ship-substrate/crates/ship-runner" }
+# event dedup, exit-signal routing, kernel-emit plumbing) lives at L0 in
+# `ship_substrate::events::emit` + `ship_substrate::dispatch_gate`;
+# ship-platform keeps only the policy and drives the mechanism through those
+# ports. Harness-driver concerns (`build_spawn_env`, `resolve_step_invocation`,
+# `stop_by_slug`/`stop_handle`, `exit_handler`) live L1 in `ship-code`'s
+# `lifecycle` module. No cycle: the substrate + ship-code leaves sit below
+# ship-platform, and ship-agents depends only on those leaves, not on
+# ship-platform.
 # Agent-session orchestration (agents-arc S3b). The bare agent.session dispatch
 # primitive + the `service.agents` actor live here, depending on L0 alone. The
-# SpawnPolicy-port call (`build_spawn_env`) is L0 mechanism and lives in
-# `ship_runner` — the pipeline-dispatch path calls it from L0 directly, never
-# through this agents crate (no laundered pipelines→agents coupling). No cycle:
-# ship-agents depends on ship-substrate/ship-runner/ship-types, not ship-platform.
+# SpawnPolicy-port call (`build_spawn_env`) is L1 ship-code mechanism
+# (`ship_code::lifecycle::spawn_env`); the pipeline-dispatch path calls it from
+# L1 directly, never through this agents crate (no laundered
+# pipelines→agents coupling). No cycle: ship-agents depends on ship-substrate/
+# ship-types, not on ship-platform.
 ship-agents = { path = "crates/ship-agents" }
 # Harness adapter registry + concrete adapters (claude/codex/cursor/opencode/pi).
 # Carved here so ship-agents (and future L2 consumers) can depend on harnesses

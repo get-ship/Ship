@@ -1,5 +1,5 @@
 //! Build the spawn environment for a daemon-spawned agent.
-//! Moved from ship-runner (L0) to ship-code (L1).
+
 
 use std::collections::HashMap;
 

@@ -28,7 +28,7 @@ use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::KernelRouter;
 use crate::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
 use crate::orchestrator::OrchestratorContext;
-use ship_runner::emit::persist_and_route;
+use ship_substrate::events::emit::persist_and_route;
 use crate::orchestrator::fanout_aggregate::emit_failed_marker;
 
 /// Emit a lane-scoped `pipeline.step.started` (step_type "fanout_lane") with

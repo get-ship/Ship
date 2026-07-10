@@ -34,6 +34,7 @@ pub use crate::persistence::event_store as store;
 // object_store / notify / portable-pty), so the carve invariant holds
 // without per-facade shims.
 pub mod daemon;
+pub mod emit;
 pub mod executor;
 pub mod filter;
 pub mod global_kernel_router;

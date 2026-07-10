@@ -14,14 +14,14 @@
 use std::sync::Arc;
 
 #[cfg(feature = "harness-drivers")]
-use ship_code::runner::build_spawn_env;
-use ship_runner::emit::persist_and_route;
+use ship_code::lifecycle::build_spawn_env;
+use ship_substrate::events::emit::persist_and_route;
 #[cfg(feature = "harness-drivers")]
-use ship_runner::emit::emit_process_spawned;
+use ship_substrate::events::emit::emit_process_spawned;
 #[cfg(feature = "harness-drivers")]
-use ship_code::runner::exit_handler::{self, ExitVocabulary};
+use ship_code::lifecycle::exit_handler::{self, ExitVocabulary};
 #[cfg(feature = "harness-drivers")]
-use ship_runner::router::DISPATCH_GATE;
+use ship_substrate::dispatch_gate::DISPATCH_GATE;
 use agent_def::canonical_session::{SessionFailed, event_types as canonical_session_event_types};
 use agent_def::dispatch_intent::DispatchRequestedPayload;
 #[cfg(feature = "harness-drivers")]

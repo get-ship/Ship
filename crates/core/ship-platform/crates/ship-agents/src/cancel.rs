@@ -6,8 +6,9 @@
 //! session to Cancelled via the transition table; this decision's job is to
 //! stop the running work.
 //!
-//! The teardown MECHANISM is the L0 runner's slug-keyed primitive
-//! ([`ship_runner::stop_by_slug`] / [`ship_runner::stop_handle`]). The slug
+//! The teardown MECHANISM is the slug-keyed primitive at
+//! [`ship_code::lifecycle::teardown::stop_by_slug`] /
+//! [`ship_code::lifecycle::teardown::stop_handle`]. The slug
 //! is resolved from the session_id via `ProjectionReader::slug_for_session_id`
 //! — keeps this decision off `crate::projections` directly.
 //!
@@ -23,7 +24,7 @@
 use std::sync::Arc;
 
 use agent_def::canonical_session::SessionCancelled;
-use ship_runner::emit::persist_and_route;
+use ship_substrate::events::emit::persist_and_route;
 use ship_substrate::events::process::{event_types as process_event_types, ProcessKilledPayload};
 use ship_substrate::events::EventEnvelope;
 use tokio::sync::Mutex;
@@ -66,7 +67,7 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
     // Registry first (fast path), via the L0 slug-keyed teardown primitive. On a
     // registry miss, try the executor's resume path — best effort — and stop the
     // recovered handle through the same L0 teardown core.
-    let pid = if let Some(pid) = ship_code::runner::stop_by_slug(
+    let pid = if let Some(pid) = ship_code::lifecycle::stop_by_slug(
         kernel,
         &ports.registry,
         &ports.executor,
@@ -78,7 +79,7 @@ pub async fn handle_agent_cancelled(kernel: &Kernel, envelope: &EventEnvelope, p
     {
         pid
     } else if let Some(handle) = ports.executor.resume_handle(&slug, None, None).await {
-        ship_code::runner::stop_handle(kernel, &ports.executor, &slug, handle, "cancellation", "operator")
+        ship_code::lifecycle::stop_handle(kernel, &ports.executor, &slug, handle, "cancellation", "operator")
             .await
     } else {
         // No handle to stop — but a dispatch for this slug may be spawning right

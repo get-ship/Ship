@@ -91,7 +91,7 @@ pub async fn try_review_retry(
         }
     };
 
-    ship_runner::emit::persist_and_route(
+    ship_substrate::events::emit::persist_and_route(
         kernel, retry_envelope, &payload.slug,
     ).await;
 
@@ -154,7 +154,7 @@ pub async fn emit_pipeline_run_failed_for_review(
         Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(_) => return,
     };
-    ship_runner::emit::persist_and_route(
+    ship_substrate::events::emit::persist_and_route(
         kernel, env, &payload.slug,
     ).await;
 }

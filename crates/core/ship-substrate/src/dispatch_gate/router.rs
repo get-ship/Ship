@@ -19,10 +19,10 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use ship_substrate::events::EventEnvelope;
+use crate::events::EventEnvelope;
 use ship_types::event_types as et;
 
-use crate::dedup::{EventDedup, Seen};
+use crate::dispatch_gate::dedup::{EventDedup, Seen};
 
 /// Bounds concurrent agent-session dispatch preps.
 pub static DISPATCH_GATE: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(8);
@@ -42,8 +42,8 @@ pub enum Admit {
 ///
 /// `is_terminal` is a closure returning the domain's terminal-state bool.
 /// The closure frees the runner from importing `ProjectionReader`
-/// (census §4.3 — port-typed to bool) and keeps `ship-runner` free of the
-/// harness-driver trait surface.
+/// (census §4.3 — port-typed to bool) and keeps the L0 dispatch gate free
+/// of the harness-driver trait surface.
 pub async fn terminal_guard<F>(
     dedup: &EventDedup,
     is_terminal: F,

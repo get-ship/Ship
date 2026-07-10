@@ -1,8 +1,9 @@
-//! Runner mechanism — the harness-driver-specific orchestration helpers.
+//! Lifecycle mechanism — the harness-driver-specific orchestration helpers.
 //!
-//! The L0 mechanism (`dedup`, `router`, `DISPATCH_GATE`, `terminal_guard`)
-//! lives in [`ship_runner`] (`crates/core/ship-substrate/crates/ship-runner`)
-//! so both `ship-agents`'s actor and `ship-pipeline-runtime`'s orchestrator
+//! The L0 entry gate (`dedup`, `router`, `DISPATCH_GATE`, `terminal_guard`)
+//! lives in [`ship_substrate::dispatch_gate`]
+//! (`crates/core/ship-substrate/src/dispatch_gate/`) so both
+//! `ship-agents`'s actor and `ship-pipeline-runtime`'s orchestrator
 //! can depend on it. The carrot — `observe` (git evidence + agent-log
 //! tail + ANSI strip) — moved to `ship_pipeline_runtime::loader::git_helpers`
 //! and `ship_substrate::text` during the seam eviction; only the harness

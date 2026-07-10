@@ -58,7 +58,7 @@ use ship_git::write::{self as git_write, WorktreeOutcome};
 use ship_code::helpers;
 
 use ship_code::process_registry::{ProcessRegistry, SharedRegistry};
-use ship_runner::dedup::EventDedup;
+use ship_substrate::dispatch_gate::EventDedup;
 
 use ship_pipeline_runtime::orchestrator::projection_reader::ProjectionsReader;
 use ship_pipeline_runtime::orchestrator::spawn_policy::ConfigSpawnPolicy;
@@ -290,7 +290,7 @@ impl AgentPlatform for HelmdPlatform {
         if let Err(e) = helpers::kill_tmux_session(&tmux_session) {
             tracing::warn!(slug, "platform: tmux cleanup failed: {e}");
         }
-        ship_runner::emit::emit_executor_session_destroyed(
+        ship_substrate::events::emit::emit_executor_session_destroyed(
             &self.kernel,
             slug,
             "tmux",

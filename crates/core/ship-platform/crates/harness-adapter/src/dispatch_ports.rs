@@ -1,8 +1,9 @@
 //! Minimal dispatch-port value types kept in L0 ship-substrate.
 //!
 //! Only `LaunchCommand` (+ its `to_shell_string` impl) and `LaunchProfile`
-//! remain here. They must stay in L0 because `ship-runner::harness_adapter`
-//! (which must not depend on the L1 `ship-code` crate) imports them.
+//! remain here. They must stay in L0 because the L0 dispatch emit
+//! helpers (in `ship_substrate::events::emit`) import them, and that L0
+//! must not depend on the L1 `ship-code` crate.
 //!
 //! All port traits (`SessionExecutor`, `IsolationStrategy`, etc.), `SessionContext`,
 //! `ExitSignal`, `ExecutorHandle`, and the runner-ports types have moved to

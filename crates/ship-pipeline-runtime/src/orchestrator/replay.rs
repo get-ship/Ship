@@ -229,7 +229,7 @@ async fn reconcile_dispatched_inner(
                     slug = job.slug, pipeline_run_id = job.pipeline_run_id,
                     "job-dispatch: reconcile — no live process, deferring to liveness sweep"
                 );
-                ship_runner::emit::emit_executor_session_destroyed(
+                ship_substrate::events::emit::emit_executor_session_destroyed(
                     kernel,
                     &job.slug,
                     "tmux_window",

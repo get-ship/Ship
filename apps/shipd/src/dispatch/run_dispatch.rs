@@ -143,7 +143,7 @@ pub async fn subscribe_job_events(
         done_flags: Arc::new(Mutex::new(HashMap::new())),
         activity_txs: activity_txs.clone(),
         run_locks: Arc::new(Mutex::new(HashMap::new())),
-        event_dedup: Arc::new(ship_runner::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_substrate::dispatch_gate::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
         journal_store: Arc::new(journal_store),
@@ -170,7 +170,7 @@ pub async fn subscribe_job_events(
         registry: registry_port,
         spawn_policy,
         projections,
-        event_dedup: Arc::new(ship_runner::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_substrate::dispatch_gate::EventDedup::new()),
     });
 
     let kr = kernel.clone();

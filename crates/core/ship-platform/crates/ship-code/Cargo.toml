@@ -18,7 +18,6 @@ ship-substrate = { path = "../../../ship-substrate" }
 process-supervisor = { path = "../../../ship-substrate/crates/process-supervisor" }
 isolation-port = { path = "../../../ship-substrate/crates/isolation-port" }
 harness-adapter = { path = "../harness-adapter" }
-ship-runner = { path = "../../../ship-substrate/crates/ship-runner" }
 ship-harnesses = { path = "../ship-harnesses" }
 ship-auth = { path = "../ship-auth" }
 ship-isolation = { path = "../ship-isolation", default-features = false }
@@ -50,7 +49,7 @@ parking_lot = { workspace = true }
 [features]
 # harness-drivers: includes the full executor/harness driver machinery
 # (executors, process_registry, process_tree_probe, terminal_launcher).
-# Gate-off for library consumers that only need the port types + runner
-# orchestration helpers (dispatch_ports, runner::*).
+# Gate-off for library consumers that only need the port types + lifecycle
+# orchestration helpers (dispatch_ports, lifecycle::exit_handler, etc.).
 # Enabled by default at the composition root (shipd/ship-agents).
 harness-drivers = []

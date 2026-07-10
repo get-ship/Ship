@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::KernelRouter;
 use ship_code::dispatch_ports::{AgentPlatform, SessionExecutor};
-use ship_runner::emit::emit_executor_session_destroyed;
+use ship_substrate::events::emit::emit_executor_session_destroyed;
 use ship_code::process_registry::ProcessRegistry;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

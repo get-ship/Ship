@@ -18,7 +18,6 @@ process-supervisor = { path = "../../../ship-substrate/crates/process-supervisor
 harness-adapter = { path = "../harness-adapter" }
 # L0 git capability — git2-backed; single git implementation.
 ship-git = { path = "../../../ship-git" }
-ship-runner = { path = "../../../ship-substrate/crates/ship-runner" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
 # L1 crates (carved siblings, no cycle)

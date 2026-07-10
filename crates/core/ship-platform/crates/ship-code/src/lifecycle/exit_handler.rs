@@ -1,6 +1,6 @@
 //! Exit-signal routing — receives a single `ExitSignal` from an executor's
 //! monitor thread and emits the corresponding terminal event.
-//! Moved from ship-runner (L0) to ship-code (L1).
+
 
 use std::sync::Arc;
 
@@ -15,7 +15,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::dispatch_ports::{ExitCause, ExitSignal, ProcessRegistryPort};
 
-use ship_runner::emit::{
+use ship_substrate::events::emit::{
     emit_executor_session_destroyed, emit_executor_window_destroyed, emit_process_exited,
     persist_and_route,
 };

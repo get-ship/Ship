@@ -108,7 +108,7 @@ fn octx(executor: Arc<TrackingExecutor>, worktrees: PathBuf) -> OrchestratorCont
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        event_dedup: Arc::new(ship_runner::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_substrate::dispatch_gate::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         journal_store: Arc::new(durable_execution::InMemoryJournalStore::new()),
@@ -155,7 +155,7 @@ async fn seed_terminal(
         baseline_sha: None,
     };
     let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, pipeline_run_id, &created).unwrap();
-    ship_runner::emit::persist_and_route(&kernel, env, slug).await;
+    ship_substrate::events::emit::persist_and_route(&kernel, env, slug).await;
 
     let terminal_payload = serde_json::json!({
         "pipeline_run_id": pipeline_run_id,
@@ -166,7 +166,7 @@ async fn seed_terminal(
         "stage": "executor_spawn",
     });
     let env = EventEnvelope::new(terminal_event_type, pipeline_run_id, &terminal_payload).unwrap();
-    ship_runner::emit::persist_and_route(&kernel, env, slug).await;
+    ship_substrate::events::emit::persist_and_route(&kernel, env, slug).await;
 
     kernel
 }
@@ -269,7 +269,7 @@ async fn operator_events_bypass_terminal_guard() {
     // router and asserted only that the status didn't change — an assertion
     // that holds whether the guard admits OR swallows. This asserts the
     // Admit decision itself.
-    use ship_runner::router::{Admit, terminal_guard};
+    use ship_substrate::dispatch_gate::{Admit, terminal_guard};
 
     let tmp = TempDir::new().unwrap();
     let executor = Arc::new(TrackingExecutor::default());

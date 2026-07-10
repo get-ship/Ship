@@ -4,7 +4,7 @@
 //! `LaunchCommand`/`LaunchProfile` and `ServerSession` are its value types. It's
 //! a contract leaf below both ship-harnesses and ship-code so each reaches it
 //! without a cycle — and so harness concerns live in L1, not stranded in the
-//! substrate (they used to sit in ship-runner + the ship-substrate facade only
+//! substrate (they used to sit alongside the L0 substrate facade only
 //! to dodge that cycle).
 
 pub mod dispatch_ports;

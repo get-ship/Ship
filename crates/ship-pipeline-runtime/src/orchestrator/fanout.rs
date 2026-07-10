@@ -16,7 +16,7 @@ use ship_substrate::events::pipeline::{FanoutSpec, PipelineStep, StepType};
 use ship_substrate::events::KernelRouter;
 use crate::projections::pipeline_run::PipelineRun;
 use ship_code::dispatch_ports::{SessionContext, LaunchProfile, StepInfo};
-use ship_runner::emit::{
+use ship_substrate::events::emit::{
     emit_process_spawned, emit_step_started_event, emit_step_failed,
 };
 use crate::orchestrator::step_monitor::{StepMonitor, start_step_monitor};
@@ -87,7 +87,7 @@ pub async fn dispatch_fanout_step(
             spec_path: job.spec_path.clone(),
             spec_content: None,
             work_dir: lane_wt.clone(),
-            env: ship_code::runner::build_spawn_env(&lane_slug, &lane.agent, octx.spawn_policy.as_ref()).await,
+            env: ship_code::lifecycle::build_spawn_env(&lane_slug, &lane.agent, octx.spawn_policy.as_ref()).await,
             exit_tx: None,
             launch: LaunchProfile {
                 harness,

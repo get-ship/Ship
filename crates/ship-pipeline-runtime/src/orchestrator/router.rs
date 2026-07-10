@@ -4,7 +4,7 @@
 //! The `agent.session.*` subscription was retired in #26 — the orchestrator
 //! no longer subscribes to or acts on any `agent.session.*` events.
 
-use ship_runner::router::{extract_slug, terminal_guard, Admit};
+use ship_substrate::dispatch_gate::{extract_slug, terminal_guard, Admit};
 use ship_substrate::events::pipeline::{PipelineStepDoneDeclaredPayload, PipelineStepObservedPayload};
 use ship_substrate::events::EventEnvelope;
 use ship_types::event_types as et;
@@ -96,7 +96,7 @@ pub async fn handle_orchestrator_event(
     envelope: &EventEnvelope,
     octx: &OrchestratorContext,
 ) {
-    // Runner-mechanism entry gate (L0 `ship_runner::router`): dedup by event
+    // Runner-mechanism entry gate (L0 `ship_substrate::dispatch_gate`): dedup by event
     // id (prevents a replayed envelope — mailbox redelivery, startup replay
     // racing live delivery, test replays — from advancing twice) AND the
     // terminal-state guard (once a job is Failed/Merged/Cancelled, late

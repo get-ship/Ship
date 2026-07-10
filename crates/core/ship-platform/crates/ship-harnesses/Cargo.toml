@@ -9,8 +9,9 @@ description = "L1 harness registry — concrete adapter structs (claude/codex/cu
 # L0 substrate: dispatch_ports (LaunchCommand/LaunchProfile) + server_session trait.
 ship-substrate = { path = "../../../ship-substrate" }
 harness-adapter = { path = "../harness-adapter" }
-# L0 runner mechanism: HarnessAdapter trait + HarnessCapabilities/HarnessEvent/ResumeError types.
-ship-runner = { path = "../../../ship-substrate/crates/ship-runner" }
+# L0 substrate host + harness_adapter leaf: HarnessAdapter trait +
+# HarnessCapabilities/HarnessEvent/ResumeError types come from `harness-adapter`
+# (L1 leaf that carves the types off so the L0 substrate stays port-typed).
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }

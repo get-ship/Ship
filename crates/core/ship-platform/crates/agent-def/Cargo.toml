@@ -13,10 +13,11 @@ ship-substrate = { path = "../../../ship-substrate" }
 harness-adapter = { path = "../harness-adapter" }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
-# L0 runner mechanism — provides `KernelEventSink` (an `EventSink` impl that
-# delegates to `persist_and_route`). Production callers of `SessionEventSink`
-# wire it to that impl; we depend on ship-kernel for the `EventSink` trait +
-# `testing::MockSink` (test seam), and let the caller pull ship-runner.
+# `SessionEventSink` is a thin wrapper around `&dyn ship_kernel::EventSink`.
+# Production callers wire it to a kernel-backed impl (e.g. the
+# `ship_substrate::events::emit::KernelEventSink`); we depend on ship-kernel
+# for the `EventSink` trait + `testing::MockSink` (test seam), and let the
+# caller pull the L0 emit helpers via `ship_substrate`.
 ship-config = { path = "../ship-config" }
 ship-harnesses = { path = "../ship-harnesses" }
 ship-store = { path = "../ship-store" }

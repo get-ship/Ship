@@ -1,5 +1,5 @@
 //! Slug-keyed process teardown.
-//! Moved from ship-runner (L0) to ship-code (L1).
+
 
 use std::sync::Arc;
 
@@ -10,7 +10,7 @@ use crate::dispatch_ports::{
     ExecutorHandle, ProcessRegistryPort, SessionExecutor,
 };
 
-use ship_runner::emit::emit_process_signal_sent;
+use ship_substrate::events::emit::emit_process_signal_sent;
 
 pub async fn stop_by_slug(
     kernel: &Arc<Mutex<KernelRouter>>,

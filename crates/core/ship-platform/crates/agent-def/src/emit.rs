@@ -6,7 +6,7 @@
 //! Design:
 //! - [`SessionEventSink`] is the kernel-emit port. Production code wraps a
 //!   real `Arc<dyn ship_kernel::EventSink>` — typically
-//!   `ship_runner::KernelEventSink`, which already implements `EventSink`
+//!   `ship_substrate::events::emit::KernelEventSink`, which already implements `EventSink`
 //!   by delegating to `persist_and_route` (the shared runner helper, NOT
 //!   reinvented here). Tests wrap [`ship_kernel::testing::MockSink`],
 //!   which also implements `EventSink`. The port is the same in both — no
@@ -45,7 +45,7 @@ use ship_types::event_types::canonical_session as event_types;
 /// module docs for the slice scope).
 ///
 /// Production: wrap a kernel-backed `Arc<dyn EventSink>` (e.g.
-/// `ship_runner::KernelEventSink`). The sink persists the canonical
+/// `ship_substrate::events::emit::KernelEventSink`). The sink persists the canonical
 /// envelope; routing through the kernel happens inside the kernel-backed
 /// sink's implementation (which delegates to `persist_and_route`).
 ///

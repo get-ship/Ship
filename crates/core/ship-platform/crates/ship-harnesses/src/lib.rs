@@ -5,7 +5,8 @@
 //! capabilities, REGISTRY). The HarnessAdapter trait lives in
 //! harness_adapter (L1 leaf).
 //!
-//! Depends only on ship-substrate (L0) + ship-runner (L0). No ship-platform dep.
+//! Depends only on ship-substrate (L0; the L0 dispatch gate + emit helpers
+//! live directly in `ship_substrate`). No ship-platform dep.
 
 pub mod harness_adapter;
 pub mod harnesses;

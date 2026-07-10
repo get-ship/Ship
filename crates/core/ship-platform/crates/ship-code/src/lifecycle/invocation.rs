@@ -1,5 +1,5 @@
 //! Harness invocation-mode resolution.
-//! Moved from ship-runner (L0) to ship-code (L1).
+
 
 use agent_def::InvocationMode;
 

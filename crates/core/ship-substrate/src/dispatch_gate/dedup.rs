@@ -6,9 +6,9 @@
 //! state for the same envelope across mailbox redelivery / replay races.
 //!
 //! Originally part of `ship-code::runner::dedup`. Re-homed to L0
-//! `ship-runner` so both the orchestrator (`ship-pipeline-runtime`) and the
-//! agent-session actor (`ship-agents`) can depend on it without a cargo
-//! cycle. The shape is unchanged.
+//! `ship_substrate::dispatch_gate` so both the orchestrator
+//! (`ship-pipeline-runtime`) and the agent-session actor (`ship-agents`)
+//! can depend on it without a cargo cycle. The shape is unchanged.
 
 use std::collections::{HashSet, VecDeque};
 use std::sync::Mutex;

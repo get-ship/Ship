@@ -25,7 +25,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 #[cfg(feature = "harness-drivers")]
-use ship_runner::router::{terminal_guard, Admit};
+use ship_substrate::dispatch_gate::{terminal_guard, Admit};
 use ship_substrate::events::EventEnvelope;
 use tokio::sync::Mutex;
 
@@ -80,7 +80,7 @@ pub async fn start_agents(kernel: Kernel, ports: Arc<AgentPorts>) {
 /// arm are absent (no process to kill, no dedup registry). The floki dispatch
 /// path in `handle_dispatch_requested` remains active.
 pub async fn handle_agents_event(kernel: &Kernel, envelope: &EventEnvelope, ports: &AgentPorts) {
-    // Runner-mechanism entry gate (L0 `ship_runner::router`): dedup by event id
+    // Runner-mechanism entry gate (L0 `ship_substrate::dispatch_gate`): dedup by event id
     // AND the terminal-state guard. The terminal check goes through the
     // ProjectionReader port (primitive `bool`) so this crate never names the
     // projection status enum.

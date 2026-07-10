@@ -4,7 +4,7 @@ use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::process::{event_types as process_event_types, ProcessKilledPayload};
 use ship_substrate::events::EventEnvelope;
 use ship_code::dispatch_ports::AgentPlatform;
-use ship_runner::emit::persist_and_route;
+use ship_substrate::events::emit::persist_and_route;
 use crate::orchestrator::OrchestratorContext;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -114,11 +114,11 @@ pub async fn handle_cancelled(
     // On a registry miss, try the executor's resume path — best effort — and
     // stop the recovered handle through the same L0 teardown core.
     let pid = if let Some(pid) =
-        ship_code::runner::stop_by_slug(kernel, &octx.registry, &octx.executor, &slug, "cancellation", "operator").await
+        ship_code::lifecycle::stop_by_slug(kernel, &octx.registry, &octx.executor, &slug, "cancellation", "operator").await
     {
         pid
     } else if let Some(handle) = octx.executor.resume_handle(&slug, None, None).await {
-        ship_code::runner::stop_handle(kernel, &octx.executor, &slug, handle, "cancellation", "operator").await
+        ship_code::lifecycle::stop_handle(kernel, &octx.executor, &slug, handle, "cancellation", "operator").await
     } else {
         // No handle to stop — but a dispatch for this slug may be spawning
         // right now (cancel raced the spawn). Drop a tombstone so the

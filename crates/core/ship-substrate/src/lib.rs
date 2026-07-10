@@ -33,6 +33,7 @@ pub mod db;
 pub use ship_paths::env;
 pub mod errors;
 pub mod events;
+pub mod dispatch_gate;
 pub use fs_util;
 pub use bounded_spawn as spawn_bounded;
 pub use task_health;

@@ -328,7 +328,7 @@ pub(crate) async fn dispatch_step(
                     spec_path: job.spec_path.clone(),
                     spec_content: None,
                     work_dir: worktree_path.to_path_buf(),
-                    env: ship_code::runner::build_spawn_env(&slug, agent, octx.spawn_policy.as_ref()).await,
+                    env: ship_code::lifecycle::build_spawn_env(&slug, agent, octx.spawn_policy.as_ref()).await,
                     exit_tx: Some(exit_tx),
                     launch: LaunchProfile {
                         harness: step.harness.clone(),

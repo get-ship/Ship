@@ -143,7 +143,7 @@ fn make_octx(
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        event_dedup: Arc::new(ship_runner::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_substrate::dispatch_gate::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         journal_store: Arc::new(durable_execution::InMemoryJournalStore::new()),

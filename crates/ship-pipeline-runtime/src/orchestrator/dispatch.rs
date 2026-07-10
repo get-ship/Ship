@@ -21,8 +21,8 @@ use tokio::sync::Mutex;
 
 // `build_spawn_env` is L0 mechanism — it names no agent-domain type, only the
 // substrate principal + the L0 `SpawnPolicy` port — so it lives in
-// `ship_code::runner::build_spawn_env`. The pipeline-dispatch paths here call it
-// directly from L0 (`ship_code::runner::build_spawn_env(...)`), never through the
+// `ship_code::lifecycle::build_spawn_env`. The pipeline-dispatch paths here call it
+// directly from L0 (`ship_code::lifecycle::build_spawn_env(...)`), never through the
 // agents facade: no laundered pipelines→agents coupling.
 
 use super::emit::{
@@ -34,9 +34,10 @@ use super::step_monitor::StepMonitor;
 use super::OrchestratorContext;
 
 // Harness invocation-mode resolution is the runner MECHANISM — relocated to
-// L0 `ship_runner::invocation`. Re-exported here so the L1 dispatch policy and
-// its callers keep the `super::dispatch::resolve_step_invocation` path.
-pub(crate) use ship_code::runner::resolve_step_invocation;
+// `ship_code::lifecycle::invocation` (L1 ship-code; the L0 substrate home was
+// dissolved by the runner fold). Re-exported here so the L1 dispatch policy
+// and its callers keep the `super::dispatch::resolve_step_invocation` path.
+pub(crate) use ship_code::lifecycle::resolve_step_invocation;
 
 pub async fn handle_pipeline_run_started(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
@@ -146,7 +147,7 @@ pub async fn dispatch_pipeline_run_internal(
         spec_path: payload.spec_path.clone(),
         spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: ship_code::runner::build_spawn_env(slug, agent, octx.spawn_policy.as_ref()).await,
+        env: ship_code::lifecycle::build_spawn_env(slug, agent, octx.spawn_policy.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
             harness: launch_harness.clone(),
@@ -562,7 +563,7 @@ async fn dispatch_first_run_step_inner(
         spec_path: payload.spec_path.clone(),
         spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: ship_code::runner::build_spawn_env(slug, &payload.agent, octx.spawn_policy.as_ref()).await,
+        env: ship_code::lifecycle::build_spawn_env(slug, &payload.agent, octx.spawn_policy.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
             harness: payload.harness.clone(),

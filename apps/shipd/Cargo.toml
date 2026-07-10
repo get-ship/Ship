@@ -36,10 +36,11 @@ ship-isolation = { path = "../../crates/core/ship-platform/crates/ship-isolation
 ship-substrate-host = { path = "../../crates/core/ship-substrate/crates/ship-substrate-host" }
 ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime" }
 # Dispatch composition root (supervisor split — `shipd::dispatch`):
-#   ship-runner      — process/executor lifecycle emit helpers used by
-#                      ShipdPlatform + orphan cleanup.
+#   ship-substrate    — process/executor lifecycle emit helpers
+#                      (`ship_substrate::events::emit::*`) used by
+#                      ShipdPlatform + orphan cleanup (L0 mechanism, lives in
+#                      `ship_substrate` directly).
 #   ship-auth-types  — DaemonSession + session-token mint in ShipdPlatform.
-ship-runner = { path = "../../crates/core/ship-substrate/crates/ship-runner" }
 ship-auth-types = { path = "../../crates/core/ship-substrate/crates/ship-auth-types" }
 ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 ship-analytics = { path = "../../crates/core/ship-platform/crates/ship-analytics" }

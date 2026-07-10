@@ -22,7 +22,7 @@ use ship_substrate::events::pipeline::{
     PipelineStepObservedPayload, StepTrigger, StepVerdict, event_types,
 };
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use ship_runner::emit::{emit_step_failed, persist_and_route};
+use ship_substrate::events::emit::{emit_step_failed, persist_and_route};
 
 use super::LaneOutcome;
 use super::coordinator_programs::FanoutProgram;

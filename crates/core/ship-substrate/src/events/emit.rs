@@ -13,7 +13,7 @@
 //!      signature uses only substrate / primitive types. Domain-free.
 
 use async_trait::async_trait;
-use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
+use crate::events::{CallerKind, EmitContext, EventEnvelope};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -37,11 +37,11 @@ pub trait EventSink: Send + Sync {
 /// handed to the runner mechanism as `Arc<dyn EventSink>`.
 #[derive(Clone)]
 pub struct KernelEventSink {
-    kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: Arc<Mutex<crate::events::KernelRouter>>,
 }
 
 impl KernelEventSink {
-    pub fn new(kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>) -> Self {
+    pub fn new(kernel: Arc<Mutex<crate::events::KernelRouter>>) -> Self {
         Self { kernel }
     }
 }
@@ -63,7 +63,7 @@ impl EventSink for KernelEventSink {
 /// Logs failures at WARN; failures don't propagate (most callers can't
 /// recover from an emit failure).
 async fn emit_pipeline_run_dispatch_event<P: serde::Serialize>(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     event_type: &str,
     pipeline_run_id: &str,
     slug: &str,
@@ -84,7 +84,7 @@ async fn emit_pipeline_run_dispatch_event<P: serde::Serialize>(
 
 /// Build + persist a `process.*` event under `service.process-lifecycle`.
 async fn emit_process_event<P: serde::Serialize>(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     event_type: &str,
     slug: &str,
     payload: &P,
@@ -101,7 +101,7 @@ async fn emit_process_event<P: serde::Serialize>(
 
 /// Build + persist an `executor.*` event under `service.executor-lifecycle`.
 async fn emit_executor_event<P: serde::Serialize>(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     event_type: &str,
     slug: &str,
     payload: &P,
@@ -120,7 +120,7 @@ async fn emit_executor_event<P: serde::Serialize>(
 
 /// Emit a `pipeline.run.dispatched` event using the default store path.
 pub async fn emit_pipeline_run_dispatched(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     pipeline_run_id: &str,
     worktree_path: &std::path::Path,
     slug: &str,
@@ -130,13 +130,13 @@ pub async fn emit_pipeline_run_dispatched(
 
 /// Emit a `pipeline.run.dispatched` event with optional harness metadata.
 pub async fn emit_pipeline_run_dispatched_with_meta(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     pipeline_run_id: &str,
     worktree_path: &std::path::Path,
     slug: &str,
     harness_meta: Option<serde_json::Value>,
 ) {
-    let payload = ship_substrate::events::pipeline::PipelineRunDispatchedPayload {
+    let payload = crate::events::pipeline::PipelineRunDispatchedPayload {
         pipeline_run_id: pipeline_run_id.to_string(),
         slug: slug.to_string(),
         worktree: worktree_path.to_string_lossy().into_owned(),
@@ -145,7 +145,7 @@ pub async fn emit_pipeline_run_dispatched_with_meta(
     };
     emit_pipeline_run_dispatch_event(
         kernel,
-        ship_substrate::events::pipeline::event_types::PIPELINE_RUN_DISPATCHED,
+        crate::events::pipeline::event_types::PIPELINE_RUN_DISPATCHED,
         pipeline_run_id,
         slug,
         &payload,
@@ -160,13 +160,13 @@ pub async fn emit_pipeline_run_dispatched_with_meta(
 /// `"isolation_prepare"`, `"agent_compile"`, or `"executor_spawn"`.
 /// Distinct from `pipeline.run.failed` (agent ran and produced a failure).
 pub async fn emit_spawn_failed(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     pipeline_run_id: &str,
     slug: &str,
     stage: &str,
     err: &anyhow::Error,
 ) {
-    let payload = ship_substrate::events::pipeline::PipelineStepSpawnFailedPayload {
+    let payload = crate::events::pipeline::PipelineStepSpawnFailedPayload {
         pipeline_run_id: pipeline_run_id.to_string(),
         slug: slug.to_string(),
         stage: stage.to_string(),
@@ -174,7 +174,7 @@ pub async fn emit_spawn_failed(
     };
     emit_pipeline_run_dispatch_event(
         kernel,
-        ship_substrate::events::pipeline::event_types::PIPELINE_STEP_SPAWN_FAILED,
+        crate::events::pipeline::event_types::PIPELINE_STEP_SPAWN_FAILED,
         pipeline_run_id,
         slug,
         &payload,
@@ -184,7 +184,7 @@ pub async fn emit_spawn_failed(
 
 /// Emit a `pipeline.step.started` event for a specific pipeline step.
 pub async fn emit_step_started_event(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     pipeline_run_id: &str,
     step_id: &str,
     step_type: &str,
@@ -196,7 +196,7 @@ pub async fn emit_step_started_event(
     });
     emit_pipeline_run_dispatch_event(
         kernel,
-        ship_substrate::events::pipeline::event_types::PIPELINE_STEP_STARTED,
+        crate::events::pipeline::event_types::PIPELINE_STEP_STARTED,
         pipeline_run_id,
         slug,
         &payload,
@@ -206,13 +206,13 @@ pub async fn emit_step_started_event(
 
 /// Emit `pipeline.step.failed` + `pipeline.run.failed` for a pipeline step error.
 pub async fn emit_step_failed(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     pipeline_run_id: &str,
     slug: &str,
     step_id: &str,
     reason: &str,
 ) {
-    use ship_substrate::events::pipeline::{event_types, PipelineRunFailedPayload, PipelineStepFailedPayload};
+    use crate::events::pipeline::{event_types, PipelineRunFailedPayload, PipelineStepFailedPayload};
     let step_fail = PipelineStepFailedPayload {
         pipeline_run_id: pipeline_run_id.to_string(),
         slug: slug.to_string(),
@@ -229,18 +229,18 @@ pub async fn emit_step_failed(
 
 /// Emit a `pipeline.run.failed` event when a pipeline run cannot be dispatched or encounters a fatal error.
 pub async fn emit_pipeline_run_failed(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     pipeline_run_id: &str,
     slug: &str,
     error: &str,
 ) {
-    let payload = ship_substrate::events::pipeline::PipelineRunFailedPayload {
+    let payload = crate::events::pipeline::PipelineRunFailedPayload {
         pipeline_run_id: pipeline_run_id.to_string(),
         error: error.to_string(),
     };
     emit_pipeline_run_dispatch_event(
         kernel,
-        ship_substrate::events::pipeline::event_types::PIPELINE_RUN_FAILED,
+        crate::events::pipeline::event_types::PIPELINE_RUN_FAILED,
         pipeline_run_id,
         slug,
         &payload,
@@ -254,7 +254,7 @@ pub async fn emit_pipeline_run_failed(
 /// Emit `process.spawned` after an executor successfully creates a process.
 #[allow(clippy::too_many_arguments)]
 pub async fn emit_process_spawned(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     slug: &str,
     pipeline_run_id: &str,
     pid: Option<u32>,
@@ -265,7 +265,7 @@ pub async fn emit_process_spawned(
     executor_kind: &str,
     step_id: Option<&str>,
 ) {
-    use ship_substrate::events::process::{
+    use crate::events::process::{
         ProcessSpawnedPayload, event_types, filter_env_keys, sanitize_argv,
     };
     let payload = ProcessSpawnedPayload {
@@ -284,7 +284,7 @@ pub async fn emit_process_spawned(
 
 /// Emit `process.exited` when a monitored process terminates.
 pub async fn emit_process_exited(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     slug: &str,
     pid: Option<u32>,
     exit_code: Option<i32>,
@@ -292,7 +292,7 @@ pub async fn emit_process_exited(
     wall_duration_ms: u64,
     executor_kind: &str,
 ) {
-    use ship_substrate::events::process::{ProcessExitedPayload, event_types};
+    use crate::events::process::{ProcessExitedPayload, event_types};
     let payload = ProcessExitedPayload {
         slug: slug.to_string(),
         pid,
@@ -306,14 +306,14 @@ pub async fn emit_process_exited(
 
 /// Emit `process.signal_sent` before sending a signal to a process.
 pub async fn emit_process_signal_sent(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     slug: &str,
     pid: Option<u32>,
     signum: &str,
     reason: &str,
     actor: &str,
 ) {
-    use ship_substrate::events::process::{ProcessSignalSentPayload, event_types};
+    use crate::events::process::{ProcessSignalSentPayload, event_types};
     let payload = ProcessSignalSentPayload {
         slug: slug.to_string(),
         pid,
@@ -330,13 +330,13 @@ pub async fn emit_process_signal_sent(
 /// executor substrate) is torn down. Used by the liveness handler to record
 /// the why before emitting `pipeline.run.failed`.
 pub async fn emit_executor_session_destroyed(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     slug: &str,
     executor_kind: &str,
     session_name: &str,
-    cause: ship_substrate::events::executor::DestructionCause,
+    cause: crate::events::executor::DestructionCause,
 ) {
-    use ship_substrate::events::executor::{EXECUTOR_SESSION_DESTROYED, ExecutorSessionDestroyedPayload};
+    use crate::events::executor::{EXECUTOR_SESSION_DESTROYED, ExecutorSessionDestroyedPayload};
     let payload = ExecutorSessionDestroyedPayload {
         executor_kind: executor_kind.to_string(),
         session_name: session_name.to_string(),
@@ -349,15 +349,15 @@ pub async fn emit_executor_session_destroyed(
 /// Emit `executor.window_destroyed` when an individual window within a
 /// shared-session executor is torn down.
 pub async fn emit_executor_window_destroyed(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     slug: &str,
     executor_kind: &str,
     session_name: &str,
     window_name: &str,
     step: Option<&str>,
-    cause: ship_substrate::events::executor::DestructionCause,
+    cause: crate::events::executor::DestructionCause,
 ) {
-    use ship_substrate::events::executor::{EXECUTOR_WINDOW_DESTROYED, ExecutorWindowDestroyedPayload};
+    use crate::events::executor::{EXECUTOR_WINDOW_DESTROYED, ExecutorWindowDestroyedPayload};
     let payload = ExecutorWindowDestroyedPayload {
         executor_kind: executor_kind.to_string(),
         session_name: session_name.to_string(),
@@ -379,7 +379,7 @@ pub async fn emit_executor_window_destroyed(
 /// rewritten to propagate, they should call `kernel.emit` directly and
 /// delete their use of this helper.
 pub async fn persist_and_route(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     envelope: EventEnvelope,
     slug: &str,
 ) {

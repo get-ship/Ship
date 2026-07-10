@@ -47,7 +47,7 @@ pub(crate) fn merge_session_env_into_launch(
         launch.env.entry(k.clone()).or_insert_with(|| v.clone());
     }
 }
-use ship_runner::emit::persist_and_route;
+use ship_substrate::events::emit::persist_and_route;
 use ship_harnesses::harness_adapter::{adapter_for_or_default, HarnessAdapter};
 use process_supervisor::{spawn_process, ProcessHandle, ProcessKind, ProcessProfile, TransportKind};
 /// Kept in ProcessExecutor (the headless spawn path) because only
@@ -1246,7 +1246,7 @@ impl SessionExecutor for ProcessExecutor {
 /// Mirrors the inline pattern used in the runner's cancel path so both call
 /// sites project into the same event stream.
 ///
-/// Emits through the L0 `ship_runner::emit::persist_and_route` helper — an
+/// Emits through the L0 `ship_substrate::events::emit::persist_and_route` helper — an
 /// L0-to-L0 reach. This resolves the historic layer-direction violation: the
 /// supervisor no longer reaches UP into `ship_platform::…::orchestrator::emit`
 /// to touch the kernel; the kernel-emit plumbing is now L0 runner mechanism.

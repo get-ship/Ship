@@ -93,15 +93,13 @@ ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", feature
 # isolation helper. Its `ship-code` feature gates those onto the harness stack.
 # helmd runs NO orchestrator (bare single-agent dispatch only).
 ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime", features = ["ship-code"], optional = true }
-# `ShipdPlatform`/`GitWorktreeIsolation` are stuck in apps/shipd, so helmd
-# reimplements them (see dispatch.rs). The reimplementation names:
-#   ship-runner      — `emit_executor_session_destroyed` on the cleanup path.
 #   ship-auth        — `scopes::resolve_grants` for the minted session token.
 #   ship-auth-types  — `DaemonSession` + session-token mint in HelmdPlatform.
-#   ship-substrate   — the FULL facade (spawn_bounded / events::executor /
-#                      EmitContext / db::spaces) the platform + adapter name.
-#                      directly here so dispatch.rs mirrors shipd byte-for-byte.
-ship-runner = { path = "../../crates/core/ship-substrate/crates/ship-runner", optional = true }
+#   ship-substrate   — the FULL facade (spawn_bounded / events::emit ::
+#                      `emit_executor_session_destroyed` on the cleanup path,
+#                      events::executor / EmitContext / db::spaces) the
+#                      platform + adapter name. directly here so dispatch.rs
+#                      mirrors shipd byte-for-byte.
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth", optional = true }
 ship-auth-types = { path = "../../crates/core/ship-substrate/crates/ship-auth-types", optional = true }
 ship-substrate = { path = "../../crates/core/ship-substrate", optional = true }
@@ -162,7 +160,6 @@ default = ["ship-code"]
 ship-code = [
     "dep:ship-code",
     "dep:ship-pipeline-runtime",
-    "dep:ship-runner",
     "dep:ship-auth",
     "dep:ship-auth-types",
     "dep:ship-substrate",

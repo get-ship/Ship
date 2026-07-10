@@ -9,7 +9,7 @@
 //! The git/log/string scanning utilities that used to live here are L0
 //! pipeline-runtime mechanism and live in
 //! [`crate::loader::git_helpers`]; the kill-on-timeout teardown is the L0
-//! [`ship_code::runner::stop_by_slug`] primitive.
+//! [`ship_code::lifecycle::stop_by_slug`] primitive.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -40,7 +40,7 @@ pub(super) async fn kill_spawned_process(
     executor: &Arc<dyn SessionExecutor>,
     slug: &str,
 ) {
-    ship_code::runner::stop_by_slug(kernel, registry, executor, slug, "step_timeout", "step_monitor").await;
+    ship_code::lifecycle::stop_by_slug(kernel, registry, executor, slug, "step_timeout", "step_monitor").await;
 }
 
 /// Live dispatch for [`AgentStepProgram`]: holds the step identity + the ports
@@ -133,7 +133,7 @@ impl AgentStepDispatch {
             log_tail,
         };
 
-        ship_runner::emit::emit_process_exited(
+        ship_substrate::events::emit::emit_process_exited(
             &self.kernel, &self.slug, None, exit_code, None,
             duration_secs * 1000, "unknown",
         ).await;
@@ -147,7 +147,7 @@ impl AgentStepDispatch {
                 return;
             }
         };
-        ship_runner::emit::persist_and_route(&self.kernel, envelope, &self.slug).await;
+        ship_substrate::events::emit::persist_and_route(&self.kernel, envelope, &self.slug).await;
 
         // Terminalize the composed agent_session so it doesn't sit at
         // Dispatched forever. Failed verdict → session failed; Advance /

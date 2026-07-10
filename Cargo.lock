@@ -7918,7 +7918,6 @@ dependencies = [
  "ship-platform",
  "ship-reactive",
  "ship-resolver",
- "ship-runner",
  "ship-store",
  "ship-substrate",
  "ship-terminal",
@@ -8081,7 +8080,6 @@ dependencies = [
  "ship-harnesses",
  "ship-isolation",
  "ship-resolver",
- "ship-runner",
  "ship-substrate",
  "ship-types",
  "sysinfo",
@@ -8231,7 +8229,6 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "ship-runner",
  "ship-substrate",
  "tempfile",
  "tokio",
@@ -8377,7 +8374,6 @@ dependencies = [
  "ship-pipelines",
  "ship-platform",
  "ship-reactive",
- "ship-runner",
  "ship-store",
  "ship-substrate",
  "ship-types",
@@ -8450,7 +8446,6 @@ dependencies = [
  "ship-kernel",
  "ship-platform",
  "ship-resolver",
- "ship-runner",
  "ship-space",
  "ship-store",
  "ship-substrate",
@@ -8513,21 +8508,6 @@ dependencies = [
  "ship-substrate",
  "ship-types",
  "tempfile",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "ship-runner"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "serde",
- "serde_json",
- "ship-substrate",
- "ship-types",
- "thiserror 2.0.18",
  "tokio",
  "tracing",
 ]
@@ -8808,7 +8788,6 @@ dependencies = [
  "ship-platform",
  "ship-reactive",
  "ship-resolver",
- "ship-runner",
  "ship-search",
  "ship-space",
  "ship-store",

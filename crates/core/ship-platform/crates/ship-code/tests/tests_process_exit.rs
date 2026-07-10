@@ -9,7 +9,7 @@ use ship_code::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor,
 };
 use ship_code::process_registry::{ProcessRegistry, SharedRegistry};
-use ship_code::runner::exit_handler;
+use ship_code::lifecycle::exit_handler;
 use ship_substrate::events::kernel_router::KernelRouter;
 use std::sync::Arc;
 use std::time::Duration;
