@@ -770,17 +770,12 @@ fn is_worktree_clean(worktree_path: &std::path::Path) -> bool {
     }
 }
 
-/// The canonical worktrees root. Mirrors `ship_code::helpers::worktrees_dir`
+/// The canonical worktrees root — `ship_code::helpers::worktrees_dir`
 /// (the dispatcher writes here, the lander reads here); honors
 /// `SHIP_WORKTREE_DIR` so tests + multi-root layouts can pin the root.
 fn worktrees_dir_layout() -> PathBuf {
-    match ship_config::worktrees::worktrees_dir() {
-        Ok(Some(dir)) => dir,
-        Ok(None) => panic!(
-            "missing worktrees.dir: set SHIP_WORKTREE_DIR (worktrees.dir) before land cleanup"
-        ),
-        Err(e) => panic!("read SHIP_WORKTREE_DIR failed: {e}"),
-    }
+    ship_code::helpers::worktrees_dir()
+        .expect("missing worktrees.dir: set SHIP_WORKTREE_DIR (worktrees.dir) before land cleanup")
 }
 
 #[cfg(test)]
