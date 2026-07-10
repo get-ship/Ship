@@ -16,13 +16,13 @@ buffa = "0.5"
 ship-substrate = { path = "../../../ship-substrate" }
 process-supervisor = { path = "../../../ship-substrate/crates/process-supervisor" }
 harness-adapter = { path = "../harness-adapter" }
-# L0 git capability — git2-backed; single git implementation.
-ship-git = { path = "../../../ship-git" }
+# L0 git capability — git2-backed; baseline SHA capture on the ship-code path.
+ship-git = { path = "../../../ship-git", optional = true }
 ship-types = { path = "../../../ship-substrate/crates/ship-types" }
 ship-kernel = { path = "../../../ship-substrate/crates/ship-kernel" }
 # L1 crates (carved siblings, no cycle)
 agent-def = { path = "../agent-def" }
-ship-code = { path = "../ship-code", features = ["harness-drivers"], optional = true }
+ship-code = { path = "../ship-code", features = ["ship-code"], optional = true }
 ship-config = { path = "../ship-config" }
 ship-harnesses = { path = "../ship-harnesses" }
 ship-files = { path = "../ship-files" }
@@ -67,13 +67,13 @@ ship-platform = { path = "../.." }
 [features]
 fixtures = []
 specta = []
-# harness-drivers: pull in ship-code (the third-party-harness driver stack).
+# ship-code: pull in the third-party-harness driver stack.
 # With this feature ON:  cancel, terminal_guard, the harness dispatch path,
-#                        executor/isolation/registry/etc. ports, and the
-#                        `runtime` re-export are all compiled in.
+#                        executor/isolation/registry/etc. ports, baseline SHA,
+#                        and the `runtime` re-export are all compiled in.
 # With this feature OFF: only the floki path (FlokiRunFn + the floki branch
-#                        in dispatch.rs) is compiled; ship-code is absent.
-harness-drivers = ["dep:ship-code"]
+#                        in dispatch.rs) is compiled; ship-code and ship-git are absent.
+ship-code = ["dep:ship-code", "dep:ship-git"]
 
 [lints]
 workspace = true

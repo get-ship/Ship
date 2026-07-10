@@ -24,12 +24,12 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 use ship_substrate::dispatch_gate::{terminal_guard, Admit};
 use ship_substrate::events::EventEnvelope;
 use tokio::sync::Mutex;
 
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 use crate::cancel::handle_agent_cancelled;
 use crate::dispatch::handle_dispatch_requested;
 use crate::ports::AgentPorts;
@@ -76,7 +76,7 @@ pub async fn start_agents(kernel: Kernel, ports: Arc<AgentPorts>) {
 /// Handle a single `dispatch.*` or `session.*` event. Runs the L0 entry gate
 /// (event-id dedup + terminal-state guard) before the policy match.
 ///
-/// With `harness-drivers` OFF, the terminal-state guard and the `cancelled`
+/// With `ship-code` OFF, the terminal-state guard and the `cancelled`
 /// arm are absent (no process to kill, no dedup registry). The floki dispatch
 /// path in `handle_dispatch_requested` remains active.
 pub async fn handle_agents_event(kernel: &Kernel, envelope: &EventEnvelope, ports: &AgentPorts) {
@@ -86,8 +86,8 @@ pub async fn handle_agents_event(kernel: &Kernel, envelope: &EventEnvelope, port
     // projection status enum.
     //
     // Gate: terminal_guard + EventDedup are ship_code-backed; with
-    // harness-drivers OFF these are absent.
-    #[cfg(feature = "harness-drivers")]
+    // ship-code OFF these are absent.
+    #[cfg(feature = "ship-code")]
     {
         let projections: Arc<dyn ship_code::dispatch_ports::ProjectionReader> =
             Arc::clone(&ports.projections);
@@ -109,9 +109,9 @@ pub async fn handle_agents_event(kernel: &Kernel, envelope: &EventEnvelope, port
         "dispatch.requested" => {
             handle_dispatch_requested(kernel, envelope, ports).await;
         }
-        // With harness-drivers OFF: no process to stop, no process.killed to
+        // With ship-code OFF: no process to stop, no process.killed to
         // emit — the cancelled arm is a no-op.
-        #[cfg(feature = "harness-drivers")]
+        #[cfg(feature = "ship-code")]
         "session.cancelled" => {
             handle_agent_cancelled(kernel, envelope, ports).await;
         }

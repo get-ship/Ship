@@ -13,8 +13,8 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use harness_adapter::dispatch_ports::{AgentPlatform, Authority, SpawnPolicy};
 use ship_platform::config::SpaceManifest;
-use ship_code::dispatch_ports::{AgentPlatform, Authority, SpawnPolicy};
 
 /// The current behavior, behind the port: resolve the agent's declared role
 /// from project config and mint a role-scoped session token via the platform.

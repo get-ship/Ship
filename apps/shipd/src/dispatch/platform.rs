@@ -32,7 +32,7 @@ pub struct ShipdPlatform {
 
 #[async_trait]
 impl AgentPlatform for ShipdPlatform {
-    fn worktrees_dir(&self) -> PathBuf {
+    fn worktrees_dir(&self) -> Result<PathBuf> {
         helpers::worktrees_dir()
     }
 
@@ -46,7 +46,13 @@ impl AgentPlatform for ShipdPlatform {
 
     async fn cleanup_job(&self, slug: &str, branch: &str) {
         let tmux_session = format!("job-{slug}");
-        let worktree_path = helpers::worktrees_dir().join(slug);
+        let worktree_path = match helpers::worktrees_dir() {
+            Ok(root) => root.join(slug),
+            Err(e) => {
+                tracing::warn!(slug, "platform: worktree cleanup skipped: {e}");
+                return;
+            }
+        };
 
         if let Err(e) = helpers::kill_tmux_session(&tmux_session) {
             tracing::warn!(slug, "platform: tmux cleanup failed: {e}");
@@ -143,7 +149,7 @@ pub struct MockPlatform;
 
 #[async_trait]
 impl AgentPlatform for MockPlatform {
-    fn worktrees_dir(&self) -> PathBuf { PathBuf::from("/tmp/test-worktrees") }
+    fn worktrees_dir(&self) -> Result<PathBuf> { Ok(PathBuf::from("/tmp/test-worktrees")) }
     fn compile_agent_config(&self, _: &Path, _: &str) -> Result<()> { Ok(()) }
     async fn graceful_agent_exit(&self, _: &str, _: Option<&str>) {}
     async fn cleanup_job(&self, _: &str, _: &str) {}

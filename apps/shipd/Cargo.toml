@@ -23,7 +23,7 @@ ship-resolver = { path = "../../crates/core/ship-resolver" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 journal-sqlite = { path = "../../crates/core/ship-substrate/crates/journal-sqlite" }
 ship-platform = { path = "../../crates/core/ship-platform" }
-ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", features = ["harness-drivers"], optional = true }
+ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", features = ["ship-code"], optional = true }
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth" }
 ship-terminal = { path = "../../crates/core/ship-platform/crates/ship-terminal" }
@@ -46,7 +46,7 @@ ship-analytics = { path = "../../crates/core/ship-platform/crates/ship-analytics
 ship-search = { path = "../../crates/core/ship-platform/crates/ship-search" }
 ship-collection = { path = "../../crates/core/ship-platform/crates/ship-collection" }
 ship-cloud = { path = "../../crates/core/ship-cloud" }
-ship-git = { path = "../../crates/core/ship-git" }
+ship-git = { path = "../../crates/core/ship-git", optional = true }
 ship-artifacts = { path = "../../crates/core/ship-platform/crates/ship-artifacts" }
 ship-space = { path = "../../crates/core/ship-platform/crates/ship-space" }
 ship-device = { path = "../../crates/core/ship-platform/crates/ship-device" }
@@ -121,28 +121,19 @@ git2 = { version = "0.19" }
 specta = { workspace = true, features = ["chrono", "serde_json"], optional = true }
 
 [features]
-# Default feature set — ship-standard shipd (seam-leak fix). Builds without
-# the harness-driver stack: dispatch goes through the floki closure only; any
-# coding-agent `dispatch.requested` fails loudly with `session.failed` (see
-# `daemon::lifecycle::start_agent_stack` for the boot-time posture
-# announcement). To run shipd with the harness-driver stack — coding-agent
-# dispatch, worktree management, hooks — opt in with
-# `--features ship-code`. The operator-facing docs (changelog, R5+) cite this
-# as the canonical posture.
+# Default feature set — ship-standard shipd. Builds without the harness-driver
+# stack: dispatch goes through the floki closure only. To run shipd with the
+# coding-agent dispatch stack — worktree management, hooks, job routes — opt in
+# with `--features ship-code`.
 default = []
-# ship-code: harness-driver stack (dispatch, sessions, hooks, job routes).
+# ship-code: coding-agent dispatch stack (sessions, hooks, job routes).
 # Turn off with --no-default-features to get a harness-free shipd build.
-# Forwarded into ship-pipeline-runtime so the orchestrator (which depends on
-# ship-code) is gated out of the harness-free build; the dispatch entry path
-# (run_core::dispatch_one + loader::{pipeline_loader, git_helpers}) stays
-# compiled without ship-code so the pipeline envelope can still be built and
-# persisted.
-ship-code = ["dep:ship-code", "harness-drivers"]
-# harness-drivers: propagate down to ship-agents and ship-platform so their
-# cfg gates align with shipd's ship-code gate. When ship-code is ON, both
-# ship-agents and ship-platform get harness-drivers. With --no-default-features
-# all three compile flag-off (ship-code is absent, harness-driver stack gone).
-harness-drivers = ["ship-agents/harness-drivers", "ship-platform/harness-drivers"]
+ship-code = [
+    "dep:ship-code",
+    "dep:ship-git",
+    "ship-agents/ship-code",
+    "ship-platform/ship-code",
+]
 unstable = ["ship-platform/unstable"]
 # ship-js-ssr: compile in deck-ssr (deno_core/V8) so the daemon can serve the
 # synthetic ship-js SSR path. OFF by default — keeps V8 out of the normal build.

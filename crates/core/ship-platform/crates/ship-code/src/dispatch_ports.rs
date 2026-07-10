@@ -15,11 +15,12 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::Mutex;
 use std::sync::Arc;
 
-// Re-export the harness value types from the harness-adapter leaf.
-pub use harness_adapter::dispatch_ports::{LaunchCommand, LaunchProfile};
+// Re-export the harness value and shared port types from the harness-adapter leaf.
 pub use agent_def::InvocationMode;
+pub use harness_adapter::dispatch_ports::{
+    AgentPlatform, Authority, LaunchCommand, LaunchProfile, ProjectionReader, SpawnPolicy,
+};
 pub use harness_adapter::server_session::ServerSession;
-pub use ship_types::Authority;
 
 // ── Value types ────────────────────────────────────────────────────────────────
 
@@ -106,22 +107,6 @@ pub trait SessionExecutor: Send + Sync {
     }
 }
 
-/// Port: platform-specific agent operations.
-#[async_trait]
-pub trait AgentPlatform: Send + Sync {
-    fn worktrees_dir(&self) -> PathBuf;
-    fn compile_agent_config(&self, worktree_path: &std::path::Path, agent_id: &str) -> Result<()>;
-    async fn graceful_agent_exit(&self, slug: &str, harness: Option<&str>);
-    async fn cleanup_job(&self, slug: &str, branch: &str);
-    fn git_merge(&self, branch: &str) -> Result<bool>;
-    async fn cleanup_orphaned_worktrees(&self);
-    async fn mint_session_token(&self, _agent_id: &str, _role: Option<&str>) -> Option<String> {
-        None
-    }
-    fn daemon_url(&self) -> Option<String> {
-        None
-    }
-}
 
 /// Port: process handle registry for tracking spawned agents.
 #[async_trait]
@@ -151,25 +136,6 @@ pub trait ProcessTreeProbe: Send + Sync {
 
 // ── Runner ports ─────────────────────────────────────────────────────────────
 
-/// Port: spawn/op-invocation policy.
-#[async_trait]
-pub trait SpawnPolicy: Send + Sync {
-    async fn spawn_env(&self, principal: &Authority, actor_id: &str) -> HashMap<String, String>;
-}
-
-/// Port: projection reads, returned in primitive / substrate shapes.
-#[async_trait]
-pub trait ProjectionReader: Send + Sync {
-    async fn known_dispatch_slugs(&self) -> Vec<String>;
-    async fn is_run_terminal(&self, entity_id: &str) -> bool;
-    /// Resolve the slug for a session given its session_id. Used by the
-    /// cancel handler to look up the process registry keyed by slug.
-    /// Returns `None` when the session is not found in the canonical sessions
-    /// projection (e.g. the session was never started or the projection is stale).
-    async fn slug_for_session_id(&self, _session_id: &str) -> Option<String> {
-        None
-    }
-}
 
 /// Core ports the runner mechanism needs to sequence and dispatch steps.
 #[derive(Clone)]

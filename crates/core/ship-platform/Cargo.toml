@@ -68,7 +68,6 @@ ship-gateway-client = { path = "../ship-gateway-client" }
 # `ship-cloud/unstable` (the SyncServiceHandler actor) is gated behind the
 # `unstable` feature. reqwest + ship-gateway-client are already direct deps
 # here, so this adds no new transitive HTTP-client footprint.
-ship-git = { path = "../ship-git" }
 ship-cloud = { path = "../ship-cloud" }
 # Isolation types + recommender. Default-features off — youki and
 # sidecar backends stay opt-in (the daemon's feature flags layer them in).
@@ -130,9 +129,9 @@ specta = ["ship-ui/specta", "ship-agents/specta"]
 # generator (and the sandboxed designer's committed JSON) can be produced
 # from the real structs. Off by default; on under `cfg(test)` automatically.
 fixtures = ["ship-agents/fixtures"]
-# harness-drivers: enable ship-agents' harness-driver stack (ship-code).
+# ship-code: enable ship-agents' harness-driver stack (ship-code).
 # Enabled by shipd when ship-code is ON; absent in flag-off builds.
-harness-drivers = ["ship-agents/harness-drivers"]
+ship-code = ["ship-agents/ship-code"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

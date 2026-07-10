@@ -178,7 +178,7 @@ impl AgentDispatchPort for HelmDispatchAdapter {
         self.daemon_origin.clone()
     }
     fn worktrees_dir(&self) -> Option<PathBuf> {
-        Some(helpers::worktrees_dir())
+        helpers::worktrees_dir().ok()
     }
 }
 
@@ -271,7 +271,7 @@ struct HelmdPlatform {
 
 #[async_trait]
 impl AgentPlatform for HelmdPlatform {
-    fn worktrees_dir(&self) -> PathBuf {
+    fn worktrees_dir(&self) -> Result<PathBuf> {
         helpers::worktrees_dir()
     }
 
@@ -285,7 +285,13 @@ impl AgentPlatform for HelmdPlatform {
 
     async fn cleanup_job(&self, slug: &str, branch: &str) {
         let tmux_session = format!("job-{slug}");
-        let worktree_path = helpers::worktrees_dir().join(slug);
+        let worktree_path = match helpers::worktrees_dir() {
+            Ok(root) => root.join(slug),
+            Err(e) => {
+                tracing::warn!(slug, "platform: worktree cleanup skipped: {e}");
+                return;
+            }
+        };
 
         if let Err(e) = helpers::kill_tmux_session(&tmux_session) {
             tracing::warn!(slug, "platform: tmux cleanup failed: {e}");
@@ -385,7 +391,7 @@ struct GitWorktreeIsolation;
 #[async_trait]
 impl IsolationStrategy for GitWorktreeIsolation {
     async fn prepare(&self, job: &SessionContext) -> Result<PathBuf> {
-        let worktree_path = helpers::worktrees_dir().join(&job.slug);
+        let worktree_path = helpers::worktrees_dir()?.join(&job.slug);
 
         {
             let _guard = WORKTREE_LOCK.lock().await;
@@ -441,7 +447,7 @@ impl IsolationStrategy for GitWorktreeIsolation {
     }
 
     async fn cleanup(&self, job: &SessionContext) -> Result<()> {
-        let worktree_path = helpers::worktrees_dir().join(&job.slug);
+        let worktree_path = helpers::worktrees_dir()?.join(&job.slug);
         if worktree_path.exists() {
             helpers::remove_worktree(&worktree_path)?;
         }

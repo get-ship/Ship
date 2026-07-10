@@ -93,9 +93,9 @@ impl AgentDispatchPort for AgentDispatchAdapter {
     fn daemon_origin(&self) -> String {
         self.state.daemon_origin()
     }
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "ship-code")]
     fn worktrees_dir(&self) -> Option<std::path::PathBuf> {
-        Some(crate::ports::local_paths::worktrees_dir())
+        ship_code::helpers::worktrees_dir().ok()
     }
 }
 

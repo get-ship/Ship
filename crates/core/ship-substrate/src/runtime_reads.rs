@@ -62,7 +62,7 @@ pub fn poll_events_core(
 // ─── Process reads ────────────────────────────────────────────────────────────
 
 /// Project process events from an explicit `ship_dir` without going through
-/// the global db path. Mirrors `load_pipeline_runs_at` for jobs.
+/// the global db path.
 pub fn list_processes_at(
     ship_dir: &Path,
     slug: Option<&str>,

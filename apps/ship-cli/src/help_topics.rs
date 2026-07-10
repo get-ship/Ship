@@ -114,7 +114,7 @@ Environment variables override config values when set:
   SHIP_DISPATCH_CONFIRM   Set to 1 to override dispatch.confirm
   SHIP_WORKTREE_DIR       Overrides worktrees.dir
 
-Resolution order: command flag > env var > ship config > default.
+Resolution order: command flag > env var > ship config. Worktrees require an explicit value.
 ";
 
 const TOPIC_HARNESSES: &str = "\

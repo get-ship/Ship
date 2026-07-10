@@ -44,14 +44,14 @@ edits into a typed `session.failed`.
 - **`AgentDispatchPort::worktrees_dir() -> Option<PathBuf>`.** Harness
   impls return `Some(...)`; the dispatch-only paths (resume-only)
   consume it. The dispatch-only branch + `resolve_resume` + the
-  whole `dispatch_resume` module are gated behind `harness-drivers`;
+  whole `dispatch_resume` module are gated behind `ship-code`;
   shipd's NoopDispatch / flag-off impls return `None`. shipd's
   `apps/shipd/src/ports/local_paths.rs::worktrees_dir` is the single
   surviving definition (helmd's parallel `helpers::worktrees_dir`
   reads through `ship_config::worktrees::worktrees_dir` — same answer,
   same env).
 - **`resolve_project_head_sha` gates + floki = `baseline_sha: None`.
-  The function is `#[cfg(feature = "harness-drivers")]`-gated; the
+  The function is `#[cfg(feature = "ship-code")]`-gated; the
   `DispatchRequestedPayload.baseline_sha` field reads `None` when
   the flag is off — the intended design (ship-standard is git-free
   by ruling, decisions-2026-07-09 §"Git surface"), NOT a regression.
@@ -60,7 +60,7 @@ edits into a typed `session.failed`.
   `session.failed` event in two previously-silent cases: (a) a
   floki `dispatch.requested` arrives with `floki_run_fn == None`,
   (b) a coding-agent `dispatch.requested` arrives with
-  `harness-drivers` off. Both paths feed the canonical_sessions
+  `ship-code` off. Both paths feed the canonical_sessions
   projection (Failed status), produce an audit row, and return
   without touching the executor. The boot-time posture announcement
   in `daemon::lifecycle::start_agent_stack` logs an `info` line at
@@ -164,7 +164,7 @@ the harness-port fields into the same cfg arm.
 Fix:
 - `crates/core/ship-platform/crates/ship-agents/src/ports.rs`: added
   `AgentPorts::floki_only(run_fn)` constructor, gated to
-  `#[cfg(not(feature = "harness-drivers"))]`. The struct's `floki_run_fn`
+  `#[cfg(not(feature = "ship-code"))]`. The struct's `floki_run_fn`
   field is already ungated; this constructor is the flag-off entry point
   that fills ONLY the floki field and leaves the harness-side fields
   omitted (the literal doesn't name them).
@@ -179,11 +179,11 @@ Fix:
   branch in `handle_agent_session_started` routable. Non-floki
   sessions in flag-off become no-ops (the harness-driver stack is
   cfg-omitted from `handle_agent_session_started`, by design).
-- New unit tests under `cfg(not(feature = "harness-drivers"))` guard
+- New unit tests under `cfg(not(feature = "ship-code"))` guard
   the constructor: `floki_only_round_trips_closure`,
   `floki_only_none_is_noop`. The existing floki-routing behavior tests
   in `crates/core/ship-platform/crates/ship-agents/tests/behavior.rs`
-  (gated to `harness-drivers`) still pass — they assert the harness
+  (gated to `ship-code`) still pass — they assert the harness
   executor is skipped when `floki_run_fn` is wired, which the floki
   branch in `handle_agent_session_started` does regardless of feature
   state.

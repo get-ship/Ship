@@ -232,6 +232,7 @@ impl AgentDispatchPort for NoopDispatch {
         String::new()
     }
 
+    #[cfg(feature = "ship-code")]
     fn worktrees_dir(&self) -> Option<PathBuf> {
         None
     }

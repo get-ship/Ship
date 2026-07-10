@@ -58,8 +58,6 @@ pub mod config {
         set_setting_and_emit, setting_default,
     };
 
-    pub use ship_config::worktrees::worktrees_dir;
-
     // Settings view-state helpers (display structs for the Settings page).
     // Relocated from shipd::services::settings::view_state (L2 → L1).
     pub mod settings_view;

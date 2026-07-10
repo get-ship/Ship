@@ -131,7 +131,7 @@ pub trait AgentsHost: Clone + Send + Sync + 'static {
 
     /// Dispatch handle — `Some` only when ship-code built the process
     /// registry. When `None`, stop / steer return `"dispatch not available"`.
-    /// Ship-agents always treats this as `None` on non-`harness-drivers`
+    /// Ship-agents always treats this as `None` on non-`ship-code`
     /// builds; shipd swaps in the live registry when ship-code is on.
     fn dispatch_handle(&self) -> Option<Arc<dyn DispatchHandlePort>> {
         None

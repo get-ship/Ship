@@ -63,11 +63,19 @@ pub(crate) async fn cleanup_orphaned_worktrees(kernel: &Arc<Mutex<KernelRouter>>
         }
     };
 
+    let worktrees_root = match worktrees_dir() {
+        Ok(root) => root,
+        Err(e) => {
+            tracing::warn!("job-dispatch: orphan scan skipped: {e}");
+            return;
+        }
+    };
+
     let orphans: Vec<_> = sessions
         .into_iter()
         .filter(|s| s.status.is_terminal())
         .filter_map(|s| s.slug.map(|slug| (slug, s.status)))
-        .filter(|(slug, _)| worktrees_dir().join(slug).exists())
+        .filter(|(slug, _)| worktrees_root.join(slug).exists())
         .collect();
 
     if orphans.is_empty() {
@@ -97,7 +105,13 @@ async fn cleanup_orphan(slug: &str, kernel: &Arc<Mutex<KernelRouter>>) {
     use ship_agents::runtime::helpers::{delete_branch, kill_tmux_session, remove_worktree};
 
     let tmux_session = format!("job-{slug}");
-    let worktree_path = worktrees_dir().join(slug);
+    let worktree_path = match worktrees_dir() {
+        Ok(root) => root.join(slug),
+        Err(e) => {
+            tracing::warn!(slug, "orphan: worktree cleanup skipped: {e}");
+            return;
+        }
+    };
     let branch = format!("job/{slug}");
 
     if let Err(e) = kill_tmux_session(&tmux_session) {

@@ -22,10 +22,10 @@ connectrpc = { version = "0.4", features = ["axum"] }
 # Bare-agent wiring (load_sessions) — the canonical sessions projection read
 # is the only remaining "projection" surface after the engine cut.
 ship-agents = { path = "../core/ship-platform/crates/ship-agents" }
-# L1 dispatch ports (SpawnPolicy / ProjectionReader / AgentPlatform / Authority)
-# implemented in this crate's `ports/` module; the bare-agent wiring in
-# shipd and helmd thread through them.
-ship-code = { path = "../core/ship-platform/crates/ship-code" }
+# Shared dispatch port traits used by the L1 `ConfigSpawnPolicy` +
+# `ProjectionsReader` impls. Kept below ship-code so this crate no longer pulls
+# the harness-driver stack in shipd's no-default-features posture.
+harness-adapter = { path = "../core/ship-platform/crates/harness-adapter" }
 # Config — SpaceManifest read by `ConfigSpawnPolicy` to resolve the agent's
 # declared role at spawn time.
 ship-platform = { path = "../core/ship-platform" }

@@ -29,7 +29,7 @@ pub(crate) struct GitWorktreeIsolation;
 #[async_trait]
 impl IsolationStrategy for GitWorktreeIsolation {
     async fn prepare(&self, job: &SessionContext) -> Result<PathBuf> {
-        let worktree_path = worktrees_dir().join(&job.slug);
+        let worktree_path = worktrees_dir()?.join(&job.slug);
         {
             let _guard = WORKTREE_LOCK.lock().await;
             // Dispatch retries should be idempotent: a worktree at the same
@@ -87,7 +87,7 @@ impl IsolationStrategy for GitWorktreeIsolation {
     }
 
     async fn cleanup(&self, job: &SessionContext) -> Result<()> {
-        let worktree_path = worktrees_dir().join(&job.slug);
+        let worktree_path = worktrees_dir()?.join(&job.slug);
         if worktree_path.exists() {
             ship_agents::runtime::helpers::remove_worktree(&worktree_path)?;
         }

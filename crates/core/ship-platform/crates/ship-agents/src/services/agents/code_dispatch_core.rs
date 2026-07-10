@@ -27,7 +27,7 @@ use ship_substrate::events::EventEnvelope;
 use super::code_dispatch_request::{
     CodeDispatchRequest, billing_warning_for_axes, validate_code_dispatch_request,
 };
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 use super::dispatch_resume::{ResumeResolveError, resolve_resume};
 
 // ── Port trait (re-export of the agent port) ─────────────────────────────────
@@ -36,7 +36,7 @@ use super::dispatch_resume::{ResumeResolveError, resolve_resume};
 /// trait — the two surfaces (in-process floki + coding harness) share
 /// the same daemon-side state (kernel persist-and-route, daemon origin
 /// for the `studio_url`, worktrees root for resume). The
-/// `worktrees_dir` accessor is gated on `harness-drivers` because the
+/// `worktrees_dir` accessor is gated on `ship-code` because the
 /// floki path of a ship-standard build doesn't expose it.
 pub use super::dispatch_core::AgentDispatchPort;
 
@@ -78,7 +78,7 @@ pub async fn dispatch_code_session_core(
     // resume — the resume target is always a prior coding-agent session
     // with `.ship/session.json` on disk). The `ResumeFields` projection
     // lives here so the function body can stay readable under both
-    // `harness-drivers` branches without referring to the gated
+    // `ship-code` branches without referring to the gated
     // `ResumeOutcome` type from the off-branch.
     struct ResumeFields {
         slug: String,
@@ -86,7 +86,7 @@ pub async fn dispatch_code_session_core(
         resume_harness: Option<String>,
         resume_session_id: Option<String>,
     }
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "ship-code")]
     let resume: Option<ResumeFields> = if req.resume {
         let worktrees_root = port.worktrees_dir().ok_or_else(|| {
             DispatchCoreError::Internal(
@@ -122,7 +122,7 @@ pub async fn dispatch_code_session_core(
     } else {
         None
     };
-    #[cfg(not(feature = "harness-drivers"))]
+    #[cfg(not(feature = "ship-code"))]
     let resume: Option<ResumeFields> = None;
 
     let slug = req
@@ -173,11 +173,11 @@ pub async fn dispatch_code_session_core(
         // surface"). The floki dispatch closure ignores `baseline_sha`;
         // a coding-agent dispatch captures the SHIP-git HEAD via
         // `resolve_project_head_sha` only when the harness-driver stack is
-        // wired. With `harness-drivers` off, `baseline_sha = None` is the
+        // wired. With `ship-code` off, `baseline_sha = None` is the
         // intended design — NOT a regression.
-        #[cfg(feature = "harness-drivers")]
+        #[cfg(feature = "ship-code")]
         baseline_sha: resolve_project_head_sha(),
-        #[cfg(not(feature = "harness-drivers"))]
+        #[cfg(not(feature = "ship-code"))]
         baseline_sha: None,
         // Coding-class dispatch never opens a studio tab via the wire
         // (the `CodeDispatchRequest` proto has no `open_tab` field —
@@ -265,7 +265,7 @@ pub async fn dispatch_code_session_core(
 /// harness-driver stack reaches the SHIP-git leaf here; absent the
 /// feature, the call site has `baseline_sha = None` and this function
 /// is not compiled.
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 fn resolve_project_head_sha() -> Option<String> {
     let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;

@@ -46,7 +46,6 @@ pub mod settings;
 pub mod types;
 pub mod watcher;
 pub mod wire;
-pub mod worktrees;
 
 pub use service::{ResolvedSetting, SettingScope, SettingsCtx, SettingsService};
 pub use settings::resolve_hooks_max_depth;

@@ -216,8 +216,8 @@ smoke-deploy:
 init-worktree branch:
     #!/usr/bin/env bash
     set -euo pipefail
-    base=$(ship config get worktrees.dir 2>/dev/null \
-           || echo "$HOME/dev/$(basename "$PWD")-worktrees")
+    base=$(ship config get worktrees.dir 2>/dev/null)
+    if [ -z "$base" ] || [ "$base" = "(unset)" ]; then echo "worktrees.dir/SHIP_WORKTREE_DIR is required" >&2; exit 1; fi
     target="$base/$(echo "{{ branch }}" | tr / -)"
     git worktree add "$target" -b "{{ branch }}" 2>/dev/null \
         || git worktree add "$target" "{{ branch }}"

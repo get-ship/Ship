@@ -19,9 +19,9 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use agent_def::dispatch_intent::DispatchRequestedPayload;
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 use ship_substrate::dispatch_gate::EventDedup;
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 use ship_code::dispatch_ports::{
     AgentPlatform, IsolationStrategy, ProcessRegistryPort, ProjectionReader, SessionExecutor,
     SpawnPolicy,
@@ -30,7 +30,7 @@ use ship_code::dispatch_ports::{
 /// Async callback type for floki-harness dispatch.
 ///
 /// Defined here (ungated) so `AgentPorts` carries it regardless of the
-/// `harness-drivers` feature. The closure captures its own floki + gateway
+/// `ship-code` feature. The closure captures its own floki + gateway
 /// state; `ship-agents` never imports floki directly. The `DispatchRequestedPayload`
 /// type is L1 (`agent-def`) — the sanctioned driver-edge carrier.
 pub type FlokiRunFn = Arc<
@@ -42,10 +42,10 @@ pub type FlokiRunFn = Arc<
 /// Ports for agent-session orchestration. Cloneable (all `Arc`) so the actor
 /// can hand a snapshot to each detached dispatch task.
 ///
-/// With `harness-drivers` OFF, only `floki_run_fn` is present — the entire
+/// With `ship-code` OFF, only `floki_run_fn` is present — the entire
 /// harness-driver stack (executor/isolation/registry/etc.) is absent. Callers
 /// that construct `AgentPorts` must wrap every harness field in
-/// `#[cfg(feature = "harness-drivers")]` blocks.
+/// `#[cfg(feature = "ship-code")]` blocks.
 #[derive(Clone)]
 pub struct AgentPorts {
     /// Floki-harness dispatch closure. When `Some` and `payload.harness == "floki"`,
@@ -53,40 +53,40 @@ pub struct AgentPorts {
     /// Not behind any cfg gate — the floki path must always compile.
     pub floki_run_fn: Option<FlokiRunFn>,
     /// Prepares + tears down the per-session isolated worktree.
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "ship-code")]
     pub isolation: Arc<dyn IsolationStrategy>,
     /// Spawns / stops the harness process.
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "ship-code")]
     pub executor: Arc<dyn SessionExecutor>,
     /// Host platform ops (worktrees dir, cleanup, token mint).
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "ship-code")]
     pub platform: Arc<dyn AgentPlatform>,
     /// Live process-handle registry (register / take / tombstone).
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "ship-code")]
     pub registry: Arc<dyn ProcessRegistryPort>,
     /// Spawn/op-invocation policy. The agent dispatch hands a domain-free
     /// [`ship_types::Authority::Agent`] principal; the impl resolves the
     /// scoped spawn env (role + token mint). The concrete impl
     /// (`ConfigSpawnPolicy`) stays in L1 because it reads project config; this
     /// crate sees only the port.
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "ship-code")]
     pub spawn_policy: Arc<dyn SpawnPolicy>,
     /// Primitive projection reads for the L0 router gate's terminal-state
     /// guard + slug_for_session_id lookup for the cancel handler. Agents never
     /// reads `crate::projections` directly.
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "ship-code")]
     pub projections: Arc<dyn ProjectionReader>,
     /// Event-id dedup at the actor entry. Prevents a replayed envelope
     /// (mailbox redelivery, startup replay race, test replay) from
     /// double-admitting a spawn.
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "ship-code")]
     pub event_dedup: Arc<EventDedup>,
 }
 impl AgentPorts {
     /// Construct a flag-off `AgentPorts` carrying ONLY the floki-harness
     /// dispatch closure. The harness-driver fields (isolation / executor /
     /// platform / registry / spawn_policy / projections / event_dedup) are
-    /// absent in this build (`#[cfg(feature = "harness-drivers")]`-gated);
+    /// absent in this build (`#[cfg(feature = "ship-code")]`-gated);
     /// callers that need them must use the harness-on construction site
     /// (e.g. shipd's `dispatch::run_dispatch::subscribe_job_events`).
     ///
@@ -96,19 +96,19 @@ impl AgentPorts {
     /// [`crate::dispatch::handle_dispatch_requested`] dispatches to the
     /// closure exactly as in the harness-on build.
     ///
-    /// Available only when `harness-drivers` is OFF: with the feature on,
+    /// Available only when `ship-code` is OFF: with the feature on,
     /// the struct literal needs every harness field set, and the canonical
     /// composition root (`dispatch::run_dispatch::subscribe_job_events`)
     /// owns that wiring.
-    #[cfg(not(feature = "harness-drivers"))]
+    #[cfg(not(feature = "ship-code"))]
     pub fn floki_only(floki_run_fn: Option<FlokiRunFn>) -> Self {
         Self { floki_run_fn }
     }
 }
 
-#[cfg(all(test, not(feature = "harness-drivers")))]
+#[cfg(all(test, not(feature = "ship-code")))]
 mod tests {
-    //! Tests for the flag-off `AgentPorts` shape. With `harness-drivers` off,
+    //! Tests for the flag-off `AgentPorts` shape. With `ship-code` off,
     //! only the floki path is reachable; these guard the constructor and the
     //! ungated dispatch seam.
     use super::*;

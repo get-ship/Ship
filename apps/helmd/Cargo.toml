@@ -47,8 +47,9 @@ ship-git = { path = "../../crates/core/ship-git" }
 # Env vars (SHIP_REPO_DIR, SHIP_WORKTREE_DIR, etc.) read by the canonical
 # worktrees-root resolver. Leaf-level dep; same shape as ship-git above.
 ship-paths = { path = "../../crates/core/ship-substrate/crates/ship-paths" }
-# The substrate domain crate (L1). Backs the `ship.ops.v1.AgentsService` wire.
 ship-agents = { path = "../../crates/core/ship-platform/crates/ship-agents" }
+ship-substrate = { path = "../../crates/core/ship-substrate" }
+ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types" }
 # Format-migration Wave 4 phase A: the `HarnessService.Compile` RPC routes
 # through `ship_resolver::roll_up_blocking` so the V8 TS eval populates the
 # `ExtensionLibrary`'s mcp_servers + rules + collections + triggers + pipelines
@@ -74,8 +75,7 @@ ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 # Canonical worktrees-root resolver (ship_config::worktrees::worktrees_dir).
 # Honors SHIP_WORKTREE_DIR; named directly so the Land handler's worktree
-# teardown path reads from the same root the dispatcher writes to
-# (mirrors `ship_code::helpers::worktrees_dir`).
+# teardown path reads from the same explicit root the dispatcher writes to.
 ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 
 # ── spine 2b: REAL agent dispatch (the ship-code consumer construction) ──────
@@ -87,27 +87,11 @@ ship-config = { path = "../../crates/core/ship-platform/crates/ship-config" }
 # The harness-driver stack: process registry, RoutingExecutor, dispatch_ports,
 # helpers, agent_lifecycle, the `EventDedup` gate. helmd's dispatch runtime is
 # built directly from these (mirroring shipd's `subscribe_job_events`).
-ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", features = ["harness-drivers"], optional = true }
-# The L1 pipeline runtime — helmd consumes only its standalone L1 port impls
-# (`ConfigSpawnPolicy`, `ProjectionsReader`) + the `write_phase_spec_from_context`
-# isolation helper. helmd runs NO orchestrator (bare single-agent
-# dispatch only).
-ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime", optional = true }
-#   ship-auth        — `scopes::resolve_grants` for the minted session token.
-#   ship-auth-types  — `DaemonSession` + session-token mint in HelmdPlatform.
-#   ship-substrate   — the FULL facade (spawn_bounded / events::emit ::
-#                      `emit_executor_session_destroyed` on the cleanup path,
-#                      events::executor / EmitContext / db::spaces) the
-#                      platform + adapter name. directly here so dispatch.rs
-#                      mirrors shipd byte-for-byte.
+ship-code = { path = "../../crates/core/ship-platform/crates/ship-code", features = ["ship-code"], optional = true }
+# Spine 2b dispatch deps — pulled in only when `ship-code` is on.
 ship-auth = { path = "../../crates/core/ship-platform/crates/ship-auth", optional = true }
 ship-auth-types = { path = "../../crates/core/ship-substrate/crates/ship-auth-types", optional = true }
-ship-substrate = { path = "../../crates/core/ship-substrate", optional = true }
-# L0 event/identity types — `SpaceId` (the event-scope identity, distinct from
-# the substrate `ports::SpaceId`) named by the dispatch port's persist+route.
-ship-types = { path = "../../crates/core/ship-substrate/crates/ship-types", optional = true }
-# Structured logging — non-optional since the always-on collections wire
-# (and the spine-2b dispatch paths) log through it.
+ship-pipeline-runtime = { path = "../../crates/ship-pipeline-runtime", optional = true }
 tracing = { version = "0.1" }
 # Subscriber for `tracing::*!` events. Initialized once in main() so the
 # Land-cleanup gate's `tracing::info!` / `tracing::warn!` lines reach
@@ -155,16 +139,14 @@ protoc-bin-vendored = "3"
 # the dispatch deps above are pulled).
 default = ["ship-code"]
 # ship-code: the harness-driver dispatch stack. Pulls the optional dispatch deps
-# and forwards `harness-drivers` into ship-agents so its cfg gates align with
+# and forwards `ship-code` into ship-agents so its cfg gates align with
 # helmd's (the `ship_agents::runtime` re-export + cancel module light up).
 ship-code = [
     "dep:ship-code",
     "dep:ship-pipeline-runtime",
     "dep:ship-auth",
     "dep:ship-auth-types",
-    "dep:ship-substrate",
-    "dep:ship-types",
-    "ship-agents/harness-drivers",
+    "ship-agents/ship-code",
 ]
 
 # Detach from the ship root workspace — helmd is its own compositional root.

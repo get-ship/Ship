@@ -89,6 +89,7 @@ mod code;
 // cutover, Slice 0): event-sourced typed collections over the active space.db.
 mod collections;
 // Real agent-dispatch runtime (spine 2b) — the ship-code consumer construction
+#[cfg(feature = "ship-code")]
 mod dispatch;
 // Git hook guards (pre-push + pre-commit). No feature gate — these are
 // helmd's contract with the operator regardless of which features are on.
@@ -190,9 +191,6 @@ impl GitService for GitImpl {
         // main checkout" path: every repo the SPA opens in the
         // workspace is guarded on first touch, even if no dispatch
         // has happened yet.
-        if let Err(e) = dispatch::install_repo_guards(&root) {
-            tracing::warn!(error = %e, repo = %root.display(), "git hook install skipped");
-        }
 
         // ── ship-git leaf loaders (git2-backed; no subprocess) ──────────────
         let buckets = ship_git::read::load_status_buckets(&root);
@@ -776,14 +774,13 @@ fn is_worktree_clean(worktree_path: &std::path::Path) -> bool {
 /// (the dispatcher writes here, the lander reads here); honors
 /// `SHIP_WORKTREE_DIR` so tests + multi-root layouts can pin the root.
 fn worktrees_dir_layout() -> PathBuf {
-    let project = std::path::PathBuf::from(
-        ship_paths::env::read_raw(ship_paths::env::Var::RepoDir).unwrap_or_default(),
-    )
-    .file_name()
-    .and_then(|n| n.to_str())
-    .map(|s| s.to_string())
-    .unwrap_or_else(|| "ship".to_string());
-    ship_config::worktrees::worktrees_dir(&project)
+    match ship_config::worktrees::worktrees_dir() {
+        Ok(Some(dir)) => dir,
+        Ok(None) => panic!(
+            "missing worktrees.dir: set SHIP_WORKTREE_DIR (worktrees.dir) before land cleanup"
+        ),
+        Err(e) => panic!("read SHIP_WORKTREE_DIR failed: {e}"),
+    }
 }
 
 #[cfg(test)]

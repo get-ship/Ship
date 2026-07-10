@@ -18,14 +18,7 @@
 //!   wiring (`SpawnPolicy` and `ProjectionReader`). Lifted out of the
 //!   retired `orchestrator/` module so the bare-agent path keeps its
 //!   shared instances without depending on the engine.
-//! - [`log_stream`] — pure live-log tail helper (slug validation, byte-range
-//!   reads, ANSI strip). The HTTP SSE transport lives in shipd.
-//! - [`pipeline_ports`] — domain-defined port traits the adapters fill in
-//!   (worktree dir resolution; pipeline-envelope persist+route). The
-//!   `TurnSignalPort` / `TurnSignalAdapter` were retired with the engine.
 
-pub mod log_stream;
-pub mod pipeline_ports;
 pub mod pipelines;
 pub mod ports;
 pub mod wire;

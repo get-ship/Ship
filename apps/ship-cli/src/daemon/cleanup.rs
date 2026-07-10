@@ -12,12 +12,15 @@ pub(super) fn daemon_cleanup() -> Result<()> {
         std::env::current_dir().context("cannot determine working directory")?
     };
 
-    let space_root_name = repo_dir
-        .file_name()
-        .and_then(|n| n.to_str())
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| "ship".to_string());
-    let worktrees_base = ship_platform::config::worktrees_dir(&space_root_name);
+    // Workflow-side tool: resolves the explicit `SHIP_WORKTREE_DIR` knob
+    // itself (same as the dispatch shell scripts). Never guesses a layout.
+    let worktrees_base = match ship_substrate::env::read_raw(ship_substrate::env::Var::WorktreeDir) {
+        Ok(dir) if !dir.is_empty() => {
+            let expanded = dir.strip_prefix("~/").and_then(|rest| home::home_dir().map(|h| h.join(rest)));
+            expanded.unwrap_or_else(|| PathBuf::from(dir))
+        }
+        _ => anyhow::bail!("missing worktrees.dir: set SHIP_WORKTREE_DIR before daemon cleanup"),
+    };
 
     // Reap terminal sessions (Completed / Failed / Cancelled / Suspended)
     // whose worktree is still on disk. The engine's `pipeline_runs`

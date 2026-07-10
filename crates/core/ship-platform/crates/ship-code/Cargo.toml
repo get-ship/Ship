@@ -9,6 +9,7 @@ description = "L1: ship-code — drivers that adapt third-party agent harnesses 
 workspace = true
 
 [dependencies]
+home = { workspace = true }
 agent-def = { path = "../agent-def" }
 # The Phase-3 roll-up composer (`roll_up_blocking`) — routes dispatch-compiled
 # agents through the same cache/enabled/space precedence law shipd's boot
@@ -47,9 +48,9 @@ tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time
 # data, not the error-handling boilerplate. Mirrors rule `rs-parking-lot`.
 parking_lot = { workspace = true }
 [features]
-# harness-drivers: includes the full executor/harness driver machinery
+# ship-code: includes the full executor/harness driver machinery
 # (executors, process_registry, process_tree_probe, terminal_launcher).
 # Gate-off for library consumers that only need the port types + lifecycle
 # orchestration helpers (dispatch_ports, lifecycle::exit_handler, etc.).
 # Enabled by default at the composition root (shipd/ship-agents).
-harness-drivers = []
+ship-code = []

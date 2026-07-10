@@ -48,13 +48,27 @@ pub fn kill_process_group(pid: u32, signal: i32) {
     }
 }
 
-pub fn worktrees_dir() -> PathBuf {
-    let project = repo_dir()
-        .file_name()
-        .and_then(|n| n.to_str())
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| "ship".to_string());
-    ship_config::worktrees::worktrees_dir(&project)
+/// Resolve the worktrees root: the explicit `SHIP_WORKTREE_DIR`
+/// (`worktrees.dir`) knob, `~/` expanded. Never guesses a layout —
+/// missing config is a loud error.
+pub fn worktrees_dir() -> Result<PathBuf> {
+    match ship_substrate::env::read_raw(ship_substrate::env::Var::WorktreeDir) {
+        Ok(dir) if !dir.is_empty() => Ok(expand_tilde(&dir)),
+        Ok(_) | Err(std::env::VarError::NotPresent) => Err(anyhow::anyhow!(
+            "missing worktrees.dir: set SHIP_WORKTREE_DIR (ship config worktrees.dir) before dispatching coding-agent worktrees"
+        )),
+        Err(e) => Err(anyhow::anyhow!("read SHIP_WORKTREE_DIR failed: {e}")),
+    }
+}
+
+/// Expand a leading `~/` to `$HOME`. Leaves other paths untouched.
+fn expand_tilde(path: &str) -> PathBuf {
+    if let Some(rest) = path.strip_prefix("~/") {
+        if let Some(home) = home::home_dir() {
+            return home.join(rest);
+        }
+    }
+    PathBuf::from(path)
 }
 
 pub fn repo_dir() -> PathBuf {
@@ -205,6 +219,34 @@ mod tests {
             tmux_args_for(Some("helmd-test")),
             vec!["-L".to_string(), "helmd-test".to_string()]
         );
+    }
+
+    #[test]
+    fn worktrees_dir_requires_explicit_env() {
+        let _guard = env_guard();
+        unsafe {
+            ship_substrate::env::remove(ship_substrate::env::Var::WorktreeDir);
+        }
+
+        let err = worktrees_dir().unwrap_err().to_string();
+        assert!(err.contains("SHIP_WORKTREE_DIR"), "error names env var: {err}");
+        assert!(err.contains("worktrees.dir"), "error names config knob: {err}");
+    }
+
+    #[test]
+    fn worktrees_dir_uses_explicit_env() {
+        let _guard = env_guard();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        unsafe {
+            ship_substrate::env::set(ship_substrate::env::Var::WorktreeDir, tmp.path());
+        }
+
+        assert_eq!(worktrees_dir().expect("worktrees dir"), tmp.path().to_path_buf());
+    }
+
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     /// Gap 2: a dispatched worktree's `.claude/settings.json` must

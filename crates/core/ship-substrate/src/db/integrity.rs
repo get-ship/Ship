@@ -60,7 +60,6 @@ pub fn check_integrity(db_path: &std::path::Path) -> Result<IntegrityStatus> {
     let projection_tables = [
         "actors",
         "canonical_sessions",
-        "pipeline_runs",
         "projects",
         "project_compile_state",
         "auth_sessions",

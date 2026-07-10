@@ -18,10 +18,10 @@
 //!
 //! Worked from the event registry (`register_event!`):
 //! - Runtime: `actors` (actor.*), `analytics_*` (op.tool_use_*, session.turn.ended,
-//!   actor.*), `spaces` (space.opened/space.seen), `pipeline_runs`/
+//!   actor.*), `spaces` (space.opened/space.seen), `canonical_sessions`
+//!   (direct-write session ledger), `durable_journals`.
 //! - Account: `auth_sessions` (auth.session.*), `daemon_owner` (daemon.owner.*),
 //!   `provisioned_grants` (agent.grants.provisioned).
-//! - Space: `project_compile_state` (compile.completed).
 //!
 //! ONE exception to "scope = event primary_scope": `canonical_sessions` aggregates
 //! BOTH Space `session.*` and Runtime `session.turn.*` events, so its projection
@@ -216,55 +216,6 @@ END"#,
     // DDL lives in `DURABLE_JOURNALS_DDL` (below) so the `journal-sqlite` leaf can
     // ensure the same table on fresh test dbs from ONE source.
     DURABLE_JOURNALS_DDL,
-    // ── pipeline_runs / pipeline_step_runs (pipeline.* events) ───────────────────
-    // `pipeline_runs` is a quoted identifier and its indexes keep their legacy
-    // `idx_jobs_*` names (renamed-table lineage); preserved verbatim.
-    r#"CREATE TABLE IF NOT EXISTS "pipeline_runs" (
-  pipeline_run_id              TEXT PRIMARY KEY,
-  slug                TEXT NOT NULL,
-  agent               TEXT NOT NULL,
-  branch              TEXT NOT NULL,
-  spec_path           TEXT NOT NULL,
-  source_spec_path    TEXT,
-  depends_on_json     TEXT,
-  status              TEXT NOT NULL,
-  worktree            TEXT,
-  blocker             TEXT,
-  error               TEXT,
-  model               TEXT,
-  harness            TEXT,
-  created_at          TEXT NOT NULL,
-  updated_at          TEXT NOT NULL,
-  harness_meta_json  TEXT,
-  pipeline_json       TEXT,
-  steps_json          TEXT,
-  current_phase       INTEGER,
-  completed_steps_json TEXT NOT NULL DEFAULT '[]',
-  current_step        TEXT,
-  vars_json           TEXT,
-  step_retries_json   TEXT NOT NULL DEFAULT '{}',
-  headless            INTEGER NOT NULL DEFAULT 0,
-  baseline_sha        TEXT
-)"#,
-    r#"CREATE INDEX IF NOT EXISTS idx_jobs_slug ON "pipeline_runs"(slug)"#,
-    r#"CREATE INDEX IF NOT EXISTS idx_jobs_status ON "pipeline_runs"(status)"#,
-    r#"CREATE TABLE IF NOT EXISTS pipeline_step_runs (
-  run_id          TEXT NOT NULL,
-  step_id         TEXT NOT NULL,
-  step_type       TEXT NOT NULL DEFAULT 'agent',
-  status          TEXT NOT NULL DEFAULT 'pending',
-  started_at      TEXT,
-  completed_at    TEXT,
-  depends_on_json TEXT,
-  attempt         INTEGER NOT NULL DEFAULT 1,
-  session_id      TEXT,
-  note            TEXT,
-  updated_at      TEXT NOT NULL,
-  PRIMARY KEY (run_id, step_id)
-)"#,
-    "CREATE INDEX IF NOT EXISTS idx_pipeline_step_runs_run     ON pipeline_step_runs(run_id)",
-    "CREATE INDEX IF NOT EXISTS idx_pipeline_step_runs_session ON pipeline_step_runs(session_id)",
-    "CREATE INDEX IF NOT EXISTS idx_pipeline_step_runs_status  ON pipeline_step_runs(status)",
     // ── spaces (space.opened / space.seen) ─────────────────────────────────
     // The runtime-scoped `spaces` projection — the device-local record of opened
     // spaces, folded from the `space.*` events ship-space emits. Identity
@@ -418,8 +369,6 @@ mod tests {
             "analytics_turns",
             "daemon_settings",
             "durable_journals",
-            "pipeline_runs",
-            "pipeline_step_runs",
             "spaces",
             "canonical_sessions",
         ] {

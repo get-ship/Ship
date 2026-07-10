@@ -13,23 +13,23 @@
 
 use std::sync::Arc;
 
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 use ship_code::lifecycle::build_spawn_env;
 use ship_substrate::events::emit::persist_and_route;
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 use ship_substrate::events::emit::emit_process_spawned;
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 use ship_code::lifecycle::exit_handler::{self, ExitVocabulary};
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 use ship_substrate::dispatch_gate::DISPATCH_GATE;
 use agent_def::canonical_session::{SessionFailed, event_types as canonical_session_event_types};
 use agent_def::dispatch_intent::DispatchRequestedPayload;
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 use agent_def::InvocationMode;
 use ship_substrate::events::EventEnvelope;
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 use ship_code::dispatch_ports::SessionContext;
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 use harness_adapter::dispatch_ports::LaunchProfile;
 use tokio::sync::Mutex;
 
@@ -95,11 +95,11 @@ pub async fn handle_dispatch_requested(
     // already reject). The harness-driver stack reaches this path
     // when the install provides it (R-A: the registry is what the
     // install provides; absence is structural, not an error). The
-    // `harness-drivers` cfg stays as the single conditional at the
+    // `ship-code` cfg stays as the single conditional at the
     // router assembly (mount split, 2026-07-10): shipd only builds
     // this arm with `--features ship-code`, and a coding agent
     // naming an unprovided harness is not on the resolvable set.
-    #[cfg(feature = "harness-drivers")]
+    #[cfg(feature = "ship-code")]
     {
         // (Engine cut 2026-07-10: the `parent_pipeline_run_id` skip is
         // gone — composed sessions (a multi-step pipeline-run concept)
@@ -131,7 +131,7 @@ pub async fn handle_dispatch_requested(
         });
     }
 }
-#[cfg(feature = "harness-drivers")]
+#[cfg(feature = "ship-code")]
 async fn dispatch_agent_session_internal(
     kernel: &Kernel,
     payload: &DispatchRequestedPayload,
@@ -158,6 +158,21 @@ async fn dispatch_agent_session_internal(
     // truth for how the executor launches the harness.
     let invocation = payload.invocation;
 
+    let work_dir = match ports.platform.worktrees_dir() {
+        Ok(root) => root.join(slug),
+        Err(e) => {
+            tracing::error!(slug, "service.agents: worktrees dir unavailable: {e}");
+            emit_session_failed(
+                kernel,
+                &payload.session_id,
+                slug,
+                &format!("worktrees dir unavailable: {e}"),
+            )
+            .await;
+            return;
+        }
+    };
+
     let session_ctx = SessionContext {
         session_id: payload.session_id.clone(),
         slug: slug.clone(),
@@ -168,7 +183,7 @@ async fn dispatch_agent_session_internal(
         // when the dispatch carried no path.
         spec_path: payload.source_spec_path.clone().unwrap_or_default(),
         spec_content: payload.spec.clone(),
-        work_dir: ports.platform.worktrees_dir().join(slug),
+        work_dir,
         env: build_spawn_env(slug, &payload.agent_id, ports.spawn_policy.as_ref()).await,
         exit_tx: None,
         launch: LaunchProfile {
@@ -287,7 +302,7 @@ async fn dispatch_agent_session_internal(
 // Canonical payloads (session.*) + EventEnvelope + persist_and_route.
 // No driver-edge fields (pid, worktree, exit_code, stage).
 // Canonical session emit helpers — ungated so the loud-refusal path can
-// reach them in ship-standard (no harness-drivers) builds. The floki
+// reach them in ship-standard (no ship-code) builds. The floki
 // closure-missing case + the harness-backend-missing case BOTH fail
 // the dispatch with a typed `session.failed` event instead of silently
 // dropping the envelope.
