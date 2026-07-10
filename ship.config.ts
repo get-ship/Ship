@@ -50,7 +50,7 @@ defineAgent({
     "description": "Ship orchestrator \u2014 captures intent, dispatches specialists, monitors via mesh, gates before merge",
   },
   "skills": {
-    "refs": ["working-in-helm", "cmdr", "spawn-agent", "web-qa"],
+    "refs": ["cmdr", "spawn-agent", "web-qa"],
   },
   "mcp": {
     "servers": ["ship", "helm"],
@@ -76,7 +76,7 @@ defineAgent({
     "tags": ["gate", "review", "security", "pr", "code-quality"],
   },
   "skills": {
-    "refs": ["working-in-helm", "gate", "code-review", "web-qa"],
+    "refs": ["gate", "code-review", "web-qa"],
   },
   "mcp": {
     "servers": ["ship"],
@@ -100,7 +100,7 @@ defineAgent({
     "description": "Full Rust implementation lane \u2014 compiler crate, runtime, MCP server. Use for cross-crate work.",
   },
   "skills": {
-    "refs": ["working-in-helm"],
+    "refs": [],
   },
   "mcp": {
     "servers": ["ship"],
