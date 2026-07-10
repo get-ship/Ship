@@ -340,44 +340,6 @@ body
         Ok(())
     }
 
-    // `skill_audience_matches_published_internal_split` retired with
-    // format-migration Wave 5. The test walked `.ship/skills/` and
-    // checked each SKILL.md's `audience:` frontmatter. `.ship/skills/`
-    // is gone — skill bodies now live inline as `defineSkill` calls
-    // in `ship.config.ts`. The same audience check can be re-imposed
-    // post-Wave-5 by walking the inlined `SkillDef.frontmatter` values
-    // (the `audience:` field still applies — it's part of the
-    // frontmatter shape, not the file path). The check belongs in a
-    // ship-resolver / agent-config-eval test that exercises the
-    // declared surface, not on a now-empty directory walk.
-    #[test]
-    fn skill_audience_split_retired_w5() {
-        let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let root = manifest
-            .ancestors()
-            .find(|p| p.join(".ship/skills").is_dir())
-            .expect("workspace root with .ship/skills/ not found");
-
-        // (dir, allowed audiences) — the SKILL.md frontmatter dictates
-        // the published boundary. .ship/skills/ holds both public
-        // skills (shipped as @ship/skill-* packages) and internal skills
-        // (project-local, marked `internal`).
-        let trees: [(std::path::PathBuf, &[&str]); 1] = [
-            (root.join(".ship/skills"), &["public", "agent-only", "internal"]),
-        ];
-        let audience_of = |skill_md: &std::path::Path| -> Option<String> {
-            let body = fs::read_to_string(skill_md).ok()?;
-            body.lines()
-                .find_map(|l| l.strip_prefix("audience:").map(|v| v.trim().to_string()))
-        };
-
-        // Retired with Wave 5 — see the doc comment above. The test
-        // no longer walks the (now-empty) `.ship/skills/` directory.
-        // A future check belongs in the agent-config-eval or
-        // ship-resolver suite, validating the inlined `SkillDef`
-        // frontmatter.
-    }
-
     /// `packs:` is reserved — schema must forbid it.
     #[test]
     fn schema_forbids_packs_field() -> Result<()> {
