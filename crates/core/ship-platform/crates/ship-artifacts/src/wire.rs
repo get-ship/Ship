@@ -19,6 +19,7 @@ use ship_ops_rpc::{
 };
 
 use crate::error::ArtifactError;
+use crate::error::MAX_PAYLOAD_BYTES;
 use crate::patch::{patch_frame_to_proto, snapshot_for_artifacts};
 use crate::service::ArtifactService;
 use crate::types::ArtifactRecord;
@@ -210,8 +211,63 @@ where
         }
         Ok(Response::new(Deletion { id: request.id.to_string(), ..Default::default() }))
     }
-}
 
+    /// Store a new artifact. Thin wire layer over `ArtifactService::store`:
+    /// enforces the byte cap, parses the scope, and converts the typed error.
+    async fn create(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedCreateArtifactRequestView,
+    ) -> ServiceResult<ProtoRecord> {
+        if request.data.len() > MAX_PAYLOAD_BYTES {
+            return Err(ConnectError::invalid_argument(format!(
+                "payload {} bytes exceeds cap of {} bytes",
+                request.data.len(),
+                MAX_PAYLOAD_BYTES
+            )));
+        }
+        let svc = self.make_svc(&ctx);
+        let scope = parse_target_scope(
+            request.scope,
+            ne(request.run_id),
+            svc.ctx.space_id().as_str(),
+        )
+        .map_err(|e| ConnectError::invalid_argument(e.to_string()))?;
+        let record = svc
+            .store(
+                request.name,
+                request.mime,
+                request.data,
+                &scope,
+                ne(request.collection_id),
+                ne(request.item_id),
+                ne(request.owner_actor),
+                ne(request.expires_at),
+            )
+            .await
+            .map_err(ConnectError::from)?;
+        Ok(Response::new(record_to_proto(record)))
+    }
+
+    /// Read an artifact's record + bytes. Thin wire layer over
+    /// `ArtifactService::get_blob`: a missing id surfaces as `ConnectError::not_found`.
+    async fn get_blob(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedGetArtifactBlobRequestView,
+    ) -> ServiceResult<ship_ops_rpc::ArtifactBlobResponse> {
+        let svc = self.make_svc(&ctx);
+        let (record, bytes) = svc
+            .get_blob(request.id.as_ref())
+            .await
+            .map_err(ConnectError::from)?;
+        Ok(Response::new(ship_ops_rpc::ArtifactBlobResponse {
+            record: ::buffa::MessageField::some(record_to_proto(record)),
+            data: bytes,
+            ..Default::default()
+        }))
+    }
+}
 fn sv(s: String) -> serde_json::Value {
     serde_json::Value::String(s)
 }
