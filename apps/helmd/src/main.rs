@@ -278,7 +278,11 @@ impl GitService for GitImpl {
             Some(author.as_str())
         };
         match ship_git::write::create_tag(&root, &tag, target, &message, author) {
-            Ok(sha) => Response::ok(CreateTagResponse { tag, sha }),
+            Ok(sha) => Response::ok(CreateTagResponse {
+                tag,
+                sha,
+                ..Default::default()
+            }),
             Err(e) => Err(connectrpc::ConnectError::internal(e.to_string())),
         }
     }
@@ -1634,11 +1638,11 @@ fn boot_heal(ship_dir: PathBuf) -> anyhow::Result<()> {
             // Re-check; bail loud if we couldn't recover cleanly.
             match check_platform_integrity(&ship_dir)? {
                 IntegrityStatus::Ok => Ok(()),
-                IntegrityStatus::ProjectionsCorrupt { d } => anyhow::bail!(
+                IntegrityStatus::ProjectionsCorrupt { details: d } => anyhow::bail!(
                     "helmd boot heal: rebuild did NOT restore integrity — {d}. \
                      restore from backup."
                 ),
-                IntegrityStatus::EventsCorrupt { d } => anyhow::bail!(
+                IntegrityStatus::EventsCorrupt { details: d } => anyhow::bail!(
                     "helmd boot heal: rebuild exposed fatal events corruption — {d}. \
                      restore from backup."
                 ),
@@ -1702,7 +1706,7 @@ async fn main() -> anyhow::Result<()> {
     // operator message. Runs before any wire mounts so the
     // CollectionsService / AgentsService writes in the per-scope dbs
     // land on a complete read model.
-    if let Err(e) = boot_heal(ship_substrate::ShipHome::from_env().data_dir()) {
+    if let Err(e) = boot_heal(ship_substrate::ShipHome::from_env().data_dir().to_path_buf()) {
         eprintln!("helmd boot heal failed: {e:#}");
         std::process::exit(2);
     }
