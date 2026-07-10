@@ -46,6 +46,7 @@ pub mod services;
 pub mod query;
 pub use path_layout;
 pub mod runtime_reads;
+pub mod snapshot;
 pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
 
 pub mod testutil;
@@ -77,6 +78,10 @@ pub use events::{
 };
 pub use persistence::{EventStore, SqliteEventStore, PartitionedSink};
 pub use services::{HealthStatus, ServiceHandle, ServiceHandler, run_service, spawn_service};
+// Space-snapshot surface — the substrate-level backup primitive. Used by
+// ship-space's wire layer to satisfy the `SpaceService.Snapshot` RPC, and
+// by tests + restoration tools for the inverse path.
+pub use snapshot::{RestoreResult, SnapshotManifest, SnapshotResult, restore_space, snapshot_space};
 /// Generate a monotonic ULID string. Thread-safe via thread-local generator.
 pub fn gen_ulid() -> String {
     use std::cell::RefCell;

@@ -30,6 +30,9 @@ anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time"] }
 tempfile = { workspace = true }
 ship-substrate = { path = "../../../ship-substrate" }
+ship-collection = { path = "../ship-collection" }
+ship-artifacts = { path = "../ship-artifacts" }
+ship-reactive = { path = "../ship-reactive" }
 
 [lints]
 workspace = true

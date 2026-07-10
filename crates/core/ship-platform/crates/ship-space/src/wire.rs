@@ -26,7 +26,10 @@ use ship_reactive::{ReactiveRegistry, ResolverSpec, WatchKey};
 use ship_substrate::events::EventFilter;
 use ship_substrate::ports::{KernelLog, SpaceContext};
 
-use ship_ops_rpc::{Space, SpaceInfo, SpaceList, SpaceService as SpaceServiceTrait, WatchEvent};
+use ship_ops_rpc::{
+    Space, SpaceInfo, SpaceList, SpaceService as SpaceServiceTrait, SpaceSnapshotResult,
+    WatchEvent,
+};
 
 use crate::service::SpaceService;
 use crate::types::SpaceRecord;
@@ -115,6 +118,34 @@ where
         };
         let record = svc.add(path, name).await.map_err(ConnectError::from)?;
         Ok(Response::new(record_to_proto(record)))
+    }
+
+    /// Backup a space's db + content blobs to a target directory.
+    ///
+    /// `request.space_id` empty = the served/served space; non-empty = an
+    /// explicit id (typically one the caller resolved out-of-band). The
+    /// service layer enforces the "absolute, existing target_dir" contract
+    /// — wire just hands off.
+    async fn snapshot(
+        &self,
+        ctx: RequestContext,
+        request: ship_ops_rpc::OwnedSpaceSnapshotReqView,
+    ) -> ServiceResult<SpaceSnapshotResult> {
+        let svc = self.make_svc(&ctx)?;
+        let target = std::path::PathBuf::from(request.target_dir);
+        let res = svc
+            .snapshot(request.space_id, &target)
+            .await
+            .map_err(ConnectError::from)?;
+        Ok(Response::new(SpaceSnapshotResult {
+            space_id: res.space_id,
+            path: res.path.to_string_lossy().into_owned(),
+            db_bytes: res.db_bytes,
+            blob_count: res.blob_count,
+            blob_bytes: res.blob_bytes,
+            db_sha256: res.db_sha256,
+            ..Default::default()
+        }))
     }
 
     async fn watch(

@@ -101,4 +101,54 @@ impl SpaceService {
     ) -> Result<SpaceRecord, SpaceError> {
         identity::ensure_identity_for_root(self.ctx.kernel(), path, name).await
     }
+
+    // ── snapshot ────────────────────────────────────────────────────────────
+    //
+    // Resolves `space_id` (the request's explicit id, or the served space's
+    // id when the request leaves it empty — the "active/served space"
+    // fallback the proto documents), validates `target_dir`, and delegates
+    // to the substrate's `snapshot_space` to write the bundle. The wire
+    // layer is the only caller; the helper here exists so the resolution
+    // rule lives next to the rest of the service logic.
+    pub async fn snapshot(
+        &self,
+        space_id: &str,
+        target_dir: &std::path::Path,
+    ) -> Result<ship_substrate::SnapshotResult, SpaceError> {
+        let resolved = resolve_space_id(self.ctx.space_id().as_str(), space_id)?;
+        // target_dir must be an absolute, existing directory — the drill
+        // spec calls this out (typed invalid-argument otherwise).
+        if !target_dir.is_absolute() {
+            return Err(SpaceError::BadArgs(format!(
+                "target_dir must be an absolute path: {}",
+                target_dir.display()
+            )));
+        }
+        if !target_dir.is_dir() {
+            return Err(SpaceError::BadArgs(format!(
+                "target_dir does not exist or is not a directory: {}",
+                target_dir.display()
+            )));
+        }
+        let data_root = ship_substrate::project::get_global_dir().map_err(|e| {
+            SpaceError::Internal(format!("resolve ship data root: {e}"))
+        })?;
+        ship_substrate::snapshot_space(&data_root, &resolved, target_dir)
+            .map_err(|e| SpaceError::Internal(format!("snapshot: {e}")))
+    }
+}
+
+/// Pick the effective space id: the request's `space_id` when present, else
+/// the served space from the request's `SpaceContext`. Both empty is an
+/// invalid request — a snapshot with no target space has no meaning.
+fn resolve_space_id(served: &str, requested: &str) -> Result<String, SpaceError> {
+    if !requested.is_empty() {
+        return Ok(requested.to_string());
+    }
+    if !served.is_empty() {
+        return Ok(served.to_string());
+    }
+    Err(SpaceError::BadArgs(
+        "space_id is empty and the request has no served space; specify one".to_string(),
+    ))
 }

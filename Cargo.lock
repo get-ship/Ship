@@ -8549,6 +8549,8 @@ dependencies = [
  "indexmap 2.14.0",
  "serde",
  "serde_json",
+ "ship-artifacts",
+ "ship-collection",
  "ship-ops-rpc",
  "ship-reactive",
  "ship-substrate",
