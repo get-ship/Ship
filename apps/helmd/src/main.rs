@@ -1592,6 +1592,67 @@ fn context_path_for(harness_id: &str) -> String {
     }
 }
 
+/// Boot heal (claim c-2026-07-11T01-30-00): helmd is a substrate
+/// consumer — it mounts collection, artifact, and agent wires over
+/// per-scope event dbs. When those dbs drift (a projection table is
+/// absent while events for it exist in the log), the wire mounts will
+/// serve empty or broken state. Run the integrity check before
+/// mounting; on `ProjectionsCorrupt` rebuild from the log; on
+/// `EventsCorrupt` fail loud so the operator doesn't ship a half-read
+/// product.
+///
+/// `Ok(())` is the load-bearing signal: the wire mounts that follow
+/// may assume every projection table the registered bus expects
+/// exists and is replayable.
+///
+/// Best-effort on absent data root (a fresh install with no
+/// `runtime.db` yet): skip — the per-scope openers will lazily
+/// provision on first write.
+fn boot_heal(ship_dir: PathBuf) -> anyhow::Result<()> {
+    use ship_substrate::db::integrity::{IntegrityStatus, check_platform_integrity};
+    use ship_substrate::db::rebuild;
+
+    let runtime = ship_substrate::db::runtime_db_path(&ship_dir);
+    if !runtime.exists() {
+        // Fresh install — nothing to heal. The lazy provisioners will
+        // create runtime.db on first persist. Returning Ok signals
+        // "boot can continue".
+        return Ok(());
+    }
+
+    match check_platform_integrity(&ship_dir)? {
+        IntegrityStatus::Ok => Ok(()),
+        IntegrityStatus::ProjectionsCorrupt { details } => {
+            eprintln!("helmd boot heal: projection drift → rebuild: {details}");
+            let report = rebuild::rebuild_projections(&ship_dir)?;
+            eprintln!(
+                "helmd boot heal: rebuilt ({} events replayed, {} projections refreshed, {} ms)",
+                report.events_replayed,
+                report.projections_rebuilt.len(),
+                report.duration_ms,
+            );
+            // Re-check; bail loud if we couldn't recover cleanly.
+            match check_platform_integrity(&ship_dir)? {
+                IntegrityStatus::Ok => Ok(()),
+                IntegrityStatus::ProjectionsCorrupt { d } => anyhow::bail!(
+                    "helmd boot heal: rebuild did NOT restore integrity — {d}. \
+                     restore from backup."
+                ),
+                IntegrityStatus::EventsCorrupt { d } => anyhow::bail!(
+                    "helmd boot heal: rebuild exposed fatal events corruption — {d}. \
+                     restore from backup."
+                ),
+            }
+        }
+        IntegrityStatus::EventsCorrupt { details } => {
+            // Fatal — refuse to start with half a read model. The
+            // operator must restore from a known-good backup or run
+            // `ship daemon rebuild` after fixing the events log.
+            anyhow::bail!("helmd boot heal: events corruption → refusing to start: {details}")
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize the tracing subscriber so `tracing::info!` / `tracing::warn!`
@@ -1632,6 +1693,18 @@ async fn main() -> anyhow::Result<()> {
                 std::process::exit(1);
             }
         }
+    }
+
+    // Boot heal (claim c-2026-07-11T01-30-00): helmd serves collections,
+    // so it must self-heal drift the same way shipd does — absent
+    // projection tables while events for them exist = rebuild, not
+    // fatal. fatal events corruption aborts startup with a clear
+    // operator message. Runs before any wire mounts so the
+    // CollectionsService / AgentsService writes in the per-scope dbs
+    // land on a complete read model.
+    if let Err(e) = boot_heal(ship_substrate::ShipHome::from_env().data_dir()) {
+        eprintln!("helmd boot heal failed: {e:#}");
+        std::process::exit(2);
     }
 
     let connect = Router::new();

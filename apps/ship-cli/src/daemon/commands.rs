@@ -19,6 +19,11 @@ pub enum DaemonCommand {
     /// `scripts/dev/*` without those reaching into ShipHome internals.
     Dir,
     Cleanup,
+    /// Rebuild every projection from the per-scope event logs at the
+    /// XDG data root — the recovery path for boot detection of
+    /// MISSING projection tables (claim c-2026-07-11T01-30-00).
+    /// Refuses on fatal events corruption.
+    Rebuild { dry_run: bool },
     /// Internal: supervisor loop that watches and restarts the daemon.
     Run { host: String, port: u16, dev: bool },
     Supervise { host: String, dev: bool },
@@ -46,12 +51,14 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
             Ok(())
         }
         DaemonCommand::Status => daemon_status(),
+        DaemonCommand::Cleanup => daemon_cleanup(),
+        DaemonCommand::Rebuild { dry_run } => daemon_rebuild(dry_run),
         DaemonCommand::Dir => {
             println!("{}", ship_substrate::home::current_daemon_dir().display());
             Ok(())
         }
-        DaemonCommand::Cleanup => daemon_cleanup(),
         DaemonCommand::Run { host, port, dev } => daemon_run(host, port, dev),
+
         DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
         DaemonCommand::InstallService { shipd_path, no_start, no_autostart } => {
             let report = service_registration::install_service(
@@ -117,3 +124,61 @@ pub(super) fn daemon_run(host: String, port: u16, dev: bool) -> Result<()> {
         .context("cannot build tokio runtime")?;
     rt.block_on(shipd::run_network(host, Some(port), dev, None, shipd::DaemonMode::Development, None, None))
 }
+
+/// `ship daemon rebuild` — recovery path for boot detection of MISSING
+/// projection tables (claim c-2026-07-11T01-30-00).
+///
+/// Resolves the XDG data root (or SHIP_HOME-collapsed `<base>/data`),
+/// runs the per-scope integrity check, and on `ProjectionsCorrupt`
+/// invokes `rebuild::rebuild_projections` against the same root. Refuses
+/// to rebuild when the integrity check returns `EventsCorrupt` — that
+/// is fatal and operator-actionable, not drift.
+///
+/// In `--dry-run` mode the check is run and the eventual decision
+/// reported without rebuilding.
+pub(super) fn daemon_rebuild(dry_run: bool) -> Result<()> {
+    use ship_substrate::db::integrity::{IntegrityStatus, check_platform_integrity};
+    use ship_substrate::db::rebuild;
+
+    let ship_dir = ship_dir()?;
+    println!("checking integrity at {}…", ship_dir.display());
+    match check_platform_integrity(&ship_dir)? {
+        IntegrityStatus::Ok => {
+            println!("integrity OK; nothing to rebuild");
+            Ok(())
+        }
+        IntegrityStatus::ProjectionsCorrupt { details } => {
+            println!("projection drift detected: {details}");
+            if dry_run {
+                println!("dry-run: not rebuilding");
+                return Ok(());
+            }
+            let report = rebuild::rebuild_projections(&ship_dir)
+                .context("rebuild_projections failed")?;
+            println!(
+                "rebuilt: {} events replayed, {} projections refreshed ({} ms)",
+                report.events_replayed,
+                report.projections_rebuilt.len(),
+                report.duration_ms,
+            );
+            for name in &report.projections_rebuilt {
+                println!("  • {name}");
+            }
+            // Re-check so we report the post-rebuild state.
+            match check_platform_integrity(&ship_dir)? {
+                IntegrityStatus::Ok => println!("post-rebuild integrity: OK"),
+                IntegrityStatus::ProjectionsCorrupt { details } => {
+                    println!("post-rebuild integrity: STILL DRIFTING — {details}");
+                }
+                IntegrityStatus::EventsCorrupt { details } => {
+                    println!("post-rebuild integrity: FATAL — {details}");
+                }
+            }
+            Ok(())
+        }
+        IntegrityStatus::EventsCorrupt { details } => {
+            anyhow::bail!("events corruption: {details}\nRebuild refused. Restore from backup.")
+        }
+    }
+}
+

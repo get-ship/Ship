@@ -134,6 +134,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 DaemonCommands::Status => DaemonCommand::Status,
                 DaemonCommands::Dir => DaemonCommand::Dir,
                 DaemonCommands::Cleanup => DaemonCommand::Cleanup,
+                DaemonCommands::Rebuild { dry_run } => DaemonCommand::Rebuild { dry_run },
                 DaemonCommands::Run { host, port, dev } => DaemonCommand::Run { host, port, dev },
                 DaemonCommands::Supervise { host, dev } => DaemonCommand::Supervise { host, dev },
                 DaemonCommands::InstallService { shipd_path, no_start, no_autostart } => {

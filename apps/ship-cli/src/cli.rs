@@ -13,7 +13,7 @@ const AFTER_HELP: &str = "\x1b[1mAgent surface:\x1b[0m
   ship daemon status        Show daemon supervision + liveness
   ship daemon dir           Print the daemon IPC dir for this cwd
   ship daemon cleanup       Remove orphaned worktrees for merged/failed jobs
-  ship daemon install-service      Register shipd with the OS service manager
+  ship daemon rebuild       Replay every projection from the event logs (drift recovery)
   ship daemon uninstall-service    Undo the service registration
   ship doctor               Diagnose ship setup — build, daemon, home
 
@@ -213,7 +213,16 @@ pub enum DaemonCommands {
     Dir,
     /// Remove orphaned worktrees for merged and failed jobs
     Cleanup,
-    /// Run the daemon in the foreground (internal — used by `start`, also useful for Docker/systemd)
+    /// Rebuild every projection from the per-scope event logs at the
+    /// XDG data root — the recovery path for boot detection of
+    /// MISSING projection tables (claim c-2026-07-11T01-30-00).
+    /// Runs the integrity check first and refuses on fatal events
+    /// corruption.
+    Rebuild {
+        /// Print the plan + integrity status without rebuilding
+        #[arg(long)]
+        dry_run: bool,
+    },
     #[command(hide = true)]
     Run {
         #[arg(long, default_value = "127.0.0.1")]

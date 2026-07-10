@@ -239,7 +239,11 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
 /// started with — no signature threading required. Any other path defaults to
 /// Runtime (the full schema): a fail-safe so an arbitrary-path caller (e.g. a
 /// test db at `scope.db`) is never under-provisioned.
-fn scope_for_path(path: &Path) -> crate::events::EventScope {
+/// Public form of the canonical-filename-scope recovery — used by the
+/// boot integrity check to look up the scope-classified static table
+/// list when classifying a scope db's missing tables as
+/// projection-only damage.
+pub fn scope_for_path(path: &Path) -> crate::events::EventScope {
     use crate::events::EventScope;
     match path.file_name().and_then(|n| n.to_str()) {
         Some(name) if name == ACCOUNT_DB_FILE => EventScope::Account,

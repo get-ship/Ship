@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use ship_substrate::{Predicate, Query, SpaceContext};
+use ship_substrate::{is_safe_ident, Predicate, Query, SpaceContext};
 use ship_types::envelope::EventEnvelope;
 use crate::events::{
     CollectionCreated, CollectionItemCreated, CollectionItemDeleted, CollectionItemUpdated,
@@ -30,6 +30,20 @@ pub struct CollectionService {
 }
 
 impl CollectionService {
+    /// Resolve a schema, hydrating the registry from the durable
+    /// `_schema_registry` on a miss. A fresh service instance (the trigger
+    /// engine, a post-restore boot) must see schemas persisted by another
+    /// instance before a typed NotFound is honest.
+    async fn resolve_schema(&self, id: &str) -> Result<SchemaDoc, CollectionError> {
+        if let Some(s) = self.schemas.get(id) {
+            return Ok(s);
+        }
+        let _ = crate::projection::hydrate_from_store(&self.schemas, self.ctx.data()).await;
+        self.schemas.get(id).ok_or_else(|| {
+            CollectionError::NotFound(format!("collection '{id}' not found"))
+        })
+    }
+
     /// List all schemas including system ones.
     pub fn list(&self) -> Vec<SchemaDoc> {
         self.schemas.list()
@@ -37,9 +51,7 @@ impl CollectionService {
 
     /// Get a single schema with its item count.
     pub async fn get(&self, id: &str) -> Result<(SchemaDoc, usize), CollectionError> {
-        let schema = self.schemas.get(id).ok_or_else(|| {
-            CollectionError::NotFound(format!("collection '{id}' not found"))
-        })?;
+        let schema = self.resolve_schema(id).await?;
         let count = count_items(self.ctx.data(), id).await.unwrap_or(0);
         Ok((schema, count))
     }
@@ -50,9 +62,7 @@ impl CollectionService {
         collection: &str,
         id: &str,
     ) -> Result<ItemRecord, CollectionError> {
-        let _schema = self.schemas.get(collection).ok_or_else(|| {
-            CollectionError::NotFound(format!("collection '{collection}' not found"))
-        })?;
+        let _schema = self.resolve_schema(collection).await?;
         let q = Query {
             table: format!("collection_{collection}"),
             filters: vec![Predicate::eq("id", serde_json::Value::String(id.into()))],
@@ -71,7 +81,29 @@ impl CollectionService {
         &self,
         q: Query,
     ) -> Result<(Vec<ItemRecord>, Option<String>), CollectionError> {
-        let collection = q.table.strip_prefix("collection_").unwrap_or(&q.table).to_string();
+        // Resolve the collection from the (physical) `collection_<id>` table
+        // the caller asked about. An unknown collection returns a typed
+        // `NotFound` — the previous path let the missing-table error from
+        // the SQL layer bubble up as an opaque `Internal`, which made
+        // `QueryItems` against an unknown collection indistinguishable from
+        // a storage fault. The lookup also rejects path-traversal
+        // collection ids (`is_safe_ident`) the same way `apply` does.
+        let collection = q
+            .table
+            .strip_prefix("collection_")
+            .ok_or_else(|| {
+                CollectionError::Validation(format!(
+                    "query table must be a 'collection_<id>' table; got {:?}",
+                    q.table
+                ))
+            })?;
+        if !is_safe_ident(collection) {
+            return Err(CollectionError::NotFound(format!(
+                "collection '{collection}' not found"
+            )));
+        }
+        self.resolve_schema(collection).await?;
+        let collection = collection.to_string();
         let result = self.ctx.data().query(q).await?;
         let next_cursor = result.next_cursor.clone();
         let items = result.rows.into_iter().map(|r| row_to_item(r, &collection)).collect();
@@ -99,9 +131,7 @@ impl CollectionService {
         collection: &str,
         data_json: &[u8],
     ) -> Result<ItemRecord, CollectionError> {
-        let schema = self.schemas.get(collection).ok_or_else(|| {
-            CollectionError::NotFound(format!("collection '{collection}' not found"))
-        })?;
+        let schema = self.resolve_schema(collection).await?;
         let data: serde_json::Value = serde_json::from_slice(data_json)
             .map_err(|e| CollectionError::Validation(format!("invalid data JSON: {e}")))?;
         validate_item(&schema, &data)?;
@@ -146,9 +176,7 @@ impl CollectionService {
         id: &str,
         data_json: &[u8],
     ) -> Result<ItemRecord, CollectionError> {
-        let schema = self.schemas.get(collection).ok_or_else(|| {
-            CollectionError::NotFound(format!("collection '{collection}' not found"))
-        })?;
+        let schema = self.resolve_schema(collection).await?;
         let patch: serde_json::Value = serde_json::from_slice(data_json)
             .map_err(|e| CollectionError::Validation(format!("invalid data JSON: {e}")))?;
 
@@ -196,9 +224,7 @@ impl CollectionService {
         collection: &str,
         id: &str,
     ) -> Result<(), CollectionError> {
-        self.schemas.get(collection).ok_or_else(|| {
-            CollectionError::NotFound(format!("collection '{collection}' not found"))
-        })?;
+        self.resolve_schema(collection).await?;
         // EMIT-ONLY: confirm the row exists against the projection (a delete of
         // a missing item is a NotFound, not a silent no-op), then emit; the
         // projection removes the row in the append transaction. No direct
@@ -272,9 +298,7 @@ impl CollectionService {
         id: &str,
         schema_json: &[u8],
     ) -> Result<SchemaDoc, CollectionError> {
-        self.schemas.get(id).ok_or_else(|| {
-            CollectionError::NotFound(format!("collection '{id}' not found"))
-        })?;
+        self.resolve_schema(id).await?;
         let mut doc = parse_schema_doc(schema_json)?;
         doc.id = id.to_string();
 

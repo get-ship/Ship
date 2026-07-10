@@ -308,9 +308,12 @@ async fn read_collection(
     let store = Arc::new(SingleBackendDataStore::new(data_svc, TEST_SPACE));
     let kernel_log = Arc::new(KernelLog::new(kernel.clone()));
     let ctx = Arc::new(SpaceContext::new(SpaceId::new(TEST_SPACE), store, kernel_log));
+    // Mirror real service construction: descriptor-sourced schemas are
+    // hydrated into the registry at boot (they are never in the durable
+    // `_schema_registry`), so the verification service must carry them too.
     let svc = ship_collection::service::CollectionService {
         ctx,
-        schemas: Arc::new(ship_collection::projection::SchemaRegistry::new()),
+        schemas: super::integration_engine::hydrated_registry(collection),
     };
     let q = Query { table: format!("collection_{collection}"), limit: 50, ..Default::default() };
     svc.query_items_by_query(q).await.unwrap().0

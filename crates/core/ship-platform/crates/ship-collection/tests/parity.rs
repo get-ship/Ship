@@ -1030,7 +1030,70 @@ async fn parity_gap_update_merges_fields_preserving_untouched() {
     assert_eq!(fetched.data["title"], "Keep me");
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+/// Error-quality (job claim c-2026-07-11T01-30-00, Item-3):
+/// `query_items_*` against an unknown collection must surface a typed
+/// `NotFound`, not a raw `Internal` from the missing-table storage error.
+/// The previous path let the SQL layer's "no such table" error bubble
+/// up as `Internal`, which made `QueryItems` against an unknown
+/// collection indistinguishable from a storage fault.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn query_items_returns_typed_not_found_for_unknown_collection() {
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel = make_kernel(&tmp);
+    let ctx = make_ctx(&tmp, kernel);
+    let svc = make_service(ctx);
+
+    let q = Query {
+        table: "collection_does_not_exist".to_string(),
+        filters: vec![],
+        limit: 10,
+        ..Default::default()
+    };
+
+    match svc.query_items_by_query(q).await {
+        Err(CollectionError::NotFound(msg)) => {
+            assert!(
+                msg.contains("does_not_exist"),
+                "NotFound must name the unknown collection; got {msg:?}"
+            );
+        }
+        Err(other) => panic!(
+            "expected typed NotFound for unknown collection, got {other:?}"
+        ),
+        Ok(_) => panic!("query_items_by_query against unknown collection must not succeed"),
+    }
+}
+
+/// Reject a `query_items_by_query` whose table is missing the
+/// `collection_` prefix (no in-band guess) with a typed `Validation`
+/// error. The wire path always re-prefixes, so a direct caller
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+
+async fn query_items_rejects_table_without_collection_prefix() {
+    let tmp = tempfile::tempdir().unwrap();
+    let kernel = make_kernel(&tmp);
+    let ctx = make_ctx(&tmp, kernel);
+    let svc = make_service(ctx);
+
+    let q = Query {
+        table: "actors".to_string(),
+        filters: vec![],
+        limit: 10,
+        ..Default::default()
+    };
+
+    match svc.query_items_by_query(q).await {
+        Err(CollectionError::Validation(msg)) => {
+            assert!(
+                msg.contains("collection_<id>"),
+                "Validation must name the expected prefix shape; got {msg:?}"
+            );
+        }
+        Err(other) => panic!("expected typed Validation, got {other:?}"),
+        Ok(_) => panic!("query_items_by_query without collection_ prefix must not succeed"),
+    }
+}
+
 // PARITY REPORT
 // ─────────────────────────────────────────────────────────────────────────────
 //  PORT    : 49 tests (all non-#[ignore] tests above, including resolved gaps)

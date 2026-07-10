@@ -329,6 +329,40 @@ pub fn scope_schema(scope: EventScope) -> Vec<&'static str> {
     ddl
 }
 
+/// Static projection table names for a scope — the user-defined tables
+/// (excluding the universal `events` / `cursors` base) that the scope's
+/// DDL materializes. Source of truth for the boot absence check: a
+/// registered projection whose static table set is missing while
+/// events for that projection exist in the same db = drift =
+/// `ProjectionsCorrupt` (recoverable by rebuild).
+///
+/// Self-provisioning tables (`collection_<id>` /
+/// `_schema_registry` / `collection_artifacts`) are NOT listed here —
+/// they are created on demand inside their own `apply()` and the
+/// absence check instead compares the event log's referenced tables
+/// against `sqlite_master` for that name. See
+/// `db::integrity::check_scope_absence` for the dynamic table scan.
+pub fn static_tables(scope: EventScope) -> &'static [&'static str] {
+    match scope {
+        EventScope::Runtime => &[
+            "actors",
+            "analytics_sessions",
+            "analytics_tool_uses",
+            "analytics_turns",
+            "daemon_settings",
+            "durable_journals",
+            "spaces",
+            "canonical_sessions",
+        ],
+        EventScope::Account => &[
+            "auth_sessions",
+            "daemon_owner",
+            "provisioned_grants",
+        ],
+        EventScope::Space => &["project_compile_state"],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -430,6 +464,32 @@ mod tests {
                         .unwrap_or_else(|e| panic!("re-apply failed for {scope:?}: {e}\n{stmt}"));
                 }
             }
+        }
+    }
+
+    #[tokio::test]
+    async fn static_tables_matches_ddl_per_scope() {
+        // The static_tables() helper is the boot absence check's source of
+        // truth — it must list EXACTLY the user-defined tables scope_schema
+        // creates for each scope (no universal base, no sqlite internals,
+        // no dynamic collection_* / _schema_registry / collection_artifacts).
+        // This test catches the drift if a future DDL change forgets to add
+        // the new table to static_tables (the absence check would silently
+        // skip it).
+        for scope in [EventScope::Runtime, EventScope::Account, EventScope::Space] {
+            let ddl_tables: std::collections::HashSet<String> = tables_for(scope)
+                .await
+                .into_iter()
+                .filter(|t| t != "events" && t != "cursors")
+                .collect();
+            let listed: std::collections::HashSet<String> = static_tables(scope)
+                .iter()
+                .map(|s| s.to_string())
+                .collect();
+            assert_eq!(
+                ddl_tables, listed,
+                "static_tables({scope:?}) must match the DDL-declared user tables",
+            );
         }
     }
 }

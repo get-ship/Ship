@@ -1,5 +1,58 @@
 # Changelog
 
+## Unreleased — heal-tooling (job/heal-tooling)
+
+Claim c-2026-07-11T01-30-00 (destruction-drill). Close the four
+integrity-recovery leaks the drill surfaced: PRAGMA integrity_check
+doesn't catch missing projection tables; the static allowlist still
+named the retired `projects` table; there was no `ship daemon
+rebuild` to reach the rebuild path; `QueryItems` against an unknown
+collection returned a raw storage error instead of a typed
+`NotFound`.
+
+- **`db::integrity` detects MISSING projection tables, not just
+  PRAGMA corruption.** The boot path now walks each scope db's event
+  log alongside `sqlite_master`; a registered projection whose
+  table is absent while events for it exist is drift, classified as
+  `ProjectionsCorrupt` (recoverable by rebuild). Includes the static
+  per-scope list (new `scope_schema::static_tables`) and the dynamic
+  `collection_<id>` / `_schema_registry` / `collection_artifacts`
+  family the per-scope DDL intentionally leaves to event-sourced
+  self-provisioning. PRAGMA is still the storage-corruption gate;
+  every detail row is classified the same way.
+- **Stale `projects` table name in the `PRAGMA integrity_check`
+  projection allowlist is replaced with `spaces`** (the 2026-07-09
+  space cutover renamed the projection; the spaces projection writes
+  to the runtime-scoped `spaces` table).
+- **`ship daemon rebuild [--dry-run]` is the reachable rebuild path.**
+  Resolves the XDG data root via `ShipHome::from_env().data_dir()`,
+  runs `check_platform_integrity`, and on `ProjectionsCorrupt` calls
+  `db::rebuild::rebuild_projections`. Refuses on `EventsCorrupt`.
+  Prints the rebuilt report (`events_replayed`, `projections_rebuilt`,
+  `duration_ms`) and re-checks integrity so the operator sees the
+  post-rebuild state. Wired into the `ship daemon` subcommand tree
+  (matches `Cleanup`'s pattern).
+- **`helmd` self-heals drift at boot.** `helmd` mounts collection,
+  artifact, and agent wires over per-scope event dbs; a drift there
+  means the wires serve empty / broken state. `boot_heal` runs the
+  same check + rebuild before any wire mounts and exits 2 on
+  uncorrectable corruption (operator must restore from backup).
+- **`CollectionService::query_items_*` returns a typed `NotFound`
+  on unknown collection, not a raw storage error.** The previous path
+  stripped the `collection_` prefix and ran the SQL layer; an
+  unknown collection surfaced as `Internal` ("no such table"). Now
+  the service resolves the collection id (validating `is_safe_ident`)
+  and looks it up in `SchemaRegistry` before issuing the query.
+  Rejecting the query without the `collection_` prefix is a typed
+  `Validation` — a programming bug, not a storage fault.
+- **New destruction-drill test** (`tests_integrity.rs`): drops the
+  static Runtime projection table `actors` after writing an event
+  for it, proves the integrity check classifies the drop as
+  `ProjectionsCorrupt`, runs `rebuild_projections`, and asserts the
+  actor row materializes from the log. Also pins the
+  PROJECTS→SPACES rename (no `"projects"` in `PROJECTION_TABLE_TAGS`;
+  `"spaces"` present) and the empty-log-is-OK case.
+
 ## Unreleased — seam-leak fix (job/seam-leakfix)
 
 Ship becomes honestly git/agent-free by default. The eight seam
