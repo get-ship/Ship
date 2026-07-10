@@ -87,6 +87,7 @@ mod agents;
 mod code;
 // ship.ops.v1.CollectionsService — helmd's next substrate service (S5 dogfood
 // cutover, Slice 0): event-sourced typed collections over the active space.db.
+mod artifacts;
 mod collections;
 // Real agent-dispatch runtime (spine 2b) — the ship-code consumer construction
 #[cfg(feature = "ship-code")]
@@ -1603,6 +1604,9 @@ async fn main() -> anyhow::Result<()> {
     // `space.db` (S5 dogfood cutover, Slice 0). Skipped (with a WARN) when no
     // active space is discoverable.
     let connect = collections::mount(connect).await?;
+    // artifacts.* — content-addressed blobs + metadata over the same active
+    // space (data-port Stage 2 dogfood).
+    let connect = artifacts::mount(connect).await?;
     // CORS so the browser — Helm's SPA, served by Hono on another origin (e.g.
     // http://localhost:3000) — can dial GitService directly in dev. Connect-web
     // sends `content-type` + `connect-protocol-version` headers, which trip a

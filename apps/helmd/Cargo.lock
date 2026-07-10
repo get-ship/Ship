@@ -1739,6 +1739,7 @@ dependencies = [
  "serde",
  "serde_json",
  "ship-agents",
+ "ship-artifacts",
  "ship-auth",
  "ship-auth-types",
  "ship-code",

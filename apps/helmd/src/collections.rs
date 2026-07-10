@@ -21,17 +21,18 @@ use ship_substrate::ports::{SpaceContext, SpaceId};
 /// kernel persists any event (the per-scope bus reads this factory when a store
 /// is first constructed). Idempotent.
 ///
-/// helmd registers ONLY the collection projection — not shipd's full
-/// `install_defaults` set — keeping the one-service-at-a-time posture (its
-/// AgentsService reads are file-based and need no projections).
+/// helmd registers ONLY the collection + artifact projections — not shipd's
+/// full `install_defaults` set — keeping the one-service-at-a-time posture
+/// (its AgentsService reads are file-based and need no projections).
 pub fn install_collection_projection() {
     use std::sync::Once;
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
         ship_substrate::projections::install_extra_projections_factory(Box::new(|| {
-            vec![Box::new(
-                ship_collection::item_projection::CollectionItemProjection,
-            )]
+            vec![
+                Box::new(ship_collection::item_projection::CollectionItemProjection),
+                Box::new(ship_artifacts::metadata_projection::ArtifactProjection),
+            ]
         }));
     });
 }
