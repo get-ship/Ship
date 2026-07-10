@@ -105,7 +105,6 @@ impl AgentPlatform for ShipdPlatform {
             scopes: scopes_for_role(role),
             // L1 (projection-aware): keep on ship-platform's L1 path.
             grants: ship_auth::scopes::resolve_grants(agent_id, role),
-            workspace_id: None,
             // Agent sessions carry no resolved space — keyed `None` at emit,
             // never a fabricated home/global space (S2 home-space kill). See
             // spec 128-multi-space-emit.

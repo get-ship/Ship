@@ -104,7 +104,6 @@ async fn actor_runs_inside_real_podman_container_over_v1() {
         args: vec!["-c".into(), "echo hello-from-container".into()],
         env: HashMap::new(),
         work_dir: PathBuf::from("/"),
-        workspace_id: None,
         agent_id: None,
         harness: None,
         parent_actor_id: None,

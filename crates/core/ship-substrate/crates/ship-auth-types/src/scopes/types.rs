@@ -61,7 +61,6 @@ impl Scope {
 pub struct McpAuth {
     pub agent_id: String,
     pub scopes: Vec<Scope>,
-    pub workspace_id: Option<String>,
 }
 
 impl McpAuth {

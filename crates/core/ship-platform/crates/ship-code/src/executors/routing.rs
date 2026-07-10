@@ -184,7 +184,6 @@ impl SessionExecutor for RoutingExecutor {
         // committed (dropping it entirely), and a swallowed error left no
         // trace — the root of the transport-canary flake. Errors are logged.
         let actor_id = ctx.slug.clone();
-        let workspace_id = ctx.branch.clone();
         let agent_id = ctx.agent.clone();
         let harness = ctx.launch.harness.clone();
         let transport = match ctx.invocation {
@@ -198,7 +197,6 @@ impl SessionExecutor for RoutingExecutor {
             let res = ship_substrate::db::actor_events::persist_actor_created_simple(
                 &actor_id,
                 "pipeline-step",
-                Some(&workspace_id),
                 Some(&agent_id),
                 harness.as_deref(),
                 Some(&transport),

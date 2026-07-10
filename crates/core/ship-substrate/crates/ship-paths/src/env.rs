@@ -44,7 +44,6 @@ pub enum Var {
     DaemonMode,
     // ── Runtime identity ─────────────────────────────────────────────────
     ActorId,
-    WorkspaceId,
     SessionId,
     AgentId,
     WorktreeDir,
@@ -98,7 +97,6 @@ impl Var {
             Var::DaemonUrl => "SHIP_DAEMON_URL",
             Var::DaemonMode => "SHIP_DAEMON_MODE",
             Var::ActorId => "SHIP_ACTOR_ID",
-            Var::WorkspaceId => "SHIP_WORKSPACE_ID",
             Var::SessionId => "SHIP_SESSION_ID",
             Var::AgentId => "SHIP_AGENT_ID",
             Var::WorktreeDir => "SHIP_WORKTREE_DIR",
@@ -126,7 +124,6 @@ impl Var {
                 Category::Configuration
             }
             Var::ActorId
-            | Var::WorkspaceId
             | Var::SessionId
             | Var::AgentId
             | Var::WorktreeDir
@@ -247,7 +244,6 @@ mod tests {
             Var::DaemonUrl,
             Var::DaemonMode,
             Var::ActorId,
-            Var::WorkspaceId,
             Var::SessionId,
             Var::AgentId,
             Var::WorktreeDir,

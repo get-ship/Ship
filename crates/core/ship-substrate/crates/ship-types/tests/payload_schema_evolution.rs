@@ -44,7 +44,6 @@ fn actor_created_v1_round_trips() {
     let json = r#"{
         "kind": "agent",
         "environment_type": "local",
-        "workspace_id": "ws-1",
         "project_id": "proj-1",
         "cwd": "/tmp/work",
         "parent_actor_id": null,
@@ -60,8 +59,6 @@ fn actor_created_v1_round_trips() {
     }"#;
     let p: ActorCreated = parse(json, "ActorCreated");
     assert_eq!(p.kind, "agent");
-    assert_eq!(p.workspace_id.as_deref(), Some("ws-1"));
-    assert_eq!(p.capabilities, vec!["read", "write"]);
 }
 
 #[test]

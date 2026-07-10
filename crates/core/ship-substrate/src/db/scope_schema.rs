@@ -118,7 +118,6 @@ pub const RUNTIME_DDL: &[&str] = &[
   kind                TEXT NOT NULL,
   environment_type    TEXT NOT NULL DEFAULT 'local',
   status              TEXT NOT NULL DEFAULT 'created',
-  workspace_id        TEXT,
   space_id          TEXT,
   cwd                 TEXT,
   parent_actor_id     TEXT,
@@ -144,7 +143,6 @@ pub const RUNTIME_DDL: &[&str] = &[
     "CREATE INDEX IF NOT EXISTS idx_actors_last_event ON actors(last_event_at)",
     "CREATE INDEX IF NOT EXISTS idx_actors_project    ON actors(space_id)",
     "CREATE INDEX IF NOT EXISTS idx_actors_status     ON actors(status)",
-    "CREATE INDEX IF NOT EXISTS idx_actors_workspace  ON actors(workspace_id)",
     // The two actor activity-bump triggers fire on event append; they UPDATE
     // `actors`, so they belong wherever actor.* events land (runtime.db) and
     // nowhere else (account/space dbs have no `actors` table).

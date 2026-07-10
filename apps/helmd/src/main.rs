@@ -25,10 +25,7 @@
 //!                                                      per-branch verdict bits)
 //!     POST /ship.internal.v1.GitService/ListWorktrees — repo worktrees (path, branch,
 //!                                                      head, is_current); replaces the
-//!                                                      shell-out at helm/src/repos.ts:191
-//!                                                      and unblocks removal of the
-//!                                                      documented exception in ship-git's
-//!                                                      `worktree_path_for_branch`.
+//!                                                      shell-out at helm/src/repos.ts:191.
 //!     POST /ship.internal.v1.GitService/CreateWorktree — `git worktree add -b` for the
 //!                                                      operator (the only production
 //!                                                      write shell-out in the helm git
@@ -388,11 +385,8 @@ impl GitService for GitImpl {
 
     // ListWorktrees — the repo's worktrees (path + branch + head + is_current),
     // the leaf-clean replacement for helm's `git worktree list --porcelain`
-    // shell-out at `src/repos.ts:191`. Also unblocks removal of the documented
-    // subprocess exception in `ship-git::state::worktree_path_for_branch`
-    // (`state.rs:200-236`); the seam still calls git today, but the leaf now
-    // has a libgit2 path (`read::list_worktrees`) that is what the seam will
-    // call next. Never errors — a non-repo `root` returns an empty `worktrees`
+    // shell-out at `src/repos.ts:191` (libgit2 via `read::list_worktrees`).
+    // Never errors — a non-repo `root` returns an empty `worktrees`
     // list, matching the read-only `Overview` / `RepoStatus` tolerance.
     #[allow(refining_impl_trait)]
     async fn list_worktrees(

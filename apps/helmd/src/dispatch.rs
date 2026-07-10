@@ -343,7 +343,6 @@ impl AgentPlatform for HelmdPlatform {
             agent_id: agent_id.to_string(),
             scopes: scopes_for_role(role),
             grants: ship_auth::scopes::resolve_grants(agent_id, role),
-            workspace_id: None,
             space_id: None,
             pid: None,
             created_at: std::time::Instant::now(),

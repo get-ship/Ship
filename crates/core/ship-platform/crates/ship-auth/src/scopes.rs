@@ -142,7 +142,6 @@ pub fn persist_session(session: &DaemonSession) {
         // The session's OWN resolved space (or None) — never a fabricated
         // home/global space (#3: the global pseudo-space is gone). A space-window
         // session carries its space; operator/daemon-token sessions key None.
-        // Not the branch-slug workspace_id.
         space_id: session.space_id.clone(),
         created_at_unix: created_unix,
         expires_at_unix,
@@ -221,11 +220,9 @@ pub async fn hydrate_sessions(registry: &SessionRegistry) {
             // Persisted sessions are operator/paired (is_operator clears grants);
             // restricted grants aren't persisted — re-minted on register.
             grants: vec![],
-            // The persisted `auth_sessions.space_id` carries the SPACE id (see
-            // `persist_session`), not a branch slug — restore it into the explicit
-            // `space_id` field, which is what the emit path reads. `workspace_id`
-            // (the branch slug) is not persisted on sessions.
-            workspace_id: None,
+            // The persisted `auth_sessions.space_id` carries the SPACE id
+            // (see `persist_session`), not a branch slug — restore it into
+            // the explicit `space_id` field, which is what the emit path reads.
             space_id: row.space_id,
             // Hydrated (persisted) sessions are operator/paired, not pid-bound.
             // Window tokens are ephemeral and never persisted, so a restored

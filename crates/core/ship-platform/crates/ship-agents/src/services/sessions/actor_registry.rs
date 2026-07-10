@@ -129,20 +129,17 @@ impl ActorRegistry {
             .map(|e| e.meta.lock().unwrap().clone())
             .collect();
         metas.sort_by_key(|m| std::cmp::Reverse(m.last_activity));
-        metas
+    metas
     }
-
     pub fn find_agent_session(
         &self,
-        workspace_id: &str,
         agent_id: &str,
         harness: &str,
     ) -> Option<ActorEntry> {
         let guard = self.inner.lock().unwrap();
         for entry in guard.values() {
             let meta = entry.meta.lock().unwrap();
-            if meta.workspace_id == workspace_id
-                && meta.agent_id.as_deref() == Some(agent_id)
+            if meta.agent_id.as_deref() == Some(agent_id)
                 && meta.harness.as_deref() == Some(harness)
             {
                 return Some(entry.clone());

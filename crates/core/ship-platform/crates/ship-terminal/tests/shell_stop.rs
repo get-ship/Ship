@@ -55,7 +55,6 @@ fn wait_for_exit(pid: u32, deadline: Duration) -> bool {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stop_terminates_the_underlying_child() {
-    let workspace_id = "b17-shell-stop";
     let work_dir = TempDir::new().expect("work dir");
     let log_dir = TempDir::new().expect("log dir");
     let registry = SessionRegistry::new();
@@ -65,7 +64,6 @@ async fn stop_terminates_the_underlying_child() {
     // probe liveness directly with kill(pid, 0).
     let session = shell_actor::spawn_shell(
         &registry,
-        workspace_id,
         PathBuf::from(work_dir.path()),
         PathBuf::from(log_dir.path()),
     )

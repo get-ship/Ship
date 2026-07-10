@@ -32,7 +32,6 @@ mod actor_tests {
             &serde_json::json!({
                 "kind": "test-worker",
                 "environment_type": "local",
-                "workspace_id": ws_id,
                 "parent_actor_id": null,
                 "restart_count": 0
             }),

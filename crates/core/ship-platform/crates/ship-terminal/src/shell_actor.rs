@@ -30,7 +30,6 @@ const EVENT_CHANNEL_CAP: usize = 256;
 
 pub fn spawn_shell(
     registry: &SessionRegistry,
-    workspace_id: &str,
     work_dir: PathBuf,
     log_dir: PathBuf,
 ) -> Result<PtySession> {
@@ -45,7 +44,6 @@ pub fn spawn_shell(
         args: vec!["-l".to_string()],
         env: Default::default(),
         work_dir,
-        workspace_id: Some(workspace_id.to_string()),
         agent_id: None,
         harness: None,
         parent_actor_id: None,
@@ -66,7 +64,6 @@ pub fn spawn_shell(
     let meta = SessionMeta {
         id: id.clone(),
         kind: SessionKind::Shell,
-        workspace_id: workspace_id.to_string(),
         agent_id: None,
         harness: None,
         pid,

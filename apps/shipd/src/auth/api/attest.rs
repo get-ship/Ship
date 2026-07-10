@@ -106,7 +106,6 @@ pub async fn server_attest(
         agent_id: format!("user:{}", claims.sub),
         scopes: crate::auth::pairing::paired_session_scopes(),
         grants: vec![],
-        workspace_id: None,
         space_id: None,
         pid: None,
         created_at: std::time::Instant::now(),

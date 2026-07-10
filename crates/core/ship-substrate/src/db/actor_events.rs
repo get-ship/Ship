@@ -89,7 +89,6 @@ pub fn emit_actor_created(
 pub fn emit_actor_created_simple(
     actor_id: &str,
     kind: &str,
-    space_id: Option<&str>,
     agent_id: Option<&str>,
     harness: Option<&str>,
     transport: Option<&str>,
@@ -98,7 +97,6 @@ pub fn emit_actor_created_simple(
     let payload = ActorCreated {
         kind: kind.to_string(),
         environment_type: "local".to_string(),
-        workspace_id: space_id.map(str::to_string),
         parent_actor_id: parent_actor_id.map(str::to_string),
         restart_count: 0,
         agent_id: agent_id.map(str::to_string),
@@ -109,7 +107,7 @@ pub fn emit_actor_created_simple(
     };
     emit_actor_event(
         actor_id,
-        space_id,
+        None,
         parent_actor_id,
         event_types::ACTOR_CREATED,
         &payload,
@@ -207,16 +205,9 @@ pub fn reap_dead_windows() -> Result<Vec<String>> {
 ///   - the live deliver uses the router's `blocking_lock`, which panics if a
 ///     runtime is active on the calling thread.
 ///
-/// Callers dispatching from async (e.g. `RoutingExecutor::spawn`) offload this
-/// to a `std::thread` and await its completion, so the dashboard row is
-/// guaranteed before a short-lived child can exit. Using `blocking_lock`
-/// instead of `block_on_anyhow` for the deliver avoids spinning a fresh
-/// multi-thread runtime per call — that path exhausted the thread table under
-/// parallel dispatch and broke unrelated process/PTY spawns.
 pub fn persist_actor_created_simple(
     actor_id: &str,
     kind: &str,
-    space_id: Option<&str>,
     agent_id: Option<&str>,
     harness: Option<&str>,
     transport: Option<&str>,
@@ -225,7 +216,6 @@ pub fn persist_actor_created_simple(
     let payload = ActorCreated {
         kind: kind.to_string(),
         environment_type: "local".to_string(),
-        workspace_id: space_id.map(str::to_string),
         parent_actor_id: parent_actor_id.map(str::to_string),
         restart_count: 0,
         agent_id: agent_id.map(str::to_string),

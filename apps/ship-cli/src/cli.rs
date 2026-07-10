@@ -175,7 +175,7 @@ pub enum OpsCommands {
     Call {
         /// Op name, e.g. `git.status` or `pipeline.update_status`
         name: String,
-        /// JSON args object, e.g. `{"workspace_id":"x"}`
+        /// JSON args object, e.g. `{"status":"ok"}`
         #[arg(long)]
         json: Option<String>,
     },

@@ -113,7 +113,6 @@ async fn container_isolates_host_filesystem() {
         ],
         env: HashMap::new(),
         work_dir: work.clone(),
-        workspace_id: None,
         agent_id: None,
         harness: None,
         parent_actor_id: None,

@@ -218,8 +218,7 @@ pub fn spawn_process(profile: ProcessProfile) -> Result<ProcessHandle> {
         let payload = ship_substrate::events::types::ActorCreated {
             kind: emit_profile.kind.as_str().to_string(),
             environment_type: "local".to_string(),
-            workspace_id: emit_profile.workspace_id.clone(),
-            space_id,
+            space_id: space_id.clone(),
             cwd: Some(cwd),
             agent_id: emit_profile.agent_id.clone(),
             harness: emit_profile.harness.clone(),
@@ -231,7 +230,7 @@ pub fn spawn_process(profile: ProcessProfile) -> Result<ProcessHandle> {
         if let Err(e) = ship_substrate::db::actor_events::emit_actor_created(
             &emit_actor_id,
             &payload,
-            emit_profile.workspace_id.as_deref(),
+            space_id.as_deref(),
             emit_profile.parent_actor_id.as_deref(),
         ) {
             tracing::warn!(actor_id = %emit_actor_id, "actor.created emit failed: {e}");

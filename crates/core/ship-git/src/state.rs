@@ -55,9 +55,7 @@ pub struct BranchSummary {
 }
 
 /// Repo overview payload returned by the `git.overview` registry op.
-#[derive(Clone, Serialize)]
 pub struct GitOverview {
-    pub workspace_id: Option<String>,
     pub branch: Option<String>,
     pub head_short: Option<String>,
     pub clean: bool,
@@ -69,25 +67,6 @@ pub struct GitOverview {
     pub branches: Vec<BranchSummary>,
     pub ahead: usize,
     pub behind: usize,
-}
-
-/// Args for the `git.diff` registry op.
-#[derive(Clone, serde::Deserialize, Serialize)]
-pub struct GitDiffArgs {
-    /// Commit SHA, or `WORKING` for the working-tree diff.
-    pub commit: String,
-    /// Optional workspace scope (defaults to the daemon's project root).
-    pub workspace_id: Option<String>,
-}
-
-/// Diff payload returned by the `git.diff` registry op.
-#[derive(Clone, Serialize)]
-pub struct GitDiff {
-    pub sha: String,
-    pub short_sha: String,
-    pub is_working: bool,
-    pub diff_text: String,
-    pub parsed: super::diff::ParsedDiff,
 }
 
 // ── RepoStatus RPC shape (consolidated Repos-pane read) ────────────────────
@@ -220,72 +199,6 @@ impl From<git2::Error> for GitError {
     fn from(e: git2::Error) -> Self { Self::Git(e.to_string()) }
 }
 
-// ── root resolution ──────────────────────────────────────────────────────
-
-/// Resolve which directory to treat as the git root.
-///
-/// Workspace id (when given and non-"project") is treated as a branch
-/// name and resolved to its worktree via `git worktree list`. Otherwise
-/// falls through to the project root discovered from CWD, and finally
-/// `ship_dir.parent()` as a last resort (tests).
-pub fn resolve_root(
-    ship_dir: &Path,
-    workspace_id: Option<&str>,
-) -> Result<PathBuf, String> {
-    if let Some(branch) = workspace_id.filter(|s| !s.is_empty() && *s != "project")
-        && let Some(path) = worktree_path_for_branch(branch)
-        && (path.join(".git").exists() || ship_paths::ShipHome::project_ship_dir(&path).exists())
-    {
-        return Ok(path);
-    }
-    if let Ok(project_ship) = ship_paths::project::get_project_dir(None) {
-        if let Some(root) = project_ship.parent() {
-            return Ok(root.to_path_buf());
-        }
-    }
-    ship_dir
-        .parent()
-        .map(Path::to_path_buf)
-        .ok_or_else(|| "cannot resolve project root".to_string())
-}
-
-/// Look up the worktree path for a branch via `git worktree list --porcelain`.
-/// Returns None if the branch isn't a checked-out worktree.
-///
-/// shipd's `project_api::worktree_path_for_branch` wraps the same shell-out
-/// through its `spawn_bounded` helper for resource caps; this version uses
-/// plain `std::process::Command` because the `git worktree list` call is
-/// fast and bounded by the number of worktrees (small).
-fn worktree_path_for_branch(branch: &str) -> Option<PathBuf> {
-    let project_ship = ship_paths::project::get_project_dir(None).ok()?;
-    let project_root = project_ship.parent()?;
-    let output = std::process::Command::new("git")
-        .args(["worktree", "list", "--porcelain"])
-        .current_dir(project_root)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let text = String::from_utf8_lossy(&output.stdout);
-    for block in text.split("\n\n") {
-        let mut path: Option<String> = None;
-        let mut found_branch: Option<String> = None;
-        for line in block.lines() {
-            if let Some(p) = line.strip_prefix("worktree ") {
-                path = Some(p.trim().to_string());
-            } else if let Some(b) = line.strip_prefix("branch refs/heads/") {
-                found_branch = Some(b.trim().to_string());
-            }
-        }
-        if let (Some(p), Some(b)) = (path, found_branch)
-            && b == branch
-        {
-            return Some(PathBuf::from(p));
-        }
-    }
-    None
-}
 
 // ── shared helpers (crate-internal) ──────────────────────────────────────
 

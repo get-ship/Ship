@@ -44,14 +44,13 @@ pub struct SpawnOutcome {
 #[allow(clippy::too_many_arguments)]
 pub fn spawn_or_attach(
     registry: &ActorRegistry,
-    workspace_id: &str,
     agent_id: &str,
     harness: &str,
     work_dir: PathBuf,
     log_dir: PathBuf,
     append_system_prompt: Option<String>,
 ) -> Result<SpawnOutcome> {
-    if let Some(entry) = registry.find_agent_session(workspace_id, agent_id, harness) {
+    if let Some(entry) = registry.find_agent_session(agent_id, harness) {
         return Ok(SpawnOutcome {
             entry,
             attached: true,
@@ -85,7 +84,6 @@ pub fn spawn_or_attach(
         args: launch.args,
         env: launch.env,
         work_dir: work_dir.clone(),
-        workspace_id: Some(workspace_id.to_string()),
         agent_id: Some(agent_id.to_string()),
         harness: Some(harness.to_string()),
         parent_actor_id: None,
@@ -105,7 +103,6 @@ pub fn spawn_or_attach(
     let meta = SessionMeta {
         id: handle.actor_id.clone(),
         kind: SessionKind::Agent,
-        workspace_id: workspace_id.to_string(),
         agent_id: Some(agent_id.to_string()),
         harness: Some(harness.to_string()),
         pid: handle.pid(),
@@ -144,7 +141,6 @@ fn spawn_reader_middleware(
     let handle = entry.handle.clone();
     let meta = entry.meta.clone();
     let actor_id = handle.actor_id.clone();
-    let workspace_id = meta.lock().unwrap().workspace_id.clone();
     let spawned_at = meta.lock().unwrap().spawned_at;
 
     tokio::spawn(async move {
@@ -237,12 +233,11 @@ fn spawn_reader_middleware(
             duration_ms: Some(duration_ms),
         };
         let stopped_id = actor_id.clone();
-        let stopped_ws = workspace_id.clone();
         std::thread::spawn(move || {
             let _ = ship_substrate::db::actor_events::emit_actor_stopped(
                 &stopped_id,
                 &payload,
-                Some(&stopped_ws),
+                None,
                 None,
             );
         });
@@ -277,7 +272,6 @@ pub fn run_headless_turn(
         args: launch.args,
         env: launch.env,
         work_dir: work_dir.clone(),
-        workspace_id: None,
         agent_id: None,
         harness: Some(harness_id.clone()),
         parent_actor_id: Some(session.0.meta.lock().unwrap().id.clone()),

@@ -44,7 +44,6 @@ pub use middleware::{auth_middleware, project_authority_middleware};
 pub use token::{generate_token, is_daemon_token, read_or_generate_token, read_token, write_token_file};
 
 pub use crate::auth::identity::enforce_mcp_identity;
-pub use crate::auth::identity::enforce_mcp_workspace;
 
 // Re-export scope model from the split-out module.
 pub use crate::auth::scopes::{

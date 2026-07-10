@@ -27,7 +27,6 @@ async fn agent_pre_register_visible_in_kernel_before_mcp() {
         args: vec![],
         env: HashMap::new(),
         work_dir: std::env::temp_dir(),
-        workspace_id: None,
         agent_id: Some("test-agent".into()),
         harness: Some("claude".into()),
         parent_actor_id: None,

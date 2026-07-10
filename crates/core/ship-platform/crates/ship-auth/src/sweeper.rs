@@ -107,7 +107,6 @@ mod tests {
             agent_id: "agent".to_string(),
             scopes: vec![Scope::ReadWorkspace],
             grants: vec![],
-            workspace_id: None,
             space_id: None,
             pid: None,
             created_at: std::time::Instant::now(),

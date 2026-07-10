@@ -177,7 +177,6 @@ impl SearchContext for ShipdSearchContext {
             out.push(SessionSnapshot {
                 id: meta.id,
                 agent_id: meta.agent_id,
-                workspace_id: meta.workspace_id,
                 status: format!("{:?}", meta.status).to_lowercase(),
             });
         }
@@ -188,7 +187,6 @@ impl SearchContext for ShipdSearchContext {
             out.push(SessionSnapshot {
                 id: meta.id,
                 agent_id: meta.agent_id,
-                workspace_id: meta.workspace_id,
                 status: format!("{:?}", meta.status).to_lowercase(),
             });
         }

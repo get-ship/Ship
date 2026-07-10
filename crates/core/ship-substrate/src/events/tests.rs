@@ -134,19 +134,6 @@ fn test_filter_by_event_type() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[test]
-fn test_filter_by_workspace_id() -> anyhow::Result<()> {
-    let (_tmp, store) = setup();
-    let ev = EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "e1", &session_started("e1"))?
-        .with_scope(EventScope::Space, Some("ws-scoped"));
-    store.append(&ev)?;
-    store.append(&EventEnvelope::new(event_types::canonical_session::SESSION_STARTED, "e2", &session_started("e2"))?)?;
-
-    let results = store.query(&EventFilter { scope_key: Some("ws-scoped".into()), ..Default::default() })?;
-    assert_eq!(results.len(), 1);
-    assert_eq!(results[0].space_id(), Some("ws-scoped"));
-    Ok(())
-}
 
 #[test]
 fn test_causation_chain() -> anyhow::Result<()> {
@@ -196,7 +183,7 @@ fn test_payload_round_trip() -> anyhow::Result<()> {
     rt!(event_types::canonical_session::SESSION_STARTED, session_started("rt-entity"));
     rt!(event_types::canonical_session::SESSION_COMPLETED, TestCompleted { session_id: "rt-entity".into() });
     rt!(event_types::canonical_session::SESSION_FAILED, TestFailed { session_id: "rt-entity".into(), reason: "err".into() });
-    rt!(event_types::ACTOR_CREATED,         ActorCreated { kind: "worker".into(), environment_type: "cli".into(), workspace_id: None, parent_actor_id: None, restart_count: 0, ..Default::default() });
+    rt!(event_types::ACTOR_CREATED,         ActorCreated { kind: "worker".into(), environment_type: "cli".into(), parent_actor_id: None, restart_count: 0, ..Default::default() });
     rt!(event_types::ACTOR_WOKE,            ActorWoke {});
     rt!(event_types::ACTOR_SLEPT,           ActorSlept { idle_secs: 45 });
     rt!(event_types::ACTOR_STOPPED,         ActorStopped { reason: "shutdown".into(), ..Default::default() });

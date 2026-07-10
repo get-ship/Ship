@@ -100,7 +100,6 @@ async fn deny_all_blocks_egress_yet_sidecar_reachable() {
         ],
         env: HashMap::new(),
         work_dir: PathBuf::from("/"),
-        workspace_id: None,
         agent_id: None,
         harness: None,
         parent_actor_id: None,

@@ -78,13 +78,12 @@ fn next_request_id(op: &str) -> String {
 ///
 /// The gate reads only `grants` + `operator_cred` for C2/C3 enforcement, so
 /// those are faithfully threaded. `agent_id` is populated for observability.
-/// All other fields are `None`/default — space/workspace/session identity is
+/// All other fields are `None`/default — space/session identity is
 /// carried separately via `ToolCtx`, not through the gateway hop.
 fn floki_auth_to_shipd(fa: &FlokiAuth) -> ShipdAuth {
     ShipdAuth {
         caller_kind: CallerKind::Mcp,
         agent_id: Some(fa.agent_id.clone()),
-        workspace_id: None,
         space_id: None,
         session_id: None,
         scopes: vec![],

@@ -64,7 +64,6 @@ async fn actor_runs_inside_wsl_substrate() {
         args: vec!["true".into()],
         env: HashMap::new(),
         work_dir: PathBuf::from("/"),
-        workspace_id: None,
         agent_id: None,
         harness: None,
         parent_actor_id: None,

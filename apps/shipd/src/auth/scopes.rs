@@ -89,8 +89,6 @@ pub struct SessionRegisterRequest {
     pub agent_id: String,
     #[serde(default)]
     pub role: Option<String>,
-    #[serde(default)]
-    pub workspace_id: Option<String>,
 }
 
 #[derive(serde::Serialize)]
@@ -156,7 +154,6 @@ pub async fn session_register(
         agent_id: req.agent_id,
         scopes: scopes.clone(),
         grants,
-        workspace_id: req.workspace_id,
         space_id: None,
         pid: None,
         created_at: std::time::Instant::now(),

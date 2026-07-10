@@ -163,7 +163,6 @@ mod tests {
         let auth = AuthContext {
             caller_kind: CallerKind::Mcp,
             agent_id: Some(session.agent_id.clone()),
-            workspace_id: session.workspace_id.clone(),
             space_id: None,
             session_id: None,
             scopes: session.scopes.clone(),
@@ -189,7 +188,6 @@ mod tests {
         let bare_cli = AuthContext {
             caller_kind: CallerKind::Cli,
             agent_id: None,
-            workspace_id: None,
             space_id: None,
             session_id: None,
             scopes: vec![crate::auth::Scope::Full],

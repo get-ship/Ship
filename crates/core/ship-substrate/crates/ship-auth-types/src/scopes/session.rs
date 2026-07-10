@@ -23,13 +23,11 @@ pub struct DaemonSession {
     /// agent's provisioned set at register. Distinct from `scopes` (REST
     /// route-auth + artifacts). See `.artifacts/capability-provisioning-and-approval.md`.
     pub grants: Vec<String>,
-    pub workspace_id: Option<String>,
     /// The space this session belongs to (the pointer content-id). Authoritative
     /// per-connection space for the emit path: a space-window session carries its
     /// OWN space here (`space_window_session`), so events it emits are stamped with
     /// that space. `None` for sessions with no resolvable space — keyed `None` at
-    /// emit, never a fabricated home/global space (S2 home-space kill). Distinct
-    /// from `workspace_id` (a git branch slug). See spec
+    /// emit, never a fabricated home/global space (S2 home-space kill). See spec
     /// `.artifacts/specs/space/128-multi-space-emit.md`.
     pub space_id: Option<String>,
     /// Kernel-verified pid this token is bound to, if any. Set for webview
@@ -179,7 +177,6 @@ pub fn operator_session(peer_pid: u32, token: String) -> DaemonSession {
         scopes: vec![Scope::Full],
         // The operator clears the gate's grant axis — no per-service grants.
         grants: vec![],
-        workspace_id: None,
         // The operator session is space-less; emits key None (no home-space
         // fallback, S2). A space the operator works inside arrives via a
         // separate space-window token.
@@ -223,7 +220,6 @@ pub fn space_window_session(space_id: &str, peer_pid: u32, token: String) -> Dae
         // Every C2 elevated service — the operator's own profile. C3 stays
         // denied structurally (is_operator is false).
         grants: grants_for_role(Some("contributor")),
-        workspace_id: None,
         // The window's OWN space — the load-bearing line for multi-space. Events
         // this session emits are stamped with this space, not the daemon's home
         // space. See spec `.artifacts/specs/space/128-multi-space-emit.md`.
@@ -243,8 +239,9 @@ pub fn space_window_session(space_id: &str, peer_pid: u32, token: String) -> Dae
 /// Both the HTTP `session_register` handler and the sandbox supervisor
 /// call this. The supervisor mints a **per-process** token at sandbox
 /// prepare and pushes it into the actor via `Processes.Create.env` — the
-/// root daemon token never enters a container. The session is bound to
-/// `workspace_id`, which the daemon's per-project guard enforces.
+/// root daemon token never enters a container. The session has no
+/// per-project binding: per-project guard machinery is future DESIGNED work
+/// (space permissions session); for now, sessions key by `space_id` only.
 ///
 /// `ttl_secs = Some(n)` expires the session n seconds out; `None` = no
 /// expiry. Minted sessions are ephemeral (in-memory only): the supervisor
@@ -253,7 +250,6 @@ pub fn space_window_session(space_id: &str, peer_pid: u32, token: String) -> Dae
 pub async fn mint_session(
     registry: &SessionRegistry,
     agent_id: String,
-    workspace_id: Option<String>,
     role: Option<&str>,
     ttl_secs: Option<i64>,
 ) -> Result<(String, Vec<Scope>), getrandom::Error> {
@@ -265,7 +261,6 @@ pub async fn mint_session(
         agent_id,
         scopes: scopes.clone(),
         grants,
-        workspace_id,
         space_id: None,
         pid: None,
         created_at: std::time::Instant::now(),

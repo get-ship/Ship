@@ -53,7 +53,6 @@ async fn actor_runs_inside_apple_container() {
         args: vec!["-c".into(), "true".into()],
         env: HashMap::new(),
         work_dir: PathBuf::from("/"),
-        workspace_id: None,
         agent_id: None,
         harness: None,
         parent_actor_id: None,

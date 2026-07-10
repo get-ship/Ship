@@ -66,7 +66,6 @@ pub async fn issue_browser_session_with_ttl(
         agent_id: "browser".to_string(),
         scopes: vec![Scope::Full],
         grants: vec![],
-        workspace_id: None,
         space_id: None,
         pid: None,
         created_at: now,

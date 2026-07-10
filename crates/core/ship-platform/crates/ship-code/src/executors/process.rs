@@ -441,7 +441,6 @@ pub(crate) async fn mint_scoped_token(
             match ship_auth::scopes::mint_session(
                 &registry,
                 ctx.agent.clone(),
-                None,
                 Some("worker"),
                 None,
             )
@@ -920,7 +919,6 @@ impl SessionExecutor for ProcessExecutor {
             args: launch.args,
             env: launch.env,
             work_dir: ctx.work_dir.clone(),
-            workspace_id: None,
             agent_id: Some(ctx.agent.clone()),
             harness: ctx.launch.harness.clone(),
             parent_actor_id: None,
@@ -1383,7 +1381,6 @@ mod tests {
             args: vec!["-c".into(), "sleep 60".into()],
             env,
             work_dir: tmp.path().to_path_buf(),
-            workspace_id: None,
             agent_id: None,
             harness: None,
             parent_actor_id: None,

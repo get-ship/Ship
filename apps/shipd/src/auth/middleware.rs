@@ -59,7 +59,6 @@ pub async fn auth_middleware(
             let auth = AuthContext {
                 caller_kind: CallerKind::Cli,
                 agent_id: None,
-                workspace_id: None,
                 space_id: None,
                 session_id: None,
                 scopes: super::pairing::paired_session_scopes(),
@@ -82,7 +81,6 @@ pub async fn auth_middleware(
                         let auth = AuthContext {
                             caller_kind: CallerKind::Cli,
                             agent_id: None,
-                            workspace_id: session.workspace_id.clone(),
                             space_id: session.space_id.clone(),
                             session_id: None,
                             scopes: session.scopes.clone(),
@@ -167,7 +165,6 @@ pub async fn auth_middleware(
                 let auth = AuthContext {
                     caller_kind: CallerKind::Mcp,
                     agent_id: Some(session.agent_id.clone()),
-                    workspace_id: session.workspace_id.clone(),
                     // The session's space — for a space-window token this is the
                     // window's own space, so its emits land in that space.
                     space_id: session.space_id.clone(),
@@ -215,13 +212,11 @@ pub async fn auth_middleware(
     };
 
     let agent_id = header_string(&req, "x-ship-agent-id");
-    let workspace_id = header_string(&req, "x-ship-workspace-id");
     let session_id = header_string(&req, "x-ship-session-id");
 
     let auth = AuthContext {
         caller_kind,
         agent_id,
-        workspace_id,
         // Daemon/SDK tokens carry no session space; emits key None (no
         // home-space fallback on the emit path, S2).
         space_id: None,

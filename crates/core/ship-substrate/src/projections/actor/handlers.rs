@@ -34,8 +34,6 @@ struct CreatedPayload {
     kind: String,
     environment_type: String,
     #[serde(default)]
-    workspace_id: Option<String>,
-    #[serde(default)]
     space_id: Option<String>,
     #[serde(default)]
     cwd: Option<String>,
@@ -82,16 +80,15 @@ pub(super) fn apply_created(
         // the original row, refresh updated_at only.
         sqlx::query(
             "INSERT INTO actors \
-             (id, kind, environment_type, status, workspace_id, space_id, cwd, \
+             (id, kind, environment_type, status, space_id, cwd, \
               parent_actor_id, restart_count, agent_id, harness, model, transport, \
               persistence, system_prompt_hash, pid, capabilities_json, \
               created_at, updated_at, last_event_at) \
-             VALUES (?, ?, ?, 'created', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \
+             VALUES (?, ?, ?, 'created', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \
                      datetime('now'), datetime('now'), datetime('now')) \
              ON CONFLICT(id) DO UPDATE SET \
                  kind = excluded.kind, \
                  environment_type = excluded.environment_type, \
-                 workspace_id = excluded.workspace_id, \
                  space_id = excluded.space_id, \
                  cwd = excluded.cwd, \
                  parent_actor_id = excluded.parent_actor_id, \
@@ -107,7 +104,6 @@ pub(super) fn apply_created(
         .bind(entity_id)
         .bind(&p.kind)
         .bind(&p.environment_type)
-        .bind(&p.workspace_id)
         .bind(&p.space_id)
         .bind(&p.cwd)
         .bind(&p.parent_actor_id)

@@ -18,7 +18,6 @@ fn make_session(scopes: Vec<Scope>, pid: Option<u32>) -> DaemonSession {
         agent_id: "test-agent".to_string(),
         scopes,
         grants: vec![],
-        workspace_id: None,
         space_id: None,
         pid,
         created_at: std::time::Instant::now(),
@@ -194,7 +193,6 @@ fn auth_gate_matrix_mcp_auth_full_allows_all() {
     let auth = McpAuth {
         agent_id: "agent-x".to_string(),
         scopes: vec![Scope::Full],
-        workspace_id: None,
     };
     assert!(auth.allows(Scope::ReadWorkspace));
     assert!(auth.allows(Scope::AdminDaemon));
@@ -206,7 +204,6 @@ fn auth_gate_matrix_mcp_auth_worker_scopes_deny_admin() {
     let auth = McpAuth {
         agent_id: "worker-1".to_string(),
         scopes: scopes_for_role(Some("worker")),
-        workspace_id: None,
     };
     assert!(auth.allows(Scope::ReadWorkspace));
     assert!(!auth.allows(Scope::AdminDaemon));

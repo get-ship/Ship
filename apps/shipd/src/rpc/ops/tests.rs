@@ -31,7 +31,6 @@ fn auth(kind: CallerKind, agent: Option<&str>) -> AuthContext {
     AuthContext {
         caller_kind: kind,
         agent_id: agent.map(str::to_string),
-        workspace_id: None,
         space_id: None,
         session_id: None,
         scopes: vec![],
@@ -322,7 +321,6 @@ fn agents_create_requires_agents_grant_not_orchestration() {
     let commander = AuthContext {
         caller_kind: ship_substrate::events::CallerKind::Mcp,
         agent_id: Some("commander-1".to_string()),
-        workspace_id: None,
         space_id: None,
         session_id: None,
         scopes: vec![],
@@ -367,7 +365,6 @@ fn agent_grant_is_operator_only_c3() {
     let agent = AuthContext {
         caller_kind: ship_substrate::events::CallerKind::Mcp,
         agent_id: Some("x".to_string()),
-        workspace_id: None,
         space_id: None,
         session_id: None,
         scopes: vec![],
@@ -418,7 +415,6 @@ async fn agent_grant_upgrades_live_session_and_persists_baseline() {
                 agent_id: "worker-y".to_string(),
                 scopes: vec![],
                 grants: vec![],
-                workspace_id: None,
                 space_id: None,
                 pid: None,
                 created_at: std::time::Instant::now(),

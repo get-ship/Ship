@@ -12,7 +12,6 @@ use crate::types::{EntityKind, EntityKindFilter, SearchHit, SearchOpts};
 pub struct SessionSnapshot {
     pub id: String,
     pub agent_id: Option<String>,
-    pub workspace_id: String,
     pub status: String,
 }
 
@@ -35,7 +34,7 @@ impl EntitySearchAdapter for SessionsAdapter {
             .iter()
             .filter_map(|s| {
                 let primary = s.agent_id.as_deref().unwrap_or(&s.id);
-                let score = score_text(q, primary, Some(&s.workspace_id));
+                let score = score_text(q, primary, None);
                 if score <= 0.0 { return None; }
                 let label = match &s.agent_id {
                     Some(aid) => format!("{aid} ({})", s.status),
@@ -47,7 +46,7 @@ impl EntitySearchAdapter for SessionsAdapter {
                     label,
                     path: format!("/chats?session={}", s.id),
                     icon: Some("message-square-plus".into()),
-                    snippet: Some(format!("{} — {}", s.workspace_id, s.status)),
+                    snippet: Some(s.status.clone()),
                     score,
                     space_id: String::new(),
                 }))
@@ -68,7 +67,6 @@ mod tests {
             SessionSnapshot {
                 id: "s1".into(),
                 agent_id: Some("writer".into()),
-                workspace_id: "main".into(),
                 status: "idle".into(),
             },
         ]);

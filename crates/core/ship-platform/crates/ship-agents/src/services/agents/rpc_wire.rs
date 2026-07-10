@@ -698,13 +698,6 @@ impl AgentsServiceTrait for AgentsWire {
         (self.gate)(&ctx, "agents.dispatch")?;
 
 
-        // Per-project workspace isolation was a per-MCP-session check
-        // that died with the field-10 `workspace` slug label (census:
-        // unreachable from any current RPC once `DispatchAgentRequest`
-        // stopped carrying it). The dispatch port's `check_workspace_violation`
-        // surface was removed in the same cutover; the `AuthContext.workspace_id`
-        // field itself stays — separate ruling pending.
-
         //
         // When the daemon wires the in-memory AgentDefIndex (shipd's normal
         // posture), consult the index FIRST (the canonical, live read

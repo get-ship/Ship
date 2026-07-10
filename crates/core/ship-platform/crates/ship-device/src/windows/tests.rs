@@ -255,7 +255,7 @@ async fn close_non_window_actor_is_bad_args() {
     let sid = space.clone();
     tokio::task::spawn_blocking(move || {
         ship_substrate::db::actor_events::emit_actor_created_simple(
-            &aid, "agent", Some(&sid), None, None, None, None,
+            &aid, "agent", None, None, None, None,
         )
     })
     .await

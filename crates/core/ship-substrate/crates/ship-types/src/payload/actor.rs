@@ -7,8 +7,6 @@ pub struct ActorCreated {
     pub kind: String,
     pub environment_type: String,
     #[serde(default)]
-    pub workspace_id: Option<String>,
-    #[serde(default)]
     pub parent_actor_id: Option<String>,
     #[serde(default)]
     pub restart_count: u32,

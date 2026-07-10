@@ -216,7 +216,6 @@ fn should_run(action: &HookAction, render_ctx: &Value) -> Result<bool> {
 fn build_render_ctx(event_ctx: &Value, exec: &HookExecutionCtx) -> Value {
     json!({
         "event": event_ctx,
-        "workspace": event_ctx.get("workspace_id").cloned().unwrap_or(Value::Null),
         "actor": event_ctx.get("actor_id").cloned().unwrap_or(Value::Null),
         "hook": {
             "name": exec.hook_name,

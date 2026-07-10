@@ -471,7 +471,6 @@ fn space_window_session_mints_space_binding() {
     let auth = AuthContext {
         caller_kind: CallerKind::Mcp,
         agent_id: Some(session.agent_id.clone()),
-        workspace_id: session.workspace_id.clone(),
         space_id: session.space_id.clone(),
         session_id: None,
         scopes: session.scopes.clone(),
@@ -500,7 +499,6 @@ fn operator_authority_requires_a_verified_cred_not_the_cli_transport() {
     let operator = AuthContext {
         caller_kind: CallerKind::Cli,
         agent_id: None,
-        workspace_id: None,
         space_id: None,
         session_id: None,
         scopes: vec![],
@@ -514,7 +512,6 @@ fn operator_authority_requires_a_verified_cred_not_the_cli_transport() {
     let bare_cli = AuthContext {
         caller_kind: CallerKind::Cli,
         agent_id: None,
-        workspace_id: None,
         space_id: None,
         session_id: None,
         scopes: vec![Scope::Full],
@@ -529,7 +526,6 @@ fn operator_authority_requires_a_verified_cred_not_the_cli_transport() {
     let sdk = AuthContext {
         caller_kind: CallerKind::Sdk,
         agent_id: None,
-        workspace_id: None,
         space_id: None,
         session_id: None,
         scopes: vec![],

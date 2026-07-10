@@ -43,7 +43,6 @@ pub enum SessionStatus {
 pub struct SessionMeta {
     pub id: SessionId,
     pub kind: SessionKind,
-    pub workspace_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

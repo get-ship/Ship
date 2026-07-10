@@ -54,19 +54,17 @@ impl SessionRegistry {
         metas
     }
 
-    /// Find an existing session for a `(workspace, agent, harness)`
-    /// tuple. Used by spawn-or-attach flows so we don't duplicate.
+    /// Find an existing session for an `(agent, harness)` tuple. Used by
+    /// spawn-or-attach flows so we don't duplicate.
     pub fn find_agent_session(
         &self,
-        workspace_id: &str,
         agent_id: &str,
         harness: &str,
     ) -> Option<PtySession> {
         let guard = self.inner.lock().unwrap();
         for handle in guard.values() {
             let meta = handle.meta.lock().unwrap();
-            if meta.workspace_id == workspace_id
-                && meta.agent_id.as_deref() == Some(agent_id)
+            if meta.agent_id.as_deref() == Some(agent_id)
                 && meta.harness.as_deref() == Some(harness)
             {
                 return Some(PtySession(handle.clone()));

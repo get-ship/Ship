@@ -38,13 +38,12 @@ pub struct SpawnOutcome {
 /// `attached = true`. Otherwise spawn a fresh PTY.
 pub fn spawn_agent(
     registry: &SessionRegistry,
-    workspace_id: &str,
     agent_id: &str,
     harness: &str,
     work_dir: PathBuf,
     log_dir: PathBuf,
 ) -> Result<SpawnOutcome> {
-    if let Some(existing) = registry.find_agent_session(workspace_id, agent_id, harness) {
+    if let Some(existing) = registry.find_agent_session(agent_id, harness) {
         return Ok(SpawnOutcome {
             session: existing,
             attached: true,
@@ -74,7 +73,6 @@ pub fn spawn_agent(
     let meta = SessionMeta {
         id: id.clone(),
         kind: SessionKind::Agent,
-        workspace_id: workspace_id.to_string(),
         agent_id: Some(agent_id.to_string()),
         harness: Some(harness.to_string()),
         pid: None,

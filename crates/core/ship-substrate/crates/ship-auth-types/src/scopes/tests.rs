@@ -17,7 +17,6 @@ fn session_bound_to(pid: Option<u32>) -> DaemonSession {
         agent_id: "win".to_string(),
         scopes: vec![],
         grants: vec![],
-        workspace_id: None,
         space_id: None,
         pid,
         created_at: std::time::Instant::now(),
@@ -168,7 +167,6 @@ async fn mint_session_registers_scoped_bound_token() {
     let (token, scopes) = mint_session(
         &registry,
         "rust-lane".into(),
-        Some("proj-a".into()),
         Some("worker"),
         Some(3600),
     )
@@ -181,7 +179,6 @@ async fn mint_session_registers_scoped_bound_token() {
 
     let reg = registry.lock().await;
     let session = reg.get(&token).expect("registered");
-    assert_eq!(session.workspace_id.as_deref(), Some("proj-a"));
     assert_eq!(session.agent_id, "rust-lane");
     assert!(session.ephemeral);
     assert!(session.expires_at_unix.is_some());
@@ -196,7 +193,7 @@ async fn global_registry_set_then_mint_visible() {
     set_session_registry(reg.clone());
     let installed = session_registry().expect("a registry is installed");
     let (token, _) =
-        mint_session(&installed, "a".into(), Some("p".into()), Some("worker"), None)
+        mint_session(&installed, "a".into(), Some("worker"), None)
             .await
             .unwrap();
     assert!(installed.lock().await.contains_key(&token));
@@ -207,7 +204,7 @@ async fn drop_session_invalidates_token() {
     let registry: SessionRegistry =
         Arc::new(Mutex::new(std::collections::HashMap::new()));
     let (token, _) =
-        mint_session(&registry, "a".into(), None, Some("worker"), None)
+        mint_session(&registry, "a".into(), Some("worker"), None)
             .await
             .unwrap();
     assert!(registry.lock().await.contains_key(&token));

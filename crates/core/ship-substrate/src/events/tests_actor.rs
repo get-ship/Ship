@@ -128,7 +128,7 @@ fn test_elevated_filter() -> anyhow::Result<()> {
 fn supervisor_queries_elevated_child_events_by_parent_actor_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
 
-    let parent_ev = EventEnvelope::new(event_types::ACTOR_CREATED, "supervisor-1", &crate::events::types::ActorCreated { kind: "supervisor".into(), environment_type: "local".into(), workspace_id: None, parent_actor_id: None, restart_count: 0, ..Default::default() })?
+    let parent_ev = EventEnvelope::new(event_types::ACTOR_CREATED, "supervisor-1", &crate::events::types::ActorCreated { kind: "supervisor".into(), environment_type: "local".into(), parent_actor_id: None, restart_count: 0, ..Default::default() })?
         .with_actor_id("supervisor-1")
         .elevate();
     store.append(&parent_ev)?;

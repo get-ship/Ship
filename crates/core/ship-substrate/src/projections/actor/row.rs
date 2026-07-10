@@ -8,7 +8,6 @@ pub struct ActorRow {
     pub id: String,
     pub kind: String,
     pub status: String,
-    pub workspace_id: Option<String>,
     pub space_id: Option<String>,
     pub cwd: Option<String>,
     pub agent_id: Option<String>,
@@ -36,14 +35,13 @@ pub struct ActorRow {
 /// Filter for `list_actors`. All `Option`s default to "no filter."
 #[derive(Default, Debug, Clone)]
 pub struct ListActorsFilter {
-    pub workspace_id: Option<String>,
     pub kind: Option<String>,
     pub status: Option<String>,
     pub limit: i64,
 }
 
 pub(super) const SELECT_COLS: &str =
-    "id, kind, status, workspace_id, space_id, cwd, agent_id, harness, model, \
+    "id, kind, status, space_id, cwd, agent_id, harness, model, \
      transport, persistence, harness_session_id, system_prompt_hash, \
      pid, capabilities_json, parent_actor_id, restart_count, exit_code, \
      exit_reason, duration_ms, created_at, updated_at, last_event_at";
@@ -111,7 +109,6 @@ pub(super) fn row_to_actor(row: &sqlx::sqlite::SqliteRow) -> ActorRow {
                 String::new()
             }),
         status,
-        workspace_id: row.try_get("workspace_id").ok(),
         space_id: row.try_get("space_id").ok(),
         cwd: row.try_get("cwd").ok(),
         agent_id: row.try_get("agent_id").ok(),

@@ -43,7 +43,6 @@ pub fn auth_context_from_peer(
         PeerIdentity::Operator => Some(AuthContext {
             caller_kind: CallerKind::Cli,
             agent_id: None,
-            workspace_id: None,
             // Peer-cred identities run in the daemon's home space.
             space_id: None,
             session_id: None,
@@ -56,10 +55,9 @@ pub fn auth_context_from_peer(
         PeerIdentity::Agent(id) => Some(AuthContext {
             caller_kind: CallerKind::Mcp,
             agent_id: Some(id.clone()),
-            workspace_id: None,
-            space_id: None,
             session_id: None,
             scopes: scopes_for_role(role),
+            space_id: None,
             grants,
             operator_cred: false,
         }),
@@ -89,49 +87,6 @@ pub fn enforce_mcp_identity(
     Err((StatusCode::FORBIDDEN, Json(json!({ "error": msg }))).into_response())
 }
 
-/// Reject if an MCP caller bound to a workspace tries to act on a
-/// different workspace. This is the per-project enforcement teeth for
-/// sandbox-minted tokens: a session scoped to project A is hard-rejected
-/// against project B's resources.
-///
-/// The guard bites only on a *definite* mismatch (bound = Some(A),
-/// claimed = Some(B), A != B). A bound session reaching a non-workspace
-/// resource (claimed = None) passes, as does an unbound MCP session —
-/// sandbox tokens always carry a workspace, so unbound is the
-/// legacy/Studio case. Non-MCP callers pass through.
-#[allow(clippy::result_large_err)] // axum Response is the contract here
-pub fn enforce_mcp_workspace(
-    auth: &AuthContext,
-    claimed_workspace_id: Option<&str>,
-) -> Result<(), Response> {
-    match mcp_workspace_violation(auth, claimed_workspace_id) {
-        None => Ok(()),
-        Some(msg) => Err((StatusCode::FORBIDDEN, Json(json!({ "error": msg }))).into_response()),
-    }
-}
-
-/// Pure policy behind [`enforce_mcp_workspace`]: returns the violation
-/// message if this MCP caller (bound to a workspace) is acting on a
-/// different one, else `None`. Handlers whose return type isn't `Response`
-/// call this directly and shape their own error.
-pub fn mcp_workspace_violation(
-    auth: &AuthContext,
-    claimed_workspace_id: Option<&str>,
-) -> Option<String> {
-    if auth.caller_kind != CallerKind::Mcp {
-        return None;
-    }
-    let (Some(bound), Some(claimed)) = (auth.workspace_id.as_deref(), claimed_workspace_id) else {
-        return None;
-    };
-    if bound == claimed {
-        return None;
-    }
-    Some(format!(
-        "workspace mismatch: MCP session bound to project '{bound}' cannot act on project '{claimed}'",
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -141,7 +96,6 @@ mod tests {
         AuthContext {
             caller_kind: CallerKind::Mcp,
             agent_id: id.map(str::to_string),
-            workspace_id: None,
             space_id: None,
             session_id: None,
             scopes: vec![Scope::Full],
@@ -154,56 +108,12 @@ mod tests {
         AuthContext {
             caller_kind: CallerKind::Cli,
             agent_id: None,
-            workspace_id: None,
             space_id: None,
             session_id: None,
             scopes: vec![Scope::Full],
             grants: vec![],
             operator_cred: false,
         }
-    }
-
-    fn mcp_ws(workspace: Option<&str>) -> AuthContext {
-        AuthContext {
-            caller_kind: CallerKind::Mcp,
-            agent_id: Some("a".into()),
-            workspace_id: workspace.map(str::to_string),
-            space_id: None,
-            session_id: None,
-            scopes: vec![Scope::Full],
-            grants: vec![],
-            operator_cred: false,
-        }
-    }
-
-    #[test]
-    fn mcp_matching_workspace_passes() {
-        assert!(enforce_mcp_workspace(&mcp_ws(Some("proj-a")), Some("proj-a")).is_ok());
-    }
-
-    #[test]
-    fn mcp_cross_workspace_rejected() {
-        // The keystone: a session bound to project A cannot touch project B.
-        assert!(enforce_mcp_workspace(&mcp_ws(Some("proj-a")), Some("proj-b")).is_err());
-    }
-
-    #[test]
-    fn mcp_bound_to_unscoped_resource_passes() {
-        // Resource carries no workspace (e.g. agent self-info) — a bound
-        // session may still reach it; the guard only bites cross-project.
-        assert!(enforce_mcp_workspace(&mcp_ws(Some("proj-a")), None).is_ok());
-    }
-
-    #[test]
-    fn mcp_unbound_passes() {
-        // Unbound MCP (e.g. Studio) carries no project restriction.
-        // Sandbox-minted tokens always bind, so this is the legacy/trusted case.
-        assert!(enforce_mcp_workspace(&mcp_ws(None), Some("proj-b")).is_ok());
-    }
-
-    #[test]
-    fn cli_workspace_passes_through() {
-        assert!(enforce_mcp_workspace(&cli(), Some("anything")).is_ok());
     }
 
     #[test]

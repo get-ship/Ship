@@ -80,7 +80,7 @@ impl TerminalWire {
 impl TerminalService for TerminalWire {
     // ── Spawn ────────────────────────────────────────────────────────────
     // Phase 3: shell kind only. The new `SpawnTerminalRequest` carries
-    // `workspace_id` + `kind` + `work_dir` — no `agent_id` / `harness`
+    // `kind` + `work_dir` — no `agent_id` / `harness`
     // fields. The persistent-harness path (Claude, with --resume) needs
     // those to call `agent_actor::spawn_or_attach`; the wire refuses
     // `agent` here rather than fabricate. Phase 4 extends the proto
@@ -91,14 +91,12 @@ impl TerminalService for TerminalWire {
         _ctx: RequestContext,
         request: OwnedSpawnTerminalRequestView,
     ) -> ServiceResult<TerminalSession> {
-        let workspace_id = request.workspace_id.to_string();
         let kind = request.kind.to_string();
         let work_dir = resolve_work_dir(&self.state, &request.work_dir);
 
         match kind.as_str() {
             "shell" => match ship_terminal::shell_actor::spawn_shell(
                 self.state.pty_sessions(),
-                &workspace_id,
                 work_dir,
                 self.state.ship_dir().join("logs").join("sessions"),
             ) {
@@ -331,7 +329,6 @@ fn meta_to_wire(m: &SessionMeta) -> TerminalSession {
     TerminalSession {
         id: m.id.clone(),
         kind: kind_str(m.kind),
-        workspace_id: m.workspace_id.clone(),
         agent_id: m.agent_id.clone().unwrap_or_default(),
         harness: m.harness.clone().unwrap_or_default(),
         status: status_str(m.status),

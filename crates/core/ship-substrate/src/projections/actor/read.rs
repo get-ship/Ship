@@ -12,9 +12,6 @@ pub fn list_actors(filter: &ListActorsFilter) -> Result<Vec<ActorRow>> {
     let mut sql = format!(
         "SELECT {SELECT_COLS} FROM actors WHERE 1=1"
     );
-    if filter.workspace_id.is_some() {
-        sql.push_str(" AND workspace_id = ?");
-    }
     if filter.kind.is_some() {
         sql.push_str(" AND kind = ?");
     }
@@ -25,9 +22,6 @@ pub fn list_actors(filter: &ListActorsFilter) -> Result<Vec<ActorRow>> {
 
     block_on(async {
         let mut q = sqlx::query(&sql);
-        if let Some(w) = &filter.workspace_id {
-            q = q.bind(w);
-        }
         if let Some(k) = &filter.kind {
             q = q.bind(k);
         }
@@ -86,7 +80,6 @@ pub struct ActorEventRow {
     pub entity_id: String,
     pub actor_id: Option<String>,
     pub target_actor_id: Option<String>,
-    pub workspace_id: Option<String>,
     pub session_id: Option<String>,
     pub parent_actor_id: Option<String>,
     pub payload_json: String,
@@ -109,8 +102,7 @@ pub fn list_actor_events(
     let limit = if limit > 0 { limit } else { 500 }.min(2000);
     let mut sql = String::from(
         "SELECT id, event_type, entity_id, actor_id, target_actor_id, \
-         workspace_id, session_id, parent_actor_id, payload_json, created_at \
-         FROM events \
+         session_id, parent_actor_id, payload_json, created_at \
          WHERE (actor_id = ? OR target_actor_id = ?)",
     );
     if from_id.is_some() {
@@ -153,7 +145,6 @@ pub fn list_actor_events(
                     }),
                     actor_id: r.try_get("actor_id").ok(),
                     target_actor_id: r.try_get("target_actor_id").ok(),
-                    workspace_id: r.try_get("workspace_id").ok(),
                     session_id: r.try_get("session_id").ok(),
                     parent_actor_id: r.try_get("parent_actor_id").ok(),
                     payload_json: r.try_get("payload_json").unwrap_or_else(|e| {
@@ -173,13 +164,13 @@ pub fn list_actor_events(
     })
 }
 
-/// Look up `(status, workspace_id)` for routing decisions in the input
+/// Look up `(status, space_id)` for routing decisions in the input
 /// endpoint. Returns `None` if the actor isn't in the projection.
 pub fn actor_status(actor_id: &str) -> Result<Option<(String, Option<String>)>> {
     let mut conn = crate::db::open_runtime_db(&crate::project::get_global_dir()?)?;
     block_on(async {
         let row: Option<(String, Option<String>)> = sqlx::query_as(
-            "SELECT status, workspace_id FROM actors WHERE id = ?",
+            "SELECT status, space_id FROM actors WHERE id = ?",
         )
         .bind(actor_id)
         .fetch_optional(&mut conn)

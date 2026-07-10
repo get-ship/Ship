@@ -88,6 +88,12 @@ pub fn build() -> LiveResolverRegistry {
     // service; the registry composes the `GitOverview` payload from its read
     // fns directly. The view subscribes `git.overview` through the multiplex;
     // there is no GitService on the wire.
+    //
+    // Gated behind `ship-code`: the default shipd build is ship-standard
+    // (no harness-driver stack), and the git overview composes against
+    // `state.workspace_dir()` which the ship-standard build doesn't expose.
+    // With `ship-code` off, this resolver would always return `null`.
+    #[cfg(feature = "ship-code")]
     reg.register(
         "git",
         "overview",
@@ -99,7 +105,6 @@ pub fn build() -> LiveResolverRegistry {
             let branches = ship_git::read::load_branches(root);
             let (ahead, behind) = ship_git::read::load_ahead_behind(root).unwrap_or((0, 0));
             let overview = ship_git::state::GitOverview {
-                workspace_id: None,
                 branch,
                 head_short: ship_git::read::load_head_short(root),
                 clean: buckets.clean,
@@ -115,7 +120,6 @@ pub fn build() -> LiveResolverRegistry {
             serde_json::to_value(&overview).unwrap_or(Value::Null)
         }),
     );
-
     // agents.summaries — reuses the agents-wire `Summaries` builder. The
     // wire's `AgentsService::Summaries` rpc calls the same `list_agents`
     // helper; the multiplex's re-resolution loop runs the same call. The
@@ -203,7 +207,14 @@ mod tests {
     #[test]
     fn registered_ops_resolve_and_unknown_is_none() {
         let reg = build();
-        assert!(reg.has("git", "overview"));
+        // git.overview only registers in the harness-driver build (ship-code
+        // feature). The default ship-standard build is intentionally git-less —
+        // the resolver composes against state.workspace_dir() which ship-standard
+        // doesn't expose. The test gates the assertion the same way.
+        #[cfg(feature = "ship-code")]
+        assert!(reg.has("git", "overview"), "git.overview registered in ship-code build");
+        #[cfg(not(feature = "ship-code"))]
+        assert!(!reg.has("git", "overview"), "git.overview not registered in ship-standard build");
         assert!(reg.has("agents", "summaries"), "agents.summaries registered (job/livedata-coverage)");
         assert!(reg.has("collections", "list"), "collections.list registered (job/livedata-coverage)");
         assert!(reg.has("account", "state"), "account.state registered (job/phase3b-rewires)");

@@ -30,8 +30,6 @@ pub struct ProcessProfile {
     pub args: Vec<String>,
     pub env: HashMap<String, String>,
     pub work_dir: PathBuf,
-
-    pub workspace_id: Option<String>,
     pub agent_id: Option<String>,
     pub harness: Option<String>,
     pub parent_actor_id: Option<String>,

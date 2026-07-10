@@ -717,11 +717,8 @@ pub fn structured_diff(
 // Every verdict bit the row needs is pre-computed by the leaf so the TS side
 // is a flat render (no re-derivation, no extra round-trips).
 
-/// Enumerate the repo's worktrees via libgit2. Replaces
-/// `git worktree list --porcelain` shell-out (see
-/// [`super::state::worktree_path_for_branch`] for the seam this obsoletes —
-/// not migrated in this job, but the loader here is what the seam will call
-/// next).
+/// Enumerate the repo's worktrees via libgit2 — the leaf's replacement
+/// for the `git worktree list --porcelain` shell-out.
 ///
 /// The main worktree is always first with `is_current = true`; linked
 /// worktrees follow in `git worktree list` order with `is_current = false`.
