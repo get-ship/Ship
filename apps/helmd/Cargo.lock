@@ -1760,7 +1760,6 @@ dependencies = [
  "ship-paths",
  "ship-pipeline-runtime",
  "ship-resolver",
- "ship-runner",
  "ship-store",
  "ship-substrate",
  "ship-types",
@@ -4388,7 +4387,6 @@ dependencies = [
  "ship-ops-rpc",
  "ship-reactive",
  "ship-resolver",
- "ship-runner",
  "ship-store",
  "ship-substrate",
  "ship-terminal",
@@ -4512,7 +4510,6 @@ dependencies = [
  "ship-harnesses",
  "ship-isolation",
  "ship-resolver",
- "ship-runner",
  "ship-substrate",
  "ship-types",
  "sysinfo",
@@ -4641,7 +4638,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "ship-runner",
  "ship-substrate",
  "tokio",
  "tracing",
@@ -4748,7 +4744,6 @@ dependencies = [
  "ship-pipelines",
  "ship-platform",
  "ship-reactive",
- "ship-runner",
  "ship-store",
  "ship-substrate",
  "ship-types",
@@ -4818,7 +4813,6 @@ dependencies = [
  "ship-harnesses",
  "ship-isolation",
  "ship-kernel",
- "ship-runner",
  "ship-space",
  "ship-store",
  "ship-substrate",
@@ -4879,21 +4873,6 @@ dependencies = [
  "ship-store",
  "ship-substrate",
  "ship-types",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "ship-runner"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "serde",
- "serde_json",
- "ship-substrate",
- "ship-types",
- "thiserror 2.0.18",
  "tokio",
  "tracing",
 ]
