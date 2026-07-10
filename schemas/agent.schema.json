@@ -167,24 +167,51 @@
         "inline": {
           "type": "string",
           "description": "Inline always-on rules. Use \\n for line breaks."
+        },
+        "refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Rule IDs to filter the project rule pool to (file names without the `NNNN-` prefix / `.md` suffix). Empty = inherit the whole pool."
         }
       },
       "additionalProperties": false
     },
     "hooks": {
-      "type": "object",
-      "description": "Hook commands declared on the agent. The compiler emits each into the active harness's hook registration (e.g. .claude/settings.json:hooks).",
-      "properties": {
-        "stop": {
-          "type": "string",
-          "description": "Command to run when the agent session ends (Claude Code Stop hook)."
+      "type": "array",
+      "description": "Hook commands declared on the agent. The general HookConfig form (carrying a HookTrigger); compile emits each into the active harness's hook registration (e.g. .claude/settings.json:hooks).",
+      "items": {
+        "type": "object",
+        "required": ["id", "trigger", "command"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable identifier for this hook entry (used as a key when merging into harness config)."
+          },
+          "trigger": {
+            "type": "string",
+            "enum": ["PreToolUse", "PostToolUse", "Notification", "Stop", "SubagentStop", "PreCompact"],
+            "description": "Lifecycle event that fires this hook. Stop fires on agent session end; SubagentStop on sub-agent end; PreToolUse/PostToolUse gate tool calls; Notification fires on agent notifications; PreCompact fires before context compaction."
+          },
+          "matcher": {
+            "type": ["string", "null"],
+            "description": "Optional tool-name matcher (e.g. \"Bash\", \"Edit\"). When set, the hook only fires for matching tool calls. Ignored for non-PreToolUse/PostToolUse triggers."
+          },
+          "command": {
+            "type": "string",
+            "description": "Shell command to run when the hook fires."
+          },
+          "cursor_event": {
+            "type": "string",
+            "description": "Raw Cursor event name. When set, bypasses trigger mapping and emits directly to Cursor's hooks file."
+          }
         },
-        "subagent_stop": {
-          "type": "string",
-          "description": "Command to run when a sub-agent session ends (SubagentStop hook)."
-        }
-      },
-      "additionalProperties": false
+        "additionalProperties": false
+      }
+    },
+    "target_agents": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Harness targets to sync this agent to (e.g. [\"claude\", \"codex\"]). Empty = sync to every blessed harness."
     },
     "apps": {
       "type": "object",

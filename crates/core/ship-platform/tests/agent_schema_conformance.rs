@@ -113,7 +113,13 @@ fn full_profile() -> AgentProfile {
                 trigger: HookTrigger::Stop,
                 matcher: None,
                 command: "ship session end".into(),
-                cursor_event: None,
+                // `cursor_event` is the only `HookConfig` field with
+                // `skip_serializing_if = Option::is_none` — set it `Some`
+                // on the first array element so the per-element key
+                // comparison (the first element stands in for all) sees
+                // the full struct surface. Mirrors the `ProfileMeta.icon`
+                // rule.
+                cursor_event: Some("sessionEnd".into()),
             },
             HookConfig {
                 id: "subagent-end".into(),
@@ -172,24 +178,45 @@ fn per_section_key_parity() {
     let profile = serde_json::to_value(full_profile()).expect("serialize profile");
     let profile_obj = profile.as_object().expect("profile object");
 
-    // Each Ship-owned nested object: its serialized struct keys must equal the
-    // schema section's `properties` keys. Pins default_mode, hooks.*,
+    // Each Ship-owned nested section: its serialized struct keys must equal
+    // the schema section's `properties` keys. Pins default_mode,
     // apps.studio, plugins.scope, and every other nested field exactly.
     // `harness_settings` is excluded — it is the opaque seam (covered by
     // `harness_settings_seam_matches_registry`).
+    //
+    // Most sections are object-shaped. `hooks` is a `Vec<HookConfig>` —
+    // serialized as a JSON array; the per-element schema lives under
+    // `items.properties`, so we compare the first populated element's
+    // serialized keys against THAT subtree. (One element is enough: the
+    // schema item-template constrains every element, and `full_profile`
+    // populates every field — a `skip_serializing_if` omission on
+    // `cursor_event` would only ever underflow the schema side, not the
+    // struct side, so a single representative element catches the drift.)
     for section in [
         "agent", "skills", "mcp", "plugins", "permissions", "rules", "hooks", "apps",
     ] {
-        let struct_keys = serialized_keys(
-            profile_obj
-                .get(section)
-                .unwrap_or_else(|| panic!("profile has section `{section}`")),
-        );
-        let schema_keys = property_keys(
-            schema_props
-                .get(section)
-                .unwrap_or_else(|| panic!("schema has section `{section}`")),
-        );
+        let section_value = profile_obj
+            .get(section)
+            .unwrap_or_else(|| panic!("profile has section `{section}`"));
+        let schema_section = schema_props
+            .get(section)
+            .unwrap_or_else(|| panic!("schema has section `{section}`"));
+        let (struct_keys, schema_keys) = if section_value.is_array() {
+            let first = section_value
+                .as_array()
+                .and_then(|a| a.first())
+                .unwrap_or_else(|| panic!("section `{section}` array is non-empty"));
+            (
+                serialized_keys(first),
+                property_keys(
+                    schema_section
+                        .get("items")
+                        .unwrap_or_else(|| panic!("schema section `{section}` has `items`")),
+                ),
+            )
+        } else {
+            (serialized_keys(section_value), property_keys(schema_section))
+        };
         assert_eq!(
             struct_keys, schema_keys,
             "section `{section}` key drift: {}",
