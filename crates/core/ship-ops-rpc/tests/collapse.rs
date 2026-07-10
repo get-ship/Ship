@@ -46,9 +46,11 @@ fn agent_service_exposes_every_folded_rpc() {
     }
 
     // ── Profile reads ──
+    // `Harnesses` is NOT here: it moved to ship.code.v1.CodeService with
+    // the 2026-07-10 mount split (coding capability surface).
     for rpc in [
         "List", "Summaries", "Detail", "Catalogs", "Get", "Wire", "Settings",
-        "Templates", "PermissionPresets", "Harnesses", "CreateCtx",
+        "Templates", "PermissionPresets", "CreateCtx",
     ] {
         assert!(m.contains(rpc), "AgentsService must expose profile read rpc `{rpc}`");
     }

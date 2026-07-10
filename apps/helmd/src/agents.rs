@@ -189,13 +189,23 @@ impl AgentsHost for HelmAgentsHost {
     }
 }
 
-/// Mount the `ship.ops.v1.AgentsService` read surface onto `router` via the
-/// lean mount. A permissive gate is used — helmd is operator-local dev and
-/// serves reads only.
-pub fn mount(router: ConnectRouter, daemon_origin: String) -> anyhow::Result<ConnectRouter> {
+/// Mount the `ship.ops.v1.AgentsService` read surface onto `router` via
+/// the lean mount. A permissive gate is used — helmd is operator-local
+/// dev and serves reads only. Returns the live `AgentDispatchPort` so
+/// the `code::mount` call site can wire it into the testbed
+/// `CodeService` mount without rebuilding a second adapter (a single
+/// kernel subscription serves both wires).
+pub fn mount(
+    router: ConnectRouter,
+    daemon_origin: String,
+) -> anyhow::Result<(
+    ConnectRouter,
+    std::sync::Arc<dyn ship_agents::services::agents::dispatch_core::AgentDispatchPort>,
+)> {
     let host = HelmAgentsHost::new(daemon_origin)?;
     let gate: GateFn = Arc::new(|_ctx: &RequestContext, _op: &str| Ok(()));
-    Ok(mount_agents_wire(&host, gate, router))
+    let port = host.dispatch_port();
+    Ok((mount_agents_wire(&host, gate, router), port))
 }
 
 // ── No-op daemon-side ports ────────────────────────────────────────────────

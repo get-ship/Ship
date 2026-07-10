@@ -55,6 +55,7 @@ pub struct BranchSummary {
 }
 
 /// Repo overview payload returned by the `git.overview` registry op.
+#[derive(Clone, Serialize)]
 pub struct GitOverview {
     pub branch: Option<String>,
     pub head_short: Option<String>,

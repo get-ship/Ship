@@ -9,11 +9,20 @@
 //! carries the proto-policy introspection map.
 
 mod agents_wire;
+// ship.code.v1.CodeService — the coding-agent capability surface
+// (mount split 2026-07-10). Mounted at router assembly under
+// `--features ship-code` (the single conditional). With the feature
+// off, no route is registered — the path is absent (Connect discovers
+// the service by path presence; absence is structural, not a refused
+// call). The mount reuses the same `AgentDispatchAdapter` the in-process
+// `AgentsService.Dispatch` wire uses (one kernel subscription serves
+// both wires).
+#[cfg(feature = "ship-code")]
+mod code_wire;
 mod pipelines_wire;
 pub mod policy;
 mod terminal_wire;
 mod ui_wire;
-
 pub use policy::{OP_POLICY, OpPolicy, policy_for};
 
 use std::sync::Arc;
@@ -179,11 +188,12 @@ pub fn router(state: ApiState) -> axum::Router {
         device_pid,
         device_space_fn,
     ));
-    let router = ship_ops_rpc::DeviceServiceExt::register(device_wire, router);
-    // pipelines.* — crate-owned PipelinesWire; closures in `pipelines_wire`.
-    let router = pipelines_wire::mount(router, &state, &gate);
-    // agents.* + agent.* — crate-owned AgentsWire; closures in `agents_wire`.
     let router = agents_wire::mount(router, &state, gate);
+    // ship.code.v1.CodeService — coding-class dispatch surface; gated
+    // behind `--features ship-code` (mount split 2026-07-10). With the
+    // feature off, this compiles to nothing and the route is absent.
+    #[cfg(feature = "ship-code")]
+    let router = code_wire::mount(router, &state);
     // account.* — typed AccountService (account.proto), served by the
     // `ship-account` crate (`AccountWire`). Process-global identity: token at
     // rest under `<daemon_dir>/account.jsonc`, `account.*` + `daemon.owner.*`

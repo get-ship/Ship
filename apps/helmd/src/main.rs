@@ -78,19 +78,22 @@ pub mod proto {
 // The `ship.ops.v1.AgentsService` read surface — helmd's first substrate-backed
 // wire (see module + Cargo.toml LEAF PROOF note).
 mod agents;
+// ship.code.v1.CodeService — helmd's coding-class dispatch surface. Mounted
+// UNCONDITIONALLY (testbed posture, mount split 2026-07-10). With
+// `ship-code` OFF the route still parses the request and resolves the
+// agent; the absence of a coding executor is structural, not a refused
+// call. With `ship-code` ON, this is the end-to-end path the coding
+// agent takes on shipd (worktree fork + compile + tmux launch).
+mod code;
 // ship.ops.v1.CollectionsService — helmd's next substrate service (S5 dogfood
 // cutover, Slice 0): event-sourced typed collections over the active space.db.
 mod collections;
 // Real agent-dispatch runtime (spine 2b) — the ship-code consumer construction
-// that actually spawns agents. Gated: the lean read path in `agents` works with
-// the feature OFF (NoopDispatch + dispatch_handle == None).
-#[cfg(feature = "ship-code")]
 mod dispatch;
 // Git hook guards (pre-push + pre-commit). No feature gate — these are
 // helmd's contract with the operator regardless of which features are on.
 // Dispatch installs on every dispatch; Overview installs on every repo the
 // SPA opens; the `--install-hooks` CLI flag installs on a path the operator
-// names explicitly.
 pub mod guards;
 
 use std::path::PathBuf;
@@ -1590,12 +1593,15 @@ async fn main() -> anyhow::Result<()> {
             .map_or_else(|| addr.clone(), |port| format!("localhost:{port}"));
         format!("http://{shown}")
     };
-    let connect = agents::mount(connect, daemon_origin)?;
-    // Fourth wire: `ship.ops.v1.CollectionsService` over the active space's
+    let (connect, dispatch_port) = agents::mount(connect, daemon_origin)?;
+    // surface, mounted UNCONDITIONALLY (testbed posture, mount split
+    // 2026-07-10). Shares the dispatch port the in-process agents
+    // service uses, so a coding-class dispatch and a floki-class
+    // dispatch go through the same `service.agents` actor.
+    let connect = code::mount(connect, dispatch_port, None)?;
     // `space.db` (S5 dogfood cutover, Slice 0). Skipped (with a WARN) when no
     // active space is discoverable.
     let connect = collections::mount(connect).await?;
-
     // CORS so the browser — Helm's SPA, served by Hono on another origin (e.g.
     // http://localhost:3000) — can dial GitService directly in dev. Connect-web
     // sends `content-type` + `connect-protocol-version` headers, which trip a

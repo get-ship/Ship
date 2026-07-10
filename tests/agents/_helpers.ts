@@ -165,57 +165,72 @@ async function connectCall<TReq, TRes>(
   }
   return { status: r.status, body: parsed as TRes };
 }
-
 // ── Dispatch ───────────────────────────────────────────────────────────────
-// Connects to `AgentsService.Dispatch` (proto/ship/ops/v1/agents.proto:457).
-// Replaces the deleted `POST /api/v1/agent_sessions/dispatch` REST handler.
+// Mount split 2026-07-10: the in-process
+// `ship.ops.v1.AgentsService.Dispatch` is slim (floki-class only) and
+// doesn't carry the harness fields the tests use. Coding-class
+// dispatches route to `ship.code.v1.CodeService.Dispatch`, which is
+// the new wire. Connect over HTTP+JSON uses the proto's camelCase
+// mapping (Connect convention — buffa emits a `serde(rename = "…")`
+// per proto3 default JSON name; the older snake_case aliases still
+// decode but the wire contract is camelCase now).
 
 export type Invocation = "pty" | "print" | "stream";
 
-// The dispatch primitive replaced the old `auto: bool` with three
-// orthogonal axes (see runtime_api::dispatch_request validation):
-//   - open_tab:   does this open an attachable PTY surface? (UX)
-//   - invocation: how the harness is invoked — pty/print/stream
-//   - keepalive:  stay alive awaiting the next push after the turn?
-// Defaults here match the common compat-test case: a background PTY
-// harness that comes up, idles, and is cancelled — no terminal attach,
-// no keepalive. Tests that need a different shape (transport, push)
-// set the axes explicitly.
+// The dispatch primitive carried three orthogonal axes on
+// `DispatchAgentRequest` (`open_tab` / `invocation` / `keepalive`) and
+// a slim field set {agent, prompt, model, slug}. The coding
+// `CodeDispatchRequest` drops `open_tab` and adds the harness-class
+// fields (spec / harness / resume / source_spec_path / depends_on /
+// repo_path / base_ref). Tests that need a coding dispatch send the
+// full set; the in-process path (now used only for floki-class
+// agents) uses the slim four.
 export interface DispatchInput {
   agent: string;
   harness: string;
   prompt?: string;
   spec?: string;
-  workspace?: string;
   model?: string;
-  open_tab?: boolean;
   invocation?: Invocation;
   keepalive?: boolean;
+  repoPath?: string;
+  baseRef?: string;
+  sourceSpecPath?: string;
+  dependsOn?: string[];
+  resume?: boolean;
+  branch?: string;
 }
 
-// Wire shape — `DispatchAgentRequest` in agents.proto. Snake-case fields
-// mirror the proto exactly; Connect over HTTP+JSON uses JSON conventions.
-interface DispatchAgentWire {
+// Wire shape — `CodeDispatchRequest` in code.proto. camelCase per
+// Connect's proto3 default JSON mapping. Buffa emits the same
+// snake_case aliases as fallback (DecodeError tolerated by
+// `deny_unknown_fields = false` in the wire decoder).
+interface CodeDispatchWire {
   agent: string;
   harness: string;
   prompt?: string;
   spec?: string;
-  workspace?: string;
-  model?: string;
-  open_tab?: boolean;
-  invocation?: Invocation;
+  sourceSpecPath?: string;
+  resume?: boolean;
+  invocation?: string;
   keepalive?: boolean;
+  branch?: string;
+  dependsOn?: string[];
+  repoPath?: string;
+  baseRef?: string;
+  model?: string;
+  slug?: string;
 }
 
-// Wire shape — `DispatchResult` in agents.proto. All fields are strings
-// except `resume` (bool) and `billing_warning` (optional string).
-interface DispatchResultWire {
+// Wire shape — `CodeDispatchResult` in code.proto. Five fields; only
+// `session_id` and `slug` are required to consider a dispatch
+// successful for the test.
+interface CodeDispatchResultWire {
   session_id: string;
   slug: string;
-  branch: string;
+  branch?: string;
   resume?: boolean;
   studio_url?: string;
-  billing_warning?: string;
 }
 
 export interface Dispatched {
@@ -226,19 +241,24 @@ export interface Dispatched {
 }
 
 export async function dispatch(input: DispatchInput): Promise<Dispatched> {
-  const wire: DispatchAgentWire = {
+  const wire: CodeDispatchWire = {
     agent: input.agent,
     harness: input.harness,
     prompt: input.prompt,
     spec: input.spec,
-    workspace: input.workspace,
-    model: input.model,
-    open_tab: input.open_tab ?? false,
+    sourceSpecPath: input.sourceSpecPath,
+    resume: input.resume ?? false,
     invocation: input.invocation ?? "pty",
     keepalive: input.keepalive ?? false,
+    branch: input.branch ?? "",
+    dependsOn: input.dependsOn ?? [],
+    repoPath: input.repoPath ?? "",
+    baseRef: input.baseRef ?? "",
+    model: input.model,
+    slug: input.slug, // server derives when None; explicit in tests
   };
-  const { status, body } = await connectCall<DispatchAgentWire, DispatchResultWire>(
-    "AgentsService/Dispatch",
+  const { status, body } = await connectCall<CodeDispatchWire, CodeDispatchResultWire>(
+    "CodeService/Dispatch",
     wire,
   );
   if (status !== 200 || !body.session_id || !body.slug) {
@@ -248,7 +268,7 @@ export async function dispatch(input: DispatchInput): Promise<Dispatched> {
     status,
     slug: body.slug,
     sessionId: body.session_id,
-    branch: body.branch,
+    branch: body.branch ?? "",
   };
 }
 

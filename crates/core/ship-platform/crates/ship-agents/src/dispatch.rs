@@ -56,28 +56,12 @@ pub async fn handle_dispatch_requested(
             return;
         }
     };
-
-    // Loud refusal per seam-leak fix §6: a `dispatch.requested` that
-    // cannot be served by any present backend produces a typed
-    // `session.failed` event rather than silently dropping the envelope.
-    // The actor reaches this path for three reasons:
-    //   (a) the request is a floki dispatch but no floki closure is wired
-    //       (floki path: ship-standard with no `agent-session.actor`
-    //       floki gateway plumbed; the `lifecycle::start_agent_stack`
-    //       flag-off branch always builds AgentPorts with `floki_run_fn:
-    //       Some(...)` today, so this is the "future-proof" guard);
-    //   (b) the request targets a coding harness but `harness-drivers`
-    //       is OFF (the build is ship-standard; the daemon's only dispatch
-    //       backend is floki, never the harness driver stack) — under
-    //       this build the `cfg(harness-drivers)` arm is absent, so we
-    //       route through the refusal path explicitly here;
-    //   (c) the request is for a non-floki harness with no harness fields
-    //       wired (the AgentPorts.connector construction never selects the
-    //       harness path).
-    // All three are observable: a `session.failed` event with a reason
-    // lands in the kernel so the canonical_sessions projection
-    // transitions the session to `Failed` and the dashboard surfaces the
-    // reason to the operator.
+    // R-A (mount split, 2026-07-10): a floki dispatch with no
+    // closure wired still emits a typed `session.failed` — that's
+    // a real misconfiguration (the in-process floki runtime was
+    // not started), not a registry absence. A coding-agent request
+    // with no backend is now an absent service (no route mounted)
+    // and surfaces as a 404, NOT a refused call.
     let is_floki = payload.harness.as_deref() == Some("floki");
 
     if is_floki {
@@ -108,30 +92,13 @@ pub async fn handle_dispatch_requested(
 
     // From here, the request targets a coding harness (or no harness
     // was specified — which the dispatch core's validation should
-    // already reject). With harness-drivers OFF, there is no backend
-    // at all; refuse loudly.
-    #[cfg(not(feature = "harness-drivers"))]
-    {
-        tracing::warn!(
-            slug = payload.slug,
-            session_id = payload.session_id,
-            harness = ?payload.harness,
-            "service.agents: coding-agent dispatch.requested but shipd is \
-             ship-standard (no harness-drivers) — emitting typed \
-             session.failed"
-        );
-        emit_session_failed(
-            kernel,
-            &payload.session_id,
-            &payload.slug,
-            "no harness dispatch backend wired (shipd was built without \
-             the `ship-code` feature; rebuild with --features ship-code \
-             for coding agents)",
-        )
-        .await;
-        return;
-    }
-
+    // already reject). The harness-driver stack reaches this path
+    // when the install provides it (R-A: the registry is what the
+    // install provides; absence is structural, not an error). The
+    // `harness-drivers` cfg stays as the single conditional at the
+    // router assembly (mount split, 2026-07-10): shipd only builds
+    // this arm with `--features ship-code`, and a coding agent
+    // naming an unprovided harness is not on the resolvable set.
     #[cfg(feature = "harness-drivers")]
     {
         // (Engine cut 2026-07-10: the `parent_pipeline_run_id` skip is

@@ -29,7 +29,7 @@ use ship_config::agents_index::AgentDefIndex;
 use ship_ops_rpc::{
     AgentCatalogsResponse, AgentDetail, AgentDoc, AgentIndexResponse, AgentSettingsResponse,
     AgentTemplatesResponse, AgentWireResponse, AgentsService as AgentsServiceTrait,
-    AgentsSummariesResponse, DispatchResult, GrantResult, HarnessesResponse, JsonResponse,
+    AgentsSummariesResponse, DispatchResult, GrantResult, JsonResponse,
     PermissionPresetsResponse, ScopedMutation, SessionsListResponse, SteerResult, StopResult,
     WatchEvent,
 };
@@ -482,16 +482,6 @@ impl AgentsServiceTrait for AgentsWire {
         .map_err(|e| ConnectError::internal(format!("agents.permission_presets decode: {e}")))
     }
 
-    async fn harnesses(
-        &self,
-        _ctx: RequestContext,
-        _request: ship_ops_rpc::OwnedListAgentHarnessesRequestView,
-    ) -> ServiceResult<HarnessesResponse> {
-        use crate::services::agents::create;
-        serde_json::from_value::<HarnessesResponse>(json!({ "items": create::builtin_harnesses() }))
-            .map(Response::new)
-            .map_err(|e| ConnectError::internal(format!("agents.harnesses decode: {e}")))
-    }
 
     async fn create_ctx(
         &self,
@@ -694,11 +684,8 @@ impl AgentsServiceTrait for AgentsWire {
         ctx: RequestContext,
         request: ship_ops_rpc::OwnedDispatchAgentRequestView,
     ) -> ServiceResult<DispatchResult> {
-        use agent_def::InvocationMode;
         (self.gate)(&ctx, "agents.dispatch")?;
 
-
-        //
         // When the daemon wires the in-memory AgentDefIndex (shipd's normal
         // posture), consult the index FIRST (the canonical, live read
         // model) and fall back to the composed-roll-up check only when the
@@ -720,6 +707,8 @@ impl AgentsServiceTrait for AgentsWire {
             )));
         }
 
+        // The wire's "empty string = default" convention collapses to
+        // `None` so the in-process core never sees a sentinel value.
         fn opt_str(s: &str) -> Option<String> {
             if s.is_empty() {
                 None
@@ -728,43 +717,18 @@ impl AgentsServiceTrait for AgentsWire {
             }
         }
 
-        let invocation = match request.invocation {
-            "print" => InvocationMode::Print,
-            "stream" => InvocationMode::Stream,
-            _ => InvocationMode::Pty,
-        };
-        let depends_on = {
-            let v: Vec<String> = request.depends_on.iter().map(|s| s.to_string()).collect();
-            (!v.is_empty()).then_some(v)
-        };
-        let vars: std::collections::HashMap<String, String> = request
-            .vars
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect();
-        let vars = (!vars.is_empty()).then_some(vars);
-
+        // 2026-07-10). The wire carries `{agent, prompt, model, slug}`
+        // — every coding-class field (spec / resume / harness /
+        // invocation / keepalive / branch / source_spec_path /
+        // depends_on / repo_path / base_ref) is reserved on
+        // `DispatchAgentRequest` and lives on
+        // `ship.code.v1.CodeDispatchRequest` instead. A coding agent is
+        // simply not reachable on this surface.
         let dreq = DispatchRequest {
             agent: request.agent.to_string(),
-            spec: opt_str(request.spec),
             prompt: opt_str(request.prompt),
-            resume: request.resume.unwrap_or(false),
-            harness: opt_str(request.harness),
             model: opt_str(request.model),
-            open_tab: request.open_tab.unwrap_or(true),
-            invocation,
-            keepalive: request.keepalive.unwrap_or(true),
             slug: opt_str(request.slug),
-            branch: opt_str(request.branch),
-            source_spec_path: opt_str(request.source_spec_path),
-            depends_on,
-            vars,
-            // Per-call fork source. Empty strings are the wire's
-            // "default" sentinel; the dispatch core collapses them to
-            // `None` so `GitWorktreeIsolation::prepare` falls back to
-            // the daemon default repo / that repo's HEAD.
-            repo_path: opt_str(request.repo_path),
-            base_ref: opt_str(request.base_ref),
         };
 
         let outcome = dispatch_agent_session_core(self.dispatch_port.as_ref(), dreq)
@@ -777,8 +741,6 @@ impl AgentsServiceTrait for AgentsWire {
         Ok(Response::new(DispatchResult {
             session_id: outcome.session_id,
             slug: outcome.slug,
-            branch: outcome.branch,
-            resume: outcome.resume,
             studio_url: outcome.studio_url,
             billing_warning: outcome.billing_warning,
             ..Default::default()

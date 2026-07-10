@@ -25,7 +25,7 @@ use super::view_state::{
 };
 use super::wire::{AgentWireCtx, WireEdge, WireNode};
 use super::wire_types::{
-    AgentGetResponse, AgentIndexResponse, AgentTemplatesResponse, HarnessesResponse,
+    AgentGetResponse, AgentIndexResponse, AgentTemplatesResponse,
     PermissionPresetsResponse,
 };
 
@@ -212,11 +212,6 @@ impl PermissionPresetsResponse {
     }
 }
 
-impl HarnessesResponse {
-    pub fn example() -> Self {
-        HarnessesResponse { items: builtin_harnesses() }
-    }
-}
 
 impl AgentsCreateCtx {
     pub fn example() -> Self {
@@ -240,7 +235,10 @@ pub fn examples() -> Vec<(&'static str, Value)> {
         ("agents.settings", v(AgentSettingsCtx::example())),
         ("agents.templates", v(AgentTemplatesResponse::example())),
         ("agents.permission_presets", v(PermissionPresetsResponse::example())),
-        ("agents.harnesses", v(HarnessesResponse::example())),
+        // agents.harnesses moved to ship.code.v1.CodeService.Harnesses
+        // (mount split 2026-07-10) — see code_wire::harnesses for the
+        // live wire handler and the fixture in
+        // ship.code.v1.ListHarnessesResponse.
         ("agents.create_ctx", v(AgentsCreateCtx::example())),
     ]
 }
@@ -254,15 +252,14 @@ mod tests {
     #[test]
     fn agents_examples_cover_every_op() {
         let examples = examples();
-        assert_eq!(examples.len(), 11, "one example per agents data op");
+        assert_eq!(examples.len(), 10, "one example per agents data op");
         for (op, value) in &examples {
             assert!(value.is_object() || value.is_array(), "{op} example is structured");
         }
     }
-
     #[test]
     fn list_shaped_examples_carry_items() {
-        for op in ["agents.list", "agents.summaries", "agents.templates", "agents.harnesses"] {
+        for op in ["agents.list", "agents.summaries", "agents.templates"] {
             let (_, value) = examples().into_iter().find(|(n, _)| *n == op).unwrap();
             assert!(value["items"].is_array(), "{op} has items[]");
         }

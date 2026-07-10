@@ -17,7 +17,8 @@
 //! agent-run assembly) into the shared dispatch ports. The bare-agent
 //! path is the only dispatch surface post-cut.
 
-use ship_agents::{start_agents, AgentPorts, FlokiRunFn};
+use ship_agents::ports::FlokiRunFn;
+use ship_agents::{start_agents, AgentPorts};
 
 use ship_code::process_registry::SharedRegistry;
 

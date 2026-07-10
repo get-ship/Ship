@@ -240,8 +240,6 @@ fn post_dispatch(body: &serde_json::Value) -> Result<ship_ops_rpc::DispatchResul
     Ok(ship_ops_rpc::DispatchResult {
         session_id: v.session_id.to_string(),
         slug: v.slug.to_string(),
-        branch: v.branch.to_string(),
-        resume: v.resume,
         studio_url: v.studio_url.to_string(),
         billing_warning: v.billing_warning.map(|s| s.to_string()),
         ..Default::default()

@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 # Ship dispatch (portable) — a THIN helmd client.
 #
-# This script no longer compiles agents, creates worktrees, or launches
-# harnesses. helmd owns ALL of that now (ship.ops.v1.AgentsService/Dispatch
-# compiles in-dispatch, provisions the worktree, and launches the harness).
-# This wrapper just translates its CLI into a Connect-JSON POST to helmd —
-# every consumer (the helm SPA, the MCP dispatch_job tool via helm's dispatch
-# lib, an operator at the shell) is an RPC CLIENT of the ONE dispatch path.
+# Mount split 2026-07-10: the coding dispatch path moved to
+# `ship.code.v1.CodeService.Dispatch` (the new coding-agent capability
+# surface — Dispatch + Harnesses). The historical
+# `ship.ops.v1.AgentsService.Dispatch` is now slim (floki-class only);
+# the coding-class fields (spec / harness / repo_path / base_ref /
+# branch / invocation / keepalive / source_spec_path / depends_on /
+# resume) live on `CodeDispatchRequest` only.
 #
+# helmd owns ALL of dispatch (worktree fork + compile + harness launch).
+# This wrapper just translates its CLI into a Connect-JSON POST to
+# helmd — every consumer (the helm SPA, the MCP dispatch_job tool via
+# helm's dispatch lib, an operator at the shell) is an RPC CLIENT of
+# the ONE dispatch path.
 # If helmd is unreachable at the default endpoint (no HELMD_URL / HELMD_ADDR
 # override), this script tries to boot a local helmd from
 # `<repo>/target/debug/helmd` (the dev build) or `helmd` on PATH, polls for
@@ -115,42 +121,51 @@ if $DRY_RUN; then
   echo "  cd ${WORKTREE_PATH} && ${HARNESS}"
   exit 0
 fi
-
-# ── POST helmd.AgentsService/Dispatch ──────────────────────────────────────────
+# ── POST helmd.CodeService/Dispatch ─────────────────────────────────────────
+# Mount split 2026-07-10: the coding dispatch moves to
+# `ship.code.v1.CodeService.Dispatch`. The in-process
+# `ship.ops.v1.AgentsService.Dispatch` is now slim (floki-class only);
+# coding-class agents aren't on its resolvable set. The new wire carries
+# the full coding field set (spec / harness / repo_path / base_ref /
+# branch / invocation / keepalive / source_spec_path / depends_on /
+# resume). Field names use proto3 default JSON mapping (camelCase);
+# `sourceSpecPath` (not `source_spec_path`), `repoPath`, `baseRef`,
+# `dependsOn`.
 HELMD_URL="${HELMD_URL:-http://${HELMD_ADDR:-127.0.0.1:2469}}"
-ENDPOINT="${HELMD_URL%/}/ship.ops.v1.AgentsService/Dispatch"
-LIST_ENDPOINT="${HELMD_URL%/}/ship.ops.v1.AgentsService/List"
+ENDPOINT="${HELMD_URL%/}/ship.code.v1.CodeService/Dispatch"
+LIST_ENDPOINT="${HELMD_URL%/}/ship.code.v1.CodeService/Harnesses"
 
 # Build the Connect-JSON request body (camelCase per the proto JSON mapping).
 # Prefer jq for correct escaping; fall back to a heredoc when jq is absent.
-# `branch` is helmd's JOB-branch name (it provisions the worktree on it), NOT a
-# base-to-fork-from; DispatchAgentRequest has no base param. Leave it empty so
-# helmd applies its own `job/<slug>` convention. --base is accepted for CLI
-# back-compat but is advisory only (not forwarded — sending it as `branch` would
-# make helmd check out the integration branch instead of a fresh job branch).
+# `branch` is helmd's JOB-branch name (it provisions the worktree on it),
+# NOT a base-to-fork-from. `CodeDispatchRequest.branch` accepts an
+# explicit value; leave it empty so helmd applies its own `job/<slug>`
+# convention. --base is accepted for CLI back-compat but is advisory only
+# (not forwarded — sending it as `branch` would make helmd check out the
+# integration branch instead of a fresh job branch).
 #
-# keepalive:false → this CLI dispatch routes to the TmuxWindow executor: an
-# interactive agent in a tmux tab you can `tmux attach -t ship-<slug>` to.
-# keepalive:true would force the ProcessExecutor (the WS-attach / helm-UI
-# surface) and no terminal tab would open. The SPA picks its own surface.
-# The spec CONTENT is the dispatch PROMPT. helmd feeds `prompt` to the harness's
-# `autostart_prompt`, and the tmux/pty adapter send-keys it once the TUI's ready
-# pattern matches — so the agent starts with the job in hand, no `.artifacts`
-# file required. (Previously `prompt` was hardcoded "" and the spec was passed as
-# a PATH that staged an empty `.artifacts/job-spec.md`; the agent booted idle.)
-# `spec` carries the same content so anything still reading `.artifacts/job-spec.md`
-# gets the real body during the transition; `sourceSpecPath` keeps the origin
-# path for re-dispatch. `--rawfile` JSON-escapes the multi-KB markdown safely.
+# keepalive:false → this CLI dispatch routes to the TmuxWindow executor:
+# an interactive agent in a tmux tab you can `tmux attach -t ship-<slug>`
+# to. keepalive:true forces the ProcessExecutor (WS-attach / helm-UI
+# surface); no terminal tab opens. The SPA picks its own surface.
+# The spec CONTENT is the dispatch PROMPT. helmd feeds `prompt` to the
+# harness's `autostart_prompt`; the tmux/pty adapter send-keys it once
+# the TUI's ready pattern matches — the agent starts with the job in
+# hand, no `.artifacts` file required. `spec` carries the same content
+# so anything still reading `.artifacts/job-spec.md` gets the real body
+# during the transition; `sourceSpecPath` keeps the origin path for
+# re-dispatch. `--rawfile` JSON-escapes the multi-KB markdown safely.
 if command -v jq >/dev/null 2>&1; then
   BODY="$(jq -n \
     --arg agent "$AGENT" --arg harness "$HARNESS" --arg model "$MODEL" \
     --arg srcpath "$SPEC_FILE" --arg slug "$SLUG" \
     --arg repoPath "$REPO_PATH" --arg baseRef "$BASE_REF" \
     --rawfile body "$SPEC_FILE" \
-    '{agent:$agent, harness:$harness, model:$model, spec:$body,
-      sourceSpecPath:$srcpath, slug:$slug, branch:"",
-      repoPath:$repoPath, baseRef:$baseRef,
-      invocation:"pty", keepalive:false, prompt:$body}')"
+    '{agent:$agent, harness:$harness, model:$model, slug:$slug,
+      spec:$body, sourceSpecPath:$srcpath, resume:false,
+      invocation:"pty", keepalive:false, branch:"",
+      dependsOn:[], repoPath:$repoPath, baseRef:$baseRef,
+      prompt:$body}')"
 else
   # No jq: build the JSON with python3 (safe escaping of the spec body).
   BODY="$(python3 - "$AGENT" "$HARNESS" "$MODEL" "$SPEC_FILE" "$SLUG" "$REPO_PATH" "$BASE_REF" <<'PY'
@@ -158,16 +173,15 @@ import json, sys
 agent, harness, model, spec_file, slug, repo_path, base_ref = sys.argv[1:8]
 body = open(spec_file, encoding="utf-8").read()
 print(json.dumps({
-    "agent": agent, "harness": harness, "model": model,
-    "spec": body, "sourceSpecPath": spec_file, "slug": slug,
-    "branch": "",
-    "repoPath": repo_path, "baseRef": base_ref,
-    "invocation": "pty", "keepalive": False, "prompt": body,
+    "agent": agent, "harness": harness, "model": model, "slug": slug,
+    "spec": body, "sourceSpecPath": spec_file, "resume": False,
+    "invocation": "pty", "keepalive": False, "branch": "",
+    "dependsOn": [], "repoPath": repo_path, "baseRef": base_ref,
+    "prompt": body,
 }))
 PY
 )"
 fi
-
 # POST and return "code\nbody" on stdout. The two-arg stdout-from-curl trick
 # preserves the body even on 4xx/5xx (curl by default drops the body on error
 # in --fail mode; we use the manual code-strip below to keep both).
@@ -269,3 +283,4 @@ echo "  $PAYLOAD"
 echo ""
 echo "Launch manually:"
 echo "  cd ${WORKTREE_PATH} && ${HARNESS}"
+exit 0

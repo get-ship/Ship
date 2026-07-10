@@ -33,8 +33,12 @@ fn type_validators() -> BTreeMap<&'static str, fn(&Value) -> Result<()>> {
         v!(CollectionList), v!(CollectionDetail), v!(ItemPage), v!(Item), v!(WatchEvent),
         v!(SearchResponse),
         v!(AgentIndexResponse), v!(AgentsSummariesResponse), v!(AgentDetail),
-        v!(AgentTemplatesResponse), v!(PermissionPresetsResponse), v!(HarnessesResponse),
-        // S4: the four structured reads + the opaque-doc read.
+        v!(AgentTemplatesResponse), v!(PermissionPresetsResponse),
+        // HarnessesResponse moved to ship.code.v1.ListHarnessesResponse
+        // (mount split 2026-07-10) — the internal HarnessService still
+        // exists, but its typed shape lives in
+        // ship.internal.v1.HarnessService; the code.v1 surface exposes
+        // its own ListHarnessesResponse with `items: repeated string`.
         v!(AgentCatalogsResponse), v!(AgentWireResponse), v!(AgentSettingsResponse), v!(AgentDoc),
         // S4: the four typed control results.
         v!(DispatchResult), v!(StopResult), v!(SteerResult), v!(GrantResult),
