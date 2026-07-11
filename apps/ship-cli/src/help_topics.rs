@@ -137,12 +137,15 @@ const TOPIC_SKILLS: &str = "\
 Skills
 
 Skills are markdown files that add domain knowledge or workflow instructions
-to an agent. They live in .ship/skills/<skill-id>/SKILL.md.
+to an agent. They live in <space-root>/skills/<skill-id>/SKILL.md (the
+space root is the directory containing ship.config.ts).
 
-  Create a new skill:    mkdir .ship/skills/my-skill && edit SKILL.md
+  Create a new skill:    mkdir skills/my-skill && edit SKILL.md
 
-Skills are referenced in agent JSONC files:
-  \"skills\": { \"refs\": [\"my-skill\", \"code-review\"] }
+Skills are declared in the space's ship.config.ts via `defineSkill(...)`
+declare-forms (post Wave 5). The on-disk convention here is the
+compilation / KV-vars surface; the live `defineSkill` path is what the
+resolver harvests into ExtensionLibrary::skills.
 
 A skill directory contains SKILL.md (required), and optionally
 assets/vars.json (typed variables) and references/docs/ (reference material).

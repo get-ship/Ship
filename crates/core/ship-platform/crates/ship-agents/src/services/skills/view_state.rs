@@ -121,13 +121,13 @@ pub(crate) fn scopes_from(
     ship_dir: &Path,
     project_ship_dir: Option<&Path>,
 ) -> SkillScopes {
-    let global_parent = ship_dir.parent().unwrap_or(ship_dir);
-    let global_dirs = crate::agent_domain::skill_paths::read_skill_paths(ship_dir, global_parent);
+    let space_root = ship_dir.parent().unwrap_or(ship_dir);
+    let global_dirs = crate::agent_domain::skill_paths::read_skill_paths(space_root);
 
     let project_dirs = match project_ship_dir {
         Some(project_ship) if project_ship != ship_dir => {
             let project_root = project_ship.parent().unwrap_or(project_ship);
-            crate::agent_domain::skill_paths::read_skill_paths(project_ship, project_root)
+            crate::agent_domain::skill_paths::read_skill_paths(project_root)
         }
         _ => Vec::new(),
     };

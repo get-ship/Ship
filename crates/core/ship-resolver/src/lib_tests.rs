@@ -1293,3 +1293,81 @@ defineAgent({ agent: { id: "child-b-only", name: "Child B Only" } });
         "the child extension's hook is dropped by the PIN: {hook_ids:?}"
     );
 }
+
+// ── defineConfig e2e: per-extension-project skill path walk ────────────
+//
+// The dot-ship close-out moved `space.skill_paths` out of `ship.jsonc`
+// and into the per-extension-project declare-form
+// `defineConfig({ skills: { paths } })` (default-export shape). The
+// resolver rolls the per-module `paths` into
+// `ExtensionLibrary::skill_paths` post-eval and re-walks them for
+// on-disk skills. This test exercises the end-to-end shape: a
+// `ship.config.ts` declaring a custom `paths` value, an on-disk skill
+// in that custom dir, and the assertion that the composed library
+// surfaces both the path AND the walked skill record.
+#[tokio::test(flavor = "current_thread")]
+async fn defineConfig_custom_skill_paths_walk_finds_on_disk_skill() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().to_path_buf();
+    std::fs::create_dir_all(root.join(".ship")).unwrap();
+
+    // `ship.config.ts` declares a custom skills dir via the
+    // per-extension-project `defineConfig` default-export form.
+    // `skills_dir` is a single directory name (no trailing slash)
+    // relative to the dir containing this `ship.config.ts`
+    // (the space root here).
+    std::fs::write(
+        root.join("ship.config.ts"),
+r#"
+import { defineConfig, defineAgent } from "ship";
+
+defineAgent({
+  agent: { id: "demo", name: "Demo" },
+});
+
+defineConfig({
+  skills_dir: "custom-skills",
+});
+"#,
+    )
+    .unwrap();
+
+    // On-disk skill in the custom dir. Wave 5's declare-form path
+    // is the live authoring surface, but the resolver also walks
+    // the `defineConfig` paths for on-disk skill assets so the
+    // descriptor cache captures their content.
+    let custom = root.join("custom-skills").join("custom-skill");
+    std::fs::create_dir_all(&custom).unwrap();
+    std::fs::write(
+        custom.join("SKILL.md"),
+        "---\nname: custom-skill\ndescription: From the custom dir\n---\nBody.\n",
+    )
+    .unwrap();
+
+    let cache_root = root.join("empty_cache");
+    std::fs::create_dir_all(&cache_root).unwrap();
+    let library_root = root.join("empty_library");
+    let composed = roll_up(&root, Some(&cache_root), Some(&library_root))
+        .await
+        .unwrap();
+    let lib = &composed.library;
+    // The `defineConfig` value was rolled into the descriptor's
+    // `skill_paths` field — the scalar override REPLACES the leaf's
+    // unified default (per the interjection's "scalar options
+    // follow root-last-wins" rule; the spec's "concat" rule applied
+    // to the old `paths` array shape).
+    let paths: Vec<&str> = lib.skill_paths.iter().map(String::as_str).collect();
+    assert_eq!(
+        paths,
+        vec!["custom-skills"],
+        "defineConfig skills_dir replaces the unified default: {paths:?}"
+    );
+
+    // The custom-dir skill is in the composed library.
+    let skill_ids: std::collections::HashSet<&str> =
+        lib.skills.iter().map(|s| s.id.as_str()).collect();
+    assert!(
+        skill_ids.contains("custom-skill"),
+        "custom-dir skill lands in library.skills: {skill_ids:?}"
+    );
+}

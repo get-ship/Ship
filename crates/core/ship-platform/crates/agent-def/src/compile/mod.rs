@@ -187,7 +187,7 @@ fn compile_from_library(
         for skill_id in &opts.extra_skills {
             anyhow::ensure!(
                 library.skills.iter().any(|s| &s.id == skill_id),
-                "skill not found: {} — check space.skill_paths in ship.jsonc",
+                "skill not found: {} — check ship.config.ts defineSkill declare-forms",
                 skill_id
             );
         }

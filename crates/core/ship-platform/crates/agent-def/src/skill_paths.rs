@@ -1,64 +1,21 @@
-//! Resolve skill discovery directories from the manifest.
+//! Resolve skill discovery directories on disk.
 //!
-//! By default, skills live in `.ship/skills/`. The `space.skill_paths` field
-//! in `ship.jsonc` allows additional directories (relative to the space root).
+//! By default, skills live in `<space_root>/skills/` (the space root being
+//! the directory that contains `ship.config.ts`). The constant
+//! [`compiler::loader::DEFAULT_SPACE_SKILL_PATH`] is the single source of
+//! truth — this module imports it. The pre-cutover `space.skill_paths`
+//! ship.jsonc field died with the dot-ship close-out: nobody set it, and
+//! custom skill paths are now a declare-form problem in `ship.config.ts`.
 
 use std::path::{Path, PathBuf};
 
-/// Default skill dir, joined onto `ship_dir` — the source directory on disk
-/// (see `ShipHome::project_ship_dir`). So this is `"skills/"`, NOT
-/// `".ship/skills/"`: it resolves to `<space>/.ship/skills/`. Do not re-add the
-/// `.ship/` prefix — that double-counts to `<space>/.ship/.ship/skills/` (the
-/// bug from b2f75a7b2 "skills/ → .ship/skills/").
-const DEFAULT_SKILL_DIR: &str = "skills/";
+use compiler::loader::DEFAULT_SPACE_SKILL_PATH;
 
-/// Read `space.skill_paths` from the manifest and return resolved absolute
-/// directory paths.
-///
-/// - `.ship/skills/` is always included as the first entry.
-/// - Custom paths from `space.skill_paths` resolve relative to `space_root`.
-pub fn read_skill_paths(ship_dir: &Path, space_root: &Path) -> Vec<PathBuf> {
-    let mut result = vec![ship_dir.join(DEFAULT_SKILL_DIR)];
-
-    let raw_paths = read_raw_skill_paths(ship_dir);
-    for p in &raw_paths {
-        if Path::new(p).is_absolute() {
-            continue;
-        }
-        let resolved = space_root.join(p);
-        if resolved != result[0] {
-            result.push(resolved);
-        }
-    }
-
-    result
-}
-
-/// Read the raw string values from the manifest without resolving them.
-/// Returns an empty vec when the field is absent or unreadable.
-fn read_raw_skill_paths(ship_dir: &Path) -> Vec<String> {
-    let primary = ship_dir.join(ship_config::project::PRIMARY_CONFIG_FILE);
-    let content = match std::fs::read_to_string(&primary) {
-        Ok(c) => c,
-        Err(_) => return vec![],
-    };
-    let parsed: serde_json::Value = match serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&content)) {
-        Ok(v) => v,
-        Err(_) => return vec![],
-    };
-
-    let paths = parsed
-        .get("space")
-        .and_then(|p| p.get("skill_paths"))
-        .and_then(|v| v.as_array());
-
-    match paths {
-        Some(arr) => arr
-            .iter()
-            .filter_map(|v| v.as_str().map(ToOwned::to_owned))
-            .collect(),
-        None => vec![],
-    }
+/// Resolve the on-disk skill dirs for one space. Returns the single
+/// default entry — there is no extras walk (the `space.skill_paths`
+/// manifest field is gone).
+pub fn read_skill_paths(space_root: &Path) -> Vec<PathBuf> {
+    vec![space_root.join(DEFAULT_SPACE_SKILL_PATH)]
 }
 
 #[cfg(test)]
@@ -67,95 +24,44 @@ mod tests {
     use std::fs;
     use tempfile::tempdir;
 
-    fn write_manifest(ship_dir: &Path, content: &str) {
-        fs::create_dir_all(ship_dir).unwrap();
-        fs::write(ship_dir.join(ship_config::project::PRIMARY_CONFIG_FILE), content).unwrap();
-    }
-
     #[test]
-    fn defaults_to_skills_when_absent() {
+    fn defaults_to_space_root_skills() {
         let tmp = tempdir().unwrap();
         let space_root = tmp.path();
-        let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
-        write_manifest(&ship_dir, r#"{"id": "test123"}"#);
-
-        let paths = read_skill_paths(&ship_dir, space_root);
-        assert_eq!(paths.len(), 1);
-        assert_eq!(paths[0], ship_dir.join("skills/"));
+        let paths = read_skill_paths(space_root);
+        assert_eq!(paths, vec![space_root.join("skills/")]);
     }
 
     #[test]
-    fn defaults_when_no_manifest() {
+    fn no_extras_when_manifest_lacks_skill_paths() {
+        // The manifest field is dead — a ship.jsonc with no
+        // `space.skill_paths` is the same as no ship.jsonc at all.
         let tmp = tempdir().unwrap();
         let space_root = tmp.path();
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
         fs::create_dir_all(&ship_dir).unwrap();
-
-        let paths = read_skill_paths(&ship_dir, space_root);
-        assert_eq!(paths.len(), 1);
-        assert_eq!(paths[0], ship_dir.join("skills/"));
+        fs::write(
+            ship_dir.join(ship_config::project::PRIMARY_CONFIG_FILE),
+            r#"{"id": "test123"}"#,
+        )
+        .unwrap();
+        let paths = read_skill_paths(space_root);
+        assert_eq!(paths, vec![space_root.join("skills/")]);
     }
 
     #[test]
-    fn reads_custom_skill_paths() {
+    fn no_extras_when_manifest_omits_skill_paths_field() {
+        // The same for a manifest that simply omits the field.
         let tmp = tempdir().unwrap();
         let space_root = tmp.path();
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
-        write_manifest(
-            &ship_dir,
-            r#"{"id": "test123", "space": {"skill_paths": ["docs/", "internal/skills/"]}}"#,
-        );
-
-        let paths = read_skill_paths(&ship_dir, space_root);
-        assert_eq!(paths.len(), 3);
-        assert_eq!(paths[0], ship_dir.join("skills/"));
-        assert_eq!(paths[1], space_root.join("docs/"));
-        assert_eq!(paths[2], space_root.join("internal/skills/"));
-    }
-
-    #[test]
-    fn rejects_absolute_paths() {
-        let tmp = tempdir().unwrap();
-        let space_root = tmp.path();
-        let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
-        write_manifest(
-            &ship_dir,
-            r#"{"id": "test123", "space": {"skill_paths": ["/etc/evil/"]}}"#,
-        );
-
-        let paths = read_skill_paths(&ship_dir, space_root);
-        assert_eq!(paths.len(), 1);
-        assert_eq!(paths[0], ship_dir.join("skills/"));
-    }
-
-    #[test]
-    fn empty_array_falls_back_to_default() {
-        let tmp = tempdir().unwrap();
-        let space_root = tmp.path();
-        let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
-        write_manifest(
-            &ship_dir,
-            r#"{"id": "test123", "space": {"skill_paths": []}}"#,
-        );
-
-        let paths = read_skill_paths(&ship_dir, space_root);
-        assert_eq!(paths.len(), 1);
-        assert_eq!(paths[0], ship_dir.join("skills/"));
-    }
-
-    #[test]
-    fn space_root_relative_custom_path() {
-        let tmp = tempdir().unwrap();
-        let space_root = tmp.path();
-        let ship_dir = ship_substrate::ShipHome::project_ship_dir(space_root);
-        write_manifest(
-            &ship_dir,
-            r#"{"id": "test123", "space": {"skill_paths": ["custom-skills/"]}}"#,
-        );
-
-        let paths = read_skill_paths(&ship_dir, space_root);
-        assert_eq!(paths.len(), 2);
-        assert_eq!(paths[0], ship_dir.join("skills/"));
-        assert_eq!(paths[1], space_root.join("custom-skills/"));
+        fs::create_dir_all(&ship_dir).unwrap();
+        fs::write(
+            ship_dir.join(ship_config::project::PRIMARY_CONFIG_FILE),
+            r#"{"id": "test123", "space": {}}"#,
+        )
+        .unwrap();
+        let paths = read_skill_paths(space_root);
+        assert_eq!(paths, vec![space_root.join("skills/")]);
     }
 }

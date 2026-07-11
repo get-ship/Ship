@@ -75,9 +75,10 @@ fn fixture_round_trips_byte_unchanged() {
 
     // Defaults for every new field must be the leaf's "absent" value:
     // empty strings/vecs, Value::Null for globals, None for Options.
-    // `skill_paths` is the exception: the leaf's manifest read guarantees
-    // the default project path is always present, even with no `ship.jsonc`
-    // ("an empty manifest yields exactly the default").
+    // `skill_paths` is the exception: the leaf populates it with
+    // the single default entry ([`DEFAULT_SPACE_SKILL_PATH`])
+    // unconditionally — the `space.skill_paths` ship.jsonc field
+    // died with the dot-ship close-out, so no extras walk exists.
     assert!(lib.skills_dir.is_none());
     assert!(lib.rules_dir.is_none());
     assert_eq!(lib.skill_paths, vec![compiler::loader::DEFAULT_SPACE_SKILL_PATH.to_string()]);
@@ -118,7 +119,7 @@ fn rules_dir_round_trips() {
 fn skill_paths_round_trips() {
     let mut lib = ExtensionLibrary::default();
     lib.skill_paths = vec![
-        ".ship/skills/".to_string(),
+        "skills/".to_string(),
         "vendor/sui/skills/".to_string(),
     ];
     assert_byte_identical(&lib, "ExtensionLibrary::skill_paths");

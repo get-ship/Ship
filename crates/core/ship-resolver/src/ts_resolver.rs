@@ -60,6 +60,7 @@ fn merge_declarations(all: &mut Declarations, module: Declarations) {
     all.triggers.extend(module.triggers);
     all.collections.extend(module.collections);
     all.views.extend(module.views);
+    all.config.extend(module.config);
 }
 
 /// Evaluate every TS module in `imported_modules` and return the merged

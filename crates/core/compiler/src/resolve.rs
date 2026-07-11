@@ -339,10 +339,14 @@ pub struct ExtensionLibrary {
     /// default `.ship/rules/`. The `rules_dir` key in `ship.config.ts` lands here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rules_dir: Option<String>,
-    /// Additional skill paths from `space.skill_paths` in `ship.jsonc`
-    /// (migrated from agent-def's `skill_paths.rs`). Paths are project-relative;
-    /// absolute paths are rejected at the call site. The first entry is always
-    /// the default `.ship/skills/` (preserves today's behavior).
+    /// The default skill path the leaf populates. Single-entry list
+    /// carrying [`DEFAULT_SPACE_SKILL_PATH`] (the only on-disk
+    /// surface for skill assets post Wave 5). The
+    /// `space.skill_paths` ship.jsonc field died with the dot-ship
+    /// close-out; no extras are ever appended. Skills themselves
+    /// arrive via `defineSkill` declare-forms in
+    /// `ship.config.ts` and land in `ExtensionLibrary::skills`
+    /// through `ship_resolver::merge_ts_declarations`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub skill_paths: Vec<String>,
     /// Per-agent skills from the `agents/<id>/{SKILL.md,*.md}` convention walk

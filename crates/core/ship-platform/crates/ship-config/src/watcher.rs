@@ -27,26 +27,39 @@
 //!
 //! ## Source-root coverage (Phase-3 J-event-channel)
 //!
-//! The three domain dirs above don't reach `ship.config.ts` (the space-root manifest)
-//! or a `space.skill_paths` entry that lives outside `.ship/skills/`. The
-//! retired ship-resolver private watcher used to cover that surface off its
-//! own `tokio::sync::watch` channel; per the operator ruling (2026-07-06,
+//! The one remaining declarative domain watch (`views`) doesn't reach
+//! `ship.config.ts` at the space root. The retired ship-resolver private
+//! watcher used to cover that surface off its own
+//! `tokio::sync::watch` channel; per the operator ruling (2026-07-06,
 //! `job-spec-p3-event-channel.md`) reactivity flows through the kernel log
-//! only, so [`spawn_config_watcher`] extends its watch set to the union:
-//! [`spawn_source_root_watch`] opens a watch on `ship.config.ts` plus every
-//! `space.skill_paths` entry past the default `.ship/skills/` (already
-//! covered by the `skills` domain watch — excluded here so the same file
-//! never double-fires), authoring the SAME `config.file_changed` shape
-//! under one `source` domain label. ONE observer, ONE authored signal, N
-//! subscribers.
+//! only, so [`spawn_config_watcher`] extends its watch set to:
+//! [`spawn_source_root_watch`] opens a watch on `ship.config.ts`, authoring
+//! the SAME `config.file_changed` shape under one `source` domain label.
+//! ONE observer, ONE authored signal, N subscribers.
+//!
+//! The pre-cutover `space.skill_paths` extras-watch loop died with the
+//! dot-ship close-out. The `space.skill_paths` ship.jsonc field is gone;
+//! the option moved to `defineConfig({ skills: { paths } })` in each
+//! extension's `ship.config.ts` — the per-extension-project authoring
+//! surface. The `ship.config.ts` watch above is the trigger: a
+//! `ship.config.ts` change re-runs the resolver, which re-evaluates
+//! the `defineConfig` paths and re-walks them. The default
+//! `<space_root>/skills/` path is skill-marker-only (skills arrive via
+//! `defineSkill` declare-forms in `ship.config.ts` post Wave 5) and
+//! shares the same re-evaluation trigger; no separate watch is needed.
+//!
+//! (Watching on-disk skill files under the `defineConfig` paths
+//! directly is a follow-up — out of scope for this slice. The
+//! `ship.config.ts` re-eval is the current cache-invalidation path
+//! for skill assets, and the descriptor cache's content hash captures
+//! the union of declare-forms + on-disk skill content for the
+//! descriptor-cache-shaped consumers.)
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-
-use compiler::loader::{DEFAULT_SPACE_SKILL_PATH, read_space_skill_paths};
 use ship_substrate::ShipHome;
 use ship_substrate::events::EmitContext;
 use ship_substrate::ports::{FsBroker, FsCap, FsMode, FsRoot, KernelLog, LocalFsBroker};
@@ -237,28 +250,30 @@ pub fn spawn_config_watcher(
     Ok(watcher)
 }
 
-/// The domain label the source-root watches author `config.file_changed`
-/// under. Distinct from the three [`DOMAINS`] labels — `ship.config.ts` and the
-/// `space.skill_paths` extras live at (or below) the space root, not
-/// inside a `.ship/<domain>/` dir.
+/// The domain label the source-root watch authors `config.file_changed`
+/// under. Distinct from the [`DOMAINS`] labels — `ship.config.ts` lives
+/// at the space root, not inside a `.ship/<domain>/` dir.
 const SOURCE_ROOT_DOMAIN: &str = "source";
 
 /// Cover the space-shape surface the one remaining declarative domain
-/// watch (`views`) doesn't reach: `ship.config.ts` at the space root,
-/// and any `space.skill_paths` entry past the default `.ship/skills/`
-/// (the default path is now skill-marker-only; the extras are still
-/// disk-resident and need to fire on edit).
+/// watch (`views`) doesn't reach: `ship.config.ts` at the space root.
 ///
 /// Authors the SAME `config.file_changed` shape the domain watches use
 /// ([`author_file_changed_router`]) under the one [`SOURCE_ROOT_DOMAIN`]
 /// label. No coarse `<domain>.changed` ping is authored — no event type
 /// exists for "source changed" and none is added here; `config.file_changed`
 /// is the only signal a resolver-descriptor-cache-shaped consumer needs.
+///
+/// The pre-cutover `space.skill_paths` extras watch died with the
+/// dot-ship close-out: the manifest field is gone, the on-disk default
+/// `<space_root>/skills/` path is skill-marker-only (skills arrive via
+/// `defineSkill` declare-forms in `ship.config.ts` post Wave 5), so
+/// there is nothing else under the space root to watch.
 fn spawn_source_root_watch(
     watcher: &mut ConfigWatcher,
     kernel: Arc<KernelLog>,
     space_root: &Path,
-    project_ship_dir: &Path,
+    _project_ship_dir: &Path,
     space: Option<SpaceId>,
     debounce: Duration,
 ) {
@@ -280,35 +295,6 @@ fn spawn_source_root_watch(
                 space_root.to_path_buf(),
                 space.clone(),
                 |rel| rel == "ship.config.ts",
-            ));
-        }
-    }
-
-    // `space.skill_paths` extras. Dedup against the `skills` domain here,
-    // not with a broader consumer-side filter: a duplicate entry would
-    // open a SECOND watch on the same dir and double-author every change
-    // under it.
-    for extra in read_space_skill_paths(project_ship_dir) {
-        if extra == DEFAULT_SPACE_SKILL_PATH {
-            continue;
-        }
-        let dir = space_root.join(extra.trim_end_matches('/'));
-        if !dir.exists() {
-            continue;
-        }
-        let cap = FsCap::new_unchecked(
-            dir.clone(),
-            FsRoot::Space(ship_substrate::ports::SpaceId::new("config")),
-            FsMode::ReadOnly,
-        );
-        let opts = WatchOpts::recursive(Some(debounce));
-        if let Ok(rx) = LocalFsWatch::new().watch(&cap, ".", opts) {
-            watcher.push(spawn_filtered_file_consumer(
-                kernel.clone(),
-                rx,
-                dir,
-                space.clone(),
-                |_| true,
             ));
         }
     }

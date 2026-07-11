@@ -4,10 +4,10 @@
 //!
 //! Generalizes the Phase-0 resolver (compiler leaf + agent-config-eval) from
 //! single-manifest to **space shape**: a `ship.config.ts` at the space root, a
-//! `skills/` + `rules/` directory convention, a `space.skill_paths` manifest
-//! read. The result is a fully-populated [`compiler::ExtensionLibrary`] (disk
-//! state) and a [`compiler::ResolvedConfig`] (resolved state) — the canonical
-//! descriptors the rest of the platform compiles and runs against.
+//! `skills/` + `rules/` directory convention, the on-disk permissions +
+//! hooks reads. The result is a fully-populated [`compiler::ExtensionLibrary`]
+//! (disk state) and a [`compiler::ResolvedConfig`] (resolved state) — the
+//! canonical descriptors the rest of the platform compiles and runs against.
 //!
 //! ## The seam
 //!
@@ -50,8 +50,9 @@
 //! ## Module layout
 //!
 //! - [`space_loader`] — the disk walk over space shape → `ExtensionLibrary`.
-//!   Composes with the leaf; the additive `space.skill_paths` manifest read
-//!   lives in the leaf (per F1).
+//!   Composes with the leaf; the leaf populates the `skill_paths` field
+//!   with the single default entry (no `space.skill_paths` ship.jsonc
+//!   read — that field died with the dot-ship close-out).
 //! - [`ts_resolver`] — V8 eval fan-out. `!Send` boundary on `spawn_blocking`.
 //! - [`descriptor`] — canonical sorted-key JSON helpers. The determinism
 //!   invariant the cache relies on (`inv-fmt-deterministic-eval`).
@@ -105,7 +106,12 @@ use ship_substrate::ShipHome;
 /// legitimate cases, and dedup by anything narrower would silently
 /// drop one. `compose_space`'s `compose_views` is the single source
 /// of truth for view resolution; the merge here just gathers.
-fn merge_ts_declarations(library: &mut ExtensionLibrary, declarations: Declarations) {
+fn merge_ts_declarations(
+    library: &mut ExtensionLibrary,
+    declarations: Declarations,
+    fs: &dyn ship_substrate::ports::FsBroker,
+    space_root: &Path,
+) {
     if !declarations.agents.is_empty() {
         let mut seen: HashSet<String> =
             library.agent_profiles.iter().map(|a| a.agent.id.clone()).collect();
@@ -124,6 +130,58 @@ fn merge_ts_declarations(library: &mut ExtensionLibrary, declarations: Declarati
     merge_by_key(&mut library.triggers, declarations.triggers, |t| t.id.as_str());
     merge_by_key(&mut library.collections, declarations.collections, |c| c.id.as_str());
     library.views.extend(declarations.views);
+
+    // Per-extension-project `defineConfig` → `library.skill_paths`
+    // override + on-disk skills walk. The `skills_dir` value is a
+    // SINGLE dir name (no trailing slash); scalar options follow
+    // root-last-wins (the LAST module's `defineConfig.skills_dir`
+    // wins; an absent value is a no-op). When `defineConfig`
+    // overrides the default, the leaf's `["skills/"]` is replaced
+    // by the override; the default applies only when no
+    // `defineConfig` declared `skills_dir`. Walk the resolved
+    // `skills_dir` (post-override) for on-disk skills and merge
+    // into `library.skills`. Per the interjection: do NOT touch
+    // `defineSkill` (the body-materialization is a follow-up job);
+    // only the on-disk `skills_dir/<id>/SKILL.md` detection lives
+    // here.
+    let resolved_skills_dir: Option<String> = declarations
+        .config
+        .iter()
+        .filter_map(|c| c.skills_dir.clone())
+        .last();
+    if let Some(dir) = resolved_skills_dir {
+        let normalized = dir.trim_end_matches('/').to_string();
+        // Replace the leaf's default with the override (root-last-wins
+        // scalar: the new value REPLACES the prior list).
+        library.skill_paths = vec![normalized.clone()];
+
+        let cap = ship_substrate::ports::FsCap::new_unchecked(
+            space_root.to_path_buf(),
+            ship_substrate::ports::FsRoot::Space(ship_substrate::ports::SpaceId::new("resolver")),
+            ship_substrate::ports::FsMode::ReadOnly,
+        );
+        let mut seen: HashSet<String> =
+            library.skills.iter().map(|s| s.id.clone()).collect();
+        match space_loader::walk_skills_dir(fs, &cap, &normalized) {
+            Ok(found) => {
+                for mut skill in found {
+                    if seen.insert(skill.id.clone()) {
+                        skill.source = compiler::SkillSource::Custom;
+                        library.skills.push(skill);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "resolver: walk_skills_dir failed for defineConfig skills_dir {}: {e}",
+                    normalized
+                );
+            }
+        }
+        // Stable order — the descriptor cache's content hash
+        // depends on a stable iteration order.
+        library.skills.sort_by(|a, b| a.id.cmp(&b.id));
+    }
 }
 
 /// Append `incoming` items into `existing`, skipping any whose key is
@@ -148,8 +206,8 @@ fn merge_by_key<T>(existing: &mut Vec<T>, incoming: Vec<T>, key: impl Fn(&T) -> 
 /// space's effective configuration.
 ///
 /// The bulk of the disk read is delegated to the compiler leaf's
-/// `load_library`; the Phase-2 space-shape pieces (`ship.config.ts`,
-/// `space.skill_paths` extra dirs) are layered on top via FsBroker.
+/// `load_library`; the Phase-2 space-shape piece (`ship.config.ts`)
+/// is layered on top via FsBroker.
 /// The TS eval is one `defineAgent` roll-up per `imported_modules`
 /// entry, run in the V8 isolate with the `!Send` boundary crossed on a
 /// dedicated current-thread runtime (R2).
@@ -208,7 +266,7 @@ pub async fn resolve_space_with_broker(
     let declarations = ts_resolver::resolve_ts_files(&library.imported_modules, &globals)
         .await
         .context("resolver: TS eval failed")?;
-    merge_ts_declarations(&mut library, declarations);
+    merge_ts_declarations(&mut library, declarations, fs, space_root);
     // 3. Surface the resolve-time globals on the descriptor for
     //    audit / debug consumers. The TS eval already used the value;
     //    the field is for visibility.
@@ -267,7 +325,6 @@ pub async fn load_space_library(
 ///
 /// ## The permissions/hooks fence (the PIN)
 ///
-/// Permissions and hooks are NOT composed across Space-tier extensions.
 /// Only the space-root extension's `permissions` + `hooks` survive the
 /// composition — every child-dir extension's contribution is zeroed at
 /// the per-root identity source (the descriptor build site below) before
@@ -334,7 +391,7 @@ pub async fn roll_up(
                         root.identity
                     )
                 })?;
-        merge_ts_declarations(&mut per_root, declarations);
+        merge_ts_declarations(&mut per_root, declarations, &fs, &root.path);
         // Drain the now-consumed modules so they don't double-eval
         // via the merged `source_library` below.
         per_root.imported_modules.clear();

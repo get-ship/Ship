@@ -47,14 +47,11 @@
 //! - Decision: `decision-space-scan.md` (space = DIRECTORY, filename
 //!   scan, no eval, no git) + `decision-morning-answers.md` §4 (the
 //!   polyrepo is ONE space; repos own EXTENSIONS).
-//! - F1 decision: `decision-f1-loader.md` — Option A, the superset is
-//!   the architecture. The leaf grows `space.skill_paths`; this crate
-//!   composes with the leaf.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use compiler::{Skill, SkillSource, ExtensionLibrary};
+use compiler::{ExtensionLibrary, Skill, SkillSource};
 use ship_substrate::ports::{FsBroker, FsCap, FsError, FsMode, FsRoot, SpaceId};
 
 /// The canonical `.ship` dir name, mirrored from
@@ -206,18 +203,11 @@ pub fn enumerate_extension_roots(space_root: &Path) -> Result<Vec<ExtensionRoot>
 /// Read ONE extension root and return its `ExtensionLibrary` (raw
 /// disk shape; no TS merge).
 ///
-/// The bulk of the read (permissions, hooks, the additive
-/// `space.skill_paths` default walk) is delegated to the leaf's
-/// [`compiler::load_library`] at `<root>/.ship/`. The Phase-2 pieces
-/// layered on top:
+/// The bulk of the read (permissions, hooks, the `skill_paths` field)
+/// is delegated to the leaf's [`compiler::load_library`] at
+/// `<root>/.ship/`. The Phase-2 pieces layered on top:
 ///
-/// 1. Walk the additional `space.skill_paths` (everything past the
-///    default `.ship/skills/`) and merge skills into `library.skills`.
-///    The leaf's `load_library` already populated the default path's
-///    skills; this fn appends the others, dedup-on-id (the
-///    `compose_space` law is the only collision authority at the
-///    roll-up level; within ONE root, simple id-dedup suffices).
-/// 2. Read `ship.config.ts` at the root and append a
+/// 1. Read `ship.config.ts` at the root and append a
 ///    `ModuleDescriptor` to `imported_modules`. No dual filename
 ///    support — the legacy `<.ship>/ship.ts` shape is retired
 ///    (format-migration Wave 4 phase A).
@@ -226,6 +216,17 @@ pub fn enumerate_extension_roots(space_root: &Path) -> Result<Vec<ExtensionRoot>
 /// the PIN is applied one layer up in [`load_space_library`] / the
 /// `roll_up` orchestrator (only the space-root descriptor's
 /// permissions/hooks survive the composition).
+///
+/// Skills (per Wave 5) arrive exclusively via `defineSkill`
+/// declare-forms in the space's `ship.config.ts` and land in
+/// `ExtensionLibrary::skills` through
+/// `ship_resolver::merge_ts_declarations` one layer up. The leaf no
+/// longer reads `.ship/skills/<id>/SKILL.md` from disk; the
+/// `space.skill_paths` ship.jsonc field is gone, so this fn does not
+/// walk an extras dir either. `library.skill_paths` carries the
+/// default single entry as metadata (the canonical constant
+/// [`compiler::loader::DEFAULT_SPACE_SKILL_PATH`]) but no consumer
+/// in this crate iterates over it post-cutover.
 pub(crate) async fn load_root_library(
     fs: &dyn FsBroker,
     root: &Path,
@@ -237,40 +238,12 @@ pub(crate) async fn load_root_library(
     let mut library = compiler::load_library(&ship_dir)
         .with_context(|| format!("compiler::load_library failed for {}", ship_dir.display()))?;
 
-    // 2. Add the additional skill paths on top of the leaf's default
-    //    walk. The leaf's `load_library` already populated
-    //    `library.skill_paths` (the additive F1 manifest read) and
-    //    `library.skills` (the default-path skills). We walk the
-    //    extras here, via FsBroker.
-    let cap = SpaceCap::read_only(root);
-    if !library.skill_paths.is_empty() {
-        let mut seen_ids: std::collections::HashSet<String> =
-            library.skills.iter().map(|s| s.id.clone()).collect();
-        for path in library.skill_paths.iter() {
-            // The default `.ship/skills/` is already walked by the
-            // leaf — skip the dup. The leaf's `read_space_skill_paths`
-            // is the single source of truth for the default entry.
-            if path == ".ship/skills/" {
-                continue;
-            }
-            for skill in walk_skills_dir(fs, &cap.cap, path)
-                .with_context(|| format!("walk skills dir: {path}"))?
-            {
-                if seen_ids.insert(skill.id.clone()) {
-                    library.skills.push(skill);
-                }
-            }
-        }
-        // Stable order — the descriptor cache's content hash depends
-        // on a stable iteration order.
-        library.skills.sort_by(|a, b| a.id.cmp(&b.id));
-    }
-
-    // 3. Read the TS manifest. W4 phase A retired the legacy
+    // 2. Read the TS manifest. W4 phase A retired the legacy
     //    `<.ship>/ship.ts` shape — `ship.config.ts` at the root is
     //    the only valid manifest. Phase 3 extends the closed-world
     //    loader to admit project-relative imports; until then, every
     //    root contributes one module.
+    let cap = SpaceCap::read_only(root);
     if let Some(module) = read_ship_config_ts(fs, &cap.cap, root)
         .with_context(|| format!("read ship.config.ts under {}", root.display()))?
     {
@@ -349,9 +322,9 @@ pub async fn load_space_library(
 /// resolved one layer up by [`crate::roll_up`] → [`compiler::compose_space`]
 /// (the law's job). `imported_modules` concatenate in declared order
 /// so the TS-eval fan-out (`ts_resolver::resolve_ts_files`) iterates
-/// root-first, children-next. `skill_paths` concatenate; the default
-/// `.ship/skills/` filter still applies per root in
-/// [`load_root_library`]. `permissions` + `hooks` are already
+/// root-first, children-next. `skill_paths` concatenate (each root
+/// contributes its single default entry; the dedup is a no-op for
+/// the default value). `permissions` + `hooks` are already
 /// zeroed on every child root by [`load_space_library`] before this
 /// is called; the space-root's contribution is the first write and
 /// the only one that lands non-default.
@@ -379,21 +352,20 @@ fn merge_root_into(merged: &mut ExtensionLibrary, lib: ExtensionLibrary, is_spac
         merged.hooks = lib.hooks;
     }
 }
-
 /// Walk one skill dir and return its `Skill` records (id derived from the
 /// dir name, source = `Custom`). Missing dir → empty. Malformed
 /// `SKILL.md` → skip the entry (lenient contract).
 ///
 /// `space_rel` is the space-relative path (a value from
-/// `space.skill_paths`); the cap is rooted at the space root, so
-/// the rel path under the cap is the space-relative path verbatim. This
-/// matches agent-def's [`read_skill_paths`](
-/// ship_platform/crates/agent-def/src/skill_paths.rs) which joins the
-/// manifest value onto the space root — `extra-skills/` lands at
-/// `<root>/extra-skills/`, the default `.ship/skills/` lands at
-/// `<root>/.ship/skills/`. The first case is what this fn walks; the
-/// second is what the leaf's `load_skills` already covered.
-fn walk_skills_dir(
+/// `defineConfig({ skills: { paths } })` in each extension's
+/// `ship.config.ts` — the per-extension-project authoring surface, NOT
+/// the dead `space.skill_paths` ship.jsonc read). The cap is rooted
+/// at the space root, so the rel path under the cap is the
+/// space-relative path verbatim. `extra-skills/` lands at
+/// `<root>/extra-skills/`; the default `skills/` (a `defineConfig`
+/// value matching [`compiler::loader::DEFAULT_SPACE_SKILL_PATH`])
+/// is filtered out upstream so this fn walks the extras only.
+pub(crate) fn walk_skills_dir(
     fs: &dyn FsBroker,
     cap: &FsCap,
     space_rel: &str,
@@ -482,11 +454,15 @@ mod tests {
     use ship_substrate::ports::LocalFsBroker;
     use tempfile::TempDir;
 
-    /// Build a space root with `.ship/{agents,skills}` + an extra
-    /// `space.skill_paths` dir + a `ship.config.ts` at the space root.
-    /// Returns the temp dir so the caller can keep it alive.
+    /// Build a space root with `.ship/{agents,skills}` and a
+    /// `ship.config.ts` at the space root. Returns the temp dir so
+    /// the caller can keep it alive.
+    ///
+    /// Post Wave 5 + dot-ship close-out: the leaf does not read
+    /// skill files from disk, and the `space.skill_paths` ship.jsonc
+    /// field is gone, so the fixture carries no skills dir on disk
+    /// either.
     fn write_space() -> (TempDir, PathBuf) {
-
         let tmp = tempfile::tempdir().unwrap();
         let root = tmp.path().to_path_buf();
 
@@ -494,24 +470,6 @@ mod tests {
         let ship = root.join(".ship");
         std::fs::create_dir_all(ship.join("skills")).unwrap();
         std::fs::create_dir_all(ship.join("agents")).unwrap();
-
-        // Default skill in .ship/skills/
-        let default_skill = ship.join("skills").join("default-skill");
-        std::fs::create_dir_all(&default_skill).unwrap();
-        std::fs::write(
-            default_skill.join("SKILL.md"),
-            "---\nname: default-skill\ndescription: A default skill\n---\nDefault body.\n",
-        )
-        .unwrap();
-
-        // Extra skill dir at space root (a `space.skill_paths` value)
-        let extra_skills = root.join("extra-skills");
-        std::fs::create_dir_all(extra_skills.join("extra-skill")).unwrap();
-        std::fs::write(
-            extra_skills.join("extra-skill").join("SKILL.md"),
-            "---\nname: extra-skill\ndescription: An extra skill\n---\nExtra body.\n",
-        )
-        .unwrap();
 
         // ship.config.ts at the space root. `load_space_library` only
         // stores the raw module source in `imported_modules` here — TS
@@ -531,50 +489,31 @@ defineAgent({
         )
         .unwrap();
 
-        // Add the extra path to the manifest so the resolver walks it.
-        std::fs::write(
-            ship.join("ship.jsonc"),
-            r#"{"id": "demo", "space": {"skill_paths": ["extra-skills/"]}}"#,
-        )
-        .unwrap();
-
         (tmp, root)
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn load_space_library_composes_with_leaf_and_adds_extras() {
+    async fn load_space_library_reads_leaf_and_ship_config_ts() {
         let (_tmp, root) = write_space();
         let fs = LocalFsBroker::new();
         let lib = load_space_library(&fs, &root).await.unwrap();
 
-        // Post format-migration Wave 5: the leaf no longer reads
-        // `.ship/agents/*.jsonc` or `.ship/skills/<id>/SKILL.md` —
-        // those nouns land in `agent_profiles` / `skills` through
-        // `ship_resolver::merge_ts_declarations` (one layer up).
-        // `load_space_library` returns them empty here; the test
-        // exercises the disk-shape side: the default-path skills
-        // walk + the extra-path walk + the `ship.config.ts` source
-        // read + the `skill_paths` field population.
+        // Post Wave 5: the leaf does not read skill files from
+        // disk. Skills land in `ExtensionLibrary::skills` through
+        // `ship_resolver::merge_ts_declarations` one layer up
+        // (declare-forms in `ship.config.ts`). This test exercises
+        // the disk-shape side: the leaf's permissions/hooks read +
+        // the `ship.config.ts` source read + the default
+        // `skill_paths` field population.
         assert!(lib.mcp_servers.is_empty());
-        // Post Wave 5: the leaf no longer reads `.ship/skills/<id>/SKILL.md`
-        // (the default path). The leaf still walks `space.skill_paths`
-        // EXTRAS (the FsBroker-gated path) — so `library.skills` has the
-        // extra-skill from `extra-skills/`, not the default-skill (the
-        // fixture writes `extra-skills/extra-skill/SKILL.md` but no
-        // `.ship/skills/default-skill/SKILL.md`). The post-merge roll-up
-        // then layers the TS-declared `defineSkill` on top via
-        // `ship_resolver::merge_ts_declarations` (one layer up).
-        let ids: Vec<&str> = lib.skills.iter().map(|s| s.id.as_str()).collect();
-        assert_eq!(ids, vec!["extra-skill"]);
+        assert!(lib.skills.is_empty(), "no on-disk skills walk post Wave 5");
         assert!(lib.rules.is_empty());
-        // skill_paths carries both the default and the extra — the leaf
-        // populates the field, the resolver consults it (extra-skills/
-        // is still walked by `walk_skills_dir` for the additional
-        // `space.skill_paths` entries; the post-merge roll-up pulls
-        // those into `library.skills`).
+        // skill_paths carries the single default entry the leaf
+        // populates — no extras walk, no extras field, no
+        // `space.skill_paths` field either.
         assert_eq!(
             lib.skill_paths,
-            vec![".ship/skills/".to_string(), "extra-skills/".to_string()]
+            vec!["skills/".to_string()],
         );
         // ship.config.ts: one module, content hash non-empty.
         assert_eq!(lib.imported_modules.len(), 1);

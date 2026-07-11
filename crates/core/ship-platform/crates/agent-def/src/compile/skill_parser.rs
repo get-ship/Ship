@@ -1,14 +1,33 @@
-//! Parse SKILL.md frontmatter per the agentskills.io spec, and load skills
-//! from all directories declared in `space.skill_paths`.
+//! Parse SKILL.md frontmatter per the agentskills.io spec.
 //!
-//! This is the compile-pipeline skill loader. The parser itself is the
-//! CANONICAL one in `compiler::skill_parser` (single source for both the
-//! compile path here and the dep-skill cache in `ship-store` — see #106
-//! for the inline-form regression the duplicate parsers caused). Re-exported
-//! here so existing `agent_def::compile::skill_parser::parse_skill` paths keep
-//! working without churn. The platform's own `agents::skill::storage::parse_skill_spec`
-//! is a separate, stricter parser used by the skill management service
-//! (install/list).
+//! The parser is the CANONICAL one in `compiler::skill_parser` (single
+//! source for both the compile path here and the dep-skill cache in
+//! `ship-store` — see #106 for the inline-form regression the duplicate
+//! parsers caused). Re-exported here so existing
+//! `agent_def::compile::skill_parser::parse_skill` paths keep working
+//! without churn. The platform's own
+//! `agents::skill::storage::parse_skill_spec` is a separate, stricter
+//! parser used by the skill management service (install/list).
+//!
+//! Post Wave 5 + dot-ship close-out: there is no on-disk skill walk in
+//! this crate. Skills arrive via `defineSkill` declare-forms in
+//! `ship.config.ts` and land in `ExtensionLibrary::skills` through
+//! `ship_resolver::merge_ts_declarations` (one layer up). The
+//! `space.skill_paths` ship.jsonc field died with the cutover; the
+//! option moved to `defineConfig({ skills: { paths } })` in each
+//! extension's `ship.config.ts` (per-extension-project manifest; the
+//! default-export form is purely for ecosystem conformance — the
+//! emit is what the harvest reads), resolved per-extension against
+//! the dir containing that `ship.config.ts`. The resolver rolls
+//! the per-extension values into `ExtensionLibrary::skill_paths`
+//! post-eval and walks them for on-disk skills. The only on-disk
+//! skill path used by this crate is the unified default
+//! `<extension-dir>/skills/` (for skill-VAR resolution in
+//! `agent_def::skill_vars` and the skills view in
+//! `ship_agents::view_state`) — which sits at
+//! `DEFAULT_SPACE_SKILL_PATH` and does not see custom-path
+//! overrides (the SkillService call path is out of scope for this
+//! slice — see the spec's SPEC CHANGE rule 4 for the deferral note).
 
 use anyhow::Result;
 use compiler::{Skill, SkillSource};

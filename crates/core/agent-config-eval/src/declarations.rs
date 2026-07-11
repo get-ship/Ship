@@ -55,6 +55,14 @@ pub struct Declarations {
     /// `@ship/stack` counterpart yet (`ViewDescriptor` is provisional
     /// pending sail/deck alignment, `decision-views-deck-boundary.md`).
     pub views: Vec<ViewDescriptor>,
+    /// Per-extension-project options harvested from `defineConfig` calls.
+    /// Zero-or-one entry per module (the function emits a `"config"` value
+    /// the same way the other declare-forms do; the user-facing
+    /// `export default defineConfig({...})` shape is purely for ecosystem
+    /// conformance). The resolver reads `declarations.config` after the
+    /// fan-out and rolls the per-module values into
+    /// `ExtensionLibrary::skill_paths` post-eval.
+    pub config: Vec<ConfigDeclare>,
 }
 
 /// The `{ __kind, value }` shape every declare-form's collector
@@ -69,7 +77,6 @@ struct Envelope {
 /// `out`. Fails loudly on an unrecognized kind or a value that doesn't
 /// match its noun's expected shape — a declare-form call is either well-
 /// formed or the eval is treated as an error, the same contract
-/// `defineAgent`'s harvest already had.
 pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
     let envelope: Envelope = serde_json::from_value(raw)
         .with_context(|| format!("declare-form call #{index} did not emit a tagged declaration"))?;
@@ -118,6 +125,19 @@ pub fn harvest(out: &mut Declarations, index: usize, raw: Value) -> Result<()> {
             let def: ViewDescriptor = serde_json::from_value(envelope.value)
                 .with_context(|| format!("defineView call #{index} did not match ViewDescriptor"))?;
             out.views.push(def);
+        }
+        "config" => {
+            // The `defineConfig` value carries the per-extension-project
+            // `skills_dir` (single dir name, no trailing slash, relative
+            // to the dir containing the `ship.config.ts` declaring it).
+            // Hand-spec'd (no `@ship/stack` counterpart yet) — the same
+            // posture as `defineRule` / `defineView`. The resolver's
+            // `merge_ts_declarations` walks `out.config` and threads
+            // the value into `ExtensionLibrary::skill_paths` (scalar
+            // override — the last `defineConfig.skills_dir` wins).
+            let declared: ConfigDeclare = serde_json::from_value(envelope.value)
+                .with_context(|| format!("defineConfig call #{index} did not match the config shape"))?;
+            out.config.push(declared);
         }
         other => bail!("declare-form call #{index}: unrecognized kind `{other}`"),
     }
@@ -279,6 +299,39 @@ impl SkillDeclare {
 fn slugify(name: &str) -> String {
     name.to_lowercase().replace(' ', "-")
 }
+// ─── Per-extension-project config (defineConfig) ──────────────────────────
+//
+// The `defineConfig({ skills_dir: "..." })` value (a per-extension-project
+// authoring shape, declared as `export default defineConfig({...})` from
+// each extension's `ship.config.ts` for ecosystem conformance). The
+// `skills_dir` value is a SINGLE directory name (no trailing slash)
+// where on-disk skills live — the resolver walks
+// `<extension_dir>/<skills_dir>/<id>/SKILL.md` and produces `Skill`
+// records (the `defineSkill` declare-form + body-materialization is a
+// follow-up job, out of scope here). Hand-spec'd (no `@ship/stack`
+// counterpart yet) — the same posture as `defineRule` / `defineView`.
+// The Rust harvest pushes one entry per `defineConfig` call into
+// `Declarations::config`; the resolver's `merge_ts_declarations`
+// walks that vec and threads the per-module `skills_dir` into
+// `ExtensionLibrary::skill_paths` post-eval.
+//
+// The default (when no `defineConfig` is declared) is the unified
+// `DEFAULT_SPACE_SKILL_PATH` ("skills/") which the compiler leaf
+// already populates into the descriptor. Per-extension-project
+// `defineConfig` overrides that.
+
+/// The `defineConfig` value — a per-extension-project authoring shape.
+/// Top-level keys: `skills_dir` (the only key supported today; a single
+/// dir name, no trailing slash). An empty `defineConfig({})` is valid
+/// (the resolver sees an empty `ConfigDeclare` and falls through to
+/// the unified default).
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct ConfigDeclare {
+    #[serde(default)]
+    pub skills_dir: Option<String>,
+}
+
+const CONFIG_DEF_FIELDS: &[&str] = &["skills_dir"];
 
 // ─── Rules ──────────────────────────────────────────────────────────────────
 
@@ -422,6 +475,11 @@ mod drift_tests {
             "CollectionFieldDef",
             COLLECTION_FIELD_DEF_DECLARE_FIELDS,
             stub::COLLECTION_FIELD_DEF_FIELDS,
+        );
+        assert_fields_match(
+            "ConfigDef",
+            CONFIG_DEF_FIELDS,
+            stub::CONFIG_DEF_FIELDS,
         );
     }
 

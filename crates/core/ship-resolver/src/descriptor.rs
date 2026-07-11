@@ -166,7 +166,7 @@ mod tests {
         let mut lib = ExtensionLibrary::default();
         lib.skills_dir = Some("skills/".to_string());
         lib.rules_dir = None;
-        lib.skill_paths = vec![".ship/skills/".to_string(), "docs/".to_string()];
+        lib.skill_paths = vec!["skills/".to_string(), "docs/".to_string()];
         let a = extension_library_canonical(&lib).unwrap();
         let b = extension_library_canonical(&lib).unwrap();
         assert_eq!(a, b, "two reads of the same library must be byte-identical");
@@ -176,7 +176,7 @@ mod tests {
     fn extension_library_content_hash_is_stable() {
         let mut lib = ExtensionLibrary::default();
         lib.skills_dir = Some("custom-skills/".to_string());
-        lib.skill_paths = vec![".ship/skills/".to_string(), "docs/".to_string()];
+        lib.skill_paths = vec!["skills/".to_string(), "docs/".to_string()];
         let h1 = extension_library_content_hash(&lib).unwrap();
         let h2 = extension_library_content_hash(&lib).unwrap();
         assert_eq!(h1, h2);

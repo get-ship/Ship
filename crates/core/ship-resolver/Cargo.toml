@@ -10,9 +10,9 @@ description = "Phase-2 space-shape resolver — composes the compiler leaf (conf
 # `resolve_library` pure transform, and the Phase-2 field set the descriptor
 # carries (skills_dir, rules_dir, skill_paths, per_agent_skills, modules,
 # globals, rollup_inputs). The new resolver composes with `load_library`
-# for the bulk of the read path; the additive `read_space_skill_paths`
-# landing in the leaf per the F1 brief (option A: embrace the superset) is
-# the only leaf change.
+# for the bulk of the read path; the leaf populates `skill_paths` with
+# the single default entry ([`DEFAULT_SPACE_SKILL_PATH`]) — no
+# `space.skill_paths` ship.jsonc read, no extras walk.
 compiler = { path = "../compiler" }
 # The V8 isolate glue — `resolve_agents_with_globals` is the only call site
 # for ship.ts eval. V8 is feature-gated on the `deno` feature; the resolver
