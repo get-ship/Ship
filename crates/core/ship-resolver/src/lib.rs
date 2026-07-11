@@ -131,56 +131,127 @@ fn merge_ts_declarations(
     merge_by_key(&mut library.collections, declarations.collections, |c| c.id.as_str());
     library.views.extend(declarations.views);
 
-    // Per-extension-project `defineConfig` → `library.skill_paths`
-    // override + on-disk skills walk. The `skills_dir` value is a
-    // SINGLE dir name (no trailing slash); scalar options follow
-    // root-last-wins (the LAST module's `defineConfig.skills_dir`
-    // wins; an absent value is a no-op). When `defineConfig`
-    // overrides the default, the leaf's `["skills/"]` is replaced
-    // by the override; the default applies only when no
-    // `defineConfig` declared `skills_dir`. Walk the resolved
-    // `skills_dir` (post-override) for on-disk skills and merge
-    // into `library.skills`. Per the interjection: do NOT touch
-    // `defineSkill` (the body-materialization is a follow-up job);
-    // only the on-disk `skills_dir/<id>/SKILL.md` detection lives
-    // here.
-    let resolved_skills_dir: Option<String> = declarations
+    // Per-extension-project on-disk skills + rules walks (the
+    // resolution layer's source for these nouns post slice-2b).
+    //
+    // The walk happens here (not in the leaf) because the TS eval
+    // already populated declared skills via `defineSkill` and
+    // declared rules via `defineRule`. The disk walk duplicates the
+    // surface for callers that author SKILL.md / rule `.md` files
+    // directly — the dot-ship close-out's correct posture per
+    // `data/blueprint/subsystems/ship-stack-format.md` (skills + rules
+    // are on-disk directory conventions detected by the resolver; the
+    // manifest is just a pointer via `defineConfig({ skills_dir,
+    // rules_dir })`).
+    //
+    // For each path:
+    // - The leaf populates the default (`skill_paths: ["skills/"]`,
+    //   no leaf-side equivalent for `rules_dir` yet — the resolver
+    //   applies the unified default "rules/" when no override).
+    // - `defineConfig({ skills_dir | rules_dir })` overrides via
+    //   root-last-wins scalar.
+    // - The walked records MERGE into `library.skills` / `.rules`
+    //   with the same id-dedup policy as the TS-declared side: an
+    //   entry already in the library wins (the leaf's existing
+    //   contract generalized to every noun this crate harvests).
+    //
+    // Without these walks the post-slice-2b close-out (skills +
+    // rules un-flattened from `defineSkill` / `defineRule` calls
+    // into on-disk files) would deliver an empty resolved surface —
+    // these walks ARE the on-disk authority.
+    let cap = ship_substrate::ports::FsCap::new_unchecked(
+        space_root.to_path_buf(),
+        ship_substrate::ports::FsRoot::Space(ship_substrate::ports::SpaceId::new("resolver")),
+        ship_substrate::ports::FsMode::ReadOnly,
+    );
+
+    // ── Skills: resolve `skills_dir` from `defineConfig` (last wins)
+    //    falling through to the leaf-populated `library.skill_paths[0]`
+    //    (the post-W5 unified default `"skills/"`).
+    //
+    // The descriptor-level `skill_paths` field preserves the form the
+    // source declared (the leaf default is slash-terminated,
+    // `defineConfig`'s value is verbatim); `walk_skills_dir` strips
+    // the slash internally so both forms produce identical walks.
+    let resolved_skills_dir: String = declarations
         .config
         .iter()
         .filter_map(|c| c.skills_dir.clone())
-        .last();
-    if let Some(dir) = resolved_skills_dir {
-        let normalized = dir.trim_end_matches('/').to_string();
-        // Replace the leaf's default with the override (root-last-wins
-        // scalar: the new value REPLACES the prior list).
-        library.skill_paths = vec![normalized.clone()];
-
-        let cap = ship_substrate::ports::FsCap::new_unchecked(
-            space_root.to_path_buf(),
-            ship_substrate::ports::FsRoot::Space(ship_substrate::ports::SpaceId::new("resolver")),
-            ship_substrate::ports::FsMode::ReadOnly,
-        );
+        .last()
+        .or_else(|| library.skill_paths.first().cloned())
+        .unwrap_or_else(|| compiler::loader::DEFAULT_SPACE_SKILL_PATH.to_string());
+    // Keep `library.skill_paths` tracking the resolved path (single
+    // entry — the leaf populates it with the unified default; the
+    // resolver-level override (per-extension-project
+    // `defineConfig({ skills_dir })`) REPLACES that single entry).
+    library.skill_paths = vec![resolved_skills_dir.clone()];
+    {
         let mut seen: HashSet<String> =
             library.skills.iter().map(|s| s.id.clone()).collect();
-        match space_loader::walk_skills_dir(fs, &cap, &normalized) {
+        let mut added_skills: Vec<String> = Vec::new();
+        match space_loader::walk_skills_dir(fs, &cap, &resolved_skills_dir) {
             Ok(found) => {
                 for mut skill in found {
                     if seen.insert(skill.id.clone()) {
                         skill.source = compiler::SkillSource::Custom;
+                        added_skills.push(skill.id.clone());
                         library.skills.push(skill);
                     }
                 }
             }
             Err(e) => {
                 tracing::warn!(
-                    "resolver: walk_skills_dir failed for defineConfig skills_dir {}: {e}",
-                    normalized
+                    "resolver: walk_skills_dir failed for {}: {e}",
+                    resolved_skills_dir
                 );
             }
         }
-        // Stable order — the descriptor cache's content hash
-        // depends on a stable iteration order.
-        library.skills.sort_by(|a, b| a.id.cmp(&b.id));
+        // Stable order — the descriptor cache's content hash depends
+        // on a stable iteration order. Sort ONLY when the walk
+        // contributed new entries (declared skills already arrive
+        // in stable call order; sorting unconditionally would
+        // re-order them and break byte-parity with the prior W5
+        // surface). Slice 2b close-out.
+        if !added_skills.is_empty() {
+            library.skills.sort_by(|a, b| a.id.cmp(&b.id));
+        }
+    }
+
+    // ── Rules: resolve `rules_dir` from `defineConfig` (last wins)
+    //    falling through to the unified default `"rules/"`.
+    let resolved_rules_dir: String = declarations
+        .config
+        .iter()
+        .filter_map(|c| c.rules_dir.clone())
+        .last()
+        .map(|s| s.trim_end_matches('/').to_string())
+        .unwrap_or_else(|| "rules".to_string());
+    {
+        let mut seen: HashSet<String> =
+            library.rules.iter().map(|r| r.file_name.clone()).collect();
+        let mut added_rules: Vec<String> = Vec::new();
+        match space_loader::walk_rules_dir(fs, &cap, &resolved_rules_dir) {
+            Ok(found) => {
+                for rule in found {
+                    if seen.insert(rule.file_name.clone()) {
+                        added_rules.push(rule.file_name.clone());
+                        library.rules.push(rule);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "resolver: walk_rules_dir failed for {}: {e}",
+                    resolved_rules_dir
+                );
+            }
+        }
+        // Stable order — same conditional-sort policy as skills:
+        // declared rules arrive in call order; only re-sort when the
+        // on-disk walk contributed new entries. Slice 2b close-out.
+        if !added_rules.is_empty() {
+            library.rules.sort_by(|a, b| a.file_name.cmp(&b.file_name));
+        }
     }
 }
 

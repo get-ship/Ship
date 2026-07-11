@@ -128,6 +128,8 @@ http-body-util = "0.1"
 serde_json = { version = "1.0", features = ["preserve_order"] }
 tower = { version = "0.5", features = ["util"] }
 tempfile = "3"
+# Parity-capture test SHA-256s every emitted CompiledFile.
+sha2 = "0.10"
 
 [build-dependencies]
 connectrpc-build = "0.4"

@@ -1,16 +1,15 @@
-// Helmd Compile integration test fixture — format-migration Wave 5.
-// Source authoring for `test-agent` and `example-skill` arrives via
-// `defineAgent` + `defineSkill` declare-forms here, replacing the
-// pre-Wave-5 `.ship/agents/test-agent.jsonc` and
-// `.ship/skills/example-skill/SKILL.md` files. Per
-// `census-format-migration.md` §4 row 3 (last paragraph), the leaf's
-// `.ship/agents/*.jsonc` and `.ship/skills/<id>/SKILL.md` walks are
-// gone; the only source-authoring surface for those nouns is
-// `ship.config.ts`. The MCP server entrypoint (test-server) is
-// declared via `defineMcpServer` for the same reason — pre-Wave-5 it
-// lived in `.ship/mcp.jsonc`.
+// Helmd Compile integration test fixture — format-migration Wave 5 + slice 2b.
+// Agent `test-agent` and skill `example-skill` are declared via
+// `defineAgent` (in this file) + on-disk `skills/example-skill/SKILL.md`
+// (Wave 6 / slice 2b close-out). The leaf's `.ship/agents/*.jsonc` walk
+// is gone; the test-agent ships via `defineAgent`. The `.ship/skills/<id>/SKILL.md`
+// walk is gone too (Wave 5 + slice 2b): the skill body is on disk, the
+// resolver's `merge_ts_declarations` walks `skills/` from the extension
+// root. The MCP server entrypoint (test-server) is declared via
+// `defineMcpServer` for the same reason — pre-Wave-5 it lived in
+// `.ship/mcp.jsonc`.
 
-import { defineAgent, defineMcpServer, defineSkill } from "ship";
+import { defineAgent, defineMcpServer } from "ship";
 
 defineMcpServer({
   id: "test-server",
@@ -40,10 +39,4 @@ defineAgent({
   },
 });
 
-defineSkill({
-  frontmatter: {
-    "name": "example-skill",
-    "description": "Example skill for the helmd Compile integration test.",
-  },
-  body: "# Example Skill\n\nThis skill exists to verify the Compile RPC reads SKILL.md and emits a\n`.claude/skills/example-skill/SKILL.md` file in the response.\n",
-});
+;

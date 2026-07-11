@@ -157,7 +157,16 @@ pub fn parse_skill(id: &str, raw: &str) -> Skill {
         );
     }
 
-    let content = raw[content_start..].trim().to_string();
+    // Slice 2b close-out: trim only LEADING whitespace. The
+    // declare-form `agent_config_eval::SkillDeclare::into_skill`
+    // preserves the body string verbatim (incl. trailing whitespace),
+    // so byte-fidelity between the two Skill-creation paths requires
+    // the on-disk path to preserve trailing content too. Trailing
+    // whitespace in a SKILL.md body is non-meaningful; this change is
+    // transparent to consumers. `RawSkillParser` postconditions
+    // (`tests/skill_parser.rs`) still pass — every test in that file
+    // verifies the content with no trailing whitespace either way.
+    let content = raw[content_start..].trim_start().to_string();
     Skill {
         id: id.to_string(),
         name,

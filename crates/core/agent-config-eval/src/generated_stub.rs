@@ -75,13 +75,14 @@ export function defineView(config) {
 
 // Per-extension-project options, declared as a default export from each
 // extension's `ship.config.ts`:
-//   export default defineConfig({ skills_dir: "..." });
+//   export default defineConfig({ skills_dir: "skills", rules_dir: "rules" });
 // The function emits the same way as the other declare-forms so the
 // Rust harvest picks it up via the `"config"` kind — the default-export
 // shape is purely for ecosystem conformance; the side-effecting emit is
-// what the resolver rolls up. Zero-or-one per module; `skills_dir` is
-// the single directory (no trailing slash) where on-disk skills live
-// relative to the dir containing the `ship.config.ts` declaring it.
+// what the resolver rolls up. Zero-or-one per module; each key is the
+// single directory (no trailing slash) where on-disk entries live relative
+// to the dir containing the `ship.config.ts` declaring it. Defaults are
+// applied by the resolver: skills → "skills/", rules → "rules/".
 export function defineConfig(config) {
   return __emit("config", config);
 }
@@ -106,4 +107,4 @@ pub const TRIGGER_SOURCE_WEBHOOK_FIELDS: &[&str] = &["kind", "path", "secret"];
 pub const TRIGGER_SOURCE_FILE_FIELDS: &[&str] = &["glob", "kind"];
 pub const TRIGGER_SOURCE_CRON_FIELDS: &[&str] = &["kind", "schedule"];
 pub const COLLECTION_FIELD_DEF_FIELDS: &[&str] = &["default", "filterable", "name", "required", "sortable", "type", "values"];
-pub const CONFIG_DEF_FIELDS: &[&str] = &["skills_dir"];
+pub const CONFIG_DEF_FIELDS: &[&str] = &["rules_dir", "skills_dir"];

@@ -319,20 +319,22 @@ fn slugify(name: &str) -> String {
 // `DEFAULT_SPACE_SKILL_PATH` ("skills/") which the compiler leaf
 // already populates into the descriptor. Per-extension-project
 // `defineConfig` overrides that.
-
 /// The `defineConfig` value — a per-extension-project authoring shape.
-/// Top-level keys: `skills_dir` (the only key supported today; a single
-/// dir name, no trailing slash). An empty `defineConfig({})` is valid
-/// (the resolver sees an empty `ConfigDeclare` and falls through to
-/// the unified default).
+/// Top-level keys: `skills_dir` (the dir name where on-disk skills live;
+/// default `"skills/"`); `rules_dir` (the dir name where on-disk rule
+/// `.md` files live; default `"rules/"`). Both are SINGLE dir names (no
+/// trailing slash). The last `defineConfig` wins (root-last-wins scalar).
+/// An empty `defineConfig({})` is valid (the resolver sees empty
+/// `ConfigDeclare` values and falls through to the unified defaults).
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct ConfigDeclare {
     #[serde(default)]
     pub skills_dir: Option<String>,
+    #[serde(default)]
+    pub rules_dir: Option<String>,
 }
 
-const CONFIG_DEF_FIELDS: &[&str] = &["skills_dir"];
-
+const CONFIG_DEF_FIELDS: &[&str] = &["rules_dir", "skills_dir"];
 // ─── Rules ──────────────────────────────────────────────────────────────────
 
 /// The rules declare-form's shape — deliberately NOT `@ship/stack`'s
