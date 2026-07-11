@@ -658,7 +658,7 @@ layout decisions: helm \`data/wiki/conventions.md\`. This file is the enforceabl
 * **Mission on the long-lived feature branch.** The mission agent owns the integration branch; subagents work on \`job/*\` branches that the mission agent LANDS in.
 * **Land-or-clean gate.** Every branch/worktree is ACTIVE (open job) | LANDED (squash-merged → branch + worktree DELETED) | CLEAN (no unique value → DELETED). Anything else is a leak. **Parked = lost or duplicated work** — never park.
 * **It's us.** Operator-driven sessions + \`omp\` as compute for jobs. No "other agents" to tiptoe around — every branch is ours; land it or clean it.
-* **Git via ship-git.** The land/release run on the GitService leaf (\`VcsPort.land/release\`), not raw \`git\` shell-out. Dispatch IS the helmd RPC \`ship.ops.v1.AgentsService/Dispatch\` (worktree + compile + harness); \`dispatch-portable.sh\` is the thin CLI client that POSTs it.`,
+* **Git via ship-git.** \`land\`/\`release\` are client-side TS compositions over the GitService primitives (SquashMerge + CreateTag + the teardown ops) — \`bun run land\` / \`bun run release\` in helm; the server carries no workflow vocabulary and nothing shells out to raw \`git\`. Dispatch IS the helmd RPC \`ship.code.v1.CodeService/Dispatch\` (worktree + compile + harness); \`dispatch-portable.sh\` is the thin CLI client that POSTs it.`,
   applyScope: "always",
 });
 
