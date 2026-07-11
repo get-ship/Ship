@@ -1750,6 +1750,7 @@ dependencies = [
  "ship-paths",
  "ship-pipeline-runtime",
  "ship-resolver",
+ "ship-space",
  "ship-store",
  "ship-substrate",
  "ship-types",

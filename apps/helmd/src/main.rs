@@ -89,6 +89,8 @@ mod code;
 // cutover, Slice 0): event-sourced typed collections over the active space.db.
 mod artifacts;
 mod collections;
+// ship.ops.v1.SpaceService — Snapshot reachable on live helmd (backup surface).
+mod space;
 // Real agent-dispatch runtime (spine 2b) — the ship-code consumer construction
 #[cfg(feature = "ship-code")]
 mod dispatch;
@@ -1753,6 +1755,8 @@ async fn main() -> anyhow::Result<()> {
     // artifacts.* — content-addressed blobs + metadata over the same active
     // space (data-port Stage 2 dogfood).
     let connect = artifacts::mount(connect).await?;
+    // space.* — Snapshot against the active space (the backup surface).
+    let connect = space::mount(connect).await?;
     // CORS so the browser — Helm's SPA, served by Hono on another origin (e.g.
     // http://localhost:3000) — can dial GitService directly in dev. Connect-web
     // sends `content-type` + `connect-protocol-version` headers, which trip a

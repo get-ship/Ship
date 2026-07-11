@@ -72,6 +72,7 @@ compiler = { path = "../../crates/core/compiler" }
 # named directly here to register the projection + mount the wire.
 ship-collection = { path = "../../crates/core/ship-platform/crates/ship-collection" }
 ship-artifacts = { path = "../../crates/core/ship-platform/crates/ship-artifacts" }
+ship-space = { path = "../../crates/core/ship-platform/crates/ship-space" }
 ship-store = { path = "../../crates/core/ship-platform/crates/ship-store" }
 ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
 # Canonical worktrees-root resolver (ship_config::worktrees::worktrees_dir).
