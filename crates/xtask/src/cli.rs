@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     coverage, gen_audit_readme, gen_contract, gen_eval_stub, gen_events, gen_fixtures,
     gen_indexes, gen_sdk, lint_anti_theater,
-    lint_imports, lint_layers, lint_residue,
+    lint_boundary, lint_imports, lint_layers, lint_residue,
 };
 
 pub fn repo_root() -> PathBuf {
@@ -18,6 +18,12 @@ pub fn repo_root() -> PathBuf {
 
 pub fn dispatch(cmd: &str, args: &[String]) {
     match cmd {
+        "lint-boundary" => {
+            if let Err(e) = lint_boundary::run(&repo_root()) {
+                eprintln!("lint-boundary failed: {e}");
+                std::process::exit(1);
+            }
+        }
         "lint-layers" => {
             if let Err(e) = lint_layers::run(&repo_root()) {
                 eprintln!("lint-layers failed: {e}");

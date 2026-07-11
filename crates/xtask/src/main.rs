@@ -15,6 +15,7 @@ mod lint_anti_theater;
 
 mod lint_imports;
 mod lint_layers;
+mod lint_boundary;
 mod lint_residue;
 mod metadata;
 
