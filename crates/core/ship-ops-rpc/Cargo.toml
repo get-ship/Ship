@@ -9,7 +9,7 @@ description = "ConnectRPC surface for the Ship operation registry (ship.ops.v1).
 # Generated proto bindings now live in the published `ship-proto` crate
 # (ship-contracts is the SSOT). This crate re-exports `ship::ops::v1` from it
 # and keeps the hand-written policy/catalog layers below (Ship impl, not contract).
-ship-proto = { path = "../../../../ship-contracts/crates/ship-proto" }
+ship-proto = { path = "/home/madvib/dev/Ship/ship-contracts/crates/ship-proto" }
 # Connect-RPC runtime. Kept so the daemon's `axum` feature reaches connectrpc via
 # feature-unification (ship-proto compiles connectrpc client-only); shipd enables
 # axum and the single connectrpc instance gets it graph-wide.
