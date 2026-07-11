@@ -1356,7 +1356,6 @@ impl HarnessService for HarnessImpl {
             ));
         }
         let repo = PathBuf::from(&repo_path);
-        let ship_dir = ShipHome::project_ship_dir(&repo);
 
         // Step 1: roll up the project (cache + enabled-library + space tier).
         // The V8 TS eval inside `roll_up_blocking` merges every declare-form
