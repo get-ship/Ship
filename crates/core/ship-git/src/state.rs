@@ -8,7 +8,7 @@
 use chrono::{DateTime, FixedOffset, TimeZone};
 use git2::Repository;
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 // ── public types ─────────────────────────────────────────────────────────
 
