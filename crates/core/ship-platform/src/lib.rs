@@ -29,7 +29,7 @@ pub mod config {
     pub use ship_config::project::get_mcp_config;
 
     // IO
-    pub use ship_config::project::{get_config, get_effective_config, save_config};
+    pub use ship_config::project::{get_config, save_config};
 
     // Agent def readers
     pub use ship_config::agents::{

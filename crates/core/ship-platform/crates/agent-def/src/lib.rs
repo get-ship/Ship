@@ -11,18 +11,14 @@
 pub mod agent;
 pub mod canonical_session;
 pub mod compile;
-pub mod config;
 pub mod dispatch_intent;
 pub mod emit;
 pub mod file_changed_consumer;
 pub mod guards;
 pub mod harnesses;
-pub mod import;
 pub mod invocation;
 pub use invocation::InvocationMode;
 pub mod op;
-pub mod permissions;
-pub mod rule;
 pub mod skill;
 pub mod skill_paths;
 pub mod skill_vars;
@@ -34,6 +30,7 @@ pub use emit::{
     SessionStarted, SessionSuspended, TurnEnded, TurnStarted,
 };
 pub use op::{OpToolUseCompleted, OpToolUseDenied, OpToolUseStarted};
+
 
 
 #[cfg(test)]

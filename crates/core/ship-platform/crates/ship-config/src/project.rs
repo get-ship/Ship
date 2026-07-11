@@ -265,46 +265,7 @@ pub(crate) fn save_mcp_config(ship_dir: &std::path::Path, servers: &[McpServerCo
     Ok(())
 }
 
-// ─── Merge helpers ────────────────────────────────────────────────────────────
-
-pub(crate) fn merge_string_lists(base: &[String], overlay: &[String]) -> Vec<String> {
-    use std::collections::HashSet;
-    let mut merged = Vec::new();
-    let mut seen = HashSet::new();
-    for item in base.iter().chain(overlay.iter()) {
-        if seen.insert(item.clone()) {
-            merged.push(item.clone());
-        }
-    }
-    merged
-}
-
-pub(crate) fn merge_agents(base: &[AgentProfile], overlay: &[AgentProfile]) -> Vec<AgentProfile> {
-    let mut merged = base.to_vec();
-    for agent in overlay {
-        if let Some(existing) = merged.iter_mut().find(|a| a.agent.id == agent.agent.id) {
-            *existing = agent.clone();
-        } else {
-            merged.push(agent.clone());
-        }
-    }
-    merged
-}
-
-pub(crate) fn merge_mcp_servers(
-    base: &[McpServerConfig],
-    overlay: &[McpServerConfig],
-) -> Vec<McpServerConfig> {
-    let mut merged = base.to_vec();
-    for server in overlay {
-        if let Some(existing) = merged.iter_mut().find(|s| s.id == server.id) {
-            *existing = server.clone();
-        } else {
-            merged.push(server.clone());
-        }
-    }
-    merged
-}
+// ─── Config IO ───────────────────────────────────────────────────────────────
 
 pub(crate) fn write_space_core_config(path: &std::path::Path, config: &SpaceManifest) -> Result<()> {
     use ship_substrate::fs_util::write_atomic;
@@ -359,31 +320,6 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<SpaceManifest> {
     Ok(config)
 }
 
-/// Returns a merged view of global + project config.
-/// Project values win; missing project AI/agent/MCP values inherit from global.
-pub fn get_effective_config(project_dir: Option<PathBuf>) -> Result<SpaceManifest> {
-    let global = get_config(None)?;
-    let Some(project_dir) = project_dir else {
-        return Ok(global);
-    };
-
-    let mut project = get_config(Some(project_dir))?;
-
-    project.agent.skills = merge_string_lists(&global.agent.skills, &project.agent.skills);
-    project.agent.prompts = merge_string_lists(&global.agent.prompts, &project.agent.prompts);
-    project.agent.context = merge_string_lists(&global.agent.context, &project.agent.context);
-
-    if (project.harnesses.is_empty() || project.harnesses == default_harnesses())
-        && !global.harnesses.is_empty()
-    {
-        project.harnesses = global.harnesses;
-    }
-
-    project.agents = merge_agents(&global.agents, &project.agents);
-    project.mcp_servers = merge_mcp_servers(&global.mcp_servers, &project.mcp_servers);
-
-    Ok(project)
-}
 
 /// Persist project config to `project_dir` (or global if `None`).
 pub fn save_config(config: &SpaceManifest, project_dir: Option<PathBuf>) -> Result<()> {

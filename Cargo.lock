@@ -12418,3 +12418,7 @@ dependencies = [
  "syn 2.0.117",
  "winnow 1.0.3",
 ]
+
+[[patch.unused]]
+name = "ship-proto"
+version = "0.1.0"

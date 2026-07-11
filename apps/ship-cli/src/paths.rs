@@ -57,10 +57,6 @@ pub fn views_dir() -> PathBuf {
 pub fn mcp_path() -> PathBuf {
     space_dir().join("mcp.jsonc")
 }
-pub fn space_ship_jsonc() -> PathBuf {
-    space_dir().join("ship.jsonc")
-}
-
 /// Returns true if the path has a .jsonc or .json extension.
 pub fn is_config_ext(path: &std::path::Path) -> bool {
     path.extension()

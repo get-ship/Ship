@@ -13,10 +13,6 @@
 #[cfg(test)]
 mod integration_skill_resolution;
 #[cfg(test)]
-mod integration_crud;
-#[cfg(test)]
-mod integration_profile_resolution;
-#[cfg(test)]
 mod integration_harness_routing;
 #[cfg(test)]
 mod event_scope_discipline;

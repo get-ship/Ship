@@ -220,7 +220,7 @@ register_event!("supervisor.shutting_down", [EventScope::Runtime], Retention::Du
 // Moved to ship-cloud/src/event_registrations.rs (substrate-cohesion
 // de-bucket, 2026-06-11): sync.push.completed / sync.push.failed /
 // sync.started / sync.stopped — the CLOUD/SYNC domain owns its events at L1
-// in ship-cloud (sole emitter: SyncServiceHandler). Payload structs remain
+// in ship-cloud (sole emitter: the sync service task). Payload structs remain
 // in ship_types::payload. L0 count: 52→48.
 
 // ── view.* ──────────────────────────────────────────────────────────────────

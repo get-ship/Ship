@@ -98,15 +98,7 @@ fn missing_module_section_is_valid() {
     assert_eq!(m.dependencies.len(), 1);
 }
 
-#[test]
-fn require_module_errors_when_absent() {
-    let jsonc = r#"{
-        "dependencies": { "github.com/a/b": "^1.0.0" }
-    }"#;
-    let m = ShipManifest::from_jsonc_str(jsonc).unwrap();
-    let err = m.require_module().unwrap_err();
-    assert!(err.to_string().contains("[module]"), "{err}");
-}
+
 
 #[test]
 fn invalid_semver_is_error() {

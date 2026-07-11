@@ -154,16 +154,6 @@ pub struct ShipManifest {
 }
 
 impl ShipManifest {
-    /// Return the module section, or error if absent.
-    /// Use this in paths that require a publishable package (e.g. `ship publish`).
-    pub fn require_module(&self) -> anyhow::Result<&ManifestModule> {
-        self.module.as_ref().ok_or_else(|| {
-            anyhow::anyhow!(
-                "[module] section is required for this operation. \
-                 Add module.name and module.version to ship.jsonc."
-            )
-        })
-    }
 
     /// Validate a raw manifest and produce a [`ShipManifest`].
     fn from_raw(raw: RawShipManifest) -> anyhow::Result<Self> {
